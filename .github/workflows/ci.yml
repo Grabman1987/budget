@@ -45,7 +45,7 @@ jobs:
         run: docker build -t budget:ci .
       - name: Smoke-test image
         run: |
-          docker run -d --name budget -p 3000:3000 budget:ci
+          docker run -d --name budget -p 3000:3000 -e BUDGET_ORIGIN=http://localhost:3000 -e BUDGET_REPLICATE=0 budget:ci
           for i in $(seq 1 20); do
             curl -fsS http://localhost:3000/health && exit 0
             sleep 1
