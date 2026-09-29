@@ -19,12 +19,12 @@ Gate 1 (specification and designs accepted by the owner): **pending owner sign-o
 - [x] Chart spike: render the Heute pace chart and one Sankey from prototype data with own SVG + d3-scale/d3-shape; note the decision in `docs/adr/0001-charts.md`
 
 ### P1b — Design tokens and blueprint primitives (`docs/prompts/P1b.md`)
-- [ ] Tokens from `.impeccable/design.json` / `DESIGN.md` → CSS custom properties + Tailwind theme; light and dark (`prefers-color-scheme` + manual toggle), print tokens
-- [ ] Self-hosted fonts from `design/prototype/fonts/`
-- [ ] Primitives in `packages/ui`: TitleBlock (Schriftfeld), Registers, DimensionChain (inline, with balancing of rounded parts), PartsList (Stückliste with groups and positions), RevisionTable, AmountInput (uses domain parser), Segmented, Switch, SidePanel / BottomSheet, Toast with undo, Status stamps, class swatches (need/want/future hatching)
-- [ ] Chart primitives: axis/graticule, line (solid/dashed/dash-dot), bars around zero, step line, band, elevation mark
-- [ ] Dev page `/dev/bauteile` showing every primitive in light and dark
-- [ ] Visual tests of primitives against crops of `design/screens`
+- [x] Tokens from `.impeccable/design.json` / `DESIGN.md` → CSS custom properties + Tailwind theme; light and dark (`prefers-color-scheme` + manual toggle), print tokens
+- [x] Self-hosted fonts from `design/prototype/fonts/`
+- [x] Primitives in `packages/ui`: TitleBlock (Schriftfeld), Registers, DimensionChain (inline, with balancing of rounded parts), PartsList (Stückliste with groups and positions), RevisionTable, AmountInput (uses domain parser), Segmented, Switch, SidePanel / BottomSheet, Toast with undo, Status stamps, class swatches (need/want/future hatching)
+- [x] Chart primitives: axis/graticule, line (solid/dashed/dash-dot), bars around zero, step line, band, elevation mark
+- [x] Dev page `/dev/bauteile` showing every primitive in light and dark
+- [x] Visual tests of primitives against crops of `design/screens`
 
 ### P1c — App shell and routing (`docs/prompts/P1c.md`)
 - [ ] Desktop: sidebar "Planliste" 01–05 with collapse, top bar (search Ctrl K, Posteingang with counter, + Buchung), theme toggle, profile

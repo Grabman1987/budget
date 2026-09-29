@@ -1,0 +1,212 @@
+/* Chart grammar: ISO 128 line types, labels, marks. Colours only from token roles. */
+
+svg.chart {
+  display: block;
+  width: 100%;
+  overflow: visible;
+}
+
+.svg-label {
+  font-family: var(--font-tech);
+  font-size: var(--fs-chart-label);
+  letter-spacing: 0.05em;
+  fill: var(--ink-3);
+}
+.svg-label-strong {
+  font-family: var(--font-tech);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  fill: var(--ink);
+}
+.svg-label-line {
+  font-family: var(--font-tech);
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  fill: var(--line);
+}
+.svg-label-red {
+  font-family: var(--font-tech);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  fill: var(--red);
+}
+
+.graticule {
+  stroke: var(--graticule);
+  stroke-width: 1;
+}
+.axis {
+  stroke: var(--rule-strong);
+  stroke-width: 1;
+}
+.axis-dashed {
+  stroke-dasharray: 5 3;
+}
+
+/* Solid = actual · dashed = plan and forecast · dash-dot = previous period and benchmark */
+.l-actual {
+  stroke: var(--line);
+  stroke-width: 2;
+  fill: none;
+}
+.l-plan {
+  stroke: var(--line-2);
+  stroke-width: 1.5;
+  fill: none;
+  stroke-dasharray: var(--dash-plan);
+}
+.l-forecast {
+  stroke: var(--line);
+  stroke-width: 1.75;
+  fill: none;
+  stroke-dasharray: var(--dash-forecast);
+}
+.l-prev {
+  stroke: var(--ink-3);
+  stroke-width: 1.25;
+  fill: none;
+  stroke-dasharray: var(--dash-previous);
+  opacity: 0.8;
+}
+.l-today {
+  stroke: var(--line);
+  stroke-width: 1;
+  stroke-dasharray: var(--dash-today);
+}
+
+/* Dimensions */
+.l-dim {
+  stroke: var(--line);
+  stroke-width: 1.25;
+  fill: none;
+}
+.l-dim-thin {
+  stroke-width: 1;
+}
+.l-dim-alert {
+  stroke: var(--red);
+}
+.l-tick {
+  stroke: var(--line);
+  stroke-width: 1.6;
+}
+.l-ext {
+  stroke: var(--line-2);
+  stroke-width: 1;
+  fill: none;
+  stroke-dasharray: var(--dash-extension);
+}
+.dot-actual {
+  fill: var(--ground);
+  stroke: var(--line);
+  stroke-width: 2;
+}
+
+/* Elevation mark: open triangle */
+.kote {
+  fill: none;
+  stroke: var(--line);
+  stroke-width: 1.4;
+  stroke-linejoin: round;
+}
+
+/* Band: tinted, dashed edges */
+.band-fill {
+  fill: var(--tint-2);
+  stroke: none;
+}
+.band-edge {
+  fill: none;
+  stroke: var(--line-2);
+  stroke-width: 1;
+  stroke-dasharray: 4 3;
+}
+
+/* Bars around zero */
+.bar-own {
+  fill: var(--line);
+}
+.bar-mkt {
+  fill: var(--line-2);
+}
+.bar-pos {
+  fill: var(--heat-green);
+  stroke: var(--good-ink);
+  stroke-width: 0.8;
+}
+.bar-neg2 {
+  fill: color-mix(in srgb, var(--heat-red) 55%, transparent);
+  stroke: var(--bad-ink);
+  stroke-width: 0.8;
+}
+
+/* Chart legend */
+.chart-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 20px;
+  margin: 8px 0 0;
+  padding: 0;
+  list-style: none;
+  font-size: 12.5px;
+  color: var(--ink-2);
+}
+.chart-legend li {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.chart-legend svg {
+  width: 32px;
+  height: 8px;
+  overflow: visible;
+}
+
+/* Sankey: ink ribbons at 20 % */
+.sk-link {
+  opacity: 0.2;
+}
+.sk-link:hover {
+  opacity: 0.42;
+}
+.sk-link.l-inc {
+  fill: var(--line);
+}
+.sk-link.l-need {
+  fill: var(--need);
+}
+.sk-link.l-want {
+  fill: var(--want);
+}
+.sk-link.l-future {
+  fill: var(--future);
+}
+.sk-link.l-rest {
+  fill: var(--ink-3);
+}
+.sk-node {
+  fill: var(--line);
+}
+.sk-node.n-need {
+  fill: var(--need);
+}
+.sk-node.n-want {
+  fill: var(--want);
+}
+.sk-node.n-future {
+  fill: var(--future);
+}
+/* "Übrig": dashed outline node */
+.sk-node.n-rest {
+  fill: var(--raised);
+  stroke: var(--ink-2);
+  stroke-dasharray: 3 2;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .sk-link {
+    transition: opacity var(--t-fast);
+  }
+}

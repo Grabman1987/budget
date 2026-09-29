@@ -9,7 +9,7 @@ export function ChartsSpikePage() {
   const [sankeyRef, sankeyWidth] = useElementWidth<HTMLDivElement>();
   return (
     <main className="spike">
-      <h1>Diagramm-Spike</h1>
+      <h1 className="t-display">Diagramm-Spike</h1>
       <p className="spike-intro">
         Beispieldaten, kein echtes Hauptbuch. Beide Diagramme sind eigenes SVG auf d3-scale und
         d3-shape, gezeichnet in den Linienarten der Blaupause. <Link to="/">Zurück</Link>
