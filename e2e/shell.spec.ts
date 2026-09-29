@@ -185,9 +185,7 @@ test.describe('panel via route param', () => {
 });
 
 test.describe('desktop shell', () => {
-  test.beforeEach((_fixtures, testInfo) => {
-    test.skip(isPhone(testInfo), 'desktop only');
-  });
+  test.skip(({ isMobile }) => isMobile, 'desktop only');
 
   test('layout metrics follow DESIGN.md (sidebar 236, top bar 64, search max 460)', async ({
     page,
@@ -263,9 +261,7 @@ test.describe('desktop shell', () => {
 });
 
 test.describe('phone shell', () => {
-  test.beforeEach((_fixtures, testInfo) => {
-    test.skip(!isPhone(testInfo), 'phone only');
-  });
+  test.skip(({ isMobile }) => !isMobile, 'phone only');
 
   test('tab bar with the same five areas in the same order, header and floating button', async ({
     page,
