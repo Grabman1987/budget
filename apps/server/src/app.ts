@@ -1,12 +1,16 @@
 import { existsSync } from 'node:fs';
 import { relative, resolve } from 'node:path';
+import type { Db } from '@budget/db';
 import { serveStatic } from '@hono/node-server/serve-static';
 import { Hono } from 'hono';
 import { secureHeaders } from 'hono/secure-headers';
+import { debugSummary } from './debug-summary';
 
 export interface AppOptions {
   /** Directory of the built web app (Vite `dist`). */
   webDir: string;
+  /** Database for the read-only debug endpoint; omit to keep the endpoint off. */
+  database?: Db | undefined;
 }
 
 /**
@@ -30,7 +34,7 @@ export const CONTENT_SECURITY_POLICY = {
 
 const ONE_YEAR = 60 * 60 * 24 * 365;
 
-export function createApp({ webDir }: AppOptions): Hono {
+export function createApp({ webDir, database }: AppOptions): Hono {
   const app = new Hono();
   const root = resolve(webDir);
   // serveStatic resolves `root` against the current working directory.
@@ -49,6 +53,12 @@ export function createApp({ webDir }: AppOptions): Hono {
   );
 
   app.get('/health', (c) => c.json({ status: 'ok' }));
+
+  // Read-only seed check. Only mounted when a database is passed in (BUDGET_DEBUG_API=1), never
+  // on by default; auth (P1e) has to sit in front of it before it may run anywhere public.
+  if (database) {
+    app.get('/api/debug/summary', (c) => c.json(debugSummary(database, c.req.query('asOf'))));
+  }
   app.all('/api/*', (c) => c.json({ error: 'not_found' }, 404));
 
   // Hashed build output is immutable; everything else must revalidate.

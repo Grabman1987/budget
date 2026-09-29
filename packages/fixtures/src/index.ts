@@ -1,2 +1,3 @@
-// Synthetic sample ledger (port of design/prototype/reports-core.js) arrives with P2.
-export {};
+export * from './reference/model';
+export { sampleLedger } from './ledger/build';
+export { LEDGER_TABLE_ORDER, type SampleLedger } from './ledger/types';

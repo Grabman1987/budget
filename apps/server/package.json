@@ -5,15 +5,17 @@
   "type": "module",
   "scripts": {
     "dev": "tsx watch src/index.ts",
-    "build": "esbuild src/index.ts --bundle --platform=node --format=esm --target=node22 --outfile=dist/index.js --banner:js=\"import{createRequire}from'node:module';const require=createRequire(import.meta.url);\"",
+    "build": "esbuild src/index.ts --bundle --platform=node --format=esm --target=node22 --external:better-sqlite3 --outfile=dist/index.js --banner:js=\"import{createRequire}from'node:module';const require=createRequire(import.meta.url);\"",
     "typecheck": "tsc -p tsconfig.json"
   },
   "dependencies": {
+    "@budget/db": "*",
     "@budget/domain": "*",
     "@hono/node-server": "^1.19.0",
     "hono": "^4.13.0"
   },
   "devDependencies": {
+    "@budget/fixtures": "*",
     "esbuild": "^0.25.0",
     "tsx": "^4.20.0"
   }
