@@ -1,0 +1,35 @@
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+    steps:
+      # Secrets are not available in `if:` expressions, so gate through an output.
+      - name: Check deploy token
+        id: gate
+        run: |
+          if [ -n "$FLY_API_TOKEN" ]; then
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::notice::FLY_API_TOKEN is not set, skipping deploy."
+          fi
+      - uses: actions/checkout@v4
+        if: steps.gate.outputs.enabled == 'true'
+      - uses: superfly/flyctl-actions/setup-flyctl@master
+        if: steps.gate.outputs.enabled == 'true'
+      - run: flyctl deploy --remote-only
+        if: steps.gate.outputs.enabled == 'true'

@@ -2,7 +2,7 @@
 
 Private Haushalts-Finanz-App (PWA) für einen Nutzer. Ersetzt das bisherige Cockpit auf Actual Budget, YNAB und Portfolio Performance: Envelope-Budgeting, Regelwerk aus Finanz-Basics und vollständiges Vermögens- und Portfolio-Tracking in einer Datenbasis.
 
-Stand: Ende P0, Kandidat für Gate 1 (29.09.2026). Code entsteht ab P1.
+Stand: P1a (Repo-Gerüst und Stack-Spike) umgesetzt, Gate 1 steht noch aus (29.09.2026).
 
 ## Wo steht was
 
@@ -20,10 +20,23 @@ Stand: Ende P0, Kandidat für Gate 1 (29.09.2026). Code entsteht ab P1.
 | `reference/finance-hub/` | Getestete Rechenmodule des alten Cockpits zum Portieren (bereinigt) |
 | `CLAUDE.md`, `AGENTS.md` | Arbeitsregeln für Coding-Agenten |
 
+## Entwickeln
+
+Node 22 (`.nvmrc`), npm workspaces.
+
+```bash
+npm install
+npm run dev        # Web (Vite, :5173) + Server (Hono, :3000) mit Hot Reload
+npm run check      # Typecheck + Lint + Unit-Tests
+npm run test:e2e   # Build + Playwright (einmalig: npx playwright install chromium)
+npm run build      # apps/web/dist + apps/server/dist/index.js
+npm start          # Produktions-Server (liefert die gebaute Web-App aus)
+```
+
 ## Prototyp ansehen
 
 ```bash
-python -m http.server 5180 -d design/prototype
+npm run proto
 ```
 
 Dann http://localhost:5180 öffnen. Alle Zahlen sind Beispieldaten.
