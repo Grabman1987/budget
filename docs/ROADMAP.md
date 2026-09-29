@@ -55,12 +55,12 @@ Order: P1f-1 → first deploy (after P1f-2 B1–B3) → P1f-3 before P2; P1f-4 i
 - [x] A1 deploy only after green CI on `main`, `workflow_dispatch`, branch protection documented
 - [x] A2 actions pinned to SHAs, token only in the deploy step
 - [x] A3 `--ha=false`, single-machine guard, first-deploy order in docs
-- [ ] A4 lockfile in sync (jsdom)
+- [x] A4 lockfile in sync (jsdom)
 - [x] A5 `BUDGET_REPLICATE=1`, health grace period
 - [x] A6 rollback runbook, additive migrations rule, Litestream commands verified
-- [ ] A7 Windows paths (`fileURLToPath`), `.npmrc ignore-scripts`, engines, working `npm run dev`, e2e container
-- [ ] A8 Dependabot, digest pins, unused deps, SIGTERM
-- [ ] A9 README/SPEC drift
+- [x] A7 Windows paths (`fileURLToPath`), `.npmrc ignore-scripts`, engines, working `npm run dev`, e2e container
+- [x] A8 Dependabot, digest pins, unused deps, SIGTERM
+- [x] A9 README/SPEC drift
 
 ### P1f-2 — Auth and backup (`docs/prompts/P1f-2.md`)
 - [ ] B1 audit-log flood bounded

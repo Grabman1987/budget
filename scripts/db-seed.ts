@@ -2,12 +2,12 @@
 // Usage: npm run db:seed [-- --file path/to.sqlite] [--fresh]
 import { existsSync, mkdirSync, rmSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
-import { migrateDatabase, openDatabase } from '@budget/db';
+import { devDatabasePath, migrateDatabase, openDatabase } from '@budget/db';
 import { seedDatabase } from '@budget/fixtures/seed';
 
 const args = process.argv.slice(2);
 const fileIndex = args.indexOf('--file');
-const file = resolve(fileIndex >= 0 ? (args[fileIndex + 1] ?? '') : 'data/dev.sqlite');
+const file = fileIndex >= 0 ? resolve(args[fileIndex + 1] ?? '') : devDatabasePath();
 const fresh = args.includes('--fresh');
 
 mkdirSync(dirname(file), { recursive: true });

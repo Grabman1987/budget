@@ -1,4 +1,5 @@
 import { mkdirSync } from 'node:fs';
+import type { Server } from 'node:http';
 import { dirname, resolve } from 'node:path';
 import { migrateDatabase, openDatabase } from '@budget/db';
 import { serve } from '@hono/node-server';
@@ -18,7 +19,7 @@ const migrationsDir =
   resolve(import.meta.dirname, '../../../packages/db/drizzle');
 
 mkdirSync(dirname(databasePath), { recursive: true });
-const { db } = openDatabase(databasePath);
+const { db, close: closeDatabase } = openDatabase(databasePath);
 migrateDatabase(db, migrationsDir);
 
 const config = authConfigFromEnv();
@@ -36,8 +37,27 @@ const app = createApp({
   database: process.env['BUDGET_DEBUG_API'] === '1' ? db : undefined,
 });
 
-serve({ fetch: app.fetch, port, hostname: '0.0.0.0' }, (info) => {
+const server = serve({ fetch: app.fetch, port, hostname: '0.0.0.0' }, (info) => {
   console.log(
     `Budget server listening on http://localhost:${info.port} (web: ${webDir}, origin: ${config.origin})`,
   );
 });
+
+// Graceful stop. As PID 1 in the container Node ignores SIGTERM unless a handler exists, and under
+// Litestream the parent waits for this process to exit before it flushes the last WAL frames.
+let stopping = false;
+function shutdown(signal: NodeJS.Signals): void {
+  if (stopping) return;
+  stopping = true;
+  console.log(`${signal} received, closing the server and the database`);
+  // Force-close after 10 s so a stuck connection cannot delay the stop past Fly's kill_timeout.
+  const timer = setTimeout(() => process.exit(1), 10_000);
+  timer.unref();
+  server.close(() => {
+    closeDatabase();
+    process.exit(0);
+  });
+  (server as Partial<Server>).closeIdleConnections?.();
+}
+process.on('SIGTERM', shutdown);
+process.on('SIGINT', shutdown);

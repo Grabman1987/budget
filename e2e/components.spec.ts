@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
+import { expectScreenshot } from './visual';
 
 const PAGE = '/dev/bauteile';
 
@@ -118,7 +119,7 @@ test.describe('design system page /dev/bauteile', () => {
   for (const scheme of ['light', 'dark'] as const) {
     test(`visual: ${scheme}`, async ({ page }) => {
       await open(page, scheme);
-      await expect(page).toHaveScreenshot(`bauteile-${scheme}.png`, { fullPage: true });
+      await expectScreenshot(page, `bauteile-${scheme}.png`, { fullPage: true });
     });
   }
 });

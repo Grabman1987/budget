@@ -1,6 +1,7 @@
 import Database from 'better-sqlite3';
 import { drizzle, type BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import { migrate } from 'drizzle-orm/better-sqlite3/migrator';
+import { moduleRelativePath } from './paths';
 import * as schema from './schema';
 
 export type Db = BetterSQLite3Database<typeof schema>;
@@ -14,7 +15,7 @@ export interface OpenedDatabase {
 
 /** Folder with the generated SQL migrations. Override with `BUDGET_MIGRATIONS_DIR` in bundles. */
 export const defaultMigrationsFolder = (): string =>
-  process.env['BUDGET_MIGRATIONS_DIR'] ?? new URL('../drizzle', import.meta.url).pathname;
+  process.env['BUDGET_MIGRATIONS_DIR'] ?? moduleRelativePath(import.meta.url, '../drizzle');
 
 /**
  * Open a SQLite database with the settings the app relies on: WAL (Litestream), enforced foreign
