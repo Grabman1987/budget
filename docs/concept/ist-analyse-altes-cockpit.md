@@ -29,7 +29,7 @@ Die bestehende App ist funktional weit, aber architektonisch ein **Cockpit auf A
 | Drei Kategorie-Eingaben | Gewachsen: Chips, Select, Picker | Ein Picker, „Aufteilen“ immer sichtbar |
 | Person, Rückforderung Kontakt C., Spese/Diät | Person als eigene Dimension | Entfällt; generisch über Kontakte und Split-Anteile |
 | Inflow/Outflow, große Zahl, Farbe | fehlt | Übernommen (Outflow vorausgewählt, rot/grün) |
-| Juli 2026 und früher mit ca. 60.000 € überplant | Budgethistorie ab Dez. 2020 aus YNAB mit negativem „Zu verteilen“-Vortrag; Easybank/Anadi-Hypothese nicht verifiziert | Stichtag 01.10.2023 mit Eröffnungssalden |
+| Vergangene Monate deutlich überplant | Lange Budgethistorie aus YNAB mit negativem „Zu verteilen“-Vortrag; Ursache nicht verifiziert | Stichtag 01.10.2023 mit Eröffnungssalden |
 | Einnahmen im Plan nicht aufgeschlüsselt | Kein Einnahmen-Report | Einnahmenarten, Bericht B06 |
 | Kontakt C.-Themen (Miete, Hörbuch-Abo, Auslagen) | Personenlogik im Code | Generisch: erwartete Zahlungen (versioniert) plus Kontakte mit Forderungskonto |
 

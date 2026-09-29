@@ -2,7 +2,7 @@
 
 Private Haushalts-Finanz-App (PWA) für einen Nutzer. Ersetzt das bisherige Cockpit auf Actual Budget, YNAB und Portfolio Performance: Envelope-Budgeting, Regelwerk aus Finanz-Basics und vollständiges Vermögens- und Portfolio-Tracking in einer Datenbasis.
 
-Stand: P1a (Repo-Gerüst und Stack-Spike) umgesetzt, Gate 1 steht noch aus (29.09.2026).
+Stand 29.09.2026: P1a–P1e umgesetzt, Audit-Korrekturen P1f offen (`docs/audit/2026-09-29-p1-audit.md`), noch nicht deployt. Gate 1 steht noch aus.
 
 ## Wo steht was
 

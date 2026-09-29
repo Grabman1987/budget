@@ -24,14 +24,14 @@ Gate 1 (specification and designs accepted by the owner): **pending owner sign-o
 - [x] Primitives in `packages/ui`: TitleBlock (Schriftfeld), Registers, DimensionChain (inline, with balancing of rounded parts), PartsList (Stückliste with groups and positions), RevisionTable, AmountInput (uses domain parser), Segmented, Switch, SidePanel / BottomSheet, Toast with undo, Status stamps, class swatches (need/want/future hatching)
 - [x] Chart primitives: axis/graticule, line (solid/dashed/dash-dot), bars around zero, step line, band, elevation mark
 - [x] Dev page `/dev/bauteile` showing every primitive in light and dark
-- [x] Visual tests of primitives against crops of `design/screens`
+- [ ] Visual tests of primitives against crops of `design/screens` (audit D9: current tests compare against own baselines only → P1f-4)
 
 ### P1c — App shell and routing (`docs/prompts/P1c.md`)
 - [x] Desktop: sidebar "Planliste" 01–05 with collapse, top bar (search Ctrl K, Posteingang with counter, + Buchung), theme toggle, profile
 - [x] Mobile (< 768 px): header, tab bar, floating + button; same routes and order
 - [x] Routes for all areas and registers (SPEC §3) with placeholder pages built from TitleBlock + Registers; every view has its own URL
 - [x] Side panel (desktop) / bottom sheet (phone) pattern wired to a route param
-- [x] E2E screenshots of the shell at 1440 and 390 compared with `design/screens` (layout, not data)
+- [ ] E2E screenshots of the shell at 1440 and 390 compared with `design/screens` (layout, not data) (audit D9 → P1f-4)
 
 ### P1d — Database, fixtures and domain core (`docs/prompts/P1d.md`)
 - [x] Drizzle schema v1 for the entities in SPEC §5, migrations, repositories; soft delete; audit log with undo; idempotency keys for imports
@@ -45,7 +45,59 @@ Gate 1 (specification and designs accepted by the owner): **pending owner sign-o
 - [x] First-device bootstrap via one-time setup token from an environment secret; no open registration
 - [x] Rate limiting on auth endpoints; audit of logins
 - [x] Litestream backup to object storage (config + restore instructions in `docs/ops.md`)
-- [ ] Deployed to the new Fly app; `/health` green; login works on phone and desktop
+- [ ] Deployed to the new Fly app; `/health` green; login works on phone and desktop (after P1f-1 and P1f-2 B1–B3; owner checklist in `docs/ops.md`)
+
+## P1f Audit fixes (`docs/audit/2026-09-29-p1-audit.md`)
+
+Order: P1f-1 → first deploy (after P1f-2 B1–B3) → P1f-3 before P2; P1f-4 in parallel. B5 (encrypted backup) before any real data.
+
+### P1f-1 — Deploy, CI and build (`docs/prompts/P1f-1.md`)
+- [ ] A1 deploy only after green CI on `main`, `workflow_dispatch`, branch protection documented
+- [ ] A2 actions pinned to SHAs, token only in the deploy step
+- [ ] A3 `--ha=false`, single-machine guard, first-deploy order in docs
+- [ ] A4 lockfile in sync (jsdom)
+- [ ] A5 `BUDGET_REPLICATE=1`, health grace period
+- [ ] A6 rollback runbook, additive migrations rule, Litestream commands verified
+- [ ] A7 Windows paths (`fileURLToPath`), `.npmrc ignore-scripts`, engines, working `npm run dev`, e2e container
+- [ ] A8 Dependabot, digest pins, unused deps, SIGTERM
+- [ ] A9 README/SPEC drift
+
+### P1f-2 — Auth and backup (`docs/prompts/P1f-2.md`)
+- [ ] B1 audit-log flood bounded
+- [ ] B2 recovery sessions revocable, "Alle anderen Sitzungen beenden"
+- [ ] B3 body limit
+- [ ] B4 recovery codes with pepper
+- [ ] B5 client-side encrypted backup (**blocker for real data**)
+- [ ] B6 rate limiter IPv6 /64 and capped
+- [ ] B7 low-severity hardening
+
+### P1f-3 — Data model and domain (`docs/prompts/P1f-3.md`, before P2)
+- [ ] C1 envelope rollover per concept §5.3
+- [ ] C2 "Zu verteilen" by on-budget status
+- [ ] C3 income categories and income types
+- [ ] C4 split-level transfers, idempotent transfer import
+- [ ] C5 one opening-date rule
+- [ ] C6 account type and on-budget flag
+- [ ] C7 foreign-currency fields
+- [ ] C8 undo keeps invariants
+- [ ] C9 extended CHECK enums
+- [ ] C10 holdings per account, FIFO, FX, cash-flow returns
+- [ ] C11 read models, Vienna date module, rounding
+- [ ] C12 cheap model gaps
+- [ ] C13 stronger figure tests and fixture coverage
+
+### P1f-4 — Frontend (`docs/prompts/P1f-4.md`)
+- [ ] D1 PartsList keyboard
+- [ ] D2 toast live region and in-dialog
+- [ ] D3 route titles, search params, panel state
+- [ ] D4 page frame as in the prototype
+- [ ] D5 full Maßkette primitive
+- [ ] D6 dev routes not in production
+- [ ] D7 AmountInput a11y
+- [ ] D8 details, jsx-a11y, axe
+- [ ] D9 honest visual comparison against `design/screens`
+
+Process from P1f on: one branch per task, PRs ≤ ~1.500 changed lines, tick only what the repository proves.
 
 ## P2 Kern und Migration
 Accounts (roles and terms), bookings with splits and transfers, capture dialog (SPEC §3), categories/groups/classes, Plan › Monat (waterfall, views, triage, distribute money), Konten (Übersicht, Einzelkonto, Kontostand prüfen with Ausgleich, Alle Buchungen). Migration tooling from Actual (runs on the server, never commits data). **Gate 2:** balances per account and month match to the cent.
