@@ -1,0 +1,60 @@
+import { ToastProvider, cx } from '@budget/ui';
+import { Outlet } from '@tanstack/react-router';
+import { useEffect, useRef, useState } from 'react';
+import { MobileHeader, TabBar } from './mobile-chrome';
+import { PageTitleProvider, useActivePage } from './page-meta';
+import { PanelHost } from './panel-host';
+import { Sidebar } from './sidebar';
+import { Topbar } from './topbar';
+import { useStoredFlag } from './use-stored-flag';
+
+const APP_NAME = 'Budget';
+
+/**
+ * Application shell: sidebar and top bar on desktop, header, tab bar and + button on the phone.
+ * Both use the same routes and the same order of areas.
+ */
+export function AppShell() {
+  const [collapsed, setCollapsed] = useStoredFlag('budget-sidebar-collapsed');
+  const page = useActivePage();
+  const main = useRef<HTMLElement>(null);
+  const [override, setOverride] = useState<string | undefined>();
+  const title = override ?? page?.title ?? APP_NAME;
+
+  useEffect(() => {
+    document.title = title === APP_NAME ? APP_NAME : `${title} · ${APP_NAME}`;
+  }, [title]);
+
+  return (
+    <ToastProvider>
+      <PageTitleProvider value={setOverride}>
+        <div className={cx('app', collapsed && 'is-collapsed')}>
+          <a
+            className="skip-link"
+            href="#main"
+            onClick={(event) => {
+              event.preventDefault();
+              main.current?.focus();
+            }}
+          >
+            Zum Inhalt springen
+          </a>
+          <Sidebar area={page?.area} />
+          <div className="main">
+            <Topbar collapsed={collapsed} onToggle={() => setCollapsed(!collapsed)} />
+            <MobileHeader title={title} />
+            <main className="sheet" id="main" tabIndex={-1} ref={main}>
+              <Outlet />
+            </main>
+          </div>
+        </div>
+        <TabBar area={page?.area} />
+        <PanelHost />
+      </PageTitleProvider>
+      {/* Announces the new page to screen readers after client-side navigation. */}
+      <div className="sr-only" role="status" aria-live="polite">
+        {title}
+      </div>
+    </ToastProvider>
+  );
+}

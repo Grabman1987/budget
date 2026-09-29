@@ -27,11 +27,11 @@ Gate 1 (specification and designs accepted by the owner): **pending owner sign-o
 - [x] Visual tests of primitives against crops of `design/screens`
 
 ### P1c — App shell and routing (`docs/prompts/P1c.md`)
-- [ ] Desktop: sidebar "Planliste" 01–05 with collapse, top bar (search Ctrl K, Posteingang with counter, + Buchung), theme toggle, profile
-- [ ] Mobile (< 768 px): header, tab bar, floating + button; same routes and order
-- [ ] Routes for all areas and registers (SPEC §3) with placeholder pages built from TitleBlock + Registers; every view has its own URL
-- [ ] Side panel (desktop) / bottom sheet (phone) pattern wired to a route param
-- [ ] E2E screenshots of the shell at 1440 and 390 compared with `design/screens` (layout, not data)
+- [x] Desktop: sidebar "Planliste" 01–05 with collapse, top bar (search Ctrl K, Posteingang with counter, + Buchung), theme toggle, profile
+- [x] Mobile (< 768 px): header, tab bar, floating + button; same routes and order
+- [x] Routes for all areas and registers (SPEC §3) with placeholder pages built from TitleBlock + Registers; every view has its own URL
+- [x] Side panel (desktop) / bottom sheet (phone) pattern wired to a route param
+- [x] E2E screenshots of the shell at 1440 and 390 compared with `design/screens` (layout, not data)
 
 ### P1d — Database, fixtures and domain core (`docs/prompts/P1d.md`)
 - [ ] Drizzle schema v1 for the entities in SPEC §5, migrations, repositories; soft delete; audit log with undo; idempotency keys for imports
