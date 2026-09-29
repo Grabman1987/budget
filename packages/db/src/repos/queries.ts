@@ -1,48 +1,40 @@
-import { and, asc, count, eq, isNotNull, isNull, lte, or, sql } from 'drizzle-orm';
-import { account, booking, bookingSplit } from '../schema';
+import { budgetMonths, type BudgetInput, type BudgetMonth, type LedgerSplit } from '@budget/domain';
+import { and, asc, count, eq, gte, isNull, lte, sql } from 'drizzle-orm';
+import { account, booking, bookingSplit, budgetMonth, category } from '../schema';
+import { assignedByMonth } from './envelopes';
 import type { Executor } from './types';
 
 /**
- * Read models for the domain layer. All are single aggregate queries (no N+1) that ignore
- * soft-deleted bookings and accounts; splits count through their live parent booking. Indexes
- * used: `booking_account_date_idx`, `split_booking_idx`.
+ * Read models for the domain layer. They are aggregate queries without N+1 that ignore
+ * soft-deleted bookings, accounts and categories; splits count through their live parent booking.
+ * The arithmetic itself lives in `@budget/domain`.
  */
 
 export interface AccountBalance {
   accountId: string;
   balanceCents: number;
 }
-export interface CategoryMonthActivity {
-  /** `null` = uncategorized (an inflow that is still "Zu verteilen"). */
-  categoryId: string | null;
-  /** `YYYY-MM` of the booking date. */
-  month: string;
-  /** Signed sum of split amounts (outflow negative). */
-  cents: number;
-}
 
 /**
- * Balance per live account (by `sort_order`): opening balance (counted from its opening date on)
- * plus the booking amounts up to and including `asOfDate` (default: all bookings).
+ * Balance per live account (by `sort_order`) as of `asOfDate` (default: all bookings), by the one
+ * opening-date rule of the domain (`balanceOn`, C5): 0 before the opening date, afterwards the
+ * opening balance plus every booking dated on or after the opening date.
  */
 export function accountBalances(db: Executor, asOfDate?: string): AccountBalance[] {
-  const opening =
+  const sum = sql`${account.openingBalanceCents} + COALESCE(SUM(${booking.amountCents}), 0)`;
+  const balance =
     asOfDate === undefined
-      ? sql`${account.openingBalanceCents}`
-      : sql`CASE WHEN ${account.openingDate} <= ${asOfDate} THEN ${account.openingBalanceCents} ELSE 0 END`;
+      ? sum
+      : sql`CASE WHEN ${account.openingDate} <= ${asOfDate} THEN ${sum} ELSE 0 END`;
   return db
-    .select({
-      accountId: account.id,
-      balanceCents: sql<number>`${opening} + COALESCE(SUM(${booking.amountCents}), 0)`.mapWith(
-        Number,
-      ),
-    })
+    .select({ accountId: account.id, balanceCents: sql<number>`${balance}`.mapWith(Number) })
     .from(account)
     .leftJoin(
       booking,
       and(
         eq(booking.accountId, account.id),
         isNull(booking.deletedAt),
+        gte(booking.date, account.openingDate),
         asOfDate === undefined ? undefined : lte(booking.date, asOfDate),
       ),
     )
@@ -53,29 +45,83 @@ export function accountBalances(db: Executor, asOfDate?: string): AccountBalance
 }
 
 /**
- * Activity per split category and booking month, ordered by month then category (uncategorized
- * first). Transfer legs count only when their split carries a category (a plain transfer is
- * neutral and never becomes "Zu verteilen").
+ * Everything `budgetMonths` needs, read in five queries: live accounts and categories, the splits
+ * of live bookings on live accounts with the account of the other transfer leg, assigned amounts
+ * and held amounts. Transfer legs are whole bookings (`booking.transfer_id`) or single splits
+ * (`booking_split.transfer_id`); both kinds are resolved here.
  */
-export function activityByCategoryMonth(db: Executor): CategoryMonthActivity[] {
-  const month = sql<string>`substr(${booking.date}, 1, 7)`;
-  return db
+export function budgetLedger(db: Executor): Omit<BudgetInput, 'months'> {
+  const accounts = db
     .select({
+      id: account.id,
+      onBudget: account.onBudget,
+      openingBalanceCents: account.openingBalanceCents,
+      openingDate: account.openingDate,
+    })
+    .from(account)
+    .where(isNull(account.deletedAt))
+    .all();
+  const categories = db
+    .select({
+      id: category.id,
+      kind: category.kind,
+      rolloverOverspending: category.rolloverOverspending,
+      cardAccountId: category.cardAccountId,
+    })
+    .from(category)
+    .where(isNull(category.deletedAt))
+    .all();
+  const rows = db
+    .select({
+      bookingId: booking.id,
+      accountId: booking.accountId,
+      date: booking.date,
+      bookingTransferId: booking.transferId,
+      splitTransferId: bookingSplit.transferId,
+      amountCents: bookingSplit.amountCents,
       categoryId: bookingSplit.categoryId,
-      month: month.as('month'),
-      cents: sql<number>`SUM(${bookingSplit.amountCents})`.mapWith(Number),
     })
     .from(bookingSplit)
     .innerJoin(booking, eq(booking.id, bookingSplit.bookingId))
-    .where(
-      and(
-        isNull(booking.deletedAt),
-        or(isNull(booking.transferId), isNotNull(bookingSplit.categoryId)),
-      ),
-    )
-    .groupBy(bookingSplit.categoryId, month)
-    .orderBy(asc(sql`month`), asc(bookingSplit.categoryId))
+    .innerJoin(account, eq(account.id, booking.accountId))
+    .where(and(isNull(booking.deletedAt), isNull(account.deletedAt)))
     .all();
+  // Legs per transfer: (booking id, account) of a whole-booking leg or of a split's booking.
+  const legs = new Map<string, { bookingId: string; accountId: string }[]>();
+  const addLeg = (transferId: string, bookingId: string, accountId: string) => {
+    const list = legs.get(transferId) ?? [];
+    if (!list.some((l) => l.bookingId === bookingId)) list.push({ bookingId, accountId });
+    legs.set(transferId, list);
+  };
+  for (const r of rows) {
+    if (r.bookingTransferId) addLeg(r.bookingTransferId, r.bookingId, r.accountId);
+    if (r.splitTransferId) addLeg(r.splitTransferId, r.bookingId, r.accountId);
+  }
+  const partnerOf = (transferId: string | null, bookingId: string) =>
+    transferId === null
+      ? null
+      : (legs.get(transferId)?.find((l) => l.bookingId !== bookingId)?.accountId ?? null);
+  const splits: LedgerSplit[] = rows.map((r) => ({
+    accountId: r.accountId,
+    date: r.date,
+    amountCents: r.amountCents,
+    categoryId: r.categoryId,
+    transferAccountId: partnerOf(r.splitTransferId ?? r.bookingTransferId, r.bookingId),
+  }));
+  const held = Object.fromEntries(
+    db
+      .select({ month: budgetMonth.month, heldCents: budgetMonth.heldCents })
+      .from(budgetMonth)
+      .where(isNull(budgetMonth.deletedAt))
+      .all()
+      .map((r) => [r.month, r.heldCents]),
+  );
+  return { accounts, categories, splits, assigned: assignedByMonth(db), held };
+}
+
+/** The budget of `months` (consecutive `YYYY-MM`): envelopes and "Zu verteilen" per month. */
+export function budget(db: Executor, months: string[]): BudgetMonth[] {
+  return budgetMonths({ ...budgetLedger(db), months });
 }
 
 /** Number of live bookings per account (accounts without bookings are omitted). */

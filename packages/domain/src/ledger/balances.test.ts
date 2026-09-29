@@ -47,3 +47,30 @@ describe('balanceSeries', () => {
     expect(series.map((s) => s.balances.get('giro'))).toEqual([447500, 447499]);
   });
 });
+
+describe('opening-date rule (C5, same rule as the SQL read model)', () => {
+  // Account opened after the start date 01.10.2023, with history before its opening date.
+  const late = [{ id: 'tg', openingBalanceCents: 50000, openingDate: '2024-03-15' }];
+  const history = [
+    { accountId: 'tg', date: '2024-03-01', amountCents: 7000 },
+    { accountId: 'tg', date: '2024-03-15', amountCents: -1000 },
+    { accountId: 'tg', date: '2024-04-02', amountCents: 2500 },
+  ];
+
+  it('is 0 before the opening date, then opening balance plus bookings from that day on', () => {
+    const on = (asOf?: string) => accountBalances(late, history, asOf).get('tg');
+    expect(on('2023-10-31')).toBe(0);
+    expect(on('2024-03-14')).toBe(0);
+    expect(on('2024-03-15')).toBe(49000);
+    expect(on('2024-03-31')).toBe(49000);
+    expect(on('2024-04-30')).toBe(51500);
+    expect(on()).toBe(51500);
+  });
+
+  it('balanceSeries follows the same rule', () => {
+    const dates = ['2024-02-29', '2024-03-14', '2024-03-15', '2024-04-30'];
+    expect(balanceSeries(late, history, dates).map((s) => s.balances.get('tg'))).toEqual([
+      0, 0, 49000, 51500,
+    ]);
+  });
+});

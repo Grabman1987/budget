@@ -18,10 +18,15 @@ export function envelopeMonth(input: EnvelopeInput): EnvelopeMonth {
   return { ...input, availableCents, overspentCents: Math.max(0, -availableCents) };
 }
 
-/** A chain of months of one envelope (ascending); the available amount rolls over. */
+/**
+ * A chain of months of one envelope (ascending). The carry is `max(0, available)` of the previous
+ * month (concept §5.3): overspending is not carried but reduces the next month's "Zu verteilen"
+ * (see `budgetMonths`). With `rolloverOverspending` the negative amount is carried instead.
+ */
 export function envelopeSeries(
   months: ReadonlyArray<{ month: string; assignedCents: number; activityCents: number }>,
   openingCarryCents = 0,
+  options: { rolloverOverspending?: boolean } = {},
 ): Array<EnvelopeMonth & { month: string }> {
   const out: Array<EnvelopeMonth & { month: string }> = [];
   let carry = openingCarryCents;
@@ -32,16 +37,7 @@ export function envelopeSeries(
       activityCents: m.activityCents,
     });
     out.push({ month: m.month, ...e });
-    carry = e.availableCents;
+    carry = options.rolloverOverspending ? e.availableCents : Math.max(0, e.availableCents);
   }
   return out;
-}
-
-/** "Zu verteilen": what is left to assign. The target is 0. */
-export function toBeAssigned(input: {
-  carryCents: number;
-  incomeCents: number;
-  assignedCents: number;
-}): number {
-  return input.carryCents + input.incomeCents - input.assignedCents;
 }

@@ -10,12 +10,16 @@ import {
   type GroupedContext,
 } from './audit';
 import { BookingInvariantError, EntityNotFoundError } from './errors';
+import { assertLedgerInvariants, relatedTransferBookings } from './invariants';
 import { runInTransaction, type Executor } from './types';
 
 /**
  * Bookings, splits and transfers (SPEC §5). Invariants enforced here, not in SQL:
  * - the splits of a booking sum to its `amount_cents` (and there is at least one split);
- * - a transfer (Umbuchung) is exactly two bookings with the same `transfer_id` and opposite amounts;
+ * - a transfer (Umbuchung) has exactly two legs with opposite amounts: two whole bookings, or one
+ *   split and one booking (split-level transfer, e.g. part of a salary straight to savings);
+ * - a transfer between two budget accounts is neutral and carries no category; between a budget
+ *   and a tracking account the category sits on the budget leg (C2);
  * - imports are idempotent through `(account_id, import_key)`, also for soft-deleted rows;
  * - foreign currency: amount = round(original × rate) + fee, ±1 cent (C7);
  * - a split's category is live and never a `card_payment` envelope (that one is filled by the
@@ -43,6 +47,13 @@ export interface SplitInput {
   contactId?: string | null;
   /** Income type of an inflow (Gehalt, Sonderzahlung, …). */
   incomeTypeId?: string | null;
+  /**
+   * Make this split a transfer leg: the other leg is a new booking on this account with the
+   * opposite amount, same date (C4). The split's category follows the budget-leg rule.
+   */
+  transferAccountId?: string | null;
+  /** Import key of the other leg (unique per account). */
+  transferImportKey?: string | null;
 }
 
 type BookingColumns = Omit<
@@ -63,7 +74,10 @@ export interface TransferInput {
   date: string;
   /** Positive; the from leg gets `-amountCents`, the to leg `+amountCents`. */
   amountCents: number;
-  /** Category of the outflow leg's split (the inflow leg stays uncategorized). */
+  /**
+   * Envelope of a transfer between a budget and a tracking account; it is put on the budget leg.
+   * Refused between two budget accounts (neutral) and between two tracking accounts.
+   */
   categoryId?: string | null;
   memo?: string | null;
   status?: BookingRow['status'];
@@ -238,6 +252,23 @@ const splitValues = (s: SplitInput) => ({
   incomeTypeId: s.incomeTypeId ?? null,
 });
 
+/** Which leg of a transfer carries the category (C2): the budget leg, if exactly one is. */
+function categoryLegs(
+  from: { onBudget: boolean },
+  to: { onBudget: boolean },
+  categoryId: string | null | undefined,
+): { from: string | null; to: string | null } {
+  if (!categoryId) return { from: null, to: null };
+  if (from.onBudget === to.onBudget) {
+    throw new BookingInvariantError(
+      from.onBudget
+        ? 'A transfer between two budget accounts is neutral and takes no category'
+        : 'A transfer between two tracking accounts does not touch the budget; no category',
+    );
+  }
+  return from.onBudget ? { from: categoryId, to: null } : { from: null, to: categoryId };
+}
+
 // ---------------------------------------------------------------------------------------------
 // Create
 // ---------------------------------------------------------------------------------------------
@@ -260,21 +291,69 @@ function insertBooking(
     { ...columns, id, transferId, currency: columns.currency ?? acct.currency },
     ctx,
   );
+  const partners: { transferId: string; split: SplitInput; categoryId: string | null }[] = [];
   splits.forEach((s, i) => {
+    let splitTransferId: string | null = null;
+    let categoryId = s.categoryId ?? null;
+    if (s.transferAccountId) {
+      if (transferId !== null)
+        throw new BookingInvariantError('A transfer leg booking cannot hold split transfers');
+      if (s.transferAccountId === input.accountId)
+        throw new BookingInvariantError('A split transfer needs another account');
+      if (s.contactId || s.incomeTypeId)
+        throw new BookingInvariantError('A transfer split has no contact or income type');
+      const other = liveAccount(tx, s.transferAccountId);
+      if (other.currency !== acct.currency)
+        throw new BookingInvariantError('Transfers between different currencies are not supported');
+      const legs = categoryLegs(acct, other, s.categoryId);
+      splitTransferId = randomUUID();
+      tx.insert(transfer).values({ id: splitTransferId }).run();
+      categoryId = legs.from;
+      partners.push({ transferId: splitTransferId, split: s, categoryId: legs.to });
+    }
     insertTracked(
       tx,
       bookingSplit,
-      { ...splitValues(s), id: randomUUID(), bookingId: id, sortOrder: i },
+      {
+        ...splitValues(s),
+        categoryId,
+        transferId: splitTransferId,
+        id: randomUUID(),
+        bookingId: id,
+        sortOrder: i,
+      },
       ctx,
     );
   });
+  for (const p of partners) {
+    insertBooking(
+      tx,
+      {
+        accountId: p.split.transferAccountId as string,
+        date: input.date,
+        amountCents: -p.split.amountCents,
+        memo: p.split.memo ?? input.memo ?? null,
+        status: input.status,
+        source: input.source,
+        importKey: p.split.transferImportKey ?? null,
+        importRunId: input.importRunId ?? null,
+        splits: [{ categoryId: p.categoryId, amountCents: -p.split.amountCents }],
+      },
+      p.transferId,
+      ctx,
+    );
+  }
   return id;
 }
 
 /** Create a booking with its splits. Returns the booking id. */
 export function createBooking(db: Executor, input: BookingInput, ctx: AuditContext): string {
   const grouped = withGroup(ctx);
-  return runInTransaction(db, (tx) => insertBooking(tx, input, null, grouped));
+  return runInTransaction(db, (tx) => {
+    const id = insertBooking(tx, input, null, grouped);
+    assertLedgerInvariants(tx, relatedTransferBookings(tx, id));
+    return id;
+  });
 }
 
 /** Create a transfer (Umbuchung): the `transfer` row and two opposite bookings with one split each. */
@@ -303,6 +382,7 @@ export function createTransfer(
         `Transfers between different currencies (${from.currency}, ${to.currency}) are not supported`,
       );
     }
+    const legs = categoryLegs(from, to, input.categoryId);
     const transferId = randomUUID();
     tx.insert(transfer).values({ id: transferId }).run();
     const common = {
@@ -320,7 +400,7 @@ export function createTransfer(
         accountId: input.fromAccountId,
         amountCents: -input.amountCents,
         importKey: input.importKey ?? null,
-        splits: [{ categoryId: input.categoryId ?? null, amountCents: -input.amountCents }],
+        splits: [{ categoryId: legs.from, amountCents: -input.amountCents }],
       },
       transferId,
       grouped,
@@ -332,12 +412,103 @@ export function createTransfer(
         accountId: input.toAccountId,
         amountCents: input.amountCents,
         importKey: input.toImportKey ?? input.importKey ?? null,
-        splits: [{ amountCents: input.amountCents }],
+        splits: [{ categoryId: legs.to, amountCents: input.amountCents }],
       },
       transferId,
       grouped,
     );
+    assertLedgerInvariants(tx, [fromBookingId, toBookingId]);
     return { transferId, fromBookingId, toBookingId };
+  });
+}
+
+export interface ImportTransferResult extends TransferResult {
+  /** `created`: both legs new; `linked`: an existing leg got its missing partner or both got
+   * linked; `existing`: the pair was already there (or a leg was deleted by the user). */
+  outcome: 'created' | 'linked' | 'existing';
+}
+
+/**
+ * Idempotent transfer import (C4). Legs are found by `(account, import key)` on both sides
+ * (`toImportKey` defaults to `importKey`):
+ * - both exist as one transfer, or one of them was deleted by the user: nothing is written;
+ * - both exist as plain bookings (imported one file at a time): they are linked into a transfer;
+ * - one exists: the missing leg is created and linked (a one-legged pair is repaired);
+ * - none exists: the transfer is created.
+ */
+export function importTransfer(
+  db: Executor,
+  input: TransferInput & { importKey: string },
+  ctx: AuditContext,
+): ImportTransferResult {
+  const grouped = withGroup(ctx);
+  const toKey = input.toImportKey ?? input.importKey;
+  return runInTransaction(db, (tx) => {
+    const find = (accountId: string, key: string) =>
+      tx
+        .select()
+        .from(booking)
+        .where(and(eq(booking.accountId, accountId), eq(booking.importKey, key)))
+        .get();
+    const fromLeg = find(input.fromAccountId, input.importKey);
+    const toLeg = find(input.toAccountId, toKey);
+    if (!fromLeg && !toLeg) {
+      const created = createTransfer(tx, { source: 'import', ...input }, grouped);
+      return { ...created, outcome: 'created' };
+    }
+    const existing = (a: BookingRow, b: BookingRow): ImportTransferResult => ({
+      transferId: (a.transferId ?? b.transferId) as string,
+      fromBookingId: a.id,
+      toBookingId: b.id,
+      outcome: 'existing',
+    });
+    if (fromLeg && toLeg) {
+      if (fromLeg.transferId && fromLeg.transferId === toLeg.transferId)
+        return existing(fromLeg, toLeg);
+      if (fromLeg.deletedAt || toLeg.deletedAt) return existing(fromLeg, toLeg);
+      if (fromLeg.transferId || toLeg.transferId)
+        throw new BookingInvariantError('An import leg already belongs to another transfer');
+      const transferId = randomUUID();
+      tx.insert(transfer).values({ id: transferId }).run();
+      for (const leg of [fromLeg, toLeg])
+        updateTracked(tx, booking, [leg.id], { transferId }, grouped);
+      assertLedgerInvariants(tx, [fromLeg.id, toLeg.id]);
+      return { transferId, fromBookingId: fromLeg.id, toBookingId: toLeg.id, outcome: 'linked' };
+    }
+    const found = (fromLeg ?? toLeg) as BookingRow;
+    if (found.deletedAt || found.transferId) {
+      return {
+        transferId: found.transferId ?? '',
+        fromBookingId: found.id,
+        toBookingId: found.id,
+        outcome: 'existing',
+      };
+    }
+    const transferId = randomUUID();
+    tx.insert(transfer).values({ id: transferId }).run();
+    updateTracked(tx, booking, [found.id], { transferId }, grouped);
+    const missing = insertBooking(
+      tx,
+      {
+        accountId: fromLeg ? input.toAccountId : input.fromAccountId,
+        date: found.date,
+        amountCents: -found.amountCents,
+        memo: input.memo ?? found.memo,
+        status: input.status ?? found.status,
+        source: input.source ?? 'import',
+        importKey: fromLeg ? toKey : input.importKey,
+        splits: [{ amountCents: -found.amountCents }],
+      },
+      transferId,
+      grouped,
+    );
+    assertLedgerInvariants(tx, [found.id, missing]);
+    return {
+      transferId,
+      fromBookingId: fromLeg ? found.id : missing,
+      toBookingId: fromLeg ? missing : found.id,
+      outcome: 'linked',
+    };
   });
 }
 
@@ -410,6 +581,24 @@ export function updateBooking(
     const cur = loadBooking(tx, id);
     if (!cur) throw new EntityNotFoundError('booking', id);
     const curSplits = loadSplits(tx, id);
+    // Split-level transfers are changed by deleting and re-creating them, on both sides.
+    const splitTransfer =
+      curSplits.some((s) => s.transferId) ||
+      (cur.transferId !== null &&
+        tx.select().from(bookingSplit).where(eq(bookingSplit.transferId, cur.transferId)).get());
+    if (
+      splitTransfer &&
+      (patch.splits !== undefined ||
+        (patch.amountCents !== undefined && patch.amountCents !== cur.amountCents) ||
+        (patch.date !== undefined && patch.date !== cur.date) ||
+        (patch.accountId !== undefined && patch.accountId !== cur.accountId))
+    ) {
+      throw new BookingInvariantError(
+        'A split-level transfer keeps amount, date and account; delete and re-create it',
+      );
+    }
+    if (patch.splits?.some((s) => s.transferAccountId))
+      throw new BookingInvariantError('Add split transfers when creating the booking');
 
     if (patch.date !== undefined) assertDate(patch.date);
     if (patch.accountId !== undefined && patch.accountId !== cur.accountId) {
@@ -479,6 +668,7 @@ export function updateBooking(
     if (fx.fxFeeCents !== cur.fxFeeCents) columns['fxFeeCents'] = fx.fxFeeCents;
     updateTracked(tx, booking, [id], columns, grouped);
     if (patch.splits || amountChanged) syncSplits(tx, id, curSplits, nextSplits, grouped);
+    assertLedgerInvariants(tx, relatedTransferBookings(tx, id));
   });
 }
 
@@ -486,10 +676,9 @@ export function updateBooking(
 // Delete / restore
 // ---------------------------------------------------------------------------------------------
 
+/** The booking and every booking of its transfers (both kinds of legs): they go together. */
 const transferLegs = (tx: Executor, row: BookingRow): BookingRow[] =>
-  row.transferId
-    ? tx.select().from(booking).where(eq(booking.transferId, row.transferId)).all()
-    : [row];
+  relatedTransferBookings(tx, row.id).map((legId) => loadBooking(tx, legId, true) as BookingRow);
 
 /** Soft-delete a booking; both legs of a transfer go together. Splits stay but are ignored. */
 export function deleteBooking(db: Executor, id: string, ctx: AuditContext): void {
