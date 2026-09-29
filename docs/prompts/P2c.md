@@ -9,7 +9,7 @@ Read `CLAUDE.md`, `SPEC.md` §4–§6, `docs/concept/produktkonzept.md` §5 (met
 Task: envelope budgeting in the app. Two PRs from `main`, each ≤ ~1.500 changed lines, one branch each:
 
 PR 1 `p2c-categories` — categories and budget API:
-1. Einstellungen › Kategorien: groups and categories with class (Bedarf/Wunsch/Zukunft), kind (incl. income and card payment), stage 1–9, target (amount, rhythm, due), hide/unhide, drag sort, **merge** (moves all splits and budget months into the target category, one undoable audit group) and split-off (move selected bookings by filter). Categories are expected to be reorganised when the YNAB data arrives — make restructuring cheap and safe.
+1. Einstellungen › Kategorien: groups and categories with an optional emoji icon (rendered **monochrome** in blueprint ink: self-hosted Noto Emoji font subset, OFL, plus `font-variant-emoji: text`; never colour emoji), class (Bedarf/Wunsch/Zukunft), kind (incl. income and card payment), stage 1–9, target (amount, rhythm, due), hide/unhide, drag sort, **merge** (moves all splits and budget months into the target category, one undoable audit group) and split-off (move selected bookings by filter). Categories are expected to be reorganised when the YNAB data arrives — make restructuring cheap and safe.
 2. Budget API: assign / move money between categories and from "Zu verteilen", month summary (Zu verteilen, assigned, activity, available per category and group), overspending handling and card-payment moves per concept §5.3 using the domain functions from P1f-3.
 3. Property tests: Zu verteilen stock formula = flow formula for random ledgers; merge keeps all totals.
 
