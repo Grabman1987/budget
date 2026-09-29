@@ -18,17 +18,17 @@ export interface PlaceholderPageProps {
 /** Pkg label for the title block, e.g. "P2" out of "P2 Kern und Migration; …". */
 const packageOf = (fills: string) => fills.split(/[\s;,]/)[0] ?? fills;
 
-/**
- * Placeholder page: title block and registers of the area, plus a note which package fills it.
- * Later packages replace the body and keep the frame.
- */
-export function PlaceholderPage({
-  meta,
-  title,
-  subtitle,
-  extraFields = [],
-  children,
-}: PlaceholderPageProps) {
+export interface PageFrameProps {
+  meta: PageMeta;
+  title?: string;
+  subtitle?: string;
+  /** Cells of the title block. */
+  fields: Array<{ label: string; value: ReactNode }>;
+  children?: ReactNode;
+}
+
+/** Title block and registers of the area; the body of the page follows as children. */
+export function PageFrame({ meta, title, subtitle, fields, children }: PageFrameProps) {
   const area = areaById(meta.area);
   const items: RegisterItem[] = area.registers.map((r) => ({
     id: r.id,
@@ -41,7 +41,7 @@ export function PlaceholderPage({
       <TitleBlock
         title={title ?? meta.title}
         {...(question ? { subtitle: question } : {})}
-        fields={[...extraFields, { label: 'Gefüllt in', value: `Paket ${packageOf(meta.fills)}` }]}
+        fields={fields}
         compactOnMobile
       />
       {items.length > 0 && (
@@ -56,6 +56,29 @@ export function PlaceholderPage({
           )}
         />
       )}
+      {children}
+    </>
+  );
+}
+
+/**
+ * Placeholder page: title block and registers of the area, plus a note which package fills it.
+ * Later packages replace the body and keep the frame.
+ */
+export function PlaceholderPage({
+  meta,
+  title,
+  subtitle,
+  extraFields = [],
+  children,
+}: PlaceholderPageProps) {
+  return (
+    <PageFrame
+      meta={meta}
+      {...(title ? { title } : {})}
+      {...(subtitle ? { subtitle } : {})}
+      fields={[...extraFields, { label: 'Gefüllt in', value: `Paket ${packageOf(meta.fills)}` }]}
+    >
       <section className="placeholder" aria-labelledby="placeholder-title">
         <SectionHead id="placeholder-title" title="Noch nicht gebaut" />
         <p>
@@ -70,7 +93,7 @@ export function PlaceholderPage({
         </p>
         {children}
       </section>
-    </>
+    </PageFrame>
   );
 }
 

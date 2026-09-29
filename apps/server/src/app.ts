@@ -4,6 +4,7 @@ import type { Db } from '@budget/db';
 import { serveStatic } from '@hono/node-server/serve-static';
 import { Hono } from 'hono';
 import { secureHeaders } from 'hono/secure-headers';
+import type { Auth } from './auth/routes';
 import { debugSummary } from './debug-summary';
 
 export interface AppOptions {
@@ -11,6 +12,8 @@ export interface AppOptions {
   webDir: string;
   /** Database for the read-only debug endpoint; omit to keep the endpoint off. */
   database?: Db | undefined;
+  /** Passkey login: session guard and /api/auth. Without it there are no API routes at all. */
+  auth?: Auth | undefined;
 }
 
 /**
@@ -34,7 +37,7 @@ export const CONTENT_SECURITY_POLICY = {
 
 const ONE_YEAR = 60 * 60 * 24 * 365;
 
-export function createApp({ webDir, database }: AppOptions): Hono {
+export function createApp({ webDir, database, auth }: AppOptions): Hono {
   const app = new Hono();
   const root = resolve(webDir);
   // serveStatic resolves `root` against the current working directory.
@@ -53,6 +56,14 @@ export function createApp({ webDir, database }: AppOptions): Hono {
   );
 
   app.get('/health', (c) => c.json({ status: 'ok' }));
+
+  if (auth) {
+    // CSRF origin check for every state-changing API call, then the auth endpoints themselves,
+    // then the session guard for everything else under /api (order matters).
+    app.use('/api/*', auth.originGuard);
+    app.route('/api/auth', auth.routes);
+    app.use('/api/*', auth.requireSession);
+  }
 
   // Read-only seed check. Only mounted when a database is passed in (BUDGET_DEBUG_API=1), never
   // on by default; auth (P1e) has to sit in front of it before it may run anywhere public.

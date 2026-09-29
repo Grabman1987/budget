@@ -12,7 +12,9 @@
     "@budget/db": "*",
     "@budget/domain": "*",
     "@hono/node-server": "^1.19.0",
-    "hono": "^4.13.0"
+    "@simplewebauthn/server": "^14.0.3",
+    "hono": "^4.13.0",
+    "zod": "^4.6.5"
   },
   "devDependencies": {
     "@budget/fixtures": "*",

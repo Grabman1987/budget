@@ -4,6 +4,7 @@
 @import '@budget/ui/tailwind-theme.css' layer(theme);
 @import '@budget/ui/styles.css' layer(components);
 @import './shell/shell.css' layer(pages);
+@import './auth/auth.css' layer(pages);
 @import 'tailwindcss/utilities.css' layer(utilities);
 
 /* Utility classes used in packages/ui are scanned too. */
