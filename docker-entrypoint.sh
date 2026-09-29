@@ -34,6 +34,10 @@ case "${BUDGET_REPLICATE:-auto}" in
 esac
 
 if [ "$replicate" = "1" ]; then
+  if [ -z "${BUCKET_NAME:-}" ]; then
+    echo "docker-entrypoint: replication is on but BUCKET_NAME is not set (run fly storage create)" >&2
+    exit 1
+  fi
   db="$DATA_DIR/budget.sqlite"
   if [ -n "${DATABASE_PATH:-}" ] && [ "$DATABASE_PATH" != "$db" ]; then
     echo "docker-entrypoint: DATABASE_PATH must be $db when replication is on" >&2

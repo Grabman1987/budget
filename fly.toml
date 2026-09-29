@@ -16,10 +16,13 @@ kill_timeout = '30s'
   BUDGET_RP_ID = 'budget-fg.fly.dev'
   # Behind the Fly proxy the client address is in the Fly-Client-IP header (rate limiting).
   BUDGET_TRUST_PROXY = '1'
+  # Backup is mandatory in production: with this set, a missing bucket makes the start fail loudly
+  # instead of running without replication.
+  BUDGET_REPLICATE = '1'
 
 # Secrets (never in this file), set once with `fly secrets set` / `fly storage create`:
 # BUDGET_SETUP_TOKEN, BUCKET_NAME, AWS_ENDPOINT_URL_S3, AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY,
-# AWS_REGION. Litestream replication switches on when BUCKET_NAME is set. See docs/ops.md.
+# AWS_REGION. Replication is forced on by BUDGET_REPLICATE above. See docs/ops.md.
 
 # SQLite lives on a volume: exactly one machine, in one region.
 # Create once: fly volumes create budget_data --region fra --size 1
@@ -39,7 +42,8 @@ kill_timeout = '30s'
     path = '/health'
     interval = '15s'
     timeout = '3s'
-    grace_period = '10s'
+    # First boot restores from the bucket if the volume is empty; give it time before Fly restarts.
+    grace_period = '60s'
 
 [[vm]]
   size = 'shared-cpu-1x'

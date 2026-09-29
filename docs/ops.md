@@ -5,7 +5,7 @@ Runbook for the owner. Everything here is about the production app on Fly.io. No
 ## 1. Architecture
 
 ```
-GitHub main ──(Deploy workflow, FLY_API_TOKEN)──> Fly remote builder ──> image
+GitHub main ──(CI green, then Deploy workflow, FLY_API_TOKEN)──> Fly remote builder ──> image
                                                                           │
                      Fly machine (fra, shared-cpu-1x, exactly one)        ▼
                      ┌──────────────────────────────────────────────────────┐
@@ -23,7 +23,7 @@ GitHub main ──(Deploy workflow, FLY_API_TOKEN)──> Fly remote builder ─
 - **One machine, one volume.** SQLite has a single writer. `fly.toml` mounts the volume `budget_data` at `/data`; never scale beyond one machine.
 - **Litestream** runs as the parent of the server. It streams the WAL to Tigris continuously (loss window: about one second of writes on a crash, nothing on a clean stop). On SIGTERM it forwards the signal to the server, waits for it to exit and flushes the last frames; `kill_timeout = '30s'` in `fly.toml` gives it the time.
 - **First start on an empty volume**: the entrypoint runs `litestream restore -if-db-not-exists -if-replica-exists` before the server, so a fresh volume is rebuilt from the bucket automatically. With an empty bucket (very first deploy) this is a no-op.
-- **Replication switches on** when `BUCKET_NAME` is set (which `fly storage create` does) or `BUDGET_REPLICATE=1`. `BUDGET_REPLICATE=0` forces it off. Without it (local `docker run`, CI smoke test) the server just runs.
+- **Replication is mandatory in production**: `fly.toml` sets `BUDGET_REPLICATE = '1'`. If `BUCKET_NAME` is missing the container exits at start with a clear message instead of running without backup. `BUDGET_REPLICATE=0` forces it off (local `docker run`, CI smoke test); unset means "on iff `BUCKET_NAME` is set".
 - If the restore fails for any reason other than "no backup yet" (wrong credentials, network), the container exits instead of starting an empty database over an existing backup. Fix the cause; Fly retries.
 - **Second line of defence**: Fly takes daily volume snapshots (`fly volumes snapshots list`). A separate encrypted offsite copy is planned, see section 8.
 
@@ -46,13 +46,13 @@ Secrets are never written to `fly.toml`, the Dockerfile or the repo. `fly secret
 | `BUDGET_MIGRATIONS_DIR`                   | image                | SQL migrations applied at start, `/app/drizzle`.                                                                                                                    |
 | `BUDGET_DEBUG_API`                        | dev only             | `1` enables a read-only debug endpoint. **Must stay unset in production.**                                                                                          |
 | `NODE_ENV`                                | image                | `production`.                                                                                                                                                       |
-| `BUCKET_NAME`                             | **secret** (by Fly)  | Tigris bucket. Its presence turns replication on.                                                                                                                   |
+| `BUCKET_NAME`                             | **secret** (by Fly)  | Tigris bucket. Required because `BUDGET_REPLICATE=1`; without it the container refuses to start.                                                                    |
 | `AWS_ENDPOINT_URL_S3`                     | **secret** (by Fly)  | Tigris endpoint, `https://fly.storage.tigris.dev`.                                                                                                                  |
 | `AWS_ACCESS_KEY_ID`                       | **secret** (by Fly)  | Bucket access key. Litestream reads it directly.                                                                                                                    |
 | `AWS_SECRET_ACCESS_KEY`                   | **secret** (by Fly)  | Bucket secret key. Litestream reads it directly.                                                                                                                    |
 | `AWS_REGION`                              | secret (by Fly)      | Set to `auto` by Fly; `litestream.yml` hard-codes `auto`, so it is not used.                                                                                        |
 | `LITESTREAM_ACCESS_KEY_ID` / `..._SECRET_ACCESS_KEY` | optional override | Litestream's own names; only needed if you want keys different from the `AWS_*` pair.                                                                     |
-| `BUDGET_REPLICATE`                        | optional             | `1` force replication on, `0` force off, unset = on iff `BUCKET_NAME` is set.                                                                                       |
+| `BUDGET_REPLICATE`                        | `fly.toml` `[env]`   | `1` in production (backup is mandatory). `0` force off (local, CI), unset = on iff `BUCKET_NAME` is set.                                                            |
 | `BUDGET_MAINTENANCE`                      | temporary            | Any value: machine and volume stay up, but server and Litestream do not run (section 5).                                                                            |
 | `LITESTREAM_CONFIG`                       | optional             | Config path, default `/etc/litestream.yml`.                                                                                                                         |
 
@@ -62,7 +62,7 @@ The Tigris bucket can also hold receipts and payslips (SPEC section 9). Litestre
 
 ## 3. First deploy checklist
 
-Run in PowerShell (or any shell) from the repo folder. Do the steps in this order.
+Run in PowerShell (or any shell) from the repo folder. **Do the steps in this order.** The first deploy is always manual (`--ha=false`, step 5); the GitHub token is created only afterwards (step 7), so no automatic run can create a second machine (a second machine means a second, diverging database).
 
 1. **App and volume**
 
@@ -78,32 +78,22 @@ Run in PowerShell (or any shell) from the repo folder. Do the steps in this orde
    fly secrets list --app budget-fg
    ```
 
-   Expect `BUCKET_NAME`, `AWS_ENDPOINT_URL_S3`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_REGION` in the list.
+   Expect `BUCKET_NAME`, `AWS_ENDPOINT_URL_S3`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_REGION` in the list. `BUDGET_REPLICATE = '1'` in `fly.toml` makes the app refuse to start without them.
 
-3. **Setup token.** Generate a long random value, keep it in your password manager, then set it. Do not put it in chat, a file in the repo or a command you paste elsewhere.
+3. **Setup token.** Generate a long random value in your password manager (32 random bytes, base64), then hand it to Fly **through stdin** so it never lands in the shell history, a file or the process list. Do not put it in chat or in the repo.
 
    ```
-   # bash / WSL / macOS
-   openssl rand -base64 32
+   # bash / WSL / macOS: prompts silently, then pipes to Fly
+   read -rs token && printf 'BUDGET_SETUP_TOKEN=%s\n' "$token" | fly secrets import --stage --app budget-fg; unset token
    # Windows PowerShell
-   $b = New-Object byte[] 32; [Security.Cryptography.RandomNumberGenerator]::Create().GetBytes($b); [Convert]::ToBase64String($b)
-
-   fly secrets set BUDGET_SETUP_TOKEN="<the value>" --app budget-fg
+   "BUDGET_SETUP_TOKEN=$(Read-Host 'Setup token')" | fly secrets import --stage --app budget-fg
    ```
 
-   (With no machine yet Fly stages the secrets; they apply at the first deploy.)
+   `--stage` stores the secret without restarting anything; it applies at the first deploy.
 
-4. **Non-secret settings in `fly.toml` `[env]`**: `BUDGET_ORIGIN = 'https://budget-fg.fly.dev'`, `BUDGET_RP_ID = 'budget-fg.fly.dev'`, `BUDGET_TRUST_PROXY = '1'` (with your app name). The server refuses to start in production without `BUDGET_ORIGIN`.
+4. **Non-secret settings in `fly.toml` `[env]`** are already committed: `BUDGET_ORIGIN = 'https://budget-fg.fly.dev'`, `BUDGET_RP_ID = 'budget-fg.fly.dev'`, `BUDGET_TRUST_PROXY = '1'`, `BUDGET_REPLICATE = '1'`. With another app name change origin, RP id and `app` together, before the first passkey exists. The server refuses to start in production without `BUDGET_ORIGIN`.
 
-5. **Deploy token for GitHub**
-
-   ```
-   fly tokens create deploy --app budget-fg
-   ```
-
-   Copy the output straight into GitHub: repo **Settings > Secrets and variables > Actions > New repository secret**, name `FLY_API_TOKEN`. Nowhere else.
-
-6. **First deploy** (single machine, because the volume is single-attach)
+5. **First deploy, by hand** (single machine, because the volume is single-attach)
 
    ```
    fly deploy --ha=false
@@ -112,16 +102,23 @@ Run in PowerShell (or any shell) from the repo folder. Do the steps in this orde
    fly logs --app budget-fg              # look for "replicating to" (type=s3)
    ```
 
-   From then on every merge to `main` deploys via `.github/workflows/deploy.yml`.
-
-7. **Check health and replication**
+6. **Check health and replication**
 
    ```
    curl -fsS https://budget-fg.fly.dev/health
    fly ssh console --app budget-fg -C "litestream ltx -config /etc/litestream.yml -level all /data/budget.sqlite"
+   fly ssh console --app budget-fg -C "litestream status -config /etc/litestream.yml"
    ```
 
-   The second command lists LTX files with creation times; at least one (the first snapshot) must exist within a minute of start. If `fly ssh console` sessions do not carry the app's environment on your setup, open a shell and check `printenv BUCKET_NAME` before concluding anything.
+   `ltx` lists LTX files with creation times (levels 0, 1 and 9 appear within seconds of the first sync); `status` shows the database as `ok`. If `fly ssh console` sessions do not carry the app's environment on your setup, open a shell and check `printenv BUCKET_NAME` before concluding anything.
+
+7. **Only now connect GitHub** (sections 10 and 11 explain the settings): create the deploy token and store it as the `FLY_API_TOKEN` secret of the GitHub Environment `production`, restrict that environment to `main`, then set the branch protection.
+
+   ```
+   fly tokens create deploy --app budget-fg
+   ```
+
+   Copy the output straight into GitHub: repo **Settings > Environments > production > Environment secrets > Add secret**, name `FLY_API_TOKEN`. Nowhere else. From then on every green CI run on `main` deploys via `.github/workflows/deploy.yml` (section 10).
 
 8. **First passkey**, phone first (the device you will always carry):
    1. Open `https://budget-fg.fly.dev` in the phone browser. With no passkey registered the app shows the setup step.
@@ -136,11 +133,17 @@ Run in PowerShell (or any shell) from the repo folder. Do the steps in this orde
 
 All procedures use the Litestream binary inside the image (`/usr/local/bin/litestream`, config `/etc/litestream.yml`) or a copy on your own machine. Use `-dry-run` first to see the plan without writing.
 
+`fly ssh console` opens a **root** shell. Anything that writes below `/data` (restore, node scripts) must run as the user `node`, otherwise the files end up owned by root and the server, which runs as `node`, cannot open them. Define this helper once per shell session (`setpriv` is part of the image; the entrypoint uses it the same way):
+
+```
+as_node() { setpriv --reuid=node --regid=node --init-groups "$@"; }
+```
+
 Verify every restored file before trusting it:
 
 ```
-# on the machine (no sqlite3 CLI in the image; better-sqlite3 is there)
-cd /app && node -e "const D=require('better-sqlite3');const d=new D(process.argv[1],{readonly:true});console.log(d.pragma('integrity_check',{simple:true}), d.pragma('journal_mode',{simple:true}))" /data/restore/budget.sqlite
+# on the machine, after defining as_node (above); no sqlite3 CLI in the image, better-sqlite3 is there
+cd /app && as_node node -e "const D=require('better-sqlite3');const d=new D(process.argv[1],{readonly:true});console.log(d.pragma('integrity_check',{simple:true}), d.pragma('journal_mode',{simple:true}))" /data/restore/budget.sqlite
 # on your machine
 sqlite3 budget-restored.sqlite 'PRAGMA integrity_check;'    # must print: ok
 ```
@@ -170,9 +173,10 @@ Non-destructive first: restore into a side file and look at it, production keeps
 ```
 fly ssh console --app budget-fg
 # inside the machine; time is UTC, RFC 3339
-mkdir -p /data/restore
-litestream restore -config /etc/litestream.yml -dry-run -timestamp 2026-10-05T14:30:00Z -o /data/restore/budget.sqlite /data/budget.sqlite
-litestream restore -config /etc/litestream.yml -timestamp 2026-10-05T14:30:00Z -o /data/restore/budget.sqlite /data/budget.sqlite
+as_node() { setpriv --reuid=node --regid=node --init-groups "$@"; }
+as_node mkdir -p /data/restore
+as_node litestream restore -config /etc/litestream.yml -dry-run -timestamp 2026-10-05T14:30:00Z -o /data/restore/budget.sqlite /data/budget.sqlite
+as_node litestream restore -config /etc/litestream.yml -timestamp 2026-10-05T14:30:00Z -o /data/restore/budget.sqlite /data/budget.sqlite
 # verify (see above), then copy rows out or download it:
 exit
 fly ssh sftp get /data/restore/budget.sqlite ./budget-pit.sqlite --app budget-fg
@@ -185,9 +189,11 @@ To **replace the live database** with such a state (rollback), use maintenance m
 ```
 fly secrets set BUDGET_MAINTENANCE=1 --app budget-fg      # machine restarts, server and Litestream stay off
 fly ssh console --app budget-fg
-mkdir -p /data/old
-for f in budget.sqlite budget.sqlite-wal budget.sqlite-shm budget.sqlite-litestream; do [ -e "/data/$f" ] && mv "/data/$f" /data/old/; done
-litestream restore -config /etc/litestream.yml -timestamp 2026-10-05T14:30:00Z /data/budget.sqlite
+as_node() { setpriv --reuid=node --regid=node --init-groups "$@"; }
+as_node mkdir -p /data/old
+# The metadata folder starts with a dot: /data/.budget.sqlite-litestream (checked with Litestream 0.5.17).
+for f in budget.sqlite budget.sqlite-wal budget.sqlite-shm .budget.sqlite-litestream; do [ -e "/data/$f" ] && as_node mv "/data/$f" /data/old/; done
+as_node litestream restore -config /etc/litestream.yml -timestamp 2026-10-05T14:30:00Z /data/budget.sqlite
 # verify integrity here, exit
 fly secrets unset BUDGET_MAINTENANCE --app budget-fg      # normal start: chown, no restore needed, replication resumes
 ```
@@ -256,10 +262,11 @@ Order of attempts, least invasive first.
    ```
    # 1. Mark the moment (UTC) in case something goes wrong; the bucket has full history.
    # 2. Set a new setup token (the app restarts):
-   fly secrets set BUDGET_SETUP_TOKEN="<new long random value>" --app budget-fg
+   # (value from your password manager, through stdin as in section 3 step 3)
+   read -rs token && printf 'BUDGET_SETUP_TOKEN=%s\n' "$token" | fly secrets import --app budget-fg; unset token
    # 3. Deactivate passkeys, sessions and unused recovery codes (rows are kept for the audit trail):
    fly ssh console --app budget-fg
-   cd /app && node -e "
+   cd /app && setpriv --reuid=node --regid=node --init-groups node -e "
    const D = require('better-sqlite3');
    const db = new D('/data/budget.sqlite');
    db.pragma('busy_timeout = 5000');
@@ -278,5 +285,37 @@ Order of attempts, least invasive first.
 
    The app now has zero active passkeys, so the setup screen accepts the token again. Register a new passkey (section 3, step 8), store the new recovery codes, then `fly secrets unset BUDGET_SETUP_TOKEN --app budget-fg`.
 
-   Notes: only `revoked_at` is set; no financial data is touched. If the statements fail because a table name differs (schema changed), read `packages/db/src/schema/auth.ts` and adapt, do not delete rows. To undo a mistake, restore a point in time (4.2).
+   Notes: the script runs as `node` so the database files keep their owner; only `revoked_at` is set; no financial data is touched. If the statements fail because a table name differs (schema changed), read `packages/db/src/schema/auth.ts` and adapt, do not delete rows. To undo a mistake, restore a point in time (4.2).
 3. **Database itself lost too**: restore first (section 4), then step 2.
+
+## 10. Deploy pipeline and GitHub settings
+
+**How a deploy happens.** A merge to `main` runs the `CI` workflow (`check`, `docker`, `restore-test`). When that run finishes successfully, `.github/workflows/deploy.yml` starts (`workflow_run`), checks out the exact commit CI tested and runs `flyctl deploy --remote-only --ha=false`, followed by a guard that fails the job if more than one machine exists. A red CI never deploys. `workflow_dispatch` (Actions tab, "Run workflow", branch `main`) redeploys the current `main` without a new commit. Deploys never run in parallel (`concurrency: deploy`) and are never cancelled half way. The Fly token exists only in the environment of the deploy steps, all actions are pinned to full commit SHAs (Dependabot proposes updates), and the checkout keeps no git credentials.
+
+**Settings only you can make in GitHub** (repo **Settings**; the workflows cannot set these):
+
+1. **Environments > New environment `production`**: deployment branches = "Selected branches" > `main`. The secret `FLY_API_TOKEN` belongs here (Environment secret), not in the repository secrets. Create the environment before the first pipeline run; GitHub otherwise creates an unrestricted one.
+2. **Branches > Add branch ruleset (or classic rule) for `main`**:
+   - Require a pull request before merging (no direct pushes), include administrators.
+   - Require status checks to pass, branch up to date before merging; required checks: `check`, `docker`, `restore-test`.
+   - Require conversation resolution before merging.
+   - Block force pushes and deletions.
+3. **Actions > General**: "Allow actions created by GitHub and verified creators" at most; workflow permissions "Read repository contents" (the workflows already declare `contents: read`).
+4. Two-factor authentication on the GitHub and the Fly account (they are the trust root, see section 7).
+
+If the deploy job shows "FLY_API_TOKEN is not set, skipping deploy", the environment secret is missing; nothing was deployed.
+
+## 11. Rolling back the app, and migrations
+
+**Rule: migrations are additive only.** New tables, new nullable or defaulted columns, new indexes. Never rename or drop a column or table in the same release that stops using it. A destructive change takes two releases: release N stops reading and writing the thing, release N+1 drops it. This keeps the previous image runnable against the current database, which is what makes the rollback below safe. The server applies migrations at start and never runs them backwards.
+
+**Rollback of a bad release** (code only; the database keeps its state):
+
+```
+fly releases --app budget-fg --image            # list releases with their image references
+fly deploy --app budget-fg --image registry.fly.io/budget-fg:deployment-<id> --ha=false
+fly status --app budget-fg                      # one machine, check passing
+curl -fsS https://budget-fg.fly.dev/health
+```
+
+Then fix forward on `main` (the next green merge deploys again; until then a `workflow_dispatch` would redeploy the bad `main`, so revert the commit first). If the bad release also damaged data, restore a point in time before that release (section 4.2).

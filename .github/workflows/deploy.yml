@@ -1,35 +1,70 @@
 name: Deploy
 
+# Deploys only what CI has verified on main (SPEC §9). A push to main runs CI; this workflow starts
+# when that CI run has finished and deploys the exact commit it tested. `workflow_dispatch` is the
+# manual escape hatch (redeploy, rollback) and is restricted to main below.
 on:
-  push:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
     branches: [main]
+  workflow_dispatch:
 
 permissions:
   contents: read
 
+# Deploys never overlap and are never cancelled half way: a cut-off deploy can leave a release
+# half rolled out.
 concurrency:
   group: deploy
   cancel-in-progress: false
 
 jobs:
   deploy:
+    # `event == push` excludes CI runs of pull requests (a fork branch may also be named "main").
+    if: >-
+      (github.event_name == 'workflow_run'
+        && github.event.workflow_run.conclusion == 'success'
+        && github.event.workflow_run.event == 'push'
+        && github.event.workflow_run.head_branch == 'main')
+      || (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main')
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    env:
-      FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+    # GitHub Environment holding FLY_API_TOKEN; restrict it to the main branch in the settings.
+    environment: production
     steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+          persist-credentials: false
+      - uses: superfly/flyctl-actions/setup-flyctl@fc53c09e1bc3be6f54706524e3b82c4f462f77be # 1.5
+      # The token lives only in the env of the steps that talk to Fly, never at job level.
       # Secrets are not available in `if:` expressions, so gate through an output.
       - name: Check deploy token
         id: gate
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
         run: |
           if [ -n "$FLY_API_TOKEN" ]; then
             echo "enabled=true" >> "$GITHUB_OUTPUT"
           else
             echo "::notice::FLY_API_TOKEN is not set, skipping deploy."
           fi
-      - uses: actions/checkout@v4
+      # SQLite on one volume: exactly one machine (docs/ops.md). Without --ha=false Fly creates two
+      # machines on the first deploy, i.e. two diverging databases.
+      - name: Deploy
         if: steps.gate.outputs.enabled == 'true'
-      - uses: superfly/flyctl-actions/setup-flyctl@master
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+        run: flyctl deploy --remote-only --ha=false
+      - name: Guard - exactly one machine
         if: steps.gate.outputs.enabled == 'true'
-      - run: flyctl deploy --remote-only
-        if: steps.gate.outputs.enabled == 'true'
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+        run: |
+          count=$(flyctl machines list --json | jq 'length')
+          echo "machines: $count"
+          if [ "$count" -gt 1 ]; then
+            echo "::error::More than one machine exists ($count). SQLite needs exactly one; see docs/ops.md."
+            exit 1
+          fi

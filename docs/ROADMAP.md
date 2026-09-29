@@ -52,12 +52,12 @@ Gate 1 (specification and designs accepted by the owner): **pending owner sign-o
 Order: P1f-1 → first deploy (after P1f-2 B1–B3) → P1f-3 before P2; P1f-4 in parallel. B5 (encrypted backup) before any real data.
 
 ### P1f-1 — Deploy, CI and build (`docs/prompts/P1f-1.md`)
-- [ ] A1 deploy only after green CI on `main`, `workflow_dispatch`, branch protection documented
-- [ ] A2 actions pinned to SHAs, token only in the deploy step
-- [ ] A3 `--ha=false`, single-machine guard, first-deploy order in docs
+- [x] A1 deploy only after green CI on `main`, `workflow_dispatch`, branch protection documented
+- [x] A2 actions pinned to SHAs, token only in the deploy step
+- [x] A3 `--ha=false`, single-machine guard, first-deploy order in docs
 - [ ] A4 lockfile in sync (jsdom)
-- [ ] A5 `BUDGET_REPLICATE=1`, health grace period
-- [ ] A6 rollback runbook, additive migrations rule, Litestream commands verified
+- [x] A5 `BUDGET_REPLICATE=1`, health grace period
+- [x] A6 rollback runbook, additive migrations rule, Litestream commands verified
 - [ ] A7 Windows paths (`fileURLToPath`), `.npmrc ignore-scripts`, engines, working `npm run dev`, e2e container
 - [ ] A8 Dependabot, digest pins, unused deps, SIGTERM
 - [ ] A9 README/SPEC drift
