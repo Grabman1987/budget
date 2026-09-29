@@ -22,7 +22,7 @@ kill_timeout = '30s'
 
 # Secrets (never in this file), set once with `fly secrets set` / `fly storage create`:
 # BUDGET_SETUP_TOKEN, BUCKET_NAME, AWS_ENDPOINT_URL_S3, AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY,
-# AWS_REGION. Replication is forced on by BUDGET_REPLICATE above. See docs/ops.md.
+# AWS_REGION, BUDGET_BACKUP_RECIPIENT (age public key, required). Replication is forced on by BUDGET_REPLICATE above. See docs/ops.md.
 
 # SQLite lives on a volume: exactly one machine, in one region.
 # Create once: fly volumes create budget_data --region fra --size 1
