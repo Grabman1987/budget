@@ -67,7 +67,7 @@ Order: P1f-1 → first deploy (after P1f-2 B1–B3) → P1f-3 before P2; P1f-4 i
 - [x] B2 recovery sessions revocable, "Alle anderen Sitzungen beenden"
 - [x] B3 body limit
 - [x] B4 recovery codes with pepper
-- [ ] B5 client-side encrypted backup (**blocker for real data**)
+- [x] B5 client-side encrypted backup (**blocker for real data**)
 - [x] B6 rate limiter IPv6 /64 and capped
 - [x] B7 low-severity hardening
 

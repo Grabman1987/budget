@@ -52,9 +52,11 @@ ENV NODE_ENV=production \
     BUDGET_MIGRATIONS_DIR=/app/drizzle \
     DATA_DIR=/data
 # ca-certificates: Litestream (Go) verifies the object storage endpoint against the system roots.
+# age: encrypts the nightly backup to the owner's public key (docs/ops.md section 8).
 RUN apt-get update \
- && apt-get install -y --no-install-recommends ca-certificates \
- && rm -rf /var/lib/apt/lists/*
+ && apt-get install -y --no-install-recommends ca-certificates age \
+ && rm -rf /var/lib/apt/lists/* \
+ && age --version
 WORKDIR /app
 COPY --from=build /repo/apps/server/dist/index.js ./server.js
 COPY --from=build /repo/apps/web/dist ./web

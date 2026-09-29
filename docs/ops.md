@@ -26,7 +26,7 @@ GitHub main ──(CI green, then Deploy workflow, FLY_API_TOKEN)──> Fly rem
 - **Replication is mandatory in production**: `fly.toml` sets `BUDGET_REPLICATE = '1'`. If `BUCKET_NAME` is missing the container exits at start with a clear message instead of running without backup. `BUDGET_REPLICATE=0` forces it off (local `docker run`, CI smoke test); unset means "on iff `BUCKET_NAME` is set".
 - If the restore fails for any reason other than "no backup yet" (wrong credentials, network), the container exits instead of starting an empty database over an existing backup. Fix the cause; Fly retries.
 - **Auth audit** (`auth_event`): failures anyone can trigger (foreign origin, rate limit, failed login) are merged into one row per kind and client per 10 minutes with a counter, and capped overall; details are cut to 100 characters; rows older than 180 days are deleted at start and daily. A flood cannot fill the volume.
-- **Second line of defence**: Fly takes daily volume snapshots (`fly volumes snapshots list`). A separate encrypted offsite copy is planned, see section 8.
+- **Second line of defence**: Fly takes daily volume snapshots (`fly volumes snapshots list`), and the server writes a nightly **age-encrypted copy** to `encrypted/` in the bucket that only the owner's offline key can open (section 8).
 
 Litestream is pinned to **0.5.17** in the `Dockerfile` (`ARG LITESTREAM_VERSION` plus the SHA-256 of the amd64 and arm64 tarballs, checked at build time). To upgrade: change the version, copy the two hashes from the release's `checksums.txt`, run `scripts/restore-test.sh` locally (CI does it too) and read the release notes for config changes. `litestream.yml` is the config (`/etc/litestream.yml` in the image).
 
@@ -54,6 +54,8 @@ Secrets are never written to `fly.toml`, the Dockerfile or the repo. `fly secret
 | `AWS_SECRET_ACCESS_KEY`                   | **secret** (by Fly)  | Bucket secret key. Litestream reads it directly.                                                                                                                    |
 | `AWS_REGION`                              | secret (by Fly)      | Set to `auto` by Fly; `litestream.yml` hard-codes `auto`, so it is not used.                                                                                        |
 | `LITESTREAM_ACCESS_KEY_ID` / `..._SECRET_ACCESS_KEY` | optional override | Litestream's own names; only needed if you want keys different from the `AWS_*` pair.                                                                     |
+| `BUDGET_BACKUP_RECIPIENT`                 | secret               | age public key(s) (`age1…`, comma-separated) for the nightly encrypted copy (section 8). **Required in production** with a bucket. The private key never goes to Fly. |
+| `BUDGET_AGE_BIN`                          | optional             | Path of the `age` binary, default `age` (installed in the image).                                                                                                  |
 | `BUDGET_REPLICATE`                        | `fly.toml` `[env]`   | `1` in production (backup is mandatory). `0` force off (local, CI), unset = on iff `BUCKET_NAME` is set.                                                            |
 | `BUDGET_MAINTENANCE`                      | temporary            | Any value: machine and volume stay up, but server and Litestream do not run (section 5).                                                                            |
 | `LITESTREAM_CONFIG`                       | optional             | Config path, default `/etc/litestream.yml`.                                                                                                                         |
@@ -102,6 +104,8 @@ Run in PowerShell (or any shell) from the repo folder. **Do the steps in this or
    $b = [byte[]]::new(32); [Security.Cryptography.RandomNumberGenerator]::Fill($b); "BUDGET_PEPPER=$([Convert]::ToBase64String($b))" | fly secrets import --stage --app budget-fg; Remove-Variable b
    ```
 
+   **Backup key**: generate the age key pair offline (section 8.1) and stage its public key: `fly secrets set --stage BUDGET_BACKUP_RECIPIENT=age1... --app budget-fg`. The server does not start in production without it.
+
 4. **Non-secret settings in `fly.toml` `[env]`** are already committed: `BUDGET_ORIGIN = 'https://budget-fg.fly.dev'`, `BUDGET_RP_ID = 'budget-fg.fly.dev'`, `BUDGET_TRUST_PROXY = '1'`, `BUDGET_REPLICATE = '1'`. With another app name change origin, RP id and `app` together, before the first passkey exists. The server refuses to start in production without `BUDGET_ORIGIN`.
 
 5. **First deploy, by hand** (single machine, because the volume is single-attach)
@@ -138,7 +142,7 @@ Run in PowerShell (or any shell) from the repo folder. **Do the steps in this or
    4. On the desktop: open the same URL. The browser cannot log in yet, so on the phone go to **Einstellungen > Sicherheit**, add a passkey (needs a fresh step-up confirmation) and complete the prompt on the desktop, or use a recovery code on the desktop and add its passkey from there.
    5. When at least two devices work, remove the bootstrap token: `fly secrets unset BUDGET_SETUP_TOKEN --app budget-fg`. The server only accepts it while no passkey is active, but an unset token also removes the temptation to keep it around.
 
-9. **Prove restore works before real data arrives**: run section 4's drill once (`scripts/restore-test.sh` locally, then a real restore of the fresh bucket into a temp file).
+9. **Prove restore works before real data arrives**: run section 4's drill once (`scripts/restore-test.sh` locally, then a real restore of the fresh bucket into a temp file), and decrypt the first encrypted copy once (section 8.3, steps 1 and 2).
 
 ## 4. Restore
 
@@ -226,6 +230,7 @@ Add `-timestamp <utc>` for a point in time. To put that file on a new volume: ru
 
 - `scripts/restore-test.sh` (also CI job `restore-test`): no cloud, proves the pinned binary can back up and restore a WAL database. Set `LITESTREAM_BIN` if it is not on `PATH`.
 - Quarterly: restore the real bucket into a temp file (4.2 side file or 4.3), run `PRAGMA integrity_check`, compare a row count with the app. A backup that was never restored is not a backup.
+- Twice a year: decrypt one encrypted copy with the offline key (section 8.3). CI decrypts a test copy with a throwaway key on every PR.
 
 ## 5. Maintenance mode
 
@@ -240,6 +245,7 @@ Add `-timestamp <utc>` for a point in time. To put that file on a new volume: ru
 | Replication lag / recency | `fly ssh console --app budget-fg -C "litestream ltx -config /etc/litestream.yml -level all /data/budget.sqlite"` | newest `created` within seconds of your last write (no writes = no new files; a daily snapshot still appears) |
 | Litestream errors        | `fly logs --app budget-fg`                                                                            | no repeated `error` lines from litestream (credentials, endpoint)                                           |
 | Volume space             | `fly ssh console --app budget-fg -C "df -h /data"`                                                    | far below 1 GB                                                                                              |
+| Encrypted copy           | `fly logs --app budget-fg` (search `Encrypted backup`); Posteingang | one `uploaded` line per night, no open "Verschlüsselte Sicherung fehlgeschlagen" item |
 | Backup tooling           | CI job `restore-test` green on every PR                                                               | green                                                                                                       |
 
 Weekly glance at the two commands with output is enough; there is no automatic alerting yet.
@@ -257,16 +263,66 @@ Weekly glance at the two commands with output is enough; there is no automatic a
   - A new login in the same browser replaces that browser's previous session.
 - Fly and GitHub accounts are the trust root (they can reach the volume and the secrets): keep two-factor authentication on for both.
 
-## 8. Planned follow-up: nightly age-encrypted copy (SPEC section 9)
+## 8. Nightly age-encrypted copy (SPEC section 9)
 
-Not implemented. Goal: a backup that survives loss of the Fly account, the Tigris bucket or a bad Litestream state, and that a stolen bucket key cannot read.
+A second, independent backup next to Litestream: once a night the server takes a consistent snapshot, encrypts it on the machine with [age](https://age-encryption.org) to the owner's **public** key and uploads it. Only the public key is on the server, so neither the server, nor Fly, nor whoever holds the bucket keys can read the copies. The private key exists only offline with the owner.
 
-- A job in `apps/worker` (P4 scheduler with catch-up) at night: take a consistent snapshot with the SQLite backup API (`better-sqlite3` `db.backup()` or `VACUUM INTO`), never copy the live file.
-- Encrypt with `age` to the owner's **public** key(s) (`age -r age1...`). Only the public key is on the server; the private key stays offline in the password manager plus a paper copy. The server cannot decrypt its own backups.
-- Upload to a **different provider or account** than Tigris (for example a second S3-compatible bucket), or let a machine of the owner pull it. Credentials for that target are separate secrets, write-only if the provider allows.
-- Retention: 30 daily, 12 monthly, prune by the job. Name files by UTC date.
-- Monitoring: the run writes its result and size to the inbox (Posteingang) so a missed night is visible; failures never block the app.
-- Drill: twice a year decrypt one file with the offline key and run `PRAGMA integrity_check`.
+**How it runs** (`apps/server/src/backup/`, in the server process):
+
+- Every 15 minutes (first check 2 minutes after start) the server checks whether today's copy (UTC) exists. It runs after 02:00 UTC, or at once when the newest copy is more than 26 hours old (catch-up after downtime).
+- `VACUUM INTO` writes a transaction-consistent snapshot into a private temp folder while the app keeps working; `age --encrypt -r <recipient>` seals it; the plaintext file is deleted before the upload.
+- Upload to the same Tigris bucket under **`encrypted/budget-YYYY-MM-DD.sqlite.age`** (Litestream only uses `budget.sqlite/`). Retention: the newest 30 daily copies plus the first copy of each of the newest 12 months; the job deletes older ones and never touches other keys.
+- Result in the log: `Encrypted backup uploaded: encrypted/budget-… (N bytes)`. A failure logs `Encrypted backup failed: …` (no secrets), puts one urgent item into the **Posteingang** ("Verschlüsselte Sicherung fehlgeschlagen") and retries an hour later; the next success resolves the item. The app never waits for the backup.
+- `BUDGET_BACKUP_RECIPIENT` is **required in production** once a bucket is configured: without it the server refuses to start.
+
+What it protects against: a stolen bucket key or Fly account reading the data, a broken Litestream state, a bad point-in-time history. It lives in the same bucket, so it does **not** survive the loss of the Tigris bucket itself: pull a copy to your own machine once a month (section 8.3).
+
+### 8.1 Generate the key pair (owner, once, offline)
+
+On your own computer, never on the Fly machine, never in the repo or CI. Install age: Windows `winget install --id FiloSottile.age` (or the release zip from github.com/FiloSottile/age), macOS `brew install age`, Debian/Ubuntu `sudo apt install age`.
+
+```
+age-keygen -o budget-backup-key.txt
+# prints: Public key: age1...   (the public key is also in the file, line "# public key:")
+```
+
+1. Copy the **whole content** of `budget-backup-key.txt` (three lines, the secret line starts with `AGE-SECRET-KEY-1`) into a secure note in your password manager, entry "Budget backup key".
+2. Print it once and store the paper with the recovery codes (fire-proof place, not with the laptop).
+3. Delete the file (`del budget-backup-key.txt` / `rm budget-backup-key.txt`) and empty the recycle bin. Losing both copies makes every encrypted backup unreadable; the server cannot help.
+
+### 8.2 Hand the public key to the app
+
+The public key is not secret, but it is kept out of the repo like everything account-specific:
+
+```
+fly secrets set BUDGET_BACKUP_RECIPIENT=age1... --app budget-fg   # add --stage before the first deploy
+fly logs --app budget-fg      # "Encrypted backup on (1 recipient(s))", about 2 minutes later "Encrypted backup uploaded: encrypted/budget-YYYY-MM-DD.sqlite.age"
+```
+
+Several recipients (e.g. a second key kept only on paper) are separated by commas; each can decrypt on its own. Rotating the key: generate a new pair (8.1), set the new public key, keep the old private key as long as copies encrypted to it exist (up to 12 months).
+
+### 8.3 Restore from an encrypted copy
+
+1. **Download** the copy. Tigris dashboard (`fly storage dashboard <bucket>`, folder `encrypted/`), or with the AWS CLI and the bucket keys in your session only:
+
+   ```
+   aws s3 ls s3://<bucket>/encrypted/ --endpoint-url https://fly.storage.tigris.dev
+   aws s3 cp s3://<bucket>/encrypted/budget-2026-10-01.sqlite.age . --endpoint-url https://fly.storage.tigris.dev
+   ```
+
+2. **Decrypt** on your machine with the key from the password manager (paste it into a temp file, delete that afterwards):
+
+   ```
+   age --decrypt -i budget-backup-key.txt -o budget-restored.sqlite budget-2026-10-01.sqlite.age
+   sqlite3 budget-restored.sqlite 'PRAGMA integrity_check;'     # must print: ok
+   rm budget-backup-key.txt
+   ```
+
+3. **Put it back** (only when the live database is lost or wrong): exactly as in section 4.3, "To put that file on a new volume": maintenance mode, move the old files aside as in 4.2, upload `budget-restored.sqlite` to `/data/budget.sqlite` with `fly ssh sftp shell`, unset maintenance. Litestream then starts a new history from this state.
+
+**Restore test in CI**: `apps/server/src/backup/backup.test.ts` generates a throwaway age key pair for the test, backs up the synthetic ledger to a local fake S3 endpoint, downloads and decrypts the copy, checks `PRAGMA integrity_check` and the row counts of every table, and shows that another key cannot decrypt it. The `check` job installs age and sets `BUDGET_REQUIRE_AGE=1`, so the test cannot silently skip. It never sees the owner's key.
+
+**Drill**: twice a year download one copy, decrypt it with the offline key (both the password-manager copy and the paper, typed in) and run `PRAGMA integrity_check`.
 
 ## 9. Lost all passkeys
 
