@@ -36,6 +36,8 @@ export interface PasskeyInfo {
 export interface PasskeyList {
   passkeys: PasskeyInfo[];
   recoveryCodesRemaining: number;
+  /** Active sessions besides the calling one (other browsers, recovery-code logins). */
+  otherSessions: number;
 }
 
 async function request<T>(method: 'GET' | 'POST' | 'DELETE', path: string, body?: unknown) {
@@ -111,3 +113,6 @@ export const deletePasskey = (id: string) =>
   request<{ ok: true }>('DELETE', `/api/auth/passkeys/${encodeURIComponent(id)}`);
 
 export const logout = () => post<{ ok: true }>('/api/auth/logout');
+
+export const revokeOtherSessions = () =>
+  post<{ ended: number }>('/api/auth/sessions/revoke-others');

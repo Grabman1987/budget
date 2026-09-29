@@ -27,7 +27,13 @@ jobs:
           node-version-file: .nvmrc
           cache: npm
       - run: npm ci
+      # The encrypted-backup restore test (apps/server/src/backup) needs age; with
+      # BUDGET_REQUIRE_AGE=1 it fails instead of skipping when the binary is missing.
+      - name: Install age
+        run: sudo apt-get update && sudo apt-get install -y age
       - name: Typecheck, lint, unit tests
+        env:
+          BUDGET_REQUIRE_AGE: '1'
         run: npm run check
       - name: Install Chromium
         run: npx playwright install --with-deps chromium
@@ -70,7 +76,10 @@ jobs:
         run: docker build -t budget:ci .
       - name: Smoke-test image
         run: |
-          docker run -d --name budget -p 3000:3000 -e BUDGET_ORIGIN=http://localhost:3000 -e BUDGET_REPLICATE=0 budget:ci
+          docker run --rm --entrypoint age budget:ci --version
+          # Throwaway pepper: production requires BUDGET_PEPPER, this container holds no data.
+          docker run -d --name budget -p 3000:3000 -e BUDGET_ORIGIN=http://localhost:3000 \
+            -e BUDGET_PEPPER=ci-smoke-test-pepper-not-a-secret-0123456789 -e BUDGET_REPLICATE=0 budget:ci
           for i in $(seq 1 20); do
             curl -fsS http://localhost:3000/health && exit 0
             sleep 1

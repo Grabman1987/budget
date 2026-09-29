@@ -63,13 +63,13 @@ Order: P1f-1 → first deploy (after P1f-2 B1–B3) → P1f-3 before P2; P1f-4 i
 - [x] A9 README/SPEC drift
 
 ### P1f-2 — Auth and backup (`docs/prompts/P1f-2.md`)
-- [ ] B1 audit-log flood bounded
-- [ ] B2 recovery sessions revocable, "Alle anderen Sitzungen beenden"
-- [ ] B3 body limit
-- [ ] B4 recovery codes with pepper
-- [ ] B5 client-side encrypted backup (**blocker for real data**)
-- [ ] B6 rate limiter IPv6 /64 and capped
-- [ ] B7 low-severity hardening
+- [x] B1 audit-log flood bounded
+- [x] B2 recovery sessions revocable, "Alle anderen Sitzungen beenden"
+- [x] B3 body limit
+- [x] B4 recovery codes with pepper
+- [x] B5 client-side encrypted backup (**blocker for real data**)
+- [x] B6 rate limiter IPv6 /64 and capped
+- [x] B7 low-severity hardening
 
 ### P1f-3 — Data model and domain (`docs/prompts/P1f-3.md`, before P2)
 - [ ] C1 envelope rollover per concept §5.3

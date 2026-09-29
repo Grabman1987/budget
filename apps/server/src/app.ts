@@ -3,6 +3,7 @@ import { relative, resolve } from 'node:path';
 import type { Db } from '@budget/db';
 import { serveStatic } from '@hono/node-server/serve-static';
 import { Hono } from 'hono';
+import { bodyLimit } from 'hono/body-limit';
 import { secureHeaders } from 'hono/secure-headers';
 import type { Auth } from './auth/routes';
 import { debugSummary } from './debug-summary';
@@ -36,6 +37,17 @@ export const CONTENT_SECURITY_POLICY = {
 };
 
 const ONE_YEAR = 60 * 60 * 24 * 365;
+/** Largest accepted API request body. Passkey responses and bookings are a few KB. */
+export const API_BODY_LIMIT = 64 * 1024;
+
+/** Browser features the app never uses are switched off for it and anything it might embed. */
+export const PERMISSIONS_POLICY = {
+  camera: false,
+  microphone: false,
+  geolocation: false,
+  payment: false,
+  usb: false,
+};
 
 export function createApp({ webDir, database, auth }: AppOptions): Hono {
   const app = new Hono();
@@ -52,6 +64,16 @@ export function createApp({ webDir, database, auth }: AppOptions): Hono {
       referrerPolicy: 'no-referrer',
       crossOriginOpenerPolicy: 'same-origin',
       crossOriginResourcePolicy: 'same-origin',
+      permissionsPolicy: PERMISSIONS_POLICY,
+    }),
+  );
+
+  // Before anything reads or logs a request: bodies over 64 KB are refused unread (B3).
+  app.use(
+    '/api/*',
+    bodyLimit({
+      maxSize: API_BODY_LIMIT,
+      onError: (c) => c.text('Request body too large (limit 64 KB).', 413),
     }),
   );
 

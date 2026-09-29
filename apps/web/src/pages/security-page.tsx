@@ -7,6 +7,7 @@ import {
   fetchPasskeys,
   logout,
   regenerateRecoveryCodes,
+  revokeOtherSessions,
   type PasskeyInfo,
 } from '../auth/api';
 import { defaultDeviceName } from '../auth/device-name';
@@ -102,6 +103,15 @@ export function SecurityPanel({ onLoggedOut }: SecurityPanelProps) {
       const result = await withStepUp(regenerateRecoveryCodes);
       setNewCodes(result.recoveryCodes);
       await refresh();
+    });
+
+  const endOthers = () =>
+    run(async () => {
+      const { ended } = await withStepUp(revokeOtherSessions);
+      await refresh();
+      toast.show({
+        message: ended === 1 ? '1 andere Sitzung beendet.' : `${ended} andere Sitzungen beendet.`,
+      });
     });
 
   const signOut = () =>
@@ -244,6 +254,23 @@ export function SecurityPanel({ onLoggedOut }: SecurityPanelProps) {
 
       <section aria-labelledby="sec-session">
         <SectionHead id="sec-session" title="Sitzung" />
+        {list.data && (
+          <p className="sec-count">
+            {list.data.otherSessions === 0
+              ? 'Keine anderen Sitzungen aktiv.'
+              : list.data.otherSessions === 1
+                ? '1 weitere Sitzung aktiv.'
+                : `${list.data.otherSessions} weitere Sitzungen aktiv.`}
+          </p>
+        )}
+        <div className="sec-add">
+          <Button variant="ghost" disabled={busy} onClick={() => void endOthers()}>
+            Alle anderen Sitzungen beenden
+          </Button>
+          <p className="field-hint">
+            Meldet alle anderen Browser und Wiederherstellungs-Anmeldungen ab. Diese Sitzung bleibt.
+          </p>
+        </div>
         <div className="sec-add">
           <Button variant="ghost" disabled={busy} onClick={() => void signOut()}>
             Abmelden

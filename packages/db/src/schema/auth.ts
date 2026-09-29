@@ -14,6 +14,7 @@ export const AUTH_EVENT_KINDS = [
   'step_up_ok',
   'step_up_failed',
   'logout',
+  'sessions_revoked',
   'rate_limited',
   'origin_rejected',
 ] as const;
@@ -57,7 +58,7 @@ export const authSession = sqliteTable(
   (t) => [index('auth_session_expires_idx').on(t.expiresAt)],
 );
 
-/** One-time recovery codes: only the SHA-256 hash is stored. */
+/** One-time recovery codes: only the HMAC-SHA-256 (server pepper) is stored. */
 export const recoveryCode = sqliteTable('recovery_code', {
   id: id(),
   codeHash: text('code_hash').notNull().unique(),
@@ -82,7 +83,12 @@ export const authChallenge = sqliteTable(
   (t) => [oneOf('auth_challenge_purpose_chk', t.purpose, CHALLENGE_PURPOSES)],
 );
 
-/** Audit of authentication events. The client address is stored only as a truncated hash. */
+/**
+ * Audit of authentication events. The client address is stored only as a truncated HMAC.
+ * Rejections of unauthenticated requests are merged: one row per kind and client per window,
+ * `count` says how often it happened between `ts` and `last_ts`. Rows older than 180 days are
+ * pruned by the server.
+ */
 export const authEvent = sqliteTable(
   'auth_event',
   {
@@ -91,7 +97,10 @@ export const authEvent = sqliteTable(
     kind: text('kind', { enum: AUTH_EVENT_KINDS }).notNull(),
     passkeyId: text('passkey_id'),
     ipHash: text('ip_hash'),
+    /** At most 100 characters. */
     detail: text('detail'),
+    count: integer('count').notNull().default(1),
+    lastTs: text('last_ts'),
   },
   (t) => [
     oneOf('auth_event_kind_chk', t.kind, AUTH_EVENT_KINDS),

@@ -35,6 +35,11 @@ describe('server', () => {
     expect(res.headers.get('x-frame-options')).toBe('DENY');
   });
 
+  it('switches off camera, microphone, geolocation, payment and USB (Permissions-Policy)', async () => {
+    const policy = (await app.request('/health')).headers.get('permissions-policy');
+    expect(policy).toBe('camera=(), microphone=(), geolocation=(), payment=(), usb=()');
+  });
+
   it('serves the web app and falls back to index.html for client routes', async () => {
     const root = await app.request('/');
     expect(root.status).toBe(200);

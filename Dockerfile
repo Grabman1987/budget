@@ -52,9 +52,11 @@ ENV NODE_ENV=production \
     BUDGET_MIGRATIONS_DIR=/app/drizzle \
     DATA_DIR=/data
 # ca-certificates: Litestream (Go) verifies the object storage endpoint against the system roots.
+# age: encrypts the nightly backup to the owner's public key (docs/ops.md section 8).
 RUN apt-get update \
- && apt-get install -y --no-install-recommends ca-certificates \
- && rm -rf /var/lib/apt/lists/*
+ && apt-get install -y --no-install-recommends ca-certificates age \
+ && rm -rf /var/lib/apt/lists/* \
+ && age --version
 WORKDIR /app
 COPY --from=build /repo/apps/server/dist/index.js ./server.js
 COPY --from=build /repo/apps/web/dist ./web
@@ -69,9 +71,10 @@ COPY --from=litestream /usr/local/bin/litestream /usr/local/bin/litestream
 COPY litestream.yml /etc/litestream.yml
 # /data is the Fly volume mount for SQLite. The entrypoint fixes its ownership, restores the
 # database from the replica if the volume is empty and then runs the server (under Litestream when
-# replication is configured) as the unprivileged `node` user.
+# replication is configured) as the unprivileged `node` user. Only /data belongs to `node`: the
+# code in /app stays owned by root, so the server process cannot modify it.
 COPY --chmod=755 docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
-RUN mkdir -p /data && chown -R node:node /data /app
+RUN mkdir -p /data && chown node:node /data
 EXPOSE 3000
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s \
   CMD node -e "fetch('http://127.0.0.1:'+process.env.PORT+'/health').then(r=>process.exit(r.ok?0:1),()=>process.exit(1))"
