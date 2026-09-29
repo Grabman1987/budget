@@ -2,6 +2,10 @@
 
 # ---- build: install workspaces, build web (Vite) and server (esbuild bundle) ----
 FROM node:22-bookworm-slim AS build
+# npm runs node-gyp for better-sqlite3 (a no-op that still needs python and make: the package ships prebuilds).
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends python3 make g++ \
+ && rm -rf /var/lib/apt/lists/*
 WORKDIR /repo
 COPY package.json package-lock.json ./
 COPY apps/server/package.json apps/server/
