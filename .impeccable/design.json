@@ -1,0 +1,425 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-09-28T12:00:00+02:00",
+  "title": "Design System: Finanz-App",
+  "extensions": {
+    "colorMeta": {
+      "primary": {
+        "role": "primary",
+        "displayName": "Preußische Tusche",
+        "canonical": "oklch(42.8% 0.162 262.0)",
+        "tonalRamp": [
+          "#00042e",
+          "#05215a",
+          "#1b4089",
+          "#3461ba",
+          "#5e88d5",
+          "#8aaef0",
+          "#b3d2ff",
+          "#d6f0ff"
+        ]
+      },
+      "primary-hover": {
+        "role": "primary",
+        "displayName": "Tusche vertieft"
+      },
+      "line": {
+        "role": "primary",
+        "displayName": "Preußische Tusche (Linie)",
+        "canonical": "oklch(42.8% 0.162 262.0)",
+        "tonalRamp": [
+          "#00042e",
+          "#05215a",
+          "#1b4089",
+          "#3461ba",
+          "#5e88d5",
+          "#8aaef0",
+          "#b3d2ff",
+          "#d6f0ff"
+        ]
+      },
+      "line-2": {
+        "role": "primary",
+        "displayName": "Blasse Tusche",
+        "canonical": "oklch(73.1% 0.072 261.3)",
+        "tonalRamp": [
+          "#000729",
+          "#112549",
+          "#2f456b",
+          "#4f6690",
+          "#718ab5",
+          "#95afdc",
+          "#b7d2ff",
+          "#d5f0ff"
+        ]
+      },
+      "need": {
+        "role": "secondary",
+        "displayName": "Klassenblau Bedarf",
+        "canonical": "oklch(42.8% 0.162 262.0)"
+      },
+      "want": {
+        "role": "secondary",
+        "displayName": "Klassenblau Wunsch",
+        "canonical": "oklch(61.8% 0.155 255.3)",
+        "tonalRamp": [
+          "#00062e",
+          "#002359",
+          "#004388",
+          "#1e65b8",
+          "#518bd4",
+          "#81b1ef",
+          "#acd4ff",
+          "#d1f1ff"
+        ]
+      },
+      "future": {
+        "role": "secondary",
+        "displayName": "Petrol Zukunft",
+        "canonical": "oklch(53.1% 0.089 207.1)",
+        "tonalRamp": [
+          "#00121d",
+          "#00313c",
+          "#00515d",
+          "#007480",
+          "#3a98a4",
+          "#63beca",
+          "#8be1ed",
+          "#b9fcff"
+        ]
+      },
+      "red": {
+        "role": "tertiary",
+        "displayName": "Rotstift",
+        "canonical": "oklch(53.6% 0.192 29.2)",
+        "tonalRamp": [
+          "#250000",
+          "#4f0201",
+          "#7c1e16",
+          "#ab3b2f",
+          "#ca695b",
+          "#e99487",
+          "#ffbdb1",
+          "#ffded4"
+        ]
+      },
+      "ground": {
+        "role": "neutral",
+        "displayName": "Zeichenfilm",
+        "canonical": "oklch(97.8% 0.005 258.3)"
+      },
+      "ground-2": {
+        "role": "neutral",
+        "displayName": "Planschrank"
+      },
+      "raised": {
+        "role": "neutral",
+        "displayName": "Aufgelegt"
+      },
+      "ink": {
+        "role": "neutral",
+        "displayName": "Tinte",
+        "canonical": "oklch(22.3% 0.052 258.3)",
+        "tonalRamp": [
+          "#010a20",
+          "#162740",
+          "#344661",
+          "#546784",
+          "#768aa9",
+          "#9aafcf",
+          "#bdd3f4",
+          "#daf0ff"
+        ]
+      },
+      "ink-2": {
+        "role": "neutral",
+        "displayName": "Tinte 2"
+      },
+      "ink-3": {
+        "role": "neutral",
+        "displayName": "Tinte 3"
+      },
+      "rule": {
+        "role": "neutral",
+        "displayName": "Haarlinie"
+      },
+      "rule-strong": {
+        "role": "neutral",
+        "displayName": "Haarlinie kräftig"
+      },
+      "graticule": {
+        "role": "neutral",
+        "displayName": "Gradnetz"
+      },
+      "dark-ground": {
+        "role": "neutral",
+        "displayName": "Preußischblau",
+        "canonical": "oklch(30.6% 0.073 249.1)",
+        "tonalRamp": [
+          "#000a28",
+          "#012848",
+          "#23486a",
+          "#44698e",
+          "#668db4",
+          "#8ab2db",
+          "#add6ff",
+          "#ccf3ff"
+        ]
+      },
+      "dark-line": {
+        "role": "primary",
+        "displayName": "Lichtpausweiß",
+        "canonical": "oklch(93.0% 0.038 239.6)"
+      },
+      "dark-red": {
+        "role": "tertiary",
+        "displayName": "Rotstift (Blaupause)"
+      }
+    },
+    "typographyMeta": {
+      "dimension": {
+        "displayName": "Dimension",
+        "purpose": "Leitmaßwert als Maßtext über der Maßlinie; mobil 40 px, Cent halb so groß in ink-3."
+      },
+      "display": {
+        "displayName": "Display",
+        "purpose": "Monatstitel im Schriftfeld."
+      },
+      "headline": {
+        "displayName": "Headline",
+        "purpose": "Titel des Leitmaß-Abschnitts."
+      },
+      "title": {
+        "displayName": "Title",
+        "purpose": "Abschnittsköpfe und Panel-Titel."
+      },
+      "figure": {
+        "displayName": "Figure",
+        "purpose": "Kennzahlen in Abschnitten; Solitärwerte 34/36/44 px."
+      },
+      "body": {
+        "displayName": "Body",
+        "purpose": "Fließtext und Zeilen, 15 px mobil, immer Tabellenziffern."
+      },
+      "label": {
+        "displayName": "Label",
+        "purpose": "Technische Versalbeschriftung: Schriftfeld-Felder, Tabellenköpfe, Planliste, Klassen-Tags. Nie als Dachzeile."
+      },
+      "chart-label": {
+        "displayName": "Chart label",
+        "purpose": "Achsen und Maßtexte in Diagrammen und Maßketten."
+      }
+    },
+    "shadows": [
+      {
+        "name": "float",
+        "value": "0 10px 22px -10px rgba(11, 27, 51, 0.30), 0 2px 5px rgba(11, 27, 51, 0.08)",
+        "purpose": "Nur schwebende Ebenen: Seitenpanel, Buchungsdialog, Combobox, Toast, Buchungsknopf."
+      },
+      {
+        "name": "float-dark",
+        "value": "0 12px 24px -10px rgba(2, 10, 26, 0.7), 0 2px 6px rgba(2, 10, 26, 0.4)",
+        "purpose": "Dasselbe im dunklen Modus."
+      },
+      {
+        "name": "focus-field",
+        "value": "0 0 0 3px var(--tint-2)",
+        "purpose": "Fokusring von Eingabefeldern zusammen mit Tuscherahmen."
+      }
+    ],
+    "motion": [
+      {
+        "name": "ease-out",
+        "value": "cubic-bezier(0.16, 1, 0.3, 1)",
+        "purpose": "Standardkurve für alle Übergänge."
+      },
+      {
+        "name": "t-fast",
+        "value": "160ms",
+        "purpose": "Hover und Zustandswechsel."
+      },
+      {
+        "name": "plot",
+        "value": "900ms",
+        "purpose": "Linien werden wie ein Plotter gezogen (stroke-dashoffset), Staffelung 260/520 ms."
+      },
+      {
+        "name": "reveal-forecast",
+        "value": "1000ms",
+        "purpose": "Gestrichelte Linien per Clip-Aufdeckung statt Dash-Animation."
+      },
+      {
+        "name": "chain-open",
+        "value": "240ms",
+        "purpose": "Maßkette klappt auf (grid-template-rows)."
+      },
+      {
+        "name": "panel",
+        "value": "260ms",
+        "purpose": "Seitenpanel und Blatt von unten."
+      },
+      {
+        "name": "reduced-motion",
+        "value": "0ms",
+        "purpose": "Bei prefers-reduced-motion keine Animationen und Übergänge."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "mobile",
+        "value": "767px"
+      },
+      {
+        "name": "booking-split",
+        "value": "768px"
+      },
+      {
+        "name": "stack-pace",
+        "value": "980px"
+      },
+      {
+        "name": "details-2col",
+        "value": "1180px"
+      }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primärschaltfläche",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Tusche-Fläche für die Hauptaktion (Buchung, Speichern).",
+      "html": "<button class=\"ds-btn-primary\"><svg viewBox=\"0 0 24 24\" width=\"18\" height=\"18\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.75\" stroke-linecap=\"round\"><path d=\"M5 12h14\"/><path d=\"M12 5v14\"/></svg>Buchung</button>",
+      "css": ".ds-btn-primary { display: inline-flex; align-items: center; gap: 8px; height: 40px; padding: 0 16px; border: 0; border-radius: 8px; background: var(--primary, #1747a6); color: var(--on-primary, #fff); font-family: Archivo, 'Segoe UI', system-ui, sans-serif; font-weight: 600; font-size: 14px; cursor: pointer; transition: background 160ms cubic-bezier(0.16,1,0.3,1), transform 80ms ease-out; } .ds-btn-primary:hover { background: var(--primary-hover, #0f3a8f); } .ds-btn-primary:active { transform: translateY(1px); } .ds-btn-primary:focus-visible { outline: 2px solid var(--line, #1747a6); outline-offset: 2px; }"
+    },
+    {
+      "name": "Ghost-Schaltfläche",
+      "kind": "button",
+      "refersTo": "button-ghost",
+      "description": "Sekundäre Aktionen mit Haarlinie (Posteingang, Zuordnen, Maßkette zeigen).",
+      "html": "<button class=\"ds-btn-ghost\">Zuordnen</button>",
+      "css": ".ds-btn-ghost { display: inline-flex; align-items: center; gap: 8px; height: 40px; padding: 0 16px; border: 1px solid var(--rule-strong, #b6c6df); border-radius: 8px; background: transparent; color: var(--ink, #0b1b33); font-family: Archivo, 'Segoe UI', system-ui, sans-serif; font-weight: 600; font-size: 14px; cursor: pointer; transition: background 160ms cubic-bezier(0.16,1,0.3,1), border-color 160ms cubic-bezier(0.16,1,0.3,1); } .ds-btn-ghost:hover { border-color: var(--line-2, #8fa9d6); background: var(--tint, rgba(23,71,166,0.06)); } .ds-btn-ghost:focus-visible { outline: 2px solid var(--line, #1747a6); outline-offset: 2px; }"
+    },
+    {
+      "name": "Rotstift-Schaltfläche",
+      "kind": "button",
+      "refersTo": "button-alert",
+      "description": "Nur die eine dringende Aktion einer Revision (Decken).",
+      "html": "<button class=\"ds-btn-alert\">Decken</button>",
+      "css": ".ds-btn-alert { height: 34px; padding: 0 12px; border: 0; border-radius: 8px; background: var(--red, #c42a1f); color: #fff; font-family: Archivo, 'Segoe UI', system-ui, sans-serif; font-weight: 600; font-size: 13.5px; cursor: pointer; } .ds-btn-alert:active { transform: translateY(1px); } .ds-btn-alert:focus-visible { outline: 2px solid var(--line, #1747a6); outline-offset: 2px; }"
+    },
+    {
+      "name": "Eingabefeld",
+      "kind": "input",
+      "refersTo": "input",
+      "description": "Feld mit Label, Tuscherahmen und Tönungsring im Fokus.",
+      "html": "<label class=\"ds-field\"><span>Empfänger</span><input class=\"ds-input\" placeholder=\"Suchen oder neu anlegen\"></label>",
+      "css": ".ds-field { display: grid; gap: 6px; font-family: Archivo, 'Segoe UI', system-ui, sans-serif; } .ds-field span { font-size: 13px; font-weight: 560; color: var(--ink-2, #3a4e6e); } .ds-input { height: 44px; padding: 0 12px; border: 1px solid var(--rule-strong, #b6c6df); border-radius: 8px; background: var(--raised, #fff); color: var(--ink, #0b1b33); font: inherit; font-size: 14px; } .ds-input::placeholder { color: var(--ink-3, #586e90); } .ds-input:focus { outline: none; border-color: var(--line, #1747a6); box-shadow: 0 0 0 3px var(--tint-2, rgba(23,71,166,0.11)); }"
+    },
+    {
+      "name": "Planliste",
+      "kind": "nav",
+      "refersTo": "sheetlist-item",
+      "description": "Navigation als Planliste mit Blattnummern 01–05.",
+      "html": "<nav class=\"ds-sheetlist\"><div class=\"ds-sheetlist-label\">Planliste</div><a aria-current=\"page\" href=\"#\"><svg viewBox=\"0 0 24 24\" width=\"18\" height=\"18\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.75\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M15 21v-8a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v8\"/><path d=\"M3 10a2 2 0 0 1 .709-1.528l7-5.999a2 2 0 0 1 2.582 0l7 5.999A2 2 0 0 1 21 10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z\"/></svg><span>Heute</span><span class=\"ds-no\">01</span></a><a href=\"#\"><svg viewBox=\"0 0 24 24\" width=\"18\" height=\"18\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.75\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M19 7V4a1 1 0 0 0-1-1H5a2 2 0 0 0 0 4h15a1 1 0 0 1 1 1v4h-3a2 2 0 0 0 0 4h3a1 1 0 0 0 1-1v-2a1 1 0 0 0-1-1\"/><path d=\"M3 5v14a2 2 0 0 0 2 2h15a1 1 0 0 0 1-1v-4\"/></svg><span>Plan</span><span class=\"ds-no\">02</span></a></nav>",
+      "css": ".ds-sheetlist { display: grid; gap: 2px; width: 208px; padding: 12px; background: var(--ground-2, #eef2f8); font-family: Archivo, 'Segoe UI', system-ui, sans-serif; } .ds-sheetlist-label { padding: 0 10px 8px; font-family: 'Barlow Semi Condensed', Archivo, sans-serif; font-weight: 500; font-size: 11.5px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-3, #586e90); } .ds-sheetlist a { display: grid; grid-template-columns: 20px 1fr auto; align-items: center; gap: 12px; height: 42px; padding: 0 10px; border: 1px solid transparent; border-radius: 6px; color: var(--ink-2, #3a4e6e); text-decoration: none; font-weight: 500; font-size: 14.5px; transition: background 160ms cubic-bezier(0.16,1,0.3,1); } .ds-sheetlist a:hover { background: var(--tint, rgba(23,71,166,0.06)); color: var(--ink, #0b1b33); } .ds-sheetlist a[aria-current=page] { background: var(--raised, #fff); border-color: var(--rule-strong, #b6c6df); color: var(--ink, #0b1b33); font-weight: 600; } .ds-sheetlist a:focus-visible { outline: 2px solid var(--line, #1747a6); outline-offset: 2px; } .ds-no { font-family: 'Barlow Semi Condensed', Archivo, sans-serif; font-size: 12px; letter-spacing: 0.08em; color: var(--ink-3, #586e90); } .ds-sheetlist a[aria-current=page] .ds-no { color: var(--line, #1747a6); }"
+    },
+    {
+      "name": "Kategorie-Chip",
+      "kind": "chip",
+      "refersTo": "chip",
+      "description": "Kategoriewahl im Buchungsdialog; das Klassen-Quadrat bleibt auch ausgewählt sichtbar (Tönung statt Vollfläche).",
+      "html": "<div class=\"ds-chips\"><button class=\"ds-chip\" aria-pressed=\"true\"><span class=\"ds-sw ds-need\"></span>Lebensmittel</button><button class=\"ds-chip\" aria-pressed=\"false\"><span class=\"ds-sw ds-want\"></span>Freizeit</button></div>",
+      "css": ".ds-chips { display: flex; gap: 6px; } .ds-chip { height: 36px; padding: 0 12px; display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--rule-strong, #b6c6df); border-radius: 999px; background: transparent; color: var(--ink, #0b1b33); font-family: Archivo, 'Segoe UI', system-ui, sans-serif; font-size: 13.5px; font-weight: 520; cursor: pointer; } .ds-chip:hover { border-color: var(--line-2, #8fa9d6); background: var(--tint, rgba(23,71,166,0.06)); } .ds-chip[aria-pressed=true] { background: var(--tint-2, rgba(23,71,166,0.11)); border-color: var(--line, #1747a6); box-shadow: inset 0 0 0 1px var(--line, #1747a6); color: var(--ink, #0b1b33); font-weight: 620; } .ds-chip:focus-visible { outline: 2px solid var(--line, #1747a6); outline-offset: 2px; } .ds-sw { width: 10px; height: 10px; border-radius: 2px; } .ds-need { background: var(--need, #1747a6); } .ds-want { background: repeating-linear-gradient(135deg, var(--want, #3d86e0) 0 2px, transparent 2px 5px); box-shadow: inset 0 0 0 1px var(--want, #3d86e0); }"
+    },
+    {
+      "name": "Schriftfeld",
+      "kind": "custom",
+      "refersTo": "titleblock",
+      "description": "Seitenkopf als technisches Schriftfeld mit Monatstitel, Stand und Zeitraum. Kein Urteilssatz, keine Blattnummer.",
+      "html": "<div class=\"ds-tb\"><div class=\"ds-tb-cell ds-tb-title\"><strong>September 2026</strong></div><div class=\"ds-tb-cell\"><span class=\"ds-tech\">Stand</span><span class=\"ds-val\">17.09. · 06:30</span></div><div class=\"ds-tb-cell\"><span class=\"ds-tech\">Zeitraum</span><span class=\"ds-val\">Monat · Bis Gehalt</span></div></div>",
+      "css": ".ds-tb { display: grid; grid-template-columns: minmax(0,1fr) auto auto; border: 1px solid var(--line-2, #8fa9d6); border-radius: 2px; font-family: Archivo, 'Segoe UI', system-ui, sans-serif; color: var(--ink, #0b1b33); font-variant-numeric: tabular-nums; } .ds-tb-cell { display: grid; gap: 6px; align-content: space-between; padding: 10px 16px 12px; border-left: 1px solid var(--line-2, #8fa9d6); } .ds-tb-cell:first-child { border-left: 0; } .ds-tb-title { display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap; padding-block: 14px; } .ds-tb-title strong { font-size: 30px; font-weight: 650; letter-spacing: -0.02em; line-height: 1; } .ds-tb-title span { font-size: 16px; color: var(--ink-2, #3a4e6e); } .ds-tb-title b { color: var(--ink, #0b1b33); } .ds-tech { font-family: 'Barlow Semi Condensed', Archivo, sans-serif; font-weight: 500; font-size: 11.5px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-3, #586e90); } .ds-val { font-weight: 600; font-size: 14px; }"
+    },
+    {
+      "name": "Maßkette",
+      "kind": "custom",
+      "refersTo": "drawChain",
+      "description": "Signaturkomponente: Summe als Kette von Teilmaßen, gebundener Teil schraffiert, Ergebnismaß darunter.",
+      "html": "<svg class=\"ds-chain\" viewBox=\"0 0 480 140\" role=\"img\" aria-label=\"Maßkette\"><defs><pattern id=\"ds-want\" width=\"5\" height=\"5\" patternUnits=\"userSpaceOnUse\" patternTransform=\"rotate(-45)\"><rect width=\"2\" height=\"5\" fill=\"#3d86e0\"/></pattern><pattern id=\"ds-bound\" width=\"5\" height=\"5\" patternUnits=\"userSpaceOnUse\" patternTransform=\"rotate(-45)\"><rect width=\"1.5\" height=\"5\" fill=\"#8fa9d6\"/></pattern></defs><g class=\"ds-seg\" tabindex=\"0\"><line class=\"ds-dim\" x1=\"2\" x2=\"340\" y1=\"24\" y2=\"24\"/><path class=\"ds-dim\" d=\"M-1 27 L5 21 M337 27 L343 21\"/><text class=\"ds-lbl\" x=\"171\" y=\"17\" text-anchor=\"middle\">Bedarf 1.020,00 €</text><rect x=\"2\" y=\"44\" width=\"338\" height=\"14\" fill=\"#1747a6\" stroke=\"#1747a6\"/></g><g class=\"ds-seg\" tabindex=\"0\"><line class=\"ds-dim\" x1=\"340\" x2=\"478\" y1=\"24\" y2=\"24\"/><path class=\"ds-dim\" d=\"M475 27 L481 21\"/><text class=\"ds-lbl\" x=\"409\" y=\"17\" text-anchor=\"middle\">Wunsch 412,59 €</text><rect x=\"340\" y=\"44\" width=\"138\" height=\"14\" fill=\"url(#ds-want)\" stroke=\"#1747a6\"/></g><rect x=\"429\" y=\"64\" width=\"49\" height=\"12\" fill=\"url(#ds-bound)\" stroke=\"#8fa9d6\"/><text class=\"ds-lbl-line\" x=\"421\" y=\"74\" text-anchor=\"end\">offen bis Gehalt −147,99 €</text><line class=\"ds-ext\" x1=\"2\" x2=\"2\" y1=\"58\" y2=\"130\"/><line class=\"ds-ext\" x1=\"429\" x2=\"429\" y1=\"76\" y2=\"130\"/><line class=\"ds-dim\" x1=\"2\" x2=\"429\" y1=\"124\" y2=\"124\" stroke-width=\"1.6\"/><path class=\"ds-dim\" d=\"M-2.5 128.5 L6.5 119.5 M424.5 128.5 L433.5 119.5\"/><text class=\"ds-lbl\" x=\"215\" y=\"116\" text-anchor=\"middle\">= frei verfügbar 1.284,60 €</text></svg>",
+      "css": ".ds-chain { width: 100%; max-width: 480px; overflow: visible; } .ds-dim { stroke: var(--line, #1747a6); stroke-width: 1.25; fill: none; } .ds-ext { stroke: var(--line-2, #8fa9d6); stroke-width: 1; stroke-dasharray: 2 3; } .ds-lbl { font-family: 'Barlow Semi Condensed', Archivo, sans-serif; font-size: 13px; font-weight: 600; letter-spacing: 0.04em; fill: var(--ink, #0b1b33); } .ds-lbl-line { font-family: 'Barlow Semi Condensed', Archivo, sans-serif; font-size: 13px; font-weight: 500; letter-spacing: 0.04em; fill: var(--line, #1747a6); } .ds-seg { cursor: pointer; } .ds-seg rect { opacity: 0.8; transition: opacity 160ms; } .ds-seg:hover rect, .ds-seg:focus-visible rect { opacity: 1; } .ds-seg:focus { outline: none; }"
+    },
+    {
+      "name": "Revisionszeile",
+      "kind": "custom",
+      "refersTo": "rev-table",
+      "description": "Nächster Schritt als Revision mit Dreieck und Buchstabe; dringend in Rotstift.",
+      "html": "<div class=\"ds-rev is-urgent\"><svg class=\"ds-tri\" viewBox=\"0 0 26 24\"><path d=\"M13 2.5 24 21.5H2Z\"/><text x=\"13\" y=\"18\" text-anchor=\"middle\">A</text></svg><div class=\"ds-what\"><strong>Treibstoff ist überzogen</strong><span>−12,40 € · aus „Freizeit“ decken</span></div><button class=\"ds-act\">Decken</button></div><div class=\"ds-rev\"><svg class=\"ds-tri\" viewBox=\"0 0 26 24\"><path d=\"M13 2.5 24 21.5H2Z\"/><text x=\"13\" y=\"18\" text-anchor=\"middle\">B</text></svg><div class=\"ds-what\"><strong>4 Buchungen ohne Kategorie</strong><span>Vorschläge vorhanden</span></div><button class=\"ds-act ds-ghost\">Zuordnen</button></div>",
+      "css": ".ds-rev { display: grid; grid-template-columns: 40px 1fr auto; align-items: center; gap: 12px; padding: 14px 0; border-top: 1px solid var(--rule, #d6dfed); font-family: Archivo, 'Segoe UI', system-ui, sans-serif; } .ds-tri { width: 26px; height: 24px; } .ds-tri path { fill: none; stroke: var(--line, #1747a6); stroke-width: 1.4; stroke-linejoin: round; } .ds-tri text { font-family: 'Barlow Semi Condensed', Archivo, sans-serif; font-weight: 600; font-size: 11px; fill: var(--line, #1747a6); } .ds-what strong { display: block; font-weight: 600; font-size: 14.5px; color: var(--ink, #0b1b33); } .ds-what span { font-size: 13px; color: var(--ink-2, #3a4e6e); } .is-urgent .ds-tri path { stroke: var(--red, #c42a1f); fill: rgba(196,42,31,0.08); } .is-urgent .ds-tri text { fill: var(--red, #c42a1f); } .is-urgent .ds-what strong { color: var(--red, #c42a1f); } .ds-act { height: 34px; padding: 0 12px; border: 0; border-radius: 8px; background: var(--red, #c42a1f); color: #fff; font: inherit; font-weight: 600; font-size: 13.5px; cursor: pointer; } .ds-act.ds-ghost { background: transparent; color: var(--ink, #0b1b33); border: 1px solid var(--rule-strong, #b6c6df); } .ds-act.ds-ghost:hover { border-color: var(--line-2, #8fa9d6); background: var(--tint, rgba(23,71,166,0.06)); } .ds-act:focus-visible { outline: 2px solid var(--line, #1747a6); outline-offset: 2px; }"
+    },
+    {
+      "name": "Quellstempel",
+      "kind": "badge",
+      "refersTo": "kstamp",
+      "description": "Gerahmte technische Beschriftung für die Datenquelle eines Kontos; veraltet oder ablaufend mit gestricheltem Tintenrahmen.",
+      "html": "<span class=\"ds-stamp\">Bank-Sync heute 06:30</span> <span class=\"ds-stamp is-warn\">manuell · vor 34 Tagen</span>",
+      "css": ".ds-stamp{display:inline-flex;align-items:center;gap:4px;padding:1px 6px;border:1px solid var(--line-2,#8fa9d6);border-radius:3px;font-family:'Barlow Semi Condensed',Archivo,sans-serif;font-size:11.5px;letter-spacing:.04em;color:var(--ink-3,#586e90)}.ds-stamp.is-warn{border:1.5px dashed var(--ink,#0b1b33);color:var(--ink,#0b1b33);font-weight:600}"
+    }
+  ],
+  "narrative": {
+    "northStar": "Das Konstruktionsblatt",
+    "overview": "Die Finanz-App ist ein technisches Zeichenblatt, keine Kachelwand. Jede Zahl ist ein Maß: Sie sitzt als Maßtext auf einer Maßlinie mit Schrägstrich-Maßbegrenzung und lässt sich in ihre Maßkette zerlegen, bis hinunter zur einzelnen Buchung. Die Blaupause steckt in der Haltung (Linienarten, Schriftfeld, Planliste, Revisionstabelle, Detailausschnitte), nicht in der Tapete: Der Grund ist glatt, ein Millimeterraster gibt es nicht.\n\nHell ist blaue Tusche auf weißem Zeichenfilm, dunkel die klassische Blaupause, helle Linien auf Preußischblau. Beide Modi sind vollwertig und teilen dieselben Rollen. Die Farbwelt kennt nur Blautöne; der Rotstift ist die einzige Nicht-Blau-Tinte und bedeutet ausschließlich Handlungsbedarf. Die Dichte ist die eines Arbeitsblatts für die abendliche Steuerungssitzung: Haarlinien statt Karten, Zeilen statt Kacheln, Tabellenziffern überall.\n\nPro Region ist höchstens ein Zeichenmittel sichtbar. Die Entwürfe in `03_Mockups/` und Kapitel 10 des Konzepts (Manrope, Akzent #0E6E66, weiße Kacheln) sind überholt und keine Vorlage.",
+    "keyCharacteristics": [
+      "Jede Zahl ist ein Maß; die Maßkette entfaltet Summen bis zur Buchung.",
+      "Linienarten nach ISO 128 tragen Bedeutung: durchgezogen = Ist, gestrichelt = Plan und Prognose, strichpunktiert = Vormonat.",
+      "Nur Blau, plus Rotstift für Handlungsbedarf.",
+      "Seitenkopf als Schriftfeld, Navigation als Planliste mit Blattnummern, nächste Schritte als Revisionstabelle, Detailausschnitte mit Kreisnummern.",
+      "Flach und haarlinig; Schatten nur für schwebende Ebenen.",
+      "Werkhorst-Grotesk (Archivo) mit Tabellenziffern, technische Beschriftung (Barlow Semi Condensed) für Labels."
+    ],
+    "rules": [
+      {
+        "name": "The Rotstift Rule",
+        "body": "Rot ist die einzige Nicht-Blau-Tinte und bedeutet Handlungsbedarf. Ein verletzter Finanz-Check-Wert ohne akute Aktion steht in Tinte mit Warnsymbol, nicht in Rot. Rot und jeder Status erscheinen nie ohne Vorzeichen oder Symbol.",
+        "section": "colors"
+      },
+      {
+        "name": "The Only Blue Rule",
+        "body": "Alle Tinten außer dem Rotstift sind Blautöne, von Preußisch bis Petrol. Grün als Erfolgsfarbe gibt es nicht; „erfüllt“ und positive Deltas stehen in Tusche mit Häkchen oder Pfeil.",
+        "section": "colors"
+      },
+      {
+        "name": "The Tabular Rule",
+        "body": "Jede Ziffer steht in Tabellenziffern, damit Beträge in Spalten fluchten.",
+        "section": "typography"
+      },
+      {
+        "name": "The Lettering Rule",
+        "body": "Die technische Versalbeschriftung beschriftet Felder, Spalten, Achsen, Blätter und Klassen. Sie steht nie als Dachzeile über einer Überschrift.",
+        "section": "typography"
+      },
+      {
+        "name": "The Flat Sheet Rule",
+        "body": "Auf dem Blatt liegt nichts erhaben; Inhalte werden durch Linien gegliedert, nicht durch Karten.",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "**Do** setze jeden Leit- und Summenwert als Maß (Maßlinie, Begrenzung, Maßtext) und mache ihn zur Maßkette auffaltbar, immer über die eine `drawChain`-Komponente.",
+      "**Do** kodiere Datenstatus mit Linienart: durchgezogen = Ist, gestrichelt `7 5` = Plan und Prognose, strichpunktiert `12 4 2 4` = Vormonat, und zeige die Legende.",
+      "**Do** kodiere die drei Klassen mit Füllung: Bedarf voll, Wunsch 135°-Schraffur, Zukunft Kreuzschraffur; gebunden als Schraffur in blasser Tusche.",
+      "**Do** zeige Schulden in Ketten als gestrichelte Kontur ohne Füllung.",
+      "**Do** verwende außerhalb von Diagrammen und Maßen klassische Finanzsymbole und Lucide-Icons (Strich 1,75, 18 px).",
+      "**Do** halte pro Region höchstens ein Zeichenmittel sichtbar.",
+      "**Do** pflege beide Modi gleichwertig über dieselben Rollen-Properties."
+    ],
+    "donts": [
+      "**Don't** lege ein Millimeterraster als Grund an; das Gradnetz steht nur hinter Diagrammen und im Kopfdetail des Seitenpanels.",
+      "**Don't** verwende Schraffur außerhalb von Balken und Diagrammflächen, und nie für Schulden.",
+      "**Don't** setze die Höhenkote außerhalb von Diagrammen und Maßen ein.",
+      "**Don't** verwende Rot für etwas anderes als Handlungsbedarf, und keine weitere Nicht-Blau-Farbe.",
+      "**Don't** baue Kachelwände aus gleichwertigen weißen Karten mit Pillen-Badges und einer Hero-Kennzahl.",
+      "**Don't** übernimm Manrope, den Akzent #0E6E66 oder die weißen Kacheln aus `03_Mockups/` und Kapitel 10 des Konzepts.",
+      "**Don't** setze technische Versalbeschriftung als Dachzeile über Überschriften."
+    ]
+  }
+}

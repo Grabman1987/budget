@@ -1,0 +1,177 @@
+<!doctype html>
+<html lang="de-AT">
+<head>
+  <meta charset="utf-8">
+  <meta name="robots" content="noindex, nofollow">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Vermögen · Finanz-App</title>
+  <meta name="theme-color" content="#f6f8fb" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#0b3152" media="(prefers-color-scheme: dark)">
+  <link rel="preload" href="fonts/archivo-latin.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="styles.css">
+  <script src="theme.js"></script>
+</head>
+<body>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="i-house" viewBox="0 0 24 24"><path d="M15 21v-8a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v8"/><path d="M3 10a2 2 0 0 1 .709-1.528l7-5.999a2 2 0 0 1 2.582 0l7 5.999A2 2 0 0 1 21 10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></symbol>
+    <symbol id="i-wallet" viewBox="0 0 24 24"><path d="M19 7V4a1 1 0 0 0-1-1H5a2 2 0 0 0 0 4h15a1 1 0 0 1 1 1v4h-3a2 2 0 0 0 0 4h3a1 1 0 0 0 1-1v-2a1 1 0 0 0-1-1"/><path d="M3 5v14a2 2 0 0 0 2 2h15a1 1 0 0 0 1-1v-4"/></symbol>
+    <symbol id="i-landmark" viewBox="0 0 24 24"><path d="M3 22h18"/><path d="M6 18v-7"/><path d="M10 18v-7"/><path d="M14 18v-7"/><path d="M18 18v-7"/><path d="M12 2l8 5H4z"/></symbol>
+    <symbol id="i-trend" viewBox="0 0 24 24"><path d="M22 7l-8.5 8.5-5-5L2 17"/><path d="M16 7h6v6"/></symbol>
+    <symbol id="i-chart" viewBox="0 0 24 24"><path d="M3 3v18h18"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/></symbol>
+    <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></symbol>
+    <symbol id="i-inbox" viewBox="0 0 24 24"><path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></symbol>
+    <symbol id="i-plus" viewBox="0 0 24 24"><path d="M5 12h14"/><path d="M12 5v14"/></symbol>
+    <symbol id="i-settings" viewBox="0 0 24 24"><path d="M20 7h-9"/><path d="M14 17H5"/><circle cx="17" cy="17" r="3"/><circle cx="7" cy="7" r="3"/></symbol>
+    <symbol id="i-chevron" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></symbol>
+    <symbol id="i-check-circle" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/></symbol>
+    <symbol id="i-alert" viewBox="0 0 24 24"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><path d="M12 9v4"/><path d="M12 17h.01"/></symbol>
+    <symbol id="i-alert-circle" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 8v4"/><path d="M12 16h.01"/></symbol>
+    <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></symbol>
+    <symbol id="i-transfer" viewBox="0 0 24 24"><path d="M8 3 4 7l4 4"/><path d="M4 7h16"/><path d="m16 21 4-4-4-4"/><path d="M20 17H4"/></symbol>
+    <symbol id="i-panel" viewBox="0 0 24 24"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M9 3v18"/></symbol>
+    <symbol id="i-x" viewBox="0 0 24 24"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></symbol>
+    <symbol id="i-camera" viewBox="0 0 24 24"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/></symbol>
+    <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/></symbol>
+    <symbol id="i-moon" viewBox="0 0 24 24"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></symbol>
+    <symbol id="i-split" viewBox="0 0 24 24"><path d="M16 3h5v5"/><path d="M8 3H3v5"/><path d="M12 22v-8.3a4 4 0 0 0-1.172-2.872L3 3"/><path d="m15 9 6-6"/></symbol>
+    <symbol id="i-delete" viewBox="0 0 24 24"><path d="M10 5a2 2 0 0 0-1.344.519l-6.328 5.74a1 1 0 0 0 0 1.481l6.328 5.741A2 2 0 0 0 10 19h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2z"/><path d="m12 9 6 6"/><path d="m18 9-6 6"/></symbol>
+    <symbol id="i-refresh" viewBox="0 0 24 24"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></symbol>
+    <symbol id="i-up" viewBox="0 0 24 24"><path d="m5 12 7-7 7 7"/><path d="M12 19V5"/></symbol>
+    <symbol id="i-down" viewBox="0 0 24 24"><path d="M12 5v14"/><path d="m19 12-7 7-7-7"/></symbol>
+    <symbol id="i-flask" viewBox="0 0 24 24"><path d="M10 2v7.527a2 2 0 0 1-.211.896L4.72 20.55a1 1 0 0 0 .9 1.45h12.76a1 1 0 0 0 .9-1.45l-5.069-10.127A2 2 0 0 1 14 9.527V2"/><path d="M8.5 2h7"/><path d="M7 16h10"/></symbol>
+    <symbol id="i-chevron-left" viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"/></symbol>
+    <symbol id="i-chevron-down" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></symbol>
+    <symbol id="i-fill" viewBox="0 0 24 24"><path d="M12 17V3"/><path d="m6 11 6 6 6-6"/><path d="M19 21H5"/></symbol>
+    <symbol id="i-check-check" viewBox="0 0 24 24"><path d="M18 6 7 17l-5-5"/><path d="m22 10-7.5 7.5L13 16"/></symbol>
+  </defs>
+</svg>
+
+<div class="app" id="app">
+
+  <aside class="sidebar" aria-label="Hauptnavigation">
+    <a class="brand" href="index.html" aria-label="Finanz-App, Heute">
+      <svg class="brand-mark" viewBox="0 0 32 32" aria-hidden="true">
+        <rect x="1" y="1" width="30" height="30" rx="6" fill="none" stroke="currentColor" stroke-width="1.5"/>
+        <path d="M7 13.5 12 9.5l5 3.5 8-6" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M7 22h18" stroke="currentColor" stroke-width="1.2"/>
+        <path d="M5.8 23.4 8.2 20.6M23.8 23.4l2.4-2.8" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
+        <path d="M7 18.5v6M25 18.5v6" stroke="currentColor" stroke-width="1" opacity=".55"/>
+      </svg>
+      <span class="brand-name">Finanz-App</span>
+    </a>
+
+    <div class="sheetlist-label tech" id="planliste">Planliste</div>
+    <ul class="sheetlist" aria-labelledby="planliste">
+      <li><a href="index.html" title="Heute"><svg class="icon"><use href="#i-house"/></svg><span class="label">Heute</span><span class="sheet-no">01</span></a></li>
+      <li><a href="plan.html" title="Plan"><svg class="icon"><use href="#i-wallet"/></svg><span class="label">Plan</span><span class="sheet-no">02</span></a></li>
+      <li><a href="konten.html" title="Konten"><svg class="icon"><use href="#i-landmark"/></svg><span class="label">Konten</span><span class="sheet-no">03</span></a></li>
+      <li><a href="vermoegen.html" aria-current="page" title="Vermögen"><svg class="icon"><use href="#i-trend"/></svg><span class="label">Vermögen</span><span class="sheet-no">04</span></a></li>
+      <li><a href="reports.html" title="Reports"><svg class="icon"><use href="#i-chart"/></svg><span class="label">Reports</span><span class="sheet-no">05</span></a></li>
+    </ul>
+
+    <div class="sidebar-foot">
+      <button class="side-btn" type="button" id="themeBtn" title="Hell/Dunkel umschalten">
+        <svg class="icon"><use href="#i-moon"/></svg><span class="label">Dunkle Blaupause</span>
+      </button>
+      <a class="side-btn" href="einstellungen.html" title="Einstellungen"><svg class="icon"><use href="#i-settings"/></svg><span class="label">Einstellungen</span></a>
+      <div class="profile">
+        <span class="avatar" aria-hidden="true">NU</span>
+        <span class="profile-text"><strong>Profil</strong><span>Passkey · dieses Gerät</span></span>
+      </div>
+    </div>
+  </aside>
+
+  <div class="main">
+    <header class="topbar">
+      <button class="icon-btn" type="button" id="collapseBtn" aria-label="Seitenleiste einklappen" aria-expanded="true"><svg class="icon"><use href="#i-panel"/></svg></button>
+      <label class="search">
+        <span class="sr-only">Suchen</span>
+        <svg class="icon"><use href="#i-search"/></svg>
+        <input id="search" type="search" placeholder="Suchen: Buchung, Empfänger, Kategorie, Konto" autocomplete="off">
+        <span class="kbd" aria-hidden="true">Strg K</span>
+      </label>
+      <div class="topbar-actions">
+        <button class="btn btn-ghost" type="button" data-open="inbox">
+          <svg class="icon"><use href="#i-inbox"/></svg>Posteingang <span class="count" data-inbox-count>9</span>
+        </button>
+        <button class="btn btn-primary" type="button" data-open-booking>
+          <svg class="icon"><use href="#i-plus"/></svg>Buchung
+        </button>
+      </div>
+    </header>
+
+    <header class="m-head">
+      <div class="m-title"><h1>Vermögen</h1></div>
+      <span class="spacer"></span>
+      <button class="icon-btn" type="button" data-open="inbox" aria-label="Posteingang, 7 offen" data-inbox-label>
+        <svg class="icon"><use href="#i-inbox"/></svg><span class="count" data-inbox-count>9</span>
+      </button>
+      <button class="icon-btn" type="button" id="themeBtnM" aria-label="Hell/Dunkel umschalten"><svg class="icon"><use href="#i-moon"/></svg></button>
+      <a class="avatar" href="einstellungen.html" aria-label="Profil und Einstellungen">NU</a>
+    </header>
+
+    <main class="sheet vermoegen" id="vermoegen">
+
+      <div class="titleblock">
+        <div class="tb-cell tb-title"><h1>Vermögen</h1></div>
+        <div class="tb-cell">
+          <span class="tech">Stand</span>
+          <span class="tb-value"><svg class="icon icon-sm"><use href="#i-refresh"/></svg><span class="tb-long">Do 17.09.2026 · Kurse 06:30</span><span class="tb-short">17.09. · 06:30</span></span>
+        </div>
+        <div class="tb-cell" id="periodCell">
+          <span class="tech" id="periodLbl">Zeitraum</span>
+          <div class="seg seg-period" role="group" aria-labelledby="periodLbl">
+            <button type="button" aria-pressed="false" data-period="1M">1M</button>
+            <button type="button" aria-pressed="false" data-period="3M">3M</button>
+            <button type="button" aria-pressed="true" data-period="YTD">YTD</button>
+            <button type="button" aria-pressed="false" data-period="1J">1J</button>
+            <button type="button" aria-pressed="false" data-period="3J">3J</button>
+            <button type="button" aria-pressed="false" data-period="Alles">Alles</button>
+          </div>
+        </div>
+      </div>
+
+      <nav class="registers" aria-label="Register von Vermögen">
+        <a href="#nettovermoegen" data-reg="nettovermoegen">Nettovermögen</a>
+        <a href="#portfolio" data-reg="portfolio">Portfolio</a>
+        <a href="#schulden" data-reg="schulden">Schulden</a>
+        <a href="#freiheit" data-reg="freiheit">Freiheitszahl</a>
+      </nav>
+
+      <div class="kview vview" id="view"></div>
+
+      <p class="sample-note"><svg class="icon icon-sm"><use href="#i-flask"/></svg>Prototyp mit Beispieldaten. Positionen, Kurse, Renditen und Kreditdaten sind erfunden; Prognosen sind Rechenbeispiele.</p>
+    </main>
+  </div>
+</div>
+
+<nav class="tabbar" aria-label="Hauptnavigation">
+  <a href="index.html"><svg class="icon"><use href="#i-house"/></svg>Heute</a>
+  <a href="plan.html"><svg class="icon"><use href="#i-wallet"/></svg>Plan</a>
+  <a href="konten.html"><svg class="icon"><use href="#i-landmark"/></svg>Konten</a>
+  <a href="vermoegen.html" aria-current="page"><svg class="icon"><use href="#i-trend"/></svg>Vermögen</a>
+  <a href="reports.html"><svg class="icon"><use href="#i-chart"/></svg>Reports</a>
+</nav>
+<button class="fab" type="button" data-open-booking aria-label="Buchung erfassen"><svg class="icon"><use href="#i-plus"/></svg></button>
+
+<div class="scrim" id="scrim"></div>
+
+<aside class="panel" id="panel" role="dialog" aria-modal="true" aria-labelledby="panelTitle">
+  <div class="panel-head">
+    <h2 id="panelTitle"></h2>
+    <button class="icon-btn" type="button" data-close aria-label="Schließen"><svg class="icon"><use href="#i-x"/></svg></button>
+  </div>
+  <div class="panel-body" id="panelBody"></div>
+</aside>
+
+<div class="toast" id="toast" role="status" aria-live="polite">
+  <span id="toastText"></span>
+  <button type="button" id="toastUndo">Rückgängig</button>
+</div>
+
+<script src="vermoegen.js"></script>
+</body>
+</html>

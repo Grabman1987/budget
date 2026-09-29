@@ -1,0 +1,166 @@
+# Budget — Specification
+
+Status: Gate 1 candidate, 29.09.2026. App name: **Budget** (O10 decided). Private, single user.
+
+Budget is a private household finance web app (installable PWA) that replaces an Actual-Budget-based cockpit, YNAB and Portfolio Performance with one app, one database and one language. Envelope budgeting at the core, a rule set of finance basics on top, full net-worth and portfolio tracking in the same ledger. Goal: not only track cash flow and wealth, but actively optimise them.
+
+## 0. Sources of truth and precedence
+
+When two sources disagree, the higher one wins:
+
+1. **This file (`SPEC.md`)**: decisions, scope, architecture, acceptance criteria.
+2. **`PRODUCT.md`**: product facts and all user decisions made during design (German).
+3. **`DESIGN.md` + `.impeccable/design.json`**: the visual system ("Blaupause"). Replaces chapter 10 of the concept completely.
+4. **`design/prototype/`**: the clickable static prototype. It is the visual and behavioural reference for every page, including the sample ledger and the calculation rules in `design/prototype/reports-core.js`. Screens: `design/screens/`.
+5. **`docs/concept/produktkonzept.md`**: the original, complete concept (German). Detailed methodology, data model, KPIs, processes and migration. Still valid unless overridden above.
+6. **`reference/finance-hub/`**: tested calculation modules of the old app, to be ported (not copied) to TypeScript.
+
+The old concept's design language (Manrope, teal accent, white tiles, `03_Mockups`) is **rejected**. Do not use it.
+
+## 1. Users and usage
+
+- One user runs the finances of a household. Partner, friends and employer are **contacts** (no login).
+- **Phone:** capture a cash payment in 10 s, see "does the month hold?" in 5 s, work the inbox.
+- **Desktop:** steer: distribute money, month-end close, year planning, debts, portfolio review, reports.
+- Routines: nightly sync (automatic), capture (ongoing), weekly inbox, payday distribution, month-end close, quarterly review, yearly planning, event scenarios. See concept ch. 4.
+
+## 2. Principles (binding)
+
+1. One question per place; every KPI has exactly one primary place.
+2. Every number is explainable down to the booking (dimension chains, drill-down); nothing disappears silently; everything is undoable (audit log).
+3. Capture on the phone, steer on the desktop; same sitemap and content on both.
+4. Rules instead of gut feeling: rules are data with status and a concrete action.
+5. Automatic where reliable; manual entry is a first-class path.
+6. **Generic, not personal:** no person or provider names in code, UI texts, fixtures or docs. Persons are contacts, providers are institutions, both are data.
+7. **No real financial data in the repository.** Tests and development use the synthetic sample ledger. Real data only enters the running app through the migration (P2) on the server.
+
+## 3. Information architecture
+
+Five main areas plus settings (profile menu). Registers are the second level; no third menu level. Details open as a side panel (desktop) or bottom sheet (phone). Every view has its own URL. Global on every page: search (Ctrl K), inbox with counter, "+ Buchung".
+
+| Area | Question | Registers / views (prototype file) |
+| --- | --- | --- |
+| Heute | Hält der Monat? | Leitmaß "frei verfügbar bis Gehalt", pace, upcoming payments, Finanz-Check KPI, net worth (`index.html`) |
+| Plan | Jeder Euro hat einen Job | Plan › Monat with views Wasserfall / Zeit / Gruppen / Klassen / Triage, Geld verteilen (`plan.html`) |
+| Konten | Was ist passiert? | Übersicht, Einzelkonto with Kontostand prüfen, Alle Buchungen, Posteingang, Kontakte (`konten.html`) |
+| Vermögen | Was besitze ich, was entscheide ich? | Nettovermögen, Portfolio (Soll/Ist, Rebalancing, Sparpläne), Schulden (Sondertilgung), Freiheitszahl with Soll-Pfad (`vermoegen.html`) |
+| Reports | Warum und wohin, und wie haben Entscheidungen gewirkt? | Catalog of 30 reports in 5 groups (`reports.html`) |
+| Einstellungen | — | Konten (terms: limits, rates, term), Kategorien, Regelwerk (stages + R01–R16), Zuordnungsregeln, Datenquellen, Anlageklassen, Import/Export, Sicherheit (`einstellungen.html`, partly built) |
+
+**Vermögen decides, Reports show the effect.** No outcome/performance history on Vermögen; no decisions in Reports.
+
+### Booking capture (replaces concept 7.5 item 2)
+No keypad. The amount is a text field with arithmetic (`12,50+8,20`, `+ − × ÷`, German number format incl. thousands `1.576`), small operator buttons, Enter evaluates. No `eval` (strict CSP). Incomes may carry a category (default "Zu verteilen"). A transfer's counterpart is always another account.
+
+## 4. Budget method (concept ch. 3, with overrides)
+
+- **Envelope core:** every euro has one job; "Zu verteilen" target = 0; available rolls over; overspending must be covered (triage).
+- **Three classes:** Bedarf, Wunsch, Zukunft (each category belongs to one). Groups below classes; categories below groups. Target ~40 categories after migration (O3).
+- **Money-flow waterfall: nine stages** (concept 3.6 + decision 28.09.2026): 1 Fixkosten und Mindestraten, **2 Laufender Monat** (variable monthly targets for Bedarf and Wunsch), 3–9 = concept stages 2–8. Plan › Monat orders by stage by default (switchable to groups, classes, time). Overspending shows as a triage bar above the unchanged table.
+- **Expected payments** (versioned schedules), **contacts** with receivables (Kontoblatt per person), **sinking funds**, **savings goals**.
+- **50/30/20 on assigned money** (`alloc` in `design/prototype/reports-core.js`): periodic costs, special payments and their windfall transfers count as twelfths; Bedarf + Wunsch + Zukunft + Übrig (or "aus Guthaben", negative) = 100 % of income, always.
+- **Rules R01–R16** (concept 3.5) as data with thresholds, status (erfüllt / Warnung / verletzt) and action.
+- **Stage model** (decision 29.09.2026): stages by net worth up to 10.000 € (Fundament), 100.000 € (Aufbau), 1 Mio. € (Freiheit). Rules per stage from *I Will Teach You to Be Rich*, *Get Good with Money*, *Your Money or Your Life*, *Everyday Millionaires* (see `design/prototype/reports-ueberblick.js` STAGES and `einstellungen.js`). Attitude: dignity, no shame; no report judges a spend as a mistake.
+
+## 5. Data model and invariants (concept ch. 5)
+
+Entities: Konto (with role: Budget-Konto / Rücklage / Anlage / Schuld, and terms: credit line, overdraft limit, rates, term, fees), Buchung with Anteile (splits), Umbuchung, Empfänger, Kategorie/Gruppe/Klasse, Envelope-Monat (assigned, activity, available), Erwartete Zahlung (versioned), Kontakt with Forderungskonto, Sparziel, Wertpapier/Produkt, Trade, Bestand, Kurs (source per price), Wechselkurs, Anlageklasse with Soll-Allocation, Regel + Regelergebnis, Posteingang-Eintrag, Zuordnungsregel, Bank-Verbindung, Beleg (object storage), Änderungsprotokoll, Gehaltszettel (payslip lines), Projekt (side income: income and costs), Geplantes Ereignis (forecast events).
+
+Invariants (binding):
+- Amounts are integers in cents. Sum of splits = booking amount. A transfer = exactly two bookings.
+- Nothing is hard-deleted; every change is logged and undoable.
+- Imports are idempotent (dedupe keys; see `reference/finance-hub/bank-sync-dedupe.mjs`).
+- Start date 01.10.2023 with opening balances; price history complete, also before.
+- Foreign currency: keep original amount and currency; convert with the ECB reference rate of the booking date; a bank deviation becomes a foreign-exchange fee.
+- Net worth, returns and rule status are identical on every page (one calculation per figure, shared domain functions).
+
+## 6. KPIs and calculations
+
+27 KPIs, each with one formula, one target and one primary place: concept ch. 8. Additional calculation rules fixed in the prototype (port them 1:1, with tests):
+
+| Rule | Reference |
+| --- | --- |
+| 50/30/20 as twelfths (`alloc`) | `reports-core.js` |
+| Net worth from the ledger: own contribution = income − consumption + regular principal; market = Σ product market moves | `reports-core.js` |
+| Portfolio: TTWROR, IRR (Modified Dietz annualised > 12 months), volatility, max drawdown, Sharpe (2.5 %), beta vs world index | `reports-portfolio.js` `stats()` |
+| One cost basis / gain / fund cost per product (`costOf`, `gainOf`, `terOf`) used everywhere | `reports-core.js` |
+| Liquidity forecast day by day: fixed costs on due days, variable plan linear, salary at month end, periodic costs from reserves, sweep above buffer keeps planned expenses of the next 4 months, planned events, levers, 10 % buffer, verdict | `reports-zukunft.js` |
+| Dimension chains must add up as displayed (largest-remainder rounding) | `reports-core.js` `balanceChain` |
+| Diverging heat per row vs row average; neutral within 8 %; direction per row (spend: low is good; income, savings, returns: high is good; projects vs 0) | `reports-core.js` `heatAttr` |
+| Freiheitszahl with Soll-Pfad to a goal year and required saving rate | `vermoegen.js` `renderFreedom` |
+| Debt payoff with extra repayment | `vermoegen.js`, `reference/finance-hub/debt-*.mjs` |
+
+## 7. Reports (catalog, decided 29.09.2026)
+
+Every report answers one question with one fixed chart form (grammar: concept 9.2/9.3 and DESIGN.md), unfolds to the booking, and reads the same ledger.
+
+1. **Monat und Einkommen:** 1.1 Monats-One-Pager (printable A4 sheet), 1.2 Gehaltsreport (payslip lines, payout per month and year, yearly salaries with growth, collective raise vs step raise, "Gehaltszettel hinzufügen": PDF upload to object storage or line-by-line entry with check), 1.3 Einnahmen, 1.4 Geldfluss (Sankey via one income pool), 1.5 Jahresansicht (with previous year), 1.6 Kategorieübersicht, 1.7 Sparquote und Geldalter, 1.8 Gesamttabelle (CSV), 1.9 Projekte und Nebeneinkünfte.
+2. **Ausgaben und Plan:** 2.1 Ausgabenanalyse, 2.2 Budgettreue incl. 50/30/20, 2.3 Verträge und Abos (terms, notice, USD), 2.4 Persönliche Inflation, 2.5 Empfänger-Analyse, 2.6 Bank- und Zinskosten (credit lines incl. overdraft and card).
+3. **Zukunft und Vermögen:** 3.1 Liquiditätsprognose (planned events, levers, 6-month outlook, verdict), 3.2 Cashflow-Verlauf, 3.3 Vermögensverläufe, 3.4 Jahresvorschau Zahlungen, 3.5 Sparziele.
+4. **Portfolio:** 4.1 Depots im Vergleich, 4.2 Allocation (sunburst class/product and region/product, Soll/Ist over time), 4.3 Einzahlungen und Wert, 4.4 Rendite und Kennzahlen (benchmarks, asset classes side by side, heatmap), 4.5 Kosten, Steuern, Erträge (KESt 27.5 %, latent tax). Products open a panel with daily price history.
+5. **Überblick:** 5.1 Jahresreport (2 printable sheets), 5.2 Finanz-Check-Verlauf (stages + R01–R16), 5.3 Explorer (pivot, saved views), 5.4 Kontakte-Abrechnung (one ledger per person), 5.5 Zeitraumvergleich.
+
+## 8. Design system (binding)
+
+`DESIGN.md` is the contract: blueprint world (blue ink on drafting film; dark = classic blueprint), Archivo + Barlow Semi Condensed (self-hosted), title block (Schriftfeld), registers, dimension chains (Maßkette) for every lead figure, parts lists (Stückliste) with positions, revision tables for findings, ISO line types (solid = actual, dashed = plan/forecast, dash-dot = previous/benchmark), hatching only for classes and committed money, debts as dashed outline, elevation marks only in charts. **Red only for action needed.** Pastel green/red only for heatmaps and signed changes (decision 29.09.2026).
+
+UI language German (de-AT): `1.234,56 €`, real minus `−`, incomes with `+`, KPIs without cents, lists with cents. Touch targets ≥ 44 px, reduced motion respected, full dark mode, colour never the only signal.
+
+Build pages to match `design/prototype/` and `design/screens/`. When in doubt, open the prototype (`npx serve design/prototype` or `python -m http.server -d design/prototype`) and compare.
+
+## 9. Technical architecture
+
+| Layer | Choice |
+| --- | --- |
+| Language | TypeScript (strict), Node 22 LTS (cloud default; concept said 24, 22 is fine) |
+| Repo | npm workspaces monorepo (layout below) |
+| Frontend | React, Vite, TanStack Router + Query, Tailwind with tokens generated from `.impeccable/design.json` / DESIGN.md, Radix primitives |
+| Charts | **Own SVG components** on d3-scale/d3-shape, ported from the prototype (the blueprint grammar is custom). Apache ECharts only if the P1 spike shows a clear need (proposed change to O1, confirm in P1a). |
+| Backend | Hono + zod (shared schemas with the client), REST/JSON |
+| Database | SQLite (WAL) with Drizzle ORM and migrations |
+| Backup | Litestream to object storage + nightly age-encrypted copy |
+| Receipts / payslips | Object storage, reference in DB |
+| Jobs | Separate worker process with schedule and catch-up of missed runs (P4) |
+| Auth | Passkeys via SimpleWebAuthn, several devices, ten recovery codes, HttpOnly SameSite=Strict session cookie (30 days), step-up for export, bank connection, new passkeys |
+| Security | Strict CSP (`script-src 'self'`), HSTS, no `eval` |
+| Hosting | Fly.io, region `fra`, own app (not the old cockpit), volume for SQLite, deploy via GitHub Actions |
+| Tests | Vitest (domain, API), Playwright (E2E and visual comparison against `design/screens`) |
+
+```
+apps/web          React PWA (pages, routes, offline queue for bookings)
+apps/server       Hono API, auth, static hosting
+apps/worker       nightly jobs (P4)
+packages/domain   pure TS domain logic: money, dates, ledger, envelopes, rules, forecast, performance — no DB, 100 % unit-tested
+packages/db       Drizzle schema, migrations, repositories
+packages/ui       tokens + blueprint primitives: TitleBlock, Registers, DimensionChain, PartsList, RevisionTable, AmountInput, charts
+packages/fixtures synthetic sample ledger (port of design/prototype/reports-core.js) for tests, dev seed and visual tests
+```
+
+Data sources (P4): Enable Banking (PSD2, JWT RS256, booked balances, consent warning 14 days before the 180-day expiry), CSV/XLSX import with saved column mapping, crypto read API, broker file imports + Portfolio Performance XML for the initial load, prices daily via yfinance with fallback Ariva (source stored per price, failures to the inbox), ECB exchange rates (full history), manual valuations. Provider-specific code lives in adapters named generically in the domain.
+
+## 10. Migration (concept 11.4)
+
+Master data from Actual → opening balances on 01.10.2023 (cross-checked with YNAB) → bookings with splits and transfers → workspace mapping (persons → contacts and expected payments, debts → credit accounts, goals, receipts, trades/holdings) → full price history → parallel run over one month-end with a reconciliation report → cut-over when all differences are 0 €. **Migration runs on the server or locally, never with data committed to the repo.**
+
+## 11. Packages and gates
+
+| Package | Content | Done when |
+| --- | --- | --- |
+| **P1 Fundament** | Monorepo, stack spike, passkey login, DB schema v1, design tokens + blueprint primitives, app shell (sidebar, registers, title block, mobile tab bar), CI, deploy to a new Fly app | See `docs/ROADMAP.md` P1 checklist; the shell matches `design/screens/desktop/heute.webp` in layout and tokens |
+| **P2 Kern und Migration** | Accounts, bookings, capture, categories, Plan › Monat, import from Actual since 01.10.2023 | **Gate 2:** migrated balances per account and month match to the cent |
+| **P3 Planung und Steuerung** | Expected payments, contacts, savings goals, distribute money, rule set + stages, Heute | Heute and Plan match the prototype with real data |
+| **P4 Datenquellen** | Enable Banking, CSV/XLSX, nightly run, inbox, assignment rules | Nightly run stable for 14 days |
+| **P5 Vermögen** | Price history, portfolio, returns, allocation, debts, freedom number | **Gate 3:** returns and holdings equal Portfolio Performance |
+| **P6 Reports und Umstellung** | 30 reports, explorer, printable sheets, parallel run with reconciliation | **Gate 4:** one month-end without difference, then switch off Actual, YNAB, PP |
+
+**Gate 1 (now):** this spec, PRODUCT.md, DESIGN.md and the prototype are accepted by the owner.
+
+## 12. Not in V1
+
+Tax filing, AI advice or AI categorisation (AI-assisted planning is a later goal), vehicle and real-estate valuation, multi-user and partner linking, native app, compatibility with Actual.
+
+## 13. Open items
+
+- Account and category list for the migration (owner provides; O3/O7), done in P2 on the server.
+- Fly app name and object storage choice (P1a).
+- Chart library confirmation (P1a spike).
