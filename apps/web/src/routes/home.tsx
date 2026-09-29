@@ -16,12 +16,12 @@ export function HomePage() {
   const status = health.isPending ? 'prüfe …' : health.isError ? 'nicht erreichbar' : 'erreichbar';
   return (
     <main className="home">
-      <h1 className="home-title">Budget</h1>
-      <p className="home-status" data-testid="server-status">
+      <h1 className="home-title t-dimension">Budget</h1>
+      <p className="home-status tech" data-testid="server-status">
         Server: {status}
       </p>
       <p>
-        <Link to="/dev/diagramme">Diagramm-Spike</Link>
+        <Link to="/dev/bauteile">Bauteile</Link> · <Link to="/dev/diagramme">Diagramm-Spike</Link>
       </p>
     </main>
   );

@@ -1,0 +1,26 @@
+/* Self-hosted fonts, single copy in design/prototype/fonts (Vite hashes and emits them). */
+@font-face {
+  font-family: 'Archivo';
+  src: url('../../../../design/prototype/fonts/archivo-latin.woff2') format('woff2');
+  font-weight: 100 900;
+  font-stretch: 62% 125%;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Barlow Semi Condensed';
+  src: url('../../../../design/prototype/fonts/barlow-sc-400.woff2') format('woff2');
+  font-weight: 400;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Barlow Semi Condensed';
+  src: url('../../../../design/prototype/fonts/barlow-sc-500.woff2') format('woff2');
+  font-weight: 500;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Barlow Semi Condensed';
+  src: url('../../../../design/prototype/fonts/barlow-sc-600.woff2') format('woff2');
+  font-weight: 600;
+  font-display: swap;
+}

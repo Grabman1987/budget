@@ -33,7 +33,7 @@ Keep **own SVG components** built on `d3-scale` (scales) and `d3-shape` (`line`,
 
 ## Consequences
 
-- Every chart type in the catalog is our code: axis/graticule, line (solid/dashed/dash-dot), bars around zero, step line, band, elevation mark become primitives in `packages/ui` (P1b task "Chart primitives"). The spike code in `apps/web/src/charts` is moved there and generalised then.
+- Every chart type in the catalog is our code: axis/graticule, line (solid/dashed/dash-dot), bars around zero, step line, band, elevation mark become primitives in `packages/ui` (P1b task "Chart primitives"). P1b implemented them in `packages/ui/src/charts` (`ChartSvg`, `Graticule`, `AxisLine`, `XTicks`, `Line`/`StepLine` with the ISO line types, `BarsAroundZero`, `Band`, `ElevationMark`, `DimensionLine`, `ClassPatterns`, `LineLegend`); the spike's pace chart in `apps/web/src/charts` is now composed from them, the Sankey stays a spike until P6.
 - Heatmap, sunburst and the pivot explorer (P6) are the largest own-code items. Sunburst uses `d3-shape` `arc` plus a small partition layout (`d3-hierarchy` if needed). The Explorer is a table, not a chart.
 - Tooltips and hover are plain DOM/SVG `<title>` for now; an accessible tooltip primitive belongs to P1b.
 - Real-time zoom/brush, if ever required, is not covered by this decision. If a future report needs it (for example daily price history with brushing in P5), reconsider ECharts **for that chart only** and record it in a new ADR.

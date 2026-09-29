@@ -1,0 +1,148 @@
+/* Base: reset, typography roles, focus, utilities. No colours are defined here, only token roles. */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+[hidden] {
+  display: none !important;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+  color-scheme: light dark;
+}
+
+body {
+  margin: 0;
+  background: var(--ground);
+  color: var(--ink);
+  font-family: var(--font-ui);
+  font-size: var(--fs-body);
+  line-height: 1.45;
+  font-variant-numeric: tabular-nums;
+  caret-color: var(--line);
+  -webkit-font-smoothing: antialiased;
+  scrollbar-color: var(--rule-strong) transparent;
+  scrollbar-width: thin;
+}
+
+::selection {
+  background: var(--tint-2);
+  color: var(--ink);
+}
+
+a {
+  color: var(--line);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+  color: inherit;
+}
+
+button {
+  cursor: pointer;
+  background: none;
+  border: 0;
+  padding: 0;
+}
+
+:focus-visible {
+  outline: 2px solid var(--line);
+  outline-offset: 2px;
+  border-radius: var(--radius-xs);
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+/* Type roles */
+.t-dimension {
+  font-size: var(--fs-dimension);
+  font-weight: 640;
+  line-height: 1;
+  letter-spacing: -0.03em;
+  font-variation-settings: 'wdth' 96;
+}
+.t-display {
+  font-size: var(--fs-display);
+  font-weight: 650;
+  line-height: 1;
+  letter-spacing: -0.02em;
+}
+.t-headline {
+  font-size: var(--fs-headline);
+  font-weight: 620;
+  line-height: 1.25;
+  letter-spacing: -0.01em;
+}
+.t-title {
+  font-size: var(--fs-title);
+  font-weight: 620;
+  line-height: 1.3;
+  letter-spacing: -0.005em;
+}
+.t-figure {
+  font-size: var(--fs-figure);
+  font-weight: 640;
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+}
+
+/* Technical lettering: fields, columns, axes, sheets. Never a kicker above a heading. */
+.tech {
+  font-family: var(--font-tech);
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  font-size: var(--fs-label);
+  color: var(--ink-3);
+}
+
+/* Cents in half size next to a dimension value */
+.cents {
+  font-size: 0.55em;
+  color: var(--ink-3);
+  font-weight: 500;
+  letter-spacing: 0;
+}
+
+/* Red is reserved for "action needed" */
+.text-alert {
+  color: var(--red);
+}
+/* Signed changes only (never status): pastel direction inks */
+.text-good {
+  color: var(--good-ink);
+}
+.text-bad {
+  color: var(--bad-ink);
+}
+.text-muted {
+  color: var(--ink-3);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

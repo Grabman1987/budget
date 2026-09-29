@@ -28,13 +28,23 @@ export default tseslint.config(
     },
   },
   {
-    files: ['apps/web/**/*.{ts,tsx}'],
+    files: ['apps/web/public/*.js'],
+    languageOptions: { globals: globals.browser },
+  },
+  {
+    files: ['apps/web/**/*.{ts,tsx}', 'packages/ui/**/*.{ts,tsx}'],
     languageOptions: { globals: globals.browser },
     plugins: { 'react-hooks': reactHooks },
     rules: reactHooks.configs.recommended.rules,
   },
   {
-    files: ['apps/server/**/*.ts', 'scripts/**/*.mjs', '*.config.{js,ts}'],
+    files: [
+      'apps/server/**/*.ts',
+      'scripts/**/*.mjs',
+      'packages/*/scripts/**/*.mjs',
+      '*.config.{js,ts}',
+      'vitest.setup.ts',
+    ],
     languageOptions: { globals: globals.node },
   },
 );

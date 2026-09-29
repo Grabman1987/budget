@@ -33,3 +33,8 @@ export function formatEuro(value: Cents, options: FormatEuroOptions = {}): strin
   const prefix = isZero ? '' : value < 0 ? MINUS : sign ? '+' : '';
   return `${prefix}${body} €`;
 }
+
+/** Amount field text: German decimals with grouping, no currency sign (`1.234,56`, `−0,05`). */
+export function formatDecimal(value: Cents): string {
+  return formatEuro(value).replace(/ €$/, '');
+}

@@ -1,0 +1,60 @@
+/*
+ * Tailwind v4 theme: utilities map to the token roles (they follow light, dark and print
+ * automatically because the variables themselves switch). Only design tokens exist as utilities;
+ * Tailwind's default palette is not imported.
+ */
+@theme inline {
+  --color-ground: var(--ground);
+  --color-ground-2: var(--ground-2);
+  --color-raised: var(--raised);
+  --color-ink: var(--ink);
+  --color-ink-2: var(--ink-2);
+  --color-ink-3: var(--ink-3);
+  --color-line: var(--line);
+  --color-line-2: var(--line-2);
+  --color-rule: var(--rule);
+  --color-rule-strong: var(--rule-strong);
+  --color-graticule: var(--graticule);
+  --color-primary: var(--primary);
+  --color-primary-hover: var(--primary-hover);
+  --color-on-primary: var(--on-primary);
+  --color-red: var(--red);
+  --color-red-soft: var(--red-soft);
+  --color-need: var(--need);
+  --color-want: var(--want);
+  --color-future: var(--future);
+  --color-tint: var(--tint);
+  --color-tint-2: var(--tint-2);
+  --color-heat-red: var(--heat-red);
+  --color-heat-green: var(--heat-green);
+  --color-good-ink: var(--good-ink);
+  --color-bad-ink: var(--bad-ink);
+
+  /* Literal copies of the scales.css tokens of the same name (a unit test keeps them in sync). */
+  --font-ui: 'Archivo', 'Segoe UI', system-ui, sans-serif;
+  --font-tech: 'Barlow Semi Condensed', 'Archivo', system-ui, sans-serif;
+
+  --text-dimension: var(--fs-dimension);
+  --text-display: var(--fs-display);
+  --text-headline: var(--fs-headline);
+  --text-title: var(--fs-title);
+  --text-figure: var(--fs-figure);
+  --text-body: var(--fs-body);
+  --text-label: var(--fs-label);
+  --text-chart-label: var(--fs-chart-label);
+
+  --radius-titleblock: 2px;
+  --radius-xs: 4px;
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-sheet: 12px;
+  --radius-pill: 999px;
+
+  --shadow-float: var(--shadow);
+
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+
+  --spacing: 4px;
+  --breakpoint-sm: 768px;
+  --breakpoint-lg: 1180px;
+}

@@ -1,315 +1,145 @@
-/* Self-hosted fonts from the design prototype (single source, no copies). */
-@font-face {
-  font-family: 'Archivo';
-  src: url('../../../design/prototype/fonts/archivo-latin.woff2') format('woff2');
-  font-weight: 100 900;
-  font-stretch: 62% 125%;
-  font-display: swap;
-}
-@font-face {
-  font-family: 'Barlow Semi Condensed';
-  src: url('../../../design/prototype/fonts/barlow-sc-400.woff2') format('woff2');
-  font-weight: 400;
-  font-display: swap;
-}
-@font-face {
-  font-family: 'Barlow Semi Condensed';
-  src: url('../../../design/prototype/fonts/barlow-sc-500.woff2') format('woff2');
-  font-weight: 500;
-  font-display: swap;
-}
-@font-face {
-  font-family: 'Barlow Semi Condensed';
-  src: url('../../../design/prototype/fonts/barlow-sc-600.woff2') format('woff2');
-  font-weight: 600;
-  font-display: swap;
-}
+/* Cascade order: Tailwind theme, design system (tokens, base, primitives), page styles, utilities. */
+@layer theme, components, pages, utilities;
 
-/*
- * Temporary spike palette (values from DESIGN.md). The full token set, dark-mode toggle and
- * Tailwind theme are P1b; this block is replaced there.
- */
-:root {
-  color-scheme: light dark;
-  --ground: #f6f8fb;
-  --raised: #ffffff;
-  --ink: #0b1b33;
-  --ink-2: #3a4e6e;
-  --ink-3: #586e90;
-  --line: #1747a6;
-  --line-2: #8fa9d6;
-  --rule: #d6dfed;
-  --rule-strong: #b6c6df;
-  --graticule: #e9eef6;
-  --red: #c42a1f;
-  --need: #1747a6;
-  --want: #3d86e0;
-  --future: #0c7a86;
-  --font-ui: 'Archivo', 'Segoe UI', system-ui, sans-serif;
-  --font-tech: 'Barlow Semi Condensed', 'Archivo', system-ui, sans-serif;
-}
+@import '@budget/ui/tailwind-theme.css' layer(theme);
+@import '@budget/ui/styles.css' layer(components);
+@import 'tailwindcss/utilities.css' layer(utilities);
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --ground: #0b3152;
-    --raised: #0f3b60;
-    --ink: #eef6fc;
-    --ink-2: #b9d0e3;
-    --ink-3: #8fb0cb;
-    --line: #d2ecff;
-    --line-2: #6f9dc2;
-    --rule: #25557a;
-    --rule-strong: #386a91;
-    --graticule: #15406a;
-    --red: #ff8b7b;
-    --need: #e4f2ff;
-    --want: #7cc0f5;
-    --future: #6fd8d2;
+/* Utility classes used in packages/ui are scanned too. */
+@source '../../../packages/ui/src';
+
+@layer pages {
+  .home {
+    padding: 44px 32px;
   }
-}
 
-* {
-  box-sizing: border-box;
-}
+  .home-title {
+    margin: 0 0 12px;
+  }
 
-body {
-  margin: 0;
-  background: var(--ground);
-  color: var(--ink);
-  font-family: var(--font-ui);
-  font-size: 14px;
-  line-height: 1.45;
-  font-feature-settings: 'tnum';
-}
+  .home-status {
+    margin: 0 0 12px;
+    color: var(--ink-2);
+  }
 
-a {
-  color: var(--line);
-}
+  /* ---------- Dev pages ---------- */
+  .dev {
+    max-width: 1240px;
+    margin: 0 auto;
+    padding: 28px 16px 72px;
+    display: grid;
+    gap: 44px;
+  }
+  @media (min-width: 768px) {
+    .dev {
+      padding-inline: 40px;
+    }
+  }
 
-.home {
-  padding: 44px 32px;
-}
+  .dev section {
+    display: grid;
+    gap: 16px;
+    align-content: start;
+    min-width: 0;
+  }
 
-.home-title {
-  margin: 0 0 12px;
-  font-size: 68px;
-  font-weight: 640;
-  font-variation-settings: 'wdth' 96;
-  line-height: 1;
-  letter-spacing: -0.03em;
-}
+  .dev h2 {
+    margin: 0;
+  }
 
-.home-status {
-  margin: 0 0 12px;
-  color: var(--ink-2);
-  font-family: var(--font-tech);
-  font-size: 11.5px;
-  font-weight: 500;
-  letter-spacing: 0.06em;
-}
+  .dev-note {
+    margin: 0;
+    color: var(--ink-2);
+    max-width: 68ch;
+  }
 
-/* ---------- Chart spike ---------- */
-.spike {
-  max-width: 1100px;
-  margin: 0 auto;
-  padding: 32px 16px 44px;
-}
+  .dev-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 16px;
+  }
 
-.spike h1 {
-  margin: 0 0 8px;
-  font-size: 30px;
-  font-weight: 650;
-  line-height: 1;
-  letter-spacing: -0.02em;
-}
+  .dev-grid {
+    display: grid;
+    gap: 32px 48px;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 360px), 1fr));
+    align-items: start;
+  }
 
-.spike-intro {
-  margin: 0 0 24px;
-  color: var(--ink-2);
-  max-width: 68ch;
-}
+  .swatch-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 12px;
+  }
 
-.spike section {
-  margin: 0 0 44px;
-}
+  .token {
+    display: grid;
+    grid-template-columns: 28px 1fr;
+    align-items: center;
+    gap: 8px;
+    font-size: 12.5px;
+  }
 
-.spike h2 {
-  margin: 0 0 4px;
-  font-size: 17px;
-  font-weight: 620;
-  letter-spacing: -0.005em;
-}
+  .token i {
+    width: 28px;
+    height: 28px;
+    border: 1px solid var(--rule-strong);
+    border-radius: var(--radius-xs);
+    background: var(--swatch);
+  }
 
-.spike-note {
-  margin: 0 0 12px;
-  color: var(--ink-3);
-}
+  .token code {
+    font-family: var(--font-tech);
+    letter-spacing: 0.03em;
+    color: var(--ink-2);
+  }
 
-.chart-frame {
-  width: 100%;
-  border-top: 1px solid var(--rule-strong);
-  border-bottom: 1px solid var(--rule-strong);
-  padding: 8px 0;
-}
+  .type-sample {
+    margin: 0 0 8px;
+  }
 
-.chart-frame svg {
-  display: block;
-  width: 100%;
-  overflow: visible;
-}
+  .chart-frame {
+    width: 100%;
+    border-top: 1px solid var(--rule-strong);
+    border-bottom: 1px solid var(--rule-strong);
+    padding: 8px 0;
+  }
 
-.svg-label {
-  font-family: var(--font-tech);
-  font-size: 12px;
-  letter-spacing: 0.05em;
-  fill: var(--ink-3);
-}
-.svg-label-strong {
-  font-family: var(--font-tech);
-  font-size: 13px;
-  font-weight: 600;
-  letter-spacing: 0.04em;
-  fill: var(--ink);
-}
-.svg-label-line {
-  font-family: var(--font-tech);
-  font-size: 13px;
-  font-weight: 500;
-  letter-spacing: 0.04em;
-  fill: var(--line);
-}
-.svg-label-red {
-  font-family: var(--font-tech);
-  font-size: 13px;
-  font-weight: 600;
-  letter-spacing: 0.04em;
-  fill: var(--red);
-}
+  .chart-frame svg {
+    display: block;
+    width: 100%;
+    overflow: visible;
+  }
 
-/* Blueprint line types (DESIGN.md): solid = actual, dashed = plan/forecast, dash-dot = previous. */
-.graticule {
-  stroke: var(--graticule);
-  stroke-width: 1;
-}
-.axis {
-  stroke: var(--rule-strong);
-  stroke-width: 1;
-}
-.l-actual {
-  stroke: var(--line);
-  stroke-width: 2;
-  fill: none;
-}
-.l-plan {
-  stroke: var(--line-2);
-  stroke-width: 1.5;
-  fill: none;
-  stroke-dasharray: 7 5;
-}
-.l-forecast {
-  stroke: var(--line);
-  stroke-width: 1.75;
-  fill: none;
-  stroke-dasharray: 7 5;
-}
-.l-prev {
-  stroke: var(--ink-3);
-  stroke-width: 1.25;
-  fill: none;
-  stroke-dasharray: 12 4 2 4;
-  opacity: 0.8;
-}
-.l-dim {
-  stroke: var(--line);
-  stroke-width: 1.25;
-  fill: none;
-}
-.l-dim-alert {
-  stroke: var(--red);
-}
-.l-tick {
-  stroke: var(--line);
-  stroke-width: 1.6;
-}
-.l-ext {
-  stroke: var(--line-2);
-  stroke-width: 1;
-  fill: none;
-  stroke-dasharray: 2 3;
-}
-.l-today {
-  stroke: var(--line);
-  stroke-width: 1;
-  stroke-dasharray: 1 3;
-}
-.dot-actual {
-  fill: var(--ground);
-  stroke: var(--line);
-  stroke-width: 2;
-}
+  .spike {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 32px 16px 44px;
+  }
 
-.chart-legend {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px 24px;
-  margin: 8px 0 0;
-  padding: 0;
-  list-style: none;
-  color: var(--ink-2);
-}
-.chart-legend li {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-}
-.chart-legend svg {
-  width: 32px;
-  height: 8px;
-  overflow: visible;
-}
+  .spike h1 {
+    margin: 0 0 8px;
+  }
 
-/* Sankey */
-.sk-link {
-  opacity: 0.2;
-}
-.sk-link:hover {
-  opacity: 0.42;
-}
-.sk-link.l-inc {
-  fill: var(--line);
-}
-.sk-link.l-need {
-  fill: var(--need);
-}
-.sk-link.l-want {
-  fill: var(--want);
-}
-.sk-link.l-future {
-  fill: var(--future);
-}
-.sk-link.l-rest {
-  fill: var(--ink-3);
-}
-.sk-node {
-  fill: var(--line);
-}
-.sk-node.n-need {
-  fill: var(--need);
-}
-.sk-node.n-want {
-  fill: var(--want);
-}
-.sk-node.n-future {
-  fill: var(--future);
-}
-.sk-node.n-rest {
-  fill: var(--raised);
-  stroke: var(--ink-2);
-  stroke-dasharray: 3 2;
-}
+  .spike-intro {
+    margin: 0 0 24px;
+    color: var(--ink-2);
+    max-width: 68ch;
+  }
 
-@media (prefers-reduced-motion: no-preference) {
-  .sk-link {
-    transition: opacity 160ms;
+  .spike section {
+    margin: 0 0 44px;
+  }
+
+  .spike h2 {
+    margin: 0 0 4px;
+    font-size: 17px;
+    font-weight: 620;
+  }
+
+  .spike-note {
+    margin: 0 0 12px;
+    color: var(--ink-3);
   }
 }

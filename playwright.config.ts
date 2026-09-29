@@ -8,6 +8,10 @@ export default defineConfig({
   forbidOnly: Boolean(process.env['CI']),
   retries: process.env['CI'] ? 1 : 0,
   reporter: process.env['CI'] ? [['github'], ['html', { open: 'never' }]] : 'list',
+  expect: {
+    // Visual comparison of /dev/bauteile; fonts are self-hosted so rendering is stable.
+    toHaveScreenshot: { maxDiffPixelRatio: 0.01, animations: 'disabled' },
+  },
   use: {
     baseURL: `http://localhost:${PORT}`,
     trace: 'retain-on-failure',

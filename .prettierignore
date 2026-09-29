@@ -10,3 +10,4 @@ docs
 .impeccable
 .claude
 *.md
+packages/ui/src/styles/tokens.css
