@@ -1,0 +1,12 @@
+node_modules
+dist
+coverage
+playwright-report
+test-results
+package-lock.json
+design
+reference
+docs
+.impeccable
+.claude
+*.md

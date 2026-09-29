@@ -1,0 +1,33 @@
+# Placeholder app name: create the real app with `fly apps create` and change it here.
+app = 'budget-fg'
+primary_region = 'fra'
+
+[build]
+
+[env]
+  PORT = '3000'
+  DATA_DIR = '/data'
+
+# SQLite lives on a volume: exactly one machine, in one region.
+# Create once: fly volumes create budget_data --region fra --size 1
+[[mounts]]
+  source = 'budget_data'
+  destination = '/data'
+
+[http_service]
+  internal_port = 3000
+  force_https = true
+  auto_stop_machines = 'off'
+  auto_start_machines = true
+  min_machines_running = 1
+
+  [[http_service.checks]]
+    method = 'GET'
+    path = '/health'
+    interval = '15s'
+    timeout = '3s'
+    grace_period = '10s'
+
+[[vm]]
+  size = 'shared-cpu-1x'
+  memory = '512mb'

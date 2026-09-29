@@ -1,0 +1,97 @@
+import { cents, formatEuro } from '@budget/domain/money';
+import { sankeyLayout, type SankeyLink, type SankeyNode } from './sankey-layout';
+import {
+  classColumn,
+  classLinks,
+  groupColumn,
+  groupLinks,
+  incomeColumn,
+  incomeLinks,
+  poolColumn,
+} from './sankey-data';
+
+const HEIGHT = 340;
+const NODE_WIDTH = 10;
+const eur0 = (v: number) => formatEuro(cents(Math.round(v)), { cents: false });
+/** Rough label width in px for margin sizing (Barlow Semi Condensed, 13 px, semibold). */
+const labelWidth = (names: string[]) => Math.max(...names.map((n) => n.length)) * 6.6 + 18;
+
+/**
+ * Geldfluss: income kinds into one pool, from there to classes and groups.
+ * Own SVG; ribbons are filled paths, node/link tones follow the blueprint class colours.
+ * Ported from `sankey` in `design/prototype/reports-core.js`; phone width drops the group column.
+ */
+export function SankeyChart({ width }: { width: number }) {
+  if (width <= 0) return null;
+  const narrow = width < 600;
+  const columns: SankeyNode[][] = narrow
+    ? [incomeColumn, poolColumn, classColumn]
+    : [incomeColumn, poolColumn, classColumn, groupColumn];
+  const links: SankeyLink[] = narrow
+    ? [...incomeLinks, ...classLinks]
+    : [...incomeLinks, ...classLinks, ...groupLinks];
+  const last = columns[columns.length - 1] ?? [];
+  const layout = sankeyLayout(columns, links, {
+    width,
+    height: HEIGHT,
+    nodeWidth: NODE_WIDTH,
+    gap: 9,
+    padLeft: labelWidth(incomeColumn.map((n) => n.name)),
+    padRight: labelWidth(last.map((n) => n.name)) + 8,
+  });
+
+  return (
+    <svg
+      viewBox={`0 0 ${width} ${HEIGHT}`}
+      width={width}
+      height={HEIGHT}
+      role="img"
+      aria-label="Geldfluss: Einnahmenarten in einen Topf, von dort zu Klassen und Gruppen"
+      data-testid="sankey-chart"
+    >
+      <g>
+        {layout.links.map((l) => (
+          <path key={`${l.from}-${l.to}`} d={l.d} className={`sk-link l-${l.tone ?? 'inc'}`}>
+            <title>{`${l.label ?? ''}: ${eur0(l.value)}`}</title>
+          </path>
+        ))}
+      </g>
+      {layout.nodes.map((n) => {
+        const first = n.column === 0;
+        const tx = first ? n.x - 8 : n.x + n.width + 8;
+        const anchor = first ? 'end' : 'start';
+        const ty = n.y + n.height / 2;
+        const showLabel = n.height >= 9;
+        const tall = n.height >= 26;
+        return (
+          <g key={n.id}>
+            <rect
+              x={n.x}
+              y={n.y}
+              width={n.width}
+              height={n.height}
+              className={`sk-node${n.tone && n.tone !== 'inc' ? ` n-${n.tone}` : ''}`}
+            >
+              <title>{`${n.name}: ${eur0(n.value)}`}</title>
+            </rect>
+            {showLabel && (
+              <text
+                x={tx}
+                y={ty + (tall ? -3 : 4)}
+                textAnchor={anchor}
+                className="svg-label-strong"
+              >
+                {n.name}
+              </text>
+            )}
+            {showLabel && tall && (
+              <text x={tx} y={ty + 13} textAnchor={anchor} className="svg-label">
+                {eur0(n.value)}
+              </text>
+            )}
+          </g>
+        );
+      })}
+    </svg>
+  );
+}
