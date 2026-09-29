@@ -50,6 +50,10 @@ export interface Draft {
   transferKey?: string;
   /** Set on investment buys: the trade that settles with this booking. */
   tradeKey?: string;
+  /** Account currency when it is not EUR. */
+  currency?: string;
+  /** Soft-deleted (the booking exists but every read ignores it). */
+  deletedAt?: string;
 }
 
 /** Products in the order used for allocation, and their share of a contribution. */

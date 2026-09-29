@@ -1,0 +1,1 @@
+ALTER TABLE `category` ADD `opening_available_cents` integer DEFAULT 0 NOT NULL;

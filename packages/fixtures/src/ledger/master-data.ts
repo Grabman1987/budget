@@ -12,6 +12,8 @@ export const ACC = {
   krypto: 'acc-krypto',
   p2p: 'acc-p2p',
   kredit: 'acc-kredit',
+  depot2: 'acc-depot2',
+  usd: 'acc-usd',
 } as const;
 
 export const catId = (id: string) => `cat-${id}`;
@@ -153,6 +155,26 @@ export function masterData(): Pick<
       institutionId: 'inst-plattform-e',
       openingDate: OPENING_DATE,
       sortOrder: 6,
+    },
+    {
+      id: ACC.depot2,
+      name: 'Depot B',
+      type: 'brokerage',
+      role: 'investment',
+      onBudget: false,
+      institutionId: 'inst-broker-c',
+      openingDate: OPENING_DATE,
+      sortOrder: 8,
+    },
+    {
+      id: ACC.usd,
+      name: 'Reisekasse USD',
+      type: 'cash',
+      role: 'reserve',
+      onBudget: false,
+      currency: 'USD',
+      openingDate: OPENING_DATE,
+      sortOrder: 9,
     },
     {
       id: ACC.kredit,

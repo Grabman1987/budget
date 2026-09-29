@@ -1,17 +1,24 @@
 import {
+  accountBalances,
+  allocationMonth,
+  budget,
+  createTestDatabase,
+  holdingValuesAsOf,
+  netWorthAsOf,
+  schema,
+  type Db,
+} from '@budget/db';
+import {
   accountBalances as pureBalances,
   allocation,
-  assignedMonth,
   chainReturns,
-  marketValueCents,
+  lastDayOfMonth,
   monthlyPortfolioReturn,
-  unitsHeld,
-  type AssignedCategory,
-  nextMonth,
+  monthsBetween,
 } from '@budget/domain';
-import { accountBalances, budget, createTestDatabase, schema, type Db } from '@budget/db';
-import { eq } from 'drizzle-orm';
+import { eq, isNull } from 'drizzle-orm';
 import { beforeAll, describe, expect, it } from 'vitest';
+import { NOW, referenceModel } from './reference/model';
 import { seedDatabase } from './seed';
 
 let db: Db;
@@ -20,164 +27,74 @@ beforeAll(() => {
   seedDatabase(db);
 });
 
-const monthEnds = () =>
-  db
-    .select({ date: schema.price.date })
-    .from(schema.price)
-    .where(eq(schema.price.securityId, 'sec-etfw'))
-    .all()
-    .map((r) => r.date)
-    .sort();
-
-/** Units and price of every security on a date, straight from the seeded rows. */
-function positions(date: string) {
-  const securities = db.select().from(schema.security).all();
-  const holdings = db.select().from(schema.holding).all();
-  const trades = db.select().from(schema.trade).all();
-  const prices = db.select().from(schema.price).all();
-  return securities.map((s) => {
-    const snapshot = holdings
-      .filter((h) => h.securityId === s.id)
-      .sort((a, b) => b.asOf.localeCompare(a.asOf))[0];
-    const units = unitsHeld(
-      snapshot ? { asOf: snapshot.asOf, unitsE8: snapshot.unitsE8 } : undefined,
-      trades
-        .filter((t) => t.securityId === s.id)
-        .map((t) => ({ date: t.date, unitsE8: t.unitsE8 })),
-      date,
-    );
-    const price = prices
-      .filter((p) => p.securityId === s.id && p.date <= date)
-      .sort((a, b) => b.date.localeCompare(a.date))[0];
-    return {
-      id: s.id,
-      units,
-      priceMicro: price?.priceMicro ?? 0,
-      valueCents: marketValueCents(units, price?.priceMicro ?? 0),
-    };
-  });
-}
+const MONTHS = monthsBetween('2023-10', '2026-09');
+/** Month ends of the sample; the last month ends "today", 17.09.2026. */
+const monthEnd = (month: string) => (month === '2026-09' ? '2026-09-17' : lastDayOfMonth(month));
 
 describe('figures of the prototype are reproduced from the seeded database', () => {
-  it('net worth on 17.09.2026 = 84.730,00 EUR', () => {
-    const balances = accountBalances(db, '2026-09-17');
-    const cash = balances.reduce((a, b) => a + b.balanceCents, 0);
-    const invested = positions('2026-09-17').reduce((a, p) => a + p.valueCents, 0);
-    expect(cash + invested).toBe(8473000);
-    expect(Object.fromEntries(balances.map((b) => [b.accountId, b.balanceCents]))).toMatchObject({
-      'acc-giro': 161700,
-      'acc-kredit': -1217600,
-    });
-    // The pure domain function agrees with the SQL aggregate.
+  it('net worth on 17.09.2026 = 84.730,00 EUR with the prototype’s account split', () => {
+    const today = netWorthAsOf(db, '2026-09-17');
+    expect(today.totalCents).toBe(8473000);
+    const euros = (id: string) => (today.byAccount[`acc-${id}`] ?? 0) / 100;
+    // The prototype's depot is split over two depots here (coverage: one ETF in two accounts).
+    const split = { ...NOW, depot: euros('depot') + euros('depot2') };
+    for (const [id, value] of Object.entries(NOW))
+      expect(id === 'depot' ? split.depot : euros(id), id).toBeCloseTo(value, 2);
+    // The accounts added for coverage (second depot, dollar account) hold nothing in cash.
+    expect(today.byAccount['acc-usd']).toBe(0);
+    // The pure domain function agrees with the SQL aggregate (live bookings only).
     const accounts = db.select().from(schema.account).all();
-    const bookings = db.select().from(schema.booking).all();
+    const bookings = db.select().from(schema.booking).where(isNull(schema.booking.deletedAt)).all();
     const pure = pureBalances(accounts, bookings, '2026-09-17');
-    for (const b of balances) expect(pure.get(b.accountId), b.accountId).toBe(b.balanceCents);
+    for (const b of accountBalances(db, '2026-09-17'))
+      expect(pure.get(b.accountId), b.accountId).toBe(b.balanceCents);
   });
 
-  it('August 2026 allocation: Bedarf 54 %, Wunsch 33 %, Zukunft 26 %, aus Guthaben -13 % (One-Pager)', () => {
-    const month = '2026-08';
-    const year = 2026;
-    const categories = db.select().from(schema.category).all();
-    const months: string[] = [];
-    for (let m = '2023-10'; m <= month; m = nextMonth(m)) months.push(m);
-    const envelopes = budget(db, months).at(-1)?.envelopes ?? {};
-    const spent = (categoryId: string) => -(envelopes[categoryId]?.activityCents ?? 0);
-    const versions = db.select().from(schema.expectedPaymentVersion).all();
-    const payments = db.select().from(schema.expectedPayment).all();
-    /** Amount of an expected payment on a date: the latest version that started on or before it. */
-    const amountOn = (paymentId: string, date: string) =>
-      versions
-        .filter((v) => v.expectedPaymentId === paymentId && v.validFrom <= date)
-        .sort((a, b) => b.validFrom.localeCompare(a.validFrom))[0]?.amountCents ?? 0;
-    const due = (p: { dueMonth: number | null }, day: number) =>
-      `${year}-${String(p.dueMonth).padStart(2, '0')}-${day}`;
-
-    // Special payments: two per year at today's salary level (expected inflows that fall due once a year).
-    const specialAnnual = payments
-      .filter((p) => p.kind === 'inflow' && p.rhythm === 'yearly')
-      .reduce((a, p) => a + amountOn(p.id, due(p, 15)), 0);
-    const r12 = db.select().from(schema.rule).where(eq(schema.rule.code, 'R12')).get();
-    const windfall =
-      (JSON.parse(r12?.paramsJson ?? '{}') as { windfallShares?: Record<string, number> })
-        .windfallShares ?? {};
-
-    // Regular income: everything booked as inflow on budget and reserve accounts, without special payments.
-    const roles = new Map(
-      db
-        .select()
-        .from(schema.account)
-        .all()
-        .map((a) => [a.id, a.role]),
-    );
-    const regularIncome = db
-      .select()
-      .from(schema.booking)
-      .all()
-      .filter(
-        (b) =>
-          b.date.startsWith(month) &&
-          !b.transferId &&
-          b.amountCents > 0 &&
-          ['budget', 'reserve'].includes(roles.get(b.accountId) ?? '') &&
-          b.memo !== 'Sonderzahlung',
-      )
-      .reduce((a, b) => a + b.amountCents, 0);
-
-    // Spending categories only: income, card-payment and advance categories have no class.
-    const spending = categories.flatMap((c) => (c.class ? [{ ...c, class: c.class }] : []));
-    const assigned: AssignedCategory[] = spending.map((c) => {
-      if (c.kind === 'periodic') {
-        const annual = payments
-          .filter((p) => p.categoryId === c.id && p.rhythm === 'yearly')
-          .reduce((a, p) => a + amountOn(p.id, due(p, 12)), 0);
-        return {
-          class: c.class,
-          kind: 'periodic',
-          actualCents: spent(c.id),
-          annualPlannedCents: annual,
-        };
-      }
-      const share = windfall[c.id.replace('cat-', '')];
-      if (share !== undefined) {
-        const regular = payments
-          .filter((p) => p.categoryId === c.id)
-          .reduce((a, p) => a + amountOn(p.id, `${month}-15`), 0);
-        return {
-          class: c.class,
-          kind: 'windfall',
-          actualCents: spent(c.id),
-          regularCents: regular,
-          windfallShare: share,
-        };
-      }
-      return { class: c.class, kind: 'regular', actualCents: spent(c.id) };
+  it('net worth at all 36 month ends matches the prototype within 2 cents', () => {
+    const ref = referenceModel();
+    MONTHS.forEach((month, k) => {
+      const cents = netWorthAsOf(db, monthEnd(month)).totalCents;
+      expect(Math.abs(cents - Math.round((ref.nw[k] as number) * 100)), month).toBeLessThanOrEqual(
+        2,
+      );
     });
+  });
 
-    const result = allocation([
-      assignedMonth({
-        regularIncomeCents: regularIncome,
-        specialIncomeAnnualCents: specialAnnual,
-        categories: assigned,
-      }),
-    ]);
-    expect(result.shares).toEqual({ need: 54, want: 33, future: 26, rest: -13 });
-    expect(result.needCents + result.wantCents + result.futureCents + result.restCents).toBe(
-      result.incomeCents,
-    );
+  it('holdings are kept per account: the same ETF in two depots adds up to the product value', () => {
+    const today = holdingValuesAsOf(db, '2026-09-17');
+    const em = today.filter((h) => h.securityId === 'sec-etfem');
+    expect(em.map((h) => h.accountId)).toEqual(['acc-depot', 'acc-depot2']);
+    expect(em[1]?.unitsE8).toBe(100_000_000);
+    const depots = today.filter((h) => h.accountId.startsWith('acc-depot'));
+    expect(depots.reduce((a, h) => a + h.valueCents, 0)).toBe(NOW.depot * 100);
+  });
+
+  it('August 2026 allocation in cents; shares by largest remainder (One-Pager: 54 / 33 / 26 / -13)', () => {
+    const result = allocation([allocationMonth(db, '2026-08')]);
+    expect(result).toMatchObject({
+      needCents: 310103,
+      wantCents: 192865,
+      futureCents: 150888,
+      incomeCents: 575788,
+      restCents: 575788 - 310103 - 192865 - 150888,
+    });
+    // The prototype rounds each class and lets the rest take the difference (54 / 33 / 26 / -13);
+    // largest remainder (C11) keeps every share within half a point: 33,50 % → 34, -13,56 % → -14.
+    expect(result.shares).toEqual({ need: 54, want: 34, future: 26, rest: -14 });
   });
 
   it('portfolio TTWROR: last 12 months +12,4 %, since October 2023 +38,2 %', () => {
-    const dates = monthEnds(); // 2023-09-30 followed by 36 month ends
+    const dates = ['2023-09-30', ...MONTHS.map(monthEnd)];
     const prices = db.select().from(schema.price).all();
+    const priceOn = (id: string, date: string) =>
+      prices.find((p) => p.securityId === id && p.date === date)?.priceMicro ?? 0;
     const monthly: number[] = [];
     for (let i = 1; i < dates.length; i++) {
-      const previous = positions(dates[i - 1] as string);
-      const rates = previous.map((p) => {
-        const now =
-          prices.find((x) => x.securityId === p.id && x.date === dates[i])?.priceMicro ?? 0;
-        return { previousValueCents: p.valueCents, returnRate: now / p.priceMicro - 1 };
-      });
+      const previous = holdingValuesAsOf(db, dates[i - 1] as string);
+      const rates = previous.map((p) => ({
+        previousValueCents: p.valueCents,
+        returnRate: priceOn(p.securityId, dates[i] as string) / p.priceMicro - 1,
+      }));
       monthly.push(monthlyPortfolioReturn(rates));
     }
     expect(monthly).toHaveLength(36);
@@ -185,19 +102,30 @@ describe('figures of the prototype are reproduced from the seeded database', () 
     expect(chainReturns(monthly) * 100).toBeCloseTo(38.2, 1);
   });
 
-  it('the seeded database is deterministic: a second seed produces identical data', () => {
+  it('the seeded database is deterministic: bookings, splits, trades, prices and envelopes', () => {
     const other = createTestDatabase().db;
     seedDatabase(other);
     // Row timestamps (created_at, updated_at) are the only values that come from the clock.
-    const strip = <T extends { createdAt: string; updatedAt: string }>(rows: T[]) =>
+    const strip = (rows: Record<string, unknown>[]) =>
       rows.map((row) => {
-        const { createdAt, updatedAt, ...rest } = row;
-        void createdAt;
-        void updatedAt;
+        const rest = { ...row };
+        delete rest['createdAt'];
+        delete rest['updatedAt'];
         return rest;
       });
-    expect(strip(other.select().from(schema.booking).all())).toEqual(
-      strip(db.select().from(schema.booking).all()),
-    );
+    const tables = [
+      schema.booking,
+      schema.bookingSplit,
+      schema.trade,
+      schema.price,
+      schema.envelopeMonth,
+      schema.holding,
+    ] as const;
+    for (const table of tables)
+      expect(strip(other.select().from(table).all())).toEqual(strip(db.select().from(table).all()));
+    // Derived figures follow: the whole budget of the sample is identical.
+    expect(budget(other, MONTHS)).toEqual(budget(db, MONTHS));
+    const moves = db.select().from(schema.booking).where(eq(schema.booking.memo, 'Umschichtung'));
+    expect(moves.all()).toHaveLength(4);
   });
 });

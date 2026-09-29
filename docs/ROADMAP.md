@@ -81,10 +81,10 @@ Order: P1f-1 → first deploy (after P1f-2 B1–B3) → P1f-3 before P2; P1f-4 i
 - [x] C7 foreign-currency fields
 - [x] C8 undo keeps invariants
 - [x] C9 extended CHECK enums
-- [ ] C10 holdings per account, FIFO, FX, cash-flow returns
-- [ ] C11 read models, Vienna date module, rounding
+- [x] C10 holdings per account, FIFO, FX, cash-flow returns
+- [x] C11 read models, Vienna date module, rounding
 - [x] C12 cheap model gaps
-- [ ] C13 stronger figure tests and fixture coverage
+- [x] C13 stronger figure tests and fixture coverage
 - [x] C14 model needs of the YNAB import (card payment kind, flag, staging tables, mapping per run)
 
 ### P1f-4 — Frontend (`docs/prompts/P1f-4.md`)

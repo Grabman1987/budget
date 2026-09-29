@@ -27,19 +27,34 @@ export interface Allocation {
   shares: { need: number; want: number; future: number; rest: number };
 }
 
-/** Percentages of income: the three classes rounded, the rest absorbs rounding so the sum is 100. */
+/**
+ * Whole percentages of income that add up to exactly 100 (largest-remainder rounding, SPEC §6
+ * "dimension chains must add up"): need, want and future of income, the rest is the difference
+ * (negative = spent from savings). Without income there is nothing to divide: the rest is 100 %.
+ */
 export function percentShares(input: {
   needCents: number;
   wantCents: number;
   futureCents: number;
   incomeCents: number;
 }): { need: number; want: number; future: number; rest: number } {
-  if (input.incomeCents <= 0) return { need: 0, want: 0, future: 0, rest: 0 };
-  const pct = (v: number) => Math.round((v / input.incomeCents) * 100);
-  const need = pct(input.needCents);
-  const want = pct(input.wantCents);
-  const future = pct(input.futureCents);
-  return { need, want, future, rest: 100 - need - want - future };
+  if (input.incomeCents <= 0) return { need: 0, want: 0, future: 0, rest: 100 };
+  const restCents = input.incomeCents - input.needCents - input.wantCents - input.futureCents;
+  const exact = [input.needCents, input.wantCents, input.futureCents, restCents].map(
+    (v) => (v / input.incomeCents) * 100,
+  );
+  const floors = exact.map(Math.floor);
+  let missing = 100 - floors.reduce((a, v) => a + v, 0);
+  const byRemainder = exact
+    .map((v, i) => ({ i, frac: v - Math.floor(v) }))
+    .sort((a, b) => b.frac - a.frac || a.i - b.i);
+  for (const { i } of byRemainder) {
+    if (missing <= 0) break;
+    floors[i] = (floors[i] as number) + 1;
+    missing -= 1;
+  }
+  const [need, want, future, rest] = floors as [number, number, number, number];
+  return { need, want, future, rest };
 }
 
 /**

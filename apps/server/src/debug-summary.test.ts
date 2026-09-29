@@ -21,7 +21,7 @@ describe('debug summary (seed check)', () => {
     expect(summary.asOf).toBe('2026-09-17');
     expect(summary.netWorthCents).toBe(8473000);
     expect(summary.investmentsCents).toBe(8800000);
-    expect(summary.counts['accounts']).toBe(7);
+    expect(summary.counts['accounts']).toBe(9);
     expect(summary.counts['bookings']).toBeGreaterThan(4000);
     expect(summary.counts['auditEntries']).toBe(0);
   });

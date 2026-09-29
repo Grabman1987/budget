@@ -1,3 +1,4 @@
+import { lastDayOfMonth, nextMonth } from '../date';
 import { accountBalances, type BalanceAccount } from './balances';
 import { envelopeMonth, type EnvelopeMonth } from './envelope';
 
@@ -97,16 +98,6 @@ export function splitEffect(
   return { kind: 'income' };
 }
 
-const lastDay = (month: string): string => {
-  const [y, m] = month.split('-').map(Number) as [number, number];
-  return `${month}-${String(new Date(Date.UTC(y, m, 0)).getUTCDate()).padStart(2, '0')}`;
-};
-
-export function nextMonth(month: string): string {
-  const [y, m] = month.split('-').map(Number) as [number, number];
-  return m === 12 ? `${y + 1}-01` : `${y}-${String(m + 1).padStart(2, '0')}`;
-}
-
 /** The budget for each of `input.months` (see the module comment). Pure. */
 export function budgetMonths(input: BudgetInput): BudgetMonth[] {
   const { months } = input;
@@ -180,7 +171,7 @@ export function budgetMonths(input: BudgetInput): BudgetMonth[] {
     const balances = accountBalances(
       cashAccounts,
       splits.filter((s) => cashAccounts.some((a) => a.id === s.accountId)),
-      lastDay(month),
+      lastDayOfMonth(month),
     );
     let cashCents = 0;
     for (const v of balances.values()) cashCents += v;

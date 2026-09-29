@@ -113,6 +113,11 @@ export const category = sqliteTable(
     rolloverOverspending: integer('rollover_overspending', { mode: 'boolean' })
       .notNull()
       .default(false),
+    /**
+     * Available amount of the envelope when the budget starts (concept §5.2 no. 7: the envelopes
+     * start with their balances of the start date), separate from the first month's assignment.
+     */
+    openingAvailableCents: cents('opening_available_cents').notNull().default(0),
     sortOrder: integer('sort_order').notNull().default(0),
     hiddenAt: text('hidden_at'),
     ...timestamps(),

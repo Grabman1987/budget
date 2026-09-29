@@ -288,3 +288,16 @@ describe('C8 undo keeps the invariants', () => {
     expect(() => updateBooking(db, r.fromBookingId, { memo: 'x' }, ctx)).toThrow(/live leg/);
   });
 });
+
+describe('C11 opening envelopes', () => {
+  it('start the first month separately from its assignment; any later month sees the same carry', () => {
+    opened.sqlite.exec(`UPDATE category SET opening_available_cents = 60000 WHERE id = 'essen'`);
+    setAssigned(db, 'essen', '2023-10', 10_000, ctx);
+    const [oct] = budget(db, ['2023-10']);
+    expect(oct!.envelopes['essen']).toMatchObject({ carryCents: 60_000, assignedCents: 10_000 });
+    // Giro opened with 1.000 €: 600 € are already in the envelope, 100 € assigned.
+    expect(oct!.toBeAssignedCents).toBe(100_000 - 70_000);
+    const [jan] = budget(db, ['2024-01']);
+    expect(jan!.envelopes['essen']?.carryCents).toBe(70_000);
+  });
+});
