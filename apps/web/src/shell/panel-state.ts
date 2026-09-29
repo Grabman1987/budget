@@ -1,22 +1,16 @@
 import type { PanelId } from './panels';
 
-/**
- * True while the open panel was opened by an in-app link, which pushed a history entry.
- * Closing then steps back (the panel disappears and no duplicate entry is left); a panel opened
- * directly by URL is closed by replacing the URL.
- */
-let openedInApp = false;
-
-export const markPanelOpenedInApp = (): void => {
-  openedInApp = true;
-};
-export const consumePanelOpenedInApp = (): boolean => {
-  const value = openedInApp;
-  openedInApp = false;
-  return value;
-};
-export const resetPanelOpenedInApp = (): void => {
-  openedInApp = false;
-};
-
 export type PanelSearch = { panel?: PanelId | undefined };
+
+/**
+ * A panel opened by an in-app link pushes a history entry that carries `panelOpenedInApp` in the
+ * browser's history state. Closing then steps back (the panel disappears and no duplicate entry is
+ * left). A panel opened by URL (deep link, reload of a fresh tab) has no such flag and is closed by
+ * replacing the URL. The flag lives in history state, not in a module variable, so it survives
+ * reloads and belongs to exactly one entry.
+ */
+declare module '@tanstack/history' {
+  interface HistoryState {
+    panelOpenedInApp?: boolean;
+  }
+}

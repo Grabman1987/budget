@@ -87,6 +87,8 @@ export function LoginPage({ onAuthenticated }: LoginPageProps) {
                 spellCheck={false}
                 aria-describedby={describedBy}
                 aria-invalid={invalid}
+                // The field only appears after the user asked for it: focus follows that action.
+                // eslint-disable-next-line jsx-a11y/no-autofocus
                 autoFocus
               />
             )}

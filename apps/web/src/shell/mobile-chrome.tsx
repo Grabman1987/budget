@@ -6,12 +6,19 @@ import { PanelLink } from './panel-link';
 import { SAMPLE_INBOX_COUNT } from './inbox';
 import { ThemeButton } from './theme-button';
 
+/**
+ * Register name for the phone header: "Einstellungen · Sicherheit" becomes "Sicherheit". The area
+ * is already marked in the tab bar and the register row sits right below the header, so the long
+ * form only got truncated ("Einstellungen · Si…").
+ */
+export const phoneTitle = (title: string): string => title.split(' · ').at(-1) ?? title;
+
 /** Phone header (< 768 px): page title, inbox, theme, profile. */
 export function MobileHeader({ title }: { title: string }) {
   return (
     <header className="m-head">
       <div className="m-title">
-        <h1>{title}</h1>
+        <h1>{phoneTitle(title)}</h1>
       </div>
       <span className="spacer" />
       <PanelLink

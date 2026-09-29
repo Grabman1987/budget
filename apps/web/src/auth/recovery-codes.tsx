@@ -1,16 +1,33 @@
 import { Button } from '@budget/ui';
-import { useState } from 'react';
+import { useId, useState } from 'react';
 
 export interface RecoveryCodesProps {
   codes: ReadonlyArray<string>;
 }
 
+const dateFormat = new Intl.DateTimeFormat('de-AT', { dateStyle: 'medium' });
+
+/** Prints only the sheet: `data-print` switches the print stylesheet (auth.css) to it. */
+function printSheet(): void {
+  const root = document.documentElement;
+  root.dataset['print'] = 'recovery';
+  const clear = () => {
+    delete root.dataset['print'];
+    window.removeEventListener('afterprint', clear);
+  };
+  window.addEventListener('afterprint', clear);
+  window.print();
+}
+
 /**
- * The ten recovery codes in a 2x5 list with a copy button. The codes live in component state only:
- * they are never logged or stored, and they are gone once the parent unmounts this view.
+ * The ten recovery codes on a ruled blueprint sheet (title block, numbered lines) with print and
+ * copy. The codes live in component state only: they are never logged or stored, and they are
+ * gone once the parent unmounts this view.
  */
 export function RecoveryCodes({ codes }: RecoveryCodesProps) {
   const [copyState, setCopyState] = useState<'idle' | 'done' | 'failed'>('idle');
+  const [created] = useState(() => dateFormat.format(new Date()));
+  const headingId = useId();
 
   const copy = async () => {
     try {
@@ -23,16 +40,30 @@ export function RecoveryCodes({ codes }: RecoveryCodesProps) {
 
   return (
     <div className="recovery">
-      <ol className="recovery-grid" aria-label="Wiederherstellungscodes">
-        {codes.map((code) => (
-          <li key={code} className="recovery-code">
-            {code}
-          </li>
-        ))}
-      </ol>
+      <section className="recovery-sheet" aria-labelledby={headingId}>
+        <header className="recovery-head">
+          <h3 id={headingId}>Wiederherstellungscodes</h3>
+          <span className="tech recovery-meta">
+            {codes.length} Einmalcodes · {created}
+          </span>
+        </header>
+        <ol className="recovery-grid" aria-label="Wiederherstellungscodes">
+          {codes.map((code) => (
+            <li key={code} className="recovery-code">
+              {code}
+            </li>
+          ))}
+        </ol>
+        <p className="recovery-note">
+          Jeder Code gilt genau einmal. Bewahre dieses Blatt getrennt vom Gerät auf.
+        </p>
+      </section>
       <div className="recovery-actions">
+        <Button variant="ghost" size="sm" onClick={printSheet}>
+          Drucken
+        </Button>
         <Button variant="ghost" size="sm" onClick={() => void copy()}>
-          Codes kopieren
+          Kopieren
         </Button>
         <span className="recovery-status" role="status">
           {copyState === 'done' && 'Codes kopiert.'}

@@ -19,8 +19,15 @@ export {
 } from './revision-table';
 export { CircleNumber, SectionHead, type SectionHeadProps } from './section-head';
 export { Segmented, type SegmentedOption, type SegmentedProps } from './segmented';
-export { Count, SourceStamp, StatusMark, type RuleStatus, type StatusMarkProps } from './stamps';
+export {
+  Count,
+  SourceStamp,
+  StatusMark,
+  type CountProps,
+  type RuleStatus,
+  type StatusMarkProps,
+} from './stamps';
 export { Switch, type SwitchProps } from './switch';
 export { TitleBlock, type TitleBlockField, type TitleBlockProps } from './title-block';
 export { ToastProvider, useToast, type ToastOptions } from './toast';
-export { useIsPhone, useMediaQuery } from './use-media-query';
+export { useIsPhone, useMediaQuery, usePrefersDark } from './use-media-query';

@@ -20,7 +20,10 @@ export interface RegistersProps {
   ) => ReactNode;
 }
 
-/** Second-level navigation as register tabs (there is no third menu level). */
+/**
+ * Second-level navigation as register tabs (there is no third menu level). Links mark the current
+ * page with `aria-current`; the controlled button variant is a toggle group (`aria-pressed`).
+ */
 export function Registers({ items, current, label, onSelect, renderLink }: RegistersProps) {
   return (
     <nav className="registers" aria-label={label}>
@@ -45,7 +48,7 @@ export function Registers({ items, current, label, onSelect, renderLink }: Regis
           <button
             key={item.id}
             type="button"
-            aria-current={ariaCurrent}
+            aria-pressed={active}
             onClick={() => onSelect?.(item.id)}
           >
             {item.label}

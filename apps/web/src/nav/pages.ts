@@ -201,6 +201,13 @@ export const PAGES: ReadonlyArray<PageDef> = [
   },
 ];
 
+/** Einstellungen › Sicherheit; its own constant because the route and the (lazy) page both need it. */
+export const SECURITY_META: PageDef = (() => {
+  const page = PAGES.find((p) => p.path === '/einstellungen/sicherheit');
+  if (!page) throw new Error('Missing page /einstellungen/sicherheit');
+  return page;
+})();
+
 export const HEUTE: PageMeta = {
   title: 'Heute',
   area: 'heute',

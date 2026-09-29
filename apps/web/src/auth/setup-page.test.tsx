@@ -67,7 +67,7 @@ describe('SetupPage', () => {
     const writeText = vi.spyOn(navigator.clipboard, 'writeText').mockResolvedValue();
     await userEvent.type(screen.getByLabelText('Einrichtungscode'), 'setup-secret');
     await user.click(screen.getByRole('button', { name: 'Passkey anlegen' }));
-    await user.click(await screen.findByRole('button', { name: 'Codes kopieren' }));
+    await user.click(await screen.findByRole('button', { name: 'Kopieren' }));
     expect(writeText).toHaveBeenCalledWith(CODES.join('\n'));
     expect((await screen.findByRole('status')).textContent).toBe('Codes kopiert.');
   });

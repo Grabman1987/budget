@@ -15,3 +15,6 @@ export function useMediaQuery(query: string): boolean {
 
 /** Phone layout breakpoint (DESIGN.md: below 768 px). */
 export const useIsPhone = () => useMediaQuery('(max-width: 767px)');
+
+/** System colour scheme is dark (`prefers-color-scheme`). */
+export const usePrefersDark = () => useMediaQuery('(prefers-color-scheme: dark)');

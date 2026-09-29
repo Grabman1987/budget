@@ -36,7 +36,24 @@ export function StatusMark({ status, actionNeeded = false, children }: StatusMar
   );
 }
 
+export interface CountProps {
+  children: ReactNode;
+  tone?: 'ink' | 'alert';
+  /**
+   * Text for screen readers that is appended to the number (visually hidden), so the badge does
+   * not rely on its colour. Default: " offen" for the alert tone, nothing for ink. Pass "" to
+   * suppress, or e.g. " ungelesen" when "offen" does not fit.
+   */
+  srSuffix?: string;
+}
+
 /** Count mark (Zählmarke). The alert tone counts only items that need action. */
-export function Count({ children, tone = 'ink' }: { children: ReactNode; tone?: 'ink' | 'alert' }) {
-  return <span className={cx('count', tone === 'alert' && 'count-alert')}>{children}</span>;
+export function Count({ children, tone = 'ink', srSuffix }: CountProps) {
+  const suffix = srSuffix ?? (tone === 'alert' ? ' offen' : '');
+  return (
+    <span className={cx('count', tone === 'alert' && 'count-alert')}>
+      {children}
+      {suffix && <span className="sr-only">{suffix}</span>}
+    </span>
+  );
 }

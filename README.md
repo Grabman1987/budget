@@ -31,8 +31,8 @@ npm ci
 npm run db:seed    # synthetische Beispieldaten nach data/dev.sqlite (siehe docs/data-model.md)
 npm run dev        # Vite (:5173) + Server (:3000), Hot Reload
 npm run check      # Typecheck + Lint + Unit-Tests
-npm run test:e2e   # Build + Playwright (einmalig: npx playwright install chromium)
-npm run build      # apps/web/dist + apps/server/dist/index.js
+npm run test:e2e   # E2E-Build + Playwright (einmalig: npx playwright install chromium)
+npm run build      # apps/web/dist + apps/server/dist/index.js (ohne /dev-Seiten)
 npm start          # Produktions-Server (liefert die gebaute Web-App aus)
 ```
 
