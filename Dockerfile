@@ -1,13 +1,11 @@
 # syntax=docker/dockerfile:1
 
 # ---- build: install workspaces, build web (Vite) and server (esbuild bundle) ----
-FROM node:22-bookworm-slim AS build
-# npm runs node-gyp for better-sqlite3 (a no-op that still needs python and make: the package ships prebuilds).
-RUN apt-get update \
- && apt-get install -y --no-install-recommends python3 make g++ \
- && rm -rf /var/lib/apt/lists/*
+FROM node:22-bookworm-slim@sha256:43ac6c60b8f89723f746e8a92ce91abd5017e627ce1ddfe4238355d3a30b772c AS build
+# Base images are pinned by digest (the tag is only for humans); Dependabot proposes new digests.
+# No compiler toolchain: .npmrc sets ignore-scripts=true and better-sqlite3 ships prebuilt binaries.
 WORKDIR /repo
-COPY package.json package-lock.json ./
+COPY .npmrc package.json package-lock.json ./
 COPY apps/server/package.json apps/server/
 COPY apps/web/package.json apps/web/
 COPY packages/db/package.json packages/db/
@@ -15,6 +13,8 @@ COPY packages/domain/package.json packages/domain/
 COPY packages/fixtures/package.json packages/fixtures/
 COPY packages/ui/package.json packages/ui/
 RUN npm ci
+# Fail the build here, not at runtime, if the native driver cannot load without a build step.
+RUN node -e "new (require('better-sqlite3'))(':memory:').prepare('select 1').get()"
 COPY tsconfig.base.json ./
 COPY apps apps
 COPY packages packages
@@ -23,7 +23,7 @@ COPY design/prototype/fonts design/prototype/fonts
 RUN npm run build
 
 # ---- litestream: pinned release, checksum-verified, one binary per target architecture ----
-FROM node:22-bookworm-slim AS litestream
+FROM node:22-bookworm-slim@sha256:43ac6c60b8f89723f746e8a92ce91abd5017e627ce1ddfe4238355d3a30b772c AS litestream
 ARG TARGETARCH
 ARG LITESTREAM_VERSION=0.5.17
 # SHA-256 of litestream-<version>-linux-<arch>.tar.gz, from the release's checksums.txt.
@@ -45,7 +45,7 @@ RUN set -eu; \
     litestream version
 
 # ---- runtime: the server is one bundled file, the web app is static ----
-FROM node:22-bookworm-slim AS runtime
+FROM node:22-bookworm-slim@sha256:43ac6c60b8f89723f746e8a92ce91abd5017e627ce1ddfe4238355d3a30b772c AS runtime
 ENV NODE_ENV=production \
     PORT=3000 \
     WEB_DIR=/app/web \
@@ -62,7 +62,8 @@ COPY --from=build /repo/apps/web/dist ./web
 COPY --from=build /repo/packages/db/drizzle ./drizzle
 COPY --from=build /repo/node_modules/better-sqlite3/package.json ./node_modules/better-sqlite3/package.json
 COPY --from=build /repo/node_modules/better-sqlite3/lib ./node_modules/better-sqlite3/lib
-COPY --from=build /repo/node_modules/better-sqlite3/prebuilds ./node_modules/better-sqlite3/prebuilds
+# glibc prebuilds only (this image is bookworm): linux-x64 and linux-arm64, not macOS/Windows/musl.
+COPY --from=build /repo/node_modules/better-sqlite3/prebuilds/linux-*.node ./node_modules/better-sqlite3/prebuilds/
 # Litestream replicates /data/budget.sqlite to object storage when configured (see docs/ops.md).
 COPY --from=litestream /usr/local/bin/litestream /usr/local/bin/litestream
 COPY litestream.yml /etc/litestream.yml

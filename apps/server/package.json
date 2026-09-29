@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "tsx watch src/index.ts",
+    "dev": "tsx watch src/dev.ts",
     "build": "esbuild src/index.ts --bundle --platform=node --format=esm --target=node22 --external:better-sqlite3 --outfile=dist/index.js --banner:js=\"import{createRequire}from'node:module';const require=createRequire(import.meta.url);\"",
     "typecheck": "tsc -p tsconfig.json"
   },
@@ -18,7 +18,6 @@
   },
   "devDependencies": {
     "@budget/fixtures": "*",
-    "esbuild": "^0.25.0",
-    "tsx": "^4.20.0"
+    "esbuild": "^0.25.0"
   }
 }

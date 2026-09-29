@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
+import { expectScreenshot } from './visual';
 import { SoftAuthenticator } from '../apps/server/src/auth/testing/authenticator';
 import { E2E_SETUP_TOKEN } from '../playwright.config';
 
@@ -44,7 +45,7 @@ test('bootstrap, login, recovery, device management and CSRF on a fresh server',
     await page.goto('/plan/monat');
     await expect(page).toHaveURL(/\/setup$/);
     await page.emulateMedia({ reducedMotion: 'reduce', colorScheme: 'light' });
-    await expect(page).toHaveScreenshot('setup-page.png');
+    await expectScreenshot(page, 'setup-page.png');
   });
 
   await test.step('a wrong setup token is rejected with a message', async () => {
@@ -96,7 +97,7 @@ test('bootstrap, login, recovery, device management and CSRF on a fresh server',
     await page.goto('/plan/monat');
     await expect(page).toHaveURL(/\/login$/);
     await page.emulateMedia({ reducedMotion: 'reduce', colorScheme: 'light' });
-    await expect(page).toHaveScreenshot('login-page.png');
+    await expectScreenshot(page, 'login-page.png');
 
     await page.getByRole('button', { name: 'Mit Passkey anmelden' }).click();
     await expect(page).toHaveURL(/\/$/);

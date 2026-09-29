@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
+import { expectScreenshot } from './visual';
 import { PAGES } from '../apps/web/src/nav/pages';
 import { REPORTS, REPORT_GROUPS } from '../apps/web/src/nav/reports-catalog';
 
@@ -321,7 +322,7 @@ test.describe('visual: shell against design/screens (layout, not data)', () => {
       await page.goto(path);
       await expect(page.locator('main')).toBeVisible();
       await page.evaluate(() => document.fonts.ready);
-      await expect(page).toHaveScreenshot(`shell-${name}-light.png`);
+      await expectScreenshot(page, `shell-${name}-light.png`);
     });
   }
 
@@ -330,6 +331,6 @@ test.describe('visual: shell against design/screens (layout, not data)', () => {
     await page.goto('/');
     await expect(page.locator('main')).toBeVisible();
     await page.evaluate(() => document.fonts.ready);
-    await expect(page).toHaveScreenshot('shell-heute-dark.png');
+    await expectScreenshot(page, 'shell-heute-dark.png');
   });
 });

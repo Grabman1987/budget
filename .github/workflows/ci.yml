@@ -42,6 +42,23 @@ jobs:
             test-results/
           retention-days: 7
 
+  # Windows is the owner's development machine: `npm ci` (no compiler needed, see .npmrc) and the
+  # unit tests must pass there, including the path handling of the database package.
+  check-windows:
+    runs-on: windows-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - name: Typecheck, lint, unit tests
+        run: npm run check
+
   docker:
     runs-on: ubuntu-latest
     timeout-minutes: 15

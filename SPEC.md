@@ -112,11 +112,11 @@ Build pages to match `design/prototype/` and `design/screens/`. When in doubt, o
 
 | Layer | Choice |
 | --- | --- |
-| Language | TypeScript (strict), Node 22 LTS (cloud default; concept said 24, 22 is fine) |
+| Language | TypeScript (strict), Node 22 LTS (cloud default; concept said 24, 22 is fine); `engines`: `^22.14.0 \|\| ^24.0.0` |
 | Repo | npm workspaces monorepo (layout below) |
-| Frontend | React, Vite, TanStack Router + Query, Tailwind with tokens generated from `.impeccable/design.json` / DESIGN.md, Radix primitives |
+| Frontend | React, Vite, TanStack Router + Query, Tailwind (theme only) with tokens generated from DESIGN.md, own accessible primitives in `packages/ui` on native elements (`<dialog>` panels); Radix is not used |
 | Charts | **Own SVG components** on d3-scale/d3-shape, ported from the prototype (the blueprint grammar is custom). Apache ECharts only if the P1 spike shows a clear need (proposed change to O1, confirm in P1a). |
-| Backend | Hono + zod (shared schemas with the client), REST/JSON |
+| Backend | Hono + zod (request validation on the server today; schemas move to a shared package when a client form needs the same rules, from P2), REST/JSON |
 | Database | SQLite (WAL) with Drizzle ORM and migrations |
 | Backup | Litestream to object storage + nightly age-encrypted copy |
 | Receipts / payslips | Object storage, reference in DB |
