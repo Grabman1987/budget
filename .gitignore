@@ -14,3 +14,11 @@ playwright-report/
 test-results/
 .DS_Store
 Thumbs.db
+
+# Real finance exports and mappings never enter the repo (docs/migration/ynab-export.md)
+private/
+*YNAB Export*
+*- Register.tsv
+*- Plan.tsv
+*.mapping.json
+!packages/fixtures/**

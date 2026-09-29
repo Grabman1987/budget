@@ -2,7 +2,7 @@
 
 Status: Gate 1 candidate, 29.09.2026. App name: **Budget** (O10 decided). Private, single user.
 
-Budget is a private household finance web app (installable PWA) that replaces an Actual-Budget-based cockpit, YNAB and Portfolio Performance with one app, one database and one language. Envelope budgeting at the core, a rule set of finance basics on top, full net-worth and portfolio tracking in the same ledger. Goal: not only track cash flow and wealth, but actively optimise them.
+Budget is a private household finance web app (installable PWA) that replaces YNAB (and the interim Actual-Budget cockpit) and Portfolio Performance with one app, one database and one language. Envelope budgeting at the core, a rule set of finance basics on top, full net-worth and portfolio tracking in the same ledger. Goal: not only track cash flow and wealth, but actively optimise them.
 
 ## 0. Sources of truth and precedence
 
@@ -140,18 +140,20 @@ Data sources (P4): Enable Banking (PSD2, JWT RS256, booked balances, consent war
 
 ## 10. Migration (concept 11.4)
 
-Master data from Actual → opening balances on 01.10.2023 (cross-checked with YNAB) → bookings with splits and transfers → workspace mapping (persons → contacts and expected payments, debts → credit accounts, goals, receipts, trades/holdings) → full price history → parallel run over one month-end with a reconciliation report → cut-over when all differences are 0 €. **Migration runs on the server or locally, never with data committed to the repo.**
+Source is the **YNAB export** (Register.tsv + Plan.tsv); Actual Budget was only an interim tool and is not migrated. Format, quirks and checks: `docs/migration/ynab-export.md`.
+
+YNAB's structure is evaluated and adapted, not copied: raw import → owner-made mapping (accounts, n:1 category merges, re-categorisation rules from a chosen month, payees → contacts, bracketed notes → expected payments) → target model. Full history since the first YNAB month by default, or a cut-off month with opening balances. Then workspace mapping (persons → contacts and expected payments, debts → credit accounts, goals, receipts), later trades/holdings and price history from Portfolio Performance (P5) → parallel run over one month-end with a reconciliation report → cut-over when all differences are 0 €. **The export and the mapping document run on the server or locally and are never committed, uploaded to a cloud session, CI or logs.**
 
 ## 11. Packages and gates
 
 | Package | Content | Done when |
 | --- | --- | --- |
 | **P1 Fundament** | Monorepo, stack spike, passkey login, DB schema v1, design tokens + blueprint primitives, app shell (sidebar, registers, title block, mobile tab bar), CI, deploy to a new Fly app | See `docs/ROADMAP.md` P1 checklist; the shell matches `design/screens/desktop/heute.webp` in layout and tokens |
-| **P2 Kern und Migration** | Accounts, bookings, capture, categories, Plan › Monat, import from Actual since 01.10.2023 | **Gate 2:** migrated balances per account and month match to the cent |
+| **P2 Kern und Migration** | Accounts, bookings, capture, categories, Plan › Monat, YNAB import with mapping | **Gate 2:** balances per account and month match YNAB to the cent; Available per target category matches the mapped YNAB categories before the rules month |
 | **P3 Planung und Steuerung** | Expected payments, contacts, savings goals, distribute money, rule set + stages, Heute | Heute and Plan match the prototype with real data |
 | **P4 Datenquellen** | Enable Banking, CSV/XLSX, nightly run, inbox, assignment rules | Nightly run stable for 14 days |
 | **P5 Vermögen** | Price history, portfolio, returns, allocation, debts, freedom number | **Gate 3:** returns and holdings equal Portfolio Performance |
-| **P6 Reports und Umstellung** | 30 reports, explorer, printable sheets, parallel run with reconciliation | **Gate 4:** one month-end without difference, then switch off Actual, YNAB, PP |
+| **P6 Reports und Umstellung** | 30 reports, explorer, printable sheets, parallel run with reconciliation | **Gate 4:** one month-end without difference, then cancel YNAB, switch off the interim Actual cockpit and PP |
 
 **Gate 1 (now):** this spec, PRODUCT.md, DESIGN.md and the prototype are accepted by the owner.
 
