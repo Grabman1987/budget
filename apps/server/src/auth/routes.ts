@@ -14,11 +14,13 @@ import type { AuthConfig } from './config';
 import {
   generateRecoveryCodes,
   hashRecoveryCode,
+  pepperedHex,
   randomToken,
   safeEqual,
   sha256Hex,
 } from './crypto';
-import { RateLimiter } from './rate-limit';
+import { AuthEventLog } from './event-log';
+import { clientKey, RateLimiter } from './rate-limit';
 import type { AuthEventKind, AuthStore, ChallengePurpose, SessionRow } from './store';
 
 const DAY = 86_400_000;
@@ -30,6 +32,8 @@ export interface AuthDeps {
   store: AuthStore;
   config: AuthConfig;
   clock?: () => Date;
+  /** Audit writer; defaults to one with the production limits. */
+  events?: AuthEventLog;
   limiters?: {
     /** Verifying a login, recovery code or step-up (guessing). */
     attempts: RateLimiter;
@@ -77,10 +81,12 @@ function challengeOf(response: { response: { clientDataJSON: string } }): string
 export function createAuth(deps: AuthDeps) {
   const { store, config } = deps;
   const clock = deps.clock ?? (() => new Date());
+  const events = deps.events ?? new AuthEventLog(store);
+  // Per client (IPv6 by /64) and, as a ceiling against many addresses, across all clients.
   const limiters = deps.limiters ?? {
-    attempts: new RateLimiter(10, 15 * 60_000),
-    setup: new RateLimiter(5, 15 * 60_000),
-    general: new RateLimiter(120, 15 * 60_000),
+    attempts: new RateLimiter(10, 15 * 60_000, { globalLimit: 100 }),
+    setup: new RateLimiter(5, 15 * 60_000, { globalLimit: 20 }),
+    general: new RateLimiter(120, 15 * 60_000, { globalLimit: 3000 }),
   };
   const cookieName = config.cookieSecure ? '__Host-budget_session' : 'budget_session';
 
@@ -89,30 +95,43 @@ export function createAuth(deps: AuthDeps) {
   const fail = (c: Context, status: 400 | 401 | 403 | 404 | 409 | 429, error: string) =>
     c.json({ error }, status);
 
-  function clientIp(c: Context): string {
+  /** The client for rate limits and the audit: IPv4 address or IPv6 /64. Never stored in clear. */
+  function client(c: Context): string {
     if (config.trustProxy) {
       const forwarded = c.req.header('fly-client-ip');
-      if (forwarded) return forwarded;
+      if (forwarded) return clientKey(forwarded.trim());
     }
     const env = c.env as { incoming?: { socket?: { remoteAddress?: string } } } | undefined;
-    return env?.incoming?.socket?.remoteAddress ?? 'unknown';
+    return clientKey(env?.incoming?.socket?.remoteAddress ?? 'unknown');
   }
-  const ipHash = (c: Context) => sha256Hex(clientIp(c)).slice(0, 12);
-  const log = (
-    c: Context,
-    kind: AuthEventKind,
-    extra: { passkeyId?: string | null; detail?: string } = {},
-  ) => store.logEvent(kind, clock(), { ...extra, ipHash: ipHash(c) });
+  /** Truncated HMAC with the pepper: linkable within the audit, useless without the server secret. */
+  const ipHash = (c: Context) => pepperedHex(config.pepper, 'ip', client(c)).slice(0, 12);
+  const recoveryHash = (code: string) => hashRecoveryCode(config.pepper, code);
+  type Extra = { passkeyId?: string | null; detail?: string };
+  const log = (c: Context, kind: AuthEventKind, extra: Extra = {}) =>
+    events.write(kind, clock(), { ...extra, ipHash: ipHash(c) });
+  /** Failures anyone can trigger: merged and capped so a flood cannot fill the volume (B1). */
+  const reject = (c: Context, kind: AuthEventKind, extra: Extra = {}) =>
+    events.reject(kind, clock(), { ...extra, ipHash: ipHash(c) });
 
-  /** Count an attempt; answers 429 (and logs the first breach of a window) when over the limit. */
+  /** Count an attempt; answers 429 (and logs the first breach) when over the limit. */
   function throttled(c: Context, limiter: RateLimiter, name: string): Response | undefined {
-    if (limiter.allow(`${name}:${clientIp(c)}`, clock().getTime())) return undefined;
-    if (limiter.count(`${name}:${clientIp(c)}`, clock().getTime()) === limiter.limit + 1)
-      log(c, 'rate_limited', { detail: name });
+    const decision = limiter.check(`${name}:${client(c)}`, clock().getTime());
+    if (decision.allowed) return undefined;
+    if (decision.firstBreach) reject(c, 'rate_limited', { detail: name });
     return fail(c, 429, 'rate_limited');
   }
 
   // ---------- sessions ----------
+  const writeCookie = (c: Context, token: string, maxAgeSeconds: number) =>
+    setCookie(c, cookieName, token, {
+      httpOnly: true,
+      secure: config.cookieSecure,
+      sameSite: 'Strict',
+      path: '/',
+      maxAge: maxAgeSeconds,
+    });
+
   function readSession(c: Context): SessionRow | undefined {
     const token = getCookie(c, cookieName);
     if (!token) return undefined;
@@ -120,13 +139,13 @@ export function createAuth(deps: AuthDeps) {
     const session = store.getSession(sha256Hex(token), now);
     if (!session) return undefined;
     // Sliding expiry, capped by the absolute maximum lifetime; touched at most every 10 minutes.
+    // The cookie is sent again with the new lifetime, otherwise the browser drops it after 30 days
+    // although the server would still accept the session.
     if (now.getTime() - Date.parse(session.lastSeenAt) > 10 * 60_000) {
       const cap = Date.parse(session.createdAt) + config.sessionMaxDays * DAY;
-      store.touchSession(
-        session.id,
-        now,
-        new Date(Math.min(now.getTime() + config.sessionDays * DAY, cap)),
-      );
+      const expiresAt = Math.min(now.getTime() + config.sessionDays * DAY, cap);
+      store.touchSession(session.id, now, new Date(expiresAt));
+      writeCookie(c, token, Math.floor((expiresAt - now.getTime()) / 1000));
     }
     return session;
   }
@@ -136,6 +155,9 @@ export function createAuth(deps: AuthDeps) {
     input: { passkeyId: string | null; viaRecovery: boolean },
   ): void {
     const now = clock();
+    // A new login from a browser that still holds a session replaces that session.
+    const previous = getCookie(c, cookieName);
+    if (previous) store.revokeSession(sha256Hex(previous), now);
     const token = randomToken();
     store.createSession({
       id: sha256Hex(token),
@@ -146,13 +168,7 @@ export function createAuth(deps: AuthDeps) {
       stepUp: true,
       viaRecovery: input.viaRecovery,
     });
-    setCookie(c, cookieName, token, {
-      httpOnly: true,
-      secure: config.cookieSecure,
-      sameSite: 'Strict',
-      path: '/',
-      maxAge: config.sessionDays * 86_400,
-    });
+    writeCookie(c, token, config.sessionDays * 86_400);
   }
 
   const stepUpFresh = (session: SessionRow): boolean =>
@@ -166,7 +182,7 @@ export function createAuth(deps: AuthDeps) {
     const origin = c.req.header('origin');
     const sameSite = c.req.header('sec-fetch-site') === 'same-origin';
     if (origin === config.origin || (origin === undefined && sameSite)) return next();
-    log(c, 'origin_rejected', { detail: origin ?? 'none' });
+    reject(c, 'origin_rejected', { detail: origin ?? 'none' });
     return fail(c, 403, 'origin_rejected');
   };
 
@@ -216,7 +232,7 @@ export function createAuth(deps: AuthDeps) {
       const limited = throttled(c, limiters.setup, 'setup');
       if (limited) return limited;
       if (!parsed.data.setupToken || !safeEqual(parsed.data.setupToken, config.setupToken)) {
-        log(c, 'login_failed', { detail: 'setup token' });
+        reject(c, 'login_failed', { detail: 'setup token' });
         return fail(c, 401, 'setup_token_invalid');
       }
       log(c, 'setup_started');
@@ -307,7 +323,7 @@ export function createAuth(deps: AuthDeps) {
 
     if (!bootstrap) return json(c, 200, { passkeyId });
     const codes = generateRecoveryCodes(10);
-    store.replaceRecoveryCodes(codes.map(hashRecoveryCode), clock());
+    store.replaceRecoveryCodes(codes.map(recoveryHash), clock());
     log(c, 'recovery_codes_created');
     startSession(c, { passkeyId, viaRecovery: false });
     return json(c, 200, { passkeyId, recoveryCodes: codes });
@@ -353,7 +369,7 @@ export function createAuth(deps: AuthDeps) {
       store.touchPasskey(stored.id, result.authenticationInfo.newCounter, clock());
       return { passkeyId: stored.id };
     } catch {
-      log(c, purpose === 'login' ? 'login_failed' : 'step_up_failed', {
+      reject(c, purpose === 'login' ? 'login_failed' : 'step_up_failed', {
         passkeyId: stored.id,
         detail: 'verification',
       });
@@ -372,7 +388,7 @@ export function createAuth(deps: AuthDeps) {
       'login',
     );
     if (!result) {
-      log(c, 'login_failed');
+      reject(c, 'login_failed');
       return fail(c, 401, 'login_failed');
     }
     startSession(c, { passkeyId: result.passkeyId, viaRecovery: false });
@@ -403,7 +419,7 @@ export function createAuth(deps: AuthDeps) {
       session.id,
     );
     if (!result) {
-      log(c, 'step_up_failed', { passkeyId: session.passkeyId });
+      reject(c, 'step_up_failed', { passkeyId: session.passkeyId });
       return fail(c, 401, 'step_up_failed');
     }
     const now = clock();
@@ -420,8 +436,8 @@ export function createAuth(deps: AuthDeps) {
     if (!parsed.success) return fail(c, 400, 'bad_request');
     const limited = throttled(c, limiters.attempts, 'attempts');
     if (limited) return limited;
-    if (!store.consumeRecoveryCode(hashRecoveryCode(parsed.data.code), clock())) {
-      log(c, 'recovery_login_failed');
+    if (!store.consumeRecoveryCode(recoveryHash(parsed.data.code), clock())) {
+      reject(c, 'recovery_login_failed');
       return fail(c, 401, 'login_failed');
     }
     startSession(c, { passkeyId: null, viaRecovery: true });
@@ -433,9 +449,24 @@ export function createAuth(deps: AuthDeps) {
     const session = c.get('session');
     if (!stepUpFresh(session)) return fail(c, 403, 'step_up_required');
     const codes = generateRecoveryCodes(10);
-    store.replaceRecoveryCodes(codes.map(hashRecoveryCode), clock());
-    log(c, 'recovery_codes_created', { passkeyId: session.passkeyId });
+    store.replaceRecoveryCodes(codes.map(recoveryHash), clock());
+    // Whoever logged in with one of the old codes loses that session too (except this one).
+    const ended = store.revokeRecoverySessions(clock(), session.id);
+    log(c, 'recovery_codes_created', {
+      passkeyId: session.passkeyId,
+      detail: `recovery sessions ended: ${ended}`,
+    });
     return json(c, 200, { recoveryCodes: codes });
+  });
+
+  // --- sessions ---
+  /** "Alle anderen Sitzungen beenden": every session except the calling one, needs a step-up. */
+  routes.post('/sessions/revoke-others', requireSession, (c) => {
+    const session = c.get('session');
+    if (!stepUpFresh(session)) return fail(c, 403, 'step_up_required');
+    const ended = store.revokeOtherSessions(session.id, clock());
+    log(c, 'sessions_revoked', { passkeyId: session.passkeyId, detail: `ended: ${ended}` });
+    return json(c, 200, { ended });
   });
 
   // --- passkey management ---
@@ -450,6 +481,7 @@ export function createAuth(deps: AuthDeps) {
         current: p.id === session.passkeyId,
       })),
       recoveryCodesRemaining: store.recoveryCodesRemaining(),
+      otherSessions: Math.max(0, store.activeSessionCount(clock()) - 1),
     });
   });
 
@@ -460,7 +492,13 @@ export function createAuth(deps: AuthDeps) {
     if (!target) return fail(c, 404, 'not_found');
     if (store.activePasskeyCount() <= 1) return fail(c, 409, 'last_passkey');
     store.revokePasskey(target.id, clock());
-    log(c, 'passkey_revoked', { passkeyId: target.id });
+    // A lost device may also have been used with a recovery code: those sessions have no passkey
+    // and would survive, so they end too (except the calling one).
+    const ended = store.revokeRecoverySessions(clock(), session.id);
+    log(c, 'passkey_revoked', {
+      passkeyId: target.id,
+      detail: `recovery sessions ended: ${ended}`,
+    });
     if (target.id === session.passkeyId)
       deleteCookie(c, cookieName, { path: '/', secure: config.cookieSecure });
     return json(c, 200, { ok: true });
@@ -476,7 +514,7 @@ export function createAuth(deps: AuthDeps) {
     return json(c, 200, { ok: true });
   });
 
-  return { routes, originGuard, requireSession, readSession };
+  return { routes, originGuard, requireSession, readSession, events };
 }
 
 export type Auth = ReturnType<typeof createAuth>;

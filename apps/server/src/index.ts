@@ -30,6 +30,17 @@ if (!config.setupToken && new AuthStore(db).activePasskeyCount() === 0) {
 }
 const auth = createAuth({ store: new AuthStore(db), config });
 
+// Audit housekeeping: merged rejection counters are written back every minute; rows older than
+// 180 days go at start and once a day. Timers are unref'd so they never keep the process alive.
+const pruned = auth.events.prune(new Date());
+if (pruned > 0)
+  console.log(`Pruned ${pruned} audit rows older than ${auth.events.retentionDays} days`);
+const housekeeping = [
+  setInterval(() => auth.events.flush(new Date()), 60_000),
+  setInterval(() => auth.events.prune(new Date()), 86_400_000),
+];
+for (const timer of housekeeping) timer.unref();
+
 // The debug endpoint is opt-in, read-only (seed check) and behind the session guard.
 const app = createApp({
   webDir,
@@ -53,7 +64,9 @@ function shutdown(signal: NodeJS.Signals): void {
   // Force-close after 10 s so a stuck connection cannot delay the stop past Fly's kill_timeout.
   const timer = setTimeout(() => process.exit(1), 10_000);
   timer.unref();
+  for (const timer of housekeeping) clearInterval(timer);
   server.close(() => {
+    auth.events.flush(new Date());
     closeDatabase();
     process.exit(0);
   });
