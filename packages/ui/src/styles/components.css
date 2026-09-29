@@ -152,8 +152,8 @@
   .titleblock:not(.titleblock-compact) .tb-field:nth-child(2) {
     border-left: 0;
   }
-  .titleblock-compact .tb-title,
-  .titleblock-compact .tb-label {
+  /* The month lives in the app header, the title is hidden; fields keep label and value. */
+  .titleblock-compact .tb-title {
     display: none;
   }
   .titleblock-compact .tb-cell {
@@ -169,8 +169,26 @@
 .registers {
   display: flex;
   gap: 4px;
-  border-bottom: 1px solid var(--rule);
   overflow-x: auto;
+  /* The hairline is a background, not a border: an overflow container clips children that hang
+     over its border, which cut the 2 px active underline. Now the underline sits inside. */
+  background: linear-gradient(var(--rule), var(--rule)) bottom / 100% 1px no-repeat;
+}
+/* Edge fade: more registers are hidden behind this edge (set by the component while scrolling). */
+.registers[data-fade-end='true'] {
+  mask-image: linear-gradient(to right, #000 calc(100% - 44px), transparent);
+}
+.registers[data-fade-start='true'] {
+  mask-image: linear-gradient(to left, #000 calc(100% - 44px), transparent);
+}
+.registers[data-fade-start='true'][data-fade-end='true'] {
+  mask-image: linear-gradient(
+    to right,
+    transparent,
+    #000 44px,
+    #000 calc(100% - 44px),
+    transparent
+  );
 }
 .registers a,
 .registers button {
@@ -182,12 +200,16 @@
   text-decoration: none;
   font-weight: 560;
   border-bottom: 2px solid transparent;
-  margin-bottom: -1px;
   white-space: nowrap;
   border-radius: 0;
 }
+/* Inset ring: an outside ring would be clipped by the scrolling container. */
+.registers a:focus-visible,
+.registers button:focus-visible {
+  outline-offset: -3px;
+}
 .registers a[aria-current='page'],
-.registers button[aria-current='page'] {
+.registers button[aria-pressed='true'] {
   color: var(--ink);
   border-bottom-color: var(--line);
   font-weight: 640;

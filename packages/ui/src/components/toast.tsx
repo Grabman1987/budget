@@ -104,7 +104,12 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   };
 
   const region = (
-    <div className={cx('toast', open && 'is-open')} role="status" aria-live="polite" aria-atomic="true">
+    <div
+      className={cx('toast', open && 'is-open')}
+      role="status"
+      aria-live="polite"
+      aria-atomic="true"
+    >
       <div
         className="toast-body"
         inert={!open}

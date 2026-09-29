@@ -70,7 +70,9 @@ describe('AmountInput accessibility', () => {
     expect(cur?.getAttribute('aria-hidden')).toBe('true');
     // It follows the input in DOM order.
     const input = container.querySelector('.amount-input') as HTMLElement;
-    expect(input.compareDocumentPosition(cur as Node) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(
+      input.compareDocumentPosition(cur as Node) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
   });
 
   it('operator buttons keep their names and are not focus stealers', () => {

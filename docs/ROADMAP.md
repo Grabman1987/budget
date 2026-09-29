@@ -88,16 +88,17 @@ Order: P1f-1 → first deploy (after P1f-2 B1–B3) → P1f-3 before P2; P1f-4 i
 - [ ] C14 model needs of the YNAB import (card payment kind, flag, staging tables, mapping per run)
 
 ### P1f-4 — Frontend (`docs/prompts/P1f-4.md`)
-- [ ] D1 PartsList keyboard
-- [ ] D2 toast live region and in-dialog
-- [ ] D3 route titles, search params, panel state
+- [x] D1 PartsList keyboard
+- [x] D2 toast live region and in-dialog
+- [x] D3 route titles, search params, panel state
 - [ ] D4 page frame as in the prototype
 - [ ] D5 full Maßkette primitive
-- [ ] D6 dev routes not in production
-- [ ] D7 AmountInput a11y
-- [ ] D8 details, jsx-a11y, axe
+- [x] D6 dev routes not in production
+- [x] D7 AmountInput a11y
+- [x] D8 details as listed for PR 1, `eslint-plugin-jsx-a11y`, axe on every route
+- [ ] D8 remainder (ElevationMark shelf, Sankey class nodes for want/future, TitleBlock "Stand" long/short pattern)
 - [ ] D9 honest visual comparison against `design/screens`
-- [ ] D10 phone layout: bottom padding under tab bar and + button, title-block fields with label, header title, register scroll cue, recovery-code sheet (owner screenshots)
+- [x] D10 phone layout: bottom padding under tab bar and + button, title-block fields with label, header title, register scroll cue, recovery-code sheet (owner screenshots)
 
 Process from P1f on: one branch per task, PRs ≤ ~1.500 changed lines, tick only what the repository proves.
 

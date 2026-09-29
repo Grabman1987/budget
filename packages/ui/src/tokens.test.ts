@@ -1,11 +1,19 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-// @ts-expect-error plain ESM script without types
-import { generateTokensCss, parseColors } from '../scripts/generate-tokens.mjs';
+import {
+  generateScaleTokensCss,
+  generateTokensCss,
+  parseColors,
+  parseFontSizes,
+  parseRadii,
+  parseSpacing,
+} from '../scripts/generate-tokens.mjs';
 
 const read = (path: string) => readFileSync(new URL(path, import.meta.url), 'utf8');
 const designMd = read('../../../DESIGN.md');
 const tokensCss = read('./styles/tokens.css');
+const scaleTokensCss = read('./styles/scale-tokens.css');
+const scalesCss = read('./styles/scales.css');
 
 describe('design tokens', () => {
   it('tokens.css is up to date with DESIGN.md (run `npm run tokens -w @budget/ui`)', () => {
@@ -13,7 +21,7 @@ describe('design tokens', () => {
   });
 
   it('every colour of the DESIGN.md frontmatter appears in tokens.css', () => {
-    const colors = parseColors(designMd) as Record<string, string>;
+    const colors = parseColors(designMd);
     expect(Object.keys(colors).length).toBeGreaterThan(30);
     for (const [name, hex] of Object.entries(colors)) {
       if (['tint-2'].includes(name)) continue;
@@ -40,9 +48,61 @@ describe('design tokens', () => {
     expect(tokensCss).toContain('--heat-red: #f3b3a9;');
   });
 
-  it('Tailwind theme literals match the scale tokens of the same name', () => {
-    const scales = read('./styles/scales.css');
+  it('scale-tokens.css is up to date with DESIGN.md (run `npm run tokens -w @budget/ui`)', () => {
+    expect(scaleTokensCss).toBe(generateScaleTokensCss(designMd));
+  });
+
+  it('every type size of DESIGN.md is a --fs-* token with the same value', () => {
+    const sizes = parseFontSizes(designMd);
+    expect(Object.keys(sizes)).toEqual([
+      'dimension',
+      'display',
+      'headline',
+      'title',
+      'figure',
+      'body',
+      'label',
+      'chart-label',
+    ]);
+    for (const [role, size] of Object.entries(sizes)) {
+      expect(scaleTokensCss, role).toContain(`--fs-${role}: ${size};`);
+    }
+  });
+
+  it('every radius of DESIGN.md is a --radius-* token with the same value', () => {
+    const radii = parseRadii(designMd);
+    expect(radii['sheet-mobile']).toBe('16px');
+    expect(radii['sm']).toBe('6px');
+    for (const [name, value] of Object.entries(radii)) {
+      expect(scaleTokensCss, name).toContain(`--radius-${name}: ${value};`);
+    }
+  });
+
+  it('every spacing step of DESIGN.md is a --space-* token (touch is --touch)', () => {
+    const spacing = parseSpacing(designMd);
+    expect(spacing['touch']).toBe('44px');
+    for (const [name, value] of Object.entries(spacing)) {
+      const token = name === 'touch' ? '--touch' : `--space-${name}`;
+      expect(scaleTokensCss, name).toContain(`${token}: ${value};`);
+    }
+  });
+
+  it('the mobile type scale overrides the desktop values inside the phone media query', () => {
+    const phone = /@media \(max-width: 767px\) \{([\s\S]*)\}\s*$/.exec(scaleTokensCss)?.[1] ?? '';
+    expect(phone).toContain('--fs-dimension: 40px;');
+    expect(phone).toContain('--fs-body: 15px;');
+  });
+
+  it('the hand-written scales.css does not redefine generated scale tokens', () => {
+    expect(scalesCss).not.toMatch(/--fs-[\w-]+:/);
+    expect(scalesCss).not.toMatch(/--radius-[\w-]+:/);
+    expect(scalesCss).not.toMatch(/--space-[\w-]+:/);
+    expect(scalesCss).not.toMatch(/--touch:/);
+  });
+
+  it('Tailwind theme literals match the tokens of the same name', () => {
     const theme = read('./styles/tailwind-theme.css');
+    const generated = `${scaleTokensCss}\n${scalesCss}`;
     for (const name of [
       '--font-ui',
       '--font-tech',
@@ -55,7 +115,7 @@ describe('design tokens', () => {
       '--ease-out',
     ]) {
       const pick = (css: string) => new RegExp(`${name}:\\s*([^;]+);`).exec(css)?.[1]?.trim();
-      expect(pick(theme), name).toBe(pick(scales));
+      expect(pick(theme), name).toBe(pick(generated));
     }
   });
 });

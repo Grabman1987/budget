@@ -23,7 +23,7 @@ test.describe('axe: no serious or critical violations', () => {
     const failures: Record<string, unknown> = {};
     for (const path of ROUTES) {
       await page.goto(path);
-      await expect(page.locator('main h1, .m-head h1').first()).toBeVisible();
+      await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
       const found = await violations(page);
       if (found.length > 0) failures[path] = found;
     }

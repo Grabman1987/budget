@@ -113,6 +113,8 @@ export function AmountInput({
           inputMode="text"
           autoComplete="off"
           spellCheck={false}
+          // Opt-in by the caller (capture dialog moves focus to the amount on open).
+          // eslint-disable-next-line jsx-a11y/no-autofocus
           autoFocus={autoFocus}
           disabled={disabled}
           value={value}

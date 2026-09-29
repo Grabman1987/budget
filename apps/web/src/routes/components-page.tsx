@@ -136,10 +136,10 @@ function Basics() {
           onChange={setPeriod}
           options={['1M', '3M', 'YTD', '1J', '3J', 'Alles'].map((v) => ({ value: v, label: v }))}
         />
-        <label className="dev-row">
-          <Switch label="Automatisch" checked={auto} onChange={setAuto} />
-          <span>Automatisch</span>
-        </label>
+        <div className="dev-row">
+          <Switch labelledBy="dev-auto-label" checked={auto} onChange={setAuto} />
+          <span id="dev-auto-label">Automatisch</span>
+        </div>
       </div>
       <div className="dev-row">
         <SourceStamp>Bank-Sync heute 06:30</SourceStamp>

@@ -22,3 +22,30 @@ describe('amount operator buttons', () => {
     expect(phoneOps).toContain('grid-template-rows: var(--touch)');
   });
 });
+
+describe('registers', () => {
+  it('do not hang the active underline over the clipping container (no negative margin)', () => {
+    expect(rule('.registers a,\n.registers button')).not.toMatch(/margin-bottom:\s*-/);
+    expect(rule('.registers')).toContain('overflow-x: auto');
+    expect(rule('.registers')).not.toContain('border-bottom');
+  });
+
+  it('style the pressed state of the button variant', () => {
+    expect(css).toContain(".registers button[aria-pressed='true']");
+    expect(css).not.toContain(".registers button[aria-current='page']");
+  });
+});
+
+describe('class fills', () => {
+  const scales = readFileSync(new URL('../styles/scales.css', import.meta.url), 'utf8');
+
+  it('--hatch-future is the same cross hatch as the SVG pattern (45° and 135°, 1.5 px on 5 px)', () => {
+    const value = /--hatch-future:([^;]+);/.exec(scales)?.[1] ?? '';
+    expect(value).toContain(
+      'repeating-linear-gradient(45deg, var(--future) 0 1.5px, transparent 1.5px 5px)',
+    );
+    expect(value).toContain(
+      'repeating-linear-gradient(135deg, var(--future) 0 1.5px, transparent 1.5px 5px)',
+    );
+  });
+});

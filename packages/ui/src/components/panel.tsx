@@ -37,6 +37,8 @@ function Overlay({
   }, [open]);
 
   return (
+    // The backdrop click is a pointer convenience only; the keyboard closes with Esc (native).
+    // eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-noninteractive-element-interactions
     <dialog
       ref={ref}
       className={cx('overlay', variant === 'side' ? 'panel' : 'sheet-bottom')}
