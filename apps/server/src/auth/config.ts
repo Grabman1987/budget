@@ -1,3 +1,5 @@
+import { randomBytes } from 'node:crypto';
+
 export interface AuthConfig {
   /** Relying party id: the registrable domain the passkeys are bound to. */
   rpID: string;
@@ -7,6 +9,8 @@ export interface AuthConfig {
   cookieSecure: boolean;
   /** One-time token that allows the very first passkey. Unset = bootstrap disabled. */
   setupToken: string | undefined;
+  /** Server secret for recovery-code hashes and client-address hashes (HMAC key). */
+  pepper: Buffer;
   /** Trust the `Fly-Client-IP` header (only behind the Fly proxy). */
   trustProxy: boolean;
   sessionDays: number;
@@ -15,9 +19,13 @@ export interface AuthConfig {
   stepUpMinutes: number;
 }
 
+/** Shortest accepted `BUDGET_PEPPER` (characters); 32 random bytes in base64 are 44. */
+export const MIN_PEPPER_LENGTH = 32;
+
 /**
- * Read the auth configuration from the environment. In production `BUDGET_ORIGIN` is required:
- * a wrong origin would silently break passkeys and the CSRF check.
+ * Read the auth configuration from the environment. In production `BUDGET_ORIGIN` and
+ * `BUDGET_PEPPER` are required: a wrong origin would silently break passkeys and the CSRF check,
+ * and a pepper generated per run would invalidate every recovery code at each restart.
  */
 export function authConfigFromEnv(env: NodeJS.ProcessEnv = process.env): AuthConfig {
   const production = env['NODE_ENV'] === 'production';
@@ -33,9 +41,23 @@ export function authConfigFromEnv(env: NodeJS.ProcessEnv = process.env): AuthCon
     origin: url.origin,
     cookieSecure: url.protocol === 'https:',
     setupToken: setupToken ? setupToken : undefined,
+    pepper: pepperFromEnv(env, production),
     trustProxy: env['BUDGET_TRUST_PROXY'] === '1',
     sessionDays: 30,
     sessionMaxDays: 90,
     stepUpMinutes: 5,
   };
+}
+
+function pepperFromEnv(env: NodeJS.ProcessEnv, production: boolean): Buffer {
+  const value = env['BUDGET_PEPPER']?.trim();
+  if (value) {
+    if (value.length < MIN_PEPPER_LENGTH)
+      throw new Error(`BUDGET_PEPPER must be at least ${MIN_PEPPER_LENGTH} characters long`);
+    return Buffer.from(value, 'utf8');
+  }
+  if (production)
+    throw new Error('BUDGET_PEPPER is required in production (32 random bytes, see docs/ops.md)');
+  // Development and tests: a fresh pepper per run. Recovery codes do not survive a restart then.
+  return randomBytes(32);
 }

@@ -63,13 +63,13 @@ Order: P1f-1 → first deploy (after P1f-2 B1–B3) → P1f-3 before P2; P1f-4 i
 - [x] A9 README/SPEC drift
 
 ### P1f-2 — Auth and backup (`docs/prompts/P1f-2.md`)
-- [ ] B1 audit-log flood bounded
-- [ ] B2 recovery sessions revocable, "Alle anderen Sitzungen beenden"
-- [ ] B3 body limit
-- [ ] B4 recovery codes with pepper
+- [x] B1 audit-log flood bounded
+- [x] B2 recovery sessions revocable, "Alle anderen Sitzungen beenden"
+- [x] B3 body limit
+- [x] B4 recovery codes with pepper
 - [x] B5 client-side encrypted backup (**blocker for real data**)
-- [ ] B6 rate limiter IPv6 /64 and capped
-- [ ] B7 low-severity hardening
+- [x] B6 rate limiter IPv6 /64 and capped
+- [x] B7 low-severity hardening
 
 ### P1f-3 — Data model and domain (`docs/prompts/P1f-3.md`, before P2)
 - [ ] C1 envelope rollover per concept §5.3
@@ -85,6 +85,7 @@ Order: P1f-1 → first deploy (after P1f-2 B1–B3) → P1f-3 before P2; P1f-4 i
 - [ ] C11 read models, Vienna date module, rounding
 - [ ] C12 cheap model gaps
 - [ ] C13 stronger figure tests and fixture coverage
+- [ ] C14 model needs of the YNAB import (card payment kind, flag, staging tables, mapping per run)
 
 ### P1f-4 — Frontend (`docs/prompts/P1f-4.md`)
 - [ ] D1 PartsList keyboard
@@ -100,7 +101,28 @@ Order: P1f-1 → first deploy (after P1f-2 B1–B3) → P1f-3 before P2; P1f-4 i
 Process from P1f on: one branch per task, PRs ≤ ~1.500 changed lines, tick only what the repository proves.
 
 ## P2 Kern und Migration
-Accounts (roles and terms), bookings with splits and transfers, capture dialog (SPEC §3), categories/groups/classes, Plan › Monat (waterfall, views, triage, distribute money), Konten (Übersicht, Einzelkonto, Kontostand prüfen with Ausgleich, Alle Buchungen). Migration tooling from Actual (runs on the server, never commits data). **Gate 2:** balances per account and month match to the cent.
+
+Starts after P1f-3 is merged. Source: YNAB export (`docs/migration/ynab-export.md`); Actual is not migrated. YNAB's categories and habits are evaluated and adapted via an owner-made mapping, not copied. The real export and the mapping never enter the repo or a cloud session. **Gate 2:** balances per account and month match YNAB to the cent; Available per target category matches the mapped YNAB categories before the rules month.
+
+Order: P2a → P2b and P2c in parallel → P2d (parser can start right after P1f-3) → owner's import on the deployed app (after P1f-2 B5).
+
+### P2a — Accounts and bookings (`docs/prompts/P2a.md`)
+- [ ] API and repositories: accounts (type, on-budget, terms, closed), bookings with splits and transfers, payees; validation, audit, undo
+- [ ] Konten › Übersicht, Einzelkonto (balance line, bookings, flags, status), Alle Buchungen (filter, search, bulk edit)
+- [ ] Kontostand prüfen with "doppelt" / "fehlt" and Ausgleich booking (reconciliation snapshot)
+
+### P2b — Capture dialog (`docs/prompts/P2b.md`)
+- [ ] Buchung, Split, Umbuchung (Konto → Konto) on desktop panel and phone sheet; amount field with arithmetic; payee autocomplete with default category; keyboard flow; undo toast
+
+### P2c — Categories and Plan › Monat (`docs/prompts/P2c.md`)
+- [ ] Einstellungen › Kategorien: groups, classes, kinds, stages, targets, hide, merge (with re-assignment of bookings)
+- [ ] Plan › Monat: waterfall with 9 stages, views (Stückliste, Zeit, Triage), Geld verteilen, overspending and card payment per concept §5.3
+
+### P2d — YNAB import with mapping (`docs/prompts/P2d.md`)
+- [ ] Parser for Register.tsv / Plan.tsv incl. CESU-8 emoji repair, splits, transfer pairing; synthetic fixture export in the real format
+- [ ] Raw staging, mapping document (zod schema), dry run with side-by-side structure, commit as one reversible import run, idempotent re-import
+- [ ] Import wizard in Einstellungen › Datenquellen (step-up), reconciliation report (Gate 2)
+- [ ] Owner: category evaluation and mapping done, real import on the deployed app, Gate 2 report without difference
 
 ## P3 Planung und Steuerung
 Expected payments, contacts with receivables, savings goals, rule set R01–R16 + stages, Heute page, Posteingang basics.
@@ -112,4 +134,4 @@ Enable Banking adapter, CSV/XLSX import with saved mapping, worker with nightly 
 Price history (yfinance + Ariva, source per price), ECB rates, trades and holdings, portfolio performance, allocation, Sparpläne, debts with extra repayment, freedom number with Soll-Pfad. **Gate 3:** returns and holdings equal Portfolio Performance.
 
 ## P6 Reports und Umstellung
-The 30 reports (SPEC §7), explorer, printable sheets, parallel run with reconciliation report. **Gate 4:** one month-end without difference, then switch off Actual, YNAB and PP.
+The 30 reports (SPEC §7), explorer, printable sheets, parallel run with reconciliation report. **Gate 4:** one month-end without difference, then cancel YNAB, switch off the interim Actual cockpit and PP.

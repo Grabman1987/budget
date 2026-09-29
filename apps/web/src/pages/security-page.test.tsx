@@ -54,6 +54,7 @@ const LIST: Route = {
       },
     ],
     recoveryCodesRemaining: 8,
+    otherSessions: 2,
   },
 };
 
@@ -132,6 +133,27 @@ describe('SecurityPanel', () => {
     await userEvent.click(screen.getByLabelText('Ich habe die Codes sicher gespeichert'));
     await userEvent.click(done);
     expect(screen.queryByRole('list', { name: 'Wiederherstellungscodes' })).toBeNull();
+  });
+
+  it('ends all other sessions after a step-up and reports how many', async () => {
+    const calls = stubApi({
+      'GET /api/auth/passkeys': LIST,
+      'POST /api/auth/sessions/revoke-others': [
+        { status: 403, body: { error: 'step_up_required' } },
+        { status: 200, body: { ended: 2 } },
+      ],
+      'POST /api/auth/step-up/options': { status: 200, body: { options: {} } },
+      'POST /api/auth/step-up/verify': {
+        status: 200,
+        body: { stepUpValidUntil: '2026-09-29T12:00:00Z' },
+      },
+    });
+    renderPanel();
+    expect(await screen.findByText('2 weitere Sitzungen aktiv.')).toBeTruthy();
+    await userEvent.click(screen.getByRole('button', { name: 'Alle anderen Sitzungen beenden' }));
+    expect(await screen.findByText('2 andere Sitzungen beendet.')).toBeTruthy();
+    expect(calls.filter((c) => c === 'POST /api/auth/sessions/revoke-others')).toHaveLength(2);
+    expect(calls).toContain('POST /api/auth/step-up/verify');
   });
 
   it('signs out and hands over to the caller', async () => {

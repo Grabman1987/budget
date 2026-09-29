@@ -25,6 +25,7 @@ GitHub main ──(CI green, then Deploy workflow, FLY_API_TOKEN)──> Fly rem
 - **First start on an empty volume**: the entrypoint runs `litestream restore -if-db-not-exists -if-replica-exists` before the server, so a fresh volume is rebuilt from the bucket automatically. With an empty bucket (very first deploy) this is a no-op.
 - **Replication is mandatory in production**: `fly.toml` sets `BUDGET_REPLICATE = '1'`. If `BUCKET_NAME` is missing the container exits at start with a clear message instead of running without backup. `BUDGET_REPLICATE=0` forces it off (local `docker run`, CI smoke test); unset means "on iff `BUCKET_NAME` is set".
 - If the restore fails for any reason other than "no backup yet" (wrong credentials, network), the container exits instead of starting an empty database over an existing backup. Fix the cause; Fly retries.
+- **Auth audit** (`auth_event`): failures anyone can trigger (foreign origin, rate limit, failed login) are merged into one row per kind and client per 10 minutes with a counter, and capped overall; details are cut to 100 characters; rows older than 180 days are deleted at start and daily. A flood cannot fill the volume.
 - **Second line of defence**: Fly takes daily volume snapshots (`fly volumes snapshots list`), and the server writes a nightly **age-encrypted copy** to `encrypted/` in the bucket that only the owner's offline key can open (section 8).
 
 Litestream is pinned to **0.5.17** in the `Dockerfile` (`ARG LITESTREAM_VERSION` plus the SHA-256 of the amd64 and arm64 tarballs, checked at build time). To upgrade: change the version, copy the two hashes from the release's `checksums.txt`, run `scripts/restore-test.sh` locally (CI does it too) and read the release notes for config changes. `litestream.yml` is the config (`/etc/litestream.yml` in the image).
@@ -36,6 +37,7 @@ Secrets are never written to `fly.toml`, the Dockerfile or the repo. `fly secret
 | Name                                      | Kind                 | Purpose                                                                                                                                                             |
 | ----------------------------------------- | -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `BUDGET_SETUP_TOKEN`                      | **secret**           | One-time token that permits registering the first passkey. Unset = bootstrap disabled. Long random value (section 3).                                               |
+| `BUDGET_PEPPER`                           | **secret**           | HMAC key for recovery-code hashes and the IP hashes in the auth audit. **Required in production** (the server refuses to start without it), at least 32 characters; 32 random bytes, base64 (section 3 step 3). Changing it invalidates all recovery codes (section 7). |
 | `BUDGET_ORIGIN`                           | `fly.toml` `[env]`   | Exact public origin, `https://budget-fg.fly.dev`. Required in production; used for WebAuthn and the CSRF origin check.                                              |
 | `BUDGET_RP_ID`                            | `fly.toml` `[env]`   | WebAuthn relying party id, `budget-fg.fly.dev`. Defaults to the host of `BUDGET_ORIGIN`. Changing it invalidates every registered passkey.                          |
 | `BUDGET_TRUST_PROXY`                      | `fly.toml` `[env]`   | `1` behind the Fly proxy so the `Fly-Client-IP` header is used for rate limits.                                                                                     |
@@ -92,6 +94,15 @@ Run in PowerShell (or any shell) from the repo folder. **Do the steps in this or
    ```
 
    `--stage` stores the secret without restarting anything; it applies at the first deploy.
+
+   **Pepper** (`BUDGET_PEPPER`, required): generated on the spot and piped straight to Fly, nobody ever needs to see it. It is not needed for a restore (only recovery codes depend on it; after losing it, regenerate the codes).
+
+   ```
+   # bash / WSL / macOS
+   printf 'BUDGET_PEPPER=%s\n' "$(openssl rand -base64 32)" | fly secrets import --stage --app budget-fg
+   # Windows PowerShell
+   $b = [byte[]]::new(32); [Security.Cryptography.RandomNumberGenerator]::Fill($b); "BUDGET_PEPPER=$([Convert]::ToBase64String($b))" | fly secrets import --stage --app budget-fg; Remove-Variable b
+   ```
 
    **Backup key**: generate the age key pair offline (section 8.1) and stage its public key: `fly secrets set --stage BUDGET_BACKUP_RECIPIENT=age1... --app budget-fg`. The server does not start in production without it.
 
@@ -243,8 +254,13 @@ Weekly glance at the two commands with output is enough; there is no automatic a
 
 - **Tigris keys**: in the Tigris dashboard (`fly storage dashboard <bucket>`) create a second access key with read/write on the bucket, set it as `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY` (`fly secrets import` reads `NAME=value` lines from stdin, which keeps values out of your shell history), wait for the restart, check `litestream ltx` shows new files, then delete the old key in the dashboard.
 - **Fly deploy token**: `fly tokens list --app budget-fg`, create a new one (`fly tokens create deploy --app budget-fg`), replace the GitHub secret `FLY_API_TOKEN`, then `fly tokens revoke <id>` for the old one. Rotate at least yearly and whenever a laptop is lost.
-- **Setup token**: only relevant while bootstrapping. Set a fresh value when you need to bootstrap again (section 9), unset it afterwards.
-- **Passkeys and sessions**: revoke lost devices in **Einstellungen > Sicherheit**. Regenerate the ten recovery codes after using one or when the printout may have been seen.
+- **Setup token**: only relevant while bootstrapping. Set a fresh value when you need to bootstrap again (section 9), unset it afterwards. Always through stdin (`fly secrets import`, section 3 step 3), never as a command-line argument.
+- **Pepper** (`BUDGET_PEPPER`): rotate only when the Fly secrets may have leaked. A new value (same command as section 3 step 3, without `--stage`) restarts the app and **invalidates all recovery codes**: log in with a passkey right after and regenerate the codes in **Einstellungen > Sicherheit**. Audit IP hashes from before and after are no longer comparable; nothing else changes.
+- **Passkeys and sessions** in **Einstellungen > Sicherheit** (each needs a fresh passkey confirmation):
+  - *Passkey entfernen* ends every session of that device **and every session opened with a recovery code** (those belong to no device, so they are ended too), except the one you are using.
+  - *Wiederherstellungscodes neu erzeugen* invalidates the old codes and ends every session opened with one of them, except the one you are using. Do it after using a code and whenever the printout may have been seen.
+  - *Alle anderen Sitzungen beenden* signs out every other browser and every recovery-code login; only the current session stays. Use it after a lost or shared device, or when the session count shown there is higher than your devices.
+  - A new login in the same browser replaces that browser's previous session.
 - Fly and GitHub accounts are the trust root (they can reach the volume and the secrets): keep two-factor authentication on for both.
 
 ## 8. Nightly age-encrypted copy (SPEC section 9)
@@ -312,7 +328,7 @@ Several recipients (e.g. a second key kept only on paper) are separated by comma
 
 Order of attempts, least invasive first.
 
-1. **Recovery code.** On the login screen choose the recovery-code login and enter one of the ten codes (single use). Then add a new passkey in **Einstellungen > Sicherheit**, revoke the lost devices and regenerate the recovery codes.
+1. **Recovery code.** On the login screen choose the recovery-code login and enter one of the ten codes (single use). Then, in **Einstellungen > Sicherheit** on that device: add a new passkey, remove the lost devices, regenerate the recovery codes and press **Alle anderen Sitzungen beenden**. Removing devices and regenerating codes already end all other recovery-code sessions (an attacker with a code of the old batch loses access); the last step also ends sessions of browsers you no longer trust. Store the new codes offline.
 2. **No code left: re-run the bootstrap** by deactivating the old credentials in the database. Whoever can do this already controls your Fly account, so treat it as an owner-only procedure. It needs no maintenance mode: SQLite allows a second short writer and Litestream sees the change through the WAL.
 
    ```
@@ -339,7 +355,7 @@ Order of attempts, least invasive first.
    exit
    ```
 
-   The app now has zero active passkeys, so the setup screen accepts the token again. Register a new passkey (section 3, step 8), store the new recovery codes, then `fly secrets unset BUDGET_SETUP_TOKEN --app budget-fg`.
+   The app now has zero active passkeys and zero sessions (recovery-code sessions included), so the setup screen accepts the token again. Register a new passkey (section 3, step 8), store the new recovery codes, then `fly secrets unset BUDGET_SETUP_TOKEN --app budget-fg`.
 
    Notes: the script runs as `node` so the database files keep their owner; only `revoked_at` is set; no financial data is touched. If the statements fail because a table name differs (schema changed), read `packages/db/src/schema/auth.ts` and adapt, do not delete rows. To undo a mistake, restore a point in time (4.2).
 3. **Database itself lost too**: restore first (section 4), then step 2.
