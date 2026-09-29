@@ -18,6 +18,10 @@ test('web route renders "Budget" without CSP violations', async ({ page }) => {
   page.on('pageerror', (err) => problems.push(err.message));
 
   await page.goto('/');
+  await expect(page.getByRole('heading', { level: 1, name: 'Heute' })).toBeVisible();
+  await expect(page).toHaveTitle('Heute · Budget');
+
+  await page.goto('/dev/start');
   await expect(page.getByRole('heading', { level: 1, name: 'Budget' })).toBeVisible();
   await expect(page.getByTestId('server-status')).toHaveText('Server: erreichbar');
 
