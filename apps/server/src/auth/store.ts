@@ -1,5 +1,5 @@
 import { schema, type Db } from '@budget/db';
-import { and, count, desc, eq, gt, isNull, lt, sql } from 'drizzle-orm';
+import { and, count, desc, eq, gt, isNull, lt, ne, or, sql } from 'drizzle-orm';
 import { randomUUID } from 'node:crypto';
 
 const { passkey, authSession, recoveryCode, authChallenge, authEvent } = schema;
@@ -10,6 +10,12 @@ export type PasskeyRow = typeof passkey.$inferSelect;
 export type SessionRow = typeof authSession.$inferSelect;
 
 const iso = (d: Date) => d.toISOString();
+/** Longest `auth_event.detail`; anything a client sends (e.g. an Origin header) is cut to this. */
+export const DETAIL_MAX = 100;
+const clip = (detail: string | undefined) =>
+  // Control characters would only make the audit harder to read.
+  // eslint-disable-next-line no-control-regex
+  detail === undefined ? null : detail.replace(/[\u0000-\u001f\u007f]/g, '?').slice(0, DETAIL_MAX);
 const plus = (d: Date, ms: number) => new Date(d.getTime() + ms);
 
 /** Database access of the auth module. Every function takes `now` so tests control the clock. */
@@ -191,6 +197,44 @@ export class AuthStore {
       .run();
   }
 
+  /** End every active session except `keepId`. Returns how many were ended. */
+  revokeOtherSessions(keepId: string, now: Date): number {
+    return this.db
+      .update(authSession)
+      .set({ revokedAt: iso(now) })
+      .where(and(isNull(authSession.revokedAt), ne(authSession.id, keepId)))
+      .run().changes;
+  }
+
+  /**
+   * End every active session that was opened with a recovery code (they belong to no passkey, so
+   * revoking a passkey does not reach them), except `keepId`.
+   */
+  revokeRecoverySessions(now: Date, keepId?: string): number {
+    return this.db
+      .update(authSession)
+      .set({ revokedAt: iso(now) })
+      .where(
+        and(
+          isNull(authSession.revokedAt),
+          or(eq(authSession.viaRecovery, true), isNull(authSession.passkeyId)),
+          keepId ? ne(authSession.id, keepId) : undefined,
+        ),
+      )
+      .run().changes;
+  }
+
+  /** Sessions that are neither revoked nor expired. */
+  activeSessionCount(now: Date): number {
+    return (
+      this.db
+        .select({ n: count() })
+        .from(authSession)
+        .where(and(isNull(authSession.revokedAt), gt(authSession.expiresAt, iso(now))))
+        .get()?.n ?? 0
+    );
+  }
+
   // ---------- recovery codes ----------
   /** Replace all recovery codes with a new batch (hashes only). */
   replaceRecoveryCodes(hashes: string[], now: Date): void {
@@ -235,22 +279,46 @@ export class AuthStore {
   }
 
   // ---------- events ----------
+  /** Write one audit row and return its id. `detail` is cut to 100 characters. */
   logEvent(
     kind: AuthEventKind,
     now: Date,
     extra: { passkeyId?: string | null; ipHash?: string | null; detail?: string } = {},
-  ): void {
+  ): string {
+    const id = randomUUID();
     this.db
       .insert(authEvent)
       .values({
-        id: randomUUID(),
+        id,
         ts: iso(now),
         kind,
         passkeyId: extra.passkeyId ?? null,
         ipHash: extra.ipHash ?? null,
-        detail: extra.detail ?? null,
+        detail: clip(extra.detail),
       })
       .run();
+    return id;
+  }
+
+  /** Set the counter of a merged row (see `AuthEventLog`). */
+  setEventCount(id: string, total: number, lastTs: Date): void {
+    this.db
+      .update(authEvent)
+      .set({ count: total, lastTs: iso(lastTs) })
+      .where(eq(authEvent.id, id))
+      .run();
+  }
+
+  /** Delete audit rows older than `before`. Returns how many were deleted. */
+  pruneEvents(before: Date): number {
+    return this.db
+      .delete(authEvent)
+      .where(lt(authEvent.ts, iso(before)))
+      .run().changes;
+  }
+
+  eventCount(): number {
+    return this.db.select({ n: count() }).from(authEvent).get()?.n ?? 0;
   }
 
   recentEvents(limit = 50) {

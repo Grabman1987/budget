@@ -62,7 +62,7 @@ test('bootstrap, login, recovery, device management and CSRF on a fresh server',
     const list = page.getByRole('list', { name: 'Wiederherstellungscodes' });
     await expect(list.getByRole('listitem')).toHaveCount(10);
     codes = (await list.getByRole('listitem').allTextContents()).map((t) => t.trim());
-    expect(codes.every((c) => /[0-9A-Z]{4}-[0-9A-Z]{4}-[0-9A-Z]{4}/.test(c))).toBe(true);
+    expect(codes.every((c) => /^[0-9A-Z]{4}(-[0-9A-Z]{4}){3}$/.test(c))).toBe(true);
     const next = page.getByRole('button', { name: 'Weiter zu Budget' });
     await expect(next).toBeDisabled();
     await page.getByLabel('Ich habe die Codes sicher gespeichert').check();
@@ -150,6 +150,29 @@ test('bootstrap, login, recovery, device management and CSRF on a fresh server',
     await page.getByRole('button', { name: 'Endgültig entfernen' }).click();
     await expect(page.getByText(/letzte|mindestens ein/i)).toBeVisible();
     await expect(page.getByText('E2E-Gerät')).toBeVisible();
+  });
+
+  await test.step('"Alle anderen Sitzungen beenden" signs out another browser, this one stays', async () => {
+    // A second browser logs in with a recovery code (such sessions belong to no passkey).
+    const other = await browser.newContext({ baseURL: origin });
+    const otherPage = await other.newPage();
+    const headers = { origin, 'content-type': 'application/json' };
+    const recovery = await otherPage.request.post('/api/auth/recovery/login', {
+      headers,
+      data: { code: codes[1] },
+    });
+    expect(recovery.ok()).toBe(true);
+
+    await page.goto('/einstellungen/sicherheit');
+    await expect(page.getByText(/weitere Sitzung/)).toBeVisible();
+    await page.getByRole('button', { name: 'Alle anderen Sitzungen beenden' }).click();
+    await expect(page.getByText(/andere Sitzung(en)? beendet/)).toBeVisible();
+    await expect(page.getByText('Keine anderen Sitzungen aktiv.')).toBeVisible();
+    const status = (await (await otherPage.request.get('/api/auth/status')).json()) as {
+      authenticated: boolean;
+    };
+    expect(status.authenticated).toBe(false);
+    await other.close();
   });
 
   await test.step('CSRF: state-changing calls from a foreign origin are refused, foreign sites get no session', async () => {

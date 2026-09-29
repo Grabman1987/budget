@@ -1,7 +1,11 @@
-import { createHash, randomBytes, timingSafeEqual } from 'node:crypto';
+import { createHash, createHmac, randomBytes, timingSafeEqual } from 'node:crypto';
 
 export const sha256Hex = (value: string): string =>
   createHash('sha256').update(value).digest('hex');
+
+/** HMAC-SHA-256 with the server pepper; `purpose` separates the uses of the one key. */
+export const pepperedHex = (pepper: Buffer, purpose: string, value: string): string =>
+  createHmac('sha256', pepper).update(`${purpose}:${value}`).digest('hex');
 
 /** Random URL-safe token (session cookies): 32 bytes = 256 bits. */
 export const randomToken = (bytes = 32): string => randomBytes(bytes).toString('base64url');
@@ -15,13 +19,16 @@ export function safeEqual(a: string, b: string): boolean {
 
 // Crockford base32 without I, L, O, U: readable when written down.
 const ALPHABET = '0123456789ABCDEFGHJKMNPQRSTVWXYZ';
+const CODE_CHARS = 16;
 
-/** One recovery code: 12 characters (60 bits) as `XXXX-XXXX-XXXX`. */
+/**
+ * One recovery code: 16 characters of 5 bits (80 bits) as `XXXX-XXXX-XXXX-XXXX`. `b % 32` is
+ * unbiased because 256 is a multiple of 32.
+ */
 export function generateRecoveryCode(): string {
-  const bytes = randomBytes(12);
   let code = '';
-  for (const b of bytes) code += ALPHABET[b % 32];
-  return `${code.slice(0, 4)}-${code.slice(4, 8)}-${code.slice(8, 12)}`;
+  for (const b of randomBytes(CODE_CHARS)) code += ALPHABET[b % 32];
+  return (code.match(/.{4}/g) as string[]).join('-');
 }
 
 /** Ten distinct recovery codes. */
@@ -40,5 +47,9 @@ export function normalizeRecoveryCode(input: string): string {
     .replace(/[IL]/g, '1');
 }
 
-export const hashRecoveryCode = (input: string): string =>
-  sha256Hex(`recovery:${normalizeRecoveryCode(input)}`);
+/**
+ * Stored form of a recovery code: HMAC-SHA-256 with the server pepper (`BUDGET_PEPPER`), so a
+ * copy of the database alone does not allow an offline search over the codes.
+ */
+export const hashRecoveryCode = (pepper: Buffer, input: string): string =>
+  pepperedHex(pepper, 'recovery', normalizeRecoveryCode(input));

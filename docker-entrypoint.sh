@@ -7,6 +7,8 @@
 # and the server runs as a child of `litestream replicate`, which flushes the last WAL frames when it
 # receives SIGTERM. Without replication (local docker, CI smoke test) the server runs on its own.
 set -e
+# Database, WAL and restored files are readable by their owner only.
+umask 077
 
 DATA_DIR="${DATA_DIR:-/data}"
 export DATA_DIR

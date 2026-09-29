@@ -21,6 +21,7 @@ const config: AuthConfig = {
   origin: ORIGIN,
   cookieSecure: false,
   setupToken: SETUP_TOKEN,
+  pepper: Buffer.from('pepper-for-tests-only-0123456789abcdef'),
   trustProxy: false,
   sessionDays: 30,
   sessionMaxDays: 90,
@@ -100,7 +101,7 @@ function setup(
     });
   }
 
-  return { db, store, app, call, device, bootstrap, login, cfg };
+  return { db, store, auth, app, call, device, bootstrap, login, cfg };
 }
 
 beforeEach(() => {
@@ -138,7 +139,7 @@ describe('bootstrap with the setup token', () => {
     const { cookie, codes } = await bootstrap();
     expect(codes).toHaveLength(10);
     expect(new Set(codes).size).toBe(10);
-    expect(codes.every((c) => /^[0-9A-Z]{4}-[0-9A-Z]{4}-[0-9A-Z]{4}$/.test(c))).toBe(true);
+    expect(codes.every((c) => /^[0-9A-Z]{4}(-[0-9A-Z]{4}){3}$/.test(c))).toBe(true);
     expect((await call('GET', '/api/auth/status', undefined, cookie)).data).toMatchObject({
       setupRequired: false,
       authenticated: true,
@@ -448,7 +449,7 @@ describe('recovery codes', () => {
     });
     expect((await call('POST', '/api/auth/recovery/login', { code: codes[0] })).status).toBe(401);
     expect(
-      (await call('POST', '/api/auth/recovery/login', { code: 'AAAA-AAAA-AAAA' })).status,
+      (await call('POST', '/api/auth/recovery/login', { code: 'AAAA-AAAA-AAAA-AAAA' })).status,
     ).toBe(401);
     expect(
       (await call('GET', '/api/auth/passkeys', undefined, ok.cookie)).data[
@@ -504,14 +505,14 @@ describe('rate limiting and audit', () => {
     const statuses: number[] = [];
     for (let i = 0; i < 5; i++)
       statuses.push(
-        (await call('POST', '/api/auth/recovery/login', { code: 'AAAA-AAAA-AAAA' })).status,
+        (await call('POST', '/api/auth/recovery/login', { code: 'AAAA-AAAA-AAAA-AAAA' })).status,
       );
     // The registration during bootstrap already used one of the three attempts.
     expect(statuses).toEqual([401, 401, 429, 429, 429]);
     expect(store.recentEvents().filter((e) => e.kind === 'rate_limited')).toHaveLength(1);
     advance(16 * MINUTE);
     expect(
-      (await call('POST', '/api/auth/recovery/login', { code: 'AAAA-AAAA-AAAA' })).status,
+      (await call('POST', '/api/auth/recovery/login', { code: 'AAAA-AAAA-AAAA-AAAA' })).status,
     ).toBe(401);
   });
 
@@ -530,7 +531,7 @@ describe('rate limiting and audit', () => {
     const { authenticator } = await bootstrap();
     await login(authenticator);
     await login(device());
-    await call('POST', '/api/auth/recovery/login', { code: 'AAAA-AAAA-AAAA' });
+    await call('POST', '/api/auth/recovery/login', { code: 'AAAA-AAAA-AAAA-AAAA' });
     const kinds = store.recentEvents().map((e) => e.kind);
     expect(kinds).toEqual(
       expect.arrayContaining([
@@ -546,5 +547,185 @@ describe('rate limiting and audit', () => {
       expect(e.ipHash === null || /^[0-9a-f]{12}$/.test(e.ipHash)).toBe(true);
       expect(JSON.stringify(e)).not.toContain('SETUP');
     }
+  });
+});
+
+describe('P1f-2 hardening', () => {
+  it('B1: 10,000 foreign-origin requests leave a bounded audit with short details', async () => {
+    const { app, db, auth } = setup();
+    const origin = `https://${'x'.repeat(16_000)}.example`;
+    for (let i = 0; i < 10_000; i++) {
+      const res = await app.request('/api/auth/logout', { method: 'POST', headers: { origin } });
+      expect(res.status).toBe(403);
+      advance(100);
+    }
+    auth.events.flush(now);
+    const rows = db.select().from(schema.authEvent).all();
+    // 10,000 × 100 ms = 1,000 s: two 10-minute windows of one client.
+    expect(rows).toHaveLength(2);
+    expect(rows.every((r) => r.kind === 'origin_rejected')).toBe(true);
+    expect(rows.every((r) => (r.detail ?? '').length === 100)).toBe(true);
+    expect(rows.reduce((sum, r) => sum + r.count, 0)).toBe(10_000);
+  });
+
+  it('B2: regenerating codes ends recovery sessions except the calling one', async () => {
+    const { bootstrap, call } = setup();
+    const { cookie, codes } = await bootstrap();
+    const intruder = (await call('POST', '/api/auth/recovery/login', { code: codes[0] })).cookie;
+    const ownRecovery = (await call('POST', '/api/auth/recovery/login', { code: codes[1] })).cookie;
+    expect((await call('POST', '/api/auth/recovery/regenerate', {}, ownRecovery)).status).toBe(200);
+    const status = async (c?: string) =>
+      (await call('GET', '/api/auth/status', undefined, c)).data['authenticated'];
+    expect(await status(intruder)).toBe(false);
+    expect(await status(ownRecovery)).toBe(true);
+    expect(await status(cookie)).toBe(true); // passkey sessions are not affected
+  });
+
+  it('B2: revoking a passkey also ends recovery sessions', async () => {
+    const { bootstrap, call, device } = setup();
+    const first = await bootstrap();
+    const opts = await call('POST', '/api/auth/register/options', {}, first.cookie);
+    const verify = await call(
+      'POST',
+      '/api/auth/register/verify',
+      { response: device().register(opts.data['options']), deviceName: 'Verloren' },
+      first.cookie,
+    );
+    const recovery = (await call('POST', '/api/auth/recovery/login', { code: first.codes[0] }))
+      .cookie;
+    const res = await call(
+      'DELETE',
+      `/api/auth/passkeys/${verify.data['passkeyId']}`,
+      undefined,
+      first.cookie,
+    );
+    expect(res.status).toBe(200);
+    expect((await call('GET', '/api/auth/status', undefined, recovery)).data['authenticated']).toBe(
+      false,
+    );
+    expect(
+      (await call('GET', '/api/auth/status', undefined, first.cookie)).data['authenticated'],
+    ).toBe(true);
+  });
+
+  it('B2: "Alle anderen Sitzungen beenden" needs a step-up and keeps only the calling session', async () => {
+    const { bootstrap, login, call, store } = setup();
+    const { authenticator, cookie, codes } = await bootstrap();
+    const other = (await login(authenticator)).cookie;
+    const recovery = (await call('POST', '/api/auth/recovery/login', { code: codes[0] })).cookie;
+    expect((await call('GET', '/api/auth/passkeys', undefined, cookie)).data['otherSessions']).toBe(
+      2,
+    );
+
+    advance(6 * MINUTE);
+    const stale = await call('POST', '/api/auth/sessions/revoke-others', {}, cookie);
+    expect(stale.status).toBe(403);
+    expect(stale.data['error']).toBe('step_up_required');
+    expect((await call('POST', '/api/auth/sessions/revoke-others', {})).status).toBe(401);
+
+    const opts = await call('POST', '/api/auth/step-up/options', {}, cookie);
+    await call(
+      'POST',
+      '/api/auth/step-up/verify',
+      { response: authenticator.authenticate(opts.data['options']) },
+      cookie,
+    );
+    const done = await call('POST', '/api/auth/sessions/revoke-others', {}, cookie);
+    expect(done.status).toBe(200);
+    expect(done.data['ended']).toBe(2);
+    for (const c of [other, recovery])
+      expect((await call('GET', '/api/auth/status', undefined, c)).data['authenticated']).toBe(
+        false,
+      );
+    expect((await call('GET', '/api/auth/passkeys', undefined, cookie)).data['otherSessions']).toBe(
+      0,
+    );
+    expect(store.recentEvents().some((e) => e.kind === 'sessions_revoked')).toBe(true);
+  });
+
+  it('B3: bodies over 64 KB are refused with 413 before the origin check and the audit', async () => {
+    const { app, db } = setup();
+    const res = await app.request('/api/auth/recovery/login', {
+      method: 'POST',
+      headers: { origin: 'https://evil.example', 'content-type': 'application/json' },
+      body: JSON.stringify({ code: 'x'.repeat(70 * 1024) }),
+    });
+    expect(res.status).toBe(413);
+    expect(res.headers.get('content-type')).toMatch(/^text\/plain/);
+    expect(await res.text()).toMatch(/too large/);
+    expect(db.select().from(schema.authEvent).all()).toHaveLength(0);
+    const small = await app.request('/api/auth/recovery/login', {
+      method: 'POST',
+      headers: { origin: ORIGIN, 'content-type': 'application/json' },
+      body: JSON.stringify({ code: 'AAAA' }),
+    });
+    expect(small.status).toBe(401);
+  });
+
+  it('B4: recovery codes are stored as a peppered HMAC, not as a plain SHA-256', async () => {
+    const { bootstrap, db } = setup();
+    const { codes } = await bootstrap();
+    const { createHash } = await import('node:crypto');
+    const plain = createHash('sha256')
+      .update(`recovery:${(codes[0] as string).replaceAll('-', '')}`)
+      .digest('hex');
+    const stored = db
+      .select()
+      .from(schema.recoveryCode)
+      .all()
+      .map((r) => r.codeHash);
+    expect(stored).not.toContain(plain);
+    expect(stored.every((h) => /^[0-9a-f]{64}$/.test(h))).toBe(true);
+  });
+
+  it('B7: a new login from a browser with a session ends the previous session', async () => {
+    const { bootstrap, call } = setup();
+    const { authenticator, cookie } = await bootstrap();
+    const opts = await call('POST', '/api/auth/login/options', {}, cookie);
+    const again = await call(
+      'POST',
+      '/api/auth/login/verify',
+      { response: authenticator.authenticate(opts.data['options']) },
+      cookie,
+    );
+    expect(again.status).toBe(200);
+    expect(again.cookie).not.toBe(cookie);
+    expect((await call('GET', '/api/auth/status', undefined, cookie)).data['authenticated']).toBe(
+      false,
+    );
+    expect(
+      (await call('GET', '/api/auth/status', undefined, again.cookie)).data['authenticated'],
+    ).toBe(true);
+  });
+
+  it('B7: the cookie is sent again with the new lifetime when the sliding expiry moves', async () => {
+    const { bootstrap, call } = setup();
+    const { cookie } = await bootstrap();
+    advance(5 * MINUTE);
+    expect((await call('GET', '/api/auth/status', undefined, cookie)).setCookie).toBeNull();
+    advance(20 * DAY);
+    const touched = await call('GET', '/api/auth/status', undefined, cookie);
+    expect(touched.cookie).toBe(cookie);
+    expect(touched.setCookie).toMatch(/Max-Age=2592000/);
+    expect(touched.setCookie).toMatch(/HttpOnly/i);
+    // Near the 90-day cap the cookie lifetime shrinks to what is left.
+    advance(25 * DAY);
+    await call('GET', '/api/auth/status', undefined, cookie);
+    advance(29 * DAY); // 74 days and 5 minutes after the login
+    const capped = await call('GET', '/api/auth/status', undefined, cookie);
+    const maxAge = Number(/Max-Age=(\d+)/.exec(capped.setCookie ?? '')?.[1]);
+    expect(maxAge).toBe(16 * 86_400 - 5 * 60);
+  });
+
+  it('B7: the audit IP hash is an HMAC with the pepper', async () => {
+    const run = async (pepper: string) => {
+      const ctx = setup({ pepper: Buffer.from(pepper) });
+      await ctx.call('POST', '/api/auth/recovery/login', { code: 'AAAA' });
+      return ctx.store.recentEvents()[0]?.ipHash;
+    };
+    const a = await run('pepper-a-0123456789abcdef0123456789');
+    const b = await run('pepper-b-0123456789abcdef0123456789');
+    expect(a).toMatch(/^[0-9a-f]{12}$/);
+    expect(a).not.toBe(b);
   });
 });

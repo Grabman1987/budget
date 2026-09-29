@@ -70,7 +70,9 @@ jobs:
         run: docker build -t budget:ci .
       - name: Smoke-test image
         run: |
-          docker run -d --name budget -p 3000:3000 -e BUDGET_ORIGIN=http://localhost:3000 -e BUDGET_REPLICATE=0 budget:ci
+          # Throwaway pepper: production requires BUDGET_PEPPER, this container holds no data.
+          docker run -d --name budget -p 3000:3000 -e BUDGET_ORIGIN=http://localhost:3000 \
+            -e BUDGET_PEPPER=ci-smoke-test-pepper-not-a-secret-0123456789 -e BUDGET_REPLICATE=0 budget:ci
           for i in $(seq 1 20); do
             curl -fsS http://localhost:3000/health && exit 0
             sleep 1
