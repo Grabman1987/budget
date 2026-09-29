@@ -11,6 +11,11 @@ kill_timeout = '30s'
 [env]
   PORT = '3000'
   DATA_DIR = '/data'
+  # Passkeys are bound to the public origin: change all three together with the app name above.
+  BUDGET_ORIGIN = 'https://budget-fg.fly.dev'
+  BUDGET_RP_ID = 'budget-fg.fly.dev'
+  # Behind the Fly proxy the client address is in the Fly-Client-IP header (rate limiting).
+  BUDGET_TRUST_PROXY = '1'
 
 # Secrets (never in this file), set once with `fly secrets set` / `fly storage create`:
 # BUDGET_SETUP_TOKEN, BUCKET_NAME, AWS_ENDPOINT_URL_S3, AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY,

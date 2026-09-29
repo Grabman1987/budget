@@ -21,7 +21,11 @@ async function addVirtualAuthenticator(page: Page) {
   });
 }
 
-test('bootstrap, login, recovery, device management and CSRF on a fresh server', async ({ page, baseURL, browser }) => {
+test('bootstrap, login, recovery, device management and CSRF on a fresh server', async ({
+  page,
+  baseURL,
+  browser,
+}) => {
   test.setTimeout(120_000);
   const origin = baseURL as string;
   const problems: string[] = [];
@@ -126,8 +130,13 @@ test('bootstrap, login, recovery, device management and CSRF on a fresh server',
     // A second device is registered through the API (session and fresh step-up from the login).
     const headers = { origin, 'content-type': 'application/json' };
     const second = new SoftAuthenticator({ rpID: 'localhost', origin });
-    const options = (await (await page.request.post('/api/auth/register/options', { headers, data: {} })).json()) as { options: { challenge: string } };
-    const verify = await page.request.post('/api/auth/register/verify', { headers, data: { response: second.register(options.options), deviceName: 'Zweites Gerät' } });
+    const options = (await (
+      await page.request.post('/api/auth/register/options', { headers, data: {} })
+    ).json()) as { options: { challenge: string } };
+    const verify = await page.request.post('/api/auth/register/verify', {
+      headers,
+      data: { response: second.register(options.options), deviceName: 'Zweites Gerät' },
+    });
     expect(verify.ok()).toBe(true);
 
     await page.goto('/einstellungen/sicherheit');
@@ -143,13 +152,18 @@ test('bootstrap, login, recovery, device management and CSRF on a fresh server',
   });
 
   await test.step('CSRF: state-changing calls from a foreign origin are refused, foreign sites get no session', async () => {
-    const foreign = await page.request.post('/api/auth/logout', { headers: { origin: 'https://evil.example', 'content-type': 'application/json' }, data: {} });
+    const foreign = await page.request.post('/api/auth/logout', {
+      headers: { origin: 'https://evil.example', 'content-type': 'application/json' },
+      data: {},
+    });
     expect(foreign.status()).toBe(403);
     expect((await page.request.get('/api/auth/status')).ok()).toBe(true);
     // A brand-new browser context has no cookie: protected data is not reachable.
     const stranger = await browser.newContext();
     expect((await stranger.request.get(`${origin}/api/debug/summary`)).status()).toBe(401);
-    const status = (await (await stranger.request.get(`${origin}/api/auth/status`)).json()) as { authenticated: boolean };
+    const status = (await (await stranger.request.get(`${origin}/api/auth/status`)).json()) as {
+      authenticated: boolean;
+    };
     expect(status.authenticated).toBe(false);
     await stranger.close();
   });
@@ -157,15 +171,24 @@ test('bootstrap, login, recovery, device management and CSRF on a fresh server',
   expect(problems.filter((p) => !/401|403|429|Failed to load resource/.test(p))).toEqual([]);
 });
 
-test('the login page works on this viewport: 44 px targets, no horizontal scroll', async ({ page }) => {
+test('the login page works on the phone: 44 px targets, no horizontal scroll', async ({
+  page,
+  isMobile,
+}) => {
+  test.skip(!isMobile, '44 px targets are a phone requirement (DESIGN.md)');
   await page.goto('/login');
   await page.goto('/setup'); // whichever applies for the server state
   const small = await page.evaluate(() =>
     [...document.querySelectorAll<HTMLElement>('button, input, a')]
       .filter((el) => el.offsetParent !== null)
-      .map((el) => ({ text: (el.textContent || el.getAttribute('aria-label') || el.tagName).trim(), h: el.getBoundingClientRect().height }))
+      .map((el) => ({
+        text: (el.textContent || el.getAttribute('aria-label') || el.tagName).trim(),
+        h: el.getBoundingClientRect().height,
+      }))
       .filter((el) => el.h < 43.5),
   );
   expect(small).toEqual([]);
-  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(
+    true,
+  );
 });

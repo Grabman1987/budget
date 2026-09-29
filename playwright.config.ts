@@ -70,8 +70,16 @@ export default defineConfig({
       use: { ...mobile, storageState: STORAGE_STATE },
     },
     // Real passkey ceremonies with the browser's virtual authenticator on a separate, empty server.
-    { name: 'auth-desktop', testMatch: /auth\.spec\.ts/, use: { ...desktop, baseURL: `http://localhost:${AUTH_DESKTOP_PORT}` } },
-    { name: 'auth-mobile', testMatch: /auth\.spec\.ts/, use: { ...mobile, baseURL: `http://localhost:${AUTH_MOBILE_PORT}` } },
+    {
+      name: 'auth-desktop',
+      testMatch: /auth\.spec\.ts/,
+      use: { ...desktop, baseURL: `http://localhost:${AUTH_DESKTOP_PORT}` },
+    },
+    {
+      name: 'auth-mobile',
+      testMatch: /auth\.spec\.ts/,
+      use: { ...mobile, baseURL: `http://localhost:${AUTH_MOBILE_PORT}` },
+    },
   ],
   // Runs the production build (`npm run build` first): the Hono server serving the web app,
   // so CSP, static hosting and the API are part of what the tests exercise.

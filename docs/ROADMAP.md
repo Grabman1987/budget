@@ -41,10 +41,10 @@ Gate 1 (specification and designs accepted by the owner): **pending owner sign-o
 - [x] Tests reproduce prototype figures (e.g. net worth 17.09.2026 = 84.730 €; August 2026 allocation Bedarf/Wunsch/Zukunft/Rest as in the One-Pager)
 
 ### P1e — Passkey login, security, deploy (`docs/prompts/P1e.md`)
-- [ ] SimpleWebAuthn registration and login, several passkeys, ten recovery codes, session cookie (HttpOnly, SameSite=Strict, 30 days), step-up for sensitive actions
-- [ ] First-device bootstrap via one-time setup token from an environment secret; no open registration
-- [ ] Rate limiting on auth endpoints; audit of logins
-- [ ] Litestream backup to object storage (config + restore instructions in `docs/ops.md`)
+- [x] SimpleWebAuthn registration and login, several passkeys, ten recovery codes, session cookie (HttpOnly, SameSite=Strict, 30 days), step-up for sensitive actions
+- [x] First-device bootstrap via one-time setup token from an environment secret; no open registration
+- [x] Rate limiting on auth endpoints; audit of logins
+- [x] Litestream backup to object storage (config + restore instructions in `docs/ops.md`)
 - [ ] Deployed to the new Fly app; `/health` green; login works on phone and desktop
 
 ## P2 Kern und Migration
