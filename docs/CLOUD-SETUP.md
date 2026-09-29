@@ -44,24 +44,17 @@ Node 22 ist in der Cloud vorinstalliert; die Spezifikation ist darauf ausgelegt.
 
 Lokal weiterarbeiten: `claude --teleport <Sitzungs-ID>` holt eine Cloud-Sitzung samt Verlauf ins Terminal, oder du checkst einfach den Branch aus.
 
-## 5. Fly.io für die neue App (vor P1e, spätestens nach P1a)
+## 5. Fly.io für die neue App
 
 Die neue App läuft getrennt vom alten Cockpit (`fabiangrabner-budget` bleibt bis Gate 4 unverändert).
 
-```powershell
-fly apps create budget-fg
-fly volumes create budget_data --app budget-fg --region fra --size 1
-fly storage create --app budget-fg          # Objektspeicher für Litestream und Belege (Tigris)
-fly tokens create deploy --app budget-fg    # Token kopieren, nirgends einfügen außer im nächsten Schritt
-```
+Die vollständige, geprüfte Reihenfolge steht in **`docs/ops.md`, Abschnitt 3 „First deploy checklist“**; hier wird sie bewusst nicht wiederholt. Kurzfassung, damit du weißt, was auf dich zukommt:
 
-Das Token in GitHub unter **Settings › Secrets and variables › Actions** als `FLY_API_TOKEN` speichern. Ab dann deployt jeder Merge auf `main` automatisch. Den App-Namen `budget-fg` kannst du ändern; dann auch in `fly.toml` (P1a legt ihn an).
+1. App, Volume und Objektspeicher (Tigris) anlegen, Setup-Code über stdin als Secret setzen.
+2. **Erster Deploy von Hand** mit `fly deploy --ha=false` (genau eine Maschine).
+3. **Erst danach** das Deploy-Token als `FLY_API_TOKEN` im GitHub-Environment `production` hinterlegen und den Branch-Schutz für `main` setzen (`docs/ops.md`, Abschnitt 10). Ab dann deployt jeder Merge auf `main`, dessen CI grün ist, automatisch.
 
-Für P1e zusätzlich als Fly-Secret den Einmal-Code für den ersten Passkey setzen (einen langen Zufallswert selbst erzeugen):
-
-```powershell
-fly secrets set BUDGET_SETUP_TOKEN=<zufälliger-langer-wert> --app budget-fg
-```
+Den App-Namen `budget-fg` kannst du ändern; dann auch `app`, `BUDGET_ORIGIN` und `BUDGET_RP_ID` in `fly.toml` (vor dem ersten Passkey).
 
 ## 6. Credits sparsam einsetzen
 
