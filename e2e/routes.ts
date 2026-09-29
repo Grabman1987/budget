@@ -1,3 +1,4 @@
+import { monthLabel, monthOf } from '../apps/web/src/nav/month';
 import { PAGES } from '../apps/web/src/nav/pages';
 import { REPORTS, REPORT_GROUPS } from '../apps/web/src/nav/reports-catalog';
 
@@ -10,3 +11,6 @@ export const ROUTES = [
   ...REPORT_GROUPS.map((g) => `/reports/gruppe/${g.slug}`),
   ...REPORTS.map((r) => `/reports/${r.id}`),
 ];
+
+/** The h1 of Heute is the current month (as in the prototype). */
+export const HEUTE_HEADING = monthLabel(monthOf(new Date()));

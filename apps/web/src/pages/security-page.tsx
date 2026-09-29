@@ -28,14 +28,8 @@ const formatDate = (iso: string) => {
 /** Einstellungen › Sicherheit inside the page frame (title block and registers). */
 export function SecurityPage() {
   const navigate = useNavigate();
-  const passkeys = useQuery({ queryKey: PASSKEYS_KEY, queryFn: fetchPasskeys });
   return (
-    <PageFrame
-      meta={SECURITY_META}
-      title="Sicherheit"
-      subtitle="Wer darf Budget öffnen?"
-      fields={[{ label: 'Passkeys', value: passkeys.data ? passkeys.data.passkeys.length : '–' }]}
-    >
+    <PageFrame meta={SECURITY_META}>
       <SecurityPanel onLoggedOut={() => void navigate({ to: '/login' })} />
     </PageFrame>
   );

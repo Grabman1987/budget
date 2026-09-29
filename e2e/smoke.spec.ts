@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { HEUTE_HEADING } from './routes';
 
 test('GET /health answers ok and sends security headers', async ({ request }) => {
   const res = await request.get('/health');
@@ -18,7 +19,7 @@ test('web route renders "Budget" without CSP violations', async ({ page }) => {
   page.on('pageerror', (err) => problems.push(err.message));
 
   await page.goto('/');
-  await expect(page.getByRole('heading', { level: 1, name: 'Heute' })).toBeVisible();
+  await expect(page.getByRole('heading', { level: 1, name: HEUTE_HEADING })).toBeVisible();
   await expect(page).toHaveTitle('Heute · Budget');
 
   await page.goto('/dev/start');

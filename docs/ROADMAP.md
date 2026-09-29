@@ -24,14 +24,17 @@ Gate 1 (specification and designs accepted by the owner): **pending owner sign-o
 - [x] Primitives in `packages/ui`: TitleBlock (Schriftfeld), Registers, DimensionChain (inline, with balancing of rounded parts), PartsList (Stückliste with groups and positions), RevisionTable, AmountInput (uses domain parser), Segmented, Switch, SidePanel / BottomSheet, Toast with undo, Status stamps, class swatches (need/want/future hatching)
 - [x] Chart primitives: axis/graticule, line (solid/dashed/dash-dot), bars around zero, step line, band, elevation mark
 - [x] Dev page `/dev/bauteile` showing every primitive in light and dark
-- [ ] Visual tests of primitives against crops of `design/screens` (audit D9: current tests compare against own baselines only → P1f-4)
+- [x] Own regression baselines for every primitive on `/dev/bauteile` (light and dark, 1440 and 390): screenshots of our own output, **not** a comparison with `design/screens`
+- [x] Title block, register row and shell chrome compared with crops of `design/screens` (masked text; `e2e/reference.spec.ts`, audit D9)
+- [ ] Primitives without a matching crop in `design/screens` (amount field, panels, toast, revision table, parts list, charts, drawn Maßkette) are not compared with the prototype yet
 
 ### P1c — App shell and routing (`docs/prompts/P1c.md`)
 - [x] Desktop: sidebar "Planliste" 01–05 with collapse, top bar (search Ctrl K, Posteingang with counter, + Buchung), theme toggle, profile
 - [x] Mobile (< 768 px): header, tab bar, floating + button; same routes and order
 - [x] Routes for all areas and registers (SPEC §3) with placeholder pages built from TitleBlock + Registers; every view has its own URL
 - [x] Side panel (desktop) / bottom sheet (phone) pattern wired to a route param
-- [ ] E2E screenshots of the shell at 1440 and 390 compared with `design/screens` (layout, not data) (audit D9 → P1f-4)
+- [x] Shell regression screenshots at 1440 and 390 (own baselines, `e2e/shell.spec.ts`)
+- [x] Shell compared with `design/screens` (layout, not data): sidebar, top bar, title blocks and register rows at 1440, phone header at 390 (`e2e/reference.spec.ts`; the phone title strip and register row are not compared because they differ on purpose: labels are shown, 44 px touch targets)
 
 ### P1d — Database, fixtures and domain core (`docs/prompts/P1d.md`)
 - [x] Drizzle schema v1 for the entities in SPEC §5, migrations, repositories; soft delete; audit log with undo; idempotency keys for imports
@@ -91,13 +94,14 @@ Order: P1f-1 → first deploy (after P1f-2 B1–B3) → P1f-3 before P2; P1f-4 i
 - [x] D1 PartsList keyboard
 - [x] D2 toast live region and in-dialog
 - [x] D3 route titles, search params, panel state
-- [ ] D4 page frame as in the prototype
-- [ ] D5 full Maßkette primitive
+- [x] D4 page frame as in the prototype
+- [x] D5 full Maßkette primitive
 - [x] D6 dev routes not in production
 - [x] D7 AmountInput a11y
 - [x] D8 details as listed for PR 1, `eslint-plugin-jsx-a11y`, axe on every route
-- [ ] D8 remainder (ElevationMark shelf, Sankey class nodes for want/future, TitleBlock "Stand" long/short pattern)
-- [ ] D9 honest visual comparison against `design/screens`
+- [x] D8 remainder: TitleBlock "Stand" long/short pattern (`StandValue`)
+- [ ] D8 remainder: ElevationMark shelf under the label, Sankey class nodes not solid for want/future
+- [x] D9 honest visual comparison against `design/screens`
 - [x] D10 phone layout: bottom padding under tab bar and + button, title-block fields with label, header title, register scroll cue, recovery-code sheet (owner screenshots)
 
 Process from P1f on: one branch per task, PRs ≤ ~1.500 changed lines, tick only what the repository proves.

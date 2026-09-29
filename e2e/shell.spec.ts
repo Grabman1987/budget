@@ -1,5 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 import { expectScreenshot } from './visual';
+import { monthLabel, monthOf } from '../apps/web/src/nav/month';
 import { ROUTES } from './routes';
 
 const isPhone = (testInfo: { project: { name: string } }) => testInfo.project.name === 'mobile';
@@ -277,9 +278,9 @@ test.describe('phone shell', () => {
     const fab = await page.locator('.fab').boundingBox();
     expect(Math.round(fab?.width ?? 0)).toBe(58);
     expect(Math.round(fab?.height ?? 0)).toBe(58);
-    await expect(page.locator('.m-head h1')).toHaveText('Heute');
+    await expect(page.locator('.m-head .m-title-text')).toHaveText(monthLabel(monthOf(new Date())));
     await page.goto('/reports/geldfluss');
-    await expect(page.locator('.m-head h1')).toHaveText('Geldfluss');
+    await expect(page.locator('.m-head .m-title-text')).toHaveText('Geldfluss');
   });
 
   test('touch targets in header, tab bar and registers are at least 44 px', async ({ page }) => {
@@ -311,7 +312,7 @@ test.describe('phone shell', () => {
   });
 });
 
-test.describe('visual: shell against design/screens (layout, not data)', () => {
+test.describe('regression baselines of the shell (own screenshots)', () => {
   for (const [name, path] of [
     ['heute', '/'],
     ['plan-monat', '/plan/monat'],

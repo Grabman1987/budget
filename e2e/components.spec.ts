@@ -90,6 +90,45 @@ test.describe('design system page /dev/bauteile', () => {
     await expect(row).toBeVisible();
   });
 
+  test('drawn dimension chain: segments work by keyboard, it folds, lines are plotted', async ({
+    page,
+  }) => {
+    await open(page);
+    await page.emulateMedia({ reducedMotion: 'no-preference' });
+    const segment = page.getByRole('button', { name: 'Bedarf 1.280,00 €, Einzelposten zeigen' });
+    await segment.focus();
+    await page.keyboard.press('Enter');
+    await expect(page.getByRole('dialog', { name: 'Bedarf' })).toBeVisible();
+    await page.keyboard.press('Escape');
+
+    const line = page.locator('#kette-frei .plot-line').first();
+    const animation = await line.evaluate((el) => {
+      const style = getComputedStyle(el);
+      return { name: style.animationName, duration: style.animationDuration };
+    });
+    expect(animation).toEqual({ name: 'plot-draw', duration: '0.9s' });
+
+    const toggle = page.getByRole('button', { name: 'Maßkette ausblenden' });
+    await toggle.click();
+    await expect(page.getByRole('button', { name: 'Maßkette zeigen' })).toHaveAttribute(
+      'aria-expanded',
+      'false',
+    );
+    await expect(segment).toBeHidden();
+    await page.getByRole('button', { name: 'Maßkette zeigen' }).click();
+    await expect(segment).toBeVisible();
+  });
+
+  test('drawn dimension chain has no animation for reduced motion', async ({ page }) => {
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+    await open(page);
+    const name = await page
+      .locator('#kette-frei .plot-line')
+      .first()
+      .evaluate((el) => getComputedStyle(el).animationName);
+    expect(name).toBe('none');
+  });
+
   test('parts list assemblies collapse and number their positions', async ({ page }) => {
     await open(page);
     await expect(page.getByText('1.1', { exact: true })).toBeVisible();
@@ -117,7 +156,7 @@ test.describe('design system page /dev/bauteile', () => {
   });
 
   for (const scheme of ['light', 'dark'] as const) {
-    test(`visual: ${scheme}`, async ({ page }) => {
+    test(`regression baseline (own screenshot): ${scheme}`, async ({ page }) => {
       await open(page, scheme);
       await expectScreenshot(page, `bauteile-${scheme}.png`, { fullPage: true });
     });

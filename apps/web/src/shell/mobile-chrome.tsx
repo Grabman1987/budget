@@ -1,24 +1,37 @@
 import { Count } from '@budget/ui';
 import { Inbox, Plus } from 'lucide-react';
-import { MAIN_AREAS, type AreaId } from '../nav/areas';
+import { MAIN_AREAS, areaById, type AreaId } from '../nav/areas';
+import { monthLabel } from '../nav/month';
+import type { PageMeta } from '../nav/pages';
 import { AppLink } from './app-link';
 import { PanelLink } from './panel-link';
 import { SAMPLE_INBOX_COUNT } from './inbox';
 import { ThemeButton } from './theme-button';
 
 /**
- * Register name for the phone header: "Einstellungen · Sicherheit" becomes "Sicherheit". The area
- * is already marked in the tab bar and the register row sits right below the header, so the long
- * form only got truncated ("Einstellungen · Si…").
+ * What the phone header shows, as in the prototype: the month on Heute, the area name on the other
+ * areas (the register row and the title-block strip below say which view it is), the report name
+ * on a single report. Long "Area · Register" titles only got truncated ("Einstellungen · Si…").
  */
-export const phoneTitle = (title: string): string => title.split(' · ').at(-1) ?? title;
+export function phoneTitle(page: PageMeta | undefined, month: string, fallback: string): string {
+  if (!page) return fallback;
+  if (page.area === 'heute') return monthLabel(month);
+  if (page.area === 'reports') {
+    return page.title === 'Reports' || page.title.startsWith('Reports · ') ? 'Reports' : page.title;
+  }
+  return areaById(page.area).label;
+}
 
 /** Phone header (< 768 px): page title, inbox, theme, profile. */
-export function MobileHeader({ title }: { title: string }) {
+export function MobileHeader({ title, asHeading }: { title: string; asHeading: boolean }) {
   return (
     <header className="m-head">
       <div className="m-title">
-        <h1>{phoneTitle(title)}</h1>
+        {asHeading ? (
+          <h1 className="m-title-text">{title}</h1>
+        ) : (
+          <p className="m-title-text">{title}</p>
+        )}
       </div>
       <span className="spacer" />
       <PanelLink

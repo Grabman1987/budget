@@ -1,48 +1,54 @@
-import { Registers, SectionHead, TitleBlock, type RegisterItem } from '@budget/ui';
+import { Registers, SectionHead, type RegisterItem } from '@budget/ui';
 import type { ReactNode } from 'react';
 import { AREAS, areaById } from '../nav/areas';
 import type { PageMeta } from '../nav/pages';
 import { AppLink } from '../shell/app-link';
+import { AreaHead } from './area-head';
 import { PanelLink } from '../shell/panel-link';
 import { Link } from '@tanstack/react-router';
 
 export interface PlaceholderPageProps {
   meta: PageMeta;
-  /** Overrides the title of the title block (defaults to the page title). */
+  /** Overrides the title of the title block (single account, single report). */
   title?: string;
-  subtitle?: string;
   extraFields?: Array<{ label: string; value: ReactNode }>;
   children?: ReactNode;
 }
-
-/** Pkg label for the title block, e.g. "P2" out of "P2 Kern und Migration; …". */
-const packageOf = (fills: string) => fills.split(/[\s;,]/)[0] ?? fills;
 
 export interface PageFrameProps {
   meta: PageMeta;
   title?: string;
   subtitle?: string;
-  /** Cells of the title block. */
-  fields: Array<{ label: string; value: ReactNode }>;
+  /** Cells after the area's own fields in the title block. */
+  extraFields?: Array<{ label: string; value: ReactNode }>;
+  /** Placeholder pages add a "Gefüllt in" cell. */
+  placeholder?: boolean;
   children?: ReactNode;
 }
 
 /** Title block and registers of the area; the body of the page follows as children. */
-export function PageFrame({ meta, title, subtitle, fields, children }: PageFrameProps) {
+export function PageFrame({
+  meta,
+  title,
+  subtitle,
+  extraFields,
+  placeholder,
+  children,
+}: PageFrameProps) {
   const area = areaById(meta.area);
   const items: RegisterItem[] = area.registers.map((r) => ({
     id: r.id,
     label: r.label,
     href: r.to,
   }));
-  const question = subtitle ?? meta.question;
   return (
     <>
-      <TitleBlock
-        title={title ?? meta.title}
-        {...(question ? { subtitle: question } : {})}
-        fields={fields}
-        compactOnMobile
+      <AreaHead
+        meta={meta}
+        title={title}
+        subtitle={subtitle}
+        extraFields={extraFields}
+        placeholder={placeholder}
       />
       {items.length > 0 && (
         <Registers
@@ -65,19 +71,13 @@ export function PageFrame({ meta, title, subtitle, fields, children }: PageFrame
  * Placeholder page: title block and registers of the area, plus a note which package fills it.
  * Later packages replace the body and keep the frame.
  */
-export function PlaceholderPage({
-  meta,
-  title,
-  subtitle,
-  extraFields = [],
-  children,
-}: PlaceholderPageProps) {
+export function PlaceholderPage({ meta, title, extraFields, children }: PlaceholderPageProps) {
   return (
     <PageFrame
       meta={meta}
       {...(title ? { title } : {})}
-      {...(subtitle ? { subtitle } : {})}
-      fields={[...extraFields, { label: 'Gefüllt in', value: `Paket ${packageOf(meta.fills)}` }]}
+      {...(extraFields ? { extraFields } : {})}
+      placeholder
     >
       <section className="placeholder" aria-labelledby="placeholder-title">
         <SectionHead id="placeholder-title" title="Noch nicht gebaut" />

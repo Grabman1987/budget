@@ -2,6 +2,7 @@ import { expect, test, type Page } from '@playwright/test';
 import { expectScreenshot } from './visual';
 import { SoftAuthenticator } from '../apps/server/src/auth/testing/authenticator';
 import { E2E_SETUP_TOKEN } from '../playwright.config';
+import { HEUTE_HEADING } from './routes';
 
 /**
  * Passkey login end to end on an empty server: the browser's virtual authenticator performs real
@@ -68,7 +69,7 @@ test('bootstrap, login, recovery, device management and CSRF on a fresh server',
     await page.getByLabel('Ich habe die Codes sicher gespeichert').check();
     await next.click();
     await expect(page).toHaveURL(/\/$/);
-    await expect(page.getByRole('heading', { level: 1, name: 'Heute' })).toBeVisible();
+    await expect(page.getByRole('heading', { level: 1, name: HEUTE_HEADING })).toBeVisible();
   });
 
   await test.step('the session cookie is HttpOnly, SameSite=Strict, lasts 30 days and never reaches scripts', async () => {
@@ -80,7 +81,7 @@ test('bootstrap, login, recovery, device management and CSRF on a fresh server',
     expect(days).toBeLessThanOrEqual(30);
     expect(await page.evaluate(() => document.cookie)).toBe('');
     await page.reload();
-    await expect(page.getByRole('heading', { level: 1, name: 'Heute' })).toBeVisible();
+    await expect(page.getByRole('heading', { level: 1, name: HEUTE_HEADING })).toBeVisible();
   });
 
   await test.step('the setup page is gone for good once a passkey exists', async () => {
@@ -90,7 +91,11 @@ test('bootstrap, login, recovery, device management and CSRF on a fresh server',
 
   await test.step('sign out from Einstellungen › Sicherheit, then log in again with the passkey', async () => {
     await page.goto('/einstellungen/sicherheit');
-    await expect(page.getByRole('heading', { level: 1, name: 'Sicherheit' })).toBeVisible();
+    await expect(page.getByRole('heading', { level: 1, name: 'Einstellungen' })).toBeVisible();
+    await expect(page.getByRole('link', { name: 'Sicherheit' })).toHaveAttribute(
+      'aria-current',
+      'page',
+    );
     await expect(page.getByText('E2E-Gerät')).toBeVisible();
     await page.getByRole('button', { name: 'Abmelden' }).click();
     await expect(page).toHaveURL(/\/login$/);
@@ -101,7 +106,7 @@ test('bootstrap, login, recovery, device management and CSRF on a fresh server',
 
     await page.getByRole('button', { name: 'Mit Passkey anmelden' }).click();
     await expect(page).toHaveURL(/\/$/);
-    await expect(page.getByRole('heading', { level: 1, name: 'Heute' })).toBeVisible();
+    await expect(page.getByRole('heading', { level: 1, name: HEUTE_HEADING })).toBeVisible();
   });
 
   await test.step('a recovery code logs in exactly once', async () => {

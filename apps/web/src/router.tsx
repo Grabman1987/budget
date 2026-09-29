@@ -21,6 +21,7 @@ import { NotFoundPage } from './pages/not-found';
 import { PlaceholderPage } from './pages/placeholder-page';
 import { AppShell } from './shell/app-shell';
 import type { PageTitleData } from './shell/page-meta';
+import { isMonth } from './nav/month';
 import { isPanelId, type PanelId } from './shell/panels';
 
 // Route-level code splitting: everything except the shell and the generic placeholder page is
@@ -30,8 +31,12 @@ const reportsPages = () => import('./pages/reports-pages');
 
 const rootRoute = createRootRoute({
   // `?panel=` opens the side panel (desktop) or bottom sheet (phone) on any page.
-  validateSearch: (search: Record<string, unknown>): { panel?: PanelId | undefined } => ({
+  // `?monat=YYYY-MM` selects the month on Heute and Plan (linkable, survives reload).
+  validateSearch: (
+    search: Record<string, unknown>,
+  ): { panel?: PanelId | undefined; monat?: string | undefined } => ({
     panel: isPanelId(search['panel']) ? search['panel'] : undefined,
+    monat: isMonth(search['monat']) ? search['monat'] : undefined,
   }),
   component: Outlet,
   notFoundComponent: NotFoundPage,

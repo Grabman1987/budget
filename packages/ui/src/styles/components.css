@@ -131,6 +131,22 @@
   font-size: 16px;
   color: var(--ink-2);
 }
+.tb-short {
+  display: none;
+}
+.tb-value .icon {
+  color: var(--line);
+}
+/* Month switch (Plan): previous, month, next in the title cell. */
+.month-switch {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.month-switch h1 {
+  min-width: 8.6em;
+  text-align: center;
+}
 .tb-value {
   font-weight: 600;
   font-size: 14px;
@@ -152,16 +168,26 @@
   .titleblock:not(.titleblock-compact) .tb-field:nth-child(2) {
     border-left: 0;
   }
-  /* The month lives in the app header, the title is hidden; fields keep label and value. */
-  .titleblock-compact .tb-title {
+  /* The name lives in the app header, the title is hidden; fields keep label and value. */
+  .titleblock-compact:not(.titleblock-title-mobile) .tb-title,
+  .titleblock-compact .tb-hide-mobile {
     display: none;
+  }
+  .titleblock-compact:not(.titleblock-title-mobile) .tb-field:nth-child(2) {
+    border-left: 0;
+  }
+  .titleblock-title-mobile .tb-title {
+    padding: 4px 6px;
+  }
+  .tb-long {
+    display: none;
+  }
+  .tb-short {
+    display: inline;
   }
   .titleblock-compact .tb-cell {
     padding: 6px 12px;
     align-content: center;
-  }
-  .titleblock-compact .tb-field:nth-child(2) {
-    border-left: 0;
   }
 }
 
@@ -220,6 +246,19 @@
 }
 .registers-item {
   display: inline-flex;
+}
+
+/* Desktop measures follow the prototype: register tabs 42 px, month buttons 40 px (the 44 px touch
+   size applies on the phone). */
+@media (min-width: 768px) {
+  .registers a,
+  .registers button {
+    min-height: 42px;
+  }
+  .month-switch .icon-btn {
+    width: 40px;
+    height: 40px;
+  }
 }
 
 /* ---------- Section head and circled numbers ---------- */
