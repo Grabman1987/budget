@@ -14,6 +14,7 @@ Stand: P1a (Repo-Gerüst und Stack-Spike) umgesetzt, Gate 1 steht noch aus (29.0
 | `design/prototype/` | Klickbarer Prototyp (statisches HTML/JS) mit Beispiel-Hauptbuch und Rechenregeln |
 | `design/screens/` | Referenz-Screenshots aller Seiten (Desktop 1440, Handy 390) |
 | `docs/concept/` | Ursprüngliches Produktkonzept und Ist-Analyse des alten Cockpits |
+| `docs/data-model.md` | Datenmodell (Schema v1), Entscheidungen, Beispiel-Hauptbuch |
 | `docs/ROADMAP.md` | Pakete P1–P6 mit Aufgaben und Abnahmekriterien |
 | `docs/prompts/` | Fertige Aufträge für die einzelnen Cloud-Sitzungen |
 | `docs/CLOUD-SETUP.md` | Anleitung: GitHub, Claude Code in der Cloud, Fly-Deploy |
@@ -29,6 +30,7 @@ npm install
 npm run dev        # Web (Vite, :5173) + Server (Hono, :3000) mit Hot Reload
 npm run check      # Typecheck + Lint + Unit-Tests
 npm run test:e2e   # Build + Playwright (einmalig: npx playwright install chromium)
+npm run db:seed    # synthetische Beispieldaten nach ./data/dev.sqlite (siehe docs/data-model.md)
 npm run build      # apps/web/dist + apps/server/dist/index.js
 npm start          # Produktions-Server (liefert die gebaute Web-App aus)
 ```
