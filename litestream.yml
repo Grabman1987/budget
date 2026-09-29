@@ -1,0 +1,26 @@
+# Litestream configuration, copied to /etc/litestream.yml in the image.
+# Nothing secret lives here: ${VAR} is expanded by Litestream from the environment.
+#
+# Variables (set by `fly storage create` as Fly secrets on the app):
+#   BUCKET_NAME            Tigris bucket
+#   AWS_ENDPOINT_URL_S3    https://fly.storage.tigris.dev
+#   AWS_ACCESS_KEY_ID      read by Litestream itself (LITESTREAM_ACCESS_KEY_ID also works)
+#   AWS_SECRET_ACCESS_KEY  read by Litestream itself (LITESTREAM_SECRET_ACCESS_KEY also works)
+# DATA_DIR comes from the image / fly.toml (default /data). See docs/ops.md.
+
+# Full snapshot every day; keep 30 days of history for point-in-time restore.
+snapshot:
+  interval: 24h
+  retention: 720h
+
+dbs:
+  - path: ${DATA_DIR}/budget.sqlite
+    replica:
+      type: s3
+      bucket: ${BUCKET_NAME}
+      path: budget.sqlite
+      endpoint: ${AWS_ENDPOINT_URL_S3}
+      # Tigris ignores regions; the SDK only needs some value.
+      region: auto
+      # Ship new WAL frames every second.
+      sync-interval: 1s

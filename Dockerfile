@@ -22,6 +22,28 @@ COPY packages packages
 COPY design/prototype/fonts design/prototype/fonts
 RUN npm run build
 
+# ---- litestream: pinned release, checksum-verified, one binary per target architecture ----
+FROM node:22-bookworm-slim AS litestream
+ARG TARGETARCH
+ARG LITESTREAM_VERSION=0.5.17
+# SHA-256 of litestream-<version>-linux-<arch>.tar.gz, from the release's checksums.txt.
+ARG LITESTREAM_SHA256_AMD64=cfb371176d164437ae869f8351cfde49bd1804ae71c61923f75c9cba9c9c006d
+ARG LITESTREAM_SHA256_ARM64=f8ca4a050095c1efbda2c4365172e61bf9d955ea0d9ac42f448b52e51819baa5
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends ca-certificates curl \
+ && rm -rf /var/lib/apt/lists/*
+RUN set -eu; \
+    case "$TARGETARCH" in \
+      amd64) arch=x86_64; sha="$LITESTREAM_SHA256_AMD64" ;; \
+      arm64) arch=arm64; sha="$LITESTREAM_SHA256_ARM64" ;; \
+      *) echo "unsupported architecture: $TARGETARCH" >&2; exit 1 ;; \
+    esac; \
+    file="litestream-${LITESTREAM_VERSION}-linux-${arch}.tar.gz"; \
+    curl -fsSL -o "/tmp/$file" "https://github.com/benbjohnson/litestream/releases/download/v${LITESTREAM_VERSION}/$file"; \
+    echo "$sha  /tmp/$file" | sha256sum -c -; \
+    tar -xzf "/tmp/$file" -C /usr/local/bin litestream; \
+    litestream version
+
 # ---- runtime: the server is one bundled file, the web app is static ----
 FROM node:22-bookworm-slim AS runtime
 ENV NODE_ENV=production \
@@ -29,6 +51,10 @@ ENV NODE_ENV=production \
     WEB_DIR=/app/web \
     BUDGET_MIGRATIONS_DIR=/app/drizzle \
     DATA_DIR=/data
+# ca-certificates: Litestream (Go) verifies the object storage endpoint against the system roots.
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends ca-certificates \
+ && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 COPY --from=build /repo/apps/server/dist/index.js ./server.js
 COPY --from=build /repo/apps/web/dist ./web
@@ -37,8 +63,12 @@ COPY --from=build /repo/packages/db/drizzle ./drizzle
 COPY --from=build /repo/node_modules/better-sqlite3/package.json ./node_modules/better-sqlite3/package.json
 COPY --from=build /repo/node_modules/better-sqlite3/lib ./node_modules/better-sqlite3/lib
 COPY --from=build /repo/node_modules/better-sqlite3/prebuilds ./node_modules/better-sqlite3/prebuilds
-# /data is the Fly volume mount for SQLite. The entrypoint fixes its ownership and then runs the
-# server as the unprivileged `node` user.
+# Litestream replicates /data/budget.sqlite to object storage when configured (see docs/ops.md).
+COPY --from=litestream /usr/local/bin/litestream /usr/local/bin/litestream
+COPY litestream.yml /etc/litestream.yml
+# /data is the Fly volume mount for SQLite. The entrypoint fixes its ownership, restores the
+# database from the replica if the volume is empty and then runs the server (under Litestream when
+# replication is configured) as the unprivileged `node` user.
 COPY --chmod=755 docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
 RUN mkdir -p /data && chown -R node:node /data /app
 EXPOSE 3000

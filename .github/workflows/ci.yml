@@ -52,3 +52,25 @@ jobs:
           done
           docker logs budget
           exit 1
+
+  restore-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      # Version and checksums are pinned once, in the Dockerfile, and reused here.
+      - name: Install pinned Litestream (checksum verified)
+        run: |
+          version=$(sed -n 's/^ARG LITESTREAM_VERSION=//p' Dockerfile)
+          sha=$(sed -n 's/^ARG LITESTREAM_SHA256_AMD64=//p' Dockerfile)
+          file="litestream-${version}-linux-x86_64.tar.gz"
+          curl -fsSL -o "$RUNNER_TEMP/$file" \
+            "https://github.com/benbjohnson/litestream/releases/download/v${version}/${file}"
+          echo "${sha}  $RUNNER_TEMP/$file" | sha256sum -c -
+          mkdir -p "$RUNNER_TEMP/litestream"
+          tar -xzf "$RUNNER_TEMP/$file" -C "$RUNNER_TEMP/litestream" litestream
+          echo "LITESTREAM_BIN=$RUNNER_TEMP/litestream/litestream" >> "$GITHUB_ENV"
+      - name: Ensure sqlite3 CLI
+        run: command -v sqlite3 || (sudo apt-get update && sudo apt-get install -y sqlite3)
+      - name: Backup and restore round trip
+        run: scripts/restore-test.sh

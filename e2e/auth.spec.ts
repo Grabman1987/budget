@@ -1,0 +1,171 @@
+import { expect, test, type Page } from '@playwright/test';
+import { SoftAuthenticator } from '../apps/server/src/auth/testing/authenticator';
+import { E2E_SETUP_TOKEN } from '../playwright.config';
+
+/**
+ * Passkey login end to end on an empty server: the browser's virtual authenticator performs real
+ * WebAuthn ceremonies (Chromium DevTools protocol), the server verifies them for real.
+ */
+async function addVirtualAuthenticator(page: Page) {
+  const cdp = await page.context().newCDPSession(page);
+  await cdp.send('WebAuthn.enable');
+  await cdp.send('WebAuthn.addVirtualAuthenticator', {
+    options: {
+      protocol: 'ctap2',
+      transport: 'internal',
+      hasResidentKey: true,
+      hasUserVerification: true,
+      isUserVerified: true,
+      automaticPresenceSimulation: true,
+    },
+  });
+}
+
+test('bootstrap, login, recovery, device management and CSRF on a fresh server', async ({ page, baseURL, browser }) => {
+  test.setTimeout(120_000);
+  const origin = baseURL as string;
+  const problems: string[] = [];
+  page.on('console', (msg) => {
+    if (msg.type() === 'error') problems.push(msg.text());
+  });
+  await addVirtualAuthenticator(page);
+  let codes: string[] = [];
+
+  await test.step('nothing but the setup page is reachable before the first passkey', async () => {
+    await page.goto('/');
+    await expect(page).toHaveURL(/\/setup$/);
+    await expect(page.getByRole('heading', { level: 1, name: 'Einrichten' })).toBeVisible();
+    // The API refuses everything without a session, the shell never renders.
+    expect((await page.request.get('/api/debug/summary')).status()).toBe(401);
+    await page.goto('/plan/monat');
+    await expect(page).toHaveURL(/\/setup$/);
+    await page.emulateMedia({ reducedMotion: 'reduce', colorScheme: 'light' });
+    await expect(page).toHaveScreenshot('setup-page.png');
+  });
+
+  await test.step('a wrong setup token is rejected with a message', async () => {
+    await page.getByLabel('Einrichtungscode').fill('not-the-token');
+    await page.getByRole('button', { name: 'Passkey anlegen' }).click();
+    await expect(page.getByRole('alert')).toContainText(/Einrichtungscode/);
+    await expect(page).toHaveURL(/\/setup$/);
+  });
+
+  await test.step('the right token registers the first passkey and shows ten recovery codes once', async () => {
+    await page.getByLabel('Einrichtungscode').fill(E2E_SETUP_TOKEN);
+    await page.getByLabel('Gerätename').fill('E2E-Gerät');
+    await page.getByRole('button', { name: 'Passkey anlegen' }).click();
+    const list = page.getByRole('list', { name: 'Wiederherstellungscodes' });
+    await expect(list.getByRole('listitem')).toHaveCount(10);
+    codes = (await list.getByRole('listitem').allTextContents()).map((t) => t.trim());
+    expect(codes.every((c) => /[0-9A-Z]{4}-[0-9A-Z]{4}-[0-9A-Z]{4}/.test(c))).toBe(true);
+    const next = page.getByRole('button', { name: 'Weiter zu Budget' });
+    await expect(next).toBeDisabled();
+    await page.getByLabel('Ich habe die Codes sicher gespeichert').check();
+    await next.click();
+    await expect(page).toHaveURL(/\/$/);
+    await expect(page.getByRole('heading', { level: 1, name: 'Heute' })).toBeVisible();
+  });
+
+  await test.step('the session cookie is HttpOnly, SameSite=Strict, lasts 30 days and never reaches scripts', async () => {
+    const cookie = (await page.context().cookies()).find((c) => c.name.endsWith('budget_session'));
+    expect(cookie?.httpOnly).toBe(true);
+    expect(cookie?.sameSite).toBe('Strict');
+    const days = ((cookie?.expires ?? 0) - Date.now() / 1000) / 86_400;
+    expect(days).toBeGreaterThan(29);
+    expect(days).toBeLessThanOrEqual(30);
+    expect(await page.evaluate(() => document.cookie)).toBe('');
+    await page.reload();
+    await expect(page.getByRole('heading', { level: 1, name: 'Heute' })).toBeVisible();
+  });
+
+  await test.step('the setup page is gone for good once a passkey exists', async () => {
+    await page.goto('/setup');
+    await expect(page).toHaveURL(/\/$/);
+  });
+
+  await test.step('sign out from Einstellungen › Sicherheit, then log in again with the passkey', async () => {
+    await page.goto('/einstellungen/sicherheit');
+    await expect(page.getByRole('heading', { level: 1, name: 'Sicherheit' })).toBeVisible();
+    await expect(page.getByText('E2E-Gerät')).toBeVisible();
+    await page.getByRole('button', { name: 'Abmelden' }).click();
+    await expect(page).toHaveURL(/\/login$/);
+    await page.goto('/plan/monat');
+    await expect(page).toHaveURL(/\/login$/);
+    await page.emulateMedia({ reducedMotion: 'reduce', colorScheme: 'light' });
+    await expect(page).toHaveScreenshot('login-page.png');
+
+    await page.getByRole('button', { name: 'Mit Passkey anmelden' }).click();
+    await expect(page).toHaveURL(/\/$/);
+    await expect(page.getByRole('heading', { level: 1, name: 'Heute' })).toBeVisible();
+  });
+
+  await test.step('a recovery code logs in exactly once', async () => {
+    await page.goto('/einstellungen/sicherheit');
+    await page.getByRole('button', { name: 'Abmelden' }).click();
+    await expect(page).toHaveURL(/\/login$/);
+    await page.getByRole('button', { name: 'Wiederherstellungscode verwenden' }).click();
+    await page.getByLabel('Wiederherstellungscode').fill((codes[0] as string).toLowerCase());
+    await page.getByRole('button', { name: 'Mit Code anmelden' }).click();
+    await expect(page).toHaveURL(/\/$/);
+
+    await page.goto('/einstellungen/sicherheit');
+    await expect(page.getByText(/9 von 10/)).toBeVisible();
+    await page.getByRole('button', { name: 'Abmelden' }).click();
+    await page.getByRole('button', { name: 'Wiederherstellungscode verwenden' }).click();
+    await page.getByLabel('Wiederherstellungscode').fill(codes[0] as string);
+    await page.getByRole('button', { name: 'Mit Code anmelden' }).click();
+    await expect(page.getByRole('alert')).toBeVisible();
+    await expect(page).toHaveURL(/\/login$/);
+  });
+
+  await test.step('devices: a second passkey is listed, can be revoked, the last one cannot', async () => {
+    await page.getByRole('button', { name: 'Zurück zum Passkey' }).click();
+    await page.getByRole('button', { name: 'Mit Passkey anmelden' }).click();
+    await expect(page).toHaveURL(/\/$/);
+
+    // A second device is registered through the API (session and fresh step-up from the login).
+    const headers = { origin, 'content-type': 'application/json' };
+    const second = new SoftAuthenticator({ rpID: 'localhost', origin });
+    const options = (await (await page.request.post('/api/auth/register/options', { headers, data: {} })).json()) as { options: { challenge: string } };
+    const verify = await page.request.post('/api/auth/register/verify', { headers, data: { response: second.register(options.options), deviceName: 'Zweites Gerät' } });
+    expect(verify.ok()).toBe(true);
+
+    await page.goto('/einstellungen/sicherheit');
+    await expect(page.getByText('Zweites Gerät')).toBeVisible();
+    await page.getByRole('button', { name: 'Passkey Zweites Gerät entfernen' }).click();
+    await page.getByRole('button', { name: 'Endgültig entfernen' }).click();
+    await expect(page.getByText('Zweites Gerät')).toHaveCount(0);
+
+    await page.getByRole('button', { name: 'Passkey E2E-Gerät entfernen' }).click();
+    await page.getByRole('button', { name: 'Endgültig entfernen' }).click();
+    await expect(page.getByText(/letzte|mindestens ein/i)).toBeVisible();
+    await expect(page.getByText('E2E-Gerät')).toBeVisible();
+  });
+
+  await test.step('CSRF: state-changing calls from a foreign origin are refused, foreign sites get no session', async () => {
+    const foreign = await page.request.post('/api/auth/logout', { headers: { origin: 'https://evil.example', 'content-type': 'application/json' }, data: {} });
+    expect(foreign.status()).toBe(403);
+    expect((await page.request.get('/api/auth/status')).ok()).toBe(true);
+    // A brand-new browser context has no cookie: protected data is not reachable.
+    const stranger = await browser.newContext();
+    expect((await stranger.request.get(`${origin}/api/debug/summary`)).status()).toBe(401);
+    const status = (await (await stranger.request.get(`${origin}/api/auth/status`)).json()) as { authenticated: boolean };
+    expect(status.authenticated).toBe(false);
+    await stranger.close();
+  });
+
+  expect(problems.filter((p) => !/401|403|429|Failed to load resource/.test(p))).toEqual([]);
+});
+
+test('the login page works on this viewport: 44 px targets, no horizontal scroll', async ({ page }) => {
+  await page.goto('/login');
+  await page.goto('/setup'); // whichever applies for the server state
+  const small = await page.evaluate(() =>
+    [...document.querySelectorAll<HTMLElement>('button, input, a')]
+      .filter((el) => el.offsetParent !== null)
+      .map((el) => ({ text: (el.textContent || el.getAttribute('aria-label') || el.tagName).trim(), h: el.getBoundingClientRect().height }))
+      .filter((el) => el.h < 43.5),
+  );
+  expect(small).toEqual([]);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+});

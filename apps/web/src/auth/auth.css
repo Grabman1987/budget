@@ -1,0 +1,193 @@
+/* Login, setup and the security page. Only blueprint tokens; no inline styles (strict CSP). */
+.auth-page {
+  width: 100%;
+  max-width: 560px;
+  margin: 0 auto;
+  padding: 56px 16px 72px;
+  display: grid;
+  gap: 32px;
+  align-content: start;
+}
+.auth-page:focus {
+  outline: none;
+}
+.auth-body {
+  display: grid;
+  gap: 28px;
+}
+.auth-stack {
+  display: grid;
+  gap: 14px;
+}
+.auth-stack > .btn {
+  width: 100%;
+}
+.auth-stack .field-row {
+  margin-bottom: 0;
+}
+.auth-stack .field-error {
+  margin: 0;
+}
+.auth-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 16px;
+}
+.auth-lead {
+  margin: 0;
+  color: var(--ink-2);
+}
+
+/* Quiet secondary action: text only, underlined, still a 44 px target on phones. */
+.quiet-link {
+  justify-self: start;
+  min-height: var(--touch);
+  padding: 0 4px;
+  color: var(--ink-2);
+  font-weight: 560;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  background: none;
+  border: 0;
+  border-radius: var(--radius-md);
+}
+.quiet-link:hover {
+  color: var(--ink);
+}
+
+/* Recovery codes: two columns, five rows */
+.recovery-gate {
+  display: grid;
+  gap: 18px;
+}
+.recovery {
+  display: grid;
+  gap: 12px;
+}
+.recovery-grid {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-rows: repeat(5, auto);
+  grid-auto-flow: column;
+  column-gap: 16px;
+  border: 1px solid var(--rule-strong);
+  border-radius: var(--radius-md);
+  background: var(--raised);
+  padding: 4px 14px;
+}
+.recovery-code {
+  padding: 10px 0;
+  border-bottom: 1px solid var(--rule);
+  font-family: var(--font-tech);
+  font-size: 15px;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+.recovery-code:nth-child(5n) {
+  border-bottom: 0;
+}
+.recovery-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 14px;
+}
+.recovery-status {
+  color: var(--ink-2);
+  font-size: 13px;
+}
+.check-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: var(--touch);
+  cursor: pointer;
+}
+.check-row input {
+  width: 22px;
+  height: 22px;
+  flex: none;
+  accent-color: var(--primary);
+}
+
+/* Einstellungen › Sicherheit */
+.security {
+  display: grid;
+  gap: var(--space-section);
+  max-width: 68ch;
+}
+.security section {
+  display: grid;
+  gap: 12px;
+}
+.sec-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.sec-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 16px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--rule);
+}
+.sec-main {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+.sec-name {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 10px;
+  font-weight: 600;
+}
+.sec-mark {
+  border: 1px solid var(--rule-strong);
+  border-radius: 2px;
+  padding: 1px 6px;
+}
+.sec-meta {
+  color: var(--ink-3);
+  font-size: 13px;
+}
+.sec-actions {
+  display: flex;
+  gap: 8px;
+}
+.sec-add {
+  display: grid;
+  justify-items: start;
+  gap: 6px;
+}
+.sec-count {
+  margin: 0;
+  color: var(--ink-2);
+}
+.sec-form {
+  display: grid;
+  gap: 10px;
+  max-width: 420px;
+}
+.sec-form .field-row {
+  margin-bottom: 0;
+}
+.security > .field-error {
+  margin: 0;
+}
+
+@media (max-width: 767px) {
+  .auth-page {
+    padding-top: 24px;
+  }
+}

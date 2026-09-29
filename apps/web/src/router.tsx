@@ -5,6 +5,9 @@ import {
   Outlet,
   redirect,
 } from '@tanstack/react-router';
+import { LoginPage } from './auth/login-page';
+import { SetupPage } from './auth/setup-page';
+import { authStatusQuery, queryClient, refreshAuthStatus } from './auth/status-query';
 import { ChartsSpikePage } from './routes/charts-spike';
 import { ComponentsRoute } from './routes/components-page';
 import { HomePage } from './routes/home';
@@ -19,6 +22,7 @@ import {
 import { AccountPage } from './pages/account-page';
 import { NotFoundPage } from './pages/not-found';
 import { PlaceholderPage } from './pages/placeholder-page';
+import { SECURITY_META, SecurityPage } from './pages/security-page';
 import { ReportGroupPage, ReportPage, ReportsCatalogPage } from './pages/reports-pages';
 import { AppShell } from './shell/app-shell';
 import { isPanelId, type PanelId } from './shell/panels';
@@ -32,10 +36,15 @@ const rootRoute = createRootRoute({
   notFoundComponent: NotFoundPage,
 });
 
-/** Everything inside the application shell (sidebar, top bar, tab bar). */
+/** Everything inside the application shell (sidebar, top bar, tab bar); needs a session. */
 const shellRoute = createRoute({
   getParentRoute: () => rootRoute,
   id: 'shell',
+  beforeLoad: async () => {
+    const status = await queryClient.fetchQuery(authStatusQuery);
+    if (status.setupRequired) throw redirect({ to: '/setup' });
+    if (!status.authenticated) throw redirect({ to: '/login' });
+  },
   component: AppShell,
 });
 
@@ -57,7 +66,15 @@ const redirectRoute = (path: string, to: string) =>
   });
 
 const homeRoute = pageRoute('/', HEUTE);
-const placeholderRoutes = PAGES.map((page) => pageRoute(page.path, page));
+const placeholderRoutes = PAGES.filter((page) => page.path !== SECURITY_META.path).map((page) =>
+  pageRoute(page.path, page),
+);
+const securityRoute = createRoute({
+  getParentRoute: () => shellRoute,
+  path: SECURITY_META.path,
+  staticData: { meta: SECURITY_META },
+  component: SecurityPage,
+});
 const redirects = [
   redirectRoute('/plan', '/plan/monat'),
   redirectRoute('/vermoegen', '/vermoegen/nettovermoegen'),
@@ -98,6 +115,48 @@ const reportRoute = createRoute({
   },
 });
 
+// Login and first-device setup live outside the shell (no navigation before a session exists).
+const loginRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/login',
+  beforeLoad: async () => {
+    const status = await queryClient.fetchQuery(authStatusQuery);
+    if (status.setupRequired) throw redirect({ to: '/setup' });
+    if (status.authenticated) throw redirect({ to: '/' });
+  },
+  component: function Login() {
+    const navigate = loginRoute.useNavigate();
+    return (
+      <LoginPage
+        onAuthenticated={async () => {
+          await refreshAuthStatus();
+          await navigate({ to: '/' });
+        }}
+      />
+    );
+  },
+});
+const setupRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/setup',
+  beforeLoad: async () => {
+    const status = await queryClient.fetchQuery(authStatusQuery);
+    if (status.authenticated) throw redirect({ to: '/' });
+    if (!status.setupRequired) throw redirect({ to: '/login' });
+  },
+  component: function Setup() {
+    const navigate = setupRoute.useNavigate();
+    return (
+      <SetupPage
+        onDone={async () => {
+          await refreshAuthStatus();
+          await navigate({ to: '/' });
+        }}
+      />
+    );
+  },
+});
+
 // Developer pages live outside the shell (own layout).
 const chartsRoute = createRoute({
   getParentRoute: () => rootRoute,
@@ -119,12 +178,15 @@ const routeTree = rootRoute.addChildren([
   shellRoute.addChildren([
     homeRoute,
     ...placeholderRoutes,
+    securityRoute,
     ...redirects,
     accountRoute,
     reportsRoute,
     reportGroupRoute,
     reportRoute,
   ]),
+  loginRoute,
+  setupRoute,
   chartsRoute,
   componentsRoute,
   startRoute,
