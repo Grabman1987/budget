@@ -100,7 +100,8 @@ export function AreaHead({ meta, title, subtitle, extraFields = [], placeholder 
     case 'vermoegen':
       heading = 'Vermögen';
       fields = [
-        stand,
+        // Six range buttons need the whole strip on the phone, as in the prototype.
+        { ...stand, hideOnMobile: true },
         {
           label: 'Zeitraum',
           value: (
@@ -137,7 +138,16 @@ export function AreaHead({ meta, title, subtitle, extraFields = [], placeholder 
   const all = [
     ...fields,
     ...extraFields,
-    ...(placeholder ? [{ label: 'Gefüllt in', value: `Paket ${packageOf(meta.fills)}` }] : []),
+    ...(placeholder
+      ? [
+          {
+            label: 'Gefüllt in',
+            value: `Paket ${packageOf(meta.fills)}`,
+            // The page body says the same in a sentence; the phone strip stays short.
+            hideOnMobile: true,
+          },
+        ]
+      : []),
   ];
   return (
     <TitleBlock

@@ -176,8 +176,22 @@
   .titleblock-compact:not(.titleblock-title-mobile) .tb-field:nth-child(2) {
     border-left: 0;
   }
+  .titleblock-title-mobile {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
   .titleblock-title-mobile .tb-title {
     padding: 4px 6px;
+    min-width: 0;
+  }
+  /* Month switch on the phone: previous, month, next share the cell, the month shrinks. */
+  .month-switch {
+    width: 100%;
+    min-width: 0;
+  }
+  .month-switch h1 {
+    font-size: 19px;
+    min-width: 0;
+    flex: 1;
   }
   .tb-long {
     display: none;
