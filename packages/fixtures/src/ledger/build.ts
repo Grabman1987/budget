@@ -102,6 +102,8 @@ function build(): SampleLedger {
             originalAmountCents: d.original.cents,
             originalCurrency: d.original.currency,
             fxRateMicro: d.original.rateMicro,
+            // The bank's deviation from the ECB conversion (C7: amount = original × rate + fee).
+            fxFeeCents: d.amountCents - Math.round((d.original.cents * d.original.rateMicro) / 1e6),
           }
         : {}),
       ...(d.projectId ? { projectId: d.projectId } : {}),
@@ -115,7 +117,7 @@ function build(): SampleLedger {
         categoryId: s.categoryId,
         amountCents: s.amountCents,
         ...(s.memo ? { memo: s.memo } : {}),
-        ...(s.contactId ? { contactId: s.contactId } : {}),
+        ...(s.incomeTypeId ? { incomeTypeId: s.incomeTypeId } : {}),
         sortOrder: n,
       }),
     );

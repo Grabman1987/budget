@@ -379,7 +379,7 @@ If the deploy job shows "FLY_API_TOKEN is not set, skipping deploy", the environ
 
 ## 11. Rolling back the app, and migrations
 
-**Rule: migrations are additive only.** New tables, new nullable or defaulted columns, new indexes. Never rename or drop a column or table in the same release that stops using it. A destructive change takes two releases: release N stops reading and writing the thing, release N+1 drops it. This keeps the previous image runnable against the current database, which is what makes the rollback below safe. The server applies migrations at start and never runs them backwards.
+**Rule: migrations are additive only.** New tables, new nullable or defaulted columns, new indexes. Never rename or drop a column or table in the same release that stops using it. A destructive change takes two releases: release N stops reading and writing the thing, release N+1 drops it. This keeps the previous image runnable against the current database, which is what makes the rollback below safe. The server applies migrations at start and never runs them backwards. **One exception, before any real data:** `0003_ledger_model_v2` (P1f-3) rebuilds tables and moves columns; an image older than it cannot run on a database migrated by it, so a rollback across that release needs the database restored to a point before it (section 4.2).
 
 **Rollback of a bad release** (code only; the database keeps its state):
 

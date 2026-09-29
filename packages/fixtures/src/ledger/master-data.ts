@@ -48,6 +48,16 @@ function stageOf(c: (typeof CATS)[number]): number {
   return 2;
 }
 
+/** Category kind: investing and loan categories have their own kinds, other future ones save. */
+function kindOfCategory(c: (typeof CATS)[number]) {
+  if (c.id === 'investieren') return 'invest' as const;
+  if (c.id === 'kreditrate' || c.id === 'sondertilgung') return 'debt' as const;
+  if (c.cls === 'future') return 'saving' as const;
+  return ({ fix: 'fixed', var: 'variable', periodic: 'periodic', project: 'project' } as const)[
+    c.kind
+  ];
+}
+
 const PROJECT_PAYEE = {
   trading: 'Handelsplattform',
   kurse: 'Kursteilnehmer',
@@ -65,6 +75,7 @@ export function masterData(): Pick<
   | 'payees'
   | 'projects'
   | 'assetClasses'
+  | 'assetClassTargets'
   | 'securities'
 > {
   const institutions: SampleLedger['institutions'] = [
@@ -83,7 +94,9 @@ export function masterData(): Pick<
     {
       id: ACC.giro,
       name: 'Girokonto',
+      type: 'checking',
       role: 'budget',
+      onBudget: true,
       institutionId: 'inst-bank-a',
       openingDate: OPENING_DATE,
       overdraftLimitCents: 300000,
@@ -92,7 +105,9 @@ export function masterData(): Pick<
     {
       id: ACC.karte,
       name: 'Kreditkarte',
+      type: 'credit_card',
       role: 'budget',
+      onBudget: true,
       institutionId: 'inst-bank-a',
       openingDate: OPENING_DATE,
       creditLimitCents: 300000,
@@ -101,7 +116,9 @@ export function masterData(): Pick<
     {
       id: ACC.tagesgeld,
       name: 'Tagesgeld',
+      type: 'savings',
       role: 'reserve',
+      onBudget: true,
       institutionId: 'inst-bank-b',
       openingDate: OPENING_DATE,
       interestRateBp: 250,
@@ -110,7 +127,9 @@ export function masterData(): Pick<
     {
       id: ACC.depot,
       name: 'Depot',
+      type: 'brokerage',
       role: 'investment',
+      onBudget: false,
       institutionId: 'inst-broker-c',
       openingDate: OPENING_DATE,
       sortOrder: 4,
@@ -118,7 +137,9 @@ export function masterData(): Pick<
     {
       id: ACC.krypto,
       name: 'Krypto',
+      type: 'crypto',
       role: 'investment',
+      onBudget: false,
       institutionId: 'inst-plattform-d',
       openingDate: OPENING_DATE,
       sortOrder: 5,
@@ -126,7 +147,9 @@ export function masterData(): Pick<
     {
       id: ACC.p2p,
       name: 'P2P-Kredite',
+      type: 'p2p',
       role: 'investment',
+      onBudget: false,
       institutionId: 'inst-plattform-e',
       openingDate: OPENING_DATE,
       sortOrder: 6,
@@ -134,7 +157,9 @@ export function masterData(): Pick<
     {
       id: ACC.kredit,
       name: 'Kredit',
+      type: 'loan',
       role: 'debt',
+      onBudget: false,
       institutionId: 'inst-bank-f',
       openingDate: OPENING_DATE,
       interestRateBp: 632,
@@ -149,18 +174,12 @@ export function masterData(): Pick<
     name,
     sortOrder: i,
   }));
-  const kindMap = {
-    fix: 'fixed',
-    var: 'variable',
-    periodic: 'periodic',
-    project: 'project',
-  } as const;
   const categories: SampleLedger['categories'] = CATS.map((c, i) => ({
     id: catId(c.id),
     name: c.name,
     groupId: `grp-${slug(c.group)}`,
     class: c.cls,
-    kind: c.cls === 'future' ? 'saving' : kindMap[c.kind],
+    kind: kindOfCategory(c),
     stage: stageOf(c),
     sortOrder: i,
   }));
@@ -196,10 +215,24 @@ export function masterData(): Pick<
   }));
 
   const assetClasses: SampleLedger['assetClasses'] = [
-    { id: 'ac-welt', name: 'Aktien Welt', targetShareBp: 8000, sortOrder: 1 },
-    { id: 'ac-em', name: 'Schwellenländer', targetShareBp: 1200, sortOrder: 2 },
-    { id: 'ac-spec', name: 'Spekulativ', targetShareBp: 800, sortOrder: 3 },
+    { id: 'ac-welt', name: 'Aktien Welt', sortOrder: 1 },
+    { id: 'ac-em', name: 'Schwellenländer', sortOrder: 2 },
+    { id: 'ac-spec', name: 'Spekulativ', sortOrder: 3 },
   ];
+  // Soll-Allocation 80 / 12 / 8 % with a ±5 / ±3 / ±3 point band, valid from the start date.
+  const assetClassTargets: SampleLedger['assetClassTargets'] = (
+    [
+      ['ac-welt', 8000, 500],
+      ['ac-em', 1200, 300],
+      ['ac-spec', 800, 300],
+    ] as const
+  ).map(([assetClassId, targetShareBp, bandBp]) => ({
+    id: `act-${assetClassId}`,
+    assetClassId,
+    validFrom: OPENING_DATE,
+    targetShareBp,
+    bandBp,
+  }));
   const classOf: Record<string, string> = {
     etfw: 'ac-welt',
     etfem: 'ac-em',
@@ -234,6 +267,7 @@ export function masterData(): Pick<
     payees,
     projects,
     assetClasses,
+    assetClassTargets,
     securities,
   };
 }

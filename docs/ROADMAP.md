@@ -74,18 +74,18 @@ Order: P1f-1 → first deploy (after P1f-2 B1–B3) → P1f-3 before P2; P1f-4 i
 ### P1f-3 — Data model and domain (`docs/prompts/P1f-3.md`, before P2)
 - [ ] C1 envelope rollover per concept §5.3
 - [ ] C2 "Zu verteilen" by on-budget status
-- [ ] C3 income categories and income types
+- [x] C3 income categories and income types
 - [ ] C4 split-level transfers, idempotent transfer import
 - [ ] C5 one opening-date rule
-- [ ] C6 account type and on-budget flag
-- [ ] C7 foreign-currency fields
+- [x] C6 account type and on-budget flag
+- [x] C7 foreign-currency fields
 - [ ] C8 undo keeps invariants
-- [ ] C9 extended CHECK enums
+- [x] C9 extended CHECK enums
 - [ ] C10 holdings per account, FIFO, FX, cash-flow returns
 - [ ] C11 read models, Vienna date module, rounding
-- [ ] C12 cheap model gaps
+- [x] C12 cheap model gaps
 - [ ] C13 stronger figure tests and fixture coverage
-- [ ] C14 model needs of the YNAB import (card payment kind, flag, staging tables, mapping per run)
+- [x] C14 model needs of the YNAB import (card payment kind, flag, staging tables, mapping per run)
 
 ### P1f-4 — Frontend (`docs/prompts/P1f-4.md`)
 - [ ] D1 PartsList keyboard

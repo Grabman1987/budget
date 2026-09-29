@@ -49,7 +49,7 @@ describe('createBooking', () => {
         memo: 'Einkauf',
         splits: [
           { categoryId: 'essen', amountCents: -700, memo: 'Obst' },
-          { categoryId: 'reise', amountCents: -300, contactId: 'k1' },
+          { categoryId: 'auslagen', amountCents: -300, contactId: 'k1' },
         ],
       }),
       ctx,
@@ -70,7 +70,7 @@ describe('createBooking', () => {
       b.splits.map((s) => [s.categoryId, s.amountCents, s.memo, s.contactId, s.sortOrder]),
     ).toEqual([
       ['essen', -700, 'Obst', null, 0],
-      ['reise', -300, null, 'k1', 1],
+      ['auslagen', -300, null, 'k1', 1],
     ]);
   });
 
@@ -83,7 +83,7 @@ describe('createBooking', () => {
         originalAmountCents: -1300,
         originalCurrency: 'USD',
         fxRateMicro: 935_000,
-        fxFeeCents: 12,
+        fxFeeCents: 15,
       }),
       ctx,
     );
@@ -91,7 +91,7 @@ describe('createBooking', () => {
       originalAmountCents: -1300,
       originalCurrency: 'USD',
       fxRateMicro: 935_000,
-      fxFeeCents: 12,
+      fxFeeCents: 15,
     });
   });
 
@@ -165,7 +165,7 @@ describe('createBooking', () => {
     expect(() =>
       createBooking(
         db,
-        basic({ splits: [{ categoryId: 'unknown-cat', amountCents: -1200 }] }),
+        basic({ splits: [{ categoryId: 'essen', amountCents: -1200, incomeTypeId: 'unknown' }] }),
         ctx,
       ),
     ).toThrow(/FOREIGN KEY/);

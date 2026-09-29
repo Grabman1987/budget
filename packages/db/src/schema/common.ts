@@ -28,3 +28,13 @@ export function oneOf(name: string, column: AnySQLiteColumn, values: readonly st
   const list = sql.raw(values.map((v) => `'${v}'`).join(', '));
   return check(name, sql`${column} IN (${list})` as SQL);
 }
+
+/** CHECK that a text column holds an ISO day `YYYY-MM-DD` (NULL passes). */
+export function isoDay(name: string, column: AnySQLiteColumn) {
+  return check(name, sql`${column} GLOB '[0-9][0-9][0-9][0-9]-[01][0-9]-[0-3][0-9]'`);
+}
+
+/** CHECK that a text column holds an ISO month `YYYY-MM` (NULL passes). */
+export function isoMonth(name: string, column: AnySQLiteColumn) {
+  return check(name, sql`${column} GLOB '[0-9][0-9][0-9][0-9]-[01][0-9]'`);
+}

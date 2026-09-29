@@ -18,7 +18,18 @@ import {
   projectPayee,
   securityId,
 } from './master-data';
+import { INCOME_TYPES } from '@budget/db/schema';
 import { allocate, cents, hash, isoDate, lastDayOfMonth, seeded } from './util';
+
+const INCOME = {
+  salary: INCOME_TYPES.salary.id,
+  special: INCOME_TYPES.special.id,
+  contribution: INCOME_TYPES.contribution.id,
+  side: INCOME_TYPES.side.id,
+  capital: INCOME_TYPES.capital.id,
+  refund: INCOME_TYPES.refund.id,
+  gift: INCOME_TYPES.gift.id,
+};
 
 /** A booking before ids are assigned. Transfers are two drafts with the same `transferKey`. */
 export interface Draft {
@@ -31,7 +42,7 @@ export interface Draft {
   splits: Array<{
     categoryId: string | null;
     amountCents: number;
-    contactId?: string;
+    incomeTypeId?: string;
     memo?: string;
   }>;
   projectId?: string;
@@ -132,7 +143,7 @@ export function buildCashflow(): CashflowResult {
           {
             categoryId: null,
             amountCents: cents(income['Gehalt'] as number),
-            contactId: 'con-arbeitgeber',
+            incomeTypeId: INCOME.salary,
           },
         ],
       });
@@ -145,7 +156,7 @@ export function buildCashflow(): CashflowResult {
         amountCents: c,
         payeeId: payeeId('Arbeitgeber'),
         memo: 'Sonderzahlung',
-        splits: [{ categoryId: null, amountCents: c, contactId: 'con-arbeitgeber' }],
+        splits: [{ categoryId: null, amountCents: c, incomeTypeId: INCOME.special }],
       });
     }
     if ((income['Beiträge von Kontakten'] ?? 0) > 0) {
@@ -156,7 +167,7 @@ export function buildCashflow(): CashflowResult {
         amountCents: c,
         payeeId: payeeId('Kontakt M. Muster'),
         memo: 'Beitrag zum Haushalt',
-        splits: [{ categoryId: null, amountCents: c, contactId: 'con-muster' }],
+        splits: [{ categoryId: null, amountCents: c, incomeTypeId: INCOME.contribution }],
       });
     }
     for (const p of PROJECTS) {
@@ -170,7 +181,7 @@ export function buildCashflow(): CashflowResult {
           payeeId: payeeId(projectPayee(p.id)),
           memo: p.name,
           projectId: projectId(p.id),
-          splits: [{ categoryId: null, amountCents: c }],
+          splits: [{ categoryId: null, amountCents: c, incomeTypeId: INCOME.side }],
         });
       }
     }
@@ -182,7 +193,7 @@ export function buildCashflow(): CashflowResult {
         amountCents: c,
         payeeId: payeeId('Bank B'),
         memo: 'Zinsen und Ausschüttungen',
-        splits: [{ categoryId: null, amountCents: c }],
+        splits: [{ categoryId: null, amountCents: c, incomeTypeId: INCOME.capital }],
       });
     }
     if ((income['Erstattungen'] ?? 0) > 0) {
@@ -193,7 +204,7 @@ export function buildCashflow(): CashflowResult {
         amountCents: c,
         payeeId: payeeId('Versicherung G'),
         memo: 'Erstattung',
-        splits: [{ categoryId: null, amountCents: c }],
+        splits: [{ categoryId: null, amountCents: c, incomeTypeId: INCOME.refund }],
       });
     }
     if ((income['Geschenke'] ?? 0) > 0) {
@@ -204,7 +215,7 @@ export function buildCashflow(): CashflowResult {
         amountCents: c,
         payeeId: payeeId('Verwandtschaft'),
         memo: 'Geldgeschenk',
-        splits: [{ categoryId: null, amountCents: c }],
+        splits: [{ categoryId: null, amountCents: c, incomeTypeId: INCOME.gift }],
       });
     }
 
@@ -217,7 +228,7 @@ export function buildCashflow(): CashflowResult {
         const payee = c.payee as string;
         const original = c.usd
           ? {
-              cents: cents(ref.usdAt(c, m.key)),
+              cents: -cents(ref.usdAt(c, m.key)),
               currency: 'USD',
               rateMicro: Math.round(ref.fxAt(m.key) * 1e6),
             }

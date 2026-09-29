@@ -22,6 +22,13 @@
       "when": 1790706829767,
       "tag": "0002_auth_hardening",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "6",
+      "when": 1790712346315,
+      "tag": "0003_ledger_model_v2",
+      "breakpoints": true
     }
   ]
 }

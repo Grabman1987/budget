@@ -1,4 +1,5 @@
 import Database from 'better-sqlite3';
+import { sql } from 'drizzle-orm';
 import { drizzle, type BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import { migrate } from 'drizzle-orm/better-sqlite3/migrator';
 import { moduleRelativePath } from './paths';
@@ -31,8 +32,25 @@ export function openDatabase(path: string): OpenedDatabase {
   return { db, sqlite, close: () => sqlite.close() };
 }
 
+/**
+ * Apply pending migrations. Foreign keys are off while they run: SQLite's recommended way to
+ * rebuild tables (a parent table is dropped and re-created while child rows point to it; deferred
+ * checks would count that as a violation). Afterwards `foreign_key_check` must be empty, else the
+ * start fails loudly.
+ */
 export function migrateDatabase(db: Db, migrationsFolder = defaultMigrationsFolder()): void {
-  migrate(db, { migrationsFolder });
+  db.run(sql`PRAGMA foreign_keys = OFF`);
+  try {
+    migrate(db, { migrationsFolder });
+    const problems = db.all(sql`PRAGMA foreign_key_check`);
+    if (problems.length > 0) {
+      throw new Error(
+        `Migration left ${problems.length} foreign key violation(s): ${JSON.stringify(problems.slice(0, 5))}`,
+      );
+    }
+  } finally {
+    db.run(sql`PRAGMA foreign_keys = ON`);
+  }
 }
 
 /** Fresh in-memory database with all migrations applied. */

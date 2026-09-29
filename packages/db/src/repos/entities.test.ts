@@ -104,7 +104,15 @@ describe('accounts and categories wrappers', () => {
   it('creates accounts with role and terms and lists them by sort_order', () => {
     accounts.create(
       db,
-      { id: 'b', name: 'Giro', role: 'budget', openingDate: '2023-10-01', sortOrder: 2 },
+      {
+        id: 'b',
+        name: 'Giro',
+        type: 'checking',
+        role: 'budget',
+        onBudget: true,
+        openingDate: '2023-10-01',
+        sortOrder: 2,
+      },
       ctx,
     );
     accounts.create(
@@ -112,7 +120,9 @@ describe('accounts and categories wrappers', () => {
       {
         id: 'a',
         name: 'Kredit',
+        type: 'loan',
         role: 'debt',
+        onBudget: false,
         openingDate: '2023-10-01',
         openingBalanceCents: -100_000,
         interestRateBp: 632,
@@ -124,7 +134,15 @@ describe('accounts and categories wrappers', () => {
     );
     accounts.create(
       db,
-      { id: 'c', name: 'Anlage', role: 'investment', openingDate: '2023-10-01', sortOrder: 3 },
+      {
+        id: 'c',
+        name: 'Anlage',
+        type: 'brokerage',
+        role: 'investment',
+        onBudget: false,
+        openingDate: '2023-10-01',
+        sortOrder: 3,
+      },
       ctx,
     );
     const list = accounts.list(db);

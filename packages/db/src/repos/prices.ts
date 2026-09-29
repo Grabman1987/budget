@@ -1,11 +1,12 @@
+import { randomUUID } from 'node:crypto';
 import { and, asc, desc, eq, gte, lte } from 'drizzle-orm';
-import { fxRate, price } from '../schema';
+import { fxRate, price, priceAudit } from '../schema';
 import type { Executor } from './types';
 
 /**
  * Market data. Prices and ECB rates are external time series that a refresh job rewrites, so
  * upserts are NOT written to `audit_log` (they are not user decisions and there is nothing to
- * undo). The source of every price is stored with it.
+ * undo). The source of every price is stored with it; changed prices go to `price_audit`.
  */
 
 export type PriceRow = typeof price.$inferSelect;
@@ -18,16 +19,45 @@ const assertInt = (name: string, value: number): void => {
     throw new Error(`${name} ${value} is not an integer (micro-units)`);
 };
 
-/** Insert or replace the price of a security on a day (micro-units in the security currency). */
-export function upsertPrice(db: Executor, input: PriceInput): void {
+/**
+ * Insert or replace the price of a security on a day (micro-units in the security currency).
+ * A `manual` price is protected: a price from another source (a refresh) does not replace it and
+ * `false` is returned. Every change of an existing price is written to `price_audit`.
+ */
+export function upsertPrice(db: Executor, input: PriceInput): boolean {
   assertInt('Price', input.priceMicro);
-  db.insert(price)
-    .values(input)
-    .onConflictDoUpdate({
-      target: [price.securityId, price.date],
-      set: { priceMicro: input.priceMicro, currency: input.currency, source: input.source },
-    })
-    .run();
+  return db.transaction((tx) => {
+    const existing = tx
+      .select()
+      .from(price)
+      .where(and(eq(price.securityId, input.securityId), eq(price.date, input.date)))
+      .get();
+    if (existing?.source === 'manual' && input.source !== 'manual') return false;
+    tx.insert(price)
+      .values(input)
+      .onConflictDoUpdate({
+        target: [price.securityId, price.date],
+        set: { priceMicro: input.priceMicro, currency: input.currency, source: input.source },
+      })
+      .run();
+    if (
+      existing &&
+      (existing.priceMicro !== input.priceMicro || existing.source !== input.source)
+    ) {
+      tx.insert(priceAudit)
+        .values({
+          id: randomUUID(),
+          securityId: input.securityId,
+          date: input.date,
+          oldPriceMicro: existing.priceMicro,
+          newPriceMicro: input.priceMicro,
+          oldSource: existing.source,
+          newSource: input.source,
+        })
+        .run();
+    }
+    return true;
+  });
 }
 
 /** Prices of a security ascending by date, optionally from/to (inclusive). */

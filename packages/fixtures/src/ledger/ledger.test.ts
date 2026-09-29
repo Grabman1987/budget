@@ -133,6 +133,27 @@ describe('sample ledger invariants', () => {
         (b) => b.originalCurrency === 'USD' && b.fxRateMicro && b.originalAmountCents,
       ),
     ).toBe(true);
+    // C7: every foreign-currency booking reproduces amount = round(original × rate) + fee.
+    const fx = ledger.bookings.filter((b) => b.originalCurrency);
+    expect(fx.length).toBeGreaterThan(30);
+    for (const b of fx) {
+      expect(Math.sign(b.originalAmountCents as number)).toBe(Math.sign(b.amountCents));
+      expect(b.fxFeeCents).not.toBeUndefined();
+      const converted = Math.round(
+        ((b.originalAmountCents as number) * (b.fxRateMicro as number)) / 1e6,
+      );
+      expect(b.amountCents).toBe(converted + (b.fxFeeCents as number));
+    }
+    // C3: income carries income types; split contacts are only receivable shares.
+    const splitsOf = (memo: string) =>
+      ledger.bookings
+        .filter((b) => b.memo === memo)
+        .flatMap((b) => ledger.splits.filter((s) => s.bookingId === b.id));
+    expect(splitsOf('Gehalt').every((s) => s.incomeTypeId === 'income-salary')).toBe(true);
+    expect(
+      splitsOf('Beitrag zum Haushalt').every((s) => s.incomeTypeId === 'income-contribution'),
+    ).toBe(true);
+    expect(ledger.splits.filter((s) => s.contactId)).toEqual([]);
     expect(
       ledger.expectedPaymentVersions.filter((v) => v.expectedPaymentId === 'ep-miete'),
     ).toHaveLength(2);

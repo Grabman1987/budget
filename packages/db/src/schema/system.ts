@@ -1,7 +1,9 @@
-import { index, integer, sqliteTable, text } from 'drizzle-orm/sqlite-core';
-import { account, institution } from './accounts';
+import { sql } from 'drizzle-orm';
+import { check, index, integer, sqliteTable, text } from 'drizzle-orm/sqlite-core';
+import { account, contact, institution } from './accounts';
+import { booking, receipt } from './bookings';
 import { category, payee } from './budget';
-import { cents, id, nowSql, oneOf, timestamps } from './common';
+import { cents, id, isoMonth, nowSql, oneOf, timestamps } from './common';
 
 export const AUDIT_ACTIONS = ['create', 'update', 'delete', 'restore', 'undo'] as const;
 export const RESULT_STATUSES = ['ok', 'warn', 'bad'] as const;
@@ -12,6 +14,10 @@ export const INBOX_KINDS = [
   'stale_value',
   'consent',
   'overspent',
+  'expected_payment',
+  'receivable',
+  'reconciliation',
+  'backup',
   'other',
 ] as const;
 export const PAYSLIP_KINDS = ['regular', 'special'] as const;
@@ -45,18 +51,22 @@ export const auditLog = sqliteTable(
 );
 
 /** Rules R01–R16 as data: thresholds in `params_json`, status per evaluation in `rule_result`. */
-export const rule = sqliteTable('rule', {
-  id: id(),
-  code: text('code').notNull().unique(),
-  name: text('name').notNull(),
-  /** Net-worth stage the rule belongs to (1 Fundament, 2 Aufbau, 3 Freiheit). */
-  stage: integer('stage'),
-  goal: text('goal'),
-  paramsJson: text('params_json'),
-  action: text('action'),
-  enabled: integer('enabled', { mode: 'boolean' }).notNull().default(true),
-  ...timestamps(),
-});
+export const rule = sqliteTable(
+  'rule',
+  {
+    id: id(),
+    code: text('code').notNull().unique(),
+    name: text('name').notNull(),
+    /** Net-worth stage the rule belongs to (1 Fundament, 2 Aufbau, 3 Freiheit). */
+    stage: integer('stage'),
+    goal: text('goal'),
+    paramsJson: text('params_json'),
+    action: text('action'),
+    enabled: integer('enabled', { mode: 'boolean' }).notNull().default(true),
+    ...timestamps(),
+  },
+  (t) => [check('rule_stage_chk', sql`${t.stage} BETWEEN 1 AND 3`)],
+);
 
 export const ruleResult = sqliteTable(
   'rule_result',
@@ -118,16 +128,29 @@ export const bankConnection = sqliteTable('bank_connection', {
   ...timestamps(),
 });
 
-/** Payslip (Gehaltszettel) with its lines (Bezüge, Abzüge). */
-export const payslip = sqliteTable('payslip', {
-  id: id(),
-  month: text('month').notNull(),
-  kind: text('kind', { enum: PAYSLIP_KINDS }).notNull().default('regular'),
-  grossCents: cents('gross_cents').notNull(),
-  netCents: cents('net_cents').notNull(),
-  receiptId: text('receipt_id'),
-  ...timestamps(),
-});
+/**
+ * Payslip (Gehaltszettel) with its lines (Bezüge, Abzüge). `employer_contact_id` is the employer
+ * (a contact), `booking_id` the salary booking the net amount arrived with.
+ */
+export const payslip = sqliteTable(
+  'payslip',
+  {
+    id: id(),
+    month: text('month').notNull(),
+    kind: text('kind', { enum: PAYSLIP_KINDS }).notNull().default('regular'),
+    grossCents: cents('gross_cents').notNull(),
+    netCents: cents('net_cents').notNull(),
+    employerContactId: text('employer_contact_id').references(() => contact.id),
+    bookingId: text('booking_id').references(() => booking.id),
+    receiptId: text('receipt_id').references(() => receipt.id),
+    ...timestamps(),
+  },
+  (t) => [
+    oneOf('payslip_kind_chk', t.kind, PAYSLIP_KINDS),
+    isoMonth('payslip_month_chk', t.month),
+    index('payslip_booking_idx').on(t.bookingId),
+  ],
+);
 
 export const payslipLine = sqliteTable(
   'payslip_line',

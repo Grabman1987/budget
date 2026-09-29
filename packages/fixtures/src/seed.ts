@@ -20,6 +20,7 @@ const TABLES = {
   savingsGoals: t.savingsGoal,
   plannedEvents: t.plannedEvent,
   assetClasses: t.assetClass,
+  assetClassTargets: t.assetClassTarget,
   securities: t.security,
   holdings: t.holding,
   trades: t.trade,

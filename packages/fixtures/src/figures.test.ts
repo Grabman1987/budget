@@ -128,7 +128,9 @@ describe('figures of the prototype are reproduced from the seeded database', () 
       )
       .reduce((a, b) => a + b.amountCents, 0);
 
-    const assigned: AssignedCategory[] = categories.map((c) => {
+    // Spending categories only: income, card-payment and advance categories have no class.
+    const spending = categories.flatMap((c) => (c.class ? [{ ...c, class: c.class }] : []));
+    const assigned: AssignedCategory[] = spending.map((c) => {
       if (c.kind === 'periodic') {
         const annual = payments
           .filter((p) => p.categoryId === c.id && p.rhythm === 'yearly')

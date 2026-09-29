@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { and, asc, eq, gte, inArray, isNull, lte, ne, type SQL } from 'drizzle-orm';
-import { account, booking, bookingSplit, transfer } from '../schema';
+import { account, booking, bookingSplit, category, transfer } from '../schema';
 import {
   deleteTracked,
   insertTracked,
@@ -16,7 +16,11 @@ import { runInTransaction, type Executor } from './types';
  * Bookings, splits and transfers (SPEC §5). Invariants enforced here, not in SQL:
  * - the splits of a booking sum to its `amount_cents` (and there is at least one split);
  * - a transfer (Umbuchung) is exactly two bookings with the same `transfer_id` and opposite amounts;
- * - imports are idempotent through `(account_id, import_key)`, also for soft-deleted rows.
+ * - imports are idempotent through `(account_id, import_key)`, also for soft-deleted rows;
+ * - foreign currency: amount = round(original × rate) + fee, ±1 cent (C7);
+ * - a split's category is live and never a `card_payment` envelope (that one is filled by the
+ *   automatic card move); a split with a contact (receivable share) runs through an `advance`
+ *   category ("Auslagen").
  *
  * Every function is one transaction and one audit group (`ctx.groupId` or a fresh id), so a whole
  * user action is undoable with `undo(db, { groupId })`. Deleting is soft; the splits of a deleted
@@ -35,7 +39,10 @@ export interface SplitInput {
   categoryId?: string | null;
   amountCents: number;
   memo?: string | null;
+  /** Receivable share: paid for or repaid by this contact (concept §3.4). */
   contactId?: string | null;
+  /** Income type of an inflow (Gehalt, Sonderzahlung, …). */
+  incomeTypeId?: string | null;
 }
 
 type BookingColumns = Omit<
@@ -123,6 +130,79 @@ function assertSplits(amountCents: number, splits: readonly SplitInput[]): void 
   }
 }
 
+interface FxFields {
+  amountCents?: number | undefined;
+  originalAmountCents?: number | null | undefined;
+  originalCurrency?: string | null | undefined;
+  fxRateMicro?: number | null | undefined;
+  fxFeeCents?: number | null | undefined;
+}
+
+/**
+ * Foreign-currency fields are all set or all empty (the fee defaults to 0 when the others are
+ * given) and must reproduce the amount: `amount = round(original × rate / 1e6) + fee`, allowing
+ * one cent of rounding. The CHECK constraints guard the shape, this guards the arithmetic.
+ */
+function normalizeFx<T extends FxFields>(input: T): T {
+  const given = [input.originalAmountCents, input.originalCurrency, input.fxRateMicro].filter(
+    (v) => v !== undefined && v !== null,
+  ).length;
+  if (given === 0) {
+    if (input.fxFeeCents !== undefined && input.fxFeeCents !== null)
+      throw new BookingInvariantError('An FX fee needs the original amount, currency and rate');
+    return input;
+  }
+  if (given !== 3) {
+    throw new BookingInvariantError(
+      'Foreign currency needs original amount, original currency and rate together',
+    );
+  }
+  const fee = input.fxFeeCents ?? 0;
+  const original = input.originalAmountCents as number;
+  const rate = input.fxRateMicro as number;
+  if (!isCents(original) || !isCents(fee))
+    throw new BookingInvariantError('Original amount and FX fee must be integer cents');
+  if (!Number.isSafeInteger(rate) || rate <= 0)
+    throw new BookingInvariantError(`FX rate ${rate} must be a positive integer (micro-units)`);
+  const amount = input.amountCents as number;
+  const converted = Math.round((original * rate) / 1e6);
+  if (Math.abs(amount - (converted + fee)) > 1) {
+    throw new BookingInvariantError(
+      `Amount ${amount} cents does not match ${original} × ${rate / 1e6} + fee ${fee} = ${converted + fee} cents`,
+    );
+  }
+  return { ...input, fxFeeCents: fee };
+}
+
+/** Categories and contacts referenced by splits (see the invariants at the top). */
+function assertSplitRefs(tx: Executor, splits: readonly SplitInput[]): void {
+  for (const s of splits) {
+    const categoryId = s.categoryId ?? null;
+    if (categoryId === null) {
+      if (s.contactId)
+        throw new BookingInvariantError('A split with a contact needs the "Auslagen" category');
+      continue;
+    }
+    const row = tx
+      .select({ kind: category.kind })
+      .from(category)
+      .where(and(eq(category.id, categoryId), isNull(category.deletedAt)))
+      .get();
+    if (!row)
+      throw new BookingInvariantError(`Category ${categoryId} does not exist or is deleted`);
+    if (row.kind === 'card_payment') {
+      throw new BookingInvariantError(
+        'A card payment envelope is filled automatically by card spending; book the spending category instead',
+      );
+    }
+    if (s.contactId && row.kind !== 'advance') {
+      throw new BookingInvariantError(
+        'A split with a contact (receivable share) must use an "Auslagen" category (kind advance)',
+      );
+    }
+  }
+}
+
 function liveAccount(tx: Executor, accountId: string) {
   const row = tx
     .select()
@@ -155,6 +235,7 @@ const splitValues = (s: SplitInput) => ({
   amountCents: s.amountCents,
   memo: s.memo ?? null,
   contactId: s.contactId ?? null,
+  incomeTypeId: s.incomeTypeId ?? null,
 });
 
 // ---------------------------------------------------------------------------------------------
@@ -169,9 +250,10 @@ function insertBooking(
 ): string {
   assertDate(input.date);
   assertSplits(input.amountCents, input.splits);
+  assertSplitRefs(tx, input.splits);
   const acct = liveAccount(tx, input.accountId);
   const id = randomUUID();
-  const { splits, ...columns } = input;
+  const { splits, ...columns } = normalizeFx(input);
   insertTracked(
     tx,
     booking,
@@ -351,6 +433,8 @@ export function updateBooking(
       nextSplits = curSplits;
     }
     assertSplits(amount, nextSplits);
+    if (patch.splits) assertSplitRefs(tx, nextSplits);
+    const fx = normalizeFx({ ...cur, ...patch, amountCents: amount });
 
     if (cur.transferId) {
       const partner = tx
@@ -392,6 +476,7 @@ export function updateBooking(
 
     const columns: Record<string, unknown> = { ...patch };
     delete columns['splits'];
+    if (fx.fxFeeCents !== cur.fxFeeCents) columns['fxFeeCents'] = fx.fxFeeCents;
     updateTracked(tx, booking, [id], columns, grouped);
     if (patch.splits || amountChanged) syncSplits(tx, id, curSplits, nextSplits, grouped);
   });
