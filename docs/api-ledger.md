@@ -89,7 +89,6 @@ day first (within the window), then nearest amount. Fits inside range plus toler
 before deviating ones. A card booking in another currency is compared by its original amount when
 that has the version's currency. Open occurrences whose window has passed become `missed`.
 
-
 ## YNAB import (P2d)
 
 Import runs of the YNAB export (`docs/migration/ynab-export.md`), below `/api/imports`. Source:

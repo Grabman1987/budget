@@ -21,6 +21,7 @@ writeFileSync(join(webDir, 'index.html'), '<!doctype html><title>Budget</title>'
 const signedIn: AuthGate = {
   originGuard: async (_c, next) => next(),
   requireSession: async (_c, next) => next(),
+  requireStepUp: async (_c, next) => next(),
   routes: new Hono(),
 };
 
