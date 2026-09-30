@@ -107,6 +107,87 @@ describe('buildCreate', () => {
   });
 });
 
+describe('buildPatch keeps what the panel does not edit (review F1)', () => {
+  const salary = stored({
+    amountCents: 260000,
+    splits: [
+      {
+        id: 's1',
+        categoryId: null,
+        categoryName: null,
+        amountCents: 260000,
+        memo: 'September',
+        contactId: null,
+        incomeTypeId: 'gehalt',
+        transferId: null,
+      },
+    ],
+  });
+
+  it('an amount change keeps income type and split memo', () => {
+    const edit = { ...draftFromBooking(salary), amount: '2.650,00' };
+    const built = buildPatch(salary, edit, 'p1', false);
+    expect(built).toMatchObject({
+      ok: true,
+      value: {
+        amountCents: 265000,
+        splits: [
+          { categoryId: null, amountCents: 265000, memo: 'September', incomeTypeId: 'gehalt' },
+        ],
+      },
+    });
+  });
+
+  it('a memo-only change on a single split with a memo does not touch the split', () => {
+    const reconciled = { ...salary, status: 'reconciled' as const };
+    const edit = { ...draftFromBooking(reconciled), memo: 'Gehalt September' };
+    const built = buildPatch(reconciled, edit, 'p1', false);
+    expect(built).toEqual({ ok: true, value: { memo: 'Gehalt September' } });
+    expect(built.ok && touchesLocked(built.value)).toBe(false);
+  });
+
+  it('split mode keeps each line’s contact share and income type', () => {
+    const shared = stored({
+      amountCents: -3000,
+      splits: [
+        {
+          id: 's1',
+          categoryId: 'c1',
+          categoryName: 'Lebensmittel',
+          amountCents: -2000,
+          memo: null,
+          contactId: null,
+          incomeTypeId: null,
+          transferId: null,
+        },
+        {
+          id: 's2',
+          categoryId: null,
+          categoryName: null,
+          amountCents: -1000,
+          memo: 'für K',
+          contactId: 'k1',
+          incomeTypeId: null,
+          transferId: null,
+        },
+      ],
+    });
+    const edit = draftFromBooking(shared);
+    const first = edit.splits[0];
+    if (first) first.categoryId = 'c2';
+    const built = buildPatch(shared, edit, 'p1', false);
+    expect(built).toMatchObject({
+      ok: true,
+      value: {
+        splits: [
+          { categoryId: 'c2', amountCents: -2000 },
+          { amountCents: -1000, memo: 'für K', contactId: 'k1' },
+        ],
+      },
+    });
+  });
+});
+
 describe('buildPatch', () => {
   it('sends only what changed', () => {
     const original = stored();

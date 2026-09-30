@@ -11,6 +11,9 @@ export interface SplitDraft {
   categoryId: string;
   amount: string;
   memo: string;
+  /** Not edited in the panel, but kept: an edit must not drop the income type or contact share. */
+  contactId: string | null;
+  incomeTypeId: string | null;
 }
 
 export interface BookingDraft {
@@ -41,6 +44,8 @@ export const newSplit = (over: Partial<SplitDraft> = {}): SplitDraft => ({
   categoryId: '',
   amount: '',
   memo: '',
+  contactId: null,
+  incomeTypeId: null,
   ...over,
 });
 
@@ -82,6 +87,8 @@ export function draftFromBooking(b: ListedBooking): BookingDraft {
             categoryId: s.categoryId ?? '',
             amount: plain(s.amountCents),
             memo: s.memo ?? '',
+            contactId: s.contactId,
+            incomeTypeId: s.incomeTypeId,
           }),
         )
       : [],
@@ -138,6 +145,8 @@ function validate(draft: BookingDraft): {
         categoryId: s.categoryId || null,
         amountCents: sign(draft.kind, amountOf(s.amount) ?? 0),
         ...(s.memo.trim() ? { memo: s.memo.trim() } : {}),
+        ...(s.contactId ? { contactId: s.contactId } : {}),
+        ...(s.incomeTypeId ? { incomeTypeId: s.incomeTypeId } : {}),
       }));
   }
   return { errors, ...(abs !== undefined ? { abs } : {}), ...(splits ? { splits } : {}) };
@@ -212,19 +221,35 @@ export function buildPatch(
   if (draft.flag !== (original.flag ?? '')) patch.flag = draft.flag || null;
   const status = original.status === 'pending' ? 'pending' : 'confirmed';
   if (draft.status !== status) patch.status = draft.status;
-  const before = original.splits.map(
-    (s) => `${s.categoryId ?? ''}|${s.amountCents}|${s.memo ?? ''}`,
-  );
-  const after = (
-    splits ?? [{ categoryId: draft.categoryId || null, amountCents, memo: undefined }]
-  ).map((s) => `${s.categoryId ?? ''}|${s.amountCents}|${s.memo ?? ''}`);
+  // A single split keeps everything the panel does not edit (memo, contact share, income type):
+  // the server stores a missing field as null, and a memo-only change must not touch the split
+  // (that would trip the lock of a geprüft booking).
+  const single = keepSplit(original.splits[0], draft.categoryId || null, amountCents);
+  const key = (s: SplitInput) =>
+    `${s.categoryId ?? ''}|${s.amountCents}|${s.memo ?? ''}|${s.contactId ?? ''}|${s.incomeTypeId ?? ''}`;
+  const before = original.splits.map(key);
+  const after = (splits ?? [single]).map(key);
   if (before.join(';') !== after.join(';')) {
     if (splits) patch.splits = splits;
-    else if (original.splits.length <= 1)
-      patch.splits = [{ categoryId: draft.categoryId || null, amountCents }];
+    else if (original.splits.length <= 1) patch.splits = [single];
   }
   if (unlockReconciled) patch.unlockReconciled = true;
   return { ok: true, value: patch };
+}
+
+/** The split payload for a new category or amount that keeps the split's other fields. */
+export function keepSplit(
+  split: ListedBooking['splits'][number] | undefined,
+  categoryId: string | null,
+  amountCents: number,
+): SplitInput {
+  return {
+    categoryId,
+    amountCents,
+    ...(split?.memo ? { memo: split.memo } : {}),
+    ...(split?.contactId ? { contactId: split.contactId } : {}),
+    ...(split?.incomeTypeId ? { incomeTypeId: split.incomeTypeId } : {}),
+  };
 }
 
 /** Does the patch touch what a geprüft booking protects (everything except flag and memo)? */
