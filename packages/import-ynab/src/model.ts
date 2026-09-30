@@ -348,6 +348,7 @@ export function buildModel(
   // Accounts with proposals, from the rows up to the "as of" day.
   const today = asOf ?? bookings.reduce((a, b) => (b.date > a ? b.date : a), '1970-01-01');
   const accounts = new Map<string, RawAccount & { categorised: boolean }>();
+  const booked = new Map<string, { date: string; cents: number }[]>();
   for (const b of bookings) {
     let a = accounts.get(b.account);
     if (!a) {
@@ -375,13 +376,26 @@ export function buildModel(
     if (b.scheduled) continue;
     if (b.date > a.lastDate) a.lastDate = b.date;
     a.balanceCents += b.amountCents;
+    const rows = booked.get(b.account) ?? [];
+    rows.push({ date: b.date, cents: b.amountCents });
+    booked.set(b.account, rows);
   }
+  /** Whether the balance is above 0 at the end of some day. */
+  const everPositive = (name: string) => {
+    const byDay = new Map<string, number>();
+    for (const r of booked.get(name) ?? []) byDay.set(r.date, (byDay.get(r.date) ?? 0) + r.cents);
+    let balance = 0;
+    return [...byDay]
+      .sort(([x], [y]) => x.localeCompare(y))
+      .some(([, cents]) => (balance += cents) > 0);
+  };
   const out: RawAccount[] = [...accounts.values()].map(({ categorised, ...a }) => {
     const creditCard = cards.has(a.name);
     // Closed: nothing left and no row in the last 90 days.
     const closed = a.balanceCents === 0 && daysBetween(a.lastDate, today) > 90;
-    // A loan starts negative; a paid-off loan is still one. Platforms and depots start positive.
-    const loan = (a.startingBalance?.amountCents ?? a.balanceCents) < 0;
+    // A loan starts negative and never gets above 0; a paid-off loan is still one. Platforms and
+    // depots start positive, or negative (a debit balance) and turn positive later.
+    const loan = (a.startingBalance?.amountCents ?? a.balanceCents) < 0 && !everPositive(a.name);
     return {
       ...a,
       proposal: {

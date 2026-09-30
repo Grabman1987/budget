@@ -253,7 +253,7 @@ describe('budget writes', () => {
     expect(summary.cards).toEqual([{ accountId: 'karte', cardDebtGrowthCents: 5_000 }]);
   });
 
-  it('one category overspent on two cards: the credit part is shared by their spending', () => {
+  it('one category overspent on two cards: the credit part is the latest card spending', () => {
     accounts.create(
       db,
       {
@@ -282,8 +282,8 @@ describe('budget writes', () => {
       cashOverspentCents: 0,
     });
     expect(summary.cards).toEqual([
-      { accountId: 'karte', cardDebtGrowthCents: 1_500 },
-      { accountId: 'karte2', cardDebtGrowthCents: 500 },
+      { accountId: 'karte', cardDebtGrowthCents: 0 },
+      { accountId: 'karte2', cardDebtGrowthCents: 2_000 },
     ]);
   });
 });
@@ -316,6 +316,7 @@ describe('property tests on random ledgers', { timeout: 60_000 }, () => {
           uncoveredCents: cur.uncoveredCents,
           heldPreviousCents: prev.heldCents,
           heldCents: cur.heldCents,
+          cardOffEnvelopeCents: cur.cardOffEnvelopeCents,
         });
         expect(flow, `run ${run} ${cur.month}`).toBe(cur.toBeAssignedCents);
         expect(budgetSummary(db, cur.month).summary.carryInCents).toBe(prev.toBeAssignedCents);
