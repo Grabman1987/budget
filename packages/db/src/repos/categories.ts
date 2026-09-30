@@ -290,6 +290,11 @@ export function mergeCategories(
       throw new CategoryRuleError('Wähle mindestens eine andere Kategorie.');
     if ([target, ...sources].some((c) => c.kind === 'card_payment'))
       throw new CategoryRuleError('Kartenzahlungen gehören zu ihrer Karte und bleiben getrennt.');
+    // Spending never ends up as income (only income categories can merge into one).
+    if (target.kind === 'income' && sources.some((c) => c.kind !== 'income'))
+      throw new CategoryRuleError(
+        'In eine Einnahmen-Kategorie lassen sich nur Einnahmen zusammenführen.',
+      );
     let movedSplits = 0;
     let movedMonths = 0;
     let opening = target.openingAvailableCents;
