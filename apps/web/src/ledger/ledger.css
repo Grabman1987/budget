@@ -697,3 +697,134 @@
     height: 44px;
   }
 }
+
+/* Capture panel (P2b): suggestion lists, chips, quick dates. */
+/* The list floats over what follows the field: closing it on blur must not move the buttons below
+   while a click is under way (mouse down blurs the field, mouse up would miss). */
+.combo {
+  position: relative;
+}
+.combo-list {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  z-index: 5;
+  margin: 0;
+  padding: 4px;
+  list-style: none;
+  background: var(--raised);
+  border: 1px solid var(--rule-strong);
+  border-radius: 8px;
+  box-shadow: var(--shadow);
+  max-height: 240px;
+  overflow: auto;
+}
+.combo-option {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+  min-height: 40px;
+  padding: 6px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+.combo-hint {
+  color: var(--ink-2);
+  font-size: 12.5px;
+  text-align: right;
+}
+.combo-option.is-active,
+.combo-option:hover {
+  background: var(--tint-2);
+}
+.combo-group {
+  padding: 8px 10px 2px;
+  font-family: var(--font-tech);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+.combo-empty {
+  padding: 10px;
+  color: var(--ink-2);
+}
+.kchips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 6px;
+}
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 36px;
+  padding: 0 12px;
+  border: 1px solid var(--rule-strong);
+  border-radius: 999px;
+  font-size: 13.5px;
+  font-weight: 520;
+  color: var(--ink);
+}
+.chip:hover {
+  border-color: var(--line-2);
+  background: var(--tint);
+}
+.chip[aria-pressed='true'] {
+  background: var(--tint-2);
+  border-color: var(--line);
+  font-weight: 620;
+  box-shadow: inset 0 0 0 1px var(--line);
+}
+.kavail {
+  margin: 6px 0 0;
+  font-size: 12.5px;
+  color: var(--ink-2);
+}
+.kavail strong {
+  color: var(--ink);
+}
+.kform-pair {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  align-items: start;
+}
+.kdate {
+  min-width: 0;
+}
+.kmore > summary {
+  cursor: pointer;
+  padding: 8px 0;
+  font-weight: 560;
+  color: var(--ink-2);
+}
+.kmore .kform {
+  padding-top: 8px;
+}
+.khint {
+  margin: 0;
+  font-size: 12px;
+  color: var(--ink-3);
+}
+.kdiff .btn {
+  margin-left: auto;
+}
+
+@media (max-width: 767px) {
+  .kform-pair {
+    grid-template-columns: 1fr;
+  }
+  .combo-option {
+    min-height: 44px;
+  }
+  .chip {
+    height: 44px;
+  }
+  .khint {
+    display: none;
+  }
+}
