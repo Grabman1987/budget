@@ -25,8 +25,11 @@ export interface BookingDraft {
   /** Always positive as typed; the kind decides the sign. */
   amount: string;
   payee: string;
-  /** `''` = no category. */
+  /** `''` = no category ("Zu verteilen" on an income). */
   categoryId: string;
+  /** Income only: what kind of income this is (Gehalt, Sonderzahlung, …); `''` = none. */
+  incomeTypeId: string;
+  projectId: string;
   memo: string;
   status: 'pending' | 'confirmed';
   flag: '' | BookingFlag;
@@ -35,7 +38,7 @@ export interface BookingDraft {
 }
 
 export type DraftErrors = Partial<
-  Record<'amount' | 'account' | 'toAccount' | 'date' | 'splits', string>
+  Record<'amount' | 'account' | 'toAccount' | 'date' | 'splits' | 'category', string>
 >;
 
 let splitSeq = 0;
@@ -57,6 +60,8 @@ export const emptyDraft = (accountId: string, date: string): BookingDraft => ({
   amount: '',
   payee: '',
   categoryId: '',
+  incomeTypeId: '',
+  projectId: '',
   memo: '',
   status: 'confirmed',
   flag: '',
@@ -77,6 +82,8 @@ export function draftFromBooking(b: ListedBooking): BookingDraft {
     amount: plain(b.amountCents),
     payee: b.payeeName ?? '',
     categoryId: b.splits[0]?.categoryId ?? '',
+    incomeTypeId: b.splits[0]?.incomeTypeId ?? '',
+    projectId: b.projectId ?? '',
     memo: b.memo ?? '',
     status: b.status === 'pending' ? 'pending' : 'confirmed',
     flag: b.flag ?? '',
@@ -118,7 +125,17 @@ interface Failed {
 }
 
 /** Common checks; returns the absolute amount and the split inputs (with signs) when valid. */
-function validate(draft: BookingDraft): {
+export interface ValidateOptions {
+  /** Capture wants a category on every new spend; editing an imported booking does not. */
+  requireCategory?: boolean;
+  /** A transfer between a budget and a tracking account is categorised (SPEC §5.3). */
+  transferNeedsCategory?: boolean;
+}
+
+function validate(
+  draft: BookingDraft,
+  options: ValidateOptions = {},
+): {
   errors: DraftErrors;
   abs?: number;
   splits?: SplitInput[];
@@ -132,6 +149,13 @@ function validate(draft: BookingDraft): {
     if (!draft.toAccountId) errors.toAccount = 'Bitte das Zielkonto wählen.';
     else if (draft.toAccountId === draft.accountId)
       errors.toAccount = 'Quelle und Ziel müssen verschiedene Konten sein.';
+  }
+  if (options.requireCategory && !draft.categoryId && !draft.splitOn) {
+    if (draft.kind === 'expense')
+      errors.category = 'Kategorie fehlt. Wähle einen Vorschlag oder „Alle“.';
+    if (draft.kind === 'transfer' && options.transferNeedsCategory)
+      errors.category =
+        'Umbuchungen auf Tracking-Konten brauchen eine Kategorie, z. B. Investieren.';
   }
   let splits: SplitInput[] | undefined;
   if (draft.splitOn && draft.kind !== 'transfer') {
@@ -156,8 +180,9 @@ function validate(draft: BookingDraft): {
 export function buildCreate(
   draft: BookingDraft,
   payeeId: string | null,
+  options: ValidateOptions = {},
 ): Built<BookingCreate> | Failed {
-  const { errors, abs, splits } = validate(draft);
+  const { errors, abs, splits } = validate(draft, options);
   if (Object.keys(errors).length > 0 || abs === undefined) return { ok: false, errors };
   const memo = draft.memo.trim() || null;
   if (draft.kind === 'transfer') {
@@ -172,6 +197,7 @@ export function buildCreate(
         categoryId: draft.categoryId || null,
         memo,
         status: draft.status,
+        ...(draft.projectId ? { projectId: draft.projectId } : {}),
       },
     };
   }
@@ -186,8 +212,15 @@ export function buildCreate(
       memo,
       status: draft.status,
       flag: draft.flag || null,
+      ...(draft.projectId ? { projectId: draft.projectId } : {}),
       splits: splits ?? [
-        { categoryId: draft.categoryId || null, amountCents: sign(draft.kind, abs) },
+        {
+          categoryId: draft.categoryId || null,
+          amountCents: sign(draft.kind, abs),
+          ...(draft.kind === 'income' && draft.incomeTypeId
+            ? { incomeTypeId: draft.incomeTypeId }
+            : {}),
+        },
       ],
     },
   };
@@ -219,12 +252,19 @@ export function buildPatch(
   const memo = draft.memo.trim() || null;
   if (memo !== original.memo) patch.memo = memo;
   if (draft.flag !== (original.flag ?? '')) patch.flag = draft.flag || null;
+  if (draft.projectId !== (original.projectId ?? '')) patch.projectId = draft.projectId || null;
   const status = original.status === 'pending' ? 'pending' : 'confirmed';
   if (draft.status !== status) patch.status = draft.status;
   // A single split keeps everything the panel does not edit (memo, contact share, income type):
   // the server stores a missing field as null, and a memo-only change must not touch the split
   // (that would trip the lock of a geprüft booking).
-  const single = keepSplit(original.splits[0], draft.categoryId || null, amountCents);
+  const single = keepSplit(
+    original.splits[0],
+    draft.categoryId || null,
+    amountCents,
+    // The income type is edited for an income; a spend keeps whatever the booking carries.
+    draft.kind === 'income' ? draft.incomeTypeId || null : undefined,
+  );
   const key = (s: SplitInput) =>
     `${s.categoryId ?? ''}|${s.amountCents}|${s.memo ?? ''}|${s.contactId ?? ''}|${s.incomeTypeId ?? ''}`;
   const before = original.splits.map(key);
@@ -242,13 +282,16 @@ export function keepSplit(
   split: ListedBooking['splits'][number] | undefined,
   categoryId: string | null,
   amountCents: number,
+  /** `undefined` keeps the split's income type, `null` clears it. */
+  incomeTypeId?: string | null,
 ): SplitInput {
+  const incomeType = incomeTypeId === undefined ? (split?.incomeTypeId ?? null) : incomeTypeId;
   return {
     categoryId,
     amountCents,
     ...(split?.memo ? { memo: split.memo } : {}),
     ...(split?.contactId ? { contactId: split.contactId } : {}),
-    ...(split?.incomeTypeId ? { incomeTypeId: split.incomeTypeId } : {}),
+    ...(incomeType ? { incomeTypeId: incomeType } : {}),
   };
 }
 

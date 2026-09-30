@@ -93,6 +93,22 @@ export function renamePayee(db: Executor, id: string, name: string, ctx: AuditCo
   });
 }
 
+/**
+ * Set (or clear) the category a payee is booked to by default: capture pre-fills it. System payees
+ * are fixed.
+ */
+export function setPayeeDefaultCategory(
+  db: Executor,
+  id: string,
+  categoryId: string | null,
+  ctx: AuditContext,
+) {
+  return runInTransaction(db, (tx) => {
+    liveUserPayee(tx, id);
+    return updateEntity(tx, payee, id, { defaultCategoryId: categoryId }, ctx);
+  });
+}
+
 /** Result of a merge: moved and skipped (reconciled) bookings, sources kept alive for them. */
 export interface PayeeMergeResult {
   moved: number;

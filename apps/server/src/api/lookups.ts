@@ -9,6 +9,7 @@ import {
   mergePayees,
   project,
   renamePayee,
+  setPayeeDefaultCategory,
   undo,
   type Db,
 } from '@budget/db';
@@ -16,7 +17,7 @@ import { asc, isNull } from 'drizzle-orm';
 import { randomUUID } from 'node:crypto';
 import { Hono } from 'hono';
 import { ACTOR, ApiError, defined, readBody } from './http';
-import { payeeCreate, payeeMerge, payeeRename, undoBody } from './schemas';
+import { payeeCreate, payeeMerge, payeePatch, undoBody } from './schemas';
 
 /** Payees (create, rename, merge), the pick lists the pages need, and undo. */
 export function payeeRoutes(db: Db): Hono {
@@ -45,9 +46,14 @@ export function payeeRoutes(db: Db): Hono {
   });
 
   app.patch('/:id', async (c) => {
-    const { name } = await readBody(c, payeeRename);
+    const { name, defaultCategoryId } = await readBody(c, payeePatch);
+    const id = c.req.param('id');
     const ctx = audit();
-    return c.json({ payee: renamePayee(db, c.req.param('id'), name, ctx), groupId: ctx.groupId });
+    let row;
+    if (name !== undefined) row = renamePayee(db, id, name, ctx);
+    if (defaultCategoryId !== undefined)
+      row = setPayeeDefaultCategory(db, id, defaultCategoryId, ctx);
+    return c.json({ payee: row, groupId: ctx.groupId });
   });
 
   return app;

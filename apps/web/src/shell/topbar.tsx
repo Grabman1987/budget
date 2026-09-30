@@ -52,7 +52,12 @@ export function Topbar({ collapsed, onToggle }: { collapsed: boolean; onToggle: 
           Posteingang <Count>{SAMPLE_INBOX_COUNT}</Count>
           <span className="sr-only"> offen</span>
         </PanelLink>
-        <PanelLink className="btn btn-primary" panel="buchung">
+        <PanelLink
+          className="btn btn-primary"
+          panel="buchung"
+          aria-keyshortcuts="n"
+          title="Buchung erfassen (N)"
+        >
           <Plus size={18} strokeWidth={1.75} aria-hidden="true" />
           Buchung
         </PanelLink>

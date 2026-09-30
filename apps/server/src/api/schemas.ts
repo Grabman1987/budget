@@ -172,7 +172,11 @@ export const payeeCreate = z.object({
   contactId: id.nullable().optional(),
   defaultCategoryId: id.nullable().optional(),
 });
-export const payeeRename = z.object({ name: z.string().min(1).max(120) });
+/** Rename and/or set the default category that capture pre-fills (`null` clears it). */
+export const payeePatch = z
+  .object({ name: z.string().min(1).max(120), defaultCategoryId: id.nullable() })
+  .partial()
+  .refine((v) => Object.keys(v).length > 0, 'Nothing to change');
 export const payeeMerge = z.object({
   sourceIds: z.array(id).min(1).max(100),
   targetId: id,

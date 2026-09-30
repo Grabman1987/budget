@@ -1,6 +1,7 @@
 import { DetailPanel } from '@budget/ui';
-import { useLocation, useNavigate, useRouter, useSearch } from '@tanstack/react-router';
+import { useLocation, useNavigate, useParams, useRouter, useSearch } from '@tanstack/react-router';
 import { useState } from 'react';
+import { BookingPanel } from '../ledger/booking-panel';
 import type { PanelSearch } from './panel-state';
 import { PANELS, type PanelId } from './panels';
 
@@ -17,6 +18,8 @@ export function PanelHost() {
   const [shown, setShown] = useState<PanelId>('beispiel');
   if (panel && panel !== shown) setShown(panel);
   const def = PANELS[shown];
+  // Looking at an account: a new booking starts on it.
+  const { id: accountId } = useParams({ strict: false }) as { id?: string };
 
   const openedInApp = useLocation({
     select: (location) => location.state.panelOpenedInApp === true,
@@ -34,6 +37,16 @@ export function PanelHost() {
       });
     }
   };
+
+  // "+ Buchung": the capture panel (P2b), with its own URL (`?panel=buchung`).
+  if (shown === 'buchung') {
+    return (
+      <BookingPanel
+        state={panel === 'buchung' ? { mode: 'create', accountId } : null}
+        onClose={close}
+      />
+    );
+  }
 
   return (
     <DetailPanel open={panel !== undefined} onClose={close} title={def.title}>

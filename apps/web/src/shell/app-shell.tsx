@@ -4,6 +4,7 @@ import { useEffect, useRef } from 'react';
 import { TITLE_ON_MOBILE_AREAS } from '../pages/area-head';
 import { MobileHeader, TabBar, phoneTitle } from './mobile-chrome';
 import { useActivePage } from './page-meta';
+import { useCaptureShortcut } from './capture-shortcut';
 import { PanelHost } from './panel-host';
 import { Sidebar } from './sidebar';
 import { Topbar } from './topbar';
@@ -22,6 +23,7 @@ export function AppShell() {
   const main = useRef<HTMLElement>(null);
   const title = page?.title ?? APP_NAME;
   const [month] = useMonth();
+  useCaptureShortcut();
 
   useEffect(() => {
     document.title = title === APP_NAME ? APP_NAME : `${title} · ${APP_NAME}`;

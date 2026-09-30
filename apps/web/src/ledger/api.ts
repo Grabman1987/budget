@@ -85,8 +85,15 @@ export const fetchBookings = (filter: BookingFilter, cursor?: string, limit = 50
 
 export const fetchLookups = () => request<Lookups>('GET', '/api/lookups');
 export const fetchPayees = () => request<{ payees: PayeeRow[] }>('GET', '/api/payees');
-export const createPayee = (name: string) =>
-  request<{ payee: PayeeRow } & WriteResult>('POST', '/api/payees', { name });
+export const createPayee = (name: string, defaultCategoryId?: string | null) =>
+  request<{ payee: PayeeRow } & WriteResult>('POST', '/api/payees', {
+    name,
+    ...(defaultCategoryId ? { defaultCategoryId } : {}),
+  });
+export const setPayeeDefaultCategory = (id: string, defaultCategoryId: string | null) =>
+  request<{ payee: PayeeRow } & WriteResult>('PATCH', `/api/payees/${encodeURIComponent(id)}`, {
+    defaultCategoryId,
+  });
 
 export interface SplitInput {
   categoryId: string | null;
@@ -95,6 +102,8 @@ export interface SplitInput {
   /** Kept on edits: the server stores a missing field as null. */
   contactId?: string | null;
   incomeTypeId?: string | null;
+  /** Creating only: this line moves the money to another account (a transfer leg). */
+  transferAccountId?: string | null;
 }
 
 export type BookingCreate =
@@ -107,6 +116,7 @@ export type BookingCreate =
       memo?: string | null;
       status?: 'pending' | 'confirmed';
       flag?: BookingFlag | null;
+      projectId?: string | null;
       splits: SplitInput[];
     }
   | {
@@ -118,6 +128,7 @@ export type BookingCreate =
       categoryId?: string | null;
       memo?: string | null;
       status?: 'pending' | 'confirmed';
+      projectId?: string | null;
     };
 
 export interface BookingPatch {
@@ -128,6 +139,7 @@ export interface BookingPatch {
   memo?: string | null;
   status?: 'pending' | 'confirmed';
   flag?: BookingFlag | null;
+  projectId?: string | null;
   splits?: SplitInput[];
   unlockReconciled?: boolean;
 }

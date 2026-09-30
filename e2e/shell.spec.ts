@@ -131,6 +131,27 @@ test.describe('panel via route param', () => {
     await expect(trigger).toBeFocused();
   });
 
+  test('the key N opens "Buchung erfassen" with its own URL, but not while typing', async ({
+    page,
+  }, testInfo) => {
+    await page.goto('/plan/monat');
+    await expect(page.locator('main')).toBeVisible();
+    if (!isPhone(testInfo)) {
+      await page.getByRole('searchbox').focus();
+      await page.keyboard.type('n');
+      await expect(page.getByRole('searchbox')).toHaveValue('n');
+      await expect(page).not.toHaveURL(/panel=/);
+      await page.getByRole('searchbox').blur();
+    }
+    await page.keyboard.press('n');
+    await expect(page).toHaveURL(/panel=buchung/);
+    const dialog = page.getByRole('dialog', { name: 'Buchung erfassen' });
+    await expect(dialog).toBeVisible();
+    await page.keyboard.press('Escape');
+    await expect(dialog).toBeHidden();
+    await expect(page).toHaveURL(/\/plan\/monat$/);
+  });
+
   test('is linkable: a deep link opens the panel, Esc removes the param', async ({ page }) => {
     await page.goto('/konten?panel=posteingang');
     const dialog = page.getByRole('dialog', { name: 'Posteingang' });
