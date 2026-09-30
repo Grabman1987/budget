@@ -27,6 +27,7 @@ import { ErrorNote, LoadingNote } from '../ledger/states';
 import { useMonth } from '../shell/use-month';
 import { assign, budgetQuery, coverOverspending, type BudgetMonthView } from './budget-api';
 import { CategoryIcon } from './category-icon';
+import { EnvelopePanel } from './envelope-panel';
 import { STAGES } from './labels';
 import {
   barFor,
@@ -38,6 +39,7 @@ import {
   planGroups,
   planRows,
   statusText,
+  suggestions,
   unassignPlan,
   type PlanContext,
   type PlanGroup,
@@ -99,8 +101,10 @@ function PlanBody({ month, data }: { month: string; data: BudgetMonthView }) {
   const write = useBudgetWrite();
   const accounts = useQuery(accountsQuery()).data?.accounts ?? [];
   const [view, setView] = useState<PlanView>('stage');
+  const [distribute, setDistribute] = useState(false);
   const [collapsed, setCollapsed] = useState<ReadonlySet<string>>(new Set());
   const [editing, setEditing] = useState<string | null>(null);
+  const [open, setOpen] = useState<string | null>(null);
   const [sources, setSources] = useState<Record<string, string>>({});
 
   const s = data.summary;
@@ -114,6 +118,7 @@ function PlanBody({ month, data }: { month: string; data: BudgetMonthView }) {
   const byId = new Map(rows.map((r) => [r.id, r]));
   const groups = planGroups(view, rows, data, ctx);
   const tba = s.toBeAssignedCents;
+  const sug = distribute ? suggestions(rows, tba) : {};
   const urgent = rows.filter(isCashOver);
   const credit = rows.filter((r) => !isCashOver(r) && r.creditOverspentCents > 0);
 
@@ -123,6 +128,22 @@ function PlanBody({ month, data }: { month: string; data: BudgetMonthView }) {
       () => assign(month, [{ categoryId: r.id, assignedCents: value }]),
       () => `${r.name}: ${eur(r.assignedCents)} → ${eur(value)} zugewiesen`,
     );
+  const take = (ids: string[]) => {
+    const list = ids.filter((id) => sug[id]);
+    const sum = list.reduce((a, id) => a + (sug[id] ?? 0), 0);
+    if (!list.length) return;
+    void write(
+      () =>
+        assign(
+          month,
+          list.map((id) => ({
+            categoryId: id,
+            assignedCents: byId.get(id)!.assignedCents + sug[id]!,
+          })),
+        ),
+      () => `${eur(sum)} verteilt`,
+    ).then((done) => done && sum >= tba && setDistribute(false));
+  };
   const cover = (r: PlanRow) => {
     const from = sources[r.id] ?? coverSource(rows, r)?.id ?? '';
     const src = from === '' ? null : from;
@@ -285,8 +306,38 @@ function PlanBody({ month, data }: { month: string; data: BudgetMonthView }) {
                 </button>
               ))}
             </div>
+            <span className="spacer" />
+            <div className="dist-actions">
+              {distribute ? (
+                <>
+                  <span className="dist-left">noch {eur(tba)}</span>
+                  {Object.keys(sug).length > 0 && (
+                    <Button size="sm" onClick={() => take(Object.keys(sug))}>
+                      Alle Ziele füllen · {eur(Object.values(sug).reduce((a, v) => a + v, 0))}
+                    </Button>
+                  )}
+                  <Button size="sm" variant="ghost" onClick={() => setDistribute(false)}>
+                    Fertig
+                  </Button>
+                </>
+              ) : (
+                <Button
+                  size="sm"
+                  variant={tba > 0 && urgent.length === 0 ? 'primary' : 'ghost'}
+                  disabled={tba <= 0}
+                  title={tba <= 0 ? 'Nichts zu verteilen' : undefined}
+                  onClick={() => {
+                    setDistribute(true);
+                    setView('stage');
+                  }}
+                >
+                  <ArrowDownToLine size={16} strokeWidth={1.75} aria-hidden="true" />
+                  Geld verteilen
+                </Button>
+              )}
+            </div>
           </div>
-          <table className="ptable">
+          <table className={cx('ptable', distribute && 'is-distributing')}>
             <caption className="sr-only">Envelopes mit Zugewiesen, Aktivität und Verfügbar</caption>
             <thead>
               <tr>
@@ -311,6 +362,7 @@ function PlanBody({ month, data }: { month: string; data: BudgetMonthView }) {
               {groups.map((g) => {
                 const st = groupStatus(g.rows);
                 const isCollapsed = collapsed.has(g.key);
+                const sugSum = g.rows.reduce((a, r) => a + (sug[r.id] ?? 0), 0);
                 const toggle = () =>
                   setCollapsed((c) => {
                     const next = new Set(c);
@@ -339,6 +391,15 @@ function PlanBody({ month, data }: { month: string; data: BudgetMonthView }) {
                         {g.sub && <span className="grp-sub">{g.sub}</span>}
                       </button>
                       <GroupState group={g} status={st} />
+                      {distribute && sugSum > 0 && (
+                        <Button
+                          size="xs"
+                          variant="ghost"
+                          onClick={() => take(g.rows.map((r) => r.id))}
+                        >
+                          {g.stage ? 'Stufe füllen' : 'Übernehmen'} · {eur(sugSum)}
+                        </Button>
+                      )}
                     </td>
                     <td className="col-num col-assign" data-label="Zugewiesen">
                       {eur(st.assigned)}
@@ -370,12 +431,15 @@ function PlanBody({ month, data }: { month: string; data: BudgetMonthView }) {
                           row={r}
                           pos={`${g.no}.${i + 1}`}
                           ctx={ctx}
+                          suggestion={distribute ? sug[r.id] : undefined}
                           editing={editing === r.id}
                           onEdit={(on) => setEditing(on ? r.id : null)}
                           onCommit={(v) => {
                             setEditing(null);
                             setAssigned(r, v);
                           }}
+                          onTake={() => take([r.id])}
+                          onOpen={() => setOpen(r.id)}
                         />
                       ))),
                 ];
@@ -396,11 +460,21 @@ function PlanBody({ month, data }: { month: string; data: BudgetMonthView }) {
               Pace: Soll bis heute
             </span>
             <span>
+              <i className="lg-ghost">+0,00</i>Vorschlag beim Verteilen
+            </span>
+            <span>
               <i className="lg-debt">0,00</i>neue Kartenschuld
             </span>
           </div>
         </section>
       </div>
+      <EnvelopePanel
+        month={month}
+        row={open ? byId.get(open) : undefined}
+        rows={rows}
+        toBeAssignedCents={tba}
+        onClose={() => setOpen(null)}
+      />
     </>
   );
 }
@@ -627,16 +701,22 @@ function EnvelopeRow({
   row: r,
   pos,
   ctx,
+  suggestion,
   editing,
   onEdit,
   onCommit,
+  onTake,
+  onOpen,
 }: {
   row: PlanRow;
   pos: string;
   ctx: PlanContext;
+  suggestion: number | undefined;
   editing: boolean;
   onEdit: (on: boolean) => void;
   onCommit: (value: number) => void;
+  onTake: () => void;
+  onOpen: () => void;
 }) {
   const [text, setText] = useState('');
   const [invalid, setInvalid] = useState(false);
@@ -665,12 +745,12 @@ function EnvelopeRow({
         {cash && <RevisionTriangle letter="!" urgent />}
       </td>
       <td className="col-name">
-        <span className="pname">
+        <button type="button" className="pname" onClick={onOpen}>
           {r.cls ? <ClassSwatch kind={r.cls} /> : <ClassSwatch kind="bound" />}
           <CategoryIcon icon={r.icon} />
           {r.name}
           {r.cls && <span className="env-class">{CLASS_TEXT[r.cls]}</span>}
-        </span>
+        </button>
         {bar.fill !== null && (
           <span className={cx('pbar', bar.over && 'is-over')} aria-hidden="true">
             <i
@@ -721,6 +801,16 @@ function EnvelopeRow({
             }}
           >
             {eur(r.assignedCents)}
+          </button>
+        )}
+        {suggestion !== undefined && (
+          <button
+            type="button"
+            className="ghost"
+            aria-label={`Vorschlag ${eur(suggestion)} für ${r.name} übernehmen`}
+            onClick={onTake}
+          >
+            +{eur(suggestion).replace(/\s?€$/, '')}
           </button>
         )}
       </td>

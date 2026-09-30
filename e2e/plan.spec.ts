@@ -4,9 +4,9 @@ import { MAIN_URL } from '../playwright.config';
 
 /**
  * Plan › Monat end to end on the real server: assign inline, cover cash overspending from the
- * triage bar, credit overspending as new card debt (not red), undo and redo, month rollover.
- * Desktop and phone share the database, so every name carries the project and only the own
- * envelopes are asserted.
+ * triage bar, credit overspending as new card debt (not red), move money in the envelope panel,
+ * undo, month rollover and "Geld verteilen" with a ghost value. Desktop and phone share the
+ * database, so every name carries the project and only the own envelopes are asserted.
  */
 
 const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Vienna' }).format(new Date());
@@ -21,7 +21,9 @@ async function post(request: APIRequestContext, path: string, data: unknown) {
   return (await res.json()) as Record<string, { id: string }>;
 }
 
-test('plan: assign, cover, card debt, undo, rollover', async ({ page }, testInfo) => {
+test('plan: assign, cover, card debt, move, undo, rollover, distribute', async ({
+  page,
+}, testInfo) => {
   // Unique per run: retries and --repeat-each write into the same database.
   const tag = `${testInfo.project.name}-${Date.now().toString(36).slice(-5)}`;
   const { request } = page;
@@ -101,11 +103,19 @@ test('plan: assign, cover, card debt, undo, rollover', async ({ page }, testInfo
   await expect(available(page, food)).toHaveText('0,00 €');
   await expect(available(page, cafe)).toHaveText('50,00 €');
 
-  // Undo the cover, then redo it.
+  // Move 20 € in the envelope panel, then undo it.
+  await row(page, cafe)
+    .getByRole('button', { name: new RegExp(cafe) })
+    .first()
+    .click();
+  const panel = page.getByRole('dialog', { name: cafe });
+  await panel.getByRole('button', { name: 'Von hier weg' }).click();
+  await panel.getByLabel('Nach', { exact: true }).selectOption({ label: `${food} · 0,00 €` });
+  await panel.getByLabel('Betrag', { exact: true }).fill('20');
+  await panel.getByRole('button', { name: 'Verschieben' }).click();
+  await expect(toast(page)).toContainText(`20,00 € von ${cafe} zu ${food} verschoben`);
+  await expect(available(page, food)).toHaveText('20,00 €');
   await toast(page).getByRole('button', { name: 'Rückgängig' }).click();
-  await expect(available(page, food)).toHaveText('−50,00 €');
-  await expect(available(page, cafe)).toHaveText('100,00 €');
-  await toast(page).getByRole('button', { name: 'Wiederholen' }).click();
   await expect(available(page, food)).toHaveText('0,00 €');
   await expect(available(page, cafe)).toHaveText('50,00 €');
 
@@ -116,4 +126,10 @@ test('plan: assign, cover, card debt, undo, rollover', async ({ page }, testInfo
   await page.getByRole('button', { name: 'Nächster Monat' }).click();
   await expect(available(page, cafe)).toHaveText('50,00 €');
   await expect(row(page, cafe).locator('.col-assign')).toContainText('0,00 €');
+
+  // Geld verteilen: the target of Lebensmittel shows as a ghost value and is taken with one click.
+  await page.getByRole('button', { name: 'Geld verteilen' }).click();
+  await page.getByRole('button', { name: `Vorschlag 300,00 € für ${food} übernehmen` }).click();
+  await expect(toast(page)).toContainText('300,00 € verteilt');
+  await expect(available(page, food)).toHaveText('300,00 €');
 });
