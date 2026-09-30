@@ -52,3 +52,8 @@ export function lastDayOfMonth(month: string): string {
 export function daysBetween(a: string, b: string): number {
   return Math.round((Date.parse(`${b}T00:00:00Z`) - Date.parse(`${a}T00:00:00Z`)) / DAY_MS);
 }
+
+/** The day `n` days after `day` (`YYYY-MM-DD`, negative `n` goes back). */
+export function addDays(day: string, n: number): string {
+  return new Date(Date.parse(`${day}T00:00:00Z`) + n * DAY_MS).toISOString().slice(0, 10);
+}

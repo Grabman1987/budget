@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  addDays,
   addMonths,
   daysBetween,
   lastDayOfMonth,
@@ -42,5 +43,14 @@ describe('month arithmetic', () => {
     expect(monthOf('2026-09-17')).toBe('2026-09');
     expect(daysBetween('2025-01-01', '2026-01-01')).toBe(365);
     expect(daysBetween('2026-03-01', '2026-02-01')).toBe(-28);
+  });
+});
+
+describe('addDays', () => {
+  it('moves across month and year boundaries', () => {
+    expect(addDays('2026-01-31', 1)).toBe('2026-02-01');
+    expect(addDays('2026-01-01', -1)).toBe('2025-12-31');
+    expect(addDays('2024-02-28', 2)).toBe('2024-03-01');
+    expect(addDays('2026-09-30', 0)).toBe('2026-09-30');
   });
 });

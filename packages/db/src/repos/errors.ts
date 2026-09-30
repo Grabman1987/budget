@@ -20,3 +20,22 @@ export class EntityNotFoundError extends Error {
 export class BookingInvariantError extends Error {
   override readonly name = 'BookingInvariantError';
 }
+
+/**
+ * A reconciled booking (status `reconciled`, part of a Kontostand prüfen) is locked: only its flag
+ * and memo change freely. Amount, date, account, splits, payee, status and deletion need an
+ * explicit unlock (`unlockReconciled`), because the bank balance was checked against them.
+ */
+export class ReconciledLockedError extends Error {
+  override readonly name = 'ReconciledLockedError';
+  constructor(readonly bookingIds: string[]) {
+    super(
+      `Booking ${bookingIds.join(', ')} is reconciled (geprüft) and locked; unlock it explicitly to change it`,
+    );
+  }
+}
+
+/** The write would clash with existing data (duplicate name, system row, a difference that remains). */
+export class ConflictError extends Error {
+  override readonly name = 'ConflictError';
+}
