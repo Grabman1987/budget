@@ -1,5 +1,6 @@
 import { referenceModel } from '../reference/model';
 import { buildCashflow, mergeOnlineOrders, monthEnd, type Draft } from './cashflow';
+import { coverageCases } from './coverage';
 import { buildInvestments } from './investments';
 import { ACC, masterData } from './master-data';
 import { buildPlanning } from './planning';
@@ -27,10 +28,14 @@ function build(): SampleLedger {
   const invest = buildInvestments(cash.contributions, seq);
   seq += invest.buyDrafts.length;
   drafts = drafts.concat(invest.buyDrafts);
+  const coverage = coverageCases(drafts, invest, seq);
+  seq += coverage.drafts.length;
+  drafts = drafts.concat(coverage.drafts);
+  invest.trades.push(...coverage.trades);
 
   // ---------- Monthly sweep: keep the current account at its target, the rest lives on the savings account ----------
   const giroFlows = drafts
-    .filter((d) => d.accountId === ACC.giro)
+    .filter((d) => d.accountId === ACC.giro && !d.deletedAt)
     .sort((a, b) => a.date.localeCompare(b.date) || a.seq - b.seq);
   let balance = OPENING_GIRO;
   let cursor = 0;
@@ -107,6 +112,8 @@ function build(): SampleLedger {
           }
         : {}),
       ...(d.projectId ? { projectId: d.projectId } : {}),
+      ...(d.currency ? { currency: d.currency } : {}),
+      ...(d.deletedAt ? { deletedAt: d.deletedAt } : {}),
       source: 'migration',
       importKey: `sample-${id}`,
     });
@@ -129,7 +136,9 @@ function build(): SampleLedger {
 
   // ---------- Opening balances ----------
   const sumOn = (accountId: string) =>
-    bookings.filter((b) => b.accountId === accountId).reduce((a, b) => a + b.amountCents, 0);
+    bookings
+      .filter((b) => b.accountId === accountId && !b.deletedAt)
+      .reduce((a, b) => a + b.amountCents, 0);
   const holdingsValue = Object.values(invest.finalValueCents).reduce((a, b) => a + b, 0);
   const finalCards = sumOn(ACC.karte);
   // Loan: the balance today is -12.176,00 €.

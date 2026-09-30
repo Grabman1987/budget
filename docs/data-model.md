@@ -118,6 +118,22 @@ the auth tables.
   transfer from the current account to the loan account with the category "Kreditrate"; interest is
   a booking on the loan account. Net worth then falls by exactly the interest, and the envelope
   shows the full payment as spent, as in the prototype.
+- **Positions are per account and security** (C10): `holdingValuesAsOf` keys units by
+  (account, security) — latest snapshot of that account plus its later trades — and values them at
+  the latest price, converted to EUR with the stored ECB rate of the price currency (one rounding,
+  `marketValueEurCents`); a missing rate is an error, never a silent 0. `netWorthAsOf` adds every
+  account's balance in EUR (foreign-currency accounts converted) and its positions; it is the one
+  net-worth calculation (the debug summary uses it too). Cost basis: `averageCost` and `fifoCost`
+  (both with realised gain, splits and deliveries). Returns with cash flows in the domain:
+  `ttwror` (sub-periods between valuations), `modifiedDietz` and `irr` (XIRR, actual/365).
+- **Read models and dates** (C11): `allocationMonth(db, month)` assembles the 50/30/20 inputs
+  (regular income = uncategorised inflow splits on budget accounts without the income type
+  Sonderzahlung; periodic and windfall categories from the expected payments and rule R12) for the
+  domain's `allocation`. `packages/domain/src/date` has "today" in Europe/Vienna and the month
+  arithmetic. `percentShares` rounds by largest remainder and always adds up to 100 (all rest
+  without income). Opening envelopes are `category.opening_available_cents` (migration 0004,
+  additive), not part of the first month's assignment; `budget(db, months)` always starts at the
+  budget start so they apply.
 - **Investment accounts are valued from holdings, not from their booking balance.** A savings-plan
   transfer arrives as cash on the investment account and a buy booking settles it (`trade.booking_id`),
   so the cash balance stays at 0; the value is units (`holding` snapshot plus later trades) times the
@@ -202,6 +218,16 @@ port cannot drift. `ledger/` turns the euro floats into integer-cent bookings:
   balancing figure that makes the anchor exact, everything else follows from bookings and prices;
 - product values follow the prototype's value paths within 1 EUR at every month end.
 
-`figures.test.ts` reproduces the acceptance figures from the seeded database through the
-repositories and the domain functions: net worth 84.730 EUR, August 2026 allocation
-54 / 33 / 26 / -13 %, TTWROR +12,4 % (12 months) and +38,2 % (since Oct 2023).
+Cases the prototype has no example for (`ledger/coverage.ts`, C13) are added so that every
+prototype figure stays exact: a sale and re-purchase of one ETF unit in a second depot (a sale,
+one security in two accounts, depot → current account → second depot), a distribution with fee
+and tax paid net to the savings account (that month's interest is smaller by the same amount), a
+soft-deleted duplicate booking, a US-dollar account that is empty at every month end, and a card
+payment from the savings account so the card is at −450 € on 17.09.2026.
+
+`figures.test.ts` reproduces the acceptance figures from the seeded database through the read
+models and the domain functions: net worth 84.730 EUR with the prototype's account split, net
+worth at all 36 month ends within 2 cents, August 2026 allocation in cents (310.103 / 192.865 /
+150.888 of 575.788; shares 54 / 34 / 26 / -14 % by largest remainder, the prototype shows
+54 / 33 / 26 / -13 with the rest absorbing the rounding), TTWROR +12,4 % (12 months) and +38,2 %
+(since Oct 2023), and determinism of bookings, splits, trades, prices, envelopes and the budget.

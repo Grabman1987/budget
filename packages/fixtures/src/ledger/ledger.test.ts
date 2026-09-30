@@ -52,9 +52,11 @@ describe('sample ledger invariants', () => {
 
   it('category activity per month equals the prototype spend to the cent', () => {
     const activity = new Map<string, number>();
-    const bookingMonth = new Map(ledger.bookings.map((b) => [b.id, monthOf(b.date)]));
+    const bookingMonth = new Map(
+      ledger.bookings.filter((b) => !b.deletedAt).map((b) => [b.id, monthOf(b.date)]),
+    );
     for (const s of ledger.splits) {
-      if (!s.categoryId) continue;
+      if (!s.categoryId || !bookingMonth.has(s.bookingId)) continue;
       const key = `${s.categoryId}|${bookingMonth.get(s.bookingId)}`;
       activity.set(key, (activity.get(key) ?? 0) - s.amountCents);
     }
@@ -65,13 +67,11 @@ describe('sample ledger invariants', () => {
     }
   });
 
-  it('income per month equals the prototype (all inflows that are not transfers)', () => {
-    const investmentOrDebt = new Set(
-      ledger.accounts.filter((a) => a.role === 'investment' || a.role === 'debt').map((a) => a.id),
-    );
+  it('income per month equals the prototype (inflows on budget accounts that are not transfers)', () => {
+    const tracking = new Set(ledger.accounts.filter((a) => !a.onBudget).map((a) => a.id));
     const inflow = new Map<string, number>();
     for (const b of ledger.bookings) {
-      if (b.transferId || b.amountCents <= 0 || investmentOrDebt.has(b.accountId)) continue;
+      if (b.transferId || b.deletedAt || b.amountCents <= 0 || tracking.has(b.accountId)) continue;
       inflow.set(monthOf(b.date), (inflow.get(monthOf(b.date)) ?? 0) + b.amountCents);
     }
     for (const m of ref.months)
@@ -83,7 +83,7 @@ describe('sample ledger invariants', () => {
       ledger.accounts.map((a) => [a.id, a.openingBalanceCents ?? 0]),
     );
     for (const b of ledger.bookings)
-      balance.set(b.accountId, (balance.get(b.accountId) ?? 0) + b.amountCents);
+      if (!b.deletedAt) balance.set(b.accountId, (balance.get(b.accountId) ?? 0) + b.amountCents);
     const last = new Map<string, number>();
     for (const p of ledger.prices) if (p.date <= '2026-09-17') last.set(p.securityId, p.priceMicro);
     const units = new Map<string, number>(ledger.holdings.map((h) => [h.securityId, h.unitsE8]));
@@ -120,8 +120,22 @@ describe('sample ledger invariants', () => {
   it('trades reference their settlement booking and prices carry a source', () => {
     for (const t of ledger.trades) {
       expect(t.bookingId, t.id).toBeTruthy();
-      expect(t.unitsE8).toBeGreaterThan(0);
+      expect(Math.sign(t.unitsE8 ?? 0), t.id).toBe(
+        { buy: 1, sell: -1, dividend: 0 }[t.kind as string],
+      );
     }
+    // C13 coverage: a sale, a distribution with fee and tax, one security in two accounts.
+    expect(ledger.trades.filter((t) => t.kind === 'sell')).toHaveLength(1);
+    expect(ledger.trades.find((t) => t.kind === 'dividend')).toMatchObject({
+      feeCents: 150,
+      taxCents: 350,
+    });
+    expect(
+      new Set(ledger.trades.filter((t) => t.securityId === 'sec-etfem').map((t) => t.accountId))
+        .size,
+    ).toBe(2);
+    expect(ledger.bookings.filter((b) => b.deletedAt)).toHaveLength(1);
+    expect(ledger.bookings.filter((b) => b.currency === 'USD')).toHaveLength(2);
     expect(ledger.prices.every((p) => p.source)).toBe(true);
     expect(ledger.prices.filter((p) => p.securityId === 'sec-etfw')).toHaveLength(37);
   });

@@ -7,3 +7,4 @@ export * from './envelopes';
 export * from './prices';
 export * from './queries';
 export * from './portfolio';
+export * from './allocation';

@@ -15,6 +15,29 @@ export function marketValueCents(unitsE8: number, priceMicro: number): number {
   return Number(negative ? -rounded : rounded);
 }
 
+const E18 = 10n ** 18n;
+
+/**
+ * Value in EUR cents of `unitsE8` at `priceMicro` in a foreign currency and `fxRateMicro` (EUR per
+ * unit of that currency, the stored ECB rate): one rounding, half up. A EUR price uses 1 000 000.
+ */
+export function marketValueEurCents(
+  unitsE8: number,
+  priceMicro: number,
+  fxRateMicro: number,
+): number {
+  const scaled = BigInt(unitsE8) * BigInt(priceMicro) * BigInt(fxRateMicro);
+  const negative = scaled < 0n;
+  const abs = negative ? -scaled : scaled;
+  const rounded = (abs + E18 / 2n) / E18;
+  return Number(negative ? -rounded : rounded);
+}
+
+/** Cents in a foreign currency converted to EUR cents at `fxRateMicro`, rounded half up. */
+export function toEurCents(cents: number, fxRateMicro: number): number {
+  return Math.sign(cents) * Math.round((Math.abs(cents) * fxRateMicro) / 1e6);
+}
+
 /** Units (1e-8) that `cents` buy at `priceMicro`, rounded half up. */
 export function unitsFor(cents: number, priceMicro: number): number {
   if (!Number.isSafeInteger(priceMicro) || priceMicro <= 0)
@@ -75,34 +98,105 @@ export function marketMoveCents(input: {
 }
 
 export interface CostTrade {
+  /** Signed units: buys and deliveries in are positive, sales and deliveries out negative. */
   unitsE8: number;
   /** Gross trade value, positive. */
   amountCents: number;
   feeCents: number;
-  kind: 'buy' | 'sell';
+  taxCents?: number;
+  kind: 'buy' | 'sell' | 'delivery_in' | 'delivery_out' | 'split';
 }
+
+export interface CostResult {
+  unitsE8: number;
+  costBasisCents: number;
+  /** Proceeds after fees and taxes minus the cost of the units sold. */
+  realizedGainCents: number;
+}
+
+const adds = (t: CostTrade) => t.kind === 'buy' || t.kind === 'delivery_in';
+const removes = (t: CostTrade) => t.kind === 'sell' || t.kind === 'delivery_out';
+const proceeds = (t: CostTrade) =>
+  t.kind === 'sell' ? t.amountCents - t.feeCents - (t.taxCents ?? 0) : 0;
 
 /**
  * Cost basis (Einstand) with average cost: buys add amount and fees, a sale removes the cost of the
- * units sold in proportion to the units held. One function serves Reports and Vermögen.
+ * units sold in proportion to the units held; a split changes units only. One function serves
+ * Reports and Vermögen (the other method is `fifoCost`).
  */
-export function costBasisCents(
+export function averageCost(
   opening: { unitsE8: number; costBasisCents: number },
   trades: ReadonlyArray<CostTrade>,
-): number {
+): CostResult {
   let units = opening.unitsE8;
   let cost = opening.costBasisCents;
+  let realized = 0;
   for (const t of trades) {
-    if (t.kind === 'buy') {
+    if (adds(t)) {
       units += Math.abs(t.unitsE8);
       cost += t.amountCents + t.feeCents;
-    } else if (units > 0) {
+    } else if (removes(t) && units > 0) {
       const sold = Math.min(units, Math.abs(t.unitsE8));
-      cost -= Math.round((cost * sold) / units);
+      const soldCost = Math.round((cost * sold) / units);
+      cost -= soldCost;
       units -= sold;
+      if (t.kind === 'sell') realized += proceeds(t) - soldCost;
+    } else if (t.kind === 'split') units += t.unitsE8;
+  }
+  return { unitsE8: units, costBasisCents: cost, realizedGainCents: realized };
+}
+
+/** `averageCost(...).costBasisCents`, kept for existing callers. */
+export const costBasisCents = (
+  opening: { unitsE8: number; costBasisCents: number },
+  trades: ReadonlyArray<CostTrade>,
+): number => averageCost(opening, trades).costBasisCents;
+
+/**
+ * Cost basis first-in, first-out (Portfolio Performance's default for gains): a sale uses up the
+ * oldest lots first; a split scales every lot's units, not its cost.
+ */
+export function fifoCost(
+  opening: { unitsE8: number; costBasisCents: number },
+  trades: ReadonlyArray<CostTrade>,
+): CostResult {
+  const lots: { units: number; cost: number }[] =
+    opening.unitsE8 > 0 ? [{ units: opening.unitsE8, cost: opening.costBasisCents }] : [];
+  let realized = 0;
+  for (const t of trades) {
+    if (adds(t)) lots.push({ units: Math.abs(t.unitsE8), cost: t.amountCents + t.feeCents });
+    else if (removes(t)) {
+      let left = Math.abs(t.unitsE8);
+      let soldCost = 0;
+      while (left > 0 && lots.length > 0) {
+        const lot = lots[0] as { units: number; cost: number };
+        const take = Math.min(left, lot.units);
+        const part = take === lot.units ? lot.cost : Math.round((lot.cost * take) / lot.units);
+        soldCost += part;
+        lot.units -= take;
+        lot.cost -= part;
+        left -= take;
+        if (lot.units === 0) lots.shift();
+      }
+      if (t.kind === 'sell') realized += proceeds(t) - soldCost;
+    } else if (t.kind === 'split') {
+      const total = lots.reduce((a, l) => a + l.units, 0);
+      if (total > 0) {
+        let given = 0;
+        lots.forEach((l, i) => {
+          const extra =
+            i === lots.length - 1 ? t.unitsE8 - given : Math.round((t.unitsE8 * l.units) / total);
+          given += extra;
+          l.units += extra;
+        });
+      }
     }
   }
-  return cost;
+  return {
+    unitsE8: lots.reduce((a, l) => a + l.units, 0),
+    costBasisCents: lots.reduce((a, l) => a + l.cost, 0),
+    realizedGainCents: realized,
+  };
 }
 
 /** Fund cost over a period: month-end values times TER (basis points per year) divided by 12. */

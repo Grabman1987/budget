@@ -48,7 +48,7 @@ describe('allocation (50/30/20 on assigned money)', () => {
     expect(allocation(months).wantCents).toBe(100003);
   });
 
-  it('shares always add up to 100 %, the rest absorbs rounding; negative rest means "aus Guthaben"', () => {
+  it('shares always add up to 100 % (largest remainder); negative rest means "aus Guthaben"', () => {
     const r = allocation([
       month({
         items: [
@@ -59,7 +59,10 @@ describe('allocation (50/30/20 on assigned money)', () => {
         incomeCents: 575788,
       }),
     ]);
-    expect(r.shares).toEqual({ need: 54, want: 33, future: 26, rest: -13 });
+    // Exact 53,86 / 33,50 / 26,21 / -13,56 %. The prototype rounds each class and lets the rest
+    // absorb the difference (54 / 33 / 26 / -13); largest remainder keeps every share within
+    // 0,5 points of its exact value (C11).
+    expect(r.shares).toEqual({ need: 54, want: 34, future: 26, rest: -14 });
     for (const income of [1, 333333, 575788]) {
       const s = percentShares({
         needCents: 1000,
@@ -71,12 +74,38 @@ describe('allocation (50/30/20 on assigned money)', () => {
     }
   });
 
-  it('income of zero gives zero shares instead of dividing by zero', () => {
+  it('income of zero: nothing to divide, the shares still add up to 100 (all rest)', () => {
     expect(percentShares({ needCents: 0, wantCents: 0, futureCents: 0, incomeCents: 0 })).toEqual({
       need: 0,
       want: 0,
       future: 0,
-      rest: 0,
+      rest: 100,
+    });
+  });
+
+  it('rounds by largest remainder, not each share on its own', () => {
+    // 16,6 / 16,6 / 16,6 / 50,2 % rounded one by one: 17 + 17 + 17 + 50 = 101.
+    expect(
+      percentShares({ needCents: 166, wantCents: 166, futureCents: 166, incomeCents: 1000 }),
+    ).toEqual({
+      need: 17,
+      want: 17,
+      future: 16,
+      rest: 50,
+    });
+    // Spending from savings: the rest is negative and still part of the 100.
+    expect(
+      percentShares({
+        needCents: 5_450,
+        wantCents: 3_330,
+        futureCents: 2_620,
+        incomeCents: 10_000,
+      }),
+    ).toEqual({
+      need: 55,
+      want: 33,
+      future: 26,
+      rest: -14,
     });
   });
 });

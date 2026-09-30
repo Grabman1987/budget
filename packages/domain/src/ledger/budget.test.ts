@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
+import { nextMonth } from '../date';
 import {
   budgetMonths,
-  nextMonth,
   splitEffect,
   toBeAssignedFlow,
   type BudgetInput,

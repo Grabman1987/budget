@@ -1,4 +1,4 @@
-import { accountBalances, holdingValuesAsOf, schema, type Db } from '@budget/db';
+import { accountBalances, holdingValuesAsOf, netWorthAsOf, schema, type Db } from '@budget/db';
 import { count, max } from 'drizzle-orm';
 
 export interface DebugSummary {
@@ -44,6 +44,7 @@ export function debugSummary(db: Db, asOf?: string): DebugSummary {
     return { asOf: null, counts, balances: [], investmentsCents: 0, netWorthCents: 0 };
   const balances = accountBalances(db, date);
   const investmentsCents = holdingValuesAsOf(db, date).reduce((sum, h) => sum + h.valueCents, 0);
-  const cash = balances.reduce((sum, b) => sum + b.balanceCents, 0);
-  return { asOf: date, counts, balances, investmentsCents, netWorthCents: cash + investmentsCents };
+  // One calculation of net worth (foreign-currency accounts in EUR), shared with every page.
+  const netWorthCents = netWorthAsOf(db, date).totalCents;
+  return { asOf: date, counts, balances, investmentsCents, netWorthCents };
 }
