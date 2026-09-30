@@ -203,6 +203,10 @@ the auth tables.
   `booking.flag`. "Starting Balance", "Reconciliation Balance Adjustment" and "Manual Balance
   Adjustment" map to the system payees `payee-opening-balance`, `payee-reconciliation` and
   `payee-manual-adjustment` (`payee.system_kind`, inserted by the migration).
+  The pure importer (`packages/import-ynab`) produces the target model these tables receive:
+  accounts with `openingDate`/`openingBalanceCents` at the start month, bookings with splits
+  (`transferId` shared by both legs), `budget_month` assignments per target category and the opening
+  Available per target category (`openingCarry` of `budgetMonths`).
 - **Kontoprüfung** (`account_reconciliation`): statement balance versus the app's cleared balance on
   a day; a difference becomes an adjustment booking with the reconciliation system payee.
   `reconcileAccount` (P2a) does it in one transaction and one audit group: remove chosen
