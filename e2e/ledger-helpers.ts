@@ -6,7 +6,9 @@ import { expect, type Locator, type Page } from '@playwright/test';
 export const toast = (page: Page) => page.locator('.toast.is-open');
 
 export const openAccount = async (page: Page, name: string) => {
-  await page.goto('/konten');
+  // createAccount leaves the page on the overview: navigating there again right away could abort
+  // the navigation that is still under way (net::ERR_ABORTED seen on CI).
+  if (new URL(page.url()).pathname !== '/konten') await page.goto('/konten');
   await page.getByRole('link', { name, exact: true }).click();
   await expect(page.getByRole('heading', { level: 2, name })).toBeVisible();
 };
