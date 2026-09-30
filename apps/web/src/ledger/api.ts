@@ -148,9 +148,15 @@ export const deleteBooking = (id: string, unlock = false) =>
     `/api/bookings/${encodeURIComponent(id)}${unlock ? '?unlock=1' : ''}`,
   );
 
+/** Why the server left a booking out of a bulk action. */
+export type BulkSkipReason =
+  'not_found' | 'reconciled_locked' | 'split' | 'transfer' | 'transfer_pair' | 'invalid';
+
 export interface BulkResult extends WriteResult {
   changed: string[];
-  skipped: { id: string; reason: string }[];
+  skipped: { id: string; reason: BulkSkipReason; message: string }[];
+  /** Transfers with both legs in the selection (one Umbuchung each). */
+  transferPairs: number;
 }
 
 export const bulkUpdateBookings = (

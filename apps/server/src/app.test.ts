@@ -1,13 +1,15 @@
 import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { createTestDatabase } from '@budget/db';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { createApp } from './app';
 
 let app: ReturnType<typeof createApp>;
+let dir: string;
 
 beforeAll(() => {
-  const dir = mkdtempSync(join(tmpdir(), 'budget-web-'));
+  dir = mkdtempSync(join(tmpdir(), 'budget-web-'));
   mkdirSync(join(dir, 'assets'));
   writeFileSync(join(dir, 'index.html'), '<!doctype html><title>Budget</title>');
   writeFileSync(join(dir, 'assets', 'app-abc123.js'), 'console.log(1);');
@@ -54,6 +56,13 @@ describe('server', () => {
     const res = await app.request('/assets/app-abc123.js');
     expect(res.status).toBe(200);
     expect(res.headers.get('cache-control')).toContain('immutable');
+  });
+
+  it('refuses to mount the ledger API without auth', () => {
+    const { db, close } = createTestDatabase();
+    // @ts-expect-error -- a ledger without auth does not type-check either
+    expect(() => createApp({ webDir: dir, ledger: { db } })).toThrow(/needs auth/);
+    close();
   });
 
   it('returns JSON 404 for unknown API routes', async () => {

@@ -1,23 +1,24 @@
-import { monthOf, todayInVienna } from '@budget/domain';
-import { useQuery } from '@tanstack/react-query';
+import { lastDayOfMonth, monthOf, todayInVienna } from '@budget/domain';
+import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
 import { Link, useParams } from '@tanstack/react-router';
 import { CheckCircle2, ChevronLeft, Plus } from 'lucide-react';
 import { useState } from 'react';
 import { ACCOUNT_PAGE } from '../nav/pages';
-import { AppLink } from '../shell/app-link';
 import { PageFrame } from '../pages/placeholder-page';
 import { BalanceChart } from './balance-chart';
 import { BookingPanel, type BookingPanelState } from './booking-panel';
 import { BookingTable } from './booking-table';
 import { eur, longDay, monthName, pluralBookings } from './format';
 import { ACCOUNT_TYPE_LABEL, accountValue, canReconcile, groupOf } from './labels';
-import { accountsQuery, bookingsQuery, seriesQuery } from './queries';
+import { accountsQuery, bookingsInfiniteQuery, seriesQuery } from './queries';
 import { ReconcilePanel } from './reconcile-panel';
 import { EmptyNote, ErrorNote, LoadingNote } from './states';
 import type { AccountRow } from './types';
 import { Button, cx } from '@budget/ui';
 
 const CHART_DAYS = 90;
+/** Bookings per page of the month list; more load on request. */
+const PAGE_SIZE = 100;
 
 /** Route component of `/konten/$id`. */
 export function AccountRoute() {
@@ -61,13 +62,18 @@ function AccountBody({ account }: { account: AccountRow }) {
   const today = todayInVienna();
   const month = monthOf(today);
   const series = useQuery(seriesQuery(account.id, CHART_DAYS));
-  const list = useQuery(
-    bookingsQuery({ accountId: account.id, from: `${month}-01` }, undefined, 200),
+  // Exactly the month (later months are not part of it), page by page.
+  const list = useInfiniteQuery(
+    bookingsInfiniteQuery(
+      { accountId: account.id, from: `${month}-01`, to: lastDayOfMonth(month) },
+      PAGE_SIZE,
+    ),
   );
   const [panel, setPanel] = useState<BookingPanelState>(null);
   const [checking, setChecking] = useState(false);
   const value = accountValue(account);
-  const page = list.data;
+  const page = list.data?.pages[0];
+  const items = list.data?.pages.flatMap((p) => p.items) ?? [];
 
   return (
     <>
@@ -147,20 +153,25 @@ function AccountBody({ account }: { account: AccountRow }) {
       {list.isError && (
         <ErrorNote what="Buchungen" error={list.error} onRetry={() => void list.refetch()} />
       )}
-      {page && page.items.length === 0 && (
-        <EmptyNote>Keine Buchungen im {monthName(today)}.</EmptyNote>
-      )}
-      {page && page.items.length > 0 && (
+      {page && items.length === 0 && <EmptyNote>Keine Buchungen im {monthName(today)}.</EmptyNote>}
+      {items.length > 0 && (
         <BookingTable
-          items={page.items}
+          items={items}
           caption="Buchungen mit laufendem Saldo"
           variant="account"
           onOpen={(booking) => setPanel({ mode: 'edit', booking })}
         />
       )}
-      {page?.nextCursor && (
-        <p className="ksum">
-          Weitere Buchungen stehen unter <AppLink to="/konten/buchungen">Alle Buchungen</AppLink>.
+      {list.hasNextPage && (
+        <p>
+          <Button
+            variant="ghost"
+            size="sm"
+            disabled={list.isFetchingNextPage}
+            onClick={() => void list.fetchNextPage()}
+          >
+            Weitere Buchungen laden
+          </Button>
         </p>
       )}
       <BookingPanel state={panel} onClose={() => setPanel(null)} />

@@ -1,6 +1,7 @@
 import { and, asc, eq, isNull, sql } from 'drizzle-orm';
 import { assignmentRule, booking, payee } from '../schema';
 import { withGroup, updateTracked, type AuditContext } from './audit';
+import type { WriteOptions } from './bookings';
 import { createEntity, getEntity, updateEntity } from './entities';
 import { ConflictError, EntityNotFoundError } from './errors';
 import { runInTransaction, type Executor } from './types';
@@ -92,17 +93,30 @@ export function renamePayee(db: Executor, id: string, name: string, ctx: AuditCo
   });
 }
 
+/** Result of a merge: moved and skipped (reconciled) bookings, sources kept alive for them. */
+export interface MergeResult {
+  moved: number;
+  /** Reconciled (geprüft) bookings left with their payee because the merge was not unlocked. */
+  skipped: number;
+  /** Sources that still hold skipped bookings and therefore stay (not deleted). */
+  keptSourceIds: string[];
+  groupId: string;
+}
+
 /**
  * Merge `sourceIds` into `targetId`: every booking and assignment rule of a source moves to the
  * target and the sources are soft-deleted, all in one audit group (one undo). The target keeps its
- * own contact and default category. Returns the number of moved bookings and the group id.
+ * own contact and default category. Reconciled (geprüft) bookings are locked: without
+ * `unlockReconciled` they stay with their payee, are counted in `skipped`, and a source that still
+ * holds such a booking is kept instead of deleted.
  */
 export function mergePayees(
   db: Executor,
   sourceIds: readonly string[],
   targetId: string,
   ctx: AuditContext,
-): { moved: number; groupId: string } {
+  options: WriteOptions = {},
+): MergeResult {
   const grouped = withGroup(ctx);
   return runInTransaction(db, (tx) => {
     liveUserPayee(tx, targetId);
@@ -110,13 +124,21 @@ export function mergePayees(
     if (sources.length === 0) throw new ConflictError('Nothing to merge: pick other payees');
     for (const id of sources) liveUserPayee(tx, id);
     let moved = 0;
+    let skipped = 0;
+    const keptSourceIds: string[] = [];
     for (const id of sources) {
       const bookings = tx
-        .select({ id: booking.id })
+        .select({ id: booking.id, status: booking.status, deletedAt: booking.deletedAt })
         .from(booking)
         .where(eq(booking.payeeId, id))
         .all();
+      let kept = false;
       for (const b of bookings) {
+        if (b.status === 'reconciled' && b.deletedAt === null && !options.unlockReconciled) {
+          skipped += 1;
+          kept = true;
+          continue;
+        }
         updateTracked(tx, booking, [b.id], { payeeId: targetId }, grouped);
         moved += 1;
       }
@@ -127,8 +149,10 @@ export function mergePayees(
         .all();
       for (const r of rules)
         updateTracked(tx, assignmentRule, [r.id], { payeeId: targetId }, grouped);
-      updateTracked(tx, payee, [id], { deletedAt: new Date().toISOString() }, grouped, 'delete');
+      if (kept) keptSourceIds.push(id);
+      else
+        updateTracked(tx, payee, [id], { deletedAt: new Date().toISOString() }, grouped, 'delete');
     }
-    return { moved, groupId: grouped.groupId };
+    return { moved, skipped, keptSourceIds, groupId: grouped.groupId };
   });
 }

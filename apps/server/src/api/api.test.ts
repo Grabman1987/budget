@@ -3,12 +3,20 @@ import { categories, createEntity, createTestDatabase, schema, type Db } from '@
 import { mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { Hono } from 'hono';
 import { beforeEach, describe, expect, it } from 'vitest';
-import { createApp } from '../app';
+import { createApp, type AuthGate } from '../app';
 
 const TODAY = '2026-03-31';
 const webDir = mkdtempSync(join(tmpdir(), 'budget-api-'));
 writeFileSync(join(webDir, 'index.html'), '<!doctype html><title>Budget</title>');
+
+/** The session guard has its own tests (auth.test.ts); here every request is signed in. */
+const signedIn: AuthGate = {
+  originGuard: async (_c, next) => next(),
+  requireSession: async (_c, next) => next(),
+  routes: new Hono(),
+};
 
 let db: Db;
 let app: ReturnType<typeof createApp>;
@@ -29,7 +37,7 @@ beforeEach(() => {
     ctx,
   );
   createEntity(db, schema.payee, { id: 'p1', name: 'Vermieter' }, ctx);
-  app = createApp({ webDir, ledger: { db, today: () => TODAY } });
+  app = createApp({ webDir, auth: signedIn, ledger: { db, today: () => TODAY } });
 });
 
 async function call(method: string, path: string, body?: unknown) {
@@ -133,6 +141,11 @@ describe('accounts', () => {
       b.id,
       a.id,
     ]);
+    // One transaction: an unknown id leaves the order as it was.
+    expect((await call('POST', '/accounts/sort', { ids: [a.id, 'none'] })).status).toBe(404);
+    expect(
+      ((await call('GET', '/accounts')).body['accounts'] as Array<{ id: string }>).map((x) => x.id),
+    ).toEqual([b.id, a.id]);
     expect((await call('PATCH', `/accounts/${a.id}`, { type: 'brokerage' })).status).toBe(422);
     expect((await call('PATCH', '/accounts/none', { name: 'x' })).status).toBe(404);
   });
@@ -162,6 +175,30 @@ describe('accounts', () => {
     const renamed = await call('PATCH', `/accounts/${a.id}`, { name: 'Neu' });
     await call('POST', '/undo', { groupId: renamed.body['groupId'] });
     expect((await call('GET', `/accounts/${a.id}`)).body['account'].name).toBe('Giro');
+  });
+
+  it('locks opening balance and date once a check is stored, unless unlocked', async () => {
+    const a = await newAccount();
+    await call('POST', `/accounts/${a.id}/reconciliation`, {
+      date: '2026-02-01',
+      statementBalanceCents: 100_000,
+    });
+    for (const patch of [{ openingBalanceCents: 90_000 }, { openingDate: '2025-12-01' }]) {
+      const refused = await call('PATCH', `/accounts/${a.id}`, patch);
+      expect(refused).toMatchObject({ status: 409, body: { error: 'reconciled_locked' } });
+      expect(refused.body['reconciliationIds']).toHaveLength(1);
+    }
+    // Unchanged values and other fields stay free.
+    expect(
+      (await call('PATCH', `/accounts/${a.id}`, { name: 'Neu', openingBalanceCents: 100_000 }))
+        .status,
+    ).toBe(200);
+    const unlocked = await call('PATCH', `/accounts/${a.id}`, {
+      openingBalanceCents: 90_000,
+      unlockReconciled: true,
+    });
+    expect(unlocked.status).toBe(200);
+    expect(unlocked.body['account']).toMatchObject({ openingBalanceCents: 90_000 });
   });
 
   it('serves the balance line', async () => {
@@ -274,9 +311,19 @@ describe('bookings', () => {
         })
       ).status,
     ).toBe(422);
+    // A move between currencies would reinterpret the cents: refused, the currency stays.
+    const usd = await newAccount({ name: 'Dollar', currency: 'USD' });
+    const plain = await newBooking(a.id);
+    const moved = await call('PATCH', `/bookings/${plain.id}`, { accountId: usd.id });
+    expect(moved).toMatchObject({ status: 422, body: { error: 'invariant' } });
+    expect((await call('GET', `/bookings/${plain.id}`)).body['booking']).toMatchObject({
+      accountId: a.id,
+      currency: 'EUR',
+    });
+    await call('DELETE', `/bookings/${plain.id}`);
     await call('DELETE', `/bookings/${res.body['fromBookingId']}`);
     const summary = (await call('GET', '/accounts')).body['accounts'] as Array<Record<string, any>>;
-    expect(summary.map((s) => s['balanceCents'])).toEqual([100_000, 0]);
+    expect(summary.map((s) => s['balanceCents'])).toEqual([100_000, 0, 100_000]);
   });
 
   it('lists with filters, sums and cursor pagination', async () => {
@@ -359,8 +406,8 @@ describe('bookings', () => {
     });
     expect(result.body['changed']).toEqual([single.id, done.id]);
     expect(result.body['skipped']).toEqual([
-      { id: split.id, reason: expect.stringContaining('single-split') },
-      { id: 'ghost', reason: expect.any(String) },
+      { id: split.id, reason: 'split', message: expect.stringContaining('single-split') },
+      { id: 'ghost', reason: 'not_found', message: expect.any(String) },
     ]);
     const state = async () => {
       const items = (await call('GET', `/bookings?ids=${single.id},${done.id}`)).body['items'];
@@ -389,6 +436,40 @@ describe('bookings', () => {
         .status,
     ).toBe(400);
   });
+
+  it('treats both selected legs of a transfer as one Umbuchung', async () => {
+    const a = await newAccount();
+    const b = await newAccount({ name: 'Spar', type: 'savings', openingBalanceCents: 0 });
+    const t = (
+      await call('POST', '/bookings', {
+        type: 'transfer',
+        fromAccountId: a.id,
+        toAccountId: b.id,
+        date: '2026-03-10',
+        amountCents: 5000,
+      })
+    ).body;
+    const legs = [t['fromBookingId'], t['toBookingId']];
+    const one = await call('POST', '/bookings/bulk', {
+      action: 'update',
+      ids: [legs[0]],
+      set: { categoryId: 'essen' },
+    });
+    expect(one.body).toMatchObject({ transferPairs: 0, skipped: [{ reason: 'transfer' }] });
+    const both = await call('POST', '/bookings/bulk', {
+      action: 'update',
+      ids: legs,
+      set: { categoryId: 'essen' },
+    });
+    expect(both.body['transferPairs']).toBe(1);
+    expect(both.body['skipped'].map((x: any) => x.reason)).toEqual([
+      'transfer_pair',
+      'transfer_pair',
+    ]);
+    const removed = await call('POST', '/bookings/bulk', { action: 'delete', ids: legs });
+    expect(removed.body).toMatchObject({ changed: legs, skipped: [], transferPairs: 1 });
+    expect((await call('GET', '/bookings')).body['total']).toBe(0);
+  });
 });
 
 describe('payees', () => {
@@ -411,6 +492,23 @@ describe('payees', () => {
     expect(names.find((p) => p.id === 'p1')?.bookingCount).toBe(1);
     expect(names.some((p) => p.id === id)).toBe(false);
     await call('POST', '/undo', { groupId: merged.body['groupId'] });
+    // A reconciled booking keeps its payee unless the merge is unlocked.
+    const locked = await newBooking(a.id, { payeeId: id, date: '2026-01-10' });
+    await call('POST', `/accounts/${a.id}/reconciliation`, {
+      date: '2026-01-31',
+      statementBalanceCents: 99_000,
+    });
+    const partial = await call('POST', '/payees/merge', { sourceIds: [id], targetId: 'p1' });
+    expect(partial.body).toMatchObject({ moved: 1, skipped: 1, keptSourceIds: [id] });
+    expect((await call('GET', `/bookings/${locked.id}`)).body['booking'].payeeId).toBe(id);
+    const all = await call('POST', '/payees/merge', {
+      sourceIds: [id],
+      targetId: 'p1',
+      unlockReconciled: true,
+    });
+    expect(all.body).toMatchObject({ moved: 1, skipped: 0, keptSourceIds: [] });
+    await call('POST', '/undo', { groupId: all.body['groupId'] });
+    await call('POST', '/undo', { groupId: partial.body['groupId'] });
     expect(
       ((await call('GET', '/payees')).body['payees'] as Array<{ id: string }>).some(
         (p) => p.id === id,
@@ -502,6 +600,19 @@ describe('Kontostand prüfen', () => {
       lastReconciledOn: null,
       balanceCents: 117_000,
     });
+  });
+
+  it('refuses a check day after today', async () => {
+    const { a } = await setup();
+    const later = await newBooking(a.id, { date: '2026-04-02', amountCents: -500 });
+    for (const path of ['reconciliation/preview', 'reconciliation']) {
+      const res = await call('POST', `/accounts/${a.id}/${path}`, {
+        date: '2026-04-02',
+        statementBalanceCents: 116_500,
+      });
+      expect(res, path).toMatchObject({ status: 422, body: { error: 'invariant' } });
+    }
+    expect((await call('GET', `/bookings/${later.id}`)).body['booking'].status).toBe('confirmed');
   });
 
   it('answers 404 for unknown accounts and 400 for bad input', async () => {

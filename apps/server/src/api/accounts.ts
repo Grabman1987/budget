@@ -8,6 +8,7 @@ import {
   listReconciliations,
   previewReconciliation,
   reconcileAccount,
+  runInTransaction,
   type AccountSummary,
   type Db,
 } from '@budget/db';
@@ -100,7 +101,10 @@ export function accountRoutes(db: Db, today: () => string): Hono {
   app.post('/sort', async (c) => {
     const { ids } = await readBody(c, accountSort);
     const ctx = audit();
-    ids.forEach((id, index) => accounts.update(db, id, { sortOrder: index + 1 }, ctx));
+    // All or nothing: an unknown id leaves the old order untouched.
+    runInTransaction(db, (tx) =>
+      ids.forEach((id, index) => accounts.update(tx, id, { sortOrder: index + 1 }, ctx)),
+    );
     return c.json({ accounts: listAccounts(today()), groupId: ctx.groupId });
   });
 
@@ -111,7 +115,7 @@ export function accountRoutes(db: Db, today: () => string): Hono {
 
   app.patch('/:id', async (c) => {
     const id = c.req.param('id');
-    const patch = await readBody(c, accountPatch);
+    const { unlockReconciled, ...patch } = await readBody(c, accountPatch);
     const current = accounts.get(db, id);
     if (!current) throw new ApiError(404, 'not_found', `Account ${id} not found`);
     const type = patch.type ?? current.type;
@@ -133,6 +137,21 @@ export function accountRoutes(db: Db, today: () => string): Hono {
           409,
           'conflict',
           'The currency cannot change once the account has bookings',
+        );
+    }
+    // The opening balance is part of every checked balance: a stored Kontostand prüfen locks it.
+    const opening =
+      (patch.openingBalanceCents !== undefined &&
+        patch.openingBalanceCents !== current.openingBalanceCents) ||
+      (patch.openingDate !== undefined && patch.openingDate !== current.openingDate);
+    if (opening && !unlockReconciled) {
+      const checks = listReconciliations(db, id);
+      if (checks.length > 0)
+        throw new ApiError(
+          409,
+          'reconciled_locked',
+          'The account has checked balances (Kontostand prüfen); unlock explicitly to change the opening balance or date',
+          { bookingIds: [], reconciliationIds: checks.map((r) => r.id) },
         );
     }
     const ctx = audit();
@@ -184,14 +203,16 @@ export function accountRoutes(db: Db, today: () => string): Hono {
   app.post('/:id/reconciliation/preview', async (c) => {
     const id = c.req.param('id');
     const input = await readBody(c, reconcilePreview);
-    return c.json({ preview: previewReconciliation(db, { accountId: id, ...input }) });
+    return c.json({
+      preview: previewReconciliation(db, { accountId: id, ...input, today: today() }),
+    });
   });
 
   app.post('/:id/reconciliation', async (c) => {
     const id = c.req.param('id');
     const input = await readBody(c, reconcileBody);
     const ctx = audit();
-    const result = reconcileAccount(db, defined({ ...input, accountId: id }), ctx);
+    const result = reconcileAccount(db, defined({ ...input, accountId: id, today: today() }), ctx);
     return c.json({ result, account: summary(id) }, 201);
   });
 

@@ -7,7 +7,7 @@ Observed size of the real export: ~12.800 register rows, ~5.750 plan rows, 27 ac
 ## File format (both files)
 
 - File names: `<Budget name> as of <YYYY-MM-DD HH-MM> - Register.tsv` and `… - Plan.tsv`. Match on the suffix, not the name.
-- UTF-8 **with BOM**, CRLF line endings, tab-separated, every field in double quotes (`"` doubled inside fields).
+- UTF-8 **with BOM**, CRLF line endings, tab-separated. Text fields are in double quotes (`"` doubled inside fields); **the amount columns are bare** (`€12,34`, register Outflow/Inflow, plan Assigned/Activity/Available). Verified against the real export on 30.09.2026.
 - **Emoji are CESU-8 encoded** in some rows: characters outside the BMP appear as two 3-byte UTF-16 surrogates (`ED A0..AF xx ED B0..BF xx`), which is invalid UTF-8. A strict UTF-8 decoder fails. The parser must repair surrogate pairs (decode bytes leniently, then join high/low surrogates) before CSV parsing. Test with a synthetic fixture containing e.g. `🛒` in CESU-8.
 - Category and group names contain emoji, trailing spaces and bracketed notes (see below). Keep names byte-exact apart from the encoding repair; trim only for matching.
 - Amounts: `€12,34` and `-€12,34` (euro sign first, minus before the sign, decimal comma, no thousands separator observed). Parse strictly into integer cents; accept an optional thousands dot defensively; reject anything else with the row number.

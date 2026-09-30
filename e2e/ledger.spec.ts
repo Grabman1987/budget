@@ -154,6 +154,13 @@ test('Alle Buchungen: filter in the URL, search, bulk edit with undo', async ({
   await expect(page.getByLabel('Konto', { exact: true })).toHaveValue(/.+/);
   await expect(page.getByText('3 Buchungen ·')).toBeVisible();
 
+  // A broken link drops the bad values instead of failing: impossible day, overlong id.
+  await page.goto(`/konten/buchungen?von=2026-02-30&konto=${'x'.repeat(80)}`);
+  await expect(page.getByText(/\d+ Buchung(en)? ·/)).toBeVisible();
+  await expect(page.getByText(/konnte(n)? nicht geladen/)).toHaveCount(0);
+  await page.goBack();
+  await expect(page.getByLabel('Konto', { exact: true })).toHaveValue(/.+/);
+
   // Search narrows the list and lands in the URL.
   await page.getByLabel('In Buchungen suchen').fill('Bio-Laden');
   await expect(page).toHaveURL(/q=Bio-Laden/);
@@ -174,9 +181,14 @@ test('Alle Buchungen: filter in the URL, search, bulk edit with undo', async ({
     'ohne Kategorie',
   );
 
-  // Bulk delete with undo.
+  // Bulk delete asks first; cancelling keeps everything, confirming deletes, undo restores.
   await selectAll(page);
-  await page.getByRole('button', { name: 'Löschen' }).click();
+  await page.getByRole('button', { name: 'Löschen', exact: true }).click();
+  await expect(page.getByText('3 Buchungen löschen?')).toBeVisible();
+  await page.getByRole('button', { name: 'Abbrechen', exact: true }).click();
+  await expect(page.getByText('3 Buchungen ·')).toBeVisible();
+  await page.getByRole('button', { name: 'Löschen', exact: true }).click();
+  await page.getByRole('button', { name: 'Ja, löschen', exact: true }).click();
   await expect(page.getByText('Keine Buchungen für diese Filter.')).toBeVisible();
   await page.getByRole('button', { name: 'Rückgängig' }).click();
   await expect(page.getByText('3 Buchungen ·')).toBeVisible();

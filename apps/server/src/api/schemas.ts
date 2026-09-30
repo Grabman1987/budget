@@ -53,6 +53,8 @@ export const accountPatch = accountCreate
       .string()
       .regex(/^[A-Z]{3}$/)
       .optional(),
+    /** Change opening balance or date although Kontostand prüfen snapshots exist. */
+    unlockReconciled: z.boolean().optional(),
   });
 export const accountClose = z.object({ force: z.boolean().default(false) });
 export const accountSort = z.object({ ids: z.array(id).min(1).max(200) });
@@ -171,6 +173,8 @@ export const payeeRename = z.object({ name: z.string().min(1).max(120) });
 export const payeeMerge = z.object({
   sourceIds: z.array(id).min(1).max(100),
   targetId: id,
+  /** Also move reconciled (geprüft) bookings; they stay with their payee otherwise. */
+  unlockReconciled: z.boolean().default(false),
 });
 export const undoBody = z.object({ groupId: id });
 

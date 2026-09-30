@@ -9,7 +9,7 @@ import { seeded } from '../ledger/util';
 
 /**
  * Synthetic YNAB export ("Export plan data") in exactly the format of `docs/migration/ynab-export.md`:
- * UTF-8 with BOM, CRLF, every field quoted, emoji CESU-8 encoded in some rows, `€`-amounts with
+ * UTF-8 with BOM, CRLF, text fields quoted and amount fields bare (as YNAB writes them), emoji CESU-8 encoded in some rows, `€`-amounts with
  * decimal comma, `DD.MM.YYYY` dates and `Mon YYYY` plan months. All names are made up.
  *
  * The Plan.tsv figures are YNAB's rule as implemented by `budgetMonths` (`cardRule: 'ynab'`); the
@@ -471,8 +471,11 @@ const euro = (cents: number) => {
   const a = Math.abs(cents);
   return `${cents < 0 ? '-' : ''}€${Math.floor(a / 100)},${String(a % 100).padStart(2, '0')}`;
 };
-const line = (fields: string[]) =>
-  `${fields.map((f) => `"${f.replaceAll('"', '""')}"`).join('\t')}\r\n`;
+/** Text fields in double quotes; the amount columns (indexes in `bare`) unquoted, as in YNAB. */
+const line = (fields: string[], bare: ReadonlySet<number> = new Set()) =>
+  `${fields.map((f, i) => (bare.has(i) ? f : `"${f.replaceAll('"', '""')}"`)).join('\t')}\r\n`;
+const REGISTER_AMOUNTS = new Set([8, 9]);
+const PLAN_AMOUNTS = new Set([4, 5, 6]);
 const cleared = (date: string) => {
   if (date > YNAB_AS_OF || date >= '2026-09-26') return 'Uncleared';
   return date >= '2026-08-15' ? 'Cleared' : 'Reconciled';
@@ -488,19 +491,22 @@ export function ynabExport(seed = 1): { register: Uint8Array; plan: Uint8Array }
       ),
     ),
     ...rows.map((r) =>
-      line([
-        r.account === WALLET ? `${WALLET} ` : r.account,
-        r.flag,
-        `${r.date.slice(8)}.${r.date.slice(5, 7)}.${r.date.slice(0, 4)}`,
-        r.payee,
-        r.category ? `${ORIGINAL_GROUP[r.category] ?? r.group}: ${r.category}` : '',
-        ORIGINAL_GROUP[r.category] ?? r.group,
-        r.category,
-        r.memo,
-        euro(Math.max(0, -r.cents)),
-        euro(Math.max(0, r.cents)),
-        cleared(r.date),
-      ]),
+      line(
+        [
+          r.account === WALLET ? `${WALLET} ` : r.account,
+          r.flag,
+          `${r.date.slice(8)}.${r.date.slice(5, 7)}.${r.date.slice(0, 4)}`,
+          r.payee,
+          r.category ? `${ORIGINAL_GROUP[r.category] ?? r.group}: ${r.category}` : '',
+          ORIGINAL_GROUP[r.category] ?? r.group,
+          r.category,
+          r.memo,
+          euro(Math.max(0, -r.cents)),
+          euro(Math.max(0, r.cents)),
+          cleared(r.date),
+        ],
+        REGISTER_AMOUNTS,
+      ),
     ),
   ];
   const planLines = [
@@ -510,15 +516,18 @@ export function ynabExport(seed = 1): { register: Uint8Array; plan: Uint8Array }
       ),
     ),
     ...plan.map((p) =>
-      line([
-        `${MONTHS[Number(p.month.slice(5)) - 1]} ${p.month.slice(0, 4)}`,
-        `${p.group}: ${p.name}`,
-        p.group,
-        p.name,
-        euro(p.assigned),
-        euro(p.activity),
-        euro(p.available),
-      ]),
+      line(
+        [
+          `${MONTHS[Number(p.month.slice(5)) - 1]} ${p.month.slice(0, 4)}`,
+          `${p.group}: ${p.name}`,
+          p.group,
+          p.name,
+          euro(p.assigned),
+          euro(p.activity),
+          euro(p.available),
+        ],
+        PLAN_AMOUNTS,
+      ),
     ),
   ];
   // Some rows carry their emoji CESU-8 encoded, as YNAB writes them.
