@@ -89,8 +89,10 @@ Run in PowerShell (or any shell) from the repo folder. **Do the steps in this or
    ```
    # bash / WSL / macOS: prompts silently, then pipes to Fly
    read -rs token && printf 'BUDGET_SETUP_TOKEN=%s\n' "$token" | fly secrets import --stage --app budget-fg; unset token
-   # Windows PowerShell
-   "BUDGET_SETUP_TOKEN=$(Read-Host 'Setup token')" | fly secrets import --stage --app budget-fg
+   # Windows PowerShell 5.1: generates the token, copies it to the clipboard (paste it into the
+   # password manager, then clear the clipboard) and sets it without printing it. Do not pipe into
+   # `fly secrets import` there: PowerShell prepends a BOM and Fly rejects the name.
+   $r = [Security.Cryptography.RandomNumberGenerator]::Create(); $b = [byte[]]::new(32); $r.GetBytes($b); $t = [Convert]::ToBase64String($b); Set-Clipboard $t; fly secrets set --stage "BUDGET_SETUP_TOKEN=$t" --app budget-fg; Remove-Variable r,b,t
    ```
 
    `--stage` stores the secret without restarting anything; it applies at the first deploy.
@@ -100,11 +102,11 @@ Run in PowerShell (or any shell) from the repo folder. **Do the steps in this or
    ```
    # bash / WSL / macOS
    printf 'BUDGET_PEPPER=%s\n' "$(openssl rand -base64 32)" | fly secrets import --stage --app budget-fg
-   # Windows PowerShell
-   $b = [byte[]]::new(32); [Security.Cryptography.RandomNumberGenerator]::Fill($b); "BUDGET_PEPPER=$([Convert]::ToBase64String($b))" | fly secrets import --stage --app budget-fg; Remove-Variable b
+   # Windows PowerShell 5.1 (`RandomNumberGenerator.Fill` does not exist there; no pipe, see above)
+   $r = [Security.Cryptography.RandomNumberGenerator]::Create(); $b = [byte[]]::new(32); $r.GetBytes($b); fly secrets set --stage "BUDGET_PEPPER=$([Convert]::ToBase64String($b))" --app budget-fg; Remove-Variable r,b
    ```
 
-   **Backup key**: generate the age key pair offline (section 8.1) and stage its public key: `fly secrets set --stage BUDGET_BACKUP_RECIPIENT=age1... --app budget-fg`. The server does not start in production without it.
+   **Backup key**: generate the age key pair offline (section 8.1) and stage its public key: `fly secrets set --stage BUDGET_BACKUP_RECIPIENT=age1... --app budget-fg`. The server does not start in production without it. On Windows a terminal opened before `winget install` does not know `age` yet: open a new one, or call `"$env:LOCALAPPDATA\Microsoft\WinGet\Links\age-keygen.exe"` directly.
 
 4. **Non-secret settings in `fly.toml` `[env]`** are already committed: `BUDGET_ORIGIN = 'https://budget-fg.fly.dev'`, `BUDGET_RP_ID = 'budget-fg.fly.dev'`, `BUDGET_TRUST_PROXY = '1'`, `BUDGET_REPLICATE = '1'`. With another app name change origin, RP id and `app` together, before the first passkey exists. The server refuses to start in production without `BUDGET_ORIGIN`.
 
@@ -130,10 +132,10 @@ Run in PowerShell (or any shell) from the repo folder. **Do the steps in this or
 7. **Only now connect GitHub** (sections 10 and 11 explain the settings): create the deploy token and store it as the `FLY_API_TOKEN` secret of the GitHub Environment `production`, restrict that environment to `main`, then set the branch protection.
 
    ```
-   fly tokens create deploy --app budget-fg
+   fly tokens create deploy --app budget-fg | Set-Clipboard     # PowerShell; macOS: | pbcopy
    ```
 
-   Copy the output straight into GitHub: repo **Settings > Environments > production > Environment secrets > Add secret**, name `FLY_API_TOKEN`. Nowhere else. From then on every green CI run on `main` deploys via `.github/workflows/deploy.yml` (section 10).
+   The token goes to the clipboard and is never printed (a printed token ends up in terminal scrollback and screenshots; if that happens, create a new one, update GitHub and `fly tokens revoke` the old ID). Paste it straight into GitHub: repo **Settings > Environments > production > Environment secrets > Add secret**, name `FLY_API_TOKEN`. Nowhere else. From then on every green CI run on `main` deploys via `.github/workflows/deploy.yml` (section 10).
 
 8. **First passkey**, phone first (the device you will always carry):
    1. Open `https://budget-fg.fly.dev` in the phone browser. With no passkey registered the app shows the setup step.
