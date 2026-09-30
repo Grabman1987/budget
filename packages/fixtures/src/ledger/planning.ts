@@ -33,14 +33,27 @@ const CARD_SUBSCRIPTIONS = new Set(['streaming', 'ki1', 'ki2', 'cloud']);
 export function buildPlanning(): Planning {
   const ref = referenceModel();
 
-  // ---------- Envelope months: the plan of the prototype is the assigned amount ----------
+  // ---------- Envelope months: the prototype's plan as assigned amounts ----------
+  // Periodic costs are saved as twelfths every month (not in their due month), and a special
+  // payment's shares for investing and savings are assigned in the month it arrives (R12).
+  // `fundByR03` (build.ts) then keeps every month funded by money that arrived before it.
   const envelopeMonths: Planning['envelopeMonths'] = [];
   for (const m of ref.months) {
+    const row = ref.plan[m.k] as Record<string, number>;
+    const spent = ref.spend[m.k] as Record<string, number>;
+    const windfall = ((ref.income[m.k] as Record<string, number>)['Sonderzahlung'] ?? 0) > 0;
     for (const c of CATS) {
+      const planned = row[c.id] as number;
+      const assigned =
+        c.kind === 'periodic'
+          ? ref.periodicYear(c, m.y) / 12
+          : windfall && c.transfer
+            ? Math.max(planned, spent[c.id] as number)
+            : planned;
       envelopeMonths.push({
         categoryId: catId(c.id),
         month: m.key,
-        assignedCents: cents((ref.plan[m.k] as Record<string, number>)[c.id] as number),
+        assignedCents: cents(assigned),
       });
     }
   }

@@ -250,4 +250,9 @@ export const moveBody = z.object({
   toId: id.nullable(),
   amountCents: cents.positive(),
 });
-export const coverBody = z.object({ categoryId: id, fromId: id.nullable() });
+export const coverBody = z.object({
+  categoryId: id,
+  fromId: id.nullable(),
+  /** From "Zu verteilen" beyond what it holds (it goes below 0): only when confirmed. */
+  allowNegative: z.boolean().optional(),
+});

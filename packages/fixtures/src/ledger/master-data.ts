@@ -60,10 +60,20 @@ function kindOfCategory(c: (typeof CATS)[number]) {
   ];
 }
 
+/** The amount of a periodic category's events in `year` (a year's own event replaces the base one). */
+function eventsOfYear(events: Array<[number, number, number?]>, year: number) {
+  return events.filter(
+    (e) =>
+      e[2] === year || (e[2] === undefined && !events.some((o) => o[0] === e[0] && o[2] === year)),
+  );
+}
+
 /**
  * Target of a sample category from the reference model: fixed costs and transfers the latest
- * price every month on their due day, variable envelopes their base (refill), periodic costs the
- * yearly total with the next due month.
+ * price every month on their due day, variable envelopes their base (refill). A periodic cost
+ * with one due month saves its 2026 amount by the next due date (day 12, as its expected
+ * payment); one with several dates (trips, presents) sets a twelfth aside every month, and its
+ * dates stay with the expected payment of each occurrence.
  */
 function targetOf(c: (typeof CATS)[number]): SampleLedger['categoryTargets'] {
   const base = { id: `tgt-${c.id}`, categoryId: catId(c.id), validFrom: '2023-10' };
@@ -75,11 +85,22 @@ function targetOf(c: (typeof CATS)[number]): SampleLedger['categoryTargets'] {
   if (c.kind === 'var' && c.base)
     return [{ ...base, kind: 'monthly', amountCents: Math.round(c.base / 10) * 1000 }];
   if (c.kind === 'periodic' && c.events?.length) {
-    const yearly = c.events.filter((e) => e[2] === undefined || e[2] === 2026);
-    const amount = yearly.reduce((a, e) => a + e[1], 0);
-    const first = Math.min(...yearly.map((e) => e[0]));
-    const targetDate = `2026-${String(first + 1).padStart(2, '0')}-01`;
-    return [{ ...base, kind: 'monthly', amountCents: amount * 100, everyMonths: 12, targetDate }];
+    const year = eventsOfYear(c.events, 2026);
+    const amount = year.reduce((a, e) => a + e[1], 0) * 100;
+    const months = [...new Set(year.map((e) => e[0]))];
+    if (months.length > 1)
+      return [{ ...base, kind: 'monthly', amountCents: Math.round(amount / 12) }];
+    const month = String((months[0] as number) + 1).padStart(2, '0');
+    return [
+      {
+        ...base,
+        kind: 'monthly',
+        amountCents: amount,
+        everyMonths: 12,
+        targetDate: `2026-${month}-12`,
+        dueDay: 12,
+      },
+    ];
   }
   return [];
 }

@@ -94,7 +94,7 @@ export function renamePayee(db: Executor, id: string, name: string, ctx: AuditCo
 }
 
 /** Result of a merge: moved and skipped (reconciled) bookings, sources kept alive for them. */
-export interface MergeResult {
+export interface PayeeMergeResult {
   moved: number;
   /** Reconciled (geprüft) bookings left with their payee because the merge was not unlocked. */
   skipped: number;
@@ -116,7 +116,7 @@ export function mergePayees(
   targetId: string,
   ctx: AuditContext,
   options: WriteOptions = {},
-): MergeResult {
+): PayeeMergeResult {
   const grouped = withGroup(ctx);
   return runInTransaction(db, (tx) => {
     liveUserPayee(tx, targetId);
