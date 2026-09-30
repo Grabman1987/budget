@@ -10,7 +10,7 @@ import {
   type SegmentedOption,
 } from '@budget/ui';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Plus, Trash2 } from 'lucide-react';
+import { Trash2 } from 'lucide-react';
 import {
   useEffect,
   useMemo,
@@ -45,6 +45,7 @@ import {
   remember,
 } from './capture-model';
 import { Combobox, type ComboOption } from './combobox';
+import { SplitEditor } from './split-editor';
 import { eur, monthName } from './format';
 import { errorText, FLAG_LABEL } from './labels';
 import { useLedgerWrites } from './mutations';
@@ -155,6 +156,29 @@ export function CaptureForm({
     return row?.defaultCategoryId ?? null;
   })();
 
+  // Contact shares (Auslage / Rückzahlung) run through the Auslagen category.
+  const advanceCategoryId =
+    budget.data?.categories.find((c) => c.kind === 'advance' && !c.hiddenAt)?.id ??
+    lookups.data?.categories.find((c) => c.kind === 'advance')?.id;
+  const contacts = lookups.data?.contacts ?? [];
+  const splitLocked = Boolean(editing?.splits.some((x) => x.transferId));
+  const blocked = draft.splitOn && remainder !== 0;
+  const startSplit = () =>
+    setDraft((d) => ({
+      ...d,
+      splitOn: true,
+      contactId: '',
+      splits: [
+        newSplit({
+          type: d.contactId ? 'contact' : 'category',
+          contactId: d.contactId || null,
+          categoryId: d.contactId ? '' : d.categoryId,
+          amount: d.amount,
+        }),
+        newSplit(),
+      ],
+    }));
+
   const dirty = editing
     ? JSON.stringify(strip(draft)) !== JSON.stringify(strip(draftFromBooking(editing)))
     : Boolean(draft.amount.trim() || draft.payee.trim() || draft.memo.trim() || draft.splitOn);
@@ -200,6 +224,7 @@ export function CaptureForm({
         kind,
         categoryId: kind === 'transfer' || !valid ? '' : d.categoryId,
         incomeTypeId: kind === 'income' ? d.incomeTypeId : '',
+        contactId: kind === 'transfer' ? '' : d.contactId,
         splitOn: kind === 'transfer' ? false : d.splitOn,
       };
     });
@@ -224,12 +249,13 @@ export function CaptureForm({
   };
 
   const save = async (andNew: boolean) => {
+    if (blocked) return setErrors({ splits: 'Speichern geht erst, wenn der Rest 0,00 € ist.' });
     const filled = { ...draft, accountId };
     setBusy(true);
     try {
       const payeeId = await resolvePayee();
       if (editing) {
-        const built = buildPatch(editing, filled, payeeId, unlock);
+        const built = buildPatch(editing, filled, payeeId, unlock, { advanceCategoryId });
         if (!built.ok) return setErrors(built.errors);
         if (locked && !unlock && touchesLocked(built.value)) return setErrors({ form: LOCKED });
         if (Object.keys(built.value).length > 0)
@@ -239,6 +265,7 @@ export function CaptureForm({
       const built = buildCreate(filled, payeeId, {
         requireCategory: true,
         transferNeedsCategory: needsCategory,
+        advanceCategoryId,
       });
       if (!built.ok) return setErrors(built.errors);
       await writes.create.mutateAsync(built.value);
@@ -338,7 +365,7 @@ export function CaptureForm({
       {a.name}
     </option>
   ));
-  const showCategory = !isTransfer || needsCategory;
+  const showCategory = (!isTransfer || needsCategory) && !draft.contactId;
 
   return (
     // Keyboard flow (Enter, Ctrl+Enter) is handled once for all fields of the form.
@@ -467,99 +494,54 @@ export function CaptureForm({
           )}
         </Field>
       )}
-      {!isTransfer && !draft.splitOn && (
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() =>
-            setDraft((d) => ({
-              ...d,
-              splitOn: true,
-              splits: [newSplit({ categoryId: d.categoryId, amount: d.amount }), newSplit()],
-            }))
+      {!isTransfer && !draft.splitOn && (contacts.length > 0 || draft.contactId !== '') && (
+        <Field
+          label={draft.kind === 'income' ? 'Rückzahlung von Kontakt' : 'Auslage für Kontakt'}
+          error={errors.contact}
+          hint={
+            !advanceCategoryId
+              ? 'Es gibt keine Auslagen-Kategorie (Einstellungen › Kategorien).'
+              : draft.contactId
+                ? 'Läuft über Auslagen, eine eigene Kategorie ist nicht nötig.'
+                : undefined
           }
         >
+          {({ id, describedBy, invalid }) => (
+            <Select
+              id={id}
+              value={draft.contactId}
+              disabled={!advanceCategoryId}
+              aria-invalid={invalid}
+              aria-describedby={describedBy}
+              onChange={(e) => set('contactId', e.target.value)}
+            >
+              <option value="">keiner</option>
+              {contacts.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}
+                </option>
+              ))}
+            </Select>
+          )}
+        </Field>
+      )}
+      {!isTransfer && !draft.splitOn && (
+        <Button variant="ghost" size="sm" onClick={startSplit}>
           Aufteilen
         </Button>
       )}
       {!isTransfer && draft.splitOn && (
-        <fieldset className="ksplits">
-          <legend className="tech">Aufteilung</legend>
-          {draft.splits.map((s, index) => (
-            <div className="ksplit" key={s.key}>
-              <Field label={`Kategorie ${index + 1}`}>
-                {({ id }) => (
-                  <Select
-                    id={id}
-                    value={s.categoryId}
-                    onChange={(e) =>
-                      setDraft((d) => ({
-                        ...d,
-                        splits: d.splits.map((x) =>
-                          x.key === s.key ? { ...x, categoryId: e.target.value } : x,
-                        ),
-                      }))
-                    }
-                  >
-                    <option value="">ohne Kategorie</option>
-                    {pickable.map((c) => (
-                      <option key={c.id} value={c.id}>
-                        {c.name}
-                      </option>
-                    ))}
-                  </Select>
-                )}
-              </Field>
-              <AmountInput
-                label={`Betrag ${index + 1}`}
-                value={s.amount}
-                onChange={(v) =>
-                  setDraft((d) => ({
-                    ...d,
-                    splits: d.splits.map((x) => (x.key === s.key ? { ...x, amount: v } : x)),
-                  }))
-                }
-              />
-              {draft.splits.length > 2 && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  aria-label={`Zeile ${index + 1} entfernen`}
-                  onClick={() =>
-                    setDraft((d) => ({ ...d, splits: d.splits.filter((x) => x.key !== s.key) }))
-                  }
-                >
-                  <Trash2 size={16} strokeWidth={1.75} aria-hidden="true" />
-                </Button>
-              )}
-            </div>
-          ))}
-          <p className={remainder === 0 ? 'kdiff is-ok' : 'kdiff is-bad'} aria-live="polite">
-            {remainder === 0 ? 'Aufteilung geht auf.' : `Rest: ${eur(remainder)}`}
-          </p>
-          {errors.splits && (
-            <p className="field-error" role="alert">
-              {errors.splits}
-            </p>
-          )}
-          <div className="panel-actions">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setDraft((d) => ({ ...d, splits: [...d.splits, newSplit()] }))}
-            >
-              <Plus size={16} strokeWidth={1.75} aria-hidden="true" />
-              Zeile hinzufügen
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setDraft((d) => ({ ...d, splitOn: false, splits: [] }))}
-            >
-              Nicht aufteilen
-            </Button>
-          </div>
-        </fieldset>
+        <SplitEditor
+          draft={draft}
+          setDraft={setDraft}
+          categories={pickable}
+          accounts={open}
+          accountId={accountId}
+          contacts={lookups.data?.contacts ?? []}
+          hasAdvanceCategory={Boolean(advanceCategoryId)}
+          locked={splitLocked}
+          error={errors.splits}
+        />
       )}
       <div className="kform-pair">
         <Field label={isTransfer ? 'Von Konto' : 'Konto'} error={errors.account}>
@@ -690,11 +672,11 @@ export function CaptureForm({
       )}
       <div className="panel-actions">
         {!editing && (
-          <Button variant="ghost" disabled={busy} onClick={() => void save(true)}>
+          <Button variant="ghost" disabled={busy || blocked} onClick={() => void save(true)}>
             Speichern und neu
           </Button>
         )}
-        <Button type="submit" disabled={busy}>
+        <Button type="submit" disabled={busy || blocked}>
           Speichern
         </Button>
         {editing && (

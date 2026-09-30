@@ -140,7 +140,7 @@ Order: P2a → P2b and P2c in parallel → P2d (parser can start right after P1f
   - [x] Moving a booking to an account in another currency is refused (the cents would change meaning)
 
 ### P2b — Capture dialog (`docs/prompts/P2b.md`)
-- [ ] Buchung, Split, Umbuchung (Konto → Konto) on desktop panel and phone sheet; amount field with arithmetic; payee autocomplete with default category; keyboard flow; undo toast
+- [x] Buchung, Split, Umbuchung (Konto → Konto) on desktop panel and phone sheet; amount field with arithmetic; payee autocomplete with default category; keyboard flow; undo toast (PRs `p2b-capture`, `p2b-capture-form`, `p2b-capture-split`)
 
 ### P2c — Categories and Plan › Monat (`docs/prompts/P2c.md`)
 - [x] Einstellungen › Kategorien: groups, classes, kinds, stages, targets, hide, merge (with re-assignment of bookings), drag sort, split-off, monochrome emoji icons (PR `p2c-categories-ui`)
