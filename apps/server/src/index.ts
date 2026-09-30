@@ -8,6 +8,7 @@ import { authConfigFromEnv } from './auth/config';
 import { backupConfigFromEnv, BackupScheduler } from './backup/backup';
 import { createAuth } from './auth/routes';
 import { AuthStore } from './auth/store';
+import { createMarketSources, marketModeFromEnv, startDailyMarketTimer } from './market';
 
 const port = Number(process.env['PORT'] ?? 3000);
 const webDir = resolve(process.env['WEB_DIR'] ?? resolve(import.meta.dirname, '../../web/dist'));
@@ -49,6 +50,13 @@ const app = createApp({
   ledger: { db },
   database: process.env['BUDGET_DEBUG_API'] === '1' ? db : undefined,
 });
+
+// Daily prices and ECB rates at 22:30 Vienna, in-process until the P4 worker owns scheduling.
+if (process.env['BUDGET_MARKET_DAILY'] === '1') {
+  const mode = marketModeFromEnv();
+  startDailyMarketTimer({ db, sources: createMarketSources(db, mode) });
+  console.log(`Daily market refresh on (${mode} sources)`);
+}
 
 // Nightly age-encrypted copy to the bucket (docs/ops.md section 8). Checked every 15 minutes,
 // first 2 minutes after start; failures are logged and go to the Posteingang, never stop the app.

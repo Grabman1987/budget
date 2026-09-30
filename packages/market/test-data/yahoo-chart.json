@@ -1,0 +1,30 @@
+{
+  "chart": {
+    "result": [
+      {
+        "meta": {
+          "currency": "EUR",
+          "symbol": "SYN-ETFW",
+          "exchangeName": "XXX",
+          "gmtoffset": 3600,
+          "regularMarketTime": 1704700800,
+          "currentTradingPeriod": {
+            "regular": { "start": 1704700800, "end": 1704729600, "gmtoffset": 3600 }
+          }
+        },
+        "timestamp": [1704182400, 1704268800, 1704355200, 1704441600],
+        "indicators": {
+          "quote": [
+            {
+              "open": [85.0, 85.1, 85.2, 85.9],
+              "close": [85.12000274658203, 85.5, null, 86.000001],
+              "volume": [100, 200, 0, 300]
+            }
+          ],
+          "adjclose": [{ "adjclose": [84.0, 84.4, 84.5, 84.9] }]
+        }
+      }
+    ],
+    "error": null
+  }
+}

@@ -89,6 +89,14 @@ export const security = sqliteTable(
     /** Region weights as JSON `{ "Europa": 0.15 }`. */
     regionsJson: text('regions_json'),
     benchmark: text('benchmark'),
+    /** Fallback quote id (Ariva security id); `symbol` stays the primary (Yahoo) quote id. */
+    fallbackQuoteId: text('fallback_quote_id'),
+    /** Exchange of the fallback quote (Ariva `boerse_id`). */
+    quoteExchange: text('quote_exchange'),
+    /** Switch for the daily price refresh; off keeps the security out of it. */
+    pricesEnabled: integer('prices_enabled', { mode: 'boolean' }).notNull().default(true),
+    /** Adjusted close instead of the plain close from the primary source (default: plain). */
+    quoteAdjusted: integer('quote_adjusted', { mode: 'boolean' }).notNull().default(false),
     ...timestamps(),
   },
   (t) => [oneOf('security_kind_chk', t.kind, SECURITY_KINDS)],
