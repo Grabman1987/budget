@@ -2,30 +2,31 @@ import {
   createRootRoute,
   createRoute,
   createRouter,
+  lazyRouteComponent,
   Outlet,
   redirect,
 } from '@tanstack/react-router';
-import { LoginPage } from './auth/login-page';
-import { SetupPage } from './auth/setup-page';
-import { authStatusQuery, queryClient, refreshAuthStatus } from './auth/status-query';
-import { ChartsSpikePage } from './routes/charts-spike';
-import { ComponentsRoute } from './routes/components-page';
-import { HomePage } from './routes/home';
+import { authStatusQuery, queryClient } from './auth/status-query';
+import { findReport } from './nav/reports-catalog';
 import {
   ACCOUNT_PAGE,
   HEUTE,
   PAGES,
   REPORTS_CATALOG,
   REPORT_GROUP_PAGES,
+  SECURITY_META,
   type PageMeta,
 } from './nav/pages';
-import { AccountPage } from './pages/account-page';
 import { NotFoundPage } from './pages/not-found';
 import { PlaceholderPage } from './pages/placeholder-page';
-import { SECURITY_META, SecurityPage } from './pages/security-page';
-import { ReportGroupPage, ReportPage, ReportsCatalogPage } from './pages/reports-pages';
 import { AppShell } from './shell/app-shell';
+import type { PageTitleData } from './shell/page-meta';
 import { isPanelId, type PanelId } from './shell/panels';
+
+// Route-level code splitting: everything except the shell and the generic placeholder page is
+// loaded when its route is first visited. Each page module below becomes its own chunk.
+const accountPage = () => import('./pages/account-page');
+const reportsPages = () => import('./pages/reports-pages');
 
 const rootRoute = createRootRoute({
   // `?panel=` opens the side panel (desktop) or bottom sheet (phone) on any page.
@@ -73,7 +74,7 @@ const securityRoute = createRoute({
   getParentRoute: () => shellRoute,
   path: SECURITY_META.path,
   staticData: { meta: SECURITY_META },
-  component: SecurityPage,
+  component: lazyRouteComponent(() => import('./pages/security-page'), 'SecurityPage'),
 });
 const redirects = [
   redirectRoute('/plan', '/plan/monat'),
@@ -85,34 +86,38 @@ const accountRoute = createRoute({
   getParentRoute: () => shellRoute,
   path: '/konten/$id',
   staticData: { meta: ACCOUNT_PAGE },
-  component: function Account() {
-    return <AccountPage id={accountRoute.useParams().id} />;
-  },
+  loader: ({ params }): PageTitleData => ({ title: `Konto ${params.id}` }),
+  component: lazyRouteComponent(accountPage, 'AccountRoute'),
 });
 
 const reportsRoute = createRoute({
   getParentRoute: () => shellRoute,
   path: '/reports',
   staticData: { meta: REPORTS_CATALOG },
-  component: ReportsCatalogPage,
+  component: lazyRouteComponent(reportsPages, 'ReportsCatalogPage'),
 });
 
 const reportGroupRoute = createRoute({
   getParentRoute: () => shellRoute,
   path: '/reports/gruppe/$slug',
-  staticData: { meta: REPORT_GROUP_PAGES[0]?.meta ?? REPORTS_CATALOG },
-  component: function ReportGroup() {
-    return <ReportGroupPage slug={reportGroupRoute.useParams().slug} />;
+  staticData: { meta: REPORTS_CATALOG },
+  // Every group has its own title ("Reports · Ausgaben", ...), taken from the catalog.
+  loader: ({ params }): PageTitleData => {
+    const page = REPORT_GROUP_PAGES.find((p) => p.slug === params.slug);
+    return page ? { title: page.meta.title } : {};
   },
+  component: lazyRouteComponent(reportsPages, 'ReportGroupRoute'),
 });
 
 const reportRoute = createRoute({
   getParentRoute: () => shellRoute,
   path: '/reports/$reportId',
   staticData: { meta: { ...REPORTS_CATALOG, title: 'Report', register: 'katalog' } },
-  component: function Report() {
-    return <ReportPage reportId={reportRoute.useParams().reportId} />;
+  loader: ({ params }): PageTitleData => {
+    const report = findReport(params.reportId);
+    return report ? { title: report.name } : {};
   },
+  component: lazyRouteComponent(reportsPages, 'ReportRoute'),
 });
 
 // Login and first-device setup live outside the shell (no navigation before a session exists).
@@ -124,17 +129,7 @@ const loginRoute = createRoute({
     if (status.setupRequired) throw redirect({ to: '/setup' });
     if (status.authenticated) throw redirect({ to: '/' });
   },
-  component: function Login() {
-    const navigate = loginRoute.useNavigate();
-    return (
-      <LoginPage
-        onAuthenticated={async () => {
-          await refreshAuthStatus();
-          await navigate({ to: '/' });
-        }}
-      />
-    );
-  },
+  component: lazyRouteComponent(() => import('./auth/login-route'), 'LoginRoute'),
 });
 const setupRoute = createRoute({
   getParentRoute: () => rootRoute,
@@ -144,35 +139,32 @@ const setupRoute = createRoute({
     if (status.authenticated) throw redirect({ to: '/' });
     if (!status.setupRequired) throw redirect({ to: '/login' });
   },
-  component: function Setup() {
-    const navigate = setupRoute.useNavigate();
-    return (
-      <SetupPage
-        onDone={async () => {
-          await refreshAuthStatus();
-          await navigate({ to: '/' });
-        }}
-      />
-    );
-  },
+  component: lazyRouteComponent(() => import('./auth/setup-route'), 'SetupRoute'),
 });
 
-// Developer pages live outside the shell (own layout).
-const chartsRoute = createRoute({
-  getParentRoute: () => rootRoute,
-  path: '/dev/diagramme',
-  component: ChartsSpikePage,
-});
-const componentsRoute = createRoute({
-  getParentRoute: () => rootRoute,
-  path: '/dev/bauteile',
-  component: ComponentsRoute,
-});
-const startRoute = createRoute({
-  getParentRoute: () => rootRoute,
-  path: '/dev/start',
-  component: HomePage,
-});
+// Developer pages (component gallery, chart spike) live outside the shell and outside the session
+// guard, so they exist only in `vite dev` and in the e2e build (`--mode e2e`). In a production build
+// the condition is a constant `false`: the routes and their chunks are not emitted at all.
+const devRoutesEnabled = import.meta.env.DEV || import.meta.env.MODE === 'e2e';
+const devRoutes = devRoutesEnabled
+  ? [
+      createRoute({
+        getParentRoute: () => rootRoute,
+        path: '/dev/diagramme',
+        component: lazyRouteComponent(() => import('./routes/charts-spike'), 'ChartsSpikePage'),
+      }),
+      createRoute({
+        getParentRoute: () => rootRoute,
+        path: '/dev/bauteile',
+        component: lazyRouteComponent(() => import('./routes/components-page'), 'ComponentsRoute'),
+      }),
+      createRoute({
+        getParentRoute: () => rootRoute,
+        path: '/dev/start',
+        component: lazyRouteComponent(() => import('./routes/home'), 'HomePage'),
+      }),
+    ]
+  : [];
 
 const routeTree = rootRoute.addChildren([
   shellRoute.addChildren([
@@ -187,9 +179,7 @@ const routeTree = rootRoute.addChildren([
   ]),
   loginRoute,
   setupRoute,
-  chartsRoute,
-  componentsRoute,
-  startRoute,
+  ...devRoutes,
 ]);
 
 export const router = createRouter({ routeTree });

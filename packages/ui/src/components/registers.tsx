@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import { useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 
 export interface RegisterItem {
   id: string;
@@ -20,10 +20,41 @@ export interface RegistersProps {
   ) => ReactNode;
 }
 
-/** Second-level navigation as register tabs (there is no third menu level). */
+/**
+ * Second-level navigation as register tabs (there is no third menu level). Links mark the current
+ * page with `aria-current`; the controlled button variant is a toggle group (`aria-pressed`).
+ */
 export function Registers({ items, current, label, onSelect, renderLink }: RegistersProps) {
+  const ref = useRef<HTMLElement>(null);
+  const [edges, setEdges] = useState({ start: false, end: false });
+
+  // A row that scrolls sideways shows an edge fade on the side where more registers are hidden.
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const update = () => {
+      const start = el.scrollLeft > 1;
+      const end = el.scrollLeft + el.clientWidth < el.scrollWidth - 1;
+      setEdges((prev) => (prev.start === start && prev.end === end ? prev : { start, end }));
+    };
+    update();
+    el.addEventListener('scroll', update, { passive: true });
+    const observer = typeof ResizeObserver === 'undefined' ? undefined : new ResizeObserver(update);
+    observer?.observe(el);
+    return () => {
+      el.removeEventListener('scroll', update);
+      observer?.disconnect();
+    };
+  }, [items.length]);
+
   return (
-    <nav className="registers" aria-label={label}>
+    <nav
+      ref={ref}
+      className="registers"
+      aria-label={label}
+      data-fade-start={edges.start ? 'true' : undefined}
+      data-fade-end={edges.end ? 'true' : undefined}
+    >
       {items.map((item) => {
         const active = item.id === current;
         const ariaCurrent = active ? ('page' as const) : undefined;
@@ -45,7 +76,7 @@ export function Registers({ items, current, label, onSelect, renderLink }: Regis
           <button
             key={item.id}
             type="button"
-            aria-current={ariaCurrent}
+            aria-pressed={active}
             onClick={() => onSelect?.(item.id)}
           >
             {item.label}

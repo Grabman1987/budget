@@ -28,6 +28,7 @@ export function Topbar({ collapsed, onToggle }: { collapsed: boolean; onToggle: 
         onClick={onToggle}
         aria-label={collapsed ? 'Seitenleiste ausklappen' : 'Seitenleiste einklappen'}
         aria-expanded={!collapsed}
+        aria-controls="sidebar"
       >
         <PanelLeft size={18} strokeWidth={1.75} aria-hidden="true" />
       </button>

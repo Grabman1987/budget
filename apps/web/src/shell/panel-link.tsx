@@ -1,22 +1,20 @@
 import type { ComponentProps } from 'react';
 import { AppLink } from './app-link';
-import { markPanelOpenedInApp } from './panel-state';
 import type { PanelId } from './panels';
 
-/** Link that opens a panel on the current page (`?panel=`), keeping the current path. */
+/**
+ * Link that opens a panel on the current page (`?panel=`). Keeps the current path and every other
+ * search param, and marks the new history entry so closing the panel can step back.
+ */
 export function PanelLink({
   panel,
-  onClick,
   ...rest
-}: { panel: PanelId } & Omit<ComponentProps<typeof AppLink>, 'to' | 'search'>) {
+}: { panel: PanelId } & Omit<ComponentProps<typeof AppLink>, 'to' | 'search' | 'state'>) {
   return (
     <AppLink
       to="."
-      search={{ panel }}
-      onClick={(event) => {
-        markPanelOpenedInApp();
-        onClick?.(event);
-      }}
+      search={(prev) => ({ ...prev, panel })}
+      state={{ panelOpenedInApp: true }}
       {...rest}
     />
   );

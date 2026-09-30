@@ -1,5 +1,5 @@
 export { BarsAroundZero, type Bar, type BarTone, type BarsAroundZeroProps } from './bars';
-export { ClassPatterns, patternFill, type PatternClass } from './class-patterns';
+export { ClassPatterns, patternFill, usePatternPrefix, type PatternClass } from './class-patterns';
 export { ElevationMark } from './elevation-mark';
 export {
   AxisLine,

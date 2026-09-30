@@ -40,34 +40,38 @@ export function BrandMark() {
 /** "Planliste": the five areas as numbered sheets, settings and profile at the bottom. */
 export function Sidebar({ area }: { area: AreaId | undefined }) {
   return (
-    <aside className="sidebar" aria-label="Hauptnavigation">
+    <aside className="sidebar" id="sidebar" aria-label="Seitenleiste">
       <AppLink className="brand" to="/" aria-label="Budget, Heute">
         <BrandMark />
         <span className="brand-name">Budget</span>
       </AppLink>
 
-      <div className="sheetlist-label tech" id="planliste">
-        Planliste
-      </div>
-      <ul className="sheetlist" aria-labelledby="planliste">
-        {MAIN_AREAS.map((a) => {
-          const Icon = a.icon;
-          return (
-            <li key={a.id}>
-              <AppLink
-                to={a.to}
-                title={a.label}
-                aria-label={a.label}
-                aria-current={area === a.id ? 'page' : undefined}
-              >
-                {Icon && <Icon className="icon" size={18} strokeWidth={1.75} aria-hidden="true" />}
-                <span className="label">{a.label}</span>
-                <span className="sheet-no">{a.no}</span>
-              </AppLink>
-            </li>
-          );
-        })}
-      </ul>
+      <nav className="planliste" aria-labelledby="planliste">
+        <div className="sheetlist-label tech" id="planliste">
+          Planliste
+        </div>
+        <ul className="sheetlist">
+          {MAIN_AREAS.map((a) => {
+            const Icon = a.icon;
+            return (
+              <li key={a.id}>
+                <AppLink
+                  to={a.to}
+                  title={a.label}
+                  aria-label={a.label}
+                  aria-current={area === a.id ? 'page' : undefined}
+                >
+                  {Icon && (
+                    <Icon className="icon" size={18} strokeWidth={1.75} aria-hidden="true" />
+                  )}
+                  <span className="label">{a.label}</span>
+                  <span className="sheet-no">{a.no}</span>
+                </AppLink>
+              </li>
+            );
+          })}
+        </ul>
+      </nav>
 
       <div className="sidebar-foot">
         <ThemeButton variant="side" />

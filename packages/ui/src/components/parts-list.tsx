@@ -1,5 +1,5 @@
 import { ChevronDown } from 'lucide-react';
-import { useState, type ReactNode } from 'react';
+import { Fragment, useId, useState, type ReactNode } from 'react';
 import { CircleNumber } from './section-head';
 import { cx } from './cx';
 
@@ -33,7 +33,10 @@ export interface PartsListProps<Row> {
 
 /**
  * Parts list (Stückliste): assemblies (groups) with circled numbers and sums, positions 1.1,
- * 1.2 … in front of each row. Groups collapse; the whole row is one button when it is clickable.
+ * 1.2 … in front of each row. Groups collapse. A clickable row (`onRowClick`) puts a real button
+ * around the name; a CSS overlay makes the whole row its hit area (tab, Enter and Space work, the
+ * focus ring surrounds the row). Do not render further interactive elements in the name column
+ * then; other columns are covered by the overlay as well.
  */
 export function PartsList<Row>({
   columns,
@@ -53,6 +56,7 @@ export function PartsList<Row>({
       return next;
     });
   const [first, ...rest] = columns;
+  const listId = useId();
 
   return (
     <table className="ptable">
@@ -77,47 +81,64 @@ export function PartsList<Row>({
       {groups.map((group, groupIndex) => {
         const isCollapsed = collapsed.has(group.id);
         const no = groupIndex + 1;
+        const rowsId = `${listId}-rows-${groupIndex}`;
         return (
-          <tbody key={group.id} className={cx(isCollapsed && 'is-collapsed')}>
-            <tr className="pgroup">
-              <td className="col-pos">
-                <CircleNumber n={no} size="sm" />
-              </td>
-              <td>
-                <button
-                  type="button"
-                  className="grp-toggle"
-                  aria-expanded={!isCollapsed}
-                  onClick={() => toggle(group.id)}
-                >
-                  <ChevronDown size={18} strokeWidth={1.75} aria-hidden="true" />
-                  {group.title}
-                </button>
-                {group.note && <span className="grp-status">{group.note}</span>}
-              </td>
-              {rest.map((c) => (
-                <td key={c.key} className={cx(c.numeric && 'col-num')}>
-                  {group.summary?.[c.key]}
+          <Fragment key={group.id}>
+            <tbody className={cx(isCollapsed && 'is-collapsed')}>
+              <tr className="pgroup">
+                <td className="col-pos">
+                  <CircleNumber n={no} size="sm" />
                 </td>
-              ))}
-            </tr>
-            {!isCollapsed &&
-              group.rows.map((row, rowIndex) => (
-                <tr
-                  key={getRowKey(row)}
-                  className={cx('prow', onRowClick && 'is-clickable')}
-                  onClick={onRowClick ? () => onRowClick(row) : undefined}
-                >
-                  <td className="col-pos pos">{`${no}.${rowIndex + 1}`}</td>
-                  {first && <td>{first.render(row)}</td>}
-                  {rest.map((c) => (
-                    <td key={c.key} className={cx(c.numeric && 'col-num')}>
-                      {c.render(row)}
-                    </td>
-                  ))}
-                </tr>
-              ))}
-          </tbody>
+                <td>
+                  <button
+                    type="button"
+                    className="grp-toggle"
+                    aria-expanded={!isCollapsed}
+                    aria-controls={rowsId}
+                    onClick={() => toggle(group.id)}
+                  >
+                    <ChevronDown size={18} strokeWidth={1.75} aria-hidden="true" />
+                    {group.title}
+                  </button>
+                  {group.note && <span className="grp-status">{group.note}</span>}
+                </td>
+                {rest.map((c) => (
+                  <td key={c.key} className={cx(c.numeric && 'col-num')}>
+                    {group.summary?.[c.key]}
+                  </td>
+                ))}
+              </tr>
+            </tbody>
+            {/* Always mounted so that aria-controls resolves; empty while collapsed. */}
+            <tbody id={rowsId}>
+              {!isCollapsed &&
+                group.rows.map((row, rowIndex) => (
+                  <tr key={getRowKey(row)} className={cx('prow', onRowClick && 'is-clickable')}>
+                    <td className="col-pos pos">{`${no}.${rowIndex + 1}`}</td>
+                    {first && (
+                      <td>
+                        {onRowClick ? (
+                          <button
+                            type="button"
+                            className="prow-btn"
+                            onClick={() => onRowClick(row)}
+                          >
+                            {first.render(row)}
+                          </button>
+                        ) : (
+                          first.render(row)
+                        )}
+                      </td>
+                    )}
+                    {rest.map((c) => (
+                      <td key={c.key} className={cx(c.numeric && 'col-num')}>
+                        {c.render(row)}
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+            </tbody>
+          </Fragment>
         );
       })}
     </table>

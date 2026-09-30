@@ -8,8 +8,8 @@ import {
   type ReportEntry,
   type ReportGroup,
 } from '../nav/reports-catalog';
+import { useParams } from '@tanstack/react-router';
 import { AppLink } from '../shell/app-link';
-import { useSetPageTitle } from '../shell/page-meta';
 import { PlaceholderPage } from './placeholder-page';
 
 const CONTROL_LABEL = {
@@ -116,7 +116,6 @@ export function ReportGroupPage({ slug }: { slug: string }) {
 /** A single report: placeholder with position, question and chart form from the catalog. */
 export function ReportPage({ reportId }: { reportId: string }) {
   const report = findReport(reportId);
-  useSetPageTitle(report?.name);
   if (!report) return <ReportNotFound />;
   const meta: PageMeta = {
     title: report.name,
@@ -146,4 +145,15 @@ export function ReportNotFound() {
       </p>
     </section>
   );
+}
+
+/** Route components: read the URL parameter here so the router file stays free of page code. */
+export function ReportGroupRoute() {
+  const { slug } = useParams({ strict: false }) as { slug: string };
+  return <ReportGroupPage slug={slug} />;
+}
+
+export function ReportRoute() {
+  const { reportId } = useParams({ strict: false }) as { reportId: string };
+  return <ReportPage reportId={reportId} />;
 }

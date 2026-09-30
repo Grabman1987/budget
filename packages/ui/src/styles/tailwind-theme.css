@@ -30,7 +30,7 @@
   --color-good-ink: var(--good-ink);
   --color-bad-ink: var(--bad-ink);
 
-  /* Literal copies of the scales.css tokens of the same name (a unit test keeps them in sync). */
+  /* Literal copies of the generated scale-tokens.css / scales.css tokens of the same name (a unit test keeps them in sync). */
   --font-ui: 'Archivo', 'Segoe UI', system-ui, sans-serif;
   --font-tech: 'Barlow Semi Condensed', 'Archivo', system-ui, sans-serif;
 

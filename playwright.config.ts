@@ -81,7 +81,7 @@ export default defineConfig({
       use: { ...mobile, baseURL: `http://localhost:${AUTH_MOBILE_PORT}` },
     },
   ],
-  // Runs the production build (`npm run build` first): the Hono server serving the web app,
+  // Runs the e2e build (`npm run build:e2e`: production bundle plus the /dev pages): the Hono server serving the web app,
   // so CSP, static hosting and the API are part of what the tests exercise.
   // One server per project that needs its own state: the main one is bootstrapped by the setup
   // project, the two auth servers start empty (each viewport runs the whole bootstrap flow).

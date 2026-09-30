@@ -13,6 +13,7 @@ import {
   TodayLine,
   XTicks,
   patternFill,
+  usePatternPrefix,
   type Point,
 } from '@budget/ui';
 import { scaleBand, scaleLinear } from 'd3-scale';
@@ -167,10 +168,11 @@ function SignedBars({ width }: { width: number }) {
 }
 
 function ClassBars({ width }: { width: number }) {
+  const prefix = usePatternPrefix('cb');
   const rows = [
     { key: 'need' as const, label: 'Bedarf', value: 50, fill: 'var(--need)' },
-    { key: 'want' as const, label: 'Wunsch', value: 30, fill: patternFill('cb', 'want') },
-    { key: 'future' as const, label: 'Zukunft', value: 20, fill: patternFill('cb', 'future') },
+    { key: 'want' as const, label: 'Wunsch', value: 30, fill: patternFill(prefix, 'want') },
+    { key: 'future' as const, label: 'Zukunft', value: 20, fill: patternFill(prefix, 'future') },
   ];
   const x = scaleLinear()
     .domain([0, 100])
@@ -183,7 +185,7 @@ function ClassBars({ width }: { width: number }) {
       label="50/30/20: Bedarf, Wunsch, Zukunft mit Schraffuren"
       testId="chart-classes"
     >
-      <ClassPatterns prefix="cb" />
+      <ClassPatterns prefix={prefix} />
       {rows.map((row) => {
         const x0 = x(acc);
         acc += row.value;

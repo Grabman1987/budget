@@ -6,7 +6,7 @@ export interface AmountInputProps {
   label: string;
   value: string;
   onChange: (value: string) => void;
-  /** Called with the evaluated amount when the user presses Enter or leaves a calculation. */
+  /** Called with the evaluated amount when the user presses Enter or leaves the field with a valid value. */
   onCommit?: (amount: Cents) => void;
   /** Sign in front of the amount: "−" expense, "+" income, none for transfers. */
   sign?: '−' | '+' | null;
@@ -28,8 +28,8 @@ const HINT_INVALID = 'Das lässt sich nicht ausrechnen. Erlaubt sind Zahlen und 
 
 /**
  * Amount field with inline arithmetic (no keypad, no eval): the text is evaluated by the domain
- * parser, operator buttons insert at the caret, Enter (or leaving a calculation) commits the
- * result and shows it as `1.234,56`.
+ * parser, operator buttons insert at the caret, Enter (or leaving the field with a valid value)
+ * commits the result and shows it as `1.234,56`. Invalid input is never committed.
  */
 export function AmountInput({
   label,
@@ -43,6 +43,7 @@ export function AmountInput({
 }: AmountInputProps) {
   const id = useId();
   const hintId = `${id}-hint`;
+  const errorId = `${id}-error`;
   const inputRef = useRef<HTMLInputElement>(null);
   const caret = useRef<number | null>(null);
 
@@ -60,7 +61,8 @@ export function AmountInput({
 
   const commit = () => {
     if (!result.ok) return;
-    if (calculating) onChange(formatDecimal(result.cents));
+    const text = formatDecimal(result.cents);
+    if (text !== value) onChange(text);
     onCommit?.(result.cents);
   };
 
@@ -111,12 +113,14 @@ export function AmountInput({
           inputMode="text"
           autoComplete="off"
           spellCheck={false}
+          // Opt-in by the caller (capture dialog moves focus to the amount on open).
+          // eslint-disable-next-line jsx-a11y/no-autofocus
           autoFocus={autoFocus}
           disabled={disabled}
           value={value}
           placeholder="0,00"
           aria-invalid={invalid || Boolean(error)}
-          aria-describedby={hintId}
+          aria-describedby={error ? `${hintId} ${errorId}` : hintId}
           onChange={(e) => onChange(e.target.value)}
           onKeyDown={(e) => {
             if (e.key === 'Enter') {
@@ -124,16 +128,23 @@ export function AmountInput({
               commit();
             }
           }}
-          onBlur={() => {
-            if (calculating) commit();
-          }}
+          onBlur={commit}
         />
+        <span className="amount-cur" aria-hidden="true">
+          €
+        </span>
       </div>
-      <p id={hintId} className={cx('amount-hint', calculating && result.ok && 'is-result')}>
+      {/* Always mounted so that the calculated result is announced (polite) when it appears. */}
+      <p
+        id={hintId}
+        className={cx('amount-hint', calculating && result.ok && 'is-result')}
+        aria-live="polite"
+        aria-atomic="true"
+      >
         {hint}
       </p>
       {error && (
-        <p className="field-error" role="alert">
+        <p id={errorId} className="field-error" role="alert">
           {error}
         </p>
       )}

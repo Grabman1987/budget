@@ -1,17 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 import { expectScreenshot } from './visual';
-import { PAGES } from '../apps/web/src/nav/pages';
-import { REPORTS, REPORT_GROUPS } from '../apps/web/src/nav/reports-catalog';
-
-/** Every reachable URL of the sitemap (SPEC §3). */
-const ROUTES = [
-  '/',
-  ...PAGES.map((p) => p.path),
-  '/konten/demo-konto',
-  '/reports',
-  ...REPORT_GROUPS.map((g) => `/reports/gruppe/${g.slug}`),
-  ...REPORTS.map((r) => `/reports/${r.id}`),
-];
+import { ROUTES } from './routes';
 
 const isPhone = (testInfo: { project: { name: string } }) => testInfo.project.name === 'mobile';
 
@@ -250,14 +239,25 @@ test.describe('desktop shell', () => {
     await expect(page).toHaveURL(/\/konten$/);
   });
 
-  test('theme toggle in the sidebar switches and persists the theme', async ({ page }) => {
+  test('theme button in the sidebar cycles System, Hell, Dunkel and persists the choice', async ({
+    page,
+  }) => {
     await page.emulateMedia({ colorScheme: 'light' });
     await page.goto('/');
-    await page.getByRole('button', { name: 'Dunkle Blaupause' }).click();
-    await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
+    const html = page.locator('html');
+    const button = page.getByRole('button', { name: /Darstellung wechseln/ });
+    await expect(button).toHaveText('System');
+    await expect(html).not.toHaveAttribute('data-theme', /.+/);
+    await button.click();
+    await expect(html).toHaveAttribute('data-theme', 'light');
+    await button.click();
+    await expect(html).toHaveAttribute('data-theme', 'dark');
     await page.reload();
-    await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
-    await expect(page.getByRole('button', { name: 'Heller Zeichenfilm' })).toBeVisible();
+    await expect(html).toHaveAttribute('data-theme', 'dark');
+    await expect(button).toHaveText('Dunkle Blaupause');
+    await button.click();
+    await expect(html).not.toHaveAttribute('data-theme', /.+/);
+    await expect(button).toHaveText('System');
   });
 });
 

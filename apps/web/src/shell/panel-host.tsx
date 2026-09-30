@@ -1,7 +1,7 @@
 import { DetailPanel } from '@budget/ui';
-import { useNavigate, useRouter, useSearch } from '@tanstack/react-router';
-import { useEffect, useState } from 'react';
-import { consumePanelOpenedInApp, resetPanelOpenedInApp, type PanelSearch } from './panel-state';
+import { useLocation, useNavigate, useRouter, useSearch } from '@tanstack/react-router';
+import { useState } from 'react';
+import type { PanelSearch } from './panel-state';
 import { PANELS, type PanelId } from './panels';
 
 /**
@@ -18,13 +18,13 @@ export function PanelHost() {
   if (panel && panel !== shown) setShown(panel);
   const def = PANELS[shown];
 
-  useEffect(() => {
-    if (!panel) resetPanelOpenedInApp();
-  }, [panel]);
+  const openedInApp = useLocation({
+    select: (location) => location.state.panelOpenedInApp === true,
+  });
 
   const close = () => {
     if (panel === undefined) return; // already closed (e.g. by the back button)
-    if (consumePanelOpenedInApp()) {
+    if (openedInApp) {
       router.history.back();
     } else {
       void navigate({
