@@ -130,7 +130,7 @@ Order: P2a → P2b and P2c in parallel → P2d (parser can start right after P1f
 
 ### P2d — YNAB import with mapping (`docs/prompts/P2d.md`)
 - [x] Parser for Register.tsv / Plan.tsv incl. CESU-8 emoji repair, splits, transfer pairing; synthetic fixture export in the real format
-- [ ] Mapping document (zod schema), `applyMapping` to the target model (opening balances and Available at the start month, n:1 merges, drop, rules), reconciliation (Gate 2) as data — `packages/import-ynab`
+- [x] Mapping document (zod schema), `applyMapping` to the target model (opening balances and Available at the start month, n:1 merges, drop, rules), reconciliation (Gate 2) as data — `packages/import-ynab`
 - [ ] Raw staging, dry run with side-by-side structure, commit as one reversible import run, idempotent re-import
 - [ ] Import wizard in Einstellungen › Datenquellen (step-up), reconciliation report page (Gate 2)
 - [ ] Owner: category evaluation and mapping done, real import on the deployed app, Gate 2 report without difference
