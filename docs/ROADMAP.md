@@ -114,6 +114,9 @@ Process from P1f on: one branch per task, PRs ≤ ~1.500 changed lines, tick onl
 - [x] Motion as in the prototype: solid chart lines plot in 900 ms (optional 260/520 ms stagger), annotations fade in (500 ms after 380 ms); the Maßkette plots only its result line
 - [x] ElevationMark shelf under the label; Sankey want/future nodes hatched with outline
 
+### P1f-6 — Credit-card overspending as in YNAB (`docs/prompts/P1f-6.md`, before the real import)
+- [ ] Funded card spending to "Kartenzahlung", credit overspending as new card debt (not deducted from Zu verteilen), cash overspending deducted; rule selectable for the parallel run
+
 ## P2 Kern und Migration
 
 Starts after P1f-3 is merged. Source: YNAB export (`docs/migration/ynab-export.md`); Actual is not migrated. YNAB's categories and habits are evaluated and adapted via an owner-made mapping, not copied. The real export and the mapping never enter the repo or a cloud session. **Gate 2:** balances per account and month match YNAB to the cent; Available per target category matches the mapped YNAB categories before the rules month.
