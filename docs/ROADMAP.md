@@ -91,6 +91,9 @@ Order: P1f-1 → first deploy (after P1f-2 B1–B3) → P1f-3 before P2; P1f-4 i
 - [x] C13 stronger figure tests and fixture coverage
 - [x] C14 model needs of the YNAB import (card payment kind, flag, staging tables, mapping per run)
 
+### P1f-6 — Credit card overspending by YNAB's rule (owner decision 30.09.2026)
+- [x] Funded card spending, credit vs cash overspending, covering later in the month, refunds and payments in `budgetMonths` (`cardRule: 'ynab' | 'concept'`, default `'ynab'`); worked examples and the P2d export cases in `docs/migration/ynab-export.md`
+
 ### P1f-4 — Frontend (`docs/prompts/P1f-4.md`)
 - [x] D1 PartsList keyboard
 - [x] D2 toast live region and in-dialog
@@ -114,8 +117,6 @@ Process from P1f on: one branch per task, PRs ≤ ~1.500 changed lines, tick onl
 - [x] Motion as in the prototype: solid chart lines plot in 900 ms (optional 260/520 ms stagger), annotations fade in (500 ms after 380 ms); the Maßkette plots only its result line
 - [x] ElevationMark shelf under the label; Sankey want/future nodes hatched with outline
 
-### P1f-6 — Credit-card overspending as in YNAB (`docs/prompts/P1f-6.md`, before the real import)
-- [ ] Funded card spending to "Kartenzahlung", credit overspending as new card debt (not deducted from Zu verteilen), cash overspending deducted; rule selectable for the parallel run
 
 ## P2 Kern und Migration
 

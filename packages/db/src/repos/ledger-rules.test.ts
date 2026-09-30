@@ -112,7 +112,7 @@ describe('C5 one opening-date rule in SQL and in the domain', () => {
 });
 
 describe('C2 "Zu verteilen" from the database', () => {
-  it('a YNAB-style month: card spend moves to Kartenzahlung, investing from the budget leg, overspending next month', () => {
+  it('a YNAB-style month: card spend moves to Kartenzahlung, investing from the budget leg, card overspending is card debt', () => {
     const month = '2026-05';
     for (const [c, v] of [
       ['essen', 40_000],
@@ -129,10 +129,15 @@ describe('C2 "Zu verteilen" from the database', () => {
     expect(may!.envelopes['essen']?.availableCents).toBe(15_000);
     expect(may!.envelopes['reise']?.availableCents).toBe(-3_000);
     expect(may!.envelopes['invest']?.availableCents).toBe(0);
-    expect(may!.envelopes['kz']?.availableCents).toBe(18_000);
+    // YNAB card rule: the 30 € fuel overspent on the card are new card debt, not funded.
+    expect(may!.envelopes['kz']?.availableCents).toBe(15_000);
     // Opening 1.000 + salary 3.000 − assigned 1.000.
     expect(may!.toBeAssignedCents).toBe(300_000);
-    expect(june!.toBeAssignedCents).toBe(297_000);
+    expect(june!.toBeAssignedCents).toBe(300_000);
+    // The concept rule, selectable for the parallel run: full move, the 30 € reduce June.
+    const [mayC, juneC] = budget(db, ['2026-05', '2026-06'], { cardRule: 'concept' });
+    expect(mayC!.envelopes['kz']?.availableCents).toBe(18_000);
+    expect(juneC!.toBeAssignedCents).toBe(297_000);
   });
 
   it('puts the category on the budget leg, ignores deleted accounts and categories, subtracts held money', () => {
