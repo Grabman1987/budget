@@ -212,13 +212,116 @@ test('the capture panel is axe clean in both themes and never scrolls sideways',
     await panel.getByRole('button', { name: 'Umbuchung' }).click();
     await panel.getByLabel('Nach Konto').selectOption({ label: `Axe Spar ${tag}` });
     expect(await violations(), `${scheme} transfer`).toEqual([]);
+    // The split editor with a contact line and a transfer line.
+    await panel.getByRole('button', { name: 'Ausgabe' }).click();
+    await panel.getByLabel('Betrag', { exact: true }).fill('30');
+    await panel.getByRole('button', { name: 'Aufteilen' }).click();
+    const second = panel.getByRole('group', { name: 'Zeile 2', exact: true });
+    await second.getByRole('button', { name: 'Kontakt' }).click();
+    expect(await violations(), `${scheme} split contact line`).toEqual([]);
+    await second.getByRole('button', { name: 'Umbuchung' }).click();
+    expect(await violations(), `${scheme} split transfer line`).toEqual([]);
     expect(
       await page.evaluate(
         () => document.documentElement.scrollWidth <= document.documentElement.clientWidth,
       ),
       `${scheme} scrolls sideways`,
     ).toBe(true);
+    // There is input in the panel: Esc asks before it goes away.
     await page.keyboard.press('Escape');
+    await panel.getByRole('button', { name: 'Verwerfen' }).click();
     await expect(page.getByRole('dialog', { name: 'Buchung erfassen' })).toBeHidden();
   }
+});
+
+test('a split with a contact share: the chain shows what is left, saving waits until it is 0', async ({
+  page,
+}, testInfo) => {
+  const tag = testInfo.project.name;
+  const account = `Teilen ${tag}`;
+  await createAccount(page, account, 'Giro', '500');
+  await openAccount(page, account);
+
+  const panel = await openCapture(page, testInfo);
+  await panel.getByLabel('Betrag', { exact: true }).fill('50');
+  await panel.getByLabel('Empfänger').fill(`Restaurant ${tag}`);
+  await panel.getByRole('button', { name: 'Aufteilen' }).click();
+  const chain = panel.getByRole('group', { name: /Aufteilung: Betrag minus Verteilt/ });
+  const save = panel.getByRole('button', { name: 'Speichern', exact: true });
+
+  // Line 1: 30,00 for the category, line 2 (still empty) is Anna's share.
+  const line1 = panel.getByRole('group', { name: 'Zeile 1', exact: true });
+  const line2 = panel.getByRole('group', { name: 'Zeile 2', exact: true });
+  await line1.getByLabel('Kategorie 1').selectOption({ value: `e2e-cap-E-${tag}` });
+  await line1.getByLabel('Betrag 1').fill('30');
+  await expect(chain).toContainText('20,00 €');
+  await expect(save).toBeDisabled();
+  await line2.getByRole('button', { name: 'Kontakt' }).click();
+  await line2.getByLabel('Kontakt 2').selectOption({ label: 'Anna Muster' });
+  await line2.getByRole('button', { name: 'Rest einsetzen' }).click();
+  await expect(line2.getByLabel('Betrag 2')).toHaveValue('20,00');
+  await expect(chain).toContainText('0,00 €');
+  await expect(panel.getByText('Aufteilung geht auf.')).toBeVisible();
+  await expect(save).toBeEnabled();
+  await save.click();
+
+  const row = page.getByRole('row', { name: new RegExp(`Restaurant ${tag}`) });
+  await expect(row).toContainText('Aufgeteilt (2)');
+  await expect(balance(page)).toHaveText('450,00 €');
+
+  // Opening it again keeps each line: the contact share is still Anna's.
+  await row.getByRole('button', { name: /bearbeiten/ }).click();
+  const edit = page.getByRole('dialog', { name: 'Buchung bearbeiten' });
+  await expect(edit.getByLabel('Kontakt 2').locator('option:checked')).toHaveText('Anna Muster');
+  await expect(
+    edit
+      .getByRole('group', { name: 'Zeile 2', exact: true })
+      .getByRole('button', { name: 'Kontakt' }),
+  ).toHaveAttribute('aria-pressed', 'true');
+});
+
+test('a transfer line in a split moves money to the other account', async ({ page }, testInfo) => {
+  const tag = testInfo.project.name;
+  const giro = `Zeile Giro ${tag}`;
+  const spar = `Zeile Spar ${tag}`;
+  await createAccount(page, giro, 'Giro', '300');
+  await createAccount(page, spar, 'Tagesgeld', '0');
+  await openAccount(page, giro);
+
+  const panel = await openCapture(page, testInfo);
+  await panel.getByLabel('Betrag', { exact: true }).fill('60');
+  await panel.getByLabel('Empfänger').fill(`Bank ${tag}`);
+  await panel.getByRole('button', { name: 'Aufteilen' }).click();
+  const line1 = panel.getByRole('group', { name: 'Zeile 1', exact: true });
+  const line2 = panel.getByRole('group', { name: 'Zeile 2', exact: true });
+  await line1.getByLabel('Kategorie 1').selectOption({ value: `e2e-cap-E-${tag}` });
+  await line1.getByLabel('Betrag 1').fill('40');
+  await line2.getByRole('button', { name: 'Umbuchung' }).click();
+  await line2.getByLabel('Nach Konto 2').selectOption({ label: spar });
+  await line2.getByLabel('Betrag 2').fill('20');
+  await panel.getByRole('button', { name: 'Speichern', exact: true }).click();
+  await expect(balance(page)).toHaveText('240,00 €');
+  await openAccount(page, spar);
+  await expect(balance(page)).toHaveText('20,00 €');
+});
+
+test('an income with a contact share (repayment) books through Auslagen', async ({
+  page,
+}, testInfo) => {
+  const tag = testInfo.project.name;
+  const account = `Rück ${tag}`;
+  await createAccount(page, account, 'Giro', '0');
+  await openAccount(page, account);
+
+  const panel = await openCapture(page, testInfo);
+  await panel.getByRole('button', { name: 'Einnahme' }).click();
+  await panel.getByLabel('Betrag', { exact: true }).fill('40');
+  await panel.getByLabel('Von (Zahler)').fill(`Anna ${tag}`);
+  await panel.getByLabel('Rückzahlung von Kontakt').selectOption({ label: 'Anna Muster' });
+  // The contact share has its own category (Auslagen): the category field is gone.
+  await expect(panel.getByLabel('Kategorie', { exact: true })).toHaveCount(0);
+  await panel.getByRole('button', { name: 'Speichern', exact: true }).click();
+  const row = page.getByRole('row', { name: new RegExp(`Anna ${tag}`) });
+  await expect(row).toContainText('Auslagen');
+  await expect(balance(page)).toHaveText('40,00 €');
 });

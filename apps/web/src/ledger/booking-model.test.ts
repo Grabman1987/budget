@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   buildCreate,
+  splitChain,
   buildPatch,
   draftFromBooking,
   emptyDraft,
@@ -162,8 +163,8 @@ describe('buildPatch keeps what the panel does not edit (review F1)', () => {
         },
         {
           id: 's2',
-          categoryId: null,
-          categoryName: null,
+          categoryId: 'auslagen',
+          categoryName: 'Auslagen',
           amountCents: -1000,
           memo: 'für K',
           contactId: 'k1',
@@ -181,7 +182,7 @@ describe('buildPatch keeps what the panel does not edit (review F1)', () => {
       value: {
         splits: [
           { categoryId: 'c2', amountCents: -2000 },
-          { amountCents: -1000, memo: 'für K', contactId: 'k1' },
+          { categoryId: 'auslagen', amountCents: -1000, memo: 'für K', contactId: 'k1' },
         ],
       },
     });
@@ -297,5 +298,147 @@ describe('capture rules of a new booking', () => {
     expect((cleared as { value: { splits: unknown[] } }).value.splits[0]).not.toHaveProperty(
       'incomeTypeId',
     );
+  });
+});
+
+describe('split lines: category, contact share, transfer', () => {
+  const two = (
+    a: Partial<ReturnType<typeof newSplit>>,
+    b: Partial<ReturnType<typeof newSplit>>,
+  ) => [newSplit({ amount: '30', ...a }), newSplit({ amount: '20', ...b })];
+  const options = { requireCategory: true, advanceCategoryId: 'auslagen' };
+
+  it('books a contact share through the Auslagen category', () => {
+    const built = buildCreate(
+      draft({
+        amount: '50',
+        splitOn: true,
+        splits: two({ categoryId: 'c1' }, { type: 'contact', contactId: 'anna' }),
+      }),
+      null,
+      options,
+    );
+    expect(built).toMatchObject({
+      ok: true,
+      value: {
+        splits: [
+          { categoryId: 'c1', amountCents: -3000 },
+          { categoryId: 'auslagen', amountCents: -2000, contactId: 'anna' },
+        ],
+      },
+    });
+  });
+
+  it('a contact line needs the contact and an Auslagen category', () => {
+    const lines = two({ categoryId: 'c1' }, { type: 'contact' });
+    expect(
+      buildCreate(draft({ amount: '50', splitOn: true, splits: lines }), null, options),
+    ).toMatchObject({
+      ok: false,
+      errors: { splits: 'Bei einem Kontakt-Anteil fehlt der Kontakt.' },
+    });
+    const withContact = two({ categoryId: 'c1' }, { type: 'contact', contactId: 'anna' });
+    expect(
+      buildCreate(draft({ amount: '50', splitOn: true, splits: withContact }), null, {
+        requireCategory: true,
+      }),
+    ).toMatchObject({
+      ok: false,
+      errors: { splits: expect.stringContaining('Auslagen-Kategorie') },
+    });
+  });
+
+  it('a transfer line goes to another account and only on a spend', () => {
+    const lines = two({ categoryId: 'c1' }, { type: 'transfer', toAccountId: 'a2' });
+    expect(
+      buildCreate(draft({ amount: '50', splitOn: true, splits: lines }), null, options),
+    ).toMatchObject({
+      ok: true,
+      value: { splits: [{ amountCents: -3000 }, { amountCents: -2000, transferAccountId: 'a2' }] },
+    });
+    const same = two({ categoryId: 'c1' }, { type: 'transfer', toAccountId: 'a1' });
+    expect(
+      buildCreate(draft({ amount: '50', splitOn: true, splits: same }), null, options),
+    ).toMatchObject({
+      ok: false,
+    });
+    const income = draft({ kind: 'income', amount: '50', splitOn: true, splits: lines });
+    expect(buildCreate(income, null, options)).toMatchObject({
+      ok: false,
+      errors: { splits: expect.stringContaining('nur bei einer Ausgabe') },
+    });
+  });
+
+  it('an income split takes the income type of the draft for its category lines', () => {
+    const built = buildCreate(
+      draft({
+        kind: 'income',
+        amount: '50',
+        incomeTypeId: 'gehalt',
+        splitOn: true,
+        splits: two({}, { type: 'contact', contactId: 'anna' }),
+      }),
+      null,
+      options,
+    );
+    expect(built).toMatchObject({
+      ok: true,
+      value: {
+        splits: [
+          { categoryId: null, amountCents: 3000, incomeTypeId: 'gehalt' },
+          { categoryId: 'auslagen', amountCents: 2000, contactId: 'anna' },
+        ],
+      },
+    });
+  });
+
+  it('a single line with a contact share books Auslagen; editing keeps or clears it', () => {
+    const single = buildCreate(draft({ amount: '12', contactId: 'anna' }), null, options);
+    expect(single).toMatchObject({
+      ok: true,
+      value: { splits: [{ categoryId: 'auslagen', amountCents: -1200, contactId: 'anna' }] },
+    });
+    const shared = stored({
+      splits: [{ ...stored().splits[0]!, categoryId: 'auslagen', contactId: 'anna' }],
+    });
+    expect(draftFromBooking(shared)).toMatchObject({ contactId: 'anna' });
+    const cleared = buildPatch(
+      shared,
+      { ...draftFromBooking(shared), contactId: '', categoryId: 'c1' },
+      'p1',
+      false,
+      options,
+    );
+    expect((cleared as { value: { splits: unknown[] } }).value.splits[0]).toEqual({
+      categoryId: 'c1',
+      amountCents: -2000,
+    });
+  });
+
+  it('new transfer lines cannot be added to an existing booking; the chain adds up', () => {
+    const original = stored();
+    const lines = two({ categoryId: 'c1' }, { type: 'transfer', toAccountId: 'a2' });
+    expect(
+      buildPatch(
+        original,
+        { ...draftFromBooking(original), amount: '50', splitOn: true, splits: lines },
+        'p1',
+        false,
+        options,
+      ),
+    ).toMatchObject({
+      ok: false,
+      errors: { splits: expect.stringContaining('nur beim Erfassen') },
+    });
+    expect(splitChain(draft({ amount: '50', splitOn: true, splits: two({}, {}) }))).toEqual({
+      totalCents: 5000,
+      distributedCents: 5000,
+      restCents: 0,
+    });
+    expect(
+      splitChain(draft({ amount: '50', splitOn: true, splits: [newSplit({ amount: '12,50' })] })),
+    ).toMatchObject({
+      restCents: 3750,
+    });
   });
 });
