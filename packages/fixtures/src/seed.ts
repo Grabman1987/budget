@@ -1,6 +1,7 @@
 import type { Db } from '@budget/db';
 import * as t from '@budget/db/schema';
 import { sampleLedger } from './ledger/build';
+import { dailyMarketRows } from './market';
 import { LEDGER_TABLE_ORDER, type SampleLedger } from './ledger/types';
 
 const TABLES = {
@@ -37,6 +38,17 @@ const TABLES = {
 /** Rows per INSERT: keeps every statement far below SQLite's bound-variable limit. */
 const CHUNK = 150;
 
+function insertChunks(
+  tx: Pick<Db, 'insert'>,
+  table: typeof t.price | typeof t.fxRate,
+  list: unknown[],
+) {
+  for (let i = 0; i < list.length; i += CHUNK)
+    tx.insert(table)
+      .values(list.slice(i, i + CHUNK) as never)
+      .run();
+}
+
 export interface SeedSummary {
   rows: Record<string, number>;
 }
@@ -60,6 +72,12 @@ export function seedDatabase(db: Db, ledger: SampleLedger = sampleLedger()): See
       }
       rows[key] = list.length;
     }
+    // Daily prices and USD rates between the month-end prices (fixture market sources).
+    const daily = dailyMarketRows(ledger);
+    insertChunks(tx, t.price, daily.prices);
+    insertChunks(tx, t.fxRate, daily.fxRates);
+    rows['dailyPrices'] = daily.prices.length;
+    rows['dailyFxRates'] = daily.fxRates.length;
   });
   return { rows };
 }

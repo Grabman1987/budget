@@ -1,0 +1,12 @@
+{
+  "chart": {
+    "result": [
+      {
+        "meta": { "currency": "USD", "symbol": "SYN-USD", "gmtoffset": 0 },
+        "timestamp": [1704182400],
+        "indicators": { "quote": [{ "close": [10.5] }] }
+      }
+    ],
+    "error": null
+  }
+}

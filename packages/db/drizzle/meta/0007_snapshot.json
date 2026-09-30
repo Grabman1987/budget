@@ -1,8 +1,8 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "51287aaf-0a60-4173-967e-2433fb210673",
-  "prevId": "dcef5915-ff76-48b0-bb6a-5c84841bce82",
+  "id": "fad46e35-686e-4c57-bdf9-428abcf1c568",
+  "prevId": "51287aaf-0a60-4173-967e-2433fb210673",
   "tables": {
     "account": {
       "name": "account",
@@ -949,6 +949,14 @@
           "notNull": false,
           "autoincrement": false
         },
+        "date_shift": {
+          "name": "date_shift",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'none'"
+        },
         "start_date": {
           "name": "start_date",
           "type": "text",
@@ -1052,6 +1060,10 @@
         "expected_rhythm_chk": {
           "name": "expected_rhythm_chk",
           "value": "\"expected_payment\".\"rhythm\" IN ('monthly', 'quarterly', 'semiannual', 'yearly')"
+        },
+        "expected_date_shift_chk": {
+          "name": "expected_date_shift_chk",
+          "value": "\"expected_payment\".\"date_shift\" IN ('none', 'before', 'after')"
         },
         "expected_due_day_chk": {
           "name": "expected_due_day_chk",
@@ -2799,6 +2811,12 @@
           "name": "occurrence_booking_idx",
           "columns": ["booking_id"],
           "isUnique": false
+        },
+        "occurrence_booking_uq": {
+          "name": "occurrence_booking_uq",
+          "columns": ["booking_id"],
+          "isUnique": true,
+          "where": "\"expected_occurrence\".\"booking_id\" IS NOT NULL AND \"expected_occurrence\".\"deleted_at\" IS NULL"
         }
       },
       "foreignKeys": {
