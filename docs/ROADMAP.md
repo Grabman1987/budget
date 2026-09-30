@@ -73,6 +73,7 @@ Order: P1f-1 → first deploy (after P1f-2 B1–B3) → P1f-3 before P2; P1f-4 i
 - [x] B5 client-side encrypted backup (**blocker for real data**)
 - [x] B6 rate limiter IPv6 /64 and capped
 - [x] B7 low-severity hardening
+- [ ] B8 second, independent storage target for the encrypted backup with its own credentials (owner decision 29.09.2026: yes, later; until then monthly manual download per `docs/ops.md`)
 
 ### P1f-3 — Data model and domain (`docs/prompts/P1f-3.md`, before P2)
 - [x] C1 envelope rollover per concept §5.3

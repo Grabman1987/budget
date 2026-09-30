@@ -106,6 +106,8 @@ Alle Reports rechnen aus demselben Hauptbuch; Nettovermögen, Rendite und Regels
 
 **Heute (Entscheidung 28.09.2026):** Kein Urteilssatz wie „Ja, der Monat hält“; die Leitzahl beantwortet die Frage selbst. Der Seitenkopf zeigt den aktuellen Monat. Der Finanz-Check trägt eine Kennzahl (erfüllt / Warnung / verletzt über alle Regeln).
 
+**Migration aus YNAB (Entscheidungen 29.09.2026):** Quelle ist YNAB, nicht Actual. Die Aufzeichnungen in Budget beginnen am 01.10.2023 mit den Salden dieses Tages; Konten, die vorher geschlossen wurden, entfallen. Die YNAB-Struktur wird angepasst, nicht kopiert: weniger, gröbere Kategorien, Abos und Jahreszahlungen als erwartete Zahlungen, Einmalkäufe als Sparziele, Personen als Kontakte, Nebenprojekte als eigene Gruppe „Side Hustle“ mit einer Kategorie je Projekt. Neue Zuordnungsregeln gelten ab Jänner 2026. Echte Namen (Kontakte, Empfänger) stehen nur in der Datenbank und werden in der App unter Einstellungen gepflegt, nie im Repo. Emojis an Kategorien bleiben, aber einfarbig.
+
 **Geldfluss-Wasserfall (Entscheidung 28.09.2026, ergänzt Konzept 3.6):** Neun statt acht Stufen. Nach „1 Fixkosten und Mindestraten“ kommt neu „2 Laufender Monat“ mit den variablen Monatszielen für Bedarf und Wunsch (Lebensmittel, Treibstoff, Freizeit …); die Konzeptstufen 2–8 rücken auf 3–9. Plan › Monat ordnet die Tabelle standardmäßig nach diesen Stufen (umschaltbar auf Gruppen oder Klassen); Überziehungen erscheinen als Triage-Leiste über der unveränderten Tabelle, nicht als eigener Modus.
 
 **Umfang V1:** Budget, Vermögen und Portfolio komplett, 27 KPIs mit fester Formel und genau einem primären Ort, 30 Reports inkl. Explorer und druckbarer Blätter (`SPEC.md` §7), Diagramm-Grammatik nach Konzept 9.2 und 9.3 und DESIGN.md.

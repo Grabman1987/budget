@@ -53,7 +53,7 @@ YNAB's categories, groups and booking habits are **evaluated and adapted**, not 
 2. **Mapping** — an owner-made mapping document (JSON, validated by a zod schema, kept outside the repo, uploaded or edited in the wizard, versioned per import run):
    - accounts: YNAB name → target account with type, on-budget, closed-at;
    - categories: YNAB category → target category (**n:1** merges allowed), or `drop` for categories that only existed as YNAB workarounds (e.g. card payment, hidden one-offs → project);
-   - optional **re-categorisation rules** (match on payee, memo, category, amount, date range) → target category, contact share, project, income type; applied only from a chosen `rules_from` month;
+   - optional **re-categorisation rules** (match on payee, memo, category, amount, date range) → target category, contact share, project, income type; applied from the global `rules_from` month, or from an earlier `from` on the rule itself — needed when a YNAB category is dissolved completely (its bookings are distributed by rules from the start);
    - payees: merge/rename, link to contacts;
    - name cleanup (strip bracketed notes, emoji on/off) and derived expected payments.
 3. **Target layer** — bookings, splits, transfers, budget months in the app's model, produced from 1 + 2 in one transaction.
@@ -62,19 +62,19 @@ A dry run shows the target structure side by side with YNAB (per target category
 
 ## Mapping decisions (owner confirms in the wizard, stored with the import run)
 
-1. **History:** import everything from the first month (default), or from a cut-off month with opening balances per account and opening Available per category at that date.
+1. **Start (owner decision 29.09.2026): 01.10.2023.** Accounts closed before the start are skipped. Opening balance per account = sum of its register rows before the start. Opening Available per target category = Σ Available of the mapped YNAB categories in the month before the start; Available of dropped categories flows into "Zu verteilen". The start date stays configurable (earlier or later month) for re-runs.
 2. **Accounts:** type (Giro, Bargeld, Tagesgeld, Kreditkarte, Kredit, Depot, Krypto, P2P, Forderung, Sonstiges), on-budget, currency (all EUR in YNAB), closed-at.
 3. **Categories:** class (Bedarf / Wunsch / Zukunft), kind, stage (1–9), new group assignment; income categories where the owner wants them instead of `Ready to Assign`.
 4. **Payees:** kept as payees; real names stay in the database only.
-5. Tracking accounts for depots/crypto/P2P carry YNAB's value adjustments as bookings; holdings and prices come later from Portfolio Performance (P5).
+5. **Investment accounts** (depot, crypto, P2P): only the cash flows are imported (transfers in and out, fees). YNAB's balance adjustments on these accounts are value estimates and are dropped; the value is holdings × daily price from the Portfolio Performance part (P5, Gate 3). Until P5 the account shows the last YNAB value as a manual valuation.
 
 ## Import run and checks
 
 - Two steps: **dry run** (parse, map, compute, report — writes nothing) and **commit** (one transaction, one import run id, reversible as a whole).
 - Idempotency: import key per row = hash of (file kind, account, date, payee, category, memo, amount, occurrence index among identical rows). A second commit of the same export changes nothing; a newer export only adds/updates rows whose key changed, and reports deletions for the owner to confirm.
 - Reconciliation report (Gate 2), all must be 0,00 €:
-  - per account the balance at every month end and today versus the register sums (independent of any mapping);
-  - per **target** category and month Activity and Available versus the sum of the mapped YNAB categories in Plan.tsv, for all months before `rules_from` (n:1 merges keep this exact);
+  - per budget account and loan the balance at every month end and today versus the register sums (independent of any mapping); investment accounts are checked by Gate 3;
+  - per **target** category and month Activity and Available versus the sum of the mapped YNAB categories in Plan.tsv, for all months before `rules_from` and for categories not touched by an earlier rule (n:1 merges keep this exact);
   - Ready to Assign per month versus YNAB (derived: Σ on-budget balances − Σ Available);
   - from `rules_from` on, re-categorised bookings move money between target categories by design: the report lists the moved amounts per rule and month, and checks that the **totals** (Σ Available + Ready to Assign) still match.
   Every difference is listed with category/account, month and amount.
