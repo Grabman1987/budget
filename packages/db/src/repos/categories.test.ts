@@ -215,6 +215,21 @@ describe('budget writes', () => {
     expect(tba()).toBe(-7_000);
   });
 
+  it('spending cannot be merged into an income category', () => {
+    const lohn = createCategory(
+      db,
+      { name: 'Lohn', groupId: 'wohnen', kind: 'income', class: null },
+      ctx,
+    ).id;
+    expect(() => mergeCategories(db, ['essen'], lohn, ctx)).toThrow(/nur Einnahmen/);
+    const bonus = createCategory(
+      db,
+      { name: 'Bonus', groupId: 'wohnen', kind: 'income', class: null },
+      ctx,
+    ).id;
+    expect(mergeCategories(db, [bonus], lohn, ctx).groupId).toBeTruthy();
+  });
+
   it('a card payment envelope keeps its kind and card', () => {
     const kz = categoryTree(db).categories.find((c) => c.kind === 'card_payment')?.id as string;
     expect(() => updateCategory(db, kz, { kind: 'variable', class: 'need' }, ctx)).toThrow(
