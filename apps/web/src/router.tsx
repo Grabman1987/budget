@@ -12,6 +12,7 @@ import { accountsQuery } from './ledger/queries';
 import { findReport } from './nav/reports-catalog';
 import {
   ACCOUNT_PAGE,
+  EINSTELLUNGEN_KATEGORIEN,
   HEUTE,
   KONTEN_BUCHUNGEN_META,
   KONTEN_META,
@@ -77,7 +78,12 @@ const redirectRoute = (path: string, to: string) =>
   });
 
 const homeRoute = pageRoute('/', HEUTE);
-const BUILT_PATHS = new Set<string>([SECURITY_META.path, '/konten', '/konten/buchungen']);
+const BUILT_PATHS = new Set<string>([
+  SECURITY_META.path,
+  '/konten',
+  '/konten/buchungen',
+  EINSTELLUNGEN_KATEGORIEN.path,
+]);
 const placeholderRoutes = PAGES.filter((page) => !BUILT_PATHS.has(page.path)).map((page) =>
   pageRoute(page.path, page),
 );
@@ -100,6 +106,12 @@ const securityRoute = createRoute({
   path: SECURITY_META.path,
   staticData: { meta: SECURITY_META },
   component: lazyRouteComponent(() => import('./pages/security-page'), 'SecurityPage'),
+});
+const categoriesRoute = createRoute({
+  getParentRoute: () => shellRoute,
+  path: EINSTELLUNGEN_KATEGORIEN.path,
+  staticData: { meta: EINSTELLUNGEN_KATEGORIEN },
+  component: lazyRouteComponent(() => import('./budget/categories-page'), 'CategoriesPage'),
 });
 const redirects = [
   redirectRoute('/plan', '/plan/monat'),
@@ -205,6 +217,7 @@ const routeTree = rootRoute.addChildren([
     homeRoute,
     ...placeholderRoutes,
     securityRoute,
+    categoriesRoute,
     ...redirects,
     overviewRoute,
     bookingsRoute,

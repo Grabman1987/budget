@@ -237,3 +237,8 @@ export const ACCOUNT_PAGE: PageMeta = {
 };
 
 export const REPORT_PAGE_FILLS = P6;
+
+/** Einstellungen › Kategorien (built in P2c). */
+export const EINSTELLUNGEN_KATEGORIEN: PageDef = PAGES.find(
+  (p) => p.path === '/einstellungen/kategorien',
+) as PageDef;
