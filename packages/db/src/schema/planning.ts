@@ -35,5 +35,9 @@ export const expectedOccurrence = sqliteTable(
     ),
     uniqueIndex('occurrence_uq').on(t.expectedPaymentId, t.dueDate),
     index('occurrence_booking_idx').on(t.bookingId),
+    // A booking belongs to at most one live occurrence.
+    uniqueIndex('occurrence_booking_uq')
+      .on(t.bookingId)
+      .where(sql`${t.bookingId} IS NOT NULL AND ${t.deletedAt} IS NULL`),
   ],
 );

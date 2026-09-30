@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@budget/domain": "*",
+    "@budget/market": "*",
     "@budget/db": "*"
   },
   "exports": {

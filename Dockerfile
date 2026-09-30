@@ -11,6 +11,7 @@ COPY apps/web/package.json apps/web/
 COPY packages/db/package.json packages/db/
 COPY packages/domain/package.json packages/domain/
 COPY packages/fixtures/package.json packages/fixtures/
+COPY packages/market/package.json packages/market/
 COPY packages/ui/package.json packages/ui/
 RUN npm ci
 # Fail the build here, not at runtime, if the native driver cannot load without a build step.

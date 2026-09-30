@@ -1,17 +1,23 @@
 import type { Db } from '@budget/db';
 import { todayInVienna } from '@budget/domain';
+import type { MarketSources } from '@budget/market';
 import { Hono, type MiddlewareHandler } from 'hono';
 import { importRoutes } from '../imports/routes';
 import { accountRoutes } from './accounts';
 import { bookingRoutes } from './bookings';
 import { budgetRoutes, categoryRoutes } from './budget';
+import { expectedRoutes } from './expected';
+import { createMarketSources, marketModeFromEnv } from '../market/sources';
 import { errorResponse } from './http';
 import { lookupRoutes, payeeRoutes, undoRoutes } from './lookups';
+import { marketRoutes } from './market';
 
 export interface LedgerApiOptions {
   db: Db;
   /** "Today" as `YYYY-MM-DD` (Europe/Vienna by default); tests pass a fixed day. */
   today?: () => string;
+  /** Price and rate sources for the market refresh; default per `BUDGET_MARKET_SOURCES`. */
+  market?: MarketSources | undefined;
   /** Refuses a request without a fresh step-up (uploads, commits and reverts of import runs). */
   stepUp: MiddlewareHandler;
 }
@@ -24,6 +30,7 @@ export interface LedgerApiOptions {
 export function createLedgerApi({
   db,
   today = () => todayInVienna(),
+  market = createMarketSources(db, marketModeFromEnv()),
   stepUp,
 }: LedgerApiOptions): Hono {
   const api = new Hono();
@@ -32,8 +39,10 @@ export function createLedgerApi({
   api.route('/payees', payeeRoutes(db));
   api.route('/categories', categoryRoutes(db));
   api.route('/budget', budgetRoutes(db));
+  api.route('/expected', expectedRoutes(db, today));
   api.route('/lookups', lookupRoutes(db));
   api.route('/undo', undoRoutes(db));
+  api.route('/', marketRoutes(db, today, market));
   api.route('/imports', importRoutes(db, today, stepUp));
   api.onError(errorResponse);
   return api;

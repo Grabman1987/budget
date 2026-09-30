@@ -43,6 +43,20 @@
       "when": 1790769601368,
       "tag": "0005_category_icon_target_due",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "6",
+      "when": 1790806573649,
+      "tag": "0006_security_quote_sources",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "6",
+      "when": 1790810674327,
+      "tag": "0007_hot_mercury",
+      "breakpoints": true
     }
   ]
 }

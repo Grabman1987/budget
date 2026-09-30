@@ -6,6 +6,9 @@ import {
   BOOKING_STATUSES,
   CATEGORY_CLASSES,
   CATEGORY_KINDS,
+  DATE_SHIFTS,
+  EXPECTED_KINDS,
+  RHYTHMS,
   TARGET_KINDS,
 } from '@budget/db';
 import { z } from 'zod';
@@ -260,3 +263,52 @@ export const coverBody = z.object({
   /** From "Zu verteilen" beyond what it holds (it goes below 0): only when confirmed. */
   allowNegative: z.boolean().optional(),
 });
+
+// ---------- expected payments ----------
+const expectedFields = {
+  name: z.string().trim().min(1).max(120),
+  kind: z.enum(EXPECTED_KINDS),
+  accountId: id.nullable(),
+  payeeId: id.nullable(),
+  contactId: id.nullable(),
+  categoryId: id.nullable(),
+  incomeTypeId: id.nullable(),
+  /** Basis points of each amount paid for the contact (10 000 = all of it). */
+  contactShareBp: z.int().min(0).max(10_000),
+  amountToleranceCents: cents.min(0),
+  dateWindowDays: z.int().min(0).max(31),
+  rhythm: z.enum(RHYTHMS),
+  dueDay: z.int().min(1).max(31),
+  dueMonth: z.int().min(1).max(12).nullable(),
+  dateShift: z.enum(DATE_SHIFTS),
+  startDate: day.nullable(),
+  endDate: day.nullable(),
+  note: nullableText,
+};
+/** A version: positive cents (the kind gives the sign), optionally a range up to `amountMaxCents`. */
+const versionFields = {
+  amountCents: cents.positive(),
+  amountMaxCents: cents.positive().nullable().optional(),
+  currency: z
+    .string()
+    .regex(/^[A-Z]{3}$/)
+    .optional(),
+  note: nullableText.optional(),
+};
+export const expectedCreate = z
+  .object({ ...expectedFields, ...versionFields, validFrom: day.optional() })
+  .partial()
+  .required({ name: true, kind: true, amountCents: true });
+export const expectedPatch = z
+  .object(expectedFields)
+  .partial()
+  .refine((v) => Object.keys(v).length > 0, 'Nothing to change');
+export const expectedVersionCreate = z.object({ validFrom: day, ...versionFields });
+export const expectedListQuery = z.object({ deleted: z.enum(['0', '1']).optional() });
+export const expectedOccurrencesQuery = z.object({
+  from: day,
+  to: day,
+  kind: z.enum(EXPECTED_KINDS).optional(),
+});
+export const expectedIncomeQuery = z.object({ month });
+export const expectedLinkBody = z.object({ bookingId: id });

@@ -1,6 +1,7 @@
 import { existsSync } from 'node:fs';
 import { relative, resolve } from 'node:path';
 import type { Db } from '@budget/db';
+import type { MarketSources } from '@budget/market';
 import { serveStatic } from '@hono/node-server/serve-static';
 import { Hono } from 'hono';
 import { bodyLimit } from 'hono/body-limit';
@@ -29,7 +30,7 @@ export type AppOptions = BaseOptions &
     | {
         /** Passkey login: session guard and /api/auth. */
         auth: AuthGate;
-        ledger?: { db: Db; today?: () => string } | undefined;
+        ledger?: { db: Db; today?: () => string; market?: MarketSources | undefined } | undefined;
       }
     | { auth?: undefined; ledger?: undefined }
   );

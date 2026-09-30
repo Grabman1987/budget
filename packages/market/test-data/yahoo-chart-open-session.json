@@ -1,0 +1,23 @@
+{
+  "chart": {
+    "result": [
+      {
+        "meta": {
+          "currency": "EUR",
+          "symbol": "SYN-ETFW",
+          "gmtoffset": 3600,
+          "regularMarketTime": 1704704400,
+          "currentTradingPeriod": {
+            "regular": { "start": 1704700800, "end": 1704729600, "gmtoffset": 3600 }
+          }
+        },
+        "timestamp": [1704441600, 1704700800],
+        "indicators": {
+          "quote": [{ "close": [86.0, 86.4] }],
+          "adjclose": [{ "adjclose": [85.0, 85.4] }]
+        }
+      }
+    ],
+    "error": null
+  }
+}

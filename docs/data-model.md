@@ -138,6 +138,12 @@ the auth tables.
   transfer arrives as cash on the investment account and a buy booking settles it (`trade.booking_id`),
   so the cash balance stays at 0; the value is units (`holding` snapshot plus later trades) times the
   latest `price`. Net worth = account balances (debts negative) + holdings at market value.
+- **Market data sources** (P5.1, `docs/market-data.md`): `security.symbol` is the primary (Yahoo)
+  quote id, `fallback_quote_id` and `quote_exchange` the Ariva id and exchange, `prices_enabled`
+  switches the daily refresh off, `quote_adjusted` asks for the adjusted close (default: plain).
+  `fx_rate` is EUR per one unit: the ECB publishes units per EUR, the value is inverted on integers
+  (10^12 / x, rounded half up once). The refresh fetches from the day after the newest `yfinance` or
+  `ariva` price; a `manual` price never moves that start.
 - **Prices carry their source** (`yfinance`, `ariva`, `manual`, `import`); one price per product and
   day. A failed fetch is an inbox item, not a missing row.
 - **Expected payments are versioned** (`valid_from`), so a price increase changes the plan from that
@@ -228,7 +234,9 @@ the auth tables.
   band for R13), `expected_payment_version` by day and **immutable** (a trigger refuses changes to
   anything but `deleted_at`/`updated_at`; a price change is a new version). Occurrences
   (`expected_occurrence`) carry status (expected, received, deviating, missed), the contact share
-  and the matched booking; the payment holds tolerance, date window and contact share.
+  and the matched booking; the payment holds tolerance, date window, contact share and the date
+  shift (`date_shift`: none, before, after a weekend or Austrian holiday). A booking belongs to at
+  most one live occurrence (partial unique index on `booking_id`).
 - **Prices keep an audit and manual prices win** (C12): every change of an existing price is a
   `price_audit` row; a refresh never replaces a `manual` price. Manual account values
   (P2P, other assets) are `valuation` rows.
@@ -238,7 +246,8 @@ the auth tables.
 ## Sample ledger (`packages/fixtures`)
 
 `npm run db:seed` writes `./data/dev.sqlite` (about 11 000 rows: 4 200 bookings with splits,
-transfers and one foreign-currency subscription pair, 222 prices, 1 224 envelope months, versioned
+transfers and one foreign-currency subscription pair, 222 month-end prices (plus about 3 700 daily
+prices and 700 daily USD rates between them, from the fixture market sources), 1 224 envelope months, versioned
 expected payments, payslips, rules and results). Everything is synthetic and deterministic.
 
 The generator is a TypeScript port of `design/prototype/reports-core.js`
