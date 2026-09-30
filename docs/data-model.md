@@ -185,6 +185,12 @@ the auth tables.
     `rollover_overspending` carry their overspending themselves and move card spending in full.
     Stock formula: Zu verteilen = cash − Σ available − held − credit overspending of the month.
     Per month and category `fundedCardCents`, `creditOverspentCents`, `cashOverspentCents`.
+    A transfer from the card to a budget account without a card envelope (**cash advance**, e.g.
+    paying an online wallet with the card) does not move the envelope: it is new card debt, and
+    the money arriving in the budget account is new money in "Zu verteilen" (YNAB help "Credit
+    Card Cash Advances": the funds leave the card, move to the cash account and increase Ready to
+    Assign; matches the owner's first real import). Paying that debt later from the
+    current account takes the envelope below 0 like any payment without cover.
   - **`'concept'`:** every card spend moves in full, all overspending is cash overspending. Kept
     so the reconciliation can show both during the parallel run (`budget(db, months, { cardRule })`).
 - **Month-level values** (`budget_month.held_cents`, C1): money held for next month. Categories may

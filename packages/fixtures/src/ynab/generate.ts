@@ -29,6 +29,8 @@ const LAST_MONTH = '2026-10';
 const GIRO = 'Girokonto';
 const BLUE = 'Kreditkarte Blau';
 const GREEN = 'Kreditkarte Grün';
+/** A budget account paid from the card (cash advance); exported with a trailing space. */
+const WALLET = 'Online-Wallet';
 /** name, on budget, opening date, opening balance (cents). */
 const ACCOUNTS: [string, boolean, string, number][] = [
   [GIRO, true, '2022-01-01', 250000],
@@ -43,13 +45,22 @@ const ACCOUNTS: [string, boolean, string, number][] = [
   ['Krypto', false, '2024-02-01', 0],
   ['Wohnkredit', false, '2022-01-01', -18000000],
   ['Forderung Kontakt A', false, '2023-05-01', 0],
+  [WALLET, true, '2022-01-01', 0],
+  ['Autokredit', false, '2022-01-01', -500000], // paid off in 2023-08
 ];
 const onBudget = new Map(ACCOUNTS.map(([name, on]) => [name, on]));
 
 type Spec =
-  | { fixed: number; day: number; payee: string; account?: string; month?: number; from?: string }
+  | {
+      fixed: number;
+      day: number;
+      payee: string;
+      account?: string;
+      months?: number[];
+      from?: string;
+    }
   | { variable: number; n: number; payee: string; from?: string }
-  | { transfer: number; day: number; to: string; from?: string }
+  | { transfer: number; day: number; to: string; from?: string; until?: string }
   | { save: number }
   | null;
 const FIX = '🏠 Fixkosten';
@@ -62,26 +73,32 @@ const SIDE = '💼 Nebenprojekt';
 const CARDS = 'Credit Card Payments';
 const HIDDEN = 'Hidden Categories';
 const CATEGORIES: [string, string, Spec][] = [
-  [FIX, 'Miete', { fixed: 85000, day: 1, payee: 'Vermieter' }],
+  // Bracketed notes in every form the real export uses (docs/migration/ynab-export.md).
+  [FIX, 'Miete - [€ 1.089,61 am 01.]', { fixed: 108961, day: 1, payee: 'Vermieter' }],
   [FIX, 'Strom - [€ 85 am 05.]', { fixed: 8500, day: 5, payee: 'Energieversorger' }],
-  [FIX, 'Internet - [€ 39,90 am 10.]', { fixed: 3990, day: 10, payee: 'Internetanbieter' }],
-  [FIX, 'Handy', { fixed: 1500, day: 15, payee: 'Mobilfunk', account: BLUE }],
+  [FIX, 'Internet - [€ ??,- am 10.]', { fixed: 3990, day: 10, payee: 'Internetanbieter' }],
   [
     FIX,
-    'Streaming - [€ 7,49 am 03.]',
-    { fixed: 749, day: 3, payee: 'Streamingdienst', account: BLUE },
+    'Handy - [€ 15,30 am 30./31.]',
+    { fixed: 1530, day: 31, payee: 'Mobilfunk', account: BLUE },
   ],
-  [FIX, 'Rundfunk', { fixed: 1850, day: 20, payee: 'Rundfunkbeitrag' }],
-  [FIX, 'Kreditrate', { transfer: 60000, day: 1, to: 'Wohnkredit' }],
+  [FIX, 'Streaming - [9,99 am ?]', { fixed: 999, day: 3, payee: 'Streamingdienst', account: BLUE }],
   [
     FIX,
-    'Versicherung Haushalt - [€ 180 - am 01.03.]',
-    { fixed: 18000, day: 1, month: 3, payee: 'Versicherung' },
+    'Rundfunk - [€ 60,- am 01.02. & 01.08.]',
+    { fixed: 6000, day: 1, months: [2, 8], payee: 'Rundfunkbeitrag' },
+  ],
+  [FIX, 'Kreditrate - [€ 600- am 01.]', { transfer: 60000, day: 1, to: 'Wohnkredit' }],
+  [FIX, 'Autokredit', { transfer: 25000, day: 15, to: 'Autokredit', until: '2023-09' }],
+  [
+    FIX,
+    'Versicherung Haushalt - [€ 180,- am 01.03.]',
+    { fixed: 18000, day: 1, months: [3], payee: 'Versicherung' },
   ],
   [
     FIX,
-    'Kfz-Versicherung - [€ 980 - am 01.11.]',
-    { fixed: 98000, day: 1, month: 11, payee: 'Versicherung' },
+    'Kfz-Versicherung - [€ 1.080 - am 01.11.]',
+    { fixed: 108000, day: 1, months: [11], payee: 'Versicherung' },
   ],
   [DAILY, '🛒 Lebensmittel', { variable: 52000, n: 8, payee: 'Supermarkt' }],
   [DAILY, 'Drogerie', { variable: 6000, n: 2, payee: 'Drogeriemarkt' }],
@@ -91,8 +108,8 @@ const CATEGORIES: [string, string, Spec][] = [
   [DAILY, 'Kaffee ☕', { variable: 3000, n: 4, payee: 'Café' }],
   [DAILY, 'Haustier', { variable: 4000, n: 1, payee: 'Tierhandlung' }],
   [FUN, 'Hobby', { variable: 5000, n: 1, payee: 'Bastelladen' }],
-  [FUN, 'Sport', { fixed: 4500, day: 12, payee: 'Sportverein' }],
-  [FUN, 'Urlaub', { save: 15000 }],
+  [FUN, 'Sport - [€ 45,- am 12.]', { fixed: 4500, day: 12, payee: 'Sportverein' }],
+  [FUN, 'Urlaub - [€ 150,-]', { save: 15000 }],
   [FUN, 'Kultur', null],
   [FUN, 'Bücher', null],
   [FUN, 'Geschenke', null],
@@ -103,7 +120,7 @@ const CATEGORIES: [string, string, Spec][] = [
   [PERIODIC, 'Elektronik', null],
   [PERIODIC, 'Möbel', null],
   [PERIODIC, 'Geburtstage', { variable: 3000, n: 1, payee: 'Geschenkeladen' }],
-  [FUTURE, 'Notgroschen', { save: 10000 }],
+  [FUTURE, 'Notgroschen [€ 100,-]', { save: 10000 }],
   [FUTURE, 'Sparplan', { transfer: 20000, day: 2, to: 'Depot' }],
   [FUTURE, 'Krypto-Sparen', { transfer: 5000, day: 2, to: 'Krypto', from: '2024-02' }],
   [FUTURE, 'Neues Auto', { save: 10000 }],
@@ -120,9 +137,15 @@ const CATEGORIES: [string, string, Spec][] = [
   [HIDDEN, 'Alte Kategorie', null],
 ];
 const RTA = ['Inflow', 'Ready to Assign'] as const;
+/** Categories by name, also without their bracketed note. */
 const byName = new Map<string, readonly [string, string]>(
-  [...CATEGORIES.map(([g, n]) => [g, n] as const), RTA].map((c) => [c[1], c]),
+  [...CATEGORIES.map(([g, n]) => [g, n] as const), RTA].flatMap((c) => [
+    [c[1], c],
+    [c[1].replace(/\s*-?\s*\[[^\]]*\]$/, ''), c],
+  ]),
 );
+/** YNAB's register shows this hidden category under its original group. */
+const ORIGINAL_GROUP: Record<string, string> = { 'Alte Kategorie': PERIODIC };
 const cat = (name: string | null | undefined): readonly [string, string] | null => {
   if (!name) return null;
   const found = byName.get(name);
@@ -140,7 +163,7 @@ type Event =
   | ['assign', string, number]
   | ['row', string, number, string, number, string | null, string?]
   | ['transfer', string, string, number, number | 'close', (string | null)?, string?]
-  | ['split', string, number, string, [number, string, string][]];
+  | ['split', string, number, string, [number, string, string, string?][]];
 const EVENTS: Record<string, Event[]> = {
   '2022-01': [['assign', 'Alte Kategorie', 12000]],
   '2022-02': [['row', GIRO, 14, 'Kaufhaus', -7000, 'Alte Kategorie']],
@@ -179,6 +202,32 @@ const EVENTS: Record<string, Event[]> = {
   // Card payments from the current account.
   '2024-07': [['transfer', GIRO, GREEN, 8, 6000]],
   '2024-08': [['transfer', GIRO, GREEN, 8, 13000]],
+  // Card Grün again, figures checked by hand in ynab-export.test.ts: unfunded card spending …
+  '2024-09': [
+    ['assign', 'Möbel', 5000],
+    ['row', GREEN, 14, 'Möbelhaus', -8000, 'Möbel'],
+  ],
+  // … a cash advance (card → budget account), spent from there …
+  '2024-11': [
+    ['transfer', GREEN, WALLET, 4, 4000, null, 'Aufladung'],
+    ['assign', 'Kultur', 4000],
+    ['row', WALLET, 6, 'Konzertkasse', -4000, 'Kultur'],
+  ],
+  // … and the whole card balance paid from the current account.
+  '2024-12': [['transfer', GIRO, GREEN, 8, 12000]],
+  '2025-03': [
+    // A split with a payee per line.
+    [
+      'split',
+      GIRO,
+      15,
+      'Blumenladen',
+      [
+        [-3000, 'Geschenke', 'Blumen', 'Blumenladen'],
+        [-2500, 'Essen gehen', 'Abendessen', 'Restaurant'],
+      ],
+    ],
+  ],
   '2024-10': [
     // A split with a transfer line, and a repayment of the advance.
     [
@@ -198,7 +247,7 @@ const EVENTS: Record<string, Event[]> = {
 };
 /** Future-dated, uncleared rows on the current account (YNAB exports them, up to 5 months ahead). */
 const SCHEDULED: [string, string, string, number][] = [
-  ['2026-10-01', 'Miete', 'Vermieter', -85000],
+  ['2026-10-01', 'Miete', 'Vermieter', -108961],
   ...['2026-10', '2026-11', '2026-12', '2027-01', '2027-02'].map(
     (m): [string, string, string, number] => [`${m}-05`, 'Kinderbetreuung', 'Kindergarten', -25000],
   ),
@@ -265,13 +314,18 @@ export function ynabLedger(seed = 1) {
         memo,
       );
   };
-  const split = (account: string, date: string, payee: string, lines: [number, string, string][]) =>
-    lines.forEach(([cents, name, memo], i) => {
+  const split = (
+    account: string,
+    date: string,
+    payee: string,
+    lines: [number, string, string, string?][],
+  ) =>
+    lines.forEach(([cents, name, memo, own], i) => {
       const leg = name.startsWith('Transfer : ') ? name.slice(11) : null;
       push(
         account,
         date,
-        leg ? name : payee,
+        leg ? name : (own ?? payee),
         cents,
         leg ? null : name,
         `Split (${i + 1}/${lines.length}) ${memo}`,
@@ -282,8 +336,9 @@ export function ynabLedger(seed = 1) {
   for (const [name, on, date, cents] of ACCOUNTS)
     push(name, date, 'Starting Balance', cents, on ? 'Ready to Assign' : null);
   for (const month of monthsBetween(FIRST_MONTH, '2026-09')) {
-    const day = (d: number) => `${month}-${String(d).padStart(2, '0')}`;
     const end = lastDayOfMonth(month);
+    const day = (d: number) =>
+      `${month}-${String(Math.min(d, Number(end.slice(8)))).padStart(2, '0')}`;
     const year = Number(month.slice(0, 4)) - 2022;
     const mm = Number(month.slice(5));
     push(GIRO, day(25), 'Arbeitgeber', 420000 + year * 12000, 'Ready to Assign');
@@ -297,12 +352,18 @@ export function ynabLedger(seed = 1) {
       if (!spec || ('from' in spec && spec.from && month < spec.from)) continue;
       if ('save' in spec) assign(month, name, spec.save);
       else if ('transfer' in spec) {
+        if (spec.until && month >= spec.until) continue;
         assign(month, name, spec.transfer);
         transfer(GIRO, spec.to, day(spec.day), spec.transfer, name);
       } else if ('fixed' in spec) {
         // Yearly payments are saved for in twelfths.
-        assign(month, name, spec.month ? Math.round(spec.fixed / 12) : spec.fixed);
-        if (!spec.month || spec.month === mm)
+        const months = spec.months ?? [];
+        assign(
+          month,
+          name,
+          months.length ? Math.round((spec.fixed * months.length) / 12) : spec.fixed,
+        );
+        if (!months.length || months.includes(mm))
           push(spec.account ?? GIRO, day(spec.day), spec.payee, -spec.fixed, name);
       } else {
         assign(month, name, spec.variable);
@@ -330,6 +391,11 @@ export function ynabLedger(seed = 1) {
       push('Krypto', end, 'Manual Balance Adjustment', Math.round((random() - 0.4) * 8000));
     if (mm === 12) push('Tagesgeld', day(31), 'Bank', 1250, 'Ready to Assign', 'Zinsen');
     if (mm === 6 || mm === 12) transfer(GIRO, 'Tagesgeld', day(27), 20000);
+    // The wallet is topped up from the card (cash advance) and spent from.
+    if (mm % 4 === 1) {
+      transfer(BLUE, WALLET, day(6), 5000);
+      push(WALLET, day(7), 'Onlinehändler', -5000, 'Hobby');
+    }
     for (const e of EVENTS[month] ?? []) {
       if (e[0] === 'assign') assign(month, e[1], e[2]);
       if (e[0] === 'row') push(e[1], day(e[2]), e[3], e[4], e[5], e[6]);
@@ -342,7 +408,7 @@ export function ynabLedger(seed = 1) {
   }
   scheduled = true;
   for (const [date, name, payee, cents] of SCHEDULED) push(GIRO, date, payee, cents, name);
-  assign(LAST_MONTH, 'Miete', 85000);
+  assign(LAST_MONTH, 'Miete', 108961);
   assign(LAST_MONTH, 'Kinderbetreuung', 25000);
 
   const order = new Map(ACCOUNTS.map(([name], i) => [name, i]));
@@ -356,13 +422,16 @@ export function ynabLedger(seed = 1) {
 /** Activity and Available per category and month by YNAB's rule. */
 function planOf(rows: Row[], assigned: Record<string, Record<string, number>>) {
   const key = (g: string, n: string) => `${g.trim()}: ${n.trim()}`;
-  const splits: LedgerSplit[] = rows.map((r) => ({
-    accountId: r.account,
-    date: r.date,
-    amountCents: r.cents,
-    categoryId: r.category && r.group !== 'Inflow' ? key(r.group, r.category) : null,
-    transferAccountId: r.payee.startsWith('Transfer : ') ? r.payee.slice(11) : null,
-  }));
+  // YNAB's plan does not count rows after the export date yet.
+  const splits: LedgerSplit[] = rows
+    .filter((r) => r.date <= YNAB_AS_OF)
+    .map((r) => ({
+      accountId: r.account,
+      date: r.date,
+      amountCents: r.cents,
+      categoryId: r.category && r.group !== 'Inflow' ? key(r.group, r.category) : null,
+      transferAccountId: r.payee.startsWith('Transfer : ') ? r.payee.slice(11) : null,
+    }));
   const months = monthsBetween(FIRST_MONTH, LAST_MONTH);
   const result = budgetMonths({
     accounts: ACCOUNTS.map(([id, on]) => ({
@@ -424,12 +493,12 @@ export function ynabExport(seed = 1): { register: Uint8Array; plan: Uint8Array }
     ...rows.map((r) =>
       line(
         [
-          r.account,
+          r.account === WALLET ? `${WALLET} ` : r.account,
           r.flag,
           `${r.date.slice(8)}.${r.date.slice(5, 7)}.${r.date.slice(0, 4)}`,
           r.payee,
-          r.category ? `${r.group}: ${r.category}` : '',
-          r.group,
+          r.category ? `${ORIGINAL_GROUP[r.category] ?? r.group}: ${r.category}` : '',
+          ORIGINAL_GROUP[r.category] ?? r.group,
           r.category,
           r.memo,
           euro(Math.max(0, -r.cents)),

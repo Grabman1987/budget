@@ -1,8 +1,10 @@
-import { addMonths, monthsBetween, type BudgetInput } from '@budget/domain';
+import { addMonths, lastDayOfMonth, monthsBetween, type BudgetInput } from '@budget/domain';
 import { z } from 'zod';
 import {
   READY_TO_ASSIGN,
+  shortHash,
   stripNote,
+  type NoteSchedule,
   type Problem,
   type RawModel,
   type RawSplit,
@@ -121,16 +123,30 @@ export const mappingSchema = z
         ctx.addIssue({ code: 'custom', path: ['accounts', name], message: 'Duplicate account id' });
       accountIds.add(a.id);
     }
+    // Every on-budget credit card has exactly one card_payment target, and only those do.
+    const cards = new Map<string, number>();
+    for (const a of Object.values(m.accounts))
+      if (a !== 'skip' && a.type === 'credit_card' && a.onBudget) cards.set(a.id, 0);
     for (const [id, t] of Object.entries(m.targets)) {
       if (id === DROP)
         ctx.addIssue({ code: 'custom', path: ['targets', id], message: '"drop" is reserved' });
-      if ((t.kind === 'card_payment') !== (t.cardAccount !== null && accountIds.has(t.cardAccount)))
+      const card = t.cardAccount === null ? undefined : cards.get(t.cardAccount);
+      if (t.kind === 'card_payment' && t.cardAccount !== null && card !== undefined)
+        cards.set(t.cardAccount, card + 1);
+      else if (t.kind === 'card_payment' || t.cardAccount !== null)
         ctx.addIssue({
           code: 'custom',
           path: ['targets', id],
-          message: 'card_payment needs a card account',
+          message: 'card_payment needs an on-budget credit card',
         });
     }
+    for (const [name, a] of Object.entries(m.accounts))
+      if (a !== 'skip' && cards.has(a.id) && cards.get(a.id) !== 1)
+        ctx.addIssue({
+          code: 'custom',
+          path: ['accounts', name],
+          message: 'An on-budget credit card needs exactly one card_payment target',
+        });
     for (const [key, id] of Object.entries(m.categories))
       if (id !== DROP && !m.targets[id])
         ctx.addIssue({ code: 'custom', path: ['categories', key], message: 'Unknown target' });
@@ -153,6 +169,10 @@ export interface TargetAccount {
   type: (typeof ACCOUNT_TYPES)[number];
   onBudget: boolean;
   closedAt: string | null;
+  /**
+   * The day before the start for accounts opened earlier (their opening balance is the start's
+   * cash, not income of the start month), else the first row's day.
+   */
   openingDate: string;
   /** Σ register rows before the start. */
   openingBalanceCents: number;
@@ -171,6 +191,8 @@ export interface TargetCategory {
 }
 
 export interface TargetSplit {
+  /** The split line's own payee (a split can have several). */
+  payee: string;
   amountCents: number;
   categoryId: string | null;
   memo: string;
@@ -196,14 +218,23 @@ export interface TargetBooking {
   memo: string;
   amountCents: number;
   splits: TargetSplit[];
+  /** Dated after the export's "as of" day: pending, outside the budget and the checks. */
+  scheduled: boolean;
 }
 
+/** From a bracketed note with a schedule; the owner confirms each (P3). */
 export interface ExpectedPayment {
   categoryId: string;
-  amountCents: number;
-  day: number;
-  /** Set for yearly payments. */
-  month: number | null;
+  /** `null` when the note has `??`. */
+  amountCents: number | null;
+  schedule: NoteSchedule;
+  source: string;
+}
+
+/** From a bracketed note without a schedule (`[€ 350,-]`): a monthly target. */
+export interface TargetProposal {
+  categoryId: string;
+  amountCents: number | null;
   source: string;
 }
 
@@ -226,6 +257,7 @@ export interface TargetModel {
   openingCarry: Record<string, number>;
   contacts: string[];
   expectedPayments: ExpectedPayment[];
+  targets: TargetProposal[];
   moved: MovedAmount[];
 }
 
@@ -275,10 +307,20 @@ export function applyMapping(
   mapping: Mapping,
 ): { target: TargetModel; problems: Problem[] } {
   const problems: Problem[] = [];
-  const problem = (code: string, message: string, lines: number[] = []) =>
-    problems.push({ severity: 'error', code, message, lines });
+  const problem = (
+    code: string,
+    message: string,
+    lines: number[] = [],
+    subject?: Problem['subject'],
+  ) => problems.push({ severity: 'error', code, message, lines, ...(subject && { subject }) });
+  const about = (kind: 'account' | 'category', index: number, name: string) => ({
+    kind,
+    index,
+    hash: shortHash(name),
+  });
   const { startMonth } = mapping;
   const startDay = `${startMonth}-01`;
+  const dayBefore = lastDayOfMonth(addMonths(startMonth, -1));
   const last = raw.months[raw.months.length - 1];
   if (!last || startMonth < (raw.months[0] as string) || startMonth > last)
     problem('mapping.start_month', 'Start month outside the plan months');
@@ -287,18 +329,30 @@ export function applyMapping(
   const accounts: TargetAccount[] = [];
   const accountId = new Map<string, string>();
   const opening = new Map<string, number>();
+  const later = new Set<string>();
   for (const b of raw.bookings)
     if (b.date < startDay) opening.set(b.account, (opening.get(b.account) ?? 0) + b.amountCents);
-  for (const a of raw.accounts) {
+    else later.add(b.account);
+  raw.accounts.forEach((a, index) => {
     const m = mapping.accounts[a.name];
     if (!m) {
-      problem('mapping.account_missing', 'YNAB account without mapping');
-      continue;
+      problem(
+        'mapping.account_missing',
+        'YNAB account without mapping',
+        [],
+        about('account', index, a.name),
+      );
+      return;
     }
     if (m === 'skip') {
-      if (a.lastDate >= startDay || a.balanceCents !== 0)
-        problem('mapping.account_skip', 'Only accounts closed before the start can be skipped');
-      continue;
+      if (later.has(a.name) || (opening.get(a.name) ?? 0) !== 0)
+        problem(
+          'mapping.account_skip',
+          'Only accounts closed before the start can be skipped',
+          [],
+          about('account', index, a.name),
+        );
+      return;
     }
     accountId.set(a.name, m.id);
     accounts.push({
@@ -308,10 +362,10 @@ export function applyMapping(
       type: m.type,
       onBudget: m.onBudget,
       closedAt: m.closedAt,
-      openingDate: a.firstDate > startDay ? a.firstDate : startDay,
+      openingDate: a.firstDate >= startDay ? a.firstDate : dayBefore,
       openingBalanceCents: opening.get(a.name) ?? 0,
     });
-  }
+  });
 
   // Target categories.
   const clean = (name: string) => {
@@ -331,15 +385,20 @@ export function applyMapping(
   }));
   const byId = new Map(categories.map((c) => [c.id, c]));
   const targetOf = new Map<string, string | null>();
-  for (const c of raw.categories) {
+  raw.categories.forEach((c, index) => {
     const id = mapping.categories[c.key];
     if (id === undefined) {
-      problem('mapping.category_missing', 'YNAB category without mapping');
-      continue;
+      problem(
+        'mapping.category_missing',
+        'YNAB category without mapping',
+        [],
+        about('category', index, c.key),
+      );
+      return;
     }
     targetOf.set(c.key, id === DROP ? null : id);
     if (id !== DROP) byId.get(id)?.sources.push(c.key);
-  }
+  });
   const target = (key: string | null): string | null =>
     key === null || key === READY_TO_ASSIGN ? null : (targetOf.get(key) ?? null);
 
@@ -356,6 +415,7 @@ export function applyMapping(
     if (payee?.contact) contacts.add(payee.contact);
     const splits = b.splits.map((s) => {
       const split: TargetSplit = {
+        payee: mapping.payees[s.payee]?.name ?? s.payee,
         amountCents: s.amountCents,
         categoryId: target(s.categoryKey),
         memo: s.memo,
@@ -369,7 +429,9 @@ export function applyMapping(
       };
       if (s.transferAccount !== null && split.transferAccountId === null)
         problem('mapping.transfer_skipped', 'Transfer to a skipped account', [s.line]);
-      applyRule(mapping, b.account, b.date, s, split, moved);
+      // Rules re-categorise spending and income, never transfer legs or tracking accounts.
+      if (s.transferAccount === null && account.onBudget)
+        applyRule(mapping, b.account, b.date, s, split, moved);
       if (split.contact) contacts.add(split.contact);
       return split;
     });
@@ -382,10 +444,11 @@ export function applyMapping(
       systemPayee: b.systemPayee,
       contact: payee?.contact ?? null,
       flag: b.flag,
-      status: STATUS[b.cleared],
+      status: b.scheduled ? 'pending' : STATUS[b.cleared],
       memo: b.memo,
       amountCents: b.amountCents,
       splits,
+      scheduled: b.scheduled,
     });
   }
 
@@ -406,11 +469,14 @@ export function applyMapping(
   }
 
   const expectedPayments: ExpectedPayment[] = [];
+  const targets: TargetProposal[] = [];
   if (mapping.expectedPayments.fromNotes)
     for (const c of raw.categories) {
       const id = target(c.key);
-      if (c.note && id !== null)
-        expectedPayments.push({ categoryId: id, ...c.note, source: c.key });
+      if (!c.note || id === null) continue;
+      const { amountCents, schedule } = c.note;
+      if (schedule) expectedPayments.push({ categoryId: id, amountCents, schedule, source: c.key });
+      else targets.push({ categoryId: id, amountCents, source: c.key });
     }
 
   return {
@@ -424,6 +490,7 @@ export function applyMapping(
       openingCarry,
       contacts: [...contacts].sort(),
       expectedPayments,
+      targets,
       moved: [...moved.values()],
     },
     problems,
@@ -480,15 +547,18 @@ export function budgetInputOf(target: TargetModel): BudgetInput {
   return {
     accounts: target.accounts,
     categories: target.categories,
-    splits: target.bookings.flatMap((b) =>
-      b.splits.map((s) => ({
-        accountId: b.accountId,
-        date: b.date,
-        amountCents: s.amountCents,
-        categoryId: s.categoryId,
-        transferAccountId: s.transferAccountId,
-      })),
-    ),
+    // Scheduled bookings are not in YNAB's plan yet.
+    splits: target.bookings
+      .filter((b) => !b.scheduled)
+      .flatMap((b) =>
+        b.splits.map((s) => ({
+          accountId: b.accountId,
+          date: b.date,
+          amountCents: s.amountCents,
+          categoryId: s.categoryId,
+          transferAccountId: s.transferAccountId,
+        })),
+      ),
     months: target.months,
     assigned: target.assigned,
     openingCarry: target.openingCarry,

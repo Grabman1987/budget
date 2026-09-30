@@ -90,4 +90,37 @@ describe('synthetic YNAB export', () => {
       [0, -13000, 0],
     ]);
   });
+
+  it('by hand, not by budgetMonths: unfunded card spending, cash advance, payment (Sep 2024 – Jan 2025)', () => {
+    const { plan } = ynabLedger(1);
+    const at = (month: string, name: string) => {
+      const p = plan.find((x) => x.month === month && x.name === name);
+      return [p?.assigned, p?.activity, p?.available];
+    };
+    // Sep: 80 € on the card, 50 € assigned → 50 € funded, 30 € new card debt.
+    expect(at('2024-09', 'Möbel')).toEqual([5000, -8000, -3000]);
+    expect(at('2024-10', 'Möbel')).toEqual([0, 0, 0]);
+    // Nov: 40 € from the card to the wallet: the payment category does not move (cash advance);
+    // the wallet spends it in Kultur.
+    expect(at('2024-11', 'Kultur')).toEqual([4000, -4000, 0]);
+    // Dec: the whole card balance (80 € + 40 €) paid from the current account; 70 € of it had no
+    // money in the payment category: cash overspending, reset in January.
+    expect(
+      ['2024-09', '2024-10', '2024-11', '2024-12', '2025-01'].map((m) => at(m, 'Kreditkarte Grün')),
+    ).toEqual([
+      [0, 5000, 5000],
+      [0, 0, 5000],
+      [0, 0, 5000],
+      [0, -12000, -7000],
+      [0, 0, 0],
+    ]);
+  });
+
+  it('future-dated rows are in the register but not in the plan (Oct 2026)', () => {
+    const { plan, rows } = ynabLedger(1);
+    expect(rows.filter((r) => r.date > '2026-09-29').map((r) => r.date)).toHaveLength(6);
+    const rent = plan.find((p) => p.month === '2026-10' && p.name.startsWith('Miete'));
+    expect(rent?.activity).toBe(0);
+    expect(rent?.assigned).toBe(108961);
+  });
 });

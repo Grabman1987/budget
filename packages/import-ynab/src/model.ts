@@ -1,4 +1,4 @@
-import { addMonths, nextMonth } from '@budget/domain';
+import { daysBetween, nextMonth } from '@budget/domain';
 import type { PlanRow, RegisterRow } from './parse';
 
 /**
@@ -22,6 +22,15 @@ export interface Problem {
   message: string;
   /** Line numbers in the file (Register.tsv unless the code starts with `plan.`). */
   lines: number[];
+  /** The account or category concerned, by index in the raw model and a short hash of its name. */
+  subject?: { kind: 'account' | 'category'; index: number; hash: string };
+}
+
+/** 8 hex digits (FNV-1a) of a name: identifies it in problems and logs without showing it. */
+export function shortHash(text: string): string {
+  let h = 0x811c9dc5;
+  for (let i = 0; i < text.length; i++) h = Math.imul(h ^ text.charCodeAt(i), 0x01000193);
+  return (h >>> 0).toString(16).padStart(8, '0');
 }
 
 export type SystemPayee = 'opening_balance' | 'reconciliation_adjustment' | 'manual_adjustment';
@@ -57,11 +66,14 @@ export interface RawBooking {
   memo: string;
   amountCents: number;
   splits: RawSplit[];
+  /** Dated after the export's "as of" day: scheduled, not yet in YNAB's plan or balances. */
+  scheduled: boolean;
 }
 
 export interface RawAccount {
   name: string;
   firstDate: string;
+  /** Last row and balance on the "as of" day (scheduled rows left out). */
   lastDate: string;
   rows: number;
   balanceCents: number;
@@ -75,11 +87,21 @@ export interface RawAccount {
   };
 }
 
-/** Amount and due day (and month, for yearly payments) from a bracketed note in a name. */
+/** When a bracketed note says the payment is due. */
+export type NoteSchedule =
+  | { kind: 'monthly'; day: number }
+  | { kind: 'last_day' }
+  | { kind: 'yearly'; dates: { day: number; month: number }[] }
+  | { kind: 'unknown' };
+
+/**
+ * A bracketed note in a category name: the amount (`null` when written as `??`) and either a
+ * schedule (`am …`) or none, which makes it a monthly target only (`[€ 350,-]`).
+ */
 export interface Note {
-  amountCents: number;
-  day: number;
-  month: number | null;
+  amountCents: number | null;
+  schedule: NoteSchedule | null;
+  targetOnly: boolean;
 }
 
 export interface RawCategory {
@@ -89,6 +111,8 @@ export interface RawCategory {
   hidden: boolean;
   /** Account name for a category in `Credit Card Payments`. */
   cardAccount: string | null;
+  /** For a hidden category that the register shows under its group: that group. */
+  originalGroup: string | null;
   note: Note | null;
 }
 
@@ -105,27 +129,66 @@ export interface RawModel {
   /** Plan months, consecutive and ascending. */
   months: string[];
   plan: Record<string, Record<string, PlanCell>>;
+  /** The export's "as of" day (from the file name); later rows are scheduled. */
+  asOf: string | null;
   problems: Problem[];
 }
 
+/** `… as of 2026-09-29 18-30 - Register.tsv` → `2026-09-29`. */
+export function exportAsOf(fileName: string): string | null {
+  return (
+    / as of (\d{4}-\d{2}-\d{2}) \d{2}-\d{2} - (?:Register|Plan)\.tsv$/.exec(fileName)?.[1] ?? null
+  );
+}
+
 const NOTE =
-  /\[\s*€\s*(\d{1,3}(?:\.\d{3})+|\d+)(?:,(\d{1,2}))?\s*(?:-\s*)?am\s*(\d{1,2})\.(?:(\d{1,2})\.)?\s*\]/;
-/** `Streaming - [€ 7,49 am 03.]` → 749 cents on day 3; `[€ 980 - am 01.11.]` → yearly on 1 Nov. */
+  /^\s*(?:€\s*)?(\?\?|\d{1,3}(?:\.\d{3})+|\d+)(?:,(\d{1,2}|-))?\s*-?\s*(?:am\s+(.+?))?\s*$/;
+const DAY = /^(\d{1,2})\.$/;
+const DATE = /^(\d{1,2})\.(\d{1,2})\.$/;
+/**
+ * The bracketed note of a category name, best effort. Forms: `[€ 350,-]` (target only),
+ * `[€ 30,- am 01.]`, `[€ 122- am 01.]`, `[€ 1.809,61 am 01.]` (monthly), `[€ 42,30 am 30./31.]`
+ * (last day), `[€ 42,- am 10.01.]`, `[€ 1.500 - am 01.12.]`, `[€ 400,- am 01.02. & 01.08.]`
+ * (yearly), `[€ ??,- am 01.]` (amount unknown), `[9,99 am ?]` (day unknown). `null` otherwise.
+ */
 export function parseNote(name: string): Note | null {
-  const m = NOTE.exec(name);
+  const m = NOTE.exec(/\[([^\]]*)\]\s*$/.exec(name)?.[1] ?? '');
   if (!m) return null;
-  const euros = Number((m[1] as string).replaceAll('.', ''));
-  const day = Number(m[3]);
-  const month = m[4] ? Number(m[4]) : null;
-  if (day < 1 || day > 31 || (month !== null && (month < 1 || month > 12))) return null;
-  return { amountCents: euros * 100 + Number((m[2] ?? '0').padEnd(2, '0')), day, month };
+  const [, whole, decimals, when] = m as unknown as [string, string, string?, string?];
+  const amountCents =
+    whole === '??'
+      ? null
+      : Number(whole.replaceAll('.', '')) * 100 +
+        (decimals && decimals !== '-' ? Number(decimals.padEnd(2, '0')) : 0);
+  const valid = (day: number, month = 1) => day >= 1 && day <= 31 && month >= 1 && month <= 12;
+  let schedule: NoteSchedule | null = null;
+  if (when === '?') schedule = { kind: 'unknown' };
+  else if (when === '30./31.' || when === 'ultimo') schedule = { kind: 'last_day' };
+  else if (when && DAY.test(when)) {
+    const day = Number(DAY.exec(when)?.[1]);
+    if (!valid(day)) return null;
+    schedule = { kind: 'monthly', day };
+  } else if (when) {
+    const dates = when.split('&').map((d) => DATE.exec(d.trim()));
+    if (dates.some((d) => !d || !valid(Number(d[1]), Number(d[2])))) return null;
+    schedule = {
+      kind: 'yearly',
+      dates: dates.map((d) => ({ day: Number(d?.[1]), month: Number(d?.[2]) })),
+    };
+  }
+  return { amountCents, schedule, targetOnly: schedule === null };
 }
 
 /** The name without a trailing bracketed note (`Strom - [€ 85 am 05.]` → `Strom`). */
 export const stripNote = (name: string): string => name.replace(/\s*-?\s*\[[^\]]*\]\s*$/, '');
 
 /** Group the rows into the raw model. Problems are collected, not thrown. */
-export function buildModel(register: readonly RegisterRow[], plan: readonly PlanRow[]): RawModel {
+export function buildModel(
+  register: readonly RegisterRow[],
+  plan: readonly PlanRow[],
+  options: { asOf?: string | null } = {},
+): RawModel {
+  const asOf = options.asOf ?? null;
   const problems: Problem[] = [];
   const problem = (severity: Problem['severity'], code: string, message: string, lines: number[]) =>
     problems.push({ severity, code, message, lines });
@@ -147,13 +210,14 @@ export function buildModel(register: readonly RegisterRow[], plan: readonly Plan
       categoryKey: r.category ? categoryKey(r.group, r.category) : null,
       memo: m ? (m[3] ?? '') : r.memo,
       amountCents: r.amountCents,
-      transferAccount: r.payee.startsWith(TRANSFER) ? r.payee.slice(TRANSFER.length) : null,
+      // Account names are matched trimmed, in transfers as everywhere else.
+      transferAccount: r.payee.startsWith(TRANSFER) ? r.payee.slice(TRANSFER.length).trim() : null,
       transferId: null,
     };
     const booking = (memo: string): RawBooking => ({
       id: `r${r.line}`,
       line: r.line,
-      account: r.account,
+      account: r.account.trim(),
       date: r.date,
       payee: r.payee,
       systemPayee: SYSTEM_PAYEES[r.payee] ?? null,
@@ -162,6 +226,7 @@ export function buildModel(register: readonly RegisterRow[], plan: readonly Plan
       memo,
       amountCents: r.amountCents,
       splits: [split],
+      scheduled: asOf !== null && r.date > asOf,
     });
     if (!m) {
       abandon();
@@ -176,7 +241,7 @@ export function buildModel(register: readonly RegisterRow[], plan: readonly Plan
       open &&
       i === open.booking.splits.length + 1 &&
       n === open.n &&
-      r.account === open.booking.account &&
+      r.account.trim() === open.booking.account &&
       r.date === open.booking.date
     ) {
       open.booking.splits.push(split);
@@ -194,7 +259,7 @@ export function buildModel(register: readonly RegisterRow[], plan: readonly Plan
   abandon();
 
   // Transfers: pair legs by (account pair, date, opposite amount) in file order.
-  const names = new Set(register.map((r) => r.account));
+  const names = new Set(register.map((r) => r.account.trim()));
   const waiting = new Map<string, RawSplit[]>();
   for (const b of bookings)
     for (const s of b.splits) {
@@ -231,6 +296,7 @@ export function buildModel(register: readonly RegisterRow[], plan: readonly Plan
         name,
         hidden: group.trim() === HIDDEN_GROUP,
         cardAccount: group.trim() === CARD_GROUP ? name.trim() : null,
+        originalGroup: null,
         note: parseNote(name),
       });
     return key;
@@ -252,11 +318,24 @@ export function buildModel(register: readonly RegisterRow[], plan: readonly Plan
     if (i > 0 && nextMonth(months[i - 1] as string) !== m)
       problem('error', 'plan.gap', `Plan months jump from ${months[i - 1]} to ${m}`, []);
   });
-  for (const r of register)
-    if (r.category && categoryKey(r.group, r.category) !== READY_TO_ASSIGN) {
-      const key = categoryKey(r.group, r.category);
-      if (!categories.has(key))
-        problem('warning', 'category.not_in_plan', 'Category missing in Plan.tsv', [r.line]);
+  // A hidden category may appear in the register under its original group (or the other way
+  // round): the plan's key wins when exactly one plan category has that name and one is hidden.
+  const planKeys = [...categories.values()];
+  for (const b of bookings)
+    for (const s of b.splits) {
+      const key = s.categoryKey;
+      if (key === null || key === READY_TO_ASSIGN || categories.has(key)) continue;
+      const [group, name] = [key.slice(0, key.indexOf(': ')), key.slice(key.indexOf(': ') + 2)];
+      const same = planKeys.filter(
+        (c) => c.name.trim() === name && (c.hidden || group === HIDDEN_GROUP),
+      );
+      if (same.length === 1 && same[0]) {
+        s.categoryKey = same[0].key;
+        if (same[0].hidden) same[0].originalGroup ??= group;
+        continue;
+      }
+      problem('warning', 'category.not_in_plan', 'Category missing in Plan.tsv', [s.line]);
+      const r = register.find((x) => x.line === s.line) as RegisterRow;
       addCategory(r.group, r.category);
     }
   const cards = new Set(
@@ -266,9 +345,8 @@ export function buildModel(register: readonly RegisterRow[], plan: readonly Plan
     if (!names.has(card))
       problem('warning', 'card.unknown_account', 'Card payment category without its account', []);
 
-  // Accounts with proposals.
-  const latest = register.reduce((a, r) => (r.date > a ? r.date : a), '');
-  const closedBefore = latest ? addMonths(latest.slice(0, 7), -3) : '';
+  // Accounts with proposals, from the rows up to the "as of" day.
+  const today = asOf ?? bookings.reduce((a, b) => (b.date > a ? b.date : a), '1970-01-01');
   const accounts = new Map<string, RawAccount & { categorised: boolean }>();
   for (const b of bookings) {
     let a = accounts.get(b.account);
@@ -286,9 +364,7 @@ export function buildModel(register: readonly RegisterRow[], plan: readonly Plan
       accounts.set(b.account, a);
     }
     if (b.date < a.firstDate) a.firstDate = b.date;
-    if (b.date > a.lastDate) a.lastDate = b.date;
     a.rows += b.splits.length;
-    a.balanceCents += b.amountCents;
     if (b.systemPayee === 'opening_balance') {
       if (a.startingBalance)
         problem('warning', 'account.starting_balance', 'Second Starting Balance', [b.line]);
@@ -296,22 +372,22 @@ export function buildModel(register: readonly RegisterRow[], plan: readonly Plan
     }
     if (b.splits.some((s) => s.transferAccount === null && s.categoryKey !== null))
       a.categorised = true;
+    if (b.scheduled) continue;
+    if (b.date > a.lastDate) a.lastDate = b.date;
+    a.balanceCents += b.amountCents;
   }
   const out: RawAccount[] = [...accounts.values()].map(({ categorised, ...a }) => {
     const creditCard = cards.has(a.name);
-    const closed = a.balanceCents === 0 && a.lastDate.slice(0, 7) < closedBefore;
+    // Closed: nothing left and no row in the last 90 days.
+    const closed = a.balanceCents === 0 && daysBetween(a.lastDate, today) > 90;
+    // A loan starts negative; a paid-off loan is still one. Platforms and depots start positive.
+    const loan = (a.startingBalance?.amountCents ?? a.balanceCents) < 0;
     return {
       ...a,
       proposal: {
         onBudget: categorised,
         creditCard,
-        type: creditCard
-          ? 'credit_card'
-          : categorised
-            ? 'checking'
-            : a.balanceCents < 0
-              ? 'loan'
-              : 'other_asset',
+        type: creditCard ? 'credit_card' : categorised ? 'checking' : loan ? 'loan' : 'other_asset',
         closedAt: closed ? a.lastDate : null,
       },
     };
@@ -322,6 +398,7 @@ export function buildModel(register: readonly RegisterRow[], plan: readonly Plan
     bookings,
     months,
     plan: cells,
+    asOf,
     problems,
   };
 }

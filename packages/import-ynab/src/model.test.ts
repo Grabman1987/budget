@@ -154,24 +154,40 @@ describe('model builder', () => {
     expect(m.problems.map((x) => x.code)).toEqual(['plan.duplicate', 'plan.gap']);
   });
 
-  it('reads bracketed notes: monthly with a day, yearly with day and month', () => {
-    expect(parseNote('Streaming - [€ 7,49 am 03.]')).toEqual({
-      amountCents: 749,
-      day: 3,
-      month: null,
+  it('reads bracketed notes in every form of the real export', () => {
+    const note = (amountCents: number | null, schedule: unknown) => ({
+      amountCents,
+      schedule,
+      targetOnly: schedule === null,
     });
-    expect(parseNote('Kfz-Versicherung - [€ 980 - am 01.11.]')).toEqual({
-      amountCents: 98000,
-      day: 1,
-      month: 11,
+    const monthly = (day: number) => ({ kind: 'monthly', day });
+    const yearly = (...dates: [number, number][]) => ({
+      kind: 'yearly',
+      dates: dates.map(([day, month]) => ({ day, month })),
     });
-    expect(parseNote('Miete [€ 1.050,5 am 1.]')).toEqual({
-      amountCents: 105050,
-      day: 1,
-      month: null,
-    });
-    expect(parseNote('Urlaub [irgendwann]')).toBeNull();
-    expect(parseNote('Kaputt [€ 5 am 32.]')).toBeNull();
+    const cases: [string, unknown][] = [
+      ['Miete [€ 350,-]', note(35000, null)],
+      ['Urlaub - [€ 200,-]', note(20000, null)],
+      ['Handy - [€ 30,- am 01.]', note(3000, monthly(1))],
+      ['Zeitung - [€ 42,- am 10.01.]', note(4200, yearly([10, 1]))],
+      ['Kredit - [€ 122- am 01.]', note(12200, monthly(1))],
+      ['Rate - [€ 1.809,61 am 01.]', note(180961, monthly(1))],
+      ['Versicherung - [€ 1.500 - am 01.12.]', note(150000, yearly([1, 12]))],
+      ['Bank - [€ 42,30 am 30./31.]', note(4230, { kind: 'last_day' })],
+      ['Wasser - [€ 400,- am 01.02. & 01.08.]', note(40000, yearly([1, 2], [1, 8]))],
+      ['Strom - [€ ??,- am 01.]', note(null, monthly(1))],
+      ['Abo - [9,99 am ?]', note(999, { kind: 'unknown' })],
+      ['Streaming - [€ 7,49 am 03.]', note(749, monthly(3))],
+      ['Kfz - [€ 980 - am 01.11.]', note(98000, yearly([1, 11]))],
+    ];
+    for (const [name, expected] of cases) expect(parseNote(name), name).toEqual(expected);
+    for (const bad of [
+      'Urlaub [irgendwann]',
+      'Kaputt [€ 5 am 32.]',
+      'Datum [€ 5 am 01.13.]',
+      'Ohne',
+    ])
+      expect(parseNote(bad), bad).toBeNull();
     expect(stripNote('Strom - [€ 85 am 05.]')).toBe('Strom');
     expect(stripNote('Miete')).toBe('Miete');
   });

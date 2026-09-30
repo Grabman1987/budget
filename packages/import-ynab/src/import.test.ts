@@ -1,20 +1,25 @@
 import { addMonths } from '@budget/domain';
-import { ynabExport, YNAB_AS_OF } from '@budget/fixtures/ynab';
+import { ynabExport, YNAB_AS_OF, YNAB_FILE_NAMES } from '@budget/fixtures/ynab';
 import { describe, expect, it } from 'vitest';
 import {
   applyMapping,
   buildModel,
+  exportAsOf,
   identityMapping,
   mappingSchema,
   parsePlan,
   parseRegister,
+  READY_TO_ASSIGN,
   reconcile,
+  stripNote,
   type Mapping,
   type MappingInput,
 } from './index';
 
 const files = ynabExport(1);
-const raw = buildModel(parseRegister(files.register), parsePlan(files.plan));
+const raw = buildModel(parseRegister(files.register), parsePlan(files.plan), {
+  asOf: exportAsOf(YNAB_FILE_NAMES.register),
+});
 const run = (mapping: Mapping) => {
   const { target, problems } = applyMapping(raw, mapping);
   return { target, problems, report: reconcile(raw, target, { today: YNAB_AS_OF }) };
@@ -26,15 +31,17 @@ const mapped = (change: (m: MappingInput) => void, start?: string): Mapping => {
   return mappingSchema.parse(m);
 };
 const key = (name: string) => {
-  const found = raw.categories.find((c) => c.name.trim() === name);
+  const found = raw.categories.find(
+    (c) => stripNote(c.name).trim() === name || c.name.trim() === name,
+  );
   if (!found) throw new Error(name);
   return found.key;
 };
 
 describe('round trip on the synthetic export', () => {
-  it('parses without problems: 12 accounts, 44 categories, 58 months', () => {
+  it('parses without problems: 14 accounts, 45 categories, 58 months', () => {
     expect(raw.problems).toEqual([]);
-    expect([raw.accounts.length, raw.categories.length, raw.months.length]).toEqual([12, 44, 58]);
+    expect([raw.accounts.length, raw.categories.length, raw.months.length]).toEqual([14, 45, 58]);
     expect(raw.bookings.some((b) => b.splits.length === 3)).toBe(true);
     expect(
       raw.bookings.flatMap((b) => b.splits).filter((s) => s.transferAccount && !s.transferId),
@@ -46,8 +53,8 @@ describe('round trip on the synthetic export', () => {
     expect(problems).toEqual([]);
     expect(report.differences).toEqual([]);
     expect(report.checked).toMatchObject({
-      activity: 44 * 58,
-      available: 44 * 58,
+      activity: 45 * 58,
+      available: 45 * 58,
       to_be_assigned: 58,
       total: 58,
     });
@@ -121,23 +128,13 @@ describe('round trip on the synthetic export', () => {
     }, '2024-01');
     const { report } = run(mapping);
     expect(report.differences.some((d) => d.check === 'balance')).toBe(false);
-    const may = report.differences.filter((d) => d.month === '2024-05');
+    const may = report.differences
+      .filter((d) => d.month === '2024-05')
+      .map((d) => [d.check, d.category, d.actualCents - d.expectedCents]);
     expect(may).toEqual([
-      {
-        check: 'activity',
-        month: '2024-05',
-        category: key('Kreditkarte Blau'),
-        expectedCents: 32816,
-        actualCents: 34816,
-      },
-      {
-        check: 'available',
-        month: '2024-05',
-        category: key('Kreditkarte Blau'),
-        expectedCents: 63553,
-        actualCents: 65553,
-      },
-      { check: 'total', month: '2024-05', expectedCents: 3374855, actualCents: 3376855 },
+      ['activity', key('Kreditkarte Blau'), 2000],
+      ['available', key('Kreditkarte Blau'), 2000],
+      ['total', undefined, 2000],
     ]);
     expect(report.differences.map((d) => d.month).sort()[0]).toBe('2024-05');
   });
@@ -160,7 +157,7 @@ describe('round trip on the synthetic export', () => {
         {
           id: 'rundfunk',
           match: { payee: 'Rundfunkbeitrag' },
-          set: { category: key('Internet - [€ 39,90 am 10.]') },
+          set: { category: key('Internet') },
         },
         {
           id: 'altkonto',
@@ -172,20 +169,15 @@ describe('round trip on the synthetic export', () => {
     }, '2023-10');
     const { target, report } = run(mapping);
     expect(report.differences).toEqual([]);
+    // Moving the fee out of Haushalt leaves more there to fund its card spending.
+    expect(report.creditShift.length).toBeGreaterThan(0);
+    expect(report.creditShift.every((x) => x.month >= '2025-01' && x.cents < 0)).toBe(true);
     const byRule = (id: string) => report.moved.filter((x) => x.ruleId === id);
-    expect(byRule('rundfunk').map((x) => [x.month, x.cents])).toEqual(
-      [
-        '2026-01',
-        '2026-02',
-        '2026-03',
-        '2026-04',
-        '2026-05',
-        '2026-06',
-        '2026-07',
-        '2026-08',
-        '2026-09',
-      ].map((m) => [m, -1850]),
-    );
+    // Twice a year, February and August.
+    expect(byRule('rundfunk').map((x) => [x.month, x.cents])).toEqual([
+      ['2026-02', -6000],
+      ['2026-08', -6000],
+    ]);
     expect(byRule('altkonto').map((x) => x.month)).toEqual([
       '2025-01',
       '2025-02',
@@ -202,9 +194,9 @@ describe('round trip on the synthetic export', () => {
     expect(report.checked.total).toBe(months);
     expect(report.checked.to_be_assigned).toBe(target.months.indexOf('2025-01'));
     expect(report.checked.available).toBe(
-      44 * months -
-        2 * (months - target.months.indexOf('2026-01')) -
-        (months - target.months.indexOf('2025-01')),
+      45 * months -
+        2 * (months - target.months.indexOf('2026-02')) -
+        3 * (months - target.months.indexOf('2025-01')),
     );
   });
 
@@ -218,17 +210,113 @@ describe('round trip on the synthetic export', () => {
     expect(names).toContain('Strom');
     expect(names).toContain('Lebensmittel');
     expect(target.categories.map((c) => c.group)).toContain('Freizeit');
-    expect(target.expectedPayments.map((e) => [e.amountCents, e.day, e.month])).toEqual([
-      [8500, 5, null],
-      [3990, 10, null],
-      [749, 3, null],
-      [18000, 1, 3],
-      [98000, 1, 11],
+    const monthly = (day: number) => ({ kind: 'monthly', day });
+    const yearly = (...dates: [number, number][]) => ({
+      kind: 'yearly',
+      dates: dates.map(([day, month]) => ({ day, month })),
+    });
+    expect(target.expectedPayments.map((e) => [e.amountCents, e.schedule])).toEqual([
+      [108961, monthly(1)],
+      [8500, monthly(5)],
+      [null, monthly(10)],
+      [1530, { kind: 'last_day' }],
+      [999, { kind: 'unknown' }],
+      [6000, yearly([1, 2], [1, 8])],
+      [60000, monthly(1)],
+      [18000, yearly([1, 3])],
+      [108000, yearly([1, 11])],
+      [4500, monthly(12)],
+    ]);
+    expect(target.targets.map((t) => [stripNote(t.source), t.amountCents])).toEqual([
+      ['🎉 Freizeit: Urlaub', 15000],
+      ['📈 Zukunft: Notgroschen', 10000],
     ]);
     expect(target.contacts).toEqual(['Kontakt B']);
     const rent = target.bookings.filter((b) => b.payee === 'Hausverwaltung');
     expect(rent.length).toBeGreaterThan(30);
     expect(rent.every((b) => b.contact === 'Kontakt B')).toBe(true);
+  });
+});
+
+describe('export facts from the first real import', () => {
+  it('rows after the export date are scheduled: pending, outside the plan, balances and budget', () => {
+    expect(exportAsOf(YNAB_FILE_NAMES.plan)).toBe('2026-09-29');
+    expect(exportAsOf('Register.tsv')).toBeNull();
+    expect(raw.bookings.filter((b) => b.scheduled)).toHaveLength(6);
+    const { target, report } = run(identityMapping(raw));
+    const future = target.bookings.filter((b) => b.scheduled);
+    expect(future.map((b) => [b.date > YNAB_AS_OF, b.status])).toEqual(
+      Array(6).fill([true, 'pending']),
+    );
+    expect(report.differences).toEqual([]);
+    expect(report.checked.balance).toBeGreaterThan(0);
+  });
+
+  it('account proposals: paid-off loan, closed accounts, platforms, trimmed names', () => {
+    const p = Object.fromEntries(raw.accounts.map((a) => [a.name, a.proposal]));
+    expect(p['Autokredit']).toEqual({
+      onBudget: false,
+      creditCard: false,
+      type: 'loan',
+      closedAt: '2023-08-15',
+    });
+    expect(p['Altes Sparbuch']?.closedAt).toBe('2023-03-15');
+    expect(p['Altes Girokonto']?.closedAt).toBe('2025-06-30');
+    expect(p['Kreditkarte Grün']?.closedAt).toBe('2024-12-08');
+    expect(p['Girokonto']?.closedAt).toBeNull();
+    for (const platform of ['Depot', 'Krypto', 'Forderung Kontakt A'])
+      expect(p[platform]?.type, platform).toBe('other_asset');
+    // Exported with a trailing space in the account column, without in the transfer payees.
+    expect(p['Online-Wallet']).toMatchObject({ onBudget: true, type: 'checking' });
+  });
+
+  it('a hidden category the register shows under its original group is one category', () => {
+    const old = raw.categories.filter((c) => c.name === 'Alte Kategorie');
+    expect(old.map((c) => [c.key, c.originalGroup])).toEqual([
+      ['Hidden Categories: Alte Kategorie', '🔧 Periodisch'],
+    ]);
+  });
+
+  it('split lines keep their own payee', () => {
+    const { target } = run(identityMapping(raw));
+    const split = target.bookings.find((b) => b.payee === 'Blumenladen' && b.splits.length === 2);
+    expect(split?.splits.map((s) => s.payee)).toEqual(['Blumenladen', 'Restaurant']);
+  });
+
+  it("the start month's income is income only, not the opening balances", () => {
+    const { report } = run(identityMapping(raw, '2023-10'));
+    const inflows = raw.bookings
+      .filter((b) => b.date.startsWith('2023-10'))
+      .flatMap((b) => b.splits)
+      .filter((s) => s.categoryKey === READY_TO_ASSIGN)
+      .reduce((a, s) => a + s.amountCents, 0);
+    expect(report.budget[0]?.incomeCents).toBe(inflows);
+  });
+
+  it('rules never touch transfer legs or tracking accounts', () => {
+    const mapping = mapped((m) => {
+      m.rulesFrom = '2024-01';
+      m.rules = [
+        { id: 'legs', match: { payee: 'Transfer : Tagesgeld' }, set: { category: key('Urlaub') } },
+        { id: 'depot', match: { account: 'Depot' }, set: { category: key('Urlaub') } },
+      ];
+    }, '2023-10');
+    const { report } = run(mapping);
+    expect(report.moved).toEqual([]);
+    expect(report.differences).toEqual([]);
+  });
+
+  it("YNAB's Ready to Assign comes from the export, not from the mapping", () => {
+    const identity = run(identityMapping(raw, '2023-10')).report.budget;
+    const moved = mapped((m) => {
+      const a = m.accounts['Tagesgeld'] as { onBudget: boolean; type: string };
+      a.onBudget = false;
+      a.type = 'other_asset';
+    }, '2023-10');
+    const zv = run(moved).report.differences.filter((d) => d.check === 'to_be_assigned');
+    expect(zv.length).toBeGreaterThan(0);
+    for (const d of zv)
+      expect(d.expectedCents).toBe(identity.find((m) => m.month === d.month)?.toBeAssignedCents);
   });
 });
 
@@ -251,7 +339,38 @@ describe('mapping document', () => {
     ]);
     expect(
       issues((m) => (m.targets['k'] = { name: 'k', group: 'g', kind: 'card_payment' })),
-    ).toEqual([['targets.k', 'card_payment needs a card account']]);
+    ).toEqual([['targets.k', 'card_payment needs an on-budget credit card']]);
+    // Every on-budget card has exactly one card_payment target.
+    const blue = key('Kreditkarte Blau');
+    const card = (m: MappingInput) => (m.targets[blue] as { cardAccount: string }).cardAccount;
+    expect(
+      issues(
+        (m) =>
+          (m.targets['second'] = {
+            name: 'x',
+            group: 'y',
+            kind: 'card_payment',
+            cardAccount: card(m),
+          }),
+      ),
+    ).toEqual([
+      [
+        'accounts.Kreditkarte Blau',
+        'An on-budget credit card needs exactly one card_payment target',
+      ],
+    ]);
+    expect(issues((m) => (m.targets[blue] = { name: 'x', group: 'y', kind: 'variable' }))).toEqual([
+      [
+        'accounts.Kreditkarte Blau',
+        'An on-budget credit card needs exactly one card_payment target',
+      ],
+    ]);
+    expect(
+      issues((m) => {
+        const a = m.accounts['Kreditkarte Blau'] as { onBudget: boolean };
+        a.onBudget = false;
+      }),
+    ).toEqual([[`targets.${blue}`, 'card_payment needs an on-budget credit card']]);
     expect(issues((m) => (m.rules = [{ id: 'r', match: { payee: 'x' }, set: {} }]))).toEqual([
       ['rules.0', 'No from and no rulesFrom'],
     ]);
@@ -272,5 +391,16 @@ describe('mapping document', () => {
       'mapping.account_missing',
       'mapping.category_missing',
     ]);
+    // Named by index and hash, never by name.
+    expect(problems[1]?.subject).toEqual({
+      kind: 'account',
+      index: 2,
+      hash: expect.stringMatching(/^[0-9a-f]{8}$/),
+    });
+    expect(problems[2]?.subject).toMatchObject({
+      kind: 'category',
+      index: raw.categories.findIndex((c) => c.key === key('Tanken')),
+    });
+    expect(JSON.stringify(problems)).not.toMatch(/Bargeld|Tanken/);
   });
 });
