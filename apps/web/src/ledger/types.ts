@@ -146,3 +146,35 @@ export interface PayeeRow {
 export interface WriteResult {
   groupId: string;
 }
+
+export interface DuplicateCandidate {
+  removeId: string;
+  keepId: string;
+  date: string;
+  payeeName: string | null;
+  amountCents: number;
+  /** Removing it makes the balances agree. */
+  explainsDifference: boolean;
+}
+
+export interface ReconciliationPreview {
+  accountId: string;
+  date: string;
+  statementBalanceCents: number;
+  bookedBalanceCents: number;
+  pendingCents: number;
+  /** `statement − booked`; negative means the app is too high. */
+  differenceCents: number;
+  toReconcileCount: number;
+  duplicates: DuplicateCandidate[];
+  pendingMatches: { bookingIds: string[]; sumCents: number }[];
+  missing: { kind: 'expense' | 'income'; amountCents: number } | null;
+}
+
+export interface ReconcileResult {
+  reconciliationId: string;
+  groupId: string;
+  differenceCents: number;
+  adjustmentBookingId: string | null;
+  reconciledCount: number;
+}

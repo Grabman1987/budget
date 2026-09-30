@@ -9,6 +9,8 @@ import type {
   ListedBooking,
   Lookups,
   PayeeRow,
+  ReconciliationPreview,
+  ReconcileResult,
   SeriesPoint,
   WriteResult,
 } from './types';
@@ -160,3 +162,28 @@ export const undoGroup = (groupId: string) =>
   request<WriteResult>('POST', '/api/undo', { groupId });
 
 export type { BookingStatus };
+
+export const previewReconciliation = (
+  accountId: string,
+  input: { date: string; statementBalanceCents: number },
+) =>
+  request<{ preview: ReconciliationPreview }>(
+    'POST',
+    `/api/accounts/${encodeURIComponent(accountId)}/reconciliation/preview`,
+    input,
+  ).then((r) => r.preview);
+
+export interface ReconcileRequest {
+  date: string;
+  statementBalanceCents: number;
+  removeBookingIds?: string[];
+  confirmBookingIds?: string[];
+  adjust?: boolean;
+}
+
+export const reconcileAccount = (accountId: string, input: ReconcileRequest) =>
+  request<{ result: ReconcileResult; account: AccountRow }>(
+    'POST',
+    `/api/accounts/${encodeURIComponent(accountId)}/reconciliation`,
+    input,
+  );

@@ -338,6 +338,26 @@
   color: var(--ink-2);
 }
 
+/* Kontostand prüfen */
+.kv-list {
+  display: grid;
+  margin: 0;
+}
+.kv-list div {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--rule);
+}
+.kv-list dt {
+  color: var(--ink-2);
+}
+.kv-list dd {
+  margin: 0;
+  font-weight: 620;
+}
+
 /* Forms in the side panel */
 .kform {
   display: grid;
@@ -462,7 +482,7 @@
   height: 18px;
   accent-color: var(--line);
 }
-.kf-sort {
+.kf.kf-sort {
   display: none;
 }
 
@@ -541,11 +561,10 @@
 }
 
 @media (max-width: 767px) {
-  .kselect-all,
-  .kf-sort {
+  .kselect-all {
     display: flex;
   }
-  .kf-sort {
+  .kf.kf-sort {
     display: grid;
   }
   .kview {
