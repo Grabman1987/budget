@@ -699,13 +699,24 @@
 }
 
 /* Capture panel (P2b): suggestion lists, chips, quick dates. */
+/* The list floats over what follows the field: closing it on blur must not move the buttons below
+   while a click is under way (mouse down blurs the field, mouse up would miss). */
+.combo {
+  position: relative;
+}
 .combo-list {
-  margin: 4px 0 0;
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  z-index: 5;
+  margin: 0;
   padding: 4px;
   list-style: none;
   background: var(--raised);
   border: 1px solid var(--rule-strong);
   border-radius: 8px;
+  box-shadow: var(--shadow);
   max-height: 240px;
   overflow: auto;
 }

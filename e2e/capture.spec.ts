@@ -173,8 +173,10 @@ test('discard question, Speichern und neu keeps the context, the payee brings it
   await expect(panel.getByLabel('Konto', { exact: true }).locator('option').first()).toHaveText(
     account,
   );
-  // The first Esc closes the suggestion list, the second asks about the input.
-  await page.keyboard.press('Escape');
+  // The open suggestion list must not shift the page: a click below it still lands.
+  await expect(panel.getByRole('listbox')).toBeVisible();
+  await panel.getByText('Mehr', { exact: true }).click();
+  await expect(panel.getByLabel('Markierung')).toBeVisible();
   await page.keyboard.press('Escape');
   await panel.getByRole('button', { name: 'Verwerfen' }).click();
 });
