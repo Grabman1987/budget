@@ -465,6 +465,29 @@ describe('credit card spending by the YNAB rule (owner decision 30.09.2026)', ()
     expect(june.toBeAssignedCents).toBe(may.toBeAssignedCents);
   });
 
+  it('rolloverOverspending: card spending moves in full, the category carries its overspending', () => {
+    const [may, june] = budgetMonths({
+      accounts,
+      categories: categories.map((c) =>
+        c.id === 'essen' ? { ...c, rolloverOverspending: true } : c,
+      ),
+      splits: [s('karte', '2026-05-10', -15000)],
+      months: ['2026-05', '2026-06'],
+      assigned: { '2026-05': { essen: 10000 } },
+    });
+    expect(may!.envelopes['essen']).toMatchObject({
+      availableCents: -5000,
+      fundedCardCents: 15000,
+      creditOverspentCents: 0,
+      cashOverspentCents: 5000,
+    });
+    expect(may!.envelopes['kz']?.availableCents).toBe(15000);
+    expect(may!.cards['karte']?.cardDebtGrowthCents).toBe(0);
+    // Carried, not reset: June starts at −50 € and "Zu verteilen" is not reduced.
+    expect(june!.envelopes['essen']?.carryCents).toBe(-5000);
+    expect(june!.uncoveredCents).toBe(0);
+  });
+
   it('shares the credit overspending over two cards in proportion to their spending', () => {
     const { may } = run([s('karte', '2026-05-10', -9000), s('karte2', '2026-05-11', -3000)]);
     // 100 € available, 120 € on cards: 20 € credit overspending, 15 € on card 1, 5 € on card 2.
