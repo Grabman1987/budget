@@ -7,6 +7,13 @@ export {
   type DimensionChainProps,
   type DimensionChainTerm,
 } from './dimension-chain';
+export {
+  DimensionChainDrawing,
+  type ChainFill,
+  type ChainPart,
+  type ChainSubtrahend,
+  type DimensionChainDrawingProps,
+} from './dimension-chain-drawing';
 export { Field, Select, TextInput, type FieldProps } from './field';
 export { BottomSheet, DetailPanel, SidePanel, type PanelProps } from './panel';
 export { PartsList, type PartsColumn, type PartsGroup, type PartsListProps } from './parts-list';
@@ -28,6 +35,6 @@ export {
   type StatusMarkProps,
 } from './stamps';
 export { Switch, type SwitchProps } from './switch';
-export { TitleBlock, type TitleBlockField, type TitleBlockProps } from './title-block';
+export { StandValue, TitleBlock, type TitleBlockField, type TitleBlockProps } from './title-block';
 export { ToastProvider, useToast, type ToastOptions } from './toast';
 export { useIsPhone, useMediaQuery, usePrefersDark } from './use-media-query';

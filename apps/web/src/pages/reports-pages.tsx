@@ -1,15 +1,16 @@
-import { PartsList, SectionHead, TitleBlock, Registers, type RegisterItem } from '@budget/ui';
+import { PartsList, SectionHead, Registers, type RegisterItem } from '@budget/ui';
 import { areaById } from '../nav/areas';
 import { REPORTS_CATALOG, REPORT_GROUP_PAGES, type PageMeta } from '../nav/pages';
 import {
+  REPORTS,
   REPORT_GROUPS,
   findReport,
   findReportGroup,
   type ReportEntry,
-  type ReportGroup,
 } from '../nav/reports-catalog';
 import { useParams } from '@tanstack/react-router';
 import { AppLink } from '../shell/app-link';
+import { AreaHead } from './area-head';
 import { PlaceholderPage } from './placeholder-page';
 
 const CONTROL_LABEL = {
@@ -47,17 +48,13 @@ const reportLink = (report: ReportEntry) => (
   </AppLink>
 );
 
-const groupSummary = (group: ReportGroup) => ({ question: `${group.items.length} Zeichnungen` });
-
 /** Report catalog as parts list: five assemblies, positions 1.1 … 5.5. */
 export function ReportsCatalogPage() {
   return (
     <>
-      <TitleBlock
-        title={REPORTS_CATALOG.title}
-        {...(REPORTS_CATALOG.question ? { subtitle: REPORTS_CATALOG.question } : {})}
-        fields={[{ label: 'Gefüllt in', value: 'Paket P6' }]}
-        compactOnMobile
+      <AreaHead
+        meta={REPORTS_CATALOG}
+        subtitle={`${REPORTS.length} Zeichnungen aus einem Hauptbuch`}
       />
       <ReportRegisters current="katalog" />
       <section aria-labelledby="catalog-title" className="catalog">
@@ -89,12 +86,7 @@ export function ReportGroupPage({ slug }: { slug: string }) {
   if (!group || !page) return <ReportNotFound />;
   return (
     <>
-      <TitleBlock
-        title={group.name}
-        subtitle={groupSummary(group).question}
-        fields={[{ label: 'Gefüllt in', value: 'Paket P6' }]}
-        compactOnMobile
-      />
+      <AreaHead meta={REPORTS_CATALOG} subtitle={group.name} />
       <ReportRegisters current={slug} />
       <section aria-labelledby="group-title" className="catalog">
         <SectionHead id="group-title" title="Zeichnungen" />
@@ -121,13 +113,13 @@ export function ReportPage({ reportId }: { reportId: string }) {
     title: report.name,
     area: 'reports',
     register: report.group.slug,
-    question: report.question,
     fills: 'P6 Reports und Umstellung',
     spec: `Diagrammform: ${report.form}.`,
   };
   return (
     <PlaceholderPage
       meta={meta}
+      title={report.name}
       extraFields={[
         { label: 'Zeichnung', value: report.pos },
         { label: 'Steuerung', value: controlsText(report) },

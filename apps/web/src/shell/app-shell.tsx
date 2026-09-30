@@ -1,11 +1,13 @@
 import { ToastProvider, cx } from '@budget/ui';
 import { Outlet } from '@tanstack/react-router';
 import { useEffect, useRef } from 'react';
-import { MobileHeader, TabBar } from './mobile-chrome';
+import { TITLE_ON_MOBILE_AREAS } from '../pages/area-head';
+import { MobileHeader, TabBar, phoneTitle } from './mobile-chrome';
 import { useActivePage } from './page-meta';
 import { PanelHost } from './panel-host';
 import { Sidebar } from './sidebar';
 import { Topbar } from './topbar';
+import { useMonth } from './use-month';
 import { useStoredFlag } from './use-stored-flag';
 
 const APP_NAME = 'Budget';
@@ -19,6 +21,7 @@ export function AppShell() {
   const page = useActivePage();
   const main = useRef<HTMLElement>(null);
   const title = page?.title ?? APP_NAME;
+  const [month] = useMonth();
 
   useEffect(() => {
     document.title = title === APP_NAME ? APP_NAME : `${title} · ${APP_NAME}`;
@@ -40,7 +43,10 @@ export function AppShell() {
         <Sidebar area={page?.area} />
         <div className="main">
           <Topbar collapsed={collapsed} onToggle={() => setCollapsed(!collapsed)} />
-          <MobileHeader title={title} />
+          <MobileHeader
+            title={phoneTitle(page, month, title)}
+            asHeading={!(page && TITLE_ON_MOBILE_AREAS.has(page.area))}
+          />
           <main className="sheet" id="main" tabIndex={-1} ref={main}>
             <Outlet />
           </main>

@@ -362,11 +362,11 @@ a.btn {
 
   .m-head {
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     gap: 8px;
     padding: 14px 16px 6px;
   }
-  .m-head h1 {
+  .m-head .m-title-text {
     margin: 0;
     font-size: var(--fs-display);
     font-weight: 650;

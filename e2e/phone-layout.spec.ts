@@ -12,7 +12,7 @@ test.describe('phone layout', () => {
     const problems: string[] = [];
     for (const path of ROUTES) {
       await page.goto(path);
-      await expect(page.locator('.m-head h1')).toBeVisible();
+      await expect(page.locator('.m-head .m-title-text')).toBeVisible();
       const result = await page.evaluate(() => {
         window.scrollTo(0, document.documentElement.scrollHeight);
         const focusable = [
@@ -47,18 +47,32 @@ test.describe('phone layout', () => {
   });
 
   test('title-block fields keep their label on the phone', async ({ page }) => {
-    await page.goto('/einstellungen/sicherheit');
-    const field = page.locator('.titleblock .tb-field').first();
-    await expect(field.locator('.tb-label')).toBeVisible();
-    await expect(field.locator('.tb-label')).toHaveText(/passkeys/i);
-    await expect(field.locator('.tb-value')).toBeVisible();
+    for (const [path, label] of [
+      ['/einstellungen/sicherheit', /profil/i],
+      ['/konten', /stand/i],
+      ['/plan/monat', /einnahmen/i],
+    ] as const) {
+      await page.goto(path);
+      const field = page.locator('.titleblock .tb-field:visible').first();
+      await expect(field.locator('.tb-label'), path).toBeVisible();
+      await expect(field.locator('.tb-label'), path).toHaveText(label);
+      await expect(field.locator('.tb-value'), path).toBeVisible();
+    }
   });
 
-  test('the header shows the register name and never truncates it', async ({ page }) => {
-    for (const path of ['/einstellungen/sicherheit', '/plan/monat', '/vermoegen/nettovermoegen']) {
+  test('the header shows the area name (month on Heute) and never truncates it', async ({
+    page,
+  }) => {
+    for (const [path, text] of [
+      ['/einstellungen/sicherheit', 'Einstellungen'],
+      ['/plan/monat', 'Plan'],
+      ['/vermoegen/nettovermoegen', 'Vermögen'],
+      ['/konten/buchungen', 'Konten'],
+      ['/reports/gruppe/ausgaben', 'Reports'],
+    ] as const) {
       await page.goto(path);
-      const h1 = page.locator('.m-head h1');
-      await expect(h1, path).not.toContainText('·');
+      const h1 = page.locator('.m-head .m-title-text');
+      await expect(h1, path).toHaveText(text);
       const clipped = await h1.evaluate((el) => el.scrollWidth > el.clientWidth);
       expect(clipped, path).toBe(false);
     }

@@ -7,6 +7,7 @@ import {
   ClassTag,
   Count,
   DimensionChain,
+  DimensionChainDrawing,
   Field,
   PartsList,
   Registers,
@@ -205,6 +206,7 @@ function Amount() {
 
 function Chains() {
   const [panel, setPanel] = useState<string | null>(null);
+  const [drawingOpen, setDrawingOpen] = useState(true);
   return (
     <section aria-labelledby="massketten" id="massketten">
       <SectionHead id="massketten" title="Maßkette (inline)" detail={4} />
@@ -234,6 +236,48 @@ function Chains() {
           { label: 'Zugewiesen', value: cents(23456), op: '-' },
           { label: 'Frei', value: cents(100000), op: '=' },
         ]}
+      />
+      <SectionHead id="massketten-gezeichnet" title="Maßkette (gezeichnet)" />
+      <p className="dev-note">
+        Teilmaße über einem 14-px-Balken in Klassenfüllung, darunter der gebundene Teil (Schraffur)
+        oder eine Schuld (gestrichelt), unten das Ergebnis. Segmente sind per Tastatur bedienbar und
+        öffnen ihre Einzelposten. Die Linien werden gezogen wie von einem Plotter (900 ms), die
+        Kette klappt in 240 ms auf; bei reduzierter Bewegung erscheint alles sofort.
+      </p>
+      <p>
+        <Button
+          variant="ghost"
+          size="sm"
+          aria-expanded={drawingOpen}
+          aria-controls="kette-frei"
+          onClick={() => setDrawingOpen((open) => !open)}
+        >
+          {drawingOpen ? 'Maßkette ausblenden' : 'Maßkette zeigen'}
+        </Button>
+      </p>
+      <div id="kette-frei">
+        <DimensionChainDrawing
+          label="Frei verfügbar bis Gehalt: Bedarf plus Wunsch minus offen bis Gehalt"
+          open={drawingOpen}
+          onSelect={(key) => setPanel(key)}
+          parts={[
+            { key: 'Bedarf', label: 'Bedarf', cents: cents(128000), fill: 'need' },
+            { key: 'Wunsch', label: 'Wunsch', cents: cents(42000), fill: 'want' },
+          ]}
+          minus={{ key: 'offen', label: 'offen bis Gehalt', cents: cents(30000), kind: 'bound' }}
+          result={{ label: 'frei verfügbar', cents: cents(140000) }}
+        />
+      </div>
+      <DimensionChainDrawing
+        label="Nettovermögen: Budget-Konten, Sparen, Investment minus Schulden"
+        onSelect={(key) => setPanel(key)}
+        parts={[
+          { key: 'Budget-Konten', label: 'Budget-Konten', cents: cents(116700), fill: 'need' },
+          { key: 'Sparen', label: 'Sparen', cents: cents(773900), fill: 'future' },
+          { key: 'Investment', label: 'Investment', cents: cents(8800000), fill: 'want' },
+        ]}
+        minus={{ key: 'Schulden', label: 'Schulden', cents: cents(1217600), kind: 'debt' }}
+        result={{ label: 'Nettovermögen', cents: cents(8473000) }}
       />
       <SidePanel open={panel !== null} onClose={() => setPanel(null)} title={panel ?? ''}>
         <p>Einzelposten von „{panel}“ erscheinen hier im Seitenpanel.</p>

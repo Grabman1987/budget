@@ -49,3 +49,29 @@ describe('class fills', () => {
     );
   });
 });
+
+describe('chain motion (DESIGN.md Maßkette)', () => {
+  const chartCss = readFileSync(new URL('../styles/charts.css', import.meta.url), 'utf8');
+
+  it('draws lines like a plotter over --t-plot with the shared easing', () => {
+    expect(chartCss).toMatch(
+      /\.chain-drawing\.is-open \.plot-line\s*\{[^}]*animation:[^;]*var\(--t-plot\)[^;]*var\(--ease-out\)/,
+    );
+  });
+
+  it('unfolds in 240 ms', () => {
+    expect(chartCss).toMatch(/\.chain-drawing\s*\{[^}]*grid-template-rows 240ms/);
+  });
+
+  it('shows everything at once for reduced motion', () => {
+    const block = chartCss.slice(chartCss.lastIndexOf('@media (prefers-reduced-motion: reduce)'));
+    expect(block).toMatch(/\.chain-drawing\.is-open \.plot-line\s*\{[^}]*animation:\s*none/);
+    expect(block).toMatch(/\.chain-drawing\s*\{[^}]*transition:\s*none/);
+  });
+
+  it('uses the motion tokens from DESIGN.md', () => {
+    const scales = readFileSync(new URL('../styles/scales.css', import.meta.url), 'utf8');
+    expect(scales).toContain('--t-plot: 900ms');
+    expect(scales).toContain('--ease-out: cubic-bezier(0.16, 1, 0.3, 1)');
+  });
+});
