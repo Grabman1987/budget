@@ -106,6 +106,8 @@ Alle Reports rechnen aus demselben Hauptbuch; Nettovermögen, Rendite und Regels
 
 **Heute (Entscheidung 28.09.2026):** Kein Urteilssatz wie „Ja, der Monat hält“; die Leitzahl beantwortet die Frage selbst. Der Seitenkopf zeigt den aktuellen Monat. Der Finanz-Check trägt eine Kennzahl (erfüllt / Warnung / verletzt über alle Regeln).
 
+**Kreditkarten (Entscheidung 30.09.2026, ersetzt die einfache Konzeptregel aus Konzept 3.1):** Kartenausgaben folgen YNAB. In den Envelope „Kartenzahlung“ wandert nur der gedeckte Teil einer Kartenausgabe; was die Kategorie nicht decken kann, bleibt als neue Kartenschuld stehen (Kredit-Überziehung) und mindert „Zu verteilen“ im Folgemonat nicht, anders als eine Überziehung mit Bargeld. Wird die Kategorie später im Monat gedeckt, wandert der Betrag nachträglich. Gutschriften auf der Karte fließen voll in die Kategorie zurück, Zahlungen an die Karte mindern den Envelope. Die einfache Konzeptregel bleibt für den Parallelbetrieb umschaltbar.
+
 **Geldfluss-Wasserfall (Entscheidung 28.09.2026, ergänzt Konzept 3.6):** Neun statt acht Stufen. Nach „1 Fixkosten und Mindestraten“ kommt neu „2 Laufender Monat“ mit den variablen Monatszielen für Bedarf und Wunsch (Lebensmittel, Treibstoff, Freizeit …); die Konzeptstufen 2–8 rücken auf 3–9. Plan › Monat ordnet die Tabelle standardmäßig nach diesen Stufen (umschaltbar auf Gruppen oder Klassen); Überziehungen erscheinen als Triage-Leiste über der unveränderten Tabelle, nicht als eigener Modus.
 
 **Umfang V1:** Budget, Vermögen und Portfolio komplett, 27 KPIs mit fester Formel und genau einem primären Ort, 30 Reports inkl. Explorer und druckbarer Blätter (`SPEC.md` §7), Diagramm-Grammatik nach Konzept 9.2 und 9.3 und DESIGN.md.

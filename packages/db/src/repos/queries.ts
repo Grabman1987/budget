@@ -4,6 +4,7 @@ import {
   monthsBetween,
   type BudgetInput,
   type BudgetMonth,
+  type CardRule,
   type LedgerSplit,
 } from '@budget/domain';
 import { and, asc, count, eq, gte, isNull, lte, sql } from 'drizzle-orm';
@@ -135,9 +136,14 @@ export function budgetLedger(db: Executor): Omit<BudgetInput, 'months'> {
 /**
  * The budget of `months` (consecutive `YYYY-MM`): envelopes and "Zu verteilen" per month. It is
  * always computed from the budget start (the first opening month of a budget account), where the
- * opening envelopes apply, and then cut to the requested months.
+ * opening envelopes apply, and then cut to the requested months. `cardRule` (default `'ynab'`)
+ * lets the reconciliation of the parallel run show the concept rule next to it.
  */
-export function budget(db: Executor, months: string[]): BudgetMonth[] {
+export function budget(
+  db: Executor,
+  months: string[],
+  options: { cardRule?: CardRule } = {},
+): BudgetMonth[] {
   const ledger = budgetLedger(db);
   const first = months[0];
   if (first === undefined) return [];
@@ -146,7 +152,9 @@ export function budget(db: Executor, months: string[]): BudgetMonth[] {
     .map((a) => monthOf(a.openingDate))
     .reduce((a, m) => (m < a ? m : a), first);
   const all = monthsBetween(start, months[months.length - 1] as string);
-  return budgetMonths({ ...ledger, months: all }).filter((m) => months.includes(m.month));
+  return budgetMonths({ ...ledger, months: all, ...options }).filter((m) =>
+    months.includes(m.month),
+  );
 }
 
 /** Number of live bookings per account (accounts without bookings are omitted). */

@@ -152,19 +152,37 @@ describe('a YNAB-style month: card spending, a card payment, investing from the 
     expect(may!.envelopes['lebensmittel']?.availableCents).toBe(5000);
     expect(may!.envelopes['tanken']?.availableCents).toBe(-3000);
     expect(may!.envelopes['investieren']?.availableCents).toBe(0);
-    // 250 + 130 moved in, 200 paid: exactly the card debt of 180 € is covered.
-    expect(may!.envelopes['kartenzahlung']?.availableCents).toBe(18000);
+    // YNAB rule: 250 + 100 funded moved in, 200 paid; the 30 € fuel the category could not cover
+    // stay as new card debt (card −180 €, envelope 150 €).
+    expect(may!.envelopes['kartenzahlung']?.availableCents).toBe(15000);
+    expect(may!.envelopes['tanken']).toMatchObject({
+      fundedCardCents: 10000,
+      creditOverspentCents: 3000,
+      cashOverspentCents: 0,
+    });
+    expect(may!.cards['karte']?.cardDebtGrowthCents).toBe(3000);
     expect(may!.cashCents).toBe(320000); // the card is covered by its envelope, not in the cash
     expect(may!.toBeAssignedCents).toBe(100000 + 300000 - 100000);
-    // June: the uncovered 30 € of fuel reduce "Zu verteilen".
+    // June: the fuel envelope resets to 0; credit overspending does not reduce "Zu verteilen".
     expect(june!.envelopes['tanken']?.carryCents).toBe(0);
+    expect(june!.uncoveredCents).toBe(0);
+    expect(june!.toBeAssignedCents).toBe(may!.toBeAssignedCents);
+  });
+
+  it('with the concept rule the full card spend moves and the 30 € reduce June', () => {
+    const [may, june] = budgetMonths({ ...input(), cardRule: 'concept' });
+    expect(may!.envelopes['kartenzahlung']?.availableCents).toBe(18000);
+    expect(may!.envelopes['tanken']).toMatchObject({
+      creditOverspentCents: 0,
+      cashOverspentCents: 3000,
+    });
     expect(june!.toBeAssignedCents).toBe(may!.toBeAssignedCents - 3000);
   });
 
   it('money held for next month is not to be distributed this month, but comes back', () => {
     const [may, june] = budgetMonths(input({ '2026-05': 10000 }));
     expect(may!.toBeAssignedCents).toBe(290000);
-    expect(june!.toBeAssignedCents).toBe(297000);
+    expect(june!.toBeAssignedCents).toBe(300000);
   });
 
   it('classifies splits by the on-budget status of both legs', () => {
@@ -220,6 +238,7 @@ describe('stock formula = flow formula (property test)', () => {
       '2026-05',
       '2026-06',
     ];
+    let creditSeen = 0;
     for (let run = 0; run < 200; run++) {
       const r = random(run + 1);
       const int = (lo: number, hi: number) => lo + Math.floor(r() * (hi - lo + 1));
@@ -281,30 +300,45 @@ describe('stock formula = flow formula (property test)', () => {
         ]),
       );
       const held = Object.fromEntries(months.map((m) => [m, r() < 0.3 ? int(0, 20000) : 0]));
-      const result = budgetMonths({
-        accounts,
-        categories,
-        splits,
-        months,
-        assigned,
-        held,
-        openingCarry: { c1: int(-1000, 5000) },
-      });
-      for (let i = 1; i < result.length; i++) {
-        const [prev, cur] = [result[i - 1]!, result[i]!];
-        expect(
-          toBeAssignedFlow({
-            previousCents: prev.toBeAssignedCents,
-            incomeCents: cur.incomeCents,
-            assignedCents: cur.assignedCents,
-            uncoveredCents: cur.uncoveredCents,
-            heldPreviousCents: prev.heldCents,
-            heldCents: cur.heldCents,
-          }),
-          `run ${run}, ${cur.month}`,
-        ).toBe(cur.toBeAssignedCents);
+      let credit = 0;
+      for (const cardRule of ['ynab', 'concept'] as const) {
+        const result = budgetMonths({
+          accounts,
+          categories,
+          splits,
+          months,
+          assigned,
+          held,
+          cardRule,
+          openingCarry: { c1: int(-1000, 5000) },
+        });
+        for (let i = 1; i < result.length; i++) {
+          const [prev, cur] = [result[i - 1]!, result[i]!];
+          expect(
+            toBeAssignedFlow({
+              previousCents: prev.toBeAssignedCents,
+              incomeCents: cur.incomeCents,
+              assignedCents: cur.assignedCents,
+              uncoveredCents: cur.uncoveredCents,
+              heldPreviousCents: prev.heldCents,
+              heldCents: cur.heldCents,
+            }),
+            `run ${run}, ${cardRule}, ${cur.month}`,
+          ).toBe(cur.toBeAssignedCents);
+        }
+        for (const m of result) {
+          for (const e of Object.values(m.envelopes))
+            expect(e.creditOverspentCents + e.cashOverspentCents).toBe(e.overspentCents);
+          const growth = Object.values(m.cards).reduce((a, c) => a + c.cardDebtGrowthCents, 0);
+          expect(growth).toBe(m.creditOverspentCents);
+          if (cardRule === 'ynab') credit += m.creditOverspentCents;
+          else expect(m.creditOverspentCents).toBe(0);
+        }
       }
+      creditSeen += credit > 0 ? 1 : 0;
     }
+    // The random ledgers really exercise credit overspending.
+    expect(creditSeen).toBeGreaterThan(50);
   });
 
   it('refuses gaps between months', () => {
@@ -312,5 +346,133 @@ describe('stock formula = flow formula (property test)', () => {
     expect(() =>
       budgetMonths({ accounts: [], categories: [], splits: [], months: ['2026-01', '2026-03'] }),
     ).toThrow(/consecutive/);
+  });
+});
+
+describe('credit card spending by the YNAB rule (owner decision 30.09.2026)', () => {
+  const accounts: LedgerAccount[] = [
+    { id: 'giro', onBudget: true, openingBalanceCents: 100000, openingDate: '2026-04-30' },
+    { id: 'karte', onBudget: true, openingBalanceCents: 0, openingDate: '2026-04-30' },
+    { id: 'karte2', onBudget: true, openingBalanceCents: 0, openingDate: '2026-04-30' },
+  ];
+  const categories: LedgerCategory[] = [
+    { id: 'essen', kind: 'variable' },
+    { id: 'kz', kind: 'card_payment', cardAccountId: 'karte' },
+    { id: 'kz2', kind: 'card_payment', cardAccountId: 'karte2' },
+  ];
+  const s = (
+    accountId: string,
+    date: string,
+    cents: number,
+    categoryId: string | null = 'essen',
+    transferAccountId: string | null = null,
+  ): LedgerSplit => ({
+    accountId,
+    date,
+    amountCents: cents,
+    categoryId,
+    transferAccountId,
+  });
+  /** Essen has 100 € assigned in May (plus `extra` later in the month). */
+  const run = (splits: LedgerSplit[], extra = 0) => {
+    const [may, june] = budgetMonths({
+      accounts,
+      categories,
+      splits,
+      months: ['2026-05', '2026-06'],
+      assigned: { '2026-05': { essen: 10000 + extra } },
+    });
+    return { may: may!, june: june!, essen: may!.envelopes['essen']! };
+  };
+
+  it('100 € available, 150 € on the card: 100 € to the payment envelope, 50 € new card debt, June unchanged', () => {
+    const { may, june, essen } = run([s('karte', '2026-05-10', -15000)]);
+    expect(essen).toMatchObject({
+      availableCents: -5000,
+      fundedCardCents: 10000,
+      creditOverspentCents: 5000,
+      cashOverspentCents: 0,
+    });
+    expect(may.envelopes['kz']?.availableCents).toBe(10000);
+    expect(may.cards['karte']?.cardDebtGrowthCents).toBe(5000);
+    expect(june.envelopes['essen']?.carryCents).toBe(0);
+    expect(june.uncoveredCents).toBe(0);
+    expect(june.toBeAssignedCents).toBe(may.toBeAssignedCents);
+  });
+
+  it('the same 150 € in cash: 50 € cash overspending, June reduced by 50 €', () => {
+    const { may, june, essen } = run([s('giro', '2026-05-10', -15000)]);
+    expect(essen).toMatchObject({
+      fundedCardCents: 0,
+      creditOverspentCents: 0,
+      cashOverspentCents: 5000,
+    });
+    expect(june.uncoveredCents).toBe(5000);
+    expect(june.toBeAssignedCents).toBe(may.toBeAssignedCents - 5000);
+  });
+
+  it('cash and card in one category: the cash counts first, the card only for the rest', () => {
+    // 80 € cash + 70 € card: all 50 € overspending is cash, the card spend is fully funded.
+    const a = run([s('giro', '2026-05-03', -8000), s('karte', '2026-05-10', -7000)]);
+    expect(a.essen).toMatchObject({
+      fundedCardCents: 7000,
+      creditOverspentCents: 0,
+      cashOverspentCents: 5000,
+    });
+    expect(a.june.toBeAssignedCents).toBe(a.may.toBeAssignedCents - 5000);
+    // 30 € cash + 120 € card: 30 € cash overspending, 20 € credit overspending, 100 € funded.
+    const b = run([s('giro', '2026-05-03', -3000), s('karte', '2026-05-10', -12000)]);
+    expect(b.essen).toMatchObject({
+      fundedCardCents: 10000,
+      creditOverspentCents: 2000,
+      cashOverspentCents: 3000,
+    });
+    expect(b.may.envelopes['kz']?.availableCents).toBe(10000);
+    expect(b.june.toBeAssignedCents).toBe(b.may.toBeAssignedCents - 3000);
+  });
+
+  it('covering the category later in the month funds the card part retroactively', () => {
+    const { may, essen } = run([s('karte', '2026-05-10', -15000)], 5000);
+    expect(essen).toMatchObject({
+      availableCents: 0,
+      fundedCardCents: 15000,
+      creditOverspentCents: 0,
+    });
+    expect(may.envelopes['kz']?.availableCents).toBe(15000);
+    expect(may.cards['karte']?.cardDebtGrowthCents).toBe(0);
+  });
+
+  it('a refund on the card moves its full amount back from the payment envelope', () => {
+    const { may, june } = run([s('karte', '2026-05-10', -6000), s('karte', '2026-06-02', 2000)]);
+    expect(may.envelopes['kz']?.availableCents).toBe(6000);
+    expect(june.envelopes['essen']).toMatchObject({
+      carryCents: 4000,
+      availableCents: 6000,
+      fundedCardCents: -2000,
+    });
+    expect(june.envelopes['kz']?.availableCents).toBe(4000);
+    expect(june.toBeAssignedCents).toBe(may.toBeAssignedCents);
+  });
+
+  it('a payment from the current account reduces the payment envelope, "Zu verteilen" stays', () => {
+    const { may, june } = run([
+      s('karte', '2026-05-10', -6000),
+      s('giro', '2026-06-05', -6000, null, 'karte'),
+      s('karte', '2026-06-05', 6000, null, 'giro'),
+    ]);
+    expect(june.envelopes['kz']?.availableCents).toBe(0);
+    expect(june.cashCents).toBe(may.cashCents - 6000);
+    expect(june.toBeAssignedCents).toBe(may.toBeAssignedCents);
+  });
+
+  it('shares the credit overspending over two cards in proportion to their spending', () => {
+    const { may } = run([s('karte', '2026-05-10', -9000), s('karte2', '2026-05-11', -3000)]);
+    // 100 € available, 120 € on cards: 20 € credit overspending, 15 € on card 1, 5 € on card 2.
+    expect(may.cards).toEqual({
+      karte: { cardDebtGrowthCents: 1500 },
+      karte2: { cardDebtGrowthCents: 500 },
+    });
+    expect(may.envelopes['kz']?.availableCents).toBe(7500);
+    expect(may.envelopes['kz2']?.availableCents).toBe(2500);
   });
 });

@@ -41,7 +41,21 @@ Columns: `Month, Category Group/Category, Category Group, Category, Assigned, Ac
 
 - `Assigned` → `budget_month.assigned_cents` (Zugewiesen).
 - `Activity` and `Available` are **check values only**: after import, the app's envelope computation must reproduce them for every category and month (Gate 2). `Available` can be negative (overspent at month end); YNAB then resets the carry to 0 and reduces next month's Ready to Assign — the same rule as concept §5.3 (audit C1).
-- Group `Credit Card Payments`: one category per credit card account. YNAB moves the amount of every categorised card spend from the spending category to this category. Maps to category kind `card_payment` (concept: envelope "Kartenzahlung", rule R06). The importer must reproduce this movement, not import it as bookings.
+- Group `Credit Card Payments`: one category per credit card account. YNAB moves the **funded** part of every categorised card spend from the spending category to this category; the part the category could not cover is credit overspending (new card debt, yellow) and does not reduce next month's Ready to Assign. Maps to category kind `card_payment` (concept: envelope "Kartenzahlung", rule R06) with the default `cardRule: 'ynab'` of `budgetMonths` (P1f-6). The importer must reproduce this movement, not import it as bookings.
+
+**Card cases the synthetic export of P2d must contain** (worked examples in `packages/domain/src/ledger/budget.test.ts`; each has an exact Plan.tsv expectation):
+
+| Case | Register rows (one month) | Expected in Plan.tsv / Ready to Assign |
+| --- | --- | --- |
+| Credit overspending | category assigned 100 €, card spend 150 € | category Available −50 €, payment category +100 €, next month's Ready to Assign unchanged |
+| Cash overspending | the same 150 € from the current account | Available −50 €, next month's Ready to Assign −50 € |
+| Mixed, cash first | assigned 100 €, cash 30 €, card 120 € | 30 € cash (red), 20 € credit (yellow), payment category +100 €, next month −30 € |
+| Mixed, all cash | assigned 100 €, cash 80 €, card 70 € | 50 € cash overspending, payment category +70 € |
+| Covered later | card 150 €, then 50 € more assigned in the same month | Available 0, payment category +150 € |
+| Refund on the card | card −60 € in May, refund +20 € in June | payment category 60 € → 40 €, category +20 € |
+| Card payment | transfer 60 € current account → card | payment category −60 €, Ready to Assign unchanged |
+
+The mixed cases decide the attribution: the implementation counts cash spending first, as YNAB's help describes. If the real export shows otherwise, change `budgetMonths` and these rows together.
 - Group `Hidden Categories`: categories hidden in YNAB → import with `hidden_at` set; keep their original group if the owner assigns one in the wizard, otherwise a group "Ausgeblendet".
 - Bracketed notes in category names such as `Streaming - [€ 7,49 am 03.]` or `Kfz-Versicherung - [€ 980 - am 01.11.]` encode amount and due day/date of a recurring payment. The wizard offers to strip them from the name and propose expected payments (P3) and targets from them; parsing is best-effort, the owner confirms each.
 
