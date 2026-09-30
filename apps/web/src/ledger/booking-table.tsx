@@ -1,3 +1,4 @@
+import { keepSplit } from './booking-model';
 import { cx, type SwatchKind } from '@budget/ui';
 import { useQuery } from '@tanstack/react-query';
 import { ArrowDown, ArrowUp, Pencil } from 'lucide-react';
@@ -48,7 +49,7 @@ export function BookingTable({
     if ((b.splits[0]?.categoryId ?? null) === categoryId) return;
     writes.patch.mutate({
       id: b.id,
-      patch: { splits: [{ categoryId, amountCents: b.amountCents }] },
+      patch: { splits: [keepSplit(b.splits[0], categoryId, b.amountCents)] },
     });
   };
   const all = variant === 'all';
