@@ -11,7 +11,7 @@ export const STORAGE_STATE = 'test-results/.auth/main.json';
 
 // Every run starts with fresh databases (no passkeys), so the bootstrap is always exercised.
 // Workers evaluate this file too; only the main process may delete the files.
-const DB_MAIN = 'test-results/e2e-main.sqlite';
+export const DB_MAIN = 'test-results/e2e-main.sqlite';
 const DB_AUTH_DESKTOP = 'test-results/e2e-auth-desktop.sqlite';
 const DB_AUTH_MOBILE = 'test-results/e2e-auth-mobile.sqlite';
 if (process.env['TEST_WORKER_INDEX'] === undefined) {
@@ -56,17 +56,17 @@ export default defineConfig({
   projects: [
     // Registers the first passkey on the main server through the API (software authenticator)
     // and stores the session cookie for all other projects.
-    { name: 'setup', testMatch: /auth\.setup\.ts/, use: { baseURL: MAIN_URL } },
+    { name: 'setup', testMatch: /(auth|ledger)\.setup\.ts/, use: { baseURL: MAIN_URL } },
     {
       name: 'desktop',
       dependencies: ['setup'],
-      testIgnore: /auth\.(setup|spec)\.ts/,
+      testIgnore: /(auth|ledger)\.setup\.ts|auth\.spec\.ts/,
       use: { ...desktop, storageState: STORAGE_STATE },
     },
     {
       name: 'mobile',
       dependencies: ['setup'],
-      testIgnore: /auth\.(setup|spec)\.ts/,
+      testIgnore: /(auth|ledger)\.setup\.ts|auth\.spec\.ts/,
       use: { ...mobile, storageState: STORAGE_STATE },
     },
     // Real passkey ceremonies with the browser's virtual authenticator on a separate, empty server.

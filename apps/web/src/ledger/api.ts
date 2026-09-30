@@ -90,6 +90,9 @@ export interface SplitInput {
   categoryId: string | null;
   amountCents: number;
   memo?: string | null;
+  /** Kept on edits: the server stores a missing field as null. */
+  contactId?: string | null;
+  incomeTypeId?: string | null;
 }
 
 export type BookingCreate =
@@ -144,7 +147,7 @@ export const deleteBooking = (id: string, unlock = false) =>
   );
 
 export interface BulkResult extends WriteResult {
-  changed: number;
+  changed: string[];
   skipped: { id: string; reason: string }[];
 }
 

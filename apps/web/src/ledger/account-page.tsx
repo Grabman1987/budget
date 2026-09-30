@@ -1,18 +1,20 @@
 import { monthOf, todayInVienna } from '@budget/domain';
 import { useQuery } from '@tanstack/react-query';
 import { Link, useParams } from '@tanstack/react-router';
-import { ChevronLeft } from 'lucide-react';
+import { ChevronLeft, Plus } from 'lucide-react';
+import { useState } from 'react';
 import { ACCOUNT_PAGE } from '../nav/pages';
 import { AppLink } from '../shell/app-link';
 import { PageFrame } from '../pages/placeholder-page';
 import { BalanceChart } from './balance-chart';
-import { CategoryCell, PayeeCell, StatusCell, useCategoryClasses } from './booking-cells';
-import { dayHeading, eur, monthName, pluralBookings, shortDay, longDay } from './format';
+import { BookingPanel, type BookingPanelState } from './booking-panel';
+import { BookingTable } from './booking-table';
+import { eur, longDay, monthName, pluralBookings } from './format';
 import { ACCOUNT_TYPE_LABEL, accountValue, groupOf } from './labels';
 import { accountsQuery, bookingsQuery, seriesQuery } from './queries';
 import { EmptyNote, ErrorNote, LoadingNote } from './states';
 import type { AccountRow } from './types';
-import { cx } from '@budget/ui';
+import { Button, cx } from '@budget/ui';
 
 const CHART_DAYS = 90;
 
@@ -61,7 +63,7 @@ function AccountBody({ account }: { account: AccountRow }) {
   const list = useQuery(
     bookingsQuery({ accountId: account.id, from: `${month}-01` }, undefined, 200),
   );
-  const classes = useCategoryClasses();
+  const [panel, setPanel] = useState<BookingPanelState>(null);
   const value = accountValue(account);
   const page = list.data;
 
@@ -74,6 +76,14 @@ function AccountBody({ account }: { account: AccountRow }) {
             {ACCOUNT_TYPE_LABEL[account.type]} · {groupOf(account.role).title}
             {account.closedAt && <span>geschlossen am {longDay(account.closedAt)}</span>}
           </p>
+        </div>
+        <div className="kacct-actions">
+          {!account.closedAt && (
+            <Button onClick={() => setPanel({ mode: 'create', accountId: account.id })}>
+              <Plus size={16} strokeWidth={1.75} aria-hidden="true" />
+              Buchung erfassen
+            </Button>
+          )}
         </div>
       </div>
       <div className="kfigs">
@@ -133,59 +143,19 @@ function AccountBody({ account }: { account: AccountRow }) {
         <EmptyNote>Keine Buchungen im {monthName(today)}.</EmptyNote>
       )}
       {page && page.items.length > 0 && (
-        <table className="ktable ktx">
-          <caption className="sr-only">Buchungen mit laufendem Saldo</caption>
-          <thead>
-            <tr>
-              <th className="tech kc-date" scope="col">
-                Datum
-              </th>
-              <th className="tech" scope="col">
-                Empfänger
-              </th>
-              <th className="tech" scope="col">
-                Kategorie
-              </th>
-              <th className="tech" scope="col">
-                Status
-              </th>
-              <th className="tech kc-num" scope="col">
-                Betrag
-              </th>
-              <th className="tech kc-num" scope="col">
-                Saldo
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            {page.items.map((b) => (
-              <tr key={b.id} className={cx(b.status === 'pending' && 'is-pending')}>
-                <td className="kc-date" title={dayHeading(b.date)}>
-                  {shortDay(b.date)}
-                </td>
-                <td>
-                  <PayeeCell booking={b} />
-                </td>
-                <td>
-                  <CategoryCell booking={b} classes={classes} />
-                </td>
-                <td>
-                  <StatusCell status={b.status} />
-                </td>
-                <td className="kc-num">{eur(b.amountCents, { sign: true })}</td>
-                <td className="kc-num kc-run">
-                  {b.balanceAfterCents === null ? '' : eur(b.balanceAfterCents)}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        <BookingTable
+          items={page.items}
+          caption="Buchungen mit laufendem Saldo"
+          variant="account"
+          onOpen={(booking) => setPanel({ mode: 'edit', booking })}
+        />
       )}
       {page?.nextCursor && (
         <p className="ksum">
           Weitere Buchungen stehen unter <AppLink to="/konten/buchungen">Alle Buchungen</AppLink>.
         </p>
       )}
+      <BookingPanel state={panel} onClose={() => setPanel(null)} />
     </>
   );
 }

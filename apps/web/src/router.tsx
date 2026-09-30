@@ -7,11 +7,13 @@ import {
   redirect,
 } from '@tanstack/react-router';
 import { authStatusQuery, queryClient } from './auth/status-query';
+import { validateBookingsSearch } from './ledger/bookings-search';
 import { accountsQuery } from './ledger/queries';
 import { findReport } from './nav/reports-catalog';
 import {
   ACCOUNT_PAGE,
   HEUTE,
+  KONTEN_BUCHUNGEN_META,
   KONTEN_META,
   PAGES,
   REPORTS_CATALOG,
@@ -75,10 +77,18 @@ const redirectRoute = (path: string, to: string) =>
   });
 
 const homeRoute = pageRoute('/', HEUTE);
-const BUILT_PATHS = new Set<string>([SECURITY_META.path, '/konten']);
+const BUILT_PATHS = new Set<string>([SECURITY_META.path, '/konten', '/konten/buchungen']);
 const placeholderRoutes = PAGES.filter((page) => !BUILT_PATHS.has(page.path)).map((page) =>
   pageRoute(page.path, page),
 );
+const bookingsRoute = createRoute({
+  getParentRoute: () => shellRoute,
+  path: '/konten/buchungen',
+  staticData: { meta: KONTEN_BUCHUNGEN_META },
+  // Filters and sorting are URL parameters (German names, see ledger/bookings-search.ts).
+  validateSearch: validateBookingsSearch,
+  component: lazyRouteComponent(() => import('./ledger/bookings-page'), 'BookingsPage'),
+});
 const overviewRoute = createRoute({
   getParentRoute: () => shellRoute,
   path: '/konten',
@@ -197,6 +207,7 @@ const routeTree = rootRoute.addChildren([
     securityRoute,
     ...redirects,
     overviewRoute,
+    bookingsRoute,
     accountRoute,
     reportsRoute,
     reportGroupRoute,

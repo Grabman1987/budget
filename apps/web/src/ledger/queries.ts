@@ -1,4 +1,4 @@
-import { queryOptions } from '@tanstack/react-query';
+import { infiniteQueryOptions, queryOptions } from '@tanstack/react-query';
 import { addDays, todayInVienna } from '@budget/domain';
 import { fetchAccounts, fetchBookings, fetchLookups, fetchPayees, fetchSeries } from './api';
 import type { BookingFilter } from './types';
@@ -38,4 +38,13 @@ export const payeesQuery = () =>
     queryKey: [...LEDGER_KEY, 'payees'],
     queryFn: fetchPayees,
     staleTime: 60_000,
+  });
+
+/** Alle Buchungen: pages of the filtered list, loaded by cursor. */
+export const bookingsInfiniteQuery = (filter: BookingFilter) =>
+  infiniteQueryOptions({
+    queryKey: [...LEDGER_KEY, 'bookings', 'infinite', filter],
+    queryFn: ({ pageParam }) => fetchBookings(filter, pageParam),
+    initialPageParam: undefined as string | undefined,
+    getNextPageParam: (last) => last.nextCursor ?? undefined,
   });
