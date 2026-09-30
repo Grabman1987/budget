@@ -1,4 +1,6 @@
+import { sql } from 'drizzle-orm';
 import {
+  check,
   index,
   integer,
   primaryKey,
@@ -8,20 +10,67 @@ import {
 } from 'drizzle-orm/sqlite-core';
 import { account, institution } from './accounts';
 import { booking } from './bookings';
-import { cents, id, oneOf, timestamps } from './common';
+import { cents, id, isoDay, nowSql, oneOf, timestamps } from './common';
 
-export const SECURITY_KINDS = ['etf', 'stock', 'crypto', 'p2p', 'fund', 'other'] as const;
-export const TRADE_KINDS = ['buy', 'sell', 'dividend', 'fee'] as const;
+export const SECURITY_KINDS = [
+  'etf',
+  'stock',
+  'fund',
+  'bond',
+  'crypto',
+  'p2p',
+  'commodity',
+  'other',
+] as const;
+/**
+ * Trade kinds (Portfolio Performance vocabulary). Units per kind: `buy`, `delivery_in` add units
+ * (> 0); `sell`, `delivery_out` remove units (< 0); `split` changes units without money (any sign);
+ * `dividend`, `interest`, `fee`, `tax` move money only (units 0).
+ */
+export const TRADE_KINDS = [
+  'buy',
+  'sell',
+  'delivery_in',
+  'delivery_out',
+  'split',
+  'dividend',
+  'interest',
+  'fee',
+  'tax',
+] as const;
 export const PRICE_SOURCES = ['yfinance', 'ariva', 'manual', 'import'] as const;
+export const VALUATION_SOURCES = ['manual', 'import', 'statement'] as const;
 
 export const assetClass = sqliteTable('asset_class', {
   id: id(),
   name: text('name').notNull(),
-  /** Target share in basis points (Soll-Allocation), 10 000 = 100 %. */
-  targetShareBp: integer('target_share_bp'),
   sortOrder: integer('sort_order').notNull().default(0),
   ...timestamps(),
 });
+
+/**
+ * Soll-Allocation of an asset class from `valid_from` on (versioned, rule R13): target share and
+ * the tolerance band around it, both in basis points (10 000 = 100 %).
+ */
+export const assetClassTarget = sqliteTable(
+  'asset_class_target',
+  {
+    id: id(),
+    assetClassId: text('asset_class_id')
+      .notNull()
+      .references(() => assetClass.id),
+    validFrom: text('valid_from').notNull(),
+    targetShareBp: integer('target_share_bp').notNull(),
+    bandBp: integer('band_bp').notNull().default(0),
+    ...timestamps(),
+  },
+  (t) => [
+    uniqueIndex('asset_class_target_uq').on(t.assetClassId, t.validFrom),
+    isoDay('asset_class_target_valid_from_chk', t.validFrom),
+    check('asset_class_target_share_chk', sql`${t.targetShareBp} BETWEEN 0 AND 10000`),
+    check('asset_class_target_band_chk', sql`${t.bandBp} BETWEEN 0 AND 10000`),
+  ],
+);
 
 /** Product (Wertpapier): ETF, stock, crypto, P2P loans. */
 export const security = sqliteTable(
@@ -46,8 +95,9 @@ export const security = sqliteTable(
 );
 
 /**
- * Trade. `units_e8` is signed (buy positive, sell negative) in 1e-8 units; `amount_cents` is the
- * gross trade value (positive). A buy funded from a budget account links its transfer booking.
+ * Trade. `units_e8` is signed (see `TRADE_KINDS`) in 1e-8 units; `amount_cents` is the gross value
+ * (positive) in the account currency, `fee_cents` and `tax_cents` come on top (buy) or are
+ * deducted (sell, dividend). A buy funded from a budget account links its booking.
  */
 export const trade = sqliteTable(
   'trade',
@@ -64,6 +114,7 @@ export const trade = sqliteTable(
     unitsE8: integer('units_e8', { mode: 'number' }).notNull().default(0),
     amountCents: cents('amount_cents').notNull(),
     feeCents: cents('fee_cents').notNull().default(0),
+    taxCents: cents('tax_cents').notNull().default(0),
     bookingId: text('booking_id').references(() => booking.id),
     importKey: text('import_key'),
     note: text('note'),
@@ -71,7 +122,21 @@ export const trade = sqliteTable(
   },
   (t) => [
     oneOf('trade_kind_chk', t.kind, TRADE_KINDS),
+    check(
+      'trade_units_chk',
+      sql`CASE
+        WHEN ${t.kind} IN ('buy', 'delivery_in') THEN ${t.unitsE8} > 0
+        WHEN ${t.kind} IN ('sell', 'delivery_out') THEN ${t.unitsE8} < 0
+        WHEN ${t.kind} = 'split' THEN ${t.unitsE8} <> 0
+        ELSE ${t.unitsE8} = 0 END`,
+    ),
+    check(
+      'trade_amounts_chk',
+      sql`${t.amountCents} >= 0 AND ${t.feeCents} >= 0 AND ${t.taxCents} >= 0`,
+    ),
+    isoDay('trade_date_chk', t.date),
     index('trade_security_date_idx').on(t.securityId, t.date),
+    index('trade_account_date_idx').on(t.accountId, t.date),
     uniqueIndex('trade_import_key_uq').on(t.accountId, t.importKey),
   ],
 );
@@ -92,7 +157,10 @@ export const holding = sqliteTable(
     costBasisCents: cents('cost_basis_cents'),
     ...timestamps(),
   },
-  (t) => [uniqueIndex('holding_uq').on(t.securityId, t.accountId, t.asOf)],
+  (t) => [
+    uniqueIndex('holding_uq').on(t.securityId, t.accountId, t.asOf),
+    isoDay('holding_as_of_chk', t.asOf),
+  ],
 );
 
 /** One price per product and day with its source (yfinance, Ariva fallback, manual valuation). */
@@ -111,6 +179,53 @@ export const price = sqliteTable(
   (t) => [
     primaryKey({ columns: [t.securityId, t.date] }),
     oneOf('price_source_chk', t.source, PRICE_SOURCES),
+    isoDay('price_date_chk', t.date),
+    check('price_positive_chk', sql`${t.priceMicro} > 0`),
+  ],
+);
+
+/**
+ * Every change of an existing price (refresh, manual correction): old and new value and source.
+ * A `manual` price is protected: a refresh from another source does not overwrite it (repository).
+ */
+export const priceAudit = sqliteTable(
+  'price_audit',
+  {
+    id: id(),
+    securityId: text('security_id')
+      .notNull()
+      .references(() => security.id),
+    date: text('date').notNull(),
+    oldPriceMicro: integer('old_price_micro', { mode: 'number' }),
+    newPriceMicro: integer('new_price_micro', { mode: 'number' }).notNull(),
+    oldSource: text('old_source', { enum: PRICE_SOURCES }),
+    newSource: text('new_source', { enum: PRICE_SOURCES }).notNull(),
+    ts: text('ts').notNull().default(nowSql),
+  },
+  (t) => [index('price_audit_security_idx').on(t.securityId, t.date)],
+);
+
+/**
+ * Manual valuation (Bewertung) of an account on a day: P2P, other assets, corrections. Used where
+ * no holdings and prices exist; the newest valuation on or before a day is the account's value.
+ */
+export const valuation = sqliteTable(
+  'valuation',
+  {
+    id: id(),
+    accountId: text('account_id')
+      .notNull()
+      .references(() => account.id),
+    date: text('date').notNull(),
+    valueCents: cents('value_cents').notNull(),
+    source: text('source', { enum: VALUATION_SOURCES }).notNull().default('manual'),
+    note: text('note'),
+    ...timestamps(),
+  },
+  (t) => [
+    oneOf('valuation_source_chk', t.source, VALUATION_SOURCES),
+    isoDay('valuation_date_chk', t.date),
+    uniqueIndex('valuation_uq').on(t.accountId, t.date),
   ],
 );
 
@@ -123,5 +238,9 @@ export const fxRate = sqliteTable(
     rateMicro: integer('rate_micro', { mode: 'number' }).notNull(),
     source: text('source').notNull().default('ecb'),
   },
-  (t) => [primaryKey({ columns: [t.date, t.currency] })],
+  (t) => [
+    primaryKey({ columns: [t.date, t.currency] }),
+    isoDay('fx_rate_date_chk', t.date),
+    check('fx_rate_positive_chk', sql`${t.rateMicro} > 0`),
+  ],
 );

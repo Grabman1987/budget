@@ -1,9 +1,32 @@
-import { index, integer, sqliteTable, text } from 'drizzle-orm/sqlite-core';
-import { cents, id, oneOf, timestamps } from './common';
+import { sql } from 'drizzle-orm';
+import { check, index, integer, sqliteTable, text } from 'drizzle-orm/sqlite-core';
+import { cents, id, isoDay, oneOf, timestamps } from './common';
 
 export const INSTITUTION_KINDS = ['bank', 'broker', 'platform', 'insurer', 'other'] as const;
-/** Account roles: Budget-Konto, Rücklage, Anlage, Schuld, Forderung (Kontoblatt of a contact). */
+/**
+ * Account roles group accounts for net worth and reports: Budget-Konto, Rücklage, Anlage, Schuld,
+ * Forderung (Kontoblatt of a contact). The role says nothing about the budget: that is `on_budget`.
+ */
 export const ACCOUNT_ROLES = ['budget', 'reserve', 'investment', 'debt', 'receivable'] as const;
+/**
+ * Account types (concept §5.1): Giro, Bargeld, Tagesgeld, Kreditkarte, Kredit, Depot, Krypto,
+ * P2P, Forderung, Sonstiges Vermögen, Sonstige Verbindlichkeit.
+ */
+export const ACCOUNT_TYPES = [
+  'checking',
+  'cash',
+  'savings',
+  'credit_card',
+  'loan',
+  'brokerage',
+  'crypto',
+  'p2p',
+  'receivable',
+  'other_asset',
+  'other_liability',
+] as const;
+/** Types that can never be on-budget (tracking accounts by nature, concept §3.1). */
+export const TRACKING_ONLY_TYPES = ['loan', 'brokerage', 'crypto', 'p2p', 'receivable'] as const;
 
 /** Providers are data, not code: banks, brokers and platforms are institutions. */
 export const institution = sqliteTable(
@@ -31,7 +54,13 @@ export const account = sqliteTable(
   {
     id: id(),
     name: text('name').notNull(),
+    type: text('type', { enum: ACCOUNT_TYPES }).notNull(),
     role: text('role', { enum: ACCOUNT_ROLES }).notNull(),
+    /**
+     * Budget-Konto (true): its balance is money to distribute, "Zu verteilen" counts it. Tracking
+     * account (false): counts only for net worth; a transfer to it needs a category.
+     */
+    onBudget: integer('on_budget', { mode: 'boolean' }).notNull(),
     institutionId: text('institution_id').references(() => institution.id),
     contactId: text('contact_id').references(() => contact.id),
     currency: text('currency').notNull().default('EUR'),
@@ -49,5 +78,15 @@ export const account = sqliteTable(
     note: text('note'),
     ...timestamps(),
   },
-  (t) => [oneOf('account_role_chk', t.role, ACCOUNT_ROLES), index('account_role_idx').on(t.role)],
+  (t) => [
+    oneOf('account_type_chk', t.type, ACCOUNT_TYPES),
+    oneOf('account_role_chk', t.role, ACCOUNT_ROLES),
+    check(
+      'account_on_budget_chk',
+      sql`${t.onBudget} = 0 OR ${t.type} NOT IN (${sql.raw(TRACKING_ONLY_TYPES.map((v) => `'${v}'`).join(', '))})`,
+    ),
+    isoDay('account_opening_date_chk', t.openingDate),
+    isoDay('account_term_end_chk', t.termEnd),
+    index('account_role_idx').on(t.role),
+  ],
 );

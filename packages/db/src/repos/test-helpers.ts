@@ -12,7 +12,9 @@ export function seedBasics(db: OpenedDatabase['db']) {
     {
       id: 'giro',
       name: 'Giro',
+      type: 'checking',
       role: 'budget',
+      onBudget: true,
       openingDate: '2023-10-01',
       openingBalanceCents: 100_000,
       sortOrder: 1,
@@ -21,7 +23,15 @@ export function seedBasics(db: OpenedDatabase['db']) {
   );
   accounts.create(
     db,
-    { id: 'spar', name: 'Sparen', role: 'reserve', openingDate: '2023-10-01', sortOrder: 2 },
+    {
+      id: 'spar',
+      name: 'Sparen',
+      type: 'savings',
+      role: 'reserve',
+      onBudget: true,
+      openingDate: '2023-10-01',
+      sortOrder: 2,
+    },
     ctx,
   );
   accounts.create(
@@ -29,7 +39,9 @@ export function seedBasics(db: OpenedDatabase['db']) {
     {
       id: 'usd',
       name: 'Dollar',
+      type: 'checking',
       role: 'budget',
+      onBudget: true,
       currency: 'USD',
       openingDate: '2023-10-01',
       sortOrder: 3,
@@ -40,6 +52,11 @@ export function seedBasics(db: OpenedDatabase['db']) {
   categories.create(db, { id: 'miete', name: 'Miete', groupId: 'g', class: 'need' }, ctx);
   categories.create(db, { id: 'essen', name: 'Essen', groupId: 'g', class: 'need' }, ctx);
   categories.create(db, { id: 'reise', name: 'Reise', groupId: 'g', class: 'want' }, ctx);
+  categories.create(
+    db,
+    { id: 'auslagen', name: 'Auslagen', groupId: 'g', class: null, kind: 'advance' },
+    ctx,
+  );
   createEntity(db, payee, { id: 'p1', name: 'Vermieter' }, ctx);
   createEntity(db, contact, { id: 'k1', name: 'Freund' }, ctx);
   return { ctx };

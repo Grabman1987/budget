@@ -24,7 +24,14 @@ describe('database', () => {
     expect(() =>
       db
         .insert(account)
-        .values({ id: 'a1', name: 'x', role: 'wallet' as never, openingDate: '2023-10-01' })
+        .values({
+          id: 'a1',
+          name: 'x',
+          type: 'checking',
+          role: 'wallet' as never,
+          onBudget: true,
+          openingDate: '2023-10-01',
+        })
         .run(),
     ).toThrow(/CHECK/);
     db.insert(categoryGroup).values({ id: 'g', name: 'Wohnen' }).run();
@@ -54,7 +61,16 @@ describe('database', () => {
   it('import keys are unique per account, other accounts may reuse them', () => {
     const { db, close } = createTestDatabase();
     for (const id of ['a1', 'a2']) {
-      db.insert(account).values({ id, name: id, role: 'budget', openingDate: '2023-10-01' }).run();
+      db.insert(account)
+        .values({
+          id,
+          name: id,
+          type: 'checking',
+          role: 'budget',
+          onBudget: true,
+          openingDate: '2023-10-01',
+        })
+        .run();
     }
     const base = { date: '2026-01-01', amountCents: -100, importKey: 'k1' };
     db.insert(booking)
