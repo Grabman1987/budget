@@ -197,6 +197,13 @@ test('plan: a negative assignment stays editable, Escape keeps it, Decken asks w
       openingDate: `${month}-01`,
     })
   )['account']!;
+  // Only a card with its card payment envelope turns spending over the envelope into card debt.
+  await post(request, '/categories', {
+    name: `Kartenzahlung neg ${tag}`,
+    groupId: group.id,
+    kind: 'card_payment',
+    cardAccountId: card.id,
+  });
   await post(request, '/bookings', {
     type: 'booking',
     accountId: card.id,
