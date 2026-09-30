@@ -928,6 +928,10 @@ dialog.overlay {
   margin: 0;
   overflow: hidden;
 }
+/* The sheet stops at 88 % of the screen and scrolls inside (needs the dialog selector to win). */
+dialog.sheet-bottom {
+  max-height: 88dvh;
+}
 dialog.overlay::backdrop {
   background: var(--overlay);
 }
@@ -949,7 +953,6 @@ dialog.overlay::backdrop {
   position: fixed;
   inset: auto 0 0 0;
   width: 100%;
-  max-height: 88dvh;
   border-top: 1px solid var(--rule-strong);
   border-radius: var(--radius-sheet-mobile) var(--radius-sheet-mobile) 0 0;
   padding-bottom: env(safe-area-inset-bottom);
@@ -980,6 +983,7 @@ dialog.overlay::backdrop {
   margin-left: auto;
 }
 .panel-body {
+  min-height: 0;
   overflow: auto;
   padding: 20px 24px 32px;
 }

@@ -203,8 +203,20 @@ the auth tables.
   `booking.flag`. "Starting Balance", "Reconciliation Balance Adjustment" and "Manual Balance
   Adjustment" map to the system payees `payee-opening-balance`, `payee-reconciliation` and
   `payee-manual-adjustment` (`payee.system_kind`, inserted by the migration).
+  The pure importer (`packages/import-ynab`) produces the target model these tables receive:
+  accounts with `openingDate`/`openingBalanceCents` at the start month, bookings with splits
+  (`transferId` shared by both legs), `budget_month` assignments per target category and the opening
+  Available per target category (`openingCarry` of `budgetMonths`).
 - **Kontoprüfung** (`account_reconciliation`): statement balance versus the app's cleared balance on
   a day; a difference becomes an adjustment booking with the reconciliation system payee.
+  `reconcileAccount` (P2a) does it in one transaction and one audit group: remove chosen
+  duplicates, confirm chosen pending bookings, book the Ausgleich if asked, stamp every confirmed
+  booking up to the day `reconciled`, store the snapshot. The cleared balance counts `confirmed`
+  and `reconciled` bookings only; pending ones are outside the check.
+- **Reconciled bookings are locked** (P2a): `updateBooking` and `deleteBooking` refuse to change
+  amount, date, account, splits, payee, status or to delete a `reconciled` booking (or the partner
+  leg of a transfer whose date or amount would follow) unless `unlockReconciled` is passed;
+  `flag` and `memo` stay free. An unlocked edit keeps the status.
 - **Targets and plans are versioned, never overwritten** (C12): `category_target` by `valid_from`
   month (monthly amount, balance by a date, keep a balance), `asset_class_target` by day (share and
   band for R13), `expected_payment_version` by day and **immutable** (a trigger refuses changes to

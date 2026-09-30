@@ -1,0 +1,693 @@
+/* Konten: overview, single account, booking lists. Ported from design/prototype/styles.css. */
+
+.kview {
+  display: grid;
+  gap: 28px;
+  margin-top: -4px;
+}
+.kbar {
+  display: flex;
+  justify-content: flex-end;
+}
+.kbar .btn {
+  gap: 6px;
+}
+.kstate {
+  display: grid;
+  gap: 10px;
+  justify-items: start;
+}
+.kstate p {
+  margin: 0;
+}
+.spin {
+  animation: kspin 900ms linear infinite;
+}
+@keyframes kspin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .spin {
+    animation: none;
+  }
+}
+.fade-in {
+  animation: kfade 500ms var(--ease-out) both;
+  animation-delay: 380ms;
+}
+@keyframes kfade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .fade-in {
+    animation: none;
+  }
+}
+
+/* Net worth */
+.tbd-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+.tbd-head h2 {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 620;
+  letter-spacing: -0.01em;
+}
+.tbd-state {
+  font-size: 13px;
+  font-weight: 600;
+}
+.tbd-state span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.tbd-state .ok {
+  color: var(--line);
+}
+.tbd-state .ink {
+  color: var(--ink);
+}
+.tbd-fig {
+  font-size: 56px;
+  font-weight: 650;
+  letter-spacing: -0.03em;
+  line-height: 1.05;
+  margin: 10px 0 16px;
+  font-stretch: 96%;
+}
+
+/* Parts list of accounts and booking tables */
+.ktable {
+  width: 100%;
+  border-collapse: collapse;
+}
+.ktable thead th {
+  padding: 8px;
+  border-bottom: 1px solid var(--line-2);
+  text-align: left;
+  font-size: 11px;
+}
+.ktable td {
+  padding: 12px 8px;
+  border-bottom: 1px solid var(--rule);
+  vertical-align: middle;
+}
+.ktable th.kc-num {
+  text-align: right;
+}
+.kc-pos {
+  width: 56px;
+}
+.kc-num {
+  width: 150px;
+  text-align: right;
+  white-space: nowrap;
+  font-weight: 620;
+}
+.kc-line {
+  width: 200px;
+  white-space: nowrap;
+}
+.kmini {
+  display: inline-block;
+  width: 120px;
+  height: 30px;
+  vertical-align: middle;
+  overflow: visible;
+}
+.kmini .l-actual {
+  stroke-width: 1.5;
+}
+.kmini .l-plan {
+  stroke-width: 1;
+}
+.kdelta {
+  display: inline-block;
+  min-width: 56px;
+  margin-left: 8px;
+  text-align: right;
+  font-family: var(--font-tech);
+  font-size: 12.5px;
+  letter-spacing: 0.03em;
+  color: var(--ink-2);
+}
+.kgroup td {
+  background: var(--ground-2);
+  border-bottom: 1px solid var(--line-2);
+  font-weight: 620;
+}
+.kgroup.is-flash td {
+  background: var(--tint-2);
+}
+.grp-title {
+  font-weight: 640;
+  font-size: 14.5px;
+}
+.grp-sub {
+  margin-left: 8px;
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--ink-3);
+}
+.krow:hover td {
+  background: var(--tint);
+}
+.kname {
+  font-weight: 600;
+  color: var(--ink);
+  text-decoration: none;
+  border-radius: 4px;
+}
+.kname:hover {
+  color: var(--line);
+  text-decoration: underline;
+}
+.kmeta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+  margin: 3px 0 0;
+  font-size: 12.5px;
+  color: var(--ink-3);
+}
+.kutil {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 6px;
+  font-size: 12px;
+  color: var(--ink-3);
+}
+.kutil .pbar {
+  position: relative;
+  display: block;
+  width: 120px;
+  height: 6px;
+  background: var(--tint-2);
+  border-radius: 1px;
+}
+.kutil .pbar-fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  background: var(--need);
+}
+.ksum {
+  margin: 12px 0 4px;
+  font-size: 13px;
+  color: var(--ink-2);
+}
+
+/* Single account */
+.kback {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-bottom: 14px;
+  color: var(--ink-2);
+  text-decoration: none;
+  font-weight: 560;
+  border-radius: 4px;
+}
+.kback:hover {
+  color: var(--line);
+}
+.kacct-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+.kacct-head h2 {
+  margin: 0;
+  font-size: 26px;
+  font-weight: 650;
+  letter-spacing: -0.02em;
+}
+.kacct-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.kfigs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px 40px;
+  margin: 20px 0 8px;
+}
+.fig {
+  display: grid;
+  gap: 2px;
+}
+.fig strong {
+  font-size: 24px;
+  font-weight: 640;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+}
+.fig strong.muted {
+  color: var(--ink-2);
+  font-weight: 560;
+}
+.fig small {
+  font-size: 12.5px;
+  color: var(--ink-3);
+}
+.kchart-box {
+  min-height: 250px;
+}
+.kchart-box .chart {
+  display: block;
+  overflow: visible;
+}
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 20px;
+  margin-top: 8px;
+  font-size: 12.5px;
+  color: var(--ink-2);
+}
+.legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.legend svg {
+  width: 26px;
+  height: 8px;
+}
+.kh {
+  margin-top: 28px;
+}
+.kc-date {
+  width: 76px;
+  font-family: var(--font-tech);
+  font-size: 13px;
+  letter-spacing: 0.04em;
+  color: var(--ink-2);
+}
+.kname-s {
+  display: block;
+  font-weight: 580;
+}
+.kcat {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+}
+.kcat.is-none {
+  color: var(--ink);
+  font-weight: 600;
+}
+.kflag {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
+.kc-run {
+  color: var(--ink-2);
+  font-weight: 500;
+}
+.status {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12.5px;
+  color: var(--ink-3);
+  font-weight: 500;
+}
+.status.ok {
+  color: var(--line);
+}
+.is-pending td {
+  color: var(--ink-2);
+}
+
+/* Kontostand prüfen */
+.kv-list {
+  display: grid;
+  margin: 0;
+}
+.kv-list div {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--rule);
+}
+.kv-list dt {
+  color: var(--ink-2);
+}
+.kv-list dd {
+  margin: 0;
+  font-weight: 620;
+}
+
+/* Forms in the side panel */
+.kform {
+  display: grid;
+  gap: 16px;
+}
+.kform-switch {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+.kform-switch small {
+  display: block;
+  margin-top: 2px;
+  font-size: 12.5px;
+  color: var(--ink-3);
+}
+.panel-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 8px;
+}
+.panel-actions .btn {
+  height: 42px;
+}
+
+/* Rows that were just created or changed flash once (tx-in, 420 ms tint). */
+.tx-flash td {
+  animation: tx-in 420ms var(--ease-out);
+}
+@keyframes tx-in {
+  from {
+    background: var(--tint-2);
+  }
+  to {
+    background: transparent;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .tx-flash td {
+    animation: none;
+  }
+}
+
+.kname-btn,
+.kcat-btn {
+  display: block;
+  padding: 0;
+  text-align: left;
+  color: inherit;
+  border-radius: 4px;
+}
+.kname-btn:hover .kname-s {
+  color: var(--line);
+  text-decoration: underline;
+}
+.kcat-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.kcat-edit {
+  color: var(--ink-3);
+  opacity: 0;
+}
+.kcat-btn:hover .kcat-edit,
+.kcat-btn:focus-visible .kcat-edit {
+  opacity: 1;
+}
+.ksort {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font: inherit;
+  letter-spacing: inherit;
+  text-transform: inherit;
+  color: inherit;
+}
+.kc-check {
+  width: 40px;
+}
+.ktable input[type='checkbox'] {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--line);
+  vertical-align: middle;
+}
+.kday td {
+  padding: 16px 8px 6px;
+  background: transparent;
+  border-bottom: 1px solid var(--line-2);
+}
+.kday .tech {
+  font-size: 11.5px;
+  color: var(--ink-2);
+}
+.kday-sum {
+  float: right;
+  font-family: var(--font-tech);
+  font-size: 12.5px;
+  color: var(--ink-2);
+}
+.ktable tr.is-selected td {
+  background: var(--tint-2);
+}
+.kc-acct {
+  font-size: 13px;
+  color: var(--ink-2);
+}
+
+.kselect-all {
+  display: none;
+  align-items: center;
+  gap: 10px;
+  margin: 12px 0 0;
+  font-size: 13.5px;
+  color: var(--ink-2);
+}
+.kselect-all input {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--line);
+}
+.kf.kf-sort {
+  display: none;
+}
+
+/* Filter row and bulk bar of Alle Buchungen */
+.kfilter {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 10px 14px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--rule);
+}
+.kf {
+  display: grid;
+  gap: 4px;
+}
+.kf .select-sm {
+  min-width: 150px;
+}
+.kf-search {
+  flex: 1 1 240px;
+  max-width: 360px;
+}
+.kbulk {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin-top: 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--tint);
+}
+.kbulk .select-sm {
+  min-width: 150px;
+}
+.kdiff {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin: 4px 0;
+  padding: 10px 12px;
+  border-radius: 6px;
+  font-weight: 600;
+  font-size: 13.5px;
+}
+.kdiff.is-ok {
+  color: var(--line);
+  background: var(--tint);
+}
+.kdiff.is-bad {
+  color: var(--red);
+  background: var(--red-soft);
+}
+.kcheck {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+  font-weight: 600;
+}
+.ksplits {
+  display: grid;
+  gap: 12px;
+  margin: 0;
+  padding: 12px;
+  border: 1px solid var(--line-2);
+  border-radius: 8px;
+}
+.ksplit {
+  display: grid;
+  gap: 8px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--rule);
+}
+
+@media (max-width: 767px) {
+  .kselect-all {
+    display: flex;
+  }
+  .kf.kf-sort {
+    display: grid;
+  }
+  .kview {
+    gap: 20px;
+  }
+  .tbd-fig {
+    font-size: 44px;
+  }
+  .kfigs {
+    gap: 12px 24px;
+  }
+  .fig strong {
+    font-size: 21px;
+  }
+  .kchart-box {
+    min-height: 200px;
+  }
+  .grp-sub {
+    display: block;
+    margin: 2px 0 0 0;
+  }
+  .ktable thead {
+    display: none;
+  }
+  .ktable,
+  .ktable tbody {
+    display: block;
+  }
+  .ktable tr {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 4px 12px;
+    padding: 12px 0;
+    border-bottom: 1px solid var(--rule);
+  }
+  .ktable td {
+    display: block;
+    width: auto;
+    padding: 0;
+    border: 0;
+    background: none !important;
+  }
+  .kgroup {
+    background: var(--ground-2);
+    margin: 0 -16px;
+    padding: 10px 16px !important;
+    grid-template-areas: 'name num';
+  }
+  .kgroup .kc-pos,
+  .krow .kc-pos,
+  .kgroup .kc-line {
+    display: none;
+  }
+  .krow {
+    grid-template-areas: 'name num' 'line line';
+  }
+  .krow td:nth-child(2),
+  .kgroup td:nth-child(2) {
+    grid-area: name;
+  }
+  .krow .kc-line {
+    grid-area: line;
+  }
+  .krow .kc-num,
+  .kgroup .kc-num {
+    grid-area: num;
+  }
+  .ktx tr {
+    grid-template-areas: 'payee amount' 'cat run' 'date status';
+  }
+  .ktx-all tr {
+    grid-template-columns: 28px minmax(0, 1fr) auto;
+    grid-template-areas: 'check payee amount' '. cat acct' '. date status';
+  }
+  .kx-check {
+    grid-area: check;
+  }
+  .kx-date {
+    grid-area: date;
+  }
+  .kx-payee {
+    grid-area: payee;
+  }
+  .kx-acct {
+    grid-area: acct;
+    text-align: right;
+  }
+  .kx-cat {
+    grid-area: cat;
+  }
+  .kx-status {
+    grid-area: status;
+    text-align: right;
+  }
+  .kx-amount {
+    grid-area: amount;
+  }
+  .kx-run {
+    grid-area: run;
+    text-align: right;
+  }
+  .ktx-all .kday {
+    display: block;
+    margin: 0 -16px;
+    padding: 10px 16px;
+  }
+  .kfilter {
+    gap: 10px;
+  }
+  .kf {
+    flex: 1 1 45%;
+  }
+  .kf .select-sm,
+  .kf .input {
+    min-width: 0;
+    width: 100%;
+  }
+  .kf-search {
+    flex: 1 1 100%;
+    max-width: none;
+  }
+  .kacct-head .btn {
+    width: 100%;
+    height: 44px;
+  }
+}

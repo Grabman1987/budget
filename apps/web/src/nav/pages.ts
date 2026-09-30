@@ -220,6 +220,14 @@ export const REPORT_GROUP_PAGES = REPORT_GROUPS.map((g) => ({
   } satisfies PageMeta,
 }));
 
+/** Konten › Übersicht (built in P2a; the placeholder entry above stays the source of its text). */
+export const KONTEN_META: PageMeta = PAGES.find((p) => p.path === '/konten') as PageMeta;
+
+/** Konten › Alle Buchungen (built in P2a). */
+export const KONTEN_BUCHUNGEN_META: PageMeta = PAGES.find(
+  (p) => p.path === '/konten/buchungen',
+) as PageMeta;
+
 export const ACCOUNT_PAGE: PageMeta = {
   title: 'Konto',
   area: 'konten',

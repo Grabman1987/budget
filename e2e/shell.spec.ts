@@ -235,6 +235,8 @@ test.describe('desktop shell', () => {
     page,
   }) => {
     await page.goto('/');
+    // Tab only counts once the app has rendered; under load the first Tab could hit a bare page.
+    await expect(page.locator('main')).toBeVisible();
     await page.keyboard.press('Tab');
     const skip = page.getByRole('link', { name: 'Zum Inhalt springen' });
     await expect(skip).toBeFocused();

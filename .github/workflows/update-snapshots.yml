@@ -1,0 +1,49 @@
+name: Update e2e snapshots
+
+# Manual only. Regenerates the Playwright screenshot baselines on Linux (the CI platform) for one
+# branch and commits them back, for PRs that change the UI on purpose. The owner's Windows machine
+# and the cloud sessions cannot produce Linux baselines themselves.
+# Commits pushed with GITHUB_TOKEN do not start CI: push any commit afterwards (or re-run CI).
+on:
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: Branch whose baselines to update (never main)
+        required: true
+
+permissions:
+  contents: write
+
+concurrency:
+  group: update-snapshots-${{ inputs.branch }}
+  cancel-in-progress: true
+
+jobs:
+  update:
+    if: inputs.branch != 'main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          ref: ${{ inputs.branch }}
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+      # Non-screenshot failures are reported by the normal CI run on the PR, not here.
+      - name: Regenerate changed screenshots
+        run: npm run build:e2e && (npx playwright test --update-snapshots=changed || true)
+      - name: Commit the new baselines
+        env:
+          BRANCH: ${{ inputs.branch }}
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A -- e2e
+          if git diff --cached --quiet; then echo 'No baseline changes.'; exit 0; fi
+          git commit -m 'test: update e2e screenshot baselines (Linux)'
+          git push origin "HEAD:refs/heads/$BRANCH"

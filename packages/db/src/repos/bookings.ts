@@ -9,7 +9,7 @@ import {
   type AuditContext,
   type GroupedContext,
 } from './audit';
-import { BookingInvariantError, EntityNotFoundError } from './errors';
+import { BookingInvariantError, EntityNotFoundError, ReconciledLockedError } from './errors';
 import { assertLedgerInvariants, relatedTransferBookings } from './invariants';
 import { runInTransaction, type Executor } from './types';
 
@@ -93,6 +93,21 @@ export interface TransferResult {
   transferId: string;
   fromBookingId: string;
   toBookingId: string;
+}
+
+/** Options of the writes that touch existing bookings. */
+export interface WriteOptions {
+  /** Allow changing or deleting `reconciled` bookings (they are locked otherwise). */
+  unlockReconciled?: boolean;
+}
+
+/** Fields of a reconciled booking that stay editable without an unlock (no effect on any figure). */
+const FREE_ON_RECONCILED = new Set(['flag', 'memo']);
+
+function assertUnlocked(rows: readonly BookingRow[], options: WriteOptions): void {
+  if (options.unlockReconciled) return;
+  const locked = rows.filter((r) => r.status === 'reconciled').map((r) => r.id);
+  if (locked.length > 0) throw new ReconciledLockedError(locked);
 }
 
 export interface BookingReadOptions {
@@ -575,11 +590,17 @@ export function updateBooking(
   id: string,
   patch: BookingPatch,
   ctx: AuditContext,
+  options: WriteOptions = {},
 ): void {
   const grouped = withGroup(ctx);
   runInTransaction(db, (tx) => {
     const cur = loadBooking(tx, id);
     if (!cur) throw new EntityNotFoundError('booking', id);
+    // Reconciled bookings: only flag and memo are free; a status change also needs the unlock.
+    const touchesLocked = Object.entries(patch).some(
+      ([key, value]) => value !== undefined && !FREE_ON_RECONCILED.has(key),
+    );
+    if (touchesLocked) assertUnlocked([cur], options);
     const curSplits = loadSplits(tx, id);
     // Split-level transfers are changed by deleting and re-creating them, on both sides.
     const splitTransfer =
@@ -639,6 +660,8 @@ export function updateBooking(
         .get();
       if (!partner)
         throw new BookingInvariantError(`Transfer ${cur.transferId} has no second live leg`);
+      // The other leg follows date and amount, so it must not be reconciled either.
+      if (patch.date !== undefined || amountChanged) assertUnlocked([partner], options);
       const partnerPatch: Record<string, unknown> = {};
       if (patch.date !== undefined) partnerPatch['date'] = patch.date;
       if (amountChanged) {
@@ -681,13 +704,23 @@ const transferLegs = (tx: Executor, row: BookingRow): BookingRow[] =>
   relatedTransferBookings(tx, row.id).map((legId) => loadBooking(tx, legId, true) as BookingRow);
 
 /** Soft-delete a booking; both legs of a transfer go together. Splits stay but are ignored. */
-export function deleteBooking(db: Executor, id: string, ctx: AuditContext): void {
+export function deleteBooking(
+  db: Executor,
+  id: string,
+  ctx: AuditContext,
+  options: WriteOptions = {},
+): void {
   const grouped = withGroup(ctx);
   runInTransaction(db, (tx) => {
     const cur = loadBooking(tx, id);
     if (!cur) throw new EntityNotFoundError('booking', id);
+    const legs = transferLegs(tx, cur);
+    assertUnlocked(
+      legs.filter((l) => l.deletedAt === null),
+      options,
+    );
     const deletedAt = new Date().toISOString();
-    for (const leg of transferLegs(tx, cur)) {
+    for (const leg of legs) {
       if (leg.deletedAt === null)
         updateTracked(tx, booking, [leg.id], { deletedAt }, grouped, 'delete');
     }

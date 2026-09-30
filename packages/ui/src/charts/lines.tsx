@@ -38,16 +38,16 @@ export interface LineProps {
   /**
    * Plotter draw when the line appears (900 ms, as in the prototype): 0 starts at once, 1 after
    * 260 ms, 2 after 520 ms; `false` shows it at once. Only solid lines are drawn, dashed ones
-   * appear directly (their dash pattern would be lost).
+   * appear directly (their dash pattern would be lost). `true` is the same as 0.
    */
-  draw?: false | 0 | 1 | 2;
+  draw?: boolean | 0 | 1 | 2;
 }
 
 const DRAW_DELAY = ['', ' draw-late', ' draw-later'];
 
 function drawClass(kind: LineKind, draw: LineProps['draw']): string {
   if (draw === false || draw === undefined || kind !== 'actual') return KIND_CLASS[kind];
-  return `${KIND_CLASS[kind]} draw${DRAW_DELAY[draw]}`;
+  return `${KIND_CLASS[kind]} draw${DRAW_DELAY[draw === true ? 0 : draw]}`;
 }
 
 // pathLength scales dash patterns too, so it is set only on lines that are drawn (solid ones).

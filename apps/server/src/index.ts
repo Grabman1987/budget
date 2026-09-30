@@ -46,6 +46,7 @@ for (const timer of housekeeping) timer.unref();
 const app = createApp({
   webDir,
   auth,
+  ledger: { db },
   database: process.env['BUDGET_DEBUG_API'] === '1' ? db : undefined,
 });
 

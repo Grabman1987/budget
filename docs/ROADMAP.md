@@ -125,9 +125,9 @@ Starts after P1f-3 is merged. Source: YNAB export (`docs/migration/ynab-export.m
 Order: P2a → P2b and P2c in parallel → P2d (parser can start right after P1f-3) → owner's import on the deployed app (after P1f-2 B5).
 
 ### P2a — Accounts and bookings (`docs/prompts/P2a.md`)
-- [ ] API and repositories: accounts (type, on-budget, terms, closed), bookings with splits and transfers, payees; validation, audit, undo
-- [ ] Konten › Übersicht, Einzelkonto (balance line, bookings, flags, status), Alle Buchungen (filter, search, bulk edit)
-- [ ] Kontostand prüfen with "doppelt" / "fehlt" and Ausgleich booking (reconciliation snapshot)
+- [x] API and repositories: accounts (type, on-budget, terms, closed), bookings with splits and transfers, payees; validation, audit, undo (`docs/api-ledger.md`, PR `p2a-api`)
+- [x] Konten › Übersicht, Einzelkonto (balance line, bookings, flags, status), Alle Buchungen (filter, search, bulk edit) (PRs `p2a-ui`, `p2a-ui-2`)
+- [x] Kontostand prüfen with "doppelt" / "fehlt" and Ausgleich booking (reconciliation snapshot) (PRs `p2a-api`, `p2a-ui-3`)
 
 ### P2b — Capture dialog (`docs/prompts/P2b.md`)
 - [ ] Buchung, Split, Umbuchung (Konto → Konto) on desktop panel and phone sheet; amount field with arithmetic; payee autocomplete with default category; keyboard flow; undo toast
@@ -137,9 +137,10 @@ Order: P2a → P2b and P2c in parallel → P2d (parser can start right after P1f
 - [ ] Plan › Monat: waterfall with 9 stages, views (Stückliste, Zeit, Triage), Geld verteilen, overspending and card payment per concept §5.3
 
 ### P2d — YNAB import with mapping (`docs/prompts/P2d.md`)
-- [ ] Parser for Register.tsv / Plan.tsv incl. CESU-8 emoji repair, splits, transfer pairing; synthetic fixture export in the real format
-- [ ] Raw staging, mapping document (zod schema), dry run with side-by-side structure, commit as one reversible import run, idempotent re-import
-- [ ] Import wizard in Einstellungen › Datenquellen (step-up), reconciliation report (Gate 2)
+- [x] Parser for Register.tsv / Plan.tsv incl. CESU-8 emoji repair, splits, transfer pairing; synthetic fixture export in the real format
+- [x] Mapping document (zod schema), `applyMapping` to the target model (opening balances and Available at the start month, n:1 merges, drop, rules), reconciliation (Gate 2) as data — `packages/import-ynab`
+- [ ] Raw staging, dry run with side-by-side structure, commit as one reversible import run, idempotent re-import
+- [ ] Import wizard in Einstellungen › Datenquellen (step-up), reconciliation report page (Gate 2)
 - [ ] Owner: category evaluation and mapping done, real import on the deployed app, Gate 2 report without difference
 
 ## P3 Planung und Steuerung
