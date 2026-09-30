@@ -24,7 +24,8 @@ async function newCategory(
 }
 
 test('categories: create, target, hide, sort, merge and undo', async ({ page }, testInfo) => {
-  const tag = testInfo.project.name;
+  // Unique per run: retries write into the same database.
+  const tag = `${testInfo.project.name}-${Date.now().toString(36).slice(-5)}`;
   const group = `Alltag ${tag}`;
   await page.goto('/einstellungen/kategorien');
   await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
@@ -52,7 +53,7 @@ test('categories: create, target, hide, sort, merge and undo', async ({ page }, 
   expect(await icon.evaluate((el) => getComputedStyle(el).fontFamily)).toContain('Noto Emoji');
 
   // Keyboard sort: Café moves above Lebensmittel.
-  if (tag === 'desktop') {
+  if (testInfo.project.name === 'desktop') {
     await page.getByRole('button', { name: `Café ${tag} verschieben` }).press('ArrowUp');
     await expect(toast(page)).toContainText('Reihenfolge gespeichert');
     const names = await page.locator('.cat-table .krow .kname-s').allTextContents();
@@ -86,5 +87,8 @@ test('categories: create, target, hide, sort, merge and undo', async ({ page }, 
 
   const axe = await new AxeBuilder({ page }).include('main').analyze();
   expect(axe.violations.map((v) => v.id)).toEqual([]);
-  await page.screenshot({ path: testInfo.outputPath(`kategorien-${tag}.png`), fullPage: true });
+  await page.screenshot({
+    path: testInfo.outputPath(`kategorien-${testInfo.project.name}.png`),
+    fullPage: true,
+  });
 });
