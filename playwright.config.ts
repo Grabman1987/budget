@@ -4,19 +4,34 @@ import { mkdirSync, rmSync } from 'node:fs';
 const MAIN_PORT = Number(process.env['E2E_PORT'] ?? 4310);
 const AUTH_DESKTOP_PORT = MAIN_PORT + 1;
 const AUTH_MOBILE_PORT = MAIN_PORT + 2;
+const SAMPLE_PORT = MAIN_PORT + 3;
 /** Test-only secret for the bootstrap; the servers below are throwaway and local. */
 export const E2E_SETUP_TOKEN = 'e2e-setup-token-not-a-secret';
 export const MAIN_URL = `http://localhost:${MAIN_PORT}`;
 export const STORAGE_STATE = 'test-results/.auth/main.json';
+export const SAMPLE_URL = `http://localhost:${SAMPLE_PORT}`;
+export const STORAGE_STATE_SAMPLE = 'test-results/.auth/sample.json';
+/** The day the sample server runs on: the prototype's reference day. */
+const SAMPLE_TODAY = '2026-09-17';
 
+// Two kinds of test server (convention):
+//  - main (MAIN_PORT): starts empty. Specs that need an empty ledger or that write freely use it
+//    (`test` from @playwright/test, the desktop/mobile projects' default base URL).
+//  - sample (MAIN_PORT + 3): seeded with the synthetic ledger, "today" is 17.09.2026, so pages can
+//    be compared with the prototype's figures. Specs use `sampleTest` from e2e/sample.ts. It is
+//    READ-MOSTLY and shared by every spec and viewport running in parallel: a test that writes
+//    there must undo its write (POST /api/undo with the groupId of the write) or use entities of
+//    its own (unique ids), and must never depend on another test's leftovers.
+//
 // Every run starts with fresh databases (no passkeys), so the bootstrap is always exercised.
 // Workers evaluate this file too; only the main process may delete the files.
 export const DB_MAIN = 'test-results/e2e-main.sqlite';
 const DB_AUTH_DESKTOP = 'test-results/e2e-auth-desktop.sqlite';
 const DB_AUTH_MOBILE = 'test-results/e2e-auth-mobile.sqlite';
+export const DB_SAMPLE = 'test-results/e2e-sample.sqlite';
 if (process.env['TEST_WORKER_INDEX'] === undefined) {
   mkdirSync('test-results/.auth', { recursive: true });
-  for (const file of [DB_MAIN, DB_AUTH_DESKTOP, DB_AUTH_MOBILE])
+  for (const file of [DB_MAIN, DB_AUTH_DESKTOP, DB_AUTH_MOBILE, DB_SAMPLE])
     for (const suffix of ['', '-wal', '-shm']) rmSync(file + suffix, { force: true });
 }
 
@@ -33,6 +48,18 @@ const server = (port: number, database: string) => ({
   reuseExistingServer: false,
   timeout: 30_000,
 });
+
+// The sample server: migrated and seeded with the synthetic ledger (scripts/db-seed.ts), then the
+// normal server with "today" pinned (BUDGET_TODAY). Seeding runs before the health check answers.
+const sampleServer = () => {
+  const base = server(SAMPLE_PORT, DB_SAMPLE);
+  return {
+    ...base,
+    command: `npx tsx scripts/db-seed.ts --file ${DB_SAMPLE} --fresh && ${base.command}`,
+    env: { ...base.env, BUDGET_TODAY: SAMPLE_TODAY },
+    timeout: 90_000,
+  };
+};
 
 const desktop = { ...devices['Desktop Chrome'], viewport: { width: 1440, height: 900 } };
 const mobile = {
@@ -57,16 +84,18 @@ export default defineConfig({
     // Registers the first passkey on the main server through the API (software authenticator)
     // and stores the session cookie for all other projects.
     { name: 'setup', testMatch: /(auth|ledger)\.setup\.ts/, use: { baseURL: MAIN_URL } },
+    // The same bootstrap against the seeded sample server (`sampleTest`, e2e/sample.ts).
+    { name: 'setup-sample', testMatch: /sample\.setup\.ts/, use: { baseURL: SAMPLE_URL } },
     {
       name: 'desktop',
-      dependencies: ['setup'],
-      testIgnore: /(auth|ledger)\.setup\.ts|auth\.spec\.ts/,
+      dependencies: ['setup', 'setup-sample'],
+      testIgnore: /(auth|ledger|sample)\.setup\.ts|auth\.spec\.ts/,
       use: { ...desktop, storageState: STORAGE_STATE },
     },
     {
       name: 'mobile',
-      dependencies: ['setup'],
-      testIgnore: /(auth|ledger)\.setup\.ts|auth\.spec\.ts/,
+      dependencies: ['setup', 'setup-sample'],
+      testIgnore: /(auth|ledger|sample)\.setup\.ts|auth\.spec\.ts/,
       use: { ...mobile, storageState: STORAGE_STATE },
     },
     // Real passkey ceremonies with the browser's virtual authenticator on a separate, empty server.
@@ -89,5 +118,6 @@ export default defineConfig({
     server(MAIN_PORT, DB_MAIN),
     server(AUTH_DESKTOP_PORT, DB_AUTH_DESKTOP),
     server(AUTH_MOBILE_PORT, DB_AUTH_MOBILE),
+    sampleServer(),
   ],
 });

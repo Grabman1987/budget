@@ -116,6 +116,33 @@ describe('synthetic YNAB export', () => {
     ]);
   });
 
+  it('by hand: card rules of the real export (Apr – Jun 2025)', () => {
+    const { plan } = ynabLedger(1);
+    const at = (month: string, name: string) => {
+      const p = plan.find((x) => x.month === month && x.name === name);
+      return [p?.assigned, p?.activity, p?.available];
+    };
+    // Apr: Elektronik 100 €, Blau 60 € (5th), Grün 120 € (20th): 80 € credit overspending, all of
+    // it Grün's (the latest spending), so Grün's payment category gets 40 € (shared in proportion
+    // it would be 66,67 €). Bücher: Grün 35 € (12th), Blau refund 30 € (22nd): 5 € overspent, all
+    // credit; the refund meets it and stays in Blau's payment category, Grün's 35 € stay unfunded.
+    expect(at('2025-04', 'Elektronik')).toEqual([10000, -18000, -8000]);
+    expect(at('2025-04', 'Bücher')).toEqual([0, -500, -500]);
+    // May: 205 € paid on a debt of 155 € (+50 € balance); of 80 € Kfz-Service spending 50 € come
+    // from the balance and 30 € move; on the 17th the 20 € spending counts before the 60 €
+    // payment (largest outflow first) and moves; the 5 € balance adjustment moves nothing.
+    // 40 € − 205 € + 30 € − 60 € + 20 € = −175 € (cash overspending, reset in June).
+    expect(at('2025-05', 'Kfz-Service')).toEqual([8000, -10000, 0]);
+    expect(
+      ['2025-03', '2025-04', '2025-05', '2025-06'].map((m) => at(m, 'Kreditkarte Grün')),
+    ).toEqual([
+      [0, 0, 0],
+      [0, 4000, 4000],
+      [0, -21500, -17500],
+      [0, 0, 0],
+    ]);
+  });
+
   it('future-dated rows are in the register but not in the plan (Oct 2026)', () => {
     const { plan, rows } = ynabLedger(1);
     expect(rows.filter((r) => r.date > '2026-09-29').map((r) => r.date)).toHaveLength(6);

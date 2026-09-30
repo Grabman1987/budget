@@ -9,6 +9,7 @@ import { backupConfigFromEnv, BackupScheduler } from './backup/backup';
 import { createAuth } from './auth/routes';
 import { AuthStore } from './auth/store';
 import { createMarketSources, marketModeFromEnv, startDailyMarketTimer } from './market';
+import { todayFromEnv } from './today';
 
 const port = Number(process.env['PORT'] ?? 3000);
 const webDir = resolve(process.env['WEB_DIR'] ?? resolve(import.meta.dirname, '../../web/dist'));
@@ -43,11 +44,14 @@ const housekeeping = [
 ];
 for (const timer of housekeeping) timer.unref();
 
+// BUDGET_TODAY pins the ledger's "today" (test aid, refused in production).
+const today = todayFromEnv();
+
 // The debug endpoint is opt-in, read-only (seed check) and behind the session guard.
 const app = createApp({
   webDir,
   auth,
-  ledger: { db },
+  ledger: { db, ...(today ? { today } : {}) },
   database: process.env['BUDGET_DEBUG_API'] === '1' ? db : undefined,
 });
 
