@@ -145,6 +145,33 @@ describe('model builder', () => {
     expect(m.problems.map((x) => x.code)).toEqual(['category.not_in_plan']);
   });
 
+  it('a loan starts negative and never gets above 0; a depot starting in debit is no loan', () => {
+    line = 1;
+    const m = buildModel(
+      [
+        // Depot with a debit balance at the start, then deposits and a value adjustment.
+        r('Depot', '2023-01-01', 'Starting Balance', -500),
+        r('Depot', '2023-01-02', 'Transfer : Giro', 2000),
+        r('Depot', '2023-06-30', 'Reconciliation Balance Adjustment', 300),
+        r('Depot', '2023-07-02', 'Transfer : Giro', -1000),
+        r('Giro', '2023-01-02', 'Transfer : Depot', -2000, 'Sparen'),
+        r('Giro', '2023-07-02', 'Transfer : Depot', 1000, 'Sparen'),
+        // A loan paid off in two rates, and one still running with interest.
+        r('Kredit', '2023-01-01', 'Starting Balance', -3000),
+        r('Kredit', '2023-02-01', 'Transfer : Giro', 1500),
+        r('Kredit', '2023-03-01', 'Transfer : Giro', 1500),
+        r('Giro', '2023-02-01', 'Transfer : Kredit', -1500, 'Sparen'),
+        r('Giro', '2023-03-01', 'Transfer : Kredit', -1500, 'Sparen'),
+        r('Darlehen', '2023-01-01', 'Starting Balance', -9000),
+        r('Darlehen', '2023-12-31', 'Zinsen', -200),
+      ],
+      [p('2023-01', 'G', 'Sparen')],
+      { asOf: '2023-12-31' },
+    );
+    const type = Object.fromEntries(m.accounts.map((a) => [a.name, a.proposal.type]));
+    expect(type).toMatchObject({ Depot: 'other_asset', Kredit: 'loan', Darlehen: 'loan' });
+  });
+
   it('rejects gaps and duplicates in the plan', () => {
     line = 1;
     const m = buildModel(

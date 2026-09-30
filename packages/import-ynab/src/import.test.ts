@@ -72,8 +72,9 @@ describe('round trip on the synthetic export', () => {
     };
     expect(split('Elektronik')).toEqual([10000, 5000, 0]);
     expect(split('Möbel')).toEqual([0, 0, 5000]);
-    expect(split('Kultur')).toEqual([10000, 2000, 3000]);
-    expect(split('Bücher')).toEqual([7000, 0, 5000]);
+    // Card first (real export): the card spending explains the overspending before the cash.
+    expect(split('Kultur')).toEqual([7000, 5000, 0]);
+    expect(split('Bücher')).toEqual([2000, 5000, 0]);
     expect(split('Geschenke')).toEqual([15000, 0, 0]);
   });
 
@@ -119,9 +120,9 @@ describe('round trip on the synthetic export', () => {
 
   it('merging an overspent category is not exact after the overspending: listed as differences', () => {
     // YNAB resets each category's overspending on its own and splits it into cash and credit per
-    // category; a merged envelope nets first. May 2024: Möbel −50 € cash, Kultur −30 € cash and
-    // −20 € credit; merged: −100 € of which 20 € fewer are credit, so the card envelope gets 20 €
-    // more and the totals change by the credit overspending.
+    // category; a merged envelope nets first. May 2024: Möbel −50 € cash, Kultur −50 € credit
+    // (card first); merged: −100 €, all of it credit (120 € on the card), so the card envelope
+    // gets 50 € less and the totals change by the credit overspending.
     const mapping = mapped((m) => {
       m.categories[key('Möbel')] = key('Kultur');
       delete m.targets[key('Möbel')];
@@ -132,9 +133,9 @@ describe('round trip on the synthetic export', () => {
       .filter((d) => d.month === '2024-05')
       .map((d) => [d.check, d.category, d.actualCents - d.expectedCents]);
     expect(may).toEqual([
-      ['activity', key('Kreditkarte Blau'), 2000],
-      ['available', key('Kreditkarte Blau'), 2000],
-      ['total', undefined, 2000],
+      ['activity', key('Kreditkarte Blau'), -5000],
+      ['available', key('Kreditkarte Blau'), -5000],
+      ['total', undefined, -5000],
     ]);
     expect(report.differences.map((d) => d.month).sort()[0]).toBe('2024-05');
   });
@@ -262,7 +263,7 @@ describe('export facts from the first real import', () => {
     });
     expect(p['Altes Sparbuch']?.closedAt).toBe('2023-03-15');
     expect(p['Altes Girokonto']?.closedAt).toBe('2025-06-30');
-    expect(p['Kreditkarte Grün']?.closedAt).toBe('2024-12-08');
+    expect(p['Kreditkarte Grün']?.closedAt).toBe('2025-06-05');
     expect(p['Girokonto']?.closedAt).toBeNull();
     for (const platform of ['Depot', 'Krypto', 'Forderung Kontakt A'])
       expect(p[platform]?.type, platform).toBe('other_asset');
