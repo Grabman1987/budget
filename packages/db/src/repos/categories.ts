@@ -127,6 +127,13 @@ export function updateCategory(
 ) {
   return runInTransaction(db, (tx) => {
     const current = liveCategory(tx, id);
+    // A card payment envelope stays one: its kind and card follow the card, not the owner.
+    if (
+      current.kind === 'card_payment' &&
+      ((patch.kind !== undefined && patch.kind !== 'card_payment') ||
+        (patch.cardAccountId !== undefined && patch.cardAccountId !== current.cardAccountId))
+    )
+      throw new CategoryRuleError('Die Art einer Kartenzahlung lässt sich nicht ändern.');
     const next = { ...current, ...patch, name: cleanName(patch.name ?? current.name) };
     assertCategory(tx, next);
     // A category that changes group goes to the end of the new group.
@@ -416,23 +423,40 @@ export function splitOffCategory(
   db: Executor,
   categoryId: string,
   splitIds: readonly string[],
-  into: { targetId: string } | { newCategory: CategoryFields },
+  into:
+    | { targetId: string }
+    | {
+        newCategory: CategoryFields;
+        /** Target of the new category, stored in the same audit group. */
+        target?: { target: TargetInput | null; validFrom: string };
+      },
   ctx: AuditContext,
 ): { groupId: string; targetId: string; moved: number } {
   const grouped = withGroup(ctx);
   return runInTransaction(db, (tx) => {
     liveCategory(tx, categoryId);
-    const targetId =
-      'targetId' in into
-        ? liveCategory(tx, into.targetId).id
-        : createCategory(tx, into.newCategory, grouped).id;
+    let targetId: string;
+    if ('targetId' in into) targetId = liveCategory(tx, into.targetId).id;
+    else {
+      targetId = createCategory(tx, into.newCategory, grouped).id;
+      if (into.target)
+        setCategoryTarget(tx, targetId, into.target.target, into.target.validFrom, grouped);
+    }
     if (targetId === categoryId) throw new CategoryRuleError('Wähle eine andere Kategorie.');
     const ids = [...new Set(splitIds)];
     const rows = ids.length
       ? tx
           .select({ id: bookingSplit.id })
           .from(bookingSplit)
-          .where(and(inArray(bookingSplit.id, ids), eq(bookingSplit.categoryId, categoryId)))
+          .innerJoin(booking, eq(booking.id, bookingSplit.bookingId))
+          // Only splits of live bookings: a deleted booking is not re-categorised behind the back.
+          .where(
+            and(
+              inArray(bookingSplit.id, ids),
+              eq(bookingSplit.categoryId, categoryId),
+              isNull(booking.deletedAt),
+            ),
+          )
           .all()
       : [];
     if (rows.length !== ids.length || ids.length === 0)

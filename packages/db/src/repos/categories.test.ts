@@ -17,7 +17,7 @@ import {
   splitOffCategory,
   updateCategory,
 } from './categories';
-import { createBooking } from './bookings';
+import { createBooking, deleteBooking } from './bookings';
 import { accounts, createEntity, getEntity } from './entities';
 import { getAssigned } from './envelopes';
 import { budget } from './queries';
@@ -183,6 +183,29 @@ describe('budget writes', () => {
     expect(budget(db, ['2026-07'])[0]?.envelopes['strom']?.assignedCents).toBe(600);
   });
 
+  it('covering from "Zu verteilen" stops at what it holds unless going below 0 is confirmed', () => {
+    book('giro', '2026-07-01', 5_000, null);
+    book('giro', '2026-07-05', -12_000, 'essen');
+    const tba = () => budgetSummary(db, '2026-07').summary.toBeAssignedCents;
+    expect(tba()).toBe(5_000);
+    const part = coverOverspending(db, '2026-07', 'essen', null, ctx);
+    expect(part.coveredCents).toBe(5_000);
+    expect(tba()).toBe(0);
+    expect(() => coverOverspending(db, '2026-07', 'essen', null, ctx)).toThrow(/reicht nicht/);
+    const rest = coverOverspending(db, '2026-07', 'essen', null, ctx, { allowNegative: true });
+    expect(rest.coveredCents).toBe(7_000);
+    expect(tba()).toBe(-7_000);
+  });
+
+  it('a card payment envelope keeps its kind and card', () => {
+    const kz = categoryTree(db).categories.find((c) => c.kind === 'card_payment')?.id as string;
+    expect(() => updateCategory(db, kz, { kind: 'variable', class: 'need' }, ctx)).toThrow(
+      /Kartenzahlung lässt sich nicht ändern/,
+    );
+    expect(() => updateCategory(db, kz, { cardAccountId: 'giro' }, ctx)).toThrow(/nicht ändern/);
+    expect(updateCategory(db, kz, { name: 'Karte zahlen' }, ctx).name).toBe('Karte zahlen');
+  });
+
   it('credit overspending on the card is reported apart from cash overspending', () => {
     book('giro', '2026-07-01', 100_000, null);
     assignMany(db, '2026-07', [{ categoryId: 'essen', assignedCents: 10_000 }], ctx);
@@ -209,7 +232,8 @@ describe('property tests on random ledgers', { timeout: 60_000 }, () => {
         const envs = ['miete', 'strom', 'essen', 'kaffee'];
         const s = budgetSummary(db, m).summary;
         const over = s.envelopes.find((e) => e.overspentCents > 0);
-        if (over && i % 2 === 0) coverOverspending(db, m, over.categoryId, null, ctx);
+        if (over && i % 2 === 0)
+          coverOverspending(db, m, over.categoryId, null, ctx, { allowNegative: true });
         else {
           const [from, to] = [pick([null, ...envs]), pick(envs)];
           if (from !== to) moveMoney(db, m, from, to, int(1, 20_000), ctx);
@@ -311,5 +335,30 @@ describe('property tests on random ledgers', { timeout: 60_000 }, () => {
     undo(db, { groupId: res.groupId }, ctx);
     expect(july()['essen']?.activityCents).toBe(-3_500);
     expect(categoryTree(db).categories.some((c) => c.name === 'Lieferdienste')).toBe(false);
+  });
+
+  it("split-off takes live bookings only and stores the new category's target", () => {
+    setup();
+    const gone = book('giro', '2026-07-02', -1_000, 'essen');
+    const live = book('giro', '2026-07-03', -2_000, 'essen');
+    const splitOf = (bookingId: string) =>
+      splitOffCandidates(db, 'essen', {}).find((f) => f.bookingId === bookingId)?.splitId as string;
+    const goneSplit = splitOf(gone);
+    deleteBooking(db, gone, ctx);
+    const into = { newCategory: { name: 'Neu', groupId: 'genuss', class: 'want' as const } };
+    expect(() => splitOffCategory(db, 'essen', [goneSplit], into, ctx)).toThrow(/nicht \(mehr\)/);
+    const res = splitOffCategory(
+      db,
+      'essen',
+      [splitOf(live)],
+      {
+        ...into,
+        target: { validFrom: '2026-07', target: { kind: 'monthly', amountCents: 3_000 } },
+      },
+      ctx,
+    );
+    expect(categoryTree(db).targets.filter((t) => t.categoryId === res.targetId)).toMatchObject([
+      { kind: 'monthly', amountCents: 3_000, validFrom: '2026-07' },
+    ]);
   });
 });
