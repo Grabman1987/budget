@@ -54,7 +54,7 @@ export interface SplitEditorProps {
   accounts: ReadonlyArray<AccountRow>;
   accountId: string;
   contacts: ReadonlyArray<{ id: string; name: string }>;
-  /** Contact shares run through the Auslagen category; without one they cannot be booked. */
+  /** Contact shares run through the Auslagen category; the first share creates it if missing. */
   hasAdvanceCategory: boolean;
   /** An existing booking with transfer lines: they cannot be changed, only deleted and re-created. */
   locked: boolean;
@@ -109,9 +109,8 @@ export function SplitEditor({
               label={`Art der Zeile ${n}`}
               options={types}
               value={s.type}
-              onChange={(type) =>
-                change(s.key, { type, ...(type === 'contact' ? { categoryId: '' } : {}) })
-              }
+              // A hidden category of the old type must not travel with the new one.
+              onChange={(type) => change(s.key, { type, categoryId: '' })}
               stretch
             />
             {s.type === 'category' && (
@@ -134,11 +133,10 @@ export function SplitEditor({
               <Field
                 label={`Kontakt ${n}`}
                 hint={
-                  hasAdvanceCategory
-                    ? draft.kind === 'income'
-                      ? 'Zahlt zurück, läuft über Auslagen.'
-                      : 'Ausgelegt für den Kontakt, läuft über Auslagen.'
-                    : 'Es gibt keine Auslagen-Kategorie (Einstellungen › Kategorien).'
+                  (draft.kind === 'income'
+                    ? 'Zahlt zurück, läuft über Auslagen.'
+                    : 'Ausgelegt für den Kontakt, läuft über Auslagen.') +
+                  (hasAdvanceCategory ? '' : ' Die Kategorie wird beim ersten Mal angelegt.')
                 }
               >
                 {({ id, describedBy }) => (
@@ -146,7 +144,6 @@ export function SplitEditor({
                     id={id}
                     aria-describedby={describedBy}
                     value={s.contactId ?? ''}
-                    disabled={!hasAdvanceCategory}
                     onChange={(e) => change(s.key, { contactId: e.target.value || null })}
                   >
                     <option value="">Kontakt wählen</option>
@@ -179,6 +176,25 @@ export function SplitEditor({
                 )}
               </Field>
             )}
+            {s.type === 'transfer' &&
+              accounts.some((a) => a.id === s.toAccountId && !a.onBudget) && (
+                <Field
+                  label={`Kategorie ${n}`}
+                  hint="Umbuchungen auf Tracking-Konten brauchen eine Kategorie."
+                >
+                  {({ id, describedBy }) => (
+                    <Select
+                      id={id}
+                      aria-describedby={describedBy}
+                      value={s.categoryId}
+                      onChange={(e) => change(s.key, { categoryId: e.target.value })}
+                    >
+                      <option value="">Kategorie wählen</option>
+                      {categoryOptions(categories)}
+                    </Select>
+                  )}
+                </Field>
+              )}
             <AmountInput
               label={`Betrag ${n}`}
               value={s.amount}

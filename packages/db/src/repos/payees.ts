@@ -1,9 +1,9 @@
 import { and, asc, eq, isNull, sql } from 'drizzle-orm';
-import { assignmentRule, booking, payee } from '../schema';
+import { assignmentRule, booking, category, payee } from '../schema';
 import { withGroup, updateTracked, type AuditContext } from './audit';
 import type { WriteOptions } from './bookings';
 import { createEntity, getEntity, updateEntity } from './entities';
-import { ConflictError, EntityNotFoundError } from './errors';
+import { CategoryRuleError, ConflictError, EntityNotFoundError } from './errors';
 import { runInTransaction, type Executor } from './types';
 
 /** Payees (Empfänger): create, rename and merge. System payees (Eröffnungssaldo, …) are fixed. */
@@ -83,31 +83,60 @@ function liveUserPayee(db: Executor, id: string) {
   return row;
 }
 
-/** Rename a payee (not a system payee); the new name must be free. */
-export function renamePayee(db: Executor, id: string, name: string, ctx: AuditContext) {
-  const next = cleanName(name);
-  return runInTransaction(db, (tx) => {
-    liveUserPayee(tx, id);
-    assertNameFree(tx, next, id);
-    return updateEntity(tx, payee, id, { name: next }, ctx);
-  });
+/** A default category must be live and a spending one: an income category is never a default. */
+function assertDefaultCategory(db: Executor, categoryId: string): void {
+  const row = db
+    .select({ kind: category.kind })
+    .from(category)
+    .where(and(eq(category.id, categoryId), isNull(category.deletedAt)))
+    .get();
+  if (!row) throw new CategoryRuleError('Diese Kategorie gibt es nicht (mehr).');
+  if (row.kind === 'income')
+    throw new CategoryRuleError('Eine Einnahmen-Kategorie kann nicht als Vorgabe dienen.');
 }
 
 /**
- * Set (or clear) the category a payee is booked to by default: capture pre-fills it. System payees
- * are fixed.
+ * Rename a payee and/or set (or clear) the category capture pre-fills for it, in one transaction
+ * and one audit entry: everything is validated first, so a refused change writes nothing. System
+ * payees are fixed; the new name must be free; the category must be live and not an income one.
  */
-export function setPayeeDefaultCategory(
+export function updatePayee(
+  db: Executor,
+  id: string,
+  input: { name?: string; defaultCategoryId?: string | null },
+  ctx: AuditContext,
+) {
+  const next = input.name === undefined ? undefined : cleanName(input.name);
+  return runInTransaction(db, (tx) => {
+    liveUserPayee(tx, id);
+    if (input.defaultCategoryId) assertDefaultCategory(tx, input.defaultCategoryId);
+    if (next !== undefined) assertNameFree(tx, next, id);
+    return updateEntity(
+      tx,
+      payee,
+      id,
+      {
+        ...(next !== undefined ? { name: next } : {}),
+        ...(input.defaultCategoryId !== undefined
+          ? { defaultCategoryId: input.defaultCategoryId }
+          : {}),
+      },
+      ctx,
+    );
+  });
+}
+
+/** Rename a payee (not a system payee); the new name must be free. */
+export const renamePayee = (db: Executor, id: string, name: string, ctx: AuditContext) =>
+  updatePayee(db, id, { name }, ctx);
+
+/** Set (or clear) the category a payee is booked to by default: capture pre-fills it. */
+export const setPayeeDefaultCategory = (
   db: Executor,
   id: string,
   categoryId: string | null,
   ctx: AuditContext,
-) {
-  return runInTransaction(db, (tx) => {
-    liveUserPayee(tx, id);
-    return updateEntity(tx, payee, id, { defaultCategoryId: categoryId }, ctx);
-  });
-}
+) => updatePayee(db, id, { defaultCategoryId: categoryId }, ctx);
 
 /** Result of a merge: moved and skipped (reconciled) bookings, sources kept alive for them. */
 export interface PayeeMergeResult {

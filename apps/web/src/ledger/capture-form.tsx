@@ -23,10 +23,12 @@ import { ApiError } from '../api/http';
 import { budgetQuery } from '../budget/budget-api';
 import { createPayee, setPayeeDefaultCategory } from './api';
 import {
+  amountOf,
   buildCreate,
   buildPatch,
   draftFromBooking,
   emptyDraft,
+  isTransferBooking,
   newSplit,
   splitRemainder,
   touchesLocked,
@@ -36,7 +38,9 @@ import {
 } from './booking-model';
 import type { BookingPanelState } from './booking-panel';
 import {
+  captureDirty,
   categoriesFor,
+  categoryFromPayee,
   defaultAccountId,
   orderAccounts,
   pickableCategories,
@@ -117,9 +121,13 @@ export function CaptureForm({
   const [errors, setErrors] = useState<DraftErrors & { form?: string }>({});
   const [unlock, setUnlock] = useState(false);
   const [busy, setBusy] = useState(false);
+  // Guards save() itself: held or repeated Ctrl+Enter must not send the booking twice.
+  const saving = useRef(false);
   const [moreOpen, setMoreOpen] = useState(Boolean(editing));
-  // A category the user picked is never replaced by the payee's default.
-  const categoryTouched = useRef(Boolean(editing));
+  // The category the last chosen payee's default filled in; only that one is replaced by the next.
+  const appliedByPayee = useRef<string | null>(null);
+  // The payee "Speichern und neu" carried over: context, so it does not make the form dirty.
+  const [keptPayee, setKeptPayee] = useState('');
   const [typing, setTyping] = useState<string | null>(null);
   const set = <K extends keyof BookingDraft>(key: K, value: BookingDraft[K]) =>
     setDraft((d) => ({ ...d, [key]: value }));
@@ -131,7 +139,7 @@ export function CaptureForm({
   const accountId =
     draft.accountId || defaultAccountId(accounts.data?.accounts ?? [], memory.accounts);
   const isTransfer = draft.kind === 'transfer';
-  const legOfTransfer = editing?.transferId != null;
+  const legOfTransfer = editing !== null && isTransferBooking(editing);
   const locked = editing?.status === 'reconciled';
   const from = open.find((a) => a.id === accountId);
   const to = open.find((a) => a.id === draft.toAccountId);
@@ -161,6 +169,10 @@ export function CaptureForm({
     budget.data?.categories.find((c) => c.kind === 'advance' && !c.hiddenAt)?.id ??
     lookups.data?.categories.find((c) => c.kind === 'advance')?.id;
   const contacts = lookups.data?.contacts ?? [];
+  const trackingAccountIds = useMemo(
+    () => new Set(open.filter((a) => !a.onBudget).map((a) => a.id)),
+    [open],
+  );
   const splitLocked = Boolean(editing?.splits.some((x) => x.transferId));
   const blocked = draft.splitOn && remainder !== 0;
   const startSplit = () =>
@@ -181,7 +193,7 @@ export function CaptureForm({
 
   const dirty = editing
     ? JSON.stringify(strip(draft)) !== JSON.stringify(strip(draftFromBooking(editing)))
-    : Boolean(draft.amount.trim() || draft.payee.trim() || draft.memo.trim() || draft.splitOn);
+    : captureDirty(draft, keptPayee);
   // The panel opens to record money: the amount is the first thing typed. The dialog moves the
   // focus itself when it opens, so this runs after it.
   useEffect(() => {
@@ -196,28 +208,28 @@ export function CaptureForm({
     dirtyRef.current = dirty;
   }, [dirty, dirtyRef]);
 
-  const applyPayee = (name: string) => {
+  /**
+   * The payee's default category is applied when a payee is chosen (list pick or leaving the
+   * field), not while typing: "Spar" on the way to "Sparkasse" must not set anything.
+   */
+  const applyPayeeDefault = (name: string) => {
     const key = name.trim().toLowerCase();
-    const row = payees.data?.payees.find((p) => p.name.toLowerCase() === key);
+    const fallback = payees.data?.payees.find(
+      (p) => p.name.toLowerCase() === key,
+    )?.defaultCategoryId;
     setDraft((d) => {
-      const next = { ...d, payee: name };
-      const fallback = row?.defaultCategoryId;
-      if (
-        !categoryTouched.current &&
-        !d.splitOn &&
-        d.kind !== 'transfer' &&
-        fallback &&
-        categoriesFor(all, d.kind, '').some((c) => c.id === fallback)
-      ) {
-        next.categoryId = fallback;
-      }
-      return next;
+      if (d.splitOn || d.kind === 'transfer') return d;
+      const next = categoryFromPayee(d.categoryId, appliedByPayee.current, fallback);
+      if (next === undefined || !categoriesFor(all, d.kind, '').some((c) => c.id === next))
+        return d;
+      appliedByPayee.current = next;
+      return { ...d, categoryId: next };
     });
   };
 
   const changeKind = (kind: BookingKind) =>
     setDraft((d) => {
-      categoryTouched.current = false;
+      appliedByPayee.current = null;
       const valid = kind !== 'expense' || all.find((c) => c.id === d.categoryId)?.kind !== 'income';
       return {
         ...d,
@@ -229,49 +241,72 @@ export function CaptureForm({
       };
     });
 
-  /** Payee id from the typed name; a new payee is created with the chosen category as its default. */
-  const resolvePayee = async (): Promise<string | null> => {
+  const typedPayee = () => {
     const name = draft.payee.trim();
-    if (name === '' || isTransfer) return null;
-    const single = !draft.splitOn && draft.categoryId ? draft.categoryId : null;
-    const known = payees.data?.payees.find((p) => p.name.toLowerCase() === name.toLowerCase());
-    if (known) {
-      if (single && !known.defaultCategoryId && draft.kind === 'expense') {
-        void setPayeeDefaultCategory(known.id, single).then(() =>
-          qc.invalidateQueries({ queryKey: payeesQuery().queryKey }),
-        );
-      }
-      return known.id;
-    }
-    const created = await createPayee(name, draft.kind === 'expense' ? single : null);
+    if (name === '' || isTransfer) return { name: '', known: undefined };
+    return {
+      name,
+      known: payees.data?.payees.find((p) => p.name.toLowerCase() === name.toLowerCase()),
+    };
+  };
+
+  /** Payee id from the typed name; a new payee is created, on a new booking with its category. */
+  const resolvePayee = async (): Promise<string | null> => {
+    const { name, known } = typedPayee();
+    if (name === '') return null;
+    if (known) return known.id;
+    const single = !editing && draft.kind === 'expense' && !draft.splitOn ? draft.categoryId : '';
+    const created = await createPayee(name, single || null);
     void qc.invalidateQueries({ queryKey: payeesQuery().queryKey });
     return created.payee.id;
   };
 
+  /** A new booking teaches a known payee without a default the category it was booked to. */
+  const learnPayeeDefault = () => {
+    const { known } = typedPayee();
+    if (editing || !known || known.defaultCategoryId || draft.kind !== 'expense') return;
+    if (draft.splitOn || !draft.categoryId) return;
+    // Best effort: a failed lesson must neither block the save nor surface as an unhandled error.
+    void setPayeeDefaultCategory(known.id, draft.categoryId)
+      .then(() => qc.invalidateQueries({ queryKey: payeesQuery().queryKey }))
+      .catch(() => undefined);
+  };
+
   const save = async (andNew: boolean) => {
+    if (saving.current) return;
     if (blocked) return setErrors({ splits: 'Speichern geht erst, wenn der Rest 0,00 € ist.' });
     const filled = { ...draft, accountId };
+    const advance = { advanceCategoryId, trackingAccountIds };
+    saving.current = true;
     setBusy(true);
     try {
-      const payeeId = await resolvePayee();
+      // Validate first (a payee still to be created is stood in for by a placeholder id), then
+      // write the payee, then the booking: a refused save leaves no payee behind.
+      const { name, known } = typedPayee();
+      const planned = name === '' ? null : (known?.id ?? 'new-payee');
       if (editing) {
-        const built = buildPatch(editing, filled, payeeId, unlock, { advanceCategoryId });
+        const plan = (payeeId: string | null) =>
+          buildPatch(editing, filled, payeeId, unlock, advance);
+        const dry = plan(planned);
+        if (!dry.ok) return setErrors(dry.errors);
+        if (locked && !unlock && touchesLocked(dry.value)) return setErrors({ form: LOCKED });
+        const built = plan(await resolvePayee());
         if (!built.ok) return setErrors(built.errors);
-        if (locked && !unlock && touchesLocked(built.value)) return setErrors({ form: LOCKED });
         if (Object.keys(built.value).length > 0)
           await writes.patch.mutateAsync({ id: editing.id, patch: built.value });
         return onDone();
       }
-      const built = buildCreate(filled, payeeId, {
-        requireCategory: true,
-        transferNeedsCategory: needsCategory,
-        advanceCategoryId,
-      });
+      const options = { ...advance, requireCategory: true, transferNeedsCategory: needsCategory };
+      const dry = buildCreate(filled, planned, options);
+      if (!dry.ok) return setErrors(dry.errors);
+      const built = buildCreate(filled, await resolvePayee(), options);
       if (!built.ok) return setErrors(built.errors);
       await writes.create.mutateAsync(built.value);
+      learnPayeeDefault();
       remember(accountId, draft.categoryId || null);
       if (!andNew) return onDone();
       // The next booking keeps the context (kind, account, date, payee and its category).
+      setKeptPayee(draft.payee);
       setDraft((d) => ({
         ...emptyDraft(accountId, d.date),
         kind: d.kind,
@@ -293,6 +328,7 @@ export function CaptureForm({
             : errorText(error),
       });
     } finally {
+      saving.current = false;
       setBusy(false);
     }
   };
@@ -349,13 +385,11 @@ export function CaptureForm({
     selected?.name ?? (draft.kind === 'income' && draft.categoryId === '' ? 'Zu verteilen' : '');
   const chips = [...new Set([...(payeeDefault ? [payeeDefault] : []), ...memory.categories])]
     .map((id) => pickable.find((c) => c.id === id))
-    .filter((c): c is NonNullable<typeof c> => Boolean(c) && c?.id !== draft.categoryId)
+    .filter((c): c is NonNullable<typeof c> => Boolean(c))
     .slice(0, 4);
-  const amountAbs =
-    Math.abs(parseFloat(draft.amount.replace(/\./g, '').replace(',', '.')) * 100) || 0;
+  const amountAbs = amountOf(draft.amount) ?? 0;
 
   const pickCategory = (id: string) => {
-    categoryTouched.current = true;
     set('categoryId', id === NONE ? '' : id);
     setTyping(null);
   };
@@ -424,8 +458,12 @@ export function CaptureForm({
           label={draft.kind === 'income' ? 'Von (Zahler)' : 'Empfänger'}
           value={draft.payee}
           placeholder="Suchen oder neu anlegen"
-          onChange={applyPayee}
-          onSelect={(o) => applyPayee(o.label)}
+          onChange={(text) => set('payee', text)}
+          onSelect={(o) => {
+            set('payee', o.label);
+            applyPayeeDefault(o.label);
+          }}
+          onFocusChange={(focused) => !focused && applyPayeeDefault(draft.payee)}
           options={(payees.data?.payees ?? [])
             .filter((p) => !p.systemKind)
             .sort((a, b) => (b.lastBookingDate ?? '').localeCompare(a.lastBookingDate ?? ''))
@@ -445,20 +483,26 @@ export function CaptureForm({
             placeholder="Kategorie suchen"
             error={errors.category}
             listWhenEmpty
+            pickFirst
             emptyText="Keine Kategorie gefunden."
             options={categoryOptions}
             onChange={setTyping}
             onFocusChange={(focused) => !focused && setTyping(null)}
             onSelect={(o) => pickCategory(o.id)}
           />
-          {selected && selected.availableCents !== null && (
-            <p className="kavail" aria-live="polite">
-              Verfügbar im {monthName(draft.date)}: <strong>{eur(selected.availableCents)}</strong>
-              {draft.kind === 'expense' && amountAbs > 0 && (
-                <> · danach {eur(selected.availableCents - amountAbs)}</>
-              )}
-            </p>
-          )}
+          {/* Always there (empty until a category is chosen): choosing one, e.g. by the payee's
+              default as the payee field is left, must not move the fields below under the pointer. */}
+          <p className="kavail" aria-live="polite">
+            {selected && selected.availableCents !== null && (
+              <>
+                Verfügbar im {monthName(draft.date)}:{' '}
+                <strong>{eur(selected.availableCents)}</strong>
+                {draft.kind === 'expense' && amountAbs > 0 && (
+                  <> · danach {eur(selected.availableCents - amountAbs)}</>
+                )}
+              </>
+            )}
+          </p>
           {chips.length > 0 && (
             <div className="kchips" role="group" aria-label="Vorschläge">
               {chips.map((c) => (
@@ -466,6 +510,7 @@ export function CaptureForm({
                   key={c.id}
                   type="button"
                   className="chip"
+                  aria-pressed={c.id === draft.categoryId}
                   onClick={() => pickCategory(c.id)}
                 >
                   {c.cls && <ClassSwatch kind={c.cls} />}
@@ -499,18 +544,17 @@ export function CaptureForm({
           label={draft.kind === 'income' ? 'Rückzahlung von Kontakt' : 'Auslage für Kontakt'}
           error={errors.contact}
           hint={
-            !advanceCategoryId
-              ? 'Es gibt keine Auslagen-Kategorie (Einstellungen › Kategorien).'
-              : draft.contactId
+            draft.contactId
+              ? advanceCategoryId
                 ? 'Läuft über Auslagen, eine eigene Kategorie ist nicht nötig.'
-                : undefined
+                : 'Läuft über Auslagen. Die Kategorie wird beim ersten Mal automatisch angelegt.'
+              : undefined
           }
         >
           {({ id, describedBy, invalid }) => (
             <Select
               id={id}
               value={draft.contactId}
-              disabled={!advanceCategoryId}
               aria-invalid={invalid}
               aria-describedby={describedBy}
               onChange={(e) => set('contactId', e.target.value)}
