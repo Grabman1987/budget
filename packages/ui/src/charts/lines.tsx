@@ -35,16 +35,33 @@ export function stepPath(points: ReadonlyArray<Point>): string {
 export interface LineProps {
   points: ReadonlyArray<Point>;
   kind: LineKind;
+  /** Plotter draw: the line is pulled from its start once when it appears (solid kinds only). */
+  draw?: boolean;
 }
 
+const lineClass = (kind: LineKind, draw: boolean) =>
+  draw ? `${KIND_CLASS[kind]} line-draw` : KIND_CLASS[kind];
+
 /** Polyline in one of the ISO line types. */
-export function Line({ points, kind }: LineProps) {
-  return <path d={linePath(points)} className={KIND_CLASS[kind]} />;
+export function Line({ points, kind, draw = false }: LineProps) {
+  return (
+    <path
+      d={linePath(points)}
+      className={lineClass(kind, draw)}
+      {...(draw ? { pathLength: 1 } : {})}
+    />
+  );
 }
 
 /** Step line: the value holds until the next point (balances, cumulative spending). */
-export function StepLine({ points, kind = 'actual' }: LineProps) {
-  return <path d={stepPath(points)} className={KIND_CLASS[kind]} />;
+export function StepLine({ points, kind = 'actual', draw = false }: LineProps) {
+  return (
+    <path
+      d={stepPath(points)}
+      className={lineClass(kind, draw)}
+      {...(draw ? { pathLength: 1 } : {})}
+    />
+  );
 }
 
 export interface BandPoint {

@@ -3,6 +3,7 @@ import {
   accounts,
   accountSummaries,
   balanceSeries,
+  holdingValuesAsOf,
   booking,
   listReconciliations,
   previewReconciliation,
@@ -41,11 +42,24 @@ const DEFAULTS = {
 } as const;
 const TRACKING_ONLY = new Set(['loan', 'brokerage', 'crypto', 'p2p', 'receivable']);
 
+/** `holdingsCents` is the market value of the securities held in the account (0 without any). */
+export type AccountView = AccountSummary & { holdingsCents: number };
+
 export function accountRoutes(db: Db, today: () => string): Hono {
   const app = new Hono();
 
-  const summary = (id: string, asOf = today()): AccountSummary => {
-    const found = accountSummaries(db, asOf).find((a) => a.id === id);
+  /** Account list with the market value of its securities (depots, crypto) next to the cash balance. */
+  const listAccounts = (asOf: string): AccountView[] => {
+    const holdings = new Map<string, number>();
+    for (const h of holdingValuesAsOf(db, asOf))
+      holdings.set(h.accountId, (holdings.get(h.accountId) ?? 0) + h.valueCents);
+    return accountSummaries(db, asOf).map((a) => ({
+      ...a,
+      holdingsCents: holdings.get(a.id) ?? 0,
+    }));
+  };
+  const summary = (id: string, asOf = today()): AccountView => {
+    const found = listAccounts(asOf).find((a) => a.id === id);
     if (!found) throw new ApiError(404, 'not_found', `Account ${id} not found`);
     return found;
   };
@@ -54,7 +68,7 @@ export function accountRoutes(db: Db, today: () => string): Hono {
   app.get('/', (c) => {
     const { asOf } = readQuery(c, asOfQuery);
     const day = asOf ?? today();
-    return c.json({ asOf: day, accounts: accountSummaries(db, day) });
+    return c.json({ asOf: day, accounts: listAccounts(day) });
   });
 
   app.post('/', async (c) => {
@@ -87,7 +101,7 @@ export function accountRoutes(db: Db, today: () => string): Hono {
     const { ids } = await readBody(c, accountSort);
     const ctx = audit();
     ids.forEach((id, index) => accounts.update(db, id, { sortOrder: index + 1 }, ctx));
-    return c.json({ accounts: accountSummaries(db, today()), groupId: ctx.groupId });
+    return c.json({ accounts: listAccounts(today()), groupId: ctx.groupId });
   });
 
   app.get('/:id', (c) => {
