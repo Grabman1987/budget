@@ -98,7 +98,6 @@ Order: P1f-1 → first deploy (after P1f-2 B1–B3) → P1f-3 before P2; P1f-4 i
 - [ ] D7 AmountInput a11y
 - [ ] D8 details, jsx-a11y, axe
 - [ ] D9 honest visual comparison against `design/screens`
-- [ ] D10 phone layout bugs (content under tab bar, title-block field, header, register scroll cue, recovery-code sheet)
 
 Process from P1f on: one branch per task, PRs ≤ ~1.500 changed lines, tick only what the repository proves.
 
