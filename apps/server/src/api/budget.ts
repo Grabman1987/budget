@@ -125,9 +125,18 @@ export function categoryRoutes(db: Db): Hono {
 
   app.post('/:id/split-off', async (c) => {
     const body = await readBody(c, splitOffBody);
-    const into =
-      'targetId' in body ? { targetId: body.targetId } : { newCategory: defined(body.newCategory) };
-    return c.json(splitOffCategory(db, c.req.param('id'), body.splitIds, into as never, audit()));
+    let into: Parameters<typeof splitOffCategory>[3];
+    if ('targetId' in body) into = { targetId: body.targetId };
+    else {
+      const { target, ...fields } = body.newCategory;
+      into = {
+        newCategory: defined(fields) as never,
+        ...(target && {
+          target: { target: target.target && defined(target.target), validFrom: target.validFrom },
+        }),
+      };
+    }
+    return c.json(splitOffCategory(db, c.req.param('id'), body.splitIds, into, audit()));
   });
 
   return app;
@@ -159,8 +168,10 @@ export function budgetRoutes(db: Db): Hono {
 
   app.post('/:month/cover', async (c) => {
     const m = monthParam(c.req.param('month'));
-    const { categoryId, fromId } = await readBody(c, coverBody);
-    return c.json(coverOverspending(db, m, categoryId, fromId, audit()));
+    const { categoryId, fromId, allowNegative } = await readBody(c, coverBody);
+    return c.json(
+      coverOverspending(db, m, categoryId, fromId, audit(), allowNegative ? { allowNegative } : {}),
+    );
   });
 
   return app;

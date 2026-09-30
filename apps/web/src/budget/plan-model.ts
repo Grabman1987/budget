@@ -1,4 +1,4 @@
-import { daysBetween, lastDayOfMonth, waterfallFill } from '@budget/domain';
+import { daysBetween, lastDayOfMonth, parseAmount, waterfallFill } from '@budget/domain';
 import { eur } from '../ledger/format';
 import type { CategoryClass, CategoryKind } from './api';
 import type { BudgetMonthView, EnvelopeSummary } from './budget-api';
@@ -66,15 +66,48 @@ export function planRows(view: BudgetMonthView): PlanRow[] {
 export const isCashOver = (r: PlanRow) => r.cashOverspentCents > 0;
 export const isCard = (r: PlanRow) => r.kind === 'card_payment';
 
-/** Due date of an envelope in `month` (`YYYY-MM-DD`), or null when it has no fixed date. */
+/** `day` of `month` as `YYYY-MM-DD`, clamped to the month's last day (31 → 30.04.). */
+const dayIn = (month: string, day: number) =>
+  `${month}-${String(Math.min(day, Number(lastDayOfMonth(month).slice(8)))).padStart(2, '0')}`;
+
+/**
+ * Due date of an envelope in `month` (`YYYY-MM-DD`), or null when it has no fixed date. A target
+ * with a due month (by date, every n months) is due on its own day: `dueDay`, else the day of
+ * `targetDate` (the rhythm repeats that day), not on the 1st.
+ */
 export function dueDate(r: PlanRow, month: string): string | null {
   const t = r.target;
   if (!t) return null;
-  if (t.kind === 'monthly' && t.everyMonths === 1 && t.dueDay) {
-    const last = Number(lastDayOfMonth(month).slice(8));
-    return `${month}-${String(Math.min(t.dueDay, last)).padStart(2, '0')}`;
-  }
-  return r.dueMonth ? `${r.dueMonth}-01` : null;
+  if (t.kind === 'monthly' && t.everyMonths === 1 && t.dueDay) return dayIn(month, t.dueDay);
+  if (!r.dueMonth) return null;
+  return dayIn(r.dueMonth, t.dueDay ?? (t.targetDate ? Number(t.targetDate.slice(8, 10)) : 1));
+}
+
+/**
+ * Amount typed into an assign field. A leading + / − is a relative change ("+50" adds 50) only
+ * when `relative`: the sign was the first thing typed into an emptied or fully selected field.
+ * The pre-filled figure, or an edit inside it, is always absolute, so "−50,00" stays −50,00.
+ * A result below 0 is refused, unless the envelope already holds a negative assignment and the
+ * result does not go lower (it can be raised step by step). Null when unreadable or refused.
+ */
+export function readAssign(raw: string, current: number, relative: boolean): number | null {
+  const text = raw.trim();
+  const signed = relative && /^[+\-−]/.test(text);
+  const parsed = parseAmount(signed ? text.slice(1) : text);
+  if (!parsed.ok) return null;
+  const value = signed
+    ? current + (text.startsWith('+') ? parsed.cents : -parsed.cents)
+    : parsed.cents;
+  return value >= Math.min(0, current) ? value : null;
+}
+
+/**
+ * "Decken" from "Zu verteilen": `capCents` is what it can cover without going below 0; `short`
+ * when that is less than the overspending (the rest needs `allowNegative`).
+ */
+export function coverFromToBeAssigned(overspentCents: number, toBeAssignedCents: number) {
+  const capCents = Math.min(overspentCents, Math.max(0, toBeAssignedCents));
+  return { capCents, short: capCents < overspentCents };
 }
 
 export interface PlanContext {

@@ -4,9 +4,17 @@ import { AppLink } from '../shell/app-link';
 import { useState } from 'react';
 import { eur } from '../ledger/format';
 import { monthLabel } from '../nav/month';
-import { assign, coverOverspending, moveMoney } from './budget-api';
+import { assign, moveMoney } from './budget-api';
+import { CoverChoice, useCover } from './cover-choice';
 import { STAGES, targetText } from './labels';
-import { CLASS_TEXT, coverSource, isCard, type PlanRow } from './plan-model';
+import {
+  CLASS_TEXT,
+  coverFromToBeAssigned,
+  coverSource,
+  isCard,
+  readAssign,
+  type PlanRow,
+} from './plan-model';
 import { useBudgetWrite } from './use-category-writes';
 
 /** Side panel (desktop) / bottom sheet (phone) of one envelope: figures, assign, move, cover. */
@@ -58,6 +66,7 @@ function EnvelopeBody({
   const [other, setOther] = useState(coverSource(rows, r)?.id ?? '');
   const [moveText, setMoveText] = useState('');
   const [error, setError] = useState<string>();
+  const [choosing, setChoosing] = useState(false);
   const others = rows.filter((o) => o.id !== r.id && !isCard(o));
   const fill = Math.min(r.needCents, Math.max(0, tba));
   const name = (id: string) =>
@@ -66,13 +75,22 @@ function EnvelopeBody({
   const run = async (fn: () => Promise<{ groupId: string }>, message: string) => {
     if (await write(fn, () => message)) onDone();
   };
+  const coverFrom = useCover(month, name);
+  /** `allowNegative` undefined: the "Decken" button, which asks first when Zu verteilen is short. */
+  const cover = async (allowNegative?: boolean) => {
+    const short = other === '' && coverFromToBeAssigned(r.overspentCents, tba).short;
+    if (allowNegative === undefined && short) return setChoosing(true);
+    setChoosing(false);
+    if (await coverFrom(r, other === '' ? null : other, allowNegative)) onDone();
+  };
   const save = () => {
-    const parsed = parseAmount(amount);
-    if (!parsed.ok || parsed.cents < 0) return setError('Das lässt sich nicht als Betrag lesen.');
-    if (parsed.cents === r.assignedCents) return onDone();
+    // Absolute: the pre-filled figure (also a negative one) is the value, not a change.
+    const value = readAssign(amount, r.assignedCents, false);
+    if (value === null) return setError('Das lässt sich nicht als Betrag lesen.');
+    if (value === r.assignedCents) return onDone();
     void run(
-      () => assign(month, [{ categoryId: r.id, assignedCents: parsed.cents }]),
-      `${r.name}: ${eur(r.assignedCents)} → ${eur(parsed.cents)} zugewiesen`,
+      () => assign(month, [{ categoryId: r.id, assignedCents: value }]),
+      `${r.name}: ${eur(r.assignedCents)} → ${eur(value)} zugewiesen`,
     );
   };
   const move = () => {
@@ -155,7 +173,14 @@ function EnvelopeBody({
       />
       <Field label={direction === 'in' ? 'Aus' : 'Nach'}>
         {({ id }) => (
-          <Select id={id} value={other} onChange={(e) => setOther(e.target.value)}>
+          <Select
+            id={id}
+            value={other}
+            onChange={(e) => {
+              setOther(e.target.value);
+              setChoosing(false);
+            }}
+          >
             <option value="">Zu verteilen · {eur(tba)}</option>
             {others.map((o) => (
               <option key={o.id} value={o.id}>
@@ -173,17 +198,20 @@ function EnvelopeBody({
         {r.overspentCents > 0 && (
           <Button
             variant={r.cashOverspentCents > 0 ? 'alert' : 'ghost'}
-            onClick={() =>
-              void run(
-                () => coverOverspending(month, r.id, other === '' ? null : other),
-                `${r.name} aus ${name(other)} gedeckt`,
-              )
-            }
+            onClick={() => void cover()}
           >
             Decken · {eur(r.overspentCents)}
           </Button>
         )}
       </div>
+      {choosing && (
+        <CoverChoice
+          overspentCents={r.overspentCents}
+          toBeAssignedCents={tba}
+          onCover={(allowNegative) => void cover(allowNegative)}
+          onCancel={() => setChoosing(false)}
+        />
+      )}
 
       <h3 className="panel-h">Ziel</h3>
       <p className="panel-sub">

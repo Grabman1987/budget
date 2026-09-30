@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { budgetMonths } from './budget';
 import { summarizeMonth, targetFor, type VersionedTarget } from './summary';
-import { targetNeed, waterfallFill, type CategoryTarget } from './targets';
+import { targetNeed, waterfallFill, waterfallOrder, type CategoryTarget } from './targets';
 
 const monthly = (amountCents: number, everyMonths = 1, targetDate: string | null = null) =>
   ({ kind: 'monthly', amountCents, everyMonths, targetDate }) satisfies CategoryTarget;
@@ -57,6 +57,16 @@ describe('waterfallFill', () => {
     expect(waterfallFill(rows, 105000)).toEqual({ strom: 10500, miete: 89000, essen: 5500 });
     expect(waterfallFill(rows, 1_000_000)).toMatchObject({ etf: 40000, frei: 1000 });
     expect(waterfallFill(rows, -5)).toEqual({});
+  });
+
+  it('ties within a stage go by group order, then by the order inside the group', () => {
+    const rows = [
+      { id: 'b1', stage: 2, groupOrder: 1, sortOrder: 0, needCents: 100 },
+      { id: 'a2', stage: 2, groupOrder: 0, sortOrder: 1, needCents: 100 },
+      { id: 'a1', stage: 2, groupOrder: 0, sortOrder: 0, needCents: 100 },
+    ];
+    expect(waterfallOrder(rows).map((r) => r.id)).toEqual(['a1', 'a2', 'b1']);
+    expect(waterfallFill(rows, 150)).toEqual({ a1: 100, a2: 50 });
   });
 });
 

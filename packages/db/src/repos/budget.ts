@@ -84,7 +84,8 @@ export function moveMoney(
 
 /**
  * Cover the overspending of `categoryId` in `month` from another envelope (at most what it has
- * available) or from "Zu verteilen" (`null`, the full amount). Returns the covered amount.
+ * available) or from "Zu verteilen" (`null`): at most what "Zu verteilen" holds, unless
+ * `allowNegative` confirms taking it below 0. Returns the covered amount.
  */
 export function coverOverspending(
   db: Executor,
@@ -92,16 +93,27 @@ export function coverOverspending(
   categoryId: string,
   fromId: string | null,
   ctx: AuditContext,
-  options: { cardRule?: CardRule } = {},
+  options: { cardRule?: CardRule; allowNegative?: boolean } = {},
 ): { groupId: string; coveredCents: number } {
   const grouped = withGroup(ctx);
+  const { allowNegative, ...read } = options;
   return runInTransaction(db, (tx) => {
-    const [m] = budget(tx, [month], options);
+    const [m] = budget(tx, [month], read);
     const overspent = m?.envelopes[categoryId]?.overspentCents ?? 0;
     if (overspent === 0) throw new CategoryRuleError('Diese Kategorie ist nicht überzogen.');
-    const available = fromId === null ? overspent : (m?.envelopes[fromId]?.availableCents ?? 0);
+    const available =
+      fromId === null
+        ? allowNegative
+          ? overspent
+          : (m?.toBeAssignedCents ?? 0)
+        : (m?.envelopes[fromId]?.availableCents ?? 0);
     const coveredCents = Math.min(overspent, Math.max(0, available));
-    if (coveredCents === 0) throw new CategoryRuleError('Die Quelle hat kein Geld verfügbar.');
+    if (coveredCents === 0)
+      throw new CategoryRuleError(
+        fromId === null
+          ? '„Zu verteilen“ reicht nicht zum Decken.'
+          : 'Die Quelle hat kein Geld verfügbar.',
+      );
     moveMoney(tx, month, fromId, categoryId, coveredCents, grouped);
     return { groupId: grouped.groupId, coveredCents };
   });
