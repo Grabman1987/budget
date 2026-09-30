@@ -1,3 +1,4 @@
+import { todayInVienna } from '@budget/domain';
 import { and, asc, eq, gte, inArray, isNull, lte, sql } from 'drizzle-orm';
 import { account, accountReconciliation, booking, payee, SYSTEM_PAYEE_IDS } from '../schema';
 import { insertTracked, updateTracked, withGroup, type AuditContext } from './audit';
@@ -62,6 +63,17 @@ const isDay = (value: string) =>
   /^\d{4}-\d{2}-\d{2}$/.test(value) &&
   new Date(`${value}T00:00:00Z`).toISOString().startsWith(value);
 
+/**
+ * A check is about a bank balance that exists: its day is today (Europe/Vienna) at the latest, so
+ * a booking dated in the future is never stamped `reconciled`.
+ */
+function assertNotFuture(date: string, today: string): void {
+  if (date > today)
+    throw new BookingInvariantError(
+      `Date "${date}" is in the future; check up to today (${today})`,
+    );
+}
+
 /** Booked (cleared) balance of `accountId` on `date`, by the one opening-date rule. */
 export function bookedBalance(db: Executor, accountId: string, date: string): number {
   const acct = liveAccount(db, accountId);
@@ -110,9 +122,16 @@ function subsetsSumming(
 
 export function previewReconciliation(
   db: Executor,
-  input: { accountId: string; date: string; statementBalanceCents: number },
+  input: {
+    accountId: string;
+    date: string;
+    statementBalanceCents: number;
+    /** `YYYY-MM-DD`, Europe/Vienna by default; the check day must not be later. */
+    today?: string;
+  },
 ): ReconciliationPreview {
   if (!isDay(input.date)) throw new BookingInvariantError(`Date "${input.date}" is not valid`);
+  assertNotFuture(input.date, input.today ?? todayInVienna());
   if (!Number.isSafeInteger(input.statementBalanceCents))
     throw new BookingInvariantError('The bank balance is an integer number of cents');
   const acct = liveAccount(db, input.accountId);
@@ -203,6 +222,8 @@ export interface ReconcileInput {
   /** Book the remaining difference as Ausgleich (payee "Korrektur Kontoprüfung"). */
   adjust?: boolean;
   note?: string | null;
+  /** `YYYY-MM-DD`, Europe/Vienna by default; the check day must not be later. */
+  today?: string;
 }
 
 export interface ReconcileResult {
@@ -230,6 +251,7 @@ export function reconcileAccount(
     const acct = liveAccount(tx, input.accountId);
     if (!isDay(input.date) || input.date < acct.openingDate)
       throw new BookingInvariantError(`Date "${input.date}" is not valid for this account`);
+    assertNotFuture(input.date, input.today ?? todayInVienna());
     const own = (id: string) => {
       const row = tx
         .select()

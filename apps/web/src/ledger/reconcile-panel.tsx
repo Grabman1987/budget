@@ -43,14 +43,18 @@ export function ReconcilePanel({
 function ReconcileFlow({ account, onDone }: { account: AccountRow; onDone: () => void }) {
   const qc = useQueryClient();
   const writes = useLedgerWrites();
-  const [date, setDate] = useState(todayInVienna());
+  const today = todayInVienna();
+  const [date, setDate] = useState(today);
   const [text, setText] = useState('');
   const [error, setError] = useState<string | null>(null);
 
   const parsed = parseAmount(text);
   const statement = parsed.ok && text.trim() !== '' ? parsed.cents : null;
   const asked = useDebounced({ date, statement }, 300);
-  const ready = asked.statement !== null && /^\d{4}-\d{2}-\d{2}$/.test(asked.date);
+  // The bank balance of a day that has not happened yet does not exist: check up to today.
+  const future = date > today;
+  const ready =
+    asked.statement !== null && /^\d{4}-\d{2}-\d{2}$/.test(asked.date) && asked.date <= today;
 
   const preview = useQuery({
     queryKey: [...LEDGER_KEY, 'reconcile', account.id, asked.date, asked.statement],
@@ -106,9 +110,20 @@ function ReconcileFlow({ account, onDone }: { account: AccountRow; onDone: () =>
       </p>
       <Field label="Stichtag">
         {({ id }) => (
-          <TextInput id={id} type="date" value={date} onChange={(e) => setDate(e.target.value)} />
+          <TextInput
+            id={id}
+            type="date"
+            max={today}
+            value={date}
+            onChange={(e) => setDate(e.target.value)}
+          />
         )}
       </Field>
+      {future && (
+        <p className="field-error" role="alert">
+          Der Stichtag liegt in der Zukunft. Geprüft wird höchstens bis heute.
+        </p>
+      )}
       <AmountInput label="Saldo laut Bank" value={text} onChange={setText} />
       {data && current && (
         <dl className="kv-list">

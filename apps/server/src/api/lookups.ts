@@ -33,8 +33,14 @@ export function payeeRoutes(db: Db): Hono {
   });
 
   app.post('/merge', async (c) => {
-    const { sourceIds, targetId } = await readBody(c, payeeMerge);
-    const result = mergePayees(db, sourceIds, targetId, { actor: ACTOR, groupId: randomUUID() });
+    const { sourceIds, targetId, unlockReconciled } = await readBody(c, payeeMerge);
+    const result = mergePayees(
+      db,
+      sourceIds,
+      targetId,
+      { actor: ACTOR, groupId: randomUUID() },
+      { unlockReconciled },
+    );
     return c.json(result);
   });
 

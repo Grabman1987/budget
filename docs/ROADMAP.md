@@ -128,6 +128,16 @@ Order: P2a → P2b and P2c in parallel → P2d (parser can start right after P1f
 - [x] API and repositories: accounts (type, on-budget, terms, closed), bookings with splits and transfers, payees; validation, audit, undo (`docs/api-ledger.md`, PR `p2a-api`)
 - [x] Konten › Übersicht, Einzelkonto (balance line, bookings, flags, status), Alle Buchungen (filter, search, bulk edit) (PRs `p2a-ui`, `p2a-ui-2`)
 - [x] Kontostand prüfen with "doppelt" / "fehlt" and Ausgleich booking (reconciliation snapshot) (PRs `p2a-api`, `p2a-ui-3`)
+- [x] P2a review follow-ups (PR `p2a-followups`):
+  - [x] Tests: undo and redo of a transfer edit, redo of a transfer, single-leg undo refused
+  - [x] Payee merge skips reconciled bookings unless unlocked, reports `skipped`
+  - [x] Opening balance/date locked once a Kontostand prüfen is stored, unless unlocked
+  - [x] Check day at most today (Europe/Vienna); future bookings are never stamped
+  - [x] `createApp` refuses the ledger without auth
+  - [x] Einzelkonto: month bounded to its last day, "Weitere Buchungen laden" instead of a cut at 200
+  - [x] Account sort in one transaction
+  - [x] UI: failed "Wiederholen" toast, bulk delete confirmation, "Umbuchung (beide Seiten)", URL filters validated like the server
+  - [x] Moving a booking to an account in another currency is refused (the cents would change meaning)
 
 ### P2b — Capture dialog (`docs/prompts/P2b.md`)
 - [ ] Buchung, Split, Umbuchung (Konto → Konto) on desktop panel and phone sheet; amount field with arithmetic; payee autocomplete with default category; keyboard flow; undo toast

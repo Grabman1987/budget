@@ -270,6 +270,28 @@ describe('payees', () => {
     expect(listPayees(db).map((p) => p.id)).toContain('p2');
     expect(() => mergePayees(db, [], 'p1', ctx)).toThrow(ConflictError);
   });
+
+  it('leaves reconciled bookings with their payee unless unlocked, and keeps that source', () => {
+    createEntity(db, payee, { id: 'p2', name: 'Vermieter GmbH' }, ctx);
+    createEntity(db, payee, { id: 'p3', name: 'Vermieter AG' }, ctx);
+    const open = book({ payeeId: 'p2' });
+    const locked = book({ payeeId: 'p2', status: 'reconciled' });
+    const other = book({ payeeId: 'p3' });
+    const result = mergePayees(db, ['p2', 'p3'], 'p1', { ...ctx, groupId: 'merge' });
+    expect(result).toMatchObject({ moved: 2, skipped: 1, keptSourceIds: ['p2'] });
+    expect([open, locked, other].map((id) => getBooking(db, id)?.payeeId)).toEqual([
+      'p1',
+      'p2',
+      'p1',
+    ]);
+    expect(listPayees(db).map((p) => p.id)).toContain('p2');
+    expect(listPayees(db).map((p) => p.id)).not.toContain('p3');
+
+    const unlocked = mergePayees(db, ['p2'], 'p1', ctx, { unlockReconciled: true });
+    expect(unlocked).toMatchObject({ moved: 1, skipped: 0, keptSourceIds: [] });
+    expect(getBooking(db, locked)).toMatchObject({ payeeId: 'p1', status: 'reconciled' });
+    expect(listPayees(db).map((p) => p.id)).not.toContain('p2');
+  });
 });
 
 describe('Kontostand prüfen', () => {
@@ -394,6 +416,17 @@ describe('Kontostand prüfen', () => {
     );
     expect(getBooking(db, twin)).toBeUndefined();
     expect(status(pending)).toBe('reconciled');
+  });
+
+  it('refuses a day after today, so a future booking is never stamped', () => {
+    setup();
+    const future = book({ cents: -100, date: '2026-04-02', status: 'confirmed' });
+    const input = { accountId: 'giro', date: '2026-04-02', statementBalanceCents: 116_900 };
+    expect(() => previewReconciliation(db, { ...input, today: day })).toThrow(/future/);
+    expect(() => reconcileAccount(db, { ...input, today: day }, ctx)).toThrow(/future/);
+    expect(status(future)).toBe('confirmed');
+    reconcileAccount(db, { ...input, today: '2026-04-02' }, ctx);
+    expect(status(future)).toBe('reconciled');
   });
 
   it('refuses a remaining difference without the Ausgleich and writes nothing', () => {
