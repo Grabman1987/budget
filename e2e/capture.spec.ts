@@ -3,6 +3,22 @@ import { expect, test, type Locator, type Page, type TestInfo } from '@playwrigh
 import { balance, createAccount, openAccount, pickCategory, toast } from './ledger-helpers';
 
 /**
+ * The first contact share creates the envelope "Auslagen"; desktop and phone may both be first, so
+ * this holds whatever ran before: exactly one live category of that kind, in a group of its own.
+ */
+async function expectOneAuslagenCategory(page: Page) {
+  const res = await page.request.get('/api/categories');
+  const tree = (await res.json()) as {
+    groups: { id: string; name: string }[];
+    categories: { name: string; kind: string; stage: number | null; groupId: string }[];
+  };
+  const advance = tree.categories.filter((c) => c.kind === 'advance');
+  expect(advance).toHaveLength(1);
+  expect(advance[0]).toMatchObject({ name: 'Auslagen', stage: 2 });
+  expect(tree.groups.find((g) => g.id === advance[0]?.groupId)?.name).toBe('Durchlaufposten');
+}
+
+/**
  * "+ Buchung" end to end: the capture panel opens by shortcut (desktop) or button (phone), takes
  * an expense by keyboard, an income with income type, transfers, keeps its context with "Speichern
  * und neu", asks before discarding input and learns a payee's category. Desktop and phone run in
@@ -268,6 +284,7 @@ test('a split with a contact share: the chain shows what is left, saving waits u
   const row = page.getByRole('row', { name: new RegExp(`Restaurant ${tag}`) });
   await expect(row).toContainText('Aufgeteilt (2)');
   await expect(balance(page)).toHaveText('450,00 €');
+  await expectOneAuslagenCategory(page);
 
   // Opening it again keeps each line: the contact share is still Anna's.
   await row.getByRole('button', { name: /bearbeiten/ }).click();
@@ -318,10 +335,14 @@ test('an income with a contact share (repayment) books through Auslagen', async 
   await panel.getByLabel('Betrag', { exact: true }).fill('40');
   await panel.getByLabel('Von (Zahler)').fill(`Anna ${tag}`);
   await panel.getByLabel('Rückzahlung von Kontakt').selectOption({ label: 'Anna Muster' });
+  // The field is never locked: it says what happens (the envelope may exist already or be made on save).
+  await expect(panel.getByLabel('Rückzahlung von Kontakt')).toBeEnabled();
+  await expect(panel.getByText(/Läuft über .?Auslagen/)).toBeVisible();
   // The contact share has its own category (Auslagen): the category field is gone.
   await expect(panel.getByLabel('Kategorie', { exact: true })).toHaveCount(0);
   await panel.getByRole('button', { name: 'Speichern', exact: true }).click();
   const row = page.getByRole('row', { name: new RegExp(`Anna ${tag}`) });
   await expect(row).toContainText('Auslagen');
   await expect(balance(page)).toHaveText('40,00 €');
+  await expectOneAuslagenCategory(page);
 });

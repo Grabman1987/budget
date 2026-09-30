@@ -119,6 +119,38 @@ export function createCategory(db: Executor, input: CategoryFields, ctx: AuditCo
   });
 }
 
+export const ADVANCE_CATEGORY_NAME = 'Auslagen';
+export const ADVANCE_GROUP_NAME = 'Durchlaufposten';
+
+/**
+ * The envelope a contact share runs through (concept §3.4). Returns the live one (visible first) or
+ * creates it on demand: kind advance, stage 2 (Laufender Monat), in the group "Durchlaufposten"
+ * (reused when it exists). One transaction, so two parallel first contact shares create one category.
+ */
+export function ensureAdvanceCategory(db: Executor, ctx: AuditContext) {
+  return runInTransaction(db, (tx) => {
+    const existing = tx
+      .select()
+      .from(category)
+      .where(and(eq(category.kind, 'advance'), isNull(category.deletedAt)))
+      .orderBy(sql`${category.hiddenAt} IS NOT NULL`, asc(category.sortOrder))
+      .get();
+    if (existing) return { category: existing, created: false };
+    const group =
+      tx
+        .select()
+        .from(categoryGroup)
+        .where(and(eq(categoryGroup.name, ADVANCE_GROUP_NAME), isNull(categoryGroup.deletedAt)))
+        .get() ?? createCategoryGroup(tx, ADVANCE_GROUP_NAME, ctx);
+    const created = createCategory(
+      tx,
+      { name: ADVANCE_CATEGORY_NAME, groupId: group.id, class: null, kind: 'advance', stage: 2 },
+      ctx,
+    );
+    return { category: created, created: true };
+  });
+}
+
 export function updateCategory(
   db: Executor,
   id: string,

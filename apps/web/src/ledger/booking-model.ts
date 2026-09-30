@@ -128,6 +128,13 @@ export function splitChain(draft: BookingDraft) {
   return { totalCents, distributedCents, restCents: totalCents - distributedCents };
 }
 
+/** True when saving books a contact share that runs through the (possibly still missing) Auslagen category. */
+export function needsAdvanceCategory(draft: BookingDraft): boolean {
+  if (draft.kind === 'transfer') return false;
+  if (!draft.splitOn) return draft.contactId !== '';
+  return draft.splits.some((s) => s.type === 'contact' && !s.categoryId);
+}
+
 /** Why a split cannot be saved (in words the panel shows), or `undefined` when it can. */
 function splitProblem(
   draft: BookingDraft,
@@ -201,11 +208,11 @@ export function splitRemainder(total: string, splits: ReadonlyArray<SplitDraft>)
 
 const sign = (kind: BookingKind, abs: number) => (kind === 'income' ? abs : -abs);
 
-interface Built<T> {
+export interface Built<T> {
   ok: true;
   value: T;
 }
-interface Failed {
+export interface Failed {
   ok: false;
   errors: DraftErrors;
 }

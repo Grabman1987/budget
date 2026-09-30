@@ -38,12 +38,7 @@ setup('seed categories for the ledger tests', () => {
         );
       }
     }
-    // Contact shares run through the Auslagen envelope (category kind advance).
-    categories.create(
-      db,
-      { id: 'e2e-auslagen', name: 'Auslagen', groupId: 'e2e-g', class: null, kind: 'advance' },
-      ctx,
-    );
+    // No Auslagen envelope is seeded: the first contact share creates it (capture.spec.ts).
     createEntity(db, contact, { id: 'e2e-anna', name: 'Anna Muster' }, ctx);
     createEntity(db, project, { id: 'e2e-projekt', name: 'Nebenprojekt' }, ctx);
   } finally {

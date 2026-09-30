@@ -6,6 +6,7 @@ import {
   createCategory,
   createCategoryGroup,
   deleteCategoryGroup,
+  ensureAdvanceCategory,
   mergeCategories,
   moveMoney,
   renameCategoryGroup,
@@ -64,6 +65,13 @@ export function categoryRoutes(db: Db): Hono {
       return created;
     });
     return c.json({ category: row, groupId: ctx.groupId }, 201);
+  });
+
+  // Contact shares run through "Auslagen": the first one creates that envelope, later calls reuse it.
+  app.post('/advance', (c) => {
+    const ctx = audit();
+    const { category, created } = ensureAdvanceCategory(db, ctx);
+    return c.json({ category, created, groupId: ctx.groupId }, created ? 201 : 200);
   });
 
   app.post('/sort', async (c) => {

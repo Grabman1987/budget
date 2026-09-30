@@ -21,18 +21,22 @@ import {
 } from 'react';
 import { ApiError } from '../api/http';
 import { budgetQuery } from '../budget/budget-api';
-import { createPayee, setPayeeDefaultCategory } from './api';
+import { BUDGET_KEY } from '../budget/use-category-writes';
+import { createPayee, ensureAdvanceCategory, setPayeeDefaultCategory } from './api';
 import {
   buildCreate,
   buildPatch,
   draftFromBooking,
   emptyDraft,
+  needsAdvanceCategory,
   newSplit,
   splitRemainder,
   touchesLocked,
   type BookingDraft,
   type BookingKind,
+  type Built,
   type DraftErrors,
+  type Failed,
 } from './booking-model';
 import type { BookingPanelState } from './booking-panel';
 import {
@@ -59,6 +63,8 @@ const KINDS: ReadonlyArray<SegmentedOption<BookingKind>> = [
 ];
 const EDIT_KINDS = KINDS.slice(0, 2);
 const NONE = '__none';
+/** Stand-in for the Auslagen category while it does not exist yet (replaced before saving). */
+const PENDING = '__pending-advance';
 const LOCKED = 'Diese Buchung ist geprüft. Bestätige die Freigabe, um sie zu ändern.';
 
 /** Focusable fields in reading order; the operator buttons of the amount field are skipped. */
@@ -254,21 +260,45 @@ export function CaptureForm({
     setBusy(true);
     try {
       const payeeId = await resolvePayee();
+      // The first contact share creates "Auslagen". Validate with a stand-in id first, so an
+      // incomplete booking does not leave an envelope behind.
+      const provisional = advanceCategoryId ?? (needsAdvanceCategory(filled) ? PENDING : undefined);
+      const settle = async <T,>(
+        build: (advance: string | undefined) => Built<T> | Failed,
+        beforeCreating?: (value: T) => string | undefined,
+      ): Promise<T | undefined> => {
+        let built = build(provisional);
+        if (!built.ok) return void setErrors(built.errors);
+        const blockedBy = beforeCreating?.(built.value);
+        if (blockedBy) return void setErrors({ form: blockedBy });
+        if (provisional === PENDING) {
+          const { category } = await ensureAdvanceCategory();
+          void qc.invalidateQueries({ queryKey: BUDGET_KEY });
+          void qc.invalidateQueries({ queryKey: lookupsQuery().queryKey });
+          built = build(category.id);
+          if (!built.ok) return void setErrors(built.errors);
+        }
+        return built.value;
+      };
       if (editing) {
-        const built = buildPatch(editing, filled, payeeId, unlock, { advanceCategoryId });
-        if (!built.ok) return setErrors(built.errors);
-        if (locked && !unlock && touchesLocked(built.value)) return setErrors({ form: LOCKED });
-        if (Object.keys(built.value).length > 0)
-          await writes.patch.mutateAsync({ id: editing.id, patch: built.value });
+        const patch = await settle(
+          (advance) => buildPatch(editing, filled, payeeId, unlock, { advanceCategoryId: advance }),
+          (value) => (locked && !unlock && touchesLocked(value) ? LOCKED : undefined),
+        );
+        if (!patch) return;
+        if (Object.keys(patch).length > 0)
+          await writes.patch.mutateAsync({ id: editing.id, patch });
         return onDone();
       }
-      const built = buildCreate(filled, payeeId, {
-        requireCategory: true,
-        transferNeedsCategory: needsCategory,
-        advanceCategoryId,
-      });
-      if (!built.ok) return setErrors(built.errors);
-      await writes.create.mutateAsync(built.value);
+      const created = await settle((advance) =>
+        buildCreate(filled, payeeId, {
+          requireCategory: true,
+          transferNeedsCategory: needsCategory,
+          advanceCategoryId: advance,
+        }),
+      );
+      if (!created) return;
+      await writes.create.mutateAsync(created);
       remember(accountId, draft.categoryId || null);
       if (!andNew) return onDone();
       // The next booking keeps the context (kind, account, date, payee and its category).
@@ -499,18 +529,17 @@ export function CaptureForm({
           label={draft.kind === 'income' ? 'Rückzahlung von Kontakt' : 'Auslage für Kontakt'}
           error={errors.contact}
           hint={
-            !advanceCategoryId
-              ? 'Es gibt keine Auslagen-Kategorie (Einstellungen › Kategorien).'
-              : draft.contactId
+            draft.contactId
+              ? advanceCategoryId
                 ? 'Läuft über Auslagen, eine eigene Kategorie ist nicht nötig.'
-                : undefined
+                : 'Läuft über „Auslagen“. Die Kategorie wird beim Speichern angelegt.'
+              : undefined
           }
         >
           {({ id, describedBy, invalid }) => (
             <Select
               id={id}
               value={draft.contactId}
-              disabled={!advanceCategoryId}
               aria-invalid={invalid}
               aria-describedby={describedBy}
               onChange={(e) => set('contactId', e.target.value)}

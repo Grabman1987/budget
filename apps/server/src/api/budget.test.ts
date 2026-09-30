@@ -141,3 +141,20 @@ describe('categories and budget API', () => {
     expect((await call('GET', '/budget/2026-13')).status).toBe(400);
   });
 });
+
+describe('Auslagen category on demand', () => {
+  it('creates it once (201), then answers with the same one (200) and it shows in the budget', async () => {
+    const first = await call('POST', '/categories/advance');
+    expect(first.status).toBe(201);
+    expect(first.body['created']).toBe(true);
+    expect(first.body['category']).toMatchObject({ name: 'Auslagen', kind: 'advance', stage: 2 });
+    const again = await call('POST', '/categories/advance');
+    expect(again.status).toBe(200);
+    expect(again.body['created']).toBe(false);
+    expect(again.body['category'].id).toBe(first.body['category'].id);
+    const tree = await ok('GET', '/categories');
+    expect(tree['categories'].filter((c: any) => c.kind === 'advance')).toHaveLength(1);
+    const month = await ok('GET', '/budget/2026-10');
+    expect(month['categories'].some((c: any) => c.id === first.body['category'].id)).toBe(true);
+  });
+});

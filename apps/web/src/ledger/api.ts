@@ -95,6 +95,13 @@ export const setPayeeDefaultCategory = (id: string, defaultCategoryId: string | 
     defaultCategoryId,
   });
 
+/** The envelope contact shares run through; created on the first contact share. */
+export const ensureAdvanceCategory = () =>
+  request<{ category: { id: string }; created: boolean } & WriteResult>(
+    'POST',
+    '/api/categories/advance',
+  );
+
 export interface SplitInput {
   categoryId: string | null;
   amountCents: number;

@@ -9,6 +9,7 @@ import {
   createCategory,
   createCategoryGroup,
   deleteCategoryGroup,
+  ensureAdvanceCategory,
   mergeCategories,
   setCategoryHidden,
   setCategoryTarget,
@@ -434,5 +435,44 @@ describe('property tests on random ledgers', { timeout: 60_000 }, () => {
     expect(categoryTree(db).targets.filter((t) => t.categoryId === res.targetId)).toMatchObject([
       { kind: 'monthly', amountCents: 3_000, validFrom: '2026-07' },
     ]);
+  });
+});
+
+describe('ensureAdvanceCategory', () => {
+  beforeEach(setup);
+
+  it('creates Auslagen (kind advance, stage 2) in a new group Durchlaufposten and reuses it afterwards', () => {
+    const first = ensureAdvanceCategory(db, ctx);
+    expect(first.created).toBe(true);
+    expect(first.category).toMatchObject({
+      name: 'Auslagen',
+      kind: 'advance',
+      class: null,
+      stage: 2,
+    });
+    const second = ensureAdvanceCategory(db, ctx);
+    expect(second).toMatchObject({ created: false, category: { id: first.category.id } });
+    const tree = categoryTree(db);
+    expect(tree.categories.filter((c) => c.kind === 'advance')).toHaveLength(1);
+    expect(tree.groups.filter((g) => g.name === 'Durchlaufposten')).toHaveLength(1);
+  });
+
+  it('reuses an existing group of that name and prefers a visible category over a hidden one', () => {
+    const group = createCategoryGroup(db, 'Durchlaufposten', ctx);
+    const hidden = createCategory(
+      db,
+      { name: 'Alt', groupId: group.id, class: null, kind: 'advance' },
+      ctx,
+    );
+    setCategoryHidden(db, hidden.id, true, ctx);
+    const visible = createCategory(
+      db,
+      { name: 'Vorschüsse', groupId: group.id, class: null, kind: 'advance' },
+      ctx,
+    );
+    expect(ensureAdvanceCategory(db, ctx).category.id).toBe(visible.id);
+    setCategoryHidden(db, visible.id, true, ctx);
+    expect(ensureAdvanceCategory(db, ctx)).toMatchObject({ created: false });
+    expect(categoryTree(db).groups.filter((g) => g.name === 'Durchlaufposten')).toHaveLength(1);
   });
 });

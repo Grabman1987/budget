@@ -5,6 +5,7 @@ import {
   buildPatch,
   draftFromBooking,
   emptyDraft,
+  needsAdvanceCategory,
   newSplit,
   splitRemainder,
   touchesLocked,
@@ -440,5 +441,24 @@ describe('split lines: category, contact share, transfer', () => {
     ).toMatchObject({
       restCents: 3750,
     });
+  });
+});
+
+describe('needsAdvanceCategory', () => {
+  it('is true for a single contact share and for a new contact line, false otherwise', () => {
+    expect(needsAdvanceCategory(draft())).toBe(false);
+    expect(needsAdvanceCategory(draft({ contactId: 'k1' }))).toBe(true);
+    expect(needsAdvanceCategory(draft({ kind: 'transfer', contactId: 'k1' }))).toBe(false);
+    const contactLine = newSplit({ type: 'contact', contactId: 'k1', amount: '5' });
+    const categoryLine = newSplit({ categoryId: 'c1', amount: '15' });
+    expect(needsAdvanceCategory(draft({ splitOn: true, splits: [categoryLine] }))).toBe(false);
+    expect(
+      needsAdvanceCategory(draft({ splitOn: true, splits: [categoryLine, contactLine] })),
+    ).toBe(true);
+    // An existing contact line keeps its category and needs nothing new.
+    const kept = newSplit({ type: 'contact', contactId: 'k1', categoryId: 'adv', amount: '5' });
+    expect(needsAdvanceCategory(draft({ splitOn: true, splits: [categoryLine, kept] }))).toBe(
+      false,
+    );
   });
 });

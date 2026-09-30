@@ -54,7 +54,7 @@ export interface SplitEditorProps {
   accounts: ReadonlyArray<AccountRow>;
   accountId: string;
   contacts: ReadonlyArray<{ id: string; name: string }>;
-  /** Contact shares run through the Auslagen category; without one they cannot be booked. */
+  /** Contact shares run through the Auslagen category; without one it is created when saving. */
   hasAdvanceCategory: boolean;
   /** An existing booking with transfer lines: they cannot be changed, only deleted and re-created. */
   locked: boolean;
@@ -134,11 +134,10 @@ export function SplitEditor({
               <Field
                 label={`Kontakt ${n}`}
                 hint={
-                  hasAdvanceCategory
-                    ? draft.kind === 'income'
-                      ? 'Zahlt zurück, läuft über Auslagen.'
-                      : 'Ausgelegt für den Kontakt, läuft über Auslagen.'
-                    : 'Es gibt keine Auslagen-Kategorie (Einstellungen › Kategorien).'
+                  (draft.kind === 'income'
+                    ? 'Zahlt zurück, läuft über Auslagen.'
+                    : 'Ausgelegt für den Kontakt, läuft über Auslagen.') +
+                  (hasAdvanceCategory ? '' : ' Die Kategorie wird beim Speichern angelegt.')
                 }
               >
                 {({ id, describedBy }) => (
@@ -146,7 +145,6 @@ export function SplitEditor({
                     id={id}
                     aria-describedby={describedBy}
                     value={s.contactId ?? ''}
-                    disabled={!hasAdvanceCategory}
                     onChange={(e) => change(s.key, { contactId: e.target.value || null })}
                   >
                     <option value="">Kontakt wählen</option>
