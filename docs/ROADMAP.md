@@ -104,11 +104,19 @@ Order: P1f-1 → first deploy (after P1f-2 B1–B3) → P1f-3 before P2; P1f-4 i
 - [x] D7 AmountInput a11y
 - [x] D8 details as listed for PR 1, `eslint-plugin-jsx-a11y`, axe on every route
 - [x] D8 remainder: TitleBlock "Stand" long/short pattern (`StandValue`)
-- [ ] D8 remainder: ElevationMark shelf under the label, Sankey class nodes not solid for want/future
+- [x] D8 remainder: ElevationMark shelf under the label, Sankey class nodes not solid for want/future (P1f-5)
 - [x] D9 honest visual comparison against `design/screens`
 - [x] D10 phone layout: bottom padding under tab bar and + button, title-block fields with label, header title, register scroll cue, recovery-code sheet (owner screenshots)
 
 Process from P1f on: one branch per task, PRs ≤ ~1.500 changed lines, tick only what the repository proves.
+
+### P1f-5 — Prototype fidelity (owner review 30.09.2026, side by side with `design/prototype`)
+- [x] Theme button as in the prototype: names the target ("Dunkle Blaupause" with moon / "Heller Zeichenfilm" with sun), follows the system until the first switch
+- [x] Phone title strip compact as in the prototype: values only, labels kept where the value alone is ambiguous (Einnahmen, Bank-Sync); no empty strip
+- [x] Reports catalog as in the prototype: Stand and Datenbasis, one table with quiet assembly rows, chart form in technical caps, Steuerung with print mark, row chevron, whole row clickable; stacked rows on the phone
+- [x] Motion as in the prototype: solid chart lines plot in 900 ms (optional 260/520 ms stagger), annotations fade in (500 ms after 380 ms); the Maßkette plots only its result line
+- [x] ElevationMark shelf under the label; Sankey want/future nodes hatched with outline
+
 
 ## P2 Kern und Migration
 

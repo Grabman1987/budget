@@ -90,12 +90,12 @@ export function AreaHead({ meta, title, subtitle, extraFields = [], placeholder 
       titleOnMobile = TITLE_ON_MOBILE_AREAS.has('plan');
       fields = [
         { ...stand, hideOnMobile: true },
-        { label: 'Einnahmen', value: '–' },
+        { label: 'Einnahmen', value: '–', labelOnMobile: true },
       ];
       break;
     case 'konten':
       heading = 'Konten';
-      fields = [stand, { label: 'Bank-Sync', value: 'nicht eingerichtet' }];
+      fields = [stand, { label: 'Bank-Sync', value: 'nicht eingerichtet', labelOnMobile: true }];
       break;
     case 'vermoegen':
       heading = 'Vermögen';
@@ -131,7 +131,11 @@ export function AreaHead({ meta, title, subtitle, extraFields = [], placeholder 
       break;
     case 'reports':
       heading = 'Reports';
-      fields = [];
+      // As in the prototype; the phone shows the registers right under the header.
+      fields = [
+        { ...stand, hideOnMobile: true },
+        { label: 'Datenbasis', value: 'Okt 2023 bis heute', hideOnMobile: true },
+      ];
       break;
   }
 

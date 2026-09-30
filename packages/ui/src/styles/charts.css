@@ -211,6 +211,31 @@ svg.chart {
   }
 }
 
+/* ---------- Plotter motion (prototype): lines are drawn, annotations fade in afterwards ---------- */
+@media (prefers-reduced-motion: no-preference) {
+  .draw {
+    stroke-dasharray: 1;
+    animation: plot-draw var(--t-plot) var(--ease-out) both;
+  }
+  .draw-late {
+    animation-delay: 260ms;
+  }
+  .draw-later {
+    animation-delay: 520ms;
+  }
+  .fade-in {
+    animation: fade-in 500ms var(--ease-out) 380ms both;
+  }
+}
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
 /* ---------- Maßkette, drawn variant (DimensionChainDrawing) ---------- */
 /* Unfolds in 240 ms: the row height animates from 0 to its content. */
 .chain-drawing {
@@ -258,11 +283,6 @@ svg.chart {
 .chain-drawing.is-open .plot-line {
   animation: plot-draw var(--t-plot) var(--ease-out) both;
 }
-/* A data line drawn once when it appears; `pathLength` is 1 on the element. */
-.line-draw {
-  stroke-dasharray: 1;
-  animation: plot-draw var(--t-plot) var(--ease-out) both;
-}
 @keyframes plot-draw {
   from {
     stroke-dashoffset: 1;
@@ -272,9 +292,6 @@ svg.chart {
   }
 }
 @media (prefers-reduced-motion: reduce) {
-  .line-draw {
-    animation: none;
-  }
   .chain-drawing {
     transition: none;
   }

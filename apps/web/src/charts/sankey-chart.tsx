@@ -1,4 +1,5 @@
 import { cents, formatEuro } from '@budget/domain/money';
+import { ClassPatterns, patternFill, usePatternPrefix } from '@budget/ui';
 import { sankeyLayout, type SankeyLink, type SankeyNode } from './sankey-layout';
 import {
   classColumn,
@@ -22,6 +23,8 @@ const labelWidth = (names: string[]) => Math.max(...names.map((n) => n.length)) 
  * Ported from `sankey` in `design/prototype/reports-core.js`; phone width drops the group column.
  */
 export function SankeyChart({ width }: { width: number }) {
+  // Class nodes as in the prototype: Bedarf solid, Wunsch and Zukunft hatched with an outline.
+  const prefix = usePatternPrefix('sk');
   if (width <= 0) return null;
   const narrow = width < 600;
   const columns: SankeyNode[][] = narrow
@@ -49,6 +52,7 @@ export function SankeyChart({ width }: { width: number }) {
       aria-label="Geldfluss: Einnahmenarten in einen Topf, von dort zu Klassen und Gruppen"
       data-testid="sankey-chart"
     >
+      <ClassPatterns prefix={prefix} />
       <g>
         {layout.links.map((l) => (
           <path key={`${l.from}-${l.to}`} d={l.d} className={`sk-link l-${l.tone ?? 'inc'}`}>
@@ -71,6 +75,15 @@ export function SankeyChart({ width }: { width: number }) {
               width={n.width}
               height={n.height}
               className={`sk-node${n.tone && n.tone !== 'inc' ? ` n-${n.tone}` : ''}`}
+              style={
+                n.tone === 'want' || n.tone === 'future'
+                  ? {
+                      fill: patternFill(prefix, n.tone),
+                      stroke: `var(--${n.tone})`,
+                      strokeWidth: 1,
+                    }
+                  : undefined
+              }
             >
               <title>{`${n.name}: ${eur0(n.value)}`}</title>
             </rect>
