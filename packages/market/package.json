@@ -1,5 +1,5 @@
 {
-  "name": "@budget/fixtures",
+  "name": "@budget/market",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -9,13 +9,9 @@
     "typecheck": "tsc -p tsconfig.json"
   },
   "dependencies": {
-    "@budget/domain": "*",
-    "@budget/market": "*",
-    "@budget/db": "*"
+    "@budget/domain": "*"
   },
   "exports": {
-    ".": "./src/index.ts",
-    "./seed": "./src/seed.ts",
-    "./ynab": "./src/ynab/generate.ts"
+    ".": "./src/index.ts"
   }
 }
