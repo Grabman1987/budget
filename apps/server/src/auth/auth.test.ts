@@ -52,7 +52,7 @@ function setup(
       general: new RateLimiter(limits.general, 15 * MINUTE),
     },
   });
-  const app = createApp({ webDir, auth, database: db });
+  const app = createApp({ webDir, auth, database: db, ledger: { db } });
   const device = () => new SoftAuthenticator({ rpID: cfg.rpID, origin: cfg.origin });
 
   async function call(
@@ -231,6 +231,10 @@ describe('protected API and CSRF', () => {
     const { bootstrap, call } = setup();
     expect((await call('GET', '/api/debug/summary')).status).toBe(401);
     expect((await call('GET', '/api/whatever')).status).toBe(401);
+    // The ledger API sits behind the same session guard.
+    for (const path of ['/api/accounts', '/api/bookings', '/api/payees', '/api/lookups'])
+      expect((await call('GET', path)).status, path).toBe(401);
+    expect((await call('POST', '/api/undo', { groupId: 'x' })).status).toBe(401);
     const { cookie } = await bootstrap();
     expect((await call('GET', '/api/debug/summary', undefined, cookie)).status).toBe(200);
     expect((await call('GET', '/api/whatever', undefined, cookie)).status).toBe(404);

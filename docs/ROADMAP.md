@@ -117,7 +117,7 @@ Starts after P1f-3 is merged. Source: YNAB export (`docs/migration/ynab-export.m
 Order: P2a → P2b and P2c in parallel → P2d (parser can start right after P1f-3) → owner's import on the deployed app (after P1f-2 B5).
 
 ### P2a — Accounts and bookings (`docs/prompts/P2a.md`)
-- [ ] API and repositories: accounts (type, on-budget, terms, closed), bookings with splits and transfers, payees; validation, audit, undo
+- [x] API and repositories: accounts (type, on-budget, terms, closed), bookings with splits and transfers, payees; validation, audit, undo (`docs/api-ledger.md`, PR `p2a-api`)
 - [ ] Konten › Übersicht, Einzelkonto (balance line, bookings, flags, status), Alle Buchungen (filter, search, bulk edit)
 - [ ] Kontostand prüfen with "doppelt" / "fehlt" and Ausgleich booking (reconciliation snapshot)
 
