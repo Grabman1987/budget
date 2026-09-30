@@ -24,6 +24,8 @@ export interface AreaHeadProps {
   extraFields?: TitleBlockField[] | undefined;
   /** Placeholder pages say which package fills them. */
   placeholder?: boolean | undefined;
+  /** Plan: the month's income in the title block. */
+  income?: React.ReactNode;
 }
 
 /** Areas whose title cell stays visible on the phone (it carries the month switch). */
@@ -36,7 +38,14 @@ const packageOf = (fills: string) => fills.split(/[\s;,]/)[0] ?? fills;
  * (Plan with previous/next), Konten and Vermögen the area name, then the area's fields (Stand,
  * Zeitraum, Einnahmen, Bank-Sync, Profil). There is no question or tagline on area pages.
  */
-export function AreaHead({ meta, title, subtitle, extraFields = [], placeholder }: AreaHeadProps) {
+export function AreaHead({
+  meta,
+  title,
+  subtitle,
+  extraFields = [],
+  placeholder,
+  income,
+}: AreaHeadProps) {
   const [month, shift] = useMonth();
   const [period, setPeriod] = useState<Period>('month');
   const [range, setRange] = useState<Range>('YTD');
@@ -90,7 +99,7 @@ export function AreaHead({ meta, title, subtitle, extraFields = [], placeholder 
       titleOnMobile = TITLE_ON_MOBILE_AREAS.has('plan');
       fields = [
         { ...stand, hideOnMobile: true },
-        { label: 'Einnahmen', value: '–', labelOnMobile: true },
+        { label: 'Einnahmen', value: income ?? '–', labelOnMobile: true },
       ];
       break;
     case 'konten':
