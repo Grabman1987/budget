@@ -228,7 +228,9 @@ the auth tables.
   band for R13), `expected_payment_version` by day and **immutable** (a trigger refuses changes to
   anything but `deleted_at`/`updated_at`; a price change is a new version). Occurrences
   (`expected_occurrence`) carry status (expected, received, deviating, missed), the contact share
-  and the matched booking; the payment holds tolerance, date window and contact share.
+  and the matched booking; the payment holds tolerance, date window, contact share and the date
+  shift (`date_shift`: none, before, after a weekend or Austrian holiday). A booking belongs to at
+  most one live occurrence (partial unique index on `booking_id`).
 - **Prices keep an audit and manual prices win** (C12): every change of an existing price is a
   `price_audit` row; a refresh never replaces a `manual` price. Manual account values
   (P2P, other assets) are `valuation` rows.
