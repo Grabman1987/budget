@@ -1,7 +1,7 @@
 import { monthOf, todayInVienna } from '@budget/domain';
 import { useQuery } from '@tanstack/react-query';
 import { Link, useParams } from '@tanstack/react-router';
-import { ChevronLeft, Plus } from 'lucide-react';
+import { CheckCircle2, ChevronLeft, Plus } from 'lucide-react';
 import { useState } from 'react';
 import { ACCOUNT_PAGE } from '../nav/pages';
 import { AppLink } from '../shell/app-link';
@@ -10,8 +10,9 @@ import { BalanceChart } from './balance-chart';
 import { BookingPanel, type BookingPanelState } from './booking-panel';
 import { BookingTable } from './booking-table';
 import { eur, longDay, monthName, pluralBookings } from './format';
-import { ACCOUNT_TYPE_LABEL, accountValue, groupOf } from './labels';
+import { ACCOUNT_TYPE_LABEL, accountValue, canReconcile, groupOf } from './labels';
 import { accountsQuery, bookingsQuery, seriesQuery } from './queries';
+import { ReconcilePanel } from './reconcile-panel';
 import { EmptyNote, ErrorNote, LoadingNote } from './states';
 import type { AccountRow } from './types';
 import { Button, cx } from '@budget/ui';
@@ -64,6 +65,7 @@ function AccountBody({ account }: { account: AccountRow }) {
     bookingsQuery({ accountId: account.id, from: `${month}-01` }, undefined, 200),
   );
   const [panel, setPanel] = useState<BookingPanelState>(null);
+  const [checking, setChecking] = useState(false);
   const value = accountValue(account);
   const page = list.data;
 
@@ -78,6 +80,12 @@ function AccountBody({ account }: { account: AccountRow }) {
           </p>
         </div>
         <div className="kacct-actions">
+          {canReconcile(account) && (
+            <Button variant="ghost" onClick={() => setChecking(true)}>
+              <CheckCircle2 size={16} strokeWidth={1.75} aria-hidden="true" />
+              Kontostand prüfen
+            </Button>
+          )}
           {!account.closedAt && (
             <Button onClick={() => setPanel({ mode: 'create', accountId: account.id })}>
               <Plus size={16} strokeWidth={1.75} aria-hidden="true" />
@@ -156,6 +164,7 @@ function AccountBody({ account }: { account: AccountRow }) {
         </p>
       )}
       <BookingPanel state={panel} onClose={() => setPanel(null)} />
+      <ReconcilePanel account={account} open={checking} onClose={() => setChecking(false)} />
     </>
   );
 }

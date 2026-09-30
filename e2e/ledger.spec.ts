@@ -1,3 +1,4 @@
+import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type Page } from '@playwright/test';
 
 /**
@@ -179,4 +180,117 @@ test('Alle Buchungen: filter in the URL, search, bulk edit with undo', async ({
   await expect(page.getByText('Keine Buchungen für diese Filter.')).toBeVisible();
   await page.getByRole('button', { name: 'Rückgängig' }).click();
   await expect(page.getByText('3 Buchungen ·')).toBeVisible();
+});
+
+test('Kontostand prüfen: doppelt, Ausgleich, geprüft sperrt, undo', async ({ page }, testInfo) => {
+  const tag = testInfo.project.name;
+  const name = `Prüf ${tag}`;
+  await createAccount(page, name, 'Giro', '500');
+  await openAccount(page, name);
+  const book = async (payee: string, amount: string) => {
+    await page.getByRole('button', { name: 'Buchung erfassen' }).click();
+    const panel = page.getByRole('dialog', { name: 'Buchung erfassen' });
+    await panel.getByLabel('Betrag', { exact: true }).fill(amount);
+    await panel.getByLabel('Empfänger').fill(payee);
+    await panel.getByRole('button', { name: 'Speichern' }).click();
+    await expect(page.getByRole('row', { name: new RegExp(payee) }).first()).toBeVisible();
+  };
+  await book(`Laden ${tag}`, '20');
+  await book(`Doppel ${tag}`, '5');
+  await book(`Doppel ${tag}`, '5');
+  await expect(balance(page)).toHaveText('470,00 €');
+
+  // The bank knows "Doppel" once: the app is 5,00 too low, and the duplicate explains it.
+  await page.getByRole('button', { name: 'Kontostand prüfen' }).click();
+  const check = page.getByRole('dialog', { name: `Kontostand prüfen · ${name}` });
+  await check.getByLabel('Saldo laut Bank', { exact: true }).fill('475');
+  await expect(check.getByText('Doppelt:')).toBeVisible();
+  await check.getByRole('button', { name: 'Doppelte Buchung entfernen' }).click();
+  await expect(check.getByText('Differenz 0,00 € · stimmt überein')).toBeVisible();
+  await expect(balance(page)).toHaveText('475,00 €');
+  await check.getByRole('button', { name: /Festschreiben/ }).click();
+  await expect(toast(page)).toContainText('Kontostand geprüft');
+  await expect(page.getByRole('row', { name: new RegExp(`Laden ${tag}`) })).toContainText(
+    'geprüft',
+  );
+
+  // A geprüft booking is locked: the amount needs the explicit release.
+  await page
+    .getByRole('row', { name: new RegExp(`Laden ${tag}`) })
+    .getByRole('button', { name: /bearbeiten/ })
+    .click();
+  const edit = page.getByRole('dialog', { name: 'Buchung bearbeiten' });
+  await edit.getByLabel('Betrag', { exact: true }).fill('21');
+  await edit.getByRole('button', { name: 'Speichern' }).click();
+  await expect(edit.getByRole('alert')).toContainText('geprüft');
+  await edit.getByLabel('Trotzdem ändern').check();
+  await edit.getByRole('button', { name: 'Speichern' }).click();
+  await expect(balance(page)).toHaveText('474,00 €');
+
+  // The bank says 470: 4,00 missing; Ausgleich books it and stamps everything, undo reverts it.
+  await page.getByRole('button', { name: 'Kontostand prüfen' }).click();
+  const second = page.getByRole('dialog', { name: `Kontostand prüfen · ${name}` });
+  await second.getByLabel('Saldo laut Bank', { exact: true }).fill('470');
+  await expect(second.getByText(/Es fehlt eine Ausgabe/)).toBeVisible();
+  await second.getByRole('button', { name: /Differenz ausgleichen/ }).click();
+  await expect(toast(page)).toContainText('Ausgleich');
+  await expect(balance(page)).toHaveText('470,00 €');
+  await expect(page.getByRole('row', { name: /Korrektur Kontoprüfung/ })).toContainText('geprüft');
+  await page.getByRole('button', { name: 'Rückgängig' }).click();
+  await expect(balance(page)).toHaveText('474,00 €');
+  await expect(page.getByRole('row', { name: /Korrektur Kontoprüfung/ })).toHaveCount(0);
+});
+
+test('ledger pages with data: axe clean in both themes, no sideways scrolling', async ({
+  page,
+}, testInfo) => {
+  test.setTimeout(120_000);
+  const tag = testInfo.project.name;
+  const name = `Axe ${tag}`;
+  await createAccount(page, name, 'Giro', '250');
+  await openAccount(page, name);
+  await page.getByRole('button', { name: 'Buchung erfassen' }).click();
+  const panel = page.getByRole('dialog', { name: 'Buchung erfassen' });
+  await panel.getByLabel('Betrag', { exact: true }).fill('9,90');
+  await panel.getByLabel('Empfänger').fill(`Kiosk ${tag}`);
+  await panel.getByRole('button', { name: 'Speichern' }).click();
+  await expect(page.getByRole('row', { name: new RegExp(`Kiosk ${tag}`) })).toBeVisible();
+  const accountUrl = page.url();
+
+  const violations = async () =>
+    (
+      await new AxeBuilder({ page })
+        .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'])
+        .analyze()
+    ).violations
+      .filter((v) => v.impact === 'serious' || v.impact === 'critical')
+      .map((v) => ({ rule: v.id, targets: v.nodes.slice(0, 3).map((n) => n.target.join(' ')) }));
+  const noSidewaysScroll = () =>
+    page.evaluate(
+      () => document.documentElement.scrollWidth <= document.documentElement.clientWidth,
+    );
+
+  for (const scheme of ['light', 'dark'] as const) {
+    await page.emulateMedia({ reducedMotion: 'reduce', colorScheme: scheme });
+    for (const url of ['/konten', accountUrl, '/konten/buchungen']) {
+      await page.goto(url);
+      await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
+      await expect(page.locator('main table, main .kview').first()).toBeVisible();
+      await page.waitForLoadState('networkidle');
+      expect(await violations(), `${scheme} ${url}`).toEqual([]);
+      expect(await noSidewaysScroll(), `${scheme} ${url} scrolls sideways`).toBe(true);
+    }
+    // The panels: booking form and Kontostand prüfen.
+    await page.goto(accountUrl);
+    await page.getByRole('button', { name: 'Buchung erfassen' }).click();
+    await expect(page.getByRole('dialog', { name: 'Buchung erfassen' })).toBeVisible();
+    expect(await violations(), `${scheme} booking panel`).toEqual([]);
+    await page.keyboard.press('Escape');
+    await page.getByRole('button', { name: 'Kontostand prüfen' }).click();
+    const check = page.getByRole('dialog', { name: /Kontostand prüfen/ });
+    await check.getByLabel('Saldo laut Bank', { exact: true }).fill('999');
+    await expect(check.getByText(/Es fehlt eine Einnahme/)).toBeVisible();
+    expect(await violations(), `${scheme} reconcile panel`).toEqual([]);
+    await page.keyboard.press('Escape');
+  }
 });

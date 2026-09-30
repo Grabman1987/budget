@@ -119,7 +119,7 @@ Order: P2a → P2b and P2c in parallel → P2d (parser can start right after P1f
 ### P2a — Accounts and bookings (`docs/prompts/P2a.md`)
 - [x] API and repositories: accounts (type, on-budget, terms, closed), bookings with splits and transfers, payees; validation, audit, undo (`docs/api-ledger.md`, PR `p2a-api`)
 - [x] Konten › Übersicht, Einzelkonto (balance line, bookings, flags, status), Alle Buchungen (filter, search, bulk edit) (PRs `p2a-ui`, `p2a-ui-2`)
-- [ ] Kontostand prüfen with "doppelt" / "fehlt" and Ausgleich booking (reconciliation snapshot)
+- [x] Kontostand prüfen with "doppelt" / "fehlt" and Ausgleich booking (reconciliation snapshot) (PRs `p2a-api`, `p2a-ui-3`)
 
 ### P2b — Capture dialog (`docs/prompts/P2b.md`)
 - [ ] Buchung, Split, Umbuchung (Konto → Konto) on desktop panel and phone sheet; amount field with arithmetic; payee autocomplete with default category; keyboard flow; undo toast
