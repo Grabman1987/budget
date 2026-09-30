@@ -407,8 +407,8 @@ a.btn {
     z-index: 30;
     height: var(--tabbar-h);
     padding-bottom: env(safe-area-inset-bottom);
-    background: color-mix(in srgb, var(--ground-2) 92%, transparent);
-    backdrop-filter: blur(12px);
+    /* Opaque: behind a translucent bar the ink-3 labels fell below 4.5:1 over red content. */
+    background: var(--ground-2);
     border-top: 1px solid var(--rule);
   }
   .tabbar a {

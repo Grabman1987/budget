@@ -1,0 +1,775 @@
+/* Plan › Monat. Ported from design/prototype/styles.css ("Plan › Monat" and "views follow the
+   rail"); parts list, chain, revision table and month switch come from @budget/ui. */
+
+.plan {
+  display: grid;
+  gap: 28px;
+  margin-top: -4px;
+}
+.plan .neg-alert {
+  color: var(--red);
+}
+.plan .muted {
+  color: var(--ink-3);
+}
+.plan .hatch-need {
+  background: var(--need);
+}
+.plan .hatch-want {
+  background: var(--hatch-want);
+  box-shadow: inset 0 0 0 1px var(--want);
+}
+.plan .hatch-future {
+  background: var(--hatch-future);
+  box-shadow: inset 0 0 0 1px var(--future);
+}
+
+/* Zu verteilen and 50/30/20 */
+.plan .tbd {
+  display: grid;
+  grid-template-columns: minmax(0, 7fr) minmax(0, 5fr);
+  gap: 48px;
+  align-items: start;
+}
+.plan .tbd-fig .cents {
+  font-size: 0.5em;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+.plan .sb-scale {
+  position: relative;
+  height: 16px;
+  margin-top: 18px;
+}
+.plan .sb-scale span {
+  position: absolute;
+  transform: translateX(-50%);
+  font-family: var(--font-tech);
+  font-size: 11.5px;
+  letter-spacing: 0.04em;
+  color: var(--ink-3);
+}
+.plan .sb-scale span:last-child {
+  transform: translateX(-100%);
+}
+.plan .sb-bar {
+  position: relative;
+  display: flex;
+  height: 18px;
+  border: 1px solid var(--line);
+  border-radius: 1px;
+  background: var(--raised);
+}
+.plan .sb-seg {
+  height: 100%;
+}
+.plan .sb-mark {
+  position: absolute;
+  top: -6px;
+  bottom: -6px;
+  border-left: 1.5px solid var(--ink);
+}
+.plan .sb-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 18px;
+  margin-top: 12px;
+  font-size: 13px;
+  color: var(--ink-2);
+}
+.plan .sb-legend span {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+}
+.plan .sb-legend b {
+  color: var(--ink);
+  font-weight: 650;
+}
+
+/* Triage: a state bar above the unchanged table */
+.plan .triage {
+  border: 1px solid var(--red);
+  border-radius: 2px;
+  padding: 12px 16px 4px;
+  margin-top: -12px;
+}
+.plan .triage.is-calm {
+  border-color: var(--line-2);
+}
+.plan .triage .head {
+  border-bottom-color: var(--rule);
+}
+.plan .triage-table .rev-src {
+  width: 260px;
+  padding-right: 12px;
+}
+.plan .triage-table .rev-act {
+  text-align: right;
+}
+.plan .select-sm {
+  height: 36px;
+  font-size: 13.5px;
+}
+
+/* Rail + table */
+.plan .plan-body {
+  display: grid;
+  grid-template-columns: 252px minmax(0, 1fr);
+  gap: 36px;
+  align-items: start;
+}
+.plan .rail {
+  position: sticky;
+  top: 88px;
+}
+.plan .rail-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.plan .rail-list li {
+  position: relative;
+  padding-bottom: 14px;
+}
+.plan .rail-list.is-flow li:not(:last-child)::after {
+  content: '';
+  position: absolute;
+  left: 13.5px;
+  top: 28px;
+  bottom: 2px;
+  border-left: 1px solid var(--line-2);
+}
+.plan .rail-list.is-flow li:not(:last-child)::before {
+  content: '';
+  position: absolute;
+  left: 10px;
+  bottom: 0;
+  border: 4px solid transparent;
+  border-top: 6px solid var(--line-2);
+  border-bottom: 0;
+}
+.plan .rail-list .rail-io {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  padding-left: 36px;
+}
+.plan .rail-list .rail-io::after {
+  top: 20px;
+}
+.plan .rail-io strong {
+  font-size: 15px;
+  font-weight: 650;
+}
+.plan .rail-io-sub {
+  margin-top: -8px;
+}
+.plan .rail-io-sub strong {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--ink-2);
+}
+.plan .rail-btn {
+  display: grid;
+  grid-template-columns: 28px 1fr;
+  grid-template-areas: 'no name' 'no fill' 'no status';
+  column-gap: 8px;
+  row-gap: 5px;
+  width: 100%;
+  text-align: left;
+  padding: 2px 6px 2px 0;
+  border-radius: 6px;
+}
+.plan .rail-btn:hover .rail-name {
+  color: var(--line);
+}
+.plan .rail-no {
+  grid-area: no;
+  position: relative;
+  z-index: 1;
+  width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--line-2);
+  border-radius: 50%;
+  background: var(--ground);
+  font-family: var(--font-tech);
+  font-weight: 600;
+  font-size: 13px;
+  color: var(--ink-2);
+}
+.plan .rail-list:not(.is-flow) .rail-no {
+  border-radius: 4px;
+}
+.plan .is-full .rail-no {
+  background: var(--line);
+  border-color: var(--line);
+  color: var(--ground);
+}
+.plan .is-part .rail-no {
+  border-color: var(--line);
+  color: var(--line);
+}
+.plan .is-over .rail-no {
+  border-color: var(--red);
+  color: var(--red);
+}
+.plan .is-next .rail-no {
+  box-shadow: 0 0 0 3px var(--tint-2);
+}
+.plan .rail-name {
+  grid-area: name;
+  font-weight: 580;
+  font-size: 13.5px;
+  line-height: 1.3;
+  padding-top: 4px;
+}
+.plan .rail-name small {
+  display: block;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--ink-3);
+}
+.plan .is-none .rail-name {
+  color: var(--ink-3);
+}
+.plan .rail-fill {
+  grid-area: fill;
+  height: 6px;
+  background: var(--tint-2);
+  border-radius: 1px;
+  overflow: hidden;
+}
+.plan .rail-fill i {
+  display: block;
+  height: 100%;
+  background: var(--line);
+}
+.plan .rail-status {
+  grid-area: status;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+  font-size: 12px;
+  color: var(--ink-3);
+}
+.plan .rail-status svg {
+  color: var(--line);
+}
+.plan .rail-list .rail-level {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: -4px 0 10px;
+  padding-bottom: 0;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--line);
+}
+.plan .rail-list li.rail-level::before {
+  content: '';
+  order: 2;
+  flex: 1;
+  position: static;
+  height: 0;
+  border: 0;
+  border-top: 1.5px dashed var(--line);
+}
+.plan .rail-list li.rail-level::after {
+  display: none;
+}
+.plan .rail-level svg {
+  width: 12px;
+  height: 10px;
+  margin-left: 8px;
+}
+.plan .rail-level svg path {
+  fill: none;
+  stroke: var(--line);
+  stroke-width: 1.2;
+}
+.plan .rail-level span {
+  order: 3;
+}
+
+.plan .ptoolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  padding-bottom: 12px;
+}
+.plan .ptoolbar .spacer {
+  flex: 1;
+}
+.plan .ptoolbar .seg .count {
+  margin-left: 4px;
+}
+.plan .dist-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.plan .dist-actions .btn {
+  gap: 6px;
+}
+.plan .dist-left {
+  font-family: var(--font-tech);
+  font-weight: 600;
+  font-size: 14px;
+  letter-spacing: 0.03em;
+  color: var(--line);
+}
+.plan .pgroup.is-flash td {
+  background: var(--tint-2);
+}
+.plan .grp-no {
+  display: inline-grid;
+  place-items: center;
+  min-width: 24px;
+  height: 24px;
+  border: 1px solid var(--line);
+  border-radius: 50%;
+  font-family: var(--font-tech);
+  font-weight: 600;
+  font-size: 12.5px;
+  color: var(--line);
+}
+.plan .grp-sub {
+  margin-left: 8px;
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--ink-3);
+}
+.plan .grp-status svg {
+  color: var(--line);
+}
+.plan .pgroup .btn-xs {
+  margin-left: 10px;
+  vertical-align: middle;
+}
+.plan .prow .rev-tri {
+  display: inline-block;
+  width: 18px;
+  height: 16px;
+  margin-left: 6px;
+  vertical-align: -3px;
+}
+.plan .pname {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 580;
+  font-size: 14px;
+  text-align: left;
+  border-radius: 4px;
+}
+.plan .pname:hover {
+  color: var(--line);
+}
+.plan .env-class {
+  font-family: var(--font-tech);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+  font-weight: 500;
+}
+.plan .ptable .pbar {
+  position: relative;
+  display: block;
+  max-width: 420px;
+  height: 6px;
+  margin: 9px 0 3px;
+  background: var(--tint-2);
+  border-radius: 1px;
+}
+.plan .pbar-fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+}
+.plan .pbar.is-over .pbar-fill {
+  background: var(--red);
+  box-shadow: none;
+}
+.plan .pbar-tick {
+  position: absolute;
+  top: -4px;
+  bottom: -4px;
+  border-left: 1.5px solid var(--ink);
+}
+.plan .pbar-goal {
+  position: absolute;
+  top: -4px;
+  bottom: -4px;
+  border-left: 1.5px solid var(--line);
+}
+.plan .pmeta {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 4px;
+  font-size: 12.5px;
+  color: var(--ink-3);
+}
+.plan .pmeta svg {
+  color: var(--line);
+}
+.plan .prow.is-over td {
+  background: var(--red-soft);
+}
+/* Quiet text keeps its contrast on the red tint. */
+.plan .prow.is-over .pos,
+.plan .prow.is-over .pmeta,
+.plan .prow.is-over .env-class,
+.plan .prow.is-over .muted {
+  color: var(--ink-2);
+}
+.plan .col-avail {
+  font-weight: 640;
+}
+/* New card debt: blueprint, dashed outline like every debt (DESIGN.md), never red or amber. */
+.plan .debt-val,
+.plan .lg-debt {
+  padding: 0 6px;
+  border: 1px dashed var(--ink-2);
+  border-radius: 2px;
+}
+.plan .lg-debt {
+  font-style: normal;
+  font-size: 12px;
+}
+.plan .assign-btn {
+  margin: -4px -8px;
+  padding: 4px 8px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  font-weight: 560;
+}
+.plan .assign-btn:hover {
+  border-color: var(--line-2);
+  background: var(--raised);
+}
+.plan .assign-input {
+  width: 124px;
+  height: 32px;
+  margin: -6px -8px;
+  padding: 0 8px;
+  text-align: right;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--raised);
+  color: var(--ink);
+  font-weight: 600;
+  box-shadow: 0 0 0 3px var(--tint-2);
+  outline: none;
+}
+.plan .assign-input[aria-invalid='true'] {
+  border-color: var(--red);
+}
+.plan .ghost {
+  display: block;
+  margin: 8px -2px 0 auto;
+  padding: 2px 8px;
+  border: 1px dashed var(--line);
+  border-radius: 4px;
+  font-family: var(--font-tech);
+  font-weight: 600;
+  font-size: 13px;
+  letter-spacing: 0.03em;
+  color: var(--line);
+}
+.plan .ghost:hover {
+  background: var(--tint-2);
+  border-style: solid;
+}
+.plan .is-distributing .col-assign {
+  background: var(--tint);
+}
+.plan .prow.is-empty td {
+  color: var(--ink-3);
+}
+.plan .plegend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 20px;
+  margin-top: 12px;
+  font-size: 12.5px;
+  color: var(--ink-2);
+}
+.plan .plegend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.plan .lg-bar {
+  position: relative;
+  display: inline-block;
+  width: 36px;
+  height: 6px;
+  background: var(--tint-2);
+}
+.plan .lg-fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 60%;
+  background: var(--need);
+}
+.plan .lg-tick {
+  position: absolute;
+  left: 55%;
+  top: -4px;
+  bottom: -4px;
+  border-left: 1.5px solid var(--ink);
+}
+.plan .lg-ghost {
+  font-style: normal;
+  font-family: var(--font-tech);
+  font-weight: 600;
+  font-size: 12px;
+  color: var(--line);
+  border: 1px dashed var(--line);
+  border-radius: 4px;
+  padding: 0 6px;
+}
+
+/* Envelope panel */
+.plan .kform .big {
+  font-size: 36px;
+  font-weight: 650;
+  letter-spacing: -0.03em;
+  margin: 6px 0 2px;
+}
+.plan .panel-h {
+  margin: 12px 0 0;
+  font-size: 15px;
+  font-weight: 620;
+}
+.plan .kv-total {
+  border-top: 1.5px solid var(--line);
+}
+.plan .kv-total dt {
+  color: var(--ink);
+  font-weight: 600;
+}
+
+@media (max-width: 1180px) {
+  .plan .plan-body {
+    grid-template-columns: 220px minmax(0, 1fr);
+    gap: 24px;
+  }
+  .plan .ptable .col-num {
+    width: 116px;
+  }
+}
+@media (max-width: 980px) {
+  .plan .tbd {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 28px;
+  }
+}
+@media (max-width: 767px) {
+  .plan {
+    gap: 20px;
+  }
+  .plan .tbd {
+    display: contents;
+  }
+  .plan .tbd-main {
+    order: 1;
+  }
+  .plan .triage {
+    order: 2;
+    margin-top: 0;
+    padding: 10px 12px 4px;
+  }
+  .plan .plan-body {
+    order: 3;
+  }
+  .plan .split-band {
+    order: 4;
+  }
+  .plan .triage-table thead {
+    display: none;
+  }
+  .plan .triage-table tr {
+    display: grid;
+    grid-template-columns: 30px 1fr;
+    column-gap: 8px;
+    row-gap: 8px;
+    padding: 12px 0;
+    border-top: 1px solid var(--rule);
+  }
+  .plan .triage-table tr:first-child {
+    border-top: 0;
+  }
+  .plan .triage-table td {
+    padding: 0 !important;
+    border: 0 !important;
+    width: auto !important;
+  }
+  .plan .triage-table .rev-src,
+  .plan .triage-table .rev-act {
+    grid-column: 2;
+    text-align: left;
+  }
+  .plan .triage-table .rev-act .btn,
+  .plan .triage-table .select-sm {
+    height: 44px;
+    width: 100%;
+  }
+  .plan .plan-body {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 16px;
+  }
+  .plan .rail {
+    position: static;
+  }
+  .plan .rail-list {
+    display: flex;
+    gap: 8px;
+    overflow-x: auto;
+    margin: 0 -16px;
+    padding: 0 16px 6px;
+    scrollbar-width: none;
+  }
+  .plan .rail-list li {
+    flex: none;
+    padding-bottom: 0;
+  }
+  .plan .rail-list li::before,
+  .plan .rail-list li::after {
+    display: none;
+  }
+  .plan .rail-list .rail-io,
+  .plan .rail-list .rail-level {
+    display: none;
+  }
+  .plan .rail-btn {
+    width: 138px;
+    min-height: 44px;
+    padding: 8px;
+    border: 1px solid var(--rule-strong);
+    border-radius: 8px;
+    grid-template-columns: 24px 1fr;
+  }
+  .plan .rail-no {
+    width: 24px;
+    height: 24px;
+    font-size: 12px;
+  }
+  .plan .rail-name {
+    font-size: 12.5px;
+    padding-top: 2px;
+  }
+  .plan .is-next .rail-btn {
+    border-color: var(--line);
+  }
+  .plan .ptoolbar .seg {
+    max-width: 100%;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .plan .ptoolbar .seg button {
+    white-space: nowrap;
+  }
+  .plan .ptable thead {
+    display: none;
+  }
+  .plan .ptable,
+  .plan .ptable tbody {
+    display: block;
+  }
+  .plan .ptable tr {
+    display: grid;
+    grid-template-columns: 34px repeat(3, minmax(0, 1fr));
+    column-gap: 8px;
+    row-gap: 6px;
+    padding: 12px 0;
+    border-bottom: 1px solid var(--rule);
+  }
+  .plan .ptable td {
+    display: block;
+    width: auto;
+    padding: 0;
+    border: 0;
+    background: none !important;
+  }
+  .plan .ptable .col-pos {
+    grid-column: 1;
+    grid-row: 1;
+  }
+  .plan .ptable .col-name {
+    grid-column: 2 / -1;
+    grid-row: 1;
+  }
+  .plan .ptable .col-num {
+    grid-row: 2;
+    width: auto;
+    text-align: right;
+    font-size: 14px;
+  }
+  .plan .ptable .col-assign {
+    grid-column: 2;
+  }
+  .plan .ptable .col-act {
+    grid-column: 3;
+  }
+  .plan .ptable .col-avail {
+    grid-column: 4;
+  }
+  .plan .prow .rev-tri {
+    display: block;
+    margin: 4px 0 0;
+  }
+  .plan .ptable .col-num::before {
+    content: attr(data-label);
+    display: block;
+    font-family: var(--font-tech);
+    font-size: 10.5px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+    font-weight: 500;
+  }
+  .plan .pgroup {
+    background: var(--ground-2);
+    margin: 0 -16px;
+    padding: 12px 16px !important;
+    border-bottom: 1px solid var(--line-2) !important;
+  }
+  .plan .prow.is-over {
+    background: var(--red-soft);
+    margin: 0 -16px;
+    padding-inline: 16px !important;
+  }
+  .plan .prow.is-empty .col-name {
+    grid-column: 1 / -1;
+  }
+  .plan .assign-btn {
+    margin: -4px 0;
+    padding: 4px 0;
+    min-height: 44px;
+  }
+  .plan .assign-input {
+    margin: 0;
+    width: 100%;
+    height: 44px;
+  }
+  .plan .ghost {
+    margin: 6px 0 0;
+    min-height: 44px;
+  }
+  .plan .grp-sub {
+    display: block;
+    margin: 2px 0 0 22px;
+  }
+  .plan .plegend {
+    display: none;
+  }
+}

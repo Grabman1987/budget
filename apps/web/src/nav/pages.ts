@@ -242,3 +242,6 @@ export const REPORT_PAGE_FILLS = P6;
 export const EINSTELLUNGEN_KATEGORIEN: PageDef = PAGES.find(
   (p) => p.path === '/einstellungen/kategorien',
 ) as PageDef;
+
+/** Plan › Monat (built in P2c). */
+export const PLAN_MONAT: PageDef = PAGES.find((p) => p.path === '/plan/monat') as PageDef;

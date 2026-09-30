@@ -23,6 +23,8 @@ export interface PageFrameProps {
   extraFields?: Array<{ label: string; value: ReactNode }>;
   /** Placeholder pages add a "Gefüllt in" cell. */
   placeholder?: boolean;
+  /** Plan: the month's income in the title block. */
+  income?: ReactNode;
   children?: ReactNode;
 }
 
@@ -33,6 +35,7 @@ export function PageFrame({
   subtitle,
   extraFields,
   placeholder,
+  income,
   children,
 }: PageFrameProps) {
   const area = areaById(meta.area);
@@ -49,6 +52,7 @@ export function PageFrame({
         subtitle={subtitle}
         extraFields={extraFields}
         placeholder={placeholder}
+        income={income}
       />
       {items.length > 0 && (
         <Registers
