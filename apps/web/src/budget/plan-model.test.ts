@@ -2,13 +2,17 @@ import { describe, expect, it } from 'vitest';
 import type { BudgetMonthView, EnvelopeSummary } from './budget-api';
 import {
   barFor,
+  coverFromToBeAssigned,
   coverSource,
+  dueDate,
   groupStatus,
   planGroups,
   planRows,
+  readAssign,
   suggestions,
   unassignPlan,
   type PlanContext,
+  type PlanRow,
 } from './plan-model';
 
 const env = (categoryId: string, over: Partial<EnvelopeSummary> = {}): EnvelopeSummary => ({
@@ -145,5 +149,59 @@ describe('Plan › Monat view model', () => {
     expect(barFor(by('cafe'), ctx).meta).toContain('neue Kartenschuld 20,00 €');
     expect(barFor(by('miete'), ctx)).toMatchObject({ icon: 'clock', meta: 'fällig am 01.' });
     expect(barFor(by('karte'), ctx).meta).toBe('Kartenzahlung · Kreditkarte');
+  });
+
+  it('reads an assign field: the pre-filled figure is absolute, a typed sign is relative', () => {
+    // Pre-filled "−50,00" of a negative assignment: unchanged, not "−50 more".
+    expect(readAssign('−50,00', -5_000, false)).toBe(-5_000);
+    expect(readAssign('-50,00', -5_000, false)).toBe(-5_000);
+    // A sign typed first into the emptied field is a change.
+    expect(readAssign('+20', -5_000, true)).toBe(-3_000);
+    expect(readAssign('−20', 10_000, true)).toBe(8_000);
+    expect(readAssign('60+40', 0, false)).toBe(10_000);
+    // "+50" without the relative flag (sign typed in front of the kept text) is just 50.
+    expect(readAssign('+50', 10_000, false)).toBe(5_000);
+    // Below 0 only when the envelope already is and it does not go lower.
+    expect(readAssign('−20', 10_000, false)).toBeNull();
+    expect(readAssign('−20', 1_000, true)).toBeNull();
+    expect(readAssign('−10', -5_000, true)).toBeNull();
+    expect(readAssign('abc', 0, false)).toBeNull();
+  });
+
+  it('covers from Zu verteilen at most what it holds', () => {
+    expect(coverFromToBeAssigned(5_000, 10_000)).toEqual({ capCents: 5_000, short: false });
+    expect(coverFromToBeAssigned(5_000, 2_000)).toEqual({ capCents: 2_000, short: true });
+    expect(coverFromToBeAssigned(5_000, 0)).toEqual({ capCents: 0, short: true });
+    expect(coverFromToBeAssigned(5_000, -3_000)).toEqual({ capCents: 0, short: true });
+  });
+
+  it('dates a yearly or periodic target on its own day, not the 1st of the due month', () => {
+    const row = (t: Partial<PlanRow['target'] & object>, dueMonth: string | null): PlanRow =>
+      ({
+        ...rows[0]!,
+        kind: 'periodic',
+        dueMonth,
+        target: { ...target(), everyMonths: 12, ...t },
+      }) as PlanRow;
+    expect(dueDate(row({ targetDate: '2026-03-17' }, '2027-03'), '2026-09')).toBe('2027-03-17');
+    expect(dueDate(row({ targetDate: '2026-01-31' }, '2027-02'), '2026-09')).toBe('2027-02-28');
+    expect(dueDate(row({ targetDate: '2026-10-05', dueDay: 20 }, '2026-10'), '2026-09')).toBe(
+      '2026-10-20',
+    );
+    expect(
+      dueDate(
+        row({ kind: 'by_date', everyMonths: 1, targetDate: '2026-09-24' }, '2026-09'),
+        '2026-09',
+      ),
+    ).toBe('2026-09-24');
+    expect(dueDate(row({ targetDate: null }, null), '2026-09')).toBeNull();
+    // The time view uses the real day: due on 05.10. is not within 14 days of 17.09. (the 1st was).
+    const insurance = {
+      ...row({ kind: 'by_date', everyMonths: 1, targetDate: '2026-10-05' }, '2026-10'),
+      id: 'kfz',
+    };
+    const groups = planGroups('time', [insurance], data, ctx);
+    expect(groups.find((g) => g.key === 't14')?.rows).toEqual([]);
+    expect(groups.find((g) => g.key === 'tnext')?.rows.map((r) => r.id)).toEqual(['kfz']);
   });
 });

@@ -42,14 +42,14 @@ category is not part of what Kontostand prüfen checked.
 | Endpoint | Purpose |
 | --- | --- |
 | `GET /categories` | `groups`, `categories` (hidden ones too, with `splitCount`), `targets` (all live versions) |
-| `POST /categories`, `PATCH /categories/:id` | Name, `icon` (one emoji, shown monochrome), group, class, kind, stage 1–9, card account (card payment only), `hidden`; optional `target: { validFrom, target }` in the same undo group |
+| `POST /categories`, `PATCH /categories/:id` | Name, `icon` (one emoji, shown monochrome), group, class, kind, stage 1–9, card account (card payment only; a card payment keeps its kind and card, 422 `category_rule`), `hidden`; optional `target: { validFrom, target }` in the same undo group |
 | `PUT /categories/:id/target` | `{ validFrom: 'YYYY-MM', target: { kind: monthly / by_date / keep_balance, amountCents, everyMonths, targetDate, dueDay } \| null }`; `null` removes all versions |
 | `POST /categories/sort` | `{ groups: [{ id, categoryIds }] }` in list order; a category listed under another group moves there |
-| `POST /categories/merge` | `{ sourceIds, targetId }`: splits, assigned months (summed), opening envelope, payee defaults, expected payments, savings goals, planned events and assignment rules move to the target; the sources are soft-deleted. Card payment envelopes cannot be merged. One undo |
+| `POST /categories/merge` | `{ sourceIds, targetId }`: splits, assigned months (summed), opening envelope, payee defaults, expected payments, savings goals, planned events and assignment rules move to the target; the sources are soft-deleted. Card payment envelopes cannot be merged; an income category takes only income categories (422 `category_rule`). One undo |
 | `GET /categories/:id/split-off?q&from&to&payeeId&accountId` | Splits of live bookings in the category matching the filter (≤ 500) |
-| `POST /categories/:id/split-off` | `{ splitIds, targetId }` or `{ splitIds, newCategory }`: move the chosen splits; budget months stay |
+| `POST /categories/:id/split-off` | `{ splitIds, targetId }` or `{ splitIds, newCategory }` (its `target` is stored in the same undo group): move the chosen splits of live bookings; budget months stay |
 | `POST /categories/groups`, `PATCH`/`DELETE /categories/groups/:id` | Create, rename, remove an empty group |
 | `GET /budget/:month?cardRule=` | Month summary from `budgetMonths` (default `'ynab'`): `carryInCents + incomeCents − uncoveredCents − assignedCents − heldCents = toBeAssignedCents`; per envelope carry, assigned, activity, available, overspent split into `cashOverspentCents` / `creditOverspentCents`, `fundedCardCents`, target with `goalCents`/`needCents`/`dueMonth`; totals per group; card debt growth per card; plus `groups` and `categories` |
 | `PUT /budget/:month/assigned` | `{ items: [{ categoryId, assignedCents }] }` in one undo group (e.g. "Ziele füllen") |
 | `POST /budget/:month/move` | `{ fromId, toId, amountCents > 0 }`; `null` is "Zu verteilen" |
-| `POST /budget/:month/cover` | `{ categoryId, fromId }`: covers the overspending from another envelope (at most its available) or from "Zu verteilen" (`null`); answers `coveredCents` |
+| `POST /budget/:month/cover` | `{ categoryId, fromId, allowNegative? }`: covers the overspending from another envelope (at most its available) or from "Zu verteilen" (`null`, at most what it holds; the full amount only with `allowNegative: true`, which takes it below 0); answers `coveredCents`. Nothing to cover from is 422 `category_rule` |

@@ -62,8 +62,15 @@ export const moveMoney = (
   toId: string | null,
   amountCents: number,
 ) => request<WriteResult>('POST', `${path(month)}/move`, { fromId, toId, amountCents });
-export const coverOverspending = (month: string, categoryId: string, fromId: string | null) =>
+/** From "Zu verteilen" (`fromId: null`) at most what it holds, unless `allowNegative`. */
+export const coverOverspending = (
+  month: string,
+  categoryId: string,
+  fromId: string | null,
+  allowNegative = false,
+) =>
   request<WriteResult & { coveredCents: number }>('POST', `${path(month)}/cover`, {
     categoryId,
     fromId,
+    ...(allowNegative && { allowNegative }),
   });
