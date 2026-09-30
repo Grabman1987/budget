@@ -1,4 +1,10 @@
-import { budgetMonths, lastDayOfMonth, monthsBetween, type BudgetMonth } from '@budget/domain';
+import {
+  budgetMonths,
+  cardBalanceCover,
+  lastDayOfMonth,
+  monthsBetween,
+  type BudgetMonth,
+} from '@budget/domain';
 import {
   budgetInputOf,
   INVESTMENT_TYPES,
@@ -6,7 +12,7 @@ import {
   type TargetAccount,
   type TargetModel,
 } from './mapping';
-import type { RawModel } from './model';
+import { READY_TO_ASSIGN, type RawModel, type RawSplit } from './model';
 
 /**
  * Gate 2 as data (`docs/migration/ynab-export.md` §Import run and checks): the target model run
@@ -19,8 +25,9 @@ import type { RawModel } from './model';
  * - `to_be_assigned`: "Zu verteilen" against YNAB's Ready to Assign plus the Available of dropped
  *   categories, until the first month any rule moved money. YNAB's figure is derived from the
  *   export: Σ budget cash (without cards) − Σ Available − credit overspending, where the credit
- *   overspending of a card is what its payment category did not receive:
- *   −(Σ card rows of the month) − Activity of the payment category.
+ *   overspending of a card is what its payment category did not receive: −(Σ card rows of the
+ *   month without cash advances, income on the card and the part paid from a positive card
+ *   balance) − Activity of the payment category.
  * - `total`: Σ Available + Zu verteilen against the same total of YNAB, in every month (rules move
  *   money between categories but keep the total). A rule also changes how much card spending its
  *   categories can fund; from the first move on, card envelopes are not compared, the total
@@ -163,17 +170,36 @@ export function reconcile(
   const cardNames = new Set(cards.map((c) => c.cardAccount));
   const cash = raw.accounts.filter((a) => a.proposal.onBudget && !cardNames.has(a.name));
   const cashNames = new Set(cash.map((a) => a.name));
-  // Card rows per card and month, without cash advances (card → budget account), which YNAB
-  // neither moves into the payment category nor counts as overspending.
+  const onBudgetNames = new Set(raw.accounts.filter((a) => a.proposal.onBudget).map((a) => a.name));
+  // Card rows per card and month that move its payment category (the debt part), without cash
+  // advances (card → budget account) and income on the card ("Ready to Assign"), which YNAB
+  // neither moves into the payment category nor counts as overspending, and without the part of
+  // categorised rows that a positive card balance covers (`cardBalanceCover`).
   const cardRows = new Map<string, number>();
-  for (const b of booked)
-    if (cardNames.has(b.account))
-      for (const x of b.splits) {
-        if (x.amountCents < 0 && x.transferAccount !== null && cashNames.has(x.transferAccount))
-          continue;
-        const k = `${b.account}|${b.date.slice(0, 7)}`;
-        cardRows.set(k, (cardRows.get(k) ?? 0) + x.amountCents);
-      }
+  for (const name of cardNames) {
+    const rows = booked
+      .filter((b) => b.account === name)
+      .flatMap((b) => b.splits.map((x) => ({ date: b.date, x })));
+    const budgetPartner = (x: RawSplit) =>
+      x.transferAccount !== null && onBudgetNames.has(x.transferAccount);
+    const noCategory = (x: RawSplit) => x.categoryKey === null || x.categoryKey === READY_TO_ASSIGN;
+    const cover = cardBalanceCover(
+      0,
+      rows.map(({ date, x }) => ({
+        date,
+        amountCents: x.amountCents,
+        categorised: !noCategory(x) && !budgetPartner(x),
+      })),
+    );
+    rows.forEach(({ date, x }, i) => {
+      const advance =
+        x.amountCents < 0 && x.transferAccount !== null && cashNames.has(x.transferAccount);
+      const income = noCategory(x) && !budgetPartner(x);
+      if (advance || income) return;
+      const k = `${name}|${date.slice(0, 7)}`;
+      cardRows.set(k, (cardRows.get(k) ?? 0) + x.amountCents - (cover[i] as number));
+    });
+  }
   target.months.forEach((month, i) => {
     const b = budget[i] as BudgetMonth;
     const plan = raw.plan[month] ?? {};

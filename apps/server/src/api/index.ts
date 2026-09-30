@@ -1,6 +1,7 @@
 import type { Db } from '@budget/db';
 import { todayInVienna } from '@budget/domain';
-import { Hono } from 'hono';
+import { Hono, type MiddlewareHandler } from 'hono';
+import { importRoutes } from '../imports/routes';
 import { accountRoutes } from './accounts';
 import { bookingRoutes } from './bookings';
 import { budgetRoutes, categoryRoutes } from './budget';
@@ -12,6 +13,8 @@ export interface LedgerApiOptions {
   db: Db;
   /** "Today" as `YYYY-MM-DD` (Europe/Vienna by default); tests pass a fixed day. */
   today?: () => string;
+  /** Refuses a request without a fresh step-up (uploads, commits and reverts of import runs). */
+  stepUp: MiddlewareHandler;
 }
 
 /**
@@ -19,7 +22,11 @@ export interface LedgerApiOptions {
  * bulk edits, payees, pick lists and undo. Mounted below `/api` behind the session guard. Every
  * write answers with the `groupId` of its audit group; `POST /undo` reverts that whole action.
  */
-export function createLedgerApi({ db, today = () => todayInVienna() }: LedgerApiOptions): Hono {
+export function createLedgerApi({
+  db,
+  today = () => todayInVienna(),
+  stepUp,
+}: LedgerApiOptions): Hono {
   const api = new Hono();
   api.route('/accounts', accountRoutes(db, today));
   api.route('/bookings', bookingRoutes(db));
@@ -29,6 +36,7 @@ export function createLedgerApi({ db, today = () => todayInVienna() }: LedgerApi
   api.route('/expected', expectedRoutes(db, today));
   api.route('/lookups', lookupRoutes(db));
   api.route('/undo', undoRoutes(db));
+  api.route('/imports', importRoutes(db, today, stepUp));
   api.onError(errorResponse);
   return api;
 }
