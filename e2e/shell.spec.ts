@@ -104,7 +104,9 @@ test.describe('routes', () => {
     await expect(page.locator('.rcat-row .col-pos').first()).toHaveText('1.1');
     await expect(page.locator('.rcat-row .col-pos').last()).toHaveText('5.5');
     // As in the prototype: chart form and Steuerung per row; a click on the row opens the report.
-    await expect(page.locator('.rcat-row').first().locator('.rcat-form')).toHaveText('Druckblatt A4');
+    await expect(page.locator('.rcat-row').first().locator('.rcat-form')).toHaveText(
+      'Druckblatt A4',
+    );
     await page.locator('.rcat-row').nth(3).locator('.rcat-q').click();
     await expect(page).toHaveURL(/\/reports\/geldfluss$/);
   });
