@@ -6,6 +6,7 @@ import { importRoutes } from '../imports/routes';
 import { accountRoutes } from './accounts';
 import { bookingRoutes } from './bookings';
 import { budgetRoutes, categoryRoutes } from './budget';
+import { expectedRoutes } from './expected';
 import { createMarketSources, marketModeFromEnv } from '../market/sources';
 import { errorResponse } from './http';
 import { lookupRoutes, payeeRoutes, undoRoutes } from './lookups';
@@ -38,6 +39,7 @@ export function createLedgerApi({
   api.route('/payees', payeeRoutes(db));
   api.route('/categories', categoryRoutes(db));
   api.route('/budget', budgetRoutes(db));
+  api.route('/expected', expectedRoutes(db, today));
   api.route('/lookups', lookupRoutes(db));
   api.route('/undo', undoRoutes(db));
   api.route('/', marketRoutes(db, today, market));
