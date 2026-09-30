@@ -17,6 +17,11 @@ import { envelopeMonth, type EnvelopeMonth } from './envelope';
  *   card from a budget account takes money out of that envelope, uncategorised card bookings move
  *   their amount in, and a refund in a category moves its full amount back into the category.
  *   Such a card's own balance is covered by its envelope, so it is not part of the cash.
+ *   Under `'ynab'` (all verified against the owner's real export, 30.09.2026), income booked on
+ *   a card ("Ready to Assign", e.g. a balance adjustment) moves no envelope, and while the card
+ *   has a positive balance (paid in advance), categorised spending is paid from that balance
+ *   first: that part moves no envelope and is no card spending (`cardBalanceCover`; by date,
+ *   within a day by amount, largest outflow first).
  * - Categorised spending on such a card, `cardRule`:
  *   - `'ynab'` (default, owner decision 30.09.2026): only the **funded** part moves into the card
  *     envelope, i.e. what the category could cover at the end of the month (month-level: covering
@@ -24,11 +29,12 @@ import { envelopeMonth, type EnvelopeMonth } from './envelope';
  *     overspending**: it stays as new debt on the card (`cardDebtGrowthCents`), the category is
  *     reset to 0 next month like any overspending, but it does NOT reduce the next month's
  *     "Zu verteilen". Only **cash overspending** does. When a category is overspent by cash and
- *     card spending in the same month, the cash spending is counted first (YNAB: "takes the cash
- *     out first, since those dollars have actually left your bank account"); card spending
- *     explains only the rest. A split over several cards shares the credit part in proportion to
- *     the card spending. Categories with `rolloverOverspending` carry their overspending
- *     themselves, so their card spending is always moved in full.
+ *     card spending in the same month, the **card** spending explains the overspending first
+ *     (credit = min(overspending, net card spending)); cash only the rest. The real export shows
+ *     this in every month, although YNAB's help suggests the opposite. Over several cards the
+ *     credit part is the latest card spending of the month; refunds on a card first meet the
+ *     credit part (`shareCredit`). Categories with `rolloverOverspending` carry their
+ *     overspending themselves, so their card spending is always moved in full.
  *   - A transfer from such a card to a budget account without a card envelope (cash advance, e.g.
  *     paying an online wallet with the card) is new card debt and new money in "Zu verteilen";
  *     the card envelope does not move (YNAB help "Credit Card Cash Advances": the funds leave the
@@ -41,6 +47,9 @@ import { envelopeMonth, type EnvelopeMonth } from './envelope';
  * - Zu verteilen(m) = Σ cash balances at the end of m − Σ available(m) − held(m) − credit
  *   overspending(m). `held` is money kept for the next month. Credit overspending is subtracted
  *   in its own month because the category shows it as a negative available while no cash left.
+ *   This stock formula reproduces YNAB's Ready to Assign (it is exactly 0 in the real export's
+ *   fully assigned months); card bookings that move no envelope (`cardOffEnvelopeCents`) do not
+ *   reach it, so the flow formula corrects for them.
  */
 
 export interface LedgerAccount extends BalanceAccount {
@@ -108,6 +117,13 @@ export interface BudgetMonth {
   assignedCents: number;
   /** Net uncategorised money into "Zu verteilen" this month (income, refunds, outflows). */
   incomeCents: number;
+  /**
+   * Card bookings of the month that move no card envelope and so never reach "Zu verteilen"
+   * (YNAB): minus income booked on a card (it lowers the debt; the envelope keeps the money), plus
+   * spending paid from a positive card balance (the overpayment that made the balance was cash
+   * overspending). Only the flow formula needs it; see `toBeAssignedFlow`.
+   */
+  cardOffEnvelopeCents: number;
   /** Cash overspending of the previous month that was not carried (reduces this month). */
   uncoveredCents: number;
   heldCents: number;
@@ -169,13 +185,12 @@ export function budgetMonths(input: BudgetInput): BudgetMonth[] {
     activity.set(month, row);
   };
   // Categorised spending per month, category and card (only cards with an envelope).
-  const onCard = new Map<string, Map<string, Map<string, number>>>();
+  const onCard = new Map<string, Map<string, CardRow[]>>();
   const rule: CardRule = input.cardRule ?? 'ynab';
   const cashIds = new Set(cashAccounts.map((a) => a.id));
-  for (const s of splits) {
+  const effects = splits.map((s) => {
     if (!Number.isSafeInteger(s.amountCents))
       throw new RangeError(`Amounts are integer cents, got ${String(s.amountCents)}`);
-    const month = s.date.slice(0, 7);
     const partner = s.transferAccountId ?? '';
     // Cash advance (YNAB): money from a card into a budget account is new card debt and new money
     // to assign; the card envelope does not move.
@@ -188,18 +203,37 @@ export function budgetMonths(input: BudgetInput): BudgetMonth[] {
       : advanceOut
         ? { kind: 'neutral' }
         : splitEffect(s, onBudget, live);
+    return { effect, advanceOut };
+  });
+  const offEnvelope = new Map<string, number>();
+  const unmoved =
+    rule === 'ynab' ? creditBalanceCover(input.accounts, cardEnvelope, splits, effects) : [];
+  splits.forEach((s, i) => {
+    const { effect, advanceOut } = effects[i] as (typeof effects)[number];
+    const month = s.date.slice(0, 7);
     if (effect.kind === 'activity') add(month, effect.categoryId, s.amountCents);
     if (effect.kind === 'income') income.set(month, (income.get(month) ?? 0) + s.amountCents);
     const card = cardEnvelope.get(s.accountId);
-    if (card && !advanceOut) add(month, card, -s.amountCents);
-    if (card && effect.kind === 'activity') {
-      const byCategory = onCard.get(month) ?? new Map<string, Map<string, number>>();
-      const byCard = byCategory.get(effect.categoryId) ?? new Map<string, number>();
-      byCard.set(s.accountId, (byCard.get(s.accountId) ?? 0) + s.amountCents);
-      byCategory.set(effect.categoryId, byCard);
+    if (!card || advanceOut) return;
+    // YNAB: income on a card ("Ready to Assign", e.g. a balance adjustment) leaves the card
+    // envelope alone, like a cash advance.
+    if (rule === 'ynab' && effect.kind === 'income') {
+      offEnvelope.set(month, (offEnvelope.get(month) ?? 0) + s.amountCents);
+      return;
+    }
+    // The part of a categorised card booking that a positive card balance covers is cash-like.
+    const debt = s.amountCents - (unmoved[i] ?? 0);
+    if (debt !== s.amountCents)
+      offEnvelope.set(month, (offEnvelope.get(month) ?? 0) + s.amountCents - debt);
+    add(month, card, -debt);
+    if (effect.kind === 'activity' && debt !== 0) {
+      const byCategory = onCard.get(month) ?? new Map<string, CardRow[]>();
+      const rows = byCategory.get(effect.categoryId) ?? [];
+      rows.push({ card: s.accountId, cents: debt, date: s.date, index: i });
+      byCategory.set(effect.categoryId, rows);
       onCard.set(month, byCategory);
     }
-  }
+  });
   const cardCategories = new Set(cardEnvelope.values());
   // Spending categories first: their credit overspending decides what the card envelopes get.
   const ordered = [
@@ -237,15 +271,14 @@ export function budgetMonths(input: BudgetInput): BudgetMonth[] {
         // A card envelope does not receive the card spending that no category could cover.
         activityCents: (activity.get(month)?.get(c.id) ?? 0) - unfunded,
       });
-      const byCard = onCard.get(month)?.get(c.id);
-      const cardNet = [...(byCard?.values() ?? [])].reduce((a, v) => a + v, 0);
+      const cardRows = onCard.get(month)?.get(c.id);
+      const cardNet = (cardRows ?? []).reduce((a, r) => a + r.cents, 0);
       const overspent = e.overspentCents;
       let credit = 0;
-      if (rule === 'ynab' && overspent > 0 && !c.rolloverOverspending && byCard) {
-        // Cash spending of the month explains the overspending first, card spending the rest.
-        const cashSpend = Math.max(0, -(e.activityCents - cardNet));
-        credit = Math.min(Math.max(0, overspent - cashSpend), Math.max(0, -cardNet));
-        shareCredit(credit, byCard, cards);
+      if (rule === 'ynab' && overspent > 0 && !c.rolloverOverspending && cardRows) {
+        // Card spending of the month explains the overspending first, cash spending the rest.
+        credit = Math.min(overspent, Math.max(0, -cardNet));
+        shareCredit(credit, cardRows, cards);
       }
       envelopes[c.id] = {
         ...e,
@@ -275,6 +308,7 @@ export function budgetMonths(input: BudgetInput): BudgetMonth[] {
       availableCents,
       assignedCents,
       incomeCents: income.get(month) ?? 0,
+      cardOffEnvelopeCents: -(offEnvelope.get(month) ?? 0) || 0,
       uncoveredCents,
       heldCents,
       toBeAssignedCents: cashCents - availableCents - heldCents - creditOverspentCents,
@@ -287,31 +321,92 @@ export function budgetMonths(input: BudgetInput): BudgetMonth[] {
 }
 
 /**
- * Share the credit overspending of one category over the cards it was spent on, in proportion to
- * the card spending (largest remainder, integer cents).
+ * YNAB: a card with a positive balance (paid in advance) pays categorised spending from that
+ * balance first; that part creates no debt, so it neither moves into the card envelope nor counts
+ * as card spending. Symmetrically, the part of a refund that lifts the balance above 0 does not
+ * move back. For the rows of one card (any order): the signed amount of each row that stays out
+ * of the envelope (0 for rows that are not categorised spending or refunds). Rows are taken by
+ * date and within a day by amount, largest outflow first (the order of YNAB's register export;
+ * the real export only reconciles with it), then in the given order.
+ */
+export function cardBalanceCover(
+  openingBalanceCents: number,
+  rows: ReadonlyArray<{ date: string; amountCents: number; categorised: boolean }>,
+): number[] {
+  const out: number[] = new Array<number>(rows.length).fill(0);
+  const order = rows
+    .map((r, i) => ({ r, i }))
+    .sort(
+      (x, y) => x.r.date.localeCompare(y.r.date) || x.r.amountCents - y.r.amountCents || x.i - y.i,
+    );
+  let balance = openingBalanceCents;
+  for (const { r, i } of order) {
+    if (r.categorised) out[i] = Math.max(0, balance + r.amountCents) - Math.max(0, balance) || 0;
+    balance += r.amountCents;
+  }
+  return out;
+}
+
+function creditBalanceCover(
+  accounts: ReadonlyArray<LedgerAccount>,
+  cardEnvelope: ReadonlyMap<string, string>,
+  splits: ReadonlyArray<LedgerSplit>,
+  effects: ReadonlyArray<{ effect: SplitEffect }>,
+): number[] {
+  const out: number[] = new Array<number>(splits.length).fill(0);
+  for (const a of accounts) {
+    if (!cardEnvelope.has(a.id)) continue;
+    const index = splits.flatMap((s, i) => (s.accountId === a.id ? [i] : []));
+    const cover = cardBalanceCover(
+      a.openingBalanceCents,
+      index.map((i) => ({
+        date: (splits[i] as LedgerSplit).date,
+        amountCents: (splits[i] as LedgerSplit).amountCents,
+        categorised: effects[i]?.effect.kind === 'activity',
+      })),
+    );
+    index.forEach((i, k) => (out[i] = cover[k] as number));
+  }
+  return out;
+}
+
+interface CardRow {
+  card: string;
+  /** Debt part of a categorised card split (negative: spending, positive: refund). */
+  cents: number;
+  date: string;
+  /** Position in the input: orders rows of one day with the same amount. */
+  index: number;
+}
+
+/**
+ * Share the credit overspending of one category over the cards it was spent on (YNAB, real
+ * export): the latest card spending of the month is the unfunded part (within a day, in the
+ * order of `cardBalanceCover`: the smallest outflow counts as the latest). Refunds on a card first
+ * reduce credit overspending: `credit` plus the refunds (at most the spending) is laid on the
+ * spending from the latest row backwards, then the refunds take their part back from the latest
+ * refund backwards (a card whose refund met credit overspending gets negative debt growth: the
+ * refund stays in its envelope instead of moving back to the category).
  */
 function shareCredit(
   credit: number,
-  byCard: ReadonlyMap<string, number>,
+  rows: ReadonlyArray<CardRow>,
   cards: Record<string, { cardDebtGrowthCents: number }>,
 ): void {
-  if (credit === 0) return;
-  const spending = [...byCard].map(([card, cents]) => ({ card, spend: Math.max(0, -cents) }));
-  const total = spending.reduce((a, x) => a + x.spend, 0);
-  const parts = spending.map((x) => ({ ...x, cents: Math.floor((credit * x.spend) / total) }));
-  let left = credit - parts.reduce((a, x) => a + x.cents, 0);
-  const byRemainder = [...parts].sort(
-    (a, b) =>
-      ((credit * b.spend) % total) - ((credit * a.spend) % total) || a.card.localeCompare(b.card),
+  const latestFirst = [...rows].sort(
+    (a, b) => b.date.localeCompare(a.date) || b.cents - a.cents || b.index - a.index,
   );
-  for (const p of byRemainder) {
-    if (left <= 0) break;
-    p.cents += 1;
-    left -= 1;
-  }
-  for (const p of parts) {
-    const entry = cards[p.card];
-    if (entry) entry.cardDebtGrowthCents += p.cents;
+  const spent = rows.reduce((a, r) => a + Math.max(0, -r.cents), 0);
+  const refunded = rows.reduce((a, r) => a + Math.max(0, r.cents), 0);
+  let lay = Math.min(credit + refunded, spent);
+  let back = lay - credit;
+  for (const r of latestFirst) {
+    const entry = cards[r.card];
+    if (!entry) continue;
+    const part = r.cents < 0 ? Math.min(lay, -r.cents) : -Math.min(back, r.cents);
+    if (r.cents < 0) lay -= part;
+    else back += part;
+    entry.cardDebtGrowthCents += part;
   }
 }
 
@@ -328,6 +423,8 @@ export function toBeAssignedFlow(input: {
   uncoveredCents: number;
   heldPreviousCents?: number;
   heldCents?: number;
+  /** `BudgetMonth.cardOffEnvelopeCents` of this month. */
+  cardOffEnvelopeCents?: number;
 }): number {
   return (
     input.previousCents +
@@ -335,6 +432,7 @@ export function toBeAssignedFlow(input: {
     input.assignedCents -
     input.uncoveredCents +
     (input.heldPreviousCents ?? 0) -
-    (input.heldCents ?? 0)
+    (input.heldCents ?? 0) +
+    (input.cardOffEnvelopeCents ?? 0)
   );
 }

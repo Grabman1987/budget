@@ -1,5 +1,5 @@
 import { Field, TextInput, cx } from '@budget/ui';
-import { useId, useMemo, useState, type ReactNode, type Ref } from 'react';
+import { useId, useLayoutEffect, useMemo, useRef, useState, type ReactNode, type Ref } from 'react';
 
 export interface ComboOption {
   id: string;
@@ -28,6 +28,8 @@ export interface ComboboxProps {
   /** Text the list is filtered by when it differs from what the field shows (default: the value). */
   filter?: string;
   onFocusChange?: (focused: boolean) => void;
+  /** With text typed, the first match is highlighted, so Enter picks it (category search). */
+  pickFirst?: boolean;
 }
 
 const fold = (text: string) => text.toLocaleLowerCase('de-AT').trim();
@@ -37,7 +39,7 @@ const MAX_OPTIONS = 60;
  * Text field with a suggestion list (WAI-ARIA combobox, list below the field, no popover so it
  * never leaves the sheet). Arrow keys move, Enter picks the highlighted option, Esc closes the
  * list first and only then the panel. With no highlighted option Enter is left to the form
- * (which moves to the next field).
+ * (which moves to the next field). `pickFirst` makes the first match the highlighted one.
  */
 export function Combobox({
   label,
@@ -53,11 +55,20 @@ export function Combobox({
   type = 'text',
   filter,
   onFocusChange,
+  pickFirst = false,
 }: ComboboxProps) {
   const listId = useId();
   const [focused, setFocused] = useState(false);
   const [active, setActive] = useState(-1);
   const [dismissed, setDismissed] = useState(false);
+  // The text is selected on focus. A value that changes in the same moment (the payee's default
+  // category, set as the payee field is left) would drop that selection, so it is redone after
+  // the render.
+  const selectAfterRender = useRef<HTMLInputElement | null>(null);
+  useLayoutEffect(() => {
+    selectAfterRender.current?.select();
+    selectAfterRender.current = null;
+  });
 
   const shown = useMemo(() => {
     const q = fold(filter ?? value);
@@ -76,7 +87,13 @@ export function Combobox({
     !dismissed &&
     (shown.length > 0 || (emptyText !== undefined && (filter ?? value).trim() !== ''));
   const optionId = (index: number) => `${listId}-${index}`;
-  const activeIndex = Math.min(active, shown.length - 1);
+  // Without arrow keys, `pickFirst` highlights the first match once something is typed.
+  const activeIndex =
+    active >= 0
+      ? Math.min(active, shown.length - 1)
+      : pickFirst && fold(filter ?? value) !== '' && shown.length > 0
+        ? 0
+        : -1;
 
   const pick = (option: ComboOption) => {
     onSelect(option);
@@ -107,6 +124,7 @@ export function Combobox({
               setDismissed(false);
               onFocusChange?.(true);
               e.currentTarget.select();
+              selectAfterRender.current = e.currentTarget;
             }}
             onBlur={() => {
               setFocused(false);
@@ -125,7 +143,9 @@ export function Combobox({
               if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
                 e.preventDefault();
                 const n = shown.length;
-                setActive((i) => (e.key === 'ArrowDown' ? (i + 1) % n : (i - 1 + n) % n));
+                setActive(
+                  e.key === 'ArrowDown' ? (activeIndex + 1) % n : (activeIndex - 1 + n) % n,
+                );
               } else if (e.key === 'Enter' && activeIndex >= 0) {
                 // Picking is not "move on": the form's Enter handler must not fire as well.
                 e.preventDefault();

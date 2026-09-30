@@ -8,6 +8,7 @@ export {
 export { envelopeMonth, envelopeSeries, type EnvelopeInput, type EnvelopeMonth } from './envelope';
 export {
   budgetMonths,
+  cardBalanceCover,
   splitEffect,
   toBeAssignedFlow,
   type BudgetEnvelope,

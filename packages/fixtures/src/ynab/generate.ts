@@ -243,7 +243,32 @@ const EVENTS: Record<string, Event[]> = {
     ['transfer', 'Forderung Kontakt A', GIRO, 20, 20000, 'Auslagen Kontakt A', 'Rückzahlung'],
   ],
   '2025-02': [['row', 'Bargeld', 28, 'Reconciliation Balance Adjustment', 500, 'Ready to Assign']],
-  '2025-06': [['transfer', 'Altes Girokonto', GIRO, 30, 'close', null, 'Auflösung']],
+  // Card rules found with the owner's real export (30.09.2026), figures checked by hand in
+  // ynab-export.test.ts. April: the credit overspending is the latest card spending (all on Grün,
+  // not shared with Blau), and a refund on Blau meets Bücher's credit overspending.
+  '2025-04': [
+    ['assign', 'Elektronik', 10000],
+    ['row', BLUE, 5, 'Elektronikmarkt', -6000, 'Elektronik'],
+    ['row', GREEN, 20, 'Elektronikmarkt', -12000, 'Elektronik'],
+    ['row', GREEN, 12, 'Buchhandlung', -3500, 'Bücher'],
+    ['row', BLUE, 22, 'Buchhandlung', 3000, 'Bücher', 'Rückgabe'],
+  ],
+  // May: Grün overpaid (positive balance), spending paid from it, a payment and a spend on one
+  // day (largest outflow first), and income on the card (balance adjustment, Ready to Assign).
+  '2025-05': [
+    ['transfer', GIRO, GREEN, 3, 20500],
+    ['assign', 'Kfz-Service', 6000],
+    ['row', GREEN, 10, 'Werkstatt', -8000, 'Kfz-Service'],
+    ['transfer', GIRO, GREEN, 17, 6000],
+    ['assign', 'Kfz-Service', 2000],
+    ['row', GREEN, 17, 'Werkstatt', -2000, 'Kfz-Service'],
+    ['row', GREEN, 28, 'Reconciliation Balance Adjustment', 500, 'Ready to Assign'],
+  ],
+  // The remaining 15 € go back to the current account (a cash advance); the card is closed.
+  '2025-06': [
+    ['transfer', GREEN, GIRO, 5, 1500],
+    ['transfer', 'Altes Girokonto', GIRO, 30, 'close', null, 'Auflösung'],
+  ],
 };
 /** Future-dated, uncleared rows on the current account (YNAB exports them, up to 5 months ahead). */
 const SCHEDULED: [string, string, string, number][] = [

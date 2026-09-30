@@ -49,7 +49,7 @@ function Overlay({
 
   return (
     // The backdrop click is a pointer convenience only; the keyboard closes with Esc (native).
-    // eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-noninteractive-element-interactions
+    // eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions
     <dialog
       ref={ref}
       className={cx('overlay', variant === 'side' ? 'panel' : 'sheet-bottom')}
@@ -58,6 +58,13 @@ function Overlay({
       // Esc: the native cancel event, stopped while the guard wants the panel to stay.
       onCancel={(e) => {
         if (beforeClose && !beforeClose()) e.preventDefault();
+      }}
+      // Chrome only fires `cancel` for an Esc that follows a user interaction: a repeated Esc
+      // would close the dialog without the question. Handling the key itself always asks.
+      onKeyDown={(e) => {
+        if (e.key !== 'Escape' || e.defaultPrevented) return;
+        e.preventDefault();
+        requestClose();
       }}
       onClick={(e) => {
         // A click on the dialog element itself (not its content) is a click on the backdrop.

@@ -16,9 +16,11 @@ const OPTIONS: ComboOption[] = [
 function Harness({
   onSelect,
   onParentKey,
+  pickFirst = false,
 }: {
   onSelect: (o: ComboOption) => void;
   onParentKey?: () => void;
+  pickFirst?: boolean;
 }) {
   const [text, setText] = useState('');
   return (
@@ -31,6 +33,7 @@ function Harness({
         options={OPTIONS}
         onSelect={onSelect}
         listWhenEmpty
+        pickFirst={pickFirst}
       />
     </div>
   );
@@ -65,6 +68,30 @@ describe('Combobox', () => {
     await user.click(screen.getByRole('combobox', { name: 'Kategorie' }));
     await user.keyboard('{Enter}');
     expect(onParentKey).toHaveBeenCalledTimes(1);
+  });
+
+  it('pickFirst: Enter after typing picks the first match; without typing it moves on', async () => {
+    const onSelect = vi.fn();
+    const onParentKey = vi.fn();
+    const user = userEvent.setup();
+    render(<Harness onSelect={onSelect} onParentKey={onParentKey} pickFirst />);
+    const field = screen.getByRole('combobox', { name: 'Kategorie' });
+    await user.click(field);
+    await user.keyboard('{Enter}');
+    expect(onSelect).not.toHaveBeenCalled();
+    expect(onParentKey).toHaveBeenCalledTimes(1);
+    await user.keyboard('mie{Enter}');
+    expect(onSelect).toHaveBeenCalledWith(expect.objectContaining({ id: 'miete' }));
+    expect(onParentKey).toHaveBeenCalledTimes(1);
+  });
+
+  it('without pickFirst a typed, unhighlighted match is not picked (payee names stay free)', async () => {
+    const onSelect = vi.fn();
+    const user = userEvent.setup();
+    render(<Harness onSelect={onSelect} />);
+    await user.click(screen.getByRole('combobox', { name: 'Kategorie' }));
+    await user.keyboard('mie{Enter}');
+    expect(onSelect).not.toHaveBeenCalled();
   });
 
   it('Esc closes the list first and does not reach the panel', async () => {

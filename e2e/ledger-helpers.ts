@@ -1,18 +1,43 @@
-import { expect, type Locator, type Page } from '@playwright/test';
+import { expect, type Locator, type Page, type TestInfo } from '@playwright/test';
 
 /** Helpers shared by the ledger and capture specs. */
 
 /** The open toast (the dialog hosts its own region, the page has another one). */
 export const toast = (page: Page) => page.locator('.toast.is-open');
 
+/**
+ * Suffix for names a test creates: a retry (or a repeat) starts on the same database, so the
+ * accounts of the earlier attempt are still there and a second one with the same name would be
+ * ambiguous.
+ */
+export const again = (info: TestInfo) => {
+  const n = info.retry + info.repeatEachIndex;
+  return n > 0 ? ` r${n}` : '';
+};
+
+/**
+ * `page.goto` that survives a client-side navigation still in flight: Chrome then aborts the
+ * load (net::ERR_ABORTED) although nothing is wrong, so it is tried again.
+ */
+export const visit = async (page: Page, url: string) => {
+  for (let attempt = 0; ; attempt += 1) {
+    try {
+      await page.goto(url);
+      return;
+    } catch (error) {
+      if (attempt >= 2 || !String(error).includes('ERR_ABORTED')) throw error;
+    }
+  }
+};
+
 export const openAccount = async (page: Page, name: string) => {
-  await page.goto('/konten');
+  await visit(page, '/konten');
   await page.getByRole('link', { name, exact: true }).click();
   await expect(page.getByRole('heading', { level: 2, name })).toBeVisible();
 };
 
 export const createAccount = async (page: Page, name: string, type: string, opening: string) => {
-  await page.goto('/konten');
+  await visit(page, '/konten');
   await page.getByRole('button', { name: 'Konto anlegen', exact: true }).first().click();
   const dialog = page.getByRole('dialog', { name: 'Konto anlegen' });
   await dialog.getByLabel('Name', { exact: true }).fill(name);
