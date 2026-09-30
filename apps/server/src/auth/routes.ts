@@ -193,6 +193,13 @@ export function createAuth(deps: AuthDeps) {
     return next();
   };
 
+  /** After `requireSession`: sensitive writes need a step-up of the last few minutes. */
+  const requireStepUp: MiddlewareHandler<Env> = async (c, next) => {
+    const session = c.get('session');
+    if (!session || !stepUpFresh(session)) return fail(c, 403, 'step_up_required');
+    return next();
+  };
+
   // ---------- routes ----------
   const routes = new Hono<Env>();
   routes.use('*', async (c, next) => {
@@ -514,7 +521,7 @@ export function createAuth(deps: AuthDeps) {
     return json(c, 200, { ok: true });
   });
 
-  return { routes, originGuard, requireSession, readSession, events };
+  return { routes, originGuard, requireSession, requireStepUp, readSession, events };
 }
 
 export type Auth = ReturnType<typeof createAuth>;

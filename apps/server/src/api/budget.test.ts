@@ -14,6 +14,7 @@ let app: ReturnType<typeof createApp>;
 const signedIn: AuthGate = {
   originGuard: async (_c, next) => next(),
   requireSession: async (_c, next) => next(),
+  requireStepUp: async (_c, next) => next(),
   routes: new Hono(),
 };
 

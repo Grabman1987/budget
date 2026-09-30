@@ -53,3 +53,34 @@ category is not part of what Kontostand prüfen checked.
 | `PUT /budget/:month/assigned` | `{ items: [{ categoryId, assignedCents }] }` in one undo group (e.g. "Ziele füllen") |
 | `POST /budget/:month/move` | `{ fromId, toId, amountCents > 0 }`; `null` is "Zu verteilen" |
 | `POST /budget/:month/cover` | `{ categoryId, fromId, allowNegative? }`: covers the overspending from another envelope (at most its available) or from "Zu verteilen" (`null`, at most what it holds; the full amount only with `allowNegative: true`, which takes it below 0); answers `coveredCents`. Nothing to cover from is 422 `category_rule` |
+
+## YNAB import (P2d)
+
+Import runs of the YNAB export (`docs/migration/ynab-export.md`), below `/api/imports`. Source:
+`apps/server/src/imports/`. The two files live only in the database (raw staging rows per run,
+text 1:1 after the CESU-8 repair) until the run is deleted; nothing of their rows is logged, errors
+name file, line and a code. Body limit 20 MB for the upload, 2 MB for the other import calls.
+Calls marked **step-up** answer 403 `step_up_required` without a step-up of the last 5 minutes.
+
+Errors add `parse` (422, `file`, `line`, `code`), `files` (400), `no_staging` (409, the files of
+the run were deleted), `run_closed` (409, the run is committed or reverted), `import_problems`
+(422, with `problems`), `not_committed` and `newer_run` (409).
+
+| Endpoint | Purpose |
+| --- | --- |
+| `GET /imports` | Runs, newest first: status (`staged`, `dry_run`, `committed`, `reverted`), file names, mapping version, times, `summary` (counts, number of differences, change counts) |
+| `POST /imports/ynab` **step-up** | Multipart with both files (`… - Register.tsv`, `… - Plan.tsv`, matched by suffix). Stages the rows as a new run; answers `run`, `sameExportAs` (runs with the same SHA-256) and `overview` |
+| `GET /imports/:id` | `run` and `overview` of the raw layer: `asOf`, `months`, accounts with proposals, categories with `count` and `years` (split sums per year), payees with counts, `problems` |
+| `GET /imports/:id/mapping`, `PUT /imports/:id/mapping` | The latest mapping document (the zod `mappingSchema` of `packages/import-ynab`; export as JSON). Without a saved one: the latest of an earlier run, else the proposal (`proposed: true`: identity mapping, hidden categories in their original group, start 2023-10). `PUT` validates (400 with `issues`) and saves a new version (import of a JSON document) |
+| `POST /imports/:id/preview` `{ mapping }` | Unsaved draft: `problems`, `structure` (per target category: YNAB sources, splits, sums per year after the rules), `rules` (per rule: affected splits, sum, up to 50 examples) |
+| `POST /imports/:id/dry-run` | With the latest mapping: `problems`, `reconciliation` (Gate 2: `differences` by check, account/category and month, `moved` by rules, `creditShift`, `checked` counts), `structure`, target `accounts` with opening balances, `change` (what a commit would write: bookings `added` / `unchanged` / `updated` / `skipped` / `missing`, accounts, categories, payees, assigned months) and `ledger` (the app's budget after the write against the target model). The write runs in a transaction that is rolled back |
+| `POST /imports/:id/commit` `{ deleteMissing? }` **step-up** | The same write for real: one transaction, audit group `import:<run id>`, bookings with `source: 'migration'`, the run id and an import key. Refused with `import_problems` while the dry run has errors. `deleteMissing: true` deletes the `missing` bookings of earlier runs (reconciled ones stay) |
+| `GET /imports/:id/report` | Gate 2 report page: like the dry run without writing; for a committed run `ledger` compares the app's data with the target model |
+| `POST /imports/:id/revert` `{ force? }` **step-up** | Undo of the whole run (only the newest committed run; refused as `undo_refused` when something it wrote was changed later, unless `force`). The import keys of its bookings are retired, so the same export can be committed again |
+| `DELETE /imports/:id` **step-up** | Deletes the staged files and mapping versions; a run that wrote nothing is removed completely (`deleted: 'run'`), a committed or reverted one keeps its row (`'staging'`) |
+
+Re-import of a newer export: a new run (the mapping of the previous run is offered), accounts and
+categories of the latest committed run are reused by their mapping ids, bookings with a known key
+are left alone (also when the owner deleted them) or get the new status and flag, new keys are
+added (a transfer only with both legs), assigned amounts follow the new export (negative
+amounts included). Changing the mapping of committed data needs a revert and a new commit.
