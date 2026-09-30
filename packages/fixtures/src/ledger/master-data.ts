@@ -331,6 +331,8 @@ export function masterData(): Pick<
     id: securityId(p.id),
     name: p.name,
     kind: kindOf[p.cls],
+    // Synthetic quote id for the daily price refresh; the P2P loans are valued by hand.
+    symbol: p.cls === 'P2P' ? null : `SYN-${p.id.toUpperCase()}`,
     terBp: Math.round(p.ter * 10000),
     assetClassId: classOf[p.id] ?? null,
     institutionId: platform[p.plat] ?? null,
