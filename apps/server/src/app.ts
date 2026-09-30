@@ -6,6 +6,7 @@ import { Hono } from 'hono';
 import { bodyLimit } from 'hono/body-limit';
 import { secureHeaders } from 'hono/secure-headers';
 import type { Auth } from './auth/routes';
+import { createLedgerApi } from './api';
 import { debugSummary } from './debug-summary';
 
 export interface AppOptions {
@@ -15,6 +16,8 @@ export interface AppOptions {
   database?: Db | undefined;
   /** Passkey login: session guard and /api/auth. Without it there are no API routes at all. */
   auth?: Auth | undefined;
+  /** The ledger (accounts, bookings, payees): mounted below `/api`, behind the session guard. */
+  ledger?: { db: Db; today?: () => string } | undefined;
 }
 
 /**
@@ -49,7 +52,7 @@ export const PERMISSIONS_POLICY = {
   usb: false,
 };
 
-export function createApp({ webDir, database, auth }: AppOptions): Hono {
+export function createApp({ webDir, database, auth, ledger }: AppOptions): Hono {
   const app = new Hono();
   const root = resolve(webDir);
   // serveStatic resolves `root` against the current working directory.
@@ -86,6 +89,8 @@ export function createApp({ webDir, database, auth }: AppOptions): Hono {
     app.route('/api/auth', auth.routes);
     app.use('/api/*', auth.requireSession);
   }
+
+  if (ledger) app.route('/api', createLedgerApi(ledger));
 
   // Read-only seed check. Only mounted when a database is passed in (BUDGET_DEBUG_API=1), never
   // on by default; auth (P1e) has to sit in front of it before it may run anywhere public.
