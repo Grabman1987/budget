@@ -43,7 +43,7 @@ jobs:
         run: |
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add -A -- 'e2e/*-snapshots'
+          git add -A -- e2e
           if git diff --cached --quiet; then echo 'No baseline changes.'; exit 0; fi
           git commit -m 'test: update e2e screenshot baselines (Linux)'
           git push origin "HEAD:refs/heads/$BRANCH"
