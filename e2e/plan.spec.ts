@@ -133,3 +133,90 @@ test('plan: assign, cover, card debt, move, undo, rollover, distribute', async (
   await expect(toast(page)).toContainText('300,00 € verteilt');
   await expect(available(page, food)).toHaveText('300,00 €');
 });
+
+test('plan: a negative assignment stays editable, Escape keeps it, Decken asks when short', async ({
+  page,
+}, testInfo) => {
+  const tag = `${testInfo.project.name}-${Date.now().toString(36).slice(-5)}`;
+  const { request } = page;
+  const group = (await post(request, '/categories/groups', { name: `Plan neg ${tag}` }))['group']!;
+  const name = `Rücklage N ${tag}`;
+  const category = (
+    await post(request, '/categories', { name, groupId: group.id, class: 'want', stage: 5 })
+  )['category']!;
+  const put = await request.put(`/api/budget/${month}/assigned`, {
+    data: { items: [{ categoryId: category.id, assignedCents: -5_000 }] },
+    headers: { origin: MAIN_URL },
+  });
+  expect(put.ok(), await put.text()).toBe(true);
+  const writes: string[] = [];
+  page.on('request', (r) => {
+    if (r.method() !== 'GET' && r.url().includes('/api/budget/')) writes.push(r.url());
+  });
+
+  await page.goto(`/plan/monat?monat=${month}`);
+  const field = page.getByLabel(`Zugewiesen für ${name}. Rechnen erlaubt, +50 addiert.`);
+  const edit = () =>
+    row(page, name)
+      .getByRole('button', { name: /^Zugewiesen .* ändern$/ })
+      .click();
+  // The pre-filled "−50,00" is the value, not "50 less": Enter keeps it and writes nothing.
+  await edit();
+  await expect(field).toHaveValue('−50,00');
+  await page.keyboard.press('Enter');
+  await expect(field).toHaveCount(0);
+  // Escape leaves without writing, also not through the blur of the field going away.
+  await edit();
+  await page.keyboard.type('99');
+  await page.keyboard.press('Escape');
+  await expect(field).toHaveCount(0);
+  await expect(row(page, name).locator('.col-assign')).toContainText('−50,00 €');
+  expect(writes).toEqual([]);
+  // A sign typed first is a change: −50 + 20 = −30, written once (Enter, not again on blur).
+  await edit();
+  await page.keyboard.type('+20');
+  await page.keyboard.press('Enter');
+  await expect(toast(page)).toContainText(`${name}: −50,00 € → −30,00 € zugewiesen`);
+  expect(writes).toHaveLength(1);
+
+  // Decken from "Zu verteilen" never goes below 0 silently: more card debt than it holds asks.
+  const view = (await (await request.get(`/api/budget/${month}`)).json()) as {
+    summary: { toBeAssignedCents: number };
+  };
+  const tba = view.summary.toBeAssignedCents;
+  // A fresh envelope, so the card spending is credit overspending (new card debt): cash
+  // overspending would lower next month's "Zu verteilen" for the other tests.
+  const trip = `Urlaub N ${tag}`;
+  const tripCat = (
+    await post(request, '/categories', { name: trip, groupId: group.id, class: 'want', stage: 5 })
+  )['category']!;
+  const card = (
+    await post(request, '/accounts', {
+      name: `Karte neg ${tag}`,
+      type: 'credit_card',
+      openingDate: `${month}-01`,
+    })
+  )['account']!;
+  await post(request, '/bookings', {
+    type: 'booking',
+    accountId: card.id,
+    date: today,
+    // Far more than "Zu verteilen" holds, even if other tests add money meanwhile.
+    amountCents: -(Math.max(tba, 0) + 100_000_000),
+    categoryId: tripCat.id,
+  });
+  await page.reload();
+  const triage = page.locator('.triage tr', { hasText: `${trip}: neue Kartenschuld` });
+  await page.getByLabel(`Aus Envelope für ${trip}`).selectOption({ index: 0 });
+  await triage.getByRole('button', { name: 'Decken' }).click();
+  const choice = page.getByRole('group', { name: 'Decken aus Zu verteilen' });
+  await expect(
+    choice.getByRole('button', { name: 'Trotzdem ganz decken (Zu verteilen wird negativ)' }),
+  ).toBeVisible();
+  if (tba > 0) await expect(choice.getByRole('button', { name: /^Nur .* decken$/ })).toBeVisible();
+  const axe = await new AxeBuilder({ page }).include('main').analyze();
+  expect(axe.violations.map((v) => `${v.id}: ${v.nodes[0]?.target}`)).toEqual([]);
+  await choice.getByRole('button', { name: 'Abbrechen' }).click();
+  await expect(choice).toHaveCount(0);
+  expect(writes).toHaveLength(1);
+});
