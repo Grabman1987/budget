@@ -7,10 +7,12 @@ import {
   redirect,
 } from '@tanstack/react-router';
 import { authStatusQuery, queryClient } from './auth/status-query';
+import { accountsQuery } from './ledger/queries';
 import { findReport } from './nav/reports-catalog';
 import {
   ACCOUNT_PAGE,
   HEUTE,
+  KONTEN_META,
   PAGES,
   REPORTS_CATALOG,
   REPORT_GROUP_PAGES,
@@ -26,7 +28,8 @@ import { isPanelId, type PanelId } from './shell/panels';
 
 // Route-level code splitting: everything except the shell and the generic placeholder page is
 // loaded when its route is first visited. Each page module below becomes its own chunk.
-const accountPage = () => import('./pages/account-page');
+const accountPage = () => import('./ledger/account-page');
+const overviewPage = () => import('./ledger/overview-page');
 const reportsPages = () => import('./pages/reports-pages');
 
 const rootRoute = createRootRoute({
@@ -72,9 +75,16 @@ const redirectRoute = (path: string, to: string) =>
   });
 
 const homeRoute = pageRoute('/', HEUTE);
-const placeholderRoutes = PAGES.filter((page) => page.path !== SECURITY_META.path).map((page) =>
+const BUILT_PATHS = new Set<string>([SECURITY_META.path, '/konten']);
+const placeholderRoutes = PAGES.filter((page) => !BUILT_PATHS.has(page.path)).map((page) =>
   pageRoute(page.path, page),
 );
+const overviewRoute = createRoute({
+  getParentRoute: () => shellRoute,
+  path: '/konten',
+  staticData: { meta: KONTEN_META },
+  component: lazyRouteComponent(overviewPage, 'OverviewPage'),
+});
 const securityRoute = createRoute({
   getParentRoute: () => shellRoute,
   path: SECURITY_META.path,
@@ -91,7 +101,16 @@ const accountRoute = createRoute({
   getParentRoute: () => shellRoute,
   path: '/konten/$id',
   staticData: { meta: ACCOUNT_PAGE },
-  loader: ({ params }): PageTitleData => ({ title: `Konto ${params.id}` }),
+  // The title is the account name, so the document title is right from the first render.
+  loader: async ({ params }): Promise<PageTitleData> => {
+    try {
+      const { accounts } = await queryClient.fetchQuery({ ...accountsQuery(), staleTime: 5_000 });
+      const name = accounts.find((a) => a.id === params.id)?.name;
+      return name ? { title: name } : {};
+    } catch {
+      return {};
+    }
+  },
   component: lazyRouteComponent(accountPage, 'AccountRoute'),
 });
 
@@ -177,6 +196,7 @@ const routeTree = rootRoute.addChildren([
     ...placeholderRoutes,
     securityRoute,
     ...redirects,
+    overviewRoute,
     accountRoute,
     reportsRoute,
     reportGroupRoute,

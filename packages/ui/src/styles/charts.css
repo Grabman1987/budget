@@ -258,6 +258,11 @@ svg.chart {
 .chain-drawing.is-open .plot-line {
   animation: plot-draw var(--t-plot) var(--ease-out) both;
 }
+/* A data line drawn once when it appears; `pathLength` is 1 on the element. */
+.line-draw {
+  stroke-dasharray: 1;
+  animation: plot-draw var(--t-plot) var(--ease-out) both;
+}
 @keyframes plot-draw {
   from {
     stroke-dashoffset: 1;
@@ -267,6 +272,9 @@ svg.chart {
   }
 }
 @media (prefers-reduced-motion: reduce) {
+  .line-draw {
+    animation: none;
+  }
   .chain-drawing {
     transition: none;
   }

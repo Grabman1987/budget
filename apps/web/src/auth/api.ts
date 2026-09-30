@@ -4,19 +4,9 @@ import type {
   PublicKeyCredentialRequestOptionsJSON,
   RegistrationResponseJSON,
 } from '@simplewebauthn/browser';
+import { ApiError, request } from '../api/http';
 
-/** Error of an API call: HTTP status plus the machine-readable `error` code of the body. */
-export class ApiError extends Error {
-  readonly status: number;
-  readonly code: string;
-
-  constructor(status: number, code: string) {
-    super(`API ${status}: ${code}`);
-    this.name = 'ApiError';
-    this.status = status;
-    this.code = code;
-  }
-}
+export { ApiError };
 
 export interface AuthStatus {
   setupRequired: boolean;
@@ -38,39 +28,6 @@ export interface PasskeyList {
   recoveryCodesRemaining: number;
   /** Active sessions besides the calling one (other browsers, recovery-code logins). */
   otherSessions: number;
-}
-
-async function request<T>(method: 'GET' | 'POST' | 'DELETE', path: string, body?: unknown) {
-  let response: Response;
-  try {
-    response = await fetch(path, {
-      method,
-      credentials: 'same-origin',
-      ...(method === 'GET'
-        ? {}
-        : {
-            headers: { 'content-type': 'application/json' },
-            ...(body === undefined ? {} : { body: JSON.stringify(body) }),
-          }),
-    });
-  } catch {
-    // The server is unreachable; status 0 marks "no response at all".
-    throw new ApiError(0, 'network');
-  }
-  let payload: unknown;
-  try {
-    payload = await response.json();
-  } catch {
-    payload = undefined;
-  }
-  if (!response.ok) {
-    const code =
-      typeof payload === 'object' && payload !== null && 'error' in payload
-        ? String((payload as { error: unknown }).error)
-        : 'unknown';
-    throw new ApiError(response.status, code);
-  }
-  return payload as T;
 }
 
 const post = <T>(path: string, body: unknown = {}) => request<T>('POST', path, body);

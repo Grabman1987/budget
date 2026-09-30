@@ -1,0 +1,456 @@
+/* Konten: overview, single account, booking lists. Ported from design/prototype/styles.css. */
+
+.kview {
+  display: grid;
+  gap: 28px;
+  margin-top: -4px;
+}
+.kbar {
+  display: flex;
+  justify-content: flex-end;
+}
+.kbar .btn {
+  gap: 6px;
+}
+.kstate {
+  display: grid;
+  gap: 10px;
+  justify-items: start;
+}
+.kstate p {
+  margin: 0;
+}
+.spin {
+  animation: kspin 900ms linear infinite;
+}
+@keyframes kspin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .spin {
+    animation: none;
+  }
+}
+.fade-in {
+  animation: kfade 500ms var(--ease-out) both;
+  animation-delay: 380ms;
+}
+@keyframes kfade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .fade-in {
+    animation: none;
+  }
+}
+
+/* Net worth */
+.tbd-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+.tbd-head h2 {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 620;
+  letter-spacing: -0.01em;
+}
+.tbd-state {
+  font-size: 13px;
+  font-weight: 600;
+}
+.tbd-state span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.tbd-state .ok {
+  color: var(--line);
+}
+.tbd-state .ink {
+  color: var(--ink);
+}
+.tbd-fig {
+  font-size: 56px;
+  font-weight: 650;
+  letter-spacing: -0.03em;
+  line-height: 1.05;
+  margin: 10px 0 16px;
+  font-stretch: 96%;
+}
+
+/* Parts list of accounts and booking tables */
+.ktable {
+  width: 100%;
+  border-collapse: collapse;
+}
+.ktable thead th {
+  padding: 8px;
+  border-bottom: 1px solid var(--line-2);
+  text-align: left;
+  font-size: 11px;
+}
+.ktable td {
+  padding: 12px 8px;
+  border-bottom: 1px solid var(--rule);
+  vertical-align: middle;
+}
+.ktable th.kc-num {
+  text-align: right;
+}
+.kc-pos {
+  width: 56px;
+}
+.kc-num {
+  width: 150px;
+  text-align: right;
+  white-space: nowrap;
+  font-weight: 620;
+}
+.kc-line {
+  width: 200px;
+  white-space: nowrap;
+}
+.kmini {
+  display: inline-block;
+  width: 120px;
+  height: 30px;
+  vertical-align: middle;
+  overflow: visible;
+}
+.kmini .l-actual {
+  stroke-width: 1.5;
+}
+.kmini .l-plan {
+  stroke-width: 1;
+}
+.kdelta {
+  display: inline-block;
+  min-width: 56px;
+  margin-left: 8px;
+  text-align: right;
+  font-family: var(--font-tech);
+  font-size: 12.5px;
+  letter-spacing: 0.03em;
+  color: var(--ink-2);
+}
+.kgroup td {
+  background: var(--ground-2);
+  border-bottom: 1px solid var(--line-2);
+  font-weight: 620;
+}
+.kgroup.is-flash td {
+  background: var(--tint-2);
+}
+.grp-title {
+  font-weight: 640;
+  font-size: 14.5px;
+}
+.grp-sub {
+  margin-left: 8px;
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--ink-3);
+}
+.krow:hover td {
+  background: var(--tint);
+}
+.kname {
+  font-weight: 600;
+  color: var(--ink);
+  text-decoration: none;
+  border-radius: 4px;
+}
+.kname:hover {
+  color: var(--line);
+  text-decoration: underline;
+}
+.kmeta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+  margin: 3px 0 0;
+  font-size: 12.5px;
+  color: var(--ink-3);
+}
+.kutil {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 6px;
+  font-size: 12px;
+  color: var(--ink-3);
+}
+.kutil .pbar {
+  position: relative;
+  display: block;
+  width: 120px;
+  height: 6px;
+  background: var(--tint-2);
+  border-radius: 1px;
+}
+.kutil .pbar-fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  background: var(--need);
+}
+.ksum {
+  margin: 12px 0 4px;
+  font-size: 13px;
+  color: var(--ink-2);
+}
+
+/* Single account */
+.kback {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-bottom: 14px;
+  color: var(--ink-2);
+  text-decoration: none;
+  font-weight: 560;
+  border-radius: 4px;
+}
+.kback:hover {
+  color: var(--line);
+}
+.kacct-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+.kacct-head h2 {
+  margin: 0;
+  font-size: 26px;
+  font-weight: 650;
+  letter-spacing: -0.02em;
+}
+.kacct-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.kfigs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px 40px;
+  margin: 20px 0 8px;
+}
+.fig {
+  display: grid;
+  gap: 2px;
+}
+.fig strong {
+  font-size: 24px;
+  font-weight: 640;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+}
+.fig strong.muted {
+  color: var(--ink-2);
+  font-weight: 560;
+}
+.fig small {
+  font-size: 12.5px;
+  color: var(--ink-3);
+}
+.kchart-box {
+  min-height: 250px;
+}
+.kchart-box .chart {
+  display: block;
+  overflow: visible;
+}
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 20px;
+  margin-top: 8px;
+  font-size: 12.5px;
+  color: var(--ink-2);
+}
+.legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.legend svg {
+  width: 26px;
+  height: 8px;
+}
+.kh {
+  margin-top: 28px;
+}
+.kc-date {
+  width: 76px;
+  font-family: var(--font-tech);
+  font-size: 13px;
+  letter-spacing: 0.04em;
+  color: var(--ink-2);
+}
+.kname-s {
+  display: block;
+  font-weight: 580;
+}
+.kcat {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+}
+.kcat.is-none {
+  color: var(--ink);
+  font-weight: 600;
+}
+.kflag {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
+.kc-run {
+  color: var(--ink-2);
+  font-weight: 500;
+}
+.status {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12.5px;
+  color: var(--ink-3);
+  font-weight: 500;
+}
+.status.ok {
+  color: var(--line);
+}
+.is-pending td {
+  color: var(--ink-2);
+}
+
+/* Forms in the side panel */
+.kform {
+  display: grid;
+  gap: 16px;
+}
+.kform-switch {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+.kform-switch small {
+  display: block;
+  margin-top: 2px;
+  font-size: 12.5px;
+  color: var(--ink-3);
+}
+.panel-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 8px;
+}
+.panel-actions .btn {
+  height: 42px;
+}
+
+@media (max-width: 767px) {
+  .kview {
+    gap: 20px;
+  }
+  .tbd-fig {
+    font-size: 44px;
+  }
+  .kfigs {
+    gap: 12px 24px;
+  }
+  .fig strong {
+    font-size: 21px;
+  }
+  .kchart-box {
+    min-height: 200px;
+  }
+  .grp-sub {
+    display: block;
+    margin: 2px 0 0 0;
+  }
+  .ktable thead {
+    display: none;
+  }
+  .ktable,
+  .ktable tbody {
+    display: block;
+  }
+  .ktable tr {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 4px 12px;
+    padding: 12px 0;
+    border-bottom: 1px solid var(--rule);
+  }
+  .ktable td {
+    display: block;
+    width: auto;
+    padding: 0;
+    border: 0;
+    background: none !important;
+  }
+  .kgroup {
+    background: var(--ground-2);
+    margin: 0 -16px;
+    padding: 10px 16px !important;
+    grid-template-areas: 'name num';
+  }
+  .kgroup .kc-pos,
+  .krow .kc-pos,
+  .kgroup .kc-line {
+    display: none;
+  }
+  .krow {
+    grid-template-areas: 'name num' 'line line';
+  }
+  .krow td:nth-child(2),
+  .kgroup td:nth-child(2) {
+    grid-area: name;
+  }
+  .krow .kc-line {
+    grid-area: line;
+  }
+  .krow .kc-num,
+  .kgroup .kc-num {
+    grid-area: num;
+  }
+  .ktx tr {
+    grid-template-areas: 'payee amount' 'cat run' 'date status';
+  }
+  .ktx td:nth-child(1) {
+    grid-area: date;
+  }
+  .ktx td:nth-child(2) {
+    grid-area: payee;
+  }
+  .ktx td:nth-child(3) {
+    grid-area: cat;
+  }
+  .ktx td:nth-child(4) {
+    grid-area: status;
+  }
+  .ktx td:nth-child(5) {
+    grid-area: amount;
+  }
+  .ktx td:nth-child(6) {
+    grid-area: run;
+    text-align: right;
+  }
+}
