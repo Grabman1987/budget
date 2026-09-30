@@ -1,5 +1,6 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type Page } from '@playwright/test';
+import { balance, createAccount, openAccount, pickCategory, toast } from './ledger-helpers';
 
 /**
  * The ledger end to end on the real server: accounts, bookings with split and transfer, edit in
@@ -7,35 +8,12 @@ import { expect, test, type Page } from '@playwright/test';
  * parallel against the same database, so every name carries the project name.
  */
 
-/** The open toast (the dialog hosts its own region, the page has another one). */
-const toast = (page: Page) => page.locator('.toast.is-open');
-
-const openAccount = async (page: Page, name: string) => {
-  await page.goto('/konten');
-  await page.getByRole('link', { name, exact: true }).click();
-  await expect(page.getByRole('heading', { level: 2, name })).toBeVisible();
-};
-
-const createAccount = async (page: Page, name: string, type: string, opening: string) => {
-  await page.goto('/konten');
-  await page.getByRole('button', { name: 'Konto anlegen', exact: true }).first().click();
-  const dialog = page.getByRole('dialog', { name: 'Konto anlegen' });
-  await dialog.getByLabel('Name', { exact: true }).fill(name);
-  await dialog.getByLabel('Kontotyp', { exact: true }).selectOption({ label: type });
-  await dialog.getByLabel('Startsaldo', { exact: true }).fill(opening);
-  await dialog.getByRole('button', { name: 'Konto anlegen', exact: true }).click();
-  await expect(toast(page)).toContainText(`Konto „${name}“ angelegt`);
-  await expect(page.getByRole('link', { name, exact: true })).toBeVisible();
-};
-
 /** Select-all lives in the table head on desktop and above the list on the phone. */
 const selectAll = async (page: Page) => {
   const head = page.getByLabel('Alle sichtbaren Buchungen auswählen');
   if (await head.isVisible()) await head.check();
   else await page.getByLabel('Alle sichtbaren auswählen').check();
 };
-
-const balance = (page: Page) => page.getByTestId('account-balance');
 
 test('accounts, bookings, split, transfer, undo and redo', async ({ page }, testInfo) => {
   const tag = testInfo.project.name;
@@ -55,8 +33,8 @@ test('accounts, bookings, split, transfer, undo and redo', async ({ page }, test
   let panel = page.getByRole('dialog', { name: 'Buchung erfassen' });
   await panel.getByLabel('Betrag', { exact: true }).fill('12,50');
   await panel.getByLabel('Empfänger').fill(shop);
-  await panel.getByLabel('Kategorie', { exact: true }).selectOption({ label: 'Essen' });
-  await panel.getByRole('button', { name: 'Speichern' }).click();
+  await pickCategory(panel, 'Essen');
+  await panel.getByRole('button', { name: 'Speichern', exact: true }).click();
   await expect(page.getByRole('row', { name: new RegExp(shop) })).toBeVisible();
   await expect(balance(page)).toHaveText('987,50 €');
 
@@ -78,11 +56,11 @@ test('accounts, bookings, split, transfer, undo and redo', async ({ page }, test
   await panel.getByLabel('Kategorie 2').selectOption({ label: 'Reise' });
   await panel.getByLabel('Betrag 2').fill('5');
   await expect(panel.getByText('Rest: 5,00 €')).toBeVisible();
-  await panel.getByRole('button', { name: 'Speichern' }).click();
+  await panel.getByRole('button', { name: 'Speichern', exact: true }).click();
   await expect(panel.getByRole('alert')).toContainText('nicht den Gesamtbetrag');
   await panel.getByLabel('Betrag 2').fill('10');
   await expect(panel.getByText('Aufteilung geht auf.')).toBeVisible();
-  await panel.getByRole('button', { name: 'Speichern' }).click();
+  await panel.getByRole('button', { name: 'Speichern', exact: true }).click();
   await expect(page.getByRole('row', { name: new RegExp(`Markt ${tag}`) })).toContainText(
     'Aufgeteilt (2)',
   );
@@ -94,7 +72,7 @@ test('accounts, bookings, split, transfer, undo and redo', async ({ page }, test
   await panel.getByRole('button', { name: 'Umbuchung' }).click();
   await panel.getByLabel('Nach Konto').selectOption({ label: spar });
   await panel.getByLabel('Betrag', { exact: true }).fill('100');
-  await panel.getByRole('button', { name: 'Speichern' }).click();
+  await panel.getByRole('button', { name: 'Speichern', exact: true }).click();
   await expect(page.getByRole('row', { name: /Umbuchung nach/ })).toBeVisible();
   await expect(balance(page)).toHaveText('857,50 €');
   await openAccount(page, spar);
@@ -113,7 +91,7 @@ test('accounts, bookings, split, transfer, undo and redo', async ({ page }, test
   await row.getByRole('button', { name: /bearbeiten/ }).click();
   panel = page.getByRole('dialog', { name: 'Buchung bearbeiten' });
   await panel.getByLabel('Betrag', { exact: true }).fill('10');
-  await panel.getByRole('button', { name: 'Speichern' }).click();
+  await panel.getByRole('button', { name: 'Speichern', exact: true }).click();
   await expect(balance(page)).toHaveText('860,00 €');
 
   // Delete with undo.
@@ -132,18 +110,32 @@ test('Alle Buchungen: filter in the URL, search, bulk edit with undo', async ({
   const tag = testInfo.project.name;
   const giro = `Sammel ${tag}`;
   await createAccount(page, giro, 'Giro', '500');
-  await openAccount(page, giro);
-  for (const [payee, amount] of [
-    [`Bäcker ${tag}`, '4'],
-    [`Bio-Laden ${tag}`, '8'],
-    [`Tankstelle ${tag}`, '50'],
+  // Uncategorised bookings cannot be captured any more (a category is required), so they are
+  // seeded through the API like an import would.
+  const headers = { origin: new URL(page.url()).origin };
+  const accounts = (await (await page.request.get('/api/accounts')).json()) as {
+    accounts: { id: string; name: string }[];
+  };
+  const accountId = accounts.accounts.find((a) => a.name === giro)?.id ?? '';
+  for (const [payee, cents] of [
+    [`Bäcker ${tag}`, -400],
+    [`Bio-Laden ${tag}`, -800],
+    [`Tankstelle ${tag}`, -5000],
   ] as const) {
-    await page.getByRole('button', { name: 'Buchung erfassen' }).click();
-    const panel = page.getByRole('dialog', { name: 'Buchung erfassen' });
-    await panel.getByLabel('Betrag', { exact: true }).fill(amount);
-    await panel.getByLabel('Empfänger').fill(payee);
-    await panel.getByRole('button', { name: 'Speichern' }).click();
-    await expect(page.getByRole('row', { name: new RegExp(payee) })).toBeVisible();
+    const made = await page.request.post('/api/payees', { headers, data: { name: payee } });
+    const payeeId = ((await made.json()) as { payee: { id: string } }).payee.id;
+    const booked = await page.request.post('/api/bookings', {
+      headers,
+      data: {
+        type: 'booking',
+        accountId,
+        date: new Date().toISOString().slice(0, 10),
+        amountCents: cents,
+        payeeId,
+        splits: [{ categoryId: null, amountCents: cents }],
+      },
+    });
+    expect(booked.ok()).toBe(true);
   }
 
   // The account filter is a URL parameter and survives a reload.
@@ -204,7 +196,8 @@ test('Kontostand prüfen: doppelt, Ausgleich, geprüft sperrt, undo', async ({ p
     const panel = page.getByRole('dialog', { name: 'Buchung erfassen' });
     await panel.getByLabel('Betrag', { exact: true }).fill(amount);
     await panel.getByLabel('Empfänger').fill(payee);
-    await panel.getByRole('button', { name: 'Speichern' }).click();
+    await pickCategory(panel, 'Essen');
+    await panel.getByRole('button', { name: 'Speichern', exact: true }).click();
     await expect(page.getByRole('row', { name: new RegExp(payee) }).first()).toBeVisible();
   };
   await book(`Laden ${tag}`, '20');
@@ -233,10 +226,10 @@ test('Kontostand prüfen: doppelt, Ausgleich, geprüft sperrt, undo', async ({ p
     .click();
   const edit = page.getByRole('dialog', { name: 'Buchung bearbeiten' });
   await edit.getByLabel('Betrag', { exact: true }).fill('21');
-  await edit.getByRole('button', { name: 'Speichern' }).click();
+  await edit.getByRole('button', { name: 'Speichern', exact: true }).click();
   await expect(edit.getByRole('alert')).toContainText('geprüft');
   await edit.getByLabel('Trotzdem ändern').check();
-  await edit.getByRole('button', { name: 'Speichern' }).click();
+  await edit.getByRole('button', { name: 'Speichern', exact: true }).click();
   await expect(balance(page)).toHaveText('474,00 €');
 
   // The bank says 470: 4,00 missing; Ausgleich books it and stamps everything, undo reverts it.
@@ -265,7 +258,8 @@ test('ledger pages with data: axe clean in both themes, no sideways scrolling', 
   const panel = page.getByRole('dialog', { name: 'Buchung erfassen' });
   await panel.getByLabel('Betrag', { exact: true }).fill('9,90');
   await panel.getByLabel('Empfänger').fill(`Kiosk ${tag}`);
-  await panel.getByRole('button', { name: 'Speichern' }).click();
+  await pickCategory(panel, 'Essen');
+  await panel.getByRole('button', { name: 'Speichern', exact: true }).click();
   await expect(page.getByRole('row', { name: new RegExp(`Kiosk ${tag}`) })).toBeVisible();
   const accountUrl = page.url();
 
