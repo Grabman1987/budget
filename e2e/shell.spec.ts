@@ -227,6 +227,7 @@ test.describe('desktop shell', () => {
 
   test('Ctrl K focuses the search from anywhere', async ({ page }) => {
     await page.goto('/plan/monat');
+    await expect(page.locator('main')).toBeVisible();
     await page.keyboard.press('Control+k');
     await expect(page.getByRole('searchbox')).toBeFocused();
   });
@@ -323,7 +324,8 @@ test.describe('phone shell', () => {
 test.describe('regression baselines of the shell (own screenshots)', () => {
   for (const [name, path] of [
     ['heute', '/'],
-    ['plan-monat', '/plan/monat'],
+    // Plan › Monat shows live data since P2c; Jahr keeps the Plan title block with month switch.
+    ['plan-jahr', '/plan/jahr'],
     ['reports', '/reports'],
   ] as const) {
     test(`light ${name}`, async ({ page }) => {
