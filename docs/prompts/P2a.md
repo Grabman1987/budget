@@ -16,7 +16,7 @@ PR 1 `p2a-api` — server:
 
 PR 2 `p2a-ui` — web:
 1. Konten › Übersicht, Einzelkonto (balance line chart, booking list with status and flags, inline edit), Alle Buchungen (filters as URL params, search, multi-select for category/flag/status/delete with undo toast), Kontostand prüfen flow — all as in the prototype and `design/screens` (desktop 1440 and phone 390, light and dark).
-2. TanStack Query with optimistic updates and rollback; empty, loading and error states per `DESIGN.md`.
+2. New or changed booking rows flash once (`tx-in`, 420 ms tint as in `design/prototype/styles.css`); TanStack Query with optimistic updates and rollback; empty, loading and error states per `DESIGN.md`.
 3. e2e: create account, book, split, transfer, reconcile with Ausgleich, undo; axe clean.
 
 Use only synthetic data (fixtures). UI German (de-AT), code English, integer cents.

@@ -199,14 +199,7 @@ export function DimensionChainDrawing({
                   />
                   <line x1={x0} x2={x0} y1={labelY - 5} y2={barY} className="l-ext" />
                   <line x1={x1} x2={x1} y1={labelY - 5} y2={barY} className="l-ext" />
-                  <line
-                    x1={x0}
-                    x2={x1}
-                    y1={labelY}
-                    y2={labelY}
-                    className="l-dim plot-line"
-                    pathLength={1}
-                  />
+                  <line x1={x0} x2={x1} y1={labelY} y2={labelY} className="l-dim" />
                   <SlashTick x={x0} y={labelY} />
                   <SlashTick x={x1} y={labelY} />
                   {label && (

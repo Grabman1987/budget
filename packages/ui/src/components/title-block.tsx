@@ -7,6 +7,11 @@ export interface TitleBlockField {
   value: ReactNode;
   /** Phone: leave this cell out (it is not essential and the strip is narrow). */
   hideOnMobile?: boolean;
+  /**
+   * Phone: keep the label visible. By default the strip shows values only, as in the prototype
+   * (an icon or a control says what the cell is); fields whose value alone is ambiguous keep it.
+   */
+  labelOnMobile?: boolean;
 }
 
 export interface TitleBlockProps {
@@ -18,7 +23,9 @@ export interface TitleBlockProps {
   fields?: TitleBlockField[];
   /**
    * Phone: the app header carries the title, so the title cell is hidden and only the fields
-   * remain (label and value) as a strip. `titleOnMobile` keeps the title cell (month switch).
+   * remain as a strip (values; labels only where `labelOnMobile` is set, otherwise for screen
+   * readers). `titleOnMobile` keeps the title cell (month switch). A strip without any visible
+   * cell is not shown at all.
    */
   compactOnMobile?: boolean;
   titleOnMobile?: boolean;
@@ -52,7 +59,9 @@ export function TitleBlock({
           className={cx('tb-cell', 'tb-field', field.hideOnMobile && 'tb-hide-mobile')}
           key={field.label}
         >
-          <span className="tech tb-label">{field.label}</span>
+          <span className={cx('tech', 'tb-label', field.labelOnMobile && 'tb-label-mobile')}>
+            {field.label}
+          </span>
           <div className="tb-value">{field.value}</div>
         </div>
       ))}

@@ -1,4 +1,5 @@
-import { PartsList, SectionHead, Registers, type RegisterItem } from '@budget/ui';
+import { Registers, SectionHead, type RegisterItem } from '@budget/ui';
+import { ChevronRight, Printer } from 'lucide-react';
 import { areaById } from '../nav/areas';
 import { REPORTS_CATALOG, REPORT_GROUP_PAGES, type PageMeta } from '../nav/pages';
 import {
@@ -8,19 +9,28 @@ import {
   findReportGroup,
   type ReportEntry,
 } from '../nav/reports-catalog';
-import { useParams } from '@tanstack/react-router';
+import { useNavigate, useParams } from '@tanstack/react-router';
 import { AppLink } from '../shell/app-link';
 import { AreaHead } from './area-head';
 import { PlaceholderPage } from './placeholder-page';
 
-const CONTROL_LABEL = {
-  month: 'Monat',
-  year: 'Jahr',
-  period: 'Zeitraum',
-  print: 'Drucken',
-} as const;
-const controlsText = (report: ReportEntry) =>
-  report.controls.length > 0 ? report.controls.map((c) => CONTROL_LABEL[c]).join(' · ') : '—';
+const CONTROL_LABEL = { month: 'Monat', year: 'Jahr', period: 'Zeitraum' } as const;
+
+/** Steuerung as in the prototype: "Monat", "Zeitraum" … or "fest", plus a printer for print sheets. */
+function Controls({ report }: { report: ReportEntry }) {
+  const labels = report.controls.flatMap((c) => (c === 'print' ? [] : [CONTROL_LABEL[c]]));
+  return (
+    <>
+      {labels.length > 0 ? labels.join(', ') : <span className="muted">fest</span>}
+      {report.controls.includes('print') && (
+        <>
+          {' · '}
+          <Printer className="icon icon-xs" size={13} strokeWidth={1.75} aria-label="Druckblatt" />
+        </>
+      )}
+    </>
+  );
+}
 
 function ReportRegisters({ current }: { current: string }) {
   const items: RegisterItem[] = areaById('reports').registers.map((r) => ({
@@ -42,13 +52,74 @@ function ReportRegisters({ current }: { current: string }) {
   );
 }
 
-const reportLink = (report: ReportEntry) => (
-  <AppLink to={`/reports/${report.id}`} className="report-link">
-    {report.name}
-  </AppLink>
-);
+/**
+ * Report catalog (Zeichnungsverzeichnis) as in the prototype: one table, a quiet heading row per
+ * assembly, positions 1.1 … 5.5. The name is the link; the whole row is a larger click target.
+ * On the phone the rows stack (position, name, question, chart form).
+ */
+function ReportCatalogTable({
+  groups,
+  caption,
+}: {
+  groups: ReadonlyArray<(typeof REPORT_GROUPS)[number]>;
+  caption: string;
+}) {
+  const navigate = useNavigate();
+  return (
+    <section className="rcat-wrap" aria-label={caption}>
+      <table className="rcat">
+        <thead>
+          <tr>
+            <th className="tech col-pos">Pos</th>
+            <th className="tech">Report</th>
+            <th className="tech">Frage</th>
+            <th className="tech">Diagrammform</th>
+            <th className="tech">Steuerung</th>
+            <th>
+              <span className="sr-only">Öffnen</span>
+            </th>
+          </tr>
+        </thead>
+        {groups.map((group) => (
+          <tbody key={group.slug}>
+            <tr className="rcat-grp">
+              <td className="col-pos">{group.no}</td>
+              <td colSpan={5}>
+                <strong>{group.name}</strong>
+                <span className="rcat-count">{group.items.length} Reports</span>
+              </td>
+            </tr>
+            {group.items.map((report) => (
+              <tr
+                key={report.id}
+                className="rcat-row"
+                onClick={(event) => {
+                  if ((event.target as HTMLElement).closest('a')) return;
+                  void navigate({ to: `/reports/${report.id}` });
+                }}
+              >
+                <td className="col-pos">{report.pos}</td>
+                <td className="rcat-name">
+                  <AppLink to={`/reports/${report.id}`}>{report.name}</AppLink>
+                </td>
+                <td className="rcat-q">{report.question}</td>
+                <td className="rcat-form tech">{report.form}</td>
+                <td className="rcat-ctl">
+                  <Controls report={report} />
+                </td>
+                <td className="rcat-go" aria-hidden="true">
+                  <ChevronRight size={16} strokeWidth={1.75} />
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        ))}
+      </table>
+    </section>
+  );
+}
 
-/** Report catalog as parts list: five assemblies, positions 1.1 … 5.5. */
+/** Report catalog: all five assemblies. */
 export function ReportsCatalogPage() {
   return (
     <>
@@ -57,29 +128,12 @@ export function ReportsCatalogPage() {
         subtitle={`${REPORTS.length} Zeichnungen aus einem Hauptbuch`}
       />
       <ReportRegisters current="katalog" />
-      <section aria-labelledby="catalog-title" className="catalog">
-        <SectionHead id="catalog-title" title="Zeichnungsverzeichnis" aside="30 Reports" />
-        <PartsList<ReportEntry>
-          caption="Katalog der Reports"
-          getRowKey={(r) => r.id}
-          groups={REPORT_GROUPS.map((g) => ({
-            id: g.slug,
-            title: g.name,
-            note: `${g.items.length} Zeichnungen`,
-            rows: g.items,
-          }))}
-          columns={[
-            { key: 'name', header: 'Report', render: reportLink },
-            { key: 'question', header: 'Frage', render: (r) => r.question },
-            { key: 'form', header: 'Diagrammform', render: (r) => r.form },
-          ]}
-        />
-      </section>
+      <ReportCatalogTable groups={REPORT_GROUPS} caption="Katalog der Reports" />
     </>
   );
 }
 
-/** One register of the report catalog: the drawings of a group. */
+/** One register of the report catalog: the drawings of one assembly. */
 export function ReportGroupPage({ slug }: { slug: string }) {
   const group = findReportGroup(slug);
   const page = REPORT_GROUP_PAGES.find((p) => p.slug === slug);
@@ -88,19 +142,7 @@ export function ReportGroupPage({ slug }: { slug: string }) {
     <>
       <AreaHead meta={REPORTS_CATALOG} subtitle={group.name} />
       <ReportRegisters current={slug} />
-      <section aria-labelledby="group-title" className="catalog">
-        <SectionHead id="group-title" title="Zeichnungen" />
-        <PartsList<ReportEntry>
-          caption={`Reports der Baugruppe ${group.name}`}
-          getRowKey={(r) => r.id}
-          groups={[{ id: group.slug, title: group.name, rows: group.items }]}
-          columns={[
-            { key: 'name', header: 'Report', render: reportLink },
-            { key: 'question', header: 'Frage', render: (r) => r.question },
-            { key: 'controls', header: 'Steuerung', render: controlsText },
-          ]}
-        />
-      </section>
+      <ReportCatalogTable groups={[group]} caption={`Reports der Baugruppe ${group.name}`} />
     </>
   );
 }
@@ -122,7 +164,7 @@ export function ReportPage({ reportId }: { reportId: string }) {
       title={report.name}
       extraFields={[
         { label: 'Zeichnung', value: report.pos },
-        { label: 'Steuerung', value: controlsText(report) },
+        { label: 'Steuerung', value: <Controls report={report} /> },
       ]}
     />
   );

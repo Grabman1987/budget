@@ -163,7 +163,7 @@ test.describe('phone 390 px against design/screens', () => {
           masks: [
             text(14, 14, 200, 44), // title
             text(238, 8, 42, 42), // inbox icon (Lucide, the prototype draws its own) and its count
-            text(286, 16, 34, 34), // theme icon (ours has a third choice: System)
+            text(286, 16, 34, 34), // theme icon (moon/sun as in the prototype)
             text(328, 8, 54, 54), // avatar (44 px here for touch, 40 px in the prototype)
           ],
         }),

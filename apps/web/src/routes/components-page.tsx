@@ -241,8 +241,8 @@ function Chains() {
       <p className="dev-note">
         Teilmaße über einem 14-px-Balken in Klassenfüllung, darunter der gebundene Teil (Schraffur)
         oder eine Schuld (gestrichelt), unten das Ergebnis. Segmente sind per Tastatur bedienbar und
-        öffnen ihre Einzelposten. Die Linien werden gezogen wie von einem Plotter (900 ms), die
-        Kette klappt in 240 ms auf; bei reduzierter Bewegung erscheint alles sofort.
+        öffnen ihre Einzelposten. Die Ergebnis-Maßlinie wird gezogen wie von einem Plotter (900 ms),
+        die Kette klappt in 240 ms auf; bei reduzierter Bewegung erscheint alles sofort.
       </p>
       <p>
         <Button

@@ -99,10 +99,14 @@ test.describe('routes', () => {
     page,
   }) => {
     await page.goto('/reports');
-    await expect(page.locator('.prow')).toHaveCount(30);
-    await expect(page.locator('.pgroup')).toHaveCount(5);
-    await expect(page.locator('.prow .pos').first()).toHaveText('1.1');
-    await expect(page.locator('.prow .pos').last()).toHaveText('5.5');
+    await expect(page.locator('.rcat-row')).toHaveCount(30);
+    await expect(page.locator('.rcat-grp')).toHaveCount(5);
+    await expect(page.locator('.rcat-row .col-pos').first()).toHaveText('1.1');
+    await expect(page.locator('.rcat-row .col-pos').last()).toHaveText('5.5');
+    // As in the prototype: chart form and Steuerung per row; a click on the row opens the report.
+    await expect(page.locator('.rcat-row').first().locator('.rcat-form')).toHaveText('Druckblatt A4');
+    await page.locator('.rcat-row').nth(3).locator('.rcat-q').click();
+    await expect(page).toHaveURL(/\/reports\/geldfluss$/);
   });
 });
 
@@ -240,25 +244,25 @@ test.describe('desktop shell', () => {
     await expect(page).toHaveURL(/\/konten$/);
   });
 
-  test('theme button in the sidebar cycles System, Hell, Dunkel and persists the choice', async ({
+  test('theme button names the other theme as in the prototype and persists the choice', async ({
     page,
   }) => {
     await page.emulateMedia({ colorScheme: 'light' });
     await page.goto('/');
     const html = page.locator('html');
-    const button = page.getByRole('button', { name: /Darstellung wechseln/ });
-    await expect(button).toHaveText('System');
+    const button = page.locator('.sidebar').getByTitle('Hell/Dunkel umschalten');
+    // Follows the system until the first switch; the button names the target theme.
+    await expect(button).toHaveText('Dunkle Blaupause');
     await expect(html).not.toHaveAttribute('data-theme', /.+/);
     await button.click();
-    await expect(html).toHaveAttribute('data-theme', 'light');
-    await button.click();
     await expect(html).toHaveAttribute('data-theme', 'dark');
+    await expect(button).toHaveText('Heller Zeichenfilm');
     await page.reload();
     await expect(html).toHaveAttribute('data-theme', 'dark');
-    await expect(button).toHaveText('Dunkle Blaupause');
+    await expect(button).toHaveText('Heller Zeichenfilm');
     await button.click();
-    await expect(html).not.toHaveAttribute('data-theme', /.+/);
-    await expect(button).toHaveText('System');
+    await expect(html).toHaveAttribute('data-theme', 'light');
+    await expect(button).toHaveText('Dunkle Blaupause');
   });
 });
 

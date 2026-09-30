@@ -35,16 +35,34 @@ export function stepPath(points: ReadonlyArray<Point>): string {
 export interface LineProps {
   points: ReadonlyArray<Point>;
   kind: LineKind;
+  /**
+   * Plotter draw when the line appears (900 ms, as in the prototype): 0 starts at once, 1 after
+   * 260 ms, 2 after 520 ms; `false` shows it at once. Only solid lines are drawn, dashed ones
+   * appear directly (their dash pattern would be lost).
+   */
+  draw?: false | 0 | 1 | 2;
 }
 
+const DRAW_DELAY = ['', ' draw-late', ' draw-later'];
+
+function drawClass(kind: LineKind, draw: LineProps['draw']): string {
+  if (draw === false || draw === undefined || kind !== 'actual') return KIND_CLASS[kind];
+  return `${KIND_CLASS[kind]} draw${DRAW_DELAY[draw]}`;
+}
+
+// pathLength scales dash patterns too, so it is set only on lines that are drawn (solid ones).
+const drawLength = (className: string) => (className.includes(' draw') ? 1 : undefined);
+
 /** Polyline in one of the ISO line types. */
-export function Line({ points, kind }: LineProps) {
-  return <path d={linePath(points)} className={KIND_CLASS[kind]} />;
+export function Line({ points, kind, draw = 0 }: LineProps) {
+  const className = drawClass(kind, draw);
+  return <path d={linePath(points)} className={className} pathLength={drawLength(className)} />;
 }
 
 /** Step line: the value holds until the next point (balances, cumulative spending). */
-export function StepLine({ points, kind = 'actual' }: LineProps) {
-  return <path d={stepPath(points)} className={KIND_CLASS[kind]} />;
+export function StepLine({ points, kind = 'actual', draw = 0 }: LineProps) {
+  const className = drawClass(kind, draw);
+  return <path d={stepPath(points)} className={className} pathLength={drawLength(className)} />;
 }
 
 export interface BandPoint {
