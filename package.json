@@ -23,6 +23,7 @@
     "test:e2e": "npm run build:e2e && playwright test",
     "proto": "node scripts/serve-static.mjs design/prototype 5180",
     "db:seed": "tsx scripts/db-seed.ts --fresh",
+    "fixtures:ynab": "tsx scripts/ynab-export.ts",
     "db:generate": "npm run generate -w @budget/db",
     "build:e2e": "npm run build -w @budget/web -- --mode e2e && npm run build -w @budget/server"
   },

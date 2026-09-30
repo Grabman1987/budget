@@ -93,3 +93,15 @@ A dry run shows the target structure side by side with YNAB (per target category
   - from `rules_from` on, re-categorised bookings move money between target categories by design: the report lists the moved amounts per rule and month, and checks that the **totals** (Σ Available + Ready to Assign) still match.
   Every difference is listed with category/account, month and amount.
 - Never log row contents; logs show counts and row numbers only.
+
+## Importer (P2d, `packages/import-ynab`)
+
+Pure code, no database: `parseRegister` / `parsePlan` (bytes → rows, `ParseError` with file, line and code, never the value) → `buildModel` (raw layer: bookings with splits, transfer pairs, accounts with proposals, categories, plan cells, problems). The wizard PR stores the raw rows, the mapping versions and the target rows.
+
+Choices made (technical, within this document):
+
+- **Decoding** is a strict UTF-8 decoder that joins CESU-8 surrogate pairs itself; any other invalid byte (lone surrogates included) is an error with its line. The BOM is optional.
+- **Account proposals:** on budget = some non-transfer row has a category (`Ready to Assign` counts); credit card = a `Credit Card Payments` category with the account's name; closed = balance 0 and no row in the last three months of the register (closed-at = last row); type: credit card, else checking (on budget), loan (off budget, negative), other asset (off budget). The owner sets the real type in the mapping.
+- **Problems** (unpaired transfer legs, incomplete or out-of-order splits, plan gaps and duplicates, categories missing in Plan.tsv, card categories without an account) are collected with their line numbers instead of stopping at the first one; format errors in the files stop the parse at the first bad line.
+
+Synthetic export: `packages/fixtures/src/ynab/generate.ts` (deterministic by seed, 58 months Jan 2022 – Oct 2026, 12 accounts incl. two closed before and after the start month, 44 categories, all cases above) writes both files byte-exact to `packages/fixtures/ynab-export/` with `npm run fixtures:ynab`; a test checks that the committed files match the generator. Its Plan.tsv figures come from `budgetMonths` (`cardRule: 'ynab'`); the card cases of the table above are fixed events in May–August 2024.

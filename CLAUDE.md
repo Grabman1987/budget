@@ -39,4 +39,5 @@ Private household finance PWA for one user. Read `SPEC.md` first; it defines pre
 - `npm run dev` — web + server with hot reload
 - `npm run check` — typecheck + lint + unit tests
 - `npm run test:e2e` — Playwright (installs Chromium on first run: `npx playwright install chromium`)
+- `npm run fixtures:ynab` — regenerate the synthetic YNAB export in `packages/fixtures/ynab-export/`
 - `npm run proto` — serve `design/prototype` on http://localhost:5180 for comparison
