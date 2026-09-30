@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
+  amountOf,
   buildCreate,
+  isTransferBooking,
   splitChain,
   buildPatch,
   draftFromBooking,
@@ -329,7 +331,7 @@ describe('split lines: category, contact share, transfer', () => {
     });
   });
 
-  it('a contact line needs the contact and an Auslagen category', () => {
+  it('a contact line needs the contact; the Auslagen category may still be missing', () => {
     const lines = two({ categoryId: 'c1' }, { type: 'contact' });
     expect(
       buildCreate(draft({ amount: '50', splitOn: true, splits: lines }), null, options),
@@ -343,9 +345,11 @@ describe('split lines: category, contact share, transfer', () => {
         requireCategory: true,
       }),
     ).toMatchObject({
-      ok: false,
-      errors: { splits: expect.stringContaining('Auslagen-Kategorie') },
+      ok: true,
+      // No Auslagen category yet: the server creates it with this first share.
+      value: { splits: [{ categoryId: 'c1' }, { categoryId: null, contactId: 'anna' }] },
     });
+    expect(buildCreate(draft({ contactId: 'anna' }), null)).toMatchObject({ ok: true });
   });
 
   it('a transfer line goes to another account and only on a spend', () => {
@@ -440,5 +444,153 @@ describe('split lines: category, contact share, transfer', () => {
     ).toMatchObject({
       restCents: 3750,
     });
+  });
+});
+
+describe('a booking with a transfer line opens as what it is (F2)', () => {
+  const transferLine = {
+    id: 's2',
+    categoryId: null,
+    categoryName: null,
+    amountCents: -2000,
+    memo: null,
+    contactId: null,
+    incomeTypeId: null,
+    transferId: 't1',
+  };
+  const mixed = () =>
+    stored({
+      amountCents: -5000,
+      // The list query fills transferId from the split line.
+      transferId: 't1',
+      transferAccountId: 'a2',
+      splits: [{ ...stored().splits[0]!, amountCents: -3000 }, transferLine],
+    });
+
+  it('30 € Essen + 20 € to savings is a split expense, not a 50 € transfer', () => {
+    const d = draftFromBooking(mixed());
+    expect(d).toMatchObject({ kind: 'expense', splitOn: true, amount: '50,00' });
+    expect(d.splits.map((s) => [s.type, s.amount, s.toAccountId])).toEqual([
+      ['category', '30,00', ''],
+      ['transfer', '20,00', 'a2'],
+    ]);
+  });
+
+  it('a whole-booking leg, and a booking whose only line is the transfer, are transfers', () => {
+    expect(isTransferBooking(stored({ transferId: 't9', transferAccountId: 'a2' }))).toBe(true);
+    const only = stored({
+      transferId: 't1',
+      splits: [{ ...transferLine, amountCents: -2000 }],
+      amountCents: -2000,
+    });
+    expect(isTransferBooking(only)).toBe(true);
+    expect(isTransferBooking(mixed())).toBe(false);
+    expect(isTransferBooking(stored())).toBe(false);
+  });
+
+  it('a memo edit of the split booking patches the memo only and may change the payee', () => {
+    const original = mixed();
+    const edited = { ...draftFromBooking(original), memo: 'Sparen' };
+    expect(buildPatch(original, edited, 'p1', false)).toMatchObject({
+      ok: true,
+      value: { memo: 'Sparen' },
+    });
+    expect(buildPatch(original, edited, 'p7', false)).toMatchObject({
+      ok: true,
+      value: { payeeId: 'p7' },
+    });
+  });
+});
+
+describe('split lines of mixed sign keep their own sign', () => {
+  const refund = () =>
+    stored({
+      amountCents: -5000,
+      splits: [
+        { ...stored().splits[0]!, id: 's1', amountCents: -6000 },
+        { ...stored().splits[0]!, id: 's2', categoryId: 'c2', amountCents: 1000 },
+      ],
+    });
+
+  it('opens with −60 and a −10 refund line and builds the same lines back', () => {
+    const d = draftFromBooking(refund());
+    expect(d.splits.map((s) => s.amount)).toEqual(['60,00', '−10,00']);
+    expect(splitRemainder(d.amount, d.splits)).toBe(0);
+    const created = buildCreate({ ...d, categoryId: '' }, null);
+    expect(created).toMatchObject({
+      ok: true,
+      value: { splits: [{ amountCents: -6000 }, { amountCents: 1000 }] },
+    });
+  });
+
+  it('a memo-only edit passes and does not touch the lines', () => {
+    const original = refund();
+    const built = buildPatch(
+      original,
+      { ...draftFromBooking(original), memo: 'Retoure' },
+      'p1',
+      false,
+    );
+    expect(built).toEqual({ ok: true, value: { memo: 'Retoure' } });
+  });
+
+  it('a refund line is typed with a minus and counts against the total', () => {
+    const lines = [newSplit({ amount: '60' }), newSplit({ amount: '-10' })];
+    expect(splitRemainder('50', lines)).toBe(0);
+    expect(splitChain(draft({ amount: '50', splits: lines }))).toMatchObject({
+      distributedCents: 5000,
+      restCents: 0,
+    });
+  });
+});
+
+describe('transfer lines and Auslagen on edit', () => {
+  const tracking = { trackingAccountIds: new Set(['sparen']), requireCategory: true };
+  const lines = (over: Partial<ReturnType<typeof newSplit>>) => [
+    newSplit({ amount: '30', categoryId: 'c1' }),
+    newSplit({ amount: '20', type: 'transfer', toAccountId: 'sparen', ...over }),
+  ];
+
+  it('a transfer line to a tracking account asks for a category, to a budget account it has none', () => {
+    const d = (over = {}) => draft({ amount: '50', splitOn: true, splits: lines(over) });
+    expect(buildCreate(d(), null, tracking)).toMatchObject({
+      ok: false,
+      errors: { splits: expect.stringContaining('Tracking-Konto') },
+    });
+    expect(buildCreate(d({ categoryId: 'invest' }), null, tracking)).toMatchObject({
+      ok: true,
+      value: { splits: [{}, { categoryId: 'invest', transferAccountId: 'sparen' }] },
+    });
+    // A category left over from before the switch is not sent to a budget account.
+    const budgetTarget = d({ toAccountId: 'a2', categoryId: 'c9' });
+    expect(buildCreate(budgetTarget, null, tracking)).toMatchObject({
+      ok: true,
+      value: { splits: [{}, { categoryId: null, transferAccountId: 'a2' }] },
+    });
+  });
+
+  it('taking the contact off an Auslage needs a normal category and drops Auslagen', () => {
+    const shared = stored({
+      splits: [{ ...stored().splits[0]!, categoryId: 'auslagen', contactId: 'anna' }],
+    });
+    const open = draftFromBooking(shared);
+    expect(open).toMatchObject({ contactId: 'anna', categoryId: '' });
+    const cleared = { ...open, contactId: '' };
+    expect(buildPatch(shared, cleared, 'p1', false)).toMatchObject({
+      ok: false,
+      errors: { category: expect.any(String) },
+    });
+    const ok = buildPatch(shared, { ...cleared, categoryId: 'c1' }, 'p1', false);
+    expect(ok).toMatchObject({ ok: true, value: { splits: [{ categoryId: 'c1' }] } });
+    expect(JSON.stringify(ok)).not.toContain('auslagen');
+  });
+});
+
+describe('amountOf', () => {
+  it('evaluates with the domain parser, without floats: 10+5 is 15', () => {
+    expect(amountOf('10+5')).toBe(1500);
+    expect(amountOf('1.234,56')).toBe(123_456);
+    expect(amountOf('0,1+0,2')).toBe(30);
+    expect(amountOf('abc')).toBeUndefined();
   });
 });

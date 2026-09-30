@@ -82,17 +82,26 @@ export const emptyDraft = (accountId: string, date: string): BookingDraft => ({
 
 const plain = (value: number) => formatDecimal(toCents(Math.abs(value)));
 
+/**
+ * Is the booking an Umbuchung as a whole? A whole-booking leg is. A split-level transfer (one
+ * line of a booking goes to another account) only is when that line is the booking's only line;
+ * with other lines ("30 € Essen + 20 € → Sparkonto") it opens in the split editor instead.
+ */
+export const isTransferBooking = (b: Pick<ListedBooking, 'transferId' | 'splits'>): boolean =>
+  b.splits.some((s) => s.transferId) ? b.splits.length === 1 : b.transferId !== null;
+
 /** Draft that shows an existing booking; `reconciled` is shown as confirmed (status stays as is). */
 export function draftFromBooking(b: ListedBooking): BookingDraft {
   const several = b.splits.length > 1;
   return {
-    kind: b.transferId ? 'transfer' : b.amountCents < 0 ? 'expense' : 'income',
+    kind: isTransferBooking(b) ? 'transfer' : b.amountCents < 0 ? 'expense' : 'income',
     accountId: b.accountId,
     toAccountId: b.transferAccountId ?? '',
     date: b.date,
     amount: plain(b.amountCents),
     payee: b.payeeName ?? '',
-    categoryId: b.splits[0]?.categoryId ?? '',
+    // A contact share runs through Auslagen, which the form never shows as a category.
+    categoryId: b.splits[0]?.contactId && !several ? '' : (b.splits[0]?.categoryId ?? ''),
     incomeTypeId: b.splits[0]?.incomeTypeId ?? '',
     contactId: several ? '' : (b.splits[0]?.contactId ?? ''),
     projectId: b.projectId ?? '',
@@ -106,7 +115,8 @@ export function draftFromBooking(b: ListedBooking): BookingDraft {
             type: s.contactId ? 'contact' : s.transferId ? 'transfer' : 'category',
             toAccountId: s.transferId ? (b.transferAccountId ?? '') : '',
             categoryId: s.categoryId ?? '',
-            amount: plain(s.amountCents),
+            // Each line keeps its own sign, relative to the booking (a refund line in a spend: −).
+            amount: formatDecimal(toCents(s.amountCents * (b.amountCents < 0 ? -1 : 1))),
             memo: s.memo ?? '',
             contactId: s.contactId,
             incomeTypeId: s.incomeTypeId,
@@ -116,15 +126,25 @@ export function draftFromBooking(b: ListedBooking): BookingDraft {
   };
 }
 
-const amountOf = (text: string): number | undefined => {
+/** Absolute cents of an amount field (the kind decides the sign); `undefined` if unreadable. */
+export const amountOf = (text: string): number | undefined => {
   const parsed = parseAmount(text);
   return parsed.ok ? Math.abs(parsed.cents) : undefined;
+};
+
+/**
+ * Cents of a split line as typed, relative to the booking: a plain number goes the booking's way,
+ * a minus takes it back (a −10 refund line inside a 50 spend). The sum of the lines is the total.
+ */
+const lineOf = (text: string): number | undefined => {
+  const parsed = parseAmount(text);
+  return parsed.ok ? parsed.cents : undefined;
 };
 
 /** The numbers of the split chain: total minus distributed is what is left (cents, unsigned). */
 export function splitChain(draft: BookingDraft) {
   const totalCents = amountOf(draft.amount) ?? 0;
-  const distributedCents = draft.splits.reduce((sum, s) => sum + (amountOf(s.amount) ?? 0), 0);
+  const distributedCents = draft.splits.reduce((sum, s) => sum + (lineOf(s.amount) ?? 0), 0);
   return { totalCents, distributedCents, restCents: totalCents - distributedCents };
 }
 
@@ -135,19 +155,17 @@ function splitProblem(
   options: ValidateOptions,
 ): string | undefined {
   if (draft.splits.length < 2) return 'Eine Aufteilung braucht mindestens zwei Zeilen.';
-  if (draft.splits.some((s) => (amountOf(s.amount) ?? 0) === 0))
+  if (draft.splits.some((s) => (lineOf(s.amount) ?? 0) === 0))
     return 'Jede Zeile braucht einen Betrag.';
   for (const s of draft.splits) {
-    if (s.type === 'contact') {
-      if (!s.contactId) return 'Bei einem Kontakt-Anteil fehlt der Kontakt.';
-      if (!s.categoryId && !options.advanceCategoryId)
-        return 'Es gibt keine Auslagen-Kategorie. Lege sie unter Einstellungen › Kategorien an.';
-    }
+    if (s.type === 'contact' && !s.contactId) return 'Bei einem Kontakt-Anteil fehlt der Kontakt.';
     if (s.type === 'transfer') {
       if (draft.kind !== 'expense') return 'Eine Umbuchungs-Zeile gibt es nur bei einer Ausgabe.';
       if (!s.toAccountId) return 'Bei einer Umbuchungs-Zeile fehlt das Zielkonto.';
       if (s.toAccountId === draft.accountId)
         return 'Quelle und Ziel müssen verschiedene Konten sein.';
+      if (options.trackingAccountIds?.has(s.toAccountId) && !s.categoryId)
+        return 'Eine Umbuchung auf ein Tracking-Konto braucht eine Kategorie, z. B. Investieren.';
     }
     if (
       s.type === 'category' &&
@@ -164,7 +182,7 @@ function splitProblem(
 
 /** API line of one split draft: the type decides category, contact and transfer. */
 function splitInput(draft: BookingDraft, s: SplitDraft, options: ValidateOptions): SplitInput {
-  const amountCents = sign(draft.kind, amountOf(s.amount) ?? 0);
+  const amountCents = sign(draft.kind, lineOf(s.amount) ?? 0);
   const memo = s.memo.trim() ? { memo: s.memo.trim() } : {};
   if (s.type === 'contact') {
     // An existing contact line keeps its category; a new one runs through Auslagen.
@@ -176,8 +194,10 @@ function splitInput(draft: BookingDraft, s: SplitDraft, options: ValidateOptions
     };
   }
   if (s.type === 'transfer') {
+    // Only a transfer to a tracking account is categorised; to a budget account it has none.
+    const tracked = !options.trackingAccountIds || options.trackingAccountIds.has(s.toAccountId);
     return {
-      categoryId: s.categoryId || null,
+      categoryId: (tracked && s.categoryId) || null,
       amountCents,
       transferAccountId: s.toAccountId,
       ...memo,
@@ -193,9 +213,9 @@ function splitInput(draft: BookingDraft, s: SplitDraft, options: ValidateOptions
   };
 }
 
-/** Total minus the split amounts entered so far (in absolute cents); negative when over-allocated. */
+/** Total minus the split amounts entered so far (cents, lines signed); negative when over-allocated. */
 export function splitRemainder(total: string, splits: ReadonlyArray<SplitDraft>): number {
-  const sum = splits.reduce((s, x) => s + (amountOf(x.amount) ?? 0), 0);
+  const sum = splits.reduce((s, x) => s + (lineOf(x.amount) ?? 0), 0);
   return (amountOf(total) ?? 0) - sum;
 }
 
@@ -216,8 +236,13 @@ export interface ValidateOptions {
   requireCategory?: boolean;
   /** A transfer between a budget and a tracking account is categorised (SPEC §5.3). */
   transferNeedsCategory?: boolean;
-  /** The category contact shares run through (kind `advance`); `undefined` when there is none. */
+  /**
+   * The category contact shares run through (kind `advance`); `undefined` when there is none yet:
+   * the server then creates it with the first share.
+   */
   advanceCategoryId?: string | undefined;
+  /** Tracking accounts: a transfer line to one needs a category, to any other account it has none. */
+  trackingAccountIds?: ReadonlySet<string>;
 }
 
 function validate(
@@ -245,9 +270,6 @@ function validate(
       errors.category =
         'Umbuchungen auf Tracking-Konten brauchen eine Kategorie, z. B. Investieren.';
   }
-  if (draft.contactId && draft.kind !== 'transfer' && !draft.splitOn && !options.advanceCategoryId)
-    errors.contact =
-      'Es gibt keine Auslagen-Kategorie. Lege sie unter Einstellungen › Kategorien an.';
   let splits: SplitInput[] | undefined;
   if (draft.splitOn && draft.kind !== 'transfer') {
     const problem = splitProblem(draft, abs, options);
@@ -326,20 +348,26 @@ export function buildPatch(
   if (splits?.some((x) => x.transferAccountId) && !original.splits.some((x) => x.transferId))
     errors.splits = 'Eine Umbuchungs-Zeile gibt es nur beim Erfassen einer neuen Buchung.';
   // The accounts of a transfer leg cannot change; do not complain about them.
+  const leg = isTransferBooking(original);
   delete errors.toAccount;
-  if (original.transferId) delete errors.account;
+  if (leg) delete errors.account;
+  // Taking the contact off an Auslage also takes the Auslagen category off: a normal one is needed.
+  if (
+    original.splits.length === 1 &&
+    original.splits[0]?.contactId &&
+    !draft.contactId &&
+    !draft.splitOn &&
+    !draft.categoryId &&
+    draft.kind === 'expense'
+  )
+    errors.category = 'Kategorie fehlt. Ohne Kontakt braucht die Ausgabe eine eigene Kategorie.';
   if (Object.keys(errors).length > 0 || abs === undefined) return { ok: false, errors };
-  const amountCents = original.transferId
-    ? original.amountCents < 0
-      ? -abs
-      : abs
-    : sign(draft.kind, abs);
+  const amountCents = leg ? (original.amountCents < 0 ? -abs : abs) : sign(draft.kind, abs);
   const patch: BookingPatch = {};
   if (draft.date !== original.date) patch.date = draft.date;
   if (amountCents !== original.amountCents) patch.amountCents = amountCents;
-  if (!original.transferId && draft.accountId !== original.accountId)
-    patch.accountId = draft.accountId;
-  if (!original.transferId && payeeId !== original.payeeId) patch.payeeId = payeeId;
+  if (!leg && draft.accountId !== original.accountId) patch.accountId = draft.accountId;
+  if (!leg && payeeId !== original.payeeId) patch.payeeId = payeeId;
   const memo = draft.memo.trim() || null;
   if (memo !== original.memo) patch.memo = memo;
   if (draft.flag !== (original.flag ?? '')) patch.flag = draft.flag || null;

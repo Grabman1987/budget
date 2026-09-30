@@ -152,3 +152,33 @@ export function quickDays(today: string, shift: (day: string, n: number) => stri
     ['Vorgestern', shift(today, -2)],
   ] as const;
 }
+
+/**
+ * The category a chosen payee's default fills in, or `undefined` to leave the field alone. It only
+ * replaces an empty category or the one the previous payee's default set: a category the user
+ * picked stays.
+ */
+export function categoryFromPayee(
+  current: string,
+  appliedByPayee: string | null,
+  payeeDefault: string | null | undefined,
+): string | undefined {
+  if (!payeeDefault) return undefined;
+  return current === '' || current === appliedByPayee ? payeeDefault : undefined;
+}
+
+/**
+ * Has the new booking got input that closing would lose? `keptPayee` is the payee that "Speichern
+ * und neu" carried over: it is context, not input.
+ */
+export function captureDirty(
+  draft: { amount: string; payee: string; memo: string; splitOn: boolean },
+  keptPayee: string,
+): boolean {
+  return Boolean(
+    draft.amount.trim() ||
+    draft.payee.trim() !== keptPayee.trim() ||
+    draft.memo.trim() ||
+    draft.splitOn,
+  );
+}

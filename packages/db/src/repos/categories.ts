@@ -511,3 +511,27 @@ export function categoryTree(db: Executor) {
     .all();
   return { groups, categories, targets };
 }
+
+/**
+ * The category contact shares (Auslagen) run through: the first live one of kind `advance`, or,
+ * when there is none yet, a new group and category "Auslagen" (stage 2, Laufender Monat). Created
+ * on the first contact share so capture never asks the user to set it up first; it belongs to the
+ * caller's audit group, so one undo removes it together with the booking.
+ */
+export function ensureAdvanceCategory(db: Executor, ctx: AuditContext): string {
+  return runInTransaction(db, (tx) => {
+    const live = tx
+      .select({ id: category.id })
+      .from(category)
+      .where(and(eq(category.kind, 'advance'), isNull(category.deletedAt)))
+      .orderBy(asc(category.sortOrder))
+      .get();
+    if (live) return live.id;
+    const group = createCategoryGroup(tx, 'Auslagen', ctx);
+    return createCategory(
+      tx,
+      { name: 'Auslagen', groupId: group.id, kind: 'advance', stage: 2 },
+      ctx,
+    ).id;
+  });
+}

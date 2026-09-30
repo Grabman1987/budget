@@ -8,9 +8,8 @@ import {
   listPayees,
   mergePayees,
   project,
-  renamePayee,
-  setPayeeDefaultCategory,
   undo,
+  updatePayee,
   type Db,
 } from '@budget/db';
 import { asc, isNull } from 'drizzle-orm';
@@ -49,10 +48,7 @@ export function payeeRoutes(db: Db): Hono {
     const { name, defaultCategoryId } = await readBody(c, payeePatch);
     const id = c.req.param('id');
     const ctx = audit();
-    let row;
-    if (name !== undefined) row = renamePayee(db, id, name, ctx);
-    if (defaultCategoryId !== undefined)
-      row = setPayeeDefaultCategory(db, id, defaultCategoryId, ctx);
+    const row = updatePayee(db, id, defined({ name, defaultCategoryId }), ctx);
     return c.json({ payee: row, groupId: ctx.groupId });
   });
 

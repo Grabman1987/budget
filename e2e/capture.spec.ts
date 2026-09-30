@@ -1,6 +1,14 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type Locator, type Page, type TestInfo } from '@playwright/test';
-import { balance, createAccount, openAccount, pickCategory, toast } from './ledger-helpers';
+import {
+  again,
+  balance,
+  createAccount,
+  openAccount,
+  pickCategory,
+  toast,
+  visit,
+} from './ledger-helpers';
 
 /**
  * "+ Buchung" end to end: the capture panel opens by shortcut (desktop) or button (phone), takes
@@ -27,7 +35,7 @@ test('an expense by keyboard: arithmetic, Enter moves on, Ctrl+Enter saves, Avai
   page,
 }, testInfo) => {
   const tag = testInfo.project.name;
-  const account = `Kasse ${tag}`;
+  const account = `Kasse ${tag}${again(testInfo)}`;
   const category = `Cap A ${tag}`;
   await createAccount(page, account, 'Giro', '1000');
   await openAccount(page, account);
@@ -70,7 +78,7 @@ test('an expense by keyboard: arithmetic, Enter moves on, Ctrl+Enter saves, Avai
 
 test('an income: Zu verteilen by default, income type, payee', async ({ page }, testInfo) => {
   const tag = testInfo.project.name;
-  const account = `Lohn ${tag}`;
+  const account = `Lohn ${tag}${again(testInfo)}`;
   await createAccount(page, account, 'Giro', '0');
   await openAccount(page, account);
 
@@ -96,9 +104,9 @@ test('a transfer between accounts; to a tracking account it needs a category', a
   page,
 }, testInfo) => {
   const tag = testInfo.project.name;
-  const giro = `Umbuchung Giro ${tag}`;
-  const spar = `Umbuchung Spar ${tag}`;
-  const depot = `Umbuchung Depot ${tag}`;
+  const giro = `Umbuchung Giro ${tag}${again(testInfo)}`;
+  const spar = `Umbuchung Spar ${tag}${again(testInfo)}`;
+  const depot = `Umbuchung Depot ${tag}${again(testInfo)}`;
   await createAccount(page, giro, 'Giro', '1000');
   await createAccount(page, spar, 'Tagesgeld', '0');
   await createAccount(page, depot, 'Depot', '0');
@@ -130,7 +138,7 @@ test('discard question, Speichern und neu keeps the context, the payee brings it
   page,
 }, testInfo) => {
   const tag = testInfo.project.name;
-  const account = `Bar ${tag}`;
+  const account = `Bar ${tag}${again(testInfo)}`;
   const category = `Cap D ${tag}`;
   const payee = `Bäckerei ${tag}`;
   await createAccount(page, account, 'Bargeld', '100');
@@ -165,9 +173,12 @@ test('discard question, Speichern und neu keeps the context, the payee brings it
   await expect(page.getByRole('row', { name: new RegExp(payee) })).toHaveCount(2);
   await expect(balance(page)).toHaveText('92,00 €');
 
-  // A new capture: the payee's category is filled in as soon as the name is there.
+  // A new capture: the payee's category is filled in once the payee is chosen (here: Enter moves
+  // on), not while its name is still being typed.
   panel = await openCapture(page, testInfo);
   await panel.getByLabel('Empfänger').fill(payee);
+  await expect(panel.getByLabel('Kategorie', { exact: true })).toHaveValue('');
+  await page.keyboard.press('Enter');
   await expect(panel.getByLabel('Kategorie', { exact: true })).toHaveValue(category);
   // The last used account comes first.
   await expect(panel.getByLabel('Konto', { exact: true }).locator('option').first()).toHaveText(
@@ -238,7 +249,7 @@ test('a split with a contact share: the chain shows what is left, saving waits u
   page,
 }, testInfo) => {
   const tag = testInfo.project.name;
-  const account = `Teilen ${tag}`;
+  const account = `Teilen ${tag}${again(testInfo)}`;
   await createAccount(page, account, 'Giro', '500');
   await openAccount(page, account);
 
@@ -282,8 +293,8 @@ test('a split with a contact share: the chain shows what is left, saving waits u
 
 test('a transfer line in a split moves money to the other account', async ({ page }, testInfo) => {
   const tag = testInfo.project.name;
-  const giro = `Zeile Giro ${tag}`;
-  const spar = `Zeile Spar ${tag}`;
+  const giro = `Zeile Giro ${tag}${again(testInfo)}`;
+  const spar = `Zeile Spar ${tag}${again(testInfo)}`;
   await createAccount(page, giro, 'Giro', '300');
   await createAccount(page, spar, 'Tagesgeld', '0');
   await openAccount(page, giro);
@@ -309,7 +320,7 @@ test('an income with a contact share (repayment) books through Auslagen', async 
   page,
 }, testInfo) => {
   const tag = testInfo.project.name;
-  const account = `Rück ${tag}`;
+  const account = `Rück ${tag}${again(testInfo)}`;
   await createAccount(page, account, 'Giro', '0');
   await openAccount(page, account);
 
@@ -324,4 +335,42 @@ test('an income with a contact share (repayment) books through Auslagen', async 
   const row = page.getByRole('row', { name: new RegExp(`Anna ${tag}`) });
   await expect(row).toContainText('Auslagen');
   await expect(balance(page)).toHaveText('40,00 €');
+});
+
+test('Ctrl+Enter held or pressed twice sends the booking once', async ({ page }, testInfo) => {
+  const tag = testInfo.project.name;
+  await createAccount(page, `Doppelt ${tag}${again(testInfo)}`, 'Giro', '100');
+  await openAccount(page, `Doppelt ${tag}${again(testInfo)}`);
+  // A slow answer keeps the first save in flight while the second key press arrives.
+  let posts = 0;
+  await page.route('**/api/bookings', async (route) => {
+    if (route.request().method() === 'POST') {
+      posts += 1;
+      await new Promise((resolve) => setTimeout(resolve, 400));
+    }
+    await route.continue();
+  });
+  const panel = await openCapture(page, testInfo);
+  await panel.getByLabel('Betrag', { exact: true }).fill('7');
+  await pickCategory(panel, `Cap A ${tag}`);
+  await page.keyboard.press('Control+Enter');
+  await page.keyboard.press('Control+Enter');
+  await expect(page.getByRole('dialog', { name: 'Buchung erfassen' })).toBeHidden();
+  await expect(balance(page)).toHaveText('93,00 €');
+  expect(posts).toBe(1);
+});
+
+test('a second Esc without any interaction still asks before discarding', async ({
+  page,
+}, testInfo) => {
+  await visit(page, '/');
+  const panel = await openCapture(page, testInfo);
+  await panel.getByLabel('Betrag', { exact: true }).fill('5');
+  // Chrome lets a repeated Esc close a dialog without a cancel event unless it is handled.
+  await page.keyboard.press('Escape');
+  await expect(panel.getByText('Eingaben verwerfen?')).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(panel).toBeVisible();
+  await expect(panel.getByText('Eingaben verwerfen?')).toBeVisible();
+  await expect(panel.getByLabel('Betrag', { exact: true })).toHaveValue('5');
 });
