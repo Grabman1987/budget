@@ -3,6 +3,7 @@ import { categories, createEntity, createTestDatabase, schema, type Db } from '@
 import { mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { eq } from 'drizzle-orm';
 import { Hono } from 'hono';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { createApp, type AuthGate } from '../app';
@@ -662,5 +663,75 @@ describe('protocol', () => {
     expect(res.status).toBe(400);
     expect((await call('GET', '/accounts/none')).status).toBe(404);
     expect((await call('GET', '/nope')).status).toBe(404);
+  });
+});
+
+describe('payee defaults are validated before anything is written', () => {
+  it('refuses an income or deleted category and keeps the name', async () => {
+    categories.create(
+      db,
+      { id: 'lohn', name: 'Lohn', groupId: 'g', class: null, kind: 'income' },
+      { actor: 'tester' },
+    );
+    categories.create(
+      db,
+      { id: 'alt', name: 'Alt', groupId: 'g', class: 'need' },
+      { actor: 'tester' },
+    );
+    db.update(schema.category)
+      .set({ deletedAt: '2026-01-01T00:00:00Z' })
+      .where(eq(schema.category.id, 'alt'))
+      .run();
+    const id = (await call('POST', '/payees', { name: 'Markt' })).body['payee'].id;
+    for (const defaultCategoryId of ['lohn', 'alt']) {
+      const res = await call('PATCH', `/payees/${id}`, { name: 'Markt neu', defaultCategoryId });
+      expect(res.status).toBe(422);
+    }
+    const row = ((await call('GET', '/payees')).body['payees'] as Array<Record<string, any>>).find(
+      (p) => p['id'] === id,
+    );
+    expect(row).toMatchObject({ name: 'Markt', defaultCategoryId: null });
+    const both = await call('PATCH', `/payees/${id}`, {
+      name: 'Markt neu',
+      defaultCategoryId: 'essen',
+    });
+    expect(both.body['payee']).toMatchObject({ name: 'Markt neu', defaultCategoryId: 'essen' });
+  });
+});
+
+describe('Auslagen is created on the first contact share', () => {
+  it('creates it once, inside the booking group, and undo takes it away again', async () => {
+    categories.create(db, { id: 'x', name: 'X', groupId: 'g', class: 'need' }, { actor: 'tester' });
+    db.update(schema.category)
+      .set({ deletedAt: '2026-01-01T00:00:00Z' })
+      .where(eq(schema.category.id, 'auslagen'))
+      .run();
+    createEntity(db, schema.contact, { id: 'anna', name: 'Anna' }, { actor: 'tester' });
+    const a = await newAccount();
+    const first = await newBooking(a.id, {
+      categoryId: null,
+      splits: [{ categoryId: null, amountCents: -1000, contactId: 'anna' }],
+    });
+    const advance = () =>
+      db
+        .select()
+        .from(schema.category)
+        .where(eq(schema.category.kind, 'advance'))
+        .all()
+        .filter((c) => !c.deletedAt);
+    expect(advance()).toHaveLength(1);
+    expect(advance()[0]).toMatchObject({ name: 'Auslagen', stage: 2 });
+    expect(first.bookings[0]?.['splits'][0]).toMatchObject({
+      categoryId: advance()[0]?.id,
+      contactId: 'anna',
+    });
+    await newBooking(a.id, {
+      amountCents: -500,
+      categoryId: null,
+      splits: [{ categoryId: null, amountCents: -500, contactId: 'anna' }],
+    });
+    expect(advance()).toHaveLength(1);
+    await call('POST', '/undo', { groupId: first.groupId });
+    expect(advance()).toHaveLength(0);
   });
 });

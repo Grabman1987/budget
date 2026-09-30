@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import type { BudgetMonthView } from '../budget/budget-api';
 import {
+  captureDirty,
   categoriesFor,
+  categoryFromPayee,
   defaultAccountId,
   orderAccounts,
   pickableCategories,
@@ -143,5 +145,26 @@ describe('quickDays', () => {
       ['Gestern', 'D-1'],
       ['Vorgestern', 'D-2'],
     ]);
+  });
+});
+
+describe('categoryFromPayee', () => {
+  it('fills an empty category or the one the previous payee set, never a picked one', () => {
+    expect(categoryFromPayee('', null, 'food')).toBe('food');
+    expect(categoryFromPayee('food', 'food', 'bank')).toBe('bank');
+    expect(categoryFromPayee('rent', 'food', 'bank')).toBeUndefined();
+    expect(categoryFromPayee('rent', null, 'food')).toBeUndefined();
+    expect(categoryFromPayee('', null, null)).toBeUndefined();
+  });
+});
+
+describe('captureDirty', () => {
+  const blank = { amount: '', payee: '', memo: '', splitOn: false };
+  it('counts typed input, but not the payee kept by "Speichern und neu"', () => {
+    expect(captureDirty(blank, '')).toBe(false);
+    expect(captureDirty({ ...blank, payee: 'Markt' }, '')).toBe(true);
+    expect(captureDirty({ ...blank, payee: 'Markt' }, 'Markt')).toBe(false);
+    expect(captureDirty({ ...blank, payee: 'Markt', amount: '5' }, 'Markt')).toBe(true);
+    expect(captureDirty({ ...blank, payee: 'Bäcker' }, 'Markt')).toBe(true);
   });
 });

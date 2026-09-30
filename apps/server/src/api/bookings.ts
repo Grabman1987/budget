@@ -3,13 +3,14 @@ import {
   createBooking,
   createTransfer,
   deleteBooking,
+  ensureAdvanceCategory,
   getBooking,
   queryBookings,
   ReconciledLockedError,
   relatedTransferBookings,
   runInTransaction,
   updateBooking,
-  type BookingInput,
+  type AuditContext,
   type BookingPatch,
   type Db,
   type ListedBooking,
@@ -39,6 +40,16 @@ const withoutType = <T extends { type: string }>({ type, ...rest }: T): Omit<T, 
   void type;
   return rest;
 };
+
+/**
+ * A contact share runs through the Auslagen category. The client may leave it out: the first
+ * share creates it (see `ensureAdvanceCategory`), inside the booking's own audit group.
+ */
+function withAdvanceCategory(db: Db, splits: SplitInput[], ctx: AuditContext): SplitInput[] {
+  if (!splits.some((s) => s.contactId && !s.categoryId)) return splits;
+  const advanceId = ensureAdvanceCategory(db, ctx);
+  return splits.map((s) => (s.contactId && !s.categoryId ? { ...s, categoryId: advanceId } : s));
+}
 
 export function bookingRoutes(db: Db): Hono {
   const app = new Hono();
@@ -93,13 +104,13 @@ export function bookingRoutes(db: Db): Hono {
     }
     requireOpen(body.accountId);
     const { splits, categoryId, ...columns } = withoutType(body);
-    const input: BookingInput = {
-      ...defined(columns),
-      splits: (splits ?? [{ categoryId: categoryId ?? null, amountCents: body.amountCents }]).map(
-        (s) => defined(s) as SplitInput,
-      ),
-    };
-    const id = createBooking(db, input, ctx);
+    const lines = (
+      splits ?? [{ categoryId: categoryId ?? null, amountCents: body.amountCents }]
+    ).map((s) => defined(s) as SplitInput);
+    // One transaction: a refused booking must not leave a freshly created Auslagen category.
+    const id = runInTransaction(db, (tx) =>
+      createBooking(tx, { ...defined(columns), splits: withAdvanceCategory(tx, lines, ctx) }, ctx),
+    );
     return c.json({ id, bookings: read([id]), groupId: ctx.groupId }, 201);
   });
 
@@ -108,11 +119,21 @@ export function bookingRoutes(db: Db): Hono {
     const { unlockReconciled, splits, ...rest } = await readBody(c, bookingPatch);
     if (rest.accountId) requireOpen(rest.accountId);
     const ctx = audit();
-    const patch: BookingPatch = {
-      ...defined(rest),
-      ...(splits ? { splits: splits.map((s) => defined(s) as SplitInput) } : {}),
-    };
-    updateBooking(db, id, patch, ctx, { unlockReconciled: unlockReconciled ?? false });
+    runInTransaction(db, (tx) => {
+      const patch: BookingPatch = {
+        ...defined(rest),
+        ...(splits
+          ? {
+              splits: withAdvanceCategory(
+                tx,
+                splits.map((s) => defined(s) as SplitInput),
+                ctx,
+              ),
+            }
+          : {}),
+      };
+      updateBooking(tx, id, patch, ctx, { unlockReconciled: unlockReconciled ?? false });
+    });
     return c.json({ bookings: read([id]), groupId: ctx.groupId });
   });
 

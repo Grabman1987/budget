@@ -51,13 +51,13 @@ test('accounts, bookings, split, transfer, undo and redo', async ({ page }, test
   await panel.getByLabel('Betrag', { exact: true }).fill('30');
   await panel.getByLabel('Empfänger').fill(`Markt ${tag}`);
   await panel.getByRole('button', { name: 'Aufteilen' }).click();
-  await panel.getByLabel('Kategorie 1').selectOption({ label: 'Essen' });
+  await panel.getByLabel('Kategorie 1').selectOption({ value: 'e2e-essen' });
   await panel.getByLabel('Betrag 1').fill('20');
-  await panel.getByLabel('Kategorie 2').selectOption({ label: 'Reise' });
+  await panel.getByLabel('Kategorie 2').selectOption({ value: 'e2e-reise' });
   await panel.getByLabel('Betrag 2').fill('5');
   await expect(panel.getByText('Rest: 5,00 €')).toBeVisible();
-  await panel.getByRole('button', { name: 'Speichern', exact: true }).click();
-  await expect(panel.getByRole('alert')).toContainText('nicht den Gesamtbetrag');
+  // Saving waits until the split adds up.
+  await expect(panel.getByRole('button', { name: 'Speichern', exact: true })).toBeDisabled();
   await panel.getByLabel('Betrag 2').fill('10');
   await expect(panel.getByText('Aufteilung geht auf.')).toBeVisible();
   await panel.getByRole('button', { name: 'Speichern', exact: true }).click();
