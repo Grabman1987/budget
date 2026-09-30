@@ -76,10 +76,17 @@ describe('TSV', () => {
     ]);
   });
 
-  it('rejects unquoted, unterminated and trailing garbage fields with the line', () => {
-    expect(errorOf(() => parseTsv('"a"\r\nb\t"c"', 'plan'))).toMatchObject({
+  it('reads bare fields as YNAB writes its amount columns', () => {
+    expect(parseTsv('"a"\t€12,34\t-€0,50\r\n"b"\t€0,00\t"x"', 'plan')).toEqual([
+      { line: 1, fields: ['a', '€12,34', '-€0,50'] },
+      { line: 2, fields: ['b', '€0,00', 'x'] },
+    ]);
+  });
+
+  it('rejects a quote in a bare field, unterminated and trailing garbage fields with the line', () => {
+    expect(errorOf(() => parseTsv('"a"\r\nb"x\t"c"', 'plan'))).toMatchObject({
       line: 2,
-      code: 'tsv.unquoted',
+      code: 'tsv.bare_quote',
     });
     expect(errorOf(() => parseTsv('"a"\r\n"b', 'plan'))).toMatchObject({
       line: 2,
