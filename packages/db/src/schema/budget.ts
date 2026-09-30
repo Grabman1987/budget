@@ -228,10 +228,7 @@ export const categoryTarget = sqliteTable(
     check('category_target_amount_chk', sql`${t.amountCents} >= 0`),
     check('category_target_every_chk', sql`${t.everyMonths} BETWEEN 1 AND 120`),
     check('category_target_due_day_chk', sql`${t.dueDay} BETWEEN 1 AND 31`),
-    check(
-      'category_target_date_chk',
-      sql`${t.kind} <> 'by_date' OR ${t.targetDate} IS NOT NULL`,
-    ),
+    check('category_target_date_chk', sql`${t.kind} <> 'by_date' OR ${t.targetDate} IS NOT NULL`),
     isoDay('category_target_target_date_chk', t.targetDate),
     isoMonth('category_target_valid_from_chk', t.validFrom),
     uniqueIndex('category_target_uq').on(t.categoryId, t.validFrom),

@@ -108,7 +108,8 @@ export function summarizeMonth(
     ...totals,
     // Whatever the previous month left (its "Zu verteilen" and the money held for this month):
     // derived from the stock so the chain always adds up, also in the first month.
-    carryInCents: toBeAssignedCents - incomeCents + uncoveredCents + month.assignedCents + heldCents,
+    carryInCents:
+      toBeAssignedCents - incomeCents + uncoveredCents + month.assignedCents + heldCents,
     incomeCents,
     uncoveredCents,
     heldCents,

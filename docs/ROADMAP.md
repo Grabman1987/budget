@@ -134,6 +134,7 @@ Order: P2a → P2b and P2c in parallel → P2d (parser can start right after P1f
 
 ### P2c — Categories and Plan › Monat (`docs/prompts/P2c.md`)
 - [ ] Einstellungen › Kategorien: groups, classes, kinds, stages, targets, hide, merge (with re-assignment of bookings)
+- [x] Budget API: month summary, assign, move, cover overspending through `budgetMonths` (cardRule `'ynab'`); categories API incl. merge and split-off; property tests stock = flow and merge keeps totals (PR `p2c-categories`)
 - [ ] Plan › Monat: waterfall with 9 stages, views (Stückliste, Zeit, Triage), Geld verteilen, overspending and card payment per concept §5.3
 
 ### P2d — YNAB import with mapping (`docs/prompts/P2d.md`)

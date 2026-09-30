@@ -19,6 +19,7 @@ import {
   type Db,
 } from '@budget/db';
 import { Hono } from 'hono';
+import type { z } from 'zod';
 import { ACTOR, defined, readBody, readQuery } from './http';
 import {
   assignBody,
@@ -38,6 +39,16 @@ import {
 
 const audit = () => withGroup({ actor: ACTOR });
 
+/** A target version (or `null`: no target) from `validFrom` on, in the caller's audit group. */
+function setTarget(
+  db: Parameters<typeof setCategoryTarget>[0],
+  categoryId: string,
+  { target, validFrom }: z.infer<typeof targetBody>,
+  ctx: ReturnType<typeof audit>,
+) {
+  setCategoryTarget(db, categoryId, target && defined(target), validFrom, ctx);
+}
+
 /** Einstellungen › Kategorien: groups, categories, targets, sort, merge and split-off. */
 export function categoryRoutes(db: Db): Hono {
   const app = new Hono();
@@ -45,9 +56,14 @@ export function categoryRoutes(db: Db): Hono {
   app.get('/', (c) => c.json(categoryTree(db)));
 
   app.post('/', async (c) => {
-    const input = await readBody(c, categoryCreate);
+    const { target, ...input } = await readBody(c, categoryCreate);
     const ctx = audit();
-    return c.json({ category: createCategory(db, defined(input), ctx), groupId: ctx.groupId }, 201);
+    const row = db.transaction((tx) => {
+      const created = createCategory(tx, defined(input), ctx);
+      if (target) setTarget(tx, created.id, target, ctx);
+      return created;
+    });
+    return c.json({ category: row, groupId: ctx.groupId }, 201);
   });
 
   app.post('/sort', async (c) => {
@@ -82,22 +98,23 @@ export function categoryRoutes(db: Db): Hono {
   });
 
   app.patch('/:id', async (c) => {
-    const { hidden, ...patch } = await readBody(c, categoryPatch);
+    const { hidden, target, ...patch } = await readBody(c, categoryPatch);
     const id = c.req.param('id');
     const ctx = audit();
     const row = db.transaction((tx) => {
       const changes = defined<Parameters<typeof updateCategory>[2]>(patch);
       let updated = updateCategory(tx, id, changes, ctx);
       if (hidden !== undefined) updated = setCategoryHidden(tx, id, hidden, ctx);
+      if (target) setTarget(tx, id, target, ctx);
       return updated;
     });
     return c.json({ category: row, groupId: ctx.groupId });
   });
 
   app.put('/:id/target', async (c) => {
-    const { target, validFrom } = await readBody(c, targetBody);
+    const body = await readBody(c, targetBody);
     const ctx = audit();
-    setCategoryTarget(db, c.req.param('id'), target && defined(target), validFrom, ctx);
+    setTarget(db, c.req.param('id'), body, ctx);
     return c.json({ groupId: ctx.groupId });
   });
 
