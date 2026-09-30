@@ -473,6 +473,22 @@ describe('bookings', () => {
 });
 
 describe('payees', () => {
+  it('sets, clears and undoes the default category that capture pre-fills', async () => {
+    const id = (await call('POST', '/payees', { name: 'Markt' })).body['payee'].id;
+    const set = await call('PATCH', `/payees/${id}`, { defaultCategoryId: 'essen' });
+    expect(set.body['payee'].defaultCategoryId).toBe('essen');
+    const listed = (await call('GET', '/payees')).body['payees'] as Array<{
+      id: string;
+      defaultCategoryId: string | null;
+    }>;
+    expect(listed.find((p) => p.id === id)?.defaultCategoryId).toBe('essen');
+    await call('POST', '/undo', { groupId: set.body['groupId'] });
+    const after = (await call('GET', '/payees')).body['payees'] as typeof listed;
+    expect(after.find((p) => p.id === id)?.defaultCategoryId).toBeNull();
+    expect((await call('PATCH', `/payees/${id}`, {})).status).toBe(400);
+    expect((await call('PATCH', `/payees/${id}`, { defaultCategoryId: 'nope' })).status).toBe(422);
+  });
+
   it('creates, renames and merges, undoable', async () => {
     const created = await call('POST', '/payees', { name: 'Bäckerei' });
     expect(created.status).toBe(201);

@@ -12,6 +12,7 @@ import {
   type BulkResult,
 } from './api';
 import { applyBulk, mapCachedBookings, patchListed, type BulkSet, type Names } from './cache';
+import { BUDGET_KEY } from '../budget/use-category-writes';
 import { flashRows } from './flash';
 import { bulkSummary, errorText, redoFailedText } from './labels';
 import { LEDGER_KEY, lookupsQuery, payeesQuery } from './queries';
@@ -56,7 +57,12 @@ const rollback = (qc: QueryClient, snapshot: Snapshot | undefined) => {
 export function useLedgerWrites() {
   const qc = useQueryClient();
   const toast = useToast();
-  const settled = () => qc.invalidateQueries({ queryKey: LEDGER_KEY });
+  // A booking moves account balances (ledger) and the Available of its category (budget).
+  const settled = () =>
+    Promise.all([
+      qc.invalidateQueries({ queryKey: LEDGER_KEY }),
+      qc.invalidateQueries({ queryKey: BUDGET_KEY }),
+    ]);
 
   const offerUndo = (message: string, groupId: string) =>
     toast.show({

@@ -9,6 +9,11 @@ export interface PanelProps {
   onClose: () => void;
   title: string;
   children: ReactNode;
+  /**
+   * Asked before Esc, the close button or a click on the backdrop closes the panel. Return
+   * `false` to keep it open (e.g. to ask whether unsaved input may be discarded).
+   */
+  beforeClose?: () => boolean;
 }
 
 /**
@@ -22,12 +27,18 @@ function Overlay({
   title,
   children,
   variant,
+  beforeClose,
 }: PanelProps & { variant: 'side' | 'bottom' }) {
   const ref = useRef<HTMLDialogElement>(null);
   const titleId = useId();
   // Toasts render inside the open dialog: everything outside a modal dialog is inert.
   const [toastHost, setToastHost] = useState<HTMLElement | null>(null);
   useRegisterToastHost(toastHost, open);
+
+  const requestClose = () => {
+    if (beforeClose && !beforeClose()) return;
+    onClose();
+  };
 
   useEffect(() => {
     const dialog = ref.current;
@@ -44,9 +55,13 @@ function Overlay({
       className={cx('overlay', variant === 'side' ? 'panel' : 'sheet-bottom')}
       aria-labelledby={titleId}
       onClose={onClose}
+      // Esc: the native cancel event, stopped while the guard wants the panel to stay.
+      onCancel={(e) => {
+        if (beforeClose && !beforeClose()) e.preventDefault();
+      }}
       onClick={(e) => {
         // A click on the dialog element itself (not its content) is a click on the backdrop.
-        if (e.target === e.currentTarget) onClose();
+        if (e.target === e.currentTarget) requestClose();
       }}
     >
       {open && (
@@ -54,7 +69,12 @@ function Overlay({
           {variant === 'bottom' && <span className="sheet-grip" aria-hidden="true" />}
           <div className="panel-head">
             <h2 id={titleId}>{title}</h2>
-            <button type="button" className="icon-btn" aria-label="Schließen" onClick={onClose}>
+            <button
+              type="button"
+              className="icon-btn"
+              aria-label="Schließen"
+              onClick={requestClose}
+            >
               <X size={18} strokeWidth={1.75} aria-hidden="true" />
             </button>
           </div>

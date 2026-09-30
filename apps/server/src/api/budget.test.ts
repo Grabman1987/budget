@@ -4,14 +4,25 @@ import { mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { beforeEach, describe, expect, it } from 'vitest';
-import { createApp } from '../app';
+import { Hono } from 'hono';
+import { createApp, type AuthGate } from '../app';
 
 const webDir = mkdtempSync(join(tmpdir(), 'budget-api-'));
 writeFileSync(join(webDir, 'index.html'), '<!doctype html><title>Budget</title>');
+/** The session guard has its own tests (auth.test.ts); here every request is signed in. */
+const signedIn: AuthGate = {
+  originGuard: async (_c, next) => next(),
+  requireSession: async (_c, next) => next(),
+  routes: new Hono(),
+};
 let app: ReturnType<typeof createApp>;
 
 beforeEach(() => {
-  app = createApp({ webDir, ledger: { db: createTestDatabase().db, today: () => '2026-10-15' } });
+  app = createApp({
+    webDir,
+    auth: signedIn,
+    ledger: { db: createTestDatabase().db, today: () => '2026-10-15' },
+  });
 });
 
 async function call(method: string, path: string, body?: unknown) {

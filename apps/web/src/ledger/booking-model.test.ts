@@ -234,3 +234,68 @@ describe('buildPatch', () => {
     expect(touchesLocked({ amountCents: 5 })).toBe(true);
   });
 });
+
+describe('capture rules of a new booking', () => {
+  it('needs a category for a spend but not for an income (Zu verteilen)', () => {
+    expect(buildCreate(draft({ amount: '10' }), null, { requireCategory: true })).toMatchObject({
+      ok: false,
+      errors: { category: expect.any(String) },
+    });
+    const income = buildCreate(
+      draft({ kind: 'income', amount: '10', incomeTypeId: 'gehalt' }),
+      null,
+    );
+    expect(income).toMatchObject({
+      ok: true,
+      value: { splits: [{ categoryId: null, amountCents: 1000, incomeTypeId: 'gehalt' }] },
+    });
+  });
+  it('asks for a category on a transfer to a tracking account only', () => {
+    const transfer = draft({ kind: 'transfer', toAccountId: 'a2', amount: '10' });
+    expect(
+      buildCreate(transfer, null, { requireCategory: true, transferNeedsCategory: true }),
+    ).toMatchObject({
+      ok: false,
+      errors: { category: expect.any(String) },
+    });
+    expect(buildCreate(transfer, null, { requireCategory: true })).toMatchObject({ ok: true });
+  });
+  it('carries the project and keeps editing free of the category rule', () => {
+    const built = buildCreate(draft({ categoryId: 'c1', projectId: 'p9' }), null);
+    expect(built).toMatchObject({ ok: true, value: { projectId: 'p9' } });
+    const original = stored({
+      splits: [{ ...stored().splits[0]!, categoryId: null, categoryName: null }],
+    });
+    expect(
+      buildPatch(original, { ...draftFromBooking(original), memo: 'x' }, 'p1', false),
+    ).toMatchObject({
+      ok: true,
+      value: { memo: 'x' },
+    });
+  });
+  it('edits the income type of an income and leaves a spend alone', () => {
+    const income = stored({
+      amountCents: 5000,
+      splits: [
+        { ...stored().splits[0]!, categoryId: null, amountCents: 5000, incomeTypeId: 'gehalt' },
+      ],
+    });
+    const changed = buildPatch(
+      income,
+      { ...draftFromBooking(income), incomeTypeId: 'sonder' },
+      'p1',
+      false,
+    );
+    expect(changed).toMatchObject({ ok: true, value: { splits: [{ incomeTypeId: 'sonder' }] } });
+    const cleared = buildPatch(
+      income,
+      { ...draftFromBooking(income), incomeTypeId: '' },
+      'p1',
+      false,
+    );
+    expect(cleared).toMatchObject({ ok: true });
+    expect((cleared as { value: { splits: unknown[] } }).value.splits[0]).not.toHaveProperty(
+      'incomeTypeId',
+    );
+  });
+});

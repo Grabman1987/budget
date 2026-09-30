@@ -139,8 +139,11 @@ export interface Lookups {
 export interface PayeeRow {
   id: string;
   name: string;
+  /** Category capture pre-fills for this payee. */
+  defaultCategoryId?: string | null;
+  systemKind?: string | null;
   bookingCount?: number;
-  system?: boolean;
+  lastBookingDate?: string | null;
 }
 
 export interface WriteResult {

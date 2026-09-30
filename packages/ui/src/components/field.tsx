@@ -1,4 +1,4 @@
-import { useId, type InputHTMLAttributes, type ReactNode, type SelectHTMLAttributes } from 'react';
+import { useId, type ComponentProps, type ReactNode } from 'react';
 import { cx } from './cx';
 
 export interface FieldProps {
@@ -30,10 +30,10 @@ export function Field({ label, error, hint, children }: FieldProps) {
   );
 }
 
-export function TextInput({ className, ...rest }: InputHTMLAttributes<HTMLInputElement>) {
+export function TextInput({ className, ...rest }: ComponentProps<'input'>) {
   return <input className={cx('input', className)} {...rest} />;
 }
 
-export function Select({ className, ...rest }: SelectHTMLAttributes<HTMLSelectElement>) {
+export function Select({ className, ...rest }: ComponentProps<'select'>) {
   return <select className={cx('select', className)} {...rest} />;
 }

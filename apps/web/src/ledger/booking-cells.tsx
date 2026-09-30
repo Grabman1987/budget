@@ -68,6 +68,15 @@ export function CategoryCell({
       </span>
     );
   }
+  if (!only?.categoryId && booking.amountCents > 0) {
+    // An inflow without a category is money to distribute, nothing missing.
+    return (
+      <span className="kcat">
+        <ClassSwatch kind="open" />
+        Zu verteilen
+      </span>
+    );
+  }
   if (!only?.categoryId || !only.categoryName) {
     return (
       <span className="kcat is-none">
