@@ -17,7 +17,7 @@ export class ApiError extends Error {
   }
 }
 
-export type HttpMethod = 'GET' | 'POST' | 'PATCH' | 'DELETE';
+export type HttpMethod = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
 
 /** JSON request against the same origin; every failure becomes an `ApiError`. */
 export async function request<T>(method: HttpMethod, path: string, body?: unknown): Promise<T> {

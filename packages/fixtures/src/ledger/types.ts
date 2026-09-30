@@ -12,6 +12,7 @@ export interface SampleLedger {
   accounts: Row<typeof db.account>[];
   categoryGroups: Row<typeof db.categoryGroup>[];
   categories: Row<typeof db.category>[];
+  categoryTargets: Row<typeof db.categoryTarget>[];
   payees: Row<typeof db.payee>[];
   projects: Row<typeof db.project>[];
   transfers: Row<typeof db.transfer>[];
@@ -43,6 +44,7 @@ export const LEDGER_TABLE_ORDER = [
   'accounts',
   'categoryGroups',
   'categories',
+  'categoryTargets',
   'payees',
   'projects',
   'transfers',

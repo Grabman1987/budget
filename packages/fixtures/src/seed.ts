@@ -9,6 +9,7 @@ const TABLES = {
   accounts: t.account,
   categoryGroups: t.categoryGroup,
   categories: t.category,
+  categoryTargets: t.categoryTarget,
   payees: t.payee,
   projects: t.project,
   transfers: t.transfer,
