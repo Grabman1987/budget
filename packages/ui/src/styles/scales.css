@@ -1,36 +1,8 @@
-/* Mode-independent tokens: type scale, radii, spacing, motion, hatching. Values from DESIGN.md. */
+/* Mode-independent tokens: fonts, motion, line types, hatching. Type scale, radii and spacing are
+   generated into scale-tokens.css from DESIGN.md. */
 :root {
   --font-ui: 'Archivo', 'Segoe UI', system-ui, sans-serif;
   --font-tech: 'Barlow Semi Condensed', 'Archivo', system-ui, sans-serif;
-
-  /* Type scale (mobile overrides below) */
-  --fs-dimension: 68px;
-  --fs-display: 30px;
-  --fs-headline: 20px;
-  --fs-title: 17px;
-  --fs-figure: 24px;
-  --fs-body: 14px;
-  --fs-label: 11.5px;
-  --fs-chart-label: 12px;
-
-  /* Radii */
-  --radius-titleblock: 2px;
-  --radius-xs: 4px;
-  --radius-sm: 6px;
-  --radius-md: 8px;
-  --radius-sheet: 12px;
-  --radius-sheet-mobile: 16px;
-  --radius-pill: 999px;
-
-  /* Spacing */
-  --space-xs: 4px;
-  --space-sm: 8px;
-  --space-md: 12px;
-  --space-lg: 16px;
-  --space-xl: 24px;
-  --space-gutter: 32px;
-  --space-section: 44px;
-  --touch: 44px;
 
   /* Motion */
   --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
@@ -55,14 +27,4 @@
 
   --sidebar: 236px;
   --sheet-max: 1240px;
-}
-
-@media (max-width: 767px) {
-  :root {
-    --fs-dimension: 40px;
-    --fs-display: 24px;
-    --fs-headline: 18px;
-    --fs-figure: 21px;
-    --fs-body: 15px;
-  }
 }

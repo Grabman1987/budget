@@ -210,3 +210,67 @@ svg.chart {
     transition: opacity var(--t-fast);
   }
 }
+
+/* ---------- Maßkette, drawn variant (DimensionChainDrawing) ---------- */
+/* Unfolds in 240 ms: the row height animates from 0 to its content. */
+.chain-drawing {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 240ms var(--ease-out);
+}
+.chain-drawing.is-open {
+  grid-template-rows: 1fr;
+}
+.chain-drawing-inner {
+  overflow: hidden;
+  min-height: 0;
+}
+.chain-svg {
+  display: block;
+  width: 100%;
+  overflow: visible;
+}
+.chain-seg {
+  cursor: pointer;
+}
+.chain-seg.is-static {
+  cursor: default;
+}
+.chain-seg .seg-fill {
+  opacity: 0.92;
+}
+.chain-seg:hover .seg-fill,
+.chain-seg:focus-visible .seg-fill {
+  opacity: 1;
+}
+.chain-seg:focus {
+  outline: none;
+}
+.chain-seg:focus-visible {
+  outline: 2px solid var(--focus, var(--line));
+  outline-offset: 2px;
+}
+/* Plotter draw: the dimension lines are pulled from the start point (pathLength is 1). */
+.plot-line {
+  stroke-dasharray: 1;
+  stroke-dashoffset: 0;
+}
+.chain-drawing.is-open .plot-line {
+  animation: plot-draw var(--t-plot) var(--ease-out) both;
+}
+@keyframes plot-draw {
+  from {
+    stroke-dashoffset: 1;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .chain-drawing {
+    transition: none;
+  }
+  .chain-drawing.is-open .plot-line {
+    animation: none;
+  }
+}

@@ -1,6 +1,7 @@
 import { X } from 'lucide-react';
-import { useEffect, useRef, type ReactNode } from 'react';
+import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
 import { cx } from './cx';
+import { useRegisterToastHost } from './toast-host';
 import { useIsPhone } from './use-media-query';
 
 export interface PanelProps {
@@ -12,7 +13,8 @@ export interface PanelProps {
 
 /**
  * Modal overlay on the native `<dialog>`: focus is trapped, Esc closes, the page behind is inert,
- * focus returns to the trigger. The scrim is the dialog backdrop; clicking it closes.
+ * focus returns to the trigger. The scrim is the dialog backdrop; clicking it closes. The dialog
+ * is named by its visible heading. It also hosts the toast while it is open.
  */
 function Overlay({
   open,
@@ -22,6 +24,10 @@ function Overlay({
   variant,
 }: PanelProps & { variant: 'side' | 'bottom' }) {
   const ref = useRef<HTMLDialogElement>(null);
+  const titleId = useId();
+  // Toasts render inside the open dialog: everything outside a modal dialog is inert.
+  const [toastHost, setToastHost] = useState<HTMLElement | null>(null);
+  useRegisterToastHost(toastHost, open);
 
   useEffect(() => {
     const dialog = ref.current;
@@ -31,10 +37,12 @@ function Overlay({
   }, [open]);
 
   return (
+    // The backdrop click is a pointer convenience only; the keyboard closes with Esc (native).
+    // eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-noninteractive-element-interactions
     <dialog
       ref={ref}
       className={cx('overlay', variant === 'side' ? 'panel' : 'sheet-bottom')}
-      aria-label={title}
+      aria-labelledby={titleId}
       onClose={onClose}
       onClick={(e) => {
         // A click on the dialog element itself (not its content) is a click on the backdrop.
@@ -45,7 +53,7 @@ function Overlay({
         <div className="overlay-inner">
           {variant === 'bottom' && <span className="sheet-grip" aria-hidden="true" />}
           <div className="panel-head">
-            <h2>{title}</h2>
+            <h2 id={titleId}>{title}</h2>
             <button type="button" className="icon-btn" aria-label="Schließen" onClick={onClose}>
               <X size={18} strokeWidth={1.75} aria-hidden="true" />
             </button>
@@ -56,6 +64,7 @@ function Overlay({
           </div>
         </div>
       )}
+      <div ref={setToastHost} className="toast-host" />
     </dialog>
   );
 }

@@ -379,6 +379,7 @@ Je Konto: Quelle (Bank-Sync PSD2, API nur lesen, Datei-Import, manuell), Schalte
 - **Do** kodiere die drei Klassen mit Füllung: Bedarf voll, Wunsch 135°-Schraffur, Zukunft Kreuzschraffur; gebunden als Schraffur in blasser Tusche.
 - **Do** zeige Schulden in Ketten als gestrichelte Kontur ohne Füllung.
 - **Do** verwende außerhalb von Diagrammen und Maßen klassische Finanzsymbole und Lucide-Icons (Strich 1,75, 18 px).
+- **Do** zeige Emojis (z. B. an Kategorien) nur einfarbig in der Tintenfarbe: Schrift Noto Emoji (monochrom, selbst gehostet) und `font-variant-emoji: text`. Nie farbige Emojis (Entscheidung 29.09.2026).
 - **Do** halte pro Region höchstens ein Zeichenmittel sichtbar.
 - **Do** pflege beide Modi gleichwertig über dieselben Rollen-Properties.
 

@@ -335,6 +335,11 @@ a.btn {
 }
 
 @media (max-width: 767px) {
+  :root {
+    --tabbar-h: calc(64px + env(safe-area-inset-bottom));
+    --fab-size: 58px;
+    --fab-gap: 16px;
+  }
   .app {
     display: block;
     background: none;
@@ -344,7 +349,9 @@ a.btn {
     display: none;
   }
   .sheet {
-    padding: 8px 16px 132px;
+    /* Room for the fixed tab bar, the floating + button above it and a little air, so the last
+       control of every page can be scrolled fully into view (audit D10a). */
+    padding: 8px 16px calc(var(--tabbar-h) + var(--fab-gap) + var(--fab-size) + 24px);
     row-gap: 36px;
     column-gap: 0;
     grid-template-columns: minmax(0, 1fr);
@@ -355,11 +362,11 @@ a.btn {
 
   .m-head {
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     gap: 8px;
     padding: 14px 16px 6px;
   }
-  .m-head h1 {
+  .m-head .m-title-text {
     margin: 0;
     font-size: var(--fs-display);
     font-weight: 650;
@@ -398,7 +405,7 @@ a.btn {
     right: 0;
     bottom: 0;
     z-index: 30;
-    height: calc(64px + env(safe-area-inset-bottom));
+    height: var(--tabbar-h);
     padding-bottom: env(safe-area-inset-bottom);
     background: color-mix(in srgb, var(--ground-2) 92%, transparent);
     backdrop-filter: blur(12px);
@@ -437,9 +444,9 @@ a.btn {
     position: fixed;
     z-index: 31;
     right: 16px;
-    bottom: calc(80px + env(safe-area-inset-bottom));
-    width: 58px;
-    height: 58px;
+    bottom: calc(var(--tabbar-h) + var(--fab-gap));
+    width: var(--fab-size);
+    height: var(--fab-size);
     border-radius: 50%;
     background: var(--primary);
     color: var(--on-primary);

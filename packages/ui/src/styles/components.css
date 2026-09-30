@@ -131,6 +131,22 @@
   font-size: 16px;
   color: var(--ink-2);
 }
+.tb-short {
+  display: none;
+}
+.tb-value .icon {
+  color: var(--line);
+}
+/* Month switch (Plan): previous, month, next in the title cell. */
+.month-switch {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.month-switch h1 {
+  min-width: 8.6em;
+  text-align: center;
+}
 .tb-value {
   font-weight: 600;
   font-size: 14px;
@@ -152,16 +168,40 @@
   .titleblock:not(.titleblock-compact) .tb-field:nth-child(2) {
     border-left: 0;
   }
-  .titleblock-compact .tb-title,
-  .titleblock-compact .tb-label {
+  /* The name lives in the app header, the title is hidden; fields keep label and value. */
+  .titleblock-compact:not(.titleblock-title-mobile) .tb-title,
+  .titleblock-compact .tb-hide-mobile {
     display: none;
+  }
+  .titleblock-compact:not(.titleblock-title-mobile) .tb-field:nth-child(2) {
+    border-left: 0;
+  }
+  .titleblock-title-mobile {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+  .titleblock-title-mobile .tb-title {
+    padding: 4px 6px;
+    min-width: 0;
+  }
+  /* Month switch on the phone: previous, month, next share the cell, the month shrinks. */
+  .month-switch {
+    width: 100%;
+    min-width: 0;
+  }
+  .month-switch h1 {
+    font-size: 19px;
+    min-width: 0;
+    flex: 1;
+  }
+  .tb-long {
+    display: none;
+  }
+  .tb-short {
+    display: inline;
   }
   .titleblock-compact .tb-cell {
     padding: 6px 12px;
     align-content: center;
-  }
-  .titleblock-compact .tb-field:nth-child(2) {
-    border-left: 0;
   }
 }
 
@@ -169,8 +209,26 @@
 .registers {
   display: flex;
   gap: 4px;
-  border-bottom: 1px solid var(--rule);
   overflow-x: auto;
+  /* The hairline is a background, not a border: an overflow container clips children that hang
+     over its border, which cut the 2 px active underline. Now the underline sits inside. */
+  background: linear-gradient(var(--rule), var(--rule)) bottom / 100% 1px no-repeat;
+}
+/* Edge fade: more registers are hidden behind this edge (set by the component while scrolling). */
+.registers[data-fade-end='true'] {
+  mask-image: linear-gradient(to right, #000 calc(100% - 44px), transparent);
+}
+.registers[data-fade-start='true'] {
+  mask-image: linear-gradient(to left, #000 calc(100% - 44px), transparent);
+}
+.registers[data-fade-start='true'][data-fade-end='true'] {
+  mask-image: linear-gradient(
+    to right,
+    transparent,
+    #000 44px,
+    #000 calc(100% - 44px),
+    transparent
+  );
 }
 .registers a,
 .registers button {
@@ -182,12 +240,16 @@
   text-decoration: none;
   font-weight: 560;
   border-bottom: 2px solid transparent;
-  margin-bottom: -1px;
   white-space: nowrap;
   border-radius: 0;
 }
+/* Inset ring: an outside ring would be clipped by the scrolling container. */
+.registers a:focus-visible,
+.registers button:focus-visible {
+  outline-offset: -3px;
+}
 .registers a[aria-current='page'],
-.registers button[aria-current='page'] {
+.registers button[aria-pressed='true'] {
   color: var(--ink);
   border-bottom-color: var(--line);
   font-weight: 640;
@@ -198,6 +260,19 @@
 }
 .registers-item {
   display: inline-flex;
+}
+
+/* Desktop measures follow the prototype: register tabs 42 px, month buttons 40 px (the 44 px touch
+   size applies on the phone). */
+@media (min-width: 768px) {
+  .registers a,
+  .registers button {
+    min-height: 42px;
+  }
+  .month-switch .icon-btn {
+    width: 40px;
+    height: 40px;
+  }
 }
 
 /* ---------- Section head and circled numbers ---------- */
@@ -375,7 +450,7 @@
 /* Amount field: arithmetic in the field, operator buttons, evaluated hint below */
 .amount-box {
   display: grid;
-  grid-template-columns: auto auto 1fr;
+  grid-template-columns: auto auto 1fr auto;
   align-items: center;
   gap: 10px;
   min-height: 60px;
@@ -393,8 +468,8 @@
 }
 .amount-ops {
   display: grid;
-  grid-template-columns: repeat(2, 28px);
-  grid-template-rows: repeat(2, 28px);
+  grid-template-columns: repeat(2, 22px);
+  grid-template-rows: repeat(2, 22px);
   gap: 2px;
   padding-right: 8px;
   border-right: 1px solid var(--rule);
@@ -403,7 +478,7 @@
   border-radius: var(--radius-xs);
   font-family: var(--font-tech);
   font-weight: 600;
-  font-size: 15px;
+  font-size: 14px;
   line-height: 1;
   color: var(--line);
   display: grid;
@@ -418,7 +493,12 @@
   color: var(--ink-2);
 }
 .amount-box:not(:has(.amount-sign)) {
-  grid-template-columns: auto 1fr;
+  grid-template-columns: auto 1fr auto;
+}
+.amount-cur {
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--ink-3);
 }
 .amount-input {
   border: 0;
@@ -454,24 +534,27 @@
   }
   /* 44 px operator buttons in their own row below the amount */
   .amount-box {
-    grid-template-columns: auto 1fr;
+    grid-template-columns: auto 1fr auto;
     grid-template-areas:
-      'sign input'
-      'ops ops';
+      'sign input cur'
+      'ops ops ops';
     row-gap: 8px;
     padding-bottom: 8px;
   }
   .amount-box:not(:has(.amount-sign)) {
-    grid-template-columns: 1fr;
+    grid-template-columns: 1fr auto;
     grid-template-areas:
-      'input'
-      'ops';
+      'input cur'
+      'ops ops';
   }
   .amount-sign {
     grid-area: sign;
   }
   .amount-input {
     grid-area: input;
+  }
+  .amount-cur {
+    grid-area: cur;
   }
   .amount-ops {
     grid-area: ops;
@@ -620,10 +703,33 @@ button.ct-term .ct-val {
   color: var(--ink-3);
 }
 .prow.is-clickable {
+  position: relative; /* containing block of the button overlay */
   cursor: pointer;
 }
 .prow.is-clickable:hover td {
   background: var(--tint);
+}
+/* Real button around the name; its ::after stretches over the whole row (tr is the positioned
+   ancestor), so the row is one hit area for mouse, touch and keyboard. */
+.prow-btn {
+  text-align: left;
+  font-size: inherit;
+  font-weight: inherit;
+  line-height: inherit;
+  letter-spacing: inherit;
+}
+.prow-btn::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+}
+.prow-btn:focus-visible {
+  outline: none;
+}
+.prow-btn:focus-visible::after {
+  outline: 2px solid var(--line);
+  outline-offset: -2px;
+  border-radius: var(--radius-xs);
 }
 
 /* ---------- Revision table ---------- */
@@ -900,14 +1006,18 @@ dialog.overlay::backdrop {
   }
 }
 
+/* The toast is an always-mounted live region (empty while closed); only its body is hidden. It is
+   rendered inside an open modal dialog (.toast-host) because the page behind a dialog is inert. */
 .toast {
   position: fixed;
   z-index: 70;
   left: 50%;
   bottom: 28px;
-  translate: -50% 16px;
-  opacity: 0;
-  visibility: hidden;
+  translate: -50% 0;
+  max-width: calc(100vw - 32px);
+  pointer-events: none;
+}
+.toast-body {
   display: flex;
   align-items: center;
   gap: 16px;
@@ -916,16 +1026,19 @@ dialog.overlay::backdrop {
   color: var(--ground);
   border-radius: 10px;
   box-shadow: var(--shadow);
+  opacity: 0;
+  visibility: hidden;
+  translate: 0 16px;
   transition:
     opacity 200ms var(--ease-out),
     translate 240ms var(--ease-out),
     visibility 0s linear 240ms;
-  max-width: calc(100vw - 32px);
 }
-.toast.is-open {
+.toast.is-open .toast-body {
   opacity: 1;
   visibility: visible;
-  translate: -50% 0;
+  translate: 0 0;
+  pointer-events: auto;
   transition:
     opacity 200ms var(--ease-out),
     translate 240ms var(--ease-out);
@@ -939,8 +1052,13 @@ dialog.overlay::backdrop {
   padding: 0 12px;
   border-radius: var(--radius-sm);
 }
+/* The toast is ink on ground in both themes, so the hover tint is the ground colour at low
+   strength: lighter on the dark toast (light theme), darker on the light toast (dark theme). */
 .toast button:hover {
-  background: rgba(255, 255, 255, 0.12);
+  background: color-mix(in srgb, var(--ground) 18%, transparent);
+}
+.toast button:focus-visible {
+  outline-color: var(--ground);
 }
 @media (max-width: 767px) {
   .toast {
@@ -952,5 +1070,13 @@ dialog.overlay::backdrop {
   .grp-toggle,
   .amount-input {
     min-height: var(--touch);
+  }
+  /* The row overlay is the real target; the button box itself also reaches 44 px. The negative
+     margin cancels the cell padding so the row does not grow. */
+  .prow-btn {
+    display: inline-flex;
+    align-items: center;
+    min-height: var(--touch);
+    margin-block: -11px;
   }
 }

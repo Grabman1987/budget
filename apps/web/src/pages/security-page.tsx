@@ -14,7 +14,7 @@ import { defaultDeviceName } from '../auth/device-name';
 import { RecoveryCodesGate } from '../auth/recovery-codes';
 import { PASSKEYS_KEY } from '../auth/status-query';
 import { authErrorMessage, registerPasskey, withStepUp } from '../auth/webauthn';
-import { PAGES } from '../nav/pages';
+import { SECURITY_META } from '../nav/pages';
 import { PageFrame } from './placeholder-page';
 
 const RECOVERY_CODE_COUNT = 10;
@@ -25,23 +25,11 @@ const formatDate = (iso: string) => {
   return Number.isNaN(date.getTime()) ? '–' : dateFormat.format(date);
 };
 
-export const SECURITY_META = (() => {
-  const page = PAGES.find((p) => p.path === '/einstellungen/sicherheit');
-  if (!page) throw new Error('Missing page /einstellungen/sicherheit');
-  return page;
-})();
-
 /** Einstellungen › Sicherheit inside the page frame (title block and registers). */
 export function SecurityPage() {
   const navigate = useNavigate();
-  const passkeys = useQuery({ queryKey: PASSKEYS_KEY, queryFn: fetchPasskeys });
   return (
-    <PageFrame
-      meta={SECURITY_META}
-      title="Sicherheit"
-      subtitle="Wer darf Budget öffnen?"
-      fields={[{ label: 'Passkeys', value: passkeys.data ? passkeys.data.passkeys.length : '–' }]}
-    >
+    <PageFrame meta={SECURITY_META}>
       <SecurityPanel onLoggedOut={() => void navigate({ to: '/login' })} />
     </PageFrame>
   );
