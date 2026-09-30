@@ -62,6 +62,24 @@ function setup() {
   createEntity(db, payee, { id: 'cafe', name: 'Café Eck', defaultCategoryId: 'kaffee' }, ctx);
 }
 
+/** Groups, categories (incl. opening envelope), targets and payees without their timestamps. */
+function snapshot() {
+  const strip = <T extends object>(rows: T[]) =>
+    rows.map((row) => {
+      const rest = { ...row } as Record<string, unknown>;
+      delete rest['createdAt'];
+      delete rest['updatedAt'];
+      return rest;
+    });
+  const tree = categoryTree(db);
+  return {
+    groups: strip(tree.groups),
+    categories: strip(tree.categories),
+    targets: strip(tree.targets),
+    payees: strip(db.select().from(payee).all()),
+  };
+}
+
 const book = (accountId: string, date: string, amountCents: number, categoryId: string | null) =>
   createBooking(
     db,
@@ -219,6 +237,40 @@ describe('budget writes', () => {
     });
     expect(summary.cards).toEqual([{ accountId: 'karte', cardDebtGrowthCents: 5_000 }]);
   });
+
+  it('one category overspent on two cards: the credit part is shared by their spending', () => {
+    accounts.create(
+      db,
+      {
+        id: 'karte2',
+        name: 'karte2',
+        type: 'credit_card',
+        role: 'budget',
+        onBudget: true,
+        openingDate: '2026-07-01',
+      },
+      ctx,
+    );
+    createCategory(
+      db,
+      { name: 'Kartenzahlung 2', groupId: 'wohnen', kind: 'card_payment', cardAccountId: 'karte2' },
+      ctx,
+    );
+    book('giro', '2026-07-01', 100_000, null);
+    assignMany(db, '2026-07', [{ categoryId: 'essen', assignedCents: 10_000 }], ctx);
+    book('karte', '2026-07-03', -9_000, 'essen');
+    book('karte2', '2026-07-04', -3_000, 'essen');
+    const { summary } = budgetSummary(db, '2026-07');
+    expect(summary.envelopes.find((e) => e.categoryId === 'essen')).toMatchObject({
+      fundedCardCents: 10_000,
+      creditOverspentCents: 2_000,
+      cashOverspentCents: 0,
+    });
+    expect(summary.cards).toEqual([
+      { accountId: 'karte', cardDebtGrowthCents: 1_500 },
+      { accountId: 'karte2', cardDebtGrowthCents: 500 },
+    ]);
+  });
 });
 
 // Integration-level properties (repositories + budget read model); the domain has its own 200-run
@@ -272,7 +324,12 @@ describe('property tests on random ledgers', { timeout: 60_000 }, () => {
             })),
             ctx,
           );
+      // Targets and opening envelopes on the sources, so the undo has them to restore too.
+      setCategoryTarget(db, 'strom', { kind: 'monthly', amountCents: 9_000 }, '2026-07', ctx);
+      setCategoryTarget(db, 'kaffee', { kind: 'monthly', amountCents: 4_000 }, '2026-08', ctx);
+      updateCategory(db, 'kaffee', { openingAvailableCents: 1_500 } as never, ctx);
       const before = budget(db, MONTHS);
+      const state = snapshot();
       const cardEnvelope = categoryTree(db).categories.find((c) => c.kind === 'card_payment')?.id;
       const target = pick(['miete', 'essen']);
       const sources = run % 3 === 0 ? ['strom', 'kaffee'] : [pick(['strom', 'kaffee'])];
@@ -302,6 +359,8 @@ describe('property tests on random ledgers', { timeout: 60_000 }, () => {
       exactAvailable += neverOverspent ? 1 : 0;
       undo(db, { groupId: merged.groupId }, ctx);
       expect(budget(db, MONTHS)).toEqual(before);
+      // … and the tree, targets, opening envelopes and payee defaults as they were.
+      expect(snapshot()).toEqual(state);
     }
     expect(exactAvailable).toBeGreaterThan(0);
   });
