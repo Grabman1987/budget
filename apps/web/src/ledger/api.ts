@@ -144,7 +144,7 @@ export const deleteBooking = (id: string, unlock = false) =>
   );
 
 export interface BulkResult extends WriteResult {
-  changed: number;
+  changed: string[];
   skipped: { id: string; reason: string }[];
 }
 
