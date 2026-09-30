@@ -2,3 +2,5 @@
 *.webp binary
 *.woff2 binary
 *.png binary
+# The synthetic YNAB export is byte-exact (BOM, CRLF, CESU-8): never normalise it.
+*.tsv binary

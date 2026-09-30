@@ -1,5 +1,5 @@
 {
-  "name": "@budget/fixtures",
+  "name": "@budget/import-ynab",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -10,11 +10,12 @@
   },
   "dependencies": {
     "@budget/domain": "*",
-    "@budget/db": "*"
+    "zod": "^4.6.5"
+  },
+  "devDependencies": {
+    "@budget/fixtures": "*"
   },
   "exports": {
-    ".": "./src/index.ts",
-    "./seed": "./src/seed.ts",
-    "./ynab": "./src/ynab/generate.ts"
+    ".": "./src/index.ts"
   }
 }
