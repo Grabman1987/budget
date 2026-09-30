@@ -39,3 +39,8 @@ export class ReconciledLockedError extends Error {
 export class ConflictError extends Error {
   override readonly name = 'ConflictError';
 }
+
+/** A category write breaks a rule of the category system (class, kind, card, stage, icon, merge). */
+export class CategoryRuleError extends Error {
+  override readonly name = 'CategoryRuleError';
+}

@@ -1,6 +1,7 @@
 import {
   AuditError,
   BookingInvariantError,
+  CategoryRuleError,
   ConflictError,
   EntityNotFoundError,
   ReconciledLockedError,
@@ -88,6 +89,8 @@ export function errorResponse(error: unknown, c: Context) {
   if (error instanceof BookingInvariantError) {
     return c.json({ error: 'invariant', message: error.message }, 422);
   }
+  if (error instanceof CategoryRuleError)
+    return c.json({ error: 'category_rule', message: error.message }, 422);
   if (error instanceof RangeError) return c.json({ error: 'invalid', message: error.message }, 400);
   if (isSqliteConstraint(error)) {
     return c.json({ error: 'constraint', message: 'The data violates a rule of the ledger' }, 422);

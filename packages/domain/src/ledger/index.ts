@@ -30,3 +30,22 @@ export {
   type BudgetClass,
 } from './alloc';
 export { netWorthAttribution, netWorthSeries, type NetWorthPoint } from './networth';
+export {
+  targetNeed,
+  waterfallFill,
+  waterfallOrder,
+  type CategoryTarget,
+  type TargetEnvelope,
+  type TargetKind,
+  type TargetNeed,
+  type WaterfallRow,
+} from './targets';
+export {
+  summarizeMonth,
+  targetFor,
+  type EnvelopeSummary,
+  type MonthSummary,
+  type SummaryCategory,
+  type Totals,
+  type VersionedTarget,
+} from './summary';

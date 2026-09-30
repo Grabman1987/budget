@@ -11,3 +11,5 @@ export * from './allocation';
 export * from './ledger-queries';
 export * from './payees';
 export * from './reconciliation';
+export * from './categories';
+export * from './budget';

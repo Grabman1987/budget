@@ -4,6 +4,9 @@ import {
   BOOKING_FLAGS,
   BOOKING_SORTS,
   BOOKING_STATUSES,
+  CATEGORY_CLASSES,
+  CATEGORY_KINDS,
+  TARGET_KINDS,
 } from '@budget/db';
 import { z } from 'zod';
 
@@ -181,3 +184,66 @@ export const reconcileBody = reconcilePreview.extend({
   adjust: z.boolean().default(false),
   note: nullableText.optional(),
 });
+
+// ---------- categories and budget (P2c) ----------
+export const month = z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/, 'Month as YYYY-MM');
+const categoryFields = {
+  name: z.string().trim().min(1).max(80),
+  groupId: id,
+  icon: z.string().max(16).nullable().optional(),
+  class: z.enum(CATEGORY_CLASSES).nullable().optional(),
+  kind: z.enum(CATEGORY_KINDS).optional(),
+  stage: z.int().min(1).max(9).nullable().optional(),
+  cardAccountId: id.nullable().optional(),
+  rolloverOverspending: z.boolean().optional(),
+};
+export const categoryCreate = z.object(categoryFields);
+export const categoryPatch = z
+  .object(categoryFields)
+  .partial()
+  .extend({ hidden: z.boolean().optional() });
+export const targetBody = z.object({
+  validFrom: month,
+  target: z
+    .object({
+      kind: z.enum(TARGET_KINDS),
+      amountCents: cents.min(0),
+      everyMonths: z.int().min(1).max(120).default(1),
+      targetDate: day.nullable().optional(),
+      dueDay: z.int().min(1).max(31).nullable().optional(),
+    })
+    .nullable(),
+});
+export const categorySort = z.object({
+  groups: z
+    .array(z.object({ id, categoryIds: z.array(id).max(500) }))
+    .min(1)
+    .max(100),
+});
+export const categoryMerge = z.object({ sourceIds: z.array(id).min(1).max(100), targetId: id });
+export const splitOffQuery = z.object({
+  payeeId: id.optional(),
+  accountId: id.optional(),
+  from: day.optional(),
+  to: day.optional(),
+  q: z.string().max(200).optional(),
+});
+export const splitOffBody = z.union([
+  z.object({ splitIds: z.array(id).min(1).max(500), targetId: id }),
+  z.object({ splitIds: z.array(id).min(1).max(500), newCategory: categoryCreate }),
+]);
+export const groupBody = z.object({ name: z.string().trim().min(1).max(80) });
+
+export const budgetQuery = z.object({ cardRule: z.enum(['ynab', 'concept']).optional() });
+export const assignBody = z.object({
+  items: z
+    .array(z.object({ categoryId: id, assignedCents: cents }))
+    .min(1)
+    .max(500),
+});
+export const moveBody = z.object({
+  fromId: id.nullable(),
+  toId: id.nullable(),
+  amountCents: cents.positive(),
+});
+export const coverBody = z.object({ categoryId: id, fromId: id.nullable() });

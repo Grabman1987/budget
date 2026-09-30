@@ -96,6 +96,8 @@ export const category = sqliteTable(
   {
     id: id(),
     name: text('name').notNull(),
+    /** Optional emoji, rendered monochrome in blueprint ink (never as colour emoji). */
+    icon: text('icon'),
     groupId: text('group_id')
       .notNull()
       .references(() => categoryGroup.id),
@@ -200,8 +202,9 @@ export const budgetMonth = sqliteTable(
 
 /**
  * Target per category (Ziel je Kategorie), versioned by `valid_from` month: `monthly` = assign
- * `amount_cents` every month (or every `every_months`), `by_date` = reach `amount_cents` by
- * `target_date`, `keep_balance` = keep at least `amount_cents` available.
+ * `amount_cents` every month (or `amount_cents` every `every_months` months, due in the month of
+ * `target_date`), `by_date` = reach `amount_cents` by `target_date`, `keep_balance` = keep at least
+ * `amount_cents` available. The arithmetic is `targetNeed` in the domain package.
  */
 export const categoryTarget = sqliteTable(
   'category_target',
@@ -214,6 +217,8 @@ export const categoryTarget = sqliteTable(
     amountCents: cents('amount_cents').notNull(),
     everyMonths: integer('every_months').notNull().default(1),
     targetDate: text('target_date'),
+    /** Day of month (1–31, 31 = last day) a `monthly` target falls due (Fixkosten: "am 1."). */
+    dueDay: integer('due_day'),
     /** `YYYY-MM` from which this target applies; the next version replaces it. */
     validFrom: text('valid_from').notNull(),
     ...timestamps(),
@@ -222,7 +227,11 @@ export const categoryTarget = sqliteTable(
     oneOf('category_target_kind_chk', t.kind, TARGET_KINDS),
     check('category_target_amount_chk', sql`${t.amountCents} >= 0`),
     check('category_target_every_chk', sql`${t.everyMonths} BETWEEN 1 AND 120`),
-    check('category_target_date_chk', sql`(${t.kind} = 'by_date') = (${t.targetDate} IS NOT NULL)`),
+    check('category_target_due_day_chk', sql`${t.dueDay} BETWEEN 1 AND 31`),
+    check(
+      'category_target_date_chk',
+      sql`${t.kind} <> 'by_date' OR ${t.targetDate} IS NOT NULL`,
+    ),
     isoDay('category_target_target_date_chk', t.targetDate),
     isoMonth('category_target_valid_from_chk', t.validFrom),
     uniqueIndex('category_target_uq').on(t.categoryId, t.validFrom),

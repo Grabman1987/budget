@@ -3,6 +3,7 @@ import { todayInVienna } from '@budget/domain';
 import { Hono } from 'hono';
 import { accountRoutes } from './accounts';
 import { bookingRoutes } from './bookings';
+import { budgetRoutes, categoryRoutes } from './budget';
 import { errorResponse } from './http';
 import { lookupRoutes, payeeRoutes, undoRoutes } from './lookups';
 
@@ -22,6 +23,8 @@ export function createLedgerApi({ db, today = () => todayInVienna() }: LedgerApi
   api.route('/accounts', accountRoutes(db, today));
   api.route('/bookings', bookingRoutes(db));
   api.route('/payees', payeeRoutes(db));
+  api.route('/categories', categoryRoutes(db));
+  api.route('/budget', budgetRoutes(db));
   api.route('/lookups', lookupRoutes(db));
   api.route('/undo', undoRoutes(db));
   api.onError(errorResponse);
