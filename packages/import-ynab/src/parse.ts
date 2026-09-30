@@ -83,7 +83,11 @@ export interface TsvRecord {
   fields: string[];
 }
 
-/** Tab-separated records, every field in double quotes (`""` inside), CRLF or LF line ends. */
+/**
+ * Tab-separated records, CRLF or LF line ends. Text fields are in double quotes (`""` inside);
+ * YNAB writes the amount columns bare, so a field without an opening quote runs to the next tab
+ * or line end and must not contain a quote.
+ */
 export function parseTsv(text: string, file: ExportFile): TsvRecord[] {
   const records: TsvRecord[] = [];
   let i = 0;
@@ -92,21 +96,30 @@ export function parseTsv(text: string, file: ExportFile): TsvRecord[] {
     const start = line;
     const fields: string[] = [];
     for (;;) {
-      if (text[i] !== '"') throw new ParseError(file, line, 'tsv.unquoted', 'Field not quoted');
-      i += 1;
       let value = '';
-      for (;;) {
-        const q = text.indexOf('"', i);
-        if (q < 0) throw new ParseError(file, start, 'tsv.unterminated', 'Unterminated field');
-        const chunk = text.slice(i, q);
-        for (let n = chunk.indexOf('\n'); n >= 0; n = chunk.indexOf('\n', n + 1)) line += 1;
-        value += chunk;
-        if (text[q + 1] !== '"') {
-          i = q + 1;
-          break;
+      if (text[i] === '"') {
+        i += 1;
+        for (;;) {
+          const q = text.indexOf('"', i);
+          if (q < 0) throw new ParseError(file, start, 'tsv.unterminated', 'Unterminated field');
+          const chunk = text.slice(i, q);
+          for (let n = chunk.indexOf('\n'); n >= 0; n = chunk.indexOf('\n', n + 1)) line += 1;
+          value += chunk;
+          if (text[q + 1] !== '"') {
+            i = q + 1;
+            break;
+          }
+          value += '"';
+          i = q + 2;
         }
-        value += '"';
-        i = q + 2;
+      } else {
+        // YNAB writes the amount columns bare (`€12,34`): the field runs to the next tab or line end.
+        let end = i;
+        while (end < text.length && !'\t\r\n'.includes(text[end] as string)) end += 1;
+        value = text.slice(i, end);
+        if (value.includes('"'))
+          throw new ParseError(file, line, 'tsv.bare_quote', 'Quote inside an unquoted field');
+        i = end;
       }
       fields.push(value);
       const c = text[i];

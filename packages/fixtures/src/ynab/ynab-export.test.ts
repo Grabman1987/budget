@@ -23,7 +23,7 @@ describe('synthetic YNAB export', () => {
     expect(same(committed(YNAB_FILE_NAMES.plan), files.plan)).toBe(true);
   });
 
-  it('has the file format: BOM, CRLF only, quoted fields, CESU-8 and UTF-8 emoji', () => {
+  it('has the file format: BOM, CRLF only, quoted text and bare amounts, CESU-8 and UTF-8 emoji', () => {
     for (const bytes of [files.register, files.plan]) {
       expect([...bytes.slice(0, 4)]).toEqual([0xef, 0xbb, 0xbf, 0x22]);
       const lf = bytes.reduce(
@@ -36,7 +36,9 @@ describe('synthetic YNAB export', () => {
       expect(indexOf(bytes, [0xf0, 0x9f, 0x9b, 0x92])).toBeGreaterThan(0);
     }
     const text = new TextDecoder('utf-8', { fatal: false }).decode(files.register);
-    expect(text).toContain('"€0,00"');
+    // Amounts are bare, as in the real export (found with the owner's file, 30.09.2026).
+    expect(text).toContain('\t€0,00\t');
+    expect(text).not.toContain('"€0,00"');
     expect(text).toContain('"Gutschein ""Sommer"""');
     expect(text).toMatch(/"\d{2}\.\d{2}\.\d{4}"/);
     expect(new TextDecoder().decode(files.plan)).toMatch(/"Dec 2022"/);
