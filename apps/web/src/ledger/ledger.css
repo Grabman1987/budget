@@ -520,6 +520,12 @@
 .kbulk .select-sm {
   min-width: 150px;
 }
+.kbulk-confirm {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
 .kdiff {
   display: flex;
   align-items: flex-start;

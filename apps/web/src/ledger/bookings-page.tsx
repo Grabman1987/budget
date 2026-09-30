@@ -44,6 +44,13 @@ export function BookingsPage() {
   const writes = useLedgerWrites();
   const [panel, setPanel] = useState<BookingPanelState>(null);
   const [selected, setSelected] = useState<ReadonlySet<string>>(new Set());
+  /** Bulk delete asks once more; any change of the selection withdraws the question. */
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [seenSelected, setSeenSelected] = useState(selected);
+  if (seenSelected !== selected) {
+    setSeenSelected(selected);
+    setConfirmDelete(false);
+  }
 
   // A new filter shows another list: the selection would point at rows that are gone.
   const filterKey = JSON.stringify(filter);
@@ -157,16 +164,27 @@ export function BookingsPage() {
               >
                 Als bestätigt markieren
               </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => {
-                  writes.bulk.mutate({ ids, remove: true });
-                  bulkDone();
-                }}
-              >
-                Löschen
-              </Button>
+              {confirmDelete ? (
+                <span className="kbulk-confirm" role="group" aria-label="Löschen bestätigen">
+                  <span>{pluralBookings(ids.length)} löschen?</span>
+                  <Button
+                    size="sm"
+                    onClick={() => {
+                      writes.bulk.mutate({ ids, remove: true });
+                      bulkDone();
+                    }}
+                  >
+                    Ja, löschen
+                  </Button>
+                  <Button variant="ghost" size="sm" onClick={() => setConfirmDelete(false)}>
+                    Abbrechen
+                  </Button>
+                </span>
+              ) : (
+                <Button variant="ghost" size="sm" onClick={() => setConfirmDelete(true)}>
+                  Löschen
+                </Button>
+              )}
             </div>
           )}
           {first && (

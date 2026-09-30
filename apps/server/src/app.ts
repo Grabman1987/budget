@@ -9,16 +9,29 @@ import type { Auth } from './auth/routes';
 import { createLedgerApi } from './api';
 import { debugSummary } from './debug-summary';
 
-export interface AppOptions {
+/** What the app needs from the passkey login: the CSRF check, its routes and the session guard. */
+export type AuthGate = Pick<Auth, 'originGuard' | 'routes' | 'requireSession'>;
+
+interface BaseOptions {
   /** Directory of the built web app (Vite `dist`). */
   webDir: string;
   /** Database for the read-only debug endpoint; omit to keep the endpoint off. */
   database?: Db | undefined;
-  /** Passkey login: session guard and /api/auth. Without it there are no API routes at all. */
-  auth?: Auth | undefined;
-  /** The ledger (accounts, bookings, payees): mounted below `/api`, behind the session guard. */
-  ledger?: { db: Db; today?: () => string } | undefined;
 }
+
+/**
+ * The ledger (accounts, bookings, payees) is mounted below `/api` behind the session guard, so it
+ * only comes together with `auth`: a ledger without auth is a type error and throws at start.
+ */
+export type AppOptions = BaseOptions &
+  (
+    | {
+        /** Passkey login: session guard and /api/auth. */
+        auth: AuthGate;
+        ledger?: { db: Db; today?: () => string } | undefined;
+      }
+    | { auth?: undefined; ledger?: undefined }
+  );
 
 /**
  * Strict CSP (SPEC §9): `script-src 'self'` and no inline scripts. Styles are also same-origin only,
@@ -53,6 +66,8 @@ export const PERMISSIONS_POLICY = {
 };
 
 export function createApp({ webDir, database, auth, ledger }: AppOptions): Hono {
+  if (ledger && !auth)
+    throw new Error('The ledger API needs auth: mount it only behind the session guard');
   const app = new Hono();
   const root = resolve(webDir);
   // serveStatic resolves `root` against the current working directory.

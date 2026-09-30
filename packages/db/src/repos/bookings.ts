@@ -625,7 +625,13 @@ export function updateBooking(
     if (patch.accountId !== undefined && patch.accountId !== cur.accountId) {
       if (cur.transferId)
         throw new BookingInvariantError('A transfer leg cannot be moved to another account');
-      liveAccount(tx, patch.accountId);
+      // Amounts are cents of the account's currency: a move cannot convert them.
+      const target = liveAccount(tx, patch.accountId);
+      if (target.currency !== (patch.currency ?? cur.currency)) {
+        throw new BookingInvariantError(
+          `A booking in ${cur.currency} cannot move to an account in ${target.currency}; book it there anew`,
+        );
+      }
     }
 
     const amount = patch.amountCents ?? cur.amountCents;

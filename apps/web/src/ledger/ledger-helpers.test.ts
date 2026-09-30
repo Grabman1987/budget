@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { percentToBp } from './account-form';
 import { lowPointIndex, monthTicks } from './balance-chart';
 import { dayHeading, eur, eurWhole, longDay, monthStartLabel, shortDay } from './format';
-import { errorText } from './labels';
+import { bulkSummary, errorText, redoFailedText } from './labels';
 import { ApiError } from '../api/http';
 
 const series = (values: number[], start = '2026-08-30') =>
@@ -56,5 +56,45 @@ describe('errorText', () => {
     );
     expect(errorText(new ApiError(0, 'network'))).toBe('Keine Verbindung zum Server.');
     expect(errorText(new Error('x'), 'Fehlgeschlagen')).toBe('Fehlgeschlagen');
+  });
+});
+
+describe('bulk and redo toasts', () => {
+  const result = (over: Partial<Parameters<typeof bulkSummary>[0]> = {}) => ({
+    changed: [],
+    skipped: [],
+    transferPairs: 0,
+    groupId: 'g',
+    ...over,
+  });
+  it('names both selected legs of a transfer as one Umbuchung', () => {
+    expect(bulkSummary(result({ changed: ['a', 'b', 'c'], transferPairs: 1 }), 'gelöscht')).toBe(
+      '3 Buchungen gelöscht, davon 1 Umbuchung (beide Seiten).',
+    );
+    const skipped = [
+      { id: 'a', reason: 'transfer_pair' as const, message: '' },
+      { id: 'b', reason: 'transfer_pair' as const, message: '' },
+    ];
+    expect(bulkSummary(result({ changed: ['c'], skipped, transferPairs: 1 }), 'geändert')).toBe(
+      '1 Buchung geändert. 2 übersprungen: Umbuchung (beide Seiten).',
+    );
+  });
+  it('lists every skip reason once', () => {
+    const skipped = [
+      { id: 'a', reason: 'split' as const, message: '' },
+      { id: 'b', reason: 'reconciled_locked' as const, message: '' },
+      { id: 'c', reason: 'split' as const, message: '' },
+    ];
+    expect(bulkSummary(result({ changed: ['d'], skipped }), 'geändert')).toBe(
+      '1 Buchung geändert. 3 übersprungen: Aufteilung, geprüft.',
+    );
+  });
+  it('explains a refused redo', () => {
+    expect(redoFailedText(new ApiError(409, 'undo_refused', 'changed'))).toBe(
+      'Wiederholen nicht möglich: Die Buchung wurde inzwischen geändert.',
+    );
+    expect(redoFailedText(new ApiError(0, 'network'))).toBe(
+      'Wiederholen nicht möglich. Keine Verbindung zum Server.',
+    );
   });
 });

@@ -5,6 +5,8 @@ import {
   deleteBooking,
   getBooking,
   queryBookings,
+  ReconciledLockedError,
+  relatedTransferBookings,
   runInTransaction,
   updateBooking,
   type BookingInput,
@@ -18,6 +20,19 @@ import { randomUUID } from 'node:crypto';
 import { Hono } from 'hono';
 import { ACTOR, ApiError, defined, readBody, readQuery } from './http';
 import { bookingDeleteQuery, bookingPatch, bookingQuery, bulkBody, createBody } from './schemas';
+
+/** Why a bulk action left a booking out. */
+type BulkSkipReason =
+  'not_found' | 'reconciled_locked' | 'split' | 'transfer' | 'transfer_pair' | 'invalid';
+
+class Skip extends Error {
+  constructor(
+    readonly reason: BulkSkipReason,
+    message: string,
+  ) {
+    super(message);
+  }
+}
 
 /** The request body without its `type` discriminator. */
 const withoutType = <T extends { type: string }>({ type, ...rest }: T): Omit<T, 'type'> => {
@@ -112,36 +127,53 @@ export function bookingRoutes(db: Db): Hono {
 
   /**
    * Bulk edit or delete for the multi-select: one audit group, so one undo. A booking that cannot
-   * take the change (locked, several splits, a transfer leg) is skipped and reported, the rest goes
-   * through.
+   * take the change is skipped and reported with a reason code, the rest goes through. Both legs
+   * of a transfer in one selection are one Umbuchung: a delete takes the pair once (the second leg
+   * counts as changed), a category is refused for both with `transfer_pair`.
    */
   app.post('/bulk', async (c) => {
     const body = await readBody(c, bulkBody);
     const ctx = audit();
+    const ids = [...new Set(body.ids)];
+    const selected = new Set(ids);
     const changed: string[] = [];
-    const skipped: { id: string; reason: string }[] = [];
+    const skipped: { id: string; reason: BulkSkipReason; message: string }[] = [];
+    /** Legs deleted together with an earlier id of this request. */
+    const goneWith = new Set<string>();
+    const pairedLegs = new Set<string>();
+    let transferPairs = 0;
     runInTransaction(db, (tx) => {
-      for (const id of new Set(body.ids)) {
+      for (const id of ids) {
+        if (goneWith.has(id)) {
+          changed.push(id);
+          continue;
+        }
         try {
           runInTransaction(tx, (inner) => {
             const current = getBooking(inner, id);
-            if (!current) throw new ApiError(404, 'not_found', 'Booking not found');
+            if (!current) throw new Skip('not_found', 'Booking not found');
+            const partners = relatedTransferBookings(inner, id).filter((leg) => leg !== id);
+            const paired = partners.some((leg) => selected.has(leg));
+            if (paired && !pairedLegs.has(id)) transferPairs += 1;
+            if (paired) for (const leg of [id, ...partners]) pairedLegs.add(leg);
             const options = { unlockReconciled: body.unlockReconciled };
             if (body.action === 'delete') {
               deleteBooking(inner, id, ctx, options);
+              for (const leg of partners) goneWith.add(leg);
               return;
             }
             const { categoryId, flag, status } = body.set;
             const patch: BookingPatch = defined({ flag, status });
             if (categoryId !== undefined) {
               const [only] = current.splits;
-              if (!only || current.splits.length !== 1 || current.transferId || only.transferId) {
-                throw new ApiError(
-                  422,
-                  'invariant',
-                  'Only single-split bookings that are not transfers take a category',
+              if (current.transferId || current.splits.some((s) => s.transferId)) {
+                throw new Skip(
+                  paired ? 'transfer_pair' : 'transfer',
+                  'A transfer leg takes no category in a bulk edit',
                 );
               }
+              if (!only || current.splits.length !== 1)
+                throw new Skip('split', 'Only single-split bookings take a category');
               patch.splits = [
                 {
                   categoryId,
@@ -156,17 +188,17 @@ export function bookingRoutes(db: Db): Hono {
           });
           changed.push(id);
         } catch (error) {
-          const reason =
-            error instanceof ApiError || error instanceof Error
-              ? (error as Error).name === 'ReconciledLockedError'
+          const reason: BulkSkipReason =
+            error instanceof Skip
+              ? error.reason
+              : error instanceof ReconciledLockedError
                 ? 'reconciled_locked'
-                : error.message
-              : 'failed';
-          skipped.push({ id, reason });
+                : 'invalid';
+          skipped.push({ id, reason, message: error instanceof Error ? error.message : 'failed' });
         }
       }
     });
-    return c.json({ changed, skipped, groupId: ctx.groupId });
+    return c.json({ changed, skipped, transferPairs, groupId: ctx.groupId });
   });
 
   return app;

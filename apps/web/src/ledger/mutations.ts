@@ -13,8 +13,7 @@ import {
 } from './api';
 import { applyBulk, mapCachedBookings, patchListed, type BulkSet, type Names } from './cache';
 import { flashRows } from './flash';
-import { pluralBookings } from './format';
-import { errorText } from './labels';
+import { bulkSummary, errorText, redoFailedText } from './labels';
 import { LEDGER_KEY, lookupsQuery, payeesQuery } from './queries';
 import type { ListedBooking, WriteResult } from './types';
 
@@ -70,7 +69,10 @@ export function useLedgerWrites() {
             toast.show({
               message: 'Rückgängig gemacht.',
               actionLabel: 'Wiederholen',
-              onAction: () => void undoGroup(undone.groupId).then(settled),
+              onAction: () =>
+                void undoGroup(undone.groupId).then(settled, (error: unknown) =>
+                  toast.show({ message: redoFailedText(error) }),
+                ),
             });
           },
           (error: unknown) => toast.show({ message: errorText(error) }),
@@ -132,14 +134,8 @@ export function useLedgerWrites() {
       rollback(qc, snapshot);
       failed('Änderung')(error);
     },
-    onSuccess: (result: BulkResult, vars) => {
-      const verb = 'remove' in vars ? 'gelöscht' : 'geändert';
-      const skipped =
-        result.skipped.length > 0
-          ? ` ${result.skipped.length} übersprungen (Aufteilung, Umbuchung oder geprüft).`
-          : '';
-      offerUndo(`${pluralBookings(result.changed.length)} ${verb}.${skipped}`, result.groupId);
-    },
+    onSuccess: (result: BulkResult, vars) =>
+      offerUndo(bulkSummary(result, 'remove' in vars ? 'gelöscht' : 'geändert'), result.groupId),
     onSettled: settled,
   });
 

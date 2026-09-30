@@ -1,3 +1,6 @@
+import { ApiError } from '../api/http';
+import type { BulkResult, BulkSkipReason } from './api';
+import { pluralBookings } from './format';
 import type { AccountRole, AccountRow, AccountType, BookingFlag, BookingStatus } from './types';
 
 /** German (de-AT) names of the ledger vocabulary (glossary in PRODUCT.md). */
@@ -69,3 +72,38 @@ export function errorText(
   }
   return fallback;
 }
+
+const SKIP_REASON_LABEL: Record<BulkSkipReason, string> = {
+  split: 'Aufteilung',
+  transfer: 'Umbuchung',
+  transfer_pair: 'Umbuchung (beide Seiten)',
+  reconciled_locked: 'geprüft',
+  not_found: 'nicht mehr vorhanden',
+  invalid: 'nicht möglich',
+};
+
+const transfers = (n: number) => `${n} ${n === 1 ? 'Umbuchung' : 'Umbuchungen'}`;
+
+/**
+ * Toast text of a bulk action: what changed and why the rest was skipped. Both legs of a transfer
+ * in the selection are named as one Umbuchung ("beide Seiten"), not as a skipped booking.
+ */
+export function bulkSummary(result: BulkResult, verb: 'gelöscht' | 'geändert'): string {
+  const skippedPairs = Math.floor(
+    result.skipped.filter((s) => s.reason === 'transfer_pair').length / 2,
+  );
+  const changedPairs = Math.max(0, result.transferPairs - skippedPairs);
+  let text = `${pluralBookings(result.changed.length)} ${verb}`;
+  text += changedPairs > 0 ? `, davon ${transfers(changedPairs)} (beide Seiten).` : '.';
+  if (result.skipped.length > 0) {
+    const reasons = [...new Set(result.skipped.map((s) => SKIP_REASON_LABEL[s.reason]))];
+    text += ` ${result.skipped.length} übersprungen: ${reasons.join(', ')}.`;
+  }
+  return text;
+}
+
+/** Toast text when "Wiederholen" is refused, e.g. because the booking was changed meanwhile. */
+export const redoFailedText = (error: unknown): string =>
+  error instanceof ApiError && error.code === 'undo_refused'
+    ? 'Wiederholen nicht möglich: Die Buchung wurde inzwischen geändert.'
+    : `Wiederholen nicht möglich. ${errorText(error, '')}`.trim();

@@ -40,11 +40,11 @@ export const payeesQuery = () =>
     staleTime: 60_000,
   });
 
-/** Alle Buchungen: pages of the filtered list, loaded by cursor. */
-export const bookingsInfiniteQuery = (filter: BookingFilter) =>
+/** Alle Buchungen and Einzelkonto: pages of the filtered list, loaded by cursor. */
+export const bookingsInfiniteQuery = (filter: BookingFilter, limit?: number) =>
   infiniteQueryOptions({
-    queryKey: [...LEDGER_KEY, 'bookings', 'infinite', filter],
-    queryFn: ({ pageParam }) => fetchBookings(filter, pageParam),
+    queryKey: [...LEDGER_KEY, 'bookings', 'infinite', filter, limit ?? null],
+    queryFn: ({ pageParam }) => fetchBookings(filter, pageParam, limit),
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (last) => last.nextCursor ?? undefined,
   });

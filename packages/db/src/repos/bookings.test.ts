@@ -307,6 +307,12 @@ describe('updateBooking', () => {
     expect(() => updateBooking(db, id, { accountId: 'nope' }, ctx)).toThrow(BookingInvariantError);
   });
 
+  it('refuses to move a booking to an account in another currency', () => {
+    const id = createBooking(db, basic(), ctx);
+    expect(() => updateBooking(db, id, { accountId: 'usd' }, ctx)).toThrow(/cannot move.*USD/);
+    expect(getBooking(db, id)).toMatchObject({ accountId: 'giro', currency: 'EUR' });
+  });
+
   describe('transfer legs', () => {
     it('keeps both legs consistent on amount and date changes', () => {
       const r = createTransfer(
@@ -351,6 +357,73 @@ describe('updateBooking', () => {
         /transfer/,
       );
       expect(getBooking(db, r.toBookingId)?.amountCents).toBe(5000);
+    });
+
+    it('undoes an amount and date edit on both legs, and redoes it', () => {
+      const r = createTransfer(
+        db,
+        { fromAccountId: 'giro', toAccountId: 'spar', date: '2026-02-01', amountCents: 5000 },
+        ctx,
+      );
+      updateBooking(
+        db,
+        r.fromBookingId,
+        { amountCents: -7000, date: '2026-02-03' },
+        { ...ctx, groupId: 'edit' },
+      );
+      const legs = () =>
+        [r.fromBookingId, r.toBookingId].map((id) => {
+          const b = getBooking(db, id)!;
+          return [b.date, b.amountCents, b.splits[0]?.amountCents];
+        });
+      expect(legs()).toEqual([
+        ['2026-02-03', -7000, -7000],
+        ['2026-02-03', 7000, 7000],
+      ]);
+      const undone = undo(db, { groupId: 'edit' }, ctx);
+      expect(legs()).toEqual([
+        ['2026-02-01', -5000, -5000],
+        ['2026-02-01', 5000, 5000],
+      ]);
+      undo(db, { groupId: undone.groupId }, ctx);
+      expect(legs()).toEqual([
+        ['2026-02-03', -7000, -7000],
+        ['2026-02-03', 7000, 7000],
+      ]);
+    });
+
+    it('redoes an undone transfer with both legs', () => {
+      const r = createTransfer(
+        db,
+        { fromAccountId: 'giro', toAccountId: 'spar', date: '2026-02-01', amountCents: 5000 },
+        { ...ctx, groupId: 'tr' },
+      );
+      const undone = undo(db, { groupId: 'tr' }, ctx);
+      expect(listBookings(db)).toHaveLength(0);
+      undo(db, { groupId: undone.groupId }, ctx);
+      expect(
+        listBookings(db).map((b) => [b.id, b.amountCents, b.transferId, b.splits.length]),
+      ).toEqual(
+        expect.arrayContaining([
+          [r.fromBookingId, -5000, r.transferId, 1],
+          [r.toBookingId, 5000, r.transferId, 1],
+        ]),
+      );
+      expect(listBookings(db)).toHaveLength(2);
+    });
+
+    it('refuses to undo the edit of a single leg', () => {
+      const r = createTransfer(
+        db,
+        { fromAccountId: 'giro', toAccountId: 'spar', date: '2026-02-01', amountCents: 5000 },
+        ctx,
+      );
+      updateBooking(db, r.toBookingId, { amountCents: 6000 }, ctx);
+      const edit = history(db, 'booking', r.toBookingId).find((e) => e.action === 'update')!;
+      expect(() => undo(db, { auditId: edit.id }, ctx)).toThrow(/whole action/);
+      expect(() => undo(db, { auditId: edit.id }, ctx, { force: true })).toThrow(/whole action/);
+      expect(getBooking(db, r.fromBookingId)?.amountCents).toBe(-6000);
+      expect(getBooking(db, r.toBookingId)?.amountCents).toBe(6000);
     });
 
     it('rolls back everything when the partner cannot follow', () => {
