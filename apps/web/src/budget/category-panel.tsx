@@ -10,7 +10,7 @@ import {
   TextInput,
 } from '@budget/ui';
 import { useQuery } from '@tanstack/react-query';
-import { useState, type FormEvent } from 'react';
+import { useRef, useState, type FormEvent } from 'react';
 import { accountsQuery } from '../ledger/queries';
 import { eur, longDay } from '../ledger/format';
 import {
@@ -30,6 +30,7 @@ import {
   type GroupRow,
   type TargetKind,
 } from './api';
+import { budgetQuery } from './budget-api';
 import { CategoryIcon } from './category-icon';
 import { KIND_LABEL, RHYTHM_LABEL, STAGES } from './labels';
 import { useBudgetWrite } from './use-category-writes';
@@ -93,8 +94,12 @@ export function CategoryPanel({
 function GroupForm({ group, onDone }: { group: GroupRow | undefined; onDone: () => void }) {
   const write = useBudgetWrite();
   const [name, setName] = useState(group?.name ?? '');
+  // A second Enter while the first write runs must not rename or create twice.
+  const busy = useRef(false);
   const submit = async (e: FormEvent) => {
     e.preventDefault();
+    if (busy.current) return;
+    busy.current = true;
     const done = group
       ? await write(
           () => renameGroup(group.id, name),
@@ -104,6 +109,7 @@ function GroupForm({ group, onDone }: { group: GroupRow | undefined; onDone: () 
           () => createGroup(name),
           () => `Gruppe „${name.trim()}“ angelegt.`,
         );
+    busy.current = false;
     if (done) onDone();
   };
   return (
@@ -143,10 +149,11 @@ function CategoryForm({
   onSwitch: (next: PanelState) => void;
 }) {
   const write = useBudgetWrite();
-  const cards = (useQuery(accountsQuery()).data?.accounts ?? []).filter(
-    (a) => a.type === 'credit_card' && !a.closedAt,
-  );
+  const accounts = useQuery(accountsQuery()).data?.accounts ?? [];
+  const cards = accounts.filter((a) => a.type === 'credit_card' && !a.closedAt);
   const c = state.category;
+  // A card payment envelope follows its card: kind and card are fixed (the server refuses both).
+  const locked = c?.kind === 'card_payment';
   const versions = tree.targets.filter((t) => t.categoryId === c?.id);
   const current = versions[versions.length - 1];
   const [name, setName] = useState(c?.name ?? '');
@@ -175,10 +182,9 @@ function CategoryForm({
       name,
       groupId,
       icon: icon.trim() || null,
-      kind,
       class: classless ? null : cls,
       stage: stage ? Number(stage) : null,
-      cardAccountId: kind === 'card_payment' ? card || null : null,
+      ...(!locked && { kind, cardAccountId: kind === 'card_payment' ? card || null : null }),
     };
     const target =
       parsed && targetKind !== 'none'
@@ -252,17 +258,35 @@ function CategoryForm({
           </Select>
         )}
       </Field>
-      <Field label="Art">
-        {({ id }) => (
-          <Select id={id} value={kind} onChange={(e) => setKind(e.target.value as CategoryKind)}>
-            {CATEGORY_KINDS.map((k) => (
-              <option key={k} value={k}>
-                {KIND_LABEL[k]}
-              </option>
-            ))}
-          </Select>
-        )}
-      </Field>
+      {locked ? (
+        <div className="field-row">
+          <dl className="kv-list">
+            <div className="kv">
+              <dt>Art</dt>
+              <dd>{KIND_LABEL.card_payment}</dd>
+            </div>
+            <div className="kv">
+              <dt>Kreditkarte</dt>
+              <dd>{accounts.find((a) => a.id === c.cardAccountId)?.name ?? '–'}</dd>
+            </div>
+          </dl>
+          <p className="field-hint">
+            Eine Kartenzahlung gehört fest zu ihrer Karte: Art und Karte lassen sich nicht ändern.
+          </p>
+        </div>
+      ) : (
+        <Field label="Art">
+          {({ id }) => (
+            <Select id={id} value={kind} onChange={(e) => setKind(e.target.value as CategoryKind)}>
+              {CATEGORY_KINDS.map((k) => (
+                <option key={k} value={k}>
+                  {KIND_LABEL[k]}
+                </option>
+              ))}
+            </Select>
+          )}
+        </Field>
+      )}
       {!classless && (
         <div className="field-row">
           <span className="field-label">Klasse</span>
@@ -279,7 +303,7 @@ function CategoryForm({
           />
         </div>
       )}
-      {kind === 'card_payment' && (
+      {kind === 'card_payment' && !locked && (
         <Field
           label="Kreditkarte"
           hint={cards.length === 0 ? 'Lege zuerst ein Kreditkartenkonto an.' : undefined}
@@ -413,11 +437,23 @@ function MergeForm({
   onDone: () => void;
 }) {
   const write = useBudgetWrite();
-  const others = tree.categories.filter((c) => c.id !== source.id && c.kind !== 'card_payment');
+  // Never into a card payment; into an income category only from income (spending would turn
+  // into "Zu verteilen").
+  const others = tree.categories.filter(
+    (c) =>
+      c.id !== source.id &&
+      c.kind !== 'card_payment' &&
+      (c.kind !== 'income' || source.kind === 'income'),
+  );
   const [targetId, setTargetId] = useState(others[0]?.id ?? '');
   const target = others.find((c) => c.id === targetId);
+  const thisMonth = month();
+  const overspent =
+    useQuery(budgetQuery(thisMonth)).data?.summary.envelopes.find((e) => e.categoryId === source.id)
+      ?.overspentCents ?? 0;
   const submit = async (e: FormEvent) => {
     e.preventDefault();
+    if (!target) return;
     const done = await write(
       () => mergeCategories([source.id], targetId),
       (r) =>
@@ -432,9 +468,17 @@ function MergeForm({
         {source.name}“ wandern in die gewählte Kategorie. „{source.name}“ verschwindet danach. Ein
         Klick auf „Rückgängig“ stellt alles wieder her.
       </p>
-      <Field label="Zusammenführen in">
-        {({ id }) => (
-          <Select id={id} value={targetId} onChange={(e) => setTargetId(e.target.value)}>
+      <Field
+        label="Zusammenführen in"
+        hint={`Kartenzahlungen${source.kind === 'income' ? '' : ' und Einnahmen'} stehen nicht zur Wahl.`}
+      >
+        {({ id, describedBy }) => (
+          <Select
+            id={id}
+            value={targetId}
+            aria-describedby={describedBy}
+            onChange={(e) => setTargetId(e.target.value)}
+          >
             {tree.groups.map((g) => (
               <optgroup key={g.id} label={g.name}>
                 {others
@@ -442,6 +486,7 @@ function MergeForm({
                   .map((c) => (
                     <option key={c.id} value={c.id}>
                       {c.name}
+                      {c.hiddenAt ? ' (ausgeblendet)' : ''}
                     </option>
                   ))}
               </optgroup>
@@ -449,6 +494,19 @@ function MergeForm({
           </Select>
         )}
       </Field>
+      {target?.hiddenAt && (
+        <p className="panel-sub" role="note">
+          „{target.name}“ ist ausgeblendet und bleibt es nach dem Zusammenführen. Blende sie danach
+          ein, wenn „{source.name}“ sichtbar weiterlaufen soll.
+        </p>
+      )}
+      {target && overspent > 0 && (
+        <p className="panel-sub" role="note">
+          „{source.name}“ ist diesen Monat um {eur(overspent)} überzogen. Nach dem Zusammenführen
+          verrechnet sich das mit dem Geld von „{target.name}“: Was in den nächsten Monat übertragen
+          wird, ändert sich (wie in YNAB).
+        </p>
+      )}
       <div className="panel-actions">
         <Button type="submit" disabled={!target}>
           Zusammenführen

@@ -1,4 +1,4 @@
-import { cents, parseAmount, percentShares, todayInVienna } from '@budget/domain';
+import { cents, percentShares, todayInVienna } from '@budget/domain';
 import {
   Button,
   ClassSwatch,
@@ -18,26 +18,29 @@ import {
   ChevronDown,
   Clock,
 } from 'lucide-react';
-import { useState, type KeyboardEvent } from 'react';
+import { useRef, useState, type KeyboardEvent } from 'react';
 import { PLAN_MONAT } from '../nav/pages';
 import { PageFrame } from '../pages/placeholder-page';
 import { eur, MINUS } from '../ledger/format';
 import { accountsQuery } from '../ledger/queries';
 import { ErrorNote, LoadingNote } from '../ledger/states';
 import { useMonth } from '../shell/use-month';
-import { assign, budgetQuery, coverOverspending, type BudgetMonthView } from './budget-api';
+import { assign, budgetQuery, type BudgetMonthView } from './budget-api';
 import { CategoryIcon } from './category-icon';
+import { CoverChoice, useCover } from './cover-choice';
 import { EnvelopePanel } from './envelope-panel';
 import { STAGES } from './labels';
 import {
   barFor,
   CLASS_TEXT,
+  coverFromToBeAssigned,
   coverSource,
   groupStatus,
   isCard,
   isCashOver,
   planGroups,
   planRows,
+  readAssign,
   statusText,
   suggestions,
   unassignPlan,
@@ -61,18 +64,6 @@ const RAIL_LABEL = {
   class: 'Klassen',
   triage: 'Triage',
 };
-
-/** Amount typed into an assign field: absolute, or relative with a leading + / − ("+50"). */
-function readAssign(raw: string, current: number): number | null {
-  const text = raw.trim();
-  const relative = /^[+\-−]/.test(text);
-  const parsed = parseAmount(relative ? text.slice(1) : text);
-  if (!parsed.ok) return null;
-  const value = relative
-    ? current + (text.startsWith('+') ? parsed.cents : -parsed.cents)
-    : parsed.cents;
-  return value >= 0 ? value : null;
-}
 
 /**
  * Plan › Monat (port of `design/prototype/plan.html`): "Zu verteilen" with its dimension chain and
@@ -106,6 +97,8 @@ function PlanBody({ month, data }: { month: string; data: BudgetMonthView }) {
   const [editing, setEditing] = useState<string | null>(null);
   const [open, setOpen] = useState<string | null>(null);
   const [sources, setSources] = useState<Record<string, string>>({});
+  /** Triage row whose "Decken" from "Zu verteilen" waits for the choice (not enough money). */
+  const [choosing, setChoosing] = useState<string | null>(null);
 
   const s = data.summary;
   const today = todayInVienna();
@@ -144,14 +137,11 @@ function PlanBody({ month, data }: { month: string; data: BudgetMonthView }) {
       () => `${eur(sum)} verteilt`,
     ).then((done) => done && sum >= tba && setDistribute(false));
   };
+  const coverFrom = useCover(month, (id) => byId.get(id)?.name);
   const cover = (r: PlanRow) => {
     const from = sources[r.id] ?? coverSource(rows, r)?.id ?? '';
-    const src = from === '' ? null : from;
-    void write(
-      () => coverOverspending(month, r.id, src),
-      (res) =>
-        `${eur(res.coveredCents)} von ${src ? byId.get(src)?.name : 'Zu verteilen'} zu ${r.name} verschoben`,
-    );
+    if (from === '' && coverFromToBeAssigned(r.overspentCents, tba).short) return setChoosing(r.id);
+    void coverFrom(r, from === '' ? null : from);
   };
   const unassign = () => {
     const plan = unassignPlan(rows, -tba);
@@ -215,7 +205,7 @@ function PlanBody({ month, data }: { month: string; data: BudgetMonthView }) {
               {[...urgent, ...credit].map((r, i) => {
                 const cash = isCashOver(r);
                 const pick = sources[r.id] ?? coverSource(rows, r)?.id ?? '';
-                return (
+                return [
                   <tr key={r.id} className={cx('rev-row', cash && 'is-urgent')}>
                     <td className="rev-mark">
                       <RevisionTriangle letter={String.fromCharCode(65 + i)} urgent={cash} />
@@ -238,7 +228,10 @@ function PlanBody({ month, data }: { month: string; data: BudgetMonthView }) {
                         id={`src-${r.id}`}
                         className="select-sm"
                         value={pick}
-                        onChange={(e) => setSources({ ...sources, [r.id]: e.target.value })}
+                        onChange={(e) => {
+                          setSources({ ...sources, [r.id]: e.target.value });
+                          setChoosing(null);
+                        }}
                       >
                         <option value="">Zu verteilen · {eur(tba)}</option>
                         {rows
@@ -255,8 +248,24 @@ function PlanBody({ month, data }: { month: string; data: BudgetMonthView }) {
                         Decken
                       </Button>
                     </td>
-                  </tr>
-                );
+                  </tr>,
+                  choosing === r.id && pick === '' && (
+                    <tr key={`${r.id}-choice`} className="rev-row rev-choice">
+                      <td className="rev-mark" />
+                      <td colSpan={3}>
+                        <CoverChoice
+                          overspentCents={r.overspentCents}
+                          toBeAssignedCents={tba}
+                          onCover={(allowNegative) => {
+                            setChoosing(null);
+                            void coverFrom(r, null, allowNegative);
+                          }}
+                          onCancel={() => setChoosing(null)}
+                        />
+                      </td>
+                    </tr>
+                  ),
+                ];
               })}
               {tba < 0 && (
                 <tr className="rev-row is-urgent">
@@ -720,21 +729,34 @@ function EnvelopeRow({
 }) {
   const [text, setText] = useState('');
   const [invalid, setInvalid] = useState(false);
+  // A leading + / − is relative only when typed first into an emptied or fully selected field.
+  const [relative, setRelative] = useState(false);
+  const replacing = useRef(false);
+  // Enter or Escape ends the edit; the blur of the field going away must not commit (again).
+  const settled = useRef(false);
   const cash = isCashOver(r);
   const credit = !cash && r.creditOverspentCents > 0;
   const bar = barFor(r, ctx);
   const commit = () => {
-    const v = readAssign(text, r.assignedCents);
+    if (settled.current) return;
+    const v = readAssign(text, r.assignedCents, relative);
     if (v === null) return setInvalid(true);
+    settled.current = true;
     onCommit(v);
   };
+  const noteSelection = (el: HTMLInputElement) => {
+    replacing.current =
+      el.value === '' || (el.selectionStart === 0 && el.selectionEnd === el.value.length);
+  };
   const keys = (e: KeyboardEvent<HTMLInputElement>) => {
+    noteSelection(e.currentTarget);
     if (e.key === 'Enter') {
       e.preventDefault();
       commit();
     }
     if (e.key === 'Escape') {
       e.preventDefault();
+      settled.current = true;
       onEdit(false);
     }
   };
@@ -784,10 +806,15 @@ function EnvelopeRow({
             aria-label={`Zugewiesen für ${r.name}. Rechnen erlaubt, +50 addiert.`}
             onFocus={(e) => e.currentTarget.select()}
             onChange={(e) => {
-              setText(e.target.value);
+              const next = e.target.value;
+              const signed = /^\s*[+\-−]/.test(next);
+              setRelative(signed && (replacing.current || relative));
+              replacing.current = false;
+              setText(next);
               setInvalid(false);
             }}
             onKeyDown={keys}
+            onSelect={(e) => noteSelection(e.currentTarget)}
             onBlur={commit}
           />
         ) : (
@@ -797,6 +824,8 @@ function EnvelopeRow({
             aria-label={`Zugewiesen ${eur(r.assignedCents)} für ${r.name} ändern`}
             onClick={() => {
               setText(eur(r.assignedCents).replace(/\s?€$/, ''));
+              setRelative(false);
+              settled.current = false;
               onEdit(true);
             }}
           >

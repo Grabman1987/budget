@@ -80,15 +80,23 @@ export interface WaterfallRow {
   id: string;
   /** Waterfall stage 1–9; rows without a stage come last. */
   stage: number | null;
+  /** Position of the category's group in the list (0 when the rows are one list already). */
+  groupOrder?: number;
+  /** Position of the category within its group. */
   sortOrder: number;
   needCents: number;
 }
 
-/** Rows in waterfall order: stage, then the order of the category list. */
-export function waterfallOrder<T extends Pick<WaterfallRow, 'stage' | 'sortOrder'>>(
+/** Rows in waterfall order: stage, then the order of the category list (group, then category). */
+export function waterfallOrder<T extends Pick<WaterfallRow, 'stage' | 'groupOrder' | 'sortOrder'>>(
   rows: ReadonlyArray<T>,
 ): T[] {
-  return [...rows].sort((a, b) => (a.stage ?? 10) - (b.stage ?? 10) || a.sortOrder - b.sortOrder);
+  return [...rows].sort(
+    (a, b) =>
+      (a.stage ?? 10) - (b.stage ?? 10) ||
+      (a.groupOrder ?? 0) - (b.groupOrder ?? 0) ||
+      a.sortOrder - b.sortOrder,
+  );
 }
 
 /**
