@@ -7,14 +7,9 @@ import {
   monthlyPortfolioReturn,
   unitsHeld,
   type AssignedCategory,
+  nextMonth,
 } from '@budget/domain';
-import {
-  accountBalances,
-  activityByCategoryMonth,
-  createTestDatabase,
-  schema,
-  type Db,
-} from '@budget/db';
+import { accountBalances, budget, createTestDatabase, schema, type Db } from '@budget/db';
 import { eq } from 'drizzle-orm';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { seedDatabase } from './seed';
@@ -84,9 +79,10 @@ describe('figures of the prototype are reproduced from the seeded database', () 
     const month = '2026-08';
     const year = 2026;
     const categories = db.select().from(schema.category).all();
-    const activity = activityByCategoryMonth(db);
-    const spent = (categoryId: string) =>
-      -(activity.find((a) => a.categoryId === categoryId && a.month === month)?.cents ?? 0);
+    const months: string[] = [];
+    for (let m = '2023-10'; m <= month; m = nextMonth(m)) months.push(m);
+    const envelopes = budget(db, months).at(-1)?.envelopes ?? {};
+    const spent = (categoryId: string) => -(envelopes[categoryId]?.activityCents ?? 0);
     const versions = db.select().from(schema.expectedPaymentVersion).all();
     const payments = db.select().from(schema.expectedPayment).all();
     /** Amount of an expected payment on a date: the latest version that started on or before it. */

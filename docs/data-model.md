@@ -75,10 +75,45 @@ the auth tables.
 - **Envelope months store only `assigned_cents`.** Activity is the sum of the category's splits in
   the month, available is `carry + assigned + activity` (`envelopeMonth`/`envelopeSeries` in the
   domain). Storing derived values would let them drift from the bookings.
+- **One function computes the budget** (C1, C2): `budgetMonths` in `packages/domain` (fed by the
+  read model `budget(db, months)`) returns every envelope and "Zu verteilen" per month:
+  - carry = `max(0, available of the previous month)` for every kind (concept §5.3, YNAB); with
+    `category.rollover_overspending` the negative amount is carried instead (Actual). Overspending
+    that is not carried is `uncoveredCents` of the next month;
+  - **Zu verteilen(m) = Σ cash balances at the end of m − Σ available(m) − held(m)** (stock
+    formula). Cash = on-budget accounts, except credit cards that have a `card_payment` envelope
+    (their debt is covered by that envelope). `toBeAssignedFlow` is the same figure as a flow
+    (previous + income − assigned − uncovered + held before − held now); a property test over 200
+    random ledgers checks that both agree every month;
+  - only splits on on-budget accounts count. A transfer leg whose other account is also on-budget
+    is neutral, even if it carries a category; any other uncategorised split (income, refund,
+    a transfer from a tracking account) goes to "Zu verteilen". Deleted accounts are ignored;
+    splits of a deleted category count as uncategorised;
+  - a card envelope's activity is the negative of every booking on its card (spending moves money
+    in, a payment moves it out). Card debt that no envelope covers (e.g. an opening balance) stays
+    visible as the difference between the card balance and the envelope;
+  - a budget account opened within the period brings its opening balance as income.
+- **One opening-date rule** (C5), in the domain (`balanceOn`) and in SQL (`accountBalances`): an
+  account is 0 before its `opening_date`; from that day on it is the opening balance plus every
+  booking dated on or after it (earlier bookings belong to the opening balance).
 - **Category NULL on an inflow split means "Zu verteilen".** Whether a transfer is budget-neutral
-  follows from the `on_budget` flag of both accounts (P1f-3 PR 2): between two budget accounts it
-  is neutral; to or from a tracking account it moves money out of or into the budget and carries a
-  category on its on-budget leg (loan payment, investing).
+  follows from the `on_budget` flag of both accounts: between two budget accounts it is neutral and
+  the repository refuses a category; to or from a tracking account it moves money out of or into
+  the budget, and `createTransfer` puts the category on the on-budget leg (loan payment, investing,
+  money back from the depot). The sample ledger keeps the prototype's category on the monthly
+  Notgroschen transfer (Giro → Tagesgeld) so its category sums match `reports-core.js`; the budget
+  treats it as neutral, as `plan.js` does (activity 0, the envelope accumulates).
+- **Split-level transfers** (C4): a split with `transferAccountId` becomes one leg; the repository
+  creates the other leg as a booking with the opposite amount on the same day. A transfer always has
+  exactly two live legs (whole bookings or split + booking) with opposite amounts; both sides are
+  deleted and restored together, amounts and dates change only by re-creating. `importTransfer` is
+  idempotent: an existing pair (or a leg the user deleted) is left alone, two plain imported legs
+  are linked, a missing leg is created.
+- **Undo keeps the invariants** (C8): a single audit entry of a split or a transfer leg cannot be
+  undone, only its group. After every undo the split sums and transfer pairs of the touched bookings
+  are checked inside the same transaction (also with `force`), so an undo can never leave an
+  unbalanced booking or a one-legged transfer; the check lives in `repos/invariants.ts` and also
+  runs after every booking write.
 - **A loan payment is a categorised transfer plus interest on the loan account.** The rate is one
   transfer from the current account to the loan account with the category "Kreditrate"; interest is
   a booking on the loan account. Net worth then falls by exactly the interest, and the envelope

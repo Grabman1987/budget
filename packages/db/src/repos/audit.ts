@@ -4,6 +4,7 @@ import { getTableConfig, SQLiteTable } from 'drizzle-orm/sqlite-core';
 import * as schema from '../schema';
 import { auditLog, type AUDIT_ACTIONS } from '../schema';
 import { AuditError, EntityNotFoundError } from './errors';
+import { assertLedgerInvariants } from './invariants';
 import { runInTransaction, type Executor } from './types';
 
 export { AuditError } from './errors';
@@ -373,11 +374,24 @@ function revertEntry(db: Executor, entry: AuditEntry, ctx: GroupedContext, force
   });
 }
 
+/** The booking an entry touches (a booking or one of its splits), if any. */
+function bookingOf(entry: AuditEntry): string | undefined {
+  const snapshot = entry.after ?? entry.before;
+  if (entry.entityType === 'booking') return entry.entityId;
+  if (entry.entityType === 'booking_split') return snapshot?.['booking_id'] as string | undefined;
+  return undefined;
+}
+
 /**
  * Revert one audit entry, or all entries of a group in reverse order, inside one transaction
  * (all or nothing). Writes `undo` entries under a new shared group id. Refuses with `AuditError`
  * when an entity changed after the entry (current row differs from the entry's `after`
  * snapshot) unless `options.force` is set.
+ *
+ * Ledger invariants (C8): a split or a transfer leg can only be undone with its whole group (the
+ * booking with its splits, both legs); a single entry is refused. After reverting, the split sums
+ * and transfer pairs of every touched booking are checked in the same transaction, so an undo can
+ * never leave unbalanced splits or a one-legged transfer (even with `force`).
  */
 export function undo(
   db: Executor,
@@ -388,8 +402,22 @@ export function undo(
   const grouped = withGroup(ctx);
   return runInTransaction(db, (tx) => {
     const originals = loadTarget(tx, target);
+    if ('auditId' in target) {
+      const [entry] = originals as [AuditEntry];
+      const snapshot = entry.after ?? entry.before;
+      if (
+        entry.entityType === 'booking_split' ||
+        (entry.entityType === 'booking' && snapshot?.['transfer_id'])
+      ) {
+        throw new AuditError(
+          `Cannot undo a single ${entry.entityType} entry: undo the whole action (group ${entry.groupId ?? '?'})`,
+        );
+      }
+    }
+    const touched = originals.map(bookingOf).filter((id): id is string => id !== undefined);
     for (const entry of originals.reverse())
       revertEntry(tx, entry, grouped, options.force ?? false);
+    assertLedgerInvariants(tx, touched);
     const written = tx
       .select()
       .from(auditLog)

@@ -184,7 +184,7 @@ describe('createTransfer', () => {
   });
 
   it('creates two opposite bookings sharing the transfer id', () => {
-    const r = createTransfer(db, t({ categoryId: 'reise', memo: 'Sparen' }), ctx);
+    const r = createTransfer(db, t({ memo: 'Sparen' }), ctx);
     const from = getBooking(db, r.fromBookingId)!;
     const to = getBooking(db, r.toBookingId)!;
     expect(from).toMatchObject({
@@ -194,9 +194,11 @@ describe('createTransfer', () => {
       memo: 'Sparen',
     });
     expect(to).toMatchObject({ accountId: 'spar', amountCents: 5000, transferId: r.transferId });
+    // Between two budget accounts a transfer is neutral: no category on either leg.
     expect(from.splits).toEqual([
-      expect.objectContaining({ categoryId: 'reise', amountCents: -5000 }),
+      expect.objectContaining({ categoryId: null, amountCents: -5000 }),
     ]);
+    expect(() => createTransfer(db, t({ categoryId: 'reise' }), ctx)).toThrow(/neutral/);
     expect(to.splits).toEqual([expect.objectContaining({ categoryId: null, amountCents: 5000 })]);
   });
 

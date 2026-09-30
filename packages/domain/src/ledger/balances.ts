@@ -18,25 +18,43 @@ function assertCents(value: number): void {
 }
 
 /**
- * Account balances from bookings: opening balance plus every booking on or after the opening date
- * up to and including `asOf` (all bookings when omitted). Pure; the caller reads bookings without
- * soft-deleted rows.
+ * The one opening-date rule (C5), shared with the SQL read model: an account exists from its
+ * `openingDate` on. Before that day its balance is 0. From that day on it is the opening balance
+ * plus every booking dated on or after the opening date (earlier bookings belong to the opening
+ * balance, e.g. imported history, and are ignored).
+ */
+export function balanceOn(
+  account: BalanceAccount,
+  bookings: ReadonlyArray<BalanceBooking>,
+  asOf?: string,
+): number {
+  if (asOf !== undefined && asOf < account.openingDate) return 0;
+  let balance = account.openingBalanceCents;
+  for (const b of bookings) {
+    assertCents(b.amountCents);
+    if (b.accountId !== account.id || b.date < account.openingDate) continue;
+    if (asOf !== undefined && b.date > asOf) continue;
+    balance += b.amountCents;
+  }
+  return balance;
+}
+
+/**
+ * Balance of every account as of `asOf` (all bookings when omitted), by the opening-date rule
+ * above. Pure; the caller reads bookings without soft-deleted rows.
  */
 export function accountBalances(
   accounts: ReadonlyArray<BalanceAccount>,
   bookings: ReadonlyArray<BalanceBooking>,
   asOf?: string,
 ): Map<string, number> {
-  const balances = new Map(accounts.map((a) => [a.id, a.openingBalanceCents]));
-  const opening = new Map(accounts.map((a) => [a.id, a.openingDate]));
+  const byAccount = new Map<string, BalanceBooking[]>(accounts.map((a) => [a.id, []]));
   for (const b of bookings) {
-    assertCents(b.amountCents);
-    const from = opening.get(b.accountId);
-    if (from === undefined) throw new Error(`Booking on unknown account ${b.accountId}`);
-    if (b.date < from || (asOf !== undefined && b.date > asOf)) continue;
-    balances.set(b.accountId, (balances.get(b.accountId) ?? 0) + b.amountCents);
+    const list = byAccount.get(b.accountId);
+    if (!list) throw new Error(`Booking on unknown account ${b.accountId}`);
+    list.push(b);
   }
-  return balances;
+  return new Map(accounts.map((a) => [a.id, balanceOn(a, byAccount.get(a.id) ?? [], asOf)]));
 }
 
 /** Balances at several dates (ascending) in a single pass over the bookings. */
@@ -47,7 +65,7 @@ export function balanceSeries(
 ): Array<{ date: string; balances: Map<string, number> }> {
   const sorted = [...bookings].sort((a, b) => a.date.localeCompare(b.date));
   const opening = new Map(accounts.map((a) => [a.id, a.openingDate]));
-  const running = new Map(accounts.map((a) => [a.id, a.openingBalanceCents]));
+  const moved = new Map(accounts.map((a) => [a.id, 0]));
   const out: Array<{ date: string; balances: Map<string, number> }> = [];
   let i = 0;
   for (const date of dates) {
@@ -56,10 +74,16 @@ export function balanceSeries(
       assertCents(b.amountCents);
       const from = opening.get(b.accountId);
       if (from === undefined) throw new Error(`Booking on unknown account ${b.accountId}`);
-      if (b.date >= from) running.set(b.accountId, (running.get(b.accountId) ?? 0) + b.amountCents);
+      if (b.date >= from) moved.set(b.accountId, (moved.get(b.accountId) ?? 0) + b.amountCents);
       i++;
     }
-    out.push({ date, balances: new Map(running) });
+    const balances = new Map(
+      accounts.map((a) => [
+        a.id,
+        date < a.openingDate ? 0 : a.openingBalanceCents + (moved.get(a.id) ?? 0),
+      ]),
+    );
+    out.push({ date, balances });
   }
   return out;
 }

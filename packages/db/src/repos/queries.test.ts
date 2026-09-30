@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { createTestDatabase, type OpenedDatabase } from '../client';
 import { accounts } from './entities';
 import { createBooking, createTransfer, deleteBooking } from './bookings';
-import { accountBalances, activityByCategoryMonth, bookingCountByAccount } from './queries';
+import { accountBalances, bookingCountByAccount } from './queries';
 import { seedBasics, testCtx as ctx } from './test-helpers';
 
 let opened: OpenedDatabase;
@@ -66,59 +66,6 @@ describe('accountBalances', () => {
     expect(
       accountBalances(db, '2023-10-01').find((a) => a.accountId === 'giro')?.balanceCents,
     ).toBe(100_000);
-  });
-});
-
-describe('activityByCategoryMonth', () => {
-  it('sums split amounts by category and booking month (signed), split-aware', () => {
-    book('giro', '2026-01-05', -1_000);
-    book('giro', '2026-01-25', -500);
-    book('giro', '2026-02-01', -300, 'reise');
-    book('giro', '2026-01-31', 200_000, null);
-    createBooking(
-      db,
-      {
-        accountId: 'giro',
-        date: '2026-02-10',
-        amountCents: -1_000,
-        splits: [
-          { categoryId: 'essen', amountCents: -600 },
-          { categoryId: 'reise', amountCents: -400 },
-        ],
-      },
-      ctx,
-    );
-    expect(activityByCategoryMonth(db)).toEqual([
-      { categoryId: null, month: '2026-01', cents: 200_000 },
-      { categoryId: 'essen', month: '2026-01', cents: -1_500 },
-      { categoryId: 'essen', month: '2026-02', cents: -600 },
-      { categoryId: 'reise', month: '2026-02', cents: -700 },
-    ]);
-  });
-
-  it('skips deleted bookings and counts transfer legs only with a category (outflow leg)', () => {
-    const b = book('giro', '2026-01-05', -1_000);
-    deleteBooking(db, b, ctx);
-    createTransfer(
-      db,
-      { fromAccountId: 'giro', toAccountId: 'spar', date: '2026-01-10', amountCents: 5_000 },
-      ctx,
-    );
-    expect(activityByCategoryMonth(db)).toEqual([]); // an uncategorized transfer is neutral
-    createTransfer(
-      db,
-      {
-        fromAccountId: 'giro',
-        toAccountId: 'spar',
-        date: '2026-01-11',
-        amountCents: 2_000,
-        categoryId: 'reise',
-      },
-      ctx,
-    );
-    expect(activityByCategoryMonth(db)).toEqual([
-      { categoryId: 'reise', month: '2026-01', cents: -2_000 },
-    ]);
   });
 });
 
