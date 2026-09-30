@@ -1,0 +1,137 @@
+/* Einstellungen › Kategorien (P2c). Parts-list grammar of Konten; no prototype page exists yet. */
+
+.cat-bar {
+  align-items: center;
+  gap: 8px;
+}
+.cat-hidden-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+  color: var(--ink-2);
+}
+.cat-help {
+  margin: 0 0 8px;
+}
+.cat-pos {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+.cat-grip {
+  cursor: grab;
+  color: var(--ink-3);
+}
+.cat-grip:active {
+  cursor: grabbing;
+}
+.cat-table .kc-num {
+  width: 110px;
+  font-weight: 500;
+}
+.kc-act {
+  width: 1%;
+  white-space: nowrap;
+  text-align: right;
+}
+.kc-act .icon-btn {
+  display: inline-grid;
+}
+.cat-table tr.is-drag td {
+  background: var(--tint-2);
+}
+.cat-table tr.is-hidden .kname-s {
+  color: var(--ink-3);
+}
+.cat-hidden {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.cat-unit {
+  display: none;
+}
+.cat-icon {
+  display: inline-block;
+  min-width: 1.25em;
+  text-align: center;
+}
+.emoji-input {
+  font-family: 'Noto Emoji', var(--font-body, sans-serif);
+  font-variant-emoji: text;
+}
+.field-row > .field-label {
+  font-size: 13px;
+  font-weight: 560;
+  color: var(--ink-2);
+}
+.kform-set {
+  display: grid;
+  gap: 0;
+  margin: 0;
+  padding: 12px 14px 0;
+  border: 1px solid var(--rule-strong);
+  border-radius: 8px;
+}
+.kform-set legend {
+  padding: 0 6px;
+  font-size: 13px;
+  font-weight: 600;
+}
+.kform-pair {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+.split-list {
+  max-height: 320px;
+  overflow-y: auto;
+  padding-bottom: 8px;
+}
+.split-row {
+  display: grid;
+  grid-template-columns: 24px 84px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  border-bottom: 1px solid var(--rule);
+  font-size: 13.5px;
+}
+.split-payee {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (max-width: 767px) {
+  .cat-bar {
+    flex-wrap: wrap;
+  }
+  .cat-hidden-toggle {
+    flex: 1 1 100%;
+    justify-content: space-between;
+  }
+  .cat-bar .spacer {
+    display: none;
+  }
+  .cat-table .kc-pos {
+    display: none;
+  }
+  .cat-unit {
+    display: inline;
+    font-weight: 400;
+    color: var(--ink-3);
+  }
+  .cat-table .krow,
+  .cat-table .kgroup {
+    grid-template-columns: minmax(0, 1fr) auto auto;
+    grid-template-areas: 'name num act';
+  }
+  .cat-table .kc-act {
+    grid-area: act;
+  }
+  .cat-help {
+    display: none;
+  }
+}

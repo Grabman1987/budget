@@ -6,6 +6,7 @@
 @import './shell/shell.css' layer(pages);
 @import './auth/auth.css' layer(pages);
 @import './ledger/ledger.css' layer(pages);
+@import './budget/budget.css' layer(pages);
 @import 'tailwindcss/utilities.css' layer(utilities);
 
 /* Utility classes used in packages/ui are scanned too. */
