@@ -29,6 +29,10 @@ import { envelopeMonth, type EnvelopeMonth } from './envelope';
  *     explains only the rest. A split over several cards shares the credit part in proportion to
  *     the card spending. Categories with `rolloverOverspending` carry their overspending
  *     themselves, so their card spending is always moved in full.
+ *   - A transfer from such a card to a budget account without a card envelope (cash advance, e.g.
+ *     paying an online wallet with the card) is new card debt and new money in "Zu verteilen";
+ *     the card envelope does not move (YNAB help "Credit Card Cash Advances": the funds leave the
+ *     card, move to the cash account and increase Ready to Assign).
  *   - `'concept'` (concept §3.1): every card spend moves in full; any overspending is cash
  *     overspending. Kept so the parallel run can show both.
  * - Carry: `max(0, available)` of the previous month, or the full (negative) amount for a category
@@ -166,15 +170,28 @@ export function budgetMonths(input: BudgetInput): BudgetMonth[] {
   };
   // Categorised spending per month, category and card (only cards with an envelope).
   const onCard = new Map<string, Map<string, Map<string, number>>>();
+  const rule: CardRule = input.cardRule ?? 'ynab';
+  const cashIds = new Set(cashAccounts.map((a) => a.id));
   for (const s of splits) {
     if (!Number.isSafeInteger(s.amountCents))
       throw new RangeError(`Amounts are integer cents, got ${String(s.amountCents)}`);
     const month = s.date.slice(0, 7);
-    const effect = splitEffect(s, onBudget, live);
+    const partner = s.transferAccountId ?? '';
+    // Cash advance (YNAB): money from a card into a budget account is new card debt and new money
+    // to assign; the card envelope does not move.
+    const advanceOut =
+      rule === 'ynab' && cardEnvelope.has(s.accountId) && cashIds.has(partner) && s.amountCents < 0;
+    const advanceIn =
+      rule === 'ynab' && cashIds.has(s.accountId) && cardEnvelope.has(partner) && s.amountCents > 0;
+    const effect: SplitEffect = advanceIn
+      ? { kind: 'income' }
+      : advanceOut
+        ? { kind: 'neutral' }
+        : splitEffect(s, onBudget, live);
     if (effect.kind === 'activity') add(month, effect.categoryId, s.amountCents);
     if (effect.kind === 'income') income.set(month, (income.get(month) ?? 0) + s.amountCents);
     const card = cardEnvelope.get(s.accountId);
-    if (card) add(month, card, -s.amountCents);
+    if (card && !advanceOut) add(month, card, -s.amountCents);
     if (card && effect.kind === 'activity') {
       const byCategory = onCard.get(month) ?? new Map<string, Map<string, number>>();
       const byCard = byCategory.get(effect.categoryId) ?? new Map<string, number>();
@@ -183,7 +200,6 @@ export function budgetMonths(input: BudgetInput): BudgetMonth[] {
       onCard.set(month, byCategory);
     }
   }
-  const rule: CardRule = input.cardRule ?? 'ynab';
   const cardCategories = new Set(cardEnvelope.values());
   // Spending categories first: their credit overspending decides what the card envelopes get.
   const ordered = [

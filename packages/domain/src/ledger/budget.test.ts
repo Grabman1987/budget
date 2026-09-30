@@ -476,3 +476,52 @@ describe('credit card spending by the YNAB rule (owner decision 30.09.2026)', ()
     expect(may.envelopes['kz2']?.availableCents).toBe(2500);
   });
 });
+
+describe('cash advance: a transfer from a card to a budget account (YNAB rule)', () => {
+  const accounts: LedgerAccount[] = [
+    { id: 'giro', onBudget: true, openingBalanceCents: 100000, openingDate: '2026-04-30' },
+    { id: 'wallet', onBudget: true, openingBalanceCents: 0, openingDate: '2026-04-30' },
+    { id: 'karte', onBudget: true, openingBalanceCents: 0, openingDate: '2026-04-30' },
+  ];
+  const categories: LedgerCategory[] = [{ id: 'kz', kind: 'card_payment', cardAccountId: 'karte' }];
+  const leg = (from: string, to: string, date: string, cents: number): LedgerSplit[] => [
+    { accountId: from, date, amountCents: -cents, categoryId: null, transferAccountId: to },
+    { accountId: to, date, amountCents: cents, categoryId: null, transferAccountId: from },
+  ];
+  const splits = [
+    ...leg('karte', 'wallet', '2026-05-12', 3000),
+    ...leg('giro', 'karte', '2026-06-08', 3000),
+  ];
+  const run = (cardRule: 'ynab' | 'concept') =>
+    budgetMonths({
+      accounts,
+      categories,
+      splits,
+      months: ['2026-05', '2026-06', '2026-07'],
+      cardRule,
+    });
+
+  it('increases Zu verteilen, leaves the payment envelope alone; paying it later is cash overspending', () => {
+    const [may, june, july] = run('ynab');
+    expect(may?.envelopes['kz']).toMatchObject({ activityCents: 0, availableCents: 0 });
+    expect(may?.incomeCents).toBe(3000); // the advance
+    expect(may?.toBeAssignedCents).toBe(103000);
+    // The payment from the current account takes the envelope below 0 …
+    expect(june?.envelopes['kz']).toMatchObject({
+      activityCents: -3000,
+      availableCents: -3000,
+      cashOverspentCents: 3000,
+    });
+    expect(june?.toBeAssignedCents).toBe(103000);
+    // … and reduces the next month like any cash overspending.
+    expect(july?.uncoveredCents).toBe(3000);
+    expect(july?.toBeAssignedCents).toBe(100000);
+  });
+
+  it('the concept rule moves it into the envelope like card spending', () => {
+    const [may, june] = run('concept');
+    expect(may?.envelopes['kz']?.availableCents).toBe(3000);
+    expect(may?.toBeAssignedCents).toBe(100000);
+    expect(june?.envelopes['kz']?.availableCents).toBe(0);
+  });
+});
