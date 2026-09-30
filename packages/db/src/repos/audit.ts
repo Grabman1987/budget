@@ -1,5 +1,15 @@
 import { randomUUID } from 'node:crypto';
-import { and, desc, eq, getTableColumns, getTableName, is, sql, type Column } from 'drizzle-orm';
+import {
+  and,
+  desc,
+  eq,
+  getTableColumns,
+  getTableName,
+  inArray,
+  is,
+  sql,
+  type Column,
+} from 'drizzle-orm';
 import { getTableConfig, SQLiteTable } from 'drizzle-orm/sqlite-core';
 import * as schema from '../schema';
 import { auditLog, type AUDIT_ACTIONS } from '../schema';
@@ -226,6 +236,55 @@ export function insertTracked<T extends SQLiteTable>(
   return db.select().from(table).where(whereKey(meta, key)).get() as T['$inferSelect'];
 }
 
+/** Rows per statement of the bulk helpers (well below SQLite's variable limit). */
+const BULK = 200;
+
+/**
+ * `insertTracked` for many rows (imports): the rows go in by chunks and their `create` entries
+ * too, in the order given. The same log as one call per row.
+ */
+export function insertManyTracked<T extends SQLiteTable>(
+  db: Executor,
+  table: T,
+  rows: readonly T['$inferInsert'][],
+  ctx: GroupedContext,
+): void {
+  const meta = tableMeta(table);
+  const [first] = meta.keyProps;
+  if (first === undefined) throw new Error(`No key on ${meta.name}`);
+  const keyOf = (r: Record<string, unknown>) =>
+    entityIdOf(meta.keyProps.map((p) => r[p] as string | number));
+  for (let i = 0; i < rows.length; i += BULK) {
+    const chunk = rows.slice(i, i + BULK) as Record<string, unknown>[];
+    db.insert(table)
+      .values(chunk as T['$inferInsert'][])
+      .run();
+    // Read back by the first key column (composite keys are matched in memory).
+    const firsts = [...new Set(chunk.map((r) => r[first] as string | number))];
+    const stored = new Map(
+      (
+        db.select().from(table).where(inArray(meta.columns[first]!, firsts)).all() as Record<
+          string,
+          unknown
+        >[]
+      ).map((r) => [keyOf(r), r]),
+    );
+    db.insert(auditLog)
+      .values(
+        chunk.map((r) => ({
+          id: randomUUID(),
+          actor: ctx.actor,
+          action: 'create' as const,
+          entityType: meta.name,
+          entityId: keyOf(r),
+          afterJson: JSON.stringify(toSnapshot(meta, stored.get(keyOf(r))!)),
+          groupId: ctx.groupId,
+        })),
+      )
+      .run();
+  }
+}
+
 /**
  * Update columns of one row and record an entry. Bumps `updated_at` when the table has one.
  * `undefined` patch values are ignored; a patch that changes nothing writes nothing and returns
@@ -374,6 +433,66 @@ function revertEntry(db: Executor, entry: AuditEntry, ctx: GroupedContext, force
   });
 }
 
+/** `revertEntry` for many creations of one table with a single-column key, in chunks. */
+function revertCreations(
+  db: Executor,
+  entries: AuditEntry[],
+  ctx: GroupedContext,
+  force: boolean,
+): void {
+  const meta = tableMeta(tableFor(entries[0]!.entityType));
+  const keyProp = meta.keyProps[0]!;
+  const keyColumn = meta.columns[keyProp]!;
+  const read = (keys: string[]) =>
+    new Map(
+      (
+        db.select().from(meta.table).where(inArray(keyColumn, keys)).all() as Record<
+          string,
+          unknown
+        >[]
+      ).map((r) => [String(r[keyProp]), toSnapshot(meta, r)]),
+    );
+  for (let i = 0; i < entries.length; i += BULK) {
+    const chunk = entries.slice(i, i + BULK);
+    const keys = chunk.map((e) => String(snapshotKey(meta, e.after!)[0]));
+    const current = read(keys);
+    if (!force)
+      for (const e of chunk) {
+        const now = current.get(String(snapshotKey(meta, e.after!)[0]));
+        if (now === undefined || !snapshotsEqual(now, e.after!))
+          throw new AuditError(
+            `Cannot undo ${e.action} of ${e.entityType} ${e.entityId}: it changed after this entry`,
+          );
+      }
+    const present = keys.filter((k) => current.has(k));
+    if (present.length === 0) continue;
+    if (meta.deletedAtProp) {
+      const set: Record<string, unknown> = { [meta.deletedAtProp]: nowIso() };
+      if (meta.updatedAtProp) set[meta.updatedAtProp] = nowIso();
+      db.update(meta.table).set(set).where(inArray(keyColumn, present)).run();
+    } else db.delete(meta.table).where(inArray(keyColumn, present)).run();
+    const after = meta.deletedAtProp ? read(present) : new Map<string, Snapshot>();
+    db.insert(auditLog)
+      .values(
+        chunk
+          .map((e) => ({ e, key: String(snapshotKey(meta, e.after!)[0]) }))
+          .filter(({ key }) => current.has(key))
+          .map(({ e, key }) => ({
+            id: randomUUID(),
+            actor: ctx.actor,
+            action: 'undo' as const,
+            entityType: e.entityType,
+            entityId: e.entityId,
+            beforeJson: JSON.stringify(current.get(key)),
+            afterJson: after.has(key) ? JSON.stringify(after.get(key)) : null,
+            groupId: ctx.groupId,
+            undoOfId: e.id,
+          })),
+      )
+      .run();
+  }
+}
+
 /** The booking an entry touches (a booking or one of its splits), if any. */
 function bookingOf(entry: AuditEntry): string | undefined {
   const snapshot = entry.after ?? entry.before;
@@ -415,8 +534,21 @@ export function undo(
       }
     }
     const touched = originals.map(bookingOf).filter((id): id is string => id !== undefined);
-    for (const entry of originals.reverse())
-      revertEntry(tx, entry, grouped, options.force ?? false);
+    // Runs of creations in one table (an import) are reverted in bulk, everything else one by one.
+    const force = options.force ?? false;
+    let batch: AuditEntry[] = [];
+    const flush = () => {
+      if (batch.length > 0) revertCreations(tx, batch, grouped, force);
+      batch = [];
+    };
+    for (const entry of originals.reverse()) {
+      const table = tableFor(entry.entityType);
+      const bulk = entry.before === null && tableMeta(table).keyProps.length === 1;
+      if (!bulk || (batch[0] && batch[0].entityType !== entry.entityType)) flush();
+      if (bulk) batch.push(entry);
+      else revertEntry(tx, entry, grouped, force);
+    }
+    flush();
     assertLedgerInvariants(tx, touched);
     const written = tx
       .select()

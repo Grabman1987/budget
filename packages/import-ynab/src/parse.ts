@@ -219,8 +219,13 @@ export interface PlanRow {
   availableCents: number;
 }
 
-function records(text: string, file: ExportFile, columns: readonly string[]): TsvRecord[] {
-  const [header, ...rows] = parseTsv(text, file);
+/**
+ * The records of an export file without its header (checked), each with all columns. The raw
+ * staging of the wizard stores these fields 1:1; `registerRowOf` / `planRowOf` read them.
+ */
+export function readRecords(bytes: Uint8Array, file: ExportFile): TsvRecord[] {
+  const columns = file === 'register' ? REGISTER_COLUMNS : PLAN_COLUMNS;
+  const [header, ...rows] = parseTsv(decodeExport(bytes, file), file);
   if (!header || header.fields.join('\t') !== columns.join('\t'))
     throw new ParseError(file, 1, 'header', `Header must be: ${columns.join(', ')}`);
   for (const r of rows)
@@ -242,46 +247,18 @@ function field<T>(file: ExportFile, line: number, column: string, value: T | nul
 
 /** Register.tsv from its bytes. Throws `ParseError` at the first malformed line. */
 export function parseRegister(bytes: Uint8Array): RegisterRow[] {
-  const file = 'register';
-  return records(decodeExport(bytes, file), file, REGISTER_COLUMNS).map(({ line, fields }) => {
-    const [account, flag, date, payee, , group, category, memo, outflow, inflow, cleared] =
-      fields as [
-        string,
-        string,
-        string,
-        string,
-        string,
-        string,
-        string,
-        string,
-        string,
-        string,
-        string,
-      ];
-    const out = field(file, line, 'Outflow', parseAmount(outflow));
-    const into = field(file, line, 'Inflow', parseAmount(inflow));
-    if (out !== 0 && into !== 0)
-      throw new ParseError(file, line, 'amount.both', 'Outflow and Inflow are both set');
-    return {
-      line,
-      account: account === '' ? field<string>(file, line, 'Account', null) : account,
-      flag: field(file, line, 'Flag', FLAGS.find((f) => f === flag) ?? null),
-      date: field(file, line, 'Date', parseDate(date)),
-      payee,
-      group,
-      category,
-      memo,
-      amountCents: into - out,
-      cleared: field(file, line, 'Cleared', CLEARED.find((c) => c === cleared) ?? null),
-    };
-  });
+  return readRecords(bytes, 'register').map(registerRowOf);
 }
 
-/** Plan.tsv from its bytes. Throws `ParseError` at the first malformed line. */
-export function parsePlan(bytes: Uint8Array): PlanRow[] {
-  const file = 'plan';
-  return records(decodeExport(bytes, file), file, PLAN_COLUMNS).map(({ line, fields }) => {
-    const [month, , group, category, assigned, activity, available] = fields as [
+/** One Register.tsv record (all columns, as text) as a typed row; `ParseError` if malformed. */
+export function registerRowOf({ line, fields }: TsvRecord): RegisterRow {
+  const file = 'register';
+  const [account, flag, date, payee, , group, category, memo, outflow, inflow, cleared] =
+    fields as [
+      string,
+      string,
+      string,
+      string,
       string,
       string,
       string,
@@ -290,14 +267,48 @@ export function parsePlan(bytes: Uint8Array): PlanRow[] {
       string,
       string,
     ];
-    return {
-      line,
-      month: field(file, line, 'Month', parsePlanMonth(month)),
-      group,
-      category: category === '' ? field<string>(file, line, 'Category', null) : category,
-      assignedCents: field(file, line, 'Assigned', parseAmount(assigned)),
-      activityCents: field(file, line, 'Activity', parseAmount(activity)),
-      availableCents: field(file, line, 'Available', parseAmount(available)),
-    };
-  });
+  const out = field(file, line, 'Outflow', parseAmount(outflow));
+  const into = field(file, line, 'Inflow', parseAmount(inflow));
+  if (out !== 0 && into !== 0)
+    throw new ParseError(file, line, 'amount.both', 'Outflow and Inflow are both set');
+  return {
+    line,
+    account: account === '' ? field<string>(file, line, 'Account', null) : account,
+    flag: field(file, line, 'Flag', FLAGS.find((f) => f === flag) ?? null),
+    date: field(file, line, 'Date', parseDate(date)),
+    payee,
+    group,
+    category,
+    memo,
+    amountCents: into - out,
+    cleared: field(file, line, 'Cleared', CLEARED.find((c) => c === cleared) ?? null),
+  };
+}
+
+/** Plan.tsv from its bytes. Throws `ParseError` at the first malformed line. */
+export function parsePlan(bytes: Uint8Array): PlanRow[] {
+  return readRecords(bytes, 'plan').map(planRowOf);
+}
+
+/** One Plan.tsv record (all columns, as text) as a typed row; `ParseError` if malformed. */
+export function planRowOf({ line, fields }: TsvRecord): PlanRow {
+  const file = 'plan';
+  const [month, , group, category, assigned, activity, available] = fields as [
+    string,
+    string,
+    string,
+    string,
+    string,
+    string,
+    string,
+  ];
+  return {
+    line,
+    month: field(file, line, 'Month', parsePlanMonth(month)),
+    group,
+    category: category === '' ? field<string>(file, line, 'Category', null) : category,
+    assignedCents: field(file, line, 'Assigned', parseAmount(assigned)),
+    activityCents: field(file, line, 'Activity', parseAmount(activity)),
+    availableCents: field(file, line, 'Available', parseAmount(available)),
+  };
 }

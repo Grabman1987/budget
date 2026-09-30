@@ -8,9 +8,10 @@ import { secureHeaders } from 'hono/secure-headers';
 import type { Auth } from './auth/routes';
 import { createLedgerApi } from './api';
 import { debugSummary } from './debug-summary';
+import { IMPORT_BODY_LIMIT, IMPORT_UPLOAD_LIMIT } from './imports/routes';
 
 /** What the app needs from the passkey login: the CSRF check, its routes and the session guard. */
-export type AuthGate = Pick<Auth, 'originGuard' | 'routes' | 'requireSession'>;
+export type AuthGate = Pick<Auth, 'originGuard' | 'routes' | 'requireSession' | 'requireStepUp'>;
 
 interface BaseOptions {
   /** Directory of the built web app (Vite `dist`). */
@@ -86,14 +87,18 @@ export function createApp({ webDir, database, auth, ledger }: AppOptions): Hono 
     }),
   );
 
-  // Before anything reads or logs a request: bodies over 64 KB are refused unread (B3).
-  app.use(
-    '/api/*',
-    bodyLimit({
-      maxSize: API_BODY_LIMIT,
-      onError: (c) => c.text('Request body too large (limit 64 KB).', 413),
-    }),
-  );
+  // Before anything reads or logs a request: bodies over 64 KB are refused unread (B3). The YNAB
+  // upload takes up to 20 MB, the other import calls (mapping documents) up to 2 MB.
+  const limit = (maxSize: number, label: string) =>
+    bodyLimit({ maxSize, onError: (c) => c.text(`Request body too large (limit ${label}).`, 413) });
+  const apiLimit = limit(API_BODY_LIMIT, '64 KB');
+  const uploadLimit = limit(IMPORT_UPLOAD_LIMIT, '20 MB');
+  const importLimit = limit(IMPORT_BODY_LIMIT, '2 MB');
+  app.use('/api/*', (c, next) => {
+    if (c.req.path === '/api/imports/ynab') return uploadLimit(c, next);
+    if (c.req.path.startsWith('/api/imports/')) return importLimit(c, next);
+    return apiLimit(c, next);
+  });
 
   app.get('/health', (c) => c.json({ status: 'ok' }));
 
@@ -105,7 +110,7 @@ export function createApp({ webDir, database, auth, ledger }: AppOptions): Hono 
     app.use('/api/*', auth.requireSession);
   }
 
-  if (ledger) app.route('/api', createLedgerApi(ledger));
+  if (ledger && auth) app.route('/api', createLedgerApi({ ...ledger, stepUp: auth.requireStepUp }));
 
   // Read-only seed check. Only mounted when a database is passed in (BUDGET_DEBUG_API=1), never
   // on by default; auth (P1e) has to sit in front of it before it may run anywhere public.
