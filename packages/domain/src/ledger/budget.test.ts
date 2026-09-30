@@ -322,6 +322,7 @@ describe('stock formula = flow formula (property test)', () => {
               uncoveredCents: cur.uncoveredCents,
               heldPreviousCents: prev.heldCents,
               heldCents: cur.heldCents,
+              cardOffEnvelopeCents: cur.cardOffEnvelopeCents,
             }),
             `run ${run}, ${cardRule}, ${cur.month}`,
           ).toBe(cur.toBeAssignedCents);
@@ -411,24 +412,25 @@ describe('credit card spending by the YNAB rule (owner decision 30.09.2026)', ()
     expect(june.toBeAssignedCents).toBe(may.toBeAssignedCents - 5000);
   });
 
-  it('cash and card in one category: the cash counts first, the card only for the rest', () => {
-    // 80 € cash + 70 € card: all 50 € overspending is cash, the card spend is fully funded.
+  it('cash and card in one category: the card counts first, the cash only for the rest', () => {
+    // YNAB, verified on the owner's real export: the card spending explains the overspending first.
+    // 80 € cash + 70 € card: 50 € credit overspending, 20 € of the card spend funded, no cash part.
     const a = run([s('giro', '2026-05-03', -8000), s('karte', '2026-05-10', -7000)]);
     expect(a.essen).toMatchObject({
-      fundedCardCents: 7000,
-      creditOverspentCents: 0,
-      cashOverspentCents: 5000,
+      fundedCardCents: 2000,
+      creditOverspentCents: 5000,
+      cashOverspentCents: 0,
     });
-    expect(a.june.toBeAssignedCents).toBe(a.may.toBeAssignedCents - 5000);
-    // 30 € cash + 120 € card: 30 € cash overspending, 20 € credit overspending, 100 € funded.
-    const b = run([s('giro', '2026-05-03', -3000), s('karte', '2026-05-10', -12000)]);
+    expect(a.june.toBeAssignedCents).toBe(a.may.toBeAssignedCents);
+    // 120 € cash + 30 € card: 30 € credit overspending, 20 € cash overspending, nothing funded.
+    const b = run([s('giro', '2026-05-03', -12000), s('karte', '2026-05-10', -3000)]);
     expect(b.essen).toMatchObject({
-      fundedCardCents: 10000,
-      creditOverspentCents: 2000,
-      cashOverspentCents: 3000,
+      fundedCardCents: 0,
+      creditOverspentCents: 3000,
+      cashOverspentCents: 2000,
     });
-    expect(b.may.envelopes['kz']?.availableCents).toBe(10000);
-    expect(b.june.toBeAssignedCents).toBe(b.may.toBeAssignedCents - 3000);
+    expect(b.may.envelopes['kz']?.availableCents).toBe(0);
+    expect(b.june.toBeAssignedCents).toBe(b.may.toBeAssignedCents - 2000);
   });
 
   it('covering the category later in the month funds the card part retroactively', () => {
@@ -488,15 +490,80 @@ describe('credit card spending by the YNAB rule (owner decision 30.09.2026)', ()
     expect(june!.uncoveredCents).toBe(0);
   });
 
-  it('shares the credit overspending over two cards in proportion to their spending', () => {
+  it('lays the credit overspending on the latest card spending of the month', () => {
+    // 100 € available, 90 € on card 1 (10th), 30 € on card 2 (11th): the 20 € credit
+    // overspending is the latest spending, all on card 2.
     const { may } = run([s('karte', '2026-05-10', -9000), s('karte2', '2026-05-11', -3000)]);
-    // 100 € available, 120 € on cards: 20 € credit overspending, 15 € on card 1, 5 € on card 2.
     expect(may.cards).toEqual({
-      karte: { cardDebtGrowthCents: 1500 },
-      karte2: { cardDebtGrowthCents: 500 },
+      karte: { cardDebtGrowthCents: 0 },
+      karte2: { cardDebtGrowthCents: 2000 },
     });
-    expect(may.envelopes['kz']?.availableCents).toBe(7500);
-    expect(may.envelopes['kz2']?.availableCents).toBe(2500);
+    expect(may.envelopes['kz']?.availableCents).toBe(9000);
+    expect(may.envelopes['kz2']?.availableCents).toBe(1000);
+    // Same day: by amount, largest outflow first (YNAB's register order), whatever the input
+    // order; the smaller spending is the latest.
+    const same = run([s('karte2', '2026-05-10', -3000), s('karte', '2026-05-10', -9000)]).may;
+    expect(same.cards['karte2']?.cardDebtGrowthCents).toBe(2000);
+  });
+
+  it('a refund on another card meets the credit overspending instead of moving back', () => {
+    // May: 100 € funded on card 2. June, nothing assigned: 35 € on card 1 (20th), 30 € refund on
+    // card 2 (22nd): 5 € overspent, all of it credit. Card 1's 35 € stay unfunded, card 2's
+    // refund stays in its envelope (negative debt growth); no envelope moves.
+    const { june } = run([
+      s('karte2', '2026-05-05', -10000),
+      s('karte', '2026-06-20', -3500),
+      s('karte2', '2026-06-22', 3000),
+    ]);
+    expect(june!.envelopes['essen']).toMatchObject({
+      availableCents: -500,
+      creditOverspentCents: 500,
+      fundedCardCents: 0,
+    });
+    expect(june!.cards).toEqual({
+      karte: { cardDebtGrowthCents: 3500 },
+      karte2: { cardDebtGrowthCents: -3000 },
+    });
+    expect(june!.envelopes['kz']?.activityCents).toBe(0);
+    expect(june!.envelopes['kz2']?.activityCents).toBe(0);
+  });
+
+  it('spending paid from a positive card balance does not move into the payment envelope', () => {
+    // 50 € overpaid on the 3rd (the envelope goes to −50 €, cash overspending), 80 € spent on the
+    // 10th: 50 € come from the card balance, 30 € move. On the 17th a payment of 60 € and 20 €
+    // spending on the same day: the spending counts first (balance still negative), so it moves.
+    const { may, june, essen } = run([
+      s('giro', '2026-05-03', -5000, null, 'karte'),
+      s('karte', '2026-05-03', 5000, null, 'giro'),
+      s('karte', '2026-05-10', -8000),
+      s('giro', '2026-05-17', -6000, null, 'karte'),
+      s('karte', '2026-05-17', 6000, null, 'giro'),
+      s('karte', '2026-05-17', -2000),
+    ]);
+    expect(essen).toMatchObject({ availableCents: 0, fundedCardCents: 5000 });
+    expect(may.envelopes['kz']).toMatchObject({ activityCents: -6000, availableCents: -6000 });
+    expect(may.cardOffEnvelopeCents).toBe(5000);
+    // Stock and flow agree: the overpayment is cash overspending, the 50 € spent from the card
+    // balance come back.
+    expect(june.uncoveredCents).toBe(6000);
+    expect(june.toBeAssignedCents).toBe(may.toBeAssignedCents - 6000);
+    expect(may.toBeAssignedCents).toBe(
+      toBeAssignedFlow({
+        previousCents: 100000,
+        incomeCents: may.incomeCents,
+        assignedCents: may.assignedCents,
+        uncoveredCents: may.uncoveredCents,
+        cardOffEnvelopeCents: may.cardOffEnvelopeCents,
+      }),
+    );
+  });
+
+  it('income on a card ("Ready to Assign") moves neither the payment envelope nor Zu verteilen', () => {
+    const { may } = run([s('karte', '2026-05-10', -6000), s('karte', '2026-05-28', 500, null)]);
+    expect(may.envelopes['kz']?.activityCents).toBe(6000);
+    expect(may.incomeCents).toBe(500);
+    expect(may.cardOffEnvelopeCents).toBe(-500);
+    expect(may.toBeAssignedCents).toBe(100000 - 10000);
   });
 });
 
