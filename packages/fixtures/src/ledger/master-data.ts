@@ -60,6 +60,30 @@ function kindOfCategory(c: (typeof CATS)[number]) {
   ];
 }
 
+/**
+ * Target of a sample category from the reference model: fixed costs and transfers the latest
+ * price every month on their due day, variable envelopes their base (refill), periodic costs the
+ * yearly total with the next due month.
+ */
+function targetOf(c: (typeof CATS)[number]): SampleLedger['categoryTargets'] {
+  const base = { id: `tgt-${c.id}`, categoryId: catId(c.id), validFrom: '2023-10' };
+  const last = c.price?.at(-1)?.[1];
+  if (c.kind === 'fix' && last !== undefined)
+    return [
+      { ...base, kind: 'monthly', amountCents: Math.round(last * 100), dueDay: c.due ?? null },
+    ];
+  if (c.kind === 'var' && c.base)
+    return [{ ...base, kind: 'monthly', amountCents: Math.round(c.base / 10) * 1000 }];
+  if (c.kind === 'periodic' && c.events?.length) {
+    const yearly = c.events.filter((e) => e[2] === undefined || e[2] === 2026);
+    const amount = yearly.reduce((a, e) => a + e[1], 0);
+    const first = Math.min(...yearly.map((e) => e[0]));
+    const targetDate = `2026-${String(first + 1).padStart(2, '0')}-01`;
+    return [{ ...base, kind: 'monthly', amountCents: amount * 100, everyMonths: 12, targetDate }];
+  }
+  return [];
+}
+
 const PROJECT_PAYEE = {
   trading: 'Handelsplattform',
   kurse: 'Kursteilnehmer',
@@ -74,6 +98,7 @@ export function masterData(): Pick<
   | 'accounts'
   | 'categoryGroups'
   | 'categories'
+  | 'categoryTargets'
   | 'payees'
   | 'projects'
   | 'assetClasses'
@@ -205,6 +230,18 @@ export function masterData(): Pick<
     stage: stageOf(c),
     sortOrder: i,
   }));
+  // The credit card's payment envelope ("Kartenzahlung", rule R06) in its own group.
+  categoryGroups.push({ id: 'grp-kreditkarten', name: 'Kreditkarten', sortOrder: -1 });
+  categories.push({
+    id: catId('kartenzahlung'),
+    name: 'Kartenzahlung',
+    groupId: 'grp-kreditkarten',
+    class: null,
+    kind: 'card_payment',
+    cardAccountId: ACC.karte,
+    sortOrder: 0,
+  });
+  const categoryTargets = CATS.flatMap((c) => targetOf(c));
 
   const names = new Set<string>(['Arbeitgeber', 'Kontakt M. Muster', 'Verwandtschaft', 'Bank B']);
   for (const p of PRODUCTS) names.add(p.plat);
@@ -286,6 +323,7 @@ export function masterData(): Pick<
     accounts,
     categoryGroups,
     categories,
+    categoryTargets,
     payees,
     projects,
     assetClasses,
