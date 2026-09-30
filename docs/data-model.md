@@ -167,10 +167,26 @@ the auth tables.
   `advance` (Auslagen), `card_payment` (Kartenzahlung) and `income`. Income, card-payment and
   advance categories have no 50/30/20 class; every other category must have one. Stages are 1–9.
 - **Credit cards** (C14, concept §3.1, rule R06): each card has one `card_payment` category
-  (`card_account_id`, unique). A categorised spend on the card moves its amount from the spending
-  category to that envelope (computed in the domain, PR 2, never stored as bookings); the payment
-  from the current account is a neutral transfer between two budget accounts. The envelope cannot
-  be booked directly. This is YNAB's "Credit Card Payments" group.
+  (`card_account_id`, unique), YNAB's "Credit Card Payments" group. The envelope cannot be booked
+  directly; the payment from the current account is a neutral transfer between two budget
+  accounts that takes money out of it. What a categorised card spend moves is computed in the
+  domain (`budgetMonths`, never stored as bookings), by `cardRule`:
+  - **`'ynab'`, default (owner decision 30.09.2026, P1f-6):** month-level YNAB rule. Only the
+    **funded** part moves into the card envelope: what the category covers at month end, so
+    covering it later in the month funds the card retroactively. The rest is **credit
+    overspending**: new card debt (`cardDebtGrowthCents` per card), the category resets to 0 next
+    month, and it does not reduce the next month's "Zu verteilen"; only **cash overspending**
+    does (`uncoveredCents`). A category overspent by cash and card in the same month counts the
+    cash first ("takes the cash out first, since those dollars have actually left your bank
+    account", YNAB help "Handling Overspending"; the page itself could not be opened from the
+    build environment, only its search excerpt, so this is to be confirmed with the synthetic
+    export of P2d). The credit part is shared over several cards in proportion to their spending
+    (largest remainder). Refunds in a category move their full amount back; categories with
+    `rollover_overspending` carry their overspending themselves and move card spending in full.
+    Stock formula: Zu verteilen = cash − Σ available − held − credit overspending of the month.
+    Per month and category `fundedCardCents`, `creditOverspentCents`, `cashOverspentCents`.
+  - **`'concept'`:** every card spend moves in full, all overspending is cash overspending. Kept
+    so the reconciliation can show both during the parallel run (`budget(db, months, { cardRule })`).
 - **Month-level values** (`budget_month.held_cents`, C1): money held for next month. Categories may
   opt into `rollover_overspending` (Actual); by default negative available is not carried but
   reduces the next month's "Zu verteilen" (concept §5.3). Logic in PR 2.
