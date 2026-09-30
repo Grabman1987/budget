@@ -102,6 +102,44 @@ describe('figures of the prototype are reproduced from the seeded database', () 
     expect(chainReturns(monthly) * 100).toBeCloseTo(38.2, 1);
   });
 
+  it('R03 "vom Vormonat leben": each month end keeps its salary in Zu verteilen for the next month', () => {
+    const salary = (month: string) =>
+      db
+        .select()
+        .from(schema.booking)
+        .where(eq(schema.booking.memo, 'Gehalt'))
+        .all()
+        .filter((b) => b.date.startsWith(month))
+        .reduce((a, b) => a + b.amountCents, 0);
+    for (const m of budget(db, MONTHS)) {
+      expect(m.toBeAssignedCents, m.month).toBeGreaterThanOrEqual(salary(m.month));
+      expect(m.toBeAssignedCents, m.month).toBeGreaterThanOrEqual(0);
+    }
+  });
+
+  it('periodic targets: the 2026 amount once, due on its day; several dates set a twelfth aside', () => {
+    const target = (id: string) =>
+      db
+        .select()
+        .from(schema.categoryTarget)
+        .where(eq(schema.categoryTarget.id, `tgt-${id}`))
+        .get();
+    // Household insurance: 486 € in 2026 replace the 452 € of earlier years (not 938 €).
+    expect(target('hhvers')).toMatchObject({
+      amountCents: 48600,
+      everyMonths: 12,
+      targetDate: '2026-01-12',
+      dueDay: 12,
+    });
+    expect(target('kfzservice')).toMatchObject({ amountCents: 58000, targetDate: '2026-03-12' });
+    // Trips on three dates: 5.000 € a year, a twelfth every month, dates in the expected payments.
+    expect(target('reisen')).toMatchObject({
+      amountCents: 41667,
+      everyMonths: 1,
+      targetDate: null,
+    });
+  });
+
   it('the seeded database is deterministic: bookings, splits, trades, prices and envelopes', () => {
     const other = createTestDatabase().db;
     seedDatabase(other);

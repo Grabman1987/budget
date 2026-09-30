@@ -3,6 +3,7 @@ import { buildCashflow, mergeOnlineOrders, monthEnd, type Draft } from './cashfl
 import { coverageCases } from './coverage';
 import { buildInvestments } from './investments';
 import { ACC, masterData } from './master-data';
+import { fundByR03 } from './funding';
 import { buildPlanning } from './planning';
 import type { SampleLedger } from './types';
 
@@ -162,6 +163,24 @@ function build(): SampleLedger {
   const accounts = master.accounts.map((a) => ({ ...a, openingBalanceCents: openings[a.id] ?? 0 }));
 
   const planning = buildPlanning();
+  const salaryOf = (month: string) =>
+    bookings
+      .filter((b) => b.memo === 'Gehalt' && b.date.startsWith(month) && !b.deletedAt)
+      .reduce((a, b) => a + b.amountCents, 0);
+  const wants = new Set(master.categories.filter((c) => c.class === 'want').map((c) => c.id));
+  const savings = new Set(master.categories.filter((c) => c.kind === 'saving').map((c) => c.id));
+  planning.envelopeMonths = fundByR03(
+    {
+      accounts,
+      categories: master.categories,
+      bookings,
+      splits,
+      envelopeMonths: planning.envelopeMonths,
+    },
+    salaryOf,
+    (id) => wants.has(id),
+    (id) => savings.has(id),
+  );
 
   return {
     ...master,

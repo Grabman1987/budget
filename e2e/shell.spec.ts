@@ -343,6 +343,12 @@ test.describe('phone shell', () => {
 });
 
 test.describe('regression baselines of the shell (own screenshots)', () => {
+  // The pages show the current month; the baselines are from September 2026. A fixed browser clock
+  // (the prototype's reference day) keeps them valid in every month.
+  test.beforeEach(async ({ page }) => {
+    await page.clock.setFixedTime(new Date('2026-09-17T08:30:00+02:00'));
+  });
+
   for (const [name, path] of [
     ['heute', '/'],
     // Plan › Monat shows live data since P2c; Jahr keeps the Plan title block with month switch.

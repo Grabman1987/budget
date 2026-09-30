@@ -3,19 +3,19 @@ import { createTestDatabase } from '@budget/db';
 import { mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { beforeEach, describe, expect, it } from 'vitest';
 import { Hono } from 'hono';
+import { beforeEach, describe, expect, it } from 'vitest';
 import { createApp, type AuthGate } from '../app';
 
 const webDir = mkdtempSync(join(tmpdir(), 'budget-api-'));
 writeFileSync(join(webDir, 'index.html'), '<!doctype html><title>Budget</title>');
+let app: ReturnType<typeof createApp>;
 /** The session guard has its own tests (auth.test.ts); here every request is signed in. */
 const signedIn: AuthGate = {
   originGuard: async (_c, next) => next(),
   requireSession: async (_c, next) => next(),
   routes: new Hono(),
 };
-let app: ReturnType<typeof createApp>;
 
 beforeEach(() => {
   app = createApp({
@@ -120,9 +120,19 @@ describe('categories and budget API', () => {
     const found = await ok('GET', `/categories/${essen.id}/split-off?from=2026-10-01`);
     const split = await ok('POST', `/categories/${essen.id}/split-off`, {
       splitIds: found['splits'].map((s: any) => s.splitId),
-      newCategory: { name: 'Drogerie', groupId: group.id, class: 'need' },
+      newCategory: {
+        name: 'Drogerie',
+        groupId: group.id,
+        class: 'need',
+        target: { validFrom: '2026-10', target: { kind: 'monthly', amountCents: 4_000 } },
+      },
     });
     expect(split['moved']).toBe(1);
+    // The target of the new category is stored, not dropped.
+    const targets = (await ok('GET', '/categories'))['targets'];
+    expect(targets.find((t: any) => t.categoryId === split['targetId'])).toMatchObject({
+      amountCents: 4_000,
+    });
 
     await ok('PATCH', `/categories/${cafe.id}`, { hidden: true, icon: '☕' });
     const tree = await ok('GET', '/categories');

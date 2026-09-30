@@ -52,14 +52,22 @@ test('categories: create, target, hide, sort, merge and undo', async ({ page }, 
   await expect(icon).toHaveText('🛒');
   expect(await icon.evaluate((el) => getComputedStyle(el).fontFamily)).toContain('Noto Emoji');
 
-  // Keyboard sort: Café moves above Lebensmittel.
+  // Sort: Café moves above Lebensmittel, with the keyboard on the desktop and with the ↑ button
+  // on the phone (touch has no HTML5 drag; the buttons exist only in the phone layout).
+  const up = page.getByRole('button', { name: `Café ${tag} nach oben` });
   if (testInfo.project.name === 'desktop') {
+    await expect(up).toBeHidden();
     await page.getByRole('button', { name: `Café ${tag} verschieben` }).press('ArrowUp');
-    await expect(toast(page)).toContainText('Reihenfolge gespeichert');
-    const names = await page.locator('.cat-table .krow .kname-s').allTextContents();
-    const at = (n: string) => names.findIndex((x) => x.includes(n));
-    expect(at(`Café ${tag}`)).toBeLessThan(at(`Lebensmittel ${tag}`));
+  } else {
+    await expect(
+      page.getByRole('button', { name: `Lebensmittel ${tag} nach unten` }),
+    ).toBeVisible();
+    await up.click();
   }
+  await expect(toast(page)).toContainText('Reihenfolge gespeichert');
+  const names = await page.locator('.cat-table .krow .kname-s').allTextContents();
+  const at = (n: string) => names.findIndex((x) => x.includes(n));
+  expect(at(`Café ${tag}`)).toBeLessThan(at(`Lebensmittel ${tag}`));
 
   // Hide: gone from the list until "Ausgeblendete zeigen".
   await page.getByRole('button', { name: `Café ${tag} bearbeiten` }).click();
