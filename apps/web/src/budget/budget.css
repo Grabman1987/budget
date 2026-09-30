@@ -38,6 +38,17 @@
 .kc-act .icon-btn {
   display: inline-grid;
 }
+/* ↑ / ↓ only on the phone, where touch has no HTML5 drag. */
+.kc-act .cat-step {
+  display: none;
+}
+.cat-step:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.cat-step:disabled:hover {
+  background: none;
+}
 .cat-table tr.is-drag td {
   background: var(--tint-2);
 }
@@ -130,6 +141,9 @@
   }
   .cat-table .kc-act {
     grid-area: act;
+  }
+  .kc-act .cat-step {
+    display: inline-grid;
   }
   .cat-help {
     display: none;
