@@ -46,4 +46,4 @@ export {
   type FreedomProjection,
   type SollPfad,
 } from './freedom';
-export { shareBps } from './int';
+export { mulDivRound, shareBps } from './int';

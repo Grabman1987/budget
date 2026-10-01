@@ -1,0 +1,505 @@
+/* Vermögen › Portfolio. Ported from design/prototype/styles.css (.vview and friends). */
+
+.pf-view {
+  display: grid;
+  gap: 40px;
+  margin-top: -4px;
+}
+
+/* Title block: the price refresh sits in the Stand cell. */
+.pf-stand-day {
+  display: inline-flex;
+  gap: 4px;
+  margin-right: 6px;
+}
+.pf-stand-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0;
+  font: inherit;
+  color: inherit;
+  border-radius: 4px;
+}
+.pf-stand-btn:hover:not(:disabled) {
+  color: var(--line);
+  text-decoration: underline;
+}
+.pf-stand-btn:disabled {
+  color: var(--ink-3);
+}
+
+/* Lead: figure, chain, link block; the KPI row fills the free column on wide screens. */
+.pf-lead {
+  display: grid;
+  grid-template-columns: minmax(0, 7fr) minmax(0, 5fr);
+  column-gap: 48px;
+  align-items: start;
+}
+.pf-lead > * {
+  grid-column: 1;
+}
+.pf-lead .tbd-fig .cents {
+  font-size: 0.5em;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+.pf-lead .chain-inline {
+  margin-bottom: 18px;
+}
+.pf-kpi {
+  grid-column: 2;
+  grid-row: 1 / span 4;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 22px 20px;
+  margin: 6px 0 0;
+}
+.pf-kpi > div {
+  min-width: 0;
+  border-left: 1px solid var(--rule-strong);
+  padding-left: 14px;
+}
+.pf-kpi dt {
+  margin-bottom: 4px;
+}
+.pf-kpi dd {
+  display: grid;
+  gap: 4px;
+  margin: 0;
+}
+.pf-kpi strong {
+  font-size: 22px;
+  font-weight: 650;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+  white-space: nowrap;
+}
+.pf-kpi small {
+  font-size: 12.5px;
+  color: var(--ink-3);
+}
+.vlook {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 18px;
+  padding: 12px 14px;
+  border: 1px solid var(--line-2);
+  border-radius: 6px;
+  color: var(--ink);
+  text-decoration: none;
+}
+.vlook:hover {
+  border-color: var(--line);
+  background: var(--tint);
+}
+.vlook > .icon:first-child {
+  color: var(--line);
+  flex: none;
+}
+.vlook span {
+  flex: 1;
+  display: grid;
+  gap: 2px;
+}
+.vlook small {
+  color: var(--ink-3);
+  font-size: 12.5px;
+}
+
+/* Shared small pieces */
+.vtable .kc-plain {
+  font-weight: 500;
+  color: var(--ink-2);
+}
+.pf-view .neg-alert {
+  color: var(--red);
+}
+.vnote {
+  margin: 10px 0 0;
+  font-size: 13px;
+  color: var(--ink-2);
+  max-width: 64ch;
+}
+.pf-view .grp-no {
+  display: inline-grid;
+  place-items: center;
+  min-width: 24px;
+  height: 24px;
+  border: 1px solid var(--line);
+  border-radius: 50%;
+  font-family: var(--font-tech);
+  font-weight: 600;
+  font-size: 12.5px;
+  color: var(--line);
+}
+
+/* Sparpläne */
+.vplan-act {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-top: 12px;
+  font-size: 13px;
+}
+.vplan-act .muted {
+  color: var(--ink-2);
+}
+.pf-plan-table .kc-num {
+  width: 130px;
+}
+
+/* Aufteilung Soll/Ist */
+.vallo {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+}
+.vallo li {
+  display: grid;
+  grid-template-columns: 200px minmax(0, 1fr) 120px;
+  align-items: center;
+  gap: 16px;
+  padding: 12px 0;
+  border-top: 1px solid var(--rule);
+}
+.vallo li:first-child {
+  border-top: 0;
+}
+.va-name {
+  font-weight: 600;
+}
+.va-name small {
+  display: block;
+  font-weight: 500;
+  font-size: 12px;
+  color: var(--ink-3);
+}
+.va-track {
+  position: relative;
+  height: 16px;
+  border-bottom: 1px solid var(--rule-strong);
+}
+.va-band {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  background: var(--tint-2);
+  border-left: 1px dashed var(--line-2);
+  border-right: 1px dashed var(--line-2);
+}
+.va-ist {
+  position: absolute;
+  top: 4px;
+  height: 8px;
+  left: 0;
+  background: var(--line);
+}
+.is-out .va-ist {
+  background: var(--red);
+}
+.va-soll {
+  position: absolute;
+  top: -4px;
+  bottom: -4px;
+  border-left: 2px solid var(--ink);
+}
+.va-val {
+  text-align: right;
+}
+.va-val strong {
+  display: block;
+  font-size: 16px;
+  font-weight: 650;
+}
+.va-val small {
+  font-size: 12px;
+  color: var(--ink-3);
+}
+
+/* Plattformen */
+.vbars {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+}
+.vbars li {
+  display: grid;
+  grid-template-columns: minmax(0, 150px) minmax(0, 1fr) 96px;
+  align-items: center;
+  gap: 12px;
+  padding: 7px 0;
+  border-top: 1px solid var(--rule);
+  font-size: 13.5px;
+}
+.vbars li:first-child {
+  border-top: 0;
+}
+.vb-bar {
+  position: relative;
+  height: 10px;
+  background: var(--tint);
+  border-radius: 1px;
+}
+.vb-bar i {
+  position: absolute;
+  inset: 0 auto 0 0;
+  background: var(--line);
+  border-radius: 1px;
+}
+.vb-val {
+  text-align: right;
+  font-weight: 620;
+  white-space: nowrap;
+}
+.vb-name {
+  color: var(--ink-2);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Positionen */
+.pf-pos .kc-num {
+  width: auto;
+}
+.pf-pos th.kc-num,
+.pf-pos td.kc-num {
+  min-width: 90px;
+}
+.pf-pos .kgroup td {
+  border-top: 0;
+}
+
+/* The title block's Stand cell is hidden on the phone; the refresh moves above the positions. */
+.pf-refresh-phone {
+  display: none;
+}
+@media (max-width: 767px) {
+  .pf-refresh-phone {
+    display: block;
+    margin: 4px 0 8px;
+  }
+  .pf-refresh-phone .btn {
+    gap: 6px;
+  }
+}
+
+/* Product panel */
+.pf-product .panel-sub {
+  margin: 0 0 18px;
+  color: var(--ink-2);
+}
+.pf-figs {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px 20px;
+  margin: 8px 0 22px;
+}
+.pf-figs > div {
+  border-left: 1px solid var(--rule-strong);
+  padding-left: 14px;
+  min-width: 0;
+}
+.pf-figs .tech {
+  display: block;
+  margin-bottom: 4px;
+}
+.pf-figs strong {
+  display: block;
+  font-size: 26px;
+  font-weight: 650;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+  white-space: nowrap;
+}
+.pf-figs small {
+  display: block;
+  margin-top: 4px;
+  font-size: 12.5px;
+  color: var(--ink-3);
+}
+.pf-price-box {
+  min-height: 200px;
+}
+.pf-price-box .chart {
+  display: block;
+  overflow: visible;
+}
+.pf-price-box .l-actual {
+  stroke-width: 1.5;
+  stroke-linejoin: round;
+}
+.pf-hand-dot {
+  fill: var(--raised);
+  stroke: var(--ink);
+  stroke-width: 1.5;
+}
+.pf-hand-key {
+  display: inline-block;
+  width: 9px;
+  height: 9px;
+  border: 1.5px solid var(--ink);
+  border-radius: 50%;
+}
+.pf-recent {
+  width: 100%;
+  margin-top: 18px;
+  border-collapse: collapse;
+  font-size: 13.5px;
+}
+.pf-recent caption {
+  text-align: left;
+  padding-bottom: 6px;
+}
+.pf-recent td {
+  padding: 7px 0;
+  border-top: 1px solid var(--rule);
+}
+.pf-recent .pf-r-num {
+  text-align: right;
+  font-weight: 620;
+  white-space: nowrap;
+}
+.pf-recent .pf-r-src {
+  text-align: right;
+  padding-left: 14px;
+  color: var(--ink-2);
+}
+.pf-recent .pf-r-src.is-hand {
+  color: var(--ink);
+  font-weight: 600;
+}
+
+@media (max-width: 980px) {
+  .pf-lead {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .pf-kpi {
+    grid-column: 1;
+    grid-row: auto;
+    margin: 0 0 18px;
+  }
+  .pf-lead .vlook {
+    margin-top: 0;
+  }
+}
+
+@media (max-width: 767px) {
+  .pf-view {
+    gap: 28px;
+  }
+  .pf-kpi {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 16px 16px;
+  }
+  .pf-kpi strong {
+    font-size: 20px;
+  }
+  .vbars li {
+    grid-template-columns: minmax(0, 1fr) 90px;
+  }
+  .vbars .vb-bar {
+    grid-column: 1 / -1;
+    grid-row: 2;
+  }
+  .vallo li {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+  .vallo .va-track {
+    grid-column: 1 / -1;
+    grid-row: 2;
+  }
+
+  /* Sparpläne: name left, "Rate heute → Vorschlag" right, the reason below. */
+  .pf-plan-table tr {
+    grid-template-columns: minmax(0, 1fr) auto auto;
+    grid-template-areas: 'name now next' 'why why why';
+    gap: 4px 8px;
+  }
+  .pf-plan-table .pf-pn {
+    grid-area: name;
+  }
+  .pf-plan-table .pf-now {
+    grid-area: now;
+    width: auto;
+    font-weight: 500;
+    color: var(--ink-2);
+  }
+  .pf-plan-table .pf-now::after {
+    content: ' →';
+  }
+  .pf-plan-table .pf-next {
+    grid-area: next;
+    width: auto;
+  }
+  .pf-plan-table .pf-why {
+    grid-area: why;
+    font-size: 13px;
+  }
+
+  /* Positionen: name and value, then share and return. */
+  .pf-pos .pf-prow {
+    grid-template-areas: 'name value' 'share gain';
+  }
+  .pf-pos .pf-name {
+    grid-area: name;
+  }
+  .pf-pos .pf-value {
+    grid-area: value;
+    width: auto;
+  }
+  .pf-pos .pf-share {
+    grid-area: share;
+    text-align: left;
+    width: auto;
+  }
+  .pf-pos .pf-gain {
+    grid-area: gain;
+    width: auto;
+  }
+  .pf-pos .pf-prow .kc-pos,
+  .pf-pos .pf-plat,
+  .pf-pos .pf-units,
+  .pf-pos .pf-price {
+    display: none;
+  }
+  .pf-pos .kgroup {
+    grid-template-areas: 'name';
+  }
+  .pf-pos .kgroup .kc-num,
+  .pf-pos .kgroup td:last-child {
+    display: none;
+  }
+
+  /* Rebalancing: the revision table becomes a list. */
+  .pf-rebal .rev-table thead {
+    display: none;
+  }
+  .pf-rebal .rev-table,
+  .pf-rebal .rev-table tbody {
+    display: block;
+  }
+  .pf-rebal .rev-table tr {
+    display: grid;
+    grid-template-columns: 34px minmax(0, 1fr);
+    gap: 8px;
+    padding: 12px 0;
+    border-top: 1px solid var(--rule);
+  }
+  .pf-rebal .rev-table td {
+    display: block;
+    padding: 0 !important;
+    border: 0 !important;
+    width: auto !important;
+    text-align: left;
+  }
+  .pf-rebal .rev-act {
+    grid-column: 2;
+  }
+  .pf-rebal .rev-act .btn {
+    height: 44px;
+  }
+}

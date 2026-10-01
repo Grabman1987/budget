@@ -85,6 +85,7 @@ const BUILT_PATHS = new Set<string>([
   '/konten/buchungen',
   EINSTELLUNGEN_KATEGORIEN.path,
   PLAN_MONAT.path,
+  '/vermoegen/portfolio',
 ]);
 const placeholderRoutes = PAGES.filter((page) => !BUILT_PATHS.has(page.path)).map((page) =>
   pageRoute(page.path, page),
@@ -120,6 +121,12 @@ const planMonthRoute = createRoute({
   path: PLAN_MONAT.path,
   staticData: { meta: PLAN_MONAT },
   component: lazyRouteComponent(() => import('./budget/plan-page'), 'PlanMonthPage'),
+});
+const portfolioRoute = createRoute({
+  getParentRoute: () => shellRoute,
+  path: '/vermoegen/portfolio',
+  staticData: { meta: PAGES.find((p) => p.path === '/vermoegen/portfolio') as PageMeta },
+  component: lazyRouteComponent(() => import('./wealth/portfolio-page'), 'PortfolioPage'),
 });
 const redirects = [
   redirectRoute('/plan', '/plan/monat'),
@@ -227,6 +234,7 @@ const routeTree = rootRoute.addChildren([
     securityRoute,
     categoriesRoute,
     planMonthRoute,
+    portfolioRoute,
     ...redirects,
     overviewRoute,
     bookingsRoute,

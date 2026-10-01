@@ -205,5 +205,12 @@ Price history (yfinance + Ariva, source per price), ECB rates, trades and holdin
 - [x] Depot view: a plain booking on a reference account is an external flow (inflow = Einlage, outflow = Entnahme); interest, dividends, fees and taxes stay performance
 - [x] Sample savings plans; tests incl. the 17.09.2026 portfolio figures of the prototype
 
+### P5.6 - Vermoegen > Portfolio (`/vermoegen/portfolio`)
+- [x] Lead: state (classes outside the band or allocation in band), figure, chain Einstand + Wertzuwachs = Wert heute, KPI row (Wert, TTWROR, IRR, Weltindex, Kosten, Ausschuettungen) for the Zeitraum of the Vermoegen title block, link to Reports > Portfolio
+- [x] Sparplaene table with Vorschlag and reason, "Vorschlag uebernehmen" (`POST /savings-plans/apply`) with undo toast
+- [x] Aufteilung Soll/Ist tracks (band, Soll mark, Ist bar, red pencil outside the band), Rebalancing as revision table, Positionen as parts list by asset class with group sums, Plattformen
+- [x] Product panel: price line (solid, prices by hand circled) and the source of every price; "Kurse aktualisieren" (`POST /market/refresh`) in the Stand cell
+- [x] Tests: display model unit tests; e2e on the sample server (prototype figures, apply and undo, panel, axe, own crops) and on the empty server (calm states, refresh toast)
+
 ## P6 Reports und Umstellung
 The 30 reports (SPEC §7), explorer, printable sheets, parallel run with reconciliation report. **Gate 4:** one month-end without difference, then cancel YNAB, switch off the interim Actual cockpit and PP.

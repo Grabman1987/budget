@@ -4,9 +4,9 @@ import { useState } from 'react';
 import { monthLabel } from '../nav/month';
 import type { PageMeta } from '../nav/pages';
 import { useMonth } from '../shell/use-month';
+import { useWealthPeriod, type WealthPeriod } from '../wealth/portfolio-period';
 
 type Period = 'month' | 'payday';
-type Range = '1M' | '3M' | 'YTD' | '1J' | '3J' | 'Alles';
 
 const PERIODS = [
   { value: 'month', label: 'Monat' },
@@ -26,6 +26,8 @@ export interface AreaHeadProps {
   placeholder?: boolean | undefined;
   /** Plan: the month's income in the title block. */
   income?: React.ReactNode;
+  /** Replaces the value of the "Stand" cell. */
+  stand?: React.ReactNode;
 }
 
 /** Areas whose title cell stays visible on the phone (it carries the month switch). */
@@ -45,11 +47,12 @@ export function AreaHead({
   extraFields = [],
   placeholder,
   income,
+  stand: standValue,
 }: AreaHeadProps) {
   const [month, shift] = useMonth();
   const [period, setPeriod] = useState<Period>('month');
-  const [range, setRange] = useState<Range>('YTD');
-  const stand: TitleBlockField = { label: 'Stand', value: <StandValue /> };
+  const [range, setRange] = useWealthPeriod();
+  const stand: TitleBlockField = { label: 'Stand', value: standValue ?? <StandValue /> };
 
   let heading: string | undefined;
   let titleNode: React.ReactNode;
@@ -118,7 +121,7 @@ export function AreaHead({
               label="Zeitraum"
               options={RANGES}
               value={range}
-              onChange={(value) => setRange(value as Range)}
+              onChange={(value) => setRange(value as WealthPeriod)}
             />
           ),
         },

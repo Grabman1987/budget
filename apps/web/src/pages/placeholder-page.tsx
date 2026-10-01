@@ -25,6 +25,8 @@ export interface PageFrameProps {
   placeholder?: boolean;
   /** Plan: the month's income in the title block. */
   income?: ReactNode;
+  /** Replaces the value of the "Stand" cell (Vermögen › Portfolio: price refresh). */
+  stand?: ReactNode;
   children?: ReactNode;
 }
 
@@ -36,6 +38,7 @@ export function PageFrame({
   extraFields,
   placeholder,
   income,
+  stand,
   children,
 }: PageFrameProps) {
   const area = areaById(meta.area);
@@ -53,6 +56,7 @@ export function PageFrame({
         extraFields={extraFields}
         placeholder={placeholder}
         income={income}
+        stand={stand}
       />
       {items.length > 0 && (
         <Registers
