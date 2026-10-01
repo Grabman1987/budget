@@ -66,7 +66,7 @@ erDiagram
   audit_log }o--|| booking : "records changes of any entity"
 ```
 
-Not drawn: `savings_goal`, `planned_event`, `fx_rate` (ECB rate per day and currency),
+Not drawn: `savings_goal` (linked to a category or an account, never both; figures are computed, not stored), `planned_event`, `fx_rate` (ECB rate per day and currency),
 `inbox_item`, `assignment_rule`, `bank_connection` (status and consent expiry only, no secrets),
 the auth tables.
 
@@ -126,6 +126,38 @@ the auth tables.
   net-worth calculation (the debug summary uses it too). Cost basis: `averageCost` and `fifoCost`
   (both with realised gain, splits and deliveries). Returns with cash flows in the domain:
   `ttwror` (sub-periods between valuations), `modifiedDietz` and `irr` (XIRR, actual/365).
+- **Daily series and performance** (P5.2, no schema change). Domain `invest/series.ts`:
+  `dailyValuation` (units x price carried forward x FX of the day, one rounding), `securityFlows`
+  (Portfolio Performance "securities only": buys in, sales/dividends/interest out, standalone
+  fee/tax as an inflow that lowers the gain, split none) and `depotFlows` ("depot incl. reference
+  account": only transfers across the portfolio boundary count; this is the Gate 3 view).
+  `invest/performance.ts`: `periodWindow('1M'|'3M'|'YTD'|'1J'|'3J'|'Alles')`, `windowPerformance`
+  (start/end value, contributions, gain in cents; TTWROR chained over daily sub-periods; XIRR;
+  Modified Dietz annualised beyond 12 months = the prototype's "IRR"; volatility = monthly
+  deviation x sqrt 12, max drawdown, Sharpe with 2,5 %, beta vs the benchmark, best/worst month,
+  share of positive months). Rates are doubles and never rounded in the domain (the formatter
+  rounds once); money stays integer. Pages show TTWROR and the Dietz variant (prototype parity),
+  the Gate 3 report compares XIRR and TTWROR. `invest/cost.ts`: one `costOf` (FIFO default,
+  `'average'` available), `gainOf`, `terOf`, `realizedGainIn`, `incomeLast12Months`,
+  `fundCosts` (TER on month ends plus fees of 12 months over the value, in bp). Read models in
+  `repos/portfolio.ts`: `valuationSeries` (one pass, equals `holdingValuesAsOf` on every day),
+  `cashSeries`, `portfolioFlows(view: 'securities' | 'depot')`, `netWorthDaily` (equals
+  `netWorthAsOf` on every day; own = change - market, market = value change of positions minus
+  the gross money traded in). Manual `valuation` rows are not part of net worth yet (as in
+  `netWorthAsOf`). The prototype's `windowK('3J')` drops the first month (39,7 %); `PERF` and
+  the domain use all 36 months (38,2 %); `PERF`'s 3J IRR of 10,6 % is stale, its own formula
+  gives 11,2 % (`performance-parity.test.ts`).
+- **Savings plans** (P5.5, migration 0008): `savings_plan` = security, investment account, source
+  account, rate in cents, `day_of_month` (31 = last day), `valid_from` and `valid_to` (inclusive,
+  `NULL` = open). A rate change never edits a row: it ends the current one the day before and starts
+  a new one, so past months keep their rate. The bank executes plans; `matchExecutions` compares
+  the planned execution with the buys (3 days either side). Applying a proposal also opens an inbox
+  item, because the bank does not follow.
+- **Trades settle through a booking** (P5.5): every trade that moves money has one booking on its
+  investment account (`trade.booking_id`) in the same audit group (`settlementCents` in the
+  domain). Asset-class targets are versions of 10 000 bp each (`setTargets`).
+- **Depot view deposits and withdrawals** (P5.5): next to transfers across the boundary, a plain booking onto
+  a reference account (not a trade settlement, not income type Kapitalerträge) is an external flow.
 - **Read models and dates** (C11): `allocationMonth(db, month)` assembles the 50/30/20 inputs
   (regular income = uncategorised inflow splits on budget accounts without the income type
   Sonderzahlung; periodic and windfall categories from the expected payments and rule R12) for the
@@ -149,8 +181,12 @@ the auth tables.
 - **Expected payments are versioned** (`valid_from`), so a price increase changes the plan from that
   day on without rewriting history. Yearly payments use `due_month`. The 50/30/20 twelfths read
   from these versions.
-- **Rules are data.** `rule.params_json` holds thresholds, e.g. R12 stores which share of a special
-  payment goes to which envelope; `rule_result` stores status and value per evaluation.
+- **Rules are data.** `rule.params_json` holds thresholds (one zod schema per rule in
+  `packages/domain/src/rules/params.ts`, defaults from concept §3.5), e.g. R12 stores which share of a
+  special payment goes to which envelope; `rule_result` stores status, value and action per evaluation,
+  unique per (rule, day). `rule.kind` is `rule` (R01–R16) or `checklist` (a stage item from the books;
+  `params_json.ruleCode` links it to a rule, otherwise the owner sets `confirmed_at`). `ensureDefaultRules`
+  writes the book at start and never overwrites what the owner changed.
 - **`transfer` is a plain container row.** It is not audited or soft-deleted; undoing a transfer soft
   deletes both bookings and leaves the container row, which keeps foreign keys valid.
 - **`booking_split` has no `deleted_at`.** Replacing splits deletes the old rows through the tracked

@@ -16,6 +16,8 @@ const AFFECTED = [
   EXPECTED_KEY,
   ['ledger-lookups'],
 ] as const;
+export const GOALS_KEY = ['goals'] as const;
+const AFFECTED = [CATEGORIES_KEY, BUDGET_KEY, GOALS_KEY, LEDGER_KEY, ['ledger-lookups']] as const;
 
 export const categoriesQuery = () =>
   queryOptions({ queryKey: CATEGORIES_KEY, queryFn: fetchCategories });

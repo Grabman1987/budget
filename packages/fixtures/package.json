@@ -16,6 +16,7 @@
   "exports": {
     ".": "./src/index.ts",
     "./seed": "./src/seed.ts",
-    "./ynab": "./src/ynab/generate.ts"
+    "./ynab": "./src/ynab/generate.ts",
+    "./pp": "./src/pp/generate.ts"
   }
 }

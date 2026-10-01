@@ -252,3 +252,39 @@ export const fxRate = sqliteTable(
     check('fx_rate_positive_chk', sql`${t.rateMicro} > 0`),
   ],
 );
+
+/**
+ * Savings plan (Sparplan) of one security on one investment account: a fixed amount on a day of
+ * the month. The bank executes it, the app only plans and checks it. A change never rewrites a
+ * row: it ends the current one (`valid_to`, inclusive) and starts a new one from a day, so past
+ * months keep the rate that applied. `source_account_id` is the account the money comes from.
+ */
+export const savingsPlan = sqliteTable(
+  'savings_plan',
+  {
+    id: id(),
+    securityId: text('security_id')
+      .notNull()
+      .references(() => security.id),
+    accountId: text('account_id')
+      .notNull()
+      .references(() => account.id),
+    sourceAccountId: text('source_account_id').references(() => account.id),
+    amountCents: cents('amount_cents').notNull(),
+    /** 1-31; in a shorter month the plan runs on the last day. */
+    dayOfMonth: integer('day_of_month').notNull(),
+    validFrom: text('valid_from').notNull(),
+    /** Last day the row applies (inclusive); `NULL` = open end. */
+    validTo: text('valid_to'),
+    note: text('note'),
+    ...timestamps(),
+  },
+  (t) => [
+    isoDay('savings_plan_valid_from_chk', t.validFrom),
+    isoDay('savings_plan_valid_to_chk', t.validTo),
+    check('savings_plan_amount_chk', sql`${t.amountCents} > 0`),
+    check('savings_plan_day_chk', sql`${t.dayOfMonth} BETWEEN 1 AND 31`),
+    check('savings_plan_range_chk', sql`${t.validTo} IS NULL OR ${t.validTo} >= ${t.validFrom}`),
+    index('savings_plan_key_idx').on(t.securityId, t.accountId, t.validFrom),
+  ],
+);
