@@ -404,4 +404,38 @@ describe('mapping document', () => {
     });
     expect(JSON.stringify(problems)).not.toMatch(/Bargeld|Tanken/);
   });
+
+  it('reports splits the ledger would refuse: contact shares outside advance, card envelopes', () => {
+    // A rule that only sets a contact leaves the split in its (non-advance) category.
+    const contactOnly = mapped((m) => {
+      m.rulesFrom = '2026-01';
+      m.rules = [{ id: 'share', match: { payee: 'Rundfunkbeitrag' }, set: { contact: 'K' } }];
+    }, '2023-10');
+    const refused = applyMapping(raw, contactOnly).problems;
+    expect(refused.map((p) => [p.code, p.severity, p.lines.length])).toEqual([
+      ['mapping.contact_category', 'error', 2],
+    ]);
+    expect(refused[0]?.message).not.toMatch(/Rundfunk/);
+    // The same rule into an advance category is fine.
+    const advance = mapped((m) => {
+      m.rulesFrom = '2026-01';
+      (m.targets[key('Internet')] as { kind: string }).kind = 'advance';
+      m.rules = [
+        {
+          id: 'share',
+          match: { payee: 'Rundfunkbeitrag' },
+          set: { category: key('Internet'), contact: 'K' },
+        },
+      ];
+    }, '2023-10');
+    expect(applyMapping(raw, advance).problems).toEqual([]);
+    // A spending category mapped onto a card payment envelope.
+    const card = Object.entries(contactOnly.targets).find(([, t]) => t.kind === 'card_payment');
+    const onCard = mapped((m) => {
+      m.categories[key('Tanken')] = card?.[0] as string;
+    }, '2023-10');
+    expect(applyMapping(raw, onCard).problems.map((p) => p.code)).toEqual([
+      'mapping.card_payment_bookings',
+    ]);
+  });
 });
