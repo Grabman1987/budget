@@ -275,3 +275,8 @@ export const PLAN_MONAT: PageDef = PAGES.find((p) => p.path === '/plan/monat') a
 export const PLAN_ERWARTET: PageDef = PAGES.find((p) => p.path === '/plan/erwartet') as PageDef;
 /** Plan › Sparziele (built in P3.4). */
 export const PLAN_SPARZIELE: PageDef = PAGES.find((p) => p.path === '/plan/sparziele') as PageDef;
+
+/** Vermögen › Portfolio positions (P5). */
+export const VERMOEGEN_PORTFOLIO_META: PageDef = PAGES.find(
+  (p) => p.path === '/vermoegen/portfolio',
+) as PageDef;
