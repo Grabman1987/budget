@@ -129,6 +129,69 @@ describe('portfolio realized gains', () => {
     expect(summary().realizedGainCents).toBe(6_000);
   });
 
+  it.each(['average', 'fifo'] as const)(
+    'keeps documented %s lots through a matching pre-sale snapshot checkpoint',
+    (method) => {
+      setInvestmentCostMethod(opened.db, method, { actor: 'test' });
+      addTrade('buy-cheap', 'depot', '2026-01-01', 'buy', E8, 10_000);
+      addTrade('buy-expensive', 'depot', '2026-01-02', 'buy', E8, 20_000);
+      addSnapshot('checkpoint', 'depot', '2026-01-03', 2 * E8, 30_000);
+      addSnapshot('repeat-checkpoint-without-basis', 'depot', '2026-01-04', 2 * E8, null);
+      addTrade('sell-one', 'depot', '2026-01-05', 'sell', -E8, 18_000);
+      opened.db
+        .insert(price)
+        .values({
+          securityId: 'stock',
+          date: '2026-02-01',
+          priceMicro: 180_000_000,
+          currency: 'EUR',
+          source: 'manual',
+        })
+        .run();
+
+      expect(summary()).toMatchObject(
+        method === 'fifo'
+          ? { realizedGainCents: 8_000, costCents: 20_000 }
+          : { realizedGainCents: 3_000, costCents: 15_000 },
+      );
+    },
+  );
+
+  it('keeps FIFO lots across broker-average checkpoints after sales', () => {
+    setInvestmentCostMethod(opened.db, 'fifo', { actor: 'test' });
+    addTrade('buy-cheap', 'depot', '2026-01-01', 'buy', E8, 10_000);
+    addTrade('buy-expensive', 'depot', '2026-01-02', 'buy', E8, 20_000);
+    addTrade('sell-cheap', 'depot', '2026-01-03', 'sell', -E8, 18_000);
+    // PP exports an average basis here; it agrees with the documented average method, while FIFO
+    // still has the original 200 EUR lot. The checkpoint must not discard that lot identity.
+    addSnapshot('broker-average-checkpoint', 'depot', '2026-01-04', E8, 15_000);
+    opened.db
+      .insert(price)
+      .values({
+        securityId: 'stock',
+        date: '2026-01-04',
+        priceMicro: 260_000_000,
+        currency: 'EUR',
+        source: 'manual',
+      })
+      .run();
+
+    expect(summary('2026-01-04')).toMatchObject({ costCents: 20_000, realizedGainCents: 8_000 });
+
+    addTrade('sell-expensive', 'depot', '2026-01-05', 'sell', -E8, 26_000);
+    expect(summary().realizedGainCents).toBe(14_000);
+  });
+
+  it('uses a real snapshot basis correction as the new opening basis', () => {
+    setInvestmentCostMethod(opened.db, 'fifo', { actor: 'test' });
+    addTrade('buy-cheap', 'depot', '2026-01-01', 'buy', E8, 10_000);
+    addTrade('buy-expensive', 'depot', '2026-01-02', 'buy', E8, 20_000);
+    addSnapshot('corrected-checkpoint', 'depot', '2026-01-03', 2 * E8, 31_000);
+    addTrade('sell-one', 'depot', '2026-01-04', 'sell', -E8, 18_000);
+
+    expect(summary().realizedGainCents).toBe(2_500);
+  });
+
   it('defaults to average and recalculates both realized gain and remaining basis after a switch', () => {
     addTrade('buy-cheap', 'depot', '2026-01-01', 'buy', E8, 10_000);
     addTrade('buy-expensive', 'depot', '2026-01-02', 'buy', E8, 20_000);
@@ -353,6 +416,37 @@ describe('portfolio realized gains', () => {
     addTrade('sale', 'depot', '2026-01-04', 'sell', -E8, 18_000);
 
     expect(summary().realizedGainCents).toBe(1_500);
+  });
+
+  it('uses a checkpoint when optional source-history comparison lacks an earlier FX rate', () => {
+    opened.db.update(account).set({ currency: 'USD' }).where(eq(account.id, 'depot')).run();
+    opened.db
+      .insert(fxRate)
+      .values([
+        { date: '2026-01-02', currency: 'USD', rateMicro: 500_000, source: 'ecb' },
+        { date: '2026-01-03', currency: 'USD', rateMicro: 500_000, source: 'ecb' },
+        { date: '2026-01-04', currency: 'USD', rateMicro: 500_000, source: 'ecb' },
+      ])
+      .run();
+    addTrade('buy-no-historical-rate', 'depot', '2026-01-01', 'buy', E8, 10_000);
+    addSnapshot('checkpoint', 'depot', '2026-01-02', E8, 10_000);
+    addTrade('sale-with-rate', 'depot', '2026-01-03', 'sell', -E8, 12_000);
+    addTrade('new-buy-with-rate', 'depot', '2026-01-04', 'buy', E8, 6_000);
+    opened.db
+      .insert(price)
+      .values({
+        securityId: 'stock',
+        date: '2026-01-04',
+        priceMicro: 30_000_000,
+        currency: 'EUR',
+        source: 'manual',
+      })
+      .run();
+
+    expect(positionLines(opened.db, '2026-01-04')[0]).toMatchObject({
+      costCents: 3_000,
+      realizedGainCents: 1_000,
+    });
   });
 
   it('does not count future or soft-deleted sales', () => {
