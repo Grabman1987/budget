@@ -1,0 +1,567 @@
+@layer pages {
+  .heute {
+    display: grid;
+    gap: 38px;
+    margin: -4px auto 0;
+    max-width: 1240px;
+    padding-bottom: 36px;
+  }
+  .heute h2,
+  .heute h3,
+  .heute p {
+    margin-top: 0;
+  }
+  .heute-lead {
+    min-width: 0;
+  }
+  .heute-lead-head {
+    display: flex;
+    align-items: start;
+    justify-content: space-between;
+    gap: 24px;
+  }
+  .heute-lead-head h2 {
+    margin: 0 0 8px;
+    font-size: 20px;
+    font-weight: 620;
+    line-height: 1.25;
+  }
+  .heute-lead-head p {
+    max-width: 56ch;
+    margin: 0;
+    color: var(--ink-2);
+  }
+  .heute-lead-head .btn {
+    flex: 0 0 auto;
+    min-height: 44px;
+  }
+  .heute-lead-figure {
+    margin: 16px 7% 0 auto;
+    text-align: right;
+    color: var(--ink);
+    font-family: var(--font-body);
+    font-size: clamp(42px, 6vw, 68px);
+    font-weight: 640;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.03em;
+    line-height: 1;
+  }
+  .heute-lead-figure small {
+    color: var(--ink-2);
+    font-size: 0.52em;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+  }
+  .heute-lead-figure.is-negative,
+  .heute-lead-figure.is-negative small {
+    color: var(--red);
+  }
+  .heute-mobile-next {
+    display: none;
+  }
+  .heute-window {
+    margin: 7px 7% 0 0;
+    color: var(--line);
+    font-family: var(--font-tech);
+    font-size: 12px;
+    font-weight: 600;
+    text-align: right;
+  }
+  .heute-chart {
+    width: 100%;
+    min-height: 160px;
+    margin-top: 3px;
+  }
+  .heute-chart svg,
+  .heute-mini-chart svg {
+    display: block;
+    width: 100%;
+    overflow: visible;
+  }
+  .heute-chart .l-forecast {
+    stroke-dasharray: 7 5;
+  }
+  .heute-low-mark {
+    fill: var(--line);
+    stroke: var(--line);
+  }
+  .heute-salary-mark {
+    stroke: var(--line-2);
+    stroke-dasharray: 7 5;
+  }
+  .heute .ct-label {
+    color: var(--ink-2);
+  }
+  .heute-chain-area {
+    border-top: 1px solid var(--rule);
+    padding-top: 12px;
+  }
+  .heute-chain-area .chain-inline {
+    align-items: start;
+  }
+  .heute-chain-area .ct-term {
+    min-height: 44px;
+  }
+  .heute-note {
+    margin: 10px 0 0;
+    color: var(--ink-3);
+    font-size: 12px;
+  }
+  .heute-breakdown {
+    margin-top: 12px;
+    border-top: 1px solid var(--rule);
+  }
+  .heute-breakdown h3 {
+    margin: 12px 0 2px;
+    font-size: 15px;
+  }
+  .heute-breakdown ul {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+  .heute-breakdown li {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 9px 0;
+    border-bottom: 1px solid var(--rule);
+  }
+  .heute-breakdown strong {
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+  }
+  .heute-main-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 7fr) minmax(0, 5fr);
+    align-items: start;
+    gap: 38px 28px;
+  }
+  .heute-section {
+    min-width: 0;
+  }
+  .heute-section .section-head {
+    margin-bottom: 12px;
+  }
+  .heute-section .section-head a {
+    display: inline-flex;
+    min-height: 44px;
+    align-items: center;
+    gap: 2px;
+    color: var(--ink-2);
+    text-decoration: none;
+  }
+  .heute-section .section-head a:hover,
+  .heute-section .section-head a:focus-visible {
+    color: var(--line);
+  }
+  .heute-figures {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 22px;
+    margin: 0 0 8px;
+  }
+  .heute-figure {
+    display: grid;
+    min-width: 105px;
+    min-height: 64px;
+    padding: 5px 0;
+    align-content: start;
+    border: 0;
+    border-bottom: 1px dotted var(--line-2);
+    background: transparent;
+    color: var(--ink-2);
+    cursor: pointer;
+    font: inherit;
+    text-align: left;
+  }
+  .heute-figure span,
+  .heute-figure small {
+    font-size: 12px;
+  }
+  .heute-figure strong {
+    color: var(--ink);
+    font-size: 22px;
+    font-weight: 640;
+    font-variant-numeric: tabular-nums;
+  }
+  .heute-figure:focus-visible {
+    outline: 2px solid var(--line);
+    outline-offset: 2px;
+  }
+  .heute-figure-detail {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    gap: 8px 16px;
+    padding: 10px 0;
+    border-block: 1px solid var(--rule);
+    font-variant-numeric: tabular-nums;
+  }
+  .heute-pace .heute-chart {
+    margin-top: 12px;
+  }
+  .heute-pace .legend {
+    margin-top: 8px;
+  }
+  .heute-alert {
+    color: var(--red);
+  }
+  .heute-good {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    color: var(--line);
+  }
+  .heute-detail-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    align-items: start;
+    gap: 36px 28px;
+  }
+  .heute-net-worth {
+    grid-column: span 2;
+  }
+  .heute-delta {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    margin: 0 0 8px;
+    color: var(--line);
+    font-size: 13px;
+    font-weight: 600;
+  }
+  .heute-mini-chart {
+    width: 100%;
+    height: 106px;
+    margin: 8px 0;
+  }
+  .heute-mini-chart .l-actual {
+    stroke-width: 2px;
+  }
+  .heute-net-worth .chain-inline {
+    margin-top: 8px;
+  }
+  .heute-list {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+  .heute-envelope,
+  .heute-upcoming,
+  .heute-rule,
+  .heute-booking {
+    border-top: 1px solid var(--rule);
+    padding: 11px 0;
+  }
+  .he-envelope-main,
+  .heute-upcoming,
+  .heute-rule,
+  .heute-booking {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 4px 12px;
+  }
+  .he-envelope-main > div,
+  .heute-rule > div,
+  .heute-booking > div,
+  .heute-upcoming > div {
+    min-width: 0;
+  }
+  .he-envelope-main > div {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px 8px;
+  }
+  .he-envelope-main > strong,
+  .heute-amount-status > strong,
+  .heute-booking > div:last-child > strong {
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
+  .heute .class-tag {
+    font-size: 10.5px;
+  }
+  .he-envelope-bar {
+    height: 7px;
+    margin: 8px 0 4px;
+    border: 1px solid var(--rule-strong);
+    background: var(--ground-2);
+  }
+  .he-envelope-bar span {
+    display: block;
+    height: 100%;
+  }
+  .heute .hatch-need {
+    background: var(--need);
+  }
+  .heute .hatch-want {
+    background: var(--hatch-want);
+    box-shadow: inset 0 0 0 1px var(--want);
+  }
+  .heute .hatch-future {
+    background: var(--hatch-future);
+    box-shadow: inset 0 0 0 1px var(--future);
+  }
+  .heute-envelope p {
+    margin: 0;
+    color: var(--ink-2);
+    font-size: 12px;
+  }
+  .heute-upcoming {
+    grid-template-columns: 48px minmax(0, 1fr) auto;
+    gap: 8px;
+  }
+  .heute-upcoming time {
+    color: var(--ink-2);
+    font-family: var(--font-tech);
+    font-size: 12px;
+  }
+  .heute-upcoming strong,
+  .heute-upcoming span,
+  .heute-rule strong,
+  .heute-rule div > span,
+  .heute-booking strong,
+  .heute-booking div > span {
+    display: block;
+  }
+  .heute-upcoming div > span,
+  .heute-booking div > span,
+  .heute-rule div > span {
+    color: var(--ink-2);
+    font-size: 12px;
+  }
+  .heute-amount-status {
+    text-align: right;
+    white-space: nowrap;
+  }
+  .heute-amount-status > span {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    color: var(--ink-2);
+    font-size: 11px;
+  }
+  .heute-check-counts {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    align-items: baseline;
+    gap: 2px 9px;
+    margin-bottom: 10px;
+  }
+  .heute-check-counts > strong {
+    font-size: 28px;
+    font-weight: 640;
+    font-variant-numeric: tabular-nums;
+  }
+  .heute-check-counts > span {
+    color: var(--ink-2);
+    font-size: 12px;
+  }
+  .heute-check-bar {
+    display: flex;
+    height: 12px;
+    grid-column: 1 / -1;
+    gap: 3px;
+    margin: 2px 0 4px;
+  }
+  .heute-check-bar i {
+    flex: 1;
+    border: 1px solid var(--line-2);
+  }
+  .heute-check-bar .is-ok {
+    background: var(--line);
+  }
+  .heute-check-bar .is-warn {
+    background: var(--line-2);
+  }
+  .heute-check-bar .is-bad {
+    border-color: var(--ink-2);
+    background: transparent;
+  }
+  .heute-check-bar .is-open {
+    border-style: dashed;
+    background: transparent;
+  }
+  .heute-check-counts p {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px 12px;
+    grid-column: 1 / -1;
+    margin: 0;
+    color: var(--ink-2);
+    font-size: 11px;
+  }
+  .heute-rule {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+  .heute-state {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    color: var(--ink-2);
+    font-size: 12px;
+    white-space: nowrap;
+  }
+  .heute-state.is-ok {
+    color: var(--line);
+  }
+  .heute-state.is-action {
+    color: var(--red);
+  }
+  .heute-booking {
+    grid-template-columns: 12px minmax(0, 1fr) auto;
+    gap: 8px;
+  }
+  .heute-booking-class {
+    width: 9px;
+    height: 9px;
+    border: 1px solid var(--line);
+    background: var(--line);
+  }
+  .heute-booking-class.is-want {
+    background: var(--hatch-want);
+  }
+  .heute-booking-class.is-future {
+    background: var(--hatch-future);
+  }
+  .heute-booking > div:last-child {
+    text-align: right;
+  }
+  .heute .rev-table {
+    width: 100%;
+  }
+  .heute .rev-row > td {
+    padding-block: 12px;
+  }
+  .heute .rev-act .btn {
+    min-height: 44px;
+  }
+  .heute .rev-empty {
+    border-top: 1px solid var(--rule);
+  }
+
+  @media (max-width: 1179px) {
+    .heute-detail-grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+    .heute-net-worth {
+      grid-column: span 2;
+    }
+  }
+  @media (max-width: 979px) {
+    .heute-main-grid {
+      grid-template-columns: minmax(0, 1fr);
+    }
+  }
+  @media (max-width: 767px) {
+    .heute-mobile-next {
+      display: grid;
+      grid-template-columns: 30px minmax(0, 1fr) auto;
+      align-items: center;
+      gap: 10px;
+      margin-top: -18px;
+      padding: 12px 0;
+      border-block: 1px solid var(--rule);
+    }
+    .heute-mobile-next strong {
+      display: block;
+      color: var(--red);
+      font-size: 15px;
+      font-weight: 620;
+    }
+    .heute-mobile-next .rev-what span {
+      color: var(--ink-2);
+      font-size: 13px;
+    }
+    .heute-mobile-next .btn {
+      min-height: 44px;
+    }
+    .heute {
+      gap: 32px;
+      padding: 0 0 24px;
+    }
+    .heute-lead-head {
+      display: block;
+    }
+    .heute-lead-head .btn {
+      margin-top: 12px;
+    }
+    .heute-lead-figure {
+      margin: 22px 0 0;
+      font-size: clamp(42px, 13vw, 56px);
+    }
+    .heute-window {
+      margin-right: 0;
+    }
+    .heute-chart {
+      min-height: 170px;
+    }
+    .heute-main-grid,
+    .heute-detail-grid {
+      grid-template-columns: minmax(0, 1fr);
+      gap: 32px;
+    }
+    .heute-net-worth {
+      grid-column: auto;
+    }
+    .heute-figures {
+      justify-content: space-between;
+      gap: 8px;
+    }
+    .heute-figure {
+      min-width: 0;
+      flex: 1 1 28%;
+    }
+    .heute-figure strong {
+      font-size: 19px;
+    }
+    .heute-upcoming {
+      grid-template-columns: 44px minmax(0, 1fr);
+    }
+    .heute-amount-status {
+      grid-column: 2;
+      display: flex;
+      justify-content: space-between;
+      gap: 8px;
+      text-align: left;
+    }
+    .heute-booking {
+      grid-template-columns: 12px minmax(0, 1fr);
+    }
+    .heute-booking > div:last-child {
+      grid-column: 2;
+      display: flex;
+      justify-content: space-between;
+      gap: 8px;
+      text-align: left;
+    }
+    .heute .rev-table thead {
+      display: none;
+    }
+    .heute .rev-table,
+    .heute .rev-table tbody {
+      display: block;
+    }
+    .heute .rev-table tr {
+      display: grid;
+      grid-template-columns: 34px minmax(0, 1fr);
+      gap: 4px 8px;
+      padding: 10px 0;
+      border-top: 1px solid var(--rule);
+    }
+    .heute .rev-table td {
+      border: 0;
+      padding: 0;
+    }
+    .heute .rev-table .rev-mark {
+      grid-row: span 2;
+    }
+    .heute .rev-table .rev-act {
+      grid-column: 2;
+      text-align: left;
+    }
+  }
+}
