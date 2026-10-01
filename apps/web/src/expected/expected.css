@@ -1,0 +1,402 @@
+/* Plan › Erwartet and the Einnahmen panel. No prototype page exists: the table language is the
+   parts list of Plan › Monat and the reports (Stückliste, assemblies per week or group); the
+   panels use the shared panel, revision table and form primitives. */
+
+.xp {
+  display: grid;
+  gap: 20px;
+  margin-top: -4px;
+}
+.xp-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+.xp-spacer {
+  flex: 1;
+}
+.xp-aside {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--ink-2);
+  font-variant-numeric: tabular-nums;
+}
+.xp-sub {
+  display: block;
+  font-size: 12.5px;
+  font-weight: 450;
+  color: var(--ink-3);
+}
+.xp-note {
+  max-width: 62ch;
+  margin: 0;
+  font-size: 13px;
+  color: var(--ink-3);
+}
+
+/* Tables */
+.xp-table .col-name {
+  width: auto;
+}
+.xp-table .col-due {
+  width: 128px;
+  white-space: nowrap;
+}
+.xp-table .col-cat {
+  width: 200px;
+}
+.xp-table .col-state {
+  width: 150px;
+  white-space: nowrap;
+}
+.xp-table .col-num {
+  width: 150px;
+}
+.xp-table .col-num .xp-sub {
+  white-space: nowrap;
+}
+.xp-table td.col-pos,
+.xp-table td.col-name {
+  vertical-align: top;
+}
+.xp-name {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  font-size: 14px;
+}
+.xp-name strong {
+  font-weight: 580;
+}
+.xp .grp-sub {
+  margin-left: 8px;
+  font-weight: 450;
+  font-size: 12.5px;
+  color: var(--ink-3);
+}
+.xp .prow.is-alert td {
+  background: var(--red-soft);
+}
+.xp .prow.is-alert .xp-sub,
+.xp .prow.is-alert .pos {
+  color: var(--ink-2);
+}
+.xp-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 8px;
+  border: 1px solid var(--rule-strong);
+  border-radius: 4px;
+  font-size: 12.5px;
+  line-height: 1.5;
+}
+.xp-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--ink-2);
+}
+.xp-status.is-alert {
+  color: var(--red);
+  font-weight: 600;
+}
+
+/* Income button (title block value and chain term target) */
+.xp-income-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  min-height: 32px;
+  font: inherit;
+  font-weight: inherit;
+  color: inherit;
+  border-radius: var(--radius-xs);
+}
+.xp-income-btn:hover {
+  color: var(--line);
+}
+
+/* Panels */
+.xp-panel {
+  gap: 22px;
+}
+.xp-big {
+  font-size: 36px;
+  font-weight: 650;
+  letter-spacing: -0.03em;
+  margin: 6px 0 2px;
+}
+.xp-sub,
+.xp-panel .panel-h {
+  margin-top: 0;
+}
+.xp-panel .panel-h {
+  margin-bottom: 6px;
+}
+.xp-newversion {
+  display: grid;
+  gap: 12px;
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid var(--rule);
+}
+.xp-newversion .xp-sub,
+h4.xp-sub {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ink);
+}
+.xp-set {
+  margin-bottom: 4px;
+}
+.xp-occ {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.xp-occ > li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas:
+    'date amt'
+    'state act'
+    'book book'
+    'link link';
+  gap: 4px 12px;
+  align-items: center;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--rule);
+  font-size: 13.5px;
+}
+.xp-occ-date {
+  grid-area: date;
+  font-weight: 560;
+}
+.xp-occ-amt {
+  grid-area: amt;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  font-weight: 620;
+}
+.xp-occ > li > .xp-status {
+  grid-area: state;
+}
+.xp-occ-book {
+  grid-area: book;
+  font-size: 12.5px;
+  color: var(--ink-3);
+}
+.xp-occ-book:empty {
+  display: none;
+}
+.xp-occ-act {
+  grid-area: act;
+  display: flex;
+  justify-content: flex-end;
+  gap: 4px;
+}
+.xp-link {
+  grid-area: link;
+  display: grid;
+  gap: 8px;
+  padding: 8px 0 4px;
+}
+.xp-inc > li {
+  grid-template-areas:
+    'date amt'
+    'state state';
+}
+.xp-inc .xp-sub {
+  display: inline;
+}
+.xp-inc .xp-occ-date .xp-sub {
+  display: block;
+}
+.xp-table:not(.ptable) {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13.5px;
+}
+.xp-table:not(.ptable) th {
+  padding: 6px 0 8px;
+  border-bottom: 1px solid var(--line-2);
+  text-align: left;
+  font-size: 11px;
+  font-weight: 500;
+}
+.xp-table:not(.ptable) th.col-num {
+  text-align: right;
+}
+.xp-table:not(.ptable) td {
+  padding: 9px 0;
+  border-bottom: 1px solid var(--rule);
+}
+.xp-table:not(.ptable) .col-num {
+  width: 120px;
+  font-variant-numeric: tabular-nums;
+}
+
+@media (max-width: 1180px) {
+  .xp-table .col-cat {
+    width: 150px;
+  }
+  .xp-table .col-state {
+    width: 120px;
+  }
+  .xp-table .col-num {
+    width: 120px;
+  }
+}
+
+@media (max-width: 767px) {
+  .xp {
+    gap: 16px;
+  }
+  .xp-toolbar .seg {
+    max-width: 100%;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .xp-toolbar .seg button {
+    white-space: nowrap;
+  }
+  .xp-income-btn {
+    min-height: var(--touch);
+  }
+  .xp-name {
+    align-items: flex-start;
+    justify-content: center;
+  }
+  .xp-table.ptable thead {
+    display: none;
+  }
+  .xp-table.ptable,
+  .xp-table.ptable tbody {
+    display: block;
+  }
+  .xp-table.ptable tr {
+    display: grid;
+    grid-template-columns: 34px minmax(0, 1fr) auto;
+    column-gap: 8px;
+    row-gap: 4px;
+    padding: 12px 0;
+    border-bottom: 1px solid var(--rule);
+  }
+  .xp-table.ptable td {
+    display: block;
+    width: auto;
+    padding: 0;
+    border: 0;
+    background: none !important;
+  }
+  .xp-table.ptable .col-pos {
+    grid-column: 1;
+    grid-row: 1;
+  }
+  .xp-table.ptable .col-name {
+    grid-column: 2;
+    grid-row: 1;
+  }
+  .xp-table.ptable .col-num {
+    text-align: right;
+    font-size: 14px;
+  }
+  .xp-next .col-num {
+    grid-column: 3;
+    grid-row: 1;
+  }
+  .xp-next .col-due {
+    grid-column: 2;
+    grid-row: 2;
+    font-size: 13px;
+    color: var(--ink-2);
+  }
+  .xp-next .col-state {
+    grid-column: 3;
+    grid-row: 2;
+    text-align: right;
+  }
+  .xp-next .col-cat {
+    grid-column: 2 / -1;
+    grid-row: 3;
+  }
+  .xp-contracts tr {
+    grid-template-columns: 34px minmax(0, 1fr) minmax(0, 1fr);
+  }
+  .xp-contracts .col-name {
+    grid-column: 2 / -1;
+  }
+  .xp-contracts .col-due {
+    grid-column: 2 / -1;
+    grid-row: 2;
+    font-size: 13px;
+  }
+  .xp-contracts td.col-month {
+    grid-column: 2;
+    grid-row: 3;
+    text-align: left;
+  }
+  .xp-contracts td.col-year {
+    grid-column: 3;
+    grid-row: 3;
+  }
+  .xp-contracts .col-due {
+    margin-top: 4px;
+  }
+  .xp-table.ptable .col-due::before,
+  .xp-table.ptable .col-num::before {
+    content: attr(data-label);
+    display: block;
+    font-family: var(--font-tech);
+    font-size: 10.5px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+    font-weight: 500;
+  }
+  .xp-table.ptable tr.pgroup {
+    background: var(--ground-2);
+    margin: 0 -16px;
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--line-2);
+  }
+  .xp-table.ptable tr.pgroup .col-name {
+    grid-column: 2;
+    grid-row: 1;
+  }
+  .xp-next tr.pgroup .col-num {
+    grid-column: 3;
+    grid-row: 1;
+  }
+  .xp-contracts tr.pgroup td.col-month {
+    grid-column: 2;
+    grid-row: 2;
+  }
+  .xp-contracts tr.pgroup td.col-year {
+    grid-column: 3;
+    grid-row: 2;
+  }
+  .xp-table.ptable tr.pgroup .col-state {
+    display: none;
+  }
+  .xp-next tr.pgroup .col-num::before {
+    display: none;
+  }
+  .xp .prow.is-alert {
+    background: var(--red-soft);
+    margin: 0 -16px;
+    padding-inline: 16px;
+  }
+  .xp .grp-sub {
+    display: block;
+    margin: 2px 0 0 22px;
+  }
+  .xp-big {
+    font-size: 30px;
+  }
+}

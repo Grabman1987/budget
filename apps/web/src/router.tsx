@@ -13,6 +13,7 @@ import { findReport } from './nav/reports-catalog';
 import {
   ACCOUNT_PAGE,
   EINSTELLUNGEN_KATEGORIEN,
+  PLAN_ERWARTET,
   PLAN_MONAT,
   HEUTE,
   KONTEN_BUCHUNGEN_META,
@@ -85,6 +86,7 @@ const BUILT_PATHS = new Set<string>([
   '/konten/buchungen',
   EINSTELLUNGEN_KATEGORIEN.path,
   PLAN_MONAT.path,
+  PLAN_ERWARTET.path,
 ]);
 const placeholderRoutes = PAGES.filter((page) => !BUILT_PATHS.has(page.path)).map((page) =>
   pageRoute(page.path, page),
@@ -120,6 +122,12 @@ const planMonthRoute = createRoute({
   path: PLAN_MONAT.path,
   staticData: { meta: PLAN_MONAT },
   component: lazyRouteComponent(() => import('./budget/plan-page'), 'PlanMonthPage'),
+});
+const planExpectedRoute = createRoute({
+  getParentRoute: () => shellRoute,
+  path: PLAN_ERWARTET.path,
+  staticData: { meta: PLAN_ERWARTET },
+  component: lazyRouteComponent(() => import('./expected/expected-page'), 'ExpectedPage'),
 });
 const redirects = [
   redirectRoute('/plan', '/plan/monat'),
@@ -227,6 +235,7 @@ const routeTree = rootRoute.addChildren([
     securityRoute,
     categoriesRoute,
     planMonthRoute,
+    planExpectedRoute,
     ...redirects,
     overviewRoute,
     bookingsRoute,
