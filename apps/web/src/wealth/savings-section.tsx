@@ -28,6 +28,17 @@ export function SavingsSection() {
         handel: undefined,
         allokation: undefined,
       })) as never,
+    }).then(() => {
+      if (sparplan || !search.sparplan) return;
+      // Closing navigation can remount the route and detach the dialog's native opener.
+      requestAnimationFrame(() => {
+        if (document.querySelector('dialog[open]')) return;
+        const opener = document.querySelector<HTMLButtonElement>(
+          `[data-savings-plan="${CSS.escape(search.sparplan!)}"]`,
+        );
+        const fallback = document.querySelector<HTMLButtonElement>('[data-savings-plan="neu"]');
+        (opener?.isConnected ? opener : fallback)?.focus();
+      });
     });
   const ready = plans.data && accounts.data && instruments.data;
   const groups = ready ? planGroups(plans.data.plans, accounts.data.asOf) : [];
@@ -116,6 +127,7 @@ export function SavingsSection() {
                       <td>
                         <button
                           type="button"
+                          data-savings-plan={row.id}
                           className="portfolio-product"
                           onClick={() => select(row.id)}
                         >
@@ -181,7 +193,9 @@ export function SavingsSection() {
             </table>
           )}
           <div className="savings-actions">
-            <Button onClick={() => select('neu')}>Sparplan anlegen</Button>
+            <Button data-savings-plan="neu" onClick={() => select('neu')}>
+              Sparplan anlegen
+            </Button>
             {endedCount > 0 && (
               <Button variant="ghost" onClick={() => setIncludeEnded(!includeEnded)}>
                 {includeEnded

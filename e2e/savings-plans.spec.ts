@@ -116,6 +116,8 @@ test('native savings CRUD, future/current history, end, reload and audited undo'
   await edit.getByLabel('Änderung ab', { exact: true }).fill(future);
   await edit.getByRole('button', { name: 'Änderung speichern', exact: true }).click();
   await expect(edit).toHaveCount(0);
+  // The saved future version replaces the row opener id; focus falls back to a connected control.
+  await expect(page.getByRole('button', { name: 'Sparplan anlegen', exact: true })).toBeFocused();
   await expect(row.locator('td').nth(1)).toContainText('100,00');
   await expect(row.locator('td').nth(2)).toContainText('200,00');
   await expect(section).toContainText('CHF');
@@ -209,6 +211,9 @@ test('foreign plan URL and list failure are honest without blocking retry', asyn
   await expect(page.locator('dialog[open]')).toHaveCount(1);
   await page.keyboard.press('Escape');
   await expect(page.locator('dialog[open]')).toHaveCount(0);
+  await expect(
+    section.getByRole('button', { name: 'Sparplan anlegen', exact: true }),
+  ).toBeFocused();
 });
 
 test('successful held write discards pending Back and creates exactly one schedule', async ({
@@ -303,4 +308,82 @@ test('overlapping schedules preserve both rates and missing account makes totals
   );
   await expect(row).toContainText('Nicht verfügbares Konto');
   await expect(section.locator('.aside')).toContainText('Währung unbekannt: Summe nicht verfügbar');
+});
+
+test('integrated portfolio panels stay exclusive and savings close restores connected opener focus', async ({
+  page,
+  request,
+}, info) => {
+  const data = await fixture(request, info);
+  const response = await request.post(`${MAIN_URL}/api/savings-plans`, {
+    headers: { origin: MAIN_URL },
+    data: {
+      securityId: data.security.id,
+      accountId: data.depot.id,
+      amountCents: 10000,
+      dayOfMonth: 5,
+      validFrom: data.today,
+    },
+  });
+  expect(response.ok()).toBe(true);
+  const plan = (await response.json()).plan;
+  await page.goto('/vermoegen/portfolio');
+  await page.getByRole('button', { name: 'Sollquoten bearbeiten', exact: true }).click();
+  await expect(
+    page.getByRole('dialog', { name: 'Sollquoten bearbeiten', exact: true }),
+  ).toBeVisible();
+  await expect(page.locator('dialog[open]')).toHaveCount(1);
+  await page.keyboard.press('Escape');
+  await expect(page.locator('dialog[open]')).toHaveCount(0);
+  await page.getByRole('button', { name: 'Handel erfassen', exact: true }).click();
+  await expect(page.getByRole('dialog', { name: 'Handel erfassen', exact: true })).toBeVisible();
+  await expect(page.locator('dialog[open]')).toHaveCount(1);
+  await page.keyboard.press('Escape');
+  await expect(page.locator('dialog[open]')).toHaveCount(0);
+  await page
+    .locator('.instrument-catalog')
+    .getByRole('button', { name: data.security.name, exact: true })
+    .click();
+  const instrument = page.getByRole('dialog', { name: data.security.name, exact: true });
+  await expect(instrument).toBeVisible();
+  await instrument.getByRole('button', { name: 'Handel erfassen', exact: true }).click();
+  const trade = page.getByRole('dialog', { name: 'Handel erfassen', exact: true });
+  await expect(trade).toBeVisible();
+  await expect(page.locator('dialog[open]')).toHaveCount(1);
+  await page.keyboard.press('Escape');
+  await expect(instrument).toBeVisible();
+  await expect(page.locator('dialog[open]')).toHaveCount(1);
+  await page.keyboard.press('Escape');
+  await expect(page.locator('dialog[open]')).toHaveCount(0);
+  const opener = page
+    .getByRole('region', { name: 'Sparpläne', exact: true })
+    .getByRole('button', { name: data.security.name, exact: true });
+  await opener.focus();
+  await opener.press('Enter');
+  const savings = page.getByRole('dialog', { name: 'Sparplan bearbeiten', exact: true });
+  await expect(savings).toBeVisible();
+  await expect(page.locator('dialog[open]')).toHaveCount(1);
+  await page.keyboard.press('Escape');
+  await expect(page.locator('dialog[open]')).toHaveCount(0);
+  await expect(opener).toBeFocused();
+  expect(await opener.evaluate((el) => el.isConnected)).toBe(true);
+  const create = page.getByRole('button', { name: 'Sparplan anlegen', exact: true });
+  await create.focus();
+  await create.press('Enter');
+  const creating = page.getByRole('dialog', { name: 'Sparplan anlegen', exact: true });
+  await expect(creating).toBeVisible();
+  await creating.getByRole('button', { name: 'Schließen', exact: true }).click();
+  await expect(page.locator('dialog[open]')).toHaveCount(0);
+  await expect(create).toBeFocused();
+  expect(await create.evaluate((el) => el.isConnected)).toBe(true);
+  // A bookmark carrying several panel keys still renders only savings, then clears all keys.
+  await page.goto(
+    `/vermoegen/portfolio?sparplan=${plan.id}&produkt=${data.security.id}&handel=neu&allokation=ziele`,
+  );
+  await expect(savings).toBeVisible();
+  await expect(page.locator('dialog[open]')).toHaveCount(1);
+  await page.keyboard.press('Escape');
+  await expect(page).toHaveURL(/\/vermoegen\/portfolio$/);
+  await expect(page.locator('dialog[open]')).toHaveCount(0);
+  await expect(opener).toBeFocused();
 });
