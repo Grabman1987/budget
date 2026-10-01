@@ -296,7 +296,8 @@ Price history (yfinance + Ariva, source per price), ECB rates, trades and holdin
 - [x] `/vermoegen/portfolio`: original lead/chain and class-grouped positions, shared server value/basis/gain/shares, per-broker ownership and explicit unknown price/FX/basis; read-only instrument detail in `?produkt=` with actual account navigation
 - [x] Manual quote capture with date/source/currency, exact micro precision, existing audited price API and undo; literal projection/mutation tests and desktop/mobile light/dark browser evidence
 - [x] Basic instrument creation/editing (name, kind, currency, ISIN, symbol, existing asset class), empty-portfolio entry and instruments without holdings; existing audited API/undo, dirty/pending-save guards, validation and reload/error states. Source/cost settings and broker ownership are preserved.
-- [ ] Trade capture/edit/delete, extended instrument/source management and deletion, allocation/rebalancing, savings-plan controls and performance/report bodies remain later slices; Gate 3 private reconciliation remains open
+- [x] Current-only class allocation/rebalancing hints using shared risk calculation, original Soll/Ist bands and revision rows; audited dated target editor and basic class creation with undo/redo, unknown/nonpositive valuation and dirty/pending navigation guards
+- [ ] Trade capture/edit/delete, extended instrument/source management and deletion, savings-plan controls and performance/report bodies remain later slices; Gate 3 private reconciliation remains open
 
 ## P6 Reports und Umstellung
 The 30 reports (SPEC §7), explorer, printable sheets, parallel run with reconciliation report. **Gate 4:** one month-end without difference, then retire remaining finance tools, including YNAB and PP. The prototype-only host was retired independently of this gate.

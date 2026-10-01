@@ -171,6 +171,7 @@ function allTargets(tx: Executor): TargetRow[] {
   return tx
     .select()
     .from(assetClassTarget)
+    .where(isNull(assetClassTarget.deletedAt))
     .orderBy(asc(assetClassTarget.validFrom), asc(assetClassTarget.assetClassId))
     .all();
 }
@@ -188,13 +189,14 @@ export function listTargetVersions(db: Executor): TargetVersion[] {
 
 /**
  * The Soll-Allocation valid on `day`: per live asset class its newest target on or before the day
- * (classes without any target are left out).
+ * (classes without any target are left out). `includeDay=false` selects strictly prior versions.
  */
-export function targetsAsOf(db: Executor, day: string): TargetRow[] {
+export function targetsAsOf(db: Executor, day: string, includeDay = true): TargetRow[] {
   const order = new Map(liveClassIds(db).map((id, i) => [id, i]));
   const latest = new Map<string, TargetRow>();
   for (const t of allTargets(db)) {
-    if (t.validFrom <= day && order.has(t.assetClassId)) latest.set(t.assetClassId, t);
+    if ((t.validFrom < day || (includeDay && t.validFrom === day)) && order.has(t.assetClassId))
+      latest.set(t.assetClassId, t);
   }
   // In the order of the asset classes (sort order, name), the order the pages show them in.
   return [...latest.values()].sort(
@@ -232,8 +234,8 @@ export function setTargets(
         throw new RangeError('A band is 0 to 10 000 bp');
     }
     const earlier = new Set(
-      targetsAsOf(tx, validFrom)
-        .filter((t) => t.validFrom < validFrom && t.targetShareBp > 0)
+      targetsAsOf(tx, validFrom, false)
+        .filter((t) => t.targetShareBp > 0)
         .map((t) => t.assetClassId),
     );
     const wanted = new Map<string, { share: number; band: number }>();
@@ -259,7 +261,7 @@ export function setTargets(
           tx,
           assetClassTarget,
           [row.id],
-          { targetShareBp: w.share, bandBp: w.band },
+          { targetShareBp: w.share, bandBp: w.band, deletedAt: null },
           grouped,
         );
       } else {
@@ -278,7 +280,8 @@ export function setTargets(
       }
     }
     for (const [classId, row] of existing)
-      if (!wanted.has(classId)) deleteTracked(tx, assetClassTarget, [row.id], grouped);
+      if (!wanted.has(classId) && row.deletedAt === null)
+        deleteTracked(tx, assetClassTarget, [row.id], grouped);
     const version = listTargetVersions(tx).find((v) => v.validFrom === validFrom);
     return version as TargetVersion;
   });
@@ -291,7 +294,7 @@ export function deleteTargetVersion(db: Executor, validFrom: string, ctx: AuditC
     const rows = tx
       .select()
       .from(assetClassTarget)
-      .where(eq(assetClassTarget.validFrom, validFrom))
+      .where(and(eq(assetClassTarget.validFrom, validFrom), isNull(assetClassTarget.deletedAt)))
       .all();
     if (rows.length === 0) throw new EntityNotFoundError('asset_class_target', validFrom);
     for (const r of rows) deleteTracked(tx, assetClassTarget, [r.id], grouped);

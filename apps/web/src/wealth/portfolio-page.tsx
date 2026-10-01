@@ -24,6 +24,7 @@ import {
 import { InstrumentPanel } from './portfolio-panel';
 import { INSTRUMENT_KIND } from './instrument-form';
 import './portfolio.css';
+import { PortfolioAllocation } from './allocation-section';
 
 export function PortfolioPage() {
   const query = useQuery(portfolioPositionsQuery());
@@ -48,9 +49,10 @@ export function PortfolioPage() {
         {query.isError && (
           <ErrorNote what="Positionen" error={query.error} onRetry={() => void query.refetch()} />
         )}
+        {view && <PortfolioLead view={view} />}
+        <PortfolioAllocation />
         {view && (
           <>
-            <PortfolioLead view={view} />
             {view.classes.length === 0 ? (
               <EmptyNote>Keine Positionen zum {longDay(view.asOf)} vorhanden.</EmptyNote>
             ) : (

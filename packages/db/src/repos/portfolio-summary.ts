@@ -597,8 +597,13 @@ export function positionCostDetailsAsOf(
   });
 }
 
+/** Only fields needed by current allocation/risk; basis and historical performance are separate. */
+export type RiskPosition = Pick<PositionLine, 'securityId' | 'kind' | 'assetClassId'> & {
+  accounts: Pick<PositionLine['accounts'][number], 'accountId' | 'institutionId' | 'valueCents'>[];
+};
+
 /** The positions as the wealth domain sees them (kind and class, never the name). */
-export const toWealthPositions = (lines: ReadonlyArray<PositionLine>): WealthPosition[] =>
+export const toWealthPositions = (lines: ReadonlyArray<RiskPosition>): WealthPosition[] =>
   lines.flatMap((line) =>
     line.accounts.map((position) => ({
       id: `${line.securityId}:${position.accountId}`,
@@ -620,7 +625,7 @@ export function classTargets(db: Executor, asOf: string) {
 }
 
 /** Allocation, cluster risk, R15 and the rebalancing rows of the positions on `asOf`. */
-export function riskOf(db: Executor, asOf: string, lines: ReadonlyArray<PositionLine>) {
+export function riskOf(db: Executor, asOf: string, lines: ReadonlyArray<RiskPosition>) {
   const positions = toWealthPositions(lines);
   const allocation = allocationStatus(positions, classTargets(db, asOf));
   const cluster = clusterRisk(positions);
