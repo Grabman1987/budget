@@ -1,7 +1,9 @@
 import {
   createTestDatabase,
   priceSeries,
+  priceStand,
   schema,
+  sqliteOf,
   upsertFxRate,
   upsertPrice,
   type Db,
@@ -95,6 +97,29 @@ beforeEach(() => {
 });
 
 describe('refreshPrices', () => {
+  it('records when a price is first fetched so the price stand has a timestamp', async () => {
+    addSecurity();
+    const source = scripted('yfinance', () => [{ date: '2026-09-30', priceMicro: 5_100_000 }]);
+
+    const result = await refreshPrices(db, sourcesOf(source), { today: '2026-09-30' });
+
+    expect(result.bySource.yfinance.rows).toBe(1);
+    expect(priceStand(db, '2026-09-30')).toMatchObject({ priceDate: '2026-09-30' });
+    expect(priceStand(db, '2026-09-30').priceAt ?? '').toMatch(
+      /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?Z$/,
+    );
+    expect(db.select().from(schema.priceAudit).all()).toMatchObject([
+      {
+        securityId: 's1',
+        date: '2026-09-30',
+        oldPriceMicro: null,
+        newPriceMicro: 5_100_000,
+        oldSource: null,
+        newSource: 'yfinance',
+      },
+    ]);
+  });
+
   it('backfills from min(first trade, 2023-10-01) minus 7 days, stores the source', async () => {
     addSecurity();
     addTrade('2023-06-15');
@@ -133,6 +158,21 @@ describe('refreshPrices', () => {
     const first = await refreshPrices(db, sourcesOf(source), { today: '2026-09-30' });
     expect(source.calls[0]).toEqual({ from: '2026-09-29', to: '2026-09-30' });
     expect(first.bySource.yfinance.rows).toBe(2);
+    expect(db.select().from(schema.priceAudit).all()).toMatchObject([
+      {
+        date: '2026-09-29',
+        oldPriceMicro: null,
+        oldSource: null,
+        newSource: 'yfinance',
+      },
+      {
+        date: '2026-09-30',
+        oldPriceMicro: null,
+        oldSource: null,
+        newSource: 'yfinance',
+      },
+    ]);
+    const auditRows = db.select().from(schema.priceAudit).all();
     // Second run: the newest day is today, nothing to fetch.
     const second = await refreshPrices(db, sourcesOf(source), { today: '2026-09-30' });
     expect(second).toMatchObject({ tracked: 1, upToDate: 1 });
@@ -140,7 +180,7 @@ describe('refreshPrices', () => {
     expect(priceSeries(db, 's1')).toHaveLength(3);
     // The same answer written again changes nothing, not even the audit trail.
     await refreshPrices(db, sourcesOf(source), { today: '2026-09-30' });
-    expect(db.select().from(schema.priceAudit).all()).toHaveLength(0);
+    expect(db.select().from(schema.priceAudit).all()).toEqual(auditRows);
   });
 
   it('never overwrites a manual price and does not count it as the newest network day', async () => {
@@ -166,6 +206,28 @@ describe('refreshPrices', () => {
     });
     // The manual day was refused, so the backfill still started at the floor, not after it.
     expect(source.calls[0]?.from).toBe('2023-09-24');
+    expect(db.select().from(schema.priceAudit).all()).toMatchObject([
+      { date: '2026-09-30', oldPriceMicro: null, oldSource: null, newSource: 'yfinance' },
+    ]);
+  });
+
+  it('does not timestamp a refresh when every returned quote is protected manual data', async () => {
+    addSecurity();
+    upsertPrice(db, {
+      securityId: 's1',
+      date: '2026-09-30',
+      priceMicro: 7_000_000,
+      currency: 'EUR',
+      source: 'manual',
+    });
+    const source = scripted('yfinance', () => [{ date: '2026-09-30', priceMicro: 9_000_000 }]);
+
+    const result = await refreshPrices(db, sourcesOf(source), { today: '2026-09-30' });
+
+    expect(result.protectedManual).toBe(1);
+    expect(result.bySource.yfinance.rows).toBe(0);
+    expect(db.select().from(schema.priceAudit).all()).toEqual([]);
+    expect(priceStand(db, '2026-09-30')).toEqual({ priceDate: '2026-09-30', priceAt: null });
   });
 
   it('uses the fallback when the primary fails or answers with nothing', async () => {
@@ -182,6 +244,14 @@ describe('refreshPrices', () => {
     expect(result.failed).toEqual([]);
     expect(priceSeries(db, 's1')[0]?.source).toBe('ariva');
     expect(priceSeries(db, 's2')[0]?.source).toBe('ariva');
+    expect(db.select().from(schema.priceAudit).all()).toHaveLength(2);
+    expect(
+      db
+        .select()
+        .from(schema.priceAudit)
+        .all()
+        .every((r) => r.newSource === 'ariva'),
+    ).toBe(true);
     expect(inbox()).toHaveLength(0);
   });
 
@@ -194,6 +264,8 @@ describe('refreshPrices', () => {
       log: (m) => logs.push(m),
     });
     expect(result.failed).toEqual([{ securityId: 's1', errors: ['network', 'http'] }]);
+    expect(db.select().from(schema.priceAudit).all()).toEqual([]);
+    expect(priceStand(db, '2026-09-30')).toEqual({ priceDate: null, priceAt: null });
     expect(
       inbox()
         .map((i) => i.detail)
@@ -207,6 +279,7 @@ describe('refreshPrices', () => {
     expect(inbox()).toHaveLength(2);
     // Nothing secret reaches the log or the inbox.
     expect(JSON.stringify([logs, inbox()])).not.toMatch(/secret|token/);
+    expect(db.select().from(schema.priceAudit).all()).toEqual([]);
   });
 
   it('closes the items when prices flow again', async () => {
@@ -236,6 +309,25 @@ describe('refreshPrices', () => {
     const result = await refreshPrices(db, sourcesOf(empty), { today: '2026-10-05' });
     expect(result.failed).toEqual([{ securityId: 's1', errors: ['empty'] }]);
     expect(inbox().map((i) => i.detail)).toEqual(['Fehlerklasse: empty']);
+    expect(db.select().from(schema.priceAudit).all()).toEqual([]);
+    expect(priceStand(db, '2026-10-05')).toEqual({ priceDate: '2026-09-25', priceAt: null });
+  });
+
+  it('rolls back an initial price and its refresh timestamp as one transaction', async () => {
+    addSecurity();
+    sqliteOf(db).exec(`
+      CREATE TRIGGER reject_initial_price_audit BEFORE INSERT ON price_audit
+      WHEN NEW.old_price_micro IS NULL
+      BEGIN SELECT RAISE(ABORT, 'audit unavailable'); END;
+    `);
+    const source = scripted('yfinance', () => [{ date: '2026-09-30', priceMicro: 5_100_000 }]);
+
+    const result = await refreshPrices(db, sourcesOf(source), { today: '2026-09-30' });
+
+    expect(result.failed).toHaveLength(1);
+    expect(priceSeries(db, 's1')).toEqual([]);
+    expect(db.select().from(schema.priceAudit).all()).toEqual([]);
+    expect(priceStand(db, '2026-09-30')).toEqual({ priceDate: null, priceAt: null });
   });
 
   it('skips securities that are switched off or have no quote id', async () => {

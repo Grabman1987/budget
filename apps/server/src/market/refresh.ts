@@ -5,13 +5,16 @@ import {
   lastQuotedDay,
   openStaleValueItem,
   resolveStaleValueItems,
+  schema,
   trackedSecurities,
   upsertFxRate,
   upsertPrice,
   type Db,
   type SecurityRow,
 } from '@budget/db';
+import { and, eq } from 'drizzle-orm';
 import { addDays } from '@budget/domain';
+import { randomUUID } from 'node:crypto';
 import {
   errorKind,
   isWeekday,
@@ -128,6 +131,11 @@ export async function refreshPrices(
         let rows = 0;
         db.transaction((tx) => {
           for (const q of quotes) {
+            const existing = tx
+              .select({ securityId: schema.price.securityId })
+              .from(schema.price)
+              .where(and(eq(schema.price.securityId, row.id), eq(schema.price.date, q.date)))
+              .get();
             const stored = upsertPrice(tx, {
               securityId: row.id,
               date: q.date,
@@ -135,8 +143,22 @@ export async function refreshPrices(
               currency: row.currency,
               source: source.id,
             });
-            if (stored) rows++;
-            else result.protectedManual++;
+            if (stored) {
+              rows++;
+              if (!existing) {
+                tx.insert(schema.priceAudit)
+                  .values({
+                    id: randomUUID(),
+                    securityId: row.id,
+                    date: q.date,
+                    oldPriceMicro: null,
+                    newPriceMicro: q.priceMicro,
+                    oldSource: null,
+                    newSource: source.id,
+                  })
+                  .run();
+              }
+            } else result.protectedManual++;
           }
         });
         result.bySource[source.id].securities++;
