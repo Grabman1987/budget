@@ -6,7 +6,7 @@ import { createServer, type Server } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
 import { BackupScheduler, backupConfigFromEnv, runBackup, type BackupConfig } from './backup';
 import { backupKey } from './retention';
 import { S3Client } from './s3';
@@ -83,6 +83,12 @@ const s3 = fakeS3();
 const work = mkdtempSync(join(tmpdir(), 'budget-backup-test-'));
 let config: BackupConfig;
 let identity: string;
+const databases = new Set<ReturnType<typeof openDatabase>>();
+
+function trackDatabase(opened: ReturnType<typeof openDatabase>) {
+  databases.add(opened);
+  return opened;
+}
 
 beforeAll(async () => {
   await new Promise<void>((resolve) => s3.server.listen(0, '127.0.0.1', resolve));
@@ -101,15 +107,29 @@ beforeAll(async () => {
   }) as BackupConfig;
 });
 
-afterAll(() => {
-  s3.server.close();
+afterEach(() => {
+  // Assertions and timeouts must not leave Windows SQLite/WAL handles open.
+  for (const opened of databases) if (opened.sqlite.open) opened.close();
+  databases.clear();
+  s3.setFailPuts(false);
+});
+
+afterAll(async () => {
+  await new Promise<void>((resolve, reject) =>
+    s3.server.close((error) => (error ? reject(error) : resolve())),
+  );
   rmSync(work, { recursive: true, force: true });
 });
 
-function seededDatabase() {
+function migratedDatabase() {
   const file = join(work, `live-${Math.random().toString(36).slice(2)}.sqlite`);
-  const opened = openDatabase(file);
+  const opened = trackDatabase(openDatabase(file));
   migrateDatabase(opened.db);
+  return opened;
+}
+
+function seededDatabase() {
+  const opened = migratedDatabase();
   seedDatabase(opened.db);
   return opened;
 }
@@ -141,7 +161,7 @@ describe.skipIf(!hasAge)('encrypted backup round trip (test key)', () => {
     const restored = join(work, 'restored.sqlite');
     writeFileSync(downloaded, sealed);
     execFileSync('age', ['--decrypt', '-i', identity, '-o', restored, downloaded]);
-    const copy = openDatabase(restored);
+    const copy = trackDatabase(openDatabase(restored));
     expect(copy.sqlite.pragma('integrity_check', { simple: true })).toBe('ok');
     expect(tableCounts(copy.sqlite)).toEqual(tableCounts(live.sqlite));
     expect(Number(tableCounts(copy.sqlite)['booking'])).toBeGreaterThan(100);
@@ -185,7 +205,8 @@ describe.skipIf(!hasAge)('encrypted backup round trip (test key)', () => {
 describe('BackupScheduler', () => {
   it('runs once per night with catch-up, reports failures to the Posteingang once', async () => {
     s3.objects.clear();
-    const live = seededDatabase();
+    // This test needs only migrated inbox/settings tables, not a complete fixture ledger.
+    const live = migratedDatabase();
     const messages: string[] = [];
     const scheduler = new BackupScheduler({
       sqlite: live.sqlite,
