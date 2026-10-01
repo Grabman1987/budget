@@ -90,6 +90,21 @@ before deviating ones. A card booking in another currency is compared by its ori
 that has the version's currency. Open occurrences whose window has passed become `missed`.
 
 
+## Rules (P3.5)
+
+The rule book R01–R16 and the stage checklist (concept §3.5). Rules are data (`rule`: `params_json`, `enabled`); the engine is `evaluateRule` in `@budget/domain`, the inputs come from `ruleInputs` in `@budget/db` (the one place that assembles them). Results (`rule_result`) are derived and rewritten, edits are audited and undoable with `POST /undo { groupId }`.
+
+| Request | What it does |
+| --- | --- |
+| `GET /rules` | `{ rules, checklist }`: per rule code, name, stage, goal, `enabled`, `params` (stored over the defaults), `defaults` and `latest` (`asOf`, `status` ok/warn/bad, `valueText`, `actionNeeded`, `actionText`, `detail`; `null` when never evaluable); the 14 stage checklist items with `ruleCode` (follows that rule) or `null` and `confirmedAt` |
+| `PATCH /rules/:code` | `{ params?, enabled? }`: `params` is a partial object validated strictly per rule (unknown key or out-of-range value 400); answers `{ rule, groupId }` |
+| `PATCH /rules/checklist/:code` | `{ confirmed }`: the owner marks a non-computable item (Testament, Versicherungen vollständig …) erledigt or open again; items that follow a rule are 409 `rule_backed`; `{ item, groupId }` |
+| `POST /rules/evaluate` | Evaluates the enabled rules for today and the last 12 month ends and stores one result per (rule, day); idempotent; a rule without data stores nothing ("nicht bewertbar"); `{ asOf, days, stored, removed }` |
+| `GET /rules/results?from&to` | Matrix of the enabled rules: `days` and per rule `cells { asOf, status, valueText }`; default the 12 month ends up to today |
+| `GET /rules/check` | Finanz-Check of today (computed now): `counts { ok, warn, bad, total, notEvaluated }`, the six key rules (R02, R15, R01, R03, R08, R07) by severity, `stage` from net worth, `checklist { done, total, items }` (a confirmed item counts as done, a rule item follows its rule) |
+
+Reference month: rolling figures (R01, R02, R11) use the last full month, the month itself on a month end. R04 uses the change log for the day an envelope was assigned; assignments without a log entry (imported or seeded) count as made on the salary day.
+
 ## Market data (P5.1)
 
 Sources are the fixture series outside production and Yahoo/ECB in production
@@ -152,12 +167,12 @@ the run were deleted), `run_closed` (409, the run is committed or reverted), `im
 | `GET /imports` | Runs, newest first: status (`staged`, `dry_run`, `committed`, `reverted`), file names, mapping version, times, `summary` (counts, number of differences, change counts) |
 | `POST /imports/ynab` **step-up** | Multipart with both files (`… - Register.tsv`, `… - Plan.tsv`, matched by suffix). Stages the rows as a new run; answers `run`, `sameExportAs` (runs with the same SHA-256) and `overview` |
 | `GET /imports/:id` | `run` and `overview` of the raw layer: `asOf`, `months`, accounts with proposals, categories with `count` and `years` (split sums per year), payees with counts, `problems` |
-| `GET /imports/:id/mapping`, `PUT /imports/:id/mapping` | The latest mapping document (the zod `mappingSchema` of `packages/import-ynab`; export as JSON). Without a saved one: the latest of an earlier run, else the proposal (`proposed: true`: identity mapping, hidden categories in their original group, start 2023-10). `PUT` validates (400 with `issues`) and saves a new version (import of a JSON document) |
+| `GET /imports/:id/mapping`, `PUT /imports/:id/mapping` | The latest mapping document (the zod `mappingSchema` of `packages/import-ynab`; export as JSON). Without a saved one: the latest of an earlier run (also an undone one), else the proposal (`proposed: true`: identity mapping, hidden categories in their original group, start 2023-10). `PUT` validates (400 with `issues`) and saves a new version (import of a JSON document) |
 | `POST /imports/:id/preview` `{ mapping }` | Unsaved draft: `problems`, `structure` (per target category: YNAB sources, splits, sums per year after the rules), `rules` (per rule: affected splits, sum, up to 50 examples) |
 | `POST /imports/:id/dry-run` | With the latest mapping: `problems`, `reconciliation` (Gate 2: `differences` by check, account/category and month, `moved` by rules, `creditShift`, `checked` counts), `structure`, target `accounts` with opening balances, `change` (what a commit would write: bookings `added` / `unchanged` / `updated` / `skipped` / `missing`, accounts, categories, payees, assigned months) and `ledger` (the app's budget after the write against the target model). The write runs in a transaction that is rolled back |
 | `POST /imports/:id/commit` `{ deleteMissing? }` **step-up** | The same write for real: one transaction, audit group `import:<run id>`, bookings with `source: 'migration'`, the run id and an import key. Refused with `import_problems` while the dry run has errors. `deleteMissing: true` deletes the `missing` bookings of earlier runs (reconciled ones stay) |
 | `GET /imports/:id/report` | Gate 2 report page: like the dry run without writing; for a committed run `ledger` compares the app's data with the target model |
-| `POST /imports/:id/revert` `{ force? }` **step-up** | Undo of the whole run (only the newest committed run; refused as `undo_refused` when something it wrote was changed later, unless `force`). The import keys of its bookings are retired, so the same export can be committed again |
+| `POST /imports/:id/revert` `{ force? }` **step-up** | Undo of the whole run (only the newest committed run; refused as `undo_refused` when something it wrote was changed later, unless `force`; refused as `in_use`, also with `force`, while bookings or assigned amounts added later use its accounts or categories). The import keys of its bookings are retired, so the same export can be committed again |
 | `DELETE /imports/:id` **step-up** | Deletes the staged files and mapping versions; a run that wrote nothing is removed completely (`deleted: 'run'`), a committed or reverted one keeps its row (`'staging'`) |
 
 Re-import of a newer export: a new run (the mapping of the previous run is offered), accounts and
@@ -165,3 +180,23 @@ categories of the latest committed run are reused by their mapping ids, bookings
 are left alone (also when the owner deleted them) or get the new status and flag, new keys are
 added (a transfer only with both legs), assigned amounts follow the new export (negative
 amounts included). Changing the mapping of committed data needs a revert and a new commit.
+
+## Savings goals (P3.4)
+
+Sparziele: a goal links an envelope (category) or an account, a target amount and an optional target
+date. Every answer carries the figures of the viewed month (`?month=YYYY-MM`, default the month of
+today), computed once by `goalProgress` in `@budget/domain`: `savedCents` is the available money of the
+envelope (or the balance of the account) at the end of that month, `remainingCents` what is missing,
+`monthsLeft` the months after the viewed one up to the target month (at least 1; `null` without a
+date), `neededMonthlyCents` the missing amount per month rounded up to the cent, `averageRateCents`
+the average assignment (account: growth) of the viewed and the two months before, `forecastMonth` the
+month the goal is full at that rate, `status` `reached` / `on_track` / `behind`. Goals are ordered by
+target date, those without a date last.
+
+| Endpoint | Purpose |
+| --- | --- |
+| `GET /goals?month&deleted=1` | `{ month, goals }` with the figures above |
+| `POST /goals?month` | `{ name, targetCents > 0, targetDate?, categoryId \| accountId }` (not both; 422 `category_rule`); answers `{ goal, groupId }` |
+| `PATCH /goals/:id?month` | Any of the fields; setting one link clears the other |
+| `DELETE /goals/:id`, `POST /goals/:id/restore?month` | Soft delete and restore; `POST /undo` with the `groupId` reverts either |
+| `POST /goals/:id/adopt` | `{ validFrom? }` (`YYYY-MM`, default this month): "Als Ziel der Kategorie übernehmen" writes a versioned `by_date` category target (goal amount and date) in the same audit group; needs a category and a date |

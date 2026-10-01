@@ -1,0 +1,147 @@
+/* Plan › Sparziele. The parts list, bar, group rows and legend come from plan.css (same classes as
+   Plan › Monat, scope `.plan`); this file only adds the columns of the goals table and the phone
+   layout. No cards, no shadows. */
+
+.plan.goals .goals-toolbar {
+  margin-bottom: -8px;
+}
+.plan.goals .goals-summary {
+  font-size: 14px;
+  font-weight: 560;
+  color: var(--ink-2);
+}
+.plan.goals .ptable .col-cat {
+  width: 210px;
+}
+.plan.goals .ptable .col-date {
+  width: 112px;
+  white-space: nowrap;
+}
+.plan.goals .ptable .col-num {
+  width: 112px;
+}
+.plan.goals .goal-cat {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px 8px;
+  font-size: 14px;
+}
+.plan.goals .goal-name {
+  font-weight: 580;
+}
+.plan.goals .prow.is-reached .goal-name {
+  font-weight: 500;
+}
+.plan.goals .col-missing,
+.plan.goals .col-rate {
+  font-weight: 640;
+}
+.plan.goals .col-rate {
+  font-weight: 640;
+}
+.plan.goals .lg-tick {
+  margin-left: 0;
+}
+
+@media (max-width: 1180px) {
+  .plan.goals .ptable .col-cat {
+    width: 170px;
+  }
+  .plan.goals .ptable .col-num {
+    width: 104px;
+  }
+  .plan.goals .ptable .col-date {
+    width: 100px;
+  }
+}
+
+@media (max-width: 767px) {
+  .plan.goals .goals-toolbar {
+    margin-bottom: 0;
+  }
+  .plan.goals .goals-toolbar .btn {
+    min-height: 44px;
+  }
+  /* Stacked row: position and name on top, then a labelled two-column grid of figures. */
+  .plan.goals .ptable tr {
+    grid-template-columns: 34px repeat(2, minmax(0, 1fr));
+    row-gap: 8px;
+  }
+  .plan.goals .ptable .col-name {
+    grid-column: 2 / -1;
+    grid-row: 1;
+  }
+  .plan.goals .ptable .col-cat,
+  .plan.goals .ptable .col-date,
+  .plan.goals .ptable .col-num {
+    width: auto;
+    text-align: left;
+    font-size: 14px;
+  }
+  .plan.goals .ptable .col-cat::before,
+  .plan.goals .ptable .col-date::before,
+  .plan.goals .ptable .col-num::before {
+    content: attr(data-label);
+    display: block;
+    font-family: var(--font-tech);
+    font-size: 10.5px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+    font-weight: 500;
+  }
+  .plan.goals .ptable .col-cat {
+    grid-column: 2;
+    grid-row: 2;
+  }
+  .plan.goals .ptable .col-date {
+    grid-column: 3;
+    grid-row: 2;
+  }
+  .plan.goals .ptable .col-target {
+    grid-column: 2;
+    grid-row: 3;
+  }
+  .plan.goals .ptable .col-saved {
+    grid-column: 3;
+    grid-row: 3;
+  }
+  .plan.goals .ptable .col-missing {
+    grid-column: 2;
+    grid-row: 4;
+  }
+  .plan.goals .ptable .col-rate {
+    grid-column: 3;
+    grid-row: 4;
+  }
+  /* The group row keeps only the sums, in the same grid. */
+  .plan.goals .ptable .pgroup .col-name {
+    grid-column: 2 / -1;
+  }
+  .plan.goals .ptable .pgroup .col-target {
+    grid-row: 2;
+  }
+  .plan.goals .ptable .pgroup .col-saved {
+    grid-row: 2;
+  }
+  .plan.goals .ptable .pgroup .col-missing {
+    grid-row: 3;
+  }
+  .plan.goals .ptable .pgroup .col-rate {
+    grid-row: 3;
+  }
+  .plan.goals .ptable .pgroup .col-date {
+    display: none;
+  }
+  .plan.goals .pname {
+    min-height: 44px;
+    padding-block: 4px;
+  }
+  .plan.goals .pname .goal-name {
+    overflow-wrap: anywhere;
+  }
+  .plan.goals .ptable .grp-toggle {
+    min-height: 44px;
+  }
+}

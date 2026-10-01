@@ -30,7 +30,7 @@ import {
 } from '@budget/db';
 import { budgetMonths } from '@budget/domain';
 import { budgetInputOf, type TargetBooking, type TargetModel } from '@budget/import-ynab';
-import { and, desc, eq, gt, gte, inArray, isNotNull, isNull, ne, sql } from 'drizzle-orm';
+import { and, desc, eq, gt, gte, inArray, isNotNull, isNull, ne, or, sql } from 'drizzle-orm';
 import { randomUUID } from 'node:crypto';
 
 /**
@@ -546,6 +546,66 @@ export class ImportStateError extends Error {
 }
 
 /**
+ * `undo` only sees the rows the run wrote. Bookings and assigned amounts added later on the run's
+ * own accounts and categories would stay live on deleted ones, so the revert is refused (also
+ * with `force`) until the owner has moved or deleted them.
+ */
+function assertNotInUse(tx: Executor, runId: string): void {
+  const created = (entityType: string) =>
+    tx
+      .select({ id: auditLog.entityId })
+      .from(auditLog)
+      .where(
+        and(
+          eq(auditLog.groupId, importGroup(runId)),
+          eq(auditLog.action, 'create'),
+          eq(auditLog.entityType, entityType),
+          isNull(auditLog.undoOfId),
+        ),
+      )
+      .all()
+      .map((r) => r.id);
+  const accounts = created('account');
+  const categories = created('category');
+  const foreign = or(isNull(booking.importRunId), ne(booking.importRunId, runId));
+  const onAccount =
+    accounts.length > 0 &&
+    tx
+      .select({ id: booking.id })
+      .from(booking)
+      .where(and(inArray(booking.accountId, accounts), isNull(booking.deletedAt), foreign))
+      .get();
+  const inCategory =
+    categories.length > 0 &&
+    tx
+      .select({ id: bookingSplit.id })
+      .from(bookingSplit)
+      .innerJoin(booking, eq(booking.id, bookingSplit.bookingId))
+      .where(and(inArray(bookingSplit.categoryId, categories), isNull(booking.deletedAt), foreign))
+      .get();
+  const own = new Set(created('envelope_month'));
+  const assigned =
+    categories.length > 0 &&
+    tx
+      .select({ categoryId: envelopeMonth.categoryId, month: envelopeMonth.month })
+      .from(envelopeMonth)
+      .where(
+        and(
+          inArray(envelopeMonth.categoryId, categories),
+          isNull(envelopeMonth.deletedAt),
+          ne(envelopeMonth.assignedCents, 0),
+        ),
+      )
+      .all()
+      .some((r) => !own.has(`${r.categoryId}:${r.month}`));
+  if (onAccount || inCategory || assigned)
+    throw new ImportStateError(
+      'in_use',
+      'Bookings or assigned amounts added after the import use its accounts or categories',
+    );
+}
+
+/**
  * Revert a committed run as a whole: `undo` of its audit group (refused when something it wrote
  * was changed later, unless `force`), then the import keys of its bookings are retired so the same
  * export can be committed again. Only the newest committed run can be reverted.
@@ -572,6 +632,7 @@ export function revertImport(
       )
       .get();
     if (newer) throw new ImportStateError('newer_run', 'Revert the newer import run first');
+    assertNotInUse(tx, runId);
     const written = tx
       .select({ id: auditLog.id })
       .from(auditLog)
