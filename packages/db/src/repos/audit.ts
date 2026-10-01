@@ -14,6 +14,7 @@ import { getTableConfig, SQLiteTable } from 'drizzle-orm/sqlite-core';
 import * as schema from '../schema';
 import { auditLog, type AUDIT_ACTIONS } from '../schema';
 import { AuditError, EntityNotFoundError } from './errors';
+import { expectedLinkPatches } from './expected-links';
 import { assertLedgerInvariants, assertTradeSettlementInvariants } from './invariants';
 import { runInTransaction, type Executor } from './types';
 
@@ -422,6 +423,46 @@ function loadTarget(db: Executor, target: UndoTarget): AuditEntry[] {
   return rows.map(parseEntry);
 }
 
+function occurrenceBookingIds(entry: AuditEntry): string[] {
+  if (entry.entityType !== getTableName(schema.expectedOccurrence)) return [];
+  return [...new Set([entry.before?.['booking_id'], entry.after?.['booking_id']])].filter(
+    (id): id is string => typeof id === 'string',
+  );
+}
+
+/** A booking and the occurrence it changed are one user action when both were audited together. */
+function isPartialExpectedPaymentUndo(tx: Executor, entry: AuditEntry): boolean {
+  if (!entry.groupId) return false;
+  const type = entry.entityType;
+  const bookingType = getTableName(schema.booking);
+  const splitType = getTableName(schema.bookingSplit);
+  const occurrenceType = getTableName(schema.expectedOccurrence);
+  const group = tx
+    .select()
+    .from(auditLog)
+    .where(eq(auditLog.groupId, entry.groupId))
+    .all()
+    .map(parseEntry);
+  if (type === bookingType || type === splitType) {
+    const bookingId = type === bookingType ? entry.entityId : bookingOf(entry);
+    if (!bookingId) return false;
+    return group.some(
+      (candidate) =>
+        candidate.entityType === occurrenceType &&
+        occurrenceBookingIds(candidate).includes(bookingId),
+    );
+  }
+  if (type === occurrenceType) {
+    const bookingIds = occurrenceBookingIds(entry);
+    return group.some(
+      (candidate) =>
+        (candidate.entityType === bookingType || candidate.entityType === splitType) &&
+        bookingIds.includes(bookingOf(candidate) ?? ''),
+    );
+  }
+  return false;
+}
+
 function revertEntry(db: Executor, entry: AuditEntry, ctx: GroupedContext, force: boolean): void {
   const table = tableFor(entry.entityType);
   const meta = tableMeta(table);
@@ -573,8 +614,16 @@ export function undo(
           `Cannot undo a single ${entry.entityType} entry: undo the whole action (group ${entry.groupId ?? '?'})`,
         );
       }
+      if (isPartialExpectedPaymentUndo(tx, entry)) {
+        throw new AuditError(
+          `Cannot undo a single ${entry.entityType} entry with its expected-payment link: undo the whole action (group ${entry.groupId ?? '?'})`,
+        );
+      }
     }
     const touched = originals.map(bookingOf).filter((id): id is string => id !== undefined);
+    const expectedLinkBookings = new Set(touched);
+    for (const entry of originals)
+      for (const id of occurrenceBookingIds(entry)) expectedLinkBookings.add(id);
     // Runs of creations in one table (an import) are reverted in bulk, everything else one by one.
     const force = options.force ?? false;
     let batch: AuditEntry[] = [];
@@ -590,6 +639,11 @@ export function undo(
       else revertEntry(tx, entry, grouped, force);
     }
     flush();
+    if (expectedLinkPatches(tx, [...expectedLinkBookings]).length > 0) {
+      throw new AuditError(
+        'Cannot undo: the result would leave an expected payment linked to a missing, deleted, or mismatched booking; undo the related booking and occurrence action together',
+      );
+    }
     assertLedgerInvariants(tx, touched);
     assertTradeSettlementInvariants(
       tx,

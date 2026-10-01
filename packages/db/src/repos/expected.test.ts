@@ -2,10 +2,22 @@ import { addMonths } from '@budget/domain';
 import { eq } from 'drizzle-orm';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { createTestDatabase, type OpenedDatabase } from '../client';
-import { expectedOccurrence, expectedPaymentVersion, incomeType } from '../schema';
+import {
+  auditLog,
+  booking,
+  expectedOccurrence,
+  expectedPaymentVersion,
+  incomeType,
+} from '../schema';
 import { undo } from './audit';
-import { createBooking } from './bookings';
-import { ConflictError, EntityNotFoundError } from './errors';
+import {
+  createBooking,
+  createTransfer,
+  deleteBooking,
+  getBooking,
+  updateBooking,
+} from './bookings';
+import { AuditError, ConflictError, EntityNotFoundError } from './errors';
 import {
   addExpectedVersion,
   createExpectedPayment,
@@ -414,5 +426,325 @@ describe('monthIncome', () => {
       { incomeTypeId: type.id, name: type.name, expectedCents: 300_000, receivedCents: 300_000 },
       { incomeTypeId: null, name: null, expectedCents: 50_000, receivedCents: 0 },
     ]);
+  });
+});
+
+describe('booking lifecycle for expected payments', () => {
+  const salary = () =>
+    createExpectedPayment(
+      db,
+      {
+        name: 'Expected salary',
+        kind: 'inflow',
+        accountId: 'giro',
+        payeeId: 'p1',
+        dueDay: 1,
+        startDate: '2026-01-01',
+        dateWindowDays: 3,
+        amountToleranceCents: 0,
+      },
+      { validFrom: '2026-01-01', amountCents: 40_000 },
+      ctx,
+      TODAY,
+    ).payment;
+
+  const salaryBooking = (amountCents: number, date = '2026-03-01') =>
+    createBooking(
+      db,
+      {
+        accountId: 'giro',
+        date,
+        amountCents,
+        payeeId: 'p1',
+        splits: [{ amountCents }],
+      },
+      ctx,
+    );
+
+  const marchIncome = () => monthIncome(db, '2026-03');
+
+  it('recomputes linked amount status and income through grouped undo and redo', () => {
+    const payment = salary();
+    const bookingId = salaryBooking(40_000);
+    matchOccurrences(db, TODAY);
+    const march = occurrencesOf(payment.id).find((row) => row.dueDate === '2026-03-01')!;
+    expect(march).toMatchObject({ status: 'received', bookingId });
+    expect(marchIncome()).toMatchObject({ expectedCents: 40_000, receivedCents: 40_000 });
+
+    updateBooking(db, bookingId, { amountCents: 39_000 }, { ...ctx, groupId: 'salary-edit' });
+    expect(occurrencesOf(payment.id).find((row) => row.id === march.id)).toMatchObject({
+      status: 'deviating',
+      bookingId,
+    });
+    expect(marchIncome()).toMatchObject({ expectedCents: 40_000, receivedCents: 39_000 });
+
+    const undone = undo(db, { groupId: 'salary-edit' }, ctx);
+    expect(occurrencesOf(payment.id).find((row) => row.id === march.id)).toMatchObject({
+      status: 'received',
+      bookingId,
+    });
+    expect(marchIncome()).toMatchObject({ receivedCents: 40_000 });
+    undo(db, { groupId: undone.groupId }, ctx);
+    expect(occurrencesOf(payment.id).find((row) => row.id === march.id)).toMatchObject({
+      status: 'deviating',
+      bookingId,
+    });
+    expect(marchIncome()).toMatchObject({ receivedCents: 39_000 });
+  });
+
+  it('requires the whole linked edit when undoing one audit row', () => {
+    const payment = salary();
+    const bookingId = salaryBooking(40_000);
+    const unrelatedId = salaryBooking(1_000, '2026-03-03');
+    matchOccurrences(db, TODAY);
+    updateBooking(db, bookingId, { amountCents: 39_000 }, { ...ctx, groupId: 'linked-edit' });
+    updateBooking(
+      db,
+      unrelatedId,
+      { memo: 'same group, unrelated row' },
+      { ...ctx, groupId: 'linked-edit' },
+    );
+    const bookingEntry = db
+      .select()
+      .from(auditLog)
+      .where(eq(auditLog.groupId, 'linked-edit'))
+      .all()
+      .find((entry) => entry.entityType === 'booking' && entry.entityId === bookingId)!;
+    expect(() => undo(db, { auditId: bookingEntry.id }, ctx)).toThrow(AuditError);
+    expect(getBooking(db, bookingId)).toMatchObject({ amountCents: 39_000 });
+    expect(occurrencesOf(payment.id).find((row) => row.dueDate === '2026-03-01')).toMatchObject({
+      status: 'deviating',
+      bookingId,
+    });
+    const unrelatedEntry = db
+      .select()
+      .from(auditLog)
+      .where(eq(auditLog.groupId, 'linked-edit'))
+      .all()
+      .find((entry) => entry.entityType === 'booking' && entry.entityId === unrelatedId)!;
+    expect(() => undo(db, { auditId: unrelatedEntry.id }, ctx)).not.toThrow();
+    expect(getBooking(db, unrelatedId)?.memo).toBeNull();
+  });
+
+  it('clears a deleted linked booking and restores/removes the link with undo and redo', () => {
+    const payment = salary();
+    const bookingId = salaryBooking(40_000);
+    matchOccurrences(db, TODAY);
+    const march = occurrencesOf(payment.id).find((row) => row.dueDate === '2026-03-01')!;
+    expect(marchIncome().receivedCents).toBe(40_000);
+
+    deleteBooking(db, bookingId, { ...ctx, groupId: 'salary-delete' });
+    expect(occurrencesOf(payment.id).find((row) => row.id === march.id)).toMatchObject({
+      status: 'expected',
+      bookingId: null,
+    });
+    expect(marchIncome().receivedCents).toBe(0);
+
+    const undone = undo(db, { groupId: 'salary-delete' }, ctx);
+    expect(occurrencesOf(payment.id).find((row) => row.id === march.id)).toMatchObject({
+      status: 'received',
+      bookingId,
+    });
+    expect(marchIncome().receivedCents).toBe(40_000);
+    undo(db, { groupId: undone.groupId }, ctx);
+    expect(occurrencesOf(payment.id).find((row) => row.id === march.id)).toMatchObject({
+      status: 'expected',
+      bookingId: null,
+    });
+    expect(marchIncome().receivedCents).toBe(0);
+  });
+
+  it('refuses to restore an unlinked occurrence to a deleted booking, including force undo', () => {
+    const payment = salary();
+    const bookingId = salaryBooking(40_000);
+    const march = occurrencesOf(payment.id).find((row) => row.dueDate === '2026-03-01')!;
+    linkOccurrence(db, march.id, bookingId, ctx);
+    const unlinked = unlinkOccurrence(db, march.id, { ...ctx, groupId: 'manual-unlink' });
+    deleteBooking(db, bookingId, ctx);
+
+    expect(() => undo(db, { groupId: unlinked.groupId }, ctx)).toThrow(AuditError);
+    expect(() => undo(db, { groupId: unlinked.groupId }, ctx, { force: true })).toThrow(AuditError);
+    expect(occurrencesOf(payment.id).find((row) => row.id === march.id)).toMatchObject({
+      status: 'missed',
+      bookingId: null,
+    });
+    expect(
+      db.select().from(booking).where(eq(booking.id, bookingId)).get()?.deletedAt,
+    ).not.toBeNull();
+    expect(marchIncome().receivedCents).toBe(0);
+  });
+
+  it('rematches a replacement after the linked booking is deleted', () => {
+    const payment = salary();
+    const oldId = salaryBooking(40_000);
+    matchOccurrences(db, TODAY);
+    deleteBooking(db, oldId, ctx);
+    const replacementId = salaryBooking(40_000, '2026-03-02');
+
+    expect(matchOccurrences(db, TODAY)).toMatchObject({ received: 1 });
+    const march = occurrencesOf(payment.id).find((row) => row.dueDate === '2026-03-01')!;
+    expect(march).toMatchObject({ status: 'received', bookingId: replacementId });
+    expect(marchIncome().receivedCents).toBe(40_000);
+  });
+
+  it('repairs legacy deleted links and never reports deleted booking money', () => {
+    const payment = salary();
+    const bookingId = salaryBooking(40_000);
+    matchOccurrences(db, TODAY);
+    db.update(booking)
+      .set({ deletedAt: '2026-03-21T00:00:00.000Z' })
+      .where(eq(booking.id, bookingId))
+      .run();
+
+    expect(upcoming(db, '2026-03-01', '2026-03-01')[0]).toMatchObject({
+      bookingId: null,
+      bookedAmountCents: null,
+      status: 'expected',
+    });
+    expect(marchIncome().receivedCents).toBe(0);
+    refreshOccurrences(db, TODAY);
+    expect(occurrencesOf(payment.id).find((row) => row.dueDate === '2026-03-01')).toMatchObject({
+      status: 'expected',
+      bookingId: null,
+    });
+    db.update(expectedOccurrence)
+      .set({ bookingId, status: 'received' })
+      .where(
+        eq(
+          expectedOccurrence.id,
+          occurrencesOf(payment.id).find((row) => row.dueDate === '2026-03-01')!.id,
+        ),
+      )
+      .run();
+    matchOccurrences(db, TODAY);
+    expect(occurrencesOf(payment.id).find((row) => row.dueDate === '2026-03-01')).toMatchObject({
+      status: 'missed',
+      bookingId: null,
+    });
+  });
+
+  it('keeps manual links outside the date window and refreshes their amount status only', () => {
+    const payment = salary();
+    const bookingId = salaryBooking(40_000, '2026-01-01');
+    const march = occurrencesOf(payment.id).find((row) => row.dueDate === '2026-03-01')!;
+    linkOccurrence(db, march.id, bookingId, ctx);
+    expect(occurrencesOf(payment.id).find((row) => row.id === march.id)).toMatchObject({
+      status: 'received',
+      bookingId,
+    });
+
+    updateBooking(
+      db,
+      bookingId,
+      { amountCents: 39_000, date: '2026-05-01', accountId: 'spar' },
+      ctx,
+    );
+    expect(occurrencesOf(payment.id).find((row) => row.id === march.id)).toMatchObject({
+      status: 'deviating',
+      bookingId,
+    });
+  });
+
+  it('uses version ranges, tolerance and original-currency amounts on linked edits', () => {
+    const ranged = createExpectedPayment(
+      db,
+      {
+        name: 'Ranged inflow',
+        kind: 'inflow',
+        accountId: 'giro',
+        payeeId: 'p1',
+        dueDay: 1,
+        startDate: '2026-01-01',
+        amountToleranceCents: 100,
+      },
+      { validFrom: '2026-01-01', amountCents: 40_000, amountMaxCents: 45_000 },
+      ctx,
+      TODAY,
+    ).payment;
+    const rangedBooking = salaryBooking(44_000);
+    const march = occurrencesOf(ranged.id).find((row) => row.dueDate === '2026-03-01')!;
+    linkOccurrence(db, march.id, rangedBooking, ctx);
+    updateBooking(db, rangedBooking, { amountCents: 45_050 }, ctx);
+    expect(occurrencesOf(ranged.id).find((row) => row.id === march.id)).toMatchObject({
+      status: 'received',
+      bookingId: rangedBooking,
+    });
+    updateBooking(db, rangedBooking, { amountCents: 45_101 }, ctx);
+    expect(occurrencesOf(ranged.id).find((row) => row.id === march.id)).toMatchObject({
+      status: 'deviating',
+      bookingId: rangedBooking,
+    });
+
+    const foreign = createExpectedPayment(
+      db,
+      {
+        name: 'USD outflow',
+        accountId: 'giro',
+        payeeId: 'p1',
+        dueDay: 8,
+        startDate: '2026-01-01',
+      },
+      { validFrom: '2026-01-01', amountCents: 1_000, currency: 'USD' },
+      ctx,
+      TODAY,
+    ).payment;
+    const foreignBooking = createBooking(
+      db,
+      {
+        accountId: 'giro',
+        date: '2026-03-08',
+        amountCents: -935,
+        payeeId: 'p1',
+        splits: [{ amountCents: -935 }],
+        originalAmountCents: -1_000,
+        originalCurrency: 'USD',
+        fxRateMicro: 935_000,
+      },
+      ctx,
+    );
+    matchOccurrences(db, TODAY);
+    const foreignMarch = occurrencesOf(foreign.id).find((row) => row.dueDate === '2026-03-08')!;
+    expect(occurrencesOf(foreign.id).find((row) => row.id === foreignMarch.id)).toMatchObject({
+      status: 'received',
+      bookingId: foreignBooking,
+    });
+    updateBooking(db, foreignBooking, { memo: 'foreign amount unchanged' }, ctx);
+    expect(occurrencesOf(foreign.id).find((row) => row.id === foreignMarch.id)).toMatchObject({
+      status: 'received',
+      bookingId: foreignBooking,
+    });
+    updateBooking(db, foreignBooking, { amountCents: -1_029, originalAmountCents: -1_100 }, ctx);
+    expect(occurrencesOf(foreign.id).find((row) => row.id === foreignMarch.id)).toMatchObject({
+      status: 'deviating',
+      bookingId: foreignBooking,
+    });
+  });
+
+  it('refreshes linked transfer mirror amounts', () => {
+    const payment = createExpectedPayment(
+      db,
+      {
+        name: 'Transfer inflow',
+        kind: 'inflow',
+        accountId: 'spar',
+        dueDay: 1,
+        startDate: '2026-01-01',
+      },
+      { validFrom: '2026-01-01', amountCents: 50_000 },
+      ctx,
+      TODAY,
+    ).payment;
+    const transfer = createTransfer(
+      db,
+      { fromAccountId: 'giro', toAccountId: 'spar', date: '2026-03-01', amountCents: 50_000 },
+      ctx,
+    );
+    const march = occurrencesOf(payment.id).find((row) => row.dueDate === '2026-03-01')!;
+    linkOccurrence(db, march.id, transfer.toBookingId, ctx);
+    updateBooking(db, transfer.fromBookingId, { amountCents: -60_000 }, ctx);
+    expect(occurrencesOf(payment.id).find((row) => row.id === march.id)).toMatchObject({
+      status: 'deviating',
+      bookingId: transfer.toBookingId,
+    });
   });
 });
