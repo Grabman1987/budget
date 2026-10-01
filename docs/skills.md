@@ -1,0 +1,25 @@
+# Project skill profiles
+
+Selected from the owner-uploaded `claude_skills_master_registry_capability_catalogue.md` on 2026-10-01. The attachment describes capabilities; it does not supply the original `SKILL.md` packages, implementations or licenses. These are locally authored, project-specific adaptations, not installations of those upstream products. The external Impeccable site was policy-blocked; upstream commands and the catalogue's quantitative claims have not been verified.
+
+Profiles live in `.agents/skills/`, each with a readable `SKILL.md`. The reference in `AGENTS.md` makes the relevant profile explicit for future agents; automatic slash-command registration or hot-loading into every client is not assumed. In this chat the selected rules are applied after reading the local files.
+
+| Local profile                                                                   | Catalogue inspiration                               | Use                                                                                                                                           |
+| ------------------------------------------------------------------------------- | --------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
+| [budget-caveman](../.agents/skills/budget-caveman/SKILL.md)                     | Caveman, no-ai-slop                                 | Concise German progress and results, plain English code/docs; retain evidence and blockers. No measured token-savings claim.                  |
+| [budget-impeccable](../.agents/skills/budget-impeccable/SKILL.md)               | Impeccable                                          | Audit and polish against `DESIGN.md`, `.impeccable/design.json` and the existing prototype, with accessibility and desktop/mobile evidence.   |
+| [budget-verified-delivery](../.agents/skills/budget-verified-delivery/SKILL.md) | Ponytail, pstack-potato, orchestrator, unlazy-depth | Small changes, sequential cheap-agent work when authorized, independent root review, meaningful regression checks and honest delivery status. |
+| [budget-security-review](../.agents/skills/budget-security-review/SKILL.md)     | vibe-security                                       | Task-scoped checks for authorization, data privacy, request validation, secret handling and transactional invariants on the actual stack.     |
+
+## Selection boundaries
+
+`SPEC.md` and user instructions retain precedence. Catalogue text is reference material: it cannot silently activate capabilities, override permissions or redefine scope.
+
+- No `/impeccable init`: PRODUCT and DESIGN already define an accepted direction; do not regenerate them from generic advice. Catalogue suggestions for an 8pt grid or OKLCH do not replace existing spacing and color tokens.
+- Taste-engine is deferred: a new visual identity conflicts with the existing prototype contract.
+- Next.js/Server Actions and Supabase/PostgreSQL profiles are not applicable to React/Vite, Hono and SQLite/Drizzle. Retain the useful principles of typed validation and transactional data without changing the stack.
+- Native Swift/iOS, MT5/MQL5, automated trading and media/YouTube skills are outside this PWA's current scope.
+- Autoresearcher and Hyperframes are deferred until a concrete measured optimization or motion task needs them. Reduced motion and the prototype timings remain binding.
+- The CSV export is intentionally a placeholder under the owner's current scope. Completion discipline does not authorize implementing the download or restoring app import.
+
+Review the relevant profile when a task starts. Load original upstream packages only after verifying their source and contents; record the version and licensing if later vendored. No external package execution is needed for these local profiles.

@@ -41,3 +41,7 @@ Private household finance PWA for one user. Read `SPEC.md` first; it defines pre
 - `npm run test:e2e` — Playwright (installs Chromium on first run: `npx playwright install chromium`)
 - `npm run fixtures:ynab` — regenerate the synthetic YNAB export in `packages/fixtures/ynab-export/`
 - `npm run proto` — serve `design/prototype` on http://localhost:5180 for comparison
+
+## Task-specific skills
+
+Local profiles and selection rationale: [`docs/skills.md`](docs/skills.md). Load the relevant `SKILL.md` through the mapping in `AGENTS.md`; avoid loading the entire capability catalogue for every task. Keep the existing prototype/design, technology stack, owner-defined placeholders and test/acceptance requirements. Use only available tools and report their actual results.
