@@ -1,6 +1,6 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type Page } from '@playwright/test';
-import { balance, createAccount, openAccount, pickCategory, toast } from './ledger-helpers';
+import { again, balance, createAccount, openAccount, pickCategory, toast } from './ledger-helpers';
 
 /**
  * The ledger end to end on the real server: accounts, bookings with split and transfer, edit in
@@ -16,7 +16,7 @@ const selectAll = async (page: Page) => {
 };
 
 test('accounts, bookings, split, transfer, undo and redo', async ({ page }, testInfo) => {
-  const tag = testInfo.project.name;
+  const tag = `${testInfo.project.name}${again(testInfo)}`;
   const giro = `Giro ${tag}`;
   const spar = `Tagesgeld ${tag}`;
   const shop = `Supermarkt ${tag}`;
@@ -107,7 +107,7 @@ test('accounts, bookings, split, transfer, undo and redo', async ({ page }, test
 test('Alle Buchungen: filter in the URL, search, bulk edit with undo', async ({
   page,
 }, testInfo) => {
-  const tag = testInfo.project.name;
+  const tag = `${testInfo.project.name}${again(testInfo)}`;
   const giro = `Sammel ${tag}`;
   await createAccount(page, giro, 'Giro', '500');
   // Uncategorised bookings cannot be captured any more (a category is required), so they are
@@ -187,7 +187,7 @@ test('Alle Buchungen: filter in the URL, search, bulk edit with undo', async ({
 });
 
 test('Kontostand prüfen: doppelt, Ausgleich, geprüft sperrt, undo', async ({ page }, testInfo) => {
-  const tag = testInfo.project.name;
+  const tag = `${testInfo.project.name}${again(testInfo)}`;
   const name = `Prüf ${tag}`;
   await createAccount(page, name, 'Giro', '500');
   await openAccount(page, name);
@@ -250,7 +250,7 @@ test('ledger pages with data: axe clean in both themes, no sideways scrolling', 
   page,
 }, testInfo) => {
   test.setTimeout(120_000);
-  const tag = testInfo.project.name;
+  const tag = `${testInfo.project.name}${again(testInfo)}`;
   const name = `Axe ${tag}`;
   await createAccount(page, name, 'Giro', '250');
   await openAccount(page, name);
