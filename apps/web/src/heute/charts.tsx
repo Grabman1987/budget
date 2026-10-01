@@ -1,6 +1,8 @@
 import {
   AxisLine,
   ChartSvg,
+  ElevationMark,
+  SlashTick,
   Graticule,
   Line,
   LineLegend,
@@ -11,10 +13,9 @@ import {
 } from '@budget/ui';
 import { scaleLinear } from 'd3-scale';
 import { useElementWidth } from '../charts/use-element-width';
-import { eur } from '../ledger/format';
+import { eur, eurParts, shortDay } from '../ledger/format';
 import type { Heute } from './api';
 
-const HEIGHT = 292;
 const number = new Intl.NumberFormat('de-AT', { maximumFractionDigits: 0 });
 const dayValue = (day: string) => Date.parse(`${day}T00:00:00Z`);
 
@@ -23,19 +24,53 @@ function useWidth() {
 }
 
 /** Budget-account balance from the Heute read model; solid is observed, dashed is forecast. */
-export function BalanceChart({ data }: { data: Heute }) {
+export function BalanceChart({
+  data,
+  chainOpen,
+  onToggleChain,
+}: {
+  data: Heute;
+  chainOpen: boolean;
+  onToggleChain: () => void;
+}) {
   const [ref, width] = useWidth();
   const { actual, forecast } = data.balance;
   const all = [...actual, ...forecast];
   if (all.length === 0) return <div ref={ref} className="heute-chart" />;
   return (
     <div ref={ref} className="heute-chart">
-      {width > 0 && <BalanceDrawing data={data} width={width} />}
+      {width > 0 && (
+        <BalanceDrawing
+          data={data}
+          width={width}
+          chainOpen={chainOpen}
+          onToggleChain={onToggleChain}
+        />
+      )}
     </div>
   );
 }
 
-function BalanceDrawing({ data, width }: { data: Heute; width: number }) {
+function BalanceDrawing({
+  data,
+  width,
+  chainOpen,
+  onToggleChain,
+}: {
+  data: Heute;
+  width: number;
+  chainOpen: boolean;
+  onToggleChain: () => void;
+}) {
+  const [figureRef, figureWidth] = useElementWidth<HTMLButtonElement>();
+  const narrow = width < 640;
+  const height = narrow ? 232 : 330;
+  const top = narrow ? 104 : 140;
+  const bottom = height - (narrow ? 26 : 30);
+  const left = narrow ? 40 : 48;
+  const right = width - 10;
+  const dimY = narrow ? 64 : 100;
+  const figure = eurParts(data.lead.freeCents);
   const { actual, forecast, low, salary } = data.balance;
   const days = [...actual, ...forecast];
   const start = Math.min(...days.map((d) => dayValue(d.day)));
@@ -48,8 +83,8 @@ function BalanceDrawing({ data, width }: { data: Heute; width: number }) {
   const yScale = scaleLinear()
     .domain([minValue - padValue, maxValue + padValue])
     .nice(4)
-    .range([HEIGHT - 30, 22]);
-  const xScale = (day: string) => 52 + ((dayValue(day) - start) / span) * (width - 120);
+    .range([bottom, top]);
+  const xScale = (day: string) => left + ((dayValue(day) - start) / span) * (right - left);
   const y = (value: number) => yScale(value);
   const actualPoints: Point[] = actual.map((d) => [xScale(d.day), y(d.balanceCents)]);
   const forecastPoints: Point[] = forecast.map((d) => [xScale(d.day), y(d.balanceCents)]);
@@ -68,62 +103,106 @@ function BalanceDrawing({ data, width }: { data: Heute; width: number }) {
       ? `Prognose bis ${forecast.at(-1)?.day} ${eur(forecast.at(-1)?.balanceCents ?? 0)}.`
       : 'keine Prognose für diesen Zeitraum.');
 
+  const paydayInRange =
+    dayValue(data.stand.payday.day) >= start && dayValue(data.stand.payday.day) <= end;
+  const x0 = todayInRange ? xScale(data.stand.today) : left;
+  const x1 = paydayInRange ? xScale(data.stand.payday.day) : right;
+  const center = (x0 + x1) / 2;
+  const annotationCollision =
+    low !== null && Math.abs(y(low.cents) - (narrow ? 40 : 48) - 6 - (top + 14)) < 22;
+  const salaryAtStart = annotationCollision && low !== null && xScale(low.day) >= width / 2;
   return (
-    <ChartSvg width={width} height={HEIGHT} label={label} testId="heute-balance-chart">
-      <Graticule x1={52} x2={width - 68} lines={ticks} />
-      <AxisLine x1={52} x2={width - 68} y={y(0)} />
-      {dayValue(data.stand.today) >= start && dayValue(data.stand.today) <= end && (
-        <TodayLine x={xScale(data.stand.today)} y1={22} y2={HEIGHT - 30} />
-      )}
-      {actualPoints.length > 1 && <StepLine points={actualPoints} kind="actual" />}
-      {forecastPoints.length > 1 && <Line points={forecastPoints} kind="forecast" />}
-      {low && (
-        <g>
-          <path
-            d={`M${xScale(low.day)} ${y(low.cents) - 16}l-5 -8h10z`}
-            className="heute-low-mark"
-          />
-          <text
+    <div className="heute-balance-drawing">
+      <button
+        ref={figureRef}
+        type="button"
+        className={`heute-lead-figure${data.lead.freeCents < 0 ? ' is-negative' : ''}`}
+        data-testid="heute-lead-value"
+        aria-label={`Frei verfügbar bis Gehalt: ${eur(data.lead.freeCents)}. Maßkette ${chainOpen ? 'ausblenden' : 'zeigen'}`}
+        aria-expanded={chainOpen}
+        aria-controls="heute-lead-chain"
+        onClick={onToggleChain}
+        style={{
+          left: Math.min(Math.max(center - figureWidth / 2, left), width - figureWidth - 2),
+          top: narrow ? 13 : 22,
+        }}
+      >
+        <span>{figure.whole}</span>
+        <small>,{figure.fraction} €</small>
+      </button>
+      <ChartSvg width={width} height={height} label={label} testId="heute-balance-chart">
+        <Graticule x1={left} x2={right} lines={ticks} />
+        <AxisLine x1={left} x2={right} y={y(0)} />
+        {dayValue(data.stand.today) >= start && dayValue(data.stand.today) <= end && (
+          <TodayLine x={xScale(data.stand.today)} y1={dimY + 6} y2={bottom} />
+        )}
+        {actualPoints.length > 1 && <StepLine points={actualPoints} kind="actual" />}
+        {forecastPoints.length > 1 && <Line points={forecastPoints} kind="forecast" />}
+        {low && (
+          <ElevationMark
             x={xScale(low.day)}
-            y={y(low.cents) - 28}
+            y={y(low.cents)}
+            shelf={narrow ? 40 : 48}
+            label={`Tiefpunkt ${eur(low.cents, { cents: false })}${narrow ? '' : ` · ${shortDay(low.day)}`}`}
+            align={xScale(low.day) < width / 2 ? 'start' : 'end'}
+          />
+        )}
+        {salary && (
+          <g>
+            <line
+              x1={xScale(salary.day)}
+              x2={xScale(salary.day)}
+              y1={top}
+              y2={bottom}
+              className="heute-salary-mark"
+            />
+            <text
+              x={salaryAtStart ? left + 8 : Math.min(width - 6, xScale(salary.day) - 8)}
+              y={top + 14}
+              textAnchor={salaryAtStart ? 'start' : 'end'}
+              className="svg-label-line heute-salary-label"
+            >
+              Gehalt +{eur(salary.cents)}
+            </text>
+          </g>
+        )}
+        {actualPoints.at(-1) && todayInRange && (
+          <circle
+            cx={actualPoints.at(-1)![0]}
+            cy={actualPoints.at(-1)![1]}
+            r={4}
+            className="dot-actual"
+          />
+        )}
+        <g className="heute-lead-dimension">
+          <line x1={x1} x2={x1} y1={dimY - 8} y2={bottom} className="l-ext" />
+          <line x1={x0} x2={x0} y1={dimY - 8} y2={dimY + 6} className="l-dim" />
+          <line x1={x0 - 10} x2={x1 + 6} y1={dimY} y2={dimY} className="l-dim" />
+          <SlashTick x={x0} y={dimY} size={9} />
+          <SlashTick x={x1} y={dimY} size={9} />
+          <text
+            x={Math.min(center, width - (narrow ? 70 : 110))}
+            y={narrow ? 82 : 120}
             textAnchor="middle"
             className="svg-label-line"
           >
-            Tiefpunkt {eur(low.cents)} · {low.day.slice(8, 10)}.
+            {data.lead.daysToPayday} {data.lead.daysToPayday === 1 ? 'Tag' : 'Tage'} bis Gehalt
+            {narrow ? '' : ` · ${shortDay(data.stand.payday.day)}`}
           </text>
         </g>
-      )}
-      {salary && (
-        <g>
-          <line
-            x1={xScale(salary.day)}
-            x2={xScale(salary.day)}
-            y1={22}
-            y2={HEIGHT - 30}
-            className="heute-salary-mark"
-          />
+        {xTickDays.map((tick) => (
           <text
-            x={Math.min(width - 6, xScale(salary.day) - 4)}
-            y={35}
-            textAnchor="end"
-            className="svg-label-line"
+            key={tick.label + tick.x}
+            x={tick.x}
+            y={height - 6}
+            textAnchor="middle"
+            className="svg-label"
           >
-            Gehalt +{eur(salary.cents)}
+            {tick.label}
           </text>
-        </g>
-      )}
-      {xTickDays.map((tick) => (
-        <text
-          key={tick.label + tick.x}
-          x={tick.x}
-          y={HEIGHT - 6}
-          textAnchor="middle"
-          className="svg-label"
-        >
-          {tick.label}
-        </text>
-      ))}
-    </ChartSvg>
+        ))}
+      </ChartSvg>
+    </div>
   );
 }
 
@@ -138,10 +217,11 @@ export function HeutePaceChart({ data }: { data: Heute }) {
 
 function PaceDrawing({ data, width }: { data: Heute; width: number }) {
   const m = data.pace;
+  const height = width < 640 ? 200 : 250;
   const narrow = width < 520;
   const left = 44;
   const right = narrow ? 52 : 92;
-  const bottom = HEIGHT - 30;
+  const bottom = height - 30;
   const max = Math.max(
     m.figures.limitCents,
     ...m.plan,
@@ -177,7 +257,7 @@ function PaceDrawing({ data, width }: { data: Heute; width: number }) {
   const summary = `Pace ${m.month}: ausgegeben ${eur(m.figures.spentCents)}, Plan bis heute ${eur(m.figures.planToDateCents)}, Prognose Monatsende ${eur(m.figures.forecastEndCents)} von ${eur(m.figures.limitCents)}.`;
   return (
     <>
-      <ChartSvg width={width} height={HEIGHT} label={summary} testId="heute-pace-chart">
+      <ChartSvg width={width} height={height} label={summary} testId="heute-pace-chart">
         <Graticule x1={left} x2={width - right} lines={ticks} />
         <AxisLine x1={left} x2={width - right} y={y(0)} />
         <AxisLine x1={left} x2={width - right} y={limitY} />
@@ -189,7 +269,7 @@ function PaceDrawing({ data, width }: { data: Heute; width: number }) {
         {actual.length > 1 && <StepLine points={actual} kind="actual" />}
         {forecast.length > 1 && <Line points={forecast} kind="forecast" />}
         {currentMonth && m.todayDay > 0 && <TodayLine x={xScale(m.todayDay)} y1={20} y2={bottom} />}
-        <XTicks y={HEIGHT - 7} ticks={xTicks} />
+        <XTicks y={height - 7} ticks={xTicks} />
       </ChartSvg>
       <LineLegend
         items={[
@@ -200,37 +280,6 @@ function PaceDrawing({ data, width }: { data: Heute; width: number }) {
         ]}
       />
     </>
-  );
-}
-
-export function NetWorthMiniChart({ series }: { series: Heute['netWorth']['series'] }) {
-  const [ref, width] = useWidth();
-  const values = series.map((p) => p.cents);
-  const min = Math.min(...values, 0);
-  const max = Math.max(...values, 0);
-  const yScale = scaleLinear().domain([min, max]).nice(3).range([92, 12]);
-  const points = series.map((p, i): Point => [
-    24 + (i / Math.max(1, series.length - 1)) * Math.max(0, width - 40),
-    yScale(p.cents),
-  ]);
-  const label = `Nettovermögen: ${series.length} Stände, zuletzt ${eur(series.at(-1)?.cents ?? 0)} am ${series.at(-1)?.day ?? ''}.`;
-  return (
-    <div ref={ref} className="heute-mini-chart">
-      {width > 0 && (
-        <ChartSvg width={width} height={106} label={label} testId="heute-networth-chart">
-          {points.length > 1 && <Line points={points} kind="actual" />}
-          {points.at(-1) && (
-            <circle cx={points.at(-1)![0]} cy={points.at(-1)![1]} r={3.5} className="dot-actual" />
-          )}
-          <text x={24} y={104} className="svg-label">
-            {series[0]?.day.slice(0, 7)}
-          </text>
-          <text x={width - 16} y={104} textAnchor="end" className="svg-label-line">
-            heute
-          </text>
-        </ChartSvg>
-      )}
-    </div>
   );
 }
 

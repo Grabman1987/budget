@@ -3,6 +3,7 @@
     display: grid;
     gap: 38px;
     margin: -4px auto 0;
+    width: 100%;
     max-width: 1240px;
     padding-bottom: 36px;
   }
@@ -36,11 +37,19 @@
     min-height: 44px;
   }
   .heute-lead-figure {
-    margin: 16px 7% 0 auto;
-    text-align: right;
+    position: absolute;
+    z-index: 1;
+    margin: 0;
+    padding: 0;
+    min-height: 44px;
+    border: 0;
+    background: transparent;
+    cursor: pointer;
+    white-space: nowrap;
+    text-align: left;
     color: var(--ink);
     font-family: var(--font-body);
-    font-size: clamp(42px, 6vw, 68px);
+    font-size: 68px;
     font-weight: 640;
     font-variant-numeric: tabular-nums;
     letter-spacing: -0.03em;
@@ -59,13 +68,13 @@
   .heute-mobile-next {
     display: none;
   }
-  .heute-window {
-    margin: 7px 7% 0 0;
-    color: var(--line);
-    font-family: var(--font-tech);
-    font-size: 12px;
-    font-weight: 600;
-    text-align: right;
+  .heute-balance-drawing {
+    position: relative;
+  }
+  .heute-lead-figure:focus-visible {
+    outline: 2px solid var(--line);
+    outline-offset: 4px;
+    border-radius: 4px;
   }
   .heute-chart {
     width: 100%;
@@ -140,10 +149,10 @@
   .heute-section {
     min-width: 0;
   }
-  .heute-section .section-head {
+  .heute-section .head {
     margin-bottom: 12px;
   }
-  .heute-section .section-head a {
+  .heute-section .head a {
     display: inline-flex;
     min-height: 44px;
     align-items: center;
@@ -151,8 +160,8 @@
     color: var(--ink-2);
     text-decoration: none;
   }
-  .heute-section .section-head a:hover,
-  .heute-section .section-head a:focus-visible {
+  .heute-section .head a:hover,
+  .heute-section .head a:focus-visible {
     color: var(--line);
   }
   .heute-figures {
@@ -231,16 +240,15 @@
     font-size: 13px;
     font-weight: 600;
   }
-  .heute-mini-chart {
-    width: 100%;
-    height: 106px;
-    margin: 8px 0;
+  .heute-net-composition {
+    margin-top: 12px;
   }
-  .heute-mini-chart .l-actual {
-    stroke-width: 2px;
+  .heute-net-composition.is-nonpositive .chain-minus text {
+    text-anchor: start;
+    transform: translate(10px, 16px);
   }
-  .heute-net-worth .chain-inline {
-    margin-top: 8px;
+  .heute-net-composition.is-nonpositive .chain-svg > text:last-child {
+    text-anchor: start;
   }
   .heute-list {
     margin: 0;
@@ -408,9 +416,6 @@
   .heute-state.is-ok {
     color: var(--line);
   }
-  .heute-state.is-action {
-    color: var(--red);
-  }
   .heute-booking {
     grid-template-columns: 12px minmax(0, 1fr) auto;
     gap: 8px;
@@ -484,17 +489,25 @@
       padding: 0 0 24px;
     }
     .heute-lead-head {
-      display: block;
+      align-items: center;
+      gap: 8px;
+    }
+    .heute-lead-head h2 {
+      margin: 0;
+      font-size: 18px;
+    }
+    .heute-lead-head p {
+      display: none;
     }
     .heute-lead-head .btn {
-      margin-top: 12px;
+      padding-inline: 6px;
+      font-size: 11px;
     }
     .heute-lead-figure {
-      margin: 22px 0 0;
-      font-size: clamp(42px, 13vw, 56px);
+      font-size: 40px;
     }
-    .heute-window {
-      margin-right: 0;
+    .heute-next-steps.has-promoted .rev-table tbody > tr:first-child {
+      display: none;
     }
     .heute-chart {
       min-height: 170px;

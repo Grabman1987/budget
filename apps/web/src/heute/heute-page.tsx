@@ -3,6 +3,8 @@ import {
   Button,
   ClassTag,
   DimensionChain,
+  DimensionChainDrawing,
+  DetailPanel,
   RevisionTable,
   RevisionTriangle,
   SectionHead,
@@ -13,13 +15,15 @@ import { useQuery } from '@tanstack/react-query';
 import { useNavigate, useSearch } from '@tanstack/react-router';
 import { useState } from 'react';
 import { AlertTriangle, ArrowDown, ArrowUp, ChevronRight, CircleCheck, Clock3 } from 'lucide-react';
-import { eur, eurParts, longDay, shortDay } from '../ledger/format';
+import { fetchAccounts } from '../ledger/api';
+import { LEDGER_KEY } from '../ledger/queries';
+import { eur, longDay, shortDay } from '../ledger/format';
 import { EmptyNote, ErrorNote, LoadingNote } from '../ledger/states';
 import { HEUTE } from '../nav/pages';
 import { PageFrame } from '../pages/placeholder-page';
 import { useMonth } from '../shell/use-month';
 import { AppLink } from '../shell/app-link';
-import { BalanceChart, HeutePaceChart, NetWorthMiniChart } from './charts';
+import { BalanceChart, HeutePaceChart } from './charts';
 import { heuteQuery, type Heute, type HeutePeriod } from './api';
 import './heute.css';
 
@@ -63,11 +67,13 @@ export function HeutePage() {
 
 function HeuteBody({ data }: { data: Heute }) {
   const [chainOpen, setChainOpen] = useState(false);
+  const [netDetail, setNetDetail] = useState<'liquid' | 'invested' | 'receivable' | 'debt' | null>(
+    null,
+  );
   const [leadDetail, setLeadDetail] = useState<'need' | 'want' | 'open' | null>(null);
   const [paceDetail, setPaceDetail] = useState<'spent' | 'plan' | 'forecast' | null>(null);
   const navigate = useNavigate();
   const net = data.netWorth;
-  const leadFigure = eurParts(data.lead.freeCents);
   const revisions: RevisionRow[] = data.nextSteps.items.map((item, index) => ({
     id: String(index + 1),
     letter: String.fromCharCode(65 + index),
@@ -103,13 +109,6 @@ function HeuteBody({ data }: { data: Heute }) {
       ? { onSelect: () => setLeadDetail('open') }
       : {}),
   }));
-  const netTerms: DimensionChainTerm[] = [
-    { label: 'Liquidität', value: cents(net.liquidCents) },
-    { label: 'Investiert', value: cents(net.investedCents), op: '+' },
-    { label: 'Forderungen', value: cents(net.receivableCents), op: '+' },
-    { label: 'Schulden', value: cents(net.debtCents), op: '+' },
-    { label: 'Nettovermögen', value: cents(net.totalCents), op: '=', result: true },
-  ];
   const previous = net.previousMonthEndCents;
   const deltaText =
     net.deltaBp === null
@@ -137,18 +136,11 @@ function HeuteBody({ data }: { data: Heute }) {
             {chainOpen ? 'Maßkette ausblenden' : 'Maßkette zeigen'}
           </Button>
         </div>
-        <div
-          className={`heute-lead-figure${data.lead.freeCents < 0 ? ' is-negative' : ''}`}
-          data-testid="heute-lead-value"
-        >
-          <span>{leadFigure.whole}</span>
-          <small>,{leadFigure.fraction} €</small>
-        </div>
-        <p className="heute-window">
-          {data.lead.daysToPayday} {data.lead.daysToPayday === 1 ? 'Tag' : 'Tage'} bis Gehalt ·{' '}
-          {longDay(data.stand.payday.day)}
-        </p>
-        <BalanceChart data={data} />
+        <BalanceChart
+          data={data}
+          chainOpen={chainOpen}
+          onToggleChain={() => setChainOpen((open) => !open)}
+        />
         {chainOpen && (
           <div id="heute-lead-chain" className="heute-chain-area">
             <DimensionChain
@@ -248,7 +240,10 @@ function HeuteBody({ data }: { data: Heute }) {
           </p>
         </section>
 
-        <section className="heute-section" aria-labelledby="heute-next-title">
+        <section
+          className={`heute-section heute-next-steps${urgent === revisions[0] ? ' has-promoted' : ''}`}
+          aria-labelledby="heute-next-title"
+        >
           <SectionHead
             id="heute-next-title"
             title="Nächste Schritte"
@@ -270,6 +265,7 @@ function HeuteBody({ data }: { data: Heute }) {
         <section className="heute-section" aria-labelledby="heute-pinned-title">
           <SectionHead
             id="heute-pinned-title"
+            detail={1}
             title="Angepinnte Envelopes"
             aside={
               <AppLink to="/plan/monat" search={{ monat: data.stand.month }}>
@@ -324,6 +320,7 @@ function HeuteBody({ data }: { data: Heute }) {
         <section className="heute-section" aria-labelledby="heute-upcoming-title">
           <SectionHead
             id="heute-upcoming-title"
+            detail={2}
             title="Anstehend · 14 Tage"
             aside={
               <AppLink to="/plan/erwartet">
@@ -373,6 +370,7 @@ function HeuteBody({ data }: { data: Heute }) {
         <section className="heute-section" aria-labelledby="heute-check-title">
           <SectionHead
             id="heute-check-title"
+            detail={3}
             title="Finanz-Check"
             aside={
               <AppLink to="/einstellungen/regelwerk">
@@ -391,9 +389,7 @@ function HeuteBody({ data }: { data: Heute }) {
                     <strong>{rule.name}</strong>
                     <span>{rule.valueText}</span>
                   </div>
-                  <span
-                    className={`heute-state is-${rule.status}${rule.actionNeeded ? ' is-action' : ''}`}
-                  >
+                  <span className={`heute-state is-${rule.status}`}>
                     <StatusIcon status={rule.status} />
                     {rule.status === 'ok'
                       ? 'erfüllt'
@@ -410,6 +406,7 @@ function HeuteBody({ data }: { data: Heute }) {
         <section className="heute-section heute-net-worth" aria-labelledby="heute-net-title">
           <SectionHead
             id="heute-net-title"
+            detail={4}
             title="Nettovermögen"
             aside={
               <AppLink to="/vermoegen/nettovermoegen">
@@ -425,8 +422,64 @@ function HeuteBody({ data }: { data: Heute }) {
             )}
             {eur(net.deltaCents, { cents: false, sign: true })} · {deltaText}
           </div>
-          <NetWorthMiniChart series={net.series} />
-          <DimensionChain terms={netTerms} label="Maßkette Nettovermögen" precision="cent" />
+          <div
+            data-testid="heute-networth-chart"
+            className={`heute-net-composition${net.totalCents <= 0 ? ' is-nonpositive' : ''}`}
+          >
+            <DimensionChainDrawing
+              label="Maßkette Nettovermögen"
+              parts={[
+                {
+                  key: 'liquid',
+                  label: 'Liquidität',
+                  cents: cents(net.liquidCents),
+                  fill: 'plain',
+                },
+                {
+                  key: 'invested',
+                  label: 'Investiert',
+                  cents: cents(net.investedCents),
+                  fill: 'need',
+                },
+                ...(net.debtCents > 0
+                  ? [
+                      {
+                        key: 'debt',
+                        label: 'Guthaben auf Schuldkonten',
+                        cents: cents(net.debtCents),
+                        fill: 'plain' as const,
+                      },
+                    ]
+                  : []),
+                ...(net.receivableCents > 0
+                  ? [
+                      {
+                        key: 'receivable',
+                        label: 'Forderungen',
+                        cents: cents(net.receivableCents),
+                        fill: 'plain' as const,
+                      },
+                    ]
+                  : []),
+              ]}
+              {...(net.debtCents < 0
+                ? {
+                    minus: {
+                      key: 'debt',
+                      label: 'Schulden',
+                      cents: cents(-net.debtCents),
+                      kind: 'debt' as const,
+                    },
+                  }
+                : {})}
+              result={{ label: 'Nettovermögen', cents: cents(net.totalCents) }}
+              onSelect={(key) => setNetDetail(key as NonNullable<typeof netDetail>)}
+            />
+          </div>
+          <p className="heute-note">
+            Wähle ein Maß für die Konten.
+            {net.debtCents < 0 ? ' Gestrichelt: Schulden, werden abgezogen.' : ''}
+          </p>
           <p className="heute-note">
             Stichtag {longDay(net.asOf)} · Vormonatsende {eur(previous)}
           </p>
@@ -435,6 +488,7 @@ function HeuteBody({ data }: { data: Heute }) {
         <section className="heute-section" aria-labelledby="heute-bookings-title">
           <SectionHead
             id="heute-bookings-title"
+            detail={5}
             title="Letzte Buchungen"
             aside={
               <AppLink to="/konten/buchungen">
@@ -474,7 +528,74 @@ function HeuteBody({ data }: { data: Heute }) {
           )}
         </section>
       </div>
+      <NetWorthDetail data={data} kind={netDetail} onClose={() => setNetDetail(null)} />
     </>
+  );
+}
+
+function NetWorthDetail({
+  data,
+  kind,
+  onClose,
+}: {
+  data: Heute;
+  kind: 'liquid' | 'invested' | 'receivable' | 'debt' | null;
+  onClose: () => void;
+}) {
+  const names = {
+    liquid: 'Liquidität',
+    invested: 'Investiert',
+    receivable: 'Forderungen',
+    debt: data.netWorth.debtCents > 0 ? 'Guthaben auf Schuldkonten' : 'Schulden',
+  };
+  const totals = {
+    liquid: data.netWorth.liquidCents,
+    invested: data.netWorth.investedCents,
+    receivable: data.netWorth.receivableCents,
+    debt: data.netWorth.debtCents,
+  };
+  const query = useQuery({
+    queryKey: [...LEDGER_KEY, 'accounts', data.netWorth.asOf],
+    queryFn: () => fetchAccounts(data.netWorth.asOf),
+    enabled: kind !== null,
+  });
+  const accounts =
+    query.data?.accounts.filter((account) => {
+      const value = account.valueEurCents;
+      if (value === null) return false;
+      if (kind === 'debt') return value < 0 || account.role === 'debt';
+      if (value < 0 || account.role === 'debt') return false;
+      if (kind === 'invested') return account.role === 'investment';
+      if (kind === 'receivable') return account.role === 'receivable';
+      return account.role === 'budget' || account.role === 'reserve';
+    }) ?? [];
+  return (
+    <DetailPanel open={kind !== null} title={kind ? names[kind] : ''} onClose={onClose}>
+      <div className="heute-breakdown">
+        <p>Stand {longDay(data.netWorth.asOf)}</p>
+        {query.isPending && <LoadingNote what="Konten" />}
+        {query.isError && (
+          <ErrorNote what="Konten" error={query.error} onRetry={() => void query.refetch()} />
+        )}
+        {query.data &&
+          (accounts.length ? (
+            <ul>
+              {accounts.map((account) => (
+                <li key={account.id}>
+                  <AppLink to={`/konten/${encodeURIComponent(account.id)}`}>{account.name}</AppLink>
+                  <strong>{eur(account.valueEurCents!)}</strong>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <EmptyNote>Keine Konten in diesem Maß.</EmptyNote>
+          ))}
+        <p className="heute-figure-detail">
+          <strong>{kind ? names[kind] : ''}</strong>
+          <strong>{kind ? eur(totals[kind]) : ''}</strong>
+        </p>
+      </div>
+    </DetailPanel>
   );
 }
 
