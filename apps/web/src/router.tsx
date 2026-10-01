@@ -109,6 +109,7 @@ const BUILT_PATHS = new Set<string>([
   '/konten',
   '/konten/buchungen',
   '/konten/kontakte',
+  '/konten/posteingang',
   EINSTELLUNGEN_KATEGORIEN.path,
   EINSTELLUNGEN_REGELWERK.path,
   PLAN_MONAT.path,
@@ -127,6 +128,12 @@ const bookingsRoute = createRoute({
   // Filters and sorting are URL parameters (German names, see ledger/bookings-search.ts).
   validateSearch: validateBookingsSearch,
   component: lazyRouteComponent(() => import('./ledger/bookings-page'), 'BookingsPage'),
+});
+const inboxRoute = createRoute({
+  getParentRoute: () => shellRoute,
+  path: '/konten/posteingang',
+  staticData: { meta: PAGES.find((p) => p.path === '/konten/posteingang')! },
+  component: lazyRouteComponent(() => import('./inbox/inbox-page'), 'InboxPage'),
 });
 const contactsRoute = createRoute({
   getParentRoute: () => shellRoute,
@@ -318,6 +325,7 @@ const routeTree = rootRoute.addChildren([
     overviewRoute,
     bookingsRoute,
     contactsRoute,
+    inboxRoute,
     accountRoute,
     reportsRoute,
     reportGroupRoute,

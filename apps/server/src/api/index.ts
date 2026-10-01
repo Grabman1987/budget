@@ -1,3 +1,4 @@
+import { inboxRoutes } from './inbox';
 import { contactRoutes } from './contacts';
 import type { Db } from '@budget/db';
 import { todayInVienna } from '@budget/domain';
@@ -52,6 +53,7 @@ export function createLedgerApi({
 }: LedgerApiOptions): Hono {
   const api = new Hono();
   api.route('/accounts', accountRoutes(db, today));
+  api.route('/inbox', inboxRoutes(db, today));
   api.route('/bookings', bookingRoutes(db));
   api.route('/payees', payeeRoutes(db));
   api.route('/categories', categoryRoutes(db));

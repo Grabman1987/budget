@@ -1,3 +1,4 @@
+import { InboxPanel } from '../inbox/inbox-page';
 import { DetailPanel } from '@budget/ui';
 import { useLocation, useNavigate, useParams, useRouter, useSearch } from '@tanstack/react-router';
 import { useState } from 'react';
@@ -47,6 +48,8 @@ export function PanelHost() {
       />
     );
   }
+
+  if (shown === 'posteingang') return <InboxPanel open={panel === 'posteingang'} onClose={close} />;
 
   return (
     <DetailPanel open={panel !== undefined} onClose={close} title={def.title}>
