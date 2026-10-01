@@ -21,6 +21,7 @@ import {
   listTargetVersions,
   listTrades,
   portfolioSummary,
+  portfolioPositions,
   investmentPreferences,
   setInvestmentCostMethod,
   restoreSecurity,
@@ -397,6 +398,7 @@ const portfolioQuery = z.object({
 
 export function portfolioRoutes(db: Db, today: () => string): Hono {
   const app = new Hono();
+  app.get('/positions', (c) => c.json(portfolioPositions(db, today())));
   app.get('/preferences', (c) => c.json(investmentPreferences(db)));
   app.patch('/preferences', async (c) => {
     const { costMethod } = await readBody(

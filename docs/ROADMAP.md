@@ -287,5 +287,10 @@ Price history (yfinance + Ariva, source per price), ECB rates, trades and holdin
 - [x] Depot view: a plain booking on a reference account is an external flow (inflow = Einlage, outflow = Entnahme); interest, dividends, fees and taxes stay performance
 - [x] Sample savings plans; tests incl. the 17.09.2026 portfolio figures of the prototype
 
+### P5.6 — Current portfolio positions and instrument detail
+- [x] `/vermoegen/portfolio`: original lead/chain and class-grouped positions, shared server value/basis/gain/shares, per-broker ownership and explicit unknown price/FX/basis; read-only instrument detail in `?produkt=` with actual account navigation
+- [x] Manual quote capture with date/source/currency, exact micro precision, existing audited price API and undo; literal projection/mutation tests and desktop/mobile light/dark browser evidence
+- [ ] Trade capture/edit/delete, instrument management, allocation/rebalancing, savings-plan controls and performance/report bodies remain later slices; Gate 3 private reconciliation remains open
+
 ## P6 Reports und Umstellung
 The 30 reports (SPEC §7), explorer, printable sheets, parallel run with reconciliation report. **Gate 4:** one month-end without difference, then retire remaining finance tools, including YNAB and PP. The prototype-only host was retired independently of this gate.

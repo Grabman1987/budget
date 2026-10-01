@@ -76,14 +76,14 @@ Prototype references: [Vermögen](../design/prototype/vermoegen.html),
 | I01 | Securities, cash/reference accounts, depots and asset classes | Engine/API | Complete investment management UI and privately mapped instruments/accounts |
 | I02 | Buy/sell, deliveries, splits, dividends, interest, fees and taxes | Engine/API | User capture/edit workflow, complete source histories and private statement comparison |
 | I03 | Trade linked atomically to its settlement booking | Engine/API | Private reconciliation; protected generic edit/delete/undo paths are implemented |
-| I04 | Historical holdings and daily valuations | Engine/API | Portfolio/product views and comparison against actual PP data |
+| I04 | Historical holdings and daily valuations | Partial UI + engine | Current positions and instrument detail are connected; historical product views and comparison against actual PP data remain |
 | I05 | Historical acquisition costs and booking-date FX | Engine/API | Full source history; explicit resolution of missing rates/basis in Gate 3 |
 | I06 | Moving-average default and optional FIFO | UI + engine | Private analytical comparison; persisted setting is in Einstellungen › Depots & Kryptos |
 | I07 | Realized/unrealized gains, including fully sold positions and later snapshots | Engine/API | Display and private reference reconciliation; unknown historical basis stays unknown |
 | I08 | Broker acquisition amounts, execution amounts, fees and withheld taxes | Partial | Retain and reconcile actual source values; no second withholding calculation or tax booking |
-| I09 | One security at multiple brokers; depot/platform/class aggregation | Engine/API | Portfolio UI and privately verified account/institution mapping |
+| I09 | One security at multiple brokers; depot/platform/class aggregation | Partial UI + engine | Current positions retain per-broker ownership; complete depot workflows and privately verified account/institution mapping remain |
 | I10 | Price histories, source per price, primary/fallback adapters | Engine/API | Actual identifiers, price conventions, authorized live-source validation and source settings UI |
-| I11 | Manual prices/valuations and undo | Partial | Manual-price API audit/undo is implemented and tested; complete wealth capture UI remains open; automatic refresh protection stays |
+| I11 | Manual prices/valuations and undo | Partial UI + engine | Instrument detail supports audited manual quotes and undo; other wealth capture UI remains open; automatic refresh protection stays |
 | I12 | Correct price freshness, initial refresh time and stale-source warnings | Partial | Explicit successful first-refresh timestamp and accepted live/source-status workflow |
 | I13 | ECB FX and original-currency amounts | Engine/API | End-to-end currency detail acceptance and complete private historical rates |
 | I14 | TTWROR, XIRR, Modified Dietz and external flows | Engine/API | Period/product/depot report UI; private PP equality with identical periods and conventions |
