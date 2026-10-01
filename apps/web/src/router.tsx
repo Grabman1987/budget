@@ -7,6 +7,7 @@ import {
   redirect,
 } from '@tanstack/react-router';
 import type { Period } from '@budget/domain';
+import type { HeutePeriod } from './heute/api';
 import { authStatusQuery, queryClient } from './auth/status-query';
 import { validateBookingsSearch } from './ledger/bookings-search';
 import { accountsQuery } from './ledger/queries';
@@ -43,6 +44,7 @@ import { isPanelId, type PanelId } from './shell/panels';
 const accountPage = () => import('./ledger/account-page');
 const overviewPage = () => import('./ledger/overview-page');
 const reportsPages = () => import('./pages/reports-pages');
+const heutePage = () => import('./heute/heute-page');
 
 const rootRoute = createRootRoute({
   // `?panel=` opens the side panel (desktop) or bottom sheet (phone) on any page.
@@ -53,10 +55,13 @@ const rootRoute = createRootRoute({
   ): {
     panel?: PanelId | undefined;
     monat?: string | undefined;
+    period?: HeutePeriod | undefined;
     zeitraum?: Period | undefined;
   } => ({
     panel: isPanelId(search['panel']) ? search['panel'] : undefined,
     monat: isMonth(search['monat']) ? search['monat'] : undefined,
+    period:
+      search['period'] === 'month' || search['period'] === 'payday' ? search['period'] : undefined,
     zeitraum: isZeitraum(search['zeitraum']) ? search['zeitraum'] : undefined,
   }),
   component: Outlet,
@@ -92,7 +97,12 @@ const redirectRoute = (path: string, to: string) =>
     },
   });
 
-const homeRoute = pageRoute('/', HEUTE);
+const homeRoute = createRoute({
+  getParentRoute: () => shellRoute,
+  path: '/',
+  staticData: { meta: HEUTE },
+  component: lazyRouteComponent(heutePage, 'HeutePage'),
+});
 const BUILT_PATHS = new Set<string>([
   SECURITY_META.path,
   INVESTMENT_SETTINGS_META.path,

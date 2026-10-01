@@ -5,6 +5,7 @@ import { monthLabel } from '../nav/month';
 import { VermoegenStand, ZeitraumSwitch } from '../wealth/frame';
 import type { PageMeta } from '../nav/pages';
 import { useMonth } from '../shell/use-month';
+import type { HeutePeriod } from '../heute/api';
 
 type Period = 'month' | 'payday';
 
@@ -25,6 +26,9 @@ export interface AreaHeadProps {
   placeholder?: boolean | undefined;
   /** Plan: the month's income in the title block. */
   income?: React.ReactNode;
+  heutePeriod?: HeutePeriod;
+  onHeutePeriodChange?: (period: HeutePeriod) => void;
+  standDay?: string | undefined;
 }
 
 /** Areas whose title cell stays visible on the phone (it carries the month switch). */
@@ -44,6 +48,9 @@ export function AreaHead({
   extraFields = [],
   placeholder,
   income,
+  heutePeriod,
+  onHeutePeriodChange,
+  standDay,
 }: AreaHeadProps) {
   const [month, shift] = useMonth();
   const [period, setPeriod] = useState<Period>('month');
@@ -58,15 +65,20 @@ export function AreaHead({
     case 'heute':
       heading = monthLabel(month);
       fields = [
-        stand,
+        {
+          label: 'Stand',
+          value: <StandValue day={standDay} label={standDay ? 'Heute' : undefined} none="…" />,
+        },
         {
           label: 'Zeitraum',
           value: (
             <Segmented
               label="Zeitraum"
               options={PERIODS}
-              value={period}
-              onChange={(value) => setPeriod(value)}
+              value={heutePeriod ?? period}
+              onChange={(value) =>
+                onHeutePeriodChange ? onHeutePeriodChange(value) : setPeriod(value)
+              }
             />
           ),
         },

@@ -3,6 +3,7 @@ import { Button, SectionHead, Switch } from '@budget/ui';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
 import { ErrorNote, LoadingNote } from '../ledger/states';
+import { HEUTE_KEY } from '../heute/api';
 import { EINSTELLUNGEN_REGELWERK } from '../nav/pages';
 import { PageFrame } from '../pages/placeholder-page';
 import { confirmItem, evaluateRules, patchRule, type ChecklistRow, type RuleRow } from './api';
@@ -48,6 +49,7 @@ export function RulesPage() {
         Promise.all([
           qc.invalidateQueries({ queryKey: [...RULES_KEY] }),
           qc.invalidateQueries({ queryKey: [...RULES_CHECK_KEY] }),
+          qc.invalidateQueries({ queryKey: HEUTE_KEY }),
         ]),
       )
       .catch(() => undefined);
