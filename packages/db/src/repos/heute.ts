@@ -1,0 +1,493 @@
+import {
+  addDays,
+  addMonths,
+  changeBp,
+  daysBetween,
+  evenDaily,
+  freeUntilPayday,
+  heuteWindow,
+  lastDayOfMonth,
+  liquidityForecast,
+  lowPoint,
+  monthOf,
+  netWorthDays,
+  netWorthParts,
+  nextPayday,
+  paceForecastCurve,
+  paceModel,
+  type BudgetMonth,
+  type FreeEnvelope,
+  type FreeUntilPayday,
+  type HeutePeriod,
+  type LowPoint,
+  type NetWorthParts,
+  type OpenOutflow,
+  type PaceFixed,
+  type PaceModel,
+  type PaceSpending,
+  type Payday,
+} from '@budget/domain';
+import { and, eq, gte, isNull, lte } from 'drizzle-orm';
+import { booking, bookingSplit, contact, expectedOccurrence, INCOME_TYPES } from '../schema';
+import { queryBookings } from './ledger-queries';
+import { cashSeries, netWorthAsOf } from './portfolio';
+import { forecastInputs, loadFacts, scheduled, type RuleFacts } from './rule-inputs';
+import { financeCheck, type FinanceCheck } from './rules';
+import type { Executor } from './types';
+
+/**
+ * The read model of Heute (concept §7.1, SPEC §3): one call, every figure from the domain
+ * (`freeUntilPayday`, `paceModel`, `liquidityForecast`, `financeCheck`, `netWorthAsOf`). It only
+ * reads. Occurrences come from the payment schedule (as for rule R07) and their status from the
+ * stored occurrences; a past occurrence without a stored row counts as settled.
+ */
+
+type OccurrenceStatus = 'expected' | 'received' | 'deviating' | 'missed';
+
+export interface HeuteOccurrence {
+  /** `null` until the occurrence was materialised (`POST /api/expected/refresh`). */
+  occurrenceId: string | null;
+  paymentId: string;
+  name: string;
+  kind: 'outflow' | 'inflow';
+  dueDate: string;
+  status: OccurrenceStatus;
+  /** Signed cents in EUR. */
+  amountCents: number;
+  accountId: string | null;
+  accountName: string | null;
+  contactName: string | null;
+  categoryId: string | null;
+  categoryName: string | null;
+  categoryClass: string | null;
+  /** Outflow: the envelope holds enough for it ("Rücklage voll"); inflow or no envelope: `null`. */
+  covered: boolean | null;
+}
+
+export interface HeutePinned {
+  id: string;
+  name: string;
+  icon: string | null;
+  class: string | null;
+  /** Verfügbar. */
+  availableCents: number;
+  assignedCents: number;
+  /** Carry plus assigned: what the envelope may spend this month. */
+  budgetedCents: number;
+  /** Positive spending (refunds net). */
+  spentCents: number;
+  /** Where spending stands if it followed the month evenly: `budgetedCents` × day / days. */
+  paceMarkCents: number;
+  overspentCents: number;
+}
+
+export interface NextStep {
+  kind: 'overspent' | 'uncategorized';
+  urgent: boolean;
+  categoryId: string | null;
+  categoryName: string | null;
+  /** Overspent: the amount to cover. Uncategorised: the summed amounts of the bookings. */
+  cents: number;
+  /** Overspent: 1. Uncategorised: the number of bookings. */
+  count: number;
+}
+
+export interface HeuteLastBooking {
+  id: string;
+  date: string;
+  payeeName: string | null;
+  /** `null` for a split booking. */
+  categoryName: string | null;
+  categoryClass: string | null;
+  memo: string | null;
+  amountCents: number;
+  status: string;
+  accountName: string;
+}
+
+export interface Heute {
+  stand: {
+    today: string;
+    month: string;
+    period: HeutePeriod;
+    from: string;
+    to: string;
+    payday: Payday & { daysToPayday: number };
+    /** Sum of the budget accounts. */
+    budgetBalanceCents: number;
+  };
+  lead: FreeUntilPayday;
+  balance: {
+    /** End-of-day balance of the budget accounts from the window start up to today. */
+    actual: { day: string; balanceCents: number }[];
+    /** From today (the start balance) to the end of the window; empty for a past month. */
+    forecast: { day: string; balanceCents: number }[];
+    /** The salary on the payday when it falls into the forecast window. */
+    salary: { day: string; cents: number } | null;
+    low: LowPoint | null;
+  };
+  pace: PaceModel & { forecast: number[]; previousMonth: string };
+  pinned: HeutePinned[];
+  upcoming14: HeuteOccurrence[];
+  financeCheck: {
+    counts: FinanceCheck['counts'];
+    keyRules: FinanceCheck['keyRules'];
+  };
+  netWorth: NetWorthParts & {
+    asOf: string;
+    previousMonthEndCents: number;
+    deltaCents: number;
+    /** Change against the previous month end in basis points; `null` from 0. */
+    deltaBp: number | null;
+    /** The 11 previous month ends and today, oldest first. */
+    series: { day: string; cents: number }[];
+  };
+  lastBookings: HeuteLastBooking[];
+  nextSteps: { items: NextStep[]; count: number };
+}
+
+export interface HeuteQuery {
+  today: string;
+  period?: HeutePeriod;
+  /** `YYYY-MM`; default the month of today. */
+  month?: string;
+}
+
+const UPCOMING_DAYS = 14;
+const OPEN_LOOKBACK_DAYS = 31;
+
+const roundDiv = (a: number, b: number): number => Math.floor((2 * a + b) / (2 * b));
+const earliest = (a: string, b: string): string => (a < b ? a : b);
+const latest = (a: string, b: string): string => (a > b ? a : b);
+
+/** Scheduled occurrences of the budget accounts in `from..to` with their status and labels. */
+function occurrencesBetween(
+  db: Executor,
+  f: RuleFacts,
+  from: string,
+  to: string,
+  today: string,
+  budget: BudgetMonth | undefined,
+): HeuteOccurrence[] {
+  const stored = new Map(
+    db
+      .select()
+      .from(expectedOccurrence)
+      .where(
+        and(
+          isNull(expectedOccurrence.deletedAt),
+          gte(expectedOccurrence.dueDate, from),
+          lte(expectedOccurrence.dueDate, to),
+        ),
+      )
+      .all()
+      .map((o) => [`${o.expectedPaymentId}|${o.dueDate}`, o]),
+  );
+  const accounts = new Map(f.accounts.map((a) => [a.id, a.name]));
+  const contacts = new Map(
+    db
+      .select()
+      .from(contact)
+      .all()
+      .map((c) => [c.id, c.name]),
+  );
+  return scheduled(f, from, to, today)
+    .filter((o) => o.onBudget)
+    .map((o): HeuteOccurrence => {
+      const row = stored.get(`${o.payment.id}|${o.dueDate}`);
+      const envelope = o.category ? budget?.envelopes[o.category.id] : undefined;
+      return {
+        occurrenceId: row?.id ?? null,
+        paymentId: o.payment.id,
+        name: o.payment.name,
+        kind: o.payment.kind,
+        dueDate: o.dueDate,
+        status: row?.status ?? (o.dueDate >= today ? 'expected' : 'received'),
+        amountCents: o.cents,
+        accountId: o.payment.accountId,
+        accountName: o.payment.accountId ? (accounts.get(o.payment.accountId) ?? null) : null,
+        contactName: o.payment.contactId ? (contacts.get(o.payment.contactId) ?? null) : null,
+        categoryId: o.category?.id ?? null,
+        categoryName: o.category?.name ?? null,
+        categoryClass: o.category?.class ?? null,
+        covered:
+          o.payment.kind === 'outflow' && envelope ? envelope.availableCents >= -o.cents : null,
+      };
+    })
+    .sort(
+      (a, b) =>
+        a.dueDate.localeCompare(b.dueDate) ||
+        a.name.localeCompare(b.name) ||
+        a.paymentId.localeCompare(b.paymentId),
+    );
+}
+
+/**
+ * What Heute offers as next steps until the inbox (P3.10) takes over: the overspent envelopes of
+ * the month (most overspent first, urgent) and the uncategorised bookings on budget accounts.
+ */
+export function nextSteps(
+  db: Executor,
+  today: string,
+  facts: RuleFacts = loadFacts(db, today),
+): Heute['nextSteps'] {
+  const month = facts.budgetByMonth.get(monthOf(today));
+  const items: NextStep[] = [];
+  for (const c of facts.categories) {
+    const overspent = month?.envelopes[c.id]?.overspentCents ?? 0;
+    if (overspent > 0)
+      items.push({
+        kind: 'overspent',
+        urgent: true,
+        categoryId: c.id,
+        categoryName: c.name,
+        cents: overspent,
+        count: 1,
+      });
+  }
+  items.sort(
+    (a, b) => b.cents - a.cents || (a.categoryName ?? '').localeCompare(b.categoryName ?? ''),
+  );
+
+  const onBudget = new Set(facts.accounts.filter((a) => a.onBudget).map((a) => a.id));
+  const uncategorized = db
+    .select({ cents: bookingSplit.amountCents, accountId: booking.accountId })
+    .from(bookingSplit)
+    .innerJoin(booking, eq(booking.id, bookingSplit.bookingId))
+    .where(
+      and(
+        isNull(booking.deletedAt),
+        isNull(booking.transferId),
+        isNull(bookingSplit.transferId),
+        isNull(bookingSplit.categoryId),
+        isNull(bookingSplit.incomeTypeId),
+        lte(booking.date, today),
+      ),
+    )
+    .all()
+    .filter((s) => onBudget.has(s.accountId));
+  if (uncategorized.length > 0)
+    items.push({
+      kind: 'uncategorized',
+      urgent: false,
+      categoryId: null,
+      categoryName: null,
+      cents: uncategorized.reduce((a, s) => a + s.cents, 0),
+      count: uncategorized.length,
+    });
+  return { items, count: items.reduce((a, i) => a + i.count, 0) };
+}
+
+export function heute(db: Executor, query: HeuteQuery): Heute {
+  const today = query.today;
+  const month = query.month ?? monthOf(today);
+  const facts = loadFacts(db, latest(lastDayOfMonth(month), today));
+  const nw = netWorthAsOf(db, today);
+  const todayBudget = facts.budgetByMonth.get(monthOf(today));
+  const monthBudget = facts.budgetByMonth.get(month);
+  const categories = new Map(facts.categories.map((c) => [c.id, c]));
+  const budgetAccounts = facts.accounts.filter((a) => a.onBudget && a.role === 'budget');
+  const budgetIds = budgetAccounts.map((a) => a.id);
+  const sumBudget = (balanceOf: (id: string) => number) =>
+    budgetIds.reduce((s, id) => s + balanceOf(id), 0);
+
+  // ---- occurrences, payday, window ----
+  const all = occurrencesBetween(
+    db,
+    facts,
+    earliest(`${month}-01`, addDays(today, -OPEN_LOOKBACK_DAYS)),
+    latest(lastDayOfMonth(month), addDays(today, 400)),
+    today,
+    todayBudget,
+  );
+  const isSalary = (paymentId: string) =>
+    facts.payments.find((p) => p.id === paymentId)?.incomeTypeId === INCOME_TYPES.salary.id;
+  const salary = all.filter(
+    (o) => o.kind === 'inflow' && o.status === 'expected' && isSalary(o.paymentId),
+  );
+  const payday = nextPayday(
+    salary.map((o) => o.dueDate),
+    today,
+  );
+  const window = heuteWindow(query.period ?? 'month', month, today, payday.day);
+
+  // ---- lead: free until payday ----
+  const envelopes: FreeEnvelope[] = [];
+  for (const c of facts.categories) {
+    if (c.class !== 'need' && c.class !== 'want') continue;
+    envelopes.push({
+      id: c.id,
+      name: c.name,
+      class: c.class,
+      availableCents: todayBudget?.envelopes[c.id]?.availableCents ?? 0,
+    });
+  }
+  // Open = still expected, not covered by a Zukunft envelope (those are transfers, not spending).
+  const openOutflows: OpenOutflow[] = all
+    .filter((o) => o.kind === 'outflow' && o.status === 'expected' && o.categoryClass !== 'future')
+    .map((o) => ({
+      id: o.occurrenceId ?? `${o.paymentId}|${o.dueDate}`,
+      label: o.name,
+      day: o.dueDate,
+      cents: -o.amountCents,
+    }));
+  const lead = freeUntilPayday({ envelopes, openOutflows, payday: payday.day, today });
+
+  // ---- balance: actual up to today, forecast after ----
+  const actualDays: string[] = [];
+  for (let d = window.from; d <= window.to && d <= today; d = addDays(d, 1)) actualDays.push(d);
+  const series = cashSeries(db, actualDays, budgetIds);
+  const actual = actualDays.map((day, i) => ({
+    day,
+    balanceCents: sumBudget((id) => series.get(id)?.[i] ?? 0),
+  }));
+  let forecast: Heute['balance']['forecast'] = [];
+  let salaryJump: Heute['balance']['salary'] = null;
+  let low: LowPoint | null = null;
+  if (window.to > today && budgetAccounts.length > 0) {
+    const inputs = forecastInputs(facts, today, nw);
+    const run = liquidityForecast({
+      startDay: today,
+      startCents: inputs.startCents,
+      days: daysBetween(today, window.to),
+      items: inputs.items,
+      variablePerDay: evenDaily(() => inputs.variableMonthlyCents),
+    });
+    forecast = run.days.map((d) => ({ day: d.day, balanceCents: d.balanceCents }));
+    low = lowPoint(run.days, run.days.length - 1);
+    const jump = salary.filter((o) => o.dueDate === payday.day && o.dueDate > today);
+    if (payday.source === 'salary' && payday.day <= window.to && jump.length > 0)
+      salaryJump = { day: payday.day, cents: jump.reduce((a, o) => a + o.amountCents, 0) };
+  } else if (actual.length > 0) {
+    const min = actual.reduce((a, b) => (b.balanceCents < a.balanceCents ? b : a));
+    low = { day: min.day, index: actualDays.indexOf(min.day), cents: min.balanceCents };
+  }
+
+  // ---- pace of Bedarf and Wunsch ----
+  const paceCategory = (id: string | null) => {
+    const c = id ? categories.get(id) : undefined;
+    return c?.class === 'need' || c?.class === 'want';
+  };
+  const budgetSet = new Set(budgetIds);
+  const limitCents = facts.categories
+    .filter((c) => paceCategory(c.id))
+    .reduce((s, c) => s + (monthBudget?.envelopes[c.id]?.assignedCents ?? 0), 0);
+  const fixed: PaceFixed[] = all
+    .filter(
+      (o) =>
+        o.kind === 'outflow' &&
+        monthOf(o.dueDate) === month &&
+        paceCategory(o.categoryId) &&
+        o.status !== 'missed',
+    )
+    .map((o) => ({
+      day: o.dueDate,
+      cents: -o.amountCents,
+      settled: o.status === 'received' || o.status === 'deviating',
+    }));
+  const spending: PaceSpending[] = facts.ledgerSplits
+    .filter((s) => paceCategory(s.categoryId) && budgetSet.has(s.accountId))
+    .map((s) => ({ day: s.date, cents: -s.amountCents }));
+  const model = paceModel({
+    month,
+    today,
+    limitCents,
+    fixed,
+    spending: spending.filter((s) => monthOf(s.day) === month),
+    previousSpending: spending.filter((s) => monthOf(s.day) === addMonths(month, -1)),
+  });
+
+  // ---- pinned envelopes, in the order they were pinned ----
+  const pinned: HeutePinned[] = facts.categories
+    .filter((c) => c.pinnedAt !== null)
+    .sort(
+      (a, b) =>
+        (a.pinnedAt as string).localeCompare(b.pinnedAt as string) || a.name.localeCompare(b.name),
+    )
+    .map((c) => {
+      const e = monthBudget?.envelopes[c.id];
+      const budgetedCents = (e?.carryCents ?? 0) + (e?.assignedCents ?? 0);
+      return {
+        id: c.id,
+        name: c.name,
+        icon: c.icon,
+        class: c.class,
+        availableCents: e?.availableCents ?? 0,
+        assignedCents: e?.assignedCents ?? 0,
+        budgetedCents,
+        spentCents: -(e?.activityCents ?? 0),
+        paceMarkCents: roundDiv(Math.max(0, budgetedCents) * model.todayDay, model.daysInMonth),
+        overspentCents: e?.overspentCents ?? 0,
+      };
+    });
+
+  // ---- upcoming, Finanz-Check, net worth, bookings, next steps ----
+  const upcoming14 = all.filter(
+    (o) => o.dueDate >= today && o.dueDate <= addDays(today, UPCOMING_DAYS),
+  );
+  const check = financeCheck(db, today, facts);
+
+  const roles = new Map(facts.accounts.map((a) => [a.id, a.role]));
+  const parts = netWorthParts(
+    Object.entries(nw.byAccount).flatMap(([id, valueCents]) => {
+      const role = roles.get(id);
+      return role ? [{ role, valueCents }] : [];
+    }),
+  );
+  const nwSeries = netWorthDays(today).map((day) => ({
+    day,
+    cents: day === today ? nw.totalCents : netWorthAsOf(db, day).totalCents,
+  }));
+  const previousMonthEndCents = nwSeries[nwSeries.length - 2]?.cents ?? nw.totalCents;
+
+  const lastBookings: HeuteLastBooking[] = queryBookings(db, { limit: 5, to: today }).items.map(
+    (b) => {
+      const first = b.splits[0];
+      const single = b.splits.length === 1 ? first : undefined;
+      const categoryId = single?.categoryId ?? null;
+      return {
+        id: b.id,
+        date: b.date,
+        payeeName: b.payeeName,
+        categoryName: single?.categoryName ?? null,
+        categoryClass: (categoryId ? categories.get(categoryId)?.class : null) ?? null,
+        memo: b.memo ?? first?.memo ?? null,
+        amountCents: b.amountCents,
+        status: b.status,
+        accountName: b.accountName,
+      };
+    },
+  );
+
+  return {
+    stand: {
+      today,
+      month,
+      period: window.period,
+      from: window.from,
+      to: window.to,
+      payday: { ...payday, daysToPayday: lead.daysToPayday },
+      budgetBalanceCents: sumBudget((id) => nw.byAccount[id] ?? 0),
+    },
+    lead,
+    balance: { actual, forecast, salary: salaryJump, low },
+    pace: {
+      ...model,
+      forecast: paceForecastCurve(model, fixed),
+      previousMonth: addMonths(month, -1),
+    },
+    pinned,
+    upcoming14,
+    financeCheck: { counts: check.counts, keyRules: check.keyRules },
+    netWorth: {
+      ...parts,
+      asOf: today,
+      previousMonthEndCents,
+      deltaCents: nw.totalCents - previousMonthEndCents,
+      deltaBp: changeBp(nw.totalCents, previousMonthEndCents),
+      series: nwSeries,
+    },
+    lastBookings,
+    nextSteps: nextSteps(db, today, facts),
+  };
+}

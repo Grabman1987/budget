@@ -10,6 +10,7 @@ import {
   moveMoney,
   renameCategoryGroup,
   setCategoryHidden,
+  setCategoryPinned,
   setCategoryTarget,
   sortCategories,
   splitOffCandidates,
@@ -98,13 +99,14 @@ export function categoryRoutes(db: Db): Hono {
   });
 
   app.patch('/:id', async (c) => {
-    const { hidden, target, ...patch } = await readBody(c, categoryPatch);
+    const { hidden, pinned, target, ...patch } = await readBody(c, categoryPatch);
     const id = c.req.param('id');
     const ctx = audit();
     const row = db.transaction((tx) => {
       const changes = defined<Parameters<typeof updateCategory>[2]>(patch);
       let updated = updateCategory(tx, id, changes, ctx);
       if (hidden !== undefined) updated = setCategoryHidden(tx, id, hidden, ctx);
+      if (pinned !== undefined) updated = setCategoryPinned(tx, id, pinned, ctx);
       if (target) setTarget(tx, id, target, ctx);
       return updated;
     });
