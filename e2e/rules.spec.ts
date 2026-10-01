@@ -1,0 +1,191 @@
+import AxeBuilder from '@axe-core/playwright';
+import type { Page } from '@playwright/test';
+import { mkdirSync, rmSync, statSync } from 'node:fs';
+import { SAMPLE_URL, sampleTest as test, expect as baseExpect } from './sample';
+import { expectScreenshot } from './visual';
+
+/**
+ * Einstellungen › Regelwerk on the seeded sample server (17.09.2026). The sample server is shared by
+ * every spec and both viewports, so the write test runs once (desktop) and undoes what it writes.
+ */
+
+// Both viewport projects run in parallel against the one sample server, and some tests here write
+// (and undo) the rule book that the others read and compare as screenshots. A directory is the lock
+// (mkdir is atomic): the tests of this file run one after the other across both projects.
+const LOCK = 'test-results/.rules-spec-lock';
+test.beforeEach(async () => {
+  // Waiting for the lock counts against the test's time.
+  test.setTimeout(240_000);
+  mkdirSync('test-results', { recursive: true });
+  for (;;) {
+    try {
+      mkdirSync(LOCK);
+      return;
+    } catch {
+      // A lock left behind by a crashed worker expires after two minutes.
+      try {
+        if (Date.now() - statSync(LOCK).mtimeMs > 120_000) rmSync(LOCK, { recursive: true });
+      } catch {
+        /* released meanwhile */
+      }
+      await new Promise((resolve) => setTimeout(resolve, 150));
+    }
+  }
+});
+test.afterEach(async ({ page }) => {
+  // A failed write test must not leave the shared rule book changed.
+  const patch = (path: string, data: object) =>
+    page.request.patch(`/api/rules/${path}`, { data, headers: { origin: SAMPLE_URL } });
+  try {
+    await patch('R15', { enabled: true });
+    await patch('R02', { params: { minMonths: 3 } });
+    await patch('checklist/S1-1', { confirmed: false });
+  } finally {
+    rmSync(LOCK, { recursive: true, force: true });
+  }
+});
+
+// A loaded machine answers slowly; the rule book is derived from the whole ledger.
+const expect = baseExpect.configure({ timeout: 15_000 });
+
+const toast = (page: Page) => page.locator('.toast.is-open');
+const violations = async (page: Page) =>
+  (
+    await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa']).analyze()
+  ).violations
+    .filter((v) => v.impact === 'serious' || v.impact === 'critical')
+    .map((v) => ({ rule: v.id, targets: v.nodes.slice(0, 3).map((n) => n.target.join(' ')) }));
+
+interface Check {
+  counts: { ok: number; warn: number; bad: number; total: number };
+  stage: { stage: number };
+}
+
+test('stages and rules show the rule book, axe clean in both themes', async ({ page }) => {
+  await page.goto('/einstellungen/regelwerk');
+  await expect(page.getByRole('heading', { name: 'Stufen', level: 2 })).toBeVisible();
+  await expect(page.getByText('aktuell Stufe 2 · automatisch nach Nettovermögen')).toBeVisible();
+  await expect(page.getByText('16 von 16 aktiv')).toBeVisible();
+  // Three stage columns, the current one marked; 14 checklist rows, 16 rules.
+  await expect(page.locator('.rw-stage')).toHaveCount(3);
+  await expect(page.locator('.rw-stage.is-cur')).toContainText('Aufbau');
+  await expect(page.locator('.rw-stage li')).toHaveCount(14);
+  await expect(page.locator('.rw-rules > li')).toHaveCount(16);
+  await expect(page.locator('.rw-rules > li', { hasText: 'R02' })).toContainText(
+    'min. 3, Ziel 6 Monate',
+  );
+  // Items the app cannot compute carry a confirmation; items of a rule do not.
+  await expect(page.getByRole('checkbox', { name: 'erledigt' })).toHaveCount(7);
+
+  await page.emulateMedia({ colorScheme: 'light', reducedMotion: 'reduce' });
+  expect(await violations(page), 'light').toEqual([]);
+  await expectScreenshot(page, 'regelwerk-light.png', { fullPage: true });
+  await page.emulateMedia({ colorScheme: 'dark', reducedMotion: 'reduce' });
+  expect(await violations(page), 'dark').toEqual([]);
+  await expectScreenshot(page, 'regelwerk-dark.png', { fullPage: true });
+});
+
+test('the threshold panel shows status and next step and is axe clean', async ({ page }) => {
+  await page.goto('/einstellungen/regelwerk');
+  await page.getByRole('button', { name: 'Schwelle R02 Notgroschen' }).click();
+  const panel = page.getByRole('dialog', { name: 'R02 Notgroschen' });
+  await expect(panel).toBeVisible();
+  await expect(panel).toContainText('2,5 Monate');
+  await expect(panel).toContainText('verletzt');
+  await expect(panel).toContainText('Nächster Schritt');
+  await expect(panel.getByLabel('Mindestens')).toHaveValue('3');
+  await expect(panel.getByLabel('Ziel')).toHaveValue('6');
+  expect(await violations(page), 'panel').toEqual([]);
+  // A value outside the range is refused before anything is sent.
+  await panel.getByLabel('Mindestens').fill('5000');
+  await expect(panel.getByRole('alert')).toContainText('Zwischen 0 und 1200');
+  await expect(panel.getByRole('button', { name: 'Speichern' })).toBeDisabled();
+  await page.keyboard.press('Escape');
+  await expect(panel).toBeHidden();
+});
+
+test('phone: switches and buttons are 44 px targets', async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== 'mobile', 'phone layout only');
+  await page.goto('/einstellungen/regelwerk');
+  await expect(page.getByText('16 von 16 aktiv')).toBeVisible();
+  const heights = await page
+    .locator('.rw-rules .switch, .rw-rules .btn, .rw-stage .switch')
+    .evaluateAll((els) => els.map((el) => el.getBoundingClientRect().height));
+  expect(heights.length).toBeGreaterThan(40);
+  for (const h of heights) expect(h).toBeGreaterThanOrEqual(43.5);
+  // Stage blocks are stacked.
+  const tops = await page
+    .locator('.rw-stage')
+    .evaluateAll((els) => els.map((el) => el.getBoundingClientRect().top));
+  expect(tops[0]).toBeLessThan(tops[1]!);
+  expect(tops[1]).toBeLessThan(tops[2]!);
+});
+
+test('R15 off changes the Finanz-Check counts, R02 minimum 3 → 2 flips its status, both undone', async ({
+  page,
+}, testInfo) => {
+  test.skip(testInfo.project.name !== 'desktop', 'writes to the shared sample server once');
+  const check = async () => (await (await page.request.get('/api/rules/check')).json()) as Check;
+  const before = await check();
+  await page.goto('/einstellungen/regelwerk');
+  await expect(page.getByText('16 von 16 aktiv')).toBeVisible();
+
+  // R15 (Spekulativer Anteil, verletzt in the sample) off: one rule less in the Finanz-Check.
+  const r15 = page.getByRole('switch', { name: 'R15 Spekulativer Anteil' });
+  await expect(r15).toBeChecked();
+  await r15.click();
+  await expect(toast(page)).toContainText('R15 Spekulativer Anteil: aus');
+  await expect(r15).not.toBeChecked();
+  await expect(page.getByText('15 von 16 aktiv')).toBeVisible();
+  const off = await check();
+  expect(off.counts.total).toBe(before.counts.total - 1);
+  expect(off.counts.bad).toBe(before.counts.bad - 1);
+  await toast(page).getByRole('button', { name: 'Rückgängig' }).click();
+  await expect(r15).toBeChecked();
+  await expect(page.getByText('16 von 16 aktiv')).toBeVisible();
+  expect(await check()).toEqual(before);
+
+  // R02: minimum from 3 to 2 months turns "verletzt" into "Warnung".
+  await page.getByRole('button', { name: 'Schwelle R02 Notgroschen' }).click();
+  const panel = page.getByRole('dialog', { name: 'R02 Notgroschen' });
+  await expect(panel).toContainText('verletzt');
+  await panel.getByLabel('Mindestens').fill('2');
+  await panel.getByRole('button', { name: 'Speichern' }).click();
+  await expect(toast(page)).toContainText('R02 Notgroschen: Schwelle gespeichert.');
+  await expect(panel).toContainText('Warnung');
+  await expect(panel.getByLabel('Mindestens')).toHaveValue('2');
+  const flipped = await check();
+  expect(flipped.counts.bad).toBe(before.counts.bad - 1);
+  expect(flipped.counts.warn).toBe(before.counts.warn + 1);
+  await toast(page).getByRole('button', { name: 'Rückgängig' }).click();
+  await expect(panel).toContainText('verletzt');
+  await expect(panel.getByLabel('Mindestens')).toHaveValue('3');
+  expect(await check()).toEqual(before);
+  await page.keyboard.press('Escape');
+  await expect(page.locator('.rw-rules > li', { hasText: 'R02' })).toContainText(
+    'min. 3, Ziel 6 Monate',
+  );
+});
+
+test('an item the app cannot compute is confirmed and reopened by the owner', async ({
+  page,
+}, testInfo) => {
+  test.skip(testInfo.project.name !== 'desktop', 'writes to the shared sample server once');
+  const checklist = async () =>
+    (
+      (await (await page.request.get('/api/rules/check')).json()) as {
+        checklist: { done: number };
+      }
+    ).checklist.done;
+  const before = await checklist();
+  await page.goto('/einstellungen/regelwerk');
+  const box = page.getByRole('checkbox', { name: 'erledigt' }).first();
+  await expect(box).not.toBeChecked();
+  await box.click();
+  await expect(toast(page)).toContainText('erledigt');
+  await expect(box).toBeChecked();
+  expect(await checklist()).toBe(before + 1);
+  await toast(page).getByRole('button', { name: 'Rückgängig' }).click();
+  await expect(box).not.toBeChecked();
+  expect(await checklist()).toBe(before);
+});
