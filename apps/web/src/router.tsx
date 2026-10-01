@@ -16,6 +16,7 @@ import {
   EINSTELLUNGEN_KATEGORIEN,
   IMPORT_REPORT,
   PLAN_MONAT,
+  PLAN_SPARZIELE,
   HEUTE,
   KONTEN_BUCHUNGEN_META,
   KONTEN_META,
@@ -88,6 +89,7 @@ const BUILT_PATHS = new Set<string>([
   EINSTELLUNGEN_KATEGORIEN.path,
   EINSTELLUNGEN_DATENQUELLEN.path,
   PLAN_MONAT.path,
+  PLAN_SPARZIELE.path,
 ]);
 const placeholderRoutes = PAGES.filter((page) => !BUILT_PATHS.has(page.path)).map((page) =>
   pageRoute(page.path, page),
@@ -145,6 +147,12 @@ const planMonthRoute = createRoute({
   path: PLAN_MONAT.path,
   staticData: { meta: PLAN_MONAT },
   component: lazyRouteComponent(() => import('./budget/plan-page'), 'PlanMonthPage'),
+});
+const planGoalsRoute = createRoute({
+  getParentRoute: () => shellRoute,
+  path: PLAN_SPARZIELE.path,
+  staticData: { meta: PLAN_SPARZIELE },
+  component: lazyRouteComponent(() => import('./budget/goals-page'), 'GoalsPage'),
 });
 const redirects = [
   redirectRoute('/plan', '/plan/monat'),
@@ -254,6 +262,7 @@ const routeTree = rootRoute.addChildren([
     dataSourcesRoute,
     importReportRoute,
     planMonthRoute,
+    planGoalsRoute,
     ...redirects,
     overviewRoute,
     bookingsRoute,

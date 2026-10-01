@@ -1,7 +1,7 @@
 import { mkdirSync } from 'node:fs';
 import type { Server } from 'node:http';
 import { dirname, resolve } from 'node:path';
-import { migrateDatabase, openDatabase } from '@budget/db';
+import { ensureDefaultRules, migrateDatabase, openDatabase } from '@budget/db';
 import { serve } from '@hono/node-server';
 import { createApp } from './app';
 import { authConfigFromEnv } from './auth/config';
@@ -25,6 +25,7 @@ const migrationsDir =
 mkdirSync(dirname(databasePath), { recursive: true });
 const { db, sqlite, close: closeDatabase } = openDatabase(databasePath);
 migrateDatabase(db, migrationsDir);
+ensureDefaultRules(db);
 
 const config = authConfigFromEnv();
 if (!config.setupToken && new AuthStore(db).activePasskeyCount() === 0) {

@@ -85,7 +85,7 @@ export function occurrenceHorizon(today: string): { from: string; to: string } {
   };
 }
 
-const schedulePayment = (p: Payment): SchedulePayment => ({
+export const schedulePayment = (p: Payment): SchedulePayment => ({
   kind: p.kind,
   rhythm: p.rhythm,
   dueDay: p.dueDay,
@@ -96,7 +96,7 @@ const schedulePayment = (p: Payment): SchedulePayment => ({
   contactShareBp: p.contactShareBp,
 });
 
-const scheduleVersion = (v: Version): ScheduleVersion => ({
+export const scheduleVersion = (v: Version): ScheduleVersion => ({
   validFrom: v.validFrom,
   amountCents: v.amountCents,
   amountMaxCents: v.amountMaxCents,

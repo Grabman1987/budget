@@ -90,6 +90,21 @@ before deviating ones. A card booking in another currency is compared by its ori
 that has the version's currency. Open occurrences whose window has passed become `missed`.
 
 
+## Rules (P3.5)
+
+The rule book R01–R16 and the stage checklist (concept §3.5). Rules are data (`rule`: `params_json`, `enabled`); the engine is `evaluateRule` in `@budget/domain`, the inputs come from `ruleInputs` in `@budget/db` (the one place that assembles them). Results (`rule_result`) are derived and rewritten, edits are audited and undoable with `POST /undo { groupId }`.
+
+| Request | What it does |
+| --- | --- |
+| `GET /rules` | `{ rules, checklist }`: per rule code, name, stage, goal, `enabled`, `params` (stored over the defaults), `defaults` and `latest` (`asOf`, `status` ok/warn/bad, `valueText`, `actionNeeded`, `actionText`, `detail`; `null` when never evaluable); the 14 stage checklist items with `ruleCode` (follows that rule) or `null` and `confirmedAt` |
+| `PATCH /rules/:code` | `{ params?, enabled? }`: `params` is a partial object validated strictly per rule (unknown key or out-of-range value 400); answers `{ rule, groupId }` |
+| `PATCH /rules/checklist/:code` | `{ confirmed }`: the owner marks a non-computable item (Testament, Versicherungen vollständig …) erledigt or open again; items that follow a rule are 409 `rule_backed`; `{ item, groupId }` |
+| `POST /rules/evaluate` | Evaluates the enabled rules for today and the last 12 month ends and stores one result per (rule, day); idempotent; a rule without data stores nothing ("nicht bewertbar"); `{ asOf, days, stored, removed }` |
+| `GET /rules/results?from&to` | Matrix of the enabled rules: `days` and per rule `cells { asOf, status, valueText }`; default the 12 month ends up to today |
+| `GET /rules/check` | Finanz-Check of today (computed now): `counts { ok, warn, bad, total, notEvaluated }`, the six key rules (R02, R15, R01, R03, R08, R07) by severity, `stage` from net worth, `checklist { done, total, items }` (a confirmed item counts as done, a rule item follows its rule) |
+
+Reference month: rolling figures (R01, R02, R11) use the last full month, the month itself on a month end. R04 uses the change log for the day an envelope was assigned; assignments without a log entry (imported or seeded) count as made on the salary day.
+
 ## Market data (P5.1)
 
 Sources are the fixture series outside production and Yahoo/ECB in production
@@ -165,3 +180,23 @@ categories of the latest committed run are reused by their mapping ids, bookings
 are left alone (also when the owner deleted them) or get the new status and flag, new keys are
 added (a transfer only with both legs), assigned amounts follow the new export (negative
 amounts included). Changing the mapping of committed data needs a revert and a new commit.
+
+## Savings goals (P3.4)
+
+Sparziele: a goal links an envelope (category) or an account, a target amount and an optional target
+date. Every answer carries the figures of the viewed month (`?month=YYYY-MM`, default the month of
+today), computed once by `goalProgress` in `@budget/domain`: `savedCents` is the available money of the
+envelope (or the balance of the account) at the end of that month, `remainingCents` what is missing,
+`monthsLeft` the months after the viewed one up to the target month (at least 1; `null` without a
+date), `neededMonthlyCents` the missing amount per month rounded up to the cent, `averageRateCents`
+the average assignment (account: growth) of the viewed and the two months before, `forecastMonth` the
+month the goal is full at that rate, `status` `reached` / `on_track` / `behind`. Goals are ordered by
+target date, those without a date last.
+
+| Endpoint | Purpose |
+| --- | --- |
+| `GET /goals?month&deleted=1` | `{ month, goals }` with the figures above |
+| `POST /goals?month` | `{ name, targetCents > 0, targetDate?, categoryId \| accountId }` (not both; 422 `category_rule`); answers `{ goal, groupId }` |
+| `PATCH /goals/:id?month` | Any of the fields; setting one link clears the other |
+| `DELETE /goals/:id`, `POST /goals/:id/restore?month` | Soft delete and restore; `POST /undo` with the `groupId` reverts either |
+| `POST /goals/:id/adopt` | `{ validFrom? }` (`YYYY-MM`, default this month): "Als Ziel der Kategorie übernehmen" writes a versioned `by_date` category target (goal amount and date) in the same audit group; needs a category and a date |
