@@ -155,6 +155,7 @@ const planExpectedRoute = createRoute({
   path: PLAN_ERWARTET.path,
   staticData: { meta: PLAN_ERWARTET },
   component: lazyRouteComponent(() => import('./expected/expected-page'), 'ExpectedPage'),
+});
 const planGoalsRoute = createRoute({
   getParentRoute: () => shellRoute,
   path: PLAN_SPARZIELE.path,
