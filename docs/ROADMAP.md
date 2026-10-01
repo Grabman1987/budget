@@ -23,7 +23,8 @@ Owner scope update, 2026-10-01: remove import as an app feature. Keep only CSV e
 - [x] A01 trade settlement integrity: generic update/delete/bulk/reconcile/undo cannot detach a trade from its cash flow.
 - [x] A08 booking currency invariant: amount/currency match account, original currency explicit; shared contract in create/update/transfers/import.
 - [x] A05 payment lifecycle: edit/delete/rematch/undo recompute status, links, amounts and related totals.
-- [ ] A03 EUR-first guard: unsupported on-budget foreign currencies never enter EUR sums silently; create/update/import/existing accounts covered.
+- [x] A03 EUR-first guard: unsupported on-budget foreign currencies never enter EUR sums silently; create/update/import/existing accounts covered.
+- [ ] A03 account overview aggregation: convert native account cash to EUR before combining with EUR holdings; overview totals and changes match the shared net-worth calculation, with explicit missing-rate behavior.
 - [ ] A04 persisted Gate-2 reconciliation: each relevant account/month and mapped category checked; added/missing/changed/deleted one-cent cases detected, including non-budget accounts.
 - [ ] Separate agent-assisted EUR migration/Gate 2 after corrections and operational acceptance; establish private file access and transfer procedure; never commit exports/mapping or include them in CI/logs.
 - [ ] A02 investment costs use historical base-currency FX; valuation, fees/income and missing-rate behavior consistent before Gate 3.

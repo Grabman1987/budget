@@ -21,6 +21,16 @@ export class BookingInvariantError extends Error {
   override readonly name = 'BookingInvariantError';
 }
 
+/** A budget account must use EUR because budget and allocation amounts are stored as EUR cents. */
+export class AccountInvariantError extends Error {
+  override readonly name = 'AccountInvariantError';
+  constructor() {
+    super(
+      'Budgetkonten müssen in Euro geführt werden. Bitte verwenden Sie EUR oder nehmen Sie das Konto aus dem Budget.',
+    );
+  }
+}
+
 /**
  * A reconciled booking (status `reconciled`, part of a Kontostand prüfen) is locked: only its flag
  * and memo change freely. Amount, date, account, splits, payee, status and deletion need an

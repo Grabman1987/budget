@@ -16,6 +16,7 @@ import { auditLog, type AUDIT_ACTIONS } from '../schema';
 import { AuditError, EntityNotFoundError } from './errors';
 import { expectedLinkPatches } from './expected-links';
 import { assertLedgerInvariants, assertTradeSettlementInvariants } from './invariants';
+import { assertAccountBookingCurrencies, assertEurBudgetAccounts } from './account-invariants';
 import { runInTransaction, type Executor } from './types';
 
 export { AuditError } from './errors';
@@ -645,6 +646,11 @@ export function undo(
       );
     }
     assertLedgerInvariants(tx, touched);
+    const touchedAccounts = originals
+      .filter((entry) => entry.entityType === getTableName(schema.account))
+      .map((entry) => entry.entityId);
+    assertEurBudgetAccounts(tx, touchedAccounts);
+    assertAccountBookingCurrencies(tx, touchedAccounts);
     assertTradeSettlementInvariants(
       tx,
       touched,

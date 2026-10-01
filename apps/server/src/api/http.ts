@@ -1,5 +1,6 @@
 import {
   AuditError,
+  AccountInvariantError,
   BookingInvariantError,
   CategoryRuleError,
   ConflictError,
@@ -99,6 +100,9 @@ export function errorAnswer(error: unknown): ErrorAnswer {
   if (error instanceof AuditError)
     return answer({ error: 'undo_refused', message: error.message }, 409);
   if (error instanceof BookingInvariantError) {
+    return answer({ error: 'invariant', message: error.message }, 422);
+  }
+  if (error instanceof AccountInvariantError) {
     return answer({ error: 'invariant', message: error.message }, 422);
   }
   if (error instanceof CategoryRuleError)

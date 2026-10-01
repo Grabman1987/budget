@@ -20,7 +20,7 @@ import { createCategory } from './categories';
 import { allocationMonth } from './allocation';
 import { loadFacts, ruleInputs } from './rule-inputs';
 import { createExpectedPayment } from './expected';
-import { accountBalances, budget } from './queries';
+import { accountBalances, budget, budgetLedger } from './queries';
 import { seedBasics, testCtx as ctx } from './test-helpers';
 
 let opened: OpenedDatabase;
@@ -112,6 +112,35 @@ describe('C5 one opening-date rule in SQL and in the domain', () => {
     const tg = (asOf: string) =>
       accountBalances(db, asOf).find((b) => b.accountId === 'tg')?.balanceCents;
     expect([tg('2024-03-14'), tg('2024-03-15'), tg('2024-04-30')]).toEqual([0, 49_000, 51_500]);
+  });
+});
+
+describe('EUR-only budget currency invariant on read models', () => {
+  it('rejects legacy non-EUR budget accounts even when allocation envelopes are precomputed', () => {
+    db.insert(account)
+      .values({
+        id: 'legacy-usd-budget',
+        name: 'Legacy USD budget',
+        type: 'checking',
+        role: 'budget',
+        onBudget: true,
+        currency: 'USD',
+        openingDate: '2023-10-01',
+        sortOrder: 9,
+      })
+      .run();
+
+    expect(() => budgetLedger(db)).toThrow(/Euro/i);
+    expect(() => allocationMonth(db, '2026-06', {})).toThrow(/Euro/i);
+    expect(() => loadFacts(db, '2026-06-30')).toThrow(/Euro/i);
+
+    db.update(account)
+      .set({ deletedAt: '2026-06-01T00:00:00.000Z' })
+      .where(eq(account.id, 'legacy-usd-budget'))
+      .run();
+    expect(() => budgetLedger(db)).not.toThrow();
+    expect(() => allocationMonth(db, '2026-06', {})).not.toThrow();
+    expect(() => loadFacts(db, '2026-06-30')).not.toThrow();
   });
 });
 

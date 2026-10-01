@@ -1,7 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { eq } from 'drizzle-orm';
 import { createTestDatabase, type OpenedDatabase } from '../client';
-import { category, categoryGroup, contact, security } from '../schema';
-import { history, undo } from './audit';
+import { account, category, categoryGroup, contact, security } from '../schema';
+import { history, undo, updateTracked } from './audit';
+import { createBooking } from './bookings';
 import {
   accounts,
   categories,
@@ -12,7 +14,7 @@ import {
   softDeleteEntity,
   updateEntity,
 } from './entities';
-import { EntityNotFoundError } from './errors';
+import { BookingInvariantError, EntityNotFoundError } from './errors';
 
 const ctx = { actor: 'tester' };
 let opened: OpenedDatabase;
@@ -101,6 +103,201 @@ describe('generic entities', () => {
 });
 
 describe('accounts and categories wrappers', () => {
+  it('rejects budget accounts in foreign currency but accepts off-budget USD', () => {
+    expect(() =>
+      accounts.create(
+        db,
+        {
+          id: 'bad-usd',
+          name: 'USD budget',
+          type: 'checking',
+          role: 'budget',
+          onBudget: true,
+          currency: 'USD',
+          openingDate: '2023-10-01',
+        },
+        ctx,
+      ),
+    ).toThrow(/Euro/i);
+    expect(accounts.get(db, 'bad-usd')).toBeUndefined();
+
+    const usd = accounts.create(
+      db,
+      {
+        id: 'usd-tracking',
+        name: 'USD tracking',
+        type: 'checking',
+        role: 'budget',
+        onBudget: false,
+        currency: 'USD',
+        openingDate: '2023-10-01',
+      },
+      ctx,
+    );
+    expect(usd).toMatchObject({ currency: 'USD', onBudget: false });
+    expect(() => accounts.update(db, usd.id, { onBudget: true }, ctx)).toThrow(/Euro/i);
+    expect(accounts.get(db, usd.id)).toMatchObject({ currency: 'USD', onBudget: false });
+
+    // A legacy invalid row can still be repaired by leaving the budget.
+    db.update(account).set({ onBudget: true }).where(eq(account.id, usd.id)).run();
+    expect(() => accounts.update(db, usd.id, { onBudget: false }, ctx)).not.toThrow();
+    expect(accounts.get(db, usd.id)).toMatchObject({ currency: 'USD', onBudget: false });
+  });
+
+  it('defaults omitted currency to EUR for an on-budget account', () => {
+    const row = createEntity(
+      db,
+      account,
+      {
+        id: 'default-eur',
+        name: 'Euro account',
+        type: 'checking',
+        role: 'budget',
+        onBudget: true,
+        openingDate: '2023-10-01',
+      },
+      ctx,
+    );
+    expect(row.currency).toBe('EUR');
+  });
+
+  it('refuses to restore or undo/redo into an unsupported on-budget currency', () => {
+    const usd = accounts.create(
+      db,
+      {
+        id: 'usd-deleted',
+        name: 'USD tracking',
+        type: 'checking',
+        role: 'budget',
+        onBudget: false,
+        currency: 'USD',
+        openingDate: '2023-10-01',
+      },
+      ctx,
+    );
+    accounts.softDelete(db, usd.id, ctx);
+    db.update(account).set({ onBudget: true }).where(eq(account.id, usd.id)).run();
+    expect(() => accounts.restore(db, usd.id, ctx)).toThrow(/Euro/i);
+    expect(accounts.get(db, usd.id)).toBeUndefined();
+
+    const redone = accounts.create(
+      db,
+      {
+        id: 'usd-redo',
+        name: 'USD tracking',
+        type: 'checking',
+        role: 'budget',
+        onBudget: false,
+        currency: 'USD',
+        openingDate: '2023-10-01',
+      },
+      ctx,
+    );
+    updateTracked(
+      db,
+      account,
+      [redone.id],
+      { onBudget: true },
+      { ...ctx, groupId: 'legacy-invalid' },
+    );
+    const reverted = undo(db, { groupId: 'legacy-invalid' }, ctx);
+    expect(accounts.get(db, redone.id)).toMatchObject({ onBudget: false, currency: 'USD' });
+    expect(() => undo(db, { groupId: reverted.groupId }, ctx)).toThrow(/Euro/i);
+    expect(() => undo(db, { groupId: reverted.groupId }, ctx, { force: true })).toThrow(/Euro/i);
+    expect(accounts.get(db, redone.id)).toMatchObject({ onBudget: false, currency: 'USD' });
+  });
+
+  it('does not reinterpret live booking cents when changing an account currency or undoing it', () => {
+    const usd = accounts.create(
+      db,
+      {
+        id: 'usd-with-booking',
+        name: 'USD tracking',
+        type: 'checking',
+        role: 'budget',
+        onBudget: false,
+        currency: 'USD',
+        openingDate: '2023-10-01',
+      },
+      ctx,
+    );
+    createBooking(
+      db,
+      {
+        accountId: usd.id,
+        date: '2026-06-01',
+        amountCents: 1000,
+        splits: [{ amountCents: 1000, categoryId: null }],
+      },
+      ctx,
+    );
+    expect(() => accounts.update(db, usd.id, { currency: 'EUR' }, ctx)).toThrow(
+      /currency|Währung/i,
+    );
+    expect(accounts.get(db, usd.id)?.currency).toBe('USD');
+
+    const empty = accounts.create(
+      db,
+      {
+        id: 'eur-empty',
+        name: 'EUR tracking',
+        type: 'checking',
+        role: 'budget',
+        onBudget: false,
+        currency: 'EUR',
+        openingDate: '2023-10-01',
+      },
+      ctx,
+    );
+    accounts.update(db, empty.id, { currency: 'USD' }, ctx);
+    createBooking(
+      db,
+      {
+        accountId: empty.id,
+        date: '2026-06-01',
+        amountCents: 1000,
+        splits: [{ amountCents: 1000, categoryId: null }],
+      },
+      ctx,
+    );
+    const currencyChange = history(db, 'account', empty.id).find((e) => e.action === 'update')!;
+    expect(() => undo(db, { auditId: currencyChange.id }, ctx)).toThrow(/currency|Währung/i);
+    expect(() => undo(db, { auditId: currencyChange.id }, ctx, { force: true })).toThrow(
+      /currency|Währung/i,
+    );
+    expect(accounts.get(db, empty.id)?.currency).toBe('USD');
+  });
+
+  it('refuses to restore an off-budget account whose currency no longer matches live bookings', () => {
+    const usd = accounts.create(
+      db,
+      {
+        id: 'usd-restore-mismatch',
+        name: 'USD tracking',
+        type: 'checking',
+        role: 'budget',
+        onBudget: false,
+        currency: 'USD',
+        openingDate: '2023-10-01',
+      },
+      ctx,
+    );
+    createBooking(
+      db,
+      {
+        accountId: usd.id,
+        date: '2026-06-01',
+        amountCents: 1000,
+        splits: [{ amountCents: 1000, categoryId: null }],
+      },
+      ctx,
+    );
+    accounts.softDelete(db, usd.id, ctx);
+    db.update(account).set({ currency: 'EUR' }).where(eq(account.id, usd.id)).run();
+    expect(() => accounts.restore(db, usd.id, ctx)).toThrow(BookingInvariantError);
+    expect(accounts.get(db, usd.id)).toBeUndefined();
+  });
+
   it('creates accounts with role and terms and lists them by sort_order', () => {
     accounts.create(
       db,

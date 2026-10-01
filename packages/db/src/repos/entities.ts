@@ -4,6 +4,7 @@ import type { SQLiteColumn, SQLiteTable } from 'drizzle-orm/sqlite-core';
 import { account, category } from '../schema';
 import { insertTracked, tableMeta, updateTracked, withGroup, type AuditContext } from './audit';
 import { EntityNotFoundError } from './errors';
+import { assertAccountBookingCurrencies, assertBudgetAccountCurrency } from './account-invariants';
 import { runInTransaction, type Executor } from './types';
 
 /**
@@ -40,14 +41,18 @@ export function createEntity<T extends IdTable>(
   ctx: AuditContext,
 ): T['$inferSelect'] {
   const grouped = withGroup(ctx);
-  return runInTransaction(db, (tx) =>
-    insertTracked(
+  return runInTransaction(db, (tx) => {
+    if (tableMeta(table).name === tableMeta(account).name) {
+      const row = values as Partial<typeof account.$inferInsert>;
+      assertBudgetAccountCurrency(row.onBudget ?? false, row.currency ?? 'EUR');
+    }
+    return insertTracked(
       tx,
       table,
       { ...values, id: values.id ?? randomUUID() } as T['$inferInsert'],
       grouped,
-    ),
-  );
+    );
+  });
 }
 
 /** One row by id; soft-deleted rows only with `includeDeleted`. */
@@ -94,8 +99,23 @@ export function updateEntity<T extends IdTable>(
 ): T['$inferSelect'] {
   const grouped = withGroup(ctx);
   return runInTransaction(db, (tx) => {
-    requireLive(tx, table, id);
+    const current = requireLive(tx, table, id);
+    if (tableMeta(table).name === tableMeta(account).name) {
+      const before = current as typeof account.$inferSelect;
+      const change = patch as Partial<typeof account.$inferInsert>;
+      assertBudgetAccountCurrency(
+        change.onBudget ?? before.onBudget,
+        change.currency ?? before.currency,
+      );
+    }
     updateTracked(tx, table, [id], patch as Record<string, unknown>, grouped);
+    if (
+      tableMeta(table).name === tableMeta(account).name &&
+      (patch as Partial<typeof account.$inferInsert>).currency !== undefined &&
+      (patch as Partial<typeof account.$inferInsert>).currency !==
+        (current as typeof account.$inferSelect).currency
+    )
+      assertAccountBookingCurrencies(tx, [id]);
     return requireLive(tx, table, id);
   });
 }
@@ -127,7 +147,12 @@ export function restoreEntity<T extends IdTable>(
       { deletedAt?: string | null } | undefined;
     if (!row || row.deletedAt == null)
       throw new EntityNotFoundError(`${tableMeta(table).name} (deleted)`, id);
+    if (tableMeta(table).name === tableMeta(account).name) {
+      const accountRow = row as typeof account.$inferSelect;
+      assertBudgetAccountCurrency(accountRow.onBudget, accountRow.currency);
+    }
     updateTracked(tx, table, [id], { deletedAt: null }, grouped, 'restore');
+    if (tableMeta(table).name === tableMeta(account).name) assertAccountBookingCurrencies(tx, [id]);
     return requireLive(tx, table, id);
   });
 }
