@@ -28,6 +28,9 @@ export interface PageFrameProps {
   children?: ReactNode;
 }
 
+const keepZeitraum = (previous: Record<string, unknown>): Record<string, unknown> =>
+  previous['zeitraum'] ? { zeitraum: previous['zeitraum'] } : {};
+
 /** Title block and registers of the area; the body of the page follows as children. */
 export function PageFrame({
   meta,
@@ -60,7 +63,12 @@ export function PageFrame({
           items={items}
           current={meta.register ?? ''}
           renderLink={(item, props) => (
-            <AppLink to={item.href ?? '/'} {...props}>
+            <AppLink
+              to={item.href ?? '/'}
+              // The Zeitraum travels along between the Vermögen registers.
+              search={meta.area === 'vermoegen' ? keepZeitraum : undefined}
+              {...props}
+            >
               {item.label}
             </AppLink>
           )}

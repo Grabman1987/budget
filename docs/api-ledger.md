@@ -125,6 +125,15 @@ security currency, rates EUR per unit in micro-units.
 | `GET /securities/:id/prices?from&to` | `{ securityId, currency, prices: [{ date, priceMicro, currency, source }] }` ascending; unknown security 404 |
 | `PUT /securities/:id/prices/:date` | Manual price: `{ priceMicro }` (integer) or `{ price: "81.25" }` (decimal text, at most 6 decimals), not in the future. Wins over every source; a refresh never replaces it; a change of an existing price is a `price_audit` row |
 | `GET /fx?currency&from&to` | `{ currency, rates: [{ date, currency, rateMicro, source }] }` ascending; `currency` is an ISO code in capitals |
+## Wealth (P5.4)
+
+Read models of the Vermögen pages. "Now" is `netWorthAsOf` of today (Vienna), the figure of Konten ›
+Übersicht; contact receivables are not part of net worth (an Auslage lowers it until repaid).
+
+| Endpoint | Purpose |
+| --- | --- |
+| `GET /wealth/networth?period=` | `period` is `1M`, `3M`, `YTD` (default), `1J`, `3J` or `Alles`; anything else is 400. Answer: `{ period, from, to, stand, chain, daily, bars, composition }`. `from` is the close of the window's start day (31.12. for YTD, same day of the earlier month for 1M/3M/1J/3J, the first account's opening day for `Alles`). `chain` is `{ startCents, ownCents, marketCents, nowCents, deltaCents }` with start + own + market = now exactly (own = change minus the market move of the positions, SPEC section 6). `daily` is `[{ date, netWorthCents }]`, the first point is the start value. `bars` is `{ unit: 'week' \| 'month', buckets: [{ from, to, ownCents, marketCents }] }`: blocks of 7 days up to 3M, calendar months otherwise (first and last may be partial). `composition` is `{ assets, debts }` of `{ accountId, name, type, valueCents }`, assets descending, debts most negative first, zero accounts left out |
+| `GET /wealth/stand` | `{ priceDate, priceAt }`: the newest price day and, when a refresh or a manual price recorded it (`price_audit.ts`), the timestamp (ISO UTC); `null` without prices |
 ## Invest (P5.5)
 
 Securities, trades, asset classes, savings plans and the portfolio read model. Money is integer
