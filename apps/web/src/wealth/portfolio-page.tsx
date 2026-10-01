@@ -34,6 +34,18 @@ export function PortfolioPage() {
     void navigate({
       to: '/vermoegen/portfolio',
       search: ((prev: Record<string, unknown>) => ({ ...prev, produkt })) as never,
+    }).then(() => {
+      if (produkt || !search.produkt) return;
+      // A route remount can detach the dialog's native return-focus target.
+      // Restore the current button only after the close navigation has rendered.
+      requestAnimationFrame(() => {
+        if (document.querySelector('dialog[open]')) return;
+        document
+          .querySelector<HTMLButtonElement>(
+            `[data-portfolio-security="${CSS.escape(search.produkt!)}"]`,
+          )
+          ?.focus();
+      });
     });
   const view = query.data;
   const held = new Set(view?.classes.flatMap((group) => group.positions.map((p) => p.securityId)));
@@ -145,6 +157,7 @@ export function PortfolioPage() {
                       <button
                         type="button"
                         className="portfolio-product"
+                        data-portfolio-security={security.id}
                         onClick={() => select(security.id)}
                       >
                         {security.name}
@@ -264,7 +277,12 @@ function PositionRow({
         <span className="pos">{number}</span>
       </td>
       <th scope="row">
-        <button type="button" className="portfolio-product" onClick={() => onSelect(p.securityId)}>
+        <button
+          type="button"
+          className="portfolio-product"
+          data-portfolio-security={p.securityId}
+          onClick={() => onSelect(p.securityId)}
+        >
           {p.name}
         </button>
         <small className="portfolio-status">
