@@ -23,6 +23,25 @@ describe('server', () => {
     expect(await res.json()).toEqual({ status: 'ok' });
   });
 
+  it('reports only a valid full build revision on /health', async () => {
+    const revision = 'a'.repeat(40);
+    const revisionApp = createApp({ webDir: dir, buildRevision: revision });
+    const res = await revisionApp.request('/health');
+    expect(await res.json()).toEqual({ status: 'ok', revision });
+  });
+
+  it.each([
+    'A'.repeat(40),
+    'a'.repeat(39),
+    'a'.repeat(40) + 'b',
+    'a'.repeat(40) + '\n',
+    'not-a-revision',
+  ])('omits an invalid build revision from /health', async (buildRevision) => {
+    const revisionApp = createApp({ webDir: dir, buildRevision });
+    const res = await revisionApp.request('/health');
+    expect(await res.json()).toEqual({ status: 'ok' });
+  });
+
   it('sends a strict CSP without unsafe-inline or unsafe-eval', async () => {
     const csp = (await app.request('/health')).headers.get('content-security-policy') ?? '';
     expect(csp).toContain("default-src 'self'");

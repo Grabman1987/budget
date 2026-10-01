@@ -47,11 +47,13 @@ RUN set -eu; \
 
 # ---- runtime: the server is one bundled file, the web app is static ----
 FROM node:22-bookworm-slim@sha256:43ac6c60b8f89723f746e8a92ce91abd5017e627ce1ddfe4238355d3a30b772c AS runtime
+ARG BUDGET_BUILD_REVISION
 ENV NODE_ENV=production \
     PORT=3000 \
     WEB_DIR=/app/web \
     BUDGET_MIGRATIONS_DIR=/app/drizzle \
-    DATA_DIR=/data
+    DATA_DIR=/data \
+    BUDGET_BUILD_REVISION=${BUDGET_BUILD_REVISION}
 # ca-certificates: Litestream (Go) verifies the object storage endpoint against the system roots.
 # age: encrypts the nightly backup to the owner's public key (docs/ops.md section 8).
 RUN apt-get update \

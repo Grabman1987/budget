@@ -55,6 +55,7 @@ const importJobs = new ImportJobs(db);
 // The debug endpoint is opt-in, read-only (seed check) and behind the session guard.
 const app = createApp({
   webDir,
+  buildRevision: process.env['BUDGET_BUILD_REVISION'],
   auth,
   ledger: { db, jobs: importJobs, ...(today ? { today } : {}) },
   database: process.env['BUDGET_DEBUG_API'] === '1' ? db : undefined,

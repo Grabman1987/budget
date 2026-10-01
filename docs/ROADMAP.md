@@ -90,7 +90,7 @@ Backlog: [`inspirations.md`](inspirations.md). These are possible later improvem
 - [x] First-device bootstrap via one-time setup token from an environment secret; no open registration
 - [x] Rate limiting on auth endpoints; audit of logins
 - [x] Litestream backup to object storage (config + restore instructions in `docs/ops.md`)
-- [ ] Operational acceptance: target reported deployed; running commit, `/health`, phone/desktop login, recovery and real encrypted restore need verification (owner checklist in `docs/ops.md`)
+- [ ] Operational acceptance: target reported deployed; compare `/health` revision with the successful deployed CI SHA, then verify phone/desktop login, recovery and real encrypted restore (owner checklist in `docs/ops.md`)
 
 ## P1f Audit fixes (`docs/audit/2026-09-29-p1-audit.md`)
 
