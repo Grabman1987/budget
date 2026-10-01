@@ -1,11 +1,20 @@
-import { INCOME_TYPES } from '../schema';
+import { booking, INCOME_TYPES, institution, trade } from '../schema';
+import { eq } from 'drizzle-orm';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { createTestDatabase, type OpenedDatabase } from '../client';
-import { undo } from './audit';
-import { createBooking, createTransfer, getBooking } from './bookings';
+import { history, undo } from './audit';
+import {
+  createBooking,
+  createTransfer,
+  deleteBooking,
+  getBooking,
+  restoreBooking,
+  updateBooking,
+} from './bookings';
 import { ConflictError } from './errors';
 import { accounts, createEntity } from './entities';
 import { portfolioFlows } from './portfolio';
+import { reconcileAccount } from './reconciliation';
 import { accountBalances } from './queries';
 import {
   changeSavingsPlan,
@@ -33,7 +42,6 @@ import {
   updateTrade,
   TradeRuleError,
 } from './trades';
-import { institution } from '../schema';
 
 let opened: OpenedDatabase;
 let db: OpenedDatabase['db'];
@@ -97,6 +105,253 @@ describe('trades settle on the investment account', () => {
     expect(getBooking(db, r.bookingId as string)?.amountCents).toBe(-50_500);
     expect(r.trade.bookingId).toBe(r.bookingId);
     expect(balance('depot')).toBe(0);
+  });
+
+  it('generic booking writes cannot detach a live trade from its settlement cash', () => {
+    const r = createTrade(
+      db,
+      {
+        securityId: 's1',
+        accountId: 'depot',
+        date: '2026-03-02',
+        kind: 'buy',
+        unitsE8: E8,
+        amountCents: 10_000,
+      },
+      testCtx,
+    );
+    const id = r.bookingId as string;
+    expect(() => updateBooking(db, id, { amountCents: -1 }, testCtx)).toThrow(/trade settlement/i);
+    expect(() => updateBooking(db, id, { date: '2026-03-03' }, testCtx)).toThrow(
+      /trade settlement/i,
+    );
+    expect(() => updateBooking(db, id, { accountId: 'giro' }, testCtx)).toThrow(
+      /trade settlement/i,
+    );
+    expect(() => updateBooking(db, id, { currency: 'USD' }, testCtx)).toThrow(/trade settlement/i);
+    expect(() =>
+      updateBooking(db, id, { splits: [{ categoryId: null, amountCents: -10_000 }] }, testCtx),
+    ).toThrow(/trade settlement/i);
+    expect(() => deleteBooking(db, id, testCtx)).toThrow(/trade settlement/i);
+    updateBooking(
+      db,
+      id,
+      { memo: 'Gebühr vorgemerkt', flag: 'red', status: 'reconciled' },
+      testCtx,
+    );
+    expect(getBooking(db, id)).toMatchObject({
+      memo: 'Gebühr vorgemerkt',
+      flag: 'red',
+      status: 'reconciled',
+    });
+    expect(() => updateBooking(db, id, { status: 'confirmed' }, testCtx)).toThrow(/unlock/i);
+    const metadataChange = history(db, 'booking', id).find(
+      (entry) => entry.action === 'update' && entry.after?.['memo'] === 'Gebühr vorgemerkt',
+    )!;
+    undo(db, { auditId: metadataChange.id }, testCtx);
+    expect(getTrade(db, r.trade.id)).toEqual(r.trade);
+    expect(getBooking(db, id)).toMatchObject({
+      memo: 'Kauf Welt-ETF',
+      status: 'confirmed',
+      amountCents: -10_000,
+    });
+    expect(getBooking(db, id)?.amountCents).toBe(-10_000);
+    expect(balance('depot')).toBe(-10_000);
+  });
+
+  it('cannot restore a deleted trade settlement without restoring its trade', () => {
+    const r = createTrade(
+      db,
+      {
+        securityId: 's1',
+        accountId: 'depot',
+        date: '2026-03-02',
+        kind: 'buy',
+        unitsE8: E8,
+        amountCents: 10_000,
+      },
+      testCtx,
+    );
+    deleteTrade(db, r.trade.id, testCtx);
+    expect(() => restoreBooking(db, r.bookingId as string, testCtx)).toThrow(/trade settlement/i);
+    expect(() => getTrade(db, r.trade.id)).toThrow();
+    expect(getBooking(db, r.bookingId as string)).toBeUndefined();
+    expect(balance('depot')).toBe(0);
+  });
+
+  it('undo of a single trade or settlement audit entry cannot detach the other row', () => {
+    const r = createTrade(
+      db,
+      {
+        securityId: 's1',
+        accountId: 'depot',
+        date: '2026-03-02',
+        kind: 'buy',
+        unitsE8: E8,
+        amountCents: 10_000,
+      },
+      testCtx,
+    );
+    const tradeCreate = history(db, 'trade', r.trade.id).find(
+      (entry) => entry.action === 'create',
+    )!;
+    const bookingCreate = history(db, 'booking', r.bookingId as string).find(
+      (entry) => entry.action === 'create',
+    )!;
+    expect(() => undo(db, { auditId: tradeCreate.id }, testCtx)).toThrow(/trade settlement/i);
+    expect(() => undo(db, { auditId: bookingCreate.id }, testCtx)).toThrow(/trade settlement/i);
+    expect(getTrade(db, r.trade.id)).toMatchObject({ bookingId: r.bookingId });
+    expect(getBooking(db, r.bookingId as string)?.amountCents).toBe(-10_000);
+    expect(balance('depot')).toBe(-10_000);
+  });
+
+  it('a net-to-zero trade keeps its old settlement deleted across generic restore and single undo', () => {
+    const r = createTrade(
+      db,
+      {
+        securityId: 's1',
+        accountId: 'depot',
+        date: '2026-03-02',
+        kind: 'buy',
+        unitsE8: E8,
+        amountCents: 10_000,
+      },
+      testCtx,
+    );
+    const groupId = 'trade-to-zero';
+    updateTrade(db, r.trade.id, { kind: 'delivery_in', feeCents: 0 }, { actor: 'tester', groupId });
+    expect(getTrade(db, r.trade.id).bookingId).toBeNull();
+    expect(getBooking(db, r.bookingId as string)).toBeUndefined();
+    expect(() => restoreBooking(db, r.bookingId as string, testCtx)).toThrow(/trade settlement/i);
+    const deletedCash = history(db, 'booking', r.bookingId as string).find(
+      (entry) => entry.groupId === groupId && entry.action === 'delete',
+    )!;
+    expect(() => undo(db, { auditId: deletedCash.id }, testCtx)).toThrow(/trade settlement/i);
+    expect(balance('depot')).toBe(0);
+    expect(getTrade(db, r.trade.id).bookingId).toBeNull();
+
+    const undone = undo(db, { groupId }, testCtx);
+    expect(getTrade(db, r.trade.id).bookingId).toBe(r.bookingId);
+    expect(getBooking(db, r.bookingId as string)?.amountCents).toBe(-10_000);
+    undo(db, { groupId: undone.groupId }, testCtx);
+    expect(getTrade(db, r.trade.id).bookingId).toBeNull();
+    expect(getBooking(db, r.bookingId as string)).toBeUndefined();
+    expect(balance('depot')).toBe(0);
+  });
+
+  it('reconciliation can stamp trade cash but cannot remove it as a duplicate', () => {
+    const r = createTrade(
+      db,
+      {
+        securityId: 's1',
+        accountId: 'depot',
+        date: '2026-03-02',
+        kind: 'buy',
+        unitsE8: E8,
+        amountCents: 10_000,
+      },
+      testCtx,
+    );
+    reconcileAccount(
+      db,
+      {
+        accountId: 'depot',
+        date: '2026-03-02',
+        today: '2026-03-02',
+        statementBalanceCents: -10_000,
+      },
+      testCtx,
+    );
+    expect(getBooking(db, r.bookingId as string)?.status).toBe('reconciled');
+
+    expect(() =>
+      reconcileAccount(
+        db,
+        {
+          accountId: 'depot',
+          date: '2026-03-02',
+          today: '2026-03-02',
+          statementBalanceCents: 0,
+          removeBookingIds: [r.bookingId as string],
+        },
+        testCtx,
+      ),
+    ).toThrow(/trade settlement/i);
+    expect(getTrade(db, r.trade.id).bookingId).toBe(r.bookingId);
+    expect(getBooking(db, r.bookingId as string)).toMatchObject({
+      status: 'reconciled',
+      amountCents: -10_000,
+    });
+    expect(balance('depot')).toBe(-10_000);
+  });
+
+  it('native trade updates reject a pre-existing deleted settlement without recreating cash', () => {
+    const r = createTrade(
+      db,
+      {
+        securityId: 's1',
+        accountId: 'depot',
+        date: '2026-03-02',
+        kind: 'buy',
+        unitsE8: E8,
+        amountCents: 10_000,
+        importKey: 'corrupt-settlement',
+      },
+      testCtx,
+    );
+    db.update(booking)
+      .set({ deletedAt: '2026-03-03T00:00:00.000Z' })
+      .where(eq(booking.id, r.bookingId as string))
+      .run();
+    expect(() => updateTrade(db, r.trade.id, { amountCents: 11_000 }, testCtx)).toThrow(
+      /missing or deleted trade settlement/i,
+    );
+    expect(() =>
+      createTrade(
+        db,
+        {
+          securityId: 's1',
+          accountId: 'depot',
+          date: '2026-03-02',
+          kind: 'buy',
+          unitsE8: E8,
+          amountCents: 10_000,
+          importKey: 'corrupt-settlement',
+        },
+        testCtx,
+      ),
+    ).toThrow(/invalid trade settlement/i);
+    expect(getTrade(db, r.trade.id)).toEqual(r.trade);
+    expect(getBooking(db, r.bookingId as string)).toBeUndefined();
+    expect(balance('depot')).toBe(0);
+  });
+
+  it('rejects one cash booking shared by two live trades', () => {
+    const createBuy = () =>
+      createTrade(
+        db,
+        {
+          securityId: 's1',
+          accountId: 'depot',
+          date: '2026-03-02',
+          kind: 'buy',
+          unitsE8: E8,
+          amountCents: 10_000,
+        },
+        testCtx,
+      );
+    const first = createBuy();
+    const second = createBuy();
+    db.update(booking)
+      .set({ deletedAt: '2026-03-03T00:00:00.000Z' })
+      .where(eq(booking.id, second.bookingId as string))
+      .run();
+    db.update(trade).set({ bookingId: first.bookingId }).where(eq(trade.id, second.trade.id)).run();
+
+    expect(() => updateTrade(db, first.trade.id, { note: 'keep unique' }, testCtx)).toThrow(
+      /shared by live trades/i,
+    );
+    expect(getTrade(db, first.trade.id).note).toBeNull();
   });
 
   it('sell = amount - fee - tax; dividend is income of type Kapitalerträge', () => {

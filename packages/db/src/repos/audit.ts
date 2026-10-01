@@ -14,7 +14,7 @@ import { getTableConfig, SQLiteTable } from 'drizzle-orm/sqlite-core';
 import * as schema from '../schema';
 import { auditLog, type AUDIT_ACTIONS } from '../schema';
 import { AuditError, EntityNotFoundError } from './errors';
-import { assertLedgerInvariants } from './invariants';
+import { assertLedgerInvariants, assertTradeSettlementInvariants } from './invariants';
 import { runInTransaction, type Executor } from './types';
 
 export { AuditError } from './errors';
@@ -591,6 +591,11 @@ export function undo(
     }
     flush();
     assertLedgerInvariants(tx, touched);
+    assertTradeSettlementInvariants(
+      tx,
+      touched,
+      originals.filter((entry) => entry.entityType === 'trade').map((entry) => entry.entityId),
+    );
     const written = tx
       .select()
       .from(auditLog)

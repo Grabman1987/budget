@@ -327,6 +327,39 @@ describe('invest CRUD', () => {
     expect((await call('GET', `/bookings/${buy.body['bookingId']}`)).status).toBe(200);
   });
 
+  it('bulk booking deletes skip a trade settlement and still apply unrelated selections', async () => {
+    const sec = (await call('POST', '/securities', { name: 'Welt-ETF', kind: 'etf' })).body[
+      'security'
+    ];
+    const trade = await call('POST', '/trades', {
+      securityId: sec.id,
+      accountId: 'depot',
+      date: '2026-03-02',
+      kind: 'buy',
+      units: '1',
+      amountCents: 10_000,
+    });
+    const settlementId = trade.body['bookingId'] as string;
+    const plain = await call('POST', '/bookings', {
+      type: 'booking',
+      accountId: 'giro',
+      date: '2026-03-02',
+      amountCents: -1_000,
+      categoryId: null,
+    });
+    const plainId = plain.body['id'] as string;
+
+    const result = await call('POST', '/bookings/bulk', {
+      action: 'delete',
+      ids: [settlementId, plainId],
+    });
+    expect(result.status).toBe(200);
+    expect(result.body['changed']).toEqual([plainId]);
+    expect(result.body['skipped']).toMatchObject([{ id: settlementId, reason: 'invalid' }]);
+    expect((await call('GET', `/bookings/${settlementId}`)).status).toBe(200);
+    expect((await call('GET', `/bookings/${plainId}`)).status).toBe(404);
+  });
+
   it('savings plans: create, change with history, end, executions and apply with an inbox item', async () => {
     const sec = (
       await call('POST', '/securities', { name: 'Welt-ETF', kind: 'etf', assetClassId: null })
