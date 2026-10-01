@@ -1,4 +1,4 @@
-import { importRun, type Db } from '@budget/db';
+import { BookingInvariantError, CategoryRuleError, importRun, type Db } from '@budget/db';
 import {
   applyMapping,
   exportFileOf,
@@ -335,7 +335,22 @@ export function importRoutes(db: Db, today: () => string, stepUp: MiddlewareHand
     refuseCommitted(r);
     const e = evaluate(r);
     const errors = e.problems.some((p) => p.severity === 'error');
-    const written = errors ? null : dryRunImport(db, writeInput(r, e));
+    let written: WriteResult | null = null;
+    if (!errors)
+      try {
+        written = dryRunImport(db, writeInput(r, e));
+      } catch (error) {
+        // A row the ledger refuses (the mapping checks should catch these first): an error of the
+        // dry run, so the wizard shows it and keeps the commit closed.
+        if (!(error instanceof BookingInvariantError || error instanceof CategoryRuleError))
+          throw error;
+        e.problems.push({
+          severity: 'error',
+          code: 'write.refused',
+          message: error.message,
+          lines: [],
+        });
+      }
     const result = answer(e, written);
     store(r.id, {
       status: 'dry_run',
@@ -351,9 +366,12 @@ export function importRoutes(db: Db, today: () => string, stepUp: MiddlewareHand
   });
 
   app.post('/:id/commit', stepUp, async (c) => {
+    refuseCommitted(run(c.req.param('id')));
+    const { deleteMissing } = await readBody(c, commitBody);
+    // Read again after the body: a second request (double click, retry) may have committed the run
+    // meanwhile. From here on everything is synchronous, so nothing can come in between.
     const r = run(c.req.param('id'));
     refuseCommitted(r);
-    const { deleteMissing } = await readBody(c, commitBody);
     const e = evaluate(r);
     if (e.problems.some((p) => p.severity === 'error'))
       throw new ApiError(422, 'import_problems', 'The dry run has errors; fix the mapping first', {

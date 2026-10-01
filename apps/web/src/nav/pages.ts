@@ -250,3 +250,19 @@ export const EINSTELLUNGEN_REGELWERK: PageDef = PAGES.find(
 
 /** Plan › Monat (built in P2c). */
 export const PLAN_MONAT: PageDef = PAGES.find((p) => p.path === '/plan/monat') as PageDef;
+
+/** Plan › Sparziele (built in P3.4). */
+export const PLAN_SPARZIELE: PageDef = PAGES.find((p) => p.path === '/plan/sparziele') as PageDef;
+/** Einstellungen › Datenquellen: the YNAB import wizard (P2d); bank sources follow in P4. */
+export const EINSTELLUNGEN_DATENQUELLEN: PageDef = PAGES.find(
+  (p) => p.path === '/einstellungen/datenquellen',
+) as PageDef;
+
+/** Gate 2 report of a YNAB import run (`?lauf=`), printable. */
+export const IMPORT_REPORT: PageDef = {
+  ...EINSTELLUNGEN_DATENQUELLEN,
+  path: '/einstellungen/datenquellen/abgleich',
+  title: 'Einstellungen · Abgleich YNAB-Import',
+  fills: P2,
+  spec: 'Jede Differenz des Imports je Konto oder Kategorie und Monat; druckbar.',
+};
