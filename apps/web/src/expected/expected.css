@@ -105,16 +105,23 @@
   font-weight: 600;
 }
 
-/* Income button (title block value and chain term target) */
+/* Income button (title block value): looks exactly like the plain value and adds no height to
+   the title block; the touch target is a pseudo-element around it. Focus ring on :focus-visible
+   comes from the base styles. */
 .xp-income-btn {
+  position: relative;
   display: inline-flex;
   align-items: center;
   gap: 2px;
-  min-height: 32px;
+  padding: 0;
   font: inherit;
-  font-weight: inherit;
   color: inherit;
   border-radius: var(--radius-xs);
+}
+.xp-income-btn::after {
+  content: '';
+  position: absolute;
+  inset: -12px -8px;
 }
 .xp-income-btn:hover {
   color: var(--line);
@@ -264,9 +271,6 @@ h4.xp-sub {
   }
   .xp-toolbar .seg button {
     white-space: nowrap;
-  }
-  .xp-income-btn {
-    min-height: var(--touch);
   }
   .xp-name {
     align-items: flex-start;
