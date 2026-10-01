@@ -1,4 +1,9 @@
-import { assignedMonth, type AllocMonth, type AssignedCategory } from '@budget/domain';
+import {
+  assignedMonth,
+  type AllocMonth,
+  type AssignedCategory,
+  type BudgetMonth,
+} from '@budget/domain';
 import { and, eq, isNull } from 'drizzle-orm';
 import {
   account,
@@ -24,9 +29,14 @@ import type { Executor } from './types';
  *   of the special payments as twelfths;
  * - every other spending category counts its envelope activity of the month.
  */
-export function allocationMonth(db: Executor, month: string): AllocMonth {
+export function allocationMonth(
+  db: Executor,
+  month: string,
+  /** The month's envelopes when the caller already computed the budget (saves a recomputation). */
+  precomputed?: BudgetMonth['envelopes'],
+): AllocMonth {
   const year = month.slice(0, 4);
-  const envelopes = budget(db, [month])[0]?.envelopes ?? {};
+  const envelopes = precomputed ?? budget(db, [month])[0]?.envelopes ?? {};
   const spent = (categoryId: string) => -(envelopes[categoryId]?.activityCents ?? 0);
 
   const versions = db

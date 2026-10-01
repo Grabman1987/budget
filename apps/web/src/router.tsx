@@ -13,8 +13,11 @@ import { accountsQuery } from './ledger/queries';
 import { findReport } from './nav/reports-catalog';
 import {
   ACCOUNT_PAGE,
+  EINSTELLUNGEN_DATENQUELLEN,
   EINSTELLUNGEN_KATEGORIEN,
+  IMPORT_REPORT,
   PLAN_MONAT,
+  PLAN_SPARZIELE,
   HEUTE,
   KONTEN_BUCHUNGEN_META,
   KONTEN_META,
@@ -93,8 +96,10 @@ const BUILT_PATHS = new Set<string>([
   '/konten',
   '/konten/buchungen',
   EINSTELLUNGEN_KATEGORIEN.path,
+  EINSTELLUNGEN_DATENQUELLEN.path,
   PLAN_MONAT.path,
   VERMOEGEN_NETTO_META.path,
+  PLAN_SPARZIELE.path,
 ]);
 const placeholderRoutes = PAGES.filter((page) => !BUILT_PATHS.has(page.path)).map((page) =>
   pageRoute(page.path, page),
@@ -125,6 +130,28 @@ const categoriesRoute = createRoute({
   staticData: { meta: EINSTELLUNGEN_KATEGORIEN },
   component: lazyRouteComponent(() => import('./budget/categories-page'), 'CategoriesPage'),
 });
+// Einstellungen › Datenquellen: YNAB import runs and the wizard (`?lauf=&schritt=`), P2d.
+const IMPORT_STEPS = ['konten', 'kategorien', 'regeln', 'empfaenger', 'start', 'probelauf'];
+const importSearch = (search: Record<string, unknown>) => ({
+  lauf: typeof search['lauf'] === 'string' ? search['lauf'] : undefined,
+  schritt: IMPORT_STEPS.includes(search['schritt'] as string)
+    ? (search['schritt'] as string)
+    : undefined,
+});
+const dataSourcesRoute = createRoute({
+  getParentRoute: () => shellRoute,
+  path: EINSTELLUNGEN_DATENQUELLEN.path,
+  staticData: { meta: EINSTELLUNGEN_DATENQUELLEN },
+  validateSearch: importSearch,
+  component: lazyRouteComponent(() => import('./imports/datasources-page'), 'DataSourcesPage'),
+});
+const importReportRoute = createRoute({
+  getParentRoute: () => shellRoute,
+  path: IMPORT_REPORT.path,
+  staticData: { meta: IMPORT_REPORT },
+  validateSearch: importSearch,
+  component: lazyRouteComponent(() => import('./imports/report-page'), 'ImportReportPage'),
+});
 const planMonthRoute = createRoute({
   getParentRoute: () => shellRoute,
   path: PLAN_MONAT.path,
@@ -136,6 +163,11 @@ const netWorthRoute = createRoute({
   path: VERMOEGEN_NETTO_META.path,
   staticData: { meta: VERMOEGEN_NETTO_META },
   component: lazyRouteComponent(() => import('./wealth/networth-page'), 'NetWorthPage'),
+const planGoalsRoute = createRoute({
+  getParentRoute: () => shellRoute,
+  path: PLAN_SPARZIELE.path,
+  staticData: { meta: PLAN_SPARZIELE },
+  component: lazyRouteComponent(() => import('./budget/goals-page'), 'GoalsPage'),
 });
 const redirects = [
   redirectRoute('/plan', '/plan/monat'),
@@ -242,8 +274,11 @@ const routeTree = rootRoute.addChildren([
     ...placeholderRoutes,
     securityRoute,
     categoriesRoute,
+    dataSourcesRoute,
+    importReportRoute,
     planMonthRoute,
     netWorthRoute,
+    planGoalsRoute,
     ...redirects,
     overviewRoute,
     bookingsRoute,

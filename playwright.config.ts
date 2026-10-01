@@ -5,6 +5,11 @@ const MAIN_PORT = Number(process.env['E2E_PORT'] ?? 4310);
 const AUTH_DESKTOP_PORT = MAIN_PORT + 1;
 const AUTH_MOBILE_PORT = MAIN_PORT + 2;
 const SAMPLE_PORT = MAIN_PORT + 3;
+/** The YNAB import e2e writes a whole export: one empty server per viewport, not the main one. */
+export const IMPORT_URLS = {
+  desktop: `http://localhost:${MAIN_PORT + 4}`,
+  mobile: `http://localhost:${MAIN_PORT + 5}`,
+};
 /** Test-only secret for the bootstrap; the servers below are throwaway and local. */
 export const E2E_SETUP_TOKEN = 'e2e-setup-token-not-a-secret';
 export const MAIN_URL = `http://localhost:${MAIN_PORT}`;
@@ -29,9 +34,18 @@ export const DB_MAIN = 'test-results/e2e-main.sqlite';
 const DB_AUTH_DESKTOP = 'test-results/e2e-auth-desktop.sqlite';
 const DB_AUTH_MOBILE = 'test-results/e2e-auth-mobile.sqlite';
 export const DB_SAMPLE = 'test-results/e2e-sample.sqlite';
+const DB_IMPORT_DESKTOP = 'test-results/e2e-import-desktop.sqlite';
+const DB_IMPORT_MOBILE = 'test-results/e2e-import-mobile.sqlite';
 if (process.env['TEST_WORKER_INDEX'] === undefined) {
   mkdirSync('test-results/.auth', { recursive: true });
-  for (const file of [DB_MAIN, DB_AUTH_DESKTOP, DB_AUTH_MOBILE, DB_SAMPLE])
+  for (const file of [
+    DB_MAIN,
+    DB_AUTH_DESKTOP,
+    DB_AUTH_MOBILE,
+    DB_SAMPLE,
+    DB_IMPORT_DESKTOP,
+    DB_IMPORT_MOBILE,
+  ])
     for (const suffix of ['', '-wal', '-shm']) rmSync(file + suffix, { force: true });
 }
 
@@ -119,5 +133,7 @@ export default defineConfig({
     server(AUTH_DESKTOP_PORT, DB_AUTH_DESKTOP),
     server(AUTH_MOBILE_PORT, DB_AUTH_MOBILE),
     sampleServer(),
+    server(MAIN_PORT + 4, DB_IMPORT_DESKTOP),
+    server(MAIN_PORT + 5, DB_IMPORT_MOBILE),
   ],
 });
