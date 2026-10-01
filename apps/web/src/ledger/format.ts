@@ -10,6 +10,12 @@ export const eur = (value: number, options?: FormatEuroOptions) =>
 export const eurWhole = (value: number, sign = false) =>
   formatEuro(cents(value), { cents: false, sign });
 
+/** Exact lead figure split into grouped whole euros and cents, from one de-AT formatting pass. */
+export const eurParts = (value: number) => {
+  const [whole = '0', fraction = '00'] = eur(value).replace(/ €$/, '').split(',');
+  return { whole, fraction };
+};
+
 const WEEKDAY = new Intl.DateTimeFormat('de-AT', { weekday: 'short', timeZone: 'UTC' });
 const at = (day: string) => new Date(`${day}T00:00:00Z`);
 

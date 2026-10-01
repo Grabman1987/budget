@@ -8,7 +8,7 @@ import { PageFrame } from '../pages/placeholder-page';
 import { KONTEN_META } from '../nav/pages';
 import { AccountFormPanel } from './account-form';
 import { fetchAccounts } from './api';
-import { eur, eurWhole, MINUS } from './format';
+import { eur, eurParts, eurWhole } from './format';
 import { ACCOUNT_TYPE_LABEL, accountValue } from './labels';
 import { MiniLine } from './mini-line';
 import {
@@ -112,10 +112,7 @@ function NetWorth({
   push('Forderungen', 'receivable', sum('receivable'), '+');
   terms.push({ label: 'Nettovermögen', value: cents(model.netWorthCents), op: '=' });
 
-  const whole =
-    (model.netWorthCents < 0 ? MINUS : '') +
-    eur(Math.abs(model.netWorthCents), { cents: false }).replace(' €', '');
-  const fraction = eur(Math.abs(model.netWorthCents)).split(',')[1]?.replace(' €', '') ?? '00';
+  const { whole, fraction } = eurParts(model.netWorthCents);
 
   return (
     <section className="knw" aria-labelledby="nw-title">

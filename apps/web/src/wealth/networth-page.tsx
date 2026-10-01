@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { ArrowDown, ArrowUp } from 'lucide-react';
 import { VERMOEGEN_NETTO_META } from '../nav/pages';
 import { PageFrame } from '../pages/placeholder-page';
-import { eur, eurWhole, MINUS } from '../ledger/format';
+import { eurParts, eurWhole } from '../ledger/format';
 import { EmptyNote, ErrorNote, LoadingNote } from '../ledger/states';
 import { netWorthQuery, type CompositionRow, type NetWorthView } from './api';
 import { NetWorthChart } from './networth-chart';
@@ -47,9 +47,7 @@ export function NetWorthPage() {
 function Course({ view }: { view: NetWorthView }) {
   const { chain } = view;
   const text = periodText(view.period, view.from);
-  const whole =
-    (chain.nowCents < 0 ? MINUS : '') + eurWhole(Math.abs(chain.nowCents)).replace(' €', '');
-  const fraction = eur(Math.abs(chain.nowCents)).split(',')[1]?.replace(' €', '') ?? '00';
+  const { whole, fraction } = eurParts(chain.nowCents);
   const up = chain.deltaCents >= 0;
   const Arrow = up ? ArrowUp : ArrowDown;
 
