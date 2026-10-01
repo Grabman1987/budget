@@ -34,6 +34,16 @@ Owner scope update, 2026-10-01: remove import as an app feature. Keep only CSV e
 
 After EUR acceptance: complete Heute/contacts/inbox daily workflows, PP commit/matching and Gate 3, remaining wealth/source/report/PWA scope and Gate 4. Prototype-host removal is separate from retiring still-used finance tools.
 
+## Future feature candidates — owner inspirations
+
+Backlog: [`inspirations.md`](inspirations.md). These are possible later improvements, not accepted implementation scope. The ordered audit corrections, EUR migration and operational/product gates retain priority. All six source links are collected; source contents remain unreviewed because access is policy-blocked.
+
+- [x] Create a durable collection of owner-submitted inspiration links with stable IDs, access status and existing feature overlaps.
+- [ ] Review I01–I06 when source access or excerpts are available; extract specific useful interactions before scheduling implementation.
+- [ ] Evaluate multiple goals per category (I02) against P3.4 savings goals, including allocation without double counting.
+- [ ] Evaluate distribution preview in a side panel (I03) against the existing waterfall/rules; bank reconnect reminders depend on P4 connections and reliable expiry data.
+- [ ] Evaluate debt-payoff strategy comparisons (I04/I06) against existing debt/Sondertilgung scope, shared calculations and explicit assumptions. Plannrr (I05) needs a demo or description first.
+
 ## P1 Fundament
 
 ### P1a — Repo scaffold and stack spike (`docs/prompts/P1a.md`)
