@@ -81,7 +81,12 @@ export interface PositionLine {
   /** Share of the portfolio in bp (all positions add up to 10 000). */
   shareBp: number;
   /** One line per account holding the security. */
-  accounts: { accountId: string; unitsE8: number; valueCents: number }[];
+  accounts: {
+    accountId: string;
+    institutionId: string | null;
+    unitsE8: number;
+    valueCents: number;
+  }[];
 }
 
 export interface ClassGroup {
@@ -480,7 +485,12 @@ export function positionLines(db: Executor, asOf: string): PositionLine[] {
     const realizedResult = realized.get(`${h.accountId}\0${h.securityId}`);
     line.realizedGainCents += realizedResult?.cents ?? 0;
     line.realizedGainComplete &&= realizedResult?.complete ?? true;
-    line.accounts.push({ accountId: h.accountId, unitsE8: h.unitsE8, valueCents: h.valueCents });
+    line.accounts.push({
+      accountId: h.accountId,
+      institutionId: accountInstitution.get(h.accountId) ?? null,
+      unitsE8: h.unitsE8,
+      valueCents: h.valueCents,
+    });
   }
   const lines = [...bySecurity.values()].sort(
     (a, b) => b.valueCents - a.valueCents || a.securityId.localeCompare(b.securityId),
@@ -495,14 +505,16 @@ export function positionLines(db: Executor, asOf: string): PositionLine[] {
 
 /** The positions as the wealth domain sees them (kind and class, never the name). */
 export const toWealthPositions = (lines: ReadonlyArray<PositionLine>): WealthPosition[] =>
-  lines.map((l) => ({
-    id: l.securityId,
-    securityId: l.securityId,
-    kind: l.kind,
-    assetClass: l.assetClassId,
-    valueCents: l.valueCents,
-    platform: l.institutionId,
-  }));
+  lines.flatMap((line) =>
+    line.accounts.map((position) => ({
+      id: `${line.securityId}:${position.accountId}`,
+      securityId: line.securityId,
+      kind: line.kind,
+      assetClass: line.assetClassId,
+      valueCents: position.valueCents,
+      platform: position.institutionId,
+    })),
+  );
 
 /** R13 inputs: the Soll-Allocation valid on `asOf`. */
 export function classTargets(db: Executor, asOf: string) {
@@ -699,10 +711,18 @@ export function portfolioSummary(db: Executor, options: PortfolioOptions): Portf
     breach: row.breach,
     positions: lines.filter((l) => classOf(l) === row.assetClass),
   }));
-  const platformIds = [...new Set(lines.map((l) => l.institutionId))];
-  const platformValues = platformIds.map((id) =>
-    lines.filter((l) => l.institutionId === id).reduce((a, l) => a + l.valueCents, 0),
-  );
+  const platformValuesByInstitution = new Map<string | null, number>();
+  for (const line of lines) {
+    for (const position of line.accounts) {
+      platformValuesByInstitution.set(
+        position.institutionId,
+        (platformValuesByInstitution.get(position.institutionId) ?? 0) + position.valueCents,
+      );
+    }
+  }
+  const platformEntries = [...platformValuesByInstitution];
+  const platformIds = platformEntries.map(([id]) => id);
+  const platformValues = platformEntries.map(([, value]) => value);
   const platformShares = shareBps(platformValues, valueCents);
   const platforms: PlatformShare[] = platformIds
     .map((id, i) => ({
