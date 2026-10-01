@@ -1,3 +1,4 @@
+import { valuationMissingText } from './labels';
 import { describe, expect, it } from 'vitest';
 import { netWorthChange, overviewModel, seriesChange, utilisation } from './overview-model';
 import type { AccountRow } from './types';
@@ -27,6 +28,7 @@ const account = (over: Partial<AccountRow>): AccountRow => ({
   holdingsCents: 0,
   valueEurCents: 0,
   missingFxCurrencies: [],
+  missingPriceSecurityIds: [],
   bookingCount: 0,
   pendingCount: 0,
   lastReconciledOn: null,
@@ -133,4 +135,21 @@ describe('seriesChange and utilisation', () => {
     expect(utilisation(account({ creditLimitCents: 200_000, balanceCents: 5_000 }))).toBe(0);
     expect(utilisation(account({}))).toBeNull();
   });
+});
+
+it('distinguishes unavailable market quotes from missing currency rates', () => {
+  const missing = account({
+    holdingsCents: null,
+    valueEurCents: null,
+    missingPriceSecurityIds: ['s'],
+  });
+  expect(overviewModel([missing])).toMatchObject({
+    netWorthCents: null,
+    missingPriceSecurityIds: ['s'],
+    missingFxCurrencies: [],
+  });
+  expect(valuationMissingText(missing)).toBe('Wertpapierkurs fehlt');
+  expect(valuationMissingText({ ...missing, missingFxCurrencies: ['CHF'] })).toBe(
+    'Wertpapierkurs fehlt · Wechselkurs fehlt: CHF',
+  );
 });

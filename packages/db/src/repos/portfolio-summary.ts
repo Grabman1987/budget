@@ -542,6 +542,10 @@ export function positionCostDetailsAsOf(
   );
   const keys = [
     ...valuation.values.map((v) => ({ accountId: v.accountId, securityId: v.securityId })),
+    ...valuation.missingPricePositions.map((v) => ({
+      accountId: v.accountId,
+      securityId: v.securityId,
+    })),
     ...valuation.missingFxPositions.map((v) => ({
       accountId: v.accountId,
       securityId: v.securityId,

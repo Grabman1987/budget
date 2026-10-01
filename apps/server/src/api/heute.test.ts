@@ -101,6 +101,64 @@ async function call(method: string, path: string, body?: unknown) {
 }
 
 describe('GET /heute', () => {
+  it('keeps daily budget, upcoming and bookings usable while missing quotes isolate valuation sections', async () => {
+    const before = await call('GET', '/heute');
+    db.insert(schema.account)
+      .values({
+        id: 'depot',
+        name: 'Synthetic depot',
+        type: 'brokerage',
+        role: 'investment',
+        onBudget: false,
+        openingDate: '2026-01-01',
+      })
+      .run();
+    db.insert(schema.security)
+      .values({ id: 'unpriced', name: 'Synthetic instrument', kind: 'stock', currency: 'EUR' })
+      .run();
+    db.insert(schema.holding)
+      .values({
+        id: 'held',
+        accountId: 'depot',
+        securityId: 'unpriced',
+        asOf: '2026-01-01',
+        unitsE8: 100_000_000,
+        costBasisCents: 10000,
+      })
+      .run();
+    let result = await call('GET', '/heute');
+    expect(result.status).toBe(200);
+    for (const section of [
+      'stand',
+      'lead',
+      'balance',
+      'pace',
+      'pinned',
+      'upcoming14',
+      'lastBookings',
+      'nextSteps',
+    ])
+      expect(result.body[section], section).toEqual(before.body[section]);
+    expect(result.body.financeCheck).toEqual({
+      unavailable: {
+        reason: 'missing_price',
+        asOf: TODAY,
+        message: expect.stringContaining('Wertpapierkurs fehlt'),
+      },
+    });
+    expect(result.body.netWorth).toMatchObject({ unavailable: { reason: 'missing_price' } });
+    expect(
+      (await call('PUT', `/securities/unpriced/prices/${TODAY}`, { price: '120' })).status,
+    ).toBe(200);
+    result = await call('GET', '/heute');
+    expect(result.status).toBe(200);
+    expect(result.body.financeCheck.counts.total).toBe(16);
+    expect(result.body.netWorth).toMatchObject({
+      unavailable: { reason: 'missing_price', asOf: '2026-01-31' },
+    });
+    expect(result.body.balance).toEqual(before.body.balance);
+    expect(result.body.lastBookings).toEqual(before.body.lastBookings);
+  });
   it('answers every block of the home screen in one request', async () => {
     await call('PATCH', '/categories/essen', { pinned: true });
     const res = await call('GET', '/heute');

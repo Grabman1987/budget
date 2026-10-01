@@ -287,6 +287,11 @@ Price history (yfinance + Ariva, source per price), ECB rates, trades and holdin
 - [x] Depot view: a plain booking on a reference account is an external flow (inflow = Einlage, outflow = Entnahme); interest, dividends, fees and taxes stay performance
 - [x] Sample savings plans; tests incl. the 17.09.2026 portfolio figures of the prototype
 
+### Missing-quote valuation guard
+- [x] Explicit nullable current account/position values and missing-price metadata; known basis and CSV rows retained. Numeric helpers and held-day history reject missing quotes rather than inventing zero or gains; genuine domain zero quotes and zero units remain valid.
+- [x] Today keeps budget/upcoming/bookings usable, with unavailable finance-check/net-worth sections and German reasons.
+- [ ] Partial-history charts and separately available legacy summary fields; independent financial review and private reconciliation remain required.
+
 ### P5.6 — Current portfolio positions and instrument detail
 - [x] `/vermoegen/portfolio`: original lead/chain and class-grouped positions, shared server value/basis/gain/shares, per-broker ownership and explicit unknown price/FX/basis; read-only instrument detail in `?produkt=` with actual account navigation
 - [x] Manual quote capture with date/source/currency, exact micro precision, existing audited price API and undo; literal projection/mutation tests and desktop/mobile light/dark browser evidence

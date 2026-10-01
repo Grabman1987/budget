@@ -163,6 +163,58 @@ describe('portfolio positions projection', () => {
     expect((await read()).valueCents).toBe(10000);
     expect((await read()).classes[0]!.positions[0]!.quote?.source).toBe('import');
   });
+  it('first quote, audited undo and redo preserve basis and expose missing current/history values honestly', async () => {
+    snapshot('a', 100_000_000, 10000);
+    const accountValues = async () =>
+      (await (await call('GET', '/accounts')).json()) as {
+        netWorthEurCents: number | null;
+        missingPriceSecurityIds: string[];
+        accounts: {
+          id: string;
+          holdingsCents: number | null;
+          valueEurCents: number | null;
+          missingFxCurrencies: string[];
+          missingPriceSecurityIds: string[];
+        }[];
+      };
+    const absent = async () => {
+      expect(await read()).toMatchObject({ valueCents: null, costCents: 10000, gainCents: null });
+      const accounts = await accountValues();
+      expect(accounts).toMatchObject({ netWorthEurCents: null, missingPriceSecurityIds: ['s'] });
+      expect(accounts.accounts.find((a) => a.id === 'a')).toMatchObject({
+        holdingsCents: null,
+        valueEurCents: null,
+        missingPriceSecurityIds: ['s'],
+        missingFxCurrencies: [],
+      });
+    };
+    await absent();
+    for (const endpoint of ['/portfolio', '/wealth/networth']) {
+      const response = await call('GET', endpoint);
+      expect(response.status).toBe(503);
+      expect(await response.json()).toMatchObject({
+        error: 'valuation_unavailable',
+        reason: 'missing_price',
+        missingPriceSecurityIds: ['s'],
+        message: expect.stringContaining('Wertpapierkurs fehlt'),
+      });
+    }
+    const response = await call('PUT', `/securities/s/prices/${TODAY}`, { price: '120' });
+    expect(response.status).toBe(200);
+    const result = (await response.json()) as { groupId: string };
+    expect(await read()).toMatchObject({ valueCents: 12000, costCents: 10000, gainCents: 2000 });
+    expect((await accountValues()).netWorthEurCents).toBe(12000);
+    // Current120 is known, but the earlier held-day gap cannot turn into120 market gain.
+    for (const endpoint of ['/portfolio', '/wealth/networth'])
+      expect((await call('GET', endpoint)).status).toBe(503);
+    const undone = await call('POST', '/undo', { groupId: result.groupId });
+    expect(undone.status).toBe(200);
+    await absent();
+    const undo = (await undone.json()) as { groupId: string };
+    expect((await call('POST', '/undo', { groupId: undo.groupId })).status).toBe(200);
+    expect(await read()).toMatchObject({ valueCents: 12000, costCents: 10000, gainCents: 2000 });
+    expect((await accountValues()).missingPriceSecurityIds).toEqual([]);
+  });
   it('enforces sessions and rejects future/negative/overprecise manual quotes without changing values', async () => {
     snapshot('a', 200_000_000, 6000);
     quote();

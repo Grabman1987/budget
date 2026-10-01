@@ -93,6 +93,17 @@ describe('portfolio realized gains', () => {
   beforeEach(() => {
     addAccount('depot');
     addSecurity();
+    // Cost-method cases require a genuinely priced history, independent of execution amounts.
+    opened.db
+      .insert(price)
+      .values({
+        securityId: 'stock',
+        date: '2025-12-31',
+        priceMicro: 100_000_000,
+        currency: 'EUR',
+        source: 'manual',
+      })
+      .run();
   });
 
   it('keeps a fully sold position gain when there are no current units', () => {

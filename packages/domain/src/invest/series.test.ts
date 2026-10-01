@@ -10,6 +10,7 @@ import {
   securityFlows,
   sumSeries,
   dailyValuation,
+  PriceUnavailableError,
   type RateTable,
   type SeriesTrade,
 } from './series';
@@ -64,15 +65,35 @@ describe('daily valuation series', () => {
     expect(series.totalCents).toEqual(p.valueCents);
   });
 
-  it('no units before the first trade, no price means value 0, a held position needs a rate', () => {
+  it('zero units need no quote; held positions need a quote and exchange rate', () => {
     const base = { accountId: 'a', securityId: 's', snapshots: [], prices: [] };
     const s = dailyValuation(
       [{ ...base, trades: [{ date: '2026-01-02', unitsE8: 1e8 }] }],
-      eachDay('2026-01-01', '2026-01-03'),
+      ['2026-01-01'],
       rates,
     );
-    expect(s.positions[0]!.unitsE8).toEqual([0, 1e8, 1e8]);
-    expect(s.totalCents).toEqual([0, 0, 0]);
+    expect(s.positions[0]!.unitsE8).toEqual([0]);
+    expect(s.totalCents).toEqual([0]);
+    expect(() =>
+      dailyValuation(
+        [{ ...base, trades: [{ date: '2026-01-02', unitsE8: 1e8 }] }],
+        ['2026-01-02'],
+        rates,
+      ),
+    ).toThrow(PriceUnavailableError);
+    expect(
+      dailyValuation(
+        [
+          {
+            ...base,
+            trades: [{ date: '2026-01-02', unitsE8: 1e8 }],
+            prices: [{ date: '2026-01-02', priceMicro: 0, currency: 'EUR' }],
+          },
+        ],
+        ['2026-01-02'],
+        rates,
+      ).totalCents,
+    ).toEqual([0]);
     expect(() =>
       dailyValuation(
         [

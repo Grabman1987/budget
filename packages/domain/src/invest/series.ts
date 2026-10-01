@@ -82,6 +82,18 @@ export class ExchangeRateUnavailableError extends Error {
   }
 }
 
+/** A held position cannot be valued without a stored quote on or before the day. */
+export class PriceUnavailableError extends Error {
+  override readonly name = 'PriceUnavailableError';
+  constructor(
+    readonly accountId: string,
+    readonly securityId: string,
+    readonly asOf: string,
+  ) {
+    super(`No price for ${securityId} in ${accountId} on or before ${asOf}`);
+  }
+}
+
 /** Every day from `from` to `to`, both included. */
 export function eachDay(from: string, to: string): string[] {
   const out: string[] = [];
@@ -165,8 +177,8 @@ function unitsSeries(position: PositionInput, days: ReadonlyArray<string>): numb
 /**
  * Daily valuation of positions: units held that day times the latest price on or before it (carried
  * forward over weekends and gaps), times the ECB rate of the price currency of that day, one
- * rounding. A position without units is 0 and needs no rate; a security that has no price yet is
- * valued 0 (as `holdingValuesAsOf`); a missing rate for a held position is an error.
+ * rounding. A position without units is 0 and needs no quote or rate; missing prices or rates
+ * for held positions make the series unavailable.
  */
 export function dailyValuation(
   positions: ReadonlyArray<PositionInput>,
@@ -181,10 +193,11 @@ export function dailyValuation(
       const units = unitsE8[i] as number;
       if (units === 0) return 0;
       const latest = latestOnOrBefore(prices, day);
+      if (!latest) throw new PriceUnavailableError(p.accountId, p.securityId, day);
       const value = marketValueEurCents(
         units,
-        latest?.priceMicro ?? 0,
-        fxOn(rates, latest?.currency ?? 'EUR', day),
+        latest.priceMicro,
+        fxOn(rates, latest.currency, day),
       );
       totalCents[i] = (totalCents[i] as number) + value;
       return value;

@@ -8,7 +8,7 @@ import {
   MissingFxRateError,
   ReconciledLockedError,
 } from '@budget/db';
-import { ExchangeRateUnavailableError } from '@budget/domain';
+import { ExchangeRateUnavailableError, PriceUnavailableError } from '@budget/domain';
 import type { Context } from 'hono';
 import { ZodError, type ZodType } from 'zod';
 
@@ -113,6 +113,19 @@ export function errorAnswer(error: unknown): ErrorAnswer {
         error: 'valuation_unavailable',
         message: error.message,
         missingFxCurrencies: [error.currency],
+        asOf: error.asOf,
+      },
+      503,
+    );
+  }
+  if (error instanceof PriceUnavailableError) {
+    return answer(
+      {
+        error: 'valuation_unavailable',
+        reason: 'missing_price',
+        message: `Ein benötigter Wertpapierkurs fehlt bis einschließlich ${error.asOf}.`,
+        missingPriceSecurityIds: [error.securityId],
+        accountId: error.accountId,
         asOf: error.asOf,
       },
       503,

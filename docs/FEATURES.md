@@ -95,6 +95,12 @@ Prototype references: [Vermögen](../design/prototype/vermoegen.html),
 | I20 | Freiheitszahl with Soll-Pfad and target year | Pure calculation; UI placeholder | Shared-data integration, complete page and private assumptions |
 | I21 | PP XML parsing, security matching, reversible transfer and Gate 3 report | Partial | Parser/target plan exist; persisted commit, matching and independent Gate 3 acceptance remain |
 
+Held instruments without quotes retain known basis and explicit unknown market value/gain
+in accounts, positions and CSV. Numeric history rejects an unpriced held day; a first quote
+does not invent historical market gain. Today isolates unavailable valuation sections while
+keeping daily budget work usable. Partial-history charts and partial legacy summary fields
+remain open; financial/private acceptance is unchanged.
+
 The app's gains are analytical figures. Broker withholding is source data.
 Average/FIFO selection does not rewrite source trades, and no tax-filing parity
 has been accepted. Corporate actions, transfer basis and unknown history require

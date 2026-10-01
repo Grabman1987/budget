@@ -231,28 +231,6 @@ function exportEntries(
           .orderBy(desc(price.date))
           .limit(1)
           .get();
-        if (!line) {
-          return [
-            h.accountId,
-            h.securityId,
-            securityNames.get(h.securityId),
-            meta?.kind,
-            meta?.isin,
-            meta?.symbol,
-            meta?.assetClassName,
-            h.unitsE8,
-            null,
-            null,
-            null,
-            null,
-            cost?.costCents ?? null,
-            null,
-            accountCurrency.get(h.accountId),
-            'missing_price',
-            cost?.missingFxCurrency ?? '',
-            cost?.basisStatus ?? 'undocumented',
-          ];
-        }
         return [
           h.accountId,
           h.securityId,
@@ -262,7 +240,7 @@ function exportEntries(
           meta?.symbol,
           meta?.assetClassName,
           h.unitsE8,
-          line.date,
+          line!.date,
           h.priceMicro,
           h.priceCurrency,
           h.valueCents,
@@ -270,6 +248,32 @@ function exportEntries(
           cost?.gainCents ?? null,
           accountCurrency.get(h.accountId),
           'market_price_fx_converted_to_eur',
+          cost?.missingFxCurrency ?? '',
+          cost?.basisStatus ?? 'undocumented',
+        ];
+      }),
+    ...holdings.missingPricePositions
+      .filter((h) => liveAccountIds.has(h.accountId))
+      .map((h) => {
+        const meta = securityMetadata.get(h.securityId);
+        const cost = positionCosts.get(`${h.accountId}\0${h.securityId}`);
+        return [
+          h.accountId,
+          h.securityId,
+          securityNames.get(h.securityId),
+          meta?.kind,
+          meta?.isin,
+          meta?.symbol,
+          meta?.assetClassName,
+          h.unitsE8,
+          null,
+          null,
+          null,
+          null,
+          cost?.costCents ?? null,
+          null,
+          accountCurrency.get(h.accountId),
+          'missing_price',
           cost?.missingFxCurrency ?? '',
           cost?.basisStatus ?? 'undocumented',
         ];
