@@ -31,6 +31,7 @@ export interface AccountSummary {
   type: string;
   role: string;
   onBudget: boolean;
+  contactId: string | null;
   currency: string;
   institutionId: string | null;
   openingBalanceCents: number;
@@ -99,6 +100,7 @@ export function accountSummaries(db: Executor, asOf: string): AccountSummary[] {
     type: r.account.type,
     role: r.account.role,
     onBudget: r.account.onBudget,
+    contactId: r.account.contactId,
     currency: r.account.currency,
     institutionId: r.account.institutionId,
     openingBalanceCents: r.account.openingBalanceCents,
@@ -221,6 +223,9 @@ export interface ListedBooking {
   currency: string;
   originalAmountCents: number | null;
   originalCurrency: string | null;
+  fxRateMicro: number | null;
+  fxFeeCents: number | null;
+  source: string;
   splits: ListedSplit[];
   /** Account balance after this booking (only when the list is filtered to one account). */
   balanceAfterCents: number | null;
@@ -475,6 +480,9 @@ export function queryBookings(db: Executor, query: BookingQuery = {}): BookingPa
       currency: b.currency,
       originalAmountCents: b.originalAmountCents,
       originalCurrency: b.originalCurrency,
+      fxRateMicro: b.fxRateMicro,
+      fxFeeCents: b.fxFeeCents,
+      source: b.source,
       splits: own,
       balanceAfterCents: r.balanceAfter === null ? null : Number(r.balanceAfter),
     };

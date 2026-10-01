@@ -163,7 +163,7 @@ drill-down or report; the relevant Y/I/report row above stays open until connect
 | Shared calculations, integer money and explainable totals | Implemented foundation | Every new view uses shared figures and passes independent financial regression cases |
 | Visual prototype fidelity and accessibility | Partial acceptance | Remaining primitives + every new page at desktop 1440/mobile 390, light/dark, touch targets, reduced motion |
 | Separate private YNAB/PP migration | Open acceptance | Authorized private files, backup, mapping, persisted reconciliation and owner review |
-| CSV export of all accounts/depots | Intentional placeholder | Working download is outside the current implementation stage |
+| CSV export of all accounts/depots | ZIP download with fresh passkey step-up; account, ledger, trade, holding, price, valuation, security, class, target, FX-rate and savings-plan CSVs ([format](export.md)) | Synthetic archive/auth coverage; owner data acceptance remains |
 | App import upload/wizard | Excluded by owner | Do not recreate; one-time transfer is a separate private task |
 
 ## Path from mockups to a complete replacement
