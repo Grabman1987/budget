@@ -13,11 +13,10 @@ import { accountsQuery } from './ledger/queries';
 import { findReport } from './nav/reports-catalog';
 import {
   ACCOUNT_PAGE,
-  EINSTELLUNGEN_DATENQUELLEN,
+  CSV_EXPORT_META,
   EINSTELLUNGEN_KATEGORIEN,
   PLAN_ERWARTET,
   EINSTELLUNGEN_REGELWERK,
-  IMPORT_REPORT,
   PLAN_MONAT,
   PLAN_SPARZIELE,
   HEUTE,
@@ -99,11 +98,11 @@ const BUILT_PATHS = new Set<string>([
   '/konten/buchungen',
   EINSTELLUNGEN_KATEGORIEN.path,
   EINSTELLUNGEN_REGELWERK.path,
-  EINSTELLUNGEN_DATENQUELLEN.path,
   PLAN_MONAT.path,
   PLAN_ERWARTET.path,
   VERMOEGEN_NETTO_META.path,
   PLAN_SPARZIELE.path,
+  CSV_EXPORT_META.path,
 ]);
 const placeholderRoutes = PAGES.filter((page) => !BUILT_PATHS.has(page.path)).map((page) =>
   pageRoute(page.path, page),
@@ -140,33 +139,20 @@ const rulesRoute = createRoute({
   staticData: { meta: EINSTELLUNGEN_REGELWERK },
   component: lazyRouteComponent(() => import('./rules/rules-page'), 'RulesPage'),
 });
-// Einstellungen › Datenquellen: YNAB import runs and the wizard (`?lauf=&schritt=`), P2d.
-const IMPORT_STEPS = ['konten', 'kategorien', 'regeln', 'empfaenger', 'start', 'probelauf'];
-const importSearch = (search: Record<string, unknown>) => ({
-  lauf: typeof search['lauf'] === 'string' ? search['lauf'] : undefined,
-  schritt: IMPORT_STEPS.includes(search['schritt'] as string)
-    ? (search['schritt'] as string)
-    : undefined,
-});
-const dataSourcesRoute = createRoute({
-  getParentRoute: () => shellRoute,
-  path: EINSTELLUNGEN_DATENQUELLEN.path,
-  staticData: { meta: EINSTELLUNGEN_DATENQUELLEN },
-  validateSearch: importSearch,
-  component: lazyRouteComponent(() => import('./imports/datasources-page'), 'DataSourcesPage'),
-});
-const importReportRoute = createRoute({
-  getParentRoute: () => shellRoute,
-  path: IMPORT_REPORT.path,
-  staticData: { meta: IMPORT_REPORT },
-  validateSearch: importSearch,
-  component: lazyRouteComponent(() => import('./imports/report-page'), 'ImportReportPage'),
-});
 const planMonthRoute = createRoute({
   getParentRoute: () => shellRoute,
   path: PLAN_MONAT.path,
   staticData: { meta: PLAN_MONAT },
   component: lazyRouteComponent(() => import('./budget/plan-page'), 'PlanMonthPage'),
+});
+const exportRoute = createRoute({
+  getParentRoute: () => shellRoute,
+  path: CSV_EXPORT_META.path,
+  staticData: { meta: CSV_EXPORT_META },
+  component: lazyRouteComponent(
+    () => import('./pages/export-placeholder'),
+    'ExportPlaceholderPage',
+  ),
 });
 const planExpectedRoute = createRoute({
   getParentRoute: () => shellRoute,
@@ -187,6 +173,8 @@ const planGoalsRoute = createRoute({
   component: lazyRouteComponent(() => import('./budget/goals-page'), 'GoalsPage'),
 });
 const redirects = [
+  // Legacy import bookmarks lead to the export placeholder; no import action remains in the UI.
+  redirectRoute('/einstellungen/import', '/einstellungen/export'),
   redirectRoute('/plan', '/plan/monat'),
   redirectRoute('/vermoegen', '/vermoegen/nettovermoegen'),
   redirectRoute('/einstellungen', '/einstellungen/konten'),
@@ -292,8 +280,7 @@ const routeTree = rootRoute.addChildren([
     securityRoute,
     categoriesRoute,
     rulesRoute,
-    dataSourcesRoute,
-    importReportRoute,
+    exportRoute,
     planMonthRoute,
     planExpectedRoute,
     netWorthRoute,
