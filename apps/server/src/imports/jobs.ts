@@ -58,9 +58,9 @@ export interface ImportJobsOptions {
   /** `worker` needs a database file; default: `worker` for files, `inline` for `:memory:`. */
   mode?: 'worker' | 'inline';
   /**
-   * Old-space limit of the worker thread in MB (default 160; an export of several thousand bookings
-   * needs less than 64). The VM has 512 MB for everything: a runaway task fails alone (500) instead of
-   * taking the server down.
+   * Old-space limit of the worker thread in MB (default 128; an export of several thousand bookings
+   * keeps less than 64 MB alive). The VM has 512 MB for everything: a runaway task fails alone
+   * (500) instead of taking the server down.
    */
   workerHeapMb?: number;
   /** Test aid: hold every task this long right before its transaction commits. */
@@ -191,7 +191,12 @@ export class ImportJobs {
       workerData: input,
       // From source the worker needs the TypeScript loader; the bundle runs as is.
       ...(url.pathname.endsWith('.ts') ? { execArgv: ['--import', 'tsx'] } : {}),
-      resourceLimits: { maxOldGenerationSizeMb: this.options.workerHeapMb ?? 160 },
+      // A small young generation: with V8's default the thread reserves about three times the heap
+      // it uses (measured: ~180 MB instead of ~60 MB for a large export).
+      resourceLimits: {
+        maxOldGenerationSizeMb: this.options.workerHeapMb ?? 128,
+        maxYoungGenerationSizeMb: 16,
+      },
       stdout: false,
       stderr: false,
     });

@@ -409,9 +409,18 @@ function report(db: Executor, runId: string, ctx: TaskContext) {
 
 /**
  * Run a task in one transaction that takes the write lock at once (`BEGIN IMMEDIATE`): the task is
- * the only writer while it runs, and nothing of it stays when it fails or the process dies.
+ * the only writer while it runs, and nothing of it stays when it fails or the process dies. Only
+ * the dry run writes nothing that stays but its summary on the run.
  */
 export function runTask(db: Db, task: ImportTask, ctx: TaskContext): TaskAnswer {
+  // The dry run is the write in a transaction of its own that is rolled back, as before. Inside an
+  // outer transaction it would be a savepoint, and SQLite keeps a copy of every page a savepoint
+  // touches in memory until it ends (about 150 MB more for a large export).
+  if (task.kind === 'dry-run') {
+    const body = dryRun(db, task.runId, ctx);
+    ctx.progress?.('commit');
+    return { status: 200, body };
+  }
   return db.transaction(
     (tx) => {
       const t: Executor = tx;
@@ -419,9 +428,6 @@ export function runTask(db: Db, task: ImportTask, ctx: TaskContext): TaskAnswer 
       switch (task.kind) {
         case 'stage':
           out = { status: 201, body: stage(t, task, ctx) };
-          break;
-        case 'dry-run':
-          out = { status: 200, body: dryRun(t, task.runId, ctx) };
           break;
         case 'commit':
           out = { status: 200, body: commit(t, task.runId, task.deleteMissing, ctx) };
