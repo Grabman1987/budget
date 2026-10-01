@@ -1,12 +1,15 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { createTestDatabase, type OpenedDatabase } from '../client';
-import { auditLog } from '../schema';
+import { eq } from 'drizzle-orm';
+import { createTestDatabase, type OpenedDatabase, sqliteOf } from '../client';
+import { auditLog, price, priceAudit } from '../schema';
+import { history, undo } from './audit';
 import { createEntity } from './entities';
 import { security } from '../schema';
 import {
   fxRateOnOrBefore,
   latestPriceOnOrBefore,
   priceSeries,
+  setManualPrice,
   upsertFxRate,
   upsertPrice,
 } from './prices';
@@ -46,6 +49,94 @@ describe('prices', () => {
       },
     ]);
     expect(db.select().from(auditLog).all()).toHaveLength(before);
+  });
+
+  it('undoes and redoes an initial manual price insertion', () => {
+    const ctx = { actor: 'test', groupId: 'manual-insert' };
+    const { groupId } = setManualPrice(
+      db,
+      { securityId: 's1', date: '2026-01-02', priceMicro: 100_000_000, currency: 'EUR' },
+      ctx,
+    );
+    expect(history(db, 'price', 's1:2026-01-02')[0]).toMatchObject({
+      action: 'create',
+      before: null,
+      after: { price_micro: 100_000_000, source: 'manual' },
+      groupId,
+    });
+
+    const reverted = undo(db, { groupId }, { actor: 'test' });
+    expect(priceSeries(db, 's1')).toEqual([]);
+    undo(db, { groupId: reverted.groupId }, { actor: 'test' });
+    expect(priceSeries(db, 's1')).toMatchObject([{ date: '2026-01-02', priceMicro: 100_000_000 }]);
+  });
+
+  it('undoes and redoes replacing a provider price while retaining price history', () => {
+    upsertPrice(db, p('2026-01-02', 100_000_000));
+    const result = setManualPrice(
+      db,
+      { securityId: 's1', date: '2026-01-02', priceMicro: 101_000_000, currency: 'EUR' },
+      { actor: 'test', groupId: 'manual-replace' },
+    );
+    expect(result.price.source).toBe('manual');
+    expect(db.select().from(auditLog).where(eq(auditLog.entityType, 'price')).all()).toHaveLength(
+      1,
+    );
+    expect(db.select().from(priceAudit).all()).toMatchObject([
+      {
+        oldPriceMicro: 100_000_000,
+        newPriceMicro: 101_000_000,
+        oldSource: 'yfinance',
+        newSource: 'manual',
+      },
+    ]);
+
+    const reverted = undo(db, { groupId: result.groupId }, { actor: 'test' });
+    expect(priceSeries(db, 's1')).toMatchObject([
+      { date: '2026-01-02', priceMicro: 100_000_000, source: 'yfinance' },
+    ]);
+    undo(db, { groupId: reverted.groupId }, { actor: 'test' });
+    expect(priceSeries(db, 's1')).toMatchObject([
+      { date: '2026-01-02', priceMicro: 101_000_000, source: 'manual' },
+    ]);
+  });
+
+  it('reverts successive manual edits in order and rejects undo of a stale edit', () => {
+    const first = setManualPrice(
+      db,
+      { securityId: 's1', date: '2026-01-02', priceMicro: 100_000_000, currency: 'EUR' },
+      { actor: 'test', groupId: 'first-manual' },
+    );
+    const second = setManualPrice(
+      db,
+      { securityId: 's1', date: '2026-01-02', priceMicro: 102_000_000, currency: 'EUR' },
+      { actor: 'test', groupId: 'second-manual' },
+    );
+    expect(() => undo(db, { groupId: first.groupId }, { actor: 'test' })).toThrow(/changed after/);
+    expect(priceSeries(db, 's1')[0]?.priceMicro).toBe(102_000_000);
+
+    undo(db, { groupId: second.groupId }, { actor: 'test' });
+    expect(priceSeries(db, 's1')[0]?.priceMicro).toBe(100_000_000);
+    undo(db, { groupId: first.groupId }, { actor: 'test' });
+    expect(priceSeries(db, 's1')).toEqual([]);
+  });
+
+  it('rolls back a manual quote when recording its audit entry fails', () => {
+    sqliteOf(opened.db).exec(`
+      CREATE TRIGGER reject_price_audit BEFORE INSERT ON audit_log
+      WHEN NEW.entity_type = 'price'
+      BEGIN SELECT RAISE(ABORT, 'audit unavailable'); END;
+    `);
+    expect(() =>
+      setManualPrice(
+        db,
+        { securityId: 's1', date: '2026-01-02', priceMicro: 100_000_000, currency: 'EUR' },
+        { actor: 'test', groupId: 'atomic-manual' },
+      ),
+    ).toThrow(/audit unavailable/);
+    expect(priceSeries(db, 's1')).toEqual([]);
+    expect(db.select().from(auditLog).where(eq(auditLog.entityType, 'price')).all()).toEqual([]);
+    expect(db.select().from(price).all()).toEqual([]);
   });
 
   it('returns the series ascending, limited by from/to (inclusive) and per security', () => {

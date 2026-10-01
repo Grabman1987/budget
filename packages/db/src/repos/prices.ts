@@ -1,7 +1,8 @@
 import { randomUUID } from 'node:crypto';
 import { and, asc, desc, eq, gte, lte } from 'drizzle-orm';
 import { fxRate, price, priceAudit } from '../schema';
-import type { Executor } from './types';
+import { insertTracked, updateTracked, withGroup, type AuditContext } from './audit';
+import { runInTransaction, type Executor } from './types';
 
 /**
  * Market data. Prices and ECB rates are external time series that a refresh job rewrites, so
@@ -13,6 +14,7 @@ export type PriceRow = typeof price.$inferSelect;
 export type FxRateRow = typeof fxRate.$inferSelect;
 export type PriceInput = typeof price.$inferInsert;
 export type FxRateInput = typeof fxRate.$inferInsert;
+export type ManualPriceInput = Omit<PriceInput, 'source'>;
 
 const assertInt = (name: string, value: number): void => {
   if (!Number.isSafeInteger(value))
@@ -57,6 +59,56 @@ export function upsertPrice(db: Executor, input: PriceInput): boolean {
         .run();
     }
     return true;
+  });
+}
+
+/** Set a user-entered quote as one audited, undoable action. Refreshes continue to use upsertPrice. */
+export function setManualPrice(
+  db: Executor,
+  input: ManualPriceInput,
+  ctx: AuditContext,
+): { price: PriceRow; groupId: string } {
+  assertInt('Price', input.priceMicro);
+  if (input.priceMicro <= 0) throw new Error('Manual price must be positive');
+  const grouped = withGroup(ctx);
+  const values = { ...input, source: 'manual' as const };
+  return runInTransaction(db, (tx) => {
+    const existing = tx
+      .select()
+      .from(price)
+      .where(and(eq(price.securityId, input.securityId), eq(price.date, input.date)))
+      .get();
+    let row: PriceRow;
+    if (existing) {
+      updateTracked(
+        tx,
+        price,
+        [input.securityId, input.date],
+        { priceMicro: values.priceMicro, currency: values.currency, source: values.source },
+        grouped,
+      );
+      row = tx
+        .select()
+        .from(price)
+        .where(and(eq(price.securityId, input.securityId), eq(price.date, input.date)))
+        .get()!;
+      if (existing.priceMicro !== values.priceMicro || existing.source !== values.source) {
+        tx.insert(priceAudit)
+          .values({
+            id: randomUUID(),
+            securityId: input.securityId,
+            date: input.date,
+            oldPriceMicro: existing.priceMicro,
+            newPriceMicro: values.priceMicro,
+            oldSource: existing.source,
+            newSource: values.source,
+          })
+          .run();
+      }
+    } else {
+      row = insertTracked(tx, price, values, grouped);
+    }
+    return { price: row, groupId: grouped.groupId };
   });
 }
 
