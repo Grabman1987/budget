@@ -10,3 +10,7 @@ The complete working rules are in [`CLAUDE.md`](CLAUDE.md); they apply to every 
 4. Calculations must match `design/prototype/*.js`; port tested logic from `reference/finance-hub/` where listed.
 5. No real financial data, persons or providers anywhere in the repo. Money in integer cents. Pure domain logic with tests.
 6. One task, one branch, one pull request; `npm run check` green before the PR.
+
+## Project skill profiles
+
+See [`docs/skills.md`](docs/skills.md) for locally adapted skills and their provenance. Read only the matching `.agents/skills/<name>/SKILL.md`: `budget-caveman` for communication, `budget-impeccable` for UI, `budget-verified-delivery` for implementation/audits, and `budget-security-review` for auth/API/migration/backup/integrations. These profiles supplement the working rules and preserve `SPEC.md` and user instructions; they do not install upstream commands.
