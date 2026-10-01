@@ -54,6 +54,42 @@ category is not part of what Kontostand prüfen checked.
 | `POST /budget/:month/move` | `{ fromId, toId, amountCents > 0 }`; `null` is "Zu verteilen" |
 | `POST /budget/:month/cover` | `{ categoryId, fromId, allowNegative? }`: covers the overspending from another envelope (at most its available) or from "Zu verteilen" (`null`, at most what it holds; the full amount only with `allowNegative: true`, which takes it below 0); answers `coveredCents`. Nothing to cover from is 422 `category_rule` |
 
+## Expected payments (P3.2)
+
+Erwartete Zahlungen: recurring or one-off inflows and outflows with versioned amounts. Amounts in a
+version are positive cents (the payment's `kind` gives the sign); occurrences and read models are
+**signed** (outflow negative) and in the currency of the version (`currency`). Every write answers
+with its `groupId` (undo with `POST /undo`); automatic runs (`/refresh`) use the actor `system`.
+
+Schedule fields: `rhythm` (monthly, quarterly, semiannual, yearly), `dueDay` 1–31 (31 or a day past
+the month end means the last day), `dueMonth` (yearly: the month; quarterly and semiannual: first
+month of the cycle), `dateShift` (`none`, `before`, `after`: move a due date that is a weekend or an
+Austrian public holiday to the previous or next business day; "letzter Werktag" is `dueDay: 31` with
+`before`), `startDate`/`endDate`, `amountToleranceCents` and `dateWindowDays` (matching), and
+`contactShareBp` (the contact's part of each amount, rounded half away from zero per occurrence).
+
+| Endpoint | Purpose |
+| --- | --- |
+| `GET /expected?deleted=1` | Payments with `version` (in force today, else the next), signed `amountCents`, `nextDueDate`, `monthlyEquivalentCents`, `yearlyEquivalentCents`; deleted ones only with `deleted=1` |
+| `POST /expected` | Payment fields plus the first version (`amountCents`, `amountMaxCents?`, `currency?`, `validFrom?`, default the start date or the first of this month); 201 `{ payment, version, groupId }`; plans the occurrences |
+| `PATCH /expected/:id` | Any payment field (not amounts); re-plans future open occurrences |
+| `DELETE /expected/:id`, `POST /expected/:id/restore` | Soft delete (future open occurrences go with it, history stays) and restore |
+| `GET /expected/:id/versions`, `POST /expected/:id/versions` | Versions oldest first; a price change is a new version `{ validFrom, amountCents, amountMaxCents?, currency?, note? }`; an existing day is 409, old versions are never edited; future `expected` occurrences get the new amount in the same undo group |
+| `GET /expected/occurrences?from&to&kind=` | Occurrences due in the range (live payments): status (`expected`, `received`, `deviating`, `missed`), signed amount, `contactShareCents`, account, payee, contact, category with class or income type, `bookingId`, `bookedAmountCents`, and for `deviating` a `suggestion { paymentId, fromMonth, amountCents }` (the price change the booking implies; P3.10 turns it into an inbox item) |
+| `POST /expected/occurrences/:id/link` `{ bookingId }` | Link a booking by hand (any date); status `received` inside range plus tolerance, else `deviating`; a booking belongs to at most one occurrence (409) |
+| `POST /expected/occurrences/:id/unlink` | Remove the link; the occurrence becomes `missed` and stays out of automatic matching |
+| `POST /expected/occurrences/:id/missed` | Mark an unlinked occurrence "ausgefallen" (409 when linked) |
+| `GET /expected/income?month=` | `monthIncome`: `expectedCents` and `receivedCents` per income type and per expected inflow (a missed one counts as expected, not as received) |
+| `POST /expected/refresh` | `refreshOccurrences` then `matchOccurrences` for today; `{ refresh: { created, updated, removed }, match: { received, deviating, missed } }`. Idempotent; the P4 worker calls it |
+
+Occurrences are planned from the first day of last month to the end of the month twelve months
+ahead. Matching: a booking fits when it is on the payment's account, has the same sign and its
+payee (or the payee's contact), a split category or a split income type is the payment's; nearest
+day first (within the window), then nearest amount. Fits inside range plus tolerance are assigned
+before deviating ones. A card booking in another currency is compared by its original amount when
+that has the version's currency. Open occurrences whose window has passed become `missed`.
+
+
 ## Market data (P5.1)
 
 Sources are the fixture series outside production and Yahoo/ECB in production

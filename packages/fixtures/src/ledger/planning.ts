@@ -8,7 +8,8 @@ import {
   type RefCategory,
 } from '../reference/model';
 import { monthEnd } from './cashflow';
-import { ACC, catId, payeeId } from './master-data';
+import { INCOME_TYPES } from '@budget/db/schema';
+import { ACC, CARD_PAYEES, catId, payeeId } from './master-data';
 import type { SampleLedger } from './types';
 import { cents, isoDate, pad2 } from './util';
 
@@ -89,6 +90,9 @@ export function buildPlanning(): Planning {
             : ACC.giro,
         payeeId: payeeId(c.payee as string),
         categoryId: catId(c.id),
+        // The ETF plan is booked as one transfer per product account (depot 99 %, crypto 1 %):
+        // the tolerance lets the depot leg count as the plan's payment.
+        ...(c.id === 'investieren' ? { amountToleranceCents: 10_000 } : {}),
         rhythm: 'monthly',
         dueDay: c.due ?? 1,
         startDate: (c.price ?? c.usd)?.[0]?.[0]
@@ -121,7 +125,7 @@ export function buildPlanning(): Planning {
           id,
           name: months.length > 1 ? `${c.name} (${MONTHS_LONG[month0]})` : c.name,
           kind: 'outflow',
-          accountId: ACC.giro,
+          accountId: CARD_PAYEES.has(c.payee as string) ? ACC.karte : ACC.giro,
           payeeId: payeeId(c.payee as string),
           categoryId: catId(c.id),
           rhythm: 'yearly',
@@ -149,6 +153,7 @@ export function buildPlanning(): Planning {
       kind: 'inflow',
       accountId: ACC.giro,
       payeeId: payeeId('Arbeitgeber'),
+      incomeTypeId: INCOME_TYPES.special.id,
       rhythm: 'yearly',
       dueDay: 15,
       dueMonth: month0 + 1,
@@ -165,8 +170,11 @@ export function buildPlanning(): Planning {
     kind: 'inflow',
     accountId: ACC.giro,
     payeeId: payeeId('Arbeitgeber'),
+    incomeTypeId: INCOME_TYPES.salary.id,
     rhythm: 'monthly',
-    dueDay: 30,
+    // Payday is the last business day of the month (weekend and Austrian holidays skipped).
+    dueDay: 31,
+    dateShift: 'before',
     startDate: '2023-10-01',
   });
   addVersions(
@@ -179,6 +187,7 @@ export function buildPlanning(): Planning {
     kind: 'inflow',
     accountId: ACC.giro,
     payeeId: payeeId('Kontakt M. Muster'),
+    incomeTypeId: INCOME_TYPES.contribution.id,
     rhythm: 'monthly',
     dueDay: 1,
     startDate: '2023-10-01',
