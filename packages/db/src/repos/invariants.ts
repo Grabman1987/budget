@@ -9,9 +9,10 @@ import type { Executor } from './types';
  * them: by the booking repository and by `undo` inside its transaction, so a failed check rolls
  * the whole action back.
  *
- * - a live booking has at least one split and its splits sum to its amount;
+ * - a live booking uses its account's currency and has at least one split whose sum equals amount;
  * - a transfer has exactly two live legs (whole bookings or single splits) on two different
- *   accounts, on the same date, with opposite amounts; a leg never survives alone.
+ *   accounts in the same currency, on the same date, with opposite amounts; a leg never survives
+ *   alone.
  */
 export function assertLedgerInvariants(tx: Executor, bookingIds: Iterable<string>): void {
   const ids = [...new Set(bookingIds)];
@@ -20,6 +21,15 @@ export function assertLedgerInvariants(tx: Executor, bookingIds: Iterable<string
   const rows = chunked(ids, (part) =>
     tx.select().from(booking).where(inArray(booking.id, part)).all(),
   );
+  const accountIds = [...new Set(rows.map((row) => row.accountId))];
+  const accountRows = chunked(accountIds, (part) =>
+    tx
+      .select({ id: account.id, currency: account.currency })
+      .from(account)
+      .where(inArray(account.id, part))
+      .all(),
+  );
+  const accountCurrencies = new Map(accountRows.map((row) => [row.id, row.currency]));
   const splitsOf = new Map<string, (typeof bookingSplit.$inferSelect)[]>();
   for (const s of chunked(ids, (part) =>
     tx.select().from(bookingSplit).where(inArray(bookingSplit.bookingId, part)).all(),
@@ -31,6 +41,11 @@ export function assertLedgerInvariants(tx: Executor, bookingIds: Iterable<string
     if (b.transferId) transferIds.add(b.transferId);
     for (const s of splits) if (s.transferId) transferIds.add(s.transferId);
     if (b.deletedAt !== null) continue;
+    const accountCurrency = accountCurrencies.get(b.accountId);
+    if (accountCurrency !== b.currency)
+      throw new BookingInvariantError(
+        `Booking ${b.id} currency ${b.currency} does not match account currency ${accountCurrency ?? '(missing)'}`,
+      );
     if (splits.length === 0) throw new BookingInvariantError(`Booking ${b.id} has no split`);
     const sum = splits.reduce((a, s) => a + s.amountCents, 0);
     if (sum !== b.amountCents) {
@@ -212,7 +227,7 @@ function chunked<T>(ids: readonly string[], read: (part: string[]) => T[]): T[] 
   return out;
 }
 
-type Leg = { bookingId: string; accountId: string; date: string; cents: number };
+type Leg = { bookingId: string; accountId: string; date: string; cents: number; currency: string };
 
 /** `transferLegsOf` for many transfers at once, by transfer id. */
 function transferLegsOfMany(tx: Executor, transferIds: readonly string[]): Map<string, Leg[]> {
@@ -230,6 +245,7 @@ function transferLegsOfMany(tx: Executor, transferIds: readonly string[]): Map<s
       accountId: b.accountId,
       date: b.date,
       cents: b.amountCents,
+      currency: b.currency,
     });
   for (const r of chunked(transferIds, (part) =>
     tx
@@ -244,6 +260,7 @@ function transferLegsOfMany(tx: Executor, transferIds: readonly string[]): Map<s
       accountId: r.booking.accountId,
       date: r.booking.date,
       cents: r.split.amountCents,
+      currency: r.booking.currency,
     });
   return out;
 }
@@ -279,6 +296,9 @@ function assertTransfer(transferId: string, legs: readonly Leg[]): void {
     );
   }
   const [a, b] = legs as [(typeof legs)[number], (typeof legs)[number]];
+  if (a.currency !== b.currency) {
+    throw new BookingInvariantError(`Transfer ${transferId} legs use different currencies`);
+  }
   if (
     a.accountId === b.accountId ||
     a.date !== b.date ||

@@ -1,6 +1,8 @@
 /* eslint-disable @typescript-eslint/no-explicit-any -- JSON answers are inspected, not typed */
 import {
   account,
+  accounts,
+  auditLog,
   booking,
   category,
   createBooking,
@@ -10,7 +12,9 @@ import {
   importRun,
   ynabRegisterRow,
   type Db,
+  runInTransaction,
 } from '@budget/db';
+import type { TargetModel } from '@budget/import-ynab';
 import { ynabExport, YNAB_FILE_NAMES } from '@budget/fixtures/ynab';
 import { and, eq, isNull } from 'drizzle-orm';
 import { mkdtempSync, writeFileSync } from 'node:fs';
@@ -19,6 +23,7 @@ import { join } from 'node:path';
 import { Hono } from 'hono';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { createApp, type AuthGate } from '../app';
+import { writeImport } from './commit';
 
 const webDir = mkdtempSync(join(tmpdir(), 'budget-import-'));
 writeFileSync(join(webDir, 'index.html'), '<!doctype html><title>Budget</title>');
@@ -88,6 +93,119 @@ function edit(bytes: Uint8Array, change: (line: string) => string | null): Uint8
 }
 
 describe('YNAB import runs', () => {
+  it('rejects a raw EUR import mapped to a USD account atomically', () => {
+    accounts.create(
+      db,
+      {
+        id: 'usd-import-target',
+        name: 'Dollar tracking',
+        type: 'other_asset',
+        role: 'investment',
+        onBudget: false,
+        currency: 'USD',
+        openingDate: '2023-10-01',
+        sortOrder: 1,
+      },
+      { actor: 'tester' },
+    );
+    db.insert(importRun).values({ id: 'usd-import-run', source: 'ynab', status: 'staged' }).run();
+    const auditCount = db.select().from(auditLog).all().length;
+    const target: TargetModel = {
+      startMonth: '2026-01',
+      months: [],
+      accounts: [
+        {
+          id: 'source-usd',
+          ynabName: 'Dollar tracking',
+          name: 'Dollar tracking',
+          type: 'other_asset',
+          onBudget: false,
+          closedAt: null,
+          openingDate: '2026-01-01',
+          openingBalanceCents: 0,
+        },
+      ],
+      categories: [],
+      bookings: [
+        {
+          id: 'source-row',
+          line: 2,
+          accountId: 'source-usd',
+          date: '2026-01-05',
+          payee: '',
+          systemPayee: null,
+          contact: null,
+          flag: '',
+          status: 'confirmed',
+          memo: '',
+          amountCents: -100,
+          splits: [
+            {
+              payee: '',
+              amountCents: -100,
+              categoryId: null,
+              memo: '',
+              transferId: null,
+              transferAccountId: null,
+              contact: null,
+              project: null,
+              incomeType: null,
+              ruleId: null,
+            },
+          ],
+          scheduled: false,
+        },
+      ],
+      assigned: {},
+      openingCarry: {},
+      contacts: [],
+      expectedPayments: [],
+      targets: [],
+      moved: [],
+    };
+    expect(() =>
+      runInTransaction(db, (tx) =>
+        writeImport(tx, {
+          runId: 'usd-import-run',
+          target,
+          keys: new Map([['source-row', 'source-key']]),
+          previous: { accounts: { 'source-usd': 'usd-import-target' }, categories: {} },
+          deleteMissing: false,
+          actor: 'tester',
+        }),
+      ),
+    ).toThrow(/EUR.*account/i);
+    expect(() =>
+      runInTransaction(db, (tx) =>
+        writeImport(tx, {
+          runId: 'usd-import-run',
+          target: {
+            ...target,
+            accounts: target.accounts.map((item) => ({ ...item, openingBalanceCents: 10_000 })),
+            bookings: [],
+          },
+          keys: new Map(),
+          previous: { accounts: { 'source-usd': 'usd-import-target' }, categories: {} },
+          deleteMissing: false,
+          actor: 'tester',
+        }),
+      ),
+    ).toThrow(/EUR.*account/i);
+    expect(liveBookings()).toBe(0);
+    expect(db.select().from(account).all()).toHaveLength(1);
+    expect(
+      db
+        .select({
+          openingDate: account.openingDate,
+          openingBalanceCents: account.openingBalanceCents,
+        })
+        .from(account)
+        .where(eq(account.id, 'usd-import-target'))
+        .get(),
+    ).toEqual({ openingDate: '2023-10-01', openingBalanceCents: 0 });
+    expect(db.select().from(auditLog).all()).toHaveLength(auditCount);
+  });
+
   it('stages both files, refuses uploads without step-up, broken files with the line', async () => {
     stepUpFresh = false;
     expect((await upload()).status).toBe(403);

@@ -204,6 +204,16 @@ export function writeImport(tx: Executor, input: WriteInput): WriteResult {
           .where(and(eq(table.id, id), isNull(table.deletedAt)))
           .get();
 
+  // YNAB supplies euro cents and the target model has no currency field. Do not reuse a foreign
+  // currency account for those amounts; reject before opening balances or any target rows change.
+  for (const targetAccount of target.accounts) {
+    const existing = live(account, input.previous.accounts[targetAccount.id]);
+    if (existing && existing.currency !== 'EUR')
+      throw new BookingInvariantError(
+        `The EUR-only YNAB import cannot map bookings to ${existing.currency} account ${existing.name}`,
+      );
+  }
+
   // Accounts: reused from the previous run, else created; opening values follow the export.
   target.accounts.forEach((a, index) => {
     const found = live(account, input.previous.accounts[a.id]);
