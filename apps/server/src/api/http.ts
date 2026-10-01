@@ -58,13 +58,25 @@ const isSqliteConstraint = (e: unknown): e is SqliteError =>
   e !== null &&
   String((e as SqliteError).code ?? '').startsWith('SQLITE_CONSTRAINT');
 
-/** One place that turns errors of the ledger API into HTTP answers. */
-export function errorResponse(error: unknown, c: Context) {
+export interface ErrorAnswer {
+  status: 400 | 404 | 409 | 422 | 500;
+  body: { error: string; message: string; [key: string]: unknown };
+}
+const answer = (body: ErrorAnswer['body'], status: ErrorAnswer['status']): ErrorAnswer => ({
+  status,
+  body,
+});
+
+/**
+ * One place that turns errors of the ledger API into HTTP answers (status and JSON body); also
+ * used for errors of import tasks that ran in a worker thread.
+ */
+export function errorAnswer(error: unknown): ErrorAnswer {
   if (error instanceof ApiError) {
-    return c.json({ error: error.code, message: error.message, ...error.extra }, error.status);
+    return answer({ error: error.code, message: error.message, ...error.extra }, error.status);
   }
   if (error instanceof ZodError) {
-    return c.json(
+    return answer(
       {
         error: 'invalid',
         message: 'The request is not valid',
@@ -74,27 +86,33 @@ export function errorResponse(error: unknown, c: Context) {
     );
   }
   if (error instanceof EntityNotFoundError) {
-    return c.json({ error: 'not_found', message: error.message }, 404);
+    return answer({ error: 'not_found', message: error.message }, 404);
   }
   if (error instanceof ReconciledLockedError) {
-    return c.json(
+    return answer(
       { error: 'reconciled_locked', message: error.message, bookingIds: error.bookingIds },
       409,
     );
   }
   if (error instanceof ConflictError)
-    return c.json({ error: 'conflict', message: error.message }, 409);
+    return answer({ error: 'conflict', message: error.message }, 409);
   if (error instanceof AuditError)
-    return c.json({ error: 'undo_refused', message: error.message }, 409);
+    return answer({ error: 'undo_refused', message: error.message }, 409);
   if (error instanceof BookingInvariantError) {
-    return c.json({ error: 'invariant', message: error.message }, 422);
+    return answer({ error: 'invariant', message: error.message }, 422);
   }
   if (error instanceof CategoryRuleError)
-    return c.json({ error: 'category_rule', message: error.message }, 422);
-  if (error instanceof RangeError) return c.json({ error: 'invalid', message: error.message }, 400);
+    return answer({ error: 'category_rule', message: error.message }, 422);
+  if (error instanceof RangeError) return answer({ error: 'invalid', message: error.message }, 400);
   if (isSqliteConstraint(error)) {
-    return c.json({ error: 'constraint', message: 'The data violates a rule of the ledger' }, 422);
+    return answer({ error: 'constraint', message: 'The data violates a rule of the ledger' }, 422);
   }
   console.error('Unhandled API error', error instanceof Error ? error.name : typeof error);
-  return c.json({ error: 'server_error', message: 'Something went wrong' }, 500);
+  return answer({ error: 'server_error', message: 'Something went wrong' }, 500);
+}
+
+/** `errorAnswer` as a Hono error handler. */
+export function errorResponse(error: unknown, c: Context) {
+  const { status, body } = errorAnswer(error);
+  return c.json(body, status);
 }

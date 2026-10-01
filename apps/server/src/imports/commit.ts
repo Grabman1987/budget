@@ -13,6 +13,7 @@ import {
   deleteBooking,
   envelopeMonth,
   insertManyTracked,
+  insertRows,
   BookingInvariantError,
   importRun,
   incomeType,
@@ -155,7 +156,8 @@ function namedRows(tx: Executor, table: Named, ctx: GroupedContext) {
       const found = rows.get(nameKey(name));
       if (found) return found;
       const id = randomUUID();
-      createEntity(tx, t, { id, name: norm(name), ...extra }, ctx);
+      // One tracked row through the reused prepared insert (the same log as `createEntity`).
+      insertManyTracked(tx, t, [{ id, name: norm(name), ...extra }], ctx);
       rows.set(nameKey(name), id);
       created += 1;
       return id;
@@ -315,7 +317,7 @@ export function writeImport(tx: Executor, input: WriteInput): WriteResult {
     const found = incomeTypes.get(name) ?? incomeTypes.get(nameKey(name));
     if (found) return found;
     const id = randomUUID();
-    createEntity(tx, incomeType, { id, name: norm(name) }, ctx);
+    insertManyTracked(tx, incomeType, [{ id, name: norm(name) }], ctx);
     incomeTypes.set(nameKey(name), id);
     return id;
   };
@@ -400,11 +402,11 @@ export function writeImport(tx: Executor, input: WriteInput): WriteResult {
     report.bookings.added += 1;
   }
   report.payees.created = payees.created;
-  const transfers = [...transferOf.values()].map((id) => ({ id }));
-  for (let i = 0; i < transfers.length; i += CHUNK)
-    tx.insert(transfer)
-      .values(transfers.slice(i, i + CHUNK))
-      .run();
+  insertRows(
+    tx,
+    transfer,
+    [...transferOf.values()].map((id) => ({ id })),
+  );
   insertManyTracked(tx, booking, rows, ctx);
   insertManyTracked(tx, bookingSplit, splitRows, ctx);
   assertLedgerInvariants(

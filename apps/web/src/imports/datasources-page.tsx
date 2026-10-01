@@ -1,5 +1,6 @@
 import { Button, SectionHead, useToast } from '@budget/ui';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { Loader2 } from 'lucide-react';
 import { useNavigate, useSearch } from '@tanstack/react-router';
 import { useRef, useState, type FormEvent } from 'react';
 import { withStepUp } from '../auth/webauthn';
@@ -18,10 +19,12 @@ import {
   fetchRun,
   fetchRuns,
   importErrorText,
+  JOB_STEPS,
   revertRun,
   saveMapping,
   uploadExport,
   type EvaluationResult,
+  type JobStep,
   type Mapping,
   type Overview,
   type RunView,
@@ -36,6 +39,16 @@ import {
   YearList,
   type StepProps,
 } from './steps';
+
+/** Progress line of a running import job (dry run, commit, revert run on the server). */
+function JobNote({ what, step }: { what: string; step: JobStep | null }) {
+  return (
+    <p className="rev-empty" role="status" aria-busy="true">
+      <Loader2 className="icon spin" size={18} strokeWidth={1.75} aria-hidden="true" />
+      {what} läuft{step ? ` – ${JOB_STEPS[step]}` : ''} …
+    </p>
+  );
+}
 
 export const STEPS = [
   { id: 'konten', label: 'Konten' },
@@ -147,6 +160,7 @@ function Runs() {
           <ErrorNote what="Importläufe" error={runs.error} onRetry={() => void runs.refetch()} />
         )}
         {runs.data?.runs.length === 0 && <p className="text-muted">Noch kein Import.</p>}
+        {busy && confirm?.action === 'revert' && <JobNote what="Rückgängig machen" step={null} />}
         {runs.data && runs.data.runs.length > 0 && (
           <table className="ktable imp-table">
             <caption className="sr-only">Importläufe</caption>
@@ -397,13 +411,20 @@ function DryRunStep({ runId }: { runId: string }) {
   const toast = useToast();
   const [result, setResult] = useState<EvaluationResult | null>(null);
   const [error, setError] = useState<string | undefined>();
-  const [busy, setBusy] = useState(false);
+  // The job that runs (the buttons stay disabled until it ends: no double submit).
+  const [running, setRunning] = useState<'Probelauf' | 'Übernahme' | null>(null);
+  const [step, setStep] = useState<JobStep | null>(null);
+  const busy = running !== null;
+  const setBusy = (on: boolean, what: 'Probelauf' | 'Übernahme' = 'Probelauf') => {
+    setStep(null);
+    setRunning(on ? what : null);
+  };
   const [deleteMissing, setDeleteMissing] = useState(false);
   const start = async () => {
     setBusy(true);
     setError(undefined);
     try {
-      setResult(await dryRun(runId));
+      setResult(await dryRun(runId, setStep));
     } catch (caught) {
       setError(importErrorText(caught, 'Der Probelauf ist fehlgeschlagen.'));
     } finally {
@@ -411,10 +432,10 @@ function DryRunStep({ runId }: { runId: string }) {
     }
   };
   const commit = async () => {
-    setBusy(true);
+    setBusy(true, 'Übernahme');
     setError(undefined);
     try {
-      const done = await withStepUp(() => commitRun(runId, deleteMissing));
+      const done = await withStepUp(() => commitRun(runId, deleteMissing, setStep));
       await queryClient.invalidateQueries();
       toast.show({
         message: `Import übernommen: ${done.change?.bookings.added ?? 0} Buchungen neu.`,
@@ -444,7 +465,7 @@ function DryRunStep({ runId }: { runId: string }) {
       <Button variant={result ? 'ghost' : 'primary'} disabled={busy} onClick={() => void start()}>
         {result ? 'Probelauf wiederholen' : 'Probelauf starten'}
       </Button>
-      {busy && !result && <LoadingNote what="Ergebnisse" />}
+      {running && <JobNote what={running} step={step} />}
       {result && (
         <div className="imp-result" aria-live="polite">
           <dl className="imp-facts">
