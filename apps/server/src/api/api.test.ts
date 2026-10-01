@@ -117,6 +117,64 @@ describe('accounts', () => {
     expect(byId[loan.id]).toMatchObject({ role: 'debt', onBudget: false, sortOrder: 2 });
   });
 
+  it('keeps account reads and writes usable with an unvalued USD account', async () => {
+    const usd = await newAccount({
+      name: 'Dollar tracking',
+      currency: 'USD',
+      onBudget: false,
+      openingBalanceCents: 0,
+    });
+    const cash = await newBooking(usd.id, { amountCents: 10_000, categoryId: null });
+    const list = await call('GET', '/accounts');
+    expect(list.status).toBe(200);
+    expect(list.body['netWorthEurCents']).toBeNull();
+    expect(list.body['missingFxCurrencies']).toEqual(['USD']);
+    expect(
+      (list.body['accounts'] as Array<Record<string, unknown>>).find((a) => a['id'] === usd.id),
+    ).toMatchObject({
+      currency: 'USD',
+      balanceCents: 10_000,
+      valueEurCents: null,
+      missingFxCurrencies: ['USD'],
+    });
+
+    const euro = await newAccount({ name: 'Unrelated EUR', openingBalanceCents: 20_000 });
+    const patch = await call('PATCH', `/accounts/${euro.id}`, { name: 'Renamed EUR' });
+    expect(patch.status).toBe(200);
+    expect(patch.body['account']).toMatchObject({ name: 'Renamed EUR', valueEurCents: 0 });
+    expect((await call('POST', '/undo', { groupId: patch.body['groupId'] })).status).toBe(200);
+    expect((await call('GET', '/accounts')).status).toBe(200);
+    expect((await call('GET', `/wealth/networth`)).status).toBe(503);
+
+    const closed = await call('POST', `/accounts/${usd.id}/close`, { force: true });
+    expect(closed.status).toBe(200);
+    expect(closed.body['account'] as Record<string, unknown>).toMatchObject({
+      balanceCents: 10_000,
+      valueEurCents: null,
+      missingFxCurrencies: ['USD'],
+    });
+    expect((await call('GET', `/accounts`)).status).toBe(200);
+    expect(cash.id).toBeTruthy();
+  });
+
+  it('preserves positive and negative residuals through force-close and reopen', async () => {
+    for (const amountCents of [12_345, -12_345]) {
+      const account = await newAccount({
+        name: `Residual ${amountCents}`,
+        openingBalanceCents: 0,
+      });
+      await newBooking(account.id, { amountCents, categoryId: null });
+      const before = (await call('GET', '/wealth/networth')).body['chain']['nowCents'];
+      const closed = await call('POST', `/accounts/${account.id}/close`, { force: true });
+      expect(closed.status).toBe(200);
+      const afterClose = (await call('GET', '/wealth/networth')).body['chain']['nowCents'];
+      expect(afterClose).toBe(before);
+      const reopened = await call('POST', `/accounts/${account.id}/reopen`);
+      expect(reopened.status).toBe(200);
+      expect((await call('GET', '/wealth/networth')).body['chain']['nowCents']).toBe(before);
+    }
+  });
+
   it('refuses a loan as budget account and bad input with readable errors', async () => {
     const tracked = await call('POST', '/accounts', {
       name: 'K',

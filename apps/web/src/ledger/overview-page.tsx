@@ -8,8 +8,8 @@ import { PageFrame } from '../pages/placeholder-page';
 import { KONTEN_META } from '../nav/pages';
 import { AccountFormPanel } from './account-form';
 import { fetchAccounts } from './api';
-import { eur, eurParts, eurWhole } from './format';
-import { ACCOUNT_TYPE_LABEL, accountValue } from './labels';
+import { eur, eurParts, eurWhole, nativeCurrencyWhole } from './format';
+import { ACCOUNT_TYPE_LABEL, accountValueEur } from './labels';
 import { MiniLine } from './mini-line';
 import {
   netWorthChange,
@@ -87,32 +87,50 @@ function NetWorth({
   });
   const change = prior.data ? netWorthChange(accounts, prior.data.accounts, before) : null;
 
-  const sum = (role: string) => model.groups.find((g) => g.group.role === role)?.sumCents ?? 0;
-  const jump = (role: string) => () => {
-    const row = document.getElementById(`kg-${role}`);
+  const jump = (target: string) => () => {
+    const row = document.getElementById(target === 'closed' ? 'kaccts-closed' : `kg-${target}`);
     if (!row) return;
     row.scrollIntoView({ block: 'center' });
     row.classList.add('is-flash');
     window.setTimeout(() => row.classList.remove('is-flash'), 900);
   };
   const terms: DimensionChainTerm[] = [];
-  const push = (label: string, role: string, value: number, op?: '+' | '-') => {
-    if (!model.groups.some((g) => g.group.role === role)) return;
-    terms.push({
-      label,
-      value: cents(value),
-      ...(op && terms.length > 0 ? { op } : {}),
-      onSelect: jump(role),
-    });
-  };
-  push('Budget-Konten', 'budget', sum('budget'));
-  push('Sparen', 'reserve', sum('reserve'), '+');
-  push('Investment', 'investment', sum('investment'), '+');
-  push('Schulden', 'debt', -sum('debt'), '-');
-  push('Forderungen', 'receivable', sum('receivable'), '+');
-  terms.push({ label: 'Nettovermögen', value: cents(model.netWorthCents), op: '=' });
+  if (model.netWorthCents !== null && model.closedValueCents !== null) {
+    const sum = (role: string) => model.groups.find((g) => g.group.role === role)?.sumCents;
+    const push = (
+      label: string,
+      role: string,
+      value: number | null | undefined,
+      op?: '+' | '-',
+    ) => {
+      if (value == null) return;
+      if (!model.groups.some((g) => g.group.role === role)) return;
+      terms.push({
+        label,
+        value: cents(value),
+        ...(op ? { op } : {}),
+        onSelect: jump(role),
+      });
+    };
+    push('Budget-Konten', 'budget', sum('budget'));
+    push('Sparen', 'reserve', sum('reserve'), '+');
+    push('Investment', 'investment', sum('investment'), '+');
+    const debt = sum('debt');
+    push('Schulden', 'debt', debt == null ? undefined : -debt, '-');
+    push('Forderungen', 'receivable', sum('receivable'), '+');
+    if (model.closedValueCents !== 0) {
+      const closedIsNegative = model.closedValueCents < 0;
+      terms.push({
+        label: 'Geschlossene Konten',
+        value: cents(Math.abs(model.closedValueCents)),
+        op: closedIsNegative ? '-' : '+',
+        onSelect: jump('closed'),
+      });
+    }
+    terms.push({ label: 'Nettovermögen', value: cents(model.netWorthCents), op: '=' });
+  }
 
-  const { whole, fraction } = eurParts(model.netWorthCents);
+  const parts = model.netWorthCents === null ? null : eurParts(model.netWorthCents);
 
   return (
     <section className="knw" aria-labelledby="nw-title">
@@ -142,10 +160,22 @@ function NetWorth({
         )}
       </div>
       <div className="tbd-fig" data-testid="net-worth">
-        {whole}
-        <span className="cents">,{fraction} €</span>
+        {parts ? (
+          <>
+            {parts.whole}
+            <span className="cents">,{parts.fraction} €</span>
+          </>
+        ) : (
+          <span>Nicht verfügbar</span>
+        )}
       </div>
-      <DimensionChain terms={terms} label="Maßkette Nettovermögen nach Kontogruppen" />
+      {model.netWorthCents === null ? (
+        <p role="status" className="ksum">
+          EUR-Wert nicht verfügbar · Wechselkurs fehlt: {model.missingFxCurrencies.join(', ')}
+        </p>
+      ) : (
+        <DimensionChain terms={terms} label="Maßkette Nettovermögen nach Kontogruppen" />
+      )}
     </section>
   );
 }
@@ -180,7 +210,7 @@ function AccountsTable({ model }: { model: ReturnType<typeof overviewModel> }) {
               30 Tage
             </th>
             <th className="tech kc-num" scope="col">
-              Saldo
+              Wert in EUR
             </th>
           </tr>
         </thead>
@@ -191,7 +221,7 @@ function AccountsTable({ model }: { model: ReturnType<typeof overviewModel> }) {
         </tbody>
       </table>
       {model.closed.length > 0 && (
-        <p className="ksum">
+        <p className="ksum" id="kaccts-closed">
           Geschlossen:{' '}
           {model.closed.map((a, i) => (
             <span key={a.id}>
@@ -199,6 +229,10 @@ function AccountsTable({ model }: { model: ReturnType<typeof overviewModel> }) {
               <Link to="/konten/$id" params={{ id: a.id }}>
                 {a.name}
               </Link>
+              {': '}
+              {accountValueEur(a) === null
+                ? `Kurs fehlt (${a.missingFxCurrencies.join(', ')})`
+                : eur(accountValueEur(a)!)}
             </span>
           ))}
         </p>
@@ -227,13 +261,13 @@ function GroupRows({
           <span className="grp-sub">{view.group.sub}</span>
         </td>
         <td className="kc-line" />
-        <td className="kc-num">{eur(view.sumCents)}</td>
+        <td className="kc-num">{view.sumCents === null ? 'Kurs fehlt' : eur(view.sumCents)}</td>
       </tr>
       {view.accounts.map((a, i) => {
         const points = series.get(a.id);
         const delta = points ? seriesChange(points) : null;
         const util = utilisation(a);
-        const value = accountValue(a);
+        const value = accountValueEur(a);
         return (
           <tr className="krow" key={a.id}>
             <td className="kc-pos">
@@ -252,7 +286,8 @@ function GroupRows({
                   <span className="pbar" aria-hidden="true">
                     <i className="pbar-fill" style={{ width: `${util * 100}%` }} />
                   </span>
-                  {Math.round(util * 100)} % von {eurWhole(a.creditLimitCents)} Limit
+                  {Math.round(util * 100)} % von{' '}
+                  {nativeCurrencyWhole(a.creditLimitCents, a.currency)} Limit
                 </span>
               )}
             </td>
@@ -260,11 +295,15 @@ function GroupRows({
               {points && <MiniLine points={points} />}
               {delta !== null && (
                 <span className="kdelta">
-                  {Math.abs(delta) < 50 ? '±0 €' : eurWhole(delta, true)}
+                  {Math.abs(delta) < 50
+                    ? `±0 ${a.currency}`
+                    : nativeCurrencyWhole(delta, a.currency, true)}
                 </span>
               )}
             </td>
-            <td className={cx('kc-num', value < 0 && 'is-neg')}>{eur(value)}</td>
+            <td className={cx('kc-num', value !== null && value < 0 && 'is-neg')}>
+              {value === null ? `Kurs fehlt (${a.missingFxCurrencies.join(', ')})` : eur(value)}
+            </td>
           </tr>
         );
       })}

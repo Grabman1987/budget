@@ -103,8 +103,11 @@ function AccountBody({ account }: { account: AccountRow }) {
       <div className="kfigs">
         <div className="fig">
           <small>Saldo</small>
-          <strong className={cx(value < 0 && 'neg')} data-testid="account-balance">
-            {eur(value)}
+          <strong
+            className={cx(value !== null && value < 0 && 'neg')}
+            data-testid="account-balance"
+          >
+            {value === null ? 'Kurs fehlt' : eur(value)}
           </strong>
         </div>
         <div className="fig">

@@ -5,8 +5,10 @@ import {
   CategoryRuleError,
   ConflictError,
   EntityNotFoundError,
+  MissingFxRateError,
   ReconciledLockedError,
 } from '@budget/db';
+import { ExchangeRateUnavailableError } from '@budget/domain';
 import type { Context } from 'hono';
 import { ZodError, type ZodType } from 'zod';
 
@@ -60,7 +62,7 @@ const isSqliteConstraint = (e: unknown): e is SqliteError =>
   String((e as SqliteError).code ?? '').startsWith('SQLITE_CONSTRAINT');
 
 export interface ErrorAnswer {
-  status: 400 | 404 | 409 | 422 | 500;
+  status: 400 | 404 | 409 | 422 | 500 | 503;
   body: { error: string; message: string; [key: string]: unknown };
 }
 const answer = (body: ErrorAnswer['body'], status: ErrorAnswer['status']): ErrorAnswer => ({
@@ -104,6 +106,28 @@ export function errorAnswer(error: unknown): ErrorAnswer {
   }
   if (error instanceof AccountInvariantError) {
     return answer({ error: 'invariant', message: error.message }, 422);
+  }
+  if (error instanceof MissingFxRateError) {
+    return answer(
+      {
+        error: 'valuation_unavailable',
+        message: error.message,
+        missingFxCurrencies: [error.currency],
+        asOf: error.asOf,
+      },
+      503,
+    );
+  }
+  if (error instanceof ExchangeRateUnavailableError) {
+    return answer(
+      {
+        error: 'valuation_unavailable',
+        message: `Für ${error.currency} ist bis einschließlich ${error.asOf} kein Wechselkurs gespeichert.`,
+        missingFxCurrencies: [error.currency],
+        asOf: error.asOf,
+      },
+      503,
+    );
   }
   if (error instanceof CategoryRuleError)
     return answer({ error: 'category_rule', message: error.message }, 422);

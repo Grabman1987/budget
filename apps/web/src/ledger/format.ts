@@ -10,6 +10,20 @@ export const eur = (value: number, options?: FormatEuroOptions) =>
 export const eurWhole = (value: number, sign = false) =>
   formatEuro(cents(value), { cents: false, sign });
 
+/** Whole-unit native currency for overview side values such as a limit or account movement. */
+export const nativeCurrencyWhole = (valueCents: number, currency: string, sign = false) => {
+  if (currency === 'EUR') return eurWhole(valueCents, sign);
+  const amount = new Intl.NumberFormat('de-AT', {
+    style: 'currency',
+    currency,
+    currencyDisplay: 'code',
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  }).format(Math.abs(valueCents) / 100);
+  const prefix = valueCents < 0 ? MINUS : sign ? '+' : '';
+  return `${prefix}${amount}`;
+};
+
 /** Exact lead figure split into grouped whole euros and cents, from one de-AT formatting pass. */
 export const eurParts = (value: number) => {
   const [whole = '0', fraction = '00'] = eur(value).replace(/ €$/, '').split(',');

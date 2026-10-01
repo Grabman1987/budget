@@ -52,9 +52,12 @@ export const ACCOUNT_GROUPS: ReadonlyArray<AccountGroup> = [
 export const groupOf = (role: AccountRole): AccountGroup =>
   ACCOUNT_GROUPS.find((g) => g.role === role) ?? (ACCOUNT_GROUPS[0] as AccountGroup);
 
-/** What the account is worth for net worth: cash balance plus the market value of its securities. */
-export const accountValue = (account: AccountRow): number =>
-  account.balanceCents + account.holdingsCents;
+/** Historical detail-page value; it remains native cash plus holdings until FX detail work. */
+export const accountValue = (account: AccountRow): number | null =>
+  account.holdingsCents === null ? null : account.balanceCents + account.holdingsCents;
+
+/** The overview's shared EUR valuation; never reinterpret a missing rate as zero. */
+export const accountValueEur = (account: AccountRow): number | null => account.valueEurCents;
 
 /** Accounts on which Kontostand prüfen makes sense: the bank statement has a closing balance. */
 export const canReconcile = (account: AccountRow): boolean => account.onBudget && !account.closedAt;

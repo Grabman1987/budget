@@ -71,6 +71,17 @@ export interface DatedRate {
 /** ECB rates per currency (EUR per unit, micro), ascending by date. EUR needs no entry. */
 export type RateTable = ReadonlyMap<string, ReadonlyArray<DatedRate>>;
 
+/** A valuation needs a rate that is not present on or before the requested day. */
+export class ExchangeRateUnavailableError extends Error {
+  override readonly name = 'ExchangeRateUnavailableError';
+  constructor(
+    readonly currency: string,
+    readonly asOf: string,
+  ) {
+    super(`No exchange rate for ${currency} on or before ${asOf}`);
+  }
+}
+
 /** Every day from `from` to `to`, both included. */
 export function eachDay(from: string, to: string): string[] {
   const out: string[] = [];
@@ -101,7 +112,7 @@ export function latestOnOrBefore<T extends { date: string }>(
 export function fxOn(rates: RateTable, currency: string, day: string): number {
   if (currency === 'EUR') return 1_000_000;
   const found = latestOnOrBefore(rates.get(currency) ?? [], day);
-  if (!found) throw new Error(`No exchange rate for ${currency} on or before ${day}`);
+  if (!found) throw new ExchangeRateUnavailableError(currency, day);
   return found.rateMicro;
 }
 

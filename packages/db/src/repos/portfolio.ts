@@ -30,6 +30,7 @@ import {
   trade,
 } from '../schema';
 import { accountBalances } from './queries';
+import { MissingFxRateError } from './errors';
 import type { Executor } from './types';
 
 /** One position: a security in one account (C10), valued in EUR. */
@@ -47,14 +48,11 @@ export interface HoldingValue {
 
 type Rates = { currency: string; date: string; rateMicro: number }[];
 
-/** Latest stored rate of `currency` on or before `asOf` (EUR = 1). Missing rates are an error. */
-function rateOn(rates: Rates, currency: string, asOf: string): number {
+function rateOrMissing(rates: Rates, currency: string, asOf: string): number | undefined {
   if (currency === 'EUR') return 1_000_000;
-  const found = rates
+  return rates
     .filter((r) => r.currency === currency && r.date <= asOf)
-    .sort((a, b) => b.date.localeCompare(a.date))[0];
-  if (!found) throw new Error(`No exchange rate for ${currency} on or before ${asOf}`);
-  return found.rateMicro;
+    .sort((a, b) => b.date.localeCompare(a.date))[0]?.rateMicro;
 }
 
 /**
@@ -63,7 +61,12 @@ function rateOn(rates: Rates, currency: string, asOf: string): number {
  * with the stored ECB rate of the price currency. Soft-deleted rows are ignored; positions without
  * units are left out; a security without a price is valued 0.
  */
-export function holdingValuesAsOf(db: Executor, asOf: string): HoldingValue[] {
+interface HoldingValuation {
+  values: HoldingValue[];
+  missingFxByAccount: Map<string, Set<string>>;
+}
+
+function holdingValuationAsOf(db: Executor, asOf: string): HoldingValuation {
   const live = new Set(
     db
       .select({ id: security.id })
@@ -94,6 +97,7 @@ export function holdingValuesAsOf(db: Executor, asOf: string): HoldingValue[] {
   for (const r of [...snapshots, ...trades])
     if (live.has(r.securityId)) keys.set(`${r.accountId} ${r.securityId}`, r);
   const out: HoldingValue[] = [];
+  const missingFxByAccount = new Map<string, Set<string>>();
   for (const { accountId, securityId } of keys.values()) {
     const mine = <T extends { accountId: string; securityId: string }>(rows: T[]) =>
       rows.filter((r) => r.accountId === accountId && r.securityId === securityId);
@@ -109,7 +113,13 @@ export function holdingValuesAsOf(db: Executor, asOf: string): HoldingValue[] {
       .sort((a, b) => b.date.localeCompare(a.date))[0];
     const priceMicro = latest?.priceMicro ?? 0;
     const priceCurrency = latest?.currency ?? 'EUR';
-    const fxRateMicro = rateOn(rates, priceCurrency, asOf);
+    const fxRateMicro = rateOrMissing(rates, priceCurrency, asOf);
+    if (fxRateMicro === undefined) {
+      const missing = missingFxByAccount.get(accountId) ?? new Set<string>();
+      missing.add(priceCurrency);
+      missingFxByAccount.set(accountId, missing);
+      continue;
+    }
     out.push({
       accountId,
       securityId,
@@ -120,9 +130,20 @@ export function holdingValuesAsOf(db: Executor, asOf: string): HoldingValue[] {
       valueCents: marketValueEurCents(units, priceMicro, fxRateMicro),
     });
   }
-  return out.sort(
-    (a, b) => a.accountId.localeCompare(b.accountId) || a.securityId.localeCompare(b.securityId),
-  );
+  return {
+    values: out.sort(
+      (a, b) => a.accountId.localeCompare(b.accountId) || a.securityId.localeCompare(b.securityId),
+    ),
+    missingFxByAccount,
+  };
+}
+
+export function holdingValuesAsOf(db: Executor, asOf: string): HoldingValue[] {
+  const valuation = holdingValuationAsOf(db, asOf);
+  const missing = [...valuation.missingFxByAccount.values()].flatMap((set) => [...set]).sort();
+  const currency = missing[0];
+  if (currency) throw new MissingFxRateError(currency, asOf);
+  return valuation.values;
 }
 
 export interface NetWorth {
@@ -131,28 +152,90 @@ export interface NetWorth {
   byAccount: Record<string, number>;
 }
 
+/** Non-throwing shared EUR valuation for account reads that must remain usable without all FX. */
+export interface NetWorthValuation {
+  totalCents: number | null;
+  /** Per account, in EUR; `null` means at least one component could not be converted. */
+  byAccount: Record<string, number | null>;
+  /** Market value of each account's positions, in EUR; `null` means a position rate is missing. */
+  holdingsByAccount: Record<string, number | null>;
+  /** Sorted currencies with no rate on or before the requested day. */
+  missingFxCurrencies: string[];
+  /** Missing currencies for each affected account. */
+  missingFxByAccount: Record<string, string[]>;
+}
+
+/** Shared valuation source for account DTOs and the strict wealth calculation. */
+export function netWorthValuationAsOf(db: Executor, asOf: string): NetWorthValuation {
+  const accountRows = db
+    .select({ id: account.id, currency: account.currency })
+    .from(account)
+    .where(isNull(account.deletedAt))
+    .all();
+  const currencies = new Map(accountRows.map((row) => [row.id, row.currency]));
+  const rates: Rates = db.select().from(fxRate).where(lte(fxRate.date, asOf)).all();
+  const byAccount: Record<string, number | null> = {};
+  const missingFxByAccount = new Map<string, Set<string>>();
+  const addMissing = (accountId: string, currency: string) => {
+    const missing = missingFxByAccount.get(accountId) ?? new Set<string>();
+    missing.add(currency);
+    missingFxByAccount.set(accountId, missing);
+    byAccount[accountId] = null;
+  };
+  for (const balance of accountBalances(db, asOf)) {
+    const currency = currencies.get(balance.accountId) ?? 'EUR';
+    const rate = balance.balanceCents === 0 ? 1_000_000 : rateOrMissing(rates, currency, asOf);
+    if (rate === undefined) addMissing(balance.accountId, currency);
+    else byAccount[balance.accountId] = toEurCents(balance.balanceCents, rate);
+  }
+
+  const holdings = holdingValuationAsOf(db, asOf);
+  const holdingsByAccount: Record<string, number | null> = {};
+  for (const holding of holdings.values) {
+    if (holdingsByAccount[holding.accountId] === null) continue;
+    holdingsByAccount[holding.accountId] =
+      (holdingsByAccount[holding.accountId] ?? 0) + holding.valueCents;
+    if (byAccount[holding.accountId] !== null) {
+      byAccount[holding.accountId] = (byAccount[holding.accountId] ?? 0) + holding.valueCents;
+    }
+  }
+  for (const [accountId, currencies] of holdings.missingFxByAccount) {
+    holdingsByAccount[accountId] = null;
+    for (const currency of currencies) addMissing(accountId, currency);
+  }
+  const missingFxCurrencies = [
+    ...new Set([...missingFxByAccount.values()].flatMap((s) => [...s])),
+  ].sort();
+  const values = Object.values(byAccount);
+  const knownValues = values.filter((value): value is number => value !== null);
+  const totalCents =
+    missingFxCurrencies.length || knownValues.length !== values.length
+      ? null
+      : knownValues.reduce((sum, value) => sum + value, 0);
+  return {
+    totalCents,
+    byAccount,
+    holdingsByAccount,
+    missingFxCurrencies,
+    missingFxByAccount: Object.fromEntries(
+      [...missingFxByAccount].map(([id, values]) => [id, [...values].sort()]),
+    ),
+  };
+}
+
 /** Net worth on a day: every live account's balance in EUR plus the market value of its positions. */
 export function netWorthAsOf(db: Executor, asOf: string): NetWorth {
-  const currencies = new Map(
-    db
-      .select({ id: account.id, currency: account.currency })
-      .from(account)
-      .all()
-      .map((a) => [a.id, a.currency]),
+  const valuation = netWorthValuationAsOf(db, asOf);
+  const missing = valuation.missingFxCurrencies[0];
+  if (missing) throw new MissingFxRateError(missing, asOf);
+  if (valuation.totalCents === null) throw new Error('Complete valuation has no total');
+  const byAccount = Object.fromEntries(
+    Object.entries(valuation.byAccount).map(([id, value]) => {
+      if (value === null) throw new Error(`Complete valuation is missing account ${id}`);
+      return [id, value];
+    }),
   );
-  const rates: Rates = db.select().from(fxRate).where(lte(fxRate.date, asOf)).all();
-  const byAccount: Record<string, number> = {};
-  for (const b of accountBalances(db, asOf)) {
-    const currency = currencies.get(b.accountId) ?? 'EUR';
-    byAccount[b.accountId] =
-      currency === 'EUR' || b.balanceCents === 0
-        ? b.balanceCents
-        : toEurCents(b.balanceCents, rateOn(rates, currency, asOf));
-  }
-  for (const h of holdingValuesAsOf(db, asOf))
-    byAccount[h.accountId] = (byAccount[h.accountId] ?? 0) + h.valueCents;
-  const totalCents = Object.values(byAccount).reduce((a, v) => a + v, 0);
-  return { totalCents, byAccount };
+  return { totalCents: valuation.totalCents, byAccount };
 }
 
 // ---------------------------------------------------------------------------------------------

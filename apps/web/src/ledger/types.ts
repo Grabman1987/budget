@@ -46,7 +46,11 @@ export interface AccountRow {
   unclearedCents: number;
   scheduledCents: number;
   /** Market value of securities held in the account (depots, crypto). */
-  holdingsCents: number;
+  holdingsCents: number | null;
+  /** Entire account value in EUR, or null when FX needed by cash or holdings is missing. */
+  valueEurCents: number | null;
+  /** FX currencies that prevented this account's EUR valuation. */
+  missingFxCurrencies: string[];
   bookingCount: number;
   pendingCount: number;
   lastReconciledOn: string | null;
@@ -55,6 +59,8 @@ export interface AccountRow {
 export interface AccountList {
   asOf: string;
   accounts: AccountRow[];
+  netWorthEurCents: number | null;
+  missingFxCurrencies: string[];
 }
 
 export interface SeriesPoint {

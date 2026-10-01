@@ -1,28 +1,36 @@
-import { ACCOUNT_GROUPS, accountValue, type AccountGroup } from './labels';
+import { ACCOUNT_GROUPS, accountValueEur, type AccountGroup } from './labels';
 import type { AccountRow, SeriesPoint } from './types';
 
 export interface GroupView {
   group: AccountGroup;
   accounts: AccountRow[];
   /** Sum of the account values (debts are negative). */
-  sumCents: number;
+  sumCents: number | null;
 }
 
-/** Open accounts by group in chain order; closed accounts are listed separately. */
+const sumEur = (accounts: ReadonlyArray<AccountRow>): number | null =>
+  accounts.some((a) => accountValueEur(a) === null)
+    ? null
+    : accounts.reduce((sum, a) => sum + (accountValueEur(a) ?? 0), 0);
+
+/** Open accounts by group; net worth also includes closed accounts with residual balances. */
 export function overviewModel(accounts: ReadonlyArray<AccountRow>) {
   const open = accounts.filter((a) => !a.closedAt);
+  const closed = accounts.filter((a) => a.closedAt);
   const groups: GroupView[] = ACCOUNT_GROUPS.map((group) => {
     const members = open.filter((a) => a.role === group.role);
     return {
       group,
       accounts: members,
-      sumCents: members.reduce((sum, a) => sum + accountValue(a), 0),
+      sumCents: sumEur(members),
     };
   }).filter((g) => g.accounts.length > 0);
   return {
     groups,
-    closed: accounts.filter((a) => a.closedAt),
-    netWorthCents: open.reduce((sum, a) => sum + accountValue(a), 0),
+    closed,
+    closedValueCents: sumEur(closed),
+    netWorthCents: sumEur(accounts),
+    missingFxCurrencies: [...new Set(accounts.flatMap((a) => a.missingFxCurrencies))].sort(),
   };
 }
 
@@ -35,12 +43,12 @@ export function netWorthChange(
   before: ReadonlyArray<AccountRow>,
   beforeDay: string,
 ): number | null {
-  const open = now.filter((a) => !a.closedAt);
-  if (open.some((a) => a.openingDate > beforeDay)) return null;
-  const sum = (rows: ReadonlyArray<AccountRow>, ids: Set<string>) =>
-    rows.filter((a) => ids.has(a.id)).reduce((s, a) => s + accountValue(a), 0);
-  const ids = new Set(open.map((a) => a.id));
-  return sum(now, ids) - sum(before, ids);
+  if (now.some((a) => a.openingDate > beforeDay)) return null;
+  const ids = new Set(now.map((a) => a.id));
+  const currentValue = sumEur(now);
+  const previousValue = sumEur(before.filter((a) => ids.has(a.id)));
+  if (currentValue === null || previousValue === null) return null;
+  return currentValue - previousValue;
 }
 
 /** Change over a series window: last minus first balance. */

@@ -1,7 +1,15 @@
 import { describe, expect, it } from 'vitest';
 import { percentToBp } from './account-form';
 import { lowPointIndex, monthTicks } from './balance-chart';
-import { dayHeading, eur, eurWhole, longDay, monthStartLabel, shortDay } from './format';
+import {
+  dayHeading,
+  eur,
+  eurWhole,
+  longDay,
+  monthStartLabel,
+  nativeCurrencyWhole,
+  shortDay,
+} from './format';
 import { bulkSummary, errorText, redoFailedText } from './labels';
 import { ApiError } from '../api/http';
 
@@ -16,6 +24,9 @@ describe('format', () => {
   it('formats money the de-AT way with the real minus', () => {
     expect(eur(-123456)).toBe('−1.234,56 €');
     expect(eurWhole(150_000, true)).toBe('+1.500 €');
+    expect(nativeCurrencyWhole(12_345, 'USD')).toBe('USD 123');
+    expect(nativeCurrencyWhole(-12_345, 'USD', true)).toBe('−USD 123');
+    expect(nativeCurrencyWhole(12_345, 'EUR')).toBe('123 €');
   });
   it('formats days', () => {
     expect(shortDay('2026-09-17')).toBe('17.09.');
