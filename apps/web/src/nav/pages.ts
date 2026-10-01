@@ -248,6 +248,11 @@ export const EINSTELLUNGEN_KATEGORIEN: PageDef = PAGES.find(
   (p) => p.path === '/einstellungen/kategorien',
 ) as PageDef;
 
+/** Einstellungen › Regelwerk (built in P3.7). */
+export const EINSTELLUNGEN_REGELWERK: PageDef = PAGES.find(
+  (p) => p.path === '/einstellungen/regelwerk',
+) as PageDef;
+
 /** Plan › Monat (built in P2c). */
 export const PLAN_MONAT: PageDef = PAGES.find((p) => p.path === '/plan/monat') as PageDef;
 

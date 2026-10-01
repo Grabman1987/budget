@@ -1,0 +1,183 @@
+/* Einstellungen › Regelwerk (P3.7). Ported from the prototype's .set-stages / .set-list / .set-rules. */
+
+.kview.rw {
+  gap: 40px;
+  margin-top: -8px;
+}
+.rw-sub {
+  margin: 8px 0 12px;
+  max-width: 72ch;
+  color: var(--ink-2);
+}
+
+/* Position mark: framed technical lettering (R01, 1, 2, 3). */
+.rw-pos {
+  display: inline-block;
+  font-family: var(--font-tech);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: var(--line);
+  border: 1px solid var(--line-2);
+  border-radius: 2px;
+  padding: 1px 6px;
+  line-height: 1.4;
+}
+
+.rw-stages {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 24px;
+  margin-top: 8px;
+}
+.rw-stage {
+  border-top: 2px solid var(--line-2);
+  padding-top: 10px;
+}
+.rw-stage.is-cur {
+  border-top-color: var(--line);
+}
+.rw-stage-h {
+  display: grid;
+  gap: 2px;
+  margin-bottom: 6px;
+}
+.rw-stage-h h3 {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 600;
+}
+.rw-stage-h h3 .rw-pos {
+  vertical-align: 2px;
+  margin-right: 4px;
+}
+.rw-stage-h small {
+  color: var(--ink-3);
+  font-size: 12px;
+}
+
+.rw-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.rw-list > li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px 0;
+  border-top: 1px solid var(--rule);
+}
+.rw-list > li:first-child {
+  border-top: 0;
+}
+.rw-list strong {
+  display: block;
+  font-weight: 600;
+}
+.rw-list small {
+  display: block;
+  font-size: 12.5px;
+  color: var(--ink-3);
+  margin-top: 2px;
+}
+.rw-rules {
+  columns: 2 380px;
+  column-gap: 40px;
+}
+.rw-rules > li {
+  break-inside: avoid;
+}
+.rw-rules .btn-xs {
+  margin-left: auto;
+  margin-right: 10px;
+}
+
+/* "erledigt": the owner confirms an item the app cannot compute (inline, the row keeps its height). */
+.rw-list small .rw-done {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0 0 0 4px;
+  font-size: inherit;
+  color: var(--ink-2);
+  cursor: pointer;
+  vertical-align: bottom;
+}
+.rw-done input {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  accent-color: var(--line);
+}
+
+/* Threshold panel */
+.rw-now {
+  display: grid;
+  gap: 8px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--rule);
+}
+.rw-now p {
+  margin: 0;
+}
+.rw-now-line {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+}
+.rw-now-sub {
+  font-size: 12.5px;
+  color: var(--ink-3);
+}
+.rw-action {
+  display: grid;
+  gap: 2px;
+}
+.rw-action-k {
+  font-family: var(--font-tech);
+  font-size: 10.5px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+.rw-input {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.rw-input .input {
+  width: 8em;
+}
+.rw-suffix {
+  color: var(--ink-2);
+  font-size: 13.5px;
+}
+
+@media (max-width: 980px) {
+  .rw-stages {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+@media (max-width: 767px) {
+  .kview.rw {
+    gap: 28px;
+    margin-top: -4px;
+  }
+  /* 44 px touch targets: the switch grows its hit area, the row keeps its height. */
+  .rw-list .switch {
+    padding: 11px 6px;
+    margin: -11px -6px;
+  }
+  /* The whole line is the target on the phone. */
+  .rw-list small .rw-done {
+    display: flex;
+    min-height: var(--touch);
+    margin: 0;
+  }
+  .rw-rules {
+    columns: 1;
+  }
+}
