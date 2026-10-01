@@ -1,3 +1,4 @@
+import { assertContactSettlementInvariants } from './contact-invariants';
 import { randomUUID } from 'node:crypto';
 import { and, asc, eq, isNull, type SQL } from 'drizzle-orm';
 import type { SQLiteColumn, SQLiteTable } from 'drizzle-orm/sqlite-core';
@@ -116,6 +117,8 @@ export function updateEntity<T extends IdTable>(
         (current as typeof account.$inferSelect).currency
     )
       assertAccountBookingCurrencies(tx, [id]);
+    if (['account', 'contact', 'category'].includes(tableMeta(table).name))
+      assertContactSettlementInvariants(tx);
     return requireLive(tx, table, id);
   });
 }
@@ -131,6 +134,8 @@ export function softDeleteEntity<T extends IdTable>(
   runInTransaction(db, (tx) => {
     requireLive(tx, table, id);
     updateTracked(tx, table, [id], { deletedAt: new Date().toISOString() }, grouped, 'delete');
+    if (['account', 'contact', 'category'].includes(tableMeta(table).name))
+      assertContactSettlementInvariants(tx);
   });
 }
 
@@ -153,6 +158,8 @@ export function restoreEntity<T extends IdTable>(
     }
     updateTracked(tx, table, [id], { deletedAt: null }, grouped, 'restore');
     if (tableMeta(table).name === tableMeta(account).name) assertAccountBookingCurrencies(tx, [id]);
+    if (['account', 'contact', 'category'].includes(tableMeta(table).name))
+      assertContactSettlementInvariants(tx);
     return requireLive(tx, table, id);
   });
 }
