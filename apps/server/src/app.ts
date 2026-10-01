@@ -20,6 +20,8 @@ interface BaseOptions {
   webDir: string;
   /** Database for the read-only debug endpoint; omit to keep the endpoint off. */
   database?: Db | undefined;
+  /** Full lowercase Git commit SHA baked into the deployment image. */
+  buildRevision?: string | undefined;
 }
 
 /**
@@ -75,7 +77,7 @@ export const PERMISSIONS_POLICY = {
   usb: false,
 };
 
-export function createApp({ webDir, database, auth, ledger }: AppOptions): Hono {
+export function createApp({ webDir, database, auth, ledger, buildRevision }: AppOptions): Hono {
   if (ledger && !auth)
     throw new Error('The ledger API needs auth: mount it only behind the session guard');
   const app = new Hono();
@@ -109,7 +111,11 @@ export function createApp({ webDir, database, auth, ledger }: AppOptions): Hono 
     return apiLimit(c, next);
   });
 
-  app.get('/health', (c) => c.json({ status: 'ok' }));
+  const healthRevision =
+    buildRevision?.length === 40 && /^[0-9a-f]{40}$/.test(buildRevision) ? buildRevision : null;
+  app.get('/health', (c) =>
+    c.json(healthRevision ? { status: 'ok', revision: healthRevision } : { status: 'ok' }),
+  );
 
   // While an import task writes in its worker thread, it is the only writer (SQLite has one):
   // every other write is refused, reads go on (`holdWrites` in @budget/db).

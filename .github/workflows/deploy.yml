@@ -56,7 +56,9 @@ jobs:
         if: steps.gate.outputs.enabled == 'true'
         env:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
-        run: flyctl deploy --remote-only --ha=false
+        run: |
+          revision="$(git rev-parse HEAD)"
+          flyctl deploy --build-arg BUDGET_BUILD_REVISION="$revision" --remote-only --ha=false
       - name: Guard - exactly one machine
         if: steps.gate.outputs.enabled == 'true'
         env:

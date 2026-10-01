@@ -73,15 +73,19 @@ jobs:
         with:
           persist-credentials: false
       - name: Build image (no push)
-        run: docker build -t budget:ci .
+        run: docker build --build-arg BUDGET_BUILD_REVISION="$(git rev-parse HEAD)" -t budget:ci .
       - name: Smoke-test image
         run: |
+          revision="$(git rev-parse HEAD)"
           docker run --rm --entrypoint age budget:ci --version
           # Throwaway pepper: production requires BUDGET_PEPPER, this container holds no data.
           docker run -d --name budget -p 3000:3000 -e BUDGET_ORIGIN=http://localhost:3000 \
             -e BUDGET_PEPPER=ci-smoke-test-pepper-not-a-secret-0123456789 -e BUDGET_REPLICATE=0 budget:ci
           for i in $(seq 1 20); do
-            curl -fsS http://localhost:3000/health && exit 0
+            response="$(curl -fsS http://localhost:3000/health || true)"
+            if echo "$response" | jq -e --arg revision "$revision" '.status == "ok" and .revision == $revision' >/dev/null; then
+              exit 0
+            fi
             sleep 1
           done
           docker logs budget
