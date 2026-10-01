@@ -78,6 +78,7 @@ Backlog: [`inspirations.md`](inspirations.md). These are possible later improvem
 - [x] Dev page `/dev/bauteile` showing every primitive in light and dark
 - [x] Own regression baselines for every primitive on `/dev/bauteile` (light and dark, 1440 and 390): screenshots of our own output, **not** a comparison with `design/screens`
 - [x] Title block, register row and shell chrome compared with crops of `design/screens` (masked text; `e2e/reference.spec.ts`, audit D9)
+- [x] Keep the topbar geometry comparison on the prototype’s explicit nine-item fixture; real zero/error/live inbox counts remain independently tested. Reuse retry-aware account/payee names in ledger browser tests so retained partial attempts do not cause ambiguous selectors or duplicate-name conflicts. Capture instrument screenshots after Undo/Redo checks so capture time does not consume the toast lifetime. No reference images, masks or tolerances changed.
 - [ ] Primitives without a matching crop in `design/screens` (amount field, panels, toast, revision table, parts list, charts, drawn Maßkette) are not compared with the prototype yet
 
 ### P1c — App shell and routing (`docs/prompts/P1c.md`)
