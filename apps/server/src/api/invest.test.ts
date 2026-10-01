@@ -159,6 +159,85 @@ describe('invest CRUD', () => {
     expect((await call('POST', `/securities/${id}/restore`)).status).toBe(200);
   });
 
+  it('basic instrument metadata is audited, undoable and leaves source/cost settings intact', async () => {
+    const cls = (await call('POST', '/asset-classes', { name: 'Musterklasse' })).body['assetClass'];
+    const created = await call('POST', '/securities', {
+      name: 'Musterinstrument',
+      kind: 'etf',
+      isin: 'XX0000000001',
+      currency: 'EUR',
+      symbol: 'SYN-ONE',
+      terBp: 17,
+      fallbackQuoteId: 'SYN-FALLBACK',
+      quoteExchange: 'SYN',
+      quoteAdjusted: true,
+      pricesEnabled: false,
+      benchmark: 'SYN-BENCHMARK',
+    });
+    const id = created.body['security'].id;
+    const edited = await call('PATCH', `/securities/${id}`, {
+      name: 'Musterinstrument neu',
+      kind: 'fund',
+      currency: 'CHF',
+      isin: null,
+      symbol: null,
+      assetClassId: cls.id,
+    });
+    expect(edited.status).toBe(200);
+    expect(edited.body['security']).toMatchObject({
+      name: 'Musterinstrument neu',
+      kind: 'fund',
+      currency: 'CHF',
+      isin: null,
+      symbol: null,
+      assetClassId: cls.id,
+      terBp: 17,
+      fallbackQuoteId: 'SYN-FALLBACK',
+      quoteExchange: 'SYN',
+      quoteAdjusted: true,
+      pricesEnabled: false,
+      benchmark: 'SYN-BENCHMARK',
+    });
+    const undone = await call('POST', '/undo', { groupId: edited.body['groupId'] });
+    expect(undone.status).toBe(200);
+    expect((await call('GET', `/securities/${id}`)).body['security']).toMatchObject({
+      name: 'Musterinstrument',
+      kind: 'etf',
+      currency: 'EUR',
+      isin: 'XX0000000001',
+      symbol: 'SYN-ONE',
+      assetClassId: null,
+      terBp: 17,
+      pricesEnabled: false,
+    });
+    expect((await call('POST', '/undo', { groupId: undone.body['groupId'] })).status).toBe(200);
+    expect((await call('GET', `/securities/${id}`)).body['security'].name).toBe(
+      'Musterinstrument neu',
+    );
+    const another = await call('POST', '/securities', { name: 'Leer', kind: 'other' });
+    const creationUndo = await call('POST', '/undo', { groupId: another.body['groupId'] });
+    expect((await call('GET', `/securities/${another.body['security'].id}`)).status).toBe(404);
+    expect((await call('POST', '/undo', { groupId: creationUndo.body['groupId'] })).status).toBe(
+      200,
+    );
+    expect(
+      (await call('GET', `/securities/${another.body['security'].id}`)).body['security'].name,
+    ).toBe('Leer');
+  });
+
+  it('instrument metadata list, creation and editing require a session', async () => {
+    const locked = caller(
+      createApp({
+        webDir,
+        ledger: { db, today: () => TODAY },
+        auth: { ...signedIn, requireSession: async (c) => c.json({ error: 'unauthorized' }, 401) },
+      }),
+    );
+    expect((await locked('GET', '/securities')).status).toBe(401);
+    expect((await locked('POST', '/securities', { name: 'Leer', kind: 'other' })).status).toBe(401);
+    expect((await locked('PATCH', '/securities/example', { name: 'Leer' })).status).toBe(401);
+  });
+
   it('asset classes and targets: Σ = 10 000 bp, versioned, class in use cannot be deleted', async () => {
     const welt = (await call('POST', '/asset-classes', { name: 'Aktien Welt', sortOrder: 1 })).body[
       'assetClass'
