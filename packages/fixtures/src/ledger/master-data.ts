@@ -40,6 +40,9 @@ export const CARD_PAYEES = new Set([
   'Cloudanbieter',
 ]);
 
+/** The envelopes pinned to Heute, in this order (prototype: the five with `pinned: true`). */
+const PINNED = ['lebensmittel', 'treibstoff', 'lieferdienste', 'freizeit', 'essen'];
+
 /** Waterfall stage of a category (SPEC §4: nine stages, stage 2 is "Laufender Monat"). */
 function stageOf(c: (typeof CATS)[number]): number {
   if (c.id === 'investieren') return 8;
@@ -250,6 +253,9 @@ export function masterData(): Pick<
     kind: kindOfCategory(c),
     stage: stageOf(c),
     sortOrder: i,
+    ...(PINNED.includes(c.id)
+      ? { pinnedAt: `2023-10-01T00:00:0${PINNED.indexOf(c.id)}.000Z` }
+      : {}),
   }));
   // The credit card's payment envelope ("Kartenzahlung", rule R06) in its own group.
   categoryGroups.push({ id: 'grp-kreditkarten', name: 'Kreditkarten', sortOrder: -1 });

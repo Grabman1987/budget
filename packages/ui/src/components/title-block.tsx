@@ -77,6 +77,18 @@ const longFormat = new Intl.DateTimeFormat('de-AT', {
   hour: '2-digit',
   minute: '2-digit',
 });
+const longDayFormat = new Intl.DateTimeFormat('de-AT', {
+  weekday: 'short',
+  day: '2-digit',
+  month: '2-digit',
+  year: 'numeric',
+  timeZone: 'UTC',
+});
+const shortDayFormat = new Intl.DateTimeFormat('de-AT', {
+  day: '2-digit',
+  month: '2-digit',
+  timeZone: 'UTC',
+});
 const shortFormat = new Intl.DateTimeFormat('de-AT', {
   day: '2-digit',
   month: '2-digit',
@@ -92,14 +104,38 @@ const withDot = (formatted: string) => formatted.replace(/,?\s(?=\d{2}:\d{2}$)/,
  * ("Do 17.09.2026 · 06:30"), short form on the phone ("17.09. · 06:30"). Without a date (nothing
  * synchronised yet) it says so instead of showing a made-up time.
  */
-export function StandValue({ at, none = 'noch nie' }: { at?: Date | undefined; none?: string }) {
+export function StandValue({
+  at,
+  day,
+  label,
+  none = 'noch nie',
+}: {
+  at?: Date | undefined;
+  /** Only the day is known (`YYYY-MM-DD`): shown without a time. */
+  day?: string | undefined;
+  /** Names what the stamp is about, put before the time in the long form ("Kurse 06:30"). */
+  label?: string | undefined;
+  none?: string;
+}) {
+  const stamp = at ?? (day ? new Date(`${day}T12:00:00Z`) : undefined);
+  const long = (stamp: Date) => {
+    // "Do. 17.09.2026" -> "Do 17.09.2026", as in the prototype.
+    const text = (at ? longFormat : longDayFormat)
+      .format(stamp)
+      .replace(/\.,/, '.')
+      .replace(/^(\p{L}+)\./u, '$1');
+    const dotted = at ? withDot(text) : text;
+    return label ? (at ? dotted.replace(' · ', ` · ${label} `) : `${dotted} · ${label}`) : dotted;
+  };
   return (
     <>
       <RefreshCw className="icon icon-sm" size={16} strokeWidth={1.75} aria-hidden="true" />
-      {at ? (
+      {stamp ? (
         <>
-          <span className="tb-long">{withDot(longFormat.format(at).replace(/\.,/, '.'))}</span>
-          <span className="tb-short">{withDot(shortFormat.format(at))}</span>
+          <span className="tb-long">{long(stamp)}</span>
+          <span className="tb-short">
+            {at ? withDot(shortFormat.format(stamp)) : shortDayFormat.format(stamp)}
+          </span>
         </>
       ) : (
         <span>{none}</span>

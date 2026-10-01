@@ -1,0 +1,1 @@
+ALTER TABLE `category` ADD `pinned_at` text;
