@@ -174,13 +174,13 @@ test.describe('panel via route param', () => {
   test('the close button closes the panel without leaving a duplicate history entry', async ({
     page,
   }) => {
+    await page.goto('/plan/monat');
     await page.goto('/plan/jahr');
-    await page.goto('/plan/erwartet');
     await page.getByRole('link', { name: 'Seitenpanel testen' }).click();
     await page.getByRole('button', { name: 'Schließen' }).click();
     await expect(page.getByRole('dialog')).toBeHidden();
     await page.goBack();
-    await expect(page).toHaveURL(/\/plan\/jahr$/);
+    await expect(page).toHaveURL(/\/plan\/monat$/);
   });
 
   test('phone: the panel is a bottom sheet, desktop: a 420 px side panel', async ({
