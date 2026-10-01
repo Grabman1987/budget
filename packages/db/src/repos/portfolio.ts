@@ -16,8 +16,7 @@ import {
   type SeriesTrade,
   type ValuationSeries,
 } from '@budget/domain';
-import { and, eq, isNotNull, isNull, lte, max, min, sql } from 'drizzle-orm';
-import { and, eq, gt, inArray, isNotNull, isNull, lte, sql } from 'drizzle-orm';
+import { and, eq, gt, inArray, isNotNull, isNull, lte, max, min, sql } from 'drizzle-orm';
 import {
   account,
   booking,
@@ -27,7 +26,6 @@ import {
   price,
   priceAudit,
   INCOME_TYPES,
-  price,
   security,
   trade,
 } from '../schema';

@@ -163,6 +163,7 @@ const netWorthRoute = createRoute({
   path: VERMOEGEN_NETTO_META.path,
   staticData: { meta: VERMOEGEN_NETTO_META },
   component: lazyRouteComponent(() => import('./wealth/networth-page'), 'NetWorthPage'),
+});
 const planGoalsRoute = createRoute({
   getParentRoute: () => shellRoute,
   path: PLAN_SPARZIELE.path,
