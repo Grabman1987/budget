@@ -337,7 +337,7 @@ test.describe('phone shell', () => {
 
   test('phone header opens the inbox as a bottom sheet', async ({ page }) => {
     await page.goto('/konten');
-    await page.getByRole('link', { name: /Posteingang, 9 offen/ }).click();
+    await page.getByRole('link', { name: /Posteingang, \d+ offen/ }).click();
     await expect(page.getByRole('dialog', { name: 'Posteingang' })).toBeVisible();
   });
 });
@@ -347,6 +347,8 @@ test.describe('regression baselines of the shell (own screenshots)', () => {
   // (the prototype's reference day) keeps them valid in every month.
   test.beforeEach(async ({ page }) => {
     await page.clock.setFixedTime(new Date('2026-09-17T08:30:00+02:00'));
+    // Preserve the original deterministic visual input; functional inbox tests use real counts.
+    await page.route('**/api/inbox/count', (route) => route.fulfill({ json: { count: 9 } }));
   });
 
   for (const [name, path] of [

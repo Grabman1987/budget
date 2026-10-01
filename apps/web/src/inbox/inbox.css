@@ -1,0 +1,88 @@
+.kinbox {
+  grid-column: 1 / -1;
+}
+.kinbox-table .kgroup td,
+.kinbox-table .kgroup th {
+  padding: 12px 8px;
+  background: var(--ground-2);
+}
+.kinbox-table .kgroup th {
+  text-align: left;
+  font-weight: 600;
+}
+.kinbox-table .rev-row td {
+  padding: 14px 8px;
+}
+.kinbox-table .rev-mark {
+  width: 56px;
+}
+.kgcount {
+  display: inline-grid;
+  place-items: center;
+  min-width: 22px;
+  margin-left: 10px;
+  padding: 0 6px;
+  border-radius: 4px;
+  background: var(--line);
+  color: var(--ground);
+  font-family: var(--font-tech);
+  font-size: 12px;
+}
+.kinbox-table .kact {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 6px;
+  width: auto;
+}
+.kinbox .rev-what > span {
+  display: block;
+  margin-top: 2px;
+  white-space: pre-line;
+}
+.inbox-hint {
+  color: var(--ink-2);
+  font-size: 13px;
+  margin-top: 16px;
+}
+@media (max-width: 767px) {
+  .kinbox-table,
+  .kinbox-table tbody {
+    display: block;
+  }
+  .kinbox-table thead {
+    position: absolute;
+    clip-path: inset(50%);
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+  }
+  .kinbox-table tr {
+    display: grid;
+    grid-template-columns: 34px minmax(0, 1fr);
+    gap: 8px;
+    padding: 12px 0;
+    border-top: 1px solid var(--rule);
+  }
+  .kinbox-table td,
+  .kinbox-table th {
+    display: block;
+    padding: 0 !important;
+    border: 0 !important;
+  }
+  .kinbox-table .kgroup {
+    padding: 10px 0;
+    background: var(--ground-2);
+  }
+  .kinbox-table .kgroup th {
+    grid-column: 2;
+  }
+  .kinbox-table .kact {
+    grid-column: 2;
+    justify-content: flex-start;
+  }
+  .kinbox-table .kact .btn {
+    min-height: 44px;
+  }
+}

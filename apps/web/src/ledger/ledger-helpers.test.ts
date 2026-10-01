@@ -7,6 +7,7 @@ import {
   eurWhole,
   longDay,
   monthStartLabel,
+  nativeCurrency,
   nativeCurrencyWhole,
   shortDay,
 } from './format';
@@ -24,6 +25,8 @@ describe('format', () => {
   it('formats money the de-AT way with the real minus', () => {
     expect(eur(-123456)).toBe('−1.234,56 €');
     expect(eurWhole(150_000, true)).toBe('+1.500 €');
+    expect(nativeCurrency(-12_345, 'USD')).toBe('−USD 123,45');
+    expect(nativeCurrency(12_345, 'EUR')).toBe('123,45 €');
     expect(nativeCurrencyWhole(12_345, 'USD')).toBe('USD 123');
     expect(nativeCurrencyWhole(-12_345, 'USD', true)).toBe('−USD 123');
     expect(nativeCurrencyWhole(12_345, 'EUR')).toBe('123 €');
