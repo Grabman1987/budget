@@ -99,7 +99,11 @@ export function portfolioPositions(db: Executor, asOf: string): PortfolioPositio
       });
   }
   const bySecurity = new Map<string, PortfolioPosition>();
-  for (const holding of [...valuation.values, ...valuation.missingFxPositions]) {
+  for (const holding of [
+    ...valuation.values,
+    ...valuation.missingFxPositions,
+    ...valuation.missingPricePositions,
+  ]) {
     const acct = accounts.get(holding.accountId);
     const sec = securities.get(holding.securityId);
     if (!acct || !sec) continue;
@@ -124,7 +128,10 @@ export function portfolioPositions(db: Executor, asOf: string): PortfolioPositio
       name: acct.name,
       institution: acct.institutionId ? (institutions.get(acct.institutionId) ?? null) : null,
       unitsE8: holding.unitsE8,
-      valueCents: valueStatus === 'known' && 'valueCents' in holding ? holding.valueCents : null,
+      valueCents:
+        'valueCents' in holding && typeof holding.valueCents === 'number'
+          ? holding.valueCents
+          : null,
       valueStatus,
       costCents: cost?.costCents ?? null,
       gainCents: valueStatus === 'known' ? (cost?.gainCents ?? null) : null,

@@ -9,7 +9,7 @@ import { KONTEN_META } from '../nav/pages';
 import { AccountFormPanel } from './account-form';
 import { fetchAccounts } from './api';
 import { eur, eurParts, eurWhole, nativeCurrencyWhole } from './format';
-import { ACCOUNT_TYPE_LABEL, accountValueEur } from './labels';
+import { ACCOUNT_TYPE_LABEL, accountValueEur, valuationMissingText } from './labels';
 import { MiniLine } from './mini-line';
 import {
   netWorthChange,
@@ -171,7 +171,7 @@ function NetWorth({
       </div>
       {model.netWorthCents === null ? (
         <p role="status" className="ksum">
-          EUR-Wert nicht verfügbar · Wechselkurs fehlt: {model.missingFxCurrencies.join(', ')}
+          EUR-Wert nicht verfügbar · {valuationMissingText(model)}
         </p>
       ) : (
         <DimensionChain terms={terms} label="Maßkette Nettovermögen nach Kontogruppen" />
@@ -230,9 +230,7 @@ function AccountsTable({ model }: { model: ReturnType<typeof overviewModel> }) {
                 {a.name}
               </Link>
               {': '}
-              {accountValueEur(a) === null
-                ? `Kurs fehlt (${a.missingFxCurrencies.join(', ')})`
-                : eur(accountValueEur(a)!)}
+              {accountValueEur(a) === null ? valuationMissingText(a) : eur(accountValueEur(a)!)}
             </span>
           ))}
         </p>
@@ -302,7 +300,7 @@ function GroupRows({
               )}
             </td>
             <td className={cx('kc-num', value !== null && value < 0 && 'is-neg')}>
-              {value === null ? `Kurs fehlt (${a.missingFxCurrencies.join(', ')})` : eur(value)}
+              {value === null ? valuationMissingText(a) : eur(value)}
             </td>
           </tr>
         );

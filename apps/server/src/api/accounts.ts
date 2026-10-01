@@ -43,11 +43,12 @@ const DEFAULTS = {
 } as const;
 const TRACKING_ONLY = new Set(['loan', 'brokerage', 'crypto', 'p2p', 'receivable']);
 
-/** EUR valuation fields can be null when a required cash or security exchange rate is missing. */
+/** EUR valuation fields can be null when a required security quote or exchange rate is missing. */
 export type AccountView = AccountSummary & {
   holdingsCents: number | null;
   valueEurCents: number | null;
   missingFxCurrencies: string[];
+  missingPriceSecurityIds: string[];
 };
 
 export function accountRoutes(db: Db, today: () => string): Hono {
@@ -58,6 +59,7 @@ export function accountRoutes(db: Db, today: () => string): Hono {
     return {
       netWorthEurCents: valuation.totalCents,
       missingFxCurrencies: valuation.missingFxCurrencies,
+      missingPriceSecurityIds: valuation.missingPriceSecurityIds,
       accounts: accountSummaries(db, asOf).map((a) => ({
         ...a,
         holdingsCents: Object.hasOwn(valuation.holdingsByAccount, a.id)
@@ -65,6 +67,7 @@ export function accountRoutes(db: Db, today: () => string): Hono {
           : 0,
         valueEurCents: Object.hasOwn(valuation.byAccount, a.id) ? valuation.byAccount[a.id]! : 0,
         missingFxCurrencies: valuation.missingFxByAccount[a.id] ?? [],
+        missingPriceSecurityIds: valuation.missingPriceByAccount[a.id] ?? [],
       })),
     };
   };

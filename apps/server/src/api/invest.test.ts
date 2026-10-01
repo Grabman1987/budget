@@ -423,6 +423,16 @@ describe('invest CRUD', () => {
     const ended = await call('POST', `/savings-plans/${newId}/end`, { to: '2026-12-31' });
     expect(ended.body['plan'].validTo).toBe('2026-12-31');
     expect((await call('GET', '/savings-plans')).body['plans']).toEqual([]);
+    const unavailable = await call('POST', '/savings-plans/apply');
+    expect(unavailable.status).toBe(503);
+    expect(unavailable.body).toMatchObject({
+      error: 'valuation_unavailable',
+      reason: 'missing_price',
+    });
+    // The executed holding has a real stored quote; allocation needs a complete current value.
+    expect(
+      (await call('PUT', `/securities/${sec.id}/prices/2026-08-16`, { price: '300' })).status,
+    ).toBe(200);
     // Nothing to apply without open plans.
     const apply = await call('POST', '/savings-plans/apply');
     expect(apply.status).toBe(200);
