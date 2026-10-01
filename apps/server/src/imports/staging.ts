@@ -1,4 +1,11 @@
-import { importMapping, importRun, ynabPlanRow, ynabRegisterRow, type Executor } from '@budget/db';
+import {
+  importMapping,
+  importRun,
+  insertRows,
+  ynabPlanRow,
+  ynabRegisterRow,
+  type Executor,
+} from '@budget/db';
 import {
   buildModel,
   exportAsOf,
@@ -20,7 +27,6 @@ import { randomUUID } from 'node:crypto';
  */
 
 export type ImportRunRow = typeof importRun.$inferSelect;
-const CHUNK = 400;
 
 export function stageExport(
   db: Executor,
@@ -47,10 +53,7 @@ export function stageExport(
       inflow: f[9] as string,
       cleared: f[10] as string,
     }));
-    for (let i = 0; i < register.length; i += CHUNK)
-      tx.insert(ynabRegisterRow)
-        .values(register.slice(i, i + CHUNK))
-        .run();
+    insertRows(tx, ynabRegisterRow, register);
     const plan = input.plan.map(({ line, fields: f }) => ({
       id: randomUUID(),
       importRunId: runId,
@@ -63,10 +66,7 @@ export function stageExport(
       activity: f[5] as string,
       available: f[6] as string,
     }));
-    for (let i = 0; i < plan.length; i += CHUNK)
-      tx.insert(ynabPlanRow)
-        .values(plan.slice(i, i + CHUNK))
-        .run();
+    insertRows(tx, ynabPlanRow, plan);
   });
   return runId;
 }

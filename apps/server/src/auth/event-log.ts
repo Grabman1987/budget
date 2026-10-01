@@ -95,6 +95,8 @@ export class AuthEventLog {
 
   /** Write back pending counters (every minute and on shutdown). */
   flush(now: Date): void {
+    // While an import task writes, the counters stay in memory until the next flush.
+    if (this.store.writesHeld) return;
     const t = now.getTime();
     for (const [key, bucket] of this.buckets) {
       this.persist(bucket);
@@ -104,6 +106,7 @@ export class AuthEventLog {
 
   /** Flush counters and delete rows older than the retention (at start and daily). */
   prune(now: Date): number {
+    if (this.store.writesHeld) return 0;
     this.flush(now);
     return this.store.pruneEvents(new Date(now.getTime() - this.retentionDays * DAY));
   }

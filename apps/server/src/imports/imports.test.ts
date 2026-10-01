@@ -41,6 +41,7 @@ beforeEach(() => {
   app = createApp({ webDir, auth: gate, ledger: { db, today: () => '2026-09-29' } });
 });
 
+/** A call of the import API; a job (202) is followed until it ends, like the wizard does. */
 async function call(method: string, path: string, body?: unknown) {
   const res = await app.request(`/api/imports${path}`, {
     method,
@@ -48,7 +49,18 @@ async function call(method: string, path: string, body?: unknown) {
       ? {}
       : { headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) }),
   });
-  return { status: res.status, body: (await res.json()) as Record<string, any> };
+  const json = (await res.json()) as Record<string, any>;
+  if (res.status !== 202) return { status: res.status, body: json };
+  return { ...(await finished(json['job'].id as string)), job: json['job'] };
+}
+
+async function finished(jobId: string): Promise<{ status: number; body: Record<string, any> }> {
+  for (;;) {
+    const res = await app.request(`/api/imports/jobs/${jobId}`);
+    const { job } = (await res.json()) as Record<string, any>;
+    if (job.state !== 'running') return job.result;
+    await new Promise((resolve) => setTimeout(resolve, 5));
+  }
 }
 
 async function upload(register = files.register, plan = files.plan) {

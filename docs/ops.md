@@ -12,6 +12,7 @@ GitHub main ──(CI green, then Deploy workflow, FLY_API_TOKEN)──> Fly rem
   phone / desktop ──>│ docker-entrypoint.sh (root: chown /data, then `node`) │
      HTTPS, passkey  │   └─ litestream replicate -exec "node server.js"      │
                      │        ├─ server.js (Hono API + static web app)       │
+                     │        │   └─ import-worker.js (import tasks, thread) │
                      │        └─ /data/budget.sqlite (WAL) on volume         │
                      └───────────────┬──────────────────────────────────────┘
                                      │ every second: new WAL frames (LTX files)
