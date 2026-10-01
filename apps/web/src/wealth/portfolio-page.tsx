@@ -23,18 +23,46 @@ import {
 } from './portfolio-format';
 import { InstrumentPanel } from './portfolio-panel';
 import { INSTRUMENT_KIND } from './instrument-form';
+import { TradePanel } from './trade-panel';
 import './portfolio.css';
 import { PortfolioAllocation } from './allocation-section';
 
 export function PortfolioPage() {
   const query = useQuery(portfolioPositionsQuery());
   const instruments = useQuery(instrumentsQuery());
-  const search = useSearch({ strict: false }) as { produkt?: string };
+  const search = useSearch({ strict: false }) as { produkt?: string; handel?: string };
   const navigate = useNavigate();
   const select = (produkt?: string) =>
     void navigate({
       to: '/vermoegen/portfolio',
-      search: ((prev: Record<string, unknown>) => ({ ...prev, produkt })) as never,
+      search: ((prev: Record<string, unknown>) => ({
+        ...prev,
+        produkt,
+        handel: undefined,
+        allokation: undefined,
+      })) as never,
+    }).then(() => {
+      if (produkt || !search.produkt) return;
+      // A route remount can detach the dialog's native return-focus target.
+      // Restore the current button only after the close navigation has rendered.
+      requestAnimationFrame(() => {
+        if (document.querySelector('dialog[open]')) return;
+        document
+          .querySelector<HTMLButtonElement>(
+            `[data-portfolio-security="${CSS.escape(search.produkt!)}"]`,
+          )
+          ?.focus();
+      });
+    });
+  const trade = (handel?: string, produkt = search.produkt) =>
+    void navigate({
+      to: '/vermoegen/portfolio',
+      search: ((prev: Record<string, unknown>) => ({
+        ...prev,
+        produkt,
+        handel,
+        allokation: undefined,
+      })) as never,
     });
   const view = query.data;
   const held = new Set(view?.classes.flatMap((group) => group.positions.map((p) => p.securityId)));
@@ -43,7 +71,10 @@ export function PortfolioPage() {
     <PageFrame meta={VERMOEGEN_PORTFOLIO_META}>
       <div className="kview vview portfolio-view">
         <div className="instrument-actions">
-          <Button onClick={() => select('neu')}>Instrument anlegen</Button>
+          <Button variant="ghost" onClick={() => select('neu')}>
+            Instrument anlegen
+          </Button>
+          <Button onClick={() => trade('neu', undefined)}>Handel erfassen</Button>
         </div>
         {query.isPending && <LoadingNote what="Positionen" />}
         {query.isError && (
@@ -147,6 +178,7 @@ export function PortfolioPage() {
                       <button
                         type="button"
                         className="portfolio-product"
+                        data-portfolio-security={security.id}
                         onClick={() => select(security.id)}
                       >
                         {security.name}
@@ -161,17 +193,28 @@ export function PortfolioPage() {
           </section>
         )}
       </div>
-      <InstrumentPanel
-        id={search.produkt ?? ''}
-        position={view?.classes
-          .flatMap((g) => g.positions)
-          .find((p) => p.securityId === search.produkt)}
-        asOf={view?.asOf}
-        onClose={() => select()}
-        onSelect={select}
-        positionState={query.isError ? 'unavailable' : query.isPending ? 'loading' : 'ready'}
-        onRetryPositions={() => void query.refetch()}
-      />
+      {search.handel ? (
+        <TradePanel
+          key={search.handel}
+          id={search.handel}
+          securityId={search.produkt === 'neu' ? undefined : search.produkt}
+          onClose={() => trade()}
+          onSaved={(id) => trade(undefined, id)}
+        />
+      ) : (
+        <InstrumentPanel
+          id={search.produkt ?? ''}
+          position={view?.classes
+            .flatMap((g) => g.positions)
+            .find((p) => p.securityId === search.produkt)}
+          asOf={view?.asOf}
+          onClose={() => select()}
+          onSelect={select}
+          positionState={query.isError ? 'unavailable' : query.isPending ? 'loading' : 'ready'}
+          onRetryPositions={() => void query.refetch()}
+          onTrade={trade}
+        />
+      )}
     </PageFrame>
   );
 }
@@ -266,7 +309,12 @@ function PositionRow({
         <span className="pos">{number}</span>
       </td>
       <th scope="row">
-        <button type="button" className="portfolio-product" onClick={() => onSelect(p.securityId)}>
+        <button
+          type="button"
+          className="portfolio-product"
+          data-portfolio-security={p.securityId}
+          onClick={() => onSelect(p.securityId)}
+        >
           {p.name}
         </button>
         <small className="portfolio-status">
