@@ -23,3 +23,33 @@ Profiles live in `.agents/skills/`, each with a readable `SKILL.md`. The referen
 - The CSV export is intentionally a placeholder under the owner's current scope. Completion discipline does not authorize implementing the download or restoring app import.
 
 Review the relevant profile when a task starts. Load original upstream packages only after verifying their source and contents; record the version and licensing if later vendored. No external package execution is needed for these local profiles.
+
+## Owner registry and additional sources
+
+The owner's central catalogue is [Claude skills master registry in Dropbox](https://www.dropbox.com/scl/fi/273ihjk6v5h4fbrem8wv0/claude_skills_master_registry_capability_catalogue.md?rlkey=17q64qkp7hgvmgd3s3imq3yoa&dl=0).
+Additional discovery source: [plado.pages.dev](https://plado.pages.dev/).
+Both sources returned HTTP 403 on 2026-10-01, including a regular execution outside
+the shell sandbox with unchanged proxy and TLS verification. Their current contents
+were not read and the Dropbox document was not modified. No newly discovered
+package is claimed installed or verified. Revisit these links when source access
+is available, then record exact source, version, licence and applicable task before
+adopting a package.
+
+### Profiles relevant to the current audit
+
+All four existing local profiles are relevant, with bounded use:
+
+| Task | Profiles to read | Evidence required |
+| --- | --- | --- |
+| Progress and task reporting | budget-caveman | Concrete status, PR links and unresolved blockers |
+| A03 overview and later native FX detail UI | budget-impeccable, budget-verified-delivery | Existing prototype, desktop/mobile checks, unchanged baselines |
+| A04 persisted migration reconciliation | budget-security-review, budget-verified-delivery | Independent account/month cents, structural account/currency differences, rollback and undo |
+| A02 FX costs, A09 sold-position gains, A10 multi-broker aggregation | budget-verified-delivery, budget-security-review | Literal independent financial expectations and scoped mutation/read integrity |
+| PR integration, backup/restore and deployment | budget-verified-delivery, budget-security-review | Required CI and actual restore/deployed commit, not merely configured workflows |
+
+The managed-cloud `cloud-environment-runtime` skill is also used for runtime,
+proxy and credential-readiness checks; it is supplied by the environment plugin,
+not an installed repository profile. Private Dropbox migration access requires a
+separate authorized file-access capability; a catalogue link does not provide it.
+
+Current task status is tracked in [TASKS.md](TASKS.md).
