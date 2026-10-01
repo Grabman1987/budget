@@ -440,9 +440,12 @@ export interface FinanceCheck extends FinanceCheckSummary {
  * rules by severity, the stage from net worth and the stage checklist. Checklist items of a rule
  * follow that rule; the others count once the owner confirmed them.
  */
-export function financeCheck(db: Executor, asOf: string): FinanceCheck {
+export function financeCheck(
+  db: Executor,
+  asOf: string,
+  facts: RuleFacts = loadFacts(db, asOf),
+): FinanceCheck {
   const rows = liveRows(db, 'rule');
-  const facts = loadFacts(db, asOf);
   const evaluated = evaluateAll(db, rows, asOf, facts);
   const rules: CheckRule[] = rows.map((r) => ({
     code: r.code,

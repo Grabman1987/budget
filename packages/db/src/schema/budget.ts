@@ -124,6 +124,8 @@ export const category = sqliteTable(
     openingAvailableCents: cents('opening_available_cents').notNull().default(0),
     sortOrder: integer('sort_order').notNull().default(0),
     hiddenAt: text('hidden_at'),
+    /** Pinned to Heute: set when pinned, pinned envelopes are shown in this order. */
+    pinnedAt: text('pinned_at'),
     ...timestamps(),
   },
   (t) => [
