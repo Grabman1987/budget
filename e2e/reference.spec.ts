@@ -40,7 +40,15 @@ function check(base: Omit<RegionCheck, 'blur'>): RegionCheck {
 test.describe('desktop 1440 px against design/screens', () => {
   test('sidebar and top bar (Plan)', async ({ page, isMobile }) => {
     desktopOnly(isMobile);
+    // The prototype's badge has nine items. Isolate this geometry check from the
+    // writable suite database; inbox.spec.ts checks the real count and its updates.
+    await page.route('**/api/inbox/count', (route) =>
+      route.fulfill({ json: { asOf: '2026-09-17', count: 9 } }),
+    );
     await ready(page, `/plan/monat${SEP}`);
+    await expect(
+      page.getByRole('link', { name: 'Posteingang, 9 offen', exact: true }),
+    ).toBeVisible();
     await expectMatchesReference(
       page,
       check({
