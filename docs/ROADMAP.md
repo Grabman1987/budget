@@ -20,7 +20,7 @@ Owner scope update, 2026-10-01: remove import as an app feature. Keep only CSV e
 - [ ] Establish browser acceptance in the intended Playwright environment: classify visual differences and stabilize the immediate system-theme assertion; baseline updates do not replace normal CI.
 - [x] A07 exact lead amounts: format once and split for display; literal expected-value tests plus rendered cents/grouping/sign boundaries on all three pages, desktop and mobile. Pinned-browser visual acceptance remains a CI requirement.
 - [x] A06 categorized income: allocation/rules include allowed income categories; distinguish transfers, refunds and contact repayments.
-- [ ] A01 trade settlement integrity: generic update/delete/bulk/reconcile/undo cannot detach a trade from its cash flow.
+- [x] A01 trade settlement integrity: generic update/delete/bulk/reconcile/undo cannot detach a trade from its cash flow.
 - [ ] A08 booking currency invariant: amount/currency match account, original currency explicit; shared contract in create/update/transfers/import.
 - [ ] A05 payment lifecycle: edit/delete/rematch/undo recompute status, links, amounts and related totals.
 - [ ] A03 EUR-first guard: unsupported on-budget foreign currencies never enter EUR sums silently; create/update/import/existing accounts covered.

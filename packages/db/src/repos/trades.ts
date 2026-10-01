@@ -11,12 +11,13 @@ import { account, INCOME_TYPES, security, trade } from '../schema';
 import { insertTracked, updateTracked, withGroup, type AuditContext } from './audit';
 import {
   createBooking,
-  deleteBooking,
+  deleteTradeSettlementBooking,
   getBooking,
-  updateBooking,
+  updateTradeSettlementBooking,
   type SplitInput,
 } from './bookings';
-import { EntityNotFoundError } from './errors';
+import { BookingInvariantError, EntityNotFoundError } from './errors';
+import { assertTradeSettlementInvariants } from './invariants';
 import { runInTransaction, type Executor } from './types';
 
 export type TradeRow = typeof trade.$inferSelect;
@@ -138,7 +139,12 @@ export function createTrade(db: Executor, input: TradeInput, ctx: AuditContext):
         .from(trade)
         .where(and(eq(trade.accountId, input.accountId), eq(trade.importKey, input.importKey)))
         .get();
-      if (existing) return { trade: existing, bookingId: existing.bookingId, duplicate: true };
+      if (existing) {
+        assertTradeSettlementInvariants(tx, existing.bookingId ? [existing.bookingId] : [], [
+          existing.id,
+        ]);
+        return { trade: existing, bookingId: existing.bookingId, duplicate: true };
+      }
     }
     const sec = liveSecurity(tx, input.securityId);
     investmentAccount(tx, input.accountId);
@@ -173,6 +179,7 @@ export function createTrade(db: Executor, input: TradeInput, ctx: AuditContext):
       },
       grouped,
     );
+    assertTradeSettlementInvariants(tx, bookingId ? [bookingId] : [], [row.id]);
     return { trade: row, bookingId, duplicate: false };
   });
 }
@@ -220,12 +227,16 @@ export function updateTrade(
 
     let bookingId = cur.bookingId;
     const live = cur.bookingId ? getBooking(tx, cur.bookingId) : undefined;
+    if (cur.bookingId && !live)
+      throw new BookingInvariantError(`Trade ${id} has a missing or deleted trade settlement`);
+    if (!cur.bookingId && settlementCents(cur) !== 0)
+      throw new BookingInvariantError(`Trade ${id} is missing its trade settlement`);
     if (live) {
       if (net === 0) {
-        deleteBooking(tx, live.id, grouped);
+        deleteTradeSettlementBooking(tx, live.id, grouped);
         bookingId = null;
       } else {
-        updateBooking(
+        updateTradeSettlementBooking(
           tx,
           live.id,
           {
@@ -263,6 +274,7 @@ export function updateTrade(
       },
       grouped,
     );
+    assertTradeSettlementInvariants(tx, cur.bookingId ? [cur.bookingId] : [], [id]);
     return { trade: loadTrade(tx, id), bookingId, duplicate: false };
   });
 }
@@ -273,7 +285,12 @@ export function deleteTrade(db: Executor, id: string, ctx: AuditContext): void {
   runInTransaction(db, (tx) => {
     const cur = loadTrade(tx, id);
     updateTracked(tx, trade, [id], { deletedAt: new Date().toISOString() }, grouped, 'delete');
-    if (cur.bookingId && getBooking(tx, cur.bookingId)) deleteBooking(tx, cur.bookingId, grouped);
+    if (cur.bookingId) {
+      if (!getBooking(tx, cur.bookingId))
+        throw new BookingInvariantError(`Trade ${id} has a missing or deleted trade settlement`);
+      deleteTradeSettlementBooking(tx, cur.bookingId, grouped);
+    }
+    assertTradeSettlementInvariants(tx, cur.bookingId ? [cur.bookingId] : [], [id]);
   });
 }
 

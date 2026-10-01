@@ -1,5 +1,6 @@
-import { and, eq, inArray, isNull, or } from 'drizzle-orm';
-import { booking, bookingSplit } from '../schema';
+import { isIncomeTrade, settlementCents } from '@budget/domain';
+import { and, eq, inArray, isNull, or, sql } from 'drizzle-orm';
+import { account, auditLog, booking, bookingSplit, INCOME_TYPES, trade } from '../schema';
 import { BookingInvariantError } from './errors';
 import type { Executor } from './types';
 
@@ -40,6 +41,167 @@ export function assertLedgerInvariants(tx: Executor, bookingIds: Iterable<string
   }
   const legs = transferLegsOfMany(tx, [...transferIds]);
   for (const transferId of transferIds) assertTransfer(transferId, legs.get(transferId) ?? []);
+}
+
+/** Validate the reciprocal trade/cash link after a complete repository action or undo group. */
+export function assertTradeSettlementInvariants(
+  tx: Executor,
+  bookingIds: Iterable<string>,
+  tradeIds: Iterable<string> = [],
+): void {
+  const bookingSet = new Set(bookingIds);
+  const tradeSet = new Set(tradeIds);
+  if (bookingSet.size) {
+    const parts = [...bookingSet];
+    for (const row of chunked(parts, (ids) =>
+      tx.select({ id: trade.id }).from(trade).where(inArray(trade.bookingId, ids)).all(),
+    ))
+      tradeSet.add(row.id);
+    for (const row of chunked(parts, (ids) =>
+      tx
+        .select({ id: auditLog.entityId })
+        .from(auditLog)
+        .where(
+          and(
+            eq(auditLog.entityType, 'trade'),
+            or(
+              inArray(sql`json_extract(${auditLog.beforeJson}, '$.booking_id')`, ids),
+              inArray(sql`json_extract(${auditLog.afterJson}, '$.booking_id')`, ids),
+            ),
+          ),
+        )
+        .all(),
+    ))
+      tradeSet.add(row.id);
+  }
+  if (!tradeSet.size) return;
+
+  let ids = [...tradeSet];
+  let trades = chunked(ids, (part) => tx.select().from(trade).where(inArray(trade.id, part)).all());
+  const currentBookingIds = [
+    ...new Set(trades.map((row) => row.bookingId).filter((id): id is string => !!id)),
+  ];
+  if (currentBookingIds.length) {
+    for (const row of chunked(currentBookingIds, (part) =>
+      tx.select({ id: trade.id }).from(trade).where(inArray(trade.bookingId, part)).all(),
+    ))
+      tradeSet.add(row.id);
+    ids = [...tradeSet];
+    trades = chunked(ids, (part) => tx.select().from(trade).where(inArray(trade.id, part)).all());
+  }
+  const tradeById = new Map(trades.map((row) => [row.id, row]));
+  // Build history by trade id (needed for a cash row that was detached by a zero-net transition).
+  const historicalByTrade = new Map<string, Set<string>>();
+  for (const id of ids) {
+    const rows = tx
+      .select({ beforeJson: auditLog.beforeJson, afterJson: auditLog.afterJson })
+      .from(auditLog)
+      .where(and(eq(auditLog.entityType, 'trade'), eq(auditLog.entityId, id)))
+      .all();
+    const bookings = new Set<string>();
+    for (const row of rows)
+      for (const json of [row.beforeJson, row.afterJson]) {
+        if (!json) continue;
+        const snapshot = JSON.parse(json) as { booking_id?: unknown };
+        if (typeof snapshot.booking_id === 'string') bookings.add(snapshot.booking_id);
+      }
+    const current = tradeById.get(id)?.bookingId;
+    if (current) bookings.add(current);
+    historicalByTrade.set(id, bookings);
+  }
+
+  const liveOwners = new Map<string, string[]>();
+  for (const row of trades) {
+    if (row.deletedAt !== null) continue;
+    const expected = settlementCents(row);
+    if (expected === 0) {
+      if (row.bookingId !== null)
+        throw new BookingInvariantError(`Trade ${row.id} has a trade settlement despite zero cash`);
+    } else {
+      if (!row.bookingId)
+        throw new BookingInvariantError(`Trade ${row.id} is missing its trade settlement`);
+      liveOwners.set(row.bookingId, [...(liveOwners.get(row.bookingId) ?? []), row.id]);
+      const cash = tx.select().from(booking).where(eq(booking.id, row.bookingId)).get();
+      const parts = tx
+        .select()
+        .from(bookingSplit)
+        .where(eq(bookingSplit.bookingId, row.bookingId))
+        .all();
+      const owner = tx.select().from(account).where(eq(account.id, row.accountId)).get();
+      const incomeType = isIncomeTrade(row.kind) ? INCOME_TYPES.capital.id : null;
+      if (
+        !cash ||
+        cash.deletedAt !== null ||
+        !owner ||
+        cash.accountId !== row.accountId ||
+        cash.date !== row.date ||
+        cash.amountCents !== expected ||
+        cash.currency !== owner.currency ||
+        cash.transferId !== null ||
+        cash.originalAmountCents !== null ||
+        cash.originalCurrency !== null ||
+        cash.fxRateMicro !== null ||
+        cash.fxFeeCents !== null ||
+        parts.length !== 1 ||
+        parts[0]?.amountCents !== expected ||
+        parts[0]?.categoryId !== null ||
+        parts[0]?.contactId !== null ||
+        parts[0]?.transferId !== null ||
+        parts[0]?.incomeTypeId !== incomeType
+      )
+        throw new BookingInvariantError(`Trade ${row.id} has an invalid trade settlement`);
+    }
+    for (const oldId of historicalByTrade.get(row.id) ?? []) {
+      if (oldId === row.bookingId) continue;
+      const old = tx.select().from(booking).where(eq(booking.id, oldId)).get();
+      if (old && old.deletedAt === null)
+        throw new BookingInvariantError(`Trade ${row.id} has an orphan live trade settlement`);
+    }
+  }
+  for (const [id, owners] of liveOwners)
+    if (owners.length > 1)
+      throw new BookingInvariantError(`Trade settlement ${id} is shared by live trades`);
+
+  for (const row of trades.filter((item) => item.deletedAt !== null)) {
+    for (const cashId of historicalByTrade.get(row.id) ?? []) {
+      const cash = tx.select().from(booking).where(eq(booking.id, cashId)).get();
+      if (cash && cash.deletedAt === null)
+        throw new BookingInvariantError(`Deleted trade ${row.id} has a live trade settlement`);
+    }
+  }
+}
+
+/** Reject generic changes that could change, remove, or revive cash owned by a trade. */
+export function assertTradeSettlementBookingWrite(
+  tx: Executor,
+  bookingId: string,
+  operation: 'update' | 'delete' | 'restore',
+  fields: Iterable<string> = [],
+): void {
+  const hasOwner =
+    !!tx.select().from(trade).where(eq(trade.bookingId, bookingId)).get() ||
+    !!tx
+      .select({ id: auditLog.id })
+      .from(auditLog)
+      .where(
+        and(
+          eq(auditLog.entityType, 'trade'),
+          or(
+            eq(sql`json_extract(${auditLog.beforeJson}, '$.booking_id')`, bookingId),
+            eq(sql`json_extract(${auditLog.afterJson}, '$.booking_id')`, bookingId),
+          ),
+        ),
+      )
+      .get();
+  if (!hasOwner) return;
+  if (
+    operation === 'update' &&
+    [...fields].every((field) => ['memo', 'status', 'flag'].includes(field))
+  )
+    return;
+  throw new BookingInvariantError(
+    `Cannot ${operation} a trade settlement; change the trade instead`,
+  );
 }
 
 /** Bound parameters per statement stay far below SQLite's limit. */

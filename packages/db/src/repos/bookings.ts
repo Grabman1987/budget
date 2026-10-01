@@ -10,7 +10,11 @@ import {
   type GroupedContext,
 } from './audit';
 import { BookingInvariantError, EntityNotFoundError, ReconciledLockedError } from './errors';
-import { assertLedgerInvariants, relatedTransferBookings } from './invariants';
+import {
+  assertLedgerInvariants,
+  assertTradeSettlementBookingWrite,
+  relatedTransferBookings,
+} from './invariants';
 import { runInTransaction, type Executor } from './types';
 
 /**
@@ -585,17 +589,27 @@ function syncSplits(
  * transfer leg, `amountCents` and `date` are mirrored to the partner leg (opposite amount);
  * flipping the sign or moving a leg to another account is refused.
  */
-export function updateBooking(
+function updateBookingImpl(
   db: Executor,
   id: string,
   patch: BookingPatch,
   ctx: AuditContext,
   options: WriteOptions = {},
+  tradeNative = false,
 ): void {
   const grouped = withGroup(ctx);
   runInTransaction(db, (tx) => {
     const cur = loadBooking(tx, id);
     if (!cur) throw new EntityNotFoundError('booking', id);
+    if (!tradeNative)
+      assertTradeSettlementBookingWrite(
+        tx,
+        id,
+        'update',
+        Object.entries(patch)
+          .filter(([, value]) => value !== undefined)
+          .map(([key]) => key),
+      );
     // Reconciled bookings: only flag and memo are free; a status change also needs the unlock.
     const touchesLocked = Object.entries(patch).some(
       ([key, value]) => value !== undefined && !FREE_ON_RECONCILED.has(key),
@@ -666,6 +680,13 @@ export function updateBooking(
         .get();
       if (!partner)
         throw new BookingInvariantError(`Transfer ${cur.transferId} has no second live leg`);
+      if (!tradeNative)
+        assertTradeSettlementBookingWrite(
+          tx,
+          partner.id,
+          'update',
+          Object.keys(patch).filter((key) => key === 'date' || key === 'amountCents'),
+        );
       // The other leg follows date and amount, so it must not be reconciled either.
       if (patch.date !== undefined || amountChanged) assertUnlocked([partner], options);
       const partnerPatch: Record<string, unknown> = {};
@@ -701,6 +722,27 @@ export function updateBooking(
   });
 }
 
+/** Generic booking updates may change metadata on trade cash, but not its financial shape. */
+export function updateBooking(
+  db: Executor,
+  id: string,
+  patch: BookingPatch,
+  ctx: AuditContext,
+  options: WriteOptions = {},
+): void {
+  updateBookingImpl(db, id, patch, ctx, options);
+}
+
+/** Internal repository path used only by trade writes to update their own settlement. */
+export function updateTradeSettlementBooking(
+  db: Executor,
+  id: string,
+  patch: BookingPatch,
+  ctx: AuditContext,
+): void {
+  updateBookingImpl(db, id, patch, ctx, {}, true);
+}
+
 // ---------------------------------------------------------------------------------------------
 // Delete / restore
 // ---------------------------------------------------------------------------------------------
@@ -710,17 +752,20 @@ const transferLegs = (tx: Executor, row: BookingRow): BookingRow[] =>
   relatedTransferBookings(tx, row.id).map((legId) => loadBooking(tx, legId, true) as BookingRow);
 
 /** Soft-delete a booking; both legs of a transfer go together. Splits stay but are ignored. */
-export function deleteBooking(
+function deleteBookingImpl(
   db: Executor,
   id: string,
   ctx: AuditContext,
   options: WriteOptions = {},
+  tradeNative = false,
 ): void {
   const grouped = withGroup(ctx);
   runInTransaction(db, (tx) => {
     const cur = loadBooking(tx, id);
     if (!cur) throw new EntityNotFoundError('booking', id);
     const legs = transferLegs(tx, cur);
+    if (!tradeNative)
+      for (const leg of legs) assertTradeSettlementBookingWrite(tx, leg.id, 'delete');
     assertUnlocked(
       legs.filter((l) => l.deletedAt === null),
       options,
@@ -733,6 +778,20 @@ export function deleteBooking(
   });
 }
 
+export function deleteBooking(
+  db: Executor,
+  id: string,
+  ctx: AuditContext,
+  options: WriteOptions = {},
+): void {
+  deleteBookingImpl(db, id, ctx, options);
+}
+
+/** Internal repository path used only by trade writes to delete their own settlement. */
+export function deleteTradeSettlementBooking(db: Executor, id: string, ctx: AuditContext): void {
+  deleteBookingImpl(db, id, ctx, {}, true);
+}
+
 /** Restore a soft-deleted booking (and the deleted legs of its transfer). */
 export function restoreBooking(db: Executor, id: string, ctx: AuditContext): void {
   const grouped = withGroup(ctx);
@@ -740,7 +799,9 @@ export function restoreBooking(db: Executor, id: string, ctx: AuditContext): voi
     const cur = loadBooking(tx, id, true);
     if (!cur) throw new EntityNotFoundError('booking', id);
     if (cur.deletedAt === null) throw new BookingInvariantError(`Booking ${id} is not deleted`);
+    assertTradeSettlementBookingWrite(tx, id, 'restore');
     for (const leg of transferLegs(tx, cur)) {
+      assertTradeSettlementBookingWrite(tx, leg.id, 'restore');
       if (leg.deletedAt !== null)
         updateTracked(tx, booking, [leg.id], { deletedAt: null }, grouped, 'restore');
     }
