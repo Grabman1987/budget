@@ -15,6 +15,7 @@ import {
   ACCOUNT_PAGE,
   EINSTELLUNGEN_DATENQUELLEN,
   EINSTELLUNGEN_KATEGORIEN,
+  PLAN_ERWARTET,
   EINSTELLUNGEN_REGELWERK,
   IMPORT_REPORT,
   PLAN_MONAT,
@@ -100,6 +101,7 @@ const BUILT_PATHS = new Set<string>([
   EINSTELLUNGEN_REGELWERK.path,
   EINSTELLUNGEN_DATENQUELLEN.path,
   PLAN_MONAT.path,
+  PLAN_ERWARTET.path,
   VERMOEGEN_NETTO_META.path,
   PLAN_SPARZIELE.path,
 ]);
@@ -165,6 +167,12 @@ const planMonthRoute = createRoute({
   path: PLAN_MONAT.path,
   staticData: { meta: PLAN_MONAT },
   component: lazyRouteComponent(() => import('./budget/plan-page'), 'PlanMonthPage'),
+});
+const planExpectedRoute = createRoute({
+  getParentRoute: () => shellRoute,
+  path: PLAN_ERWARTET.path,
+  staticData: { meta: PLAN_ERWARTET },
+  component: lazyRouteComponent(() => import('./expected/expected-page'), 'ExpectedPage'),
 });
 const netWorthRoute = createRoute({
   getParentRoute: () => shellRoute,
@@ -287,6 +295,7 @@ const routeTree = rootRoute.addChildren([
     dataSourcesRoute,
     importReportRoute,
     planMonthRoute,
+    planExpectedRoute,
     netWorthRoute,
     planGoalsRoute,
     ...redirects,

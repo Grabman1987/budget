@@ -256,6 +256,8 @@ export const EINSTELLUNGEN_REGELWERK: PageDef = PAGES.find(
 /** Plan › Monat (built in P2c). */
 export const PLAN_MONAT: PageDef = PAGES.find((p) => p.path === '/plan/monat') as PageDef;
 
+/** Plan › Erwartet (built in P3.6). */
+export const PLAN_ERWARTET: PageDef = PAGES.find((p) => p.path === '/plan/erwartet') as PageDef;
 /** Plan › Sparziele (built in P3.4). */
 export const PLAN_SPARZIELE: PageDef = PAGES.find((p) => p.path === '/plan/sparziele') as PageDef;
 /** Einstellungen › Datenquellen: the YNAB import wizard (P2d); bank sources follow in P4. */

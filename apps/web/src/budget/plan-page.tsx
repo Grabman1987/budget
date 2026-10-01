@@ -28,6 +28,7 @@ import { useMonth } from '../shell/use-month';
 import { assign, budgetQuery, type BudgetMonthView } from './budget-api';
 import { CategoryIcon } from './category-icon';
 import { CoverChoice, useCover } from './cover-choice';
+import { IncomeButton, IncomePanel } from '../expected/income-panel';
 import { EnvelopePanel } from './envelope-panel';
 import { STAGES } from './labels';
 import {
@@ -74,7 +75,13 @@ export function PlanMonthPage() {
   const [month] = useMonth();
   const budget = useQuery(budgetQuery(month));
   const data = budget.data;
-  const income = data ? eur(data.summary.incomeCents) : '–';
+  // The month's income (title block and chain term) opens received against expected.
+  const [incomeOpen, setIncomeOpen] = useState(false);
+  const income = data ? (
+    <IncomeButton value={eur(data.summary.incomeCents)} onOpen={() => setIncomeOpen(true)} />
+  ) : (
+    '–'
+  );
   return (
     <PageFrame meta={PLAN_MONAT} income={income}>
       <div className="plan">
@@ -82,13 +89,29 @@ export function PlanMonthPage() {
         {budget.isError && (
           <ErrorNote what="Envelopes" error={budget.error} onRetry={() => void budget.refetch()} />
         )}
-        {data && <PlanBody key={month} month={month} data={data} />}
+        {data && (
+          <PlanBody key={month} month={month} data={data} onIncome={() => setIncomeOpen(true)} />
+        )}
       </div>
+      <IncomePanel
+        month={month}
+        open={incomeOpen}
+        onClose={() => setIncomeOpen(false)}
+        bookedCents={data?.summary.incomeCents}
+      />
     </PageFrame>
   );
 }
 
-function PlanBody({ month, data }: { month: string; data: BudgetMonthView }) {
+function PlanBody({
+  month,
+  data,
+  onIncome,
+}: {
+  month: string;
+  data: BudgetMonthView;
+  onIncome: () => void;
+}) {
   const write = useBudgetWrite();
   const accounts = useQuery(accountsQuery()).data?.accounts ?? [];
   const [view, setView] = useState<PlanView>('stage');
@@ -169,7 +192,7 @@ function PlanBody({ month, data }: { month: string; data: BudgetMonthView }) {
 
   return (
     <>
-      <Head data={data} rows={rows} />
+      <Head data={data} rows={rows} onIncome={onIncome} />
       {(urgent.length > 0 || credit.length > 0 || tba < 0) && (
         <section
           className={cx('triage', urgent.length === 0 && tba >= 0 && 'is-calm')}
@@ -513,14 +536,22 @@ function GroupState({
   );
 }
 
-function Head({ data, rows }: { data: BudgetMonthView; rows: PlanRow[] }) {
+function Head({
+  data,
+  rows,
+  onIncome,
+}: {
+  data: BudgetMonthView;
+  rows: PlanRow[];
+  onIncome: () => void;
+}) {
   const s = data.summary;
   const tba = s.toBeAssignedCents;
   const whole = (tba < 0 ? MINUS : '') + eur(Math.abs(tba), { cents: false }).replace(' €', '');
   const fraction = eur(Math.abs(tba)).split(',')[1]?.replace(' €', '') ?? '00';
   const terms: DimensionChainTerm[] = [
     { label: 'Übertrag', value: cents(s.carryInCents) },
-    { label: 'Einnahmen', value: cents(s.incomeCents), op: '+' },
+    { label: 'Einnahmen', value: cents(s.incomeCents), op: '+', onSelect: onIncome },
     ...(s.uncoveredCents !== 0
       ? [{ label: 'Ungedeckt', value: cents(s.uncoveredCents), op: '-' as const }]
       : []),
