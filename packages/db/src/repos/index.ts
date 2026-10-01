@@ -28,4 +28,5 @@ export * from './heute';
 
 export * from './contacts';
 export * from './portfolio-positions';
+export * from './global-search';
 export * from './inbox';
