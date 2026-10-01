@@ -331,7 +331,7 @@ export function referenceMonth(asOf: string): string {
 export function forecastInputs(
   f: RuleFacts,
   asOf: string,
-  nw: NetWorth,
+  nw: Pick<NetWorth, 'byAccount'>,
 ): NonNullable<RuleInputs['forecast']> {
   const cur = monthOf(asOf);
   const ref = referenceMonth(asOf);

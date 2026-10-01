@@ -30,6 +30,9 @@ export function overviewModel(accounts: ReadonlyArray<AccountRow>) {
     closed,
     closedValueCents: sumEur(closed),
     netWorthCents: sumEur(accounts),
+    missingPriceSecurityIds: [
+      ...new Set(accounts.flatMap((a) => a.missingPriceSecurityIds ?? [])),
+    ].sort(),
     missingFxCurrencies: [...new Set(accounts.flatMap((a) => a.missingFxCurrencies))].sort(),
   };
 }

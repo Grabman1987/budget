@@ -148,7 +148,7 @@ describe('missing FX availability', () => {
     db.insert(schema.price)
       .values({
         securityId: 'missing-chf-security',
-        date: TODAY,
+        date: '2026-01-01',
         priceMicro: 100_000_000,
         currency: 'CHF',
         source: 'manual',

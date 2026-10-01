@@ -514,7 +514,7 @@ describe('GET /api/export/csv.zip', () => {
     expect(missingPrice?.[9]).toBe('');
     expect(missingPrice?.[10]).toBe('');
     expect(missingPrice?.[11]).toBe('');
-    expect(missingPrice?.[12]).not.toBe('');
+    expect(missingPrice?.[12]).toBe('2000');
     expect(missingPrice?.[13]).toBe('');
     expect(missingPrice?.[15]).toBe('missing_price');
     expect(positions.some((row) => row[1] === 'deadsec')).toBe(false);
