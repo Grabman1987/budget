@@ -112,12 +112,19 @@ describe('GET /api/securities/:id/prices', () => {
 });
 
 describe('PUT /api/securities/:id/prices/:date', () => {
-  it('sets a manual price from micro-units or decimal text, and a refresh never replaces it', async () => {
+  it('sets audited manual prices and a refresh never replaces them', async () => {
     const a = await call('PUT', '/securities/s1/prices/2026-03-30', { priceMicro: 81_500_000 });
     expect(a.status).toBe(200);
     expect(a.body['price']).toMatchObject({ source: 'manual', priceMicro: 81_500_000 });
     const b = await call('PUT', '/securities/s1/prices/2026-03-30', { price: '81.25' });
+    expect(b.body['groupId']).toEqual(expect.any(String));
     expect(b.body['price'].priceMicro).toBe(81_250_000);
+    const undone = await call('POST', '/undo', { groupId: b.body['groupId'] });
+    expect(undone.status).toBe(200);
+    expect(
+      (await call('GET', '/securities/s1/prices?from=2026-03-30&to=2026-03-30')).body['prices'],
+    ).toMatchObject([{ priceMicro: 81_500_000, source: 'manual' }]);
+    await call('POST', '/undo', { groupId: undone.body['groupId'] });
     const refresh = await call('POST', '/market/refresh');
     expect(refresh.body['prices'].protectedManual).toBe(1);
     const series = await call('GET', '/securities/s1/prices?from=2026-03-30&to=2026-03-30');
@@ -131,6 +138,44 @@ describe('PUT /api/securities/:id/prices/:date', () => {
       },
     ]);
     expect(db.select().from(schema.priceAudit).all()).toHaveLength(1);
+  });
+
+  it('applies API origin and session guards before a manual price write', async () => {
+    const guardedApp = createApp({
+      webDir,
+      auth: {
+        originGuard: async (c, next) =>
+          c.req.header('origin') === 'https://budget.test'
+            ? next()
+            : c.json({ error: 'origin' }, 403),
+        requireSession: async (c) => c.json({ error: 'unauthorized' }, 401),
+        requireStepUp: async (_c, next) => next(),
+        routes: new Hono(),
+      },
+      ledger: {
+        db,
+        today: () => TODAY,
+        market: {
+          quotes: fixtureQuoteSource({ anchorsFor: () => [] }),
+          fx: fixtureFxSource({ anchorsFor: () => [] }),
+        },
+      },
+    });
+    const put = (origin?: string) =>
+      guardedApp.request('/api/securities/s1/prices/2026-03-30', {
+        method: 'PUT',
+        headers: {
+          'content-type': 'application/json',
+          ...(origin ? { origin } : {}),
+        },
+        body: JSON.stringify({ priceMicro: 81_000_000 }),
+      });
+
+    expect((await put()).status).toBe(403);
+    expect((await put('https://budget.test')).status).toBe(401);
+    expect(
+      (await call('GET', '/securities/s1/prices?from=2026-03-30&to=2026-03-30')).body['prices'],
+    ).toEqual([]);
   });
 
   it('refuses float input, both or neither field, future days and non-positive prices', async () => {

@@ -3,16 +3,17 @@ import {
   fxSeries,
   priceSeries,
   schema,
-  upsertPrice,
+  setManualPrice,
   type Db,
 } from '@budget/db';
 import { parseMicro } from '@budget/domain';
 import type { MarketSources } from '@budget/market';
+import { randomUUID } from 'node:crypto';
 import { eq } from 'drizzle-orm';
 import { Hono } from 'hono';
 import { z } from 'zod';
 import { refreshMarket } from '../market/timer';
-import { ApiError, readBody, readQuery } from './http';
+import { ACTOR, ApiError, readBody, readQuery } from './http';
 import { day } from './schemas';
 
 const range = z.object({ from: day.optional(), to: day.optional() });
@@ -73,15 +74,15 @@ export function marketRoutes(db: Db, today: () => string, sources: MarketSources
     const body = await readBody(c, manualPrice);
     const priceMicro = body.priceMicro ?? parseMicro(body.price as string);
     if (priceMicro <= 0) throw new ApiError(400, 'invalid', 'The price must be positive');
-    upsertPrice(db, {
-      securityId: sec.id,
-      date,
-      priceMicro,
-      currency: sec.currency,
-      source: 'manual',
-    });
+    const ctx = { actor: ACTOR, groupId: randomUUID() };
+    const result = setManualPrice(
+      db,
+      { securityId: sec.id, date, priceMicro, currency: sec.currency },
+      ctx,
+    );
     return c.json({
-      price: { securityId: sec.id, date, priceMicro, currency: sec.currency, source: 'manual' },
+      price: result.price,
+      groupId: result.groupId,
     });
   });
 
