@@ -2,6 +2,7 @@ import { BOOKING_FLAGS, BOOKING_STATUSES, type BookingFilter, type BookingSort }
 
 /** URL parameters of Alle Buchungen (German names, linkable and reload-safe). */
 export interface BookingsSearch {
+  buchung?: string | undefined;
   konto?: string | undefined;
   kategorie?: string | undefined;
   empfaenger?: string | undefined;
@@ -47,6 +48,7 @@ const SORTS = ['date', 'amount', 'payee', 'account'] as const;
 /** Route `validateSearch`: unknown or malformed values are dropped, never thrown. */
 export function validateBookingsSearch(search: Record<string, unknown>): BookingsSearch {
   return {
+    buchung: id(search['buchung']),
     konto: id(search['konto']),
     kategorie: id(search['kategorie']),
     empfaenger: id(search['empfaenger']),
@@ -63,6 +65,7 @@ export function validateBookingsSearch(search: Record<string, unknown>): Booking
 /** The API filter belonging to the URL parameters. */
 export function filterFromSearch(search: BookingsSearch): BookingFilter {
   return {
+    id: search.buchung,
     accountId: search.konto,
     categoryId: search.kategorie,
     payeeId: search.empfaenger,
@@ -79,6 +82,7 @@ export function filterFromSearch(search: BookingsSearch): BookingFilter {
 /** Is any filter (not sorting) set? */
 export const hasFilter = (search: BookingsSearch): boolean =>
   Boolean(
+    search.buchung ||
     search.konto ||
     search.kategorie ||
     search.empfaenger ||

@@ -1,5 +1,6 @@
 import { useToast } from '@budget/ui';
 import { queryOptions, useQueryClient } from '@tanstack/react-query';
+import { ApiError } from '../api/http';
 import { undoGroup } from '../ledger/api';
 import { errorText } from '../ledger/labels';
 import { LEDGER_KEY } from '../ledger/queries';
@@ -32,6 +33,15 @@ export function useBudgetWrite() {
   const refresh = () =>
     Promise.all(AFFECTED.map((queryKey) => qc.invalidateQueries({ queryKey: [...queryKey] })));
 
+  const failed = (action: 'Rückgängig' | 'Wiederholen', error: unknown) =>
+    toast.show({
+      message: `${action} nicht möglich. ${
+        error instanceof ApiError && error.code === 'undo_refused'
+          ? 'Bitte prüfe den aktuellen Stand.'
+          : errorText(error)
+      }`,
+    });
+
   return async function write<T extends { groupId: string }>(
     run: () => Promise<T>,
     message: (result: T) => string,
@@ -49,10 +59,13 @@ export function useBudgetWrite() {
               toast.show({
                 message: 'Rückgängig gemacht.',
                 actionLabel: 'Wiederholen',
-                onAction: () => void undoGroup(undone.groupId).then(refresh),
+                onAction: () =>
+                  void undoGroup(undone.groupId).then(refresh, (error: unknown) =>
+                    failed('Wiederholen', error),
+                  ),
               });
             },
-            (error: unknown) => toast.show({ message: errorText(error) }),
+            (error: unknown) => failed('Rückgängig', error),
           ),
       });
       return result;
