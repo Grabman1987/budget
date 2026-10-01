@@ -129,9 +129,11 @@ export class ImportJobs {
     holdWrites(this.db);
     this.current = job;
     this.jobs.set(job.id, job);
-    job.done = (
-      this.mode === 'worker' ? this.inWorker(job, task, today) : this.inline(job, task, today)
-    )
+    // Through `then`: a worker that cannot even start fails the job instead of keeping the lock.
+    job.done = Promise.resolve()
+      .then(() =>
+        this.mode === 'worker' ? this.inWorker(job, task, today) : this.inline(job, task, today),
+      )
       .catch((error: unknown) => {
         job.result = errorAnswer(error);
       })
