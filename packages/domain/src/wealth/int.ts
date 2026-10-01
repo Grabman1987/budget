@@ -1,7 +1,7 @@
 /**
  * Integer helpers of the wealth and debt domain. Products of cents and basis points can pass
  * 2^53 (a 1 000 000 000,00 € portfolio times 10 000), so every such product goes through BigInt.
- * Not part of the public API.
+ * `shareBps` is exported for the read models (platform and position shares).
  */
 
 /** `a * b / d` rounded half up (away from zero for negatives) with an exact BigInt product. `d > 0`. */

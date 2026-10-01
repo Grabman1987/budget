@@ -26,6 +26,7 @@ const TABLES = {
   securities: t.security,
   holdings: t.holding,
   trades: t.trade,
+  savingsPlans: t.savingsPlan,
   prices: t.price,
   fxRates: t.fxRate,
   rules: t.rule,

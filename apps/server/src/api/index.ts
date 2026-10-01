@@ -7,6 +7,13 @@ import { accountRoutes } from './accounts';
 import { bookingRoutes } from './bookings';
 import { budgetRoutes, categoryRoutes } from './budget';
 import { expectedRoutes } from './expected';
+import {
+  assetClassRoutes,
+  portfolioRoutes,
+  savingsPlanRoutes,
+  securityRoutes,
+  tradeRoutes,
+} from './invest';
 import { createMarketSources, marketModeFromEnv } from '../market/sources';
 import { errorResponse } from './http';
 import { lookupRoutes, payeeRoutes, undoRoutes } from './lookups';
@@ -40,6 +47,11 @@ export function createLedgerApi({
   api.route('/categories', categoryRoutes(db));
   api.route('/budget', budgetRoutes(db));
   api.route('/expected', expectedRoutes(db, today));
+  api.route('/securities', securityRoutes(db));
+  api.route('/asset-classes', assetClassRoutes(db, today));
+  api.route('/trades', tradeRoutes(db));
+  api.route('/savings-plans', savingsPlanRoutes(db, today));
+  api.route('/portfolio', portfolioRoutes(db, today));
   api.route('/lookups', lookupRoutes(db));
   api.route('/undo', undoRoutes(db));
   api.route('/', marketRoutes(db, today, market));

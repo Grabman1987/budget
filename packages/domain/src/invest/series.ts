@@ -25,7 +25,9 @@ import type { CashFlow } from './returns';
  *    cash of its reference account(s). Buys, sales, dividends, fees and taxes are internal moves
  *    between cash and positions; only transfers that cross the portfolio boundary (deposits and
  *    withdrawals) are flows. The value is positions plus cash balance. This is the view used for
- *    the Gate 3 comparison with Portfolio Performance.
+ *    the Gate 3 comparison with Portfolio Performance. A plain inflow booked directly onto the
+ *    reference account (salary, deposit) is a deposit from outside, too (Einlage, as in PP);
+ *    interest, dividends and fees are performance.
  *
  * Prices must be split-adjusted for a split to keep the value continuous (`quote_adjusted`).
  */
