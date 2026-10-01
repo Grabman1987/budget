@@ -1,6 +1,7 @@
 import { Button, DetailPanel, Field, TextInput, useToast } from '@budget/ui';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { useState } from 'react';
+import { useBlocker } from '@tanstack/react-router';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { request } from '../api/http';
 import { undoGroup } from '../ledger/api';
 import { errorText } from '../ledger/labels';
@@ -36,19 +37,55 @@ export function InstrumentPanel({
   const [saving, setSaving] = useState(false);
   const [dirty, setDirty] = useState(false);
   const [asking, setAsking] = useState(false);
-  const [discardTarget, setDiscardTarget] = useState<'close' | 'edit' | 'trade'>('close');
+  const [discardTarget, setDiscardTarget] = useState<'close' | 'edit' | 'trade' | 'navigation'>(
+    'close',
+  );
+  const dirtyRef = useRef(false);
+  const savingRef = useRef(false);
+  const blockedDuringSaveRef = useRef(false);
+  const setDirtyNow = useCallback((value: boolean) => {
+    dirtyRef.current = value;
+    setDirty(value);
+  }, []);
+  const setSavingNow = useCallback((value: boolean) => {
+    savingRef.current = value;
+    setSaving(value);
+  }, []);
+  const blocker = useBlocker({
+    shouldBlockFn: () => {
+      if (savingRef.current) {
+        blockedDuringSaveRef.current = true;
+      }
+      return dirtyRef.current || savingRef.current;
+    },
+    withResolver: true,
+    enableBeforeUnload: () => dirtyRef.current || savingRef.current,
+  });
+  const { status: blockerStatus, reset: resetBlockedNavigation } = blocker;
+  useEffect(() => {
+    if (blockerStatus !== 'blocked') return;
+    if (blockedDuringSaveRef.current || savingRef.current) {
+      blockedDuringSaveRef.current = false;
+      setAsking(false);
+      resetBlockedNavigation();
+      return;
+    }
+    setDiscardTarget('navigation');
+    setAsking(true);
+  }, [blockerStatus, resetBlockedNavigation, saving]);
   const [tradeTarget, setTradeTarget] = useState('neu');
   const openTrade = (target: string) => {
-    if (saving) return;
-    if (!dirty) onTrade(target);
+    if (savingRef.current || blocker.status === 'blocked') return;
+    if (!dirtyRef.current) onTrade(target);
     else {
       setTradeTarget(target);
       setDiscardTarget('trade');
       setAsking(true);
     }
   };
+
   const close = () => {
-    setDirty(false);
+    setDirtyNow(false);
     setAsking(false);
     setEditing(false);
     onClose();
@@ -65,8 +102,8 @@ export function InstrumentPanel({
       }
       onClose={close}
       beforeClose={() => {
-        if (saving) return false;
-        if (!dirty) return true;
+        if (savingRef.current || blocker.status === 'blocked') return false;
+        if (!dirtyRef.current) return true;
         setDiscardTarget('close');
         setAsking(true);
         return false;
@@ -84,15 +121,16 @@ export function InstrumentPanel({
         <InstrumentForm
           key={id}
           security={creating ? undefined : instrument.data?.security}
-          onDirty={setDirty}
+          onDirty={setDirtyNow}
           onSaved={(security) => {
-            setDirty(false);
+            setDirtyNow(false);
+            setSavingNow(false);
             setAsking(false);
             setEditing(false);
             onSelect(security.id);
           }}
           onSelect={onSelect}
-          onBusy={setSaving}
+          onBusy={setSavingNow}
         />
       ) : (
         instrument.data && (
@@ -197,8 +235,8 @@ export function InstrumentPanel({
                 securityId={id}
                 currency={instrument.data.security.currency}
                 asOf={asOf}
-                onDirty={setDirty}
-                onBusy={setSaving}
+                onDirty={setDirtyNow}
+                onBusy={setSavingNow}
               />
             )}
           </div>
@@ -211,7 +249,13 @@ export function InstrumentPanel({
               ? 'Ungespeicherte Angaben verwerfen?'
               : 'Ungespeicherten Kurs verwerfen?'}
           </p>
-          <Button disabled={saving} onClick={() => setAsking(false)}>
+          <Button
+            disabled={saving}
+            onClick={() => {
+              setAsking(false);
+              if (discardTarget === 'navigation' && blocker.status === 'blocked') blocker.reset();
+            }}
+          >
             Weiter bearbeiten
           </Button>
           <Button
@@ -219,13 +263,17 @@ export function InstrumentPanel({
             variant="ghost"
             onClick={() => {
               if (discardTarget === 'edit') {
-                setDirty(false);
+                setDirtyNow(false);
                 setAsking(false);
                 setEditing(true);
               } else if (discardTarget === 'trade') {
-                setDirty(false);
+                setDirtyNow(false);
                 setAsking(false);
                 onTrade(tradeTarget);
+              } else if (discardTarget === 'navigation' && blocker.status === 'blocked') {
+                setDirtyNow(false);
+                setAsking(false);
+                blocker.proceed();
               } else close();
             }}
           >

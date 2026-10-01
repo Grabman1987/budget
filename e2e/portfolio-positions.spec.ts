@@ -1,5 +1,5 @@
 import AxeBuilder from '@axe-core/playwright';
-import { expect, test, type Page, type TestInfo } from '@playwright/test';
+import { expect, test, type APIRequestContext, type Page, type TestInfo } from '@playwright/test';
 import { join } from 'node:path';
 import { sampleTest } from './sample';
 import type { PortfolioPositionsView } from '@budget/db';
@@ -29,6 +29,64 @@ async function settle(page: Page) {
     window.scrollTo(0, 0);
   });
   await page.waitForFunction(() => window.scrollY === 0);
+}
+
+async function postApi(request: APIRequestContext, path: string, data: unknown) {
+  const response = await request.post(`${MAIN_URL}/api${path}`, {
+    headers: { origin: MAIN_URL },
+    data,
+  });
+  expect(response.ok()).toBe(true);
+  return response.json();
+}
+
+async function createPositionInstrument(request: APIRequestContext, name: string) {
+  const account = (
+    await postApi(request, '/accounts', {
+      name: `Depot ${name}`,
+      type: 'brokerage',
+      openingDate: '2026-01-01',
+    })
+  ).account as { id: string };
+  const security = (await postApi(request, '/securities', { name, kind: 'stock', currency: 'EUR' }))
+    .security as { id: string };
+  await postApi(request, '/trades', {
+    accountId: account.id,
+    securityId: security.id,
+    date: '2026-09-01',
+    kind: 'buy',
+    units: '2',
+    amountCents: 6000,
+  });
+  const asOf = (
+    (await (
+      await request.get(`${MAIN_URL}/api/portfolio/positions`)
+    ).json()) as PortfolioPositionsView
+  ).asOf;
+  const price = await request.put(`${MAIN_URL}/api/securities/${security.id}/prices/${asOf}`, {
+    headers: { origin: MAIN_URL },
+    data: { price: '50' },
+  });
+  expect(price.ok()).toBe(true);
+  return security;
+}
+
+function deferred() {
+  let resolve!: () => void;
+  const promise = new Promise<void>((done) => {
+    resolve = done;
+  });
+  return { promise, resolve };
+}
+
+async function browserBack(page: Page) {
+  await page.evaluate(
+    () =>
+      new Promise<void>((resolve) => {
+        window.addEventListener('popstate', () => resolve(), { once: true });
+        window.history.back();
+      }),
+  );
 }
 
 sampleTest(
@@ -273,4 +331,112 @@ test('manual quote validation, save, dirty close and undo update the position an
     }
   ).accounts.find((a) => a.id === account.id);
   expect(row?.holdingsCents).toBe(10000);
+});
+
+test('instrument Back navigation asks once and honors keep or discard for quote and metadata', async ({
+  page,
+  request,
+}, info) => {
+  const name = `Navigationsschutz ${info.project.name}`;
+  const security = await createPositionInstrument(request, name);
+  await page.goto('/vermoegen/portfolio');
+  const row = page.getByRole('button', { name, exact: true });
+  await row.click();
+  const panel = page.getByRole('dialog', { name, exact: true });
+
+  await panel.getByLabel('Kurs (EUR)', { exact: true }).fill('55');
+  await page.evaluate(() => window.history.back());
+  await expect(panel.getByRole('alert')).toContainText('Ungespeicherten Kurs verwerfen?');
+  await expect(panel.getByLabel('Kurs (EUR)', { exact: true })).toHaveValue('55');
+  await panel.getByRole('button', { name: 'Weiter bearbeiten' }).click();
+  await expect(panel.getByRole('alert')).toHaveCount(0);
+  await expect(page).toHaveURL(new RegExp(`produkt=${security.id}`));
+  await page.evaluate(() => window.history.back());
+  await expect(panel.getByRole('alert')).toContainText('Ungespeicherten Kurs verwerfen?');
+  await panel.getByRole('button', { name: 'Verwerfen' }).click();
+  await expect(page).not.toHaveURL(/produkt=/);
+  await expect(panel).toHaveCount(0);
+
+  await row.click();
+  const reopened = page.getByRole('dialog', { name, exact: true });
+  await reopened.getByRole('button', { name: 'Stammdaten bearbeiten' }).click();
+  const editPanel = page.getByRole('dialog', { name: 'Stammdaten bearbeiten', exact: true });
+  await editPanel.getByLabel('Name', { exact: true }).fill(`${name} geändert`);
+  await page.evaluate(() => window.history.back());
+  await expect(editPanel.getByRole('alert')).toContainText('Ungespeicherte Angaben verwerfen?');
+  await expect(editPanel.getByLabel('Name', { exact: true })).toHaveValue(`${name} geändert`);
+  await editPanel.getByRole('button', { name: 'Weiter bearbeiten' }).click();
+  await expect(page).toHaveURL(new RegExp(`produkt=${security.id}`));
+  await expect(editPanel.getByLabel('Name', { exact: true })).toHaveValue(`${name} geändert`);
+
+  await editPanel.getByRole('button', { name: 'Schließen' }).click();
+  await expect(editPanel.getByRole('alert')).toContainText('Ungespeicherte Angaben verwerfen?');
+  await editPanel.getByRole('button', { name: 'Verwerfen' }).click();
+  await expect(page).not.toHaveURL(/produkt=/);
+  await expect(page.locator('.instrument-discard')).toHaveCount(0);
+});
+
+test('pending create and quote requests reject Back until the save finishes', async ({
+  page,
+  request,
+}, info) => {
+  const name = `Speichern mit Zurück ${info.project.name}`;
+  const createGate = deferred();
+  const createStarted = deferred();
+  await page.route('**/api/securities', async (route) => {
+    if (route.request().method() !== 'POST') return route.continue();
+    createStarted.resolve();
+    await createGate.promise;
+    await route.continue();
+  });
+  await page.goto('/vermoegen/portfolio');
+  await page.getByRole('button', { name: 'Instrument anlegen', exact: true }).click();
+  const createPanel = page.getByRole('dialog', { name: 'Instrument anlegen', exact: true });
+  await createPanel.getByLabel('Name', { exact: true }).fill(name);
+  const createdResponse = page.waitForResponse(
+    (response) =>
+      response.request().method() === 'POST' && response.url().endsWith('/api/securities'),
+  );
+  await createPanel.getByRole('button', { name: 'Instrument anlegen', exact: true }).click();
+  await createStarted.promise;
+  await expect(createPanel.getByRole('button', { name: 'Wird gespeichert …' })).toBeDisabled();
+  await browserBack(page);
+  await expect(page).toHaveURL(/produkt=neu/);
+  await expect(createPanel.getByRole('button', { name: 'Wird gespeichert …' })).toBeDisabled();
+  await expect(page.locator('.instrument-discard')).toHaveCount(0);
+  createGate.resolve();
+  const created = await createdResponse;
+  const createdId = ((await created.json()) as { security: { id: string } }).security.id;
+  await expect(page).toHaveURL(new RegExp(`produkt=${createdId}`));
+  await expect(page.getByRole('dialog', { name })).toBeVisible();
+
+  const security = await createPositionInstrument(request, `${name} Kurs`);
+  const quoteGate = deferred();
+  const quoteStarted = deferred();
+  const quoteUrl = `**/api/securities/${security.id}/prices/**`;
+  await page.route(quoteUrl, async (route) => {
+    if (route.request().method() !== 'PUT') return route.continue();
+    quoteStarted.resolve();
+    await quoteGate.promise;
+    await route.continue();
+  });
+  await page.goto('/vermoegen/portfolio');
+  await page.getByRole('button', { name: `${name} Kurs`, exact: true }).click();
+  const quotePanel = page.getByRole('dialog', { name: `${name} Kurs`, exact: true });
+  await quotePanel.getByLabel('Kurs (EUR)', { exact: true }).fill('60');
+  await quotePanel.getByRole('button', { name: 'Kurs speichern', exact: true }).click();
+  await quoteStarted.promise;
+  await expect(quotePanel.getByRole('button', { name: 'Kurs wird gespeichert …' })).toBeDisabled();
+  await browserBack(page);
+  await expect(page).toHaveURL(new RegExp(`produkt=${security.id}`));
+  await expect(quotePanel.getByRole('button', { name: 'Kurs wird gespeichert …' })).toBeDisabled();
+  await expect(page.locator('.instrument-discard')).toHaveCount(0);
+  quoteGate.resolve();
+  await expect(quotePanel.locator('.instrument-quote')).toContainText('60,00 €');
+  await expect(
+    quotePanel.getByRole('button', { name: 'Kurs speichern', exact: true }),
+  ).toBeEnabled();
+  await page.evaluate(() => window.history.back());
+  await expect(page).not.toHaveURL(/produkt=/);
+  await expect(page.locator('.instrument-discard')).toHaveCount(0);
 });
