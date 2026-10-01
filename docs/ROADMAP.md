@@ -10,7 +10,7 @@ Gate 1 (specification and designs accepted by the owner): **pending owner sign-o
 
 Source: [`audit/2026-10-01-follow-up.md`](audit/2026-10-01-follow-up.md). First real import is **EUR only**; full FX support remains later scope. One task per branch/PR; verify each fix against an independent expected result and required checks.
 
-Owner scope update, 2026-10-01: remove import as an app feature. Keep only CSV export of all accounts/portfolios, currently a placeholder. The previous import UI/parser checkboxes below record historical implementation, not the current product scope. Separate one-time migration and its acceptance workflow are pending clarification.
+Owner scope update, 2026-10-01: remove import as an app feature. Keep only CSV export of all accounts/portfolios, currently a placeholder. Previous import UI/parser checkboxes record historical implementation, not current product scope. One-time migration remains a separate owner-authorized Codex/Claude task using existing exports and the PP file in private storage; establish file access and the transfer procedure separately.
 
 - [x] Record owner-confirmed retirement of the prototype-only Fly app; keep the versioned prototype and leave legacy staging unchanged.
 - [x] Align README, PRODUCT, SPEC and cloud setup with implementation and acceptance status.
@@ -25,7 +25,7 @@ Owner scope update, 2026-10-01: remove import as an app feature. Keep only CSV e
 - [ ] A05 payment lifecycle: edit/delete/rematch/undo recompute status, links, amounts and related totals.
 - [ ] A03 EUR-first guard: unsupported on-budget foreign currencies never enter EUR sums silently; create/update/import/existing accounts covered.
 - [ ] A04 persisted Gate-2 reconciliation: each relevant account/month and mapped category checked; added/missing/changed/deleted one-cent cases detected, including non-budget accounts.
-- [ ] Owner EUR import/Gate 2 after corrections and operational acceptance; private export/mapping remain outside repository/cloud sessions.
+- [ ] Separate agent-assisted EUR migration/Gate 2 after corrections and operational acceptance; establish private file access and transfer procedure; never commit exports/mapping or include them in CI/logs.
 - [ ] A02 investment costs use historical base-currency FX; valuation, fees/income and missing-rate behavior consistent before Gate 3.
 - [ ] A09 realized gain includes fully sold positions independently of current holdings, with partial-sale/repurchase cases.
 - [ ] A10 broker/risk aggregation preserves account/institution for securities at multiple brokers.
@@ -149,7 +149,7 @@ Process from P1f on: one branch per task, PRs ≤ ~1.500 changed lines, tick onl
 
 ## P2 Kern und Migration
 
-Starts after P1f-3 is merged. Source: YNAB export (`docs/migration/ynab-export.md`); Actual is not migrated. YNAB's categories and habits are evaluated and adapted via an owner-made mapping, not copied. The real export and the mapping never enter the repo or a cloud session. **Gate 2:** balances per account and month match YNAB to the cent; Available per target category matches the mapped YNAB categories before the rules month.
+Starts after P1f-3 is merged. Source: YNAB export (`docs/migration/ynab-export.md`); Actual is not migrated. YNAB's categories and habits are evaluated and adapted via an owner-approved mapping, not copied. The export and mapping stay in the owner's authorized private migration environment, never in the repo, CI or logs. No app import UI. **Gate 2:** balances per account and month match YNAB to the cent; Available per target category matches the mapped YNAB categories before the rules month.
 
 Order: P2a → P2b and P2c in parallel → P2d (parser can start right after P1f-3) → owner's import on the deployed app (after P1f-2 B5).
 

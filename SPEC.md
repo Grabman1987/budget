@@ -47,7 +47,7 @@ Five main areas plus settings (profile menu). Registers are the second level; no
 | Reports | Warum und wohin, und wie haben Entscheidungen gewirkt? | Catalog of 30 reports in 5 groups (`reports.html`) |
 | Einstellungen | — | Konten (terms: limits, rates, term), Kategorien, Regelwerk (stages + R01–R16), Zuordnungsregeln, Datenquellen, Anlageklassen, CSV-Export, Sicherheit (`einstellungen.html`, partly built) |
 
-**Import/export feature scope (owner decision 2026-10-01):** no import feature in the application. Remove upload/wizard/import-report entry points rather than expose them as product functions. Keep only a CSV export of all accounts and portfolios, as a placeholder for now; no working download is required in this stage. This decision supersedes earlier in-app YNAB/PP and manual CSV/XLSX import requirements. The separate one-time migration workflow is being clarified with the owner.
+**Import/export feature scope (owner decision 2026-10-01):** no import feature in the application. Remove upload/wizard/import-report entry points rather than expose them as product functions. Keep only a CSV export of all accounts and portfolios, as a placeholder for now; no working download is required in this stage. This decision supersedes earlier in-app YNAB/PP and manual CSV/XLSX import requirements. One-time migration remains a separate owner-authorized Codex/Claude task using existing exports and the PP file in private storage (§10).
 
 **Vermögen decides, Reports show the effect.** No outcome/performance history on Vermögen; no decisions in Reports.
 
@@ -138,24 +138,24 @@ packages/ui       tokens + blueprint primitives: TitleBlock, Registers, Dimensio
 packages/fixtures synthetic sample ledger (port of design/prototype/reports-core.js) for tests, dev seed and visual tests
 ```
 
-Data sources (P4): Enable Banking (PSD2, JWT RS256, booked balances, consent warning 14 days before the 180-day expiry), crypto read API, prices daily via yfinance with fallback Ariva (source stored per price, failures to the inbox), ECB exchange rates (full history), manual valuations. Manual file imports are excluded from the application feature scope; see §3 and the migration clarification in §10. Provider-specific code lives in adapters named generically in the domain.
+Data sources (P4): Enable Banking (PSD2, JWT RS256, booked balances, consent warning 14 days before the 180-day expiry), crypto read API, prices daily via yfinance with fallback Ariva (source stored per price, failures to the inbox), ECB exchange rates (full history), manual valuations. Manual file imports are excluded from the application feature scope; see §3 and the separate migration workflow in §10. Provider-specific code lives in adapters named generically in the domain.
 
 ## 10. Migration (concept 11.4)
 
-The app import feature is removed by the decision in §3. The one-time migration plan below describes the earlier data-transfer requirement; whether it remains as a separate private tool is pending owner clarification. Do not recreate an import UI to fulfill it.
+The app import feature is removed by the decision in §3. One-time migration remains a separate owner-authorized Codex/Claude task using the already existing exports and PP file in private owner storage (decision 2026-10-01). Do not recreate an import UI to fulfill it; file access and the target data-transfer procedure must be established for that task.
 
 Source is the **YNAB export** (Register.tsv + Plan.tsv); Actual Budget was only an interim tool and is not migrated. Format, quirks and checks: `docs/migration/ynab-export.md`.
 
 **First real import: EUR only** (owner decision 2026-10-01). Full foreign-currency support remains in scope; until implemented, unsupported foreign-currency budget accounts must be rejected or explicitly reported as unsupported, never silently summed as EUR.
 
-YNAB's structure is evaluated and adapted, not copied: raw import → owner-made mapping (accounts, n:1 category merges, re-categorisation rules from a chosen month, payees → contacts, bracketed notes → expected payments) → target model. Records start on **01.10.2023** (owner decision 29.09.2026) with the balances of that day; accounts closed before are skipped; the start month stays configurable. Then workspace mapping (persons → contacts and expected payments, debts → credit accounts, goals, receipts), later trades/holdings and price history from Portfolio Performance (P5) → parallel run over one month-end with a reconciliation report → cut-over when all differences are 0 €. **The export and the mapping document run on the server or locally and are never committed, uploaded to a cloud session, CI or logs.**
+YNAB's structure is evaluated and adapted, not copied: raw import → owner-approved mapping (accounts, n:1 category merges, re-categorisation rules from a chosen month, payees → contacts, bracketed notes → expected payments) → target model. Records start on **01.10.2023** (owner decision 29.09.2026) with the balances of that day; accounts closed before are skipped; the start month stays configurable. Then workspace mapping (persons → contacts and expected payments, debts → credit accounts, goals, receipts), later trades/holdings and price history from Portfolio Performance (P5) → parallel run over one month-end with a reconciliation report → cut-over when all differences are 0 €. **Real exports and mappings may be processed only in the owner's authorized private migration environment; they are never committed or included in CI or logs.**
 
 ## 11. Packages and gates
 
 | Package | Content | Done when |
 | --- | --- | --- |
 | **P1 Fundament** | Monorepo, stack spike, passkey login, DB schema v1, design tokens + blueprint primitives, app shell (sidebar, registers, title block, mobile tab bar), CI, deploy to a new Fly app | See `docs/ROADMAP.md` P1 checklist; the shell matches `design/screens/desktop/heute.webp` in layout and tokens |
-| **P2 Kern und Migration** | Accounts, bookings, capture, categories, Plan › Monat; separate one-time migration scope pending, no app import feature | **Gate 2:** balances per account and month match YNAB to the cent; Available per target category matches the mapped YNAB categories before the rules month; transfer workflow pending clarification |
+| **P2 Kern und Migration** | Accounts, bookings, capture, categories, Plan › Monat; separate one-time agent-assisted migration, no app import feature | **Gate 2:** balances per account and month match YNAB to the cent; Available per target category matches the mapped YNAB categories before the rules month |
 | **P3 Planung und Steuerung** | Expected payments, contacts, savings goals, distribute money, rule set + stages, Heute | Heute and Plan match the prototype with real data |
 | **P4 Datenquellen** | Enable Banking, nightly run, inbox, assignment rules; CSV export remains a placeholder | Nightly run stable for 14 days |
 | **P5 Vermögen** | Price history, portfolio, returns, allocation, debts, freedom number | **Gate 3:** returns and holdings equal Portfolio Performance |

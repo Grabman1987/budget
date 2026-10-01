@@ -6,7 +6,7 @@ Private Haushalts-Finanz-App (PWA) für einen Nutzer. Ersetzt das bisherige Cock
 
 [Current status](docs/STATUS.md) separates implementation from acceptance. [The follow-up audit](docs/audit/2026-10-01-follow-up.md) records corrections before the first **EUR-only** import; [the roadmap](docs/ROADMAP.md) holds ordered tasks. The owner retired the prototype-only Fly app on 2026-10-01; the design reference remains versioned in `design/prototype`.
 
-Owner scope update: remove import as an app feature. Keep only CSV export of all accounts and portfolios, initially as a placeholder. The existing wizard is legacy implementation scheduled for removal; separate one-time migration is being clarified.
+Owner scope update: remove import as an app feature. Keep only CSV export of all accounts and portfolios, initially as a placeholder. The existing wizard is legacy implementation scheduled for removal. One-time migration remains a separate owner-authorized Codex/Claude task using the existing exports and PP file in private storage.
 
 ## Wo steht was
 

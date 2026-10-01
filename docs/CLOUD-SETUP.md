@@ -65,4 +65,4 @@ Den App-Namen `budget-fg` kannst du ändern; dann auch `app`, `BUDGET_ORIGIN` un
 
 ## 7. Echte Daten
 
-Import is no longer an app feature. Only CSV export of all accounts/portfolios stays in scope, currently as a placeholder. Whether the earlier one-time EUR migration remains as a separate private tool is pending clarification. Any real export/mapping stays on the private server or locally, never in the repository, cloud sessions, CI or logs. Bank consents are granted by the owner.
+Import is no longer an app feature. Only CSV export of all accounts/portfolios stays in scope, currently as a placeholder. One-time EUR migration remains a separate owner-authorized Codex/Claude task using existing exports and the PP file in private storage. Establish file access and the transfer procedure for that task. Real exports/mappings are never committed or included in CI or logs. Bank consents are granted by the owner.

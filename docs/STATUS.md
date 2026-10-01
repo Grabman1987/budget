@@ -10,7 +10,7 @@ Checked roadmap boxes record implemented work. They do not prove owner acceptanc
 | --- | --- | --- |
 | Foundation | SQLite, design primitives, shell, passkeys/recovery, audit/undo, backup code, CI/deploy configuration and P1 audit fixes | Gate 1 sign-off, outstanding P1 checklist items and operational verification |
 | Accounts and budget | Accounts, bookings, capture, splits/transfers, categories and Plan › Monat | Follow-up correctness fixes before migration acceptance |
-| Legacy import work | Parser, mapping, staging, dry run, commit/re-import/undo, wizard and worker exist in the baseline | Remove app import feature per owner decision; scope of separate one-time migration/Gate 2 pending clarification |
+| Legacy import work | Parser, mapping, staging, dry run, commit/re-import/undo, wizard and worker exist in the baseline | Remove app import feature; separate agent-assisted migration requires private file access, transfer procedure and Gate 2 |
 | Planning | Expected payments, goals and rules UI; Heute domain/API | Heute page is a placeholder; full contacts, inbox and year-planning UI |
 | Data sources/export | Market adapters; baseline data-sources page still exposes the legacy import wizard | Remove import entry points; CSV export of all accounts/portfolios only as a placeholder; bank sync, assignment rules, worker and live adapters |
 | Wealth | Net-worth UI, investment APIs, valuation/performance domain and PP XML parser | Portfolio/debt/freedom pages are placeholders; PP commit/matching/report, Gate 3 and A02/A09/A10 |
@@ -21,14 +21,14 @@ Evidence: [router](../apps/web/src/router.tsx), [report pages](../apps/web/src/p
 | Gate | Status |
 | --- | --- |
 | 1: owner accepts specification/design | Pending explicit sign-off |
-| 2: YNAB account/month and mapped-category reconciliation | Earlier acceptance requirement; private transfer workflow pending clarification |
-| 3: holdings and returns match Portfolio Performance | Pending comparison; private PP transfer workflow pending clarification |
+| 2: YNAB account/month and mapped-category reconciliation | Pending corrections and separate private migration/comparison |
+| 3: holdings and returns match Portfolio Performance | Pending private PP transfer and comparison |
 | 4: parallel month-end without differences | Pending required scope and month-end comparison |
 
 ## Owner decisions and operations
 
 - **First real import: EUR only** (2026-10-01). Full FX support remains later scope. Unsupported foreign-currency budget accounts must not silently enter EUR sums; that guard is still open (A03).
-- **No app import feature** (2026-10-01). Only CSV export of all accounts/portfolios stays in scope, initially as a placeholder. Separate one-time data migration is being clarified; parser/API existence does not make import an accepted product feature.
+- **No app import feature** (2026-10-01). Only CSV export of all accounts/portfolios stays in scope, initially as a placeholder. One-time migration remains a separate owner-authorized Codex/Claude task using existing exports and the PP file in private storage. File access and transfer procedure remain to be established; parser/API existence does not make import an accepted product feature.
 - The old Fly app was used only for the prototype. The owner removed it on 2026-10-01 and supplied successful deletion output and a subsequent app list without it. This retirement does not establish any financial migration gate.
 - The configured target app is reported as `deployed`; legacy staging remains `suspended`. Staging and shared storage/tokens have not been authorized for deletion.
 - The running commit, physical phone/desktop passkeys, recovery and real encrypted backup download/restore remain unverified. Follow [the runbook](ops.md); an app-list status proves none of these checks.
@@ -48,6 +48,6 @@ These describe the audited baseline, not every future commit. Repeat required ch
 
 ## Next work
 
-First remove app import entry points and leave only the specified CSV-export placeholder. Then correct exact lead amounts (A07), income classification (A06), booking/trade/currency invariants (A01/A08), payment lifecycle (A05), the EUR-first guard (A03). Gate-2 reconciliation work (A04) depends on the one-time migration clarification. Each task gets its own branch/PR and independent expected values. Review the intended browser environment before approving UI changes.
+First remove app import entry points and leave only the specified CSV-export placeholder. Then correct exact lead amounts (A07), income classification (A06), booking/trade/currency invariants (A01/A08), payment lifecycle (A05), the EUR-first guard (A03), and private Gate-2 reconciliation (A04). Each task gets its own branch/PR and independent expected values. Review the intended browser environment before approving UI changes.
 
-Complete daily workflows and wealth aggregation/FX, then remaining sources/reports/PWA and Gate 4. Proceed with private YNAB/PP transfer work only after its scope is clarified. Do not retire still-used finance tools merely because the prototype host has been removed.
+Complete daily workflows and wealth aggregation/FX, private PP transfer/Gate 3, then remaining sources/reports/PWA and Gate 4. Establish private file access and transfer procedures before processing the owner's exports. Do not retire still-used finance tools merely because the prototype host has been removed.

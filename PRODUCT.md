@@ -64,7 +64,7 @@ Acht Routinen tragen die App (Konzept Kapitel 4), jede mit geführtem Ablauf und
 
 Der **Posteingang** ist die zentrale Arbeitsliste: unkategorisierte Buchungen, Vorschläge, abweichende erwartete Zahlungen, Regelverletzungen, veraltete Werte, ablaufende Bank-Einwilligungen.
 
-Datenquellen: Enable Banking (PSD2) für österreichische Banken, Bitpanda-Lese-API, Kurse über yfinance mit Ersatzquelle Ariva, EZB-Wechselkurse, manuelle Bewertungen für P2P und Sonstiges Vermögen. Datei-Importe entfallen als App-Feature gemäß Entscheidung vom 01.10.2026; der Umfang einer separaten einmaligen Migration wird noch geklärt.
+Datenquellen: Enable Banking (PSD2) für österreichische Banken, Bitpanda-Lese-API, Kurse über yfinance mit Ersatzquelle Ariva, EZB-Wechselkurse, manuelle Bewertungen für P2P und Sonstiges Vermögen. Datei-Importe entfallen als App-Feature gemäß Entscheidung vom 01.10.2026; die einmalige Übernahme erfolgt separat mit Codex oder Claude aus den vorhandenen Exporten und der PP-Datei im privaten Datenbestand.
 
 ## Capabilities and Constraints
 
@@ -128,7 +128,7 @@ Alle Reports rechnen aus demselben Hauptbuch; Nettovermögen, Rendite und Regels
 
 **Erster echter Import (Entscheidung 01.10.2026):** nur EUR. Vollständige Fremdwährungsunterstützung bleibt Zielumfang; nicht unterstützte Fremdwährungs-Budgetkonten dürfen nicht stillschweigend in EUR-Summen eingehen. Quelle ist der YNAB-Export, Actual wird nicht migriert.
 
-**Import/Export als App-Feature (Entscheidung 01.10.2026):** Importfunktion entfernen. Nur ein CSV-Export aller Konten und Depots bleibt vorgesehen, vorerst als Platzhalter ohne Downloadfunktion. Das ersetzt die bisherigen Anforderungen an YNAB-/PP- und CSV/XLSX-Importoberflächen. Ob die einmalige Datenübernahme als separates privates Werkzeug erhalten bleibt, wird noch geklärt.
+**Import/Export als App-Feature (Entscheidung 01.10.2026):** Importfunktion entfernen. Nur ein CSV-Export aller Konten und Depots bleibt vorgesehen, vorerst als Platzhalter ohne Downloadfunktion. Das ersetzt die bisherigen Anforderungen an YNAB-/PP- und CSV/XLSX-Importoberflächen. Die einmalige Datenübernahme bleibt ein separater, vom Nutzer autorisierter Auftrag für Codex oder Claude auf Basis der vorhandenen Exporte und PP-Datei; dafür sind Dateizugriff und konkreter Übernahmeweg zu klären.
 
 **Offen:** Die Konten- und Kategorienliste für die Migration (P2). Name entschieden: Budget.
 
