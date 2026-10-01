@@ -312,3 +312,27 @@ export const expectedOccurrencesQuery = z.object({
 });
 export const expectedIncomeQuery = z.object({ month });
 export const expectedLinkBody = z.object({ bookingId: id });
+
+// ---------- savings goals ----------
+const goalFields = {
+  name: z.string().trim().min(1).max(120),
+  targetCents: cents.positive(),
+  targetDate: day.nullable(),
+  categoryId: id.nullable(),
+  accountId: id.nullable(),
+  note: nullableText,
+};
+export const goalCreate = z
+  .object(goalFields)
+  .partial()
+  .required({ name: true, targetCents: true });
+export const goalPatch = z
+  .object(goalFields)
+  .partial()
+  .refine((v) => Object.keys(v).length > 0, 'Nothing to change');
+export const goalListQuery = z.object({
+  month: month.optional(),
+  deleted: z.enum(['0', '1']).optional(),
+});
+export const goalMonthQuery = z.object({ month: month.optional() });
+export const goalAdoptBody = z.object({ validFrom: month.optional() });

@@ -16,3 +16,4 @@ export * from './categories';
 export * from './budget';
 export * from './expected';
 export * from './market';
+export * from './goals';

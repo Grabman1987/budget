@@ -245,3 +245,6 @@ export const EINSTELLUNGEN_KATEGORIEN: PageDef = PAGES.find(
 
 /** Plan › Monat (built in P2c). */
 export const PLAN_MONAT: PageDef = PAGES.find((p) => p.path === '/plan/monat') as PageDef;
+
+/** Plan › Sparziele (built in P3.4). */
+export const PLAN_SPARZIELE: PageDef = PAGES.find((p) => p.path === '/plan/sparziele') as PageDef;
