@@ -16,6 +16,7 @@ export * from './categories';
 export * from './budget';
 export * from './expected';
 export * from './market';
+export * from './goals';
 export * from './rule-inputs';
 export * from './rules';
 export * from './trades';

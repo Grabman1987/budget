@@ -180,3 +180,23 @@ categories of the latest committed run are reused by their mapping ids, bookings
 are left alone (also when the owner deleted them) or get the new status and flag, new keys are
 added (a transfer only with both legs), assigned amounts follow the new export (negative
 amounts included). Changing the mapping of committed data needs a revert and a new commit.
+
+## Savings goals (P3.4)
+
+Sparziele: a goal links an envelope (category) or an account, a target amount and an optional target
+date. Every answer carries the figures of the viewed month (`?month=YYYY-MM`, default the month of
+today), computed once by `goalProgress` in `@budget/domain`: `savedCents` is the available money of the
+envelope (or the balance of the account) at the end of that month, `remainingCents` what is missing,
+`monthsLeft` the months after the viewed one up to the target month (at least 1; `null` without a
+date), `neededMonthlyCents` the missing amount per month rounded up to the cent, `averageRateCents`
+the average assignment (account: growth) of the viewed and the two months before, `forecastMonth` the
+month the goal is full at that rate, `status` `reached` / `on_track` / `behind`. Goals are ordered by
+target date, those without a date last.
+
+| Endpoint | Purpose |
+| --- | --- |
+| `GET /goals?month&deleted=1` | `{ month, goals }` with the figures above |
+| `POST /goals?month` | `{ name, targetCents > 0, targetDate?, categoryId \| accountId }` (not both; 422 `category_rule`); answers `{ goal, groupId }` |
+| `PATCH /goals/:id?month` | Any of the fields; setting one link clears the other |
+| `DELETE /goals/:id`, `POST /goals/:id/restore?month` | Soft delete and restore; `POST /undo` with the `groupId` reverts either |
+| `POST /goals/:id/adopt` | `{ validFrom? }` (`YYYY-MM`, default this month): "Als Ziel der Kategorie übernehmen" writes a versioned `by_date` category target (goal amount and date) in the same audit group; needs a category and a date |

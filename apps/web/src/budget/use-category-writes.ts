@@ -8,7 +8,8 @@ import { fetchCategories } from './api';
 /** Categories feed the pick lists, the budget and the booking lists: a write refreshes all. */
 export const CATEGORIES_KEY = ['categories'] as const;
 export const BUDGET_KEY = ['budget'] as const;
-const AFFECTED = [CATEGORIES_KEY, BUDGET_KEY, LEDGER_KEY, ['ledger-lookups']] as const;
+export const GOALS_KEY = ['goals'] as const;
+const AFFECTED = [CATEGORIES_KEY, BUDGET_KEY, GOALS_KEY, LEDGER_KEY, ['ledger-lookups']] as const;
 
 export const categoriesQuery = () =>
   queryOptions({ queryKey: CATEGORIES_KEY, queryFn: fetchCategories });
