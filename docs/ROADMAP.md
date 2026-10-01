@@ -18,7 +18,7 @@ Owner scope update, 2026-10-01: remove import as an app feature. Keep only CSV e
 - [x] Remove app upload/wizard/import-report entry points and obsolete import navigation; leave CSV export of all accounts/portfolios as a placeholder without a working download. Frontend source/CSS and old wizard E2E removed; migration engine/server modules retained for the separate private transfer task.
 - [ ] Verify deployed commit, health, phone/desktop passkeys, recovery and real encrypted restore (owner/runbook; deployed status alone is insufficient).
 - [ ] Establish browser acceptance in the intended Playwright environment: classify visual differences and stabilize the immediate system-theme assertion; baseline updates do not replace normal CI.
-- [ ] A07 exact lead amounts: format once and split for display; rendered cents/grouping/sign boundaries on all three pages.
+- [x] A07 exact lead amounts: format once and split for display; literal expected-value tests plus rendered cents/grouping/sign boundaries on all three pages, desktop and mobile. Pinned-browser visual acceptance remains a CI requirement.
 - [ ] A06 categorized income: allocation/rules include allowed income categories; distinguish transfers, refunds and contact repayments.
 - [ ] A01 trade settlement integrity: generic update/delete/bulk/reconcile/undo cannot detach a trade from its cash flow.
 - [ ] A08 booking currency invariant: amount/currency match account, original currency explicit; shared contract in create/update/transfers/import.

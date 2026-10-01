@@ -21,7 +21,7 @@ import {
 import { useRef, useState, type KeyboardEvent } from 'react';
 import { PLAN_MONAT } from '../nav/pages';
 import { PageFrame } from '../pages/placeholder-page';
-import { eur, MINUS } from '../ledger/format';
+import { eur, eurParts } from '../ledger/format';
 import { accountsQuery } from '../ledger/queries';
 import { ErrorNote, LoadingNote } from '../ledger/states';
 import { useMonth } from '../shell/use-month';
@@ -547,8 +547,7 @@ function Head({
 }) {
   const s = data.summary;
   const tba = s.toBeAssignedCents;
-  const whole = (tba < 0 ? MINUS : '') + eur(Math.abs(tba), { cents: false }).replace(' €', '');
-  const fraction = eur(Math.abs(tba)).split(',')[1]?.replace(' €', '') ?? '00';
+  const { whole, fraction } = eurParts(tba);
   const terms: DimensionChainTerm[] = [
     { label: 'Übertrag', value: cents(s.carryInCents) },
     { label: 'Einnahmen', value: cents(s.incomeCents), op: '+', onSelect: onIncome },
