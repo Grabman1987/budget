@@ -1,8 +1,9 @@
 // Loads the synthetic sample ledger into ./data/dev.sqlite (npm run db:seed).
-// Usage: npm run db:seed [-- --file path/to.sqlite] [--fresh]
+// Usage: npm run db:seed [-- --file path/to.sqlite] [--fresh] [--inbox-demo]
 import { existsSync, mkdirSync, rmSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { devDatabasePath, migrateDatabase, openDatabase } from '@budget/db';
+import { seedInboxDemo } from '@budget/fixtures/inbox-demo';
 import { seedDatabase } from '@budget/fixtures/seed';
 
 const args = process.argv.slice(2);
@@ -21,6 +22,8 @@ const { db, close } = openDatabase(file);
 try {
   migrateDatabase(db);
   const { rows } = seedDatabase(db);
+  // Extra items for the inbox e2e servers (see packages/fixtures/src/inbox-demo.ts).
+  if (args.includes('--inbox-demo')) seedInboxDemo(db, '2026-09-17');
   const total = Object.values(rows).reduce((a, b) => a + b, 0);
   console.log(
     `Seeded ${file}: ${total} rows (${rows['bookings']} bookings, ${rows['prices']} prices).`,

@@ -19,6 +19,7 @@ import {
   PLAN_SPARZIELE,
   HEUTE,
   KONTEN_BUCHUNGEN_META,
+  KONTEN_POSTEINGANG_META,
   KONTEN_META,
   PAGES,
   REPORTS_CATALOG,
@@ -86,6 +87,7 @@ const BUILT_PATHS = new Set<string>([
   SECURITY_META.path,
   '/konten',
   '/konten/buchungen',
+  '/konten/posteingang',
   EINSTELLUNGEN_KATEGORIEN.path,
   EINSTELLUNGEN_DATENQUELLEN.path,
   PLAN_MONAT.path,
@@ -101,6 +103,12 @@ const bookingsRoute = createRoute({
   // Filters and sorting are URL parameters (German names, see ledger/bookings-search.ts).
   validateSearch: validateBookingsSearch,
   component: lazyRouteComponent(() => import('./ledger/bookings-page'), 'BookingsPage'),
+});
+const inboxRoute = createRoute({
+  getParentRoute: () => shellRoute,
+  path: '/konten/posteingang',
+  staticData: { meta: KONTEN_POSTEINGANG_META },
+  component: lazyRouteComponent(() => import('./inbox/inbox-page'), 'InboxPage'),
 });
 const overviewRoute = createRoute({
   getParentRoute: () => shellRoute,
@@ -266,6 +274,7 @@ const routeTree = rootRoute.addChildren([
     ...redirects,
     overviewRoute,
     bookingsRoute,
+    inboxRoute,
     accountRoute,
     reportsRoute,
     reportGroupRoute,

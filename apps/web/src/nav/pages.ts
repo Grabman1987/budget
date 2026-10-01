@@ -228,6 +228,11 @@ export const KONTEN_BUCHUNGEN_META: PageMeta = PAGES.find(
   (p) => p.path === '/konten/buchungen',
 ) as PageMeta;
 
+/** Konten › Posteingang (built in P3.10). */
+export const KONTEN_POSTEINGANG_META: PageMeta = PAGES.find(
+  (p) => p.path === '/konten/posteingang',
+) as PageMeta;
+
 export const ACCOUNT_PAGE: PageMeta = {
   title: 'Konto',
   area: 'konten',

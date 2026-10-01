@@ -1,0 +1,149 @@
+/* Konten › Posteingang. Ported from design/prototype/styles.css (.kinbox, .kinbox-table, .kact). */
+
+.kinbox .rev-table {
+  margin-top: 0;
+}
+.kinbox-table thead th {
+  padding: 6px 8px 8px;
+  border-bottom: 1px solid var(--rule);
+  text-align: left;
+  font-size: 11px;
+  font-weight: 500;
+}
+.kinbox-table thead th.kact-head {
+  text-align: right;
+}
+.kinbox-table .rev-mark,
+.kinbox-table .kc-pos {
+  width: 56px;
+}
+.kinbox-table .kgroup td {
+  padding: 12px 8px;
+  background: var(--ground-2);
+  border-bottom: 1px solid var(--line-2);
+  border-top: 0;
+  font-weight: 620;
+}
+.kinbox-table .rev-row td {
+  padding: 14px 8px;
+}
+.kinbox .grp-title {
+  font-weight: 640;
+  font-size: 14.5px;
+}
+.kinbox .grp-sub {
+  margin-left: 8px;
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--ink-3);
+}
+.kgcount {
+  display: inline-grid;
+  place-items: center;
+  min-width: 22px;
+  height: 20px;
+  margin-left: 10px;
+  padding: 0 6px;
+  border-radius: var(--radius-xs);
+  background: var(--line);
+  color: var(--ground);
+  font-family: var(--font-tech);
+  font-size: 12px;
+  font-weight: 600;
+  vertical-align: 1px;
+}
+.kinbox-table .kgroup .btn-xs {
+  margin-left: 12px;
+  vertical-align: middle;
+}
+.kinbox .rev-what strong {
+  font-weight: 600;
+}
+.kinbox .rev-what > span {
+  display: block;
+  margin-top: 2px;
+}
+.kact {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  width: auto !important;
+}
+.kact .input-sm,
+.input-sm {
+  width: 120px;
+  height: 34px;
+  text-align: right;
+}
+
+@media (max-width: 767px) {
+  .kinbox-table,
+  .kinbox-table tbody {
+    display: block;
+  }
+  .kinbox-table thead {
+    display: none;
+  }
+  .kinbox-table tr {
+    display: grid;
+    grid-template-columns: 34px minmax(0, 1fr);
+    gap: 8px;
+    padding: 12px 0;
+    border-top: 1px solid var(--rule);
+  }
+  .kinbox-table td,
+  .kinbox-table .rev-row td {
+    display: block;
+    padding: 0 !important;
+    border: 0 !important;
+  }
+  .kinbox-table .kgroup {
+    display: block;
+    background: var(--ground-2);
+    margin: 0 -16px;
+    padding: 10px 16px;
+    border-top: 0;
+    border-bottom: 1px solid var(--line-2);
+  }
+  .kinbox-table .kgroup td {
+    background: none;
+  }
+  .kinbox-table .kgroup .kc-pos {
+    display: none;
+  }
+  .kinbox-table .kgroup td[colspan] {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    row-gap: 2px;
+  }
+  .kinbox-table .kgroup .grp-title {
+    order: 1;
+  }
+  .kinbox-table .kgroup .kgcount {
+    order: 2;
+  }
+  .kinbox-table .kgroup .btn-xs {
+    order: 3;
+    margin-left: auto;
+  }
+  .kinbox-table .kgroup .grp-sub {
+    order: 4;
+    flex-basis: 100%;
+    margin: 0;
+  }
+  .kinbox-table .kact {
+    grid-column: 2;
+    justify-content: flex-start;
+  }
+  .kinbox-table .kact .btn,
+  .kinbox-table .kact .input-sm {
+    height: 44px;
+  }
+}
+
+.registers .count {
+  margin-left: 6px;
+}

@@ -1,11 +1,13 @@
 import { Count } from '@budget/ui';
 import { Inbox, PanelLeft, Plus, Search } from 'lucide-react';
 import { useEffect, useRef } from 'react';
+import { AppLink } from './app-link';
 import { PanelLink } from './panel-link';
-import { SAMPLE_INBOX_COUNT } from './inbox';
+import { useInboxCount } from './inbox';
 
 /** Desktop top bar: collapse toggle, search (Ctrl K), Posteingang with counter, "+ Buchung". */
 export function Topbar({ collapsed, onToggle }: { collapsed: boolean; onToggle: () => void }) {
+  const inboxCount = useInboxCount();
   const search = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -47,11 +49,11 @@ export function Topbar({ collapsed, onToggle }: { collapsed: boolean; onToggle: 
         </span>
       </label>
       <div className="topbar-actions">
-        <PanelLink className="btn btn-ghost" panel="posteingang">
+        <AppLink className="btn btn-ghost" to="/konten/posteingang">
           <Inbox size={18} strokeWidth={1.75} aria-hidden="true" />
-          Posteingang <Count>{SAMPLE_INBOX_COUNT}</Count>
-          <span className="sr-only"> offen</span>
-        </PanelLink>
+          Posteingang {inboxCount ? <Count>{inboxCount}</Count> : null}
+          {inboxCount ? <span className="sr-only"> offen</span> : null}
+        </AppLink>
         <PanelLink
           className="btn btn-primary"
           panel="buchung"

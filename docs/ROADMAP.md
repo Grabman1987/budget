@@ -170,6 +170,7 @@ Expected payments, contacts with receivables, savings goals, rule set R01–R16 
 - [x] P3.4 `p3-goals`: savings goals domain (`packages/domain/src/goals`), repo and `/api/goals` (audit, undo, adopt as category target), Plan › Sparziele page (parts list Offen/Erreicht, bars, panel)
 - [x] P3.5 `p3-rules-api`: rule engine `packages/domain/src/rules` (R01–R16 with zod params, `evaluateRule`, Finanz-Check summary), `ruleInputs` / `evaluateRules` / `financeCheck` read models, `ensureDefaultRules` at start, stage checklist with owner confirmation, additive `rule` migration, `/api/rules`
 
+- [x] P3.10 `p3-inbox`: `refreshInbox` (overspent, uncategorised with suggestion, deviating and missed payments, stale manual values, rule results with action needed; idempotent, a decision is final per key), `/api/inbox` (accept, rule, dismiss, accept-all, undo via audit group), Konten › Posteingang as revision table with Baugruppen, real counters in top bar, phone header and Konten register, e2e on the inbox demo servers. Applying assignment rules on import and switching Heute's `nextSteps` (`inboxNextSteps`) follow with P4 / P3.9
 - [x] Expected payments (P3.2): schedule domain (due dates, Austrian business days, versions, occurrences, matching), `date_shift` migration, repositories with audit and undo, `/api/expected`
 
 ## P4 Datenquellen

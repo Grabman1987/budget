@@ -8,6 +8,7 @@ import { bookingRoutes } from './bookings';
 import { budgetRoutes, categoryRoutes } from './budget';
 import { expectedRoutes } from './expected';
 import { goalRoutes } from './goals';
+import { createInbox } from './inbox';
 import {
   assetClassRoutes,
   portfolioRoutes,
@@ -43,6 +44,8 @@ export function createLedgerApi({
   stepUp,
 }: LedgerApiOptions): Hono {
   const api = new Hono();
+  const inbox = createInbox(db, today);
+  api.use('*', inbox.markWrites);
   api.route('/accounts', accountRoutes(db, today));
   api.route('/bookings', bookingRoutes(db));
   api.route('/payees', payeeRoutes(db));
@@ -51,6 +54,7 @@ export function createLedgerApi({
   api.route('/expected', expectedRoutes(db, today));
   api.route('/goals', goalRoutes(db, today));
   api.route('/rules', ruleRoutes(db, today));
+  api.route('/inbox', inbox.routes);
   api.route('/securities', securityRoutes(db));
   api.route('/asset-classes', assetClassRoutes(db, today));
   api.route('/trades', tradeRoutes(db));

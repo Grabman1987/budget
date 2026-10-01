@@ -5,7 +5,7 @@ import { monthLabel } from '../nav/month';
 import type { PageMeta } from '../nav/pages';
 import { AppLink } from './app-link';
 import { PanelLink } from './panel-link';
-import { SAMPLE_INBOX_COUNT } from './inbox';
+import { useInboxCount } from './inbox';
 import { ThemeButton } from './theme-button';
 
 /**
@@ -24,6 +24,7 @@ export function phoneTitle(page: PageMeta | undefined, month: string, fallback: 
 
 /** Phone header (< 768 px): page title, inbox, theme, profile. */
 export function MobileHeader({ title, asHeading }: { title: string; asHeading: boolean }) {
+  const inboxCount = useInboxCount() ?? 0;
   return (
     <header className="m-head">
       <div className="m-title">
@@ -34,14 +35,14 @@ export function MobileHeader({ title, asHeading }: { title: string; asHeading: b
         )}
       </div>
       <span className="spacer" />
-      <PanelLink
+      <AppLink
         className="icon-btn"
-        panel="posteingang"
-        aria-label={`Posteingang, ${SAMPLE_INBOX_COUNT} offen`}
+        to="/konten/posteingang"
+        aria-label={`Posteingang, ${inboxCount} offen`}
       >
         <Inbox size={18} strokeWidth={1.75} aria-hidden="true" />
-        <Count>{SAMPLE_INBOX_COUNT}</Count>
-      </PanelLink>
+        {inboxCount > 0 && <Count>{inboxCount}</Count>}
+      </AppLink>
       <ThemeButton variant="icon" />
       <AppLink className="avatar" to="/einstellungen/konten" aria-label="Profil und Einstellungen">
         NU

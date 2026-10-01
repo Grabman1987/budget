@@ -67,7 +67,7 @@ erDiagram
 ```
 
 Not drawn: `savings_goal` (linked to a category or an account, never both; figures are computed, not stored), `planned_event`, `fx_rate` (ECB rate per day and currency),
-`inbox_item`, `assignment_rule`, `bank_connection` (status and consent expiry only, no secrets),
+`inbox_item` (derived by `refreshInbox`, see api-ledger.md; `resolution` is `resolved`, `accepted`, `dismissed` or `rule`), `assignment_rule` (`match_json` is `{"payeeId": …}` for rules made from the inbox), `bank_connection` (status and consent expiry only, no secrets),
 the auth tables.
 
 ## Decisions

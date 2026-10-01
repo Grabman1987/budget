@@ -320,31 +320,8 @@ export function buildPlanning(): Planning {
     });
   }
 
-  const inboxItems: Planning['inboxItems'] = [
-    {
-      id: 'inbox-treibstoff',
-      kind: 'overspent',
-      title: 'Treibstoff ist überzogen',
-      detail: '12,40 € überzogen: aus „Zu verteilen“ decken',
-      refType: 'category',
-      refId: catId('treibstoff'),
-      urgent: true,
-    },
-    {
-      id: 'inbox-unkategorisiert',
-      kind: 'uncategorized',
-      title: '4 Buchungen ohne Kategorie',
-      detail: 'Vorschläge vorhanden, ein Klick je Buchung',
-    },
-    {
-      id: 'inbox-p2p',
-      kind: 'stale_value',
-      title: 'P2P-Wert veraltet',
-      detail: 'zuletzt aktualisiert vor 34 Tagen',
-      refType: 'security',
-      refId: 'sec-p2p',
-    },
-  ];
+  // The inbox is derived from the ledger (`refreshInbox`), nothing is seeded by hand.
+  const inboxItems: Planning['inboxItems'] = [];
 
   // ---------- Payslips: gross − deductions = net, in cents ----------
   const payslips: Planning['payslips'] = [];

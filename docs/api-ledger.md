@@ -200,3 +200,22 @@ target date, those without a date last.
 | `PATCH /goals/:id?month` | Any of the fields; setting one link clears the other |
 | `DELETE /goals/:id`, `POST /goals/:id/restore?month` | Soft delete and restore; `POST /undo` with the `groupId` reverts either |
 | `POST /goals/:id/adopt` | `{ validFrom? }` (`YYYY-MM`, default this month): "Als Ziel der Kategorie übernehmen" writes a versioned `by_date` category target (goal amount and date) in the same audit group; needs a category and a date |
+
+## Posteingang (`/inbox`)
+
+The open items of the work list, derived from the ledger by `refreshInbox` (`packages/db/src/repos/inbox.ts`). An item is identified by kind + `ref_type` + `ref_id`; the key carries the period that makes a cause new (`category@YYYY-MM` for an overspend, `account@last value date` for a stale value, `R04@YYYY-MM` for a rule), so a dismissed item stays away until there is a new reason. An open item whose cause is gone is resolved (`resolution = resolved`); a decision of the owner (`accepted`, `dismissed`, `rule`) is final for the key. Items of other parts (market data, backup, savings plans, later P4: consent, import, possible transfers) are never touched and are shown generically with "Erledigt".
+
+When it runs: on a read after any successful write through the API (a middleware marks the inbox dirty), when the day changed, at the latest 30 s after the last run; `POST /inbox/refresh` forces it. Rules are evaluated once per day, lazily, on the first run (about 2 s on the sample ledger).
+
+Sources: cash-overspent envelopes of the current month (urgent); uncategorised outflow splits on budget accounts up to today, one item per booking, suggestion = the payee's default category, else its most used category in the last 20 bookings; deviating occurrences (price change suggestion) and missed occurrences of the last month and this one; manual values older than 30 days (a position whose newest price is manual and in EUR, or an account whose newest `valuation` is old); enabled rules whose newest stored result needs action.
+
+| Endpoint | Purpose |
+| --- | --- |
+| `GET /inbox` | `{ count, minutes, groups: [{ id, no, title, sub, count, items }] }`; groups in the order Überziehung, Ohne Kategorie, Mögliche Umbuchung, Erwartete Zahlung weicht ab, Veralteter Wert, Bank-Einwilligung, Regeln, Sonstiges (`no` is the position in that list); an item carries `letter` (A, B … across all groups), `title`, `detail`, `urgent`, `suggestion`, `canRule`, `version`, `value` |
+| `POST /inbox/refresh` | Forces a refresh, answers like `GET` |
+| `POST /inbox/:id/accept` | `{ categoryId?, valueCents? }`: uncategorised booking gets the suggestion (or `categoryId`; 422 without one), deviating payment gets the new version from its month, stale value gets `valueCents` (a manual price or valuation of today), others are confirmed. Answers `{ groupId, resolvedIds }` |
+| `POST /inbox/:id/rule` | "Immer so zuordnen": an `assignment_rule` payee → category (`match_json` is `{"payeeId":…}`) and the category on every open uncategorised booking of that payee. Answers `{ groupId, resolvedIds, ruleId, categoryId, applied }`. Applying it to imported rows is P4 |
+| `POST /inbox/:id/dismiss` | Closes the item without a change |
+| `POST /inbox/accept-all` | Accepts every open uncategorised item that has a suggestion |
+
+Every decision is one audit group: `POST /undo` with its `groupId` reopens the item and reverts what it changed. `inboxNextSteps(db, today, limit)` is the read model for Heute's "Nächste Schritte".

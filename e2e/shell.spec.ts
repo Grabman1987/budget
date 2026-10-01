@@ -335,10 +335,11 @@ test.describe('phone shell', () => {
     expect(small).toEqual([]);
   });
 
-  test('phone header opens the inbox as a bottom sheet', async ({ page }) => {
+  test('phone header opens the inbox page', async ({ page }) => {
     await page.goto('/konten');
-    await page.getByRole('link', { name: /Posteingang, 9 offen/ }).click();
-    await expect(page.getByRole('dialog', { name: 'Posteingang' })).toBeVisible();
+    await page.getByRole('link', { name: /^Posteingang, \d+ offen$/ }).click();
+    await expect(page).toHaveURL(/\/konten\/posteingang$/);
+    await expect(page.getByRole('heading', { name: 'Posteingang', level: 2 })).toBeVisible();
   });
 });
 

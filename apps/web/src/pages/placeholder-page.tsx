@@ -1,9 +1,10 @@
-import { Registers, SectionHead, type RegisterItem } from '@budget/ui';
+import { Count, Registers, SectionHead, type RegisterItem } from '@budget/ui';
 import type { ReactNode } from 'react';
 import { AREAS, areaById } from '../nav/areas';
 import type { PageMeta } from '../nav/pages';
 import { AppLink } from '../shell/app-link';
 import { AreaHead } from './area-head';
+import { useInboxCount } from '../shell/inbox';
 import { PanelLink } from '../shell/panel-link';
 import { Link } from '@tanstack/react-router';
 
@@ -39,9 +40,18 @@ export function PageFrame({
   children,
 }: PageFrameProps) {
   const area = areaById(meta.area);
+  const inboxCount = useInboxCount() ?? 0;
   const items: RegisterItem[] = area.registers.map((r) => ({
     id: r.id,
-    label: r.label,
+    // The Posteingang register carries the number of open items, as in the prototype.
+    label:
+      area.id === 'konten' && r.id === 'posteingang' && inboxCount > 0 ? (
+        <>
+          {r.label} <Count>{inboxCount}</Count>
+        </>
+      ) : (
+        r.label
+      ),
     href: r.to,
   }));
   return (

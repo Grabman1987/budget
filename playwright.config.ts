@@ -10,6 +10,11 @@ export const IMPORT_URLS = {
   desktop: `http://localhost:${MAIN_PORT + 4}`,
   mobile: `http://localhost:${MAIN_PORT + 5}`,
 };
+/** The inbox e2e writes (accept, rule, undo): one server per viewport, seeded with the inbox demo. */
+export const INBOX_URLS = {
+  desktop: `http://localhost:${MAIN_PORT + 6}`,
+  mobile: `http://localhost:${MAIN_PORT + 7}`,
+};
 /** Test-only secret for the bootstrap; the servers below are throwaway and local. */
 export const E2E_SETUP_TOKEN = 'e2e-setup-token-not-a-secret';
 export const MAIN_URL = `http://localhost:${MAIN_PORT}`;
@@ -36,6 +41,8 @@ const DB_AUTH_MOBILE = 'test-results/e2e-auth-mobile.sqlite';
 export const DB_SAMPLE = 'test-results/e2e-sample.sqlite';
 const DB_IMPORT_DESKTOP = 'test-results/e2e-import-desktop.sqlite';
 const DB_IMPORT_MOBILE = 'test-results/e2e-import-mobile.sqlite';
+const DB_INBOX_DESKTOP = 'test-results/e2e-inbox-desktop.sqlite';
+const DB_INBOX_MOBILE = 'test-results/e2e-inbox-mobile.sqlite';
 if (process.env['TEST_WORKER_INDEX'] === undefined) {
   mkdirSync('test-results/.auth', { recursive: true });
   for (const file of [
@@ -45,6 +52,8 @@ if (process.env['TEST_WORKER_INDEX'] === undefined) {
     DB_SAMPLE,
     DB_IMPORT_DESKTOP,
     DB_IMPORT_MOBILE,
+    DB_INBOX_DESKTOP,
+    DB_INBOX_MOBILE,
   ])
     for (const suffix of ['', '-wal', '-shm']) rmSync(file + suffix, { force: true });
 }
@@ -65,13 +74,22 @@ const server = (port: number, database: string) => ({
 
 // The sample server: migrated and seeded with the synthetic ledger (scripts/db-seed.ts), then the
 // normal server with "today" pinned (BUDGET_TODAY). Seeding runs before the health check answers.
-const sampleServer = () => {
-  const base = server(SAMPLE_PORT, DB_SAMPLE);
+const sampleServer = (port = SAMPLE_PORT, database = DB_SAMPLE) => {
+  const base = server(port, database);
   return {
     ...base,
-    command: `npx tsx scripts/db-seed.ts --file ${DB_SAMPLE} --fresh && ${base.command}`,
+    command: `npx tsx scripts/db-seed.ts --file ${database} --fresh && ${base.command}`,
     env: { ...base.env, BUDGET_TODAY: SAMPLE_TODAY },
     timeout: 90_000,
+  };
+};
+
+// Like the sample server, plus the extra items of the inbox demo (packages/fixtures/src/inbox-demo.ts).
+const inboxServer = (port: number, database: string) => {
+  const sample = sampleServer(port, database);
+  return {
+    ...sample,
+    command: sample.command.replace('--fresh', '--fresh --inbox-demo'),
   };
 };
 
@@ -135,5 +153,7 @@ export default defineConfig({
     sampleServer(),
     server(MAIN_PORT + 4, DB_IMPORT_DESKTOP),
     server(MAIN_PORT + 5, DB_IMPORT_MOBILE),
+    inboxServer(MAIN_PORT + 6, DB_INBOX_DESKTOP),
+    inboxServer(MAIN_PORT + 7, DB_INBOX_MOBILE),
   ],
 });

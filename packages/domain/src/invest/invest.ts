@@ -204,3 +204,14 @@ export function terCostCents(monthEndValuesCents: ReadonlyArray<number>, terBp: 
   const sum = monthEndValuesCents.reduce((a, v) => a + v, 0);
   return Math.round((sum * terBp) / 120000);
 }
+
+/**
+ * Price in micro-units per unit (EUR) that values `unitsE8` at `valueCents`, rounded half up:
+ * the inverse of `marketValueCents`. Used when a manually valued position gets a new value.
+ */
+export function priceMicroForValue(valueCents: number, unitsE8: number): number {
+  if (unitsE8 <= 0) throw new RangeError('Units must be positive');
+  if (valueCents < 0) throw new RangeError('A value cannot be negative');
+  const units = BigInt(unitsE8);
+  return Number((BigInt(valueCents) * E12 + units / 2n) / units);
+}
