@@ -1,0 +1,80 @@
+import { describe, expect, it } from 'vitest';
+import {
+  RULE_FIELDS,
+  fieldError,
+  fieldText,
+  fieldValue,
+  formatBp,
+  parseBp,
+  stageRange,
+  thresholdText,
+} from './rules-model';
+
+describe('basis points as percent text', () => {
+  it('formats and parses without floats', () => {
+    expect(formatBp(5000)).toBe('50');
+    expect(formatBp(1250)).toBe('12,5');
+    expect(formatBp(1205)).toBe('12,05');
+    expect(formatBp(0)).toBe('0');
+    expect(parseBp('12,5')).toBe(1250);
+    expect(parseBp('12.05')).toBe(1205);
+    expect(parseBp('0,29')).toBe(29);
+    expect(parseBp('50')).toBe(5000);
+    expect(parseBp('1,234')).toBeNull();
+    expect(parseBp('abc')).toBeNull();
+    expect(parseBp('')).toBeNull();
+    expect(parseBp('-5')).toBeNull();
+  });
+});
+
+describe('threshold summaries (defaults match the prototype)', () => {
+  it('R01 R02 R03 R07 R08', () => {
+    expect(thresholdText('R01', { needMaxBp: 5000, wantMaxBp: 3000, futureMinBp: 2000 })).toBe(
+      'Bedarf ≤ 50 %, Wunsch ≤ 30 %, Zukunft ≥ 20 %',
+    );
+    expect(thresholdText('R02', { minMonths: 3, targetMonths: 6 })).toBe('min. 3, Ziel 6 Monate');
+    expect(thresholdText('R03', { targetDays: 30 })).toBe('Geldalter ≥ 30 Tage');
+    expect(thresholdText('R07', { minCents: 0, horizonDays: 90 })).toBe(
+      'Tiefpunkt ≥ 0 € in 90 Tagen',
+    );
+    expect(thresholdText('R08', { maxBp: 3000 })).toBe('≤ 30 % des Nettoeinkommens');
+  });
+  it('R04 R09 R10 R11 R12 R14 R15 R16', () => {
+    expect(thresholdText('R04', { withinDays: 3 })).toBe('Zukunft binnen 3 Tagen nach Gehalt');
+    expect(thresholdText('R04', { withinDays: 0 })).toBe('Zukunft am Gehaltstag zuerst');
+    expect(thresholdText('R09', { rateBp: 500 })).toBe('über 5 % Zins: tilgen');
+    expect(thresholdText('R10', { maxBp: 5500 })).toBe('≤ 55 %');
+    expect(thresholdText('R11', { toleranceBp: 0 })).toBe('Ausgaben ≤ Einkommen, 12 M');
+    expect(thresholdText('R12', { enjoyBp: 1000 })).toBe('10 % Genuss, Rest nach Wasserfall');
+    expect(thresholdText('R14', { singleBp: 1000, platformBp: 2000 })).toBe(
+      'Einzeltitel ≤ 10 %, Plattform ≤ 20 %',
+    );
+    expect(thresholdText('R15', { limitBp: 1000 })).toBe('≤ 10 %');
+    expect(thresholdText('R16', { multiple: 25 })).toBe('Investiert ÷ 25 Jahresausgaben');
+  });
+});
+
+describe('stage ranges', () => {
+  it('come from the stage model', () => {
+    expect(stageRange(1)).toBe('bis 10.000 €');
+    expect(stageRange(2)).toBe('10.000 bis 100.000 €');
+    expect(stageRange(3)).toBe('100.000 bis 1 Mio. €');
+  });
+});
+
+describe('field validation', () => {
+  const minMonths = RULE_FIELDS['R02']![0]!;
+  const need = RULE_FIELDS['R01']![0]!;
+  it('checks counts and percentages', () => {
+    expect(fieldError(minMonths, '2')).toBeNull();
+    expect(fieldError(minMonths, '2,5')).toMatch(/ganze Zahl/);
+    expect(fieldError(minMonths, '5000')).toMatch(/Zwischen 0 und 1200/);
+    expect(fieldError(need, '12,5')).toBeNull();
+    expect(fieldError(need, '1001')).toMatch(/Zwischen/);
+  });
+  it('round-trips values', () => {
+    expect(fieldText(need, 5000)).toBe('50');
+    expect(fieldValue(need, '12,5')).toBe(1250);
+    expect(fieldValue(minMonths, '2')).toBe(2);
+  });
+});
