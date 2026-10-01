@@ -10,7 +10,7 @@ import {
   type RawModel,
   type TsvRecord,
 } from '@budget/import-ynab';
-import { and, asc, desc, eq, ne } from 'drizzle-orm';
+import { asc, desc, eq, ne } from 'drizzle-orm';
 import { randomUUID } from 'node:crypto';
 
 /**
@@ -162,7 +162,7 @@ export function saveMapping(db: Executor, runId: string, mapping: Mapping): numb
 
 /**
  * The latest saved mapping of a run; without one, the latest of an earlier run (a re-import keeps
- * the owner's mapping), else `null`.
+ * the owner's mapping, also after the previous import was undone to correct it), else `null`.
  */
 export function latestMapping(
   db: Executor,
@@ -180,7 +180,7 @@ export function latestMapping(
     .select({ json: importMapping.mappingJson })
     .from(importMapping)
     .innerJoin(importRun, eq(importRun.id, importMapping.importRunId))
-    .where(and(ne(importMapping.importRunId, runId), ne(importRun.status, 'reverted')))
+    .where(ne(importMapping.importRunId, runId))
     .orderBy(desc(importRun.startedAt), desc(importMapping.version))
     .get();
   const parsed = earlier ? mappingSchema.safeParse(JSON.parse(earlier.json)) : null;

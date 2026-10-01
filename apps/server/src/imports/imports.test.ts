@@ -1,7 +1,11 @@
 /* eslint-disable @typescript-eslint/no-explicit-any -- JSON answers are inspected, not typed */
 import {
+  account,
   booking,
+  category,
+  createBooking,
   createTestDatabase,
+  deleteBooking,
   envelopeMonth,
   importRun,
   ynabRegisterRow,
@@ -184,6 +188,67 @@ describe('YNAB import runs', () => {
     const commit = await call('POST', `/${id}/commit`, { deleteMissing: true });
     expect(commit.body['change'].bookings.deleted).toBe(1);
     expect(liveBookings()).toBe(before - 1);
+  }, 60_000);
+
+  it('a contact share outside advance is a dry-run error, not a failed write', async () => {
+    const { body: up } = await upload();
+    const id = up['run'].id as string;
+    const { body } = await call('GET', `/${id}/mapping`);
+    const mapping = body['mapping'];
+    mapping.rulesFrom = '2026-01';
+    mapping.rules = [{ id: 'share', match: { payee: 'Rundfunkbeitrag' }, set: { contact: 'K' } }];
+    await call('PUT', `/${id}/mapping`, mapping);
+    const dry = await call('POST', `/${id}/dry-run`);
+    expect(dry.status).toBe(200);
+    expect(dry.body['problems'].map((p: any) => p.code)).toEqual(['mapping.contact_category']);
+    expect((await call('POST', `/${id}/commit`, {})).body['error']).toBe('import_problems');
+    expect(liveBookings()).toBe(0);
+  }, 60_000);
+
+  it('commits a run once under concurrent requests; an undone run still offers its mapping', async () => {
+    const { body: up } = await upload();
+    const id = up['run'].id as string;
+    const { body } = await call('GET', `/${id}/mapping`);
+    const mapping = body['mapping'];
+    mapping.names = { stripNotes: true, stripEmoji: true };
+    await call('PUT', `/${id}/mapping`, mapping);
+    const both = await Promise.all([
+      call('POST', `/${id}/commit`, {}),
+      call('POST', `/${id}/commit`, {}),
+    ]);
+    expect(both.map((r) => r.status).sort()).toEqual([200, 409]);
+    const added = both.find((r) => r.status === 200)?.body['change'].bookings.added as number;
+    expect(liveBookings()).toBe(added);
+
+    expect((await call('POST', `/${id}/revert`, {})).status).toBe(200);
+    const { body: again } = await upload();
+    const offered = await call('GET', `/${again['run'].id}/mapping`);
+    expect(offered.body['mapping'].names).toEqual({ stripNotes: true, stripEmoji: true });
+  }, 60_000);
+
+  it('refuses to undo a run whose accounts or categories got later bookings', async () => {
+    const { body: up } = await upload();
+    const id = up['run'].id as string;
+    expect((await call('POST', `/${id}/commit`, {})).status).toBe(200);
+    const acc = db.select().from(account).where(isNull(account.deletedAt)).get();
+    const cat = db.select().from(category).where(eq(category.kind, 'variable')).get();
+    const later = createBooking(
+      db,
+      {
+        accountId: acc?.id as string,
+        date: '2026-09-30',
+        amountCents: -1234,
+        splits: [{ categoryId: cat?.id as string, amountCents: -1234 }],
+      },
+      { actor: 'owner' },
+    );
+    for (const force of [false, true]) {
+      const refused = await call('POST', `/${id}/revert`, { force });
+      expect([refused.status, refused.body['error']]).toEqual([409, 'in_use']);
+    }
+    deleteBooking(db, later, { actor: 'owner' });
+    expect((await call('POST', `/${id}/revert`, {})).status).toBe(200);
+    expect(db.select().from(account).where(isNull(account.deletedAt)).all()).toEqual([]);
   }, 60_000);
 
   it('keeps negative assigned amounts and refuses a mapping error before any write', async () => {
