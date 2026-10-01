@@ -73,7 +73,8 @@ function HeuteBody({ data }: { data: Heute }) {
   const [leadDetail, setLeadDetail] = useState<'need' | 'want' | 'open' | null>(null);
   const [paceDetail, setPaceDetail] = useState<'spent' | 'plan' | 'forecast' | null>(null);
   const navigate = useNavigate();
-  const net = data.netWorth;
+  const net = 'unavailable' in data.netWorth ? null : data.netWorth;
+  const check = 'unavailable' in data.financeCheck ? null : data.financeCheck;
   const revisions: RevisionRow[] = data.nextSteps.items.map((item, index) => ({
     id: String(index + 1),
     letter: String.fromCharCode(65 + index),
@@ -109,9 +110,8 @@ function HeuteBody({ data }: { data: Heute }) {
       ? { onSelect: () => setLeadDetail('open') }
       : {}),
   }));
-  const previous = net.previousMonthEndCents;
   const deltaText =
-    net.deltaBp === null
+    !net || net.deltaBp === null
       ? 'keine Vergleichsbasis'
       : `${net.deltaBp >= 0 ? '+' : ''}${pct.format(net.deltaBp / 100)} % zum Vormonatsende`;
 
@@ -378,28 +378,36 @@ function HeuteBody({ data }: { data: Heute }) {
               </AppLink>
             }
           />
-          <CheckCounts data={data} />
-          {data.financeCheck.keyRules.length === 0 ? (
-            <EmptyNote>Für den Finanz-Check sind noch keine Regeln auswertbar.</EmptyNote>
+          {check ? (
+            <>
+              <CheckCounts check={check} />
+              {check.keyRules.length === 0 ? (
+                <EmptyNote>Für den Finanz-Check sind noch keine Regeln auswertbar.</EmptyNote>
+              ) : (
+                <ul className="heute-list">
+                  {check.keyRules.map((rule) => (
+                    <li className="heute-rule" key={rule.code}>
+                      <div>
+                        <strong>{rule.name}</strong>
+                        <span>{rule.valueText}</span>
+                      </div>
+                      <span className={`heute-state is-${rule.status}`}>
+                        <StatusIcon status={rule.status} />
+                        {rule.status === 'ok'
+                          ? 'erfüllt'
+                          : rule.status === 'warn'
+                            ? 'Warnung'
+                            : 'verletzt'}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </>
           ) : (
-            <ul className="heute-list">
-              {data.financeCheck.keyRules.map((rule) => (
-                <li className="heute-rule" key={rule.code}>
-                  <div>
-                    <strong>{rule.name}</strong>
-                    <span>{rule.valueText}</span>
-                  </div>
-                  <span className={`heute-state is-${rule.status}`}>
-                    <StatusIcon status={rule.status} />
-                    {rule.status === 'ok'
-                      ? 'erfüllt'
-                      : rule.status === 'warn'
-                        ? 'Warnung'
-                        : 'verletzt'}
-                  </span>
-                </li>
-              ))}
-            </ul>
+            'unavailable' in data.financeCheck && (
+              <ValuationNote message={data.financeCheck.unavailable.message} />
+            )
           )}
         </section>
 
@@ -414,75 +422,83 @@ function HeuteBody({ data }: { data: Heute }) {
               </AppLink>
             }
           />
-          <div className={`heute-delta ${net.deltaCents < 0 ? 'text-bad' : 'text-good'}`}>
-            {net.deltaCents < 0 ? (
-              <ArrowDown size={16} aria-hidden="true" />
-            ) : (
-              <ArrowUp size={16} aria-hidden="true" />
-            )}
-            {eur(net.deltaCents, { cents: false, sign: true })} · {deltaText}
-          </div>
-          <div
-            data-testid="heute-networth-chart"
-            className={`heute-net-composition${net.totalCents <= 0 ? ' is-nonpositive' : ''}`}
-          >
-            <DimensionChainDrawing
-              label="Maßkette Nettovermögen"
-              parts={[
-                {
-                  key: 'liquid',
-                  label: 'Liquidität',
-                  cents: cents(net.liquidCents),
-                  fill: 'plain',
-                },
-                {
-                  key: 'invested',
-                  label: 'Investiert',
-                  cents: cents(net.investedCents),
-                  fill: 'need',
-                },
-                ...(net.debtCents > 0
-                  ? [
-                      {
-                        key: 'debt',
-                        label: 'Guthaben auf Schuldkonten',
-                        cents: cents(net.debtCents),
-                        fill: 'plain' as const,
-                      },
-                    ]
-                  : []),
-                ...(net.receivableCents > 0
-                  ? [
-                      {
-                        key: 'receivable',
-                        label: 'Forderungen',
-                        cents: cents(net.receivableCents),
-                        fill: 'plain' as const,
-                      },
-                    ]
-                  : []),
-              ]}
-              {...(net.debtCents < 0
-                ? {
-                    minus: {
-                      key: 'debt',
-                      label: 'Schulden',
-                      cents: cents(-net.debtCents),
-                      kind: 'debt' as const,
+          {net ? (
+            <>
+              <div className={`heute-delta ${net.deltaCents < 0 ? 'text-bad' : 'text-good'}`}>
+                {net.deltaCents < 0 ? (
+                  <ArrowDown size={16} aria-hidden="true" />
+                ) : (
+                  <ArrowUp size={16} aria-hidden="true" />
+                )}
+                {eur(net.deltaCents, { cents: false, sign: true })} · {deltaText}
+              </div>
+              <div
+                data-testid="heute-networth-chart"
+                className={`heute-net-composition${net.totalCents <= 0 ? ' is-nonpositive' : ''}`}
+              >
+                <DimensionChainDrawing
+                  label="Maßkette Nettovermögen"
+                  parts={[
+                    {
+                      key: 'liquid',
+                      label: 'Liquidität',
+                      cents: cents(net.liquidCents),
+                      fill: 'plain',
                     },
-                  }
-                : {})}
-              result={{ label: 'Nettovermögen', cents: cents(net.totalCents) }}
-              onSelect={(key) => setNetDetail(key as NonNullable<typeof netDetail>)}
-            />
-          </div>
-          <p className="heute-note">
-            Wähle ein Maß für die Konten.
-            {net.debtCents < 0 ? ' Gestrichelt: Schulden, werden abgezogen.' : ''}
-          </p>
-          <p className="heute-note">
-            Stichtag {longDay(net.asOf)} · Vormonatsende {eur(previous)}
-          </p>
+                    {
+                      key: 'invested',
+                      label: 'Investiert',
+                      cents: cents(net.investedCents),
+                      fill: 'need',
+                    },
+                    ...(net.debtCents > 0
+                      ? [
+                          {
+                            key: 'debt',
+                            label: 'Guthaben auf Schuldkonten',
+                            cents: cents(net.debtCents),
+                            fill: 'plain' as const,
+                          },
+                        ]
+                      : []),
+                    ...(net.receivableCents > 0
+                      ? [
+                          {
+                            key: 'receivable',
+                            label: 'Forderungen',
+                            cents: cents(net.receivableCents),
+                            fill: 'plain' as const,
+                          },
+                        ]
+                      : []),
+                  ]}
+                  {...(net.debtCents < 0
+                    ? {
+                        minus: {
+                          key: 'debt',
+                          label: 'Schulden',
+                          cents: cents(-net.debtCents),
+                          kind: 'debt' as const,
+                        },
+                      }
+                    : {})}
+                  result={{ label: 'Nettovermögen', cents: cents(net.totalCents) }}
+                  onSelect={(key) => setNetDetail(key as NonNullable<typeof netDetail>)}
+                />
+              </div>
+              <p className="heute-note">
+                Wähle ein Maß für die Konten.
+                {net.debtCents < 0 ? ' Gestrichelt: Schulden, werden abgezogen.' : ''}
+              </p>
+              <p className="heute-note">
+                Stichtag {longDay(net.asOf)} · Vormonatsende {eur(net.previousMonthEndCents)}
+              </p>
+            </>
+          ) : (
+            'unavailable' in data.netWorth && (
+              <ValuationNote message={data.netWorth.unavailable.message} />
+            )
+          )}
         </section>
 
         <section className="heute-section" aria-labelledby="heute-bookings-title">
@@ -528,17 +544,17 @@ function HeuteBody({ data }: { data: Heute }) {
           )}
         </section>
       </div>
-      <NetWorthDetail data={data} kind={netDetail} onClose={() => setNetDetail(null)} />
+      {net && <NetWorthDetail net={net} kind={netDetail} onClose={() => setNetDetail(null)} />}
     </>
   );
 }
 
 function NetWorthDetail({
-  data,
+  net,
   kind,
   onClose,
 }: {
-  data: Heute;
+  net: Exclude<Heute['netWorth'], { unavailable: unknown }>;
   kind: 'liquid' | 'invested' | 'receivable' | 'debt' | null;
   onClose: () => void;
 }) {
@@ -546,17 +562,17 @@ function NetWorthDetail({
     liquid: 'Liquidität',
     invested: 'Investiert',
     receivable: 'Forderungen',
-    debt: data.netWorth.debtCents > 0 ? 'Guthaben auf Schuldkonten' : 'Schulden',
+    debt: net.debtCents > 0 ? 'Guthaben auf Schuldkonten' : 'Schulden',
   };
   const totals = {
-    liquid: data.netWorth.liquidCents,
-    invested: data.netWorth.investedCents,
-    receivable: data.netWorth.receivableCents,
-    debt: data.netWorth.debtCents,
+    liquid: net.liquidCents,
+    invested: net.investedCents,
+    receivable: net.receivableCents,
+    debt: net.debtCents,
   };
   const query = useQuery({
-    queryKey: [...LEDGER_KEY, 'accounts', data.netWorth.asOf],
-    queryFn: () => fetchAccounts(data.netWorth.asOf),
+    queryKey: [...LEDGER_KEY, 'accounts', net.asOf],
+    queryFn: () => fetchAccounts(net.asOf),
     enabled: kind !== null,
   });
   const accounts =
@@ -572,7 +588,7 @@ function NetWorthDetail({
   return (
     <DetailPanel open={kind !== null} title={kind ? names[kind] : ''} onClose={onClose}>
       <div className="heute-breakdown">
-        <p>Stand {longDay(data.netWorth.asOf)}</p>
+        <p>Stand {longDay(net.asOf)}</p>
         {query.isPending && <LoadingNote what="Konten" />}
         {query.isError && (
           <ErrorNote what="Konten" error={query.error} onRetry={() => void query.refetch()} />
@@ -670,13 +686,28 @@ function PaceFigure({
   );
 }
 
-function CheckCounts({ data }: { data: Heute }) {
-  const { ok, warn, bad, total } = data.financeCheck.counts;
+function ValuationNote({ message }: { message: string }) {
+  return (
+    <div className="rev-empty">
+      <AlertTriangle className="icon" size={18} strokeWidth={1.75} aria-hidden="true" />
+      <div className="kstate">
+        <p>Bewertung nicht verfügbar. {message}</p>
+      </div>
+    </div>
+  );
+}
+
+function CheckCounts({
+  check,
+}: {
+  check: Exclude<Heute['financeCheck'], { unavailable: unknown }>;
+}) {
+  const { ok, warn, bad, total } = check.counts;
   return (
     <div
       className="heute-check-counts"
       role="img"
-      aria-label={`${ok} erfüllt, ${warn} Warnung, ${bad} verletzt, ${data.financeCheck.counts.notEvaluated} nicht auswertbar`}
+      aria-label={`${ok} erfüllt, ${warn} Warnung, ${bad} verletzt, ${check.counts.notEvaluated} nicht auswertbar`}
     >
       <strong>{ok}</strong>
       <span>von {total} Regeln erfüllt</span>

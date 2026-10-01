@@ -12,6 +12,8 @@ import {
   monthOf,
   netWorthDays,
   netWorthParts,
+  PriceUnavailableError,
+  ExchangeRateUnavailableError,
   nextPayday,
   paceForecastCurve,
   paceModel,
@@ -30,9 +32,10 @@ import {
 import { and, eq, gte, isNull, lte } from 'drizzle-orm';
 import { booking, bookingSplit, contact, expectedOccurrence, INCOME_TYPES } from '../schema';
 import { queryBookings } from './ledger-queries';
-import { cashSeries, netWorthAsOf } from './portfolio';
+import { cashSeries, netWorthAsOf, netWorthValuationAsOf } from './portfolio';
 import { forecastInputs, loadFacts, scheduled, type RuleFacts } from './rule-inputs';
 import { financeCheck, type FinanceCheck } from './rules';
+import { MissingFxRateError } from './errors';
 import type { Executor } from './types';
 
 /**
@@ -105,6 +108,35 @@ export interface HeuteLastBooking {
   accountName: string;
 }
 
+export interface HeuteUnavailable {
+  unavailable: { reason: 'missing_price' | 'missing_fx'; message: string; asOf: string };
+}
+
+/** Only missing valuation inputs are isolated; unrelated failures remain errors. */
+function availableSection<T>(read: () => T): T | HeuteUnavailable {
+  try {
+    return read();
+  } catch (error) {
+    if (error instanceof PriceUnavailableError)
+      return {
+        unavailable: {
+          reason: 'missing_price',
+          asOf: error.asOf,
+          message: `Ein benötigter Wertpapierkurs fehlt bis einschließlich ${error.asOf}.`,
+        },
+      };
+    if (error instanceof MissingFxRateError || error instanceof ExchangeRateUnavailableError)
+      return {
+        unavailable: {
+          reason: 'missing_fx',
+          asOf: error.asOf,
+          message: `Für ${error.currency} fehlt ein benötigter Wechselkurs bis einschließlich ${error.asOf}.`,
+        },
+      };
+    throw error;
+  }
+}
+
 export interface Heute {
   stand: {
     today: string;
@@ -129,19 +161,23 @@ export interface Heute {
   pace: PaceModel & { forecast: number[]; previousMonth: string };
   pinned: HeutePinned[];
   upcoming14: HeuteOccurrence[];
-  financeCheck: {
-    counts: FinanceCheck['counts'];
-    keyRules: FinanceCheck['keyRules'];
-  };
-  netWorth: NetWorthParts & {
-    asOf: string;
-    previousMonthEndCents: number;
-    deltaCents: number;
-    /** Change against the previous month end in basis points; `null` from 0. */
-    deltaBp: number | null;
-    /** The 11 previous month ends and today, oldest first. */
-    series: { day: string; cents: number }[];
-  };
+  financeCheck:
+    | {
+        counts: FinanceCheck['counts'];
+        keyRules: FinanceCheck['keyRules'];
+      }
+    | HeuteUnavailable;
+  netWorth:
+    | (NetWorthParts & {
+        asOf: string;
+        previousMonthEndCents: number;
+        deltaCents: number;
+        /** Change against the previous month end in basis points; `null` from 0. */
+        deltaBp: number | null;
+        /** The 11 previous month ends and today, oldest first. */
+        series: { day: string; cents: number }[];
+      })
+    | HeuteUnavailable;
   lastBookings: HeuteLastBooking[];
   nextSteps: { items: NextStep[]; count: number };
 }
@@ -282,12 +318,24 @@ export function heute(db: Executor, query: HeuteQuery): Heute {
   const today = query.today;
   const month = query.month ?? monthOf(today);
   const facts = loadFacts(db, latest(lastDayOfMonth(month), today));
-  const nw = netWorthAsOf(db, today);
   const todayBudget = facts.budgetByMonth.get(monthOf(today));
   const monthBudget = facts.budgetByMonth.get(month);
   const categories = new Map(facts.categories.map((c) => [c.id, c]));
   const budgetAccounts = facts.accounts.filter((a) => a.onBudget && a.role === 'budget');
   const budgetIds = budgetAccounts.map((a) => a.id);
+  const valuation = netWorthValuationAsOf(db, today);
+  // Forecast only consumes budget accounts; an unknown depot cannot block daily cash planning.
+  const budgetValues = Object.fromEntries(
+    budgetIds.map((id) => {
+      const value = valuation.byAccount[id] ?? (Object.hasOwn(valuation.byAccount, id) ? null : 0);
+      if (value === null) {
+        const currency = valuation.missingFxByAccount[id]?.[0];
+        if (currency) throw new MissingFxRateError(currency, today);
+        throw new PriceUnavailableError(id, valuation.missingPriceByAccount[id]![0]!, today);
+      }
+      return [id, value];
+    }),
+  );
   const sumBudget = (balanceOf: (id: string) => number) =>
     budgetIds.reduce((s, id) => s + balanceOf(id), 0);
 
@@ -345,7 +393,7 @@ export function heute(db: Executor, query: HeuteQuery): Heute {
   let salaryJump: Heute['balance']['salary'] = null;
   let low: LowPoint | null = null;
   if (window.to > today && budgetAccounts.length > 0) {
-    const inputs = forecastInputs(facts, today, nw);
+    const inputs = forecastInputs(facts, today, { byAccount: budgetValues });
     const run = liquidityForecast({
       startDay: today,
       startCents: inputs.startCents,
@@ -425,20 +473,35 @@ export function heute(db: Executor, query: HeuteQuery): Heute {
   const upcoming14 = all.filter(
     (o) => o.dueDate >= today && o.dueDate <= addDays(today, UPCOMING_DAYS),
   );
-  const check = financeCheck(db, today, facts);
+  const check = availableSection(() => {
+    const result = financeCheck(db, today, facts);
+    return { counts: result.counts, keyRules: result.keyRules };
+  });
+  const netWorth = availableSection(() => {
+    const nw = netWorthAsOf(db, today);
 
-  const roles = new Map(facts.accounts.map((a) => [a.id, a.role]));
-  const parts = netWorthParts(
-    Object.entries(nw.byAccount).flatMap(([id, valueCents]) => {
-      const role = roles.get(id);
-      return role ? [{ role, valueCents }] : [];
-    }),
-  );
-  const nwSeries = netWorthDays(today).map((day) => ({
-    day,
-    cents: day === today ? nw.totalCents : netWorthAsOf(db, day).totalCents,
-  }));
-  const previousMonthEndCents = nwSeries[nwSeries.length - 2]?.cents ?? nw.totalCents;
+    const roles = new Map(facts.accounts.map((a) => [a.id, a.role]));
+    const parts = netWorthParts(
+      Object.entries(nw.byAccount).flatMap(([id, valueCents]) => {
+        const role = roles.get(id);
+        return role ? [{ role, valueCents }] : [];
+      }),
+    );
+    const nwSeries = netWorthDays(today).map((day) => ({
+      day,
+      cents: day === today ? nw.totalCents : netWorthAsOf(db, day).totalCents,
+    }));
+    const previousMonthEndCents = nwSeries[nwSeries.length - 2]?.cents ?? nw.totalCents;
+
+    return {
+      ...parts,
+      asOf: today,
+      previousMonthEndCents,
+      deltaCents: nw.totalCents - previousMonthEndCents,
+      deltaBp: changeBp(nw.totalCents, previousMonthEndCents),
+      series: nwSeries,
+    };
+  });
 
   const lastBookings: HeuteLastBooking[] = queryBookings(db, { limit: 5, to: today }).items.map(
     (b) => {
@@ -467,7 +530,7 @@ export function heute(db: Executor, query: HeuteQuery): Heute {
       from: window.from,
       to: window.to,
       payday: { ...payday, daysToPayday: lead.daysToPayday },
-      budgetBalanceCents: sumBudget((id) => nw.byAccount[id] ?? 0),
+      budgetBalanceCents: sumBudget((id) => budgetValues[id] ?? 0),
     },
     lead,
     balance: { actual, forecast, salary: salaryJump, low },
@@ -478,15 +541,8 @@ export function heute(db: Executor, query: HeuteQuery): Heute {
     },
     pinned,
     upcoming14,
-    financeCheck: { counts: check.counts, keyRules: check.keyRules },
-    netWorth: {
-      ...parts,
-      asOf: today,
-      previousMonthEndCents,
-      deltaCents: nw.totalCents - previousMonthEndCents,
-      deltaBp: changeBp(nw.totalCents, previousMonthEndCents),
-      series: nwSeries,
-    },
+    financeCheck: check,
+    netWorth,
     lastBookings,
     nextSteps: nextSteps(db, today, facts),
   };

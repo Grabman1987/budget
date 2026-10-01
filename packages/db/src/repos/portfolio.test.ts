@@ -68,6 +68,8 @@ describe('C10 positions per account, valued in EUR with stored rates', () => {
       holdingsByAccount: { d1: 148_000, d2: 46_250 },
       missingFxCurrencies: [],
       missingFxByAccount: {},
+      missingPriceSecurityIds: [],
+      missingPriceByAccount: {},
     });
 
     db.insert(account)
@@ -116,15 +118,16 @@ describe('C10 positions per account, valued in EUR with stored rates', () => {
     expect(() => netWorthAsOf(opened.db, '2026-02-28')).toThrow(MissingFxRateError);
   });
 
-  it('preserves the zero value of a held security that has no price yet', () => {
+  it('keeps a held security without a quote explicitly unavailable', () => {
     opened.sqlite.exec(`
       INSERT INTO security (id, name, kind, currency) VALUES ('unpriced-chf-security', 'Unpriced', 'stock', 'CHF');
       INSERT INTO holding (id, security_id, account_id, as_of, units_e8) VALUES ('unpriced-chf-holding', 'unpriced-chf-security', 'd1', '2026-01-01', 1000000000);
     `);
     const valuation = netWorthValuationAsOf(opened.db, '2026-02-28');
-    expect(valuation.totalCents).toBe(100_000 + 9_250 + 148_000 + 46_250);
+    expect(valuation.totalCents).toBeNull();
     expect(valuation.missingFxCurrencies).toEqual([]);
-    expect(valuation.holdingsByAccount.d1).toBe(148_000);
+    expect(valuation.holdingsByAccount.d1).toBeNull();
+    expect(valuation.missingPriceSecurityIds).toEqual(['unpriced-chf-security']);
   });
 
   it('counts closed cash balances in the same shared net-worth values', () => {

@@ -82,6 +82,7 @@ describe('portfolio summary FX normalization', () => {
     addTrade('usd-buy', 'usd-depot', 'usd-security', '2026-01-10', 'buy', 10_000, {
       unitsE8: 10 * E8,
     });
+    addPrice('usd-security', '2026-01-10', 9_000_000, 'USD');
     addPrice('usd-security', '2026-02-10', 10_000_000, 'USD');
 
     const summary = portfolioSummary(opened.db, { today: '2026-02-10' });
@@ -133,6 +134,7 @@ describe('portfolio summary FX normalization', () => {
       taxCents: 50,
     });
     addTrade('standalone-fee', 'usd-income-depot', 'usd-income-security', '2026-03-01', 'fee', 300);
+    addPrice('usd-income-security', '2025-12-01', 9_000_000, 'USD');
     addPrice('usd-income-security', '2026-04-01', 10_000_000, 'USD');
 
     const summary = portfolioSummary(opened.db, { today: '2026-04-01' });
