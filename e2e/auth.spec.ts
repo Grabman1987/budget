@@ -1,4 +1,8 @@
 import { expect, test, type Page } from '@playwright/test';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
+import yauzl from 'yauzl';
+import { openDatabase } from '@budget/db';
 import { expectScreenshot } from './visual';
 import { SoftAuthenticator } from '../apps/server/src/auth/testing/authenticator';
 import { E2E_SETUP_TOKEN } from '../playwright.config';
@@ -23,11 +27,27 @@ async function addVirtualAuthenticator(page: Page) {
   });
 }
 
+async function zipEntries(bytes: Buffer): Promise<string[]> {
+  return new Promise((resolve, reject) => {
+    yauzl.fromBuffer(bytes, { lazyEntries: true }, (error, zip) => {
+      if (error || !zip) return reject(error ?? new Error('Export ZIP could not be parsed'));
+      const names: string[] = [];
+      zip.on('error', reject);
+      zip.on('entry', (entry) => {
+        names.push(entry.fileName);
+        zip.readEntry();
+      });
+      zip.on('end', () => resolve(names));
+      zip.readEntry();
+    });
+  });
+}
+
 test('bootstrap, login, recovery, device management and CSRF on a fresh server', async ({
   page,
   baseURL,
   browser,
-}) => {
+}, testInfo) => {
   test.setTimeout(120_000);
   const origin = baseURL as string;
   const problems: string[] = [];
@@ -43,6 +63,9 @@ test('bootstrap, login, recovery, device management and CSRF on a fresh server',
     await expect(page.getByRole('heading', { level: 1, name: 'Einrichten' })).toBeVisible();
     // The API refuses everything without a session, the shell never renders.
     expect((await page.request.get('/api/debug/summary')).status()).toBe(401);
+    const exportResponse = await page.request.get('/api/export/csv.zip');
+    expect(exportResponse.status()).toBe(401);
+    expect(exportResponse.headers()['content-type']).not.toContain('application/zip');
     await page.goto('/plan/monat');
     await expect(page).toHaveURL(/\/setup$/);
     await page.emulateMedia({ reducedMotion: 'reduce', colorScheme: 'light' });
@@ -87,6 +110,47 @@ test('bootstrap, login, recovery, device management and CSRF on a fresh server',
   await test.step('the setup page is gone for good once a passkey exists', async () => {
     await page.goto('/setup');
     await expect(page).toHaveURL(/\/$/);
+  });
+
+  await test.step('CSV export asks for a fresh passkey and downloads a parseable archive', async () => {
+    const databasePath = join(process.cwd(), 'test-results', `e2e-${testInfo.project.name}.sqlite`);
+    const opened = openDatabase(databasePath);
+    opened.sqlite
+      .prepare('UPDATE auth_session SET step_up_at = ? WHERE revoked_at IS NULL')
+      .run('2000-01-01T00:00:00.000Z');
+    opened.close();
+    const staleResponse = await page.request.get('/api/export/csv.zip');
+    expect(staleResponse.status()).toBe(403);
+    expect(staleResponse.headers()['content-type']).not.toContain('application/zip');
+    expect(await staleResponse.json()).toMatchObject({ error: 'step_up_required' });
+
+    let stepUpChallenges = 0;
+    page.on('request', (request) => {
+      if (request.url().endsWith('/api/auth/step-up/options')) stepUpChallenges += 1;
+    });
+    await page.goto('/einstellungen/export');
+    const downloadPromise = page.waitForEvent('download');
+    await page.getByRole('button', { name: 'ZIP-Export herunterladen' }).click();
+    const download = await downloadPromise;
+    expect(stepUpChallenges).toBe(1);
+    expect(download.suggestedFilename()).toMatch(/^budget-export-\d{4}-\d{2}-\d{2}\.zip$/);
+    const path = await download.path();
+    expect(path).toBeTruthy();
+    const names = await zipEntries(readFileSync(path as string));
+    expect(names.sort()).toEqual([
+      'accounts.csv',
+      'asset_class_targets.csv',
+      'asset_classes.csv',
+      'bookings.csv',
+      'fx_rates.csv',
+      'holdings.csv',
+      'positions.csv',
+      'prices.csv',
+      'savings_plans.csv',
+      'securities.csv',
+      'trades.csv',
+      'valuations.csv',
+    ]);
   });
 
   await test.step('sign out from Einstellungen › Sicherheit, then log in again with the passkey', async () => {
