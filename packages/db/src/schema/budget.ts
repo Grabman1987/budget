@@ -39,6 +39,8 @@ export const CATEGORY_KINDS = [
 export const CLASSLESS_KINDS = ['income', 'card_payment', 'advance'] as const;
 export const EXPECTED_KINDS = ['outflow', 'inflow'] as const;
 export const RHYTHMS = ['monthly', 'quarterly', 'semiannual', 'yearly'] as const;
+/** Move a due date that is no business day (Austria) to the previous or next business day. */
+export const DATE_SHIFTS = ['none', 'before', 'after'] as const;
 /** Payees the app itself uses (YNAB "Starting Balance", "Reconciliation/Manual Balance Adjustment"). */
 export const SYSTEM_PAYEES = [
   'opening_balance',
@@ -263,6 +265,7 @@ export const expectedPayment = sqliteTable(
     dueDay: integer('due_day').notNull().default(1),
     /** Month 1–12: the month a yearly payment falls due, or the first month of a quarter or half year. */
     dueMonth: integer('due_month'),
+    dateShift: text('date_shift', { enum: DATE_SHIFTS }).notNull().default('none'),
     startDate: text('start_date'),
     endDate: text('end_date'),
     note: text('note'),
@@ -271,6 +274,7 @@ export const expectedPayment = sqliteTable(
   (t) => [
     oneOf('expected_kind_chk', t.kind, EXPECTED_KINDS),
     oneOf('expected_rhythm_chk', t.rhythm, RHYTHMS),
+    oneOf('expected_date_shift_chk', t.dateShift, DATE_SHIFTS),
     check('expected_due_day_chk', sql`${t.dueDay} BETWEEN 1 AND 31`),
     check('expected_due_month_chk', sql`${t.dueMonth} BETWEEN 1 AND 12`),
     check('expected_share_chk', sql`${t.contactShareBp} BETWEEN 0 AND 10000`),
