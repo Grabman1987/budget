@@ -11,12 +11,12 @@ Checked roadmap boxes record implemented work. They do not prove owner acceptanc
 | Foundation | SQLite, design primitives, shell, passkeys/recovery, audit/undo, backup code, CI/deploy configuration and P1 audit fixes | Gate 1 sign-off, outstanding P1 checklist items and operational verification |
 | Accounts and budget | Accounts, bookings, capture, splits/transfers, categories and Plan › Monat | Real EUR Gate-2 account/month/category acceptance; native FX detail follow-up |
 | Migration tooling | Parser, mapping, staging, dry run, commit/re-import/undo and server/worker modules retained; app import UI removed | Separate agent-assisted migration requires private file access, transfer procedure and Gate 2 |
-| Planning | Expected payments, goals and rules UI; Heute domain/API | Heute page is a placeholder; full contacts, inbox and year-planning UI |
-| Data sources/export | Market adapters; data-sources frame and CSV-export placeholder; no upload/wizard/report in the app UI | CSV download intentionally not implemented; bank sync, assignment rules, worker and live adapters |
+| Planning | Expected payments, goals and rules UI; Heute domain/API | Heute page and year planning; contacts are deployed; inbox basics are implemented; private/owner acceptance remains separate |
+| Data sources/export | Market adapters; fresh-passkey CSV ZIP download for all accounts/portfolios; no app import UI | Private export acceptance; bank sync, assignment rules, worker and live adapters |
 | Wealth | Net-worth UI, investment APIs, valuation/performance domain and PP XML parser | Portfolio/debt/freedom pages are placeholders; PP commit/matching/report, Gate 3 and complete investment workflows; A02/A09/A10 are integrated |
 | Reports/PWA | Report catalog and navigation | Report bodies, explorer/printing, offline queue/service worker and Gate 4 |
 
-Evidence: [router](../apps/web/src/router.tsx), [report pages](../apps/web/src/pages/reports-pages.tsx), [roadmap](ROADMAP.md), [market-source limits](market-data.md). The shell inbox count is currently static ([source](../apps/web/src/shell/inbox.ts)).
+Evidence: [router](../apps/web/src/router.tsx), [report pages](../apps/web/src/pages/reports-pages.tsx), [roadmap](ROADMAP.md), [market-source limits](market-data.md). Posteingang now has an actual ledger/stored-warning queue, route/panel and shell counter ([source](../apps/web/src/shell/inbox.ts)); categorization/confirmation and warning acknowledgement reuse audited writes and undo. Suggestion decisions, source repair and owner acceptance remain open. The inbox slice passed focused browser/API checks, the age-required full check and root review; CI and exact-revision rollout are recorded separately.
 
 | Gate | Status |
 | --- | --- |
