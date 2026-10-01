@@ -13,8 +13,9 @@ Echte Finanzdaten wurden nicht verarbeitet.
 | Skillübersicht und diese Taskliste ergänzen | Draft-PR | Nutzerbereitgestellter Katalog, SHA-256 `dfe7dd20…737071`, geprüft; vier lokale Profile angepasst, keine Upstream-Pakete installiert; [PR #84](https://github.com/Grabman1987/budget/pull/84) |
 | Laufzeit- und Netzwerkdiagnose | Abgeschlossen | Bestehende Runtime weiter mit sieben Hosts, Spec-/Observed-Revision 8; GitHub/Fly HTTP 200, Plado/direkter Dropboxlink CONNECT 403. Ursprünglicher WIP und alle 29 Auditdokumente vor Fortsetzung bytegleich geprüft; Sicherung außerhalb des Repos erhalten |
 | A04 gespeicherte Gate-2-Kontosalden | Draft-PR | Gemeinsamer Konto-Reader gegen Sollwerte; Off-Budget/geschlossen, fehlende Konten, Währung, Öffnungsdaten und Ein-Cent-Änderungen. Typecheck/Lint und 1.301 Tests in 132 Dateien grün; [PR #85](https://github.com/Grabman1987/budget/pull/85) |
-| A02 historische FX-Kosten/Gebühren/Erträge | Lokal unabhängig abgenommen | Historische Trade-/Snapshotkosten, aktuelle EUR-Bewertung, Gebühren/Erträge und typisierte fehlende Kurse; sieben unabhängige Sollfälle; Typecheck/Lint und 1.308 Tests in 133 Dateien grün; PR folgt |
-| A09 Gewinne vollständig verkaufter Positionen | Analyse abgeschlossen, fachliche Klärung angefragt | Vollverkauf, Teilverkauf, Wiederkauf; spätere Bestandssnapshots enthalten keine historische Gewinnsumme. Regel zum Erhalt bekannter Verkaufsergebnisse klären |
+| A02 historische FX-Kosten/Gebühren/Erträge | Draft-PR | Historische Trade-/Snapshotkosten, aktuelle EUR-Bewertung, Gebühren/Erträge und typisierte fehlende Kurse; sieben unabhängige Sollfälle; Typecheck/Lint, 1.308 Tests und Build grün; [PR #86](https://github.com/Grabman1987/budget/pull/86) |
+| Backup-Test unter Windows stabilisieren | Lokal unabhängig geprüft | Scheduler nutzt nur benötigte migrierte Tabellen; SQLite-Handles auch nach Assertions schließen, HTTP-Server vor Temp-Verzeichnisabbau abwarten. Keine Zeitlimits erhöht, alle Assertions erhalten; fünf gezielte Backup-Tests und vollständige 1.308 Tests grün; Windows-CI folgt |
+| A09 Gewinne vollständig verkaufter Positionen | Regel bestätigt, Implementierung folgt | Erzielte Gewinne aus belegten Aktien-/ETF-Verkäufen bleiben auch bei 0 Anteilen und späteren Bestandssnapshots erhalten; unvollständige historische Daten nicht schätzen |
 | A10 mehrere Broker pro Wertpapier | Offen | Konten-/Institutionszuordnung in Aggregationen erhalten |
 | Native FX-Kontodetails | Separat offen | Tabellen, Charts und Kontostandsabgleich konsistent beschriften; kein Teil der A03-Überblicksabnahme |
 | PR-Stack integrieren | In Arbeit | #72/#73 gemergt; #74 regulär mit main aktualisiert, frische CI läuft. Windows-Fehler bei #78: BackupScheduler-Zeitlimit und SQLite-Cleanup; kein Umgehen. Auto-Merge im Repo deaktiviert; Integration erfolgt nach Prüfung |
@@ -39,6 +40,7 @@ Echte Finanzdaten wurden nicht verarbeitet.
 13. [#83 Task- und Skillübersicht](https://github.com/Grabman1987/budget/pull/83)
 14. [#84 verifizierter Skill-Katalog](https://github.com/Grabman1987/budget/pull/84)
 15. [#85 gespeicherte Gate-2-Kontosalden](https://github.com/Grabman1987/budget/pull/85)
+16. [#86 historische FX-Bewertung](https://github.com/Grabman1987/budget/pull/86)
 
 ## Arbeitsregeln
 
