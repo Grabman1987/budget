@@ -591,7 +591,8 @@ export function ruleInputs(db: Executor, asOf: string, facts?: RuleFacts): RuleI
     ];
   });
 
-  // R13 to R15: positions valued on the day; the platform is the security's institution
+  // R13 to R15: positions valued on the day; platform ownership comes from the holding account.
+  const institutionByAccount = new Map(accounts.map((a) => [a.id, a.institutionId]));
   const positions: WealthPosition[] = holdingValuesAsOf(db, asOf).flatMap((h) => {
     const s = f.securities.get(h.securityId);
     if (!s) return [];
@@ -602,7 +603,7 @@ export function ruleInputs(db: Executor, asOf: string, facts?: RuleFacts): RuleI
         kind: s.kind,
         assetClass: s.assetClassId,
         valueCents: h.valueCents,
-        platform: s.institutionId,
+        platform: institutionByAccount.get(h.accountId) ?? null,
       },
     ];
   });
