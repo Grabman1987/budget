@@ -132,8 +132,8 @@ amount - fee - tax, a dividend or interest the same as income of type Kapitalert
 fee or tax -amount; deliveries and splits have no booking. The savings-plan transfer arrives as
 cash and the buy leaves it, so the depot cash stays 0. The benchmark is the price series of the
 security given by `benchmark` (default: the largest position) until index series exist. The depot
-view counts a plain inflow booked onto a reference account (default: the investment accounts) as a
-deposit.
+view counts a plain booking on a reference account (default: the investment accounts) as an external
+flow: an inflow is a deposit (Einlage), an outflow a withdrawal (Entnahme); trade settlements (also fees and taxes) and Kapitalerträge are performance.
 
 ## YNAB import (P2d)
 

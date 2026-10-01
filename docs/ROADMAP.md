@@ -202,7 +202,7 @@ Price history (yfinance + Ariva, source per price), ECB rates, trades and holdin
 - [x] Every trade has a settlement booking on the investment account (buy -(amount + fee), sell amount - fee - tax, dividend/interest as income Kapitalerträge), one audit group per trade, undo
 - [x] Domain `invest/savings-plan.ts` (`plannedExecutions`, `matchExecutions` +-3 days with fee tolerance, `planChanges`) and `invest/trade-rules.ts`; apply of a proposal ends and restarts rows from the next execution day and opens the inbox item "Sparplan bei der Bank ändern"
 - [x] `/api/securities`, `/api/asset-classes` (+ `/targets`), `/api/trades`, `/api/savings-plans` (+ `/executions`, `/proposal`, `/apply`), `/api/portfolio?period=&view=`
-- [x] Depot view: a plain inflow booked onto a reference account counts as a deposit (Einlage); interest, dividends, fees stay performance
+- [x] Depot view: a plain booking on a reference account is an external flow (inflow = Einlage, outflow = Entnahme); interest, dividends, fees and taxes stay performance
 - [x] Sample savings plans; tests incl. the 17.09.2026 portfolio figures of the prototype
 
 ## P6 Reports und Umstellung

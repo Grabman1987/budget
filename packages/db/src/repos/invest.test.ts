@@ -420,7 +420,7 @@ describe('savings plan rows', () => {
 });
 
 describe('depot view: deposits onto the reference account are external flows', () => {
-  it('counts a plain inflow, but not trade settlement, Kapitalerträge or outflows', () => {
+  it('counts plain inflows and outflows, but not trade settlement, fees, taxes or Kapitalerträge', () => {
     // A deposit booked straight onto the depot account (e.g. salary paid in).
     createBooking(
       db,
@@ -443,7 +443,7 @@ describe('depot view: deposits onto the reference account are external flows', (
       },
       testCtx,
     );
-    // A fee booked as a plain outflow: performance.
+    // A withdrawal booked straight off the depot account (Entnahme): an outflow from outside.
     createBooking(
       db,
       {
@@ -454,7 +454,7 @@ describe('depot view: deposits onto the reference account are external flows', (
       },
       testCtx,
     );
-    // Trade settlements (a sale, a dividend) are internal.
+    // Trade settlements (a sale, a dividend, a standalone fee and tax) are internal.
     createTrade(
       db,
       {
@@ -478,6 +478,16 @@ describe('depot view: deposits onto the reference account are external flows', (
       },
       testCtx,
     );
+    createTrade(
+      db,
+      { securityId: 's1', accountId: 'depot', date: '2026-02-05', kind: 'fee', amountCents: 450 },
+      testCtx,
+    );
+    createTrade(
+      db,
+      { securityId: 's1', accountId: 'depot', date: '2026-02-05', kind: 'tax', amountCents: 800 },
+      testCtx,
+    );
     // A transfer from the current account is still a flow (as before), and a transfer out too.
     fund(40_000, '2026-02-06');
     createTransfer(
@@ -494,10 +504,11 @@ describe('depot view: deposits onto the reference account are external flows', (
     });
     expect(flows).toEqual([
       { date: '2026-02-01', cents: 100_000 },
+      { date: '2026-02-03', cents: -300 },
       { date: '2026-02-06', cents: 40_000 },
       { date: '2026-02-07', cents: -15_000 },
     ]);
-    // Deposits on or before `from` are not flows of the window.
+    // Flows on or before `from` are not flows of the window (the deposit of 01.02. drops out).
     expect(
       portfolioFlows(db, {
         view: 'depot',
@@ -505,6 +516,6 @@ describe('depot view: deposits onto the reference account are external flows', (
         from: '2026-02-01',
         to: '2026-02-05',
       }),
-    ).toEqual([]);
+    ).toEqual([{ date: '2026-02-03', cents: -300 }]);
   });
 });

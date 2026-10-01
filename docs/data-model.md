@@ -156,7 +156,7 @@ the auth tables.
 - **Trades settle through a booking** (P5.5): every trade that moves money has one booking on its
   investment account (`trade.booking_id`) in the same audit group (`settlementCents` in the
   domain). Asset-class targets are versions of 10 000 bp each (`setTargets`).
-- **Depot view deposits** (P5.5): next to transfers across the boundary, a plain inflow booked onto
+- **Depot view deposits and withdrawals** (P5.5): next to transfers across the boundary, a plain booking onto
   a reference account (not a trade settlement, not income type Kapitalerträge) is an external flow.
 - **Read models and dates** (C11): `allocationMonth(db, month)` assembles the 50/30/20 inputs
   (regular income = uncategorised inflow splits on budget accounts without the income type

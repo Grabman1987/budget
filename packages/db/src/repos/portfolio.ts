@@ -374,9 +374,9 @@ function tradesOf(
  *   `securityFlows` in the domain);
  * - `depot`: "depot incl. reference account". Only transfers between a reference account and an
  *   account outside the portfolio (`accounts` plus `referenceAccounts`) are flows; buys, sales,
- *   dividends and costs inside the portfolio are internal. A plain inflow booked directly onto a
- *   reference account (salary, deposit; not Kapitalerträge, not a trade settlement) is a deposit
- *   from outside, too. Its value series is `valuationSeries`
+ *   dividends and costs inside the portfolio are internal. A plain booking directly on a
+ *   reference account (not Kapitalerträge, not a trade settlement) is a deposit (inflow) or a
+ *   withdrawal (outflow) from outside, too. Its value series is `valuationSeries`
  *   plus `cashSeries` of the reference accounts.
  */
 export function portfolioFlows(
@@ -436,14 +436,15 @@ export function portfolioFlows(
     if (others.every((o) => !inside.has(o.accountId)))
       boundary.push({ date: leg.date, cents: leg.cents, currency: leg.currency });
   }
-  // A plain inflow booked straight onto a reference account (salary, deposit) is money from
-  // outside, like in Portfolio Performance. Settlement of a trade, interest and dividends
-  // (income type Kapitalerträge), fees and other outflows stay inside: they are performance.
+  // A plain booking straight onto a reference account is money from
+  // outside, like in Portfolio Performance: an inflow is a deposit (Einlage), an outflow a
+  // withdrawal (Entnahme). Trade settlements (including standalone fees and taxes, which are
+  // trades) and income of type Kapitalerträge stay inside: they are performance.
   boundary.push(...externalDeposits(db, reference, filter.from, filter.to));
   return depotFlows(boundary, rates);
 }
 
-/** Deposits onto `accounts` after `from` up to `to`: see `portfolioFlows` (depot view). */
+/** Deposits onto and withdrawals from `accounts` after `from` up to `to`: see `portfolioFlows` (depot view). */
 function externalDeposits(
   db: Executor,
   accounts: ReadonlySet<string>,
@@ -504,7 +505,7 @@ function externalDeposits(
           s.incomeTypeId !== INCOME_TYPES.capital.id,
       )
       .reduce((a, s) => a + s.cents, 0);
-    if (cents > 0) out.push({ date: b.date, cents, currency: b.currency });
+    if (cents !== 0) out.push({ date: b.date, cents, currency: b.currency });
   }
   return out;
 }
