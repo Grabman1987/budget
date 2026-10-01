@@ -6,6 +6,7 @@ import type { PageMeta } from '../nav/pages';
 import { AppLink } from './app-link';
 import { PanelLink } from './panel-link';
 import { SAMPLE_INBOX_COUNT } from './inbox';
+import { GlobalSearch } from './global-search';
 import { ThemeButton } from './theme-button';
 
 /**
@@ -65,6 +66,7 @@ export function TabBar({ area }: { area: AreaId | undefined }) {
           );
         })}
       </nav>
+      <GlobalSearch mobile />
       <PanelLink className="fab" panel="buchung" aria-label="Buchung erfassen">
         <Plus size={26} strokeWidth={2} aria-hidden="true" />
       </PanelLink>
