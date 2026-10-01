@@ -2,6 +2,7 @@ import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type Page, type TestInfo } from '@playwright/test';
 import { join } from 'node:path';
 import { MAIN_URL } from '../playwright.config';
+import { again } from './ledger-helpers';
 
 test.use({ reducedMotion: 'reduce' });
 async function capture(page: Page, name: string, info: TestInfo, fullPage = false) {
@@ -32,11 +33,13 @@ test('empty portfolio creates reachable metadata with validation, reload, creati
   page,
   request,
 }, info) => {
-  const name = `Metadateninstrument ${info.project.name}`;
-  const isin = info.project.name === 'desktop' ? 'XX0000000001' : 'XX0000000002';
+  const tag = `${info.project.name}${again(info)}`;
+  const name = `Metadateninstrument ${tag}`;
+  const attempt = info.retry + info.repeatEachIndex;
+  const isin = `XX${String(attempt * 2 + (info.project.name === 'desktop' ? 1 : 2)).padStart(10, '0')}`;
   const duplicate = await request.post(`${MAIN_URL}/api/securities`, {
     headers: { origin: MAIN_URL },
-    data: { name: `ISIN Vorlage ${info.project.name}`, kind: 'other', isin },
+    data: { name: `ISIN Vorlage ${tag}`, kind: 'other', isin },
   });
   expect(duplicate.ok()).toBe(true);
   await page.route('**/api/portfolio/positions', (route) =>
@@ -70,7 +73,7 @@ test('empty portfolio creates reachable metadata with validation, reload, creati
   await form.getByRole('button', { name: 'Instrument anlegen', exact: true }).click();
   await expect(form.getByRole('alert')).toContainText('Diese ISIN gehört bereits');
   await form.getByLabel('ISIN', { exact: true }).fill('');
-  await form.getByLabel('Symbol', { exact: true }).fill(`SYN-${info.project.name}`);
+  await form.getByLabel('Symbol', { exact: true }).fill(`SYN-${tag}`);
   await page.keyboard.press('Escape');
   await expect(form).toContainText('Ungespeicherte Angaben verwerfen?');
   await form.getByRole('button', { name: 'Weiter bearbeiten' }).click();
@@ -91,13 +94,9 @@ test('empty portfolio creates reachable metadata with validation, reload, creati
     kind: 'fund',
     currency: 'USD',
     isin: null,
-    symbol: `SYN-${info.project.name}`,
+    symbol: `SYN-${tag}`,
     assetClassId: null,
   });
-  for (const theme of ['light', 'dark']) {
-    await page.evaluate((value) => (document.documentElement.dataset['theme'] = value), theme);
-    await capture(page, `instrument-unheld-${theme}`, info);
-  }
   await detail.getByRole('button', { name: 'Rückgängig', exact: true }).click();
   await expect(page.locator('dialog[open]')).toHaveCount(0);
   await expect(page).not.toHaveURL(/produkt=/);
@@ -107,6 +106,11 @@ test('empty portfolio creates reachable metadata with validation, reload, creati
   await expect(page).toHaveURL(new RegExp(`produkt=${id}`));
   await page.reload();
   await expect(page.getByRole('dialog', { name, exact: true })).toContainText('USD');
+  // Capture after the action checks: screenshots must not consume the Undo toast lifetime.
+  for (const theme of ['light', 'dark']) {
+    await page.evaluate((value) => (document.documentElement.dataset['theme'] = value), theme);
+    await capture(page, `instrument-unheld-${theme}`, info);
+  }
   await page.keyboard.press('Escape');
   await expect(
     page.locator('.instrument-catalog').getByRole('button', { name, exact: true }),
