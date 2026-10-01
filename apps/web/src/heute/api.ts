@@ -2,6 +2,10 @@ import { queryOptions } from '@tanstack/react-query';
 import { request } from '../api/http';
 import { LEDGER_KEY } from '../ledger/queries';
 
+export interface HeuteUnavailable {
+  unavailable: { reason: 'missing_price' | 'missing_fx'; message: string; asOf: string };
+}
+
 export type HeutePeriod = 'month' | 'payday';
 
 export interface HeuteOccurrence {
@@ -84,30 +88,34 @@ export interface Heute {
     overspentCents: number;
   }>;
   upcoming14: HeuteOccurrence[];
-  financeCheck: {
-    counts: { ok: number; warn: number; bad: number; total: number; notEvaluated: number };
-    keyRules: Array<{
-      code: string;
-      name: string;
-      stage: number | null;
-      status: 'ok' | 'warn' | 'bad';
-      valueText: string;
-      actionNeeded: boolean;
-      actionText: string | null;
-    }>;
-  };
-  netWorth: {
-    liquidCents: number;
-    investedCents: number;
-    receivableCents: number;
-    debtCents: number;
-    totalCents: number;
-    asOf: string;
-    previousMonthEndCents: number;
-    deltaCents: number;
-    deltaBp: number | null;
-    series: Array<{ day: string; cents: number }>;
-  };
+  financeCheck:
+    | {
+        counts: { ok: number; warn: number; bad: number; total: number; notEvaluated: number };
+        keyRules: Array<{
+          code: string;
+          name: string;
+          stage: number | null;
+          status: 'ok' | 'warn' | 'bad';
+          valueText: string;
+          actionNeeded: boolean;
+          actionText: string | null;
+        }>;
+      }
+    | HeuteUnavailable;
+  netWorth:
+    | {
+        liquidCents: number;
+        investedCents: number;
+        receivableCents: number;
+        debtCents: number;
+        totalCents: number;
+        asOf: string;
+        previousMonthEndCents: number;
+        deltaCents: number;
+        deltaBp: number | null;
+        series: Array<{ day: string; cents: number }>;
+      }
+    | HeuteUnavailable;
   lastBookings: Array<{
     id: string;
     date: string;

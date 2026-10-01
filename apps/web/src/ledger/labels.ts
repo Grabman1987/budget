@@ -59,6 +59,18 @@ export const accountValue = (account: AccountRow): number | null =>
 /** The overview's shared EUR valuation; never reinterpret a missing rate as zero. */
 export const accountValueEur = (account: AccountRow): number | null => account.valueEurCents;
 
+/** Explain unavailable EUR values without confusing a security quote with a currency rate. */
+export function valuationMissingText(value: {
+  missingFxCurrencies: string[];
+  missingPriceSecurityIds: string[];
+}): string {
+  const reasons: string[] = [];
+  if (value.missingPriceSecurityIds?.length) reasons.push('Wertpapierkurs fehlt');
+  if (value.missingFxCurrencies.length)
+    reasons.push(`Wechselkurs fehlt: ${value.missingFxCurrencies.join(', ')}`);
+  return reasons.join(' · ') || 'Bewertung nicht verfügbar';
+}
+
 /** Accounts on which Kontostand prüfen makes sense: the bank statement has a closing balance. */
 export const canReconcile = (account: AccountRow): boolean => account.onBudget && !account.closedAt;
 

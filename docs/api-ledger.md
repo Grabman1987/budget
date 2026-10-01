@@ -10,7 +10,13 @@ Errors are `{ error, message }` with `error` one of: `invalid` (400, with `issue
 (404), `invariant` (422, e.g. split sum, transfer legs), `constraint` (422), `conflict` (409),
 `account_closed` (409), `account_not_empty` (409), `reconciled_locked` (409, with `bookingIds`; on an
 account edit also `reconciliationIds`),
-`undo_refused` (409).
+`undo_refused` (409), `valuation_unavailable` (503, German reason, `asOf`; missing quotes include
+`reason: missing_price`, `missingPriceSecurityIds` and `accountId`). Numeric valuation/history
+requires quotes on or before every held day. `/accounts` instead returns nullable
+`holdingsCents`, `valueEurCents` and `netWorthEurCents` with global/per-account
+`missingPriceSecurityIds` and `missingFxCurrencies`. `/heute` keeps its daily sections and
+represents unavailable `financeCheck` / `netWorth` as `{ unavailable: { reason, message, asOf } }`.
+A current quote does not repair an earlier history gap.
 
 | Endpoint | Purpose |
 | --- | --- |

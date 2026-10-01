@@ -1,7 +1,7 @@
 import {
   createTestDatabase,
   ensureDefaultRules,
-  heute,
+  heute as readHeute,
   matchOccurrences,
   nextSteps,
   refreshOccurrences,
@@ -21,9 +21,17 @@ vi.setConfig({ testTimeout: 120_000 });
 const TODAY = '2026-09-17';
 
 let db: Db;
-let month: Heute;
-let payday: Heute;
-let unrefreshed: Heute;
+// These fully quoted sample cases must fail if either section becomes unavailable.
+function heute(...args: Parameters<typeof readHeute>) {
+  const result = readHeute(...args);
+  const { netWorth, financeCheck } = result;
+  if ('unavailable' in netWorth || 'unavailable' in financeCheck)
+    throw new Error('Sample valuation must be available');
+  return { ...result, netWorth, financeCheck };
+}
+let month: ReturnType<typeof heute>;
+let payday: ReturnType<typeof heute>;
+let unrefreshed: ReturnType<typeof heute>;
 beforeAll(() => {
   db = createTestDatabase().db;
   seedDatabase(db);

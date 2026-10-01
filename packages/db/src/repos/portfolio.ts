@@ -6,6 +6,7 @@ import {
   eachDay,
   fxOn,
   marketValueEurCents,
+  PriceUnavailableError,
   netWorthAttribution,
   securityFlows,
   toEurCents,
@@ -59,11 +60,12 @@ function rateOrMissing(rates: Rates, currency: string, asOf: string): number | u
  * Market value of every position (account × security) on a day: units held in that account
  * (latest snapshot of that account plus its later trades) times the latest price, converted to EUR
  * with the stored ECB rate of the price currency. Soft-deleted rows are ignored; positions without
- * units are left out; a security without a price is valued 0.
+ * units are left out; held securities without a quote remain explicitly unavailable.
  */
 interface HoldingValuation {
   values: HoldingValue[];
   missingFxByAccount: Map<string, Set<string>>;
+  missingPricePositions: Array<{ accountId: string; securityId: string; unitsE8: number }>;
   missingFxPositions: Array<{
     accountId: string;
     securityId: string;
@@ -106,6 +108,7 @@ function holdingValuationAsOf(db: Executor, asOf: string): HoldingValuation {
     if (live.has(r.securityId)) keys.set(`${r.accountId} ${r.securityId}`, r);
   const out: HoldingValue[] = [];
   const missingFxPositions: HoldingValuation['missingFxPositions'] = [];
+  const missingPricePositions: HoldingValuation['missingPricePositions'] = [];
   const missingFxByAccount = new Map<string, Set<string>>();
   for (const { accountId, securityId } of keys.values()) {
     const mine = <T extends { accountId: string; securityId: string }>(rows: T[]) =>
@@ -120,8 +123,11 @@ function holdingValuationAsOf(db: Executor, asOf: string): HoldingValuation {
     const latest = prices
       .filter((p) => p.securityId === securityId)
       .sort((a, b) => b.date.localeCompare(a.date))[0];
-    const priceMicro = latest?.priceMicro ?? 0;
-    const priceCurrency = latest?.currency ?? 'EUR';
+    if (!latest) {
+      missingPricePositions.push({ accountId, securityId, unitsE8: units });
+      continue;
+    }
+    const { priceMicro, currency: priceCurrency } = latest;
     const fxRateMicro = rateOrMissing(rates, priceCurrency, asOf);
     if (fxRateMicro === undefined) {
       const missing = missingFxByAccount.get(accountId) ?? new Set<string>();
@@ -132,7 +138,7 @@ function holdingValuationAsOf(db: Executor, asOf: string): HoldingValuation {
         securityId,
         unitsE8: units,
         priceMicro,
-        priceDate: latest?.date ?? '',
+        priceDate: latest.date,
         priceCurrency,
       });
       continue;
@@ -152,13 +158,16 @@ function holdingValuationAsOf(db: Executor, asOf: string): HoldingValuation {
       (a, b) => a.accountId.localeCompare(b.accountId) || a.securityId.localeCompare(b.securityId),
     ),
     missingFxByAccount,
+    missingPricePositions: missingPricePositions.sort(
+      (a, b) => a.accountId.localeCompare(b.accountId) || a.securityId.localeCompare(b.securityId),
+    ),
     missingFxPositions: missingFxPositions.sort(
       (a, b) => a.accountId.localeCompare(b.accountId) || a.securityId.localeCompare(b.securityId),
     ),
   };
 }
 
-/** Portfolio export details, including positions that cannot be valued because FX is missing. */
+/** Export details retain every held position, including missing quotes or exchange rates. */
 export function holdingValuationExportAsOf(
   db: Executor,
   asOf: string,
@@ -166,6 +175,7 @@ export function holdingValuationExportAsOf(
   values: HoldingValue[];
   missingFxByAccount: Map<string, Set<string>>;
   missingFxPositions: HoldingValuation['missingFxPositions'];
+  missingPricePositions: HoldingValuation['missingPricePositions'];
 } {
   return holdingValuationAsOf(db, asOf);
 }
@@ -175,6 +185,8 @@ export function holdingValuesAsOf(db: Executor, asOf: string): HoldingValue[] {
   const missing = [...valuation.missingFxByAccount.values()].flatMap((set) => [...set]).sort();
   const currency = missing[0];
   if (currency) throw new MissingFxRateError(currency, asOf);
+  const unpriced = valuation.missingPricePositions[0];
+  if (unpriced) throw new PriceUnavailableError(unpriced.accountId, unpriced.securityId, asOf);
   return valuation.values;
 }
 
@@ -184,17 +196,20 @@ export interface NetWorth {
   byAccount: Record<string, number>;
 }
 
-/** Non-throwing shared EUR valuation for account reads that must remain usable without all FX. */
+/** Non-throwing shared EUR valuation for account reads that must remain usable without all quotes or FX. */
 export interface NetWorthValuation {
   totalCents: number | null;
-  /** Per account, in EUR; `null` means at least one component could not be converted. */
+  /** Per account, in EUR; `null` means at least one component could not be valued. */
   byAccount: Record<string, number | null>;
-  /** Market value of each account's positions, in EUR; `null` means a position rate is missing. */
+  /** Market value of each account's positions, in EUR; `null` means a position quote or rate is missing. */
   holdingsByAccount: Record<string, number | null>;
   /** Sorted currencies with no rate on or before the requested day. */
   missingFxCurrencies: string[];
   /** Missing currencies for each affected account. */
   missingFxByAccount: Record<string, string[]>;
+  /** Sorted held securities without a quote on or before the requested day. */
+  missingPriceSecurityIds: string[];
+  missingPriceByAccount: Record<string, string[]>;
 }
 
 /** Shared valuation source for account DTOs and the strict wealth calculation. */
@@ -235,6 +250,17 @@ export function netWorthValuationAsOf(db: Executor, asOf: string): NetWorthValua
     holdingsByAccount[accountId] = null;
     for (const currency of currencies) addMissing(accountId, currency);
   }
+  const missingPriceByAccount = new Map<string, Set<string>>();
+  for (const holding of holdings.missingPricePositions) {
+    const ids = missingPriceByAccount.get(holding.accountId) ?? new Set<string>();
+    ids.add(holding.securityId);
+    missingPriceByAccount.set(holding.accountId, ids);
+    holdingsByAccount[holding.accountId] = null;
+    byAccount[holding.accountId] = null;
+  }
+  const missingPriceSecurityIds = [
+    ...new Set([...missingPriceByAccount.values()].flatMap((s) => [...s])),
+  ].sort();
   const missingFxCurrencies = [
     ...new Set([...missingFxByAccount.values()].flatMap((s) => [...s])),
   ].sort();
@@ -249,6 +275,10 @@ export function netWorthValuationAsOf(db: Executor, asOf: string): NetWorthValua
     byAccount,
     holdingsByAccount,
     missingFxCurrencies,
+    missingPriceSecurityIds,
+    missingPriceByAccount: Object.fromEntries(
+      [...missingPriceByAccount].map(([id, values]) => [id, [...values].sort()]),
+    ),
     missingFxByAccount: Object.fromEntries(
       [...missingFxByAccount].map(([id, values]) => [id, [...values].sort()]),
     ),
@@ -260,6 +290,8 @@ export function netWorthAsOf(db: Executor, asOf: string): NetWorth {
   const valuation = netWorthValuationAsOf(db, asOf);
   const missing = valuation.missingFxCurrencies[0];
   if (missing) throw new MissingFxRateError(missing, asOf);
+  const unpriced = Object.entries(valuation.missingPriceByAccount)[0];
+  if (unpriced) throw new PriceUnavailableError(unpriced[0], unpriced[1][0]!, asOf);
   if (valuation.totalCents === null) throw new Error('Complete valuation has no total');
   const byAccount = Object.fromEntries(
     Object.entries(valuation.byAccount).map(([id, value]) => {

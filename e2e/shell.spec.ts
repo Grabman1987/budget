@@ -2,6 +2,7 @@ import { expect, test, type Page } from '@playwright/test';
 import { expectScreenshot } from './visual';
 import { monthLabel, monthOf } from '../apps/web/src/nav/month';
 import { ROUTES } from './routes';
+import { sampleTest } from './sample';
 import { expectHeuteVisualReady, freezeHeuteVisual } from './heute-visual-fixture';
 
 const isPhone = (testInfo: { project: { name: string } }) => testInfo.project.name === 'mobile';
@@ -16,21 +17,23 @@ function collectProblems(page: Page): string[] {
 }
 
 test.describe('routes', () => {
-  test(`all ${ROUTES.length} routes are reachable by URL with title, h1 and main landmark`, async ({
-    page,
-  }) => {
-    const problems = collectProblems(page);
-    for (const path of ROUTES) {
-      const response = await page.goto(path);
-      expect(response?.status(), path).toBe(200);
-      await expect(page.locator('main'), path).toHaveCount(1);
-      const h1 = page.getByRole('heading', { level: 1 });
-      await expect(h1, path).toHaveCount(1);
-      await expect(h1, path).not.toHaveText('');
-      await expect(page, path).toHaveTitle(/ · Budget$|^Budget$/);
-    }
-    expect(problems).toEqual([]);
-  });
+  // The route sweep needs a complete ledger; writable main intentionally contains unavailable valuations.
+  sampleTest(
+    `all ${ROUTES.length} routes are reachable by URL with title, h1 and main landmark`,
+    async ({ page }) => {
+      const problems = collectProblems(page);
+      for (const path of ROUTES) {
+        const response = await page.goto(path);
+        expect(response?.status(), path).toBe(200);
+        await expect(page.locator('main'), path).toHaveCount(1);
+        const h1 = page.getByRole('heading', { level: 1 });
+        await expect(h1, path).toHaveCount(1);
+        await expect(h1, path).not.toHaveText('');
+        await expect(page, path).toHaveTitle(/ · Budget$|^Budget$/);
+      }
+      expect(problems).toEqual([]);
+    },
+  );
 
   test('area roots redirect to their first register', async ({ page }) => {
     for (const [from, to] of [
