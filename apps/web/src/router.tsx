@@ -218,9 +218,14 @@ const portfolioRoute = createRoute({
       typeof search['sparplan'] === 'string' && search['sparplan'].length <= 64
         ? search['sparplan']
         : undefined,
+    allokation: search['allokation'] === 'ziele' ? 'ziele' : undefined,
     produkt:
       typeof search['produkt'] === 'string' && search['produkt'].length <= 64
         ? search['produkt']
+        : undefined,
+    handel:
+      typeof search['handel'] === 'string' && search['handel'].length <= 64
+        ? search['handel']
         : undefined,
   }),
   component: lazyRouteComponent(() => import('./wealth/portfolio-page'), 'PortfolioPage'),
