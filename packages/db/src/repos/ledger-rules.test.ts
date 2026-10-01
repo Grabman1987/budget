@@ -2,7 +2,7 @@ import { accountBalances as pureBalances } from '@budget/domain';
 import { eq } from 'drizzle-orm';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { createTestDatabase, type OpenedDatabase } from '../client';
-import { account, booking, budgetMonth } from '../schema';
+import { INCOME_TYPES, account, booking, budgetMonth } from '../schema';
 import { history, undo } from './audit';
 import {
   createBooking,
@@ -16,6 +16,10 @@ import {
 } from './bookings';
 import { accounts, categories } from './entities';
 import { setAssigned } from './envelopes';
+import { createCategory } from './categories';
+import { allocationMonth } from './allocation';
+import { loadFacts, ruleInputs } from './rule-inputs';
+import { createExpectedPayment } from './expected';
 import { accountBalances, budget } from './queries';
 import { seedBasics, testCtx as ctx } from './test-helpers';
 
@@ -154,6 +158,101 @@ describe('C2 "Zu verteilen" from the database', () => {
     expect(may!.envelopes['invest']?.availableCents).toBe(20_000);
     expect(may!.envelopes['reise']).toBeUndefined();
     expect(may!.toBeAssignedCents).toBe(100_000 + 20_000 - 5_000 - 20_000 - 1_000);
+  });
+});
+
+describe('A06 categorized income in allocation and rule facts', () => {
+  it('counts allowed income categories once, while preserving the other income classifications', () => {
+    const incomeCategory = createCategory(
+      db,
+      { name: 'Lohn', groupId: 'g', kind: 'income', class: null },
+      ctx,
+    );
+    const booking = (
+      accountId: string,
+      amountCents: number,
+      splits: Parameters<typeof createBooking>[1]['splits'],
+    ) => createBooking(db, { accountId, date: '2026-06-15', amountCents, splits }, ctx);
+
+    // Same-day categorized and uncategorized salary must both count in allocation, with one R04 day.
+    booking('giro', 150_000, [
+      { categoryId: incomeCategory.id, amountCents: 100_000, incomeTypeId: INCOME_TYPES.salary.id },
+      { categoryId: null, amountCents: 50_000, incomeTypeId: INCOME_TYPES.salary.id },
+    ]);
+    booking('giro', 40_000, [
+      { categoryId: incomeCategory.id, amountCents: 40_000, incomeTypeId: INCOME_TYPES.special.id },
+    ]);
+    booking('giro', 10_000, [
+      { categoryId: null, amountCents: 10_000, incomeTypeId: INCOME_TYPES.refund.id },
+    ]);
+    booking('giro', 6_000, [
+      {
+        categoryId: incomeCategory.id,
+        amountCents: 6_000,
+        incomeTypeId: INCOME_TYPES.contribution.id,
+      },
+    ]);
+    booking('giro', 2_000, [
+      { categoryId: 'essen', amountCents: 2_000, incomeTypeId: INCOME_TYPES.refund.id },
+    ]);
+    booking('giro', 3_000, [{ categoryId: 'auslagen', amountCents: 3_000, contactId: 'k1' }]);
+    transfer('giro', 'spar', '2026-06-15', 20_000);
+    booking('depot', 25_000, [
+      { categoryId: incomeCategory.id, amountCents: 25_000, incomeTypeId: INCOME_TYPES.salary.id },
+    ]);
+    const deleted = booking('giro', 7_000, [
+      { categoryId: incomeCategory.id, amountCents: 7_000, incomeTypeId: INCOME_TYPES.salary.id },
+    ]);
+    deleteBooking(db, deleted, ctx);
+    booking('spar', 4_000, [
+      { categoryId: incomeCategory.id, amountCents: 4_000, incomeTypeId: INCOME_TYPES.salary.id },
+    ]);
+    accounts.update(db, 'spar', { closedAt: '2026-06-16' }, ctx);
+
+    createExpectedPayment(
+      db,
+      {
+        name: 'Sonderzahlung',
+        kind: 'inflow',
+        accountId: 'giro',
+        payeeId: 'p1',
+        incomeTypeId: INCOME_TYPES.special.id,
+        rhythm: 'yearly',
+        dueDay: 15,
+        dueMonth: 6,
+      },
+      { validFrom: '2026-01-01', amountCents: 120_000 },
+      ctx,
+      '2026-05-01',
+    );
+
+    const facts = loadFacts(db, '2026-06-30');
+    expect(
+      facts.incomeSplits
+        .filter((s) => s.incomeTypeId === INCOME_TYPES.salary.id)
+        .reduce((sum, split) => sum + split.cents, 0),
+    ).toBe(154_000);
+    expect(
+      facts.incomeSplits
+        .filter((s) => s.incomeTypeId === INCOME_TYPES.special.id)
+        .reduce((sum, split) => sum + split.cents, 0),
+    ).toBe(40_000);
+    expect(
+      facts.incomeSplits
+        .filter((s) => s.incomeTypeId === INCOME_TYPES.refund.id)
+        .reduce((sum, split) => sum + split.cents, 0),
+    ).toBe(10_000);
+    const june = allocationMonth(db, '2026-06', facts.budgetByMonth.get('2026-06')?.envelopes);
+    expect([june.incomeCents, june.annualIncomeCents]).toEqual([170_000, 120_000]);
+    const inputs = ruleInputs(db, '2026-06-30', facts);
+    expect(inputs.allocByMonth?.['2026-06']).toMatchObject({
+      incomeCents: 170_000,
+      annualIncomeCents: 120_000,
+    });
+    expect(inputs.payYourself?.salaryDays).toEqual(['2026-06-15']);
+    expect(inputs.windfall?.map(({ month, windfallCents }) => [month, windfallCents])).toEqual([
+      ['2026-06', 40_000],
+    ]);
   });
 });
 

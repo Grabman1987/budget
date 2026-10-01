@@ -48,6 +48,6 @@ These describe the audited baseline, not every future commit. Repeat required ch
 
 ## Next work
 
-App import UI is removed; CSV export remains a placeholder. Next correct exact lead amounts (A07), income classification (A06), booking/trade/currency invariants (A01/A08), payment lifecycle (A05), the EUR-first guard (A03), and private Gate-2 reconciliation (A04). Each task gets its own branch/PR and independent expected values. Review the intended browser environment before approving UI changes.
+App import UI is removed; CSV export remains a placeholder. A07 exact lead amounts and A06 categorized income are implemented with regression coverage. Next correct booking/trade/currency invariants (A01/A08), payment lifecycle (A05), the EUR-first guard (A03), and private Gate-2 reconciliation (A04). Each task gets its own branch/PR and independent expected values. Review the intended browser environment before approving UI changes.
 
 Complete daily workflows and wealth aggregation/FX, private PP transfer/Gate 3, then remaining sources/reports/PWA and Gate 4. Establish private file access and transfer procedures before processing the owner's exports. Do not retire still-used finance tools merely because the prototype host has been removed.
