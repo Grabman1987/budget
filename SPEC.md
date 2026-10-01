@@ -81,6 +81,9 @@ Invariants (binding):
 - Start date 01.10.2023 with opening balances; price history complete, also before.
 - Foreign currency: keep original amount and currency; convert with the ECB reference rate of the booking date; a bank deviation becomes a foreign-exchange fee.
 - Net worth, returns and rule status are identical on every page (one calculation per figure, shared domain functions).
+- Contact receipts default to the oldest open outlay first; the user may edit allocation before saving. Cash, allocation and excess contact credit are one audited, undoable action. Excess is a negative contact balance owed to the contact, never income or a gift.
+- Zero-balance contacts hide from the normal overview; retained identity and ledger history remain selectable. A new nonzero balance restores visibility.
+- Derived contact receivables and credit do not enter net worth. Actual account balances and investment holdings remain its valuation sources: an outlay lowers cash/net worth until actual repayment. Explicit receivable accounts keep ordinary account valuation.
 
 ## 6. KPIs and calculations
 

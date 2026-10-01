@@ -25,3 +25,5 @@ export * from './portfolio-summary';
 export * from './investment-preferences';
 export * from './savings-plans';
 export * from './heute';
+
+export * from './contacts';

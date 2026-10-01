@@ -1,3 +1,4 @@
+import { assertContactSettlementInvariants } from './contact-invariants';
 import { randomUUID } from 'node:crypto';
 import { and, asc, eq, getTableColumns, inArray, isNull, or, sql, type SQL } from 'drizzle-orm';
 import {
@@ -362,6 +363,7 @@ export function mergeCategories(
       );
     }
     updateTracked(tx, category, [targetId], { openingAvailableCents: opening }, grouped);
+    assertContactSettlementInvariants(tx);
     return { groupId: grouped.groupId, movedSplits, movedMonths };
   });
 }
@@ -479,6 +481,7 @@ export function splitOffCategory(
       );
     for (const r of rows)
       updateTracked(tx, bookingSplit, [r.id], { categoryId: targetId }, grouped);
+    assertContactSettlementInvariants(tx);
     return { groupId: grouped.groupId, targetId, moved: rows.length };
   });
 }

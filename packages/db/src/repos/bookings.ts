@@ -1,3 +1,4 @@
+import { assertContactBookingWrite, assertContactSettlementInvariants } from './contact-invariants';
 import { randomUUID } from 'node:crypto';
 import { and, asc, eq, gte, inArray, isNull, lte, ne, type SQL } from 'drizzle-orm';
 import { account, booking, bookingSplit, category, expectedOccurrence, transfer } from '../schema';
@@ -376,6 +377,20 @@ export function createBooking(db: Executor, input: BookingInput, ctx: AuditConte
   });
 }
 
+/** Internal settlement path: allocations are persisted by its outer transaction before validation. */
+export function createContactSettlementBooking(
+  db: Executor,
+  input: BookingInput,
+  ctx: AuditContext,
+): string {
+  const grouped = withGroup(ctx);
+  return runInTransaction(db, (tx) => {
+    const id = insertBooking(tx, input, null, grouped);
+    assertLedgerInvariants(tx, [id], false);
+    return id;
+  });
+}
+
 /** Create a transfer (Umbuchung): the `transfer` row and two opposite bookings with one split each. */
 export function createTransfer(
   db: Executor,
@@ -611,6 +626,14 @@ function updateBookingImpl(
           .filter(([, value]) => value !== undefined)
           .map(([key]) => key),
       );
+    assertContactBookingWrite(
+      tx,
+      id,
+      'update',
+      Object.entries(patch)
+        .filter(([, v]) => v !== undefined)
+        .map(([k]) => k),
+    );
     // Reconciled bookings: only flag and memo are free; a status change also needs the unlock.
     const touchesLocked = Object.entries(patch).some(
       ([key, value]) => value !== undefined && !FREE_ON_RECONCILED.has(key),
@@ -775,6 +798,7 @@ function deleteBookingImpl(
     const legs = transferLegs(tx, cur);
     if (!tradeNative)
       for (const leg of legs) assertTradeSettlementBookingWrite(tx, leg.id, 'delete');
+    for (const leg of legs) assertContactBookingWrite(tx, leg.id, 'delete');
     assertUnlocked(
       legs.filter((l) => l.deletedAt === null),
       options,
@@ -784,6 +808,7 @@ function deleteBookingImpl(
       if (leg.deletedAt === null)
         updateTracked(tx, booking, [leg.id], { deletedAt }, grouped, 'delete');
     }
+    assertContactSettlementInvariants(tx);
     for (const { id: occurrenceId, patch } of expectedLinkPatches(
       tx,
       legs.map((leg) => leg.id),
@@ -813,6 +838,7 @@ export function restoreBooking(db: Executor, id: string, ctx: AuditContext): voi
     const cur = loadBooking(tx, id, true);
     if (!cur) throw new EntityNotFoundError('booking', id);
     if (cur.deletedAt === null) throw new BookingInvariantError(`Booking ${id} is not deleted`);
+    assertContactBookingWrite(tx, id, 'restore');
     assertTradeSettlementBookingWrite(tx, id, 'restore');
     for (const leg of transferLegs(tx, cur)) {
       assertTradeSettlementBookingWrite(tx, leg.id, 'restore');

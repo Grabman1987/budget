@@ -49,7 +49,7 @@ Prototype references: [Heute](../design/prototype/index.html),
 | Y12 | Savings goals and sinking funds, adopt category targets | UI + engine | Private targets and end-to-end goal review |
 | Y13 | Heute: free until payday, pace, low point, upcoming payments, next steps | Engine/API; UI placeholder | Build the existing mockup using the shared Heute API; verify drill-down and phone usability |
 | Y14 | Plan › Jahr, planned events and scenario workflow | Partial; UI placeholder | Connect forecasting/event storage and build the annual planning workflow |
-| Y15 | Contacts, receivables, repayments and contact statements | Partial; UI placeholder | Complete contact management, settlement and per-contact ledger; basic ledger support is insufficient |
+| Y15 | Contacts, receivables, repayments and contact statements | EUR ledger/API + connected UI | Actual statement, retained balanced history, editable oldest-first allocation, explicit credit, atomic audit/undo and dependency guards implemented; foreign-currency statements, broader contact editing and owner workflow/design acceptance remain open. Derived balances do not enter net worth |
 | Y16 | Posteingang: categorize, accept/reject suggestions, resolve exceptions | Partial; UI placeholder | Working queue/actions and actual counter; source-error items alone are insufficient |
 | Y17 | Global search (Ctrl K) | Shell control; Open | Connected search and keyboard/touch result navigation |
 | Y18 | Assignment rules / Immer so zuordnen | Partial; UI placeholder | Rule editor, safe automatic application and inbox decision integration |
@@ -139,7 +139,7 @@ consistent totals, desktop/mobile checks and printing where required.
 | 5.1 | Jahresreport | `reports-ueberblick.js` | Body + two printable sheets Open |
 | 5.2 | Finanz-Check-Verlauf | `reports-ueberblick.js` | History body Open; current rule status exists |
 | 5.3 | Explorer | `reports-ueberblick.js` | Pivot, saved views and body Open |
-| 5.4 | Kontakte-Abrechnung | `reports-ueberblick.js` | Contact workflow and report body Open |
+| 5.4 | Kontakte-Abrechnung | `reports-ueberblick.js` | Connected EUR contact ledger under Konten › Kontakte; dedicated monthly report body remains Open |
 | 5.5 | Zeitraumvergleich | `reports-ueberblick.js` | Body Open |
 
 References are under [design/prototype](../design/prototype/). The older concept's

@@ -1,3 +1,4 @@
+import { contactRoutes } from './contacts';
 import type { Db } from '@budget/db';
 import { todayInVienna } from '@budget/domain';
 import type { MarketSources } from '@budget/market';
@@ -58,6 +59,7 @@ export function createLedgerApi({
   api.route('/expected', expectedRoutes(db, today));
   api.route('/export', exportRoutes(db, today, stepUp));
   api.route('/wealth', wealthRoutes(db, today));
+  api.route('/contacts', contactRoutes(db, today));
   api.route('/goals', goalRoutes(db, today));
   api.route('/heute', heuteRoutes(db, today));
   api.route('/rules', ruleRoutes(db, today));

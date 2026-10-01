@@ -805,13 +805,16 @@ describe('Auslagen is created on the first contact share', () => {
       categoryId: advance()[0]?.id,
       contactId: 'anna',
     });
-    await newBooking(a.id, {
+    const second = await newBooking(a.id, {
       amountCents: -500,
       categoryId: null,
       splits: [{ categoryId: null, amountCents: -500, contactId: 'anna' }],
     });
     expect(advance()).toHaveLength(1);
-    await call('POST', '/undo', { groupId: first.groupId });
+    expect((await call('POST', '/undo', { groupId: first.groupId })).status).toBe(422);
+    expect(advance()).toHaveLength(1);
+    expect((await call('POST', '/undo', { groupId: second.groupId })).status).toBe(200);
+    expect((await call('POST', '/undo', { groupId: first.groupId })).status).toBe(200);
     expect(advance()).toHaveLength(0);
   });
 });
