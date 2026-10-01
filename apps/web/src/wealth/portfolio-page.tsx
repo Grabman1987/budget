@@ -1,4 +1,4 @@
-import { DimensionChain } from '@budget/ui';
+import { Button, DimensionChain } from '@budget/ui';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate, useSearch } from '@tanstack/react-router';
 import { ChartNoAxesCombined, ChevronRight } from 'lucide-react';
@@ -9,6 +9,7 @@ import { eurParts, eurWhole, longDay } from '../ledger/format';
 import { AppLink } from '../shell/app-link';
 import {
   portfolioPositionsQuery,
+  instrumentsQuery,
   type PortfolioPosition,
   type PortfolioPositionsView,
 } from './portfolio-api';
@@ -21,10 +22,12 @@ import {
   unitsText,
 } from './portfolio-format';
 import { InstrumentPanel } from './portfolio-panel';
+import { INSTRUMENT_KIND } from './instrument-form';
 import './portfolio.css';
 
 export function PortfolioPage() {
   const query = useQuery(portfolioPositionsQuery());
+  const instruments = useQuery(instrumentsQuery());
   const search = useSearch({ strict: false }) as { produkt?: string };
   const navigate = useNavigate();
   const select = (produkt?: string) =>
@@ -33,9 +36,14 @@ export function PortfolioPage() {
       search: ((prev: Record<string, unknown>) => ({ ...prev, produkt })) as never,
     });
   const view = query.data;
+  const held = new Set(view?.classes.flatMap((group) => group.positions.map((p) => p.securityId)));
+  const unheld = instruments.data?.securities.filter((security) => !held.has(security.id));
   return (
     <PageFrame meta={VERMOEGEN_PORTFOLIO_META}>
       <div className="kview vview portfolio-view">
+        <div className="instrument-actions">
+          <Button onClick={() => select('neu')}>Instrument anlegen</Button>
+        </div>
         {query.isPending && <LoadingNote what="Positionen" />}
         {query.isError && (
           <ErrorNote what="Positionen" error={query.error} onRetry={() => void query.refetch()} />
@@ -102,6 +110,54 @@ export function PortfolioPage() {
             )}
           </>
         )}
+        {instruments.isPending && <LoadingNote what="Instrumente" />}
+        {instruments.isError && (
+          <ErrorNote
+            what="Instrumente"
+            error={instruments.error}
+            onRetry={() => void instruments.refetch()}
+          />
+        )}
+        {view && unheld && unheld.length > 0 && (
+          <section className="instrument-catalog" aria-labelledby="unheld-title">
+            <div className="head">
+              <h2 id="unheld-title">Instrumente ohne Bestand</h2>
+            </div>
+            <table className="ktable">
+              <caption className="sr-only">Instrumente ohne aktuellen Bestand</caption>
+              <thead>
+                <tr>
+                  <th scope="col" className="tech">
+                    Instrument
+                  </th>
+                  <th scope="col" className="tech">
+                    Art
+                  </th>
+                  <th scope="col" className="tech">
+                    Währung
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {unheld.map((security) => (
+                  <tr key={security.id}>
+                    <td>
+                      <button
+                        type="button"
+                        className="portfolio-product"
+                        onClick={() => select(security.id)}
+                      >
+                        {security.name}
+                      </button>
+                    </td>
+                    <td>{INSTRUMENT_KIND[security.kind]}</td>
+                    <td>{security.currency}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </section>
+        )}
       </div>
       <InstrumentPanel
         id={search.produkt ?? ''}
@@ -110,6 +166,9 @@ export function PortfolioPage() {
           .find((p) => p.securityId === search.produkt)}
         asOf={view?.asOf}
         onClose={() => select()}
+        onSelect={select}
+        positionState={query.isError ? 'unavailable' : query.isPending ? 'loading' : 'ready'}
+        onRetryPositions={() => void query.refetch()}
       />
     </PageFrame>
   );

@@ -73,7 +73,7 @@ Prototype references: [Vermögen](../design/prototype/vermoegen.html),
 
 | ID | Function / owner-facing label | Status | What remains for completion |
 | --- | --- | --- | --- |
-| I01 | Securities, cash/reference accounts, depots and asset classes | Engine/API | Complete investment management UI and privately mapped instruments/accounts |
+| I01 | Securities, cash/reference accounts, depots and asset classes | Partial UI + engine | Basic instrument metadata creation/editing is connected; extended source/cost settings, investment management workflows and privately mapped instruments/accounts remain |
 | I02 | Buy/sell, deliveries, splits, dividends, interest, fees and taxes | Engine/API | User capture/edit workflow, complete source histories and private statement comparison |
 | I03 | Trade linked atomically to its settlement booking | Engine/API | Private reconciliation; protected generic edit/delete/undo paths are implemented |
 | I04 | Historical holdings and daily valuations | Partial UI + engine | Current positions and instrument detail are connected; historical product views and comparison against actual PP data remain |

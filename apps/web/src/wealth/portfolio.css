@@ -2,6 +2,31 @@
 .portfolio-positions {
   grid-column: 1 / -1;
 }
+.instrument-actions,
+.instrument-catalog {
+  grid-column: 1 / -1;
+}
+.instrument-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+.instrument-catalog td {
+  padding-block: 0;
+}
+.instrument-fields {
+  display: grid;
+  gap: 16px;
+  border: 0;
+  padding: 0;
+  margin: 0;
+  min-width: 0;
+}
+.manual-quote .instrument-fields {
+  gap: 14px;
+}
+.instrument-catalog .portfolio-product {
+  overflow-wrap: anywhere;
+}
 .portfolio-unavailable {
   font-size: var(--fs-title);
 }
