@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { ToastProvider } from '@budget/ui';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { render, screen, waitFor, within } from '@testing-library/react';
+import { cleanup, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { ReactNode } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -66,7 +66,10 @@ beforeEach(() => {
     removeEventListener: () => {},
   }));
 });
-afterEach(() => vi.unstubAllGlobals());
+afterEach(() => {
+  cleanup();
+  vi.unstubAllGlobals();
+});
 
 const status = () =>
   screen
@@ -285,11 +288,14 @@ describe('Categories page: sorting', () => {
   it('builds a second ↑ on the first one, one write (and undo) per move, in order', async () => {
     let release: () => void = () => {};
     const first = new Promise<void>((r) => (release = r));
+    let releaseSecond: () => void = () => {};
+    const second = new Promise<void>((r) => (releaseSecond = r));
     let n = 0;
     const calls = stubApi({
       'GET /api/categories': () => ok(tree(list)),
       'POST /api/categories/sort': async () => {
         if (n++ === 0) await first;
+        else await second;
         return ok();
       },
     });
@@ -301,11 +307,22 @@ describe('Categories page: sorting', () => {
     expect(document.activeElement?.getAttribute('aria-label')).toBe('C verschieben');
     await userEvent.keyboard('{ArrowUp}');
     release();
+    await waitFor(() => {
+      expect(status()).toContain('Reihenfolge gespeichert.');
+      expect(screen.getByRole('button', { name: 'Rückgängig' })).toBeTruthy();
+    });
+    const firstSuccess = screen.getByText('Reihenfolge gespeichert.');
     await waitFor(() => expect(calls('POST /api/categories/sort')).toHaveLength(2));
     expect(calls('POST /api/categories/sort').map(ids)).toEqual([
       [['a', 'c', 'b'], []],
       [['c', 'a', 'b'], []],
     ]);
+    releaseSecond();
+    await waitFor(() => {
+      expect(firstSuccess.isConnected).toBe(false);
+      expect(status()).toContain('Reihenfolge gespeichert.');
+      expect(screen.getByRole('button', { name: 'Rückgängig' })).toBeTruthy();
+    });
   });
 
   it('moves with the phone buttons, across the group border too', async () => {
