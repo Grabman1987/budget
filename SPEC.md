@@ -179,6 +179,6 @@ Tax filing, AI advice or AI categorisation (AI-assisted planning is a later goal
 
 ## 13. Open items
 
-- Account and category list for the migration (owner provides; O3/O7), done in P2 on the server.
-- Fly app name and object storage choice (P1a).
-- Chart library confirmation (P1a spike).
+- Private account/category/instrument inventory and approved migration mapping (O3/O7); source access and the actual transfer/reconciliation remain open.
+- Receipt object storage and the later independent second encrypted-backup target must be established for their workflows. Existing backup code and a verified deployment do not prove receipt storage or a real restore.
+- Feature-specific completion and remaining requirements are tracked in `docs/FEATURES.md` and `docs/REQUIREMENTS-GAPS.md`; the selected SVG/d3 chart approach is recorded in §9 and ADR 0001.
