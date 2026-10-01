@@ -137,7 +137,21 @@ describe('PUT /api/securities/:id/prices/:date', () => {
         source: 'manual',
       },
     ]);
-    expect(db.select().from(schema.priceAudit).all()).toHaveLength(1);
+    expect(db.select().from(schema.priceAudit).all()).toMatchObject([
+      {
+        date: '2026-03-30',
+        oldPriceMicro: 81_500_000,
+        newPriceMicro: 81_250_000,
+        oldSource: 'manual',
+        newSource: 'manual',
+      },
+      {
+        date: '2026-03-31',
+        oldPriceMicro: null,
+        oldSource: null,
+        newSource: 'yfinance',
+      },
+    ]);
   });
 
   it('applies API origin and session guards before a manual price write', async () => {

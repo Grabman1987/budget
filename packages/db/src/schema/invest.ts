@@ -193,8 +193,9 @@ export const price = sqliteTable(
 );
 
 /**
- * Every change of an existing price (refresh, manual correction): old and new value and source.
- * A `manual` price is protected: a refresh from another source does not overwrite it (repository).
+ * Successful refresh inserts (null old value/source) and every change of an existing price
+ * (refresh, manual correction): old and new value and source. A manual price is protected from
+ * refreshes by the repository.
  */
 export const priceAudit = sqliteTable(
   'price_audit',

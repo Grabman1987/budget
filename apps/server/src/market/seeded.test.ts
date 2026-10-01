@@ -14,6 +14,7 @@ describe('refresh on the seeded sample ledger (fixture sources, no network)', ()
   it('continues the daily series after the sample end and is idempotent', async () => {
     const sources = createMarketSources(db, 'fixture', {});
     const before = priceSeries(db, 'sec-etfw');
+    expect(db.select().from(schema.priceAudit).all()).toEqual([]);
     const staleItems = () =>
       db
         .select()
@@ -28,6 +29,13 @@ describe('refresh on the seeded sample ledger (fixture sources, no network)', ()
     expect(first.prices.bySource.yfinance.rows).toBe(5 * 9);
     expect(first.fx.bySource.ecb.rows).toBeGreaterThan(0);
     expect(first.fx.failed).toEqual([]);
+    const auditAfterFirst = db.select().from(schema.priceAudit).all();
+    expect(auditAfterFirst).toHaveLength(
+      first.prices.bySource.yfinance.rows + first.prices.bySource.ariva.rows,
+    );
+    expect(
+      auditAfterFirst.every((row) => row.oldPriceMicro === null && row.oldSource === null),
+    ).toBe(true);
     const after = priceSeries(db, 'sec-etfw');
     expect(after.slice(0, before.length)).toEqual(before);
     expect(after.at(-1)?.date).toBe('2026-09-30');
@@ -38,7 +46,7 @@ describe('refresh on the seeded sample ledger (fixture sources, no network)', ()
     expect(second.prices).toMatchObject({ upToDate: 5, failed: [] });
     expect(db.select().from(schema.price).all()).toHaveLength(rows);
     expect(db.select().from(schema.fxRate).all()).toHaveLength(fx);
-    expect(db.select().from(schema.priceAudit).all()).toHaveLength(0);
+    expect(db.select().from(schema.priceAudit).all()).toEqual(auditAfterFirst);
     // The sample has one stale-value item of its own (the hand-valued P2P loans); no new ones.
     expect(staleItems()).toEqual(staleBefore);
   });
