@@ -1,0 +1,12 @@
+.investment-settings {
+  margin-top: 24px;
+}
+
+.investment-settings form {
+  max-width: 640px;
+}
+
+.investment-settings .select {
+  width: 100%;
+  min-height: 44px;
+}

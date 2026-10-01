@@ -43,6 +43,85 @@ export function costOf(
   return method === 'fifo' ? fifoCost(opening, list) : averageCost(opening, list);
 }
 
+/** Documented realised subtotal, with explicit incompleteness instead of invented zero costs. */
+function documentedCostReplay(
+  trades: readonly ProductTrade[],
+  opening: { unitsE8: number; costBasisCents: number | null } = { unitsE8: 0, costBasisCents: 0 },
+  method: CostMethod = 'average',
+) {
+  const knownOpening =
+    opening.costBasisCents === null
+      ? { unitsE8: 0, costBasisCents: 0 }
+      : { unitsE8: opening.unitsE8, costBasisCents: opening.costBasisCents };
+  let unknownUnits = opening.costBasisCents === null ? opening.unitsE8 : 0;
+  let knownUnits = knownOpening.unitsE8;
+  let complete = true;
+  let unknownAveragePool = method === 'average' && unknownUnits > 0;
+  const backed: CostTrade[] = [];
+  for (const t of costTrades(trades)) {
+    // Unknown average cost affects every unit in that pool. FIFO consumes the older unknown lot.
+    if (unknownAveragePool) {
+      if (t.kind === 'sell' && t.unitsE8 !== 0) complete = false;
+      if (t.kind === 'buy' || t.kind === 'delivery_in') unknownUnits += Math.abs(t.unitsE8);
+      else if (t.kind === 'sell' || t.kind === 'delivery_out')
+        unknownUnits = Math.max(0, unknownUnits - Math.abs(t.unitsE8));
+      else if (t.kind === 'split') unknownUnits += t.unitsE8;
+      if (unknownUnits === 0) unknownAveragePool = false;
+      continue;
+    }
+    if (t.kind === 'buy' || t.kind === 'delivery_in') {
+      knownUnits += Math.abs(t.unitsE8);
+      backed.push(t);
+    } else if (t.kind === 'sell' || t.kind === 'delivery_out') {
+      const requested = Math.abs(t.unitsE8);
+      const unknownTaken = Math.min(unknownUnits, requested);
+      unknownUnits -= unknownTaken;
+      const taken = Math.min(knownUnits, requested - unknownTaken);
+      knownUnits -= taken;
+      if (t.kind === 'sell' && (unknownTaken > 0 || taken < requested)) complete = false;
+      if (taken > 0) {
+        const share = taken / requested;
+        backed.push({
+          ...t,
+          unitsE8: t.unitsE8 < 0 ? -taken : taken,
+          amountCents: Math.round(t.amountCents * share),
+          feeCents: Math.round(t.feeCents * share),
+          taxCents: Math.round((t.taxCents ?? 0) * share),
+        });
+      }
+    } else {
+      const allUnits = unknownUnits + knownUnits;
+      const knownExtra = allUnits > 0 ? Math.round((t.unitsE8 * knownUnits) / allUnits) : 0;
+      unknownUnits += t.unitsE8 - knownExtra;
+      knownUnits += knownExtra;
+      if (knownExtra !== 0) backed.push({ ...t, unitsE8: knownExtra });
+    }
+  }
+  const result =
+    method === 'fifo' ? fifoCost(knownOpening, backed) : averageCost(knownOpening, backed);
+  return { cost: result, complete, unknownUnits };
+}
+
+/** Only documented sale gains; false completeness marks a known subtotal. */
+export function documentedRealizedGain(
+  trades: readonly ProductTrade[],
+  opening?: { unitsE8: number; costBasisCents: number | null },
+  method: CostMethod = 'average',
+): { cents: number; complete: boolean } {
+  const result = documentedCostReplay(trades, opening, method);
+  return { cents: result.cost.realizedGainCents, complete: result.complete };
+}
+
+/** Remaining cost is unavailable while any unit of the method's unknown pool remains. */
+export function documentedCostOf(
+  trades: readonly ProductTrade[],
+  opening?: { unitsE8: number; costBasisCents: number | null },
+  method: CostMethod = 'average',
+): CostResult | null {
+  const result = documentedCostReplay(trades, opening, method);
+  return result.unknownUnits > 0 ? null : result.cost;
+}
+
 export interface Gain {
   /** Market value minus cost basis of the units still held. */
   unrealizedCents: number;

@@ -26,6 +26,7 @@ export interface PageFrameProps {
   /** Plan: the month's income in the title block. */
   income?: ReactNode;
   children?: ReactNode;
+  revealCurrentRegister?: boolean;
 }
 
 const keepZeitraum = (previous: Record<string, unknown>): Record<string, unknown> =>
@@ -40,6 +41,7 @@ export function PageFrame({
   placeholder,
   income,
   children,
+  revealCurrentRegister,
 }: PageFrameProps) {
   const area = areaById(meta.area);
   const items: RegisterItem[] = area.registers.map((r) => ({
@@ -62,6 +64,7 @@ export function PageFrame({
           label={`Register von ${area.label}`}
           items={items}
           current={meta.register ?? ''}
+          revealCurrent={revealCurrentRegister}
           renderLink={(item, props) => (
             <AppLink
               to={item.href ?? '/'}

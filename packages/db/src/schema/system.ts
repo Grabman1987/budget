@@ -24,6 +24,21 @@ export const INBOX_KINDS = [
 export const PAYSLIP_KINDS = ['regular', 'special'] as const;
 export const PAYSLIP_SECTIONS = ['earning', 'deduction'] as const;
 
+/** Owner-selected acquisition cost method, shared by portfolio and reports. */
+export const investmentPreference = sqliteTable(
+  'investment_preference',
+  {
+    id: text('id').primaryKey().notNull(),
+    costMethod: text('cost_method', { enum: ['average', 'fifo'] })
+      .notNull()
+      .default('average'),
+  },
+  (t) => [
+    check('investment_preference_id_chk', sql`${t.id} = 'portfolio'`),
+    oneOf('investment_cost_method_chk', t.costMethod, ['average', 'fifo']),
+  ],
+);
+
 /**
  * Change log. `before_json` / `after_json` hold row snapshots; `undo` replays them. `group_id`
  * ties the entries of one user action together (a booking with its splits, a transfer pair).

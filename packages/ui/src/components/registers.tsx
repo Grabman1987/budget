@@ -12,6 +12,8 @@ export interface RegistersProps {
   current: string;
   /** Accessible name of the navigation. */
   label: string;
+  /** Reveal a newly added register when it lies outside the horizontal viewport. */
+  revealCurrent?: boolean | undefined;
   onSelect?: (id: string) => void;
   /** Router integration: render the link element yourself (e.g. TanStack `Link`). */
   renderLink?: (
@@ -24,9 +26,23 @@ export interface RegistersProps {
  * Second-level navigation as register tabs (there is no third menu level). Links mark the current
  * page with `aria-current`; the controlled button variant is a toggle group (`aria-pressed`).
  */
-export function Registers({ items, current, label, onSelect, renderLink }: RegistersProps) {
+export function Registers({
+  items,
+  current,
+  label,
+  onSelect,
+  renderLink,
+  revealCurrent,
+}: RegistersProps) {
   const ref = useRef<HTMLElement>(null);
   const [edges, setEdges] = useState({ start: false, end: false });
+
+  useLayoutEffect(() => {
+    if (revealCurrent)
+      ref.current
+        ?.querySelector('[aria-current="page"]')
+        ?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+  }, [current, revealCurrent]);
 
   // A row that scrolls sideways shows an edge fade on the side where more registers are hidden.
   useLayoutEffect(() => {

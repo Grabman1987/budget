@@ -21,6 +21,8 @@ import {
   listTargetVersions,
   listTrades,
   portfolioSummary,
+  investmentPreferences,
+  setInvestmentCostMethod,
   restoreSecurity,
   SECURITY_KINDS,
   savingsExecutions,
@@ -395,6 +397,15 @@ const portfolioQuery = z.object({
 
 export function portfolioRoutes(db: Db, today: () => string): Hono {
   const app = new Hono();
+  app.get('/preferences', (c) => c.json(investmentPreferences(db)));
+  app.patch('/preferences', async (c) => {
+    const { costMethod } = await readBody(
+      c,
+      z.strictObject({ costMethod: z.enum(['average', 'fifo']) }),
+    );
+    const ctx = { actor: ACTOR, groupId: randomUUID() };
+    return c.json({ ...setInvestmentCostMethod(db, costMethod, ctx), groupId: ctx.groupId });
+  });
   app.get('/', (c) => {
     const { period, view, benchmark, reference } = readQuery(c, portfolioQuery);
     const refs = reference?.split(',').filter(Boolean);
