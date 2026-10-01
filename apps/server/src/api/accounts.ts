@@ -3,7 +3,7 @@ import {
   accounts,
   accountSummaries,
   balanceSeries,
-  holdingValuesAsOf,
+  netWorthValuationAsOf,
   booking,
   listReconciliations,
   previewReconciliation,
@@ -43,22 +43,32 @@ const DEFAULTS = {
 } as const;
 const TRACKING_ONLY = new Set(['loan', 'brokerage', 'crypto', 'p2p', 'receivable']);
 
-/** `holdingsCents` is the market value of the securities held in the account (0 without any). */
-export type AccountView = AccountSummary & { holdingsCents: number };
+/** EUR valuation fields can be null when a required cash or security exchange rate is missing. */
+export type AccountView = AccountSummary & {
+  holdingsCents: number | null;
+  valueEurCents: number | null;
+  missingFxCurrencies: string[];
+};
 
 export function accountRoutes(db: Db, today: () => string): Hono {
   const app = new Hono();
 
-  /** Account list with the market value of its securities (depots, crypto) next to the cash balance. */
-  const listAccounts = (asOf: string): AccountView[] => {
-    const holdings = new Map<string, number>();
-    for (const h of holdingValuesAsOf(db, asOf))
-      holdings.set(h.accountId, (holdings.get(h.accountId) ?? 0) + h.valueCents);
-    return accountSummaries(db, asOf).map((a) => ({
-      ...a,
-      holdingsCents: holdings.get(a.id) ?? 0,
-    }));
+  const accountList = (asOf: string) => {
+    const valuation = netWorthValuationAsOf(db, asOf);
+    return {
+      netWorthEurCents: valuation.totalCents,
+      missingFxCurrencies: valuation.missingFxCurrencies,
+      accounts: accountSummaries(db, asOf).map((a) => ({
+        ...a,
+        holdingsCents: Object.hasOwn(valuation.holdingsByAccount, a.id)
+          ? valuation.holdingsByAccount[a.id]!
+          : 0,
+        valueEurCents: Object.hasOwn(valuation.byAccount, a.id) ? valuation.byAccount[a.id]! : 0,
+        missingFxCurrencies: valuation.missingFxByAccount[a.id] ?? [],
+      })),
+    };
   };
+  const listAccounts = (asOf: string): AccountView[] => accountList(asOf).accounts;
   const summary = (id: string, asOf = today()): AccountView => {
     const found = listAccounts(asOf).find((a) => a.id === id);
     if (!found) throw new ApiError(404, 'not_found', `Account ${id} not found`);
@@ -69,7 +79,7 @@ export function accountRoutes(db: Db, today: () => string): Hono {
   app.get('/', (c) => {
     const { asOf } = readQuery(c, asOfQuery);
     const day = asOf ?? today();
-    return c.json({ asOf: day, accounts: listAccounts(day) });
+    return c.json({ asOf: day, ...accountList(day) });
   });
 
   app.post('/', async (c) => {

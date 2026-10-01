@@ -36,7 +36,20 @@ test('Konten shows exact cents at rounding, sign and grouping boundaries', async
     expect(account).toBeDefined();
     await route.fulfill({
       response,
-      json: { ...data, accounts: [{ ...account, balanceCents: value, holdingsCents: 0 }] },
+      json: {
+        ...data,
+        accounts: [
+          {
+            ...account,
+            balanceCents: value,
+            holdingsCents: 0,
+            valueEurCents: value,
+            missingFxCurrencies: [],
+          },
+        ],
+        netWorthEurCents: value,
+        missingFxCurrencies: [],
+      },
     });
   });
   for (const [cents, text] of cases) {
@@ -46,6 +59,49 @@ test('Konten shows exact cents at rounding, sign and grouping boundaries', async
   }
   await screenshot(page);
 });
+
+for (const [value, text] of [
+  [12_345, '123,45 €'],
+  [-12_345, '−123,45 €'],
+] as const) {
+  test(`Konten includes closed residual ${value} and links the chain term to it`, async ({
+    page,
+  }) => {
+    await page.route(/\/api\/accounts(?:\?.*)?$/, async (route) => {
+      const response = await route.fetch();
+      const data = (await response.json()) as AccountList;
+      const account = data.accounts.find((a) => a.type === 'checking' && !a.closedAt);
+      expect(account).toBeDefined();
+      await route.fulfill({
+        response,
+        json: {
+          ...data,
+          accounts: [
+            {
+              ...account,
+              name: 'Closed residual',
+              closedAt: '2026-09-01T00:00:00Z',
+              balanceCents: value,
+              holdingsCents: 0,
+              valueEurCents: value,
+              missingFxCurrencies: [],
+            },
+          ],
+          netWorthEurCents: value,
+          missingFxCurrencies: [],
+        },
+      });
+    });
+
+    await page.goto('/konten');
+    await expect(page.getByTestId('net-worth')).toHaveText(text);
+    await expect(page.getByText('Closed residual')).toBeVisible();
+    const term = page.getByRole('button', { name: /Geschlossene Konten/ });
+    await expect(term).toBeVisible();
+    await term.click();
+    await expect(page.locator('#kaccts-closed')).toHaveClass(/is-flash/);
+  });
+}
 
 test('Vermögen shows exact cents at rounding, sign and grouping boundaries', async ({ page }) => {
   let value = 0;

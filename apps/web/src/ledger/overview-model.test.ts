@@ -25,6 +25,8 @@ const account = (over: Partial<AccountRow>): AccountRow => ({
   unclearedCents: 0,
   scheduledCents: 0,
   holdingsCents: 0,
+  valueEurCents: 0,
+  missingFxCurrencies: [],
   bookingCount: 0,
   pendingCount: 0,
   lastReconciledOn: null,
@@ -32,18 +34,25 @@ const account = (over: Partial<AccountRow>): AccountRow => ({
 });
 
 describe('overviewModel', () => {
-  it('groups open accounts in chain order and adds holdings to the value', () => {
+  it('groups open accounts in chain order and uses their EUR values', () => {
     const model = overviewModel([
-      account({ id: 'g', balanceCents: 150_000 }),
+      account({ id: 'g', balanceCents: 150_000, valueEurCents: 150_000 }),
       account({
         id: 'd',
         role: 'investment',
         type: 'brokerage',
         balanceCents: 500,
         holdingsCents: 7_900_000,
+        valueEurCents: 7_900_500,
       }),
-      account({ id: 'k', role: 'debt', type: 'loan', balanceCents: -1_200_000 }),
-      account({ id: 'x', balanceCents: 0, closedAt: '2026-05-01' }),
+      account({
+        id: 'k',
+        role: 'debt',
+        type: 'loan',
+        balanceCents: -1_200_000,
+        valueEurCents: -1_200_000,
+      }),
+      account({ id: 'x', balanceCents: 0, closedAt: '2026-05-01', valueEurCents: 0 }),
     ]);
     expect(model.groups.map((g) => [g.group.role, g.sumCents])).toEqual([
       ['budget', 150_000],
@@ -53,17 +62,58 @@ describe('overviewModel', () => {
     expect(model.netWorthCents).toBe(150_000 + 7_900_500 - 1_200_000);
     expect(model.closed.map((a) => a.id)).toEqual(['x']);
   });
+
+  it('values foreign cash in EUR and includes positive or negative closed residuals', () => {
+    const model = overviewModel([
+      account({ id: 'usd', currency: 'USD', balanceCents: 10_000, valueEurCents: 9_200 }),
+      account({
+        id: 'closed-plus',
+        closedAt: '2026-05-01',
+        balanceCents: 12_345,
+        valueEurCents: 12_345,
+      }),
+      account({
+        id: 'closed-minus',
+        role: 'debt',
+        closedAt: '2026-05-01',
+        balanceCents: -2_000,
+        valueEurCents: -2_000,
+      }),
+    ]);
+    expect(model.groups.find((g) => g.group.role === 'budget')?.sumCents).toBe(9_200);
+    expect(model.closedValueCents).toBe(10_345);
+    expect(model.netWorthCents).toBe(19_545);
+  });
+
+  it('keeps the total unavailable when any account has no EUR valuation', () => {
+    const model = overviewModel([
+      account({ id: 'eur', balanceCents: 10_000, valueEurCents: 10_000 }),
+      account({
+        id: 'usd',
+        currency: 'USD',
+        balanceCents: 10_000,
+        valueEurCents: null,
+        missingFxCurrencies: ['USD'],
+      }),
+    ]);
+    expect(model.netWorthCents).toBeNull();
+    expect(model.missingFxCurrencies).toEqual(['USD']);
+  });
 });
 
 describe('netWorthChange', () => {
-  const now = [account({ id: 'g', balanceCents: 120_000 })];
+  const now = [account({ id: 'g', balanceCents: 120_000, valueEurCents: 120_000 })];
   it('is the difference of the same accounts', () => {
-    expect(netWorthChange(now, [account({ id: 'g', balanceCents: 100_000 })], '2026-08-30')).toBe(
-      20_000,
-    );
+    expect(
+      netWorthChange(
+        now,
+        [account({ id: 'g', balanceCents: 100_000, valueEurCents: 100_000 })],
+        '2026-08-30',
+      ),
+    ).toBe(20_000);
   });
   it('is null when an account was opened after the reference day', () => {
-    const fresh = [account({ id: 'g', openingDate: '2026-09-15' })];
+    const fresh = [account({ id: 'g', openingDate: '2026-09-15', valueEurCents: 0 })];
     expect(netWorthChange(fresh, [], '2026-08-30')).toBeNull();
   });
 });

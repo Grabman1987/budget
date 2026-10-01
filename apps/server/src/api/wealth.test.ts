@@ -35,11 +35,8 @@ describe('GET /api/wealth/networth', () => {
   it('"jetzt" is the net worth of Konten (same function) and the prototype figure', async () => {
     const { body } = await get('/wealth/networth');
     expect(body.chain.nowCents).toBe(8_473_000);
-    const accounts = (await get('/accounts')).body.accounts as any[];
-    const overview = accounts
-      .filter((a) => !a.closedAt)
-      .reduce((sum, a) => sum + a.balanceCents + a.holdingsCents, 0);
-    expect(body.chain.nowCents).toBe(overview);
+    const accounts = (await get('/accounts')).body;
+    expect(body.chain.nowCents).toBe(accounts.netWorthEurCents);
     expect(body.daily.at(-1)).toEqual({ date: TODAY, netWorthCents: 8_473_000 });
   });
 
@@ -126,5 +123,44 @@ describe('an empty ledger', () => {
     expect(body.chain).toMatchObject({ startCents: 0, nowCents: 0, deltaCents: 0 });
     expect(body.composition).toEqual({ assets: [], debts: [] });
     expect(body.stand).toEqual({ priceDate: null, priceAt: null });
+  });
+});
+
+describe('missing FX availability', () => {
+  it('returns a controlled unavailable answer for a security price without FX', async () => {
+    const depot = db
+      .select()
+      .from(schema.account)
+      .all()
+      .find((a) => a.type === 'brokerage')!;
+    db.insert(schema.security)
+      .values({ id: 'missing-chf-security', name: 'CHF security', kind: 'stock', currency: 'CHF' })
+      .run();
+    db.insert(schema.holding)
+      .values({
+        id: 'missing-chf-holding',
+        securityId: 'missing-chf-security',
+        accountId: depot.id,
+        asOf: '2026-01-01',
+        unitsE8: 1_000_000_000,
+      })
+      .run();
+    db.insert(schema.price)
+      .values({
+        securityId: 'missing-chf-security',
+        date: TODAY,
+        priceMicro: 100_000_000,
+        currency: 'CHF',
+        source: 'manual',
+      })
+      .run();
+
+    const { status, body } = await get('/wealth/networth');
+    expect(status).toBe(503);
+    expect(body).toMatchObject({
+      error: 'valuation_unavailable',
+      missingFxCurrencies: ['CHF'],
+    });
+    expect(body['message']).toMatch(/CHF/);
   });
 });

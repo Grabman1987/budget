@@ -25,7 +25,8 @@ Owner scope update, 2026-10-01: remove import as an app feature. Keep only CSV e
 - [x] A08 booking currency invariant: amount/currency match account, original currency explicit; shared contract in create/update/transfers/import.
 - [x] A05 payment lifecycle: edit/delete/rematch/undo recompute status, links, amounts and related totals.
 - [x] A03 EUR-first guard: unsupported on-budget foreign currencies never enter EUR sums silently; create/update/import/existing accounts covered.
-- [ ] A03 account overview aggregation: convert native account cash to EUR before combining with EUR holdings; overview totals and changes match the shared net-worth calculation, with explicit missing-rate behavior.
+- [x] A03 account overview aggregation: keep native balances in the account DTO and expose shared EUR account/total values; overview totals, changes and closed residuals use the shared valuation, with explicit missing-rate behavior.
+- [ ] Follow-up FX detail acceptance: individual account tables, charts and reconciliation still use native amounts; make those views explicit and consistent with the overview's EUR valuation.
 - [ ] A04 persisted Gate-2 reconciliation: each relevant account/month and mapped category checked; added/missing/changed/deleted one-cent cases detected, including non-budget accounts.
 - [ ] Separate agent-assisted EUR migration/Gate 2 after corrections and operational acceptance; establish private file access and transfer procedure; never commit exports/mapping or include them in CI/logs.
 - [ ] A02 investment costs use historical base-currency FX; valuation, fees/income and missing-rate behavior consistent before Gate 3.

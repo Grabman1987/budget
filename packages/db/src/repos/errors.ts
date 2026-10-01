@@ -31,6 +31,17 @@ export class AccountInvariantError extends Error {
   }
 }
 
+/** A EUR valuation needs an exchange rate that is not present on or before the requested day. */
+export class MissingFxRateError extends Error {
+  override readonly name = 'MissingFxRateError';
+  constructor(
+    readonly currency: string,
+    readonly asOf: string,
+  ) {
+    super(`Für ${currency} ist bis einschließlich ${asOf} kein Wechselkurs gespeichert.`);
+  }
+}
+
 /**
  * A reconciled booking (status `reconciled`, part of a Kontostand prüfen) is locked: only its flag
  * and memo change freely. Amount, date, account, splits, payee, status and deletion need an
