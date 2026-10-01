@@ -138,6 +138,12 @@ const inboxRoute = createRoute({
 const contactsRoute = createRoute({
   getParentRoute: () => shellRoute,
   path: '/konten/kontakte',
+  validateSearch: (search: Record<string, unknown>) => ({
+    kontakt:
+      typeof search['kontakt'] === 'string' && search['kontakt'].length <= 64
+        ? search['kontakt']
+        : undefined,
+  }),
   staticData: { meta: PAGES.find((p) => p.path === '/konten/kontakte')! },
   component: lazyRouteComponent(() => import('./contacts/contacts-page'), 'ContactsPage'),
 });

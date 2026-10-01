@@ -52,3 +52,11 @@ describe('validateBookingsSearch', () => {
     expect(hasFilter(validateBookingsSearch({ sortierung: 'payee' }))).toBe(false);
   });
 });
+
+// Global result links narrow the existing list to one exact booking.
+it('validates an exact booking result link and forwards its id to the list API', () => {
+  expect(filterFromSearch(validateBookingsSearch({ buchung: 'b-result' }))).toMatchObject({
+    id: 'b-result',
+  });
+  expect(validateBookingsSearch({ buchung: 'b'.repeat(65) }).buchung).toBeUndefined();
+});
