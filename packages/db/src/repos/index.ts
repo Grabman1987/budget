@@ -17,3 +17,7 @@ export * from './budget';
 export * from './expected';
 export * from './market';
 export * from './goals';
+export * from './trades';
+export * from './securities';
+export * from './portfolio-summary';
+export * from './savings-plans';
