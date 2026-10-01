@@ -16,6 +16,7 @@ import {
   rule,
 } from '../schema';
 import { budget } from './queries';
+import { assertEurBudgetAccounts } from './account-invariants';
 import type { Executor } from './types';
 
 /** Uncategorized inflows and live income-category splits contribute to income read models. */
@@ -41,6 +42,7 @@ export function allocationMonth(
   /** The month's envelopes when the caller already computed the budget (saves a recomputation). */
   precomputed?: BudgetMonth['envelopes'],
 ): AllocMonth {
+  assertEurBudgetAccounts(db);
   const year = month.slice(0, 4);
   const envelopes = precomputed ?? budget(db, [month])[0]?.envelopes ?? {};
   const spent = (categoryId: string) => -(envelopes[categoryId]?.activityCents ?? 0);

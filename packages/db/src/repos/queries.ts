@@ -10,6 +10,7 @@ import {
 import { and, asc, count, eq, gte, isNull, lte, sql } from 'drizzle-orm';
 import { account, booking, bookingSplit, budgetMonth, category } from '../schema';
 import { assignedByMonth } from './envelopes';
+import { assertEurBudgetAccounts } from './account-invariants';
 import type { Executor } from './types';
 
 /**
@@ -59,6 +60,7 @@ export function accountBalances(db: Executor, asOfDate?: string): AccountBalance
  * (`booking_split.transfer_id`); both kinds are resolved here.
  */
 export function budgetLedger(db: Executor): Omit<BudgetInput, 'months'> {
+  assertEurBudgetAccounts(db);
   const accounts = db
     .select({
       id: account.id,

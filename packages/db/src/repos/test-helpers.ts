@@ -41,7 +41,7 @@ export function seedBasics(db: OpenedDatabase['db']) {
       name: 'Dollar',
       type: 'checking',
       role: 'budget',
-      onBudget: true,
+      onBudget: false,
       currency: 'USD',
       openingDate: '2023-10-01',
       sortOrder: 3,

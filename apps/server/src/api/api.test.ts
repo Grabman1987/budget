@@ -77,6 +77,27 @@ const newBooking = async (accountId: string, over: Record<string, unknown> = {})
 };
 
 describe('accounts', () => {
+  it('rejects USD budget accounts with a readable 422 and accepts USD tracking accounts', async () => {
+    const rejected = await call('POST', '/accounts', {
+      name: 'Dollar budget',
+      type: 'checking',
+      currency: 'USD',
+      openingDate: '2026-01-01',
+    });
+    expect(rejected.status).toBe(422);
+    expect(rejected.body['message']).toMatch(/Euro/i);
+
+    const accepted = await call('POST', '/accounts', {
+      name: 'Dollar tracking',
+      type: 'checking',
+      currency: 'USD',
+      onBudget: false,
+      openingDate: '2026-01-01',
+    });
+    expect(accepted.status).toBe(201);
+    expect(accepted.body['account']).toMatchObject({ currency: 'USD', onBudget: false });
+  });
+
   it('creates with role and budget membership from the type, and lists balances', async () => {
     const giro = await newAccount();
     const loan = await newAccount({ name: 'Kredit', type: 'loan', openingBalanceCents: -500_000 });
@@ -314,7 +335,7 @@ describe('bookings', () => {
       ).status,
     ).toBe(422);
     // A move between currencies would reinterpret the cents: refused, the currency stays.
-    const usd = await newAccount({ name: 'Dollar', currency: 'USD' });
+    const usd = await newAccount({ name: 'Dollar', currency: 'USD', onBudget: false });
     const plain = await newBooking(a.id);
     const moved = await call('PATCH', `/bookings/${plain.id}`, { accountId: usd.id });
     expect(moved).toMatchObject({ status: 422, body: { error: 'invariant' } });
