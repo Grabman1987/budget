@@ -126,6 +126,27 @@ the auth tables.
   net-worth calculation (the debug summary uses it too). Cost basis: `averageCost` and `fifoCost`
   (both with realised gain, splits and deliveries). Returns with cash flows in the domain:
   `ttwror` (sub-periods between valuations), `modifiedDietz` and `irr` (XIRR, actual/365).
+- **Daily series and performance** (P5.2, no schema change). Domain `invest/series.ts`:
+  `dailyValuation` (units x price carried forward x FX of the day, one rounding), `securityFlows`
+  (Portfolio Performance "securities only": buys in, sales/dividends/interest out, standalone
+  fee/tax as an inflow that lowers the gain, split none) and `depotFlows` ("depot incl. reference
+  account": only transfers across the portfolio boundary count; this is the Gate 3 view).
+  `invest/performance.ts`: `periodWindow('1M'|'3M'|'YTD'|'1J'|'3J'|'Alles')`, `windowPerformance`
+  (start/end value, contributions, gain in cents; TTWROR chained over daily sub-periods; XIRR;
+  Modified Dietz annualised beyond 12 months = the prototype's "IRR"; volatility = monthly
+  deviation x sqrt 12, max drawdown, Sharpe with 2,5 %, beta vs the benchmark, best/worst month,
+  share of positive months). Rates are doubles and never rounded in the domain (the formatter
+  rounds once); money stays integer. Pages show TTWROR and the Dietz variant (prototype parity),
+  the Gate 3 report compares XIRR and TTWROR. `invest/cost.ts`: one `costOf` (FIFO default,
+  `'average'` available), `gainOf`, `terOf`, `realizedGainIn`, `incomeLast12Months`,
+  `fundCosts` (TER on month ends plus fees of 12 months over the value, in bp). Read models in
+  `repos/portfolio.ts`: `valuationSeries` (one pass, equals `holdingValuesAsOf` on every day),
+  `cashSeries`, `portfolioFlows(view: 'securities' | 'depot')`, `netWorthDaily` (equals
+  `netWorthAsOf` on every day; own = change - market, market = value change of positions minus
+  the gross money traded in). Manual `valuation` rows are not part of net worth yet (as in
+  `netWorthAsOf`). The prototype's `windowK('3J')` drops the first month (39,7 %); `PERF` and
+  the domain use all 36 months (38,2 %); `PERF`'s 3J IRR of 10,6 % is stale, its own formula
+  gives 11,2 % (`performance-parity.test.ts`).
 - **Read models and dates** (C11): `allocationMonth(db, month)` assembles the 50/30/20 inputs
   (regular income = uncategorised inflow splits on budget accounts without the income type
   Sonderzahlung; periodic and windfall categories from the expected payments and rule R12) for the
