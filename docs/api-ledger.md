@@ -42,7 +42,7 @@ category is not part of what Kontostand prüfen checked.
 | Endpoint | Purpose |
 | --- | --- |
 | `GET /categories` | `groups`, `categories` (hidden ones too, with `splitCount`), `targets` (all live versions) |
-| `POST /categories`, `PATCH /categories/:id` | Name, `icon` (one emoji, shown monochrome), group, class, kind, stage 1–9, card account (card payment only; a card payment keeps its kind and card, 422 `category_rule`), `hidden`; optional `target: { validFrom, target }` in the same undo group |
+| `POST /categories`, `PATCH /categories/:id` | Name, `icon` (one emoji, shown monochrome), group, class, kind, stage 1–9, card account (card payment only; a card payment keeps its kind and card, 422 `category_rule`), `hidden`, `pinned` (pin to Heute; pinned envelopes keep the pinning order); optional `target: { validFrom, target }` in the same undo group |
 | `PUT /categories/:id/target` | `{ validFrom: 'YYYY-MM', target: { kind: monthly / by_date / keep_balance, amountCents, everyMonths, targetDate, dueDay } \| null }`; `null` removes all versions |
 | `POST /categories/sort` | `{ groups: [{ id, categoryIds }] }` in list order; a category listed under another group moves there |
 | `POST /categories/merge` | `{ sourceIds, targetId }`: splits, assigned months (summed), opening envelope, payee defaults, expected payments, savings goals, planned events and assignment rules move to the target; the sources are soft-deleted. Card payment envelopes cannot be merged; an income category takes only income categories (422 `category_rule`). One undo |
@@ -104,6 +104,14 @@ The rule book R01–R16 and the stage checklist (concept §3.5). Rules are data 
 | `GET /rules/check` | Finanz-Check of today (computed now): `counts { ok, warn, bad, total, notEvaluated }`, the six key rules (R02, R15, R01, R03, R08, R07) by severity, `stage` from net worth, `checklist { done, total, items }` (a confirmed item counts as done, a rule item follows its rule) |
 
 Reference month: rolling figures (R01, R02, R11) use the last full month, the month itself on a month end. R04 uses the change log for the day an envelope was assigned; assignments without a log entry (imported or seeded) count as made on the salary day.
+
+## Heute (P3.9)
+
+| Endpoint | Notes |
+| --- | --- |
+| `GET /heute?period=month\|payday&month=YYYY-MM` | The whole home screen in one read. `period=month` (default) charts the whole `month` (default the current one), `payday` runs from today to the next salary; another month than today's is always shown as the whole month. Lead, net worth and next steps always refer to today. `stand`: `today`, `month`, `period`, `from`, `to`, `payday { day, source: salary\|month_end, daysToPayday }`, `budgetBalanceCents`. `lead`: `freeUntilPayday` (needCents + wantCents − openCents = freeCents, euro-balanced `chain`, `items { need, want, open }` as drill-down). `balance`: `actual` (daily end balance of the budget accounts up to today), `forecast` (from today to `to`, liquidity forecast of R07), `salary { day, cents }` on the payday, `low { day, index, cents }`. `pace`: `paceModel` (`plan`, `actual`, `previous` by day, `figures`) plus `forecast` (today to month end) and `previousMonth`. `pinned`: available, assigned, budgeted (carry + assigned), spent, `paceMarkCents`, overspent. `upcoming14`: occurrences with `status`, signed EUR `amountCents`, `covered`. `financeCheck`: `counts` and the six `keyRules`. `netWorth`: parts `liquidCents` / `investedCents` / `debtCents` (+ `receivableCents`, role receivable, shown separately), `deltaCents` and `deltaBp` against the previous month end, `series` of 11 month ends and today. `lastBookings`: 5 up to today. `nextSteps`: `{ items, count }`, overspent envelopes and uncategorised bookings until the inbox (P3.10) takes over |
+
+Payday is the next due date of the salary expected payment (income type Gehalt, `date_shift` before: last business day, weekends and Austrian public holidays) that is still `expected`; without one it is the last day of the month. Occurrences come from the payment schedule and their status from the stored occurrences (`POST /expected/refresh`); a past occurrence without a stored row counts as settled, an unmatched `expected` one up to 31 days back still counts as open. Open bills for the lead are expected outflows on budget accounts before the payday that are not Zukunft transfers. Net worth is `netWorthAsOf`; open contact receivables are not added to it (owner decision).
 
 ## Market data (P5.1)
 
