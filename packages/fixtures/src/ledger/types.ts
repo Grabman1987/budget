@@ -28,6 +28,7 @@ export interface SampleLedger {
   securities: Row<typeof db.security>[];
   holdings: Row<typeof db.holding>[];
   trades: Row<typeof db.trade>[];
+  savingsPlans: Row<typeof db.savingsPlan>[];
   prices: Row<typeof db.price>[];
   fxRates: Row<typeof db.fxRate>[];
   rules: Row<typeof db.rule>[];
@@ -60,6 +61,7 @@ export const LEDGER_TABLE_ORDER = [
   'securities',
   'holdings',
   'trades',
+  'savingsPlans',
   'prices',
   'fxRates',
   'rules',

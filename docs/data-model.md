@@ -147,6 +147,17 @@ the auth tables.
   `netWorthAsOf`). The prototype's `windowK('3J')` drops the first month (39,7 %); `PERF` and
   the domain use all 36 months (38,2 %); `PERF`'s 3J IRR of 10,6 % is stale, its own formula
   gives 11,2 % (`performance-parity.test.ts`).
+- **Savings plans** (P5.5, migration 0008): `savings_plan` = security, investment account, source
+  account, rate in cents, `day_of_month` (31 = last day), `valid_from` and `valid_to` (inclusive,
+  `NULL` = open). A rate change never edits a row: it ends the current one the day before and starts
+  a new one, so past months keep their rate. The bank executes plans; `matchExecutions` compares
+  the planned execution with the buys (3 days either side). Applying a proposal also opens an inbox
+  item, because the bank does not follow.
+- **Trades settle through a booking** (P5.5): every trade that moves money has one booking on its
+  investment account (`trade.booking_id`) in the same audit group (`settlementCents` in the
+  domain). Asset-class targets are versions of 10 000 bp each (`setTargets`).
+- **Depot view deposits and withdrawals** (P5.5): next to transfers across the boundary, a plain booking onto
+  a reference account (not a trade settlement, not income type Kapitalerträge) is an external flow.
 - **Read models and dates** (C11): `allocationMonth(db, month)` assembles the 50/30/20 inputs
   (regular income = uncategorised inflow splits on budget accounts without the income type
   Sonderzahlung; periodic and windfall categories from the expected payments and rule R12) for the

@@ -1,8 +1,8 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "8a8372df-ce37-4eeb-bc92-9b3359dbc6e4",
-  "prevId": "fad46e35-686e-4c57-bdf9-428abcf1c568",
+  "id": "2b96f92e-f475-4a47-be28-e19e066cd5ac",
+  "prevId": "8a8372df-ce37-4eeb-bc92-9b3359dbc6e4",
   "tables": {
     "account": {
       "name": "account",
@@ -4585,6 +4585,29 @@
           "autoincrement": false,
           "default": true
         },
+        "kind": {
+          "name": "kind",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'rule'"
+        },
+        "sort_order": {
+          "name": "sort_order",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 0
+        },
+        "confirmed_at": {
+          "name": "confirmed_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
         "created_at": {
           "name": "created_at",
           "type": "text",
@@ -4685,6 +4708,11 @@
           "name": "rule_result_idx",
           "columns": ["rule_id", "as_of"],
           "isUnique": false
+        },
+        "rule_result_uq": {
+          "name": "rule_result_uq",
+          "columns": ["rule_id", "as_of"],
+          "isUnique": true
         }
       },
       "foreignKeys": {

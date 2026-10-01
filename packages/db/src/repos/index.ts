@@ -18,3 +18,7 @@ export * from './expected';
 export * from './market';
 export * from './rule-inputs';
 export * from './rules';
+export * from './trades';
+export * from './securities';
+export * from './portfolio-summary';
+export * from './savings-plans';
