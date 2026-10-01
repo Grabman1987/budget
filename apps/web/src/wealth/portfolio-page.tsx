@@ -23,17 +23,24 @@ import {
 } from './portfolio-format';
 import { InstrumentPanel } from './portfolio-panel';
 import { INSTRUMENT_KIND } from './instrument-form';
+import { SavingsSection } from './savings-section';
 import './portfolio.css';
 
 export function PortfolioPage() {
   const query = useQuery(portfolioPositionsQuery());
   const instruments = useQuery(instrumentsQuery());
-  const search = useSearch({ strict: false }) as { produkt?: string };
+  const search = useSearch({ strict: false }) as { produkt?: string; sparplan?: string };
   const navigate = useNavigate();
   const select = (produkt?: string) =>
     void navigate({
       to: '/vermoegen/portfolio',
-      search: ((prev: Record<string, unknown>) => ({ ...prev, produkt })) as never,
+      search: ((prev: Record<string, unknown>) => ({
+        ...prev,
+        produkt,
+        sparplan: undefined,
+        handel: undefined,
+        allokation: undefined,
+      })) as never,
     });
   const view = query.data;
   const held = new Set(view?.classes.flatMap((group) => group.positions.map((p) => p.securityId)));
@@ -110,6 +117,7 @@ export function PortfolioPage() {
             )}
           </>
         )}
+        <SavingsSection />
         {instruments.isPending && <LoadingNote what="Instrumente" />}
         {instruments.isError && (
           <ErrorNote
@@ -160,7 +168,7 @@ export function PortfolioPage() {
         )}
       </div>
       <InstrumentPanel
-        id={search.produkt ?? ''}
+        id={search.sparplan ? '' : (search.produkt ?? '')}
         position={view?.classes
           .flatMap((g) => g.positions)
           .find((p) => p.securityId === search.produkt)}

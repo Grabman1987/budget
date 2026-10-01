@@ -89,7 +89,7 @@ Prototype references: [Vermögen](../design/prototype/vermoegen.html),
 | I14 | TTWROR, XIRR, Modified Dietz and external flows | Engine/API | Period/product/depot report UI; private PP equality with identical periods and conventions |
 | I15 | Volatility, drawdown, Sharpe, beta, benchmarks and monthly returns | Engine/API | Benchmark data, charts, filters and private reference comparison |
 | I16 | Allocation Soll/Ist, region/product structure and rebalancing | Partial; UI placeholder | Decision UI, drill-down and accepted rebalancing actions; aggregation alone is insufficient |
-| I17 | Savings plans, execution matching and change proposals | Engine/API | Complete savings-plan UI and owner-controlled bank action; proposals do not execute orders |
+| I17 | Savings plans, execution matching and change proposals | Schedule UI + engine/API | Native-currency schedule create/edit/end, current/future versions and audited undo are available. Execution/proposal UI and private acceptance remain; bank action stays manual and proposals do not execute orders |
 | I18 | Net worth, own contribution vs market, daily history and composition | UI + engine | Private reconciliation, first-refresh freshness and owner design acceptance |
 | I19 | Debt repayment / Sondertilgung | Pure calculation; UI placeholder | Terms/workflow integration, repayment chart and scenario acceptance |
 | I20 | Freiheitszahl with Soll-Pfad and target year | Pure calculation; UI placeholder | Shared-data integration, complete page and private assumptions |
