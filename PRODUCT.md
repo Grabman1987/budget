@@ -4,6 +4,11 @@
 
 Name: **Budget** (O10 entschieden am 29.09.2026; privat, nur für den Eigentümer). Vorrang der Quellen regelt `SPEC.md`; Detailquelle ist `docs/concept/produktkonzept.md`. Diese Datei hält die dauerhaften Produktfakten und alle Entscheidungen der Designphase fest.
 
+Current feature coverage: [`docs/FEATURES.md`](docs/FEATURES.md). Remaining
+requirements and historical concept overrides: [`docs/REQUIREMENTS-GAPS.md`](docs/REQUIREMENTS-GAPS.md).
+Product intent, implemented engine/API and complete application workflow are
+recorded separately; mockups alone do not establish completion.
+
 ## Platform
 
 web

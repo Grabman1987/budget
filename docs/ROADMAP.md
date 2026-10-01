@@ -6,6 +6,14 @@ Current implementation and owner/operations evidence: [`STATUS.md`](STATUS.md). 
 
 Gate 1 (specification and designs accepted by the owner): **pending owner sign-off.**
 
+Central coverage and the remaining work beyond the mockups: [FEATURES.md](FEATURES.md).
+Requirement details to close before their corresponding tasks: [REQUIREMENTS-GAPS.md](REQUIREMENTS-GAPS.md).
+The owner authorized completing and rolling out all agreed V1 pages/functions
+on 2026-10-01. Independent implementation tasks can proceed while private-data
+or device acceptance is pending; each task still needs its own reviewed PR and
+passing required checks. A route, prototype or backend alone is not a completed
+user workflow, and does not pass a private migration or cut-over gate.
+
 ## Current work — 2026-10-01 follow-up
 
 Source: [`audit/2026-10-01-follow-up.md`](audit/2026-10-01-follow-up.md). First real import is **EUR only**; full FX support remains later scope. One task per branch/PR; verify each fix against an independent expected result and required checks.

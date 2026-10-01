@@ -4,6 +4,14 @@ Stand: 28.09.2026 · Autor: Eigentümer
 
 > Export des Claude-Docs. Die vier Diagramme des Originals sind hier als Mermaid-Blöcke nachgebaut.
 
+> **Historical source, 2026-09-28.** Current decisions in [SPEC](../../SPEC.md)
+> and [PRODUCT](../../PRODUCT.md) take precedence. The original text below is
+> preserved: its old mockups/design, open name, Actual/app-import migration,
+> eight-stage waterfall, report catalog and P0 status are superseded. Current
+> references are [feature coverage](../FEATURES.md) and
+> [requirements/override checklist](../REQUIREMENTS-GAPS.md). Do not implement
+> the superseded statements as new scope.
+
 ## 1 Executive Summary und Entscheidungslog
 
 Wir bauen die Finanz-App als eigenständige Web-App mit eigener Datenbank (Option B). Den Kern bildet Envelope-Budgeting nach YNAB-Prinzip. Darauf liegt ein Regelwerk aus Finanz-Basics (50/30/20, Notgroschen, Geldfluss-Wasserfall). Dazu kommt vollständiges Vermögens- und Portfolio-Tracking inklusive Ablöse von Portfolio Performance schon in V1. Leitziel ist, Cashflow und Vermögen nicht nur zu tracken, sondern aktiv zu optimieren. Finanzdaten starten am 01.10.2023, Kursdaten übernehmen wir vollständig.
