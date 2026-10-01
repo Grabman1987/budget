@@ -48,7 +48,7 @@ import {
   plannedEvent,
   security,
 } from '../schema';
-import { allocationMonth } from './allocation';
+import { allocationMonth, isIncomeCategorySplit } from './allocation';
 import { scheduleVersion, schedulePayment } from './expected';
 import { holdingValuesAsOf, netWorthAsOf, type NetWorth } from './portfolio';
 import { fxRateOnOrBefore } from './prices';
@@ -143,11 +143,13 @@ export function loadFacts(db: Executor, upTo: string): RuleFacts {
     .all())
     versions.set(v.expectedPaymentId, [...(versions.get(v.expectedPaymentId) ?? []), v]);
 
+  const categoryKindById = new Map(categories.map((c) => [c.id, c.kind]));
   const incomeSplits = db
     .select({
       day: booking.date,
       cents: bookingSplit.amountCents,
       incomeTypeId: bookingSplit.incomeTypeId,
+      categoryId: bookingSplit.categoryId,
     })
     .from(bookingSplit)
     .innerJoin(booking, eq(booking.id, bookingSplit.bookingId))
@@ -159,15 +161,15 @@ export function loadFacts(db: Executor, upTo: string): RuleFacts {
         eq(account.onBudget, true),
         isNull(booking.transferId),
         isNull(bookingSplit.transferId),
-        isNull(bookingSplit.categoryId),
       ),
     )
     .all()
-    .flatMap((s) =>
-      s.incomeTypeId !== null && s.cents > 0
+    .flatMap((s) => {
+      const kind = s.categoryId === null ? null : (categoryKindById.get(s.categoryId) ?? null);
+      return isIncomeCategorySplit(s.categoryId, kind) && s.incomeTypeId !== null && s.cents > 0
         ? [{ day: s.day, cents: s.cents, incomeTypeId: s.incomeTypeId }]
-        : [],
-    );
+        : [];
+    });
 
   return {
     accounts,

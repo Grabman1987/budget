@@ -18,11 +18,17 @@ import {
 import { budget } from './queries';
 import type { Executor } from './types';
 
+/** Uncategorized inflows and live income-category splits contribute to income read models. */
+export function isIncomeCategorySplit(categoryId: string | null, categoryKind: string | null) {
+  return categoryId === null || categoryKind === 'income';
+}
+
 /**
  * Read model for 50/30/20 (C11): what counts in `month` (`YYYY-MM`), ready for the domain's
  * `allocation`. Port of the prototype's `alloc` inputs:
- * - regular income = uncategorised inflow splits on budget accounts (no transfer legs) without
- *   the income type "Sonderzahlung"; special payments count as twelfths of the expected yearly
+ * - regular income = uncategorised inflows and live income-category splits on budget accounts,
+ *   excluding transfer legs and the income type "Sonderzahlung"; special payments count as
+ *   twelfths of the expected yearly
  *   special payments (expected inflows with a yearly rhythm);
  * - periodic categories count as twelfths of their planned yearly payments;
  * - categories with a windfall share (rule R12) count their planned monthly payment plus that share
@@ -66,10 +72,13 @@ export function allocationMonth(
       cents: bookingSplit.amountCents,
       incomeTypeId: bookingSplit.incomeTypeId,
       date: booking.date,
+      categoryId: bookingSplit.categoryId,
+      categoryKind: category.kind,
     })
     .from(bookingSplit)
     .innerJoin(booking, eq(booking.id, bookingSplit.bookingId))
     .innerJoin(account, eq(account.id, booking.accountId))
+    .leftJoin(category, and(eq(category.id, bookingSplit.categoryId), isNull(category.deletedAt)))
     .where(
       and(
         isNull(booking.deletedAt),
@@ -77,12 +86,15 @@ export function allocationMonth(
         eq(account.onBudget, true),
         isNull(booking.transferId),
         isNull(bookingSplit.transferId),
-        isNull(bookingSplit.categoryId),
       ),
     )
     .all()
     .filter(
-      (s) => s.date.startsWith(month) && s.cents > 0 && s.incomeTypeId !== INCOME_TYPES.special.id,
+      (s) =>
+        isIncomeCategorySplit(s.categoryId, s.categoryKind) &&
+        s.date.startsWith(month) &&
+        s.cents > 0 &&
+        s.incomeTypeId !== INCOME_TYPES.special.id,
     )
     .reduce((a, s) => a + s.cents, 0);
 
