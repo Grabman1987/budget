@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { and, asc, eq, gte, inArray, isNull, lte, ne, type SQL } from 'drizzle-orm';
-import { account, booking, bookingSplit, category, transfer } from '../schema';
+import { account, booking, bookingSplit, category, expectedOccurrence, transfer } from '../schema';
 import {
   deleteTracked,
   insertTracked,
@@ -15,6 +15,7 @@ import {
   assertTradeSettlementBookingWrite,
   relatedTransferBookings,
 } from './invariants';
+import { expectedLinkPatches } from './expected-links';
 import { runInTransaction, type Executor } from './types';
 
 /**
@@ -723,7 +724,10 @@ function updateBookingImpl(
     if (fx.fxFeeCents !== cur.fxFeeCents) columns['fxFeeCents'] = fx.fxFeeCents;
     updateTracked(tx, booking, [id], columns, grouped);
     if (patch.splits || amountChanged) syncSplits(tx, id, curSplits, nextSplits, grouped);
-    assertLedgerInvariants(tx, relatedTransferBookings(tx, id));
+    const touchedBookings = relatedTransferBookings(tx, id);
+    assertLedgerInvariants(tx, touchedBookings);
+    for (const { id: occurrenceId, patch } of expectedLinkPatches(tx, touchedBookings))
+      updateTracked(tx, expectedOccurrence, [occurrenceId], patch, grouped);
   });
 }
 
@@ -780,6 +784,11 @@ function deleteBookingImpl(
       if (leg.deletedAt === null)
         updateTracked(tx, booking, [leg.id], { deletedAt }, grouped, 'delete');
     }
+    for (const { id: occurrenceId, patch } of expectedLinkPatches(
+      tx,
+      legs.map((leg) => leg.id),
+    ))
+      updateTracked(tx, expectedOccurrence, [occurrenceId], patch, grouped);
   });
 }
 
@@ -810,7 +819,10 @@ export function restoreBooking(db: Executor, id: string, ctx: AuditContext): voi
       if (leg.deletedAt !== null)
         updateTracked(tx, booking, [leg.id], { deletedAt: null }, grouped, 'restore');
     }
-    assertLedgerInvariants(tx, relatedTransferBookings(tx, id));
+    const touchedBookings = relatedTransferBookings(tx, id);
+    assertLedgerInvariants(tx, touchedBookings);
+    for (const { id: occurrenceId, patch } of expectedLinkPatches(tx, touchedBookings))
+      updateTracked(tx, expectedOccurrence, [occurrenceId], patch, grouped);
   });
 }
 

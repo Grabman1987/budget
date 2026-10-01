@@ -1,4 +1,4 @@
-import { booking, INCOME_TYPES, institution, trade } from '../schema';
+import { booking, expectedOccurrence, INCOME_TYPES, institution, trade } from '../schema';
 import { eq } from 'drizzle-orm';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { createTestDatabase, type OpenedDatabase } from '../client';
@@ -13,6 +13,7 @@ import {
 } from './bookings';
 import { ConflictError } from './errors';
 import { accounts, createEntity } from './entities';
+import { createExpectedPayment, linkOccurrence } from './expected';
 import { portfolioFlows } from './portfolio';
 import { reconcileAccount } from './reconciliation';
 import { accountBalances } from './queries';
@@ -105,6 +106,63 @@ describe('trades settle on the investment account', () => {
     expect(getBooking(db, r.bookingId as string)?.amountCents).toBe(-50_500);
     expect(r.trade.bookingId).toBe(r.bookingId);
     expect(balance('depot')).toBe(0);
+  });
+
+  it('recomputes a linked occurrence with native trade settlement edits and grouped undo', () => {
+    const payment = createExpectedPayment(
+      db,
+      {
+        name: 'Expected depot purchase',
+        kind: 'outflow',
+        accountId: 'depot',
+        dueDay: 2,
+        startDate: '2026-01-01',
+      },
+      { validFrom: '2026-01-01', amountCents: 10_000 },
+      testCtx,
+      '2026-03-20',
+    ).payment;
+    const r = createTrade(
+      db,
+      {
+        securityId: 's1',
+        accountId: 'depot',
+        date: '2026-03-02',
+        kind: 'buy',
+        unitsE8: E8,
+        amountCents: 10_000,
+      },
+      testCtx,
+    );
+    const occurrence = db
+      .select()
+      .from(expectedOccurrence)
+      .where(eq(expectedOccurrence.expectedPaymentId, payment.id))
+      .all()
+      .find((row) => row.dueDate === '2026-03-02')!;
+    linkOccurrence(db, occurrence.id, r.bookingId!, testCtx);
+
+    updateTrade(db, r.trade.id, { amountCents: 12_000 }, { ...testCtx, groupId: 'trade-edit' });
+    expect(
+      db.select().from(expectedOccurrence).where(eq(expectedOccurrence.id, occurrence.id)).get(),
+    ).toMatchObject({
+      status: 'deviating',
+      bookingId: r.bookingId,
+    });
+    const undone = undo(db, { groupId: 'trade-edit' }, testCtx);
+    expect(
+      db.select().from(expectedOccurrence).where(eq(expectedOccurrence.id, occurrence.id)).get(),
+    ).toMatchObject({
+      status: 'received',
+      bookingId: r.bookingId,
+    });
+    undo(db, { groupId: undone.groupId }, testCtx);
+    expect(
+      db.select().from(expectedOccurrence).where(eq(expectedOccurrence.id, occurrence.id)).get(),
+    ).toMatchObject({
+      status: 'deviating',
+      bookingId: r.bookingId,
+    });
   });
 
   it('generic booking writes cannot detach a live trade from its settlement cash', () => {

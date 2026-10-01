@@ -1,7 +1,6 @@
 import {
   addDays,
   addMonths,
-  amountGap,
   assignMatches,
   candidateFits,
   lastDayOfMonth,
@@ -43,7 +42,10 @@ import {
 import { createEntity, getEntity, restoreEntity, softDeleteEntity, updateEntity } from './entities';
 import type { NewRow, RowPatch } from './entities';
 import { ConflictError, EntityNotFoundError } from './errors';
+import { bookedAmountIn, expectedLinkPatches, expectedLinkedStatus } from './expected-links';
 import { runInTransaction, type Executor } from './types';
+
+export { bookedAmountIn } from './expected-links';
 
 /**
  * Expected payments (Erwartete Zahlungen, concept §3.3): versions, occurrences and their matching
@@ -138,22 +140,6 @@ const livePayment = (db: Executor, id: string): Payment => {
   if (!row) throw new EntityNotFoundError('expected_payment', id);
   return row;
 };
-
-/** Amount of a booking in the currency of the payment's version (see the file comment). */
-export function bookedAmountIn(
-  bookingRow: {
-    amountCents: number;
-    currency: string;
-    originalAmountCents: number | null;
-    originalCurrency: string | null;
-  },
-  currency: string,
-): number {
-  if (bookingRow.currency === currency) return bookingRow.amountCents;
-  if (bookingRow.originalCurrency === currency && bookingRow.originalAmountCents !== null)
-    return bookingRow.originalAmountCents;
-  return bookingRow.amountCents;
-}
 
 // ---------------------------------------------------------------------------------------------
 // Re-planning of occurrences
@@ -276,6 +262,8 @@ export function refreshOccurrences(
   const grouped = withGroup(ctx);
   return runInTransaction(db, (tx) => {
     const total: ReplanResult = { created: 0, updated: 0, removed: 0 };
+    for (const { id, patch } of expectedLinkPatches(tx))
+      updateTracked(tx, expectedOccurrence, [id], patch, grouped);
     const payments = tx.select().from(expectedPayment).all();
     for (const payment of payments) {
       // Soft-deleted payments only matter while they still have future rows to remove.
@@ -602,7 +590,14 @@ const liveClaimedBookings = (tx: Executor): Set<string> =>
     tx
       .select({ bookingId: expectedOccurrence.bookingId })
       .from(expectedOccurrence)
-      .where(and(isNull(expectedOccurrence.deletedAt), isNotNull(expectedOccurrence.bookingId)))
+      .innerJoin(booking, eq(booking.id, expectedOccurrence.bookingId))
+      .where(
+        and(
+          isNull(expectedOccurrence.deletedAt),
+          isNotNull(expectedOccurrence.bookingId),
+          isNull(booking.deletedAt),
+        ),
+      )
       .all()
       .map((r) => r.bookingId!),
   );
@@ -618,8 +613,8 @@ export interface MatchSummary {
  * (`missed`). A booking fits when it is on the payment's account, has the same sign and its payee
  * (or the payee's contact), category or income type is the payment's; nearest day first, then
  * nearest amount. Fits inside the tolerance are assigned before deviating ones, and a booking
- * belongs to at most one occurrence (also enforced by a unique index). Occurrences that were
- * linked, unlinked or marked missed by hand are never touched again by this function.
+ * belongs to at most one occurrence (also enforced by a unique index). Existing live links only
+ * have their amount status refreshed; unlinked or manually missed occurrences are left alone.
  */
 export function matchOccurrences(
   db: Executor,
@@ -629,6 +624,8 @@ export function matchOccurrences(
   const grouped = withGroup(ctx);
   return runInTransaction(db, (tx) => {
     const summary: MatchSummary = { received: 0, deviating: 0, missed: 0 };
+    for (const { id, patch } of expectedLinkPatches(tx))
+      updateTracked(tx, expectedOccurrence, [id], patch, grouped);
     const open = tx
       .select({ occ: expectedOccurrence, payment: expectedPayment })
       .from(expectedOccurrence)
@@ -748,22 +745,8 @@ export function linkOccurrence(
       )
       .get();
     if (other) throw new ConflictError('This booking already belongs to another occurrence');
-    const version = versionOn(
-      versionsByPayment(tx, [payment.id]).get(payment.id) ?? [],
-      occ.dueDate,
-    );
-    const planned = plannedOccurrence(occ, payment, version);
-    const booked = bookedAmountIn(b, version?.currency ?? 'EUR');
-    const inside =
-      Math.sign(booked) === Math.sign(planned.amountCents) &&
-      amountGap(planned, booked) <= payment.amountToleranceCents;
-    updateTracked(
-      tx,
-      expectedOccurrence,
-      [occurrenceId],
-      { status: inside ? 'received' : 'deviating', bookingId },
-      grouped,
-    );
+    const status = expectedLinkedStatus(tx, occ, payment, b);
+    updateTracked(tx, expectedOccurrence, [occurrenceId], { status, bookingId }, grouped);
     return { occurrence: liveOccurrence(tx, occurrenceId).occ, groupId: grouped.groupId };
   });
 }
@@ -871,7 +854,7 @@ export function upcoming(
     .leftJoin(contact, eq(contact.id, expectedPayment.contactId))
     .leftJoin(category, eq(category.id, expectedPayment.categoryId))
     .leftJoin(incomeType, eq(incomeType.id, expectedPayment.incomeTypeId))
-    .leftJoin(booking, eq(booking.id, expectedOccurrence.bookingId))
+    .leftJoin(booking, and(eq(booking.id, expectedOccurrence.bookingId), isNull(booking.deletedAt)))
     .where(
       and(
         isNull(expectedOccurrence.deletedAt),
@@ -915,7 +898,7 @@ export function upcoming(
       name: r.payment.name,
       kind: r.payment.kind,
       dueDate: r.occ.dueDate,
-      status: r.occ.status,
+      status: r.bookingDate === null && r.occ.bookingId !== null ? 'expected' : r.occ.status,
       amountCents: r.occ.expectedAmountCents,
       currency,
       contactShareCents: r.occ.contactShareCents,
@@ -930,8 +913,8 @@ export function upcoming(
       categoryClass: r.categoryClass,
       incomeTypeId: r.payment.incomeTypeId,
       incomeTypeName: r.incomeTypeName,
-      bookingId: r.occ.bookingId,
-      bookedAmountCents: r.bookingAmount,
+      bookingId: r.bookingDate === null ? null : r.occ.bookingId,
+      bookedAmountCents: r.bookingDate === null ? null : r.bookingAmount,
       suggestion,
     };
   });
