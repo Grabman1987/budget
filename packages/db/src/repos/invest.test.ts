@@ -1,4 +1,4 @@
-import { booking, expectedOccurrence, INCOME_TYPES, institution, trade } from '../schema';
+import { booking, expectedOccurrence, INCOME_TYPES, institution, price, trade } from '../schema';
 import { eq } from 'drizzle-orm';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { createTestDatabase, type OpenedDatabase } from '../client';
@@ -15,6 +15,7 @@ import { ConflictError } from './errors';
 import { accounts, createEntity } from './entities';
 import { createExpectedPayment, linkOccurrence } from './expected';
 import { portfolioFlows } from './portfolio';
+import { portfolioSummary } from './portfolio-summary';
 import { reconcileAccount } from './reconciliation';
 import { accountBalances } from './queries';
 import {
@@ -831,4 +832,62 @@ describe('depot view: deposits onto the reference account are external flows', (
       }),
     ).toEqual([{ date: '2026-02-03', cents: -300 }]);
   });
+});
+
+it('preserves literal partial-sale source fees/tax through atomic edit, undo and redo', () => {
+  fund(200_000, '2026-01-01');
+  db.insert(price)
+    .values({ securityId: 's1', date: '2026-01-01', priceMicro: 120_000_000, source: 'manual' })
+    .run();
+  createTrade(
+    db,
+    {
+      accountId: 'depot',
+      securityId: 's1',
+      date: '2026-01-02',
+      kind: 'buy',
+      unitsE8: 1_000_000_000,
+      amountCents: 100_000,
+      feeCents: 1_000,
+    },
+    { ...testCtx, groupId: 'literal-buy' },
+  );
+  expect(balance('depot')).toBe(99_000);
+  const sale = createTrade(
+    db,
+    {
+      accountId: 'depot',
+      securityId: 's1',
+      date: '2026-01-03',
+      kind: 'sell',
+      unitsE8: -400_000_000,
+      amountCents: 60_000,
+      feeCents: 400,
+      taxCents: 2_000,
+    },
+    { ...testCtx, groupId: 'literal-sale' },
+  );
+  const view = () => portfolioSummary(db, { today: '2026-01-04', period: 'Alles' });
+  expect(balance('depot')).toBe(156_600);
+  expect(view()).toMatchObject({
+    realizedGainCents: 17_200,
+    realizedGainComplete: true,
+    costCents: 60_600,
+    valueCents: 72_000,
+  });
+  updateTrade(db, sale.trade.id, { feeCents: 600 }, { ...testCtx, groupId: 'literal-edit' });
+  expect(getBooking(db, sale.bookingId!)?.amountCents).toBe(57_400);
+  expect(balance('depot')).toBe(156_400);
+  expect(view().realizedGainCents).toBe(17_000);
+  const reversed = undo(db, { groupId: 'literal-edit' }, testCtx);
+  expect(getTrade(db, sale.trade.id)).toMatchObject({
+    feeCents: 400,
+    taxCents: 2_000,
+    amountCents: 60_000,
+  });
+  expect(balance('depot')).toBe(156_600);
+  expect(view().realizedGainCents).toBe(17_200);
+  undo(db, { groupId: reversed.groupId }, testCtx);
+  expect(balance('depot')).toBe(156_400);
+  expect(view().realizedGainCents).toBe(17_000);
 });

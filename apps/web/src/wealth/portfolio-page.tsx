@@ -23,17 +23,23 @@ import {
 } from './portfolio-format';
 import { InstrumentPanel } from './portfolio-panel';
 import { INSTRUMENT_KIND } from './instrument-form';
+import { TradePanel } from './trade-panel';
 import './portfolio.css';
 
 export function PortfolioPage() {
   const query = useQuery(portfolioPositionsQuery());
   const instruments = useQuery(instrumentsQuery());
-  const search = useSearch({ strict: false }) as { produkt?: string };
+  const search = useSearch({ strict: false }) as { produkt?: string; handel?: string };
   const navigate = useNavigate();
   const select = (produkt?: string) =>
     void navigate({
       to: '/vermoegen/portfolio',
       search: ((prev: Record<string, unknown>) => ({ ...prev, produkt })) as never,
+    });
+  const trade = (handel?: string, produkt = search.produkt) =>
+    void navigate({
+      to: '/vermoegen/portfolio',
+      search: ((prev: Record<string, unknown>) => ({ ...prev, produkt, handel })) as never,
     });
   const view = query.data;
   const held = new Set(view?.classes.flatMap((group) => group.positions.map((p) => p.securityId)));
@@ -42,7 +48,10 @@ export function PortfolioPage() {
     <PageFrame meta={VERMOEGEN_PORTFOLIO_META}>
       <div className="kview vview portfolio-view">
         <div className="instrument-actions">
-          <Button onClick={() => select('neu')}>Instrument anlegen</Button>
+          <Button variant="ghost" onClick={() => select('neu')}>
+            Instrument anlegen
+          </Button>
+          <Button onClick={() => trade('neu', undefined)}>Handel erfassen</Button>
         </div>
         {query.isPending && <LoadingNote what="Positionen" />}
         {query.isError && (
@@ -159,17 +168,28 @@ export function PortfolioPage() {
           </section>
         )}
       </div>
-      <InstrumentPanel
-        id={search.produkt ?? ''}
-        position={view?.classes
-          .flatMap((g) => g.positions)
-          .find((p) => p.securityId === search.produkt)}
-        asOf={view?.asOf}
-        onClose={() => select()}
-        onSelect={select}
-        positionState={query.isError ? 'unavailable' : query.isPending ? 'loading' : 'ready'}
-        onRetryPositions={() => void query.refetch()}
-      />
+      {search.handel ? (
+        <TradePanel
+          key={search.handel}
+          id={search.handel}
+          securityId={search.produkt === 'neu' ? undefined : search.produkt}
+          onClose={() => trade()}
+          onSaved={(id) => trade(undefined, id)}
+        />
+      ) : (
+        <InstrumentPanel
+          id={search.produkt ?? ''}
+          position={view?.classes
+            .flatMap((g) => g.positions)
+            .find((p) => p.securityId === search.produkt)}
+          asOf={view?.asOf}
+          onClose={() => select()}
+          onSelect={select}
+          positionState={query.isError ? 'unavailable' : query.isPending ? 'loading' : 'ready'}
+          onRetryPositions={() => void query.refetch()}
+          onTrade={trade}
+        />
+      )}
     </PageFrame>
   );
 }

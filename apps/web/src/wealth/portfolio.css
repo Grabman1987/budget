@@ -239,3 +239,42 @@
     text-align: right;
   }
 }
+.instrument-actions {
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.trade-history {
+  border-top: 1px solid var(--rule);
+  padding-top: 12px;
+}
+.trade-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.trade-list li {
+  padding: 16px 0;
+  border-bottom: 1px solid var(--rule);
+}
+.trade-list small {
+  display: block;
+  color: var(--ink-2);
+}
+.trade-list dl {
+  margin: 8px 0;
+}
+.trade-list dl div {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+.trade-list dt {
+  color: var(--ink-2);
+}
+.trade-list dd {
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+}
+.trade-list .vnote {
+  overflow-wrap: anywhere;
+}
