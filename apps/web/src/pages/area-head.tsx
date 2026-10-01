@@ -2,9 +2,9 @@ import { Segmented, StandValue, TitleBlock, type TitleBlockField } from '@budget
 import { ChevronLeft, ChevronRight, KeyRound } from 'lucide-react';
 import { useState } from 'react';
 import { monthLabel } from '../nav/month';
+import { VermoegenStand, ZeitraumSwitch } from '../wealth/frame';
 import type { PageMeta } from '../nav/pages';
 import { useMonth } from '../shell/use-month';
-import { useWealthPeriod, type WealthPeriod } from '../wealth/portfolio-period';
 
 type Period = 'month' | 'payday';
 
@@ -12,7 +12,6 @@ const PERIODS = [
   { value: 'month', label: 'Monat' },
   { value: 'payday', label: 'Bis Gehalt' },
 ] as const;
-const RANGES = ['1M', '3M', 'YTD', '1J', '3J', 'Alles'].map((value) => ({ value, label: value }));
 
 export interface AreaHeadProps {
   meta: PageMeta;
@@ -51,7 +50,6 @@ export function AreaHead({
 }: AreaHeadProps) {
   const [month, shift] = useMonth();
   const [period, setPeriod] = useState<Period>('month');
-  const [range, setRange] = useWealthPeriod();
   const stand: TitleBlockField = { label: 'Stand', value: standValue ?? <StandValue /> };
 
   let heading: string | undefined;
@@ -113,18 +111,8 @@ export function AreaHead({
       heading = 'Vermögen';
       fields = [
         // Six range buttons need the whole strip on the phone, as in the prototype.
-        { ...stand, hideOnMobile: true },
-        {
-          label: 'Zeitraum',
-          value: (
-            <Segmented
-              label="Zeitraum"
-              options={RANGES}
-              value={range}
-              onChange={(value) => setRange(value as WealthPeriod)}
-            />
-          ),
-        },
+        { label: 'Stand', value: standValue ?? <VermoegenStand />, hideOnMobile: true },
+        { label: 'Zeitraum', value: <ZeitraumSwitch /> },
       ];
       break;
     case 'einstellungen':

@@ -1,6 +1,6 @@
 import { queryOptions } from '@tanstack/react-query';
 import { queryString, request } from '../api/http';
-import type { WealthPeriod } from './portfolio-period';
+import type { Period } from '@budget/domain';
 
 /** Typed calls of the portfolio read model (P5.5) and the market refresh (P5.1). */
 
@@ -66,7 +66,7 @@ export interface WindowPerformance {
 
 export interface PortfolioSummary {
   asOf: string;
-  period: WealthPeriod;
+  period: Period;
   valueCents: number;
   costCents: number;
   gainCents: number;
@@ -118,7 +118,7 @@ export interface PricePoint {
 
 export const PORTFOLIO_KEY = ['wealth', 'portfolio'] as const;
 
-export const portfolioQuery = (period: WealthPeriod) =>
+export const portfolioQuery = (period: Period) =>
   queryOptions({
     queryKey: [...PORTFOLIO_KEY, 'summary', period],
     queryFn: () =>

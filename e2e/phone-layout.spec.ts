@@ -22,7 +22,14 @@ test.describe('phone layout', () => {
         ].filter((el) => el.getClientRects().length > 0);
         const last = focusable.at(-1);
         if (!last) return { none: true } as const;
-        const rect = last.getBoundingClientRect();
+        // On a long page the last control in the DOM can sit above the content (the register tabs
+        // of a page without controls in its body): scrolling to the end moves it out of view, so
+        // bring it back by scrolling. A control that cannot be moved clear of the bars still fails.
+        let rect = last.getBoundingClientRect();
+        if (rect.top < 0 || rect.bottom > window.innerHeight) {
+          last.scrollIntoView({ block: 'center' });
+          rect = last.getBoundingClientRect();
+        }
         const bar = document.querySelector('.tabbar')?.getBoundingClientRect();
         const fab = document.querySelector('.fab')?.getBoundingClientRect();
         const covers = (o: DOMRect | undefined) =>

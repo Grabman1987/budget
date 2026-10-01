@@ -7,10 +7,8 @@
 }
 
 /* Title block: the price refresh sits in the Stand cell. */
-.pf-stand-day {
-  display: inline-flex;
-  gap: 4px;
-  margin-right: 6px;
+.pf-stand-sep {
+  margin: 0 6px;
 }
 .pf-stand-btn {
   display: inline-flex;
@@ -116,12 +114,6 @@
 .pf-view .neg-alert {
   color: var(--red);
 }
-.vnote {
-  margin: 10px 0 0;
-  font-size: 13px;
-  color: var(--ink-2);
-  max-width: 64ch;
-}
 .pf-view .grp-no {
   display: inline-grid;
   place-items: center;
@@ -217,48 +209,6 @@
 .va-val small {
   font-size: 12px;
   color: var(--ink-3);
-}
-
-/* Plattformen */
-.vbars {
-  list-style: none;
-  margin: 8px 0 0;
-  padding: 0;
-}
-.vbars li {
-  display: grid;
-  grid-template-columns: minmax(0, 150px) minmax(0, 1fr) 96px;
-  align-items: center;
-  gap: 12px;
-  padding: 7px 0;
-  border-top: 1px solid var(--rule);
-  font-size: 13.5px;
-}
-.vbars li:first-child {
-  border-top: 0;
-}
-.vb-bar {
-  position: relative;
-  height: 10px;
-  background: var(--tint);
-  border-radius: 1px;
-}
-.vb-bar i {
-  position: absolute;
-  inset: 0 auto 0 0;
-  background: var(--line);
-  border-radius: 1px;
-}
-.vb-val {
-  text-align: right;
-  font-weight: 620;
-  white-space: nowrap;
-}
-.vb-name {
-  color: var(--ink-2);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
 
 /* Positionen */
@@ -397,13 +347,6 @@
   }
   .pf-kpi strong {
     font-size: 20px;
-  }
-  .vbars li {
-    grid-template-columns: minmax(0, 1fr) 90px;
-  }
-  .vbars .vb-bar {
-    grid-column: 1 / -1;
-    grid-row: 2;
   }
   .vallo li {
     grid-template-columns: minmax(0, 1fr) auto;

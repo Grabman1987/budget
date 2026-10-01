@@ -1,0 +1,122 @@
+/* Vermögen: Nettovermögen. Ported from design/prototype/styles.css (.vview, .vnw, .vcomp, .vbars). */
+
+.vview {
+  grid-template-columns: minmax(0, 7fr) minmax(0, 5fr);
+  gap: 40px 48px;
+  align-items: start;
+  margin-top: -8px;
+}
+.vview .vnw {
+  grid-column: 1;
+}
+.vview .vcomp {
+  grid-column: 2;
+}
+.vview > .rev-empty {
+  grid-column: 1 / -1;
+}
+.vnote {
+  margin: 10px 0 0;
+  font-size: 13px;
+  color: var(--ink-2);
+  max-width: 64ch;
+}
+.vline {
+  display: block;
+  width: 100%;
+  min-height: 320px;
+  margin: 4px 0 6px;
+}
+.vnw .chain-inline {
+  margin-bottom: 18px;
+}
+.vnw-wide .legend {
+  margin-bottom: 18px;
+}
+.l-daily {
+  stroke-width: 1.5;
+  stroke-linejoin: round;
+}
+.lg-sq {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  border-radius: 1px;
+}
+.lg-own {
+  background: var(--line);
+}
+.lg-mkt {
+  background: var(--line-2);
+}
+.vbars {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+}
+.vbars li {
+  display: grid;
+  grid-template-columns: minmax(0, 150px) minmax(0, 1fr) 96px;
+  align-items: center;
+  gap: 12px;
+  padding: 7px 0;
+  border-top: 1px solid var(--rule);
+  font-size: 13.5px;
+}
+.vbars li:first-child {
+  border-top: 0;
+}
+.vb-bar {
+  position: relative;
+  height: 10px;
+  background: var(--tint);
+  border-radius: 1px;
+}
+.vb-bar i {
+  position: absolute;
+  inset: 0 auto 0 0;
+  background: var(--line);
+  border-radius: 1px;
+}
+.vbars .is-debt .vb-bar i {
+  background: transparent;
+  border: 1.5px dashed var(--ink-2);
+}
+.vb-val {
+  text-align: right;
+  font-weight: 620;
+  white-space: nowrap;
+}
+.vb-name {
+  color: var(--ink-2);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+@media (max-width: 980px) {
+  .vview .vnw,
+  .vview .vcomp {
+    grid-column: 1 / -1;
+  }
+}
+@media (max-width: 767px) {
+  .vbars li {
+    grid-template-columns: minmax(0, 1fr) 90px;
+  }
+  .vbars .vb-bar {
+    grid-column: 1 / -1;
+    grid-row: 2;
+  }
+}
+
+/* Zeitraum switch in the title block of every Vermögen page: six short buttons. */
+.seg-period button {
+  padding: 0 9px;
+}
+@media (max-width: 767px) {
+  .seg-period {
+    width: 100%;
+    grid-auto-columns: 1fr;
+  }
+}

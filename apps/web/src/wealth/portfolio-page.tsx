@@ -21,7 +21,7 @@ import { useNavigate } from '@tanstack/react-router';
 import { AlertTriangle, BarChart3, CheckCircle2, ChevronRight, RefreshCw } from 'lucide-react';
 import { useState } from 'react';
 import { undoGroup } from '../ledger/api';
-import { dayHeading, eur, MINUS } from '../ledger/format';
+import { eur, MINUS } from '../ledger/format';
 import { errorText } from '../ledger/labels';
 import { EmptyNote, ErrorNote, LoadingNote } from '../ledger/states';
 import { PAGES } from '../nav/pages';
@@ -54,7 +54,9 @@ import {
   whole,
   gainBp,
 } from './portfolio-model';
-import { useWealthPeriod } from './portfolio-period';
+import { WEALTH_KEY } from './api';
+import { VermoegenStand } from './frame';
+import { useZeitraum } from './zeitraum';
 
 function pageMeta() {
   const meta = PAGES.find((p) => p.path === '/vermoegen/portfolio');
@@ -65,14 +67,14 @@ const META = pageMeta();
 
 /** Vermögen › Portfolio: decide on allocation, savings plans and rebalancing; positions below. */
 export function PortfolioPage() {
-  const [period] = useWealthPeriod();
+  const [period] = useZeitraum();
   const summary = useQuery({ ...portfolioQuery(period), placeholderData: keepPreviousData });
   const proposal = useQuery(proposalQuery());
   const portfolio = summary.data?.portfolio;
   const [open, setOpen] = useState<string | undefined>();
 
   return (
-    <PageFrame meta={META} stand={<RefreshStand asOf={portfolio?.asOf} />}>
+    <PageFrame meta={META} stand={<RefreshStand />}>
       <div className="pf-view">
         {summary.isPending && <LoadingNote what="Portfolio" />}
         {summary.isError && (
@@ -126,35 +128,30 @@ function useRefreshPrices() {
             ? 'Die Kurse werden gerade aktualisiert.'
             : `Kurse nicht aktualisiert. ${errorText(error, '')}`.trim(),
       }),
-    onSettled: () => qc.invalidateQueries({ queryKey: PORTFOLIO_KEY }),
+    onSettled: () =>
+      Promise.all([
+        qc.invalidateQueries({ queryKey: PORTFOLIO_KEY }),
+        qc.invalidateQueries({ queryKey: WEALTH_KEY }),
+      ]),
   });
 }
 
 /** Title block cell "Stand": the day and the one action that brings new prices. */
-function RefreshStand({ asOf }: { asOf: string | undefined }) {
+function RefreshStand() {
   const refresh = useRefreshPrices();
   return (
     <>
-      {asOf && (
-        <span className="pf-stand-day">
-          <span className="tb-long">{`${dayHeading(asOf)}${asOf.slice(0, 4)}`}</span>
-          <span className="tb-short">{`${asOf.slice(8, 10)}.${asOf.slice(5, 7)}.`}</span>
-          <span aria-hidden="true"> ·</span>
-        </span>
-      )}
+      <VermoegenStand />
+      <span className="pf-stand-sep" aria-hidden="true">
+        ·
+      </span>
       <button
         type="button"
         className="pf-stand-btn"
         disabled={refresh.isPending}
         onClick={() => refresh.mutate()}
       >
-        <RefreshCw
-          className={cx('icon icon-sm', refresh.isPending && 'spin')}
-          size={16}
-          strokeWidth={1.75}
-          aria-hidden="true"
-        />
-        Kurse aktualisieren
+        {refresh.isPending ? 'Kurse werden aktualisiert …' : 'Kurse aktualisieren'}
       </button>
     </>
   );
