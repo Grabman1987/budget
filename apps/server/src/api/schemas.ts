@@ -221,10 +221,11 @@ export const targetBody = z.object({
     .nullable(),
 });
 export const categoryCreate = z.object({ ...categoryFields, target: targetBody.optional() });
-export const categoryPatch = z
-  .object(categoryFields)
-  .partial()
-  .extend({ hidden: z.boolean().optional(), target: targetBody.optional() });
+export const categoryPatch = z.object(categoryFields).partial().extend({
+  hidden: z.boolean().optional(),
+  pinned: z.boolean().optional(),
+  target: targetBody.optional(),
+});
 export const categorySort = z.object({
   groups: z
     .array(z.object({ id, categoryIds: z.array(id).max(500) }))
