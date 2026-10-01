@@ -16,8 +16,18 @@ import {
   type SeriesTrade,
   type ValuationSeries,
 } from '@budget/domain';
-import { and, eq, isNotNull, isNull, lte, sql } from 'drizzle-orm';
-import { account, booking, bookingSplit, fxRate, holding, price, security, trade } from '../schema';
+import { and, eq, isNotNull, isNull, lte, max, min, sql } from 'drizzle-orm';
+import {
+  account,
+  booking,
+  bookingSplit,
+  fxRate,
+  holding,
+  price,
+  priceAudit,
+  security,
+  trade,
+} from '../schema';
 import { accountBalances } from './queries';
 import type { Executor } from './types';
 
@@ -492,4 +502,64 @@ export function netWorthDaily(db: Executor, from: string, to: string): NetWorthD
     });
   }
   return out;
+}
+
+// ---------------------------------------------------------------------------------------------
+// P5.4 read models for the Vermögen pages.
+// ---------------------------------------------------------------------------------------------
+
+/** First day of any live account (its opening date): where "Alles" starts. */
+export function earliestAccountDate(db: Executor): string | null {
+  return (
+    db
+      .select({ day: min(account.openingDate) })
+      .from(account)
+      .where(isNull(account.deletedAt))
+      .get()?.day ?? null
+  );
+}
+
+export interface PriceStand {
+  /** Day of the newest price on or before `asOf`; `null` without any price. */
+  priceDate: string | null;
+  /** When that day's prices were written by a refresh or a manual entry (ISO UTC), if recorded. */
+  priceAt: string | null;
+}
+
+/** "Stand" of the Vermögen pages: the newest price day and, when recorded, its timestamp. */
+export function priceStand(db: Executor, asOf: string): PriceStand {
+  const priceDate =
+    db
+      .select({ day: max(price.date) })
+      .from(price)
+      .where(lte(price.date, asOf))
+      .get()?.day ?? null;
+  if (priceDate === null) return { priceDate: null, priceAt: null };
+  const priceAt =
+    db
+      .select({ ts: max(priceAudit.ts) })
+      .from(priceAudit)
+      .where(eq(priceAudit.date, priceDate))
+      .get()?.ts ?? null;
+  return { priceDate, priceAt };
+}
+
+export interface AccountValue {
+  accountId: string;
+  name: string;
+  type: string;
+  /** Cash balance in EUR plus the market value of the account's positions. */
+  valueCents: number;
+}
+
+/** What each live account is worth on a day (`netWorthAsOf`), debts negative; zero values are left out. */
+export function accountValuesAsOf(db: Executor, asOf: string): AccountValue[] {
+  const { byAccount } = netWorthAsOf(db, asOf);
+  return db
+    .select({ id: account.id, name: account.name, type: account.type })
+    .from(account)
+    .where(isNull(account.deletedAt))
+    .all()
+    .map((a) => ({ accountId: a.id, name: a.name, type: a.type, valueCents: byAccount[a.id] ?? 0 }))
+    .filter((a) => a.valueCents !== 0);
 }

@@ -6,6 +6,7 @@ import {
   Outlet,
   redirect,
 } from '@tanstack/react-router';
+import type { Period } from '@budget/domain';
 import { authStatusQuery, queryClient } from './auth/status-query';
 import { validateBookingsSearch } from './ledger/bookings-search';
 import { accountsQuery } from './ledger/queries';
@@ -21,6 +22,7 @@ import {
   REPORTS_CATALOG,
   REPORT_GROUP_PAGES,
   SECURITY_META,
+  VERMOEGEN_NETTO_META,
   type PageMeta,
 } from './nav/pages';
 import { NotFoundPage } from './pages/not-found';
@@ -28,6 +30,7 @@ import { PlaceholderPage } from './pages/placeholder-page';
 import { AppShell } from './shell/app-shell';
 import type { PageTitleData } from './shell/page-meta';
 import { isMonth } from './nav/month';
+import { isZeitraum } from './wealth/zeitraum';
 import { isPanelId, type PanelId } from './shell/panels';
 
 // Route-level code splitting: everything except the shell and the generic placeholder page is
@@ -39,11 +42,17 @@ const reportsPages = () => import('./pages/reports-pages');
 const rootRoute = createRootRoute({
   // `?panel=` opens the side panel (desktop) or bottom sheet (phone) on any page.
   // `?monat=YYYY-MM` selects the month on Heute and Plan (linkable, survives reload).
+  // `?zeitraum=1M|3M|YTD|1J|3J|Alles` is the period of the Vermögen pages.
   validateSearch: (
     search: Record<string, unknown>,
-  ): { panel?: PanelId | undefined; monat?: string | undefined } => ({
+  ): {
+    panel?: PanelId | undefined;
+    monat?: string | undefined;
+    zeitraum?: Period | undefined;
+  } => ({
     panel: isPanelId(search['panel']) ? search['panel'] : undefined,
     monat: isMonth(search['monat']) ? search['monat'] : undefined,
+    zeitraum: isZeitraum(search['zeitraum']) ? search['zeitraum'] : undefined,
   }),
   component: Outlet,
   notFoundComponent: NotFoundPage,
@@ -85,6 +94,7 @@ const BUILT_PATHS = new Set<string>([
   '/konten/buchungen',
   EINSTELLUNGEN_KATEGORIEN.path,
   PLAN_MONAT.path,
+  VERMOEGEN_NETTO_META.path,
 ]);
 const placeholderRoutes = PAGES.filter((page) => !BUILT_PATHS.has(page.path)).map((page) =>
   pageRoute(page.path, page),
@@ -120,6 +130,12 @@ const planMonthRoute = createRoute({
   path: PLAN_MONAT.path,
   staticData: { meta: PLAN_MONAT },
   component: lazyRouteComponent(() => import('./budget/plan-page'), 'PlanMonthPage'),
+});
+const netWorthRoute = createRoute({
+  getParentRoute: () => shellRoute,
+  path: VERMOEGEN_NETTO_META.path,
+  staticData: { meta: VERMOEGEN_NETTO_META },
+  component: lazyRouteComponent(() => import('./wealth/networth-page'), 'NetWorthPage'),
 });
 const redirects = [
   redirectRoute('/plan', '/plan/monat'),
@@ -227,6 +243,7 @@ const routeTree = rootRoute.addChildren([
     securityRoute,
     categoriesRoute,
     planMonthRoute,
+    netWorthRoute,
     ...redirects,
     overviewRoute,
     bookingsRoute,
