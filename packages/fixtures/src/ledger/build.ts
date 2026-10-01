@@ -5,6 +5,7 @@ import { buildInvestments } from './investments';
 import { ACC, masterData } from './master-data';
 import { fundByR03 } from './funding';
 import { buildPlanning } from './planning';
+import { buildSavingsPlans } from './savings';
 import type { SampleLedger } from './types';
 
 /** Balance of the current account at each month end after the monthly sweep (from the prototype's shape). */
@@ -190,6 +191,7 @@ function build(): SampleLedger {
     splits,
     holdings: invest.holdings,
     trades,
+    savingsPlans: buildSavingsPlans(),
     prices: invest.prices,
     ...planning,
   };

@@ -57,6 +57,13 @@
       "when": 1790810674327,
       "tag": "0007_hot_mercury",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "6",
+      "when": 1790813894837,
+      "tag": "0008_small_impossible_man",
+      "breakpoints": true
     }
   ]
 }

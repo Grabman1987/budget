@@ -102,6 +102,39 @@ security currency, rates EUR per unit in micro-units.
 | `GET /securities/:id/prices?from&to` | `{ securityId, currency, prices: [{ date, priceMicro, currency, source }] }` ascending; unknown security 404 |
 | `PUT /securities/:id/prices/:date` | Manual price: `{ priceMicro }` (integer) or `{ price: "81.25" }` (decimal text, at most 6 decimals), not in the future. Wins over every source; a refresh never replaces it; a change of an existing price is a `price_audit` row |
 | `GET /fx?currency&from&to` | `{ currency, rates: [{ date, currency, rateMicro, source }] }` ascending; `currency` is an ISO code in capitals |
+## Invest (P5.5)
+
+Securities, trades, asset classes, savings plans and the portfolio read model. Money is integer
+cents, prices micro-units, units 1e-8. Every write answers with its `groupId` (undo with
+`POST /undo`); one trade is one group (trade and settlement booking together).
+
+| Endpoint | Purpose |
+| --- | --- |
+| `GET /securities?deleted=1`, `POST /securities` | Securities by name; create `{ name, kind, symbol?, isin?, currency?, terBp?, assetClassId?, institutionId?, benchmark?, fallbackQuoteId?, quoteExchange?, pricesEnabled?, quoteAdjusted? }` (ISIN with 12 characters, unique among live securities: 409) |
+| `GET/PATCH/DELETE /securities/:id`, `POST /securities/:id/restore` | Read, change, soft delete (409 while the security has trades, holdings or an open savings plan), restore |
+| `GET /asset-classes`, `POST /asset-classes`, `PATCH/DELETE /asset-classes/:id` | Classes with their current target (`target`, Soll in bp and band) and `inUse`; delete is 409 while securities belong to it |
+| `GET /asset-classes/targets` | Target versions `{ validFrom, targets, sumBp }`, oldest first |
+| `PUT /asset-classes/targets` `{ validFrom, targets: [{ assetClassId, targetShareBp, bandBp? }] }` | Set the version that starts on `validFrom` (replaces the rows of that day); the sum must be 10 000 bp (400), a class with an earlier target that is not listed goes to 0 from that day. `DELETE /asset-classes/targets/:validFrom` removes a version |
+| `GET /trades?account&security&from&to` | Live trades by date |
+| `POST /trades` | `{ securityId, accountId, date, kind, unitsE8 or units, amountCents, feeCents?, taxCents?, importKey?, note? }`. `units` is decimal text with at most 8 decimals; give one of the two. Units per kind: buy and delivery_in > 0, sell and delivery_out < 0, split not 0, dividend, interest, fee, tax = 0 (400 otherwise); tax only on sell, dividend, interest; fee and tax together at most the gross amount. The account must be an investment account. 201 `{ trade, bookingId, duplicate, groupId }`; a repeated `importKey` of the account writes nothing and answers 200 with `duplicate: true` |
+| `GET /trades/:id`, `PATCH /trades/:id`, `DELETE /trades/:id` | Change (security, date, kind, units, amounts, note; account and import key stay) or soft delete; the settlement booking follows in the same group |
+| `GET /savings-plans?ended=1` | Open plan rows (`validTo` null); with `ended=1` the history rows too |
+| `POST /savings-plans` | `{ securityId, accountId, sourceAccountId?, amountCents, dayOfMonth, validFrom? (today), note? }`; one open plan per security and account (409) |
+| `PATCH /savings-plans/:id` | `{ amountCents?, dayOfMonth?, sourceAccountId?, note?, from? }`: ends the row the day before `from` (default: next execution day) and starts a new one; a `from` on or before the row's own start corrects it in place |
+| `POST /savings-plans/:id/end` `{ to? }`, `DELETE /savings-plans/:id` | End an open plan (inclusive), soft delete a mistaken row |
+| `GET /savings-plans/executions?month=` | Planned executions of the month with `status`: `executed` (a buy of the security on the account within 3 days, plan between amount and amount + fee, 1 EUR slack), `missing` (window passed), `upcoming`; `tradeId` when executed |
+| `GET /savings-plans/proposal?step=` | P5.3 `savingsPlanProposal` over the open plans (R15 pauses speculative plans, R13 steers to under-weight classes, the total stays); rates in multiples of `step` cents (default 5 000); `{ proposal, basis }` |
+| `POST /savings-plans/apply` `{ stepCents? }` | Recomputes the proposal and applies it: changed plans end the day before their next execution and restart at the new rate (rate 0 only ends); one inbox item "Sparplan bei der Bank ändern" (kind `other`, `refType` `savings_plan`) lists the changes. `{ changes, inboxItemId, groupId }`; a second call changes nothing |
+| `GET /portfolio?period=&view=&benchmark=&reference=` | `period` is 1M, 3M, YTD, 1J (default), 3J or Alles; `view` is `securities` (default) or `depot`. `{ portfolio }`: `valueCents`, `costCents` (FIFO), `gainCents`, `realizedGainCents`, `performance` (`windowPerformance`: TTWROR, XIRR, Modified Dietz, risk figures, `benchmarkTtwror`; `null` without history), `benchmark`, `costs` (TER plus fees of 12 months, `costRateBp`), `income` (dividends and interest of 12 months), `allocation` (R13), `cluster` (R14), `speculative` (R15), `proposals` (rebalancing rows), `classes` (positions grouped by asset class with Soll), `positions`, `platforms` (shares in bp), `names` |
+
+Settlement (`trade.booking_id`): a buy books -(amount + fee) on the investment account, a sale
+amount - fee - tax, a dividend or interest the same as income of type Kapitalerträge, a standalone
+fee or tax -amount; deliveries and splits have no booking. The savings-plan transfer arrives as
+cash and the buy leaves it, so the depot cash stays 0. The benchmark is the price series of the
+security given by `benchmark` (default: the largest position) until index series exist. The depot
+view counts a plain booking on a reference account (default: the investment accounts) as an external
+flow: an inflow is a deposit (Einlage), an outflow a withdrawal (Entnahme); trade settlements (also fees and taxes) and Kapitalerträge are performance.
+
 ## YNAB import (P2d)
 
 Import runs of the YNAB export (`docs/migration/ynab-export.md`), below `/api/imports`. Source:
