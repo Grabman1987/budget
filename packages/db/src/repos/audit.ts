@@ -155,11 +155,68 @@ const snapshotsEqual = (a: Snapshot, b: Snapshot): boolean => {
 const whereKey = (meta: TableMeta, key: RowKey) =>
   and(...meta.keyProps.map((p, i) => eq(meta.columns[p]!, key[i])));
 
+interface Prepared {
+  run(params: Record<string, unknown>): unknown;
+  get(params: Record<string, unknown>): unknown;
+}
+/** Prepared statements per executor (a transaction handle or the database), table and column pattern. */
+const prepared = new WeakMap<object, Map<string, Prepared>>();
+
+/**
+ * Insert rows one by one through a prepared statement that is reused (cached per executor) instead
+ * of building one large multi-row statement per chunk: building the SQL of a multi-row insert in
+ * Drizzle costs far more than SQLite's work. Values are bound like a plain `insert().values()`:
+ * `undefined` gets the column default, `null` stays a literal NULL (encoders never see it).
+ * With `returning` the stored rows (defaults applied) come back in order.
+ */
+export function insertRows<T extends SQLiteTable>(
+  db: Executor,
+  table: T,
+  rows: readonly T['$inferInsert'][],
+  options: { returning?: boolean } = {},
+): T['$inferSelect'][] {
+  const meta = tableMeta(table);
+  const props = Object.keys(meta.columns);
+  let cache = prepared.get(db);
+  if (!cache) prepared.set(db, (cache = new Map()));
+  const out: T['$inferSelect'][] = [];
+  for (const row of rows as Record<string, unknown>[]) {
+    let pattern = options.returning ? `${meta.name}|r|` : `${meta.name}|-|`;
+    for (const p of props) pattern += row[p] === undefined ? 'u' : row[p] === null ? 'n' : 'p';
+    let statement = cache.get(pattern);
+    if (!statement) {
+      const template: Record<string, unknown> = {};
+      for (const p of props)
+        if (row[p] !== undefined) template[p] = row[p] === null ? null : sql.placeholder(p);
+      const insert = db.insert(table).values(template as T['$inferInsert']);
+      statement = (options.returning
+        ? insert.returning().prepare()
+        : insert.prepare()) as unknown as Prepared;
+      cache.set(pattern, statement);
+    }
+    if (options.returning) out.push(statement.get(row) as T['$inferSelect']);
+    else statement.run(row);
+  }
+  return out;
+}
+
 /** Current row as snapshot, or `null` when it does not exist (soft-deleted rows do exist). */
 export function readSnapshot(db: Executor, table: SQLiteTable, key: RowKey): Snapshot | null {
   const meta = tableMeta(table);
-  const row = db.select().from(table).where(whereKey(meta, key)).get() as
-    Record<string, unknown> | undefined;
+  let cache = prepared.get(db);
+  if (!cache) prepared.set(db, (cache = new Map()));
+  const pattern = `${meta.name}|select`;
+  let statement = cache.get(pattern);
+  if (!statement) {
+    const where = and(
+      ...meta.keyProps.map((p, i) => eq(meta.columns[p]!, sql.placeholder(`k${i}`))),
+    );
+    statement = db.select().from(table).where(where).prepare() as unknown as Prepared;
+    cache.set(pattern, statement);
+  }
+  const params: Record<string, unknown> = {};
+  key.forEach((v, i) => (params[`k${i}`] = v));
+  const row = statement.get(params) as Record<string, unknown> | undefined;
   return row ? toSnapshot(meta, row) : null;
 }
 
@@ -170,8 +227,8 @@ export function readSnapshot(db: Executor, table: SQLiteTable, key: RowKey): Sna
 /** Append an entry to the change log; returns its id. */
 export function recordAudit(db: Executor, entry: AuditEntryInput): string {
   const id = entry.id ?? randomUUID();
-  db.insert(auditLog)
-    .values({
+  insertRows(db, auditLog, [
+    {
       id,
       actor: entry.actor,
       action: entry.action,
@@ -181,8 +238,8 @@ export function recordAudit(db: Executor, entry: AuditEntryInput): string {
       afterJson: entry.after ? JSON.stringify(entry.after) : null,
       groupId: entry.groupId ?? null,
       undoOfId: entry.undoOfId ?? null,
-    })
-    .run();
+    },
+  ]);
   return id;
 }
 
@@ -236,12 +293,12 @@ export function insertTracked<T extends SQLiteTable>(
   return db.select().from(table).where(whereKey(meta, key)).get() as T['$inferSelect'];
 }
 
-/** Rows per statement of the bulk helpers (well below SQLite's variable limit). */
+/** Rows per statement of the bulk reads in `revertCreations` (well below SQLite's variable limit). */
 const BULK = 200;
 
 /**
- * `insertTracked` for many rows (imports): the rows go in by chunks and their `create` entries
- * too, in the order given. The same log as one call per row.
+ * `insertTracked` for many rows (imports): the rows and their `create` entries go in through
+ * reused prepared statements, in the order given. The same log as one call per row.
  */
 export function insertManyTracked<T extends SQLiteTable>(
   db: Executor,
@@ -250,39 +307,23 @@ export function insertManyTracked<T extends SQLiteTable>(
   ctx: GroupedContext,
 ): void {
   const meta = tableMeta(table);
-  const [first] = meta.keyProps;
-  if (first === undefined) throw new Error(`No key on ${meta.name}`);
-  const keyOf = (r: Record<string, unknown>) =>
-    entityIdOf(meta.keyProps.map((p) => r[p] as string | number));
-  for (let i = 0; i < rows.length; i += BULK) {
-    const chunk = rows.slice(i, i + BULK) as Record<string, unknown>[];
-    db.insert(table)
-      .values(chunk as T['$inferInsert'][])
-      .run();
-    // Read back by the first key column (composite keys are matched in memory).
-    const firsts = [...new Set(chunk.map((r) => r[first] as string | number))];
-    const stored = new Map(
-      (
-        db.select().from(table).where(inArray(meta.columns[first]!, firsts)).all() as Record<
-          string,
-          unknown
-        >[]
-      ).map((r) => [keyOf(r), r]),
-    );
-    db.insert(auditLog)
-      .values(
-        chunk.map((r) => ({
-          id: randomUUID(),
-          actor: ctx.actor,
-          action: 'create' as const,
-          entityType: meta.name,
-          entityId: keyOf(r),
-          afterJson: JSON.stringify(toSnapshot(meta, stored.get(keyOf(r))!)),
-          groupId: ctx.groupId,
-        })),
-      )
-      .run();
-  }
+  if (meta.keyProps.length === 0) throw new Error(`No key on ${meta.name}`);
+  const stored = insertRows(db, table, rows, { returning: true }) as Record<string, unknown>[];
+  insertRows(
+    db,
+    auditLog,
+    stored.map((r) => ({
+      id: randomUUID(),
+      actor: ctx.actor,
+      action: 'create' as const,
+      entityType: meta.name,
+      entityId: entityIdOf(meta.keyProps.map((p) => r[p] as string | number)),
+      beforeJson: null,
+      afterJson: JSON.stringify(toSnapshot(meta, r)),
+      groupId: ctx.groupId,
+      undoOfId: null,
+    })),
+  );
 }
 
 /**
@@ -472,24 +513,24 @@ function revertCreations(
       db.update(meta.table).set(set).where(inArray(keyColumn, present)).run();
     } else db.delete(meta.table).where(inArray(keyColumn, present)).run();
     const after = meta.deletedAtProp ? read(present) : new Map<string, Snapshot>();
-    db.insert(auditLog)
-      .values(
-        chunk
-          .map((e) => ({ e, key: String(snapshotKey(meta, e.after!)[0]) }))
-          .filter(({ key }) => current.has(key))
-          .map(({ e, key }) => ({
-            id: randomUUID(),
-            actor: ctx.actor,
-            action: 'undo' as const,
-            entityType: e.entityType,
-            entityId: e.entityId,
-            beforeJson: JSON.stringify(current.get(key)),
-            afterJson: after.has(key) ? JSON.stringify(after.get(key)) : null,
-            groupId: ctx.groupId,
-            undoOfId: e.id,
-          })),
-      )
-      .run();
+    insertRows(
+      db,
+      auditLog,
+      chunk
+        .map((e) => ({ e, key: String(snapshotKey(meta, e.after!)[0]) }))
+        .filter(({ key }) => current.has(key))
+        .map(({ e, key }) => ({
+          id: randomUUID(),
+          actor: ctx.actor,
+          action: 'undo' as const,
+          entityType: e.entityType,
+          entityId: e.entityId,
+          beforeJson: JSON.stringify(current.get(key)),
+          afterJson: after.has(key) ? JSON.stringify(after.get(key)) : null,
+          groupId: ctx.groupId,
+          undoOfId: e.id,
+        })),
+    );
   }
 }
 

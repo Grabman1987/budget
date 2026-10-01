@@ -215,13 +215,64 @@ export const previewMapping = (id: string, mapping: Mapping) =>
     `${base}/${id}/preview`,
     { mapping },
   );
-export const dryRun = (id: string) => request<EvaluationResult>('POST', `${base}/${id}/dry-run`);
-export const commitRun = (id: string, deleteMissing: boolean) =>
-  request<EvaluationResult & { run: RunView }>('POST', `${base}/${id}/commit`, { deleteMissing });
+/** Progress of a running import job (the server's task steps). */
+export type JobStep = 'load' | 'check' | 'save' | 'write' | 'verify' | 'commit';
+interface JobView {
+  id: string;
+  state: 'running' | 'done' | 'failed';
+  step: JobStep | null;
+  result: { status: number; body: Record<string, unknown> } | null;
+}
+/** How often a running job is asked for its state. */
+const POLL_MS = 600;
+/** Polls that may fail in a row (a phone switching networks) before the wizard gives up. */
+const POLL_RETRIES = 20;
+const pause = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+/**
+ * Dry run, commit and revert run as jobs on the server (a worker thread): the POST answers 202
+ * with the job at once, then the job is polled until it is done. Its result is the answer the
+ * call used to give directly; a failed job becomes an `ApiError` like every other call.
+ */
+async function runJob<T>(
+  path: string,
+  body: unknown,
+  onStep?: (step: JobStep | null) => void,
+): Promise<T> {
+  let { job } = await request<{ job: JobView }>('POST', path, body);
+  let failures = 0;
+  while (job.state === 'running') {
+    onStep?.(job.step);
+    await pause(POLL_MS);
+    try {
+      ({ job } = await request<{ job: JobView }>('GET', `${base}/jobs/${job.id}`));
+      failures = 0;
+    } catch (error) {
+      if (!(error instanceof ApiError) || error.status !== 0 || ++failures > POLL_RETRIES)
+        throw error;
+    }
+  }
+  const result = job.result;
+  if (job.state === 'done' && result) return result.body as T;
+  const fields = result?.body ?? {};
+  throw new ApiError(
+    result?.status ?? 500,
+    typeof fields['error'] === 'string' ? fields['error'] : 'unknown',
+    typeof fields['message'] === 'string' ? fields['message'] : undefined,
+  );
+}
+
+export const dryRun = (id: string, onStep?: (step: JobStep | null) => void) =>
+  runJob<EvaluationResult>(`${base}/${id}/dry-run`, undefined, onStep);
+export const commitRun = (
+  id: string,
+  deleteMissing: boolean,
+  onStep?: (step: JobStep | null) => void,
+) => runJob<EvaluationResult & { run: RunView }>(`${base}/${id}/commit`, { deleteMissing }, onStep);
 export const fetchReport = (id: string) =>
   request<EvaluationResult & { run: RunView }>('GET', `${base}/${id}/report`);
 export const revertRun = (id: string, force = false) =>
-  request<{ run: RunView }>('POST', `${base}/${id}/revert`, { force });
+  runJob<{ run: RunView }>(`${base}/${id}/revert`, { force });
 export const deleteRun = (id: string) =>
   request<{ deleted: 'run' | 'staging' }>('DELETE', `${base}/${id}`);
 
@@ -275,6 +326,19 @@ const MESSAGES: Record<string, string> = {
   step_up_required: 'Bitte mit dem Passkey bestätigen.',
   network: 'Keine Verbindung zum Server.',
   invariant: 'Die Daten verletzen eine Regel des Kontobuchs.',
+  import_running: 'Gerade läuft ein anderer Importschritt; bitte kurz warten und erneut versuchen.',
+  job_lost:
+    'Der Server wurde während des Vorgangs neu gestartet. Bitte die Importläufe prüfen und bei Bedarf erneut starten.',
+};
+
+/** What a running job does, for the progress line. */
+export const JOB_STEPS: Record<JobStep, string> = {
+  load: 'Exportdaten laden',
+  check: 'Zuordnung prüfen',
+  save: 'Exportdaten speichern',
+  write: 'Buchungen schreiben',
+  verify: 'Budget abgleichen',
+  commit: 'Abschließen',
 };
 
 /** German message for a failed import call (server texts are English and never shown). */

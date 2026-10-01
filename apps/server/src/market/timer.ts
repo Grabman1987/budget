@@ -1,4 +1,4 @@
-import type { Db } from '@budget/db';
+import { writesHeld, type Db } from '@budget/db';
 import { todayInVienna } from '@budget/domain';
 import type { MarketSources } from '@budget/market';
 import { refreshFx, refreshPrices } from './refresh';
@@ -49,6 +49,8 @@ export function startDailyMarketTimer(options: {
   const tick = async (now = new Date()): Promise<boolean> => {
     const today = todayInVienna(now);
     if (running || lastDay === today || viennaMinutes(now) < DAILY_AT_MINUTES) return false;
+    // An import task owns the write lock: try again at the next check.
+    if (writesHeld(db)) return false;
     running = true;
     lastDay = today;
     try {

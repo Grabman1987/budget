@@ -1,4 +1,4 @@
-import { schema, type Db, type OpenedDatabase } from '@budget/db';
+import { schema, writesHeld, type Db, type OpenedDatabase } from '@budget/db';
 import { and, eq, isNull } from 'drizzle-orm';
 import { execFile } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
@@ -153,7 +153,8 @@ export class BackupScheduler {
 
   /** Run if due. Resolves after the run; never throws. */
   async tick(now = new Date()): Promise<BackupResult | undefined> {
-    if (this.running || !this.due(now)) return undefined;
+    // While an import task writes, wait for the next check (the copy would miss the task anyway).
+    if (this.running || !this.due(now) || writesHeld(this.deps.db)) return undefined;
     // After a failure wait an hour before the next attempt.
     if (now.getTime() - this.lastRetry < HOUR) return undefined;
     this.running = true;
@@ -188,7 +189,7 @@ export class BackupScheduler {
   }
 
   private reportInbox(message: string, now: Date) {
-    if (this.openItem()) return;
+    if (writesHeld(this.deps.db) || this.openItem()) return;
     this.deps.db
       .insert(schema.inboxItem)
       .values({
@@ -204,6 +205,7 @@ export class BackupScheduler {
   }
 
   private resolveInbox(now: Date) {
+    if (writesHeld(this.deps.db)) return;
     this.deps.db
       .update(schema.inboxItem)
       .set({ resolvedAt: now.toISOString(), resolution: 'Sicherung wieder erfolgreich' })
