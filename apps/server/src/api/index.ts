@@ -19,6 +19,7 @@ import { createMarketSources, marketModeFromEnv } from '../market/sources';
 import { errorResponse } from './http';
 import { lookupRoutes, payeeRoutes, undoRoutes } from './lookups';
 import { marketRoutes } from './market';
+import { ruleRoutes } from './rules';
 
 export interface LedgerApiOptions {
   db: Db;
@@ -49,6 +50,7 @@ export function createLedgerApi({
   api.route('/budget', budgetRoutes(db));
   api.route('/expected', expectedRoutes(db, today));
   api.route('/goals', goalRoutes(db, today));
+  api.route('/rules', ruleRoutes(db, today));
   api.route('/securities', securityRoutes(db));
   api.route('/asset-classes', assetClassRoutes(db, today));
   api.route('/trades', tradeRoutes(db));

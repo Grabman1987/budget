@@ -181,8 +181,12 @@ the auth tables.
 - **Expected payments are versioned** (`valid_from`), so a price increase changes the plan from that
   day on without rewriting history. Yearly payments use `due_month`. The 50/30/20 twelfths read
   from these versions.
-- **Rules are data.** `rule.params_json` holds thresholds, e.g. R12 stores which share of a special
-  payment goes to which envelope; `rule_result` stores status and value per evaluation.
+- **Rules are data.** `rule.params_json` holds thresholds (one zod schema per rule in
+  `packages/domain/src/rules/params.ts`, defaults from concept §3.5), e.g. R12 stores which share of a
+  special payment goes to which envelope; `rule_result` stores status, value and action per evaluation,
+  unique per (rule, day). `rule.kind` is `rule` (R01–R16) or `checklist` (a stage item from the books;
+  `params_json.ruleCode` links it to a rule, otherwise the owner sets `confirmed_at`). `ensureDefaultRules`
+  writes the book at start and never overwrites what the owner changed.
 - **`transfer` is a plain container row.** It is not audited or soft-deleted; undoing a transfer soft
   deletes both bookings and leaves the container row, which keeps foreign keys valid.
 - **`booking_split` has no `deleted_at`.** Replacing splits deletes the old rows through the tracked

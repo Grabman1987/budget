@@ -9,6 +9,9 @@
     ".": "./src/index.ts",
     "./money": "./src/money/index.ts"
   },
+  "dependencies": {
+    "zod": "^4.6.5"
+  },
   "scripts": {
     "typecheck": "tsc -p tsconfig.json"
   }
