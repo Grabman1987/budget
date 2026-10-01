@@ -7,3 +7,5 @@ export * from './planning';
 export * from './invest';
 export * from './system';
 export * from './auth';
+
+export * from './contacts';

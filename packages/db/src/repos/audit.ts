@@ -1,3 +1,4 @@
+import { assertContactUndoDependencies } from './contact-invariants';
 import { randomUUID } from 'node:crypto';
 import {
   and,
@@ -646,6 +647,7 @@ export function undo(
       );
     }
     assertLedgerInvariants(tx, touched);
+    assertContactUndoDependencies(tx, originals);
     const touchedAccounts = originals
       .filter((entry) => entry.entityType === getTableName(schema.account))
       .map((entry) => entry.entityId);
