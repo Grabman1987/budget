@@ -15,10 +15,18 @@ import type { Executor } from './types';
 export function assertLedgerInvariants(tx: Executor, bookingIds: Iterable<string>): void {
   const ids = [...new Set(bookingIds)];
   if (ids.length === 0) return;
-  const rows = tx.select().from(booking).where(inArray(booking.id, ids)).all();
+  // Batched reads: an import checks thousands of bookings in one go.
+  const rows = chunked(ids, (part) =>
+    tx.select().from(booking).where(inArray(booking.id, part)).all(),
+  );
+  const splitsOf = new Map<string, (typeof bookingSplit.$inferSelect)[]>();
+  for (const s of chunked(ids, (part) =>
+    tx.select().from(bookingSplit).where(inArray(bookingSplit.bookingId, part)).all(),
+  ))
+    splitsOf.set(s.bookingId, [...(splitsOf.get(s.bookingId) ?? []), s]);
   const transferIds = new Set<string>();
   for (const b of rows) {
-    const splits = tx.select().from(bookingSplit).where(eq(bookingSplit.bookingId, b.id)).all();
+    const splits = splitsOf.get(b.id) ?? [];
     if (b.transferId) transferIds.add(b.transferId);
     for (const s of splits) if (s.transferId) transferIds.add(s.transferId);
     if (b.deletedAt !== null) continue;
@@ -30,7 +38,52 @@ export function assertLedgerInvariants(tx: Executor, bookingIds: Iterable<string
       );
     }
   }
-  for (const transferId of transferIds) assertTransfer(tx, transferId);
+  const legs = transferLegsOfMany(tx, [...transferIds]);
+  for (const transferId of transferIds) assertTransfer(transferId, legs.get(transferId) ?? []);
+}
+
+/** Bound parameters per statement stay far below SQLite's limit. */
+const CHUNK = 500;
+function chunked<T>(ids: readonly string[], read: (part: string[]) => T[]): T[] {
+  const out: T[] = [];
+  for (let i = 0; i < ids.length; i += CHUNK) out.push(...read(ids.slice(i, i + CHUNK)));
+  return out;
+}
+
+type Leg = { bookingId: string; accountId: string; date: string; cents: number };
+
+/** `transferLegsOf` for many transfers at once, by transfer id. */
+function transferLegsOfMany(tx: Executor, transferIds: readonly string[]): Map<string, Leg[]> {
+  const out = new Map<string, Leg[]>();
+  const add = (id: string, leg: Leg) => out.set(id, [...(out.get(id) ?? []), leg]);
+  for (const b of chunked(transferIds, (part) =>
+    tx
+      .select()
+      .from(booking)
+      .where(and(inArray(booking.transferId, part), isNull(booking.deletedAt)))
+      .all(),
+  ))
+    add(b.transferId as string, {
+      bookingId: b.id,
+      accountId: b.accountId,
+      date: b.date,
+      cents: b.amountCents,
+    });
+  for (const r of chunked(transferIds, (part) =>
+    tx
+      .select({ split: bookingSplit, booking })
+      .from(bookingSplit)
+      .innerJoin(booking, eq(booking.id, bookingSplit.bookingId))
+      .where(and(inArray(bookingSplit.transferId, part), isNull(booking.deletedAt)))
+      .all(),
+  ))
+    add(r.split.transferId as string, {
+      bookingId: r.booking.id,
+      accountId: r.booking.accountId,
+      date: r.booking.date,
+      cents: r.split.amountCents,
+    });
+  return out;
 }
 
 /** The live legs of a transfer: whole bookings and single splits (of live bookings). */
@@ -56,8 +109,7 @@ export function transferLegsOf(tx: Executor, transferId: string) {
   return [...whole, ...parts];
 }
 
-function assertTransfer(tx: Executor, transferId: string): void {
-  const legs = transferLegsOf(tx, transferId);
+function assertTransfer(transferId: string, legs: readonly Leg[]): void {
   if (legs.length === 0) return; // deleted as a whole
   if (legs.length !== 2) {
     throw new BookingInvariantError(
