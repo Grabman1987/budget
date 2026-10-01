@@ -130,6 +130,14 @@ export const PAGES: ReadonlyArray<PageDef> = [
     spec: 'Konten mit Rolle und Konditionen (Limits, Zinsen, Laufzeit).',
   },
   {
+    path: '/einstellungen/depots',
+    title: 'Einstellungen · Depots & Kryptos',
+    area: 'einstellungen',
+    register: 'depots',
+    fills: P5,
+    spec: 'Einstandskostenmethode: gleitender Durchschnitt als Standard, FIFO wählbar.',
+  },
+  {
     path: '/einstellungen/kategorien',
     title: 'Einstellungen · Kategorien',
     area: 'einstellungen',
@@ -188,6 +196,8 @@ export const PAGES: ReadonlyArray<PageDef> = [
 ];
 
 /** Einstellungen › Sicherheit; its own constant because the route and the (lazy) page both need it. */
+export const INVESTMENT_SETTINGS_META = PAGES.find((p) => p.path === '/einstellungen/depots')!;
+
 export const SECURITY_META: PageDef = (() => {
   const page = PAGES.find((p) => p.path === '/einstellungen/sicherheit');
   if (!page) throw new Error('Missing page /einstellungen/sicherheit');

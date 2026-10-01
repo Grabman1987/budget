@@ -26,6 +26,7 @@ import {
   REPORTS_CATALOG,
   REPORT_GROUP_PAGES,
   SECURITY_META,
+  INVESTMENT_SETTINGS_META,
   VERMOEGEN_NETTO_META,
   type PageMeta,
 } from './nav/pages';
@@ -94,6 +95,7 @@ const redirectRoute = (path: string, to: string) =>
 const homeRoute = pageRoute('/', HEUTE);
 const BUILT_PATHS = new Set<string>([
   SECURITY_META.path,
+  INVESTMENT_SETTINGS_META.path,
   '/konten',
   '/konten/buchungen',
   EINSTELLUNGEN_KATEGORIEN.path,
@@ -126,6 +128,15 @@ const securityRoute = createRoute({
   path: SECURITY_META.path,
   staticData: { meta: SECURITY_META },
   component: lazyRouteComponent(() => import('./pages/security-page'), 'SecurityPage'),
+});
+const investmentSettingsRoute = createRoute({
+  getParentRoute: () => shellRoute,
+  path: INVESTMENT_SETTINGS_META.path,
+  staticData: { meta: INVESTMENT_SETTINGS_META },
+  component: lazyRouteComponent(
+    () => import('./pages/investment-settings'),
+    'InvestmentSettingsPage',
+  ),
 });
 const categoriesRoute = createRoute({
   getParentRoute: () => shellRoute,
@@ -278,6 +289,7 @@ const routeTree = rootRoute.addChildren([
     homeRoute,
     ...placeholderRoutes,
     securityRoute,
+    investmentSettingsRoute,
     categoriesRoute,
     rulesRoute,
     exportRoute,

@@ -32,6 +32,7 @@ describe('portfolio summary of the seeded sample ledger on 17.09.2026', () => {
     ]).toEqual([6_850_000, 700_000, 395_000, 340_000, 93_500, 421_500]);
     expect(p.valueCents).toBe(8_800_000);
     expect(p.positions.reduce((a, l) => a + l.shareBp, 0)).toBe(10_000);
+    if (p.costCents === null) throw new Error('The synthetic sample must have a documented basis');
     expect(p.gainCents).toBe(p.valueCents - p.costCents);
   });
 

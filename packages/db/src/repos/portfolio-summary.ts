@@ -2,7 +2,8 @@ import {
   addMonths,
   allocationStatus,
   clusterRisk,
-  costOf,
+  documentedCostOf,
+  documentedRealizedGain,
   ExchangeRateUnavailableError,
   fxOn,
   fundCosts,
@@ -23,6 +24,7 @@ import {
   type IncomeSummary,
   type Period,
   type ProductTrade,
+  type CostMethod,
   type RebalanceProposal,
   type SecurityKind,
   type SpeculativeShare,
@@ -44,6 +46,7 @@ import {
 import { cashSeries, holdingValuesAsOf, portfolioFlows, valuationSeries } from './portfolio';
 import { MissingFxRateError } from './errors';
 import { targetsAsOf } from './securities';
+import { investmentPreferences } from './investment-preferences';
 import type { Executor } from './types';
 
 /** How the portfolio is measured: PP's "securities only" or "depot incl. reference account". */
@@ -68,10 +71,12 @@ export interface PositionLine {
   institutionId: string | null;
   unitsE8: number;
   valueCents: number;
-  /** Cost basis (FIFO) of the units held. */
-  costCents: number;
+  /** Cost basis of the units held, using the persisted average/FIFO preference. */
+  costCents: number | null;
   /** Unrealised gain: value minus cost. */
-  gainCents: number;
+  gainCents: number | null;
+  /** False if this is only the subtotal of sales with a documented basis. */
+  realizedGainComplete: boolean;
   realizedGainCents: number;
   /** Share of the portfolio in bp (all positions add up to 10 000). */
   shareBp: number;
@@ -99,12 +104,14 @@ export interface PlatformShare {
 
 export interface PortfolioSummary {
   asOf: string;
+  costMethod: CostMethod;
   period: Period;
   view: PortfolioView;
   valueCents: number;
-  costCents: number;
+  costCents: number | null;
   /** Unrealised gain (value - cost). */
-  gainCents: number;
+  gainCents: number | null;
+  realizedGainComplete: boolean;
   realizedGainCents: number;
   /** `null` while the portfolio has no history (no holding or trade yet). */
   performance: WindowPerformance | null;
@@ -222,6 +229,7 @@ function positionCost(
   securityId: string,
   currency: string,
   rates: RateTable,
+  method: CostMethod,
 ) {
   const snap = snapshots
     .filter((s) => s.accountId === accountId && s.securityId === securityId)
@@ -231,15 +239,99 @@ function positionCost(
       t.accountId === accountId && t.securityId === securityId && (!snap || t.date > snap.asOf),
   );
   const eurTrades = tradesInEur(mine, rates);
-  return costOf(
+  return documentedCostOf(
     eurTrades,
     snap
       ? {
           unitsE8: snap.unitsE8,
-          costBasisCents: centsInEur(snap.costBasisCents ?? 0, currency, snap.asOf, rates),
+          costBasisCents:
+            snap.costBasisCents === null
+              ? null
+              : centsInEur(snap.costBasisCents, currency, snap.asOf, rates),
         }
       : undefined,
+    method,
   );
+}
+
+/**
+ * Realised gains across snapshot intervals. Each snapshot replaces the remaining inventory and
+ * its basis, while gains already recorded before it remain part of the lifetime total.
+ */
+function realizedByPosition(
+  snapshots: {
+    accountId: string;
+    securityId: string;
+    asOf: string;
+    unitsE8: number;
+    costBasisCents: number | null;
+  }[],
+  trades: (ProductTrade & { accountId: string; securityId: string; currency: string })[],
+  accountCurrency: ReadonlyMap<string, string>,
+  liveSecurityIds: ReadonlySet<string>,
+  rates: RateTable,
+  method: CostMethod,
+) {
+  const pairs = new Map<string, { accountId: string; securityId: string }>();
+  for (const row of [...snapshots, ...trades])
+    if (liveSecurityIds.has(row.securityId))
+      pairs.set(`${row.accountId}\0${row.securityId}`, {
+        accountId: row.accountId,
+        securityId: row.securityId,
+      });
+  const gains = new Map<string, { cents: number; complete: boolean }>();
+  for (const { accountId, securityId } of pairs.values()) {
+    const key = `${accountId}\0${securityId}`;
+    const held = snapshots
+      .filter((s) => s.accountId === accountId && s.securityId === securityId)
+      .sort((a, b) => a.asOf.localeCompare(b.asOf));
+    const mine = trades
+      .filter((t) => t.accountId === accountId && t.securityId === securityId)
+      .sort((a, b) => a.date.localeCompare(b.date));
+    let total = 0;
+    let complete = true;
+    let opening:
+      | { unitsE8: number; costBasisCents: number | null; currency: string; asOf: string }
+      | undefined;
+    let after: string | undefined;
+    const intervals = [...held, null];
+    for (const snapshot of intervals) {
+      const until = snapshot?.asOf;
+      const intervalTrades = mine.filter(
+        (t) => (after === undefined || t.date > after) && (until === undefined || t.date <= until),
+      );
+      const hasSale = intervalTrades.some((t) => t.kind === 'sell');
+      if (hasSale) {
+        const costTrades = intervalTrades.filter((t) =>
+          ['buy', 'sell', 'delivery_in', 'delivery_out', 'split'].includes(t.kind),
+        );
+        const eurTrades = tradesInEur(costTrades, rates);
+        const eurOpening = opening
+          ? {
+              unitsE8: opening.unitsE8,
+              costBasisCents:
+                opening.costBasisCents === null
+                  ? null
+                  : centsInEur(opening.costBasisCents, opening.currency, opening.asOf, rates),
+            }
+          : undefined;
+        const result = documentedRealizedGain(eurTrades, eurOpening, method);
+        total += result.cents;
+        complete &&= result.complete;
+      }
+      if (snapshot) {
+        after = snapshot.asOf;
+        opening = {
+          unitsE8: snapshot.unitsE8,
+          costBasisCents: snapshot.costBasisCents,
+          currency: accountCurrency.get(accountId) ?? 'EUR',
+          asOf: snapshot.asOf,
+        };
+      }
+    }
+    gains.set(key, { cents: total, complete });
+  }
+  return gains;
 }
 
 /** Live trades up to `to` as series trades (with account and security). */
@@ -269,6 +361,7 @@ function tradesUpTo(db: Executor, to: string) {
  * Vermögen page shows.
  */
 export function positionLines(db: Executor, asOf: string): PositionLine[] {
+  const { costMethod } = investmentPreferences(db);
   const { securities, accountInstitution, accountCurrency } = load(db);
   const rates = ratesAsOf(db, asOf);
   const values = holdingValuesAsOf(db, asOf);
@@ -278,14 +371,30 @@ export function positionLines(db: Executor, asOf: string): PositionLine[] {
     .where(and(isNull(holding.deletedAt), lte(holding.asOf, asOf)))
     .all();
   const trades = tradesUpTo(db, asOf);
+  const realized = realizedByPosition(
+    snapshots,
+    trades,
+    accountCurrency,
+    new Set(securities.keys()),
+    rates,
+    costMethod,
+  );
   const bySecurity = new Map<string, PositionLine>();
   for (const h of values) {
     const sec = securities.get(h.securityId);
     if (!sec) continue;
     const currency = accountCurrency.get(h.accountId);
     if (currency === undefined) throw new Error(`Missing account currency for ${h.accountId}`);
-    const cost = positionCost(snapshots, trades, h.accountId, h.securityId, currency, rates);
-    const gain = gainOf(h.valueCents, cost);
+    const cost = positionCost(
+      snapshots,
+      trades,
+      h.accountId,
+      h.securityId,
+      currency,
+      rates,
+      costMethod,
+    );
+    const gain = cost ? gainOf(h.valueCents, cost) : null;
     let line = bySecurity.get(h.securityId);
     if (!line) {
       line = {
@@ -299,6 +408,7 @@ export function positionLines(db: Executor, asOf: string): PositionLine[] {
         costCents: 0,
         gainCents: 0,
         realizedGainCents: 0,
+        realizedGainComplete: true,
         shareBp: 0,
         accounts: [],
       };
@@ -306,9 +416,13 @@ export function positionLines(db: Executor, asOf: string): PositionLine[] {
     }
     line.unitsE8 += h.unitsE8;
     line.valueCents += h.valueCents;
-    line.costCents += cost.costBasisCents;
-    line.gainCents += gain.unrealizedCents;
-    line.realizedGainCents += cost.realizedGainCents;
+    line.costCents =
+      line.costCents === null || cost === null ? null : line.costCents + cost.costBasisCents;
+    line.gainCents =
+      line.gainCents === null || gain === null ? null : line.gainCents + gain.unrealizedCents;
+    const realizedResult = realized.get(`${h.accountId}\0${h.securityId}`);
+    line.realizedGainCents += realizedResult?.cents ?? 0;
+    line.realizedGainComplete &&= realizedResult?.complete ?? true;
     line.accounts.push({ accountId: h.accountId, unitsE8: h.unitsE8, valueCents: h.valueCents });
   }
   const lines = [...bySecurity.values()].sort(
@@ -393,6 +507,7 @@ function lastTwelveMonthEnds(today: string): string[] {
  * domain (P5.2, P5.3); nothing is computed twice.
  */
 export function portfolioSummary(db: Executor, options: PortfolioOptions): PortfolioSummary {
+  const { costMethod } = investmentPreferences(db);
   const { today } = options;
   const period = options.period ?? '1J';
   const view = options.view ?? 'securities';
@@ -400,8 +515,28 @@ export function portfolioSummary(db: Executor, options: PortfolioOptions): Portf
   const lines = positionLines(db, today);
   const risk = riskOf(db, today, lines);
   const valueCents = lines.reduce((a, l) => a + l.valueCents, 0);
-  const costCents = lines.reduce((a, l) => a + l.costCents, 0);
-  const realizedGainCents = lines.reduce((a, l) => a + l.realizedGainCents, 0);
+  const costCents = lines.some((l) => l.costCents === null)
+    ? null
+    : lines.reduce((sum, line) => sum + (line.costCents ?? 0), 0);
+  const rates = ratesAsOf(db, today);
+  const realizedSnapshots = db
+    .select()
+    .from(holding)
+    .where(and(isNull(holding.deletedAt), lte(holding.asOf, today)))
+    .all();
+  const realizedTrades = tradesUpTo(db, today);
+  const realizedResults = [
+    ...realizedByPosition(
+      realizedSnapshots,
+      realizedTrades,
+      loaded.accountCurrency,
+      new Set(loaded.securities.keys()),
+      rates,
+      costMethod,
+    ).values(),
+  ];
+  const realizedGainCents = realizedResults.reduce((sum, result) => sum + result.cents, 0);
+  const realizedGainComplete = realizedResults.every((result) => result.complete);
 
   const investmentAccounts = db
     .select({ id: account.id })
@@ -523,12 +658,14 @@ export function portfolioSummary(db: Executor, options: PortfolioOptions): Portf
 
   return {
     asOf: today,
+    costMethod,
     period,
     view,
     valueCents,
     costCents,
-    gainCents: valueCents - costCents,
+    gainCents: costCents === null ? null : valueCents - costCents,
     realizedGainCents,
+    realizedGainComplete,
     performance,
     benchmark,
     costs,

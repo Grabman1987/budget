@@ -22,5 +22,6 @@ export * from './rules';
 export * from './trades';
 export * from './securities';
 export * from './portfolio-summary';
+export * from './investment-preferences';
 export * from './savings-plans';
 export * from './heute';

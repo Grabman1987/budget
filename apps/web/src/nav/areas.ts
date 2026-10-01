@@ -88,6 +88,7 @@ export const AREAS: ReadonlyArray<AreaDef> = [
       { id: 'anlageklassen', label: 'Anlageklassen', to: '/einstellungen/anlageklassen' },
       { id: 'export', label: 'CSV-Export', to: '/einstellungen/export' },
       { id: 'sicherheit', label: 'Sicherheit', to: '/einstellungen/sicherheit' },
+      { id: 'depots', label: 'Depots & Kryptos', to: '/einstellungen/depots' },
     ],
   },
 ];
