@@ -116,9 +116,9 @@ export function InstrumentForm({
         values,
       );
       qc.setQueryData(instrumentQuery(result.security.id).queryKey, { security: result.security });
+      await qc.invalidateQueries();
       onDirty(false);
       onSaved(result.security);
-      await qc.invalidateQueries();
       toast.show({
         message: security ? 'Stammdaten gespeichert.' : 'Instrument angelegt.',
         actionLabel: 'Rückgängig',
