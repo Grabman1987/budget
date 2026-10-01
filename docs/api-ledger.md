@@ -90,6 +90,21 @@ before deviating ones. A card booking in another currency is compared by its ori
 that has the version's currency. Open occurrences whose window has passed become `missed`.
 
 
+## Rules (P3.5)
+
+The rule book R01–R16 and the stage checklist (concept §3.5). Rules are data (`rule`: `params_json`, `enabled`); the engine is `evaluateRule` in `@budget/domain`, the inputs come from `ruleInputs` in `@budget/db` (the one place that assembles them). Results (`rule_result`) are derived and rewritten, edits are audited and undoable with `POST /undo { groupId }`.
+
+| Request | What it does |
+| --- | --- |
+| `GET /rules` | `{ rules, checklist }`: per rule code, name, stage, goal, `enabled`, `params` (stored over the defaults), `defaults` and `latest` (`asOf`, `status` ok/warn/bad, `valueText`, `actionNeeded`, `actionText`, `detail`; `null` when never evaluable); the 14 stage checklist items with `ruleCode` (follows that rule) or `null` and `confirmedAt` |
+| `PATCH /rules/:code` | `{ params?, enabled? }`: `params` is a partial object validated strictly per rule (unknown key or out-of-range value 400); answers `{ rule, groupId }` |
+| `PATCH /rules/checklist/:code` | `{ confirmed }`: the owner marks a non-computable item (Testament, Versicherungen vollständig …) erledigt or open again; items that follow a rule are 409 `rule_backed`; `{ item, groupId }` |
+| `POST /rules/evaluate` | Evaluates the enabled rules for today and the last 12 month ends and stores one result per (rule, day); idempotent; a rule without data stores nothing ("nicht bewertbar"); `{ asOf, days, stored, removed }` |
+| `GET /rules/results?from&to` | Matrix of the enabled rules: `days` and per rule `cells { asOf, status, valueText }`; default the 12 month ends up to today |
+| `GET /rules/check` | Finanz-Check of today (computed now): `counts { ok, warn, bad, total, notEvaluated }`, the six key rules (R02, R15, R01, R03, R08, R07) by severity, `stage` from net worth, `checklist { done, total, items }` (a confirmed item counts as done, a rule item follows its rule) |
+
+Reference month: rolling figures (R01, R02, R11) use the last full month, the month itself on a month end. R04 uses the change log for the day an envelope was assigned; assignments without a log entry (imported or seeded) count as made on the salary day.
+
 ## Market data (P5.1)
 
 Sources are the fixture series outside production and Yahoo/ECB in production
