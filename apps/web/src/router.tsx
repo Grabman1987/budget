@@ -15,6 +15,7 @@ import {
   ACCOUNT_PAGE,
   EINSTELLUNGEN_DATENQUELLEN,
   EINSTELLUNGEN_KATEGORIEN,
+  PLAN_ERWARTET,
   EINSTELLUNGEN_REGELWERK,
   IMPORT_REPORT,
   PLAN_MONAT,
@@ -101,6 +102,7 @@ const BUILT_PATHS = new Set<string>([
   EINSTELLUNGEN_DATENQUELLEN.path,
   PLAN_MONAT.path,
   '/vermoegen/portfolio',
+  PLAN_ERWARTET.path,
   VERMOEGEN_NETTO_META.path,
   PLAN_SPARZIELE.path,
 ]);
@@ -172,6 +174,12 @@ const portfolioRoute = createRoute({
   path: '/vermoegen/portfolio',
   staticData: { meta: PAGES.find((p) => p.path === '/vermoegen/portfolio') as PageMeta },
   component: lazyRouteComponent(() => import('./wealth/portfolio-page'), 'PortfolioPage'),
+});
+const planExpectedRoute = createRoute({
+  getParentRoute: () => shellRoute,
+  path: PLAN_ERWARTET.path,
+  staticData: { meta: PLAN_ERWARTET },
+  component: lazyRouteComponent(() => import('./expected/expected-page'), 'ExpectedPage'),
 });
 const netWorthRoute = createRoute({
   getParentRoute: () => shellRoute,
@@ -295,6 +303,7 @@ const routeTree = rootRoute.addChildren([
     importReportRoute,
     planMonthRoute,
     portfolioRoute,
+    planExpectedRoute,
     netWorthRoute,
     planGoalsRoute,
     ...redirects,
