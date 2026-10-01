@@ -150,7 +150,8 @@ test('mobile search preserves the month and stays clear of the tab bar and captu
   await page.goto('/');
   const title = page.locator('.m-title-text');
   await expect(title).toHaveText('September 2026');
-  expect(await title.evaluate((el) => el.scrollWidth <= el.clientWidth)).toBe(true);
+  await page.evaluate(() => document.fonts.ready);
+  await expect.poll(() => title.evaluate((el) => el.scrollWidth <= el.clientWidth)).toBe(true);
   const trigger = page.getByRole('button', { name: 'Suchen', exact: true });
   const search = (await trigger.boundingBox())!;
   const capture = (await page.locator('.fab').boundingBox())!;
