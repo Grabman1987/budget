@@ -1,4 +1,4 @@
-import { schema, type Db } from '@budget/db';
+import { schema, writesHeld, type Db } from '@budget/db';
 import { and, count, desc, eq, gt, isNull, lt, ne, or, sql } from 'drizzle-orm';
 import { randomUUID } from 'node:crypto';
 
@@ -173,7 +173,14 @@ export class AuthStore {
     return row;
   }
 
+  /** An import task owns the write lock (`holdWrites`): best-effort writes wait. */
+  get writesHeld(): boolean {
+    return writesHeld(this.db);
+  }
+
+  /** Sliding expiry; skipped while an import task writes (the next request touches it). */
   touchSession(id: string, now: Date, expiresAt: Date): void {
+    if (this.writesHeld) return;
     this.db
       .update(authSession)
       .set({ lastSeenAt: iso(now), expiresAt: iso(expiresAt) })

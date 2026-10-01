@@ -1,6 +1,6 @@
 import { existsSync } from 'node:fs';
 import { relative, resolve } from 'node:path';
-import type { Db } from '@budget/db';
+import { writesHeld, type Db } from '@budget/db';
 import type { MarketSources } from '@budget/market';
 import { serveStatic } from '@hono/node-server/serve-static';
 import { Hono } from 'hono';
@@ -9,6 +9,7 @@ import { secureHeaders } from 'hono/secure-headers';
 import type { Auth } from './auth/routes';
 import { createLedgerApi } from './api';
 import { debugSummary } from './debug-summary';
+import type { ImportJobs } from './imports/jobs';
 import { IMPORT_BODY_LIMIT, IMPORT_UPLOAD_LIMIT } from './imports/routes';
 
 /** What the app needs from the passkey login: the CSRF check, its routes and the session guard. */
@@ -30,7 +31,14 @@ export type AppOptions = BaseOptions &
     | {
         /** Passkey login: session guard and /api/auth. */
         auth: AuthGate;
-        ledger?: { db: Db; today?: () => string; market?: MarketSources | undefined } | undefined;
+        ledger?:
+          | {
+              db: Db;
+              today?: () => string;
+              market?: MarketSources | undefined;
+              jobs?: ImportJobs | undefined;
+            }
+          | undefined;
       }
     | { auth?: undefined; ledger?: undefined }
   );
@@ -102,6 +110,18 @@ export function createApp({ webDir, database, auth, ledger }: AppOptions): Hono 
   });
 
   app.get('/health', (c) => c.json({ status: 'ok' }));
+
+  // While an import task writes in its worker thread, it is the only writer (SQLite has one):
+  // every other write is refused, reads go on (`holdWrites` in @budget/db).
+  if (ledger)
+    app.use('/api/*', async (c, next) => {
+      if (c.req.method === 'GET' || c.req.method === 'HEAD' || !writesHeld(ledger.db))
+        return next();
+      return c.json(
+        { error: 'import_running', message: 'An import task is running; try again in a moment' },
+        409,
+      );
+    });
 
   if (auth) {
     // CSRF origin check for every state-changing API call, then the auth endpoints themselves,

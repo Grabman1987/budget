@@ -1,10 +1,11 @@
 import { eq } from 'drizzle-orm';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { createTestDatabase, type OpenedDatabase } from '../client';
-import { category, categoryGroup, envelopeMonth, price, security } from '../schema';
+import { account, category, categoryGroup, envelopeMonth, price, security } from '../schema';
 import {
   deleteTracked,
   history,
+  insertManyTracked,
   insertTracked,
   readSnapshot,
   recordAudit,
@@ -108,6 +109,94 @@ describe('tracked writes', () => {
   it('withGroup fills a missing group id and keeps a given one', () => {
     expect(withGroup({ actor: 'a' }).groupId).toMatch(/^[0-9a-f-]{36}$/);
     expect(withGroup({ actor: 'a', groupId: 'g' }).groupId).toBe('g');
+  });
+});
+
+describe('insertManyTracked', () => {
+  /** Rows and log entries without what differs by nature (generated ids, clock values). */
+  const clock = new Set(['createdAt', 'updatedAt', 'created_at', 'updated_at']);
+  const timeless = (o: object) => Object.entries(o).filter(([k]) => !clock.has(k));
+  const comparable = (prefix: string) => ({
+    rows: db
+      .select()
+      .from(account)
+      .all()
+      .filter((r) => r.id.startsWith(prefix))
+      .map((r) => timeless({ ...r, id: r.id.slice(1) })),
+    log: history(db, 'account', `${prefix}2`)
+      .concat(history(db, 'account', `${prefix}1`))
+      .map((e) => ({
+        ...e,
+        id: '',
+        ts: '',
+        entityId: e.entityId.slice(1),
+        after: timeless({ ...e.after, id: '' }),
+      })),
+  });
+  const rows = (prefix: string) => [
+    // Booleans go through the column encoder; undefined takes the default, null stays NULL.
+    {
+      id: `${prefix}1`,
+      name: 'Giro',
+      type: 'checking' as const,
+      role: 'budget' as const,
+      onBudget: true,
+      openingBalanceCents: 100,
+      openingDate: '2024-01-01',
+      closedAt: null,
+    },
+    {
+      id: `${prefix}2`,
+      name: 'Depot',
+      type: 'brokerage' as const,
+      role: 'investment' as const,
+      onBudget: false,
+      openingBalanceCents: 0,
+      openingDate: '2024-02-01',
+      note: 'n',
+      sortOrder: 3,
+    },
+  ];
+
+  it('writes the same rows and the same log as one insertTracked per row', () => {
+    const group = { actor: 'tester', groupId: 'g' };
+    for (const r of rows('a')) insertTracked(db, account, r, group);
+    insertManyTracked(db, account, rows('b'), group);
+    expect(comparable('b')).toEqual(comparable('a'));
+    const stored = db
+      .select()
+      .from(account)
+      .all()
+      .filter((r) => r.id.startsWith('b'));
+    expect(stored.map((r) => [r.onBudget, r.currency, r.closedAt])).toEqual([
+      [true, 'EUR', null],
+      [false, 'EUR', null],
+    ]);
+  });
+
+  it('handles composite keys and is undone as a group', () => {
+    insertTracked(db, categoryGroup, { id: 'g1', name: 'A' }, withGroup(ctx));
+    insertTracked(
+      db,
+      category,
+      { id: 'c1', name: 'Miete', groupId: 'g1', class: 'need' },
+      withGroup(ctx),
+    );
+    const months = ['2026-01', '2026-02'].map((month) => ({ categoryId: 'c1', month }));
+    insertManyTracked(db, envelopeMonth, months, { actor: 'tester', groupId: 'months' });
+    expect(history(db, 'envelope_month', 'c1:2026-02')[0]?.after).toMatchObject({
+      category_id: 'c1',
+      month: '2026-02',
+      assigned_cents: 0,
+    });
+    undo(db, { groupId: 'months' }, ctx);
+    expect(
+      db
+        .select()
+        .from(envelopeMonth)
+        .all()
+        .every((r) => r.deletedAt !== null),
+    ).toBe(true);
   });
 });
 

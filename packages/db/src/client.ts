@@ -32,6 +32,10 @@ export function openDatabase(path: string): OpenedDatabase {
   return { db, sqlite, close: () => sqlite.close() };
 }
 
+/** The better-sqlite3 connection under a Drizzle handle (`drizzle()` sets `$client`). */
+export const sqliteOf = (db: Db): Database.Database =>
+  (db as Db & { $client: Database.Database }).$client;
+
 /**
  * Apply pending migrations. Foreign keys are off while they run: SQLite's recommended way to
  * rebuild tables (a parent table is dropped and re-created while child rows point to it; deferred
