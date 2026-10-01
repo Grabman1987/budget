@@ -4,6 +4,12 @@ Status: Gate 1 candidate; owner sign-off remains pending, 2026-10-01. App name: 
 
 Budget is a private household finance web app (installable PWA) that replaces YNAB (and the interim Actual-Budget cockpit) and Portfolio Performance with one app, one database and one language. Envelope budgeting at the core, a rule set of finance basics on top, full net-worth and portfolio tracking in the same ledger. Goal: not only track cash flow and wealth, but actively optimise them.
 
+Feature-by-feature implementation coverage, including all 30 report bodies:
+[`docs/FEATURES.md`](docs/FEATURES.md). Remaining requirement details and superseded
+concept statements: [`docs/REQUIREMENTS-GAPS.md`](docs/REQUIREMENTS-GAPS.md).
+These inventories track delivery and open acceptance; they do not change scope
+or the source precedence below.
+
 ## 0. Sources of truth and precedence
 
 When two sources disagree, the higher one wins:
