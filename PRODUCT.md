@@ -10,7 +10,7 @@ web
 
 ## Stack
 
-Entschieden am 28.09.2026 (Konzept 11.1, O1): TypeScript auf Node 22 LTS (Cloud-Standard, statt 24); Frontend React + Vite mit TanStack Router und Query, Tailwind, Radix-Komponenten; Diagramme als eigene SVG-Bausteine im Blaupausen-Stil (ECharts nur falls der Durchstich in P1a das nahelegt); Backend Hono mit zod; SQLite (WAL) mit Drizzle; Sicherung über Litestream plus nächtliche age-verschlüsselte Kopie; Belege im Objektspeicher; eigener Worker-Prozess für Hintergrundjobs. Installierbare PWA mit Offline-Warteschlange für neue Buchungen. Betrieb auf Fly.io. Ein technischer Durchstich in P1 bestätigt die Wahl. Neues Repo (O2); das bestehende Cockpit läuft bis Gate 4 weiter.
+Entschieden am 28.09.2026 (Konzept 11.1, O1), durch P1 bestätigt und in `SPEC.md` §9 konkretisiert: TypeScript auf Node 22 LTS (auch Node 24 unterstützt); React + Vite mit TanStack Router und Query, Tailwind für das Theme und eigene zugängliche Komponenten auf nativen Elementen; Radix wird nicht verwendet. Eigene SVG-Diagramme auf d3-scale/d3-shape im Blaupausen-Stil; Hono mit zod; SQLite (WAL) mit Drizzle; Litestream plus nächtliche age-verschlüsselte Kopie. Belege im Objektspeicher, Hintergrund-Worker und installierbare PWA mit Offline-Warteschlange bleiben Zielumfang; den Umsetzungsstand hält `docs/STATUS.md` fest. Betrieb auf Fly.io, eigenes Repo (O2). Die alte Fly-App diente zuletzt nur als Prototyp und wurde vom Nutzer am 01.10.2026 entfernt; die Designreferenz bleibt versioniert.
 
 ## Users
 
@@ -35,7 +35,7 @@ Fünf Ziele mit festen Messgrößen (Konzept Kapitel 2 und 8):
 4. **Vermögen optimieren:** Ist das Geld richtig verteilt, wohin soll der nächste Euro?
 5. **Vorausschauen:** Was kommt in 1, 3 und 12 Monaten?
 
-Erfolg heißt: Eine Buchung dauert 10 Sekunden, die Antwort „hält der Monat?“ 5 Sekunden. Die Routinen brauchen etwa 10 Minuten pro Woche und 30 Minuten zum Monatswechsel. Nach einem Monatswechsel im Parallelbetrieb ohne Abweichung werden Actual, YNAB und PP abgeschaltet (Gate 4).
+Erfolg heißt: Eine Buchung dauert 10 Sekunden, die Antwort „hält der Monat?“ 5 Sekunden. Die Routinen brauchen etwa 10 Minuten pro Woche und 30 Minuten zum Monatswechsel. Nach einem Monatswechsel im Parallelbetrieb ohne Abweichung werden die verbleibenden bisherigen Finanzprogramme abgelöst, insbesondere YNAB und PP (Gate 4). Die Entfernung der reinen Prototyp-App ist keine Finanzabnahme.
 
 ## Positioning
 
@@ -44,7 +44,7 @@ Ein Hybrid, den keines der Vorbilder bietet:
 - **Envelope-Budgeting im Kern** (YNAB-Prinzip: Jeder vorhandene Euro hat genau einen Job, Zielwert „Zu verteilen“ = 0).
 - **Ausgabenlimit-Sicht obendrauf:** Aus den Zielen je Kategorie entsteht ein Monatslimit mit täglicher Pace-Linie („760 € von 3.000 €“), ohne das Envelope-Prinzip aufzugeben.
 - **Regelwerk aus Finanz-Basics** (R01–R16: 50/30/20, Notgroschen, vom Vormonat leben, Sinking Funds, Dispo nie im Plan, Tilgungsreihenfolge, Asset Allocation, Klumpenrisiko, Freiheitszahl …) als konfigurierbare Daten, laufend geprüft, jede Regel mit Status und konkreter Maßnahme.
-- **Geldfluss-Wasserfall** in acht Stufen, der am Gehaltstag, bei Windfalls und bei Überschuss beantwortet, wohin der nächste freie Euro fließt.
+- **Geldfluss-Wasserfall** in neun Stufen, der am Gehaltstag, bei Windfalls und bei Überschuss beantwortet, wohin der nächste freie Euro fließt.
 - **Vollständiges Vermögens- und Portfolio-Tracking** in derselben Datenbasis (TTWROR, IRR, Benchmark, Allocation Soll/Ist, Schulden mit Tilgungsszenarien).
 
 ## Operating Context
@@ -64,7 +64,7 @@ Acht Routinen tragen die App (Konzept Kapitel 4), jede mit geführtem Ablauf und
 
 Der **Posteingang** ist die zentrale Arbeitsliste: unkategorisierte Buchungen, Vorschläge, abweichende erwartete Zahlungen, Regelverletzungen, veraltete Werte, ablaufende Bank-Einwilligungen.
 
-Datenquellen: Enable Banking (PSD2) für österreichische Banken, CSV/XLSX-Import für Konten ohne API, Bitpanda-Lese-API, Depot-Importe plus Portfolio-Performance-XML als Erstbefüllung, Kurse über yfinance mit Ersatzquelle Ariva, EZB-Wechselkurse, manuelle Bewertungen für P2P und Sonstiges Vermögen.
+Datenquellen: Enable Banking (PSD2) für österreichische Banken, Bitpanda-Lese-API, Kurse über yfinance mit Ersatzquelle Ariva, EZB-Wechselkurse, manuelle Bewertungen für P2P und Sonstiges Vermögen. Datei-Importe entfallen als App-Feature gemäß Entscheidung vom 01.10.2026; die einmalige Übernahme erfolgt separat mit Codex oder Claude aus den vorhandenen Exporten und der PP-Datei im privaten Datenbestand.
 
 ## Capabilities and Constraints
 
@@ -124,7 +124,11 @@ Alle Reports rechnen aus demselben Hauptbuch; Nettovermögen, Rendite und Regels
 
 **Nicht in V1:** Steuer, KI-Beratung oder KI-Kategorisierung, Fahrzeug- und Immobilienbewertung, Mehrbenutzer und Partner-Verknüpfung, native App, Kompatibilität zu Actual.
 
-**Umsetzung:** Pakete P0–P6 mit vier Gates (`SPEC.md` §11, `docs/ROADMAP.md`). Stand 29.09.2026: Ende P0, Gate 1 steht an.
+**Umsetzung:** Pakete P0–P6 mit vier Gates (`SPEC.md` §11, `docs/ROADMAP.md`). Stand 01.10.2026: Fundament, erste Auditkorrekturen und große Teile von P2/P3 sowie die Nettovermögen-Seite umgesetzt; mehrere produktive Seiten fehlen noch. Gate 1–4 sind nicht abgenommen. Implementierung, offene Fehler und Betriebsnachweise stehen getrennt in `docs/STATUS.md`.
+
+**Erster echter Import (Entscheidung 01.10.2026):** nur EUR. Vollständige Fremdwährungsunterstützung bleibt Zielumfang; nicht unterstützte Fremdwährungs-Budgetkonten dürfen nicht stillschweigend in EUR-Summen eingehen. Quelle ist der YNAB-Export, Actual wird nicht migriert.
+
+**Import/Export als App-Feature (Entscheidung 01.10.2026):** Importfunktion entfernen. Nur ein CSV-Export aller Konten und Depots bleibt vorgesehen, vorerst als Platzhalter ohne Downloadfunktion. Das ersetzt die bisherigen Anforderungen an YNAB-/PP- und CSV/XLSX-Importoberflächen. Die einmalige Datenübernahme bleibt ein separater, vom Nutzer autorisierter Auftrag für Codex oder Claude auf Basis der vorhandenen Exporte und PP-Datei; dafür sind Dateizugriff und konkreter Übernahmeweg zu klären.
 
 **Offen:** Die Konten- und Kategorienliste für die Migration (P2). Name entschieden: Budget.
 

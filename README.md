@@ -2,7 +2,11 @@
 
 Private Haushalts-Finanz-App (PWA) für einen Nutzer. Ersetzt das bisherige Cockpit auf Actual Budget, YNAB und Portfolio Performance: Envelope-Budgeting, Regelwerk aus Finanz-Basics und vollständiges Vermögens- und Portfolio-Tracking in einer Datenbasis.
 
-Stand 29.09.2026: P1a–P1e umgesetzt, Audit-Korrekturen P1f-1 (Deploy, CI, Build) umgesetzt, P1f-2 bis P1f-4 offen (`docs/audit/2026-09-29-p1-audit.md`). Noch nicht deployt: Reihenfolge und Befehle für den ersten Deploy, Backup und Wiederherstellung stehen in `docs/ops.md`. Gate 1 steht noch aus.
+**Status, 2026-10-01:** the foundation and P1 audit fixes are implemented, together with accounts/bookings, the monthly budget, a YNAB import wizard, expected payments, goals, rules and the net-worth page. Several other pages remain placeholders. The owner reports the configured Fly app as deployed; its running commit, device login and real encrypted restore are unverified. Gates 1–4 remain unaccepted.
+
+[Current status](docs/STATUS.md) separates implementation from acceptance. [The follow-up audit](docs/audit/2026-10-01-follow-up.md) records corrections before the first **EUR-only** import; [the roadmap](docs/ROADMAP.md) holds ordered tasks. The owner retired the prototype-only Fly app on 2026-10-01; the design reference remains versioned in `design/prototype`.
+
+Owner scope update: remove import as an app feature. Keep only CSV export of all accounts and portfolios, initially as a placeholder. The existing wizard is legacy implementation scheduled for removal. One-time migration remains a separate owner-authorized Codex/Claude task using the existing exports and PP file in private storage.
 
 ## Wo steht was
 
@@ -16,6 +20,7 @@ Stand 29.09.2026: P1a–P1e umgesetzt, Audit-Korrekturen P1f-1 (Deploy, CI, Buil
 | `docs/concept/` | Ursprüngliches Produktkonzept und Ist-Analyse des alten Cockpits |
 | `docs/data-model.md` | Datenmodell (Schema v1), Entscheidungen, Beispiel-Hauptbuch |
 | `docs/ROADMAP.md` | Pakete P1–P6 mit Aufgaben und Abnahmekriterien |
+| `docs/STATUS.md` | Current implementation, acceptance and operations status |
 | `docs/prompts/` | Fertige Aufträge für die einzelnen Cloud-Sitzungen |
 | `docs/CLOUD-SETUP.md` | Anleitung: GitHub, Claude Code in der Cloud |
 | `docs/ops.md` | Betrieb: erster Deploy, GitHub-Einstellungen, Backup (Litestream), Wiederherstellung, Rollback |
