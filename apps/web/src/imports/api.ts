@@ -266,6 +266,8 @@ const MESSAGES: Record<string, string> = {
   invalid: 'Die Zuordnung ist nicht gültig.',
   import_problems: 'Der Probelauf hat Fehler; bitte zuerst die Zuordnung korrigieren.',
   newer_run: 'Zuerst den neueren Import rückgängig machen.',
+  in_use:
+    'Seit dem Import wurden Buchungen oder Budgetwerte auf seinen Konten oder Kategorien erfasst; bitte zuerst verschieben oder löschen.',
   undo_refused:
     'Importierte Daten wurden seither geändert; der Import lässt sich nicht mehr ganz zurücknehmen.',
   run_closed: 'Dieser Lauf ist abgeschlossen. Für eine neue Zuordnung den Export neu hochladen.',

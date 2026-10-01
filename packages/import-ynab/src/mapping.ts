@@ -406,6 +406,10 @@ export function applyMapping(
   const moved = new Map<string, MovedAmount>();
   const contacts = new Set<string>();
   const bookings: TargetBooking[] = [];
+  // Splits the ledger would refuse at the write (`assertSplitRefs`), collected per rule/category.
+  const refused = { contact: new Map<string, number[]>(), card: new Map<string, number[]>() };
+  const refuse = (map: Map<string, number[]>, key: string, line: number) =>
+    map.set(key, [...(map.get(key) ?? []), line]);
   for (const b of raw.bookings) {
     const id = accountId.get(b.account);
     if (b.date < startDay || !id) continue;
@@ -433,6 +437,10 @@ export function applyMapping(
       if (s.transferAccount === null && account.onBudget)
         applyRule(mapping, b.account, b.date, s, split, moved);
       if (split.contact) contacts.add(split.contact);
+      const kind = split.categoryId === null ? null : byId.get(split.categoryId)?.kind;
+      if (split.contact !== null && kind !== 'advance')
+        refuse(refused.contact, split.ruleId ?? '', s.line);
+      if (kind === 'card_payment') refuse(refused.card, split.categoryId as string, s.line);
       return split;
     });
     bookings.push({
@@ -451,6 +459,18 @@ export function applyMapping(
       scheduled: b.scheduled,
     });
   }
+  for (const [rule, lines] of refused.contact)
+    problem(
+      'mapping.contact_category',
+      `Rule ${rule}: a contact share needs a target category of kind advance`,
+      lines,
+    );
+  for (const [id, lines] of refused.card)
+    problem(
+      'mapping.card_payment_bookings',
+      `Category ${id}: a card payment envelope takes no bookings`,
+      lines,
+    );
 
   // Assignments and the opening Available (carry rule of the month before: max(0, available)).
   const months = last ? monthsBetween(startMonth, last) : [];
