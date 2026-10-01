@@ -3,6 +3,8 @@ import {
   allocationStatus,
   clusterRisk,
   costOf,
+  ExchangeRateUnavailableError,
+  fxOn,
   fundCosts,
   gainOf,
   incomeLast12Months,
@@ -13,6 +15,8 @@ import {
   shareBps,
   speculativeShare,
   sumSeries,
+  toEurCents,
+  type RateTable,
   type AllocationStatus,
   type BenchmarkLevel,
   type ClusterRisk,
@@ -27,8 +31,18 @@ import {
   type WindowPerformance,
 } from '@budget/domain';
 import { and, asc, eq, isNull, lte } from 'drizzle-orm';
-import { account, assetClass, holding, institution, price, security, trade } from '../schema';
+import {
+  account,
+  assetClass,
+  fxRate,
+  holding,
+  institution,
+  price,
+  security,
+  trade,
+} from '../schema';
 import { cashSeries, holdingValuesAsOf, portfolioFlows, valuationSeries } from './portfolio';
+import { MissingFxRateError } from './errors';
 import { targetsAsOf } from './securities';
 import type { Executor } from './types';
 
@@ -118,6 +132,7 @@ const NO_CLASS = '';
 interface Loaded {
   securities: Map<string, typeof security.$inferSelect>;
   accountInstitution: Map<string, string | null>;
+  accountCurrency: Map<string, string>;
   institutions: Map<string, string>;
   classNames: Map<string, string>;
 }
@@ -131,13 +146,12 @@ function load(db: Executor): Loaded {
       .all()
       .map((s) => [s.id, s]),
   );
-  const accountInstitution = new Map(
-    db
-      .select({ id: account.id, institutionId: account.institutionId })
-      .from(account)
-      .all()
-      .map((a) => [a.id, a.institutionId]),
-  );
+  const accounts = db
+    .select({ id: account.id, institutionId: account.institutionId, currency: account.currency })
+    .from(account)
+    .all();
+  const accountInstitution = new Map(accounts.map((a) => [a.id, a.institutionId]));
+  const accountCurrency = new Map(accounts.map((a) => [a.id, a.currency]));
   const institutions = new Map(
     db
       .select({ id: institution.id, name: institution.name })
@@ -153,7 +167,42 @@ function load(db: Executor): Loaded {
       .all()
       .map((c) => [c.id, c.name]),
   );
-  return { securities, accountInstitution, institutions, classNames };
+  return { securities, accountInstitution, accountCurrency, institutions, classNames };
+}
+
+function ratesAsOf(db: Executor, asOf: string): RateTable {
+  const table = new Map<string, { date: string; rateMicro: number }[]>();
+  const rows = db.select().from(fxRate).where(lte(fxRate.date, asOf)).all();
+  for (const row of rows.sort((a, b) => a.date.localeCompare(b.date))) {
+    const list = table.get(row.currency) ?? [];
+    list.push({ date: row.date, rateMicro: row.rateMicro });
+    table.set(row.currency, list);
+  }
+  return table;
+}
+
+function centsInEur(cents: number, currency: string, day: string, rates: RateTable): number {
+  if (cents === 0 || currency === 'EUR') return cents;
+  try {
+    return toEurCents(cents, fxOn(rates, currency, day));
+  } catch (error) {
+    if (error instanceof ExchangeRateUnavailableError)
+      throw new MissingFxRateError(error.currency, error.asOf);
+    throw error;
+  }
+}
+
+function tradesInEur<T extends ProductTrade & { currency: string }>(
+  trades: readonly T[],
+  rates: RateTable,
+): T[] {
+  return trades.map((t) => ({
+    ...t,
+    amountCents: centsInEur(t.amountCents, t.currency, t.date, rates),
+    feeCents: centsInEur(t.feeCents, t.currency, t.date, rates),
+    taxCents: centsInEur(t.taxCents, t.currency, t.date, rates),
+    currency: 'EUR',
+  }));
 }
 
 /**
@@ -168,9 +217,11 @@ function positionCost(
     unitsE8: number;
     costBasisCents: number | null;
   }[],
-  trades: (ProductTrade & { accountId: string; securityId: string })[],
+  trades: (ProductTrade & { accountId: string; securityId: string; currency: string })[],
   accountId: string,
   securityId: string,
+  currency: string,
+  rates: RateTable,
 ) {
   const snap = snapshots
     .filter((s) => s.accountId === accountId && s.securityId === securityId)
@@ -179,9 +230,15 @@ function positionCost(
     (t) =>
       t.accountId === accountId && t.securityId === securityId && (!snap || t.date > snap.asOf),
   );
+  const eurTrades = tradesInEur(mine, rates);
   return costOf(
-    mine,
-    snap ? { unitsE8: snap.unitsE8, costBasisCents: snap.costBasisCents ?? 0 } : undefined,
+    eurTrades,
+    snap
+      ? {
+          unitsE8: snap.unitsE8,
+          costBasisCents: centsInEur(snap.costBasisCents ?? 0, currency, snap.asOf, rates),
+        }
+      : undefined,
   );
 }
 
@@ -212,7 +269,8 @@ function tradesUpTo(db: Executor, to: string) {
  * Vermögen page shows.
  */
 export function positionLines(db: Executor, asOf: string): PositionLine[] {
-  const { securities, accountInstitution } = load(db);
+  const { securities, accountInstitution, accountCurrency } = load(db);
+  const rates = ratesAsOf(db, asOf);
   const values = holdingValuesAsOf(db, asOf);
   const snapshots = db
     .select()
@@ -224,7 +282,9 @@ export function positionLines(db: Executor, asOf: string): PositionLine[] {
   for (const h of values) {
     const sec = securities.get(h.securityId);
     if (!sec) continue;
-    const cost = positionCost(snapshots, trades, h.accountId, h.securityId);
+    const currency = accountCurrency.get(h.accountId);
+    if (currency === undefined) throw new Error(`Missing account currency for ${h.accountId}`);
+    const cost = positionCost(snapshots, trades, h.accountId, h.securityId, currency, rates);
     const gain = gainOf(h.valueCents, cost);
     let line = bySecurity.get(h.securityId);
     if (!line) {
@@ -410,7 +470,7 @@ export function portfolioSummary(db: Executor, options: PortfolioOptions): Portf
   }
 
   // ---- costs and income of 12 months ----
-  const allTrades = tradesUpTo(db, today);
+  const allTrades = tradesInEur(tradesUpTo(db, today), ratesAsOf(db, today));
   let terCents = 0;
   let feesCents = 0;
   for (const sec of loaded.securities.values()) {

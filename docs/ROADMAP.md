@@ -29,7 +29,7 @@ Owner scope update, 2026-10-01: remove import as an app feature. Keep only CSV e
 - [ ] Follow-up FX detail acceptance: individual account tables, charts and reconciliation still use native amounts; make those views explicit and consistent with the overview's EUR valuation.
 - [x] A04 persisted Gate-2 reconciliation: each mapped account/month-end and category checked; structural missing-account/currency/opening-data differences reported explicitly; one-cent added/missing/changed/deleted cases detected, including non-budget and closed accounts.
 - [ ] Separate agent-assisted EUR migration/Gate 2 after corrections and operational acceptance; establish private file access and transfer procedure; never commit exports/mapping or include them in CI/logs.
-- [ ] A02 investment costs use historical base-currency FX; valuation, fees/income and missing-rate behavior consistent before Gate 3.
+- [x] A02 investment costs use historical account-currency FX at each trade/snapshot date; current price valuation, fees/income and typed missing-rate behavior are consistent before Gate 3.
 - [ ] A09 realized gain includes fully sold positions independently of current holdings, with partial-sale/repurchase cases.
 - [ ] A10 broker/risk aggregation preserves account/institution for securities at multiple brokers.
 - [ ] Manual-price undo, first-refresh timestamp and live adapter validation before accepting those wealth workflows.
