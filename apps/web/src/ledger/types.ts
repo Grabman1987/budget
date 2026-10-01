@@ -112,6 +112,7 @@ export type BookingSort = 'date' | 'amount' | 'payee' | 'account';
 
 /** Filter of the booking list; the same fields are the URL parameters of Alle Buchungen. */
 export interface BookingFilter {
+  id?: string | undefined;
   accountId?: string | undefined;
   from?: string | undefined;
   to?: string | undefined;

@@ -27,5 +27,5 @@ export * from './savings-plans';
 export * from './heute';
 
 export * from './contacts';
-
+export * from './global-search';
 export * from './inbox';

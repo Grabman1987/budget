@@ -207,6 +207,7 @@ export function BookingsPage() {
                   onClick={() =>
                     setSearch({
                       konto: undefined,
+                      buchung: undefined,
                       kategorie: undefined,
                       empfaenger: undefined,
                       status: undefined,

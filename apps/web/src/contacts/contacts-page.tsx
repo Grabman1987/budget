@@ -10,6 +10,7 @@ import {
 } from '@budget/domain';
 import { AmountInput, Button, DetailPanel, Field, Select, TextInput, useToast } from '@budget/ui';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useNavigate, useSearch } from '@tanstack/react-router';
 import { useState } from 'react';
 import { request } from '../api/http';
 import { undoGroup } from '../ledger/api';
@@ -68,7 +69,14 @@ function useContactWrite() {
 
 export function ContactsPage() {
   const [history, setHistory] = useState(false);
-  const [selected, setSelected] = useState('');
+  const search = useSearch({ strict: false }) as { kontakt?: string };
+  const selected = search.kontakt ?? '';
+  const navigate = useNavigate();
+  const setSelected = (kontakt: string) =>
+    void navigate({
+      to: '/konten/kontakte',
+      search: { kontakt: kontakt || undefined } as never,
+    });
   const [creating, setCreating] = useState(false);
   const contacts = useQuery({
     queryKey: [...LEDGER_KEY, 'contacts', history],

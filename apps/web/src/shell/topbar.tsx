@@ -1,26 +1,12 @@
 import { Count } from '@budget/ui';
-import { Inbox, PanelLeft, Plus, Search } from 'lucide-react';
-import { useEffect, useRef } from 'react';
+import { Inbox, PanelLeft, Plus } from 'lucide-react';
+import { GlobalSearch } from './global-search';
 import { PanelLink } from './panel-link';
 import { useInboxCount } from './inbox';
 
 /** Desktop top bar: collapse toggle, search (Ctrl K), Posteingang with counter, "+ Buchung". */
 export function Topbar({ collapsed, onToggle }: { collapsed: boolean; onToggle: () => void }) {
-  const search = useRef<HTMLInputElement>(null);
   const inbox = useInboxCount();
-
-  useEffect(() => {
-    const onKey = (event: KeyboardEvent) => {
-      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'k') {
-        event.preventDefault();
-        search.current?.focus();
-        search.current?.select();
-      }
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, []);
-
   return (
     <header className="topbar">
       <button
@@ -33,20 +19,7 @@ export function Topbar({ collapsed, onToggle }: { collapsed: boolean; onToggle: 
       >
         <PanelLeft size={18} strokeWidth={1.75} aria-hidden="true" />
       </button>
-      <label className="search">
-        <span className="sr-only">Suchen</span>
-        <Search className="icon" size={18} strokeWidth={1.75} aria-hidden="true" />
-        <input
-          ref={search}
-          id="global-search"
-          type="search"
-          placeholder="Suchen: Buchung, Empfänger, Kategorie, Konto"
-          autoComplete="off"
-        />
-        <span className="kbd" aria-hidden="true">
-          Strg K
-        </span>
-      </label>
+      <GlobalSearch />
       <div className="topbar-actions">
         <PanelLink className="btn btn-ghost" panel="posteingang" aria-label={inbox.label}>
           <Inbox size={18} strokeWidth={1.75} aria-hidden="true" />

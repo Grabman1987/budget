@@ -138,11 +138,11 @@ test.describe('panel via route param', () => {
     await page.goto('/plan/monat');
     await expect(page.locator('main')).toBeVisible();
     if (!isPhone(testInfo)) {
-      await page.getByRole('searchbox').focus();
+      await page.getByRole('combobox', { name: 'Suchen', exact: true }).focus();
       await page.keyboard.type('n');
-      await expect(page.getByRole('searchbox')).toHaveValue('n');
+      await expect(page.getByRole('combobox', { name: 'Suchen', exact: true })).toHaveValue('n');
       await expect(page).not.toHaveURL(/panel=/);
-      await page.getByRole('searchbox').blur();
+      await page.getByRole('combobox', { name: 'Suchen', exact: true }).blur();
     }
     await page.keyboard.press('n');
     await expect(page).toHaveURL(/panel=buchung/);
@@ -251,7 +251,7 @@ test.describe('desktop shell', () => {
     await page.goto('/plan/monat');
     await expect(page.locator('main')).toBeVisible();
     await page.keyboard.press('Control+k');
-    await expect(page.getByRole('searchbox')).toBeFocused();
+    await expect(page.getByRole('combobox', { name: 'Suchen', exact: true })).toBeFocused();
   });
 
   test('keyboard: skip link jumps to the content, sidebar links work with Enter', async ({

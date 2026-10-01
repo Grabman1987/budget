@@ -92,6 +92,11 @@ test('contact statement: edited allocation, excess credit, undo and retained bal
   await expect(panel.locator('.contacts-balance')).toContainText('60,00 €');
   await json(`/contacts/${contactId}/settlements`, { accountId, date: today, amountCents: 6000 });
   await page.reload();
+  // The selected statement now survives reload through its URL, including balanced history.
+  await expect(panel.locator('.contacts-balance')).toContainText('0,00 €');
+  await page.keyboard.press('Escape');
+  await expect(panel).toBeHidden();
+  await expect(page).not.toHaveURL(/kontakt=/);
   await expect(page.getByRole('button', { name: tag, exact: true })).toHaveCount(0);
   await page.getByLabel('Auch ausgeglichene Kontakte').check();
   await page.getByRole('button', { name: tag, exact: true }).click();
