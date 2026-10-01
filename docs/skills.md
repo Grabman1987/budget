@@ -1,6 +1,10 @@
 # Project skill profiles
 
-Selected from the owner-uploaded `claude_skills_master_registry_capability_catalogue.md` on 2026-10-01. The attachment describes capabilities; it does not supply the original `SKILL.md` packages, implementations or licenses. These are locally authored, project-specific adaptations, not installations of those upstream products. The external Impeccable site was policy-blocked; upstream commands and the catalogue's quantitative claims have not been verified.
+Selected from the owner-provided `claude_skills_master_registry_capability_catalogue.md` on 2026-10-01 (SHA-256 `dfe7dd2083cff6db3084fb4669a4b7eb7720494f66ffc815a9e952c692737071`). Its capability descriptions informed locally authored, project-specific adaptations; no upstream packages, commands or licenses are claimed installed or verified.
+
+The relevant capability matches are Caveman/no-ai-slop → `budget-caveman`; Ponytail,
+pstack-potato, Matt-Pok and Unlazy → `budget-verified-delivery`; vibe-security →
+`budget-security-review`; and Impeccable → `budget-impeccable`.
 
 Profiles live in `.agents/skills/`, each with a readable `SKILL.md`. The reference in `AGENTS.md` makes the relevant profile explicit for future agents; automatic slash-command registration or hot-loading into every client is not assumed. In this chat the selected rules are applied after reading the local files.
 
@@ -18,6 +22,8 @@ Profiles live in `.agents/skills/`, each with a readable `SKILL.md`. The referen
 - No `/impeccable init`: PRODUCT and DESIGN already define an accepted direction; do not regenerate them from generic advice. Catalogue suggestions for an 8pt grid or OKLCH do not replace existing spacing and color tokens.
 - Taste-engine is deferred: a new visual identity conflicts with the existing prototype contract.
 - Next.js/Server Actions and Supabase/PostgreSQL profiles are not applicable to React/Vite, Hono and SQLite/Drizzle. Retain the useful principles of typed validation and transactional data without changing the stack.
+- The React, TypeScript, Query and Zod guidance in fullstack-next-react applies to the existing stack; its Next.js and React Server Component requirements do not.
+- SQL integrity guidance applies through SQLite and Drizzle; Supabase and row-level security assumptions do not.
 - Native Swift/iOS, MT5/MQL5, automated trading and media/YouTube skills are outside this PWA's current scope.
 - Autoresearcher and Hyperframes are deferred until a concrete measured optimization or motion task needs them. Reduced motion and the prototype timings remain binding.
 - The CSV export is intentionally a placeholder under the owner's current scope. Completion discipline does not authorize implementing the download or restoring app import.
@@ -26,14 +32,13 @@ Review the relevant profile when a task starts. Load original upstream packages 
 
 ## Owner registry and additional sources
 
-The owner's central catalogue is [Claude skills master registry in Dropbox](https://www.dropbox.com/scl/fi/273ihjk6v5h4fbrem8wv0/claude_skills_master_registry_capability_catalogue.md?rlkey=17q64qkp7hgvmgd3s3imq3yoa&dl=0).
-Additional discovery source: [plado.pages.dev](https://plado.pages.dev/).
-Both sources returned HTTP 403 on 2026-10-01, including a regular execution outside
-the shell sandbox with unchanged proxy and TLS verification. Their current contents
-were not read and the Dropbox document was not modified. No newly discovered
-package is claimed installed or verified. Revisit these links when source access
-is available, then record exact source, version, licence and applicable task before
-adopting a package.
+The owner supplied the central catalogue directly as a file. Its SHA-256 matches the
+owner's original. Reference links: [central registry](https://www.dropbox.com/scl/fi/273ihjk6v5h4fbrem8wv0/claude_skills_master_registry_capability_catalogue.md?rlkey=17q64qkp7hgvmgd3s3imq3yoa&dl=0),
+[direct file](https://dl.dropboxusercontent.com/scl/fi/273ihjk6v5h4fbrem8wv0/claude_skills_master_registry_capability_catalogue.md?rlkey=17q64qkp7hgvmgd3s3imq3yoa&dl=1),
+and [Plado](https://plado.pages.dev/). These URLs returned HTTP 403 during earlier runtime
+checks, but no further HTTP access is needed for the supplied catalogue. External
+package contents and licenses were not part of that file and remain unverified; no
+upstream package or command is claimed installed.
 
 ### Profiles relevant to the current audit
 
