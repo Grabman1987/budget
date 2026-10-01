@@ -1,3 +1,4 @@
+import { assertContactSettlementInvariants } from './contact-invariants';
 import { isIncomeTrade, settlementCents } from '@budget/domain';
 import { and, eq, inArray, isNull, or, sql } from 'drizzle-orm';
 import { account, auditLog, booking, bookingSplit, INCOME_TYPES, trade } from '../schema';
@@ -14,7 +15,12 @@ import type { Executor } from './types';
  *   accounts in the same currency, on the same date, with opposite amounts; a leg never survives
  *   alone.
  */
-export function assertLedgerInvariants(tx: Executor, bookingIds: Iterable<string>): void {
+export function assertLedgerInvariants(
+  tx: Executor,
+  bookingIds: Iterable<string>,
+  checkContacts = true,
+): void {
+  if (checkContacts) assertContactSettlementInvariants(tx);
   const ids = [...new Set(bookingIds)];
   if (ids.length === 0) return;
   // Batched reads: an import checks thousands of bookings in one go.

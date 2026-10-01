@@ -217,3 +217,31 @@ target date, those without a date last.
 | `PATCH /goals/:id?month` | Any of the fields; setting one link clears the other |
 | `DELETE /goals/:id`, `POST /goals/:id/restore?month` | Soft delete and restore; `POST /undo` with the `groupId` reverts either |
 | `POST /goals/:id/adopt` | `{ validFrom? }` (`YYYY-MM`, default this month): "Als Ziel der Kategorie übernehmen" writes a versioned `by_date` category target (goal amount and date) in the same audit group; needs a category and a date |
+
+## Contact statements and actual settlements
+
+`GET /contacts` shows only nonzero contact balances; `?history=1` includes balanced contacts.
+`POST /contacts { name, note? }` creates a retained identity. `GET /contacts/:id?asOf=YYYY-MM-DD`
+returns the actual contact-tagged split movements, open outlays and receipt allocations. Positive
+balance means the contact owes the owner; negative means credit owed to the contact. Expected
+occurrences are never contact balance movements. These statements currently require EUR movements.
+
+`POST /contacts/:id/settlements { accountId, date, amountCents, memo?, allocations? }` records an
+actual positive EUR cash receipt (open checking, savings or cash account; no future date). With no
+allocation supplied, the oldest open outlays are paid first (same-day ties follow insertion order).
+Each optional allocation is `{ outlaySplitId, amountCents }`: targets must already be open on the
+receipt date, must be unique and must fit the outstanding amounts. Their total must equal the
+receipt up to the open balance. Only excess becomes persisted contact credit. Existing credit
+covers subsequent actual outlays in chronological order.
+
+Cash booking, advance-category split, allocation rows and credit share one transaction/audit group.
+The receipt has no income type. Generic economic edits/deletes of the receipt or allocated outlays
+are refused; undo the related settlement first. Whole-group undo/redo restores the saved allocation,
+credit and cash together, and dependency checks still apply to forced undo. Memo, flag and normal
+clearing status remain editable. Legacy positive contact splits use the same oldest-first statement
+calculation without changing their cash bookings.
+
+An outlay of 10,000 cents from 100,000 cents cash leaves 90,000 net worth. A real receipt of 6,000
+moves it to 96,000 while 4,000 stays open in the statement. A total receipt of 12,000 instead leaves
+102,000 actual cash/net worth and -2,000 contact balance. Derived contact debt/credit never adds a
+virtual receivable or liability to net worth; explicit receivable accounts keep ordinary valuation.
