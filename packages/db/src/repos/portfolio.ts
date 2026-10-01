@@ -64,6 +64,14 @@ function rateOrMissing(rates: Rates, currency: string, asOf: string): number | u
 interface HoldingValuation {
   values: HoldingValue[];
   missingFxByAccount: Map<string, Set<string>>;
+  missingFxPositions: Array<{
+    accountId: string;
+    securityId: string;
+    unitsE8: number;
+    priceMicro: number;
+    priceDate: string;
+    priceCurrency: string;
+  }>;
 }
 
 function holdingValuationAsOf(db: Executor, asOf: string): HoldingValuation {
@@ -97,6 +105,7 @@ function holdingValuationAsOf(db: Executor, asOf: string): HoldingValuation {
   for (const r of [...snapshots, ...trades])
     if (live.has(r.securityId)) keys.set(`${r.accountId} ${r.securityId}`, r);
   const out: HoldingValue[] = [];
+  const missingFxPositions: HoldingValuation['missingFxPositions'] = [];
   const missingFxByAccount = new Map<string, Set<string>>();
   for (const { accountId, securityId } of keys.values()) {
     const mine = <T extends { accountId: string; securityId: string }>(rows: T[]) =>
@@ -118,6 +127,14 @@ function holdingValuationAsOf(db: Executor, asOf: string): HoldingValuation {
       const missing = missingFxByAccount.get(accountId) ?? new Set<string>();
       missing.add(priceCurrency);
       missingFxByAccount.set(accountId, missing);
+      missingFxPositions.push({
+        accountId,
+        securityId,
+        unitsE8: units,
+        priceMicro,
+        priceDate: latest?.date ?? '',
+        priceCurrency,
+      });
       continue;
     }
     out.push({
@@ -135,7 +152,22 @@ function holdingValuationAsOf(db: Executor, asOf: string): HoldingValuation {
       (a, b) => a.accountId.localeCompare(b.accountId) || a.securityId.localeCompare(b.securityId),
     ),
     missingFxByAccount,
+    missingFxPositions: missingFxPositions.sort(
+      (a, b) => a.accountId.localeCompare(b.accountId) || a.securityId.localeCompare(b.securityId),
+    ),
   };
+}
+
+/** Portfolio export details, including positions that cannot be valued because FX is missing. */
+export function holdingValuationExportAsOf(
+  db: Executor,
+  asOf: string,
+): {
+  values: HoldingValue[];
+  missingFxByAccount: Map<string, Set<string>>;
+  missingFxPositions: HoldingValuation['missingFxPositions'];
+} {
+  return holdingValuationAsOf(db, asOf);
 }
 
 export function holdingValuesAsOf(db: Executor, asOf: string): HoldingValue[] {

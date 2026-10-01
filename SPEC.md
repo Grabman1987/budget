@@ -53,7 +53,7 @@ Five main areas plus settings (profile menu). Registers are the second level; no
 | Reports | Warum und wohin, und wie haben Entscheidungen gewirkt? | Catalog of 30 reports in 5 groups (`reports.html`) |
 | Einstellungen | — | Konten (terms: limits, rates, term), Kategorien, Regelwerk (stages + R01–R16), Zuordnungsregeln, Datenquellen, Anlageklassen, CSV-Export, Sicherheit (`einstellungen.html`, partly built) |
 
-**Import/export feature scope (owner decision 2026-10-01):** no import feature in the application. Remove upload/wizard/import-report entry points rather than expose them as product functions. Keep only a CSV export of all accounts and portfolios, as a placeholder for now; no working download is required in this stage. This decision supersedes earlier in-app YNAB/PP and manual CSV/XLSX import requirements. One-time migration remains a separate owner-authorized Codex/Claude task using existing exports and the PP file in private storage (§10).
+**Import/export feature scope (owner-confirmed 2026-10-01):** the application has no import feature or import UI. Provide one user-initiated ZIP download containing CSV export data for all accounts and depots. Reconfirm authentication before starting the sensitive export. The CSV ZIP is a data export, not an encrypted application backup; exclude auth/session state, secrets, audit events, import staging and raw migration data. This supersedes earlier in-app YNAB/PP and manual CSV/XLSX import requirements. See [`docs/export.md`](docs/export.md) for the file and field conventions. One-time migration remains a separate owner-authorized Codex/Claude task using existing exports and the PP file in private storage (§10).
 
 **Vermögen decides, Reports show the effect.** No outcome/performance history on Vermögen; no decisions in Reports.
 
@@ -168,7 +168,7 @@ YNAB's structure is evaluated and adapted, not copied: raw import → owner-appr
 | **P1 Fundament** | Monorepo, stack spike, passkey login, DB schema v1, design tokens + blueprint primitives, app shell (sidebar, registers, title block, mobile tab bar), CI, deploy to a new Fly app | See `docs/ROADMAP.md` P1 checklist; the shell matches `design/screens/desktop/heute.webp` in layout and tokens |
 | **P2 Kern und Migration** | Accounts, bookings, capture, categories, Plan › Monat; separate one-time agent-assisted migration, no app import feature | **Gate 2:** balances per account and month match YNAB to the cent; Available per target category matches the mapped YNAB categories before the rules month |
 | **P3 Planung und Steuerung** | Expected payments, contacts, savings goals, distribute money, rule set + stages, Heute | Heute and Plan match the prototype with real data |
-| **P4 Datenquellen** | Enable Banking, nightly run, inbox, assignment rules; CSV export remains a placeholder | Nightly run stable for 14 days |
+| **P4 Datenquellen** | Enable Banking, nightly run, inbox, assignment rules; authenticated ZIP download with CSV data for all accounts and depots | Nightly run stable for 14 days; complete export download accepted |
 | **P5 Vermögen** | Price history, portfolio, returns, allocation, debts, freedom number | **Gate 3:** returns and holdings equal Portfolio Performance |
 | **P6 Reports und Umstellung** | 30 reports, explorer, printable sheets, parallel run with reconciliation | **Gate 4:** one month-end without difference, then retire remaining finance tools, including YNAB and PP |
 
