@@ -2,6 +2,7 @@ import { expect, test, type Page } from '@playwright/test';
 import { expectScreenshot } from './visual';
 import { monthLabel, monthOf } from '../apps/web/src/nav/month';
 import { ROUTES } from './routes';
+import { expectHeuteVisualReady, freezeHeuteVisual } from './heute-visual-fixture';
 
 const isPhone = (testInfo: { project: { name: string } }) => testInfo.project.name === 'mobile';
 
@@ -359,8 +360,13 @@ test.describe('regression baselines of the shell (own screenshots)', () => {
   ] as const) {
     test(`light ${name}`, async ({ page }) => {
       await page.emulateMedia({ colorScheme: 'light', reducedMotion: 'reduce' });
-      await page.goto(path);
+      if (name === 'heute') await freezeHeuteVisual(page);
+      await page.goto(name === 'heute' ? '/?monat=2026-09' : path);
       await expect(page.locator('main')).toBeVisible();
+      if (name === 'heute') {
+        await expectHeuteVisualReady(page);
+        await page.screenshot({ path: test.info().outputPath('heute-viewport-light.png') });
+      }
       await page.evaluate(() => document.fonts.ready);
       await expectScreenshot(page, `shell-${name}-light.png`);
     });
@@ -368,9 +374,11 @@ test.describe('regression baselines of the shell (own screenshots)', () => {
 
   test('dark heute', async ({ page }) => {
     await page.emulateMedia({ colorScheme: 'dark', reducedMotion: 'reduce' });
-    await page.goto('/');
+    await freezeHeuteVisual(page);
+    await page.goto('/?monat=2026-09');
     await expect(page.locator('main')).toBeVisible();
-    await page.evaluate(() => document.fonts.ready);
+    await expectHeuteVisualReady(page);
+    await page.screenshot({ path: test.info().outputPath('heute-viewport-dark.png') });
     await expectScreenshot(page, 'shell-heute-dark.png');
   });
 });
