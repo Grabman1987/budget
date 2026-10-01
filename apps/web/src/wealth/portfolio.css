@@ -1,0 +1,216 @@
+/* Original Vermögen prototype: lead/chain, report link and class-grouped positions. */
+.portfolio-positions {
+  grid-column: 1 / -1;
+}
+.portfolio-unavailable {
+  font-size: var(--fs-title);
+}
+.vlook {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 18px;
+  padding: 12px 14px;
+  border: 1px solid var(--line-2);
+  border-radius: 6px;
+  color: var(--ink);
+  text-decoration: none;
+}
+.vlook:hover {
+  border-color: var(--line);
+  background: var(--tint);
+}
+.vlook span {
+  flex: 1;
+  display: grid;
+  gap: 2px;
+}
+.vlook small {
+  color: var(--ink-3);
+  font-size: 12.5px;
+}
+.portfolio-table .num {
+  text-align: right;
+  white-space: nowrap;
+}
+.portfolio-table th {
+  text-align: left;
+}
+.portfolio-table tbody th {
+  padding: 0 8px;
+  border-bottom: 1px solid var(--rule);
+  vertical-align: middle;
+}
+.portfolio-table .kgroup th,
+.portfolio-table .kgroup td {
+  padding: 12px 8px;
+  background: var(--ground-2);
+  border-bottom: 1px solid var(--line-2);
+}
+.portfolio-table .grp-no {
+  display: inline-grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border: 1px solid var(--line);
+  border-radius: 50%;
+  font-family: var(--font-tech);
+  font-weight: 600;
+  font-size: 12.5px;
+  color: var(--line);
+}
+.portfolio-product {
+  min-height: 44px;
+  color: var(--ink);
+  text-align: left;
+  font-weight: 620;
+  text-decoration: underline;
+  text-decoration-style: dotted;
+  text-underline-offset: 3px;
+}
+.portfolio-product:hover {
+  color: var(--line);
+}
+.portfolio-status {
+  display: block;
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--ink-2);
+}
+.portfolio-platform,
+.portfolio-units,
+.portfolio-quote,
+.portfolio-share,
+.portfolio-gain {
+  font-weight: 500;
+  color: var(--ink-2);
+}
+.portfolio-table .kgroup th {
+  color: var(--ink);
+  font-weight: 640;
+  font-size: 14.5px;
+}
+.instrument-detail {
+  display: grid;
+  gap: 16px;
+}
+.instrument-detail h3 {
+  margin: 4px 0 0;
+  font-size: 16px;
+}
+.instrument-metadata {
+  margin: 0;
+}
+.instrument-metadata div {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--rule);
+}
+.instrument-metadata dt {
+  color: var(--ink-2);
+}
+.instrument-metadata dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.instrument-quote {
+  margin: 0;
+  font-size: 24px;
+  font-weight: 620;
+}
+.instrument-quote small,
+.instrument-accounts small {
+  display: block;
+  color: var(--ink-2);
+  font-size: 12px;
+  font-weight: 400;
+}
+.instrument-accounts {
+  border-collapse: collapse;
+  width: 100%;
+  font-size: 13px;
+}
+.instrument-accounts th,
+.instrument-accounts td {
+  text-align: left;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--rule);
+}
+.instrument-accounts .num {
+  text-align: right;
+}
+.manual-quote {
+  display: grid;
+  gap: 14px;
+  border-top: 1px solid var(--rule);
+  padding-top: 12px;
+}
+.instrument-discard {
+  border: 1px solid var(--line-2);
+  padding: 12px;
+}
+.instrument-discard .btn {
+  margin: 4px;
+}
+@media (max-width: 767px) {
+  .portfolio-table,
+  .portfolio-table tbody {
+    display: block;
+  }
+  .portfolio-table thead {
+    display: none;
+  }
+  .portfolio-table tr {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    border-bottom: 1px solid var(--rule);
+    padding: 8px 0;
+  }
+  .portfolio-table td,
+  .portfolio-table tbody th {
+    border: 0;
+    padding: 0;
+  }
+  .portfolio-table .kc-pos,
+  .portfolio-table .portfolio-platform,
+  .portfolio-table .portfolio-units,
+  .portfolio-table .portfolio-quote {
+    display: none;
+  }
+  .portfolio-table .kgroup {
+    background: var(--ground-2);
+    padding: 10px 8px;
+  }
+  .portfolio-table .kgroup th {
+    padding: 0;
+    border: 0;
+    grid-column: 1 / -1;
+  }
+  .portfolio-table .kgroup td {
+    display: none;
+  }
+  .portfolio-table .portfolio-value {
+    grid-column: 2;
+    grid-row: 1;
+    align-self: center;
+  }
+  .portfolio-product {
+    min-height: 44px;
+  }
+  .portfolio-table .portfolio-share {
+    grid-column: 1;
+    text-align: left;
+  }
+  .portfolio-table .portfolio-gain {
+    grid-column: 2;
+  }
+  .portfolio-positions .head {
+    align-items: start;
+  }
+  .portfolio-positions .aside {
+    max-width: 60%;
+    text-align: right;
+  }
+}
