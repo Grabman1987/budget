@@ -15,6 +15,7 @@ import {
   ACCOUNT_PAGE,
   EINSTELLUNGEN_DATENQUELLEN,
   EINSTELLUNGEN_KATEGORIEN,
+  EINSTELLUNGEN_REGELWERK,
   IMPORT_REPORT,
   PLAN_MONAT,
   PLAN_SPARZIELE,
@@ -97,6 +98,7 @@ const BUILT_PATHS = new Set<string>([
   '/konten',
   '/konten/buchungen',
   EINSTELLUNGEN_KATEGORIEN.path,
+  EINSTELLUNGEN_REGELWERK.path,
   EINSTELLUNGEN_DATENQUELLEN.path,
   PLAN_MONAT.path,
   VERMOEGEN_NETTO_META.path,
@@ -131,6 +133,12 @@ const categoriesRoute = createRoute({
   path: EINSTELLUNGEN_KATEGORIEN.path,
   staticData: { meta: EINSTELLUNGEN_KATEGORIEN },
   component: lazyRouteComponent(() => import('./budget/categories-page'), 'CategoriesPage'),
+});
+const rulesRoute = createRoute({
+  getParentRoute: () => shellRoute,
+  path: EINSTELLUNGEN_REGELWERK.path,
+  staticData: { meta: EINSTELLUNGEN_REGELWERK },
+  component: lazyRouteComponent(() => import('./rules/rules-page'), 'RulesPage'),
 });
 // Einstellungen › Datenquellen: YNAB import runs and the wizard (`?lauf=&schritt=`), P2d.
 const IMPORT_STEPS = ['konten', 'kategorien', 'regeln', 'empfaenger', 'start', 'probelauf'];
@@ -283,6 +291,7 @@ const routeTree = rootRoute.addChildren([
     ...placeholderRoutes,
     securityRoute,
     categoriesRoute,
+    rulesRoute,
     dataSourcesRoute,
     importReportRoute,
     planMonthRoute,
