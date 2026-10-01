@@ -1,16 +1,17 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test } from '@playwright/test';
 
-test('CSV export remains a placeholder, without upload or download actions', async ({ page }) => {
+test('CSV export downloads all account and portfolio CSVs as one ZIP', async ({ page }) => {
   await page.goto('/einstellungen/export');
   await expect(page).toHaveTitle('Einstellungen · CSV-Export · Budget');
   const register = page.getByRole('link', { name: 'CSV-Export', exact: true });
   await expect(register).toHaveAttribute('aria-current', 'page');
   await expect(page.getByRole('heading', { name: 'CSV-Export', exact: true })).toBeVisible();
-  await expect(page.getByText('Alle Konten und Depots in einer CSV-Datei.')).toBeVisible();
-  await expect(page.getByText('Der CSV-Export ist noch nicht verfügbar.')).toBeVisible();
+  await expect(
+    page.getByText('Alle Konten und Depots als CSV-Dateien in einer ZIP-Datei herunterladen.'),
+  ).toBeVisible();
   await expect(page.locator('input[type=file], a[download]')).toHaveCount(0);
-  await expect(page.getByRole('button', { name: /Export|Herunterladen|Hochladen/ })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'ZIP-Export herunterladen' })).toBeEnabled();
   await expect(page.getByRole('link', { name: 'Import/Export', exact: true })).toHaveCount(0);
 
   const result = await new AxeBuilder({ page })
@@ -19,9 +20,9 @@ test('CSV export remains a placeholder, without upload or download actions', asy
   expect(
     result.violations.filter((v) => v.impact === 'serious' || v.impact === 'critical'),
   ).toEqual([]);
-  const screenshot = test.info().outputPath('export-placeholder.png');
+  const screenshot = test.info().outputPath('export.png');
   await page.screenshot({ path: screenshot, fullPage: true });
-  await test.info().attach('CSV export placeholder', {
+  await test.info().attach('CSV export', {
     path: screenshot,
     contentType: 'image/png',
   });

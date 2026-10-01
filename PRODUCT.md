@@ -133,7 +133,7 @@ Alle Reports rechnen aus demselben Hauptbuch; Nettovermögen, Rendite und Regels
 
 **Erster echter Import (Entscheidung 01.10.2026):** nur EUR. Vollständige Fremdwährungsunterstützung bleibt Zielumfang; nicht unterstützte Fremdwährungs-Budgetkonten dürfen nicht stillschweigend in EUR-Summen eingehen. Quelle ist der YNAB-Export, Actual wird nicht migriert.
 
-**Import/Export als App-Feature (Entscheidung 01.10.2026):** Importfunktion entfernen. Nur ein CSV-Export aller Konten und Depots bleibt vorgesehen, vorerst als Platzhalter ohne Downloadfunktion. Das ersetzt die bisherigen Anforderungen an YNAB-/PP- und CSV/XLSX-Importoberflächen. Die einmalige Datenübernahme bleibt ein separater, vom Nutzer autorisierter Auftrag für Codex oder Claude auf Basis der vorhandenen Exporte und PP-Datei; dafür sind Dateizugriff und konkreter Übernahmeweg zu klären.
+**Import/Export als App-Feature (Entscheidung 01.10.2026):** Importfunktion entfernen. Der geschützte CSV-Export aller Konten und Depots lädt nach erneuter Passkey-Bestätigung eine ZIP-Datei mit vollständiger Buchungs- und gespeicherter Portfoliohistorie. Berechnete Salden und Positionen beziehen sich auf heute; Originalbeträge bleiben erhalten und nicht berechenbare Werte werden gekennzeichnet. Authentifizierungsdaten, Zugangsdaten und Auditdaten gehören nicht in den Export. Die einmalige Datenübernahme bleibt ein separater, vom Nutzer autorisierter Auftrag für Codex oder Claude auf Basis der vorhandenen Exporte und PP-Datei.
 
 **Offen:** Die Konten- und Kategorienliste für die Migration (P2). Name entschieden: Budget.
 

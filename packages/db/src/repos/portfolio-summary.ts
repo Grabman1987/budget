@@ -43,7 +43,13 @@ import {
   security,
   trade,
 } from '../schema';
-import { cashSeries, holdingValuesAsOf, portfolioFlows, valuationSeries } from './portfolio';
+import {
+  cashSeries,
+  holdingValuationExportAsOf,
+  holdingValuesAsOf,
+  portfolioFlows,
+  valuationSeries,
+} from './portfolio';
 import { MissingFxRateError } from './errors';
 import { targetsAsOf } from './securities';
 import { investmentPreferences } from './investment-preferences';
@@ -501,6 +507,90 @@ export function positionLines(db: Executor, asOf: string): PositionLine[] {
     total,
   ).forEach((bp, i) => ((lines[i] as PositionLine).shareBp = bp));
   return lines;
+}
+
+/** Existing per-account cost model used by the CSV export; no cost or FX formula is duplicated. */
+export function positionCostDetailsAsOf(
+  db: Executor,
+  asOf: string,
+  valuation = holdingValuationExportAsOf(db, asOf),
+): Array<{
+  accountId: string;
+  securityId: string;
+  costCents: number | null;
+  gainCents: number | null;
+  basisStatus: 'known' | 'undocumented' | 'missing_fx';
+  missingFxCurrency?: string;
+}> {
+  const { costMethod } = investmentPreferences(db);
+  const { accountCurrency } = load(db);
+  const rates = ratesAsOf(db, asOf);
+  const snapshots = db
+    .select()
+    .from(holding)
+    .where(and(isNull(holding.deletedAt), lte(holding.asOf, asOf)))
+    .all();
+  const trades = tradesUpTo(db, asOf);
+  const valuedByKey = new Map(valuation.values.map((v) => [`${v.accountId}\0${v.securityId}`, v]));
+  const pricedSecurities = new Set(
+    db
+      .select({ securityId: price.securityId })
+      .from(price)
+      .where(lte(price.date, asOf))
+      .all()
+      .map((p) => p.securityId),
+  );
+  const keys = [
+    ...valuation.values.map((v) => ({ accountId: v.accountId, securityId: v.securityId })),
+    ...valuation.missingFxPositions.map((v) => ({
+      accountId: v.accountId,
+      securityId: v.securityId,
+    })),
+  ];
+  return keys.map(({ accountId, securityId }) => {
+    try {
+      const currency = accountCurrency.get(accountId);
+      if (!currency) throw new Error(`Missing account currency for ${accountId}`);
+      const cost = positionCost(
+        snapshots,
+        trades,
+        accountId,
+        securityId,
+        currency,
+        rates,
+        costMethod,
+      );
+      if (!cost) {
+        return {
+          accountId,
+          securityId,
+          costCents: null,
+          gainCents: null,
+          basisStatus: 'undocumented',
+        };
+      }
+      const value = valuedByKey.get(`${accountId}\0${securityId}`);
+      const gain =
+        value && pricedSecurities.has(securityId) ? gainOf(value.valueCents, cost) : null;
+      return {
+        accountId,
+        securityId,
+        costCents: cost.costBasisCents,
+        gainCents: gain?.unrealizedCents ?? null,
+        basisStatus: 'known',
+      };
+    } catch (error) {
+      if (!(error instanceof MissingFxRateError)) throw error;
+      return {
+        accountId,
+        securityId,
+        costCents: null,
+        gainCents: null,
+        basisStatus: 'missing_fx',
+        missingFxCurrency: error.currency,
+      };
+    }
+  });
 }
 
 /** The positions as the wealth domain sees them (kind and class, never the name). */

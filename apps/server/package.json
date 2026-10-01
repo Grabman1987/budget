@@ -11,15 +11,19 @@
   "dependencies": {
     "@budget/db": "*",
     "@budget/domain": "*",
-    "@budget/market": "*",
     "@budget/import-ynab": "*",
+    "@budget/market": "*",
     "@hono/node-server": "^1.19.0",
     "@simplewebauthn/server": "^14.0.3",
     "hono": "^4.13.0",
+    "yazl": "^3.3.1",
     "zod": "^4.6.5"
   },
   "devDependencies": {
     "@budget/fixtures": "*",
-    "esbuild": "^0.25.0"
+    "@types/yauzl": "^3.4.0",
+    "@types/yazl": "^3.3.1",
+    "esbuild": "^0.25.0",
+    "yauzl": "^3.4.0"
   }
 }

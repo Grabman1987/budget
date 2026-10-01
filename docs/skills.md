@@ -26,7 +26,7 @@ Profiles live in `.agents/skills/`, each with a readable `SKILL.md`. The referen
 - SQL integrity guidance applies through SQLite and Drizzle; Supabase and row-level security assumptions do not.
 - Native Swift/iOS, MT5/MQL5, automated trading and media/YouTube skills are outside this PWA's current scope.
 - Autoresearcher and Hyperframes are deferred until a concrete measured optimization or motion task needs them. Reduced motion and the prototype timings remain binding.
-- The CSV export is intentionally a placeholder under the owner's current scope. Completion discipline does not authorize implementing the download or restoring app import.
+- The owner authorized a step-up authenticated ZIP of allowlisted account/depot CSVs. Keep export fields explicit and synthetic tests free of real account data; this does not authorize restoring app import.
 
 Review the relevant profile when a task starts. Load original upstream packages only after verifying their source and contents; record the version and licensing if later vendored. No external package execution is needed for these local profiles.
 

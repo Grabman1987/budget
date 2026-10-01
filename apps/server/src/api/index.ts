@@ -8,6 +8,7 @@ import { accountRoutes } from './accounts';
 import { bookingRoutes } from './bookings';
 import { budgetRoutes, categoryRoutes } from './budget';
 import { expectedRoutes } from './expected';
+import { exportRoutes } from './export';
 import { goalRoutes } from './goals';
 import { heuteRoutes } from './heute';
 import {
@@ -55,6 +56,7 @@ export function createLedgerApi({
   api.route('/categories', categoryRoutes(db));
   api.route('/budget', budgetRoutes(db));
   api.route('/expected', expectedRoutes(db, today));
+  api.route('/export', exportRoutes(db, today, stepUp));
   api.route('/wealth', wealthRoutes(db, today));
   api.route('/goals', goalRoutes(db, today));
   api.route('/heute', heuteRoutes(db, today));
