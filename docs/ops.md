@@ -374,7 +374,7 @@ The deploy step reads `git rev-parse HEAD` from that checked-out source and pass
 1. **Environments > New environment `production`**: deployment branches = "Selected branches" > `main`. The secret `FLY_API_TOKEN` belongs here (Environment secret), not in the repository secrets. Create the environment before the first pipeline run; GitHub otherwise creates an unrestricted one.
 2. **Branches > Add branch ruleset (or classic rule) for `main`**:
    - Require a pull request before merging (no direct pushes), include administrators.
-   - Require status checks to pass, branch up to date before merging; required checks: `check`, `docker`, `restore-test`.
+   - Require status checks to pass, branch up to date before merging; required checks: `check`, `check-windows`, `docker`, `restore-test`.
    - Require conversation resolution before merging.
    - Block force pushes and deletions.
 3. **Actions > General**: "Allow actions created by GitHub and verified creators" at most; workflow permissions "Read repository contents" (the workflows already declare `contents: read`).
