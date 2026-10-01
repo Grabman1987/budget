@@ -151,7 +151,7 @@ export const PAGES: ReadonlyArray<PageDef> = [
     area: 'einstellungen',
     register: 'zuordnung',
     fills: P4,
-    spec: 'Zuordnungsregeln für Importe und Bank-Sync.',
+    spec: 'Zuordnungsregeln für den Bank-Sync.',
   },
   {
     path: '/einstellungen/datenquellen',
@@ -170,12 +170,12 @@ export const PAGES: ReadonlyArray<PageDef> = [
     spec: 'Anlageklassen mit Soll-Allocation.',
   },
   {
-    path: '/einstellungen/import',
-    title: 'Einstellungen · Import/Export',
+    path: '/einstellungen/export',
+    title: 'Einstellungen · CSV-Export',
     area: 'einstellungen',
-    register: 'import',
+    register: 'export',
     fills: P4,
-    spec: 'Datei-Import mit gespeicherter Spaltenzuordnung, Export.',
+    spec: 'CSV-Export aller Konten und Depots; vorerst nur ein Platzhalter ohne Downloadfunktion.',
   },
   {
     path: '/einstellungen/sicherheit',
@@ -253,6 +253,11 @@ export const EINSTELLUNGEN_REGELWERK: PageDef = PAGES.find(
   (p) => p.path === '/einstellungen/regelwerk',
 ) as PageDef;
 
+/** CSV export stays a placeholder until the owner requests the download feature. */
+export const CSV_EXPORT_META: PageDef = PAGES.find(
+  (p) => p.path === '/einstellungen/export',
+) as PageDef;
+
 /** Plan › Monat (built in P2c). */
 export const PLAN_MONAT: PageDef = PAGES.find((p) => p.path === '/plan/monat') as PageDef;
 
@@ -260,16 +265,3 @@ export const PLAN_MONAT: PageDef = PAGES.find((p) => p.path === '/plan/monat') a
 export const PLAN_ERWARTET: PageDef = PAGES.find((p) => p.path === '/plan/erwartet') as PageDef;
 /** Plan › Sparziele (built in P3.4). */
 export const PLAN_SPARZIELE: PageDef = PAGES.find((p) => p.path === '/plan/sparziele') as PageDef;
-/** Einstellungen › Datenquellen: the YNAB import wizard (P2d); bank sources follow in P4. */
-export const EINSTELLUNGEN_DATENQUELLEN: PageDef = PAGES.find(
-  (p) => p.path === '/einstellungen/datenquellen',
-) as PageDef;
-
-/** Gate 2 report of a YNAB import run (`?lauf=`), printable. */
-export const IMPORT_REPORT: PageDef = {
-  ...EINSTELLUNGEN_DATENQUELLEN,
-  path: '/einstellungen/datenquellen/abgleich',
-  title: 'Einstellungen · Abgleich YNAB-Import',
-  fills: P2,
-  spec: 'Jede Differenz des Imports je Konto oder Kategorie und Monat; druckbar.',
-};

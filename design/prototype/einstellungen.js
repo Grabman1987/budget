@@ -15,12 +15,12 @@
     src('karte', 'Kreditkarte', 'Bank A', 'psd2', true, '2x', '12.02.2027', 'heute 06:30', 'ok'),
     src('tagesgeld', 'Tagesgeld', 'Bank B', 'psd2', true, '1x', '29.09.2026', 'heute 06:30', 'consent'),
     src('bargeld', 'Bargeld', 'Geldbörse', 'manual', false, 'manual', null, '15.09.2026', 'ok'),
-    src('depot', 'Depot · ETF', 'Broker C', 'file', false, 'manual', null, 'Import 14.09.2026', 'ok'),
+    src('depot', 'Depot · ETF', 'Broker C', 'manual', false, 'manual', null, '14.09.2026', 'ok'),
     src('krypto', 'Krypto', 'Plattform D', 'api', true, '1x', null, 'heute 06:30', 'ok'),
     src('p2p', 'P2P-Kredite', 'Plattform E', 'manual', false, 'manual', null, '14.08.2026', 'stale'),
     src('kredit', 'Kredit 6,32 %', 'Bank F', 'manual', false, 'manual', null, 'Tilgungsplan', 'ok'),
   ];
-  const KIND = { psd2: 'Bank-Sync (PSD2)', api: 'API (nur lesen)', file: 'Datei-Import (CSV, XLSX, PDF)', manual: 'manuell' };
+  const KIND = { psd2: 'Bank-Sync (PSD2)', api: 'API (nur lesen)', manual: 'manuell' };
   const RHYTHM = { '2x': '2× täglich', '1x': '1× täglich', manual: 'nur manuell' };
   const GLOBAL = { night: true, prices: true, fallback: true, fx: true, staleDays: 30 };
 
@@ -61,7 +61,7 @@
           <tbody>${SOURCES.map((r) => `<tr>
             <td><span class="kname-s">${esc(r.name)}</span><span class="kmeta">${esc(r.inst)}</span></td>
             <td><label class="sr-only" for="kind-${r.id}">Quelle für ${esc(r.name)}</label><select class="select select-sm" id="kind-${r.id}" data-kind="${r.id}">${Object.entries(KIND).map(([k, l]) => `<option value="${k}"${k === r.kind ? ' selected' : ''}>${l}</option>`).join('')}</select></td>
-            <td data-label="Automatisch">${r.kind === 'manual' || r.kind === 'file' ? '<span class="muted">—</span>' : sw(r.id, r.auto, `${r.name} automatisch abrufen`)}</td>
+            <td data-label="Automatisch">${r.kind === 'manual' ? '<span class="muted">—</span>' : sw(r.id, r.auto, `${r.name} automatisch abrufen`)}</td>
             <td data-label="Rhythmus">${r.auto ? `<label class="sr-only" for="rh-${r.id}">Rhythmus für ${esc(r.name)}</label><select class="select select-sm" id="rh-${r.id}" data-rhythm="${r.id}">${['2x', '1x'].map((k) => `<option value="${k}"${k === r.rhythm ? ' selected' : ''}>${RHYTHM[k]}</option>`).join('')}</select>` : `<span class="muted">${RHYTHM.manual}</span>`}</td>
             <td data-label="Einwilligung bis">${r.consent ? `<span class="${r.status === 'consent' ? 'ink-strong' : ''}">${r.consent}</span>${r.status === 'consent' ? `<button class="btn btn-ghost btn-xs s-renew" type="button" data-renew="${r.id}">Erneuern</button>` : ''}` : '<span class="muted">—</span>'}</td>
             <td class="kc-acct" data-label="Letzter Stand">${esc(r.last)}</td>
@@ -205,7 +205,7 @@
     const t = e.target;
     if (t.dataset.kind) {
       const r = SOURCES.find((x) => x.id === t.dataset.kind);
-      change(`${r.name}: Quelle ${KIND[t.value]}`, () => { r.kind = t.value; if (t.value === 'manual' || t.value === 'file') { r.auto = false; r.rhythm = 'manual'; } else if (!r.auto) { r.auto = true; r.rhythm = '1x'; } });
+      change(`${r.name}: Quelle ${KIND[t.value]}`, () => { r.kind = t.value; if (t.value === 'manual') { r.auto = false; r.rhythm = 'manual'; } else if (!r.auto) { r.auto = true; r.rhythm = '1x'; } });
     } else if (t.dataset.rhythm) {
       const r = SOURCES.find((x) => x.id === t.dataset.rhythm);
       change(`${r.name}: ${RHYTHM[t.value]}`, () => { r.rhythm = t.value; });

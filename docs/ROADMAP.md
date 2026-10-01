@@ -15,7 +15,7 @@ Owner scope update, 2026-10-01: remove import as an app feature. Keep only CSV e
 - [x] Record owner-confirmed retirement of the prototype-only Fly app; keep the versioned prototype and leave legacy staging unchanged.
 - [x] Align README, PRODUCT, SPEC and cloud setup with implementation and acceptance status.
 - [x] Record no-import app scope and CSV-only export placeholder.
-- [ ] Remove app upload/wizard/import-report entry points and obsolete import navigation; leave CSV export of all accounts/portfolios as a placeholder without a working download.
+- [x] Remove app upload/wizard/import-report entry points and obsolete import navigation; leave CSV export of all accounts/portfolios as a placeholder without a working download. Frontend source/CSS and old wizard E2E removed; migration engine/server modules retained for the separate private transfer task.
 - [ ] Verify deployed commit, health, phone/desktop passkeys, recovery and real encrypted restore (owner/runbook; deployed status alone is insufficient).
 - [ ] Establish browser acceptance in the intended Playwright environment: classify visual differences and stabilize the immediate system-theme assertion; baseline updates do not replace normal CI.
 - [ ] A07 exact lead amounts: format once and split for display; rendered cents/grouping/sign boundaries on all three pages.

@@ -86,7 +86,7 @@ export const AREAS: ReadonlyArray<AreaDef> = [
       { id: 'zuordnung', label: 'Zuordnungsregeln', to: '/einstellungen/zuordnung' },
       { id: 'datenquellen', label: 'Datenquellen', to: '/einstellungen/datenquellen' },
       { id: 'anlageklassen', label: 'Anlageklassen', to: '/einstellungen/anlageklassen' },
-      { id: 'import', label: 'Import/Export', to: '/einstellungen/import' },
+      { id: 'export', label: 'CSV-Export', to: '/einstellungen/export' },
       { id: 'sicherheit', label: 'Sicherheit', to: '/einstellungen/sicherheit' },
     ],
   },

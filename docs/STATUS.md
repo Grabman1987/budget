@@ -1,6 +1,6 @@
 # Current status
 
-Updated 2026-10-01. Implementation inventory: `main` at `c213bab`. Owner decisions and operations observations are identified separately. `SPEC.md` defines scope and acceptance; `ROADMAP.md` holds task checklists.
+Updated 2026-10-01. Audit baseline: `main` at `c213bab`; follow-up changes are recorded below. Owner decisions and operations observations are identified separately. `SPEC.md` defines scope and acceptance; `ROADMAP.md` holds task checklists.
 
 ## Implementation and acceptance
 
@@ -10,9 +10,9 @@ Checked roadmap boxes record implemented work. They do not prove owner acceptanc
 | --- | --- | --- |
 | Foundation | SQLite, design primitives, shell, passkeys/recovery, audit/undo, backup code, CI/deploy configuration and P1 audit fixes | Gate 1 sign-off, outstanding P1 checklist items and operational verification |
 | Accounts and budget | Accounts, bookings, capture, splits/transfers, categories and Plan › Monat | Follow-up correctness fixes before migration acceptance |
-| Legacy import work | Parser, mapping, staging, dry run, commit/re-import/undo, wizard and worker exist in the baseline | Remove app import feature; separate agent-assisted migration requires private file access, transfer procedure and Gate 2 |
+| Migration tooling | Parser, mapping, staging, dry run, commit/re-import/undo and server/worker modules retained; app import UI removed | Separate agent-assisted migration requires private file access, transfer procedure and Gate 2 |
 | Planning | Expected payments, goals and rules UI; Heute domain/API | Heute page is a placeholder; full contacts, inbox and year-planning UI |
-| Data sources/export | Market adapters; baseline data-sources page still exposes the legacy import wizard | Remove import entry points; CSV export of all accounts/portfolios only as a placeholder; bank sync, assignment rules, worker and live adapters |
+| Data sources/export | Market adapters; data-sources frame and CSV-export placeholder; no upload/wizard/report in the app UI | CSV download intentionally not implemented; bank sync, assignment rules, worker and live adapters |
 | Wealth | Net-worth UI, investment APIs, valuation/performance domain and PP XML parser | Portfolio/debt/freedom pages are placeholders; PP commit/matching/report, Gate 3 and A02/A09/A10 |
 | Reports/PWA | Report catalog and navigation | Report bodies, explorer/printing, offline queue/service worker and Gate 4 |
 
@@ -48,6 +48,6 @@ These describe the audited baseline, not every future commit. Repeat required ch
 
 ## Next work
 
-First remove app import entry points and leave only the specified CSV-export placeholder. Then correct exact lead amounts (A07), income classification (A06), booking/trade/currency invariants (A01/A08), payment lifecycle (A05), the EUR-first guard (A03), and private Gate-2 reconciliation (A04). Each task gets its own branch/PR and independent expected values. Review the intended browser environment before approving UI changes.
+App import UI is removed; CSV export remains a placeholder. Next correct exact lead amounts (A07), income classification (A06), booking/trade/currency invariants (A01/A08), payment lifecycle (A05), the EUR-first guard (A03), and private Gate-2 reconciliation (A04). Each task gets its own branch/PR and independent expected values. Review the intended browser environment before approving UI changes.
 
 Complete daily workflows and wealth aggregation/FX, private PP transfer/Gate 3, then remaining sources/reports/PWA and Gate 4. Establish private file access and transfer procedures before processing the owner's exports. Do not retire still-used finance tools merely because the prototype host has been removed.
