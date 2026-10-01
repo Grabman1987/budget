@@ -165,6 +165,7 @@ const planExpectedRoute = createRoute({
   path: PLAN_ERWARTET.path,
   staticData: { meta: PLAN_ERWARTET },
   component: lazyRouteComponent(() => import('./expected/expected-page'), 'ExpectedPage'),
+});
 const netWorthRoute = createRoute({
   getParentRoute: () => shellRoute,
   path: VERMOEGEN_NETTO_META.path,
