@@ -1,0 +1,728 @@
+import { cents } from '@budget/domain';
+import {
+  Button,
+  ClassTag,
+  DimensionChain,
+  DimensionChainDrawing,
+  DetailPanel,
+  RevisionTable,
+  RevisionTriangle,
+  SectionHead,
+  type DimensionChainTerm,
+  type RevisionRow,
+} from '@budget/ui';
+import { useQuery } from '@tanstack/react-query';
+import { useNavigate, useSearch } from '@tanstack/react-router';
+import { useState } from 'react';
+import { AlertTriangle, ArrowDown, ArrowUp, ChevronRight, CircleCheck, Clock3 } from 'lucide-react';
+import { fetchAccounts } from '../ledger/api';
+import { LEDGER_KEY } from '../ledger/queries';
+import { eur, longDay, shortDay } from '../ledger/format';
+import { EmptyNote, ErrorNote, LoadingNote } from '../ledger/states';
+import { HEUTE } from '../nav/pages';
+import { PageFrame } from '../pages/placeholder-page';
+import { useMonth } from '../shell/use-month';
+import { AppLink } from '../shell/app-link';
+import { BalanceChart, HeutePaceChart } from './charts';
+import { heuteQuery, type Heute, type HeutePeriod } from './api';
+import './heute.css';
+
+const pct = new Intl.NumberFormat('de-AT', { maximumFractionDigits: 2 });
+const STATUS: Record<string, string> = {
+  pending: 'vorgemerkt',
+  confirmed: 'bestätigt',
+  reconciled: 'abgeglichen',
+};
+
+export function HeutePage() {
+  const [month] = useMonth();
+  const { period: searchPeriod } = useSearch({ strict: false }) as { period?: HeutePeriod };
+  const period = searchPeriod ?? 'month';
+  const navigate = useNavigate();
+  const setPeriod = (value: HeutePeriod) =>
+    void navigate({
+      to: '/',
+      search: ((previous: Record<string, unknown>) => ({ ...previous, period: value })) as never,
+      replace: true,
+    });
+  const query = useQuery(heuteQuery(month, period));
+  const data = query.data;
+  return (
+    <PageFrame
+      meta={HEUTE}
+      heutePeriod={period}
+      onHeutePeriodChange={setPeriod}
+      standDay={data?.stand.today}
+    >
+      <div className="heute">
+        {query.isPending && <LoadingNote what="Heute" />}
+        {query.isError && (
+          <ErrorNote what="Heute" error={query.error} onRetry={() => void query.refetch()} />
+        )}
+        {data && <HeuteBody data={data} />}
+      </div>
+    </PageFrame>
+  );
+}
+
+function HeuteBody({ data }: { data: Heute }) {
+  const [chainOpen, setChainOpen] = useState(false);
+  const [netDetail, setNetDetail] = useState<'liquid' | 'invested' | 'receivable' | 'debt' | null>(
+    null,
+  );
+  const [leadDetail, setLeadDetail] = useState<'need' | 'want' | 'open' | null>(null);
+  const [paceDetail, setPaceDetail] = useState<'spent' | 'plan' | 'forecast' | null>(null);
+  const navigate = useNavigate();
+  const net = data.netWorth;
+  const revisions: RevisionRow[] = data.nextSteps.items.map((item, index) => ({
+    id: String(index + 1),
+    letter: String.fromCharCode(65 + index),
+    urgent: item.urgent,
+    title:
+      item.kind === 'overspent'
+        ? `${item.categoryName ?? 'Envelope'} ist überzogen`
+        : `${item.count} ${item.count === 1 ? 'Buchung' : 'Buchungen'} ohne Kategorie`,
+    detail: item.kind === 'overspent' ? `${eur(item.cents)} zu decken` : `Summe ${eur(item.cents)}`,
+    action: {
+      label: item.kind === 'overspent' ? 'Plan öffnen' : 'Buchungen öffnen',
+      onClick: () =>
+        item.kind === 'overspent'
+          ? void navigate({
+              to: '/plan/monat' as never,
+              search: { monat: data.stand.today.slice(0, 7) } as never,
+            })
+          : void navigate({
+              to: '/konten/buchungen' as never,
+              search: { kategorie: 'none', bis: data.stand.today } as never,
+            }),
+    },
+  }));
+  const urgent = revisions.find((row) => row.urgent);
+  const leadTerms: DimensionChainTerm[] = data.lead.chain.map((term, index) => ({
+    ...term,
+    value: cents(term.value),
+    ...(index === 0 ? { onSelect: () => setLeadDetail('need') } : {}),
+    ...(term.label.toLowerCase().includes('wunsch')
+      ? { onSelect: () => setLeadDetail('want') }
+      : {}),
+    ...(term.label.toLowerCase().includes('offen')
+      ? { onSelect: () => setLeadDetail('open') }
+      : {}),
+  }));
+  const previous = net.previousMonthEndCents;
+  const deltaText =
+    net.deltaBp === null
+      ? 'keine Vergleichsbasis'
+      : `${net.deltaBp >= 0 ? '+' : ''}${pct.format(net.deltaBp / 100)} % zum Vormonatsende`;
+
+  return (
+    <>
+      <section className="heute-lead" aria-labelledby="heute-lead-title">
+        <div className="heute-lead-head">
+          <div>
+            <h2 id="heute-lead-title">Frei verfügbar bis Gehalt</h2>
+            <p>
+              Verfügbar in allen Envelopes für Bedarf und Wunsch, abzüglich der Rechnungen, die vor
+              dem Gehalt noch fällig sind.
+            </p>
+          </div>
+          <Button
+            variant="ghost"
+            size="sm"
+            aria-expanded={chainOpen}
+            aria-controls="heute-lead-chain"
+            onClick={() => setChainOpen((open) => !open)}
+          >
+            {chainOpen ? 'Maßkette ausblenden' : 'Maßkette zeigen'}
+          </Button>
+        </div>
+        <BalanceChart
+          data={data}
+          chainOpen={chainOpen}
+          onToggleChain={() => setChainOpen((open) => !open)}
+        />
+        {chainOpen && (
+          <div id="heute-lead-chain" className="heute-chain-area">
+            <DimensionChain
+              terms={leadTerms}
+              label="Maßkette: Bedarf plus Wunsch minus offene Rechnungen bis Gehalt"
+              precision="cent"
+            />
+            {leadDetail && <LeadDetail data={data} kind={leadDetail} />}
+            <p className="heute-note">
+              Wähle Bedarf, Wunsch oder offen bis Gehalt für die zugehörigen Envelopes und
+              Zahlungen.
+            </p>
+          </div>
+        )}
+      </section>
+
+      {urgent && (
+        <section className="heute-mobile-next" aria-label="Nächster dringender Schritt">
+          <RevisionTriangle letter={urgent.letter} urgent />
+          <div className="rev-what">
+            <strong>{urgent.title}</strong>
+            <span>{urgent.detail}</span>
+          </div>
+          {urgent.action && (
+            <Button variant="alert" size="sm" onClick={urgent.action.onClick}>
+              {urgent.action.label}
+            </Button>
+          )}
+        </section>
+      )}
+
+      <div className="heute-main-grid">
+        <section className="heute-section heute-pace" aria-labelledby="heute-pace-title">
+          <SectionHead
+            id="heute-pace-title"
+            title={`${monthLabel(data.pace.month)} · Pace`}
+            aside={
+              data.pace.figures.over ? (
+                <span className="heute-alert">
+                  <ArrowUp size={16} aria-hidden="true" />
+                  {eur(data.pace.figures.deltaCents, { cents: false })} über Plan
+                </span>
+              ) : (
+                <span className="heute-good">
+                  <ArrowDown size={16} aria-hidden="true" />
+                  {eur(-data.pace.figures.deltaCents, { cents: false })} unter Plan
+                </span>
+              )
+            }
+          />
+          <div className="heute-figures">
+            <PaceFigure
+              label="Ausgegeben"
+              value={data.pace.figures.spentCents}
+              kind="spent"
+              selected={paceDetail}
+              setSelected={setPaceDetail}
+            />
+            <PaceFigure
+              label="Plan bis heute"
+              value={data.pace.figures.planToDateCents}
+              kind="plan"
+              selected={paceDetail}
+              setSelected={setPaceDetail}
+            />
+            <PaceFigure
+              label="Prognose Monatsende"
+              value={data.pace.figures.forecastEndCents}
+              kind="forecast"
+              selected={paceDetail}
+              setSelected={setPaceDetail}
+              extra={`von ${eur(data.pace.figures.limitCents, { cents: false })} Limit`}
+            />
+          </div>
+          <HeutePaceChart data={data} />
+          {paceDetail && (
+            <div className="heute-figure-detail" role="status">
+              <strong>
+                {paceDetail === 'spent'
+                  ? 'Ausgegeben'
+                  : paceDetail === 'plan'
+                    ? 'Plan bis heute'
+                    : 'Prognose Monatsende'}
+              </strong>
+              <span>
+                {paceDetail === 'spent'
+                  ? eur(data.pace.figures.spentCents)
+                  : paceDetail === 'plan'
+                    ? eur(data.pace.figures.planToDateCents)
+                    : eur(data.pace.figures.forecastEndCents)}
+              </span>
+              {paceDetail === 'forecast' && <span>Limit: {eur(data.pace.figures.limitCents)}</span>}
+            </div>
+          )}
+          <p className="heute-note">
+            Ist, Plan, Prognose und Vormonat stammen aus der Pace-Berechnung für Bedarf und Wunsch.
+          </p>
+        </section>
+
+        <section
+          className={`heute-section heute-next-steps${urgent === revisions[0] ? ' has-promoted' : ''}`}
+          aria-labelledby="heute-next-title"
+        >
+          <SectionHead
+            id="heute-next-title"
+            title="Nächste Schritte"
+            aside={`${data.nextSteps.count} offen`}
+          />
+          {data.nextSteps.items.length === 0 ? (
+            <EmptyNote>Keine offenen Schritte aus den Heute-Prüfungen.</EmptyNote>
+          ) : (
+            <RevisionTable
+              rows={revisions}
+              caption="Nächste Schritte"
+              empty={<EmptyNote>Keine offenen Schritte.</EmptyNote>}
+            />
+          )}
+        </section>
+      </div>
+
+      <div className="heute-detail-grid">
+        <section className="heute-section" aria-labelledby="heute-pinned-title">
+          <SectionHead
+            id="heute-pinned-title"
+            detail={1}
+            title="Angepinnte Envelopes"
+            aside={
+              <AppLink to="/plan/monat" search={{ monat: data.stand.month }}>
+                Plan öffnen <ChevronRight size={15} aria-hidden="true" />
+              </AppLink>
+            }
+          />
+          {data.pinned.length === 0 ? (
+            <EmptyNote>Keine Envelopes angepinnt.</EmptyNote>
+          ) : (
+            <ul className="heute-list">
+              {data.pinned.map((item) => (
+                <li key={item.id} className="heute-envelope">
+                  <div className="he-envelope-main">
+                    <div>
+                      <strong>{item.name}</strong>
+                      {item.class && (
+                        <ClassTag kind={item.class}>
+                          {item.class === 'need'
+                            ? 'Bedarf'
+                            : item.class === 'want'
+                              ? 'Wunsch'
+                              : 'Zukunft'}
+                        </ClassTag>
+                      )}
+                    </div>
+                    <strong className={item.availableCents < 0 ? 'heute-alert' : ''}>
+                      {eur(item.availableCents)}
+                    </strong>
+                  </div>
+                  <div className="he-envelope-bar" aria-hidden="true">
+                    <span
+                      className={item.class ? `hatch-${item.class}` : ''}
+                      style={{
+                        width: `${Math.min(100, item.budgetedCents > 0 ? Math.max(0, (item.spentCents / item.budgetedCents) * 100) : 0)}%`,
+                      }}
+                    />
+                  </div>
+                  <p>
+                    {eur(item.spentCents)} ausgegeben · {eur(item.budgetedCents)} budgetiert · Pace{' '}
+                    {eur(item.paceMarkCents)}
+                  </p>
+                  {item.overspentCents > 0 && (
+                    <p className="heute-alert">{eur(item.overspentCents)} überzogen</p>
+                  )}
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+
+        <section className="heute-section" aria-labelledby="heute-upcoming-title">
+          <SectionHead
+            id="heute-upcoming-title"
+            detail={2}
+            title="Anstehend · 14 Tage"
+            aside={
+              <AppLink to="/plan/erwartet">
+                Alle <ChevronRight size={15} aria-hidden="true" />
+              </AppLink>
+            }
+          />
+          {data.upcoming14.length === 0 ? (
+            <EmptyNote>
+              In den nächsten 14 Tagen sind keine erwarteten Zahlungen gelistet.
+            </EmptyNote>
+          ) : (
+            <ul className="heute-list">
+              {data.upcoming14.map((item) => (
+                <li className="heute-upcoming" key={`${item.paymentId}-${item.dueDate}`}>
+                  <time dateTime={item.dueDate}>{shortDay(item.dueDate)}</time>
+                  <div>
+                    <strong>{item.name}</strong>
+                    <span>
+                      {[item.accountName, item.contactName, item.categoryName]
+                        .filter(Boolean)
+                        .join(' · ') || 'Ohne weitere Angabe'}
+                    </span>
+                  </div>
+                  <div className="heute-amount-status">
+                    <strong>{eur(item.amountCents, { sign: true })}</strong>
+                    <span className={item.covered ? 'heute-good' : ''}>
+                      {item.covered === true ? (
+                        <>
+                          <CircleCheck size={14} aria-hidden="true" /> Rücklage voll
+                        </>
+                      ) : item.covered === false ? (
+                        <>
+                          <Clock3 size={14} aria-hidden="true" /> Rücklage offen
+                        </>
+                      ) : (
+                        statusText(item.status)
+                      )}
+                    </span>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+
+        <section className="heute-section" aria-labelledby="heute-check-title">
+          <SectionHead
+            id="heute-check-title"
+            detail={3}
+            title="Finanz-Check"
+            aside={
+              <AppLink to="/einstellungen/regelwerk">
+                Alle Regeln <ChevronRight size={15} aria-hidden="true" />
+              </AppLink>
+            }
+          />
+          <CheckCounts data={data} />
+          {data.financeCheck.keyRules.length === 0 ? (
+            <EmptyNote>Für den Finanz-Check sind noch keine Regeln auswertbar.</EmptyNote>
+          ) : (
+            <ul className="heute-list">
+              {data.financeCheck.keyRules.map((rule) => (
+                <li className="heute-rule" key={rule.code}>
+                  <div>
+                    <strong>{rule.name}</strong>
+                    <span>{rule.valueText}</span>
+                  </div>
+                  <span className={`heute-state is-${rule.status}`}>
+                    <StatusIcon status={rule.status} />
+                    {rule.status === 'ok'
+                      ? 'erfüllt'
+                      : rule.status === 'warn'
+                        ? 'Warnung'
+                        : 'verletzt'}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+
+        <section className="heute-section heute-net-worth" aria-labelledby="heute-net-title">
+          <SectionHead
+            id="heute-net-title"
+            detail={4}
+            title="Nettovermögen"
+            aside={
+              <AppLink to="/vermoegen/nettovermoegen">
+                Details <ChevronRight size={15} aria-hidden="true" />
+              </AppLink>
+            }
+          />
+          <div className={`heute-delta ${net.deltaCents < 0 ? 'text-bad' : 'text-good'}`}>
+            {net.deltaCents < 0 ? (
+              <ArrowDown size={16} aria-hidden="true" />
+            ) : (
+              <ArrowUp size={16} aria-hidden="true" />
+            )}
+            {eur(net.deltaCents, { cents: false, sign: true })} · {deltaText}
+          </div>
+          <div
+            data-testid="heute-networth-chart"
+            className={`heute-net-composition${net.totalCents <= 0 ? ' is-nonpositive' : ''}`}
+          >
+            <DimensionChainDrawing
+              label="Maßkette Nettovermögen"
+              parts={[
+                {
+                  key: 'liquid',
+                  label: 'Liquidität',
+                  cents: cents(net.liquidCents),
+                  fill: 'plain',
+                },
+                {
+                  key: 'invested',
+                  label: 'Investiert',
+                  cents: cents(net.investedCents),
+                  fill: 'need',
+                },
+                ...(net.debtCents > 0
+                  ? [
+                      {
+                        key: 'debt',
+                        label: 'Guthaben auf Schuldkonten',
+                        cents: cents(net.debtCents),
+                        fill: 'plain' as const,
+                      },
+                    ]
+                  : []),
+                ...(net.receivableCents > 0
+                  ? [
+                      {
+                        key: 'receivable',
+                        label: 'Forderungen',
+                        cents: cents(net.receivableCents),
+                        fill: 'plain' as const,
+                      },
+                    ]
+                  : []),
+              ]}
+              {...(net.debtCents < 0
+                ? {
+                    minus: {
+                      key: 'debt',
+                      label: 'Schulden',
+                      cents: cents(-net.debtCents),
+                      kind: 'debt' as const,
+                    },
+                  }
+                : {})}
+              result={{ label: 'Nettovermögen', cents: cents(net.totalCents) }}
+              onSelect={(key) => setNetDetail(key as NonNullable<typeof netDetail>)}
+            />
+          </div>
+          <p className="heute-note">
+            Wähle ein Maß für die Konten.
+            {net.debtCents < 0 ? ' Gestrichelt: Schulden, werden abgezogen.' : ''}
+          </p>
+          <p className="heute-note">
+            Stichtag {longDay(net.asOf)} · Vormonatsende {eur(previous)}
+          </p>
+        </section>
+
+        <section className="heute-section" aria-labelledby="heute-bookings-title">
+          <SectionHead
+            id="heute-bookings-title"
+            detail={5}
+            title="Letzte Buchungen"
+            aside={
+              <AppLink to="/konten/buchungen">
+                Alle <ChevronRight size={15} aria-hidden="true" />
+              </AppLink>
+            }
+          />
+          {data.lastBookings.length === 0 ? (
+            <EmptyNote>Noch keine Buchungen vorhanden.</EmptyNote>
+          ) : (
+            <ul className="heute-list">
+              {data.lastBookings.map((item) => (
+                <li key={item.id} className="heute-booking">
+                  <span
+                    className={`heute-booking-class ${item.categoryClass ? `is-${item.categoryClass}` : ''}`}
+                    aria-hidden="true"
+                  />
+                  <div>
+                    <strong>{item.payeeName ?? 'Ohne Empfänger'}</strong>
+                    <span>
+                      {longDay(item.date)} ·{' '}
+                      {[item.categoryName, item.memo].filter(Boolean).join(' · ') ||
+                        'Ohne Kategorie'}
+                    </span>
+                  </div>
+                  <div>
+                    <AppLink to="/konten/buchungen" search={{ von: item.date, bis: item.date }}>
+                      {eur(item.amountCents, { sign: true })}
+                    </AppLink>
+                    <span>
+                      {STATUS[item.status] ?? item.status} · {item.accountName}
+                    </span>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+      </div>
+      <NetWorthDetail data={data} kind={netDetail} onClose={() => setNetDetail(null)} />
+    </>
+  );
+}
+
+function NetWorthDetail({
+  data,
+  kind,
+  onClose,
+}: {
+  data: Heute;
+  kind: 'liquid' | 'invested' | 'receivable' | 'debt' | null;
+  onClose: () => void;
+}) {
+  const names = {
+    liquid: 'Liquidität',
+    invested: 'Investiert',
+    receivable: 'Forderungen',
+    debt: data.netWorth.debtCents > 0 ? 'Guthaben auf Schuldkonten' : 'Schulden',
+  };
+  const totals = {
+    liquid: data.netWorth.liquidCents,
+    invested: data.netWorth.investedCents,
+    receivable: data.netWorth.receivableCents,
+    debt: data.netWorth.debtCents,
+  };
+  const query = useQuery({
+    queryKey: [...LEDGER_KEY, 'accounts', data.netWorth.asOf],
+    queryFn: () => fetchAccounts(data.netWorth.asOf),
+    enabled: kind !== null,
+  });
+  const accounts =
+    query.data?.accounts.filter((account) => {
+      const value = account.valueEurCents;
+      if (value === null) return false;
+      if (kind === 'debt') return value < 0 || account.role === 'debt';
+      if (value < 0 || account.role === 'debt') return false;
+      if (kind === 'invested') return account.role === 'investment';
+      if (kind === 'receivable') return account.role === 'receivable';
+      return account.role === 'budget' || account.role === 'reserve';
+    }) ?? [];
+  return (
+    <DetailPanel open={kind !== null} title={kind ? names[kind] : ''} onClose={onClose}>
+      <div className="heute-breakdown">
+        <p>Stand {longDay(data.netWorth.asOf)}</p>
+        {query.isPending && <LoadingNote what="Konten" />}
+        {query.isError && (
+          <ErrorNote what="Konten" error={query.error} onRetry={() => void query.refetch()} />
+        )}
+        {query.data &&
+          (accounts.length ? (
+            <ul>
+              {accounts.map((account) => (
+                <li key={account.id}>
+                  <AppLink to={`/konten/${encodeURIComponent(account.id)}`}>{account.name}</AppLink>
+                  <strong>{eur(account.valueEurCents!)}</strong>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <EmptyNote>Keine Konten in diesem Maß.</EmptyNote>
+          ))}
+        <p className="heute-figure-detail">
+          <strong>{kind ? names[kind] : ''}</strong>
+          <strong>{kind ? eur(totals[kind]) : ''}</strong>
+        </p>
+      </div>
+    </DetailPanel>
+  );
+}
+
+function LeadDetail({ data, kind }: { data: Heute; kind: 'need' | 'want' | 'open' }) {
+  if (kind === 'open')
+    return (
+      <div className="heute-breakdown" aria-live="polite">
+        <h3>Offen bis Gehalt</h3>
+        {data.lead.items.open.length ? (
+          <ul>
+            {data.lead.items.open.map((item) => (
+              <li key={item.id}>
+                <span>
+                  {longDay(item.day)} · {item.label}
+                </span>
+                <strong>{eur(-item.cents)}</strong>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p>Keine offenen Rechnungen vor dem Gehalt.</p>
+        )}
+      </div>
+    );
+  const list = data.lead.items[kind];
+  return (
+    <div className="heute-breakdown" aria-live="polite">
+      <h3>Envelopes {kind === 'need' ? 'Bedarf' : 'Wunsch'}</h3>
+      {list.length ? (
+        <ul>
+          {list.map((item) => (
+            <li key={item.id}>
+              <span>{item.name}</span>
+              <strong>{eur(item.availableCents)}</strong>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p>Keine Envelopes in dieser Klasse.</p>
+      )}
+    </div>
+  );
+}
+
+function PaceFigure({
+  label,
+  value,
+  kind,
+  selected,
+  setSelected,
+  extra,
+}: {
+  label: string;
+  value: number;
+  kind: 'spent' | 'plan' | 'forecast';
+  selected: 'spent' | 'plan' | 'forecast' | null;
+  setSelected: (key: 'spent' | 'plan' | 'forecast' | null) => void;
+  extra?: string;
+}) {
+  const open = selected === kind;
+  return (
+    <button
+      type="button"
+      className="heute-figure"
+      aria-expanded={open}
+      onClick={() => setSelected(open ? null : kind)}
+    >
+      <span>{label}</span>
+      <strong>{eur(value, { cents: false })}</strong>
+      {extra && <small>{extra}</small>}
+    </button>
+  );
+}
+
+function CheckCounts({ data }: { data: Heute }) {
+  const { ok, warn, bad, total } = data.financeCheck.counts;
+  return (
+    <div
+      className="heute-check-counts"
+      role="img"
+      aria-label={`${ok} erfüllt, ${warn} Warnung, ${bad} verletzt, ${data.financeCheck.counts.notEvaluated} nicht auswertbar`}
+    >
+      <strong>{ok}</strong>
+      <span>von {total} Regeln erfüllt</span>
+      <div className="heute-check-bar" aria-hidden="true">
+        {Array.from({ length: total }, (_, i) => (
+          <i
+            key={i}
+            className={
+              i < ok
+                ? 'is-ok'
+                : i < ok + warn
+                  ? 'is-warn'
+                  : i < ok + warn + bad
+                    ? 'is-bad'
+                    : 'is-open'
+            }
+          />
+        ))}
+      </div>
+      <p>
+        <span>{ok} erfüllt</span>
+        <span>{warn} Warnung</span>
+        <span>{bad} verletzt</span>
+      </p>
+    </div>
+  );
+}
+
+function StatusIcon({ status }: { status: 'ok' | 'warn' | 'bad' }) {
+  if (status === 'ok') return <CircleCheck size={15} aria-hidden="true" />;
+  if (status === 'warn') return <Clock3 size={15} aria-hidden="true" />;
+  return <AlertTriangle size={15} aria-hidden="true" />;
+}
+
+function statusText(status: Heute['upcoming14'][number]['status']) {
+  return status === 'expected'
+    ? 'erwartet'
+    : status === 'received'
+      ? 'erhalten'
+      : status === 'deviating'
+        ? 'abweichend'
+        : 'versäumt';
+}
+
+function monthLabel(month: string) {
+  return new Intl.DateTimeFormat('de-AT', { month: 'long', year: 'numeric' }).format(
+    new Date(Number(month.slice(0, 4)), Number(month.slice(5, 7)) - 1, 15),
+  );
+}

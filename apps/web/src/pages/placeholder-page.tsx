@@ -6,6 +6,7 @@ import { AppLink } from '../shell/app-link';
 import { AreaHead } from './area-head';
 import { PanelLink } from '../shell/panel-link';
 import { Link } from '@tanstack/react-router';
+import type { HeutePeriod } from '../heute/api';
 
 export interface PlaceholderPageProps {
   meta: PageMeta;
@@ -25,6 +26,9 @@ export interface PageFrameProps {
   placeholder?: boolean;
   /** Plan: the month's income in the title block. */
   income?: ReactNode;
+  heutePeriod?: HeutePeriod;
+  onHeutePeriodChange?: (period: HeutePeriod) => void;
+  standDay?: string | undefined;
   children?: ReactNode;
   revealCurrentRegister?: boolean;
 }
@@ -40,6 +44,9 @@ export function PageFrame({
   extraFields,
   placeholder,
   income,
+  heutePeriod,
+  onHeutePeriodChange,
+  standDay,
   children,
   revealCurrentRegister,
 }: PageFrameProps) {
@@ -58,6 +65,9 @@ export function PageFrame({
         extraFields={extraFields}
         placeholder={placeholder}
         income={income}
+        {...(heutePeriod ? { heutePeriod } : {})}
+        {...(onHeutePeriodChange ? { onHeutePeriodChange } : {})}
+        {...(standDay ? { standDay } : {})}
       />
       {items.length > 0 && (
         <Registers

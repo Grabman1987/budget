@@ -2,6 +2,7 @@ import { useToast } from '@budget/ui';
 import { queryOptions, useQueryClient } from '@tanstack/react-query';
 import { undoGroup } from '../ledger/api';
 import { errorText } from '../ledger/labels';
+import { HEUTE_KEY } from '../heute/api';
 import { evaluateRules, fetchCheck, fetchRules } from './api';
 
 export const RULES_KEY = ['rules'] as const;
@@ -22,6 +23,7 @@ export function useRuleWrite() {
     Promise.all([
       qc.invalidateQueries({ queryKey: [...RULES_KEY] }),
       qc.invalidateQueries({ queryKey: [...RULES_CHECK_KEY] }),
+      qc.invalidateQueries({ queryKey: HEUTE_KEY }),
     ]);
   const refresh = async () => {
     await invalidate();

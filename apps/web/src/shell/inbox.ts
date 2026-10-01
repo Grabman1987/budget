@@ -1,2 +1,15 @@
-/** Sample inbox counter until the inbox exists (P3/P4). Replace with the real count then. */
-export const SAMPLE_INBOX_COUNT = 9;
+import { useQuery } from '@tanstack/react-query';
+import { inboxCountQuery } from '../inbox/api';
+
+/** Unknown/loading/error never masquerades as an empty inbox. Shared query deduplicates headers. */
+export function useInboxCount() {
+  const query = useQuery(inboxCountQuery());
+  const count = query.data?.count;
+  return {
+    count,
+    label:
+      count === undefined
+        ? 'Posteingang, Anzahl noch nicht verfügbar'
+        : `Posteingang, ${count} offen`,
+  };
+}
