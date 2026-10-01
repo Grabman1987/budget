@@ -217,18 +217,77 @@ function tradesInEur<T extends ProductTrade & { currency: string }>(
   }));
 }
 
+type PositionSnapshot = {
+  accountId: string;
+  securityId: string;
+  asOf: string;
+  unitsE8: number;
+  costBasisCents: number | null;
+};
+
 /**
- * Cost basis and realised gain of one position (account x security): the latest holding snapshot
- * on or before `asOf` as opening, then the trades after its day (the rule that gives the units).
+ * A checkpoint that matches the source trade quantity and either supported documented basis is
+ * redundant. Keep replaying the original lots so a snapshot that records average basis does not
+ * erase FIFO lot composition. A missing basis is not a correction when both histories are known.
+ * If replay cannot be established (including optional historical FX), keep the snapshot as anchor.
  */
+function effectiveSnapshots(
+  snapshots: PositionSnapshot[],
+  trades: (ProductTrade & { accountId: string; securityId: string; currency: string })[],
+  currency: string,
+  rates: RateTable,
+): PositionSnapshot[] {
+  const ordered = [...snapshots].sort((a, b) => a.asOf.localeCompare(b.asOf));
+  const effective: PositionSnapshot[] = [];
+  let anchor: PositionSnapshot | undefined;
+  for (const snapshot of ordered) {
+    try {
+      const intervalTrades = trades.filter(
+        (t) => (!anchor || t.date > anchor.asOf) && t.date <= snapshot.asOf,
+      );
+      const eurTrades = tradesInEur(intervalTrades, rates);
+      const opening = anchor
+        ? {
+            unitsE8: anchor.unitsE8,
+            costBasisCents:
+              anchor.costBasisCents === null
+                ? null
+                : centsInEur(anchor.costBasisCents, currency, anchor.asOf, rates),
+          }
+        : undefined;
+      const average = documentedCostOf(eurTrades, opening, 'average');
+      const fifo = documentedCostOf(eurTrades, opening, 'fifo');
+      const knownAndAligned =
+        average !== null &&
+        fifo !== null &&
+        average.unitsE8 === snapshot.unitsE8 &&
+        fifo.unitsE8 === snapshot.unitsE8;
+      let redundant = false;
+      if (knownAndAligned) {
+        if (snapshot.costBasisCents === null) redundant = true;
+        else {
+          const basis = centsInEur(snapshot.costBasisCents, currency, snapshot.asOf, rates);
+          redundant = basis === average.costBasisCents || basis === fifo.costBasisCents;
+        }
+      }
+      if (!redundant) {
+        effective.push(snapshot);
+        anchor = snapshot;
+      }
+    } catch (error) {
+      if (!(error instanceof MissingFxRateError)) throw error;
+      // FX is optional for deciding whether a snapshot is redundant. Its own basis will still be
+      // converted if a later calculation actually needs this snapshot as its opening anchor.
+      effective.push(snapshot);
+      anchor = snapshot;
+    }
+  }
+  return effective;
+}
+
+/** Cost basis of one position after ignoring only checkpoints proved redundant from source rows. */
 function positionCost(
-  snapshots: {
-    accountId: string;
-    securityId: string;
-    asOf: string;
-    unitsE8: number;
-    costBasisCents: number | null;
-  }[],
+  snapshots: PositionSnapshot[],
   trades: (ProductTrade & { accountId: string; securityId: string; currency: string })[],
   accountId: string,
   securityId: string,
@@ -236,14 +295,15 @@ function positionCost(
   rates: RateTable,
   method: CostMethod,
 ) {
-  const snap = snapshots
-    .filter((s) => s.accountId === accountId && s.securityId === securityId)
-    .sort((a, b) => b.asOf.localeCompare(a.asOf))[0];
-  const mine = trades.filter(
-    (t) =>
-      t.accountId === accountId && t.securityId === securityId && (!snap || t.date > snap.asOf),
-  );
-  const eurTrades = tradesInEur(mine, rates);
+  const mine = trades.filter((t) => t.accountId === accountId && t.securityId === securityId);
+  const snap = effectiveSnapshots(
+    snapshots.filter((s) => s.accountId === accountId && s.securityId === securityId),
+    mine,
+    currency,
+    rates,
+  ).sort((a, b) => b.asOf.localeCompare(a.asOf))[0];
+  const intervalTrades = mine.filter((t) => !snap || t.date > snap.asOf);
+  const eurTrades = tradesInEur(intervalTrades, rates);
   return documentedCostOf(
     eurTrades,
     snap
@@ -264,13 +324,7 @@ function positionCost(
  * its basis, while gains already recorded before it remain part of the lifetime total.
  */
 function realizedByPosition(
-  snapshots: {
-    accountId: string;
-    securityId: string;
-    asOf: string;
-    unitsE8: number;
-    costBasisCents: number | null;
-  }[],
+  snapshots: PositionSnapshot[],
   trades: (ProductTrade & { accountId: string; securityId: string; currency: string })[],
   accountCurrency: ReadonlyMap<string, string>,
   liveSecurityIds: ReadonlySet<string>,
@@ -287,12 +341,15 @@ function realizedByPosition(
   const gains = new Map<string, { cents: number; complete: boolean }>();
   for (const { accountId, securityId } of pairs.values()) {
     const key = `${accountId}\0${securityId}`;
-    const held = snapshots
-      .filter((s) => s.accountId === accountId && s.securityId === securityId)
-      .sort((a, b) => a.asOf.localeCompare(b.asOf));
     const mine = trades
       .filter((t) => t.accountId === accountId && t.securityId === securityId)
       .sort((a, b) => a.date.localeCompare(b.date));
+    const held = effectiveSnapshots(
+      snapshots.filter((s) => s.accountId === accountId && s.securityId === securityId),
+      mine,
+      accountCurrency.get(accountId) ?? 'EUR',
+      rates,
+    );
     let total = 0;
     let complete = true;
     let opening:
