@@ -19,7 +19,7 @@ Echte Finanzdaten wurden nicht verarbeitet.
 | A10 mehrere Broker pro Wertpapier | Draft-PR | [PR #89](https://github.com/Grabman1987/budget/pull/89): Depotinstitution bestimmt Plattformanteile und bestehende Crypto/P2P-Risikogrenzen; Wertpapier-/Klassenaggregation bleibt erhalten. Sechs unabhängige Sollfälle, Typecheck/Lint und alle 1.344 Tests in 139 Dateien und Produktionsbuild grün |
 | Native FX-Kontodetails | Separat offen | Tabellen, Charts und Kontostandsabgleich konsistent beschriften; kein Teil der A03-Überblicksabnahme |
 | PR-Stack integrieren | In Arbeit | Die ersten 14 PRs der Reihenfolge unten sind nach jeweils frischer vollständiger CI gemergt; #85 wird regulär geprüft. Deploy-Läufe und tatsächlich laufende Image-Version sind getrennte Nachweise. Backup-Testbereinigung [PR #87](https://github.com/Grabman1987/budget/pull/87) einschließlich Windows-CI grün; kein Umgehen von Schutzregeln |
-| Image-Version direkt prüfen | Lokal unabhängig geprüft | `fix/deploy-revision-health`: optionale streng validierte Commit-ID in `/health`; Build-Arg aus geprüftem Checkout und Docker-Smoke mit exakter ID. Typecheck/Lint und alle 1.350 Tests grün; tatsächliche Image-/Live-Prüfung folgt |
+| Image-Version direkt prüfen | Draft-PR | [PR #90](https://github.com/Grabman1987/budget/pull/90): optionale streng validierte Commit-ID in `/health`; Build-Arg aus geprüftem Checkout und Docker-Smoke mit exakter ID. Typecheck/Lint und alle 1.350 Tests grün; tatsächliche Image-/Live-Prüfung folgt |
 | Produktion verifizieren | Offen | Main-CI, tatsächlicher Fly-Deploy und `/health`-Revision müssen auf denselben Commit zeigen; übersprungener Deploy zählt nicht als Erfolg |
 | Private EUR-Migration / Gate 2 | Offen | Berechtigten Zugang zu privaten Exporten, Sicherung, Mapping und centgenaue Abnahme etablieren |
 | PP-Migration / Gate 3 und Ablösung | Offen | Erst nach Investmentkorrekturen und nachgewiesenen Beständen/Renditen |
@@ -45,6 +45,7 @@ Echte Finanzdaten wurden nicht verarbeitet.
 17. [#87 Backup-Testbereinigung](https://github.com/Grabman1987/budget/pull/87)
 18. [#88 Gewinne und Einstandsmethode](https://github.com/Grabman1987/budget/pull/88)
 19. [#89 Brokerzuordnung](https://github.com/Grabman1987/budget/pull/89)
+20. [#90 Image-Version](https://github.com/Grabman1987/budget/pull/90)
 
 ## Arbeitsregeln
 
