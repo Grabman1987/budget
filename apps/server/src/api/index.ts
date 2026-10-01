@@ -2,6 +2,7 @@ import type { Db } from '@budget/db';
 import { todayInVienna } from '@budget/domain';
 import type { MarketSources } from '@budget/market';
 import { Hono, type MiddlewareHandler } from 'hono';
+import { ImportJobs } from '../imports/jobs';
 import { importRoutes } from '../imports/routes';
 import { accountRoutes } from './accounts';
 import { bookingRoutes } from './bookings';
@@ -9,6 +10,7 @@ import { budgetRoutes, categoryRoutes } from './budget';
 import { contactRoutes } from './contacts';
 import { expectedRoutes } from './expected';
 import { goalRoutes } from './goals';
+import { heuteRoutes } from './heute';
 import {
   assetClassRoutes,
   portfolioRoutes,
@@ -20,6 +22,7 @@ import { createMarketSources, marketModeFromEnv } from '../market/sources';
 import { errorResponse } from './http';
 import { lookupRoutes, payeeRoutes, undoRoutes } from './lookups';
 import { marketRoutes } from './market';
+import { wealthRoutes } from './wealth';
 import { ruleRoutes } from './rules';
 
 export interface LedgerApiOptions {
@@ -30,6 +33,8 @@ export interface LedgerApiOptions {
   market?: MarketSources | undefined;
   /** Refuses a request without a fresh step-up (uploads, commits and reverts of import runs). */
   stepUp: MiddlewareHandler;
+  /** Runner of the import tasks (worker threads); one per database. */
+  jobs?: ImportJobs | undefined;
 }
 
 /**
@@ -42,6 +47,7 @@ export function createLedgerApi({
   today = () => todayInVienna(),
   market = createMarketSources(db, marketModeFromEnv()),
   stepUp,
+  jobs = new ImportJobs(db),
 }: LedgerApiOptions): Hono {
   const api = new Hono();
   api.route('/accounts', accountRoutes(db, today));
@@ -50,8 +56,10 @@ export function createLedgerApi({
   api.route('/categories', categoryRoutes(db));
   api.route('/budget', budgetRoutes(db));
   api.route('/expected', expectedRoutes(db, today));
+  api.route('/wealth', wealthRoutes(db, today));
   api.route('/goals', goalRoutes(db, today));
   api.route('/contacts', contactRoutes(db, today));
+  api.route('/heute', heuteRoutes(db, today));
   api.route('/rules', ruleRoutes(db, today));
   api.route('/securities', securityRoutes(db));
   api.route('/asset-classes', assetClassRoutes(db, today));
@@ -61,7 +69,7 @@ export function createLedgerApi({
   api.route('/lookups', lookupRoutes(db));
   api.route('/undo', undoRoutes(db));
   api.route('/', marketRoutes(db, today, market));
-  api.route('/imports', importRoutes(db, today, stepUp));
+  api.route('/imports', importRoutes(db, today, stepUp, jobs));
   api.onError(errorResponse);
   return api;
 }

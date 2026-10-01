@@ -42,7 +42,7 @@ category is not part of what Kontostand prüfen checked.
 | Endpoint | Purpose |
 | --- | --- |
 | `GET /categories` | `groups`, `categories` (hidden ones too, with `splitCount`), `targets` (all live versions) |
-| `POST /categories`, `PATCH /categories/:id` | Name, `icon` (one emoji, shown monochrome), group, class, kind, stage 1–9, card account (card payment only; a card payment keeps its kind and card, 422 `category_rule`), `hidden`; optional `target: { validFrom, target }` in the same undo group |
+| `POST /categories`, `PATCH /categories/:id` | Name, `icon` (one emoji, shown monochrome), group, class, kind, stage 1–9, card account (card payment only; a card payment keeps its kind and card, 422 `category_rule`), `hidden`, `pinned` (pin to Heute; pinned envelopes keep the pinning order); optional `target: { validFrom, target }` in the same undo group |
 | `PUT /categories/:id/target` | `{ validFrom: 'YYYY-MM', target: { kind: monthly / by_date / keep_balance, amountCents, everyMonths, targetDate, dueDay } \| null }`; `null` removes all versions |
 | `POST /categories/sort` | `{ groups: [{ id, categoryIds }] }` in list order; a category listed under another group moves there |
 | `POST /categories/merge` | `{ sourceIds, targetId }`: splits, assigned months (summed), opening envelope, payee defaults, expected payments, savings goals, planned events and assignment rules move to the target; the sources are soft-deleted. Card payment envelopes cannot be merged; an income category takes only income categories (422 `category_rule`). One undo |
@@ -105,6 +105,14 @@ The rule book R01–R16 and the stage checklist (concept §3.5). Rules are data 
 
 Reference month: rolling figures (R01, R02, R11) use the last full month, the month itself on a month end. R04 uses the change log for the day an envelope was assigned; assignments without a log entry (imported or seeded) count as made on the salary day.
 
+## Heute (P3.9)
+
+| Endpoint | Notes |
+| --- | --- |
+| `GET /heute?period=month\|payday&month=YYYY-MM` | The whole home screen in one read. `period=month` (default) charts the whole `month` (default the current one), `payday` runs from today to the next salary; another month than today's is always shown as the whole month. Lead, net worth and next steps always refer to today. `stand`: `today`, `month`, `period`, `from`, `to`, `payday { day, source: salary\|month_end, daysToPayday }`, `budgetBalanceCents`. `lead`: `freeUntilPayday` (needCents + wantCents − openCents = freeCents, euro-balanced `chain`, `items { need, want, open }` as drill-down). `balance`: `actual` (daily end balance of the budget accounts up to today), `forecast` (from today to `to`, liquidity forecast of R07), `salary { day, cents }` on the payday, `low { day, index, cents }`. `pace`: `paceModel` (`plan`, `actual`, `previous` by day, `figures`) plus `forecast` (today to month end) and `previousMonth`. `pinned`: available, assigned, budgeted (carry + assigned), spent, `paceMarkCents`, overspent. `upcoming14`: occurrences with `status`, signed EUR `amountCents`, `covered`. `financeCheck`: `counts` and the six `keyRules`. `netWorth`: parts `liquidCents` / `investedCents` / `debtCents` (+ `receivableCents`, role receivable, shown separately), `deltaCents` and `deltaBp` against the previous month end, `series` of 11 month ends and today. `lastBookings`: 5 up to today. `nextSteps`: `{ items, count }`, overspent envelopes and uncategorised bookings until the inbox (P3.10) takes over |
+
+Payday is the next due date of the salary expected payment (income type Gehalt, `date_shift` before: last business day, weekends and Austrian public holidays) that is still `expected`; without one it is the last day of the month. Occurrences come from the payment schedule and their status from the stored occurrences (`POST /expected/refresh`); a past occurrence without a stored row counts as settled, an unmatched `expected` one up to 31 days back still counts as open. Open bills for the lead are expected outflows on budget accounts before the payday that are not Zukunft transfers. Net worth is `netWorthAsOf`; open contact receivables are not added to it (owner decision).
+
 ## Market data (P5.1)
 
 Sources are the fixture series outside production and Yahoo/ECB in production
@@ -117,6 +125,15 @@ security currency, rates EUR per unit in micro-units.
 | `GET /securities/:id/prices?from&to` | `{ securityId, currency, prices: [{ date, priceMicro, currency, source }] }` ascending; unknown security 404 |
 | `PUT /securities/:id/prices/:date` | Manual price: `{ priceMicro }` (integer) or `{ price: "81.25" }` (decimal text, at most 6 decimals), not in the future. Wins over every source; a refresh never replaces it; a change of an existing price is a `price_audit` row |
 | `GET /fx?currency&from&to` | `{ currency, rates: [{ date, currency, rateMicro, source }] }` ascending; `currency` is an ISO code in capitals |
+## Wealth (P5.4)
+
+Read models of the Vermögen pages. "Now" is `netWorthAsOf` of today (Vienna), the figure of Konten ›
+Übersicht; contact receivables are not part of net worth (an Auslage lowers it until repaid).
+
+| Endpoint | Purpose |
+| --- | --- |
+| `GET /wealth/networth?period=` | `period` is `1M`, `3M`, `YTD` (default), `1J`, `3J` or `Alles`; anything else is 400. Answer: `{ period, from, to, stand, chain, daily, bars, composition }`. `from` is the close of the window's start day (31.12. for YTD, same day of the earlier month for 1M/3M/1J/3J, the first account's opening day for `Alles`). `chain` is `{ startCents, ownCents, marketCents, nowCents, deltaCents }` with start + own + market = now exactly (own = change minus the market move of the positions, SPEC section 6). `daily` is `[{ date, netWorthCents }]`, the first point is the start value. `bars` is `{ unit: 'week' \| 'month', buckets: [{ from, to, ownCents, marketCents }] }`: blocks of 7 days up to 3M, calendar months otherwise (first and last may be partial). `composition` is `{ assets, debts }` of `{ accountId, name, type, valueCents }`, assets descending, debts most negative first, zero accounts left out |
+| `GET /wealth/stand` | `{ priceDate, priceAt }`: the newest price day and, when a refresh or a manual price recorded it (`price_audit.ts`), the timestamp (ISO UTC); `null` without prices |
 ## Invest (P5.5)
 
 Securities, trades, asset classes, savings plans and the portfolio read model. Money is integer

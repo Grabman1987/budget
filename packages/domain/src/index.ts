@@ -11,3 +11,4 @@ export * from './forecast';
 export * from './goals';
 export * from './rules';
 export * from './contacts';
+export * from './heute';

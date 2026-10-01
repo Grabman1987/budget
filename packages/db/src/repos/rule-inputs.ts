@@ -50,7 +50,7 @@ import {
 } from '../schema';
 import { allocationMonth } from './allocation';
 import { scheduleVersion, schedulePayment } from './expected';
-import { holdingValuesAsOf, netWorthAsOf } from './portfolio';
+import { holdingValuesAsOf, netWorthAsOf, type NetWorth } from './portfolio';
 import { fxRateOnOrBefore } from './prices';
 import { budget, budgetLedger } from './queries';
 import type { Executor } from './types';
@@ -265,7 +265,7 @@ function targetOf(f: RuleFacts, categoryId: string, month: string): CategoryTarg
 }
 
 /** Scheduled occurrences (EUR cents) of the live payments between two days, both included. */
-function scheduled(f: RuleFacts, from: string, to: string, asOf: string) {
+export function scheduled(f: RuleFacts, from: string, to: string, asOf: string) {
   const out: {
     payment: PaymentRow;
     dueDate: string;
@@ -321,6 +321,60 @@ export function referenceMonth(asOf: string): string {
   return asOf === lastDayOfMonth(month) ? month : addMonths(month, -1);
 }
 
+/**
+ * The liquidity forecast inputs of the budget accounts on `asOf` (rule R07 and the Heute chart):
+ * start balance, scheduled payments and planned events of the next 365 days, and the planned
+ * variable spending per month.
+ */
+export function forecastInputs(
+  f: RuleFacts,
+  asOf: string,
+  nw: NetWorth,
+): NonNullable<RuleInputs['forecast']> {
+  const cur = monthOf(asOf);
+  const ref = referenceMonth(asOf);
+  const budgetAccounts = f.accounts.filter(
+    (a) => a.openingDate <= asOf && a.onBudget && a.role === 'budget',
+  );
+  const to = addDays(asOf, 365);
+  const items: ForecastItem[] = [
+    ...scheduled(f, addDays(asOf, 1), to, asOf)
+      .filter((o) => o.onBudget)
+      .map((o) => ({
+        day: o.dueDate,
+        cents: o.cents,
+        kind: o.cents >= 0 ? ('income' as const) : ('fixed' as const),
+        label: o.payment.name,
+      })),
+    ...f.plannedEvents
+      .filter((e) => e.date > asOf && e.date <= to)
+      .filter((e) => {
+        const a = e.accountId ? f.accounts.find((x) => x.id === e.accountId) : undefined;
+        return !a || (a.onBudget && a.role === 'budget');
+      })
+      .map((e) => ({ day: e.date, cents: e.amountCents, kind: 'event' as const, label: e.name })),
+  ];
+  const last3 = monthsBetween(addMonths(ref, -2), ref);
+  // The plan: the monthly targets of the variable envelopes; without targets the last 3 months.
+  const planned = f.categories
+    .filter((c) => c.kind === 'variable')
+    .reduce((sum, c) => {
+      const t = targetOf(f, c.id, cur);
+      return sum + (t && t.kind === 'monthly' ? t.amountCents : 0);
+    }, 0);
+  const variableMonthlyCents =
+    planned > 0
+      ? planned
+      : Math.max(0, averageCents(last3.map((m) => spent(f, m, (c) => c.kind === 'variable'))));
+  return {
+    startDay: asOf,
+    startCents: budgetAccounts.reduce((s, a) => s + (nw.byAccount[a.id] ?? 0), 0),
+    items,
+    variableMonthlyCents,
+    overdraftLimitCents: budgetAccounts.reduce((s, a) => s + (a.overdraftLimitCents ?? 0), 0),
+  };
+}
+
 export function ruleInputs(db: Executor, asOf: string, facts?: RuleFacts): RuleInputs {
   const f = facts ?? loadFacts(db, asOf);
   const cur = monthOf(asOf);
@@ -329,7 +383,6 @@ export function ruleInputs(db: Executor, asOf: string, facts?: RuleFacts): RuleI
   const nw = netWorthAsOf(db, asOf);
   const live = (a: AccountRow) => a.openingDate <= asOf;
   const accounts = f.accounts.filter(live);
-  const budgetAccounts = accounts.filter((a) => a.onBudget && a.role === 'budget');
   const cats = catById(f);
   const window12 = monthsBetween(addMonths(ref, -11), ref);
 
@@ -451,46 +504,7 @@ export function ruleInputs(db: Executor, asOf: string, facts?: RuleFacts): RuleI
     ];
   });
 
-  // R07: forecast items over the next 365 days (the rule narrows to its horizon)
-  const to = addDays(asOf, 365);
-  const items: ForecastItem[] = [
-    ...scheduled(f, addDays(asOf, 1), to, asOf)
-      .filter((o) => o.onBudget)
-      .map((o) => ({
-        day: o.dueDate,
-        cents: o.cents,
-        kind: o.cents >= 0 ? ('income' as const) : ('fixed' as const),
-        label: o.payment.name,
-      })),
-    ...f.plannedEvents
-      .filter((e) => e.date > asOf && e.date <= to)
-      .filter((e) => {
-        const a = e.accountId ? f.accounts.find((x) => x.id === e.accountId) : undefined;
-        return !a || (a.onBudget && a.role === 'budget');
-      })
-      .map((e) => ({ day: e.date, cents: e.amountCents, kind: 'event' as const, label: e.name })),
-  ];
-  const last3 = monthsBetween(addMonths(ref, -2), ref);
-  // The plan: the monthly targets of the variable envelopes; without targets the last 3 months.
-  const planned = f.categories
-    .filter((c) => c.kind === 'variable')
-    .reduce((sum, c) => {
-      const t = targetOf(f, c.id, cur);
-      return sum + (t && t.kind === 'monthly' ? t.amountCents : 0);
-    }, 0);
-  const variableMonthlyCents =
-    planned > 0
-      ? planned
-      : Math.max(0, averageCents(last3.map((m) => spent(f, m, (c) => c.kind === 'variable'))));
-  const forecast = hasBudget
-    ? {
-        startDay: asOf,
-        startCents: budgetAccounts.reduce((s, a) => s + (nw.byAccount[a.id] ?? 0), 0),
-        items,
-        variableMonthlyCents,
-        overdraftLimitCents: budgetAccounts.reduce((s, a) => s + (a.overdraftLimitCents ?? 0), 0),
-      }
-    : null;
+  const forecast = hasBudget ? forecastInputs(f, asOf, nw) : null;
 
   // R08, R10: contractual payments in force
   const outflows = f.payments.filter((p) => p.kind === 'outflow');

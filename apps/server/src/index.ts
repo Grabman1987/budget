@@ -7,6 +7,7 @@ import { createApp } from './app';
 import { authConfigFromEnv } from './auth/config';
 import { backupConfigFromEnv, BackupScheduler } from './backup/backup';
 import { createAuth } from './auth/routes';
+import { ImportJobs } from './imports/jobs';
 import { AuthStore } from './auth/store';
 import { createMarketSources, marketModeFromEnv, startDailyMarketTimer } from './market';
 import { todayFromEnv } from './today';
@@ -48,11 +49,14 @@ for (const timer of housekeeping) timer.unref();
 // BUDGET_TODAY pins the ledger's "today" (test aid, refused in production).
 const today = todayFromEnv();
 
+// Heavy import tasks (YNAB dry run, commit, revert) run in a worker thread on its own connection.
+const importJobs = new ImportJobs(db);
+
 // The debug endpoint is opt-in, read-only (seed check) and behind the session guard.
 const app = createApp({
   webDir,
   auth,
-  ledger: { db, ...(today ? { today } : {}) },
+  ledger: { db, jobs: importJobs, ...(today ? { today } : {}) },
   database: process.env['BUDGET_DEBUG_API'] === '1' ? db : undefined,
 });
 
@@ -101,6 +105,8 @@ function shutdown(signal: NodeJS.Signals): void {
   const timer = setTimeout(() => process.exit(1), 10_000);
   timer.unref();
   for (const timer of housekeeping) clearInterval(timer);
+  // A running import task is stopped; its transaction was not committed, so nothing of it stays.
+  void importJobs.terminate();
   server.close(() => {
     auth.events.flush(new Date());
     closeDatabase();

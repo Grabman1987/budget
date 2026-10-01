@@ -152,6 +152,15 @@ export function setCategoryHidden(db: Executor, id: string, hidden: boolean, ctx
   });
 }
 
+/** Pin an envelope to Heute or unpin it; pinned envelopes keep the order in which they were pinned. */
+export function setCategoryPinned(db: Executor, id: string, pinned: boolean, ctx: AuditContext) {
+  return runInTransaction(db, (tx) => {
+    const current = liveCategory(tx, id);
+    if (pinned === (current.pinnedAt !== null)) return current;
+    return updateEntity(tx, category, id, { pinnedAt: pinned ? nowIso() : null }, ctx);
+  });
+}
+
 export function createCategoryGroup(db: Executor, name: string, ctx: AuditContext) {
   const clean = cleanName(name);
   return runInTransaction(db, (tx) => {

@@ -32,6 +32,13 @@ export {
 } from './alloc';
 export { netWorthAttribution, netWorthSeries, type NetWorthPoint } from './networth';
 export {
+  bucketNetWorth,
+  netWorthWindow,
+  type NetWorthBucket,
+  type NetWorthDayInput,
+  type NetWorthWindow,
+} from './networth-window';
+export {
   targetNeed,
   waterfallFill,
   waterfallOrder,

@@ -66,6 +66,8 @@ erDiagram
   audit_log }o--|| booking : "records changes of any entity"
 ```
 
+`category.pinned_at` (nullable timestamp) pins an envelope to Heute; pinned envelopes are ordered by it.
+
 Not drawn: `savings_goal` (linked to a category or an account, never both; figures are computed, not stored), `planned_event`, `fx_rate` (ECB rate per day and currency),
 `inbox_item`, `assignment_rule`, `bank_connection` (status and consent expiry only, no secrets),
 the auth tables.
