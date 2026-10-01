@@ -1,5 +1,6 @@
 import {
   account,
+  accountSummaries,
   assertLedgerInvariants,
   auditLog,
   booking,
@@ -29,7 +30,7 @@ import {
   type Executor,
   type GroupedContext,
 } from '@budget/db';
-import { budgetMonths } from '@budget/domain';
+import { budgetMonths, lastDayOfMonth } from '@budget/domain';
 import { budgetInputOf, type TargetBooking, type TargetModel } from '@budget/import-ynab';
 import { and, desc, eq, gt, gte, inArray, isNotNull, isNull, ne, or, sql } from 'drizzle-orm';
 import { randomUUID } from 'node:crypto';
@@ -82,13 +83,38 @@ export interface ChangeReport {
 }
 
 /** The app's budget after the write against the target model's own budget (Gate 2 in the DB). */
-export interface LedgerDifference {
-  month: string;
-  /** Target category id; absent for "Zu verteilen". */
-  category?: string;
-  expectedCents: number;
-  actualCents: number;
-}
+export type LedgerDifference =
+  | { month: string; category?: string; expectedCents: number; actualCents: number }
+  | {
+      check: 'account_balance';
+      account: string;
+      month: string;
+      day: string;
+      expectedCents: number;
+      actualCents: number;
+    }
+  | { check: 'account_missing'; account: string; month: null }
+  | {
+      check: 'account_currency';
+      account: string;
+      month: null;
+      expectedCurrency: string;
+      actualCurrency: string;
+    }
+  | {
+      check: 'account_opening_balance';
+      account: string;
+      month: null;
+      expectedCents: number;
+      actualCents: number;
+    }
+  | {
+      check: 'account_opening_date';
+      account: string;
+      month: null;
+      expectedDate: string;
+      actualDate: string;
+    };
 
 export interface WriteInput {
   runId: string;
@@ -525,6 +551,96 @@ export function ledgerDifferences(
     push(undefined, e.toBeAssignedCents, a?.toBeAssignedCents ?? 0);
     for (const [id, env] of Object.entries(e.envelopes))
       push(id, env.availableCents, a?.envelopes[ids.categories[id] ?? '']?.availableCents ?? 0);
+  }
+
+  // Compare each imported account independently of the budget read model. This includes tracking,
+  // loan and closed accounts, which `budget()` intentionally does not value.
+  const accountIds = target.accounts
+    .map((a) => ids.accounts[a.id])
+    .filter((id): id is string => id !== undefined && id !== '');
+  const persistedAccounts = new Map(
+    accountIds.length === 0
+      ? []
+      : tx
+          .select({
+            id: account.id,
+            currency: account.currency,
+            openingDate: account.openingDate,
+            openingBalanceCents: account.openingBalanceCents,
+            deletedAt: account.deletedAt,
+          })
+          .from(account)
+          .where(inArray(account.id, accountIds))
+          .all()
+          .map((row) => [row.id, row]),
+  );
+  const months = [...target.months].sort();
+  // Use the same native balance reader as the account UI; compare it with the source model.
+  const monthBalances = new Map(
+    months.map((month) => [
+      month,
+      new Map(accountSummaries(tx, lastDayOfMonth(month)).map((a) => [a.id, a.balanceCents])),
+    ]),
+  );
+  for (const targetAccount of target.accounts) {
+    const dbId = ids.accounts[targetAccount.id];
+    const stored = dbId ? persistedAccounts.get(dbId) : undefined;
+    if (!stored || stored.deletedAt !== null) {
+      out.push({ check: 'account_missing', account: targetAccount.id, month: null });
+      continue;
+    }
+    if (stored.currency !== 'EUR') {
+      out.push({
+        check: 'account_currency',
+        account: targetAccount.id,
+        month: null,
+        expectedCurrency: 'EUR',
+        actualCurrency: stored.currency,
+      });
+      continue;
+    }
+    if (stored.openingBalanceCents !== targetAccount.openingBalanceCents)
+      out.push({
+        check: 'account_opening_balance',
+        account: targetAccount.id,
+        month: null,
+        expectedCents: targetAccount.openingBalanceCents,
+        actualCents: stored.openingBalanceCents,
+      });
+    if (stored.openingDate !== targetAccount.openingDate)
+      out.push({
+        check: 'account_opening_date',
+        account: targetAccount.id,
+        month: null,
+        expectedDate: targetAccount.openingDate,
+        actualDate: stored.openingDate,
+      });
+
+    const expectedRows = target.bookings
+      .filter((row) => row.accountId === targetAccount.id)
+      .map((row) => ({ date: row.date, cents: row.amountCents }))
+      .sort((a, b) => a.date.localeCompare(b.date));
+    let expectedRunning = 0;
+    let expectedIndex = 0;
+    for (const month of months) {
+      const day = lastDayOfMonth(month);
+      while (expectedIndex < expectedRows.length && expectedRows[expectedIndex]!.date <= day) {
+        const row = expectedRows[expectedIndex++]!;
+        if (row.date >= targetAccount.openingDate) expectedRunning += row.cents;
+      }
+      const expectedCents =
+        day < targetAccount.openingDate ? 0 : targetAccount.openingBalanceCents + expectedRunning;
+      const actualCents = monthBalances.get(month)!.get(stored.id)!;
+      if (expectedCents !== actualCents)
+        out.push({
+          check: 'account_balance',
+          account: targetAccount.id,
+          month,
+          day,
+          expectedCents,
+          actualCents,
+        });
+    }
   }
   return out;
 }
