@@ -9,6 +9,7 @@
 @import './budget/budget.css' layer(pages);
 @import './budget/plan.css' layer(pages);
 @import './rules/rules.css' layer(pages);
+@import './wealth/wealth.css' layer(pages);
 @import './budget/goals.css' layer(pages);
 @import './imports/imports.css' layer(pages);
 @import 'tailwindcss/utilities.css' layer(utilities);

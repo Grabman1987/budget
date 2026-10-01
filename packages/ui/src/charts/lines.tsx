@@ -41,6 +41,8 @@ export interface LineProps {
    * appear directly (their dash pattern would be lost). `true` is the same as 0.
    */
   draw?: boolean | 0 | 1 | 2;
+  /** Extra class on the path, e.g. a thinner stroke for a dense daily series. */
+  className?: string;
 }
 
 const DRAW_DELAY = ['', ' draw-late', ' draw-later'];
@@ -54,9 +56,15 @@ function drawClass(kind: LineKind, draw: LineProps['draw']): string {
 const drawLength = (className: string) => (className.includes(' draw') ? 1 : undefined);
 
 /** Polyline in one of the ISO line types. */
-export function Line({ points, kind, draw = 0 }: LineProps) {
+export function Line({ points, kind, draw = 0, className: extra }: LineProps) {
   const className = drawClass(kind, draw);
-  return <path d={linePath(points)} className={className} pathLength={drawLength(className)} />;
+  return (
+    <path
+      d={linePath(points)}
+      className={extra ? `${className} ${extra}` : className}
+      pathLength={drawLength(className)}
+    />
+  );
 }
 
 /** Step line: the value holds until the next point (balances, cumulative spending). */
