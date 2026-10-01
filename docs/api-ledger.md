@@ -245,3 +245,21 @@ An outlay of 10,000 cents from 100,000 cents cash leaves 90,000 net worth. A rea
 moves it to 96,000 while 4,000 stays open in the statement. A total receipt of 12,000 instead leaves
 102,000 actual cash/net worth and -2,000 contact balance. Derived contact debt/credit never adds a
 virtual receivable or liability to net worth; explicit receivable accounts keep ordinary valuation.
+
+## Inbox basics
+
+`GET /inbox` returns `{ asOf, count, entries }`; `GET /inbox/count` returns the same queue's count.
+There is one derived `booking` task per live on-budget booking dated no later than today with a
+nonzero split lacking both category and income type. Transfers, tracking accounts, future dates
+and zero splits are excluded. A task carries the booking ID, actual amount/date/account/payee/memo,
+status and number of unclassified splits. Stored unresolved non-`uncategorized` inbox items appear
+as `stored` tasks. Legacy stored uncategorized summaries are replaced by actual ledger work.
+
+Categorize or confirm via the existing booking PATCH API; confirmation alone does not remove a
+classification task. `POST /inbox/:id/resolve {}` acknowledges an existing stored warning in one
+audit group and returns `{ id, groupId }`. It changes no financial amounts and makes no claim
+that the warning's source is repaired. Unknown/derived IDs return 404, legacy unclassified
+summaries and already resolved warnings return 409, and extra request fields return 400.
+Normal whole-group undo/redo applies, including refusal if a later source write changed the row.
+The web queue/count use the common ledger query key so categorization, acknowledgement and undo
+also invalidate integrated Heute reads. Bank/assignment suggestion decisions remain later scope.
