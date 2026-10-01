@@ -1,6 +1,6 @@
 # Budget — Specification
 
-Status: Gate 1 candidate, 29.09.2026. App name: **Budget** (O10 decided). Private, single user.
+Status: Gate 1 candidate; owner sign-off remains pending, 2026-10-01. App name: **Budget** (O10 decided). Private, single user. Current implementation and operational evidence: `docs/STATUS.md`.
 
 Budget is a private household finance web app (installable PWA) that replaces YNAB (and the interim Actual-Budget cockpit) and Portfolio Performance with one app, one database and one language. Envelope budgeting at the core, a rule set of finance basics on top, full net-worth and portfolio tracking in the same ledger. Goal: not only track cash flow and wealth, but actively optimise them.
 
@@ -45,7 +45,9 @@ Five main areas plus settings (profile menu). Registers are the second level; no
 | Konten | Was ist passiert? | Übersicht, Einzelkonto with Kontostand prüfen, Alle Buchungen, Posteingang, Kontakte (`konten.html`) |
 | Vermögen | Was besitze ich, was entscheide ich? | Nettovermögen, Portfolio (Soll/Ist, Rebalancing, Sparpläne), Schulden (Sondertilgung), Freiheitszahl with Soll-Pfad (`vermoegen.html`) |
 | Reports | Warum und wohin, und wie haben Entscheidungen gewirkt? | Catalog of 30 reports in 5 groups (`reports.html`) |
-| Einstellungen | — | Konten (terms: limits, rates, term), Kategorien, Regelwerk (stages + R01–R16), Zuordnungsregeln, Datenquellen, Anlageklassen, Import/Export, Sicherheit (`einstellungen.html`, partly built) |
+| Einstellungen | — | Konten (terms: limits, rates, term), Kategorien, Regelwerk (stages + R01–R16), Zuordnungsregeln, Datenquellen, Anlageklassen, CSV-Export, Sicherheit (`einstellungen.html`, partly built) |
+
+**Import/export feature scope (owner decision 2026-10-01):** no import feature in the application. Remove upload/wizard/import-report entry points rather than expose them as product functions. Keep only a CSV export of all accounts and portfolios, as a placeholder for now; no working download is required in this stage. This decision supersedes earlier in-app YNAB/PP and manual CSV/XLSX import requirements. The separate one-time migration workflow is being clarified with the owner.
 
 **Vermögen decides, Reports show the effect.** No outcome/performance history on Vermögen; no decisions in Reports.
 
@@ -136,11 +138,15 @@ packages/ui       tokens + blueprint primitives: TitleBlock, Registers, Dimensio
 packages/fixtures synthetic sample ledger (port of design/prototype/reports-core.js) for tests, dev seed and visual tests
 ```
 
-Data sources (P4): Enable Banking (PSD2, JWT RS256, booked balances, consent warning 14 days before the 180-day expiry), CSV/XLSX import with saved column mapping, crypto read API, broker file imports + Portfolio Performance XML for the initial load, prices daily via yfinance with fallback Ariva (source stored per price, failures to the inbox), ECB exchange rates (full history), manual valuations. Provider-specific code lives in adapters named generically in the domain.
+Data sources (P4): Enable Banking (PSD2, JWT RS256, booked balances, consent warning 14 days before the 180-day expiry), crypto read API, prices daily via yfinance with fallback Ariva (source stored per price, failures to the inbox), ECB exchange rates (full history), manual valuations. Manual file imports are excluded from the application feature scope; see §3 and the migration clarification in §10. Provider-specific code lives in adapters named generically in the domain.
 
 ## 10. Migration (concept 11.4)
 
+The app import feature is removed by the decision in §3. The one-time migration plan below describes the earlier data-transfer requirement; whether it remains as a separate private tool is pending owner clarification. Do not recreate an import UI to fulfill it.
+
 Source is the **YNAB export** (Register.tsv + Plan.tsv); Actual Budget was only an interim tool and is not migrated. Format, quirks and checks: `docs/migration/ynab-export.md`.
+
+**First real import: EUR only** (owner decision 2026-10-01). Full foreign-currency support remains in scope; until implemented, unsupported foreign-currency budget accounts must be rejected or explicitly reported as unsupported, never silently summed as EUR.
 
 YNAB's structure is evaluated and adapted, not copied: raw import → owner-made mapping (accounts, n:1 category merges, re-categorisation rules from a chosen month, payees → contacts, bracketed notes → expected payments) → target model. Records start on **01.10.2023** (owner decision 29.09.2026) with the balances of that day; accounts closed before are skipped; the start month stays configurable. Then workspace mapping (persons → contacts and expected payments, debts → credit accounts, goals, receipts), later trades/holdings and price history from Portfolio Performance (P5) → parallel run over one month-end with a reconciliation report → cut-over when all differences are 0 €. **The export and the mapping document run on the server or locally and are never committed, uploaded to a cloud session, CI or logs.**
 
@@ -149,13 +155,15 @@ YNAB's structure is evaluated and adapted, not copied: raw import → owner-made
 | Package | Content | Done when |
 | --- | --- | --- |
 | **P1 Fundament** | Monorepo, stack spike, passkey login, DB schema v1, design tokens + blueprint primitives, app shell (sidebar, registers, title block, mobile tab bar), CI, deploy to a new Fly app | See `docs/ROADMAP.md` P1 checklist; the shell matches `design/screens/desktop/heute.webp` in layout and tokens |
-| **P2 Kern und Migration** | Accounts, bookings, capture, categories, Plan › Monat, YNAB import with mapping | **Gate 2:** balances per account and month match YNAB to the cent; Available per target category matches the mapped YNAB categories before the rules month |
+| **P2 Kern und Migration** | Accounts, bookings, capture, categories, Plan › Monat; separate one-time migration scope pending, no app import feature | **Gate 2:** balances per account and month match YNAB to the cent; Available per target category matches the mapped YNAB categories before the rules month; transfer workflow pending clarification |
 | **P3 Planung und Steuerung** | Expected payments, contacts, savings goals, distribute money, rule set + stages, Heute | Heute and Plan match the prototype with real data |
-| **P4 Datenquellen** | Enable Banking, CSV/XLSX, nightly run, inbox, assignment rules | Nightly run stable for 14 days |
+| **P4 Datenquellen** | Enable Banking, nightly run, inbox, assignment rules; CSV export remains a placeholder | Nightly run stable for 14 days |
 | **P5 Vermögen** | Price history, portfolio, returns, allocation, debts, freedom number | **Gate 3:** returns and holdings equal Portfolio Performance |
-| **P6 Reports und Umstellung** | 30 reports, explorer, printable sheets, parallel run with reconciliation | **Gate 4:** one month-end without difference, then cancel YNAB, switch off the interim Actual cockpit and PP |
+| **P6 Reports und Umstellung** | 30 reports, explorer, printable sheets, parallel run with reconciliation | **Gate 4:** one month-end without difference, then retire remaining finance tools, including YNAB and PP |
 
-**Gate 1 (now):** this spec, PRODUCT.md, DESIGN.md and the prototype are accepted by the owner.
+**Gate 1 acceptance criterion:** this spec, PRODUCT.md, DESIGN.md and the prototype are accepted by the owner. The criterion is not yet confirmed as passed.
+
+The former Fly app was used only for the prototype and removed by the owner on 2026-10-01. Its removal does not pass a financial migration gate; the versioned prototype remains the design reference.
 
 ## 12. Not in V1
 

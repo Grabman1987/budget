@@ -1,6 +1,6 @@
 # Einrichtung: GitHub, Claude Code in der Cloud, Fly.io
 
-Schritt für Schritt, einmalig. Alles mit Zugangsdaten (GitHub, Fly, Tokens) machst du selbst; die Cloud-Sitzungen bekommen keine Geheimnisse zu sehen.
+Historical Claude-cloud onboarding guide. Current implementation and acceptance status: [`STATUS.md`](STATUS.md); current work: [`ROADMAP.md`](ROADMAP.md). Real financial data, exports/mappings and production secrets stay outside cloud sessions. Use `docs/ops.md` for deployment and real backup/restore verification.
 
 ## 1. GitHub-Repo anlegen und hochladen
 
@@ -46,7 +46,7 @@ Lokal weiterarbeiten: `claude --teleport <Sitzungs-ID>` holt eine Cloud-Sitzung 
 
 ## 5. Fly.io für die neue App
 
-Die neue App läuft getrennt vom alten Cockpit (`fabiangrabner-budget` bleibt bis Gate 4 unverändert).
+The former Fly app was used only for the prototype and removed by the owner on 2026-10-01. The versioned reference remains available through `npm run proto`. The configured target is reported as deployed; its running commit, physical-device login and real encrypted restore still need verification. Legacy staging remains suspended and has not been approved for removal.
 
 Die vollständige, geprüfte Reihenfolge steht in **`docs/ops.md`, Abschnitt 3 „First deploy checklist“**; hier wird sie bewusst nicht wiederholt. Kurzfassung, damit du weißt, was auf dich zukommt:
 
@@ -65,4 +65,4 @@ Den App-Namen `budget-fg` kannst du ändern; dann auch `app`, `BUDGET_ORIGIN` un
 
 ## 7. Echte Daten
 
-Echte Finanzdaten kommen nie ins Repo. Die Migration aus Actual (P2) läuft auf dem Fly-Server oder lokal; Bank-Einwilligungen (PSD2) erteilst nur du selbst.
+Import is no longer an app feature. Only CSV export of all accounts/portfolios stays in scope, currently as a placeholder. Whether the earlier one-time EUR migration remains as a separate private tool is pending clarification. Any real export/mapping stays on the private server or locally, never in the repository, cloud sessions, CI or logs. Bank consents are granted by the owner.

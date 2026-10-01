@@ -2,7 +2,36 @@
 
 Packages and gates from `SPEC.md` §11. Each task below is one cloud session and one pull request. Ready-to-paste prompts: `docs/prompts/`. Tick the boxes in the PR that completes them.
 
+Current implementation and owner/operations evidence: [`STATUS.md`](STATUS.md). Completed boxes record implementation, not full product acceptance or immunity to later defects. Next work is the ordered follow-up below; existing checklists remain the record of completed work.
+
 Gate 1 (specification and designs accepted by the owner): **pending owner sign-off.**
+
+## Current work — 2026-10-01 follow-up
+
+Source: [`audit/2026-10-01-follow-up.md`](audit/2026-10-01-follow-up.md). First real import is **EUR only**; full FX support remains later scope. One task per branch/PR; verify each fix against an independent expected result and required checks.
+
+Owner scope update, 2026-10-01: remove import as an app feature. Keep only CSV export of all accounts/portfolios, currently a placeholder. The previous import UI/parser checkboxes below record historical implementation, not the current product scope. Separate one-time migration and its acceptance workflow are pending clarification.
+
+- [x] Record owner-confirmed retirement of the prototype-only Fly app; keep the versioned prototype and leave legacy staging unchanged.
+- [x] Align README, PRODUCT, SPEC and cloud setup with implementation and acceptance status.
+- [x] Record no-import app scope and CSV-only export placeholder.
+- [ ] Remove app upload/wizard/import-report entry points and obsolete import navigation; leave CSV export of all accounts/portfolios as a placeholder without a working download.
+- [ ] Verify deployed commit, health, phone/desktop passkeys, recovery and real encrypted restore (owner/runbook; deployed status alone is insufficient).
+- [ ] Establish browser acceptance in the intended Playwright environment: classify visual differences and stabilize the immediate system-theme assertion; baseline updates do not replace normal CI.
+- [ ] A07 exact lead amounts: format once and split for display; rendered cents/grouping/sign boundaries on all three pages.
+- [ ] A06 categorized income: allocation/rules include allowed income categories; distinguish transfers, refunds and contact repayments.
+- [ ] A01 trade settlement integrity: generic update/delete/bulk/reconcile/undo cannot detach a trade from its cash flow.
+- [ ] A08 booking currency invariant: amount/currency match account, original currency explicit; shared contract in create/update/transfers/import.
+- [ ] A05 payment lifecycle: edit/delete/rematch/undo recompute status, links, amounts and related totals.
+- [ ] A03 EUR-first guard: unsupported on-budget foreign currencies never enter EUR sums silently; create/update/import/existing accounts covered.
+- [ ] A04 persisted Gate-2 reconciliation: each relevant account/month and mapped category checked; added/missing/changed/deleted one-cent cases detected, including non-budget accounts.
+- [ ] Owner EUR import/Gate 2 after corrections and operational acceptance; private export/mapping remain outside repository/cloud sessions.
+- [ ] A02 investment costs use historical base-currency FX; valuation, fees/income and missing-rate behavior consistent before Gate 3.
+- [ ] A09 realized gain includes fully sold positions independently of current holdings, with partial-sale/repurchase cases.
+- [ ] A10 broker/risk aggregation preserves account/institution for securities at multiple brokers.
+- [ ] Manual-price undo, first-refresh timestamp and live adapter validation before accepting those wealth workflows.
+
+After EUR acceptance: complete Heute/contacts/inbox daily workflows, PP commit/matching and Gate 3, remaining wealth/source/report/PWA scope and Gate 4. Prototype-host removal is separate from retiring still-used finance tools.
 
 ## P1 Fundament
 
@@ -48,7 +77,7 @@ Gate 1 (specification and designs accepted by the owner): **pending owner sign-o
 - [x] First-device bootstrap via one-time setup token from an environment secret; no open registration
 - [x] Rate limiting on auth endpoints; audit of logins
 - [x] Litestream backup to object storage (config + restore instructions in `docs/ops.md`)
-- [ ] Deployed to the new Fly app; `/health` green; login works on phone and desktop (after P1f-1 and P1f-2 B1–B3; owner checklist in `docs/ops.md`)
+- [ ] Operational acceptance: target reported deployed; running commit, `/health`, phone/desktop login, recovery and real encrypted restore need verification (owner checklist in `docs/ops.md`)
 
 ## P1f Audit fixes (`docs/audit/2026-09-29-p1-audit.md`)
 
@@ -158,8 +187,8 @@ Order: P2a → P2b and P2c in parallel → P2d (parser can start right after P1f
 
 ### P2d — YNAB import with mapping (`docs/prompts/P2d.md`)
 - [x] Parser for Register.tsv / Plan.tsv incl. CESU-8 emoji repair, splits, transfer pairing; synthetic fixture export in the real format
-- [x] Mapping document (zod schema), `applyMapping` to the target model (opening balances and Available at the start month, n:1 merges, drop, rules), reconciliation (Gate 2) as data — `packages/import-ynab`
-- [x] Review and first real run: all bracket-note forms, cash advance (card → budget account) in `budgetMonths`, scheduled rows after the export date, one `card_payment` target per on-budget card, Ready to Assign from the export's own budget status, rules never on transfers or tracking accounts, problems by index/hash, account proposals (closed, paid-off loan), trimmed account names, hidden categories under their original group, split payees, start-month income, hand-computed card expectations
+- [x] Mapping document (zod schema), `applyMapping` to the target model (opening balances and Available at the start month, n:1 merges, drop, rules), source-to-mapped-target reconciliation — `packages/import-ynab`; persisted account/month checks remain open in A04
+- [x] Import review follow-ups: all bracket-note forms, cash advance (card → budget account) in `budgetMonths`, scheduled rows after the export date, one `card_payment` target per on-budget card, Ready to Assign from the export's own budget status, rules never on transfers or tracking accounts, problems by index/hash, account proposals (closed, paid-off loan), trimmed account names, hidden categories under their original group, split payees, start-month income, hand-computed card expectations; deployed owner-import acceptance remains below
 - [x] Raw staging, dry run with side-by-side structure, commit as one reversible import run, idempotent re-import (PR `p2d-wizard`)
 - [x] Import wizard in Einstellungen › Datenquellen (step-up), reconciliation report page (Gate 2) (PR `p2d-wizard-2`)
 - [ ] Owner: category evaluation and mapping done, real import on the deployed app, Gate 2 report without difference
@@ -176,7 +205,7 @@ Expected payments, contacts with receivables, savings goals, rule set R01–R16 
 - [x] P3.6 `p3-expected-ui`: Plan › Erwartet (next 90 days by week, Verträge und Abos / Alle parts list with monthly and yearly sums and original currency, payment panel with fields, versions, occurrences, link/unlink/missed), "Als erwartete Zahlung anlegen" on a booking, Einnahmen panel on Plan › Monat (`/api/expected/income`)
 
 ## P4 Datenquellen
-Enable Banking adapter, CSV/XLSX import with saved mapping, worker with nightly run and catch-up, inbox items, assignment rules, source status in Einstellungen › Datenquellen.
+Enable Banking adapter, worker with nightly run and catch-up, inbox items, assignment rules and source status in Einstellungen › Datenquellen. Manual file imports are excluded from app scope; CSV export of all accounts/portfolios remains a placeholder.
 
 ## P5 Vermögen
 Price history (yfinance + Ariva, source per price), ECB rates, trades and holdings, portfolio performance, allocation, Sparpläne, debts with extra repayment, freedom number with Soll-Pfad. **Gate 3:** returns and holdings equal Portfolio Performance.
@@ -217,4 +246,4 @@ Price history (yfinance + Ariva, source per price), ECB rates, trades and holdin
 - [x] Sample savings plans; tests incl. the 17.09.2026 portfolio figures of the prototype
 
 ## P6 Reports und Umstellung
-The 30 reports (SPEC §7), explorer, printable sheets, parallel run with reconciliation report. **Gate 4:** one month-end without difference, then cancel YNAB, switch off the interim Actual cockpit and PP.
+The 30 reports (SPEC §7), explorer, printable sheets, parallel run with reconciliation report. **Gate 4:** one month-end without difference, then retire remaining finance tools, including YNAB and PP. The prototype-only host was retired independently of this gate.
