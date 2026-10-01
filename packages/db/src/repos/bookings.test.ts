@@ -11,6 +11,7 @@ import {
   deleteBooking,
   getBooking,
   importBooking,
+  importTransfer,
   listBookings,
   restoreBooking,
   updateBooking,
@@ -38,6 +39,22 @@ const basic = (
   splits: [{ categoryId: 'essen', amountCents: -1200 }],
   ...over,
 });
+
+const usdOffBudget = () =>
+  accounts.create(
+    db,
+    {
+      id: 'usd-tracking',
+      name: 'Dollar tracking',
+      type: 'other_asset',
+      role: 'investment',
+      onBudget: false,
+      currency: 'USD',
+      openingDate: '2023-10-01',
+      sortOrder: 4,
+    },
+    ctx,
+  );
 
 describe('createBooking', () => {
   it('creates a booking with its splits and returns the id', () => {
@@ -92,6 +109,55 @@ describe('createBooking', () => {
       originalCurrency: 'USD',
       fxRateMicro: 935_000,
       fxFeeCents: 15,
+    });
+  });
+
+  it('keeps booking currency equal to a USD off-budget account and rejects explicit mismatch', () => {
+    usdOffBudget();
+    const id = createBooking(
+      db,
+      basic({ accountId: 'usd-tracking', amountCents: -2500, splits: [{ amountCents: -2500 }] }),
+      ctx,
+    );
+    expect(getBooking(db, id)).toMatchObject({ accountId: 'usd-tracking', currency: 'USD' });
+    expect(() =>
+      createBooking(
+        db,
+        basic({
+          accountId: 'usd-tracking',
+          currency: 'EUR',
+          amountCents: -100,
+          splits: [{ amountCents: -100 }],
+        }),
+        ctx,
+      ),
+    ).toThrow(/currency.*account/i);
+    expect(listBookings(db, { accountId: 'usd-tracking' })).toHaveLength(1);
+  });
+
+  it('stores original EUR amounts when the USD account currency is explicit and consistent', () => {
+    usdOffBudget();
+    const id = createBooking(
+      db,
+      basic({
+        accountId: 'usd-tracking',
+        currency: 'USD',
+        amountCents: -1100,
+        originalAmountCents: -1000,
+        originalCurrency: 'EUR',
+        fxRateMicro: 1_100_000,
+        fxFeeCents: 0,
+        splits: [{ amountCents: -1100 }],
+      }),
+      ctx,
+    );
+    expect(getBooking(db, id)).toMatchObject({
+      currency: 'USD',
+      amountCents: -1100,
+      originalAmountCents: -1000,
+      originalCurrency: 'EUR',
+      fxRateMicro: 1_100_000,
+      fxFeeCents: 0,
     });
   });
 
@@ -313,6 +379,47 @@ describe('updateBooking', () => {
     expect(getBooking(db, id)).toMatchObject({ accountId: 'giro', currency: 'EUR' });
   });
 
+  it('rejects currency-only edits and cross-currency moves even with a matching currency patch', () => {
+    usdOffBudget();
+    const id = createBooking(db, basic(), ctx);
+    expect(() => updateBooking(db, id, { currency: 'USD' }, ctx)).toThrow(/currency.*account/i);
+    expect(() =>
+      updateBooking(db, id, { accountId: 'usd-tracking', currency: 'USD' }, ctx),
+    ).toThrow(/cannot move.*USD/i);
+    expect(getBooking(db, id)).toMatchObject({
+      accountId: 'giro',
+      currency: 'EUR',
+      amountCents: -1200,
+    });
+  });
+
+  it('rejects a USD account transfer against an EUR account without writing either leg', () => {
+    usdOffBudget();
+    expect(() =>
+      createTransfer(
+        db,
+        {
+          fromAccountId: 'giro',
+          toAccountId: 'usd-tracking',
+          date: '2026-02-01',
+          amountCents: 5000,
+        },
+        ctx,
+      ),
+    ).toThrow(/different currencies/i);
+    expect(() =>
+      createBooking(
+        db,
+        basic({
+          amountCents: -5000,
+          splits: [{ amountCents: -5000, transferAccountId: 'usd-tracking' }],
+        }),
+        ctx,
+      ),
+    ).toThrow(/different currencies/i);
+    expect(db.select().from(booking).all()).toHaveLength(0);
+  });
+
   describe('transfer legs', () => {
     it('keeps both legs consistent on amount and date changes', () => {
       const r = createTransfer(
@@ -494,6 +601,30 @@ describe('deleteBooking / restoreBooking', () => {
     undo(db, { groupId: 'del' }, ctx);
     expect(listBookings(db)).toHaveLength(2);
   });
+
+  it('refuses restore and undo that would revive booking currency mismatched to its account', () => {
+    usdOffBudget();
+    const restoreId = createBooking(
+      db,
+      basic({ accountId: 'usd-tracking', amountCents: -100, splits: [{ amountCents: -100 }] }),
+      ctx,
+    );
+    deleteBooking(db, restoreId, ctx);
+    db.update(booking).set({ currency: 'EUR' }).where(eq(booking.id, restoreId)).run();
+    expect(() => restoreBooking(db, restoreId, ctx)).toThrow(/currency.*account/i);
+    expect(getBooking(db, restoreId)).toBeUndefined();
+
+    const undoId = createBooking(
+      db,
+      basic({ accountId: 'usd-tracking', amountCents: -200, splits: [{ amountCents: -200 }] }),
+      ctx,
+    );
+    db.update(booking).set({ currency: 'EUR' }).where(eq(booking.id, undoId)).run();
+    const groupId = 'currency-mismatch-delete';
+    deleteBooking(db, undoId, { ...ctx, groupId });
+    expect(() => undo(db, { groupId }, ctx)).toThrow(/currency.*account/i);
+    expect(getBooking(db, undoId)).toBeUndefined();
+  });
 });
 
 describe('getBooking / listBookings', () => {
@@ -590,5 +721,88 @@ describe('importBooking', () => {
   it('rejects an empty import key and validates like createBooking', () => {
     expect(() => importBooking(db, imp(''), ctx)).toThrow(/import key/);
     expect(() => importBooking(db, imp('k9', { splits: [] }), ctx)).toThrow(BookingInvariantError);
+  });
+
+  it('rejects an imported EUR booking assigned to a USD account atomically', () => {
+    usdOffBudget();
+    expect(() =>
+      importBooking(
+        db,
+        imp('usd-import', {
+          accountId: 'usd-tracking',
+          currency: 'EUR',
+          amountCents: -1200,
+          splits: [{ amountCents: -1200 }],
+        }),
+        ctx,
+      ),
+    ).toThrow(/currency.*account/i);
+    expect(listBookings(db, { accountId: 'usd-tracking' })).toHaveLength(0);
+  });
+});
+
+describe('importTransfer currency integrity', () => {
+  const importedLeg = (
+    accountId: string,
+    importKey: string,
+    amountCents: number,
+    currency?: 'EUR' | 'USD',
+  ) =>
+    importBooking(
+      db,
+      {
+        accountId,
+        date: '2026-02-01',
+        amountCents,
+        splits: [{ amountCents }],
+        importKey,
+        ...(currency ? { currency } : {}),
+      },
+      ctx,
+    );
+
+  it('rejects linking existing opposite raw bookings in different currencies atomically', () => {
+    usdOffBudget();
+    const eur = importedLeg('giro', 'eur-transfer', -5000);
+    const usd = importedLeg('usd-tracking', 'usd-transfer', 5000, 'USD');
+
+    expect(() =>
+      importTransfer(
+        db,
+        {
+          fromAccountId: 'giro',
+          toAccountId: 'usd-tracking',
+          date: '2026-02-01',
+          amountCents: 5000,
+          importKey: 'eur-transfer',
+          toImportKey: 'usd-transfer',
+        },
+        ctx,
+      ),
+    ).toThrow(/different currencies/i);
+    expect(getBooking(db, eur.id)).toMatchObject({ transferId: null, currency: 'EUR' });
+    expect(getBooking(db, usd.id)).toMatchObject({ transferId: null, currency: 'USD' });
+    expect(db.select().from(booking).all()).toHaveLength(2);
+  });
+
+  it('does not create a USD partner for an existing EUR import leg', () => {
+    usdOffBudget();
+    const eur = importedLeg('giro', 'eur-only-transfer', -5000);
+
+    expect(() =>
+      importTransfer(
+        db,
+        {
+          fromAccountId: 'giro',
+          toAccountId: 'usd-tracking',
+          date: '2026-02-01',
+          amountCents: 5000,
+          importKey: 'eur-only-transfer',
+        },
+        ctx,
+      ),
+    ).toThrow(/different currencies/i);
+    expect(getBooking(db, eur.id)).toMatchObject({ transferId: null, currency: 'EUR' });
+    expect(db.select().from(booking).all()).toHaveLength(1);
   });
 });

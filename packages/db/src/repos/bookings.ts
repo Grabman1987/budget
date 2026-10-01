@@ -302,14 +302,14 @@ function insertBooking(
   assertSplits(input.amountCents, input.splits);
   assertSplitRefs(tx, input.splits);
   const acct = liveAccount(tx, input.accountId);
+  const currency = input.currency ?? acct.currency;
+  if (currency !== acct.currency)
+    throw new BookingInvariantError(
+      `Booking currency ${currency} does not match account currency ${acct.currency}`,
+    );
   const id = randomUUID();
   const { splits, ...columns } = normalizeFx(input);
-  insertTracked(
-    tx,
-    booking,
-    { ...columns, id, transferId, currency: columns.currency ?? acct.currency },
-    ctx,
-  );
+  insertTracked(tx, booking, { ...columns, id, transferId, currency }, ctx);
   const partners: { transferId: string; split: SplitInput; categoryId: string | null }[] = [];
   splits.forEach((s, i) => {
     let splitTransferId: string | null = null;
@@ -636,17 +636,22 @@ function updateBookingImpl(
       throw new BookingInvariantError('Add split transfers when creating the booking');
 
     if (patch.date !== undefined) assertDate(patch.date);
+    const target = liveAccount(tx, patch.accountId ?? cur.accountId);
     if (patch.accountId !== undefined && patch.accountId !== cur.accountId) {
       if (cur.transferId)
         throw new BookingInvariantError('A transfer leg cannot be moved to another account');
       // Amounts are cents of the account's currency: a move cannot convert them.
-      const target = liveAccount(tx, patch.accountId);
-      if (target.currency !== (patch.currency ?? cur.currency)) {
+      if (target.currency !== cur.currency) {
         throw new BookingInvariantError(
           `A booking in ${cur.currency} cannot move to an account in ${target.currency}; book it there anew`,
         );
       }
     }
+    const currency = patch.currency ?? cur.currency;
+    if (currency !== target.currency)
+      throw new BookingInvariantError(
+        `Booking currency ${currency} does not match account currency ${target.currency}`,
+      );
 
     const amount = patch.amountCents ?? cur.amountCents;
     const amountChanged = amount !== cur.amountCents;
@@ -805,6 +810,7 @@ export function restoreBooking(db: Executor, id: string, ctx: AuditContext): voi
       if (leg.deletedAt !== null)
         updateTracked(tx, booking, [leg.id], { deletedAt: null }, grouped, 'restore');
     }
+    assertLedgerInvariants(tx, relatedTransferBookings(tx, id));
   });
 }
 
