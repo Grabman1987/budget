@@ -5,6 +5,7 @@ import type { Heute } from '../apps/web/src/heute/api';
 import { MAIN_URL } from '../playwright.config';
 import { pickCategory, toast } from './ledger-helpers';
 import { addDays } from '@budget/domain';
+import { eur } from '../apps/web/src/ledger/format';
 
 test('Heute uses live API data and period, expands the lead chain, and links to source views', async ({
   page,
@@ -286,7 +287,7 @@ ledgerTest(
   async ({ page }, info) => {
     ledgerTest.skip(
       info.project.name !== 'desktop',
-      'One writer on the isolated main ledger; both viewports read the sample ledger.',
+      'One capture writer on the shared main ledger; both viewports read the sample ledger.',
     );
     const headers = { origin: MAIN_URL };
     const current: Heute = await (await page.request.get('/api/heute')).json();
@@ -321,8 +322,34 @@ ledgerTest(
       });
       expect(assigned.ok()).toBe(true);
       cleanup.push((await assigned.json()).groupId);
+      // Other specs share this ledger. Keep an unrelated overspent envelope here so this
+      // regression cannot accidentally rely on the whole household starting at 100 EUR.
+      const { category: other } = await post('/api/categories', {
+        name: `Heute Begleitprüfung ${Date.now()}`,
+        groupId: 'e2e-g',
+        class: 'want',
+        kind: 'variable',
+      });
+      await post('/api/bookings', {
+        type: 'booking',
+        accountId: account.id,
+        date: day,
+        amountCents: -20_570,
+        categoryId: other.id,
+      });
       await page.goto(`/?monat=${month}`);
-      await expect(page.getByTestId('heute-lead-value')).toContainText('100');
+      await expect(page.getByTestId('heute-lead-value')).toBeVisible();
+      await page.getByRole('button', { name: 'Maßkette zeigen' }).click();
+      await page.getByRole('button', { name: /^Bedarf/ }).click();
+      const envelope = page.locator('.heute-breakdown li').filter({ hasText: categoryName });
+      await expect(envelope.locator('strong')).toHaveText('100,00 €');
+      const assertFresh = async (data: Heute, availableCents: number, text: string) => {
+        expect(data.lead.items.need.find((item) => item.id === category.id)?.availableCents).toBe(
+          availableCents,
+        );
+        await expect(envelope.locator('strong')).toHaveText(text);
+        await expect(page.getByTestId('heute-lead-value')).toHaveText(eur(data.lead.freeCents));
+      };
       const refreshed = () =>
         page.waitForResponse((response) => response.url().includes('/api/heute?') && response.ok());
       await page.keyboard.press('n');
@@ -339,15 +366,12 @@ ledgerTest(
       await panel.getByRole('button', { name: 'Speichern', exact: true }).click();
       liveBookingGroup = (await (await written).json()).groupId;
       let data: Heute = await (await refresh).json();
-      expect(data.lead.freeCents).toBe(7930);
-      await expect(page.getByTestId('heute-lead-value')).toContainText('79');
-      await expect(page.getByTestId('heute-lead-value')).toContainText(',30 €');
+      await assertFresh(data, 7930, '79,30 €');
       refresh = refreshed();
       await toast(page).getByRole('button', { name: 'Rückgängig' }).click();
       liveBookingGroup = undefined;
       data = await (await refresh).json();
-      expect(data.lead.freeCents).toBe(10_000);
-      await expect(page.getByTestId('heute-lead-value')).toContainText('100');
+      await assertFresh(data, 10_000, '100,00 €');
       refresh = refreshed();
       const redone = page.waitForResponse(
         (response) => response.url().endsWith('/api/undo') && response.ok(),
@@ -355,8 +379,7 @@ ledgerTest(
       await toast(page).getByRole('button', { name: 'Wiederholen' }).click();
       liveBookingGroup = (await (await redone).json()).groupId;
       data = await (await refresh).json();
-      expect(data.lead.freeCents).toBe(7930);
-      await expect(page.getByTestId('heute-lead-value')).toContainText(',30 €');
+      await assertFresh(data, 7930, '79,30 €');
       // A prior-month uncategorized entry remains actionable; tomorrow's entry stays outside
       // the Today count and the linked view. The categorised capture is filtered out there.
       const priorMemo = `${categoryName} vorheriger Monat`;
@@ -379,7 +402,7 @@ ledgerTest(
       });
       await page.goto(`/?monat=${month}`);
       const steps = page.getByRole('table', { name: 'Nächste Schritte' });
-      await expect(steps).toContainText('1 Buchung ohne Kategorie');
+      await expect(steps).toContainText(/\d+ Buchung(?:en)? ohne Kategorie/);
       await steps.getByRole('button', { name: 'Buchungen öffnen' }).click();
       const url = new URL(page.url());
       expect(url.searchParams.get('kategorie')).toBe('none');
