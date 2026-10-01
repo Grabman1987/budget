@@ -10,7 +10,8 @@ import {
   type SegmentedOption,
 } from '@budget/ui';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Trash2 } from 'lucide-react';
+import { useNavigate } from '@tanstack/react-router';
+import { CalendarClock, Trash2 } from 'lucide-react';
 import {
   useEffect,
   useMemo,
@@ -108,6 +109,7 @@ export function CaptureForm({
   const lookups = useQuery(lookupsQuery());
   const payees = useQuery(payeesQuery());
   const writes = useLedgerWrites();
+  const navigate = useNavigate();
   const formRef = useRef<HTMLFormElement>(null);
 
   const [today] = useState(todayInVienna);
@@ -732,6 +734,25 @@ export function CaptureForm({
               <Trash2 size={16} strokeWidth={1.75} aria-hidden="true" />
               Löschen
             </Button>
+            {!isTransfer && (
+              <Button
+                variant="ghost"
+                disabled={busy}
+                onClick={() => {
+                  if (dirtyRef.current)
+                    return setErrors({ form: 'Speichere die Änderungen zuerst.' });
+                  // The saved booking is the template of the new expected payment.
+                  onDone();
+                  void navigate({
+                    to: '/plan/erwartet' as never,
+                    state: { expectedFrom: editing } as never,
+                  });
+                }}
+              >
+                <CalendarClock size={16} strokeWidth={1.75} aria-hidden="true" />
+                Als erwartete Zahlung anlegen
+              </Button>
+            )}
           </>
         )}
       </div>
