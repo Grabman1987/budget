@@ -30,6 +30,7 @@ import {
   INVESTMENT_SETTINGS_META,
   VERMOEGEN_NETTO_META,
   VERMOEGEN_PORTFOLIO_META,
+  VERMOEGEN_SCHULDEN_META,
   type PageMeta,
 } from './nav/pages';
 import { NotFoundPage } from './pages/not-found';
@@ -117,6 +118,7 @@ const BUILT_PATHS = new Set<string>([
   PLAN_ERWARTET.path,
   VERMOEGEN_NETTO_META.path,
   VERMOEGEN_PORTFOLIO_META.path,
+  VERMOEGEN_SCHULDEN_META.path,
   PLAN_SPARZIELE.path,
   CSV_EXPORT_META.path,
 ]);
@@ -220,6 +222,18 @@ const portfolioRoute = createRoute({
         : undefined,
   }),
   component: lazyRouteComponent(() => import('./wealth/portfolio-page'), 'PortfolioPage'),
+});
+const debtsRoute = createRoute({
+  getParentRoute: () => shellRoute,
+  path: '/vermoegen/schulden',
+  staticData: { meta: VERMOEGEN_SCHULDEN_META },
+  validateSearch: (search: Record<string, unknown>) => ({
+    kredit:
+      typeof search['kredit'] === 'string' && search['kredit'].length <= 64
+        ? search['kredit']
+        : undefined,
+  }),
+  component: lazyRouteComponent(() => import('./wealth/debts-page'), 'DebtsPage'),
 });
 const planGoalsRoute = createRoute({
   getParentRoute: () => shellRoute,
@@ -341,6 +355,7 @@ const routeTree = rootRoute.addChildren([
     planExpectedRoute,
     netWorthRoute,
     portfolioRoute,
+    debtsRoute,
     planGoalsRoute,
     ...redirects,
     overviewRoute,

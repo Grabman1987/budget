@@ -1,3 +1,4 @@
+import { debtRoutes } from './debts';
 import {
   accountValuesAsOf,
   earliestAccountDate,
@@ -17,6 +18,7 @@ const networthQuery = z.object({ period: z.enum(PERIODS).default('YTD') });
 /** Vermögen read models: Nettovermögen (P5.4); Portfolio, Freiheitszahl and Schulden join later. */
 export function wealthRoutes(db: Db, today: () => string): Hono {
   const app = new Hono();
+  app.route('/debts', debtRoutes(db, today));
 
   /**
    * Net worth over a period: the daily series (first point = the start value, the close of the
