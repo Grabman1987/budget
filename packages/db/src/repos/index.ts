@@ -23,3 +23,4 @@ export * from './trades';
 export * from './securities';
 export * from './portfolio-summary';
 export * from './savings-plans';
+export * from './contacts';

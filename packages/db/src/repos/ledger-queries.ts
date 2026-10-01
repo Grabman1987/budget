@@ -179,6 +179,8 @@ export interface BookingQuery {
   /** A category id, or `'none'` for bookings with an uncategorised split. */
   categoryId?: string;
   payeeId?: string;
+  /** Bookings with a split of this contact (Auslage or Ausgleich). */
+  contactId?: string;
   status?: (typeof BOOKING_STATUSES)[number];
   flag?: (typeof BOOKING_FLAGS)[number] | 'none';
   /** Free text over memo, split memo, payee, category and account name. */
@@ -282,6 +284,17 @@ export function queryBookings(db: Executor, query: BookingQuery = {}): BookingPa
   if (query.from) conditions.push(sql`${booking.date} >= ${query.from}`);
   if (query.to) conditions.push(sql`${booking.date} <= ${query.to}`);
   if (query.payeeId) conditions.push(eq(booking.payeeId, query.payeeId));
+  if (query.contactId) {
+    conditions.push(
+      inArray(
+        booking.id,
+        db
+          .select({ id: bookingSplit.bookingId })
+          .from(bookingSplit)
+          .where(eq(bookingSplit.contactId, query.contactId)),
+      ),
+    );
+  }
   if (query.status) conditions.push(eq(booking.status, query.status));
   if (query.flag === 'none') conditions.push(isNull(booking.flag));
   else if (query.flag) conditions.push(eq(booking.flag, query.flag));

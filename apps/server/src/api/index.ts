@@ -6,6 +6,7 @@ import { importRoutes } from '../imports/routes';
 import { accountRoutes } from './accounts';
 import { bookingRoutes } from './bookings';
 import { budgetRoutes, categoryRoutes } from './budget';
+import { contactRoutes } from './contacts';
 import { expectedRoutes } from './expected';
 import { goalRoutes } from './goals';
 import {
@@ -50,6 +51,7 @@ export function createLedgerApi({
   api.route('/budget', budgetRoutes(db));
   api.route('/expected', expectedRoutes(db, today));
   api.route('/goals', goalRoutes(db, today));
+  api.route('/contacts', contactRoutes(db, today));
   api.route('/rules', ruleRoutes(db, today));
   api.route('/securities', securityRoutes(db));
   api.route('/asset-classes', assetClassRoutes(db, today));

@@ -5,6 +5,8 @@ export interface BookingsSearch {
   konto?: string | undefined;
   kategorie?: string | undefined;
   empfaenger?: string | undefined;
+  /** Contact id: bookings with a split of this contact (Auslagen, Ausgleich). */
+  kontakt?: string | undefined;
   status?: string | undefined;
   markierung?: string | undefined;
   von?: string | undefined;
@@ -50,6 +52,7 @@ export function validateBookingsSearch(search: Record<string, unknown>): Booking
     konto: id(search['konto']),
     kategorie: id(search['kategorie']),
     empfaenger: id(search['empfaenger']),
+    kontakt: id(search['kontakt']),
     status: oneOf(search['status'], BOOKING_STATUSES),
     markierung: oneOf(search['markierung'], [...BOOKING_FLAGS, 'none'] as const),
     von: day(search['von']),
@@ -66,6 +69,7 @@ export function filterFromSearch(search: BookingsSearch): BookingFilter {
     accountId: search.konto,
     categoryId: search.kategorie,
     payeeId: search.empfaenger,
+    contactId: search.kontakt,
     status: oneOf(search.status, BOOKING_STATUSES),
     flag: oneOf(search.markierung, [...BOOKING_FLAGS, 'none'] as const),
     from: search.von,
@@ -82,6 +86,7 @@ export const hasFilter = (search: BookingsSearch): boolean =>
     search.konto ||
     search.kategorie ||
     search.empfaenger ||
+    search.kontakt ||
     search.status ||
     search.markierung ||
     search.von ||

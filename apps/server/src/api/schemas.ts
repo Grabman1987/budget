@@ -159,6 +159,7 @@ export const bookingQuery = z.object({
   to: day.optional(),
   categoryId: id.optional(),
   payeeId: id.optional(),
+  contactId: id.optional(),
   status: z.enum(BOOKING_STATUSES).optional(),
   flag: z.enum([...BOOKING_FLAGS, 'none']).optional(),
   q: z.string().max(200).optional(),
@@ -336,3 +337,21 @@ export const goalListQuery = z.object({
 });
 export const goalMonthQuery = z.object({ month: month.optional() });
 export const goalAdoptBody = z.object({ validFrom: month.optional() });
+
+// ---------- contacts ----------
+export const contactCreate = z.object({
+  name: z.string().trim().min(1).max(120),
+  note: nullableText.optional(),
+});
+export const contactPatch = contactCreate
+  .partial()
+  .refine((v) => Object.keys(v).length > 0, 'Nothing to change');
+export const contactListQuery = z.object({ deleted: z.enum(['0', '1']).optional() });
+export const contactLedgerQuery = z.object({ from: day.optional(), to: day.optional() });
+export const contactSettleBody = z.object({
+  accountId: id,
+  date: day,
+  /** Positive cents, at most the open amount. */
+  amountCents: cents.min(1),
+  memo: z.string().trim().max(200).nullable().optional(),
+});

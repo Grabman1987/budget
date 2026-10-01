@@ -10,3 +10,4 @@ export * from './kpi';
 export * from './forecast';
 export * from './goals';
 export * from './rules';
+export * from './contacts';

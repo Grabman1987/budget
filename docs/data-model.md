@@ -205,6 +205,20 @@ the auth tables.
   "Auslagen" envelope, category kind `advance`), or a **transfer** leg (`booking_split.transfer_id`,
   PR 2). The counterparty of a salary or a contribution is the payee (and the payee's contact),
   never `booking_split.contact_id`.
+- **Contact receivable** (P3.8, owner decision 01.10.2026): derived, never stored. A contact's
+  receivable = −Σ(contact splits of live bookings up to the viewed day) (paid for the contact = +,
+  repaid = −) + the balance of the receivable accounts linked to it (`account.contact_id`, opening
+  balances from a migration). Forderung is positive, Verbindlichkeit (the contact paid ahead)
+  negative. Repayments settle the Auslagen **FIFO** (oldest first); what is left of an Auslage is its
+  open item. **The receivable is not part of the net worth**: the cash of an Auslage is gone until
+  it is repaid, so an Auslage lowers `netWorthAsOf` and the repayment raises it again (only a linked
+  receivable *account* is an account and counts like any other). It is shown next to the net worth
+  (Kontakte page, `GET /api/contacts` → `totals.receivableCents` for Heute). "Ausgleich buchen"
+  books an inflow with one contact split in Auslagen; there is no link from a split to an Auslage,
+  the distribution is derived. Expected contributions (inflows from the contact typed "Beiträge von
+  Kontakten" or untyped) and passed-through costs (`contact_share_bp` of an outflow) of the next 30
+  days come from the occurrences. The parity ledger has no contact splits; the opt-in scenario
+  (`withContactsScenario`) is used by tests and the e2e contacts server only.
 - **Category kinds** (C9): `fixed`, `periodic`, `variable`, `project`, `saving`, `invest`, `debt`,
   `advance` (Auslagen), `card_payment` (Kartenzahlung) and `income`. Income, card-payment and
   advance categories have no 50/30/20 class; every other category must have one. Stages are 1–9.

@@ -23,6 +23,7 @@ const filterParams = (filter: BookingFilter) => ({
   to: filter.to,
   categoryId: filter.categoryId,
   payeeId: filter.payeeId,
+  contactId: filter.contactId,
   status: filter.status,
   flag: filter.flag,
   q: filter.q,

@@ -209,6 +209,7 @@ export function BookingsPage() {
                       konto: undefined,
                       kategorie: undefined,
                       empfaenger: undefined,
+                      kontakt: undefined,
                       status: undefined,
                       markierung: undefined,
                       von: undefined,
@@ -360,6 +361,27 @@ function FilterRow({
           )}
         </Field>
       </div>
+      {search.kontakt && (
+        <div className="kf">
+          <Field label="Kontakt">
+            {({ id }) => (
+              <Select
+                id={id}
+                className="select-sm"
+                value={search.kontakt ?? ''}
+                onChange={(e) => setSearch({ kontakt: e.target.value })}
+              >
+                <option value="">Alle Kontakte</option>
+                {(lookups?.contacts ?? []).map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name}
+                  </option>
+                ))}
+              </Select>
+            )}
+          </Field>
+        </div>
+      )}
       <div className="kf">
         <Field label="Status">
           {({ id }) => (

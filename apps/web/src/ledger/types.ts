@@ -111,6 +111,7 @@ export interface BookingFilter {
   to?: string | undefined;
   categoryId?: string | undefined;
   payeeId?: string | undefined;
+  contactId?: string | undefined;
   status?: BookingStatus | undefined;
   flag?: BookingFlag | 'none' | undefined;
   q?: string | undefined;

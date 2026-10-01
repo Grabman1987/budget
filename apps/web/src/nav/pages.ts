@@ -248,6 +248,8 @@ export const PLAN_MONAT: PageDef = PAGES.find((p) => p.path === '/plan/monat') a
 
 /** Plan › Sparziele (built in P3.4). */
 export const PLAN_SPARZIELE: PageDef = PAGES.find((p) => p.path === '/plan/sparziele') as PageDef;
+/** Konten › Kontakte (built in P3.8). */
+export const KONTEN_KONTAKTE: PageDef = PAGES.find((p) => p.path === '/konten/kontakte') as PageDef;
 /** Einstellungen › Datenquellen: the YNAB import wizard (P2d); bank sources follow in P4. */
 export const EINSTELLUNGEN_DATENQUELLEN: PageDef = PAGES.find(
   (p) => p.path === '/einstellungen/datenquellen',

@@ -5,6 +5,7 @@ const MAIN_PORT = Number(process.env['E2E_PORT'] ?? 4310);
 const AUTH_DESKTOP_PORT = MAIN_PORT + 1;
 const AUTH_MOBILE_PORT = MAIN_PORT + 2;
 const SAMPLE_PORT = MAIN_PORT + 3;
+const CONTACTS_PORT = MAIN_PORT + 6;
 /** The YNAB import e2e writes a whole export: one empty server per viewport, not the main one. */
 export const IMPORT_URLS = {
   desktop: `http://localhost:${MAIN_PORT + 4}`,
@@ -16,6 +17,9 @@ export const MAIN_URL = `http://localhost:${MAIN_PORT}`;
 export const STORAGE_STATE = 'test-results/.auth/main.json';
 export const SAMPLE_URL = `http://localhost:${SAMPLE_PORT}`;
 export const STORAGE_STATE_SAMPLE = 'test-results/.auth/sample.json';
+/** The sample ledger plus the opt-in contacts scenario (P3.8), see e2e/contacts-sample.ts. */
+export const CONTACTS_URL = `http://localhost:${CONTACTS_PORT}`;
+export const STORAGE_STATE_CONTACTS = 'test-results/.auth/contacts.json';
 /** The day the sample server runs on: the prototype's reference day. */
 const SAMPLE_TODAY = '2026-09-17';
 
@@ -34,6 +38,7 @@ export const DB_MAIN = 'test-results/e2e-main.sqlite';
 const DB_AUTH_DESKTOP = 'test-results/e2e-auth-desktop.sqlite';
 const DB_AUTH_MOBILE = 'test-results/e2e-auth-mobile.sqlite';
 export const DB_SAMPLE = 'test-results/e2e-sample.sqlite';
+const DB_CONTACTS = 'test-results/e2e-contacts.sqlite';
 const DB_IMPORT_DESKTOP = 'test-results/e2e-import-desktop.sqlite';
 const DB_IMPORT_MOBILE = 'test-results/e2e-import-mobile.sqlite';
 if (process.env['TEST_WORKER_INDEX'] === undefined) {
@@ -43,6 +48,7 @@ if (process.env['TEST_WORKER_INDEX'] === undefined) {
     DB_AUTH_DESKTOP,
     DB_AUTH_MOBILE,
     DB_SAMPLE,
+    DB_CONTACTS,
     DB_IMPORT_DESKTOP,
     DB_IMPORT_MOBILE,
   ])
@@ -75,6 +81,18 @@ const sampleServer = () => {
   };
 };
 
+// The contacts server: the sample ledger plus the contacts scenario (Auslagen move cash, so it must
+// not be in the shared sample), occurrences materialised for the same fixed day.
+const contactsServer = () => {
+  const base = server(CONTACTS_PORT, DB_CONTACTS);
+  return {
+    ...base,
+    command: `npx tsx scripts/db-seed.ts --file ${DB_CONTACTS} --fresh --contacts && ${base.command}`,
+    env: { ...base.env, BUDGET_TODAY: SAMPLE_TODAY },
+    timeout: 90_000,
+  };
+};
+
 const desktop = { ...devices['Desktop Chrome'], viewport: { width: 1440, height: 900 } };
 const mobile = {
   ...devices['Desktop Chrome'],
@@ -100,16 +118,17 @@ export default defineConfig({
     { name: 'setup', testMatch: /(auth|ledger)\.setup\.ts/, use: { baseURL: MAIN_URL } },
     // The same bootstrap against the seeded sample server (`sampleTest`, e2e/sample.ts).
     { name: 'setup-sample', testMatch: /sample\.setup\.ts/, use: { baseURL: SAMPLE_URL } },
+    { name: 'setup-contacts', testMatch: /contacts\.setup\.ts/, use: { baseURL: CONTACTS_URL } },
     {
       name: 'desktop',
-      dependencies: ['setup', 'setup-sample'],
-      testIgnore: /(auth|ledger|sample)\.setup\.ts|auth\.spec\.ts/,
+      dependencies: ['setup', 'setup-sample', 'setup-contacts'],
+      testIgnore: /(auth|ledger|sample|contacts)\.setup\.ts|auth\.spec\.ts/,
       use: { ...desktop, storageState: STORAGE_STATE },
     },
     {
       name: 'mobile',
-      dependencies: ['setup', 'setup-sample'],
-      testIgnore: /(auth|ledger|sample)\.setup\.ts|auth\.spec\.ts/,
+      dependencies: ['setup', 'setup-sample', 'setup-contacts'],
+      testIgnore: /(auth|ledger|sample|contacts)\.setup\.ts|auth\.spec\.ts/,
       use: { ...mobile, storageState: STORAGE_STATE },
     },
     // Real passkey ceremonies with the browser's virtual authenticator on a separate, empty server.
@@ -133,6 +152,7 @@ export default defineConfig({
     server(AUTH_DESKTOP_PORT, DB_AUTH_DESKTOP),
     server(AUTH_MOBILE_PORT, DB_AUTH_MOBILE),
     sampleServer(),
+    contactsServer(),
     server(MAIN_PORT + 4, DB_IMPORT_DESKTOP),
     server(MAIN_PORT + 5, DB_IMPORT_MOBILE),
   ],

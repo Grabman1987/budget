@@ -170,6 +170,7 @@ Expected payments, contacts with receivables, savings goals, rule set R01–R16 
 - [x] P3.4 `p3-goals`: savings goals domain (`packages/domain/src/goals`), repo and `/api/goals` (audit, undo, adopt as category target), Plan › Sparziele page (parts list Offen/Erreicht, bars, panel)
 - [x] P3.5 `p3-rules-api`: rule engine `packages/domain/src/rules` (R01–R16 with zod params, `evaluateRule`, Finanz-Check summary), `ruleInputs` / `evaluateRules` / `financeCheck` read models, `ensureDefaultRules` at start, stage checklist with owner confirmation, additive `rule` migration, `/api/rules`
 
+- [x] P3.8 `p3-contacts`: contacts domain (`packages/domain/src/contacts`: Kontoblatt, FIFO open items, monthly statement, outlook), repo and `/api/contacts` (CRUD, ledger, settle with undo), Konten › Kontakte page, opt-in contacts scenario and own e2e server; receivables stay out of the net worth (owner decision 01.10.2026)
 - [x] Expected payments (P3.2): schedule domain (due dates, Austrian business days, versions, occurrences, matching), `date_shift` migration, repositories with audit and undo, `/api/expected`
 
 ## P4 Datenquellen

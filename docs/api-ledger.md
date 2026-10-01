@@ -19,7 +19,7 @@ account edit also `reconciliationIds`),
 | `POST /accounts/sort` `{ ids }` | Order of the account list, in one transaction (an unknown id changes nothing) |
 | `POST /accounts/:id/close` `{ force? }`, `/reopen` | Close needs balance 0 and nothing pending or scheduled unless `force`; a closed account takes no bookings |
 | `GET /accounts/:id/series?from&to` | End-of-day balance for every day (at most 401 days) |
-| `GET /bookings?…` | Filters `accountId, from, to, categoryId ('none' = uncategorised), payeeId, status, flag ('none'), q` (memo, split memo, payee, category, account; case-insensitive incl. umlauts), `ids`; sort `date, amount, payee, account` with `direction`; `limit` (≤ 200) and `cursor` (keyset, stable while data changes). Answers `items, nextCursor, total, sumCents`; each item has splits with category names, payee, the other account of a transfer and, when filtered to one account, `balanceAfterCents` |
+| `GET /bookings?…` | Filters `accountId, from, to, categoryId ('none' = uncategorised), payeeId, contactId (a split of this contact), status, flag ('none'), q` (memo, split memo, payee, category, account; case-insensitive incl. umlauts), `ids`; sort `date, amount, payee, account` with `direction`; `limit` (≤ 200) and `cursor` (keyset, stable while data changes). Answers `items, nextCursor, total, sumCents`; each item has splits with category names, payee, the other account of a transfer and, when filtered to one account, `balanceAfterCents` |
 | `POST /bookings` | `type: 'booking'` (splits, or `categoryId` for one; foreign currency fields; status `pending` or `confirmed`) or `type: 'transfer'` (two legs, category only between budget and tracking account) |
 | `PATCH /bookings/:id`, `DELETE /bookings/:id` | Edit / soft-delete (both legs of a transfer go together). Reconciled bookings: only `flag` and `memo` are free; everything else needs `unlockReconciled: true` (`?unlock=1` on delete). A booking moves only to an account in its own currency (`invariant` otherwise) |
 | `POST /bookings/bulk` | `update` (`set: { categoryId, flag, status }`) or `delete` for many ids in one group. A booking that cannot take the change is skipped and listed in `skipped` as `{ id, reason, message }` with `reason` one of `split`, `transfer`, `transfer_pair` (both legs selected), `reconciled_locked`, `not_found`, `invalid`. `transferPairs` counts transfers with both legs in the selection; a delete takes such a pair once and reports both legs as `changed` |
@@ -200,3 +200,22 @@ target date, those without a date last.
 | `PATCH /goals/:id?month` | Any of the fields; setting one link clears the other |
 | `DELETE /goals/:id`, `POST /goals/:id/restore?month` | Soft delete and restore; `POST /undo` with the `groupId` reverts either |
 | `POST /goals/:id/adopt` | `{ validFrom? }` (`YYYY-MM`, default this month): "Als Ziel der Kategorie übernehmen" writes a versioned `by_date` category target (goal amount and date) in the same audit group; needs a category and a date |
+
+## Contacts (P3.8)
+
+Kontakte and their receivables. The receivable of a contact is derived (−Σ contact splits up to today,
+plus linked receivable accounts), settled FIFO, and **not part of the net worth** (owner decision
+01.10.2026, see `docs/data-model.md`). Every contact carries: `balanceCents` (Forderung +,
+Verbindlichkeit −), `splitBalanceCents` / `accountBalanceCents` (its two parts), `openCents` and
+`openItemCount` (Auslagen still open), `creditCents` (repaid beyond all Auslagen),
+`expectedContributionCents` and `expectedPassThroughCents` (next 30 days, occurrences still
+`expected`). Source: `packages/domain/src/contacts`, `packages/db/src/repos/contacts.ts`.
+
+| Endpoint | Purpose |
+| --- | --- |
+| `GET /contacts?deleted=1` | `{ contacts, totals }`, contacts by name; `totals` = `{ receivableCents, payableCents, openItemCount }` (Σ of the positive / negative balances), the figure Heute shows next to the net worth |
+| `POST /contacts` | `{ name, note? }`; answers `{ contact, groupId }` |
+| `GET /contacts/:id`, `PATCH /contacts/:id` | One contact; rename or change the note (`{ contact, groupId }`) |
+| `DELETE /contacts/:id`, `POST /contacts/:id/restore` | Soft delete and restore. Delete is refused (409 `conflict`) while a live booking split, account, payee or expected payment refers to the contact |
+| `GET /contacts/:id/ledger?from&to` | Kontoblatt: `openingCents` (before `from`), `rows` (`date`, `memo`, `auslageCents`, `ausgleichCents`, running `balanceCents`, `bookingId`, `accountId`) of the range, `statements` (per month: `openingCents`, `newCents`, `paidCents`, `differenceCents`, `closingCents`), `openItems` (Auslagen with `openCents`, oldest first, as of today) and `outlook` (contributions and passed-through costs of the next 30 days with status). Default range: all history up to today |
+| `POST /contacts/:id/settle` | "Ausgleich buchen": `{ accountId, date, amountCents, memo? }`. Books an inflow on the account with one contact split in Auslagen (created on first use) and answers `{ bookingId, groupId, settlement, contact }`; `settlement.parts` says which open items it settled (FIFO). 422 `category_rule` for an amount ≤ 0, above the open amount, nothing open, a date after today or a non-euro account; 409 for a closed account. One audit group: `POST /undo` reverts the booking |
