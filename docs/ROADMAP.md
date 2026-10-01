@@ -167,6 +167,7 @@ Order: P2a → P2b and P2c in parallel → P2d (parser can start right after P1f
 ## P3 Planung und Steuerung
 Expected payments, contacts with receivables, savings goals, rule set R01–R16 + stages, Heute page, Posteingang basics.
 - [x] P3.3 `p3-kpi-domain`: pure KPI, pace, free-until-payday and liquidity-forecast functions in `packages/domain/src/{kpi,forecast}`
+- [x] P3.5 `p3-rules-api`: rule engine `packages/domain/src/rules` (R01–R16 with zod params, `evaluateRule`, Finanz-Check summary), `ruleInputs` / `evaluateRules` / `financeCheck` read models, `ensureDefaultRules` at start, stage checklist with owner confirmation, additive `rule` migration, `/api/rules`
 
 - [x] Expected payments (P3.2): schedule domain (due dates, Austrian business days, versions, occurrences, matching), `date_shift` migration, repositories with audit and undo, `/api/expected`
 

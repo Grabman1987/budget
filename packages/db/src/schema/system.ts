@@ -1,5 +1,5 @@
 import { sql } from 'drizzle-orm';
-import { check, index, integer, sqliteTable, text } from 'drizzle-orm/sqlite-core';
+import { check, index, integer, sqliteTable, text, uniqueIndex } from 'drizzle-orm/sqlite-core';
 import { account, contact, institution } from './accounts';
 import { booking, receipt } from './bookings';
 import { category, payee } from './budget';
@@ -7,6 +7,7 @@ import { cents, id, isoMonth, nowSql, oneOf, timestamps } from './common';
 
 export const AUDIT_ACTIONS = ['create', 'update', 'delete', 'restore', 'undo'] as const;
 export const RESULT_STATUSES = ['ok', 'warn', 'bad'] as const;
+export const RULE_KINDS = ['rule', 'checklist'] as const;
 export const INBOX_KINDS = [
   'uncategorized',
   'revision',
@@ -63,6 +64,11 @@ export const rule = sqliteTable(
     paramsJson: text('params_json'),
     action: text('action'),
     enabled: integer('enabled', { mode: 'boolean' }).notNull().default(true),
+    /** `rule`: R01–R16, evaluated by the engine. `checklist`: a stage item the owner confirms. */
+    kind: text('kind', { enum: RULE_KINDS }).notNull().default('rule'),
+    sortOrder: integer('sort_order').notNull().default(0),
+    /** A checklist item the owner marked as done (nullable; only checklist items use it). */
+    confirmedAt: text('confirmed_at'),
     ...timestamps(),
   },
   (t) => [check('rule_stage_chk', sql`${t.stage} BETWEEN 1 AND 3`)],
@@ -84,6 +90,7 @@ export const ruleResult = sqliteTable(
   (t) => [
     oneOf('rule_result_status_chk', t.status, RESULT_STATUSES),
     index('rule_result_idx').on(t.ruleId, t.asOf),
+    uniqueIndex('rule_result_uq').on(t.ruleId, t.asOf),
   ],
 );
 
