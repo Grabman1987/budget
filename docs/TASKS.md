@@ -16,7 +16,7 @@ Echte Finanzdaten wurden nicht verarbeitet.
 | A02 historische FX-Kosten/Gebühren/Erträge | Draft-PR | Historische Trade-/Snapshotkosten, aktuelle EUR-Bewertung, Gebühren/Erträge und typisierte fehlende Kurse; sieben unabhängige Sollfälle; Typecheck/Lint, 1.308 Tests und Build grün; [PR #86](https://github.com/Grabman1987/budget/pull/86) |
 | Backup-Test unter Windows stabilisieren | Draft-PR, CI grün | Scheduler nutzt nur benötigte migrierte Tabellen; SQLite-Handles auch nach Assertions schließen, HTTP-Server vor Temp-Verzeichnisabbau abwarten. Keine Zeitlimits erhöht, alle Assertions erhalten; fünf gezielte Backup-Tests und vollständige 1.308 Tests grün; [PR #87](https://github.com/Grabman1987/budget/pull/87): alle vier CI-Prüfungen einschließlich Windows grün |
 | A09 Gewinne und Einstandsmethode | Draft-PR | [PR #88](https://github.com/Grabman1987/budget/pull/88): gleitender Durchschnitt als Standard, FIFO dauerhaft in Einstellungen › Depots & Kryptos wählbar; belegte Gewinne bleiben nach Verkauf und Snapshots erhalten. Fehlender Einstand: Kosten/unrealisierter Gewinn unbekannt; Vollständigkeitsflag für Verkaufsgewinn. Typecheck/Lint, 1.338 Tests und Build grün; fünf Browserchecks mit Desktop-/Handyaufnahmen. Brokersteuern werden nicht erneut berechnet |
-| A10 mehrere Broker pro Wertpapier | Lokal unabhängig geprüft | `fix/a10-account-broker-risk`: Depotinstitution bestimmt Plattformanteile und bestehende Crypto/P2P-Risikogrenzen; Wertpapier-/Klassenaggregation bleibt erhalten. Sechs unabhängige Sollfälle, Typecheck/Lint und alle 1.344 Tests in 139 Dateien grün |
+| A10 mehrere Broker pro Wertpapier | Draft-PR | [PR #89](https://github.com/Grabman1987/budget/pull/89): Depotinstitution bestimmt Plattformanteile und bestehende Crypto/P2P-Risikogrenzen; Wertpapier-/Klassenaggregation bleibt erhalten. Sechs unabhängige Sollfälle, Typecheck/Lint und alle 1.344 Tests in 139 Dateien und Produktionsbuild grün |
 | Native FX-Kontodetails | Separat offen | Tabellen, Charts und Kontostandsabgleich konsistent beschriften; kein Teil der A03-Überblicksabnahme |
 | PR-Stack integrieren | In Arbeit | #72–#79 nach jeweils frischer vollständiger CI gemergt, tatsächlicher Deploy bis #78 geprüft; #80 regulär aktualisiert, frische CI läuft. Backup-Testbereinigung [PR #87](https://github.com/Grabman1987/budget/pull/87) einschließlich Windows-CI grün; kein Umgehen von Schutzregeln |
 | Produktion verifizieren | Offen | Main-CI, tatsächlicher Fly-Deploy und laufender Commit; übersprungener Deploy zählt nicht als Erfolg |
@@ -43,6 +43,7 @@ Echte Finanzdaten wurden nicht verarbeitet.
 16. [#86 historische FX-Bewertung](https://github.com/Grabman1987/budget/pull/86)
 17. [#87 Backup-Testbereinigung](https://github.com/Grabman1987/budget/pull/87)
 18. [#88 Gewinne und Einstandsmethode](https://github.com/Grabman1987/budget/pull/88)
+19. [#89 Brokerzuordnung](https://github.com/Grabman1987/budget/pull/89)
 
 ## Arbeitsregeln
 
