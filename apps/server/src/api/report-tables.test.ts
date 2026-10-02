@@ -24,7 +24,7 @@ import { Hono } from 'hono';
 import { beforeAll, describe, expect, it, vi } from 'vitest';
 import { createApp, type AuthGate } from '../app';
 
-vi.setConfig({ testTimeout: 120_000 });
+vi.setConfig({ testTimeout: 120_000, hookTimeout: 120_000 });
 
 const TODAY = '2026-09-17';
 const webDir = mkdtempSync(join(tmpdir(), 'budget-report-tables-'));
@@ -67,18 +67,32 @@ describe('GET /api/report-tables/months on the sample ledger', () => {
     expect(sample.months[35].month).toBe('2026-09');
   });
 
-  it('spending per category and month equals the reference model of the prototype generator', () => {
+  it('spending per category and month equals the reference model, refunds netted against the payee category', () => {
+    // The insurer who refunds ("Erstattungen") has a default category: the refund goes back there.
+    const refundPayee = db
+      .select()
+      .from(schema.payee)
+      .all()
+      .find((p) => p.id === 'pay-versicherung-g');
+    const refundCategory = refundPayee?.defaultCategoryId ?? null;
+    expect(refundCategory).not.toBeNull();
     const mismatches: string[] = [];
+    let netted = 0;
     for (const m of sample.months as any[]) {
       const k = ref.months.findIndex((x) => x.key === m.month);
       const expected = ref.spend[k] as Record<string, number>;
+      const refund = euroCents((ref.income[k] as Record<string, number>)['Erstattungen'] ?? 0);
+      netted += refund;
       for (const c of sample.categories as any[]) {
-        const want = euroCents(expected[c.id.replace(/^cat-/, '')] ?? 0);
+        const want =
+          euroCents(expected[c.id.replace(/^cat-/, '')] ?? 0) -
+          (c.id === refundCategory ? refund : 0);
         const got = m.spending[c.id] ?? 0;
         if (want !== got) mismatches.push(`${m.month} ${c.id}: ${got} instead of ${want}`);
       }
     }
     expect(mismatches.slice(0, 10)).toEqual([]);
+    expect(netted).toBeGreaterThan(0);
   });
 
   it('income per type equals the reference model; Kapitalerträge and Erstattungen are no household income', () => {
@@ -88,7 +102,10 @@ describe('GET /api/report-tables/months on the sample ledger', () => {
       const k = ref.months.findIndex((x) => x.key === m.month);
       const inc = ref.income[k] as Record<string, number>;
       for (const [name, euros] of Object.entries(inc))
-        expect(m.income[typeId(name)] ?? 0, `${m.month} ${name}`).toBe(euroCents(euros));
+        // Erstattungen are netted against their category, so none is left as income
+        expect(m.income[typeId(name)] ?? 0, `${m.month} ${name}`).toBe(
+          name === 'Erstattungen' ? 0 : euroCents(euros),
+        );
     }
     const roles = Object.fromEntries((sample.incomeTypes as any[]).map((t) => [t.name, t.role]));
     expect(roles['Kapitalerträge']).toBe('capital');
@@ -106,11 +123,13 @@ describe('GET /api/report-tables/months on the sample ledger', () => {
     );
   });
 
-  it('Konsum of a month is Bedarf plus Wunsch spending of the reference model', () => {
+  it('Konsum of a month is Bedarf plus Wunsch spending of the reference model less the refunds', () => {
     const meta = sample as TableMeta;
     for (const m of sample.months as any[]) {
       const k = ref.months.findIndex((x) => x.key === m.month);
-      expect(monthConsumption(m, meta), m.month).toBe(euroCents(ref.consumptionOf(k)));
+      // the refund (Bedarf category of the insurer) reduces Konsum in its month
+      const refund = euroCents((ref.income[k] as Record<string, number>)['Erstattungen'] ?? 0);
+      expect(monthConsumption(m, meta), m.month).toBe(euroCents(ref.consumptionOf(k)) - refund);
     }
   });
 
@@ -186,7 +205,7 @@ describe('GET /api/report-tables/months on small ledgers', () => {
     });
   });
 
-  it('counts only complete months as full, keeps refunds out of income and nets them against the category', async () => {
+  it('counts only complete months as full, keeps refunds and Kapitalerträge out of income and nets refunds against the category', async () => {
     const small = createTestDatabase().db;
     const ctx = { actor: 'tester' };
     accounts.create(
@@ -205,6 +224,12 @@ describe('GET /api/report-tables/months on small ledgers', () => {
     createEntity(small, schema.categoryGroup, { id: 'g', name: 'Fixkosten' }, ctx);
     categories.create(small, { id: 'essen', name: 'Essen', groupId: 'g', class: 'need' }, ctx);
     categories.create(small, { id: 'rest', name: 'Restaurant', groupId: 'g', class: 'want' }, ctx);
+    createEntity(
+      small,
+      schema.payee,
+      { id: 'p-insurer', name: 'Versicherer', defaultCategoryId: 'rest' },
+      ctx,
+    );
     const book = (date: string, amountCents: number, split: Record<string, unknown>) =>
       createBooking(
         small,
@@ -216,7 +241,19 @@ describe('GET /api/report-tables/months on small ledgers', () => {
     book('2026-07-28', 250_000, { categoryId: null, incomeTypeId: 'income-salary' });
     book('2026-07-29', 1_200, { categoryId: null, incomeTypeId: 'income-capital' });
     book('2026-08-02', -9_000, { categoryId: 'rest' });
-    book('2026-08-30', 3_000, { categoryId: null, incomeTypeId: 'income-refund' });
+    // a refund of a payee with a category goes back to it, one without stays visible
+    createBooking(
+      small,
+      {
+        accountId: 'giro',
+        date: '2026-08-30',
+        amountCents: 3_000,
+        payeeId: 'p-insurer',
+        splits: [{ amountCents: 3_000, categoryId: null, incomeTypeId: 'income-refund' }],
+      },
+      ctx,
+    );
+    book('2026-07-30', 700, { categoryId: null, incomeTypeId: 'income-refund' });
     const application = createApp({
       webDir,
       auth: signedIn,
@@ -228,8 +265,14 @@ describe('GET /api/report-tables/months on small ledgers', () => {
     expect(body.months.map((m: any) => m.month)).toEqual(['2026-07', '2026-08']);
     // the refund nets against the category
     expect(body.months[0].spending).toEqual({ essen: 15_000 });
-    expect(body.months[0].income).toEqual({ 'income-salary': 250_000, 'income-capital': 1_200 });
-    expect(body.months[1].income).toEqual({ 'income-refund': 3_000 });
+    expect(body.months[0].income).toEqual({
+      'income-salary': 250_000,
+      'income-capital': 1_200,
+      'income-refund': 700,
+    });
+    // August: 9.000 spent at the restaurant, 3.000 refunded to the same category in the refund month
+    expect(body.months[1].spending).toEqual({ rest: 6_000 });
+    expect(body.months[1].income).toEqual({});
     const meta = body as TableMeta;
     expect(monthHouseholdIncome(body.months[0], meta)).toBe(250_000);
     expect(monthHouseholdIncome(body.months[1], meta)).toBe(0);

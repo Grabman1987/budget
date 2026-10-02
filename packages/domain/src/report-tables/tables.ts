@@ -9,8 +9,10 @@ import { ratioBp } from '../kpi/ratios';
  * computed twice. Money is integer cents; ratios are integer basis points.
  *
  * Owner decision 02.10.2026: dividends and interest (Kapitalerträge) and refunds (Erstattungen)
- * are never earned household income. They stay visible as their own memo rows and are left out of
- * "Einnahmen", the Sparquote and every income-against-expense comparison.
+ * are never earned household income and stay out of "Einnahmen", the Sparquote and every
+ * income-against-expense comparison. Kapitalerträge are a labelled memo row. A refund is netted
+ * against the spending category it refunds (owner decision 29.09.2026) by the read model; only a
+ * refund without a category stays visible as its own memo row.
  */
 
 export type SpendClass = 'need' | 'want' | 'future';
@@ -292,7 +294,10 @@ export function buildTableRows(
     if (values.some((v) => v))
       rows.push({
         key: `memo:${type.id}`,
-        label: `${type.name} (nicht in Einnahmen)`,
+        label:
+          type.role === 'refund'
+            ? `${type.name} ohne Kategorie (nicht in Einnahmen)`
+            : `${type.name} (nicht in Einnahmen)`,
         kind: 'memo',
         level: 0,
         good: 'high',

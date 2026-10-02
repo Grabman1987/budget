@@ -152,7 +152,7 @@ test.describe('1.5 Jahresansicht', () => {
     expect(sq[8]).toBe('–'); // September is not complete
     expect(sq[0]).toMatch(/^−?\d+ %$/);
 
-    // Kapitalerträge and Erstattungen: visible, labelled, and not in Einnahmen.
+    // Kapitalerträge: visible, labelled, and not in Einnahmen; Erstattungen are netted against their category.
     await expect(
       page.getByRole('rowheader', { name: 'Kapitalerträge (nicht in Einnahmen)' }),
     ).toBeVisible();

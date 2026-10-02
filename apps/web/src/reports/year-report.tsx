@@ -178,8 +178,8 @@ function YearBody({ data, year }: { data: ReportTables; year: number }) {
         {pairs.length > 0 && pairs.length < 12 && first !== undefined && last !== undefined
           ? ` * ${year - 1} nur für dieselben Monate (${MONTH_SHORT[first]}–${MONTH_SHORT[last]}).`
           : ''}{' '}
-        Kapitalerträge und Erstattungen stehen getrennt unter der Tabelle und zählen nicht zu den
-        Einnahmen oder zur Sparquote.
+        Kapitalerträge stehen getrennt unter der Tabelle und zählen nicht zu den Einnahmen oder zur
+        Sparquote.
       </p>
     </section>
   );

@@ -187,7 +187,8 @@ function SavingsBody({
             </>
           )}
           <p className="vnote" data-testid="capital-note">
-            Einnahmen ohne Kapitalerträge und Erstattungen; Konsum = Bedarf plus Wunsch.{' '}
+            Einnahmen ohne Kapitalerträge (Erstattungen mindern die Ausgaben ihrer Kategorie);
+            Konsum = Bedarf plus Wunsch.{' '}
             {capital > 0
               ? `Kapitalerträge im Zeitraum: ${eur(capital, { cents: false })}, nicht in der Sparquote.`
               : 'Im Zeitraum gab es keine Kapitalerträge.'}

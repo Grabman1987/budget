@@ -333,7 +333,7 @@ The 30 reports (SPEC §7), explorer, printable sheets, parallel run with reconci
 ### P6.1b — Monthly table reports (1.5 to 1.8)
 - [x] `GET /api/report-tables/months`: one read of the monthly ledger facts (income by type, spending and assigned per category from the shared budget calculation, Geldalter and net worth per month end); every figure is derived in `packages/domain/src/report-tables`.
 - [x] `/reports/jahresansicht`, `/reports/kategorien`, `/reports/sparquote`, `/reports/gesamttabelle` with the prototype's sections, heat grid, previous-year comparison, Ist/Plan chart, Sparquote/Geldalter charts and CSV of the displayed table.
-- [x] Owner decision 02.10.2026: Kapitalerträge and Erstattungen are visible memo rows and never part of Einnahmen, Sparquote or income comparisons.
+- [x] Owner decision 02.10.2026: Kapitalerträge are a visible memo row and never part of Einnahmen, Sparquote or income comparisons; Erstattungen (owner decision 29.09.2026) reduce the spending of the refunded category (payee's default category) in the month of the refund, only a refund without a category stays a labelled row.
 - [ ] Owner/private acceptance against the real ledger; month-end net worth is withheld as a whole when a price or rate is missing.
 
 ### P6.4 — Rendite und Kennzahlen

@@ -121,9 +121,9 @@ function TotalBody({ data }: { data: ReportTables }) {
           ? `* ${monthLong(data.currentMonth)} läuft noch, die Spalte zeigt den Stand bis heute. `
           : ''}
         Farbe je Zeile gegen den Durchschnitt: Rot = teurer Monat, Grün = günstiger. Kapitalerträge
-        und Erstattungen stehen getrennt am Ende und zählen nicht zu den Einnahmen oder zur
-        Sparquote. Die Tabelle beginnt rechts beim aktuellen Monat; nach links in die Vergangenheit
-        scrollen. Die CSV enthält genau diese Zeilen und Spalten.
+        stehen getrennt am Ende und zählen nicht zu den Einnahmen oder zur Sparquote; Erstattungen
+        mindern die Ausgaben ihrer Kategorie. Die Tabelle beginnt rechts beim aktuellen Monat; nach
+        links in die Vergangenheit scrollen. Die CSV enthält genau diese Zeilen und Spalten.
       </p>
     </section>
   );

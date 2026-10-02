@@ -38,7 +38,8 @@ import type { Executor } from './types';
  * `@budget/domain` (`report-tables`). Spending and "Plan" are the envelope activity and assignment
  * of the one budget calculation Plan and Heute use; income is the income splits of the budget
  * accounts by income type (transfers never count), so a refund booked to a category nets against
- * that category and a contact repayment (an advance category) is no income.
+ * that category (an Erstattungen income of a payee with a default category is netted against it in the
+ * month of the refund) and a contact repayment (an advance category) is no income.
  */
 
 export interface ReportTables {
@@ -149,6 +150,21 @@ export function reportTables(
     role: roleOf(t.id),
   }));
 
+  const classOf = new Map(categories.map((c) => [c.id, c.class]));
+  // A refund goes back to the spending category it refunds (owner decision 29.09.2026): the
+  // category of the payee. A refund without such a category stays visible as its own row.
+  const refundCategory = new Map(
+    db
+      .select({ id: payee.id, categoryId: payee.defaultCategoryId })
+      .from(payee)
+      .where(isNull(payee.deletedAt))
+      .all()
+      .flatMap((p) =>
+        p.categoryId !== null && classOf.has(p.categoryId) ? [[p.id, p.categoryId] as const] : [],
+      ),
+  );
+  const refunded = new Map<string, Map<string, number>>();
+
   // Income per month and type: income-category and uncategorised inflows on budget accounts.
   const income = new Map<string, Record<string, number>>();
   const incomeRows = db
@@ -157,6 +173,7 @@ export function reportTables(
       cents: bookingSplit.amountCents,
       incomeTypeId: bookingSplit.incomeTypeId,
       categoryId: bookingSplit.categoryId,
+      payeeId: booking.payeeId,
     })
     .from(bookingSplit)
     .innerJoin(booking, eq(booking.id, bookingSplit.bookingId))
@@ -176,6 +193,14 @@ export function reportTables(
     if (!isIncomeCategorySplit(s.categoryId, kind) || s.cents <= 0) continue;
     const m = monthOf(s.day);
     const type = s.incomeTypeId ?? INCOME_TYPES.other.id;
+    const target =
+      type === INCOME_TYPES.refund.id && s.payeeId ? refundCategory.get(s.payeeId) : undefined;
+    if (target !== undefined) {
+      const byCategory = refunded.get(m) ?? new Map<string, number>();
+      byCategory.set(target, (byCategory.get(target) ?? 0) + s.cents);
+      refunded.set(m, byCategory);
+      continue;
+    }
     const row = income.get(m) ?? {};
     row[type] = (row[type] ?? 0) + s.cents;
     income.set(m, row);
@@ -183,7 +208,6 @@ export function reportTables(
 
   // Spending and assignment per month from the one budget calculation.
   const envelopes = new Map(budget(db, monthKeys).map((m) => [m.month, m.envelopes]));
-  const classOf = new Map(categories.map((c) => [c.id, c.class]));
 
   // Geldalter at every month end (today for the running month), the rule R03 definition.
   const onBudget = new Set(budgetAccounts.map((a) => a.id));
@@ -246,7 +270,10 @@ export function reportTables(
     for (const c of categories) {
       const e = env[c.id];
       if (!e) continue;
-      const cents = -e.activityCents + (setAside.get(month)?.get(c.id) ?? 0);
+      const cents =
+        -e.activityCents +
+        (setAside.get(month)?.get(c.id) ?? 0) -
+        (refunded.get(month)?.get(c.id) ?? 0);
       if (cents !== 0) spending[c.id] = cents;
       if (e.assignedCents !== 0) assigned[c.id] = e.assignedCents;
     }
