@@ -137,7 +137,7 @@ consistent totals, desktop/mobile checks and printing where required.
 | 3.2 | Cashflow-Verlauf | `reports-zukunft.js` | Body Open |
 | 3.3 | Vermögensverläufe | `reports-zukunft.js` | Report body Open; net-worth page exists |
 | 3.4 | Jahresvorschau Zahlungen | `reports-zukunft.js` | Partial: connected twelve-month versioned expected-outflow contract preview, native ranges/currencies, stored status/link overlay; independent savings plans, other future transfers and full source dedup remain Open |
-| 3.5 | Sparziele-Fortschritt | `reports-zukunft.js` | Report body Open; goals page exists |
+| 3.5 | Sparziele-Fortschritt | `reports-zukunft.js` | Partial: connected stored monthly goals, unique live EUR sources, API progress/rates/forecast and source drilldowns; emergency reach, Tagesgeld allocation, shared-source funding and linear Soll remain Open |
 | 4.1 | Depots im Vergleich | `reports-portfolio.js` | Body Open |
 | 4.2 | Allocation | `reports-portfolio.js` | Body Open |
 | 4.3 | Einzahlungen und Wert | `reports-portfolio.js` | Body Open |
