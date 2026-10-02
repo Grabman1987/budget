@@ -70,6 +70,107 @@ describe('GET /api/portfolio on the seeded sample ledger (17.09.2026)', () => {
     expect(p.names.securities['sec-etfw']).toBe('ETF Welt');
   });
 
+  it('returns the contribution report from the same 3-year securities valuation and flows', async () => {
+    const res = await call('GET', '/portfolio?period=3J&view=securities&history=contributions');
+    expect(res.status).toBe(200);
+    const p = res.body['portfolio'];
+    const h = p.contributionHistory;
+    expect(h).toMatchObject({
+      from: '2023-09-30',
+      to: '2026-09-17',
+      startValueCents: 4_083_125,
+      endValueCents: 8_800_000,
+      contributionsCents: 2_677_482,
+      gainCents: 2_039_393,
+    });
+    expect(h.months).toHaveLength(36);
+    expect(h.months[0]).toMatchObject({
+      from: '2023-09-30',
+      to: '2023-10-31',
+      valueCents: 4_069_262,
+      investedCents: 4_113_125,
+      contributionsCents: 30_000,
+      gainCents: -43_863,
+    });
+    expect(h.months.reduce((sum: number, month: any) => sum + month.contributionsCents, 0)).toBe(
+      h.contributionsCents,
+    );
+    expect(h.months.reduce((sum: number, month: any) => sum + month.gainCents, 0)).toBe(
+      h.gainCents,
+    );
+    let previousMonthEnd = h.startValueCents;
+    let cumulativeFlow = 0;
+    for (const month of h.months) {
+      cumulativeFlow += month.contributionsCents;
+      expect(previousMonthEnd + month.contributionsCents + month.gainCents).toBe(month.valueCents);
+      expect(month.investedCents).toBe(h.startValueCents + cumulativeFlow);
+      previousMonthEnd = month.valueCents;
+    }
+    expect(h.years.map((row: any) => row.year)).toEqual([2023, 2024, 2025, 2026]);
+    expect(h.years.map((row: any) => row.months)).toEqual([3, 12, 12, 9]);
+    expect(h.years[0].performance).toMatchObject({
+      startValueCents: 4_083_125,
+      contributionsCents: 293_808,
+      gainCents: -23_522,
+      endValueCents: 4_353_411,
+    });
+    expect(h.years[1].performance).toMatchObject({
+      from: '2023-12-31',
+      to: '2024-12-31',
+      startValueCents: 4_353_411,
+      contributionsCents: 899_968,
+      gainCents: 805_410,
+      endValueCents: 6_058_789,
+    });
+    expect(
+      h.years.reduce((sum: number, row: any) => sum + row.performance.contributionsCents, 0),
+    ).toBe(h.contributionsCents);
+    expect(h.years.reduce((sum: number, row: any) => sum + row.performance.gainCents, 0)).toBe(
+      h.gainCents,
+    );
+    let previousYearEnd = h.startValueCents;
+    for (const row of h.years) {
+      expect(row.performance.startValueCents).toBe(previousYearEnd);
+      expect(
+        row.performance.startValueCents +
+          row.performance.contributionsCents +
+          row.performance.gainCents,
+      ).toBe(row.performance.endValueCents);
+      previousYearEnd = row.performance.endValueCents;
+    }
+    expect(p.performance).toMatchObject({
+      startValueCents: h.startValueCents,
+      endValueCents: h.endValueCents,
+      contributionsCents: h.contributionsCents,
+      gainCents: h.gainCents,
+    });
+  });
+
+  it('only includes the contribution series when requested and validates the selector', async () => {
+    const standard = await call('GET', '/portfolio?period=1J');
+    expect(standard.status).toBe(200);
+    expect(standard.body['portfolio']).not.toHaveProperty('contributionHistory');
+    expect((await call('GET', '/portfolio?history=other')).status).toBe(400);
+    const depot = await call('GET', '/portfolio?view=depot&history=contributions');
+    expect(depot.status).toBe(200);
+    expect(depot.body['portfolio']).not.toHaveProperty('contributionHistory');
+    const ytd = await call('GET', '/portfolio?period=YTD&history=contributions');
+    expect(ytd.status).toBe(200);
+    expect(ytd.body['portfolio'].contributionHistory).toMatchObject({
+      from: '2025-12-31',
+      to: '2026-09-17',
+      startValueCents: 7_742_730,
+      contributionsCents: 578_090,
+      gainCents: 479_180,
+      endValueCents: 8_800_000,
+    });
+    expect(ytd.body['portfolio'].contributionHistory.years).toHaveLength(1);
+    expect(ytd.body['portfolio'].contributionHistory.years[0]).toMatchObject({
+      year: 2026,
+      months: 9,
+    });
+  });
+
   it('supports the depot view and validates its query', async () => {
     const depot = await call('GET', '/portfolio?view=depot&period=1J');
     expect(depot.status).toBe(200);
@@ -535,7 +636,7 @@ describe('invest CRUD', () => {
       'security'
     ];
     expect(
-      (await call('PUT', `/securities/${sec.id}/prices/2026-09-01`, { price: '100' })).status,
+      (await call('PUT', `/securities/${sec.id}/prices/2026-08-31`, { price: '100' })).status,
     ).toBe(200);
     await call('POST', '/trades', {
       securityId: sec.id,
@@ -554,13 +655,27 @@ describe('invest CRUD', () => {
       amountCents: 12_000,
     });
 
-    const res = await call('GET', '/portfolio?period=1J&view=securities');
+    const res = await call('GET', '/portfolio?period=1J&view=securities&history=contributions');
     expect(res.status).toBe(200);
     expect(res.body['portfolio']).toMatchObject({
       view: 'securities',
       realizedGainCents: 2_000,
       realizedGainComplete: true,
       positions: [],
+    });
+    expect(res.body['portfolio'].contributionHistory).toMatchObject({
+      from: '2026-09-01',
+      startValueCents: 10_000,
+      endValueCents: 0,
+      contributionsCents: -12_000,
+      gainCents: 2_000,
+    });
+    expect(res.body['portfolio'].contributionHistory.months[0]).toMatchObject({
+      from: '2026-09-01',
+      contributionsCents: -12_000,
+      gainCents: 2_000,
+      valueCents: 0,
+      investedCents: -2_000,
     });
   });
 
@@ -581,6 +696,60 @@ describe('invest CRUD', () => {
     expect(res.status).toBe(503);
     expect(res.body).toMatchObject({ error: 'valuation_unavailable', reason: 'missing_price' });
     expect(res.body['missingPriceSecurityIds']).toContain(sec.id);
+    expect(res.body['portfolio']).toBeUndefined();
+
+    const report = await call('GET', '/portfolio?period=1J&view=securities&history=contributions');
+    expect(report.status).toBe(503);
+    expect(report.body).toMatchObject({ error: 'valuation_unavailable', reason: 'missing_price' });
+    expect(report.body['portfolio']).toBeUndefined();
+  });
+
+  it('the contribution series stays unavailable when a security quote needs a missing FX rate', async () => {
+    const sec = (
+      await call('POST', '/securities', {
+        name: 'CHF Instrument',
+        kind: 'etf',
+        currency: 'CHF',
+      })
+    ).body['security'];
+    await call('PUT', `/securities/${sec.id}/prices/2026-08-31`, { price: '120' });
+    await call('POST', '/trades', {
+      securityId: sec.id,
+      accountId: 'depot',
+      date: '2026-09-01',
+      kind: 'buy',
+      units: '1',
+      amountCents: 12_000,
+    });
+
+    const res = await call('GET', '/portfolio?period=1J&view=securities&history=contributions');
+    expect(res.status).toBe(503);
+    expect(res.body).toMatchObject({
+      error: 'valuation_unavailable',
+      missingFxCurrencies: ['CHF'],
+    });
+    expect(res.body['portfolio']).toBeUndefined();
+  });
+
+  it('rejects an unsafe cumulative cent total instead of serializing an inexact report', async () => {
+    const sec = (await call('POST', '/securities', { name: 'Large ETF', kind: 'etf' })).body[
+      'security'
+    ];
+    await call('PUT', `/securities/${sec.id}/prices/2026-08-31`, { price: '1' });
+    for (const date of ['2026-09-01', '2026-09-02', '2026-09-03', '2026-09-04', '2026-09-05']) {
+      await call('POST', '/trades', {
+        securityId: sec.id,
+        accountId: 'depot',
+        date,
+        kind: 'buy',
+        units: '1',
+        amountCents: 2_500_000_000_000_000,
+      });
+    }
+
+    const res = await call('GET', '/portfolio?period=1J&history=contributions');
+    expect(res.status).toBe(422);
+    expect(res.body).toMatchObject({ error: 'calculation_limit' });
     expect(res.body['portfolio']).toBeUndefined();
   });
 });
