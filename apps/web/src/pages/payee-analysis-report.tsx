@@ -105,7 +105,7 @@ export function PayeeAnalysisReport({ report, meta }: { report: ReportEntry; met
   const [period, setPeriod] = useReportPeriod();
   const query = useQuery(reportQuery(period));
   const [selected, setSelected] = React.useState<string | null>(null);
-  const data = query.data;
+  const data = !query.isFetching && query.isSuccess ? query.data : undefined;
   const range =
     data?.from && data.to
       ? `${longDay(data.from)} bis ${longDay(data.to)}`
@@ -117,6 +117,16 @@ export function PayeeAnalysisReport({ report, meta }: { report: ReportEntry; met
       title={report.name}
       subtitle={`${report.pos} · ${report.question}`}
       reportDataBasis={query.isError ? 'nicht verfügbar' : data ? range : 'wird geladen'}
+      reportStand={{
+        label: 'Stichtag',
+        value: data
+          ? data.to
+            ? `${longDay(data.to)} · Monatsende`
+            : 'keine geschlossenen Monate'
+          : query.isError
+            ? 'nicht verfügbar'
+            : 'wird geladen',
+      }}
       extraFields={[
         {
           label: 'Zeitraum',
@@ -161,7 +171,6 @@ function ReportBody({
   selected: string | null;
   onSelect: (id: string | null) => void;
 }) {
-  const top = data.rows.slice(0, 5);
   const maximum = Math.max(1, ...data.rows.slice(0, 14).map((row) => Math.abs(row.amountCents)));
   const detail = useInfiniteQuery({
     queryKey: [...LEDGER_KEY, 'payee-analysis-detail', selected, data.from, data.to],
@@ -302,6 +311,7 @@ function ReportBody({
           className="payee-scroll"
           role="region"
           aria-label="Empfängerübersicht, seitlich scrollbar"
+          // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- Keyboard users must be able to scroll the complete recipient table.
           tabIndex={0}
         >
           <table className="payee-table">
@@ -404,6 +414,7 @@ function ReportBody({
                     className="payee-scroll"
                     role="region"
                     aria-label="Buchungen dieses Empfängers, seitlich scrollbar"
+                    // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- Keyboard users must be able to scroll the complete booking table.
                     tabIndex={0}
                   >
                     <table className="payee-table payee-bookings">

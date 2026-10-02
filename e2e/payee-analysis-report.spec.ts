@@ -32,6 +32,9 @@ sampleTest(
     ).toBeVisible();
     await expect(page.getByTestId('payee-total')).toHaveText(euro(initialData.totalSpendCents));
     await expect(page.locator('.payee-period')).toHaveText('01.10.2023 bis 31.08.2026');
+    await expect(
+      page.locator('.titleblock .tb-field').filter({ hasText: 'Stichtag' }).locator('.tb-value'),
+    ).toHaveText('31.08.2026 · Monatsende');
     expect(initialData.bookingCount).toBeGreaterThan(0);
     expect(initialData.rows.length).toBeGreaterThan(0);
 
@@ -117,6 +120,17 @@ sampleTest(
         fullPage: true,
         animations: 'disabled',
       });
+    }
+    if (info.project.name === 'mobile') {
+      for (const name of [
+        'Empfängerübersicht, seitlich scrollbar',
+        'Buchungen dieses Empfängers, seitlich scrollbar',
+      ]) {
+        const region = page.getByRole('region', { name, exact: true });
+        await region.focus();
+        await region.press('ArrowRight');
+        await expect.poll(() => region.evaluate((node) => node.scrollLeft)).toBeGreaterThan(0);
+      }
     }
     await page.getByRole('button', { name: 'Schließen' }).click();
     await expect(firstRecipient).toHaveAttribute('aria-expanded', 'false');
