@@ -183,6 +183,22 @@
     padding: 4px 6px;
     min-width: 0;
   }
+  /* Month switch plus a wide control (Heute: Zeitraum): the control moves under the title. */
+  .titleblock-stack {
+    grid-auto-flow: row;
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .titleblock-stack .tb-field {
+    border-left: 0;
+    border-top: 1px solid var(--line-2);
+  }
+  .titleblock-stack .tb-field .seg {
+    display: flex;
+    width: 100%;
+  }
+  .titleblock-stack .tb-field .seg button {
+    flex: 1;
+  }
   /* Month switch on the phone: previous, month, next share the cell, the month shrinks. */
   .month-switch {
     width: 100%;
@@ -1022,6 +1038,69 @@ dialog.overlay::backdrop {
   }
 }
 
+/* Form dialog (Buchung erfassen / bearbeiten): a centred card on desktop (prototype `.booking`).
+   Scrim fades in 200 ms, the card fades 200 ms and rises 240 ms. Overflow stays visible so a
+   suggestion list may reach past the card. */
+dialog.overlay.modal {
+  position: fixed;
+  inset: 0;
+  margin: auto;
+  width: 540px;
+  max-width: calc(100vw - 32px);
+  height: fit-content;
+  max-height: calc(100dvh - 48px);
+  border: 1px solid var(--rule-strong);
+  border-radius: 12px;
+  overflow: visible;
+}
+dialog.overlay.modal .overlay-inner {
+  height: auto;
+  max-height: calc(100dvh - 50px);
+}
+/* The content of a form dialog fills the card: head and footer stay, the body scrolls. */
+.overlay.is-bare .overlay-inner > form {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  max-height: inherit;
+}
+@media (prefers-reduced-motion: no-preference) {
+  dialog.overlay.modal {
+    opacity: 1;
+    translate: none;
+    transition:
+      opacity 200ms var(--ease-out),
+      translate 240ms var(--ease-out),
+      overlay 240ms allow-discrete,
+      display 240ms allow-discrete;
+  }
+  dialog.overlay.modal:not([open]) {
+    opacity: 0;
+    translate: 0 12px;
+  }
+  @starting-style {
+    dialog.overlay.modal[open] {
+      opacity: 0;
+      translate: 0 12px;
+    }
+  }
+  dialog.overlay.modal::backdrop {
+    opacity: 1;
+    transition:
+      opacity 200ms var(--ease-out),
+      overlay 200ms allow-discrete,
+      display 200ms allow-discrete;
+  }
+  dialog.overlay.modal:not([open])::backdrop {
+    opacity: 0;
+  }
+  @starting-style {
+    dialog.overlay.modal[open]::backdrop {
+      opacity: 0;
+    }
+  }
+}
+
 /* The toast is an always-mounted live region (empty while closed); only its body is hidden. It is
    rendered inside an open modal dialog (.toast-host) because the page behind a dialog is inert. */
 .toast {
@@ -1082,6 +1161,24 @@ dialog.overlay::backdrop {
   }
 }
 
+/* A toast over a form dialog must not cover its footer buttons: it docks in the bottom right
+   corner of the screen (desktop, beside the card) or at the top (phone, above the sheet). */
+dialog.is-bare .toast {
+  left: auto;
+  right: 24px;
+  bottom: 24px;
+  translate: none;
+}
+@media (max-width: 767px) {
+  dialog.is-bare .toast {
+    left: 50%;
+    right: auto;
+    bottom: auto;
+    top: calc(12px + env(safe-area-inset-top));
+    translate: -50% 0;
+  }
+}
+
 @media (max-width: 767px) {
   .grp-toggle,
   .amount-input {
@@ -1095,4 +1192,10 @@ dialog.overlay::backdrop {
     min-height: var(--touch);
     margin-block: -11px;
   }
+}
+
+/* Month switch: jump back to the current month once the view moved away from it. */
+.month-switch .month-now {
+  margin-left: 4px;
+  color: var(--line);
 }

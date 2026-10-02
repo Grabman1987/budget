@@ -51,7 +51,10 @@ export const createAccount = async (page: Page, name: string, type: string, open
 /** Category field of the capture panel: type to search, pick from the list. */
 export const pickCategory = async (panel: Locator, name: string) => {
   await panel.getByLabel('Kategorie', { exact: true }).fill(name);
+  // Scoped to the open list: an account select earlier in the dialog may have an option of the
+  // same name.
   await panel
+    .getByRole('listbox')
     .getByRole('option', { name: new RegExp(`^${name}`) })
     .first()
     .click();

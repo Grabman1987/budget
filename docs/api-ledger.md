@@ -22,7 +22,7 @@ A current quote does not repair an earlier history gap.
 | --- | --- |
 | `GET /accounts?asOf=` | Accounts with `balanceCents` (as of the day, default today Vienna), `holdingsCents` (market value of securities held, 0 without), `clearedCents` (confirmed + reconciled), `unclearedCents` (pending), `scheduledCents` (dated later), counts, `lastReconciledOn` |
 | `POST /accounts`, `PATCH /accounts/:id` | Create / edit: type, role, on-budget, currency, opening balance and date, terms (credit limit, overdraft, rate in bp, term end, fee). Role and budget membership default from the type; loans, depots, crypto, P2P and receivables can never be budget accounts. Once a Kontostand prüfen is stored, changing opening balance or date is `reconciled_locked` unless `unlockReconciled: true` |
-| `POST /accounts/sort` `{ ids }` | Order of the account list, in one transaction (an unknown id changes nothing) |
+| `PATCH /accounts/order` `{ ids }` (alias `POST /accounts/sort`) | The owner's account order: unique ids become `sortOrder` 1..n, accounts left out follow in their current order; one transaction and one audit group (`groupId` for one undo; an unknown or repeated id changes nothing). The sidebar, Konten › Übersicht and the account selects show each group (Budget-Konten, Kreditkarten, Kredite, Investments) in this order |
 | `POST /accounts/:id/close` `{ force? }`, `/reopen` | Close needs balance 0 and nothing pending or scheduled unless `force`; a closed account takes no bookings |
 | `GET /accounts/:id/series?from&to` | End-of-day balance for every day (at most 401 days) |
 | `GET /bookings?…` | Filters `accountId, from, to, categoryId ('none' = uncategorised), payeeId, status, flag ('none'), q` (memo, split memo, payee, category, account; case-insensitive incl. umlauts), `ids`; sort `date, amount, payee, account` with `direction`; `limit` (≤ 200) and `cursor` (keyset, stable while data changes). Answers `items, nextCursor, total, sumCents`; each item has splits with category names, payee, the other account of a transfer and, when filtered to one account, `balanceAfterCents` |
@@ -127,7 +127,8 @@ security currency, rates EUR per unit in micro-units.
 
 | Endpoint | Purpose |
 | --- | --- |
-| `POST /market/refresh` | Runs `refreshFx` and `refreshPrices` for today (Vienna). Answer: `{ prices: { tracked, upToDate, bySource: { yfinance, ariva: { securities, rows } }, protectedManual, failed: [{ securityId, errors }] }, fx: { currencies, upToDate, bySource: { ecb: { currencies, rows } }, failed: [{ currency, errors }] } }`. A second call while one runs is 409 `refresh_running`. Failures open one `stale_value` inbox item per security (or currency) and error class |
+| `POST /market/refresh` | Runs `refreshFx` and `refreshPrices` for today (Vienna). Answer: `{ prices: { tracked, upToDate, bySource: { ariva, cryptocalc, coingecko, yfinance: { securities, rows } }, protectedManual, failed: [{ securityId, errors }] }, fx: { currencies, upToDate, bySource: { ecb: { currencies, rows } }, failed: [{ currency, errors }] } }`. A second call while one runs is 409 `refresh_running`. Failures open one `stale_value` inbox item per security (or currency) and error class |
+| `GET /market/status` | Run log: `{ lastRun, lastSuccess }` (each `null` or `{ trigger, startedAt, finishedAt, asOf, status: ok/partial/failed, priceRows, fxRows, failedCount, errorClasses }`). `lastSuccess.finishedAt` is the "Stand ... Kurse HH:MM" of `GET /wealth/stand` |
 | `GET /securities/:id/prices?from&to` | `{ securityId, currency, prices: [{ date, priceMicro, currency, source }] }` ascending; unknown security 404 |
 | `PUT /securities/:id/prices/:date` | Manual price: `{ priceMicro }` (integer) or `{ price: "81.25" }` (decimal text, at most 6 decimals), not in the future. Wins over every source; a refresh never replaces it; a change of an existing price is a `price_audit` row |
 | `GET /fx?currency&from&to` | `{ currency, rates: [{ date, currency, rateMicro, source }] }` ascending; `currency` is an ISO code in capitals |
@@ -149,7 +150,7 @@ cents, prices micro-units, units 1e-8. Every write answers with its `groupId` (u
 
 | Endpoint | Purpose |
 | --- | --- |
-| `GET /securities?deleted=1`, `POST /securities` | Securities by name; create `{ name, kind, symbol?, isin?, currency?, terBp?, assetClassId?, institutionId?, benchmark?, fallbackQuoteId?, quoteExchange?, pricesEnabled?, quoteAdjusted? }` (ISIN with 12 characters, unique among live securities: 409) |
+| `GET /securities?deleted=1`, `POST /securities` | Securities by name; create `{ name, kind, symbol?, isin?, currency?, terBp?, assetClassId?, institutionId?, benchmark?, fallbackQuoteId?, quoteExchange?, quoteUrl?, coingeckoId?, pricesEnabled?, quoteAdjusted? }` (ISIN with 12 characters, unique among live securities: 409) |
 | `GET/PATCH/DELETE /securities/:id`, `POST /securities/:id/restore` | Read, change, soft delete (409 while the security has trades, holdings or an open savings plan), restore |
 | `GET /asset-classes`, `POST /asset-classes`, `PATCH/DELETE /asset-classes/:id` | Classes with their current target (`target`, Soll in bp and band) and `inUse`; delete is 409 while securities belong to it |
 | `GET /asset-classes/targets` | Target versions `{ validFrom, targets, sumBp }`, oldest first |

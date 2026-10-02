@@ -231,6 +231,35 @@ describe('accounts', () => {
     expect((await call('PATCH', '/accounts/none', { name: 'x' })).status).toBe(404);
   });
 
+  it('reorders accounts by PATCH /accounts/order as one undoable audit group', async () => {
+    const a = await newAccount({ name: 'A' });
+    const b = await newAccount({ name: 'B' });
+    const c = await newAccount({ name: 'C' });
+    const ids = async () =>
+      ((await call('GET', '/accounts')).body['accounts'] as Array<{ id: string }>).map((x) => x.id);
+    expect(await ids()).toEqual([a.id, b.id, c.id]);
+    const moved = await call('PATCH', '/accounts/order', { ids: [c.id, a.id, b.id] });
+    expect(moved.status).toBe(200);
+    expect((moved.body['accounts'] as Array<{ id: string }>).map((x) => x.id)).toEqual([
+      c.id,
+      a.id,
+      b.id,
+    ]);
+    // Accounts left out follow in their current order.
+    expect((await call('PATCH', '/accounts/order', { ids: [b.id] })).status).toBe(200);
+    expect(await ids()).toEqual([b.id, c.id, a.id]);
+    // Bad input changes nothing: unknown id, duplicate id, empty list.
+    expect((await call('PATCH', '/accounts/order', { ids: [a.id, 'none'] })).status).toBe(404);
+    expect((await call('PATCH', '/accounts/order', { ids: [a.id, a.id] })).status).toBe(400);
+    expect((await call('PATCH', '/accounts/order', { ids: [] })).status).toBe(400);
+    expect(await ids()).toEqual([b.id, c.id, a.id]);
+    // One undo for the whole move.
+    const again = await call('PATCH', '/accounts/order', { ids: [a.id, b.id, c.id] });
+    expect(await ids()).toEqual([a.id, b.id, c.id]);
+    expect((await call('POST', '/undo', { groupId: again.body['groupId'] })).status).toBe(200);
+    expect(await ids()).toEqual([b.id, c.id, a.id]);
+  });
+
   it('closes only an empty account, unless forced, reopens, and refuses bookings on a closed one', async () => {
     const a = await newAccount();
     expect((await call('POST', `/accounts/${a.id}/close`, {})).body['error']).toBe(

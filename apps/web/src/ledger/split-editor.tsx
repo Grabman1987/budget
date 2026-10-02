@@ -19,6 +19,7 @@ import {
 } from './booking-model';
 import { AccountOptions } from './account-options';
 import type { PickCategory } from './capture-model';
+import { ContactSelect } from './contact-select';
 import { eur } from './format';
 import type { AccountRow } from './types';
 
@@ -28,7 +29,7 @@ const TYPES: ReadonlyArray<SegmentedOption<SplitType>> = [
   { value: 'transfer', label: 'Umbuchung' },
 ];
 
-/** Options grouped by waterfall stage (consecutive categories of one group share an `optgroup`). */
+/** Options grouped by category group (consecutive categories of one group share an `optgroup`). */
 function categoryOptions(categories: ReadonlyArray<PickCategory>) {
   const groups: { name: string; items: PickCategory[] }[] = [];
   for (const c of categories) {
@@ -131,31 +132,19 @@ export function SplitEditor({
               </Field>
             )}
             {s.type === 'contact' && (
-              <Field
+              <ContactSelect
                 label={`Kontakt ${n}`}
+                value={s.contactId ?? ''}
+                onChange={(contactId) => change(s.key, { contactId: contactId || null })}
+                contacts={contacts}
+                noneLabel="Kontakt wählen"
                 hint={
                   (draft.kind === 'income'
                     ? 'Zahlt zurück, läuft über Auslagen.'
                     : 'Ausgelegt für den Kontakt, läuft über Auslagen.') +
                   (hasAdvanceCategory ? '' : ' Die Kategorie wird beim ersten Mal angelegt.')
                 }
-              >
-                {({ id, describedBy }) => (
-                  <Select
-                    id={id}
-                    aria-describedby={describedBy}
-                    value={s.contactId ?? ''}
-                    onChange={(e) => change(s.key, { contactId: e.target.value || null })}
-                  >
-                    <option value="">Kontakt wählen</option>
-                    {contacts.map((c) => (
-                      <option key={c.id} value={c.id}>
-                        {c.name}
-                      </option>
-                    ))}
-                  </Select>
-                )}
-              </Field>
+              />
             )}
             {s.type === 'transfer' && (
               <Field label={`Nach Konto ${n}`}>

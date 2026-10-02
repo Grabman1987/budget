@@ -8,7 +8,6 @@ import {
   orderAccounts,
   pickableCategories,
   pushRecent,
-  quickDays,
 } from './capture-model';
 import type { AccountRow } from './types';
 
@@ -95,15 +94,25 @@ const view = {
 
 describe('pickableCategories', () => {
   const all = pickableCategories(view, undefined);
-  it('orders by waterfall stage and leaves out card payments and Auslagen', () => {
-    expect(all.map((c) => c.id)).toEqual(['miete', 'essen', 'alt', 'gehalt']);
-    expect(all[0]).toMatchObject({ group: '1 Fixkosten & Mindestraten', availableCents: 12_300 });
-    expect(all[3]).toMatchObject({ group: 'Einnahmen' });
+  it('orders by category group and leaves out card payments and Auslagen', () => {
+    // Group Fix (miete, gehalt), then Alltag (essen, alt); within a group by sort order.
+    expect(all.map((c) => c.id)).toEqual(['miete', 'gehalt', 'essen', 'alt']);
+    expect(all[0]).toMatchObject({ group: 'Fix', availableCents: 12_300 });
+    expect(all[2]).toMatchObject({ group: 'Alltag', availableCents: -450 });
   });
-  it('spending never goes to an income category; hidden ones only while selected', () => {
+  it('keeps the Auslagen for the booking filter', () => {
+    const withAdvance = pickableCategories(view, undefined, { withAdvance: true });
+    expect(withAdvance.map((c) => c.id)).toContain('ausl');
+    expect(withAdvance.map((c) => c.id)).not.toContain('karte');
+  });
+  it('spending never goes to an income category; hidden ones are left out', () => {
     expect(categoriesFor(all, 'expense', '').map((c) => c.id)).toEqual(['miete', 'essen']);
-    expect(categoriesFor(all, 'expense', 'alt').map((c) => c.id)).toContain('alt');
+    expect(categoriesFor(all, 'expense').map((c) => c.id)).not.toContain('alt');
     expect(categoriesFor(all, 'income', '').map((c) => c.id)).toContain('gehalt');
+  });
+  it('lists a hidden category only when asked to keep it (a line that already has it)', () => {
+    expect(categoriesFor(all, 'expense', 'alt').map((c) => c.id)).toContain('alt');
+    expect(categoriesFor(all, 'expense', ['alt', 'x']).map((c) => c.id)).toContain('alt');
   });
   it('falls back to the plain pick list while the budget loads', () => {
     const fallback = pickableCategories(undefined, {
@@ -134,17 +143,6 @@ describe('accounts and recents', () => {
   it('keeps a short most-recent-first list without duplicates', () => {
     expect(pushRecent(['a', 'b', 'c'], 'b', 3)).toEqual(['b', 'a', 'c']);
     expect(pushRecent(['a', 'b', 'c'], 'z', 3)).toEqual(['z', 'a', 'b']);
-  });
-});
-
-describe('quickDays', () => {
-  it('offers today and the two days before', () => {
-    const shift = (day: string, n: number) => `${day}${n}`;
-    expect(quickDays('D', shift)).toEqual([
-      ['Heute', 'D'],
-      ['Gestern', 'D-1'],
-      ['Vorgestern', 'D-2'],
-    ]);
   });
 });
 

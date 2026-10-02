@@ -28,7 +28,8 @@ function Overlay({
   children,
   variant,
   beforeClose,
-}: PanelProps & { variant: 'side' | 'bottom' }) {
+  bare = false,
+}: PanelProps & { variant: 'side' | 'bottom' | 'modal'; bare?: boolean }) {
   const ref = useRef<HTMLDialogElement>(null);
   const titleId = useId();
   // Toasts render inside the open dialog: everything outside a modal dialog is inert.
@@ -52,7 +53,11 @@ function Overlay({
     // eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions
     <dialog
       ref={ref}
-      className={cx('overlay', variant === 'side' ? 'panel' : 'sheet-bottom')}
+      className={cx(
+        'overlay',
+        variant === 'side' ? 'panel' : variant === 'modal' ? 'modal' : 'sheet-bottom',
+        bare && 'is-bare',
+      )}
       aria-labelledby={titleId}
       onClose={onClose}
       // Esc: the native cancel event, stopped while the guard wants the panel to stay.
@@ -71,7 +76,17 @@ function Overlay({
         if (e.target === e.currentTarget) requestClose();
       }}
     >
-      {open && (
+      {/* Bare: the content draws its own head and footer; the title stays as the dialog's name. */}
+      {bare && (
+        <div className="overlay-inner">
+          {variant === 'bottom' && <span className="sheet-grip" aria-hidden="true" />}
+          <h2 id={titleId} className="sr-only">
+            {title}
+          </h2>
+          {children}
+        </div>
+      )}
+      {!bare && open && (
         <div className="overlay-inner">
           {variant === 'bottom' && <span className="sheet-grip" aria-hidden="true" />}
           <div className="panel-head">
@@ -104,6 +119,16 @@ export function SidePanel(props: PanelProps) {
 /** Phone: details rise from the bottom as a sheet (16 px top radius). */
 export function BottomSheet(props: PanelProps) {
   return <Overlay {...props} variant="bottom" />;
+}
+
+/**
+ * Form dialog: a centred modal card on desktop, a bottom sheet below 768 px. The content brings
+ * its own head and sticky footer (`.bk-head`, `.bk-body`, `.bk-foot`); `title` only names the
+ * dialog. The caller decides when the content is mounted (it is kept while the dialog fades out).
+ */
+export function FormDialog(props: PanelProps) {
+  const phone = useIsPhone();
+  return <Overlay {...props} variant={phone ? 'bottom' : 'modal'} bare />;
 }
 
 /** Side panel on desktop, bottom sheet below 768 px. */

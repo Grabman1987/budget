@@ -61,10 +61,11 @@ const app = createApp({
   database: process.env['BUDGET_DEBUG_API'] === '1' ? db : undefined,
 });
 
-// Daily prices and ECB rates at 22:30 Vienna, in-process until the P4 worker owns scheduling.
+// Nightly prices (previous day's close) and ECB rates at 02:30 Vienna, plus a catch-up after a
+// missed night; in-process until the P4 worker owns scheduling (docs/market-data.md).
 if (process.env['BUDGET_MARKET_DAILY'] === '1') {
   const mode = marketModeFromEnv();
-  startDailyMarketTimer({ db, sources: createMarketSources(db, mode) });
+  startDailyMarketTimer({ db, sources: createMarketSources(db, mode), catchUpOnStart: true });
   console.log(`Daily market refresh on (${mode} sources)`);
 }
 

@@ -261,6 +261,7 @@ Price history (yfinance + Ariva, source per price), ECB rates, trades and holdin
 - [x] `packages/market`: Yahoo chart (daily close, unadjusted by default, adjusted per security), Ariva CSV fallback (flag, off), ECB SDMX (inverted on integers), deterministic fixture sources; decimals parsed to micro-units without floats; fixed-text errors without URLs
 - [x] Migration on `security`: `fallback_quote_id`, `quote_exchange`, `prices_enabled`, `quote_adjusted`
 - [x] Jobs `refreshPrices` / `refreshFx` (backfill, fallback, manual prices protected, `stale_value` inbox item per security and error class), in-process daily timer `BUDGET_MARKET_DAILY=1`
+- [x] Live prices in production: Ariva (public HTML table, verified live; CSV needs a login) as primary source, CoinGecko as the primary crypto source (cryptocalc fallback for coins without a coin id), Yahoo last resort; `security.quote_url` / `coingecko_id`; nightly 02:30 Vienna run (previous day's close, ECB in the same run) with catch-up; `market_run` log behind "Stand ... Kurse"; `fly.toml` switches (`docs/market-data.md`)
 - [x] Daily sample prices (seeded Brownian bridge through the month-end prices) and a daily USD rate series; parity figures unchanged
 - [x] API: `POST /market/refresh`, `GET /securities/:id/prices`, `PUT /securities/:id/prices/:date`, `GET /fx`
 - [ ] Owner: Yahoo symbol, Ariva id and exchange per real security, adjusted or not as in PP, Ariva access (see `docs/market-data.md`)

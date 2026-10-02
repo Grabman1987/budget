@@ -1,11 +1,12 @@
 import {
-  firstTradeDate,
+  cpiFetchedAt,
   foreignCurrencies,
   lastFxDay,
   lastQuotedDay,
   openStaleValueItem,
   resolveStaleValueItems,
   schema,
+  storeCpi,
   trackedSecurities,
   upsertFxRate,
   upsertPrice,
@@ -22,13 +23,19 @@ import {
   type MarketErrorKind,
   type MarketSources,
   type QuoteSource,
+  type QuoteSourceId,
   type SecurityRef,
 } from '@budget/market';
 
-/** The first day of the app's ledger; a backfill starts a week before it or the first trade. */
-export const BACKFILL_FLOOR = '2023-10-01';
+/**
+ * A security's first refresh fetches this many days back from the source; older history comes
+ * from the Portfolio Performance import.
+ */
+export const BACKFILL_DAYS = 30;
 /** ECB history starts here (first published day of the euro reference rates). */
 export const FX_HISTORY_START = '1999-01-04';
+/** One ECB request covers at most this many days (three years). */
+export const FX_CHUNK_DAYS = 3 * 365;
 /**
  * An empty answer from every source is "no news" (a weekend, a holiday) for a short gap, and a
  * failure only once this many weekdays passed without a single quote.
@@ -48,7 +55,7 @@ export interface PriceRefreshResult {
   /** Already current, nothing to fetch. */
   upToDate: number;
   /** Securities and rows written per source. */
-  bySource: Record<'yfinance' | 'ariva', { securities: number; rows: number }>;
+  bySource: Record<QuoteSourceId, { securities: number; rows: number }>;
   /** Rows a refresh did not write because a manual price owns the day. */
   protectedManual: number;
   /** Securities for which every source failed (an inbox item is open for each). */
@@ -76,17 +83,28 @@ function refOf(row: SecurityRow): SecurityRef {
     symbol: row.symbol,
     fallbackQuoteId: row.fallbackQuoteId,
     quoteExchange: row.quoteExchange,
+    quoteUrl: row.quoteUrl,
+    coingeckoId: row.coingeckoId,
+    kind: row.kind,
     currency: row.currency,
     adjusted: row.quoteAdjusted,
   };
 }
 
+/** Sources in the order they are tried: primary, the more specific ones, the last resort. */
+const quoteChain = (sources: MarketSources): QuoteSource[] => [
+  sources.quotes,
+  ...(sources.moreQuotes ?? []),
+  ...(sources.fallbackQuotes ? [sources.fallbackQuotes] : []),
+];
+
 /**
  * Bring the prices of every tracked security up to `today`.
  *
  * - Window: the day after the newest stored network price up to today. A security without one is
- *   backfilled from min(first trade, 2023-10-01) minus 7 days.
- * - Sources: primary first; the fallback when the primary fails or answers with nothing.
+ *   backfilled `BACKFILL_DAYS` (30) days back.
+ * - Sources: in chain order (Ariva, crypto feeds, Yahoo); a source that lacks the security's
+ *   identifier is skipped, the next one is tried when one fails or answers with nothing.
  * - Writes go through `upsertPrice`: the source is stored, a manual price is never overwritten,
  *   changes are audited. Running it twice writes nothing new.
  * - When every source fails, one open `stale_value` inbox item per security and error class
@@ -100,25 +118,27 @@ export async function refreshPrices(
   const result: PriceRefreshResult = {
     tracked: 0,
     upToDate: 0,
-    bySource: { yfinance: { securities: 0, rows: 0 }, ariva: { securities: 0, rows: 0 } },
+    bySource: {
+      yfinance: { securities: 0, rows: 0 },
+      ariva: { securities: 0, rows: 0 },
+      cryptocalc: { securities: 0, rows: 0 },
+      coingecko: { securities: 0, rows: 0 },
+    },
     protectedManual: 0,
     failed: [],
   };
   for (const row of trackedSecurities(db)) {
     result.tracked++;
     const last = lastQuotedDay(db, row.id);
-    const floor = firstTradeDate(db, row.id);
-    const from = last
-      ? addDays(last, 1)
-      : addDays(floor !== undefined && floor < BACKFILL_FLOOR ? floor : BACKFILL_FLOOR, -7);
+    const from = last ? addDays(last, 1) : addDays(today, -BACKFILL_DAYS);
     if (from > today) {
       result.upToDate++;
       continue;
     }
     const ref = refOf(row);
-    const attempts: QuoteSource[] = [sources.quotes];
-    if (sources.fallbackQuotes) attempts.push(sources.fallbackQuotes);
-    const errors: MarketErrorKind[] = [];
+    const attempts = quoteChain(sources).filter((source) => source.supports?.(ref) ?? true);
+    // No source knows how to look this security up: surfaced like any other failure.
+    const errors: MarketErrorKind[] = attempts.length === 0 ? ['not_configured'] : [];
     let written = false;
     let gotNothing = false;
     for (const source of attempts) {
@@ -216,17 +236,24 @@ export async function refreshFx(
       continue;
     }
     try {
-      const rates = await sources.fx.history(currency, from, today);
-      if (rates.length === 0) {
+      // The ECB portal is slow for long ranges (a year of history takes seconds): fetch in chunks
+      // and store each one, so a failure half way keeps what arrived and the next run resumes.
+      let rows = 0;
+      for (let start = from; start <= today; start = addDays(start, FX_CHUNK_DAYS)) {
+        const end = addDays(start, FX_CHUNK_DAYS - 1);
+        const rates = await sources.fx.history(currency, start, end < today ? end : today);
+        db.transaction((tx) => {
+          for (const r of rates)
+            upsertFxRate(tx, { date: r.date, currency, rateMicro: r.rateMicro, source: 'ecb' });
+        });
+        rows += rates.length;
+      }
+      if (rows === 0) {
         if (last === undefined || isGapStale(from, today)) throw new MarketError('empty');
         continue;
       }
-      db.transaction((tx) => {
-        for (const r of rates)
-          upsertFxRate(tx, { date: r.date, currency, rateMicro: r.rateMicro, source: 'ecb' });
-      });
       result.bySource.ecb.currencies++;
-      result.bySource.ecb.rows += rates.length;
+      result.bySource.ecb.rows += rows;
       resolveStaleValueItems(db, 'fx', currency, 'Wechselkurse werden wieder abgerufen.');
     } catch (error) {
       const kind = errorKind(error);
@@ -241,4 +268,40 @@ export async function refreshFx(
     }
   }
   return result;
+}
+
+/** The consumer price series is read again only when the stored one is older than this. */
+export const CPI_MAX_AGE_DAYS = 30;
+
+export interface CpiRefreshResult {
+  /** The stored series is younger than a month (or the run has no consumer price source). */
+  skipped: boolean;
+  rows: number;
+  failed: MarketErrorKind | null;
+}
+
+/**
+ * Read the monthly consumer price index (Statistik Austria open data) when the stored series is
+ * older than a month or missing, once per run. Idempotent; a failure only logs its error class,
+ * the report then keeps showing the last stored series and says how old it is.
+ */
+export async function refreshCpi(
+  db: Db,
+  sources: MarketSources,
+  { today, log = () => undefined, now = new Date() }: RefreshOptions & { now?: Date },
+): Promise<CpiRefreshResult> {
+  const source = sources.cpi;
+  if (!source) return { skipped: true, rows: 0, failed: null };
+  const last = cpiFetchedAt(db, source.series);
+  if (last !== null && last.slice(0, 10) > addDays(today, -CPI_MAX_AGE_DAYS))
+    return { skipped: true, rows: 0, failed: null };
+  try {
+    const rows = await source.monthly();
+    const written = db.transaction((tx) => storeCpi(tx, source.series, rows, now.toISOString()));
+    return { skipped: false, rows: written, failed: null };
+  } catch (error) {
+    const kind = errorKind(error);
+    log(`cpi: ${source.series} failed (${kind})`);
+    return { skipped: false, rows: 0, failed: kind };
+  }
 }

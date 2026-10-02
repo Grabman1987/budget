@@ -80,6 +80,8 @@ describe('POST /api/market/refresh', () => {
     expect(res.body['prices'].bySource).toEqual({
       yfinance: { securities: 1, rows: 2 },
       ariva: { securities: 0, rows: 0 },
+      cryptocalc: { securities: 0, rows: 0 },
+      coingecko: { securities: 0, rows: 0 },
     });
     expect(res.body['fx'].bySource.ecb).toEqual({ currencies: 1, rows: 2 });
     expect(res.body['prices'].failed).toEqual([]);
@@ -87,6 +89,22 @@ describe('POST /api/market/refresh', () => {
     const again = await call('POST', '/market/refresh');
     expect(again.body['prices']).toMatchObject({ tracked: 1, upToDate: 1 });
     expect(again.body['fx']).toMatchObject({ currencies: 1, upToDate: 1 });
+  });
+});
+
+describe('GET /api/market/status', () => {
+  it('shows the run log: nothing before the first run, then the last run and the last success', async () => {
+    expect((await call('GET', '/market/status')).body).toEqual({
+      lastRun: null,
+      lastSuccess: null,
+    });
+    await call('POST', '/market/refresh');
+    const status = (await call('GET', '/market/status')).body;
+    expect(status['lastRun']).toMatchObject({ trigger: 'manual', status: 'ok', asOf: TODAY });
+    expect(status['lastSuccess'].finishedAt).toMatch(/^\d{4}-\d{2}-\d{2}T[\d:.]+Z$/);
+    expect((await call('GET', '/wealth/stand')).body['priceAt']).toBe(
+      status['lastSuccess'].finishedAt,
+    );
   });
 });
 

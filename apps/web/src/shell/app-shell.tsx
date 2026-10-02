@@ -8,7 +8,6 @@ import { useCaptureShortcut } from './capture-shortcut';
 import { PanelHost } from './panel-host';
 import { Sidebar } from './sidebar';
 import { Topbar } from './topbar';
-import { useMonth } from './use-month';
 import { useStoredFlag } from './use-stored-flag';
 
 const APP_NAME = 'Budget';
@@ -22,7 +21,6 @@ export function AppShell() {
   const page = useActivePage();
   const main = useRef<HTMLElement>(null);
   const title = page?.title ?? APP_NAME;
-  const [month] = useMonth();
   useCaptureShortcut();
 
   useEffect(() => {
@@ -46,7 +44,7 @@ export function AppShell() {
         <div className="main">
           <Topbar collapsed={collapsed} onToggle={() => setCollapsed(!collapsed)} />
           <MobileHeader
-            title={phoneTitle(page, month, title)}
+            title={phoneTitle(page, title)}
             asHeading={!(page && TITLE_ON_MOBILE_AREAS.has(page.area))}
           />
           <main className="sheet" id="main" tabIndex={-1} ref={main}>
