@@ -2,6 +2,7 @@ import { defineConfig, devices } from '@playwright/test';
 import { mkdirSync, rmSync } from 'node:fs';
 
 const MAIN_PORT = Number(process.env['E2E_PORT'] ?? 4310);
+const START_TIMEOUT = Number(process.env['E2E_START_TIMEOUT'] ?? 30_000);
 const AUTH_DESKTOP_PORT = MAIN_PORT + 1;
 const AUTH_MOBILE_PORT = MAIN_PORT + 2;
 const SAMPLE_PORT = MAIN_PORT + 3;
@@ -40,13 +41,15 @@ const server = (port: number, database: string) => ({
   url: `http://localhost:${port}/health`,
   env: {
     PORT: String(port),
+    ENABLE_BANKING_APP_ID: '',
+    BUDGET_BANK_SYNC_DAILY: '0',
     WEB_DIR: 'apps/web/dist',
     DATABASE_PATH: database,
     BUDGET_ORIGIN: `http://localhost:${port}`,
     BUDGET_SETUP_TOKEN: E2E_SETUP_TOKEN,
   },
   reuseExistingServer: false,
-  timeout: 30_000,
+  timeout: START_TIMEOUT,
 });
 
 // The sample server: migrated and seeded with the synthetic ledger (scripts/db-seed.ts), then the
@@ -57,7 +60,7 @@ const sampleServer = () => {
     ...base,
     command: `npx tsx scripts/db-seed.ts --file ${DB_SAMPLE} --fresh && ${base.command}`,
     env: { ...base.env, BUDGET_TODAY: SAMPLE_TODAY },
-    timeout: 90_000,
+    timeout: Math.max(90_000, START_TIMEOUT),
   };
 };
 
