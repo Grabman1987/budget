@@ -1,6 +1,6 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, type Page, type TestInfo } from '@playwright/test';
-import { mkdirSync } from 'node:fs';
+import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { cents, formatEuro } from '@budget/domain';
 import { sampleTest } from './sample';
@@ -256,3 +256,150 @@ sampleTest('Geldfluss: twelve months, running month and empty states', async ({ 
   await expect(page.getByRole('alert')).toContainText('konnten nicht geladen werden');
   await expect(page.getByTestId('sankey-chart')).toHaveCount(0);
 });
+
+const isOnePager = (month: string) => (response: { url(): string }) => {
+  const url = new URL(response.url());
+  return url.pathname === '/api/reports/month/onepager' && url.searchParams.get('month') === month;
+};
+
+sampleTest('Monats-One-Pager: the sheet shows the figures of the API', async ({ page }, info) => {
+  const loaded = page.waitForResponse(isOnePager('2026-08'));
+  await page.goto('/reports/onepager?monat=2026-08');
+  const response = await loaded;
+  expect(response.status()).toBe(200);
+  const data = (await response.json()) as {
+    result: { savedCents: number; savingsRateBp: number };
+    capitalCents: number;
+    allocation: { shares: { need: number; want: number; future: number; rest: number } };
+    top: unknown[];
+    findings: unknown[];
+    check: { ok: number; total: number };
+    netWorth: { cents: number };
+  };
+  const sheet = page.getByRole('article', { name: 'Monats-One-Pager August 2026' });
+  await expect(sheet).toBeVisible();
+  expect(flat(await page.getByTestId('onepager-saved').textContent())).toBe(
+    flat(money(data.result.savedCents)),
+  );
+  await expect(page.getByTestId('onepager-rate')).toContainText('Sparquote');
+  // 54 / 34 / 26 / −14 % of the prototype's August, from the ledger.
+  expect(data.allocation.shares).toEqual({ need: 54, want: 34, future: 26, rest: -14 });
+  const split = page.getByTestId('onepager-split');
+  await expect(split).toContainText('54 %');
+  await expect(split).toContainText('Aus Guthaben −14 %');
+  await expect(page.getByRole('group', { name: 'Maßkette des Monats' })).toContainText('Gespart');
+  await expect(page.getByTestId('onepager-top').locator('tr')).toHaveCount(data.top.length);
+  await expect(page.getByTestId('onepager-networth')).toHaveText(
+    flat(money(data.netWorth.cents, true)),
+  );
+  await expect(page.getByTestId('onepager-check-ok')).toHaveText(String(data.check.ok));
+  await expect(page.getByTestId('onepager-findings').locator('tbody tr')).toHaveCount(
+    Math.max(1, data.findings.length),
+  );
+  await expect(page.getByTestId('heute-pace-chart')).toBeVisible();
+  await expect(page.getByTestId('onepager-networth-chart')).toBeVisible();
+  await expect(page.getByTestId('onepager-capital')).toContainText('nicht zu den Einnahmen');
+  await expect(page.getByText('FA-R1.1-2608')).toBeVisible();
+  await inspect(page, info, 'onepager');
+});
+
+sampleTest(
+  'Monats-One-Pager: the running month, the month switch and the print button',
+  async ({ page }) => {
+    const loaded = page.waitForResponse(isOnePager('2026-09'));
+    await page.goto('/reports/onepager');
+    expect((await loaded).status()).toBe(200);
+    await expect(page.locator('.ps-head small')).toHaveText('laufend');
+    // A rate of a month that has just begun is meaningless: it waits for the month end.
+    await expect(page.getByTestId('onepager-rate')).toHaveText('Sparquote nach Monatsende');
+    await expect(page.getByTestId('onepager-findings')).toContainText('R04');
+    await expect(page.getByTestId('onepager-findings')).toContainText('Laufender Monat bis 17.09.');
+    await expect(page.getByRole('button', { name: 'Nächster Monat' })).toBeDisabled();
+    await page.evaluate(() => {
+      const w = window as unknown as { printed: number };
+      w.printed = 0;
+      window.print = () => void (w.printed += 1);
+    });
+    await page.getByRole('button', { name: 'Drucken' }).click();
+    expect(await page.evaluate(() => (window as unknown as { printed: number }).printed)).toBe(1);
+
+    const previous = page.waitForResponse(isOnePager('2026-08'));
+    await page.getByRole('button', { name: 'Vormonat' }).click();
+    expect((await previous).status()).toBe(200);
+    await expect(page.getByTestId('report-month')).toHaveText('August 2026');
+    await expect(page.locator('.ps-head small')).toHaveCount(0);
+  },
+);
+
+sampleTest(
+  'Monats-One-Pager: on paper it is one A4 sheet without the app around it',
+  async ({ page }, info) => {
+    sampleTest.skip(
+      info.project.name === 'mobile',
+      'The paper layout does not depend on the device',
+    );
+    const loaded = page.waitForResponse(isOnePager('2026-08'));
+    await page.goto('/reports/onepager?monat=2026-08');
+    await loaded;
+    await expect(page.getByRole('article', { name: /Monats-One-Pager/ })).toBeVisible({
+      timeout: 20_000,
+    });
+    // A4 portrait inside 8 mm margins at 96 dpi.
+    await page.setViewportSize({ width: 734, height: 1062 });
+    await page.emulateMedia({ media: 'print' });
+    await expect(page.locator('.sidebar')).toBeHidden();
+    await expect(page.locator('.titleblock')).toBeHidden();
+    const sheet = page.locator('.psheet');
+    await expect(sheet).toBeVisible();
+    // Nothing of the sheet is cut off: its content fits the fixed A4 height.
+    const clipped = await sheet.evaluate((el) => el.scrollHeight - el.clientHeight);
+    expect(clipped).toBeLessThanOrEqual(1);
+    const pdf = await page.pdf({ format: 'A4', printBackground: true, preferCSSPageSize: true });
+    const dir = process.env['BUDGET_MONTH_REPORTS_EVIDENCE'];
+    if (dir) {
+      mkdirSync(dir, { recursive: true });
+      writeFileSync(join(dir, 'onepager-print.pdf'), pdf);
+    }
+    const pages = pdf.toString('latin1').match(/\/Type\s*\/Page[^s]/g) ?? [];
+    expect(pages).toHaveLength(1);
+    await page.emulateMedia({ media: 'screen' });
+  },
+);
+
+sampleTest(
+  'Monats-One-Pager: unavailable valuation, errors and a month before the records',
+  async ({ page }) => {
+    await page.goto('/reports/onepager?monat=2023-05');
+    await expect(page.getByText(/gibt es keine Aufzeichnungen/)).toBeVisible();
+
+    const real = await page.request.get('/api/reports/month/onepager?month=2026-08');
+    const body = (await real.json()) as Record<string, unknown>;
+    const unavailable = {
+      unavailable: {
+        reason: 'missing_price',
+        asOf: '2026-08-31',
+        message: 'Ein benötigter Wertpapierkurs fehlt bis einschließlich 31.08.2026.',
+      },
+    };
+    await page.route('**/api/reports/month/onepager*', (route) =>
+      route.fulfill({ json: { ...body, netWorth: unavailable, check: unavailable } }),
+    );
+    await page.goto('/reports/onepager?monat=2026-08');
+    await expect(page.getByTestId('onepager-networth-unavailable')).toContainText(
+      'Wertpapierkurs fehlt',
+    );
+    await expect(page.getByTestId('onepager-check-unavailable')).toContainText(
+      'Wertpapierkurs fehlt',
+    );
+    await expect(page.getByTestId('onepager-networth')).toHaveCount(0);
+    await expect(page.getByTestId('onepager-saved')).toBeVisible();
+    await page.unroute('**/api/reports/month/onepager*');
+
+    await page.route('**/api/reports/month/onepager*', (route) =>
+      route.fulfill({ status: 500, json: { error: 'boom', message: 'Fehler' } }),
+    );
+    await page.goto('/reports/onepager?monat=2026-08');
+    await expect(page.getByRole('alert')).toContainText('konnten nicht geladen werden');
+    await expect(page.locator('.psheet')).toHaveCount(0);
+  },
+);

@@ -20,6 +20,7 @@ import { PortfolioPerformanceReport } from './portfolio-performance-report';
 import { PortfolioContributionsReport } from './portfolio-contributions-report';
 import { IncomeReport } from '../reports/income-report';
 import { FlowReport } from '../reports/flow-report';
+import { OnePagerReport } from '../reports/onepager-report';
 
 const CONTROL_LABEL = { month: 'Monat', year: 'Jahr', period: 'Zeitraum' } as const;
 
@@ -173,6 +174,7 @@ export function ReportPage({ reportId }: { reportId: string }) {
     return <PortfolioContributionsReport report={report} meta={meta} />;
   if (report.id === 'einnahmen') return <IncomeReport report={report} meta={meta} />;
   if (report.id === 'geldfluss') return <FlowReport report={report} meta={meta} />;
+  if (report.id === 'onepager') return <OnePagerReport report={report} meta={meta} />;
   return (
     <PlaceholderPage
       meta={meta}

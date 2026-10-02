@@ -118,7 +118,7 @@ consistent totals, desktop/mobile checks and printing where required.
 
 | ID | Report | Prototype calculation/view reference | Remaining status |
 | --- | --- | --- | --- |
-| 1.1 | Monats-One-Pager | `reports-monat.js` | Body + A4 print Open |
+| 1.1 | Monats-One-Pager | `reports-monat.js` | Connected: month selector, drawing sheet A–G (result chain, 50/30/20 on assigned money, net worth with own/market, largest spending, plan, Finanz-Check cells, pace chart, revisions) from the shared ledger facts; Kapitalerträge only as a note (not in Einnahmen/Sparquote); no rate for a running month; valuation gaps shown honestly; A4 print stylesheet (one page, app chrome hidden, light tokens). Owner/private acceptance remains |
 | 1.2 | Gehaltsreport | `reports-monat.js` | Payslip capture, body and yearly comparison Open |
 | 1.3 | Einnahmen | `reports-monat.js` | Connected: month selector, 12-month stacked income by type, expected against received (match status; schedule fallback `nicht zugeordnet` while occurrences are unmaterialised), Kapitalerträge separate (not household income), refunds/transfers/contact repayments excluded. Owner/private acceptance remains |
 | 1.4 | Geldfluss | `reports-monat.js` | Connected: month or 12 months (to the last full month), Sankey income types → pool → Bedarf/Wunsch/Zukunft/Übrig → groups (phone: without groups), dimension chain, parts list; Kapitalerträge a labelled source of their own, never folded, outside the household income; transfers, refunds and contact repayments left out. Owner/private acceptance remains |

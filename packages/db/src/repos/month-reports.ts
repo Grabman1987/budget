@@ -30,7 +30,6 @@ import {
   type MonthResult,
   type MoneyFlow,
   type PlanFact,
-  type PlanSummary,
   type PriceChange,
   type Rhythm,
   type TopSpendingRow,
@@ -423,6 +422,7 @@ export interface OnePagerCheck {
 
 export interface OnePager {
   month: string;
+  today: string;
   previousMonth: string;
   asOf: string;
   partial: boolean;
@@ -434,7 +434,8 @@ export interface OnePager {
   allocation: Allocation;
   netWorth: OnePagerNetWorth | HeuteUnavailable;
   top: TopSpendingRow[];
-  plan: PlanSummary & { over: Array<PlanFact & { budgetedCents: number }> };
+  /** `over` holds the four most overspent categories, `overCount` all of them. */
+  plan: { total: number; overCount: number; over: PlanFact[] };
   check: OnePagerCheck | HeuteUnavailable;
   pace: Heute['pace'];
   findings: MonthFinding[];
@@ -603,6 +604,7 @@ export function monthOnePager(db: Executor, today: string, month: string): OnePa
   const check = availableSection(() => checkOf(db, f));
   return {
     month,
+    today,
     previousMonth,
     asOf: f.asOf,
     partial: f.partial,
@@ -613,7 +615,7 @@ export function monthOnePager(db: Executor, today: string, month: string): OnePa
     allocation: alloc,
     netWorth,
     top,
-    plan: { ...plan, over: plan.over.slice(0, 4) },
+    plan: { total: plan.total, overCount: plan.over.length, over: plan.over.slice(0, 4) },
     check,
     pace,
     findings,

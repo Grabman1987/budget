@@ -206,7 +206,13 @@ function BalanceDrawing({
   );
 }
 
-export function HeutePaceChart({ data }: { data: Heute }) {
+/** What the pace chart reads: also fed by the Monats-One-Pager. */
+export interface PaceChartData {
+  pace: Heute['pace'];
+  stand: { today: string };
+}
+
+export function HeutePaceChart({ data }: { data: PaceChartData }) {
   const [ref, width] = useWidth();
   return (
     <div ref={ref} className="heute-chart">
@@ -215,7 +221,7 @@ export function HeutePaceChart({ data }: { data: Heute }) {
   );
 }
 
-function PaceDrawing({ data, width }: { data: Heute; width: number }) {
+function PaceDrawing({ data, width }: { data: PaceChartData; width: number }) {
   const m = data.pace;
   const height = width < 640 ? 200 : 250;
   const narrow = width < 520;
