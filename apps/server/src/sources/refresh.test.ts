@@ -165,6 +165,33 @@ describe('source sync persistence and financial isolation', () => {
     });
     expect(mapping.groupId).toBeTruthy();
   });
+  it('reopens a corrected acknowledged operation without duplicating or booking it', async () => {
+    const adapter = source();
+    await refreshReadSource(opened.db, adapter, at);
+    const original = inbox().find((i) => i.kind === 'import')!;
+    resolveInboxItem(opened.db, original.id, ctx);
+    adapter.operations.mockResolvedValue({
+      nextCursor: null,
+      operations: [
+        {
+          ...operation,
+          transactions: [
+            {
+              ...operation.transactions[0]!,
+              amount: { ...balance.amount, value: '12.35', cents: 1235 },
+            },
+          ],
+        },
+      ],
+    });
+    await refreshReadSource(opened.db, adapter, at);
+    const corrected = inbox().filter((i) => i.kind === 'import');
+    expect(corrected).toHaveLength(1);
+    expect(corrected[0]).toMatchObject({ id: original.id, resolvedAt: null, resolution: null });
+    expect(JSON.parse(corrected[0]!.detail!).transactions[0].amount.cents).toBe(1235);
+    expect(opened.db.select().from(schema.booking).all()).toHaveLength(0);
+    expect(opened.db.select().from(schema.trade).all()).toHaveLength(0);
+  });
   it('rejects foreign currency and on-budget mappings, and supports audited undo/redo', async () => {
     await refreshReadSource(opened.db, source(), at);
     const result = mapReadSource(
@@ -195,6 +222,32 @@ describe('source sync persistence and financial isolation', () => {
     expect(() =>
       mapReadSource(opened.db, { key: asset.key, accountId: 'cash', securityId: 'coin' }, ctx),
     ).toThrow();
+    createEntity(
+      opened.db,
+      schema.account,
+      {
+        id: 'foreign-cash',
+        name: 'Synthetic foreign cash',
+        type: 'checking',
+        role: 'investment',
+        onBudget: false,
+        currency: 'USD',
+        openingDate: '2026-01-01',
+      },
+      ctx,
+    );
+    expect(() =>
+      mapReadSource(
+        opened.db,
+        {
+          key: balance.key,
+          accountId: 'foreign-cash',
+          securityId: null,
+        },
+        ctx,
+      ),
+    ).toThrow('Die Kontowährung muss zur Quelle passen.');
+    expect(readSourceMappings(opened.db)[0]?.accountId).toBe('cash');
   });
   it('resumes failed pages and final balance retrieval without advancing the successful watermark', async () => {
     const adapter = source();

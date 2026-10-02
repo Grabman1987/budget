@@ -1,6 +1,6 @@
-# Crypto read source ? verification evidence
+# Crypto read source — verification evidence
 
-The source is a first integration slice in Einstellungen ? Datenquellen. It uses
+The source is a first integration slice in Einstellungen › Datenquellen. It uses
 the existing page frame, section headings, form controls and inbox. The original
 source prototype was reviewed; the current precision-layer design in DESIGN.md
 takes precedence over its older screenshot styling.
@@ -19,6 +19,17 @@ configured/unconfigured state, manual refresh, explicit mapping, readable source
 records, links to settings, and retention of the removed import UI boundary.
 
 ## Browser evidence
+
+Resumed verification on 2026-10-03, after merging main and retaining both domain
+exports: repository-wide lint, workspace typecheck and production web/server build
+passed. Focused domain, source/API, SQLite integration, inbox/app and timer tests
+cover 57 cases; the added timer regression was also rerun independently. Added
+checks verify corrected acknowledged operations reopen the same inbox item without
+ledger writes, foreign-currency mapping rejection, streamed response cancellation,
+and source continuation after the market run has already completed.
+
+The local test scope follows the owner's request to keep it short. CI runs the
+complete unit/browser suite and image checks; those are not claimed locally.
 
 Eleven tests passed at 1440 px and 390 px, including setup and the existing export
 regression checks. Both themes were checked with Axe (no serious/critical findings),

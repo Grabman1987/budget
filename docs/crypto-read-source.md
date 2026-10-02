@@ -26,10 +26,10 @@ reach logs, API errors or audit rows. The API/UI disclose key presence only.
 
 ## Owner steps
 
-1. In Bitpanda account settings, create a dedicated API key with **Balances** and
-   **Transaction** scopes only. Do not grant Trade (Write) or Earn (Write).
-   If the provider requires Trade (Read) for currency metadata, add only that read
-   permission. See [key generation](https://docs.public.bitpanda.com/api-key-generation).
+1. In Bitpanda account settings, create a dedicated API key with **Balances**,
+   **Transaction** and **Trade (Read)** scopes for balances, history and instrument/currency
+   metadata. Do not grant Trade (Write) or Earn (Write).
+   See [key generation](https://docs.public.bitpanda.com/api-key-generation).
    Set expiry and rotate before expiry; restrict source IPs if appropriate.
 2. Set the secret yourself for the deployed Fly app:
    `fly secrets set BITPANDA_API_KEY=<read-only-key> --app <app-name>`.

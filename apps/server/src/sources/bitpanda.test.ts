@@ -115,4 +115,21 @@ describe('read-only provider boundary', () => {
       bitpandaReadSource({ key: () => 'synthetic-key', fetch: request }).operations(window),
     ).rejects.toThrow(/^source_failed$/);
   });
+  it('rejects oversized streamed responses and cancels the body', async () => {
+    const cancel = vi.fn();
+    const request = vi.fn<typeof fetch>().mockResolvedValue(
+      new Response(
+        new ReadableStream({
+          start(controller) {
+            controller.enqueue(new Uint8Array(4_000_001));
+          },
+          cancel,
+        }),
+      ),
+    );
+    await expect(
+      bitpandaReadSource({ key: () => 'synthetic-key', fetch: request }).operations(window),
+    ).rejects.toThrow(/^source_failed$/);
+    expect(cancel).toHaveBeenCalledTimes(1);
+  });
 });

@@ -178,14 +178,11 @@ export function finishReadSource(
         true,
       );
     }
-    const all = balances;
-    for (const balance of all) {
+    for (const balance of balances) {
       const mapping = mappings.find((m) => m.key === balance.key);
       const acc = accounts.find((a) => a.id === mapping?.accountId);
-      const fresh = balances.includes(balance);
       const source = sourceInteger(balance.amount.value, balance.amount.assetId ? 8 : 2);
       const valid =
-        fresh &&
         mapping &&
         acc &&
         !acc.onBudget &&
@@ -209,17 +206,15 @@ export function finishReadSource(
           local === null || source === null ? 'Quellsaldo: Abgleich offen' : 'Quellsaldo weicht ab',
           JSON.stringify({
             key: balance.key,
-            source: fresh ? balance.amount.value : null,
+            source: balance.amount.value,
             local,
             scale: balance.amount.assetId ? 8 : 2,
             accountId: mapping?.accountId ?? null,
-            reason: !fresh
-              ? 'source_missing'
-              : !valid
-                ? 'mapping_required'
-                : source === null
-                  ? 'precision_unsupported'
-                  : 'difference',
+            reason: !valid
+              ? 'mapping_required'
+              : source === null
+                ? 'precision_unsupported'
+                : 'difference',
           }),
           'reconciliation',
           grouped,
