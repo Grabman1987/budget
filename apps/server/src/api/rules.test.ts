@@ -14,6 +14,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { Hono } from 'hono';
 import { beforeEach, describe, expect, it } from 'vitest';
+import { dayCounts, ruleTimelines } from '@budget/domain';
 import { createApp, type AuthGate } from '../app';
 
 const TODAY = '2026-03-31';
@@ -139,6 +140,30 @@ describe('POST /rules/evaluate, GET /rules/results, GET /rules/check', () => {
     expect(check.body.counts.total).toBe(16);
     expect(check.body.stage).toMatchObject({ stage: 1 });
     expect(check.body.checklist.total).toBe(14);
+  });
+});
+
+describe('Finanz-Check-Verlauf (report 5.2)', () => {
+  it('reads the stored matrix as strips and counts that agree with the Finanz-Check', async () => {
+    await call('POST', '/rules/evaluate');
+    const matrix = (await call('GET', '/rules/results')).body;
+    const check = (await call('GET', '/rules/check')).body;
+    const timelines = ruleTimelines(matrix);
+    const counts = dayCounts(matrix);
+    expect(counts).toHaveLength(matrix.days.length);
+    expect(timelines).toHaveLength(16);
+    for (const line of timelines) expect(line.strip).toHaveLength(matrix.days.length);
+    const newest = counts.at(-1)!;
+    expect(newest.asOf).toBe(TODAY);
+    // The newest stored day is the day the live check evaluates.
+    expect([newest.ok, newest.warn, newest.bad]).toEqual([
+      check.counts.ok,
+      check.counts.warn,
+      check.counts.bad,
+    ]);
+    // A rule's run ends on the newest day, so its start is never after it.
+    for (const line of timelines.filter((l) => l.current !== null))
+      expect(line.sinceDay! <= TODAY).toBe(true);
   });
 });
 

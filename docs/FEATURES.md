@@ -144,7 +144,7 @@ consistent totals, desktop/mobile checks and printing where required.
 | 4.4 | Rendite und Kennzahlen | `reports-portfolio.js` | Partial: connected securities-only period metrics and lifetime documented realized gain; benchmark comparison, asset-class comparison and monthly heatmap remain open |
 | 4.5 | Kosten, Steuern, Erträge | `reports-portfolio.js` | Body Open; show source taxes without duplicate withholding |
 | 5.1 | Jahresreport | `reports-ueberblick.js` | Body + two printable sheets Open |
-| 5.2 | Finanz-Check-Verlauf | `reports-ueberblick.js` | History body Open; current rule status exists |
+| 5.2 | Finanz-Check-Verlauf | `reports-ueberblick.js` | Connected: stage with progress, current-stage and next-stage items, count chart and R01–R16 status strips from the stored `rule_result` rows (12 month ends + today, `/api/rules/results`), open actions, since-date per rule. Opening the report re-derives the stored results (idempotent); a day without data stays "nicht bewertbar" |
 | 5.3 | Explorer | `reports-ueberblick.js` | Pivot, saved views and body Open |
 | 5.4 | Kontakte-Abrechnung | `reports-ueberblick.js` | Fixed all-time EUR report: shared receivable/credit chain, per-person retained ledger, running balance stair chart and source drilldown. Pending bookings explicitly included; mixed currency unavailable. Owner/private acceptance remains |
 | 5.5 | Zeitraumvergleich | `reports-ueberblick.js` | Body Open |
