@@ -27,6 +27,17 @@ feed suggestions instead of recording a second movement.
      mounted PEM file readable by the application; do not bake it into the image.
    - `BANK_SYNC_ENCRYPTION_KEY`: independent cryptographically random 32-byte key,
      encoded as 64 hexadecimal characters. Back this key up separately from SQLite.
+   - `BANK_SYNC_ENCRYPTION_KEY_VERSION`: positive integer key version (default `1`).
+     Ciphertexts carry a `v<version>:` prefix; unprefixed legacy values use version `1`.
+   - For rotation, set a new key and increment its version; retain the old key as
+     `BANK_SYNC_PREVIOUS_ENCRYPTION_KEY` and its version as
+     `BANK_SYNC_PREVIOUS_ENCRYPTION_KEY_VERSION` (default `1`). Successful account
+     and consent syncs re-encrypt live identifiers. Keep the previous key with the
+     corresponding encrypted backups/audit history; never replace a key without a
+     new version. Paused or failing connections still require the old key until renewed.
+   - `BANK_SYNC_EXTRA_INSTITUTIONS`: optional comma-separated exact institution names
+     to include outside Austria. Set real names only in the owner's Fly configuration,
+     never in this repository. Matching ignores case; it does not use substring filters.
    - `BUDGET_ORIGIN`: existing canonical HTTPS app origin.
 5. Deploy through the normal approved workflow. When the app ID is configured, the server
    starts the separate bank worker on the same machine and SQLite volume, after migrations.
@@ -38,10 +49,9 @@ feed suggestions instead of recording a second movement.
    **Bankfreigabe abschließen** (another passkey confirmation may be necessary).
    Start and completion must use the same app session/browser; an expired callback requires
    a new connection.
-7. Connect Dadat and PayPal if returned by the live institute list; connect Flatex only
-   if it is listed for the application. The adapter requests available personal AIS
-   institutes and presents Austria plus PayPal entries from other countries. Their names
-   and availability are runtime provider data, never hardcoded account mappings.
+7. Choose institutions returned by the live list. The adapter requests personal AIS
+   institutions and presents Austria plus the owner's configured extra institutions.
+   Availability and account mappings are runtime data.
 8. Assign each provider account to an existing EUR account. Choose the first date whose
    feed suggestions should be reviewed; it must not precede that account's opening date.
    Compare the first booked balance, review the inbox, then validate daily operation over
@@ -61,6 +71,10 @@ feed suggestions instead of recording a second movement.
   hashed, session-bound, valid for 30 minutes and atomically consumed before session creation.
   Protocol state cannot be restored through generic undo, even forced undo; pause/reconnect
   instead. Mapping changes before the first fetch, booking confirmations and inbox decisions remain undoable.
+  Pending/failed callbacks without a remote session expire after 30 minutes and are
+  removed from the active list with an audited abandoned tombstone; no ledger history
+  is hard-deleted. Invalid keys or a missing/invalid origin disable bank sync with a
+  redacted `not_configured` log line while the ledger API remains usable.
 - **Verbindung pausieren** stops this app's polling, not the bank's consent. Revoke consent
   at the bank/provider if desired. To renew, pause the old connection, connect again and
   assign its accounts. A mapping is immutable after its first successful fetch; one active
@@ -68,20 +82,35 @@ feed suggestions instead of recording a second movement.
 - One worker checks durable due timestamps every 30 seconds. Nightly runs are at 02:30 UTC
   (03:30/04:30 Vienna). Startup catches up a missed run. Manual requests queue the same job.
   A database lease prevents overlapping claims; a heartbeat extends it during paging.
-- Each linked account reads its entire owner-selected date window on every run. This
-  catches late postings and downtime without advancing past missing pages. Persistence
-  happens only after all pages and a supported booked balance succeeded for that account.
-  Other accounts may already have succeeded; their repeat fetch is idempotent.
+- The first successful account run reads from the owner-selected start date; subsequent
+  runs read from the later of that date and the account's last successful sync minus
+  21 days. The overlap deduplicates late postings. Each account stage is atomic and
+  failures do not stop later accounts of that consent; retries skip accounts that already
+  committed in the failed attempt. A durable per-account/day counter reserves every
+  request before HTTP, including failed requests, retries, manual runs and restarts.
+  At most four account requests per Vienna calendar day are sent; paging is limited to
+  three transaction pages plus one balance request. Incomplete pages never stage rows.
+  A longer first-run history requires a newer owner-selected start date. A history-period
+  refusal gives an explicit start-date message without copying the provider's error text.
 - Only `BOOK` transactions are staged. Identity is scoped to the local account and uses
   `entry_reference`, or a SHA-256 hash of date, signed integer cents, currency, text and
   an occurrence index. Two identical reference-free purchases remain two suggestions.
   The provider explicitly says `transaction_id` is unstable and not a unique transaction
   identifier, so it is not used as a deduplication key.
+  References repeated within a complete batch use fingerprint plus ordinal for all
+  affected rows. Changed unique references update open candidates; already confirmed
+  or dismissed candidates produce a persistent "geändert" warning without changing
+  their booking or decision. Changes from/to ambiguous references remain owner review.
+- Dates use `booking_date`, then `value_date`, then `transaction_date`. Invalid/negative
+  raw amounts, malformed rows and rows outside the requested window are skipped with
+  redacted inbox counters; valid rows still stage. Pending rows never stage.
 - Booked `ITBD` / `CLBD` balances with an explicit statement date are compared with the
   existing booked-balance calculation for that date. Pending ledger bookings are excluded.
-  Differences create warnings; no balancing booking is created. Missing booked balances,
-  currency mismatches and unsupported data fail visibly rather than substituting an
-  available balance or converting unsupported currencies.
+  Differences update one warning per account, suppressed while candidates are open;
+  no balancing booking is created. An undated booked balance leaves transactions intact
+  and creates a notice instead of comparing. Missing booked balances and currency
+  mismatches fail visibly rather than substituting an available balance or converting
+  unsupported currencies. App JWT authentication errors are separate from consent expiry.
 - Failures create redacted inbox items and exponential retry delays (15 minutes up to
   24 hours), respecting longer `Retry-After` values up to 24 hours. Manual refresh cannot
   bypass retry delays or the 15-minute minimum between attempts.

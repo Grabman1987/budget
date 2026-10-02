@@ -4,6 +4,8 @@ build/
 coverage/
 .vite/
 *.log
+*.pem
+*.key
 .env
 .env.*
 !.env.example

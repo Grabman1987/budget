@@ -264,6 +264,7 @@ Enable Banking adapter, worker with nightly run and catch-up, inbox items, assig
 - [x] Booked transaction staging and balance warnings, reference/fallback deduplication, explicit confirmation with audit/undo; no automatic bookings.
 - [x] Separate nightly worker on the same volume, catch-up, durable leases/backoff, queued manual refresh and consent reminders.
 - [x] Datenquellen status/mapping UI and owner setup in `docs/DATA_SOURCES.md`; synthetic HTTP, domain, workflow and browser tests.
+- [x] Review corrections: changed-reference updates/warnings, duplicate-reference fallback, isolated account failures, 21-day overlap and durable four-request/day limit; tolerant rows/undated balances, stable balance warnings, redacted auth/config failures, callback pruning and versioned encryption.
 - [ ] Owner: register application, configure secrets, connect accounts, reconcile the first run and demonstrate 14 stable nights.
 - [ ] Assignment-rule engine, ambiguous history changes and transfer matching remain separate acceptance work.
 
