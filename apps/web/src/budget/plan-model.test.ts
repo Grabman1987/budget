@@ -1,14 +1,19 @@
 import { describe, expect, it } from 'vitest';
 import type { BudgetMonthView, EnvelopeSummary } from './budget-api';
 import {
+  assignGuard,
   barFor,
   coverFromToBeAssigned,
   coverSource,
   dueDate,
+  expectedDues,
   groupStatus,
+  monthStatus,
+  moveGuard,
   planGroups,
   planRows,
   readAssign,
+  splitState,
   suggestions,
   unassignPlan,
   type PlanContext,
@@ -203,5 +208,115 @@ describe('Plan › Monat view model', () => {
     const groups = planGroups('time', [insurance], data, ctx);
     expect(groups.find((g) => g.key === 't14')?.rows).toEqual([]);
     expect(groups.find((g) => g.key === 'tnext')?.rows.map((r) => r.id)).toEqual(['kfz']);
+  });
+
+  it('guards assigning: never more than Zu verteilen holds, reducing always passes', () => {
+    expect(assignGuard(10_000, 4_000, 6_000)).toEqual({ ok: true });
+    const refused = assignGuard(10_001, 4_000, 6_000);
+    expect(refused).toMatchObject({ ok: false, maxCents: 10_000 });
+    expect(refused.ok === false && refused.message).toContain('Höchstens 100,00 €');
+    // Nothing free (also when negative): only values that do not raise pass.
+    expect(assignGuard(4_001, 4_000, 0)).toMatchObject({ ok: false, maxCents: 4_000 });
+    expect(assignGuard(4_001, 4_000, -2_000)).toMatchObject({ ok: false, maxCents: 4_000 });
+    expect(assignGuard(3_000, 4_000, -2_000)).toEqual({ ok: true });
+    expect(moveGuard(5_000, 5_000)).toEqual({ ok: true });
+    expect(moveGuard(5_001, 5_000)).toMatchObject({ ok: false, maxCents: 5_000 });
+    expect(moveGuard(1, -1)).toMatchObject({ ok: false, maxCents: 0 });
+  });
+
+  it('states the month truthfully: worst first, calm only when nothing applies', () => {
+    const summary = (over: object) =>
+      ({ toBeAssignedCents: 0, uncoveredCents: 0, ...over }) as BudgetMonthView['summary'];
+    const calm = rows.filter((r) => r.id === 'miete');
+    expect(monthStatus(summary({}), calm)).toEqual([
+      { tone: 'good', text: 'Nichts ist überzogen.' },
+    ]);
+    const lines = monthStatus(
+      summary({ toBeAssignedCents: -3_000, uncoveredCents: 512_168 }),
+      rows,
+    );
+    expect(lines.map((l) => l.text)).toEqual([
+      'Zu viel zugewiesen: 30,00 € fehlen',
+      'Ungedeckt aus dem Vormonat: 5.121,68 €',
+      '1 Envelope bar überzogen',
+      'Eine neue Kartenschuld (Karte über das Envelope)',
+    ]);
+    expect(lines.map((l) => l.tone)).toEqual(['bad', 'bad', 'bad', 'warn']);
+    expect(monthStatus(summary({ uncoveredCents: 100 }), calm)[0]?.tone).toBe('bad');
+  });
+
+  it('50/30/20 has no shares without a meaningful base and never leaves 0…100', () => {
+    const income = (incomeCents: number) => ({ incomeCents }) as BudgetMonthView['summary'];
+    const assigned = (id: string, assignedCents: number) =>
+      rows.map((r) => (r.id === id ? { ...r, assignedCents } : { ...r, assignedCents: 0 }));
+    expect(splitState(income(0), rows)).toEqual({ kind: 'no-income' });
+    expect(splitState(income(-500), rows)).toEqual({ kind: 'no-income' });
+    expect(splitState(income(100_000), assigned('essen', 0))).toEqual({ kind: 'empty' });
+    // Tiny income, large assignment: not 5129 %.
+    expect(splitState(income(1_000), assigned('essen', 51_290))).toEqual({ kind: 'too-much' });
+    // A negative class sum counts as 0.
+    expect(splitState(income(100_000), assigned('cafe', -86_100))).toEqual({ kind: 'empty' });
+    const ok = splitState(income(100_000), [
+      ...assigned('essen', 50_000),
+      ...assigned('cafe', 30_000),
+    ]);
+    expect(ok.kind).toBe('shares');
+    if (ok.kind === 'shares') {
+      for (const v of [ok.need, ok.want, ok.future]) {
+        expect(v).toBeGreaterThanOrEqual(0);
+        expect(v).toBeLessThanOrEqual(100);
+      }
+    }
+  });
+
+  it('the time view counts expected payments and is honest when there are none', () => {
+    const payment = (over: object) =>
+      ({
+        id: 'p',
+        name: 'Strom',
+        kind: 'outflow',
+        categoryId: 'essen',
+        deletedAt: null,
+        nextDueDate: '2026-09-25',
+        amountCents: -10_500,
+        version: { currency: 'EUR' },
+        ...over,
+      }) as Parameters<typeof expectedDues>[0][number];
+    const dues = expectedDues([
+      payment({}),
+      payment({ id: 'q', categoryId: 'miete', nextDueDate: '2026-10-30' }),
+      payment({ id: 'r', kind: 'inflow' }),
+      payment({ id: 's', categoryId: null }),
+      payment({ id: 't', deletedAt: '2026-09-01' }),
+    ]);
+    expect(dues.map((d) => [d.categoryId, d.date, d.amountCents])).toEqual([
+      ['essen', '2026-09-25', -10_500],
+      ['miete', '2026-10-30', -10_500],
+    ]);
+    const groups = planGroups('time', rows, data, { ...ctx, expected: dues });
+    const by = (key: string) => groups.find((g) => g.key === key)!;
+    // A variable envelope with an expected payment is dated, not "laufend"; miete's own target
+    // day (1st) gives way to its expected payment.
+    expect(by('t14').rows.map((r) => r.id)).toEqual(['essen']);
+    expect(by('t14').rows[0]?.due).toMatchObject({ source: 'expected', name: 'Strom' });
+    expect(by('tnext').rows.map((r) => r.id)).toEqual(['miete']);
+    expect(by('tlater').rows).toEqual([]);
+    // No expected payment at all: say so instead of "nichts fällig".
+    const none = planGroups('time', rows, data, { ...ctx, expected: [] });
+    expect(none.find((g) => g.key === 'tlater')).toMatchObject({
+      rows: [],
+      emptyText: 'keine erwarteten Zahlungen erfasst',
+    });
+    // Payments exist but none is due in a bucket: plain "nichts fällig".
+    expect(by('tlater').emptyText).toBe('nichts fällig');
+  });
+
+  it('every triage group has a calm empty sentence', () => {
+    const quiet = planRows({
+      ...data,
+      summary: { ...data.summary, envelopes: data.summary.envelopes.map((e) => env(e.categoryId)) },
+    } as BudgetMonthView);
+    const groups = planGroups('triage', quiet, data, ctx);
+    expect(groups.every((g) => g.rows.length === 0 && (g.emptyNote ?? '').length > 0)).toBe(true);
   });
 });

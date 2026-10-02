@@ -1,4 +1,4 @@
-import { cents, percentShares, todayInVienna } from '@budget/domain';
+import { cents, formatDecimal, todayInVienna } from '@budget/domain';
 import {
   Button,
   ClassSwatch,
@@ -17,8 +17,10 @@ import {
   CheckCircle2,
   ChevronDown,
   Clock,
+  Info,
 } from 'lucide-react';
 import { useRef, useState, type KeyboardEvent } from 'react';
+import { expectedQuery } from '../expected/api';
 import { PLAN_MONAT } from '../nav/pages';
 import { PageFrame } from '../pages/placeholder-page';
 import { eur, eurParts } from '../ledger/format';
@@ -32,16 +34,20 @@ import { IncomeButton, IncomePanel } from '../expected/income-panel';
 import { EnvelopePanel } from './envelope-panel';
 import { STAGES } from './labels';
 import {
+  assignGuard,
   barFor,
   CLASS_TEXT,
   coverFromToBeAssigned,
   coverSource,
+  expectedDues,
   groupStatus,
   isCard,
   isCashOver,
+  monthStatus,
   planGroups,
   planRows,
   readAssign,
+  splitState,
   statusText,
   suggestions,
   unassignPlan,
@@ -51,6 +57,9 @@ import {
   type PlanView,
 } from './plan-model';
 import { useBudgetWrite } from './use-category-writes';
+
+/** `05.10.` of `2026-10-05`. */
+const dayMonth = (day: string) => `${day.slice(8, 10)}.${day.slice(5, 7)}.`;
 
 const VIEWS = [
   { value: 'stage', label: 'Wasserfall' },
@@ -114,6 +123,7 @@ function PlanBody({
 }) {
   const write = useBudgetWrite();
   const accounts = useQuery(accountsQuery()).data?.accounts ?? [];
+  const expected = useQuery(expectedQuery()).data;
   const [view, setView] = useState<PlanView>('stage');
   const [distribute, setDistribute] = useState(false);
   const [collapsed, setCollapsed] = useState<ReadonlySet<string>>(new Set());
@@ -129,6 +139,7 @@ function PlanBody({
     month,
     today,
     cardName: (id) => accounts.find((a) => a.id === id)?.name ?? 'Kreditkarte',
+    ...(expected && { expected: expectedDues(expected) }),
   };
   const rows = planRows(data);
   const byId = new Map(rows.map((r) => [r.id, r]));
@@ -417,10 +428,12 @@ function PlanBody({
                         onClick={toggle}
                       >
                         <ChevronDown size={16} strokeWidth={1.75} aria-hidden="true" />
-                        <span className="grp-title">{g.title}</span>
-                        {g.sub && <span className="grp-sub">{g.sub}</span>}
+                        <span className="grp-text">
+                          <span className="grp-title">{g.title}</span>
+                          {g.sub && <span className="grp-sub">{g.sub}</span>}
+                        </span>
                       </button>
-                      <GroupState group={g} status={st} />
+                      {g.rows.length > 0 && <GroupState group={g} status={st} />}
                       {distribute && sugSum > 0 && (
                         <Button
                           size="xs"
@@ -431,23 +444,31 @@ function PlanBody({
                         </Button>
                       )}
                     </td>
-                    <td className="col-num col-assign" data-label="Zugewiesen">
-                      {eur(st.assigned)}
-                    </td>
-                    <td className="col-num col-act" data-label="Aktivität">
-                      {eur(st.activity)}
-                    </td>
-                    <td className="col-num col-avail" data-label="Verfügbar">
-                      {eur(st.available)}
-                    </td>
+                    {g.rows.length === 0 ? (
+                      // Nothing in the group: no sums to show, the empty state says it.
+                      <td className="col-num group-none" colSpan={3} />
+                    ) : (
+                      <>
+                        <td className="col-num col-assign" data-label="Zugewiesen">
+                          {eur(st.assigned)}
+                        </td>
+                        <td className="col-num col-act" data-label="Aktivität">
+                          {eur(st.activity)}
+                        </td>
+                        <td className="col-num col-avail" data-label="Verfügbar">
+                          {eur(st.available)}
+                        </td>
+                      </>
+                    )}
                   </tr>,
-                  ...(g.stage === 9 && g.rows.length === 0
+                  ...(g.rows.length === 0 && !isCollapsed && (g.emptyNote ?? g.emptyText)
                     ? [
                         <tr key={`${g.key}-empty`} className="prow is-empty">
                           <td className="col-pos" />
                           <td className="col-name" colSpan={4}>
-                            <span className="pmeta">
-                              Keine günstigen Schulden. Was übrig bleibt, geht in Stufe 8.
+                            <span className="pempty">
+                              <CheckCircle2 size={14} strokeWidth={1.75} aria-hidden="true" />
+                              {g.emptyNote ?? g.emptyText}
                             </span>
                           </td>
                         </tr>,
@@ -462,6 +483,7 @@ function PlanBody({
                           pos={`${g.no}.${i + 1}`}
                           ctx={ctx}
                           suggestion={distribute ? sug[r.id] : undefined}
+                          tba={tba}
                           editing={editing === r.id}
                           onEdit={(on) => setEditing(on ? r.id : null)}
                           onCommit={(v) => {
@@ -545,8 +567,8 @@ function GroupState({
 }
 
 /**
- * The month's one number: "Zu verteilen" on forest green while money waits for a job, red when
- * too much was assigned, a calm card at zero. The Maßkette below the figure explains it; the
+ * The month's one number: "Zu verteilen" on forest green while money waits for a job, a compact
+ * soft-red card with the figure right-aligned when too much was assigned, a calm card at zero. The Maßkette below the figure explains it; the
  * button starts the distribution.
  */
 function Hero({
@@ -589,24 +611,24 @@ function Hero({
             {whole}
             <span className="cents">,{fraction} €</span>
           </div>
-          <span className="hero-state">
-            {tba < 0 ? (
-              <>
-                <AlertTriangle size={16} strokeWidth={1.75} aria-hidden="true" />
-                zu viel zugewiesen
-              </>
-            ) : tba > 0 ? (
-              <>
-                <ArrowDownToLine size={16} strokeWidth={1.75} aria-hidden="true" />
-                {urgent > 0 ? 'erst decken, dann verteilen' : 'bereit zum Verteilen'}
-              </>
-            ) : (
-              <>
-                <CheckCircle2 size={16} strokeWidth={1.75} aria-hidden="true" />
-                jeder Euro hat einen Job
-              </>
-            )}
-          </span>
+          {tba < 0 ? (
+            // The red card says it; one label for screen readers, no second warning.
+            <span className="sr-only">zu viel zugewiesen</span>
+          ) : (
+            <span className="hero-state">
+              {tba > 0 ? (
+                <>
+                  <ArrowDownToLine size={16} strokeWidth={1.75} aria-hidden="true" />
+                  {urgent > 0 ? 'erst decken, dann verteilen' : 'bereit zum Verteilen'}
+                </>
+              ) : (
+                <>
+                  <CheckCircle2 size={16} strokeWidth={1.75} aria-hidden="true" />
+                  jeder Euro hat einen Job
+                </>
+              )}
+            </span>
+          )}
         </div>
         {tba > 0 && !distribute && (
           <button type="button" className="btn-on-hero" onClick={onDistribute}>
@@ -625,25 +647,24 @@ function MonthOverview({ data, rows }: { data: BudgetMonthView; rows: PlanRow[] 
   const s = data.summary;
   const activity = rows.reduce((a, r) => a + r.activityCents, 0);
   const available = rows.reduce((a, r) => a + r.availableCents, 0);
-  const over = rows.filter(isCashOver).length;
-  const credit = rows.filter((r) => !isCashOver(r) && r.creditOverspentCents > 0).length;
+  const status = monthStatus(s, rows);
   return (
     <section className="insp-card card" aria-labelledby="overview-title">
       <h2 className="insp-title" id="overview-title">
         Monatsüberblick
       </h2>
-      <p className={cx('insp-status', over > 0 ? 'is-bad' : 'is-good')}>
-        {over > 0 ? (
-          <AlertTriangle size={15} strokeWidth={1.75} aria-hidden="true" />
-        ) : (
-          <CheckCircle2 size={15} strokeWidth={1.75} aria-hidden="true" />
-        )}
-        {over > 0
-          ? `${over} ${over === 1 ? 'Envelope' : 'Envelopes'} bar überzogen`
-          : credit > 0
-            ? `Nichts bar überzogen · ${credit}× neue Kartenschuld`
-            : 'Nichts ist überzogen.'}
-      </p>
+      <ul className="insp-status" aria-label="Zustand des Monats">
+        {status.map((l) => (
+          <li key={l.text} className={`is-${l.tone}`}>
+            {l.tone === 'good' ? (
+              <CheckCircle2 size={15} strokeWidth={1.75} aria-hidden="true" />
+            ) : (
+              <AlertTriangle size={15} strokeWidth={1.75} aria-hidden="true" />
+            )}
+            {l.text}
+          </li>
+        ))}
+      </ul>
       <dl className="insp-list">
         <div>
           <dt>Übertrag</dt>
@@ -676,17 +697,17 @@ function MonthOverview({ data, rows }: { data: BudgetMonthView; rows: PlanRow[] 
 
 /** Inspector: the 50/30/20 band of what was assigned, against the month's income. */
 function SplitBand({ data, rows }: { data: BudgetMonthView; rows: PlanRow[] }) {
-  const s = data.summary;
-  const byClass = { need: 0, want: 0, future: 0 };
-  for (const r of rows) if (r.cls) byClass[r.cls] += r.assignedCents;
-  const shares = percentShares({
-    needCents: byClass.need,
-    wantCents: byClass.want,
-    futureCents: byClass.future,
-    incomeCents: s.incomeCents,
-  });
-  const inSoll = shares.need <= 50 && shares.want <= 30 && shares.future >= 20;
-  const width = (p: number) => `${Math.min(Math.max(p, 0), 100)}%`;
+  const state = splitState(data.summary, rows);
+  const shares = state.kind === 'shares' ? state : null;
+  const inSoll = shares !== null && shares.need <= 50 && shares.want <= 30 && shares.future >= 20;
+  const reason =
+    state.kind === 'no-income'
+      ? 'Ohne Einnahmen im Monat gibt es keine Anteile.'
+      : state.kind === 'empty'
+        ? 'Noch nichts zugewiesen.'
+        : state.kind === 'too-much'
+          ? 'Es ist mehr zugewiesen als eingenommen: die Anteile sagen dann nichts.'
+          : '';
   return (
     <section className="insp-card card split-band" aria-labelledby="split-title">
       <div className="insp-head">
@@ -694,8 +715,8 @@ function SplitBand({ data, rows }: { data: BudgetMonthView; rows: PlanRow[] }) {
           50/30/20
         </h2>
         <span className="tbd-state">
-          {s.assignedCents === 0 ? (
-            <span className="muted">noch nichts zugewiesen</span>
+          {shares === null ? (
+            <span className="muted">–</span>
           ) : inSoll ? (
             <span className="ok">
               <CheckCircle2 size={15} strokeWidth={1.75} aria-hidden="true" />
@@ -721,11 +742,19 @@ function SplitBand({ data, rows }: { data: BudgetMonthView; rows: PlanRow[] }) {
       <div
         className="sb-bar"
         role="img"
-        aria-label={`Zugewiesen: Bedarf ${shares.need} %, Wunsch ${shares.want} %, Zukunft ${shares.future} % der Einnahmen. Soll 50, 30, 20.`}
+        aria-label={
+          shares
+            ? `Zugewiesen: Bedarf ${shares.need} %, Wunsch ${shares.want} %, Zukunft ${shares.future} % der Einnahmen. Soll 50, 30, 20.`
+            : `Keine Anteile. ${reason}`
+        }
       >
-        <span className="sb-seg hatch-need" style={{ width: width(shares.need) }} />
-        <span className="sb-seg hatch-want" style={{ width: width(shares.want) }} />
-        <span className="sb-seg hatch-future" style={{ width: width(shares.future) }} />
+        {shares && (
+          <>
+            <span className="sb-seg hatch-need" style={{ width: `${shares.need}%` }} />
+            <span className="sb-seg hatch-want" style={{ width: `${shares.want}%` }} />
+            <span className="sb-seg hatch-future" style={{ width: `${shares.future}%` }} />
+          </>
+        )}
         <i className="sb-mark" style={{ left: '50%' }} />
         <i className="sb-mark" style={{ left: '80%' }} />
       </div>
@@ -733,10 +762,16 @@ function SplitBand({ data, rows }: { data: BudgetMonthView; rows: PlanRow[] }) {
         {(['need', 'want', 'future'] as const).map((k) => (
           <span key={k}>
             <ClassSwatch kind={k} />
-            {CLASS_TEXT[k]} <b>{shares[k]} %</b>
+            {CLASS_TEXT[k]} <b>{shares ? `${shares[k]} %` : '–'}</b>
           </span>
         ))}
       </div>
+      {reason && (
+        <p className="sb-note">
+          <Info size={13} strokeWidth={1.75} aria-hidden="true" />
+          {reason}
+        </p>
+      )}
     </section>
   );
 }
@@ -828,6 +863,7 @@ function EnvelopeRow({
   pos,
   ctx,
   suggestion,
+  tba,
   editing,
   onEdit,
   onCommit,
@@ -838,6 +874,8 @@ function EnvelopeRow({
   pos: string;
   ctx: PlanContext;
   suggestion: number | undefined;
+  /** "Zu verteilen": the guard refuses raising the assignment beyond it. */
+  tba: number;
   editing: boolean;
   onEdit: (on: boolean) => void;
   onCommit: (value: number) => void;
@@ -846,6 +884,8 @@ function EnvelopeRow({
 }) {
   const [text, setText] = useState('');
   const [invalid, setInvalid] = useState(false);
+  /** Why the guard refused the typed amount, with the highest amount that is still allowed. */
+  const [refused, setRefused] = useState<{ message: string; maxCents: number } | null>(null);
   // A leading + / − is relative only when typed first into an emptied or fully selected field.
   const [relative, setRelative] = useState(false);
   const replacing = useRef(false);
@@ -858,6 +898,11 @@ function EnvelopeRow({
     if (settled.current) return;
     const v = readAssign(text, r.assignedCents, relative);
     if (v === null) return setInvalid(true);
+    const guard = assignGuard(v, r.assignedCents, tba);
+    if (!guard.ok) {
+      setInvalid(true);
+      return setRefused({ message: guard.message, maxCents: guard.maxCents });
+    }
     settled.current = true;
     onCommit(v);
   };
@@ -902,6 +947,14 @@ function EnvelopeRow({
             {bar.goalMark && <i className="pbar-goal" style={{ left: '100%' }} />}
           </span>
         )}
+        {r.due?.source === 'expected' && (
+          <span className="pmeta pdue">
+            <Clock size={13} strokeWidth={1.75} aria-hidden="true" />
+            {`erwartet ${dayMonth(r.due.date)}${r.due.name && r.due.name !== r.name ? ` · ${r.due.name}` : ''}${
+              r.due.amountCents ? ` · ${eur(r.due.amountCents)}` : ''
+            }`}
+          </span>
+        )}
         {bar.meta && (
           <span className="pmeta">
             {bar.icon === 'check' && <Check size={13} strokeWidth={2} aria-hidden="true" />}
@@ -920,6 +973,7 @@ function EnvelopeRow({
             autoFocus
             value={text}
             aria-invalid={invalid}
+            aria-describedby={refused ? `refused-${r.id}` : undefined}
             aria-label={`Zugewiesen für ${r.name}. Rechnen erlaubt, +50 addiert.`}
             onFocus={(e) => e.currentTarget.select()}
             onChange={(e) => {
@@ -929,6 +983,7 @@ function EnvelopeRow({
               replacing.current = false;
               setText(next);
               setInvalid(false);
+              setRefused(null);
             }}
             onKeyDown={keys}
             onSelect={(e) => noteSelection(e.currentTarget)}
@@ -942,12 +997,32 @@ function EnvelopeRow({
             onClick={() => {
               setText(eur(r.assignedCents).replace(/\s?€$/, ''));
               setRelative(false);
+              setRefused(null);
               settled.current = false;
               onEdit(true);
             }}
           >
             {eur(r.assignedCents)}
           </button>
+        )}
+        {editing && refused && (
+          <span className="assign-note" id={`refused-${r.id}`} role="alert">
+            {refused.message}
+            {refused.maxCents > r.assignedCents && (
+              <button
+                type="button"
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={() => {
+                  setText(formatDecimal(cents(refused.maxCents)));
+                  setRelative(false);
+                  setInvalid(false);
+                  setRefused(null);
+                }}
+              >
+                {eur(refused.maxCents)} einsetzen
+              </button>
+            )}
+          </span>
         )}
         {suggestion !== undefined && (
           <button

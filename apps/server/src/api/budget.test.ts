@@ -103,6 +103,38 @@ describe('categories and budget API', () => {
     expect(cover['coveredCents']).toBe(3_000);
     month = await ok('GET', '/budget/2026-10');
     expect(month['summary']).toMatchObject({ assignedCents: 95_000, toBeAssignedCents: 205_000 });
+
+    // The guard: more than "Zu verteilen" holds is refused with 422 and names the maximum; a
+    // write that only reduces or reshuffles passes. Only "Decken" can confirm going below 0.
+    const tooMuch = await call('PUT', '/budget/2026-10/assigned', {
+      items: [{ categoryId: cafe.id, assignedCents: 5_000 + 205_001 }],
+    });
+    expect(tooMuch.status).toBe(422);
+    expect(tooMuch.body).toMatchObject({ error: 'category_rule' });
+    expect(tooMuch.body['message']).toContain('Höchstens 2.050,00 € mehr');
+    expect(
+      (
+        await call('POST', '/budget/2026-10/move', {
+          fromId: null,
+          toId: cafe.id,
+          amountCents: 205_001,
+        })
+      ).status,
+    ).toBe(422);
+    expect(
+      (
+        await call('PUT', '/budget/2026-10/assigned', {
+          items: [{ categoryId: cafe.id, assignedCents: 0 }],
+        })
+      ).status,
+    ).toBe(200);
+    expect(
+      (
+        await call('PUT', '/budget/2026-10/assigned', {
+          items: [{ categoryId: cafe.id, assignedCents: 2_000 }],
+        })
+      ).status,
+    ).toBe(200);
     expect(month['summary'].groups).toEqual([
       { groupId: group.id, assignedCents: 95_000, activityCents: -4_000, availableCents: 91_000 },
     ]);

@@ -1,7 +1,14 @@
-import { daysBetween, lastDayOfMonth, parseAmount, waterfallFill } from '@budget/domain';
+import {
+  daysBetween,
+  lastDayOfMonth,
+  parseAmount,
+  percentShares,
+  waterfallFill,
+} from '@budget/domain';
 import { eur } from '../ledger/format';
 import type { CategoryClass, CategoryKind } from './api';
-import type { BudgetMonthView, EnvelopeSummary } from './budget-api';
+import type { ExpectedPayment } from '../expected/api';
+import type { BudgetMonthView, EnvelopeSummary, MonthSummary } from './budget-api';
 import { STAGES } from './labels';
 
 /**
@@ -21,6 +28,16 @@ export interface PlanRow extends EnvelopeSummary {
   stage: number | null;
   groupId: string;
   cardAccountId: string | null;
+  /** Set by the "Zeit" ordering: the date this envelope counts under, and where it comes from. */
+  due?: RowDue;
+}
+
+export interface RowDue {
+  date: string;
+  /** Expected payment (name, EUR amount) or the envelope's own target. */
+  source: 'expected' | 'target';
+  name?: string;
+  amountCents?: number | null;
 }
 
 export interface PlanGroup {
@@ -30,7 +47,10 @@ export interface PlanGroup {
   sub?: string;
   rows: PlanRow[];
   stage?: number;
+  /** Short state of an empty group (rail, group line). */
   emptyText: string;
+  /** Full calm sentence in the empty group's row; `emptyText` when absent. */
+  emptyNote?: string;
 }
 
 export const CLASS_TEXT = { need: 'Bedarf', want: 'Wunsch', future: 'Zukunft' } as const;
@@ -102,6 +122,48 @@ export function readAssign(raw: string, current: number, relative: boolean): num
 }
 
 /**
+ * The assignment guard on the client ("Schranken", the server enforces it with 422): raising the
+ * month's assigned total beyond what "Zu verteilen" holds is refused. `value` is the new absolute
+ * assignment of one envelope whose current one is `current`; a value that does not raise it always
+ * passes. On refusal `maxCents` is the highest value that is still allowed.
+ */
+export function assignGuard(
+  value: number,
+  current: number,
+  toBeAssignedCents: number,
+): { ok: true } | { ok: false; maxCents: number; message: string } {
+  const added = value - current;
+  const free = Math.max(0, toBeAssignedCents);
+  if (added <= free) return { ok: true };
+  const maxCents = current + free;
+  return {
+    ok: false,
+    maxCents,
+    message:
+      free > 0
+        ? `So viel ist nicht frei: „Zu verteilen“ hat ${eur(toBeAssignedCents)}. Höchstens ${eur(maxCents)} zuweisen.`
+        : `Es ist nichts frei: „Zu verteilen“ steht bei ${eur(toBeAssignedCents)}.`,
+  };
+}
+
+/** The same guard for moving `amountCents` out of "Zu verteilen" into an envelope. */
+export function moveGuard(
+  amountCents: number,
+  toBeAssignedCents: number,
+): { ok: true } | { ok: false; maxCents: number; message: string } {
+  const free = Math.max(0, toBeAssignedCents);
+  if (amountCents <= free) return { ok: true };
+  return {
+    ok: false,
+    maxCents: free,
+    message:
+      free > 0
+        ? `So viel ist nicht frei: „Zu verteilen“ hat ${eur(toBeAssignedCents)}. Höchstens ${eur(free)} verschieben.`
+        : `Es ist nichts frei: „Zu verteilen“ steht bei ${eur(toBeAssignedCents)}.`,
+  };
+}
+
+/**
  * "Decken" from "Zu verteilen": `capCents` is what it can cover without going below 0; `short`
  * when that is less than the overspending (the rest needs `allowNegative`).
  */
@@ -115,6 +177,32 @@ export interface PlanContext {
   /** Today (`YYYY-MM-DD`, Vienna). */
   today: string;
   cardName: (accountId: string | null) => string;
+  /**
+   * Expected outflows of the ledger with their next date; `undefined` while loading. The "Zeit"
+   * ordering counts an envelope under the earliest one that points at it.
+   */
+  expected?: ReadonlyArray<ExpectedDue>;
+}
+
+export interface ExpectedDue {
+  categoryId: string;
+  name: string;
+  /** Next due date `YYYY-MM-DD`. */
+  date: string;
+  /** Signed EUR cents; null for a foreign currency. */
+  amountCents: number | null;
+}
+
+/** Live expected outflows with a next date and an envelope, as the "Zeit" ordering needs them. */
+export function expectedDues(payments: ReadonlyArray<ExpectedPayment>): ExpectedDue[] {
+  return payments
+    .filter((p) => p.kind === 'outflow' && !p.deletedAt && p.categoryId && p.nextDueDate)
+    .map((p) => ({
+      categoryId: p.categoryId as string,
+      name: p.name,
+      date: p.nextDueDate as string,
+      amountCents: p.version && p.version.currency === 'EUR' ? p.amountCents : null,
+    }));
 }
 
 /** The groups of one ordering, each with its rows (card envelopes go to "Kreditkarten"). */
@@ -147,6 +235,9 @@ export function planGroups(
       stage: s.n,
       rows: budget.filter((r) => r.stage === s.n),
       emptyText: 'keine Posten',
+      ...(s.n === 9 && {
+        emptyNote: 'Keine günstigen Schulden. Was übrig bleibt, geht in Stufe 8.',
+      }),
     }));
     const loose = budget.filter((r) => r.stage === null);
     const rest = loose.length
@@ -197,49 +288,81 @@ function timeGroups(rows: PlanRow[], ctx: PlanContext): PlanGroup[] {
   const endNext = lastDayOfMonth(
     `${m === 12 ? y + 1 : y}-${String((m % 12) + 1).padStart(2, '0')}`,
   );
+  // Honest empty state: nothing is "not due" while no expected payment exists to say so.
+  const none = ctx.expected && ctx.expected.length === 0;
+  const emptyDated = none ? 'keine erwarteten Zahlungen erfasst' : 'nichts fällig';
+  const emptyNote = none ? 'Keine erwarteten Zahlungen erfasst.' : undefined;
   const buckets: Omit<PlanGroup, 'no'>[] = [
     {
       key: 't14',
       title: 'Nächste 14 Tage',
       sub: `bis ${d(in14)}`,
       rows: [],
-      emptyText: 'nichts fällig',
+      emptyText: emptyDated,
+      ...(emptyNote && { emptyNote }),
     },
     {
       key: 'tnext',
       title: 'Bis Ende nächsten Monats',
       sub: `bis ${d(endNext)}`,
       rows: [],
-      emptyText: 'nichts fällig',
+      emptyText: emptyDated,
+      ...(emptyNote && { emptyNote }),
     },
-    { key: 'tlater', title: 'Später', sub: 'mit Termin', rows: [], emptyText: 'nichts fällig' },
+    {
+      key: 'tlater',
+      title: 'Später',
+      sub: 'mit Termin',
+      rows: [],
+      emptyText: emptyDated,
+      ...(emptyNote && { emptyNote }),
+    },
     {
       key: 'topen',
       title: 'Ohne festen Termin',
       sub: 'Sparen, Puffer, Tilgung',
       rows: [],
-      emptyText: 'nichts fällig',
+      emptyText: 'keine Posten',
     },
     {
       key: 'trun',
       title: 'Laufend',
       sub: 'variable Monatsbudgets',
       rows: [],
-      emptyText: 'nichts fällig',
+      emptyText: 'keine Posten',
     },
   ];
+  // The earliest expected payment of an envelope sets its date; without one its own target does.
+  const expected = new Map<string, ExpectedDue>();
+  for (const e of ctx.expected ?? []) {
+    const known = expected.get(e.categoryId);
+    if (!known || e.date < known.date) expected.set(e.categoryId, e);
+  }
   const dated = rows.map((r) => {
-    let due = dueDate(r, ctx.month);
+    const e = expected.get(r.id);
+    if (e) {
+      const due: RowDue = {
+        date: e.date,
+        source: 'expected',
+        name: e.name,
+        amountCents: e.amountCents,
+      };
+      return { r: { ...r, due }, date: e.date as string | null };
+    }
+    let date = dueDate(r, ctx.month);
     // A fixed cost already paid this month is due again next month.
-    if (due && r.kind === 'fixed' && r.activityCents < 0) due = addMonthIso(due);
-    return { r, due };
+    if (date && r.kind === 'fixed' && r.activityCents < 0) date = addMonthIso(date);
+    return { r: date ? { ...r, due: { date, source: 'target' as const } } : r, date };
   });
-  dated.sort((a, b) => (a.due && b.due ? a.due.localeCompare(b.due) : a.due ? -1 : b.due ? 1 : 0));
-  for (const { r, due } of dated) {
-    if (r.kind === 'variable') buckets[4]!.rows.push(r);
-    else if (!due) buckets[3]!.rows.push(r);
-    else if (due <= in14) buckets[0]!.rows.push(r);
-    else if (due <= endNext) buckets[1]!.rows.push(r);
+  dated.sort((a, b) =>
+    a.date && b.date ? a.date.localeCompare(b.date) : a.date ? -1 : b.date ? 1 : 0,
+  );
+  for (const { r, date } of dated) {
+    const hasExpected = r.due?.source === 'expected';
+    if (r.kind === 'variable' && !hasExpected) buckets[4]!.rows.push(r);
+    else if (!date) buckets[3]!.rows.push(r);
+    else if (date <= in14) buckets[0]!.rows.push(r);
+    else if (date <= endNext) buckets[1]!.rows.push(r);
     else buckets[2]!.rows.push(r);
   }
   return buckets.map((b, i) => ({ ...b, no: String(i + 1) }));
@@ -262,16 +385,18 @@ function triageGroups(rows: PlanRow[]): PlanGroup[] {
     {
       key: 'xover',
       title: 'Überzogen',
-      sub: 'aus anderem Envelope decken',
+      sub: 'aus einem anderen Envelope decken',
       rows: cash,
       emptyText: 'nichts überzogen',
+      emptyNote: 'Nichts ist bar überzogen.',
     },
     {
       key: 'xcard',
       title: 'Neue Kartenschuld',
-      sub: 'mit Karte über das Envelope',
+      sub: 'mit Karte über das Budget hinaus',
       rows: credit,
       emptyText: 'keine',
+      emptyNote: 'Keine neue Kartenschuld.',
     },
     {
       key: 'xdue',
@@ -279,6 +404,7 @@ function triageGroups(rows: PlanRow[]): PlanGroup[] {
       sub: 'Rechnung kommt, Geld fehlt',
       rows: dueShort,
       emptyText: 'alles gedeckt',
+      emptyNote: 'Alles, was fällig wird, ist gedeckt.',
     },
     {
       key: 'xmiss',
@@ -286,6 +412,7 @@ function triageGroups(rows: PlanRow[]): PlanGroup[] {
       sub: 'in Wasserfall-Reihenfolge',
       rows: missing,
       emptyText: 'alle Ziele erreicht',
+      emptyNote: 'Alle Ziele sind erreicht.',
     },
   ];
   return gs.map((g, i) => ({ ...g, no: String(i + 1) }));
@@ -453,4 +580,67 @@ export function barFor(r: PlanRow, ctx: PlanContext): Bar {
       ? `${eur(have)} von ${eur(total)} · Guthaben halten`
       : `${eur(have)} von ${eur(total)}${due}${gap > 0 && !due ? ` · fehlt ${eur(gap)}` : ''}`;
   return { fill, over: false, pace: null, goalMark: true, icon: null, meta };
+}
+
+export interface StatusLine {
+  tone: 'bad' | 'warn' | 'good';
+  text: string;
+}
+
+/**
+ * The inspector's status of the month, every line that applies, worst first: too much assigned,
+ * uncovered overspending carried from the previous month, cash-overspent envelopes, new card debt.
+ * Only when none applies is the month calm; the line never says "nothing" while another says so.
+ */
+export function monthStatus(summary: MonthSummary, rows: PlanRow[]): StatusLine[] {
+  const lines: StatusLine[] = [];
+  const tba = summary.toBeAssignedCents;
+  if (tba < 0) lines.push({ tone: 'bad', text: `Zu viel zugewiesen: ${eur(-tba)} fehlen` });
+  if (summary.uncoveredCents > 0)
+    lines.push({
+      tone: 'bad',
+      text: `Ungedeckt aus dem Vormonat: ${eur(summary.uncoveredCents)}`,
+    });
+  const over = rows.filter(isCashOver).length;
+  if (over > 0)
+    lines.push({
+      tone: 'bad',
+      text: `${over} ${over === 1 ? 'Envelope' : 'Envelopes'} bar überzogen`,
+    });
+  const credit = rows.filter((r) => !isCashOver(r) && r.creditOverspentCents > 0).length;
+  if (credit > 0)
+    lines.push({
+      tone: 'warn',
+      text: `${credit === 1 ? 'Eine neue Kartenschuld' : `${credit} neue Kartenschulden`} (Karte über das Envelope)`,
+    });
+  if (!lines.length) lines.push({ tone: 'good', text: 'Nichts ist überzogen.' });
+  return lines;
+}
+
+export type SplitState =
+  | { kind: 'shares'; need: number; want: number; future: number }
+  | { kind: 'empty' }
+  | { kind: 'no-income' }
+  | { kind: 'too-much' };
+
+/**
+ * The 50/30/20 shares of what is assigned, against the month's income. They only mean something
+ * with an income above 0 and no more assigned than that: otherwise (tiny income, carried money
+ * assigned) the shares would read 5129 % or −861 %, so there are none and `kind` says why. Negative
+ * class sums count as 0; every share is within 0…100 and the bar needs no clamping.
+ */
+export function splitState(summary: MonthSummary, rows: PlanRow[]): SplitState {
+  const by = { need: 0, want: 0, future: 0 };
+  for (const r of rows) if (r.cls) by[r.cls] += Math.max(0, r.assignedCents);
+  const total = by.need + by.want + by.future;
+  if (summary.incomeCents <= 0) return { kind: 'no-income' };
+  if (total === 0) return { kind: 'empty' };
+  if (total > summary.incomeCents) return { kind: 'too-much' };
+  const shares = percentShares({
+    needCents: by.need,
+    wantCents: by.want,
+    futureCents: by.future,
+    incomeCents: summary.incomeCents,
+  });
+  return { kind: 'shares', need: shares.need, want: shares.want, future: shares.future };
 }

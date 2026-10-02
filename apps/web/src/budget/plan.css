@@ -1055,3 +1055,176 @@
     min-width: 0;
   }
 }
+
+/* ---------- Feedback 02.10.2026: Plan › Monat ---------- */
+
+/* Zu verteilen too high: a compact soft-red card, label left, the figure right-aligned. */
+.plan .hero-kpi.is-negative.tbd {
+  padding: 14px 18px 12px;
+}
+.plan .hero-kpi.is-negative .hero-top {
+  display: block;
+}
+.plan .hero-kpi.is-negative .hero-figure {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+}
+.plan .hero-kpi.is-negative .hero-fig {
+  margin: 0;
+  font-size: 30px;
+  text-align: right;
+}
+.plan .hero-kpi.is-negative .chain-inline {
+  margin-top: 10px;
+}
+
+/* Inspector status: every line that applies, worst first. */
+.plan .insp-status {
+  display: grid;
+  gap: 6px;
+  margin: 12px 0 4px;
+  padding: 0;
+  list-style: none;
+  background: none;
+}
+.plan .insp-status li {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 560;
+  line-height: 1.35;
+}
+.plan .insp-status li svg {
+  flex: none;
+  margin-top: 1px;
+}
+.plan .insp-status li.is-good {
+  background: var(--good-soft);
+  color: var(--on-good-soft);
+}
+.plan .insp-status li.is-bad {
+  background: var(--red-soft);
+  color: var(--red);
+}
+.plan .insp-status li.is-warn {
+  background: var(--quiet-soft);
+  color: var(--ink);
+}
+
+/* 50/30/20 without a meaningful base: dashes and one sentence. */
+.plan .split-band .sb-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  margin: 10px 0 0;
+  font-size: 12.5px;
+  line-height: 1.4;
+  color: var(--ink-3);
+}
+.plan .split-band .sb-note svg {
+  flex: none;
+  margin-top: 2px;
+}
+
+/* Group rows: title and one-line hint, left-aligned, never centred or wrapped mid-title. */
+.plan .pgroup .col-name {
+  text-align: left;
+}
+.plan .pgroup .grp-toggle {
+  display: inline-flex;
+  align-items: flex-start;
+  gap: 8px;
+  max-width: 100%;
+  text-align: left;
+}
+.plan .pgroup .grp-toggle > svg {
+  flex: none;
+  margin-top: 8px;
+}
+.plan .pgroup .grp-text {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0 10px;
+  min-width: 0;
+  padding-block: 6px;
+  text-align: left;
+}
+.plan .pgroup .grp-title {
+  white-space: nowrap;
+}
+.plan .pgroup .grp-sub {
+  margin: 0;
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--ink-3);
+}
+.plan .pgroup .group-none {
+  padding: 0;
+}
+.plan .prow.is-empty td {
+  background: none;
+}
+.plan .pempty {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--ink-3);
+}
+.plan .pempty svg {
+  color: var(--good-ink);
+}
+.plan .pdue svg {
+  color: var(--ink-3);
+}
+
+/* The guard's refusal under the assign field. */
+.plan .assign-note {
+  display: grid;
+  justify-items: end;
+  gap: 4px;
+  margin-top: 6px;
+  font-size: 12.5px;
+  font-weight: 500;
+  line-height: 1.35;
+  text-align: right;
+  white-space: normal;
+  color: var(--red);
+}
+.plan .assign-note button {
+  min-height: 32px;
+  padding: 0 4px;
+  font-size: 12.5px;
+  font-weight: 620;
+  color: var(--ink);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+@media (max-width: 767px) {
+  .plan .hero-kpi.is-negative.tbd {
+    padding: 12px 14px 10px;
+  }
+  .plan .hero-kpi.is-negative .hero-fig {
+    font-size: 26px;
+  }
+  .plan .pgroup .grp-text {
+    flex-direction: column;
+    gap: 2px;
+  }
+  .plan .pgroup .grp-sub {
+    display: block;
+    margin: 0;
+  }
+  .plan .pgroup .group-none {
+    display: none !important;
+  }
+  .plan .assign-note button {
+    min-height: 44px;
+  }
+}
