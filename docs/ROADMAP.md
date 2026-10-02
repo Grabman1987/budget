@@ -313,6 +313,10 @@ Price history (yfinance + Ariva, source per price), ECB rates, trades and holdin
 - [ ] Persisted per-loan payment terms/scenarios, variable conditions, multi-loan strategies and connected debt/card rules remain later; private contractual reconciliation is open
 
 ## P6 Reports und Umstellung
+### Report 5.4 — Kontakte-Abrechnung
+- [x] Fixed all-time EUR report with shared replay running balances/credit chain, nonzero overview, balanced history/deep links, per-person ledger/stair chart, pending metadata and real booking/contact source navigation. No sending/settlement duplication or month selector; unsupported currency makes the entire read unavailable.
+- [ ] Independent financial review, owner design acceptance and private contact-ledger reconciliation; other report bodies and Gate 4 remain separate.
+
 The 30 reports (SPEC §7), explorer, printable sheets, parallel run with reconciliation report. **Gate 4:** one month-end without difference, then retire remaining finance tools, including YNAB and PP. The prototype-only host was retired independently of this gate.
 
 ### P6.4 — Rendite und Kennzahlen

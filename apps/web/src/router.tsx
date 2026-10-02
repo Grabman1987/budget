@@ -297,6 +297,14 @@ const reportGroupRoute = createRoute({
 const reportRoute = createRoute({
   getParentRoute: () => shellRoute,
   path: '/reports/$reportId',
+  validateSearch: (search: Record<string, unknown>) => ({
+    kontakt:
+      typeof search['kontakt'] === 'string' &&
+      search['kontakt'].length > 0 &&
+      search['kontakt'].length <= 100
+        ? search['kontakt']
+        : undefined,
+  }),
   staticData: { meta: { ...REPORTS_CATALOG, title: 'Report', register: 'katalog' } },
   loader: ({ params }): PageTitleData => {
     const report = findReport(params.reportId);

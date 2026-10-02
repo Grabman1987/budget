@@ -146,7 +146,7 @@ consistent totals, desktop/mobile checks and printing where required.
 | 5.1 | Jahresreport | `reports-ueberblick.js` | Body + two printable sheets Open |
 | 5.2 | Finanz-Check-Verlauf | `reports-ueberblick.js` | History body Open; current rule status exists |
 | 5.3 | Explorer | `reports-ueberblick.js` | Pivot, saved views and body Open |
-| 5.4 | Kontakte-Abrechnung | `reports-ueberblick.js` | Connected EUR contact ledger under Konten › Kontakte; dedicated monthly report body remains Open |
+| 5.4 | Kontakte-Abrechnung | `reports-ueberblick.js` | Fixed all-time EUR report: shared receivable/credit chain, per-person retained ledger, running balance stair chart and source drilldown. Pending bookings explicitly included; mixed currency unavailable. Owner/private acceptance remains |
 | 5.5 | Zeitraumvergleich | `reports-ueberblick.js` | Body Open |
 
 References are under [design/prototype](../design/prototype/). The older concept's

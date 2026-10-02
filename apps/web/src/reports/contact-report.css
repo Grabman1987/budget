@@ -1,0 +1,135 @@
+/* Original report 5.4 blueprint: jump list, contact ledger and event balance staircase. */
+.contact-report {
+  display: grid;
+  grid-template-columns: minmax(0, 7fr) minmax(0, 5fr);
+  gap: 32px 48px;
+  margin-top: -8px;
+}
+.contact-report > * {
+  grid-column: 1 / -1;
+  min-width: 0;
+}
+.contact-report .rs .tbd-head {
+  margin-bottom: 8px;
+  flex-wrap: wrap;
+}
+.contact-report .chain-inline {
+  margin: 4px 0 20px;
+}
+.contact-report .kt-jump {
+  list-style: none;
+  margin: 16px 0 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.contact-report .kt-jump a {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  padding: 8px 12px 8px 8px;
+  border: 1px solid var(--rule-strong);
+  border-radius: 8px;
+  color: var(--ink);
+  text-decoration: none;
+  min-height: 44px;
+}
+.contact-report .kt-jump a:hover,
+.contact-report .kt-jump a[aria-current] {
+  border-color: var(--line-2);
+  background: var(--tint);
+}
+.contact-report .kt-jump a:hover small,
+.contact-report .kt-jump a[aria-current] small {
+  color: var(--ink-2);
+}
+.contact-report small {
+  display: block;
+  font-size: 12px;
+  color: var(--ink-3);
+}
+.contact-report .kt-sheet h2 {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  overflow-wrap: anywhere;
+}
+.contact-report .kt-jump a > span:last-child {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.contact-report .kt-sum {
+  font-size: 18px;
+  font-weight: 650;
+}
+.contact-report .kt-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+  gap: 28px;
+  align-items: start;
+  margin-top: 16px;
+}
+.contact-report .rtable {
+  width: 100%;
+  border-collapse: collapse;
+  font-variant-numeric: tabular-nums;
+}
+.contact-report .rtable th {
+  text-align: left;
+  padding: 8px;
+  border-bottom: 1px solid var(--line-2);
+  font-size: 11px;
+  white-space: nowrap;
+}
+.contact-report .rtable td {
+  padding: 10px 8px;
+  border-bottom: 1px solid var(--rule);
+  vertical-align: top;
+}
+.contact-report .rtable .n {
+  text-align: right;
+  white-space: nowrap;
+}
+.contact-report .rtable a,
+.contact-report .rtable small {
+  overflow-wrap: anywhere;
+}
+.contact-report .rtable a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+}
+.contact-report .rscroll {
+  overflow-x: auto;
+  min-width: 0;
+}
+.contact-report-history,
+.contact-source-link,
+.contact-report-back a {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 44px;
+}
+.contact-report .kt-av {
+  width: 34px;
+  height: 34px;
+  flex: 0 0 34px;
+  font-size: 12px;
+}
+.contact-balance-chart {
+  min-width: 0;
+}
+@media (max-width: 760px) {
+  .contact-report .kt-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .contact-report .kt-jump {
+    flex-direction: column;
+  }
+  .contact-report {
+    gap: 24px;
+  }
+}
