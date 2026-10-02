@@ -104,7 +104,11 @@ sampleTest(
     };
     expect(view.valueCents).toBe(summary.portfolio.valueCents);
     expect(view.costCents).toBe(summary.portfolio.costCents);
-    await expect(page.getByRole('button', { name: 'ETF Welt', exact: true })).toBeVisible();
+    await expect(
+      page
+        .getByRole('region', { name: 'Positionen', exact: true })
+        .getByRole('button', { name: 'ETF Welt', exact: true }),
+    ).toBeVisible();
     await expect(page.getByRole('heading', { name: 'Aktien Welt', exact: true })).toHaveCount(0);
     await expect(page.locator('.portfolio-table .kgroup').first()).toContainText('Aktien Welt');
     const small = info.project.name === 'mobile';
@@ -127,7 +131,9 @@ sampleTest(
           ),
         });
     }
-    const trigger = page.getByRole('button', { name: 'ETF Welt', exact: true });
+    const trigger = page
+      .getByRole('region', { name: 'Positionen', exact: true })
+      .getByRole('button', { name: 'ETF Welt', exact: true });
     await trigger.focus();
     await trigger.press('Enter');
     await expect(page).toHaveURL(/produkt=sec-etfw/);
@@ -167,7 +173,11 @@ sampleTest(
     await expect(page.locator('dialog[open]')).toHaveCount(0);
     await expect(page).not.toHaveURL(/produkt=/);
     if (small)
-      await expect(page.getByRole('button', { name: 'ETF Welt', exact: true })).toBeVisible();
+      await expect(
+        page
+          .getByRole('region', { name: 'Positionen', exact: true })
+          .getByRole('button', { name: 'ETF Welt', exact: true }),
+      ).toBeVisible();
     if (process.env['BUDGET_PORTFOLIO_PROTOTYPE']) {
       await page.goto(process.env['BUDGET_PORTFOLIO_PROTOTYPE']);
       await expect(page.locator('.tbd-fig')).toHaveText('88.000,00 €');
@@ -233,7 +243,10 @@ sampleTest(
     await expect(page.locator('.portfolio-view .vnw')).toContainText(
       'Wechselkurs für Einstand fehlt',
     );
-    await page.getByRole('button', { name: 'ETF Welt', exact: true }).click();
+    await page
+      .getByRole('region', { name: 'Positionen', exact: true })
+      .getByRole('button', { name: 'ETF Welt', exact: true })
+      .click();
     await expect(page.getByRole('dialog', { name: 'ETF Welt', exact: true })).toContainText(
       'Wechselkurs für Einstand fehlt',
     );
