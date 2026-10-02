@@ -183,6 +183,22 @@
     padding: 4px 6px;
     min-width: 0;
   }
+  /* Month switch plus a wide control (Heute: Zeitraum): the control moves under the title. */
+  .titleblock-stack {
+    grid-auto-flow: row;
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .titleblock-stack .tb-field {
+    border-left: 0;
+    border-top: 1px solid var(--line-2);
+  }
+  .titleblock-stack .tb-field .seg {
+    display: flex;
+    width: 100%;
+  }
+  .titleblock-stack .tb-field .seg button {
+    flex: 1;
+  }
   /* Month switch on the phone: previous, month, next share the cell, the month shrinks. */
   .month-switch {
     width: 100%;
@@ -1176,4 +1192,10 @@ dialog.is-bare .toast {
     min-height: var(--touch);
     margin-block: -11px;
   }
+}
+
+/* Month switch: jump back to the current month once the view moved away from it. */
+.month-switch .month-now {
+  margin-left: 4px;
+  color: var(--line);
 }

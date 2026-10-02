@@ -36,6 +36,39 @@
     flex: 0 0 auto;
     min-height: 44px;
   }
+  .heute-anchor {
+    display: block;
+    max-width: 56ch;
+    margin-top: 6px;
+    font-size: 13px;
+    font-weight: 560;
+    color: var(--ink);
+  }
+  .heute-month-note {
+    display: flex;
+    align-items: center;
+    gap: 10px 12px;
+    flex-wrap: wrap;
+    margin: 0;
+    padding: 10px 14px;
+    border: 1px solid var(--card-border);
+    border-radius: 12px;
+    background: var(--surface);
+    box-shadow: var(--card-shadow);
+    font-size: 13.5px;
+    color: var(--ink-2);
+  }
+  .heute-month-note > svg {
+    flex: 0 0 auto;
+    color: var(--line);
+  }
+  .heute-month-note > span {
+    flex: 1 1 320px;
+    min-width: 0;
+  }
+  .heute-month-note .btn {
+    flex: 0 0 auto;
+  }
   .heute-lead-figure {
     position: absolute;
     z-index: 1;

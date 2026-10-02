@@ -3,23 +3,27 @@ import { useMemo } from 'react';
 import { monthOf, shiftMonth } from '../nav/month';
 
 /**
- * Selected month (`?monat=YYYY-MM`, default: the current month) and a function that moves it by a
- * number of months. Changing the month replaces the history entry: it is a view setting, not a
- * page visit.
+ * Selected month (`?monat=YYYY-MM`, default: the current month), a function that moves it by a
+ * number of months and one that jumps to a given month. Changing the month replaces the history
+ * entry: it is a view setting, not a page visit.
  */
-export function useMonth(): [month: string, shift: (delta: number) => void] {
+export function useMonth(): [
+  month: string,
+  shift: (delta: number) => void,
+  setMonth: (month: string) => void,
+] {
   const { monat } = useSearch({ strict: false }) as { monat?: string };
   const navigate = useNavigate();
   const current = useMemo(() => monthOf(new Date()), []);
   const month = monat ?? current;
-  const shift = (delta: number) =>
+  const setMonth = (next: string) =>
     void navigate({
       to: '.',
-      search: ((prev: Record<string, unknown>) => ({
-        ...prev,
-        monat: shiftMonth(month, delta),
-      })) as never,
+      search: ((prev: Record<string, unknown>) => ({ ...prev, monat: next })) as never,
       replace: true,
     });
-  return [month, shift];
+  return [month, (delta) => setMonth(shiftMonth(month, delta)), setMonth];
 }
+
+/** The current calendar month (`YYYY-MM`) of the browser clock, as `useMonth` defaults to. */
+export const currentMonth = (): string => monthOf(new Date());

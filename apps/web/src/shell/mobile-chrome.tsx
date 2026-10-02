@@ -1,7 +1,6 @@
 import { Count } from '@budget/ui';
 import { Inbox, Plus } from 'lucide-react';
 import { MAIN_AREAS, areaById, type AreaId } from '../nav/areas';
-import { monthLabel } from '../nav/month';
 import type { PageMeta } from '../nav/pages';
 import { AppLink } from './app-link';
 import { PanelLink } from './panel-link';
@@ -11,13 +10,12 @@ import { ThemeButton } from './theme-button';
 import { useShellIdentity } from './use-profile';
 
 /**
- * What the phone header shows, as in the prototype: the month on Heute, the area name on the other
- * areas (the register row and the title-block strip below say which view it is), the report name
+ * What the phone header shows, as in the prototype: the area name (the month switch and the strip
+ * below say which month and view it is), the report name
  * on a single report. Long "Area · Register" titles only got truncated ("Einstellungen · Si…").
  */
-export function phoneTitle(page: PageMeta | undefined, month: string, fallback: string): string {
+export function phoneTitle(page: PageMeta | undefined, fallback: string): string {
   if (!page) return fallback;
-  if (page.area === 'heute') return monthLabel(month);
   if (page.area === 'reports') {
     return page.title === 'Reports' || page.title.startsWith('Reports · ') ? 'Reports' : page.title;
   }
