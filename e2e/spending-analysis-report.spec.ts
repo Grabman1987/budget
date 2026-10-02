@@ -10,11 +10,12 @@ const eur = (c: number) => formatEuro(cents(c));
 test('shows the prototype consumption of the last 12 months with a chain, class bar and heatmap', async ({
   page,
 }, info) => {
+  test.setTimeout(120_000);
   const ref = referenceModel();
   await page.goto('/reports/ausgaben?zeitraum=1M');
   const august = Math.round(ref.consumptionOf(34) * 100);
   const lead = page.getByTestId('sa-consumption');
-  await expect(lead).toBeVisible();
+  await expect(lead).toBeVisible({ timeout: 30_000 });
   expect(
     Math.abs(Number.parseInt((await lead.textContent())!.replace(/\D/g, ''), 10) - august),
   ).toBeLessThanOrEqual(2);

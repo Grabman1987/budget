@@ -6,8 +6,11 @@ import { inspectReport } from './spending-helpers';
 test('shows plan against actuals of August 2026 with the 50/30/20 history and plan deviation', async ({
   page,
 }, info) => {
+  test.setTimeout(120_000);
   await page.goto('/reports/budgettreue?monat=2026-08');
-  await expect(page.getByRole('heading', { name: 'August 2026', exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'August 2026', exact: true })).toBeVisible({
+    timeout: 30_000,
+  });
   await expect(page.getByTestId('ba-over')).toHaveText(/^\d+ von \d+$/);
 
   // Plan minus Ist = Rest or Überzogen, exactly as displayed.

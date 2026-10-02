@@ -1,4 +1,4 @@
-import { budgetAdherence, spendingReport, type Db } from '@budget/db';
+import { budgetAdherence, contractsReport, spendingReport, type Db } from '@budget/db';
 import { monthOf, SPENDING_PERIODS } from '@budget/domain';
 import { Hono } from 'hono';
 import { z } from 'zod';
@@ -51,6 +51,9 @@ export function spendingReportRoutes(db: Db, today: () => string): Hono {
     const { month } = readQuery(c, monthQuery);
     return c.json(guarded(() => budgetAdherence(db, today(), month ?? monthOf(today()))));
   });
+
+  // 2.3 Verträge und Abos
+  app.get('/contracts', (c) => c.json(guarded(() => contractsReport(db, today()))));
 
   return app;
 }

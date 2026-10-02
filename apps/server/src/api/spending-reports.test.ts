@@ -4,6 +4,8 @@ import {
   budget,
   categories,
   createBooking,
+  createExpectedPayment,
+  ruleInputs,
   createTestDatabase,
   INCOME_TYPES,
   schema,
@@ -11,7 +13,7 @@ import {
   type Db,
   type OpenedDatabase,
 } from '@budget/db';
-import { allocation } from '@budget/domain';
+import { allocation, fixedCostRatio } from '@budget/domain';
 import { referenceModel } from '@budget/fixtures';
 import { seedDatabase } from '@budget/fixtures/seed';
 import { eq } from 'drizzle-orm';
@@ -322,5 +324,166 @@ describe('2.2 Budgettreue on the sample ledger', () => {
     const september = (await get(app, '/reports/spending/adherence?month=2026-09')).body;
     expect(september).toMatchObject({ live: true, status: 'ok' });
     expect(september.allocation.at(-1).month).toBe('2026-08');
+  });
+});
+
+describe('2.3 Verträge und Abos on a small ledger', () => {
+  let opened: OpenedDatabase;
+  let app: Hono;
+  const ctx = { actor: 'test' };
+  const asOf = '2026-09-17';
+  beforeEach(() => {
+    opened = createTestDatabase();
+    seedBasics(opened.db);
+    categories.create(
+      opened.db,
+      { id: 'strom', name: 'Strom', groupId: 'g', class: 'need', kind: 'fixed' },
+      ctx,
+    );
+    categories.create(
+      opened.db,
+      { id: 'abo', name: 'Abo', groupId: 'g', class: 'want', kind: 'fixed' },
+      ctx,
+    );
+    categories.create(
+      opened.db,
+      { id: 'kfz', name: 'Kfz', groupId: 'g', class: 'need', kind: 'periodic' },
+      ctx,
+    );
+    categories.create(
+      opened.db,
+      { id: 'ratgeber', name: 'Ratgeber', groupId: 'g', class: 'need', kind: 'variable' },
+      ctx,
+    );
+    app = api(opened.db, asOf);
+  });
+  afterEach(() => opened.close());
+
+  const contract = (
+    name: string,
+    categoryId: string,
+    rhythm: 'monthly' | 'yearly',
+    amountCents: number,
+    currency = 'EUR',
+  ) =>
+    createExpectedPayment(
+      opened.db,
+      {
+        name,
+        kind: 'outflow',
+        rhythm,
+        dueDay: 1,
+        categoryId,
+        ...(rhythm === 'yearly' ? { dueMonth: 3 } : {}),
+      },
+      { validFrom: '2025-01-01', amountCents, currency },
+      ctx,
+      asOf,
+    );
+
+  it('lists only contract categories, valued per month and per year', async () => {
+    contract('Stromvertrag', 'strom', 'monthly', 9_500);
+    contract('Kfz-Service', 'kfz', 'yearly', 60_000);
+    contract('Zeitschrift', 'ratgeber', 'monthly', 1_000);
+    const { status, body } = await get(app, '/reports/spending/contracts');
+    expect(status).toBe(200);
+    expect(body.items.map((i: any) => i.name)).toEqual(['Kfz-Service', 'Stromvertrag']);
+    expect(body).toMatchObject({
+      fixedMonthlyCents: 9_500,
+      periodicAnnualCents: 60_000,
+      boundMonthlyCents: 9_500 + 5_000,
+      yearlyCents: 9_500 * 12 + 60_000,
+      unconvertedCount: 0,
+    });
+  });
+
+  it('keeps the original foreign amount and says when no rate exists', async () => {
+    contract('Dollar-Abo', 'abo', 'monthly', 2_000, 'USD');
+    const missing = (await get(app, '/reports/spending/contracts')).body;
+    expect(missing.items[0]).toMatchObject({
+      currency: 'USD',
+      nativeCents: 2_000,
+      eurCents: null,
+    });
+    expect(missing.unconvertedCount).toBe(1);
+    expect(missing.fixedMonthlyCents).toBe(0);
+    opened.db
+      .insert(schema.fxRate)
+      .values({ currency: 'USD', date: '2026-09-01', rateMicro: 900_000, source: 'ecb' } as never)
+      .run();
+    const rated = (await get(app, '/reports/spending/contracts')).body;
+    expect(rated.items[0]).toMatchObject({ eurCents: 1_800, rateMicro: 900_000 });
+    expect(rated.foreign[0]).toMatchObject({
+      currency: 'USD',
+      nativeCents: 2_000,
+      eurCents: 1_800,
+    });
+  });
+
+  it('never writes', async () => {
+    contract('Stromvertrag', 'strom', 'monthly', 9_500);
+    const count = () =>
+      opened.sqlite.prepare('select count(*) n from audit_log').get() as { n: number };
+    const before = count().n;
+    await get(app, '/reports/spending/contracts');
+    expect(count().n).toBe(before);
+  });
+});
+
+describe('2.3 Verträge und Abos on the sample ledger', () => {
+  let db: Db;
+  let app: Hono;
+  beforeAll(() => {
+    db = createTestDatabase().db;
+    seedDatabase(db);
+    app = api(db, '2026-09-17');
+  });
+
+  it('bound amounts are the numerator of rule R10 (one calculation)', async () => {
+    const body = (await get(app, '/reports/spending/contracts')).body;
+    const inputs = ruleInputs(db, '2026-09-17');
+    expect(body.fixedMonthlyCents).toBe(inputs.fixedCosts?.fixedMonthlyCents);
+    expect(body.periodicAnnualCents).toBe(inputs.fixedCosts?.periodicAnnualCents);
+    expect(body.r10.netIncomeMonthlyCents).toBe(inputs.netIncomeMonthlyCents);
+    expect(body.r10.ratioBp).toBe(
+      fixedCostRatio({
+        ...inputs.fixedCosts!,
+        netIncomeCents: inputs.netIncomeMonthlyCents!,
+      }),
+    );
+    expect(body.r10).toMatchObject({
+      fixedMonthlyCents: body.fixedMonthlyCents,
+      periodicAnnualCents: body.periodicAnnualCents,
+      maxBp: 5_500,
+    });
+    expect(body.boundMonthlyCents).toBe(
+      body.fixedMonthlyCents + Math.round(body.periodicAnnualCents / 12),
+    );
+  });
+
+  it('shows the two USD subscriptions with their original amount and the EUR actually paid', async () => {
+    const body = (await get(app, '/reports/spending/contracts')).body;
+    expect(body.foreign.map((f: any) => f.name)).toEqual(['KI-Assistent', 'KI-Bildtool']);
+    const [assistant, image] = body.foreign;
+    expect(assistant).toMatchObject({ currency: 'USD', nativeCents: 2_000, paymentCount: 12 });
+    expect(image).toMatchObject({ currency: 'USD', nativeCents: 1_000, paymentCount: 12 });
+    expect(assistant.paidNativeCents).toBe(12 * 2_000);
+    expect(assistant.averageRateMicro).toBe(
+      Math.round((assistant.paidEurCents * 1_000_000) / assistant.paidNativeCents),
+    );
+    expect(body.foreignFrom).toBe('2025-09-01');
+    expect(body.foreignTo).toBe('2026-08-31');
+  });
+
+  it('draws the monthly contract cost since the start with markers for price changes', async () => {
+    const body = (await get(app, '/reports/spending/contracts')).body;
+    expect(body.series[0].month).toBe('2023-10');
+    expect(body.series.at(-1).month).toBe('2026-08');
+    const markerMonths = body.markers.map((m: any) => m.month);
+    expect(markerMonths).toContain('2025-07'); // Internet 55 -> 60 EUR
+    expect(markerMonths).toContain('2026-01'); // Strom 95 -> 105 EUR
+    expect(markerMonths).toContain('2024-06'); // KI-Assistent starts
+    const feb = body.items.find((i: any) => i.name === 'Strom');
+    expect(feb.recentIncrease).toMatchObject({ from: '2026-01-01' });
   });
 });

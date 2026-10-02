@@ -37,3 +37,4 @@ export * from './payments-preview';
 export * from './freedom';
 export * from './spending-report';
 export * from './budget-adherence';
+export * from './contracts-report';
