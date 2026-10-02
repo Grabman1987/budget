@@ -11,7 +11,6 @@ import {
   type PlanDeviationRow,
 } from '@budget/domain';
 import { allocationMonth } from './allocation';
-import { INCOME_TYPES } from '../schema';
 import { reportTables } from './report-tables';
 import { budgetOfMonths, reportMonths, spendCategories } from './spending-report';
 import type { Executor } from './types';
@@ -46,8 +45,6 @@ export interface BudgetAdherenceReport extends AdherenceMonth {
   allocation: AllocationRow[];
   deviation: { from: string | null; to: string | null; rows: PlanDeviationRow[] };
 }
-
-const HOUSEHOLD_EXCLUDED = [INCOME_TYPES.capital.id, INCOME_TYPES.refund.id];
 
 export function budgetAdherence(db: Executor, today: string, month: string): BudgetAdherenceReport {
   const { first, through, available } = reportMonths(db, today);
@@ -103,11 +100,7 @@ export function budgetAdherence(db: Executor, today: string, month: string): Bud
   const end = month > through ? through : month;
   const window = available.filter((m) => m <= end).slice(-12);
   const allocationRows: AllocationRow[] = window.map((m) => {
-    const alloc = allocation([
-      allocationMonth(db, m, byMonth.get(m)?.envelopes, {
-        excludeIncomeTypeIds: HOUSEHOLD_EXCLUDED,
-      }),
-    ]);
+    const alloc = allocation([allocationMonth(db, m, byMonth.get(m)?.envelopes)]);
     return {
       month: m,
       needCents: alloc.needCents,

@@ -17,8 +17,25 @@ test('indexes the fixed contracts, attributes the change and says what is not in
   await expect(chain).toContainText('Aug 26');
   await expect(chain).toContainText('Teuerung');
 
-  // No consumer price index is stored: the report says so instead of showing sample values.
-  await expect(page.getByText(/Verbraucherpreisindex .* nicht gespeichert/).first()).toBeVisible();
+  // The stored consumer price series (synthetic on the sample server) ends in December 2025: the
+  // headline compares with its newest month and says so, and names the source.
+  await expect(page.getByTestId('pi-reference-state')).toContainText(/VPI .* \(Dez 25\)/);
+  await expect(page.getByText(/Synthetische Beispielreihe statt VPI/)).toBeVisible();
+  await expect(page.getByText(/höchstens einmal im Monat neu/)).toBeVisible();
+
+  // Monthly: the 12-month change per month, personal against the VPI; the VPI is missing from
+  // January 2026 on and the table shows a dash instead of inventing a value.
+  await expect(page.getByTestId('inflation-monthly-chart')).toBeVisible();
+  const monthly = page.getByTestId('monthly-table');
+  await expect(monthly.getByRole('row').nth(1)).toContainText('Aug 26');
+  await expect(monthly.getByRole('row').nth(1)).toContainText('–');
+  await expect(monthly.getByRole('row', { name: /^Dez 25/ })).not.toContainText('–');
+
+  // Yearly: annual averages; changes only between two complete years.
+  const yearly = page.getByTestId('yearly-table');
+  await expect(yearly.getByRole('row', { name: /^2025/ })).not.toContainText('–');
+  await expect(yearly.getByRole('row', { name: /^2023/ })).toContainText('3 Monate eigen');
+  await expect(yearly.getByRole('row', { name: /^2026/ })).toContainText('0 VPI');
 
   // The index chart and the contribution table (Strom raised its price in January 2026).
   await expect(page.getByTestId('inflation-chart')).toBeVisible();

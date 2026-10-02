@@ -2,7 +2,7 @@ import type { InflationReport } from '@budget/db';
 import { AxisLine, ChartSvg, ClassSwatch, Graticule, Line, LineLegend, XTicks } from '@budget/ui';
 import { queryOptions, useQuery } from '@tanstack/react-query';
 import { request } from '../api/http';
-import { MINUS } from '../ledger/format';
+import { longDay, MINUS } from '../ledger/format';
 import { LEDGER_KEY } from '../ledger/queries';
 import type { PageMeta } from '../nav/pages';
 import type { ReportEntry } from '../nav/reports-catalog';
@@ -69,10 +69,12 @@ function Body({ data }: { data: InflationReport }) {
       <section className="sr-card" aria-labelledby="pi-main">
         <div className="sr-head">
           <h2 id="pi-main">Eigene Teuerung, 12 Monate</h2>
-          <span className="sr-state">
-            {data.referenceBp === null
-              ? 'kein Verbraucherpreisindex gespeichert'
-              : `VPI ${bpText(data.referenceBp)} · Differenz ${num1.format((data.differenceBp ?? 0) / 100)} Pp`}
+          <span className="sr-state" data-testid="pi-reference-state">
+            {data.latestComparison
+              ? `VPI ${bpText(data.latestComparison.referenceBp, { sign: true })} · Differenz ${num1.format(data.latestComparison.differenceBp / 100)} Pp (${monthShort(data.latestComparison.month)})`
+              : data.referenceAvailable
+                ? 'VPI-Reihe ohne Überschneidung'
+                : 'kein Verbraucherpreisindex gespeichert'}
           </span>
         </div>
         <div className="sr-fig">
@@ -108,18 +110,23 @@ function Body({ data }: { data: InflationReport }) {
           </span>
         </div>
         <IndexChart data={data} />
-        <LineLegend
-          items={[
-            { kind: 'actual', label: 'Eigener Warenkorb' },
-            ...(data.referenceBp !== null
-              ? [{ kind: 'previous' as const, label: 'Verbraucherpreisindex' }]
-              : []),
-          ]}
-        />
-        {data.referenceBp === null && (
+        <LineLegend items={[{ kind: 'actual', label: 'Eigener Warenkorb (Index, Start = 100)' }]} />
+        {data.reference ? (
+          <p className="sr-note">
+            {data.reference.source === 'fixture'
+              ? 'Synthetische Beispielreihe statt VPI (Entwicklungsdaten).'
+              : 'Verbraucherpreisindex: Statistik Austria, VPI Basis 2020 (Open Data, CC BY 4.0).'}{' '}
+            Die Reihe reicht bis {monthShort(data.reference.lastMonth)}
+            {data.reference.fetchedAt
+              ? ` und wurde am ${longDay(data.reference.fetchedAt.slice(0, 10))} gelesen`
+              : ''}
+            ; die nächtliche Marktabfrage liest sie höchstens einmal im Monat neu. Der Vergleich
+            gilt, soweit beide Reihen reichen.
+          </p>
+        ) : (
           <p className="sr-note" role="status">
-            Ein Verbraucherpreisindex ist im Hauptbuch nicht gespeichert; der Vergleich mit dem VPI
-            folgt, sobald eine Reihe vorliegt.
+            Ein Verbraucherpreisindex ist noch nicht gespeichert; die nächtliche Marktabfrage holt
+            ihn von Statistik Austria, sobald sie läuft.
           </p>
         )}
       </section>
@@ -148,6 +155,132 @@ function Body({ data }: { data: InflationReport }) {
           </li>
         </ol>
       </section>
+
+      {data.referenceAvailable && (
+        <>
+          <section className="sr-card sr-wide" aria-labelledby="pi-monthly">
+            <div className="sr-head">
+              <h2 id="pi-monthly">Teuerung je Monat gegen den VPI</h2>
+              <span className="sr-state">Veränderung zum Vorjahresmonat</span>
+            </div>
+            <MonthlyChart data={data} />
+            <LineLegend
+              items={[
+                { kind: 'actual', label: 'Eigener Warenkorb' },
+                { kind: 'previous', label: 'Verbraucherpreisindex' },
+              ]}
+            />
+            <ScrollRegion label="Teuerung je Monat, bei Bedarf horizontal verschiebbar">
+              <table className="sr-table" data-testid="monthly-table">
+                <caption className="sr-only">
+                  Veränderung zum Vorjahresmonat: eigener Warenkorb und Verbraucherpreisindex
+                </caption>
+                <thead>
+                  <tr>
+                    <th scope="col">Monat</th>
+                    <th scope="col" className="n">
+                      Eigen
+                    </th>
+                    <th scope="col" className="n">
+                      VPI
+                    </th>
+                    <th scope="col" className="n">
+                      Differenz
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {[...data.monthly].reverse().map((m) => (
+                    <tr key={m.month}>
+                      <th scope="row">{monthShort(m.month)}</th>
+                      <td className="n">{bpText(m.ownBp, { sign: true })}</td>
+                      <td className="n">
+                        {m.referenceBp === null ? '–' : bpText(m.referenceBp, { sign: true })}
+                      </td>
+                      <td className="n">
+                        {m.referenceBp === null ? '–' : `${pp(m.ownBp - m.referenceBp)} Pp`}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </ScrollRegion>
+            <p className="sr-note">
+              Ein Strich heißt: Der VPI reicht für diesen Monat oder das Vorjahr nicht. Die
+              Differenz ist die eigene Teuerung minus VPI in Prozentpunkten.
+            </p>
+          </section>
+
+          <section className="sr-card sr-wide" aria-labelledby="pi-yearly">
+            <div className="sr-head">
+              <h2 id="pi-yearly">Je Kalenderjahr, Jahresdurchschnitte</h2>
+              <span className="sr-state">Index: erster Monat = 100</span>
+            </div>
+            <ScrollRegion label="Jahresdurchschnitte, bei Bedarf horizontal verschiebbar">
+              <table className="sr-table" data-testid="yearly-table">
+                <caption className="sr-only">
+                  Durchschnittlicher Index und Veränderung zum Vorjahr je Kalenderjahr
+                </caption>
+                <thead>
+                  <tr>
+                    <th scope="col">Jahr</th>
+                    <th scope="col" className="n">
+                      Ø Eigen
+                    </th>
+                    <th scope="col" className="n">
+                      Ø VPI
+                    </th>
+                    <th scope="col" className="n">
+                      Eigen zum Vorjahr
+                    </th>
+                    <th scope="col" className="n">
+                      VPI zum Vorjahr
+                    </th>
+                    <th scope="col" className="n">
+                      Differenz
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {data.years.map((y) => (
+                    <tr key={y.year}>
+                      <th scope="row">
+                        {y.year}
+                        {y.ownMonths < 12 || y.referenceMonths < 12 ? (
+                          <small>
+                            {y.ownMonths} Monate eigen, {y.referenceMonths} VPI
+                          </small>
+                        ) : null}
+                      </th>
+                      <td className="n">{y.ownAverage === null ? '–' : index1(y.ownAverage)}</td>
+                      <td className="n">
+                        {y.referenceAverage === null ? '–' : index1(y.referenceAverage)}
+                      </td>
+                      <td className="n">
+                        {y.ownChangeBp === null ? '–' : bpText(y.ownChangeBp, { sign: true })}
+                      </td>
+                      <td className="n">
+                        {y.referenceChangeBp === null
+                          ? '–'
+                          : bpText(y.referenceChangeBp, { sign: true })}
+                      </td>
+                      <td className="n">
+                        {y.ownChangeBp === null || y.referenceChangeBp === null
+                          ? '–'
+                          : `${pp(y.ownChangeBp - y.referenceChangeBp)} Pp`}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </ScrollRegion>
+            <p className="sr-note">
+              Eine Veränderung zum Vorjahr gibt es nur zwischen zwei vollständigen Jahren; ein
+              angeschnittenes Jahr zeigt den Durchschnitt der vorhandenen Monate.
+            </p>
+          </section>
+        </>
+      )}
 
       <section className="sr-card sr-wide" aria-labelledby="pi-contrib">
         <div className="sr-head">
@@ -260,6 +393,47 @@ function IndexChart({ data }: { data: InflationReport }) {
         <text x={x(points.length - 1) + 8} y={y(lastPoint.index) + 4} className="svg-label-strong">
           {index1(lastPoint.index)}
         </text>
+      </ChartSvg>
+    </ScrollRegion>
+  );
+}
+
+function MonthlyChart({ data }: { data: InflationReport }) {
+  const rows = data.monthly;
+  if (rows.length < 2) return null;
+  const values = rows.flatMap((m) => [m.ownBp, ...(m.referenceBp === null ? [] : [m.referenceBp])]);
+  const lo = Math.min(0, ...values);
+  const hi = Math.max(...values);
+  const pad = Math.max(50, (hi - lo) * 0.15);
+  const min = lo - pad;
+  const max = hi + pad;
+  const x = (i: number) => L + (i / (rows.length - 1)) * (W - L - R);
+  const y = (v: number) => B - ((v - min) / (max - min || 1)) * (B - T);
+  const step = Math.ceil(rows.length / 8);
+  const ticks = rows.flatMap((m, i) =>
+    i % step === 0 ? [{ x: x(i), label: monthShort(m.month) }] : [],
+  );
+  const grid = [0, 1, 2, 3].map((n) => {
+    const v = min + ((max - min) * n) / 3;
+    return { y: y(v), label: bpText(Math.round(v)) };
+  });
+  const own = rows.map((m, i) => [x(i), y(m.ownBp)] as const);
+  const reference = rows.flatMap((m, i) =>
+    m.referenceBp === null ? [] : [[x(i), y(m.referenceBp)] as const],
+  );
+  return (
+    <ScrollRegion label="Diagramm, bei Bedarf horizontal verschiebbar" className="sr-chart">
+      <ChartSvg
+        width={W}
+        height={H}
+        label={`Veränderung zum Vorjahresmonat, eigener Warenkorb gegen Verbraucherpreisindex, von ${monthShort(rows[0]!.month)} bis ${monthShort(rows[rows.length - 1]!.month)}.`}
+        testId="inflation-monthly-chart"
+      >
+        <Graticule x1={L} x2={W - R} lines={grid} />
+        <AxisLine x1={L} x2={W - R} y={y(0)} />
+        {reference.length > 1 && <Line kind="previous" points={reference} />}
+        <Line kind="actual" points={own} />
+        <XTicks y={H - 18} ticks={ticks} />
       </ChartSvg>
     </ScrollRegion>
   );

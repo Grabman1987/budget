@@ -4,6 +4,8 @@ import { describe, expect, it } from 'vitest';
 import { arivaSource, parseArivaCsv } from './ariva';
 import { ecbSource, parseEcbCsv } from './ecb';
 import { MarketError } from './errors';
+import { fixtureCpiMonths } from './fixture';
+import { parseVpiCsv, vpiSource } from './vpi';
 import { getText } from './http';
 import type { SecurityRef } from './types';
 import { parseYahooChart, yahooChartSource } from './yahoo';
@@ -226,5 +228,51 @@ describe('getText (timeouts, backoff, errors without URLs)', () => {
       throw new DOMException('The operation was aborted', 'TimeoutError');
     }) as unknown as typeof fetch;
     expect(await kindOf(() => getText('https://example.test/', opts(slow, 0)))).toBe('timeout');
+  });
+});
+
+describe('Statistik Austria VPI (synthetic OGD file)', () => {
+  it('reads the monthly total index with its decimal comma into micro-units and skips sub-indices and annual rows', () => {
+    expect(parseVpiCsv(data('vpi-ogd.csv'))).toEqual([
+      { month: '2024-01', indexMicro: 110_400_000 },
+      { month: '2024-02', indexMicro: 111_100_000 },
+      { month: '2024-03', indexMicro: 111_600_000 },
+    ]);
+  });
+  it('refuses a file with other columns and a broken value, and says empty for no rows', async () => {
+    expect(await kindOf(() => parseVpiCsv('a;b\n1;2\n'))).toBe('parse');
+    const broken = data('vpi-ogd.csv').replace('110,40000', 'abc');
+    expect(await kindOf(() => parseVpiCsv(broken))).toBe('parse');
+    const header = data('vpi-ogd.csv').split('\n')[0] as string;
+    expect(
+      await kindOf(() => vpiSource({ fetch: respond(`${header}\n`) as never }).monthly()),
+    ).toBe('empty');
+  });
+  it('fetches the one CSV through the injected fetch and never builds its own request', async () => {
+    const urls: string[] = [];
+    const source = vpiSource({
+      fetch: (async (input: unknown) => {
+        urls.push(String(input));
+        return new Response(data('vpi-ogd.csv'));
+      }) as never,
+      url: 'https://example.invalid/vpi.csv',
+    });
+    expect((await source.monthly()).length).toBe(3);
+    expect(urls).toEqual(['https://example.invalid/vpi.csv']);
+    expect(source.series).toBe('vpi2020');
+    expect(await kindOf(() => vpiSource({ fetch: respond('', 404) as never }).monthly())).toBe(
+      'not_found',
+    );
+  });
+  it('has a synthetic fixture series that is smooth and ends where asked', () => {
+    const rows = fixtureCpiMonths('2025-12');
+    expect(rows[0]?.month).toBe('2021-01');
+    expect(rows.at(-1)?.month).toBe('2025-12');
+    expect(rows).toHaveLength(60);
+    expect(
+      rows.every(
+        (r, i) => i === 0 || r.indexMicro >= (rows[i - 1] as { indexMicro: number }).indexMicro,
+      ),
+    ).toBe(true);
   });
 });

@@ -39,10 +39,25 @@ export interface FxSource {
   history(currency: string, from: string, to: string): Promise<DailyRate[]>;
 }
 
+/** Index number of one month (consumer prices), micro-units: 129,8 = 129 800 000. */
+export interface MonthlyIndex {
+  month: string;
+  indexMicro: number;
+}
+
+export interface CpiSource {
+  /** Series key stored with the rows (`price index base`). */
+  readonly series: string;
+  /** The whole monthly series, ascending. Throws a `MarketError`. */
+  monthly(): Promise<MonthlyIndex[]>;
+}
+
 /** Everything the refresh jobs need; the DB is not part of it. */
 export interface MarketSources {
   quotes: QuoteSource;
   /** Used when the primary answers with an error or nothing. */
   fallbackQuotes?: QuoteSource | undefined;
   fx: FxSource;
+  /** Consumer price index for the comparison in report 2.4; absent in tests that do not need it. */
+  cpi?: CpiSource | undefined;
 }

@@ -38,8 +38,40 @@ export interface InflationContribution {
   contributionBp: number;
 }
 
+/** The 12-month change of one month, personal against the reference. */
+export interface InflationMonth {
+  month: string;
+  ownBp: number;
+  /** `null` when the reference series does not cover the month or the one a year before. */
+  referenceBp: number | null;
+}
+
+/** One calendar year on the basis of annual averages. */
+export interface InflationYear {
+  year: number;
+  /** Months of the year the own index covers / the reference covers. */
+  ownMonths: number;
+  referenceMonths: number;
+  /** Average index of the months present (own: first month = 100, reference rebased the same). */
+  ownAverage: number | null;
+  referenceAverage: number | null;
+  /** Change of the annual average against the year before; only between two complete years. */
+  ownChangeBp: number | null;
+  referenceChangeBp: number | null;
+}
+
 export interface PersonalInflation {
   status: 'ok' | 'insufficient';
+  /** 12-month change per month from the 13th month on. */
+  monthly: InflationMonth[];
+  years: InflationYear[];
+  /** The newest month with both an own and a reference 12-month change. */
+  latestComparison: {
+    month: string;
+    ownBp: number;
+    referenceBp: number;
+    differenceBp: number;
+  } | null;
   /** Months the index covers; empty when insufficient. */
   points: InflationPoint[];
   baseMonth: string | null;
@@ -61,6 +93,9 @@ export interface PersonalInflation {
 
 const empty = (): PersonalInflation => ({
   status: 'insufficient',
+  monthly: [],
+  years: [],
+  latestComparison: null,
   points: [],
   baseMonth: null,
   fromMonth: null,
@@ -132,6 +167,56 @@ export function personalInflation(input: {
   const inflationBp = bpOf(indexFrom, indexTo);
   const referenceBp = refFrom !== null && refTo !== null ? bpOf(refFrom, refTo) : null;
 
+  // Monthly 12-month changes, personal against the reference (raw reference, any base).
+  const indexAt = new Map(points.map((x) => [x.month, x.index]));
+  const refRaw = input.reference ?? {};
+  const monthly: InflationMonth[] = [];
+  for (let i = 12; i < available.length; i++) {
+    const m = available[i] as string;
+    const before = available[i - 12] as string;
+    const r = refRaw[m];
+    const rb = refRaw[before];
+    monthly.push({
+      month: m,
+      ownBp: bpOf(indexAt.get(before) as number, indexAt.get(m) as number),
+      referenceBp: r !== undefined && rb !== undefined && rb > 0 ? bpOf(rb, r) : null,
+    });
+  }
+  const latest = [...monthly].reverse().find((x) => x.referenceBp !== null);
+
+  // Calendar years on the basis of annual averages.
+  const rebase = refBase ? (v: number) => (100 * v) / refBase : null;
+  const firstYear = Number(base.slice(0, 4));
+  const lastYear = Number(toMonth.slice(0, 4));
+  const yearAverage = (values: number[]) =>
+    values.length ? round4(values.reduce((a, b) => a + b, 0) / values.length) : null;
+  const years: InflationYear[] = [];
+  for (let year = firstYear; year <= lastYear; year++) {
+    const own = points.filter((x) => x.month.startsWith(`${year}-`)).map((x) => x.index);
+    const ref = rebase
+      ? Object.entries(refRaw)
+          .filter(([m]) => m.startsWith(`${year}-`))
+          .map(([, v]) => rebase(v))
+      : [];
+    const prev = years[years.length - 1];
+    const complete = (a: number, b: number | undefined) => a === 12 && b === 12;
+    years.push({
+      year,
+      ownMonths: own.length,
+      referenceMonths: ref.length,
+      ownAverage: yearAverage(own),
+      referenceAverage: yearAverage(ref),
+      ownChangeBp:
+        prev && complete(own.length, prev.ownMonths)
+          ? bpOf(prev.ownAverage as number, yearAverage(own) as number)
+          : null,
+      referenceChangeBp:
+        prev && complete(ref.length, prev.referenceMonths)
+          ? bpOf(prev.referenceAverage as number, yearAverage(ref) as number)
+          : null,
+    });
+  }
+
   // Contributions: weights from the twelve months up to the start of the window.
   const at = available.indexOf(fromMonth);
   const weightMonths = available.slice(Math.max(0, at - 11), at + 1);
@@ -156,6 +241,17 @@ export function personalInflation(input: {
     .sort((a, b) => b.contributionBp - a.contributionBp || a.name.localeCompare(b.name, 'de'));
   return {
     status: 'ok',
+    monthly,
+    years,
+    latestComparison:
+      latest && latest.referenceBp !== null
+        ? {
+            month: latest.month,
+            ownBp: latest.ownBp,
+            referenceBp: latest.referenceBp,
+            differenceBp: latest.ownBp - latest.referenceBp,
+          }
+        : null,
     points,
     baseMonth: base,
     fromMonth,

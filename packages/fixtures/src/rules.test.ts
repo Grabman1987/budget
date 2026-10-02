@@ -84,7 +84,7 @@ describe('sample ledger at 17.09.2026', () => {
   it('R01 50/30/20 warns, spending from savings; R02 Notgroschen is verletzt', () => {
     expect(latest('R01')).toMatchObject({
       status: 'warn',
-      valueText: '53 / 29 / 22 % · aus Guthaben −4 %',
+      valueText: '54 / 30 / 22 % · aus Guthaben −6 %',
     });
     // The prototype hardcodes "2,4 Monate"; reserve 7.739 € over the real average Bedarf is 2,5.
     expect(latest('R02')).toMatchObject({ status: 'bad', valueText: '2,5 Monate' });
@@ -102,7 +102,7 @@ describe('sample ledger at 17.09.2026', () => {
   it('R08, R10, R09: quotas from the real contracts, Sondertilgung active', () => {
     // Prototype strings: 10,8 % (rate over salary only) and 37,7 %; here rates over all regular income.
     expect(latest('R08')).toMatchObject({ status: 'ok', valueText: '7,2 %' });
-    expect(latest('R10')).toMatchObject({ status: 'ok', valueText: '39,5 %' });
+    expect(latest('R10')).toMatchObject({ status: 'ok', valueText: '39,6 %' });
     expect(latest('R09')).toMatchObject({ status: 'ok', valueText: 'Sondertilgung aktiv' });
   });
 
@@ -173,7 +173,7 @@ describe('editing', () => {
     const edit = updateRule(db, 'R10', { params: { maxBp: 3000 } }, ctx);
     expect(edit.params).toMatchObject({ maxBp: 3000, badOverBp: 1000 });
     evaluateRules(db, TODAY);
-    expect(latest('R10')).toMatchObject({ status: 'warn', valueText: '39,5 %' });
+    expect(latest('R10')).toMatchObject({ status: 'warn', valueText: '39,6 %' });
 
     const entry = db
       .select()

@@ -20,7 +20,6 @@ import {
 import { allocation, fixedCostRatio } from '@budget/domain';
 import { referenceModel } from '@budget/fixtures';
 import { seedDatabase } from '@budget/fixtures/seed';
-import { eq } from 'drizzle-orm';
 import type { Hono } from 'hono';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { seedBasics } from '../../../../packages/db/src/repos/test-helpers';
@@ -275,8 +274,8 @@ describe('2.2 Budgettreue on a small ledger', () => {
     );
     const { need, want, future, rest } = august.shares;
     expect(need + want + future + rest).toBe(100);
-    // The shared default (R01) is untouched and still counts them.
-    expect(allocationMonth(opened.db, '2026-08').incomeCents).toBe(307_000);
+    // The shared allocation (R01, Heute) uses the same household-income base.
+    expect(allocationMonth(opened.db, '2026-08').incomeCents).toBe(300_000);
     expect(body.allocation.length).toBeLessThanOrEqual(12);
   });
 
@@ -298,33 +297,24 @@ describe('2.2 Budgettreue on the sample ledger', () => {
     app = api(db, '2026-09-17');
   });
 
-  it('keeps the prototype class amounts of the shared allocation; only the income base differs', async () => {
+  it('is the shared allocation: class amounts and the household-income base of R01', async () => {
     const body = (await get(app, '/reports/spending/adherence?month=2026-08')).body;
     expect(body.allocation).toHaveLength(12);
     const august = body.allocation.at(-1);
     expect(august.month).toBe('2026-08');
-    expect(august).toMatchObject({ needCents: 310103, wantCents: 192865, futureCents: 150888 });
-    const excluded = db
-      .select()
-      .from(schema.bookingSplit)
-      .innerJoin(schema.booking, eq(schema.booking.id, schema.bookingSplit.bookingId))
-      .all()
-      .filter(
-        (r) =>
-          r.booking.date.startsWith('2026-08') &&
-          (r.booking_split.incomeTypeId === INCOME_TYPES.capital.id ||
-            r.booking_split.incomeTypeId === INCOME_TYPES.refund.id) &&
-          r.booking_split.amountCents > 0,
-      )
-      .reduce((a, r) => a + r.booking_split.amountCents, 0);
-    expect(excluded).toBeGreaterThan(0);
+    expect(august).toMatchObject({
+      needCents: 310103,
+      wantCents: 192865,
+      futureCents: 150888,
+      incomeCents: 574584,
+    });
     const shared = allocation([allocationMonth(db, '2026-08')]);
-    expect(Math.abs(shared.incomeCents - excluded - august.incomeCents)).toBeLessThanOrEqual(1);
+    expect(august.incomeCents).toBe(shared.incomeCents);
     for (const row of body.allocation) {
       const s = row.shares;
       expect(s.need + s.want + s.future + s.rest, row.month).toBe(100);
     }
-  });
+  }, 60_000);
 
   it('lists the plan of August 2026 in a chain that adds up and a rolling 12-month deviation', async () => {
     const body = (await get(app, '/reports/spending/adherence?month=2026-08')).body;
@@ -706,9 +696,27 @@ describe('2.4 Persönliche Inflation', () => {
       baseMonth: '2023-10',
       fromMonth: '2025-08',
       toMonth: '2026-08',
-      referenceAvailable: false,
+      // The synthetic consumer price series of the seed stops in December 2025.
+      referenceAvailable: true,
       referenceBp: null,
       differenceBp: null,
+    });
+    expect(body.reference).toMatchObject({ series: 'fixture', lastMonth: '2025-12' });
+    expect(body.latestComparison.month).toBe('2025-12');
+    expect(body.latestComparison.differenceBp).toBe(
+      body.latestComparison.ownBp - body.latestComparison.referenceBp,
+    );
+    const last = body.monthly.at(-1);
+    expect(last).toMatchObject({ month: '2026-08', referenceBp: null });
+    expect(body.monthly.find((m: any) => m.month === '2025-12').referenceBp).not.toBeNull();
+    const years = Object.fromEntries(body.years.map((y: any) => [y.year, y]));
+    expect(years[2025]).toMatchObject({ ownMonths: 12, referenceMonths: 12 });
+    expect(years[2025].ownChangeBp).not.toBeNull();
+    expect(years[2025].referenceChangeBp).not.toBeNull();
+    expect(years[2026]).toMatchObject({
+      ownMonths: 8,
+      referenceMonths: 0,
+      referenceChangeBp: null,
     });
     expect(body.points[0].index).toBe(100);
     const by = Object.fromEntries(body.contributions.map((c: any) => [c.name, c]));
@@ -732,6 +740,8 @@ describe('2.4 Persönliche Inflation', () => {
     const body = (await get(api(short.db, '2024-03-10'), '/reports/spending/inflation')).body;
     expect(body.status).toBe('insufficient');
     expect(body.points).toEqual([]);
+    expect(body.referenceAvailable).toBe(false);
+    expect(body.reference).toBeNull();
     const before = short.sqlite.prepare('select count(*) n from audit_log').get() as { n: number };
     await get(api(short.db, '2026-09-17'), '/reports/spending/inflation');
     const after = short.sqlite.prepare('select count(*) n from audit_log').get() as { n: number };

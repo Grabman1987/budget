@@ -75,8 +75,9 @@ describe('figures of the prototype are reproduced from the seeded database', () 
       needCents: 310103,
       wantCents: 192865,
       futureCents: 150888,
-      incomeCents: 575788,
-      restCents: 575788 - 310103 - 192865 - 150888,
+      // Household income only (owner decision 02.10.2026): 12,04 EUR of Kapitalerträge are out.
+      incomeCents: 574584,
+      restCents: 574584 - 310103 - 192865 - 150888,
     });
     // The prototype rounds each class and lets the rest take the difference (54 / 33 / 26 / -13);
     // largest remainder (C11) keeps every share within half a point: 33,50 % → 34, -13,56 % → -14.

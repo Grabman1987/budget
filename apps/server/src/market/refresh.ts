@@ -1,4 +1,5 @@
 import {
+  cpiFetchedAt,
   firstTradeDate,
   foreignCurrencies,
   lastFxDay,
@@ -6,6 +7,7 @@ import {
   openStaleValueItem,
   resolveStaleValueItems,
   schema,
+  storeCpi,
   trackedSecurities,
   upsertFxRate,
   upsertPrice,
@@ -241,4 +243,40 @@ export async function refreshFx(
     }
   }
   return result;
+}
+
+/** The consumer price series is read again only when the stored one is older than this. */
+export const CPI_MAX_AGE_DAYS = 30;
+
+export interface CpiRefreshResult {
+  /** The stored series is younger than a month (or the run has no consumer price source). */
+  skipped: boolean;
+  rows: number;
+  failed: MarketErrorKind | null;
+}
+
+/**
+ * Read the monthly consumer price index (Statistik Austria open data) when the stored series is
+ * older than a month or missing, once per run. Idempotent; a failure only logs its error class,
+ * the report then keeps showing the last stored series and says how old it is.
+ */
+export async function refreshCpi(
+  db: Db,
+  sources: MarketSources,
+  { today, log = () => undefined, now = new Date() }: RefreshOptions & { now?: Date },
+): Promise<CpiRefreshResult> {
+  const source = sources.cpi;
+  if (!source) return { skipped: true, rows: 0, failed: null };
+  const last = cpiFetchedAt(db, source.series);
+  if (last !== null && last.slice(0, 10) > addDays(today, -CPI_MAX_AGE_DAYS))
+    return { skipped: true, rows: 0, failed: null };
+  try {
+    const rows = await source.monthly();
+    const written = db.transaction((tx) => storeCpi(tx, source.series, rows, now.toISOString()));
+    return { skipped: false, rows: written, failed: null };
+  } catch (error) {
+    const kind = errorKind(error);
+    log(`cpi: ${source.series} failed (${kind})`);
+    return { skipped: false, rows: 0, failed: kind };
+  }
 }

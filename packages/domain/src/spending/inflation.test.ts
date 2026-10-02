@@ -104,6 +104,46 @@ describe('personalInflation', () => {
     expect(result.referenceBp).toBeNull();
     expect(result.differenceBp).toBeNull();
   });
+  it('compares month by month and by calendar-year averages when the reference ends earlier', () => {
+    // A reference that starts before the own data and ends in December 2025: +0,5 per month.
+    const refMonths = Array.from({ length: 60 }, (_, i) => {
+      const y = 2021 + Math.floor(i / 12);
+      return [`${y}-${String((i % 12) + 1).padStart(2, '0')}`, 100 + i * 0.5] as const;
+    });
+    const reference = Object.fromEntries(refMonths);
+    const r = personalInflation({ available, items: [rent], baseConsumptionCents: 1, reference });
+    // 12-month changes start with the 13th month; the reference has them until its last month.
+    expect(r.monthly[0]?.month).toBe('2024-10');
+    const dec = r.monthly.find((m) => m.month === '2025-12');
+    expect(dec?.referenceBp).toBe(
+      Math.round((reference['2025-12']! / reference['2024-12']! - 1) * 1e4),
+    );
+    expect(r.monthly.find((m) => m.month === '2026-01')?.referenceBp).toBeNull();
+    expect(r.latestComparison?.month).toBe('2025-12');
+    expect(r.latestComparison?.differenceBp).toBe((dec?.ownBp ?? 0) - (dec?.referenceBp ?? 0));
+    // The window of the headline lies beyond the reference: no window figure, not a guess.
+    expect(r.referenceBp).toBeNull();
+    // Years: 2023 is cut at the start, 2026 at the end; changes only between complete years.
+    const y = Object.fromEntries(r.years.map((x) => [x.year, x]));
+    expect(r.years.map((x) => x.year)).toEqual([2023, 2024, 2025, 2026]);
+    expect([y[2023]?.ownMonths, y[2024]?.ownMonths, y[2026]?.ownMonths]).toEqual([3, 12, 9]);
+    expect(y[2024]?.ownChangeBp).toBeNull();
+    expect(y[2025]?.ownChangeBp).not.toBeNull();
+    expect(y[2024]?.referenceMonths).toBe(12);
+    expect(y[2023]?.referenceMonths).toBe(12);
+    // Reference averages are rebased to the first own month (= 100).
+    const base = reference['2023-10']!;
+    const avg2024 =
+      (refMonths.filter(([m]) => m.startsWith('2024-')).reduce((a, [, v]) => a + v, 0) /
+        12 /
+        base) *
+      100;
+    expect(y[2024]?.referenceAverage).toBeCloseTo(avg2024, 3);
+    expect(y[2024]?.referenceChangeBp).toBe(
+      Math.round((y[2024]!.referenceAverage! / y[2023]!.referenceAverage! - 1) * 1e4),
+    );
+    expect(y[2026]?.referenceChangeBp).toBeNull();
+  });
   it('is insufficient with less than 13 months or without priced items', () => {
     expect(
       personalInflation({

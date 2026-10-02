@@ -2,8 +2,10 @@ import { fxSeries, priceSeries, type Db } from '@budget/db';
 import {
   arivaSource,
   ecbSource,
+  fixtureCpiSource,
   fixtureFxSource,
   fixtureQuoteSource,
+  vpiSource,
   yahooChartSource,
   type MarketSources,
 } from '@budget/market';
@@ -26,6 +28,7 @@ export function marketModeFromEnv(env: NodeJS.ProcessEnv = process.env): MarketM
  * The adapters for a mode. Live: Yahoo chart (primary), ECB for rates, and Ariva as fallback only
  * when `BUDGET_ARIVA=1` (off until the owner has confirmed access). Fixture: deterministic
  * synthetic series that run through the prices and rates already stored, never the network.
+ * The consumer price index comes from Statistik Austria's open data (live) or a synthetic series.
  */
 export function createMarketSources(
   db: Db,
@@ -42,6 +45,7 @@ export function createMarketSources(
         anchorsFor: (currency) =>
           fxSeries(db, currency).map((r) => ({ date: r.date, value: r.rateMicro })),
       }),
+      cpi: fixtureCpiSource(),
     };
   }
   const http = { fetch };
@@ -50,5 +54,6 @@ export function createMarketSources(
     fallbackQuotes:
       env['BUDGET_ARIVA'] === '1' ? arivaSource({ ...http, enabled: true }) : undefined,
     fx: ecbSource(http),
+    cpi: vpiSource(http),
   };
 }

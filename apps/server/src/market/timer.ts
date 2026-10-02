@@ -1,13 +1,17 @@
 import { writesHeld, type Db } from '@budget/db';
 import { todayInVienna } from '@budget/domain';
 import type { MarketSources } from '@budget/market';
-import { refreshFx, refreshPrices } from './refresh';
+import { refreshCpi, refreshFx, refreshPrices } from './refresh';
 
-/** Both jobs in order: rates first (prices in a foreign currency are valued with them). */
+/**
+ * The jobs in order: rates first (prices in a foreign currency are valued with them), then the
+ * monthly consumer price index, which only reads when the stored series is older than a month.
+ */
 export async function refreshMarket(db: Db, sources: MarketSources, today: string) {
   const fx = await refreshFx(db, sources, { today });
   const prices = await refreshPrices(db, sources, { today });
-  return { prices, fx };
+  const cpi = await refreshCpi(db, sources, { today });
+  return { prices, fx, cpi };
 }
 
 const viennaTime = new Intl.DateTimeFormat('en-GB', {
@@ -54,10 +58,11 @@ export function startDailyMarketTimer(options: {
     running = true;
     lastDay = today;
     try {
-      const { prices, fx } = await refreshMarket(db, sources, today);
+      const { prices, fx, cpi } = await refreshMarket(db, sources, today);
       log(
         `Market refresh: ${prices.bySource.yfinance.rows + prices.bySource.ariva.rows} price rows, ` +
-          `${fx.bySource.ecb.rows} rate rows, ${prices.failed.length + fx.failed.length} failed`,
+          `${fx.bySource.ecb.rows} rate rows, ${prices.failed.length + fx.failed.length} failed, ` +
+          `price index ${cpi.skipped ? 'unchanged' : cpi.failed ? `failed (${cpi.failed})` : `${cpi.rows} rows`}`,
       );
     } catch (error) {
       log(`Market refresh failed (${error instanceof Error ? error.name : 'error'})`);

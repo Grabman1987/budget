@@ -25,7 +25,9 @@ describe('daily market timer', () => {
     expect(await timer.tick(new Date('2026-07-01T20:30:00Z'))).toBe(true);
     expect(await timer.tick(new Date('2026-07-01T21:45:00Z'))).toBe(false);
     expect(logs).toHaveLength(1);
-    expect(logs[0]).toMatch(/^Market refresh: 0 price rows, 0 rate rows, 0 failed$/);
+    expect(logs[0]).toMatch(
+      /^Market refresh: 0 price rows, 0 rate rows, 0 failed, price index unchanged$/,
+    );
     // Next day it runs again.
     expect(await timer.tick(new Date('2026-07-02T20:31:00Z'))).toBe(true);
   });
