@@ -32,3 +32,5 @@ export * from './global-search';
 export * from './inbox';
 export * from './debts';
 export * from './portfolio-allocation';
+
+export * from './payments-preview';

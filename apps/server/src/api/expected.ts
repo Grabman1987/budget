@@ -9,6 +9,7 @@ import {
   matchOccurrences,
   monthIncome,
   refreshOccurrences,
+  readPaymentsPreview,
   restoreExpectedPayment,
   unlinkOccurrence,
   updateExpectedPayment,
@@ -68,6 +69,7 @@ export function expectedRoutes(db: Db, today: () => string): Hono {
   });
 
   // Fixed paths before `/:id`.
+  app.get('/year-preview', (c) => c.json(readPaymentsPreview(db, today())));
   app.get('/occurrences', (c) => {
     const { from, to, kind } = readQuery(c, expectedOccurrencesQuery);
     if (to < from) throw new ApiError(400, 'invalid', '`to` must not be before `from`');
