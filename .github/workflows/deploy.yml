@@ -33,11 +33,11 @@ jobs:
     # GitHub Environment holding FLY_API_TOKEN; restrict it to the main branch in the settings.
     environment: production
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ github.event.workflow_run.head_sha || github.sha }}
           persist-credentials: false
-      - uses: superfly/flyctl-actions/setup-flyctl@fc53c09e1bc3be6f54706524e3b82c4f462f77be # 1.5
+      - uses: superfly/flyctl-actions/setup-flyctl@ed8efb33836e8b2096c7fd3ba1c8afe303ebbff1 # 1.6
       # The token lives only in the env of the steps that talk to Fly, never at job level.
       # Secrets are not available in `if:` expressions, so gate through an output.
       - name: Check deploy token
