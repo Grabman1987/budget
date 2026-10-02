@@ -20,7 +20,7 @@ A current quote does not repair an earlier history gap.
 
 | Endpoint | Purpose |
 | --- | --- |
-| `GET /accounts?asOf=` | Accounts with `balanceCents` (as of the day, default today Vienna), `holdingsCents` (market value of securities held, 0 without), `clearedCents` (confirmed + reconciled), `unclearedCents` (pending), `scheduledCents` (dated later), counts, `lastReconciledOn` |
+| `GET /accounts?asOf=` | Accounts with `balanceCents` (as of the day, default today Vienna), `holdingsCents` (market value of securities held, 0 without), `clearedCents` (confirmed + reconciled), `unclearedCents` (pending), `scheduledCents` (dated later), counts, `lastReconciledOn`, `referenceAccountId` (Verrechnungskonto of a depot: its cash account, set by the PP migration; read-only here) |
 | `POST /accounts`, `PATCH /accounts/:id` | Create / edit: type, role, on-budget, currency, opening balance and date, terms (credit limit, overdraft, rate in bp, term end, fee). Role and budget membership default from the type; loans, depots, crypto, P2P and receivables can never be budget accounts. Once a Kontostand prüfen is stored, changing opening balance or date is `reconciled_locked` unless `unlockReconciled: true` |
 | `POST /accounts/sort` `{ ids }` | Order of the account list, in one transaction (an unknown id changes nothing) |
 | `POST /accounts/:id/close` `{ force? }`, `/reopen` | Close needs balance 0 and nothing pending or scheduled unless `force`; a closed account takes no bookings |

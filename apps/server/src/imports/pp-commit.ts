@@ -5,6 +5,8 @@ import {
   booking,
   bookingSplit,
   createAssetClass,
+  createEntity,
+  transfer,
   createSecurity,
   createTradesBulk,
   deleteBooking,
@@ -32,6 +34,7 @@ import {
   normalizeTrade,
   planSecurities,
   ppCash,
+  ppPositionsAsOf,
   resolveMigration,
   skippedButTraded,
   type ImportPlan,
@@ -41,7 +44,8 @@ import {
   type ResolvedMigration,
   type SecurityPlan,
 } from '@budget/import-pp';
-import { and, asc, eq, gt, inArray, isNotNull, isNull, like, ne, sql } from 'drizzle-orm';
+import { addDays, settlementCents } from '@budget/domain';
+import { and, asc, eq, gt, inArray, isNotNull, isNull, like, ne, or, sql } from 'drizzle-orm';
 import { randomUUID } from 'node:crypto';
 import { ImportStateError } from './commit';
 
@@ -85,6 +89,13 @@ export interface Prepared {
   trades: PlannedTrade[];
   /** The new opening balance per app account: PP's cash before the opening day, or the number set. */
   openingCash: Map<string, number>;
+  /** Split platforms: YNAB's opening total, PP's securities that day and the cash opening that follows. */
+  openingCheck: {
+    account: string;
+    ynabOpeningCents: number;
+    securitiesCents: number;
+    cashOpeningCents: number;
+  }[];
   /** Adjustments made by `normalizeTrade`, by code. */
   notes: Record<string, number>;
   problems: PpRunProblem[];
@@ -113,6 +124,7 @@ export function preparePp(db: Executor, model: PpModel, doc: PpMigration): Prepa
       currency: account.currency,
       openingDate: account.openingDate,
       openingBalanceCents: account.openingBalanceCents,
+      referenceAccountId: account.referenceAccountId,
     })
     .from(account)
     .where(isNull(account.deletedAt))
@@ -169,12 +181,49 @@ export function preparePp(db: Executor, model: PpModel, doc: PpMigration): Prepa
   trades.sort((a, b) => a.date.localeCompare(b.date) || a.importKey.localeCompare(b.importKey));
 
   const openingCash = new Map<string, number>();
+  const openingCheck: Prepared['openingCheck'] = [];
   for (const t of resolved.targets) {
     if (t.openingBalance === 'pp')
       openingCash.set(t.accountId, ppCash(model, t.ppAccountUuids, t.openingDate, false));
     else if (typeof t.openingBalance === 'number') openingCash.set(t.accountId, t.openingBalance);
+    else if (t.openingBalance === 'total') {
+      // Cash plus securities equal YNAB's total on the opening day (only when the split is new:
+      // a finished split already carries its opening balance).
+      const sp = resolved.splits.find((p) => p.cashAccountId === t.accountId);
+      if (sp?.state !== 'new') continue;
+      const positions = ppPositionsAsOf(plan, addDays(t.openingDate, -1), skip).filter(
+        (p) => p.accountId === sp.depotAccountId,
+      );
+      if (positions.some((p) => p.valueCents === null)) {
+        addProblem(
+          problems,
+          'error',
+          'opening.unpriced',
+          `A security held on the opening day of "${t.name}" has no quote`,
+        );
+        continue;
+      }
+      const securities = positions.reduce((a, p) => a + (p.valueCents ?? 0), 0);
+      const cash = t.openingBalanceCents - securities;
+      openingCash.set(t.accountId, cash);
+      openingCheck.push({
+        account: t.name,
+        ynabOpeningCents: t.openingBalanceCents,
+        securitiesCents: securities,
+        cashOpeningCents: cash,
+      });
+    }
   }
-  return { resolved, securities: planned.securities, plan, trades, openingCash, notes, problems };
+  return {
+    resolved,
+    securities: planned.securities,
+    plan,
+    trades,
+    openingCash,
+    openingCheck,
+    notes,
+    problems,
+  };
 }
 
 export const hasErrors = (problems: ReadonlyArray<PpRunProblem>): boolean =>
@@ -203,6 +252,10 @@ export interface PpChangeReport {
     /** Dated before the account's opening day: the opening balance subsumes them. */
     beforeOpening: number;
   };
+  /** Platforms split into a cash account and a securities account, and transfers between them. */
+  splits: { cash: string; depot: string; renamedFrom: string; state: 'new' | 'done' }[];
+  transfers: { added: number };
+  openingCheck: Prepared['openingCheck'];
   accounts: {
     account: string;
     openingFromCents: number;
@@ -216,6 +269,28 @@ export interface PpChangeReport {
 export interface PpIdMap {
   /** PP security uuid -> app security id (only the securities the run handles). */
   securities: Record<string, string>;
+}
+
+/** Replace the placeholder ids of securities accounts the run creates by their real ids. */
+function remapAccounts(prep: Prepared, real: ReadonlyMap<string, string>): void {
+  if (real.size === 0) return;
+  const r = (id: string) => real.get(id) ?? id;
+  const rn = (id: string | null) => (id === null ? null : r(id));
+  for (const t of prep.resolved.targets) {
+    t.accountId = r(t.accountId);
+    t.referenceAccountId = rn(t.referenceAccountId);
+    t.cashAccountId = rn(t.cashAccountId);
+  }
+  for (const sp of prep.resolved.splits) sp.depotAccountId = r(sp.depotAccountId);
+  for (const m of [prep.resolved.mapping.portfolios, prep.resolved.mapping.accounts])
+    for (const v of Object.values(m)) if (v !== 'ignore') v.accountId = r(v.accountId);
+  for (const t of [...prep.plan.trades, ...prep.trades]) t.accountId = r(t.accountId);
+  for (const b of prep.plan.bookings) b.accountId = r(b.accountId);
+  for (const a of prep.plan.investmentAccounts) a.accountId = r(a.accountId);
+  for (const [k, v] of [...prep.openingCash]) {
+    prep.openingCash.delete(k);
+    prep.openingCash.set(r(k), v);
+  }
 }
 
 export interface PpWriteResult {
@@ -268,9 +343,59 @@ export function writePp(
     prices: { inserted: 0, replaced: 0, unchanged: 0, manualKept: 0 },
     trades: { added: 0, unchanged: 0, changed: 0, missing: 0, deletedByOwner: 0 },
     bookings: { added: 0, unchanged: 0, ynabFlows: 0, tradeLegs: 0, beforeOpening: 0 },
+    splits: [],
+    transfers: { added: 0 },
+    openingCheck: prep.openingCheck,
     accounts: [],
     notes: prep.notes,
   };
+
+  // Platforms like PP: the YNAB account becomes the cash account, a securities account is new.
+  const real = new Map<string, string>();
+  for (const sp of prep.resolved.splits) {
+    report.splits.push({
+      cash: sp.cashName,
+      depot: sp.depotName,
+      renamedFrom: sp.previousName,
+      state: sp.state,
+    });
+    if (sp.state === 'done') continue;
+    const old = tx.select().from(account).where(eq(account.id, sp.cashAccountId)).get();
+    if (!old) throw new Error('The account to split disappeared');
+    updateTracked(tx, account, [old.id], { name: sp.cashName, type: 'checking' }, ctx);
+    const created = createEntity(
+      tx,
+      account,
+      {
+        id: randomUUID(),
+        name: sp.depotName,
+        type: old.type,
+        role: 'investment',
+        onBudget: false,
+        institutionId: old.institutionId,
+        currency: old.currency,
+        openingBalanceCents: 0,
+        openingDate: old.openingDate,
+        referenceAccountId: old.id,
+        sortOrder: old.sortOrder,
+        closedAt: old.closedAt,
+      },
+      ctx,
+    );
+    real.set(sp.depotAccountId, created.id);
+  }
+  remapAccounts(prep, real);
+  // Verrechnungskonto of the other depots (no split): only the link.
+  const current = new Map(
+    tx
+      .select({ id: account.id, ref: account.referenceAccountId })
+      .from(account)
+      .all()
+      .map((a) => [a.id, a.ref]),
+  );
+  for (const t of prep.resolved.targets)
+    if (t.referenceAccountId !== null && current.get(t.accountId) !== t.referenceAccountId)
+      updateTracked(tx, account, [t.accountId], { referenceAccountId: t.referenceAccountId }, ctx);
 
   // Asset classes by name (created when missing).
   const classes = new Map(listAssetClasses(tx).map((c) => [norm(c.name), c.id]));
@@ -483,6 +608,62 @@ export function writePp(
   }
   createTradesBulk(tx, fresh, ctx);
   report.trades.added += fresh.length;
+  // Where a platform is split, the cash of a trade moves between its cash account and the
+  // securities account by a transfer, so the securities account stays at 0 cash.
+  const cashOf = new Map(
+    prep.resolved.targets.flatMap((t) => (t.cashAccountId ? [[t.accountId, t.cashAccountId]] : [])),
+  );
+  const legTransfers: (typeof transfer.$inferInsert)[] = [];
+  const legBookings: (typeof booking.$inferInsert)[] = [];
+  const legSplits: (typeof bookingSplit.$inferInsert)[] = [];
+  for (const t of fresh) {
+    const cashId = cashOf.get(t.accountId);
+    if (cashId === undefined) continue;
+    const net = settlementCents({
+      kind: t.kind,
+      amountCents: t.amountCents,
+      feeCents: t.feeCents ?? 0,
+      taxCents: t.taxCents ?? 0,
+    });
+    if (net === 0) continue;
+    // The cash account gets the trade's settlement (a buy leaves it), the securities account the
+    // opposite, which cancels the settlement booking there.
+    const transferId = randomUUID();
+    legTransfers.push({ id: transferId });
+    for (const [accountId, cents] of [
+      [cashId, net],
+      [t.accountId, -net],
+    ] as const) {
+      const id = randomUUID();
+      legBookings.push({
+        id,
+        accountId,
+        date: t.date,
+        amountCents: cents,
+        memo: 'Verrechnung',
+        transferId,
+        source: 'import',
+        importKey: `${t.importKey}:cash`,
+        importRunId: input.runId,
+      });
+      legSplits.push({
+        id: randomUUID(),
+        bookingId: id,
+        categoryId: null,
+        amountCents: cents,
+        sortOrder: 0,
+      });
+    }
+  }
+  insertRows(tx, transfer, legTransfers);
+  insertManyTracked(tx, booking, legBookings, ctx);
+  insertManyTracked(tx, bookingSplit, legSplits, ctx);
+  assertLedgerInvariants(
+    tx,
+    legBookings.map((r) => r.id as string),
+    false,
+  );
+  report.transfers.added = legTransfers.length;
   trace('trades');
   for (const [key, row] of known)
     if (mapped.has(row.accountId) && row.deletedAt === null && !planned.has(key))
@@ -595,6 +776,26 @@ function assertNotInUse(tx: Executor, runId: string): void {
       )
       .all()
       .map((r) => r.id);
+  // Bookings added later to a securities account the run created.
+  const accounts = created('account');
+  if (accounts.length > 0) {
+    const foreign = tx
+      .select({ id: booking.id })
+      .from(booking)
+      .where(
+        and(
+          inArray(booking.accountId, accounts),
+          isNull(booking.deletedAt),
+          or(isNull(booking.importRunId), ne(booking.importRunId, runId)),
+        ),
+      )
+      .get();
+    if (foreign)
+      throw new ImportStateError(
+        'in_use',
+        'Bookings added after the import use the securities account it created',
+      );
+  }
   const securities = created('security');
   if (securities.length === 0) return;
   const ownTrades = new Set(created('trade'));

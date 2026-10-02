@@ -17,6 +17,7 @@ import {
 import {
   addDays,
   costOf,
+  daysBetween,
   periodWindow,
   PriceUnavailableError,
   sumSeries,
@@ -72,6 +73,24 @@ export interface AccountLine {
   ppMissingQuotes: number;
   /** The opening balance that would make the app's value equal PP's on this day. */
   suggestedOpeningCents: number | null;
+}
+
+/** A platform as in PP: a securities account with its cash account (or a standalone account). */
+export interface PlatformLine {
+  platform: string;
+  day: string;
+  accounts: string[];
+  appValueCents: number | null;
+  ppValueCents: number | null;
+  diffCents: number | null;
+}
+
+/** PP deposits and removals against the app's flows on the cash-carrying account, matched 1:1. */
+export interface FlowMatch {
+  platform: string;
+  matched: number;
+  ppUnmatched: { count: number; sumCents: number; items: { date: string; cents: number }[] };
+  appUnmatched: { count: number; sumCents: number; items: { date: string; cents: number }[] };
 }
 
 export interface PositionLine {
@@ -170,6 +189,8 @@ export interface Gate3Report {
     appSecurities: number;
   };
   accounts: AccountLine[];
+  platforms: PlatformLine[];
+  flowMatches: FlowMatch[];
   positions: PositionLine[];
   cashFlows: CashFlowLine[];
   performance: DepotPerformance[];
@@ -383,9 +404,29 @@ export function gate3Report(db: Executor, input: Gate3Input): Gate3Report {
   }
 
   const cashFlows = cashFlowLines(db, model, targets, differences);
-  const performance = targets.map((t) =>
-    depotPerformance(db, model, prep, t, today, skipped, ids, input.reference, differences),
+  const platforms = platformsOf(targets);
+  const performance = platforms.map((p) =>
+    depotPerformance(db, model, prep, p, today, skipped, ids, input.reference, differences),
   );
+  const matches = flowMatches(db, model, platforms);
+  const platformLines: PlatformLine[] = [];
+  for (const day of days)
+    for (const p of platforms) {
+      const lines = p.members.map((m) =>
+        accountLines.find((a) => a.day === day && a.account === m.name),
+      );
+      const known = lines.every((l) => l && l.appValueCents !== null && l.ppValueCents !== null);
+      const app = known ? lines.reduce((a, l) => a + (l?.appValueCents ?? 0), 0) : null;
+      const ppv = known ? lines.reduce((a, l) => a + (l?.ppValueCents ?? 0), 0) : null;
+      platformLines.push({
+        platform: p.name,
+        day,
+        accounts: p.members.map((m) => m.name),
+        appValueCents: app,
+        ppValueCents: ppv,
+        diffCents: app === null || ppv === null ? null : app - ppv,
+      });
+    }
 
   const appTrades = db
     .select({ id: trade.id })
@@ -404,6 +445,8 @@ export function gate3Report(db: Executor, input: Gate3Input): Gate3Report {
       appSecurities: appSecurities.size,
     },
     accounts: accountLines,
+    platforms: platformLines,
+    flowMatches: matches,
     positions: positionLines,
     cashFlows,
     performance,
@@ -427,11 +470,13 @@ function cashFlowLines(
         date: booking.date,
         amountCents: booking.amountCents,
         transferId: booking.transferId,
+        key: booking.importKey,
       })
       .from(booking)
       .where(and(eq(booking.accountId, t.accountId), isNull(booking.deletedAt)))
       .all()
-      .filter((b) => b.date >= t.openingDate);
+      // The transfers between a platform's cash and securities account are internal.
+      .filter((b) => b.date >= t.openingDate && !(b.key ?? '').endsWith(':cash'));
     const ids = bookings.map((b) => b.id);
     const splits = ids.length
       ? chunked(ids, (part) =>
@@ -508,6 +553,112 @@ function cashFlowLines(
   return out;
 }
 
+interface Platform {
+  name: string;
+  depot: AccountTarget;
+  /** Where the money arrives from outside: the cash account of a split platform, else the depot. */
+  carrier: AccountTarget;
+  members: AccountTarget[];
+}
+
+function platformsOf(targets: readonly AccountTarget[]): Platform[] {
+  const cashIds = new Set(targets.flatMap((t) => (t.cashAccountId ? [t.cashAccountId] : [])));
+  return targets
+    .filter((t) => !cashIds.has(t.accountId))
+    .map((t) => {
+      const cash = t.cashAccountId
+        ? targets.find((x) => x.accountId === t.cashAccountId)
+        : undefined;
+      return { name: t.name, depot: t, carrier: cash ?? t, members: cash ? [t, cash] : [t] };
+    });
+}
+
+const MATCH_DAYS = 3;
+
+/**
+ * PP deposits and removals against what crossed the boundary in the app (YNAB transfers and plain
+ * bookings on the cash-carrying account, without the transfers of this migration): same amount
+ * within a few days, each side used once. What is left on either side is listed.
+ */
+function flowMatches(db: Executor, model: PpModel, platforms: readonly Platform[]): FlowMatch[] {
+  return platforms.map((p) => {
+    const ppUuids = new Set(p.members.flatMap((m) => m.ppAccountUuids));
+    const pp: { date: string; cents: number }[] = [];
+    for (const a of model.accounts)
+      if (ppUuids.has(a.uuid))
+        for (const tx of a.transactions)
+          if (tx.date < p.carrier.openingDate) continue;
+          else if (tx.type === 'DEPOSIT') pp.push({ date: tx.date, cents: tx.amountCents });
+          else if (tx.type === 'REMOVAL') pp.push({ date: tx.date, cents: -tx.amountCents });
+    const settlements = new Set(
+      db
+        .select({ id: trade.bookingId })
+        .from(trade)
+        .where(and(isNull(trade.deletedAt), eq(trade.accountId, p.depot.accountId)))
+        .all()
+        .flatMap((r) => (r.id ? [r.id] : [])),
+    );
+    const rows = db
+      .select({
+        id: booking.id,
+        date: booking.date,
+        cents: booking.amountCents,
+        key: booking.importKey,
+      })
+      .from(booking)
+      .where(and(eq(booking.accountId, p.carrier.accountId), isNull(booking.deletedAt)))
+      .all()
+      .filter(
+        (b) =>
+          b.date >= p.carrier.openingDate &&
+          !(b.key ?? '').startsWith('pp:') &&
+          !settlements.has(b.id),
+      );
+    const capital = new Set(
+      rows.length
+        ? chunked(
+            rows.map((r) => r.id),
+            (part) =>
+              db
+                .select({ id: bookingSplit.bookingId, it: bookingSplit.incomeTypeId })
+                .from(bookingSplit)
+                .where(inArray(bookingSplit.bookingId, part))
+                .all(),
+          )
+            .filter((x) => x.it === INCOME_TYPES.capital.id)
+            .map((x) => x.id)
+        : [],
+    );
+    const app = rows.filter((r) => !capital.has(r.id));
+    const used = new Set<number>();
+    let matched = 0;
+    const ppLeft: { date: string; cents: number }[] = [];
+    for (const f of [...pp].sort((a, b) => a.date.localeCompare(b.date))) {
+      let best = -1;
+      let bestGap = Infinity;
+      app.forEach((a, i) => {
+        if (used.has(i) || a.cents !== f.cents) return;
+        const gap = Math.abs(daysBetween(a.date, f.date));
+        if (gap <= MATCH_DAYS && gap < bestGap) [best, bestGap] = [i, gap];
+      });
+      if (best >= 0) {
+        used.add(best);
+        matched += 1;
+      } else ppLeft.push(f);
+    }
+    const appLeft = app
+      .filter((_, i) => !used.has(i))
+      .map((a) => ({ date: a.date, cents: a.cents }));
+    const sum = (xs: { cents: number }[]) => xs.reduce((a, x) => a + x.cents, 0);
+    return {
+      platform: p.name,
+      matched,
+      ppUnmatched: { count: ppLeft.length, sumCents: sum(ppLeft), items: ppLeft },
+      appUnmatched: { count: appLeft.length, sumCents: sum(appLeft), items: appLeft },
+    };
+  });
+}
+
 function chunked<T, R>(ids: readonly T[], read: (part: T[]) => R[]): R[] {
   const out: R[] = [];
   for (let i = 0; i < ids.length; i += 500) out.push(...read(ids.slice(i, i + 500)));
@@ -523,16 +674,17 @@ function depotPerformance(
   db: Executor,
   model: PpModel,
   prep: Prepared,
-  t: AccountTarget,
+  platform: Platform,
   today: string,
   skipped: ReadonlySet<string>,
   ids: PpIdMap,
   reference: ReferenceValues | undefined,
   differences: Gate3Report['differences'],
 ): DepotPerformance {
-  const from = t.openingDate;
+  const memberIds = platform.members.map((m) => m.accountId);
+  const from = platform.members.map((m) => m.openingDate).sort()[0] as string;
   const result: DepotPerformance = {
-    account: t.name,
+    account: platform.name,
     from,
     to: today,
     unavailable: null,
@@ -547,7 +699,7 @@ function depotPerformance(
       db
         .select({ securityId: trade.securityId })
         .from(trade)
-        .where(and(isNull(trade.deletedAt), eq(trade.accountId, t.accountId)))
+        .where(and(isNull(trade.deletedAt), inArray(trade.accountId, memberIds)))
         .all()
         .map((r) => r.securityId),
     ),
@@ -564,7 +716,7 @@ function depotPerformance(
     for (let attempt = 0; series === undefined && attempt <= heldIds.length; attempt++) {
       try {
         series = valuationSeries(db, {
-          accounts: [t.accountId],
+          accounts: memberIds,
           securities: heldIds.filter((id) => !excluded.has(id)),
           from,
           to: today,
@@ -579,16 +731,16 @@ function depotPerformance(
       }
     }
     if (series === undefined) throw new Error('valuation_unavailable');
-    const cash = cashSeries(db, series.days, [t.accountId]).get(t.accountId) ?? [];
-    const total = sumSeries(series.totalCents, cash);
+    const cash = [...cashSeries(db, series.days, memberIds).values()];
+    const total = sumSeries(series.totalCents, ...cash);
     appSeries = series.days.map((date, i) => ({ date, valueCents: total[i] as number }));
     // Depot view with deliveries as flows (like PP); securities excluded as unpriced count as 0.
     appFlows = portfolioFlows(db, {
       from,
       to: today,
       view: 'depot',
-      accounts: [t.accountId],
-      referenceAccounts: [t.accountId],
+      accounts: memberIds,
+      referenceAccounts: memberIds,
       securities: heldIds.filter((id) => !excluded.has(id)),
     });
   } catch (error) {
@@ -600,7 +752,18 @@ function depotPerformance(
     if (excluded.has(appId)) ppExcluded.add(ppUuid);
   let pp: ReturnType<typeof ppDepotSeries>;
   try {
-    pp = ppDepotSeries(model, prep.plan, t, from, today, ppExcluded);
+    pp = ppDepotSeries(
+      model,
+      prep.plan,
+      {
+        accountId: platform.depot.accountId,
+        ppAccountUuids: platform.members.flatMap((m) => m.ppAccountUuids),
+        portfolioUuids: platform.members.flatMap((m) => m.portfolioUuids),
+      },
+      from,
+      today,
+      ppExcluded,
+    );
   } catch (error) {
     result.unavailable = `pp replay: ${error instanceof Error ? error.name : 'unavailable'}`;
     return result;
@@ -609,7 +772,7 @@ function depotPerformance(
   for (const period of periods) {
     const app = window(appSeries, appFlows, period, today, from);
     const ppFigures = window(pp.valuations, pp.flows, period, today, from);
-    const ref = reference?.[t.name]?.[period] ?? null;
+    const ref = reference?.[platform.name]?.[period] ?? null;
     const pct = (v: number | null) => (v === null ? null : v * 100);
     const diff = (a: number | null, b: number | null) => (a === null || b === null ? null : a - b);
     const cmp: PeriodComparison = {

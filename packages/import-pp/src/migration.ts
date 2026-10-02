@@ -64,7 +64,24 @@ export const PP_MIGRATION_VERSION = 1;
 export const ppMigrationSchema = z.object({
   version: z.literal(PP_MIGRATION_VERSION),
   /** PP portfolio uuid -> app investment account (by name or id), or `ignore`. */
-  portfolios: z.record(z.string(), z.union([z.object({ account: z.string().min(1) }), ignore])),
+  portfolios: z.record(
+    z.string(),
+    z.union([
+      z.object({
+        account: z.string().min(1),
+        /**
+         * Split a platform into cash and securities like PP: the existing app account `account`
+         * (it holds the platform's YNAB flows) is renamed to this name and becomes the cash
+         * account; a new securities account named `account` is created, and every trade's cash
+         * moves between the two by a transfer.
+         */
+        cashAccount: z.object({ name: z.string().min(1) }).optional(),
+        /** Existing account the depot settles through (Verrechnungskonto), e.g. a giro. */
+        referenceAccount: z.string().min(1).optional(),
+      }),
+      ignore,
+    ]),
+  ),
   /** PP cash account uuid -> app investment account, or `ignore`. */
   accounts: z.record(
     z.string(),
@@ -75,9 +92,11 @@ export const ppMigrationSchema = z.object({
         cashFlows: z.enum(['ynab', 'book']).default('ynab'),
         /**
          * `pp`: the opening balance becomes PP's cash on the day before the opening day; `keep`:
-         * YNAB's stays; a whole number of cents sets it (what the report suggests).
+         * YNAB's stays; `total` (the cash account of a split platform): YNAB's opening balance
+         * minus the value of PP's securities on the opening day, so cash plus securities equal
+         * YNAB's total that day; a whole number of cents sets it (what the report suggests).
          */
-        openingBalance: z.union([z.enum(['pp', 'keep']), z.number().int()]).default('pp'),
+        openingBalance: z.union([z.enum(['pp', 'keep', 'total']), z.number().int()]).default('pp'),
         /** Delete the account's YNAB balance adjustments (value estimates) on commit. */
         retireYnabValue: z.boolean().default(true),
       }),
@@ -104,6 +123,7 @@ export interface AppAccountRef {
   currency: string;
   openingDate: string;
   openingBalanceCents: number;
+  referenceAccountId?: string | null;
 }
 export interface AppSecurityRef {
   id: string;
@@ -121,16 +141,34 @@ export interface AccountTarget {
   openingDate: string;
   openingBalanceCents: number;
   cashFlows: 'ynab' | 'book';
-  openingBalance: 'pp' | 'keep' | number;
+  openingBalance: 'pp' | 'keep' | 'total' | number;
   retireYnabValue: boolean;
   ppAccountUuids: string[];
   portfolioUuids: string[];
+  /** Verrechnungskonto: the cash account of a split platform, or the account named in the mapping. */
+  referenceAccountId: string | null;
+  /** The cash account of a split platform (a securities account whose cash lives elsewhere). */
+  cashAccountId: string | null;
+}
+
+/** A platform split into a cash account (the renamed YNAB account) and a securities account. */
+export interface SplitPlan {
+  /** `new`: the run renames and creates; `done`: both accounts exist already. */
+  state: 'new' | 'done';
+  cashAccountId: string;
+  /** Existing account id, or `new:<cash account id>` until the run creates it. */
+  depotAccountId: string;
+  cashName: string;
+  depotName: string;
+  /** Names before the split (the cash account's old name). */
+  previousName: string;
 }
 
 export interface ResolvedMigration {
   /** The plan mapping (`mapToTarget`): PP uuid -> app account id. */
   mapping: PpMapping;
   targets: AccountTarget[];
+  splits: SplitPlan[];
   problems: MigrationProblem[];
 }
 
@@ -142,11 +180,63 @@ const norm = (s: string) => s.replace(/\s+/g, ' ').trim().toLowerCase();
 export function resolveMigration(
   model: PpModel,
   doc: PpMigration,
-  apps: ReadonlyArray<AppAccountRef>,
+  realApps: ReadonlyArray<AppAccountRef>,
 ): ResolvedMigration {
   const problems: MigrationProblem[] = [];
   const error = (code: string, message: string) =>
     problems.push({ severity: 'error', code, message });
+
+  // Splits first: the app as it will be after them (renamed cash account, new securities account).
+  let apps: AppAccountRef[] = [...realApps];
+  const splits: SplitPlan[] = [];
+  const named = (name: string) => apps.filter((a) => norm(a.name) === norm(name));
+  for (const [uuid, entry] of Object.entries(doc.portfolios)) {
+    if (entry === 'ignore' || !entry.cashAccount) continue;
+    const cashName = entry.cashAccount.name;
+    const [cash, depot] = [named(cashName), named(entry.account)];
+    if (cash.length === 1 && depot.length === 1) {
+      if ((depot[0] as AppAccountRef).referenceAccountId === (cash[0] as AppAccountRef).id)
+        splits.push({
+          state: 'done',
+          cashAccountId: (cash[0] as AppAccountRef).id,
+          depotAccountId: (depot[0] as AppAccountRef).id,
+          cashName,
+          depotName: entry.account,
+          previousName: entry.account,
+        });
+      else
+        error(
+          'mapping.split_conflict',
+          `Portfolio ${uuid}: both accounts exist but are not linked`,
+        );
+    } else if (cash.length === 0 && depot.length === 1) {
+      const old = depot[0] as AppAccountRef;
+      const virtual: AppAccountRef = {
+        id: `new:${old.id}`,
+        name: entry.account,
+        role: 'investment',
+        currency: old.currency,
+        openingDate: old.openingDate,
+        openingBalanceCents: 0,
+        referenceAccountId: old.id,
+      };
+      apps = [...apps.map((a) => (a.id === old.id ? { ...a, name: cashName } : a)), virtual];
+      splits.push({
+        state: 'new',
+        cashAccountId: old.id,
+        depotAccountId: virtual.id,
+        cashName,
+        depotName: entry.account,
+        previousName: old.name,
+      });
+    } else
+      error(
+        'mapping.split_account',
+        `Portfolio ${uuid}: account "${entry.account}" is not unique or missing`,
+      );
+  }
+  const splitOfCash = new Map(splits.map((p) => [p.cashAccountId, p]));
+
   const find = (what: string, ref: string): AppAccountRef | null => {
     const byId = apps.find((a) => a.id === ref);
     if (byId) return byId;
@@ -174,6 +264,8 @@ export function resolveMigration(
         retireYnabValue: true,
         ppAccountUuids: [],
         portfolioUuids: [],
+        referenceAccountId: app.referenceAccountId ?? null,
+        cashAccountId: null,
       };
       targets.set(app.id, t);
     }
@@ -205,7 +297,19 @@ export function resolveMigration(
     const app = find(`Portfolio ${pf.uuid}`, entry.account);
     if (!app || !investment(`Portfolio ${pf.uuid}`, app)) continue;
     mapping.portfolios[pf.uuid] = { accountId: app.id };
-    target(app).portfolioUuids.push(pf.uuid);
+    const t = target(app);
+    t.portfolioUuids.push(pf.uuid);
+    if (entry.cashAccount) {
+      const own = splits.find((p) => p.depotName === entry.account);
+      if (own) {
+        t.cashAccountId = own.cashAccountId;
+        t.referenceAccountId = own.cashAccountId;
+      }
+    }
+    if (entry.referenceAccount) {
+      const ref = find(`Portfolio ${pf.uuid} reference account`, entry.referenceAccount);
+      if (ref) t.referenceAccountId = ref.id;
+    }
   }
   for (const acc of model.accounts) {
     const entry = doc.accounts[acc.uuid];
@@ -222,6 +326,11 @@ export function resolveMigration(
     if (!app || !investment(`PP account ${acc.uuid}`, app)) continue;
     mapping.accounts[acc.uuid] = { accountId: app.id };
     const t = target(app);
+    if (entry.openingBalance === 'total' && !splitOfCash.has(app.id))
+      error(
+        'mapping.opening_total',
+        `PP account ${acc.uuid}: openingBalance total needs a split platform`,
+      );
     t.ppAccountUuids.push(acc.uuid);
     t.cashFlows = entry.cashFlows;
     t.openingBalance = entry.openingBalance;
@@ -235,16 +344,17 @@ export function resolveMigration(
     const refTxs =
       model.accounts.find((a) => a.uuid === pf.referenceAccountUuid)?.transactions.length ?? 0;
     if ((ref === undefined || ref === 'ignore') && refTxs === 0) continue;
-    if (ref === undefined || ref === 'ignore' || ref.accountId !== own.accountId)
+    const wanted = targets.get(own.accountId)?.cashAccountId ?? own.accountId;
+    if (ref === undefined || ref === 'ignore' || ref.accountId !== wanted)
       error(
         'mapping.reference_account',
-        `Portfolio ${pf.uuid}: its reference account must map to the same app account`,
+        `Portfolio ${pf.uuid}: its reference account must map to ${wanted === own.accountId ? 'the same app account' : 'the platform cash account'}`,
       );
   }
   for (const t of targets.values())
     if (t.cashFlows === 'book' && t.ppAccountUuids.length === 0)
       error('mapping.cash_flows', `Account "${t.name}": cashFlows book needs a PP cash account`);
-  return { mapping, targets: [...targets.values()], problems };
+  return { mapping, targets: [...targets.values()], splits, problems };
 }
 
 // ---- securities -----------------------------------------------------------------------------

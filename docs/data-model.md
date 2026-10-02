@@ -163,6 +163,7 @@ the auth tables.
   A delivery in or out (`delivery_in` / `delivery_out`, also the legs of a transfer between portfolios)
   is capital in or out at its stored amount, as in Portfolio Performance (owner decision
   02.10.2026); two accounts of the same depot net out.
+- **Verrechnungskonto** (P5.11): `account.reference_account_id` (nullable, self reference) links a depot to the account it settles through, so a platform (cash account plus securities account) can be grouped and shown ("Verrechnungskonto: …"). It is a link only: money between the two moves by transfers, and a trade still settles on its own account.
 - **PP migration tables** (P5.11, `docs/ops.md` §13): `import_file` (the staged PP XML as bytes,
   one per run, deletable) and `import_price_change` (per run, security and day: a price the run
   inserted has no old value, one it replaced keeps old price, currency and source). Prices are not

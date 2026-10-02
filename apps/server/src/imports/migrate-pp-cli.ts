@@ -76,8 +76,34 @@ function printProblems(problems: { severity: string; code: string; count: number
 function printChange(change: Record<string, unknown> | null | undefined) {
   if (!change) return;
   const c = change as Record<string, Record<string, number> | unknown>;
-  for (const key of ['securities', 'assetClasses', 'prices', 'trades', 'bookings'])
+  for (const key of ['securities', 'assetClasses', 'prices', 'trades', 'bookings', 'transfers'])
     console.log(key.padEnd(14), JSON.stringify(c[key]));
+  for (const p of (c['splits'] as {
+    cash: string;
+    depot: string;
+    renamedFrom: string;
+    state: string;
+  }[]) ?? [])
+    console.log(
+      'split         ',
+      `${p.renamedFrom} -> cash "${p.cash}" + securities "${p.depot}" (${p.state})`,
+    );
+  for (const o of (c['openingCheck'] as {
+    account: string;
+    ynabOpeningCents: number;
+    securitiesCents: number;
+    cashOpeningCents: number;
+  }[]) ?? [])
+    console.log(
+      'opening total ',
+      o.account.padEnd(26),
+      'YNAB',
+      eur(o.ynabOpeningCents),
+      '= cash',
+      eur(o.cashOpeningCents),
+      '+ PP securities',
+      eur(o.securitiesCents),
+    );
   if (Object.keys((c['notes'] as object) ?? {}).length > 0)
     console.log('adjustments   ', JSON.stringify(c['notes']));
   for (const a of (c['accounts'] as {
@@ -117,7 +143,26 @@ function printReport(report: Gate3Report | null | undefined) {
         ? `missing quotes app ${a.appMissingQuotes} PP ${a.ppMissingQuotes}`
         : '',
     );
-  console.log('returns per depot (TTWROR % | XIRR % ; app, PP replay):');
+  console.log(`value per platform on ${lastDay} (app | PP | diff):`);
+  for (const p of report.platforms.filter((x) => x.day === lastDay))
+    console.log(
+      '  ',
+      p.platform.padEnd(26),
+      eur(p.appValueCents),
+      eur(p.ppValueCents),
+      eur(p.diffCents),
+      p.accounts.length > 1 ? `(${p.accounts.join(' + ')})` : '',
+    );
+  console.log('PP deposits/removals against the app (same amount within 3 days):');
+  for (const m of report.flowMatches)
+    console.log(
+      '  ',
+      m.platform.padEnd(26),
+      `matched ${m.matched}`,
+      `| PP only ${m.ppUnmatched.count} (${eur(m.ppUnmatched.sumCents).trim()})`,
+      `| app only ${m.appUnmatched.count} (${eur(m.appUnmatched.sumCents).trim()})`,
+    );
+  console.log('returns per platform (TTWROR % | XIRR % ; app, PP replay):');
   for (const d of report.performance) {
     if (d.unavailable) {
       console.log('  ', d.account.padEnd(26), `unavailable (${d.unavailable})`);

@@ -299,7 +299,87 @@ describe('proposeMigration', () => {
 
   it('never invents quote ids: only Yahoo-shaped symbols, none from a MANUAL feed', () => {
     const { doc } = proposeMigration(model, apps);
-    for (const entry of Object.values(doc.securities))
+    for (const entry of Object.values(doc.securities ?? {}))
       if (entry !== 'skip') expect(entry.symbol).toBeUndefined();
+  });
+});
+
+describe('splits (platform as cash account plus securities account)', () => {
+  // The other portfolios of the file are not in these documents.
+  const own = (r: { problems: { code: string }[] }) =>
+    r.problems.filter((p) => !p.code.endsWith('_unmapped'));
+  const name0 = portfolios[0]!.name;
+  const splitDoc = (over: Record<string, unknown> = {}) =>
+    ppMigrationSchema.parse({
+      version: 1,
+      portfolios: { [portfolios[0]!.uuid]: { account: name0, cashAccount: { name: 'Cash X' } } },
+      accounts: {
+        [refUuid(0)]: { account: 'Cash X', openingBalance: 'total', retireYnabValue: false },
+      },
+      ...over,
+    });
+
+  it('renames the YNAB account to the cash account and plans a new securities account', () => {
+    const r = resolveMigration(model, splitDoc(), apps.slice(0, 1));
+    expect(own(r)).toEqual([]);
+    expect(r.splits).toEqual([
+      {
+        state: 'new',
+        cashAccountId: 'app-0',
+        depotAccountId: 'new:app-0',
+        cashName: 'Cash X',
+        depotName: name0,
+        previousName: name0,
+      },
+    ]);
+    const depot = r.targets.find((t) => t.accountId === 'new:app-0')!;
+    expect(depot).toMatchObject({ cashAccountId: 'app-0', referenceAccountId: 'app-0' });
+    expect(r.mapping.portfolios[portfolios[0]!.uuid]).toEqual({ accountId: 'new:app-0' });
+    expect(r.mapping.accounts[refUuid(0)]).toEqual({ accountId: 'app-0' });
+    expect(r.targets.find((t) => t.accountId === 'app-0')?.openingBalance).toBe('total');
+  });
+
+  it('recognises a finished split and refuses a conflicting one', () => {
+    const done = resolveMigration(model, splitDoc(), [
+      app('c', 'Cash X'),
+      app('d', name0, { referenceAccountId: 'c' }),
+    ]);
+    expect(own(done)).toEqual([]);
+    expect(done.splits[0]).toMatchObject({
+      state: 'done',
+      cashAccountId: 'c',
+      depotAccountId: 'd',
+    });
+    const bad = resolveMigration(model, splitDoc(), [app('c', 'Cash X'), app('d', name0)]);
+    expect(bad.problems.map((p) => p.code)).toContain('mapping.split_conflict');
+    expect(resolveMigration(model, splitDoc(), []).problems.map((p) => p.code)).toContain(
+      'mapping.split_account',
+    );
+  });
+
+  it('wants the PP reference account on the cash account and total only on a split', () => {
+    const wrong = splitDoc({
+      accounts: { [refUuid(0)]: { account: name0, openingBalance: 'keep' } },
+    });
+    expect(resolveMigration(model, wrong, apps.slice(0, 1)).problems.map((p) => p.code)).toContain(
+      'mapping.reference_account',
+    );
+    const plainTotal = document({
+      accounts: { [refUuid(0)]: { account: apps[0]!.name, openingBalance: 'total' } },
+    });
+    expect(resolveMigration(model, plainTotal, apps).problems.map((p) => p.code)).toContain(
+      'mapping.opening_total',
+    );
+  });
+
+  it('keeps an existing Verrechnungskonto without creating anything', () => {
+    const doc = document({
+      portfolios: {
+        [portfolios[1]!.uuid]: { account: apps[1]!.name, referenceAccount: apps[0]!.name },
+      },
+    });
+    const r = resolveMigration(model, doc, apps);
+    expect(r.splits).toEqual([]);
+    expect(r.targets.find((t) => t.accountId === 'app-1')?.referenceAccountId).toBe('app-0');
   });
 });

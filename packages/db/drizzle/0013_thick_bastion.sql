@@ -18,3 +18,5 @@ CREATE TABLE `import_price_change` (
 	PRIMARY KEY(`import_run_id`, `security_id`, `date`),
 	FOREIGN KEY (`import_run_id`) REFERENCES `import_run`(`id`) ON UPDATE no action ON DELETE no action
 );
+--> statement-breakpoint
+ALTER TABLE `account` ADD `reference_account_id` text REFERENCES account(id);

@@ -427,3 +427,149 @@ describe("the switch of an account's YNAB value", () => {
     ).toBe(2_000);
   });
 });
+
+describe('platforms like PP: cash account and securities account', () => {
+  const balance = (id: string) =>
+    accountBalances(db, TODAY).find((a) => a.accountId === id)?.balanceCents as number;
+  const splitDoc = (opening: unknown = 'total') =>
+    mapping((d) => {
+      const first = model.portfolios[0]!;
+      d.portfolios[first.uuid].cashAccount = { name: first.name + ' - Konto' };
+      d.accounts[first.referenceAccountUuid as string] = {
+        account: first.name + ' - Konto',
+        cashFlows: 'ynab',
+        openingBalance: opening,
+        retireYnabValue: false,
+      };
+    });
+  const byName = (name: string) =>
+    db.select().from(account).where(eq(account.name, name)).get() as typeof account.$inferSelect;
+  const first = () => model.portfolios[0]!;
+
+  it('renames the YNAB account to the cash account, creates the securities account and links them', () => {
+    const body = run({ kind: 'commit', runId: stage(splitDoc()) });
+    const cash = byName(first().name + ' - Konto');
+    const depot = byName(first().name);
+    expect(cash.id).toBe('app-0'); // the YNAB account keeps its id and its bookings
+    expect(cash.type).toBe('checking');
+    expect(depot.id).not.toBe('app-0');
+    expect(depot).toMatchObject({ role: 'investment', onBudget: false, openingBalanceCents: 0 });
+    expect(depot.referenceAccountId).toBe(cash.id);
+    expect(body['change'].splits).toEqual([
+      { cash: cash.name, depot: depot.name, renamedFrom: first().name, state: 'new' },
+    ]);
+  });
+
+  it('keeps the securities account at 0 cash: every trade settles through a transfer', () => {
+    const body = run({ kind: 'commit', runId: stage(splitDoc()) });
+    const cash = byName(first().name + ' - Konto');
+    const depot = byName(first().name);
+    expect(balance(depot.id)).toBe(0);
+    expect(body['change'].transfers.added).toBeGreaterThan(0);
+    const legs = liveBookings().filter((b) => b.transferId !== null);
+    expect(legs).toHaveLength(body['change'].transfers.added * 2);
+    expect(legs.every((b) => b.accountId === cash.id || b.accountId === depot.id)).toBe(true);
+    // Cash account = YNAB opening + what the trades moved (no PP deposits are booked).
+    const moved = live(trade)
+      .filter((t) => t.accountId === depot.id)
+      .reduce((a, t) => {
+        const settlement = liveBookings(depot.id).find((b) => b.id === t.bookingId);
+        return a + (settlement?.amountCents ?? 0);
+      }, 0);
+    const onCash = liveBookings(cash.id);
+    const legSum = onCash
+      .filter((b) => b.transferId !== null)
+      .reduce((x, b) => x + b.amountCents, 0);
+    const other = onCash
+      .filter((b) => b.transferId === null)
+      .reduce((x, b) => x + b.amountCents, 0);
+    expect(legSum).toBe(moved); // the cash account carries what the trades moved
+    expect(balance(cash.id)).toBe(cash.openingBalanceCents + moved + other);
+    expect(body['report'].differences.positionUnits).toBe(0);
+    // One platform in the report: securities plus cash, PP against the app.
+    const platform = body['report'].platforms.find((p: any) => p.platform === depot.name);
+    expect(platform.accounts).toEqual([depot.name, cash.name]);
+  });
+
+  it('opening balance total: cash plus PP securities equal the YNAB opening total', () => {
+    // Holdings exist before the opening day when the opening day lies late in the file.
+    db.update(account).set({ openingDate: '2026-09-02' }).where(eq(account.id, 'app-0')).run();
+    apps[0]!.openingDate = '2026-09-02';
+    const body = run({ kind: 'commit', runId: stage(splitDoc()) });
+    const [check] = body['change'].openingCheck;
+    expect(check.ynabOpeningCents).toBe(1_000);
+    expect(check.securitiesCents).toBeGreaterThan(0);
+    expect(check.cashOpeningCents + check.securitiesCents).toBe(1_000);
+    expect(byName(first().name + ' - Konto').openingBalanceCents).toBe(check.cashOpeningCents);
+  });
+
+  it('a second run finds the finished split and changes nothing', () => {
+    run({ kind: 'commit', runId: stage(splitDoc()) });
+    const opening = byName(first().name + ' - Konto').openingBalanceCents;
+    const again = run({ kind: 'commit', runId: stage(splitDoc()) });
+    expect(again['change'].splits[0].state).toBe('done');
+    expect(again['change'].transfers.added).toBe(0);
+    expect(again['change'].trades.added).toBe(0);
+    expect(byName(first().name + ' - Konto').openingBalanceCents).toBe(opening);
+    expect(
+      db
+        .select()
+        .from(account)
+        .all()
+        .filter((a) => a.name === first().name),
+    ).toHaveLength(1);
+  });
+
+  it('reverts the split: the name and type come back, the securities account is gone', () => {
+    const id = stage(splitDoc());
+    run({ kind: 'commit', runId: id });
+    run({ kind: 'revert', runId: id, force: false });
+    const live1 = db
+      .select()
+      .from(account)
+      .all()
+      .filter((a) => a.name === first().name && a.deletedAt === null);
+    expect(live1).toHaveLength(1);
+    expect(live1[0]).toMatchObject({ id: 'app-0', type: 'brokerage' });
+    expect(liveBookings()).toHaveLength(0);
+    expect(byName(first().name + ' - Konto')).toBeUndefined();
+  });
+
+  it('refuses to revert once bookings were added to the new securities account', () => {
+    const id = stage(splitDoc());
+    run({ kind: 'commit', runId: id });
+    createBooking(
+      db,
+      {
+        accountId: byName(first().name).id,
+        date: '2026-09-25',
+        amountCents: 1,
+        splits: [{ categoryId: null, amountCents: 1 }],
+      },
+      { actor: 't' },
+    );
+    expect(() => run({ kind: 'revert', runId: id, force: false })).toThrow(/after the import/);
+  });
+
+  it('only sets the Verrechnungskonto where a depot settles through an existing account', () => {
+    const second = model.portfolios[1]!;
+    const doc = mapping((d) => {
+      d.portfolios[second.uuid].referenceAccount = apps[0]!.name;
+    });
+    run({ kind: 'commit', runId: stage(doc) });
+    expect(db.select().from(account).where(eq(account.id, 'app-1')).get()?.referenceAccountId).toBe(
+      'app-0',
+    );
+    expect(db.select().from(account).all()).toHaveLength(apps.length);
+  });
+
+  it('matches PP deposits with the app flows on the cash account and lists the rest', () => {
+    const id = stage(splitDoc());
+    run({ kind: 'commit', runId: id });
+    const matches = run({ kind: 'report', runId: id })['report'].flowMatches;
+    const m = matches.find((x: any) => x.platform === first().name);
+    // The synthetic PP file has a 5.000 EUR deposit that the app (no YNAB transfer) does not have.
+    expect(m.ppUnmatched.items.some((i: any) => i.cents === 500_000)).toBe(true);
+    expect(m.matched).toBe(0);
+  });
+});

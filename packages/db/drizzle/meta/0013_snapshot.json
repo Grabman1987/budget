@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "679267ba-3375-4d86-8d8c-b82566b4e428",
+  "id": "4ca4595a-bb83-40b3-a214-c6b12b85b437",
   "prevId": "1e0ce2be-677a-4f9f-bf3c-a939e05233fa",
   "tables": {
     "account": {
@@ -51,6 +51,13 @@
         },
         "contact_id": {
           "name": "contact_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "reference_account_id": {
+          "name": "reference_account_id",
           "type": "text",
           "primaryKey": false,
           "notNull": false,
@@ -182,6 +189,15 @@
           "tableFrom": "account",
           "tableTo": "contact",
           "columnsFrom": ["contact_id"],
+          "columnsTo": ["id"],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "account_reference_account_id_account_id_fk": {
+          "name": "account_reference_account_id_account_id_fk",
+          "tableFrom": "account",
+          "tableTo": "account",
+          "columnsFrom": ["reference_account_id"],
           "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
