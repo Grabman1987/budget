@@ -59,12 +59,19 @@ export interface LedgerAccount extends BalanceAccount {
 export interface LedgerCategory {
   id: string;
   kind: string;
+  /** Optional read-model labels used by reports; budget arithmetic does not depend on them. */
+  name?: string;
+  class?: string | null;
   rolloverOverspending?: boolean;
   /** Set for a `card_payment` category: the card it belongs to. */
   cardAccountId?: string | null;
 }
 
 export interface LedgerSplit {
+  /** Optional source identity for reports; budget arithmetic does not depend on it. */
+  bookingId?: string;
+  payeeId?: string | null;
+  status?: string;
   accountId: string;
   /** `YYYY-MM-DD` of the booking. */
   date: string;

@@ -131,7 +131,7 @@ consistent totals, desktop/mobile checks and printing where required.
 | 2.2 | Budgettreue inkl. 50/30/20 | `reports-ausgaben.js` | Body Open; twelfths rule follows SPEC |
 | 2.3 | Verträge und Abos | `reports-ausgaben.js` | Report body Open; expected-payment workflow exists |
 | 2.4 | Persönliche Inflation | `reports-ausgaben.js` | Body Open |
-| 2.5 | Empfänger-Analyse | `reports-ausgaben.js` | Body Open |
+| 2.5 | Empfänger-Analyse | `reports-ausgaben.js` | Partial: connected signed recipient activity for Bedarf/Wunsch categories, period comparison and read-only booking drilldown; see [scope contract](payee-analysis-report.md) |
 | 2.6 | Bank- und Zinskosten | `reports-ausgaben.js` | Body Open |
 | 3.1 | Liquiditätsprognose | `reports-zukunft.js` | Body + events/levers Open; forecast engine exists |
 | 3.2 | Cashflow-Verlauf | `reports-zukunft.js` | Body Open |
