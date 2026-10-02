@@ -296,6 +296,110 @@ describe('book: skips', () => {
     expect(live('giro')).toHaveLength(1);
   });
 
+  it('unlock: true changes the date, the amount and deletes a reconciled booking, audited and undoable', () => {
+    book('giro', '2026-10-03', -1_250, { status: 'reconciled' });
+    book('giro', '2026-10-04', -300, { status: 'reconciled' });
+    book('giro', '2026-10-05', -700, { status: 'reconciled' });
+    const before = state(false);
+    const auditBefore = auditCount();
+    const results = run([
+      { id: 'u1', kind: 'change_date', match, newDate: '2026-10-09', unlock: true },
+      {
+        id: 'u2',
+        kind: 'change_amount',
+        match: { ...match, date: '2026-10-04', amountCents: -300 },
+        newAmountCents: -350,
+        unlock: true,
+      },
+      {
+        id: 'u3',
+        kind: 'delete',
+        match: { ...match, date: '2026-10-05', amountCents: -700 },
+        unlock: true,
+      },
+    ]).map(done);
+    expect(new Set(results.map((r) => r.groupId)).size).toBe(3);
+    expect(auditCount()).toBeGreaterThan(auditBefore);
+    expect(
+      live('giro')
+        .map((b) => [b.date, b.amountCents])
+        .sort(),
+    ).toEqual([
+      ['2026-10-04', -350],
+      ['2026-10-09', -1_250],
+    ]);
+    // the same audit machinery as the app: each entry undoes on its own, newest first
+    for (const r of [...results].reverse()) undo(db, { groupId: r.groupId }, operator);
+    expect(state(false)).toEqual(before);
+  });
+
+  it('unlock applies to its own entry only and a dry run with unlock writes nothing', () => {
+    book('giro', '2026-10-03', -1_250, { status: 'reconciled' });
+    book('giro', '2026-10-04', -300, { status: 'reconciled' });
+    const before = state();
+    const dry = run(
+      [{ id: 'd1', kind: 'change_date', match, newDate: '2026-10-09', unlock: true }],
+      true,
+    );
+    expect(done(dry[0]).groupId).toBe('');
+    expect(state()).toEqual(before);
+    const [unlocked, locked] = run([
+      { id: 'o1', kind: 'change_date', match, newDate: '2026-10-09', unlock: true },
+      {
+        id: 'o2',
+        kind: 'change_date',
+        match: { ...match, date: '2026-10-04', amountCents: -300 },
+        newDate: '2026-10-10',
+      },
+    ]);
+    done(unlocked);
+    expect(skipped(locked).reason).toBe('reconciled_locked');
+  });
+
+  it('unlock: false is the same as no unlock, and a bad or misplaced unlock is rejected', () => {
+    book('giro', '2026-10-03', -1_250, { status: 'reconciled' });
+    expect(skipped(only([{ id: 'f1', kind: 'delete', match, unlock: false }])).reason).toBe(
+      'reconciled_locked',
+    );
+    expect(() => parseBookFile([{ id: 'x', kind: 'delete', match, unlock: 'yes' }])).toThrow(
+      OperatorInputError,
+    );
+    expect(() =>
+      parseBookFile([
+        {
+          id: 'x',
+          kind: 'add',
+          account: 'Giro',
+          date: '2026-10-03',
+          amountCents: -1,
+          unlock: true,
+        },
+      ]),
+    ).toThrow(OperatorInputError);
+  });
+
+  it('unlock leaves the other rules in force (split amount change is still refused)', () => {
+    createBooking(
+      db,
+      {
+        accountId: 'giro',
+        date: '2026-10-03',
+        amountCents: -1_250,
+        status: 'reconciled',
+        splits: [
+          { categoryId: 'essen', amountCents: -1_000 },
+          { categoryId: 'reise', amountCents: -250 },
+        ],
+      },
+      owner,
+    );
+    const result = skipped(
+      only([{ id: 's1', kind: 'change_amount', match, newAmountCents: -1_300, unlock: true }]),
+    );
+    expect(result.reason).not.toBe('reconciled_locked');
+    expect(live('giro')[0]!.amountCents).toBe(-1_250);
+  });
+
   it('refuses an amount change of a split booking, like the app', () => {
     createBooking(
       db,

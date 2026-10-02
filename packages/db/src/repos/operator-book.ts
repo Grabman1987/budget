@@ -55,19 +55,29 @@ export interface BookAdd extends EntryBase {
   memo?: string;
   cleared: 'cleared' | 'uncleared';
 }
+/**
+ * `unlock: true` on an entry that changes or deletes a booking is the explicit, per-entry switch
+ * for a reconciled (geprüft, locked) booking: it passes `unlockReconciled` to the same functions
+ * the app and the API use (`PATCH /api/bookings/:id` with `unlockReconciled`, `DELETE ...?unlock=1`),
+ * so the change is audited and undoable like any other. Without it a reconciled booking is still
+ * skipped as `reconciled_locked`.
+ */
 export interface BookChangeAmount extends EntryBase {
   kind: 'change_amount';
   match: BookMatch;
   newAmountCents: number;
+  unlock?: true;
 }
 export interface BookChangeDate extends EntryBase {
   kind: 'change_date';
   match: BookMatch;
   newDate: string;
+  unlock?: true;
 }
 export interface BookDelete extends EntryBase {
   kind: 'delete';
   match: BookMatch;
+  unlock?: true;
 }
 export type BookEntry = BookAdd | BookChangeAmount | BookChangeDate | BookDelete;
 
@@ -138,6 +148,14 @@ function parseMatch(raw: unknown, at: string): BookMatch {
   };
 }
 
+/** `unlock` is optional and, when present, must be a boolean; `false` is the same as absent. */
+function unlockFlag(raw: Record<string, unknown>, at: string): { unlock?: true } {
+  const value = raw['unlock'];
+  if (value === undefined || value === false) return {};
+  if (value === true) return { unlock: true };
+  throw new OperatorInputError(`${at}.unlock must be true or false`);
+}
+
 /** Check a parsed `book --file` JSON; throws `OperatorInputError` naming the entry and the problem. */
 export function parseBookFile(json: unknown): BookEntry[] {
   if (!Array.isArray(json)) throw new OperatorInputError('The file must hold a JSON array');
@@ -160,6 +178,10 @@ export function parseBookFile(json: unknown): BookEntry[] {
         const cleared = raw['cleared'] ?? 'uncleared';
         if (cleared !== 'cleared' && cleared !== 'uncleared')
           throw new OperatorInputError(`${at}.cleared must be "cleared" or "uncleared"`);
+        if (raw['unlock'] !== undefined)
+          throw new OperatorInputError(
+            `${at}: "unlock" only applies to change_amount, change_date and delete`,
+          );
         const amountCents = wholeCents(raw['amountCents'], `${at}.amountCents`);
         if (transferAccount !== undefined && amountCents === 0)
           throw new OperatorInputError(`${at}: a transfer needs a non-zero amount`);
@@ -184,6 +206,7 @@ export function parseBookFile(json: unknown): BookEntry[] {
           id,
           match: parseMatch(raw['match'], `${at}.match`),
           newAmountCents: wholeCents(raw['newAmountCents'], `${at}.newAmountCents`),
+          ...unlockFlag(raw, at),
         };
       case 'change_date':
         return {
@@ -191,9 +214,15 @@ export function parseBookFile(json: unknown): BookEntry[] {
           id,
           match: parseMatch(raw['match'], `${at}.match`),
           newDate: validDay(raw['newDate'], `${at}.newDate`),
+          ...unlockFlag(raw, at),
         };
       case 'delete':
-        return { kind: 'delete', id, match: parseMatch(raw['match'], `${at}.match`) };
+        return {
+          kind: 'delete',
+          id,
+          match: parseMatch(raw['match'], `${at}.match`),
+          ...unlockFlag(raw, at),
+        };
       default:
         throw new OperatorInputError(
           `${at}.kind must be add, change_amount, change_date or delete`,
@@ -301,6 +330,11 @@ function refusal(error: unknown): Skip {
   return new Skip('refused', 0, message);
 }
 
+/** The explicit per-entry unlock of a reconciled booking; nothing is unlocked by default. */
+const writeOptions = (entry: BookChangeAmount | BookChangeDate | BookDelete) => ({
+  unlockReconciled: entry.unlock === true,
+});
+
 function applyEntry(tx: Executor, entry: BookEntry, ctx: GroupedContext): BookDone {
   const done = (acct: string, date: string, cents: number): BookDone => ({
     status: 'done',
@@ -355,17 +389,17 @@ function applyEntry(tx: Executor, entry: BookEntry, ctx: GroupedContext): BookDo
     }
     case 'change_amount': {
       const row = resolveMatch(tx, entry.match);
-      updateBooking(tx, row.id, { amountCents: entry.newAmountCents }, ctx);
+      updateBooking(tx, row.id, { amountCents: entry.newAmountCents }, ctx, writeOptions(entry));
       return done(entry.match.account, row.date, entry.newAmountCents);
     }
     case 'change_date': {
       const row = resolveMatch(tx, entry.match);
-      updateBooking(tx, row.id, { date: entry.newDate }, ctx);
+      updateBooking(tx, row.id, { date: entry.newDate }, ctx, writeOptions(entry));
       return done(entry.match.account, entry.newDate, row.amountCents);
     }
     case 'delete': {
       const row = resolveMatch(tx, entry.match);
-      deleteBooking(tx, row.id, ctx);
+      deleteBooking(tx, row.id, ctx, writeOptions(entry));
       return done(entry.match.account, row.date, row.amountCents);
     }
   }

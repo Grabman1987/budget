@@ -495,7 +495,11 @@ from a JSON list. The file holds real names and amounts: keep it on the private 
   `transferAccount` (a proper linked Umbuchung; a negative amount leaves `account`).
 - `change_amount` (`newAmountCents`), `change_date` (`newDate`), `delete`: address the booking by
   `match: {account, date, amountCents, payee?, memo?}`. It must resolve to exactly one top-level
-  booking (a split booking counts with its total).
+  booking (a split booking counts with its total). These three also take `unlock: true`, the
+  explicit per-entry unlock of a reconciled (geprüft) booking: it passes the same `unlockReconciled`
+  option as the app's unlock (`PATCH /api/bookings/:id`, `DELETE ...?unlock=1`), so
+  the change is audited and undoable. Without it a reconciled booking is skipped
+  (`reconciled_locked`); `add` does not take it, and every other rule of the app still applies.
 
 Everything goes through the booking functions behind the HTTP routes, so transfer pairing,
 splits, trade cash flows, payment links, reconciliation locks and the envelopes behave as in the
