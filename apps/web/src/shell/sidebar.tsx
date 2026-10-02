@@ -1,6 +1,7 @@
 import { cx } from '@budget/ui';
 import { Settings } from 'lucide-react';
 import { MAIN_AREAS, type AreaId } from '../nav/areas';
+import { AccountTree } from './account-tree';
 import { AppLink } from './app-link';
 import { ThemeButton } from './theme-button';
 
@@ -37,7 +38,10 @@ export function BrandMark() {
   );
 }
 
-/** "Planliste": the five areas as numbered sheets, settings and profile at the bottom. */
+/**
+ * "Planliste": the five areas as numbered sheets, the account hierarchy below them, settings and
+ * profile at the bottom.
+ */
 export function Sidebar({ area }: { area: AreaId | undefined }) {
   return (
     <aside className="sidebar" id="sidebar" aria-label="Seitenleiste">
@@ -72,6 +76,10 @@ export function Sidebar({ area }: { area: AreaId | undefined }) {
           })}
         </ul>
       </nav>
+
+      <div className="sidebar-scroll">
+        <AccountTree />
+      </div>
 
       <div className="sidebar-foot">
         <ThemeButton variant="side" />

@@ -1,0 +1,321 @@
+/* Precision layer (owner brief 02.10.2026): a cool slate ground, white cards with hairline
+   borders and layered shadows, an ice-blue sidebar, green signals for money that is there and a
+   faint drafting grid that fades out of the top corner. Loaded after the page styles. */
+
+/* ---------- Ground, sidebar, top bar ---------- */
+.app {
+  background: var(--ground);
+}
+.sidebar {
+  background: var(--ground-2);
+  border-right: 1px solid var(--card-border);
+}
+.main {
+  position: relative;
+  isolation: isolate;
+}
+/* Drafting grid: 8 px minor and 40 px major lines, only in the top right, fading into the sheet. */
+.main::before {
+  content: '';
+  position: absolute;
+  z-index: -1;
+  top: 0;
+  right: 0;
+  width: min(760px, 70%);
+  height: 420px;
+  pointer-events: none;
+  background-image:
+    linear-gradient(var(--grid-line) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid-line) 1px, transparent 1px),
+    linear-gradient(color-mix(in srgb, var(--grid-line) 45%, transparent) 1px, transparent 1px),
+    linear-gradient(
+      90deg,
+      color-mix(in srgb, var(--grid-line) 45%, transparent) 1px,
+      transparent 1px
+    );
+  background-size:
+    40px 40px,
+    40px 40px,
+    8px 8px,
+    8px 8px;
+  background-position: right -1px top -1px;
+  mask-image: radial-gradient(
+    ellipse 100% 100% at 100% 0%,
+    #000 0%,
+    rgba(0, 0, 0, 0.5) 38%,
+    transparent 72%
+  );
+}
+.topbar {
+  background: color-mix(in srgb, var(--ground) 80%, transparent);
+  border-bottom-color: var(--card-border);
+}
+.search input {
+  background: var(--surface);
+  border-color: var(--card-border);
+  box-shadow: 0 1px 2px rgba(15, 34, 64, 0.04);
+}
+.search input:hover {
+  border-color: var(--rule-strong);
+}
+
+/* Planliste: white active row on the ice-blue rail, quiet hover, pressed state. */
+.sheetlist a:hover {
+  background: color-mix(in srgb, var(--surface) 55%, transparent);
+}
+.sheetlist a:active {
+  background: var(--surface);
+  transform: translateY(1px);
+}
+.sheetlist a[aria-current='page'] {
+  background: var(--surface);
+  border-color: var(--card-border);
+  box-shadow: var(--card-shadow);
+}
+
+/* ---------- Cards, pills, hero KPI (shared vocabulary) ---------- */
+.card {
+  background: var(--surface);
+  border: 1px solid var(--card-border);
+  border-radius: 12px;
+  box-shadow: var(--card-shadow);
+}
+.titleblock {
+  background: var(--surface);
+  border-color: var(--card-border);
+  border-radius: 12px;
+  box-shadow: var(--card-shadow);
+  overflow: hidden;
+}
+
+.pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  min-width: 76px;
+  height: 26px;
+  padding: 0 9px;
+  border-radius: 7px;
+  font-weight: 640;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  background: var(--quiet-soft);
+  color: var(--ink-2);
+}
+.pill.is-good {
+  background: var(--good-soft);
+  color: var(--on-good-soft);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--on-good-soft) 14%, transparent);
+}
+.pill.is-bad {
+  background: var(--red-soft);
+  color: var(--red);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--red) 28%, transparent);
+}
+.pill.is-debt {
+  background: transparent;
+  color: var(--ink);
+  box-shadow: inset 0 0 0 1px var(--rule-strong);
+  border: 1px dashed var(--line-2);
+}
+
+/* Hero KPI: the one number that says "money is there". On green (and on red when too much was
+   assigned) it re-maps the ink tokens, so every child, the Maßkette included, draws white without
+   colours of its own. At zero it is a plain card with a green figure: every euro has a job. */
+.hero-kpi {
+  position: relative;
+  overflow: hidden;
+  border-radius: 14px;
+  background: var(--surface);
+  border: 1px solid var(--card-border);
+  box-shadow: var(--card-shadow);
+}
+.hero-kpi.is-positive,
+.hero-kpi.is-negative {
+  --ink: var(--on-good);
+  --ink-2: color-mix(in srgb, var(--on-good) 84%, transparent);
+  --ink-3: color-mix(in srgb, var(--on-good) 72%, transparent);
+  --line: var(--on-good);
+  --line-2: color-mix(in srgb, var(--on-good) 55%, transparent);
+  --rule: color-mix(in srgb, var(--on-good) 22%, transparent);
+  --rule-strong: color-mix(in srgb, var(--on-good) 34%, transparent);
+  --tint: color-mix(in srgb, var(--on-good) 10%, transparent);
+  --tint-2: color-mix(in srgb, var(--on-good) 18%, transparent);
+  color: var(--ink);
+  border-color: transparent;
+  background: var(--good);
+  box-shadow:
+    0 1px 2px rgba(10, 40, 20, 0.12),
+    0 14px 30px -18px rgba(10, 46, 24, 0.55);
+}
+.hero-kpi.is-negative {
+  background: var(--red);
+  box-shadow:
+    0 1px 2px rgba(60, 10, 6, 0.14),
+    0 14px 30px -18px rgba(96, 18, 10, 0.5);
+}
+.hero-kpi.is-zero .hero-fig {
+  color: var(--good-ink);
+}
+/* The same grid, in white, fading out of the hero's right edge. */
+.hero-kpi.is-positive::before,
+.hero-kpi.is-negative::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.08) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.08) 1px, transparent 1px);
+  background-size: 20px 20px;
+  mask-image: radial-gradient(ellipse 60% 120% at 100% 0%, #000, transparent 75%);
+}
+.hero-kpi > * {
+  position: relative;
+}
+.hero-kpi.is-zero .btn-on-hero {
+  background: var(--good);
+  color: var(--on-good);
+}
+.hero-kpi .btn-on-hero {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 40px;
+  padding: 0 16px;
+  border-radius: 9px;
+  background: var(--on-good);
+  color: var(--good);
+  font-weight: 640;
+  font-size: 14px;
+  transition:
+    transform var(--t-fast) var(--ease-out),
+    background var(--t-fast) var(--ease-out);
+}
+.hero-kpi .btn-on-hero:hover {
+  background: color-mix(in srgb, var(--on-good) 90%, var(--good));
+}
+.hero-kpi .btn-on-hero:active {
+  transform: translateY(1px);
+}
+.hero-kpi .btn-on-hero:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+.hero-kpi :focus-visible {
+  outline-color: var(--on-good);
+}
+
+/* ---------- Browser surfaces ---------- */
+::selection {
+  background: color-mix(in srgb, var(--line) 22%, transparent);
+}
+* {
+  scrollbar-color: var(--rule-strong) transparent;
+}
+
+/* ---------- Account hierarchy in the sidebar ---------- */
+.sidebar-scroll {
+  flex: 1;
+  min-height: 0;
+  margin: 18px -6px 10px;
+  padding: 0 6px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  mask-image: linear-gradient(#000 calc(100% - 18px), transparent);
+}
+.acct-tree .sheetlist-label {
+  display: block;
+  padding: 0 10px 6px;
+}
+.acct-group + .acct-group {
+  margin-top: 4px;
+}
+.acct-group-head {
+  display: grid;
+  grid-template-columns: 14px 1fr auto;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  height: 30px;
+  padding: 0 10px 0 6px;
+  border-radius: 7px;
+  color: var(--ink-3);
+  text-align: left;
+  transition: background var(--t-fast) var(--ease-out);
+}
+.acct-group-head:hover {
+  background: color-mix(in srgb, var(--surface) 55%, transparent);
+  color: var(--ink-2);
+}
+.acct-group-head .chev {
+  transition: rotate var(--t-fast) var(--ease-out);
+}
+.acct-group.is-folded .chev {
+  rotate: -90deg;
+}
+.acct-group-title {
+  font-size: 11px;
+  letter-spacing: 0.07em;
+}
+.acct-group ul {
+  list-style: none;
+  margin: 0 0 2px;
+  padding: 0;
+}
+.acct-group li a {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 10px;
+  height: 32px;
+  padding: 0 10px 0 28px;
+  border-radius: 7px;
+  color: var(--ink-2);
+  text-decoration: none;
+  font-size: 13.5px;
+  transition:
+    background var(--t-fast) var(--ease-out),
+    color var(--t-fast) var(--ease-out);
+}
+.acct-group li a:hover {
+  background: color-mix(in srgb, var(--surface) 55%, transparent);
+  color: var(--ink);
+}
+.acct-group li a:active {
+  background: var(--surface);
+}
+.acct-group li a[aria-current='page'] {
+  background: var(--surface);
+  color: var(--ink);
+  font-weight: 600;
+  box-shadow: var(--card-shadow);
+}
+.acct-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.acct-amount {
+  font-size: 12.5px;
+  font-weight: 560;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-2);
+  white-space: nowrap;
+}
+.acct-group-head .acct-amount {
+  font-size: 12px;
+  color: var(--ink-3);
+}
+.acct-amount.is-neg {
+  color: var(--bad-ink);
+}
+.app.is-collapsed .sidebar-scroll {
+  display: none;
+}
+.sidebar-foot {
+  margin-top: 0;
+}
+.app.is-collapsed .sidebar-foot {
+  margin-top: auto;
+}

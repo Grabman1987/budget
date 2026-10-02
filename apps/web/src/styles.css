@@ -12,6 +12,7 @@
 @import './rules/rules.css' layer(pages);
 @import './wealth/wealth.css' layer(pages);
 @import './budget/goals.css' layer(pages);
+@import './shell/precision.css' layer(pages);
 @import 'tailwindcss/utilities.css' layer(utilities);
 
 /* Utility classes used in packages/ui are scanned too. */
