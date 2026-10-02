@@ -570,6 +570,45 @@ describe('platforms like PP: cash account and securities account', () => {
     const m = matches.find((x: any) => x.platform === first().name);
     // The synthetic PP file has a 5.000 EUR deposit that the app (no YNAB transfer) does not have.
     expect(m.ppUnmatched.items.some((i: any) => i.cents === 500_000)).toBe(true);
-    expect(m.matched).toBe(0);
+    expect(m.matched.exact).toBe(0);
+  });
+
+  const adjustment = (accountId: string, cents: number) =>
+    createBooking(
+      db,
+      {
+        accountId,
+        date: '2025-03-01',
+        amountCents: cents,
+        payeeId: SYSTEM_PAYEE_IDS.manual_adjustment.id,
+        source: 'migration',
+        status: 'reconciled',
+        importKey: 'ynab-adjustment',
+        splits: [{ categoryId: null, amountCents: cents }],
+      },
+      { actor: 't' },
+    );
+
+  it('explains the cash difference completely and keeps no valuation adjustment as cash', () => {
+    adjustment('app-0', 50_000);
+    const id = stage(splitDoc('keep'));
+    // Without retiring, the adjustment is cash and the explanation says so.
+    const dry = run({ kind: 'dry-run', runId: id });
+    expect(dry['report'].flowMatches[0].valuationAdjustmentsRetired).toEqual({
+      count: 0,
+      cents: 0,
+    });
+    expect(dry['report'].flowMatches[0].cash.adjustmentsCountedCents).toBe(50_000);
+    expect(dry['report'].flowMatches[0].cash.otherCents).toBe(0);
+    // Retiring drops it: not cash any more, listed as valuation.
+    const doc = splitDoc('keep');
+    (doc.accounts[model.portfolios[0]!.referenceAccountUuid as string] as any).retireYnabValue =
+      true;
+    const body = run({ kind: 'commit', runId: stage(doc) });
+    const m = body['report'].flowMatches.find((x: any) => x.platform === first().name);
+    expect(m.valuationAdjustmentsRetired).toEqual({ count: 1, cents: 50_000 });
+    expect(m.cash.adjustmentsCountedCents).toBe(0);
+    expect(m.cash.otherCents).toBe(0);
+    expect(m.cash.diffCents).toBe(m.cash.openingGapCents + m.cash.flowGapCents);
   });
 });

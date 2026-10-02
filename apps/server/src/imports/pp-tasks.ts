@@ -140,8 +140,10 @@ function figuresOf(
   ids: PpIdMap,
   ctx: PpTaskContext,
   options: ReportOptions | undefined,
+  change?: PpChangeReport,
 ): Gate3Report {
   return gate3Report(db, {
+    ...(change ? { change } : {}),
     model: e.model,
     prep: e.prep,
     ids,
@@ -179,7 +181,7 @@ function dryRun(db: Db, runId: string, ctx: PpTaskContext, options?: ReportOptio
         const trace = tracer();
         const written = writePp(tx, e.prep, { runId: r.id, actor: ACTOR });
         trace('write');
-        const report = figuresOf(tx, e, written.ids, ctx, options);
+        const report = figuresOf(tx, e, written.ids, ctx, options, written.report);
         trace('report');
         return { problems: problemsOf(e.prep.problems), change: written.report, report };
       });
@@ -205,7 +207,7 @@ function commit(db: Executor, runId: string, ctx: PpTaskContext, options?: Repor
       problems: problemsOf(e.prep.problems),
     });
   const written = writePp(db, e.prep, { runId: r.id, actor: ACTOR });
-  const report = figuresOf(db, e, written.ids, ctx, options);
+  const report = figuresOf(db, e, written.ids, ctx, options, written.report);
   const now = new Date().toISOString();
   store(db, r.id, {
     status: 'committed',
@@ -248,7 +250,7 @@ function report(db: Executor, runId: string, ctx: PpTaskContext, options?: Repor
   const ids = summaryOf(r).ids;
   if (!ids) throw new PpTaskError('no_ids', 'The run has no id map');
   const e = evaluate(db, r);
-  return { run: view(r), report: figuresOf(db, e, ids, ctx, options) };
+  return { run: view(r), report: figuresOf(db, e, ids, ctx, options, summaryOf(r).change) };
 }
 
 /**

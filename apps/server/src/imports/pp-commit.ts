@@ -261,6 +261,7 @@ export interface PpChangeReport {
     openingFromCents: number;
     openingToCents: number;
     adjustmentsRetired: number;
+    adjustmentsRetiredCents: number;
   }[];
   /** Adjustments `normalizeTrade` made, by code. */
   notes: Record<string, number>;
@@ -533,6 +534,7 @@ export function writePp(
       openingFromCents: t.openingBalanceCents,
       openingToCents: t.openingBalanceCents,
       adjustmentsRetired: 0,
+      adjustmentsRetiredCents: 0,
     };
     const cents = prep.openingCash.get(t.accountId);
     if (cents !== undefined) {
@@ -542,7 +544,7 @@ export function writePp(
     }
     if (t.retireYnabValue) {
       const rows = tx
-        .select({ id: booking.id })
+        .select({ id: booking.id, cents: booking.amountCents })
         .from(booking)
         .where(
           and(
@@ -556,6 +558,7 @@ export function writePp(
         .all();
       for (const r of rows) deleteBooking(tx, r.id, ctx, { unlockReconciled: true });
       line.adjustmentsRetired = rows.length;
+      line.adjustmentsRetiredCents = rows.reduce((a, r) => a + r.cents, 0);
     }
     report.accounts.push(line);
   }

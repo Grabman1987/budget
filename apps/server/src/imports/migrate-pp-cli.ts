@@ -153,15 +153,29 @@ function printReport(report: Gate3Report | null | undefined) {
       eur(p.diffCents),
       p.accounts.length > 1 ? `(${p.accounts.join(' + ')})` : '',
     );
-  console.log('PP deposits/removals against the app (same amount within 3 days):');
-  for (const m of report.flowMatches)
+  console.log('PP deposits and removals against the app, by bucket:');
+  for (const m of report.flowMatches) {
+    const k = m.matched;
     console.log(
       '  ',
       m.platform.padEnd(26),
-      `matched ${m.matched}`,
+      `exact ${k.exact} | date shifted ${k.dateShifted} | split ${k.split} | round trips ${k.roundTrips} | monthly sum ${k.aggregateMonths} | before PP history ${m.appBeforePp.count} (${eur(m.appBeforePp.sumCents).trim()})`,
       `| PP only ${m.ppUnmatched.count} (${eur(m.ppUnmatched.sumCents).trim()})`,
       `| app only ${m.appUnmatched.count} (${eur(m.appUnmatched.sumCents).trim()})`,
+      m.valuationAdjustmentsRetired.count > 0
+        ? `| valuation adjustments dropped ${m.valuationAdjustmentsRetired.count} (${eur(m.valuationAdjustmentsRetired.cents).trim()})`
+        : '',
     );
+  }
+  console.log('cash difference today (app - PP) explained by:');
+  for (const m of report.flowMatches) {
+    const c = m.cash;
+    console.log(
+      '  ',
+      m.platform.padEnd(26),
+      `diff ${eur(c.diffCents).trim()} = opening ${eur(c.openingGapCents).trim()} + flows ${eur(c.flowGapCents).trim()} + adjustments kept ${eur(c.adjustmentsCountedCents).trim()} + other ${eur(c.otherCents).trim()}`,
+    );
+  }
   console.log('returns per platform (TTWROR % | XIRR % ; app, PP replay):');
   for (const d of report.performance) {
     if (d.unavailable) {

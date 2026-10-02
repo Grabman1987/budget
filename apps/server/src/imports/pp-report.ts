@@ -1,6 +1,7 @@
 import {
   account,
   booking,
+  SYSTEM_PAYEE_IDS,
   bookingSplit,
   cashSeries,
   holdingValuationExportAsOf,
@@ -30,15 +31,17 @@ import {
   type WindowPerformance,
 } from '@budget/domain';
 import {
+  matchFlows,
   ppCash,
   ppCashFlowByYear,
   ppDepotSeries,
   ppPositionsAsOf,
   type AccountTarget,
+  type FlowItem,
   type PpModel,
 } from '@budget/import-pp';
 import { and, eq, inArray, isNull } from 'drizzle-orm';
-import type { PpIdMap, Prepared } from './pp-commit';
+import type { PpChangeReport, PpIdMap, Prepared } from './pp-commit';
 
 /**
  * The Gate 3 report as data (SPEC §11: holdings and returns equal Portfolio Performance): per
@@ -85,12 +88,47 @@ export interface PlatformLine {
   diffCents: number | null;
 }
 
-/** PP deposits and removals against the app's flows on the cash-carrying account, matched 1:1. */
+/** What explains a platform's cash difference today (app minus PP), in cents. */
+export interface CashExplanation {
+  appCents: number | null;
+  ppCents: number;
+  diffCents: number | null;
+  /** Opening balances of the platform now against PP's cash before the opening day. */
+  openingGapCents: number;
+  /** YNAB flows against PP deposits and removals since the opening day. */
+  flowGapCents: number;
+  /** YNAB valuation adjustments that still count as cash (retired ones are not here). */
+  adjustmentsCountedCents: number;
+  /** What none of these explains (should be 0). */
+  otherCents: number | null;
+}
+
+/**
+ * PP deposits and removals against the app's flows on the cash-carrying account (YNAB transfers
+ * and plain bookings, without this migration's own), by bucket (`matchFlows`), with the cash
+ * difference they explain. Valuation adjustments of YNAB are not flows: they are counted apart.
+ */
 export interface FlowMatch {
   platform: string;
-  matched: number;
-  ppUnmatched: { count: number; sumCents: number; items: { date: string; cents: number }[] };
-  appUnmatched: { count: number; sumCents: number; items: { date: string; cents: number }[] };
+  matched: {
+    exact: number;
+    dateShifted: number;
+    split: number;
+    roundTrips: number;
+    aggregateMonths: number;
+  };
+  /** App flows before PP knows the platform: PP is incomplete there. */
+  appBeforePp: { count: number; sumCents: number; items: FlowItem[] };
+  dateShifted: { pp: FlowItem; app: FlowItem; days: number }[];
+  split: { pp: FlowItem[]; app: FlowItem[] }[];
+  aggregate: { month: string; pp: FlowItem[]; app: FlowItem[] }[];
+  /** In PP, not in the app: really missing there. */
+  ppUnmatched: { count: number; sumCents: number; items: FlowItem[] };
+  /** In the app, not in PP: really missing there. */
+  appUnmatched: { count: number; sumCents: number; items: FlowItem[] };
+  /** Valuation adjustments of YNAB on the platform's accounts that this run deleted. */
+  valuationAdjustmentsRetired: { count: number; cents: number };
+  cash: CashExplanation;
 }
 
 export interface PositionLine {
@@ -260,6 +298,8 @@ export interface Gate3Input {
   today: string;
   days?: string[];
   reference?: ReferenceValues;
+  /** What the run changed (retired adjustments); from the commit, the dry run or the summary. */
+  change?: PpChangeReport;
 }
 
 export function gate3Report(db: Executor, input: Gate3Input): Gate3Report {
@@ -408,7 +448,7 @@ export function gate3Report(db: Executor, input: Gate3Input): Gate3Report {
   const performance = platforms.map((p) =>
     depotPerformance(db, model, prep, p, today, skipped, ids, input.reference, differences),
   );
-  const matches = flowMatches(db, model, platforms);
+  const matches = flowMatches(db, model, platforms, accountLines, input.change);
   const platformLines: PlatformLine[] = [];
   for (const day of days)
     for (const p of platforms) {
@@ -573,23 +613,32 @@ function platformsOf(targets: readonly AccountTarget[]): Platform[] {
     });
 }
 
-const MATCH_DAYS = 3;
-
 /**
- * PP deposits and removals against what crossed the boundary in the app (YNAB transfers and plain
- * bookings on the cash-carrying account, without the transfers of this migration): same amount
- * within a few days, each side used once. What is left on either side is listed.
+ * PP deposits and removals against what crossed the boundary in the app (see `FlowMatch`).
+ * `accountLines` supply the cash today; `change` the adjustments this run retired.
  */
-function flowMatches(db: Executor, model: PpModel, platforms: readonly Platform[]): FlowMatch[] {
+function flowMatches(
+  db: Executor,
+  model: PpModel,
+  platforms: readonly Platform[],
+  accountLines: readonly AccountLine[],
+  change: PpChangeReport | undefined,
+): FlowMatch[] {
+  const adjustmentPayees: string[] = [
+    SYSTEM_PAYEE_IDS.reconciliation_adjustment.id,
+    SYSTEM_PAYEE_IDS.manual_adjustment.id,
+  ];
   return platforms.map((p) => {
-    const ppUuids = new Set(p.members.flatMap((m) => m.ppAccountUuids));
-    const pp: { date: string; cents: number }[] = [];
+    const ppUuids = p.members.flatMap((m) => m.ppAccountUuids);
+    const pp: FlowItem[] = [];
     for (const a of model.accounts)
-      if (ppUuids.has(a.uuid))
+      if (ppUuids.includes(a.uuid))
         for (const tx of a.transactions)
           if (tx.date < p.carrier.openingDate) continue;
-          else if (tx.type === 'DEPOSIT') pp.push({ date: tx.date, cents: tx.amountCents });
-          else if (tx.type === 'REMOVAL') pp.push({ date: tx.date, cents: -tx.amountCents });
+          else if (tx.type === 'DEPOSIT' || tx.type === 'TRANSFER_IN')
+            pp.push({ date: tx.date, cents: tx.amountCents });
+          else if (tx.type === 'REMOVAL' || tx.type === 'TRANSFER_OUT')
+            pp.push({ date: tx.date, cents: -tx.amountCents });
     const settlements = new Set(
       db
         .select({ id: trade.bookingId })
@@ -604,6 +653,7 @@ function flowMatches(db: Executor, model: PpModel, platforms: readonly Platform[
         date: booking.date,
         cents: booking.amountCents,
         key: booking.importKey,
+        payeeId: booking.payeeId,
       })
       .from(booking)
       .where(and(eq(booking.accountId, p.carrier.accountId), isNull(booking.deletedAt)))
@@ -629,32 +679,90 @@ function flowMatches(db: Executor, model: PpModel, platforms: readonly Platform[
             .map((x) => x.id)
         : [],
     );
-    const app = rows.filter((r) => !capital.has(r.id));
-    const used = new Set<number>();
-    let matched = 0;
-    const ppLeft: { date: string; cents: number }[] = [];
-    for (const f of [...pp].sort((a, b) => a.date.localeCompare(b.date))) {
-      let best = -1;
-      let bestGap = Infinity;
-      app.forEach((a, i) => {
-        if (used.has(i) || a.cents !== f.cents) return;
-        const gap = Math.abs(daysBetween(a.date, f.date));
-        if (gap <= MATCH_DAYS && gap < bestGap) [best, bestGap] = [i, gap];
-      });
-      if (best >= 0) {
-        used.add(best);
-        matched += 1;
-      } else ppLeft.push(f);
-    }
-    const appLeft = app
-      .filter((_, i) => !used.has(i))
-      .map((a) => ({ date: a.date, cents: a.cents }));
+    const isAdjustment = (b: { payeeId: string | null }) =>
+      b.payeeId !== null && adjustmentPayees.includes(b.payeeId);
+    const counted = rows.filter(isAdjustment);
+    const app = rows
+      .filter(
+        (r) =>
+          !capital.has(r.id) &&
+          !isAdjustment(r) &&
+          r.payeeId !== SYSTEM_PAYEE_IDS.opening_balance.id,
+      )
+      .map((r) => ({ date: r.date, cents: r.cents }));
+    const ppFrom = [
+      ...model.accounts
+        .filter((a) => ppUuids.includes(a.uuid))
+        .flatMap((a) => a.transactions.map((t) => t.date)),
+      ...model.portfolios
+        .filter((q) => p.members.some((x) => x.portfolioUuids.includes(q.uuid)))
+        .flatMap((q) => q.transactions.map((t) => t.date)),
+    ].sort()[0];
+    const m = matchFlows(pp, app, ppFrom ? { ppFrom } : {});
     const sum = (xs: { cents: number }[]) => xs.reduce((a, x) => a + x.cents, 0);
+
+    const day = accountLines
+      .map((a) => a.day)
+      .sort()
+      .at(-1);
+    const lines = p.members.map((x) =>
+      accountLines.find((a) => a.day === day && a.account === x.name),
+    );
+    const known = lines.every((l) => l && l.appCashCents !== null);
+    const appCents = known ? lines.reduce((a, l) => a + (l?.appCashCents ?? 0), 0) : null;
+    const ppCents = ppCash(model, ppUuids, day ?? p.carrier.openingDate);
+    const openingNow = p.members.reduce(
+      (a, x) =>
+        a +
+        (db
+          .select({ cents: account.openingBalanceCents })
+          .from(account)
+          .where(eq(account.id, x.accountId))
+          .get()?.cents ?? 0),
+      0,
+    );
+    const openingGapCents = openingNow - ppCash(model, ppUuids, p.carrier.openingDate, false);
+    const flowGapCents = sum(app) - sum(pp);
+    const adjustmentsCountedCents = sum(counted);
+    const diffCents = appCents === null ? null : appCents - ppCents;
+    const retired = (change?.accounts ?? []).filter((l) =>
+      p.members.some((x) => x.name === l.account),
+    );
     return {
       platform: p.name,
-      matched,
-      ppUnmatched: { count: ppLeft.length, sumCents: sum(ppLeft), items: ppLeft },
-      appUnmatched: { count: appLeft.length, sumCents: sum(appLeft), items: appLeft },
+      matched: {
+        exact: m.exact,
+        dateShifted: m.dateShifted.length,
+        split: m.split.length,
+        roundTrips: m.roundTrips.length,
+        aggregateMonths: m.aggregate.length,
+      },
+      appBeforePp: {
+        count: m.appBeforePp.length,
+        sumCents: sum(m.appBeforePp),
+        items: m.appBeforePp,
+      },
+      dateShifted: m.dateShifted,
+      split: m.split,
+      aggregate: m.aggregate,
+      ppUnmatched: { count: m.ppOnly.length, sumCents: sum(m.ppOnly), items: m.ppOnly },
+      appUnmatched: { count: m.appOnly.length, sumCents: sum(m.appOnly), items: m.appOnly },
+      valuationAdjustmentsRetired: {
+        count: retired.reduce((a, l) => a + l.adjustmentsRetired, 0),
+        cents: retired.reduce((a, l) => a + l.adjustmentsRetiredCents, 0),
+      },
+      cash: {
+        appCents,
+        ppCents,
+        diffCents,
+        openingGapCents,
+        flowGapCents,
+        adjustmentsCountedCents,
+        otherCents:
+          diffCents === null
+            ? null
+            : diffCents - openingGapCents - flowGapCents - adjustmentsCountedCents,
+      },
     };
   });
 }
