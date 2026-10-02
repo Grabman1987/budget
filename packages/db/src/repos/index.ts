@@ -39,3 +39,4 @@ export * from './freedom';
 export * from './liquidity-report';
 export * from './networth-history';
 export * from './cashflow-report';
+export * from './report-tables';

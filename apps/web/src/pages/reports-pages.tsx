@@ -22,6 +22,10 @@ import { WealthHistoryReport } from '../reports/wealth-history-report';
 import { PayeeAnalysisReport } from './payee-analysis-report';
 import { PortfolioPerformanceReport } from './portfolio-performance-report';
 import { PortfolioContributionsReport } from './portfolio-contributions-report';
+import { YearReport } from '../reports/year-report';
+import { CategoryReport } from '../reports/category-report';
+import { SavingsReport } from '../reports/savings-report';
+import { TotalTableReport } from '../reports/total-table-report';
 
 const CONTROL_LABEL = { month: 'Monat', year: 'Jahr', period: 'Zeitraum' } as const;
 
@@ -177,6 +181,10 @@ export function ReportPage({ reportId }: { reportId: string }) {
   if (report.id === 'prendite') return <PortfolioPerformanceReport report={report} meta={meta} />;
   if (report.id === 'peinzahlungen')
     return <PortfolioContributionsReport report={report} meta={meta} />;
+  if (report.id === 'jahresansicht') return <YearReport report={report} meta={meta} />;
+  if (report.id === 'kategorien') return <CategoryReport report={report} meta={meta} />;
+  if (report.id === 'sparquote') return <SavingsReport report={report} meta={meta} />;
+  if (report.id === 'gesamttabelle') return <TotalTableReport report={report} meta={meta} />;
   return (
     <PlaceholderPage
       meta={meta}
