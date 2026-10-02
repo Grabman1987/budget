@@ -4,7 +4,7 @@ import { join } from 'node:path';
 import { MAIN_URL } from '../playwright.config';
 test.use({ reducedMotion: 'reduce' });
 async function fixture(request: APIRequestContext, info: TestInfo) {
-  const tag = `${info.project.name}-${info.title.slice(0, 13)}-${info.retry}`;
+  const tag = `${info.project.name}-${info.title.slice(0, 13)}-${info.retry}-${info.repeatEachIndex}`;
   const post = async (path: string, data: unknown) => {
     const response = await request.post(`${MAIN_URL}/api${path}`, {
       headers: { origin: MAIN_URL },
