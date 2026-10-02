@@ -44,12 +44,25 @@ inflation comparison, hours/hourly rates and private acceptance remain separate 
 
 ## Verification evidence
 
-The production web/server build and all four isolated browser scenarios passed locally.
+Verified locally on 2026-10-03 after integration of `origin/main` (implementation commit
+`b10d9c1`; the final follow-up changes documentation only):
+
+- `npm ci`: dependencies installed, lockfile unchanged.
+- `VITEST_MAX_WORKERS=1 npm run check -- -- --testTimeout=30000 --hookTimeout=30000`:
+  typecheck, ESLint and Prettier passed; all 217 test files and 2,077 tests passed.
+  Worker and timeout overrides are local execution settings; repository/CI settings are unchanged.
+- `npm run build`: production web and server builds passed.
+- `E2E_PORT=4450 npx playwright test --config dist/payroll-playwright.config.ts --workers=1`:
+  all four salary/project desktop/mobile scenarios passed against that production bundle.
+  The ignored local config extends the normal config, selects these two viewport projects/specs,
+  and disables shared web servers and setup dependencies. Each scenario still starts its own
+  real server, migrated synthetic database and passkey session.
+
+This is local verification, not a claim that the full GitHub CI/E2E suite or owner acceptance passed.
+
 The scenarios cover salary capture, a one-cent payout warning, edit/undo, project creation,
 archiving with retained P&L, source-booking URLs, both 1440/390 viewports and both themes.
 Axe has no serious/critical violations and the document has no horizontal overflow.
-The local focused run disables shared-server startup/dependencies only; the unchanged tests
-start their own real server, fresh migrated database and passkey session per attempt.
 The normal CI configuration still includes these specs in the full desktop/mobile suite.
 
 Synthetic screenshots for review (current DESIGN.md precision layer):
