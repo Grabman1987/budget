@@ -12,6 +12,8 @@ import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createLedgerApi } from '../../../server/src/api';
 import { inboxQuery, resolveInbox } from '../inbox/api';
+import { paymentsPreviewQuery } from '../pages/payments-preview-report';
+import { expectedQuery } from '../expected/api';
 import { useBudgetWrite } from './use-category-writes';
 
 let opened: OpenedDatabase;
@@ -20,6 +22,8 @@ const ID = 'synthetic-warning';
 function Workflow() {
   const write = useBudgetWrite();
   const queue = useQuery(inboxQuery());
+  useQuery(paymentsPreviewQuery());
+  useQuery(expectedQuery());
   return (
     <>
       <span aria-label="Offene Aufgaben">{queue.data?.count}</span>
@@ -130,6 +134,24 @@ describe('shared budget write undo/redo feedback', () => {
     await feedback('Rückgängig nicht möglich. Keine Verbindung zum Server.');
     await state(0);
     expect(row()).toEqual(before);
+  });
+  it('refreshes the preview and expected family after writes, undo and redo', async () => {
+    const reads = (path: string) =>
+      vi.mocked(fetch).mock.calls.filter(([url]) => url === path).length;
+    await waitFor(() => expect(reads('/api/expected/year-preview')).toBe(1));
+    await waitFor(() => expect(reads('/api/expected')).toBe(1));
+    await click('Erledigen');
+    await state(0);
+    await waitFor(() => expect(reads('/api/expected/year-preview')).toBe(2));
+    await waitFor(() => expect(reads('/api/expected')).toBe(2));
+    await click('Rückgängig');
+    await state(1);
+    await waitFor(() => expect(reads('/api/expected/year-preview')).toBe(3));
+    await waitFor(() => expect(reads('/api/expected')).toBe(3));
+    await click('Wiederholen');
+    await state(0);
+    await waitFor(() => expect(reads('/api/expected/year-preview')).toBe(4));
+    await waitFor(() => expect(reads('/api/expected')).toBe(4));
   });
   it('retains the successful audited write, undo and redo chain', async () => {
     await click('Erledigen');

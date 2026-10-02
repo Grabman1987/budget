@@ -330,3 +330,9 @@ The 30 reports (SPEC §7), explorer, printable sheets, parallel run with reconci
 - [x] Suppress all report figures when the legacy portfolio summary returns `valuation_unavailable`; keep documented zero gains distinct from unavailable basis and preserve gains when open positions are empty.
 - [x] Focused invest API cases, synthetic browser edge fixtures and read-only sample-ledger browser coverage on desktop/mobile; accessibility and horizontal overflow checked in light/dark mode. Evidence: [report 4.4](evidence/report-4.4.md).
 - [ ] Benchmark comparison, asset-class comparison and monthly heatmap from the prototype; depot-inclusive view and owner acceptance remain outside this first report body.
+
+### P6.3.4 — Jahresvorschau Zahlungen (first source slice)
+- [x] `/reports/vorschau`: twelve full future months from live stored expected-outflow contracts and all live amount versions, using the existing shifted due-date rules. Read-only `GET /api/expected/year-preview` requires a session and never materialises, matches or refreshes occurrences.
+- [x] One pure projection feeds lead, chart and twelve-month payment calendar. Preserve native amount ranges/currencies, display unavailable contract amounts explicitly and overlay stored status/links once per payment/date. Linked actual bookings retain their own currency and remain separate from contract projection.
+- [x] Literal domain/API cases, audited-write query invalidation and synthetic desktop/mobile light/dark browser evidence. See [report 3.4](evidence/report-3.4.md).
+- [ ] Full original source coverage: independent investment savings plans, other future ledger transfers and their cross-source identity/dedup contract; no inferred category funding. Owner acceptance remains open.
