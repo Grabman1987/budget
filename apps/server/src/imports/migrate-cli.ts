@@ -1,11 +1,13 @@
 import { readFileSync, writeFileSync } from 'node:fs';
 import { basename, resolve } from 'node:path';
 import {
+  applyBookEntries,
   applyMoves,
   listAuditGroups,
   migrateDatabase,
   openDatabase,
   orderAccountsByNames,
+  parseBookFile,
   parseGroupsFile,
   planGroupMoves,
   undoAuditGroups,
@@ -28,6 +30,7 @@ import { findRun, runTask, type ImportTask } from './tasks';
  *   node migrate-cli.js undo-group --group <id> [--group <id> ...] [--dry-run]
  *   node migrate-cli.js move-money --month YYYY-MM --from "<name>" --to "<name>" --cents N [--dry-run]
  *   node migrate-cli.js move-money --file <list-groups json> [--allow-unbalanced] [--dry-run]
+ *   node migrate-cli.js book --file <json> [--dry-run] [--details]
  *
  * Output is aggregates only (counts, problem codes, number of differences); `--details` adds the
  * differences themselves for the operator's terminal. Nothing is logged to files.
@@ -41,6 +44,16 @@ import { findRun, runTask, type ImportTask } from './tasks';
  * list the owner's actions, undo them, revert and re-import, then re-apply the moves by category
  * name. All three only call the app's domain functions (`undo`, `moveMoney`, `assignMany`); the
  * writes are audited with the actor `operator`, one audit group per undo and per move.
+ *
+ * `book` adds, re-dates, re-prices or deletes single bookings from a JSON list (private file, never
+ * in the repo): `[{id, kind: add|change_amount|change_date|delete, ...}]`. Accounts, categories
+ * and payees are given by exact name (accounts and categories are never created, a payee is, as in
+ * the app); an existing booking is addressed by `match {account, date, amountCents, payee?, memo?}`
+ * and must resolve to exactly one. It calls the booking functions behind the HTTP routes, so
+ * transfer pairing, splits, trade cash flows, reconciliation locks and envelopes hold as in the
+ * app; what the app refuses is skipped. Each entry is one audit group (actor `operator`) that the
+ * app's Rückgängig or `undo-group` reverts on its own. Skipped entries are reported with a reason
+ * and the exit code is 3. Running a list twice adds twice: there is no de-duplication.
  */
 
 const args = process.argv.slice(2);
@@ -244,9 +257,35 @@ try {
       if (plan.skipped.length > 0) process.exitCode = 3;
       break;
     }
+    case 'book': {
+      const dryRun = args.includes('--dry-run');
+      const entries = parseBookFile(JSON.parse(readFileSync(required('file'), 'utf8')));
+      const outcomes = applyBookEntries(db, entries, { actor: 'operator' }, { dryRun });
+      let skipped = 0;
+      for (const o of outcomes) {
+        if (o.status === 'skipped') {
+          skipped += 1;
+          console.log('skipped       ', o.id, o.reason, o.candidates);
+          if (args.includes('--details')) console.log('              ', o.detail);
+          continue;
+        }
+        console.log(o.kind, o.id, o.account, o.date, o.cents, o.groupId || '(dry run)');
+      }
+      console.log(
+        'entries       ',
+        outcomes.length,
+        'done',
+        outcomes.length - skipped,
+        'skipped',
+        skipped,
+        dryRun ? '(dry run)' : '',
+      );
+      if (skipped > 0) process.exitCode = 3;
+      break;
+    }
     default:
       console.log(
-        'usage: migrate-cli.js stage|dry-run|report|commit|revert|delete|order-accounts|list-groups|undo-group|move-money [options]',
+        'usage: migrate-cli.js stage|dry-run|report|commit|revert|delete|order-accounts|list-groups|undo-group|move-money|book [options]',
       );
       process.exitCode = 2;
   }
