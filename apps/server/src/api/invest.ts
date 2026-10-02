@@ -24,6 +24,7 @@ import {
   ContributionHistoryLimitError,
   portfolioPositions,
   portfolioAllocation,
+  depotComparison,
   investmentPreferences,
   setInvestmentCostMethod,
   restoreSecurity,
@@ -400,10 +401,19 @@ const portfolioQuery = z.object({
   history: z.enum(['contributions']).optional(),
 });
 
+const depotsQuery = z.object({
+  period: z.enum(['1M', '3M', 'YTD', '1J', '3J', 'Alles']).default('1J'),
+});
+
 export function portfolioRoutes(db: Db, today: () => string): Hono {
   const app = new Hono();
   app.get('/positions', (c) => c.json(portfolioPositions(db, today())));
   app.get('/allocation', (c) => c.json(portfolioAllocation(db, today())));
+  // Report 4.1: depots side by side for the selected period.
+  app.get('/depots', (c) => {
+    const { period } = readQuery(c, depotsQuery);
+    return c.json({ depots: depotComparison(db, { today: today(), period }) });
+  });
   app.get('/preferences', (c) => c.json(investmentPreferences(db)));
   app.patch('/preferences', async (c) => {
     const { costMethod } = await readBody(

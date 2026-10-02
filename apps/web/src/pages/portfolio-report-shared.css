@@ -1,0 +1,161 @@
+/* Shared by the portfolio report bodies 4.1, 4.2 and 4.5: white cards on the slate ground. */
+.prep {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 24px;
+  margin-top: -4px;
+}
+.prep > * {
+  min-width: 0;
+}
+.prep-card {
+  background: var(--surface);
+  border: 1px solid var(--card-border);
+  border-radius: 12px;
+  box-shadow: var(--card-shadow);
+  padding: 20px 24px 22px;
+}
+.prep-card > .tbd-head {
+  margin-bottom: 14px;
+  flex-wrap: wrap;
+}
+.prep-card .vnote {
+  margin: 14px 0 0;
+}
+.prep-decision {
+  font-size: 13px;
+  color: var(--line);
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+}
+.prep-product {
+  color: var(--ink);
+  text-decoration: underline;
+  text-decoration-color: var(--line-2);
+  text-underline-offset: 3px;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+}
+.prep-product:hover {
+  text-decoration-color: var(--line);
+}
+.prep-good {
+  color: var(--good-ink);
+}
+.prep-bad {
+  color: var(--bad-ink);
+}
+.prep-muted {
+  color: var(--ink-3);
+}
+.prep-lead {
+  display: grid;
+  gap: 4px;
+  margin-block: 4px 12px;
+}
+.prep-lead .tech {
+  color: var(--ink-2);
+  font-size: 12px;
+}
+.prep-lead strong {
+  font-size: clamp(30px, 5vw, 44px);
+  font-weight: 650;
+  letter-spacing: -0.02em;
+  line-height: 1.05;
+  font-variant-numeric: tabular-nums;
+}
+.prep .chain-inline {
+  margin-block: 8px 18px;
+}
+
+/* Tables: hairlines, tabular figures, scroll inside the card on the phone. */
+.prep-scroll {
+  overflow-x: auto;
+  min-width: 0;
+  max-width: 100%;
+  overscroll-behavior-inline: contain;
+}
+.prep-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-variant-numeric: tabular-nums;
+}
+.prep-table th {
+  text-align: left;
+  padding: 8px;
+  border-bottom: 1px solid var(--line-2);
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+  color: var(--ink-2);
+}
+.prep-table td {
+  padding: 8px;
+  border-bottom: 1px solid var(--rule);
+  vertical-align: top;
+}
+.prep-table .n {
+  text-align: right;
+  white-space: nowrap;
+}
+.prep-table small {
+  display: block;
+  font-size: 12px;
+  color: var(--ink-3);
+}
+.prep-table tr.is-group td,
+.prep-table tr.is-group th {
+  font-weight: 650;
+  border-bottom-color: var(--rule-strong);
+}
+.prep-table tr.is-total td,
+.prep-table tr.is-total th {
+  font-weight: 650;
+  border-top: 1px solid var(--line-2);
+  border-bottom: 0;
+}
+.prep-table .indent {
+  padding-inline-start: 24px;
+}
+
+.prep-unavailable {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 16px 20px;
+  background: var(--surface);
+  border: 1px solid var(--card-border);
+  border-radius: 12px;
+}
+.prep-unavailable p {
+  margin: 8px 0;
+}
+.prep-empty {
+  color: var(--ink-2);
+  background: var(--surface);
+  border: 1px solid var(--card-border);
+  border-radius: 12px;
+  padding: 16px 20px;
+  margin: 0;
+}
+.prep-swatch {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  border-radius: 2px;
+  margin-inline-end: 8px;
+  vertical-align: -1px;
+  border: 1px solid var(--line);
+}
+.prep-links {
+  display: flex;
+  justify-content: flex-start;
+}
+
+@media (max-width: 700px) {
+  .prep-card {
+    padding: 16px 14px 18px;
+  }
+}

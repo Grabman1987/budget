@@ -138,7 +138,7 @@ consistent totals, desktop/mobile checks and printing where required.
 | 3.3 | Vermögensverläufe | `reports-zukunft.js` | Report body Open; net-worth page exists |
 | 3.4 | Jahresvorschau Zahlungen | `reports-zukunft.js` | Partial: connected twelve-month versioned expected-outflow contract preview, native ranges/currencies, stored status/link overlay; independent savings plans, other future transfers and full source dedup remain Open |
 | 3.5 | Sparziele-Fortschritt | `reports-zukunft.js` | Partial: connected stored monthly goals, unique live EUR sources, API progress/rates/forecast and source drilldowns; emergency reach, Tagesgeld allocation, shared-source funding and linear Soll remain Open |
-| 4.1 | Depots im Vergleich | `reports-portfolio.js` | Body Open |
+| 4.1 | Depots im Vergleich | `reports-portfolio.js` | Connected: one column per investment account and the total from the shared period performance (securities-only view), indexed depot lines against the largest position, KPIs side by side, products link to Portfolio; no depot cash, no external index |
 | 4.2 | Allocation | `reports-portfolio.js` | Body Open |
 | 4.3 | Einzahlungen und Wert | `reports-portfolio.js` | Partial: securities-only period chain, monthly value/flow series and conserved calendar-year rows; no depot cash or savings-plan/R12 attribution |
 | 4.4 | Rendite und Kennzahlen | `reports-portfolio.js` | Partial: connected securities-only period metrics and lifetime documented realized gain; benchmark comparison, asset-class comparison and monthly heatmap remain open |

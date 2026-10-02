@@ -224,7 +224,7 @@ function load(db: Executor): Loaded {
   return { securities, accountInstitution, accountCurrency, institutions, classNames };
 }
 
-function ratesAsOf(db: Executor, asOf: string): RateTable {
+export function ratesAsOf(db: Executor, asOf: string): RateTable {
   const table = new Map<string, { date: string; rateMicro: number }[]>();
   const rows = db.select().from(fxRate).where(lte(fxRate.date, asOf)).all();
   for (const row of rows.sort((a, b) => a.date.localeCompare(b.date))) {
@@ -246,7 +246,7 @@ function centsInEur(cents: number, currency: string, day: string, rates: RateTab
   }
 }
 
-function tradesInEur<T extends ProductTrade & { currency: string }>(
+export function tradesInEur<T extends ProductTrade & { currency: string }>(
   trades: readonly T[],
   rates: RateTable,
 ): T[] {
@@ -439,7 +439,7 @@ function realizedByPosition(
 }
 
 /** Live trades up to `to` as series trades (with account and security). */
-function tradesUpTo(db: Executor, to: string) {
+export function tradesUpTo(db: Executor, to: string) {
   return db
     .select({
       accountId: trade.accountId,
@@ -674,7 +674,7 @@ export function riskOf(db: Executor, asOf: string, lines: ReadonlyArray<RiskPosi
   };
 }
 
-function firstDay(db: Executor, today: string): string | null {
+export function firstDay(db: Executor, today: string): string | null {
   const dates = [
     db
       .select({ d: holding.asOf })
