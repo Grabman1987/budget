@@ -51,10 +51,5 @@ before verification. The older downloaded Node 22.14.0 failed the existing
 TypeScript import-worker startup with `ERR_UNKNOWN_FILE_EXTENSION`; those four
 worker tests passed under Node 24 without application changes.
 
-An explicit Windows deny ACL blocks this worktree's normal Git index. The
-automatic WIP snapshot contains the feature; the checked branch was published
-with `git push -u origin HEAD`. Verification documentation uses a temporary Git
-index inside the allowed workspace and ordinary Git object/ref operations. The
-protected primary index is unchanged. In an owner terminal outside the sandbox,
-run `git reset --mixed HEAD` on `feat/receipts` to refresh that index after delivery.
-Mixed reset preserves working files. No force push or hard reset is needed.
+The resumed delivery can use the normal worktree index. No owner Git-index reset
+is needed.
