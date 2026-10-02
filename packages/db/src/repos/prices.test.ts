@@ -35,28 +35,6 @@ const p = (date: string, priceMicro: number, over = {}) => ({
 });
 
 describe('prices', () => {
-  it('keeps imported history: a refresh never writes on or before the last imported day', () => {
-    upsertPrice(db, p('2026-01-02', 100_000_000, { source: 'import' }));
-    upsertPrice(db, p('2026-01-06', 103_000_000, { source: 'import' }));
-    // On an imported day and in a gap before the last imported day: refused.
-    expect(upsertPrice(db, p('2026-01-02', 1, { source: 'yfinance' }))).toBe(false);
-    expect(upsertPrice(db, p('2026-01-03', 1, { source: 'ariva' }))).toBe(false);
-    // After the last imported day a refresh writes as before.
-    expect(upsertPrice(db, p('2026-01-07', 104_000_000, { source: 'yfinance' }))).toBe(true);
-    // Manual wins over import, and an import replaces a refreshed price.
-    expect(upsertPrice(db, p('2026-01-02', 99_000_000, { source: 'manual' }))).toBe(true);
-    expect(upsertPrice(db, p('2026-01-02', 98_000_000, { source: 'import' }))).toBe(false);
-    expect(priceSeries(db, 's1').map((r) => [r.date, r.priceMicro, r.source])).toEqual([
-      ['2026-01-02', 99_000_000, 'manual'],
-      ['2026-01-06', 103_000_000, 'import'],
-      ['2026-01-07', 104_000_000, 'yfinance'],
-    ]);
-    // Another security is not affected.
-    expect(upsertPrice(db, p('2026-01-03', 5, { securityId: 's2', source: 'yfinance' }))).toBe(
-      true,
-    );
-  });
-
   it('upsert replaces the price of a day, including its source, without audit entries', () => {
     const before = db.select().from(auditLog).all().length;
     upsertPrice(db, p('2026-01-02', 100_000_000));

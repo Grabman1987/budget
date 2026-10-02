@@ -47,6 +47,7 @@ import {
 } from '@budget/import-pp';
 import { addDays, settlementCents } from '@budget/domain';
 import { and, asc, eq, gt, inArray, isNotNull, isNull, like, ne, or, sql } from 'drizzle-orm';
+import { deriveCoingeckoId } from '@budget/market';
 import { randomUUID } from 'node:crypto';
 import { ImportStateError } from './commit';
 
@@ -102,6 +103,21 @@ export interface Prepared {
   problems: PpRunProblem[];
 }
 
+/**
+ * CoinGecko id of a crypto security without PP's own `COINGECKOCOINID` (that one always wins in
+ * `planSecurities`): derived from the ticker, else the cryptocalc link, else the name
+ * (`deriveCoingeckoId`). Unresolved coins (leveraged indices, BEST) keep their cryptocalc link.
+ */
+export function coinIdOf(s: PpSecurity): string | null {
+  if (s.isin !== null) return null;
+  const r = deriveCoingeckoId({
+    ...(s.tickerSymbol ? { symbol: s.tickerSymbol } : {}),
+    name: s.name,
+    ...(s.feedUrl ? { quoteUrl: s.feedUrl } : {}),
+  });
+  return r.status === 'resolved' ? r.id : null;
+}
+
 const addProblem = (
   list: PpRunProblem[],
   severity: PpSeverity,
@@ -119,7 +135,7 @@ export function preparePp(
   db: Executor,
   model: PpModel,
   doc: PpMigration,
-  resolveCoin?: (security: PpSecurity) => string | null,
+  resolveCoin: (security: PpSecurity) => string | null = coinIdOf,
 ): Prepared {
   const problems: PpRunProblem[] = [];
   const apps = db

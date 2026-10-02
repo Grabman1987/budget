@@ -129,7 +129,8 @@ Counts and error classes only, never URLs or response bodies.
 
 - Window: the day after the newest network price (`yfinance`/`ariva`/`cryptocalc`/`coingecko`) up to
   `today` of the call. **First refresh of a security: the last 30 days** (`BACKFILL_DAYS`); older
-  history comes from the PP import. A refresh never overwrites imported prices (`import`) on or before the last imported day of a security, and also writes nothing into a gap of that history (`upsertPrice`, the PP history stays as imported); from the day after it on, live prices are written. `manual` is never overwritten.
+  history comes from the PP import. The first refresh may overwrite imported prices of those 30 days
+  (source changes `import` to the live source, audited in `price_audit`); `manual` is never overwritten.
   ECB: full history from 1999-01-04 on the first run, in three-year chunks.
 - Primary first, then the next source on error or empty answer. Every write goes through
   `upsertPrice` (source stored, `manual` never overwritten, changes audited).

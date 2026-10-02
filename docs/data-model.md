@@ -170,8 +170,7 @@ the auth tables.
   in `audit_log`, so this table is the run's undo record for them. A PP run is an `import_run` with
   source `portfolio_performance`; its securities, trades, settlement bookings, asset classes,
   opening-balance changes and retired adjustments are one audit group `import:<run id>`.
-  `upsertPrice` never lets a refresh (`yfinance`, `ariva`) write on or before the last day of a
-  security's imported history (`price.source = 'import'`), and a `manual` price always wins.
+  A live refresh may replace imported prices of its first 30 days (audited in `price_audit`); a `manual` price always wins.
 - **Read models and dates** (C11): `allocationMonth(db, month)` assembles the 50/30/20 inputs
   (regular income = uncategorised inflow splits on budget accounts without the income type
   Sonderzahlung; periodic and windfall categories from the expected payments and rule R12) for the

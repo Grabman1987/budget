@@ -26,6 +26,7 @@ import {
 import { and, eq, isNull } from 'drizzle-orm';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { previousIds } from './commit';
+import { coinIdOf } from './pp-commit';
 import { PpTaskError, runPpTask, type PpTask } from './pp-tasks';
 
 const TODAY = '2026-09-30';
@@ -325,28 +326,6 @@ describe('prices', () => {
     // The matched security was not created by the run and stays.
     expect(db.select().from(security).where(eq(security.id, 'pre')).get()?.deletedAt).toBeNull();
   });
-
-  it('protects imported history from a later refresh', () => {
-    run({ kind: 'commit', runId: stage() });
-    const sec = db.select().from(security).where(isNull(security.deletedAt)).all()[0]!;
-    const last = db
-      .select()
-      .from(price)
-      .where(eq(price.securityId, sec.id))
-      .all()
-      .map((p) => p.date)
-      .sort()
-      .at(-1)!;
-    expect(
-      upsertPrice(db, {
-        securityId: sec.id,
-        date: last,
-        priceMicro: 1,
-        currency: 'EUR',
-        source: 'yfinance',
-      }),
-    ).toBe(false);
-  });
 });
 
 describe("the switch of an account's YNAB value", () => {
@@ -610,5 +589,39 @@ describe('platforms like PP: cash account and securities account', () => {
     expect(m.cash.adjustmentsCountedCents).toBe(0);
     expect(m.cash.otherCents).toBe(0);
     expect(m.cash.diffCents).toBe(m.cash.openingGapCents + m.cash.flowGapCents);
+  });
+});
+
+describe('coin ids of crypto securities', () => {
+  const sec = (over: Record<string, unknown>) =>
+    ({ ...model.securities[0]!, isin: null, tickerSymbol: null, feedUrl: null, ...over }) as never;
+
+  it('derives the CoinGecko id from the ticker, the cryptocalc link or the name', () => {
+    expect(coinIdOf(sec({ name: 'Bitcoin', tickerSymbol: 'BTC' }))).toBe('bitcoin');
+    expect(
+      coinIdOf(
+        sec({
+          name: 'Ethereum',
+          feedUrl: 'https://cryptocalc.cc/bitpanda-kurse/?currency=ETH&fiat=EUR&range=all',
+        }),
+      ),
+    ).toBe('ethereum');
+  });
+
+  it('leaves leveraged indices and BEST unresolved, and never touches listed securities', () => {
+    expect(coinIdOf(sec({ name: 'Bitcoin 2x Long', tickerSymbol: 'BTC2L' }))).toBeNull();
+    expect(
+      coinIdOf(sec({ name: 'BEST - Bitpanda Ecosystem Token', tickerSymbol: 'BEST' })),
+    ).toBeNull();
+    expect(
+      coinIdOf(sec({ name: 'Bitcoin ETP', tickerSymbol: 'BTC', isin: 'XS0000000000' })),
+    ).toBeNull();
+  });
+
+  it('commits the id on a created security, PP property first', () => {
+    const doc = mapping();
+    const body = run({ kind: 'dry-run', runId: stage(doc) });
+    // The synthetic securities have ISINs: none of them is a coin.
+    expect(body['change'].securities.sources.coingeckoId).toBe(0);
   });
 });
