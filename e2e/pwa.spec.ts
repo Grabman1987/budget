@@ -5,6 +5,8 @@ import type { AddressInfo } from 'node:net';
 import { tmpdir } from 'node:os';
 import { extname, join, resolve } from 'node:path';
 
+test.use({ serviceWorkers: 'allow' });
+
 test('installs a static shell, excludes private responses and reloads offline', async ({
   page,
   context,
