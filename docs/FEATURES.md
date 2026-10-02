@@ -142,7 +142,7 @@ consistent totals, desktop/mobile checks and printing where required.
 | 4.2 | Allocation | `reports-portfolio.js` | Connected: class/product and region/product sunbursts (region weights stored per security; unassigned part shown), class table with depots and 12-month TTWROR, R13 Soll/Ist table and R15 note, Soll/Ist areas at month ends with the versioned Soll; no rebalancing actions |
 | 4.3 | Einzahlungen und Wert | `reports-portfolio.js` | Partial: securities-only period chain, monthly value/flow series and conserved calendar-year rows; no depot cash or savings-plan/R12 attribution |
 | 4.4 | Rendite und Kennzahlen | `reports-portfolio.js` | Partial: connected securities-only period metrics and lifetime documented realized gain; benchmark comparison, asset-class comparison and monthly heatmap remain open |
-| 4.5 | Kosten, Steuern, Erträge | `reports-portfolio.js` | Body Open; show source taxes without duplicate withholding |
+| 4.5 | Kosten, Steuern, Erträge | `reports-portfolio.js` | Connected: 12-month chain gross income − broker tax on income − fees and TER = net, parts list, other broker taxes shown separately (as booked, no second withholding), illustrative latent KESt 27,5 % labelled as an example (upper bound, no loss netting), per-product table; unrecorded spreads are not included |
 | 5.1 | Jahresreport | `reports-ueberblick.js` | Body + two printable sheets Open |
 | 5.2 | Finanz-Check-Verlauf | `reports-ueberblick.js` | History body Open; current rule status exists |
 | 5.3 | Explorer | `reports-ueberblick.js` | Pivot, saved views and body Open |

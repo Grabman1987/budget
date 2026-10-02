@@ -134,7 +134,14 @@ export interface PortfolioSummary {
   contributionHistory?: ContributionHistory | null;
   benchmark: { securityId: string; name: string } | null;
   /** TER on month ends plus the fees of 12 months, over the current value. */
-  costs: { terCents: number; feesCents: number; totalCents: number; costRateBp: number };
+  costs: {
+    terCents: number;
+    feesCents: number;
+    totalCents: number;
+    costRateBp: number;
+    /** The same costs per security (fees only on securities that are still live). */
+    bySecurity: Array<{ securityId: string; terCents: number; feesCents: number }>;
+  };
   /** Dividends and interest of the 12 months up to `asOf`. */
   income: IncomeSummary;
   allocation: AllocationStatus;
@@ -890,6 +897,7 @@ export function portfolioSummary(db: Executor, options: PortfolioOptions): Portf
   const allTrades = tradesInEur(tradesUpTo(db, today), ratesAsOf(db, today));
   let terCents = 0;
   let feesCents = 0;
+  const costsBySecurity: PortfolioSummary['costs']['bySecurity'] = [];
   for (const sec of loaded.securities.values()) {
     const mine = allTrades.filter((t) => t.securityId === sec.id);
     const line = lines.find((l) => l.securityId === sec.id);
@@ -902,6 +910,11 @@ export function portfolioSummary(db: Executor, options: PortfolioOptions): Portf
     });
     terCents += costs.terCents;
     feesCents += costs.feesCents;
+    costsBySecurity.push({
+      securityId: sec.id,
+      terCents: costs.terCents,
+      feesCents: costs.feesCents,
+    });
   }
   const totalCostCents = terCents + feesCents;
   const costs = {
@@ -909,6 +922,7 @@ export function portfolioSummary(db: Executor, options: PortfolioOptions): Portf
     feesCents,
     totalCents: totalCostCents,
     costRateBp: valueCents > 0 ? Math.round((totalCostCents * 10_000) / valueCents) : 0,
+    bySecurity: costsBySecurity,
   };
   const income = incomeLast12Months(allTrades, today);
 

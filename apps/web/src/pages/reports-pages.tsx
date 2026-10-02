@@ -20,6 +20,7 @@ import { PortfolioPerformanceReport } from './portfolio-performance-report';
 import { PortfolioContributionsReport } from './portfolio-contributions-report';
 import { PortfolioDepotsReport } from './portfolio-depots-report';
 import { PortfolioAllocationReport } from './portfolio-allocation-report';
+import { PortfolioCostsReport } from './portfolio-costs-report';
 
 const CONTROL_LABEL = { month: 'Monat', year: 'Jahr', period: 'Zeitraum' } as const;
 
@@ -171,6 +172,7 @@ export function ReportPage({ reportId }: { reportId: string }) {
   if (report.id === 'prendite') return <PortfolioPerformanceReport report={report} meta={meta} />;
   if (report.id === 'pdepots') return <PortfolioDepotsReport report={report} meta={meta} />;
   if (report.id === 'pallocation') return <PortfolioAllocationReport report={report} meta={meta} />;
+  if (report.id === 'psteuern') return <PortfolioCostsReport report={report} meta={meta} />;
   if (report.id === 'peinzahlungen')
     return <PortfolioContributionsReport report={report} meta={meta} />;
   return (
