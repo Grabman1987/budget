@@ -19,6 +19,8 @@ export interface ForecastItem {
   cents: number;
   kind: ForecastItemKind;
   label?: string;
+  /** Class of the category behind a scheduled payment; the report levers pick by it. */
+  group?: 'need' | 'want' | 'future';
 }
 
 /** Stage "surplus": on one day a month, whatever exceeds the buffer leaves the budget accounts. */

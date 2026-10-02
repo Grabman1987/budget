@@ -16,6 +16,9 @@ import { PlaceholderPage } from './placeholder-page';
 import { GoalsProgressReport } from './goals-progress-report';
 import { PaymentsPreviewReport } from './payments-preview-report';
 import { ContactReportPage } from '../reports/contact-report';
+import { CashflowReportPage } from '../reports/cashflow-report';
+import { LiquidityReportPage } from '../reports/liquidity-report';
+import { WealthHistoryReport } from '../reports/wealth-history-report';
 import { PayeeAnalysisReport } from './payee-analysis-report';
 import { PortfolioPerformanceReport } from './portfolio-performance-report';
 import { PortfolioContributionsReport } from './portfolio-contributions-report';
@@ -169,6 +172,9 @@ export function ReportPage({ reportId }: { reportId: string }) {
     fills: 'P6 Reports und Umstellung',
     spec: `Diagrammform: ${report.form}.`,
   };
+  if (report.id === 'liquiditaet') return <LiquidityReportPage report={report} meta={meta} />;
+  if (report.id === 'cashflow') return <CashflowReportPage report={report} meta={meta} />;
+  if (report.id === 'vermoegen') return <WealthHistoryReport report={report} meta={meta} />;
   if (report.id === 'sparziele') return <GoalsProgressReport report={report} meta={meta} />;
   if (report.id === 'vorschau') return <PaymentsPreviewReport report={report} meta={meta} />;
   if (report.id === 'empfaenger') return <PayeeAnalysisReport report={report} meta={meta} />;

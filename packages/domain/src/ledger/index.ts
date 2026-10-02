@@ -39,6 +39,27 @@ export {
   type NetWorthWindow,
 } from './networth-window';
 export {
+  cashflowChartMonths,
+  cashflowMonth,
+  cashflowTotals,
+  cashflowWindow,
+  lastFullMonth,
+  type CashflowMonth,
+  type CashflowMonthInput,
+  type CashflowTotals,
+} from './cashflow';
+export {
+  historyDays,
+  STRUCTURE_GROUPS,
+  structureOf,
+  structureRows,
+  structureTotal,
+  type Structure,
+  type StructureGroup,
+  type StructureRow,
+  type StructureValue,
+} from './networth-structure';
+export {
   targetNeed,
   waterfallFill,
   waterfallOrder,

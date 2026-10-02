@@ -37,4 +37,7 @@ export * from './payments-preview';
 export * from './payee-report';
 export * from './freedom';
 export * from './profile';
+export * from './liquidity-report';
+export * from './networth-history';
+export * from './cashflow-report';
 export * from './report-tables';
