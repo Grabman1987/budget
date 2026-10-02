@@ -27,6 +27,7 @@ import { lookupRoutes, payeeRoutes, undoRoutes } from './lookups';
 import { marketRoutes } from './market';
 import { wealthRoutes } from './wealth';
 import { ruleRoutes } from './rules';
+import { overviewReportRoutes } from './overview-reports';
 
 export interface LedgerApiOptions {
   db: Db;
@@ -67,6 +68,7 @@ export function createLedgerApi({
   api.route('/goals', goalRoutes(db, today));
   api.route('/heute', heuteRoutes(db, today));
   api.route('/rules', ruleRoutes(db, today));
+  api.route('/overview', overviewReportRoutes(db, today));
   api.route('/securities', securityRoutes(db));
   api.route('/asset-classes', assetClassRoutes(db, today));
   api.route('/trades', tradeRoutes(db));

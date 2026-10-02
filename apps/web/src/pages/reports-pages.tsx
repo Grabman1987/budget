@@ -19,6 +19,7 @@ import { ContactReportPage } from '../reports/contact-report';
 import { PortfolioPerformanceReport } from './portfolio-performance-report';
 import { PortfolioContributionsReport } from './portfolio-contributions-report';
 import { FinanzcheckReport } from '../reports/finanzcheck-report';
+import { CompareReport } from '../reports/compare-report';
 
 const CONTROL_LABEL = { month: 'Monat', year: 'Jahr', period: 'Zeitraum' } as const;
 
@@ -171,6 +172,7 @@ export function ReportPage({ reportId }: { reportId: string }) {
   if (report.id === 'peinzahlungen')
     return <PortfolioContributionsReport report={report} meta={meta} />;
   if (report.id === 'finanzcheck') return <FinanzcheckReport report={report} meta={meta} />;
+  if (report.id === 'vergleich') return <CompareReport report={report} meta={meta} />;
   return (
     <PlaceholderPage
       meta={meta}

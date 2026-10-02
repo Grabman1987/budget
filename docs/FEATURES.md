@@ -147,7 +147,7 @@ consistent totals, desktop/mobile checks and printing where required.
 | 5.2 | Finanz-Check-Verlauf | `reports-ueberblick.js` | Connected: stage with progress, current-stage and next-stage items, count chart and R01–R16 status strips from the stored `rule_result` rows (12 month ends + today, `/api/rules/results`), open actions, since-date per rule. Opening the report re-derives the stored results (idempotent); a day without data stays "nicht bewertbar" |
 | 5.3 | Explorer | `reports-ueberblick.js` | Pivot, saved views and body Open |
 | 5.4 | Kontakte-Abrechnung | `reports-ueberblick.js` | Fixed all-time EUR report: shared receivable/credit chain, per-person retained ledger, running balance stair chart and source drilldown. Pending bookings explicitly included; mixed currency unavailable. Owner/private acceptance remains |
-| 5.5 | Zeitraumvergleich | `reports-ueberblick.js` | Body Open |
+| 5.5 | Zeitraumvergleich | `reports-ueberblick.js` | Connected (`/api/overview/compare`): four modes, month-by-month pairing inside the ledger, Konsum chain (vorher + mehr − weniger = jetzt), per-category bars around zero; Kapitalerträge shown apart from Einkommen and Sparquote. Mode is page state, not in the URL |
 
 References are under [design/prototype](../design/prototype/). The older concept's
 report list is superseded by these 30 reports in SPEC §7.
