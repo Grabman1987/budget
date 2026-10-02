@@ -122,10 +122,10 @@ consistent totals, desktop/mobile checks and printing where required.
 | 1.2 | Gehaltsreport | `reports-monat.js` | Payslip capture, body and yearly comparison Open |
 | 1.3 | Einnahmen | `reports-monat.js` | Body Open |
 | 1.4 | Geldfluss | `reports-monat.js` | Connected Sankey body Open |
-| 1.5 | Jahresansicht | `reports-monat.js` | Body + previous year Open |
-| 1.6 | Kategorieübersicht | `reports-monat.js` | Body Open |
-| 1.7 | Sparquote und Geldalter | `reports-monat.js` | Body Open |
-| 1.8 | Gesamttabelle | `reports-monat.js` | Body Open; account/depot CSV ZIP export is implemented separately |
+| 1.5 | Jahresansicht | `reports-monat.js` | Connected: category × month heat grid for one year, Gruppen/Kategorien depth, chain, comparison with the same months of the previous year; Kapitalerträge as a separate memo row, never income; Erstattungen net against the refunded category. Owner acceptance open |
+| 1.6 | Kategorieübersicht | `reports-monat.js` | Connected: categories of the Zeitraum with 12-month course, sum, average, change to the previous period, share of Konsum; open row with Ist/Plan chart (Plan = assigned amount), top payees. Owner acceptance open |
+| 1.7 | Sparquote und Geldalter | `reports-monat.js` | Connected: Sparquote from household income only (no Kapitalerträge; Erstattungen net against their category), monthly and rolling 12 months against the R01 goal; Geldalter (FIFO, rule R03 definition) at every month end against the R03 goal; yearly table. Owner acceptance open |
+| 1.8 | Gesamttabelle | `reports-monat.js` | Connected: all months from the budget start incl. the running month, month-end net worth, CSV of exactly the displayed rows and columns; account/depot CSV ZIP export is implemented separately. Owner acceptance open |
 | 1.9 | Projekte und Nebeneinkünfte | `reports-monat.js` | Capture/data + body Open |
 | 2.1 | Ausgabenanalyse | `reports-ausgaben.js` | Body Open |
 | 2.2 | Budgettreue inkl. 50/30/20 | `reports-ausgaben.js` | Body Open; twelfths rule follows SPEC |

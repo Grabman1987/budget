@@ -11,8 +11,10 @@ import {
   CLASSLESS_KINDS,
   contact,
   createEntity,
+  createExpectedPayment,
   deleteBooking,
   envelopeMonth,
+  expectedPayment,
   insertManyTracked,
   insertRows,
   BookingInvariantError,
@@ -78,6 +80,8 @@ export interface ChangeReport {
   categories: { created: number; reused: number; updated: number };
   payees: { created: number };
   assigned: { changed: number };
+  /** From YNAB's scheduled rows and the mapping; a live one with the same name, kind, account and due day is kept. */
+  expected: { created: number; reused: number };
   /** Spending categories without a class in the mapping got "Bedarf". */
   classDefaulted: number;
 }
@@ -125,6 +129,8 @@ export interface WriteInput {
   previous: IdMap;
   deleteMissing: boolean;
   actor: string;
+  /** Today of the server: expected payments plan their occurrences from it. */
+  today: string;
 }
 
 export interface WriteResult {
@@ -219,6 +225,7 @@ export function writeImport(tx: Executor, input: WriteInput): WriteResult {
     categories: { created: 0, reused: 0, updated: 0 },
     payees: { created: 0 },
     assigned: { changed: 0 },
+    expected: { created: 0, reused: 0 },
     classDefaulted: 0,
   };
   const ids: IdMap = { accounts: { ...input.previous.accounts }, categories: {} };
@@ -313,9 +320,11 @@ export function writeImport(tx: Executor, input: WriteInput): WriteResult {
   const categoryId = (id: string | null) => (id === null ? null : (ids.categories[id] ?? null));
 
   // Bookings: which keys exist already (on any of the target accounts, also soft-deleted).
-  const keyOf = (b: TargetBooking) => `${accountId(b.accountId)}|${keys.get(b.id) as string}`;
+  // Register rows carry the export's key, adjustments declared in the mapping their own.
+  const importKey = (b: TargetBooking) => keys.get(b.id) ?? (b.importKey as string);
+  const keyOf = (b: TargetBooking) => `${accountId(b.accountId)}|${importKey(b)}`;
   const existing = new Map<string, typeof booking.$inferSelect>();
-  const allKeys = [...new Set(target.bookings.map((b) => keys.get(b.id) as string))];
+  const allKeys = [...new Set(target.bookings.map(importKey))];
   for (let i = 0; i < allKeys.length; i += CHUNK)
     for (const row of tx
       .select()
@@ -410,7 +419,7 @@ export function writeImport(tx: Executor, input: WriteInput): WriteResult {
       flag,
       transferId: whole ?? null,
       source: 'migration',
-      importKey: keys.get(b.id) as string,
+      importKey: importKey(b),
       importRunId: runId,
       projectId: project === null ? null : projects.id(project),
     });
@@ -438,7 +447,6 @@ export function writeImport(tx: Executor, input: WriteInput): WriteResult {
     });
     report.bookings.added += 1;
   }
-  report.payees.created = payees.created;
   insertRows(
     tx,
     transfer,
@@ -529,6 +537,59 @@ export function writeImport(tx: Executor, input: WriteInput): WriteResult {
   }
   insertManyTracked(tx, envelopeMonth, fresh, ctx);
 
+  // Expected payments (YNAB's scheduled transactions and the declared ones such as the salary).
+  // A live payment with the same name, kind, account and due day (an earlier run or the owner) is
+  // kept.
+  const known = new Set(
+    tx
+      .select({
+        name: expectedPayment.name,
+        kind: expectedPayment.kind,
+        account: expectedPayment.accountId,
+        dueDay: expectedPayment.dueDay,
+      })
+      .from(expectedPayment)
+      .where(isNull(expectedPayment.deletedAt))
+      .all()
+      .map((p) => `${nameKey(p.name)}|${p.kind}|${p.account}|${p.dueDay}`),
+  );
+  for (const e of target.expectedPayments) {
+    const account = accountId(e.accountId);
+    const key = `${nameKey(e.name)}|${e.kind}|${account}|${e.dueDay}`;
+    if (known.has(key)) {
+      report.expected.reused += 1;
+      continue;
+    }
+    known.add(key);
+    createExpectedPayment(
+      tx,
+      {
+        name: e.name,
+        kind: e.kind,
+        accountId: account,
+        payeeId:
+          e.payee === null
+            ? null
+            : payees.id(e.payee, e.contact ? { contactId: contacts.id(e.contact) } : {}),
+        contactId: e.contact === null ? null : contacts.id(e.contact),
+        categoryId: categoryId(e.categoryId),
+        incomeTypeId: incomeTypeId(e.incomeType),
+        rhythm: e.rhythm,
+        dueDay: e.dueDay,
+        dueMonth: e.dueMonth,
+        dateShift: e.dateShift,
+        startDate: e.startDate,
+        endDate: e.endDate,
+        note: e.note,
+      },
+      { validFrom: e.startDate, amountCents: e.amountCents },
+      ctx,
+      input.today,
+    );
+    report.expected.created += 1;
+  }
+  report.payees.created = payees.created;
+
   return { report, ids, ledger: ledgerDifferences(tx, target, ids) };
 }
 
@@ -538,9 +599,7 @@ export function ledgerDifferences(
   target: TargetModel,
   ids: IdMap,
 ): LedgerDifference[] {
-  // Scheduled bookings are pending bookings in the app and count in their month like any other.
-  const bookings = target.bookings.map((b) => ({ ...b, scheduled: false }));
-  const expected = budgetMonths(budgetInputOf({ ...target, bookings }));
+  const expected = budgetMonths(budgetInputOf(target));
   const actual = new Map(budget(tx, target.months).map((m) => [m.month, m]));
   const out: LedgerDifference[] = [];
   for (const e of expected) {
