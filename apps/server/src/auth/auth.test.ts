@@ -481,6 +481,40 @@ describe('recovery codes', () => {
     ).toBe(200);
   });
 
+  it('a recovery session cannot satisfy the export step-up; a passkey session can', async () => {
+    const { bootstrap, call, login } = setup();
+    const { authenticator, cookie, codes } = await bootstrap();
+    const recovery = (await call('POST', '/api/auth/recovery/login', { code: codes[0] }))
+      .cookie as string;
+
+    const refused = await call('GET', '/api/export/csv.zip', undefined, recovery);
+    expect(refused.status).toBe(403);
+    expect(refused.data['error']).toBe('passkey_required');
+
+    // A passkey assertion inside the recovery session does not lift the restriction either.
+    const opts = await call('POST', '/api/auth/step-up/options', {}, recovery);
+    const stepUp = await call(
+      'POST',
+      '/api/auth/step-up/verify',
+      { response: authenticator.authenticate(opts.data['options']) },
+      recovery,
+    );
+    expect(stepUp.status).toBe(200);
+    expect((await call('GET', '/api/export/csv.zip', undefined, recovery)).data['error']).toBe(
+      'passkey_required',
+    );
+
+    // Passkey sessions (setup and later login) still export while the step-up is fresh.
+    expect((await call('GET', '/api/export/csv.zip', undefined, cookie)).status).toBe(200);
+    const fresh = (await login(authenticator)).cookie as string;
+    expect((await call('GET', '/api/export/csv.zip', undefined, fresh)).status).toBe(200);
+
+    advance(6 * MINUTE);
+    expect((await call('GET', '/api/export/csv.zip', undefined, fresh)).data['error']).toBe(
+      'step_up_required',
+    );
+  });
+
   it('regenerating needs a fresh step-up', async () => {
     const { bootstrap, call } = setup();
     const { cookie } = await bootstrap();

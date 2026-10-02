@@ -2,8 +2,9 @@ import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { createTestDatabase } from '@budget/db';
-import { beforeAll, describe, expect, it } from 'vitest';
-import { createApp } from './app';
+import { Hono } from 'hono';
+import { beforeAll, describe, expect, it, vi } from 'vitest';
+import { createApp, type AuthGate } from './app';
 
 let app: ReturnType<typeof createApp>;
 let dir: string;
@@ -88,5 +89,53 @@ describe('server', () => {
     const res = await app.request('/api/nope');
     expect(res.status).toBe(404);
     expect(await res.json()).toEqual({ error: 'not_found' });
+    expect(res.headers.get('cache-control')).toBe('no-store');
+  });
+
+  it('prevents caching early body-limit, origin and session rejections', async () => {
+    const auth: AuthGate = {
+      routes: new Hono(),
+      requireStepUp: async (_c, next) => next(),
+      originGuard: async (c, next) =>
+        c.req.method === 'POST' ? c.json({ error: 'origin_rejected' }, 403) : next(),
+      requireSession: async (c) => c.json({ error: 'unauthorized' }, 401),
+    };
+    const guarded = createApp({ webDir: dir, auth });
+    for (const [request, status] of [
+      [guarded.request('/api/accounts'), 401],
+      [guarded.request('/api/accounts', { method: 'POST' }), 403],
+      [guarded.request('/api/accounts', { method: 'POST', body: 'x'.repeat(65537) }), 413],
+    ] as const) {
+      const response = await request;
+      expect(response.status).toBe(status);
+      expect(response.headers.get('cache-control')).toBe('no-store');
+    }
+    expect((await guarded.request('/health')).headers.get('cache-control')).toBeNull();
+  });
+
+  it('redacts unexpected auth failures from the response and server log', async () => {
+    const routes: AuthGate['routes'] = new Hono();
+    routes.get('/status', () => {
+      throw new Error('synthetic-private-database-path-and-value');
+    });
+    const auth: AuthGate = {
+      routes,
+      originGuard: async (_c, next) => next(),
+      requireSession: async (_c, next) => next(),
+      requireStepUp: async (_c, next) => next(),
+    };
+    const log = vi.spyOn(console, 'error').mockImplementation(() => {});
+    try {
+      const response = await createApp({ webDir: dir, auth }).request('/api/auth/status');
+      expect(response.status).toBe(500);
+      expect(response.headers.get('cache-control')).toBe('no-store');
+      expect(await response.json()).toEqual({
+        error: 'server_error',
+        message: 'Something went wrong',
+      });
+      expect(log.mock.calls).toEqual([['Unhandled server error']]);
+    } finally {
+      log.mockRestore();
+    }
   });
 });

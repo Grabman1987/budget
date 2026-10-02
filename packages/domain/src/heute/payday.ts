@@ -1,10 +1,10 @@
-import { lastDayOfMonth, monthOf } from '../date';
+import { addMonths, lastDayOfMonth, monthOf } from '../date';
+import { shiftToBusinessDay } from '../schedule/due-dates';
 
 /**
- * Payday and the two windows of Heute (concept §7.1). The payday is the next occurrence of the
- * salary expected payment (last business day of the month, shifted by Austrian public holidays,
- * see `schedule`); without a salary payment it is the end of the month. Pure; the caller supplies
- * the salary dates.
+ * Payday and the two windows of Heute. Owner rule (2026-10-02): the 15th, moved back to the
+ * preceding Austrian business day. This is the planning boundary; actual salary bookings and
+ * configured expected payments retain their own dates and amounts.
  */
 
 export type HeutePeriod = 'month' | 'payday';
@@ -12,19 +12,20 @@ export type HeutePeriod = 'month' | 'payday';
 export interface Payday {
   /** `YYYY-MM-DD`. */
   day: string;
-  /** `salary`: the next salary occurrence; `month_end`: no salary payment, the month's last day. */
-  source: 'salary' | 'month_end';
+  source: 'payday_rule';
 }
 
 /**
- * The first salary day on or after `today` (on the payday itself the salary is still due: a day
- * whose salary is already received is not passed), otherwise the last day of today's month.
+ * The first rule-based payday on or after today. On payday itself the window is one day;
+ * the next calendar day starts the following month's window, including across December.
  */
-export function nextPayday(salaryDays: ReadonlyArray<string>, today: string): Payday {
-  const next = [...salaryDays].filter((d) => d >= today).sort()[0];
-  return next === undefined
-    ? { day: lastDayOfMonth(monthOf(today)), source: 'month_end' }
-    : { day: next, source: 'salary' };
+export function nextPayday(today: string): Payday {
+  const month = monthOf(today);
+  const candidate = shiftToBusinessDay(`${month}-15`, 'before');
+  return {
+    day: candidate >= today ? candidate : shiftToBusinessDay(`${addMonths(month, 1)}-15`, 'before'),
+    source: 'payday_rule',
+  };
 }
 
 export interface HeuteWindow {

@@ -17,7 +17,7 @@ import {
   type RawModel,
   type TsvRecord,
 } from '@budget/import-ynab';
-import { asc, desc, eq, ne } from 'drizzle-orm';
+import { and, asc, desc, eq, ne } from 'drizzle-orm';
 import { randomUUID } from 'node:crypto';
 
 /**
@@ -180,7 +180,7 @@ export function latestMapping(
     .select({ json: importMapping.mappingJson })
     .from(importMapping)
     .innerJoin(importRun, eq(importRun.id, importMapping.importRunId))
-    .where(ne(importMapping.importRunId, runId))
+    .where(and(ne(importMapping.importRunId, runId), eq(importRun.source, 'ynab')))
     .orderBy(desc(importRun.startedAt), desc(importMapping.version))
     .get();
   const parsed = earlier ? mappingSchema.safeParse(JSON.parse(earlier.json)) : null;

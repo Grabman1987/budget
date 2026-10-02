@@ -24,7 +24,8 @@ import type { CashFlow } from './returns';
  * 2. View "depot incl. reference account" (`depotFlows`): the portfolio is the positions plus the
  *    cash of its reference account(s). Buys, sales, dividends, fees and taxes are internal moves
  *    between cash and positions; only transfers that cross the portfolio boundary (deposits and
- *    withdrawals) are flows. The value is positions plus cash balance. This is the view used for
+ *    withdrawals) are flows, and so are deliveries in and out, which move value across the boundary
+ *    without cash and count at their stored amount, as in PP. The value is positions plus cash balance. This is the view used for
  *    the Gate 3 comparison with Portfolio Performance. A plain booking directly on the
  *    reference account is a flow from outside, too: an inflow is a deposit (Einlage), an outflow
  *    a withdrawal (Entnahme), as in PP. Interest, dividends, fees and taxes are performance.

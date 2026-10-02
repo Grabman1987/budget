@@ -132,7 +132,7 @@ the auth tables.
   `dailyValuation` (units x price carried forward x FX of the day, one rounding), `securityFlows`
   (Portfolio Performance "securities only": buys in, sales/dividends/interest out, standalone
   fee/tax as an inflow that lowers the gain, split none) and `depotFlows` ("depot incl. reference
-  account": only transfers across the portfolio boundary count; this is the Gate 3 view).
+  account": transfers across the portfolio boundary and deliveries in/out count; this is the Gate 3 view).
   `invest/performance.ts`: `periodWindow('1M'|'3M'|'YTD'|'1J'|'3J'|'Alles')`, `windowPerformance`
   (start/end value, contributions, gain in cents; TTWROR chained over daily sub-periods; XIRR;
   Modified Dietz annualised beyond 12 months = the prototype's "IRR"; volatility = monthly
@@ -160,6 +160,17 @@ the auth tables.
   domain). Asset-class targets are versions of 10 000 bp each (`setTargets`).
 - **Depot view deposits and withdrawals** (P5.5): next to transfers across the boundary, a plain booking onto
   a reference account (not a trade settlement, not income type Kapitalerträge) is an external flow.
+  A delivery in or out (`delivery_in` / `delivery_out`, also the legs of a transfer between portfolios)
+  is capital in or out at its stored amount, as in Portfolio Performance (owner decision
+  02.10.2026); two accounts of the same depot net out.
+- **Verrechnungskonto** (P5.11): `account.reference_account_id` (nullable, self reference) links a depot to the account it settles through, so a platform (cash account plus securities account) can be grouped and shown ("Verrechnungskonto: …"). It is a link only: money between the two moves by transfers, and a trade still settles on its own account.
+- **PP migration tables** (P5.11, `docs/ops.md` §13): `import_file` (the staged files of a run as bytes, the PP XML and the platform statements, `kind` `pp-xml` or `statement:<PP cash account uuid>`,
+  deletable) and `import_price_change` (per run, security and day: a price the run
+  inserted has no old value, one it replaced keeps old price, currency and source). Prices are not
+  in `audit_log`, so this table is the run's undo record for them. A PP run is an `import_run` with
+  source `portfolio_performance`; its securities, trades, settlement bookings, asset classes,
+  opening-balance changes and retired adjustments are one audit group `import:<run id>`.
+  A live refresh may replace imported prices of its first 30 days (audited in `price_audit`); a `manual` price always wins.
 - **Read models and dates** (C11): `allocationMonth(db, month)` assembles the 50/30/20 inputs
   (regular income = uncategorised inflow splits on budget accounts without the income type
   Sonderzahlung; periodic and windfall categories from the expected payments and rule R12) for the

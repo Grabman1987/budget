@@ -173,6 +173,12 @@ Process from P1f on: one branch per task, PRs ≤ ~1.500 changed lines, tick onl
 - [x] ElevationMark shelf under the label; Sankey want/future nodes hatched with outline
 
 
+### Plan year follow-up — read-only overview (2026-10-02, PR #133)
+- [x] Connect Plan › Jahr to all twelve existing budget-month reads; category and group detail, signed assigned/activity annual sums and December available balance (never sum rollover balances).
+- [x] Sticky category column on desktop; all metrics, month selector and category annual values on a 375px phone, with read-only year navigation.
+- [x] Independent literal domain regression cases and real-server Playwright behaviour tests; no schema or financial mutations.
+- [ ] Owner visual/device acceptance and the remaining annual scenarios/editing workflow.
+
 ## P2 Kern und Migration
 
 Starts after P1f-3 is merged. Source: YNAB export (`docs/migration/ynab-export.md`); Actual is not migrated. YNAB's categories and habits are evaluated and adapted via an owner-approved mapping, not copied. The export and mapping stay in the owner's authorized private migration environment, never in the repo, CI or logs. No app import UI. **Gate 2:** balances per account and month match YNAB to the cent; Available per target category matches the mapped YNAB categories before the rules month.
@@ -228,6 +234,8 @@ Expected payments, contacts with receivables, savings goals, rule set R01–R16 
 - [x] P3.7 `p3-regelwerk-ui`: Einstellungen › Regelwerk (`apps/web/src/rules`): stage checklist in three columns with owner confirmation of non-computable items, rules R01–R16 with typed threshold panel (status, next step, undo), switches and thresholds as audited PATCH with undo toast
 - [x] P3.9 `p3-heute-api`: `GET /api/heute?period=month|payday&month=` (one request: stand, lead with chain and drill-down, balance actual and forecast with salary jump and low point, pace, pinned envelopes, upcoming 14 days, Finanz-Check, net worth with delta and 12 month ends, last bookings, next steps), `packages/domain/src/heute`, `heute` read model, `category.pinned_at` (migration 0010) with `PATCH /categories/:id {pinned}`, pinned fixtures
 - [x] P3.10 `heute-page`: Heute wired to its read model (month/payday URL, lead drill-down, balance and pace, pinned envelopes, upcoming payments, Finanz-Check, net worth, latest bookings and next steps); capture/budget/rule edits and undo/redo refresh Today, actions open the source month or uncategorized bookings through today, mobile urgent step follows the lead. Browser coverage includes capture/undo/redo, actual navigation, negative lead in both themes, retry, empty states and settled chart endpoints; owner visual acceptance remains pending.
+  - [x] Owner follow-up 2026-10-02: payday selection disabled outside the current month, URL/month fallback, Austrian business-day 15th planning rule, and month-specific Decken in multi-month plans; [behavior and calendar contract](month-navigation.md).
+  - [ ] Follow-up delivery acceptance: full check, desktop/mobile browser evidence and owner device review (PR #132).
 
 - [x] Expected payments (P3.2): schedule domain (due dates, Austrian business days, versions, occurrences, matching), `date_shift` migration, repositories with audit and undo, `/api/expected`
 - [x] P3.6 `p3-expected-ui`: Plan › Erwartet (next 90 days by week, Verträge und Abos / Alle parts list with monthly and yearly sums and original currency, payment panel with fields, versions, occurrences, link/unlink/missed), "Als erwartete Zahlung anlegen" on a booking, Einnahmen panel on Plan › Monat (`/api/expected/income`)
@@ -270,7 +278,8 @@ Price history (yfinance + Ariva, source per price), ECB rates, trades and holdin
 - [x] `docs/migration/pp-export.md`: client version and scales, securities and prices, account and portfolio transaction types, units (fee, tax, gross value, forex), cross entries, XStream references, taxonomies, mapping table
 - [x] `packages/import-pp`: XXE-safe XML reader (no DTD, size and depth limits), reference resolver, model builder with path-addressed problems, mapping to securities, prices, investment accounts, trades and bookings; integer conversion only
 - [x] Synthetic PP file generator `packages/fixtures/src/pp` (`npm run fixtures:pp`, XStream shape, byte-stable); round trip ledger → XML → parse keeps trades, prices and holdings/cost (P5.2 functions)
-- [ ] P5.11: commit the plan, security matching, Gate 3 report
+- [x] P5.11 (operator CLI, no import UI by owner decision): mapping document, security matching, commit with one transaction per run, revert, `migrate-pp-cli.js`, Gate 3 report as data (`docs/ops.md` §13)
+- [ ] Gate 3 stays open for the owner: real-data comparison with PP's own returns, cash-flow reconciliation, missing recent trades
 ### P5.2 — Performance: valuation series and portfolio performance (no UI)
 - [x] `invest/series.ts`: daily valuation per position (units, carried-forward price, FX of the day, one rounding), cash flows of the "securities only" and "depot incl. reference account" views, semantics documented
 - [x] `invest/performance.ts`: `periodWindow`, TTWROR over daily sub-periods, XIRR and the prototype's Modified Dietz, volatility, max drawdown, Sharpe (2,5 %), beta, best/worst month, share of positive months
@@ -354,6 +363,11 @@ The 30 reports (SPEC §7), explorer, printable sheets, parallel run with reconci
 - [x] One pure projection feeds lead, chart and twelve-month payment calendar. Preserve native amount ranges/currencies, display unavailable contract amounts explicitly and overlay stored status/links once per payment/date. Linked actual bookings retain their own currency and remain separate from contract projection.
 - [x] Literal domain/API cases, audited-write query invalidation and synthetic desktop/mobile light/dark browser evidence. See [report 3.4](evidence/report-3.4.md).
 - [ ] Full original source coverage: independent investment savings plans, other future ledger transfers and their cross-source identity/dedup contract; no inferred category funding. Owner acceptance remains open.
+
+### Security review — 2026-10-02
+
+- [x] Time-bounded server source review, API no-store, production origin validation, debug authentication guard and safe unexpected/bulk errors; synthetic regressions and desktop/mobile browser checks. See [security audit](audit/2026-10-02-security-review.md).
+- [ ] Full check acceptance and owner decisions: public importer removal, bounded exports/backups, dev-tool advisory and recovery-session export policy. No production verification or security certification claimed.
 
 ### P6.3.5 — Sparziele-Fortschritt (first source slice)
 - [x] `/reports/sparziele`: stored goals at the existing API's server month; reuse progress, needed rate, last-three-month rate, forecast/status and bar geometry without a new money formula. Category sources mean month-end Available; account sources mean native cash balance, not securities value.

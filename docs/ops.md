@@ -533,3 +533,22 @@ keep `/data/migration` until the end.
    skipped; handle them by hand in the app, or with `--allow-unbalanced` if single assignments are
    what you want.
 6. Check Plan › Monat for the months involved, then remove the private files (section 12, step 5).
+
+## 13. One-time Portfolio Performance migration (operator task)
+
+Same rules as section 12 (no import feature in the app, files and the private mapping never enter the repo). Prerequisite: the YNAB migration is committed (the depot, crypto and P2P accounts exist). `migrate-pp-cli.js` has the same shape: each step is one transaction, `revert` undoes a whole run (the newest committed one only, also across sources). What is written and why: `docs/migration/pp-export.md` §Commit.
+
+1. Check the backup (sections 4 and 8). Copy the PP XML (plain save, version 70 verified) and the mapping to the volume (as in section 12, folder `/data/migration`).
+2. Draft the mapping from the file and the accounts in the database, then edit it (`?` marks what needs a decision; a security has a `comment` where a quote id is missing):
+   `node /app/migrate-pp-cli.js propose --file /data/migration/pp.xml --out /data/migration/pp.mapping.json`
+3. Stage and dry run:
+   `... stage --file /data/migration/pp.xml --mapping /data/migration/pp.mapping.json`, then `... dry-run --run <id>` (change the mapping with `... map --run <id> --mapping <file>`, every save is a version). A dry run is the commit in a rolled-back transaction: it prints the changes and the Gate 3 report. Proceed only with 0 errors.
+   Accounts are created by this tool, not by the YNAB mapping: a portfolio entry with `cashAccount` renames the YNAB account to the cash account and creates the securities account at commit (`docs/migration/pp-export.md`, platforms).
+4. Commit: `... commit --run <id>`. Look at the report: **0 differences in units and in position value** and 0 in cost (with the cost method of the app; PP's FIFO figure is part of the data). Differences in account value come from cash flows (YNAB transfers against PP deposits) and are listed per year; `suggestedOpeningCents` per account is the opening balance that would equalise one day. Returns per depot: app against PP replay; for PP's own numbers pass `--reference ref.json` (`{"<account>": {"1J": {"ttwrorPct": 12.34, "irrPct": 5.6}}}`, tolerance 0,01 Pp). `--days 2025-12-31,2026-09-30` chooses the checkpoint days, `--out report.json` keeps the whole report (private storage), `--details` prints it.
+   The report explains the cash difference per platform (`cash difference today (app - PP) explained by`) and sorts every unmatched flow into a bucket (`docs/migration/pp-export.md`). Valuation adjustments of YNAB on PP-managed accounts are dropped, not counted as cash.
+   Real platform cash from the statements goes into the mapping as `cashTarget` per cash account (`docs/migration/pp-export.md`); the commit prints each correction (`cash target`) as the amount YNAB missed.
+   Platform statements (`statement` in the mapping) are staged with the run (`stage --mapping` reads the file named there); the commit prints per statement the matched, added and removed rows, the old holdings, and the bank account's balance before and after. For Trade Republic: `abgleich --web <list.tsv> [--pytr <csv>] --cashback <giro name> --depot <depot name> --real <EUR> --out <report.md>`.
+5. Quote sources are taken from PP's own feeds (contract: `docs/market-data.md`, "Fields on `security`"): `quote_url` from the HTML-table feed URL on Ariva or cryptocalc, `coingecko_id` from the PP property `COINGECKOCOINID` (crypto without one: the helper of the market module), `symbol` from a Yahoo feed. `fallback_quote_id` is never set. Securities without any source keep their imported prices and get no refresh; set the Ariva page or the coin in the app.
+6. Remove the private files: `rm -rf /data/migration`. Undo if needed: `... revert --run <id>` (refused once trades were added to its securities).
+
+Notes: after the commit the YNAB Gate 2 report shows differences on the depot accounts that PP took over (their balance now includes trades); the PP report is authoritative for them. A re-import of a newer file (stage, commit) is idempotent and prints what changed (`unchanged`, `changed`, `missing`). Deliveries in and out count as capital flows in the depot view (as in PP); securities without any quote count as 0 in the returns and are listed.

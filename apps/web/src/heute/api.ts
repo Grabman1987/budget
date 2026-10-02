@@ -32,7 +32,7 @@ export interface Heute {
     period: HeutePeriod;
     from: string;
     to: string;
-    payday: { day: string; source: 'salary' | 'month_end'; daysToPayday: number };
+    payday: { day: string; source: 'payday_rule'; daysToPayday: number };
     budgetBalanceCents: number;
   };
   lead: {

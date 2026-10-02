@@ -19,7 +19,7 @@ import {
 import { and, eq, isNull } from 'drizzle-orm';
 import { randomUUID } from 'node:crypto';
 import { Hono } from 'hono';
-import { ACTOR, ApiError, defined, readBody, readQuery } from './http';
+import { ACTOR, ApiError, defined, errorAnswer, readBody, readQuery } from './http';
 import { bookingDeleteQuery, bookingPatch, bookingQuery, bulkBody, createBody } from './schemas';
 
 /** Why a bulk action left a booking out. */
@@ -215,7 +215,11 @@ export function bookingRoutes(db: Db): Hono {
               : error instanceof ReconciledLockedError
                 ? 'reconciled_locked'
                 : 'invalid';
-          skipped.push({ id, reason, message: error instanceof Error ? error.message : 'failed' });
+          skipped.push({
+            id,
+            reason,
+            message: error instanceof Skip ? error.message : errorAnswer(error).body.message,
+          });
         }
       }
     });
