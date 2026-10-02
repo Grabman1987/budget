@@ -684,3 +684,53 @@ describe('2.6 Bank- und Zinskosten on the sample ledger', () => {
     expect(body.rows.map((r: any) => r.key)).not.toContain('ter');
   }, 60_000);
 });
+
+describe('2.4 Persönliche Inflation', () => {
+  let db: Db;
+  let app: Hono;
+  beforeAll(() => {
+    db = createTestDatabase().db;
+    seedDatabase(db);
+    app = api(db, '2026-09-17');
+  });
+
+  it('indexes the fixed contracts with their stored prices and attributes the change', async () => {
+    const body = (await get(app, '/reports/spending/inflation')).body;
+    expect(body).toMatchObject({
+      status: 'ok',
+      baseMonth: '2023-10',
+      fromMonth: '2025-08',
+      toMonth: '2026-08',
+      referenceAvailable: false,
+      referenceBp: null,
+      differenceBp: null,
+    });
+    expect(body.points[0].index).toBe(100);
+    const by = Object.fromEntries(body.contributions.map((c: any) => [c.name, c]));
+    // Strom 95 -> 105 EUR in January 2026; Internet was raised before the window starts.
+    expect(by['Strom'].changeBp).toBe(Math.round((10_500 / 9_500 - 1) * 10_000));
+    expect(by['Internet'].changeBp).toBe(0);
+    expect(by['Miete'].changeBp).toBe(0);
+    expect(body.contributions[0].name).toBe('Strom');
+    // The index uses the weights of the first year, the attribution those of the year before the
+    // window (as in the prototype): they differ a little, never by a different story.
+    expect(Math.abs(body.contributionSumBp - body.inflationBp)).toBeLessThanOrEqual(25);
+    expect(Math.sign(body.contributionSumBp)).toBe(Math.sign(body.inflationBp));
+    expect(body.coverageBp).toBeGreaterThan(0);
+    expect(body.coverageBp).toBeLessThan(10_000);
+    expect(body.excludedCategories).toBeGreaterThan(5);
+  }, 60_000);
+
+  it('says "insufficient" for a short ledger and never writes', async () => {
+    const short = createTestDatabase();
+    seedBasics(short.db);
+    const body = (await get(api(short.db, '2024-03-10'), '/reports/spending/inflation')).body;
+    expect(body.status).toBe('insufficient');
+    expect(body.points).toEqual([]);
+    const before = short.sqlite.prepare('select count(*) n from audit_log').get() as { n: number };
+    await get(api(short.db, '2026-09-17'), '/reports/spending/inflation');
+    const after = short.sqlite.prepare('select count(*) n from audit_log').get() as { n: number };
+    expect(after.n).toBe(before.n);
+    short.close();
+  });
+});

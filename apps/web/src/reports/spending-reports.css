@@ -676,3 +676,31 @@ a.sr-state {
     justify-items: start;
   }
 }
+
+/* Persönliche Inflation: steps and contribution bars. */
+.sr-steps {
+  display: grid;
+  gap: 10px;
+  margin: 12px 0 0;
+  padding-left: 20px;
+  font-size: 13.5px;
+  line-height: 1.5;
+}
+.sr-pp {
+  position: relative;
+  display: block;
+  min-width: 90px;
+  height: 8px;
+  background: var(--tint);
+  border-radius: 1px;
+}
+.sr-pp i {
+  position: absolute;
+  inset: 0 auto 0 0;
+  background: var(--bad-ink);
+  opacity: 0.6;
+  border-radius: 1px;
+}
+.sr-pp i.is-neg {
+  background: var(--good-ink);
+}

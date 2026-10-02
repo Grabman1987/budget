@@ -3,6 +3,7 @@ import {
   budgetAdherence,
   contractsReport,
   fundCostsReport,
+  inflationReport,
   spendingReport,
   type Db,
 } from '@budget/db';
@@ -61,6 +62,9 @@ export function spendingReportRoutes(db: Db, today: () => string): Hono {
 
   // 2.3 Verträge und Abos
   app.get('/contracts', (c) => c.json(guarded(() => contractsReport(db, today()))));
+
+  // 2.4 Persönliche Inflation
+  app.get('/inflation', (c) => c.json(guarded(() => inflationReport(db, today()))));
 
   // 2.6 Bank- und Zinskosten
   app.get('/costs', (c) => c.json(guarded(() => bankCostsReport(db, today()))));
