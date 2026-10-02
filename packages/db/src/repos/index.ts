@@ -36,3 +36,4 @@ export * from './portfolio-allocation';
 export * from './payments-preview';
 export * from './freedom';
 export * from './portfolio-depots';
+export * from './portfolio-allocation-report';

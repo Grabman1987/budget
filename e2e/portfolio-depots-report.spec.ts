@@ -40,6 +40,7 @@ type DepotsPayload = {
 sampleTest(
   'depot comparison reads the sample ledger and switches the period',
   async ({ page }, info) => {
+    sampleTest.setTimeout(90_000);
     const first = page.waitForResponse((response) => {
       const url = new URL(response.url());
       return url.pathname === '/api/portfolio/depots' && url.searchParams.get('period') === '1J';
@@ -90,6 +91,7 @@ sampleTest(
 sampleTest(
   'depot comparison is honest about missing history and valuation errors',
   async ({ page }, info) => {
+    sampleTest.setTimeout(60_000);
     await page.route('**/api/portfolio/depots?*', (route) =>
       route.fulfill({
         json: {

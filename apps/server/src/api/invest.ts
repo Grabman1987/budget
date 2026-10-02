@@ -25,6 +25,7 @@ import {
   portfolioPositions,
   portfolioAllocation,
   depotComparison,
+  allocationReport,
   investmentPreferences,
   setInvestmentCostMethod,
   restoreSecurity,
@@ -414,6 +415,10 @@ export function portfolioRoutes(db: Db, today: () => string): Hono {
     const { period } = readQuery(c, depotsQuery);
     return c.json({ depots: depotComparison(db, { today: today(), period }) });
   });
+  // Report 4.2: allocation by class/product and region/product, Soll/Ist over time.
+  app.get('/allocation-report', (c) =>
+    c.json({ allocation: allocationReport(db, { today: today() }) }),
+  );
   app.get('/preferences', (c) => c.json(investmentPreferences(db)));
   app.patch('/preferences', async (c) => {
     const { costMethod } = await readBody(
