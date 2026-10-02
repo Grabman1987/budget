@@ -355,6 +355,11 @@ The 30 reports (SPEC §7), explorer, printable sheets, parallel run with reconci
 - [x] Literal domain/API cases, audited-write query invalidation and synthetic desktop/mobile light/dark browser evidence. See [report 3.4](evidence/report-3.4.md).
 - [ ] Full original source coverage: independent investment savings plans, other future ledger transfers and their cross-source identity/dedup contract; no inferred category funding. Owner acceptance remains open.
 
+### Security review — 2026-10-02
+
+- [x] Time-bounded server source review, API no-store, production origin validation, debug authentication guard and safe unexpected/bulk errors; synthetic regressions and desktop/mobile browser checks. See [security audit](audit/2026-10-02-security-review.md).
+- [ ] Full check acceptance and owner decisions: public importer removal, bounded exports/backups, dev-tool advisory and recovery-session export policy. No production verification or security certification claimed.
+
 ### P6.3.5 — Sparziele-Fortschritt (first source slice)
 - [x] `/reports/sparziele`: stored goals at the existing API's server month; reuse progress, needed rate, last-three-month rate, forecast/status and bar geometry without a new money formula. Category sources mean month-end Available; account sources mean native cash balance, not securities value.
 - [x] Guard unique live EUR sources; missing/deleted/dual/foreign/shared sources retain identity/date but no financial figures or status. Combined goal/category/account reads suppress cached figures during loading or failed refresh; no sums across goals.
