@@ -46,11 +46,15 @@ export function ContactReportPage() {
   const currentUnsupported =
     statement.isError && statement.error instanceof ApiError && statement.error.status === 422;
   const [blockedDetail, setBlockedDetail] = useState<{ key: string; error: ApiError } | null>(null);
-  useEffect(() => {
-    if (currentUnsupported && statement.error instanceof ApiError)
-      setBlockedDetail({ key: detailKey, error: statement.error });
-    else if (statement.isSuccess) setBlockedDetail(null);
-  }, [currentUnsupported, detailKey, statement.error, statement.isSuccess]);
+  if (
+    currentUnsupported &&
+    statement.error instanceof ApiError &&
+    (blockedDetail?.key !== detailKey || blockedDetail.error !== statement.error)
+  ) {
+    setBlockedDetail({ key: detailKey, error: statement.error });
+  } else if (statement.isSuccess && blockedDetail !== null) {
+    setBlockedDetail(null);
+  }
   // A retry clears Query's error before its response arrives; keep the known gap hidden.
   const unsupportedDetail =
     currentUnsupported || (blockedDetail?.key === detailKey && !statement.isSuccess);
