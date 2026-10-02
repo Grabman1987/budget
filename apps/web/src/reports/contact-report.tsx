@@ -57,6 +57,13 @@ export function ContactReportPage() {
       meta={META}
       title="Kontakte-Abrechnung"
       subtitle="Wer schuldet wem wie viel?"
+      reportDataBasis={
+        view
+          ? `Gesamte Historie bis ${longDay(view.asOf)}`
+          : overview.isError || unsupportedDetail
+            ? 'nicht verfügbar'
+            : 'wird geladen'
+      }
       extraFields={[{ label: 'Zeichnung', value: '5.4' }]}
     >
       <div className="rview contact-report">

@@ -110,7 +110,8 @@ explicit migration findings; parser support is not proof of lossless private tra
 
 The [report catalog](../apps/web/src/nav/reports-catalog.ts) and navigation are
 implemented. The current [ReportPage](../apps/web/src/pages/reports-pages.tsx)
-renders a placeholder for **every report body below**. Existing domain calculations,
+dispatches connected bodies where implemented and otherwise renders a placeholder,
+as recorded below. Existing domain calculations,
 related working pages and prototype charts do not make these reports finished.
 Each needs connected data, period controls, the specified chart, booking drill-down,
 consistent totals, desktop/mobile checks and printing where required.
@@ -124,7 +125,7 @@ consistent totals, desktop/mobile checks and printing where required.
 | 1.5 | Jahresansicht | `reports-monat.js` | Body + previous year Open |
 | 1.6 | Kategorieübersicht | `reports-monat.js` | Body Open |
 | 1.7 | Sparquote und Geldalter | `reports-monat.js` | Body Open |
-| 1.8 | Gesamttabelle | `reports-monat.js` | Body Open; functional CSV download deferred by owner |
+| 1.8 | Gesamttabelle | `reports-monat.js` | Body Open; account/depot CSV ZIP export is implemented separately |
 | 1.9 | Projekte und Nebeneinkünfte | `reports-monat.js` | Capture/data + body Open |
 | 2.1 | Ausgabenanalyse | `reports-ausgaben.js` | Body Open |
 | 2.2 | Budgettreue inkl. 50/30/20 | `reports-ausgaben.js` | Body Open; twelfths rule follows SPEC |
@@ -140,7 +141,7 @@ consistent totals, desktop/mobile checks and printing where required.
 | 4.1 | Depots im Vergleich | `reports-portfolio.js` | Body Open |
 | 4.2 | Allocation | `reports-portfolio.js` | Body Open |
 | 4.3 | Einzahlungen und Wert | `reports-portfolio.js` | Body Open |
-| 4.4 | Rendite und Kennzahlen | `reports-portfolio.js` | Body Open; performance engine exists |
+| 4.4 | Rendite und Kennzahlen | `reports-portfolio.js` | Partial: connected securities-only period metrics and lifetime documented realized gain; benchmark comparison, asset-class comparison and monthly heatmap remain open |
 | 4.5 | Kosten, Steuern, Erträge | `reports-portfolio.js` | Body Open; show source taxes without duplicate withholding |
 | 5.1 | Jahresreport | `reports-ueberblick.js` | Body + two printable sheets Open |
 | 5.2 | Finanz-Check-Verlauf | `reports-ueberblick.js` | History body Open; current rule status exists |

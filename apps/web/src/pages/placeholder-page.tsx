@@ -29,6 +29,8 @@ export interface PageFrameProps {
   heutePeriod?: HeutePeriod;
   onHeutePeriodChange?: (period: HeutePeriod) => void;
   standDay?: string | undefined;
+  /** Actual report coverage, replacing the prototype's fixed sample range. */
+  reportDataBasis?: ReactNode;
   children?: ReactNode;
   revealCurrentRegister?: boolean;
 }
@@ -47,6 +49,7 @@ export function PageFrame({
   heutePeriod,
   onHeutePeriodChange,
   standDay,
+  reportDataBasis,
   children,
   revealCurrentRegister,
 }: PageFrameProps) {
@@ -68,6 +71,7 @@ export function PageFrame({
         {...(heutePeriod ? { heutePeriod } : {})}
         {...(onHeutePeriodChange ? { onHeutePeriodChange } : {})}
         {...(standDay ? { standDay } : {})}
+        {...(reportDataBasis ? { reportDataBasis } : {})}
       />
       {items.length > 0 && (
         <Registers
