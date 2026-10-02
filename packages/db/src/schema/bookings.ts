@@ -28,6 +28,7 @@ export const project = sqliteTable('project', {
   id: id(),
   name: text('name').notNull(),
   note: text('note'),
+  archivedAt: text('archived_at'),
   ...timestamps(),
 });
 

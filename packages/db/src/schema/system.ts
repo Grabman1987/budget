@@ -174,6 +174,9 @@ export const payslip = sqliteTable(
     month: text('month').notNull(),
     kind: text('kind', { enum: PAYSLIP_KINDS }).notNull().default('regular'),
     grossCents: cents('gross_cents').notNull(),
+    svCents: cents('sv_cents').notNull().default(0),
+    taxCents: cents('tax_cents').notNull().default(0),
+    specialType: text('special_type', { enum: ['salary13', 'salary14', 'other'] }),
     netCents: cents('net_cents').notNull(),
     employerContactId: text('employer_contact_id').references(() => contact.id),
     bookingId: text('booking_id').references(() => booking.id),
@@ -191,6 +194,7 @@ export const payslipLine = sqliteTable(
   'payslip_line',
   {
     id: id(),
+    deletedAt: text('deleted_at'),
     payslipId: text('payslip_id')
       .notNull()
       .references(() => payslip.id),

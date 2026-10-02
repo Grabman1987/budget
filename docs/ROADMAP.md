@@ -361,3 +361,11 @@ The 30 reports (SPEC §7), explorer, printable sheets, parallel run with reconci
 - [x] Guard unique live EUR sources; missing/deleted/dual/foreign/shared sources retain identity/date but no financial figures or status. Combined goal/category/account reads suppress cached figures during loading or failed refresh; no sums across goals.
 - [x] Source table, read-only detail and filtered source-booking/Plan drilldowns; literal API/read-only and write/undo/redo refresh checks, real synthetic API browser, keyboard/Axe and desktop1440/mobile390 light/dark evidence. See [report 3.5](evidence/report-3.5.md).
 - [ ] Original emergency-fund reach, Tagesgeld split, independently allocated money per goal, linear Soll path and owner acceptance remain open; I02 source allocation is not resolved by these guards.
+
+### Y22 / Reports 1.2 and 1.9 — Captured payroll and side projects
+- [x] Manual EUR payslip capture/edit/remove: base gross plus typed additional earnings, SV-DN, captured Lohnsteuer, other deductions, controlled net; regular, 13th/14th and other special payments. Existing payout booking and optional stored receipt reference; no tax calculation or automatic booking.
+- [x] Additive Drizzle migration, shared zod validation, header/line savepoint and audit group, soft deletion and grouped undo/redo. Combined payout links compare the captured net sum.
+- [x] `/reports/gehalt`: monthly gross-to-net chain, deduction ratios, recorded calendar-year totals, same-month/kind prior-year comparison, fourteen recorded salary positions, missing-month chart gaps and payout consistency warnings/source links.
+- [x] `/einstellungen/projekte`: create, rename, archive/reactivate and undo/redo; retained project attribution/history, active-only new booking attribution. `/reports/projekte`: closed-month split-level income/cost/result, signed refunds, prior-period comparison, monthly results and booking drilldown; side income stays a distinct household income type without adding project profit again.
+- [ ] Final local check/build and synthetic desktop/mobile browser evidence (record after verification).
+- [ ] Separate receipt object-storage/upload workflow, collective/step-raise metadata and inflation comparison, project hours/hourly rates; owner design/private-data acceptance and Gate 4 remain open.

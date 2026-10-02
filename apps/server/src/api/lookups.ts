@@ -12,7 +12,7 @@ import {
   updatePayee,
   type Db,
 } from '@budget/db';
-import { asc, isNull } from 'drizzle-orm';
+import { and, asc, isNull } from 'drizzle-orm';
 import { randomUUID } from 'node:crypto';
 import { Hono } from 'hono';
 import { ACTOR, ApiError, defined, readBody } from './http';
@@ -86,7 +86,7 @@ export function lookupRoutes(db: Db): Hono {
       projects: db
         .select({ id: project.id, name: project.name })
         .from(project)
-        .where(isNull(project.deletedAt))
+        .where(and(isNull(project.deletedAt), isNull(project.archivedAt)))
         .orderBy(asc(project.name))
         .all(),
       incomeTypes: db

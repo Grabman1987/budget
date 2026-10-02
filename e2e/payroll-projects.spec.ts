@@ -1,0 +1,117 @@
+import { expect } from '@playwright/test';
+import { test } from './isolated-ledger';
+import { inspectReport } from './spending-helpers';
+import { toast } from './ledger-helpers';
+
+test.describe.configure({ timeout: 120000 });
+
+test('captured salary through the real API, with undo and mobile/desktop evidence', async ({
+  page,
+  request,
+  baseURL,
+}, info) => {
+  const post = async (path: string, data: unknown) => {
+    const r = await request.post(`/api${path}`, { data, headers: { origin: baseURL! } });
+    expect(r.ok()).toBe(true);
+    return r.json();
+  };
+  const account = await post('/accounts', {
+    name: 'Synthetisches Gehaltskonto',
+    type: 'checking',
+    role: 'budget',
+    onBudget: true,
+    openingDate: '2025-01-01',
+    openingBalanceCents: 0,
+  });
+  const salary = await post('/bookings', {
+    type: 'booking',
+    accountId: account.account.id,
+    date: '2026-09-30',
+    amountCents: 280000,
+    splits: [{ amountCents: 280000, incomeTypeId: 'income-salary' }],
+  });
+  await page.goto('/reports/gehalt?monat=2026-09');
+  await page.getByRole('button', { name: 'Gehaltszettel hinzufügen' }).click();
+  const dialog = page.getByRole('dialog', { name: 'Gehaltszettel hinzufügen' });
+  await dialog.getByLabel('Brutto ohne zusätzliche Bezüge', { exact: true }).fill('4.000');
+  await dialog.getByLabel('SV-DN', { exact: true }).fill('700');
+  await dialog.getByLabel('Lohnsteuer', { exact: true }).fill('500');
+  await dialog.getByLabel('Auszahlung laut Zettel', { exact: true }).fill('2.800');
+  await dialog.getByLabel('Gehaltsbuchung').selectOption(salary.id);
+  await dialog.getByRole('button', { name: 'Speichern', exact: true }).click();
+  await expect(dialog).not.toBeVisible();
+  await expect(page.getByTestId('payroll-report')).toContainText(
+    'Auszahlung stimmt mit der Buchung überein.',
+  );
+  await expect(page.locator('.tbd-fig').first()).toContainText('2.800');
+  await page.getByRole('button', { name: 'Bearbeiten', exact: true }).click();
+  const edit = page.getByRole('dialog', { name: 'Gehaltszettel bearbeiten' });
+  await edit.getByLabel('Lohnsteuer', { exact: true }).fill('499,99');
+  await edit.getByLabel('Auszahlung laut Zettel', { exact: true }).fill('2.800,01');
+  await edit.getByRole('button', { name: 'Speichern', exact: true }).click();
+  await expect(edit).not.toBeVisible();
+  await expect(page.getByTestId('payroll-report')).toContainText(
+    'Auszahlung weicht von der Buchung ab: −0,01',
+  );
+  await toast(page).getByRole('button', { name: 'Rückgängig', exact: true }).click();
+  await expect(page.getByTestId('payroll-report')).toContainText(
+    'Auszahlung stimmt mit der Buchung überein.',
+  );
+  await inspectReport(page, info, 'salary');
+});
+
+test('project P&L through the real API, retaining archived attribution and mobile/desktop evidence', async ({
+  page,
+  request,
+  baseURL,
+}, info) => {
+  const post = async (path: string, data: unknown) => {
+    const r = await request.post(`/api${path}`, { data, headers: { origin: baseURL! } });
+    expect(r.ok()).toBe(true);
+    return r.json();
+  };
+  const account = await post('/accounts', {
+    name: 'Synthetisches Projektkonto',
+    type: 'checking',
+    role: 'budget',
+    onBudget: true,
+    openingDate: '2025-01-01',
+    openingBalanceCents: 0,
+  });
+  await page.goto('/einstellungen/projekte');
+  await page.getByLabel('Projektname', { exact: true }).fill('Synthetisches Nebenprojekt');
+  await page.getByRole('button', { name: 'Projekt anlegen', exact: true }).click();
+  await expect(page.locator('.pp-settings tbody')).toContainText('Synthetisches Nebenprojekt');
+  const projects = await (await request.get('/api/projects')).json();
+  const projectId = projects.projects[0].id;
+  await post('/bookings', {
+    type: 'booking',
+    accountId: account.account.id,
+    projectId,
+    date: '2026-09-02',
+    amountCents: 50000,
+    splits: [{ amountCents: 50000, incomeTypeId: 'income-side' }],
+  });
+  await post('/bookings', {
+    type: 'booking',
+    accountId: account.account.id,
+    projectId,
+    date: '2026-09-03',
+    amountCents: -12000,
+    splits: [{ amountCents: -12000 }],
+  });
+  await page.getByRole('button', { name: 'Archivieren', exact: true }).click();
+  await expect(page.locator('.pp-settings tbody')).toContainText('archiviert');
+  await page.goto('/reports/projekte?zeitraum=1M');
+  await expect(page.getByTestId('projects-report')).toContainText(
+    'Synthetisches Nebenprojekt · archiviert',
+  );
+  await expect(page.locator('.tbd-fig').first()).toContainText('380');
+  await expect(page.getByTestId('projects-report')).toContainText('500,00');
+  await page.getByText('Buchungen (2)', { exact: true }).click();
+  await expect(page.getByRole('link', { name: 'Buchung 1 öffnen' })).toHaveAttribute(
+    'href',
+    /buchung=/,
+  );
+  await inspectReport(page, info, 'projects');
+});

@@ -1,3 +1,4 @@
+import { payrollRoutes, projectRoutes } from './payroll-projects';
 import { searchRoutes } from './search';
 import { inboxRoutes } from './inbox';
 import { contactRoutes } from './contacts';
@@ -62,6 +63,8 @@ export function createLedgerApi({
   jobs = new ImportJobs(db),
 }: LedgerApiOptions): Hono {
   const api = new Hono();
+  api.route('/payslips', payrollRoutes(db, today));
+  api.route('/projects', projectRoutes(db, today));
   api.route('/search', searchRoutes(db));
   api.route('/accounts', accountRoutes(db, today));
   api.route('/inbox', inboxRoutes(db, today));
