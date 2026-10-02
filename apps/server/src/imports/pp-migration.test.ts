@@ -4,6 +4,8 @@ import {
   accountBalances,
   accounts,
   booking,
+  bookingSplit,
+  INCOME_TYPES,
   createBooking,
   createTestDatabase,
   importRun,
@@ -622,5 +624,83 @@ describe('coin ids of crypto securities', () => {
     const body = run({ kind: 'dry-run', runId: stage(doc) });
     // The synthetic securities have ISINs: none of them is a coin.
     expect(body['change'].securities.sources.coingeckoId).toBe(0);
+  });
+});
+
+describe('real platform cash (cashTarget)', () => {
+  const balanceOn = (id: string, day: string) =>
+    accountBalances(db, day).find((a) => a.accountId === id)?.balanceCents as number;
+  const withTarget = (target: Record<string, unknown>, index = 0) =>
+    mapping((d) => {
+      const uuid = model.portfolios[index]!.referenceAccountUuid as string;
+      d.accounts[uuid].cashTarget = target;
+    });
+  const day = '2026-09-30';
+
+  it('books one reconciliation booking so the balance on the day equals the statement', () => {
+    const body = run({
+      kind: 'commit',
+      runId: stage(withTarget({ date: day, cents: 123_456 })),
+    });
+    const c = body['change'].corrections[0];
+    expect(c).toMatchObject({ date: day, targetCents: 123_456, as: 'flow' });
+    expect(balanceOn('app-0', day)).toBe(123_456);
+    const row = liveBookings('app-0').find((b) => b.memo === 'Abgleich mit Plattform-Saldo')!;
+    expect(row).toMatchObject({ date: day, amountCents: c.correctionCents, source: 'import' });
+    expect(row.payeeId).toBe(SYSTEM_PAYEE_IDS.reconciliation_adjustment.id);
+    // Off budget: no category on its split.
+    const [split] = db.select().from(bookingSplit).where(eq(bookingSplit.bookingId, row.id)).all();
+    expect(split).toMatchObject({ categoryId: null, incomeTypeId: null });
+  });
+
+  it('books a loss or write-off as a result (Kapitalerträge), not as a flow', () => {
+    const body = run({
+      kind: 'commit',
+      runId: stage(withTarget({ date: day, cents: 0, as: 'result' })),
+    });
+    expect(balanceOn('app-0', day)).toBe(0);
+    const row = liveBookings('app-0').find((b) => b.memo === 'Abgleich mit Plattform-Saldo');
+    if (body['change'].corrections[0].correctionCents !== 0) {
+      const [split] = db
+        .select()
+        .from(bookingSplit)
+        .where(eq(bookingSplit.bookingId, row!.id))
+        .all();
+      expect(split!.incomeTypeId).toBe(INCOME_TYPES.capital.id);
+    }
+  });
+
+  it('counts the balance of the accounts named in minus', () => {
+    const doc = mapping((d) => {
+      const uuid = model.portfolios[1]!.referenceAccountUuid as string;
+      d.accounts[uuid].cashTarget = { date: day, cents: 50_000, minus: [apps[0]!.name] };
+    });
+    run({ kind: 'commit', runId: stage(doc) });
+    expect(balanceOn('app-1', day) + balanceOn('app-0', day)).toBe(50_000);
+  });
+
+  it('writes nothing when the balance already matches, and replaces its booking on a re-run', () => {
+    const first = run({ kind: 'commit', runId: stage(withTarget({ date: day, cents: 777 })) });
+    expect(first['change'].corrections).toHaveLength(1);
+    const again = run({ kind: 'commit', runId: stage(withTarget({ date: day, cents: 777 })) });
+    expect(again['change'].corrections[0].correctionCents).toBe(
+      first['change'].corrections[0].correctionCents,
+    );
+    expect(
+      liveBookings('app-0').filter((b) => b.memo === 'Abgleich mit Plattform-Saldo'),
+    ).toHaveLength(1);
+    // A new target replaces the earlier booking instead of stacking another one.
+    run({ kind: 'commit', runId: stage(withTarget({ date: day, cents: 999 })) });
+    expect(
+      liveBookings('app-0').filter((b) => b.memo === 'Abgleich mit Plattform-Saldo'),
+    ).toHaveLength(1);
+    expect(balanceOn('app-0', day)).toBe(999);
+  });
+
+  it('reverts with the run', () => {
+    const id = stage(withTarget({ date: day, cents: 4_242 }));
+    run({ kind: 'commit', runId: id });
+    run({ kind: 'revert', runId: id, force: false });
+    expect(liveBookings('app-0')).toHaveLength(0);
   });
 });

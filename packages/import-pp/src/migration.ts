@@ -103,6 +103,22 @@ export const ppMigrationSchema = z.object({
         openingBalance: z.union([z.enum(['pp', 'keep', 'total']), z.number().int()]).default('pp'),
         /** Delete the account's YNAB balance adjustments (value estimates) on commit. */
         retireYnabValue: z.boolean().default(true),
+        /**
+         * The real cash of the platform on a day (from its statement). At commit one audited
+         * reconciliation booking ("Abgleich mit Plattform-Saldo") on this off-budget account makes
+         * its balance on `date` equal `cents` (minus the accounts named in `minus`, whose balance
+         * already counts, e.g. a giro the platform settles through). `as`: `flow` = money that
+         * crossed the boundary and YNAB missed (a deposit or removal), `result` = a gain or loss
+         * (Kapitalerträge, e.g. a write-off).
+         */
+        cashTarget: z
+          .object({
+            date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+            cents: z.number().int(),
+            as: z.enum(['flow', 'result']).default('flow'),
+            minus: z.array(z.string().min(1)).default([]),
+          })
+          .optional(),
       }),
       ignore,
     ]),
@@ -151,6 +167,8 @@ export interface AccountTarget {
   portfolioUuids: string[];
   /** Verrechnungskonto: the cash account of a split platform, or the account named in the mapping. */
   referenceAccountId: string | null;
+  /** Real cash on a day, see the mapping document; `minusIds` are accounts that already count. */
+  cashTarget: { date: string; cents: number; as: 'flow' | 'result'; minusIds: string[] } | null;
   /** The cash account of a split platform (a securities account whose cash lives elsewhere). */
   cashAccountId: string | null;
 }
@@ -269,6 +287,7 @@ export function resolveMigration(
         ppAccountUuids: [],
         portfolioUuids: [],
         referenceAccountId: app.referenceAccountId ?? null,
+        cashTarget: null,
         cashAccountId: null,
       };
       targets.set(app.id, t);
@@ -339,6 +358,18 @@ export function resolveMigration(
     t.cashFlows = entry.cashFlows;
     t.openingBalance = entry.openingBalance;
     t.retireYnabValue = entry.retireYnabValue;
+    if (entry.cashTarget) {
+      const minusIds = entry.cashTarget.minus.flatMap((name) => {
+        const other = find(`PP account ${acc.uuid} cash target`, name);
+        return other ? [other.id] : [];
+      });
+      t.cashTarget = {
+        date: entry.cashTarget.date,
+        cents: entry.cashTarget.cents,
+        as: entry.cashTarget.as,
+        minusIds,
+      };
+    }
   }
   // A depot settles through its reference account: both must end up on the same app account.
   for (const pf of model.portfolios) {

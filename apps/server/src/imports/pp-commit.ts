@@ -1,5 +1,6 @@
 import {
   account,
+  accountBalances,
   auditLog,
   assertLedgerInvariants,
   booking,
@@ -286,6 +287,15 @@ export interface PpChangeReport {
   splits: { cash: string; depot: string; renamedFrom: string; state: 'new' | 'done' }[];
   transfers: { added: number };
   openingCheck: Prepared['openingCheck'];
+  /** Reconciliation bookings that make a platform's cash equal its statement (what YNAB missed). */
+  corrections: {
+    account: string;
+    date: string;
+    targetCents: number;
+    beforeCents: number;
+    correctionCents: number;
+    as: 'flow' | 'result';
+  }[];
   accounts: {
     account: string;
     openingFromCents: number;
@@ -383,6 +393,7 @@ export function writePp(
     splits: [],
     transfers: { added: 0 },
     openingCheck: prep.openingCheck,
+    corrections: [],
     accounts: [],
     notes: prep.notes,
   };
@@ -777,6 +788,85 @@ export function writePp(
     false,
   );
   trace('bookings');
+
+  // Real cash of the platforms: one reconciliation booking per account whose balance on the
+  // statement day differs (what YNAB's flows missed). Re-runs replace an earlier one of the run's
+  // key family with the amount that is needed now.
+  const reconRows: (typeof booking.$inferInsert)[] = [];
+  const reconSplits: (typeof bookingSplit.$inferInsert)[] = [];
+  for (const t of prep.resolved.targets) {
+    const target = t.cashTarget;
+    if (!target) continue;
+    const balances = new Map(
+      accountBalances(tx, target.date).map((b) => [b.accountId, b.balanceCents]),
+    );
+    const prefix = `pp:cash-target:${t.accountId}:${target.date}`;
+    const earlier = tx
+      .select({
+        id: booking.id,
+        cents: booking.amountCents,
+        key: booking.importKey,
+        deleted: booking.deletedAt,
+      })
+      .from(booking)
+      .where(and(eq(booking.accountId, t.accountId), like(booking.importKey, `${prefix}%`)))
+      .all();
+    const live = earlier.filter((e) => e.deleted === null);
+    const own = (balances.get(t.accountId) ?? 0) - live.reduce((a, e) => a + e.cents, 0);
+    const others = target.minusIds.reduce((a, id) => a + (balances.get(id) ?? 0), 0);
+    const want = target.cents - others;
+    const needed = want - own;
+    const before = balances.get(t.accountId) ?? 0;
+    if (live.length > 0 && live.reduce((a, e) => a + e.cents, 0) === needed) {
+      report.corrections.push({
+        account: t.name,
+        date: target.date,
+        targetCents: want,
+        beforeCents: before,
+        correctionCents: needed,
+        as: target.as,
+      });
+      continue;
+    }
+    for (const e of live) deleteBooking(tx, e.id, ctx, { unlockReconciled: true });
+    report.corrections.push({
+      account: t.name,
+      date: target.date,
+      targetCents: want,
+      beforeCents: own,
+      correctionCents: needed,
+      as: target.as,
+    });
+    if (needed === 0) continue;
+    const id = randomUUID();
+    reconRows.push({
+      id,
+      accountId: t.accountId,
+      date: target.date,
+      amountCents: needed,
+      payeeId: SYSTEM_PAYEE_IDS.reconciliation_adjustment.id,
+      memo: 'Abgleich mit Plattform-Saldo',
+      source: 'import',
+      importKey: `${prefix}:${earlier.length + 1}`,
+      importRunId: input.runId,
+    });
+    reconSplits.push({
+      id: randomUUID(),
+      bookingId: id,
+      categoryId: null,
+      amountCents: needed,
+      incomeTypeId: target.as === 'result' ? INCOME_TYPES.capital.id : null,
+      sortOrder: 0,
+    });
+  }
+  insertManyTracked(tx, booking, reconRows, ctx);
+  insertManyTracked(tx, bookingSplit, reconSplits, ctx);
+  assertLedgerInvariants(
+    tx,
+    reconRows.map((r) => r.id as string),
+    false,
+  );
+  trace('corrections');
   return { report, ids };
 }
 

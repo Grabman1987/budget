@@ -86,6 +86,26 @@ function printChange(change: Record<string, unknown> | null | undefined) {
       'created securities:',
       sec.noSource.join('; '),
     );
+  for (const k of (c['corrections'] as {
+    account: string;
+    date: string;
+    targetCents: number;
+    beforeCents: number;
+    correctionCents: number;
+    as: string;
+  }[]) ?? [])
+    console.log(
+      'cash target   ',
+      k.account.padEnd(26),
+      k.date,
+      'statement',
+      eur(k.targetCents),
+      'before',
+      eur(k.beforeCents),
+      'correction',
+      eur(k.correctionCents),
+      `(${k.as})`,
+    );
   for (const p of (c['splits'] as {
     cash: string;
     depot: string;
@@ -181,7 +201,7 @@ function printReport(report: Gate3Report | null | undefined) {
     console.log(
       '  ',
       m.platform.padEnd(26),
-      `diff ${eur(c.diffCents).trim()} = opening ${eur(c.openingGapCents).trim()} + flows ${eur(c.flowGapCents).trim()} + adjustments kept ${eur(c.adjustmentsCountedCents).trim()} + other ${eur(c.otherCents).trim()}`,
+      `diff ${eur(c.diffCents).trim()} = opening ${eur(c.openingGapCents).trim()} + flows ${eur(c.flowGapCents).trim()} + adjustments and cash-target corrections ${eur(c.adjustmentsCountedCents).trim()} + other ${eur(c.otherCents).trim()}`,
     );
   }
   console.log('returns per platform (TTWROR % | XIRR % ; app, PP replay):');

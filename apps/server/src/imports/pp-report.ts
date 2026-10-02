@@ -660,7 +660,7 @@ function flowMatches(
       .filter(
         (b) =>
           b.date >= p.carrier.openingDate &&
-          !(b.key ?? '').startsWith('pp:') &&
+          (!(b.key ?? '').startsWith('pp:') || (b.key ?? '').startsWith('pp:cash-target:')) &&
           !settlements.has(b.id),
       );
     const capital = new Set(
