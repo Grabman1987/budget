@@ -5,18 +5,23 @@ import { paceForecastCurve } from './pace-forecast';
 import { changeBp, netWorthDays, netWorthParts } from './net-worth';
 
 describe('nextPayday', () => {
-  it('is the first salary day on or after today', () => {
-    expect(nextPayday(['2026-08-31', '2026-09-30', '2026-10-30'], '2026-09-17')).toEqual({
-      day: '2026-09-30',
-      source: 'salary',
-    });
-    expect(nextPayday(['2026-09-30'], '2026-09-30').day).toBe('2026-09-30');
+  it.each([
+    ['2026-10-01', '2026-10-15'], // Ordinary Thursday.
+    ['2026-10-15', '2026-10-15'], // Payday itself remains included.
+    ['2026-10-16', '2026-11-13'], // Sunday 15th: preceding Friday.
+    ['2026-08-01', '2026-08-14'], // Saturday and Assumption.
+    ['2025-08-01', '2025-08-14'], // Friday public holiday.
+    ['2022-08-01', '2022-08-12'], // Monday holiday after a weekend.
+    ['2027-05-01', '2027-05-14'], // Ordinary Saturday 15th.
+    ['2025-11-01', '2025-11-14'], // Ordinary Saturday, no holiday.
+    ['2028-02-01', '2028-02-15'], // Leap year.
+    ['2026-12-16', '2027-01-15'], // Year boundary.
+    ['2027-05-15', '2027-06-15'], // Already past the advanced payday.
+  ])('uses the next Austrian business-day 15th after %s', (today, day) => {
+    expect(nextPayday(today)).toEqual({ day, source: 'payday_rule' });
   });
-  it('takes the next month once the salary day has passed', () => {
-    expect(nextPayday(['2026-09-30', '2026-10-30'], '2026-10-01').day).toBe('2026-10-30');
-  });
-  it('falls back to the end of the month without a salary', () => {
-    expect(nextPayday([], '2026-02-10')).toEqual({ day: '2026-02-28', source: 'month_end' });
+  it('retains Good Friday as an Austrian banking day (TARGET closure is a separate calendar)', () => {
+    expect(nextPayday('2022-04-01').day).toBe('2022-04-15');
   });
 });
 

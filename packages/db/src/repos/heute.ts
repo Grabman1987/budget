@@ -407,10 +407,7 @@ export function heute(db: Executor, query: HeuteQuery): Heute {
   const salary = all.filter(
     (o) => o.kind === 'inflow' && o.status === 'expected' && isSalary(o.paymentId),
   );
-  const payday = nextPayday(
-    salary.map((o) => o.dueDate),
-    today,
-  );
+  const payday = nextPayday(today);
   const window = heuteWindow(query.period ?? 'month', month, today, payday.day);
 
   // ---- lead: free until payday ----
@@ -457,9 +454,12 @@ export function heute(db: Executor, query: HeuteQuery): Heute {
     });
     forecast = run.days.map((d) => ({ day: d.day, balanceCents: d.balanceCents }));
     low = lowPoint(run.days, run.days.length - 1);
-    const jump = salary.filter((o) => o.dueDate === payday.day && o.dueDate > today);
-    if (payday.source === 'salary' && payday.day <= window.to && jump.length > 0)
-      salaryJump = { day: payday.day, cents: jump.reduce((a, o) => a + o.amountCents, 0) };
+    // A planning boundary must never invent or move a salary receipt in the cash forecast.
+    const salaryDay = salary.find((o) => o.dueDate > today && o.dueDate <= window.to)?.dueDate;
+    if (salaryDay) {
+      const jump = salary.filter((o) => o.dueDate === salaryDay);
+      salaryJump = { day: salaryDay, cents: jump.reduce((a, o) => a + o.amountCents, 0) };
+    }
   } else if (actual.length > 0) {
     const min = actual.reduce((a, b) => (b.balanceCents < a.balanceCents ? b : a));
     low = { day: min.day, index: actualDays.indexOf(min.day), cents: min.balanceCents };

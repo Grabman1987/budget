@@ -37,7 +37,7 @@ export function EnvelopePanel({
     <DetailPanel open={row !== undefined} onClose={onClose} title={row?.name ?? ''}>
       {row && (
         <EnvelopeBody
-          key={row.id}
+          key={`${month}:${row.id}`}
           month={month}
           row={row}
           rows={rows}
