@@ -396,3 +396,22 @@ curl -fsS https://budget-fg.fly.dev/health
 ```
 
 Then fix forward on `main` (the next green merge deploys again; until then a `workflow_dispatch` would redeploy the bad `main`, so revert the commit first). If the bad release also damaged data, restore a point in time before that release (section 4.2).
+
+## 12. One-time YNAB migration (operator task)
+
+The app has no import feature (owner decision 01.10.2026). The one-time migration runs on the
+machine with `migrate-cli.js` (same tasks as the former wizard: each step is one transaction,
+`revert` undoes a whole run). The export files and the private mapping never enter the repo.
+
+1. Check the backup: the nightly encrypted copy and Litestream are current (sections 4 and 8).
+2. Copy the files to the volume (PowerShell, owner's machine):
+   `fly ssh sftp shell -a budget-fg` then `put "<Register.tsv>" /data/migration/register.tsv`,
+   `put "<Plan.tsv>" /data/migration/plan.tsv`, `put budget.mapping.json /data/migration/mapping.json`
+   (create the folder first: `fly ssh console -a budget-fg -C "mkdir -p /data/migration"`).
+3. Stage and dry run:
+   `fly ssh console -a budget-fg -C "node /app/migrate-cli.js stage --register /data/migration/register.tsv --plan /data/migration/plan.tsv --mapping /data/migration/mapping.json"`
+   then `... dry-run --run <id>`. Proceed only with 0 problems and 0 "app vs import"
+   differences; the remaining Gate 2 differences must be explained (n:1 merges).
+4. Commit: `... commit --run <id>`; check with `... report --run <id>`.
+5. Remove the private files: `fly ssh console -a budget-fg -C "rm -rf /data/migration"`.
+   Undo if needed: `... revert --run <id>` (refused once imported data was changed in the app).
