@@ -93,7 +93,12 @@ sampleTest(
   async ({ page }, info) => {
     const loaded = page.waitForResponse(isIncome('2026-09'));
     await page.goto('/reports/einnahmen');
-    expect((await loaded).status()).toBe(200);
+    const response = await loaded;
+    expect(response.status()).toBe(200);
+    const data: {
+      expectedMaterialised: boolean;
+      expected: { lines: { status: string }[]; pendingCount: number; pendingCents: number };
+    } = await response.json();
     await expect(page.getByTestId('report-month')).toHaveText('September 2026');
     await expect(page.getByRole('button', { name: 'Nächster Monat' })).toBeDisabled();
     await expect(
@@ -102,11 +107,20 @@ sampleTest(
     const salary = page.locator('[data-testid="income-expected"] tr[data-status="pending"]');
     await expect(salary).toContainText('Gehalt');
     await expect(salary).toContainText('erwartet');
-    // The sample has no materialised occurrences: the schedule stands in, nothing claims a receipt.
-    await expect(page.locator('tr[data-status="unlinked"]')).toContainText('nicht zugeordnet');
-    await expect(page.getByText(/noch nicht zugeordnet/).first()).toBeVisible();
     await expect(page.getByText('1 erwartet, 3.812 €')).toBeVisible();
-    await expect(page.locator('tr[data-status="unlinked"]')).toHaveCount(1);
+    // Whether the sample's occurrences are materialised depends on the specs that ran before on this
+    // shared server: Plan > Erwartet (expected.spec.ts) refreshes them when it opens and nothing
+    // undoes that. Until then the schedule stands in and a due payment is "nicht zugeordnet"
+    // (nothing claims a receipt; the fixtures test covers that line); afterwards they carry their
+    // match status. The page shows whichever the API reports.
+    const unlinked = data.expected.lines.filter((l) => l.status === 'unlinked').length;
+    if (!data.expectedMaterialised) expect(unlinked).toBe(1);
+    const rows = page.locator('tr[data-status="unlinked"]');
+    await expect(rows).toHaveCount(unlinked);
+    if (unlinked > 0) {
+      await expect(rows).toContainText('nicht zugeordnet');
+      await expect(page.getByText(/noch nicht zugeordnet/).first()).toBeVisible();
+    }
     await inspect(page, info, 'einnahmen-laufend');
 
     const previous = page.waitForResponse(isIncome('2026-08'));
