@@ -36,7 +36,6 @@ export function Segmented<T extends string>({
           aria-pressed={option.value === value}
           disabled={option.disabled}
           title={option.description}
-          aria-description={option.description}
           onClick={() => onChange(option.value)}
         >
           {option.label}
