@@ -1,4 +1,4 @@
-﻿# Receipt browser evidence (Y21)
+# Receipt browser evidence (Y21)
 
 Synthetic fixtures only. Captured on Windows with Playwright 1.56.1 / Chromium,
 1440 x 900 desktop and 390 x 844 mobile, in light and dark themes.
@@ -44,3 +44,17 @@ No real-phone capture or owner backup restore is claimed. See
 Production `npm run build` passed. Two existing CSV export filesystem-cleanup
 tests were given explicit 30-second timeouts after their unchanged assertions
 passed with that timeout under local I/O contention.
+
+Full `npm run check` passed on Node 24.12.0 with `VITEST_MAX_WORKERS=2` and
+`BUDGET_REQUIRE_AGE=1`: 215 files, 2035 tests, no skips. `npm ci` completed
+before verification. The older downloaded Node 22.14.0 failed the existing
+TypeScript import-worker startup with `ERR_UNKNOWN_FILE_EXTENSION`; those four
+worker tests passed under Node 24 without application changes.
+
+An explicit Windows deny ACL blocks this worktree's normal Git index. The
+automatic WIP snapshot contains the feature; the checked branch was published
+with `git push -u origin HEAD`. Verification documentation uses a temporary Git
+index inside the allowed workspace and ordinary Git object/ref operations. The
+protected primary index is unchanged. In an owner terminal outside the sandbox,
+run `git reset --mixed HEAD` on `feat/receipts` to refresh that index after delivery.
+Mixed reset preserves working files. No force push or hard reset is needed.
