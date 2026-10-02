@@ -25,6 +25,7 @@ import { InstrumentPanel } from './portfolio-panel';
 import { INSTRUMENT_KIND } from './instrument-form';
 import { TradePanel } from './trade-panel';
 import './portfolio.css';
+import { PortfolioAllocation } from './allocation-section';
 
 export function PortfolioPage() {
   const query = useQuery(portfolioPositionsQuery());
@@ -34,7 +35,12 @@ export function PortfolioPage() {
   const select = (produkt?: string) =>
     void navigate({
       to: '/vermoegen/portfolio',
-      search: ((prev: Record<string, unknown>) => ({ ...prev, produkt })) as never,
+      search: ((prev: Record<string, unknown>) => ({
+        ...prev,
+        produkt,
+        handel: undefined,
+        allokation: undefined,
+      })) as never,
     }).then(() => {
       if (produkt || !search.produkt) return;
       // A route remount can detach the dialog's native return-focus target.
@@ -51,7 +57,12 @@ export function PortfolioPage() {
   const trade = (handel?: string, produkt = search.produkt) =>
     void navigate({
       to: '/vermoegen/portfolio',
-      search: ((prev: Record<string, unknown>) => ({ ...prev, produkt, handel })) as never,
+      search: ((prev: Record<string, unknown>) => ({
+        ...prev,
+        produkt,
+        handel,
+        allokation: undefined,
+      })) as never,
     });
   const view = query.data;
   const held = new Set(view?.classes.flatMap((group) => group.positions.map((p) => p.securityId)));
@@ -69,9 +80,10 @@ export function PortfolioPage() {
         {query.isError && (
           <ErrorNote what="Positionen" error={query.error} onRetry={() => void query.refetch()} />
         )}
+        {view && <PortfolioLead view={view} />}
+        <PortfolioAllocation />
         {view && (
           <>
-            <PortfolioLead view={view} />
             {view.classes.length === 0 ? (
               <EmptyNote>Keine Positionen zum {longDay(view.asOf)} vorhanden.</EmptyNote>
             ) : (
