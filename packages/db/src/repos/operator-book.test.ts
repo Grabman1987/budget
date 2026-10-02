@@ -219,6 +219,52 @@ describe('book: transfer envelope and finer matches', () => {
     ).toBe('unknown_category');
   });
 
+  it('adds an inflow with an income type by name', () => {
+    done(
+      only([
+        {
+          id: 'i1',
+          kind: 'add',
+          account: 'Giro',
+          date: '2026-10-03',
+          amountCents: 39,
+          incomeType: 'Kapitalerträge',
+        },
+      ]),
+    );
+    expect(live('giro')[0]!.splits[0]).toMatchObject({
+      categoryId: null,
+      incomeTypeId: 'income-capital',
+    });
+    expect(
+      skipped(
+        only([
+          {
+            id: 'i2',
+            kind: 'add',
+            account: 'Giro',
+            date: '2026-10-03',
+            amountCents: 39,
+            incomeType: 'Nope',
+          },
+        ]),
+      ).reason,
+    ).toBe('unknown_income_type');
+    expect(() =>
+      parseBookFile([
+        {
+          id: 'x',
+          kind: 'add',
+          account: 'Giro',
+          date: '2026-10-03',
+          amountCents: 1,
+          incomeType: 'Gehalt',
+          category: 'Essen',
+        },
+      ]),
+    ).toThrow(OperatorInputError);
+  });
+
   it('deletes one of two true duplicates only when told how many there are', () => {
     book('giro', '2026-10-03', -1_250);
     book('giro', '2026-10-03', -1_250);

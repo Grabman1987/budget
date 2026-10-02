@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { and, eq, isNull, ne } from 'drizzle-orm';
-import { account, booking, payee } from '../schema';
+import { account, booking, incomeType, payee } from '../schema';
 import { type AuditContext, type GroupedContext } from './audit';
 import {
   createBooking,
@@ -61,6 +61,8 @@ export interface BookAdd extends EntryBase {
   payee?: string;
   category?: string;
   transferAccount?: string;
+  /** Income type of an inflow without category (e.g. "Kapitalerträge"), by name. */
+  incomeType?: string;
   /**
    * Envelope of a transfer between a budget and a tracking account (put on the budget leg, like
    * `categoryId` of the transfer route); only together with `transferAccount`.
@@ -197,6 +199,14 @@ export function parseBookFile(json: unknown): BookEntry[] {
         const category = optionalText(raw['category'], `${at}.category`);
         const transferAccount = optionalText(raw['transferAccount'], `${at}.transferAccount`);
         const transferCategory = optionalText(raw['transferCategory'], `${at}.transferCategory`);
+        const incomeTypeName = optionalText(raw['incomeType'], `${at}.incomeType`);
+        if (
+          incomeTypeName !== undefined &&
+          (category !== undefined || transferAccount !== undefined)
+        )
+          throw new OperatorInputError(
+            `${at}: "incomeType" excludes "category" and "transferAccount"`,
+          );
         if (category !== undefined && transferAccount !== undefined)
           throw new OperatorInputError(
             `${at}: "category" and "transferAccount" exclude each other`,
@@ -226,6 +236,7 @@ export function parseBookFile(json: unknown): BookEntry[] {
           ...(category !== undefined && { category }),
           ...(transferAccount !== undefined && { transferAccount }),
           ...(transferCategory !== undefined && { transferCategory }),
+          ...(incomeTypeName !== undefined && { incomeType: incomeTypeName }),
           ...(memo !== undefined && { memo }),
         };
       }
@@ -302,6 +313,19 @@ function findOpenAccount(db: Executor, name: string): AccountRef {
   const found = findAccount(db, name);
   if (found.closed) throw new Skip('account_closed', 0, `account "${name}" is closed`);
   return found;
+}
+
+function findIncomeType(db: Executor, name: string): string {
+  const found = db
+    .select({ id: incomeType.id, name: incomeType.name })
+    .from(incomeType)
+    .where(isNull(incomeType.deletedAt))
+    .all()
+    .filter((t) => fold(t.name) === fold(name));
+  if (found.length === 0) throw new Skip('unknown_income_type', 0, `unknown income type "${name}"`);
+  if (found.length > 1)
+    throw new Skip('ambiguous_income_type', 0, `ambiguous income type "${name}"`);
+  return found[0]!.id;
 }
 
 function findCategory(db: Executor, name: string): string {
@@ -454,7 +478,15 @@ function applyEntry(tx: Executor, entry: BookEntry, ctx: GroupedContext): BookDo
             status,
             payeeId,
             memo: entry.memo ?? null,
-            splits: [{ categoryId, amountCents: entry.amountCents }],
+            splits: [
+              {
+                categoryId,
+                amountCents: entry.amountCents,
+                ...(entry.incomeType !== undefined && {
+                  incomeTypeId: findIncomeType(tx, entry.incomeType),
+                }),
+              },
+            ],
           },
           ctx,
         );
