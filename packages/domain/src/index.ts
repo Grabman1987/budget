@@ -13,3 +13,4 @@ export * from './rules';
 export * from './heute';
 
 export * from './contacts';
+export * from './report-tables';
