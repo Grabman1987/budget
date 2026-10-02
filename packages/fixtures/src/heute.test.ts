@@ -68,18 +68,34 @@ describe('prototype figures reproduced', () => {
     expect(n.series.map((s) => Math.round(s.cents / 100)).slice(0, 2)).toEqual([63_606, 71_456]);
   });
 
-  it('payday is the salary of the 30th, 13 days away, with the 3.812 EUR jump', () => {
-    expect(month.stand.payday).toEqual({ day: '2026-09-30', source: 'salary', daysToPayday: 13 });
+  it('the planning payday is the 15th while the stored salary jump keeps its actual schedule', () => {
+    expect(month.stand.payday).toEqual({
+      day: '2026-10-15',
+      source: 'payday_rule',
+      daysToPayday: 28,
+    });
     expect(month.balance.salary).toEqual({ day: '2026-09-30', cents: 381_200 });
   });
 
-  it('the open bills before payday are the prototype ones: Streaming 17,99, Mobilfunk 25, Strom 105', () => {
+  it('deducts the literal scheduled bills before 15 October, excluding bills due on payday', () => {
     expect(month.lead.items.open.map((o) => [o.day, o.label, o.cents])).toEqual([
       ['2026-09-20', 'Streaming', 1799],
       ['2026-09-22', 'Mobilfunk', 2500],
       ['2026-09-25', 'Strom', 10_500],
+      ['2026-09-30', 'Kontoführung', 690],
+      ['2026-10-01', 'Fitnessstudio', 4_200],
+      ['2026-10-01', 'Miete', 89_000],
+      ['2026-10-03', 'Kreditrate', 41_200],
+      ['2026-10-05', 'Zeitung digital', 1_290],
+      // USD 20/10 at the fixture's last known EUR rate (rounded to cents).
+      ['2026-10-08', 'KI-Assistent', 1_695],
+      ['2026-10-10', 'Kfz-Versicherung', 4_800],
+      ['2026-10-10', 'Unfallversicherung', 2_800],
+      ['2026-10-12', 'Cloud-Speicher', 299],
+      ['2026-10-12', 'Geschenke (Oktober)', 10_000],
+      ['2026-10-14', 'KI-Bildtool', 848],
     ]);
-    expect(month.lead.openCents).toBe(14_799);
+    expect(month.lead.openCents).toBe(171_621);
   });
 
   it('five envelopes are pinned in the prototype order', () => {
@@ -122,7 +138,7 @@ describe('figures that differ from the prototype, by design of the ledger', () =
   // The prototype's envelopes are hand-set (Frei verfuegbar 1.084,60, Pace -178, Tiefpunkt 612).
   // The ledger derives them from 36 months of bookings, so these are the real figures.
   it('free until payday follows the ledger envelopes, the chain adds up', () => {
-    expect(month.lead.freeCents).toBe(255_648);
+    expect(month.lead.freeCents).toBe(98_826);
     expect(month.lead.needCents + month.lead.wantCents - month.lead.openCents).toBe(
       month.lead.freeCents,
     );
@@ -171,9 +187,9 @@ describe('figures that differ from the prototype, by design of the ledger', () =
 
 describe('windows', () => {
   it('"Bis Gehalt" runs from today to the payday', () => {
-    expect(payday.stand).toMatchObject({ period: 'payday', from: TODAY, to: '2026-09-30' });
+    expect(payday.stand).toMatchObject({ period: 'payday', from: TODAY, to: '2026-10-15' });
     expect(payday.balance.actual).toEqual([{ day: TODAY, balanceCents: 116_700 }]);
-    expect(payday.balance.forecast).toHaveLength(14);
+    expect(payday.balance.forecast).toHaveLength(29);
     expect(payday.lead).toEqual(month.lead);
     expect(payday.pace.figures).toEqual(month.pace.figures);
   });
@@ -206,12 +222,12 @@ describe('without materialised occurrences', () => {
 });
 
 describe('an empty ledger', () => {
-  it('answers with zeros and the month end as payday', () => {
+  it('answers with zeros and the business-day 15th as payday', () => {
     const empty = heute(createTestDatabase().db, { today: '2026-02-10' });
     expect(empty.stand.payday).toEqual({
-      day: '2026-02-28',
-      source: 'month_end',
-      daysToPayday: 18,
+      day: '2026-02-13',
+      source: 'payday_rule',
+      daysToPayday: 3,
     });
     expect(empty.lead.freeCents).toBe(0);
     expect(empty.netWorth.totalCents).toBe(0);
