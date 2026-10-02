@@ -145,7 +145,11 @@
   margin-right: 8px;
   vertical-align: -1px;
 }
+.mr-table td:first-child {
+  white-space: nowrap;
+}
 .is-expected td:first-child {
+  white-space: normal;
   min-width: 160px;
 }
 .mr-status {

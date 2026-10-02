@@ -11,6 +11,9 @@ import { sampleTest } from './sample';
  * dark, with axe and a check that the page never scrolls sideways.
  */
 
+// Every page is inspected in two themes (axe, scroll width, full-page screenshot): give it room.
+sampleTest.describe.configure({ timeout: 90_000 });
+
 const money = (value: number, whole = false) => formatEuro(cents(value), { cents: !whole });
 /** Text with every kind of space collapsed, so de-AT number formatting compares equal. */
 const flat = (text: string | null) => (text ?? '').replace(/\s+/g, ' ').trim();
@@ -167,3 +170,89 @@ sampleTest(
     await expect(page.getByTestId('income-total')).toContainText('0,00 €');
   },
 );
+
+const isFlow = (month: string, span: string) => (response: { url(): string }) => {
+  const url = new URL(response.url());
+  return (
+    url.pathname === '/api/reports/month/flow' &&
+    url.searchParams.get('month') === month &&
+    url.searchParams.get('span') === span
+  );
+};
+
+sampleTest(
+  'Geldfluss: the Sankey and the parts list are the flow of the API',
+  async ({ page }, info) => {
+    const loaded = page.waitForResponse(isFlow('2026-08', 'month'));
+    await page.goto('/reports/geldfluss?monat=2026-08');
+    const response = await loaded;
+    expect(response.status()).toBe(200);
+    const data = (await response.json()) as {
+      flow: {
+        earnedCents: number;
+        capitalCents: number;
+        restCents: number;
+        columns: {
+          income: Array<{ name: string }>;
+          classes: unknown[];
+          groups: unknown[];
+        };
+        table: unknown[];
+        chain: Array<{ label: string }>;
+      };
+    };
+    await expect(page.getByRole('heading', { name: 'Geldfluss August 2026' })).toBeVisible();
+    const chain = page.getByRole('group', { name: 'Maßkette Geldfluss' });
+    for (const term of data.flow.chain) await expect(chain).toContainText(term.label);
+    // Kapitalerträge are visible and labelled in the flow, apart from the household income.
+    expect(data.flow.columns.income.map((n) => n.name)).toContain('Kapitalerträge');
+    const sankey = page.getByTestId('sankey-chart');
+    await expect(sankey).toBeVisible();
+    await expect(sankey).toHaveAttribute('aria-label', /Kapitalerträge/);
+    await expect(sankey.locator('title', { hasText: /^Kapitalerträge: / })).not.toHaveCount(0);
+    // The thin Kapitalerträge node keeps its label.
+    await expect(sankey.locator('text', { hasText: /^Kapitalerträge$/ })).toHaveCount(1);
+    const nodes = await sankey.locator('rect.sk-node').count();
+    const wide = (info.project.use.viewport!.width as number) >= 600;
+    expect(nodes).toBe(
+      data.flow.columns.income.length +
+        1 +
+        data.flow.columns.classes.length +
+        (wide ? data.flow.columns.groups.length : 0),
+    );
+    await expect(page.getByTestId('flow-list').locator('tbody tr')).toHaveCount(
+      data.flow.table.length,
+    );
+    await expect(page.getByText(/Kapitalerträge sind eigens ausgewiesen/)).toBeVisible();
+    await inspect(page, info, 'geldfluss');
+  },
+);
+
+sampleTest('Geldfluss: twelve months, running month and empty states', async ({ page }, info) => {
+  const month = page.waitForResponse(isFlow('2026-09', 'month'));
+  await page.goto('/reports/geldfluss');
+  expect((await month).status()).toBe(200);
+  await expect(page.getByText(/Der Monat läuft noch/)).toBeVisible();
+  const year = page.waitForResponse(isFlow('2026-09', 'year'));
+  await page
+    .getByRole('group', { name: 'Zeitraum des Geldflusses' })
+    .getByRole('button', { name: '12 Monate' })
+    .click();
+  const answer = await year;
+  expect(answer.status()).toBe(200);
+  expect(((await answer.json()) as { from: string; to: string }).to).toBe('2026-08');
+  await expect(
+    page.getByRole('heading', { name: 'Geldfluss Sep 2025 bis Aug 2026' }),
+  ).toBeVisible();
+  await expect(page.getByTestId('sankey-chart')).toBeVisible();
+  await inspect(page, info, 'geldfluss-12-monate');
+
+  await page.goto('/reports/geldfluss?monat=2023-05');
+  await expect(page.getByText(/gibt es keine Aufzeichnungen/)).toBeVisible();
+  await page.route('**/api/reports/month/flow*', (route) =>
+    route.fulfill({ status: 500, json: { error: 'boom', message: 'Fehler' } }),
+  );
+  await page.goto('/reports/geldfluss?monat=2026-08');
+  await expect(page.getByRole('alert')).toContainText('konnten nicht geladen werden');
+  await expect(page.getByTestId('sankey-chart')).toHaveCount(0);
+});

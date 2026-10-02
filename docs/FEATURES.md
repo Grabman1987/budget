@@ -121,7 +121,7 @@ consistent totals, desktop/mobile checks and printing where required.
 | 1.1 | Monats-One-Pager | `reports-monat.js` | Body + A4 print Open |
 | 1.2 | Gehaltsreport | `reports-monat.js` | Payslip capture, body and yearly comparison Open |
 | 1.3 | Einnahmen | `reports-monat.js` | Connected: month selector, 12-month stacked income by type, expected against received (match status; schedule fallback `nicht zugeordnet` while occurrences are unmaterialised), Kapitalerträge separate (not household income), refunds/transfers/contact repayments excluded. Owner/private acceptance remains |
-| 1.4 | Geldfluss | `reports-monat.js` | Connected Sankey body Open |
+| 1.4 | Geldfluss | `reports-monat.js` | Connected: month or 12 months (to the last full month), Sankey income types → pool → Bedarf/Wunsch/Zukunft/Übrig → groups (phone: without groups), dimension chain, parts list; Kapitalerträge a labelled source of their own, never folded, outside the household income; transfers, refunds and contact repayments left out. Owner/private acceptance remains |
 | 1.5 | Jahresansicht | `reports-monat.js` | Body + previous year Open |
 | 1.6 | Kategorieübersicht | `reports-monat.js` | Body Open |
 | 1.7 | Sparquote und Geldalter | `reports-monat.js` | Body Open |

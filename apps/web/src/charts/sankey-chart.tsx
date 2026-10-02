@@ -90,7 +90,7 @@ export function SankeyChart({
         const tx = first ? n.x - 8 : n.x + n.width + 8;
         const anchor = first ? 'end' : 'start';
         const ty = n.y + n.height / 2;
-        const showLabel = n.height >= 9;
+        const showLabel = n.height >= 9 || n.forceLabel === true;
         const tall = n.height >= 26;
         return (
           <g key={n.id}>

@@ -6,6 +6,8 @@ export interface SankeyNode {
   value: number;
   /** Style hook, e.g. `need`, `want`, `future`, `rest`. */
   tone?: string;
+  /** Label the node even when it is a sliver (a named source or a folded "Weitere" node). */
+  forceLabel?: boolean;
 }
 
 export interface SankeyLink {
