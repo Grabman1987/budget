@@ -1,0 +1,113 @@
+/* Report 5.3 Explorer: view chips, the five pivot choices and the heat table. */
+.ex-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+.ex-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 44px;
+  padding: 0 12px;
+  border: 1px solid var(--rule-strong);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--ink);
+  font: inherit;
+  font-size: 13.5px;
+  cursor: pointer;
+}
+.ex-chip:hover {
+  border-color: var(--line-2);
+  background: var(--tint);
+}
+.ex-chip[aria-pressed='true'] {
+  border-color: var(--line);
+  background: var(--tint-2);
+  font-weight: 600;
+}
+.ex-chip-pair {
+  display: inline-flex;
+}
+.ex-chip-pair .ex-chip {
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+}
+.ex-chip-x {
+  display: inline-grid;
+  place-items: center;
+  width: 44px;
+  min-height: 44px;
+  border: 1px solid var(--rule-strong);
+  border-left: 0;
+  border-radius: 0 8px 8px 0;
+  background: var(--surface);
+  color: var(--ink-2);
+  cursor: pointer;
+}
+.ex-chip-x:hover {
+  background: var(--tint);
+  color: var(--ink);
+}
+.ex-bar {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 12px 16px;
+  margin-bottom: 14px;
+}
+.ex-bar .field-row,
+.ex-save .field-row {
+  min-width: 0;
+}
+.ex-save {
+  display: flex;
+  align-items: flex-end;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.ex-save .field-row {
+  flex: 1 1 220px;
+  max-width: 320px;
+}
+.ex-save .btn {
+  gap: 6px;
+  min-height: 44px;
+}
+.ex-table {
+  min-width: 640px;
+}
+.ex-table .ex-first {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  background: var(--surface);
+  white-space: nowrap;
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.ex-table tbody th .sw {
+  margin-right: 6px;
+  vertical-align: -1px;
+}
+.ex-table a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 32px;
+  color: var(--ink);
+  text-decoration-color: var(--line-2);
+}
+.ex-table td.n,
+.ex-table th.n {
+  padding-right: 10px;
+}
+@media (max-width: 760px) {
+  .ex-bar {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .ex-table .ex-first {
+    max-width: 150px;
+  }
+}

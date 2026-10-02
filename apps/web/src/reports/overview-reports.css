@@ -199,10 +199,12 @@
   height: 22px;
 }
 
-/* Heat cells (diverging per row, SPEC §6) */
-.ov-heat {
-  text-align: right;
-  white-space: nowrap;
+/* Heat cells (diverging per row vs the row mean, SPEC §6): pastel, the figure stays the signal */
+.ov-hc.is-bad {
+  background: color-mix(in srgb, var(--heat-red) calc(var(--h, 0.5) * 100%), transparent);
+}
+.ov-hc.is-good {
+  background: color-mix(in srgb, var(--heat-green) calc(var(--h, 0.5) * 100%), transparent);
 }
 
 /* Segmented controls in a card head */

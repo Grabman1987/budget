@@ -60,9 +60,9 @@ export function bpText(bp: number | null, options: { sign?: boolean; decimals?: 
   return `${sign}${text} %`;
 }
 
-/** Whole numbers with thousands separator, real minus (tables without currency sign). */
+/** Whole numbers with a dot as thousands separator, real minus (tables without currency sign). */
 export const wholeText = (value: number) =>
-  `${value < 0 ? '−' : ''}${new Intl.NumberFormat('de-AT', { maximumFractionDigits: 0 }).format(Math.abs(value))}`;
+  `${value < 0 ? '−' : ''}${String(Math.abs(Math.trunc(value))).replace(/\B(?=(\d{3})+(?!\d))/g, '.')}`;
 
 /** Whole euros from cents, grouped, without currency sign (compact table cells). */
 export const euroCellText = (cents: number) => wholeText(Math.round(cents / 100));

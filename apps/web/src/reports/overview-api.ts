@@ -1,6 +1,7 @@
 import type { ExplorerReport, PeriodComparisonReport, YearReportRead } from '@budget/db';
 import type { CompareMode, ExplorerQuery } from '@budget/domain';
-import { queryOptions } from '@tanstack/react-query';
+import { queryOptions, useQueryClient } from '@tanstack/react-query';
+import { useEffect, useRef } from 'react';
 import { request } from '../api/http';
 import { LEDGER_KEY } from '../ledger/queries';
 import { evaluateRules } from '../rules/api';
@@ -20,22 +21,33 @@ export const periodComparisonQuery = (mode: CompareMode) =>
       ),
   });
 
-/**
- * The Finanz-Check of the year's last month end comes from the stored rule results, so the
- * results are re-derived first (idempotent, as the Regelwerk page does when it opens).
- */
 export const yearReportQuery = (year: number | null) =>
   queryOptions({
     queryKey: [...LEDGER_KEY, 'overview-year', year],
     retry: false,
-    queryFn: async () => {
-      await evaluateRules().catch(() => undefined);
-      return request<YearReportRead>(
+    queryFn: () =>
+      request<YearReportRead>(
         'GET',
         year === null ? '/api/overview/year' : `/api/overview/year?year=${year}`,
-      );
-    },
+      ),
   });
+
+/**
+ * Re-derives the stored rule results (idempotent, as the Regelwerk page does) when a report finds
+ * them missing or stale, and refreshes the reports that read them. Evaluating twelve month ends
+ * takes seconds, so it runs beside the page, at most once per visit and only when `needed`.
+ */
+export function useRuleDerivation(needed: boolean) {
+  const qc = useQueryClient();
+  const started = useRef(false);
+  useEffect(() => {
+    if (!needed || started.current) return;
+    started.current = true;
+    void evaluateRules()
+      .then(() => qc.invalidateQueries({ queryKey: [...LEDGER_KEY] }))
+      .catch(() => undefined);
+  }, [needed, qc]);
+}
 
 export const explorerQuery = (query: ExplorerQuery) =>
   queryOptions({

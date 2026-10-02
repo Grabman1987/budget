@@ -17,6 +17,7 @@ import type { ReportEntry } from '../nav/reports-catalog';
 import { PageFrame } from '../pages/placeholder-page';
 import { stageRange, thresholdText } from '../rules/rules-model';
 import { finanzcheckVerlaufQuery, type FinanzcheckVerlauf } from './finanzcheck-api';
+import { useRuleDerivation } from './overview-api';
 import { monthLong, monthShortYear } from './overview-format';
 import './overview-reports.css';
 import './finanzcheck-report.css';
@@ -70,6 +71,17 @@ export function FinanzcheckReport({ report, meta }: { report: ReportEntry; meta:
   const query = useQuery(finanzcheckVerlaufQuery());
   const data = query.data;
   const days = data?.matrix.days ?? [];
+  // Stored results that are missing, older than today or different from the live check are stale:
+  // derive them beside the page.
+  const newest = data ? dayCounts(data.matrix).at(-1) : undefined;
+  useRuleDerivation(
+    data !== undefined &&
+      (newest === undefined ||
+        newest.asOf !== data.check.asOf ||
+        newest.ok !== data.check.counts.ok ||
+        newest.warn !== data.check.counts.warn ||
+        newest.bad !== data.check.counts.bad),
+  );
   return (
     <PageFrame
       meta={meta}
@@ -255,7 +267,9 @@ function Body({ data }: { data: FinanzcheckVerlauf }) {
             ))}
           </div>
           {empty ? (
-            <p className="ov-empty">Es sind noch keine Regelergebnisse gespeichert.</p>
+            <p className="ov-empty">
+              Es sind noch keine Regelergebnisse gespeichert; sie werden gerade berechnet.
+            </p>
           ) : (
             <VerlaufChart counts={counts} total={check.counts.total} />
           )}
@@ -294,7 +308,9 @@ function Body({ data }: { data: FinanzcheckVerlauf }) {
           </h2>
         </div>
         {empty ? (
-          <p className="ov-empty">Es sind noch keine Regelergebnisse gespeichert.</p>
+          <p className="ov-empty">
+            Es sind noch keine Regelergebnisse gespeichert; sie werden gerade berechnet.
+          </p>
         ) : (
           <div
             className="ov-scroll"
