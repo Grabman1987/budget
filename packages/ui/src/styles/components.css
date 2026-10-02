@@ -373,9 +373,14 @@
   background: var(--line);
   color: var(--ground);
 }
-.seg button:not([aria-pressed='true']):hover {
+.seg button:not(:disabled):not([aria-pressed='true']):hover {
   background: var(--tint);
   color: var(--ink);
+}
+.seg button:disabled {
+  color: var(--muted);
+  cursor: not-allowed;
+  opacity: 0.55;
 }
 @media (max-width: 767px) {
   .seg button {
