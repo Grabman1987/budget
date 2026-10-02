@@ -3,6 +3,7 @@ export * from './types';
 export * from './audit';
 export * from './entities';
 export * from './account-order';
+export * from './operator-ops';
 export * from './bookings';
 export { assertLedgerInvariants, relatedTransferBookings } from './invariants';
 export * from './envelopes';

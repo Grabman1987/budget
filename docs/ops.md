@@ -437,3 +437,71 @@ fly ssh console -a budget-fg -C "node /app/migrate-cli.js order-accounts --names
 the write is one transaction and one audit group (the output shows the group id). A name that
 matches two accounts is reported as ambiguous and skipped. Running the command again with another
 list simply sets the new order.
+
+### 12.2 Audit groups, undo and moving money (operator tasks)
+
+Three more commands of `migrate-cli.js` work on the owner's own actions. They call the same
+domain functions as the app (`undo` behind `POST /api/undo`, `moveMoney` behind Plan › Geld
+verschieben, `assignMany` behind the assigned amounts), so every write is audited, guarded and
+undoable like one from the app. The writes carry the actor `operator` (the app writes `owner`).
+Direct SQL on the live database is not used.
+
+```
+list-groups --since <ISO ts> [--until <ts>] [--entity envelope_month] [--out <file>]
+undo-group  --group <id> [--group <id> ...] [--dry-run]
+move-money  --month YYYY-MM --from "<category>" --to "<category>" --cents N [--dry-run]
+move-money  --file <list-groups json> [--allow-unbalanced] [--dry-run]
+```
+
+**`list-groups`** prints the audit groups that are not part of an import run (`group_id` not like
+`import:%`) and not undone, oldest first: group id, time, actor and one line per change. For
+`envelope_month` that is category name, month and the assigned change in EUR (`Beta 2026-10 +12,34 €`).
+A group that was undone and redone is listed again; the records of an undo are not listed.
+`--since` and `--until` are ISO timestamps (inclusive, compared with the time of the group's first
+entry); `--entity` keeps only groups that touch that table. `--out <file>` also writes the groups
+that changed assigned amounts as JSON, `[{groupId, ts, moves: [{category, month, deltaCents}]}]`.
+That file holds real category names and amounts: write it to the private volume
+(`/data/migration/`), never into the repo.
+
+**`undo-group`** undoes the groups through `undo`, so it refuses what `POST /api/undo` refuses
+(for example "it changed after this entry"). The groups are applied newest first, in one
+transaction: if one is refused, none is undone. `--dry-run` does everything and rolls back, so it
+shows exactly what the real run would refuse. An import run (`import:...`) is not undone here but
+with `revert`, which also resets the run.
+
+**`move-money`** moves an assigned amount from one category to another in one month. Names are
+matched exactly (trimmed, case-insensitive) among the live (not deleted) categories, hidden ones
+included. An unknown or ambiguous name fails before anything is written. Each move is one audit
+group. With `--file`, the groups of a `list-groups --out` file are applied in order, all in one
+transaction (a refusal rolls everything back):
+
+- A group with two lines in a month that net to zero (−x on A, +x on B) becomes a move from A to B
+  of x cents.
+- Any other group (a single line, a non-zero net, more than two lines) is reported as `skipped`
+  with its lines, and the command ends with exit code 3 after applying the rest. With
+  `--allow-unbalanced` its lines are assigned one by one instead (`assignMany`, one audit group per
+  line, with the usual "Zu verteilen" guard).
+- `--dry-run` prints what would be moved and writes nothing.
+
+#### Revert a run when the owner has budgeted on top of it
+
+`revert` is refused while assigned amounts that the run did not write sit on the run's categories.
+The owner's moves have to come off first and go back on after the new import. Take a backup first
+(sections 4 and 8). Names, not ids, carry the moves over: the new import creates its categories
+again. Each command below runs as `fly ssh console -a budget-fg -C "node /app/migrate-cli.js
+<command and options>"`, only the part in the backticks is shown. The files are on the volume, so
+keep `/data/migration` until the end.
+
+1. List the owner's moves since before the first one and keep them:
+   `list-groups --since <ISO ts before the first move> --entity envelope_month --out /data/migration/moves.json`
+   Check the list: only the owner's moves, nothing else.
+2. Undo them: `undo-group --group <id> --group <id> ... --dry-run`, then without `--dry-run`.
+   If one is refused, resolve that one first (the message names the entry); nothing was undone.
+3. Revert the run: `revert --run <run id>`.
+4. Stage the corrected export and mapping, `dry-run --run <new id>` (0 problems, 0
+   differences), then `commit --run <new id>` (section 12).
+5. Move the money again: `move-money --file /data/migration/moves.json --dry-run`, check the
+   list and any `skipped` lines, then without `--dry-run`. Groups that were not simple moves are
+   skipped; handle them by hand in the app, or with `--allow-unbalanced` if single assignments are
+   what you want.
+6. Check Plan › Monat for the months involved, then remove the private files (section 12, step 5).
