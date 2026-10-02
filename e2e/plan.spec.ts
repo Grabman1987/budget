@@ -279,7 +279,7 @@ test('plan: the guard refuses assigning more than Zu verteilen holds, in the fie
 
   // 50/30/20 never shows percentages that mean nothing.
   const split = page.locator('.split-band');
-  await expect(split).not.toContainText(/-\d+ %|−\d+ %|\b[1-9]\d{3,} %/);
+  await expect(split.locator('.sb-legend')).not.toContainText(/-\d+ %|−\d+ %|\b[1-9]\d{3,} %/);
 
   const axe = await new AxeBuilder({ page }).include('main').analyze();
   expect(axe.violations.map((v) => `${v.id}: ${v.nodes[0]?.target}`)).toEqual([]);

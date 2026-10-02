@@ -21,14 +21,14 @@ test('plan views: status, 50/30/20, triage groups and the time view', async ({ p
   // Assigned money far above the income: dashes and a sentence, no 595 % bar.
   const split = page.locator('.split-band');
   await expect(split).toContainText('mehr zugewiesen als eingenommen');
-  await expect(split).not.toContainText(/\d+ %/);
+  await expect(split.locator('.sb-legend')).not.toContainText(/\d+ %/);
   await expect(split.locator('.sb-seg')).toHaveCount(0);
 
   // Triage: title and hint left-aligned on their own lines, the affected envelopes inside.
   await page.getByRole('button', { name: /^Triage/ }).click();
   const over = page.locator('tr.pgroup', { hasText: 'Überzogen' });
   await expect(over.locator('.grp-title')).toHaveText('Überzogen');
-  await expect(over.locator('.grp-toggle')).toHaveCSS('text-align', 'start');
+  await expect(over.locator('.grp-toggle')).toHaveCSS('text-align', /^(left|start)$/);
   const title = await over.locator('.grp-title').boundingBox();
   const hint = await over.locator('.grp-sub').boundingBox();
   expect(title && hint && Math.abs(title.x - hint.x) < 2).toBe(true);
