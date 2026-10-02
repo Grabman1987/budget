@@ -42,15 +42,24 @@ export function FlagPicker({
   value,
   onChange,
   disabled = false,
+  context,
+  className,
 }: {
   value: BookingFlag | '';
   onChange: (flag: BookingFlag | '') => void;
   disabled?: boolean;
+  /** In a list: what the flag belongs to; the button then reads "Markierung ändern: …". */
+  context?: string;
+  className?: string;
 }) {
   const [open, setOpen] = useState(false);
   const wrap = useRef<HTMLDivElement>(null);
   const trigger = useRef<HTMLButtonElement>(null);
   const menuId = useId();
+  const current = value ? FLAG_LABEL[value] : 'keine';
+  const buttonLabel = context
+    ? `Markierung ändern: ${context}, aktuell ${current}`
+    : `Markierung: ${current}`;
   const choices: ReadonlyArray<BookingFlag | ''> = [...BOOKING_FLAGS, NONE];
 
   const items = () =>
@@ -61,6 +70,9 @@ export function FlagPicker({
     if (!open) return;
     const list = items();
     (list[Math.max(0, choices.indexOf(value))] ?? list[0])?.focus();
+    // In a table near the bottom of the screen the popover is brought into view.
+    if (context)
+      wrap.current?.querySelector('[role="menu"]')?.scrollIntoView?.({ block: 'nearest' });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
@@ -109,16 +121,16 @@ export function FlagPicker({
   };
 
   return (
-    <div className="kflagpick" ref={wrap}>
+    <div className={cx('kflagpick', context && 'in-list')} ref={wrap}>
       <button
         ref={trigger}
         type="button"
-        className={cx('kflagbtn', value && 'has-flag')}
+        className={cx('kflagbtn', value && 'has-flag', className)}
         aria-haspopup="menu"
         aria-expanded={open}
         aria-controls={open ? menuId : undefined}
-        aria-label={`Markierung: ${value ? FLAG_LABEL[value] : 'keine'}`}
-        title={`Markierung: ${value ? FLAG_LABEL[value] : 'keine'}`}
+        aria-label={buttonLabel}
+        title={context ? `Markierung ändern (${current})` : buttonLabel}
         disabled={disabled}
         onClick={() => setOpen((o) => !o)}
         onKeyDown={(e) => {

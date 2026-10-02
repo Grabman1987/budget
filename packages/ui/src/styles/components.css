@@ -1145,6 +1145,24 @@ dialog.overlay.modal .overlay-inner {
   }
 }
 
+/* A toast over a form dialog must not cover its footer buttons: it docks in the bottom right
+   corner of the screen (desktop, beside the card) or at the top (phone, above the sheet). */
+dialog.is-bare .toast {
+  left: auto;
+  right: 24px;
+  bottom: 24px;
+  translate: none;
+}
+@media (max-width: 767px) {
+  dialog.is-bare .toast {
+    left: 50%;
+    right: auto;
+    bottom: auto;
+    top: calc(12px + env(safe-area-inset-top));
+    translate: -50% 0;
+  }
+}
+
 @media (max-width: 767px) {
   .grp-toggle,
   .amount-input {

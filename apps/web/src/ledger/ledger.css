@@ -967,38 +967,23 @@
   color: var(--ink-2);
 }
 
-/* Cleared toggle (YNAB "C"): off = offen, on = bestätigt, lock = geprüft. The button is a full
-   touch target; the circle is drawn inside it. */
+/* Cleared toggle (YNAB "C"): same size and weight as the close button. Neutral until pressed,
+   then green (bestätigt); the lock marks a geprüft booking. */
 .kcleared {
-  position: relative;
-  color: var(--ink-3);
-}
-.kcleared::before {
-  content: '';
-  position: absolute;
-  inset: 4px;
-  border: 1.5px solid var(--rule-strong);
-  border-radius: 999px;
-}
-.kcleared > svg {
-  position: relative;
+  color: var(--ink-2);
 }
 .kcleared.is-on {
-  color: var(--on-good-soft);
+  color: var(--good-ink);
 }
-.kcleared.is-on::before {
+.kcleared.is-on:hover {
   background: var(--good-soft);
-  border-color: var(--good);
 }
 .kcleared.is-locked {
-  color: var(--ink-2);
   cursor: not-allowed;
-}
-.kcleared.is-locked::before {
-  border-style: dashed;
 }
 .kcleared.is-locked:hover {
   background: none;
+  color: var(--ink-2);
 }
 
 /* ---------- Booking dialog (centred card on desktop, bottom sheet on the phone) ---------- */
@@ -1170,5 +1155,39 @@
   }
   .kf-cat .combo-list {
     min-width: 0;
+  }
+}
+
+/* Flag button in booking tables: small, the empty flag only shows on hover or focus (faint on the
+   phone, which has no hover). */
+.kflagpick.in-list .kflagbtn {
+  width: 32px;
+  height: 32px;
+  margin: -6px -4px;
+}
+.kflagpick.in-list .kflagbtn:not(.has-flag) {
+  opacity: 0;
+}
+.ktable tr:hover .kflagbtn,
+.kflagpick.in-list .kflagbtn:focus-visible,
+.kflagpick.in-list .kflagbtn[aria-expanded='true'] {
+  opacity: 1;
+}
+.kflagpick.in-list .kflagmenu {
+  z-index: 9;
+}
+@media (max-width: 767px) {
+  .kflagpick.in-list .kflagbtn {
+    width: var(--touch);
+    height: var(--touch);
+    margin: -10px;
+  }
+  .kflagpick.in-list .kflagbtn:not(.has-flag) {
+    opacity: 0.4;
+  }
+}
+@media (hover: none) {
+  .kflagpick.in-list .kflagbtn:not(.has-flag) {
+    opacity: 0.4;
   }
 }

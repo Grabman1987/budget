@@ -1,7 +1,7 @@
 import { ClassSwatch, type SwatchKind } from '@budget/ui';
 import { useQuery } from '@tanstack/react-query';
 import { AlertTriangle, ArrowLeftRight, Check, CheckCheck, Clock, Split } from 'lucide-react';
-import { FlagGlyph } from './flag-picker';
+import { FlagGlyph, FlagPicker } from './flag-picker';
 import { FLAG_LABEL, STATUS_LABEL } from './labels';
 import { lookupsQuery } from './queries';
 import type { BookingFlag, BookingStatus, ListedBooking } from './types';
@@ -20,16 +20,28 @@ export function StatusCell({ status }: { status: BookingStatus }) {
 }
 
 /**
- * Flag column (first column of booking tables and lists): a coloured flag glyph; the colour name
- * is the text for screen readers and the tooltip. No flag leaves the cell empty.
+ * Flag column (first column of booking tables and lists): a coloured flag glyph that opens the
+ * flag popover and saves at once. Transfers carry no flag and show it read-only. The colour name
+ * is the text for screen readers and the tooltip.
  */
-export function FlagCell({ flag }: { flag: BookingFlag | null }) {
-  if (!flag) return null;
-  return (
-    <span className="kflag" title={`Markierung ${FLAG_LABEL[flag]}`}>
-      <FlagGlyph flag={flag} size={16} />
-    </span>
-  );
+export function FlagCell({
+  booking,
+  label,
+  onChange,
+}: {
+  booking: ListedBooking;
+  label: string;
+  onChange: (flag: BookingFlag | '') => void;
+}) {
+  if (booking.transferId) {
+    if (!booking.flag) return null;
+    return (
+      <span className="kflag" title={`Markierung ${FLAG_LABEL[booking.flag]}`}>
+        <FlagGlyph flag={booking.flag} size={16} />
+      </span>
+    );
+  }
+  return <FlagPicker value={booking.flag ?? ''} onChange={onChange} context={label} />;
 }
 
 /** Class of every category (Bedarf, Wunsch, Zukunft) for the swatch in front of its name. */

@@ -8,7 +8,7 @@ import { dayHeading, eur, shortDay } from './format';
 import { flashRows, useFlashing } from './flash';
 import { useLedgerWrites } from './mutations';
 import { lookupsQuery } from './queries';
-import type { BookingSort, ListedBooking } from './types';
+import type { BookingFlag, BookingSort, ListedBooking } from './types';
 
 export interface Selection {
   selected: ReadonlySet<string>;
@@ -51,6 +51,11 @@ export function BookingTable({
       id: b.id,
       patch: { splits: [keepSplit(b.splits[0], categoryId, b.amountCents)] },
     });
+  };
+  // A flag is saved at once, with the usual undo toast.
+  const setFlag = (b: ListedBooking, flag: BookingFlag | null) => {
+    if ((b.flag ?? null) === flag) return;
+    writes.patch.mutate({ id: b.id, patch: { flag } });
   };
   const all = variant === 'all';
   const head = (label: string, key?: BookingSort, numeric = false): ReactNode => (
@@ -143,6 +148,7 @@ export function BookingTable({
                   categories={lookups.data?.categories ?? []}
                   groups={lookups.data?.groups ?? []}
                   onCategory={setCategory}
+                  onFlag={setFlag}
                 />
               ))}
             </Fragment>
@@ -176,6 +182,7 @@ function Row({
   categories,
   groups,
   onCategory,
+  onFlag,
 }: {
   booking: ListedBooking;
   variant: 'account' | 'all';
@@ -185,6 +192,7 @@ function Row({
   categories: { id: string; name: string; groupId: string | null }[];
   groups: { id: string; name: string }[];
   onCategory: (b: ListedBooking, categoryId: string | null) => void;
+  onFlag: (b: ListedBooking, flag: BookingFlag | null) => void;
 }) {
   const flashing = useFlashing(b.id);
   const [editing, setEditing] = useState(false);
@@ -210,7 +218,11 @@ function Row({
         </td>
       )}
       <td className="kc-flag kx-flag">
-        <FlagCell flag={b.flag} />
+        <FlagCell
+          booking={b}
+          label={label}
+          onChange={(flag) => onFlag(b, flag === '' ? null : flag)}
+        />
       </td>
       <td className="kc-date kx-date">{shortDay(b.date)}</td>
       <td className="kx-payee">

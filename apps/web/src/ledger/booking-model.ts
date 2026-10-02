@@ -74,7 +74,7 @@ export const emptyDraft = (accountId: string, date: string): BookingDraft => ({
   contactId: '',
   projectId: '',
   memo: '',
-  status: 'confirmed',
+  status: 'pending',
   flag: '',
   splitOn: false,
   splits: [],

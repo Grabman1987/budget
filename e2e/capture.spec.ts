@@ -454,8 +454,25 @@ test('the flag: popover with six colours and keys, first column of the table', a
     await expect(page.getByRole('columnheader').first()).toHaveText('Markierung');
   }
   const row = page.getByRole('row', { name: new RegExp(`Kiosk ${tag}`) });
-  await expect(row.getByRole('cell').first()).toContainText('Markierung Gelb');
+  const flagButton = row.getByRole('button', { name: /Markierung ändern/ });
+  await expect(flagButton).toHaveAccessibleName(/aktuell Gelb/);
   await expect(row.locator('.kflag-glyph.is-yellow')).toBeVisible();
+
+  // Editable in the table: the same popover, saved at once, with undo, by keyboard.
+  await flagButton.focus();
+  await page.keyboard.press('Enter');
+  await expect(page.getByRole('menu', { name: 'Markierung wählen' })).toBeVisible();
+  await page.keyboard.press('5');
+  await expect(flagButton).toHaveAccessibleName(/aktuell Blau/);
+  await expect(toast(page)).toContainText('Buchung geändert');
+  await toast(page).getByRole('button', { name: 'Rückgängig' }).click();
+  await expect(flagButton).toHaveAccessibleName(/aktuell Gelb/);
+  // Esc closes the popover only.
+  await flagButton.click();
+  await expect(page.getByRole('menu', { name: 'Markierung wählen' })).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(page.getByRole('menu', { name: 'Markierung wählen' })).toBeHidden();
+  await expect(flagButton).toBeFocused();
 
   // Opened again: the flag is kept; "keine" (key 0) removes it.
   await row.getByRole('button', { name: /bearbeiten/ }).click();
@@ -465,10 +482,11 @@ test('the flag: popover with six colours and keys, first column of the table', a
   await expect(edit.getByRole('button', { name: 'Markierung: keine' })).toBeVisible();
   await edit.getByRole('button', { name: 'Speichern', exact: true }).click();
   await expect(edit).toBeHidden();
-  await expect(row.locator('.kflag-glyph')).toHaveCount(0);
+  await expect(row.locator('.kflag-glyph.is-none')).toHaveCount(1);
+  await expect(row.locator('.kflag-glyph:not(.is-none)')).toHaveCount(0);
 });
 
-test('the cleared toggle: bestätigt on by default, off makes the booking vorgemerkt', async ({
+test('the cleared toggle: a new booking starts vorgemerkt, pressing it makes it bestätigt', async ({
   page,
 }, testInfo) => {
   const tag = testInfo.project.name;
@@ -478,26 +496,37 @@ test('the cleared toggle: bestätigt on by default, off makes the booking vorgem
 
   const panel = await openCapture(page, testInfo);
   const toggle = panel.getByRole('button', { name: 'Bestätigt', exact: true });
-  await expect(toggle).toHaveAttribute('aria-pressed', 'true');
+  // Neutral until pressed, the same size as the close button next to it.
+  await expect(toggle).toHaveAttribute('aria-pressed', 'false');
+  const close = panel.getByRole('button', { name: 'Schließen' });
+  const [t, c] = [await toggle.boundingBox(), await close.boundingBox()];
+  expect(Math.abs(t!.width - c!.width)).toBeLessThan(0.5);
+  expect(Math.abs(t!.height - c!.height)).toBeLessThan(0.5);
   // The status select is gone from "Mehr".
   await expect(panel.getByLabel('Status', { exact: true })).toHaveCount(0);
-  await toggle.click();
-  await expect(toggle).toHaveAttribute('aria-pressed', 'false');
   await panel.getByLabel('Betrag', { exact: true }).fill('4');
   await panel.getByLabel('Empfänger').fill(`Vormerk ${tag}`);
   await pickCategory(panel, `Cap B ${tag}`);
   await page.keyboard.press('Control+Enter');
-
   const row = page.getByRole('row', { name: new RegExp(`Vormerk ${tag}`) });
   await expect(row).toContainText('vorgemerkt');
+
+  // Opened again it shows the stored status; pressing the toggle confirms the booking.
   await row.getByRole('button', { name: /bearbeiten/ }).click();
   const edit = page.getByRole('dialog', { name: 'Buchung bearbeiten' });
   const editToggle = edit.getByRole('button', { name: 'Bestätigt', exact: true });
   await expect(editToggle).toHaveAttribute('aria-pressed', 'false');
   await editToggle.click();
+  await expect(editToggle).toHaveAttribute('aria-pressed', 'true');
   await edit.getByRole('button', { name: 'Speichern', exact: true }).click();
   await expect(edit).toBeHidden();
   await expect(row).toContainText('bestätigt');
+  await row.getByRole('button', { name: /bearbeiten/ }).click();
+  await expect(
+    page
+      .getByRole('dialog', { name: 'Buchung bearbeiten' })
+      .getByRole('button', { name: 'Bestätigt', exact: true }),
+  ).toHaveAttribute('aria-pressed', 'true');
 });
 
 test('Auslage für Kontakt: a new contact is created in place and selected at once', async ({

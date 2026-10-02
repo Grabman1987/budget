@@ -440,7 +440,7 @@ export function CaptureForm({
             aria-label="Status: geprüft, gesperrt"
             title="Geprüft: gesperrt. Mit „Trotzdem ändern“ freigeben."
           >
-            <Lock size={16} strokeWidth={1.75} aria-hidden="true" />
+            <Lock size={18} strokeWidth={1.75} aria-hidden="true" />
           </button>
         ) : (
           <button
@@ -455,7 +455,7 @@ export function CaptureForm({
             }
             onClick={() => set('status', confirmed ? 'pending' : 'confirmed')}
           >
-            <Check size={16} strokeWidth={2.25} aria-hidden="true" />
+            <Check size={18} strokeWidth={1.75} aria-hidden="true" />
           </button>
         )}
         <button
