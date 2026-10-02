@@ -11,6 +11,7 @@ import { filterFromSearch, hasFilter, type BookingsSearch } from './bookings-sea
 import { eur, pluralBookings } from './format';
 import { FLAG_LABEL, STATUS_LABEL } from './labels';
 import { useLedgerWrites } from './mutations';
+import { AccountOptions } from './account-options';
 import { accountsQuery, bookingsInfiniteQuery, lookupsQuery } from './queries';
 import { EmptyNote, ErrorNote, LoadingNote } from './states';
 import {
@@ -18,6 +19,7 @@ import {
   BOOKING_STATUSES,
   type BookingFlag,
   type BookingSort,
+  type AccountRow,
   type Lookups,
 } from './types';
 
@@ -270,9 +272,10 @@ function FilterRow({
   onSortValue: (value: string) => void;
   search: BookingsSearch;
   setSearch: (patch: Partial<BookingsSearch>) => void;
-  accounts: { id: string; name: string }[];
+  accounts: ReadonlyArray<AccountRow>;
   lookups: Lookups | undefined;
 }) {
+  const [showClosed, setShowClosed] = useState(false);
   // The search box writes to the URL after a short pause so that every key stroke is not a request.
   const [q, setQ] = useState(search.q ?? '');
   const [seenQ, setSeenQ] = useState(search.q);
@@ -332,14 +335,20 @@ function FilterRow({
               onChange={(e) => setSearch({ konto: e.target.value })}
             >
               <option value="">Alle Konten</option>
-              {accounts.map((a) => (
-                <option key={a.id} value={a.id}>
-                  {a.name}
-                </option>
-              ))}
+              <AccountOptions accounts={accounts} withClosed={showClosed} keepId={search.konto} />
             </Select>
           )}
         </Field>
+        {accounts.some((a) => a.closedAt) && (
+          <label className="kf-closed">
+            <input
+              type="checkbox"
+              checked={showClosed}
+              onChange={(e) => setShowClosed(e.target.checked)}
+            />
+            Geschlossene Konten zeigen
+          </label>
+        )}
       </div>
       <div className="kf">
         <Field label="Kategorie">

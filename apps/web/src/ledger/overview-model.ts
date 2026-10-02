@@ -1,4 +1,5 @@
-import { ACCOUNT_GROUPS, accountValueEur, type AccountGroup } from './labels';
+import { bySortOrder, groupAccounts } from './account-groups';
+import { accountValueEur, type AccountGroup } from './labels';
 import type { AccountRow, SeriesPoint } from './types';
 
 export interface GroupView {
@@ -13,18 +14,18 @@ const sumEur = (accounts: ReadonlyArray<AccountRow>): number | null =>
     ? null
     : accounts.reduce((sum, a) => sum + (accountValueEur(a) ?? 0), 0);
 
-/** Open accounts by group; net worth also includes closed accounts with residual balances. */
+/**
+ * Open accounts by group (YNAB order, the owner's sort order inside); net worth also includes
+ * closed accounts with residual balances.
+ */
 export function overviewModel(accounts: ReadonlyArray<AccountRow>) {
   const open = accounts.filter((a) => !a.closedAt);
-  const closed = accounts.filter((a) => a.closedAt);
-  const groups: GroupView[] = ACCOUNT_GROUPS.map((group) => {
-    const members = open.filter((a) => a.role === group.role);
-    return {
-      group,
-      accounts: members,
-      sumCents: sumEur(members),
-    };
-  }).filter((g) => g.accounts.length > 0);
+  const closed = accounts.filter((a) => a.closedAt).sort(bySortOrder);
+  const groups: GroupView[] = groupAccounts(open).map(({ group, accounts: members }) => ({
+    group,
+    accounts: members,
+    sumCents: sumEur(members),
+  }));
   return {
     groups,
     closed,

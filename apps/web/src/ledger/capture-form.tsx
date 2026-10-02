@@ -51,6 +51,7 @@ import {
 } from './capture-model';
 import { Combobox, type ComboOption } from './combobox';
 import { SplitEditor } from './split-editor';
+import { AccountOptions } from './account-options';
 import { eur, monthName } from './format';
 import { errorText, FLAG_LABEL } from './labels';
 import { useLedgerWrites } from './mutations';
@@ -396,11 +397,6 @@ export function CaptureForm({
     setTyping(null);
   };
 
-  const accountOptions = open.map((a) => (
-    <option key={a.id} value={a.id}>
-      {a.name}
-    </option>
-  ));
   const showCategory = (!isTransfer || needsCategory) && !draft.contactId;
 
   return (
@@ -600,7 +596,7 @@ export function CaptureForm({
               aria-describedby={describedBy}
               onChange={(e) => set('accountId', e.target.value)}
             >
-              {accountOptions}
+              <AccountOptions accounts={open} />
             </Select>
           )}
         </Field>
@@ -616,24 +612,7 @@ export function CaptureForm({
                 onChange={(e) => set('toAccountId', e.target.value)}
               >
                 <option value="">Konto wählen</option>
-                <optgroup label="Budget-Konten">
-                  {open
-                    .filter((a) => a.id !== accountId && a.onBudget)
-                    .map((a) => (
-                      <option key={a.id} value={a.id}>
-                        {a.name}
-                      </option>
-                    ))}
-                </optgroup>
-                <optgroup label="Tracking-Konten">
-                  {open
-                    .filter((a) => a.id !== accountId && !a.onBudget)
-                    .map((a) => (
-                      <option key={a.id} value={a.id}>
-                        {a.name}
-                      </option>
-                    ))}
-                </optgroup>
+                <AccountOptions accounts={open} exclude={accountId} />
               </Select>
             )}
           </Field>

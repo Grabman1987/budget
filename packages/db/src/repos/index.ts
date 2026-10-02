@@ -36,4 +36,5 @@ export * from './portfolio-allocation';
 export * from './payments-preview';
 export * from './payee-report';
 export * from './freedom';
+export * from './profile';
 export * from './report-tables';

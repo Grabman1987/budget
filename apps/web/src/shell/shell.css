@@ -144,6 +144,15 @@
   padding: 12px 8px 4px;
   border-top: 1px solid var(--rule);
   margin-top: 6px;
+  color: inherit;
+  text-decoration: none;
+}
+a.profile:hover .avatar {
+  background: var(--tint);
+  color: var(--ink);
+}
+a.profile:hover .profile-text strong {
+  text-decoration: underline;
 }
 .avatar {
   width: 34px;

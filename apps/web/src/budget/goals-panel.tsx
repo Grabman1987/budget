@@ -11,6 +11,7 @@ import {
   type DimensionChainTerm,
 } from '@budget/ui';
 import { useState } from 'react';
+import { AccountOptions } from '../ledger/account-options';
 import { eur, longDay } from '../ledger/format';
 import type { AccountRow } from '../ledger/types';
 import { AppLink } from '../shell/app-link';
@@ -210,11 +211,7 @@ function GoalBody({
               onChange={(e) => setAccountId(e.target.value)}
             >
               <option value="">Bitte wählen</option>
-              {open.map((a) => (
-                <option key={a.id} value={a.id}>
-                  {a.name}
-                </option>
-              ))}
+              <AccountOptions accounts={open} />
             </Select>
           )}
         </Field>

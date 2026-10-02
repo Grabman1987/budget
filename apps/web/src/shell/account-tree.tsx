@@ -13,9 +13,9 @@ const short = (value: number | null) =>
   value === null ? '–' : eur(Math.round(value / 100) * 100).replace(/,00(?=\s?€)/, '');
 
 /**
- * Account hierarchy under the Planliste: the overview's groups (Budget-Konten, Sparen,
- * Investment, Schulden, Forderungen) with their sums, each account linking to its sheet.
- * Groups fold away; the choice is remembered per group.
+ * Account hierarchy under the Planliste: the overview's groups in YNAB's order (Budget-Konten,
+ * Kreditkarten, Kredite, Investments) with their sums, each open account linking to its sheet.
+ * Negative amounts are red pills. Groups fold away; the choice is remembered per group.
  */
 export function AccountTree() {
   const accounts = useQuery(accountsQuery());
@@ -30,8 +30,8 @@ export function AccountTree() {
       </div>
       {groups.map((g) => (
         <AccountGroupBlock
-          key={g.group.role}
-          role={g.group.role}
+          key={g.group.id}
+          groupId={g.group.id}
           title={g.group.title}
           sumCents={g.sumCents}
           current={params.id}
@@ -43,20 +43,20 @@ export function AccountTree() {
 }
 
 function AccountGroupBlock({
-  role,
+  groupId,
   title,
   sumCents,
   accounts,
   current,
 }: {
-  role: string;
+  groupId: string;
   title: string;
   sumCents: number | null;
   accounts: { id: string; name: string; value: number | null }[];
   current: string | undefined;
 }) {
-  const [folded, setFolded] = useStoredFlag(`budget-acct-tree-${role}`);
-  const listId = `acct-tree-${role}`;
+  const [folded, setFolded] = useStoredFlag(`budget-acct-tree-${groupId}`);
+  const listId = `acct-tree-${groupId}`;
   return (
     <section className={cx('acct-group', folded && 'is-folded')}>
       <button
