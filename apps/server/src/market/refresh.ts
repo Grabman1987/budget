@@ -1,6 +1,5 @@
 import {
   cpiFetchedAt,
-  firstTradeDate,
   foreignCurrencies,
   lastFxDay,
   lastQuotedDay,
