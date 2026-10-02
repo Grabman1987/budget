@@ -1,3 +1,4 @@
+import { addMonths } from '@budget/domain';
 import AxeBuilder from '@axe-core/playwright';
 import { test as mainTest, type APIRequestContext, type Page } from '@playwright/test';
 import { MAIN_URL } from '../playwright.config';
@@ -19,6 +20,41 @@ const withSpan = (n: number) => (page: Page) =>
 const SLOW = { timeout: 20_000 };
 
 test.describe('Heute month switch', () => {
+  test('payday is disabled outside this month and falls back after navigation and reload', async ({
+    page,
+  }, info) => {
+    await page.goto('/?monat=2026-09&period=payday');
+    const payday = page.getByRole('button', { name: 'Bis Gehalt', exact: true });
+    const month = page.getByRole('button', { name: 'Monat', exact: true });
+    await expect(payday).toBeEnabled();
+    await expect(payday).toHaveAttribute('aria-pressed', 'true');
+    await page.getByRole('button', { name: 'Vormonat' }).click();
+    await expect(payday).toBeDisabled();
+    await expect(payday).toHaveAttribute(
+      'title',
+      'Bis Gehalt ist nur im aktuellen Monat verfügbar.',
+    );
+    await expect(month).toHaveAttribute('aria-pressed', 'true');
+    await expect(page).toHaveURL(/period=month/);
+    await page.reload();
+    await expect(payday).toBeDisabled();
+    await expect(month).toHaveAttribute('aria-pressed', 'true');
+    for (const colorScheme of ['light', 'dark'] as const) {
+      await page.emulateMedia({ colorScheme });
+      await page.screenshot({
+        path: info.outputPath(`payday-disabled-${colorScheme}.png`),
+        fullPage: true,
+      });
+    }
+    await page.getByRole('button', { name: 'Nächster Monat' }).click();
+    await expect(payday).toBeEnabled();
+    await expect(month).toHaveAttribute('aria-pressed', 'true');
+    await page.goto('/?monat=2026-10&period=payday');
+    await expect(payday).toBeDisabled();
+    await expect(month).toHaveAttribute('aria-pressed', 'true');
+    await expect(page).toHaveURL(/period=month/);
+  });
+
   test('arrows, keys and the way back to the current month share ?monat=', async ({ page }) => {
     test.slow();
     await page.goto('/');
@@ -185,5 +221,89 @@ mainTest(
     await expect(first).toContainText('0,00 €');
     await toast.getByRole('button', { name: 'Rückgängig' }).click();
     await expect(second).toContainText('0,00 €');
+  },
+);
+
+mainTest(
+  'Decken writes and undoes the selected past, current and future month',
+  async ({ page }, info) => {
+    mainTest.setTimeout(120_000);
+    const current = viennaToday.slice(0, 7);
+    const headers = { origin: MAIN_URL };
+    const tag = `${info.project.name}-${Date.now()}`;
+    const account = (
+      await post(page.request, '/accounts', {
+        name: `Cover months ${tag}`,
+        type: 'checking',
+        openingDate: `${addMonths(current, -1)}-01`,
+        openingBalanceCents: 100_000,
+      })
+    )['account']!;
+    const group = (await post(page.request, '/categories/groups', { name: `Cover months ${tag}` }))[
+      'group'
+    ]!;
+    for (const delta of [-1, 0, 1]) {
+      const selected = addMonths(current, delta);
+      const targetName = `Ausgabe ${delta} ${tag}`;
+      const target = (
+        await post(page.request, '/categories', {
+          name: targetName,
+          groupId: group.id,
+          class: 'need',
+          stage: 2,
+        })
+      )['category']!;
+      const source = (
+        await post(page.request, '/categories', {
+          name: `Reserve ${delta} ${tag}`,
+          groupId: group.id,
+          class: 'want',
+          stage: 2,
+        })
+      )['category']!;
+      await post(page.request, '/bookings', {
+        type: 'booking',
+        accountId: account.id,
+        date: `${selected}-01`,
+        amountCents: -5_000,
+        categoryId: target.id,
+      });
+      const assigned = await page.request.put(`/api/budget/${selected}/assigned`, {
+        headers,
+        data: { items: [{ categoryId: source.id, assignedCents: 10_000 }] },
+      });
+      expect(assigned.ok()).toBe(true);
+      await page.goto(`/plan/monat?monat=${selected}`);
+      const targetRow = page.locator('tr.prow', { hasText: targetName });
+      await expect(targetRow.locator('.col-avail')).toHaveText('−50,00 €');
+      await page.getByLabel(`Aus Envelope für ${targetName}`).selectOption(source.id);
+      const covered = page.waitForResponse(
+        (r) => r.request().method() === 'POST' && r.url().endsWith(`/api/budget/${selected}/cover`),
+      );
+      await page
+        .locator('.triage tr', { hasText: targetName })
+        .getByRole('button', { name: 'Decken', exact: true })
+        .click();
+      expect((await covered).ok()).toBe(true);
+      await expect(targetRow.locator('.col-avail')).toHaveText('0,00 €');
+      await page.locator('.toast.is-open').getByRole('button', { name: 'Rückgängig' }).click();
+      await expect(targetRow.locator('.col-avail')).toHaveText('−50,00 €');
+      if (delta === 1 && info.project.name === 'desktop') {
+        await withSpan(2)(page);
+        await page.goto(`/plan/monat?monat=${current}`);
+        await page.getByRole('button', { name: `${targetName}: Decken im`, exact: false }).click();
+        const panel = page.getByRole('dialog');
+        await expect(
+          panel.getByRole('button', { name: 'Decken · 50,00 €', exact: true }),
+        ).toBeVisible();
+        const posted = page.waitForResponse(
+          (r) =>
+            r.request().method() === 'POST' && r.url().endsWith(`/api/budget/${selected}/cover`),
+        );
+        await panel.getByRole('button', { name: 'Decken · 50,00 €', exact: true }).click();
+        expect((await posted).ok()).toBe(true);
+        await page.locator('.toast.is-open').getByRole('button', { name: 'Rückgängig' }).click();
+      }
+    }
   },
 );

@@ -82,7 +82,15 @@ export const PERMISSIONS_POLICY = {
 export function createApp({ webDir, database, auth, ledger, buildRevision }: AppOptions): Hono {
   if (ledger && !auth)
     throw new Error('The ledger API needs auth: mount it only behind the session guard');
+  if (database && !auth)
+    throw new Error('The debug API needs auth: mount it only behind the session guard');
   const app = new Hono();
+  // Auth/static failures are outside the ledger's error handler. Never send or log their
+  // exception text: drivers and upstream libraries can include private values in it.
+  app.onError((_error, c) => {
+    console.error('Unhandled server error');
+    return c.json({ error: 'server_error', message: 'Something went wrong' }, 500);
+  });
   const root = resolve(webDir);
   // serveStatic resolves `root` against the current working directory.
   const staticRoot = relative(process.cwd(), root) || '.';
@@ -99,6 +107,13 @@ export function createApp({ webDir, database, auth, ledger, buildRevision }: App
       permissionsPolicy: PERMISSIONS_POLICY,
     }),
   );
+
+  // Private ledger data and rejected requests must never enter a browser/shared HTTP cache.
+  // Keep this before body limits and authentication so early responses inherit the policy.
+  app.use('/api/*', async (c, next) => {
+    c.header('Cache-Control', 'no-store');
+    return next();
+  });
 
   // Before anything reads or logs a request: bodies over 64 KB are refused unread (B3). The YNAB
   // upload takes up to 20 MB, the other import calls (mapping documents) up to 2 MB.

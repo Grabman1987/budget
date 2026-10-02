@@ -82,7 +82,10 @@ export default defineConfig({
     // Visual comparison of /dev/bauteile; fonts are self-hosted so rendering is stable.
     toHaveScreenshot: { maxDiffPixelRatio: 0.01, animations: 'disabled' },
   },
-  use: { baseURL: MAIN_URL, trace: 'retain-on-failure' },
+  // The PWA service worker would answer navigations itself, which hides them from `page.route`
+  // (e.g. the prototype comparison in debts.spec.ts) and caches state across tests. Only
+  // e2e/pwa.spec.ts opts in.
+  use: { baseURL: MAIN_URL, trace: 'retain-on-failure', serviceWorkers: 'block' },
   projects: [
     // Registers the first passkey on the main server through the API (software authenticator)
     // and stores the session cookie for all other projects.

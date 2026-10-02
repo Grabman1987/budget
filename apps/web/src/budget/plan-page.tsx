@@ -164,7 +164,7 @@ function PlanBody({
   const [distribute, setDistribute] = useState(false);
   const [collapsed, setCollapsed] = useState<ReadonlySet<string>>(new Set());
   const [editing, setEditing] = useState<string | null>(null);
-  const [open, setOpen] = useState<string | null>(null);
+  const [open, setOpen] = useState<{ id: string; month: string } | null>(null);
   const [sources, setSources] = useState<Record<string, string>>({});
   /** Triage row whose "Decken" from "Zu verteilen" waits for the choice (not enough money). */
   const [choosing, setChoosing] = useState<string | null>(null);
@@ -179,6 +179,8 @@ function PlanBody({
   };
   const rows = planRows(data);
   const byId = new Map(rows.map((r) => [r.id, r]));
+  const panelView = views?.find((v) => v.summary.month === open?.month) ?? data;
+  const panelRows = panelView === data ? rows : planRows(panelView);
   // Several months show the "Gruppen" layout; starting to distribute goes back to one month.
   const multi = months.length > 1 && !distribute;
   const shownView: PlanView = multi ? 'group' : view;
@@ -468,7 +470,7 @@ function PlanBody({
                 groups={planMulti(views)}
                 collapsed={collapsed}
                 onToggle={toggleGroup}
-                onOpen={setOpen}
+                onOpen={(id, selectedMonth) => setOpen({ id, month: selectedMonth })}
               />
             ) : (
               <LoadingNote what="Folgemonate" />
@@ -584,7 +586,7 @@ function PlanBody({
                                 setAssigned(r, v);
                               }}
                               onTake={() => take([r.id])}
-                              onOpen={() => setOpen(r.id)}
+                              onOpen={() => setOpen({ id: r.id, month })}
                             />
                           ))),
                     ];
@@ -626,10 +628,10 @@ function PlanBody({
         </section>
       </aside>
       <EnvelopePanel
-        month={month}
-        row={open ? byId.get(open) : undefined}
-        rows={rows}
-        toBeAssignedCents={tba}
+        month={open?.month ?? month}
+        row={open ? panelRows.find((r) => r.id === open.id) : undefined}
+        rows={panelRows}
+        toBeAssignedCents={panelView.summary.toBeAssignedCents}
         onClose={() => setOpen(null)}
       />
     </div>
