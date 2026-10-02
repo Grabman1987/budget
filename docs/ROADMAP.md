@@ -298,7 +298,9 @@ Price history (yfinance + Ariva, source per price), ECB rates, trades and holdin
 - [x] Manual quote capture with date/source/currency, exact micro precision, existing audited price API and undo; literal projection/mutation tests and desktop/mobile light/dark browser evidence
 - [x] Basic instrument creation/editing (name, kind, currency, ISIN, symbol, existing asset class), empty-portfolio entry and instruments without holdings; existing audited API/undo, dirty/pending-save guards, validation and reload/error states. Source/cost settings and broker ownership are preserved.
 - [x] Instrument metadata and manual quote forms protect dirty edits during browser Back and route changes; pending writes reject navigation, successful creation opens the saved instrument, and explicit close/discard prompts only once. Native unload protection remains browser-controlled.
-- [ ] Trade capture/edit/delete, extended instrument/source management and deletion, allocation/rebalancing, savings-plan controls and performance/report bodies remain later slices; Gate 3 private reconciliation remains open
+- [x] Manual buy/sell creation and editing plus source trade history, including instruments without current holdings; exact units, account-currency gross/fees/withheld tax, atomic settlement and group undo/redo. Shared basis/valuation and per-broker ownership remain authoritative; no new oversell policy.
+- [ ] Trade deletion and capture of other trade kinds, extended instrument/source management and deletion, allocation/rebalancing, savings-plan controls and performance/report bodies remain later slices; Gate 3 private reconciliation remains open
+
 
 ## P6 Reports und Umstellung
 The 30 reports (SPEC §7), explorer, printable sheets, parallel run with reconciliation report. **Gate 4:** one month-end without difference, then retire remaining finance tools, including YNAB and PP. The prototype-only host was retired independently of this gate.

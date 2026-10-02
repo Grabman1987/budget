@@ -10,6 +10,7 @@ import { AppLink } from '../shell/app-link';
 import { instrumentQuery, type PortfolioPosition } from './portfolio-api';
 import { basisReason, moneyText, quoteStand, quoteText, unitsText } from './portfolio-format';
 import { InstrumentForm, INSTRUMENT_KIND } from './instrument-form';
+import { TradeHistory } from './trade-history';
 
 export function InstrumentPanel({
   id,
@@ -19,6 +20,7 @@ export function InstrumentPanel({
   onSelect,
   positionState,
   onRetryPositions,
+  onTrade,
 }: {
   id: string;
   position?: PortfolioPosition | undefined;
@@ -27,6 +29,7 @@ export function InstrumentPanel({
   onSelect: (id?: string) => void;
   positionState: 'loading' | 'unavailable' | 'ready';
   onRetryPositions: () => void;
+  onTrade: (id: string) => void;
 }) {
   const creating = id === 'neu';
   const instrument = useQuery(instrumentQuery(creating ? '' : id));
@@ -34,7 +37,9 @@ export function InstrumentPanel({
   const [saving, setSaving] = useState(false);
   const [dirty, setDirty] = useState(false);
   const [asking, setAsking] = useState(false);
-  const [discardTarget, setDiscardTarget] = useState<'close' | 'edit' | 'navigation'>('close');
+  const [discardTarget, setDiscardTarget] = useState<'close' | 'edit' | 'trade' | 'navigation'>(
+    'close',
+  );
   const dirtyRef = useRef(false);
   const savingRef = useRef(false);
   const blockedDuringSaveRef = useRef(false);
@@ -68,6 +73,17 @@ export function InstrumentPanel({
     setDiscardTarget('navigation');
     setAsking(true);
   }, [blockerStatus, resetBlockedNavigation, saving]);
+  const [tradeTarget, setTradeTarget] = useState('neu');
+  const openTrade = (target: string) => {
+    if (savingRef.current || blocker.status === 'blocked') return;
+    if (!dirtyRef.current) onTrade(target);
+    else {
+      setTradeTarget(target);
+      setDiscardTarget('trade');
+      setAsking(true);
+    }
+  };
+
   const close = () => {
     setDirtyNow(false);
     setAsking(false);
@@ -149,6 +165,9 @@ export function InstrumentPanel({
             >
               Stammdaten bearbeiten
             </Button>
+            <Button disabled={saving} onClick={() => openTrade('neu')}>
+              Handel erfassen
+            </Button>
             {!position && positionState === 'loading' && <LoadingNote what="Bestände" />}
             {!position && positionState === 'unavailable' && (
               <ErrorNote what="Bestände" error={undefined} onRetry={onRetryPositions} />
@@ -209,6 +228,7 @@ export function InstrumentPanel({
                 </p>
               </>
             )}
+            <TradeHistory securityId={id} onEdit={openTrade} disabled={saving} />
             {asOf && position && (
               <ManualQuote
                 key={id}
@@ -246,6 +266,10 @@ export function InstrumentPanel({
                 setDirtyNow(false);
                 setAsking(false);
                 setEditing(true);
+              } else if (discardTarget === 'trade') {
+                setDirtyNow(false);
+                setAsking(false);
+                onTrade(tradeTarget);
               } else if (discardTarget === 'navigation' && blocker.status === 'blocked') {
                 setDirtyNow(false);
                 setAsking(false);
