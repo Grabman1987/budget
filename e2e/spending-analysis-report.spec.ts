@@ -28,7 +28,8 @@ test('shows the prototype consumption of the last 12 months with a chain, class 
     (a, b) => a + b,
     0,
   );
-  const yearCents = Math.round(year * 100);
+  // Car-insurance refunds of the window (6.495 + 10.183 cents) are netted against their category.
+  const yearCents = Math.round(year * 100) - (6_495 + 10_183);
   const shown = Number.parseInt(
     (await page.getByTestId('sa-consumption').textContent())!.replace(/\D/g, ''),
     10,
