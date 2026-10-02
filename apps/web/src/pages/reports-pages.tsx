@@ -21,6 +21,7 @@ import { PortfolioContributionsReport } from './portfolio-contributions-report';
 import { SpendingAnalysisReport } from '../reports/spending-analysis-report';
 import { BudgetAdherenceReportPage } from '../reports/budget-adherence-report';
 import { ContractsReportPage } from '../reports/contracts-report';
+import { BankCostsReportPage } from '../reports/bank-costs-report';
 
 const CONTROL_LABEL = { month: 'Monat', year: 'Jahr', period: 'Zeitraum' } as const;
 
@@ -170,6 +171,7 @@ export function ReportPage({ reportId }: { reportId: string }) {
   if (report.id === 'ausgaben') return <SpendingAnalysisReport report={report} meta={meta} />;
   if (report.id === 'budgettreue') return <BudgetAdherenceReportPage report={report} meta={meta} />;
   if (report.id === 'abos') return <ContractsReportPage report={report} meta={meta} />;
+  if (report.id === 'kosten') return <BankCostsReportPage report={report} meta={meta} />;
   if (report.id === 'sparziele') return <GoalsProgressReport report={report} meta={meta} />;
   if (report.id === 'vorschau') return <PaymentsPreviewReport report={report} meta={meta} />;
   if (report.id === 'prendite') return <PortfolioPerformanceReport report={report} meta={meta} />;

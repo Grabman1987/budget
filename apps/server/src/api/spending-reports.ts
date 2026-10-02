@@ -1,4 +1,11 @@
-import { budgetAdherence, contractsReport, spendingReport, type Db } from '@budget/db';
+import {
+  bankCostsReport,
+  budgetAdherence,
+  contractsReport,
+  fundCostsReport,
+  spendingReport,
+  type Db,
+} from '@budget/db';
 import { monthOf, SPENDING_PERIODS } from '@budget/domain';
 import { Hono } from 'hono';
 import { z } from 'zod';
@@ -54,6 +61,11 @@ export function spendingReportRoutes(db: Db, today: () => string): Hono {
 
   // 2.3 Verträge und Abos
   app.get('/contracts', (c) => c.json(guarded(() => contractsReport(db, today()))));
+
+  // 2.6 Bank- und Zinskosten
+  app.get('/costs', (c) => c.json(guarded(() => bankCostsReport(db, today()))));
+
+  app.get('/costs/fund', (c) => c.json(guarded(() => fundCostsReport(db, today()))));
 
   return app;
 }

@@ -564,3 +564,115 @@ a.sr-name:hover {
   font-size: 11.5px;
   font-weight: 500;
 }
+
+/* Bank- und Zinskosten: cost parts as solid ink tints, always paired with names and numbers. */
+.kc-1 {
+  background: var(--line);
+}
+.kc-2 {
+  background: var(--line-2);
+}
+.kc-3 {
+  background: color-mix(in srgb, var(--line) 45%, var(--surface));
+}
+.kc-4 {
+  background: var(--ink-3);
+}
+.sr-years {
+  display: grid;
+  gap: 4px;
+  margin: 14px 0 0;
+  padding: 0;
+  list-style: none;
+}
+.sr-years li {
+  display: grid;
+  grid-template-columns: 84px minmax(0, 1fr) minmax(96px, auto);
+  align-items: center;
+  gap: 12px;
+  min-height: 44px;
+  font-size: 13.5px;
+}
+.sr-year-label {
+  display: grid;
+  font-family: var(--font-tech);
+  font-size: 12px;
+}
+.sr-year-label small {
+  color: var(--ink-3);
+  font-size: 11px;
+}
+.sr-stack {
+  display: flex;
+  height: 18px;
+  gap: 1px;
+  background: var(--tint);
+  border-radius: 1px;
+  overflow: hidden;
+}
+.sr-stack i {
+  display: block;
+  height: 100%;
+}
+.sr-facts {
+  display: grid;
+  gap: 0;
+  margin: 12px 0 0;
+}
+.sr-facts > div {
+  display: grid;
+  gap: 2px;
+  padding: 9px 0;
+  border-top: 1px solid var(--rule);
+}
+.sr-facts > div:first-child {
+  border-top: 0;
+}
+.sr-facts dt {
+  color: var(--ink-2);
+  font-family: var(--font-tech);
+  font-size: 11.5px;
+}
+.sr-facts dd {
+  margin: 0;
+  font-weight: 620;
+  font-variant-numeric: tabular-nums;
+}
+.sr-facts dd small {
+  display: block;
+  color: var(--ink-2);
+  font-size: 12px;
+  font-weight: 450;
+}
+.sr-use {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-variant-numeric: tabular-nums;
+}
+.sr-use-bar {
+  position: relative;
+  display: inline-block;
+  width: 64px;
+  height: 8px;
+  background: var(--tint);
+  border-radius: 1px;
+}
+.sr-use-bar i {
+  position: absolute;
+  inset: 0 auto 0 0;
+  background: var(--line);
+  border-radius: 1px;
+}
+a.sr-state {
+  color: var(--ink-2);
+}
+@media (max-width: 767px) {
+  .sr-years li {
+    grid-template-columns: 70px minmax(0, 1fr);
+  }
+  .sr-years li .sr-val {
+    grid-column: 2;
+    justify-items: start;
+  }
+}

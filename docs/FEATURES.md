@@ -132,7 +132,7 @@ consistent totals, desktop/mobile checks and printing where required.
 | 2.3 | Verträge und Abos | `reports-ausgaben.js` | Connected from expected outflow payments (same fixed/periodic selection and income base as R10, parity tested): bound amount per month with chain, monthly contract cost chart with price-change markers, grouped parts list with price history, price-increase hints, foreign currency with original amount, EUR today, EUR paid and average rate. Binding and notice periods are not in the ledger yet and are not shown or invented |
 | 2.4 | Persönliche Inflation | `reports-ausgaben.js` | Body Open |
 | 2.5 | Empfänger-Analyse | `reports-ausgaben.js` | Body Open |
-| 2.6 | Bank- und Zinskosten | `reports-ausgaben.js` | Body Open |
+| 2.6 | Bank- und Zinskosten | `reports-ausgaben.js` | Connected from booked costs only: loan interest (non-transfer charges on loan accounts), bank fees (category group "Bank und Gebühren"), broker fees, bank foreign-currency fees; 12 months against the 12 before, calendar-year bars, interest and dividends apart as earnings (not household income), credit lines from the account terms, loan projection with and without the planned extra repayment (single loan), fund costs (TER) as a separate estimate from the portfolio summary, never in the sums |
 | 3.1 | Liquiditätsprognose | `reports-zukunft.js` | Body + events/levers Open; forecast engine exists |
 | 3.2 | Cashflow-Verlauf | `reports-zukunft.js` | Body Open |
 | 3.3 | Vermögensverläufe | `reports-zukunft.js` | Report body Open; net-worth page exists |

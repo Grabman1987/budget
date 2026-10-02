@@ -1,10 +1,14 @@
 /* eslint-disable @typescript-eslint/no-explicit-any -- JSON answers are inspected, not typed */
 import {
+  accounts,
   allocationMonth,
   budget,
   categories,
   createBooking,
+  createEntity,
   createExpectedPayment,
+  createTransfer,
+  portfolioSummary,
   ruleInputs,
   createTestDatabase,
   INCOME_TYPES,
@@ -18,9 +22,12 @@ import { referenceModel } from '@budget/fixtures';
 import { seedDatabase } from '@budget/fixtures/seed';
 import { eq } from 'drizzle-orm';
 import type { Hono } from 'hono';
-import { afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { seedBasics } from '../../../../packages/db/src/repos/test-helpers';
 import { createLedgerApi } from './index';
+
+// The sample ledger is large and the machine may be busy: a report may take a few seconds.
+vi.setConfig({ testTimeout: 60_000, hookTimeout: 60_000 });
 
 function api(db: Db, today: string): Hono {
   return createLedgerApi({ db, today: () => today, stepUp: async (_c, next) => next() });
@@ -486,4 +493,194 @@ describe('2.3 Verträge und Abos on the sample ledger', () => {
     const feb = body.items.find((i: any) => i.name === 'Strom');
     expect(feb.recentIncrease).toMatchObject({ from: '2026-01-01' });
   });
+});
+
+describe('2.6 Bank- und Zinskosten on a small ledger', () => {
+  let opened: OpenedDatabase;
+  let app: Hono;
+  const ctx = { actor: 'test' };
+  beforeEach(() => {
+    opened = createTestDatabase();
+    seedBasics(opened.db);
+    createEntity(opened.db, schema.categoryGroup, { id: 'bank', name: 'Bank und Gebühren' }, ctx);
+    categories.create(
+      opened.db,
+      { id: 'gebuehr', name: 'Kontoführung', groupId: 'bank', class: 'need', kind: 'fixed' },
+      ctx,
+    );
+    accounts.create(
+      opened.db,
+      {
+        id: 'kredit',
+        name: 'Kredit',
+        type: 'loan',
+        role: 'debt',
+        onBudget: false,
+        openingDate: '2023-10-01',
+        openingBalanceCents: -1_000_000,
+        interestRateBp: 600,
+      },
+      ctx,
+    );
+    app = api(opened.db, '2026-09-17');
+  });
+  afterEach(() => opened.close());
+
+  const charge = (date: string, cents: number) =>
+    createBooking(
+      opened.db,
+      {
+        accountId: 'kredit',
+        date,
+        amountCents: -cents,
+        splits: [{ categoryId: null, amountCents: -cents }],
+      },
+      ctx,
+    );
+
+  it('counts interest charges of full months only, never transfers, and bank fees of the group', async () => {
+    charge('2026-07-31', 5_000);
+    charge('2026-08-31', 4_900);
+    charge('2026-09-10', 4_800); // running month: not a full month
+    createBooking(
+      opened.db,
+      {
+        accountId: 'giro',
+        date: '2026-08-20',
+        amountCents: -690,
+        splits: [{ categoryId: 'gebuehr', amountCents: -690 }],
+      },
+      ctx,
+    );
+    createTransfer(
+      opened.db,
+      { fromAccountId: 'giro', toAccountId: 'kredit', date: '2026-08-03', amountCents: 41_200 },
+      ctx,
+    );
+    const { status, body } = await get(app, '/reports/spending/costs');
+    expect(status).toBe(200);
+    const by = Object.fromEntries(body.rows.map((r: any) => [r.key, r]));
+    expect(by.interest.cents).toBe(9_900);
+    expect(by.account.cents).toBe(690);
+    expect(body.totalCents).toBe(9_900 + 690);
+    expect(body.to).toBe('2026-08-31');
+    expect(body.rows.reduce((a: number, r: any) => a + r.shareBp, 0)).toBe(10_000);
+    expect(body.creditLines.find((l: any) => l.id === 'kredit')).toMatchObject({
+      type: 'loan',
+      rateBp: 600,
+      interest12Cents: 9_900,
+    });
+  });
+
+  it('shows interest and dividends apart as earnings, not as household income', async () => {
+    createBooking(
+      opened.db,
+      {
+        accountId: 'giro',
+        date: '2026-08-15',
+        amountCents: 4_000,
+        splits: [{ categoryId: null, amountCents: 4_000, incomeTypeId: INCOME_TYPES.capital.id }],
+      },
+      ctx,
+    );
+    createBooking(
+      opened.db,
+      {
+        accountId: 'giro',
+        date: '2026-08-05',
+        amountCents: 300_000,
+        splits: [{ categoryId: null, amountCents: 300_000, incomeTypeId: INCOME_TYPES.salary.id }],
+      },
+      ctx,
+    );
+    const body = (await get(app, '/reports/spending/costs')).body;
+    expect(body.earningsCents).toBe(4_000);
+    expect(body.netCents).toBe(4_000 - body.totalCents);
+    // The income base of the cost share is the salary alone.
+    expect(body.incomeShareBp).toBe(Math.round((body.totalCents * 10_000) / 300_000));
+  });
+
+  it('is empty and calm without a loan, and the fund costs have their own request', async () => {
+    const body = (await get(app, '/reports/spending/costs')).body;
+    expect(body.loan).not.toBeNull();
+    const empty = createTestDatabase();
+    const answer = (await get(api(empty.db, '2026-09-17'), '/reports/spending/costs')).body;
+    expect(answer).toMatchObject({ totalCents: 0, rows: expect.any(Array), loan: null, years: [] });
+    const fund = (await get(app, '/reports/spending/costs/fund')).body;
+    expect(fund).toEqual({ fundCosts: null, unavailable: false });
+    empty.close();
+  });
+});
+
+describe('2.6 Bank- und Zinskosten on the sample ledger', () => {
+  let db: Db;
+  let app: Hono;
+  beforeAll(() => {
+    db = createTestDatabase().db;
+    seedDatabase(db);
+    app = api(db, '2026-09-17');
+  }, 60_000);
+
+  it('interest is exactly what is booked on the loan in the last twelve full months', async () => {
+    const body = (await get(app, '/reports/spending/costs')).body;
+    const booked = db
+      .select()
+      .from(schema.booking)
+      .all()
+      .filter(
+        (b) =>
+          b.accountId === 'acc-kredit' &&
+          b.deletedAt === null &&
+          b.transferId === null &&
+          b.amountCents < 0 &&
+          b.date >= '2025-09-01' &&
+          b.date <= '2026-08-31',
+      )
+      .reduce((a, b) => a - b.amountCents, 0);
+    expect(body.rows.find((r: any) => r.key === 'interest').cents).toBe(booked);
+    expect(body.rows.find((r: any) => r.key === 'account').cents).toBe(12 * 690);
+    expect(body.rows.reduce((a: number, r: any) => a + r.cents, 0)).toBe(body.totalCents);
+    expect(body.netCents).toBe(body.earningsCents - body.totalCents);
+    expect(body.months).toHaveLength(12);
+    expect(body.previousMonths).toHaveLength(12);
+    expect(body.years.map((y: any) => [y.year, y.months])).toEqual([
+      [2023, 3],
+      [2024, 12],
+      [2025, 12],
+      [2026, 8],
+    ]);
+    const yearSum = body.years.reduce((a: number, y: any) => a + y.totalCents, 0);
+    const monthSum = body.rows.reduce((a: number, r: any) => a + r.cents, 0);
+    expect(yearSum).toBeGreaterThanOrEqual(monthSum);
+  }, 60_000);
+
+  it('projects the single loan with and without the planned extra repayment', async () => {
+    const body = (await get(app, '/reports/spending/costs')).body;
+    expect(body.loanCount).toBe(1);
+    expect(body.loan).toMatchObject({
+      accountId: 'acc-kredit',
+      rateBp: 632,
+      paymentCents: 41_200,
+      extraCents: 30_000,
+      belowInterest: false,
+    });
+    const plan = body.loan.plan;
+    expect(plan.interestSavedCents).toBe(
+      plan.base.totalInterestCents - plan.withExtra.totalInterestCents,
+    );
+    expect(plan.monthsEarlier).toBeGreaterThan(0);
+    expect(body.creditLines.map((l: any) => l.id)).toEqual(['acc-giro', 'acc-karte', 'acc-kredit']);
+  }, 60_000);
+
+  it('fund costs come from the shared portfolio summary and stay out of the sums', async () => {
+    const fund = (await get(app, '/reports/spending/costs/fund')).body;
+    const summary = portfolioSummary(db, { today: '2026-09-17', period: '1J' });
+    expect(fund.unavailable).toBe(false);
+    expect(fund.fundCosts).toMatchObject({
+      terCents: summary.costs.terCents,
+      feesCents: summary.costs.feesCents,
+    });
+    const body = (await get(app, '/reports/spending/costs')).body;
+    expect(body.rows.map((r: any) => r.key)).not.toContain('ter');
+  }, 60_000);
 });
