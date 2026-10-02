@@ -55,6 +55,8 @@ const securityEntry = z.object({
   /** Daily refresh on or off; default: on when a symbol is known. */
   pricesEnabled: z.boolean().optional(),
   terBp: z.number().int().min(0).optional(),
+  /** Free text for the owner (ignored by the importer), e.g. where the quote id came from. */
+  comment: z.string().optional(),
 });
 export type SecurityEntry = z.infer<typeof securityEntry>;
 
@@ -62,10 +64,7 @@ export const PP_MIGRATION_VERSION = 1;
 export const ppMigrationSchema = z.object({
   version: z.literal(PP_MIGRATION_VERSION),
   /** PP portfolio uuid -> app investment account (by name or id), or `ignore`. */
-  portfolios: z.record(
-    z.string(),
-    z.union([z.object({ account: z.string().min(1) }), ignore]),
-  ),
+  portfolios: z.record(z.string(), z.union([z.object({ account: z.string().min(1) }), ignore])),
   /** PP cash account uuid -> app investment account, or `ignore`. */
   accounts: z.record(
     z.string(),
@@ -135,6 +134,8 @@ export interface ResolvedMigration {
   problems: MigrationProblem[];
 }
 
+/** Same pattern as the Yahoo adapter accepts for a symbol (`packages/market/src/yahoo.ts`). */
+const YAHOO_SYMBOL = /^[A-Za-z0-9.^=\-_]{1,30}$/;
 const norm = (s: string) => s.replace(/\s+/g, ' ').trim().toLowerCase();
 
 /** Resolves the account names of the mapping document against the app's accounts. */
@@ -231,6 +232,9 @@ export function resolveMigration(
     const own = mapping.portfolios[pf.uuid];
     if (own === undefined || own === 'ignore' || pf.referenceAccountUuid === null) continue;
     const ref = mapping.accounts[pf.referenceAccountUuid];
+    const refTxs =
+      model.accounts.find((a) => a.uuid === pf.referenceAccountUuid)?.transactions.length ?? 0;
+    if ((ref === undefined || ref === 'ignore') && refTxs === 0) continue;
     if (ref === undefined || ref === 'ignore' || ref.accountId !== own.accountId)
       error(
         'mapping.reference_account',
@@ -390,7 +394,10 @@ export function normalizeTrade(t: PlannedTrade): NormalizedTrade {
     out.taxCents = 0;
     notes.push('buy-tax-in-fee');
   }
-  if ((t.kind === 'delivery_in' || t.kind === 'delivery_out') && (t.feeCents > 0 || t.taxCents > 0)) {
+  if (
+    (t.kind === 'delivery_in' || t.kind === 'delivery_out') &&
+    (t.feeCents > 0 || t.taxCents > 0)
+  ) {
     out.amountCents += t.feeCents + t.taxCents;
     out.feeCents = 0;
     out.taxCents = 0;
@@ -596,7 +603,10 @@ export function ppDepotSeries(
   const trades = plan.trades.filter(
     (t) => t.accountId === target.accountId && !skipped.has(t.securityPpUuid),
   );
-  const positions = new Map<string, PositionInput & { trades: { date: string; unitsE8: number }[] }>();
+  const positions = new Map<
+    string,
+    PositionInput & { trades: { date: string; unitsE8: number }[] }
+  >();
   for (const t of trades) {
     let p = positions.get(t.securityPpUuid);
     if (!p) {
@@ -726,17 +736,25 @@ export function proposeMigration(
       (p) => p.referenceAccountUuid === a.uuid && pfApp.has(p.uuid),
     );
     const app = viaPortfolio ? pfApp.get(viaPortfolio.uuid) : guess(a.name);
-    if (a.transactions.length === 0) doc.accounts[a.uuid] = 'ignore';
+    if (a.transactions.length === 0 && !viaPortfolio) doc.accounts[a.uuid] = 'ignore';
     else if (app)
       doc.accounts[a.uuid] = {
         account: app.name,
         cashFlows: 'ynab',
-        openingBalance: viaPortfolio ? 'pp' : 'keep',
-        retireYnabValue: true,
+        // Owner decision 02.10.2026: YNAB is more current than PP; its cash flows and opening
+        // balances stay. A depot's YNAB value adjustments are retired (holdings carry the value);
+        // an account without a depot (P2P platform) keeps its YNAB values.
+        openingBalance: 'keep',
+        retireYnabValue: viaPortfolio !== undefined,
       };
     else {
       open.push(`PP account "${a.name}": no unique app account of that name; set "account"`);
-      doc.accounts[a.uuid] = { account: '?', cashFlows: 'ynab', openingBalance: 'keep' };
+      doc.accounts[a.uuid] = {
+        account: '?',
+        cashFlows: 'ynab',
+        openingBalance: 'keep',
+        retireYnabValue: false,
+      };
     }
   }
 
@@ -749,32 +767,58 @@ export function proposeMigration(
         if (as.vehicle === 'security' && !classOf.has(as.uuid)) classOf.set(as.uuid, c.name);
 
   const plan = planSecurities(model, { ...ppMigrationSchema.parse(doc) }, existing);
+  let noQuoteId = 0;
+  let probable = 0;
+  let imported = 0;
+  let skipped = 0;
   for (const s of model.securities) {
     const cls = classOf.get(s.uuid);
     const entry: SecurityEntry = { kind: guessKind(s, cls) };
     if (cls) entry.assetClass = cls;
-    const sp = plan.securities.find((p) => p.ppUuid === s.uuid);
-    if (sp?.symbol) entry.symbol = sp.symbol;
     const isBenchmark = /^benchmark/i.test(s.name);
     if (!used.has(s.uuid) && !isBenchmark && !cls) {
       (doc.securities as Record<string, unknown>)[s.uuid] = 'skip';
+      skipped += 1;
       continue;
     }
+    imported += 1;
+    // Quote ids: PP's Yahoo feed names the symbol; PP's own feed keeps Yahoo-style tickers with an
+    // exchange suffix (probable, say so). Ariva links in PP carry a slug and the exchange, never
+    // the numeric id the adapter needs: the exchange is taken, the slug goes into the comment.
+    const sp = plan.securities.find((p) => p.ppUuid === s.uuid);
+    const ticker = s.tickerSymbol;
+    if (sp?.symbol && YAHOO_SYMBOL.test(sp.symbol)) entry.symbol = sp.symbol;
+    else if (s.feed === 'PP' && ticker && ticker.includes('.') && YAHOO_SYMBOL.test(ticker)) {
+      entry.symbol = ticker;
+      entry.comment = 'symbol from PP ticker (probable Yahoo id), not verified';
+      probable += 1;
+    }
+    const url = s.feedUrl ?? '';
+    const ariva = /ariva\.de\/([^?]+?)\/kurse\/historische-kurse/.exec(url);
+    if (ariva) {
+      const exchange = /[?&]boerse_id=(\d+)/.exec(url)?.[1];
+      if (exchange) entry.quoteExchange = exchange;
+      entry.comment = `ariva slug ${ariva[1]}; the numeric secu id is not in PP: set fallbackQuoteId`;
+    }
+    if (!entry.symbol && used.has(s.uuid)) noQuoteId += 1;
     (doc.securities as Record<string, unknown>)[s.uuid] = entry;
-    if (!used.has(s.uuid) && !isBenchmark)
-      open.push(`Security "${s.name}": never traded, has a taxonomy class; imported for its prices`);
-    if (!entry.symbol && used.has(s.uuid))
-      open.push(`Security "${s.name}": no Yahoo symbol (PP feed ${s.feed ?? 'none'}); prices stay as imported until one is set`);
   }
+  open.push(
+    `Securities: ${imported} imported, ${skipped} never-traded watchlist ones skipped; ${probable} symbols are probable (PP ticker), ${noQuoteId} traded ones have no quote id (see comments for Ariva slugs)`,
+  );
   return { doc, open };
 }
 
 function guessKind(s: PpSecurity, cls: string | undefined): SecurityKind {
-  if (!s.isin && (s.feed === 'COINGECKO' || /krypto|bitcoin|ethereum/i.test(cls ?? ''))) return 'crypto';
+  if (!s.isin && (s.feed === 'COINGECKO' || /krypto|bitcoin|ethereum/i.test(cls ?? '')))
+    return 'crypto';
   if (!s.isin) return 'other';
-  if (/\b(etf|ucits)\b|ishares|xtrackers|vanguard|amundi|invesco|wisdomtree|spdr|lyxor/i.test(s.name))
+  if (
+    /\b(etf|ucits)\b|ishares|xtrackers|vanguard|amundi|invesco|wisdomtree|spdr|lyxor/i.test(s.name)
+  )
     return 'etf';
-  if (/^(US|CA|NL|DE|FR|GB|CH)[0-9A-Z]{9}[0-9]$/.test(s.isin) && !/^DE000[A-Z]/.test(s.isin)) return 'stock';
+  if (/^(US|CA|NL|DE|FR|GB|CH)[0-9A-Z]{9}[0-9]$/.test(s.isin) && !/^DE000[A-Z]/.test(s.isin))
+    return 'stock';
   return 'other';
 }
 
@@ -784,5 +828,9 @@ export function skippedButTraded(
   securities: ReadonlyArray<SecurityPlan>,
 ): string[] {
   const skipped = new Set(securities.filter((s) => s.action === 'skip').map((s) => s.ppUuid));
-  return [...new Set(plan.trades.filter((t) => skipped.has(t.securityPpUuid)).map((t) => t.securityPpUuid))];
+  return [
+    ...new Set(
+      plan.trades.filter((t) => skipped.has(t.securityPpUuid)).map((t) => t.securityPpUuid),
+    ),
+  ];
 }

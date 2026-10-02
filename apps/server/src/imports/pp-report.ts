@@ -136,8 +136,6 @@ export interface PeriodFigures {
 export interface PeriodComparison {
   period: string;
   app: PeriodFigures | null;
-  /** App with only boundary transfers as flows (the domain's depot view; deliveries are gains). */
-  appBoundaryOnly: PeriodFigures | null;
   pp: PeriodFigures | null;
   /** Percentage points, app minus PP replay. */
   ttwrorDiffPp: number | null;
@@ -519,7 +517,7 @@ function chunked<T, R>(ids: readonly T[], read: (part: T[]) => R[]): R[] {
 /**
  * TTWROR and XIRR of one depot per period: the app (valuation series plus cash, flows as PP counts
  * them) against PP recomputed from the file over the same windows, which start on the depot's
- * opening day in both. The app's own depot view (boundary transfers only) is shown as well.
+ * opening day in both.
  */
 function depotPerformance(
   db: Executor,
@@ -542,8 +540,7 @@ function depotPerformance(
     periods: [],
   };
   let appSeries: Valuation[];
-  let appFlowsPp: CashFlow[];
-  let appFlowsBoundary: CashFlow[];
+  let appFlows: CashFlow[];
   const excluded = new Set<string>();
   const heldIds = [
     ...new Set(
@@ -585,40 +582,15 @@ function depotPerformance(
     const cash = cashSeries(db, series.days, [t.accountId]).get(t.accountId) ?? [];
     const total = sumSeries(series.totalCents, cash);
     appSeries = series.days.map((date, i) => ({ date, valueCents: total[i] as number }));
-    appFlowsBoundary = portfolioFlows(db, {
+    // Depot view with deliveries as flows (like PP); securities excluded as unpriced count as 0.
+    appFlows = portfolioFlows(db, {
       from,
       to: today,
       view: 'depot',
       accounts: [t.accountId],
       referenceAccounts: [t.accountId],
+      securities: heldIds.filter((id) => !excluded.has(id)),
     });
-    const deliveries = db
-      .select({
-        date: trade.date,
-        kind: trade.kind,
-        amountCents: trade.amountCents,
-        securityId: trade.securityId,
-      })
-      .from(trade)
-      .where(and(isNull(trade.deletedAt), eq(trade.accountId, t.accountId)))
-      .all()
-      .filter(
-        (r) =>
-          (r.kind === 'delivery_in' || r.kind === 'delivery_out') &&
-          r.date > from &&
-          !excluded.has(r.securityId),
-      );
-    const merged = new Map<string, number>();
-    for (const f of appFlowsBoundary) merged.set(f.date, (merged.get(f.date) ?? 0) + f.cents);
-    for (const d of deliveries)
-      merged.set(
-        d.date,
-        (merged.get(d.date) ?? 0) + (d.kind === 'delivery_in' ? 1 : -1) * d.amountCents,
-      );
-    appFlowsPp = [...merged]
-      .map(([date, cents]) => ({ date, cents }))
-      .filter((f) => f.cents !== 0)
-      .sort((a, b) => a.date.localeCompare(b.date));
   } catch (error) {
     result.unavailable = error instanceof Error ? error.name : 'unavailable';
     return result;
@@ -635,8 +607,7 @@ function depotPerformance(
   }
   const periods: Period[] = [...PERIODS];
   for (const period of periods) {
-    const app = window(appSeries, appFlowsPp, period, today, from);
-    const boundary = window(appSeries, appFlowsBoundary, period, today, from);
+    const app = window(appSeries, appFlows, period, today, from);
     const ppFigures = window(pp.valuations, pp.flows, period, today, from);
     const ref = reference?.[t.name]?.[period] ?? null;
     const pct = (v: number | null) => (v === null ? null : v * 100);
@@ -645,7 +616,6 @@ function depotPerformance(
     const cmp: PeriodComparison = {
       period,
       app,
-      appBoundaryOnly: boundary,
       pp: ppFigures,
       ttwrorDiffPp: diff(pct(app?.ttwror ?? null), pct(ppFigures?.ttwror ?? null)),
       xirrDiffPp: diff(pct(app?.xirr ?? null), pct(ppFigures?.xirr ?? null)),

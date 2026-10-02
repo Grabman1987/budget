@@ -9,8 +9,8 @@ them: `refreshPrices(db, sources, { today })`, `refreshFx(db, sources, { today }
 
 | Source | Used for | Notes |
 | --- | --- | --- |
-| Yahoo chart (`yahooChartSource`) | Daily close, primary (`security.symbol`) | The endpoint yfinance reads, no key. Unadjusted close unless `security.quote_adjusted`. A bar of a session that is still open is dropped. A quote currency other than `security.currency` is refused (`currency_mismatch`) |
-| Ariva CSV (`arivaSource`) | Fallback (`fallback_quote_id`, `quote_exchange`) | **Off by default**, switched on with `BUDGET_ARIVA=1`. The URL and the CSV columns (`Datum;...;Schlusskurs`) are built from memory and not verified against the live service, the parser is tested against a hand-made sample only. A login page instead of a CSV is reported as `parse` |
+| Yahoo chart (`yahooChartSource`) | Daily close (`security.symbol`); primary, or fallback when `BUDGET_ARIVA=1` | The endpoint yfinance reads, no key. Unadjusted close unless `security.quote_adjusted`. A bar of a session that is still open is dropped. A quote currency other than `security.currency` is refused (`currency_mismatch`) |
+| Ariva CSV (`arivaSource`) | Primary when switched on (`fallback_quote_id` is the Ariva security id, `quote_exchange` the exchange; the column name is historic) | **Off by default**, switched on with `BUDGET_ARIVA=1`; then Yahoo is the fallback (owner decision 02.10.2026: Ariva has the European exchange prices in EUR). The URL and the CSV columns (`Datum;...;Schlusskurs`) are built from memory and not verified against the live service, the parser is tested against a hand-made sample only. A login page instead of a CSV is reported as `parse` |
 | ECB SDMX CSV (`ecbSource`) | `fx_rate`, `EXR/D.{CUR}.EUR.SP00.A` | No key. ECB: units of currency per EUR; stored: EUR per unit, `10^12 / x` on integers, rounded half up once |
 | Fixture sources | Seed, dev server, tests, e2e | Deterministic and synthetic, never the network |
 

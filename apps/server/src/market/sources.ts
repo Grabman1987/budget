@@ -23,8 +23,10 @@ export function marketModeFromEnv(env: NodeJS.ProcessEnv = process.env): MarketM
 }
 
 /**
- * The adapters for a mode. Live: Yahoo chart (primary), ECB for rates, and Ariva as fallback only
- * when `BUDGET_ARIVA=1` (off until the owner has confirmed access). Fixture: deterministic
+ * The adapters for a mode. Live: ECB for rates and, for quotes, Yahoo chart alone; with
+ * `BUDGET_ARIVA=1` Ariva is the primary source (European exchange prices in EUR, owner decision
+ * 02.10.2026) and Yahoo the fallback. A security without an Ariva id fails over to Yahoo, one
+ * without a Yahoo symbol is served by Ariva alone. Fixture: deterministic
  * synthetic series that run through the prices and rates already stored, never the network.
  */
 export function createMarketSources(
@@ -45,10 +47,12 @@ export function createMarketSources(
     };
   }
   const http = { fetch };
-  return {
-    quotes: yahooChartSource(http),
-    fallbackQuotes:
-      env['BUDGET_ARIVA'] === '1' ? arivaSource({ ...http, enabled: true }) : undefined,
-    fx: ecbSource(http),
-  };
+  const yahoo = yahooChartSource(http);
+  if (env['BUDGET_ARIVA'] === '1')
+    return {
+      quotes: arivaSource({ ...http, enabled: true }),
+      fallbackQuotes: yahoo,
+      fx: ecbSource(http),
+    };
+  return { quotes: yahoo, fx: ecbSource(http) };
 }

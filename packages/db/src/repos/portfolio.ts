@@ -524,7 +524,8 @@ function tradesOf(
  *   account outside the portfolio (`accounts` plus `referenceAccounts`) are flows; buys, sales,
  *   dividends and costs inside the portfolio are internal. A plain booking directly on a
  *   reference account (not Kapitalerträge, not a trade settlement) is a deposit (inflow) or a
- *   withdrawal (outflow) from outside, too. Its value series is `valuationSeries`
+ *   withdrawal (outflow) from outside, too. A delivery in or out is capital in or out at its
+ *   stored amount (PP counts it as a transfer of value). Its value series is `valuationSeries`
  *   plus `cashSeries` of the reference accounts.
  */
 export function portfolioFlows(
@@ -589,6 +590,16 @@ export function portfolioFlows(
   // withdrawal (Entnahme). Trade settlements (including standalone fees and taxes, which are
   // trades) and income of type Kapitalerträge stay inside: they are performance.
   boundary.push(...externalDeposits(db, reference, filter.from, filter.to));
+  // Deliveries in and out move value across the boundary without cash, as in Portfolio
+  // Performance: capital in or out at their stored amount (transfers between portfolios of the
+  // same depot net out, as both legs are deliveries of accounts inside).
+  for (const t of tradesOf(db, filter, filter.from))
+    if (t.kind === 'delivery_in' || t.kind === 'delivery_out')
+      boundary.push({
+        date: t.date,
+        cents: (t.kind === 'delivery_in' ? 1 : -1) * t.amountCents,
+        currency: t.currency ?? 'EUR',
+      });
   return depotFlows(boundary, rates);
 }
 
