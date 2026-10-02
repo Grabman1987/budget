@@ -1,0 +1,86 @@
+/* Report 5.2 Finanz-Check-Verlauf: stage steps, next-stage list, status strips. */
+.fc-stages {
+  list-style: none;
+  margin: 8px 0 22px;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+.fc-stages li {
+  display: grid;
+  gap: 4px;
+  align-content: start;
+  padding: 12px 14px;
+  border: 1px solid var(--rule-strong);
+  border-radius: 10px;
+}
+.fc-stages li.is-cur {
+  border-color: var(--line);
+  background: var(--tint);
+}
+.fc-stages li.is-done {
+  border-style: dashed;
+  color: var(--ink-2);
+}
+.fc-stages small {
+  font-size: 12.5px;
+  color: var(--ink-2);
+}
+.fc-progress {
+  display: block;
+  height: 8px;
+  margin: 6px 0 2px;
+  border: 1px solid var(--line-2);
+  border-radius: 4px;
+  background: var(--surface);
+  overflow: hidden;
+}
+.fc-progress i {
+  display: block;
+  height: 100%;
+  background: var(--line);
+}
+.fc-stage-rules h3 {
+  margin: 0 0 6px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--ink-2);
+}
+.fc-next {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 2px;
+}
+.fc-next li {
+  display: grid;
+  gap: 2px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--rule);
+}
+.fc-next small {
+  color: var(--ink-3);
+  font-size: 12px;
+}
+.fc-table {
+  min-width: 760px;
+}
+.fc-table td:first-child {
+  white-space: nowrap;
+}
+.fc-table .ov-name {
+  white-space: normal;
+}
+.finanzcheck-report .ov-cell.is-none {
+  background: var(--quiet-soft);
+}
+@media (max-width: 760px) {
+  .fc-stages {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .fc-table {
+    min-width: 700px;
+  }
+}
