@@ -1,6 +1,8 @@
 import {
   EntityNotFoundError,
   fxSeries,
+  lastMarketRun,
+  lastSuccessfulMarketRun,
   priceSeries,
   schema,
   setManualPrice,
@@ -49,6 +51,14 @@ export function marketRoutes(db: Db, today: () => string, sources: MarketSources
       running = false;
     }
   });
+
+  /** The run log's newest entries: what ran last and what last refreshed prices. */
+  app.get('/market/status', (c) =>
+    c.json({
+      lastRun: lastMarketRun(db) ?? null,
+      lastSuccess: lastSuccessfulMarketRun(db) ?? null,
+    }),
+  );
 
   const requireSecurity = (id: string) => {
     const row = db.select().from(schema.security).where(eq(schema.security.id, id)).get();

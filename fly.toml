@@ -19,6 +19,13 @@ kill_timeout = '30s'
   # Backup is mandatory in production: with this set, a missing bucket makes the start fail loudly
   # instead of running without replication.
   BUDGET_REPLICATE = '1'
+  # Live market prices (docs/market-data.md): sources are live in production anyway, spelled out here.
+  # The in-process timer runs nightly at 02:30 Vienna (catch-up after a missed night, previous day's
+  # close plus ECB rates); Ariva is the primary source (BUDGET_ARIVA=0 would switch it off).
+  # No keys or secrets are needed for any source.
+  BUDGET_MARKET_SOURCES = 'live'
+  BUDGET_MARKET_DAILY = '1'
+  BUDGET_ARIVA = '1'
 
 # Secrets (never in this file), set once with `fly secrets set` / `fly storage create`:
 # BUDGET_SETUP_TOKEN, BUDGET_PEPPER (required), BUDGET_BACKUP_RECIPIENT (age public key, required),

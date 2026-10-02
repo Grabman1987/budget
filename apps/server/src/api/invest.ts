@@ -75,6 +75,16 @@ const securityFields = {
   benchmark: z.string().max(120).nullable(),
   fallbackQuoteId: z.string().max(60).nullable(),
   quoteExchange: z.string().max(40).nullable(),
+  /** Quote page from Portfolio Performance: `https://www.ariva.de/...` or `https://cryptocalc.cc/...`. */
+  quoteUrl: z
+    .url({ protocol: /^https$/ })
+    .max(500)
+    .nullable(),
+  /** CoinGecko coin id such as `bitcoin`: a crypto security without one only gets the cryptocalc fallback. */
+  coingeckoId: z
+    .string()
+    .regex(/^[a-z0-9][a-z0-9\-_.]{0,80}$/)
+    .nullable(),
   pricesEnabled: z.boolean(),
   quoteAdjusted: z.boolean(),
 };
@@ -89,6 +99,8 @@ const securityCreate = z.object({
   benchmark: securityFields.benchmark.optional(),
   fallbackQuoteId: securityFields.fallbackQuoteId.optional(),
   quoteExchange: securityFields.quoteExchange.optional(),
+  quoteUrl: securityFields.quoteUrl.optional(),
+  coingeckoId: securityFields.coingeckoId.optional(),
   pricesEnabled: securityFields.pricesEnabled.optional(),
   quoteAdjusted: securityFields.quoteAdjusted.optional(),
 });
