@@ -48,7 +48,7 @@ Prototype references: [Heute](../design/prototype/index.html),
 | Y11 | Expected payments: versions, due dates, contracts, matching, missed payments | UI + engine | Live incoming bank bookings and private schedule acceptance |
 | Y12 | Savings goals and sinking funds, adopt category targets | UI + engine | Private targets and end-to-end goal review |
 | Y13 | Heute: free until payday, pace, low point, upcoming payments, next steps | UI + engine | Functional desktop/mobile checks passed, including capture/undo/redo and source navigation; owner visual/device acceptance remains open |
-| Y14 | Plan › Jahr, planned events and scenario workflow | Partial; UI placeholder | Connect forecasting/event storage and build the annual planning workflow |
+| Y14 | Plan › Jahr, planned events and scenario workflow | Partial; read-only calendar-year overview connected (PR #133) | Twelve existing month reads, groups/categories, assigned/activity totals and December available balance; sticky desktop table and phone month selector. Scenario editing and owner acceptance remain open |
 | Y15 | Contacts, receivables, repayments and contact statements | EUR ledger/API + connected UI | Actual statement, retained balanced history, editable oldest-first allocation, explicit credit, atomic audit/undo and dependency guards implemented; foreign-currency statements, broader contact editing and owner workflow/design acceptance remain open. Derived balances do not enter net worth |
 | Y16 | Posteingang: categorize, accept/reject suggestions, resolve exceptions | Working basics: actual queue/count, categorize/confirm, warning acknowledgement with undo | Bank/assignment suggestion accept/reject flows and owner workflow acceptance remain open |
 | Y17 | Global search (Ctrl K) | UI + engine | Session-protected, bounded booking/payee/category/account/contact search; keyboard/touch navigation. Owner acceptance pending |
@@ -60,7 +60,7 @@ Prototype references: [Heute](../design/prototype/index.html),
 | Y23 | R01–R16, stages and Finanz-Check | UI + engine | Owner confirmations and actual-data rule acceptance; history report remains open |
 | Y24 | Weekly inbox, payday distribution, month/year/quarter closing routines | Partial | Guided complete routines, completion states and resulting reports |
 | Y25 | Mobile capture, accessible layout, dark mode | UI + engine for built pages | Repeat matching mockup/visual/accessibility checks for every new page |
-| Y26 | Installable PWA and offline booking queue | Open | Web manifest/installability, service worker, offline persistence, synchronization, conflicts and device acceptance |
+| Y26 | Installable PWA and offline booking queue | Static-shell baseline | Manifest/icons, static-only service worker, offline fallback and update prompt implemented; offline bookings, synchronization/conflicts (D07) and physical device acceptance remain open. See [PWA contract](pwa.md) |
 
 First private migration is EUR-only from 01.10.2023. Unsupported foreign-currency
 budget accounts are guarded; full foreign-currency support remains later scope.

@@ -1,0 +1,28 @@
+body {
+  margin: 0;
+  background: #f2f5f9;
+  color: #0b1b33;
+  font:
+    1rem/1.5 system-ui,
+    sans-serif;
+}
+.offline-page {
+  max-width: 34rem;
+  margin: 12vh auto;
+  padding: 24px;
+}
+a {
+  display: inline-flex;
+  min-height: 44px;
+  align-items: center;
+  color: #1747a6;
+}
+@media (prefers-color-scheme: dark) {
+  body {
+    background: #0b3152;
+    color: #eef6fc;
+  }
+  a {
+    color: #d2ecff;
+  }
+}

@@ -3,6 +3,8 @@ import { cx } from './cx';
 export interface SegmentedOption<T extends string> {
   value: T;
   label: string;
+  disabled?: boolean;
+  description?: string;
 }
 
 export interface SegmentedProps<T extends string> {
@@ -32,6 +34,8 @@ export function Segmented<T extends string>({
           key={option.value}
           type="button"
           aria-pressed={option.value === value}
+          disabled={option.disabled}
+          title={option.description}
           onClick={() => onChange(option.value)}
         >
           {option.label}

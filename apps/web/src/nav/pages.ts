@@ -289,6 +289,7 @@ export const CSV_EXPORT_META: PageDef = PAGES.find(
 
 /** Plan › Monat (built in P2c). */
 export const PLAN_MONAT: PageDef = PAGES.find((p) => p.path === '/plan/monat') as PageDef;
+export const PLAN_JAHR: PageDef = PAGES.find((p) => p.path === '/plan/jahr') as PageDef;
 
 /** Plan › Erwartet (built in P3.6). */
 export const PLAN_ERWARTET: PageDef = PAGES.find((p) => p.path === '/plan/erwartet') as PageDef;
