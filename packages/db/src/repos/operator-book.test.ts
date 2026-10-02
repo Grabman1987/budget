@@ -669,7 +669,7 @@ describe('book: set_splits', () => {
 
   it('replaces all splits at once and leaves the booking itself alone', () => {
     inflow();
-    const [{ updatedAt: _u, splits: _s, ...head }] = live('giro');
+    const { updatedAt: _u, splits: _s, ...head } = live('giro')[0]!;
     void _u;
     void _s;
     const result = done(only([splitEntry()]));
@@ -698,7 +698,7 @@ describe('book: set_splits', () => {
         memo: 'Spesen',
       },
     ]);
-    const [{ updatedAt: _u2, splits: _s2, ...after }] = live('giro');
+    const { updatedAt: _u2, splits: _s2, ...after } = live('giro')[0]!;
     void _u2;
     void _s2;
     expect(after).toEqual(head);
