@@ -128,7 +128,10 @@ export function CaptureForm({
   const [draft, setDraft] = useState<BookingDraft>(() =>
     editing
       ? draftFromBooking(editing)
-      : emptyDraft(state.mode === 'create' ? (state.accountId ?? '') : '', today),
+      : {
+          ...emptyDraft(state.mode === 'create' ? (state.accountId ?? '') : '', today),
+          ...(state.mode === 'create' ? state.prefill : {}),
+        },
   );
   const [errors, setErrors] = useState<DraftErrors & { form?: string }>({});
   const [unlock, setUnlock] = useState(false);
