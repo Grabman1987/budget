@@ -44,9 +44,22 @@ self.addEventListener('fetch', (event) => {
     return;
   }
   // Never cache arbitrary URLs, redirects, query strings or runtime responses.
-  if (!url.search && ALLOWED.has(url.pathname)) {
+  if (!url.search && (ALLOWED.has(url.pathname) || url.pathname.startsWith('/assets/'))) {
     event.respondWith(
-      caches.open(CACHE).then(async (cache) => (await cache.match(request)) ?? fetch(request)),
+      (async () => {
+        const current = await (await caches.open(CACHE)).match(request);
+        if (current) return current;
+        // A tab opened before activation may still request its old hashed chunk.
+        if (url.pathname.startsWith('/assets/')) {
+          for (const name of await caches.keys()) {
+            if (name.startsWith('budget-shell-') && name !== CACHE) {
+              const previous = await (await caches.open(name)).match(request);
+              if (previous) return previous;
+            }
+          }
+        }
+        return fetch(request);
+      })(),
     );
   }
 });
