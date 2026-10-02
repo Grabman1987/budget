@@ -320,6 +320,11 @@ Price history (yfinance + Ariva, source per price), ECB rates, trades and holdin
 
 
 ## P6 Reports und Umstellung
+### P6 — Static PWA baseline
+- [x] Build-versioned static shell cache, install manifest/icons derived from the existing brand mark, offline fallback and opt-in update prompt. API/auth/export/health are network-only.
+- [x] Offline reload has no financial figures; a connection loss retains unsaved form state and shows an offline/stale-data notice.
+- [ ] D07 offline booking persistence, retry/idempotency and conflict decisions, physical phone installation/passkeys and Gate 4 acceptance remain separate.
+
 ### Report 5.4 — Kontakte-Abrechnung
 - [x] Fixed all-time EUR report with shared replay running balances/credit chain, nonzero overview, balanced history/deep links, per-person ledger/stair chart, pending metadata and real booking/contact source navigation. No sending/settlement duplication or month selector; unsupported currency makes the entire read unavailable.
 - [ ] Independent financial review, owner design acceptance and private contact-ledger reconciliation; other report bodies and Gate 4 remain separate.
