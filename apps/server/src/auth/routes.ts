@@ -193,9 +193,15 @@ export function createAuth(deps: AuthDeps) {
     return next();
   };
 
-  /** After `requireSession`: sensitive writes need a step-up of the last few minutes. */
+  /**
+   * After `requireSession`: sensitive operations (full export, imports) need a step-up of the last
+   * few minutes. A recovery-code session never qualifies: it may only register a new passkey, and
+   * the export needs a fresh passkey assertion from a session that was opened with a passkey.
+   */
   const requireStepUp: MiddlewareHandler<Env> = async (c, next) => {
     const session = c.get('session');
+    if (session && (session.viaRecovery || session.passkeyId === null))
+      return fail(c, 403, 'passkey_required');
     if (!session || !stepUpFresh(session)) return fail(c, 403, 'step_up_required');
     return next();
   };

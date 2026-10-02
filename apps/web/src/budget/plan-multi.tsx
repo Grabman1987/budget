@@ -40,7 +40,7 @@ export function MultiTable({
   groups: MultiGroup[];
   collapsed: ReadonlySet<string>;
   onToggle: (key: string) => void;
-  onOpen: (id: string) => void;
+  onOpen: (id: string, month: string) => void;
 }) {
   const write = useBudgetWrite();
   /** The cell being edited: month and envelope. */
@@ -146,7 +146,11 @@ export function MultiTable({
                         <span className="pos">{`${g.no}.${n + 1}`}</span>
                       </td>
                       <td className="col-name">
-                        <button type="button" className="pname" onClick={() => onOpen(r.id)}>
+                        <button
+                          type="button"
+                          className="pname"
+                          onClick={() => onOpen(r.id, months[0]!)}
+                        >
                           {r.cls ? <ClassSwatch kind={r.cls} /> : <ClassSwatch kind="bound" />}
                           <CategoryIcon icon={r.icon} />
                           {r.name}
@@ -202,6 +206,16 @@ export function MultiTable({
                             >
                               {eur(cell.availableCents)}
                             </span>
+                            {cell.overspentCents > 0 && (
+                              <button
+                                type="button"
+                                className="btn btn-sm btn-ghost"
+                                aria-label={`${r.name}: Decken im ${monthName.format(dateOf(m))}`}
+                                onClick={() => onOpen(r.id, m)}
+                              >
+                                Decken
+                              </button>
+                            )}
                           </td>,
                         ];
                       })}

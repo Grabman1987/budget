@@ -97,6 +97,8 @@ export function authErrorMessage(error: unknown, context: AuthContext = 'general
         return 'Die Sitzung ist abgelaufen. Bitte erneut anmelden.';
       case 'step_up_required':
         return 'Bitte zuerst mit dem Passkey bestätigen.';
+      case 'passkey_required':
+        return 'Mit einem Wiederherstellungscode ist das nicht möglich. Bitte zuerst einen neuen Passkey anlegen und damit anmelden.';
       case 'last_passkey':
         return 'Der letzte Passkey kann nicht entfernt werden. Sonst wäre kein Zugang mehr möglich.';
       default:

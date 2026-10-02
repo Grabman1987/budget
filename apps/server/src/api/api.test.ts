@@ -1,5 +1,12 @@
 /* eslint-disable @typescript-eslint/no-explicit-any -- JSON answers are inspected, not typed */
-import { categories, createEntity, createTestDatabase, schema, type Db } from '@budget/db';
+import {
+  categories,
+  createEntity,
+  createTestDatabase,
+  schema,
+  sqliteOf,
+  type Db,
+} from '@budget/db';
 import { mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -492,6 +499,32 @@ describe('bookings', () => {
     });
     expect(open.status).toBe(200);
     expect((await call('DELETE', `/bookings/${b.id}?unlock=1`)).status).toBe(200);
+  });
+
+  it('redacts a bulk database rejection and rolls its item back', async () => {
+    const account = await newAccount();
+    const booking = await newBooking(account.id);
+    sqliteOf(db).exec(`CREATE TRIGGER synthetic_bulk_failure BEFORE UPDATE ON booking
+      WHEN NEW.flag = 'red'
+      BEGIN SELECT RAISE(ABORT, 'synthetic-private-driver-detail'); END`);
+    const result = await call('POST', '/bookings/bulk', {
+      action: 'update',
+      ids: [booking.id],
+      set: { flag: 'red' },
+    });
+    expect(result.status).toBe(200);
+    expect(result.body['changed']).toEqual([]);
+    expect(result.body['skipped']).toEqual([
+      {
+        id: booking.id,
+        reason: 'invalid',
+        message: 'The data violates a rule of the ledger',
+      },
+    ]);
+    expect((await call('GET', `/bookings/${booking.id}`)).body['booking']).toMatchObject({
+      flag: null,
+      amountCents: -1000,
+    });
   });
 
   it('bulk-edits in one undoable group and reports what it skipped', async () => {

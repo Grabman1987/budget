@@ -33,7 +33,25 @@ export function authConfigFromEnv(env: NodeJS.ProcessEnv = process.env): AuthCon
     env['BUDGET_ORIGIN'] ?? (production ? undefined : `http://localhost:${env['PORT'] ?? 3000}`);
   if (!origin)
     throw new Error('BUDGET_ORIGIN is required in production (e.g. https://budget-fg.fly.dev)');
-  const url = new URL(origin);
+  let url: URL;
+  try {
+    url = new URL(origin);
+  } catch {
+    throw new Error('BUDGET_ORIGIN must be a valid HTTP(S) origin');
+  }
+  if (
+    !['http:', 'https:'].includes(url.protocol) ||
+    url.username ||
+    url.password ||
+    url.pathname !== '/' ||
+    url.search ||
+    url.hash
+  )
+    throw new Error('BUDGET_ORIGIN must be an HTTP(S) origin without credentials, path or query');
+  // Plain HTTP stays possible on loopback only (container smoke test); a public host needs HTTPS.
+  const loopback = ['localhost', '127.0.0.1', '[::1]'].includes(url.hostname);
+  if (production && url.protocol !== 'https:' && !loopback)
+    throw new Error('BUDGET_ORIGIN must use HTTPS in production');
   const setupToken = env['BUDGET_SETUP_TOKEN']?.trim();
   return {
     rpID: env['BUDGET_RP_ID'] ?? url.hostname,

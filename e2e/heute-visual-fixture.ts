@@ -35,7 +35,7 @@ export async function freezeHeuteVisual(page: Page) {
 }
 
 export async function expectHeuteVisualReady(page: Page) {
-  await expect(page.getByTestId('heute-lead-value')).toContainText('2.556');
+  await expect(page.getByTestId('heute-lead-value')).toContainText('988,26');
   await expect(page.getByTestId('heute-balance-chart')).toBeVisible();
   await expect(page.getByRole('group', { name: 'Maßkette Nettovermögen' })).toBeVisible();
   await page.evaluate(async () => {
