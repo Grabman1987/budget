@@ -1,6 +1,7 @@
 import { ClassSwatch, type SwatchKind } from '@budget/ui';
 import { useQuery } from '@tanstack/react-query';
-import { AlertTriangle, ArrowLeftRight, Check, CheckCheck, Clock, Flag, Split } from 'lucide-react';
+import { AlertTriangle, ArrowLeftRight, Check, CheckCheck, Clock, Split } from 'lucide-react';
+import { FlagGlyph, FlagPicker } from './flag-picker';
 import { FLAG_LABEL, STATUS_LABEL } from './labels';
 import { lookupsQuery } from './queries';
 import type { BookingFlag, BookingStatus, ListedBooking } from './types';
@@ -18,15 +19,29 @@ export function StatusCell({ status }: { status: BookingStatus }) {
   );
 }
 
-/** Flag: an icon with its colour name as text (flag colours are names here, not hues). */
-export function FlagMark({ flag }: { flag: BookingFlag }) {
-  return (
-    <span className="kflag" title={`Markierung ${FLAG_LABEL[flag]}`}>
-      <Flag className="icon" size={13} strokeWidth={1.75} aria-hidden="true" />
-      <span className="sr-only">Markierung </span>
-      {FLAG_LABEL[flag]}
-    </span>
-  );
+/**
+ * Flag column (first column of booking tables and lists): a coloured flag glyph that opens the
+ * flag popover and saves at once. Transfers carry no flag and show it read-only. The colour name
+ * is the text for screen readers and the tooltip.
+ */
+export function FlagCell({
+  booking,
+  label,
+  onChange,
+}: {
+  booking: ListedBooking;
+  label: string;
+  onChange: (flag: BookingFlag | '') => void;
+}) {
+  if (booking.transferId) {
+    if (!booking.flag) return null;
+    return (
+      <span className="kflag" title={`Markierung ${FLAG_LABEL[booking.flag]}`}>
+        <FlagGlyph flag={booking.flag} size={16} />
+      </span>
+    );
+  }
+  return <FlagPicker value={booking.flag ?? ''} onChange={onChange} context={label} />;
 }
 
 /** Class of every category (Bedarf, Wunsch, Zukunft) for the swatch in front of its name. */
@@ -94,18 +109,13 @@ export function CategoryCell({
   );
 }
 
-/** Payee line plus memo (or the flag) under it. */
+/** Payee line plus memo under it. */
 export function PayeeCell({ booking }: { booking: ListedBooking }) {
   const name = booking.payeeName ?? (booking.transferId ? 'Umbuchung' : 'Ohne Empfänger');
   return (
     <>
       <span className="kname-s">{name}</span>
-      {(booking.memo || booking.flag) && (
-        <span className="kmeta">
-          {booking.flag && <FlagMark flag={booking.flag} />}
-          {booking.memo}
-        </span>
-      )}
+      {booking.memo && <span className="kmeta">{booking.memo}</span>}
     </>
   );
 }

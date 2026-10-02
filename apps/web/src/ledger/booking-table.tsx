@@ -3,12 +3,12 @@ import { cx, type SwatchKind } from '@budget/ui';
 import { useQuery } from '@tanstack/react-query';
 import { ArrowDown, ArrowUp, Pencil } from 'lucide-react';
 import { Fragment, useState, type ReactNode } from 'react';
-import { CategoryCell, PayeeCell, StatusCell, useCategoryClasses } from './booking-cells';
+import { CategoryCell, FlagCell, PayeeCell, StatusCell, useCategoryClasses } from './booking-cells';
 import { dayHeading, eur, shortDay } from './format';
 import { flashRows, useFlashing } from './flash';
 import { useLedgerWrites } from './mutations';
 import { lookupsQuery } from './queries';
-import type { BookingSort, ListedBooking } from './types';
+import type { BookingFlag, BookingSort, ListedBooking } from './types';
 
 export interface Selection {
   selected: ReadonlySet<string>;
@@ -51,6 +51,11 @@ export function BookingTable({
       id: b.id,
       patch: { splits: [keepSplit(b.splits[0], categoryId, b.amountCents)] },
     });
+  };
+  // A flag is saved at once, with the usual undo toast.
+  const setFlag = (b: ListedBooking, flag: BookingFlag | null) => {
+    if ((b.flag ?? null) === flag) return;
+    writes.patch.mutate({ id: b.id, patch: { flag } });
   };
   const all = variant === 'all';
   const head = (label: string, key?: BookingSort, numeric = false): ReactNode => (
@@ -109,6 +114,9 @@ export function BookingTable({
                 />
               </th>
             )}
+            <th className="kc-flag" scope="col">
+              <span className="sr-only">Markierung</span>
+            </th>
             {head('Datum', 'date')}
             {head('Empfänger', 'payee')}
             {all && head('Konto', 'account')}
@@ -123,7 +131,7 @@ export function BookingTable({
             <Fragment key={group.day || 'all'}>
               {all && (
                 <tr className="kday">
-                  <td colSpan={selection ? 7 : 6}>
+                  <td colSpan={selection ? 8 : 7}>
                     <span className="tech">{dayHeading(group.day)}</span>
                     <span className="kday-sum">{eur(group.sum, { sign: true })}</span>
                   </td>
@@ -140,6 +148,7 @@ export function BookingTable({
                   categories={lookups.data?.categories ?? []}
                   groups={lookups.data?.groups ?? []}
                   onCategory={setCategory}
+                  onFlag={setFlag}
                 />
               ))}
             </Fragment>
@@ -173,6 +182,7 @@ function Row({
   categories,
   groups,
   onCategory,
+  onFlag,
 }: {
   booking: ListedBooking;
   variant: 'account' | 'all';
@@ -182,6 +192,7 @@ function Row({
   categories: { id: string; name: string; groupId: string | null }[];
   groups: { id: string; name: string }[];
   onCategory: (b: ListedBooking, categoryId: string | null) => void;
+  onFlag: (b: ListedBooking, flag: BookingFlag | null) => void;
 }) {
   const flashing = useFlashing(b.id);
   const [editing, setEditing] = useState(false);
@@ -206,6 +217,13 @@ function Row({
           />
         </td>
       )}
+      <td className="kc-flag kx-flag">
+        <FlagCell
+          booking={b}
+          label={label}
+          onChange={(flag) => onFlag(b, flag === '' ? null : flag)}
+        />
+      </td>
       <td className="kc-date kx-date">{shortDay(b.date)}</td>
       <td className="kx-payee">
         <button

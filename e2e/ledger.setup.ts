@@ -6,6 +6,7 @@ import {
   createEntity,
   openDatabase,
   project,
+  setCategoryHidden,
 } from '@budget/db';
 import { DB_MAIN } from '../playwright.config';
 
@@ -38,6 +39,13 @@ setup('seed categories for the ledger tests', () => {
         );
       }
     }
+    // An archived category: the category lists must leave it out.
+    categories.create(
+      db,
+      { id: 'e2e-archiv', name: 'Archiv Alt', groupId: 'e2e-g', class: 'want' },
+      ctx,
+    );
+    setCategoryHidden(db, 'e2e-archiv', true, ctx);
     // Contact shares run through the Auslagen envelope (category kind advance).
     categories.create(
       db,

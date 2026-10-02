@@ -95,6 +95,11 @@ export const createPayee = (name: string, defaultCategoryId?: string | null) =>
     name,
     ...(defaultCategoryId ? { defaultCategoryId } : {}),
   });
+/** A new contact (person), e.g. from "+ Neuer Kontakt…" in the booking dialog. */
+export const createContact = (name: string) =>
+  request<{ contact: { id: string; name: string } } & WriteResult>('POST', '/api/contacts', {
+    name,
+  });
 export const setPayeeDefaultCategory = (id: string, defaultCategoryId: string | null) =>
   request<{ payee: PayeeRow } & WriteResult>('PATCH', `/api/payees/${encodeURIComponent(id)}`, {
     defaultCategoryId,

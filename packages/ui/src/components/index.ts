@@ -15,7 +15,7 @@ export {
   type DimensionChainDrawingProps,
 } from './dimension-chain-drawing';
 export { Field, Select, TextInput, type FieldProps } from './field';
-export { BottomSheet, DetailPanel, SidePanel, type PanelProps } from './panel';
+export { BottomSheet, DetailPanel, FormDialog, SidePanel, type PanelProps } from './panel';
 export { PartsList, type PartsColumn, type PartsGroup, type PartsListProps } from './parts-list';
 export { Registers, type RegisterItem, type RegistersProps } from './registers';
 export {
