@@ -31,6 +31,8 @@ export const bankSyncAccount = sqliteTable('bank_sync_account', {
   accountId: text('account_id').references(() => account.id),
   fromDate: text('from_date'),
   lastSyncAt: text('last_sync_at'),
+  requestDay: text('request_day'),
+  requestCount: integer('request_count').notNull().default(0),
 });
 
 /** Staged transactions never affect balances. Their inbox decision is the confirmation state. */

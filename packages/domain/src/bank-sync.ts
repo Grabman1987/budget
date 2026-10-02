@@ -20,13 +20,24 @@ export interface BankTransaction {
 /** Preserve identical purchases; repeated complete windows have identical occurrence keys. */
 export function bankTransactionKeys(rows: readonly BankTransaction[]): string[] {
   const counts = new Map<string, number>();
+  const references = new Map<string, number>();
+  for (const row of rows)
+    if (row.reference) references.set(row.reference, (references.get(row.reference) ?? 0) + 1);
   return rows.map((row) => {
-    if (row.reference) return JSON.stringify(['reference', row.reference]);
+    if (row.reference && references.get(row.reference) === 1)
+      return JSON.stringify(['reference', row.reference]);
     const fingerprint = JSON.stringify([row.date, row.amountCents, row.currency, row.memo.trim()]);
     const ordinal = (counts.get(fingerprint) ?? 0) + 1;
     counts.set(fingerprint, ordinal);
     return JSON.stringify(['fallback', fingerprint, ordinal]);
   });
+}
+
+/** A successful account watermark narrows polling while retaining late-posting overlap. */
+export function bankFetchFrom(fromDate: string, lastSyncAt: string | null): string {
+  if (!lastSyncAt) return fromDate;
+  const overlap = new Date(Date.parse(lastSyncAt) - 21 * 86_400_000).toISOString().slice(0, 10);
+  return overlap > fromDate ? overlap : fromDate;
 }
 
 export const consentNeedsAttention = (validUntil: string, now: Date): boolean =>

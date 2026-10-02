@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { bankCents, bankTransactionKeys, consentNeedsAttention, nextBankRun } from './bank-sync';
+import {
+  bankCents,
+  bankFetchFrom,
+  bankTransactionKeys,
+  consentNeedsAttention,
+  nextBankRun,
+} from './bank-sync';
 
 describe('bank sync arithmetic and identity', () => {
   it('parses exact cents and rejects precision loss', () => {
@@ -23,8 +29,23 @@ describe('bank sync arithmetic and identity', () => {
       { ...row, reference: 'entry-a' },
       { ...row, reference: 'entry-a' },
     ]);
-    expect(new Set(keys).size).toBe(3);
+    expect(new Set(keys).size).toBe(4);
     expect(bankTransactionKeys([row, row])).toEqual(keys.slice(0, 2));
+    expect(bankTransactionKeys([{ ...row, reference: 'entry-a' }])).toEqual([
+      JSON.stringify(['reference', 'entry-a']),
+    ]);
+    const duplicates = [
+      { ...row, reference: 'shared' },
+      { ...row, reference: 'shared', amountCents: -130 },
+    ];
+    expect(bankTransactionKeys(duplicates)).toEqual(
+      bankTransactionKeys(duplicates.map((r) => ({ ...r, reference: null }))),
+    );
+  });
+  it('starts at the owner date, then overlaps 21 days from the account success', () => {
+    expect(bankFetchFrom('2023-10-01', null)).toBe('2023-10-01');
+    expect(bankFetchFrom('2023-10-01', '2026-10-01T03:00:00Z')).toBe('2026-09-10');
+    expect(bankFetchFrom('2026-09-25', '2026-10-01T03:00:00Z')).toBe('2026-09-25');
   });
   it('warns exactly 14 days before expiry, including expired consents', () => {
     expect(consentNeedsAttention('2026-10-15T00:00:00Z', new Date('2026-10-01T00:00:00Z'))).toBe(

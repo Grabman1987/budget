@@ -630,6 +630,8 @@ export function undo(
       if (
         !entry.before ||
         !entry.after ||
+        entry.before?.['request_count'] !== entry.after?.['request_count'] ||
+        entry.before?.['request_day'] !== entry.after?.['request_day'] ||
         linked?.lastSyncAt ||
         (parent?.leaseUntil && parent.leaseUntil > nowIso())
       )

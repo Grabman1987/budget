@@ -52,7 +52,7 @@ beforeEach(() => {
       validUntil: '2026-12-01T00:00:00Z',
       accounts: [{ uid: 'provider-account', label: 'Konto A', currency: 'EUR' }],
     })),
-    transactions: vi.fn(async () => []),
+    transactions: vi.fn(async () => ({ rows: [], skippedInvalid: 0, skippedOutOfWindow: 0 })),
     balance: vi.fn(async () => ({ amountCents: 0, currency: 'EUR', date: '2026-10-01' })),
   };
   const sync = new BankSync(

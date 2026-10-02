@@ -15,14 +15,20 @@ const row = {
   transaction_amount: { amount: '12.01', currency: 'EUR' },
   creditor: { name: 'Shop A' },
 };
-function adapter(responses: unknown[]) {
+function adapter(responses: unknown[], extraInstitutions: string[] = []) {
   const http = vi.fn<typeof fetch>().mockImplementation(async () => {
     const data = responses.shift();
     if (data instanceof Response) return data;
     return Response.json(data);
   });
   return {
-    provider: enableBanking({ appId: 'synthetic-app', privateKey, fetch: http, now: () => now }),
+    provider: enableBanking({
+      appId: 'synthetic-app',
+      privateKey,
+      fetch: http,
+      now: () => now,
+      extraInstitutions,
+    }),
     http,
   };
 }
@@ -57,9 +63,108 @@ describe('bank adapter with synthetic HTTP only', () => {
     expect(encrypted).not.toContain('synthetic-session');
     expect(box.open(encrypted, 'row-a')).toBe('synthetic-session');
     expect(() => box.open(encrypted, 'row-b')).toThrow();
-    const changed = Buffer.from(encrypted, 'base64');
+    const changed = Buffer.from(encrypted.split(':')[1]!, 'base64');
     changed[28] = changed[28]! ^ 1;
-    expect(() => box.open(changed.toString('base64'), 'row-a')).toThrow();
+    expect(() => box.open('v1:' + changed.toString('base64'), 'row-a')).toThrow();
+  });
+  it('reads legacy and previous-version ciphertexts during rotation, writes only the new version', () => {
+    const old = bankSecretBox('ab'.repeat(32));
+    const encrypted = old.seal('synthetic-session', 'row-a');
+    expect(encrypted).toMatch(/^v1:/);
+    const rotated = bankSecretBox('cd'.repeat(32), '2', { '1': 'ab'.repeat(32) });
+    expect(rotated.open(encrypted, 'row-a')).toBe('synthetic-session');
+    expect(rotated.open(encrypted.split(':')[1]!, 'row-a')).toBe('synthetic-session');
+    const next = rotated.seal('synthetic-session', 'row-a');
+    expect(next).toMatch(/^v2:/);
+    expect(rotated.open(next, 'row-a')).toBe('synthetic-session');
+    expect(() => rotated.open(next.replace('v2:', 'v1:'), 'row-a')).toThrow();
+    expect(() => old.open(next, 'row-a')).toThrow();
+    expect(() => bankSecretBox('bad')).toThrow();
+    expect(() => bankSecretBox('ab'.repeat(32), 'unknown')).toThrow();
+  });
+  it('uses date fallback order and counts malformed, negative and out-of-window rows', async () => {
+    const { provider } = adapter([
+      {
+        transactions: [
+          { ...row, value_date: '2026-09-29', transaction_date: '2026-09-28' },
+          { ...row, booking_date: null, value_date: '2026-09-29', transaction_date: '2026-09-28' },
+          { ...row, booking_date: undefined, transaction_date: '2026-09-28' },
+          { ...row, booking_date: undefined },
+          { ...row, booking_date: '2026-08-31' },
+          { ...row, booking_date: '2026-10-02' },
+          { ...row, transaction_amount: { amount: '-1.01', currency: 'EUR' } },
+          { ...row, transaction_amount: { amount: 'NaN', currency: 'EUR' } },
+          { private_field: 'synthetic-redacted-row' },
+        ],
+      },
+    ]);
+    const result = await provider.transactions('uid', '2026-09-01', '2026-10-01');
+    expect(result.rows.map((r) => r.date)).toEqual(['2026-09-30', '2026-09-29', '2026-09-28']);
+    expect(result).toMatchObject({ skippedInvalid: 4, skippedOutOfWindow: 2 });
+    expect(JSON.stringify(result)).not.toContain('synthetic-redacted-row');
+  });
+  it('caps transaction paging at three requests without publishing partial rows', async () => {
+    const { provider, http } = adapter([
+      { transactions: [row], continuation_key: 'page-2' },
+      { transactions: [row], continuation_key: 'page-3' },
+      { transactions: [row], continuation_key: 'page-4' },
+    ]);
+    const reserve = vi.fn();
+    await expect(
+      provider.transactions('uid', '2026-09-01', '2026-10-01', reserve),
+    ).rejects.toMatchObject({ code: 'request_limit' });
+    expect(http).toHaveBeenCalledTimes(3);
+    expect(reserve).toHaveBeenCalledTimes(3);
+  });
+  it('returns an undated booked balance without substituting an available balance', async () => {
+    const { provider } = adapter([
+      {
+        balances: [
+          { balance_type: 'ITBD', balance_amount: { amount: '12.01', currency: 'EUR' } },
+          {
+            balance_type: 'CLAV',
+            balance_amount: { amount: '15.01', currency: 'EUR' },
+            reference_date: '2026-10-01',
+          },
+        ],
+      },
+    ]);
+    expect(await provider.balance('uid')).toEqual({
+      amountCents: 1201,
+      currency: 'EUR',
+      date: null,
+    });
+  });
+  it.each([
+    [401, 'EXPIRED_SESSION', 'auth_failed'],
+    [403, 'EXPIRED_SESSION', 'consent_expired'],
+    [403, 'ACCESS_DENIED', 'auth_failed'],
+    [400, 'WRONG_TRANSACTIONS_PERIOD', 'history_unavailable'],
+    [422, 'WRONG_TRANSACTIONS_PERIOD', 'history_unavailable'],
+    [400, 'WRONG_REQUEST_PARAMETERS', 'unavailable'],
+  ])('classifies HTTP %s / %s without leaking details', async (status, error, expected) => {
+    const { provider } = adapter([
+      Response.json({ error, message: 'synthetic-sensitive-detail' }, { status }),
+    ]);
+    await expect(provider.transactions('uid', '2026-09-01', '2026-10-01')).rejects.toMatchObject({
+      code: expected,
+      message: expected,
+    });
+  });
+  it('includes extra institutions only from the owner allowlist, using exact names', async () => {
+    const { provider } = adapter(
+      [
+        {
+          aspsps: [
+            { name: 'Bank A', country: 'AT' },
+            { name: 'Bank B', country: 'DE' },
+            { name: 'Bank B Extra', country: 'DE' },
+          ],
+        },
+      ],
+      ['bank b'],
+    );
+    expect((await provider.institutions()).map((i) => i.name)).toEqual(['Bank A', 'Bank B']);
   });
   it('pages booked transactions, drops pending, and never uses unstable detail ids', async () => {
     const { provider, http } = adapter([
@@ -69,21 +174,31 @@ describe('bank adapter with synthetic HTTP only', () => {
         continuation_key: null,
       },
     ]);
-    expect(await provider.transactions('synthetic-uid', '2026-09-01', '2026-10-01')).toEqual([
-      {
-        reference: 'entry-a',
-        date: '2026-09-30',
-        amountCents: -1201,
-        currency: 'EUR',
-        memo: 'Shop A',
-      },
-      { reference: null, date: '2026-09-30', amountCents: -1201, currency: 'EUR', memo: 'Shop A' },
-    ]);
+    expect(await provider.transactions('synthetic-uid', '2026-09-01', '2026-10-01')).toEqual({
+      rows: [
+        {
+          reference: 'entry-a',
+          date: '2026-09-30',
+          amountCents: -1201,
+          currency: 'EUR',
+          memo: 'Shop A',
+        },
+        {
+          reference: null,
+          date: '2026-09-30',
+          amountCents: -1201,
+          currency: 'EUR',
+          memo: 'Shop A',
+        },
+      ],
+      skippedInvalid: 0,
+      skippedOutOfWindow: 0,
+    });
     expect(String(http.mock.calls[1]![0])).toContain('continuation_key=page-next');
     expect(String(http.mock.calls[0]![0])).toContain('transaction_status=BOOK');
     expect(http.mock.calls[0]![1]).toMatchObject({ redirect: 'error' });
   });
-  it('refuses paging cycles and malformed money instead of partial success', async () => {
+  it('refuses paging cycles but skips malformed money with a redacted count', async () => {
     const cycle = adapter([
       { transactions: [row], continuation_key: 'same' },
       { transactions: [], continuation_key: 'same' },
@@ -94,9 +209,11 @@ describe('bank adapter with synthetic HTTP only', () => {
     const malformed = adapter([
       { transactions: [{ ...row, transaction_amount: { amount: '1.001', currency: 'EUR' } }] },
     ]);
-    await expect(
-      malformed.provider.transactions('uid', '2026-09-01', '2026-10-01'),
-    ).rejects.toThrow();
+    expect(await malformed.provider.transactions('uid', '2026-09-01', '2026-10-01')).toEqual({
+      rows: [],
+      skippedInvalid: 1,
+      skippedOutOfWindow: 0,
+    });
   });
   it('takes booked balances only and retains statement date', async () => {
     const { provider } = adapter([

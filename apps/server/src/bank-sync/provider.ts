@@ -14,13 +14,33 @@ export interface BankProvider {
   institutions(): Promise<BankInstitution[]>;
   authorize(institution: BankInstitution, state: string, redirect: string): Promise<string>;
   session(code: string): Promise<BankSession>;
-  transactions(uid: string, from: string, to: string): Promise<BankTransaction[]>;
-  balance(uid: string): Promise<{ amountCents: number; currency: string; date: string }>;
+  transactions(
+    uid: string,
+    from: string,
+    to: string,
+    beforeRequest?: () => void,
+  ): Promise<BankBatch>;
+  balance(
+    uid: string,
+    beforeRequest?: () => void,
+  ): Promise<{ amountCents: number; currency: string; date: string | null }>;
+}
+export interface BankBatch {
+  rows: BankTransaction[];
+  skippedInvalid: number;
+  skippedOutOfWindow: number;
 }
 export class BankError extends Error {
   constructor(
     readonly code:
-      'not_configured' | 'unavailable' | 'rate_limited' | 'invalid_response' | 'consent_expired',
+      | 'not_configured'
+      | 'unavailable'
+      | 'rate_limited'
+      | 'invalid_response'
+      | 'consent_expired'
+      | 'auth_failed'
+      | 'history_unavailable'
+      | 'request_limit',
     readonly retrySeconds = 900,
   ) {
     super(code);
