@@ -281,6 +281,10 @@ export const VERMOEGEN_PORTFOLIO_META: PageDef = PAGES.find(
   (p) => p.path === '/vermoegen/portfolio',
 ) as PageDef;
 
+export const VERMOEGEN_FREIHEIT_META: PageDef = PAGES.find(
+  (p) => p.path === '/vermoegen/freiheit',
+)!;
+
 export const VERMOEGEN_SCHULDEN_META: PageDef = PAGES.find(
   (page) => page.path === '/vermoegen/schulden',
 )!;

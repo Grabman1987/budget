@@ -92,7 +92,7 @@ Prototype references: [Vermögen](../design/prototype/vermoegen.html),
 | I17 | Savings plans, execution matching and change proposals | Schedule UI + engine/API | Native-currency schedule create/edit/end, current/future versions and audited undo are available. Execution/proposal UI and private acceptance remain; bank action stays manual and proposals do not execute orders |
 | I18 | Net worth, own contribution vs market, daily history and composition | UI + engine | Private reconciliation, first-refresh freshness and owner design acceptance |
 | I19 | Debt repayment / Sondertilgung | Connected current debts, real history and unpersisted native monthly payoff model | Persisted per-loan terms/workflow, variable conditions and private contractual scenario acceptance |
-| I20 | Freiheitszahl with Soll-Pfad and target year | Pure calculation; UI placeholder | Shared-data integration, complete page and private assumptions |
+| I20 | Freiheitszahl with Soll-Pfad and target year | Partial UI + shared calculation | Current R16 sources and explicit unsaved saving forecast are connected; historical Soll path, chosen goal year, saved assumptions and private acceptance remain open |
 | I21 | PP XML parsing, security matching, reversible transfer and Gate 3 report | Partial | Parser/target plan exist; persisted commit, matching and independent Gate 3 acceptance remain |
 
 Held instruments without quotes retain known basis and explicit unknown market value/gain
