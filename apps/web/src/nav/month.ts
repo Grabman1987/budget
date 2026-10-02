@@ -24,3 +24,21 @@ export function monthLabel(month: string): string {
   if (!match) return month;
   return label.format(new Date(Number(match[1]), Number(match[2]) - 1, 1));
 }
+
+const short = new Intl.DateTimeFormat('de-AT', { month: 'short' });
+const monthDate = (month: string) => {
+  const match = MONTH.exec(month);
+  return match ? new Date(Number(match[1]), Number(match[2]) - 1, 1) : null;
+};
+
+/** "Sep. – Nov. 2026" for `count` months from `month`; one month reads as `monthLabel`. */
+export function monthRangeLabel(month: string, count: number): string {
+  if (count <= 1) return monthLabel(month);
+  const first = monthDate(month);
+  const last = monthDate(shiftMonth(month, count - 1));
+  if (!first || !last) return month;
+  const year = (d: Date) => String(d.getFullYear());
+  return first.getFullYear() === last.getFullYear()
+    ? `${short.format(first)} – ${short.format(last)} ${year(last)}`
+    : `${short.format(first)} ${year(first)} – ${short.format(last)} ${year(last)}`;
+}

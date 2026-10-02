@@ -644,3 +644,58 @@ export function splitState(summary: MonthSummary, rows: PlanRow[]): SplitState {
   });
   return { kind: 'shares', need: shares.need, want: shares.want, future: shares.future };
 }
+
+/** One envelope across the visible months: `cells[i]` is its row in month `i`, absent when hidden. */
+export interface MultiRow {
+  id: string;
+  name: string;
+  icon: string | null;
+  cls: CategoryClass | null;
+  cells: Array<PlanRow | undefined>;
+}
+
+export interface MultiGroup {
+  key: string;
+  no: string;
+  title: string;
+  rows: MultiRow[];
+}
+
+/**
+ * Plan › Monat with several months side by side: the envelopes grouped as in the "Gruppen" view,
+ * in the order of the leftmost month. An envelope shows when at least one month lists it (hidden
+ * categories only while they still hold or move money); months that do not list it have no cell.
+ */
+export function planMulti(views: BudgetMonthView[]): MultiGroup[] {
+  const first = views[0];
+  if (!first) return [];
+  const perMonth = views.map((v) => new Map(planRows(v).map((r) => [r.id, r])));
+  const groupOrder = new Map(first.groups.map((g, i) => [g.id, i]));
+  const categories = first.categories
+    .filter((c) => perMonth.some((m) => m.has(c.id)))
+    .sort(
+      (a, b) =>
+        (groupOrder.get(a.groupId) ?? 0) - (groupOrder.get(b.groupId) ?? 0) ||
+        a.sortOrder - b.sortOrder,
+    );
+  const groups = first.groups
+    .map((g) => ({
+      key: g.id,
+      title: g.name,
+      rows: categories
+        .filter((c) => c.groupId === g.id)
+        .map((c) => ({
+          id: c.id,
+          name: c.name,
+          icon: c.icon,
+          cls: c.class,
+          cells: perMonth.map((m) => m.get(c.id)),
+        })),
+    }))
+    .filter((g) => g.rows.length > 0);
+  return groups.map((g, i) => ({ ...g, no: String(i + 1) }));
+}
+
+/** The rows of one month column of a group, for `groupStatus` and the sums. */
+export const monthCells = (rows: MultiRow[], index: number): PlanRow[] =>
+  rows.flatMap((r) => r.cells[index] ?? []);

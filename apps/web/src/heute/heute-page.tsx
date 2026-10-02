@@ -14,14 +14,23 @@ import {
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate, useSearch } from '@tanstack/react-router';
 import { useState } from 'react';
-import { AlertTriangle, ArrowDown, ArrowUp, ChevronRight, CircleCheck, Clock3 } from 'lucide-react';
+import {
+  AlertTriangle,
+  ArrowDown,
+  Info,
+  ArrowUp,
+  ChevronRight,
+  CircleCheck,
+  Clock3,
+} from 'lucide-react';
 import { fetchAccounts } from '../ledger/api';
 import { LEDGER_KEY } from '../ledger/queries';
 import { eur, longDay, shortDay } from '../ledger/format';
 import { EmptyNote, ErrorNote, LoadingNote } from '../ledger/states';
 import { HEUTE } from '../nav/pages';
 import { PageFrame } from '../pages/placeholder-page';
-import { useMonth } from '../shell/use-month';
+import { monthLabel as monthName } from '../nav/month';
+import { currentMonth, useMonth } from '../shell/use-month';
 import { AppLink } from '../shell/app-link';
 import { BalanceChart, HeutePaceChart } from './charts';
 import { heuteQuery, type Heute, type HeutePeriod } from './api';
@@ -50,7 +59,7 @@ export function HeutePage() {
   return (
     <PageFrame
       meta={HEUTE}
-      heutePeriod={period}
+      heutePeriod={data?.stand.period ?? period}
       onHeutePeriodChange={setPeriod}
       standDay={data?.stand.today}
     >
@@ -73,6 +82,10 @@ function HeuteBody({ data }: { data: Heute }) {
   const [leadDetail, setLeadDetail] = useState<'need' | 'want' | 'open' | null>(null);
   const [paceDetail, setPaceDetail] = useState<'spent' | 'plan' | 'forecast' | null>(null);
   const navigate = useNavigate();
+  const [, , setMonth] = useMonth();
+  // Another month than today's: the lead, next steps, upcoming, checks, net worth and bookings
+  // stay anchored to today, and the page says so.
+  const away = data.stand.month !== data.stand.today.slice(0, 7);
   const net = 'unavailable' in data.netWorth ? null : data.netWorth;
   const check = 'unavailable' in data.financeCheck ? null : data.financeCheck;
   const revisions: RevisionRow[] = data.nextSteps.items.map((item, index) => ({
@@ -117,6 +130,19 @@ function HeuteBody({ data }: { data: Heute }) {
 
   return (
     <>
+      {away && (
+        <p className="heute-month-note" role="note" data-testid="heute-month-note">
+          <Info size={16} aria-hidden="true" />
+          <span>
+            Du siehst {monthName(data.stand.month)}. Pace, Verlauf und angepinnte Envelopes folgen
+            diesem Monat; Frei verfügbar bis Gehalt, Nächste Schritte, Anstehend, Finanz-Check,
+            Nettovermögen und Buchungen zeigen den Stand von heute ({longDay(data.stand.today)}).
+          </span>
+          <Button variant="ghost" size="sm" onClick={() => setMonth(currentMonth())}>
+            Zum aktuellen Monat
+          </Button>
+        </p>
+      )}
       <section className="heute-lead" aria-labelledby="heute-lead-title">
         <div className="heute-lead-head">
           <div>
@@ -125,6 +151,12 @@ function HeuteBody({ data }: { data: Heute }) {
               Verfügbar in allen Envelopes für Bedarf und Wunsch, abzüglich der Rechnungen, die vor
               dem Gehalt noch fällig sind.
             </p>
+            {away && (
+              <span className="heute-anchor" data-testid="heute-anchor">
+                Bis Gehalt zählt immer ab heute ({shortDay(data.stand.today)}, Gehalt am{' '}
+                {shortDay(data.stand.payday.day)}), nicht ab {monthName(data.stand.month)}.
+              </span>
+            )}
           </div>
           <Button
             variant="ghost"

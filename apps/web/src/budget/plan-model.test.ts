@@ -10,7 +10,9 @@ import {
   groupStatus,
   monthStatus,
   moveGuard,
+  monthCells,
   planGroups,
+  planMulti,
   planRows,
   readAssign,
   splitState,
@@ -318,5 +320,37 @@ describe('Plan › Monat view model', () => {
     } as BudgetMonthView);
     const groups = planGroups('triage', quiet, data, ctx);
     expect(groups.every((g) => g.rows.length === 0 && (g.emptyNote ?? '').length > 0)).toBe(true);
+  });
+
+  it('lines up several months by envelope, in the leftmost month order, with gaps where hidden', () => {
+    const next = {
+      ...data,
+      categories: data.categories.map((c) =>
+        c.id === 'cafe' ? { ...c, hiddenAt: '2026-09-20T00:00:00Z' } : c,
+      ),
+      summary: {
+        ...data.summary,
+        envelopes: data.summary.envelopes.map((e) =>
+          e.categoryId === 'essen' ? { ...e, assignedCents: 25_000 } : env(e.categoryId),
+        ),
+      },
+    } as BudgetMonthView;
+    const groups = planMulti([data, next]);
+    expect(groups).toHaveLength(1);
+    expect(groups[0]?.rows.map((r) => r.id)).toEqual([
+      'miete',
+      'essen',
+      'treibstoff',
+      'cafe',
+      'etf',
+      'karte',
+    ]);
+    const cafe = groups[0]!.rows.find((r) => r.id === 'cafe')!;
+    expect(cafe.cells[0]).toBeDefined();
+    expect(cafe.cells[1]).toBeUndefined();
+    expect(monthCells(groups[0]!.rows, 1)).toHaveLength(5);
+    expect(groupStatus(monthCells(groups[0]!.rows, 0)).assigned).toBe(75_000);
+    expect(groupStatus(monthCells(groups[0]!.rows, 1)).assigned).toBe(25_000);
+    expect(planMulti([])).toEqual([]);
   });
 });
