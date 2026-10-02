@@ -16,6 +16,7 @@ import { parsePp, proposeMigration, SIGN, type AppAccountRef } from '@budget/imp
 import { and, eq, isNull } from 'drizzle-orm';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { runPpTask, type PpTask } from './pp-tasks';
+import { trAbgleich } from './pp-tr-abgleich';
 
 const TODAY = '2026-09-30';
 const bytes = new TextEncoder().encode(ppExport(sampleLedger(), { extras: true }));
@@ -343,5 +344,81 @@ describe('platform statement', () => {
         (p: any) => p.code === 'statement.missing',
       ),
     ).toBe(true);
+  });
+});
+
+describe('Trade Republic reconciliation report', () => {
+  const web = [
+    'datum\tname\tstatus\tbetrag',
+    '2026-08-01\tEinzahlung\t\t100.00',
+    '2026-08-02\tSupermarkt\t\t-20.00',
+    '2026-08-03\tFonds A\tSparplan ausgeführt\t-50.00',
+    '2026-08-04\tSaveback-Fonds\tSaveback\t-5.00',
+    '2026-08-05\tFonds A\tVerkaufsorder\t30.00',
+    '2026-08-20\tZinsen\t\t0.40',
+  ].join('\n');
+
+  it('compares the list with the ledger, names the differences and changes nothing', () => {
+    accounts.create(
+      db,
+      {
+        id: 'cb',
+        name: 'Cashback',
+        type: 'checking',
+        role: 'budget',
+        onBudget: true,
+        openingDate: '2026-07-01',
+        sortOrder: 20,
+      },
+      { actor: 't' },
+    );
+    for (const [id, date, cents] of [
+      ['y1', '2026-08-01', 10_000],
+      ['y2', '2026-08-08', -2_000], // card payment, six days late
+      ['y3', '2026-08-09', 777], // only in YNAB
+    ] as const) {
+      db.insert(booking).values({ id, accountId: 'cb', date, amountCents: cents }).run();
+      db.insert(bookingSplit)
+        .values({ id: `${id}-s`, bookingId: id, amountCents: cents })
+        .run();
+    }
+    const before = db.select().from(booking).all().length;
+    const { markdown, summary } = trAbgleich(db, {
+      web,
+      cashbackName: 'Cashback',
+      depotName: apps[0]!.name,
+      realCashCents: 5_000,
+      today: '2026-10-02',
+    });
+    expect(db.select().from(booking).all()).toHaveLength(before);
+    expect(summary).toMatchObject({
+      // 100 − 20 − 50 + 30 + 0.40 = 60.40 (Saveback is no cash)
+      listCashCents: 6_040,
+      realCashCents: 5_000,
+      cashbackBalanceCents: 10_000 - 2_000 + 777,
+    });
+    expect((summary as any).cash).toMatchObject({
+      exact: 1,
+      dateShifted: 1,
+      statementOnly: 1,
+      ynabOnly: 1,
+    });
+    expect(markdown).toContain('## 1. Kassenstand');
+    expect(markdown).toContain('### 2a.');
+    expect(markdown).toContain('Zinsen');
+    expect(markdown).toContain('## 5. Saveback');
+    expect(markdown).toContain('1 Zeilen');
+  });
+
+  it('refuses an unknown account', () => {
+    expect(() =>
+      trAbgleich(db, {
+        web,
+        cashbackName: 'Nope',
+        depotName: 'x',
+        realCashCents: 0,
+        today: '2026-10-02',
+      }),
+    ).toThrow(/not found/);
   });
 });

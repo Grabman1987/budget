@@ -6,6 +6,7 @@ import { parsePp, proposeMigration, ppMigrationSchema } from '@budget/import-pp'
 import { isNull } from 'drizzle-orm';
 import type { Gate3Report, ReferenceValues } from './pp-report';
 import { findPpRun, PpTaskError, runPpTask, type PpTask } from './pp-tasks';
+import { trAbgleich } from './pp-tr-abgleich';
 
 /**
  * One-time Portfolio Performance migration on the server (owner decision 01.10.2026: no import
@@ -18,6 +19,7 @@ import { findPpRun, PpTaskError, runPpTask, type PpTask } from './pp-tasks';
  *   node migrate-pp-cli.js map --run <id> --mapping <mapping.json>
  *   node migrate-pp-cli.js dry-run|commit|report --run <id> [--days a,b] [--reference <file>] [--details]
  *   node migrate-pp-cli.js revert|delete --run <id>
+ *   node migrate-pp-cli.js abgleich --web <tr.tsv> [--pytr <csv>] --cashback <name> --depot <name> --real <eur> --out <md>
  *
  * Output is aggregates only (counts, problem codes, figures per account); `--details` adds the
  * per-position and per-year lines for the operator's terminal and `--out <file>` writes the whole
@@ -340,6 +342,23 @@ try {
       if (command === 'commit')
         console.log('run status    ', (body['run'] as { status: string }).status);
       finish(body);
+      break;
+    }
+    case 'abgleich': {
+      // Trade Republic reconciliation report (private markdown; changes nothing).
+      const web = readFileSync(required('web'), 'utf8');
+      const pytr = option('pytr') ? readFileSync(required('pytr'), 'utf8') : undefined;
+      const { markdown, summary } = trAbgleich(db, {
+        web,
+        ...(pytr ? { pytr } : {}),
+        cashbackName: required('cashback'),
+        depotName: required('depot'),
+        realCashCents: Math.round(Number(required('real')) * 100),
+        today: ctx.today,
+      });
+      writeFileSync(resolve(required('out')), markdown);
+      console.log('written       ', option('out'));
+      console.log(JSON.stringify(summary));
       break;
     }
     case 'revert': {
