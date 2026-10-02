@@ -1,5 +1,4 @@
 import type { BudgetMonthView } from '../budget/budget-api';
-import { STAGES } from '../budget/labels';
 import type { BookingKind } from './booking-model';
 import type { AccountRow, Lookups } from './types';
 
@@ -8,7 +7,7 @@ import type { AccountRow, Lookups } from './types';
 export interface PickCategory {
   id: string;
   name: string;
-  /** Heading in the list: the waterfall stage, or "Einnahmen" / "Ohne Stufe". */
+  /** Heading in the list: the name of the category group. */
   group: string;
   cls: 'need' | 'want' | 'future' | null;
   kind: string;
@@ -17,50 +16,55 @@ export interface PickCategory {
   hidden: boolean;
 }
 
-const stageTitle = (stage: number | null, kind: string): string => {
-  if (stage !== null) return `${stage} ${STAGES.find((s) => s.n === stage)?.name ?? ''}`.trim();
-  return kind === 'income' ? 'Einnahmen' : 'Ohne Stufe';
-};
-
 /**
- * Categories a booking can go to, ordered by waterfall stage (then group and sort order) with the
- * Available of the month. Card payments are transfers and Auslagen belong to contact shares, so
- * neither is offered here. Falls back to the plain pick list while the budget loads.
+ * Categories a booking can go to, in the order of the budget (category group, then sort order)
+ * with the group's name as heading and the Available of the month. Card payments are transfers
+ * and Auslagen belong to contact shares, so neither is offered here (`withAdvance` keeps the
+ * Auslagen, for filtering). Falls back to the plain pick list while the budget loads.
  */
 export function pickableCategories(
   budget: BudgetMonthView | undefined,
   lookups: Lookups | undefined,
+  options: { withAdvance?: boolean } = {},
 ): PickCategory[] {
+  const offered = (kind: string) =>
+    kind !== 'card_payment' && (kind !== 'advance' || options.withAdvance === true);
   if (budget) {
     const available = new Map(
       budget.summary.envelopes.map((e) => [e.categoryId, e.availableCents] as const),
     );
     const groupOrder = new Map(budget.groups.map((g, i) => [g.id, i] as const));
+    const groupName = new Map(budget.groups.map((g) => [g.id, g.name] as const));
     const ranked = budget.categories
-      .filter((c) => c.kind !== 'card_payment' && c.kind !== 'advance')
+      .filter((c) => offered(c.kind))
       .map((c) => ({
-        order: [c.stage ?? 99, groupOrder.get(c.groupId) ?? 0, c.sortOrder] as const,
+        order: [groupOrder.get(c.groupId) ?? 999, c.sortOrder] as const,
         item: {
           id: c.id,
           name: c.name,
-          group: stageTitle(c.stage, c.kind),
+          group: groupName.get(c.groupId) ?? 'Ohne Gruppe',
           cls: c.class,
           kind: c.kind,
           availableCents: available.get(c.id) ?? null,
           hidden: c.hiddenAt !== null,
         } satisfies PickCategory,
       }));
-    ranked.sort(
-      (a, b) => a.order[0] - b.order[0] || a.order[1] - b.order[1] || a.order[2] - b.order[2],
-    );
+    ranked.sort((a, b) => a.order[0] - b.order[0] || a.order[1] - b.order[1]);
     return ranked.map((r) => r.item);
   }
+  const groupName = new Map((lookups?.groups ?? []).map((g) => [g.id, g.name] as const));
+  const groupOrder = new Map((lookups?.groups ?? []).map((g) => [g.id, g.sortOrder] as const));
   return (lookups?.categories ?? [])
-    .filter((c) => c.kind !== 'card_payment' && c.kind !== 'advance')
+    .filter((c) => offered(c.kind))
+    .sort(
+      (a, b) =>
+        (groupOrder.get(a.groupId ?? '') ?? 999) - (groupOrder.get(b.groupId ?? '') ?? 999) ||
+        a.sortOrder - b.sortOrder,
+    )
     .map((c) => ({
       id: c.id,
       name: c.name,
-      group: c.kind === 'income' ? 'Einnahmen' : 'Kategorien',
+      group: groupName.get(c.groupId ?? '') ?? 'Ohne Gruppe',
       cls: c.class === 'need' || c.class === 'want' || c.class === 'future' ? c.class : null,
       kind: c.kind,
       availableCents: null,
@@ -69,16 +73,18 @@ export function pickableCategories(
 }
 
 /**
- * What the category field offers for a kind: spending never goes to an income category, hidden
- * categories only while they are the selected one.
+ * What a category field offers for a kind: spending never goes to an income category and hidden
+ * (archived) categories are left out. `keep` names categories that stay listed although hidden
+ * (a plain `<select>` must still show the one an existing booking line has).
  */
 export function categoriesFor(
   all: ReadonlyArray<PickCategory>,
   kind: BookingKind,
-  selectedId: string,
+  keep: string | ReadonlyArray<string> = '',
 ): PickCategory[] {
+  const kept = typeof keep === 'string' ? [keep] : keep;
   return all.filter(
-    (c) => (!c.hidden || c.id === selectedId) && (kind !== 'expense' || c.kind !== 'income'),
+    (c) => (!c.hidden || kept.includes(c.id)) && (kind !== 'expense' || c.kind !== 'income'),
   );
 }
 
@@ -142,15 +148,6 @@ export function remember(accountId: string, categoryId: string | null): void {
   } catch {
     // Private mode or blocked storage: the panel still works, it just forgets.
   }
-}
-
-/** Quick date picks relative to today: `[label, day]`. */
-export function quickDays(today: string, shift: (day: string, n: number) => string) {
-  return [
-    ['Heute', today],
-    ['Gestern', shift(today, -1)],
-    ['Vorgestern', shift(today, -2)],
-  ] as const;
 }
 
 /**

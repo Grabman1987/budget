@@ -3,7 +3,7 @@ import { cx, type SwatchKind } from '@budget/ui';
 import { useQuery } from '@tanstack/react-query';
 import { ArrowDown, ArrowUp, Pencil } from 'lucide-react';
 import { Fragment, useState, type ReactNode } from 'react';
-import { CategoryCell, PayeeCell, StatusCell, useCategoryClasses } from './booking-cells';
+import { CategoryCell, FlagCell, PayeeCell, StatusCell, useCategoryClasses } from './booking-cells';
 import { dayHeading, eur, shortDay } from './format';
 import { flashRows, useFlashing } from './flash';
 import { useLedgerWrites } from './mutations';
@@ -109,6 +109,9 @@ export function BookingTable({
                 />
               </th>
             )}
+            <th className="kc-flag" scope="col">
+              <span className="sr-only">Markierung</span>
+            </th>
             {head('Datum', 'date')}
             {head('Empfänger', 'payee')}
             {all && head('Konto', 'account')}
@@ -123,7 +126,7 @@ export function BookingTable({
             <Fragment key={group.day || 'all'}>
               {all && (
                 <tr className="kday">
-                  <td colSpan={selection ? 7 : 6}>
+                  <td colSpan={selection ? 8 : 7}>
                     <span className="tech">{dayHeading(group.day)}</span>
                     <span className="kday-sum">{eur(group.sum, { sign: true })}</span>
                   </td>
@@ -206,6 +209,9 @@ function Row({
           />
         </td>
       )}
+      <td className="kc-flag kx-flag">
+        <FlagCell flag={b.flag} />
+      </td>
       <td className="kc-date kx-date">{shortDay(b.date)}</td>
       <td className="kx-payee">
         <button

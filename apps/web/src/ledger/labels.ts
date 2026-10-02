@@ -34,6 +34,16 @@ export const FLAG_LABEL: Record<BookingFlag, string> = {
   purple: 'Violett',
 };
 
+/** Key that picks a flag in the flag popover (1 to 6; 0 removes the flag). */
+export const FLAG_KEY: Record<BookingFlag, string> = {
+  red: '1',
+  orange: '2',
+  yellow: '3',
+  green: '4',
+  blue: '5',
+  purple: '6',
+};
+
 export interface AccountGroup {
   role: AccountRole;
   title: string;

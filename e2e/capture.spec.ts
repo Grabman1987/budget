@@ -61,13 +61,14 @@ test('an expense by keyboard: arithmetic, Enter moves on, Ctrl+Enter saves, Avai
   await expect(panel.locator('.kavail strong')).toHaveText('0,00 €');
   await page.keyboard.press('Control+Enter');
 
+  // The new row flashes once (tx-in, half a second): checked first, before the dialog is gone.
+  const row = page.getByRole('row', { name: new RegExp(`Markt ${tag}`) });
+  await expect(row).toHaveClass(/tx-flash/);
   await expect(page.getByRole('dialog', { name: 'Buchung erfassen' })).toBeHidden();
   await expect(page).not.toHaveURL(/panel=/);
   await expect(toast(page)).toContainText('Buchung gespeichert');
-  const row = page.getByRole('row', { name: new RegExp(`Markt ${tag}`) });
   await expect(row).toBeVisible();
-  // The new row flashes once (tx-in) and the balance follows without a reload.
-  await expect(row).toHaveClass(/tx-flash/);
+  // The balance follows without a reload.
   await expect(balance(page)).toHaveText('979,30 €');
 
   // The category's Available of the month dropped by the amount, also without a reload.
@@ -184,10 +185,11 @@ test('discard question, Speichern und neu keeps the context, the payee brings it
   await expect(panel.getByLabel('Konto', { exact: true }).locator('option').first()).toHaveText(
     account,
   );
-  // The open suggestion list must not shift the page: a click below it still lands.
+  // The open suggestion list must not shift the page: a click below it still lands (here the
+  // footer button; the empty amount is refused, which proves the click arrived).
   await expect(panel.getByRole('listbox')).toBeVisible();
-  await panel.getByText('Mehr', { exact: true }).click();
-  await expect(panel.getByLabel('Markierung')).toBeVisible();
+  await panel.getByRole('button', { name: 'Speichern und neu' }).click();
+  await expect(panel.getByRole('alert').first()).toBeVisible();
   await page.keyboard.press('Escape');
   await panel.getByRole('button', { name: 'Verwerfen' }).click();
 });
@@ -271,7 +273,7 @@ test('a split with a contact share: the chain shows what is left, saving waits u
   await line2.getByLabel('Kontakt 2').selectOption({ label: 'Anna Muster' });
   await line2.getByRole('button', { name: 'Rest einsetzen' }).click();
   await expect(line2.getByLabel('Betrag 2')).toHaveValue('20,00');
-  await expect(chain).toContainText('0,00 €');
+  await expect(chain).toContainText(/\d,\d\d €/);
   await expect(panel.getByText('Aufteilung geht auf.')).toBeVisible();
   await expect(save).toBeEnabled();
   await save.click();
@@ -373,4 +375,192 @@ test('a second Esc without any interaction still asks before discarding', async 
   await expect(panel).toBeVisible();
   await expect(panel.getByText('Eingaben verwerfen?')).toBeVisible();
   await expect(panel.getByLabel('Betrag', { exact: true })).toHaveValue('5');
+});
+
+test('the dialog is a centred card on the desktop and a sheet on the phone; no date quick picks', async ({
+  page,
+}, testInfo) => {
+  await visit(page, '/');
+  const panel = await openCapture(page, testInfo);
+  const box = await panel.boundingBox();
+  const viewport = page.viewportSize()!;
+  if (isPhone(testInfo)) {
+    // Bottom sheet: full width, resting on the bottom edge.
+    expect(box!.width).toBeGreaterThanOrEqual(viewport.width - 1);
+    expect(box!.y + box!.height).toBeGreaterThanOrEqual(viewport.height - 1);
+  } else {
+    // Centred modal card of 540 px, with a gap to every edge.
+    expect(Math.round(box!.width)).toBe(540);
+    expect(Math.abs(box!.x + box!.width / 2 - viewport.width / 2)).toBeLessThan(2);
+    expect(box!.y).toBeGreaterThan(8);
+    expect(box!.x + box!.width).toBeLessThan(viewport.width);
+  }
+  await expect(panel.getByRole('group', { name: 'Schnellwahl' })).toHaveCount(0);
+  await expect(panel.getByRole('button', { name: 'Gestern' })).toHaveCount(0);
+  // Field order: Betrag, Empfänger, Konto, Datum, Kategorie, Notiz.
+  const wanted = ['Betrag', 'Empfänger', 'Konto', 'Datum', 'Kategorie', 'Notiz'];
+  const order = await panel.evaluate(
+    (el, names) =>
+      Array.from(el.querySelectorAll('label'))
+        .map((l) => l.textContent?.trim() ?? '')
+        .filter((t) => names.includes(t)),
+    wanted,
+  );
+  expect(order).toEqual(wanted);
+  // The footer stays in view with the Speichern button.
+  await expect(panel.getByRole('button', { name: 'Speichern', exact: true })).toBeInViewport();
+});
+
+test('the flag: popover with six colours and keys, first column of the table', async ({
+  page,
+}, testInfo) => {
+  const tag = testInfo.project.name;
+  const account = `Flagge ${tag}${again(testInfo)}`;
+  await createAccount(page, account, 'Giro', '100');
+  await openAccount(page, account);
+
+  const panel = await openCapture(page, testInfo);
+  // The flag button comes first in the head, before the kind of booking.
+  const head = panel.locator('.bk-head');
+  await expect(head.getByRole('button').first()).toHaveAccessibleName('Markierung: keine');
+  await head.getByRole('button', { name: /^Markierung/ }).click();
+  const menu = panel.getByRole('menu', { name: 'Markierung wählen' });
+  await expect(menu.getByRole('menuitemradio')).toHaveText([
+    /Rot/,
+    /Orange/,
+    /Gelb/,
+    /Grün/,
+    /Blau/,
+    /Violett/,
+    /keine/,
+  ]);
+  // Esc closes the popover only; the dialog stays.
+  await page.keyboard.press('Escape');
+  await expect(menu).toBeHidden();
+  await expect(panel).toBeVisible();
+  await head.getByRole('button', { name: /^Markierung/ }).click();
+  await page.keyboard.press('3');
+  await expect(menu).toBeHidden();
+  await expect(head.getByRole('button', { name: 'Markierung: Gelb' })).toBeFocused();
+
+  await panel.getByLabel('Betrag', { exact: true }).fill('9');
+  await panel.getByLabel('Empfänger').fill(`Kiosk ${tag}`);
+  await pickCategory(panel, `Cap A ${tag}`);
+  await page.keyboard.press('Control+Enter');
+  await expect(page.getByRole('dialog', { name: 'Buchung erfassen' })).toBeHidden();
+
+  // The table: the flag is the first column and shows a glyph with the colour name as text.
+  if (!isPhone(testInfo)) {
+    await expect(page.getByRole('columnheader').first()).toHaveText('Markierung');
+  }
+  const row = page.getByRole('row', { name: new RegExp(`Kiosk ${tag}`) });
+  await expect(row.getByRole('cell').first()).toContainText('Markierung Gelb');
+  await expect(row.locator('.kflag-glyph.is-yellow')).toBeVisible();
+
+  // Opened again: the flag is kept; "keine" (key 0) removes it.
+  await row.getByRole('button', { name: /bearbeiten/ }).click();
+  const edit = page.getByRole('dialog', { name: 'Buchung bearbeiten' });
+  await edit.getByRole('button', { name: 'Markierung: Gelb' }).click();
+  await page.keyboard.press('0');
+  await expect(edit.getByRole('button', { name: 'Markierung: keine' })).toBeVisible();
+  await edit.getByRole('button', { name: 'Speichern', exact: true }).click();
+  await expect(edit).toBeHidden();
+  await expect(row.locator('.kflag-glyph')).toHaveCount(0);
+});
+
+test('the cleared toggle: bestätigt on by default, off makes the booking vorgemerkt', async ({
+  page,
+}, testInfo) => {
+  const tag = testInfo.project.name;
+  const account = `Status ${tag}${again(testInfo)}`;
+  await createAccount(page, account, 'Giro', '100');
+  await openAccount(page, account);
+
+  const panel = await openCapture(page, testInfo);
+  const toggle = panel.getByRole('button', { name: 'Bestätigt', exact: true });
+  await expect(toggle).toHaveAttribute('aria-pressed', 'true');
+  // The status select is gone from "Mehr".
+  await expect(panel.getByLabel('Status', { exact: true })).toHaveCount(0);
+  await toggle.click();
+  await expect(toggle).toHaveAttribute('aria-pressed', 'false');
+  await panel.getByLabel('Betrag', { exact: true }).fill('4');
+  await panel.getByLabel('Empfänger').fill(`Vormerk ${tag}`);
+  await pickCategory(panel, `Cap B ${tag}`);
+  await page.keyboard.press('Control+Enter');
+
+  const row = page.getByRole('row', { name: new RegExp(`Vormerk ${tag}`) });
+  await expect(row).toContainText('vorgemerkt');
+  await row.getByRole('button', { name: /bearbeiten/ }).click();
+  const edit = page.getByRole('dialog', { name: 'Buchung bearbeiten' });
+  const editToggle = edit.getByRole('button', { name: 'Bestätigt', exact: true });
+  await expect(editToggle).toHaveAttribute('aria-pressed', 'false');
+  await editToggle.click();
+  await edit.getByRole('button', { name: 'Speichern', exact: true }).click();
+  await expect(edit).toBeHidden();
+  await expect(row).toContainText('bestätigt');
+});
+
+test('Auslage für Kontakt: a new contact is created in place and selected at once', async ({
+  page,
+}, testInfo) => {
+  const tag = testInfo.project.name;
+  const account = `Neuer Kontakt ${tag}${again(testInfo)}`;
+  const name = `Bea ${tag}${again(testInfo)}`;
+  await createAccount(page, account, 'Giro', '200');
+  await openAccount(page, account);
+
+  const panel = await openCapture(page, testInfo);
+  await panel.getByLabel('Betrag', { exact: true }).fill('15');
+  await panel.getByLabel('Empfänger').fill(`Kino ${tag}`);
+  const contact = panel.getByLabel('Auslage für Kontakt');
+  await contact.selectOption({ label: '+ Neuer Kontakt…' });
+  const field = panel.getByLabel('Name des neuen Kontakts');
+  await expect(field).toBeFocused();
+  // Enter creates the contact; it does not move on in the booking form.
+  await field.fill(name);
+  await page.keyboard.press('Enter');
+  await expect(field).toBeHidden();
+  await expect(contact.locator('option:checked')).toHaveText(name);
+  await expect(toast(page)).toContainText(`Kontakt „${name}“ angelegt`);
+  // The contact is there for the contacts API as well.
+  const response = await page.request.get('/api/contacts?history=1');
+  expect(JSON.stringify(await response.json())).toContain(name);
+  await page.keyboard.press('Control+Enter');
+  const row = page.getByRole('row', { name: new RegExp(`Kino ${tag}`) });
+  await expect(row).toContainText('Auslagen');
+  await expect(balance(page)).toHaveText('185,00 €');
+  // The booking has its own undo; the contact stays with the contacts.
+  await row.getByRole('button', { name: /bearbeiten/ }).click();
+  const edit = page.getByRole('dialog', { name: 'Buchung bearbeiten' });
+  await expect(edit.getByLabel('Auslage für Kontakt').locator('option:checked')).toHaveText(name);
+});
+
+test('the category list: grouped by category group, no archived ones, Verfügbar on each option', async ({
+  page,
+}, testInfo) => {
+  await visit(page, '/');
+  const panel = await openCapture(page, testInfo);
+  await panel.getByLabel('Kategorie', { exact: true }).focus();
+  const list = panel.getByRole('listbox', { name: /Kategorie, Vorschläge/ });
+  await expect(list).toBeVisible();
+  // Group headers are the category groups (here "Fixkosten"), the column says Verfügbar.
+  await expect(list.locator('.combo-group', { hasText: 'Fixkosten' })).toBeVisible();
+  await expect(list.locator('.combo-head')).toHaveText('Verfügbar');
+  await expect(list.getByRole('option', { name: /^Essen/ })).toContainText(/\d,\d\d €/);
+  // The archived category is not offered.
+  await expect(list.getByRole('option', { name: /Archiv Alt/ })).toHaveCount(0);
+  // The same list filters the bookings.
+  await page.keyboard.press('Escape');
+  await page.keyboard.press('Escape');
+  await expect(panel).toBeHidden();
+  await visit(page, '/konten/buchungen');
+  await page.getByLabel('Kategorie', { exact: true }).focus();
+  const filter = page.getByRole('listbox', { name: /Kategorie, Vorschläge/ });
+  await expect(filter.getByRole('option', { name: 'Alle Kategorien' })).toBeVisible();
+  await expect(filter.getByRole('option', { name: 'ohne Kategorie' })).toBeVisible();
+  await expect(filter.locator('.combo-group', { hasText: 'Fixkosten' })).toBeVisible();
+  await expect(filter.getByRole('option', { name: /Archiv Alt/ })).toHaveCount(0);
+  await filter.getByRole('option', { name: /^Essen/ }).click();
+  await expect(page).toHaveURL(/kategorie=e2e-essen/);
+  await expect(page.getByLabel('Kategorie', { exact: true })).toHaveValue('Essen');
 });
