@@ -20,6 +20,8 @@ import { daysBetween } from '@budget/domain';
 export interface FlowItem {
   date: string;
   cents: number;
+  /** Caller's handle, carried through to the result (a booking id, a statement row). */
+  ref?: string;
 }
 
 export interface FlowMatchOptions {
@@ -32,10 +34,14 @@ export interface FlowMatchOptions {
   roundTripDays?: number;
   /** First day PP knows the platform; app flows before it are PP gaps, not differences. */
   ppFrom?: string;
+  /** Leave out the monthly-sum pass (matching that needs every flow named, not summed). */
+  aggregate?: boolean;
 }
 
 export interface FlowMatchResult {
   exact: number;
+  /** The pairs behind `exact`. */
+  exactPairs: { pp: FlowItem; app: FlowItem; days: number }[];
   dateShifted: { pp: FlowItem; app: FlowItem; days: number }[];
   split: { pp: FlowItem[]; app: FlowItem[] }[];
   roundTrips: { side: 'pp' | 'app'; out: FlowItem; back: FlowItem }[];
@@ -80,6 +86,7 @@ export function matchFlows(
     maxCandidates = 14,
     roundTripDays = 7,
     ppFrom,
+    aggregate = true,
   } = options;
   const pp = [...ppIn].sort((a, b) => a.date.localeCompare(b.date) || a.cents - b.cents);
   const app = [...appIn].sort((a, b) => a.date.localeCompare(b.date) || a.cents - b.cents);
@@ -87,6 +94,7 @@ export function matchFlows(
   const usedApp = new Set<number>();
   const result: FlowMatchResult = {
     exact: 0,
+    exactPairs: [],
     dateShifted: [],
     split: [],
     roundTrips: [],
@@ -110,8 +118,10 @@ export function matchFlows(
     if (usedPp.has(p) || usedApp.has(a)) continue;
     usedPp.add(p);
     usedApp.add(a);
-    if (gap <= exactDays) result.exact += 1;
-    else result.dateShifted.push({ pp: pp[p] as FlowItem, app: app[a] as FlowItem, days: gap });
+    if (gap <= exactDays) {
+      result.exact += 1;
+      result.exactPairs.push({ pp: pp[p] as FlowItem, app: app[a] as FlowItem, days: gap });
+    } else result.dateShifted.push({ pp: pp[p] as FlowItem, app: app[a] as FlowItem, days: gap });
   }
 
   // 3: several flows of one side are one flow of the other.
@@ -196,7 +206,7 @@ export function matchFlows(
   for (const month of [...months].sort()) {
     const a = ppLeft.filter((f) => f.date.startsWith(month));
     const b = appLeft.filter((f) => f.date.startsWith(month));
-    if (a.length > 0 && b.length > 0 && sum(a) === sum(b))
+    if (aggregate && a.length > 0 && b.length > 0 && sum(a) === sum(b))
       result.aggregate.push({ month, pp: a, app: b });
     else {
       ppRest.push(...a);

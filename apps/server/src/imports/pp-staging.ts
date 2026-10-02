@@ -24,6 +24,7 @@ export const PP_MAX_BYTES = 64 * 1024 * 1024;
 export function stagePpFile(
   db: Executor,
   input: { name: string; bytes: Uint8Array },
+  statements: Record<string, { name: string; bytes: Uint8Array }> = {},
 ): { runId: string; sha256: string } {
   const sha256 = createHash('sha256').update(input.bytes).digest('hex');
   const runId = randomUUID();
@@ -34,12 +35,24 @@ export function stagePpFile(
     tx.insert(importFile)
       .values({
         importRunId: runId,
+        kind: 'pp-xml',
         name: input.name,
         sha256,
         sizeBytes: input.bytes.byteLength,
         bytes: Buffer.from(input.bytes),
       })
       .run();
+    for (const [uuid, file] of Object.entries(statements))
+      tx.insert(importFile)
+        .values({
+          importRunId: runId,
+          kind: `statement:${uuid}`,
+          name: file.name,
+          sha256: createHash('sha256').update(file.bytes).digest('hex'),
+          sizeBytes: file.bytes.byteLength,
+          bytes: Buffer.from(file.bytes),
+        })
+        .run();
   });
   return { runId, sha256 };
 }
@@ -56,9 +69,22 @@ export function sameFileRuns(db: Executor, sha256: string): string[] {
 
 /** The parsed file of a run, `null` once it was deleted. Throws the parser's errors. */
 export function loadPpModel(db: Executor, run: ImportRunRow): PpModel | null {
-  const file = db.select().from(importFile).where(eq(importFile.importRunId, run.id)).get();
+  const file = db
+    .select()
+    .from(importFile)
+    .where(and(eq(importFile.importRunId, run.id), eq(importFile.kind, 'pp-xml')))
+    .get();
   if (!file) return null;
   return parsePp(new Uint8Array(file.bytes), { maxBytes: PP_MAX_BYTES });
+}
+
+/** The staged statements of a run, by PP cash account uuid (text; never logged). */
+export function loadStatements(db: Executor, run: ImportRunRow): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const f of db.select().from(importFile).where(eq(importFile.importRunId, run.id)).all())
+    if (f.kind.startsWith('statement:'))
+      out[f.kind.slice('statement:'.length)] = new TextDecoder().decode(new Uint8Array(f.bytes));
+  return out;
 }
 
 export function savePpMapping(db: Executor, runId: string, doc: PpMigrationInput): number {

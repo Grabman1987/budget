@@ -1,5 +1,5 @@
 import { readFileSync, writeFileSync } from 'node:fs';
-import { basename, resolve } from 'node:path';
+import { basename, dirname, resolve } from 'node:path';
 import { account, migrateDatabase, openDatabase, security } from '@budget/db';
 import { todayInVienna } from '@budget/domain';
 import { parsePp, proposeMigration, ppMigrationSchema } from '@budget/import-pp';
@@ -56,6 +56,23 @@ function reportOptions() {
     ? (JSON.parse(readFileSync(required('reference'), 'utf8')) as ReferenceValues)
     : undefined;
   return { ...(days ? { days } : {}), ...(reference ? { reference } : {}) };
+}
+
+/** Statements named in the mapping (`statement.file`, relative to the mapping), by PP account uuid. */
+function statementFiles(
+  mapping: unknown,
+  mappingPath: string | undefined,
+): Record<string, { name: string; bytes: Uint8Array }> | undefined {
+  if (!mapping || !mappingPath) return undefined;
+  const accounts = (mapping as { accounts?: Record<string, unknown> }).accounts ?? {};
+  const out: Record<string, { name: string; bytes: Uint8Array }> = {};
+  for (const [uuid, entry] of Object.entries(accounts)) {
+    const file = (entry as { statement?: { file?: string } } | undefined)?.statement?.file;
+    if (!file) continue;
+    const path = resolve(dirname(resolve(mappingPath)), file);
+    out[uuid] = { name: basename(path), bytes: new Uint8Array(readFileSync(path)) };
+  }
+  return Object.keys(out).length > 0 ? out : undefined;
 }
 
 function run(task: PpTask) {
@@ -283,10 +300,12 @@ try {
     case 'stage': {
       const file = required('file');
       const mapping = option('mapping') ? readJson('mapping') : undefined;
+      const statements = statementFiles(mapping, option('mapping'));
       const body = run({
         kind: 'stage',
         file: { name: basename(file), bytes: new Uint8Array(readFileSync(file)) },
         ...(mapping ? { mapping: mapping as never } : {}),
+        ...(statements ? { statements } : {}),
       });
       const view = body['run'] as { id: string; summary: unknown };
       console.log('run           ', view.id);

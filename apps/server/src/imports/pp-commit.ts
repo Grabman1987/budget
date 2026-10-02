@@ -51,6 +51,14 @@ import { and, asc, eq, gt, inArray, isNotNull, isNull, like, ne, or, sql } from 
 import { deriveCoingeckoId } from '@budget/market';
 import { randomUUID } from 'node:crypto';
 import { ImportStateError } from './commit';
+import {
+  OLD_PREFIX,
+  prepareStatement,
+  reconcileStatementTransfers,
+  statementCheck,
+  type PreparedStatement,
+  type StatementTransferReport,
+} from './pp-statement';
 
 /**
  * The target layer of a one-time Portfolio Performance run (`docs/ops.md` §13,
@@ -99,6 +107,8 @@ export interface Prepared {
     securitiesCents: number;
     cashOpeningCents: number;
   }[];
+  /** Platform statements applied to the plan (`pp-statement.ts`). */
+  statements: PreparedStatement[];
   /** Adjustments made by `normalizeTrade`, by code. */
   notes: Record<string, number>;
   problems: PpRunProblem[];
@@ -137,6 +147,7 @@ export function preparePp(
   model: PpModel,
   doc: PpMigration,
   resolveCoin: (security: PpSecurity) => string | null = coinIdOf,
+  statementTexts: Record<string, string> = {},
 ): Prepared {
   const problems: PpRunProblem[] = [];
   const apps = db
@@ -237,6 +248,54 @@ export function preparePp(
       });
     }
   }
+  const statements: PreparedStatement[] = [];
+  for (const t of resolved.targets) {
+    if (!t.statement) continue;
+    const text = statementTexts[t.statement.ppAccountUuid];
+    if (text === undefined) {
+      addProblem(
+        problems,
+        'error',
+        'statement.missing',
+        `The statement of "${t.name}" is not staged`,
+      );
+      continue;
+    }
+    const split = resolved.splits.find((p) => p.cashAccountId === t.accountId);
+    const rerun =
+      split?.state === 'done'
+        ? (db
+            .select({ cents: trade.amountCents })
+            .from(trade)
+            .where(
+              and(
+                eq(trade.accountId, split.depotAccountId),
+                eq(trade.importKey, `${OLD_PREFIX}open`),
+                isNull(trade.deletedAt),
+              ),
+            )
+            .get()?.cents ?? 0)
+        : null;
+    const st = prepareStatement(
+      {
+        resolved,
+        securities: planned.securities,
+        plan,
+        trades,
+        openingCash,
+        openingCheck,
+        statements,
+        notes,
+        problems,
+      },
+      model,
+      t,
+      text,
+      rerun,
+      problems,
+    );
+    if (st) statements.push(st);
+  }
   return {
     resolved,
     securities: planned.securities,
@@ -244,6 +303,7 @@ export function preparePp(
     trades,
     openingCash,
     openingCheck,
+    statements,
     notes,
     problems,
   };
@@ -287,6 +347,23 @@ export interface PpChangeReport {
   splits: { cash: string; depot: string; renamedFrom: string; state: 'new' | 'done' }[];
   transfers: { added: number };
   openingCheck: Prepared['openingCheck'];
+  /** Platform statements: what was matched, converted, added and removed. */
+  statements: {
+    account: string;
+    rows: number;
+    matched: number;
+    deliveriesToPurchases: number;
+    oldHoldings: {
+      openingCents: number;
+      gapOrders: number;
+      handover: PreparedStatement['handover'];
+    };
+    gapIncomeAndCosts: number;
+    ppOnlyItems: number;
+    cashOpeningCents: number;
+    transfers: StatementTransferReport;
+    check: { balanceCents: number; closingCents: number; diffCents: number };
+  }[];
   /** Reconciliation bookings that make a platform's cash equal its statement (what YNAB missed). */
   corrections: {
     account: string;
@@ -323,6 +400,11 @@ function remapAccounts(prep: Prepared, real: ReadonlyMap<string, string>): void 
     t.cashAccountId = rn(t.cashAccountId);
   }
   for (const sp of prep.resolved.splits) sp.depotAccountId = r(sp.depotAccountId);
+  for (const st of prep.statements) {
+    st.accountId = r(st.accountId);
+    st.depotId = r(st.depotId);
+    st.bankAccountId = r(st.bankAccountId);
+  }
   for (const m of [prep.resolved.mapping.portfolios, prep.resolved.mapping.accounts])
     for (const v of Object.values(m)) if (v !== 'ignore') v.accountId = r(v.accountId);
   for (const t of [...prep.plan.trades, ...prep.trades]) t.accountId = r(t.accountId);
@@ -393,6 +475,7 @@ export function writePp(
     splits: [],
     transfers: { added: 0 },
     openingCheck: prep.openingCheck,
+    statements: [],
     corrections: [],
     accounts: [],
     notes: prep.notes,
@@ -789,6 +872,12 @@ export function writePp(
   );
   trace('bookings');
 
+  // Platform statements: the external transfers, then the exactness check.
+  const transferReports = prep.statements.map((st) =>
+    reconcileStatementTransfers(tx, st, ctx, input.runId),
+  );
+  trace('statements');
+
   // Real cash of the platforms: one reconciliation booking per account whose balance on the
   // statement day differs (what YNAB's flows missed). Re-runs replace an earlier one of the run's
   // key family with the amount that is needed now.
@@ -859,6 +948,24 @@ export function writePp(
       sortOrder: 0,
     });
   }
+  prep.statements.forEach((st, i) =>
+    report.statements.push({
+      account: st.account,
+      rows: st.rows.length,
+      matched: st.matched,
+      deliveriesToPurchases: st.conversions,
+      oldHoldings: {
+        openingCents: st.oldOpeningCents,
+        gapOrders: st.gapOrders,
+        handover: st.handover,
+      },
+      gapIncomeAndCosts: st.gapOther,
+      ppOnlyItems: st.ppOnly.length,
+      cashOpeningCents: st.cashOpeningCents,
+      transfers: transferReports[i] as StatementTransferReport,
+      check: statementCheck(tx, st),
+    }),
+  );
   insertManyTracked(tx, booking, reconRows, ctx);
   insertManyTracked(tx, bookingSplit, reconSplits, ctx);
   assertLedgerInvariants(

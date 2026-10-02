@@ -122,20 +122,27 @@ export const ynabPlanRow = sqliteTable(
 );
 
 /**
- * Staged file of a one-time Portfolio Performance run (`docs/ops.md` §13): the uploaded XML as
+ * Staged files of a one-time Portfolio Performance run (`docs/ops.md` §13): the uploaded XML and
+ * the platform statements as
  * bytes, only in the database, deletable per run. It is parsed again for the dry run, the commit
  * and the report, so a run can be re-mapped without the file. Contents never go to logs.
  */
-export const importFile = sqliteTable('import_file', {
-  importRunId: text('import_run_id')
-    .primaryKey()
-    .references(() => importRun.id),
-  name: text('name').notNull(),
-  sha256: text('sha256').notNull(),
-  sizeBytes: integer('size_bytes').notNull(),
-  bytes: blob('bytes', { mode: 'buffer' }).notNull(),
-  createdAt: text('created_at').notNull().default(nowSql),
-});
+export const importFile = sqliteTable(
+  'import_file',
+  {
+    importRunId: text('import_run_id')
+      .notNull()
+      .references(() => importRun.id),
+    /** `pp-xml` (the PP file) or `statement:<PP cash account uuid>` (a platform statement). */
+    kind: text('kind').notNull().default('pp-xml'),
+    name: text('name').notNull(),
+    sha256: text('sha256').notNull(),
+    sizeBytes: integer('size_bytes').notNull(),
+    bytes: blob('bytes', { mode: 'buffer' }).notNull(),
+    createdAt: text('created_at').notNull().default(nowSql),
+  },
+  (t) => [primaryKey({ columns: [t.importRunId, t.kind] })],
+);
 
 /**
  * What a Portfolio Performance run did to the price series, for the revert: a price the run

@@ -5,3 +5,4 @@ export * from './model';
 export * from './mapping';
 export * from './migration';
 export * from './flows';
+export * from './statement';

@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { statementConfigSchema, type StatementConfig } from './statement';
 import {
   dailyValuation,
   eachDay,
@@ -111,6 +112,12 @@ export const ppMigrationSchema = z.object({
          * crossed the boundary and YNAB missed (a deposit or removal), `result` = a gain or loss
          * (Kapitalerträge, e.g. a write-off).
          */
+        /**
+         * The platform's cash account statement (`statement.ts`): the cash account then follows it
+         * exactly from its opening day. The opening balance is derived from the statement's closing
+         * balance, the external transfers are matched with YNAB's, the rows PP lacks are added.
+         */
+        statement: statementConfigSchema.optional(),
         cashTarget: z
           .object({
             date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
@@ -169,6 +176,8 @@ export interface AccountTarget {
   referenceAccountId: string | null;
   /** Real cash on a day, see the mapping document; `minusIds` are accounts that already count. */
   cashTarget: { date: string; cents: number; as: 'flow' | 'result'; minusIds: string[] } | null;
+  /** The statement of the cash account and the app account of its bank. */
+  statement: { config: StatementConfig; bankAccountId: string; ppAccountUuid: string } | null;
   /** The cash account of a split platform (a securities account whose cash lives elsewhere). */
   cashAccountId: string | null;
 }
@@ -288,6 +297,7 @@ export function resolveMigration(
         portfolioUuids: [],
         referenceAccountId: app.referenceAccountId ?? null,
         cashTarget: null,
+        statement: null,
         cashAccountId: null,
       };
       targets.set(app.id, t);
@@ -358,6 +368,11 @@ export function resolveMigration(
     t.cashFlows = entry.cashFlows;
     t.openingBalance = entry.openingBalance;
     t.retireYnabValue = entry.retireYnabValue;
+    if (entry.statement) {
+      const bank = find(`PP account ${acc.uuid} statement bank`, entry.statement.bank);
+      if (bank)
+        t.statement = { config: entry.statement, bankAccountId: bank.id, ppAccountUuid: acc.uuid };
+    }
     if (entry.cashTarget) {
       const minusIds = entry.cashTarget.minus.flatMap((name) => {
         const other = find(`PP account ${acc.uuid} cash target`, name);

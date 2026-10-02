@@ -19,6 +19,7 @@ import { gate3Report, type Gate3Report, type ReferenceValues } from './pp-report
 import {
   deletePpRun,
   latestPpMapping,
+  loadStatements,
   loadPpModel,
   PP_MAX_BYTES,
   PP_SOURCE,
@@ -36,7 +37,13 @@ import type { ImportRunRow } from './staging';
  */
 
 export type PpTask =
-  | { kind: 'stage'; file: { name: string; bytes: Uint8Array }; mapping?: PpMigrationInput }
+  | {
+      kind: 'stage';
+      file: { name: string; bytes: Uint8Array };
+      mapping?: PpMigrationInput;
+      /** Platform statements by PP cash account uuid. */
+      statements?: Record<string, { name: string; bytes: Uint8Array }>;
+    }
   | { kind: 'map'; runId: string; mapping: PpMigrationInput }
   | { kind: 'dry-run'; runId: string; options?: ReportOptions }
   | { kind: 'commit'; runId: string; options?: ReportOptions }
@@ -122,7 +129,7 @@ function evaluate(db: Executor, run: ImportRunRow) {
   if (!model) throw new PpTaskError('no_staging', 'The uploaded file of this run was deleted');
   const mapping = latestPpMapping(db, run.id);
   if (!mapping) throw new PpTaskError('no_mapping', 'Save a mapping for this run first');
-  const prep = preparePp(db, model, mapping.doc);
+  const prep = preparePp(db, model, mapping.doc, undefined, loadStatements(db, run));
   trace('prepare');
   return { model, prep, version: mapping.version };
 }
@@ -156,7 +163,7 @@ function figuresOf(
 function stage(db: Executor, task: Extract<PpTask, { kind: 'stage' }>) {
   // Refuse a file that does not parse before anything is stored.
   parsed(() => loadPpModelFromBytes(task.file.bytes));
-  const { runId, sha256 } = stagePpFile(db, task.file);
+  const { runId, sha256 } = stagePpFile(db, task.file, task.statements);
   const same = sameFileRuns(db, sha256).filter((id) => id !== runId);
   const version = task.mapping ? savePpMapping(db, runId, task.mapping) : null;
   store(db, runId, { summaryJson: JSON.stringify({ sizeBytes: task.file.bytes.byteLength }) });
