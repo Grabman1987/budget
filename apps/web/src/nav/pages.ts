@@ -280,3 +280,7 @@ export const PLAN_SPARZIELE: PageDef = PAGES.find((p) => p.path === '/plan/sparz
 export const VERMOEGEN_PORTFOLIO_META: PageDef = PAGES.find(
   (p) => p.path === '/vermoegen/portfolio',
 ) as PageDef;
+
+export const VERMOEGEN_FREIHEIT_META: PageDef = PAGES.find(
+  (p) => p.path === '/vermoegen/freiheit',
+)!;

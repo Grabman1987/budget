@@ -28,6 +28,7 @@ import {
   REPORT_GROUP_PAGES,
   SECURITY_META,
   INVESTMENT_SETTINGS_META,
+  VERMOEGEN_FREIHEIT_META,
   VERMOEGEN_NETTO_META,
   VERMOEGEN_PORTFOLIO_META,
   type PageMeta,
@@ -115,6 +116,7 @@ const BUILT_PATHS = new Set<string>([
   EINSTELLUNGEN_REGELWERK.path,
   PLAN_MONAT.path,
   PLAN_ERWARTET.path,
+  VERMOEGEN_FREIHEIT_META.path,
   VERMOEGEN_NETTO_META.path,
   VERMOEGEN_PORTFOLIO_META.path,
   PLAN_SPARZIELE.path,
@@ -203,6 +205,13 @@ const planExpectedRoute = createRoute({
   staticData: { meta: PLAN_ERWARTET },
   component: lazyRouteComponent(() => import('./expected/expected-page'), 'ExpectedPage'),
 });
+const freedomRoute = createRoute({
+  getParentRoute: () => shellRoute,
+  path: VERMOEGEN_FREIHEIT_META.path,
+  staticData: { meta: VERMOEGEN_FREIHEIT_META },
+  component: lazyRouteComponent(() => import('./wealth/freedom-page'), 'FreedomPage'),
+});
+
 const netWorthRoute = createRoute({
   getParentRoute: () => shellRoute,
   path: VERMOEGEN_NETTO_META.path,
@@ -348,6 +357,7 @@ const routeTree = rootRoute.addChildren([
     exportRoute,
     planMonthRoute,
     planExpectedRoute,
+    freedomRoute,
     netWorthRoute,
     portfolioRoute,
     planGoalsRoute,

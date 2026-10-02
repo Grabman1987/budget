@@ -9,7 +9,9 @@ export function mulDivRound(a: number, b: number, d: number): number {
   if (d <= 0) throw new RangeError(`divisor must be positive, got ${String(d)}`);
   const bn = BigInt(a) * BigInt(b);
   const bd = BigInt(d);
-  const half = bd / 2n + (bd % 2n);
+  // Integer division truncates: floor(d / 2) rounds the remainder half up.
+  // Rounding this offset up biases odd divisors and adds a whole unit for d = 1.
+  const half = bd / 2n;
   const q = bn >= 0n ? (bn + half) / bd : -((-bn + half) / bd);
   return Number(q);
 }
