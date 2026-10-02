@@ -149,7 +149,8 @@ test('mobile search preserves the month and stays clear of the tab bar and captu
   test.skip(info.project.name !== 'mobile', 'Phone layout only');
   await page.goto('/');
   const title = page.locator('.m-title-text');
-  await expect(title).toHaveText('September 2026');
+  // The phone title strip names the page; the month sits in the Heute month switch below it.
+  await expect(title).toHaveText('Heute');
   await page.evaluate(() => document.fonts.ready);
   await expect.poll(() => title.evaluate((el) => el.scrollWidth <= el.clientWidth)).toBe(true);
   const trigger = page.getByRole('button', { name: 'Suchen', exact: true });
