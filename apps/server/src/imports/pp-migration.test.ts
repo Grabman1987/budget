@@ -12,7 +12,6 @@ import {
   setManualPrice,
   SYSTEM_PAYEE_IDS,
   trade,
-  upsertPrice,
   type Db,
 } from '@budget/db';
 import { sampleLedger } from '@budget/fixtures';
