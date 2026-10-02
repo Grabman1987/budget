@@ -37,6 +37,7 @@ import { AppLink } from '../shell/app-link';
 import { BalanceChart, HeutePaceChart } from './charts';
 import { heuteQuery, type Heute, type HeutePeriod } from './api';
 import './heute.css';
+import { AttentionBar } from './attention-bar';
 
 const pct = new Intl.NumberFormat('de-AT', { maximumFractionDigits: 2 });
 const STATUS: Record<string, string> = {
@@ -148,6 +149,7 @@ function HeuteBody({ data }: { data: Heute }) {
 
   return (
     <>
+      <AttentionBar data={data} />
       {away && (
         <p className="heute-month-note" role="note" data-testid="heute-month-note">
           <Info size={16} aria-hidden="true" />
@@ -397,14 +399,18 @@ function HeuteBody({ data }: { data: Heute }) {
                   </div>
                   <div className="heute-amount-status">
                     <strong>{eur(item.amountCents, { sign: true })}</strong>
-                    <span className={item.covered ? 'heute-good' : ''}>
+                    <span
+                      className={
+                        item.covered === false ? 'heute-alert' : item.covered ? 'heute-good' : ''
+                      }
+                    >
                       {item.covered === true ? (
                         <>
                           <CircleCheck size={14} aria-hidden="true" /> Rücklage voll
                         </>
                       ) : item.covered === false ? (
                         <>
-                          <Clock3 size={14} aria-hidden="true" /> Rücklage offen
+                          <Clock3 size={14} aria-hidden="true" /> nicht gedeckt
                         </>
                       ) : (
                         statusText(item.status)

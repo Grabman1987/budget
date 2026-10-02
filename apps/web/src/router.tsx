@@ -199,6 +199,14 @@ const rulesRoute = createRoute({
 const planMonthRoute = createRoute({
   getParentRoute: () => shellRoute,
   path: PLAN_MONAT.path,
+  validateSearch: (
+    search: Record<string, unknown>,
+  ): { ansicht?: 'triage'; kategorie?: string } => ({
+    ...(search['ansicht'] === 'triage' ? { ansicht: 'triage' as const } : {}),
+    ...(typeof search['kategorie'] === 'string' && search['kategorie'].length <= 64
+      ? { kategorie: search['kategorie'] }
+      : {}),
+  }),
   staticData: { meta: PLAN_MONAT },
   component: lazyRouteComponent(() => import('./budget/plan-page'), 'PlanMonthPage'),
 });

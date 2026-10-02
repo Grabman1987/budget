@@ -11,6 +11,7 @@ import {
 } from '@budget/ui';
 import { cents, todayInVienna } from '@budget/domain';
 import { useQueries, useQuery } from '@tanstack/react-query';
+import { useSearch } from '@tanstack/react-router';
 import {
   AlertTriangle,
   ArrowDownToLine,
@@ -163,13 +164,16 @@ function PlanBody({
   const write = useBudgetWrite();
   const accounts = useQuery(accountsQuery()).data?.accounts ?? [];
   const expected = useQuery(expectedQuery()).data;
-  const [view, setView] = useState<PlanView>('stage');
+  const search = useSearch({ strict: false }) as { ansicht?: 'triage'; kategorie?: string };
+  const [view, setView] = useState<PlanView>(search.ansicht ?? 'stage');
   const phone = useIsPhone();
   const storedSpan = useStoredMonthSpan();
   const [distribute, setDistribute] = useState(false);
   const [collapsed, setCollapsed] = useState<ReadonlySet<string>>(new Set());
   const [editing, setEditing] = useState<string | null>(null);
-  const [open, setOpen] = useState<{ id: string; month: string } | null>(null);
+  const [open, setOpen] = useState<{ id: string; month: string } | null>(
+    search.kategorie ? { id: search.kategorie, month } : null,
+  );
   const [sources, setSources] = useState<Record<string, string>>({});
   /** Triage row whose "Decken" from "Zu verteilen" waits for the choice (not enough money). */
   const [choosing, setChoosing] = useState<string | null>(null);
