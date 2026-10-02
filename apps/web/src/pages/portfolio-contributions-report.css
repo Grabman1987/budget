@@ -1,0 +1,154 @@
+.portfolio-contributions-report {
+  grid-template-columns: minmax(0, 1fr);
+  gap: 24px;
+}
+.contributions-window,
+.contributions-years {
+  min-width: 0;
+}
+.contributions-period {
+  margin: 8px 0 0;
+  color: var(--ink-2);
+}
+.contributions-primary {
+  display: grid;
+  justify-items: start;
+  gap: 4px;
+  margin-block: 10px 16px;
+}
+.contributions-primary .tech {
+  color: var(--ink-2);
+  font-size: 12px;
+}
+.contributions-primary strong {
+  font-size: clamp(32px, 5vw, 48px);
+  font-weight: 650;
+  letter-spacing: -0.02em;
+  line-height: 1.05;
+  font-variant-numeric: tabular-nums;
+}
+.contributions-window .chain-inline {
+  margin-block: 12px 20px;
+}
+.contributions-chart-wrap {
+  min-width: 0;
+  margin-top: 12px;
+}
+.contributions-chart {
+  display: block;
+  width: 100%;
+  height: auto;
+  overflow: visible;
+  color: var(--ink-2);
+  font: 10px var(--font-tech);
+}
+.contributions-chart text {
+  fill: currentColor;
+  font-variant-numeric: tabular-nums;
+}
+.contributions-grid {
+  stroke: var(--graticule);
+  stroke-width: 1;
+}
+.contributions-value-line {
+  fill: none;
+  stroke: var(--line);
+  stroke-width: 2.5;
+  vector-effect: non-scaling-stroke;
+}
+.contributions-invested-line {
+  fill: none;
+  stroke: var(--line-2);
+  stroke-width: 1.5;
+  vector-effect: non-scaling-stroke;
+}
+.contributions-zero {
+  stroke: var(--rule-strong);
+  stroke-width: 1;
+}
+.contributions-bar-positive {
+  fill: var(--line);
+  opacity: 0.72;
+}
+.contributions-bar-negative {
+  fill: var(--red-soft);
+  opacity: 0.72;
+}
+.contributions-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 20px;
+  color: var(--ink-2);
+  font-size: 12px;
+}
+.contributions-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
+.contributions-legend i {
+  display: inline-block;
+  width: 22px;
+  height: 3px;
+}
+.legend-value {
+  background: var(--line);
+}
+.legend-invested {
+  height: 2px !important;
+  background: var(--line-2);
+}
+.contributions-legend .legend-bars {
+  width: 11px;
+  height: 11px;
+  background: var(--line);
+}
+.contributions-years {
+  padding-top: 16px;
+  border-top: 1px solid var(--line-2);
+}
+.contributions-years .vnote {
+  margin: 12px 0 0;
+}
+.contributions-years .rtable {
+  min-width: 680px;
+}
+.contributions-years .rscroll {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  overflow-x: auto;
+  overscroll-behavior-inline: contain;
+}
+.contributions-years .rtable td small {
+  display: block;
+  color: var(--ink-3);
+}
+.contributions-empty {
+  color: var(--ink-2);
+}
+.contributions-unavailable {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 12px 0;
+  border-block: 1px solid var(--line-2);
+}
+.contributions-unavailable p {
+  margin: 8px 0;
+}
+.contributions-links {
+  display: flex;
+  justify-content: flex-start;
+}
+@media (max-width: 700px) {
+  .contributions-years .rtable {
+    min-width: 610px;
+  }
+  .contributions-chart {
+    min-width: 500px;
+  }
+  .contributions-chart-wrap {
+    overflow-x: auto;
+  }
+}

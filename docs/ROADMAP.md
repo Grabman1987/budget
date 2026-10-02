@@ -325,6 +325,11 @@ Price history (yfinance + Ariva, source per price), ECB rates, trades and holdin
 
 The 30 reports (SPEC §7), explorer, printable sheets, parallel run with reconciliation report. **Gate 4:** one month-end without difference, then retire remaining finance tools, including YNAB and PP. The prototype-only host was retired independently of this gate.
 
+### P6.3 — Einzahlungen und Wert
+- [x] `/reports/peinzahlungen`: opt-in monthly and calendar-year series from the existing securities valuation and flow read, with exact start + net flows + residual value change = end conservation; no duplicate valuation or flow formula.
+- [x] Match the original report body with period control, value/cumulative-net-flow lines, monthly value-change bars and year rows. Label the securities-only scope and stored flow semantics; do not infer savings-plan or R12 attribution.
+- [ ] Depot-inclusive flows and source-linked savings-plan/R12 attribution remain open until the source model supports them.
+
 ### P6.4 — Rendite und Kennzahlen
 - [x] `/reports/prendite`: selected-period summary from `GET /api/portfolio` in securities-only view (TTWROR, existing annualized metrics, netflows, period gain and end value) plus separately labelled lifetime realized gain/completeness; no new financial formula.
 - [x] Suppress all report figures when the legacy portfolio summary returns `valuation_unavailable`; keep documented zero gains distinct from unavailable basis and preserve gains when open positions are empty.
