@@ -30,6 +30,7 @@ export interface AreaHeadProps {
   onHeutePeriodChange?: (period: HeutePeriod) => void;
   standDay?: string | undefined;
   reportDataBasis?: React.ReactNode | undefined;
+  reportStand?: TitleBlockField | undefined;
 }
 
 /** Areas whose title cell stays visible on the phone (it carries the month switch). */
@@ -53,6 +54,7 @@ export function AreaHead({
   onHeutePeriodChange,
   standDay,
   reportDataBasis,
+  reportStand,
 }: AreaHeadProps) {
   const [month, shift] = useMonth();
   const [period, setPeriod] = useState<Period>('month');
@@ -146,7 +148,7 @@ export function AreaHead({
       heading = 'Reports';
       // As in the prototype; the phone shows the registers right under the header.
       fields = [
-        { ...stand, hideOnMobile: true },
+        { ...(reportStand ?? stand), hideOnMobile: true },
         {
           label: 'Datenbasis',
           value: reportDataBasis ?? 'Okt 2023 bis heute',

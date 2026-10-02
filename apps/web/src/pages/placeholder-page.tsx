@@ -1,4 +1,4 @@
-import { Registers, SectionHead, type RegisterItem } from '@budget/ui';
+import { Registers, SectionHead, type RegisterItem, type TitleBlockField } from '@budget/ui';
 import type { ReactNode } from 'react';
 import { AREAS, areaById } from '../nav/areas';
 import type { PageMeta } from '../nav/pages';
@@ -31,6 +31,8 @@ export interface PageFrameProps {
   standDay?: string | undefined;
   /** Actual report coverage, replacing the prototype's fixed sample range. */
   reportDataBasis?: ReactNode;
+  /** Report-specific source/read boundary, replacing the inherited sync field. */
+  reportStand?: TitleBlockField;
   children?: ReactNode;
   revealCurrentRegister?: boolean;
 }
@@ -50,6 +52,7 @@ export function PageFrame({
   onHeutePeriodChange,
   standDay,
   reportDataBasis,
+  reportStand,
   children,
   revealCurrentRegister,
 }: PageFrameProps) {
@@ -72,6 +75,7 @@ export function PageFrame({
         {...(onHeutePeriodChange ? { onHeutePeriodChange } : {})}
         {...(standDay ? { standDay } : {})}
         {...(reportDataBasis ? { reportDataBasis } : {})}
+        {...(reportStand ? { reportStand } : {})}
       />
       {items.length > 0 && (
         <Registers
