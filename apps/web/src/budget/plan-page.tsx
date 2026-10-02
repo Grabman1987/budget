@@ -191,134 +191,146 @@ function PlanBody({
   };
 
   return (
-    <>
-      <Head data={data} rows={rows} onIncome={onIncome} />
-      {(urgent.length > 0 || credit.length > 0 || tba < 0) && (
-        <section
-          className={cx('triage', urgent.length === 0 && tba >= 0 && 'is-calm')}
-          aria-labelledby="triage-title"
-        >
-          <div className="head">
-            <h2 id="triage-title">Erst decken</h2>
-            <span className="aside">
-              {tba > 0 && urgent.length
-                ? 'Erst decken, dann verteilen.'
-                : `${urgent.length + credit.length + (tba < 0 ? 1 : 0)} offen`}
-            </span>
-          </div>
-          <table className="rev-table triage-table">
-            <caption className="sr-only">Überzogene Envelopes</caption>
-            <thead>
-              <tr>
-                <th className="tech" scope="col">
-                  Rev.
-                </th>
-                <th className="tech" scope="col">
-                  Änderung
-                </th>
-                <th className="tech" scope="col">
-                  Aus Envelope
-                </th>
-                <th className="tech rev-act" scope="col">
-                  Aktion
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {[...urgent, ...credit].map((r, i) => {
-                const cash = isCashOver(r);
-                const pick = sources[r.id] ?? coverSource(rows, r)?.id ?? '';
-                return [
-                  <tr key={r.id} className={cx('rev-row', cash && 'is-urgent')}>
+    <div className="plan-grid">
+      <div className="plan-main">
+        <Hero
+          data={data}
+          urgent={urgent.length}
+          distribute={distribute}
+          onIncome={onIncome}
+          onDistribute={() => {
+            setDistribute(true);
+            setView('stage');
+          }}
+        />
+        {(urgent.length > 0 || credit.length > 0 || tba < 0) && (
+          <section
+            className={cx('triage', urgent.length === 0 && tba >= 0 && 'is-calm')}
+            aria-labelledby="triage-title"
+          >
+            <div className="head">
+              <h2 id="triage-title">Erst decken</h2>
+              <span className="aside">
+                {tba > 0 && urgent.length
+                  ? 'Erst decken, dann verteilen.'
+                  : `${urgent.length + credit.length + (tba < 0 ? 1 : 0)} offen`}
+              </span>
+            </div>
+            <table className="rev-table triage-table">
+              <caption className="sr-only">Überzogene Envelopes</caption>
+              <thead>
+                <tr>
+                  <th className="tech" scope="col">
+                    Rev.
+                  </th>
+                  <th className="tech" scope="col">
+                    Änderung
+                  </th>
+                  <th className="tech" scope="col">
+                    Aus Envelope
+                  </th>
+                  <th className="tech rev-act" scope="col">
+                    Aktion
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {[...urgent, ...credit].map((r, i) => {
+                  const cash = isCashOver(r);
+                  const pick = sources[r.id] ?? coverSource(rows, r)?.id ?? '';
+                  return [
+                    <tr key={r.id} className={cx('rev-row', cash && 'is-urgent')}>
+                      <td className="rev-mark">
+                        <RevisionTriangle letter={String.fromCharCode(65 + i)} urgent={cash} />
+                      </td>
+                      <td className="rev-what">
+                        <strong>
+                          {cash ? `${r.name} ist überzogen` : `${r.name}: neue Kartenschuld`}
+                        </strong>
+                        <span>
+                          {eur(-r.overspentCents)}
+                          {r.stage ? ` · Stufe ${r.stage} ${STAGES[r.stage - 1]?.short}` : ''}
+                          {!cash && ' · nicht gedeckt, bleibt auf der Karte'}
+                        </span>
+                      </td>
+                      <td className="rev-src">
+                        <label className="sr-only" htmlFor={`src-${r.id}`}>
+                          Aus Envelope für {r.name}
+                        </label>
+                        <Select
+                          id={`src-${r.id}`}
+                          className="select-sm"
+                          value={pick}
+                          onChange={(e) => {
+                            setSources({ ...sources, [r.id]: e.target.value });
+                            setChoosing(null);
+                          }}
+                        >
+                          <option value="">Zu verteilen · {eur(tba)}</option>
+                          {rows
+                            .filter((o) => o.id !== r.id && !isCard(o) && o.availableCents > 0)
+                            .map((o) => (
+                              <option key={o.id} value={o.id}>
+                                {o.name} · {eur(o.availableCents)}
+                              </option>
+                            ))}
+                        </Select>
+                      </td>
+                      <td className="rev-act">
+                        <Button
+                          size="sm"
+                          variant={cash ? 'alert' : 'ghost'}
+                          onClick={() => cover(r)}
+                        >
+                          Decken
+                        </Button>
+                      </td>
+                    </tr>,
+                    choosing === r.id && pick === '' && (
+                      <tr key={`${r.id}-choice`} className="rev-row rev-choice">
+                        <td className="rev-mark" />
+                        <td colSpan={3}>
+                          <CoverChoice
+                            overspentCents={r.overspentCents}
+                            toBeAssignedCents={tba}
+                            onCover={(allowNegative) => {
+                              setChoosing(null);
+                              void coverFrom(r, null, allowNegative);
+                            }}
+                            onCancel={() => setChoosing(null)}
+                          />
+                        </td>
+                      </tr>
+                    ),
+                  ];
+                })}
+                {tba < 0 && (
+                  <tr className="rev-row is-urgent">
                     <td className="rev-mark">
-                      <RevisionTriangle letter={String.fromCharCode(65 + i)} urgent={cash} />
+                      <RevisionTriangle
+                        letter={String.fromCharCode(65 + urgent.length + credit.length)}
+                        urgent
+                      />
                     </td>
                     <td className="rev-what">
-                      <strong>
-                        {cash ? `${r.name} ist überzogen` : `${r.name}: neue Kartenschuld`}
-                      </strong>
+                      <strong>Zu viel zugewiesen</strong>
                       <span>
-                        {eur(-r.overspentCents)}
-                        {r.stage ? ` · Stufe ${r.stage} ${STAGES[r.stage - 1]?.short}` : ''}
-                        {!cash && ' · nicht gedeckt, bleibt auf der Karte'}
+                        {eur(tba)} · von unten nach oben zurücknehmen, ab der tiefsten Stufe
                       </span>
                     </td>
-                    <td className="rev-src">
-                      <label className="sr-only" htmlFor={`src-${r.id}`}>
-                        Aus Envelope für {r.name}
-                      </label>
-                      <Select
-                        id={`src-${r.id}`}
-                        className="select-sm"
-                        value={pick}
-                        onChange={(e) => {
-                          setSources({ ...sources, [r.id]: e.target.value });
-                          setChoosing(null);
-                        }}
-                      >
-                        <option value="">Zu verteilen · {eur(tba)}</option>
-                        {rows
-                          .filter((o) => o.id !== r.id && !isCard(o) && o.availableCents > 0)
-                          .map((o) => (
-                            <option key={o.id} value={o.id}>
-                              {o.name} · {eur(o.availableCents)}
-                            </option>
-                          ))}
-                      </Select>
-                    </td>
+                    <td className="rev-src" />
                     <td className="rev-act">
-                      <Button size="sm" variant={cash ? 'alert' : 'ghost'} onClick={() => cover(r)}>
-                        Decken
+                      <Button size="sm" variant="alert" onClick={unassign}>
+                        Zurücknehmen
                       </Button>
                     </td>
-                  </tr>,
-                  choosing === r.id && pick === '' && (
-                    <tr key={`${r.id}-choice`} className="rev-row rev-choice">
-                      <td className="rev-mark" />
-                      <td colSpan={3}>
-                        <CoverChoice
-                          overspentCents={r.overspentCents}
-                          toBeAssignedCents={tba}
-                          onCover={(allowNegative) => {
-                            setChoosing(null);
-                            void coverFrom(r, null, allowNegative);
-                          }}
-                          onCancel={() => setChoosing(null)}
-                        />
-                      </td>
-                    </tr>
-                  ),
-                ];
-              })}
-              {tba < 0 && (
-                <tr className="rev-row is-urgent">
-                  <td className="rev-mark">
-                    <RevisionTriangle
-                      letter={String.fromCharCode(65 + urgent.length + credit.length)}
-                      urgent
-                    />
-                  </td>
-                  <td className="rev-what">
-                    <strong>Zu viel zugewiesen</strong>
-                    <span>
-                      {eur(tba)} · von unten nach oben zurücknehmen, ab der tiefsten Stufe
-                    </span>
-                  </td>
-                  <td className="rev-src" />
-                  <td className="rev-act">
-                    <Button size="sm" variant="alert" onClick={unassign}>
-                      Zurücknehmen
-                    </Button>
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </section>
-      )}
-      <div className="plan-body">
-        <Rail view={view} groups={groups} data={data} onJump={jump} />
-        <section className="ptable-wrap" aria-labelledby="table-title">
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </section>
+        )}
+        <section className="ptable-wrap card" aria-labelledby="table-title">
           <h2 className="sr-only" id="table-title">
             Envelopes im Monat
           </h2>
@@ -340,7 +352,7 @@ function PlanBody({
             </div>
             <span className="spacer" />
             <div className="dist-actions">
-              {distribute ? (
+              {distribute && (
                 <>
                   <span className="dist-left">noch {eur(tba)}</span>
                   {Object.keys(sug).length > 0 && (
@@ -352,20 +364,6 @@ function PlanBody({
                     Fertig
                   </Button>
                 </>
-              ) : (
-                <Button
-                  size="sm"
-                  variant={tba > 0 && urgent.length === 0 ? 'primary' : 'ghost'}
-                  disabled={tba <= 0}
-                  title={tba <= 0 ? 'Nichts zu verteilen' : undefined}
-                  onClick={() => {
-                    setDistribute(true);
-                    setView('stage');
-                  }}
-                >
-                  <ArrowDownToLine size={16} strokeWidth={1.75} aria-hidden="true" />
-                  Geld verteilen
-                </Button>
               )}
             </div>
           </div>
@@ -500,6 +498,16 @@ function PlanBody({
           </div>
         </section>
       </div>
+      <aside className="inspector" aria-label="Monatsüberblick">
+        <MonthOverview data={data} rows={rows} />
+        <SplitBand data={data} rows={rows} />
+        <section className="insp-card card insp-rail" aria-labelledby="rail-title">
+          <h2 className="insp-title" id="rail-title">
+            {view === 'stage' ? 'Wasserfall' : RAIL_LABEL[view]}
+          </h2>
+          <Rail view={view} groups={groups} data={data} onJump={jump} />
+        </section>
+      </aside>
       <EnvelopePanel
         month={month}
         row={open ? byId.get(open) : undefined}
@@ -507,7 +515,7 @@ function PlanBody({
         toBeAssignedCents={tba}
         onClose={() => setOpen(null)}
       />
-    </>
+    </div>
   );
 }
 
@@ -536,14 +544,23 @@ function GroupState({
   );
 }
 
-function Head({
+/**
+ * The month's one number: "Zu verteilen" on forest green while money waits for a job, red when
+ * too much was assigned, a calm card at zero. The Maßkette below the figure explains it; the
+ * button starts the distribution.
+ */
+function Hero({
   data,
-  rows,
+  urgent,
+  distribute,
   onIncome,
+  onDistribute,
 }: {
   data: BudgetMonthView;
-  rows: PlanRow[];
+  urgent: number;
+  distribute: boolean;
   onIncome: () => void;
+  onDistribute: () => void;
 }) {
   const s = data.summary;
   const tba = s.toBeAssignedCents;
@@ -560,6 +577,106 @@ function Head({
       : []),
     { label: 'Zu verteilen', value: cents(tba), op: '=' },
   ];
+  const tone = tba > 0 ? 'is-positive' : tba < 0 ? 'is-negative' : 'is-zero';
+  return (
+    <section className={cx('hero-kpi tbd', tone)} aria-labelledby="tbd-title">
+      <div className="hero-top">
+        <div className="hero-figure">
+          <h2 id="tbd-title" className="hero-label">
+            Zu verteilen
+          </h2>
+          <div className="tbd-fig hero-fig" aria-live="polite" data-testid="to-be-assigned">
+            {whole}
+            <span className="cents">,{fraction} €</span>
+          </div>
+          <span className="hero-state">
+            {tba < 0 ? (
+              <>
+                <AlertTriangle size={16} strokeWidth={1.75} aria-hidden="true" />
+                zu viel zugewiesen
+              </>
+            ) : tba > 0 ? (
+              <>
+                <ArrowDownToLine size={16} strokeWidth={1.75} aria-hidden="true" />
+                {urgent > 0 ? 'erst decken, dann verteilen' : 'bereit zum Verteilen'}
+              </>
+            ) : (
+              <>
+                <CheckCircle2 size={16} strokeWidth={1.75} aria-hidden="true" />
+                jeder Euro hat einen Job
+              </>
+            )}
+          </span>
+        </div>
+        {tba > 0 && !distribute && (
+          <button type="button" className="btn-on-hero" onClick={onDistribute}>
+            <ArrowDownToLine size={16} strokeWidth={1.75} aria-hidden="true" />
+            Geld verteilen
+          </button>
+        )}
+      </div>
+      <DimensionChain terms={terms} precision="cent" label="Maßkette Zu verteilen" />
+    </section>
+  );
+}
+
+/** Inspector: the month in figures, the overspending state and what is left in the envelopes. */
+function MonthOverview({ data, rows }: { data: BudgetMonthView; rows: PlanRow[] }) {
+  const s = data.summary;
+  const activity = rows.reduce((a, r) => a + r.activityCents, 0);
+  const available = rows.reduce((a, r) => a + r.availableCents, 0);
+  const over = rows.filter(isCashOver).length;
+  const credit = rows.filter((r) => !isCashOver(r) && r.creditOverspentCents > 0).length;
+  return (
+    <section className="insp-card card" aria-labelledby="overview-title">
+      <h2 className="insp-title" id="overview-title">
+        Monatsüberblick
+      </h2>
+      <p className={cx('insp-status', over > 0 ? 'is-bad' : 'is-good')}>
+        {over > 0 ? (
+          <AlertTriangle size={15} strokeWidth={1.75} aria-hidden="true" />
+        ) : (
+          <CheckCircle2 size={15} strokeWidth={1.75} aria-hidden="true" />
+        )}
+        {over > 0
+          ? `${over} ${over === 1 ? 'Envelope' : 'Envelopes'} bar überzogen`
+          : credit > 0
+            ? `Nichts bar überzogen · ${credit}× neue Kartenschuld`
+            : 'Nichts ist überzogen.'}
+      </p>
+      <dl className="insp-list">
+        <div>
+          <dt>Übertrag</dt>
+          <dd>{eur(s.carryInCents)}</dd>
+        </div>
+        <div>
+          <dt>Einnahmen</dt>
+          <dd>{eur(s.incomeCents)}</dd>
+        </div>
+        <div>
+          <dt>Zugewiesen</dt>
+          <dd>{eur(s.assignedCents)}</dd>
+        </div>
+        <div>
+          <dt>Aktivität</dt>
+          <dd>{eur(activity)}</dd>
+        </div>
+        <div className="insp-total">
+          <dt>Verfügbar in Envelopes</dt>
+          <dd>
+            <span className={cx('pill', available > 0 ? 'is-good' : available < 0 && 'is-bad')}>
+              {eur(available)}
+            </span>
+          </dd>
+        </div>
+      </dl>
+    </section>
+  );
+}
+
+/** Inspector: the 50/30/20 band of what was assigned, against the month's income. */
+function SplitBand({ data, rows }: { data: BudgetMonthView; rows: PlanRow[] }) {
+  const s = data.summary;
   const byClass = { need: 0, want: 0, future: 0 };
   for (const r of rows) if (r.cls) byClass[r.cls] += r.assignedCents;
   const shares = percentShares({
@@ -571,84 +688,54 @@ function Head({
   const inSoll = shares.need <= 50 && shares.want <= 30 && shares.future >= 20;
   const width = (p: number) => `${Math.min(Math.max(p, 0), 100)}%`;
   return (
-    <section className="tbd" aria-labelledby="tbd-title">
-      <div className="tbd-main">
-        <div className="tbd-head">
-          <h2 id="tbd-title">Zu verteilen</h2>
-          <span className="tbd-state">
-            {tba < 0 ? (
-              <span className="neg-alert">
-                <AlertTriangle size={16} strokeWidth={1.75} aria-hidden="true" />
-                zu viel zugewiesen
-              </span>
-            ) : tba > 0 ? (
-              <span className="ink">
-                <ArrowDownToLine size={16} strokeWidth={1.75} aria-hidden="true" />
-                bereit zum Verteilen
-              </span>
-            ) : (
-              <span className="ok">
-                <CheckCircle2 size={16} strokeWidth={1.75} aria-hidden="true" />
-                jeder Euro hat einen Job
-              </span>
-            )}
-          </span>
-        </div>
-        <div className="tbd-fig" aria-live="polite" data-testid="to-be-assigned">
-          <span className={cx(tba < 0 && 'neg-alert')}>
-            {whole}
-            <span className="cents">,{fraction} €</span>
-          </span>
-        </div>
-        <DimensionChain terms={terms} precision="cent" label="Maßkette Zu verteilen" />
-      </div>
-      <div className="split-band">
-        <div className="tbd-head">
-          <h2>50/30/20</h2>
-          <span className="tbd-state">
-            {s.assignedCents === 0 ? (
-              <span className="muted">noch nichts zugewiesen</span>
-            ) : inSoll ? (
-              <span className="ok">
-                <CheckCircle2 size={16} strokeWidth={1.75} aria-hidden="true" />
-                im Soll
-              </span>
-            ) : (
-              <span className="ink">
-                <AlertTriangle size={16} strokeWidth={1.75} aria-hidden="true" />
-                {shares.need > 50
-                  ? 'Bedarf über 50 %'
-                  : shares.want > 30
-                    ? 'Wunsch über 30 %'
-                    : 'Zukunft unter 20 %'}
-              </span>
-            )}
-          </span>
-        </div>
-        <div className="sb-scale" aria-hidden="true">
-          <span style={{ left: '50%' }}>50</span>
-          <span style={{ left: '80%' }}>80</span>
-          <span style={{ left: '100%' }}>100 %</span>
-        </div>
-        <div
-          className="sb-bar"
-          role="img"
-          aria-label={`Zugewiesen: Bedarf ${shares.need} %, Wunsch ${shares.want} %, Zukunft ${shares.future} % der Einnahmen. Soll 50, 30, 20.`}
-        >
-          <span className="sb-seg hatch-need" style={{ width: width(shares.need) }} />
-          <span className="sb-seg hatch-want" style={{ width: width(shares.want) }} />
-          <span className="sb-seg hatch-future" style={{ width: width(shares.future) }} />
-          <i className="sb-mark" style={{ left: '50%' }} />
-          <i className="sb-mark" style={{ left: '80%' }} />
-        </div>
-        <div className="sb-legend">
-          {(['need', 'want', 'future'] as const).map((k) => (
-            <span key={k}>
-              <ClassSwatch kind={k} />
-              {CLASS_TEXT[k]} <b>{shares[k]} %</b>
+    <section className="insp-card card split-band" aria-labelledby="split-title">
+      <div className="insp-head">
+        <h2 className="insp-title" id="split-title">
+          50/30/20
+        </h2>
+        <span className="tbd-state">
+          {s.assignedCents === 0 ? (
+            <span className="muted">noch nichts zugewiesen</span>
+          ) : inSoll ? (
+            <span className="ok">
+              <CheckCircle2 size={15} strokeWidth={1.75} aria-hidden="true" />
+              im Soll
             </span>
-          ))}
-        </div>
+          ) : (
+            <span className="ink">
+              <AlertTriangle size={15} strokeWidth={1.75} aria-hidden="true" />
+              {shares.need > 50
+                ? 'Bedarf über 50 %'
+                : shares.want > 30
+                  ? 'Wunsch über 30 %'
+                  : 'Zukunft unter 20 %'}
+            </span>
+          )}
+        </span>
+      </div>
+      <div className="sb-scale" aria-hidden="true">
+        <span style={{ left: '50%' }}>50</span>
+        <span style={{ left: '80%' }}>80</span>
+        <span style={{ left: '100%' }}>100 %</span>
+      </div>
+      <div
+        className="sb-bar"
+        role="img"
+        aria-label={`Zugewiesen: Bedarf ${shares.need} %, Wunsch ${shares.want} %, Zukunft ${shares.future} % der Einnahmen. Soll 50, 30, 20.`}
+      >
+        <span className="sb-seg hatch-need" style={{ width: width(shares.need) }} />
+        <span className="sb-seg hatch-want" style={{ width: width(shares.want) }} />
+        <span className="sb-seg hatch-future" style={{ width: width(shares.future) }} />
+        <i className="sb-mark" style={{ left: '50%' }} />
+        <i className="sb-mark" style={{ left: '80%' }} />
+      </div>
+      <div className="sb-legend">
+        {(['need', 'want', 'future'] as const).map((k) => (
+          <span key={k}>
+            <ClassSwatch kind={k} />
+            {CLASS_TEXT[k]} <b>{shares[k]} %</b>
+          </span>
+        ))}
       </div>
     </section>
   );
@@ -876,14 +963,16 @@ function EnvelopeRow({
       <td className="col-num col-act" data-label="Aktivität">
         {r.activityCents ? eur(r.activityCents) : <span className="muted">{eur(0)}</span>}
       </td>
-      <td className={cx('col-num col-avail', cash && 'neg-alert')} data-label="Verfügbar">
-        {credit ? (
-          <span className="debt-val" title="neue Kartenschuld">
-            {eur(r.availableCents)}
-          </span>
-        ) : (
-          eur(r.availableCents)
-        )}
+      <td className="col-num col-avail" data-label="Verfügbar">
+        <span
+          className={cx(
+            'pill',
+            cash ? 'is-bad' : credit ? 'is-debt' : r.availableCents > 0 && 'is-good',
+          )}
+          title={credit ? 'neue Kartenschuld' : undefined}
+        >
+          {eur(r.availableCents)}
+        </span>
       </td>
     </tr>
   );

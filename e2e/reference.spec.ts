@@ -10,6 +10,14 @@ import { expectMatchesReference, type Rect, type RegionCheck } from './reference
  * screens and is covered by its own regression baselines in components.spec.ts only.
  */
 test.skip(process.platform !== 'linux', 'font rasterisation differs off Linux');
+/*
+ * Retired as a gate (owner decision 02.10.2026): the precision layer (cards on a slate ground,
+ * ice-blue sidebar with the account tree, Plan › Monat with an inspector) replaces the prototype
+ * as the visual reference, so every shell region differs from design/screens on purpose. The
+ * checks stay in the file to compare a page with the old mockups on demand
+ * (`REFERENCE_SCREENS=1`); regressions are guarded by the own baselines (shell, plan, ...).
+ */
+test.skip(!process.env['REFERENCE_SCREENS'], 'design/screens is no longer the visual reference');
 
 /** Frames, rules and boxes must sit on the same pixels; 1 px of blur absorbs anti-aliasing. */
 const BLUR = 1;

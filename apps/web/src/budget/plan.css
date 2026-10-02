@@ -773,3 +773,285 @@
     display: none;
   }
 }
+
+/* ---------- Precision layout (owner brief 02.10.2026) ----------
+   Three columns with the app sidebar: hero, revisions and the parts list as white cards in the
+   middle, the inspector ("Monatsüberblick", 50/30/20, Wasserfall) on the right. */
+.plan .plan-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 320px;
+  gap: 24px;
+  align-items: start;
+}
+.plan .plan-main {
+  display: grid;
+  gap: 20px;
+  min-width: 0;
+}
+
+/* Hero KPI */
+.plan .hero-kpi.tbd {
+  display: block;
+  padding: 22px 24px 18px;
+}
+.plan .hero-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+.plan .hero-label {
+  margin: 0;
+  font-family: var(--font-tech);
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-2);
+}
+.plan .hero-fig {
+  margin-top: 6px;
+  font-size: 52px;
+  font-weight: 650;
+  line-height: 1;
+  letter-spacing: -0.03em;
+  font-variation-settings: 'wdth' 96;
+  font-variant-numeric: tabular-nums;
+}
+.plan .hero-fig .cents {
+  font-size: 0.5em;
+  font-weight: 600;
+  color: var(--ink-2);
+}
+.plan .hero-state {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 10px;
+  font-size: 13.5px;
+  font-weight: 560;
+  color: var(--ink-2);
+}
+.plan .hero-kpi.is-zero .hero-state {
+  color: var(--good-ink);
+}
+.plan .hero-kpi .chain-inline {
+  margin-top: 16px;
+}
+
+/* Revisions (triage) as a card with the red pencil frame */
+.plan .triage {
+  margin-top: 0;
+  padding: 14px 18px 6px;
+  border-radius: 12px;
+  background: var(--surface);
+  box-shadow: var(--card-shadow);
+}
+
+/* Parts list card */
+.plan .ptable-wrap.card {
+  padding: 0;
+  overflow: hidden;
+}
+.plan .ptoolbar {
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--card-border);
+  background: var(--surface);
+}
+.plan .ptoolbar:has(.dist-actions:empty) .spacer {
+  display: none;
+}
+.plan .ptable thead th {
+  padding: 10px 12px;
+  background: var(--surface-2);
+  border-bottom: 1px solid var(--card-border);
+  color: var(--ink-3);
+}
+.plan .ptable td {
+  padding: 10px 12px;
+  border-bottom-color: var(--card-border);
+}
+.plan .ptable .col-pos {
+  padding-left: 16px;
+}
+.plan .ptable .col-avail {
+  padding-right: 14px;
+}
+.plan .pgroup td {
+  background: var(--surface-2);
+  border-top: 1px solid var(--card-border);
+  border-bottom: 1px solid var(--card-border);
+}
+.plan .prow td {
+  transition: background var(--t-fast) var(--ease-out);
+}
+.plan .prow:hover td {
+  background: color-mix(in srgb, var(--line) 4%, var(--surface));
+}
+.plan .prow.is-over:hover td {
+  background: color-mix(in srgb, var(--red) 10%, var(--surface));
+}
+/* Two tones: what was spent (class fill) on the rest of the target. */
+.plan .ptable .pbar {
+  max-width: none;
+  height: 6px;
+  border-radius: 3px;
+  background: color-mix(in srgb, var(--good) 16%, var(--surface-2));
+  overflow: visible;
+}
+.plan .ptable .pbar-fill {
+  border-radius: 3px;
+}
+.plan .col-avail .pill {
+  margin: -3px 0;
+}
+.plan .plegend {
+  padding: 12px 16px 14px;
+  border-top: 1px solid var(--card-border);
+  background: var(--surface-2);
+}
+
+/* Inspector */
+.plan .inspector {
+  position: sticky;
+  top: 84px;
+  display: grid;
+  gap: 16px;
+  min-width: 0;
+}
+.plan .insp-card {
+  padding: 16px 18px 18px;
+}
+.plan .insp-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+.plan .insp-title {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 640;
+  letter-spacing: -0.005em;
+  color: var(--ink);
+}
+.plan .insp-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 12px 0 4px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 560;
+}
+.plan .insp-status.is-good {
+  background: var(--good-soft);
+  color: var(--on-good-soft);
+}
+.plan .insp-status.is-bad {
+  background: var(--red-soft);
+  color: var(--red);
+}
+.plan .insp-list {
+  margin: 8px 0 0;
+}
+.plan .insp-list > div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 34px;
+  border-bottom: 1px solid var(--card-border);
+  font-size: 13.5px;
+}
+.plan .insp-list > div:last-child {
+  border-bottom: 0;
+}
+.plan .insp-list dt {
+  color: var(--ink-2);
+}
+.plan .insp-list dd {
+  margin: 0;
+  font-weight: 620;
+  font-variant-numeric: tabular-nums;
+}
+.plan .insp-total {
+  margin-top: 4px;
+  padding-top: 6px;
+  border-top: 1px solid var(--rule-strong);
+}
+.plan .insp-total dt {
+  font-weight: 600;
+  color: var(--ink);
+}
+.plan .split-band .tbd-state {
+  font-size: 12.5px;
+}
+.plan .split-band .tbd-state span {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+.plan .split-band .ok {
+  color: var(--on-good-soft);
+}
+.plan .split-band .sb-legend {
+  font-size: 12.5px;
+}
+.plan .insp-rail .rail {
+  position: static;
+  margin-top: 14px;
+}
+
+@media (max-width: 1280px) {
+  .plan .plan-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .plan .inspector {
+    position: static;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-items: start;
+  }
+  .plan .insp-rail {
+    grid-column: 1 / -1;
+  }
+}
+@media (max-width: 767px) {
+  .plan .plan-grid {
+    gap: 16px;
+  }
+  .plan .inspector {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .plan .hero-kpi.tbd {
+    padding: 18px 16px 14px;
+  }
+  .plan .hero-top {
+    flex-direction: column;
+  }
+  .plan .hero-fig {
+    font-size: 40px;
+  }
+  .plan .btn-on-hero {
+    width: 100%;
+    justify-content: center;
+    height: 44px;
+  }
+  .plan .ptable-wrap.card {
+    border-radius: 12px;
+  }
+  .plan .triage {
+    order: 0;
+    padding: 12px 14px 4px;
+  }
+  .plan .ptable tr {
+    padding: 10px 12px;
+  }
+  .plan .ptable td {
+    padding: 0;
+  }
+  .plan .col-avail .pill {
+    min-width: 0;
+  }
+}
