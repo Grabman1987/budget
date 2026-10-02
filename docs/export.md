@@ -26,3 +26,10 @@ Stored money amounts use integer cents and retain their source currency. Prices 
 For split bookings, `booking_amount_cents` repeats the parent booking amount on each split row. Use `split_amount_cents` to aggregate the split allocation; do not sum the repeated parent amount across rows. `split_id` and `split_index` identify split rows, while booking-level and split-level memos remain separate.
 
 The ZIP is a data export, not a backup or restore artifact. It contains no authentication/session state, credentials, audit events, import staging data or opaque provider configuration.
+
+
+The API admits one in-flight export for the single owner (database identity, across
+sessions/devices), with a process-wide cap of two. Excess requests return
+`429 export_busy` with a German retry hint. Admission happens before temporary
+snapshot allocation and remains held until response completion/cancellation and
+snapshot cleanup. Limits are process-local; run one API process per database.
