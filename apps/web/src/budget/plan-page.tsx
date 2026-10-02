@@ -1,6 +1,5 @@
-import { useAmountPrivacy } from '@budget/ui';
-import { cents, todayInVienna } from '@budget/domain';
 import {
+  useAmountPrivacy,
   Button,
   ClassSwatch,
   Count,
@@ -10,6 +9,7 @@ import {
   cx,
   type DimensionChainTerm,
 } from '@budget/ui';
+import { cents, todayInVienna } from '@budget/domain';
 import { useQueries, useQuery } from '@tanstack/react-query';
 import {
   AlertTriangle,
@@ -29,6 +29,8 @@ import { accountsQuery } from '../ledger/queries';
 import { ErrorNote, LoadingNote } from '../ledger/states';
 import { monthLabel, shiftMonth } from '../nav/month';
 import { useMonth } from '../shell/use-month';
+import { AppLink } from '../shell/app-link';
+import { lastDayOfMonth } from '@budget/domain';
 import {
   MONTH_SPANS,
   setMonthSpan,
@@ -266,6 +268,33 @@ function PlanBody({
             setView('stage');
           }}
         />
+        {s.unclassified && s.unclassified.count > 0 && (
+          <section className="plan-unclassified" aria-label="Noch ohne Kategorie">
+            <strong>Noch ohne Kategorie</strong>
+            <span>
+              {s.unclassified.count} Buchungen · Eingang{' '}
+              {eur(s.unclassified.inflowCents, { sign: true })} · Ausgang{' '}
+              {eur(-s.unclassified.outflowCents)} · Saldo{' '}
+              {eur(s.unclassified.netCents, { sign: true })}
+            </span>
+            <p>
+              Ohne Kategorie oder noch unbestätigt. Bereits in den Kontosalden und „Zu verteilen“
+              berücksichtigt.
+            </p>
+            <AppLink
+              to="/konten/buchungen"
+              search={{ kategorie: 'none', von: `${month}-01`, bis: lastDayOfMonth(month) }}
+            >
+              Ohne Kategorie öffnen
+            </AppLink>
+            <AppLink
+              to="/konten/buchungen"
+              search={{ status: 'pending', von: `${month}-01`, bis: lastDayOfMonth(month) }}
+            >
+              Unbestätigte öffnen
+            </AppLink>
+          </section>
+        )}
         {(urgent.length > 0 || credit.length > 0 || tba < 0) && (
           <section
             className={cx('triage', urgent.length === 0 && tba >= 0 && 'is-calm')}
