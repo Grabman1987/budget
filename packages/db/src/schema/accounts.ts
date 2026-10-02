@@ -1,5 +1,12 @@
 import { sql } from 'drizzle-orm';
-import { check, index, integer, sqliteTable, text } from 'drizzle-orm/sqlite-core';
+import {
+  check,
+  index,
+  integer,
+  sqliteTable,
+  text,
+  type AnySQLiteColumn,
+} from 'drizzle-orm/sqlite-core';
 import { cents, id, isoDay, oneOf, timestamps } from './common';
 
 export const INSTITUTION_KINDS = ['bank', 'broker', 'platform', 'insurer', 'other'] as const;
@@ -63,6 +70,12 @@ export const account = sqliteTable(
     onBudget: integer('on_budget', { mode: 'boolean' }).notNull(),
     institutionId: text('institution_id').references(() => institution.id),
     contactId: text('contact_id').references(() => contact.id),
+    /**
+     * Verrechnungskonto: the account a depot settles through (its cash account), so a platform
+     * (cash account plus securities account) can be grouped. Not a booking rule: money between the
+     * two moves by transfers.
+     */
+    referenceAccountId: text('reference_account_id').references((): AnySQLiteColumn => account.id),
     currency: text('currency').notNull().default('EUR'),
     openingBalanceCents: cents('opening_balance_cents').notNull().default(0),
     /** Balance of the account before its first booking (e.g. 2023-10-01). */

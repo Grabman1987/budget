@@ -66,6 +66,8 @@ COPY --from=build /repo/apps/server/dist/index.js ./server.js
 COPY --from=build /repo/apps/server/dist/import-worker.js ./import-worker.js
 # One-time YNAB migration as an operator task (no import feature in the app; docs/ops.md).
 COPY --from=build /repo/apps/server/dist/migrate-cli.js ./migrate-cli.js
+# One-time Portfolio Performance migration as an operator task (docs/ops.md section 13).
+COPY --from=build /repo/apps/server/dist/migrate-pp-cli.js ./migrate-pp-cli.js
 COPY --from=build /repo/apps/web/dist ./web
 # SQL migrations (applied at start) and the native SQLite driver, which esbuild leaves external.
 COPY --from=build /repo/packages/db/drizzle ./drizzle
