@@ -12,7 +12,7 @@ this is not an all-clear. Line references refer to this branch.
 | ID / severity | Location | Failure scenario | Fix / disposition |
 | --- | --- | --- | --- |
 | S01 Medium, fixed | `apps/server/src/app.ts:111` | Financial JSON and early API rejections lacked a shared cache prohibition; private responses could remain in browser/intermediary caches. | Set `Cache-Control: no-store` before body limits/auth. Success and 401/403/413/404/500 tested; static caching preserved. |
-| S02 Medium, fixed | `apps/server/src/auth/config.ts:52` | Production HTTP origin silently selected a non-Secure cookie, allowing an insecure deployment configuration. | Require HTTPS in production; reject credentials, paths, queries/fragments and invalid protocols. Local HTTP development retained and tested. |
+| S02 Medium, fixed | `apps/server/src/auth/config.ts:52` | Production HTTP origin silently selected a non-Secure cookie, allowing an insecure deployment configuration. | Require HTTPS in production (loopback HTTP allowed for the container smoke test); reject credentials, paths, queries/fragments and invalid protocols. Local HTTP development retained and tested. |
 | S03 Medium, fixed latent integration hazard | `apps/server/src/app.ts:84` | Factory accepted a debug database without authentication. Current production entry point supplies auth: no demonstrated production bypass. | Reject startup without auth; synthetic tests cover guard and signed-out 401. |
 | S06 Medium, open/excluded | `apps/server/src/api/index.ts:96`; `apps/server/src/imports/routes.ts:70` | Import HTTP surface remains mounted after app importing was removed in favor of operator tooling. An authenticated session retains access to this sensitive upload/mapping surface. Commit/revert require step-up; no unauthenticated bypass claimed. | Import owner should remove public mount or explicitly disable it in production while retaining operator CLI. No excluded code edits. |
 | S07 Medium, open | `apps/server/src/api/export.ts:652` | Each fresh-session export creates an independent snapshot/archive without in-flight admission limit. Concurrent downloads can exhaust temporary disk/CPU. Not an unauthenticated attack. | Bound concurrent exports, return 429 for excess requests, test slow clients/cancellation/cleanup before changing stream lifecycle. |
@@ -49,9 +49,19 @@ review, not a proof of every domain calculation or every transitive dependency.
 
 ## Owner questions
 
-1. May a fresh recovery-code session authorize export during the existing
-   five-minute step-up window, or must every export require a fresh passkey?
-   `apps/server/src/auth/routes.ts:168` creates authenticated sessions with
-   step-up, including recovery login. Existing policy preserved; no bypass claimed.
-2. Confirm importer removal ownership/timing (S06) and prioritize bounded exports,
+1. Confirm importer removal ownership/timing (S06) and prioritize bounded exports,
    backup hardening and migration-tool dependency upgrade (S07–S09).
+
+## Decided and fixed
+
+- S10 Medium, decided/fixed (owner decision 2026-10-02): `requireStepUp` in
+  `apps/server/src/auth/routes.ts` previously accepted a recovery-code session
+  (`startSession` sets step-up for every login) for the full ZIP export. A recovery
+  session may now only register a new passkey and the other actions the SPEC already
+  allows; export (and import step-up) answers `403 passkey_required`, which the UI shows
+  as a German hint to create a new passkey. Passkey sessions are unchanged. Tested in
+  `auth.test.ts` (recovery refused, also after a passkey assertion inside the recovery
+  session; passkey session exports; stale step-up still `step_up_required`).
+- S02 note: plain HTTP is accepted in production only for loopback hosts
+  (`localhost`, `127.0.0.1`, `[::1]`), because the container smoke test in CI runs
+  production mode on `http://localhost:3000`. Any other production origin needs HTTPS.

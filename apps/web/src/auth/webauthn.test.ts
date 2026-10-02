@@ -23,6 +23,11 @@ describe('authErrorMessage', () => {
     expect(authErrorMessage(new ApiError(429, 'rate_limited'))).toBe(RATE_LIMITED_MESSAGE);
     expect(authErrorMessage(new ApiError(429, 'x'))).toBe(RATE_LIMITED_MESSAGE);
   });
+  it('points a recovery session to a new passkey when a passkey is required', () => {
+    expect(authErrorMessage(new ApiError(403, 'passkey_required'))).toMatch(
+      /neuen Passkey anlegen/,
+    );
+  });
   it('words login_failed differently for recovery codes', () => {
     const error = new ApiError(401, 'login_failed');
     expect(authErrorMessage(error, 'login')).toMatch(/Anmeldung fehlgeschlagen/);

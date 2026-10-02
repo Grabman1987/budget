@@ -48,7 +48,9 @@ export function authConfigFromEnv(env: NodeJS.ProcessEnv = process.env): AuthCon
     url.hash
   )
     throw new Error('BUDGET_ORIGIN must be an HTTP(S) origin without credentials, path or query');
-  if (production && url.protocol !== 'https:')
+  // Plain HTTP stays possible on loopback only (container smoke test); a public host needs HTTPS.
+  const loopback = ['localhost', '127.0.0.1', '[::1]'].includes(url.hostname);
+  if (production && url.protocol !== 'https:' && !loopback)
     throw new Error('BUDGET_ORIGIN must use HTTPS in production');
   const setupToken = env['BUDGET_SETUP_TOKEN']?.trim();
   return {

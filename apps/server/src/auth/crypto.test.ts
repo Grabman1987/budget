@@ -53,6 +53,10 @@ describe('authentication origin configuration', () => {
     expect(() =>
       authConfigFromEnv({ ...production, BUDGET_ORIGIN: 'http://budget.example' }),
     ).toThrow('BUDGET_ORIGIN must use HTTPS in production');
+    // The container smoke test runs in production mode against loopback over plain HTTP.
+    expect(
+      authConfigFromEnv({ ...production, BUDGET_ORIGIN: 'http://localhost:3000' }),
+    ).toMatchObject({ origin: 'http://localhost:3000', cookieSecure: false });
     expect(
       authConfigFromEnv({ ...production, BUDGET_ORIGIN: 'https://budget.example' }),
     ).toMatchObject({
