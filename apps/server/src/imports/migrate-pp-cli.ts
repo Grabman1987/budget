@@ -208,7 +208,11 @@ try {
       break;
     }
     case 'map': {
-      const body = run({ kind: 'map', runId: required('run'), mapping: readJson('mapping') as never });
+      const body = run({
+        kind: 'map',
+        runId: required('run'),
+        mapping: readJson('mapping') as never,
+      });
       console.log('mapping ver.  ', body['mappingVersion']);
       break;
     }
@@ -220,11 +224,15 @@ try {
         runId: required('run'),
         options: reportOptions(),
       } as PpTask);
-      console.log('mapping ver.  ', body['mappingVersion'] ?? (body['run'] as { mappingVersion: number }).mappingVersion);
+      console.log(
+        'mapping ver.  ',
+        body['mappingVersion'] ?? (body['run'] as { mappingVersion: number }).mappingVersion,
+      );
       if (body['problems']) printProblems(body['problems'] as never);
       printChange(body['change'] as never);
       printReport(body['report'] as Gate3Report | null);
-      if (command === 'commit') console.log('run status    ', (body['run'] as { status: string }).status);
+      if (command === 'commit')
+        console.log('run status    ', (body['run'] as { status: string }).status);
       finish(body);
       break;
     }
@@ -246,7 +254,10 @@ try {
   }
 } catch (error) {
   if (error instanceof PpTaskError)
-    console.error(`${error.code}: ${error.message}`, error.details ? JSON.stringify(error.details) : '');
+    console.error(
+      `${error.code}: ${error.message}`,
+      error.details ? JSON.stringify(error.details) : '',
+    );
   else console.error(error instanceof Error ? `${error.name}: ${error.message}` : error);
   process.exitCode = 1;
 } finally {

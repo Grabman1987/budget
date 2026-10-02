@@ -98,4 +98,19 @@ The owner-made mapping document (JSON, outside the repo) keys everything by PP u
 | Every account transaction on a tracking account | booking with signed amount (`DEPOSIT`, `INTEREST`, `DIVIDENDS`, `FEES_REFUND`, `TAX_REFUND`, `SELL`, `TRANSFER_IN` positive; the others negative); a `BUY`/`SELL` leg links its trade by key, a transfer leg names its counterpart |
 | Account or portfolio with `"ignore"` | listed in `ignored`; one not in the mapping is ignored with an `unmapped-*` problem |
 
-Keys are `pp:<uuid>` (trade `importKey`, booking key), so a second import of the same file is idempotent. Committing the plan to the database, matching securities and the Gate 3 report are P5.11.
+Keys are `pp:<uuid>` (trade `importKey`, booking key), so a second import of the same file is idempotent.
+
+## Commit (P5.11, operator task)
+
+The plan above is written by `migrate-pp-cli.js` (`docs/ops.md` §13). The private mapping document (`pp.mapping.json`, zod schema `ppMigrationSchema`) names the app account per PP portfolio and cash account, and per security the kind, asset class, quote ids and `skip`. Decisions:
+
+- **Cash flows and opening balances stay with YNAB** (owner decision 02.10.2026: YNAB is more current than PP). PP deposits, removals and transfers are only compared in the report (`cashFlows: ynab`, `openingBalance: keep`); `cashFlows: book` and `openingBalance: pp|<cents>` exist for accounts YNAB cannot serve.
+- PP supplies securities, prices (whole history, source `import`), trades and deliveries. A trade's cash is its own settlement booking; the PP cash leg of a buy or sell and of a dividend, interest, fee or tax of a security is not booked again. Interest, fees, taxes and refunds without a trade are booked as Kapitalerträge (performance, not flows).
+- **Fitting to the ledger's trade rules** (`normalizeTrade`): tax of a purchase goes into the fee (cash stays exact), fee and tax of a delivery into its amount (the cost carried in), interest is gross of fee and tax; a sale whose fee and tax exceed its gross amount is an error.
+- **YNAB value estimates**: the YNAB balance adjustments (source `migration`) of an account that has a depot are deleted in the run's audit group (`retireYnabValue`, undoable); an account without a depot (P2P platform) keeps them.
+- Securities match by id from the mapping, then ISIN, then name, else they are created; a skipped security with trades blocks the commit. Created securities get `pricesEnabled` only with a quote id; a Yahoo feed names the symbol, a PP-feed ticker with an exchange suffix is taken as probable, Ariva links give the exchange (`boerse_id`) and a slug but never the numeric id the adapter needs.
+- Prices: a manual price wins, an identical imported one stays, anything else is replaced; the run records every change (`import_price_change`). Refreshes never write on or before the last imported day of a security.
+- A later run of the same or a newer file adds what is new and reports what is unchanged, **changed** (same key, other figures: left alone) and **missing** (written earlier, not in the file: left alone). Revert undoes the newest committed run as a whole and retires its keys.
+- Not mapped: security events (splits), foreign-currency units (the migration is EUR-only), taxonomies beyond the asset-class name.
+
+The Gate 3 report (`report`) lists per depot and security units, value and cost on chosen days (PP recomputed from the file against the app), the cash flows per year, and TTWROR and XIRR per period over identical windows (PP replayed with the same domain functions; PP's own figures can be passed with `--reference`). Deliveries and portfolio transfers count as capital flows in both, as in PP. Securities without any quote on a held day count as 0 on both sides and are listed.

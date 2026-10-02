@@ -246,7 +246,6 @@ export function gate3Report(db: Executor, input: Gate3Input): Gate3Report {
   const days = (input.days ?? defaultDays(today)).filter((d) => d <= today);
   const { costMethod } = investmentPreferences(db);
   const skipped = new Set(prep.securities.filter((s) => s.action === 'skip').map((s) => s.ppUuid));
-  const planOf = new Map(prep.securities.map((s) => [s.ppUuid, s]));
   const ppOfApp = new Map<string, string>();
   for (const [pp, appId] of Object.entries(ids.securities)) ppOfApp.set(appId, pp);
   const appSecurities = new Map(
@@ -287,7 +286,9 @@ export function gate3Report(db: Executor, input: Gate3Input): Gate3Report {
       const ppMissing = ppPos.filter((p) => p.valueCents === null).length;
       const ppHoldings = ppMissing > 0 ? null : ppPos.reduce((a, p) => a + (p.valueCents ?? 0), 0);
       const ppCashCents = ppCash(model, t.ppAccountUuids, day);
-      const appMissing = app.missingPricePositions.filter((m) => m.accountId === t.accountId).length;
+      const appMissing = app.missingPricePositions.filter(
+        (m) => m.accountId === t.accountId,
+      ).length;
       const holdingsKnown = nw.holdingsByAccount[t.accountId] !== null;
       const line: AccountLine = {
         account: t.name,
@@ -345,16 +346,14 @@ export function gate3Report(db: Executor, input: Gate3Input): Gate3Report {
       const ppUnits = ppPos?.unitsE8 ?? 0;
       const trades = prep.trades
         .filter((t) => t.accountId === accountId && t.securityPpUuid === ppUuid && t.date <= day)
-        .map(
-          (t): ProductTrade => ({
-            date: t.date,
-            kind: t.kind,
-            unitsE8: t.unitsE8,
-            amountCents: t.amountCents,
-            feeCents: t.feeCents,
-            taxCents: t.taxCents,
-          }),
-        );
+        .map((t): ProductTrade => ({
+          date: t.date,
+          kind: t.kind,
+          unitsE8: t.unitsE8,
+          amountCents: t.amountCents,
+          feeCents: t.feeCents,
+          taxCents: t.taxCents,
+        }));
       const cost = costs.get(`${accountId}\0${appSecurityId}`);
       const line: PositionLine = {
         account: nameOf.get(accountId) ?? accountId,
@@ -375,7 +374,8 @@ export function gate3Report(db: Executor, input: Gate3Input): Gate3Report {
       if (line.appValueCents !== null && line.ppValueCents !== null)
         line.valueDiffCents = line.appValueCents - line.ppValueCents;
       if (line.unitsDiffE8 !== 0) differences.positionUnits += 1;
-      if (line.valueDiffCents !== null && line.valueDiffCents !== 0) differences.positionValues += 1;
+      if (line.valueDiffCents !== null && line.valueDiffCents !== 0)
+        differences.positionValues += 1;
       if (line.appCostCents !== null && line.appCostCents !== line.ppCostCents)
         differences.positionCosts += 1;
       positionLines.push(line);
@@ -611,8 +611,7 @@ function depotPerformance(
     const ppFigures = window(pp.valuations, pp.flows, period, today, from);
     const ref = reference?.[t.name]?.[period] ?? null;
     const pct = (v: number | null) => (v === null ? null : v * 100);
-    const diff = (a: number | null, b: number | null) =>
-      a === null || b === null ? null : a - b;
+    const diff = (a: number | null, b: number | null) => (a === null || b === null ? null : a - b);
     const cmp: PeriodComparison = {
       period,
       app,
@@ -622,8 +621,7 @@ function depotPerformance(
       reference: ref,
       ttwrorVsReferencePp:
         ref?.ttwrorPct === undefined ? null : diff(pct(app?.ttwror ?? null), ref.ttwrorPct),
-      irrVsReferencePp:
-        ref?.irrPct === undefined ? null : diff(pct(app?.xirr ?? null), ref.irrPct),
+      irrVsReferencePp: ref?.irrPct === undefined ? null : diff(pct(app?.xirr ?? null), ref.irrPct),
     };
     for (const d of [cmp.ttwrorVsReferencePp, cmp.irrVsReferencePp])
       if (d !== null && Math.abs(d) > RETURN_TOLERANCE_PP) differences.returnsOverTolerance += 1;

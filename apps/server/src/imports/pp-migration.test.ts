@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any -- task answers are asserted as plain JSON */
 import {
   account,
   accountBalances,

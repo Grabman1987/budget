@@ -97,7 +97,8 @@ export function latestPpMapping(
     .where(eq(importMapping.importRunId, runId))
     .orderBy(desc(importMapping.version))
     .get();
-  if (own) return { version: own.version, doc: ppMigrationSchema.parse(JSON.parse(own.mappingJson)) };
+  if (own)
+    return { version: own.version, doc: ppMigrationSchema.parse(JSON.parse(own.mappingJson)) };
   const earlier = db
     .select({ json: importMapping.mappingJson })
     .from(importMapping)

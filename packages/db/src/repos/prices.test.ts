@@ -52,7 +52,9 @@ describe('prices', () => {
       ['2026-01-07', 104_000_000, 'yfinance'],
     ]);
     // Another security is not affected.
-    expect(upsertPrice(db, p('2026-01-03', 5, { securityId: 's2', source: 'yfinance' }))).toBe(true);
+    expect(upsertPrice(db, p('2026-01-03', 5, { securityId: 's2', source: 'yfinance' }))).toBe(
+      true,
+    );
   });
 
   it('upsert replaces the price of a day, including its source, without audit entries', () => {

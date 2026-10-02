@@ -415,3 +415,18 @@ machine with `migrate-cli.js` (same tasks as the former wizard: each step is one
 4. Commit: `... commit --run <id>`; check with `... report --run <id>`.
 5. Remove the private files: `fly ssh console -a budget-fg -C "rm -rf /data/migration"`.
    Undo if needed: `... revert --run <id>` (refused once imported data was changed in the app).
+
+## 13. One-time Portfolio Performance migration (operator task)
+
+Same rules as section 12 (no import feature in the app, files and the private mapping never enter the repo). Prerequisite: the YNAB migration is committed (the depot, crypto and P2P accounts exist). `migrate-pp-cli.js` has the same shape: each step is one transaction, `revert` undoes a whole run (the newest committed one only, also across sources). What is written and why: `docs/migration/pp-export.md` §Commit.
+
+1. Check the backup (sections 4 and 8). Copy the PP XML (plain save, version 70 verified) and the mapping to the volume (as in section 12, folder `/data/migration`).
+2. Draft the mapping from the file and the accounts in the database, then edit it (`?` marks what needs a decision; a security has a `comment` where a quote id is missing):
+   `node /app/migrate-pp-cli.js propose --file /data/migration/pp.xml --out /data/migration/pp.mapping.json`
+3. Stage and dry run:
+   `... stage --file /data/migration/pp.xml --mapping /data/migration/pp.mapping.json`, then `... dry-run --run <id>` (change the mapping with `... map --run <id> --mapping <file>`, every save is a version). A dry run is the commit in a rolled-back transaction: it prints the changes and the Gate 3 report. Proceed only with 0 errors.
+4. Commit: `... commit --run <id>`. Look at the report: **0 differences in units and in position value** and 0 in cost (with the cost method of the app; PP's FIFO figure is part of the data). Differences in account value come from cash flows (YNAB transfers against PP deposits) and are listed per year; `suggestedOpeningCents` per account is the opening balance that would equalise one day. Returns per depot: app against PP replay; for PP's own numbers pass `--reference ref.json` (`{"<account>": {"1J": {"ttwrorPct": 12.34, "irrPct": 5.6}}}`, tolerance 0,01 Pp). `--days 2025-12-31,2026-09-30` chooses the checkpoint days, `--out report.json` keeps the whole report (private storage), `--details` prints it.
+5. Quote ids: Ariva is the primary source when `BUDGET_ARIVA=1` (Yahoo then the fallback, `docs/market-data.md`). The security fields `fallback_quote_id` (Ariva secu id) and `quote_exchange` are set in Einstellungen › Anlageklassen; PP's Ariva links only carry the slug and the exchange.
+6. Remove the private files: `rm -rf /data/migration`. Undo if needed: `... revert --run <id>` (refused once trades were added to its securities).
+
+Notes: after the commit the YNAB Gate 2 report shows differences on the depot accounts that PP took over (their balance now includes trades); the PP report is authoritative for them. A re-import of a newer file (stage, commit) is idempotent and prints what changed (`unchanged`, `changed`, `missing`). Deliveries in and out count as capital flows in the depot view (as in PP); securities without any quote count as 0 in the returns and are listed.
