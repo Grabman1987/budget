@@ -42,8 +42,19 @@ export function ContactReportPage() {
     baseView?.contacts.filter((contact) => history || contact.balanceCents !== 0) ?? [];
   const selected = search.kontakt ?? visible[0]?.id ?? '';
   const statement = useQuery(contactReportQuery(selected, baseView?.asOf ?? '', !!baseView));
-  const unsupportedDetail =
+  const detailKey = JSON.stringify([selected, baseView?.asOf]);
+  const currentUnsupported =
     statement.isError && statement.error instanceof ApiError && statement.error.status === 422;
+  const [blockedDetail, setBlockedDetail] = useState<{ key: string; error: ApiError } | null>(null);
+  useEffect(() => {
+    if (currentUnsupported && statement.error instanceof ApiError)
+      setBlockedDetail({ key: detailKey, error: statement.error });
+    else if (statement.isSuccess) setBlockedDetail(null);
+  }, [currentUnsupported, detailKey, statement.error, statement.isSuccess]);
+  // A retry clears Query's error before its response arrives; keep the known gap hidden.
+  const unsupportedDetail =
+    currentUnsupported || (blockedDetail?.key === detailKey && !statement.isSuccess);
+  const detailError = currentUnsupported ? statement.error : blockedDetail?.error;
   const view = unsupportedDetail ? undefined : baseView;
   const heading = useRef<HTMLHeadingElement>(null);
   const person = view && statement.isSuccess ? statement.data : undefined;
@@ -79,7 +90,7 @@ export function ContactReportPage() {
           <>
             <ReportError
               what="Kontaktabrechnung"
-              error={unsupportedDetail ? statement.error : overview.error}
+              error={unsupportedDetail ? detailError : overview.error}
               retry={() => {
                 void overview.refetch();
                 if (unsupportedDetail) void statement.refetch();

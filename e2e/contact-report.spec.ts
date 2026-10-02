@@ -203,6 +203,49 @@ test('mixed-currency failure hides every figure and person ledger, with usable r
   await expect(page.getByText(/Diese Abrechnung unterstützt nur EUR/)).toBeVisible();
   await expect(page.getByTestId('contact-report-balance')).toHaveCount(0);
   await expect(page.locator('.kt-sheet')).toHaveCount(0);
+  // Known unsupported detail must stay unavailable while a retry is still in flight.
+  let releaseRetry!: () => void;
+  const retryGate = new Promise<void>((resolve) => {
+    releaseRetry = resolve;
+  });
+  await page.route('**/api/contacts/foreign-contact?asOf=*', async (route) => {
+    await retryGate;
+    await route.fulfill({
+      status: 422,
+      json: { error: 'booking_invariant', message: 'Contact statements require EUR movements' },
+    });
+  });
+  const retryRequest = page.waitForRequest((request) =>
+    request.url().includes('/api/contacts/foreign-contact?'),
+  );
+  await page.getByRole('button', { name: 'Erneut versuchen', exact: true }).click();
+  await retryRequest;
+  try {
+    await expect(page.getByTestId('contact-report-balance')).toHaveCount(0);
+    await expect(page.locator('.kt-sheet')).toHaveCount(0);
+  } finally {
+    releaseRetry();
+  }
+  await expect(page.getByText(/Diese Abrechnung unterstützt nur EUR/)).toBeVisible();
+  await page.route('**/api/contacts/foreign-contact?asOf=*', (route) =>
+    route.fulfill({
+      json: {
+        contact: { id: 'foreign-contact', name: 'Wieder verfügbare Historie', note: null },
+        asOf: new URL(route.request().url()).searchParams.get('asOf'),
+        currency: 'EUR',
+        balanceCents: 0,
+        creditCents: 0,
+        movements: [],
+        outlays: [],
+        receipts: [],
+      },
+    }),
+  );
+  await page.getByRole('button', { name: 'Erneut versuchen', exact: true }).click();
+  await expect(page.getByTestId('contact-report-balance')).toBeVisible();
+  await expect(
+    page.getByRole('heading', { name: /Kontoblatt Wieder verfügbare Historie/ }),
+  ).toBeVisible();
   // A loaded summary is also hidden after a failed refresh, rather than left as a stale success.
   await page.route('**/api/contacts?history=1', (route) =>
     route.fulfill({ status: 503, json: { error: 'unavailable' } }),
