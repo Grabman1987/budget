@@ -1,5 +1,6 @@
 import { useId, type ComponentProps, type ReactNode } from 'react';
 import { cx } from './cx';
+import { maskMoneyText, useAmountPrivacy } from '../amount-privacy';
 
 export interface FieldProps {
   label: string;
@@ -10,6 +11,7 @@ export interface FieldProps {
 
 /** Label above, control, optional hint and error (Rotstift text) below. */
 export function Field({ label, error, hint, children }: FieldProps) {
+  useAmountPrivacy();
   const id = useId();
   const messageId = `${id}-msg`;
   const describedBy = error || hint ? messageId : undefined;
@@ -19,19 +21,30 @@ export function Field({ label, error, hint, children }: FieldProps) {
       {children({ id, describedBy, invalid: Boolean(error) })}
       {error ? (
         <p id={messageId} className="field-error" role="alert">
-          {error}
+          {maskMoneyText(error)}
         </p>
       ) : hint ? (
         <p id={messageId} className="field-hint">
-          {hint}
+          {typeof hint === 'string' ? maskMoneyText(hint) : hint}
         </p>
       ) : null}
     </div>
   );
 }
 
-export function TextInput({ className, ...rest }: ComponentProps<'input'>) {
-  return <input className={cx('input', className)} {...rest} />;
+export function TextInput({
+  className,
+  money = false,
+  ...rest
+}: ComponentProps<'input'> & { money?: boolean }) {
+  const hidden = useAmountPrivacy();
+  return (
+    <input
+      className={cx('input', className)}
+      {...rest}
+      {...(money && hidden ? { type: 'password' } : {})}
+    />
+  );
 }
 
 export function Select({ className, ...rest }: ComponentProps<'select'>) {

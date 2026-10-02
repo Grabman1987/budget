@@ -1,4 +1,5 @@
 import {
+  useAmountPrivacy,
   AxisLine,
   BarsAroundZero,
   ChartSvg,
@@ -32,6 +33,7 @@ const every = (count: number, width: number) => Math.max(1, Math.ceil((count * 4
  * Port of the two charts of `R.cashflow` in `design/prototype/reports-zukunft.js`.
  */
 export function CashflowChart({ report }: { report: CashflowReport }) {
+  useAmountPrivacy();
   const [ref, width] = useElementWidth<HTMLDivElement>();
   return (
     <div ref={ref} className="rf-chart rf-chart-stack">
@@ -41,6 +43,7 @@ export function CashflowChart({ report }: { report: CashflowReport }) {
 }
 
 function Drawing({ report, width: W }: { report: CashflowReport; width: number }) {
+  useAmountPrivacy();
   const prefix = usePatternPrefix('cf');
   const { months } = report;
   const n = months.length;

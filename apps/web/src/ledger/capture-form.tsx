@@ -1,5 +1,5 @@
-import { todayInVienna } from '@budget/domain';
 import {
+  useAmountPrivacy,
   AmountInput,
   Button,
   ClassSwatch,
@@ -9,7 +9,9 @@ import {
   Select,
   TextInput,
   type SegmentedOption,
+  maskMoneyText,
 } from '@budget/ui';
+import { todayInVienna } from '@budget/domain';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from '@tanstack/react-router';
 import { CalendarClock, Check, Lock, Trash2, X } from 'lucide-react';
@@ -111,6 +113,7 @@ export function CaptureForm({
   discard: DiscardAsk;
   requestClose: () => void;
 }) {
+  useAmountPrivacy();
   const qc = useQueryClient();
   const accounts = useQuery(accountsQuery());
   const lookups = useQuery(lookupsQuery());
@@ -682,7 +685,7 @@ export function CaptureForm({
         )}
         {errors.form && (
           <p className="field-error" role="alert">
-            {errors.form}
+            {maskMoneyText(errors.form)}
           </p>
         )}
         <p className="khint" aria-hidden="true">
@@ -761,6 +764,7 @@ function DateField({
   set: <K extends keyof BookingDraft>(key: K, value: BookingDraft[K]) => void;
   error: string | undefined;
 }) {
+  useAmountPrivacy();
   return (
     <div className="kdate">
       <Field label="Datum" error={error}>

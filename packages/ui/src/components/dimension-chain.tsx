@@ -1,4 +1,6 @@
-import { balanceChain, cents as toCents, formatEuro, type ChainTerm } from '@budget/domain';
+import { useAmountPrivacy } from '../amount-privacy';
+import { formatPrivateEuro as formatEuro } from '../amount-privacy';
+import { balanceChain, cents as toCents, type ChainTerm } from '@budget/domain';
 
 export interface DimensionChainTerm extends ChainTerm {
   /** Makes the term a button that opens its line items (side panel, drill-down). */
@@ -21,6 +23,7 @@ const OP_GLYPH = { '+': '+', '-': '−', '=': '=' } as const;
  * chain adds up exactly as displayed.
  */
 export function DimensionChain({ terms, label, precision = 'euro' }: DimensionChainProps) {
+  useAmountPrivacy();
   const balanced = balanceChain(terms, precision);
   return (
     <div className="chain-inline" role="group" aria-label={label}>

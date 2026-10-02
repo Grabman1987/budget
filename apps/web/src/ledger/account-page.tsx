@@ -1,3 +1,4 @@
+import { useAmountPrivacy, privateAmount, Button, cx } from '@budget/ui';
 import { lastDayOfMonth, monthOf, todayInVienna } from '@budget/domain';
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
 import { Link, useParams } from '@tanstack/react-router';
@@ -14,7 +15,6 @@ import { accountsQuery, bookingsInfiniteQuery, seriesQuery } from './queries';
 import { ReconcilePanel } from './reconcile-panel';
 import { EmptyNote, ErrorNote, LoadingNote } from './states';
 import type { AccountRow } from './types';
-import { Button, cx } from '@budget/ui';
 
 const CHART_DAYS = 90;
 /** Bookings per page of the month list; more load on request. */
@@ -22,12 +22,14 @@ const PAGE_SIZE = 100;
 
 /** Route component of `/konten/$id`. */
 export function AccountRoute() {
+  useAmountPrivacy();
   const { id } = useParams({ strict: false }) as { id: string };
   return <AccountPage id={id} />;
 }
 
 /** Einzelkonto: figures, 90-day balance line and the bookings of the month with running balance. */
 export function AccountPage({ id }: { id: string }) {
+  useAmountPrivacy();
   const accounts = useQuery(accountsQuery());
   const account = accounts.data?.accounts.find((a) => a.id === id);
   return (
@@ -59,6 +61,7 @@ export function AccountPage({ id }: { id: string }) {
 }
 
 function AccountBody({ account }: { account: AccountRow }) {
+  useAmountPrivacy();
   const today = todayInVienna();
   const month = monthOf(today);
   const series = useQuery(seriesQuery(account.id, CHART_DAYS));
@@ -143,7 +146,8 @@ function AccountBody({ account }: { account: AccountRow }) {
               <svg viewBox="0 0 26 8">
                 <path className="l-plan" d="M0 4h26" />
               </svg>
-              0 € · {account.type === 'checking' ? 'darunter beginnt der Dispo' : 'Nulllinie'}
+              {privateAmount('0')} € ·{' '}
+              {account.type === 'checking' ? 'darunter beginnt der Dispo' : 'Nulllinie'}
             </span>
           </div>
         </>

@@ -1,4 +1,12 @@
-import { ChartSvg, Graticule, Line, LineLegend, Segmented, type Point } from '@budget/ui';
+import {
+  useAmountPrivacy,
+  ChartSvg,
+  Graticule,
+  Line,
+  LineLegend,
+  Segmented,
+  type Point,
+} from '@budget/ui';
 import { returnGap } from '@budget/domain';
 import type { DepotColumn, DepotComparison } from '@budget/db';
 import { queryOptions, useQuery } from '@tanstack/react-query';
@@ -43,6 +51,7 @@ const MIN_VOLATILITY_FOR_SHARPE = 0.005;
 const PERIOD_OPTIONS = ZEITRAUM_VALUES.map((value) => ({ value, label: value }));
 
 export function PortfolioDepotsReport({ report, meta }: { report: ReportEntry; meta: PageMeta }) {
+  useAmountPrivacy();
   const [period, setPeriod] = useZeitraum();
   const query = useQuery(depotsQuery(period));
   const data = query.data?.depots;
@@ -97,6 +106,7 @@ export function PortfolioDepotsReport({ report, meta }: { report: ReportEntry; m
 }
 
 function DepotsBody({ data, period }: { data: DepotComparison; period: Period }) {
+  useAmountPrivacy();
   const total = data.total as DepotColumn;
   const columns = [...data.depots, total];
   const window = data.window as { from: string; to: string };
@@ -167,6 +177,7 @@ function DepotCard({
   benchmarkName: string | null;
   benchmarkReturn: number | null;
 }) {
+  useAmountPrivacy();
   const perf = depot.performance;
   const isTotal = depot.accountId === null;
   return (
@@ -251,6 +262,7 @@ function DepotChart({
   benchmark: DepotComparison['benchmarkIndex'];
   benchmarkName: string | null;
 }) {
+  useAmountPrivacy();
   const [ref, width] = useElementWidth<HTMLDivElement>();
   const line = depot.index;
   const first = line[0];
@@ -310,6 +322,7 @@ function KpiTable({
   columns: DepotColumn[];
   benchmarkName: string | null;
 }) {
+  useAmountPrivacy();
   const rows: Array<[string, (depot: DepotColumn) => ReactNode]> = [
     ['Wert', (d) => eur(d.valueCents)],
     ['Anteil', (d) => bpText(d.shareBp)],

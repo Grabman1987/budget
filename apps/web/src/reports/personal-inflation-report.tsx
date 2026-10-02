@@ -1,5 +1,14 @@
+import {
+  useAmountPrivacy,
+  AxisLine,
+  ChartSvg,
+  ClassSwatch,
+  Graticule,
+  Line,
+  LineLegend,
+  XTicks,
+} from '@budget/ui';
 import type { InflationReport } from '@budget/db';
-import { AxisLine, ChartSvg, ClassSwatch, Graticule, Line, LineLegend, XTicks } from '@budget/ui';
 import { queryOptions, useQuery } from '@tanstack/react-query';
 import { request } from '../api/http';
 import { longDay, MINUS } from '../ledger/format';
@@ -23,6 +32,7 @@ const pp = (bp: number) => `${bp < 0 ? MINUS : '+'}${num2.format(Math.abs(bp) / 
 
 /** 2.4 Persönliche Inflation: Wie stark steigen unsere Preise? */
 export function PersonalInflationReport({ report, meta }: { report: ReportEntry; meta: PageMeta }) {
+  useAmountPrivacy();
   const query = useQuery(inflationQuery);
   const data = query.data && !query.isFetching ? query.data : undefined;
   return (
@@ -51,6 +61,7 @@ export function PersonalInflationReport({ report, meta }: { report: ReportEntry;
 }
 
 function Body({ data }: { data: InflationReport }) {
+  useAmountPrivacy();
   if (data.status !== 'ok')
     return (
       <section className="sr-card sr-wide" aria-labelledby="pi-empty">
@@ -354,6 +365,7 @@ const T = 20;
 const B = 220;
 
 function IndexChart({ data }: { data: InflationReport }) {
+  useAmountPrivacy();
   const points = data.points;
   const values = points.flatMap((p) => [p.index, ...(p.reference === null ? [] : [p.reference])]);
   const lo = Math.min(...values, 100);
@@ -401,6 +413,7 @@ function IndexChart({ data }: { data: InflationReport }) {
 }
 
 function MonthlyChart({ data }: { data: InflationReport }) {
+  useAmountPrivacy();
   const rows = data.monthly;
   if (rows.length < 2) return null;
   const values = rows.flatMap((m) => [m.ownBp, ...(m.referenceBp === null ? [] : [m.referenceBp])]);

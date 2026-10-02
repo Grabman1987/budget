@@ -1,5 +1,5 @@
+import { useAmountPrivacy, cx, type SwatchKind } from '@budget/ui';
 import { keepSplit } from './booking-model';
-import { cx, type SwatchKind } from '@budget/ui';
 import { useQuery } from '@tanstack/react-query';
 import { ArrowDown, ArrowUp, Pencil } from 'lucide-react';
 import { Fragment, useState, type ReactNode } from 'react';
@@ -42,6 +42,7 @@ export function BookingTable({
   selection,
   sort,
 }: BookingTableProps) {
+  useAmountPrivacy();
   const classes = useCategoryClasses();
   const writes = useLedgerWrites();
   const lookups = useQuery(lookupsQuery());
@@ -194,6 +195,7 @@ function Row({
   onCategory: (b: ListedBooking, categoryId: string | null) => void;
   onFlag: (b: ListedBooking, flag: BookingFlag | null) => void;
 }) {
+  useAmountPrivacy();
   const flashing = useFlashing(b.id);
   const [editing, setEditing] = useState(false);
   const checked = selection?.selected.has(b.id) ?? false;

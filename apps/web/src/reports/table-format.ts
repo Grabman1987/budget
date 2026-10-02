@@ -1,4 +1,5 @@
-import { cents, formatEuro, formatPercent, MINUS, type Period } from '@budget/domain';
+import { formatPrivateEuro as formatEuro } from '@budget/ui';
+import { cents, formatPercent, MINUS, type Period } from '@budget/domain';
 
 /** Short month names of the table headers (de-AT). */
 export const MONTH_SHORT = [

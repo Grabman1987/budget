@@ -1,6 +1,14 @@
+import {
+  useAmountPrivacy,
+  Button,
+  DetailPanel,
+  Field,
+  Select,
+  TextInput,
+  maskMoneyText,
+} from '@budget/ui';
 import type { SecurityRecord } from '@budget/db';
 import { cents, formatDecimal, nextExecutionAfter, parseAmount } from '@budget/domain';
-import { Button, DetailPanel, Field, Select, TextInput } from '@budget/ui';
 import { useBlocker } from '@tanstack/react-router';
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { ApiError } from '../api/http';
@@ -27,6 +35,7 @@ export function SavingsPanel({
   today: string;
   onClose: () => void;
 }) {
+  useAmountPrivacy();
   const plan = plans.find((p) => p.id === id);
   const creating = id === 'neu';
   const editable = creating || plan?.validTo === null;
@@ -348,7 +357,7 @@ export function SavingsPanel({
                 )}
                 {error && (
                   <p className="field-error" role="alert">
-                    {error}
+                    {maskMoneyText(error)}
                   </p>
                 )}
                 <div className="savings-actions">

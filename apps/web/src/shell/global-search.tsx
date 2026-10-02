@@ -1,5 +1,5 @@
+import { useAmountPrivacy, maskMoneyText, DetailPanel } from '@budget/ui';
 import type { GlobalSearchResult, SearchKind } from '@budget/db';
-import { DetailPanel } from '@budget/ui';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from '@tanstack/react-router';
 import { Search } from 'lucide-react';
@@ -26,6 +26,7 @@ function destination(result: GlobalSearchResult) {
 
 /** Same query and keyboard flow on desktop and in the phone's existing bottom-sheet primitive. */
 export function GlobalSearch({ mobile = false }: { mobile?: boolean }) {
+  useAmountPrivacy();
   const input = useRef<HTMLInputElement>(null);
   const container = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
@@ -173,7 +174,7 @@ export function GlobalSearch({ mobile = false }: { mobile?: boolean }) {
                 <span className="global-search-kind">{LABELS[result.kind]}</span>
                 <span className="global-search-label">
                   {result.label}
-                  {result.detail && <small>{result.detail}</small>}
+                  {result.detail && <small>{maskMoneyText(result.detail)}</small>}
                 </span>
               </button>
             ))}

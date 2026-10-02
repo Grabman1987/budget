@@ -13,6 +13,7 @@ import {
 import { createPortal } from 'react-dom';
 import { cx } from './cx';
 import { useToastHost } from './toast-host';
+import { maskMoneyText, useAmountPrivacy } from '../amount-privacy';
 
 export interface ToastOptions {
   message: string;
@@ -49,6 +50,7 @@ const DEFAULT_DURATION = 6000;
  *   `toast-host.ts`), because everything outside a modal dialog is inert.
  */
 export function ToastProvider({ children }: { children: ReactNode }) {
+  useAmountPrivacy();
   const [current, setCurrent] = useState<(ToastOptions & { seq: number }) | null>(null);
   const [open, setOpen] = useState(false);
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
@@ -120,7 +122,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
       >
         {current && (
           <>
-            <span key={current.seq}>{current.message}</span>
+            <span key={current.seq}>{maskMoneyText(current.message)}</span>
             {current.actionLabel && (
               <button
                 type="button"

@@ -1,4 +1,5 @@
 import {
+  useAmountPrivacy,
   AxisLine,
   Band,
   ChartSvg,
@@ -34,6 +35,7 @@ function tickLabel(day: string, horizon: LiquidityReport['horizon']): string {
  * chart of `R.liquiditaet` in `design/prototype/reports-zukunft.js` on the chart primitives.
  */
 export function LiquidityChart({ report }: { report: LiquidityReport }) {
+  useAmountPrivacy();
   const [ref, width] = useElementWidth<HTMLDivElement>();
   return (
     <div ref={ref} className="rf-chart">
@@ -43,6 +45,7 @@ export function LiquidityChart({ report }: { report: LiquidityReport }) {
 }
 
 function Drawing({ report, width: W }: { report: LiquidityReport; width: number }) {
+  useAmountPrivacy();
   const narrow = W < 520;
   const H = narrow ? 260 : 320;
   const R = narrow ? 64 : 92;

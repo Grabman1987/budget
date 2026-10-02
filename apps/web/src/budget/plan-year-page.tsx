@@ -1,3 +1,4 @@
+import { useAmountPrivacy, Registers, Select, TitleBlock, cx } from '@budget/ui';
 import {
   planYearMonths,
   planYearRows,
@@ -5,7 +6,6 @@ import {
   type PlanYearAmounts,
   type PlanYearRow,
 } from '@budget/domain';
-import { Registers, Select, TitleBlock, cx } from '@budget/ui';
 import { useQueries } from '@tanstack/react-query';
 import { ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useMemo, useState } from 'react';
@@ -28,6 +28,7 @@ type Metric = (typeof metrics)[number][0];
 
 /** Existing envelope-month reads remain the sole source of every amount, including carryover. */
 export function PlanYearPage() {
+  useAmountPrivacy();
   const [month, , setMonth] = useMonth();
   const year = Number(month.slice(0, 4));
   const months = useMemo(() => planYearMonths(year), [year]);
@@ -110,6 +111,7 @@ function YearOverview({
   months: string[];
   views: BudgetMonthView[];
 }) {
+  useAmountPrivacy();
   const [metric, setMetric] = useState<Metric>('assignedCents');
   const [phoneMonth, setPhoneMonth] = useState(selectedMonth);
   const [collapsed, setCollapsed] = useState<ReadonlySet<string>>(new Set());
@@ -333,6 +335,7 @@ function YearOverview({
 }
 
 function Amount({ amount, metric }: { amount: PlanYearAmounts; metric: Metric }) {
+  useAmountPrivacy();
   return (
     <span
       className={cx('year-amount', metric === 'availableCents' && amount[metric] < 0 && 'is-over')}
@@ -343,6 +346,7 @@ function Amount({ amount, metric }: { amount: PlanYearAmounts; metric: Metric })
 }
 
 function YearCells({ row, metric }: { row: PlanYearRow; metric: Metric }) {
+  useAmountPrivacy();
   return (
     <>
       {row.months.map((amount, i) => (

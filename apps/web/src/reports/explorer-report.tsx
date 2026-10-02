@@ -1,4 +1,13 @@
 import {
+  useAmountPrivacy,
+  Button,
+  ClassSwatch,
+  Field,
+  Select,
+  TextInput,
+  useToast,
+} from '@budget/ui';
+import {
   EXPLORER_CLASSES,
   EXPLORER_COLS,
   EXPLORER_DIMS,
@@ -12,7 +21,6 @@ import {
   type ExplorerQuery,
   type ExplorerResult,
 } from '@budget/domain';
-import { Button, ClassSwatch, Field, Select, TextInput, useToast } from '@budget/ui';
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { Bookmark, X } from 'lucide-react';
 import { useState, type CSSProperties, type FormEvent } from 'react';
@@ -61,6 +69,7 @@ const periodName = (months: string[]) =>
       : `${monthShortYear(months[0] as string)} bis ${monthShortYear(months[months.length - 1] as string)}`;
 
 export function ExplorerReportPage({ report, meta }: { report: ReportEntry; meta: PageMeta }) {
+  useAmountPrivacy();
   const toast = useToast();
   const [query, setQuery] = useState<ExplorerQuery>(DEFAULT_EXPLORER_QUERY);
   const [views, setViews] = useState(() => loadViews(browserStorage()));
@@ -271,6 +280,7 @@ function Pivot({
   firstMonth: string | null;
   fetching: boolean;
 }) {
+  useAmountPrivacy();
   const { query, columns, rows, totals } = result;
   const fmt = (value: number) => (result.unit === 'count' ? wholeText(value) : euroCellText(value));
   const first = result.months[0];

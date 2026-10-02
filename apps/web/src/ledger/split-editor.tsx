@@ -1,3 +1,4 @@
+import { useAmountPrivacy, maskMoneyText } from '@budget/ui';
 import { cents } from '@budget/domain';
 import {
   AmountInput,
@@ -78,6 +79,7 @@ export function SplitEditor({
   locked,
   error,
 }: SplitEditorProps) {
+  useAmountPrivacy();
   const { totalCents, distributedCents, restCents } = splitChain(draft);
   const types = draft.kind === 'expense' ? TYPES : TYPES.filter((t) => t.value !== 'transfer');
   const change = (key: string, patch: Partial<SplitDraft>) =>
@@ -217,7 +219,7 @@ export function SplitEditor({
       </p>
       {error && (
         <p className="field-error" role="alert">
-          {error}
+          {maskMoneyText(error)}
         </p>
       )}
       <div className="panel-actions">

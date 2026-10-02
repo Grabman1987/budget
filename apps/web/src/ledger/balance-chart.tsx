@@ -1,4 +1,5 @@
 import {
+  useAmountPrivacy,
   AxisLine,
   ChartSvg,
   Graticule,
@@ -47,6 +48,7 @@ export function BalanceChart({
   points: ReadonlyArray<SeriesPoint>;
   windowLabel: string;
 }) {
+  useAmountPrivacy();
   const [ref, width] = useElementWidth<HTMLDivElement>();
   const phone = useIsPhone();
   const height = phone ? 200 : 250;
@@ -70,6 +72,7 @@ function Drawing({
   height: number;
   windowLabel: string;
 }) {
+  useAmountPrivacy();
   const values = points.map((p) => p.balanceCents);
   const lo = Math.min(0, ...values);
   const hi = Math.max(0, ...values);

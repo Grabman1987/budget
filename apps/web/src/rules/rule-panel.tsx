@@ -1,5 +1,6 @@
-import { cents, formatDecimal, parseAmount } from '@budget/domain';
 import {
+  useAmountPrivacy,
+  maskMoneyText,
   AmountInput,
   Button,
   DetailPanel,
@@ -9,6 +10,7 @@ import {
   TextInput,
   type RuleStatus,
 } from '@budget/ui';
+import { cents, formatDecimal, parseAmount } from '@budget/domain';
 import { useState, type FormEvent } from 'react';
 import { longDay } from '../ledger/format';
 import { patchRule, type RuleRow, type RuleStatusCode } from './api';
@@ -26,6 +28,7 @@ const STATUS: Record<RuleStatusCode, RuleStatus> = { ok: 'met', warn: 'warning',
 
 /** Side panel (desktop) / bottom sheet (phone): current value, next step and the thresholds. */
 export function RulePanel({ rule, onClose }: { rule: RuleRow | null; onClose: () => void }) {
+  useAmountPrivacy();
   return (
     <DetailPanel
       open={rule !== null}
@@ -45,6 +48,7 @@ const initial = (spec: FieldSpec, value: unknown): string =>
   spec.unit === 'euro' ? formatDecimal(cents(Number(value ?? 0))) : fieldText(spec, value);
 
 function RuleForm({ rule }: { rule: RuleRow }) {
+  useAmountPrivacy();
   const write = useRuleWrite();
   const specs = RULE_FIELDS[rule.code] ?? [];
   const [texts, setTexts] = useState<Record<string, string>>(() =>
@@ -107,7 +111,7 @@ function RuleForm({ rule }: { rule: RuleRow }) {
           <>
             <p className="rw-now-line">
               <StatusMark status={STATUS[latest.status]} actionNeeded={latest.actionNeeded} />
-              <strong>{latest.valueText}</strong>
+              <strong>{maskMoneyText(latest.valueText)}</strong>
             </p>
             <p className="rw-now-sub">
               Stand {longDay(latest.asOf)}

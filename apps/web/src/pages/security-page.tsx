@@ -1,4 +1,12 @@
-import { Button, Field, SectionHead, TextInput, useToast } from '@budget/ui';
+import {
+  Button,
+  Field,
+  SectionHead,
+  TextInput,
+  useToast,
+  maskMoneyText,
+  useAmountPrivacy,
+} from '@budget/ui';
 import { useNavigate } from '@tanstack/react-router';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState, type FormEvent } from 'react';
@@ -27,6 +35,7 @@ const formatDate = (iso: string) => {
 
 /** Einstellungen › Sicherheit inside the page frame (title block and registers). */
 export function SecurityPage() {
+  useAmountPrivacy();
   const navigate = useNavigate();
   return (
     <PageFrame meta={SECURITY_META}>
@@ -42,6 +51,7 @@ export interface SecurityPanelProps {
 
 /** Passkeys, recovery codes and sign-out. Sensitive actions ask for a fresh step-up. */
 export function SecurityPanel({ onLoggedOut }: SecurityPanelProps) {
+  useAmountPrivacy();
   const queryClient = useQueryClient();
   const toast = useToast();
   const list = useQuery({ queryKey: PASSKEYS_KEY, queryFn: fetchPasskeys });
@@ -122,7 +132,7 @@ export function SecurityPanel({ onLoggedOut }: SecurityPanelProps) {
     <div className="security">
       {error && (
         <p className="field-error" role="alert">
-          {error}
+          {maskMoneyText(error)}
         </p>
       )}
       <section aria-labelledby="sec-passkeys">

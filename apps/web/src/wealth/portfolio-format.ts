@@ -1,3 +1,4 @@
+import { privateAmount } from '@budget/ui';
 import { MINUS } from '@budget/domain';
 import { eur, longDay } from '../ledger/format';
 import type { PositionQuote, PositionAccount } from '@budget/db';
@@ -23,7 +24,7 @@ export const percentText = (bp: number | null, signed = false) =>
 export const moneyText = (value: number | null) => (value === null ? '—' : eur(value));
 export const quoteText = (quote: PositionQuote | null) =>
   quote
-    ? `${scaledText(quote.priceMicro, 6, 2)} ${quote.currency === 'EUR' ? '€' : quote.currency}`
+    ? `${privateAmount(scaledText(quote.priceMicro, 6, 2))} ${quote.currency === 'EUR' ? '€' : quote.currency}`
     : 'Kurs fehlt';
 export const SOURCE_TEXT: Record<string, string> = {
   manual: 'manuell',

@@ -1,4 +1,5 @@
-import { cents, formatEuro, MINUS, type FormatEuroOptions } from '@budget/domain';
+import { formatPrivateEuro as formatEuro, amountsHidden, privateAmount } from '@budget/ui';
+import { cents, MINUS, type FormatEuroOptions } from '@budget/domain';
 
 export { MINUS };
 
@@ -12,6 +13,7 @@ export const eurWhole = (value: number, sign = false) =>
 
 /** Native money display only: no exchange-rate calculation. */
 const nativeMoney = (valueCents: number, currency: string, sign: boolean, whole: boolean) => {
+  if (amountsHidden()) return `••• ${currency === 'EUR' ? '€' : currency}`;
   if (currency === 'EUR') return eur(valueCents, { cents: !whole, sign });
   const amount = new Intl.NumberFormat('de-AT', {
     style: 'currency',
@@ -32,6 +34,7 @@ export const nativeCurrencyWhole = (valueCents: number, currency: string, sign =
 
 /** Exact lead figure split into grouped whole euros and cents, from one de-AT formatting pass. */
 export const eurParts = (value: number) => {
+  if (amountsHidden()) return { whole: privateAmount(''), fraction: privateAmount('') };
   const [whole = '0', fraction = '00'] = eur(value).replace(/ €$/, '').split(',');
   return { whole, fraction };
 };

@@ -1,3 +1,4 @@
+import { privateAmount } from '@budget/ui';
 import { formatDecimal, type Cents } from '@budget/domain';
 import type { TradeRow } from '@budget/db';
 import { queryOptions } from '@tanstack/react-query';
@@ -40,4 +41,4 @@ export const saveTrade = (values: ManualTrade, id?: string) => {
   );
 };
 export const sourceMoney = (cents: number, currency: string) =>
-  `${formatDecimal(cents as Cents)} ${currency === 'EUR' ? '€' : currency}`;
+  `${privateAmount(formatDecimal(cents as Cents))} ${currency === 'EUR' ? '€' : currency}`;

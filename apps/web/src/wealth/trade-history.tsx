@@ -1,4 +1,4 @@
-import { Button } from '@budget/ui';
+import { useAmountPrivacy, Button } from '@budget/ui';
 import { useQuery } from '@tanstack/react-query';
 import { accountsQuery } from '../ledger/queries';
 import { ErrorNote, LoadingNote } from '../ledger/states';
@@ -25,6 +25,7 @@ export function TradeHistory({
   onEdit: (id: string) => void;
   disabled: boolean;
 }) {
+  useAmountPrivacy();
   const query = useQuery(tradesQuery(securityId));
   const accounts = useQuery({ ...accountsQuery(), retry: false });
   return (

@@ -1,4 +1,12 @@
-import { Button, DetailPanel, RevisionTriangle, SectionHead, useToast } from '@budget/ui';
+import {
+  useAmountPrivacy,
+  maskMoneyText,
+  Button,
+  DetailPanel,
+  RevisionTriangle,
+  SectionHead,
+  useToast,
+} from '@budget/ui';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
 import { request } from '../api/http';
@@ -31,6 +39,7 @@ const LABELS: Record<InboxKind, string> = {
 };
 
 export function InboxPage() {
+  useAmountPrivacy();
   return (
     <PageFrame meta={META}>
       <InboxWorkflow />
@@ -38,11 +47,13 @@ export function InboxPage() {
   );
 }
 export function InboxPanel({ open, onClose }: { open: boolean; onClose: () => void }) {
+  useAmountPrivacy();
   return <InboxWorkflow panel={{ open, onClose }} />;
 }
 
 /** Same queue/actions in page and global panel; booking editor replaces the panel to avoid nested modals. */
 function InboxWorkflow({ panel }: { panel?: { open: boolean; onClose: () => void } }) {
+  useAmountPrivacy();
   const [editing, setEditing] = useState<ListedBooking | null>(null);
   const trigger = useRef<HTMLElement | null>(null);
   // Native dialogs lose the original trigger across the editor handoff; retain it for the whole workflow.
@@ -107,6 +118,7 @@ function InboxBody({
   onEdit: (id: string) => void;
   loadingId: string | null;
 }) {
+  useAmountPrivacy();
   const headingId = useId();
   const queue = useQuery(inboxQuery());
   const writes = useLedgerWrites();
@@ -217,6 +229,7 @@ function InboxRow({
   onConfirm: (id: string) => void;
   confirming: boolean;
 }) {
+  useAmountPrivacy();
   return (
     <tr className={`rev-row${item.urgent ? ' is-urgent' : ''}`} data-testid="inbox-row">
       <td className="rev-mark">
@@ -231,7 +244,7 @@ function InboxRow({
         <span>
           {item.type === 'booking'
             ? `${longDay(item.date)} · ${item.accountName} · ${item.missingSplits} ${item.missingSplits === 1 ? 'Anteil' : 'Anteile'} ohne Kategorie${item.status === 'pending' ? ' · vorgemerkt' : ''}${item.memo ? ` · ${item.memo}` : ''}`
-            : item.detail}
+            : maskMoneyText(item.detail ?? '')}
         </span>
       </td>
       <td className="rev-act kact">
@@ -276,6 +289,7 @@ function InboxRow({
 
 /** Offer only connected repair views; unknown/legacy references stay readable without inert links. */
 function SourceLink({ item }: { item: InboxStored }) {
+  useAmountPrivacy();
   if (item.refType === 'category')
     return (
       <AppLink className="btn btn-ghost btn-sm" to="/plan/monat">

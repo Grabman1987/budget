@@ -1,3 +1,4 @@
+import { privateAmount } from '@budget/ui';
 import type { ChainTerm, NetWorthWindow, Period } from '@budget/domain';
 import { cents } from '@budget/domain';
 
@@ -52,7 +53,7 @@ const whole = new Intl.NumberFormat('de-AT', { maximumFractionDigits: 0 });
 
 /** Axis label: thousands as "80 T". */
 export const kfmt = (v: number): string =>
-  Math.abs(v) >= 1000 ? `${whole.format(v / 1000)} T` : whole.format(v);
+  privateAmount(Math.abs(v) >= 1000 ? `${whole.format(v / 1000)} T` : whole.format(v));
 
 /** Month starts on the x axis (index into `days`, never the first day), thinned to fit `width`. */
 export function monthTicks(

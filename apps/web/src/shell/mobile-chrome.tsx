@@ -8,6 +8,7 @@ import { useInboxCount } from './inbox';
 import { GlobalSearch } from './global-search';
 import { ThemeButton } from './theme-button';
 import { useShellIdentity } from './use-profile';
+import { PrivacyButton } from './privacy-button';
 
 /**
  * What the phone header shows, as in the prototype: the area name (the month switch and the strip
@@ -41,6 +42,7 @@ export function MobileHeader({ title, asHeading }: { title: string; asHeading: b
         {inbox.count !== undefined && inbox.count > 0 && <Count>{inbox.count}</Count>}
       </PanelLink>
       <ThemeButton variant="icon" />
+      <PrivacyButton />
       <AppLink
         className="avatar"
         to="/einstellungen/profil"

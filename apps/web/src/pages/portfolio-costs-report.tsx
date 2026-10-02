@@ -1,4 +1,4 @@
-import { DimensionChain } from '@budget/ui';
+import { useAmountPrivacy, DimensionChain } from '@budget/ui';
 import { cents } from '@budget/domain';
 import type { CostsTaxesReport } from '@budget/db';
 import { queryOptions, useQuery } from '@tanstack/react-query';
@@ -30,6 +30,7 @@ const costsQuery = queryOptions({
 });
 
 export function PortfolioCostsReport({ report, meta }: { report: ReportEntry; meta: PageMeta }) {
+  useAmountPrivacy();
   const query = useQuery(costsQuery);
   const data = query.data?.costs;
   return (
@@ -72,6 +73,7 @@ function Row({
   cents: number;
   note?: string;
 }) {
+  useAmountPrivacy();
   return (
     <tr>
       <td className="col-pos">{pos}</td>
@@ -85,6 +87,7 @@ function Row({
 }
 
 function CostsBody({ data }: { data: CostsTaxesReport }) {
+  useAmountPrivacy();
   const { net, income, taxes, costs, latent } = data;
   const empty = data.products.length === 0 && net.grossCents === 0 && costs.totalCents === 0;
   if (empty)

@@ -1,5 +1,5 @@
+import { useAmountPrivacy, Button, DimensionChain, maskMoneyText } from '@budget/ui';
 import { addDays, cents, formatDecimal, parseAmount } from '@budget/domain';
-import { Button, DimensionChain } from '@budget/ui';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate, useSearch } from '@tanstack/react-router';
 import { useId, useState, type ReactNode, type FormEvent } from 'react';
@@ -23,6 +23,7 @@ import './debts.css';
 const modelMonthText = (month: string | null) =>
   month ? `${monthName(month)} ${month.slice(0, 4)}` : 'bereits getilgt';
 export function DebtsPage() {
+  useAmountPrivacy();
   const query = useQuery(debtsQuery());
   const search = useSearch({ strict: false }) as { kredit?: string };
   const navigate = useNavigate();
@@ -161,6 +162,7 @@ const unavailable = (a: DebtAccount) =>
       ? 'Kurs für Kontowert fehlt'
       : `Wechselkurs fehlt: ${a.missingFxCurrencies.join(', ')}`;
 function DebtLead({ view }: { view: DebtsView }) {
+  useAmountPrivacy();
   const parts = view.totalEurCents === null ? null : eurParts(view.totalEurCents);
   return (
     <section className="vnw" aria-labelledby="debts-title">
@@ -231,6 +233,7 @@ function Amount({
   value: string;
   onChange: (value: string) => void;
 }) {
+  const hidden = useAmountPrivacy();
   const id = useId();
   return (
     <div className="field-row debt-amount">
@@ -238,6 +241,7 @@ function Amount({
         {label} ({currency})
       </label>
       <input
+        type={hidden ? 'password' : 'text'}
         id={id}
         inputMode="decimal"
         autoComplete="off"
@@ -270,6 +274,7 @@ function Scenario({
   onBusy: (busy: boolean) => void;
   choice: ReactNode;
 }) {
+  useAmountPrivacy();
   const [payment, setPayment] = useState('');
   const [extra, setExtra] = useState('0');
   const [rate, setRate] = useState(
@@ -395,7 +400,7 @@ function Scenario({
           </fieldset>
           {error && (
             <p role="alert" className="field-error">
-              {error}
+              {maskMoneyText(error)}
             </p>
           )}
         </form>
@@ -465,6 +470,7 @@ function Scenario({
   );
 }
 function Results({ result }: { result: DebtProjection }) {
+  useAmountPrivacy();
   const { withExtra } = result.plan;
   const money = (v: number) => nativeCurrency(v, result.currency);
   return (
@@ -512,6 +518,7 @@ function Results({ result }: { result: DebtProjection }) {
 }
 
 function Comparison({ result }: { result: DebtProjection }) {
+  useAmountPrivacy();
   const { base, withExtra } = result.plan;
   const money = (v: number) => nativeCurrency(v, result.currency);
   return (

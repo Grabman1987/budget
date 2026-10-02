@@ -1,6 +1,6 @@
-import { cents } from '@budget/domain';
-import type { ContractsReport } from '@budget/db';
 import {
+  useAmountPrivacy,
+  privateAmount,
   AxisLine,
   ChartSvg,
   ClassSwatch,
@@ -10,6 +10,8 @@ import {
   LineLegend,
   XTicks,
 } from '@budget/ui';
+import { cents } from '@budget/domain';
+import type { ContractsReport } from '@budget/db';
 import { queryOptions, useQuery } from '@tanstack/react-query';
 import { AlertTriangle, CheckCircle2 } from 'lucide-react';
 import { request } from '../api/http';
@@ -36,10 +38,11 @@ const RHYTHM = {
 
 const rate = new Intl.NumberFormat('de-AT', { minimumFractionDigits: 4, maximumFractionDigits: 4 });
 const rateText = (micro: number | null, currency: string) =>
-  micro === null ? '–' : `${rate.format(micro / 1_000_000)} €/${currency}`;
+  micro === null ? '–' : `${privateAmount(rate.format(micro / 1_000_000))} €/${currency}`;
 
 /** 2.3 Verträge und Abos: Welche Verträge binden uns, und was lässt sich kündigen? */
 export function ContractsReportPage({ report, meta }: { report: ReportEntry; meta: PageMeta }) {
+  useAmountPrivacy();
   const query = useQuery(contractsQuery);
   const data = query.data && !query.isFetching ? query.data : undefined;
   return (
@@ -69,6 +72,7 @@ export function ContractsReportPage({ report, meta }: { report: ReportEntry; met
 }
 
 function Body({ data }: { data: ContractsReport }) {
+  useAmountPrivacy();
   if (data.items.length === 0)
     return (
       <section className="sr-card sr-wide" aria-labelledby="co-empty">
@@ -376,6 +380,7 @@ const T = 30;
 const B = 214;
 
 function CostChart({ data }: { data: ContractsReport }) {
+  useAmountPrivacy();
   const points = data.series;
   if (points.length < 2)
     return (

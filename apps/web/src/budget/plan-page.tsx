@@ -1,3 +1,4 @@
+import { useAmountPrivacy } from '@budget/ui';
 import { cents, todayInVienna } from '@budget/domain';
 import {
   Button,
@@ -90,6 +91,7 @@ const RAIL_LABEL = {
  * list of the envelopes. Every figure comes from `/api/budget/:month`.
  */
 export function PlanMonthPage() {
+  useAmountPrivacy();
   const [month] = useMonth();
   const span = useMonthSpan();
   const months = useMemo(
@@ -155,6 +157,7 @@ function PlanBody({
   extraError: { error: Error; refetch: () => unknown } | undefined;
   onIncome: () => void;
 }) {
+  useAmountPrivacy();
   const write = useBudgetWrite();
   const accounts = useQuery(accountsQuery()).data?.accounts ?? [];
   const expected = useQuery(expectedQuery()).data;
@@ -645,6 +648,7 @@ function GroupState({
   group: PlanGroup;
   status: ReturnType<typeof groupStatus>;
 }) {
+  useAmountPrivacy();
   const text = statusText(group, status);
   if (group.key === 'cards') return null;
   return (
@@ -684,6 +688,7 @@ function Hero({
   onIncome: () => void;
   onDistribute: () => void;
 }) {
+  useAmountPrivacy();
   const s = data.summary;
   const tba = s.toBeAssignedCents;
   const { whole, fraction } = eurParts(tba);
@@ -754,6 +759,7 @@ function MonthOverview({
   /** Several months are shown: the overview names the leftmost one. */
   month: string | undefined;
 }) {
+  useAmountPrivacy();
   const s = data.summary;
   const activity = rows.reduce((a, r) => a + r.activityCents, 0);
   const available = rows.reduce((a, r) => a + r.availableCents, 0);
@@ -808,6 +814,7 @@ function MonthOverview({
 
 /** Inspector: the 50/30/20 band of what was assigned, against the month's income. */
 function SplitBand({ data, rows }: { data: BudgetMonthView; rows: PlanRow[] }) {
+  useAmountPrivacy();
   const state = splitState(data.summary, rows);
   const shares = state.kind === 'shares' ? state : null;
   const inSoll = shares !== null && shares.need <= 50 && shares.want <= 30 && shares.future >= 20;
@@ -898,6 +905,7 @@ function Rail({
   data: BudgetMonthView;
   onJump: (key: string) => void;
 }) {
+  useAmountPrivacy();
   const s = data.summary;
   const next =
     view === 'stage' ? groups.find((g) => g.stage && groupStatus(g.rows).need > 0) : undefined;
@@ -993,6 +1001,7 @@ function EnvelopeRow({
   onTake: () => void;
   onOpen: () => void;
 }) {
+  useAmountPrivacy();
   const cash = isCashOver(r);
   const credit = !cash && r.creditOverspentCents > 0;
   const bar = barFor(r, ctx);

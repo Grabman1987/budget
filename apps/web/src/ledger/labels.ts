@@ -1,3 +1,4 @@
+import { maskMoneyText } from '@budget/ui';
 import { ApiError } from '../api/http';
 import type { BulkResult, BulkSkipReason } from './api';
 import { pluralBookings } from './format';
@@ -115,7 +116,7 @@ export function errorText(
   fallback = 'Das hat nicht geklappt. Versuch es noch einmal.',
 ) {
   if (error instanceof Error && 'detail' in error && typeof error.detail === 'string') {
-    return error.detail;
+    return maskMoneyText(error.detail);
   }
   if (error instanceof Error && 'status' in error && error.status === 0) {
     return 'Keine Verbindung zum Server.';
