@@ -41,18 +41,18 @@ test.describe('design system page /dev/bauteile', () => {
     page,
   }) => {
     await open(page, 'light');
-    expect(await bodyBackground(page)).toBe('rgb(246, 248, 251)');
+    expect(await bodyBackground(page)).toBe('rgb(242, 245, 249)');
 
     await page.emulateMedia({ colorScheme: 'dark' });
     expect(await bodyBackground(page)).toBe('rgb(11, 49, 82)');
 
     await page.getByRole('button', { name: 'Hell', exact: true }).click();
     await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
-    expect(await bodyBackground(page)).toBe('rgb(246, 248, 251)');
+    expect(await bodyBackground(page)).toBe('rgb(242, 245, 249)');
 
     await page.reload();
     await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
-    expect(await bodyBackground(page)).toBe('rgb(246, 248, 251)');
+    expect(await bodyBackground(page)).toBe('rgb(242, 245, 249)');
 
     await page.getByRole('button', { name: 'System', exact: true }).click();
     await expect(page.locator('html')).not.toHaveAttribute('data-theme', /.+/);
