@@ -23,6 +23,7 @@ import {
 } from './portfolio-format';
 import { InstrumentPanel } from './portfolio-panel';
 import { INSTRUMENT_KIND } from './instrument-form';
+import { SavingsSection } from './savings-section';
 import { TradePanel } from './trade-panel';
 import './portfolio.css';
 import { PortfolioAllocation } from './allocation-section';
@@ -30,7 +31,11 @@ import { PortfolioAllocation } from './allocation-section';
 export function PortfolioPage() {
   const query = useQuery(portfolioPositionsQuery());
   const instruments = useQuery(instrumentsQuery());
-  const search = useSearch({ strict: false }) as { produkt?: string; handel?: string };
+  const search = useSearch({ strict: false }) as {
+    produkt?: string;
+    handel?: string;
+    sparplan?: string;
+  };
   const navigate = useNavigate();
   const select = (produkt?: string) =>
     void navigate({
@@ -40,6 +45,7 @@ export function PortfolioPage() {
         produkt,
         handel: undefined,
         allokation: undefined,
+        sparplan: undefined,
       })) as never,
     }).then(() => {
       if (produkt || !search.produkt) return;
@@ -62,6 +68,7 @@ export function PortfolioPage() {
         produkt,
         handel,
         allokation: undefined,
+        sparplan: undefined,
       })) as never,
     });
   const view = query.data;
@@ -143,6 +150,7 @@ export function PortfolioPage() {
             )}
           </>
         )}
+        <SavingsSection />
         {instruments.isPending && <LoadingNote what="Instrumente" />}
         {instruments.isError && (
           <ErrorNote
@@ -193,7 +201,7 @@ export function PortfolioPage() {
           </section>
         )}
       </div>
-      {search.handel ? (
+      {search.sparplan ? null : search.handel ? (
         <TradePanel
           key={search.handel}
           id={search.handel}

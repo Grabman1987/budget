@@ -16,9 +16,11 @@ export function PortfolioAllocation() {
     allokation?: string;
     produkt?: string;
     handel?: string;
+    sparplan?: string;
   };
   const navigate = useNavigate();
-  const open = search.allokation === 'ziele' && !search.produkt && !search.handel;
+  const open =
+    search.allokation === 'ziele' && !search.produkt && !search.handel && !search.sparplan;
   const select = (allokation?: string) =>
     void navigate({
       to: '/vermoegen/portfolio',
@@ -27,6 +29,7 @@ export function PortfolioAllocation() {
         allokation,
         produkt: undefined,
         handel: undefined,
+        sparplan: undefined,
       })) as never,
     });
   const view = query.isError ? undefined : query.data;

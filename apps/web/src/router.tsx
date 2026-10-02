@@ -214,6 +214,10 @@ const portfolioRoute = createRoute({
   path: '/vermoegen/portfolio',
   staticData: { meta: VERMOEGEN_PORTFOLIO_META },
   validateSearch: (search: Record<string, unknown>) => ({
+    sparplan:
+      typeof search['sparplan'] === 'string' && search['sparplan'].length <= 64
+        ? search['sparplan']
+        : undefined,
     allokation: search['allokation'] === 'ziele' ? 'ziele' : undefined,
     produkt:
       typeof search['produkt'] === 'string' && search['produkt'].length <= 64
