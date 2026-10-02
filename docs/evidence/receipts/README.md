@@ -53,3 +53,32 @@ worker tests passed under Node 24 without application changes.
 
 The resumed delivery can use the normal worktree index. No owner Git-index reset
 is needed.
+
+## Resumed delivery (2026-10-03)
+
+The complete local suite was not rerun, as requested by the owner; full-suite CI
+and independent review remain open. Node 24.12.0 was used for the scoped checks.
+Before merging, the DB package and affected server tests ran 407 cases: 404
+passed immediately; the three unchanged timestamp/duplicate-order tests passed
+in a separate single-worker run of their 62 cases. SQLite and JavaScript clocks
+occasionally differ by 1 ms here. All five affected CSV export tests also passed.
+
+Merged `origin/main` at `c22d341`. Its last migration was `0016`; the banking and
+payslip PRs were still unmerged. Drizzle Kit regenerated `0017_receipts` and its
+snapshot/journal from that predecessor. SQL and schema are unchanged, the main
+journal prefix is preserved, and a second generation reports no schema changes.
+The new upgrade test retains legacy receipt/split links and booking rows, checks
+restart idempotence, and exercises a new booking-level link after upgrading.
+
+After the merge, all 129 focused migration/DB/file/API/backup/app tests passed
+(11 files, age required), as did typecheck, lint and the production build. The
+isolated receipt browser rerun passed all five cases, including setup, on desktop
+and mobile. The first post-merge browser run exceeded the unchanged 30-second
+limit during page load and axe while checks in several worktrees competed for
+memory. The pre-merge receipt run also passed all five cases.
+The four linked screenshots were refreshed from the successful final run.
+
+Browser checks use the standard configuration and production build with
+`E2E_PORT=4510` because the default port was already occupied. The standard `tsx`
+sample seed worked in this resumed Node 24 run; no wrapper was required. No
+assertions, pixel baselines or timeouts were changed during the resume.

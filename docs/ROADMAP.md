@@ -262,7 +262,7 @@ Expected payments, contacts with receivables, savings goals, rule set R01–R16 
 - [x] Session/origin guards, 15 MiB file limit, magic-byte MIME allowlist, JPEG/PNG/WebP metadata removal and safe authenticated download/thumbnail responses
 - [x] German booking Beleg section and capture-first Posteingang list with explicit later booking assignment; no automatic booking
 - [x] Nightly encrypted archive includes retained receipt blobs; legacy DB-only backup retention preserved; restore runbook and metadata limits in [receipts](receipts.md)
-- [x] Synthetic file/API/encrypted-restore tests and 41 scoped browser checks with desktop/mobile light/dark [visual evidence](evidence/receipts/README.md)
+- [x] Synthetic file/API/encrypted-restore tests, additive migration upgrade preserving legacy links, and scoped browser checks with desktop/mobile light/dark [visual evidence](evidence/receipts/README.md)
 - [ ] Owner: real-phone camera capture, directory/space checks and encrypted DB-plus-receipt restore after deployment; independent review/CI acceptance
 
 ## P4 Datenquellen
