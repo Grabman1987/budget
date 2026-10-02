@@ -40,4 +40,5 @@ export * from './profile';
 export * from './liquidity-report';
 export * from './networth-history';
 export * from './cashflow-report';
+export * from './month-reports';
 export * from './report-tables';

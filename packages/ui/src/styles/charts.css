@@ -187,6 +187,10 @@ svg.chart {
 .sk-link.l-rest {
   fill: var(--ink-3);
 }
+/* Kapitalerträge: a labelled source of their own, one ink step apart from household income */
+.sk-link.l-cap {
+  fill: var(--line-2);
+}
 .sk-node {
   fill: var(--line);
 }
@@ -198,6 +202,9 @@ svg.chart {
 }
 .sk-node.n-future {
   fill: var(--future);
+}
+.sk-node.n-cap {
+  fill: var(--line-2);
 }
 /* "Übrig": dashed outline node */
 .sk-node.n-rest {

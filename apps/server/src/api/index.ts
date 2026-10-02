@@ -31,6 +31,7 @@ import { marketRoutes } from './market';
 import { networthHistoryRoutes } from './networth-history';
 import { wealthRoutes } from './wealth';
 import { ruleRoutes } from './rules';
+import { monthReportRoutes } from './reports-month';
 import { reportTableRoutes } from './report-tables';
 import { payeeReportRoutes } from './payee-report';
 
@@ -84,6 +85,7 @@ export function createLedgerApi({
   api.route('/savings-plans', savingsPlanRoutes(db, today));
   api.route('/portfolio', portfolioRoutes(db, today));
   api.route('/profile', profileRoutes(db, today));
+  api.route('/reports/month', monthReportRoutes(db, today));
   api.route('/lookups', lookupRoutes(db));
   api.route('/undo', undoRoutes(db));
   api.route('/', marketRoutes(db, today, market));

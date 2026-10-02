@@ -113,7 +113,7 @@ export interface HeuteUnavailable {
 }
 
 /** Only missing valuation inputs are isolated; unrelated failures remain errors. */
-function availableSection<T>(read: () => T): T | HeuteUnavailable {
+export function availableSection<T>(read: () => T): T | HeuteUnavailable {
   try {
     return read();
   } catch (error) {
@@ -197,7 +197,7 @@ const earliest = (a: string, b: string): string => (a < b ? a : b);
 const latest = (a: string, b: string): string => (a > b ? a : b);
 
 /** Scheduled occurrences of the budget accounts in `from..to` with their status and labels. */
-function occurrencesBetween(
+export function occurrencesBetween(
   db: Executor,
   f: RuleFacts,
   from: string,
@@ -314,6 +314,60 @@ export function nextSteps(
   return { items, count: items.reduce((a, i) => a + i.count, 0) };
 }
 
+/**
+ * Pace of Bedarf and Wunsch for one month (Heute and the Monats-One-Pager): the plan is what was
+ * assigned to those categories, fixed costs fall on their due day, spending comes from the
+ * ledger. `occurrences` are the scheduled occurrences that cover the month.
+ */
+export function paceOfMonth(
+  facts: RuleFacts,
+  month: string,
+  today: string,
+  occurrences: HeuteOccurrence[],
+): Heute['pace'] {
+  const categories = new Map(facts.categories.map((c) => [c.id, c]));
+  const monthBudget = facts.budgetByMonth.get(month);
+  const budgetSet = new Set(
+    facts.accounts.filter((a) => a.onBudget && a.role === 'budget').map((a) => a.id),
+  );
+  const paceCategory = (id: string | null) => {
+    const c = id ? categories.get(id) : undefined;
+    return c?.class === 'need' || c?.class === 'want';
+  };
+  const limitCents = facts.categories
+    .filter((c) => paceCategory(c.id))
+    .reduce((s, c) => s + (monthBudget?.envelopes[c.id]?.assignedCents ?? 0), 0);
+  const fixed: PaceFixed[] = occurrences
+    .filter(
+      (o) =>
+        o.kind === 'outflow' &&
+        monthOf(o.dueDate) === month &&
+        paceCategory(o.categoryId) &&
+        o.status !== 'missed',
+    )
+    .map((o) => ({
+      day: o.dueDate,
+      cents: -o.amountCents,
+      settled: o.status === 'received' || o.status === 'deviating',
+    }));
+  const spending: PaceSpending[] = facts.ledgerSplits
+    .filter((s) => paceCategory(s.categoryId) && budgetSet.has(s.accountId))
+    .map((s) => ({ day: s.date, cents: -s.amountCents }));
+  const model = paceModel({
+    month,
+    today,
+    limitCents,
+    fixed,
+    spending: spending.filter((s) => monthOf(s.day) === month),
+    previousSpending: spending.filter((s) => monthOf(s.day) === addMonths(month, -1)),
+  });
+  return {
+    ...model,
+    forecast: paceForecastCurve(model, fixed),
+    previousMonth: addMonths(month, -1),
+  };
+}
+
 export function heute(db: Executor, query: HeuteQuery): Heute {
   const today = query.today;
   const month = query.month ?? monthOf(today);
@@ -412,38 +466,11 @@ export function heute(db: Executor, query: HeuteQuery): Heute {
   }
 
   // ---- pace of Bedarf and Wunsch ----
-  const paceCategory = (id: string | null) => {
-    const c = id ? categories.get(id) : undefined;
-    return c?.class === 'need' || c?.class === 'want';
-  };
-  const budgetSet = new Set(budgetIds);
-  const limitCents = facts.categories
-    .filter((c) => paceCategory(c.id))
-    .reduce((s, c) => s + (monthBudget?.envelopes[c.id]?.assignedCents ?? 0), 0);
-  const fixed: PaceFixed[] = all
-    .filter(
-      (o) =>
-        o.kind === 'outflow' &&
-        monthOf(o.dueDate) === month &&
-        paceCategory(o.categoryId) &&
-        o.status !== 'missed',
-    )
-    .map((o) => ({
-      day: o.dueDate,
-      cents: -o.amountCents,
-      settled: o.status === 'received' || o.status === 'deviating',
-    }));
-  const spending: PaceSpending[] = facts.ledgerSplits
-    .filter((s) => paceCategory(s.categoryId) && budgetSet.has(s.accountId))
-    .map((s) => ({ day: s.date, cents: -s.amountCents }));
-  const model = paceModel({
-    month,
-    today,
-    limitCents,
-    fixed,
-    spending: spending.filter((s) => monthOf(s.day) === month),
-    previousSpending: spending.filter((s) => monthOf(s.day) === addMonths(month, -1)),
-  });
+  const {
+    forecast: paceForecast,
+    previousMonth: paceMonthBefore,
+    ...model
+  } = paceOfMonth(facts, month, today, all);
 
   // ---- pinned envelopes, in the order they were pinned ----
   const pinned: HeutePinned[] = facts.categories
@@ -534,11 +561,7 @@ export function heute(db: Executor, query: HeuteQuery): Heute {
     },
     lead,
     balance: { actual, forecast, salary: salaryJump, low },
-    pace: {
-      ...model,
-      forecast: paceForecastCurve(model, fixed),
-      previousMonth: addMonths(month, -1),
-    },
+    pace: { ...model, forecast: paceForecast, previousMonth: paceMonthBefore },
     pinned,
     upcoming14,
     financeCheck: check,

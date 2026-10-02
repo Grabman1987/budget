@@ -1,0 +1,558 @@
+/* 1.1 Monats-One-Pager: the drawing sheet (A4 frame with zone marks 1–6 / A–F, sections A–G, title
+   block bottom right). Ported from design/prototype/styles.css (.psheet); on screen the sheet is
+   white paper on the slate ground, on paper it fills one A4 page with the light tokens. */
+
+.onepager-report {
+  grid-template-columns: minmax(0, 1fr);
+}
+.psheet-wrap {
+  container-type: inline-size;
+  min-width: 0;
+}
+.psheet {
+  position: relative;
+  display: flex;
+  width: 100%;
+  max-width: 860px;
+  margin: 0 auto;
+  padding: 22px;
+  min-height: calc(min(100cqw, 860px) * 1.4142);
+  background: var(--surface);
+  border: 1.5px solid var(--line);
+  box-shadow: var(--card-shadow);
+}
+.ps-zones {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+.pz-h {
+  position: absolute;
+  left: 22px;
+  right: 22px;
+  height: 22px;
+  display: flex;
+}
+.pz-top {
+  top: 0;
+}
+.pz-bot {
+  bottom: 0;
+}
+.pz-v {
+  position: absolute;
+  top: 22px;
+  bottom: 22px;
+  width: 22px;
+  display: flex;
+  flex-direction: column;
+}
+.pz-left {
+  left: 0;
+}
+.pz-right {
+  right: 0;
+}
+.pz-h span,
+.pz-v span {
+  flex: 1;
+  display: grid;
+  place-items: center;
+  font-family: var(--font-tech);
+  font-size: 10.5px;
+  font-weight: 500;
+  color: var(--ink-3);
+}
+.pz-h span + span {
+  border-left: 1px solid var(--line-2);
+}
+.pz-v span + span {
+  border-top: 1px solid var(--line-2);
+}
+.ps-body {
+  position: relative;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  min-width: 0;
+  border: 1px solid var(--line-2);
+  padding: 26px 30px 0;
+}
+.ps-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+.ps-head h2 {
+  margin: 4px 0 0;
+  font-size: 30px;
+  font-weight: 650;
+  letter-spacing: -0.02em;
+  line-height: 1.05;
+}
+.ps-head h2 small {
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--ink-3);
+  letter-spacing: 0;
+}
+.ps-fig {
+  display: grid;
+  justify-items: end;
+  gap: 2px;
+}
+.ps-fig strong {
+  font-size: 40px;
+  font-weight: 650;
+  letter-spacing: -0.03em;
+  line-height: 1;
+  font-stretch: 96%;
+}
+.ps-fig strong .cents {
+  font-size: 0.5em;
+  color: var(--ink-3);
+}
+.ps-fig > span:last-child {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--line);
+}
+.ps-body > .chain-inline {
+  margin: 0;
+}
+.ps-body > .ps-note {
+  margin: -8px 0 0;
+}
+.ps-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 22px 34px;
+  align-items: start;
+}
+.ps-sec {
+  border-top: 1px solid var(--rule-strong);
+  padding-top: 10px;
+  min-width: 0;
+}
+.ps-wide {
+  grid-column: 1 / -1;
+}
+.ps-top {
+  grid-row: span 2;
+}
+.ps-grid .ps-rev {
+  grid-row: auto;
+}
+.ps-h {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 10px;
+  font-size: 13.5px;
+  font-weight: 640;
+}
+.ps-h span {
+  width: 18px;
+  height: 18px;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--line-2);
+  font-family: var(--font-tech);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--line);
+}
+.ps-note {
+  margin: 8px 0 0;
+  font-size: 12px;
+  color: var(--ink-3);
+}
+.ps-nwfig {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin-bottom: 6px;
+}
+.ps-nwfig strong {
+  font-size: 20px;
+  font-weight: 650;
+}
+.ps-delta {
+  font-size: 13px;
+  font-weight: 600;
+}
+.is-up {
+  color: var(--good-ink);
+}
+.is-down {
+  color: var(--bad-ink);
+}
+.ps-cats {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+.ps-cats td {
+  padding: 5px 4px 5px 0;
+  border-bottom: 1px solid var(--rule);
+  white-space: nowrap;
+}
+.ps-cats td:first-child {
+  max-width: 150px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.ps-cats td:first-child .sw {
+  margin-right: 7px;
+}
+.ps-cats .n {
+  text-align: right;
+}
+.ps-cats small {
+  color: var(--ink-3);
+}
+.ps-cats small.is-up,
+.ps-cats small.is-down {
+  color: inherit;
+}
+.ps-bar {
+  width: 32%;
+}
+.ps-bar i {
+  display: block;
+  height: 6px;
+  background: var(--line-2);
+}
+.ps-kpi {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+.ps-kpi strong {
+  font-size: 28px;
+  font-weight: 650;
+  line-height: 1;
+}
+.ps-kpi span {
+  font-size: 13px;
+  color: var(--ink-2);
+}
+.ps-over {
+  list-style: none;
+  margin: 10px 0 0;
+  padding: 0;
+  font-size: 13px;
+}
+.ps-over li {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 4px 0;
+  border-top: 1px solid var(--rule);
+}
+.ps-over small {
+  color: var(--ink-3);
+}
+.ps-over .is-urgent {
+  color: var(--red);
+}
+.ps-cells {
+  margin-top: 10px;
+  display: grid;
+  grid-template-columns: repeat(16, minmax(0, 1fr));
+  gap: 3px;
+}
+.ps-cell {
+  height: 12px;
+  border: 1px solid var(--line-2);
+}
+.ps-cell.cell-ok {
+  background: var(--line);
+  border-color: var(--line);
+}
+.ps-cell.cell-warn {
+  background: var(--line-2);
+}
+.ps-cell.cell-bad {
+  background: var(--surface);
+  border: 1.5px solid var(--ink);
+}
+.ps-cell.cell-none {
+  border-style: dashed;
+}
+.ps-revt {
+  width: 100%;
+  border-collapse: collapse;
+}
+.ps-revt thead th {
+  padding: 4px 8px 6px 0;
+  border-bottom: 1px solid var(--rule-strong);
+  font-size: 10.5px;
+  text-align: left;
+}
+.ps-revt thead th.n {
+  text-align: right;
+}
+.ps-revt td {
+  padding: 7px 8px 7px 0;
+  border-top: 1px solid var(--rule);
+  font-size: 13px;
+  vertical-align: middle;
+}
+.ps-revt td.n {
+  text-align: right;
+  white-space: nowrap;
+  font-weight: 620;
+  font-variant-numeric: tabular-nums;
+}
+.ps-revt .rev-mark {
+  width: 34px;
+}
+.ps-revt .rev-mark svg {
+  width: 22px;
+  height: 20px;
+}
+.ps-revt td.tech {
+  width: 48px;
+  color: var(--line);
+  padding-left: 14px;
+}
+.ps-tb {
+  margin: auto -30px 0 auto;
+  width: min(100% + 30px, 540px);
+  display: grid;
+  grid-template-columns: 1.3fr 1fr 1fr;
+  border-top: 1px solid var(--line-2);
+  border-left: 1px solid var(--line-2);
+}
+.ps-tb-cell {
+  padding: 6px 10px 7px;
+  border-right: 1px solid var(--line-2);
+  border-bottom: 1px solid var(--line-2);
+  display: grid;
+  gap: 1px;
+  min-width: 0;
+}
+.ps-tb-cell:nth-child(3n) {
+  border-right: 0;
+}
+.ps-tb-cell:nth-last-child(-n + 3) {
+  border-bottom: 0;
+}
+.ps-tb-cell .tech {
+  font-size: 9.5px;
+}
+.ps-tb-cell strong {
+  font-size: 13px;
+  font-weight: 620;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.ps-tb-name strong {
+  font-size: 15px;
+}
+
+/* 50/30/20 bar */
+.b523-bar {
+  position: relative;
+  display: flex;
+  height: 22px;
+  margin: 6px 0 14px;
+  background: var(--tint);
+}
+.b523-bar > span {
+  display: block;
+  height: 100%;
+}
+.b523-bar .sw-need {
+  background: var(--need);
+}
+.b523-bar .sw-want {
+  background: var(--hatch-want);
+  box-shadow: inset 0 0 0 1px var(--want);
+}
+.b523-bar .sw-future {
+  background: var(--hatch-future);
+  box-shadow: inset 0 0 0 1px var(--future);
+}
+.b523-rest {
+  border: 1.5px dashed var(--ink-2);
+  background: var(--surface);
+}
+.b523-mark {
+  position: absolute;
+  top: -4px;
+  bottom: -4px;
+  border-left: 1px solid var(--ink-2);
+}
+.b523-full {
+  border-left: 1.5px dashed var(--ink-2);
+  top: -7px;
+  bottom: -7px;
+}
+.b523-leg {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px 14px;
+  font-size: 13px;
+}
+.b523-leg span {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  column-gap: 7px;
+  align-items: baseline;
+}
+.b523-leg small {
+  grid-column: 2;
+  color: var(--ink-3);
+  font-size: 12px;
+}
+.sw-rest {
+  border: 1.5px dashed var(--ink-2);
+}
+.b523-note {
+  margin: 8px 0 0;
+  font-size: 12px;
+  color: var(--ink-3);
+}
+.ps-sec .heute-chart {
+  min-width: 0;
+}
+.psheet .chart {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+@media screen and (max-width: 767px) {
+  .psheet {
+    padding: 0;
+    min-height: 0;
+    border-width: 1px;
+  }
+  .ps-zones {
+    display: none;
+  }
+  .ps-body {
+    border: 0;
+    padding: 16px 14px 0;
+    gap: 16px;
+  }
+  .ps-fig {
+    justify-items: start;
+  }
+  .ps-fig strong {
+    font-size: 32px;
+  }
+  .ps-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .ps-top {
+    grid-row: auto;
+  }
+  .ps-tb {
+    margin: 8px -14px 0;
+    width: auto;
+    grid-template-columns: 1fr 1fr;
+    border-left: 0;
+  }
+  .ps-tb-cell:nth-child(3n) {
+    border-right: 1px solid var(--line-2);
+  }
+  .ps-tb-cell:nth-child(2n) {
+    border-right: 0;
+  }
+  .ps-tb-cell:nth-last-child(-n + 3) {
+    border-bottom: 1px solid var(--line-2);
+  }
+  .ps-tb-cell:nth-last-child(-n + 2) {
+    border-bottom: 0;
+  }
+  .ps-revt td.tech {
+    display: none;
+  }
+  .b523-leg {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* ---------- Paper: one A4 sheet, only the sheet reaches the paper ---------- */
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 8mm;
+  }
+  body:has(.psheet-wrap) {
+    background: #fff;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  body:has(.psheet-wrap)
+    :is(
+      .sidebar,
+      .topbar,
+      .m-head,
+      .tabbar,
+      .fab,
+      .skip-link,
+      .titleblock,
+      .registers,
+      .toast-region,
+      .sr-only
+    ),
+  body:has(.psheet-wrap) .mrep > :not(.psheet-wrap) {
+    display: none !important;
+  }
+  body:has(.psheet-wrap) :is(.app, .main, .sheet) {
+    display: block;
+    min-height: 0;
+    padding: 0;
+    max-width: none;
+    background: #fff;
+  }
+  body:has(.psheet-wrap) .main::before {
+    display: none;
+  }
+  body:has(.psheet-wrap) .mrep {
+    display: block;
+    margin: 0;
+  }
+  .psheet-wrap {
+    display: block;
+  }
+  /* The sheet is laid out wider than the paper and scaled down to it, so the desktop layout of
+     the sheet (two columns, drawing frame) holds on paper whatever the window size. */
+  .psheet {
+    zoom: 0.74;
+    max-width: none;
+    width: calc(100% / 0.74);
+    height: calc(279mm / 0.74);
+    min-height: 0;
+    padding: 18px;
+    box-shadow: none;
+    break-inside: avoid;
+    overflow: hidden;
+  }
+  .ps-body {
+    gap: 12px;
+    padding: 24px 28px 0;
+  }
+  .ps-tb {
+    margin-right: -28px;
+  }
+  .ps-grid {
+    gap: 14px 30px;
+  }
+  .ps-note,
+  .b523-note {
+    font-size: 11px;
+  }
+  .ps-sec .chart {
+    max-height: 210px;
+  }
+}
