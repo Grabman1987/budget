@@ -30,7 +30,15 @@ export function PwaShell({ children }: { children: ReactNode }) {
     let disposed = false;
     let registration: ServiceWorkerRegistration | undefined;
     const check = () => {
-      if (!disposed && registration?.waiting) setWaiting(registration.waiting);
+      const next = registration?.waiting;
+      // A first install also passes through "waiting" for an instant: only an already
+      // controlled page (one that has a previous worker) is offered an update.
+      if (disposed || !next || !navigator.serviceWorker.controller) return;
+      setWaiting(next);
+      next.addEventListener('statechange', () => {
+        if (next.state === 'activated' || next.state === 'redundant')
+          setWaiting((current) => (current === next ? null : current));
+      });
     };
     const updateFound = () => registration?.installing?.addEventListener('statechange', check);
     const refresh = () => {

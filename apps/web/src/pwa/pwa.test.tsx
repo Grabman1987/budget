@@ -49,14 +49,14 @@ describe('static offline shell', () => {
     const postMessage = vi.fn();
     const controllerListener = vi.fn();
     const register = vi.fn().mockResolvedValue({
-      waiting: { postMessage },
+      waiting: { postMessage, addEventListener: vi.fn() },
       addEventListener: vi.fn(),
       removeEventListener: vi.fn(),
       update: vi.fn().mockResolvedValue(undefined),
     });
     Object.defineProperty(navigator, 'serviceWorker', {
       configurable: true,
-      value: { register, addEventListener: controllerListener },
+      value: { register, addEventListener: controllerListener, controller: {} },
     });
     render(
       <PwaShell>
@@ -74,5 +74,28 @@ describe('static offline shell', () => {
     expect(controllerListener).toHaveBeenCalledWith('controllerchange', expect.any(Function), {
       once: true,
     });
+  });
+  it('does not offer an update while a first install is still becoming active', async () => {
+    vi.stubEnv('PROD', true);
+    const register = vi.fn().mockResolvedValue({
+      waiting: { postMessage: vi.fn(), addEventListener: vi.fn() },
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      update: vi.fn().mockResolvedValue(undefined),
+    });
+    Object.defineProperty(navigator, 'serviceWorker', {
+      configurable: true,
+      value: { register, addEventListener: vi.fn(), controller: null },
+    });
+    render(
+      <PwaShell>
+        <p>Seite</p>
+      </PwaShell>,
+    );
+    await screen.findByText('Seite');
+    await act(async () => {
+      await register.mock.results[0]?.value;
+    });
+    expect(screen.queryByRole('button', { name: 'Jetzt neu laden' })).toBeNull();
   });
 });
