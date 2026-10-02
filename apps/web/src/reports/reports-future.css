@@ -402,3 +402,39 @@
     grid-template-columns: minmax(0, 1fr);
   }
 }
+
+/* 3.3 Vermögensverläufe: stacked areas in tones of one ink, debts as dashed outline */
+.rf-area {
+  stroke: var(--surface);
+  stroke-width: 1;
+}
+.rf-area-debt {
+  fill: none;
+  stroke: var(--ink-2);
+  stroke-width: 1.5;
+  stroke-dasharray: 5 4;
+}
+.rf-sq-debt {
+  background: transparent;
+  border: 1.5px dashed var(--ink-2);
+}
+.rf-chart .rf-nw-halo {
+  stroke: var(--surface);
+  stroke-width: 4.5;
+}
+.rf-chart .rf-nw-line {
+  stroke: var(--ink);
+}
+
+/* 3.2 Cashflow-Verlauf: two drawings stacked on one scale of months */
+.rf-chart-stack {
+  min-height: 0;
+}
+.rf-chart-stack .chart {
+  display: block;
+  max-width: 100%;
+}
+.rf-sq-want-hatch {
+  background: repeating-linear-gradient(135deg, var(--want) 0 2px, transparent 2px 5px);
+  border: 1px solid var(--want);
+}

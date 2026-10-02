@@ -10,6 +10,7 @@ import { importRoutes } from '../imports/routes';
 import { accountRoutes } from './accounts';
 import { bookingRoutes } from './bookings';
 import { budgetRoutes, categoryRoutes } from './budget';
+import { cashflowRoutes } from './cashflow-report';
 import { expectedRoutes } from './expected';
 import { exportRoutes } from './export';
 import { goalRoutes } from './goals';
@@ -26,6 +27,7 @@ import { errorResponse } from './http';
 import { liquidityRoutes } from './liquidity';
 import { lookupRoutes, payeeRoutes, undoRoutes } from './lookups';
 import { marketRoutes } from './market';
+import { networthHistoryRoutes } from './networth-history';
 import { wealthRoutes } from './wealth';
 import { ruleRoutes } from './rules';
 
@@ -67,6 +69,8 @@ export function createLedgerApi({
   api.route('/contacts', contactRoutes(db, today));
   api.route('/goals', goalRoutes(db, today));
   api.route('/liquidity', liquidityRoutes(db, today));
+  api.route('/cashflow', cashflowRoutes(db, today));
+  api.route('/networth-history', networthHistoryRoutes(db, today));
   api.route('/heute', heuteRoutes(db, today));
   api.route('/rules', ruleRoutes(db, today));
   api.route('/securities', securityRoutes(db));

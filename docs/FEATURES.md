@@ -134,8 +134,8 @@ consistent totals, desktop/mobile checks and printing where required.
 | 2.5 | Empfänger-Analyse | `reports-ausgaben.js` | Body Open |
 | 2.6 | Bank- und Zinskosten | `reports-ausgaben.js` | Body Open |
 | 3.1 | Liquiditätsprognose | `reports-zukunft.js` | Connected body: 90 days / 6 / 12 months, planned events stored in `planned_event` (add, switch off, remove, undo), 10 % buffer, 6-month verdict, month outlook, large movements, ledger-derived levers (pause Zukunft payments, cancel Wunsch contracts, trim variable). No surplus-to-Tagesgeld sweep (no stored rule); owner/private acceptance remains |
-| 3.2 | Cashflow-Verlauf | `reports-zukunft.js` | Body Open |
-| 3.3 | Vermögensverläufe | `reports-zukunft.js` | Report body Open; net-worth page exists |
+| 3.2 | Cashflow-Verlauf | `reports-zukunft.js` | Connected body: full months of the budget accounts per Zeitraum, household income minus Bedarf/Wunsch = net cashflow with Maßkette, Zukunft shown as part of it, Kapitalerträge as a separate labelled series (not income, not in the net cashflow; owner decision 02.10.2026), month table; transfers, refunds and contact repayments are never income. Owner/private acceptance remains |
+| 3.3 | Vermögensverläufe | `reports-zukunft.js` | Connected body: same series and chain as Vermögen › Nettovermögen (API test asserts equality), assets stacked by account type with debts as dashed outline, structure table start/today/change/share. Structure read at start, week or month ends and today; owner/private acceptance remains |
 | 3.4 | Jahresvorschau Zahlungen | `reports-zukunft.js` | Partial: connected twelve-month versioned expected-outflow contract preview, native ranges/currencies, stored status/link overlay; independent savings plans, other future transfers and full source dedup remain Open |
 | 3.5 | Sparziele-Fortschritt | `reports-zukunft.js` | Partial: connected stored monthly goals, unique live EUR sources, API progress/rates/forecast and source drilldowns; emergency reach, Tagesgeld allocation, shared-source funding and linear Soll remain Open |
 | 4.1 | Depots im Vergleich | `reports-portfolio.js` | Body Open |
