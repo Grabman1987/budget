@@ -469,3 +469,28 @@ export function financeCheck(
   const netWorthCents = netWorthAsOf(db, asOf).totalCents;
   return { asOf, netWorthCents, ...summarizeCheck({ rules, checklist, netWorthCents }) };
 }
+
+export interface RuleStatusEntry {
+  code: string;
+  name: string;
+  /** `null` = nicht bewertbar (missing data). */
+  status: RuleStatus | null;
+}
+
+/**
+ * Status of every enabled rule on a day (computed now, like `financeCheck`): one entry per rule
+ * in rule-book order, for the Finanz-Check cells of the Monats-One-Pager.
+ */
+export function ruleStatuses(
+  db: Executor,
+  asOf: string,
+  facts: RuleFacts = loadFacts(db, asOf),
+): RuleStatusEntry[] {
+  const rows = liveRows(db, 'rule').filter((r) => r.enabled);
+  const evaluated = evaluateAll(db, rows, asOf, facts);
+  return rows.map((r) => ({
+    code: r.code,
+    name: r.name,
+    status: evaluated.get(r.code)?.status ?? null,
+  }));
+}

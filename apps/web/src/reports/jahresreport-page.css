@@ -1,0 +1,412 @@
+/* Report 5.1 Jahresreport: two A4 sheets (210 x 297 mm) with a drawing frame and a title block.
+   On screen the sheets are cards on the slate ground that grow with their content; print fixes
+   them to the A4 page (light tokens, exactly two pages, the e2e test checks nothing is clipped). */
+.yr-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px 14px;
+}
+.yr-actions .btn {
+  gap: 6px;
+  min-height: 44px;
+}
+.ov-sheets {
+  display: grid;
+  gap: 32px;
+  min-width: 0;
+}
+.ov-sheet {
+  position: relative;
+  display: flex;
+  width: 100%;
+  max-width: 860px;
+  min-width: 0;
+  margin: 0 auto;
+  padding: 18px;
+  background: var(--surface);
+  border: 1px solid var(--card-border);
+  border-radius: 6px;
+  box-shadow: var(--card-shadow);
+}
+.ov-sheet-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+  border: 1.5px solid var(--line);
+  padding: 24px 28px 0;
+}
+.ov-sheet-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+.ov-sheet-head h2 {
+  margin: 0;
+  font-size: 30px;
+  font-weight: 650;
+  letter-spacing: -0.02em;
+  line-height: 1.05;
+}
+.ov-sheet-head h2 small {
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--ink-3);
+  letter-spacing: 0;
+}
+.ov-sheet-fig {
+  display: grid;
+  justify-items: end;
+  gap: 2px;
+}
+.ov-sheet-fig strong {
+  font-size: 38px;
+  font-weight: 650;
+  letter-spacing: -0.03em;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+.ov-sheet-fig > span:last-child {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--line);
+}
+.ov-sheet-body > .chain-inline {
+  margin: 0;
+}
+.ov-sheet-kpis {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  border-block: 1px solid var(--rule);
+}
+.ov-sheet-kpis > div {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+  padding: 10px 12px;
+  border-left: 1px solid var(--rule);
+}
+.ov-sheet-kpis > div:first-child {
+  padding-left: 0;
+  border-left: 0;
+}
+.ov-sheet-kpis strong {
+  font-size: 16px;
+  font-weight: 650;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.ov-sheet-kpis .tech {
+  font-size: 11px;
+}
+.ov-sheet-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 18px 30px;
+  align-items: start;
+}
+.ov-sheet-stack {
+  display: grid;
+  gap: 18px;
+  min-width: 0;
+}
+.ov-sheet-sec {
+  min-width: 0;
+  padding-top: 10px;
+  border-top: 1px solid var(--rule-strong);
+}
+.ov-sheet-h {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 8px;
+  font-size: 13.5px;
+  font-weight: 640;
+}
+.ov-sheet-h span {
+  display: grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  border: 1px solid var(--line-2);
+  font: 600 11px var(--font-tech);
+  color: var(--line);
+}
+.ov-sheet-note {
+  margin: 6px 0 0;
+  font-size: 12px;
+  color: var(--ink-3);
+}
+.ov-sheet-kpi {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin: 0;
+}
+.ov-sheet-kpi strong {
+  font-size: 28px;
+  font-weight: 650;
+  line-height: 1;
+}
+.ov-sheet-kpi span {
+  font-size: 13px;
+  color: var(--ink-2);
+}
+.ov-table.ov-sheet-table th,
+.ov-table.ov-sheet-table td {
+  padding: 4px 4px 4px 0;
+  font-size: 12.5px;
+  line-height: 1.25;
+}
+.ov-table.ov-sheet-table thead th {
+  font-size: 10.5px;
+  padding: 4px 4px 6px 0;
+}
+.ov-table.ov-sheet-table tbody th {
+  display: table-cell;
+  white-space: nowrap;
+}
+.ov-table.ov-sheet-table tbody th .sw,
+.ov-table.ov-sheet-table td .sw {
+  margin-right: 6px;
+  vertical-align: -1px;
+}
+.ov-bar {
+  width: 30%;
+}
+.ov-bar i {
+  display: block;
+  height: 6px;
+  background: var(--line-2);
+}
+.ov-rev-no {
+  width: 28px;
+  color: var(--line);
+}
+.ov-shares {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 4px;
+}
+.ov-shares li {
+  display: grid;
+  grid-template-columns: 14px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+}
+.ov-shares strong {
+  font-variant-numeric: tabular-nums;
+}
+.ov-shares-rest {
+  width: 12px;
+  height: 12px;
+  border: 1px dashed var(--line-2);
+  border-radius: 1px;
+}
+.ov-heat-table {
+  min-width: 700px;
+}
+.ov-heat-table td.n,
+.ov-heat-table th.n {
+  padding-right: 6px;
+}
+.ov-tb {
+  display: grid;
+  grid-template-columns: 1.3fr 1fr 1fr;
+  width: min(100% + 28px, 540px);
+  margin: auto -28px 0 auto;
+  border-top: 1px solid var(--line-2);
+  border-left: 1px solid var(--line-2);
+}
+.ov-tb > div {
+  display: grid;
+  gap: 1px;
+  min-width: 0;
+  padding: 6px 10px 7px;
+  border-right: 1px solid var(--line-2);
+  border-bottom: 1px solid var(--line-2);
+}
+.ov-tb dt {
+  font-size: 9.5px;
+}
+.ov-tb dd {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 620;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.ov-tb-name dd {
+  font-size: 15px;
+}
+
+@media screen and (max-width: 760px) {
+  .ov-sheets {
+    gap: 20px;
+  }
+  .ov-sheet {
+    padding: 0;
+  }
+  .ov-sheet-body {
+    border-width: 1px;
+    padding: 16px 14px 0;
+    gap: 16px;
+  }
+  .ov-sheet-fig {
+    justify-items: start;
+  }
+  .ov-sheet-fig strong {
+    font-size: 30px;
+  }
+  .ov-sheet-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .ov-sheet-kpis {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .ov-sheet-kpis > div {
+    border-left: 0;
+    padding-left: 0;
+  }
+  .ov-tb {
+    width: auto;
+    margin: 8px -14px 0;
+    grid-template-columns: 1fr 1fr;
+    border-left: 0;
+  }
+  .ov-table.ov-sheet-table tbody th {
+    white-space: normal;
+  }
+  .ov-table.ov-sheet-table th,
+  .ov-table.ov-sheet-table td {
+    padding-right: 3px;
+    font-size: 11.5px;
+  }
+  .ov-table.ov-sheet-table thead th {
+    white-space: normal;
+    font-size: 9.5px;
+    vertical-align: bottom;
+  }
+  .ov-heat-table th,
+  .ov-heat-table td {
+    padding-right: 6px;
+  }
+}
+
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 6mm;
+  }
+  body:has(.ov-sheets) {
+    background: #fff;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  body:has(.ov-sheets) .sidebar,
+  body:has(.ov-sheets) .topbar,
+  body:has(.ov-sheets) .m-head,
+  body:has(.ov-sheets) .tabbar,
+  body:has(.ov-sheets) .fab,
+  body:has(.ov-sheets) .skip-link,
+  body:has(.ov-sheets) .titleblock,
+  body:has(.ov-sheets) .registers,
+  body:has(.ov-sheets) .ov-noprint {
+    display: none !important;
+  }
+  body:has(.ov-sheets) .app,
+  body:has(.ov-sheets) .main,
+  body:has(.ov-sheets) .sheet,
+  body:has(.ov-sheets) .ov {
+    display: block;
+    margin: 0;
+    padding: 0;
+    background: none;
+  }
+  body:has(.ov-sheets) .main::before {
+    display: none;
+  }
+  .ov-sheets {
+    display: block;
+  }
+  .ov-sheet {
+    max-width: none;
+    width: 100%;
+    height: 283mm;
+    aspect-ratio: auto;
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+    break-after: page;
+    break-inside: avoid;
+    overflow: hidden;
+  }
+  .ov-sheet:last-child {
+    break-after: auto;
+  }
+  .ov-sheet-body {
+    padding: 12px 16px 0;
+    gap: 8px;
+  }
+  .ov-sheet-head h2 {
+    font-size: 24px;
+  }
+  .ov-sheet-fig strong {
+    font-size: 30px;
+  }
+  .ov-sheet-grid,
+  .ov-sheet-stack {
+    gap: 10px 20px;
+  }
+  .ov-sheet-sec {
+    padding-top: 6px;
+  }
+  .ov-table.ov-sheet-table th,
+  .ov-table.ov-sheet-table td {
+    padding: 1px 3px 1px 0;
+    font-size: 10.5px;
+    line-height: 1.15;
+  }
+  .ov-sheet-note,
+  .ov-sheet-kpi span {
+    font-size: 10.5px;
+    margin-top: 3px;
+  }
+  .ov-sheet-h {
+    margin-bottom: 4px;
+  }
+  .ov-sheet-kpis > div {
+    padding: 6px 8px;
+  }
+  .ov-cells {
+    margin: 6px 0 8px;
+  }
+  .ov-cells .ov-cell {
+    width: 16px;
+    height: 16px;
+  }
+  .ov-chart svg.chart {
+    max-height: 170px;
+  }
+  .ov-tb {
+    margin-right: -16px;
+  }
+  .ov-tb > div {
+    padding: 3px 8px 4px;
+  }
+  .ov-scroll {
+    overflow: visible;
+  }
+  .ov-heat-table {
+    min-width: 0;
+  }
+}

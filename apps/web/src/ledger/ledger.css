@@ -204,6 +204,51 @@
   inset: 0 auto 0 0;
   background: var(--need);
 }
+.kclosed {
+  margin: 14px 0 4px;
+  font-size: 13px;
+  color: var(--ink-2);
+  border-radius: 6px;
+}
+.kclosed summary {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 32px;
+  padding: 0 4px;
+  cursor: pointer;
+  font-family: var(--font-tech);
+  font-size: 12px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+.kclosed summary:hover {
+  color: var(--ink);
+}
+.kclosed ul {
+  list-style: none;
+  margin: 4px 0 0;
+  padding: 0;
+}
+.kclosed li {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  align-items: baseline;
+  gap: 4px 14px;
+  padding: 8px 4px;
+  border-bottom: 1px solid var(--rule);
+}
+.kclosed-val {
+  min-width: 110px;
+  text-align: right;
+  font-weight: 620;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.kclosed.is-flash {
+  background: var(--tint-2);
+}
 .ksum {
   margin: 12px 0 4px;
   font-size: 13px;
@@ -501,6 +546,18 @@
 }
 .kf .select-sm {
   min-width: 150px;
+}
+.kf-closed {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12.5px;
+  color: var(--ink-3);
+}
+.kf-closed input {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--line);
 }
 .kf-search {
   flex: 1 1 240px;

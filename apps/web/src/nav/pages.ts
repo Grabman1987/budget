@@ -122,6 +122,14 @@ export const PAGES: ReadonlyArray<PageDef> = [
     spec: 'Freiheitszahl mit Soll-Pfad zum Zieljahr und nötiger Sparrate.',
   },
   {
+    path: '/einstellungen/profil',
+    title: 'Einstellungen · Profil',
+    area: 'einstellungen',
+    register: 'profil',
+    fills: P2,
+    spec: 'Name, Kürzel, Geburtsdatum, Haushalt und Region für den späteren Vergleich mit der Statistik Austria.',
+  },
+  {
     path: '/einstellungen/konten',
     title: 'Einstellungen · Konten',
     area: 'einstellungen',
@@ -197,6 +205,9 @@ export const PAGES: ReadonlyArray<PageDef> = [
 
 /** Einstellungen › Sicherheit; its own constant because the route and the (lazy) page both need it. */
 export const INVESTMENT_SETTINGS_META = PAGES.find((p) => p.path === '/einstellungen/depots')!;
+
+/** Einstellungen › Profil. */
+export const PROFILE_META = PAGES.find((p) => p.path === '/einstellungen/profil')!;
 
 export const SECURITY_META: PageDef = (() => {
   const page = PAGES.find((p) => p.path === '/einstellungen/sicherheit');

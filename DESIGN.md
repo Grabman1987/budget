@@ -319,6 +319,7 @@ Arbeitsflächen sind Karten: `surface`, 12 px Radius, Rand `card-border`, Schatt
 
 ### Navigation
 - **Planliste (Desktop):** Beschriftung „Planliste“, Zeilen 42 px mit Lucide-Symbol, Name und Blattnummer 01–05 in Barlow SC. Aktiv: `raised`-Grund, kräftige Haarlinie, 600, Blattnummer in Tusche. Eingeklappt nur Symbole.
+- **Kontenhierarchie (Seitenleiste):** Gruppen in YNAB-Reihenfolge, einklappbar; negative Beträge (Konto und Gruppensumme) als rote Pille (`red-soft`, `red`), positive als schlichter Text. Unten Profil-Block mit Kürzel im Kreis und Namen aus Einstellungen › Profil (ohne Eintrag generisch „Profil“ / „NU“).
 - **Tab-Leiste (mobil):** fünf Einträge, 22-px-Symbole, 11,5 px Text; aktiv in Tusche mit 2-px-Strich an der Oberkante.
 - **Segmentschalter:** Rahmen 8 px mit 4 px Innenabstand; aktives Segment als Tusche-Fläche.
 
@@ -355,8 +356,8 @@ Kategorie-Chips: ausgewählt als Tönung mit Tuschekontur, Häkchen und sichtbar
 - **50/30/20-Band:** 18-px-Balken in Tuschekontur mit Klassenfüllungen, Soll-Marken bei 50 und 80 als schwarze Striche, Skala in Barlow SC, Legende nur mit den Ist-Anteilen (das Soll steht im Band).
 
 ### Konten
-- **Nettovermögen** mit Maßkette nach Kontogruppen (Budget-Konten + Sparen + Investment − Schulden + Forderungen); Terme springen zur Baugruppe.
-- **Kontenstückliste:** Baugruppen Budget-Konten · Sparen · Investment · Schulden · Forderungen mit Summen; je Konto Pos., Name, Institut und 30-Tage-Linie mit Differenz, rechts der Saldo. Kein Kontotyp-Etikett (die Baugruppe sagt es schon, sonst stünde „Girokonto GIRO“ doppelt) und kein Sync-Status; nur Probleme (Einwilligung läuft ab, Wert veraltet) bekommen ein Warnzeichen mit Link zu Einstellungen › Datenquellen. Kreditkarten zeigen die Auslastung als Balken.
+- **Nettovermögen** mit Maßkette nach Kontogruppen (Budget-Konten − Kreditkarten − Kredite + Investments, Vorzeichen nach Summe); Terme springen zur Baugruppe.
+- **Kontenstückliste:** Baugruppen in YNAB-Reihenfolge Budget-Konten · Kreditkarten · Kredite · Investments mit Summen (Seitenleiste, Maßkette und Konto-Auswahlen nutzen dieselbe Gruppierung; innerhalb einer Gruppe gilt die Sortierung des Besitzers; geschlossene Konten stehen nur eingeklappt unter „Geschlossen“); je Konto Pos., Name, Institut und 90-Tage-Linie mit Differenz, rechts der Saldo. Kein Kontotyp-Etikett (die Baugruppe sagt es schon, sonst stünde „Girokonto GIRO“ doppelt) und kein Sync-Status; nur Probleme (Einwilligung läuft ab, Wert veraltet) bekommen ein Warnzeichen mit Link zu Einstellungen › Datenquellen. Kreditkarten zeigen die Auslastung als Balken.
 - **Quellstempel** (nur in Einstellungen › Datenquellen): gerahmte technische Beschriftung (Barlow SC, 1 px blasse Tusche, 3 px Radius): „Bank-Sync heute 06:30“, „Import 14.09.“, „manuell · 15.09.“. Veraltete Werte und ablaufende Einwilligungen haben einen gestrichelten Tintenrahmen.
 - **Saldolinien kommen aus dem Buchungsjournal** (Stufenlinie, Stufe am Buchungstag), nie aus erfundenen Kurven; nur Depot und Krypto bewegen sich mit Kursen. Manuell bewertete Konten sind flach bis zur nächsten Bewertung. Der Tiefpunkt im Kontodiagramm wird aus dem Journal gelesen.
 - **Einzelkonto:** Saldo, davon vorgemerkt, Monatssumme, zuletzt geprüft; 90-Tage-Stufenlinie mit gestrichelter Nulllinie („darunter beginnt der Dispo“) und Höhenkote am Tiefpunkt; Buchungsliste mit Status (vorgemerkt · bestätigt · geprüft) und laufendem Saldo.

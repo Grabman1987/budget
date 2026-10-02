@@ -8,6 +8,7 @@ import { PanelLink } from './panel-link';
 import { useInboxCount } from './inbox';
 import { GlobalSearch } from './global-search';
 import { ThemeButton } from './theme-button';
+import { useShellIdentity } from './use-profile';
 
 /**
  * What the phone header shows, as in the prototype: the month on Heute, the area name on the other
@@ -26,6 +27,7 @@ export function phoneTitle(page: PageMeta | undefined, month: string, fallback: 
 /** Phone header (< 768 px): page title, inbox, theme, profile. */
 export function MobileHeader({ title, asHeading }: { title: string; asHeading: boolean }) {
   const inbox = useInboxCount();
+  const identity = useShellIdentity();
   return (
     <header className="m-head">
       <div className="m-title">
@@ -41,8 +43,12 @@ export function MobileHeader({ title, asHeading }: { title: string; asHeading: b
         {inbox.count !== undefined && inbox.count > 0 && <Count>{inbox.count}</Count>}
       </PanelLink>
       <ThemeButton variant="icon" />
-      <AppLink className="avatar" to="/einstellungen/konten" aria-label="Profil und Einstellungen">
-        NU
+      <AppLink
+        className="avatar"
+        to="/einstellungen/profil"
+        aria-label={`${identity.name}: Profil und Einstellungen`}
+      >
+        {identity.initials}
       </AppLink>
     </header>
   );

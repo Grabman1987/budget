@@ -119,9 +119,10 @@
   border: 1px dashed var(--line-2);
 }
 
-/* Hero KPI: the one number that says "money is there". On green (and on red when too much was
-   assigned) it re-maps the ink tokens, so every child, the Maßkette included, draws white without
-   colours of its own. At zero it is a plain card with a green figure: every euro has a job. */
+/* Hero KPI: the one number that says "money is there". On green it re-maps the ink tokens, so
+   every child, the Maßkette included, draws white without colours of its own. When too much was
+   assigned it is a compact soft-red card (the figure is red, the ink stays) instead of a red
+   slab. At zero it is a plain card with a green figure: every euro has a job. */
 .hero-kpi {
   position: relative;
   overflow: hidden;
@@ -130,8 +131,7 @@
   border: 1px solid var(--card-border);
   box-shadow: var(--card-shadow);
 }
-.hero-kpi.is-positive,
-.hero-kpi.is-negative {
+.hero-kpi.is-positive {
   --ink: var(--on-good);
   --ink-2: color-mix(in srgb, var(--on-good) 84%, transparent);
   --ink-3: color-mix(in srgb, var(--on-good) 72%, transparent);
@@ -149,17 +149,17 @@
     0 14px 30px -18px rgba(10, 46, 24, 0.55);
 }
 .hero-kpi.is-negative {
-  background: var(--red);
-  box-shadow:
-    0 1px 2px rgba(60, 10, 6, 0.14),
-    0 14px 30px -18px rgba(96, 18, 10, 0.5);
+  background: color-mix(in srgb, var(--red) 8%, var(--surface));
+  border-color: color-mix(in srgb, var(--red) 28%, transparent);
+}
+.hero-kpi.is-negative .hero-fig {
+  color: var(--red);
 }
 .hero-kpi.is-zero .hero-fig {
   color: var(--good-ink);
 }
 /* The same grid, in white, fading out of the hero's right edge. */
-.hero-kpi.is-positive::before,
-.hero-kpi.is-negative::before {
+.hero-kpi.is-positive::before {
   content: '';
   position: absolute;
   inset: 0;
@@ -307,8 +307,21 @@
   font-size: 12px;
   color: var(--ink-3);
 }
+/* Negative balances are red pills (like YNAB); positive ones stay plain text. The pill keeps its
+   own padding and a negative margin so the numbers still align on the right edge. */
 .acct-amount.is-neg {
-  color: var(--bad-ink);
+  display: inline-flex;
+  align-items: center;
+  height: 21px;
+  margin-right: -5px;
+  padding: 0 6px;
+  border-radius: 6px;
+  background: var(--red-soft);
+  color: var(--red);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--red) 24%, transparent);
+}
+.acct-group-head .acct-amount.is-neg {
+  color: var(--red);
 }
 .app.is-collapsed .sidebar-scroll {
   display: none;
