@@ -227,3 +227,60 @@ test('plan: a negative assignment stays editable, Escape keeps it, Decken asks w
   await expect(choice).toHaveCount(0);
   expect(writes).toHaveLength(1);
 });
+
+test('plan: the guard refuses assigning more than Zu verteilen holds, in the field and the API', async ({
+  page,
+}, testInfo) => {
+  const tag = `${testInfo.project.name}-${Date.now().toString(36).slice(-5)}`;
+  const { request } = page;
+  const group = (await post(request, '/categories/groups', { name: `Plan guard ${tag}` }))[
+    'group'
+  ]!;
+  const name = `Schranke G ${tag}`;
+  const category = (
+    await post(request, '/categories', { name, groupId: group.id, class: 'want', stage: 5 })
+  )['category']!;
+  const writes: string[] = [];
+  page.on('request', (r) => {
+    if (r.method() !== 'GET' && r.url().includes('/api/budget/')) writes.push(r.url());
+  });
+
+  // The API refuses with 422 and a German message; nothing is written.
+  const refused = await request.put(`/api/budget/${month}/assigned`, {
+    data: { items: [{ categoryId: category.id, assignedCents: 99_999_999_900 }] },
+    headers: { origin: MAIN_URL },
+  });
+  expect(refused.status()).toBe(422);
+  expect(await refused.json()).toMatchObject({
+    error: 'category_rule',
+    message: expect.stringMatching(/Höchstens|nichts frei/),
+  });
+
+  // The inline field refuses too, says why and stays open; no request leaves the page.
+  await page.goto(`/plan/monat?monat=${month}`);
+  await row(page, name)
+    .getByRole('button', { name: /^Zugewiesen .* ändern$/ })
+    .click();
+  await page.keyboard.type('999999999');
+  await page.keyboard.press('Enter');
+  const field = page.getByLabel(`Zugewiesen für ${name}. Rechnen erlaubt, +50 addiert.`);
+  await expect(field).toHaveAttribute('aria-invalid', 'true');
+  await expect(page.getByRole('alert').filter({ hasText: /Höchstens|nichts frei/ })).toBeVisible();
+  expect(writes).toEqual([]);
+  await page.keyboard.press('Escape');
+  await expect(row(page, name).locator('.col-assign')).toContainText('0,00 €');
+
+  // The month status never says "Nichts ist überzogen." while the hero says too much assigned.
+  const hero = page.getByTestId('to-be-assigned');
+  const negative = (await hero.innerText()).trim().startsWith('−');
+  const status = page.getByRole('list', { name: 'Zustand des Monats' });
+  if (negative) await expect(status).not.toContainText('Nichts ist überzogen');
+  await expect(status).toBeVisible();
+
+  // 50/30/20 never shows percentages that mean nothing.
+  const split = page.locator('.split-band');
+  await expect(split.locator('.sb-legend')).not.toContainText(/-\d+ %|−\d+ %|\b[1-9]\d{3,} %/);
+
+  const axe = await new AxeBuilder({ page }).include('main').analyze();
+  expect(axe.violations.map((v) => `${v.id}: ${v.nodes[0]?.target}`)).toEqual([]);
+});

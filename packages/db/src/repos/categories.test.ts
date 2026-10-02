@@ -110,6 +110,7 @@ function randomLedger(seed: number) {
         assignedCents: int(0, 60_000),
       })),
       ctx,
+      { allowNegative: true },
     );
   }
   return { r, int, pick };
@@ -162,7 +163,10 @@ describe('categories', () => {
     setCategoryTarget(db, 'essen', { kind: 'monthly', amountCents: 30_000 }, '2026-07', ctx);
     setCategoryTarget(db, 'essen', { kind: 'monthly', amountCents: 40_000 }, '2026-10', ctx);
     setCategoryTarget(db, 'essen', { kind: 'monthly', amountCents: 45_000 }, '2026-10', ctx);
-    assignMany(db, '2026-09', [{ categoryId: 'essen', assignedCents: 10_000 }], ctx);
+    // No money in this ledger: the repository-level override stands in for an income.
+    assignMany(db, '2026-09', [{ categoryId: 'essen', assignedCents: 10_000 }], ctx, {
+      allowNegative: true,
+    });
     const env = (m: string) =>
       budgetSummary(db, m).summary.envelopes.find((e) => e.categoryId === 'essen');
     expect(env('2026-09')).toMatchObject({ goalCents: 30_000, needCents: 20_000 });
@@ -213,6 +217,42 @@ describe('budget writes', () => {
     const rest = coverOverspending(db, '2026-07', 'essen', null, ctx, { allowNegative: true });
     expect(rest.coveredCents).toBe(7_000);
     expect(tba()).toBe(-7_000);
+  });
+
+  it('the guard refuses assigning money that is not there, but never blocks taking it back', () => {
+    book('giro', '2026-07-01', 10_000, null);
+    const tba = () => budgetSummary(db, '2026-07').summary.toBeAssignedCents;
+    assignMany(db, '2026-07', [{ categoryId: 'essen', assignedCents: 6_000 }], ctx);
+    expect(tba()).toBe(4_000);
+    // 40 € are free: 41 € more is refused, the message names the maximum, nothing is written.
+    expect(() =>
+      assignMany(db, '2026-07', [{ categoryId: 'essen', assignedCents: 10_100 }], ctx),
+    ).toThrow(/Höchstens 40,00 € mehr/);
+    expect(() => moveMoney(db, '2026-07', null, 'strom', 4_100, ctx)).toThrow(/Höchstens/);
+    expect(getAssigned(db, '2026-07').map((r) => r.assignedCents)).toEqual([6_000]);
+    // Exactly what is free, and a reshuffle of the same total, pass.
+    assignMany(db, '2026-07', [{ categoryId: 'essen', assignedCents: 10_000 }], ctx);
+    expect(tba()).toBe(0);
+    expect(() => moveMoney(db, '2026-07', null, 'strom', 1, ctx)).toThrow(/nichts frei/);
+    assignMany(
+      db,
+      '2026-07',
+      [
+        { categoryId: 'essen', assignedCents: 4_000 },
+        { categoryId: 'strom', assignedCents: 6_000 },
+      ],
+      ctx,
+    );
+    // Over-assigned already (override), reducing is still allowed, raising is not.
+    assignMany(db, '2026-07', [{ categoryId: 'strom', assignedCents: 16_000 }], ctx, {
+      allowNegative: true,
+    });
+    expect(tba()).toBe(-10_000);
+    assignMany(db, '2026-07', [{ categoryId: 'strom', assignedCents: 12_000 }], ctx);
+    expect(() =>
+      assignMany(db, '2026-07', [{ categoryId: 'strom', assignedCents: 12_001 }], ctx),
+    ).toThrow(/nichts frei/);
+    expect(tba()).toBe(-6_000);
   });
 
   it('spending cannot be merged into an income category', () => {
@@ -303,7 +343,7 @@ describe('property tests on random ledgers', { timeout: 60_000 }, () => {
           coverOverspending(db, m, over.categoryId, null, ctx, { allowNegative: true });
         else {
           const [from, to] = [pick([null, ...envs]), pick(envs)];
-          if (from !== to) moveMoney(db, m, from, to, int(1, 20_000), ctx);
+          if (from !== to) moveMoney(db, m, from, to, int(1, 20_000), ctx, { allowNegative: true });
         }
       }
       const months = budget(db, MONTHS);
@@ -339,6 +379,7 @@ describe('property tests on random ledgers', { timeout: 60_000 }, () => {
               assignedCents: 400_000,
             })),
             ctx,
+            { allowNegative: true },
           );
       // Targets and opening envelopes on the sources, so the undo has them to restore too.
       setCategoryTarget(db, 'strom', { kind: 'monthly', amountCents: 9_000 }, '2026-07', ctx);
