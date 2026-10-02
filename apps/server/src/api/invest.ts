@@ -21,6 +21,7 @@ import {
   listTargetVersions,
   listTrades,
   portfolioSummary,
+  ContributionHistoryLimitError,
   portfolioPositions,
   portfolioAllocation,
   investmentPreferences,
@@ -395,6 +396,8 @@ const portfolioQuery = z.object({
   benchmark: id.optional(),
   /** Depot view: comma-separated reference account ids (default: the investment accounts). */
   reference: z.string().max(2000).optional(),
+  /** Opt-in monthly/yearly series for report 4.3, derived from the portfolio summary read. */
+  history: z.enum(['contributions']).optional(),
 });
 
 export function portfolioRoutes(db: Db, today: () => string): Hono {
@@ -411,20 +414,31 @@ export function portfolioRoutes(db: Db, today: () => string): Hono {
     return c.json({ ...setInvestmentCostMethod(db, costMethod, ctx), groupId: ctx.groupId });
   });
   app.get('/', (c) => {
-    const { period, view, benchmark, reference } = readQuery(c, portfolioQuery);
+    const { period, view, benchmark, reference, history } = readQuery(c, portfolioQuery);
     const refs = reference?.split(',').filter(Boolean);
-    return c.json({
-      portfolio: portfolioSummary(
-        db,
-        defined({
-          today: today(),
-          period,
-          view,
-          benchmarkSecurityId: benchmark,
-          referenceAccounts: refs && refs.length > 0 ? refs : undefined,
-        }),
-      ),
-    });
+    try {
+      return c.json({
+        portfolio: portfolioSummary(
+          db,
+          defined({
+            today: today(),
+            period,
+            view,
+            benchmarkSecurityId: benchmark,
+            referenceAccounts: refs && refs.length > 0 ? refs : undefined,
+            includeContributionHistory: history === 'contributions' && view === 'securities',
+          }),
+        ),
+      });
+    } catch (error) {
+      if (error instanceof ContributionHistoryLimitError)
+        throw new ApiError(
+          422,
+          'calculation_limit',
+          'Die Wertpapierhistorie ist für diesen Zeitraum zu groß, um Centbeträge exakt darzustellen.',
+        );
+      throw error;
+    }
   });
   return app;
 }

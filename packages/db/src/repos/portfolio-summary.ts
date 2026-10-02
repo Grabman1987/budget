@@ -11,6 +11,7 @@ import {
   incomeLast12Months,
   lastDayOfMonth,
   monthOf,
+  monthBoundaries,
   periodPerformance,
   rebalancingProposals,
   shareBps,
@@ -31,6 +32,7 @@ import {
   type Valuation,
   type WealthPosition,
   type WindowPerformance,
+  windowPerformance,
 } from '@budget/domain';
 import { and, asc, eq, isNull, lte } from 'drizzle-orm';
 import {
@@ -67,6 +69,8 @@ export interface PortfolioOptions {
   benchmarkSecurityId?: string;
   /** Depot view: accounts counted as reference (cash) accounts; default the investment accounts. */
   referenceAccounts?: ReadonlyArray<string>;
+  /** Build the bounded report 4.3 series from the valuation/flow data already loaded here. */
+  includeContributionHistory?: boolean;
 }
 
 export interface PositionLine {
@@ -126,6 +130,8 @@ export interface PortfolioSummary {
   realizedGainCents: number;
   /** `null` while the portfolio has no history (no holding or trade yet). */
   performance: WindowPerformance | null;
+  /** Optional securities-only contribution report, derived from the same daily series and flows. */
+  contributionHistory?: ContributionHistory | null;
   benchmark: { securityId: string; name: string } | null;
   /** TER on month ends plus the fees of 12 months, over the current value. */
   costs: { terCents: number; feesCents: number; totalCents: number; costRateBp: number };
@@ -143,6 +149,36 @@ export interface PortfolioSummary {
     securities: Record<string, string>;
     institutions: Record<string, string>;
   };
+}
+
+export interface ContributionHistory {
+  from: string;
+  to: string;
+  startValueCents: number;
+  endValueCents: number;
+  contributionsCents: number;
+  gainCents: number;
+  months: Array<{
+    from: string;
+    to: string;
+    valueCents: number;
+    investedCents: number;
+    contributionsCents: number;
+    gainCents: number;
+  }>;
+  years: Array<{
+    year: number;
+    months: number;
+    performance: WindowPerformance;
+  }>;
+}
+
+/** The optional report must never serialize cents outside JavaScript's exact integer range. */
+export class ContributionHistoryLimitError extends Error {
+  constructor() {
+    super('Contribution history contains cents outside the safe integer range');
+    this.name = 'ContributionHistoryLimitError';
+  }
 }
 
 const NO_CLASS = '';
@@ -718,6 +754,8 @@ export function portfolioSummary(db: Executor, options: PortfolioOptions): Portf
   let performance: WindowPerformance | null = null;
   let benchmark: PortfolioSummary['benchmark'] = null;
   const monthEndValues = new Map<string, number[]>();
+  let contributionHistory: ContributionHistory | null | undefined =
+    options.includeContributionHistory ? null : undefined;
   if (start !== null) {
     const series = valuationSeries(db, { from: start, to: today });
     const days = series.days;
@@ -758,6 +796,82 @@ export function portfolioSummary(db: Executor, options: PortfolioOptions): Portf
       period,
       today,
     );
+
+    if (options.includeContributionHistory) {
+      if (!performance) {
+        contributionHistory = null;
+      } else {
+        const selectedPerformance = performance;
+        const assertSafeCents = (values: number[]) => {
+          if (values.some((value) => !Number.isSafeInteger(value)))
+            throw new ContributionHistoryLimitError();
+        };
+        assertSafeCents([
+          selectedPerformance.startValueCents,
+          selectedPerformance.endValueCents,
+          selectedPerformance.contributionsCents,
+          selectedPerformance.gainCents,
+        ]);
+        const windowInput = { series: valuations, flows };
+        const bounds = monthBoundaries(selectedPerformance.from, selectedPerformance.to);
+        let cumulativeFlow = 0;
+        const months = bounds.slice(1).map((to, index) => {
+          const from = bounds[index] as string;
+          const segment = windowPerformance(windowInput, { from, to });
+          cumulativeFlow += segment.contributionsCents;
+          const row = {
+            from,
+            to,
+            valueCents: segment.endValueCents,
+            investedCents: selectedPerformance.startValueCents + cumulativeFlow,
+            contributionsCents: segment.contributionsCents,
+            gainCents: segment.gainCents,
+          };
+          assertSafeCents([
+            cumulativeFlow,
+            row.valueCents,
+            row.investedCents,
+            row.contributionsCents,
+            row.gainCents,
+          ]);
+          return row;
+        });
+        const years: ContributionHistory['years'] = [];
+        for (
+          let year = Number(selectedPerformance.from.slice(0, 4));
+          year <= Number(selectedPerformance.to.slice(0, 4));
+          year++
+        ) {
+          const yearStart = `${year - 1}-12-31`;
+          const from = yearStart < selectedPerformance.from ? selectedPerformance.from : yearStart;
+          const to =
+            `${year}-12-31` > selectedPerformance.to ? selectedPerformance.to : `${year}-12-31`;
+          if (to <= from) continue;
+          const yearPerformance = windowPerformance(windowInput, { from, to });
+          assertSafeCents([
+            yearPerformance.startValueCents,
+            yearPerformance.endValueCents,
+            yearPerformance.contributionsCents,
+            yearPerformance.gainCents,
+          ]);
+          years.push({
+            year,
+            months: yearPerformance.monthCount,
+            performance: yearPerformance,
+          });
+        }
+        contributionHistory = {
+          from: selectedPerformance.from,
+          to: selectedPerformance.to,
+          startValueCents: selectedPerformance.startValueCents,
+          endValueCents: selectedPerformance.endValueCents,
+          contributionsCents: selectedPerformance.contributionsCents,
+          gainCents: selectedPerformance.gainCents,
+          months,
+          years,
+        };
+      }
+    }
 
     // Month-end values per security for the TER (from the same series).
     const ends = lastTwelveMonthEnds(today);
@@ -843,6 +957,9 @@ export function portfolioSummary(db: Executor, options: PortfolioOptions): Portf
     realizedGainCents,
     realizedGainComplete,
     performance,
+    ...(options.includeContributionHistory
+      ? { contributionHistory: contributionHistory ?? null }
+      : {}),
     benchmark,
     costs,
     income,
