@@ -191,13 +191,14 @@ function namedRows(tx: Executor, table: Named, ctx: GroupedContext) {
   };
 }
 
-/** The ids of the latest committed run of a source, for re-imports. */
+/** The ids of the latest committed YNAB run (the PP migration's runs have none), for re-imports. */
 export function previousIds(db: Executor, exceptRunId?: string): IdMap {
   const row = db
     .select({ summaryJson: importRun.summaryJson })
     .from(importRun)
     .where(
       and(
+        eq(importRun.source, 'ynab'),
         eq(importRun.status, 'committed'),
         exceptRunId ? ne(importRun.id, exceptRunId) : undefined,
       ),

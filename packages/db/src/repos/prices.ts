@@ -23,8 +23,11 @@ const assertInt = (name: string, value: number): void => {
 
 /**
  * Insert or replace the price of a security on a day (micro-units in the security currency).
- * A `manual` price is protected: a price from another source (a refresh) does not replace it and
- * `false` is returned. Every change of an existing price is written to `price_audit`.
+ * Two protections return `false` and write nothing: a `manual` price is never replaced by another
+ * source, and a refresh (`yfinance`, `ariva`) never writes on or before the last day the
+ * security's imported history reaches (`import`, the one-time Portfolio Performance migration),
+ * neither over an imported price nor into a gap of it. Every change of an existing price is
+ * written to `price_audit`.
  */
 export function upsertPrice(db: Executor, input: PriceInput): boolean {
   assertInt('Price', input.priceMicro);
@@ -35,6 +38,21 @@ export function upsertPrice(db: Executor, input: PriceInput): boolean {
       .where(and(eq(price.securityId, input.securityId), eq(price.date, input.date)))
       .get();
     if (existing?.source === 'manual' && input.source !== 'manual') return false;
+    if (input.source !== 'manual' && input.source !== 'import') {
+      const imported = tx
+        .select({ date: price.date })
+        .from(price)
+        .where(
+          and(
+            eq(price.securityId, input.securityId),
+            gte(price.date, input.date),
+            eq(price.source, 'import'),
+          ),
+        )
+        .limit(1)
+        .get();
+      if (imported) return false;
+    }
     tx.insert(price)
       .values(input)
       .onConflictDoUpdate({

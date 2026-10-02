@@ -1,5 +1,14 @@
 import { sql } from 'drizzle-orm';
-import { check, index, integer, sqliteTable, text, uniqueIndex } from 'drizzle-orm/sqlite-core';
+import {
+  blob,
+  check,
+  index,
+  integer,
+  primaryKey,
+  sqliteTable,
+  text,
+  uniqueIndex,
+} from 'drizzle-orm/sqlite-core';
 import { id, isoMonth, nowSql, oneOf } from './common';
 
 export const IMPORT_SOURCES = ['ynab', 'csv', 'bank', 'portfolio_performance', 'other'] as const;
@@ -110,4 +119,40 @@ export const ynabPlanRow = sqliteTable(
     uniqueIndex('ynab_plan_row_uq').on(t.importRunId, t.rowNo),
     index('ynab_plan_row_category_idx').on(t.importRunId, t.categoryGroup, t.category),
   ],
+);
+
+/**
+ * Staged file of a one-time Portfolio Performance run (`docs/ops.md` §13): the uploaded XML as
+ * bytes, only in the database, deletable per run. It is parsed again for the dry run, the commit
+ * and the report, so a run can be re-mapped without the file. Contents never go to logs.
+ */
+export const importFile = sqliteTable('import_file', {
+  importRunId: text('import_run_id')
+    .primaryKey()
+    .references(() => importRun.id),
+  name: text('name').notNull(),
+  sha256: text('sha256').notNull(),
+  sizeBytes: integer('size_bytes').notNull(),
+  bytes: blob('bytes', { mode: 'buffer' }).notNull(),
+  createdAt: text('created_at').notNull().default(nowSql),
+});
+
+/**
+ * What a Portfolio Performance run did to the price series, for the revert: a price the run
+ * inserted has `old_price_micro IS NULL`, one it replaced keeps the old value and source. Prices
+ * are market data and not in `audit_log`, so this table is the run's undo record for them.
+ */
+export const importPriceChange = sqliteTable(
+  'import_price_change',
+  {
+    importRunId: text('import_run_id')
+      .notNull()
+      .references(() => importRun.id),
+    securityId: text('security_id').notNull(),
+    date: text('date').notNull(),
+    oldPriceMicro: integer('old_price_micro', { mode: 'number' }),
+    oldCurrency: text('old_currency'),
+    oldSource: text('old_source'),
+  },
+  (t) => [primaryKey({ columns: [t.importRunId, t.securityId, t.date] })],
 );
