@@ -167,6 +167,70 @@ describe('book: add', () => {
   });
 });
 
+describe('book: transfer envelope and finer matches', () => {
+  it('adds a transfer between a budget and a tracking account with its envelope', () => {
+    db.run(sql`update account set on_budget = 0 where id = 'spar'`);
+    done(only([{ ...transferOut('e1', '2026-10-03', -4_000), transferCategory: 'Essen' }]));
+    const giro = live('giro')[0]!;
+    expect(giro.amountCents).toBe(-4_000);
+    expect(giro.splits.map((s) => s.categoryId)).toEqual(['essen']);
+    expect(live('spar')[0]!.splits.map((s) => s.categoryId)).toEqual([null]);
+  });
+
+  it('refuses an envelope on a transfer between two budget accounts, and parses only with a transfer', () => {
+    const result = skipped(
+      only([{ ...transferOut('e2', '2026-10-03', -4_000), transferCategory: 'Essen' }]),
+    );
+    expect(result.reason).toBe('refused_by_rules');
+    expect(live('giro')).toHaveLength(0);
+    expect(() =>
+      parseBookFile([
+        {
+          id: 'x',
+          kind: 'add',
+          account: 'Giro',
+          date: '2026-10-03',
+          amountCents: -1,
+          transferCategory: 'Essen',
+        },
+      ]),
+    ).toThrow(OperatorInputError);
+  });
+
+  it('tells two identical bookings apart by category or by the other account of a transfer', () => {
+    const twin = (categoryId: string) =>
+      createBooking(
+        db,
+        {
+          accountId: 'giro',
+          date: '2026-10-03',
+          amountCents: -1_250,
+          splits: [{ categoryId, amountCents: -1_250 }],
+        },
+        owner,
+      );
+    twin('essen');
+    twin('reise');
+    expect(skipped(only([{ id: 'a', kind: 'delete', match }])).reason).toBe('ambiguous_match');
+    done(only([{ id: 'b', kind: 'delete', match: { ...match, category: 'Reise' } }]));
+    expect(live('giro')[0]!.splits[0]!.categoryId).toBe('essen');
+    expect(
+      skipped(only([{ id: 'c', kind: 'delete', match: { ...match, category: 'Nope' } }])).reason,
+    ).toBe('unknown_category');
+  });
+
+  it('matches a transfer leg by the account on the other side', () => {
+    done(only([transferOut('t1', '2026-10-03', -1_250)]));
+    expect(
+      skipped(only([{ id: 'm', kind: 'delete', match: { ...match, transferAccount: 'Dollar' } }]))
+        .reason,
+    ).toBe('no_match');
+    done(only([{ id: 'n', kind: 'delete', match: { ...match, transferAccount: 'Sparen' } }]));
+    expect(live('giro')).toHaveLength(0);
+    expect(live('spar')).toHaveLength(0);
+  });
+});
+
 describe('book: change and delete', () => {
   it('changes the amount of a categorised booking (its split follows)', () => {
     book('giro', '2026-10-03', -1_250, { memo: 'x' });

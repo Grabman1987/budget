@@ -54,7 +54,8 @@ import { findRun, runTask, type ImportTask } from './tasks';
  * app; what the app refuses is skipped. Each entry is one audit group (actor `operator`) that the
  * app's Rückgängig or `undo-group` reverts on its own. Skipped entries are reported with a reason
  * and the exit code is 3. Running a list twice adds twice: there is no de-duplication.
- * `unlock: true` on a change or delete entry unlocks that one reconciled booking (as the app's
+ * A transfer `add` may carry `transferCategory`; a `match` may be narrowed with `category` and
+ * `transferAccount`. `unlock: true` on a change or delete entry unlocks that one reconciled booking (as the app's
  * `unlockReconciled`); without it a reconciled booking is skipped.
  */
 

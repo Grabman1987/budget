@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
-import { isNull } from 'drizzle-orm';
-import { account, payee } from '../schema';
+import { and, eq, isNull, ne } from 'drizzle-orm';
+import { account, booking, payee } from '../schema';
 import { type AuditContext, type GroupedContext } from './audit';
 import {
   createBooking,
@@ -37,6 +37,10 @@ export interface BookMatch {
   amountCents: number;
   payee?: string;
   memo?: string;
+  /** Narrow down by the category of one of the booking's splits (a transfer: of its budget leg). */
+  category?: string;
+  /** Narrow down a transfer leg by the name of the account on the other side. */
+  transferAccount?: string;
 }
 
 interface EntryBase {
@@ -52,6 +56,11 @@ export interface BookAdd extends EntryBase {
   payee?: string;
   category?: string;
   transferAccount?: string;
+  /**
+   * Envelope of a transfer between a budget and a tracking account (put on the budget leg, like
+   * `categoryId` of the transfer route); only together with `transferAccount`.
+   */
+  transferCategory?: string;
   memo?: string;
   cleared: 'cleared' | 'uncleared';
 }
@@ -139,12 +148,16 @@ function parseMatch(raw: unknown, at: string): BookMatch {
   const memo = raw['memo'] === undefined || raw['memo'] === null ? undefined : raw['memo'];
   if (memo !== undefined && typeof memo !== 'string')
     throw new OperatorInputError(`${at}.memo must be a string`);
+  const category = optionalText(raw['category'], `${at}.category`);
+  const transferAccount = optionalText(raw['transferAccount'], `${at}.transferAccount`);
   return {
     account: text(raw['account'], `${at}.account`),
     date: validDay(raw['date'], `${at}.date`),
     amountCents: wholeCents(raw['amountCents'], `${at}.amountCents`),
     ...(payeeName !== undefined && { payee: payeeName }),
     ...(memo !== undefined && { memo: memo.trim() }),
+    ...(category !== undefined && { category }),
+    ...(transferAccount !== undefined && { transferAccount }),
   };
 }
 
@@ -171,10 +184,13 @@ export function parseBookFile(json: unknown): BookEntry[] {
       case 'add': {
         const category = optionalText(raw['category'], `${at}.category`);
         const transferAccount = optionalText(raw['transferAccount'], `${at}.transferAccount`);
+        const transferCategory = optionalText(raw['transferCategory'], `${at}.transferCategory`);
         if (category !== undefined && transferAccount !== undefined)
           throw new OperatorInputError(
             `${at}: "category" and "transferAccount" exclude each other`,
           );
+        if (transferCategory !== undefined && transferAccount === undefined)
+          throw new OperatorInputError(`${at}: "transferCategory" needs "transferAccount"`);
         const cleared = raw['cleared'] ?? 'uncleared';
         if (cleared !== 'cleared' && cleared !== 'uncleared')
           throw new OperatorInputError(`${at}.cleared must be "cleared" or "uncleared"`);
@@ -197,6 +213,7 @@ export function parseBookFile(json: unknown): BookEntry[] {
           ...(payeeName !== undefined && { payee: payeeName }),
           ...(category !== undefined && { category }),
           ...(transferAccount !== undefined && { transferAccount }),
+          ...(transferCategory !== undefined && { transferCategory }),
           ...(memo !== undefined && { memo }),
         };
       }
@@ -312,6 +329,29 @@ function resolveMatch(db: Executor, match: BookMatch): BookingRow {
   }
   if (match.memo !== undefined)
     candidates = candidates.filter((b) => (b.memo ?? '').trim() === match.memo);
+  if (match.category !== undefined) {
+    const categoryId = findCategory(db, match.category);
+    candidates = candidates.filter((b) => b.splits.some((s) => s.categoryId === categoryId));
+  }
+  if (match.transferAccount !== undefined) {
+    const other = findAccount(db, match.transferAccount);
+    candidates = candidates.filter(
+      (b) =>
+        b.transferId !== null &&
+        db
+          .select({ id: booking.id })
+          .from(booking)
+          .where(
+            and(
+              eq(booking.transferId, b.transferId),
+              ne(booking.id, b.id),
+              eq(booking.accountId, other.id),
+              isNull(booking.deletedAt),
+            ),
+          )
+          .get() !== undefined,
+    );
+  }
   if (candidates.length === 0) throw new Skip('no_match', 0, 'no booking matches');
   if (candidates.length > 1)
     throw new Skip('ambiguous_match', candidates.length, `${candidates.length} bookings match`);
@@ -353,6 +393,8 @@ function applyEntry(tx: Executor, entry: BookEntry, ctx: GroupedContext): BookDo
           ? undefined
           : findOpenAccount(tx, entry.transferAccount);
       const categoryId = entry.category === undefined ? null : findCategory(tx, entry.category);
+      const transferCategoryId =
+        entry.transferCategory === undefined ? null : findCategory(tx, entry.transferCategory);
       const payeeId = entry.payee === undefined ? null : payeeForName(tx, entry.payee, ctx);
       const status = entry.cleared === 'cleared' ? 'confirmed' : 'pending';
       if (other) {
@@ -367,6 +409,7 @@ function applyEntry(tx: Executor, entry: BookEntry, ctx: GroupedContext): BookDo
             status,
             payeeId,
             memo: entry.memo ?? null,
+            ...(transferCategoryId !== null && { categoryId: transferCategoryId }),
           },
           ctx,
         );
