@@ -15,6 +15,7 @@ import {
   type FxSource,
   type MarketSources,
   type QuoteSource,
+  type QuoteSourceId,
   type SecurityRef,
 } from '@budget/market';
 import { and, eq } from 'drizzle-orm';
@@ -60,7 +61,7 @@ const inbox = () =>
 
 /** A source that answers from a script and records what it was asked. */
 function scripted(
-  id: 'yfinance' | 'ariva',
+  id: QuoteSourceId,
   answer: (
     ref: SecurityRef,
     from: string,
@@ -77,7 +78,7 @@ function scripted(
     },
   };
 }
-const failing = (id: 'yfinance' | 'ariva', kind: 'network' | 'http' = 'network') =>
+const failing = (id: QuoteSourceId, kind: 'network' | 'http' = 'network') =>
   scripted(id, () => {
     throw new MarketError(kind, 'https://secret.example/?token=abc');
   });
@@ -120,26 +121,75 @@ describe('refreshPrices', () => {
     ]);
   });
 
-  it('backfills from min(first trade, 2023-10-01) minus 7 days, stores the source', async () => {
+  it('backfills the last 30 days on the first refresh, whatever the trades say, and stores the source', async () => {
     addSecurity();
     addTrade('2023-06-15');
     const source = scripted('yfinance', (_r, from) => [{ date: from, priceMicro: 100_000_000 }]);
     const result = await refreshPrices(db, sourcesOf(source), { today: '2026-09-30' });
-    expect(source.calls).toEqual([{ from: '2023-06-08', to: '2026-09-30' }]);
+    expect(source.calls).toEqual([{ from: '2026-08-31', to: '2026-09-30' }]);
     expect(result.bySource.yfinance).toEqual({ securities: 1, rows: 1 });
-    expect(priceSeries(db, 's1')[0]).toMatchObject({ date: '2023-06-08', source: 'yfinance' });
+    expect(priceSeries(db, 's1')[0]).toMatchObject({ date: '2026-08-31', source: 'yfinance' });
   });
 
-  it('starts at 2023-09-24 when the first trade is later, or there is none', async () => {
+  it('starts every security without a network price 30 days back', async () => {
     addSecurity();
-    addTrade('2024-02-01');
     addSecurity({ id: 's2', symbol: 'SYN-B', name: 'Zweiter' });
-    const source = scripted('yfinance', () => [{ date: '2026-01-02', priceMicro: 1_000_000 }]);
+    const source = scripted('yfinance', () => [{ date: '2026-09-02', priceMicro: 1_000_000 }]);
     await refreshPrices(db, sourcesOf(source), { today: '2026-09-30' });
     expect(source.calls).toEqual([
-      { from: '2023-09-24', to: '2026-09-30' },
-      { from: '2023-09-24', to: '2026-09-30' },
+      { from: '2026-08-31', to: '2026-09-30' },
+      { from: '2026-08-31', to: '2026-09-30' },
     ]);
+  });
+
+  it('tries the sources in chain order and skips those without the identifier', async () => {
+    addSecurity({ symbol: null, quoteUrl: 'https://www.ariva.de/etf/syn/kurse/historische-kurse' });
+    addSecurity({ id: 's2', name: 'Krypto', symbol: null, coingeckoId: 'syn-coin' });
+    addSecurity({ id: 's3', name: 'Nur Yahoo', symbol: 'SYN-Y' });
+    const only = (source: QuoteSource, test: (ref: SecurityRef) => boolean): QuoteSource => ({
+      ...source,
+      supports: test,
+    });
+    const day = [{ date: '2026-09-30', priceMicro: 1_000_000 }];
+    const ariva = only(
+      scripted('ariva', () => day),
+      (r) => r.quoteUrl !== null,
+    );
+    const coin = only(
+      scripted('coingecko', () => day),
+      (r) => r.coingeckoId !== null,
+    );
+    const yahoo = only(
+      scripted('yfinance', () => day),
+      (r) => r.symbol !== null,
+    );
+    const result = await refreshPrices(
+      db,
+      { quotes: ariva, moreQuotes: [coin], fallbackQuotes: yahoo, fx: noFx },
+      { today: '2026-09-30' },
+    );
+    expect(result.bySource.ariva).toEqual({ securities: 1, rows: 1 });
+    expect(result.bySource.coingecko).toEqual({ securities: 1, rows: 1 });
+    expect(result.bySource.yfinance).toEqual({ securities: 1, rows: 1 });
+    expect(result.failed).toEqual([]);
+    expect(priceSeries(db, 's2')[0]).toMatchObject({ source: 'coingecko' });
+  });
+
+  it('falls back to Yahoo when Ariva fails, and reports a security no source can look up', async () => {
+    addSecurity({ quoteUrl: 'https://www.ariva.de/etf/syn/kurse/historische-kurse' });
+    addSecurity({ id: 's2', name: 'Ohne Quelle', symbol: null, fallbackQuoteId: '4711' });
+    const ariva = {
+      ...failing('ariva', 'http'),
+      supports: (r: SecurityRef) => r.quoteUrl !== null,
+    };
+    const yahoo = {
+      ...scripted('yfinance', () => [{ date: '2026-09-30', priceMicro: 2_000_000 }]),
+      supports: (r: SecurityRef) => r.symbol !== null,
+    };
+    const result = await refreshPrices(db, sourcesOf(ariva, yahoo), { today: '2026-09-30' });
+    expect(result.bySource.yfinance.rows).toBe(1);
+    expect(result.failed).toEqual([{ securityId: 's2', errors: ['not_configured'] }]);
+    expect(inbox().map((i) => i.detail)).toEqual(['Fehlerklasse: not_configured']);
   });
 
   it('continues the day after the newest network price, and is idempotent', async () => {
@@ -204,8 +254,8 @@ describe('refreshPrices', () => {
       priceMicro: 7_000_000,
       source: 'manual',
     });
-    // The manual day was refused, so the backfill still started at the floor, not after it.
-    expect(source.calls[0]?.from).toBe('2023-09-24');
+    // The manual day was refused, so the backfill still started 30 days back, not after it.
+    expect(source.calls[0]?.from).toBe('2026-08-31');
     expect(db.select().from(schema.priceAudit).all()).toMatchObject([
       { date: '2026-09-30', oldPriceMicro: null, oldSource: null, newSource: 'yfinance' },
     ]);
@@ -395,26 +445,36 @@ describe('refreshFx', () => {
     };
     const sources = sourcesOf(failing('yfinance'), undefined, fx);
     const first = await refreshFx(db, sources, { today: '2026-09-30' });
-    expect(asked).toEqual([
-      ['GBP', '1999-01-04', '2026-09-30'],
-      ['USD', '1999-01-04', '2026-09-30'],
-    ]);
-    expect(first.bySource.ecb).toEqual({ currencies: 2, rows: 2 });
+    // The full history comes in contiguous three-year chunks per currency (the ECB is slow).
+    for (const currency of ['GBP', 'USD']) {
+      const own = asked.filter(([c]) => c === currency);
+      expect(own.length).toBeGreaterThan(5);
+      expect(own[0]?.[1]).toBe('1999-01-04');
+      expect(own.at(-1)?.[2]).toBe('2026-09-30');
+      own.forEach(([, from, to], i) => {
+        expect((Date.parse(to) - Date.parse(from)) / 86_400_000).toBeLessThanOrEqual(3 * 365);
+        if (i > 0)
+          expect(Date.parse(from) - Date.parse(own[i - 1]?.[2] as string)).toBe(86_400_000);
+      });
+    }
+    const firstCalls = asked.length;
+    expect(first.bySource.ecb.currencies).toBe(2);
+    expect(first.bySource.ecb.rows).toBe(firstCalls);
     // Next day: only the new day is fetched; the same day again fetches nothing.
     await refreshFx(db, sourcesOf(failing('yfinance'), undefined, fx), { today: '2026-10-01' });
-    expect(asked.slice(2)).toEqual([
+    expect(asked.slice(firstCalls)).toEqual([
       ['GBP', '2026-10-01', '2026-10-01'],
       ['USD', '2026-10-01', '2026-10-01'],
     ]);
     const again = await refreshFx(db, sources, { today: '2026-10-01' });
     expect(again).toMatchObject({ currencies: 2, upToDate: 2 });
-    expect(asked).toHaveLength(4);
+    expect(asked).toHaveLength(firstCalls + 2);
     const rows = db
       .select()
       .from(schema.fxRate)
       .where(and(eq(schema.fxRate.currency, 'USD')))
       .all();
-    expect(rows.map((r) => r.date)).toEqual(['2026-09-30', '2026-10-01']);
+    expect(rows.slice(-2).map((r) => r.date)).toEqual(['2026-09-30', '2026-10-01']);
     expect(rows[0]?.source).toBe('ecb');
   });
 

@@ -38,7 +38,16 @@ export const TRADE_KINDS = [
   'fee',
   'tax',
 ] as const;
-export const PRICE_SOURCES = ['yfinance', 'ariva', 'manual', 'import'] as const;
+export const PRICE_SOURCES = [
+  'yfinance',
+  'ariva',
+  'cryptocalc',
+  'coingecko',
+  'manual',
+  'import',
+] as const;
+export const MARKET_RUN_STATUSES = ['ok', 'partial', 'failed'] as const;
+export const MARKET_RUN_TRIGGERS = ['nightly', 'manual'] as const;
 export const VALUATION_SOURCES = ['manual', 'import', 'statement'] as const;
 
 export const assetClass = sqliteTable('asset_class', {
@@ -89,10 +98,18 @@ export const security = sqliteTable(
     /** Region weights as JSON `{ "Europa": 0.15 }`. */
     regionsJson: text('regions_json'),
     benchmark: text('benchmark'),
-    /** Fallback quote id (Ariva security id); `symbol` stays the primary (Yahoo) quote id. */
+    /** Legacy, unused by the sources: Ariva's CSV needs a login, so the numeric id is not needed. */
     fallbackQuoteId: text('fallback_quote_id'),
-    /** Exchange of the fallback quote (Ariva `boerse_id`). */
+    /** Exchange of the Ariva quote (`boerse_id`); wins over a `boerse_id` inside `quoteUrl`. */
     quoteExchange: text('quote_exchange'),
+    /**
+     * The quote page as stored in Portfolio Performance (its HTML-table feed URL), dispatched by
+     * host: `https://www.ariva.de/<path>/kurse/historische-kurse[?boerse_id=…]` (Ariva) or
+     * `https://cryptocalc.cc/bitpanda-kurse/?currency=BTC&fiat=EUR&range=all` (crypto in EUR).
+     */
+    quoteUrl: text('quote_url'),
+    /** CoinGecko coin id (`bitcoin`, PP property `COINGECKOCOINID`); EUR prices. */
+    coingeckoId: text('coingecko_id'),
     /** Switch for the daily price refresh; off keeps the security out of it. */
     pricesEnabled: integer('prices_enabled', { mode: 'boolean' }).notNull().default(true),
     /** Adjusted close instead of the plain close from the primary source (default: plain). */
@@ -171,7 +188,7 @@ export const holding = sqliteTable(
   ],
 );
 
-/** One price per product and day with its source (yfinance, Ariva fallback, manual valuation). */
+/** One price per product and day with its source (Ariva, Yahoo, crypto feeds, manual valuation). */
 export const price = sqliteTable(
   'price',
   {
@@ -251,6 +268,36 @@ export const fxRate = sqliteTable(
     primaryKey({ columns: [t.date, t.currency] }),
     isoDay('fx_rate_date_chk', t.date),
     check('fx_rate_positive_chk', sql`${t.rateMicro} > 0`),
+  ],
+);
+
+/**
+ * Run log of the market refresh (prices and ECB rates), one row per run. Holds counts and error
+ * classes only, never URLs or response bodies. The newest `ok`/`partial` run is the "Stand ...
+ * Kurse HH:MM" of the app and what the nightly timer checks to know whether a night was missed.
+ */
+export const marketRun = sqliteTable(
+  'market_run',
+  {
+    id: id(),
+    trigger: text('trigger', { enum: MARKET_RUN_TRIGGERS }).notNull(),
+    startedAt: text('started_at').notNull(),
+    finishedAt: text('finished_at').notNull(),
+    /** Last day the run asked for (the previous day for the nightly run). */
+    asOf: text('as_of').notNull(),
+    /** `failed`: the run threw, or every lookup failed and nothing was written. */
+    status: text('status', { enum: MARKET_RUN_STATUSES }).notNull(),
+    priceRows: integer('price_rows').notNull().default(0),
+    fxRows: integer('fx_rows').notNull().default(0),
+    failedCount: integer('failed_count').notNull().default(0),
+    /** Distinct error classes, comma separated (`timeout,parse`). */
+    errorClasses: text('error_classes'),
+  },
+  (t) => [
+    oneOf('market_run_trigger_chk', t.trigger, MARKET_RUN_TRIGGERS),
+    oneOf('market_run_status_chk', t.status, MARKET_RUN_STATUSES),
+    isoDay('market_run_as_of_chk', t.asOf),
+    index('market_run_finished_idx').on(t.finishedAt),
   ],
 );
 

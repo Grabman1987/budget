@@ -41,6 +41,7 @@ import {
   type PlannedTrade,
   type PpMigration,
   type PpModel,
+  type PpSecurity,
   type ResolvedMigration,
   type SecurityPlan,
 } from '@budget/import-pp';
@@ -114,7 +115,12 @@ const addProblem = (
 };
 
 /** Read-only: resolve the mapping against the app, plan the rows, check what a commit would refuse. */
-export function preparePp(db: Executor, model: PpModel, doc: PpMigration): Prepared {
+export function preparePp(
+  db: Executor,
+  model: PpModel,
+  doc: PpMigration,
+  resolveCoin?: (security: PpSecurity) => string | null,
+): Prepared {
   const problems: PpRunProblem[] = [];
   const apps = db
     .select({
@@ -143,7 +149,7 @@ export function preparePp(db: Executor, model: PpModel, doc: PpMigration): Prepa
     .from(security)
     .where(isNull(security.deletedAt))
     .all();
-  const planned = planSecurities(model, doc, existing);
+  const planned = planSecurities(model, doc, existing, resolveCoin);
   for (const p of planned.problems) addProblem(problems, p.severity, p.code, p.message);
 
   const plan = mapToTarget(model, resolved.mapping);
@@ -230,7 +236,15 @@ export const hasErrors = (problems: ReadonlyArray<PpRunProblem>): boolean =>
   problems.some((p) => p.severity === 'error');
 
 export interface PpChangeReport {
-  securities: { created: number; matched: number; skipped: number };
+  securities: {
+    created: number;
+    matched: number;
+    skipped: number;
+    /** Live sources the created securities got from PP's feeds. */
+    sources: { quoteUrl: number; coingeckoId: number; symbol: number };
+    /** Created securities without any live source (names of public securities). */
+    noSource: string[];
+  };
   assetClasses: { created: number };
   prices: { inserted: number; replaced: number; unchanged: number; manualKept: number };
   trades: {
@@ -339,7 +353,13 @@ export function writePp(
   const ctx: GroupedContext = { actor: input.actor, groupId: ppGroup(input.runId) };
   const trace = tracer();
   const report: PpChangeReport = {
-    securities: { created: 0, matched: 0, skipped: 0 },
+    securities: {
+      created: 0,
+      matched: 0,
+      skipped: 0,
+      sources: { quoteUrl: 0, coingeckoId: 0, symbol: 0 },
+      noSource: [],
+    },
     assetClasses: { created: 0 },
     prices: { inserted: 0, replaced: 0, unchanged: 0, manualKept: 0 },
     trades: { added: 0, unchanged: 0, changed: 0, missing: 0, deletedByOwner: 0 },
@@ -435,7 +455,8 @@ export function writePp(
         currency: s.currency,
         terBp: s.terBp,
         assetClassId: s.assetClass ? (classes.get(norm(s.assetClass)) ?? null) : null,
-        fallbackQuoteId: s.fallbackQuoteId,
+        quoteUrl: s.quoteUrl,
+        coingeckoId: s.coingeckoId,
         quoteExchange: s.quoteExchange,
         pricesEnabled: s.pricesEnabled,
       },
@@ -443,6 +464,10 @@ export function writePp(
     );
     ids.securities[s.ppUuid] = row.id;
     report.securities.created += 1;
+    if (s.quoteUrl) report.securities.sources.quoteUrl += 1;
+    if (s.coingeckoId) report.securities.sources.coingeckoId += 1;
+    if (s.symbol) report.securities.sources.symbol += 1;
+    if (!s.quoteUrl && !s.coingeckoId && !s.symbol) report.securities.noSource.push(s.name);
   }
 
   trace('classes+sec');

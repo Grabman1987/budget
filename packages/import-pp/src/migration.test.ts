@@ -4,6 +4,7 @@ import { describe, expect, it } from 'vitest';
 import { mapToTarget, type PlannedTrade } from './mapping';
 import {
   normalizeTrade,
+  ppQuoteUrl,
   planSecurities,
   ppCash,
   ppCashFlowByYear,
@@ -381,5 +382,74 @@ describe('splits (platform as cash account plus securities account)', () => {
     const r = resolveMigration(model, doc, apps);
     expect(r.splits).toEqual([]);
     expect(r.targets.find((t) => t.accountId === 'app-1')?.referenceAccountId).toBe('app-0');
+  });
+});
+
+describe('quote sources from PP feeds', () => {
+  const sec = (over: Record<string, unknown>) => ({ ...model.securities[0]!, ...over });
+  const withSecurities = (list: ReturnType<typeof sec>[]) => ({ ...model, securities: list });
+  const plan = (list: ReturnType<typeof sec>[], coin?: (s: { name: string }) => string | null) =>
+    planSecurities(withSecurities(list), document(), [], coin as never).securities;
+
+  it('takes the quote page of an HTML-table feed on Ariva or cryptocalc, https only', () => {
+    const ariva = 'https://www.ariva.de/etf/some-etf/kurse/historische-kurse?boerse_id=45&month=';
+    const crypto = 'https://cryptocalc.cc/bitpanda-kurse/?currency=BTC&fiat=EUR&range=all';
+    const ok = (feedUrl: string, feed = 'GENERIC_HTML_TABLE') => ppQuoteUrl({ feed, feedUrl });
+    expect(ok(ariva)).toBe(ariva);
+    expect(ok(crypto)).toBe(crypto);
+    expect(ok(ariva.replace('https', 'http'))).toBeNull();
+    expect(ok('https://user:pw@www.ariva.de/etf/x/kurse/historische-kurse')).toBeNull();
+    expect(ok('https://example.org/quotes')).toBeNull();
+    expect(ok(ariva, 'YAHOO')).toBeNull();
+    expect(ppQuoteUrl({ feed: 'GENERIC_HTML_TABLE', feedUrl: null })).toBeNull();
+    const [p] = plan([sec({ feed: 'GENERIC_HTML_TABLE', feedUrl: ariva })]);
+    expect(p).toMatchObject({
+      quoteUrl: ariva,
+      pricesEnabled: true,
+      symbol: null,
+      coingeckoId: null,
+    });
+  });
+
+  it('takes the CoinGecko id from the PP property, else from the helper, else none', () => {
+    const [a, b, c] = plan(
+      [
+        sec({ feed: 'COINGECKO', feedProperties: { COINGECKOCOINID: 'bitcoin' } }),
+        sec({ name: 'BTC', feed: 'GENERIC_HTML_TABLE', feedUrl: null }),
+        sec({ name: 'Unknown coin', feed: 'GENERIC_HTML_TABLE', feedUrl: null }),
+      ],
+      (s) => (s.name === 'BTC' ? 'bitcoin' : null),
+    );
+    expect(a).toMatchObject({ coingeckoId: 'bitcoin', pricesEnabled: true });
+    expect(b).toMatchObject({ coingeckoId: 'bitcoin', pricesEnabled: true });
+    expect(c).toMatchObject({ coingeckoId: null, pricesEnabled: false });
+  });
+
+  it('never sets the legacy fallback id and lets the document override', () => {
+    const uuid = model.securities[0]!.uuid;
+    const doc = document({
+      securities: {
+        [uuid]: {
+          quoteUrl: 'https://www.ariva.de/x/kurse/historische-kurse',
+          coingeckoId: 'x-coin',
+        },
+      },
+    });
+    const [p] = planSecurities(model, doc, []).securities;
+    expect(p).toMatchObject({
+      quoteUrl: 'https://www.ariva.de/x/kurse/historische-kurse',
+      coingeckoId: 'x-coin',
+    });
+    expect(Object.keys(p!)).not.toContain('fallbackQuoteId');
+  });
+
+  it('reads the FEED properties of a security from the file', () => {
+    const xml = ppExport(ledger).replace(
+      '<isRetired>false</isRetired>',
+      '<property type="FEED" name="COINGECKOCOINID">some-coin</property>\n<isRetired>false</isRetired>',
+    );
+    const m = parsePp(new TextEncoder().encode(xml));
+    expect(m.securities[0]!.feedProperties).toEqual({ COINGECKOCOINID: 'some-coin' });
+    expect(m.securities[1]!.feedProperties).toEqual({});
   });
 });

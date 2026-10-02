@@ -1,15 +1,19 @@
-/** Where a stored price came from (`price.source` for the two network sources). */
-export type QuoteSourceId = 'yfinance' | 'ariva';
+/** Where a stored price came from (`price.source` for the network sources). */
+export type QuoteSourceId = 'yfinance' | 'ariva' | 'cryptocalc' | 'coingecko';
 
 /** What a quote source needs to know about a security. All identifiers are data, never code. */
 export interface SecurityRef {
   id: string;
-  /** Primary quote id (Yahoo symbol). */
+  /** Yahoo symbol. */
   symbol: string | null;
-  /** Fallback quote id (Ariva security id). */
+  /** Legacy Ariva security id; no source reads it (Ariva's CSV needs a login). */
   fallbackQuoteId: string | null;
-  /** Exchange of the fallback quote (Ariva `boerse_id`). */
+  /** Exchange of the Ariva quote (`boerse_id`); wins over one inside `quoteUrl`. */
   quoteExchange: string | null;
+  /** The quote page from Portfolio Performance (Ariva or cryptocalc), dispatched by host. */
+  quoteUrl: string | null;
+  /** CoinGecko coin id. */
+  coingeckoId: string | null;
   /** Currency the security is quoted in; a source answering in another currency is refused. */
   currency: string;
   /** Adjusted close instead of the plain close (Yahoo only). Default: unadjusted. */
@@ -30,6 +34,11 @@ export interface DailyRate {
 
 export interface QuoteSource {
   readonly id: QuoteSourceId;
+  /**
+   * Whether the security carries the identifier this source needs. A source that does not is
+   * skipped by the refresh without counting as a failure. Absent: always tried.
+   */
+  supports?(ref: SecurityRef): boolean;
   /** Daily closes for `from`..`to` (both included), ascending. Throws a `MarketError`. */
   history(ref: SecurityRef, from: string, to: string): Promise<DailyQuote[]>;
 }
@@ -41,8 +50,11 @@ export interface FxSource {
 
 /** Everything the refresh jobs need; the DB is not part of it. */
 export interface MarketSources {
+  /** First source tried. */
   quotes: QuoteSource;
-  /** Used when the primary answers with an error or nothing. */
+  /** Tried after `quotes` (and before `fallbackQuotes`), e.g. the crypto feeds. */
+  moreQuotes?: QuoteSource[] | undefined;
+  /** Last resort when the sources before it answer with an error or nothing. */
   fallbackQuotes?: QuoteSource | undefined;
   fx: FxSource;
 }

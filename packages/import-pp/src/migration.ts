@@ -48,9 +48,13 @@ const securityEntry = z.object({
   kind: z.enum(SECURITY_KINDS).optional(),
   /** Asset class by name (created when missing). */
   assetClass: z.string().min(1).optional(),
-  /** Primary quote id (Yahoo); never guessed from PP's ticker unless PP's own feed is Yahoo. */
+  /** Yahoo symbol (last resort); taken from PP's ticker only when PP's own feed is Yahoo. */
   symbol: z.string().min(1).optional(),
-  fallbackQuoteId: z.string().min(1).optional(),
+  /** The quote page (Ariva or cryptocalc), by default PP's feed URL; `none` leaves it unset. */
+  quoteUrl: z.string().min(1).optional(),
+  /** CoinGecko coin id, by default PP's `COINGECKOCOINID` property. */
+  coingeckoId: z.string().min(1).optional(),
+  /** Ariva exchange (`boerse_id`); wins over the one inside the quote URL. */
   quoteExchange: z.string().min(1).optional(),
   /** Daily refresh on or off; default: on when a symbol is known. */
   pricesEnabled: z.boolean().optional(),
@@ -370,11 +374,29 @@ export interface SecurityPlan {
   kind: SecurityKind;
   currency: string;
   symbol: string | null;
-  fallbackQuoteId: string | null;
+  quoteUrl: string | null;
+  coingeckoId: string | null;
   quoteExchange: string | null;
   pricesEnabled: boolean;
   terBp: number;
   assetClass: string | null;
+}
+
+/**
+ * The quote page of a security as the live sources want it (`docs/market-data.md`): PP's HTML-table
+ * feed URL when it is https, has no credentials and points at Ariva or cryptocalc; otherwise none.
+ */
+export function ppQuoteUrl(s: Pick<PpSecurity, 'feed' | 'feedUrl'>): string | null {
+  if (s.feed !== 'GENERIC_HTML_TABLE' || !s.feedUrl) return null;
+  try {
+    const url = new URL(s.feedUrl);
+    const host = url.hostname.toLowerCase();
+    const known = host === 'ariva.de' || host === 'www.ariva.de' || host === 'cryptocalc.cc';
+    if (url.protocol !== 'https:' || url.username || url.password || !known) return null;
+    return s.feedUrl;
+  } catch {
+    return null;
+  }
 }
 
 /** Match or create every PP security: id from the document, then ISIN, then name. */
@@ -382,6 +404,7 @@ export function planSecurities(
   model: PpModel,
   doc: PpMigration,
   existing: ReadonlyArray<AppSecurityRef>,
+  resolveCoin?: (security: PpSecurity) => string | null,
 ): { securities: SecurityPlan[]; problems: MigrationProblem[] } {
   const problems: MigrationProblem[] = [];
   const byIsin = new Map<string, AppSecurityRef[]>();
@@ -407,7 +430,8 @@ export function planSecurities(
         matchedBy: null,
         kind: doc.defaultSecurityKind,
         symbol: null,
-        fallbackQuoteId: null,
+        quoteUrl: null,
+        coingeckoId: null,
         quoteExchange: null,
         pricesEnabled: false,
         terBp: 0,
@@ -464,6 +488,9 @@ export function planSecurities(
       taken.set(match.id, s.uuid);
     }
     const symbol = opt.symbol ?? (s.feed === 'YAHOO' ? s.tickerSymbol : null);
+    const quoteUrl = opt.quoteUrl ?? ppQuoteUrl(s);
+    const coingeckoId =
+      opt.coingeckoId ?? (s.feedProperties['COINGECKOCOINID'] || resolveCoin?.(s) || null);
     return {
       ...base,
       action: match ? 'match' : 'create',
@@ -471,9 +498,11 @@ export function planSecurities(
       matchedBy: match ? matchedBy : null,
       kind: opt.kind ?? doc.defaultSecurityKind,
       symbol,
-      fallbackQuoteId: opt.fallbackQuoteId ?? null,
+      quoteUrl,
+      coingeckoId,
       quoteExchange: opt.quoteExchange ?? null,
-      pricesEnabled: opt.pricesEnabled ?? (symbol !== null || opt.fallbackQuoteId !== undefined),
+      pricesEnabled:
+        opt.pricesEnabled ?? (symbol !== null || quoteUrl !== null || coingeckoId !== null),
       terBp: opt.terBp ?? 0,
       assetClass: opt.assetClass ?? null,
     };
@@ -877,8 +906,7 @@ export function proposeMigration(
         if (as.vehicle === 'security' && !classOf.has(as.uuid)) classOf.set(as.uuid, c.name);
 
   const plan = planSecurities(model, { ...ppMigrationSchema.parse(doc) }, existing);
-  let noQuoteId = 0;
-  let probable = 0;
+  let noSource = 0;
   let imported = 0;
   let skipped = 0;
   for (const s of model.securities) {
@@ -892,35 +920,26 @@ export function proposeMigration(
       continue;
     }
     imported += 1;
-    // Quote ids: PP's Yahoo feed names the symbol; PP's own feed keeps Yahoo-style tickers with an
-    // exchange suffix (probable, say so). Ariva links in PP carry a slug and the exchange, never
-    // the numeric id the adapter needs: the exchange is taken, the slug goes into the comment.
+    // Quote sources come from PP's own feed (`planSecurities`): the Yahoo symbol of a Yahoo feed,
+    // the Ariva or cryptocalc page of an HTML-table feed, the CoinGecko property. Nothing is guessed.
     const sp = plan.securities.find((p) => p.ppUuid === s.uuid);
-    const ticker = s.tickerSymbol;
     if (sp?.symbol && YAHOO_SYMBOL.test(sp.symbol)) entry.symbol = sp.symbol;
-    else if (s.feed === 'PP' && ticker && ticker.includes('.') && YAHOO_SYMBOL.test(ticker)) {
-      entry.symbol = ticker;
-      entry.comment = 'symbol from PP ticker (probable Yahoo id), not verified';
-      probable += 1;
-    }
-    const url = s.feedUrl ?? '';
-    const ariva = /ariva\.de\/([^?]+?)\/kurse\/historische-kurse/.exec(url);
-    if (ariva) {
-      const exchange = /[?&]boerse_id=(\d+)/.exec(url)?.[1];
-      if (exchange) entry.quoteExchange = exchange;
-      entry.comment = `ariva slug ${ariva[1]}; the numeric secu id is not in PP: set fallbackQuoteId`;
-    }
-    if (!entry.symbol && used.has(s.uuid)) noQuoteId += 1;
+    if (used.has(s.uuid) && !sp?.symbol && !sp?.quoteUrl && !sp?.coingeckoId) noSource += 1;
     (doc.securities as Record<string, unknown>)[s.uuid] = entry;
   }
   open.push(
-    `Securities: ${imported} imported, ${skipped} never-traded watchlist ones skipped; ${probable} symbols are probable (PP ticker), ${noQuoteId} traded ones have no quote id (see comments for Ariva slugs)`,
+    `Securities: ${imported} imported, ${skipped} never-traded watchlist ones skipped; ${noSource} traded ones have no live quote source in PP`,
   );
   return { doc, open };
 }
 
 function guessKind(s: PpSecurity, cls: string | undefined): SecurityKind {
-  if (!s.isin && (s.feed === 'COINGECKO' || /krypto|bitcoin|ethereum/i.test(cls ?? '')))
+  if (
+    !s.isin &&
+    (s.feed === 'COINGECKO' ||
+      (s.feedUrl ?? '').includes('cryptocalc.cc') ||
+      /krypto|bitcoin|ethereum/i.test(cls ?? ''))
+  )
     return 'crypto';
   if (!s.isin) return 'other';
   if (

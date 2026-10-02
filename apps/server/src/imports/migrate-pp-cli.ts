@@ -78,6 +78,14 @@ function printChange(change: Record<string, unknown> | null | undefined) {
   const c = change as Record<string, Record<string, number> | unknown>;
   for (const key of ['securities', 'assetClasses', 'prices', 'trades', 'bookings', 'transfers'])
     console.log(key.padEnd(14), JSON.stringify(c[key]));
+  const sec = c['securities'] as { sources?: unknown; noSource?: string[] } | undefined;
+  if (sec?.noSource && sec.noSource.length > 0)
+    console.log(
+      'no live source',
+      sec.noSource.length,
+      'created securities:',
+      sec.noSource.join('; '),
+    );
   for (const p of (c['splits'] as {
     cash: string;
     depot: string;

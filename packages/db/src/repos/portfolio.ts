@@ -30,6 +30,7 @@ import {
   security,
   trade,
 } from '../schema';
+import { lastSuccessfulMarketRun } from './market';
 import { accountBalances } from './queries';
 import { MissingFxRateError } from './errors';
 import type { Executor } from './types';
@@ -767,12 +768,17 @@ export function priceStand(db: Executor, asOf: string): PriceStand {
       .where(lte(price.date, asOf))
       .get()?.day ?? null;
   if (priceDate === null) return { priceDate: null, priceAt: null };
+  // The refresh run log is the source of "Kurse HH:MM"; without one (jobs called directly, prices
+  // entered by hand) the time the newest day's prices were written stays the fallback.
+  const run = lastSuccessfulMarketRun(db);
   const priceAt =
+    run?.finishedAt ??
     db
       .select({ ts: max(priceAudit.ts) })
       .from(priceAudit)
       .where(eq(priceAudit.date, priceDate))
-      .get()?.ts ?? null;
+      .get()?.ts ??
+    null;
   return { priceDate, priceAt };
 }
 

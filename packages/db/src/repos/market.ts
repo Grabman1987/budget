@@ -1,10 +1,24 @@
 import { randomUUID } from 'node:crypto';
-import { and, asc, eq, gte, inArray, isNotNull, isNull, lte, max, min, or } from 'drizzle-orm';
+import {
+  and,
+  asc,
+  desc,
+  eq,
+  gte,
+  inArray,
+  isNotNull,
+  isNull,
+  lte,
+  max,
+  min,
+  or,
+} from 'drizzle-orm';
 import {
   account,
   expectedPaymentVersion,
   fxRate,
   inboxItem,
+  marketRun,
   price,
   security,
   trade,
@@ -19,7 +33,10 @@ import type { Executor } from './types';
 
 export type SecurityRow = typeof security.$inferSelect;
 
-/** Securities the daily refresh looks after: switched on and with a primary or fallback quote id. */
+/** Price sources that are fetched from the network (the rest is manual or imported). */
+export const NETWORK_PRICE_SOURCES = ['yfinance', 'ariva', 'cryptocalc', 'coingecko'] as const;
+
+/** Securities the daily refresh looks after: switched on and with any quote identifier. */
 export function trackedSecurities(db: Executor): SecurityRow[] {
   return db
     .select()
@@ -28,7 +45,12 @@ export function trackedSecurities(db: Executor): SecurityRow[] {
       and(
         isNull(security.deletedAt),
         eq(security.pricesEnabled, true),
-        or(isNotNull(security.symbol), isNotNull(security.fallbackQuoteId)),
+        or(
+          isNotNull(security.symbol),
+          isNotNull(security.quoteUrl),
+          isNotNull(security.coingeckoId),
+          isNotNull(security.fallbackQuoteId),
+        ),
       ),
     )
     .orderBy(asc(security.name), asc(security.id))
@@ -47,7 +69,7 @@ export function firstTradeDate(db: Executor, securityId: string): string | undef
 }
 
 /**
- * Newest day with a price that came from a network source (yfinance, Ariva). Manual and imported
+ * Newest day with a price that came from a network source (Ariva, Yahoo, crypto feeds). Manual and imported
  * prices do not count: a manual price far in the future must not stop the refresh from filling
  * the days before it.
  */
@@ -56,7 +78,7 @@ export function lastQuotedDay(db: Executor, securityId: string): string | undefi
     db
       .select({ date: max(price.date) })
       .from(price)
-      .where(and(eq(price.securityId, securityId), inArray(price.source, ['yfinance', 'ariva'])))
+      .where(and(eq(price.securityId, securityId), inArray(price.source, NETWORK_PRICE_SOURCES)))
       .get()?.date ?? undefined
   );
 }
@@ -174,4 +196,40 @@ export function resolveStaleValueItems(
       ),
     )
     .run().changes;
+}
+
+export type MarketRunRow = typeof marketRun.$inferSelect;
+export type MarketRunInput = Omit<MarketRunRow, 'id'>;
+
+/** Write one line of the run log (counts and error classes only). */
+export function recordMarketRun(db: Executor, run: MarketRunInput): MarketRunRow {
+  const row = { id: randomUUID(), ...run };
+  db.insert(marketRun).values(row).run();
+  return row;
+}
+
+/** The newest run of any status, if any. */
+export function lastMarketRun(db: Executor): MarketRunRow | undefined {
+  return db.select().from(marketRun).orderBy(desc(marketRun.finishedAt)).limit(1).get();
+}
+
+/** The newest run that refreshed something (`ok` or `partial`): the "Stand" of the prices. */
+export function lastSuccessfulMarketRun(db: Executor): MarketRunRow | undefined {
+  return db
+    .select()
+    .from(marketRun)
+    .where(inArray(marketRun.status, ['ok', 'partial']))
+    .orderBy(desc(marketRun.finishedAt))
+    .limit(1)
+    .get();
+}
+
+/** Runs that finished at or after `since` (ISO UTC), newest first. */
+export function marketRunsSince(db: Executor, since: string): MarketRunRow[] {
+  return db
+    .select()
+    .from(marketRun)
+    .where(gte(marketRun.finishedAt, since))
+    .orderBy(desc(marketRun.finishedAt))
+    .all();
 }

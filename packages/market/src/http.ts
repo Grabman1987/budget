@@ -51,3 +51,17 @@ export async function getText(url: string, options: HttpOptions, accept = '*/*')
   }
   throw last;
 }
+
+/** Politeness toward public sites: at least `minIntervalMs` between two requests of one source. */
+export function throttle(
+  minIntervalMs: number,
+  sleep: (ms: number) => Promise<void> = pause,
+  clock: () => number = Date.now,
+): () => Promise<void> {
+  let last = Number.NEGATIVE_INFINITY;
+  return async () => {
+    const wait = last + minIntervalMs - clock();
+    if (wait > 0) await sleep(wait);
+    last = clock();
+  };
+}

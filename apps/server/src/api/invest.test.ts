@@ -260,6 +260,27 @@ describe('invest CRUD', () => {
     expect((await call('POST', `/securities/${id}/restore`)).status).toBe(200);
   });
 
+  it('stores the quote page and CoinGecko id; only https urls and plain coin ids', async () => {
+    const url = 'https://www.ariva.de/etf/synthetic/kurse/historische-kurse?boerse_id=45';
+    const created = await call('POST', '/securities', {
+      name: 'Musterfonds',
+      kind: 'etf',
+      quoteUrl: url,
+      coingeckoId: 'syn-coin',
+    });
+    expect(created.status).toBe(201);
+    expect(created.body['security']).toMatchObject({ quoteUrl: url, coingeckoId: 'syn-coin' });
+    const id = created.body['security'].id;
+    for (const bad of [
+      { quoteUrl: 'http://www.ariva.de/x' },
+      { quoteUrl: 'javascript:alert(1)' },
+      { coingeckoId: 'Bit Coin/../x' },
+    ])
+      expect((await call('PATCH', `/securities/${id}`, bad)).status).toBe(400);
+    const cleared = await call('PATCH', `/securities/${id}`, { quoteUrl: null });
+    expect(cleared.body['security']).toMatchObject({ quoteUrl: null, coingeckoId: 'syn-coin' });
+  });
+
   it('basic instrument metadata is audited, undoable and leaves source/cost settings intact', async () => {
     const cls = (await call('POST', '/asset-classes', { name: 'Musterklasse' })).body['assetClass'];
     const created = await call('POST', '/securities', {

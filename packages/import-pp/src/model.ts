@@ -121,6 +121,8 @@ export interface PpSecurity {
   onlineId: string | null;
   feed: string | null;
   feedUrl: string | null;
+  /** Feed properties (`<property type="FEED" name=…>`), e.g. `COINGECKOCOINID`. */
+  feedProperties: Record<string, string>;
   isRetired: boolean;
   prices: PpPrice[];
   latest: PpPrice | null;
@@ -431,6 +433,11 @@ function readSecurity(b: Builder, node: XmlNode, baseCurrency: string): PpSecuri
     onlineId: trimmed(node, 'onlineId'),
     feed: trimmed(node, 'feed'),
     feedUrl: trimmed(node, 'feedURL'),
+    feedProperties: Object.fromEntries(
+      childrenNamed(node, 'property').flatMap((p) =>
+        p.attrs.type === 'FEED' && p.attrs.name ? [[p.attrs.name, p.text.trim()]] : [],
+      ),
+    ),
     isRetired: trimmed(node, 'isRetired') === 'true',
     prices,
     latest,
