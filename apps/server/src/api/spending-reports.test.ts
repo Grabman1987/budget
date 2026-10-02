@@ -165,7 +165,12 @@ describe('2.1 Ausgabenanalyse on the sample ledger', () => {
       (a, b) => a + b,
       0,
     );
-    expect(Math.abs(year.consumptionCents - Math.round(expected * 100))).toBeLessThanOrEqual(30);
+    // Erstattungen of the car insurance (6.495 + 10.183 cents in this window) are netted against
+    // their category instead of counting as income (owner decision), the prototype does not.
+    const refunds = 6_495 + 10_183;
+    expect(
+      Math.abs(year.consumptionCents - (Math.round(expected * 100) - refunds)),
+    ).toBeLessThanOrEqual(30);
     expect(year.needCents + year.wantCents).toBe(year.consumptionCents);
     expect(year.previousFrom).toBe('2024-09-01');
     expect(year.heatMonths).toEqual(year.months);

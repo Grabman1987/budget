@@ -410,8 +410,11 @@ machine with `migrate-cli.js` (same tasks as the former wizard: each step is one
    (create the folder first: `fly ssh console -a budget-fg -C "mkdir -p /data/migration"`).
 3. Stage and dry run:
    `fly ssh console -a budget-fg -C "node /app/migrate-cli.js stage --register /data/migration/register.tsv --plan /data/migration/plan.tsv --mapping /data/migration/mapping.json"`
-   then `... dry-run --run <id>`. Proceed only with 0 problems and 0 "app vs import"
-   differences; the remaining Gate 2 differences must be explained (n:1 merges).
+   then `... dry-run --run <id>`. Proceed only with 0 problems, 0 Gate 2 differences (Zu
+   verteilen, Available, Activity and every account balance in every month) and 0 "app vs import"
+   differences.
 4. Commit: `... commit --run <id>`; check with `... report --run <id>`.
 5. Remove the private files: `fly ssh console -a budget-fg -C "rm -rf /data/migration"`.
    Undo if needed: `... revert --run <id>` (refused once imported data was changed in the app).
+   A run committed by an older version of the tool is reverted the same way (the revert only
+   undoes the run's audit group); then stage, dry-run and commit the export again.

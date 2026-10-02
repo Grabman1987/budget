@@ -148,7 +148,8 @@ function Body({ data }: { data: SpendingReport }) {
         ) : null}
         <p className="sr-note">
           Anteile an allem, was abgeflossen ist; Zukunft bleibt im Vermögen und zählt nicht zum
-          Konsum. Erstattungen mindern die Kategorie, in der sie gebucht sind.
+          Konsum. Erstattungen mindern die Kategorie, die sie erstatten; sie zählen nicht als
+          Einkommen.
         </p>
       </section>
 

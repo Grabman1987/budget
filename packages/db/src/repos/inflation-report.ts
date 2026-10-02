@@ -10,7 +10,8 @@ import {
 } from '@budget/domain';
 import { contractSources } from './contracts-report';
 import { fxRateOnOrBefore } from './prices';
-import { budgetOfMonths, reportMonths, spendByMonth, spendCategories } from './spending-report';
+import { reportTables } from './report-tables';
+import { reportMonths, spendCategories, tableSpendByMonth } from './spending-report';
 import type { Executor } from './types';
 
 /**
@@ -30,7 +31,7 @@ export interface InflationReport extends PersonalInflation {
 export function inflationReport(db: Executor, today: string): InflationReport {
   const { available } = reportMonths(db, today);
   const categories = spendCategories(db);
-  const spend = spendByMonth(budgetOfMonths(db, available), categories);
+  const spend = tableSpendByMonth(reportTables(db, { today }), categories);
   const fixed = contractSources(db).filter(
     (s) => s.categoryKind === 'fixed' && s.categoryId !== null && contractBinding(s) === 'fixed',
   );

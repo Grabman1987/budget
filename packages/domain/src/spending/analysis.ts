@@ -1,7 +1,6 @@
 import { mulDivRound, ratioBp } from '../wealth/int';
+import type { SpendClass } from '../report-tables';
 import { wholePercents } from './period';
-
-export type SpendClass = 'need' | 'want' | 'future';
 
 export interface SpendCategory {
   id: string;

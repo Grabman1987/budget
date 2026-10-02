@@ -27,6 +27,7 @@ const baseTarget = (): TargetModel => ({
       closedAt: null,
       openingDate: '2026-01-01',
       openingBalanceCents: -100_000,
+      adjustments: [],
     },
   ],
   categories: [],
@@ -66,6 +67,7 @@ const baseTarget = (): TargetModel => ({
   expectedPayments: [],
   targets: [],
   moved: [],
+  shifts: [],
 });
 
 beforeEach(() => {
@@ -78,6 +80,7 @@ beforeEach(() => {
     previous: { accounts: {}, categories: {} },
     deleteMissing: false,
     actor: 'tester',
+    today: '2026-02-28',
   });
   ids = written.ids;
 });

@@ -13,6 +13,7 @@ import {
 } from '@budget/domain';
 import { asc, isNull } from 'drizzle-orm';
 import { account, category, categoryGroup } from '../schema';
+import { reportTables, type ReportTables } from './report-tables';
 import { referenceMonth } from './rule-inputs';
 import { budget } from './queries';
 import type { Executor } from './types';
@@ -87,18 +88,20 @@ export function budgetOfMonths(db: Executor, months: string[]): BudgetMonth[] {
   return months.length ? budget(db, months) : [];
 }
 
-/** Net spending per month and category, positive cents; refunds net against the category. */
-export function spendByMonth(
-  budgetMonths: ReadonlyArray<BudgetMonth>,
+/**
+ * Net spending per month and category, positive cents, from the one read model of the monthly
+ * table reports (1.5 to 1.8): envelope activity, money set aside for the future, and refunds
+ * netted against the spending category they refund (owner decision), so a category is the same
+ * figure in every report.
+ */
+export function tableSpendByMonth(
+  tables: ReportTables,
   categories: ReadonlyArray<SpendCategory>,
 ): SpendByMonth {
   const out: Record<string, Record<string, number>> = {};
-  for (const m of budgetMonths) {
+  for (const m of tables.months) {
     const row: Record<string, number> = {};
-    for (const c of categories) {
-      const activity = m.envelopes[c.id]?.activityCents ?? 0;
-      row[c.id] = activity === 0 ? 0 : -activity;
-    }
+    for (const c of categories) row[c.id] = m.spending[c.id] ?? 0;
     out[m.month] = row;
   }
   return out;
@@ -129,7 +132,7 @@ export function spendingReport(
   const months = windowMonths(period, available);
   const previousMonths = previousWindow(months, available);
   const categories = spendCategories(db);
-  const spend = spendByMonth(budgetOfMonths(db, available), categories);
+  const spend = tableSpendByMonth(reportTables(db, { today }), categories);
   const analysis = analyseSpending({ categories, spend, months, previousMonths, available });
   const lastOf = (list: string[] | null) =>
     list && list.length ? (list[list.length - 1] as string) : null;

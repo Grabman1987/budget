@@ -1,12 +1,12 @@
 import {
   addMonths,
-  allocation,
   contractBinding,
   contractsOverview,
   costsOverview,
   ExchangeRateUnavailableError,
   PriceUnavailableError,
   lastDayOfMonth,
+  monthHouseholdIncome,
   monthOf,
   payoffPlan,
   PaymentBelowInterestError,
@@ -16,13 +16,13 @@ import {
 } from '@budget/domain';
 import { and, eq, gte, isNull } from 'drizzle-orm';
 import { account, booking, bookingSplit, INCOME_TYPES, trade } from '../schema';
-import { allocationMonth } from './allocation';
 import { MissingFxRateError } from './errors';
 import { contractSources } from './contracts-report';
 import { portfolioSummary } from './portfolio-summary';
 import { accountSummaries } from './ledger-queries';
 import { fxRateOnOrBefore } from './prices';
-import { budgetOfMonths, reportMonths, spendByMonth, spendCategories } from './spending-report';
+import { reportTables } from './report-tables';
+import { reportMonths, spendCategories, tableSpendByMonth } from './spending-report';
 import type { Executor } from './types';
 
 /**
@@ -90,6 +90,7 @@ export function bankCostsReport(db: Executor, today: string): BankCostsReport {
   const last12 = new Set(available.slice(-12));
   const first = available[0];
   const last = available[available.length - 1];
+  const tables = reportTables(db, { today });
   const accounts = db.select().from(account).where(isNull(account.deletedAt)).all();
   const loanIds = new Set(accounts.filter((a) => a.type === 'loan').map((a) => a.id));
   const onBudget = new Set(accounts.filter((a) => a.onBudget).map((a) => a.id));
@@ -152,7 +153,7 @@ export function bankCostsReport(db: Executor, today: string): BankCostsReport {
   const fees: Record<string, number> = {};
   const feeCategories = spendCategories(db).filter((c) => c.groupName === BANK_FEE_GROUP);
   if (feeCategories.length > 0 && available.length > 0) {
-    const spend = spendByMonth(budgetOfMonths(db, available), feeCategories);
+    const spend = tableSpendByMonth(tables, feeCategories);
     for (const [month, byCategory] of Object.entries(spend))
       for (const cents of Object.values(byCategory)) add(fees, month, cents);
   }
@@ -183,14 +184,14 @@ export function bankCostsReport(db: Executor, today: string): BankCostsReport {
     add(orders, month, cents);
   }
 
-  // Household income of the window (without Kapitalerträge and Erstattungen).
+  // Household income of the window: the monthly table read model (no Kapitalerträge, no
+  // Erstattungen, transfers and contact repayments never count).
   const window12 = available.slice(-12);
-  const excluded = [INCOME_TYPES.capital.id, INCOME_TYPES.refund.id];
-  const incomeCents = window12.length
-    ? allocation(
-        window12.map((m) => allocationMonth(db, m, undefined, { excludeIncomeTypeIds: excluded })),
-      ).incomeCents
-    : 0;
+  const meta = { categories: tables.categories, incomeTypes: tables.incomeTypes };
+  const incomeByMonth = new Map(
+    tables.months.map((m) => [m.month, monthHouseholdIncome(m, meta)] as const),
+  );
+  const incomeCents = window12.reduce((a, m) => a + (incomeByMonth.get(m) ?? 0), 0);
 
   const parts: CostPart[] = [
     { key: 'interest', name: 'Kreditzinsen', monthly: interest },

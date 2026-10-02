@@ -15,6 +15,8 @@ export default tseslint.config(
       'reference/**',
       'docs/**',
       '.impeccable/**',
+      // Local operator files (git-ignored): real data and one-off scripts.
+      'private/**',
     ],
   },
   js.configs.recommended,

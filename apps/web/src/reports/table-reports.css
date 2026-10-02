@@ -1,0 +1,328 @@
+/* Monthly table reports 1.5 Jahresansicht, 1.6 Kategorieübersicht, 1.7 Sparquote und Geldalter,
+   1.8 Gesamttabelle. White cards on the slate ground (Präzisionsschicht), blueprint ink inside. */
+.table-report {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 24px;
+  margin-top: -8px;
+}
+.table-report > * {
+  min-width: 0;
+}
+.tr-card {
+  background: var(--surface);
+  border: 1px solid var(--card-border);
+  border-radius: 12px;
+  box-shadow: var(--card-shadow);
+  padding: 20px 24px 22px;
+  min-width: 0;
+}
+.table-report .tbd-head {
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+.table-report .chain-inline {
+  margin: 4px 0 20px;
+}
+.table-report .vnote {
+  margin-top: 14px;
+}
+.table-report .muted {
+  color: var(--ink-3);
+}
+.table-report .tbd-fig {
+  font-size: clamp(40px, 6vw, 56px);
+}
+.table-report .tbd-fig .cents {
+  font-size: 0.45em;
+  font-weight: 560;
+  letter-spacing: 0;
+}
+.tr-pair {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 24px;
+  align-items: start;
+}
+.rtools {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.rtools .btn {
+  gap: 6px;
+}
+
+/* ---------- Tables ---------- */
+.table-report .rscroll {
+  overflow-x: auto;
+  max-width: 100%;
+}
+.table-report .rtable {
+  width: 100%;
+  border-collapse: collapse;
+  font-variant-numeric: tabular-nums;
+}
+.table-report .rtable thead th {
+  text-align: left;
+  padding: 8px;
+  border-bottom: 1px solid var(--line-2);
+  font-size: 11px;
+  white-space: nowrap;
+}
+.table-report .rtable td,
+.table-report .rtable tbody th {
+  padding: 10px 8px;
+  border-bottom: 1px solid var(--rule);
+  vertical-align: middle;
+  text-align: left;
+  font-weight: inherit;
+}
+.table-report .rtable .n {
+  text-align: right;
+  white-space: nowrap;
+}
+.table-report .rtable small {
+  font-size: 12px;
+}
+.rgrid thead th,
+.rgrid td,
+.rgrid tbody th {
+  padding: 7px 8px;
+  font-size: 13px;
+}
+.rg-first {
+  min-width: 190px;
+  white-space: nowrap;
+  text-align: left;
+}
+.rg-first .sw {
+  margin-right: 8px;
+  vertical-align: -1px;
+}
+.rsticky .rg-first {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  background: var(--surface);
+  box-shadow: inset -1px 0 0 var(--rule-strong);
+}
+.rg-sum {
+  border-left: 1px solid var(--line-2);
+}
+.rk-sum th,
+.rk-sum td {
+  font-weight: 650;
+  border-top: 1px solid var(--line-2);
+}
+.rk-res th,
+.rk-res td {
+  font-weight: 600;
+}
+.rk-res td {
+  background-color: var(--tint);
+}
+.rk-res th.rg-first {
+  /* Tint over the opaque sticky ground, so scrolled cells never show through. */
+  background-image: linear-gradient(var(--tint), var(--tint));
+}
+.rk-pct th,
+.rk-pct td {
+  color: var(--ink-2);
+}
+.lv-1 .rg-first {
+  padding-left: 24px;
+}
+.lv-2 .rg-first {
+  padding-left: 40px;
+  font-weight: 450;
+  color: var(--ink-2);
+}
+.hc2.hc-red {
+  background: color-mix(
+    in srgb,
+    var(--heat-red) calc(var(--h, 0.5) * var(--heat-max)),
+    transparent
+  );
+}
+.hc2.hc-green {
+  background: color-mix(
+    in srgb,
+    var(--heat-green) calc(var(--h, 0.5) * var(--heat-max)),
+    transparent
+  );
+}
+.dl {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 12.5px;
+  font-weight: 560;
+  white-space: nowrap;
+}
+.dl-0 {
+  color: var(--ink-3);
+}
+.dl-good {
+  color: var(--good-ink);
+}
+.dl-bad {
+  color: var(--bad-ink);
+}
+.rg-all td,
+.rg-all th.n {
+  min-width: 52px;
+}
+
+/* ---------- Jahresansicht ---------- */
+.year-compare {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+  margin: 0 0 18px;
+}
+.year-compare > div {
+  border-left: 1px solid var(--rule-strong);
+  padding-left: 14px;
+  display: grid;
+  gap: 2px;
+}
+.year-compare strong {
+  font-size: 22px;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+}
+.year-compare small {
+  font-size: 12.5px;
+  color: var(--ink-3);
+}
+
+/* ---------- Kategorieübersicht ---------- */
+.spark {
+  display: block;
+  width: 120px;
+  height: 24px;
+  overflow: visible;
+}
+.spark polyline {
+  fill: none;
+  stroke: var(--line);
+  stroke-width: 1.5;
+}
+.rc-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  text-align: left;
+  font-weight: 600;
+  min-height: 44px;
+  color: var(--ink);
+}
+.rc-btn small {
+  margin-left: 4px;
+  font-weight: 450;
+  color: var(--ink-3);
+  font-size: 12px;
+}
+.rc-row.is-open td,
+.rc-row.is-open th,
+.rc-detail td {
+  background: var(--tint);
+}
+.rc-detail td {
+  padding: 4px 12px 16px;
+}
+.rc-d {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+  gap: 24px 36px;
+}
+.rc-facts {
+  display: grid;
+  gap: 12px;
+  margin: 0;
+  align-content: start;
+}
+.rc-facts dd {
+  margin: 2px 0 0;
+  font-weight: 620;
+}
+.rc-facts small {
+  display: block;
+  font-weight: 450;
+  color: var(--ink-3);
+  font-size: 12px;
+}
+.rcats .n small {
+  font-size: 12px;
+}
+
+/* ---------- Charts ---------- */
+.tr-chart {
+  min-width: 0;
+  width: 100%;
+}
+.tr-chart .chart {
+  display: block;
+  max-width: 100%;
+  overflow: visible;
+}
+.tr-plan-tick {
+  stroke: var(--ink);
+  stroke-width: 2;
+}
+.chart-legend .legend-tick {
+  width: 32px;
+  height: 8px;
+}
+.lg-sq {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  border-radius: 1px;
+}
+.lg-mkt {
+  background: var(--line-2);
+}
+.table-report .chart-legend {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+}
+.table-report .chart-legend li {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+@media (max-width: 1100px) {
+  .tr-pair {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+@media (max-width: 767px) {
+  .tr-card {
+    padding: 16px 14px 18px;
+  }
+  .year-compare {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .rg-first {
+    min-width: 150px;
+  }
+  .rc-d {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .spark {
+    width: 84px;
+  }
+  .table-report .rtable td,
+  .table-report .rtable tbody th {
+    padding: 9px 6px;
+  }
+  .rgrid td,
+  .rgrid tbody th {
+    padding: 7px 6px;
+  }
+}

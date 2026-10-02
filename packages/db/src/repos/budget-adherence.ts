@@ -12,6 +12,7 @@ import {
 } from '@budget/domain';
 import { allocationMonth } from './allocation';
 import { INCOME_TYPES } from '../schema';
+import { reportTables } from './report-tables';
 import { budgetOfMonths, reportMonths, spendCategories } from './spending-report';
 import type { Executor } from './types';
 
@@ -76,18 +77,22 @@ export function budgetAdherence(db: Executor, today: string, month: string): Bud
   const months = monthsBetween(first, month > through ? month : through);
   const budgetMonths = budgetOfMonths(db, months);
   const byMonth = new Map(budgetMonths.map((m) => [m.month, m]));
+  // Spending and plan come from the monthly table read model (refunds netted against their
+  // category, owner decision); only the carry of a periodic reserve needs the envelopes.
+  const tables = new Map(reportTables(db, { today }).months.map((m) => [m.month, m]));
   const inputs = (m: string): AdherenceInput[] =>
     categories.map((c) => {
       const e = byMonth.get(m)?.envelopes[c.id];
+      const t = tables.get(m);
       return {
         id: c.id,
         name: c.name,
         groupName: c.groupName,
         class: c.class,
         kind: c.kind ?? 'variable',
-        assignedCents: e?.assignedCents ?? 0,
+        assignedCents: t?.assigned[c.id] ?? 0,
         carryCents: e?.carryCents ?? 0,
-        spendCents: e && e.activityCents !== 0 ? -e.activityCents : 0,
+        spendCents: t?.spending[c.id] ?? 0,
       };
     });
 

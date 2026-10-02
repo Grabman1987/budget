@@ -9,6 +9,8 @@ import {
   createTestDatabase,
   deleteBooking,
   envelopeMonth,
+  expectedOccurrence,
+  expectedPayment,
   importRun,
   ynabRegisterRow,
   type Db,
@@ -80,6 +82,10 @@ async function upload(register = files.register, plan = files.plan) {
 const EURO = 'â\u0082¬';
 
 const liveBookings = () => db.select().from(booking).where(isNull(booking.deletedAt)).all().length;
+const liveExpected = () =>
+  db.select().from(expectedPayment).where(isNull(expectedPayment.deletedAt)).all();
+const liveOccurrences = () =>
+  db.select().from(expectedOccurrence).where(isNull(expectedOccurrence.deletedAt)).all().length;
 
 /**
  * An export file with lines changed (`change` gets each line, `null` drops it); the bytes are
@@ -123,6 +129,7 @@ describe('YNAB import runs', () => {
           closedAt: null,
           openingDate: '2026-01-01',
           openingBalanceCents: 0,
+          adjustments: [],
         },
       ],
       categories: [],
@@ -162,6 +169,7 @@ describe('YNAB import runs', () => {
       expectedPayments: [],
       targets: [],
       moved: [],
+      shifts: [],
     };
     expect(() =>
       runInTransaction(db, (tx) =>
@@ -172,6 +180,7 @@ describe('YNAB import runs', () => {
           previous: { accounts: { 'source-usd': 'usd-import-target' }, categories: {} },
           deleteMissing: false,
           actor: 'tester',
+          today: '2026-02-28',
         }),
       ),
     ).toThrow(/EUR.*account/i);
@@ -188,6 +197,7 @@ describe('YNAB import runs', () => {
           previous: { accounts: { 'source-usd': 'usd-import-target' }, categories: {} },
           deleteMissing: false,
           actor: 'tester',
+          today: '2026-02-28',
         }),
       ),
     ).toThrow(/EUR.*account/i);
@@ -256,6 +266,13 @@ describe('YNAB import runs', () => {
     expect(liveBookings()).toBe(dry.body['change'].bookings.added);
     const sources = db.select({ source: booking.source }).from(booking).all();
     expect(new Set(sources.map((s) => s.source))).toEqual(new Set(['migration']));
+    // Scheduled rows are expected payments with planned occurrences, not bookings.
+    expect(commit.body['change'].expected).toEqual({ created: 2, reused: 0 });
+    expect(liveExpected().map((p) => [p.name, p.rhythm, p.dueDay, p.startDate])).toEqual([
+      ['Vermieter', 'monthly', 1, '2026-10-01'],
+      ['Kindergarten', 'monthly', 5, '2026-10-05'],
+    ]);
+    expect(liveOccurrences()).toBeGreaterThan(12);
 
     const report = await call('GET', `/${id}/report`);
     expect(report.body['ledger']).toEqual([]);
@@ -268,6 +285,7 @@ describe('YNAB import runs', () => {
     const dry2 = await call('POST', `/${second}/dry-run`);
     expect(dry2.body['change'].bookings).toMatchObject({ added: 0, updated: 0, missing: [] });
     expect(dry2.body['change'].assigned.changed).toBe(0);
+    expect(dry2.body['change'].expected).toEqual({ created: 0, reused: 2 });
     expect((await call('POST', `/${second}/commit`, {})).status).toBe(200);
     expect(liveBookings()).toBe(dry.body['change'].bookings.added);
 
@@ -280,12 +298,14 @@ describe('YNAB import runs', () => {
     expect(db.select().from(envelopeMonth).where(isNull(envelopeMonth.deletedAt)).all()).toEqual(
       [],
     );
+    expect([liveExpected().length, liveOccurrences()]).toEqual([0, 0]);
 
     // After the revert the export can be committed again.
     const { body: third } = await upload();
     await call('POST', `/${third['run'].id}/dry-run`);
     const recommit = await call('POST', `/${third['run'].id}/commit`, {});
     expect(recommit.body['change'].bookings.added).toBe(dry.body['change'].bookings.added);
+    expect(recommit.body['change'].expected).toEqual({ created: 2, reused: 0 });
   }, 60_000);
 
   it('a newer export updates status, adds new rows and deletes missing ones on request', async () => {
@@ -383,12 +403,20 @@ describe('YNAB import runs', () => {
 
   it('keeps negative assigned amounts and refuses a mapping error before any write', async () => {
     // YNAB allows taking money back: a negative Assigned in one month (owner decision: accepted).
+    // The edit keeps the row consistent: Available falls by twice the amount.
+    const cents = (v: string) =>
+      (v.startsWith('-') ? -1 : 1) *
+      Math.round(Number(v.replace('-', '').replace(EURO, '').replace(',', '.')) * 100);
+    const money = (c: number) =>
+      `${c < 0 ? '-' : ''}${EURO}${(Math.abs(c) / 100).toFixed(2).replace('.', ',')}`;
     let done = false;
     const plan = edit(files.plan, (l) => {
       if (done || !l.startsWith('"Jan 2025"') || !new RegExp(`\t${EURO}[1-9]`).test(l)) return l;
       done = true;
       const f = l.split('\t');
-      f[4] = `-${f[4]}`;
+      const assigned = cents(f[4] as string);
+      f[4] = money(-assigned);
+      f[6] = money(cents(f[6] as string) - 2 * assigned);
       return f.join('\t');
     });
     const { body: up } = await upload(files.register, plan);

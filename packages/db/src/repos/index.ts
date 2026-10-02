@@ -34,9 +34,11 @@ export * from './debts';
 export * from './portfolio-allocation';
 
 export * from './payments-preview';
+export * from './payee-report';
 export * from './freedom';
 export * from './spending-report';
 export * from './budget-adherence';
 export * from './contracts-report';
 export * from './bank-costs-report';
 export * from './inflation-report';
+export * from './report-tables';
