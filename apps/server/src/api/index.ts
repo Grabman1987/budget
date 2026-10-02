@@ -30,6 +30,7 @@ import { marketRoutes } from './market';
 import { networthHistoryRoutes } from './networth-history';
 import { wealthRoutes } from './wealth';
 import { ruleRoutes } from './rules';
+import { payeeReportRoutes } from './payee-report';
 
 export interface LedgerApiOptions {
   db: Db;
@@ -67,6 +68,7 @@ export function createLedgerApi({
   api.route('/export', exportRoutes(db, today, stepUp));
   api.route('/wealth', wealthRoutes(db, today));
   api.route('/contacts', contactRoutes(db, today));
+  api.route('/reports/payees', payeeReportRoutes(db, today));
   api.route('/goals', goalRoutes(db, today));
   api.route('/liquidity', liquidityRoutes(db, today));
   api.route('/cashflow', cashflowRoutes(db, today));

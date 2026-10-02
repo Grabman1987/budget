@@ -74,6 +74,8 @@ export function budgetLedger(db: Executor): Omit<BudgetInput, 'months'> {
   const categories = db
     .select({
       id: category.id,
+      name: category.name,
+      class: category.class,
       kind: category.kind,
       rolloverOverspending: category.rolloverOverspending,
       cardAccountId: category.cardAccountId,
@@ -85,6 +87,8 @@ export function budgetLedger(db: Executor): Omit<BudgetInput, 'months'> {
   const rows = db
     .select({
       bookingId: booking.id,
+      payeeId: booking.payeeId,
+      status: booking.status,
       accountId: booking.accountId,
       date: booking.date,
       bookingTransferId: booking.transferId,
@@ -113,6 +117,9 @@ export function budgetLedger(db: Executor): Omit<BudgetInput, 'months'> {
       ? null
       : (legs.get(transferId)?.find((l) => l.bookingId !== bookingId)?.accountId ?? null);
   const splits: LedgerSplit[] = rows.map((r) => ({
+    bookingId: r.bookingId,
+    payeeId: r.payeeId,
+    status: r.status,
     accountId: r.accountId,
     date: r.date,
     amountCents: r.amountCents,

@@ -131,7 +131,7 @@ consistent totals, desktop/mobile checks and printing where required.
 | 2.2 | Budgettreue inkl. 50/30/20 | `reports-ausgaben.js` | Body Open; twelfths rule follows SPEC |
 | 2.3 | Verträge und Abos | `reports-ausgaben.js` | Report body Open; expected-payment workflow exists |
 | 2.4 | Persönliche Inflation | `reports-ausgaben.js` | Body Open |
-| 2.5 | Empfänger-Analyse | `reports-ausgaben.js` | Body Open |
+| 2.5 | Empfänger-Analyse | `reports-ausgaben.js` | Partial: connected signed recipient activity for Bedarf/Wunsch categories, period comparison and read-only booking drilldown; see [scope contract](payee-analysis-report.md) |
 | 2.6 | Bank- und Zinskosten | `reports-ausgaben.js` | Body Open |
 | 3.1 | Liquiditätsprognose | `reports-zukunft.js` | Connected body: 90 days / 6 / 12 months, planned events stored in `planned_event` (add, switch off, remove, undo), 10 % buffer, 6-month verdict, month outlook, large movements, ledger-derived levers (pause Zukunft payments, cancel Wunsch contracts, trim variable). No surplus-to-Tagesgeld sweep (no stored rule); owner/private acceptance remains |
 | 3.2 | Cashflow-Verlauf | `reports-zukunft.js` | Connected body: full months of the budget accounts per Zeitraum, household income minus Bedarf/Wunsch = net cashflow with Maßkette, Zukunft shown as part of it, Kapitalerträge as a separate labelled series (not income, not in the net cashflow; owner decision 02.10.2026), month table; transfers, refunds and contact repayments are never income. Owner/private acceptance remains |

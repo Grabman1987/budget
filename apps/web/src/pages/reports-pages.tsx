@@ -19,6 +19,7 @@ import { ContactReportPage } from '../reports/contact-report';
 import { CashflowReportPage } from '../reports/cashflow-report';
 import { LiquidityReportPage } from '../reports/liquidity-report';
 import { WealthHistoryReport } from '../reports/wealth-history-report';
+import { PayeeAnalysisReport } from './payee-analysis-report';
 import { PortfolioPerformanceReport } from './portfolio-performance-report';
 import { PortfolioContributionsReport } from './portfolio-contributions-report';
 
@@ -172,6 +173,7 @@ export function ReportPage({ reportId }: { reportId: string }) {
   if (report.id === 'vermoegen') return <WealthHistoryReport report={report} meta={meta} />;
   if (report.id === 'sparziele') return <GoalsProgressReport report={report} meta={meta} />;
   if (report.id === 'vorschau') return <PaymentsPreviewReport report={report} meta={meta} />;
+  if (report.id === 'empfaenger') return <PayeeAnalysisReport report={report} meta={meta} />;
   if (report.id === 'prendite') return <PortfolioPerformanceReport report={report} meta={meta} />;
   if (report.id === 'peinzahlungen')
     return <PortfolioContributionsReport report={report} meta={meta} />;
