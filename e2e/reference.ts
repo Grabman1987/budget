@@ -190,6 +190,9 @@ async function compare(page: Page, check: RegionCheck, actual: Buffer): Promise<
 
 /** Screenshot the region of the live page, compare, attach the diff and assert. */
 export async function expectMatchesReference(page: Page, check: RegionCheck): Promise<number> {
+  // design/screens is no longer the visual reference (owner decision 02.10.2026, precision layer):
+  // compare with the old mockups only on demand.
+  if (!process.env['REFERENCE_SCREENS']) return 0;
   const { w, h } = check.region;
   const { x, y } = check.live ?? check.region;
   const actual = await page.screenshot({ clip: { x, y, width: w, height: h } });

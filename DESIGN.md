@@ -7,9 +7,11 @@ colors:
   on-primary: "#ffffff"
   line: "#1747a6"
   line-2: "#8fa9d6"
-  ground: "#f6f8fb"
-  ground-2: "#eef2f8"
+  ground: "#f2f5f9"
+  ground-2: "#eef3fa"
   raised: "#ffffff"
+  surface: "#ffffff"
+  surface-2: "#f6f8fb"
   ink: "#0b1b33"
   ink-2: "#3a4e6e"
   ink-3: "#586e90"
@@ -17,12 +19,20 @@ colors:
   rule-strong: "#b6c6df"
   graticule: "#e9eef6"
   red: "#c42a1f"
+  good: "#1d5a35"
+  good-hover: "#164a2b"
+  on-good: "#ffffff"
+  good-soft: "#dcefe1"
+  on-good-soft: "#1b5632"
+  quiet-soft: "#eef1f5"
   need: "#1747a6"
   want: "#3d86e0"
   future: "#0c7a86"
   dark-ground: "#0b3152"
   dark-ground-2: "#092a47"
   dark-raised: "#0f3b60"
+  dark-surface: "#0f3b60"
+  dark-surface-2: "#0d3657"
   dark-ink: "#eef6fc"
   dark-ink-2: "#b9d0e3"
   dark-ink-3: "#8fb0cb"
@@ -34,6 +44,12 @@ colors:
   dark-primary: "#eef6fc"
   dark-on-primary: "#0b3152"
   dark-red: "#ff8b7b"
+  dark-good: "#1f6a40"
+  dark-good-hover: "#247a4a"
+  dark-on-good: "#ffffff"
+  dark-good-soft: "#18493d"
+  dark-on-good-soft: "#a8e6c0"
+  dark-quiet-soft: "#164368"
   dark-need: "#e4f2ff"
   dark-want: "#7cc0f5"
   dark-future: "#6fd8d2"
@@ -176,9 +192,11 @@ components:
 
 **Creative North Star: "Das Konstruktionsblatt"**
 
-Die Finanz-App ist ein technisches Zeichenblatt, keine Kachelwand. Jede Zahl ist ein Maß: Sie sitzt als Maßtext auf einer Maßlinie mit Schrägstrich-Maßbegrenzung und lässt sich in ihre Maßkette zerlegen, bis hinunter zur einzelnen Buchung. Die Blaupause steckt in der Haltung (Linienarten, Schriftfeld, Planliste, Revisionstabelle, Detailausschnitte), nicht in der Tapete: Der Grund ist glatt, ein Millimeterraster gibt es nicht.
+Die Finanz-App ist ein technisches Zeichenblatt, keine Kachelwand. Jede Zahl ist ein Maß: Sie sitzt als Maßtext auf einer Maßlinie mit Schrägstrich-Maßbegrenzung und lässt sich in ihre Maßkette zerlegen, bis hinunter zur einzelnen Buchung. Die Blaupause steckt in der Haltung (Linienarten, Schriftfeld, Planliste, Revisionstabelle, Detailausschnitte), nicht in der Tapete: Ein feines Zeichenraster erscheint nur als Akzent in der rechten oberen Ecke und läuft über eine Maske in die Fläche aus.
 
-Hell ist blaue Tusche auf weißem Zeichenfilm, dunkel die klassische Blaupause, helle Linien auf Preußischblau. Beide Modi sind vollwertig und teilen dieselben Rollen. Die Farbwelt kennt nur Blautöne; der Rotstift ist die einzige Nicht-Blau-Tinte und bedeutet ausschließlich Handlungsbedarf. Die Dichte ist die eines Arbeitsblatts für die abendliche Steuerungssitzung: Haarlinien statt Karten, Zeilen statt Kacheln, Tabellenziffern überall.
+**Präzisionsschicht (Entscheidung 02.10.2026, „Architect / Precision Fintech“):** Ein kühler Slate-Grund (`ground`), darauf weiße Karten (`surface`) mit Haarlinienrand (`card-border`) und mehrlagigem, weichem Schatten (`card-shadow`); die Seitenleiste ist ein ruhiges Eisblau (`ground-2`) mit der Kontenhierarchie unter der Planliste. Grün ist das Signal für vorhandenes Geld: die Hero-Kennzahl in Waldgrün (`good`, Schrift weiß) und positive Restbeträge als Mint-Pillen (`good-soft` mit `on-good-soft`); ausgeschöpfte Beträge sind neutralgraue Pillen (`quiet-soft`). Plan › Monat hat drei Spalten: Seitenleiste, Stückliste als Karte und rechts einen Inspektor (Monatsüberblick, 50/30/20, Wasserfall). Die Mockups in `design/screens` sind damit keine Prüfreferenz mehr; eigene Vergleichsbilder sichern den Stand.
+
+Hell ist blaue Tusche auf weißem Zeichenfilm, dunkel die klassische Blaupause, helle Linien auf Preußischblau. Beide Modi sind vollwertig und teilen dieselben Rollen. Die Farbwelt ist blau; dazu kommen genau zwei Signaltinten: Rotstift für Handlungsbedarf und Grün für vorhandenes Geld. Die Dichte ist die eines Arbeitsblatts für die abendliche Steuerungssitzung: wenige ruhige Karten als Arbeitsflächen, darin Zeilen mit Haarlinien statt Kacheln, Tabellenziffern überall.
 
 Pro Region ist höchstens ein Zeichenmittel sichtbar. Die Entwürfe in `03_Mockups/` und Kapitel 10 des Konzepts (Manrope, Akzent #0E6E66, weiße Kacheln) sind überholt und keine Vorlage.
 
@@ -208,7 +226,9 @@ Eine einzige Tuschfamilie in Blau auf glattem Grund, mit genau einer Fremdtinte:
 - **Rotstift** (`red`, dunkel `dark-red`): Handlungsbedarf und nichts sonst. Überzogene Envelopes (Betrag und Balken), die dringende Revision (Dreieck, Titel, Schaltfläche „Decken“), Feldfehler, ein negativer Leitmaß-Wert. Hintergrundtönung `--red-soft` nur im Revisionsdreieck.
 
 ### Neutral
-- **Zeichenfilm** (`ground`) / **Preußischblau** (`dark-ground`): Blattgrund. Glatt, ohne Raster.
+- **Zeichenfilm** (`ground`, kühles Slate) / **Preußischblau** (`dark-ground`): App-Grund unter den Karten; das Zeichenraster nur als ausgeblendeter Akzent oben rechts (`grid-line`).
+- **Karte** (`surface`, dunkel `dark-surface`) mit **Kartenkopf** (`surface-2`): Arbeitsflächen (Schriftfeld, Stückliste, Revisionen, Inspektor), Rand `card-border`, Schatten `card-shadow`.
+- **Waldgrün** (`good`, dunkel `dark-good`) mit `on-good`: nur die Hero-Kennzahl „Zu verteilen“, wenn Geld auf einen Job wartet. **Mint** (`good-soft` / `on-good-soft`): positive Restbeträge und erfüllte Zustände als Pille oder Statuszeile. **Neutral** (`quiet-soft`): ausgeschöpfte Beträge.
 - **Planschrank** (`ground-2`): Seitenleiste und mobile Tab-Leiste.
 - **Aufgelegt** (`raised`): Eingabefelder, Tasten, aktive Planlisten-Zeile, Combobox-Liste.
 - **Tinte** (`ink`), **Tinte 2** (`ink-2`), **Tinte 3** (`ink-3`): Text in drei Stufen: Werte und Titel, Erklärtext, Metadaten und Achsbeschriftung.
@@ -217,7 +237,9 @@ Eine einzige Tuschfamilie in Blau auf glattem Grund, mit genau einer Fremdtinte:
 - Transparente Tönungen `--tint` (6 %/7 %) und `--tint-2` (11 %/13 %) der Tusche für Hover, Auswahl und Balkenträger; `--overlay` für den Scrim.
 
 ### Named Rules
-**The Rotstift Rule.** Rot ist die einzige Nicht-Blau-Tinte und bedeutet Handlungsbedarf. Ein verletzter Finanz-Check-Wert ohne akute Aktion steht in Tinte mit Warnsymbol, nicht in Rot. Rot und jeder Status erscheinen nie ohne Vorzeichen oder Symbol.
+**The Signal Rule.** Grün sagt „das Geld ist da“ (Hero, Mint-Pillen, erfüllt), Rot sagt „handeln“; beide erscheinen nie ohne Zahl, Vorzeichen oder Symbol.
+
+**The Rotstift Rule.** Rot bedeutet Handlungsbedarf. Ein verletzter Finanz-Check-Wert ohne akute Aktion steht in Tinte mit Warnsymbol, nicht in Rot. Rot und jeder Status erscheinen nie ohne Vorzeichen oder Symbol.
 
 **The Only Blue Rule.** Alle Tinten außer dem Rotstift sind Blautöne, von Preußisch bis Petrol. Grün als Erfolgsfarbe gibt es nicht; „erfüllt“ und positive Deltas stehen in Tusche mit Häkchen oder Pfeil.
 
@@ -256,13 +278,13 @@ Berührflächen mindestens 44 px auf Mobilgeräten.
 
 ## Elevation & Depth
 
-Das Blatt ist flach. Tiefe entsteht durch Haarlinien und die zwei Grundtöne (`ground` / `ground-2`), nicht durch Schatten. Ein einziger Schatten existiert und gehört nur schwebenden Ebenen: Seitenpanel, Buchungsdialog, Combobox-Liste, Toast und rundem Buchungsknopf. Kopf- und Tab-Leiste sind leicht durchscheinend (88 % bzw. 92 % Grund, Weichzeichner 10–12 px).
+Drei Ebenen: Grund (`ground`), Karte (`surface` mit `card-border` und dem weichen `card-shadow`) und schwebende Ebenen. Innerhalb einer Karte gliedern Haarlinien, nie verschachtelte Karten. Der Schwebeschatten gehört nur schwebenden Ebenen: Seitenpanel, Buchungsdialog, Combobox-Liste, Toast und rundem Buchungsknopf. Kopf- und Tab-Leiste sind leicht durchscheinend (88 % bzw. 92 % Grund, Weichzeichner 10–12 px).
 
 ### Shadow Vocabulary
 - **Schwebeebene** (`box-shadow: 0 10px 22px -10px rgba(11, 27, 51, 0.30), 0 2px 5px rgba(11, 27, 51, 0.08)`, dunkel `0 12px 24px -10px rgba(2, 10, 26, 0.7), 0 2px 6px rgba(2, 10, 26, 0.4)`): nur für Ebenen über dem Blatt.
 
 ### Named Rules
-**The Flat Sheet Rule.** Auf dem Blatt liegt nichts erhaben; Inhalte werden durch Linien gegliedert, nicht durch Karten.
+**The One Card Rule.** Eine Arbeitsfläche ist eine Karte; in ihr gliedern Linien. Karten in Karten gibt es nicht, Kachelwände aus gleichwertigen Karten auch nicht.
 
 ## Shapes
 
@@ -287,7 +309,7 @@ Sachlich und dicht, wie Tuschfelder.
 - **State:** gewählt = Tusche-Fläche mit Grundfarbe als Schrift; „leise“ Variante mit gestrichelter Kontur. Mobil horizontal scrollend.
 
 ### Cards / Containers
-Es gibt keine Karten. Abschnitte bestehen aus einem Kopf (Titel, rechts Link in `ink-2`, darunter Haarlinie) und Zeilen mit Haarlinientrennern. Zeilen sind ganzflächige Schaltflächen mit 6 px Radius und Tönung beim Hover.
+Arbeitsflächen sind Karten: `surface`, 12 px Radius, Rand `card-border`, Schatten `card-shadow`; Tabellenköpfe und Baugruppenzeilen auf `surface-2`. Innerhalb der Karte bestehen Abschnitte aus einem Kopf (Titel, rechts Link in `ink-2`, darunter Haarlinie) und Zeilen mit Haarlinientrennern. Zeilen sind ganzflächige Schaltflächen mit 6 px Radius und Tönung beim Hover.
 
 ### Inputs / Fields
 - **Style:** 44 px hoch (Suche 40 px), kräftige Haarlinie, `raised`-Grund, 8 px Radius, Label 13 px / 560 in `ink-2` darüber.
@@ -321,6 +343,7 @@ Ausgabe: Empfänger, Kategorie Pflicht. Einnahme: Zahler, Kategorie optional mit
 Kategorie-Chips: ausgewählt als Tönung mit Tuschekontur, Häkchen und sichtbarem Klassen-Quadrat (nie vollflächig, sonst verschwindet das Quadrat).
 
 ### Plan › Monat (Stückliste nach Wasserfall)
+- **Drei Spalten (02.10.2026):** Mitte die Hero-Kennzahl „Zu verteilen“ (Waldgrün bei Geld, Rotstift-Fläche bei zu viel zugewiesen, ruhige Karte bei 0) mit Maßkette und „Geld verteilen“, darunter Revisionen und die Stückliste als Karte; rechts der klebende Inspektor mit Monatsüberblick (Statuszeile, Übertrag, Einnahmen, Zugewiesen, Aktivität, Verfügbar als Pille), 50/30/20 und der Wasserfall-Leiste. Unter 1280 px rutscht der Inspektor unter die Stückliste, auf dem Handy einspaltig. Verfügbar steht als Pille: Mint positiv, neutral bei 0, Rotstift bei Bargeld-Überziehung, gestrichelt bei neuer Kartenschuld.
 - **Zu verteilen:** Leitwert (56 px, mobil 44 px) mit Maßkette als Termzeile unter einer Maßlinie mit Schrägstrichbegrenzung: Übertrag + Einnahmen (− Ungedeckt Vormonat) − Zugewiesen = Zu verteilen. Beschriftungen brechen nie um; jedes Rechenzeichen bleibt mit dem folgenden Term zusammen (`.ct-pair`); anklickbare Terme mit punktierter Unterstreichung öffnen ihre Posten.
 - **Leiste links folgt der Gliederung:** Wasserfall (neun Stufen mit Flusslinie und Wasserstand), Zeit, Gruppen, Klassen oder Triage; außerhalb des Wasserfalls ohne Flusslinie, Nummern als eckige Marken. Keine Überschrift über der Leiste.
 - **Stufenleiste (Wasserfall):** neun Stufen als Kreisnummern (28 px) an einer Flusslinie mit Pfeilspitzen, darunter Name, 6-px-Füllbalken in Tusche und Status („gedeckt“ / „fehlt …“). Voll = gefüllter Kreis, teilweise = Tuschekontur. Oben Zufluss (und Ungedeckt Vormonat), unten „Noch frei“; die Leiste geht immer auf. Der **Wasserstand** (▽ plus gestrichelte Tuschelinie plus „Wasserstand“ am Zeilenende) markiert einmal die Grenze, an der das Geld endet. Mobil: waagrechter Streifen aus Stufenkarten ohne Wasserstand.
@@ -384,10 +407,10 @@ Je Konto: Quelle (Bank-Sync PSD2, API nur lesen, Datei-Import, manuell), Schalte
 - **Do** pflege beide Modi gleichwertig über dieselben Rollen-Properties.
 
 ### Don't:
-- **Don't** lege ein Millimeterraster als Grund an; das Gradnetz steht nur hinter Diagrammen und im Kopfdetail des Seitenpanels.
+- **Don't** lege das Zeichenraster flächig unter Inhalte; es bleibt ein ausgeblendeter Eckakzent (oben rechts, in der Hero-Kennzahl rechts) und darf nie hinter Text in voller Stärke stehen.
 - **Don't** verwende Schraffur außerhalb von Balken und Diagrammflächen, und nie für Schulden.
 - **Don't** setze die Höhenkote außerhalb von Diagrammen und Maßen ein.
-- **Don't** verwende Rot für etwas anderes als Handlungsbedarf, und keine weitere Nicht-Blau-Farbe.
-- **Don't** baue Kachelwände aus gleichwertigen weißen Karten mit Pillen-Badges und einer Hero-Kennzahl.
+- **Don't** verwende Rot für etwas anderes als Handlungsbedarf, Grün für etwas anderes als vorhandenes Geld oder Erfüllung, und keine weitere Signalfarbe.
+- **Don't** baue Kachelwände aus gleichwertigen Karten; eine Seite hat eine Hero-Kennzahl und wenige Arbeitsflächen.
 - **Don't** übernimm Manrope, den Akzent #0E6E66 oder die weißen Kacheln aus `03_Mockups/` und Kapitel 10 des Konzepts.
 - **Don't** setze technische Versalbeschriftung als Dachzeile über Überschriften.
