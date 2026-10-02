@@ -1,0 +1,194 @@
+.goals-progress-report {
+  grid-template-columns: minmax(0, 1fr);
+  gap: 36px;
+}
+.goals-progress-report section {
+  min-width: 0;
+}
+.goals-progress-report a,
+.goal-report-detail a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+}
+.goals-report-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.goals-report-head > span {
+  color: var(--ink-2);
+}
+.goals-report-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 24px;
+  margin-top: 24px;
+}
+.goals-report-item {
+  min-width: 0;
+  padding-block: 16px;
+  border-top: 1px solid var(--line-2);
+}
+.goal-report-heading {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
+.goal-report-heading > .tech {
+  color: var(--ink-3);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 22px;
+  height: 22px;
+  border: 1px solid var(--line-2);
+  font: 11px var(--font-tech);
+}
+.goal-report-open {
+  color: var(--ink);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+  border: 0;
+  background: none;
+  min-height: 44px;
+  padding: 8px 0;
+  text-align: left;
+  overflow-wrap: anywhere;
+}
+.goal-report-open:hover {
+  text-decoration: underline;
+}
+.goal-report-open:focus-visible {
+  outline: 2px solid var(--line);
+  outline-offset: 3px;
+  border-radius: 2px;
+}
+.goal-report-meta {
+  margin: 0 0 12px;
+  color: var(--ink-3);
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+.goal-report-bar {
+  height: 10px;
+  position: relative;
+  background: var(--tint);
+  border: 1px solid var(--line-2);
+  margin: 12px 1px;
+}
+.goal-report-bar i {
+  display: block;
+  height: 100%;
+  background: var(--line);
+}
+.goal-report-bar > span {
+  position: absolute;
+  top: -4px;
+  height: 16px;
+  width: 2px;
+  margin-left: -1px;
+  background: var(--ink);
+}
+.goal-report-figures {
+  display: grid;
+  gap: 8px;
+}
+.goal-report-figures strong {
+  font-weight: 650;
+}
+.goal-report-figures > span {
+  overflow-wrap: anywhere;
+}
+.goal-report-status,
+.goal-report-unknown {
+  display: flex;
+  gap: 6px;
+  align-items: baseline;
+}
+.goal-report-status svg,
+.goal-report-unknown svg {
+  flex-shrink: 0;
+  align-self: center;
+}
+.goal-report-unknown {
+  color: var(--ink-2);
+}
+.goals-report-scroll {
+  max-width: 100%;
+  overflow-x: auto;
+  margin-top: 12px;
+  border-block: 1px solid var(--line-2);
+}
+.goals-report-scroll:focus-visible {
+  outline: 2px solid var(--line);
+  outline-offset: 3px;
+}
+.goals-report-table {
+  border-collapse: collapse;
+  width: 100%;
+}
+.goals-report-table th,
+.goals-report-table td {
+  padding: 10px 8px;
+  text-align: right;
+  white-space: nowrap;
+  border-bottom: 1px solid var(--rule);
+}
+.goals-report-table thead th {
+  font: 12px var(--font-tech);
+  color: var(--ink-2);
+}
+.goals-report-table th:first-child {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  background: var(--ground);
+  text-align: left;
+  min-width: 160px;
+  max-width: 240px;
+  white-space: normal;
+}
+.goals-report-table td:nth-child(2),
+.goals-report-table td:last-child {
+  text-align: left;
+  white-space: normal;
+  min-width: 180px;
+}
+.goal-report-detail {
+  overflow-wrap: anywhere;
+}
+.goal-report-detail dl > div {
+  display: flex;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--rule);
+}
+.goal-report-detail dd {
+  margin: 0;
+  font-weight: 650;
+}
+@media (max-width: 700px) {
+  .goals-report-list {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 8px;
+  }
+  .goals-report-head > span {
+    font-size: 13px;
+  }
+  .goal-report-meta {
+    font-size: 13px;
+  }
+  .goals-report-table {
+    font-size: 13px;
+  }
+  .goals-report-table th:first-child {
+    min-width: 135px;
+    max-width: 155px;
+  }
+}

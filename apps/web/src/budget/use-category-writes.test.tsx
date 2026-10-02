@@ -13,6 +13,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createLedgerApi } from '../../../server/src/api';
 import { inboxQuery, resolveInbox } from '../inbox/api';
 import { paymentsPreviewQuery } from '../pages/payments-preview-report';
+import { goalsProgressReportQuery } from '../pages/goals-progress-report';
 import { expectedQuery } from '../expected/api';
 import { useBudgetWrite } from './use-category-writes';
 
@@ -24,6 +25,7 @@ function Workflow() {
   const queue = useQuery(inboxQuery());
   useQuery(paymentsPreviewQuery());
   useQuery(expectedQuery());
+  useQuery(goalsProgressReportQuery());
   return (
     <>
       <span aria-label="Offene Aufgaben">{queue.data?.count}</span>
@@ -140,18 +142,22 @@ describe('shared budget write undo/redo feedback', () => {
       vi.mocked(fetch).mock.calls.filter(([url]) => url === path).length;
     await waitFor(() => expect(reads('/api/expected/year-preview')).toBe(1));
     await waitFor(() => expect(reads('/api/expected')).toBe(1));
+    await waitFor(() => expect(reads('/api/goals')).toBe(1));
     await click('Erledigen');
     await state(0);
     await waitFor(() => expect(reads('/api/expected/year-preview')).toBe(2));
     await waitFor(() => expect(reads('/api/expected')).toBe(2));
+    await waitFor(() => expect(reads('/api/goals')).toBe(2));
     await click('Rückgängig');
     await state(1);
     await waitFor(() => expect(reads('/api/expected/year-preview')).toBe(3));
     await waitFor(() => expect(reads('/api/expected')).toBe(3));
+    await waitFor(() => expect(reads('/api/goals')).toBe(3));
     await click('Wiederholen');
     await state(0);
     await waitFor(() => expect(reads('/api/expected/year-preview')).toBe(4));
     await waitFor(() => expect(reads('/api/expected')).toBe(4));
+    await waitFor(() => expect(reads('/api/goals')).toBe(4));
   });
   it('retains the successful audited write, undo and redo chain', async () => {
     await click('Erledigen');
