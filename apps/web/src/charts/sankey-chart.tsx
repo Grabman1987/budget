@@ -22,34 +22,59 @@ const labelWidth = (names: string[]) => Math.max(...names.map((n) => n.length)) 
  * Own SVG; ribbons are filled paths, node/link tones follow the blueprint class colours.
  * Ported from `sankey` in `design/prototype/reports-core.js`; phone width drops the group column.
  */
-export function SankeyChart({ width }: { width: number }) {
+export interface SankeyModel {
+  /** Columns left to right: sources, pool, classes, groups. */
+  columns: SankeyNode[][];
+  links: SankeyLink[];
+}
+
+/** The synthetic sample of the chart spike. */
+export const SAMPLE_SANKEY: SankeyModel = {
+  columns: [incomeColumn, poolColumn, classColumn, groupColumn],
+  links: [...incomeLinks, ...classLinks, ...groupLinks],
+};
+
+const LABEL = 'Geldfluss: Einnahmenarten in einen Topf, von dort zu Klassen und Gruppen';
+
+export function SankeyChart({
+  width,
+  model = SAMPLE_SANKEY,
+  label = LABEL,
+  height = HEIGHT,
+}: {
+  width: number;
+  /** Nodes and links; default: the spike's synthetic sample. */
+  model?: SankeyModel;
+  label?: string;
+  height?: number;
+}) {
   // Class nodes as in the prototype: Bedarf solid, Wunsch and Zukunft hatched with an outline.
   const prefix = usePatternPrefix('sk');
   if (width <= 0) return null;
-  const narrow = width < 600;
-  const columns: SankeyNode[][] = narrow
-    ? [incomeColumn, poolColumn, classColumn]
-    : [incomeColumn, poolColumn, classColumn, groupColumn];
-  const links: SankeyLink[] = narrow
-    ? [...incomeLinks, ...classLinks]
-    : [...incomeLinks, ...classLinks, ...groupLinks];
+  const narrow = width < 600 && model.columns.length > 3;
+  // Phone width: the last column (groups) stays in the parts list below the chart.
+  const columns = narrow ? model.columns.slice(0, -1) : model.columns;
+  const dropped = new Set(narrow ? (model.columns.at(-1) ?? []).map((n) => n.id) : []);
+  const links = model.links.filter((l) => !dropped.has(l.to));
+  const first = columns[0] ?? [];
   const last = columns[columns.length - 1] ?? [];
+  if (first.length === 0) return null;
   const layout = sankeyLayout(columns, links, {
     width,
-    height: HEIGHT,
+    height,
     nodeWidth: NODE_WIDTH,
     gap: 9,
-    padLeft: labelWidth(incomeColumn.map((n) => n.name)),
+    padLeft: labelWidth(first.map((n) => n.name)),
     padRight: labelWidth(last.map((n) => n.name)) + 8,
   });
 
   return (
     <svg
-      viewBox={`0 0 ${width} ${HEIGHT}`}
+      viewBox={`0 0 ${width} ${height}`}
       width={width}
-      height={HEIGHT}
+      height={height}
       role="img"
-      aria-label="Geldfluss: Einnahmenarten in einen Topf, von dort zu Klassen und Gruppen"
+      aria-label={label}
       data-testid="sankey-chart"
     >
       <ClassPatterns prefix={prefix} />

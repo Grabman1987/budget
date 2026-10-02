@@ -27,6 +27,7 @@ import { lookupRoutes, payeeRoutes, undoRoutes } from './lookups';
 import { marketRoutes } from './market';
 import { wealthRoutes } from './wealth';
 import { ruleRoutes } from './rules';
+import { monthReportRoutes } from './reports-month';
 
 export interface LedgerApiOptions {
   db: Db;
@@ -72,6 +73,7 @@ export function createLedgerApi({
   api.route('/trades', tradeRoutes(db));
   api.route('/savings-plans', savingsPlanRoutes(db, today));
   api.route('/portfolio', portfolioRoutes(db, today));
+  api.route('/reports/month', monthReportRoutes(db, today));
   api.route('/lookups', lookupRoutes(db));
   api.route('/undo', undoRoutes(db));
   api.route('/', marketRoutes(db, today, market));
