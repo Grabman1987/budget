@@ -1,6 +1,5 @@
-import { useAmountPrivacy, maskMoneyText } from '@budget/ui';
-import { cents } from '@budget/domain';
 import {
+  useAmountPrivacy,
   AmountInput,
   Button,
   DimensionChain,
@@ -8,11 +7,14 @@ import {
   Segmented,
   Select,
   type SegmentedOption,
+  maskMoneyText,
 } from '@budget/ui';
+import { cents } from '@budget/domain';
 import { Plus, Trash2 } from 'lucide-react';
 import type { Dispatch, SetStateAction } from 'react';
 import {
   newSplit,
+  distributeRest,
   splitChain,
   type BookingDraft,
   type SplitDraft,
@@ -187,15 +189,14 @@ export function SplitEditor({
               onChange={(v) => change(s.key, { amount: v })}
             />
             <div className="ksplit-actions">
-              {restCents > 0 && s.amount.trim() === '' && (
+              {restCents !== 0 && (
                 <Button
                   variant="ghost"
                   size="sm"
-                  onClick={() =>
-                    change(s.key, { amount: (restCents / 100).toFixed(2).replace('.', ',') })
-                  }
+                  aria-label={`Rest verteilen in Zeile ${n}`}
+                  onClick={() => setDraft((d) => distributeRest(d, s.key))}
                 >
-                  Rest einsetzen
+                  Rest verteilen
                 </Button>
               )}
               {draft.splits.length > 2 && (

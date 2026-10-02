@@ -271,7 +271,7 @@ test('a split with a contact share: the chain shows what is left, saving waits u
   await expect(save).toBeDisabled();
   await line2.getByRole('button', { name: 'Kontakt' }).click();
   await line2.getByLabel('Kontakt 2').selectOption({ label: 'Anna Muster' });
-  await line2.getByRole('button', { name: 'Rest einsetzen' }).click();
+  await line2.getByRole('button', { name: 'Rest verteilen in Zeile 2' }).click();
   await expect(line2.getByLabel('Betrag 2')).toHaveValue('20,00');
   await expect(chain).toContainText(/\d,\d\d €/);
   await expect(panel.getByText('Aufteilung geht auf.')).toBeVisible();
