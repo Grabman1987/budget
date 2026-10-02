@@ -37,8 +37,11 @@ let db: Db;
 let apps: AppAccountRef[];
 
 const run = (task: PpTask) => runPpTask(db, task, ctx) as Record<string, any>;
-const live = (table: typeof trade | typeof security) =>
-  db.select().from(table).where(isNull(table.deletedAt)).all();
+function live(table: typeof trade): (typeof trade.$inferSelect)[];
+function live(table: typeof security): (typeof security.$inferSelect)[];
+function live(table: typeof trade | typeof security) {
+  return db.select().from(table).where(isNull(table.deletedAt)).all();
+}
 const liveBookings = (accountId?: string) =>
   db
     .select()
