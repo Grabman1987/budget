@@ -41,6 +41,11 @@ export interface BookMatch {
   category?: string;
   /** Narrow down a transfer leg by the name of the account on the other side. */
   transferAccount?: string;
+  /**
+   * For a true duplicate (same account, day, amount, payee, memo and categories): the match must
+   * resolve to exactly this many such bookings, and the oldest one (then the lowest id) is taken.
+   */
+  identical?: number;
 }
 
 interface EntryBase {
@@ -150,6 +155,12 @@ function parseMatch(raw: unknown, at: string): BookMatch {
     throw new OperatorInputError(`${at}.memo must be a string`);
   const category = optionalText(raw['category'], `${at}.category`);
   const transferAccount = optionalText(raw['transferAccount'], `${at}.transferAccount`);
+  const identical = raw['identical'];
+  if (
+    identical !== undefined &&
+    (typeof identical !== 'number' || !Number.isSafeInteger(identical) || identical < 2)
+  )
+    throw new OperatorInputError(`${at}.identical must be a whole number of at least 2`);
   return {
     account: text(raw['account'], `${at}.account`),
     date: validDay(raw['date'], `${at}.date`),
@@ -158,6 +169,7 @@ function parseMatch(raw: unknown, at: string): BookMatch {
     ...(memo !== undefined && { memo: memo.trim() }),
     ...(category !== undefined && { category }),
     ...(transferAccount !== undefined && { transferAccount }),
+    ...(identical !== undefined && { identical }),
   };
 }
 
@@ -353,7 +365,26 @@ function resolveMatch(db: Executor, match: BookMatch): BookingRow {
     );
   }
   if (candidates.length === 0) throw new Skip('no_match', 0, 'no booking matches');
-  if (candidates.length > 1)
+  if (match.identical !== undefined) {
+    const key = (b: (typeof candidates)[number]) =>
+      JSON.stringify([
+        b.payeeId,
+        (b.memo ?? '').trim(),
+        b.transferId === null,
+        b.splits.map((x) => [x.categoryId, x.amountCents, x.memo ?? null]),
+      ]);
+    if (candidates.length !== match.identical || new Set(candidates.map(key)).size !== 1)
+      throw new Skip(
+        'ambiguous_match',
+        candidates.length,
+        `expected ${match.identical} identical bookings, found ${candidates.length}${
+          new Set(candidates.map(key)).size > 1 ? ' that differ' : ''
+        }`,
+      );
+    candidates = [...candidates].sort(
+      (a, b) => a.createdAt.localeCompare(b.createdAt) || a.id.localeCompare(b.id),
+    );
+  } else if (candidates.length > 1)
     throw new Skip('ambiguous_match', candidates.length, `${candidates.length} bookings match`);
   const { splits, ...row } = candidates[0]!;
   void splits;

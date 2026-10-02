@@ -494,7 +494,7 @@ from a JSON list. The file holds real names and amounts: keep it on the private 
   app), `memo`, `cleared` (`cleared` or `uncleared`, default `uncleared`), and either `category` or
   `transferAccount` (a proper linked Umbuchung; a negative amount leaves `account`). A transfer between a budget and a tracking account may carry its envelope as `transferCategory` (put on the budget leg, as `categoryId` of the transfer route does; refused between two budget accounts).
 - `change_amount` (`newAmountCents`), `change_date` (`newDate`), `delete`: address the booking by
-  `match: {account, date, amountCents, payee?, memo?, category?, transferAccount?}` (`category`: one of its splits has this category; `transferAccount`: the other leg of the transfer is in this account; both only narrow a match that is otherwise ambiguous). It must resolve to exactly one top-level
+  `match: {account, date, amountCents, payee?, memo?, category?, transferAccount?, identical?}` (`category`: one of its splits has this category; `transferAccount`: the other leg of the transfer is in this account; both only narrow a match that is otherwise ambiguous; `identical: N` deletes or changes one of exactly N true duplicates, the oldest). It must resolve to exactly one top-level
   booking (a split booking counts with its total). These three also take `unlock: true`, the
   explicit per-entry unlock of a reconciled (geprüft) booking: it passes the same `unlockReconciled`
   option as the app's unlock (`PATCH /api/bookings/:id`, `DELETE ...?unlock=1`), so

@@ -219,6 +219,33 @@ describe('book: transfer envelope and finer matches', () => {
     ).toBe('unknown_category');
   });
 
+  it('deletes one of two true duplicates only when told how many there are', () => {
+    book('giro', '2026-10-03', -1_250);
+    book('giro', '2026-10-03', -1_250);
+    expect(skipped(only([{ id: 'a', kind: 'delete', match }])).reason).toBe('ambiguous_match');
+    expect(
+      skipped(only([{ id: 'b', kind: 'delete', match: { ...match, identical: 3 } }])).reason,
+    ).toBe('ambiguous_match');
+    done(only([{ id: 'c', kind: 'delete', match: { ...match, identical: 2 } }]));
+    expect(live('giro')).toHaveLength(1);
+    // no longer a pair: the same entry is now refused rather than deleting the last one
+    expect(
+      skipped(only([{ id: 'd', kind: 'delete', match: { ...match, identical: 2 } }])).reason,
+    ).toBe('ambiguous_match');
+    expect(live('giro')).toHaveLength(1);
+  });
+
+  it('refuses identical for bookings that differ', () => {
+    book('giro', '2026-10-03', -1_250, { memo: 'a' });
+    book('giro', '2026-10-03', -1_250, { memo: 'b' });
+    expect(
+      skipped(only([{ id: 'e', kind: 'delete', match: { ...match, identical: 2 } }])).reason,
+    ).toBe('ambiguous_match');
+    expect(() =>
+      parseBookFile([{ id: 'x', kind: 'delete', match: { ...match, identical: 1 } }]),
+    ).toThrow(OperatorInputError);
+  });
+
   it('matches a transfer leg by the account on the other side', () => {
     done(only([transferOut('t1', '2026-10-03', -1_250)]));
     expect(
