@@ -4,7 +4,7 @@ import { Hono } from 'hono';
 import { mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { afterEach, beforeEach, expect, it } from 'vitest';
+import { afterAll, beforeAll, beforeEach, expect, it } from 'vitest';
 import { createApp, type AuthGate } from '../app';
 
 const TODAY = '2026-09-17';
@@ -15,10 +15,9 @@ let close: () => void;
 let signedIn: boolean;
 let app: ReturnType<typeof createApp>;
 
-beforeEach(() => {
+beforeAll(() => {
   ({ db, close } = createTestDatabase());
   seedDatabase(db);
-  signedIn = true;
   const auth: AuthGate = {
     requireSession: async (c, next) => (signedIn ? next() : c.json({ error: 'unauthorized' }, 401)),
     originGuard: async (_c, next) => next(),
@@ -27,7 +26,10 @@ beforeEach(() => {
   };
   app = createApp({ webDir, auth, ledger: { db, today: () => TODAY } });
 });
-afterEach(() => close());
+beforeEach(() => {
+  signedIn = true;
+});
+afterAll(() => close());
 
 const get = (path: string) => app.request(`/api${path}`);
 

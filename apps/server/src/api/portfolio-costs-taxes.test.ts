@@ -6,11 +6,12 @@ import {
   type Db,
 } from '@budget/db';
 import { seedDatabase } from '@budget/fixtures/seed';
+import { eq } from 'drizzle-orm';
 import { Hono } from 'hono';
 import { mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { afterEach, beforeEach, expect, it } from 'vitest';
+import { afterAll, beforeAll, beforeEach, expect, it } from 'vitest';
 import { createApp, type AuthGate } from '../app';
 
 const TODAY = '2026-09-17';
@@ -21,10 +22,9 @@ let close: () => void;
 let signedIn: boolean;
 let app: ReturnType<typeof createApp>;
 
-beforeEach(() => {
+beforeAll(() => {
   ({ db, close } = createTestDatabase());
   seedDatabase(db);
-  signedIn = true;
   const auth: AuthGate = {
     requireSession: async (c, next) => (signedIn ? next() : c.json({ error: 'unauthorized' }, 401)),
     originGuard: async (_c, next) => next(),
@@ -33,7 +33,10 @@ beforeEach(() => {
   };
   app = createApp({ webDir, auth, ledger: { db, today: () => TODAY } });
 });
-afterEach(() => close());
+beforeEach(() => {
+  signedIn = true;
+});
+afterAll(() => close());
 
 const get = (path: string) => app.request(`/api${path}`);
 const read = async () =>
@@ -79,6 +82,7 @@ it('reports the broker tax of a booked dividend as booked, not as a rate of the 
     })
     .run();
   const after = await read();
+  db.delete(schema.trade).where(eq(schema.trade.id, 'probe-dividend')).run();
   expect(after.income.dividend.grossCents).toBe(before.income.dividend.grossCents + 10_000);
   expect(after.taxes.dividendCents).toBe(before.taxes.dividendCents + 1_234);
 });
