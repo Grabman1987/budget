@@ -69,7 +69,7 @@ export function firstTradeDate(db: Executor, securityId: string): string | undef
 }
 
 /**
- * Newest day with a price that came from a network source (Ariva, Yahoo, crypto feeds). Manual and imported
+ * Newest day with a price that came from a network source (Ariva, Yahoo, CoinGecko). Manual and imported
  * prices do not count: a manual price far in the future must not stop the refresh from filling
  * the days before it.
  */

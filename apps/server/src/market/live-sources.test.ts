@@ -37,32 +37,43 @@ function network() {
 }
 
 describe('createMarketSources (live)', () => {
-  it('Ariva is primary, the crypto feeds follow, Yahoo is the last resort', async () => {
+  it('Ariva is primary, CoinGecko primary for crypto, cryptocalc its fallback, Yahoo the last resort', async () => {
     add('etf', { quoteUrl: 'https://www.ariva.de/etf/syn/kurse/historische-kurse?boerse_id=45' });
-    add('btc', {
-      kind: 'crypto',
-      quoteUrl: 'https://cryptocalc.cc/bitpanda-kurse/?currency=BTC&fiat=EUR&range=all',
-    });
+    add('btc', { kind: 'crypto', coingeckoId: 'bitcoin', symbol: 'BTC-EUR' });
     add('eth', { kind: 'crypto', coingeckoId: 'ethereum' });
+    add('no-id', {
+      kind: 'crypto',
+      symbol: 'XYZ-EUR',
+      quoteUrl: 'https://www.ariva.de/krypto/syn/kurse/historische-kurse',
+    });
+    // Bitpanda-only product: no coin id, so the cryptocalc fallback (from the PP link) prices it.
+    add('lev', {
+      kind: 'crypto',
+      quoteUrl: 'https://cryptocalc.cc/bitpanda-kurse/?currency=BTC2L&fiat=EUR&range=all',
+    });
     add('yahoo-only', { symbol: 'SYN-ETFW' });
     const net = network();
     const sources = createMarketSources(db, 'live', {}, net.http);
     expect(sources.quotes.id).toBe('ariva');
-    expect(sources.moreQuotes?.map((s) => s.id)).toEqual(['cryptocalc', 'coingecko']);
+    expect(sources.moreQuotes?.map((s) => s.id)).toEqual(['coingecko', 'cryptocalc']);
     expect(sources.fallbackQuotes?.id).toBe('yfinance');
     const { prices } = await refreshMarket(db, sources, '2024-01-04');
-    expect(prices.failed).toEqual([]);
     expect(prices.bySource.ariva.securities).toBe(1);
+    expect(prices.bySource.coingecko.securities).toBe(2);
     expect(prices.bySource.cryptocalc.securities).toBe(1);
-    expect(prices.bySource.coingecko.securities).toBe(1);
+    expect(priceSeries(db, 'lev')[0]?.source).toBe('cryptocalc');
     expect(prices.bySource.yfinance.securities).toBe(1);
+    // A crypto security without a coin id is reported, never priced by Ariva or Yahoo.
+    expect(prices.failed).toEqual([{ securityId: 'no-id', errors: ['not_configured'] }]);
     expect(priceSeries(db, 'etf').map((p) => p.source)).toContain('ariva');
     expect(priceSeries(db, 'btc').at(-1)).toMatchObject({
       date: '2024-01-04',
       priceMicro: 40_100_000_000,
-      source: 'cryptocalc',
+      source: 'coingecko',
     });
+    expect(urlsOf(net.urls, 'api.coingecko.com')).toHaveLength(2);
     expect(urlsOf(net.urls, 'cryptocalc.cc')).toHaveLength(1);
+    expect(urlsOf(net.urls, 'query1.finance.yahoo.com')).toHaveLength(1);
   });
 
   it('BUDGET_ARIVA=0 switches Ariva off: its securities are reported, nothing is fetched there', async () => {

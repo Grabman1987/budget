@@ -77,7 +77,7 @@ const securityFields = {
     .url({ protocol: /^https$/ })
     .max(500)
     .nullable(),
-  /** CoinGecko coin id such as `bitcoin`. */
+  /** CoinGecko coin id such as `bitcoin`: a crypto security without one only gets the cryptocalc fallback. */
   coingeckoId: z
     .string()
     .regex(/^[a-z0-9][a-z0-9\-_.]{0,80}$/)

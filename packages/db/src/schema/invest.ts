@@ -103,12 +103,13 @@ export const security = sqliteTable(
     /** Exchange of the Ariva quote (`boerse_id`); wins over a `boerse_id` inside `quoteUrl`. */
     quoteExchange: text('quote_exchange'),
     /**
-     * The quote page as stored in Portfolio Performance (its HTML-table feed URL), dispatched by
-     * host: `https://www.ariva.de/<path>/kurse/historische-kurse[?boerse_id=…]` (Ariva) or
-     * `https://cryptocalc.cc/bitpanda-kurse/?currency=BTC&fiat=EUR&range=all` (crypto in EUR).
+     * The quote page as stored in Portfolio Performance (its HTML-table feed URL), by host:
+     * `https://www.ariva.de/<path>/kurse/historische-kurse[?boerse_id=…]` (Ariva, not for crypto) or
+     * `https://cryptocalc.cc/bitpanda-kurse/?currency=BTC&fiat=EUR&range=all` (fallback for a
+     * crypto security without `coingecko_id`).
      */
     quoteUrl: text('quote_url'),
-    /** CoinGecko coin id (`bitcoin`, PP property `COINGECKOCOINID`); EUR prices. */
+    /** CoinGecko coin id (`bitcoin`): primary price source of a crypto security (EUR prices). */
     coingeckoId: text('coingecko_id'),
     /** Switch for the daily price refresh; off keeps the security out of it. */
     pricesEnabled: integer('prices_enabled', { mode: 'boolean' }).notNull().default(true),

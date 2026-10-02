@@ -140,7 +140,8 @@ export function arivaSource(options: ArivaOptions): QuoteSource {
   };
   return {
     id: 'ariva',
-    supports: (ref) => options.enabled && parseArivaUrl(ref.quoteUrl) !== undefined,
+    supports: (ref) =>
+      options.enabled && ref.kind !== 'crypto' && parseArivaUrl(ref.quoteUrl) !== undefined,
     async history(ref, from, to) {
       if (!options.enabled) throw new MarketError('not_configured', 'Ariva is switched off');
       const target = parseArivaUrl(ref.quoteUrl);

@@ -96,7 +96,7 @@ export function yahooChartSource(options: YahooOptions): QuoteSource {
   const base = options.baseUrl ?? 'https://query1.finance.yahoo.com';
   return {
     id: 'yfinance',
-    supports: (ref) => ref.symbol !== null,
+    supports: (ref) => ref.symbol !== null && ref.kind !== 'crypto',
     async history(ref, from, to) {
       if (!ref.symbol || !SYMBOL.test(ref.symbol))
         throw new MarketError('not_configured', 'symbol');

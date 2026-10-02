@@ -29,8 +29,8 @@ export const SOURCE_TEXT: Record<string, string> = {
   manual: 'manuell',
   import: 'übertragen',
   ariva: 'Kursabruf',
-  cryptocalc: 'Kursabruf',
   coingecko: 'Kursabruf',
+  cryptocalc: 'Ersatzquelle',
   yfinance: 'Ersatzquelle',
 };
 export const quoteStand = (quote: PositionQuote | null) =>

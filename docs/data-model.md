@@ -185,15 +185,15 @@ the auth tables.
   so the cash balance stays at 0; the value is units (`holding` snapshot plus later trades) times the
   latest `price`. Net worth = account balances (debts negative) + holdings at market value.
 - **Market data sources** (P5.1, `docs/market-data.md`): `security.quote_url` is the quote page as PP
-  stores it (Ariva or cryptocalc, https only, dispatched by host), `quote_exchange` the Ariva
-  `boerse_id`, `coingecko_id` the CoinGecko coin id, `symbol` the Yahoo symbol (last resort);
+  stores it (Ariva, or cryptocalc as the fallback of a crypto security without a coin id; https only), `quote_exchange` the Ariva
+  `boerse_id`, `coingecko_id` the CoinGecko coin id (primary source of crypto prices), `symbol` the Yahoo symbol (last resort);
   `fallback_quote_id` is a legacy field no source reads. `prices_enabled` switches the daily refresh
   off, `quote_adjusted` asks for the adjusted close (default: plain). `fx_rate` is EUR per one unit:
   the ECB publishes units per EUR, the value is inverted on integers (10^12 / x, rounded half up
   once). The refresh fetches from the day after the newest network price (first time: 30 days back);
   a `manual` price never moves that start. `market_run` is the run log of the refresh (time, status,
   counts, error classes); its newest `ok`/`partial` row is the "Stand ... Kurse" time.
-- **Prices carry their source** (`ariva`, `cryptocalc`, `coingecko`, `yfinance`, `manual`, `import`); one price per product and
+- **Prices carry their source** (`ariva`, `coingecko`, `cryptocalc`, `yfinance`, `manual`, `import`); one price per product and
   day. A failed fetch is an inbox item, not a missing row.
 - **Expected payments are versioned** (`valid_from`), so a price increase changes the plan from that
   day on without rewriting history. Yearly payments use `due_month`. The 50/30/20 twelfths read

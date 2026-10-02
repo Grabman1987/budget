@@ -9,15 +9,22 @@ export {
   type ArivaOptions,
   type ArivaTarget,
 } from './ariva';
+export { coingeckoSource, parseCoingeckoChart, type CoingeckoOptions } from './coingecko';
 export {
-  coingeckoSource,
   cryptocalcSource,
-  parseCoingeckoChart,
   parseCryptocalcHtml,
   parseCryptocalcUrl,
-  type CryptoOptions,
+  type CryptocalcOptions,
   type CryptocalcTarget,
-} from './crypto';
+} from './cryptocalc';
+export {
+  COINGECKO_IDS,
+  cryptocalcSymbol,
+  deriveCoingeckoId,
+  resolveCoingeckoId,
+  type CoinIdInput,
+  type CoinIdResult,
+} from './coingecko-ids';
 export { ecbSource, parseEcbCsv, type EcbOptions } from './ecb';
 export { synthHistory, isWeekday, type Anchor, type SynthOptions } from './synth';
 export {
