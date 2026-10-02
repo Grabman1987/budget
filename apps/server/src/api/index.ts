@@ -7,6 +7,7 @@ import type { MarketSources } from '@budget/market';
 import { Hono, type MiddlewareHandler } from 'hono';
 import { ImportJobs } from '../imports/jobs';
 import { importRoutes } from '../imports/routes';
+import { importHttpEnabled } from '../imports/config';
 import { accountRoutes } from './accounts';
 import { bookingRoutes } from './bookings';
 import { budgetRoutes, categoryRoutes } from './budget';
@@ -59,7 +60,7 @@ export function createLedgerApi({
   today = () => todayInVienna(),
   market = createMarketSources(db, marketModeFromEnv()),
   stepUp,
-  jobs = new ImportJobs(db),
+  jobs,
 }: LedgerApiOptions): Hono {
   const api = new Hono();
   api.route('/search', searchRoutes(db));
@@ -93,7 +94,8 @@ export function createLedgerApi({
   api.route('/lookups', lookupRoutes(db));
   api.route('/undo', undoRoutes(db));
   api.route('/', marketRoutes(db, today, market));
-  api.route('/imports', importRoutes(db, today, stepUp, jobs));
+  if (importHttpEnabled())
+    api.route('/imports', importRoutes(db, today, stepUp, jobs ?? new ImportJobs(db)));
   api.onError(errorResponse);
   return api;
 }
