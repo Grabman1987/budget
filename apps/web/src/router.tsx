@@ -19,6 +19,7 @@ import {
   PLAN_ERWARTET,
   EINSTELLUNGEN_REGELWERK,
   PLAN_MONAT,
+  PLAN_JAHR,
   PLAN_SPARZIELE,
   HEUTE,
   KONTEN_BUCHUNGEN_META,
@@ -118,6 +119,7 @@ const BUILT_PATHS = new Set<string>([
   EINSTELLUNGEN_KATEGORIEN.path,
   EINSTELLUNGEN_REGELWERK.path,
   PLAN_MONAT.path,
+  PLAN_JAHR.path,
   PLAN_ERWARTET.path,
   VERMOEGEN_FREIHEIT_META.path,
   VERMOEGEN_NETTO_META.path,
@@ -215,6 +217,12 @@ const exportRoute = createRoute({
     () => import('./pages/export-placeholder'),
     'ExportPlaceholderPage',
   ),
+});
+const planYearRoute = createRoute({
+  getParentRoute: () => shellRoute,
+  path: PLAN_JAHR.path,
+  staticData: { meta: PLAN_JAHR },
+  component: lazyRouteComponent(() => import('./budget/plan-year-page'), 'PlanYearPage'),
 });
 const planExpectedRoute = createRoute({
   getParentRoute: () => shellRoute,
@@ -395,6 +403,7 @@ const routeTree = rootRoute.addChildren([
     rulesRoute,
     exportRoute,
     planMonthRoute,
+    planYearRoute,
     planExpectedRoute,
     freedomRoute,
     netWorthRoute,

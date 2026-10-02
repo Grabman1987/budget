@@ -102,10 +102,10 @@ const envelope = (over: Partial<PlanRow> = {}): PlanRow => ({
   ...over,
 });
 
-function renderEnvelope(row: PlanRow, tba: number, onClose = vi.fn()) {
+function renderEnvelope(row: PlanRow, tba: number, onClose = vi.fn(), month = '2026-09') {
   renderWith(
     <EnvelopePanel
-      month="2026-09"
+      month={month}
       row={row}
       rows={[row]}
       toBeAssignedCents={tba}
@@ -116,6 +116,22 @@ function renderEnvelope(row: PlanRow, tba: number, onClose = vi.fn()) {
 }
 
 describe('Envelope panel: Decken from Zu verteilen', () => {
+  it.each(['2025-12', '2026-09', '2027-01'])(
+    'covers the selected month %s without a current-month gate',
+    async (month) => {
+      const calls = stubApi({
+        [`POST /api/budget/${month}/cover`]: () => ok({ groupId: 'grp', coveredCents: 5_000 }),
+      });
+      renderEnvelope(envelope(), 10_000, vi.fn(), month);
+      await userEvent.click(screen.getByRole('button', { name: 'Decken · 50,00 €' }));
+      await waitFor(() =>
+        expect(calls(`POST /api/budget/${month}/cover`)).toEqual([
+          { categoryId: 'essen', fromId: null },
+        ]),
+      );
+    },
+  );
+
   it('offers "Nur x decken" by default when Zu verteilen is short, capped by the server', async () => {
     const calls = stubApi({
       'POST /api/budget/2026-09/cover': () => ok({ groupId: 'grp', coveredCents: 2_000 }),

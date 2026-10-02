@@ -166,20 +166,20 @@ test.describe('panel via route param', () => {
   });
 
   test('the browser back button closes the panel', async ({ page }) => {
-    await page.goto('/plan/jahr');
+    await page.goto('/einstellungen/zuordnung');
     await page.getByRole('link', { name: 'Seitenpanel testen' }).click();
     const dialog = page.getByRole('dialog', { name: 'Details' });
     await expect(dialog).toBeVisible();
     await page.goBack();
     await expect(dialog).toBeHidden();
-    await expect(page).toHaveURL(/\/plan\/jahr$/);
+    await expect(page).toHaveURL(/\/einstellungen\/zuordnung$/);
   });
 
   test('the close button closes the panel without leaving a duplicate history entry', async ({
     page,
   }) => {
     await page.goto('/plan/monat');
-    await page.goto('/plan/jahr');
+    await page.goto('/einstellungen/zuordnung');
     await page.getByRole('link', { name: 'Seitenpanel testen' }).click();
     await page.getByRole('button', { name: 'Schließen' }).click();
     await expect(page.getByRole('dialog')).toBeHidden();
@@ -361,8 +361,7 @@ test.describe('regression baselines of the shell (own screenshots)', () => {
 
   for (const [name, path] of [
     ['heute', '/'],
-    // Plan › Monat shows live data since P2c; Jahr keeps the Plan title block with month switch.
-    ['plan-jahr', '/plan/jahr'],
+    // Plan › Monat (P2c) and Plan › Jahr show live data; the plan-year spec covers that page.
     ['reports', '/reports'],
   ] as const) {
     test(`light ${name}`, async ({ page }) => {

@@ -167,6 +167,143 @@ describe('book: add', () => {
   });
 });
 
+describe('book: transfer envelope and finer matches', () => {
+  it('adds a transfer between a budget and a tracking account with its envelope', () => {
+    db.run(sql`update account set on_budget = 0 where id = 'spar'`);
+    done(only([{ ...transferOut('e1', '2026-10-03', -4_000), transferCategory: 'Essen' }]));
+    const giro = live('giro')[0]!;
+    expect(giro.amountCents).toBe(-4_000);
+    expect(giro.splits.map((s) => s.categoryId)).toEqual(['essen']);
+    expect(live('spar')[0]!.splits.map((s) => s.categoryId)).toEqual([null]);
+  });
+
+  it('refuses an envelope on a transfer between two budget accounts, and parses only with a transfer', () => {
+    const result = skipped(
+      only([{ ...transferOut('e2', '2026-10-03', -4_000), transferCategory: 'Essen' }]),
+    );
+    expect(result.reason).toBe('refused_by_rules');
+    expect(live('giro')).toHaveLength(0);
+    expect(() =>
+      parseBookFile([
+        {
+          id: 'x',
+          kind: 'add',
+          account: 'Giro',
+          date: '2026-10-03',
+          amountCents: -1,
+          transferCategory: 'Essen',
+        },
+      ]),
+    ).toThrow(OperatorInputError);
+  });
+
+  it('tells two identical bookings apart by category or by the other account of a transfer', () => {
+    const twin = (categoryId: string) =>
+      createBooking(
+        db,
+        {
+          accountId: 'giro',
+          date: '2026-10-03',
+          amountCents: -1_250,
+          splits: [{ categoryId, amountCents: -1_250 }],
+        },
+        owner,
+      );
+    twin('essen');
+    twin('reise');
+    expect(skipped(only([{ id: 'a', kind: 'delete', match }])).reason).toBe('ambiguous_match');
+    done(only([{ id: 'b', kind: 'delete', match: { ...match, category: 'Reise' } }]));
+    expect(live('giro')[0]!.splits[0]!.categoryId).toBe('essen');
+    expect(
+      skipped(only([{ id: 'c', kind: 'delete', match: { ...match, category: 'Nope' } }])).reason,
+    ).toBe('unknown_category');
+  });
+
+  it('adds an inflow with an income type by name', () => {
+    done(
+      only([
+        {
+          id: 'i1',
+          kind: 'add',
+          account: 'Giro',
+          date: '2026-10-03',
+          amountCents: 39,
+          incomeType: 'Kapitalerträge',
+        },
+      ]),
+    );
+    expect(live('giro')[0]!.splits[0]).toMatchObject({
+      categoryId: null,
+      incomeTypeId: 'income-capital',
+    });
+    expect(
+      skipped(
+        only([
+          {
+            id: 'i2',
+            kind: 'add',
+            account: 'Giro',
+            date: '2026-10-03',
+            amountCents: 39,
+            incomeType: 'Nope',
+          },
+        ]),
+      ).reason,
+    ).toBe('unknown_income_type');
+    expect(() =>
+      parseBookFile([
+        {
+          id: 'x',
+          kind: 'add',
+          account: 'Giro',
+          date: '2026-10-03',
+          amountCents: 1,
+          incomeType: 'Gehalt',
+          category: 'Essen',
+        },
+      ]),
+    ).toThrow(OperatorInputError);
+  });
+
+  it('deletes one of two true duplicates only when told how many there are', () => {
+    book('giro', '2026-10-03', -1_250);
+    book('giro', '2026-10-03', -1_250);
+    expect(skipped(only([{ id: 'a', kind: 'delete', match }])).reason).toBe('ambiguous_match');
+    expect(
+      skipped(only([{ id: 'b', kind: 'delete', match: { ...match, identical: 3 } }])).reason,
+    ).toBe('ambiguous_match');
+    done(only([{ id: 'c', kind: 'delete', match: { ...match, identical: 2 } }]));
+    expect(live('giro')).toHaveLength(1);
+    // no longer a pair: the same entry is now refused rather than deleting the last one
+    expect(
+      skipped(only([{ id: 'd', kind: 'delete', match: { ...match, identical: 2 } }])).reason,
+    ).toBe('ambiguous_match');
+    expect(live('giro')).toHaveLength(1);
+  });
+
+  it('refuses identical for bookings that differ', () => {
+    book('giro', '2026-10-03', -1_250, { memo: 'a' });
+    book('giro', '2026-10-03', -1_250, { memo: 'b' });
+    expect(
+      skipped(only([{ id: 'e', kind: 'delete', match: { ...match, identical: 2 } }])).reason,
+    ).toBe('ambiguous_match');
+    expect(() =>
+      parseBookFile([{ id: 'x', kind: 'delete', match: { ...match, identical: 1 } }]),
+    ).toThrow(OperatorInputError);
+  });
+
+  it('matches a transfer leg by the account on the other side', () => {
+    done(only([transferOut('t1', '2026-10-03', -1_250)]));
+    expect(
+      skipped(only([{ id: 'm', kind: 'delete', match: { ...match, transferAccount: 'Dollar' } }]))
+        .reason,
+    ).toBe('no_match');
+    done(only([{ id: 'n', kind: 'delete', match: { ...match, transferAccount: 'Sparen' } }]));
+    expect(live('giro')).toHaveLength(0);
+    expect(live('spar')).toHaveLength(0);
+  });
+});
+
 describe('book: change and delete', () => {
   it('changes the amount of a categorised booking (its split follows)', () => {
     book('giro', '2026-10-03', -1_250, { memo: 'x' });
@@ -294,6 +431,110 @@ describe('book: skips', () => {
     expect(skipped(locked).reason).toBe('reconciled_locked');
     done(free);
     expect(live('giro')).toHaveLength(1);
+  });
+
+  it('unlock: true changes the date, the amount and deletes a reconciled booking, audited and undoable', () => {
+    book('giro', '2026-10-03', -1_250, { status: 'reconciled' });
+    book('giro', '2026-10-04', -300, { status: 'reconciled' });
+    book('giro', '2026-10-05', -700, { status: 'reconciled' });
+    const before = state(false);
+    const auditBefore = auditCount();
+    const results = run([
+      { id: 'u1', kind: 'change_date', match, newDate: '2026-10-09', unlock: true },
+      {
+        id: 'u2',
+        kind: 'change_amount',
+        match: { ...match, date: '2026-10-04', amountCents: -300 },
+        newAmountCents: -350,
+        unlock: true,
+      },
+      {
+        id: 'u3',
+        kind: 'delete',
+        match: { ...match, date: '2026-10-05', amountCents: -700 },
+        unlock: true,
+      },
+    ]).map(done);
+    expect(new Set(results.map((r) => r.groupId)).size).toBe(3);
+    expect(auditCount()).toBeGreaterThan(auditBefore);
+    expect(
+      live('giro')
+        .map((b) => [b.date, b.amountCents])
+        .sort(),
+    ).toEqual([
+      ['2026-10-04', -350],
+      ['2026-10-09', -1_250],
+    ]);
+    // the same audit machinery as the app: each entry undoes on its own, newest first
+    for (const r of [...results].reverse()) undo(db, { groupId: r.groupId }, operator);
+    expect(state(false)).toEqual(before);
+  });
+
+  it('unlock applies to its own entry only and a dry run with unlock writes nothing', () => {
+    book('giro', '2026-10-03', -1_250, { status: 'reconciled' });
+    book('giro', '2026-10-04', -300, { status: 'reconciled' });
+    const before = state();
+    const dry = run(
+      [{ id: 'd1', kind: 'change_date', match, newDate: '2026-10-09', unlock: true }],
+      true,
+    );
+    expect(done(dry[0]).groupId).toBe('');
+    expect(state()).toEqual(before);
+    const [unlocked, locked] = run([
+      { id: 'o1', kind: 'change_date', match, newDate: '2026-10-09', unlock: true },
+      {
+        id: 'o2',
+        kind: 'change_date',
+        match: { ...match, date: '2026-10-04', amountCents: -300 },
+        newDate: '2026-10-10',
+      },
+    ]);
+    done(unlocked);
+    expect(skipped(locked).reason).toBe('reconciled_locked');
+  });
+
+  it('unlock: false is the same as no unlock, and a bad or misplaced unlock is rejected', () => {
+    book('giro', '2026-10-03', -1_250, { status: 'reconciled' });
+    expect(skipped(only([{ id: 'f1', kind: 'delete', match, unlock: false }])).reason).toBe(
+      'reconciled_locked',
+    );
+    expect(() => parseBookFile([{ id: 'x', kind: 'delete', match, unlock: 'yes' }])).toThrow(
+      OperatorInputError,
+    );
+    expect(() =>
+      parseBookFile([
+        {
+          id: 'x',
+          kind: 'add',
+          account: 'Giro',
+          date: '2026-10-03',
+          amountCents: -1,
+          unlock: true,
+        },
+      ]),
+    ).toThrow(OperatorInputError);
+  });
+
+  it('unlock leaves the other rules in force (split amount change is still refused)', () => {
+    createBooking(
+      db,
+      {
+        accountId: 'giro',
+        date: '2026-10-03',
+        amountCents: -1_250,
+        status: 'reconciled',
+        splits: [
+          { categoryId: 'essen', amountCents: -1_000 },
+          { categoryId: 'reise', amountCents: -250 },
+        ],
+      },
+      owner,
+    );
+    const result = skipped(
+      only([{ id: 's1', kind: 'change_amount', match, newAmountCents: -1_300, unlock: true }]),
+    );
+    expect(result.reason).not.toBe('reconciled_locked');
+    expect(live('giro')[0]!.amountCents).toBe(-1_250);
   });
 
   it('refuses an amount change of a split booking, like the app', () => {

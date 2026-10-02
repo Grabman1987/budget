@@ -1,0 +1,231 @@
+.plan-year {
+  padding: 28px 32px 72px;
+  min-width: 0;
+}
+.year-sheet {
+  overflow: hidden;
+}
+.year-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 20px 24px 12px;
+  flex-wrap: wrap;
+}
+.year-toolbar h2 {
+  margin: 0;
+  font-size: 20px;
+}
+.year-note {
+  color: var(--ink-2);
+  font-size: 13px;
+  padding: 0 24px 16px;
+  margin: 0;
+  max-width: 90ch;
+}
+.year-desktop {
+  overflow-x: auto;
+  isolation: isolate;
+}
+.year-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-variant-numeric: tabular-nums;
+}
+.year-table th,
+.year-table td {
+  padding: 12px;
+  border-bottom: 1px solid var(--rule);
+  white-space: nowrap;
+  text-align: right;
+}
+.year-table th:first-child {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  min-width: 220px;
+  max-width: 280px;
+  white-space: normal;
+  text-align: left;
+  background: var(--surface);
+  border-right: 1px solid var(--rule-strong);
+}
+.year-table thead th {
+  background: var(--surface-2);
+  font-family: var(--font-label, 'Barlow Semi Condensed', sans-serif);
+  font-weight: 500;
+  color: var(--ink-2);
+}
+.year-table thead th:first-child,
+.year-table .year-group th,
+.year-table .year-group td,
+.year-table tfoot th,
+.year-table tfoot td {
+  background: var(--surface-2);
+  font-weight: 620;
+}
+.year-table tbody th {
+  font-weight: 400;
+}
+.year-table abbr {
+  text-decoration: none;
+}
+.year-table .category-icon {
+  margin-right: 6px;
+}
+.year-group button {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  min-height: 44px;
+  padding: 0;
+  cursor: pointer;
+}
+.year-group svg,
+.year-phone-summary svg {
+  flex-shrink: 0;
+}
+.year-group svg.is-closed,
+.year-phone-summary svg.is-closed {
+  transform: rotate(-90deg);
+}
+.year-end {
+  border-left: 1px solid var(--rule-strong);
+  font-weight: 620;
+}
+.year-amount {
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.year-amount.is-over {
+  color: var(--red);
+}
+.year-totals {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 20px 40px;
+  padding: 20px 24px;
+  margin: 0;
+  border-top: 1px solid var(--rule-strong);
+}
+.year-totals dt {
+  color: var(--ink-2);
+  font-size: 13px;
+}
+.year-totals dd {
+  margin: 6px 0 0;
+  font-size: 20px;
+  font-weight: 620;
+  font-variant-numeric: tabular-nums;
+}
+.year-empty {
+  padding: 16px 24px 24px;
+}
+.year-phone {
+  display: none;
+}
+@media (max-width: 767px) {
+  .plan-year {
+    padding: 20px 16px 96px;
+  }
+  .year-toolbar {
+    padding: 16px;
+    gap: 12px;
+  }
+  .year-metric {
+    width: 100%;
+    display: flex;
+  }
+  .year-metric button {
+    min-height: 44px;
+    flex: 1;
+    padding-inline: 7px;
+  }
+  .year-note {
+    padding: 0 16px 16px;
+    font-size: 12px;
+  }
+  .year-desktop {
+    display: none;
+  }
+  .year-phone {
+    display: block;
+  }
+  .year-month-choice {
+    padding: 0 16px 16px;
+    display: grid;
+    gap: 6px;
+    color: var(--ink-2);
+  }
+  .year-phone-head,
+  .year-phone-row,
+  .year-phone-total {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 12px;
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--rule);
+    align-items: baseline;
+  }
+  .year-phone-head {
+    font-size: 12px;
+    color: var(--ink-2);
+  }
+  .year-phone-row > span:first-child {
+    overflow-wrap: anywhere;
+  }
+  .year-phone-row .category-icon {
+    margin-right: 4px;
+  }
+  .year-phone-group {
+    margin: 0;
+  }
+  .year-phone-summary {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    width: 100%;
+    gap: 8px;
+    text-align: left;
+    padding: 12px 16px;
+    min-height: 48px;
+    background: var(--surface-2);
+    color: var(--ink);
+    border: 0;
+    border-bottom: 1px solid var(--rule);
+    font: inherit;
+    font-weight: 620;
+    cursor: pointer;
+  }
+  .year-phone-summary > span:first-child {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    overflow-wrap: anywhere;
+  }
+  .year-phone-total {
+    background: var(--surface-2);
+  }
+  .year-phone-annual summary {
+    padding: 16px;
+    min-height: 48px;
+    cursor: pointer;
+  }
+  .year-phone-annual h3 {
+    margin: 0;
+    padding: 12px 16px;
+    font-size: 15px;
+    background: var(--surface-2);
+  }
+  .year-totals {
+    padding: 16px;
+    gap: 16px;
+    display: grid;
+  }
+}

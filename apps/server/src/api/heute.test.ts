@@ -183,11 +183,11 @@ describe('GET /heute', () => {
       period: 'month',
       from: '2026-03-01',
       to: '2026-03-31',
-      payday: { day: '2026-03-31', source: 'salary', daysToPayday: 13 },
+      payday: { day: '2026-04-15', source: 'payday_rule', daysToPayday: 28 },
       budgetBalanceCents: 188_000,
     });
-    // Miete (900 EUR, due the 25th) is the one bill open before the payday
-    expect(res.body.lead).toMatchObject({ openCents: 90_000, daysToPayday: 13 });
+    // Miete (900 EUR, due the 25th) is the one bill open before the payday (15 April)
+    expect(res.body.lead).toMatchObject({ openCents: 90_000, daysToPayday: 28 });
     expect(res.body.lead.freeCents).toBe(
       res.body.lead.needCents + res.body.lead.wantCents - 90_000,
     );
@@ -216,9 +216,9 @@ describe('GET /heute', () => {
 
   it('period=payday runs from today to the payday', async () => {
     const res = await call('GET', '/heute?period=payday');
-    expect(res.body.stand).toMatchObject({ period: 'payday', from: TODAY, to: '2026-03-31' });
+    expect(res.body.stand).toMatchObject({ period: 'payday', from: TODAY, to: '2026-04-15' });
     expect(res.body.balance.actual).toHaveLength(1);
-    expect(res.body.balance.forecast).toHaveLength(14);
+    expect(res.body.balance.forecast).toHaveLength(29);
   });
 
   it('month shows another month; bad parameters are 400', async () => {

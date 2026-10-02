@@ -5,6 +5,7 @@ import { createRoot } from 'react-dom/client';
 import { queryClient } from './auth/status-query';
 import { router } from './router';
 import './styles.css';
+import { PwaShell } from './pwa/pwa';
 
 const container = document.getElementById('root');
 if (!container) throw new Error('Missing #root');
@@ -12,7 +13,9 @@ if (!container) throw new Error('Missing #root');
 createRoot(container).render(
   <StrictMode>
     <QueryClientProvider client={queryClient}>
-      <RouterProvider router={router} />
+      <PwaShell>
+        <RouterProvider router={router} />
+      </PwaShell>
     </QueryClientProvider>
   </StrictMode>,
 );
