@@ -91,7 +91,7 @@ Prototype references: [Vermögen](../design/prototype/vermoegen.html),
 | I16 | Allocation Soll/Ist, region/product structure and rebalancing | Partial UI + engine | Current class Soll/Ist, R13/R14/R15 hints and audited target versions are connected; region/product reports, savings-plan actions and accepted private rebalancing workflows remain |
 | I17 | Savings plans, execution matching and change proposals | Schedule UI + engine/API | Native-currency schedule create/edit/end, current/future versions and audited undo are available. Execution/proposal UI and private acceptance remain; bank action stays manual and proposals do not execute orders |
 | I18 | Net worth, own contribution vs market, daily history and composition | UI + engine | Private reconciliation, first-refresh freshness and owner design acceptance |
-| I19 | Debt repayment / Sondertilgung | Pure calculation; UI placeholder | Terms/workflow integration, repayment chart and scenario acceptance |
+| I19 | Debt repayment / Sondertilgung | Connected current debts, real history and unpersisted native monthly payoff model | Persisted per-loan terms/workflow, variable conditions and private contractual scenario acceptance |
 | I20 | Freiheitszahl with Soll-Pfad and target year | Pure calculation; UI placeholder | Shared-data integration, complete page and private assumptions |
 | I21 | PP XML parsing, security matching, reversible transfer and Gate 3 report | Partial | Parser/target plan exist; persisted commit, matching and independent Gate 3 acceptance remain |
 
@@ -110,7 +110,8 @@ explicit migration findings; parser support is not proof of lossless private tra
 
 The [report catalog](../apps/web/src/nav/reports-catalog.ts) and navigation are
 implemented. The current [ReportPage](../apps/web/src/pages/reports-pages.tsx)
-renders a placeholder for **every report body below**. Existing domain calculations,
+dispatches connected bodies where implemented and otherwise renders a placeholder,
+as recorded below. Existing domain calculations,
 related working pages and prototype charts do not make these reports finished.
 Each needs connected data, period controls, the specified chart, booking drill-down,
 consistent totals, desktop/mobile checks and printing where required.
@@ -124,7 +125,7 @@ consistent totals, desktop/mobile checks and printing where required.
 | 1.5 | Jahresansicht | `reports-monat.js` | Body + previous year Open |
 | 1.6 | Kategorieübersicht | `reports-monat.js` | Body Open |
 | 1.7 | Sparquote und Geldalter | `reports-monat.js` | Body Open |
-| 1.8 | Gesamttabelle | `reports-monat.js` | Body Open; functional CSV download deferred by owner |
+| 1.8 | Gesamttabelle | `reports-monat.js` | Body Open; account/depot CSV ZIP export is implemented separately |
 | 1.9 | Projekte und Nebeneinkünfte | `reports-monat.js` | Capture/data + body Open |
 | 2.1 | Ausgabenanalyse | `reports-ausgaben.js` | Body Open |
 | 2.2 | Budgettreue inkl. 50/30/20 | `reports-ausgaben.js` | Body Open; twelfths rule follows SPEC |
@@ -140,12 +141,12 @@ consistent totals, desktop/mobile checks and printing where required.
 | 4.1 | Depots im Vergleich | `reports-portfolio.js` | Body Open |
 | 4.2 | Allocation | `reports-portfolio.js` | Body Open |
 | 4.3 | Einzahlungen und Wert | `reports-portfolio.js` | Body Open |
-| 4.4 | Rendite und Kennzahlen | `reports-portfolio.js` | Body Open; performance engine exists |
+| 4.4 | Rendite und Kennzahlen | `reports-portfolio.js` | Partial: connected securities-only period metrics and lifetime documented realized gain; benchmark comparison, asset-class comparison and monthly heatmap remain open |
 | 4.5 | Kosten, Steuern, Erträge | `reports-portfolio.js` | Body Open; show source taxes without duplicate withholding |
 | 5.1 | Jahresreport | `reports-ueberblick.js` | Body + two printable sheets Open |
 | 5.2 | Finanz-Check-Verlauf | `reports-ueberblick.js` | History body Open; current rule status exists |
 | 5.3 | Explorer | `reports-ueberblick.js` | Pivot, saved views and body Open |
-| 5.4 | Kontakte-Abrechnung | `reports-ueberblick.js` | Connected EUR contact ledger under Konten › Kontakte; dedicated monthly report body remains Open |
+| 5.4 | Kontakte-Abrechnung | `reports-ueberblick.js` | Fixed all-time EUR report: shared receivable/credit chain, per-person retained ledger, running balance stair chart and source drilldown. Pending bookings explicitly included; mixed currency unavailable. Owner/private acceptance remains |
 | 5.5 | Zeitraumvergleich | `reports-ueberblick.js` | Body Open |
 
 References are under [design/prototype](../design/prototype/). The older concept's

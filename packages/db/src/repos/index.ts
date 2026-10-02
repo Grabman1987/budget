@@ -30,6 +30,7 @@ export * from './contacts';
 export * from './portfolio-positions';
 export * from './global-search';
 export * from './inbox';
+export * from './debts';
 export * from './portfolio-allocation';
 
 export * from './freedom';

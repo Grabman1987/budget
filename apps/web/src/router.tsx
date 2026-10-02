@@ -31,6 +31,7 @@ import {
   VERMOEGEN_FREIHEIT_META,
   VERMOEGEN_NETTO_META,
   VERMOEGEN_PORTFOLIO_META,
+  VERMOEGEN_SCHULDEN_META,
   type PageMeta,
 } from './nav/pages';
 import { NotFoundPage } from './pages/not-found';
@@ -119,6 +120,7 @@ const BUILT_PATHS = new Set<string>([
   VERMOEGEN_FREIHEIT_META.path,
   VERMOEGEN_NETTO_META.path,
   VERMOEGEN_PORTFOLIO_META.path,
+  VERMOEGEN_SCHULDEN_META.path,
   PLAN_SPARZIELE.path,
   CSV_EXPORT_META.path,
 ]);
@@ -239,6 +241,18 @@ const portfolioRoute = createRoute({
   }),
   component: lazyRouteComponent(() => import('./wealth/portfolio-page'), 'PortfolioPage'),
 });
+const debtsRoute = createRoute({
+  getParentRoute: () => shellRoute,
+  path: '/vermoegen/schulden',
+  staticData: { meta: VERMOEGEN_SCHULDEN_META },
+  validateSearch: (search: Record<string, unknown>) => ({
+    kredit:
+      typeof search['kredit'] === 'string' && search['kredit'].length <= 64
+        ? search['kredit']
+        : undefined,
+  }),
+  component: lazyRouteComponent(() => import('./wealth/debts-page'), 'DebtsPage'),
+});
 const planGoalsRoute = createRoute({
   getParentRoute: () => shellRoute,
   path: PLAN_SPARZIELE.path,
@@ -292,6 +306,14 @@ const reportGroupRoute = createRoute({
 const reportRoute = createRoute({
   getParentRoute: () => shellRoute,
   path: '/reports/$reportId',
+  validateSearch: (search: Record<string, unknown>) => ({
+    kontakt:
+      typeof search['kontakt'] === 'string' &&
+      search['kontakt'].length > 0 &&
+      search['kontakt'].length <= 100
+        ? search['kontakt']
+        : undefined,
+  }),
   staticData: { meta: { ...REPORTS_CATALOG, title: 'Report', register: 'katalog' } },
   loader: ({ params }): PageTitleData => {
     const report = findReport(params.reportId);
@@ -360,6 +382,7 @@ const routeTree = rootRoute.addChildren([
     freedomRoute,
     netWorthRoute,
     portfolioRoute,
+    debtsRoute,
     planGoalsRoute,
     ...redirects,
     overviewRoute,

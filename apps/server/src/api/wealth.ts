@@ -1,3 +1,4 @@
+import { debtRoutes } from './debts';
 import {
   freedomView,
   accountValuesAsOf,
@@ -18,6 +19,7 @@ const networthQuery = z.object({ period: z.enum(PERIODS).default('YTD') });
 /** Vermögen: net worth, current freedom sources and the shared price stamp. */
 export function wealthRoutes(db: Db, today: () => string): Hono {
   const app = new Hono();
+  app.route('/debts', debtRoutes(db, today));
 
   app.get('/freedom', (c) => c.json(freedomView(db, today())));
 

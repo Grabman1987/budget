@@ -529,6 +529,60 @@ describe('invest CRUD', () => {
       positions: [],
     });
   });
+
+  it('GET /portfolio keeps a documented realized gain after the only position is fully sold', async () => {
+    const sec = (await call('POST', '/securities', { name: 'Muster-ETF', kind: 'etf' })).body[
+      'security'
+    ];
+    expect(
+      (await call('PUT', `/securities/${sec.id}/prices/2026-09-01`, { price: '100' })).status,
+    ).toBe(200);
+    await call('POST', '/trades', {
+      securityId: sec.id,
+      accountId: 'depot',
+      date: '2026-09-01',
+      kind: 'buy',
+      units: '1',
+      amountCents: 10_000,
+    });
+    await call('POST', '/trades', {
+      securityId: sec.id,
+      accountId: 'depot',
+      date: '2026-09-10',
+      kind: 'sell',
+      units: '-1',
+      amountCents: 12_000,
+    });
+
+    const res = await call('GET', '/portfolio?period=1J&view=securities');
+    expect(res.status).toBe(200);
+    expect(res.body['portfolio']).toMatchObject({
+      view: 'securities',
+      realizedGainCents: 2_000,
+      realizedGainComplete: true,
+      positions: [],
+    });
+  });
+
+  it('GET /portfolio reports unavailable valuation history instead of a zero return', async () => {
+    const sec = (await call('POST', '/securities', { name: 'Musterinstrument', kind: 'etf' })).body[
+      'security'
+    ];
+    await call('POST', '/trades', {
+      securityId: sec.id,
+      accountId: 'depot',
+      date: '2026-09-01',
+      kind: 'buy',
+      units: '1',
+      amountCents: 10_000,
+    });
+
+    const res = await call('GET', '/portfolio?period=1J&view=securities');
+    expect(res.status).toBe(503);
+    expect(res.body).toMatchObject({ error: 'valuation_unavailable', reason: 'missing_price' });
+    expect(res.body['missingPriceSecurityIds']).toContain(sec.id);
+    expect(res.body['portfolio']).toBeUndefined();
+  });
 });
 
 async function app_get(call: ReturnType<typeof caller>, path: string) {
