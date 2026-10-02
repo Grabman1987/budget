@@ -214,3 +214,47 @@ describe('sollPfad', () => {
     expect(s.neededMonthlySavingCents).toBe(8_000);
   });
 });
+
+describe('public projection numeric boundary', () => {
+  const input = {
+    investedCents: 0,
+    targetCents: 100_000,
+    monthlySavingCents: 10_000,
+    realReturnBp: 0,
+  };
+  it('rejects nonfinite, fractional and unsafe inputs', () => {
+    for (const value of [Number.NaN, Number.POSITIVE_INFINITY, 0.5, Number.MAX_SAFE_INTEGER + 1]) {
+      expect(() => projectFreedom({ ...input, investedCents: value })).toThrow(RangeError);
+    }
+    expect(() => projectFreedom({ ...input, monthlySavingCents: Number.MAX_SAFE_INTEGER })).toThrow(
+      RangeError,
+    );
+  });
+  it('fails at an unsafe compound step, not an approximate forecast', () => {
+    expect(() =>
+      projectFreedom({
+        ...input,
+        investedCents: Number.MAX_SAFE_INTEGER - 1,
+        targetCents: Number.MAX_SAFE_INTEGER,
+        realReturnBp: 500,
+      }),
+    ).toThrow(RangeError);
+  });
+});
+
+describe('exact cancellation at safe cent boundaries', () => {
+  it('annualises a literal monthly cancellation without losing a cent', () => {
+    expect(freedomAnnualSpendCents([Number.MAX_SAFE_INTEGER, 2, -Number.MAX_SAFE_INTEGER])).toBe(8);
+  });
+  it('rejects unsafe direct compound inputs before multiplication', () => {
+    expect(() => compoundStep(0, Number.MAX_SAFE_INTEGER + 1, 0)).toThrow(RangeError);
+    expect(() => compoundStep(0.5, 500, 0)).toThrow(RangeError);
+    expect(() => compoundStep(0, 500, Number.NaN)).toThrow(RangeError);
+  });
+  it('adds the three compound components exactly even with unsafe intermediate cancellation', () => {
+    expect(compoundStep(-Number.MAX_SAFE_INTEGER, 1, Number.MAX_SAFE_INTEGER)).toBe(
+      -75_059_993_790,
+    );
+    expect(compoundStep(Number.MAX_SAFE_INTEGER, 1, -Number.MAX_SAFE_INTEGER)).toBe(75_059_993_790);
+  });
+});

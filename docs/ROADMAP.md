@@ -311,7 +311,17 @@ Price history (yfinance + Ariva, source per price), ECB rates, trades and holdin
 - [x] Literal projection/FX/safety/session/origin tests and desktop/mobile light/dark original-prototype geometry and browser evidence
 - [ ] Persisted per-loan payment terms/scenarios, variable conditions, multi-loan strategies and connected debt/card rules remain later; private contractual reconciliation is open
 
+### P5.8 — Freiheitszahl: forecast from today
+- [x] Connected current R16 expense/investment sources and configurable multiple; explicit unknown quote/FX and short-history annualisation, original lead/chain/quarter progress and source navigation.
+- [x] Explicit unsaved saving assumption and 5 % real-return default; shared monthly projection with +100 EUR comparison, bounded numeric errors, desktop/mobile light/dark and accessible values.
+- [ ] Historical Soll-Pfad, chosen goal year and persisted assumptions await separate owner decisions; the complete freedom workflow and private acceptance remain open.
+
+
 ## P6 Reports und Umstellung
+### Report 5.4 — Kontakte-Abrechnung
+- [x] Fixed all-time EUR report with shared replay running balances/credit chain, nonzero overview, balanced history/deep links, per-person ledger/stair chart, pending metadata and real booking/contact source navigation. No sending/settlement duplication or month selector; unsupported currency makes the entire read unavailable.
+- [ ] Independent financial review, owner design acceptance and private contact-ledger reconciliation; other report bodies and Gate 4 remain separate.
+
 The 30 reports (SPEC §7), explorer, printable sheets, parallel run with reconciliation report. **Gate 4:** one month-end without difference, then retire remaining finance tools, including YNAB and PP. The prototype-only host was retired independently of this gate.
 
 ### P6.3 — Einzahlungen und Wert
@@ -324,3 +334,9 @@ The 30 reports (SPEC §7), explorer, printable sheets, parallel run with reconci
 - [x] Suppress all report figures when the legacy portfolio summary returns `valuation_unavailable`; keep documented zero gains distinct from unavailable basis and preserve gains when open positions are empty.
 - [x] Focused invest API cases, synthetic browser edge fixtures and read-only sample-ledger browser coverage on desktop/mobile; accessibility and horizontal overflow checked in light/dark mode. Evidence: [report 4.4](evidence/report-4.4.md).
 - [ ] Benchmark comparison, asset-class comparison and monthly heatmap from the prototype; depot-inclusive view and owner acceptance remain outside this first report body.
+
+### P6.3.4 — Jahresvorschau Zahlungen (first source slice)
+- [x] `/reports/vorschau`: twelve full future months from live stored expected-outflow contracts and all live amount versions, using the existing shifted due-date rules. Read-only `GET /api/expected/year-preview` requires a session and never materialises, matches or refreshes occurrences.
+- [x] One pure projection feeds lead, chart and twelve-month payment calendar. Preserve native amount ranges/currencies, display unavailable contract amounts explicitly and overlay stored status/links once per payment/date. Linked actual bookings retain their own currency and remain separate from contract projection.
+- [x] Literal domain/API cases, audited-write query invalidation and synthetic desktop/mobile light/dark browser evidence. See [report 3.4](evidence/report-3.4.md).
+- [ ] Full original source coverage: independent investment savings plans, other future ledger transfers and their cross-source identity/dedup contract; no inferred category funding. Owner acceptance remains open.

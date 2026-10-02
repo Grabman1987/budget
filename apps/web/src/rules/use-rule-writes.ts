@@ -3,6 +3,7 @@ import { queryOptions, useQueryClient } from '@tanstack/react-query';
 import { undoGroup } from '../ledger/api';
 import { errorText } from '../ledger/labels';
 import { HEUTE_KEY } from '../heute/api';
+import { FREEDOM_KEY } from '../wealth/freedom-api';
 import { evaluateRules, fetchCheck, fetchRules } from './api';
 
 export const RULES_KEY = ['rules'] as const;
@@ -24,6 +25,7 @@ export function useRuleWrite() {
       qc.invalidateQueries({ queryKey: [...RULES_KEY] }),
       qc.invalidateQueries({ queryKey: [...RULES_CHECK_KEY] }),
       qc.invalidateQueries({ queryKey: HEUTE_KEY }),
+      qc.invalidateQueries({ queryKey: FREEDOM_KEY }),
     ]);
   const refresh = async () => {
     await invalidate();

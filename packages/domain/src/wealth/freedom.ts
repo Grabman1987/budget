@@ -8,6 +8,14 @@ export const DEFAULT_REAL_RETURN_BP = 500;
 /** Projection horizon: 60 years. */
 export const MAX_FREEDOM_MONTHS = 720;
 
+/** Exact addition for this read model: a safe final sum may follow larger intermediate totals. */
+export function freedomSumCents(values: ReadonlyArray<number>): number | null {
+  if (!values.every(Number.isSafeInteger)) return null;
+  const sum = values.reduce((total, value) => total + BigInt(value), 0n);
+  const limit = BigInt(Number.MAX_SAFE_INTEGER);
+  return sum > limit || sum < -limit ? null : Number(sum);
+}
+
 /** Target value: annual spend times `multiple` (default 25). */
 export function freedomTargetCents(
   annualSpendCents: number,
@@ -23,8 +31,12 @@ export function freedomTargetCents(
 export function freedomAnnualSpendCents(monthlyConsumptionCents: ReadonlyArray<number>): number {
   const last = monthlyConsumptionCents.slice(-12);
   if (last.length === 0) return 0;
-  const sum = last.reduce((a, b) => a + b, 0);
-  return last.length === 12 ? sum : mulDivRound(sum, 12, last.length);
+  const sum = freedomSumCents(last);
+  if (sum === null) throw new RangeError('Freedom expense sum exceeds safe integer cents');
+  const annual = last.length === 12 ? sum : mulDivRound(sum, 12, last.length);
+  if (!Number.isSafeInteger(annual))
+    throw new RangeError('Freedom annual spend exceeds safe integer cents');
+  return annual;
 }
 
 /** Mean of monthly amounts in cents, rounded half up (e.g. the average Zukunft contribution). 0 without data. */
@@ -52,7 +64,16 @@ export function compoundStep(
   realReturnBp: number,
   savingCents: number,
 ): number {
-  return valueCents + mulDivRound(valueCents, realReturnBp, 120_000) + savingCents;
+  if (![valueCents, realReturnBp, savingCents].every(Number.isSafeInteger)) {
+    throw new RangeError('Freedom compound step requires safe integer inputs');
+  }
+  const value = freedomSumCents([
+    valueCents,
+    mulDivRound(valueCents, realReturnBp, 120_000),
+    savingCents,
+  ]);
+  if (value === null) throw new RangeError('Freedom compound step exceeds safe integer cents');
+  return value;
 }
 
 /** Value after `months` steps of `compoundStep`. */
@@ -85,6 +106,8 @@ function monthsToTarget(
   let m = 0;
   while (v < targetCents && m < maxMonths) {
     v = compoundStep(v, realReturnBp, savingCents);
+    if (!Number.isSafeInteger(v))
+      throw new RangeError('Freedom projection exceeds safe integer cents');
     m += 1;
     if (m % 12 === 0) yearlyPath.push(v);
   }
@@ -123,6 +146,20 @@ export function projectFreedom(input: {
 }): FreedomProjection {
   const extraSavingCents = input.extraSavingCents ?? 10_000;
   const maxMonths = input.maxMonths ?? MAX_FREEDOM_MONTHS;
+  if (
+    ![
+      input.investedCents,
+      input.monthlySavingCents,
+      input.realReturnBp,
+      input.targetCents,
+      extraSavingCents,
+      maxMonths,
+      input.monthlySavingCents + extraSavingCents,
+    ].every(Number.isSafeInteger) ||
+    maxMonths < 0
+  ) {
+    throw new RangeError('Freedom projection requires safe integer inputs');
+  }
   const base = monthsToTarget(
     input.investedCents,
     input.monthlySavingCents,

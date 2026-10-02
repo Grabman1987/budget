@@ -92,7 +92,7 @@ Prototype references: [Vermögen](../design/prototype/vermoegen.html),
 | I17 | Savings plans, execution matching and change proposals | Schedule UI + engine/API | Native-currency schedule create/edit/end, current/future versions and audited undo are available. Execution/proposal UI and private acceptance remain; bank action stays manual and proposals do not execute orders |
 | I18 | Net worth, own contribution vs market, daily history and composition | UI + engine | Private reconciliation, first-refresh freshness and owner design acceptance |
 | I19 | Debt repayment / Sondertilgung | Connected current debts, real history and unpersisted native monthly payoff model | Persisted per-loan terms/workflow, variable conditions and private contractual scenario acceptance |
-| I20 | Freiheitszahl with Soll-Pfad and target year | Pure calculation; UI placeholder | Shared-data integration, complete page and private assumptions |
+| I20 | Freiheitszahl with Soll-Pfad and target year | Partial UI + shared calculation | Current R16 sources and explicit unsaved saving forecast are connected; historical Soll path, chosen goal year, saved assumptions and private acceptance remain open |
 | I21 | PP XML parsing, security matching, reversible transfer and Gate 3 report | Partial | Parser/target plan exist; persisted commit, matching and independent Gate 3 acceptance remain |
 
 Held instruments without quotes retain known basis and explicit unknown market value/gain
@@ -136,7 +136,7 @@ consistent totals, desktop/mobile checks and printing where required.
 | 3.1 | Liquiditätsprognose | `reports-zukunft.js` | Body + events/levers Open; forecast engine exists |
 | 3.2 | Cashflow-Verlauf | `reports-zukunft.js` | Body Open |
 | 3.3 | Vermögensverläufe | `reports-zukunft.js` | Report body Open; net-worth page exists |
-| 3.4 | Jahresvorschau Zahlungen | `reports-zukunft.js` | Report body Open; schedules exist |
+| 3.4 | Jahresvorschau Zahlungen | `reports-zukunft.js` | Partial: connected twelve-month versioned expected-outflow contract preview, native ranges/currencies, stored status/link overlay; independent savings plans, other future transfers and full source dedup remain Open |
 | 3.5 | Sparziele-Fortschritt | `reports-zukunft.js` | Report body Open; goals page exists |
 | 4.1 | Depots im Vergleich | `reports-portfolio.js` | Body Open |
 | 4.2 | Allocation | `reports-portfolio.js` | Body Open |
@@ -146,7 +146,7 @@ consistent totals, desktop/mobile checks and printing where required.
 | 5.1 | Jahresreport | `reports-ueberblick.js` | Body + two printable sheets Open |
 | 5.2 | Finanz-Check-Verlauf | `reports-ueberblick.js` | History body Open; current rule status exists |
 | 5.3 | Explorer | `reports-ueberblick.js` | Pivot, saved views and body Open |
-| 5.4 | Kontakte-Abrechnung | `reports-ueberblick.js` | Connected EUR contact ledger under Konten › Kontakte; dedicated monthly report body remains Open |
+| 5.4 | Kontakte-Abrechnung | `reports-ueberblick.js` | Fixed all-time EUR report: shared receivable/credit chain, per-person retained ledger, running balance stair chart and source drilldown. Pending bookings explicitly included; mixed currency unavailable. Owner/private acceptance remains |
 | 5.5 | Zeitraumvergleich | `reports-ueberblick.js` | Body Open |
 
 References are under [design/prototype](../design/prototype/). The older concept's

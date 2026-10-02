@@ -9,6 +9,7 @@ import {
 import { randomUUID } from 'node:crypto';
 import { Hono } from 'hono';
 import { z } from 'zod';
+import { contactTotals } from '@budget/domain';
 import { ACTOR, ApiError, readBody, readQuery } from './http';
 const day = z
   .string()
@@ -45,7 +46,8 @@ export function contactRoutes(db: Db, today: () => string): Hono {
   app.get('/', (c) => {
     const q = readQuery(c, query);
     const asOf = q.asOf ?? today();
-    return c.json({ asOf, contacts: listContactStatements(db, asOf, q.history === '1') });
+    const contacts = listContactStatements(db, asOf, q.history === '1');
+    return c.json({ asOf, currency: 'EUR' as const, contacts, totals: contactTotals(contacts) });
   });
   app.post('/', async (c) => {
     const input = await readBody(

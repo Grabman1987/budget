@@ -37,6 +37,7 @@ export {
   FREEDOM_MULTIPLE,
   freedomAnnualSpendCents,
   freedomProgressBp,
+  freedomSumCents,
   freedomTargetCents,
   MAX_FREEDOM_MONTHS,
   projectFreedom,

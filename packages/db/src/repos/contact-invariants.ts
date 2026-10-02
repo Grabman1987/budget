@@ -21,6 +21,8 @@ export function actualContactMovements(tx: Executor, contactId: string, asOf?: s
       amountCents: bookingSplit.amountCents,
       memo: bookingSplit.memo,
       currency: booking.currency,
+      status: booking.status,
+      accountId: booking.accountId,
     })
     .from(bookingSplit)
     .innerJoin(booking, eq(booking.id, bookingSplit.bookingId))
