@@ -26,22 +26,26 @@ test.describe('phone layout', () => {
         // of a page without controls in its body): scrolling to the end moves it out of view, so
         // bring it back by scrolling. A control that cannot be moved clear of the bars still fails.
         let rect = last.getBoundingClientRect();
-        if (rect.top < 0 || rect.bottom > window.innerHeight) {
-          last.scrollIntoView({ block: 'center' });
+        // A scroll region taller than the screen (a long table) can never fit whole: it only has
+        // to be reachable, so its start is brought into view and checked instead.
+        const tall = rect.height > window.innerHeight * 0.6;
+        if (tall || rect.top < 0 || rect.bottom > window.innerHeight) {
+          last.scrollIntoView({ block: tall ? 'start' : 'center' });
           rect = last.getBoundingClientRect();
         }
+        const visibleBottom = tall ? Math.min(rect.bottom, rect.top + 48) : rect.bottom;
         const bar = document.querySelector('.tabbar')?.getBoundingClientRect();
         const fab = document.querySelector('.fab')?.getBoundingClientRect();
         const covers = (o: DOMRect | undefined) =>
           Boolean(o) &&
-          rect.bottom > (o as DOMRect).top &&
+          visibleBottom > (o as DOMRect).top &&
           rect.top < (o as DOMRect).bottom &&
           rect.right > (o as DOMRect).left &&
           rect.left < (o as DOMRect).right;
         return {
           none: false,
           name: (last.textContent || last.getAttribute('aria-label') || last.tagName).trim(),
-          inside: rect.top >= 0 && rect.bottom <= window.innerHeight,
+          inside: rect.top >= 0 && visibleBottom <= window.innerHeight,
           underBar: covers(bar),
           underFab: covers(fab),
         } as const;
