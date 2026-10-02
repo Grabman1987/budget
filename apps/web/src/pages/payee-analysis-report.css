@@ -1,0 +1,338 @@
+.payee-analysis-report {
+  grid-template-columns: minmax(0, 1.4fr) minmax(280px, 0.8fr);
+  align-items: start;
+  gap: 24px;
+}
+
+.payee-analysis-report > section,
+.payee-analysis-report > .payee-scope {
+  min-width: 0;
+}
+
+.payee-lead,
+.payee-frequent,
+.payee-detail {
+  padding-block: 4px 18px;
+  border-bottom: 1px solid var(--line-2);
+}
+
+.payee-lead {
+  grid-column: 1;
+}
+.payee-frequent {
+  grid-column: 2;
+}
+.payee-detail,
+.payee-scope {
+  grid-column: 1 / -1;
+}
+
+.payee-section-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  min-width: 0;
+}
+
+.payee-section-head h2,
+.payee-section-head h3 {
+  min-width: 0;
+  margin: 0;
+  font-size: 18px;
+  font-weight: 620;
+}
+
+.payee-section-head > span,
+.payee-state,
+.payee-period {
+  color: var(--ink-2);
+  font-family: var(--font-tech);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.payee-period {
+  margin: 5px 0 12px;
+}
+
+.payee-total {
+  display: grid;
+  justify-items: start;
+  gap: 3px;
+  margin: 10px 0 12px;
+}
+
+.payee-total span {
+  color: var(--ink-2);
+  font-family: var(--font-tech);
+  font-size: 12px;
+}
+
+.payee-total strong {
+  font-size: clamp(30px, 4vw, 42px);
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.1;
+}
+
+.payee-analysis-report .chain-inline {
+  margin-block: 12px 8px;
+}
+.payee-chain-note,
+.payee-note,
+.payee-legend,
+.payee-scope {
+  color: var(--ink-2);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.payee-chain-note {
+  margin: 4px 0 18px;
+}
+.payee-chart-title {
+  margin: 20px 0 10px;
+  font-size: 14px;
+  font-weight: 600;
+}
+.payee-note {
+  margin: 10px 0 0;
+}
+.payee-scope {
+  margin: 0;
+  padding-top: 8px;
+}
+.payee-scope strong {
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+
+.payee-bars {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.payee-bars li {
+  display: grid;
+  grid-template-columns: minmax(100px, 0.8fr) minmax(70px, 1fr) minmax(92px, auto);
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.payee-bar-name,
+.payee-row-button {
+  display: flex;
+  align-items: center;
+  min-width: 44px;
+  min-height: 44px;
+  overflow: hidden;
+  padding: 0 4px;
+  border: 0;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  text-align: start;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.payee-bar-name:hover,
+.payee-row-button:hover {
+  text-decoration: underline;
+}
+.payee-bar-name:focus-visible,
+.payee-row-button:focus-visible,
+.payee-close:focus-visible {
+  outline: 2px solid var(--focus, var(--line));
+  outline-offset: 3px;
+}
+
+.payee-bar-track {
+  position: relative;
+  display: block;
+  height: 12px;
+  overflow: hidden;
+  border-radius: 2px;
+  background: color-mix(in srgb, var(--line-2) 32%, transparent);
+}
+
+.payee-bar-track::before {
+  position: absolute;
+  z-index: 1;
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  width: 1px;
+  background: var(--ink-3);
+  content: '';
+}
+
+.payee-bar-track i {
+  position: absolute;
+  top: 2px;
+  left: 50%;
+  width: var(--bar-width);
+  height: 8px;
+  background: var(--line);
+}
+
+.payee-bar-track i.is-refund {
+  left: calc(50% - var(--bar-width));
+  background: var(--heat-red);
+}
+
+.payee-bars li > strong {
+  text-align: end;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.payee-compact-table,
+.payee-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.payee-compact-table {
+  margin-top: 9px;
+}
+.payee-compact-table th,
+.payee-compact-table td,
+.payee-table th,
+.payee-table td {
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--line-2);
+  text-align: start;
+  vertical-align: top;
+}
+
+.payee-compact-table th,
+.payee-table thead th {
+  color: var(--ink-2);
+  font-family: var(--font-tech);
+  font-size: 11px;
+  font-weight: 560;
+}
+
+.payee-compact-table tbody th,
+.payee-table tbody th {
+  font-weight: 550;
+}
+.payee-compact-table td:last-child,
+.payee-table .numeric {
+  text-align: end;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.payee-table .is-selected {
+  background: color-mix(in srgb, var(--tint) 9%, transparent);
+}
+
+.payee-scroll {
+  max-width: 100%;
+  min-width: 0;
+  overflow-x: auto;
+  overscroll-behavior-inline: contain;
+}
+
+.payee-scroll:focus-visible {
+  outline: 2px solid var(--focus, var(--line));
+  outline-offset: 2px;
+}
+.payee-table {
+  min-width: 850px;
+}
+.payee-bookings {
+  min-width: 700px;
+}
+.payee-table th:first-child {
+  min-width: 145px;
+}
+.payee-table td:nth-child(2) {
+  min-width: 190px;
+}
+.payee-table td:nth-child(2),
+.payee-bookings td:nth-child(3) {
+  white-space: normal;
+}
+.payee-bookings a {
+  display: inline-flex;
+  align-items: center;
+  min-width: 44px;
+  min-height: 44px;
+  padding-inline: 2px;
+}
+
+.payee-drilldown {
+  margin-top: 20px;
+  padding-top: 12px;
+  border-top: 1px solid var(--line-2);
+}
+
+.payee-drilldown .payee-section-head {
+  margin-bottom: 8px;
+}
+.payee-close {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0 8px;
+  border: 0;
+  background: transparent;
+  color: var(--ink-2);
+  font: inherit;
+  cursor: pointer;
+}
+.payee-drilldown .btn {
+  margin-top: 10px;
+}
+
+@media (max-width: 760px) {
+  .payee-analysis-report {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 18px;
+  }
+  .payee-lead,
+  .payee-frequent,
+  .payee-detail,
+  .payee-scope {
+    grid-column: 1;
+  }
+  .payee-frequent {
+    border-bottom: 0;
+    padding-bottom: 0;
+  }
+  .payee-section-head {
+    align-items: flex-start;
+  }
+  .payee-section-head h2 {
+    font-size: 17px;
+  }
+  .payee-state {
+    text-align: end;
+  }
+  .payee-bars li {
+    grid-template-columns: minmax(86px, 0.75fr) minmax(45px, 1fr) minmax(83px, auto);
+    gap: 7px;
+  }
+  .payee-bars li > strong {
+    font-size: 12px;
+  }
+  .payee-bar-name {
+    font-size: 13px;
+  }
+  .payee-scroll {
+    width: 100%;
+  }
+  .payee-scope {
+    font-size: 12px;
+  }
+}

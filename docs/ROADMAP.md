@@ -330,11 +330,23 @@ The 30 reports (SPEC §7), explorer, printable sheets, parallel run with reconci
 - [x] Match the original report body with period control, value/cumulative-net-flow lines, monthly value-change bars and year rows. Label the securities-only scope and stored flow semantics; do not infer savings-plan or R12 attribution.
 - [ ] Depot-inclusive flows and source-linked savings-plan/R12 attribution remain open until the source model supports them.
 
+### P6.1b — Monthly table reports (1.5 to 1.8)
+- [x] `GET /api/report-tables/months`: one read of the monthly ledger facts (income by type, spending and assigned per category from the shared budget calculation, Geldalter and net worth per month end); every figure is derived in `packages/domain/src/report-tables`.
+- [x] `/reports/jahresansicht`, `/reports/kategorien`, `/reports/sparquote`, `/reports/gesamttabelle` with the prototype's sections, heat grid, previous-year comparison, Ist/Plan chart, Sparquote/Geldalter charts and CSV of the displayed table.
+- [x] Owner decision 02.10.2026: Kapitalerträge are a visible memo row and never part of Einnahmen, Sparquote or income comparisons; Erstattungen (owner decision 29.09.2026) reduce the spending of the refunded category (payee's default category) in the month of the refund, only a refund without a category stays a labelled row.
+- [ ] Owner/private acceptance against the real ledger; month-end net worth is withheld as a whole when a price or rate is missing.
+
 ### P6.4 — Rendite und Kennzahlen
 - [x] `/reports/prendite`: selected-period summary from `GET /api/portfolio` in securities-only view (TTWROR, existing annualized metrics, netflows, period gain and end value) plus separately labelled lifetime realized gain/completeness; no new financial formula.
 - [x] Suppress all report figures when the legacy portfolio summary returns `valuation_unavailable`; keep documented zero gains distinct from unavailable basis and preserve gains when open positions are empty.
 - [x] Focused invest API cases, synthetic browser edge fixtures and read-only sample-ledger browser coverage on desktop/mobile; accessibility and horizontal overflow checked in light/dark mode. Evidence: [report 4.4](evidence/report-4.4.md).
 - [ ] Benchmark comparison, asset-class comparison and monthly heatmap from the prototype; depot-inclusive view and owner acceptance remain outside this first report body.
+
+### P6.5 — Empfänger-Analyse
+- [x] `/reports/empfaenger`: connected closed-month recipient activity from shared budget `splitEffect` and Bedarf/Wunsch category rules, with explicit unclassified outflow disclosure and stable-ID/null-payee grouping
+- [x] Signed refunds, distinct qualifying booking counts, live booking statuses, account opening dates, clamped 3J/all-history ranges and read-only recipient booking drilldown; no parent-amount duplication or purchase attribution
+- [x] Literal API/domain boundaries and sample-backed desktop/mobile light/dark browser evidence; see [report 2.5 scope](payee-analysis-report.md)
+- [ ] Full report-catalog acceptance, private-data reconciliation and any broader all-outflow report remain open
 
 ### P6.3.4 — Jahresvorschau Zahlungen (first source slice)
 - [x] `/reports/vorschau`: twelve full future months from live stored expected-outflow contracts and all live amount versions, using the existing shifted due-date rules. Read-only `GET /api/expected/year-preview` requires a session and never materialises, matches or refreshes occurrences.

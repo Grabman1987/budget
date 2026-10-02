@@ -16,11 +16,16 @@ import { PlaceholderPage } from './placeholder-page';
 import { GoalsProgressReport } from './goals-progress-report';
 import { PaymentsPreviewReport } from './payments-preview-report';
 import { ContactReportPage } from '../reports/contact-report';
+import { PayeeAnalysisReport } from './payee-analysis-report';
 import { PortfolioPerformanceReport } from './portfolio-performance-report';
 import { PortfolioContributionsReport } from './portfolio-contributions-report';
 import { IncomeReport } from '../reports/income-report';
 import { FlowReport } from '../reports/flow-report';
 import { OnePagerReport } from '../reports/onepager-report';
+import { YearReport } from '../reports/year-report';
+import { CategoryReport } from '../reports/category-report';
+import { SavingsReport } from '../reports/savings-report';
+import { TotalTableReport } from '../reports/total-table-report';
 
 const CONTROL_LABEL = { month: 'Monat', year: 'Jahr', period: 'Zeitraum' } as const;
 
@@ -169,12 +174,17 @@ export function ReportPage({ reportId }: { reportId: string }) {
   };
   if (report.id === 'sparziele') return <GoalsProgressReport report={report} meta={meta} />;
   if (report.id === 'vorschau') return <PaymentsPreviewReport report={report} meta={meta} />;
+  if (report.id === 'empfaenger') return <PayeeAnalysisReport report={report} meta={meta} />;
   if (report.id === 'prendite') return <PortfolioPerformanceReport report={report} meta={meta} />;
   if (report.id === 'peinzahlungen')
     return <PortfolioContributionsReport report={report} meta={meta} />;
   if (report.id === 'einnahmen') return <IncomeReport report={report} meta={meta} />;
   if (report.id === 'geldfluss') return <FlowReport report={report} meta={meta} />;
   if (report.id === 'onepager') return <OnePagerReport report={report} meta={meta} />;
+  if (report.id === 'jahresansicht') return <YearReport report={report} meta={meta} />;
+  if (report.id === 'kategorien') return <CategoryReport report={report} meta={meta} />;
+  if (report.id === 'sparquote') return <SavingsReport report={report} meta={meta} />;
+  if (report.id === 'gesamttabelle') return <TotalTableReport report={report} meta={meta} />;
   return (
     <PlaceholderPage
       meta={meta}

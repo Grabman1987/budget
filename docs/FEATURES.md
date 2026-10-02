@@ -122,16 +122,16 @@ consistent totals, desktop/mobile checks and printing where required.
 | 1.2 | Gehaltsreport | `reports-monat.js` | Payslip capture, body and yearly comparison Open |
 | 1.3 | Einnahmen | `reports-monat.js` | Connected: month selector, 12-month stacked income by type, expected against received (match status; schedule fallback `nicht zugeordnet` while occurrences are unmaterialised), Kapitalerträge separate (not household income), refunds/transfers/contact repayments excluded. Owner/private acceptance remains |
 | 1.4 | Geldfluss | `reports-monat.js` | Connected: month or 12 months (to the last full month), Sankey income types → pool → Bedarf/Wunsch/Zukunft/Übrig → groups (phone: without groups), dimension chain, parts list; Kapitalerträge a labelled source of their own, never folded, outside the household income; transfers, refunds and contact repayments left out. Owner/private acceptance remains |
-| 1.5 | Jahresansicht | `reports-monat.js` | Body + previous year Open |
-| 1.6 | Kategorieübersicht | `reports-monat.js` | Body Open |
-| 1.7 | Sparquote und Geldalter | `reports-monat.js` | Body Open |
-| 1.8 | Gesamttabelle | `reports-monat.js` | Body Open; account/depot CSV ZIP export is implemented separately |
+| 1.5 | Jahresansicht | `reports-monat.js` | Connected: category × month heat grid for one year, Gruppen/Kategorien depth, chain, comparison with the same months of the previous year; Kapitalerträge as a separate memo row, never income; Erstattungen net against the refunded category. Owner acceptance open |
+| 1.6 | Kategorieübersicht | `reports-monat.js` | Connected: categories of the Zeitraum with 12-month course, sum, average, change to the previous period, share of Konsum; open row with Ist/Plan chart (Plan = assigned amount), top payees. Owner acceptance open |
+| 1.7 | Sparquote und Geldalter | `reports-monat.js` | Connected: Sparquote from household income only (no Kapitalerträge; Erstattungen net against their category), monthly and rolling 12 months against the R01 goal; Geldalter (FIFO, rule R03 definition) at every month end against the R03 goal; yearly table. Owner acceptance open |
+| 1.8 | Gesamttabelle | `reports-monat.js` | Connected: all months from the budget start incl. the running month, month-end net worth, CSV of exactly the displayed rows and columns; account/depot CSV ZIP export is implemented separately. Owner acceptance open |
 | 1.9 | Projekte und Nebeneinkünfte | `reports-monat.js` | Capture/data + body Open |
 | 2.1 | Ausgabenanalyse | `reports-ausgaben.js` | Body Open |
 | 2.2 | Budgettreue inkl. 50/30/20 | `reports-ausgaben.js` | Body Open; twelfths rule follows SPEC |
 | 2.3 | Verträge und Abos | `reports-ausgaben.js` | Report body Open; expected-payment workflow exists |
 | 2.4 | Persönliche Inflation | `reports-ausgaben.js` | Body Open |
-| 2.5 | Empfänger-Analyse | `reports-ausgaben.js` | Body Open |
+| 2.5 | Empfänger-Analyse | `reports-ausgaben.js` | Partial: connected signed recipient activity for Bedarf/Wunsch categories, period comparison and read-only booking drilldown; see [scope contract](payee-analysis-report.md) |
 | 2.6 | Bank- und Zinskosten | `reports-ausgaben.js` | Body Open |
 | 3.1 | Liquiditätsprognose | `reports-zukunft.js` | Body + events/levers Open; forecast engine exists |
 | 3.2 | Cashflow-Verlauf | `reports-zukunft.js` | Body Open |
