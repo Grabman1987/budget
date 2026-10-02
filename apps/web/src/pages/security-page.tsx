@@ -24,6 +24,7 @@ import { PASSKEYS_KEY } from '../auth/status-query';
 import { authErrorMessage, registerPasskey, withStepUp } from '../auth/webauthn';
 import { SECURITY_META } from '../nav/pages';
 import { PageFrame } from './placeholder-page';
+import { StorageStatus } from '../pwa/storage-status';
 
 const RECOVERY_CODE_COUNT = 10;
 
@@ -39,6 +40,7 @@ export function SecurityPage() {
   const navigate = useNavigate();
   return (
     <PageFrame meta={SECURITY_META}>
+      <StorageStatus />
       <SecurityPanel onLoggedOut={() => void navigate({ to: '/login' })} />
     </PageFrame>
   );
