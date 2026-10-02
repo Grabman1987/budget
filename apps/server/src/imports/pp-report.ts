@@ -18,7 +18,6 @@ import {
 import {
   addDays,
   costOf,
-  daysBetween,
   periodWindow,
   PriceUnavailableError,
   sumSeries,
