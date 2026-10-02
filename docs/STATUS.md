@@ -21,7 +21,7 @@ Evidence: [router](../apps/web/src/router.tsx), [report pages](../apps/web/src/p
 | Gate | Status |
 | --- | --- |
 | 1: owner accepts specification/design | Pending explicit sign-off |
-| 2: YNAB account/month and mapped-category reconciliation | Pending separate private migration/comparison |
+| 2: YNAB account/month and mapped-category reconciliation | Real EUR migration committed live on 2026-10-02 with `migrate-cli.js` (ops.md §12): export as of 2026-10-02, start 2023-10, 19 accounts, 7,051 bookings, 0 problems; balances, activity and totals without difference; written ledger vs. import 0; 67 `available` differences, all in five n:1-merged target categories (documented merge effect). Owner acceptance of the reconciliation pending |
 | 3: holdings and returns match Portfolio Performance | Pending private PP transfer and comparison |
 | 4: parallel month-end without differences | Pending required scope and month-end comparison |
 
