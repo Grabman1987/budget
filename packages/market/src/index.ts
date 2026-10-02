@@ -15,4 +15,17 @@ export {
   type FixtureFxOptions,
   type FixtureQuoteOptions,
 } from './fixture';
-export { parseVpiCsv, vpiSource, VPI_DATASET, VPI_SERIES, VPI_URL, type VpiOptions } from './vpi';
+export {
+  chainVpi,
+  parseVpiCsv,
+  parseVpiDataset,
+  vpiSource,
+  VPI_NEW_BASE_YEAR,
+  VPI_NEW_DATASET,
+  VPI_NEW_URL,
+  VPI_OLD_DATASET,
+  VPI_OLD_URL,
+  VPI_SERIES,
+  type VpiDataset,
+  type VpiOptions,
+} from './vpi';

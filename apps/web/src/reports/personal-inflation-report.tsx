@@ -115,7 +115,9 @@ function Body({ data }: { data: InflationReport }) {
           <p className="sr-note">
             {data.reference.source === 'fixture'
               ? 'Synthetische Beispielreihe statt VPI (Entwicklungsdaten).'
-              : 'Verbraucherpreisindex: Statistik Austria, VPI Basis 2020 (Open Data, CC BY 4.0).'}{' '}
+              : data.reference.lastMonth >= '2026-01'
+                ? 'Verbraucherpreisindex: Statistik Austria, VPI Basis 2020 (bis Dez 2025) und VPI Basis 2025 (ab Jän 2026), beide Open Data, CC BY 4.0. Die Basis 2025 ist über den Jahresdurchschnitt 2025 auf die Basis 2020 verkettet.'
+                : 'Verbraucherpreisindex: Statistik Austria, VPI Basis 2020 (Open Data, CC BY 4.0).'}{' '}
             Die Reihe reicht bis {monthShort(data.reference.lastMonth)}
             {data.reference.fetchedAt
               ? ` und wurde am ${longDay(data.reference.fetchedAt.slice(0, 10))} gelesen`

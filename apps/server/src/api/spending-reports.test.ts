@@ -696,26 +696,28 @@ describe('2.4 Persönliche Inflation', () => {
       baseMonth: '2023-10',
       fromMonth: '2025-08',
       toMonth: '2026-08',
-      // The synthetic consumer price series of the seed stops in December 2025.
+      // The synthetic consumer price series of the seed runs through the last full month.
       referenceAvailable: true,
-      referenceBp: null,
-      differenceBp: null,
     });
-    expect(body.reference).toMatchObject({ series: 'fixture', lastMonth: '2025-12' });
-    expect(body.latestComparison.month).toBe('2025-12');
+    expect(body.reference).toMatchObject({ series: 'fixture', lastMonth: '2026-08' });
+    expect(body.latestComparison.month).toBe('2026-08');
     expect(body.latestComparison.differenceBp).toBe(
       body.latestComparison.ownBp - body.latestComparison.referenceBp,
     );
     const last = body.monthly.at(-1);
-    expect(last).toMatchObject({ month: '2026-08', referenceBp: null });
-    expect(body.monthly.find((m: any) => m.month === '2025-12').referenceBp).not.toBeNull();
+    expect(last.month).toBe('2026-08');
+    expect(body.monthly.every((m: any) => m.referenceBp !== null)).toBe(true);
+    // With the series running through the window, the headline compares the window itself.
+    expect(body.referenceBp).not.toBeNull();
+    expect(body.differenceBp).toBe(body.inflationBp - body.referenceBp);
     const years = Object.fromEntries(body.years.map((y: any) => [y.year, y]));
     expect(years[2025]).toMatchObject({ ownMonths: 12, referenceMonths: 12 });
     expect(years[2025].ownChangeBp).not.toBeNull();
     expect(years[2025].referenceChangeBp).not.toBeNull();
     expect(years[2026]).toMatchObject({
       ownMonths: 8,
-      referenceMonths: 0,
+      referenceMonths: 8,
+      ownChangeBp: null,
       referenceChangeBp: null,
     });
     expect(body.points[0].index).toBe(100);

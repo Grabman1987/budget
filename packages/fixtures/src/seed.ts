@@ -78,8 +78,8 @@ export function seedDatabase(db: Db, ledger: SampleLedger = sampleLedger()): See
     const daily = dailyMarketRows(ledger);
     insertChunks(tx, t.price, daily.prices);
     insertChunks(tx, t.fxRate, daily.fxRates);
-    // A synthetic consumer price series to 12/2025, like the real one's stop (report 2.4).
-    const cpi = fixtureCpiMonths('2025-12').map((r) => ({
+    // A synthetic consumer price series to the last full month of the sample (report 2.4).
+    const cpi = fixtureCpiMonths('2026-08').map((r) => ({
       series: 'fixture',
       month: r.month,
       indexMicro: r.indexMicro,
