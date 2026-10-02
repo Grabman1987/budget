@@ -90,6 +90,13 @@ export interface PlannedBooking {
   tradeImportKey: string | null;
   /** Import key of the other leg of an account transfer, if any. */
   counterpartKey: string | null;
+  /**
+   * The cash leg of a planned trade (buy, sell, or the dividend, interest, fee, tax of a security):
+   * the trade's settlement booking carries this cash, so a writer must not book it a second time.
+   */
+  viaTrade: boolean;
+  /** Uuid of the PP account the transaction belongs to. */
+  ppAccountUuid: string;
 }
 export interface PlannedInvestmentAccount {
   portfolioPpUuid: string;
@@ -114,7 +121,8 @@ export interface ImportPlan {
 
 export const ppKey = (uuid: string): string => `pp:${uuid}`;
 
-const SIGN: Record<AccountTxType, 1 | -1> = {
+/** Sign of the cash movement of an account transaction type. */
+export const SIGN: Record<AccountTxType, 1 | -1> = {
   DEPOSIT: 1,
   INTEREST: 1,
   DIVIDENDS: 1,
@@ -212,14 +220,14 @@ export function mapToTarget(model: PpModel, mappingInput: PpMapping): ImportPlan
     kind: TradeKind,
     units: number,
     note?: string | null,
-  ): void => {
+  ): boolean => {
     if (tx.securityUuid === null || !securities.has(tx.securityUuid)) {
       problem('trade-no-security', tx.path, 'Transaction without a known security skipped');
-      return;
+      return false;
     }
     if ((kind === 'buy' || kind === 'sell' || kind.startsWith('delivery')) && units === 0) {
       problem('trade-no-units', tx.path, 'Trade without shares skipped');
-      return;
+      return false;
     }
     plan.trades.push({
       importKey: ppKey(tx.uuid),
@@ -229,12 +237,14 @@ export function mapToTarget(model: PpModel, mappingInput: PpMapping): ImportPlan
       date: tx.date,
       kind,
       unitsE8: units,
-      amountCents: tx.grossCents,
+      // PP's interest amount is net of fee and tax, like a dividend (`grossValueCents` covers the latter).
+      amountCents: kind === 'interest' ? tx.amountCents + tx.feeCents + tx.taxCents : tx.grossCents,
       feeCents: tx.feeCents,
       taxCents: tx.taxCents,
       currency: tx.currency,
       note: note ?? tx.note,
     });
+    return true;
   };
 
   for (const pf of model.portfolios) {
@@ -266,12 +276,13 @@ export function mapToTarget(model: PpModel, mappingInput: PpMapping): ImportPlan
         TAXES: 'tax',
       };
       const tk = moneyKind[tx.type];
+      let viaTrade = false;
       if (tk !== undefined && tx.securityUuid !== null) {
         const candidates = (portfolioOfAccount.get(acc.uuid) ?? []).filter((p) =>
           portfolioAccount.has(p.uuid),
         );
         const pf = candidates.length === 1 ? (candidates[0] as PpPortfolio) : undefined;
-        if (pf) trade(tx, pf, portfolioAccount.get(pf.uuid) as string, tk, 0);
+        if (pf) viaTrade = trade(tx, pf, portfolioAccount.get(pf.uuid) as string, tk, 0);
         else if (candidates.length > 1)
           problem('ambiguous-portfolio', tx.path, 'Several portfolios settle through this account');
         else if (!(portfolioOfAccount.get(acc.uuid) ?? []).length)
@@ -287,6 +298,10 @@ export function mapToTarget(model: PpModel, mappingInput: PpMapping): ImportPlan
         continue;
       }
       const peer = tx.crossEntry?.peerUuid ?? null;
+      const legTrade =
+        (tx.type === 'BUY' || tx.type === 'SELL') &&
+        peer !== null &&
+        ['buy', 'sell'].includes(tradeKindOf.get(ppKey(peer)) ?? '');
       plan.bookings.push({
         importKey: ppKey(tx.uuid),
         accountId: tracking,
@@ -296,12 +311,9 @@ export function mapToTarget(model: PpModel, mappingInput: PpMapping): ImportPlan
         ppType: tx.type,
         securityPpUuid: tx.securityUuid,
         note: tx.note,
-        tradeImportKey:
-          (tx.type === 'BUY' || tx.type === 'SELL') &&
-          peer !== null &&
-          ['buy', 'sell'].includes(tradeKindOf.get(ppKey(peer)) ?? '')
-            ? ppKey(peer)
-            : null,
+        tradeImportKey: legTrade && peer !== null ? ppKey(peer) : null,
+        viaTrade: viaTrade || legTrade,
+        ppAccountUuid: acc.uuid,
         counterpartKey:
           (tx.type === 'TRANSFER_IN' || tx.type === 'TRANSFER_OUT') && peer !== null
             ? ppKey(peer)
