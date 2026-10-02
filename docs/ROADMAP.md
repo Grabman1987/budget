@@ -173,6 +173,12 @@ Process from P1f on: one branch per task, PRs ≤ ~1.500 changed lines, tick onl
 - [x] ElevationMark shelf under the label; Sankey want/future nodes hatched with outline
 
 
+### Plan year follow-up — read-only overview (2026-10-02, PR #133)
+- [x] Connect Plan › Jahr to all twelve existing budget-month reads; category and group detail, signed assigned/activity annual sums and December available balance (never sum rollover balances).
+- [x] Sticky category column on desktop; all metrics, month selector and category annual values on a 375px phone, with read-only year navigation.
+- [x] Independent literal domain regression cases and real-server Playwright behaviour tests; no schema or financial mutations.
+- [ ] Owner visual/device acceptance and the remaining annual scenarios/editing workflow.
+
 ## P2 Kern und Migration
 
 Starts after P1f-3 is merged. Source: YNAB export (`docs/migration/ynab-export.md`); Actual is not migrated. YNAB's categories and habits are evaluated and adapted via an owner-approved mapping, not copied. The export and mapping stay in the owner's authorized private migration environment, never in the repo, CI or logs. No app import UI. **Gate 2:** balances per account and month match YNAB to the cent; Available per target category matches the mapped YNAB categories before the rules month.

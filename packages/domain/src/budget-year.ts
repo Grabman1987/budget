@@ -42,7 +42,11 @@ export function planYearRows(year: number, source: ReadonlyArray<PlanYearMonth>)
     const values = cells.map((month) => {
       const e = month.get(id);
       return e
-        ? { assignedCents: e.assignedCents, activityCents: e.activityCents, availableCents: e.availableCents }
+        ? {
+            assignedCents: e.assignedCents,
+            activityCents: e.activityCents,
+            availableCents: e.availableCents,
+          }
         : empty();
     });
     return { id, months: values, year: yearAmounts(values) };
@@ -59,13 +63,15 @@ function yearAmounts(months: ReadonlyArray<PlanYearAmounts>): PlanYearAmounts {
 
 /** Group and grand totals use exactly the same envelope figures as their detail rows. */
 export function sumPlanYearRows(rows: ReadonlyArray<PlanYearRow>): PlanYearRow {
-  const months = Array.from({ length: 12 }, (_, index) => rows.reduce((sum, row) => {
-    const cell = row.months[index]!;
-    return {
-      assignedCents: sum.assignedCents + cell.assignedCents,
-      activityCents: sum.activityCents + cell.activityCents,
-      availableCents: sum.availableCents + cell.availableCents,
-    };
-  }, empty()));
+  const months = Array.from({ length: 12 }, (_, index) =>
+    rows.reduce((sum, row) => {
+      const cell = row.months[index]!;
+      return {
+        assignedCents: sum.assignedCents + cell.assignedCents,
+        activityCents: sum.activityCents + cell.activityCents,
+        availableCents: sum.availableCents + cell.availableCents,
+      };
+    }, empty()),
+  );
   return { id: 'total', months, year: yearAmounts(months) };
 }
