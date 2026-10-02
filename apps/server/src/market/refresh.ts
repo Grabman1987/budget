@@ -83,6 +83,7 @@ function refOf(row: SecurityRow): SecurityRef {
     quoteExchange: row.quoteExchange,
     quoteUrl: row.quoteUrl,
     coingeckoId: row.coingeckoId,
+    kind: row.kind,
     currency: row.currency,
     adjusted: row.quoteAdjusted,
   };

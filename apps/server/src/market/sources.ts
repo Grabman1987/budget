@@ -27,9 +27,10 @@ export function marketModeFromEnv(env: NodeJS.ProcessEnv = process.env): MarketM
 
 /**
  * The adapters for a mode. Live: Ariva is the primary source (European exchange prices in EUR,
- * owner decision 02.10.2026), then the crypto feeds Portfolio Performance uses (cryptocalc table,
- * CoinGecko), then Yahoo as the last resort; each source skips securities without its identifier
- * (`quote_url`, `coingecko_id`, `symbol`). `BUDGET_ARIVA=0` switches Ariva off. ECB for rates.
+ * owner decision 02.10.2026), CoinGecko is primary for crypto (`coingecko_id`), cryptocalc only
+ * the fallback for a crypto security without a coin id (Bitpanda-only products), Yahoo is the last
+ * resort; each source skips securities without its identifier (`quote_url`, `coingecko_id`,
+ * `symbol`) and Ariva and Yahoo skip crypto. `BUDGET_ARIVA=0` switches Ariva off. ECB for rates.
  * Fixture: deterministic synthetic series that run through the prices and rates already stored,
  * never the network.
  */
@@ -53,7 +54,7 @@ export function createMarketSources(
   }
   return {
     quotes: arivaSource({ ...http, enabled: env['BUDGET_ARIVA'] !== '0' }),
-    moreQuotes: [cryptocalcSource(http), coingeckoSource(http)],
+    moreQuotes: [coingeckoSource(http), cryptocalcSource(http)],
     fallbackQuotes: yahooChartSource(http),
     fx: ecbSource(http),
   };

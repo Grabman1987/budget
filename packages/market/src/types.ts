@@ -4,13 +4,15 @@ export type QuoteSourceId = 'yfinance' | 'ariva' | 'cryptocalc' | 'coingecko';
 /** What a quote source needs to know about a security. All identifiers are data, never code. */
 export interface SecurityRef {
   id: string;
+  /** `security.kind`; crypto is priced by CoinGecko only. */
+  kind: string;
   /** Yahoo symbol. */
   symbol: string | null;
   /** Legacy Ariva security id; no source reads it (Ariva's CSV needs a login). */
   fallbackQuoteId: string | null;
   /** Exchange of the Ariva quote (`boerse_id`); wins over one inside `quoteUrl`. */
   quoteExchange: string | null;
-  /** The quote page from Portfolio Performance (Ariva or cryptocalc), dispatched by host. */
+  /** The quote page from Portfolio Performance (Ariva, or cryptocalc for crypto), by host. */
   quoteUrl: string | null;
   /** CoinGecko coin id. */
   coingeckoId: string | null;

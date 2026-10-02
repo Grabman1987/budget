@@ -53,6 +53,7 @@ describe('synthHistory', () => {
 describe('fixture sources', () => {
   const ref: SecurityRef = {
     id: 's1',
+    kind: 'etf',
     symbol: 'SYN-A',
     fallbackQuoteId: null,
     quoteExchange: null,

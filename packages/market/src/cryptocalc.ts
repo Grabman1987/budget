@@ -1,11 +1,11 @@
-import { addDays, parseMicro } from '@budget/domain';
+import { parseMicro } from '@budget/domain';
 import { MarketError } from './errors';
 import { tableWithHeader } from './html';
 import { getText, throttle, type HttpOptions } from './http';
-import type { DailyQuote, QuoteSource, SecurityRef } from './types';
+import type { DailyQuote, QuoteSource } from './types';
 
-/** Options shared by the crypto sources. */
-export interface CryptoOptions extends HttpOptions {
+/** Options of the cryptocalc fallback source. */
+export interface CryptocalcOptions extends HttpOptions {
   baseUrl?: string;
   /** Clock: the running UTC day is never a close. Tests pin it. */
   now?: () => Date;
@@ -98,13 +98,16 @@ function rangeFor(from: string, today: string): string {
  * Crypto closes in the quote currency of the page (EUR), from the price table of the page that
  * Portfolio Performance uses as its feed. One request per coin; the daily candle is the UTC day.
  */
-export function cryptocalcSource(options: CryptoOptions): QuoteSource {
+export function cryptocalcSource(options: CryptocalcOptions): QuoteSource {
   const base = options.baseUrl ?? 'https://cryptocalc.cc';
   const now = options.now ?? (() => new Date());
   const wait = throttle(options.minIntervalMs ?? 1000, options.sleep);
   return {
     id: 'cryptocalc',
-    supports: (ref) => parseCryptocalcUrl(ref.quoteUrl) !== undefined,
+    supports: (ref) =>
+      ref.kind === 'crypto' &&
+      ref.coingeckoId === null &&
+      parseCryptocalcUrl(ref.quoteUrl) !== undefined,
     async history(ref, from, to) {
       const target = parseCryptocalcUrl(ref.quoteUrl);
       if (!target) throw new MarketError('not_configured', 'quote url');
@@ -119,79 +122,6 @@ export function cryptocalcSource(options: CryptoOptions): QuoteSource {
       await wait();
       const html = await getText(`${base}${target.path}?${query}`, options, 'text/html');
       return parseCryptocalcHtml(html, from, to, today);
-    },
-  };
-}
-
-const COIN_ID = /^[a-z0-9][a-z0-9\-_.]{0,80}$/;
-/** CoinGecko's free tier reaches back one year. */
-const COINGECKO_MAX_DAYS = 365;
-
-interface MarketChart {
-  prices?: Array<[number, number]>;
-}
-
-/**
- * Parse CoinGecko's `market_chart?interval=daily` answer. A point stamped 00:00 UTC is the price
- * at that instant, i.e. the close of the day before, and is stored under that day (it matches
- * the daily close of the cryptocalc page); the trailing point of the running day is dropped.
- */
-export function parseCoingeckoChart(text: string, from: string, to: string): DailyQuote[] {
-  let body: MarketChart;
-  try {
-    body = JSON.parse(text) as MarketChart;
-  } catch {
-    throw new MarketError('parse', 'not JSON');
-  }
-  if (!Array.isArray(body.prices)) throw new MarketError('parse', 'no prices');
-  const byDate = new Map<string, number>();
-  for (const point of body.prices) {
-    const [ts, value] = point;
-    if (typeof ts !== 'number' || typeof value !== 'number')
-      throw new MarketError('parse', 'point');
-    if (ts % 86_400_000 !== 0) continue;
-    const date = addDays(utcDay(new Date(ts)), -1);
-    if (date < from || date > to) continue;
-    let priceMicro: number;
-    try {
-      priceMicro = parseMicro(String(value));
-    } catch {
-      throw new MarketError('parse', 'price value');
-    }
-    if (priceMicro > 0) byDate.set(date, priceMicro);
-  }
-  return [...byDate]
-    .sort(([a], [b]) => (a < b ? -1 : 1))
-    .map(([date, priceMicro]) => ({ date, priceMicro }));
-}
-
-/** CoinGecko (keyless public API) daily closes for a coin id, in the security's currency. */
-export function coingeckoSource(options: CryptoOptions): QuoteSource {
-  const base = options.baseUrl ?? 'https://api.coingecko.com';
-  const now = options.now ?? (() => new Date());
-  const wait = throttle(options.minIntervalMs ?? 2500, options.sleep);
-  return {
-    id: 'coingecko',
-    supports: (ref: SecurityRef) => ref.coingeckoId !== null && COIN_ID.test(ref.coingeckoId),
-    async history(ref, from, to) {
-      if (!ref.coingeckoId || !COIN_ID.test(ref.coingeckoId))
-        throw new MarketError('not_configured', 'coin id');
-      if (!/^[A-Z]{3}$/.test(ref.currency)) throw new MarketError('not_configured', 'currency');
-      const today = utcDay(now());
-      const age = Math.round((Date.parse(today) - Date.parse(from)) / 86_400_000);
-      const days = Math.min(Math.max(age, 1) + 2, COINGECKO_MAX_DAYS);
-      const query = new URLSearchParams({
-        vs_currency: ref.currency.toLowerCase(),
-        days: String(days),
-        interval: 'daily',
-      });
-      await wait();
-      const text = await getText(
-        `${base}/api/v3/coins/${ref.coingeckoId}/market_chart?${query}`,
-        options,
-        'application/json',
-      );
-      return parseCoingeckoChart(text, from, to);
     },
   };
 }

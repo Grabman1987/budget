@@ -2,13 +2,14 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { arivaSource, parseArivaHtml, parseArivaUrl } from './ariva';
+import { coingeckoSource, parseCoingeckoChart } from './coingecko';
+import { cryptocalcSource, parseCryptocalcHtml, parseCryptocalcUrl } from './cryptocalc';
 import {
-  coingeckoSource,
-  cryptocalcSource,
-  parseCoingeckoChart,
-  parseCryptocalcHtml,
-  parseCryptocalcUrl,
-} from './crypto';
+  COINGECKO_IDS,
+  cryptocalcSymbol,
+  deriveCoingeckoId,
+  resolveCoingeckoId,
+} from './coingecko-ids';
 import { ecbSource, parseEcbCsv } from './ecb';
 import { MarketError } from './errors';
 import { getText } from './http';
@@ -20,6 +21,7 @@ const data = (name: string) =>
 
 const REF: SecurityRef = {
   id: 'sec-1',
+  kind: 'etf',
   symbol: 'SYN-ETFW',
   fallbackQuoteId: '1234',
   quoteExchange: '7',
@@ -104,6 +106,8 @@ describe('Yahoo chart parser', () => {
       },
     });
     expect(source.id).toBe('yfinance');
+    expect(source.supports?.(REF)).toBe(true);
+    expect(source.supports?.({ ...REF, kind: 'crypto' })).toBe(false);
     expect(await source.history(REF, '2024-01-02', '2024-01-05')).toHaveLength(3);
     expect(urls[0]).toContain('/v8/finance/chart/SYN-ETFW?period1=');
     expect(urls[0]).toContain('interval=1d');
@@ -194,6 +198,7 @@ describe('Ariva historic-quotes page', () => {
     expect(on.id).toBe('ariva');
     expect(on.supports?.(ref())).toBe(true);
     expect(on.supports?.(ref({ quoteUrl: null }))).toBe(false);
+    expect(on.supports?.(ref({ kind: 'crypto' }))).toBe(false);
     expect(await on.history(ref(), '2024-01-03', '2024-01-07')).toHaveLength(3);
     expect(urls).toEqual([
       'https://www.ariva.de/etf/synthetic-world-etf/kurse/historische-kurse?boerse_id=45',
@@ -271,14 +276,15 @@ describe('Ariva historic-quotes page', () => {
   });
 });
 
-describe('Crypto sources (cryptocalc table, CoinGecko chart)', () => {
+describe('cryptocalc fallback source', () => {
   const CRYPTO_URL = 'https://cryptocalc.cc/bitpanda-kurse/?currency=BTC&fiat=EUR&range=all';
   const NOW = () => new Date('2024-01-06T00:30:00Z');
   const ref = (over: Partial<SecurityRef> = {}): SecurityRef => ({
     ...REF,
     symbol: null,
     quoteUrl: CRYPTO_URL,
-    coingeckoId: 'bitcoin',
+    kind: 'crypto',
+    coingeckoId: null,
     ...over,
   });
 
@@ -330,40 +336,194 @@ describe('Crypto sources (cryptocalc table, CoinGecko chart)', () => {
     expect(await kindOf(blocked)).toBe('parse');
   });
 
-  it('CoinGecko: a 00:00 UTC point is the close of the day before, the running point is dropped', async () => {
-    const chart = data('coingecko-market-chart.json');
-    expect(parseCoingeckoChart(chart, '2024-01-01', '2024-01-31')).toEqual([
+  it('is only a fallback: not for a coin with a CoinGecko id, nor for other kinds', () => {
+    const source = cryptocalcSource({ fetch: respond('') });
+    expect(source.supports?.(ref())).toBe(true);
+    expect(source.supports?.(ref({ coingeckoId: 'bitcoin' }))).toBe(false);
+    expect(source.supports?.(ref({ kind: 'etf' }))).toBe(false);
+    expect(source.supports?.(ref({ quoteUrl: null }))).toBe(false);
+  });
+});
+
+describe('CoinGecko source (primary for crypto)', () => {
+  const NOW = () => new Date('2024-01-06T00:30:00Z');
+  const ref = (over: Partial<SecurityRef> = {}): SecurityRef => ({
+    ...REF,
+    kind: 'crypto',
+    symbol: null,
+    coingeckoId: 'bitcoin',
+    ...over,
+  });
+  const chart = () => data('coingecko-market-chart.json');
+  const kind = (source: ReturnType<typeof coingeckoSource>, over: Partial<SecurityRef>) =>
+    kindOf(() => source.history(ref(over), '2024-01-03', '2024-01-05'));
+
+  it('a 00:00 UTC point is the close of the day before, the running point is dropped', () => {
+    expect(parseCoingeckoChart(chart(), '2024-01-01', '2024-01-31')).toEqual([
       { date: '2024-01-01', priceMicro: 38_010_120_000 },
       { date: '2024-01-02', priceMicro: 39_000_500_000 },
       { date: '2024-01-03', priceMicro: 39_500_250_000 },
       { date: '2024-01-04', priceMicro: 40_100_000_000 },
     ]);
+    expect(parseCoingeckoChart(chart(), '2024-01-03', '2024-01-03')).toHaveLength(1);
+  });
+
+  it('asks for the daily chart in the security currency, one request, needs a coin id', async () => {
     const urls: string[] = [];
     const source = coingeckoSource({
       now: NOW,
       minIntervalMs: 0,
       fetch: async (url) => {
         urls.push(String(url));
-        return new Response(chart);
+        return new Response(chart());
       },
     });
     expect(source.id).toBe('coingecko');
     expect(source.supports?.(ref())).toBe(true);
     expect(source.supports?.(ref({ coingeckoId: null }))).toBe(false);
     expect(await source.history(ref(), '2024-01-03', '2024-01-05')).toHaveLength(2);
-    expect(urls[0]).toBe(
+    expect(urls).toEqual([
       'https://api.coingecko.com/api/v3/coins/bitcoin/market_chart?vs_currency=eur&days=5&interval=daily',
-    );
-    for (const coingeckoId of [null, 'bitcoin/../x'])
-      expect(
-        await kindOf(() => source.history(ref({ coingeckoId }), '2024-01-03', '2024-01-05')),
-      ).toBe('not_configured');
+    ]);
+    expect(await kind(source, { coingeckoId: null })).toBe('not_configured');
+    expect(await kind(source, { coingeckoId: 'bitcoin/../x' })).toBe('not_configured');
+    expect(await kind(source, { currency: 'eur' })).toBe('not_configured');
+  });
+
+  it('classifies a non-chart answer (HTML, API error body) as parse', async () => {
     expect(await kindOf(() => parseCoingeckoChart('<html>', '2024-01-01', '2024-01-31'))).toBe(
       'parse',
     );
     const limited = () =>
       parseCoingeckoChart('{"status":{"error_code":429}}', '2024-01-01', '2024-01-31');
     expect(await kindOf(limited)).toBe('parse');
+  });
+
+  it('spaces requests of the free tier apart (6 s by default)', async () => {
+    const pauses: number[] = [];
+    const source = coingeckoSource({
+      now: NOW,
+      sleep: async (ms) => void pauses.push(ms),
+      fetch: async () => new Response(chart()),
+    });
+    await source.history(ref(), '2024-01-03', '2024-01-05');
+    await source.history(ref({ coingeckoId: 'ethereum' }), '2024-01-03', '2024-01-05');
+    expect(pauses).toHaveLength(1);
+    expect(pauses[0]).toBeGreaterThan(5_000);
+    expect(pauses[0]).toBeLessThanOrEqual(6_000);
+  });
+
+  it('on HTTP 429 waits Retry-After, then the doubling backoff, and gives up as rate_limited', async () => {
+    const pauses: number[] = [];
+    const answers = [
+      new Response('slow down', { status: 429, headers: { 'retry-after': '45' } }),
+      new Response('slow down', { status: 429 }),
+      new Response(chart()),
+    ];
+    const source = coingeckoSource({
+      now: NOW,
+      minIntervalMs: 0,
+      sleep: async (ms) => void pauses.push(ms),
+      fetch: async () => answers.shift() as Response,
+    });
+    expect(await source.history(ref(), '2024-01-03', '2024-01-05')).toHaveLength(2);
+    // First retry follows the server's Retry-After, the second the doubled backoff (20 s x 2).
+    expect(pauses).toEqual([45_000, 40_000]);
+    const always = coingeckoSource({
+      now: NOW,
+      minIntervalMs: 0,
+      sleep: async () => undefined,
+      fetch: async () => new Response('', { status: 429 }),
+    });
+    expect(await kind(always, {})).toBe('rate_limited');
+  });
+});
+
+describe('coin ids from ticker and name', () => {
+  it('resolves a ticker through the curated table, also from a cryptocalc link', () => {
+    expect(deriveCoingeckoId({ symbol: 'BTC' })).toEqual({
+      status: 'resolved',
+      id: 'bitcoin',
+      symbol: 'BTC',
+      via: 'symbol',
+    });
+    expect(deriveCoingeckoId({ symbol: 'eth-eur', name: 'Ethereum' })).toMatchObject({
+      status: 'resolved',
+      id: 'ethereum',
+    });
+    const link = 'https://cryptocalc.cc/bitpanda-kurse/?currency=LINK&fiat=EUR&range=all';
+    expect(cryptocalcSymbol(link)).toBe('LINK');
+    expect(deriveCoingeckoId({ quoteUrl: link, name: 'Chainlink' })).toMatchObject({
+      status: 'resolved',
+      id: 'chainlink',
+      symbol: 'LINK',
+    });
+    expect(deriveCoingeckoId({ quoteUrl: link })).toMatchObject({ id: 'chainlink' });
+    expect(deriveCoingeckoId({ symbol: 'BCH', name: 'Bitcoin Cash' })).toMatchObject({
+      status: 'resolved',
+      id: 'bitcoin-cash',
+    });
+  });
+
+  it('uses the name only when there is no ticker at all', () => {
+    expect(deriveCoingeckoId({ name: 'Solana' })).toMatchObject({
+      status: 'resolved',
+      id: 'solana',
+      via: 'name',
+    });
+    expect(deriveCoingeckoId({ name: 'Bitcoin und Ethereum Mix' })).toEqual({
+      status: 'unresolved',
+      reason: 'no_symbol',
+      symbol: undefined,
+    });
+    expect(deriveCoingeckoId({ name: 'Irgendein Token' })).toMatchObject({ status: 'unresolved' });
+  });
+
+  it('reports instead of guessing: unknown or leveraged tickers, ticker and name that disagree', () => {
+    expect(deriveCoingeckoId({ symbol: 'BTC2L', name: 'Bitcoin 2x Long' })).toEqual({
+      status: 'unresolved',
+      reason: 'unknown_symbol',
+      symbol: 'BTC2L',
+    });
+    expect(deriveCoingeckoId({ symbol: 'XYZ9', name: 'Bitcoin' })).toMatchObject({
+      status: 'unresolved',
+      reason: 'unknown_symbol',
+    });
+    expect(deriveCoingeckoId({ symbol: 'BTC', name: 'Cardano' })).toEqual({
+      status: 'unresolved',
+      reason: 'name_conflict',
+      symbol: 'BTC',
+    });
+    expect(cryptocalcSymbol('https://evil.example/?currency=BTC')).toBeUndefined();
+    expect(cryptocalcSymbol('https://cryptocalc.cc/x/?currency=B/../C')).toBeUndefined();
+  });
+
+  it('covers the coins the PP import needs and exports the resolver shape', () => {
+    const needed: Array<[string, string]> = [
+      ['BTC', 'bitcoin'],
+      ['ETH', 'ethereum'],
+      ['XRP', 'ripple'],
+      ['ADA', 'cardano'],
+      ['SOL', 'solana'],
+      ['AVAX', 'avalanche-2'],
+      ['VSN', 'vision-3'],
+      ['LINK', 'chainlink'],
+      ['CC', 'canton-network'],
+    ];
+    for (const [symbol, id] of needed) expect(resolveCoingeckoId(symbol, null), symbol).toBe(id);
+    expect(resolveCoingeckoId('ETH', 'Ethereum')).toBe('ethereum');
+    expect(resolveCoingeckoId(null, 'Cardano')).toBe('cardano');
+    // Not on CoinGecko under that name (CoinGecko's "best" is another token) or leveraged: undefined.
+    for (const symbol of ['BEST', 'BTC2L', 'ETH2L', 'XYZ9', null])
+      expect(resolveCoingeckoId(symbol, 'Bitpanda Produkt'), String(symbol)).toBeUndefined();
+    expect(resolveCoingeckoId('BTC', 'Cardano')).toBeUndefined();
+  });
+
+  it('the curated table has plain ids and uppercase tickers only', () => {
+    for (const [symbol, id] of Object.entries(COINGECKO_IDS)) {
+      expect(symbol).toMatch(/^[A-Z0-9]{2,12}$/);
+      expect(id).toMatch(/^[a-z0-9][a-z0-9\-_.]{0,80}$/);
+    }
   });
 });
 
