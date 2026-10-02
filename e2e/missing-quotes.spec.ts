@@ -1,22 +1,24 @@
 import AxeBuilder from '@axe-core/playwright';
-import { expect, test } from '@playwright/test';
+import { expect } from '@playwright/test';
 import { join } from 'node:path';
-import { MAIN_URL } from '../playwright.config';
+import { test } from './isolated-ledger';
 import { toast } from './ledger-helpers';
 
 test('missing market quotes preserve daily work and basis; first quote and undo expose honest history gaps', async ({
   page,
   request,
+  baseURL,
 }, info) => {
+  const origin = baseURL!;
   const post = async (path: string, data: unknown) => {
-    const response = await request.post(`${MAIN_URL}/api${path}`, {
-      headers: { origin: MAIN_URL },
+    const response = await request.post(`${origin}/api${path}`, {
+      headers: { origin },
       data,
     });
     expect(response.ok()).toBe(true);
     return response.json();
   };
-  const current = (await (await request.get(`${MAIN_URL}/api/accounts`)).json()).asOf as string;
+  const current = (await (await request.get(`${origin}/api/accounts`)).json()).asOf as string;
   const name = `Unbewertetes Muster ${info.project.name}`;
   const account = (
     await post('/accounts', {
