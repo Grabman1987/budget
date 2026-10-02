@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
-import { isNull } from 'drizzle-orm';
-import { account, payee } from '../schema';
+import { and, eq, isNull, ne } from 'drizzle-orm';
+import { account, booking, incomeType, payee } from '../schema';
 import { type AuditContext, type GroupedContext } from './audit';
 import {
   createBooking,
@@ -37,6 +37,15 @@ export interface BookMatch {
   amountCents: number;
   payee?: string;
   memo?: string;
+  /** Narrow down by the category of one of the booking's splits (a transfer: of its budget leg). */
+  category?: string;
+  /** Narrow down a transfer leg by the name of the account on the other side. */
+  transferAccount?: string;
+  /**
+   * For a true duplicate (same account, day, amount, payee, memo and categories): the match must
+   * resolve to exactly this many such bookings, and the oldest one (then the lowest id) is taken.
+   */
+  identical?: number;
 }
 
 interface EntryBase {
@@ -52,22 +61,39 @@ export interface BookAdd extends EntryBase {
   payee?: string;
   category?: string;
   transferAccount?: string;
+  /** Income type of an inflow without category (e.g. "Kapitalerträge"), by name. */
+  incomeType?: string;
+  /**
+   * Envelope of a transfer between a budget and a tracking account (put on the budget leg, like
+   * `categoryId` of the transfer route); only together with `transferAccount`.
+   */
+  transferCategory?: string;
   memo?: string;
   cleared: 'cleared' | 'uncleared';
 }
+/**
+ * `unlock: true` on an entry that changes or deletes a booking is the explicit, per-entry switch
+ * for a reconciled (geprüft, locked) booking: it passes `unlockReconciled` to the same functions
+ * the app and the API use (`PATCH /api/bookings/:id` with `unlockReconciled`, `DELETE ...?unlock=1`),
+ * so the change is audited and undoable like any other. Without it a reconciled booking is still
+ * skipped as `reconciled_locked`.
+ */
 export interface BookChangeAmount extends EntryBase {
   kind: 'change_amount';
   match: BookMatch;
   newAmountCents: number;
+  unlock?: true;
 }
 export interface BookChangeDate extends EntryBase {
   kind: 'change_date';
   match: BookMatch;
   newDate: string;
+  unlock?: true;
 }
 export interface BookDelete extends EntryBase {
   kind: 'delete';
   match: BookMatch;
+  unlock?: true;
 }
 export type BookEntry = BookAdd | BookChangeAmount | BookChangeDate | BookDelete;
 
@@ -129,13 +155,32 @@ function parseMatch(raw: unknown, at: string): BookMatch {
   const memo = raw['memo'] === undefined || raw['memo'] === null ? undefined : raw['memo'];
   if (memo !== undefined && typeof memo !== 'string')
     throw new OperatorInputError(`${at}.memo must be a string`);
+  const category = optionalText(raw['category'], `${at}.category`);
+  const transferAccount = optionalText(raw['transferAccount'], `${at}.transferAccount`);
+  const identical = raw['identical'];
+  if (
+    identical !== undefined &&
+    (typeof identical !== 'number' || !Number.isSafeInteger(identical) || identical < 2)
+  )
+    throw new OperatorInputError(`${at}.identical must be a whole number of at least 2`);
   return {
     account: text(raw['account'], `${at}.account`),
     date: validDay(raw['date'], `${at}.date`),
     amountCents: wholeCents(raw['amountCents'], `${at}.amountCents`),
     ...(payeeName !== undefined && { payee: payeeName }),
     ...(memo !== undefined && { memo: memo.trim() }),
+    ...(category !== undefined && { category }),
+    ...(transferAccount !== undefined && { transferAccount }),
+    ...(identical !== undefined && { identical }),
   };
+}
+
+/** `unlock` is optional and, when present, must be a boolean; `false` is the same as absent. */
+function unlockFlag(raw: Record<string, unknown>, at: string): { unlock?: true } {
+  const value = raw['unlock'];
+  if (value === undefined || value === false) return {};
+  if (value === true) return { unlock: true };
+  throw new OperatorInputError(`${at}.unlock must be true or false`);
 }
 
 /** Check a parsed `book --file` JSON; throws `OperatorInputError` naming the entry and the problem. */
@@ -153,13 +198,28 @@ export function parseBookFile(json: unknown): BookEntry[] {
       case 'add': {
         const category = optionalText(raw['category'], `${at}.category`);
         const transferAccount = optionalText(raw['transferAccount'], `${at}.transferAccount`);
+        const transferCategory = optionalText(raw['transferCategory'], `${at}.transferCategory`);
+        const incomeTypeName = optionalText(raw['incomeType'], `${at}.incomeType`);
+        if (
+          incomeTypeName !== undefined &&
+          (category !== undefined || transferAccount !== undefined)
+        )
+          throw new OperatorInputError(
+            `${at}: "incomeType" excludes "category" and "transferAccount"`,
+          );
         if (category !== undefined && transferAccount !== undefined)
           throw new OperatorInputError(
             `${at}: "category" and "transferAccount" exclude each other`,
           );
+        if (transferCategory !== undefined && transferAccount === undefined)
+          throw new OperatorInputError(`${at}: "transferCategory" needs "transferAccount"`);
         const cleared = raw['cleared'] ?? 'uncleared';
         if (cleared !== 'cleared' && cleared !== 'uncleared')
           throw new OperatorInputError(`${at}.cleared must be "cleared" or "uncleared"`);
+        if (raw['unlock'] !== undefined)
+          throw new OperatorInputError(
+            `${at}: "unlock" only applies to change_amount, change_date and delete`,
+          );
         const amountCents = wholeCents(raw['amountCents'], `${at}.amountCents`);
         if (transferAccount !== undefined && amountCents === 0)
           throw new OperatorInputError(`${at}: a transfer needs a non-zero amount`);
@@ -175,6 +235,8 @@ export function parseBookFile(json: unknown): BookEntry[] {
           ...(payeeName !== undefined && { payee: payeeName }),
           ...(category !== undefined && { category }),
           ...(transferAccount !== undefined && { transferAccount }),
+          ...(transferCategory !== undefined && { transferCategory }),
+          ...(incomeTypeName !== undefined && { incomeType: incomeTypeName }),
           ...(memo !== undefined && { memo }),
         };
       }
@@ -184,6 +246,7 @@ export function parseBookFile(json: unknown): BookEntry[] {
           id,
           match: parseMatch(raw['match'], `${at}.match`),
           newAmountCents: wholeCents(raw['newAmountCents'], `${at}.newAmountCents`),
+          ...unlockFlag(raw, at),
         };
       case 'change_date':
         return {
@@ -191,9 +254,15 @@ export function parseBookFile(json: unknown): BookEntry[] {
           id,
           match: parseMatch(raw['match'], `${at}.match`),
           newDate: validDay(raw['newDate'], `${at}.newDate`),
+          ...unlockFlag(raw, at),
         };
       case 'delete':
-        return { kind: 'delete', id, match: parseMatch(raw['match'], `${at}.match`) };
+        return {
+          kind: 'delete',
+          id,
+          match: parseMatch(raw['match'], `${at}.match`),
+          ...unlockFlag(raw, at),
+        };
       default:
         throw new OperatorInputError(
           `${at}.kind must be add, change_amount, change_date or delete`,
@@ -246,6 +315,19 @@ function findOpenAccount(db: Executor, name: string): AccountRef {
   return found;
 }
 
+function findIncomeType(db: Executor, name: string): string {
+  const found = db
+    .select({ id: incomeType.id, name: incomeType.name })
+    .from(incomeType)
+    .where(isNull(incomeType.deletedAt))
+    .all()
+    .filter((t) => fold(t.name) === fold(name));
+  if (found.length === 0) throw new Skip('unknown_income_type', 0, `unknown income type "${name}"`);
+  if (found.length > 1)
+    throw new Skip('ambiguous_income_type', 0, `ambiguous income type "${name}"`);
+  return found[0]!.id;
+}
+
 function findCategory(db: Executor, name: string): string {
   const { ids, problems } = resolveCategoryNames(db, [name]);
   if (problems.unknown.length > 0)
@@ -283,8 +365,50 @@ function resolveMatch(db: Executor, match: BookMatch): BookingRow {
   }
   if (match.memo !== undefined)
     candidates = candidates.filter((b) => (b.memo ?? '').trim() === match.memo);
+  if (match.category !== undefined) {
+    const categoryId = findCategory(db, match.category);
+    candidates = candidates.filter((b) => b.splits.some((s) => s.categoryId === categoryId));
+  }
+  if (match.transferAccount !== undefined) {
+    const other = findAccount(db, match.transferAccount);
+    candidates = candidates.filter(
+      (b) =>
+        b.transferId !== null &&
+        db
+          .select({ id: booking.id })
+          .from(booking)
+          .where(
+            and(
+              eq(booking.transferId, b.transferId),
+              ne(booking.id, b.id),
+              eq(booking.accountId, other.id),
+              isNull(booking.deletedAt),
+            ),
+          )
+          .get() !== undefined,
+    );
+  }
   if (candidates.length === 0) throw new Skip('no_match', 0, 'no booking matches');
-  if (candidates.length > 1)
+  if (match.identical !== undefined) {
+    const key = (b: (typeof candidates)[number]) =>
+      JSON.stringify([
+        b.payeeId,
+        (b.memo ?? '').trim(),
+        b.transferId === null,
+        b.splits.map((x) => [x.categoryId, x.amountCents, x.memo ?? null]),
+      ]);
+    if (candidates.length !== match.identical || new Set(candidates.map(key)).size !== 1)
+      throw new Skip(
+        'ambiguous_match',
+        candidates.length,
+        `expected ${match.identical} identical bookings, found ${candidates.length}${
+          new Set(candidates.map(key)).size > 1 ? ' that differ' : ''
+        }`,
+      );
+    candidates = [...candidates].sort(
+      (a, b) => a.createdAt.localeCompare(b.createdAt) || a.id.localeCompare(b.id),
+    );
+  } else if (candidates.length > 1)
     throw new Skip('ambiguous_match', candidates.length, `${candidates.length} bookings match`);
   const { splits, ...row } = candidates[0]!;
   void splits;
@@ -300,6 +424,11 @@ function refusal(error: unknown): Skip {
   if (error instanceof ConflictError) return new Skip('conflict', 0, message);
   return new Skip('refused', 0, message);
 }
+
+/** The explicit per-entry unlock of a reconciled booking; nothing is unlocked by default. */
+const writeOptions = (entry: BookChangeAmount | BookChangeDate | BookDelete) => ({
+  unlockReconciled: entry.unlock === true,
+});
 
 function applyEntry(tx: Executor, entry: BookEntry, ctx: GroupedContext): BookDone {
   const done = (acct: string, date: string, cents: number): BookDone => ({
@@ -319,6 +448,8 @@ function applyEntry(tx: Executor, entry: BookEntry, ctx: GroupedContext): BookDo
           ? undefined
           : findOpenAccount(tx, entry.transferAccount);
       const categoryId = entry.category === undefined ? null : findCategory(tx, entry.category);
+      const transferCategoryId =
+        entry.transferCategory === undefined ? null : findCategory(tx, entry.transferCategory);
       const payeeId = entry.payee === undefined ? null : payeeForName(tx, entry.payee, ctx);
       const status = entry.cleared === 'cleared' ? 'confirmed' : 'pending';
       if (other) {
@@ -333,6 +464,7 @@ function applyEntry(tx: Executor, entry: BookEntry, ctx: GroupedContext): BookDo
             status,
             payeeId,
             memo: entry.memo ?? null,
+            ...(transferCategoryId !== null && { categoryId: transferCategoryId }),
           },
           ctx,
         );
@@ -346,7 +478,15 @@ function applyEntry(tx: Executor, entry: BookEntry, ctx: GroupedContext): BookDo
             status,
             payeeId,
             memo: entry.memo ?? null,
-            splits: [{ categoryId, amountCents: entry.amountCents }],
+            splits: [
+              {
+                categoryId,
+                amountCents: entry.amountCents,
+                ...(entry.incomeType !== undefined && {
+                  incomeTypeId: findIncomeType(tx, entry.incomeType),
+                }),
+              },
+            ],
           },
           ctx,
         );
@@ -355,17 +495,17 @@ function applyEntry(tx: Executor, entry: BookEntry, ctx: GroupedContext): BookDo
     }
     case 'change_amount': {
       const row = resolveMatch(tx, entry.match);
-      updateBooking(tx, row.id, { amountCents: entry.newAmountCents }, ctx);
+      updateBooking(tx, row.id, { amountCents: entry.newAmountCents }, ctx, writeOptions(entry));
       return done(entry.match.account, row.date, entry.newAmountCents);
     }
     case 'change_date': {
       const row = resolveMatch(tx, entry.match);
-      updateBooking(tx, row.id, { date: entry.newDate }, ctx);
+      updateBooking(tx, row.id, { date: entry.newDate }, ctx, writeOptions(entry));
       return done(entry.match.account, entry.newDate, row.amountCents);
     }
     case 'delete': {
       const row = resolveMatch(tx, entry.match);
-      deleteBooking(tx, row.id, ctx);
+      deleteBooking(tx, row.id, ctx, writeOptions(entry));
       return done(entry.match.account, row.date, row.amountCents);
     }
   }

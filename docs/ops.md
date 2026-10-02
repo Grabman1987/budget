@@ -492,10 +492,14 @@ from a JSON list. The file holds real names and amounts: keep it on the private 
 
 - `add`: `account`, `date`, `amountCents` (signed), optional `payee` (created if missing, as in the
   app), `memo`, `cleared` (`cleared` or `uncleared`, default `uncleared`), and either `category` or
-  `transferAccount` (a proper linked Umbuchung; a negative amount leaves `account`).
+  `transferAccount` (a proper linked Umbuchung; a negative amount leaves `account`). A transfer between a budget and a tracking account may carry its envelope as `transferCategory` (put on the budget leg, as `categoryId` of the transfer route does; refused between two budget accounts).
 - `change_amount` (`newAmountCents`), `change_date` (`newDate`), `delete`: address the booking by
-  `match: {account, date, amountCents, payee?, memo?}`. It must resolve to exactly one top-level
-  booking (a split booking counts with its total).
+  `match: {account, date, amountCents, payee?, memo?, category?, transferAccount?, identical?}` (`category`: one of its splits has this category; `transferAccount`: the other leg of the transfer is in this account; both only narrow a match that is otherwise ambiguous; `identical: N` deletes or changes one of exactly N true duplicates, the oldest). An inflow without category may carry an income type by name as `incomeType` (e.g. `Kapitalerträge`). It must resolve to exactly one top-level
+  booking (a split booking counts with its total). These three also take `unlock: true`, the
+  explicit per-entry unlock of a reconciled (geprüft) booking: it passes the same `unlockReconciled`
+  option as the app's unlock (`PATCH /api/bookings/:id`, `DELETE ...?unlock=1`), so
+  the change is audited and undoable. Without it a reconciled booking is skipped
+  (`reconciled_locked`); `add` does not take it, and every other rule of the app still applies.
 
 Everything goes through the booking functions behind the HTTP routes, so transfer pairing,
 splits, trade cash flows, payment links, reconciliation locks and the envelopes behave as in the
