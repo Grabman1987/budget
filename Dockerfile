@@ -64,6 +64,8 @@ WORKDIR /app
 COPY --from=build /repo/apps/server/dist/index.js ./server.js
 # Import tasks (YNAB dry run, commit, revert) run in a worker thread loaded from this file.
 COPY --from=build /repo/apps/server/dist/import-worker.js ./import-worker.js
+# One-time YNAB migration as an operator task (no import feature in the app; docs/ops.md).
+COPY --from=build /repo/apps/server/dist/migrate-cli.js ./migrate-cli.js
 COPY --from=build /repo/apps/web/dist ./web
 # SQL migrations (applied at start) and the native SQLite driver, which esbuild leaves external.
 COPY --from=build /repo/packages/db/drizzle ./drizzle
