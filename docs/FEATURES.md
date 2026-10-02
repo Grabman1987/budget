@@ -127,7 +127,7 @@ consistent totals, desktop/mobile checks and printing where required.
 | 1.7 | Sparquote und Geldalter | `reports-monat.js` | Body Open |
 | 1.8 | Gesamttabelle | `reports-monat.js` | Body Open; account/depot CSV ZIP export is implemented separately |
 | 1.9 | Projekte und Nebeneinkünfte | `reports-monat.js` | Capture/data + body Open |
-| 2.1 | Ausgabenanalyse | `reports-ausgaben.js` | Body Open |
+| 2.1 | Ausgabenanalyse | `reports-ausgaben.js` | Connected: net Bedarf/Wunsch consumption per period from the shared budget read model, class bar, largest changes against the equally long previous window (absent for "Alles"), category bars with booking drilldown, 12-month heatmap. Zukunft shown apart, never consumption |
 | 2.2 | Budgettreue inkl. 50/30/20 | `reports-ausgaben.js` | Body Open; twelfths rule follows SPEC |
 | 2.3 | Verträge und Abos | `reports-ausgaben.js` | Report body Open; expected-payment workflow exists |
 | 2.4 | Persönliche Inflation | `reports-ausgaben.js` | Body Open |
