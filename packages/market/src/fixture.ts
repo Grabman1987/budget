@@ -1,8 +1,10 @@
 import { synthHistory, type Anchor } from './synth';
 import type {
+  CpiSource,
   DailyQuote,
   DailyRate,
   FxSource,
+  MonthlyIndex,
   QuoteSource,
   QuoteSourceId,
   SecurityRef,
@@ -92,6 +94,44 @@ export function fixtureFxSource(options: FixtureFxOptions = {}): FxSource {
   return {
     async history(currency, from, to): Promise<DailyRate[]> {
       return fixtureRates(currency, anchorsFor(currency), from, to, volBp);
+    },
+  };
+}
+
+/** Yearly price changes of the synthetic consumer price series, in basis points. */
+const FIXTURE_CPI_YEARLY_BP: Record<number, number> = {
+  2021: 280,
+  2022: 860,
+  2023: 780,
+  2024: 290,
+  2025: 350,
+  2026: 220,
+};
+
+/**
+ * A synthetic consumer price index (2020 average = 100) with a smooth monthly path for every year
+ * from `2021-01` to `through`. Invented numbers: for the seed, the tests and the e2e run only.
+ */
+export function fixtureCpiMonths(through = '2025-12'): MonthlyIndex[] {
+  const out: MonthlyIndex[] = [];
+  let level = 100;
+  for (let year = 2021; ; year++) {
+    const monthly = Math.pow(1 + (FIXTURE_CPI_YEARLY_BP[year] ?? 200) / 10_000, 1 / 12);
+    for (let m = 1; m <= 12; m++) {
+      const month = `${year}-${String(m).padStart(2, '0')}`;
+      if (month > through) return out;
+      level *= monthly;
+      out.push({ month, indexMicro: Math.round(level * 10) * 100_000 });
+    }
+  }
+}
+
+/** The synthetic consumer price series as a source (one year of history is never missing). */
+export function fixtureCpiSource(through = '2025-12'): CpiSource {
+  return {
+    series: 'fixture',
+    async monthly() {
+      return fixtureCpiMonths(through);
     },
   };
 }

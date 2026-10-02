@@ -30,8 +30,24 @@ export { synthHistory, isWeekday, type Anchor, type SynthOptions } from './synth
 export {
   fixtureFxSource,
   fixtureQuoteSource,
+  fixtureCpiMonths,
+  fixtureCpiSource,
   fixtureQuotes,
   fixtureRates,
   type FixtureFxOptions,
   type FixtureQuoteOptions,
 } from './fixture';
+export {
+  chainVpi,
+  parseVpiCsv,
+  parseVpiDataset,
+  vpiSource,
+  VPI_NEW_BASE_YEAR,
+  VPI_NEW_DATASET,
+  VPI_NEW_URL,
+  VPI_OLD_DATASET,
+  VPI_OLD_URL,
+  VPI_SERIES,
+  type VpiDataset,
+  type VpiOptions,
+} from './vpi';

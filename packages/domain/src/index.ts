@@ -18,4 +18,5 @@ export * from './profile';
 
 export * from './reports/month';
 export * from './overview';
+export * from './spending';
 export * from './report-tables';

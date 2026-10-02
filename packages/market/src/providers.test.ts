@@ -12,6 +12,8 @@ import {
 } from './coingecko-ids';
 import { ecbSource, parseEcbCsv } from './ecb';
 import { MarketError } from './errors';
+import { fixtureCpiMonths } from './fixture';
+import { chainVpi, parseVpiCsv, parseVpiDataset, vpiSource } from './vpi';
 import { getText } from './http';
 import type { SecurityRef } from './types';
 import { parseYahooChart, yahooChartSource } from './yahoo';
@@ -612,5 +614,103 @@ describe('getText (timeouts, backoff, errors without URLs)', () => {
       throw new DOMException('The operation was aborted', 'TimeoutError');
     }) as unknown as typeof fetch;
     expect(await kindOf(() => getText('https://example.test/', opts(slow, 0)))).toBe('timeout');
+  });
+});
+
+describe('Statistik Austria VPI (synthetic OGD files, both index bases)', () => {
+  it('reads the monthly total index with its decimal comma into micro-units and skips sub-indices and annual rows', () => {
+    expect(parseVpiCsv(data('vpi-ogd.csv'))).toEqual([
+      { month: '2024-01', indexMicro: 110_400_000 },
+      { month: '2024-02', indexMicro: 111_100_000 },
+      { month: '2024-03', indexMicro: 111_600_000 },
+      { month: '2025-12', indexMicro: 120_000_000 },
+    ]);
+  });
+  it('refuses a file with other columns and a broken value, and says empty for no rows', async () => {
+    expect(await kindOf(() => parseVpiCsv('a;b\n1;2\n'))).toBe('parse');
+    const broken = data('vpi-ogd.csv').replace('110,40000', 'abc');
+    expect(await kindOf(() => parseVpiCsv(broken))).toBe('parse');
+    const header = data('vpi-ogd.csv').split('\n')[0] as string;
+    expect(
+      await kindOf(() => vpiSource({ fetch: respond(`${header}\n`) as never }).monthly()),
+    ).toBe('empty');
+  });
+  it('reads the annual averages and both file layouts of the total index', () => {
+    const old = parseVpiDataset(data('vpi-ogd.csv'));
+    expect(old.annual).toEqual([
+      { year: 2024, indexMicro: 111_000_000 },
+      { year: 2025, indexMicro: 118_000_000 },
+    ]);
+    expect(old.months.at(-1)).toEqual({ month: '2025-12', indexMicro: 120_000_000 });
+    const next = parseVpiDataset(data('vpi-ogd-new-base.csv'));
+    expect(next.months.map((m) => m.month)).toEqual(['2026-01', '2026-02', '2026-03']);
+    expect(next.months[0]?.indexMicro).toBe(100_500_000);
+    expect(next.annual).toEqual([]);
+  });
+  it('chains the new base onto the old one by the annual average of the base year', () => {
+    const older = parseVpiDataset(data('vpi-ogd.csv'));
+    const newer = parseVpiDataset(data('vpi-ogd-new-base.csv'));
+    const chained = chainVpi(older, newer);
+    // 100,5 x 118,0 / 100 = 118,59; the old months stay as published.
+    expect(chained.slice(-4)).toEqual([
+      { month: '2025-12', indexMicro: 120_000_000 },
+      { month: '2026-01', indexMicro: 118_590_000 },
+      { month: '2026-02', indexMicro: 119_180_000 },
+      { month: '2026-03', indexMicro: 119_770_000 },
+    ]);
+    expect(chained).toHaveLength(older.months.length + 3);
+    // The same month in both files keeps the old value.
+    const overlap = chainVpi(older, { months: [{ month: '2025-12', indexMicro: 1 }], annual: [] });
+    expect(overlap).toEqual(older.months);
+  });
+  it('falls back to the mean of the twelve old months of the base year and never guesses without them', () => {
+    const months = Array.from({ length: 12 }, (_, i) => ({
+      month: `2025-${String(i + 1).padStart(2, '0')}`,
+      indexMicro: (110 + i) * 1_000_000,
+    }));
+    const newer = { months: [{ month: '2026-01', indexMicro: 100_000_000 }], annual: [] };
+    // Mean of 110..121 is 115,5.
+    expect(chainVpi({ months, annual: [] }, newer).at(-1)).toEqual({
+      month: '2026-01',
+      indexMicro: 115_500_000,
+    });
+    expect(chainVpi({ months: months.slice(0, 11), annual: [] }, newer)).toHaveLength(11);
+  });
+  it('fetches both files through the injected fetch and chains them; a missing new file leaves the old series', async () => {
+    const urls: string[] = [];
+    const bodies: Record<string, string> = {
+      'https://example.invalid/old.csv': data('vpi-ogd.csv'),
+      'https://example.invalid/new.csv': data('vpi-ogd-new-base.csv'),
+    };
+    const make = (missingNew: boolean) =>
+      vpiSource({
+        fetch: (async (input: unknown) => {
+          const url = String(input);
+          urls.push(url);
+          if (missingNew && url.endsWith('new.csv')) return new Response('', { status: 404 });
+          return new Response(bodies[url] ?? '');
+        }) as never,
+        oldUrl: 'https://example.invalid/old.csv',
+        newUrl: 'https://example.invalid/new.csv',
+      });
+    const source = make(false);
+    expect(source.series).toBe('vpi');
+    expect((await source.monthly()).at(-1)?.month).toBe('2026-03');
+    expect(urls).toEqual(['https://example.invalid/old.csv', 'https://example.invalid/new.csv']);
+    expect((await make(true).monthly()).at(-1)?.month).toBe('2025-12');
+    expect(await kindOf(() => vpiSource({ fetch: respond('', 404) as never }).monthly())).toBe(
+      'not_found',
+    );
+  });
+  it('has a synthetic fixture series that is smooth and ends where asked', () => {
+    const rows = fixtureCpiMonths('2025-12');
+    expect(rows[0]?.month).toBe('2021-01');
+    expect(rows.at(-1)?.month).toBe('2025-12');
+    expect(rows).toHaveLength(60);
+    expect(
+      rows.every(
+        (r, i) => i === 0 || r.indexMicro >= (rows[i - 1] as { indexMicro: number }).indexMicro,
+      ),
+    ).toBe(true);
   });
 });

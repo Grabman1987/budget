@@ -4,8 +4,10 @@ import {
   coingeckoSource,
   cryptocalcSource,
   ecbSource,
+  fixtureCpiSource,
   fixtureFxSource,
   fixtureQuoteSource,
+  vpiSource,
   yahooChartSource,
   type HttpOptions,
   type MarketSources,
@@ -32,7 +34,8 @@ export function marketModeFromEnv(env: NodeJS.ProcessEnv = process.env): MarketM
  * resort; each source skips securities without its identifier (`quote_url`, `coingecko_id`,
  * `symbol`) and Ariva and Yahoo skip crypto. `BUDGET_ARIVA=0` switches Ariva off. ECB for rates.
  * Fixture: deterministic synthetic series that run through the prices and rates already stored,
- * never the network.
+ * never the network. The consumer price index comes from Statistik Austria's open data (live) or
+ * a synthetic series.
  */
 export function createMarketSources(
   db: Db,
@@ -50,6 +53,7 @@ export function createMarketSources(
         anchorsFor: (currency) =>
           fxSeries(db, currency).map((r) => ({ date: r.date, value: r.rateMicro })),
       }),
+      cpi: fixtureCpiSource(),
     };
   }
   return {
@@ -57,5 +61,6 @@ export function createMarketSources(
     moreQuotes: [coingeckoSource(http), cryptocalcSource(http)],
     fallbackQuotes: yahooChartSource(http),
     fx: ecbSource(http),
+    cpi: vpiSource(http),
   };
 }

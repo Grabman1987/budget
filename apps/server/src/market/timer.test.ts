@@ -81,7 +81,9 @@ describe('nightly market timer', () => {
     expect(await timer!.tick(at('2026-07-02', '01:45'))).toBe(false);
     expect(lastSuccessfulMarketRun(db)).toMatchObject({ asOf: '2026-07-01' });
     expect(logs).toHaveLength(2);
-    expect(logs[1]).toMatch(/^Market refresh: \d+ price rows, 0 rate rows, 0 failed$/);
+    expect(logs[1]).toMatch(
+      /^Market refresh: \d+ price rows, 0 rate rows, 0 failed, price index unchanged$/,
+    );
     // Winter time (UTC+1): the same wall clock, an hour later in UTC.
     expect(await timer!.tick(at('2026-12-02', '01:29'))).toBe(true); // months missed: catch-up
     expect(await timer!.tick(at('2026-12-03', '01:29'))).toBe(false);

@@ -9,11 +9,19 @@ import {
 } from '@budget/db';
 import { addDays, todayInVienna } from '@budget/domain';
 import { errorKind, type MarketSources } from '@budget/market';
-import { refreshFx, refreshPrices, type FxRefreshResult, type PriceRefreshResult } from './refresh';
+import {
+  refreshCpi,
+  refreshFx,
+  refreshPrices,
+  type CpiRefreshResult,
+  type FxRefreshResult,
+  type PriceRefreshResult,
+} from './refresh';
 
 export interface MarketRefreshResult {
   prices: PriceRefreshResult;
   fx: FxRefreshResult;
+  cpi: CpiRefreshResult;
 }
 
 export interface RefreshMarketOptions {
@@ -27,7 +35,9 @@ export const priceRowsOf = (prices: PriceRefreshResult): number =>
   Object.values(prices.bySource).reduce((n, s) => n + s.rows, 0);
 
 /**
- * Both jobs in order: rates first (prices in a foreign currency are valued with them). One line
+ * The jobs in order: rates first (prices in a foreign currency are valued with them), then prices,
+ * then the monthly consumer price index (only read when the stored series is older than a month;
+ * a failure there is not part of the run's status). One line
  * goes to the run log (`market_run`): when it ran, what it asked for, counts and error classes.
  * A run is `failed` when it threw or when lookups failed and nothing at all was written, `partial`
  * when some lookups failed, `ok` otherwise. The newest `ok`/`partial` run is the "Stand ... Kurse".
@@ -60,6 +70,7 @@ export async function refreshMarket(
   try {
     const fx = await refreshFx(db, sources, { today });
     const prices = await refreshPrices(db, sources, { today });
+    const cpi = await refreshCpi(db, sources, { today });
     const failed = [...fx.failed, ...prices.failed];
     const priceRows = priceRowsOf(prices);
     const fxRows = fx.bySource.ecb.rows;
@@ -70,7 +81,7 @@ export async function refreshMarket(
       failed.flatMap((f) => f.errors),
       failed.length,
     );
-    return { prices, fx };
+    return { prices, fx, cpi };
   } catch (error) {
     log('failed', 0, 0, [errorKind(error)], 0);
     throw error;
@@ -155,13 +166,14 @@ export function startDailyMarketTimer(options: {
     running = true;
     try {
       const asOf = addDays(todayInVienna(at), -1);
-      const { prices, fx } = await refreshMarket(db, sources, asOf, {
+      const { prices, fx, cpi } = await refreshMarket(db, sources, asOf, {
         trigger: 'nightly',
         clock: now ? () => now : () => new Date(),
       });
       log(
         `Market refresh: ${priceRowsOf(prices)} price rows, ` +
-          `${fx.bySource.ecb.rows} rate rows, ${prices.failed.length + fx.failed.length} failed`,
+          `${fx.bySource.ecb.rows} rate rows, ${prices.failed.length + fx.failed.length} failed, ` +
+          `price index ${cpi.skipped ? 'unchanged' : cpi.failed ? `failed (${cpi.failed})` : `${cpi.rows} rows`}`,
       );
     } catch (error) {
       log(`Market refresh failed (${error instanceof Error ? error.name : 'error'})`);
