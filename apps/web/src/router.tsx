@@ -125,6 +125,7 @@ const BUILT_PATHS = new Set<string>([
   VERMOEGEN_SCHULDEN_META.path,
   PLAN_SPARZIELE.path,
   CSV_EXPORT_META.path,
+  '/einstellungen/datenquellen',
 ]);
 const placeholderRoutes = PAGES.filter((page) => !BUILT_PATHS.has(page.path)).map((page) =>
   pageRoute(page.path, page),
@@ -172,6 +173,12 @@ const profileRoute = createRoute({
   path: PROFILE_META.path,
   staticData: { meta: PROFILE_META },
   component: lazyRouteComponent(() => import('./pages/profile-settings'), 'ProfileSettingsPage'),
+});
+const readSourceRoute = createRoute({
+  getParentRoute: () => shellRoute,
+  path: '/einstellungen/datenquellen',
+  staticData: { meta: PAGES.find((p) => p.path === '/einstellungen/datenquellen')! },
+  component: lazyRouteComponent(() => import('./pages/read-source'), 'ReadSourcePage'),
 });
 const investmentSettingsRoute = createRoute({
   getParentRoute: () => shellRoute,
@@ -383,6 +390,7 @@ const routeTree = rootRoute.addChildren([
     securityRoute,
     profileRoute,
     investmentSettingsRoute,
+    readSourceRoute,
     categoriesRoute,
     rulesRoute,
     exportRoute,

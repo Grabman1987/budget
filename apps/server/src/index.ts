@@ -10,6 +10,8 @@ import { createAuth } from './auth/routes';
 import { ImportJobs } from './imports/jobs';
 import { AuthStore } from './auth/store';
 import { createMarketSources, marketModeFromEnv, startDailyMarketTimer } from './market';
+import { bitpandaReadSource } from './sources/bitpanda';
+import { refreshReadSourceIfDue } from './sources/refresh';
 import { todayFromEnv } from './today';
 
 const port = Number(process.env['PORT'] ?? 3000);
@@ -65,7 +67,12 @@ const app = createApp({
 // missed night; in-process until the P4 worker owns scheduling (docs/market-data.md).
 if (process.env['BUDGET_MARKET_DAILY'] === '1') {
   const mode = marketModeFromEnv();
-  startDailyMarketTimer({ db, sources: createMarketSources(db, mode), catchUpOnStart: true });
+  startDailyMarketTimer({
+    db,
+    sources: createMarketSources(db, mode),
+    catchUpOnStart: true,
+    onTick: (now) => refreshReadSourceIfDue(db, bitpandaReadSource(), now),
+  });
   console.log(`Daily market refresh on (${mode} sources)`);
 }
 

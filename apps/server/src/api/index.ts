@@ -1,3 +1,5 @@
+import { bitpandaReadSource } from '../sources/bitpanda';
+import { readSourceRoutes } from './read-source';
 import { searchRoutes } from './search';
 import { inboxRoutes } from './inbox';
 import { contactRoutes } from './contacts';
@@ -62,6 +64,7 @@ export function createLedgerApi({
   jobs = new ImportJobs(db),
 }: LedgerApiOptions): Hono {
   const api = new Hono();
+  api.route('/sources/crypto', readSourceRoutes(db, today, stepUp, bitpandaReadSource()));
   api.route('/search', searchRoutes(db));
   api.route('/accounts', accountRoutes(db, today));
   api.route('/inbox', inboxRoutes(db, today));

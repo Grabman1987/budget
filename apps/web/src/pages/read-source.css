@@ -1,0 +1,22 @@
+.read-source {
+  max-width: 860px;
+}
+.read-source p,
+.read-source h3 {
+  overflow-wrap: anywhere;
+}
+.read-source dl {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 2fr);
+  gap: 8px;
+}
+.read-source dd {
+  margin: 0;
+}
+.source-mapping {
+  border-top: 1px solid var(--rule);
+  margin-top: 24px;
+  padding-top: 16px;
+  display: grid;
+  gap: 12px;
+}

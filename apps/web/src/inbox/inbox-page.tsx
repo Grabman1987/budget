@@ -1,3 +1,4 @@
+import { ReadSourceDetail } from './read-source-detail';
 import { Button, DetailPanel, RevisionTriangle, SectionHead, useToast } from '@budget/ui';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
@@ -228,11 +229,15 @@ function InboxRow({
             ? `${item.payeeName ?? 'Buchung ohne Empfänger'} · ${nativeCurrency(item.amountCents, item.currency)}`
             : item.title}
         </strong>
-        <span>
-          {item.type === 'booking'
-            ? `${longDay(item.date)} · ${item.accountName} · ${item.missingSplits} ${item.missingSplits === 1 ? 'Anteil' : 'Anteile'} ohne Kategorie${item.status === 'pending' ? ' · vorgemerkt' : ''}${item.memo ? ` · ${item.memo}` : ''}`
-            : item.detail}
-        </span>
+        {item.type === 'stored' && item.refType === 'read_source' ? (
+          <ReadSourceDetail detail={item.detail} />
+        ) : (
+          <span>
+            {item.type === 'booking'
+              ? `${longDay(item.date)} · ${item.accountName} · ${item.missingSplits} ${item.missingSplits === 1 ? 'Anteil' : 'Anteile'} ohne Kategorie${item.status === 'pending' ? ' · vorgemerkt' : ''}${item.memo ? ` · ${item.memo}` : ''}`
+              : item.detail}
+          </span>
+        )}
       </td>
       <td className="rev-act kact">
         {item.type === 'booking' ? (
@@ -276,6 +281,12 @@ function InboxRow({
 
 /** Offer only connected repair views; unknown/legacy references stay readable without inert links. */
 function SourceLink({ item }: { item: InboxStored }) {
+  if (item.refType === 'read_source')
+    return (
+      <AppLink className="btn btn-ghost btn-sm" to="/einstellungen/datenquellen">
+        Datenquelle prüfen
+      </AppLink>
+    );
   if (item.refType === 'category')
     return (
       <AppLink className="btn btn-ghost btn-sm" to="/plan/monat">
