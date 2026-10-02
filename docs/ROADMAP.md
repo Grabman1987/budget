@@ -330,6 +330,12 @@ The 30 reports (SPEC §7), explorer, printable sheets, parallel run with reconci
 - [x] Match the original report body with period control, value/cumulative-net-flow lines, monthly value-change bars and year rows. Label the securities-only scope and stored flow semantics; do not infer savings-plan or R12 attribution.
 - [ ] Depot-inclusive flows and source-linked savings-plan/R12 attribution remain open until the source model supports them.
 
+### P6.1b — Monthly table reports (1.5 to 1.8)
+- [x] `GET /api/report-tables/months`: one read of the monthly ledger facts (income by type, spending and assigned per category from the shared budget calculation, Geldalter and net worth per month end); every figure is derived in `packages/domain/src/report-tables`.
+- [x] `/reports/jahresansicht`, `/reports/kategorien`, `/reports/sparquote`, `/reports/gesamttabelle` with the prototype's sections, heat grid, previous-year comparison, Ist/Plan chart, Sparquote/Geldalter charts and CSV of the displayed table.
+- [x] Owner decision 02.10.2026: Kapitalerträge and Erstattungen are visible memo rows and never part of Einnahmen, Sparquote or income comparisons.
+- [ ] Owner/private acceptance against the real ledger; month-end net worth is withheld as a whole when a price or rate is missing.
+
 ### P6.4 — Rendite und Kennzahlen
 - [x] `/reports/prendite`: selected-period summary from `GET /api/portfolio` in securities-only view (TTWROR, existing annualized metrics, netflows, period gain and end value) plus separately labelled lifetime realized gain/completeness; no new financial formula.
 - [x] Suppress all report figures when the legacy portfolio summary returns `valuation_unavailable`; keep documented zero gains distinct from unavailable basis and preserve gains when open positions are empty.
