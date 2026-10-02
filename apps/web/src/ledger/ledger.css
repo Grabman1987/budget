@@ -9,8 +9,25 @@
   display: flex;
   justify-content: flex-end;
 }
+.kbar {
+  gap: 8px;
+}
 .kbar .btn {
   gap: 6px;
+}
+/* Edit mode of the account order: an extra column with grip and arrows. */
+.kc-order {
+  width: 1%;
+  padding-left: 0 !important;
+  text-align: right;
+  white-space: nowrap;
+}
+.ktable.is-ordering .krow:hover td {
+  background: none;
+}
+.ktable .krow.is-lifted td {
+  background: var(--surface);
+  box-shadow: var(--card-shadow);
 }
 .kstate {
   display: grid;
@@ -694,6 +711,24 @@
   .krow .kc-num,
   .kgroup .kc-num {
     grid-area: num;
+  }
+  .ktable.is-ordering .krow {
+    grid-template-columns: minmax(0, 1fr) auto auto;
+    grid-template-areas: 'name num order';
+  }
+  .ktable.is-ordering .kgroup {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+  .ktable.is-ordering .krow .kc-line,
+  .ktable.is-ordering .kgroup .kc-order {
+    display: none;
+  }
+  .ktable.is-ordering .kutil {
+    display: none;
+  }
+  .krow .kc-order {
+    grid-area: order;
+    align-self: center;
   }
   .ktx tr {
     grid-template-areas: 'payee amount' 'cat run' 'date status';
