@@ -253,6 +253,9 @@ Enable Banking adapter, worker with nightly run and catch-up, inbox items, assig
 ## P5 Vermögen
 Price history (yfinance + Ariva, source per price), ECB rates, trades and holdings, portfolio performance, allocation, Sparpläne, debts with extra repayment, freedom number with Soll-Pfad. **Gate 3:** returns and holdings equal Portfolio Performance.
 
+### P5.0 — Shared wealth arithmetic correctness
+- [x] Exact half-up rounding for odd divisors and divisor one, including signed ties, single-month annualisation and zero progress; no extra cent or basis point from the rounding offset.
+
 ### P5.1 — Market data: price and FX sources behind adapters (`docs/market-data.md`)
 - [x] `packages/market`: Yahoo chart (daily close, unadjusted by default, adjusted per security), Ariva CSV fallback (flag, off), ECB SDMX (inverted on integers), deterministic fixture sources; decimals parsed to micro-units without floats; fixed-text errors without URLs
 - [x] Migration on `security`: `fallback_quote_id`, `quote_exchange`, `prices_enabled`, `quote_adjusted`
@@ -297,7 +300,16 @@ Price history (yfinance + Ariva, source per price), ECB rates, trades and holdin
 - [x] `/vermoegen/portfolio`: original lead/chain and class-grouped positions, shared server value/basis/gain/shares, per-broker ownership and explicit unknown price/FX/basis; read-only instrument detail in `?produkt=` with actual account navigation
 - [x] Manual quote capture with date/source/currency, exact micro precision, existing audited price API and undo; literal projection/mutation tests and desktop/mobile light/dark browser evidence
 - [x] Basic instrument creation/editing (name, kind, currency, ISIN, symbol, existing asset class), empty-portfolio entry and instruments without holdings; existing audited API/undo, dirty/pending-save guards, validation and reload/error states. Source/cost settings and broker ownership are preserved.
-- [ ] Trade capture/edit/delete, extended instrument/source management and deletion, allocation/rebalancing, savings-plan controls and performance/report bodies remain later slices; Gate 3 private reconciliation remains open
+- [x] Current-only class allocation/rebalancing hints using shared risk calculation, original Soll/Ist bands and revision rows; audited dated target editor and basic class creation with undo/redo, unknown/nonpositive valuation and dirty/pending navigation guards
+- [x] Instrument metadata and manual quote forms protect dirty edits during browser Back and route changes; pending writes reject navigation, successful creation opens the saved instrument, and explicit close/discard prompts only once. Native unload protection remains browser-controlled.
+- [x] Manual buy/sell creation and editing plus source trade history, including instruments without current holdings; exact units, account-currency gross/fees/withheld tax, atomic settlement and group undo/redo. Shared basis/valuation and per-broker ownership remain authoritative; no new oversell policy.
+- [x] Savings-plan schedule list/create/edit/end in native investment-account currency; today's effective rate separated from future versions, source/history, inclusive end date, audited undo/redo, quote-independent reads and dirty/pending navigation protection. Saving schedules creates no trades, bookings or bank orders; changes at the bank remain manual.
+- [ ] Trade deletion and capture of other trade kinds, extended instrument/source management and deletion, savings-plan proposal/execution UI and performance/report bodies remain later slices; owner design acceptance and Gate 3 private reconciliation remain open
+
+### P5.7 — Current debts and unpersisted monthly repayment model
+- [x] Schulden overview/chain from shared nullable current account values, actual account drilldown/history, explicit unsaved native-currency assumptions and existing server payoffPlan; typed limits/unknown states, no payment or contract writes
+- [x] Literal projection/FX/safety/session/origin tests and desktop/mobile light/dark original-prototype geometry and browser evidence
+- [ ] Persisted per-loan payment terms/scenarios, variable conditions, multi-loan strategies and connected debt/card rules remain later; private contractual reconciliation is open
 
 ## P6 Reports und Umstellung
 The 30 reports (SPEC §7), explorer, printable sheets, parallel run with reconciliation report. **Gate 4:** one month-end without difference, then retire remaining finance tools, including YNAB and PP. The prototype-only host was retired independently of this gate.

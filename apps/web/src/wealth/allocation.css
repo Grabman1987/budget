@@ -1,0 +1,142 @@
+/* Original Vermögen prototype: measured Soll/Ist bands and revision rows. */
+.valloc,
+.vrebal {
+  grid-column: 1 / -1;
+}
+.vallo {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+}
+.vallo li {
+  display: grid;
+  grid-template-columns: 200px minmax(0, 1fr) 120px;
+  align-items: center;
+  gap: 16px;
+  padding: 12px 0;
+  border-top: 1px solid var(--rule);
+}
+.vallo li:first-child {
+  border-top: 0;
+}
+.va-name {
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+.va-name small {
+  display: block;
+  font-weight: 500;
+  font-size: 12px;
+  color: var(--ink-3);
+}
+.va-track {
+  position: relative;
+  height: 16px;
+  border-bottom: 1px solid var(--rule-strong);
+}
+.va-band {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  background: var(--tint-2);
+  border-left: 1px dashed var(--line-2);
+  border-right: 1px dashed var(--line-2);
+}
+.va-ist {
+  position: absolute;
+  top: 4px;
+  height: 8px;
+  left: 0;
+  background: var(--line);
+}
+.is-out .va-ist {
+  background: var(--red);
+}
+.va-soll {
+  position: absolute;
+  top: -4px;
+  bottom: -4px;
+  border-left: 2px solid var(--ink);
+}
+.is-out .va-val strong {
+  color: var(--red);
+}
+.va-val {
+  text-align: right;
+}
+.va-val strong {
+  display: block;
+  font-size: 16px;
+  font-weight: 650;
+}
+.va-val small {
+  font-size: 12px;
+  color: var(--ink-3);
+}
+.allocation-actions {
+  margin-top: 12px;
+}
+.valloc .head .aside {
+  max-width: 55%;
+  text-align: right;
+}
+.vrebal .rev-act {
+  text-align: right;
+  white-space: nowrap;
+  padding-left: 16px;
+}
+.target-fields {
+  display: grid;
+  gap: 16px;
+  border: 0;
+  margin: 0;
+  padding: 0;
+  min-width: 0;
+}
+.target-total {
+  font-weight: 600;
+}
+.target-class-create {
+  border-top: 1px solid var(--rule);
+  padding-top: 16px;
+  margin-top: 20px;
+}
+@media (max-width: 767px) {
+  .vallo li {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+  .vallo .va-track {
+    grid-column: 1 / -1;
+    grid-row: 2;
+  }
+  .vrebal .rev-table thead {
+    display: none;
+  }
+  .vrebal .rev-table,
+  .vrebal .rev-table tbody {
+    display: block;
+  }
+  .vrebal .rev-table tr {
+    display: grid;
+    grid-template-columns: 34px minmax(0, 1fr);
+    gap: 8px;
+    padding: 12px 0;
+    border-top: 1px solid var(--rule);
+  }
+  .vrebal .rev-table td {
+    display: block;
+    padding: 0;
+    border: 0;
+    width: auto;
+    text-align: left;
+  }
+  .vrebal .rev-act {
+    grid-column: 2;
+  }
+  .vrebal .rev-act .btn {
+    min-height: 44px;
+  }
+  .valloc .head {
+    align-items: start;
+  }
+}
