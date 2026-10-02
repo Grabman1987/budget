@@ -189,9 +189,10 @@ function YearOverview({
         <>
           <div
             className="year-desktop"
-            tabIndex={0}
             role="region"
             aria-label="Zwölf Monate, horizontal scrollbar"
+            // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- Keyboard users must be able to scroll all twelve months.
+            tabIndex={0}
           >
             <table className="year-table">
               <caption className="sr-only">
