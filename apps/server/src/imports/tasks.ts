@@ -246,12 +246,13 @@ function answer(
   e: Evaluation,
   written: (Pick<WriteResult, 'ledger'> & Partial<WriteResult>) | null,
 ) {
-  const { differences, moved, creditShift, checked } = e.reconciliation;
+  const { differences, moved, shifts, creditShift, checked } = e.reconciliation;
   return {
     mappingVersion: e.version,
     startMonth: e.target.startMonth,
     problems: e.problems,
-    reconciliation: { differences, moved, creditShift, checked },
+    reconciliation: { differences, moved, shifts, creditShift, checked },
+    expectedPayments: e.target.expectedPayments.length,
     structure: structure(e.target),
     accounts: e.target.accounts.map((a) => ({
       id: a.id,
@@ -266,13 +267,20 @@ function answer(
   };
 }
 
-const writeInput = (db: Executor, r: ImportRunRow, e: Evaluation, deleteMissing = false) => ({
+const writeInput = (
+  db: Executor,
+  r: ImportRunRow,
+  e: Evaluation,
+  ctx: TaskContext,
+  deleteMissing = false,
+) => ({
   runId: r.id,
   target: e.target,
   keys: importKeys(e.raw),
   previous: previousIds(db, r.id),
   deleteMissing,
   actor: ACTOR,
+  today: ctx.today,
 });
 
 function stage(db: Executor, task: Extract<ImportTask, { kind: 'stage' }>, ctx: TaskContext) {
@@ -329,7 +337,7 @@ function dryRun(db: Executor, runId: string, ctx: TaskContext) {
   ctx.progress?.('write');
   if (!errors)
     try {
-      written = dryRunImport(db, writeInput(db, r, e));
+      written = dryRunImport(db, writeInput(db, r, e, ctx));
     } catch (error) {
       // A row the ledger refuses (the mapping checks should catch these first): an error of the
       // dry run, so the wizard shows it and keeps the commit closed.
@@ -366,7 +374,7 @@ function commit(db: Executor, runId: string, deleteMissing: boolean, ctx: TaskCo
       problems: e.problems,
     });
   ctx.progress?.('write');
-  const written = writeImport(db, writeInput(db, r, e, deleteMissing));
+  const written = writeImport(db, writeInput(db, r, e, ctx, deleteMissing));
   const summary = {
     ...summaryOf(r),
     differences: e.reconciliation.differences.length,

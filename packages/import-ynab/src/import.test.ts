@@ -49,11 +49,14 @@ describe('round trip on the synthetic export', () => {
   });
 
   it('identity mapping from the first month: 0 difference everywhere', () => {
-    const { problems, report } = run(identityMapping(raw));
+    const { target, problems, report } = run(identityMapping(raw));
     expect(problems).toEqual([]);
     expect(report.differences).toEqual([]);
+    // Nothing to re-derive: every envelope is YNAB's already.
+    expect(target.shifts).toEqual([]);
     expect(report.checked).toMatchObject({
-      activity: 45 * 58,
+      // Activity of the two card envelopes is covered by their Available.
+      activity: 43 * 58,
       available: 45 * 58,
       to_be_assigned: 58,
       total: 58,
@@ -118,40 +121,41 @@ describe('round trip on the synthetic export', () => {
     expect(report.differences).toEqual([]);
   });
 
-  it('merging an overspent category is not exact after the overspending: listed as differences', () => {
+  it('merging an overspent category keeps every envelope and Zu verteilen: assigned absorbs it', () => {
     // YNAB resets each category's overspending on its own and splits it into cash and credit per
     // category; a merged envelope nets first. May 2024: Möbel −50 € cash, Kultur −50 € credit
-    // (card first); merged: −100 €, all of it credit (120 € on the card), so the card envelope
-    // gets 50 € less and the totals change by the credit overspending.
+    // (card first); merged: −100 €, all of it credit (120 € on the card). The card envelope holds
+    // that change of the credit overspending, and June's assigned amount of the card envelope
+    // makes up for it, so Zu verteilen stays YNAB's in every month.
     const mapping = mapped((m) => {
       m.categories[key('Möbel')] = key('Kultur');
       delete m.targets[key('Möbel')];
     }, '2024-01');
-    const { report } = run(mapping);
-    expect(report.differences.some((d) => d.check === 'balance')).toBe(false);
-    const may = report.differences
-      .filter((d) => d.month === '2024-05')
-      .map((d) => [d.check, d.category, d.actualCents - d.expectedCents]);
-    expect(may).toEqual([
-      ['activity', key('Kreditkarte Blau'), -5000],
-      ['available', key('Kreditkarte Blau'), -5000],
-      ['total', undefined, -5000],
+    const { target, report } = run(mapping);
+    expect(report.differences).toEqual([]);
+    expect(report.checked.to_be_assigned).toBe(target.months.length);
+    expect(report.creditShift).toEqual([{ month: '2024-05', cents: 5000 }]);
+    expect(target.shifts).toEqual([
+      { month: '2024-06', categoryId: key('Kreditkarte Blau'), cents: 5000 },
     ]);
-    expect(report.differences.map((d) => d.month).sort()[0]).toBe('2024-05');
   });
 
-  it('a dropped category gives its Available to Zu verteilen', () => {
+  it('a dropped category with money is a difference of Zu verteilen (YNAB keeps the money)', () => {
     const drop = mapped((m) => {
       m.categories[key('Alte Kategorie')] = 'drop';
       delete m.targets[key('Alte Kategorie')];
     }, '2023-10');
     const { report } = run(drop);
-    expect(report.differences).toEqual([]);
+    const kept = raw.plan['2023-10']?.[key('Alte Kategorie')]?.availableCents;
+    expect(kept).toBe(5000);
+    expect(
+      new Set(report.differences.map((d) => [d.check, d.actualCents - d.expectedCents].join())),
+    ).toEqual(new Set(['to_be_assigned,5000']));
     const base = run(identityMapping(raw, '2023-10')).report.budget;
     expect(report.budget[0]!.toBeAssignedCents - base[0]!.toBeAssignedCents).toBe(5000);
   });
 
-  it('rules from rules_from and from their own month move money but keep the totals', () => {
+  it('rules from rules_from and from their own month move the assigned money along', () => {
     const mapping = mapped((m) => {
       m.rulesFrom = '2026-01';
       m.rules = [
@@ -170,9 +174,9 @@ describe('round trip on the synthetic export', () => {
     }, '2023-10');
     const { target, report } = run(mapping);
     expect(report.differences).toEqual([]);
-    // Moving the fee out of Haushalt leaves more there to fund its card spending.
-    expect(report.creditShift.length).toBeGreaterThan(0);
-    expect(report.creditShift.every((x) => x.month >= '2025-01' && x.cents < 0)).toBe(true);
+    // The assigned money moves with the bookings: every envelope keeps YNAB's Available, so the
+    // card spending is funded as in YNAB.
+    expect(report.creditShift).toEqual([]);
     const byRule = (id: string) => report.moved.filter((x) => x.ruleId === id);
     // Twice a year, February and August.
     expect(byRule('rundfunk').map((x) => [x.month, x.cents])).toEqual([
@@ -190,18 +194,21 @@ describe('round trip on the synthetic export', () => {
     expect(
       target.bookings.flatMap((b) => b.splits).filter((s) => s.project === 'Altkonto'),
     ).toHaveLength(6);
-    // Touched categories are compared only before their first move; totals every month.
+    const [fee] = byRule('rundfunk');
+    expect(target.shifts.filter((x) => x.month === '2026-02')).toEqual(
+      expect.arrayContaining([
+        { month: '2026-02', categoryId: fee?.fromCategory, cents: -6000 },
+        { month: '2026-02', categoryId: key('Internet'), cents: 6000 },
+      ]),
+    );
+    // Every check in every month, Zu verteilen included.
     const months = target.months.length;
     expect(report.checked.total).toBe(months);
-    expect(report.checked.to_be_assigned).toBe(target.months.indexOf('2025-01'));
-    expect(report.checked.available).toBe(
-      45 * months -
-        2 * (months - target.months.indexOf('2026-02')) -
-        3 * (months - target.months.indexOf('2025-01')),
-    );
+    expect(report.checked.to_be_assigned).toBe(months);
+    expect(report.checked.available).toBe(45 * months);
   });
 
-  it('name cleanup, expected payments from notes and payee contacts', () => {
+  it('name cleanup, monthly targets from notes and payee contacts', () => {
     const mapping = mapped((m) => {
       m.names = { stripNotes: true, stripEmoji: true };
       m.payees = { Vermieter: { name: 'Hausverwaltung', contact: 'Kontakt B' } };
@@ -211,23 +218,15 @@ describe('round trip on the synthetic export', () => {
     expect(names).toContain('Strom');
     expect(names).toContain('Lebensmittel');
     expect(target.categories.map((c) => c.group)).toContain('Freizeit');
-    const monthly = (day: number) => ({ kind: 'monthly', day });
-    const yearly = (...dates: [number, number][]) => ({
-      kind: 'yearly',
-      dates: dates.map(([day, month]) => ({ day, month })),
+    // The scheduled rent: name and contact of the mapped payee, monthly by the category's note.
+    expect(target.expectedPayments[0]).toMatchObject({
+      name: 'Hausverwaltung',
+      payee: 'Hausverwaltung',
+      contact: 'Kontakt B',
+      rhythm: 'monthly',
+      dueDay: 1,
+      basis: 'note_monthly',
     });
-    expect(target.expectedPayments.map((e) => [e.amountCents, e.schedule])).toEqual([
-      [108961, monthly(1)],
-      [8500, monthly(5)],
-      [null, monthly(10)],
-      [1530, { kind: 'last_day' }],
-      [999, { kind: 'unknown' }],
-      [6000, yearly([1, 2], [1, 8])],
-      [60000, monthly(1)],
-      [18000, yearly([1, 3])],
-      [108000, yearly([1, 11])],
-      [4500, monthly(12)],
-    ]);
     expect(target.targets.map((t) => [stripNote(t.source), t.amountCents])).toEqual([
       ['🎉 Freizeit: Urlaub', 15000],
       ['📈 Zukunft: Notgroschen', 10000],
@@ -240,17 +239,28 @@ describe('round trip on the synthetic export', () => {
 });
 
 describe('export facts from the first real import', () => {
-  it('rows after the export date are scheduled: pending, outside the plan, balances and budget', () => {
+  it('rows after the export date are expected payments, not bookings', () => {
     expect(exportAsOf(YNAB_FILE_NAMES.plan)).toBe('2026-09-29');
     expect(exportAsOf('Register.tsv')).toBeNull();
     expect(raw.bookings.filter((b) => b.scheduled)).toHaveLength(6);
     const { target, report } = run(identityMapping(raw));
-    const future = target.bookings.filter((b) => b.scheduled);
-    expect(future.map((b) => [b.date > YNAB_AS_OF, b.status])).toEqual(
-      Array(6).fill([true, 'pending']),
-    );
+    expect(target.bookings.filter((b) => b.date > YNAB_AS_OF)).toEqual([]);
     expect(report.differences).toEqual([]);
-    expect(report.checked.balance).toBeGreaterThan(0);
+    // The rent once (monthly by its note), the five monthly kindergarten rows as one payment.
+    expect(
+      target.expectedPayments.map((e) => [
+        e.name,
+        e.kind,
+        e.amountCents,
+        e.rhythm,
+        e.dueDay,
+        e.startDate,
+        e.basis,
+      ]),
+    ).toEqual([
+      ['Vermieter', 'outflow', 108961, 'monthly', 1, '2026-10-01', 'note_monthly'],
+      ['Kindergarten', 'outflow', 25000, 'monthly', 5, '2026-10-05', 'recurring'],
+    ]);
   });
 
   it('account proposals: paid-off loan, closed accounts, platforms, trimmed names', () => {
