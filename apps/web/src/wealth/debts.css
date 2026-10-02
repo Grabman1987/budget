@@ -1,0 +1,168 @@
+/* Original vermoegen.js renderDebts geometry; forms expose explicit model assumptions. */
+.debts-view .debt-full,
+.debts-view .debt-accounts {
+  grid-column: 1 / -1;
+  min-width: 0;
+}
+.debts-view .debt-assumptions {
+  grid-column: 2;
+}
+.debt-choice {
+  display: grid;
+  gap: 6px;
+  margin-top: 16px;
+}
+.debts-view input,
+.debts-view select {
+  width: 100%;
+  min-height: 44px;
+  padding: 8px 10px;
+  border: 1px solid var(--rule-strong);
+  border-radius: 8px;
+  background: var(--raised);
+  color: var(--ink);
+  font: inherit;
+}
+.debts-view fieldset {
+  border: 0;
+  padding: 0;
+  margin: 0;
+  min-width: 0;
+}
+.debt-inputs {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px 20px;
+  margin: 16px 0;
+}
+.debt-inputs .field-row {
+  margin: 0;
+}
+.debt-inputs label {
+  display: grid;
+  align-content: start;
+  gap: 6px;
+}
+.debt-chart {
+  min-height: 260px;
+  margin: 8px 0;
+}
+.debts-view .vtable {
+  width: 100%;
+}
+.debts-view .vtable th,
+.debts-view .vtable td {
+  border-bottom: 1px solid var(--rule);
+  padding: 10px 8px;
+}
+.debts-view .vtable th {
+  text-align: left;
+}
+.debts-view .vtable .num {
+  text-align: right;
+}
+.debts-view .vtable small {
+  display: block;
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--ink-3);
+}
+.debts-view .vtable th.tech {
+  font-family: var(--font-tech);
+  text-transform: uppercase;
+  font-size: 11.5px;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  color: var(--ink-3);
+}
+.debt-comparison .vtable th,
+.debt-comparison .vtable td {
+  width: 33.33%;
+  vertical-align: top;
+}
+.debts-view .vsave {
+  margin-top: 12px;
+}
+.debts-view .vsave span,
+.debts-view .vsave strong {
+  color: var(--line);
+  font-weight: 650;
+}
+.debts-view .chain-inline {
+  flex-wrap: wrap;
+}
+@media (max-width: 767px) {
+  .debt-inputs {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .debt-chart {
+    min-height: 220px;
+  }
+  .debt-table thead,
+  .debt-years thead {
+    display: none;
+  }
+  .debt-table tr,
+  .debt-years tr {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    border-bottom: 1px solid var(--rule);
+    padding: 10px 0;
+    gap: 8px;
+  }
+  .debt-table th,
+  .debt-years th {
+    grid-column: 1 / -1;
+  }
+  .debts-view .debt-table td,
+  .debts-view .debt-table th,
+  .debts-view .debt-years td,
+  .debts-view .debt-years th {
+    border: 0;
+    padding: 0;
+    text-align: left;
+  }
+  .debt-table td[data-label]::before,
+  .debt-years td[data-label]::before {
+    content: attr(data-label);
+    display: block;
+    font-family: var(--font-tech);
+    text-transform: uppercase;
+    font-size: 11px;
+    color: var(--ink-3);
+  }
+}
+
+@media (max-width: 980px) {
+  .debts-view .debt-assumptions {
+    grid-column: 1 / -1;
+  }
+}
+.debt-comparison .vsave {
+  display: flex;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+}
+/* Preserve comparison columns against the inherited mobile position-table rules. */
+.debt-comparison .vtable thead {
+  display: table-header-group;
+}
+.debt-comparison .vtable tbody {
+  display: table-row-group;
+}
+.debt-comparison .vtable tr {
+  display: table-row;
+}
+.debt-comparison .vtable th,
+.debt-comparison .vtable td {
+  display: table-cell;
+}
+@media (max-width: 767px) {
+  .debt-comparison .vtable th,
+  .debt-comparison .vtable td {
+    padding: 8px 4px;
+    font-size: 12px;
+    white-space: normal;
+  }
+}

@@ -304,5 +304,10 @@ Price history (yfinance + Ariva, source per price), ECB rates, trades and holdin
 - [x] Savings-plan schedule list/create/edit/end in native investment-account currency; today's effective rate separated from future versions, source/history, inclusive end date, audited undo/redo, quote-independent reads and dirty/pending navigation protection. Saving schedules creates no trades, bookings or bank orders; changes at the bank remain manual.
 - [ ] Trade deletion and capture of other trade kinds, extended instrument/source management and deletion, savings-plan proposal/execution UI and performance/report bodies remain later slices; owner design acceptance and Gate 3 private reconciliation remain open
 
+### P5.7 — Current debts and unpersisted monthly repayment model
+- [x] Schulden overview/chain from shared nullable current account values, actual account drilldown/history, explicit unsaved native-currency assumptions and existing server payoffPlan; typed limits/unknown states, no payment or contract writes
+- [x] Literal projection/FX/safety/session/origin tests and desktop/mobile light/dark original-prototype geometry and browser evidence
+- [ ] Persisted per-loan payment terms/scenarios, variable conditions, multi-loan strategies and connected debt/card rules remain later; private contractual reconciliation is open
+
 ## P6 Reports und Umstellung
 The 30 reports (SPEC §7), explorer, printable sheets, parallel run with reconciliation report. **Gate 4:** one month-end without difference, then retire remaining finance tools, including YNAB and PP. The prototype-only host was retired independently of this gate.
