@@ -632,3 +632,186 @@ describe('book: dry run and undo', () => {
     expect(live('giro').find((b) => b.amountCents === -1_500)).toBeDefined();
   });
 });
+
+describe('book: set_splits', () => {
+  const inflowMatch = { account: 'Giro', date: '2026-10-15', amountCents: 5_000 };
+  const inflow = (status: 'pending' | 'confirmed' | 'reconciled' = 'confirmed') =>
+    createBooking(
+      db,
+      {
+        accountId: 'giro',
+        date: '2026-10-15',
+        amountCents: 5_000,
+        status,
+        splits: [{ categoryId: null, amountCents: 5_000, incomeTypeId: 'income-salary' }],
+      },
+      owner,
+    );
+  const splitEntry = (extra: Record<string, unknown> = {}) => ({
+    id: 's1',
+    kind: 'set_splits',
+    match: inflowMatch,
+    splits: [
+      { incomeType: 'Gehalt', amountCents: 4_500 },
+      { incomeType: 'Erstattungen', amountCents: 300, memo: 'Pauschale' },
+      { category: 'Auslagen', amountCents: 200, contact: 'Freund', memo: 'Spesen' },
+    ],
+    ...extra,
+  });
+  const splitsOf = () =>
+    live('giro')[0]!.splits.map((s) => ({
+      categoryId: s.categoryId,
+      incomeTypeId: s.incomeTypeId,
+      contactId: s.contactId,
+      amountCents: s.amountCents,
+      memo: s.memo,
+    }));
+
+  it('replaces all splits at once and leaves the booking itself alone', () => {
+    inflow();
+    const [{ updatedAt: _u, splits: _s, ...head }] = live('giro');
+    void _u;
+    void _s;
+    const result = done(only([splitEntry()]));
+    expect(result).toMatchObject({ kind: 'set_splits', cents: 5_000, date: '2026-10-15' });
+    expect(result.groupId).not.toBe('');
+    expect(splitsOf()).toEqual([
+      {
+        categoryId: null,
+        incomeTypeId: 'income-salary',
+        contactId: null,
+        amountCents: 4_500,
+        memo: null,
+      },
+      {
+        categoryId: null,
+        incomeTypeId: 'income-refund',
+        contactId: null,
+        amountCents: 300,
+        memo: 'Pauschale',
+      },
+      {
+        categoryId: 'auslagen',
+        incomeTypeId: null,
+        contactId: 'k1',
+        amountCents: 200,
+        memo: 'Spesen',
+      },
+    ]);
+    const [{ updatedAt: _u2, splits: _s2, ...after }] = live('giro');
+    void _u2;
+    void _s2;
+    expect(after).toEqual(head);
+    expect(live('giro')).toHaveLength(1);
+  });
+
+  it('is audited as one operator group and undoable', () => {
+    inflow();
+    const before = splitsOf();
+    const auditBefore = auditCount();
+    const result = done(only([splitEntry()]));
+    expect(auditCount()).toBeGreaterThan(auditBefore);
+    undo(db, { groupId: result.groupId }, operator);
+    expect(splitsOf()).toEqual(before);
+  });
+
+  it('refuses sums that differ from the booking amount before anything runs', () => {
+    expect(() =>
+      parseBookFile([splitEntry({ splits: [{ incomeType: 'Gehalt', amountCents: 4_999 }] })]),
+    ).toThrow(/add up to 4999 cents, the booking is 5000 cents/);
+  });
+
+  it('validates the split shape', () => {
+    const bad = (splits: unknown) => () => parseBookFile([splitEntry({ splits })]);
+    expect(bad([])).toThrow(OperatorInputError);
+    expect(bad('x')).toThrow(OperatorInputError);
+    expect(bad([{ amountCents: 0 }, { amountCents: 5_000 }])).toThrow(/must not be 0/);
+    expect(bad([{ category: 'Essen', incomeType: 'Gehalt', amountCents: 5_000 }])).toThrow(
+      /exclude each other/,
+    );
+    expect(bad([{ contact: 'Freund', amountCents: 5_000 }])).toThrow(/needs a "category"/);
+    expect(bad([{ amountCents: 50.5 }])).toThrow(OperatorInputError);
+  });
+
+  it('accepts a split without category and income type (Zu verteilen)', () => {
+    inflow();
+    done(only([splitEntry({ splits: [{ amountCents: 5_000 }] })]));
+    expect(splitsOf()).toEqual([
+      { categoryId: null, incomeTypeId: null, contactId: null, amountCents: 5_000, memo: null },
+    ]);
+  });
+
+  it('skips unknown names and writes nothing for the entry', () => {
+    inflow();
+    const before = state();
+    const auditBefore = auditCount();
+    const r = (splits: unknown) => skipped(only([splitEntry({ splits: splits as never })])).reason;
+    expect(r([{ category: 'Nope', amountCents: 5_000 }])).toBe('unknown_category');
+    expect(r([{ incomeType: 'Nope', amountCents: 5_000 }])).toBe('unknown_income_type');
+    expect(
+      r([
+        { incomeType: 'Gehalt', amountCents: 4_000 },
+        { category: 'Auslagen', contact: 'Nobody', amountCents: 1_000 },
+      ]),
+    ).toBe('unknown_contact');
+    expect(state()).toEqual(before);
+    expect(auditCount()).toBe(auditBefore);
+  });
+
+  it('keeps the rules of the app: a contact share needs an Auslagen category', () => {
+    inflow();
+    const out = skipped(
+      only([
+        splitEntry({ splits: [{ category: 'Essen', contact: 'Freund', amountCents: 5_000 }] }),
+      ]),
+    );
+    expect(out.reason).toBe('refused_by_rules');
+    expect(splitsOf()).toHaveLength(1);
+  });
+
+  it('refuses a transfer leg', () => {
+    done(only([transferOut('t1', '2026-10-15', -5_000)]));
+    const out = skipped(
+      only([
+        {
+          id: 's1',
+          kind: 'set_splits',
+          match: { account: 'Giro', date: '2026-10-15', amountCents: -5_000 },
+          splits: [{ category: 'Essen', amountCents: -5_000 }],
+        },
+      ]),
+    );
+    expect(out.reason).toBe('is_transfer');
+  });
+
+  it('skips a reconciled booking unless unlock: true', () => {
+    inflow('reconciled');
+    const before = state();
+    expect(skipped(only([splitEntry()])).reason).toBe('reconciled_locked');
+    expect(state()).toEqual(before);
+    done(only([splitEntry({ unlock: true })]));
+    expect(splitsOf()).toHaveLength(3);
+    expect(live('giro')[0]!.status).toBe('reconciled');
+  });
+
+  it('needs exactly one matching booking', () => {
+    inflow();
+    inflow();
+    expect(skipped(only([splitEntry()])).reason).toBe('ambiguous_match');
+    expect(
+      skipped(
+        only([
+          splitEntry({ match: { ...inflowMatch, amountCents: 1 }, splits: [{ amountCents: 1 }] }),
+        ]),
+      ).reason,
+    ).toBe('no_match');
+  });
+
+  it('does nothing in a dry run but reports done', () => {
+    inflow();
+    const before = state();
+    const results = applyBookEntries(db, parseBookFile([splitEntry()]), operator, { dryRun: true });
+    expect(results.map((o) => o.status)).toEqual(['done']);
+    expect(state()).toEqual(before);
+  });
+});

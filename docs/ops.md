@@ -485,7 +485,7 @@ transaction (a refusal rolls everything back):
 
 ### 12.3 Single bookings (operator task)
 
-`book --file <json> [--dry-run] [--details]` adds, re-dates, re-prices or deletes single bookings
+`book --file <json> [--dry-run] [--details]` adds, re-dates, re-prices, re-splits or deletes single bookings
 from a JSON list. The file holds real names and amounts: keep it on the private volume
 (`/data/migration/`), never in the repo. Entries run in file order; each has a unique `id` and a
 `kind`:
@@ -500,6 +500,14 @@ from a JSON list. The file holds real names and amounts: keep it on the private 
   option as the app's unlock (`PATCH /api/bookings/:id`, `DELETE ...?unlock=1`), so
   the change is audited and undoable. Without it a reconciled booking is skipped
   (`reconciled_locked`); `add` does not take it, and every other rule of the app still applies.
+- `set_splits` replaces all splits of one booking at once (for example a salary inflow into pay and
+  tax-free reimbursements): `match` as above (its `amountCents` is the booking's amount) and
+  `splits: [{category?, amountCents, memo?, incomeType?, contact?}]`, which must add up to that
+  amount (checked before anything runs). A split has either a `category` or an `incomeType` (an
+  inflow without category), or neither (Zu verteilen); `contact` (a receivable share, by name) needs
+  an "Auslagen" category. Amount, date, account and payee of the booking stay; a transfer is
+  refused (`is_transfer`); `unlock: true` as above. The whole replacement is one audit group, so
+  Rückgängig restores the old splits.
 
 Everything goes through the booking functions behind the HTTP routes, so transfer pairing,
 splits, trade cash flows, payment links, reconciliation locks and the envelopes behave as in the
