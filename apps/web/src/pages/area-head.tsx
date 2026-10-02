@@ -6,7 +6,7 @@ import { useMonthSpan } from '../budget/month-span';
 import { MonthSwitch } from '../shell/month-switch';
 import { VermoegenStand, ZeitraumSwitch } from '../wealth/frame';
 import type { PageMeta } from '../nav/pages';
-import { useMonth } from '../shell/use-month';
+import { currentMonth, useMonth } from '../shell/use-month';
 import type { HeutePeriod } from '../heute/api';
 
 type Period = 'month' | 'payday';
@@ -61,6 +61,16 @@ export function AreaHead({
   const [month] = useMonth();
   const span = useMonthSpan();
   const [period, setPeriod] = useState<Period>('month');
+  const paydayAvailable = month === (standDay?.slice(0, 7) ?? currentMonth());
+  const periods = PERIODS.map((option) =>
+    option.value === 'payday' && !paydayAvailable
+      ? {
+          ...option,
+          disabled: true,
+          description: 'Bis Gehalt ist nur im aktuellen Monat verfügbar.',
+        }
+      : option,
+  );
   const stand: TitleBlockField = { label: 'Stand', value: <StandValue /> };
 
   let heading: string | undefined;
@@ -83,8 +93,8 @@ export function AreaHead({
           value: (
             <Segmented
               label="Zeitraum"
-              options={PERIODS}
-              value={heutePeriod ?? period}
+              options={periods}
+              value={paydayAvailable ? (heutePeriod ?? period) : 'month'}
               onChange={(value) =>
                 onHeutePeriodChange ? onHeutePeriodChange(value) : setPeriod(value)
               }

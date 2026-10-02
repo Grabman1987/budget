@@ -13,7 +13,7 @@ import {
 } from '@budget/ui';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate, useSearch } from '@tanstack/react-router';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   AlertTriangle,
   ArrowDown,
@@ -56,6 +56,20 @@ export function HeutePage() {
     });
   const query = useQuery(heuteQuery(month, period));
   const data = query.data;
+  // Canonicalize bookmarked payday views and month navigation after the server establishes today.
+  // Returning to the current month keeps the explicit month fallback instead of restoring a stale mode.
+  useEffect(() => {
+    if (data && searchPeriod === 'payday' && month !== data.stand.today.slice(0, 7)) {
+      void navigate({
+        to: '/',
+        search: ((previous: Record<string, unknown>) => ({
+          ...previous,
+          period: 'month',
+        })) as never,
+        replace: true,
+      });
+    }
+  }, [data, month, navigate, searchPeriod]);
   return (
     <PageFrame
       meta={HEUTE}
