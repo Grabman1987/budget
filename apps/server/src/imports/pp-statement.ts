@@ -433,12 +433,23 @@ export function reconcileStatementTransfers(
       return row?.accountId === st.bankAccountId;
     });
   const byId = new Map(ynab.map((x) => [x.leg.id, x]));
+  // Rows an earlier run of this statement has already booked (key `stmt:<ref>`) are done.
+  const done = new Set(
+    tx
+      .select({ key: booking.importKey })
+      .from(booking)
+      .where(and(eq(booking.accountId, st.accountId), isNull(booking.deletedAt)))
+      .all()
+      .map((b) => b.key),
+  );
+  const pending = st.transferRows.filter((r) => !done.has(`stmt:${r.ref}`));
+  report.matched += st.transferRows.length - pending.length;
   const result = matchFlows(
-    st.transferRows.map((r): FlowItem => ({ date: r.day, cents: r.cents, ref: r.ref })),
+    pending.map((r): FlowItem => ({ date: r.day, cents: r.cents, ref: r.ref })),
     ynab.map((x): FlowItem => ({ date: x.leg.date, cents: x.leg.cents, ref: x.leg.id })),
     { exactDays: 7, shiftDays: 7, splitDays: 5, roundTripDays: -1, aggregate: false },
   );
-  const rowOf = new Map(st.transferRows.map((r) => [r.ref, r]));
+  const rowOf = new Map(pending.map((r) => [r.ref, r]));
   const touched: string[] = [];
   const setDate = (legId: string, partnerId: string, date: string) => {
     for (const id of [legId, partnerId]) {

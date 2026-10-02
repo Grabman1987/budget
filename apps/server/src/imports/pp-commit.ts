@@ -554,6 +554,19 @@ export function writePp(
       report.securities.matched += 1;
       continue;
     }
+    if (s.ppUuid.startsWith(OLD_PREFIX)) {
+      // The old-holdings security of an earlier run of the same statement is reused.
+      const found = tx
+        .select({ id: security.id })
+        .from(security)
+        .where(and(eq(security.name, s.name), isNull(security.deletedAt)))
+        .get();
+      if (found) {
+        ids.securities[s.ppUuid] = found.id;
+        report.securities.matched += 1;
+        continue;
+      }
+    }
     const row = createSecurity(
       tx,
       {
@@ -705,7 +718,7 @@ export function writePp(
     tx
       .select()
       .from(trade)
-      .where(like(trade.importKey, PP_KEY))
+      .where(or(like(trade.importKey, PP_KEY), like(trade.importKey, 'stmt:%')))
       .all()
       .map((r) => [`${r.accountId}|${r.importKey}`, r]),
   );
@@ -813,7 +826,7 @@ export function writePp(
     tx
       .select({ accountId: booking.accountId, key: booking.importKey })
       .from(booking)
-      .where(like(booking.importKey, PP_KEY))
+      .where(or(like(booking.importKey, PP_KEY), like(booking.importKey, 'stmt:%')))
       .all()
       .map((r) => `${r.accountId}|${r.key}`),
   );
