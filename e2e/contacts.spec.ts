@@ -1,22 +1,45 @@
 import AxeBuilder from '@axe-core/playwright';
-import { expect, test } from '@playwright/test';
-import { MAIN_URL } from '../playwright.config';
+import { expect } from '@playwright/test';
+import { test } from './isolated-ledger';
 
 test('contact statement: edited allocation, excess credit, undo and retained balanced history', async ({
   page,
   request,
+  isolatedLedger,
 }, info) => {
-  const tag = `Kontakt Test ${info.project.name}`;
+  const origin = isolatedLedger.origin;
+  const tag = `Kontakt Test ${info.project.name}-${info.retry}-${info.repeatEachIndex}`;
   const json = async (path: string, data: unknown) => {
-    const response = await request.post(`${MAIN_URL}/api${path}`, {
-      headers: { origin: MAIN_URL },
+    const response = await request.post(`${origin}/api${path}`, {
+      headers: { origin },
       data,
     });
-    expect(response.ok()).toBeTruthy();
+    expect(response.ok(), await response.text()).toBe(true);
     return response.json();
   };
+  const group = (await json('/categories/groups', { name: `Auslagen ${tag}` })).group;
+  const advance = (
+    await json('/categories', {
+      name: 'Auslagen',
+      groupId: group.id,
+      class: null,
+      kind: 'advance',
+    })
+  ).category;
   const created = await json('/contacts', { name: tag });
   const contactId = created.contact.id as string;
+  const otherAccountNames = ['fixed EUR report', 'balanced contacts', 'mixed-currency failure'].map(
+    (title) =>
+      `Giro Report ${info.project.name}-${title.slice(0, 13)}-${info.retry}-${info.repeatEachIndex}`,
+  );
+  for (const name of otherAccountNames) {
+    await json('/accounts', {
+      name,
+      type: 'checking',
+      openingDate: '2026-09-01',
+      openingBalanceCents: 100000,
+    });
+  }
   const account = await json('/accounts', {
     name: `Giro ${tag}`,
     type: 'checking',
@@ -24,7 +47,7 @@ test('contact statement: edited allocation, excess credit, undo and retained bal
     openingBalanceCents: 100000,
   });
   const accountId = account.account.id as string;
-  const today = new Date().toISOString().slice(0, 10);
+  const today = (await (await request.get(`${origin}/api/accounts`)).json()).asOf;
   for (const [date, amountCents] of [
     ['2026-09-01', -3000],
     ['2026-09-02', -7000],
@@ -34,7 +57,7 @@ test('contact statement: edited allocation, excess credit, undo and retained bal
       accountId,
       date,
       amountCents,
-      splits: [{ categoryId: 'e2e-auslagen', contactId, amountCents }],
+      splits: [{ categoryId: advance.id, contactId, amountCents }],
     });
   }
   await page.goto('/konten/kontakte');
@@ -42,7 +65,14 @@ test('contact statement: edited allocation, excess credit, undo and retained bal
   const panel = page.getByRole('dialog', { name: tag });
   await expect(panel.locator('.contacts-balance')).toContainText('100,00 €');
   await panel.getByRole('button', { name: 'Rückzahlung buchen', exact: true }).click();
-  await panel.getByLabel('Konto', { exact: true }).selectOption(accountId);
+  const accountSelect = panel.getByLabel('Konto', { exact: true });
+  await expect(accountSelect.getByRole('option')).toHaveCount(4);
+  for (const name of otherAccountNames) {
+    await expect(accountSelect.getByRole('option', { name, exact: true })).toHaveCount(1);
+  }
+  await accountSelect.selectOption(accountId);
+  await expect(accountSelect).toHaveValue(accountId);
+  await expect(accountSelect.getByRole('option', { selected: true })).toHaveText(`Giro ${tag}`);
   await panel.getByLabel('Datum', { exact: true }).fill(today);
   await panel.getByLabel('Rückzahlung', { exact: true }).fill('40');
   const first = panel.getByLabel(/^Auslage 1/);
@@ -51,10 +81,16 @@ test('contact statement: edited allocation, excess credit, undo and retained bal
   await expect(second).toHaveValue('10,00');
   await first.fill('0');
   await second.fill('40');
-  await panel.getByRole('button', { name: 'Rückzahlung speichern' }).click();
+  // Allocation validation changes the sheet geometry; wait for the valid edited state.
+  await expect(first).toHaveValue('0');
+  await expect(second).toHaveValue('40');
+  await expect(panel.getByRole('alert')).toHaveCount(0);
+  const saveReceipt = panel.getByRole('button', { name: 'Rückzahlung speichern' });
+  await expect(saveReceipt).toBeEnabled();
+  await saveReceipt.click();
   await expect(panel.locator('.contacts-balance')).toContainText('60,00 €');
   const readStatement = async () =>
-    (await request.get(`${MAIN_URL}/api/contacts/${contactId}`)).json();
+    (await request.get(`${origin}/api/contacts/${contactId}`)).json();
   expect(
     (await readStatement()).outlays.map((o: { remainingCents: number }) => o.remainingCents),
   ).toEqual([3000, 3000]);
