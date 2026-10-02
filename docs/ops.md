@@ -483,6 +483,30 @@ transaction (a refusal rolls everything back):
   line, with the usual "Zu verteilen" guard).
 - `--dry-run` prints what would be moved and writes nothing.
 
+### 12.3 Single bookings (operator task)
+
+`book --file <json> [--dry-run] [--details]` adds, re-dates, re-prices or deletes single bookings
+from a JSON list. The file holds real names and amounts: keep it on the private volume
+(`/data/migration/`), never in the repo. Entries run in file order; each has a unique `id` and a
+`kind`:
+
+- `add`: `account`, `date`, `amountCents` (signed), optional `payee` (created if missing, as in the
+  app), `memo`, `cleared` (`cleared` or `uncleared`, default `uncleared`), and either `category` or
+  `transferAccount` (a proper linked Umbuchung; a negative amount leaves `account`).
+- `change_amount` (`newAmountCents`), `change_date` (`newDate`), `delete`: address the booking by
+  `match: {account, date, amountCents, payee?, memo?}`. It must resolve to exactly one top-level
+  booking (a split booking counts with its total).
+
+Everything goes through the booking functions behind the HTTP routes, so transfer pairing,
+splits, trade cash flows, payment links, reconciliation locks and the envelopes behave as in the
+app, and whatever the app refuses (a trade settlement, a reconciled booking, a split-level transfer,
+a closed account) is skipped. Account and category names are exact (case-insensitive) and never
+created. Each entry is one audit group with the actor `operator`; the output has one line per entry
+(kind, id, account, date, cents, group id), so the app's Rückgängig or `undo-group --group <id>` can
+undo it on its own. A skipped entry prints `skipped <id> <reason> <candidate count>` (`--details`
+adds the message), the rest still goes through, and the exit code is 3. `--dry-run` does it all and
+rolls back. Running a list twice adds twice; check with `--dry-run` first.
+
 #### Revert a run when the owner has budgeted on top of it
 
 `revert` is refused while assigned amounts that the run did not write sit on the run's categories.
