@@ -15,6 +15,7 @@ import { PageFrame } from '../pages/placeholder-page';
 import { AppLink } from '../shell/app-link';
 import { inboxQuery, resolveInbox, type InboxEntry, type InboxKind, type InboxStored } from './api';
 import './inbox.css';
+import { ReceiptSection } from '../receipts/receipt-section';
 const META = PAGES.find((p) => p.path === '/konten/posteingang')!;
 const LABELS: Record<InboxKind, string> = {
   uncategorized: 'Buchungen ohne Kategorie',
@@ -137,7 +138,7 @@ function InboxBody({
       {queue.data?.count === 0 && (
         <EmptyNote>Posteingang leer. Es sind keine offenen Aufgaben vorhanden.</EmptyNote>
       )}
-      {queue.data && queue.data.count > 0 && (
+      {queue.data && queue.data.entries.length > 0 && (
         <>
           <table className="rev-table kinbox-table">
             <caption className="sr-only">Offene Entscheidungen nach Typ</caption>
@@ -196,6 +197,7 @@ function InboxBody({
           </p>
         </>
       )}
+      <ReceiptSection />
     </section>
   );
 }

@@ -1,7 +1,9 @@
 import { searchRoutes } from './search';
 import { inboxRoutes } from './inbox';
 import { contactRoutes } from './contacts';
-import type { Db } from '@budget/db';
+import { sqliteOf, type Db } from '@budget/db';
+import { receiptDirectory } from '../receipts/files';
+import { receiptRoutes } from './receipts';
 import { todayInVienna } from '@budget/domain';
 import type { MarketSources } from '@budget/market';
 import { Hono, type MiddlewareHandler } from 'hono';
@@ -47,6 +49,7 @@ export interface LedgerApiOptions {
   stepUp: MiddlewareHandler;
   /** Runner of the import tasks (worker threads); one per database. */
   jobs?: ImportJobs | undefined;
+  receiptsDir?: string | undefined;
 }
 
 /**
@@ -60,12 +63,14 @@ export function createLedgerApi({
   market = createMarketSources(db, marketModeFromEnv()),
   stepUp,
   jobs = new ImportJobs(db),
+  receiptsDir = receiptDirectory(sqliteOf(db).name),
 }: LedgerApiOptions): Hono {
   const api = new Hono();
   api.route('/search', searchRoutes(db));
   api.route('/accounts', accountRoutes(db, today));
   api.route('/inbox', inboxRoutes(db, today));
   api.route('/bookings', bookingRoutes(db));
+  api.route('/receipts', receiptRoutes(db, receiptsDir));
   api.route('/payees', payeeRoutes(db));
   api.route('/categories', categoryRoutes(db));
   api.route('/budget', budgetRoutes(db));

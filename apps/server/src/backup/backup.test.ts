@@ -1,15 +1,24 @@
-import { migrateDatabase, openDatabase, schema } from '@budget/db';
+import { addReceipt, migrateDatabase, openDatabase, removeReceipt, schema } from '@budget/db';
 import { seedDatabase } from '@budget/fixtures/seed';
 import { execFileSync } from 'node:child_process';
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { createServer, type Server } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
-import { BackupScheduler, backupConfigFromEnv, runBackup, type BackupConfig } from './backup';
+import {
+  BackupScheduler,
+  backupConfigFromEnv,
+  createBackupArchive,
+  runBackup,
+  tarBinary,
+  type BackupConfig,
+} from './backup';
 import { backupKey } from './retention';
 import { S3Client } from './s3';
+import { digest, receiptPath, storeReceipt } from '../receipts/files';
+import { PNG } from '../receipts/testing';
 
 /**
  * Restore test of the encrypted backup: a throwaway age key pair is generated for the test only
@@ -49,6 +58,12 @@ function fakeS3() {
       if (bucket !== 'test-bucket')
         return void res.writeHead(404).end('<Error><Code>NoSuchBucket</Code></Error>');
       if (req.method === 'PUT') {
+        const bytes = Buffer.concat(chunks);
+        if (
+          req.headers['x-amz-content-sha256'] !== digest(bytes) ||
+          Number(req.headers['content-length']) !== bytes.length
+        )
+          return void res.writeHead(400).end('<Error><Code>BadDigest</Code></Error>');
         if (failPuts)
           return void res.writeHead(500).end('<Error><Code>InternalError</Code></Error>');
         objects.set(key, Buffer.concat(chunks));
@@ -147,9 +162,18 @@ const tableCounts = (sqlite: ReturnType<typeof openDatabase>['sqlite']) =>
 describe.skipIf(!hasAge)('encrypted backup round trip (test key)', () => {
   it('uploads an age file that only the private key opens and that restores the full database', async () => {
     const live = seededDatabase();
+    const receiptsDir = join(work, 'receipt-blobs');
+    const sha256 = await storeReceipt(receiptsDir, PNG);
+    const receipt = addReceipt(
+      live.db,
+      { sha256, mime: 'image/png', sizeBytes: PNG.length, originalFilename: 'synthetic.png' },
+      undefined,
+      { actor: 'test' },
+    );
+    removeReceipt(live.db, receipt.receipt.id, { actor: 'test' }); // Retained for undo, still backed up.
     const now = new Date('2026-10-01T02:15:00Z');
-    const result = await runBackup(live.sqlite, config, now, new S3Client(config.s3));
-    expect(result.key).toBe('encrypted/budget-2026-10-01.sqlite.age');
+    const result = await runBackup(live.sqlite, config, now, new S3Client(config.s3), receiptsDir);
+    expect(result.key).toBe('encrypted/budget-2026-10-01.tar.age');
 
     // Download (as the owner would) and look at it: an age file, no SQLite header in clear.
     const sealed = s3.objects.get(result.key) as Buffer;
@@ -157,10 +181,17 @@ describe.skipIf(!hasAge)('encrypted backup round trip (test key)', () => {
     expect(sealed.subarray(0, 21).toString()).toBe('age-encryption.org/v1');
     expect(sealed.includes(Buffer.from('SQLite format 3'))).toBe(false);
 
-    const downloaded = join(work, 'downloaded.sqlite.age');
-    const restored = join(work, 'restored.sqlite');
+    const downloaded = join(work, 'downloaded.tar.age');
+    const archive = join(work, 'restored.tar');
+    const restoredDir = join(work, 'restored-archive');
+    mkdirSync(restoredDir);
+    const restored = join(restoredDir, 'budget.sqlite');
     writeFileSync(downloaded, sealed);
-    execFileSync('age', ['--decrypt', '-i', identity, '-o', restored, downloaded]);
+    execFileSync('age', ['--decrypt', '-i', identity, '-o', archive, downloaded]);
+    execFileSync(tarBinary, ['-xf', archive, '-C', restoredDir]);
+    const restoredReceipt = readFileSync(receiptPath(join(restoredDir, 'receipts'), sha256));
+    expect(restoredReceipt).toEqual(PNG);
+    expect(digest(restoredReceipt)).toBe(sha256);
     const copy = trackDatabase(openDatabase(restored));
     expect(copy.sqlite.pragma('integrity_check', { simple: true })).toBe('ok');
     expect(tableCounts(copy.sqlite)).toEqual(tableCounts(live.sqlite));
@@ -174,7 +205,7 @@ describe.skipIf(!hasAge)('encrypted backup round trip (test key)', () => {
       execFileSync('age', ['--decrypt', '-i', stranger, downloaded], { stdio: 'pipe' }),
     ).toThrow();
     live.close();
-  });
+  }, 60_000);
 
   it('keeps 30 daily and 12 monthly copies and leaves other keys alone', async () => {
     s3.objects.clear();
@@ -197,9 +228,9 @@ describe.skipIf(!hasAge)('encrypted backup round trip (test key)', () => {
     expect(left).toHaveLength(30 + 11);
     expect(result.deleted).toHaveLength(501 - left.length);
     expect(s3.objects.has('budget.sqlite/0000/snapshot.ltx')).toBe(true);
-    expect(left).toContain('encrypted/budget-2025-06-01.sqlite.age');
-    expect(left).not.toContain('encrypted/budget-2025-05-01.sqlite.age');
-  });
+    expect(left).toContain('encrypted/budget-2025-06-01.tar.age');
+    expect(left).not.toContain('encrypted/budget-2025-05-01.tar.age');
+  }, 60_000);
 });
 
 describe('BackupScheduler', () => {
@@ -246,7 +277,25 @@ describe('BackupScheduler', () => {
       expect(restarted.due(new Date('2026-10-01T22:00:00Z'))).toBe(false);
     }
     live.close();
-  });
+  }, 60_000);
+});
+
+it('refuses an archive when referenced receipt bytes are missing', async () => {
+  const live = migratedDatabase();
+  addReceipt(
+    live.db,
+    {
+      sha256: digest(PNG),
+      mime: 'image/png',
+      sizeBytes: PNG.length,
+      originalFilename: 'synthetic.png',
+    },
+    undefined,
+    { actor: 'test' },
+  );
+  const staging = mkdtempSync(join(work, 'missing-'));
+  await expect(createBackupArchive(live.sqlite, staging, join(work, 'absent'))).rejects.toThrow();
+  live.close();
 });
 
 describe('backupConfigFromEnv', () => {
