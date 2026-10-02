@@ -9,8 +9,25 @@
   display: flex;
   justify-content: flex-end;
 }
+.kbar {
+  gap: 8px;
+}
 .kbar .btn {
   gap: 6px;
+}
+/* Edit mode of the account order: an extra column with grip and arrows. */
+.kc-order {
+  width: 1%;
+  padding-left: 0 !important;
+  text-align: right;
+  white-space: nowrap;
+}
+.ktable.is-ordering .krow:hover td {
+  background: none;
+}
+.ktable .krow.is-lifted td {
+  background: var(--surface);
+  box-shadow: var(--card-shadow);
 }
 .kstate {
   display: grid;
@@ -203,6 +220,51 @@
   position: absolute;
   inset: 0 auto 0 0;
   background: var(--need);
+}
+.kclosed {
+  margin: 14px 0 4px;
+  font-size: 13px;
+  color: var(--ink-2);
+  border-radius: 6px;
+}
+.kclosed summary {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 32px;
+  padding: 0 4px;
+  cursor: pointer;
+  font-family: var(--font-tech);
+  font-size: 12px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+.kclosed summary:hover {
+  color: var(--ink);
+}
+.kclosed ul {
+  list-style: none;
+  margin: 4px 0 0;
+  padding: 0;
+}
+.kclosed li {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  align-items: baseline;
+  gap: 4px 14px;
+  padding: 8px 4px;
+  border-bottom: 1px solid var(--rule);
+}
+.kclosed-val {
+  min-width: 110px;
+  text-align: right;
+  font-weight: 620;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.kclosed.is-flash {
+  background: var(--tint-2);
 }
 .ksum {
   margin: 12px 0 4px;
@@ -502,6 +564,18 @@
 .kf .select-sm {
   min-width: 150px;
 }
+.kf-closed {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12.5px;
+  color: var(--ink-3);
+}
+.kf-closed input {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--line);
+}
 .kf-search {
   flex: 1 1 240px;
   max-width: 360px;
@@ -638,12 +712,23 @@
   .kgroup .kc-num {
     grid-area: num;
   }
-  .ktx tr {
-    grid-template-areas: 'payee amount' 'cat run' 'date status';
+  .ktable.is-ordering .krow {
+    grid-template-columns: minmax(0, 1fr) auto auto;
+    grid-template-areas: 'name num order';
   }
-  .ktx-all tr {
-    grid-template-columns: 28px minmax(0, 1fr) auto;
-    grid-template-areas: 'check payee amount' '. cat acct' '. date status';
+  .ktable.is-ordering .kgroup {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+  .ktable.is-ordering .krow .kc-line,
+  .ktable.is-ordering .kgroup .kc-order {
+    display: none;
+  }
+  .ktable.is-ordering .kutil {
+    display: none;
+  }
+  .krow .kc-order {
+    grid-area: order;
+    align-self: center;
   }
   .kx-check {
     grid-area: check;
@@ -843,4 +928,358 @@
 }
 .ksplits:disabled {
   opacity: 0.7;
+}
+
+/* ---------- Flags (Markierung): six named colours, always with glyph and name ---------- */
+:root {
+  --flag-red: #d4352a;
+  --flag-orange: #c4630a;
+  --flag-yellow: #9c7300;
+  --flag-green: #2a8a4a;
+  --flag-blue: #2f6fd6;
+  --flag-purple: #7e4fc4;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    --flag-red: #ff7b6e;
+    --flag-orange: #ffa04d;
+    --flag-yellow: #f2cc3b;
+    --flag-green: #58c47a;
+    --flag-blue: #6aa6ff;
+    --flag-purple: #b995f5;
+  }
+}
+:root[data-theme='dark'] {
+  --flag-red: #ff7b6e;
+  --flag-orange: #ffa04d;
+  --flag-yellow: #f2cc3b;
+  --flag-green: #58c47a;
+  --flag-blue: #6aa6ff;
+  --flag-purple: #b995f5;
+}
+.kflag-glyph {
+  fill: none;
+  color: var(--ink-3);
+}
+.kflag-glyph.is-red {
+  color: var(--flag-red);
+}
+.kflag-glyph.is-orange {
+  color: var(--flag-orange);
+}
+.kflag-glyph.is-yellow {
+  color: var(--flag-yellow);
+}
+.kflag-glyph.is-green {
+  color: var(--flag-green);
+}
+.kflag-glyph.is-blue {
+  color: var(--flag-blue);
+}
+.kflag-glyph.is-purple {
+  color: var(--flag-purple);
+}
+.kflag-glyph:not(.is-none) {
+  fill: currentColor;
+}
+.kc-flag {
+  width: 32px;
+  padding-right: 0 !important;
+}
+.kflag {
+  display: inline-grid;
+  place-items: center;
+}
+
+/* Flag button and its popover (booking dialog head) */
+.kflagpick {
+  position: relative;
+  flex: none;
+}
+.kflagbtn,
+.kcleared {
+  width: var(--touch);
+  height: var(--touch);
+  display: grid;
+  place-items: center;
+  flex: none;
+  border-radius: var(--radius-md);
+  color: var(--ink-2);
+}
+.kflagbtn:hover,
+.kcleared:hover {
+  background: var(--tint);
+  color: var(--ink);
+}
+.kflagbtn[aria-expanded='true'] {
+  background: var(--tint-2);
+}
+.kflagmenu {
+  position: absolute;
+  z-index: 8;
+  top: calc(100% + 4px);
+  left: 0;
+  min-width: 190px;
+  display: grid;
+  padding: 4px;
+  background: var(--raised);
+  border: 1px solid var(--rule-strong);
+  border-radius: 8px;
+  box-shadow: var(--shadow);
+}
+.kflagitem {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 40px;
+  padding: 6px 10px;
+  border-radius: 6px;
+  text-align: left;
+  font-size: 14px;
+}
+.kflagitem:hover,
+.kflagitem:focus-visible {
+  background: var(--tint-2);
+}
+.kflagitem[aria-checked='true'] {
+  font-weight: 620;
+  box-shadow: inset 0 0 0 1px var(--line);
+}
+.kflagitem-name {
+  flex: 1;
+}
+.kflagitem kbd {
+  min-width: 20px;
+  padding: 1px 5px;
+  border: 1px solid var(--rule-strong);
+  border-radius: 4px;
+  font-family: var(--font-tech);
+  font-size: 11.5px;
+  text-align: center;
+  color: var(--ink-2);
+}
+
+/* Cleared toggle (YNAB "C"): same size and weight as the close button. Neutral until pressed,
+   then green (bestätigt); the lock marks a geprüft booking. */
+.kcleared {
+  color: var(--ink-2);
+}
+.kcleared.is-on {
+  color: var(--good-ink);
+}
+.kcleared.is-on:hover {
+  background: var(--good-soft);
+}
+.kcleared.is-locked {
+  cursor: not-allowed;
+}
+.kcleared.is-locked:hover {
+  background: none;
+  color: var(--ink-2);
+}
+
+/* ---------- Booking dialog (centred card on desktop, bottom sheet on the phone) ---------- */
+.bkform {
+  min-height: 0;
+}
+.bk-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: none;
+  padding: 10px 10px 10px 12px;
+  border-bottom: 1px solid var(--rule);
+}
+.bk-kind {
+  flex: 1;
+  min-width: 0;
+}
+.bk-head .seg button {
+  height: 34px;
+}
+.bk-kind-fixed {
+  font-weight: 620;
+  font-size: var(--fs-title);
+}
+.bk-body {
+  min-height: 0;
+  overflow: auto;
+  padding: 16px 20px 12px;
+  align-content: start;
+  gap: 14px;
+}
+.bk-body .field-row {
+  margin-bottom: 0;
+}
+/* A suggestion list may reach past the card on the desktop instead of scrolling inside it. */
+@media (min-width: 768px) {
+  .bk-body:has(.combo-list) {
+    overflow: visible;
+  }
+}
+.bk-foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  flex: none;
+  padding: 12px 20px 16px;
+  border-top: 1px solid var(--rule);
+  background: var(--ground);
+  border-radius: 0 0 12px 12px;
+}
+.bk-foot .btn {
+  height: 42px;
+}
+.bk-foot-extra {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 8px;
+  margin-right: auto;
+}
+.bk-discard {
+  margin: 0 20px 8px;
+  flex: none;
+  flex-wrap: wrap;
+  align-items: center;
+}
+.bk-body .khint {
+  margin-top: 4px;
+}
+.ksplit-start {
+  justify-self: start;
+  margin-top: -6px;
+}
+.kcontact {
+  display: grid;
+  gap: 10px;
+}
+.kcontact-new {
+  display: grid;
+  gap: 8px;
+  padding: 12px;
+  border: 1px solid var(--line-2);
+  border-radius: 8px;
+}
+.kcontact-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+/* Verfügbar column of the category list: heading row, amounts right-aligned */
+.combo-head {
+  position: sticky;
+  top: -4px;
+  z-index: 1;
+  display: flex;
+  justify-content: flex-end;
+  margin: -4px -4px 0;
+  padding: 6px 14px 4px;
+  background: var(--raised);
+  border-bottom: 1px solid var(--rule);
+  font-family: var(--font-tech);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+.combo-avail {
+  font-variant-numeric: tabular-nums;
+  color: var(--ink);
+  font-weight: 560;
+}
+.combo-avail.is-neg {
+  color: var(--bad-ink);
+}
+.kf-cat .combo-list {
+  min-width: 300px;
+}
+
+@media (max-width: 767px) {
+  .bk-head {
+    flex-wrap: wrap;
+    padding: 6px 8px 8px 12px;
+  }
+  .bk-kind {
+    order: 5;
+    flex: 1 0 100%;
+  }
+  .bk-head .kcleared {
+    margin-left: auto;
+  }
+  .bk-head .seg button {
+    min-height: var(--touch);
+  }
+  .kflagbtn,
+  .kcleared {
+    width: var(--touch);
+    height: var(--touch);
+    margin: 0;
+  }
+  .bk-body {
+    padding: 14px 16px 8px;
+  }
+  .bk-foot {
+    padding: 10px 16px 12px;
+  }
+  .bk-foot .btn {
+    height: 44px;
+  }
+  .bk-foot-extra {
+    flex: 1 0 100%;
+    margin-right: 0;
+  }
+  .ktx tr {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    grid-template-areas: 'flag payee amount' '. cat run' '. date status';
+  }
+  .ktx-all tr {
+    grid-template-columns: 28px auto minmax(0, 1fr) auto;
+    grid-template-areas: 'check flag payee amount' '. . cat acct' '. . date status';
+  }
+  .kx-flag {
+    grid-area: flag;
+  }
+  .kc-flag {
+    width: auto;
+  }
+  .kf-cat .combo-list {
+    min-width: 0;
+  }
+}
+
+/* Flag button in booking tables: small, the empty flag only shows on hover or focus (faint on the
+   phone, which has no hover). */
+.kflagpick.in-list .kflagbtn {
+  width: 32px;
+  height: 32px;
+  margin: -6px -4px;
+}
+.kflagpick.in-list .kflagbtn:not(.has-flag) {
+  opacity: 0;
+}
+.ktable tr:hover .kflagbtn,
+.kflagpick.in-list .kflagbtn:focus-visible,
+.kflagpick.in-list .kflagbtn[aria-expanded='true'] {
+  opacity: 1;
+}
+.kflagpick.in-list .kflagmenu {
+  z-index: 9;
+}
+@media (max-width: 767px) {
+  .kflagpick.in-list .kflagbtn {
+    width: var(--touch);
+    height: var(--touch);
+    margin: -10px;
+  }
+  .kflagpick.in-list .kflagbtn:not(.has-flag) {
+    opacity: 0.4;
+  }
+}
+@media (hover: none) {
+  .kflagpick.in-list .kflagbtn:not(.has-flag) {
+    opacity: 0.4;
+  }
 }

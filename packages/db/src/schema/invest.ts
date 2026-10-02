@@ -303,6 +303,28 @@ export const marketRun = sqliteTable(
 );
 
 /**
+ * Consumer price index of one month for the comparison in report 2.4 (Statistik Austria VPI, open
+ * data): index number in micro-units of one `series` (the index base, e.g. `vpi2020`).
+ * `fetched_at` says when the series was last read from the source; the nightly market run reads it
+ * again only when that is more than a month ago.
+ */
+export const consumerPriceIndex = sqliteTable(
+  'consumer_price_index',
+  {
+    series: text('series').notNull(),
+    month: text('month').notNull(),
+    indexMicro: integer('index_micro', { mode: 'number' }).notNull(),
+    source: text('source').notNull().default('statistik_austria'),
+    fetchedAt: text('fetched_at').notNull(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.series, t.month] }),
+    check('cpi_month_chk', sql`${t.month} GLOB '[0-9][0-9][0-9][0-9]-[0-1][0-9]'`),
+    check('cpi_index_positive_chk', sql`${t.indexMicro} > 0`),
+  ],
+);
+
+/**
  * Savings plan (Sparplan) of one security on one investment account: a fixed amount on a day of
  * the month. The bank executes it, the app only plans and checks it. A change never rewrites a
  * row: it ends the current one (`valid_to`, inclusive) and starts a new one from a day, so past

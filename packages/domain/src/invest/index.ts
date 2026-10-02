@@ -5,3 +5,5 @@ export * from './performance';
 export * from './cost';
 export * from './savings-plan';
 export * from './trade-rules';
+export * from './depot-compare';
+export * from './costs-taxes';

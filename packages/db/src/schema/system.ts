@@ -40,6 +40,19 @@ export const investmentPreference = sqliteTable(
 );
 
 /**
+ * Generic owner setting (key in `id`, text value). Audited and undoable like every other row.
+ * Current keys: `profile.*` (Einstellungen › Profil).
+ */
+export const appSetting = sqliteTable(
+  'app_setting',
+  {
+    id: text('id').primaryKey().notNull(),
+    value: text('value').notNull(),
+  },
+  (t) => [check('app_setting_id_chk', sql`length(${t.id}) BETWEEN 1 AND 64`)],
+);
+
+/**
  * Change log. `before_json` / `after_json` hold row snapshots; `undo` replays them. `group_id`
  * ties the entries of one user action together (a booking with its splits, a transfer pair).
  */

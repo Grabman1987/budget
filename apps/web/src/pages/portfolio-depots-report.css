@@ -1,0 +1,135 @@
+/* Report 4.1 Depots im Vergleich: one drawing card per depot, then the figures side by side. */
+.depots {
+  list-style: none;
+  margin: 0 0 12px;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 16px;
+}
+.depot {
+  display: grid;
+  align-content: start;
+  gap: 10px;
+  min-width: 0;
+  padding: 16px;
+  border: 1px solid var(--rule-strong);
+  border-radius: 10px;
+  background: var(--surface-2);
+}
+.depot.is-all {
+  border-color: var(--line-2);
+  background: var(--tint);
+}
+.depot-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.depot-head h3 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 650;
+  overflow-wrap: anywhere;
+}
+.depot-head small {
+  display: block;
+  font-size: 12px;
+  color: var(--ink-3);
+}
+.depot-pos {
+  flex: 0 0 28px;
+  width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  border: 1.5px solid var(--line);
+  border-radius: 50%;
+  color: var(--line);
+  font-family: var(--font-tech);
+  font-size: 12px;
+  font-weight: 600;
+}
+.depot-fig {
+  margin: 0;
+  font-size: 26px;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+  font-variant-numeric: tabular-nums;
+}
+.depot-calc {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+}
+.depot-calc td {
+  padding: 3px 0;
+}
+.depot-calc .n {
+  text-align: right;
+}
+.depot-calc .is-total td {
+  border-top: 1px solid var(--line-2);
+  font-weight: 650;
+}
+.depot-perf {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+.depot-perf .tech {
+  display: block;
+  font-size: 11px;
+  color: var(--ink-2);
+}
+.depot-perf strong {
+  font-size: 18px;
+  font-variant-numeric: tabular-nums;
+}
+.depot-chart {
+  min-width: 0;
+  min-height: 120px;
+}
+.depot-chart svg.chart {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+.depot-prods {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  font-size: 14px;
+}
+.depot-prods li {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  border-top: 1px solid var(--rule);
+}
+.depot-prods li span {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.depots-kpi .prep-table {
+  min-width: 560px;
+}
+.depots-first {
+  position: sticky;
+  inset-inline-start: 0;
+  background: var(--surface);
+  text-align: left;
+  font-weight: 500;
+  font-size: 14px;
+  color: var(--ink);
+}
+.depots-kpi thead .depots-first {
+  color: var(--ink-2);
+  font-weight: 600;
+}
+.depots-sum {
+  background: var(--tint);
+  font-weight: 650;
+}

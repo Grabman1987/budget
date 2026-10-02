@@ -89,6 +89,7 @@ export const AREAS: ReadonlyArray<AreaDef> = [
       { id: 'export', label: 'CSV-Export', to: '/einstellungen/export' },
       { id: 'sicherheit', label: 'Sicherheit', to: '/einstellungen/sicherheit' },
       { id: 'depots', label: 'Depots & Kryptos', to: '/einstellungen/depots' },
+      { id: 'profil', label: 'Profil', to: '/einstellungen/profil' },
     ],
   },
 ];

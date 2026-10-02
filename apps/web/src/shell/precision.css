@@ -119,9 +119,10 @@
   border: 1px dashed var(--line-2);
 }
 
-/* Hero KPI: the one number that says "money is there". On green (and on red when too much was
-   assigned) it re-maps the ink tokens, so every child, the Maßkette included, draws white without
-   colours of its own. At zero it is a plain card with a green figure: every euro has a job. */
+/* Hero KPI: the one number that says "money is there". On green it re-maps the ink tokens, so
+   every child, the Maßkette included, draws white without colours of its own. When too much was
+   assigned it is a compact soft-red card (the figure is red, the ink stays) instead of a red
+   slab. At zero it is a plain card with a green figure: every euro has a job. */
 .hero-kpi {
   position: relative;
   overflow: hidden;
@@ -130,8 +131,7 @@
   border: 1px solid var(--card-border);
   box-shadow: var(--card-shadow);
 }
-.hero-kpi.is-positive,
-.hero-kpi.is-negative {
+.hero-kpi.is-positive {
   --ink: var(--on-good);
   --ink-2: color-mix(in srgb, var(--on-good) 84%, transparent);
   --ink-3: color-mix(in srgb, var(--on-good) 72%, transparent);
@@ -149,17 +149,17 @@
     0 14px 30px -18px rgba(10, 46, 24, 0.55);
 }
 .hero-kpi.is-negative {
-  background: var(--red);
-  box-shadow:
-    0 1px 2px rgba(60, 10, 6, 0.14),
-    0 14px 30px -18px rgba(96, 18, 10, 0.5);
+  background: color-mix(in srgb, var(--red) 8%, var(--surface));
+  border-color: color-mix(in srgb, var(--red) 28%, transparent);
+}
+.hero-kpi.is-negative .hero-fig {
+  color: var(--red);
 }
 .hero-kpi.is-zero .hero-fig {
   color: var(--good-ink);
 }
 /* The same grid, in white, fading out of the hero's right edge. */
-.hero-kpi.is-positive::before,
-.hero-kpi.is-negative::before {
+.hero-kpi.is-positive::before {
   content: '';
   position: absolute;
   inset: 0;
@@ -231,22 +231,115 @@
 .acct-group + .acct-group {
   margin-top: 4px;
 }
-.acct-group-head {
-  display: grid;
-  grid-template-columns: 14px 1fr auto;
+.acct-group-bar {
+  display: flex;
   align-items: center;
-  gap: 8px;
-  width: 100%;
+  gap: 2px;
   height: 30px;
-  padding: 0 10px 0 6px;
+  padding-right: 10px;
   border-radius: 7px;
   color: var(--ink-3);
-  text-align: left;
   transition: background var(--t-fast) var(--ease-out);
 }
-.acct-group-head:hover {
+.acct-group-bar:hover,
+.acct-group-bar:has(:focus-visible) {
   background: color-mix(in srgb, var(--surface) 55%, transparent);
   color: var(--ink-2);
+}
+.acct-group-head {
+  flex: 1;
+  min-width: 0;
+  display: grid;
+  grid-template-columns: 14px auto;
+  justify-content: start;
+  align-items: center;
+  gap: 8px;
+  height: 30px;
+  padding: 0 0 0 6px;
+  color: inherit;
+  text-align: left;
+}
+.acct-group-head:disabled {
+  cursor: default;
+}
+/* The pencil appears with hover or keyboard focus (always on touch) and starts the edit mode. */
+.acct-pencil {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  color: var(--ink-3);
+  opacity: 0;
+  transition:
+    opacity var(--t-fast) var(--ease-out),
+    background var(--t-fast) var(--ease-out);
+}
+.acct-pencil:hover {
+  background: var(--tint);
+  color: var(--ink);
+}
+.acct-group-bar:hover .acct-pencil,
+.acct-group-bar:has(:focus-visible) .acct-pencil,
+.acct-item:hover .acct-pencil,
+.acct-item:has(:focus-visible) .acct-pencil,
+.acct-pencil:focus-visible {
+  opacity: 1;
+}
+@media (hover: none) {
+  .acct-pencil-group {
+    opacity: 1;
+  }
+}
+.acct-item {
+  position: relative;
+}
+/* In the empty gutter left of an account's name. */
+.acct-pencil-row {
+  position: absolute;
+  left: 2px;
+  top: 4px;
+  width: 24px;
+  height: 24px;
+}
+.acct-tree-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-right: 10px;
+}
+.acct-done {
+  height: 24px;
+  padding: 0 10px;
+  border-radius: 6px;
+  background: var(--surface);
+  color: var(--ink);
+  font-size: 12px;
+  font-weight: 600;
+  box-shadow: var(--card-shadow);
+}
+.acct-done:hover {
+  background: var(--tint);
+}
+.acct-edit-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 6px;
+  height: 36px;
+  padding: 0 2px 0 12px;
+  border-radius: 7px;
+  color: var(--ink-2);
+  font-size: 13.5px;
+}
+.acct-edit-row .icon-btn {
+  width: 26px;
+  height: 30px;
+}
+.acct-item.is-lifted .acct-edit-row {
+  background: var(--surface);
+  box-shadow: var(--card-shadow);
+  color: var(--ink);
 }
 .acct-group-head .chev {
   transition: rotate var(--t-fast) var(--ease-out);
@@ -303,12 +396,25 @@
   color: var(--ink-2);
   white-space: nowrap;
 }
-.acct-group-head .acct-amount {
+.acct-group-bar .acct-amount {
   font-size: 12px;
   color: var(--ink-3);
 }
+/* Negative balances are red pills (like YNAB); positive ones stay plain text. The pill keeps its
+   own padding and a negative margin so the numbers still align on the right edge. */
 .acct-amount.is-neg {
-  color: var(--bad-ink);
+  display: inline-flex;
+  align-items: center;
+  height: 21px;
+  margin-right: -5px;
+  padding: 0 6px;
+  border-radius: 6px;
+  background: var(--red-soft);
+  color: var(--red);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--red) 24%, transparent);
+}
+.acct-group-bar .acct-amount.is-neg {
+  color: var(--red);
 }
 .app.is-collapsed .sidebar-scroll {
   display: none;

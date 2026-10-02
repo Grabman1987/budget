@@ -21,3 +21,13 @@ export {
   type FinanceCheckSummary,
   type RuleView,
 } from './check';
+export {
+  dayCounts,
+  ruleTimelines,
+  type DayCounts,
+  type HistoryCell,
+  type HistoryMatrix,
+  type HistoryRule,
+  type RuleTimeline,
+  type TimelineCell,
+} from './history';

@@ -1,8 +1,8 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "e1e152e9-1ac0-459d-b969-a662b96103f3",
-  "prevId": "beb6e4a9-0519-4f28-8e52-3ac2f233eae2",
+  "id": "b29df0a3-a709-49ef-bd50-f4c81bd3d273",
+  "prevId": "73d7e96f-3d27-4a20-8f8c-d12448ac10f9",
   "tables": {
     "account": {
       "name": "account",
@@ -51,13 +51,6 @@
         },
         "contact_id": {
           "name": "contact_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "reference_account_id": {
-          "name": "reference_account_id",
           "type": "text",
           "primaryKey": false,
           "notNull": false,
@@ -189,15 +182,6 @@
           "tableFrom": "account",
           "tableTo": "contact",
           "columnsFrom": ["contact_id"],
-          "columnsTo": ["id"],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "account_reference_account_id_account_id_fk": {
-          "name": "account_reference_account_id_account_id_fk",
-          "tableFrom": "account",
-          "tableTo": "account",
-          "columnsFrom": ["reference_account_id"],
           "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
@@ -1610,82 +1594,6 @@
       "uniqueConstraints": {},
       "checkConstraints": {}
     },
-    "import_file": {
-      "name": "import_file",
-      "columns": {
-        "import_run_id": {
-          "name": "import_run_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "kind": {
-          "name": "kind",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false,
-          "default": "'pp-xml'"
-        },
-        "name": {
-          "name": "name",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "sha256": {
-          "name": "sha256",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "size_bytes": {
-          "name": "size_bytes",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "bytes": {
-          "name": "bytes",
-          "type": "blob",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false,
-          "default": "(strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))"
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {
-        "import_file_import_run_id_import_run_id_fk": {
-          "name": "import_file_import_run_id_import_run_id_fk",
-          "tableFrom": "import_file",
-          "tableTo": "import_run",
-          "columnsFrom": ["import_run_id"],
-          "columnsTo": ["id"],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {
-        "import_file_import_run_id_kind_pk": {
-          "columns": ["import_run_id", "kind"],
-          "name": "import_file_import_run_id_kind_pk"
-        }
-      },
-      "uniqueConstraints": {},
-      "checkConstraints": {}
-    },
     "import_mapping": {
       "name": "import_mapping",
       "columns": {
@@ -1760,73 +1668,6 @@
           "value": "\"import_mapping\".\"version\" >= 1"
         }
       }
-    },
-    "import_price_change": {
-      "name": "import_price_change",
-      "columns": {
-        "import_run_id": {
-          "name": "import_run_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "security_id": {
-          "name": "security_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "date": {
-          "name": "date",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "old_price_micro": {
-          "name": "old_price_micro",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "old_currency": {
-          "name": "old_currency",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "old_source": {
-          "name": "old_source",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {
-        "import_price_change_import_run_id_import_run_id_fk": {
-          "name": "import_price_change_import_run_id_import_run_id_fk",
-          "tableFrom": "import_price_change",
-          "tableTo": "import_run",
-          "columnsFrom": ["import_run_id"],
-          "columnsTo": ["id"],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {
-        "import_price_change_import_run_id_security_id_date_pk": {
-          "columns": ["import_run_id", "security_id", "date"],
-          "name": "import_price_change_import_run_id_security_id_date_pk"
-        }
-      },
-      "uniqueConstraints": {},
-      "checkConstraints": {}
     },
     "import_run": {
       "name": "import_run",
@@ -4202,6 +4043,35 @@
         "valuation_date_chk": {
           "name": "valuation_date_chk",
           "value": "\"valuation\".\"date\" GLOB '[0-9][0-9][0-9][0-9]-[01][0-9]-[0-3][0-9]'"
+        }
+      }
+    },
+    "app_setting": {
+      "name": "app_setting",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "value": {
+          "name": "value",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {
+        "app_setting_id_chk": {
+          "name": "app_setting_id_chk",
+          "value": "length(\"app_setting\".\"id\") BETWEEN 1 AND 64"
         }
       }
     },

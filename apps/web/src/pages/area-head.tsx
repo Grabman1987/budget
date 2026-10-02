@@ -1,7 +1,9 @@
 import { Segmented, StandValue, TitleBlock, type TitleBlockField } from '@budget/ui';
-import { ChevronLeft, ChevronRight, KeyRound } from 'lucide-react';
+import { KeyRound } from 'lucide-react';
 import { useState } from 'react';
-import { monthLabel } from '../nav/month';
+import { monthLabel, monthRangeLabel } from '../nav/month';
+import { useMonthSpan } from '../budget/month-span';
+import { MonthSwitch } from '../shell/month-switch';
 import { VermoegenStand, ZeitraumSwitch } from '../wealth/frame';
 import type { PageMeta } from '../nav/pages';
 import { useMonth } from '../shell/use-month';
@@ -34,7 +36,7 @@ export interface AreaHeadProps {
 }
 
 /** Areas whose title cell stays visible on the phone (it carries the month switch). */
-export const TITLE_ON_MOBILE_AREAS: ReadonlySet<string> = new Set(['plan']);
+export const TITLE_ON_MOBILE_AREAS: ReadonlySet<string> = new Set(['plan', 'heute']);
 
 const packageOf = (fills: string) => fills.split(/[\s;,]/)[0] ?? fills;
 
@@ -56,7 +58,8 @@ export function AreaHead({
   reportDataBasis,
   reportStand,
 }: AreaHeadProps) {
-  const [month, shift] = useMonth();
+  const [month] = useMonth();
+  const span = useMonthSpan();
   const [period, setPeriod] = useState<Period>('month');
   const stand: TitleBlockField = { label: 'Stand', value: <StandValue /> };
 
@@ -67,10 +70,12 @@ export function AreaHead({
 
   switch (meta.area) {
     case 'heute':
-      heading = monthLabel(month);
+      titleNode = <MonthSwitch heading={monthLabel(month)} />;
+      titleOnMobile = TITLE_ON_MOBILE_AREAS.has('heute');
       fields = [
         {
           label: 'Stand',
+          hideOnMobile: true,
           value: <StandValue day={standDay} label={standDay ? 'Heute' : undefined} none="…" />,
         },
         {
@@ -89,27 +94,7 @@ export function AreaHead({
       ];
       break;
     case 'plan':
-      titleNode = (
-        <div className="month-switch">
-          <button
-            type="button"
-            className="icon-btn"
-            aria-label="Vormonat"
-            onClick={() => shift(-1)}
-          >
-            <ChevronLeft size={20} strokeWidth={1.75} aria-hidden="true" />
-          </button>
-          <h1>{monthLabel(month)}</h1>
-          <button
-            type="button"
-            className="icon-btn"
-            aria-label="Nächster Monat"
-            onClick={() => shift(1)}
-          >
-            <ChevronRight size={20} strokeWidth={1.75} aria-hidden="true" />
-          </button>
-        </div>
-      );
+      titleNode = <MonthSwitch heading={monthRangeLabel(month, span)} />;
       titleOnMobile = TITLE_ON_MOBILE_AREAS.has('plan');
       fields = [
         { ...stand, hideOnMobile: true },
@@ -179,6 +164,7 @@ export function AreaHead({
       fields={all}
       compactOnMobile
       titleOnMobile={titleOnMobile}
+      {...(meta.area === 'heute' ? { className: 'titleblock-stack' } : {})}
     />
   );
 }

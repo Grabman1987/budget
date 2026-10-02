@@ -1,22 +1,21 @@
 import { Count } from '@budget/ui';
 import { Inbox, Plus } from 'lucide-react';
 import { MAIN_AREAS, areaById, type AreaId } from '../nav/areas';
-import { monthLabel } from '../nav/month';
 import type { PageMeta } from '../nav/pages';
 import { AppLink } from './app-link';
 import { PanelLink } from './panel-link';
 import { useInboxCount } from './inbox';
 import { GlobalSearch } from './global-search';
 import { ThemeButton } from './theme-button';
+import { useShellIdentity } from './use-profile';
 
 /**
- * What the phone header shows, as in the prototype: the month on Heute, the area name on the other
- * areas (the register row and the title-block strip below say which view it is), the report name
+ * What the phone header shows, as in the prototype: the area name (the month switch and the strip
+ * below say which month and view it is), the report name
  * on a single report. Long "Area · Register" titles only got truncated ("Einstellungen · Si…").
  */
-export function phoneTitle(page: PageMeta | undefined, month: string, fallback: string): string {
+export function phoneTitle(page: PageMeta | undefined, fallback: string): string {
   if (!page) return fallback;
-  if (page.area === 'heute') return monthLabel(month);
   if (page.area === 'reports') {
     return page.title === 'Reports' || page.title.startsWith('Reports · ') ? 'Reports' : page.title;
   }
@@ -26,6 +25,7 @@ export function phoneTitle(page: PageMeta | undefined, month: string, fallback: 
 /** Phone header (< 768 px): page title, inbox, theme, profile. */
 export function MobileHeader({ title, asHeading }: { title: string; asHeading: boolean }) {
   const inbox = useInboxCount();
+  const identity = useShellIdentity();
   return (
     <header className="m-head">
       <div className="m-title">
@@ -41,8 +41,12 @@ export function MobileHeader({ title, asHeading }: { title: string; asHeading: b
         {inbox.count !== undefined && inbox.count > 0 && <Count>{inbox.count}</Count>}
       </PanelLink>
       <ThemeButton variant="icon" />
-      <AppLink className="avatar" to="/einstellungen/konten" aria-label="Profil und Einstellungen">
-        NU
+      <AppLink
+        className="avatar"
+        to="/einstellungen/profil"
+        aria-label={`${identity.name}: Profil und Einstellungen`}
+      >
+        {identity.initials}
       </AppLink>
     </header>
   );

@@ -1,5 +1,14 @@
 import { Field, TextInput, cx } from '@budget/ui';
-import { useId, useLayoutEffect, useMemo, useRef, useState, type ReactNode, type Ref } from 'react';
+import {
+  useEffect,
+  useId,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+  type Ref,
+} from 'react';
 
 export interface ComboOption {
   id: string;
@@ -30,6 +39,8 @@ export interface ComboboxProps {
   onFocusChange?: (focused: boolean) => void;
   /** With text typed, the first match is highlighted, so Enter picks it (category search). */
   pickFirst?: boolean;
+  /** Column heading above the right-aligned hints ("Verfügbar"); shown with the list. */
+  hintHeading?: string;
 }
 
 const fold = (text: string) => text.toLocaleLowerCase('de-AT').trim();
@@ -56,6 +67,7 @@ export function Combobox({
   filter,
   onFocusChange,
   pickFirst = false,
+  hintHeading,
 }: ComboboxProps) {
   const listId = useId();
   const [focused, setFocused] = useState(false);
@@ -86,6 +98,11 @@ export function Combobox({
     focused &&
     !dismissed &&
     (shown.length > 0 || (emptyText !== undefined && (filter ?? value).trim() !== ''));
+  // On the phone the list opens inside a scrolling sheet: bring it into view.
+  useEffect(() => {
+    if (!open || !window.matchMedia?.('(max-width: 767px)')?.matches) return;
+    document.getElementById(listId)?.scrollIntoView?.({ block: 'nearest' });
+  }, [open, listId]);
   const optionId = (index: number) => `${listId}-${index}`;
   // Without arrow keys, `pickFirst` highlights the first match once something is typed.
   const activeIndex =
@@ -167,6 +184,11 @@ export function Combobox({
               role="listbox"
               aria-label={`${label}, Vorschläge`}
             >
+              {hintHeading !== undefined && shown.length > 0 && (
+                <li className="combo-head" role="presentation">
+                  <span>{hintHeading}</span>
+                </li>
+              )}
               {shown.length === 0 && emptyText !== undefined && (
                 <li className="combo-empty" role="presentation">
                   {emptyText}

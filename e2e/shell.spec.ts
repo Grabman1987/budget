@@ -312,7 +312,11 @@ test.describe('phone shell', () => {
     const fab = await page.locator('.fab').boundingBox();
     expect(Math.round(fab?.width ?? 0)).toBe(58);
     expect(Math.round(fab?.height ?? 0)).toBe(58);
-    await expect(page.locator('.m-head .m-title-text')).toHaveText(monthLabel(monthOf(new Date())));
+    // The header names the area; the month (with its switch) sits in the strip below.
+    await expect(page.locator('.m-head .m-title-text')).toHaveText('Heute');
+    await expect(
+      page.getByRole('heading', { name: monthLabel(monthOf(new Date())), exact: true }),
+    ).toBeVisible();
     await page.goto('/reports/geldfluss');
     await expect(page.locator('.m-head .m-title-text')).toHaveText('Geldfluss');
   });

@@ -81,7 +81,7 @@ function AccountBody({ account }: { account: AccountRow }) {
         <div>
           <h2>{account.name}</h2>
           <p className="kmeta">
-            {ACCOUNT_TYPE_LABEL[account.type]} · {groupOf(account.role).title}
+            {ACCOUNT_TYPE_LABEL[account.type]} · {groupOf(account).title}
             {account.closedAt && <span>geschlossen am {longDay(account.closedAt)}</span>}
           </p>
         </div>

@@ -8,10 +8,12 @@ import { assign, moveMoney } from './budget-api';
 import { CoverChoice, useCover } from './cover-choice';
 import { STAGES, targetText } from './labels';
 import {
+  assignGuard,
   CLASS_TEXT,
   coverFromToBeAssigned,
   coverSource,
   isCard,
+  moveGuard,
   readAssign,
   type PlanRow,
 } from './plan-model';
@@ -66,6 +68,7 @@ function EnvelopeBody({
   const [other, setOther] = useState(coverSource(rows, r)?.id ?? '');
   const [moveText, setMoveText] = useState('');
   const [error, setError] = useState<string>();
+  const [moveError, setMoveError] = useState<string>();
   const [choosing, setChoosing] = useState(false);
   const others = rows.filter((o) => o.id !== r.id && !isCard(o));
   const fill = Math.min(r.needCents, Math.max(0, tba));
@@ -88,6 +91,9 @@ function EnvelopeBody({
     const value = readAssign(amount, r.assignedCents, false);
     if (value === null) return setError('Das lässt sich nicht als Betrag lesen.');
     if (value === r.assignedCents) return onDone();
+    // The guard: no more than "Zu verteilen" holds; the message names the maximum.
+    const guard = assignGuard(value, r.assignedCents, tba);
+    if (!guard.ok) return setError(guard.message);
     void run(
       () => assign(month, [{ categoryId: r.id, assignedCents: value }]),
       `${r.name}: ${eur(r.assignedCents)} → ${eur(value)} zugewiesen`,
@@ -95,9 +101,14 @@ function EnvelopeBody({
   };
   const move = () => {
     const parsed = parseAmount(moveText);
-    if (!parsed.ok || parsed.cents <= 0) return setError('Bitte einen Betrag über 0 eintragen.');
+    if (!parsed.ok || parsed.cents <= 0)
+      return setMoveError('Bitte einen Betrag über 0 eintragen.');
     const src = other === '' ? null : other;
     const [from, to] = direction === 'in' ? [src, r.id] : [r.id, src];
+    if (from === null) {
+      const guard = moveGuard(parsed.cents, tba);
+      if (!guard.ok) return setMoveError(guard.message);
+    }
     void run(
       () => moveMoney(month, from, to, parsed.cents),
       `${eur(parsed.cents)} von ${from ? name(from) : 'Zu verteilen'} zu ${to ? name(to) : 'Zu verteilen'} verschoben`,
@@ -140,7 +151,15 @@ function EnvelopeBody({
       </dl>
 
       <h3 className="panel-h">Zuweisen</h3>
-      <AmountInput label="Zugewiesen" value={amount} onChange={setAmount} error={error} />
+      <AmountInput
+        label="Zugewiesen"
+        value={amount}
+        onChange={(v) => {
+          setAmount(v);
+          setError(undefined);
+        }}
+        error={error}
+      />
       <div className="panel-actions">
         <Button onClick={save}>Übernehmen</Button>
         {fill > 0 && (
@@ -190,7 +209,15 @@ function EnvelopeBody({
           </Select>
         )}
       </Field>
-      <AmountInput label="Betrag" value={moveText} onChange={setMoveText} />
+      <AmountInput
+        label="Betrag"
+        value={moveText}
+        onChange={(v) => {
+          setMoveText(v);
+          setMoveError(undefined);
+        }}
+        error={moveError}
+      />
       <div className="panel-actions">
         <Button variant="ghost" onClick={move}>
           Verschieben

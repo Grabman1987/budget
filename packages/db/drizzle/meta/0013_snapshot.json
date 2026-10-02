@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "beb6e4a9-0519-4f28-8e52-3ac2f233eae2",
+  "id": "73d7e96f-3d27-4a20-8f8c-d12448ac10f9",
   "prevId": "1e0ce2be-677a-4f9f-bf3c-a939e05233fa",
   "tables": {
     "account": {
@@ -3174,108 +3174,6 @@
         }
       }
     },
-    "market_run": {
-      "name": "market_run",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "text",
-          "primaryKey": true,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "trigger": {
-          "name": "trigger",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "started_at": {
-          "name": "started_at",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "finished_at": {
-          "name": "finished_at",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "as_of": {
-          "name": "as_of",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "status": {
-          "name": "status",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "price_rows": {
-          "name": "price_rows",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false,
-          "default": 0
-        },
-        "fx_rows": {
-          "name": "fx_rows",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false,
-          "default": 0
-        },
-        "failed_count": {
-          "name": "failed_count",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false,
-          "default": 0
-        },
-        "error_classes": {
-          "name": "error_classes",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        }
-      },
-      "indexes": {
-        "market_run_finished_idx": {
-          "name": "market_run_finished_idx",
-          "columns": ["finished_at"],
-          "isUnique": false
-        }
-      },
-      "foreignKeys": {},
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "checkConstraints": {
-        "market_run_trigger_chk": {
-          "name": "market_run_trigger_chk",
-          "value": "\"market_run\".\"trigger\" IN ('nightly', 'manual')"
-        },
-        "market_run_status_chk": {
-          "name": "market_run_status_chk",
-          "value": "\"market_run\".\"status\" IN ('ok', 'partial', 'failed')"
-        },
-        "market_run_as_of_chk": {
-          "name": "market_run_as_of_chk",
-          "value": "\"market_run\".\"as_of\" GLOB '[0-9][0-9][0-9][0-9]-[01][0-9]-[0-3][0-9]'"
-        }
-      }
-    },
     "price": {
       "name": "price",
       "columns": {
@@ -3338,7 +3236,7 @@
       "checkConstraints": {
         "price_source_chk": {
           "name": "price_source_chk",
-          "value": "\"price\".\"source\" IN ('yfinance', 'ariva', 'cryptocalc', 'coingecko', 'manual', 'import')"
+          "value": "\"price\".\"source\" IN ('yfinance', 'ariva', 'manual', 'import')"
         },
         "price_date_chk": {
           "name": "price_date_chk",
@@ -3675,20 +3573,6 @@
         },
         "quote_exchange": {
           "name": "quote_exchange",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "quote_url": {
-          "name": "quote_url",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "coingecko_id": {
-          "name": "coingecko_id",
           "type": "text",
           "primaryKey": false,
           "notNull": false,
@@ -4043,6 +3927,35 @@
         "valuation_date_chk": {
           "name": "valuation_date_chk",
           "value": "\"valuation\".\"date\" GLOB '[0-9][0-9][0-9][0-9]-[01][0-9]-[0-3][0-9]'"
+        }
+      }
+    },
+    "app_setting": {
+      "name": "app_setting",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "value": {
+          "name": "value",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {
+        "app_setting_id_chk": {
+          "name": "app_setting_id_chk",
+          "value": "length(\"app_setting\".\"id\") BETWEEN 1 AND 64"
         }
       }
     },

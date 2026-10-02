@@ -1,8 +1,9 @@
-import { addDays, todayInVienna } from '@budget/domain';
+import { todayInVienna } from '@budget/domain';
 import {
   AmountInput,
   Button,
   ClassSwatch,
+  cx,
   Field,
   Segmented,
   Select,
@@ -11,7 +12,7 @@ import {
 } from '@budget/ui';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from '@tanstack/react-router';
-import { CalendarClock, Trash2 } from 'lucide-react';
+import { CalendarClock, Check, Lock, Trash2, X } from 'lucide-react';
 import {
   useEffect,
   useMemo,
@@ -45,17 +46,19 @@ import {
   defaultAccountId,
   orderAccounts,
   pickableCategories,
-  quickDays,
   readMemory,
   remember,
 } from './capture-model';
-import { Combobox, type ComboOption } from './combobox';
+import { CategoryCombobox } from './category-picker';
+import { Combobox } from './combobox';
+import { ContactSelect } from './contact-select';
+import { FlagPicker } from './flag-picker';
 import { SplitEditor } from './split-editor';
+import { AccountOptions } from './account-options';
 import { eur, monthName } from './format';
-import { errorText, FLAG_LABEL } from './labels';
+import { errorText } from './labels';
 import { useLedgerWrites } from './mutations';
 import { accountsQuery, lookupsQuery, payeesQuery } from './queries';
-import { BOOKING_FLAGS } from './types';
 
 const KINDS: ReadonlyArray<SegmentedOption<BookingKind>> = [
   { value: 'expense', label: 'Ausgabe' },
@@ -66,7 +69,11 @@ const EDIT_KINDS = KINDS.slice(0, 2);
 const NONE = '__none';
 const LOCKED = 'Diese Buchung ist geprüft. Bestätige die Freigabe, um sie zu ändern.';
 
-/** Focusable fields in reading order; the operator buttons of the amount field are skipped. */
+/**
+ * Focusable fields in reading order; the operator buttons of the amount field are skipped. Fields
+ * marked `data-enter-skip` (account and date of a booking: usually right already) stay reachable by Tab but Enter
+ * does not stop there.
+ */
 function fields(form: HTMLFormElement): HTMLElement[] {
   return Array.from(
     form.querySelectorAll<HTMLElement>('input, select, textarea, button[type="submit"]'),
@@ -130,7 +137,6 @@ export function CaptureForm({
   const appliedByPayee = useRef<string | null>(null);
   // The payee "Speichern und neu" carried over: context, so it does not make the form dirty.
   const [keptPayee, setKeptPayee] = useState('');
-  const [typing, setTyping] = useState<string | null>(null);
   const set = <K extends keyof BookingDraft>(key: K, value: BookingDraft[K]) =>
     setDraft((d) => ({ ...d, [key]: value }));
 
@@ -155,9 +161,13 @@ export function CaptureForm({
     () => pickableCategories(budget.data, lookups.data),
     [budget.data, lookups.data],
   );
-  const pickable = useMemo(
-    () => categoriesFor(all, draft.kind, draft.categoryId),
-    [all, draft.kind, draft.categoryId],
+  // Archived categories are not offered; the field still names the one an old booking has.
+  const pickable = useMemo(() => categoriesFor(all, draft.kind), [all, draft.kind]);
+  const splitCategoryKey = draft.splits.map((x) => x.categoryId).join('|');
+  // A split line that already has an archived category keeps listing it, so the line stays valid.
+  const splitPickable = useMemo(
+    () => categoriesFor(all, draft.kind, splitCategoryKey.split('|')),
+    [all, draft.kind, splitCategoryKey],
   );
   const selected = all.find((c) => c.id === draft.categoryId);
   const payeeDefault = (() => {
@@ -363,26 +373,13 @@ export function CaptureForm({
     if (['checkbox', 'radio', 'button', 'submit'].includes(target.type)) return;
     e.preventDefault();
     const list = fields(form);
-    const next = list[list.indexOf(target) + 1];
+    const next = list
+      .slice(list.indexOf(target) + 1)
+      .find((el) => !el.closest('[data-enter-skip]'));
     next?.focus();
     if (next instanceof HTMLInputElement && next.type !== 'date') next.select();
   };
 
-  const categoryOptions: ComboOption[] = useMemo(() => {
-    const zu: ComboOption[] =
-      draft.kind === 'income'
-        ? [{ id: NONE, label: 'Zu verteilen', hint: 'noch keiner Kategorie zugewiesen' }]
-        : [];
-    return [
-      ...zu,
-      ...pickable.map((c) => ({
-        id: c.id,
-        label: c.name,
-        group: c.group,
-        hint: c.availableCents === null ? undefined : `Verfügbar ${eur(c.availableCents)}`,
-      })),
-    ];
-  }, [pickable, draft.kind]);
   const categoryName =
     selected?.name ?? (draft.kind === 'income' && draft.categoryId === '' ? 'Zu verteilen' : '');
   const chips = [...new Set([...(payeeDefault ? [payeeDefault] : []), ...memory.categories])]
@@ -391,24 +388,24 @@ export function CaptureForm({
     .slice(0, 4);
   const amountAbs = amountOf(draft.amount) ?? 0;
 
-  const pickCategory = (id: string) => {
-    set('categoryId', id === NONE ? '' : id);
-    setTyping(null);
-  };
+  const pickCategory = (id: string) => set('categoryId', id === NONE ? '' : id);
 
-  const accountOptions = open.map((a) => (
-    <option key={a.id} value={a.id}>
-      {a.name}
-    </option>
-  ));
+  const leading = useMemo(
+    () =>
+      draft.kind === 'income'
+        ? [{ id: NONE, label: 'Zu verteilen', hint: 'noch keiner Kategorie zugewiesen' }]
+        : [],
+    [draft.kind],
+  );
   const showCategory = (!isTransfer || needsCategory) && !draft.contactId;
+  const confirmed = draft.status === 'confirmed';
 
   return (
     // Keyboard flow (Enter, Ctrl+Enter) is handled once for all fields of the form.
     // eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions
     <form
       ref={formRef}
-      className="kform"
+      className="bkform"
       onSubmit={(e) => {
         e.preventDefault();
         void save(false);
@@ -416,8 +413,289 @@ export function CaptureForm({
       onKeyDown={onKeyDown}
       noValidate
     >
+      <div className="bk-head">
+        {/* Flag first (YNAB), then the kind of booking, then cleared and close. */}
+        {!isTransfer && <FlagPicker value={draft.flag} onChange={(flag) => set('flag', flag)} />}
+        {legOfTransfer ? (
+          <span className="bk-kind bk-kind-fixed">Umbuchung</span>
+        ) : (
+          <Segmented
+            label="Art der Buchung"
+            options={editing ? EDIT_KINDS : KINDS}
+            value={draft.kind}
+            onChange={changeKind}
+            stretch
+            className="bk-kind"
+          />
+        )}
+        {locked && !unlock ? (
+          <button
+            type="button"
+            className="kcleared is-locked"
+            aria-disabled="true"
+            aria-label="Status: geprüft, gesperrt"
+            title="Geprüft: gesperrt. Mit „Trotzdem ändern“ freigeben."
+          >
+            <Lock size={18} strokeWidth={1.75} aria-hidden="true" />
+          </button>
+        ) : (
+          <button
+            type="button"
+            className={cx('kcleared', confirmed && 'is-on')}
+            aria-pressed={confirmed}
+            aria-label="Bestätigt"
+            title={
+              confirmed
+                ? 'Bestätigt: die Buchung ist auf dem Konto eingegangen'
+                : 'Offen: vorgemerkt, noch nicht bestätigt'
+            }
+            onClick={() => set('status', confirmed ? 'pending' : 'confirmed')}
+          >
+            <Check size={18} strokeWidth={1.75} aria-hidden="true" />
+          </button>
+        )}
+        <button
+          type="button"
+          className="icon-btn bk-close"
+          aria-label="Schließen"
+          onClick={requestClose}
+        >
+          <X size={18} strokeWidth={1.75} aria-hidden="true" />
+        </button>
+      </div>
+      <div className="bk-body kform">
+        {locked && (
+          <div className="kdiff is-ok" role="note">
+            <span>
+              Diese Buchung ist <strong>geprüft</strong>. Nur Markierung und Notiz sind frei; alles
+              andere braucht deine Freigabe.
+            </span>
+            <label className="kcheck">
+              <input
+                type="checkbox"
+                checked={unlock}
+                onChange={(e) => setUnlock(e.target.checked)}
+              />
+              Trotzdem ändern
+            </label>
+          </div>
+        )}
+        <AmountInput
+          label="Betrag"
+          value={draft.amount}
+          onChange={(v) => set('amount', v)}
+          sign={isTransfer ? null : draft.kind === 'income' ? '+' : '−'}
+          error={errors.amount}
+        />
+        {!isTransfer && (
+          <Combobox
+            label={draft.kind === 'income' ? 'Von (Zahler)' : 'Empfänger'}
+            value={draft.payee}
+            placeholder="Suchen oder neu anlegen"
+            onChange={(text) => set('payee', text)}
+            onSelect={(o) => {
+              set('payee', o.label);
+              applyPayeeDefault(o.label);
+            }}
+            onFocusChange={(focused) => !focused && applyPayeeDefault(draft.payee)}
+            options={(payees.data?.payees ?? [])
+              .filter((p) => !p.systemKind)
+              .sort((a, b) => (b.lastBookingDate ?? '').localeCompare(a.lastBookingDate ?? ''))
+              .map((p) => ({
+                id: p.id,
+                label: p.name,
+                hint: all.find((c) => c.id === p.defaultCategoryId)?.name,
+              }))}
+          />
+        )}
+        <div className="kform-pair" {...(isTransfer ? {} : { 'data-enter-skip': true })}>
+          <Field label={isTransfer ? 'Von Konto' : 'Konto'} error={errors.account}>
+            {({ id, describedBy, invalid }) => (
+              <Select
+                id={id}
+                value={accountId}
+                disabled={legOfTransfer}
+                aria-invalid={invalid}
+                aria-describedby={describedBy}
+                onChange={(e) => set('accountId', e.target.value)}
+              >
+                <AccountOptions accounts={open} />
+              </Select>
+            )}
+          </Field>
+          {isTransfer ? (
+            <Field label="Nach Konto" error={errors.toAccount}>
+              {({ id, describedBy, invalid }) => (
+                <Select
+                  id={id}
+                  value={draft.toAccountId}
+                  disabled={legOfTransfer}
+                  aria-invalid={invalid}
+                  aria-describedby={describedBy}
+                  onChange={(e) => set('toAccountId', e.target.value)}
+                >
+                  <option value="">Konto wählen</option>
+                  <AccountOptions accounts={open} exclude={accountId} />
+                </Select>
+              )}
+            </Field>
+          ) : (
+            <DateField draft={draft} set={set} error={errors.date} />
+          )}
+        </div>
+        {isTransfer && <DateField draft={draft} set={set} error={errors.date} />}
+        {!isTransfer && draft.splitOn ? (
+          <SplitEditor
+            draft={draft}
+            setDraft={setDraft}
+            categories={splitPickable}
+            accounts={open}
+            accountId={accountId}
+            contacts={lookups.data?.contacts ?? []}
+            hasAdvanceCategory={Boolean(advanceCategoryId)}
+            locked={splitLocked}
+            error={errors.splits}
+          />
+        ) : (
+          <>
+            {showCategory && (
+              <div className="kcatfield">
+                <CategoryCombobox
+                  label="Kategorie"
+                  categories={pickable}
+                  leading={leading}
+                  selectedName={categoryName}
+                  error={errors.category}
+                  onSelect={pickCategory}
+                />
+                {/* Always there (empty until a category is chosen): choosing one, e.g. by the
+                    payee's default as the payee field is left, must not move the fields below
+                    under the pointer. */}
+                <p className="kavail" aria-live="polite">
+                  {selected && selected.availableCents !== null && (
+                    <>
+                      Verfügbar im {monthName(draft.date)}:{' '}
+                      <strong>{eur(selected.availableCents)}</strong>
+                      {draft.kind === 'expense' && amountAbs > 0 && (
+                        <> · danach {eur(selected.availableCents - amountAbs)}</>
+                      )}
+                    </>
+                  )}
+                </p>
+                {chips.length > 0 && (
+                  <div className="kchips" role="group" aria-label="Vorschläge">
+                    {chips.map((c) => (
+                      <button
+                        key={c.id}
+                        type="button"
+                        className="chip"
+                        aria-pressed={c.id === draft.categoryId}
+                        onClick={() => pickCategory(c.id)}
+                      >
+                        {c.cls && <ClassSwatch kind={c.cls} />}
+                        {c.name}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+            {!isTransfer && (
+              <Button variant="ghost" size="sm" className="ksplit-start" onClick={startSplit}>
+                Aufteilen
+              </Button>
+            )}
+          </>
+        )}
+        <Field label="Notiz">
+          {({ id }) => (
+            <TextInput
+              id={id}
+              value={draft.memo}
+              placeholder="Optional"
+              autoComplete="off"
+              onChange={(e) => set('memo', e.target.value)}
+            />
+          )}
+        </Field>
+        {draft.kind === 'income' && (
+          <Field label="Einnahmeart">
+            {({ id }) => (
+              <Select
+                id={id}
+                value={draft.incomeTypeId}
+                onChange={(e) => set('incomeTypeId', e.target.value)}
+              >
+                <option value="">keine Angabe</option>
+                {(lookups.data?.incomeTypes ?? []).map((t) => (
+                  <option key={t.id} value={t.id}>
+                    {t.name}
+                  </option>
+                ))}
+              </Select>
+            )}
+          </Field>
+        )}
+        {!isTransfer && !draft.splitOn && (
+          <ContactSelect
+            label={draft.kind === 'income' ? 'Rückzahlung von Kontakt' : 'Auslage für Kontakt'}
+            value={draft.contactId}
+            onChange={(id) => set('contactId', id)}
+            contacts={contacts}
+            noneLabel="keiner"
+            error={errors.contact}
+            hint={
+              draft.contactId
+                ? advanceCategoryId
+                  ? 'Läuft über Auslagen, eine eigene Kategorie ist nicht nötig.'
+                  : 'Läuft über Auslagen. Die Kategorie wird beim ersten Mal automatisch angelegt.'
+                : undefined
+            }
+          />
+        )}
+        {(lookups.data?.projects.length ?? 0) > 0 && (
+          <details
+            className="kmore"
+            open={moreOpen}
+            onToggle={(e) => setMoreOpen(e.currentTarget.open)}
+          >
+            <summary>Mehr</summary>
+            <div className="kform">
+              <Field label="Projekt">
+                {({ id }) => (
+                  <Select
+                    id={id}
+                    value={draft.projectId}
+                    onChange={(e) => set('projectId', e.target.value)}
+                  >
+                    <option value="">kein Projekt</option>
+                    {(lookups.data?.projects ?? []).map((p) => (
+                      <option key={p.id} value={p.id}>
+                        {p.name}
+                      </option>
+                    ))}
+                  </Select>
+                )}
+              </Field>
+            </div>
+          </details>
+        )}
+        {errors.form && (
+          <p className="field-error" role="alert">
+            {errors.form}
+          </p>
+        )}
+        <p className="khint" aria-hidden="true">
+          Enter weiter · Strg Enter speichert · Strg Umschalt Enter speichert und beginnt neu · Esc
+          schließt
+        </p>
+      </div>
       {discard.asking && (
-        <div className="kdiff is-bad" role="alertdialog" aria-label="Eingaben verwerfen?">
+        <div
+          className="kdiff is-bad bk-discard"
+          role="alertdialog"
+          aria-label="Eingaben verwerfen?"
+        >
           <span>Eingaben verwerfen?</span>
           <Button size="sm" variant="ghost" onClick={discard.keep}>
             Weiter bearbeiten
@@ -427,309 +705,9 @@ export function CaptureForm({
           </Button>
         </div>
       )}
-      {!legOfTransfer && (
-        <Segmented
-          label="Art der Buchung"
-          options={editing ? EDIT_KINDS : KINDS}
-          value={draft.kind}
-          onChange={changeKind}
-          stretch
-        />
-      )}
-      {locked && (
-        <div className="kdiff is-ok" role="note">
-          <span>
-            Diese Buchung ist <strong>geprüft</strong>. Nur Markierung und Notiz sind frei; alles
-            andere braucht deine Freigabe.
-          </span>
-          <label className="kcheck">
-            <input type="checkbox" checked={unlock} onChange={(e) => setUnlock(e.target.checked)} />
-            Trotzdem ändern
-          </label>
-        </div>
-      )}
-      <AmountInput
-        label="Betrag"
-        value={draft.amount}
-        onChange={(v) => set('amount', v)}
-        sign={isTransfer ? null : draft.kind === 'income' ? '+' : '−'}
-        error={errors.amount}
-      />
-      {!isTransfer && (
-        <Combobox
-          label={draft.kind === 'income' ? 'Von (Zahler)' : 'Empfänger'}
-          value={draft.payee}
-          placeholder="Suchen oder neu anlegen"
-          onChange={(text) => set('payee', text)}
-          onSelect={(o) => {
-            set('payee', o.label);
-            applyPayeeDefault(o.label);
-          }}
-          onFocusChange={(focused) => !focused && applyPayeeDefault(draft.payee)}
-          options={(payees.data?.payees ?? [])
-            .filter((p) => !p.systemKind)
-            .sort((a, b) => (b.lastBookingDate ?? '').localeCompare(a.lastBookingDate ?? ''))
-            .map((p) => ({
-              id: p.id,
-              label: p.name,
-              hint: all.find((c) => c.id === p.defaultCategoryId)?.name,
-            }))}
-        />
-      )}
-      {showCategory && !draft.splitOn && (
-        <div className="kcatfield">
-          <Combobox
-            label="Kategorie"
-            value={typing ?? categoryName}
-            filter={typing ?? ''}
-            placeholder="Kategorie suchen"
-            error={errors.category}
-            listWhenEmpty
-            pickFirst
-            emptyText="Keine Kategorie gefunden."
-            options={categoryOptions}
-            onChange={setTyping}
-            onFocusChange={(focused) => !focused && setTyping(null)}
-            onSelect={(o) => pickCategory(o.id)}
-          />
-          {/* Always there (empty until a category is chosen): choosing one, e.g. by the payee's
-              default as the payee field is left, must not move the fields below under the pointer. */}
-          <p className="kavail" aria-live="polite">
-            {selected && selected.availableCents !== null && (
-              <>
-                Verfügbar im {monthName(draft.date)}:{' '}
-                <strong>{eur(selected.availableCents)}</strong>
-                {draft.kind === 'expense' && amountAbs > 0 && (
-                  <> · danach {eur(selected.availableCents - amountAbs)}</>
-                )}
-              </>
-            )}
-          </p>
-          {chips.length > 0 && (
-            <div className="kchips" role="group" aria-label="Vorschläge">
-              {chips.map((c) => (
-                <button
-                  key={c.id}
-                  type="button"
-                  className="chip"
-                  aria-pressed={c.id === draft.categoryId}
-                  onClick={() => pickCategory(c.id)}
-                >
-                  {c.cls && <ClassSwatch kind={c.cls} />}
-                  {c.name}
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
-      {draft.kind === 'income' && (
-        <Field label="Einnahmeart">
-          {({ id }) => (
-            <Select
-              id={id}
-              value={draft.incomeTypeId}
-              onChange={(e) => set('incomeTypeId', e.target.value)}
-            >
-              <option value="">keine Angabe</option>
-              {(lookups.data?.incomeTypes ?? []).map((t) => (
-                <option key={t.id} value={t.id}>
-                  {t.name}
-                </option>
-              ))}
-            </Select>
-          )}
-        </Field>
-      )}
-      {!isTransfer && !draft.splitOn && (contacts.length > 0 || draft.contactId !== '') && (
-        <Field
-          label={draft.kind === 'income' ? 'Rückzahlung von Kontakt' : 'Auslage für Kontakt'}
-          error={errors.contact}
-          hint={
-            draft.contactId
-              ? advanceCategoryId
-                ? 'Läuft über Auslagen, eine eigene Kategorie ist nicht nötig.'
-                : 'Läuft über Auslagen. Die Kategorie wird beim ersten Mal automatisch angelegt.'
-              : undefined
-          }
-        >
-          {({ id, describedBy, invalid }) => (
-            <Select
-              id={id}
-              value={draft.contactId}
-              aria-invalid={invalid}
-              aria-describedby={describedBy}
-              onChange={(e) => set('contactId', e.target.value)}
-            >
-              <option value="">keiner</option>
-              {contacts.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name}
-                </option>
-              ))}
-            </Select>
-          )}
-        </Field>
-      )}
-      {!isTransfer && !draft.splitOn && (
-        <Button variant="ghost" size="sm" onClick={startSplit}>
-          Aufteilen
-        </Button>
-      )}
-      {!isTransfer && draft.splitOn && (
-        <SplitEditor
-          draft={draft}
-          setDraft={setDraft}
-          categories={pickable}
-          accounts={open}
-          accountId={accountId}
-          contacts={lookups.data?.contacts ?? []}
-          hasAdvanceCategory={Boolean(advanceCategoryId)}
-          locked={splitLocked}
-          error={errors.splits}
-        />
-      )}
-      <div className="kform-pair">
-        <Field label={isTransfer ? 'Von Konto' : 'Konto'} error={errors.account}>
-          {({ id, describedBy, invalid }) => (
-            <Select
-              id={id}
-              value={accountId}
-              disabled={legOfTransfer}
-              aria-invalid={invalid}
-              aria-describedby={describedBy}
-              onChange={(e) => set('accountId', e.target.value)}
-            >
-              {accountOptions}
-            </Select>
-          )}
-        </Field>
-        {isTransfer ? (
-          <Field label="Nach Konto" error={errors.toAccount}>
-            {({ id, describedBy, invalid }) => (
-              <Select
-                id={id}
-                value={draft.toAccountId}
-                disabled={legOfTransfer}
-                aria-invalid={invalid}
-                aria-describedby={describedBy}
-                onChange={(e) => set('toAccountId', e.target.value)}
-              >
-                <option value="">Konto wählen</option>
-                <optgroup label="Budget-Konten">
-                  {open
-                    .filter((a) => a.id !== accountId && a.onBudget)
-                    .map((a) => (
-                      <option key={a.id} value={a.id}>
-                        {a.name}
-                      </option>
-                    ))}
-                </optgroup>
-                <optgroup label="Tracking-Konten">
-                  {open
-                    .filter((a) => a.id !== accountId && !a.onBudget)
-                    .map((a) => (
-                      <option key={a.id} value={a.id}>
-                        {a.name}
-                      </option>
-                    ))}
-                </optgroup>
-              </Select>
-            )}
-          </Field>
-        ) : (
-          <DateField draft={draft} set={set} error={errors.date} />
-        )}
-      </div>
-      {isTransfer && <DateField draft={draft} set={set} error={errors.date} />}
-      <DateChips date={draft.date} today={today} onPick={(day) => set('date', day)} />
-      <Field label="Notiz">
-        {({ id }) => (
-          <TextInput
-            id={id}
-            value={draft.memo}
-            placeholder="Optional"
-            autoComplete="off"
-            onChange={(e) => set('memo', e.target.value)}
-          />
-        )}
-      </Field>
-      <details
-        className="kmore"
-        open={moreOpen}
-        onToggle={(e) => setMoreOpen(e.currentTarget.open)}
-      >
-        <summary>Mehr</summary>
-        <div className="kform">
-          {!isTransfer && (
-            <Field label="Markierung">
-              {({ id }) => (
-                <Select
-                  id={id}
-                  value={draft.flag}
-                  onChange={(e) => set('flag', e.target.value as BookingDraft['flag'])}
-                >
-                  <option value="">keine</option>
-                  {BOOKING_FLAGS.map((f) => (
-                    <option key={f} value={f}>
-                      {FLAG_LABEL[f]}
-                    </option>
-                  ))}
-                </Select>
-              )}
-            </Field>
-          )}
-          {(lookups.data?.projects.length ?? 0) > 0 && (
-            <Field label="Projekt">
-              {({ id }) => (
-                <Select
-                  id={id}
-                  value={draft.projectId}
-                  onChange={(e) => set('projectId', e.target.value)}
-                >
-                  <option value="">kein Projekt</option>
-                  {(lookups.data?.projects ?? []).map((p) => (
-                    <option key={p.id} value={p.id}>
-                      {p.name}
-                    </option>
-                  ))}
-                </Select>
-              )}
-            </Field>
-          )}
-          <Field label="Status">
-            {({ id }) => (
-              <Select
-                id={id}
-                value={draft.status}
-                onChange={(e) => set('status', e.target.value as BookingDraft['status'])}
-              >
-                <option value="confirmed">bestätigt</option>
-                <option value="pending">vorgemerkt</option>
-              </Select>
-            )}
-          </Field>
-        </div>
-      </details>
-      {errors.form && (
-        <p className="field-error" role="alert">
-          {errors.form}
-        </p>
-      )}
-      <div className="panel-actions">
-        {!editing && (
-          <Button variant="ghost" disabled={busy || blocked} onClick={() => void save(true)}>
-            Speichern und neu
-          </Button>
-        )}
-        <Button type="submit" disabled={busy || blocked}>
-          Speichern
-        </Button>
+      <div className="bk-foot">
         {editing && (
-          <>
-            <Button variant="ghost" onClick={requestClose}>
-              Abbrechen
-            </Button>
+          <div className="bk-foot-extra">
             <Button variant="ghost" onClick={() => void remove()} disabled={busy}>
               <Trash2 size={16} strokeWidth={1.75} aria-hidden="true" />
               Löschen
@@ -753,18 +731,27 @@ export function CaptureForm({
                 Als erwartete Zahlung anlegen
               </Button>
             )}
-          </>
+          </div>
         )}
+        {!editing && (
+          <Button variant="ghost" disabled={busy || blocked} onClick={() => void save(true)}>
+            Speichern und neu
+          </Button>
+        )}
+        {editing && (
+          <Button variant="ghost" onClick={requestClose}>
+            Abbrechen
+          </Button>
+        )}
+        <Button type="submit" disabled={busy || blocked}>
+          Speichern
+        </Button>
       </div>
-      <p className="khint" aria-hidden="true">
-        Enter weiter · Strg Enter speichert · Strg Umschalt Enter speichert und beginnt neu · Esc
-        schließt
-      </p>
     </form>
   );
 }
 
-/** Date with quick picks for the last days; the day decides which month's Available is shown. */
+/** Date field; the day decides which month's Available is shown. */
 function DateField({
   draft,
   set,
@@ -788,33 +775,6 @@ function DateField({
           />
         )}
       </Field>
-    </div>
-  );
-}
-
-/** Quick picks for the last days, under the account and date row. */
-function DateChips({
-  date,
-  today,
-  onPick,
-}: {
-  date: string;
-  today: string;
-  onPick: (day: string) => void;
-}) {
-  return (
-    <div className="kchips" role="group" aria-label="Schnellwahl">
-      {quickDays(today, addDays).map(([label, day]) => (
-        <button
-          key={label}
-          type="button"
-          className="chip"
-          aria-pressed={date === day}
-          onClick={() => onPick(day)}
-        >
-          {label}
-        </button>
-      ))}
     </div>
   );
 }

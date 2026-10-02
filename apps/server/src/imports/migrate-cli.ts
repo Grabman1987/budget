@@ -1,6 +1,16 @@
-import { readFileSync } from 'node:fs';
+import { readFileSync, writeFileSync } from 'node:fs';
 import { basename, resolve } from 'node:path';
-import { migrateDatabase, openDatabase } from '@budget/db';
+import {
+  applyMoves,
+  listAuditGroups,
+  migrateDatabase,
+  openDatabase,
+  orderAccountsByNames,
+  parseGroupsFile,
+  planGroupMoves,
+  undoAuditGroups,
+  type MovePlan,
+} from '@budget/db';
 import { todayInVienna } from '@budget/domain';
 import { mappingSchema } from '@budget/import-ynab';
 import { deleteRun, saveMapping } from './staging';
@@ -13,9 +23,24 @@ import { findRun, runTask, type ImportTask } from './tasks';
  *
  *   node migrate-cli.js stage --register <file> --plan <file> --mapping <file>
  *   node migrate-cli.js dry-run|report|commit|revert|delete --run <id>
+ *   node migrate-cli.js order-accounts --names "A|B|C" [--dry-run]
+ *   node migrate-cli.js list-groups --since <ISO ts> [--until <ts>] [--entity envelope_month] [--out <file>]
+ *   node migrate-cli.js undo-group --group <id> [--group <id> ...] [--dry-run]
+ *   node migrate-cli.js move-money --month YYYY-MM --from "<name>" --to "<name>" --cents N [--dry-run]
+ *   node migrate-cli.js move-money --file <list-groups json> [--allow-unbalanced] [--dry-run]
  *
  * Output is aggregates only (counts, problem codes, number of differences); `--details` adds the
  * differences themselves for the operator's terminal. Nothing is logged to files.
+ *
+ * `order-accounts` sets the owner's account order (`sortOrder`) by exact account name, one audit
+ * group (the app's "Rückgängig" machinery can undo it by that group id). Names are separated
+ * by `|`; unknown or ambiguous names are reported, never created; accounts not listed follow.
+ *
+ * `list-groups`, `undo-group` and `move-money` are for reverting an import run on which the owner
+ * has already budgeted (the revert refuses while assignments of the owner sit on its categories):
+ * list the owner's actions, undo them, revert and re-import, then re-apply the moves by category
+ * name. All three only call the app's domain functions (`undo`, `moveMoney`, `assignMany`); the
+ * writes are audited with the actor `operator`, one audit group per undo and per move.
  */
 
 const args = process.argv.slice(2);
@@ -24,6 +49,8 @@ const option = (name: string) => {
   const i = args.indexOf(`--${name}`);
   return i >= 0 ? args[i + 1] : undefined;
 };
+const optionsAll = (name: string) =>
+  args.flatMap((a, i) => (a === `--${name}` && args[i + 1] !== undefined ? [args[i + 1]!] : []));
 const required = (name: string) => {
   const value = option(name);
   if (!value) throw new Error(`--${name} is required`);
@@ -112,8 +139,115 @@ try {
       console.log('deleted       ', deleteRun(db, findRun(db, required('run'))));
       break;
     }
+    case 'order-accounts': {
+      const names = required('names').split('|');
+      const result = orderAccountsByNames(
+        db,
+        names,
+        { actor: 'operator' },
+        {
+          dryRun: args.includes('--dry-run'),
+        },
+      );
+      const listed = names.filter((n) => n.trim()).length - result.unknown.length;
+      console.log('listed names  ', names.filter((n) => n.trim()).length);
+      console.log('matched       ', listed - result.ambiguous.length);
+      console.log('unknown       ', result.unknown.length, JSON.stringify(result.unknown));
+      console.log('ambiguous     ', result.ambiguous.length, JSON.stringify(result.ambiguous));
+      console.log('accounts total', result.order.length);
+      console.log('rows changed  ', result.changed, args.includes('--dry-run') ? '(dry run)' : '');
+      if (result.groupId) console.log('audit group   ', result.groupId);
+      break;
+    }
+    case 'list-groups': {
+      const entity = option('entity');
+      const until = option('until');
+      const groups = listAuditGroups(db, {
+        since: required('since'),
+        ...(until && { until }),
+        ...(entity && { entity }),
+      });
+      for (const g of groups) {
+        console.log(g.groupId, g.ts, g.actor);
+        for (const line of g.summary) console.log('   ', line);
+      }
+      console.log('groups        ', groups.length);
+      const out = option('out');
+      if (out) {
+        const moves = groups
+          .filter((g) => g.moves.length > 0)
+          .map(({ groupId, ts, moves }) => ({ groupId, ts, moves }));
+        writeFileSync(out, `${JSON.stringify(moves, null, 2)}${String.fromCharCode(10)}`);
+        console.log('written       ', moves.length, 'groups with moves to', out);
+      }
+      break;
+    }
+    case 'undo-group': {
+      const dryRun = args.includes('--dry-run');
+      const done = undoAuditGroups(db, optionsAll('group'), { actor: 'operator' }, { dryRun });
+      for (const d of done)
+        console.log('undone        ', d.groupId, d.entries, 'entries', d.undoGroupId);
+      console.log('groups        ', done.length, dryRun ? '(dry run)' : '');
+      break;
+    }
+    case 'move-money': {
+      const dryRun = args.includes('--dry-run');
+      const file = option('file');
+      let plan: MovePlan;
+      if (file) {
+        if (['month', 'from', 'to', 'cents'].some((n) => option(n) !== undefined))
+          throw new Error('--file cannot be combined with --month, --from, --to or --cents');
+        plan = planGroupMoves(parseGroupsFile(JSON.parse(readFileSync(file, 'utf8'))), {
+          allowUnbalanced: args.includes('--allow-unbalanced'),
+        });
+      } else {
+        const text = required('cents');
+        if (!/^\d+$/.test(text)) throw new Error('--cents must be a positive whole number');
+        plan = {
+          moves: [
+            {
+              month: required('month'),
+              from: required('from').trim(),
+              to: required('to').trim(),
+              cents: Number(text),
+            },
+          ],
+          assignments: [],
+          skipped: [],
+        };
+      }
+      for (const s of plan.skipped)
+        console.log(
+          'skipped       ',
+          s.groupId ?? '-',
+          s.month,
+          s.reason,
+          `net ${s.netCents}`,
+          JSON.stringify(s.lines),
+        );
+      const done = applyMoves(db, plan, { actor: 'operator' }, { dryRun });
+      for (const d of done)
+        console.log(
+          d.kind === 'move' ? 'moved         ' : 'assigned      ',
+          d.month,
+          d.kind === 'move' ? `${d.from} -> ${d.to}` : d.category,
+          d.cents,
+          d.groupId,
+        );
+      console.log(
+        'moves         ',
+        done.length,
+        'skipped',
+        plan.skipped.length,
+        dryRun ? '(dry run)' : '',
+      );
+      if (plan.skipped.length > 0) process.exitCode = 3;
+      break;
+    }
     default:
-      console.log('usage: migrate-cli.js stage|dry-run|report|commit|revert|delete [options]');
+      console.log(
+        'usage: migrate-cli.js stage|dry-run|report|commit|revert|delete|order-accounts|list-groups|undo-group|move-money [options]',
+      );
       process.exitCode = 2;
   }
 } catch (error) {

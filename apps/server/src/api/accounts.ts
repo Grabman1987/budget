@@ -6,21 +6,21 @@ import {
   netWorthValuationAsOf,
   booking,
   listReconciliations,
+  orderAccounts,
   previewReconciliation,
   reconcileAccount,
-  runInTransaction,
   type AccountSummary,
   type Db,
 } from '@budget/db';
 import { and, eq, isNull, sql } from 'drizzle-orm';
 import { randomUUID } from 'node:crypto';
-import { Hono } from 'hono';
+import { Hono, type Context } from 'hono';
 import { ACTOR, ApiError, defined, readBody, readQuery } from './http';
 import {
   accountClose,
   accountCreate,
   accountPatch,
-  accountSort,
+  accountOrder,
   asOfQuery,
   reconcileBody,
   reconcilePreview,
@@ -111,15 +111,18 @@ export function accountRoutes(db: Db, today: () => string): Hono {
     return c.json({ account: summary(row.id), groupId: ctx.groupId }, 201);
   });
 
-  app.post('/sort', async (c) => {
-    const { ids } = await readBody(c, accountSort);
-    const ctx = audit();
-    // All or nothing: an unknown id leaves the old order untouched.
-    runInTransaction(db, (tx) =>
-      ids.forEach((id, index) => accounts.update(tx, id, { sortOrder: index + 1 }, ctx)),
-    );
-    return c.json({ accounts: listAccounts(today()), groupId: ctx.groupId });
-  });
+  /**
+   * The owner's account order (sidebar, Konten › Übersicht, selects): ordered ids become
+   * `sortOrder` 1..n, one audit group so a single undo restores the old order. Registered before
+   * `/:id`. `POST /sort` is the older name of the same write.
+   */
+  const order = async (c: Context) => {
+    const { ids } = await readBody(c, accountOrder);
+    const result = orderAccounts(db, ids, audit());
+    return c.json({ accounts: listAccounts(today()), groupId: result.groupId });
+  };
+  app.patch('/order', order);
+  app.post('/sort', order);
 
   app.get('/:id', (c) => {
     const { asOf } = readQuery(c, asOfQuery);

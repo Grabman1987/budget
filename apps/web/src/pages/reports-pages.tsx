@@ -16,13 +16,31 @@ import { PlaceholderPage } from './placeholder-page';
 import { GoalsProgressReport } from './goals-progress-report';
 import { PaymentsPreviewReport } from './payments-preview-report';
 import { ContactReportPage } from '../reports/contact-report';
+import { CashflowReportPage } from '../reports/cashflow-report';
+import { LiquidityReportPage } from '../reports/liquidity-report';
+import { WealthHistoryReport } from '../reports/wealth-history-report';
 import { PayeeAnalysisReport } from './payee-analysis-report';
 import { PortfolioPerformanceReport } from './portfolio-performance-report';
 import { PortfolioContributionsReport } from './portfolio-contributions-report';
+import { IncomeReport } from '../reports/income-report';
+import { FlowReport } from '../reports/flow-report';
+import { OnePagerReport } from '../reports/onepager-report';
+import { FinanzcheckReport } from '../reports/finanzcheck-report';
+import { CompareReport } from '../reports/compare-report';
+import { JahresreportPage } from '../reports/jahresreport-page';
+import { ExplorerReportPage } from '../reports/explorer-report';
+import { SpendingAnalysisReport } from '../reports/spending-analysis-report';
+import { BudgetAdherenceReportPage } from '../reports/budget-adherence-report';
+import { ContractsReportPage } from '../reports/contracts-report';
+import { BankCostsReportPage } from '../reports/bank-costs-report';
+import { PersonalInflationReport } from '../reports/personal-inflation-report';
 import { YearReport } from '../reports/year-report';
 import { CategoryReport } from '../reports/category-report';
 import { SavingsReport } from '../reports/savings-report';
 import { TotalTableReport } from '../reports/total-table-report';
+import { PortfolioDepotsReport } from './portfolio-depots-report';
+import { PortfolioAllocationReport } from './portfolio-allocation-report';
+import { PortfolioCostsReport } from './portfolio-costs-report';
 
 const CONTROL_LABEL = { month: 'Monat', year: 'Jahr', period: 'Zeitraum' } as const;
 
@@ -169,12 +187,30 @@ export function ReportPage({ reportId }: { reportId: string }) {
     fills: 'P6 Reports und Umstellung',
     spec: `Diagrammform: ${report.form}.`,
   };
+  if (report.id === 'liquiditaet') return <LiquidityReportPage report={report} meta={meta} />;
+  if (report.id === 'cashflow') return <CashflowReportPage report={report} meta={meta} />;
+  if (report.id === 'vermoegen') return <WealthHistoryReport report={report} meta={meta} />;
+  if (report.id === 'ausgaben') return <SpendingAnalysisReport report={report} meta={meta} />;
+  if (report.id === 'budgettreue') return <BudgetAdherenceReportPage report={report} meta={meta} />;
+  if (report.id === 'abos') return <ContractsReportPage report={report} meta={meta} />;
+  if (report.id === 'kosten') return <BankCostsReportPage report={report} meta={meta} />;
+  if (report.id === 'inflation') return <PersonalInflationReport report={report} meta={meta} />;
   if (report.id === 'sparziele') return <GoalsProgressReport report={report} meta={meta} />;
   if (report.id === 'vorschau') return <PaymentsPreviewReport report={report} meta={meta} />;
   if (report.id === 'empfaenger') return <PayeeAnalysisReport report={report} meta={meta} />;
   if (report.id === 'prendite') return <PortfolioPerformanceReport report={report} meta={meta} />;
+  if (report.id === 'pdepots') return <PortfolioDepotsReport report={report} meta={meta} />;
+  if (report.id === 'pallocation') return <PortfolioAllocationReport report={report} meta={meta} />;
+  if (report.id === 'psteuern') return <PortfolioCostsReport report={report} meta={meta} />;
   if (report.id === 'peinzahlungen')
     return <PortfolioContributionsReport report={report} meta={meta} />;
+  if (report.id === 'einnahmen') return <IncomeReport report={report} meta={meta} />;
+  if (report.id === 'geldfluss') return <FlowReport report={report} meta={meta} />;
+  if (report.id === 'onepager') return <OnePagerReport report={report} meta={meta} />;
+  if (report.id === 'finanzcheck') return <FinanzcheckReport report={report} meta={meta} />;
+  if (report.id === 'jahresreport') return <JahresreportPage report={report} meta={meta} />;
+  if (report.id === 'explorer') return <ExplorerReportPage report={report} meta={meta} />;
+  if (report.id === 'vergleich') return <CompareReport report={report} meta={meta} />;
   if (report.id === 'jahresansicht') return <YearReport report={report} meta={meta} />;
   if (report.id === 'kategorien') return <CategoryReport report={report} meta={meta} />;
   if (report.id === 'sparquote') return <SavingsReport report={report} meta={meta} />;

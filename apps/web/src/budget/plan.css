@@ -1055,3 +1055,334 @@
     min-width: 0;
   }
 }
+
+/* ---------- Feedback 02.10.2026: Plan › Monat ---------- */
+
+/* Zu verteilen too high: a compact soft-red card, label left, the figure right-aligned. */
+.plan .hero-kpi.is-negative.tbd {
+  padding: 14px 18px 12px;
+}
+.plan .hero-kpi.is-negative .hero-top {
+  display: block;
+}
+.plan .hero-kpi.is-negative .hero-figure {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+}
+.plan .hero-kpi.is-negative .hero-fig {
+  margin: 0;
+  font-size: 30px;
+  text-align: right;
+}
+.plan .hero-kpi.is-negative .chain-inline {
+  margin-top: 10px;
+}
+
+/* Inspector status: every line that applies, worst first. */
+.plan .insp-status {
+  display: grid;
+  gap: 6px;
+  margin: 12px 0 4px;
+  padding: 0;
+  list-style: none;
+  background: none;
+}
+.plan .insp-status li {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 560;
+  line-height: 1.35;
+}
+.plan .insp-status li svg {
+  flex: none;
+  margin-top: 1px;
+}
+.plan .insp-status li.is-good {
+  background: var(--good-soft);
+  color: var(--on-good-soft);
+}
+.plan .insp-status li.is-bad {
+  background: var(--red-soft);
+  color: var(--red);
+}
+.plan .insp-status li.is-warn {
+  background: var(--quiet-soft);
+  color: var(--ink);
+}
+
+/* 50/30/20 without a meaningful base: dashes and one sentence. */
+.plan .split-band .sb-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  margin: 10px 0 0;
+  font-size: 12.5px;
+  line-height: 1.4;
+  color: var(--ink-3);
+}
+.plan .split-band .sb-note svg {
+  flex: none;
+  margin-top: 2px;
+}
+
+/* Group rows: title and one-line hint, left-aligned, never centred or wrapped mid-title. */
+.plan .pgroup .col-name {
+  text-align: left;
+}
+.plan .pgroup .grp-toggle {
+  display: inline-flex;
+  align-items: flex-start;
+  gap: 8px;
+  max-width: 100%;
+  text-align: left;
+}
+.plan .pgroup .grp-toggle > svg {
+  flex: none;
+  margin-top: 8px;
+}
+.plan .pgroup .grp-text {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0 10px;
+  min-width: 0;
+  padding-block: 6px;
+  text-align: left;
+}
+.plan .pgroup .grp-title {
+  white-space: nowrap;
+}
+.plan .pgroup .grp-sub {
+  margin: 0;
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--ink-3);
+}
+.plan .pgroup .group-none {
+  padding: 0;
+}
+.plan .prow.is-empty td {
+  background: none;
+}
+.plan .pempty {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--ink-3);
+}
+.plan .pempty svg {
+  color: var(--good-ink);
+}
+.plan .pdue svg {
+  color: var(--ink-3);
+}
+
+/* The guard's refusal under the assign field. */
+.plan .assign-note {
+  display: grid;
+  justify-items: end;
+  gap: 4px;
+  margin-top: 6px;
+  font-size: 12.5px;
+  font-weight: 500;
+  line-height: 1.35;
+  text-align: right;
+  white-space: normal;
+  color: var(--red);
+}
+.plan .assign-note button {
+  min-height: 32px;
+  padding: 0 4px;
+  font-size: 12.5px;
+  font-weight: 620;
+  color: var(--ink);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+@media (max-width: 767px) {
+  .plan .hero-kpi.is-negative.tbd {
+    padding: 12px 14px 10px;
+  }
+  .plan .hero-kpi.is-negative .hero-fig {
+    font-size: 26px;
+  }
+  .plan .pgroup .grp-text {
+    flex-direction: column;
+    gap: 2px;
+  }
+  .plan .pgroup .grp-sub {
+    display: block;
+    margin: 0;
+  }
+  .plan .pgroup .group-none {
+    display: none !important;
+  }
+  .plan .assign-note button {
+    min-height: 44px;
+  }
+}
+
+/* ---------- Several months side by side (feedback 02.10.2026) ---------- */
+.plan .pm-layout {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 560;
+  color: var(--ink-2);
+}
+.plan .pm-span {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+}
+.plan .pm-span-label {
+  font-family: var(--font-tech);
+  font-size: 11.5px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+.plan .hero-month {
+  text-transform: none;
+  letter-spacing: 0;
+  font-family: inherit;
+  font-weight: 560;
+}
+.plan .insp-month {
+  font-weight: 500;
+  color: var(--ink-3);
+}
+.plan .pmulti-scroll {
+  overflow-x: auto;
+}
+.plan .ptable-multi {
+  min-width: 100%;
+  table-layout: fixed;
+  font-size: 13.5px;
+}
+.plan .ptable-multi.has-2 {
+  min-width: 720px;
+}
+.plan .ptable-multi.has-3 {
+  min-width: 1000px;
+}
+.plan .ptable-multi .col-pos {
+  width: 48px;
+  padding-left: 14px;
+  padding-right: 4px;
+}
+.plan .ptable-multi .col-name {
+  width: 26%;
+  min-width: 180px;
+}
+.plan .ptable-multi .col-name .pname {
+  text-align: left;
+}
+.plan .ptable-multi .col-num {
+  width: auto;
+  padding-inline: 8px;
+}
+.plan .ptable-multi .pm-first {
+  border-left: 1px solid var(--card-border);
+}
+.plan .ptable-multi .pm-head {
+  padding: 8px 12px 6px;
+  border-left: 1px solid var(--card-border);
+  text-align: left;
+  vertical-align: bottom;
+  font-weight: 400;
+}
+.plan .ptable-multi .pm-head .pm-month {
+  display: block;
+  font-size: 14px;
+  font-weight: 650;
+  letter-spacing: -0.005em;
+  color: var(--ink);
+}
+.plan .ptable-multi .pm-head.is-now .pm-month::after {
+  content: 'laufend';
+  margin-left: 8px;
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: var(--good-soft);
+  color: var(--on-good-soft);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+.plan .ptable-multi .pm-tba {
+  display: block;
+  margin-top: 2px;
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--ink-2);
+}
+.plan .ptable-multi .pm-tba b {
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink);
+}
+.plan .ptable-multi .pm-tba.is-over,
+.plan .ptable-multi .pm-tba.is-over b {
+  color: var(--red);
+}
+.plan .ptable-multi .pm-cols th {
+  padding: 6px 8px 8px;
+  border-top: 0;
+}
+.plan .ptable-multi thead tr:first-child th {
+  border-bottom: 0;
+}
+.plan .ptable-multi td.pm-none {
+  color: var(--ink-3);
+  font-size: 12.5px;
+  text-align: center;
+}
+.plan .ptable-multi .assign-btn,
+.plan .ptable-multi .assign-input {
+  font-size: inherit;
+}
+.plan .ptable-multi .assign-input {
+  width: 100%;
+  max-width: 112px;
+}
+.plan .ptable-multi .assign-note {
+  white-space: normal;
+}
+.plan .ptable-multi .col-avail {
+  padding-right: 8px;
+}
+.plan .ptable-multi .pname {
+  white-space: normal;
+}
+/* Two or three months need the full width: the inspector moves under the list. */
+.plan .plan-grid.is-wide {
+  grid-template-columns: minmax(0, 1fr);
+}
+.plan .plan-grid.is-wide .inspector {
+  position: static;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+.plan .plan-grid.is-wide .insp-rail {
+  grid-column: auto;
+}
+@media (max-width: 1280px) {
+  .plan .plan-grid.is-wide .inspector {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .plan .plan-grid.is-wide .insp-rail {
+    grid-column: 1 / -1;
+  }
+}
+@media (max-width: 767px) {
+  .plan .pm-span {
+    display: none;
+  }
+}

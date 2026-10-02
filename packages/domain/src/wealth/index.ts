@@ -48,3 +48,13 @@ export {
   type SollPfad,
 } from './freedom';
 export { mulDivRound, shareBps } from './int';
+export {
+  allocationTimeline,
+  NO_REGION,
+  parseRegionWeights,
+  splitByRegion,
+  type AllocationSnapshot,
+  type AllocationTimeline,
+  type ClassTimeline,
+  type RegionWeights,
+} from './allocation-report';

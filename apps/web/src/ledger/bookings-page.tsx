@@ -2,15 +2,20 @@ import { Button, Field, Select, TextInput } from '@budget/ui';
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
 import { useNavigate, useSearch } from '@tanstack/react-router';
 import { Plus } from 'lucide-react';
+import { todayInVienna } from '@budget/domain';
 import { useEffect, useMemo, useState } from 'react';
+import { budgetQuery } from '../budget/budget-api';
 import { KONTEN_BUCHUNGEN_META } from '../nav/pages';
 import { PageFrame } from '../pages/placeholder-page';
 import { BookingPanel, type BookingPanelState } from './booking-panel';
 import { BookingTable, type Selection } from './booking-table';
+import { CategoryCombobox } from './category-picker';
 import { filterFromSearch, hasFilter, type BookingsSearch } from './bookings-search';
+import { pickableCategories } from './capture-model';
 import { eur, pluralBookings } from './format';
 import { FLAG_LABEL, STATUS_LABEL } from './labels';
 import { useLedgerWrites } from './mutations';
+import { AccountOptions } from './account-options';
 import { accountsQuery, bookingsInfiniteQuery, lookupsQuery } from './queries';
 import { EmptyNote, ErrorNote, LoadingNote } from './states';
 import {
@@ -18,6 +23,7 @@ import {
   BOOKING_STATUSES,
   type BookingFlag,
   type BookingSort,
+  type AccountRow,
   type Lookups,
 } from './types';
 
@@ -270,9 +276,10 @@ function FilterRow({
   onSortValue: (value: string) => void;
   search: BookingsSearch;
   setSearch: (patch: Partial<BookingsSearch>) => void;
-  accounts: { id: string; name: string }[];
+  accounts: ReadonlyArray<AccountRow>;
   lookups: Lookups | undefined;
 }) {
+  const [showClosed, setShowClosed] = useState(false);
   // The search box writes to the URL after a short pause so that every key stroke is not a request.
   const [q, setQ] = useState(search.q ?? '');
   const [seenQ, setSeenQ] = useState(search.q);
@@ -332,34 +339,27 @@ function FilterRow({
               onChange={(e) => setSearch({ konto: e.target.value })}
             >
               <option value="">Alle Konten</option>
-              {accounts.map((a) => (
-                <option key={a.id} value={a.id}>
-                  {a.name}
-                </option>
-              ))}
+              <AccountOptions accounts={accounts} withClosed={showClosed} keepId={search.konto} />
             </Select>
           )}
         </Field>
+        {accounts.some((a) => a.closedAt) && (
+          <label className="kf-closed">
+            <input
+              type="checkbox"
+              checked={showClosed}
+              onChange={(e) => setShowClosed(e.target.checked)}
+            />
+            Geschlossene Konten zeigen
+          </label>
+        )}
       </div>
-      <div className="kf">
-        <Field label="Kategorie">
-          {({ id }) => (
-            <Select
-              id={id}
-              className="select-sm"
-              value={search.kategorie ?? ''}
-              onChange={(e) => setSearch({ kategorie: e.target.value })}
-            >
-              <option value="">Alle Kategorien</option>
-              <option value="none">ohne Kategorie</option>
-              {(lookups?.categories ?? []).map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name}
-                </option>
-              ))}
-            </Select>
-          )}
-        </Field>
+      <div className="kf kf-cat">
+        <CategoryFilter
+          value={search.kategorie ?? ''}
+          lookups={lookups}
+          onChange={(kategorie) => setSearch({ kategorie })}
+        />
       </div>
       <div className="kf">
         <Field label="Status">
@@ -425,5 +425,50 @@ function FilterRow({
         </Field>
       </div>
     </div>
+  );
+}
+
+const ALL = '__all';
+const FILTER_LEADING = [
+  { id: ALL, label: 'Alle Kategorien' },
+  { id: 'none', label: 'ohne Kategorie' },
+];
+
+/**
+ * Category filter: the same grouped list as in the booking dialog (archived categories left out,
+ * Verfügbar of the current month on each option). A category that is archived but still in the
+ * URL keeps its name in the field.
+ */
+function CategoryFilter({
+  value,
+  lookups,
+  onChange,
+}: {
+  value: string;
+  lookups: Lookups | undefined;
+  onChange: (categoryId: string) => void;
+}) {
+  const month = useMemo(() => todayInVienna().slice(0, 7), []);
+  const budget = useQuery(budgetQuery(month));
+  const categories = useMemo(
+    () => pickableCategories(budget.data, lookups, { withAdvance: true }).filter((c) => !c.hidden),
+    [budget.data, lookups],
+  );
+  const name =
+    value === ''
+      ? 'Alle Kategorien'
+      : value === 'none'
+        ? 'ohne Kategorie'
+        : (lookups?.categories.find((c) => c.id === value)?.name ?? '');
+  return (
+    <CategoryCombobox
+      label="Kategorie"
+      categories={categories}
+      leading={FILTER_LEADING}
+      selectedName={name}
+      placeholder="Alle Kategorien"
+      pickFirst={false}
+      onSelect={(id) => onChange(id === ALL ? '' : id)}
+    />
   );
 }

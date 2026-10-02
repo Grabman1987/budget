@@ -54,6 +54,10 @@ export interface AccountInput {
   monthlyFeeCents?: number | null;
 }
 
+/** The owner's account order: ids in the new order, one audit group (undoable). */
+export const orderAccounts = (ids: string[]) =>
+  request<{ accounts: AccountRow[] } & WriteResult>('PATCH', '/api/accounts/order', { ids });
+
 export const createAccount = (input: AccountInput) =>
   request<{ account: AccountRow } & WriteResult>('POST', '/api/accounts', input);
 
@@ -90,6 +94,11 @@ export const createPayee = (name: string, defaultCategoryId?: string | null) =>
   request<{ payee: PayeeRow } & WriteResult>('POST', '/api/payees', {
     name,
     ...(defaultCategoryId ? { defaultCategoryId } : {}),
+  });
+/** A new contact (person), e.g. from "+ Neuer Kontakt…" in the booking dialog. */
+export const createContact = (name: string) =>
+  request<{ contact: { id: string; name: string } } & WriteResult>('POST', '/api/contacts', {
+    name,
   });
 export const setPayeeDefaultCategory = (id: string, defaultCategoryId: string | null) =>
   request<{ payee: PayeeRow } & WriteResult>('PATCH', `/api/payees/${encodeURIComponent(id)}`, {

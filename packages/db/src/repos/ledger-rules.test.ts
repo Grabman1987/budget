@@ -272,10 +272,11 @@ describe('A06 categorized income in allocation and rule facts', () => {
         .reduce((sum, split) => sum + split.cents, 0),
     ).toBe(10_000);
     const june = allocationMonth(db, '2026-06', facts.budgetByMonth.get('2026-06')?.envelopes);
-    expect([june.incomeCents, june.annualIncomeCents]).toEqual([170_000, 120_000]);
+    // Household income only (owner decision 02.10.2026): the 10.000 of Erstattungen are not income.
+    expect([june.incomeCents, june.annualIncomeCents]).toEqual([160_000, 120_000]);
     const inputs = ruleInputs(db, '2026-06-30', facts);
     expect(inputs.allocByMonth?.['2026-06']).toMatchObject({
-      incomeCents: 170_000,
+      incomeCents: 160_000,
       annualIncomeCents: 120_000,
     });
     expect(inputs.payYourself?.salaryDays).toEqual(['2026-06-15']);

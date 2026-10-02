@@ -536,7 +536,7 @@ ledgerTest(
       expect(url.searchParams.has('von')).toBe(false);
       await expect(page.getByRole('row').filter({ hasText: priorMemo })).toBeVisible();
       await expect(page.getByRole('row').filter({ hasText: futureMemo })).toHaveCount(0);
-      await expect(page.getByLabel('Kategorie', { exact: true })).toHaveValue('none');
+      await expect(page.getByLabel('Kategorie', { exact: true })).toHaveValue('ohne Kategorie');
     } finally {
       if (liveBookingGroup) cleanup.push(liveBookingGroup);
       for (const groupId of cleanup.reverse()) {

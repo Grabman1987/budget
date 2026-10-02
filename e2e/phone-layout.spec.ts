@@ -13,6 +13,19 @@ test.describe('phone layout', () => {
     for (const path of ROUTES) {
       await page.goto(path);
       await expect(page.locator('.m-head .m-title-text')).toBeVisible();
+      // A report fills in after its data arrives (a long table can add thousands of pixels):
+      // measure once the page height has stopped changing, two samples apart.
+      await page.waitForFunction(
+        () => {
+          const w = window as unknown as { __lastHeight?: number };
+          const height = document.documentElement.scrollHeight;
+          const settled = w.__lastHeight === height;
+          w.__lastHeight = height;
+          return settled;
+        },
+        undefined,
+        { polling: 250 },
+      );
       const result = await page.evaluate(() => {
         window.scrollTo(0, document.documentElement.scrollHeight);
         const focusable = [
@@ -34,6 +47,9 @@ test.describe('phone layout', () => {
           rect = last.getBoundingClientRect();
         }
         const visibleBottom = tall ? Math.min(rect.bottom, rect.top + 48) : rect.bottom;
+        // scrollIntoView lands on fractional pixels (the top of a tall region at -0.3 or 0.4):
+        // a pixel of slack keeps that from reading as "cut off". Covering is still exact.
+        const slack = 1;
         const bar = document.querySelector('.tabbar')?.getBoundingClientRect();
         const fab = document.querySelector('.fab')?.getBoundingClientRect();
         const covers = (o: DOMRect | undefined) =>
@@ -45,7 +61,7 @@ test.describe('phone layout', () => {
         return {
           none: false,
           name: (last.textContent || last.getAttribute('aria-label') || last.tagName).trim(),
-          inside: rect.top >= 0 && visibleBottom <= window.innerHeight,
+          inside: rect.top >= -slack && visibleBottom <= window.innerHeight + slack,
           underBar: covers(bar),
           underFab: covers(fab),
         } as const;

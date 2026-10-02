@@ -1,0 +1,706 @@
+/* Reports of group 2 (Ausgaben und Plan): one vocabulary of white cards on the slate ground,
+   bars, bullets, heat tables and parts lists. Green = money that is there, red = action. */
+.sr {
+  display: grid;
+  grid-template-columns: minmax(0, 7fr) minmax(0, 5fr);
+  gap: 20px;
+  align-items: start;
+  margin-top: 0;
+}
+.sr > * {
+  min-width: 0;
+}
+.sr-wide,
+.sr-note-wide {
+  grid-column: 1 / -1;
+}
+.sr-card {
+  padding: 20px 22px 22px;
+  background: var(--surface);
+  border: 1px solid var(--card-border);
+  border-radius: 12px;
+  box-shadow: var(--card-shadow);
+}
+.sr-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 4px 12px;
+}
+.sr-head h2 {
+  margin: 0;
+  font-size: 19px;
+  font-weight: 620;
+  letter-spacing: -0.01em;
+}
+.sr-state {
+  color: var(--ink-2);
+  font-family: var(--font-tech);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+.sr-state.is-good {
+  color: var(--good-ink);
+}
+.sr-state.is-bad {
+  color: var(--bad-ink);
+}
+.sr-range {
+  margin: 6px 0 0;
+  color: var(--ink-2);
+  font-family: var(--font-tech);
+  font-size: 12px;
+}
+.sr-fig {
+  display: grid;
+  gap: 2px;
+  margin: 10px 0 12px;
+}
+.sr-fig span {
+  color: var(--ink-2);
+  font-family: var(--font-tech);
+  font-size: 12px;
+}
+.sr-fig strong {
+  font-size: clamp(32px, 4.4vw, 46px);
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+  line-height: 1.05;
+}
+.sr .chain-inline {
+  margin-block: 10px 14px;
+}
+.sr-note {
+  margin: 10px 0 0;
+  max-width: 72ch;
+  color: var(--ink-2);
+  font-size: 13px;
+  line-height: 1.5;
+}
+.sr-note strong {
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+.sr-empty {
+  margin: 16px 0 0;
+  color: var(--ink-2);
+}
+.sr h3 {
+  margin: 18px 0 8px;
+  font-size: 14px;
+  font-weight: 620;
+}
+
+/* Class bar (100 % bar): Bedarf solid, Wunsch hatched, Zukunft cross-hatched. */
+.sr-seg {
+  display: flex;
+  height: 22px;
+  margin-top: 16px;
+  overflow: hidden;
+  border-radius: 2px;
+  background: var(--tint);
+}
+.sr-seg > span {
+  display: block;
+  height: 100%;
+}
+.sr-seg-leg,
+.sr-leg {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 18px;
+  margin: 10px 0 0;
+  padding: 0;
+  list-style: none;
+  color: var(--ink-2);
+  font-size: 13px;
+}
+.sr-seg-leg li,
+.sr-leg li,
+.sr-leg > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
+.sr-seg-leg strong,
+.sr-leg strong {
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Sorted bars: name, track, value. */
+.sr-bars {
+  display: grid;
+  gap: 0;
+  margin: 12px 0 0;
+  padding: 0;
+  list-style: none;
+}
+.sr-bars.is-cols {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  column-gap: 40px;
+}
+.sr-bars li {
+  display: grid;
+  grid-template-columns: minmax(0, 0.9fr) minmax(60px, 1fr) minmax(88px, auto);
+  align-items: center;
+  gap: 4px 12px;
+  min-height: 44px;
+  padding: 4px 0;
+  border-top: 1px solid var(--rule);
+  font-size: 13.5px;
+}
+.sr-bars li:first-child {
+  border-top: 0;
+}
+.sr-name {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--ink);
+  text-decoration: none;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.sr-name span:last-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+a.sr-name:hover {
+  text-decoration: underline;
+}
+.sr-track {
+  position: relative;
+  height: 10px;
+  background: var(--tint);
+  border-radius: 1px;
+}
+.sr-track i {
+  position: absolute;
+  inset: 0 auto 0 0;
+  border-radius: 1px;
+}
+.sr-val {
+  display: grid;
+  justify-items: end;
+  font-weight: 620;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.sr-val small {
+  color: var(--ink-2);
+  font-size: 11.5px;
+  font-weight: 500;
+}
+.sr-delta {
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.is-better {
+  color: var(--good-ink);
+}
+.is-worse {
+  color: var(--bad-ink);
+}
+
+/* Changes: bars grow from the middle, left = less, right = more spent. */
+.sr-moves li {
+  grid-template-columns: minmax(0, 1fr);
+  min-height: 0;
+  padding: 8px 0;
+}
+.sr-moves .sr-track {
+  height: 8px;
+}
+.sr-moves .sr-track::before {
+  content: '';
+  position: absolute;
+  inset: -3px auto -3px 50%;
+  width: 1px;
+  background: var(--rule-strong);
+}
+.sr-moves .sr-track i {
+  inset: 0 auto 0 50%;
+  background: var(--bad-ink);
+  opacity: 0.55;
+}
+.sr-moves .sr-track i.is-less {
+  inset: 0 50% 0 auto;
+  background: var(--good-ink);
+}
+.sr-moves .sr-val {
+  grid-auto-flow: column;
+  justify-content: space-between;
+  justify-items: stretch;
+  gap: 10px;
+  font-weight: 500;
+}
+
+/* Tables */
+.sr-scroll {
+  width: 100%;
+  max-width: 100%;
+  margin-top: 12px;
+  overflow-x: auto;
+  overscroll-behavior-inline: contain;
+}
+.sr-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13.5px;
+}
+.sr-table th,
+.sr-table td {
+  padding: 9px 8px;
+  border-bottom: 1px solid var(--rule);
+  text-align: left;
+  vertical-align: middle;
+}
+.sr-table thead th {
+  border-bottom-color: var(--line-2);
+  color: var(--ink-2);
+  font-family: var(--font-tech);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+}
+.sr-table tbody th {
+  font-weight: 450;
+}
+.sr-table .n {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.sr-table small {
+  display: block;
+  color: var(--ink-3);
+  font-size: 11.5px;
+}
+.sr-table tr.is-total td,
+.sr-table tr.is-total th {
+  border-top: 1px solid var(--line-2);
+  font-weight: 620;
+}
+.sr-table .sr-name {
+  display: inline-flex;
+}
+.sr-table a {
+  color: var(--ink);
+}
+
+/* Heatmap: diverging pastel against the row average, never the only signal (numbers stay). */
+.sr-heat {
+  font-size: 12.5px;
+}
+.sr-heat th,
+.sr-heat td {
+  padding: 6px 5px;
+}
+.sr-heat tbody th {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  min-width: 132px;
+  max-width: 180px;
+  overflow: hidden;
+  background: var(--surface);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.sr-heat td.is-red {
+  background-color: color-mix(
+    in srgb,
+    var(--heat-red) calc(var(--h, 0) * var(--heat-max)),
+    transparent
+  );
+}
+.sr-heat td.is-green {
+  background-color: color-mix(
+    in srgb,
+    var(--heat-green) calc(var(--h, 0) * var(--heat-max)),
+    transparent
+  );
+}
+.sr-heat td.is-refund {
+  outline: 1px dashed var(--ink-2);
+  outline-offset: -3px;
+}
+
+/* Bullet bars: bar = Ist, mark = Plan. */
+.sr-bullets {
+  display: grid;
+  gap: 0;
+  margin-top: 8px;
+}
+.sr-bl-grp h3 {
+  margin: 16px 0 2px;
+  color: var(--ink-2);
+  font-family: var(--font-tech);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+}
+.sr-bl {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(90px, 1.2fr) minmax(104px, auto) minmax(70px, auto);
+  align-items: center;
+  gap: 4px 12px;
+  min-height: 44px;
+  padding: 4px 0;
+  border-top: 1px solid var(--rule);
+  font-size: 13.5px;
+}
+.sr-bl-track {
+  position: relative;
+  height: 12px;
+  background: var(--tint);
+  border-radius: 1px;
+}
+.sr-bl-track i.sr-bl-ist {
+  position: absolute;
+  inset: 0 auto 0 0;
+  border-radius: 1px;
+}
+.sr-bl-track i.sr-bl-plan {
+  position: absolute;
+  inset: -4px auto -4px 0;
+  width: 2px;
+  background: var(--ink);
+}
+.sr-bl.is-over .sr-bl-diff {
+  color: var(--bad-ink);
+  font-weight: 620;
+}
+.sr-bl-diff {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-2);
+}
+
+/* Status words (colour is never the only signal). */
+.sr-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+.sr-status.is-ok {
+  color: var(--good-ink);
+}
+.sr-status.is-action {
+  color: var(--bad-ink);
+  font-weight: 600;
+}
+
+@media (max-width: 980px) {
+  .sr {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .sr-bars.is-cols {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+@media (max-width: 767px) {
+  .sr-card {
+    padding: 16px 14px 18px;
+  }
+  .sr-bars li {
+    grid-template-columns: minmax(0, 1fr) minmax(84px, auto);
+  }
+  .sr-bars .sr-track {
+    grid-column: 1 / -1;
+    grid-row: 2;
+  }
+  .sr-bl {
+    grid-template-columns: minmax(0, 1fr) minmax(96px, auto);
+  }
+  .sr-bl-track {
+    grid-column: 1 / -1;
+    grid-row: 2;
+  }
+  .sr-bl-diff {
+    grid-column: 2;
+    grid-row: 1;
+    display: none;
+  }
+}
+@media print {
+  .sr-card {
+    box-shadow: none;
+  }
+}
+
+/* 50/30/20 per month: stacked class bar against the income, marks at 50 %, 80 % and 100 %. */
+.sr-523 {
+  display: grid;
+  gap: 2px;
+  margin-top: 12px;
+}
+.sr-523-row {
+  display: grid;
+  grid-template-columns: 52px minmax(0, 1fr) 76px;
+  align-items: center;
+  gap: 10px;
+  min-height: 32px;
+  padding: 2px 6px;
+  border-radius: 6px;
+  font-size: 12.5px;
+}
+.sr-523-row.is-cur {
+  background: var(--tint);
+  font-weight: 620;
+}
+.sr-523-month {
+  color: var(--ink-2);
+  font-family: var(--font-tech);
+  font-size: 12px;
+}
+.sr-523-bar {
+  position: relative;
+  display: flex;
+  height: 14px;
+  background: var(--tint);
+  border-radius: 1px;
+}
+.sr-523-bar > span {
+  display: block;
+  height: 100%;
+}
+.sr-523-rest {
+  background: var(--good-soft);
+  box-shadow: inset 0 0 0 1px var(--good-ink);
+}
+.sr-523-mark {
+  position: absolute;
+  inset: -3px auto -3px 0;
+  width: 1px;
+  background: var(--ink);
+}
+.sr-523-mark.is-full {
+  width: 2px;
+  background: var(--bad-ink);
+}
+.sr-523-num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.sr-523-num small {
+  margin-left: 4px;
+  font-size: 11px;
+}
+.sw-rest {
+  background: var(--good-soft);
+  box-shadow: inset 0 0 0 1px var(--good-ink);
+}
+.sr-month-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* Charts and parts list */
+.sr-chart {
+  margin-top: 12px;
+  overflow-x: auto;
+}
+.sr-chart svg.chart {
+  min-width: 520px;
+  height: auto;
+}
+.sr-parts th[scope='rowgroup'] {
+  font-weight: 620;
+}
+.sr-parts tr.sr-grp td,
+.sr-parts tr.sr-grp th {
+  background: var(--tint);
+  border-bottom-color: var(--rule-strong);
+}
+.sr-parts td:first-child {
+  width: 48px;
+  color: var(--ink-3);
+  font-family: var(--font-tech);
+  font-size: 12px;
+}
+.sr-hints {
+  display: grid;
+  gap: 0;
+  margin: 12px 0 0;
+  padding: 0;
+  list-style: none;
+}
+.sr-hints li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 2px 12px;
+  padding: 10px 0;
+  border-top: 1px solid var(--rule);
+  font-size: 13.5px;
+}
+.sr-hints li:first-child {
+  border-top: 0;
+}
+.sr-hints li > span:nth-child(2) {
+  grid-column: 1;
+  color: var(--ink-2);
+}
+.sr-hint-val {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  display: grid;
+  justify-items: end;
+  align-content: center;
+  font-weight: 620;
+  font-variant-numeric: tabular-nums;
+}
+.sr-hint-val small {
+  color: var(--ink-2);
+  font-size: 11.5px;
+  font-weight: 500;
+}
+
+/* Bank- und Zinskosten: cost parts as solid ink tints, always paired with names and numbers. */
+.kc-1 {
+  background: var(--line);
+}
+.kc-2 {
+  background: var(--line-2);
+}
+.kc-3 {
+  background: color-mix(in srgb, var(--line) 45%, var(--surface));
+}
+.kc-4 {
+  background: var(--ink-3);
+}
+.sr-years {
+  display: grid;
+  gap: 4px;
+  margin: 14px 0 0;
+  padding: 0;
+  list-style: none;
+}
+.sr-years li {
+  display: grid;
+  grid-template-columns: 84px minmax(0, 1fr) minmax(96px, auto);
+  align-items: center;
+  gap: 12px;
+  min-height: 44px;
+  font-size: 13.5px;
+}
+.sr-year-label {
+  display: grid;
+  font-family: var(--font-tech);
+  font-size: 12px;
+}
+.sr-year-label small {
+  color: var(--ink-3);
+  font-size: 11px;
+}
+.sr-stack {
+  display: flex;
+  height: 18px;
+  gap: 1px;
+  background: var(--tint);
+  border-radius: 1px;
+  overflow: hidden;
+}
+.sr-stack i {
+  display: block;
+  height: 100%;
+}
+.sr-facts {
+  display: grid;
+  gap: 0;
+  margin: 12px 0 0;
+}
+.sr-facts > div {
+  display: grid;
+  gap: 2px;
+  padding: 9px 0;
+  border-top: 1px solid var(--rule);
+}
+.sr-facts > div:first-child {
+  border-top: 0;
+}
+.sr-facts dt {
+  color: var(--ink-2);
+  font-family: var(--font-tech);
+  font-size: 11.5px;
+}
+.sr-facts dd {
+  margin: 0;
+  font-weight: 620;
+  font-variant-numeric: tabular-nums;
+}
+.sr-facts dd small {
+  display: block;
+  color: var(--ink-2);
+  font-size: 12px;
+  font-weight: 450;
+}
+.sr-use {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-variant-numeric: tabular-nums;
+}
+.sr-use-bar {
+  position: relative;
+  display: inline-block;
+  width: 64px;
+  height: 8px;
+  background: var(--tint);
+  border-radius: 1px;
+}
+.sr-use-bar i {
+  position: absolute;
+  inset: 0 auto 0 0;
+  background: var(--line);
+  border-radius: 1px;
+}
+a.sr-state {
+  color: var(--ink-2);
+}
+@media (max-width: 767px) {
+  .sr-years li {
+    grid-template-columns: 70px minmax(0, 1fr);
+  }
+  .sr-years li .sr-val {
+    grid-column: 2;
+    justify-items: start;
+  }
+}
+
+/* Persönliche Inflation: steps and contribution bars. */
+.sr-steps {
+  display: grid;
+  gap: 10px;
+  margin: 12px 0 0;
+  padding-left: 20px;
+  font-size: 13.5px;
+  line-height: 1.5;
+}
+.sr-pp {
+  position: relative;
+  display: block;
+  min-width: 90px;
+  height: 8px;
+  background: var(--tint);
+  border-radius: 1px;
+}
+.sr-pp i {
+  position: absolute;
+  inset: 0 auto 0 0;
+  background: var(--bad-ink);
+  opacity: 0.6;
+  border-radius: 1px;
+}
+.sr-pp i.is-neg {
+  background: var(--good-ink);
+}

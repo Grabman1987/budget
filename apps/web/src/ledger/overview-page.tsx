@@ -2,14 +2,20 @@ import { addDays, cents, todayInVienna } from '@budget/domain';
 import { Button, CircleNumber, DimensionChain, type DimensionChainTerm, cx } from '@budget/ui';
 import { useQueries, useQuery } from '@tanstack/react-query';
 import { Link } from '@tanstack/react-router';
-import { Plus, TrendingDown, TrendingUp } from 'lucide-react';
+import { Check, Pencil, Plus, TrendingDown, TrendingUp } from 'lucide-react';
 import { useState } from 'react';
 import { PageFrame } from '../pages/placeholder-page';
 import { KONTEN_META } from '../nav/pages';
 import { AccountFormPanel } from './account-form';
+import { useOrderedAccounts, useReorder } from './account-order';
 import { fetchAccounts } from './api';
 import { eur, eurParts, eurWhole, nativeCurrencyWhole } from './format';
-import { ACCOUNT_TYPE_LABEL, accountValueEur, valuationMissingText } from './labels';
+import {
+  ACCOUNT_TYPE_LABEL,
+  accountValueEur,
+  valuationMissingText,
+  type AccountGroupId,
+} from './labels';
 import { MiniLine } from './mini-line';
 import {
   netWorthChange,
@@ -23,18 +29,36 @@ import { EmptyNote, ErrorNote, LoadingNote } from './states';
 import type { AccountRow, SeriesPoint } from './types';
 
 const META = KONTEN_META;
-const WINDOW_DAYS = 30;
+/** Window of the sparklines and of the net-worth change figure. */
+const WINDOW_DAYS = 90;
 
 /** Konten › Übersicht: net worth with its chain by group, then the parts list of the accounts. */
 export function OverviewPage() {
   const accounts = useQuery(accountsQuery());
   const [creating, setCreating] = useState(false);
-  const model = accounts.data ? overviewModel(accounts.data.accounts) : undefined;
+  const [ordering, setOrdering] = useState(false);
+  const ordered = useOrderedAccounts(accounts.data?.accounts);
+  const model = ordered.accounts ? overviewModel(ordered.accounts) : undefined;
 
   return (
     <PageFrame meta={META}>
       <div className="kview">
         <div className="kbar">
+          {model && model.groups.length > 0 && (
+            <Button
+              size="sm"
+              variant="ghost"
+              aria-pressed={ordering}
+              onClick={() => setOrdering(!ordering)}
+            >
+              {ordering ? (
+                <Check size={16} strokeWidth={1.75} aria-hidden="true" />
+              ) : (
+                <Pencil size={16} strokeWidth={1.75} aria-hidden="true" />
+              )}
+              {ordering ? 'Fertig' : 'Reihenfolge ändern'}
+            </Button>
+          )}
           <Button size="sm" onClick={() => setCreating(true)}>
             <Plus size={16} strokeWidth={1.75} aria-hidden="true" />
             Konto anlegen
@@ -62,7 +86,7 @@ export function OverviewPage() {
               accounts={accounts.data?.accounts ?? []}
               asOf={accounts.data?.asOf ?? todayInVienna()}
             />
-            <AccountsTable model={model} />
+            <AccountsTable model={model} ordering={ordering} onReorder={ordered.save} />
           </>
         )}
       </div>
@@ -90,34 +114,25 @@ function NetWorth({
   const jump = (target: string) => () => {
     const row = document.getElementById(target === 'closed' ? 'kaccts-closed' : `kg-${target}`);
     if (!row) return;
+    if (row instanceof HTMLDetailsElement) row.open = true;
     row.scrollIntoView({ block: 'center' });
     row.classList.add('is-flash');
     window.setTimeout(() => row.classList.remove('is-flash'), 900);
   };
   const terms: DimensionChainTerm[] = [];
   if (model.netWorthCents !== null && model.closedValueCents !== null) {
-    const sum = (role: string) => model.groups.find((g) => g.group.role === role)?.sumCents;
-    const push = (
-      label: string,
-      role: string,
-      value: number | null | undefined,
-      op?: '+' | '-',
-    ) => {
-      if (value == null) return;
-      if (!model.groups.some((g) => g.group.role === role)) return;
+    // Chain in the order of the groups: the first term stands as it is, the following ones add or
+    // subtract by sign (Kreditkarten and Kredite are negative and so get a minus).
+    for (const { group, sumCents } of model.groups) {
+      if (sumCents === null) continue;
+      const first = terms.length === 0;
       terms.push({
-        label,
-        value: cents(value),
-        ...(op ? { op } : {}),
-        onSelect: jump(role),
+        label: group.title,
+        value: cents(first ? sumCents : Math.abs(sumCents)),
+        ...(first ? {} : { op: sumCents < 0 ? ('-' as const) : ('+' as const) }),
+        onSelect: jump(group.id),
       });
-    };
-    push('Budget-Konten', 'budget', sum('budget'));
-    push('Sparen', 'reserve', sum('reserve'), '+');
-    push('Investment', 'investment', sum('investment'), '+');
-    const debt = sum('debt');
-    push('Schulden', 'debt', debt == null ? undefined : -debt, '-');
-    push('Forderungen', 'receivable', sum('receivable'), '+');
+    }
     if (model.closedValueCents !== 0) {
       const closedIsNegative = model.closedValueCents < 0;
       terms.push({
@@ -180,7 +195,15 @@ function NetWorth({
   );
 }
 
-function AccountsTable({ model }: { model: ReturnType<typeof overviewModel> }) {
+function AccountsTable({
+  model,
+  ordering,
+  onReorder,
+}: {
+  model: ReturnType<typeof overviewModel>;
+  ordering: boolean;
+  onReorder: (groupId: AccountGroupId, ids: string[]) => void;
+}) {
   const open = model.groups.flatMap((g) => g.accounts);
   const series = useQueries({
     queries: open.map((a) => seriesQuery(a.id, WINDOW_DAYS)),
@@ -196,8 +219,10 @@ function AccountsTable({ model }: { model: ReturnType<typeof overviewModel> }) {
       <h2 className="sr-only" id="accts-title">
         Konten nach Gruppe
       </h2>
-      <table className="ktable">
-        <caption className="sr-only">Konten mit Saldo und Verlauf der letzten 30 Tage</caption>
+      <table className={cx('ktable', ordering && 'is-ordering')}>
+        <caption className="sr-only">
+          Konten mit Saldo und Verlauf der letzten {WINDOW_DAYS} Tage
+        </caption>
         <thead>
           <tr>
             <th className="tech kc-pos" scope="col">
@@ -207,33 +232,50 @@ function AccountsTable({ model }: { model: ReturnType<typeof overviewModel> }) {
               Konto
             </th>
             <th className="tech kc-line" scope="col">
-              30 Tage
+              {WINDOW_DAYS} Tage
             </th>
             <th className="tech kc-num" scope="col">
               Wert in EUR
             </th>
+            {ordering && (
+              <th className="tech kc-order" scope="col">
+                <span className="sr-only">Reihenfolge</span>
+              </th>
+            )}
           </tr>
         </thead>
         <tbody>
           {model.groups.map((g, gi) => (
-            <GroupRows key={g.group.role} view={g} index={gi + 1} series={byId} />
+            <GroupRows
+              key={g.group.id}
+              view={g}
+              index={gi + 1}
+              series={byId}
+              ordering={ordering}
+              onReorder={(ids) => onReorder(g.group.id, ids)}
+            />
           ))}
         </tbody>
       </table>
       {model.closed.length > 0 && (
-        <p className="ksum" id="kaccts-closed">
-          Geschlossen:{' '}
-          {model.closed.map((a, i) => (
-            <span key={a.id}>
-              {i > 0 && ', '}
-              <Link to="/konten/$id" params={{ id: a.id }}>
-                {a.name}
-              </Link>
-              {': '}
-              {accountValueEur(a) === null ? valuationMissingText(a) : eur(accountValueEur(a)!)}
-            </span>
-          ))}
-        </p>
+        <details className="kclosed" id="kaccts-closed">
+          <summary>
+            Geschlossen <span className="kclosed-n">({model.closed.length})</span>
+          </summary>
+          <ul>
+            {model.closed.map((a) => (
+              <li key={a.id}>
+                <Link className="kname prow-link" to="/konten/$id" params={{ id: a.id }}>
+                  {a.name}
+                </Link>
+                <span className="kmeta">{ACCOUNT_TYPE_LABEL[a.type]}</span>
+                <span className={cx('kclosed-val', (accountValueEur(a) ?? 0) < 0 && 'is-neg')}>
+                  {accountValueEur(a) === null ? valuationMissingText(a) : eur(accountValueEur(a)!)}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </details>
       )}
     </section>
   );
@@ -243,31 +285,44 @@ function GroupRows({
   view,
   index,
   series,
+  ordering,
+  onReorder,
 }: {
   view: GroupView;
   index: number;
   series: Map<string, SeriesPoint[]>;
+  ordering: boolean;
+  onReorder: (ids: string[]) => void;
 }) {
+  const names = new Map(view.accounts.map((a) => [a.id, a.name]));
+  const reorder = useReorder(
+    view.accounts.map((a) => a.id),
+    onReorder,
+    (id) => names.get(id) ?? '',
+  );
   return (
     <>
-      <tr className="kgroup" id={`kg-${view.group.role}`}>
+      <tr className="kgroup" id={`kg-${view.group.id}`}>
         <td className="kc-pos">
           <CircleNumber n={index} size="sm" />
         </td>
         <td>
           <span className="grp-title">{view.group.title}</span>
           <span className="grp-sub">{view.group.sub}</span>
+          {ordering && reorder.status}
         </td>
         <td className="kc-line" />
         <td className="kc-num">{view.sumCents === null ? 'Kurs fehlt' : eur(view.sumCents)}</td>
+        {ordering && <td className="kc-order" />}
       </tr>
       {view.accounts.map((a, i) => {
         const points = series.get(a.id);
         const delta = points ? seriesChange(points) : null;
         const util = utilisation(a);
         const value = accountValueEur(a);
+        const row = reorder.rowProps(a.id);
         return (
-          <tr className="krow" key={a.id}>
+          <tr {...row} className={cx(row.className, 'krow')} key={a.id}>
             <td className="kc-pos">
               <span className="pos">{`${index}.${i + 1}`}</span>
             </td>
@@ -302,6 +357,7 @@ function GroupRows({
             <td className={cx('kc-num', value !== null && value < 0 && 'is-neg')}>
               {value === null ? valuationMissingText(a) : eur(value)}
             </td>
+            {ordering && <td className="kc-order">{reorder.controls(a.id)}</td>}
           </tr>
         );
       })}

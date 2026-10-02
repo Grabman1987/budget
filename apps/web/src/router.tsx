@@ -27,6 +27,7 @@ import {
   REPORTS_CATALOG,
   REPORT_GROUP_PAGES,
   SECURITY_META,
+  PROFILE_META,
   INVESTMENT_SETTINGS_META,
   VERMOEGEN_FREIHEIT_META,
   VERMOEGEN_NETTO_META,
@@ -108,6 +109,7 @@ const homeRoute = createRoute({
 });
 const BUILT_PATHS = new Set<string>([
   SECURITY_META.path,
+  PROFILE_META.path,
   INVESTMENT_SETTINGS_META.path,
   '/konten',
   '/konten/buchungen',
@@ -164,6 +166,12 @@ const securityRoute = createRoute({
   path: SECURITY_META.path,
   staticData: { meta: SECURITY_META },
   component: lazyRouteComponent(() => import('./pages/security-page'), 'SecurityPage'),
+});
+const profileRoute = createRoute({
+  getParentRoute: () => shellRoute,
+  path: PROFILE_META.path,
+  staticData: { meta: PROFILE_META },
+  component: lazyRouteComponent(() => import('./pages/profile-settings'), 'ProfileSettingsPage'),
 });
 const investmentSettingsRoute = createRoute({
   getParentRoute: () => shellRoute,
@@ -373,6 +381,7 @@ const routeTree = rootRoute.addChildren([
     homeRoute,
     ...placeholderRoutes,
     securityRoute,
+    profileRoute,
     investmentSettingsRoute,
     categoriesRoute,
     rulesRoute,
