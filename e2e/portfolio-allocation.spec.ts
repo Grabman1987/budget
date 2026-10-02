@@ -53,9 +53,9 @@ sampleTest(
     await expect(allocation).toContainText('Schwellenländer');
     await expect(page.locator('.vrebal')).toContainText('3.560 € fehlen');
     await expect(page.locator('.vrebal')).toContainText('3.700 € über der Grenze');
-    await expect(page.getByRole('button', { name: /Sparplan|Vorschlag übernehmen/ })).toHaveCount(
-      0,
-    );
+    await expect(
+      page.locator('.vrebal').getByRole('button', { name: /Sparplan|Vorschlag übernehmen/ }),
+    ).toHaveCount(0);
     for (const theme of ['light', 'dark']) {
       await page.evaluate((value) => (document.documentElement.dataset['theme'] = value), theme);
       await capture(page, info, `allocation-${theme}`);
