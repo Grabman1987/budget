@@ -56,6 +56,8 @@ describe('fixture sources', () => {
     symbol: 'SYN-A',
     fallbackQuoteId: null,
     quoteExchange: null,
+    quoteUrl: null,
+    coingeckoId: null,
     currency: 'EUR',
     adjusted: false,
   };

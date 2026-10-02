@@ -1,10 +1,13 @@
 import { fxSeries, priceSeries, type Db } from '@budget/db';
 import {
   arivaSource,
+  coingeckoSource,
+  cryptocalcSource,
   ecbSource,
   fixtureFxSource,
   fixtureQuoteSource,
   yahooChartSource,
+  type HttpOptions,
   type MarketSources,
 } from '@budget/market';
 
@@ -23,14 +26,18 @@ export function marketModeFromEnv(env: NodeJS.ProcessEnv = process.env): MarketM
 }
 
 /**
- * The adapters for a mode. Live: Yahoo chart (primary), ECB for rates, and Ariva as fallback only
- * when `BUDGET_ARIVA=1` (off until the owner has confirmed access). Fixture: deterministic
- * synthetic series that run through the prices and rates already stored, never the network.
+ * The adapters for a mode. Live: Ariva is the primary source (European exchange prices in EUR,
+ * owner decision 02.10.2026), then the crypto feeds Portfolio Performance uses (cryptocalc table,
+ * CoinGecko), then Yahoo as the last resort; each source skips securities without its identifier
+ * (`quote_url`, `coingecko_id`, `symbol`). `BUDGET_ARIVA=0` switches Ariva off. ECB for rates.
+ * Fixture: deterministic synthetic series that run through the prices and rates already stored,
+ * never the network.
  */
 export function createMarketSources(
   db: Db,
   mode: MarketMode,
   env: NodeJS.ProcessEnv = process.env,
+  http: HttpOptions = { fetch },
 ): MarketSources {
   if (mode === 'fixture') {
     return {
@@ -44,11 +51,10 @@ export function createMarketSources(
       }),
     };
   }
-  const http = { fetch };
   return {
-    quotes: yahooChartSource(http),
-    fallbackQuotes:
-      env['BUDGET_ARIVA'] === '1' ? arivaSource({ ...http, enabled: true }) : undefined,
+    quotes: arivaSource({ ...http, enabled: env['BUDGET_ARIVA'] !== '0' }),
+    moreQuotes: [cryptocalcSource(http), coingeckoSource(http)],
+    fallbackQuotes: yahooChartSource(http),
     fx: ecbSource(http),
   };
 }

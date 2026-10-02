@@ -127,7 +127,8 @@ security currency, rates EUR per unit in micro-units.
 
 | Endpoint | Purpose |
 | --- | --- |
-| `POST /market/refresh` | Runs `refreshFx` and `refreshPrices` for today (Vienna). Answer: `{ prices: { tracked, upToDate, bySource: { yfinance, ariva: { securities, rows } }, protectedManual, failed: [{ securityId, errors }] }, fx: { currencies, upToDate, bySource: { ecb: { currencies, rows } }, failed: [{ currency, errors }] } }`. A second call while one runs is 409 `refresh_running`. Failures open one `stale_value` inbox item per security (or currency) and error class |
+| `POST /market/refresh` | Runs `refreshFx` and `refreshPrices` for today (Vienna). Answer: `{ prices: { tracked, upToDate, bySource: { ariva, cryptocalc, coingecko, yfinance: { securities, rows } }, protectedManual, failed: [{ securityId, errors }] }, fx: { currencies, upToDate, bySource: { ecb: { currencies, rows } }, failed: [{ currency, errors }] } }`. A second call while one runs is 409 `refresh_running`. Failures open one `stale_value` inbox item per security (or currency) and error class |
+| `GET /market/status` | Run log: `{ lastRun, lastSuccess }` (each `null` or `{ trigger, startedAt, finishedAt, asOf, status: ok/partial/failed, priceRows, fxRows, failedCount, errorClasses }`). `lastSuccess.finishedAt` is the "Stand ... Kurse HH:MM" of `GET /wealth/stand` |
 | `GET /securities/:id/prices?from&to` | `{ securityId, currency, prices: [{ date, priceMicro, currency, source }] }` ascending; unknown security 404 |
 | `PUT /securities/:id/prices/:date` | Manual price: `{ priceMicro }` (integer) or `{ price: "81.25" }` (decimal text, at most 6 decimals), not in the future. Wins over every source; a refresh never replaces it; a change of an existing price is a `price_audit` row |
 | `GET /fx?currency&from&to` | `{ currency, rates: [{ date, currency, rateMicro, source }] }` ascending; `currency` is an ISO code in capitals |
@@ -149,7 +150,7 @@ cents, prices micro-units, units 1e-8. Every write answers with its `groupId` (u
 
 | Endpoint | Purpose |
 | --- | --- |
-| `GET /securities?deleted=1`, `POST /securities` | Securities by name; create `{ name, kind, symbol?, isin?, currency?, terBp?, assetClassId?, institutionId?, benchmark?, fallbackQuoteId?, quoteExchange?, pricesEnabled?, quoteAdjusted? }` (ISIN with 12 characters, unique among live securities: 409) |
+| `GET /securities?deleted=1`, `POST /securities` | Securities by name; create `{ name, kind, symbol?, isin?, currency?, terBp?, assetClassId?, institutionId?, benchmark?, fallbackQuoteId?, quoteExchange?, quoteUrl?, coingeckoId?, pricesEnabled?, quoteAdjusted? }` (ISIN with 12 characters, unique among live securities: 409) |
 | `GET/PATCH/DELETE /securities/:id`, `POST /securities/:id/restore` | Read, change, soft delete (409 while the security has trades, holdings or an open savings plan), restore |
 | `GET /asset-classes`, `POST /asset-classes`, `PATCH/DELETE /asset-classes/:id` | Classes with their current target (`target`, Soll in bp and band) and `inUse`; delete is 409 while securities belong to it |
 | `GET /asset-classes/targets` | Target versions `{ validFrom, targets, sumBp }`, oldest first |
