@@ -45,7 +45,7 @@ review, not a proof of every domain calculation or every transitive dependency.
 - `E2E_PORT=4470 npx playwright test e2e/security-boundary.spec.ts --project=desktop --project=mobile --workers=1`: **5 passed** including setup; local passkey session, private no-store responses, cookie loss, 401/login redirect, health. Synthetic fixtures; no visual baselines changed.
 - `npm audit --json`: exit 1, **4 moderate dev-chain entries**, zero high/critical.
 - `npm audit --omit=dev --json`: passed, **0 vulnerabilities**.
-- Initial `npm run check` found a test-fixture Hono environment type mismatch. Fixed with explicit `AuthGate['routes']` contextual typing. Bounded full rerun `npm run check -- -- --maxWorkers=2` remains running at handoff; PR stays draft until result recorded.
+- Initial `npm run check` found a test-fixture Hono environment type mismatch. Fixed with explicit `AuthGate['routes']` contextual typing. Bounded full rerun `npm run check -- -- --maxWorkers=2` passed server/web typechecks and reached DB typecheck, then was interrupted at the sprint cutoff (exit 1). Full lint/Vitest acceptance remains unverified; PR stays draft.
 
 ## Owner questions
 
