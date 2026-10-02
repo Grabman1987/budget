@@ -140,7 +140,7 @@ consistent totals, desktop/mobile checks and printing where required.
 | 4.1 | Depots im Vergleich | `reports-portfolio.js` | Body Open |
 | 4.2 | Allocation | `reports-portfolio.js` | Body Open |
 | 4.3 | Einzahlungen und Wert | `reports-portfolio.js` | Body Open |
-| 4.4 | Rendite und Kennzahlen | `reports-portfolio.js` | Body Open; performance engine exists |
+| 4.4 | Rendite und Kennzahlen | `reports-portfolio.js` | Partial: connected securities-only period metrics and lifetime documented realized gain; benchmark comparison, asset-class comparison and monthly heatmap remain open |
 | 4.5 | Kosten, Steuern, Erträge | `reports-portfolio.js` | Body Open; show source taxes without duplicate withholding |
 | 5.1 | Jahresreport | `reports-ueberblick.js` | Body + two printable sheets Open |
 | 5.2 | Finanz-Check-Verlauf | `reports-ueberblick.js` | History body Open; current rule status exists |

@@ -301,3 +301,9 @@ Price history (yfinance + Ariva, source per price), ECB rates, trades and holdin
 
 ## P6 Reports und Umstellung
 The 30 reports (SPEC §7), explorer, printable sheets, parallel run with reconciliation report. **Gate 4:** one month-end without difference, then retire remaining finance tools, including YNAB and PP. The prototype-only host was retired independently of this gate.
+
+### P6.4 — Rendite und Kennzahlen
+- [x] `/reports/prendite`: selected-period summary from `GET /api/portfolio` in securities-only view (TTWROR, existing annualized metrics, netflows, period gain and end value) plus separately labelled lifetime realized gain/completeness; no new financial formula.
+- [x] Suppress all report figures when the legacy portfolio summary returns `valuation_unavailable`; keep documented zero gains distinct from unavailable basis and preserve gains when open positions are empty.
+- [x] Focused invest API cases, synthetic browser edge fixtures and read-only sample-ledger browser coverage on desktop/mobile; accessibility and horizontal overflow checked in light/dark mode. Evidence: [report 4.4](evidence/report-4.4.md).
+- [ ] Benchmark comparison, asset-class comparison and monthly heatmap from the prototype; depot-inclusive view and owner acceptance remain outside this first report body.

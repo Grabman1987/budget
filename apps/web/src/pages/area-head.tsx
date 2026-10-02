@@ -29,6 +29,7 @@ export interface AreaHeadProps {
   heutePeriod?: HeutePeriod;
   onHeutePeriodChange?: (period: HeutePeriod) => void;
   standDay?: string | undefined;
+  reportDataBasis?: React.ReactNode | undefined;
 }
 
 /** Areas whose title cell stays visible on the phone (it carries the month switch). */
@@ -51,6 +52,7 @@ export function AreaHead({
   heutePeriod,
   onHeutePeriodChange,
   standDay,
+  reportDataBasis,
 }: AreaHeadProps) {
   const [month, shift] = useMonth();
   const [period, setPeriod] = useState<Period>('month');
@@ -143,7 +145,11 @@ export function AreaHead({
       // As in the prototype; the phone shows the registers right under the header.
       fields = [
         { ...stand, hideOnMobile: true },
-        { label: 'Datenbasis', value: 'Okt 2023 bis heute', hideOnMobile: true },
+        {
+          label: 'Datenbasis',
+          value: reportDataBasis ?? 'Okt 2023 bis heute',
+          hideOnMobile: true,
+        },
       ];
       break;
   }
