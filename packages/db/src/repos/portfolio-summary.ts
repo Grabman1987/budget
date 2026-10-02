@@ -134,7 +134,14 @@ export interface PortfolioSummary {
   contributionHistory?: ContributionHistory | null;
   benchmark: { securityId: string; name: string } | null;
   /** TER on month ends plus the fees of 12 months, over the current value. */
-  costs: { terCents: number; feesCents: number; totalCents: number; costRateBp: number };
+  costs: {
+    terCents: number;
+    feesCents: number;
+    totalCents: number;
+    costRateBp: number;
+    /** The same costs per security (fees only on securities that are still live). */
+    bySecurity: Array<{ securityId: string; terCents: number; feesCents: number }>;
+  };
   /** Dividends and interest of the 12 months up to `asOf`. */
   income: IncomeSummary;
   allocation: AllocationStatus;
@@ -224,7 +231,7 @@ function load(db: Executor): Loaded {
   return { securities, accountInstitution, accountCurrency, institutions, classNames };
 }
 
-function ratesAsOf(db: Executor, asOf: string): RateTable {
+export function ratesAsOf(db: Executor, asOf: string): RateTable {
   const table = new Map<string, { date: string; rateMicro: number }[]>();
   const rows = db.select().from(fxRate).where(lte(fxRate.date, asOf)).all();
   for (const row of rows.sort((a, b) => a.date.localeCompare(b.date))) {
@@ -246,7 +253,7 @@ function centsInEur(cents: number, currency: string, day: string, rates: RateTab
   }
 }
 
-function tradesInEur<T extends ProductTrade & { currency: string }>(
+export function tradesInEur<T extends ProductTrade & { currency: string }>(
   trades: readonly T[],
   rates: RateTable,
 ): T[] {
@@ -439,7 +446,7 @@ function realizedByPosition(
 }
 
 /** Live trades up to `to` as series trades (with account and security). */
-function tradesUpTo(db: Executor, to: string) {
+export function tradesUpTo(db: Executor, to: string) {
   return db
     .select({
       accountId: trade.accountId,
@@ -674,7 +681,7 @@ export function riskOf(db: Executor, asOf: string, lines: ReadonlyArray<RiskPosi
   };
 }
 
-function firstDay(db: Executor, today: string): string | null {
+export function firstDay(db: Executor, today: string): string | null {
   const dates = [
     db
       .select({ d: holding.asOf })
@@ -890,6 +897,7 @@ export function portfolioSummary(db: Executor, options: PortfolioOptions): Portf
   const allTrades = tradesInEur(tradesUpTo(db, today), ratesAsOf(db, today));
   let terCents = 0;
   let feesCents = 0;
+  const costsBySecurity: PortfolioSummary['costs']['bySecurity'] = [];
   for (const sec of loaded.securities.values()) {
     const mine = allTrades.filter((t) => t.securityId === sec.id);
     const line = lines.find((l) => l.securityId === sec.id);
@@ -902,6 +910,11 @@ export function portfolioSummary(db: Executor, options: PortfolioOptions): Portf
     });
     terCents += costs.terCents;
     feesCents += costs.feesCents;
+    costsBySecurity.push({
+      securityId: sec.id,
+      terCents: costs.terCents,
+      feesCents: costs.feesCents,
+    });
   }
   const totalCostCents = terCents + feesCents;
   const costs = {
@@ -909,6 +922,7 @@ export function portfolioSummary(db: Executor, options: PortfolioOptions): Portf
     feesCents,
     totalCents: totalCostCents,
     costRateBp: valueCents > 0 ? Math.round((totalCostCents * 10_000) / valueCents) : 0,
+    bySecurity: costsBySecurity,
   };
   const income = incomeLast12Months(allTrades, today);
 

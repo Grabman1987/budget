@@ -1,0 +1,126 @@
+/* Report 4.2 Allocation: sunbursts in ink tints, tables, Soll/Ist areas with dashed limits. */
+.pk-1 {
+  --pk: var(--line);
+}
+.pk-2 {
+  --pk: color-mix(in srgb, var(--line) 62%, transparent);
+}
+.pk-3 {
+  --pk: color-mix(in srgb, var(--line) 38%, transparent);
+}
+.pk-4 {
+  --pk: var(--tint-2);
+}
+.prep-swatch.pk-1,
+.prep-swatch.pk-2,
+.prep-swatch.pk-3,
+.prep-swatch.pk-4 {
+  background: var(--pk);
+}
+.sb-arc {
+  fill: var(--pk);
+  stroke: var(--surface);
+  stroke-width: 1.5;
+}
+.sb-arc.pk-4 {
+  stroke: var(--line-2);
+  stroke-width: 1;
+}
+.area.pk-1,
+.area.pk-2,
+.area.pk-3,
+.area.pk-4 {
+  fill: var(--pk);
+  stroke: var(--surface);
+  stroke-width: 0.8;
+}
+.area.pk-4 {
+  stroke: var(--line-2);
+}
+.sb-lbl {
+  paint-order: stroke;
+  stroke: var(--surface);
+  stroke-width: 3px;
+  stroke-linejoin: round;
+  pointer-events: none;
+}
+.sb-lbl-inv {
+  fill: var(--on-primary);
+  stroke: var(--line);
+}
+.sb-pair {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 32px;
+  margin: 6px 0 20px;
+}
+.sb-fig {
+  margin: 0;
+  min-width: 0;
+}
+.sb-fig figcaption {
+  margin-top: 6px;
+  font-size: 12.5px;
+  color: var(--ink-3);
+  text-align: center;
+}
+.sunburst {
+  display: grid;
+  justify-items: center;
+  min-height: 260px;
+  min-width: 0;
+}
+.sunburst svg.chart {
+  display: block;
+  max-width: 100%;
+  height: auto;
+}
+.alloc-table .indent {
+  padding-inline-start: 28px;
+}
+.alloc-regions {
+  margin-top: 20px;
+}
+.alloc-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+.alloc-status.is-out {
+  color: var(--red);
+  font-weight: 600;
+}
+.alloc-chart {
+  min-width: 0;
+}
+.alloc-chart svg.chart {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+.alloc-limit {
+  stroke: var(--ink);
+  stroke-width: 1.75;
+}
+.alloc-legend {
+  margin: 8px 0 0;
+  padding: 0;
+  list-style: none;
+}
+.alloc-legend li {
+  display: inline-flex;
+  align-items: center;
+}
+.alloc-chart .chart-legend {
+  margin-bottom: 16px;
+}
+@media (max-width: 760px) {
+  .sb-pair {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 24px;
+  }
+  .alloc-table {
+    min-width: 520px;
+  }
+}

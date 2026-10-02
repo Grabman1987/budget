@@ -43,3 +43,6 @@ export * from './cashflow-report';
 export * from './month-reports';
 export * from './overview-reports';
 export * from './report-tables';
+export * from './portfolio-depots';
+export * from './portfolio-allocation-report';
+export * from './portfolio-costs';

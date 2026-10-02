@@ -33,6 +33,9 @@ import { YearReport } from '../reports/year-report';
 import { CategoryReport } from '../reports/category-report';
 import { SavingsReport } from '../reports/savings-report';
 import { TotalTableReport } from '../reports/total-table-report';
+import { PortfolioDepotsReport } from './portfolio-depots-report';
+import { PortfolioAllocationReport } from './portfolio-allocation-report';
+import { PortfolioCostsReport } from './portfolio-costs-report';
 
 const CONTROL_LABEL = { month: 'Monat', year: 'Jahr', period: 'Zeitraum' } as const;
 
@@ -186,6 +189,9 @@ export function ReportPage({ reportId }: { reportId: string }) {
   if (report.id === 'vorschau') return <PaymentsPreviewReport report={report} meta={meta} />;
   if (report.id === 'empfaenger') return <PayeeAnalysisReport report={report} meta={meta} />;
   if (report.id === 'prendite') return <PortfolioPerformanceReport report={report} meta={meta} />;
+  if (report.id === 'pdepots') return <PortfolioDepotsReport report={report} meta={meta} />;
+  if (report.id === 'pallocation') return <PortfolioAllocationReport report={report} meta={meta} />;
+  if (report.id === 'psteuern') return <PortfolioCostsReport report={report} meta={meta} />;
   if (report.id === 'peinzahlungen')
     return <PortfolioContributionsReport report={report} meta={meta} />;
   if (report.id === 'einnahmen') return <IncomeReport report={report} meta={meta} />;
