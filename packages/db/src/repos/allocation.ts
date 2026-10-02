@@ -41,9 +41,15 @@ export function allocationMonth(
   month: string,
   /** The month's envelopes when the caller already computed the budget (saves a recomputation). */
   precomputed?: BudgetMonth['envelopes'],
+  /**
+   * Income types that are not household income for this view (the report 2.2 leaves out
+   * Kapitalerträge and Erstattungen, owner decision 02.10.2026). Default: none, as for R01.
+   */
+  options: { excludeIncomeTypeIds?: ReadonlyArray<string> } = {},
 ): AllocMonth {
   assertEurBudgetAccounts(db);
   const year = month.slice(0, 4);
+  const excluded = new Set(options.excludeIncomeTypeIds ?? []);
   const envelopes = precomputed ?? budget(db, [month])[0]?.envelopes ?? {};
   const spent = (categoryId: string) => -(envelopes[categoryId]?.activityCents ?? 0);
 
@@ -96,7 +102,8 @@ export function allocationMonth(
         isIncomeCategorySplit(s.categoryId, s.categoryKind) &&
         s.date.startsWith(month) &&
         s.cents > 0 &&
-        s.incomeTypeId !== INCOME_TYPES.special.id,
+        s.incomeTypeId !== INCOME_TYPES.special.id &&
+        !(s.incomeTypeId !== null && excluded.has(s.incomeTypeId)),
     )
     .reduce((a, s) => a + s.cents, 0);
 

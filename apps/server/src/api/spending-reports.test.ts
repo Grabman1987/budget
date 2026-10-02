@@ -1,14 +1,20 @@
 /* eslint-disable @typescript-eslint/no-explicit-any -- JSON answers are inspected, not typed */
 import {
+  allocationMonth,
   budget,
   categories,
   createBooking,
   createTestDatabase,
+  INCOME_TYPES,
+  schema,
+  setAssigned,
   type Db,
   type OpenedDatabase,
 } from '@budget/db';
+import { allocation } from '@budget/domain';
 import { referenceModel } from '@budget/fixtures';
 import { seedDatabase } from '@budget/fixtures/seed';
+import { eq } from 'drizzle-orm';
 import type { Hono } from 'hono';
 import { afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { seedBasics } from '../../../../packages/db/src/repos/test-helpers';
@@ -157,5 +163,164 @@ describe('2.1 Ausgabenanalyse on the sample ledger', () => {
     // Row totals of the heatmap are the category figures of the list.
     for (const row of year.heatRows)
       expect(row.totalCents).toBe(year.rows.find((r: any) => r.id === row.id).cents);
+  });
+});
+
+describe('2.2 Budgettreue on a small ledger', () => {
+  let opened: OpenedDatabase;
+  let app: Hono;
+  const ctx = { actor: 'test' };
+  beforeEach(() => {
+    opened = createTestDatabase();
+    seedBasics(opened.db);
+    categories.create(
+      opened.db,
+      { id: 'versicherung', name: 'Versicherung', groupId: 'g', class: 'need', kind: 'periodic' },
+      ctx,
+    );
+    app = api(opened.db, '2026-09-17');
+  });
+  afterEach(() => opened.close());
+  const spend = (date: string, categoryId: string, cents: number) =>
+    createBooking(
+      opened.db,
+      {
+        accountId: 'giro',
+        date,
+        amountCents: -cents,
+        splits: [{ categoryId, amountCents: -cents }],
+      },
+      ctx,
+    );
+  const income = (date: string, cents: number, incomeTypeId: string) =>
+    createBooking(
+      opened.db,
+      {
+        accountId: 'giro',
+        date,
+        amountCents: cents,
+        splits: [{ categoryId: null, amountCents: cents, incomeTypeId }],
+      },
+      ctx,
+    );
+
+  it('compares spending with assigned money, plans periodic costs with their reserve', async () => {
+    setAssigned(opened.db, 'essen', '2026-08', 20_000, ctx);
+    setAssigned(opened.db, 'miete', '2026-08', 60_000, ctx);
+    setAssigned(opened.db, 'versicherung', '2026-06', 5_000, ctx);
+    setAssigned(opened.db, 'versicherung', '2026-07', 5_000, ctx);
+    setAssigned(opened.db, 'versicherung', '2026-08', 5_000, ctx);
+    spend('2026-08-10', 'essen', 25_000);
+    spend('2026-08-01', 'miete', 60_000);
+    spend('2026-08-12', 'versicherung', 14_000);
+    const { status, body } = await get(app, '/reports/spending/adherence?month=2026-08');
+    expect(status).toBe(200);
+    expect(body).toMatchObject({
+      status: 'ok',
+      month: '2026-08',
+      live: false,
+      planCents: 20_000 + 60_000 + 15_000,
+      istCents: 25_000 + 60_000 + 14_000,
+      overCount: 1,
+    });
+    expect(body.restCents).toBe(body.planCents - body.istCents);
+    const by = Object.fromEntries(body.items.map((i: any) => [i.id, i]));
+    expect(by.essen).toMatchObject({ planCents: 20_000, istCents: 25_000, over: true });
+    expect(by.versicherung).toMatchObject({ planCents: 15_000, planBasis: 'reserve', over: false });
+    expect(by.miete.over).toBe(false);
+  });
+
+  it('marks the running month as live and explains months outside the budget', async () => {
+    spend('2026-09-03', 'essen', 5_000);
+    const live = (await get(app, '/reports/spending/adherence')).body;
+    expect(live).toMatchObject({ month: '2026-09', live: true, liveUntil: '2026-09-17' });
+    expect((await get(app, '/reports/spending/adherence?month=2023-01')).body.status).toBe(
+      'before_start',
+    );
+    expect((await get(app, '/reports/spending/adherence?month=2026-12')).body.status).toBe(
+      'future',
+    );
+    expect((await get(app, '/reports/spending/adherence?month=2026-13')).status).toBe(400);
+    const empty = createTestDatabase();
+    expect(
+      (await get(api(empty.db, '2026-09-17'), '/reports/spending/adherence')).body.status,
+    ).toBe('no_budget');
+    empty.close();
+  });
+
+  it('shows 50/30/20 on household income only: Kapitalerträge and Erstattungen are left out', async () => {
+    income('2026-08-05', 300_000, INCOME_TYPES.salary.id);
+    income('2026-08-15', 5_000, INCOME_TYPES.capital.id);
+    income('2026-08-20', 2_000, INCOME_TYPES.refund.id);
+    setAssigned(opened.db, 'miete', '2026-08', 150_000, ctx);
+    const body = (await get(app, '/reports/spending/adherence?month=2026-08')).body;
+    const august = body.allocation.find((r: any) => r.month === '2026-08');
+    expect(august.incomeCents).toBe(300_000);
+    expect(august.needCents + august.wantCents + august.futureCents + august.restCents).toBe(
+      august.incomeCents,
+    );
+    const { need, want, future, rest } = august.shares;
+    expect(need + want + future + rest).toBe(100);
+    // The shared default (R01) is untouched and still counts them.
+    expect(allocationMonth(opened.db, '2026-08').incomeCents).toBe(307_000);
+    expect(body.allocation.length).toBeLessThanOrEqual(12);
+  });
+
+  it('never writes', async () => {
+    const count = () =>
+      opened.sqlite.prepare('select count(*) n from audit_log').get() as { n: number };
+    const before = count().n;
+    await get(app, '/reports/spending/adherence?month=2026-08');
+    expect(count().n).toBe(before);
+  });
+});
+
+describe('2.2 Budgettreue on the sample ledger', () => {
+  let db: Db;
+  let app: Hono;
+  beforeAll(() => {
+    db = createTestDatabase().db;
+    seedDatabase(db);
+    app = api(db, '2026-09-17');
+  });
+
+  it('keeps the prototype class amounts of the shared allocation; only the income base differs', async () => {
+    const body = (await get(app, '/reports/spending/adherence?month=2026-08')).body;
+    expect(body.allocation).toHaveLength(12);
+    const august = body.allocation.at(-1);
+    expect(august.month).toBe('2026-08');
+    expect(august).toMatchObject({ needCents: 310103, wantCents: 192865, futureCents: 150888 });
+    const excluded = db
+      .select()
+      .from(schema.bookingSplit)
+      .innerJoin(schema.booking, eq(schema.booking.id, schema.bookingSplit.bookingId))
+      .all()
+      .filter(
+        (r) =>
+          r.booking.date.startsWith('2026-08') &&
+          (r.booking_split.incomeTypeId === INCOME_TYPES.capital.id ||
+            r.booking_split.incomeTypeId === INCOME_TYPES.refund.id) &&
+          r.booking_split.amountCents > 0,
+      )
+      .reduce((a, r) => a + r.booking_split.amountCents, 0);
+    expect(excluded).toBeGreaterThan(0);
+    const shared = allocation([allocationMonth(db, '2026-08')]);
+    expect(Math.abs(shared.incomeCents - excluded - august.incomeCents)).toBeLessThanOrEqual(1);
+    for (const row of body.allocation) {
+      const s = row.shares;
+      expect(s.need + s.want + s.future + s.rest, row.month).toBe(100);
+    }
+  });
+
+  it('lists the plan of August 2026 in a chain that adds up and a rolling 12-month deviation', async () => {
+    const body = (await get(app, '/reports/spending/adherence?month=2026-08')).body;
+    expect(body.planCents - body.istCents).toBe(body.restCents);
+    expect(body.items.length).toBeGreaterThan(10);
+    expect(body.deviation.from).toBe('2025-09-01');
+    expect(body.deviation.to).toBe('2026-08-31');
+    for (const row of body.deviation.rows) expect(row.planCents).toBeGreaterThan(0);
+    const september = (await get(app, '/reports/spending/adherence?month=2026-09')).body;
+    expect(september).toMatchObject({ live: true, status: 'ok' });
+    expect(september.allocation.at(-1).month).toBe('2026-08');
   });
 });

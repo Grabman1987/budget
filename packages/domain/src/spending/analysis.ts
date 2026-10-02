@@ -8,6 +8,8 @@ export interface SpendCategory {
   name: string;
   groupName: string;
   class: SpendClass;
+  /** Category kind (`periodic`, `fixed`, `variable` …) where the source knows it. */
+  kind?: string;
 }
 
 /** Net spending per month and category in positive cents (a refund lowers it). */

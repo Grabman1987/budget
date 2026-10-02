@@ -75,6 +75,7 @@ export function spendCategories(db: Executor): SpendCategory[] {
               name: c.name,
               groupName: groups.get(c.groupId) ?? 'Ohne Gruppe',
               class: c.class,
+              kind: c.kind,
             },
           ]
         : [],

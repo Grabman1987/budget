@@ -435,3 +435,72 @@ a.sr-name:hover {
     box-shadow: none;
   }
 }
+
+/* 50/30/20 per month: stacked class bar against the income, marks at 50 %, 80 % and 100 %. */
+.sr-523 {
+  display: grid;
+  gap: 2px;
+  margin-top: 12px;
+}
+.sr-523-row {
+  display: grid;
+  grid-template-columns: 52px minmax(0, 1fr) 76px;
+  align-items: center;
+  gap: 10px;
+  min-height: 32px;
+  padding: 2px 6px;
+  border-radius: 6px;
+  font-size: 12.5px;
+}
+.sr-523-row.is-cur {
+  background: var(--tint);
+  font-weight: 620;
+}
+.sr-523-month {
+  color: var(--ink-2);
+  font-family: var(--font-tech);
+  font-size: 12px;
+}
+.sr-523-bar {
+  position: relative;
+  display: flex;
+  height: 14px;
+  background: var(--tint);
+  border-radius: 1px;
+}
+.sr-523-bar > span {
+  display: block;
+  height: 100%;
+}
+.sr-523-rest {
+  background: var(--good-soft);
+  box-shadow: inset 0 0 0 1px var(--good-ink);
+}
+.sr-523-mark {
+  position: absolute;
+  inset: -3px auto -3px 0;
+  width: 1px;
+  background: var(--ink);
+}
+.sr-523-mark.is-full {
+  width: 2px;
+  background: var(--bad-ink);
+}
+.sr-523-num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.sr-523-num small {
+  margin-left: 4px;
+  font-size: 11px;
+}
+.sw-rest {
+  background: var(--good-soft);
+  box-shadow: inset 0 0 0 1px var(--good-ink);
+}
+.sr-month-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}

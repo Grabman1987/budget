@@ -128,7 +128,7 @@ consistent totals, desktop/mobile checks and printing where required.
 | 1.8 | Gesamttabelle | `reports-monat.js` | Body Open; account/depot CSV ZIP export is implemented separately |
 | 1.9 | Projekte und Nebeneinkünfte | `reports-monat.js` | Capture/data + body Open |
 | 2.1 | Ausgabenanalyse | `reports-ausgaben.js` | Connected: net Bedarf/Wunsch consumption per period from the shared budget read model, class bar, largest changes against the equally long previous window (absent for "Alles"), category bars with booking drilldown, 12-month heatmap. Zukunft shown apart, never consumption |
-| 2.2 | Budgettreue inkl. 50/30/20 | `reports-ausgaben.js` | Body Open; twelfths rule follows SPEC |
+| 2.2 | Budgettreue inkl. 50/30/20 | `reports-ausgaben.js` | Connected: plan (assigned money; periodic categories with their reserve) against net spending per category and month (running month up to today), plan-minus-actual chain, 12-month 50/30/20 on the shared assigned-money allocation (twelfths per SPEC) with household income only (Kapitalerträge and Erstattungen excluded, owner decision 02.10.2026), rolling 12-month plan deviation. R01 on Heute still uses the unexcluded income base |
 | 2.3 | Verträge und Abos | `reports-ausgaben.js` | Report body Open; expected-payment workflow exists |
 | 2.4 | Persönliche Inflation | `reports-ausgaben.js` | Body Open |
 | 2.5 | Empfänger-Analyse | `reports-ausgaben.js` | Body Open |

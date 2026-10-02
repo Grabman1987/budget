@@ -1,5 +1,5 @@
-import { spendingReport, type Db } from '@budget/db';
-import { SPENDING_PERIODS } from '@budget/domain';
+import { budgetAdherence, spendingReport, type Db } from '@budget/db';
+import { monthOf, SPENDING_PERIODS } from '@budget/domain';
 import { Hono } from 'hono';
 import { z } from 'zod';
 import { ApiError, readQuery } from './http';
@@ -11,6 +11,13 @@ import { ApiError, readQuery } from './http';
 
 const periodQuery = z.object({
   period: z.enum(SPENDING_PERIODS as [string, ...string[]]).default('1J'),
+});
+
+const monthQuery = z.object({
+  month: z
+    .string()
+    .regex(/^\d{4}-(0[1-9]|1[0-2])$/)
+    .optional(),
 });
 
 /** The one place that turns "the sum left the safe integer range" into a clear answer. */
@@ -37,6 +44,12 @@ export function spendingReportRoutes(db: Db, today: () => string): Hono {
     return c.json(
       guarded(() => spendingReport(db, today(), period as (typeof SPENDING_PERIODS)[number])),
     );
+  });
+
+  // 2.2 Budgettreue inkl. 50/30/20
+  app.get('/adherence', (c) => {
+    const { month } = readQuery(c, monthQuery);
+    return c.json(guarded(() => budgetAdherence(db, today(), month ?? monthOf(today()))));
   });
 
   return app;
