@@ -63,7 +63,14 @@ export const accountPatch = accountCreate
     unlockReconciled: z.boolean().optional(),
   });
 export const accountClose = z.object({ force: z.boolean().default(false) });
-export const accountSort = z.object({ ids: z.array(id).min(1).max(200) });
+/** Ordered account ids; accounts left out follow in their current order (see `orderAccounts`). */
+export const accountOrder = z.object({
+  ids: z
+    .array(id)
+    .min(1)
+    .max(200)
+    .refine((ids) => new Set(ids).size === ids.length, 'Each account only once'),
+});
 export const asOfQuery = z.object({ asOf: day.optional() });
 export const seriesQuery = z.object({ from: day, to: day });
 

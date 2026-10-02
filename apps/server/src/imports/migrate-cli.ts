@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { basename, resolve } from 'node:path';
-import { migrateDatabase, openDatabase } from '@budget/db';
+import { migrateDatabase, openDatabase, orderAccountsByNames } from '@budget/db';
 import { todayInVienna } from '@budget/domain';
 import { mappingSchema } from '@budget/import-ynab';
 import { deleteRun, saveMapping } from './staging';
@@ -13,9 +13,14 @@ import { findRun, runTask, type ImportTask } from './tasks';
  *
  *   node migrate-cli.js stage --register <file> --plan <file> --mapping <file>
  *   node migrate-cli.js dry-run|report|commit|revert|delete --run <id>
+ *   node migrate-cli.js order-accounts --names "A|B|C" [--dry-run]
  *
  * Output is aggregates only (counts, problem codes, number of differences); `--details` adds the
  * differences themselves for the operator's terminal. Nothing is logged to files.
+ *
+ * `order-accounts` sets the owner's account order (`sortOrder`) by exact account name, one audit
+ * group (the app's "Rückgängig" machinery can undo it by that group id). Names are separated
+ * by `|`; unknown or ambiguous names are reported, never created; accounts not listed follow.
  */
 
 const args = process.argv.slice(2);
@@ -112,8 +117,30 @@ try {
       console.log('deleted       ', deleteRun(db, findRun(db, required('run'))));
       break;
     }
+    case 'order-accounts': {
+      const names = required('names').split('|');
+      const result = orderAccountsByNames(
+        db,
+        names,
+        { actor: 'operator' },
+        {
+          dryRun: args.includes('--dry-run'),
+        },
+      );
+      const listed = names.filter((n) => n.trim()).length - result.unknown.length;
+      console.log('listed names  ', names.filter((n) => n.trim()).length);
+      console.log('matched       ', listed - result.ambiguous.length);
+      console.log('unknown       ', result.unknown.length, JSON.stringify(result.unknown));
+      console.log('ambiguous     ', result.ambiguous.length, JSON.stringify(result.ambiguous));
+      console.log('accounts total', result.order.length);
+      console.log('rows changed  ', result.changed, args.includes('--dry-run') ? '(dry run)' : '');
+      if (result.groupId) console.log('audit group   ', result.groupId);
+      break;
+    }
     default:
-      console.log('usage: migrate-cli.js stage|dry-run|report|commit|revert|delete [options]');
+      console.log(
+        'usage: migrate-cli.js stage|dry-run|report|commit|revert|delete|order-accounts [options]',
+      );
       process.exitCode = 2;
   }
 } catch (error) {

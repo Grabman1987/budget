@@ -1,0 +1,43 @@
+/* Reordering of accounts (sidebar edit mode and Konten › Übersicht): grip, ↑ / ↓, lifted row. */
+.order-controls {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  white-space: nowrap;
+}
+.order-controls .icon-btn {
+  color: var(--ink-3);
+}
+.order-controls .icon-btn:hover {
+  color: var(--ink);
+}
+.order-controls .icon-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+.order-controls .icon-btn:disabled:hover {
+  background: none;
+  color: var(--ink-3);
+}
+.order-grip {
+  cursor: grab;
+  /* Touch drags the row instead of scrolling the page while the finger is on the grip. */
+  touch-action: none;
+}
+.order-grip:active {
+  cursor: grabbing;
+}
+.reorder-row.is-reordering:not(.is-lifted) {
+  transition: transform 150ms var(--ease-out);
+}
+.reorder-row.is-lifted {
+  position: relative;
+  z-index: 3;
+  cursor: grabbing;
+  user-select: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .reorder-row.is-reordering:not(.is-lifted) {
+    transition: none;
+  }
+}

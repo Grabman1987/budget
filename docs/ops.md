@@ -418,3 +418,22 @@ machine with `migrate-cli.js` (same tasks as the former wizard: each step is one
    Undo if needed: `... revert --run <id>` (refused once imported data was changed in the app).
    A run committed by an older version of the tool is reverted the same way (the revert only
    undoes the run's audit group); then stage, dry-run and commit the export again.
+
+### 12.1 Account order (operator task)
+
+The owner arranges accounts in the app (sidebar pencil or Konten › Übersicht › Reihenfolge ändern;
+`PATCH /api/accounts/order`, audited, "Rückgängig" in the toast). To set the starting order on the
+live database in one step, run on the machine (names separated by `|`, exact account names, case
+does not matter; unknown names are reported and skipped, nothing is created, accounts that are not
+listed follow in their current order; the groups themselves keep their fixed order Budget-Konten,
+Kreditkarten, Kredite, Investments):
+
+```
+fly ssh console -a budget-fg -C "node /app/migrate-cli.js order-accounts --names 'Konto A|Konto B|Konto C' --dry-run"
+fly ssh console -a budget-fg -C "node /app/migrate-cli.js order-accounts --names 'Konto A|Konto B|Konto C'"
+```
+
+`--dry-run` only prints the counts (listed, matched, unknown, ambiguous) and writes nothing; without it
+the write is one transaction and one audit group (the output shows the group id). A name that
+matches two accounts is reported as ambiguous and skipped. Running the command again with another
+list simply sets the new order.
