@@ -193,6 +193,7 @@ function ContributionsBody({
           className="rscroll"
           role="region"
           aria-label="Jahrestabelle, bei Bedarf horizontal verschiebbar"
+          // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- Keyboard users must be able to scroll the complete yearly table.
           tabIndex={0}
         >
           <table className="rtable">
@@ -269,6 +270,7 @@ function ContributionsChart({ history }: { history: ContributionHistory }) {
       className="contributions-chart-wrap"
       role="region"
       aria-label="Diagramm, bei Bedarf horizontal verschiebbar"
+      // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- Keyboard users must be able to scroll the chart on narrow viewports.
       tabIndex={0}
     >
       <svg
@@ -316,7 +318,7 @@ function ContributionsChart({ history }: { history: ContributionHistory }) {
             (_, index) =>
               index === 0 || index === rows.length - 1 || index % Math.ceil(rows.length / 7) === 0,
           )
-          .map((row, index) => (
+          .map((row) => (
             <text
               key={`${row.to}-label`}
               x={x(rows.indexOf(row) + 0.5)}
