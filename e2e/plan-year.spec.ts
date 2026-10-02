@@ -81,7 +81,7 @@ test('annual plan: independent figures, all metrics, year navigation and 375px r
   await page.getByRole('button', { name: 'Verfügbar', exact: true }).click();
   await expect(row).toContainText('69,99 €');
   if (mobile) {
-    await page.getByLabel('Monat', { exact: true }).selectOption('2026-02');
+    await page.getByRole('combobox', { name: 'Monat' }).selectOption('2026-02');
     await expect(row).toContainText('122,02 €');
     await page.getByText('Jahreswerte je Kategorie', { exact: true }).click();
     await expect(
