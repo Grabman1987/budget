@@ -1,5 +1,6 @@
 import { debtRoutes } from './debts';
 import {
+  freedomView,
   accountValuesAsOf,
   earliestAccountDate,
   netWorthAsOf,
@@ -15,10 +16,12 @@ import { readQuery } from './http';
 const PERIODS = ['1M', '3M', 'YTD', '1J', '3J', 'Alles'] as const satisfies readonly Period[];
 const networthQuery = z.object({ period: z.enum(PERIODS).default('YTD') });
 
-/** Vermögen read models: Nettovermögen (P5.4); Portfolio, Freiheitszahl and Schulden join later. */
+/** Vermögen: net worth, current freedom sources and the shared price stamp. */
 export function wealthRoutes(db: Db, today: () => string): Hono {
   const app = new Hono();
   app.route('/debts', debtRoutes(db, today));
+
+  app.get('/freedom', (c) => c.json(freedomView(db, today())));
 
   /**
    * Net worth over a period: the daily series (first point = the start value, the close of the

@@ -14,6 +14,7 @@ import { AppLink } from '../shell/app-link';
 import { AreaHead } from './area-head';
 import { PlaceholderPage } from './placeholder-page';
 import { PaymentsPreviewReport } from './payments-preview-report';
+import { ContactReportPage } from '../reports/contact-report';
 import { PortfolioPerformanceReport } from './portfolio-performance-report';
 
 const CONTROL_LABEL = { month: 'Monat', year: 'Jahr', period: 'Zeitraum' } as const;
@@ -151,6 +152,7 @@ export function ReportGroupPage({ slug }: { slug: string }) {
 
 /** Report dispatch: connected bodies where implemented, otherwise a placeholder from the catalog. */
 export function ReportPage({ reportId }: { reportId: string }) {
+  if (reportId === 'kontakte') return <ContactReportPage />;
   const report = findReport(reportId);
   if (!report) return <ReportNotFound />;
   const meta: PageMeta = {

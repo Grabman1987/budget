@@ -125,6 +125,8 @@ export function AreaHead({
         { label: 'Stand', value: <VermoegenStand />, hideOnMobile: true },
         { label: 'Zeitraum', value: <ZeitraumSwitch /> },
       ];
+      if (meta.register === 'freiheit' || meta.register === 'schulden')
+        fields = fields.filter((field) => field.label !== 'Zeitraum');
       break;
     case 'einstellungen':
       heading = 'Einstellungen';

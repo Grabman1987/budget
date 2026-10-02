@@ -62,14 +62,15 @@ export function allocateContactReceipt(
 }
 
 /** Replay actual movements. Saved allocation and credit are validated, never silently replaced. */
-export function contactStatement(
-  movements: readonly ContactMovement[],
+export function contactStatement<T extends ContactMovement>(
+  movements: readonly T[],
   settlements: readonly ContactSettlement[] = [],
 ) {
   const ordered = [...movements].sort((a, b) => a.date.localeCompare(b.date));
   const saved = new Map(settlements.map((s) => [s.receiptSplitId, s]));
   const outlays: OpenContactOutlay[] = [];
   const receipts: ContactSettlement[] = [];
+  const lines: (T & { contactDeltaCents: number; balanceCents: number })[] = [];
   let creditCents = 0;
   let balanceCents = 0;
   for (const m of ordered) {
@@ -77,6 +78,7 @@ export function contactStatement(
     balanceCents -= m.amountCents;
     if (!Number.isSafeInteger(balanceCents))
       throw new Error('Contact balance exceeds integer range');
+    lines.push({ ...m, contactDeltaCents: -m.amountCents || 0, balanceCents });
     if (m.amountCents < 0) {
       const covered = Math.min(creditCents, -m.amountCents);
       creditCents -= covered;
@@ -94,5 +96,19 @@ export function contactStatement(
     }
   }
   if (saved.size) throw new Error('Contact settlement is missing its actual receipt');
-  return { balanceCents, creditCents, outlays, receipts, movements: ordered };
+  return { balanceCents, creditCents, outlays, receipts, movements: lines };
+}
+
+/** Prototype report 5.4 chain. Derived balances stay outside income and net worth. */
+export function contactTotals(contacts: readonly { balanceCents: number }[]) {
+  let receivableCents = 0;
+  let payableCents = 0;
+  for (const { balanceCents } of contacts) {
+    if (!Number.isSafeInteger(balanceCents)) throw new Error('Invalid contact balance');
+    receivableCents += Math.max(0, balanceCents);
+    payableCents += Math.max(0, -balanceCents);
+    if (!Number.isSafeInteger(receivableCents) || !Number.isSafeInteger(payableCents))
+      throw new Error('Contact totals exceed integer range');
+  }
+  return { receivableCents, payableCents, balanceCents: receivableCents - payableCents };
 }

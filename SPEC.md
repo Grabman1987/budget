@@ -113,6 +113,8 @@ Every report answers one question with one fixed chart form (grammar: concept 9.
 4. **Portfolio:** 4.1 Depots im Vergleich, 4.2 Allocation (sunburst class/product and region/product, Soll/Ist over time), 4.3 Einzahlungen und Wert, 4.4 Rendite und Kennzahlen (benchmarks, asset classes side by side, heatmap), 4.5 Kosten, Steuern, Erträge (KESt 27.5 %, latent tax). Products open a panel with daily price history.
 5. **Überblick:** 5.1 Jahresreport (2 printable sheets), 5.2 Finanz-Check-Verlauf (stages + R01–R16), 5.3 Explorer (pivot, saved views), 5.4 Kontakte-Abrechnung (one ledger per person), 5.5 Zeitraumvergleich.
 
+Report 5.4 currently provides a fixed all-time EUR overview and selected person ledger with shared running balances, credit and source drilldown. Retained balanced histories remain selectable; pending source bookings are explicitly included under the existing contact statement predicate. Unsupported foreign-currency reads are wholly unavailable. Sending, duplicate settlement controls and monthly selectors are outside this slice; owner/private acceptance and other report bodies remain open.
+
 ## 8. Design system (binding)
 
 `DESIGN.md` is the contract: blueprint world (blue ink on drafting film; dark = classic blueprint), Archivo + Barlow Semi Condensed (self-hosted), title block (Schriftfeld), registers, dimension chains (Maßkette) for every lead figure, parts lists (Stückliste) with positions, revision tables for findings, ISO line types (solid = actual, dashed = plan/forecast, dash-dot = previous/benchmark), hatching only for classes and committed money, debts as dashed outline, elevation marks only in charts. **Red only for action needed.** Pastel green/red only for heatmaps and signed changes (decision 29.09.2026).

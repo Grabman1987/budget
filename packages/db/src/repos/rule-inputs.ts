@@ -2,7 +2,6 @@ import {
   addDays,
   addMonths,
   averageCents,
-  freedomAnnualSpendCents,
   freedomProgressBp,
   freedomTargetCents,
   lastDayOfMonth,
@@ -54,6 +53,7 @@ import { holdingValuesAsOf, netWorthAsOf, type NetWorth } from './portfolio';
 import { fxRateOnOrBefore } from './prices';
 import { budget, budgetLedger } from './queries';
 import type { Executor } from './types';
+import { freedomExpenses, freedomInvestedCents } from './freedom-inputs';
 
 /**
  * `ruleInputs` is the single place that assembles what the rules read (SPEC §4): the budget
@@ -619,15 +619,11 @@ export function ruleInputs(db: Executor, asOf: string, facts?: RuleFacts): RuleI
   // R16: invested wealth over 25 annual spends, now and three months ago
   const progressAt = (day: string, refM: string): { invested: number; spend: number } => {
     const worth = day === asOf ? nw : netWorthAsOf(db, day);
+    const invested = freedomInvestedCents(f.accounts, day, worth.byAccount);
+    if (invested === null) throw new RangeError('Freedom investment total unavailable');
     return {
-      invested: f.accounts
-        .filter((a) => a.role === 'investment' && a.openingDate <= day)
-        .reduce((s, a) => s + (worth.byAccount[a.id] ?? 0), 0),
-      spend: freedomAnnualSpendCents(
-        monthsBetween(addMonths(refM, -11), refM)
-          .filter((m) => f.budgetByMonth.has(m))
-          .map((m) => spent(f, m, (c) => c.class === 'need' || c.class === 'want')),
-      ),
+      invested,
+      spend: freedomExpenses(f, refM),
     };
   };
   const nowP = progressAt(asOf, ref);

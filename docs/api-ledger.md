@@ -139,6 +139,7 @@ Read models of the Vermögen pages. "Now" is `netWorthAsOf` of today (Vienna), t
 | Endpoint | Purpose |
 | --- | --- |
 | `GET /wealth/networth?period=` | `period` is `1M`, `3M`, `YTD` (default), `1J`, `3J` or `Alles`; anything else is 400. Answer: `{ period, from, to, stand, chain, daily, bars, composition }`. `from` is the close of the window's start day (31.12. for YTD, same day of the earlier month for 1M/3M/1J/3J, the first account's opening day for `Alles`). `chain` is `{ startCents, ownCents, marketCents, nowCents, deltaCents }` with start + own + market = now exactly (own = change minus the market move of the positions, SPEC section 6). `daily` is `[{ date, netWorthCents }]`, the first point is the start value. `bars` is `{ unit: 'week' \| 'month', buckets: [{ from, to, ownCents, marketCents }] }`: blocks of 7 days up to 3M, calendar months otherwise (first and last may be partial). `composition` is `{ assets, debts }` of `{ accountId, name, type, valueCents }`, assets descending, debts most negative first, zero accounts left out |
+| `GET /wealth/freedom` | Current R16 sources: `asOf`, `refMonth`, net Bedarf/Wunsch consumption per completed budget month (at most twelve), short-history annualisation, resolved live R16 `multiple`, target, investment-role account cash plus holdings, progress and 500 bp real-return default. Unsafe cents/target/progress and unavailable investment valuation stay nullable with source reasons; expenses remain readable without quotes. No inferred saving rate, goal year, historical Soll anchor or preference write. |
 | `GET /wealth/stand` | `{ priceDate, priceAt }`: the newest price day and, when a refresh or a manual price recorded it (`price_audit.ts`), the timestamp (ISO UTC); `null` without prices |
 ## Invest (P5.5)
 
@@ -233,6 +234,12 @@ target date, those without a date last.
 returns the actual contact-tagged split movements, open outlays and receipt allocations. Positive
 balance means the contact owes the owner; negative means credit owed to the contact. Expected
 occurrences are never contact balance movements. These statements currently require EUR movements.
+Both reads expose `currency: "EUR"`; the list also returns checked-cent `totals` (receivable,
+payable and net balance). Each statement movement retains source `currency`, `status`, `accountId`
+and cash `amountCents`, with `contactDeltaCents` (opposite cash sign) and shared replay `balanceCents`.
+Nondeleted stored splits dated through `asOf` include pending bookings, matching the existing
+statement predicate. Mixed-currency reads fail wholly. Report 5.4 is fixed all-time through today;
+no period subtotal is substituted for the cumulative debt and no contact total enters net worth.
 
 `POST /contacts/:id/settlements { accountId, date, amountCents, memo?, allocations? }` records an
 actual positive EUR cash receipt (open checking, savings or cash account; no future date). With no
