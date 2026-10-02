@@ -95,11 +95,13 @@ for (const [value, text] of [
 
     await page.goto('/konten');
     await expect(page.getByTestId('net-worth')).toHaveText(text);
-    await expect(page.getByText('Closed residual')).toBeVisible();
+    // Closed accounts sit in a collapsed "Geschlossen" section; the chain term opens it.
+    await expect(page.getByText('Closed residual')).toBeHidden();
     const term = page.getByRole('button', { name: /Geschlossene Konten/ });
     await expect(term).toBeVisible();
     await term.click();
     await expect(page.locator('#kaccts-closed')).toHaveClass(/is-flash/);
+    await expect(page.getByText('Closed residual')).toBeVisible();
   });
 }
 

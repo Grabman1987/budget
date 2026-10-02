@@ -1,7 +1,7 @@
 import { ApiError } from '../api/http';
 import type { BulkResult, BulkSkipReason } from './api';
 import { pluralBookings } from './format';
-import type { AccountRole, AccountRow, AccountType, BookingFlag, BookingStatus } from './types';
+import type { AccountRow, AccountType, BookingFlag, BookingStatus } from './types';
 
 /** German (de-AT) names of the ledger vocabulary (glossary in PRODUCT.md). */
 
@@ -34,23 +34,48 @@ export const FLAG_LABEL: Record<BookingFlag, string> = {
   purple: 'Violett',
 };
 
+export type AccountGroupId = 'budget' | 'cards' | 'loans' | 'investments';
+
 export interface AccountGroup {
-  role: AccountRole;
+  id: AccountGroupId;
   title: string;
   sub: string;
 }
 
-/** Groups of the overview in the order of the net-worth chain (Maßkette). */
+/**
+ * Account groups in YNAB's order: Budget-Konten, Kreditkarten, Kredite, then the tracking side
+ * (Investments). Sidebar tree, Konten › Übersicht, its Maßkette and the account selects all use
+ * this one list.
+ */
 export const ACCOUNT_GROUPS: ReadonlyArray<AccountGroup> = [
-  { role: 'budget', title: 'Budget-Konten', sub: 'verteilbares Geld' },
-  { role: 'reserve', title: 'Sparen', sub: 'Tagesgeld, Notgroschen' },
-  { role: 'investment', title: 'Investment', sub: 'Depot, Krypto, P2P' },
-  { role: 'debt', title: 'Schulden', sub: 'Kredite' },
-  { role: 'receivable', title: 'Forderungen', sub: 'Kontakte' },
+  { id: 'budget', title: 'Budget-Konten', sub: 'Giro, Bargeld, Tagesgeld' },
+  { id: 'cards', title: 'Kreditkarten', sub: 'Kartensalden' },
+  { id: 'loans', title: 'Kredite', sub: 'Darlehen' },
+  { id: 'investments', title: 'Investments', sub: 'Depot, Krypto, P2P, Sonstiges' },
 ];
 
-export const groupOf = (role: AccountRole): AccountGroup =>
-  ACCOUNT_GROUPS.find((g) => g.role === role) ?? (ACCOUNT_GROUPS[0] as AccountGroup);
+/**
+ * Group of an account by its type, not its role: a credit card has the role "budget" but belongs
+ * to Kreditkarten. Cash and savings outside the budget count as Investments (tracking only).
+ */
+export function groupIdOf(account: Pick<AccountRow, 'type' | 'onBudget'>): AccountGroupId {
+  switch (account.type) {
+    case 'credit_card':
+      return 'cards';
+    case 'loan':
+    case 'other_liability':
+      return 'loans';
+    case 'checking':
+    case 'cash':
+    case 'savings':
+      return account.onBudget ? 'budget' : 'investments';
+    default:
+      return 'investments';
+  }
+}
+
+export const groupOf = (account: Pick<AccountRow, 'type' | 'onBudget'>): AccountGroup =>
+  ACCOUNT_GROUPS.find((g) => g.id === groupIdOf(account)) ?? (ACCOUNT_GROUPS[0] as AccountGroup);
 
 /** Historical detail-page value; it remains native cash plus holdings until FX detail work. */
 export const accountValue = (account: AccountRow): number | null =>

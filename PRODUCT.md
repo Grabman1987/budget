@@ -137,6 +137,8 @@ Alle Reports rechnen aus demselben Hauptbuch; Nettovermögen, Rendite und Regels
 
 **Import/Export als App-Feature (Entscheidung 01.10.2026):** Importfunktion entfernen. Der geschützte CSV-Export aller Konten und Depots lädt nach erneuter Passkey-Bestätigung eine ZIP-Datei mit vollständiger Buchungs- und gespeicherter Portfoliohistorie. Berechnete Salden und Positionen beziehen sich auf heute; Originalbeträge bleiben erhalten und nicht berechenbare Werte werden gekennzeichnet. Authentifizierungsdaten, Zugangsdaten und Auditdaten gehören nicht in den Export. Die einmalige Datenübernahme bleibt ein separater, vom Nutzer autorisierter Auftrag für Codex oder Claude auf Basis der vorhandenen Exporte und PP-Datei.
 
+**Kontogruppen und Profil (Entscheidung 02.10.2026):** Konten stehen überall in YNAB-Reihenfolge: Budget-Konten (Giro, Bargeld, Tagesgeld im Budget), Kreditkarten, Kredite, Investments (Depot, Krypto, P2P, sonstiges Vermögen, auch Konten außerhalb des Budgets); innerhalb der Gruppe gilt die Sortierung des Besitzers. Geschlossene Konten erscheinen nicht in Seitenleiste, Gruppen und Auswahlen, nur eingeklappt unter „Geschlossen“ in Konten › Übersicht und auf Wunsch in Filtern. Einstellungen › Profil speichert Name, Kürzel, Geburtsdatum, Haushalt (Personen) und Bundesland als Einstellungen (app_setting, protokolliert), später für den Vergleich von Einkommen und Vermögen mit der Statistik Austria; das Repo enthält keine echten Angaben, der Standard ist generisch.
+
 **Offen:** Die Konten- und Kategorienliste für die Migration (P2). Name entschieden: Budget.
 
 ## Brand Commitments

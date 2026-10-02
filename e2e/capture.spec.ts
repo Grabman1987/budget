@@ -180,8 +180,8 @@ test('discard question, Speichern und neu keeps the context, the payee brings it
   await expect(panel.getByLabel('Kategorie', { exact: true })).toHaveValue('');
   await page.keyboard.press('Enter');
   await expect(panel.getByLabel('Kategorie', { exact: true })).toHaveValue(category);
-  // The last used account comes first.
-  await expect(panel.getByLabel('Konto', { exact: true }).locator('option').first()).toHaveText(
+  // The last used account is preselected (the list itself is grouped like the sidebar).
+  await expect(panel.getByLabel('Konto', { exact: true }).locator('option:checked')).toHaveText(
     account,
   );
   // The open suggestion list must not shift the page: a click below it still lands.

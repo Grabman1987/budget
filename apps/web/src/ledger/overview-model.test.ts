@@ -36,6 +36,32 @@ const account = (over: Partial<AccountRow>): AccountRow => ({
 });
 
 describe('overviewModel', () => {
+  it('orders the groups like YNAB and keeps the owner order inside each', () => {
+    const model = overviewModel([
+      account({
+        id: 'depot',
+        type: 'brokerage',
+        role: 'investment',
+        onBudget: false,
+        sortOrder: 1,
+      }),
+      account({ id: 'kredit', type: 'loan', role: 'debt', onBudget: false, sortOrder: 2 }),
+      account({ id: 'karte', type: 'credit_card', role: 'budget', sortOrder: 3 }),
+      account({ id: 'bar', type: 'cash', sortOrder: 9, name: 'Bar' }),
+      account({ id: 'giro', type: 'checking', sortOrder: 4, name: 'Giro' }),
+      account({ id: 'tages', type: 'savings', role: 'reserve', sortOrder: 5 }),
+      account({ id: 'reise', type: 'cash', role: 'reserve', onBudget: false, sortOrder: 6 }),
+      account({ id: 'alt', type: 'checking', closedAt: '2026-01-01', sortOrder: 0 }),
+    ]);
+    expect(model.groups.map((g) => [g.group.title, g.accounts.map((a) => a.id)])).toEqual([
+      ['Budget-Konten', ['giro', 'tages', 'bar']],
+      ['Kreditkarten', ['karte']],
+      ['Kredite', ['kredit']],
+      ['Investments', ['depot', 'reise']],
+    ]);
+    expect(model.closed.map((a) => a.id)).toEqual(['alt']);
+  });
+
   it('groups open accounts in chain order and uses their EUR values', () => {
     const model = overviewModel([
       account({ id: 'g', balanceCents: 150_000, valueEurCents: 150_000 }),
@@ -56,10 +82,10 @@ describe('overviewModel', () => {
       }),
       account({ id: 'x', balanceCents: 0, closedAt: '2026-05-01', valueEurCents: 0 }),
     ]);
-    expect(model.groups.map((g) => [g.group.role, g.sumCents])).toEqual([
+    expect(model.groups.map((g) => [g.group.id, g.sumCents])).toEqual([
       ['budget', 150_000],
-      ['investment', 7_900_500],
-      ['debt', -1_200_000],
+      ['loans', -1_200_000],
+      ['investments', 7_900_500],
     ]);
     expect(model.netWorthCents).toBe(150_000 + 7_900_500 - 1_200_000);
     expect(model.closed.map((a) => a.id)).toEqual(['x']);
@@ -82,7 +108,7 @@ describe('overviewModel', () => {
         valueEurCents: -2_000,
       }),
     ]);
-    expect(model.groups.find((g) => g.group.role === 'budget')?.sumCents).toBe(9_200);
+    expect(model.groups.find((g) => g.group.id === 'budget')?.sumCents).toBe(9_200);
     expect(model.closedValueCents).toBe(10_345);
     expect(model.netWorthCents).toBe(19_545);
   });

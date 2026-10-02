@@ -4,6 +4,7 @@ import { MAIN_AREAS, type AreaId } from '../nav/areas';
 import { AccountTree } from './account-tree';
 import { AppLink } from './app-link';
 import { ThemeButton } from './theme-button';
+import { useShellIdentity } from './use-profile';
 
 export function BrandMark() {
   return (
@@ -43,6 +44,7 @@ export function BrandMark() {
  * profile at the bottom.
  */
 export function Sidebar({ area }: { area: AreaId | undefined }) {
+  const identity = useShellIdentity();
   return (
     <aside className="sidebar" id="sidebar" aria-label="Seitenleiste">
       <AppLink className="brand" to="/" aria-label="Budget, Heute">
@@ -93,15 +95,20 @@ export function Sidebar({ area }: { area: AreaId | undefined }) {
           <Settings size={18} strokeWidth={1.75} aria-hidden="true" />
           <span className="label">Einstellungen</span>
         </AppLink>
-        <div className="profile">
+        <AppLink
+          className="profile"
+          to="/einstellungen/profil"
+          title="Profil bearbeiten"
+          aria-label={`${identity.name}, Profil bearbeiten`}
+        >
           <span className="avatar" aria-hidden="true">
-            NU
+            {identity.initials}
           </span>
           <span className="profile-text">
-            <strong>Profil</strong>
+            <strong>{identity.name}</strong>
             <span>Passkey · dieses Gerät</span>
           </span>
-        </div>
+        </AppLink>
       </div>
     </aside>
   );

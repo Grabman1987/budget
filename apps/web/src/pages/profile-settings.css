@@ -1,0 +1,26 @@
+.profile-settings {
+  margin-top: 24px;
+}
+.profile-settings form {
+  max-width: 640px;
+}
+.profile-purpose {
+  max-width: 640px;
+  color: var(--ink-2);
+}
+.profile-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 4px 20px;
+  margin-bottom: 14px;
+}
+.profile-grid .input,
+.profile-grid .select {
+  width: 100%;
+  min-height: 44px;
+}
+@media (max-width: 640px) {
+  .profile-grid {
+    grid-template-columns: 1fr;
+  }
+}

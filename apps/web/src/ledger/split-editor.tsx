@@ -17,6 +17,7 @@ import {
   type SplitDraft,
   type SplitType,
 } from './booking-model';
+import { AccountOptions } from './account-options';
 import type { PickCategory } from './capture-model';
 import { eur } from './format';
 import type { AccountRow } from './types';
@@ -165,13 +166,7 @@ export function SplitEditor({
                     onChange={(e) => change(s.key, { toAccountId: e.target.value })}
                   >
                     <option value="">Konto wählen</option>
-                    {accounts
-                      .filter((a) => a.id !== accountId)
-                      .map((a) => (
-                        <option key={a.id} value={a.id}>
-                          {a.name}
-                        </option>
-                      ))}
+                    <AccountOptions accounts={accounts} exclude={accountId} />
                   </Select>
                 )}
               </Field>

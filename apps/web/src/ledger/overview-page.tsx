@@ -23,7 +23,8 @@ import { EmptyNote, ErrorNote, LoadingNote } from './states';
 import type { AccountRow, SeriesPoint } from './types';
 
 const META = KONTEN_META;
-const WINDOW_DAYS = 30;
+/** Window of the sparklines and of the net-worth change figure. */
+const WINDOW_DAYS = 90;
 
 /** Konten › Übersicht: net worth with its chain by group, then the parts list of the accounts. */
 export function OverviewPage() {
@@ -90,34 +91,25 @@ function NetWorth({
   const jump = (target: string) => () => {
     const row = document.getElementById(target === 'closed' ? 'kaccts-closed' : `kg-${target}`);
     if (!row) return;
+    if (row instanceof HTMLDetailsElement) row.open = true;
     row.scrollIntoView({ block: 'center' });
     row.classList.add('is-flash');
     window.setTimeout(() => row.classList.remove('is-flash'), 900);
   };
   const terms: DimensionChainTerm[] = [];
   if (model.netWorthCents !== null && model.closedValueCents !== null) {
-    const sum = (role: string) => model.groups.find((g) => g.group.role === role)?.sumCents;
-    const push = (
-      label: string,
-      role: string,
-      value: number | null | undefined,
-      op?: '+' | '-',
-    ) => {
-      if (value == null) return;
-      if (!model.groups.some((g) => g.group.role === role)) return;
+    // Chain in the order of the groups: the first term stands as it is, the following ones add or
+    // subtract by sign (Kreditkarten and Kredite are negative and so get a minus).
+    for (const { group, sumCents } of model.groups) {
+      if (sumCents === null) continue;
+      const first = terms.length === 0;
       terms.push({
-        label,
-        value: cents(value),
-        ...(op ? { op } : {}),
-        onSelect: jump(role),
+        label: group.title,
+        value: cents(first ? sumCents : Math.abs(sumCents)),
+        ...(first ? {} : { op: sumCents < 0 ? ('-' as const) : ('+' as const) }),
+        onSelect: jump(group.id),
       });
-    };
-    push('Budget-Konten', 'budget', sum('budget'));
-    push('Sparen', 'reserve', sum('reserve'), '+');
-    push('Investment', 'investment', sum('investment'), '+');
-    const debt = sum('debt');
-    push('Schulden', 'debt', debt == null ? undefined : -debt, '-');
-    push('Forderungen', 'receivable', sum('receivable'), '+');
+    }
     if (model.closedValueCents !== 0) {
       const closedIsNegative = model.closedValueCents < 0;
       terms.push({
@@ -197,7 +189,9 @@ function AccountsTable({ model }: { model: ReturnType<typeof overviewModel> }) {
         Konten nach Gruppe
       </h2>
       <table className="ktable">
-        <caption className="sr-only">Konten mit Saldo und Verlauf der letzten 30 Tage</caption>
+        <caption className="sr-only">
+          Konten mit Saldo und Verlauf der letzten {WINDOW_DAYS} Tage
+        </caption>
         <thead>
           <tr>
             <th className="tech kc-pos" scope="col">
@@ -207,7 +201,7 @@ function AccountsTable({ model }: { model: ReturnType<typeof overviewModel> }) {
               Konto
             </th>
             <th className="tech kc-line" scope="col">
-              30 Tage
+              {WINDOW_DAYS} Tage
             </th>
             <th className="tech kc-num" scope="col">
               Wert in EUR
@@ -216,24 +210,29 @@ function AccountsTable({ model }: { model: ReturnType<typeof overviewModel> }) {
         </thead>
         <tbody>
           {model.groups.map((g, gi) => (
-            <GroupRows key={g.group.role} view={g} index={gi + 1} series={byId} />
+            <GroupRows key={g.group.id} view={g} index={gi + 1} series={byId} />
           ))}
         </tbody>
       </table>
       {model.closed.length > 0 && (
-        <p className="ksum" id="kaccts-closed">
-          Geschlossen:{' '}
-          {model.closed.map((a, i) => (
-            <span key={a.id}>
-              {i > 0 && ', '}
-              <Link to="/konten/$id" params={{ id: a.id }}>
-                {a.name}
-              </Link>
-              {': '}
-              {accountValueEur(a) === null ? valuationMissingText(a) : eur(accountValueEur(a)!)}
-            </span>
-          ))}
-        </p>
+        <details className="kclosed" id="kaccts-closed">
+          <summary>
+            Geschlossen <span className="kclosed-n">({model.closed.length})</span>
+          </summary>
+          <ul>
+            {model.closed.map((a) => (
+              <li key={a.id}>
+                <Link className="kname prow-link" to="/konten/$id" params={{ id: a.id }}>
+                  {a.name}
+                </Link>
+                <span className="kmeta">{ACCOUNT_TYPE_LABEL[a.type]}</span>
+                <span className={cx('kclosed-val', (accountValueEur(a) ?? 0) < 0 && 'is-neg')}>
+                  {accountValueEur(a) === null ? valuationMissingText(a) : eur(accountValueEur(a)!)}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </details>
       )}
     </section>
   );
@@ -250,7 +249,7 @@ function GroupRows({
 }) {
   return (
     <>
-      <tr className="kgroup" id={`kg-${view.group.role}`}>
+      <tr className="kgroup" id={`kg-${view.group.id}`}>
         <td className="kc-pos">
           <CircleNumber n={index} size="sm" />
         </td>
