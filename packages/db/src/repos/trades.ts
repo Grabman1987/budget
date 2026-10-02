@@ -6,9 +6,15 @@ import {
   type TradeKind,
 } from '@budget/domain';
 import { randomUUID } from 'node:crypto';
-import { and, asc, eq, gte, isNull, lte, type SQL } from 'drizzle-orm';
-import { account, INCOME_TYPES, security, trade } from '../schema';
-import { insertTracked, updateTracked, withGroup, type AuditContext } from './audit';
+import { and, asc, eq, gte, inArray, isNull, lte, type SQL } from 'drizzle-orm';
+import { account, booking, bookingSplit, INCOME_TYPES, security, trade } from '../schema';
+import {
+  insertManyTracked,
+  insertTracked,
+  updateTracked,
+  withGroup,
+  type AuditContext,
+} from './audit';
 import {
   createBooking,
   deleteTradeSettlementBooking,
@@ -17,7 +23,7 @@ import {
   type SplitInput,
 } from './bookings';
 import { BookingInvariantError, EntityNotFoundError } from './errors';
-import { assertTradeSettlementInvariants } from './invariants';
+import { assertLedgerInvariants, assertTradeSettlementInvariants } from './invariants';
 import { runInTransaction, type Executor } from './types';
 
 export type TradeRow = typeof trade.$inferSelect;
@@ -37,6 +43,8 @@ export interface TradeInput {
   importKey?: string | null;
   note?: string | null;
   source?: 'manual' | 'import';
+  /** The import run that writes the trade; the settlement booking carries it too (revert). */
+  importRunId?: string | null;
 }
 
 export interface TradeResult {
@@ -160,6 +168,7 @@ export function createTrade(db: Executor, input: TradeInput, ctx: AuditContext):
               amountCents: net,
               memo: memoOf(input.kind, sec.name),
               source: input.source ?? 'manual',
+              importRunId: input.importRunId ?? null,
               splits: [settlementSplit(input.kind, net)],
             },
             grouped,
@@ -316,4 +325,109 @@ export function listTrades(db: Executor, filter: TradeFilter = {}): TradeRow[] {
     .where(and(...where))
     .orderBy(asc(trade.date), asc(trade.id))
     .all();
+}
+
+/**
+ * `createTrade` for many trades at once (an import of thousands of rows): the same rules, rows
+ * and audit entries (one `create` per trade, settlement booking and split, all in one group), but
+ * written through reused prepared statements and with the ledger and trade-settlement invariants
+ * checked once for the whole batch instead of after every row. A repeated `importKey` of an
+ * account writes nothing and returns the stored trade (`duplicate`). Order of the results = input.
+ */
+export function createTradesBulk(
+  db: Executor,
+  inputs: readonly TradeInput[],
+  ctx: AuditContext,
+): TradeResult[] {
+  const grouped = withGroup(ctx);
+  return runInTransaction(db, (tx) => {
+    const securities = new Map<string, ReturnType<typeof liveSecurity>>();
+    const accounts = new Set<string>();
+    const stored = new Map<string, TradeRow>();
+    const keys = [...new Set(inputs.flatMap((i) => (i.importKey ? [i.importKey] : [])))];
+    for (let i = 0; i < keys.length; i += 500)
+      for (const row of tx
+        .select()
+        .from(trade)
+        .where(inArray(trade.importKey, keys.slice(i, i + 500)))
+        .all())
+        stored.set(`${row.accountId}|${row.importKey}`, row);
+
+    const bookingRows: (typeof booking.$inferInsert)[] = [];
+    const splitRows: (typeof bookingSplit.$inferInsert)[] = [];
+    const tradeRows: (typeof trade.$inferInsert)[] = [];
+    const results: TradeResult[] = [];
+    const fresh = new Map<string, number>();
+    for (const input of inputs) {
+      const fields: Rules = {
+        kind: input.kind,
+        unitsE8: input.unitsE8 ?? 0,
+        amountCents: input.amountCents,
+        feeCents: input.feeCents ?? 0,
+        taxCents: input.taxCents ?? 0,
+      };
+      assertRules(fields);
+      const key = input.importKey ? `${input.accountId}|${input.importKey}` : null;
+      const existing = key ? stored.get(key) : undefined;
+      if (existing) {
+        results.push({ trade: existing, bookingId: existing.bookingId, duplicate: true });
+        continue;
+      }
+      if (key && fresh.has(key)) throw new TradeRuleError(`Import key ${key} is used twice`);
+      let sec = securities.get(input.securityId);
+      if (!sec) securities.set(input.securityId, (sec = liveSecurity(tx, input.securityId)));
+      if (!accounts.has(input.accountId)) {
+        investmentAccount(tx, input.accountId);
+        accounts.add(input.accountId);
+      }
+      const net = settlementCents(fields);
+      const bookingId = net === 0 ? null : randomUUID();
+      if (bookingId) {
+        bookingRows.push({
+          id: bookingId,
+          accountId: input.accountId,
+          date: input.date,
+          amountCents: net,
+          memo: memoOf(input.kind, sec.name),
+          source: input.source ?? 'manual',
+          importRunId: input.importRunId ?? null,
+        });
+        splitRows.push({
+          id: randomUUID(),
+          bookingId,
+          categoryId: null,
+          amountCents: net,
+          incomeTypeId: isIncomeTrade(input.kind) ? INCOME_TYPES.capital.id : null,
+          sortOrder: 0,
+        });
+      }
+      const row = {
+        id: randomUUID(),
+        securityId: input.securityId,
+        accountId: input.accountId,
+        date: input.date,
+        ...fields,
+        bookingId,
+        importKey: input.importKey ?? null,
+        note: input.note ?? null,
+      };
+      if (key) fresh.set(key, tradeRows.length);
+      results.push({ trade: row as TradeRow, bookingId, duplicate: false });
+      tradeRows.push(row);
+    }
+    insertManyTracked(tx, booking, bookingRows, grouped);
+    insertManyTracked(tx, bookingSplit, splitRows, grouped);
+    insertManyTracked(tx, trade, tradeRows, grouped);
+    assertLedgerInvariants(
+      tx,
+      bookingRows.map((r) => r.id as string),
+      false,
+    );
+    assertTradeSettlementInvariants(
+      tx,
+      bookingRows.map((r) => r.id as string),
+      tradeRows.map((r) => r.id as string),
+    );
+    return results;
+  });
 }
