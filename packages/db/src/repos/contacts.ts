@@ -26,6 +26,7 @@ export function getContactStatement(db: Executor, id: string, asOf: string) {
   return {
     contact: { id: row.id, name: row.name, note: row.note },
     asOf,
+    currency: 'EUR' as const,
     ...contactStatement(movements, savedContactSettlements(db, id, asOf)),
   };
 }

@@ -233,6 +233,12 @@ target date, those without a date last.
 returns the actual contact-tagged split movements, open outlays and receipt allocations. Positive
 balance means the contact owes the owner; negative means credit owed to the contact. Expected
 occurrences are never contact balance movements. These statements currently require EUR movements.
+Both reads expose `currency: "EUR"`; the list also returns checked-cent `totals` (receivable,
+payable and net balance). Each statement movement retains source `currency`, `status`, `accountId`
+and cash `amountCents`, with `contactDeltaCents` (opposite cash sign) and shared replay `balanceCents`.
+Nondeleted stored splits dated through `asOf` include pending bookings, matching the existing
+statement predicate. Mixed-currency reads fail wholly. Report 5.4 is fixed all-time through today;
+no period subtotal is substituted for the cumulative debt and no contact total enters net worth.
 
 `POST /contacts/:id/settlements { accountId, date, amountCents, memo?, allocations? }` records an
 actual positive EUR cash receipt (open checking, savings or cash account; no future date). With no

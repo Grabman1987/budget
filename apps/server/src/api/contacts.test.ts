@@ -43,6 +43,117 @@ const outlay = (amountCents: number) =>
     { actor: 'test' },
   );
 describe('contacts API', () => {
+  it('removes deleted unallocated source rows from the report and restores them with undo', async () => {
+    const id = outlay(3000);
+    const removed = await call('DELETE', `/bookings/${id}`);
+    expect(removed.status).toBe(200);
+    expect((await call('GET', '/contacts/k1')).body.movements).toEqual([]);
+    expect((await call('GET', '/contacts?history=1')).body.totals.balanceCents).toBe(0);
+    expect((await call('POST', '/undo', { groupId: removed.body.groupId })).status).toBe(200);
+    expect(
+      (await call('GET', '/contacts/k1')).body.movements.map((m: any) => m.balanceCents),
+    ).toEqual([3000]);
+  });
+  it('reports exact EUR cash/debt signs, running balances, pending metadata and undo', async () => {
+    createBooking(
+      opened.db,
+      {
+        accountId: 'giro',
+        date: '2026-09-01',
+        amountCents: -10000,
+        status: 'pending',
+        splits: [
+          { categoryId: 'auslagen', contactId: 'k1', amountCents: -10000, memo: 'Anteil Haushalt' },
+        ],
+      },
+      { actor: 'test' },
+    );
+    const receipt = await call('POST', '/contacts/k1/settlements', {
+      accountId: 'giro',
+      date: '2026-09-01',
+      amountCents: 12000,
+    });
+    expect(receipt.status).toBe(201);
+    const statement = (await call('GET', '/contacts/k1')).body;
+    expect(statement).toMatchObject({ currency: 'EUR', balanceCents: -2000, creditCents: 2000 });
+    expect(
+      statement.movements.map((m: any) => [
+        m.amountCents,
+        m.contactDeltaCents,
+        m.balanceCents,
+        m.currency,
+        m.status,
+        m.accountId,
+      ]),
+    ).toEqual([
+      [-10000, 10000, 10000, 'EUR', 'pending', 'giro'],
+      [12000, -12000, -2000, 'EUR', 'confirmed', 'giro'],
+    ]);
+    expect(statement.movements[0].memo).toBe('Anteil Haushalt');
+    expect((await call('GET', '/contacts?history=1')).body).toMatchObject({
+      currency: 'EUR',
+      totals: { receivableCents: 0, payableCents: 2000, balanceCents: -2000 },
+    });
+    expect((await call('GET', '/contacts/k1?asOf=2026-08-31')).body.movements).toEqual([]);
+    const undone = await call('POST', '/undo', { groupId: receipt.body.groupId });
+    expect(
+      (await call('GET', '/contacts/k1')).body.movements.map((m: any) => m.balanceCents),
+    ).toEqual([10000]);
+    expect((await call('POST', '/undo', { groupId: undone.body.groupId })).status).toBe(200);
+    expect(
+      (await call('GET', '/contacts/k1')).body.movements.map((m: any) => m.balanceCents),
+    ).toEqual([10000, -2000]);
+  });
+  it('retains balanced all-time history and excludes future movements until their date', async () => {
+    const id = outlay(10000);
+    await call('POST', '/contacts/k1/settlements', {
+      accountId: 'giro',
+      date: '2026-09-02',
+      amountCents: 10000,
+    });
+    createBooking(
+      opened.db,
+      {
+        accountId: 'giro',
+        date: '2026-10-01',
+        amountCents: -5000,
+        splits: [{ categoryId: 'auslagen', contactId: 'k1', amountCents: -5000 }],
+      },
+      { actor: 'test' },
+    );
+    expect((await call('GET', '/contacts')).body.contacts).toEqual([]);
+    expect((await call('GET', '/contacts?history=1')).body.contacts).toHaveLength(1);
+    const statement = (await call('GET', '/contacts/k1')).body;
+    expect(statement.movements.map((m: any) => m.balanceCents)).toEqual([10000, 0]);
+    expect(statement.movements[0].bookingId).toBe(id);
+    expect((await call('GET', '/contacts/k1?asOf=2026-10-01')).body.balanceCents).toBe(5000);
+    expect((await call('GET', '/contacts/missing')).status).toBe(404);
+  });
+  it('rejects the entire mixed-currency overview without a partial EUR total', async () => {
+    outlay(10000);
+    createEntity(
+      opened.db,
+      schema.contact,
+      { id: 'foreign', name: 'Fremdwährung Kontakt' },
+      { actor: 'test' },
+    );
+    createBooking(
+      opened.db,
+      {
+        accountId: 'usd',
+        date: '2026-09-01',
+        amountCents: -5000,
+        splits: [{ categoryId: 'auslagen', contactId: 'foreign', amountCents: -5000 }],
+      },
+      { actor: 'test' },
+    );
+    const result = await call('GET', '/contacts?history=1');
+    expect(result.status).toBe(422);
+    expect(result.body).not.toHaveProperty('totals');
+    expect(result.body).not.toHaveProperty('contacts');
+    expect((await call('GET', '/contacts/foreign')).status).toBe(422);
+    expect((await call('GET', '/contacts/k1')).body.balanceCents).toBe(10000);
+  });
   it('keeps balanced contacts selectable, preserves excess and supports atomic undo/redo', async () => {
     expect((await call('GET', '/contacts')).body.contacts).toEqual([]);
     expect((await call('GET', '/contacts?history=1')).body.contacts).toHaveLength(1);
