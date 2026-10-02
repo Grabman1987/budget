@@ -3,7 +3,6 @@ import { expect, test, type Page, type TestInfo } from '@playwright/test';
 import { cents, formatEuro } from '@budget/domain';
 import { mkdirSync } from 'node:fs';
 import { join } from 'node:path';
-import { MAIN_URL } from '../playwright.config';
 import { sampleTest } from './sample';
 
 type PerformanceFixture = {
