@@ -32,6 +32,8 @@ export interface AccountSummary {
   role: string;
   onBudget: boolean;
   contactId: string | null;
+  /** Verrechnungskonto of a depot (its cash account). */
+  referenceAccountId: string | null;
   currency: string;
   institutionId: string | null;
   openingBalanceCents: number;
@@ -101,6 +103,7 @@ export function accountSummaries(db: Executor, asOf: string): AccountSummary[] {
     role: r.account.role,
     onBudget: r.account.onBudget,
     contactId: r.account.contactId,
+    referenceAccountId: r.account.referenceAccountId,
     currency: r.account.currency,
     institutionId: r.account.institutionId,
     openingBalanceCents: r.account.openingBalanceCents,
