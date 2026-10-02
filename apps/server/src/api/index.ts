@@ -23,6 +23,7 @@ import {
 } from './invest';
 import { createMarketSources, marketModeFromEnv } from '../market/sources';
 import { errorResponse } from './http';
+import { liquidityRoutes } from './liquidity';
 import { lookupRoutes, payeeRoutes, undoRoutes } from './lookups';
 import { marketRoutes } from './market';
 import { wealthRoutes } from './wealth';
@@ -65,6 +66,7 @@ export function createLedgerApi({
   api.route('/wealth', wealthRoutes(db, today));
   api.route('/contacts', contactRoutes(db, today));
   api.route('/goals', goalRoutes(db, today));
+  api.route('/liquidity', liquidityRoutes(db, today));
   api.route('/heute', heuteRoutes(db, today));
   api.route('/rules', ruleRoutes(db, today));
   api.route('/securities', securityRoutes(db));

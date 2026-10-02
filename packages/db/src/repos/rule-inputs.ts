@@ -347,6 +347,7 @@ export function forecastInputs(
         cents: o.cents,
         kind: o.cents >= 0 ? ('income' as const) : ('fixed' as const),
         label: o.payment.name,
+        ...(o.category?.class ? { group: o.category.class } : {}),
       })),
     ...f.plannedEvents
       .filter((e) => e.date > asOf && e.date <= to)

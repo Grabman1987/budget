@@ -35,3 +35,4 @@ export * from './portfolio-allocation';
 
 export * from './payments-preview';
 export * from './freedom';
+export * from './liquidity-report';

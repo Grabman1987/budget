@@ -133,7 +133,7 @@ consistent totals, desktop/mobile checks and printing where required.
 | 2.4 | Persönliche Inflation | `reports-ausgaben.js` | Body Open |
 | 2.5 | Empfänger-Analyse | `reports-ausgaben.js` | Body Open |
 | 2.6 | Bank- und Zinskosten | `reports-ausgaben.js` | Body Open |
-| 3.1 | Liquiditätsprognose | `reports-zukunft.js` | Body + events/levers Open; forecast engine exists |
+| 3.1 | Liquiditätsprognose | `reports-zukunft.js` | Connected body: 90 days / 6 / 12 months, planned events stored in `planned_event` (add, switch off, remove, undo), 10 % buffer, 6-month verdict, month outlook, large movements, ledger-derived levers (pause Zukunft payments, cancel Wunsch contracts, trim variable). No surplus-to-Tagesgeld sweep (no stored rule); owner/private acceptance remains |
 | 3.2 | Cashflow-Verlauf | `reports-zukunft.js` | Body Open |
 | 3.3 | Vermögensverläufe | `reports-zukunft.js` | Report body Open; net-worth page exists |
 | 3.4 | Jahresvorschau Zahlungen | `reports-zukunft.js` | Partial: connected twelve-month versioned expected-outflow contract preview, native ranges/currencies, stored status/link overlay; independent savings plans, other future transfers and full source dedup remain Open |
