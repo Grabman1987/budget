@@ -1,7 +1,7 @@
 /** Object key of the encrypted backup of one UTC day. */
-export const backupKey = (prefix: string, day: string) => `${prefix}budget-${day}.sqlite.age`;
+export const backupKey = (prefix: string, day: string) => `${prefix}budget-${day}.tar.age`;
 
-const KEY_DATE = /budget-(\d{4}-\d{2}-\d{2})\.sqlite\.age$/;
+const KEY_DATE = /budget-(\d{4}-\d{2}-\d{2})\.(?:sqlite|tar)\.age$/;
 
 /** The UTC day (`YYYY-MM-DD`) of a backup key, undefined for anything else. */
 export const backupDay = (key: string): string | undefined => KEY_DATE.exec(key)?.[1];

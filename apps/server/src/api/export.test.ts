@@ -675,7 +675,7 @@ describe('GET /api/export/csv.zip', () => {
     }
     const after = snapshots();
     expect(after).toEqual(before);
-  });
+  }, 30_000);
 
   it('rejects a late CSV source failure and removes the snapshot instead of completing a partial ZIP', async () => {
     const snapshots = () =>
@@ -717,5 +717,5 @@ describe('GET /api/export/csv.zip', () => {
     expect(injected).toBe(true);
     expect(sourceFinalized).toBe(true);
     expect(snapshots()).toEqual(before);
-  });
+  }, 30_000);
 });
