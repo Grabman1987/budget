@@ -7,6 +7,7 @@ import { errorText } from '../ledger/labels';
 import { PAGES } from '../nav/pages';
 import { PageFrame } from './placeholder-page';
 import { CryptoReadSourceSection } from './read-source';
+import { PayslipSourceSection } from '../reports/payslip-intake';
 import './data-sources.css';
 
 type LinkedAccount = {
@@ -56,6 +57,7 @@ export function DataSourcesPage() {
       <div className="data-sources">
         <BankSourceSection />
         <CryptoReadSourceSection />
+        <PayslipSourceSection />
       </div>
     </PageFrame>
   );

@@ -100,7 +100,8 @@ if (backupConfig) {
 
 // A separate process shares this machine's SQLite volume; durable due times survive restart.
 const stopBankWorker =
-  process.env['ENABLE_BANKING_APP_ID'] && process.env['BUDGET_BANK_SYNC_DAILY'] !== '0'
+  (process.env['ENABLE_BANKING_APP_ID'] && process.env['BUDGET_BANK_SYNC_DAILY'] !== '0') ||
+  process.env['DROPBOX_PAYSLIP_ROOT']
     ? startBankWorker(resolve(import.meta.dirname, 'bank-sync-worker.js'))
     : () => {};
 

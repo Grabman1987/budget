@@ -136,6 +136,8 @@ export function resolveInboxItem(db: Executor, id: string, ctx: AuditContext) {
     if (!row) throw new EntityNotFoundError('inbox_item', id);
     if (row.kind === 'uncategorized')
       throw new ConflictError('Eine fehlende Kategorie wird in der Buchung ergänzt.');
+    if (row.refType === 'payslip-intake')
+      throw new ConflictError('Bitte den Gehaltszettel bestätigen oder ablehnen.');
     if (row.resolvedAt !== null) throw new ConflictError('Diese Aufgabe wurde bereits erledigt.');
     updateTracked(
       tx,

@@ -10,7 +10,7 @@ describe('payroll migration 0021', () => {
     const { db, sqlite, close } = openDatabase(':memory:');
     try {
       const migrations = readMigrationFiles({ migrationsFolder: defaultMigrationsFolder() });
-      expect(migrations).toHaveLength(PAYROLL_MIGRATION + 1);
+      expect(migrations.length).toBeGreaterThanOrEqual(PAYROLL_MIGRATION + 1);
       for (const migration of migrations.slice(0, PAYROLL_MIGRATION))
         for (const statement of migration.sql) sqlite.exec(statement);
       sqlite.exec(`
@@ -67,6 +67,23 @@ describe('payroll migration 0021', () => {
       ).toThrow(/CHECK/);
       expect(sqlite.pragma('foreign_key_check')).toEqual([]);
       expect(sqlite.pragma('foreign_keys', { simple: true })).toBe(1);
+      // Later intake migrations must preserve existing signed-capable capture/audit rows.
+      const retainedLines = db.select().from(payslipLine).all();
+      const retainedAudit = db.select().from(auditLog).all();
+      for (const migration of migrations.slice(PAYROLL_MIGRATION + 1))
+        for (const statement of migration.sql) sqlite.exec(statement);
+      expect(db.select().from(payslipLine).all()).toEqual(retainedLines);
+      expect(db.select().from(auditLog).all()).toEqual(retainedAudit);
+      db.insert(payslipLine)
+        .values({
+          id: 'signed-tax-correction',
+          payslipId: 's1',
+          section: 'tax_adjustment',
+          label: 'Synthetische Steuer-Aufrollung',
+          amountCents: -100,
+        })
+        .run();
+      expect(sqlite.pragma('foreign_key_check')).toEqual([]);
     } finally {
       close();
     }

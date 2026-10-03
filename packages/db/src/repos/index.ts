@@ -57,5 +57,6 @@ export * from './inflation-report';
 export * from './report-tables';
 export * from './cpi';
 export * from './payroll-projects';
+export * from './payslip-intake';
 
 export * from './read-source';

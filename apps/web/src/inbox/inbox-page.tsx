@@ -1,4 +1,5 @@
 import { BankCandidate } from './bank-candidate';
+import { PayslipUpload, PayslipIntakeDetail } from '../reports/payslip-intake';
 import { ReadSourceDetail } from './read-source-detail';
 import { Button, DetailPanel, RevisionTriangle, SectionHead, useToast } from '@budget/ui';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -199,6 +200,7 @@ function InboxBody({
           </p>
         </>
       )}
+      <PayslipUpload />
       <ReceiptSection />
     </section>
   );
@@ -241,6 +243,9 @@ function InboxRow({
               : item.detail}
           </span>
         )}
+        {item.type === 'stored' && item.refType === 'payslip-intake' && item.refId && (
+          <PayslipIntakeDetail id={item.refId} />
+        )}
       </td>
       <td className="rev-act kact">
         {item.type === 'booking' ? (
@@ -264,6 +269,10 @@ function InboxRow({
               </Button>
             )}
           </>
+        ) : item.refType === 'payslip-intake' && item.refId ? (
+          <AppLink className="btn btn-ghost btn-sm" to="/reports/gehalt">
+            Gehaltsreport
+          </AppLink>
         ) : (
           <>
             {item.refType === 'bank-sync-candidate' && item.refId && (
@@ -289,7 +298,11 @@ function InboxRow({
 
 /** Offer only connected repair views; unknown/legacy references stay readable without inert links. */
 function SourceLink({ item }: { item: InboxStored }) {
-  if (item.refType === 'read_source' || item.refType === 'bank-sync')
+  if (
+    item.refType === 'read_source' ||
+    item.refType === 'bank-sync' ||
+    item.refType === 'payslip-source'
+  )
     return (
       <AppLink className="btn btn-ghost btn-sm" to="/einstellungen/datenquellen">
         Datenquelle prüfen

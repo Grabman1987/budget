@@ -407,6 +407,14 @@ The 30 reports (SPEC §7), explorer, printable sheets, parallel run with reconci
 - [x] Source table, read-only detail and filtered source-booking/Plan drilldowns; literal API/read-only and write/undo/redo refresh checks, real synthetic API browser, keyboard/Axe and desktop1440/mobile390 light/dark evidence. See [report 3.5](evidence/report-3.5.md).
 - [ ] Original emergency-fund reach, Tagesgeld split, independently allocated money per goal, linear Soll path and owner acceptance remain open; I02 source allocation is not resolved by these guards.
 
+### Y22a — Automatic payslip intake
+Owner setup and limits: [payslip intake](payslip-intake.md); synthetic browser evidence: [verification](evidence/payslip-intake/README.md).
+
+- [x] Optional recursive Dropbox scan with dynamic year folders, durable incremental cursor, content-hash/SHA-256 deduplication and shared manual PDF upload.
+- [x] Server-only PDF password, bounded extraction, Austrian wage-line adapter with owner code mappings, separate reimbursements and signed tax/SV corrections; warning/retry, cent check and separate bonus/pension document handling.
+- [x] Audited draft/receipt/inbox staging and owner confirmation/rejection, live salary-booking suggestions, grouped undo/redo and encrypted receipt-backup reuse; source status and setup documentation.
+- [ ] Owner verification of private layouts/mappings, live read-only Dropbox authorization and encrypted restore after deployment.
+
 ### Y22 / Reports 1.2 and 1.9 — Captured payroll and side projects
 - [x] PR #139 review fixes: separate tax-free reimbursements, signed SV/Lohnsteuer corrections with exact net conservation and signed ratios, live payslip-position deduplication including undo/redo, salary-split payout linkage and retained archived project choices. Synthetic domain/API/migration and desktop/mobile browser regressions; details in [payroll report scope](payroll-projects.md).
 - [x] Manual EUR payslip capture/edit/remove: base gross plus typed additional earnings, SV-DN, captured Lohnsteuer, other deductions, controlled net; regular, 13th/14th and other special payments. Existing payout booking and optional stored receipt reference; no tax calculation or automatic booking.

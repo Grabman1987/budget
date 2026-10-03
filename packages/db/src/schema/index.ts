@@ -10,3 +10,4 @@ export * from './auth';
 
 export * from './contacts';
 export * from './bank-sync';
+export * from './payslip-intake';

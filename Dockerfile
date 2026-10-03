@@ -66,6 +66,10 @@ COPY --from=build /repo/apps/server/dist/index.js ./server.js
 # Import tasks (YNAB dry run, commit, revert) run in a worker thread loaded from this file.
 COPY --from=build /repo/apps/server/dist/import-worker.js ./import-worker.js
 COPY --from=build /repo/apps/server/dist/bank-sync-worker.js ./bank-sync-worker.js
+COPY --from=build /repo/apps/server/dist/pdf-thread.js ./pdf-thread.js
+# PDF.js loads its own worker module and Node polyfills at runtime; keep them outside esbuild.
+COPY --from=build /repo/node_modules/pdfjs-dist ./node_modules/pdfjs-dist
+COPY --from=build /repo/node_modules/@napi-rs ./node_modules/@napi-rs
 # One-time YNAB migration as an operator task (no import feature in the app; docs/ops.md).
 COPY --from=build /repo/apps/server/dist/migrate-cli.js ./migrate-cli.js
 # One-time Portfolio Performance migration as an operator task (docs/ops.md section 13).

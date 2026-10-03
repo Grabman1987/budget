@@ -22,7 +22,13 @@ export const INBOX_KINDS = [
   'other',
 ] as const;
 export const PAYSLIP_KINDS = ['regular', 'special'] as const;
-export const PAYSLIP_SECTIONS = ['earning', 'deduction', 'reimbursement'] as const;
+export const PAYSLIP_SECTIONS = [
+  'earning',
+  'deduction',
+  'reimbursement',
+  'tax_adjustment',
+  'sv_adjustment',
+] as const;
 
 /** Owner-selected acquisition cost method, shared by portfolio and reports. */
 export const investmentPreference = sqliteTable(
