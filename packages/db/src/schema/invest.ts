@@ -81,51 +81,6 @@ export const assetClassTarget = sqliteTable(
   ],
 );
 
-/**
- * Dynamic target weights by investment sum: one tier per threshold of the investment sum (market
- * value of all investment accounts and their cash accounts, see `investmentSumAsOf`). `up_to_cents`
- * is the inclusive upper bound, `NULL` the open "above" tier. When tiers exist, the tier chosen by
- * the current sum replaces the dated `asset_class_target` versions for the Soll-Allocation (R13,
- * portfolio views, allocation report). The id is derived from the threshold, so a changed
- * threshold is a new tier.
- */
-export const assetTargetTier = sqliteTable(
-  'asset_target_tier',
-  {
-    id: id(),
-    upToCents: cents('up_to_cents'),
-    ...timestamps(),
-  },
-  (t) => [
-    check('asset_target_tier_up_to_chk', sql`${t.upToCents} >= 0`),
-    uniqueIndex('asset_target_tier_up_to_uq')
-      .on(t.upToCents)
-      .where(sql`${t.upToCents} IS NOT NULL AND ${t.deletedAt} IS NULL`),
-  ],
-);
-
-/** Target share (and optional band) of one asset class inside one tier, in basis points. */
-export const assetTargetTierShare = sqliteTable(
-  'asset_target_tier_share',
-  {
-    id: id(),
-    tierId: text('tier_id')
-      .notNull()
-      .references(() => assetTargetTier.id),
-    assetClassId: text('asset_class_id')
-      .notNull()
-      .references(() => assetClass.id),
-    targetShareBp: integer('target_share_bp').notNull(),
-    bandBp: integer('band_bp').notNull().default(0),
-    ...timestamps(),
-  },
-  (t) => [
-    uniqueIndex('asset_target_tier_share_uq').on(t.tierId, t.assetClassId),
-    check('asset_target_tier_share_share_chk', sql`${t.targetShareBp} BETWEEN 0 AND 10000`),
-    check('asset_target_tier_share_band_chk', sql`${t.bandBp} BETWEEN 0 AND 10000`),
-  ],
-);
-
 /** Product (Wertpapier): ETF, stock, crypto, P2P loans. */
 export const security = sqliteTable(
   'security',

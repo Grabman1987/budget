@@ -75,15 +75,6 @@ const mock = (overrides: Record<string, unknown>) => ({
   allocation: {
     asOf: '2026-09-17',
     totalCents: 100_000,
-    targetSet: {
-      source: 'dated',
-      tierLabel: null,
-      upToCents: null,
-      position: null,
-      count: null,
-      investmentSumCents: null,
-      sumUnavailable: false,
-    },
     classes: [
       {
         assetClassId: 'a',

@@ -1,6 +1,6 @@
 import { evaluateBookRule } from './books';
 import { addDays, addMonths, monthOf } from '../date';
-import { evenDaily, liquidityForecast, lowPoint } from '../forecast';
+import { budgetLiquidityForecast } from '../forecast';
 import {
   ageOfMoney,
   cardCovered,
@@ -93,7 +93,10 @@ const r01: Rule<'R01'> = (p, i) => {
   const valueText = `${s.need} / ${s.want} / ${s.future} % · ${
     s.rest < 0 ? `aus Guthaben ${MINUS}${-s.rest}` : `übrig ${s.rest}`
   } %`;
-  const euroOver = Math.round((Math.max(worst, 0) * income) / 10_000);
+  const months = Array.from({ length: 12 }, (_, n) => addMonths(i.refMonth, n - 11)).filter(
+    (m) => i.allocByMonth?.[m] !== undefined,
+  ).length;
+  const euroOver = Math.round((Math.max(worst, 0) * income) / (10_000 * months));
   const action = {
     need: `Bedarf liegt über ${formatPercent(p.needMaxBp)} des Einkommens: Fixkosten und Verträge prüfen (${eur(euroOver)} im Monat zu viel).`,
     want: `Wunsch-Envelopes um ${eur(euroOver)} im Monat kürzen.`,
@@ -214,14 +217,7 @@ const r06: Rule<'R06'> = (_p, i) => {
 const r07: Rule<'R07'> = (p, i) => {
   const f = i.forecast;
   if (!f) return null;
-  const run = liquidityForecast({
-    startDay: f.startDay,
-    startCents: f.startCents,
-    days: p.horizonDays,
-    items: f.items,
-    variablePerDay: evenDaily(() => f.variableMonthlyCents),
-  });
-  const low = lowPoint(run.days, p.horizonDays);
+  const { low } = budgetLiquidityForecast(f, p.horizonDays);
   if (!low) return null;
   const status: RuleStatus =
     low.cents >= p.minCents ? 'ok' : low.cents >= -f.overdraftLimitCents ? 'warn' : 'bad';
@@ -234,7 +230,7 @@ const r07: Rule<'R07'> = (p, i) => {
 };
 
 const r08: Rule<'R08'> = (p, i) => {
-  if (i.netIncomeMonthlyCents === null) return null;
+  if (i.netIncomeMonthlyCents === null || i.loanPaymentsMonthlyCents === null) return null;
   const ratio = debtServiceRatio({
     loanPaymentsCents: i.loanPaymentsMonthlyCents,
     netIncomeCents: i.netIncomeMonthlyCents,
@@ -363,17 +359,13 @@ const r13: Rule<'R13'> = (p, i) => {
   const action = under
     ? `Nächste Sparrate vollständig in ${nameOf(under.assetClass)} (fehlen ${eur(under.gapCents)}).`
     : `${nameOf(worst.assetClass)} nicht weiter aufstocken (${eur(-worst.gapCents)} über dem Soll).`;
-  const tier = i.classTargetTier ?? null;
   return result(
     status,
-    `${nameOf(worst.assetClass)} ${formatPoints(worst.deviationBp ?? 0)}${
-      tier ? ` · Zielset ${tier.label}` : ''
-    }`,
+    `${nameOf(worst.assetClass)} ${formatPoints(worst.deviationBp ?? 0)}`,
     action,
     {
       maxDeviationBp: worst.deviationBp === null ? 0 : Math.abs(worst.deviationBp),
       breaches: st.breaches.map((r) => r.assetClass),
-      ...(tier && { tier }),
     },
   );
 };

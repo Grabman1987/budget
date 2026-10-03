@@ -191,7 +191,7 @@ export const PAGES: ReadonlyArray<PageDef> = [
     area: 'einstellungen',
     register: 'anlageklassen',
     fills: P5,
-    spec: 'Anlageklassen mit Soll-Allocation, auch dynamisch nach Anlagesumme.',
+    spec: 'Anlageklassen mit Soll-Allocation.',
   },
   {
     path: '/einstellungen/export',
@@ -214,9 +214,8 @@ export const PAGES: ReadonlyArray<PageDef> = [
 /** Einstellungen › Sicherheit; its own constant because the route and the (lazy) page both need it. */
 export const INVESTMENT_SETTINGS_META = PAGES.find((p) => p.path === '/einstellungen/depots')!;
 
-/** Einstellungen › Konten and › Anlageklassen. */
+/** Einstellungen › Konten. */
 export const KONTEN_SETTINGS_META = PAGES.find((p) => p.path === '/einstellungen/konten')!;
-export const ANLAGEKLASSEN_META = PAGES.find((p) => p.path === '/einstellungen/anlageklassen')!;
 
 /** Einstellungen › Profil. */
 export const PROFILE_META = PAGES.find((p) => p.path === '/einstellungen/profil')!;

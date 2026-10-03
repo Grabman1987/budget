@@ -2,7 +2,6 @@ import { eq } from 'drizzle-orm';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { createTestDatabase, type OpenedDatabase } from '../client';
 import { appSetting, auditLog, booking, expectedOccurrence, rule } from '../schema';
-import { listTargetTiers } from './asset-target-tiers';
 import { getBookSettings } from './book-settings';
 import { createBooking, getBooking } from './bookings';
 import { categories, getEntity } from './entities';
@@ -78,19 +77,6 @@ describe('parseOwnerConfigFile', () => {
       'listed twice',
     ],
     [{ assetClasses: { rename: [{ from: 'A' }] } }, 'rename[0].to'],
-    [
-      { assetTargets: [{ upToCents: 100, targets: [{ assetClass: 'A', shareBp: 5000 }] }] },
-      '10000',
-    ],
-    [
-      {
-        assetTargets: [
-          { upToCents: null, targets: [{ assetClass: 'A', shareBp: 10_000 }] },
-          { upToCents: null, targets: [{ assetClass: 'A', shareBp: 10_000 }] },
-        ],
-      },
-      'listed twice',
-    ],
     [{ securities: [{ quoteUrl: 'https://example.org/x' }] }, 'isin or a name'],
     [{ securities: [{ isin: 'XX0000000001' }] }, 'nothing to set'],
     [{ securities: [{ isin: 'XX0000000001', quoteUrl: 'http://example.org' }] }, 'https'],
@@ -254,7 +240,7 @@ describe('categoryStages', () => {
   });
 });
 
-describe('assetClasses and assetTargets', () => {
+describe('assetClasses', () => {
   const names = () => listAssetClasses(db).map((c) => c.name);
 
   it('renames, treats a finished rename as unchanged, skips unknown and taken names', () => {
@@ -276,79 +262,6 @@ describe('assetClasses and assetTargets', () => {
     expect(
       statuses(run({ assetClasses: { rename: [{ from: 'Aktien Welt', to: 'Aktien' }] } })),
     ).toEqual(['unchanged']);
-  });
-
-  it('loads tiers by class name, after a rename of the same file', () => {
-    const json = {
-      assetClasses: { rename: [{ from: 'Aktien Welt', to: 'Aktien' }] },
-      assetTargets: [
-        {
-          upToCents: 1_000_000,
-          targets: [
-            { assetClass: 'Aktien', shareBp: 5_000 },
-            { assetClass: 'Anleihen', shareBp: 5_000, bandBp: 300 },
-          ],
-        },
-        {
-          upToCents: null,
-          targets: [
-            { assetClass: 'Aktien', shareBp: 8_000 },
-            { assetClass: 'Anleihen', shareBp: 2_000 },
-          ],
-        },
-      ],
-    };
-    const outcomes = run(json);
-    expect(statuses(outcomes)).toEqual(['updated', 'updated']);
-    const tiers = listTargetTiers(db);
-    expect(tiers.map((t) => [t.upToCents, t.sumBp])).toEqual([
-      [1_000_000, 10_000],
-      [null, 10_000],
-    ]);
-    expect(tiers[0]!.shares.find((s) => s.assetClassId === 'ac2')?.bandBp).toBe(300);
-    // Second run: no change, no audit entry.
-    const before = auditCount();
-    expect(statuses(run(json))).toEqual(['unchanged', 'unchanged']);
-    expect(auditCount()).toBe(before);
-  });
-
-  it('skips the whole tier set for an unknown class and writes nothing', () => {
-    const outcomes = run({
-      assetTargets: [
-        {
-          upToCents: null,
-          targets: [
-            { assetClass: 'Aktien Welt', shareBp: 9_000 },
-            { assetClass: 'Gold', shareBp: 1_000 },
-          ],
-        },
-      ],
-    });
-    expect(outcomes[0]).toMatchObject({ status: 'skipped', reason: 'unknown_asset_class' });
-    expect(listTargetTiers(db)).toEqual([]);
-  });
-
-  it('replaces a tier set, undo restores it, dry run writes nothing', () => {
-    const first = run({
-      assetTargets: [
-        { upToCents: null, targets: [{ assetClass: 'Aktien Welt', shareBp: 10_000 }] },
-      ],
-    });
-    const second = run({
-      assetTargets: [
-        { upToCents: 500_000, targets: [{ assetClass: 'Anleihen', shareBp: 10_000 }] },
-        { upToCents: null, targets: [{ assetClass: 'Aktien Welt', shareBp: 10_000 }] },
-      ],
-    });
-    expect(listTargetTiers(db).map((t) => t.upToCents)).toEqual([500_000, null]);
-    undoAuditGroups(db, [second[0]!.groupId], operator);
-    expect(listTargetTiers(db).map((t) => t.upToCents)).toEqual([null]);
-    const before = auditCount();
-    run({ assetTargets: [] }, true);
-    expect(auditCount()).toBe(before);
-    expect(first[0]!.status).toBe('updated');
-    run({ assetTargets: [] });
-    expect(listTargetTiers(db)).toEqual([]);
   });
 });
 

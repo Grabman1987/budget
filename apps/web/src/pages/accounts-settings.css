@@ -1,4 +1,4 @@
-/* Einstellungen › Konten and › Anlageklassen: lists by group, hairlines instead of cards. */
+/* Einstellungen › Konten: lists by group, hairlines instead of cards. */
 .accounts-settings {
   margin-top: 24px;
   display: grid;
@@ -65,107 +65,6 @@
   margin: 4px;
 }
 
-/* Asset classes: classes, securities and target tiers. */
-.asset-settings {
-  margin-top: 24px;
-  display: grid;
-  gap: 32px;
-}
-.asset-block {
-  display: grid;
-  gap: 12px;
-  min-width: 0;
-}
-.asset-block p {
-  margin: 0;
-  max-width: 640px;
-}
-.asset-class-row {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: 8px 12px;
-  align-items: center;
-  padding: 10px 0;
-  border-top: 1px solid var(--rule);
-}
-.asset-class-row:first-child {
-  border-top: 0;
-}
-.asset-class-row .input {
-  min-height: 44px;
-  width: 100%;
-}
-.asset-class-sec {
-  grid-column: 1 / -1;
-  display: grid;
-  gap: 6px;
-}
-.asset-class-sec ul {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: grid;
-  gap: 4px;
-}
-.asset-class-sec li {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 6px 12px;
-}
-.asset-class-sec .select {
-  min-height: 44px;
-  max-width: 100%;
-}
-.tier-set {
-  display: grid;
-  gap: 10px;
-  padding: 12px 0;
-  border-top: 1px solid var(--rule);
-}
-.tier-set:first-of-type {
-  border-top: 0;
-}
-.tier-head {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 8px 16px;
-}
-.tier-head strong {
-  font-size: 15px;
-}
-.tier-active-mark {
-  font-size: 12.5px;
-  color: var(--ink-2);
-  border: 1px solid var(--rule-strong);
-  border-radius: var(--radius-sm);
-  padding: 2px 8px;
-}
-.tier-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
-  gap: 4px 16px;
-}
-.tier-grid .input {
-  min-height: 44px;
-  width: 100%;
-}
-.tier-sum {
-  font-size: 13px;
-  color: var(--ink-2);
-}
-.tier-sum.is-off {
-  color: var(--red);
-  font-weight: 600;
-}
-.tier-threshold {
-  max-width: 260px;
-}
-.tier-threshold .input {
-  min-height: 44px;
-  width: 100%;
-}
 @media (max-width: 640px) {
   .accounts-row {
     flex-direction: column;
@@ -173,8 +72,5 @@
   }
   .accounts-actions {
     justify-content: flex-start;
-  }
-  .asset-class-row {
-    grid-template-columns: 1fr;
   }
 }

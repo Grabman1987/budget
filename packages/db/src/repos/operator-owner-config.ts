@@ -24,7 +24,6 @@ import {
   security,
 } from '../schema';
 import { type AuditContext, type GroupedContext } from './audit';
-import { setTargetTiers, targetTiersDiffer, type TargetTierInput } from './asset-target-tiers';
 import { saveBookSettings } from './book-settings';
 import { updateBooking } from './bookings';
 import { updateCategory } from './categories';
@@ -48,8 +47,7 @@ import { runInTransaction, type Executor } from './types';
  * do not belong in the repo, loaded from one JSON file. Nothing here writes on its own: every
  * section calls the function behind the matching app route (`saveProfile`, `updateRule`,
  * `updateCategory`, `createExpectedPayment` / `updateExpectedPayment` / `addExpectedVersion`,
- * `markOccurrenceMissed`, `updateBooking`, `updateSecurity`, `updateAssetClass`,
- * `setTargetTiers`), so validation and audit match the UI path. One audit group per entry (actor
+ * `markOccurrenceMissed`, `updateBooking`, `updateSecurity`, `updateAssetClass`), so validation and audit match the UI path. One audit group per entry (actor
  * `operator`), each in its own savepoint, so Rückgängig or `undo-group` reverts every entry on its
  * own. An entry the app would refuse is skipped with a reason code, the rest goes through.
  * Running a file twice reports everything as `unchanged`.
@@ -127,10 +125,6 @@ export interface OwnerSecurity {
 export interface OwnerAssetClasses {
   rename: { from: string; to: string }[];
 }
-export interface OwnerAssetTier {
-  upToCents: number | null;
-  targets: { assetClass: string; shareBp: number; bandBp?: number }[];
-}
 export interface OwnerConfig {
   profile?: OwnerProfile;
   rules?: OwnerRules;
@@ -140,7 +134,6 @@ export interface OwnerConfig {
   clearBookings?: OwnerClearBookings;
   securities?: OwnerSecurity[];
   assetClasses?: OwnerAssetClasses;
-  assetTargets?: OwnerAssetTier[];
 }
 
 export const OWNER_CONFIG_SECTIONS = [
@@ -148,7 +141,6 @@ export const OWNER_CONFIG_SECTIONS = [
   'rules',
   'categoryStages',
   'assetClasses',
-  'assetTargets',
   'securities',
   'expectedPayments',
   'skipOccurrences',
@@ -158,7 +150,7 @@ export type OwnerConfigSection = (typeof OWNER_CONFIG_SECTIONS)[number];
 
 export interface OwnerConfigOutcome {
   section: OwnerConfigSection;
-  /** What the entry is about: the rule code, category, payment or account name, `tiers` ... */
+  /** What the entry is about: the rule code, category, payment or account name ... */
   key: string;
   status: 'created' | 'updated' | 'unchanged' | 'skipped';
   /** The changes as `field old -> new` (or field names only for private values); the refusal for a skip. */
@@ -388,40 +380,6 @@ export function parseOwnerConfigFile(
       'assetClasses.rename',
     );
   }
-  if (root['assetTargets'] !== undefined) {
-    const seen = new Set<number | null>();
-    config.assetTargets = list(root['assetTargets'], 'assetTargets', 20).map((raw, i) => {
-      const at = `assetTargets[${i}]`;
-      const o = strictObject(raw, at, ['upToCents', 'targets']);
-      const upTo = o['upToCents'];
-      const upToCents =
-        upTo === null ? null : int(upTo, `${at}.upToCents`, 0, Number.MAX_SAFE_INTEGER);
-      if (seen.has(upToCents)) throw new OperatorInputError(`${at}: threshold is listed twice`);
-      seen.add(upToCents);
-      const targets = list(o['targets'], `${at}.targets`, 50).map((t, j) => {
-        const x = strictObject(t, `${at}.targets[${j}]`, ['assetClass', 'shareBp', 'bandBp']);
-        return {
-          assetClass: text(x['assetClass'], `${at}.targets[${j}].assetClass`, 80),
-          shareBp: int(x['shareBp'], `${at}.targets[${j}].shareBp`, 0, 10_000),
-          ...(x['bandBp'] !== undefined && {
-            bandBp: int(x['bandBp'], `${at}.targets[${j}].bandBp`, 0, 10_000),
-          }),
-        };
-      });
-      uniqueKeys(
-        targets.map((t) => t.assetClass),
-        `${at}.targets`,
-      );
-      const sum = targets.reduce((a, t) => a + t.shareBp, 0);
-      if (targets.length === 0 || sum !== 10_000)
-        throw new OperatorInputError(
-          `${at}.targets add up to ${sum} bp, they must add up to 10000`,
-        );
-      return { upToCents, targets };
-    });
-    if (config.assetTargets.filter((t) => t.upToCents === null).length > 1)
-      throw new OperatorInputError('assetTargets: only one tier can be open (upToCents null)');
-  }
   if (root['securities'] !== undefined) {
     config.securities = list(root['securities'], 'securities').map((raw, i) => {
       const at = `securities[${i}]`;
@@ -604,19 +562,6 @@ function oneCategory(tx: Executor, name: string): string {
   return ids.get(fold(name))!;
 }
 
-function oneAssetClass(tx: Executor, name: string): string {
-  const found = tx
-    .select({ id: assetClass.id, name: assetClass.name })
-    .from(assetClass)
-    .where(isNull(assetClass.deletedAt))
-    .all()
-    .filter((c) => fold(c.name) === fold(name));
-  if (found.length === 0) throw new EntrySkip('unknown_asset_class', `no asset class "${name}"`);
-  if (found.length > 1)
-    throw new EntrySkip('ambiguous_asset_class', `several asset classes are named "${name}"`);
-  return found[0]!.id;
-}
-
 function oneExpectedPayment(tx: Executor, name: string) {
   const found = tx
     .select()
@@ -701,20 +646,6 @@ function applyRename(tx: Executor, e: { from: string; to: string }, ctx: Grouped
     throw new EntrySkip('name_taken', 'another asset class already has the new name');
   updateAssetClass(tx, row.id, { name: e.to }, ctx);
   return done([`name ${row.name} -> ${e.to}`]);
-}
-
-function applyTiers(tx: Executor, tiers: OwnerAssetTier[], ctx: GroupedContext): Step {
-  const input: TargetTierInput[] = tiers.map((t) => ({
-    upToCents: t.upToCents,
-    targets: t.targets.map((x) => ({
-      assetClassId: oneAssetClass(tx, x.assetClass),
-      targetShareBp: x.shareBp,
-      ...(x.bandBp !== undefined && { bandBp: x.bandBp }),
-    })),
-  }));
-  if (!targetTiersDiffer(tx, input)) return done([]);
-  setTargetTiers(tx, input, ctx);
-  return done([`${tiers.length} tier${tiers.length === 1 ? '' : 's'}`]);
 }
 
 // --- securities -------------------------------------------------------------------------------
@@ -905,8 +836,6 @@ export function applyOwnerConfig(
         add(entry(r, 'categoryStages', e.category, (t, c) => applyStage(t, e, c)));
       for (const e of config.assetClasses?.rename ?? [])
         add(entry(r, 'assetClasses', e.from, (t, c) => applyRename(t, e, c)));
-      if (config.assetTargets)
-        add(entry(r, 'assetTargets', 'tiers', (t, c) => applyTiers(t, config.assetTargets!, c)));
       for (const e of config.securities ?? [])
         add(entry(r, 'securities', e.isin ?? e.name!, (t, c) => applySecurity(t, e, c)));
       for (const e of config.expectedPayments ?? [])

@@ -670,22 +670,6 @@ code is 3. Running a file twice is safe: the second run reports everything as `u
   "rules": { "enable": ["R17"], "disable": ["R18"] },
   "categoryStages": [{ "category": "Miete", "stage": 1 }, { "category": "Reisen", "stage": null }],
   "assetClasses": { "rename": [{ "from": "Aktien", "to": "Aktien Welt" }] },
-  "assetTargets": [
-    {
-      "upToCents": 1000000,
-      "targets": [
-        { "assetClass": "Aktien Welt", "shareBp": 9000 },
-        { "assetClass": "Anleihen", "shareBp": 1000, "bandBp": 200 }
-      ]
-    },
-    {
-      "upToCents": null,
-      "targets": [
-        { "assetClass": "Aktien Welt", "shareBp": 6000 },
-        { "assetClass": "Anleihen", "shareBp": 4000 }
-      ]
-    }
-  ],
   "securities": [
     {
       "isin": "XX0000000001", "quoteUrl": "https://...", "symbol": "ABC",
@@ -704,9 +688,9 @@ code is 3. Running a file twice is safe: the second run reports everything as `u
 }
 ```
 
-Sections run in this order: `profile`, `rules`, `categoryStages`, `assetClasses`, `assetTargets`,
-`securities`, `expectedPayments`, `skipOccurrences`, `clearBookings`. Names are matched exactly
-(trimmed, case-insensitive); unknown and ambiguous names are skipped and never created.
+Sections run in this order: `profile`, `rules`, `categoryStages`, `assetClasses`, `securities`,
+`expectedPayments`, `skipOccurrences`, `clearBookings`. Names are matched exactly (trimmed,
+case-insensitive); unknown and ambiguous names are skipped and never created.
 
 - `profile`: the Einstellungen › Profil values. `region` is the Bundesland (code `AT-1` to `AT-9`
   or name); `country` only accepts Austria (`AT`, `Österreich`) or, as an alias, a Bundesland;
@@ -718,13 +702,7 @@ Sections run in this order: `profile`, `rules`, `categoryStages`, `assetClasses`
 - `categoryStages`: `stage` 1 to 9 or `null` (clear), matched by exact category name
   (`unknown_category`, `ambiguous_category`).
 - `assetClasses.rename`: `from` to `to`. A finished rename (old name gone, new name present) is
-  `unchanged`; a taken new name is `name_taken`.
-- `assetTargets`: replaces the whole set of target tiers (dynamic target weights by investment sum,
-  see SPEC section 5). `upToCents` is the inclusive upper bound of the investment sum (`null` is the
-  open "above" tier, at most one); every tier lists asset classes by name with `shareBp` adding up to
-  exactly 10000 and an optional `bandBp`. One entry (`tiers`), one audit group; an unknown class
-  skips the whole set. `[]` removes all tiers (the dated targets apply again). Class names may use
-  the new names of `assetClasses.rename` of the same file.
+  `unchanged`; a taken new name is `name_taken`. Nothing else about asset classes is touched.
 - `securities`: matched by `isin` (exactly one live one) or `name`; writes `quoteUrl` (https),
   `symbol`, `quoteExchange`, `coingeckoId`, `pricesEnabled` through `updateSecurity`; `null` clears a
   text field, equal values are `unchanged`.

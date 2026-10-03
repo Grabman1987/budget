@@ -4,10 +4,9 @@ import { join } from 'node:path';
 import { expect, it } from 'vitest';
 import { defaultMigrationsFolder, migrateDatabase, openDatabase } from './client';
 import { accounts } from './repos/entities';
-import { listTargetTiers, setTargetTiers } from './repos/asset-target-tiers';
 import { testCtx } from './repos/test-helpers';
 
-it('adds loan terms and target tiers without touching existing accounts or asset classes', () => {
+it('adds loan terms without touching existing accounts', () => {
   const source = defaultMigrationsFolder();
   const folder = mkdtempSync(join(tmpdir(), 'budget-owner-config-migration-'));
   const opened = openDatabase(':memory:');
@@ -28,7 +27,6 @@ it('adds loan terms and target tiers without touching existing accounts or asset
         VALUES ('loan', 'Kredit', 'loan', 'debt', 0, '2023-10-01', -500000, 450, '2030-01-01', 1);
       INSERT INTO account (id, name, type, role, on_budget, opening_date, sort_order)
         VALUES ('giro', 'Giro', 'checking', 'budget', 1, '2023-10-01', 2);
-      INSERT INTO asset_class (id, name, sort_order) VALUES ('ac', 'Aktien', 1);
     `);
     migrateDatabase(opened.db);
     migrateDatabase(opened.db); // Restarting must not repeat the additive DDL.
@@ -85,20 +83,6 @@ it('adds loan terms and target tiers without touching existing accounts or asset
     expect(() =>
       opened.sqlite.exec("UPDATE account SET term_start = 'soon' WHERE id = 'loan'"),
     ).toThrow(/CHECK/);
-    // Target tiers work on the migrated database; a threshold exists once among live tiers.
-    expect(listTargetTiers(opened.db)).toEqual([]);
-    setTargetTiers(
-      opened.db,
-      [
-        { upToCents: 100, targets: [{ assetClassId: 'ac', targetShareBp: 10_000 }] },
-        { upToCents: null, targets: [{ assetClassId: 'ac', targetShareBp: 10_000 }] },
-      ],
-      testCtx,
-    );
-    expect(listTargetTiers(opened.db).map((t) => t.upToCents)).toEqual([100, null]);
-    expect(() =>
-      opened.sqlite.exec("INSERT INTO asset_target_tier (id, up_to_cents) VALUES ('dup', 100)"),
-    ).toThrow(/UNIQUE/);
     expect(opened.sqlite.pragma('foreign_key_check')).toEqual([]);
     expect(opened.sqlite.pragma('integrity_check')).toEqual([{ integrity_check: 'ok' }]);
   } finally {

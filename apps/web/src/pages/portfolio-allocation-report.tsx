@@ -20,7 +20,6 @@ import {
 } from './portfolio-report-shared';
 import './portfolio-allocation-report.css';
 import { BookRuleMetric } from '../rules/book-rule-metric';
-import { TargetSetNote } from '../wealth/target-set';
 
 interface AllocationResponse extends WithValuationNotes {
   allocation: AllocationReport;
@@ -150,13 +149,11 @@ function AllocationBody({ data }: { data: AllocationReport }) {
             Für den Verlauf liegt keine bewertbare Historie vor.
           </p>
         )}
-        <TargetSetNote set={data.targetSet} />
         <SollTable data={data} />
         <p className="vnote">
           Soll und Band stellst du in den Einstellungen ein; ob und wie umgeschichtet wird,
           entscheidest du unter Vermögen › Portfolio. Dieser Report zeigt nur, wie sich die
-          Verteilung entwickelt hat. Das Soll gilt jeweils ab dem Datum seiner Version, bei Zielsets
-          nach Anlagesumme gilt je Monatsende das Set der damaligen Anlagesumme.
+          Verteilung entwickelt hat. Das Soll gilt jeweils ab dem Datum seiner Version.
         </p>
       </section>
     </>
