@@ -104,6 +104,10 @@ test('contact statement: edited allocation, excess credit, undo and retained bal
   await expect(panel).toContainText('Guthaben aus dieser Rückzahlung: 20,00 €');
   await panel.getByRole('button', { name: 'Rückzahlung speichern' }).click();
   await expect(panel.locator('.contacts-balance')).toContainText('−20,00 €');
+  // The undo toast closes after 6 s of real time; the axe runs and screenshots below can take
+  // longer on a slow runner. The toast keeps open while the pointer is over it (documented
+  // behaviour of ToastProvider), so park the pointer on it for the undo further down.
+  await page.locator('.toast.is-open').hover();
   expect((await readStatement()).creditCents).toBe(2000);
   const axe = await new AxeBuilder({ page }).analyze();
   expect(axe.violations.filter((v) => v.impact === 'serious' || v.impact === 'critical')).toEqual(
