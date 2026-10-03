@@ -1,0 +1,78 @@
+.payslip-upload {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-block: 16px;
+}
+.payslip-upload p {
+  flex-basis: 100%;
+}
+.payslip-upload .btn {
+  min-height: 44px;
+}
+.payslip-intake-detail {
+  max-width: 100%;
+  text-align: left;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+.kinbox-table .rev-row:has(.payslip-intake-detail) td {
+  vertical-align: top;
+}
+.payslip-intake-detail[open] {
+  max-width: 680px;
+}
+.payslip-intake-detail summary {
+  min-height: 44px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  text-decoration: underline;
+}
+.payslip-intake-detail .source-status {
+  display: block;
+}
+.payslip-intake-detail .source-status > div {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 8px;
+}
+.payslip-intake-detail select {
+  max-width: 100%;
+}
+.payslip-intake-detail .sources-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.payslip-intake-detail .btn {
+  min-height: 44px;
+}
+.payslip-intake-detail .source-status dt {
+  font-size: 12px;
+  color: var(--ink-3);
+}
+.payslip-intake-detail .source-status dd {
+  margin: 4px 0;
+}
+.payslip-password-details {
+  flex-basis: 100%;
+}
+.payslip-password-details summary {
+  min-height: 44px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+}
+.payslip-password {
+  display: grid;
+  gap: 8px;
+  max-width: 360px;
+  margin-block: 8px;
+}
+.payslip-password-controls {
+  margin-block: 8px;
+}

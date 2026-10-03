@@ -60,6 +60,7 @@ export * from './report-tables';
 export * from './cpi';
 export * from './book-settings';
 export * from './payroll-projects';
+export * from './payslip-intake';
 
 export * from './read-source';
 export * from './income-month';

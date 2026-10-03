@@ -33,6 +33,7 @@ export const test = base.extend<{ isolatedLedger: IsolatedLedger }>({
       env: {
         PATH: process.env['PATH'],
         NODE_ENV: 'test',
+        PAYSLIP_PDF_PASSWORD: 'synthetic-pdf-password',
         PORT: String(port),
         WEB_DIR: resolve('apps/web/dist'),
         DATABASE_PATH: join(directory, 'ledger.sqlite'),

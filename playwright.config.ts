@@ -43,6 +43,8 @@ const server = (port: number, database: string) => ({
   env: {
     PORT: String(port),
     ENABLE_BANKING_APP_ID: '',
+    DROPBOX_PAYSLIP_ROOT: '',
+    PAYSLIP_PDF_PASSWORD: 'synthetic-pdf-password',
     BUDGET_BANK_SYNC_DAILY: '0',
     WEB_DIR: 'apps/web/dist',
     DATABASE_PATH: database,
