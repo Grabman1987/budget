@@ -4,14 +4,14 @@ import { mkdtempSync, rmSync } from 'node:fs';
 import { createServer } from 'node:net';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
-import { E2E_SETUP_TOKEN } from '../playwright.config';
+import { E2E_SETUP_TOKEN } from './setup-token';
 import { bootstrapPasskey } from './bootstrap';
 
 /** The day every isolated ledger runs on; the browser clock is pinned to it as well (see `page`). */
 const LEDGER_TODAY = '2026-10-02';
 const LEDGER_NOW = `${LEDGER_TODAY}T12:00:00+02:00`;
 
-type IsolatedLedger = { origin: string; storageState: string };
+type IsolatedLedger = { origin: string; storageState: string; databasePath: string };
 const pause = (milliseconds: number) => new Promise((done) => setTimeout(done, milliseconds));
 
 /** A real, empty ledger per attempt: global valuation must not see another test's holdings. */
@@ -82,7 +82,7 @@ export const test = base.extend<{ isolatedLedger: IsolatedLedger }>({
         await pause(100);
       }
       await bootstrapPasskey(bootstrap, origin, storageState);
-      await use({ origin, storageState });
+      await use({ origin, storageState, databasePath: join(directory, 'ledger.sqlite') });
     } finally {
       try {
         await bootstrap?.dispose();

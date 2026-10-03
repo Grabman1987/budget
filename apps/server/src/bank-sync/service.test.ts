@@ -247,6 +247,17 @@ describe('bank sync workflow', () => {
       '2026-10-01',
       expect.any(Function),
     );
+    expect(
+      opened.db
+        .select()
+        .from(schema.bankSyncAccount)
+        .where(eq(schema.bankSyncAccount.id, linkId))
+        .get(),
+    ).toMatchObject({
+      balanceCents: 98799,
+      balanceDate: '2026-09-30',
+      balanceFetchedAt: now.toISOString(),
+    });
     expect(candidates()).toHaveLength(1);
     expect(bookedBalance(opened.db, 'giro', '2026-10-01')).toBe(100000);
     const inbox = storedInbox('2026-10-01');

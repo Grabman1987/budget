@@ -1,5 +1,7 @@
 import {
   account,
+  bankBalanceForAccount,
+  lockBankBalance,
   accounts,
   accountSummaries,
   balanceSeries,
@@ -62,6 +64,8 @@ export function accountRoutes(db: Db, today: () => string): Hono {
       missingPriceSecurityIds: valuation.missingPriceSecurityIds,
       accounts: accountSummaries(db, asOf).map((a) => ({
         ...a,
+        bankBalance:
+          a.closedAt || asOf !== today() ? null : bankBalanceForAccount(db, a.id, today()),
         holdingsCents: Object.hasOwn(valuation.holdingsByAccount, a.id)
           ? valuation.holdingsByAccount[a.id]!
           : 0,
@@ -222,6 +226,11 @@ export function accountRoutes(db: Db, today: () => string): Hono {
     return c.json({
       preview: previewReconciliation(db, { accountId: id, ...input, today: today() }),
     });
+  });
+
+  app.post('/:id/bank-lock', async (c) => {
+    await readBody(c, reconcileBody.pick({}).strict());
+    return c.json(lockBankBalance(db, c.req.param('id'), today(), audit()));
   });
 
   app.post('/:id/reconciliation', async (c) => {

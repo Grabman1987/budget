@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import {
   bankCents,
+  bankMatches,
+  canLinkTransfer,
+  withinBankWindow,
   bankFetchFrom,
   bankTransactionKeys,
   consentNeedsAttention,
@@ -55,5 +58,42 @@ describe('bank sync arithmetic and identity', () => {
       false,
     );
     expect(nextBankRun(new Date('2026-10-01T03:00:00Z'))).toBe('2026-10-02T02:30:00.000Z');
+  });
+});
+
+describe('bank matching calendar window', () => {
+  const candidate = {
+    id: 'bank',
+    accountId: 'a',
+    date: '2026-10-27',
+    currency: 'EUR',
+    amountCents: -129,
+  };
+  it('includes both fifth-day boundaries across daylight saving time', () => {
+    expect(withinBankWindow('2026-10-22', '2026-10-27')).toBe(true);
+    expect(withinBankWindow('2026-10-21', '2026-10-27')).toBe(false);
+    expect(withinBankWindow('invalid', '2026-10-27')).toBe(false);
+    expect(bankMatches(candidate, [{ ...candidate, id: 'b', date: '2026-11-01' }])).toHaveLength(1);
+  });
+  it('ranks by exact day distance and stable identity; transfer means opposite amount', () => {
+    expect(
+      bankMatches(candidate, [
+        { ...candidate, id: 'z' },
+        { ...candidate, id: 'a' },
+        { ...candidate, id: 'far', date: '2026-10-24' },
+      ]).map((b) => b.id),
+    ).toEqual(['a', 'z', 'far']);
+    expect(
+      canLinkTransfer(candidate, { ...candidate, id: 'other', accountId: 'b', amountCents: 129 }),
+    ).toBe(true);
+    expect(
+      canLinkTransfer(candidate, { ...candidate, id: 'other', accountId: 'b', amountCents: -129 }),
+    ).toBe(false);
+    expect(
+      canLinkTransfer(
+        { ...candidate, amountCents: 0 },
+        { ...candidate, id: 'other', accountId: 'b', amountCents: 0 },
+      ),
+    ).toBe(false);
   });
 });

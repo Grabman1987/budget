@@ -1,3 +1,4 @@
+import { BankBalance } from './bank-balance';
 import { addDays, cents, todayInVienna } from '@budget/domain';
 import { Button, CircleNumber, DimensionChain, type DimensionChainTerm, cx } from '@budget/ui';
 import { useQueries, useQuery } from '@tanstack/react-query';
@@ -334,6 +335,7 @@ function GroupRows({
                 {ACCOUNT_TYPE_LABEL[a.type]}
                 {a.pendingCount > 0 && <span>{a.pendingCount} vorgemerkt</span>}
               </span>
+              <BankBalance account={a} />
               {util !== null && a.creditLimitCents !== null && (
                 <span className="kutil">
                   <span className="pbar" aria-hidden="true">

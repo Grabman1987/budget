@@ -801,7 +801,13 @@ export class BankSync {
                 tx,
                 link,
                 [a.id],
-                { lastSyncAt: this.clock().toISOString(), secret: this.box.seal(uid, a.id) },
+                {
+                  lastSyncAt: this.clock().toISOString(),
+                  secret: this.box.seal(uid, a.id),
+                  balanceCents: balance.amountCents,
+                  balanceDate: balance.date,
+                  balanceFetchedAt: this.clock().toISOString(),
+                },
                 ctx,
               );
             });

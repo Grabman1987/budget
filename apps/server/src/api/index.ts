@@ -79,7 +79,7 @@ export function createLedgerApi({
   api.route('/payslips', payrollRoutes(db, today));
   api.route('/projects', projectRoutes(db, today));
   api.route('/income-month-rules', incomeMonthRoutes(db));
-  api.route('/bank-sync', bankSyncRoutes(bankSync, stepUp));
+  api.route('/bank-sync', bankSyncRoutes(bankSync, stepUp, db));
   api.route('/sources/crypto', readSourceRoutes(db, today, stepUp, cryptoReadSource()));
   api.route('/search', searchRoutes(db));
   api.route('/accounts', accountRoutes(db, today));

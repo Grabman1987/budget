@@ -60,3 +60,5 @@ export * from './payroll-projects';
 
 export * from './read-source';
 export * from './income-month';
+
+export * from './bank-followups';

@@ -116,6 +116,9 @@ test('bank inbox suggestion requires an explicit posting decision', async ({ pag
       },
     }),
   );
+  await page.route('**/api/bank-sync/candidates/**/matches', (route) =>
+    route.fulfill({ json: { merge: [], transfers: [] } }),
+  );
   await page.route('**/api/bank-sync/candidates/**/confirm', (route) => {
     expect(route.request().method()).toBe('POST');
     expect(route.request().postDataJSON()).toEqual({ categoryId: null });

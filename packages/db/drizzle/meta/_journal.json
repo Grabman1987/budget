@@ -162,6 +162,13 @@
       "when": 1791005609751,
       "tag": "0022_income_next_month_and_pending",
       "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "6",
+      "when": 1791005686961,
+      "tag": "0023_bank_followups",
+      "breakpoints": true
     }
   ]
 }

@@ -1,5 +1,6 @@
 import {
   account,
+  linkBookings,
   createBooking,
   createTransfer,
   deleteBooking,
@@ -18,6 +19,7 @@ import {
 } from '@budget/db';
 import { and, eq, isNull } from 'drizzle-orm';
 import { randomUUID } from 'node:crypto';
+import { z } from 'zod';
 import { Hono } from 'hono';
 import { ACTOR, ApiError, defined, errorAnswer, readBody, readQuery } from './http';
 import { bookingDeleteQuery, bookingPatch, bookingQuery, bulkBody, createBody } from './schemas';
@@ -152,6 +154,14 @@ export function bookingRoutes(db: Db): Hono {
    * of a transfer in one selection are one Umbuchung: a delete takes the pair once (the second leg
    * counts as changed), a category is refused for both with `transfer_pair`.
    */
+  app.post('/link-transfer', async (c) => {
+    const body = await readBody(
+      c,
+      z.object({ ids: z.tuple([z.string().min(1).max(200), z.string().min(1).max(200)]) }).strict(),
+    );
+    return c.json(linkBookings(db, body.ids, audit()));
+  });
+
   app.post('/bulk', async (c) => {
     const body = await readBody(c, bulkBody);
     const ctx = audit();
