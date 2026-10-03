@@ -10,8 +10,22 @@ import { PageFrame } from '../pages/placeholder-page';
 import { BalanceChart } from './balance-chart';
 import { BookingPanel, type BookingPanelState } from './booking-panel';
 import { BookingTable } from './booking-table';
-import { eur, longDay, monthName, pluralBookings } from './format';
-import { ACCOUNT_TYPE_LABEL, accountValue, canReconcile, groupOf } from './labels';
+import {
+  eur,
+  longDay,
+  monthName,
+  pluralBookings,
+  valuedCurrency,
+  valuedCurrencyParts,
+  valuedMovement,
+} from './format';
+import {
+  ACCOUNT_TYPE_LABEL,
+  accountValueEur,
+  canReconcile,
+  groupOf,
+  valuationMissingText,
+} from './labels';
 import { accountsQuery, bookingsInfiniteQuery, seriesQuery } from './queries';
 import { ReconcilePanel } from './reconcile-panel';
 import { EmptyNote, ErrorNote, LoadingNote } from './states';
@@ -75,7 +89,12 @@ function AccountBody({ account }: { account: AccountRow }) {
   );
   const [panel, setPanel] = useState<BookingPanelState>(null);
   const [checking, setChecking] = useState(false);
-  const value = accountValue(account);
+  const value = accountValueEur(account);
+  const pending = valuedCurrencyParts(
+    account.unclearedCents,
+    account.currency,
+    account.pendingValuation,
+  );
   const page = list.data?.pages[0];
   const items = list.data?.pages.flatMap((p) => p.items) ?? [];
 
@@ -106,21 +125,34 @@ function AccountBody({ account }: { account: AccountRow }) {
       </div>
       <div className="kfigs">
         <div className="fig">
-          <small>Saldo</small>
+          <small>{account.currency === 'EUR' ? 'Saldo' : `Kontowert · EUR`}</small>
           <strong
             className={cx(value !== null && value < 0 && 'neg')}
             data-testid="account-balance"
           >
             {value === null ? 'Kurs fehlt' : eur(value)}
           </strong>
+          {account.currency !== 'EUR' && (
+            <p className="kmeta">
+              Cash-Saldo:{' '}
+              {valuedCurrency(account.balanceCents, account.currency, account.cashValuation)}
+            </p>
+          )}
+          {value === null && <p className="kmeta">{valuationMissingText(account)}</p>}
         </div>
         <div className="fig">
           <small>davon vorgemerkt</small>
-          <strong className="muted">{eur(account.unclearedCents)}</strong>
+          <strong className="muted">{pending.amount}</strong>
+          {pending.rate && <p className="kmeta">{pending.rate}</p>}
         </div>
         <div className="fig">
           <small>{monthName(today)}</small>
-          <strong className="muted">{page ? eur(page.sumCents, { sign: true }) : '–'}</strong>
+          <strong className="muted">
+            {page ? valuedMovement(page.sumCents, account.currency, page.sumEurCents) : '–'}
+          </strong>
+          {account.currency !== 'EUR' && (
+            <p className="kmeta">Bewegung · EUR je Buchungstag, Kurse in der Tabelle</p>
+          )}
         </div>
         <div className="fig">
           <small>zuletzt geprüft</small>
@@ -136,19 +168,48 @@ function AccountBody({ account }: { account: AccountRow }) {
       )}
       {series.data && (
         <>
-          <BalanceChart points={series.data.points} windowLabel={`${CHART_DAYS} Tage`} />
+          <BalanceChart
+            points={series.data.points}
+            windowLabel={`${CHART_DAYS} Tage`}
+            currency={account.currency}
+          />
+          {account.currency !== 'EUR' && (
+            <details className="kfx-history">
+              <summary>EUR-Bewertung · Tageswerte und Kurse</summary>
+              <p className="kmeta">
+                Cash-Saldo am jeweiligen Tag; Wertpapiere sind hier nicht enthalten.
+              </p>
+              <table className="ktable">
+                <caption className="sr-only">Saldoverlauf mit EUR-Bewertung</caption>
+                <thead>
+                  <tr>
+                    <th scope="col">Datum</th>
+                    <th scope="col">Saldo · {account.currency} / EUR</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {series.data.points.map((p) => (
+                    <tr key={p.date}>
+                      <td>{longDay(p.date)}</td>
+                      <td>{valuedCurrency(p.balanceCents, account.currency, p.valuation)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </details>
+          )}
           <div className="legend" aria-hidden="true">
             <span>
               <svg viewBox="0 0 26 8">
                 <path className="l-actual" d="M0 4h26" />
               </svg>
-              Saldo
+              Cash-Saldo · {account.currency}
             </span>
             <span>
               <svg viewBox="0 0 26 8">
                 <path className="l-plan" d="M0 4h26" />
               </svg>
-              {privateAmount('0')} € ·{' '}
+              {privateAmount('0')} {account.currency === 'EUR' ? '€' : account.currency} ·{' '}
               {account.type === 'checking' ? 'darunter beginnt der Dispo' : 'Nulllinie'}
             </span>
           </div>

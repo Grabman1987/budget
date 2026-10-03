@@ -11,6 +11,7 @@ export * from './bookings';
 export { assertLedgerInvariants, relatedTransferBookings } from './invariants';
 export * from './envelopes';
 export * from './prices';
+export * from './cash-valuation';
 export * from './queries';
 export * from './portfolio';
 export * from './valuation-notes';

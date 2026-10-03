@@ -4,7 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 import { ArrowDown, ArrowUp, Pencil } from 'lucide-react';
 import { Fragment, useState, type ReactNode } from 'react';
 import { CategoryCell, FlagCell, PayeeCell, StatusCell, useCategoryClasses } from './booking-cells';
-import { dayHeading, eur, shortDay } from './format';
+import { dayHeading, nativeCurrency, valuedCurrency, shortDay } from './format';
 import { flashRows, useFlashing } from './flash';
 import { useLedgerWrites } from './mutations';
 import { lookupsQuery } from './queries';
@@ -134,7 +134,19 @@ export function BookingTable({
                 <tr className="kday">
                   <td colSpan={selection ? 8 : 7}>
                     <span className="tech">{dayHeading(group.day)}</span>
-                    <span className="kday-sum">{eur(group.sum, { sign: true })}</span>
+                    <span className="kday-sum">
+                      {[...new Set(group.items.map((b) => b.currency))]
+                        .map((currency) =>
+                          nativeCurrency(
+                            group.items
+                              .filter((b) => b.currency === currency)
+                              .reduce((sum, b) => sum + b.amountCents, 0),
+                            currency,
+                            true,
+                          ),
+                        )
+                        .join(' · ')}
+                    </span>
                   </td>
                 </tr>
               )}
@@ -291,10 +303,18 @@ function Row({
       <td className="kx-status">
         <StatusCell status={b.status} />
       </td>
-      <td className="kc-num kx-amount">{eur(b.amountCents, { sign: true })}</td>
+      <td className="kc-num kx-amount">
+        <span className={b.currency === 'EUR' ? undefined : 'kfx-money'}>
+          {valuedCurrency(b.amountCents, b.currency, b.amountValuation, true)}
+        </span>
+      </td>
       {variant === 'account' && (
         <td className="kc-num kc-run kx-run">
-          {b.balanceAfterCents === null ? '' : eur(b.balanceAfterCents)}
+          <span className={b.currency === 'EUR' ? undefined : 'kfx-money'}>
+            {b.balanceAfterCents === null
+              ? ''
+              : valuedCurrency(b.balanceAfterCents, b.currency, b.balanceValuation)}
+          </span>
         </td>
       )}
     </tr>

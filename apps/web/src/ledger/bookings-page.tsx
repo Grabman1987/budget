@@ -15,7 +15,7 @@ import { BookingTable, type Selection } from './booking-table';
 import { CategoryCombobox } from './category-picker';
 import { filterFromSearch, hasFilter, type BookingsSearch } from './bookings-search';
 import { pickableCategories } from './capture-model';
-import { eur, pluralBookings } from './format';
+import { eur, pluralBookings, valuedMovement } from './format';
 import { FLAG_LABEL, STATUS_LABEL } from './labels';
 import { useLedgerWrites } from './mutations';
 import { AccountOptions } from './account-options';
@@ -74,6 +74,8 @@ export function BookingsPage() {
 
   const items = useMemo(() => list.data?.pages.flatMap((p) => p.items) ?? [], [list.data]);
   const first = list.data?.pages[0];
+  const filteredAccount = accounts.data?.accounts.find((a) => a.id === filter.accountId);
+  const onlyEurAccounts = accounts.data?.accounts.every((a) => a.currency === 'EUR');
   const selection: Selection = {
     selected,
     toggle: (id) =>
@@ -242,7 +244,15 @@ export function BookingsPage() {
           )}
           {first && (
             <p className="ksum" aria-live="polite">
-              {pluralBookings(first.total)} · Summe {eur(first.sumCents, { sign: true })}
+              {pluralBookings(first.total)} ·{' '}
+              {filteredAccount
+                ? `Summe ${valuedMovement(first.sumCents, filteredAccount.currency, first.sumEurCents)}`
+                : onlyEurAccounts
+                  ? `Summe ${eur(first.sumCents, { sign: true })}`
+                  : 'Summe: einzelnes Konto auswählen'}
+              {filteredAccount?.currency !== 'EUR' && filteredAccount && (
+                <> · EUR je Buchungstag, Kurse in der Tabelle</>
+              )}
             </p>
           )}
         </section>

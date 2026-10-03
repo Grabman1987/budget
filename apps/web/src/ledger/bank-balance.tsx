@@ -3,7 +3,7 @@ import { Button, useAmountPrivacy } from '@budget/ui';
 import { useState } from 'react';
 import { request } from '../api/http';
 import { useBudgetWrite } from '../budget/use-category-writes';
-import { longDay, nativeCurrency } from './format';
+import { longDay, valuedCurrency } from './format';
 import type { AccountRow } from './types';
 
 export function BankBalance({ account }: { account: AccountRow }) {
@@ -18,7 +18,7 @@ export function BankBalance({ account }: { account: AccountRow }) {
         Bankstand:{' '}
         {balance.amountCents === null
           ? 'Noch nicht abgerufen'
-          : nativeCurrency(balance.amountCents, account.currency)}
+          : valuedCurrency(balance.amountCents, account.currency, balance.valuation)}
         {balance.date && ` · ${longDay(balance.date)}`}
       </span>
       <span className="kmeta">
