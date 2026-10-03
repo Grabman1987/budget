@@ -35,6 +35,7 @@ The four final captures use the real sample-ledger API response after switching 
 - `/workspace/.budget-tools/portfolio-report-evidence/portfolio-performance-light-mobile.png`
 - `/workspace/.budget-tools/portfolio-report-evidence/portfolio-performance-dark-mobile.png`
 
-The report has no comparison benchmark, class comparison or monthly heatmap yet;
-the securities-only label excludes depot cash. Those are follow-up scope, not
-represented by this evidence.
+This historical evidence covers the initial body. Benchmark comparison, class
+comparison and the monthly heatmap are now documented in
+[the report extension](../performance-report.md). The securities-only view still
+excludes depot cash; private reconciliation and owner acceptance remain open.

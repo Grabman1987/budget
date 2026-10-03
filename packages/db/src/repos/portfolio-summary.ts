@@ -12,6 +12,7 @@ import {
   lastDayOfMonth,
   monthOf,
   monthBoundaries,
+  monthlyFigures,
   periodWindow,
   periodPerformance,
   rebalancingProposals,
@@ -57,6 +58,11 @@ import { MissingFxRateError } from './errors';
 import { targetsAsOf } from './securities';
 import { investmentPreferences } from './investment-preferences';
 import type { Executor } from './types';
+import { portfolioBenchmark } from './portfolio-benchmark';
+import {
+  portfolioPerformanceHistory,
+  type PortfolioPerformanceHistory,
+} from './portfolio-performance';
 
 /** How the portfolio is measured: PP's "securities only" or "depot incl. reference account". */
 export type PortfolioView = 'securities' | 'depot';
@@ -72,6 +78,7 @@ export interface PortfolioOptions {
   referenceAccounts?: ReadonlyArray<string>;
   /** Build the bounded report 4.3 series from the valuation/flow data already loaded here. */
   includeContributionHistory?: boolean;
+  includePerformanceHistory?: boolean;
 }
 
 export interface PositionLine {
@@ -133,6 +140,7 @@ export interface PortfolioSummary {
   performance: WindowPerformance | null;
   /** Optional securities-only contribution report, derived from the same daily series and flows. */
   contributionHistory?: ContributionHistory | null;
+  performanceHistory?: PortfolioPerformanceHistory | null;
   benchmark: { securityId: string; name: string } | null;
   /** TER on month ends plus the fees of 12 months, over the current value. */
   costs: {
@@ -762,6 +770,7 @@ export function portfolioSummary(db: Executor, options: PortfolioOptions): Portf
   // ---- performance of the period ----
   const start = firstDay(db, today);
   let performance: WindowPerformance | null = null;
+  let performanceHistory: PortfolioPerformanceHistory | null = null;
   let benchmark: PortfolioSummary['benchmark'] = null;
   const monthEndValues = new Map<string, number[]>();
   let contributionHistory: ContributionHistory | null | undefined =
@@ -806,6 +815,74 @@ export function portfolioSummary(db: Executor, options: PortfolioOptions): Portf
       period,
       today,
     );
+
+    if (options.includePerformanceHistory) {
+      const selected = portfolioBenchmark(db);
+      const rows =
+        selected.available && selected.securityId
+          ? db
+              .select()
+              .from(price)
+              .where(and(eq(price.securityId, selected.securityId), lte(price.date, today)))
+              .orderBy(asc(price.date))
+              .all()
+          : [];
+      const benchmarkKind = selected.securityId
+        ? loaded.securities.get(selected.securityId)?.kind
+        : undefined;
+      const weekendCarry = ['etf', 'fund', 'stock', 'bond'].includes(benchmarkKind ?? '');
+      const quotes = rows.map((p) => {
+        try {
+          const level =
+            p.currency === 'EUR'
+              ? p.priceMicro
+              : (p.priceMicro * 1_000_000) / fxOn(rates, p.currency, p.date);
+          return { date: p.date, level, reason: null, weekendCarry };
+        } catch (error) {
+          if (!(error instanceof ExchangeRateUnavailableError)) throw error;
+          return { date: p.date, level: null, reason: 'missing_fx' as const, weekendCarry };
+        }
+      });
+      const groups = [...loaded.classNames].map(([assetClassId, name]) => ({
+        assetClassId: assetClassId as string | null,
+        name,
+        securityIds: [...loaded.securities.values()]
+          .filter((s) => s.assetClassId === assetClassId)
+          .map((s) => s.id),
+      }));
+      const unclassified = [...loaded.securities.values()]
+        .filter((s) => s.assetClassId === null || !loaded.classNames.has(s.assetClassId))
+        .map((s) => s.id);
+      if (unclassified.length)
+        groups.push({ assetClassId: null, name: 'Ohne Anlageklasse', securityIds: unclassified });
+      performanceHistory = portfolioPerformanceHistory(
+        { series: valuations, flows },
+        performance,
+        series,
+        groups,
+        (securities) =>
+          portfolioFlows(db, {
+            from: start,
+            to: today,
+            view: 'securities',
+            accounts: investmentAccounts,
+            securities,
+          }),
+        selected.securityId ? quotes : undefined,
+      );
+      benchmark = selected.securityId
+        ? { securityId: selected.securityId, name: selected.name ?? 'Wertpapier nicht verfügbar' }
+        : null;
+      const months = performanceHistory.months;
+      const beta =
+        months.length > 1 && months.every((m) => m.rate !== null && m.benchmarkRate !== null)
+          ? monthlyFigures(
+              months.map((m) => m.rate!),
+              months.map((m) => m.benchmarkRate!),
+            ).beta
+          : null;
+      performance = { ...performance, benchmarkTtwror: performanceHistory.benchmarkReturn, beta };
+    }
 
     if (options.includeContributionHistory) {
       if (!performance) {
@@ -974,6 +1051,7 @@ export function portfolioSummary(db: Executor, options: PortfolioOptions): Portf
     realizedGainCents,
     realizedGainComplete,
     performance,
+    ...(options.includePerformanceHistory ? { performanceHistory } : {}),
     ...(options.includeContributionHistory
       ? { contributionHistory: contributionHistory ?? null }
       : {}),

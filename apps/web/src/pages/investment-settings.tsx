@@ -13,6 +13,7 @@ import { request } from '../api/http';
 import { INVESTMENT_SETTINGS_META } from '../nav/pages';
 import { PageFrame } from './placeholder-page';
 import './investment-settings.css';
+import { PortfolioBenchmarkSettings } from './portfolio-benchmark-settings';
 
 type CostMethod = 'average' | 'fifo';
 interface Preferences {
@@ -26,6 +27,7 @@ export function InvestmentSettingsPage() {
   return (
     <PageFrame meta={INVESTMENT_SETTINGS_META} revealCurrentRegister>
       <InvestmentSettingsPanel />
+      <PortfolioBenchmarkSettings />
     </PageFrame>
   );
 }
