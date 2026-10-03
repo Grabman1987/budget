@@ -431,6 +431,11 @@ a.btn {
     background: var(--surface);
     box-shadow: var(--shadow-float);
   }
+  /* The closed menu's content is not rendered, so a theme switch would start colour transitions
+     that never get a frame to finish on (document.getAnimations() lingers for seconds). */
+  .m-profile:not([open]) .m-profile-actions * {
+    transition: none;
+  }
 
   .tabbar {
     display: grid;
