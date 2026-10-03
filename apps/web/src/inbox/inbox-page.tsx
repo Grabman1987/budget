@@ -27,6 +27,8 @@ import { AppLink } from '../shell/app-link';
 import { inboxQuery, resolveInbox, type InboxEntry, type InboxKind, type InboxStored } from './api';
 import './inbox.css';
 import { ReceiptSection } from '../receipts/receipt-section';
+import { TradePanel } from '../wealth/trade-panel';
+import type { SavingsExecutionProposal } from '../wealth/savings-api';
 const META = PAGES.find((p) => p.path === '/konten/posteingang')!;
 const LABELS: Record<InboxKind, string> = {
   uncategorized: 'Buchungen ohne Kategorie',
@@ -59,6 +61,12 @@ export function InboxPanel({ open, onClose }: { open: boolean; onClose: () => vo
 function InboxWorkflow({ panel }: { panel?: { open: boolean; onClose: () => void } }) {
   useAmountPrivacy();
   const [editing, setEditing] = useState<ListedBooking | null>(null);
+  const [proposal, setProposal] = useState<SavingsExecutionProposal | null>(null);
+  const proposalTrigger = useRef<HTMLElement | null>(null);
+  const closeProposal = () => {
+    setProposal(null);
+    requestAnimationFrame(() => proposalTrigger.current?.focus());
+  };
   const trigger = useRef<HTMLElement | null>(null);
   // Native dialogs lose the original trigger across the editor handoff; retain it for the whole workflow.
   useLayoutEffect(() => {
@@ -88,14 +96,23 @@ function InboxWorkflow({ panel }: { panel?: { open: boolean; onClose: () => void
       setLoading(null);
     }
   };
-  const body = <InboxBody onEdit={(id) => void edit(id)} loadingId={loading} />;
+  const body = (
+    <InboxBody
+      onEdit={(id) => void edit(id)}
+      loadingId={loading}
+      onSavings={(item) => {
+        proposalTrigger.current = document.activeElement as HTMLElement;
+        setProposal(item);
+      }}
+    />
+  );
   return (
     <>
       {panel ? (
         <DetailPanel
-          open={panel.open && !editing}
+          open={panel.open && !editing && !proposal}
           onClose={() => {
-            if (!editing) panel.onClose();
+            if (!editing && !proposal) panel.onClose();
           }}
           title="Posteingang"
         >
@@ -111,6 +128,9 @@ function InboxWorkflow({ panel }: { panel?: { open: boolean; onClose: () => void
         state={editing && (!panel || panel.open) ? { mode: 'edit', booking: editing } : null}
         onClose={() => setEditing(null)}
       />
+      {proposal && (!panel || panel.open) && (
+        <TradePanel id="neu" proposal={proposal} onClose={closeProposal} onSaved={closeProposal} />
+      )}
     </>
   );
 }
@@ -118,9 +138,11 @@ function InboxWorkflow({ panel }: { panel?: { open: boolean; onClose: () => void
 function InboxBody({
   onEdit,
   loadingId,
+  onSavings,
 }: {
   onEdit: (id: string) => void;
   loadingId: string | null;
+  onSavings: (proposal: SavingsExecutionProposal) => void;
 }) {
   useAmountPrivacy();
   const headingId = useId();
@@ -193,6 +215,7 @@ function InboxBody({
                           loadingId === item.bookingId)
                       }
                       onEdit={onEdit}
+                      onSavings={onSavings}
                       onResolve={() => {
                         if (item.type === 'stored') void resolve(item);
                       }}
@@ -223,6 +246,7 @@ function InboxRow({
   letter,
   busy,
   onEdit,
+  onSavings,
   onResolve,
   onConfirm,
   confirming,
@@ -231,6 +255,7 @@ function InboxRow({
   letter: string;
   busy: boolean;
   onEdit: (id: string) => void;
+  onSavings: (proposal: SavingsExecutionProposal) => void;
   onResolve: () => void;
   onConfirm: (id: string) => void;
   confirming: boolean;
@@ -245,7 +270,9 @@ function InboxRow({
         <strong>
           {item.type === 'booking'
             ? `${item.payeeName ?? 'Buchung ohne Empfänger'} · ${nativeCurrency(item.amountCents, item.currency)}`
-            : item.title}
+            : item.type === 'savings'
+              ? `Sparplan: ${item.securityName} · ${nativeCurrency(item.amountCents, item.currency)}`
+              : item.title}
         </strong>
         {item.type === 'stored' && item.refType === 'read_source' ? (
           <ReadSourceDetail detail={item.detail} />
@@ -253,7 +280,9 @@ function InboxRow({
           <span>
             {item.type === 'booking'
               ? `${longDay(item.date)} · ${item.accountName} · ${item.missingSplits} ${item.missingSplits === 1 ? 'Anteil' : 'Anteile'} ohne Kategorie${item.status === 'pending' ? ' · vorgemerkt' : ''}${item.memo ? ` · ${item.memo}` : ''}`
-              : maskMoneyText(item.detail ?? '')}
+              : item.type === 'savings'
+                ? `${longDay(item.date)} · ${item.accountName} · Ausführung anhand der Abrechnung prüfen`
+                : maskMoneyText(item.detail ?? '')}
           </span>
         )}
         {item.type === 'stored' && item.refType === 'payslip-intake' && item.refId && (
@@ -285,6 +314,10 @@ function InboxRow({
               <BankBookingMerge bookingId={item.bookingId} />
             )}
           </>
+        ) : item.type === 'savings' ? (
+          <Button variant="ghost" onClick={() => onSavings(item)}>
+            Ausführung prüfen
+          </Button>
         ) : item.refType === 'payslip-intake' && item.refId ? (
           <AppLink className="btn btn-ghost btn-sm" to="/reports/gehalt">
             Gehaltsreport
