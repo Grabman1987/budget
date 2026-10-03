@@ -109,6 +109,7 @@ const homeRoute = createRoute({
   component: lazyRouteComponent(heutePage, 'HeutePage'),
 });
 const BUILT_PATHS = new Set<string>([
+  '/einstellungen/datenquellen',
   SECURITY_META.path,
   PROFILE_META.path,
   INVESTMENT_SETTINGS_META.path,
@@ -208,6 +209,12 @@ const planMonthRoute = createRoute({
   path: PLAN_MONAT.path,
   staticData: { meta: PLAN_MONAT },
   component: lazyRouteComponent(() => import('./budget/plan-page'), 'PlanMonthPage'),
+});
+const dataSourcesRoute = createRoute({
+  getParentRoute: () => shellRoute,
+  path: '/einstellungen/datenquellen',
+  staticData: { meta: PAGES.find((p) => p.path === '/einstellungen/datenquellen')! },
+  component: lazyRouteComponent(() => import('./pages/data-sources'), 'DataSourcesPage'),
 });
 const exportRoute = createRoute({
   getParentRoute: () => shellRoute,
@@ -406,6 +413,7 @@ const routeTree = rootRoute.addChildren([
     categoriesRoute,
     rulesRoute,
     exportRoute,
+    dataSourcesRoute,
     planMonthRoute,
     planYearRoute,
     planExpectedRoute,

@@ -1,7 +1,7 @@
 # Captured payroll and project reports
 
 The manual EUR workflow uses the existing `payslip` / `payslip_line` and `project` tables.
-Migration 0017 is additive. No capture creates or changes a booking, expected payment or tax assessment.
+Migration 0019 is additive. No capture creates or changes a booking, expected payment or tax assessment.
 
 `POST /api/payslips` and `PUT /api/payslips/:id` take a month, `regular | special`, a nullable
 `salary13 | salary14 | other` special type, base `grossCents`, `svCents`, `taxCents`, `netCents`,
