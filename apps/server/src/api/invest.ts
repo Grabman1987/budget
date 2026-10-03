@@ -22,6 +22,8 @@ import {
   listTargetVersions,
   listTrades,
   portfolioSummary,
+  portfolioBenchmark,
+  setPortfolioBenchmark,
   ContributionHistoryLimitError,
   portfolioPositions,
   portfolioAllocation,
@@ -441,7 +443,7 @@ const portfolioQuery = z.object({
   /** Depot view: comma-separated reference account ids (default: the investment accounts). */
   reference: z.string().max(2000).optional(),
   /** Opt-in monthly/yearly series for report 4.3, derived from the portfolio summary read. */
-  history: z.enum(['contributions']).optional(),
+  history: z.enum(['contributions', 'performance']).optional(),
 });
 
 const depotsQuery = z.object({
@@ -451,6 +453,14 @@ const depotsQuery = z.object({
 export function portfolioRoutes(db: Db, today: () => string): Hono {
   const app = new Hono();
   app.get('/positions', (c) => c.json(portfolioPositions(db, today())));
+  app.get('/benchmark', (c) => c.json(portfolioBenchmark(db)));
+  app.patch('/benchmark', async (c) => {
+    const { securityId } = await readBody(c, z.strictObject({ securityId: id.nullable() }));
+    if (securityId !== null && !getSecurity(db, securityId))
+      throw new ApiError(400, 'invalid_benchmark', 'Bitte ein vorhandenes Wertpapier wählen.');
+    const ctx = { actor: ACTOR, groupId: randomUUID() };
+    return c.json({ ...setPortfolioBenchmark(db, securityId, ctx), groupId: ctx.groupId });
+  });
   app.get('/allocation', (c) => c.json(portfolioAllocation(db, today())));
   // Report 4.1: depots side by side for the selected period.
   app.get('/depots', (c) => {
@@ -488,6 +498,7 @@ export function portfolioRoutes(db: Db, today: () => string): Hono {
             benchmarkSecurityId: benchmark,
             referenceAccounts: refs && refs.length > 0 ? refs : undefined,
             includeContributionHistory: history === 'contributions' && view === 'securities',
+            includePerformanceHistory: history === 'performance' && view === 'securities',
           }),
         ),
       });
