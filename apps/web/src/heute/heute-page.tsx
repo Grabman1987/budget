@@ -192,6 +192,12 @@ function HeuteBody({ data }: { data: Heute }) {
           chainOpen={chainOpen}
           onToggleChain={() => setChainOpen((open) => !open)}
         />
+        {data.balance.forecast.length > 0 && (
+          <p className="heute-note">
+            Kontoprognose bis {longDay(data.balance.forecast.at(-1)!.day)}; gleicher Horizont und
+            Tiefpunkt wie R07.
+          </p>
+        )}
         {chainOpen && (
           <div id="heute-lead-chain" className="heute-chain-area">
             <DimensionChain
@@ -261,7 +267,9 @@ function HeuteBody({ data }: { data: Heute }) {
             />
             <PaceFigure
               label="Prognose Monatsende"
-              value={data.pace.figures.forecastEndCents}
+              value={
+                data.pace.figures.forecastAvailable ? data.pace.figures.forecastEndCents : null
+              }
               kind="forecast"
               selected={paceDetail}
               setSelected={setPaceDetail}
@@ -283,13 +291,17 @@ function HeuteBody({ data }: { data: Heute }) {
                   ? eur(data.pace.figures.spentCents)
                   : paceDetail === 'plan'
                     ? eur(data.pace.figures.planToDateCents)
-                    : eur(data.pace.figures.forecastEndCents)}
+                    : data.pace.figures.forecastAvailable
+                      ? eur(data.pace.figures.forecastEndCents)
+                      : 'Noch keine verlässliche Prognose'}
               </span>
               {paceDetail === 'forecast' && <span>Limit: {eur(data.pace.figures.limitCents)}</span>}
             </div>
           )}
           <p className="heute-note">
-            Ist, Plan, Prognose und Vormonat stammen aus der Pace-Berechnung für Bedarf und Wunsch.
+            Fixe und erwartete Zahlungen zählen einmal; nur variable Ausgaben werden hochgerechnet.
+            {!data.pace.figures.forecastAvailable &&
+              ' Eine Prognose erscheint ab dem 7. Tag mit positivem Plan.'}
           </p>
         </section>
 
@@ -724,7 +736,7 @@ function PaceFigure({
   extra,
 }: {
   label: string;
-  value: number;
+  value: number | null;
   kind: 'spent' | 'plan' | 'forecast';
   selected: 'spent' | 'plan' | 'forecast' | null;
   setSelected: (key: 'spent' | 'plan' | 'forecast' | null) => void;
@@ -740,7 +752,7 @@ function PaceFigure({
       onClick={() => setSelected(open ? null : kind)}
     >
       <span>{label}</span>
-      <strong>{eur(value, { cents: false })}</strong>
+      <strong>{value === null ? '–' : eur(value, { cents: false })}</strong>
       {extra && <small>{extra}</small>}
     </button>
   );

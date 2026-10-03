@@ -1,4 +1,4 @@
-import { accountBalances as pureBalances } from '@budget/domain';
+import { evaluateRule, accountBalances as pureBalances } from '@budget/domain';
 import { eq } from 'drizzle-orm';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { createTestDatabase, type OpenedDatabase } from '../client';
@@ -433,5 +433,50 @@ describe('C11 opening envelopes', () => {
     expect(oct!.toBeAssignedCents).toBe(100_000 - 70_000);
     const [jan] = budget(db, ['2024-01']);
     expect(jan!.envelopes['essen']?.carryCents).toBe(70_000);
+  });
+});
+
+it('R08 detects outstanding loan accounts without pretending a missing rate is zero', () => {
+  accounts.create(
+    db,
+    {
+      id: 'synthetic-loan',
+      name: 'Synthetischer Kredit',
+      type: 'loan',
+      role: 'debt',
+      onBudget: false,
+      openingDate: '2023-10-01',
+      openingBalanceCents: -900000,
+    },
+    ctx,
+  );
+  createBooking(
+    db,
+    {
+      accountId: 'giro',
+      date: '2026-08-30',
+      amountCents: 300000,
+      splits: [{ amountCents: 300000, incomeTypeId: INCOME_TYPES.salary.id }],
+    },
+    ctx,
+  );
+  let inputs = ruleInputs(db, '2026-09-17');
+  expect(inputs.loanPaymentsMonthlyCents).toBeNull();
+  expect(evaluateRule('R08', {}, inputs)).toBeNull();
+  transfer('giro', 'synthetic-loan', '2026-08-10', 24000);
+  expect(ruleInputs(db, '2026-09-17').loanPaymentsMonthlyCents).toBeNull();
+  for (const [id, stage] of [
+    ['minimum', 1],
+    ['extra', 3],
+  ] as const)
+    categories.create(db, { id, name: id, groupId: 'g', class: 'need', kind: 'debt', stage }, ctx);
+  transfer('giro', 'synthetic-loan', '2026-08-11', 9000, 'extra');
+  expect(ruleInputs(db, '2026-09-17').loanPaymentsMonthlyCents).toBeNull();
+  transfer('giro', 'synthetic-loan', '2026-08-12', 12000, 'minimum');
+  inputs = ruleInputs(db, '2026-09-17');
+  expect(inputs.loanPaymentsMonthlyCents).toBe(12000);
+  expect(evaluateRule('R08', {}, inputs)).toMatchObject({
+    valueText: '4,0 %',
+    detail: { loanPaymentsCents: 12000 },
   });
 });

@@ -69,7 +69,7 @@ export interface RuleInputs {
   /** R08, R10: monthly net income. */
   netIncomeMonthlyCents: number | null;
   /** R08: monthly loan payments (rate incl. interest). */
-  loanPaymentsMonthlyCents: number;
+  loanPaymentsMonthlyCents: number | null;
   /** R10 */
   fixedCosts: { fixedMonthlyCents: number; periodicAnnualCents: number } | null;
   /** R09 */

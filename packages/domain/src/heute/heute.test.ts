@@ -113,3 +113,14 @@ describe('changeBp and netWorthDays', () => {
     expect(days[11]).toBe('2026-09-17');
   });
 });
+
+it('does not draw an unreliable early-month pace forecast', () => {
+  const model = paceModel({
+    month: '2026-09',
+    today: '2026-09-03',
+    limitCents: 100000,
+    fixed: [],
+    spending: [{ day: '2026-09-01', cents: 80000 }],
+  });
+  expect(paceForecastCurve(model, [])).toEqual([]);
+});

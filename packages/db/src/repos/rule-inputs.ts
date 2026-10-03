@@ -544,9 +544,33 @@ export function ruleInputs(
   const isMinimumDebt = (c: CategoryRow | undefined) => c?.kind === 'debt' && (c.stage ?? 1) === 1;
   const isDebt = (p: PaymentRow) => (p.categoryId ? isMinimumDebt(cats.get(p.categoryId)) : false);
   const kindOf = (p: PaymentRow) => (p.categoryId ? cats.get(p.categoryId)?.kind : undefined);
-  const loanPaymentsMonthlyCents = outflows
-    .filter(isDebt)
-    .reduce((s, p) => s + monthlyAmount(f, p, asOf), 0);
+  const debtAccounts = accounts.filter(
+    (a) =>
+      a.closedAt === null &&
+      (a.type === 'loan' ||
+        a.role === 'debt' ||
+        (a.type === 'credit_card' &&
+          cards.some((c) => c.id === a.id && c.owedCents > c.availableCents))) &&
+      (nw.byAccount[a.id] ?? 0) < 0,
+  );
+  const debtIds = new Set(debtAccounts.map((a) => a.id));
+  const scheduledDebt = outflows.filter(isDebt).reduce((s, p) => s + monthlyAmount(f, p, asOf), 0);
+  // Historical principal repayments to debt accounts are a lower bound, not another schedule.
+  const recordedDebt = f.ledgerSplits
+    .filter(
+      (s) =>
+        monthOf(s.date) === ref &&
+        s.transferAccountId != null &&
+        debtIds.has(s.transferAccountId) &&
+        s.categoryId != null &&
+        isMinimumDebt(cats.get(s.categoryId)) &&
+        s.amountCents < 0 &&
+        onBudget.has(s.accountId),
+    )
+    .reduce((sum, s) => sum - s.amountCents, 0);
+  const knownDebtPayment = scheduledDebt > 0 ? scheduledDebt : recordedDebt;
+  const loanPaymentsMonthlyCents =
+    debtAccounts.length > 0 && knownDebtPayment === 0 ? null : knownDebtPayment;
   const fixedCosts =
     outflows.length > 0
       ? {
