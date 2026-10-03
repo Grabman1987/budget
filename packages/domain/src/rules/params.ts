@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
 /**
- * Parameters of the rules R01 to R16 (concept §3.5). One zod schema per rule; every field has the
+ * Parameters of the registered rules (concept §3.5). One zod schema per rule; every field has the
  * concept's default, so `PARAM_SCHEMAS[code].parse({})` is the default parameter set. Shares and
  * rates are basis points (10 000 = 100 %), money is integer cents, `*Months` / `*Days` are counts.
  * "badOverBp" is how far beyond a limit a rule turns from Warnung to verletzt.
@@ -24,7 +24,16 @@ export const RULE_CODES = [
   'R14',
   'R15',
   'R16',
+  'R17',
+  'R18',
+  'R19',
+  'R20',
+  'R21',
+  'R22',
 ] as const;
+export const BOOK_RULE_CODES = RULE_CODES.filter((code) => Number(code.slice(1)) >= 17);
+export const DEFAULT_ACTIVE_RULE_COUNT = RULE_CODES.length - BOOK_RULE_CODES.length;
+
 export type RuleCode = (typeof RULE_CODES)[number];
 
 const bp = z.number().int().min(0).max(100_000);
@@ -107,6 +116,70 @@ export const PARAM_SCHEMAS = {
     /** Annual spend is the freedom number divided by this multiple (25 = 4 % rule). */
     multiple: z.number().int().min(1).max(100).default(25),
   }),
+  // Book-derived rules: every threshold and inclusion is configurable through the params patch.
+  R17: z
+    .object({
+      targetBp: bp.default(2500),
+      minBp: bp.default(1500),
+      includeEmployerPension: z.boolean().default(true),
+      maxSeverity: z.enum(['bad', 'warn']).default('bad'),
+    })
+    .refine((p) => p.minBp <= p.targetBp, {
+      message: 'Minimum must not exceed target',
+      path: ['minBp'],
+    }),
+  R18: z
+    .object({
+      okFromX100: count.default(100),
+      warnFromX100: count.default(50),
+      aboveAverageX100: count.default(200),
+      // Owner decision: this benchmark can never turn red.
+      maxSeverity: z.literal('warn').default('warn'),
+      minAge: count.default(25),
+      includeCapitalIncome: z.boolean().default(true),
+    })
+    .refine((p) => p.warnFromX100 <= p.okFromX100, {
+      message: 'Lower benchmark must not exceed target',
+      path: ['warnFromX100'],
+    }),
+  R19: z
+    .object({
+      minGrowthBp: bp.default(300),
+      targetBp: bp.default(5000),
+      minBp: bp.default(2500),
+    })
+    .refine((p) => p.minBp <= p.targetBp, {
+      message: 'Minimum must not exceed target',
+      path: ['minBp'],
+    }),
+  R20: z
+    .object({
+      okMonths: z.int().min(0).max(12).default(11),
+      warnMonths: z.int().min(0).max(12).default(9),
+      exemptDebtPriority: z.boolean().default(true),
+    })
+    .refine((p) => p.warnMonths <= p.okMonths, {
+      message: 'Warning must not exceed target',
+      path: ['warnMonths'],
+    }),
+  R21: z
+    .object({
+      leverageMaxBp: bp.default(1000),
+      leverageBadOverBp: bp.default(500),
+      ignoreBelowCents: z.int().min(0).max(100_000_000).default(10_000),
+      debitWarnFromBp: bp.default(1),
+      debitBadOverBp: bp.default(500),
+    })
+    .refine((p) => p.debitWarnFromBp <= p.debitBadOverBp, {
+      message: 'Warning must not exceed bad threshold',
+      path: ['debitWarnFromBp'],
+    }),
+  R22: z.object({
+    maxBp: bp.default(30),
+    badOverBp: bp.default(30),
+    maxUnknownSharePct: z.int().min(0).max(100).default(20),
+    excludeLeveraged: z.boolean().default(true),
+  }),
 } as const satisfies Record<RuleCode, z.ZodType>;
 
 export type RuleParams<C extends RuleCode> = z.infer<(typeof PARAM_SCHEMAS)[C]>;
@@ -130,7 +203,7 @@ export function applyParamsPatch(
 ): Record<string, unknown> {
   const schema = PARAM_SCHEMAS[code] as unknown as z.ZodObject<z.ZodRawShape>;
   const merged = { ...resolveParams(code, current), ...patch };
-  return z.strictObject(schema.shape).parse(merged);
+  return schema.strict().parse(merged);
 }
 
 /**

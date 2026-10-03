@@ -153,6 +153,14 @@ Jede Regel hat konfigurierbare Schwellen, einen Status (erfüllt, Warnung, verle
 | R14 | Klumpenrisiko | Einzeltitel ≤ 10 %, einzelne P2P- oder Krypto-Plattform ≤ 20 % des Investments | Portfolio |
 | R15 | Spekulativer Anteil | Krypto, P2P und Einzelaktien zusammen ≤ 10 % des Investments | Portfolio |
 | R16 | Freiheitszahl | Fortschritt = investiertes Vermögen / (Jahresausgaben × 25) | Vermögen |
+| R17 | Investitionsquote vom Brutto | Nettoeinzahlungen + Arbeitgeberbeitrag / tatsächliches Jahresbrutto; Ziel 25 %, Warnung ab 15 % | Aufbau |
+| R18 | Vermögensindex | Nettovermögen / (Alter × Jahreseinkommen / 10); nur Warnung, Kapitalertrag optional | Aufbau |
+| R19 | Grenz-Sparquote | Zukunft-Zuwachs / Einkommenszuwachs; ab 3 % Wachstum, Ziel 50 %, Warnung ab 25 % | Portfolio |
+| R20 | Regelmäßig investieren | Kauf, Einzahlung oder priorisierte Sondertilgung in 11 von 12 Monaten; Warnung ab 9 | Aufbau |
+| R21 | Hebel und Fremdkapital | Hebelanteil ≤ 10 %; Plattform-Minus separat, schlechtester Status | Aufbau |
+| R22 | Fondskosten | Gewichtete bekannte TER ≤ 0,30 %; Hebelfonds separat, Handelskosten nur Anzeige | Portfolio |
+
+Alle Schwellen und Einbeziehungen sind konfigurierbar; die sechs Buchregeln starten deaktiviert. Die aktive Anzahl folgt `RULE_CODES` und den gespeicherten Schaltern. Details, Datenlücken und Fenster: [Book-derived checks](book-rules.md).
 
 Alle Schwellen sind Vorschläge und in den Einstellungen änderbar. Regeln lassen sich einzeln abschalten.
 

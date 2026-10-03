@@ -19,7 +19,7 @@ Alle Testdaten sind synthetisch. Es wurde keine echte Bank-API aufgerufen.
   Zahler, Einnahmenkategorie oder Einnahmeart, mit dieser Priorität und einer
   ausdrücklichen Einzelbuchungs-Ausnahme. Regeln gelten für neue Owner-Eingaben
   und die erste Bank-Kategorisierung, nicht beim Bankabruf und nicht rückwirkend.
-- Migration `0022_income_next_month_and_pending` ergänzt zwei Spalten mit
+- Migration `0023_income_next_month_and_pending` ergänzt zwei Spalten mit
   kompatiblen Defaults. Der Snapshot enthält gegenüber 0018 genau diese zwei
   Ergänzungen; Vorgänger-ID, SQL und Journal passen zusammen. Der Orchestrator
   muss SQL, Journal und Snapshot nach Einordnung anderer Migrationen umnummerieren.
@@ -97,8 +97,8 @@ bleiben außerhalb dieser beiden Entscheidungen.
 - docs/evidence/owner-decisions-41-42.md
 - e2e/bank-sync.spec.ts
 - e2e/income-next-month.spec.ts
-- packages/db/drizzle/0022_income_next_month_and_pending.sql
-- packages/db/drizzle/meta/0022_snapshot.json
+- packages/db/drizzle/0023_income_next_month_and_pending.sql
+- packages/db/drizzle/meta/0023_snapshot.json
 - packages/db/drizzle/meta/_journal.json
 - packages/db/src/repos/allocation.ts
 - packages/db/src/repos/bookings.ts

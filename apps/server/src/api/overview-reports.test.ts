@@ -1,3 +1,4 @@
+import { DEFAULT_ACTIVE_RULE_COUNT } from '@budget/domain';
 /* eslint-disable @typescript-eslint/no-explicit-any -- JSON answers are inspected, not typed */
 import {
   budget,
@@ -118,7 +119,7 @@ describe('GET /api/overview/year', () => {
 
   it('reads the stored Finanz-Check of the last month end and says nothing for older years', async () => {
     const now = (await get('/year?year=2026')).body;
-    expect(now.rules).toMatchObject({ asOf: '2026-08-31', total: 16 });
+    expect(now.rules).toMatchObject({ asOf: '2026-08-31', total: DEFAULT_ACTIVE_RULE_COUNT });
     expect(now.rules.cells.length).toBeGreaterThan(0);
     const old = (await get('/year?year=2024')).body;
     expect(old.rules).toBeNull();

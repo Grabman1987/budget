@@ -45,7 +45,7 @@ categories produce actionable German reasons. Typed month/reconciliation lock
 errors are retained too; the current server has no month-close write-lock model,
 so this feature introduces no new month-close policy.
 
-Each item has a stable UUID `Idempotency-Key`. Migration `0024_booking_delivery`
+Each item has a stable UUID `Idempotency-Key`. Migration `0025_booking_delivery`
 stores the validated request hash and original result atomically with the booking,
 transfer legs, new payee and audit group. Same key/body returns the same result;
 different fields return 409. Receipts survive booking edits/deletion/undo and server
@@ -91,8 +91,8 @@ invented Lighthouse score or physical iOS acceptance.
   `split-editor.tsx`.
 - Navigation: `apps/web/src/shell/app-shell.tsx`, `mobile-chrome.tsx`, `sidebar.tsx`.
 - Server/database: `apps/server/src/api/bookings.ts`, `schemas.ts`;
-  `packages/db/src/schema/system.ts`; `packages/db/drizzle/0024_booking_delivery.sql`,
-  `meta/0022_snapshot.json`, `meta/_journal.json`.
+  `packages/db/src/schema/system.ts`; `packages/db/drizzle/0025_booking_delivery.sql`,
+  `meta/0025_snapshot.json`, `meta/_journal.json`.
 - Tests: `apps/web/src/pwa/queue.test.ts`, `pwa.test.tsx`;
   `apps/web/src/auth/api.test.ts`; `apps/server/src/api/api.test.ts`;
   `packages/db/src/payroll-migration.test.ts`; `e2e/offline-queue.spec.ts`.

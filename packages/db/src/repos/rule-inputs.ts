@@ -1,7 +1,9 @@
+import { bookInputs } from './book-inputs';
 import {
   addDays,
   addMonths,
   averageCents,
+  BOOK_RULE_CODES,
   freedomProgressBp,
   freedomTargetCents,
   lastDayOfMonth,
@@ -47,6 +49,7 @@ import {
   institution,
   plannedEvent,
   security,
+  rule,
 } from '../schema';
 import { allocationMonth, isIncomeCategorySplit } from './allocation';
 import { scheduleVersion, schedulePayment } from './expected';
@@ -398,7 +401,12 @@ export function forecastInputs(
   };
 }
 
-export function ruleInputs(db: Executor, asOf: string, facts?: RuleFacts): RuleInputs {
+export function ruleInputs(
+  db: Executor,
+  asOf: string,
+  facts?: RuleFacts,
+  includeBooks = true,
+): RuleInputs {
   const f = facts ?? loadFacts(db, asOf);
   const cur = monthOf(asOf);
   const ref = referenceMonth(asOf);
@@ -665,6 +673,14 @@ export function ruleInputs(db: Executor, asOf: string, facts?: RuleFacts): RuleI
 
   return {
     asOf,
+    ...(includeBooks ||
+    db
+      .select()
+      .from(rule)
+      .all()
+      .some((r) => r.enabled && BOOK_RULE_CODES.some((code) => code === r.code))
+      ? { books: bookInputs(f, asOf, ref, nw, includeBooks) }
+      : {}),
     refMonth: ref,
     allocByMonth: Object.keys(allocByMonth).length > 0 ? allocByMonth : null,
     emergency,

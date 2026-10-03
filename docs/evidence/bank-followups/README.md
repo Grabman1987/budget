@@ -8,7 +8,7 @@ Branch: `feat/bank-match-and-link`. Working-tree changes only; no commit, push o
 - Two selected bookings on different own accounts, with opposite nonzero amounts in the same currency within five days, can be linked as one transfer. Original dates and identities remain; categories, income types, payees and project attribution are removed. An inbox candidate can create the missing bank leg and link the existing mirror. Expected-payment links are reopened when their booking becomes a transfer.
 - Konten overview and account detail show the stored bank balance, statement day, fetch timestamp and reconciled-through day. The one-click lock rechecks current-day balance equality inside the transaction, rejects pending bookings/open candidates and uses the existing reconciliation engine.
 - Mutations share one audit group with their inbox decisions. Undo/redo restores the original allocations and candidate; closed accounts, locked bookings and protected contact/trade relationships are enforced at the server boundary. No provider requests occur during these ledger decisions.
-- Additive Drizzle migration `0023_bank_followups` follows `0022_income_next_month_and_pending` on integration/batch-2.
+- Additive Drizzle migration `0024_bank_followups` follows `0023_income_next_month_and_pending` on integration/batch-2.
 
 ## Verification
 
@@ -72,8 +72,8 @@ Review the working tree, obtain a green standard CI check, handle commit/PR and 
 - `e2e/bootstrap.ts`
 - `e2e/isolated-ledger.ts`
 - `e2e/setup-token.ts`
-- `packages/db/drizzle/0023_bank_followups.sql`
-- `packages/db/drizzle/meta/0023_snapshot.json`
+- `packages/db/drizzle/0024_bank_followups.sql`
+- `packages/db/drizzle/meta/0024_snapshot.json`
 - `packages/db/drizzle/meta/_journal.json`
 - `packages/db/src/bank-followups-migration.test.ts`
 - `packages/db/src/repos/bank-followups.test.ts`

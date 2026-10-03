@@ -1,8 +1,8 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "7f781477-215e-4cb4-a7c1-cf4885746122",
-  "prevId": "dee691ca-7cc3-4f62-8f90-2a7e218eb552",
+  "id": "4e379a0d-6949-4246-bbd2-1e573ebb6e08",
+  "prevId": "99febfa7-7475-4391-8156-a775b03eba31",
   "tables": {
     "account": {
       "name": "account",
@@ -3985,6 +3985,14 @@
           "autoincrement": false,
           "default": 0
         },
+        "leverage_factor": {
+          "name": "leverage_factor",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 10
+        },
         "asset_class_id": {
           "name": "asset_class_id",
           "type": "text",
@@ -4729,6 +4737,75 @@
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "checkConstraints": {}
+    },
+    "employer_pension": {
+      "name": "employer_pension",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "month": {
+          "name": "month",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "amount_cents": {
+          "name": "amount_cents",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "(strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "(strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))"
+        },
+        "deleted_at": {
+          "name": "deleted_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "employer_pension_month_uq": {
+          "name": "employer_pension_month_uq",
+          "columns": ["month"],
+          "isUnique": true
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {
+        "employer_pension_month_chk": {
+          "name": "employer_pension_month_chk",
+          "value": "\"employer_pension\".\"month\" GLOB '[0-9][0-9][0-9][0-9]-[01][0-9]'"
+        },
+        "employer_pension_amount_chk": {
+          "name": "employer_pension_amount_chk",
+          "value": "\"employer_pension\".\"amount_cents\" >= 0"
+        }
+      }
     },
     "inbox_item": {
       "name": "inbox_item",
@@ -5920,27 +5997,6 @@
         },
         "last_sync_at": {
           "name": "last_sync_at",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "balance_cents": {
-          "name": "balance_cents",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "balance_date": {
-          "name": "balance_date",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "balance_fetched_at": {
-          "name": "balance_fetched_at",
           "type": "text",
           "primaryKey": false,
           "notNull": false,

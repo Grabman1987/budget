@@ -11,6 +11,7 @@ export interface StoredResult {
   valueText: string;
   actionNeeded: boolean;
   actionText: string | null;
+  detail?: Record<string, unknown>;
 }
 
 export interface RuleRow {
@@ -25,6 +26,7 @@ export interface RuleRow {
   params: Record<string, unknown>;
   defaults: Record<string, unknown>;
   latest: StoredResult | null;
+  unavailableReason?: string | null;
 }
 
 export interface ChecklistRow {

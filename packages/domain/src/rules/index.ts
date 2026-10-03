@@ -5,11 +5,13 @@ export {
   PARAM_SCHEMAS,
   resolveParams,
   RULE_CODES,
+  BOOK_RULE_CODES,
+  DEFAULT_ACTIVE_RULE_COUNT,
   type RuleCode,
   type RuleParams,
 } from './params';
 export { CHECKLIST_DEFS, RULE_DEFS, type ChecklistDef, type RuleDef } from './definitions';
-export type { RuleEvaluation, RuleInputs, RuleStatus } from './types';
+export type { BookRuleInputs, RuleEvaluation, RuleInputs, RuleStatus } from './types';
 export { evaluateRule, formatPercent } from './evaluate';
 export {
   bySeverity,
@@ -31,3 +33,5 @@ export {
   type RuleTimeline,
   type TimelineCell,
 } from './history';
+
+export * from './books';

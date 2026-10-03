@@ -82,17 +82,8 @@ export function FinanzcheckReport({ report, meta }: { report: ReportEntry; meta:
   const query = useQuery(finanzcheckVerlaufQuery());
   const data = query.data;
   const days = data?.matrix.days ?? [];
-  // Stored results that are missing, older than today or different from the live check are stale:
-  // derive them beside the page.
-  const newest = data ? dayCounts(data.matrix).at(-1) : undefined;
-  useRuleDerivation(
-    data !== undefined &&
-      (newest === undefined ||
-        newest.asOf !== data.check.asOf ||
-        newest.ok !== data.check.counts.ok ||
-        newest.warn !== data.check.counts.warn ||
-        newest.bad !== data.check.counts.bad),
-  );
+  // Re-derive idempotently once on every visit, including changes to book-rule sources.
+  useRuleDerivation(data !== undefined);
   return (
     <PageFrame
       meta={meta}
@@ -315,8 +306,7 @@ function Body({ data }: { data: FinanzcheckVerlauf }) {
       <section className="card ov-card" aria-labelledby="fc-matrix">
         <div className="tbd-head">
           <h2 id="fc-matrix">
-            Regelwerk R01–R{String(timelines.length).padStart(2, '0')}, {matrix.days.length}{' '}
-            Auswertungstage
+            {timelines.length} aktive Regeln, {matrix.days.length} Auswertungstage
           </h2>
         </div>
         {empty ? (

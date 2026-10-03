@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { PRODUCTS, referenceModel } from '../reference/model';
 import { sampleLedger } from './build';
-import { marketValueCents as valueCents } from '@budget/domain';
+import { marketValueCents as valueCents, DEFAULT_ACTIVE_RULE_COUNT } from '@budget/domain';
 
 const ledger = sampleLedger();
 const ref = referenceModel();
@@ -172,6 +172,6 @@ describe('sample ledger invariants', () => {
       ledger.expectedPaymentVersions.filter((v) => v.expectedPaymentId === 'ep-miete'),
     ).toHaveLength(2);
     expect(ledger.payslips.length).toBeGreaterThan(30);
-    expect(ledger.rules).toHaveLength(16);
+    expect(ledger.rules).toHaveLength(DEFAULT_ACTIVE_RULE_COUNT);
   });
 });

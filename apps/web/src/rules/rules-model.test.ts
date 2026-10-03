@@ -78,3 +78,15 @@ describe('field validation', () => {
     expect(fieldValue(minMonths, '2')).toBe(2);
   });
 });
+
+it('book-rule fields round-trip strict booleans, counts and small TER percentages', () => {
+  const employer = RULE_FIELDS['R17']!.find((f) => f.key === 'includeEmployerPension')!;
+  expect(fieldText(employer, true)).toBe('true');
+  expect(fieldValue(employer, 'false')).toBe(false);
+  expect(fieldError(employer, 'yes')).not.toBeNull();
+  const months = RULE_FIELDS['R20']!.find((f) => f.key === 'okMonths')!;
+  expect(fieldError(months, '13')).not.toBeNull();
+  const cost = RULE_FIELDS['R22']!.find((f) => f.key === 'maxBp')!;
+  expect(fieldValue(cost, '0,31')).toBe(31);
+  expect(fieldText(cost, 30)).toBe('0,3');
+});

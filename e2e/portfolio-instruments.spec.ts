@@ -205,7 +205,11 @@ test('held instrument editing preserves shared value and quote while undo and re
   const form = page.getByRole('dialog', { name: 'Stammdaten bearbeiten', exact: true });
   await expect(form.getByRole('button', { name: 'Stammdaten speichern' })).toBeDisabled();
   const newName = `${name} neu`;
+  await expect(form.getByLabel('TER (%)', { exact: true })).toHaveValue('0,17');
+  await expect(form.getByLabel('Hebelfaktor', { exact: true })).toHaveValue('1');
   await form.getByLabel('Name', { exact: true }).fill(newName);
+  await form.getByLabel('TER (%)', { exact: true }).fill('0,25');
+  await form.getByLabel('Hebelfaktor', { exact: true }).fill('2');
   await form.getByLabel('Art', { exact: true }).selectOption('fund');
   await form.getByLabel('Anlageklasse', { exact: true }).selectOption(cls.id);
   await page.keyboard.press('Escape');
@@ -226,7 +230,8 @@ test('held instrument editing preserves shared value and quote while undo and re
     kind: 'fund',
     assetClassId: cls.id,
     currency: 'EUR',
-    terBp: 17,
+    terBp: 25,
+    leverageFactor: 20,
     pricesEnabled: false,
     quoteAdjusted: true,
     fallbackQuoteId: 'SYN-UNCHANGED',
@@ -245,10 +250,16 @@ test('held instrument editing preserves shared value and quote while undo and re
   await expect(page.getByRole('dialog', { name, exact: true })).toContainText(
     'Rückgängig gemacht.',
   );
+  expect(
+    (await (await request.get(`${MAIN_URL}/api/securities/${security.id}`)).json()).security,
+  ).toMatchObject({ terBp: 17, leverageFactor: 10 });
   await page.getByRole('dialog').getByRole('button', { name: 'Wiederholen', exact: true }).click();
   await expect(page.getByRole('dialog', { name: newName, exact: true })).toContainText(
     'Wiederholt.',
   );
+  expect(
+    (await (await request.get(`${MAIN_URL}/api/securities/${security.id}`)).json()).security,
+  ).toMatchObject({ terBp: 25, leverageFactor: 20 });
   await page.getByRole('dialog').getByRole('button', { name: 'Rückgängig', exact: true }).click();
   await expect(page.getByRole('dialog', { name, exact: true })).toBeVisible();
   view = await (await request.get(`${MAIN_URL}/api/portfolio/positions`)).json();

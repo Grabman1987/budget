@@ -1,8 +1,8 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "c2e86e9b-30e8-4021-8a2f-b695f87d6a15",
-  "prevId": "4e379a0d-6949-4246-bbd2-1e573ebb6e08",
+  "id": "7aeff5b7-c1ee-4c6a-90ed-61d95753cadb",
+  "prevId": "c2e86e9b-30e8-4021-8a2f-b695f87d6a15",
   "tables": {
     "account": {
       "name": "account",
@@ -4734,6 +4734,37 @@
           "onUpdate": "no action"
         }
       },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "booking_delivery": {
+      "name": "booking_delivery",
+      "columns": {
+        "key": {
+          "name": "key",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "request_hash": {
+          "name": "request_hash",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "response_json": {
+          "name": "response_json",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "checkConstraints": {}

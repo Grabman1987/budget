@@ -31,6 +31,8 @@ export interface RuleEvaluation {
  * not known when inputs are assembled, so each part is a superset the rule narrows by its params.
  */
 export interface RuleInputs {
+  /** Book rules; absent in older callers means unavailable, never a zero proxy. */
+  books?: BookRuleInputs;
   /** The day the rules are evaluated for. */
   asOf: string;
   /** Last full month (`YYYY-MM`): the month itself when `asOf` is its last day. */
@@ -105,4 +107,41 @@ export interface RuleInputs {
     /** Progress three months ago (bp); `null` without data then. */
     previousProgressBp: number | null;
   } | null;
+}
+
+export interface BookRuleInputs {
+  /** First known ledger month: a short history is not twelve empty months. */
+  firstMonth: string;
+  payslips: ReadonlyArray<{ month: string; day: string; grossCents: number }>;
+  investmentFlows: ReadonlyArray<{ day: string; cents: number }>;
+  employerPension: ReadonlyArray<{ month: string; cents: number }>;
+  birthMonth: string | null;
+  netWorthCents: number;
+  sideIncome: ReadonlyArray<{ day: string; cents: number }>;
+  capitalIncome: ReadonlyArray<{ day: string; cents: number }>;
+  /** R01/R11 income and Zukunft definitions, one row per known budget month. */
+  assignments: ReadonlyArray<{ month: string; incomeCents: number; futureCents: number }>;
+  activity: ReadonlyArray<{
+    month: string;
+    bought: boolean;
+    deposited: boolean;
+    extraRepaymentCents: number;
+    /** Outstanding loans before this month's repayment; R09's current configurable rate applies. */
+    loans: ReadonlyArray<{ balanceCents: number; rateBp: number }>;
+  }>;
+  debtPriorityRateBp: number;
+  investmentValueCents: number;
+  platformBalances: ReadonlyArray<{ id: string; balanceCents: number }>;
+  positions: ReadonlyArray<{
+    securityId: string;
+    name?: string;
+    kind: string;
+    valueCents: number;
+    leverageFactor: number;
+    terBp: number;
+  }>;
+  tradingFeesCents: number | null;
+  averagePortfolioCents: number | null;
+  /** Missing FX in a cash flow must not silently reduce a numerator. */
+  flowUnavailableReason: string | null;
 }

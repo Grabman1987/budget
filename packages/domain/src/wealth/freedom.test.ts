@@ -3,6 +3,7 @@ import {
   averageCents,
   compoundStep,
   freedomAnnualSpendCents,
+  freedomMonths,
   freedomProgressBp,
   freedomTargetCents,
   projectFreedom,
@@ -257,4 +258,12 @@ describe('exact cancellation at safe cent boundaries', () => {
     );
     expect(compoundStep(Number.MAX_SAFE_INTEGER, 1, -Number.MAX_SAFE_INTEGER)).toBe(75_059_993_790);
   });
+});
+
+it('months of freedom: 12/24/60 milestones, tenths and absent expense base', () => {
+  expect(freedomMonths(1_200_000, 1_200_000)).toBe(120);
+  expect(freedomMonths(2_400_000, 1_200_000)).toBe(240);
+  expect(freedomMonths(6_000_000, 1_200_000)).toBe(600);
+  expect(freedomMonths(125_000, 1_200_000)).toBe(13);
+  expect(freedomMonths(100, 0)).toBeNull();
 });
