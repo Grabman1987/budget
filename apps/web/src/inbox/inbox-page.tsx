@@ -1,3 +1,4 @@
+import { BankCandidate } from './bank-candidate';
 import { ReadSourceDetail } from './read-source-detail';
 import { Button, DetailPanel, RevisionTriangle, SectionHead, useToast } from '@budget/ui';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -263,6 +264,9 @@ function InboxRow({
           </>
         ) : (
           <>
+            {item.refType === 'bank-sync-candidate' && item.refId && (
+              <BankCandidate id={item.refId} />
+            )}
             <SourceLink item={item} />
             <Button
               size="sm"
@@ -270,7 +274,9 @@ function InboxRow({
               disabled={busy}
               onClick={onResolve}
             >
-              Als erledigt markieren
+              {item.refType === 'bank-sync-candidate'
+                ? 'Nicht übernehmen'
+                : 'Als erledigt markieren'}
             </Button>
           </>
         )}
@@ -281,7 +287,7 @@ function InboxRow({
 
 /** Offer only connected repair views; unknown/legacy references stay readable without inert links. */
 function SourceLink({ item }: { item: InboxStored }) {
-  if (item.refType === 'read_source')
+  if (item.refType === 'read_source' || item.refType === 'bank-sync')
     return (
       <AppLink className="btn btn-ghost btn-sm" to="/einstellungen/datenquellen">
         Datenquelle prüfen

@@ -14,7 +14,9 @@ replaces legacy wallets/fiatwallets with
 [GET /v1/portfolio](https://docs.public.bitpanda.com/get-portfolio-overview-4375768e0)
 and trades/wallet transactions with
 [GET /v1/operations](https://docs.public.bitpanda.com/list-operations-4375770e0).
-The base is `https://api.public.bitpanda.com`. Authentication uses `X-Api-Key`.
+The base is `https://api.public.bitpanda.com`, supplied to the server only as
+`CRYPTO_API_BASE_URL` (HTTPS required; the code carries no provider host).
+Authentication uses `X-Api-Key`.
 [GET /v1/currencies](https://docs.public.bitpanda.com/list-available-currencies-4375771e0)
 resolves fiat currency IDs. [GET /v1/assets](https://docs.public.bitpanda.com/list-available-assets-4375772e0) supplies public instrument names for explicit mapping, using bounded ID-filtered batches. Provider-specific names, schemas, paths and credentials
 are isolated in the generic adapter `apps/server/src/sources/crypto-api.ts`.
@@ -22,7 +24,7 @@ Create a dedicated key in Bitpanda account settings with **Balances**, **Transac
 and **Trade (Read)** scopes; grant no write scopes. See
 [key generation](https://docs.public.bitpanda.com/api-key-generation).
 
-Only fixed-host GET requests are implemented. Redirects are refused; each request
+Only GET requests to the one configured HTTPS host are implemented. Redirects are refused; each request
 has a 20-second timeout and a 4 MB streamed response limit. Unknown response fields
 (including wallet owner) are discarded. Provider errors and response bodies never
 reach logs, API errors or audit rows. The API/UI disclose key presence only.
@@ -32,7 +34,8 @@ reach logs, API errors or audit rows. The API/UI disclose key presence only.
 1. Create a dedicated read-only key using the contract above. Set expiry and rotate
    before expiry; restrict source IPs if appropriate.
 2. Set the secret yourself for the deployed Fly app:
-   `fly secrets set CRYPTO_API_KEY=<read-only-key> --app <app-name>`.
+   `fly secrets set CRYPTO_API_KEY=<read-only-key> --app <app-name>`, and set the
+   non-secret `CRYPTO_API_BASE_URL` from the contract above (e.g. `[env]` in `fly.toml`).
    Replace placeholders privately, avoid shared terminals/shell-history exposure,
    and never paste the key into this repository, chat or a PR.
 3. After deployment, open Einstellungen › Datenquellen. Confirm

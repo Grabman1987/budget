@@ -17,6 +17,7 @@ const operation = {
   ],
 };
 const window = { from: '2026-01-01T00:00:00.000Z', to: '2026-10-02T00:00:00.000Z', cursor: null };
+const synthetic = { key: () => 'synthetic-key', base: () => 'https://source.example.test' };
 describe('read-only provider boundary', () => {
   it('normalizes current API operations, follows opaque cursors and strips unrelated fields', async () => {
     const request = vi
@@ -24,7 +25,7 @@ describe('read-only provider boundary', () => {
       .mockResolvedValue(
         Response.json({ data: [operation], has_next_page: true, next_cursor: 'opaque/next?x=1' }),
       );
-    const source = cryptoReadSource({ key: () => 'synthetic-key', fetch: request });
+    const source = cryptoReadSource({ ...synthetic, fetch: request });
     const result = await source.operations(window);
     expect(result.nextCursor).toBe('opaque/next?x=1');
     expect(result.operations[0]?.transactions[0]?.amount.cents).toBe(1234);
@@ -63,7 +64,7 @@ describe('read-only provider boundary', () => {
       }),
     );
     const rows = await cryptoReadSource({
-      key: () => 'synthetic-key',
+      ...synthetic,
       fetch: request,
     }).balances();
     expect(rows).toEqual([
@@ -83,12 +84,17 @@ describe('read-only provider boundary', () => {
   });
   it('makes no network call without a key and never forwards upstream errors', async () => {
     const request = vi.fn<typeof fetch>().mockRejectedValue(new Error('synthetic-private-body'));
-    const source = cryptoReadSource({ key: () => undefined, fetch: request });
+    const source = cryptoReadSource({ ...synthetic, key: () => undefined, fetch: request });
     expect(source.configured()).toBe(false);
     await expect(source.operations(window)).rejects.toThrow('source_unconfigured');
+    for (const base of [undefined, 'http://source.example.test', 'not a url']) {
+      const unsafe = cryptoReadSource({ ...synthetic, base: () => base, fetch: request });
+      expect(unsafe.configured()).toBe(false);
+      await expect(unsafe.operations(window)).rejects.toThrow('source_unconfigured');
+    }
     expect(request).not.toHaveBeenCalled();
     await expect(
-      cryptoReadSource({ key: () => 'synthetic-key', fetch: request }).operations(window),
+      cryptoReadSource({ ...synthetic, fetch: request }).operations(window),
     ).rejects.toThrow(/^source_failed$/);
   });
   it('fails closed for a malformed page envelope', async () => {
@@ -96,7 +102,7 @@ describe('read-only provider boundary', () => {
       .fn<typeof fetch>()
       .mockResolvedValue(Response.json({ data: [], has_next_page: true }));
     await expect(
-      cryptoReadSource({ key: () => 'synthetic-key', fetch: request }).operations(window),
+      cryptoReadSource({ ...synthetic, fetch: request }).operations(window),
     ).rejects.toMatchObject({ category: 'schema' });
   });
   it('quarantines one malformed operation while retaining valid neighbors and cursor', async () => {
@@ -119,7 +125,7 @@ describe('read-only provider boundary', () => {
       }),
     );
     const result = await cryptoReadSource({
-      key: () => 'synthetic-key',
+      ...synthetic,
       fetch: request,
     }).operations(window);
     expect(result.operations.map((op) => op.id)).toEqual(['operation-test', 'second-op']);
@@ -153,7 +159,7 @@ describe('read-only provider boundary', () => {
           ],
         }),
       );
-    const rows = await cryptoReadSource({ key: () => 'synthetic-key', fetch: request }).balances();
+    const rows = await cryptoReadSource({ ...synthetic, fetch: request }).balances();
     expect(rows.find((r) => r.key === 'currency:currency-test')).toMatchObject({
       issue: 'duplicate',
       currency: 'EUR',
@@ -180,7 +186,7 @@ describe('read-only provider boundary', () => {
           has_next_page: false,
         }),
       );
-    await cryptoReadSource({ key: () => 'synthetic-key', fetch: request }).balances();
+    await cryptoReadSource({ ...synthetic, fetch: request }).balances();
     expect(request.mock.calls.map(([url]) => new URL(String(url)).pathname)).toEqual([
       '/v1/portfolio',
       '/v1/assets',
@@ -191,7 +197,7 @@ describe('read-only provider boundary', () => {
       .fn<typeof fetch>()
       .mockRejectedValueOnce(new DOMException('synthetic-private-body', 'TimeoutError'))
       .mockResolvedValueOnce(new Response('synthetic-private-body'));
-    const source = cryptoReadSource({ key: () => 'synthetic-key', fetch: request });
+    const source = cryptoReadSource({ ...synthetic, fetch: request });
     await expect(source.operations(window)).rejects.toMatchObject({
       message: 'source_failed',
       category: 'timeout',
@@ -206,7 +212,7 @@ describe('read-only provider boundary', () => {
       .fn<typeof fetch>()
       .mockResolvedValue(new Response('synthetic-private-body', { status }));
     await expect(
-      cryptoReadSource({ key: () => 'synthetic-key', fetch: request }).operations(window),
+      cryptoReadSource({ ...synthetic, fetch: request }).operations(window),
     ).rejects.toMatchObject({ message: 'source_failed', category: 'http' });
   });
   it('rejects oversized streamed responses and cancels the body', async () => {
@@ -222,7 +228,7 @@ describe('read-only provider boundary', () => {
       ),
     );
     await expect(
-      cryptoReadSource({ key: () => 'synthetic-key', fetch: request }).operations(window),
+      cryptoReadSource({ ...synthetic, fetch: request }).operations(window),
     ).rejects.toThrow(/^source_failed$/);
     expect(cancel).toHaveBeenCalledTimes(1);
   });

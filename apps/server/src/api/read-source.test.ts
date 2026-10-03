@@ -59,6 +59,7 @@ it('mounts status and all mutations behind session/origin and requires step-up f
 });
 it('reports only a key boolean and never persists credentials, upstream bodies or writes budget data', async () => {
   vi.stubEnv('CRYPTO_API_KEY', 'synthetic-key-only');
+  vi.stubEnv('CRYPTO_API_BASE_URL', 'https://source.example.test');
   const request = vi
     .fn<typeof fetch>()
     .mockResolvedValue(new Response('synthetic-private-error', { status: 401 }));

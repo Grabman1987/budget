@@ -64,23 +64,36 @@ function parse<T>(schema: z.ZodType<T>, value: unknown): T {
   return result.data;
 }
 
+/** Server-configured HTTPS base (`CRYPTO_API_BASE_URL`); anything else counts as unconfigured. */
+function httpsBase(value: string | undefined): string | null {
+  try {
+    const url = new URL(value ?? '');
+    return url.protocol === 'https:' ? url.origin : null;
+  } catch {
+    return null;
+  }
+}
+
 /** Fixed-host GETs only. Redirects, provider error bodies and arbitrary response fields are discarded. */
 export function cryptoReadSource(
   options: {
     key?: () => string | undefined;
+    base?: () => string | undefined;
     fetch?: typeof fetch;
   } = {},
 ): ReadSource {
   const key = options.key ?? (() => process.env['CRYPTO_API_KEY']);
+  const base = options.base ?? (() => process.env['CRYPTO_API_BASE_URL']);
   const request = options.fetch ?? fetch;
   async function get(
     path: 'portfolio' | 'operations' | 'currencies' | 'assets',
     params = new URLSearchParams(),
   ): Promise<unknown> {
     const secret = key();
-    if (!secret) throw new Error('source_unconfigured');
+    const origin = httpsBase(base());
+    if (!secret || !origin) throw new Error('source_unconfigured');
     try {
-      const response = await request('https://api.public.bitpanda.com/v1/' + path + '?' + params, {
+      const response = await request(origin + '/v1/' + path + '?' + params, {
         method: 'GET',
         redirect: 'error',
         headers: { 'X-Api-Key': secret },
@@ -117,7 +130,7 @@ export function cryptoReadSource(
     }
   }
   return {
-    configured: () => Boolean(key()),
+    configured: () => Boolean(key() && httpsBase(base())),
     async balances() {
       const portfolio = parse(collection, await get('portfolio'));
       const rows = new Map<string, SourceBalance>();
