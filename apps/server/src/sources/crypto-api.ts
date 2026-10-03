@@ -26,7 +26,8 @@ const normalize = (v: z.infer<typeof amount>): SourceAmount => ({
 });
 const transaction = z.object({
   transaction_id: id,
-  transaction_type: id,
+  // Only some operation types (e.g. savings plans) carry their own transaction type.
+  transaction_type: id.nullish(),
   wallet_id: id,
   flow: id,
   credited_at: z.iso.datetime({ offset: true }),
@@ -58,6 +59,18 @@ const balanceRow = z.object({ balance: amount });
 const balanceIdentity = z.object({
   balance: z.object({ asset_id: id.nullish(), currency_id: id.nullish() }),
 });
+/**
+ * The provider's cursor is a base64 timestamp. A timestamp without fractional seconds is not
+ * accepted back and restarts the listing at the newest page; the equivalent `.000Z` form works.
+ * Any other cursor stays opaque and untouched.
+ */
+export function providerCursor(cursor: string): string {
+  if (!/^[A-Za-z0-9+/]+={0,2}$/.test(cursor)) return cursor;
+  const decoded = Buffer.from(cursor, 'base64').toString('utf8');
+  if (Buffer.from(decoded, 'utf8').toString('base64') !== cursor) return cursor;
+  const match = /^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2})Z$/.exec(decoded);
+  return match ? Buffer.from(match[1] + '.000Z', 'utf8').toString('base64') : cursor;
+}
 function parse<T>(schema: z.ZodType<T>, value: unknown): T {
   const result = schema.safeParse(value);
   if (!result.success) throw new SourceReadError('schema');
@@ -212,7 +225,7 @@ export function cryptoReadSource(
     },
     async operations(window) {
       const params = new URLSearchParams({ from: window.from, to: window.to, page_size: '25' });
-      if (window.cursor) params.set('cursor', window.cursor);
+      if (window.cursor) params.set('cursor', providerCursor(window.cursor));
       const result = parse(page, await get('operations', params));
       if (result.has_next_page && (!result.next_cursor || result.next_cursor === window.cursor))
         throw new SourceReadError('schema');
@@ -240,7 +253,7 @@ export function cryptoReadSource(
           type: op.operation_type,
           transactions: op.transactions.map((tx) => ({
             id: tx.transaction_id,
-            type: tx.transaction_type,
+            type: tx.transaction_type ?? op.operation_type,
             walletId: tx.wallet_id,
             flow: tx.flow,
             creditedAt: tx.credited_at,

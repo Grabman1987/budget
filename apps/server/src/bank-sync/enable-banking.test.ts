@@ -305,6 +305,11 @@ describe('bank adapter with synthetic HTTP only', () => {
       psu_type: 'personal',
     });
     await expect(
+      adapter([
+        { url: 'https://tilisy.enablebanking.com/welcome?sessionid=synthetic' },
+      ]).provider.authorize(institutions[0]!, 'state', 'https://budget.example'),
+    ).resolves.toBe('https://tilisy.enablebanking.com/welcome?sessionid=synthetic');
+    await expect(
       adapter([{ url: 'https://untrusted.example/' }]).provider.authorize(
         institutions[0]!,
         'state',
