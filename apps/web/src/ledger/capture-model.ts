@@ -94,12 +94,12 @@ export function pushRecent(list: ReadonlyArray<string>, id: string, max = 6): st
 }
 
 /** Accounts for a pick list: the ones used last first, closed accounts left out. */
-export function orderAccounts(
-  accounts: ReadonlyArray<AccountRow>,
+export function orderAccounts<T extends Pick<AccountRow, 'id' | 'onBudget' | 'closedAt'>>(
+  accounts: ReadonlyArray<T>,
   recent: ReadonlyArray<string>,
-): AccountRow[] {
+): T[] {
   const open = accounts.filter((a) => !a.closedAt);
-  const rank = (a: AccountRow) => {
+  const rank = (a: T) => {
     const i = recent.indexOf(a.id);
     return i === -1 ? recent.length : i;
   };
@@ -108,7 +108,7 @@ export function orderAccounts(
 
 /** The account a new booking starts on: the one being looked at, else the last used budget account. */
 export function defaultAccountId(
-  accounts: ReadonlyArray<AccountRow>,
+  accounts: ReadonlyArray<Pick<AccountRow, 'id' | 'onBudget' | 'closedAt'>>,
   recent: ReadonlyArray<string>,
   preferred?: string,
 ): string {

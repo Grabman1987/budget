@@ -1,6 +1,10 @@
 import {
   account,
+  bookingDelivery,
+  category,
+  payee,
   createBooking,
+  createPayee,
   createTransfer,
   deleteBooking,
   ensureAdvanceCategory,
@@ -16,8 +20,8 @@ import {
   type ListedBooking,
   type SplitInput,
 } from '@budget/db';
-import { and, eq, isNull } from 'drizzle-orm';
-import { randomUUID } from 'node:crypto';
+import { and, eq, isNull, sql } from 'drizzle-orm';
+import { createHash, randomUUID } from 'node:crypto';
 import { Hono } from 'hono';
 import { ACTOR, ApiError, defined, errorAnswer, readBody, readQuery } from './http';
 import { bookingDeleteQuery, bookingPatch, bookingQuery, bulkBody, createBody } from './schemas';
@@ -62,9 +66,18 @@ export function bookingRoutes(db: Db): Hono {
       .from(account)
       .where(and(eq(account.id, accountId), isNull(account.deletedAt)))
       .get();
-    if (!row) throw new ApiError(404, 'not_found', `Account ${accountId} not found`);
+    if (!row)
+      throw new ApiError(
+        404,
+        'account_deleted',
+        'Das Konto wurde gelöscht. Wähle ein anderes Konto.',
+      );
     if (row.closedAt)
-      throw new ApiError(409, 'account_closed', 'The account is closed; reopen it first');
+      throw new ApiError(
+        409,
+        'account_closed',
+        'Das Konto ist geschlossen. Öffne es wieder oder wähle ein anderes Konto.',
+      );
   };
 
   app.get('/', (c) => {
@@ -88,30 +101,106 @@ export function bookingRoutes(db: Db): Hono {
 
   app.post('/', async (c) => {
     const body = await readBody(c, createBody);
+    const key = c.req.header('Idempotency-Key');
+    if (key !== undefined && !/^[a-zA-Z0-9-]{16,80}$/.test(key))
+      throw new ApiError(400, 'invalid', 'Ungültiger Sendeschlüssel.');
+    const hash = createHash('sha256').update(JSON.stringify(body)).digest('hex');
     const ctx = audit();
-    if (body.type === 'transfer') {
-      requireOpen(body.fromAccountId);
-      requireOpen(body.toAccountId);
-      const result = createTransfer(db, defined(withoutType(body)), ctx);
-      return c.json(
-        {
-          ...result,
-          bookings: read([result.fromBookingId, result.toBookingId]),
+    const response = runInTransaction(db, (tx) => {
+      if (key) {
+        const previous = tx
+          .select()
+          .from(bookingDelivery)
+          .where(eq(bookingDelivery.key, key))
+          .get();
+        if (previous) {
+          if (previous.requestHash !== hash)
+            throw new ApiError(
+              409,
+              'idempotency_conflict',
+              'Dieser Eintrag wurde bereits mit anderen Feldern gesendet.',
+            );
+          return JSON.parse(previous.responseJson) as Record<string, unknown>;
+        }
+      }
+      // Explicit reference conflicts keep queued captures actionable, without leaking ids.
+      const accountIds =
+        body.type === 'transfer'
+          ? [body.fromAccountId, body.toAccountId]
+          : [
+              body.accountId,
+              ...(body.splits ?? []).flatMap((s) =>
+                s.transferAccountId ? [s.transferAccountId] : [],
+              ),
+            ];
+      for (const id of accountIds) requireOpen(id);
+      const categoryIds =
+        body.type === 'transfer'
+          ? [body.categoryId]
+          : [body.categoryId, ...(body.splits ?? []).map((s) => s.categoryId)];
+      for (const id of key ? categoryIds : []) {
+        if (
+          id &&
+          !tx
+            .select({ id: category.id })
+            .from(category)
+            .where(and(eq(category.id, id), isNull(category.deletedAt)))
+            .get()
+        )
+          throw new ApiError(
+            409,
+            'category_deleted',
+            'Die Kategorie wurde gelöscht. Wähle eine andere Kategorie.',
+          );
+      }
+      let result: Record<string, unknown>;
+      if (body.type === 'transfer') {
+        requireOpen(body.fromAccountId);
+        requireOpen(body.toAccountId);
+        const transfer = createTransfer(tx, defined(withoutType(body)), ctx);
+        result = {
+          ...transfer,
+          bookings: read([transfer.fromBookingId, transfer.toBookingId]),
           groupId: ctx.groupId,
-        },
-        201,
-      );
-    }
-    requireOpen(body.accountId);
-    const { splits, categoryId, ...columns } = withoutType(body);
-    const lines = (
-      splits ?? [{ categoryId: categoryId ?? null, amountCents: body.amountCents }]
-    ).map((s) => defined(s) as SplitInput);
-    // One transaction: a refused booking must not leave a freshly created Auslagen category.
-    const id = runInTransaction(db, (tx) =>
-      createBooking(tx, { ...defined(columns), splits: withAdvanceCategory(tx, lines, ctx) }, ctx),
-    );
-    return c.json({ id, bookings: read([id]), groupId: ctx.groupId }, 201);
+        };
+      } else {
+        const { splits, categoryId, payeeName, ...columns } = withoutType(body);
+        if (payeeName && columns.payeeId)
+          throw new ApiError(400, 'invalid', 'Empfänger entweder als Name oder Auswahl senden.');
+        if (payeeName) {
+          const name = payeeName.replace(/\s+/g, ' ').trim();
+          const singleCategory =
+            body.amountCents < 0 && (!splits || splits.length === 1)
+              ? splits?.[0]?.contactId || splits?.[0]?.transferAccountId
+                ? null
+                : (splits?.[0]?.categoryId ?? categoryId)
+              : null;
+          columns.payeeId =
+            tx
+              .select({ id: payee.id })
+              .from(payee)
+              .where(and(isNull(payee.deletedAt), sql`lower(${payee.name}) = lower(${name})`))
+              .get()?.id ??
+            createPayee(tx, { name, defaultCategoryId: singleCategory ?? null }, ctx).id;
+        }
+        const lines = (
+          splits ?? [{ categoryId: categoryId ?? null, amountCents: body.amountCents }]
+        ).map((s) => defined(s) as SplitInput);
+        // One transaction: a refused booking must not leave a freshly created Auslagen category.
+        const id = createBooking(
+          tx,
+          { ...defined(columns), splits: withAdvanceCategory(tx, lines, ctx) },
+          ctx,
+        );
+        result = { id, bookings: read([id]), groupId: ctx.groupId };
+      }
+      if (key)
+        tx.insert(bookingDelivery)
+          .values({ key, requestHash: hash, responseJson: JSON.stringify(result) })
+          .run();
+      return result;
+    });
+    return c.json(response, 201);
   });
 
   app.patch('/:id', async (c) => {
