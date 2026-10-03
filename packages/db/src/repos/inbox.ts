@@ -3,6 +3,7 @@ import { account, booking, bookingSplit, inboxItem, payee } from '../schema';
 import { nowIso, updateTracked, withGroup, type AuditContext } from './audit';
 import { ConflictError, EntityNotFoundError } from './errors';
 import { runInTransaction, type Executor } from './types';
+import { readSourceDisplayDetail, readSourceMappings } from './read-source';
 
 export interface InboxBooking {
   type: 'booking';
@@ -84,6 +85,7 @@ function uncategorizedBookings(db: Executor, today: string): InboxBooking[] {
 export function readInbox(db: Executor, today: string) {
   return runInTransaction(db, (tx) => {
     const bookings = uncategorizedBookings(tx, today);
+    const mappings = readSourceMappings(tx);
     const stored: InboxStored[] = tx
       .select()
       .from(inboxItem)
@@ -95,7 +97,10 @@ export function readInbox(db: Executor, today: string) {
         id: row.id,
         kind: row.kind,
         title: row.title,
-        detail: row.detail,
+        detail:
+          row.refType === 'read_source' && row.refId === 'crypto'
+            ? readSourceDisplayDetail(row.detail, mappings)
+            : row.detail,
         refType: row.refType,
         refId: row.refId,
         urgent: row.urgent,

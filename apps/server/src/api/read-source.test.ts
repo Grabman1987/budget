@@ -19,7 +19,7 @@ beforeEach(() => {
   opened = createTestDatabase();
   session = true;
   stepUp = true;
-  vi.stubEnv('BITPANDA_API_KEY', '');
+  vi.stubEnv('CRYPTO_API_KEY', '');
   vi.stubGlobal(
     'fetch',
     vi.fn<typeof fetch>().mockRejectedValue(new Error('network disabled in tests')),
@@ -58,7 +58,7 @@ it('mounts status and all mutations behind session/origin and requires step-up f
   expect((await post('/refresh')).status).toBe(409);
 });
 it('reports only a key boolean and never persists credentials, upstream bodies or writes budget data', async () => {
-  vi.stubEnv('BITPANDA_API_KEY', 'synthetic-key-only');
+  vi.stubEnv('CRYPTO_API_KEY', 'synthetic-key-only');
   const request = vi
     .fn<typeof fetch>()
     .mockResolvedValue(new Response('synthetic-private-error', { status: 401 }));
@@ -79,4 +79,7 @@ it('reports only a key boolean and never persists credentials, upstream bodies o
   expect(persisted).not.toMatch(/synthetic-key-only|synthetic-private-error/);
   expect(opened.db.select().from(schema.booking).all()).toHaveLength(0);
   expect(request).toHaveBeenCalledTimes(1);
+  expect(JSON.parse(opened.db.select().from(schema.inboxItem).all()[0]!.detail!)).toEqual({
+    category: 'http',
+  });
 });

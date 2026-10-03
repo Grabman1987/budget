@@ -180,7 +180,7 @@ const readSourceRoute = createRoute({
   getParentRoute: () => shellRoute,
   path: '/einstellungen/datenquellen',
   staticData: { meta: PAGES.find((p) => p.path === '/einstellungen/datenquellen')! },
-  component: lazyRouteComponent(() => import('./pages/read-source'), 'ReadSourcePage'),
+  component: lazyRouteComponent(() => import('./pages/data-sources'), 'DataSourcesPage'),
 });
 const investmentSettingsRoute = createRoute({
   getParentRoute: () => shellRoute,

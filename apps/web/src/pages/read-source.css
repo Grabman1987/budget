@@ -1,17 +1,6 @@
-.read-source {
-  max-width: 860px;
-}
-.read-source p,
-.read-source h3 {
+.data-source-section p,
+.data-source-section h3 {
   overflow-wrap: anywhere;
-}
-.read-source dl {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 2fr);
-  gap: 8px;
-}
-.read-source dd {
-  margin: 0;
 }
 .source-mapping {
   border-top: 1px solid var(--rule);

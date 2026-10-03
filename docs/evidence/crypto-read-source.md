@@ -52,3 +52,47 @@ source responses and no provider credentials.
 These checks do not establish live provider payload/scopes, private financial
 reconciliation, owner design acceptance or the 14-day nightly gate.
 Owner setup and implementation limits: [crypto read source](../crypto-read-source.md).
+
+
+## PR review corrections (2026-10-03)
+
+All six findings are covered by focused synthetic regressions: mapping-independent
+acknowledgement with current mapping display and undo, independent operations
+progress on repeated balance failure, row quarantine with ID/reason only,
+allowlisted failure categories, tolerant balance metadata/duplicate rows,
+zero-local missing sources, discrepancy recurrence after intervening matches, and
+64-cursor history plus a legacy-compatible total page counter. The adapter and
+secret name are generic; no credential fallback is retained.
+
+The focused seven-file suite passed 54 tests. The 18 persistence tests were rerun
+successfully after bounding legacy state reads. Workspace typecheck passed; the
+server/web typechecks were repeated after the shared page changes. Web/server E2E
+build, production web/server build and repository lint passed. The complete unit/browser suite remains CI work, as requested.
+
+Eight source browser cases passed across desktop/mobile, plus two setup cases.
+Two initial failures were new assertions using the wrong area title; the shared
+frame retains the existing Einstellungen title. Both corrected cases then passed,
+along with the existing bank callback/mapping/manual-queue scenario on both
+viewports. After sharing the action layout, both source scenarios passed again on both viewports. Both themes passed Axe, overflow checks and 44px control checks. No
+visual baseline was changed. Synthetic API interception tests source independence:
+a bank failure stays visible while the crypto source completes its own refresh.
+
+The final browser run used the normal compiled server, software passkey setup,
+existing assertions, and one worker. Its temporary configuration and output paths
+were separated to avoid automatic cleanup of the config or an open SQLite file.
+
+- [Shared page: desktop, light](crypto-read-source/review-desktop-light.png)
+- [Shared page: desktop, dark](crypto-read-source/review-desktop-dark.png)
+- [Shared page: mobile, light](crypto-read-source/review-mobile-light.png)
+- [Shared page: mobile, dark](crypto-read-source/review-mobile-dark.png)
+
+Delivery is blocked by worktree metadata permissions. Initial main merge commit:
+`a547635`. A later fetch brought main `17e655b`, including the bank source, but Git
+cannot write `ORIG_HEAD.lock` or `index.lock`; the final merge and fix commits have
+not happened. The shared page and bank test were prepared from that main version.
+The current backend still awaits that merge; no combined backend delivery is
+claimed. Preserve both API mounts, both source scheduling paths, the shared
+DataSourcesPage and both domain/repository exports when resolving the merge.
+Commit the fixes, complete the main merge, rerun affected checks and push without
+force from a session with worktree metadata write access. No live credentials or
+private financial data were used. Owner/private acceptance remains open.

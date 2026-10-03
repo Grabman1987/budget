@@ -16,6 +16,7 @@ export interface SourceAmount {
   cents: number | null;
 }
 export interface SourceBalance {
+  issue?: 'schema' | 'duplicate';
   label?: string;
   key: string;
   amount: SourceAmount;
@@ -45,8 +46,10 @@ export interface SourceMapping {
 }
 export interface SourcePage {
   operations: SourceOperation[];
+  invalidOperations?: Array<{ id: string; reason: 'schema' }>;
   nextCursor: string | null;
 }
+export type SourceFailureCategory = 'schema' | 'http' | 'timeout' | 'parse';
 export interface ReadSource {
   configured(): boolean;
   balances(): Promise<SourceBalance[]>;

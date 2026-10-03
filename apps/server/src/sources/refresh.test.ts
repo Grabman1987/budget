@@ -8,6 +8,8 @@ import {
   mapReadSource,
   readInbox,
   stageSourcePage,
+  saveReadSourceState,
+  updateEntity,
   undo,
   holdWrites,
   releaseWrites,
@@ -16,6 +18,7 @@ import {
 } from '@budget/db';
 import type { ReadSource, SourceBalance, SourceOperation } from '@budget/domain';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { SourceReadError } from './errors';
 import { refreshReadSource, refreshReadSourceIfDue } from './refresh';
 let opened: OpenedDatabase;
 const at = new Date('2026-10-02T12:00:00.000Z');
@@ -249,28 +252,207 @@ describe('source sync persistence and financial isolation', () => {
     ).toThrow('Die Kontowährung muss zur Quelle passen.');
     expect(readSourceMappings(opened.db)[0]?.accountId).toBe('cash');
   });
-  it('resumes failed pages and final balance retrieval without advancing the successful watermark', async () => {
+  it('retains failed operation pages but advances the operations watermark on balance failure', async () => {
     const adapter = source();
     adapter.operations
       .mockResolvedValueOnce({ operations: [operation], nextCursor: 'next' })
       .mockRejectedValueOnce(new Error('synthetic-private-body'));
-    expect(await refreshReadSource(opened.db, adapter, at)).toEqual({ status: 'partial' });
-    await expect(refreshReadSource(opened.db, adapter, at)).rejects.toMatchObject({
-      code: 'source_failed',
-    });
+    await refreshReadSource(opened.db, adapter, at);
+    await expect(refreshReadSource(opened.db, adapter, at)).rejects.toThrow();
     expect(readSourceState(opened.db)).toMatchObject({
       lastSuccess: null,
       window: { cursor: 'next' },
     });
     adapter.operations.mockResolvedValue({ operations: [operation], nextCursor: null });
-    adapter.balances.mockRejectedValueOnce(new Error('balance-failure'));
+    adapter.balances.mockRejectedValue(new SourceReadError('schema'));
     await expect(refreshReadSource(opened.db, adapter, at)).rejects.toThrow();
-    const calls = adapter.operations.mock.calls.length;
-    await refreshReadSource(opened.db, adapter, at);
-    expect(adapter.operations).toHaveBeenCalledTimes(calls);
-    expect(readSourceState(opened.db).status).toBe('ok');
+    expect(readSourceState(opened.db)).toMatchObject({
+      lastSuccess: at.toISOString(),
+      window: null,
+      status: 'failed',
+    });
+    expect(JSON.parse(inbox().find((i) => i.kind === 'other')!.detail!)).toEqual({
+      category: 'schema',
+    });
+    const later = new Date(at.getTime() + 31 * 60_000);
+    adapter.operations.mockResolvedValue({
+      operations: [{ ...operation, id: 'op-next-window' }],
+      nextCursor: null,
+    });
+    await refreshReadSourceIfDue(opened.db, adapter, later);
+    expect(adapter.operations).toHaveBeenCalledTimes(4);
+    expect(inbox().filter((i) => i.kind === 'import')).toHaveLength(2);
+    expect(readSourceState(opened.db).lastSuccess).toBe(later.toISOString());
     expect(JSON.stringify(inbox())).not.toContain('synthetic-private-body');
+    adapter.balances.mockResolvedValue([balance]);
+    await refreshReadSource(opened.db, adapter, later);
+    expect(inbox().find((i) => i.kind === 'other')?.resolvedAt).toBeTruthy();
+  });
+  it('acknowledge then map then replay retains the decision and refreshes display, including legacy details', async () => {
+    const adapter = source();
+    await refreshReadSource(opened.db, adapter, at);
+    const original = inbox().find((i) => i.kind === 'import')!;
+    // Previously persisted records embedded a mapping snapshot.
+    updateEntity(
+      opened.db,
+      schema.inboxItem,
+      original.id,
+      { detail: JSON.stringify({ ...operation, mappings: [] }) },
+      ctx,
+    );
+    resolveInboxItem(opened.db, original.id, ctx);
+    const acknowledged = inbox().find((i) => i.id === original.id)!;
+    const mapping = { key: balance.key, accountId: 'cash', securityId: null };
+    mapReadSource(opened.db, mapping, ctx);
+    await refreshReadSource(opened.db, adapter, at, true);
+    expect(inbox().find((i) => i.id === original.id)).toMatchObject({
+      resolvedAt: acknowledged.resolvedAt,
+      resolution: acknowledged.resolution,
+    });
+    // A live second operation shows today's mapping without another replay.
+    adapter.operations.mockResolvedValue({
+      operations: [{ ...operation, id: 'op-b' }],
+      nextCursor: null,
+    });
+    await refreshReadSource(opened.db, adapter, at);
+    const mapped = readInbox(opened.db, '2026-10-02').entries.find((i) => i.kind === 'import')!;
+    expect(mapped.type === 'stored' && JSON.parse(mapped.detail!).mappings).toEqual([mapping]);
+    const changed = mapReadSource(opened.db, { ...mapping, accountId: 'depot' }, ctx);
+    const display = () => {
+      const entry = readInbox(opened.db, '2026-10-02').entries.find((i) => i.kind === 'import')!;
+      return entry.type === 'stored' && JSON.parse(entry.detail!).mappings;
+    };
+    expect(display()).toEqual([{ ...mapping, accountId: 'depot' }]);
+    undo(opened.db, { groupId: changed.groupId }, ctx);
+    expect(display()).toEqual([mapping]);
+  });
+  it('keeps acknowledged balance differences closed until source or local values change', async () => {
+    const adapter = source();
+    await refreshReadSource(opened.db, adapter, at);
+    mapReadSource(opened.db, { key: balance.key, accountId: 'cash', securityId: null }, ctx);
+    adapter.balances.mockResolvedValue([
+      { ...balance, amount: { ...balance.amount, value: '12.35', cents: 1235 } },
+    ]);
+    await refreshReadSource(opened.db, adapter, at);
+    const warning = inbox().find((i) => i.detail?.includes('difference'))!;
+    resolveInboxItem(opened.db, warning.id, ctx);
+    await refreshReadSource(opened.db, adapter, at);
+    expect(inbox().find((i) => i.id === warning.id)?.resolvedAt).toBeTruthy();
+    updateEntity(opened.db, schema.account, 'cash', { openingBalanceCents: 1233 }, ctx);
+    await refreshReadSource(opened.db, adapter, at);
+    expect(inbox().find((i) => i.id === warning.id)?.resolvedAt).toBeNull();
+    resolveInboxItem(opened.db, warning.id, ctx);
+    adapter.balances.mockResolvedValue([
+      { ...balance, amount: { ...balance.amount, value: '12.36', cents: 1236 } },
+    ]);
+    await refreshReadSource(opened.db, adapter, at);
+    expect(inbox().find((i) => i.id === warning.id)?.resolvedAt).toBeNull();
+  });
+  it('treats a missing source with local zero as reconciled and retains nonzero missing acknowledgement', async () => {
+    const adapter = source();
+    await refreshReadSource(opened.db, adapter, at);
+    mapReadSource(opened.db, { key: balance.key, accountId: 'cash', securityId: null }, ctx);
+    adapter.balances.mockResolvedValue([]);
+    await refreshReadSource(opened.db, adapter, at);
+    const warning = inbox().find((i) => i.detail?.includes('source_missing'))!;
+    expect(JSON.parse(warning.detail!).local).toBe(1234);
+    resolveInboxItem(opened.db, warning.id, ctx);
+    await refreshReadSource(opened.db, adapter, at);
+    expect(inbox().find((i) => i.id === warning.id)?.resolvedAt).toBeTruthy();
+    updateEntity(opened.db, schema.account, 'cash', { openingBalanceCents: 0 }, ctx);
+    await refreshReadSource(opened.db, adapter, at);
+    expect(
+      inbox().filter(
+        (i) => i.kind === 'reconciliation' && !i.resolvedAt && i.detail?.includes(balance.key),
+      ),
+    ).toHaveLength(0);
+    expect(readSourceState(opened.db).status).toBe('ok');
+    updateEntity(opened.db, schema.account, 'cash', { openingBalanceCents: 1234 }, ctx);
+    await refreshReadSource(opened.db, adapter, at);
+    expect(inbox().find((i) => i.id === warning.id)?.resolvedAt).toBeNull();
+  });
+  it('reopens the same difference after an intervening matching balance, and flags duplicate mapped rows', async () => {
+    const adapter = source();
+    await refreshReadSource(opened.db, adapter, at);
+    mapReadSource(opened.db, { key: balance.key, accountId: 'cash', securityId: null }, ctx);
+    const differing = { ...balance, amount: { ...balance.amount, value: '12.35', cents: 1235 } };
+    adapter.balances.mockResolvedValue([differing]);
+    await refreshReadSource(opened.db, adapter, at);
+    const warning = inbox().find((i) => i.detail?.includes('difference'))!;
+    resolveInboxItem(opened.db, warning.id, ctx);
+    adapter.balances.mockResolvedValue([balance]);
+    await refreshReadSource(opened.db, adapter, at);
+    expect(inbox().find((i) => i.id === warning.id)?.resolvedAt).toBeTruthy();
+    adapter.balances.mockResolvedValue([differing]);
+    await refreshReadSource(opened.db, adapter, at);
+    expect(inbox().find((i) => i.id === warning.id)?.resolvedAt).toBeNull();
+    adapter.balances.mockResolvedValue([{ ...balance, issue: 'duplicate' }]);
+    await refreshReadSource(opened.db, adapter, at);
+    expect(JSON.parse(inbox().find((i) => i.id === warning.id)!.detail!).reason).toBe(
+      'duplicate_rows',
+    );
+  });
+  it('quarantines invalid operations without blocking valid ones and replaces quarantine after correction', async () => {
+    const adapter = source([]);
+    adapter.operations.mockResolvedValue({
+      operations: [operation],
+      invalidOperations: [{ id: 'bad-op', reason: 'schema' }],
+      nextCursor: null,
+    });
+    await refreshReadSource(opened.db, adapter, at);
     expect(inbox().filter((i) => i.kind === 'import')).toHaveLength(1);
+    const quarantined = inbox().find((i) => i.kind === 'other')!;
+    expect(JSON.parse(quarantined.detail!)).toEqual({ id: 'bad-op', reason: 'schema' });
+    resolveInboxItem(opened.db, quarantined.id, ctx);
+    await refreshReadSource(opened.db, adapter, at);
+    expect(inbox().find((i) => i.id === quarantined.id)?.resolvedAt).toBeTruthy();
+    adapter.operations.mockResolvedValue({
+      operations: [{ ...operation, id: 'bad-op' }],
+      nextCursor: null,
+    });
+    await refreshReadSource(opened.db, adapter, at);
+    expect(inbox().find((i) => i.id === quarantined.id)).toMatchObject({
+      kind: 'import',
+      resolvedAt: null,
+      urgent: false,
+    });
+  });
+  it('bounds persisted cursor history and retains a total page counter for older loops', async () => {
+    const adapter = source([]);
+    for (let n = 0; n < 70; n++) {
+      adapter.operations.mockResolvedValue({ operations: [], nextCursor: 'cursor-' + n });
+      await refreshReadSource(opened.db, adapter, at);
+    }
+    expect(readSourceState(opened.db).window?.seen).toHaveLength(64);
+    expect(readSourceState(opened.db).window?.pages).toBe(70);
+    saveReadSourceState(
+      opened.db,
+      {
+        ...readSourceState(opened.db),
+        window: {
+          from: '1970-01-01T00:00:00.000Z',
+          to: at.toISOString(),
+          cursor: 'cursor-69',
+          seen: Array.from({ length: 70 }, (_, index) => 'legacy-' + index),
+        },
+      },
+      ctx,
+    );
+    adapter.operations.mockResolvedValue({ operations: [], nextCursor: 'legacy-next' });
+    await refreshReadSource(opened.db, adapter, at);
+    expect(readSourceState(opened.db).window?.seen).toHaveLength(64);
+    expect(readSourceState(opened.db).window?.pages).toBe(71);
+    saveReadSourceState(
+      opened.db,
+      {
+        ...readSourceState(opened.db),
+        window: { ...readSourceState(opened.db).window!, pages: 10000 },
+      },
+      ctx,
+    );
+    adapter.operations.mockResolvedValue({ operations: [], nextCursor: 'outside-recent-history' });
+    await expect(refreshReadSource(opened.db, adapter, at)).rejects.toThrow();
+    expect(readSourceState(opened.db).window?.pages).toBe(10000);
   });
   it('rolls back both staged movements and cursor when a write fails', () => {
     sqliteOf(opened.db).exec(

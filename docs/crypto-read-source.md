@@ -17,7 +17,10 @@ and trades/wallet transactions with
 The base is `https://api.public.bitpanda.com`. Authentication uses `X-Api-Key`.
 [GET /v1/currencies](https://docs.public.bitpanda.com/list-available-currencies-4375771e0)
 resolves fiat currency IDs. [GET /v1/assets](https://docs.public.bitpanda.com/list-available-assets-4375772e0) supplies public instrument names for explicit mapping, using bounded ID-filtered batches. Provider-specific names, schemas, paths and credentials
-are confined to `apps/server/src/sources/bitpanda.ts`.
+are isolated in the generic adapter `apps/server/src/sources/crypto-api.ts`.
+Create a dedicated key in Bitpanda account settings with **Balances**, **Transaction**
+and **Trade (Read)** scopes; grant no write scopes. See
+[key generation](https://docs.public.bitpanda.com/api-key-generation).
 
 Only fixed-host GET requests are implemented. Redirects are refused; each request
 has a 20-second timeout and a 4 MB streamed response limit. Unknown response fields
@@ -26,13 +29,10 @@ reach logs, API errors or audit rows. The API/UI disclose key presence only.
 
 ## Owner steps
 
-1. In Bitpanda account settings, create a dedicated API key with **Balances**,
-   **Transaction** and **Trade (Read)** scopes for balances, history and instrument/currency
-   metadata. Do not grant Trade (Write) or Earn (Write).
-   See [key generation](https://docs.public.bitpanda.com/api-key-generation).
-   Set expiry and rotate before expiry; restrict source IPs if appropriate.
+1. Create a dedicated read-only key using the contract above. Set expiry and rotate
+   before expiry; restrict source IPs if appropriate.
 2. Set the secret yourself for the deployed Fly app:
-   `fly secrets set BITPANDA_API_KEY=<read-only-key> --app <app-name>`.
+   `fly secrets set CRYPTO_API_KEY=<read-only-key> --app <app-name>`.
    Replace placeholders privately, avoid shared terminals/shell-history exposure,
    and never paste the key into this repository, chat or a PR.
 3. After deployment, open Einstellungen › Datenquellen. Confirm
@@ -58,20 +58,32 @@ tracked helpers and savepoint transactions; mapping and acknowledgement support 
 
 The first run reads all history from the epoch. A frozen `from/to` window and opaque
 cursor advance one page per call. Each page and its cursor commit together.
-Successful watermark advances only after the complete history window and balance
-comparison. A failed final balance read resumes that phase without replaying pages.
+The successful operations watermark advances after the complete history window,
+even when the final balance read fails. That failure retains the previous balances
+and raises an inbox item; the next run can fetch new operations. Last success refers
+to the operations window, not successful balance reconciliation.
 Later runs overlap seven days; operation IDs hash into deterministic inbox IDs,
 including resolved items. Changed normalized data reopens the existing item.
-Cursor loops fail closed. Failures retry after 30 minutes; unfinished pages continue
+Only the last 64 cursors and a total page counter are stored. Recent cursor loops
+fail closed; older loops are bounded by a 10,000-page limit. Failures retry after 30 minutes; unfinished pages continue
 once per minute. No automatic retry within a provider request.
 
 Normalized records retain operation/transaction/trade/wallet IDs, types, direction,
 credit timestamp, native amounts, fees, compensation IDs and post-transaction balance.
-Mapped account/instrument references accompany new/replayed inbox records. Original
+Current account/instrument mappings are attached when reading inbox records, never
+used as operation dedupe facts. Mapping changes and mapping undo refresh display
+without clearing acknowledgement. Invalid operations are individually quarantined
+as `other` items containing only an ID and the fixed reason `schema`; valid neighbors
+and pagination continue. Failure items contain only a category (`schema`, `http`,
+`timeout`, `parse`), never a response body. Original
 decimal text is retained for source review; representable fiat values have integer
 cents. Holdings compare exact e8 units through the existing snapshot/trade read model,
 even without a quote. Unknown mapping, absent source balance, currency mismatch or
 excess precision raises an explicit warning, never an invented zero or silent round.
+An absent mapped balance is reconciled when the local balance is zero. Acknowledged
+differences reopen only when source/local values change. Invalid balance rows and
+duplicates are flagged individually; unrelated currency metadata is ignored and
+symbols are not restricted to three letters.
 Cash compares the app's current native balance, including pending bookings.
 
 ## Remaining acceptance

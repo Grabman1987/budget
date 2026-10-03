@@ -262,6 +262,7 @@ Enable Banking adapter, worker with nightly run and catch-up, inbox items, assig
 ### Crypto read source (P4/P5)
 - [x] Read-only current public API adapter; env-only key, paged resumable operation inbox, provider-ID deduplication and explicit investment/cash mappings.
 - [x] Native balance warnings, audited page/cursor writes, existing nightly timer hook and step-up protected manual fetch/full replay in Datenquellen. See [owner setup and limitations](crypto-read-source.md).
+- [x] Review fixes: mapping-independent acknowledgement/current display, row quarantine and categorized failures, tolerant balance reads with independent operations progress, unchanged-difference acknowledgement and bounded cursor history.
 - [ ] Owner key setup, private reconciliation and 14-day nightly acceptance; dedicated P4 worker and automated posting/matching remain separate.
 
 ## P5 Vermögen

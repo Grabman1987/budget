@@ -9,6 +9,7 @@ import {
 import { addDays, todayInVienna, type ReadSource } from '@budget/domain';
 import { ApiError } from '../api/http';
 import { viennaMinutes, NIGHTLY_AT_MINUTES } from '../market/timer';
+import { SourceReadError, sourceFailureCategory } from './errors';
 const running = new WeakSet<Db>();
 export const readSourceRunning = (db: Db) => running.has(db);
 
@@ -24,6 +25,7 @@ export async function refreshReadSource(
   if (running.has(db) || writesHeld(db))
     throw new ApiError(409, 'source_busy', 'Abruf oder Datenübernahme läuft bereits.');
   running.add(db);
+  let operationsComplete = false;
   try {
     const state = readSourceState(db);
     const at = now.toISOString();
@@ -37,15 +39,18 @@ export async function refreshReadSource(
       cursor: null,
       complete: false,
       seen: [] as string[],
+      pages: 0,
     };
     const page = window.complete
       ? { operations: [], nextCursor: null }
       : await source.operations(window);
     if (
       page.nextCursor &&
-      (window.seen?.includes(page.nextCursor) || (window.seen?.length ?? 0) >= 10000)
+      (page.nextCursor === window.cursor ||
+        window.seen?.includes(page.nextCursor) ||
+        (window.pages ?? window.seen?.length ?? 0) >= 10000)
     )
-      throw new Error('source_failed');
+      throw new SourceReadError('schema');
     if (writesHeld(db)) throw new ApiError(409, 'source_busy', 'Datenübernahme läuft.');
     stageSourcePage(
       db,
@@ -58,18 +63,25 @@ export async function refreshReadSource(
           ...window,
           cursor: page.nextCursor,
           complete: !page.nextCursor,
-          seen: page.nextCursor ? [...(window.seen ?? []), page.nextCursor] : (window.seen ?? []),
+          seen: (page.nextCursor
+            ? [...(window.seen ?? []), page.nextCursor]
+            : (window.seen ?? [])
+          ).slice(-64),
+          pages: (window.pages ?? window.seen?.length ?? 0) + 1,
         },
       },
       { actor: 'system' },
+      page.invalidOperations,
     );
     if (page.nextCursor) return { status: 'partial' as const };
+    operationsComplete = true;
     const balances = await source.balances();
     if (writesHeld(db)) throw new ApiError(409, 'source_busy', 'Datenübernahme läuft.');
     finishReadSource(db, balances, at, { actor: 'system' });
     return { status: 'ok' as const };
   } catch (error) {
-    if (!writesHeld(db)) failReadSource(db, now.toISOString());
+    if (!writesHeld(db) && !(error instanceof ApiError))
+      failReadSource(db, now.toISOString(), sourceFailureCategory(error), operationsComplete);
     if (error instanceof ApiError) throw error;
     throw new ApiError(
       422,
@@ -88,6 +100,7 @@ export async function refreshReadSourceIfDue(db: Db, source: ReadSource, now: Da
   const delay = state.status === 'failed' ? 30 * 60_000 : 60_000;
   if (now.getTime() - last < delay) return;
   if (
+    state.status !== 'failed' &&
     !state.window &&
     state.lastSuccess &&
     (todayInVienna(new Date(state.lastSuccess)) === todayInVienna(now) ||

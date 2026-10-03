@@ -5,8 +5,6 @@ import type { SourceBalance, SourceMapping } from '@budget/domain';
 import { request } from '../api/http';
 import { INBOX_KEY } from '../inbox/api';
 import { withStepUp } from '../auth/webauthn';
-import { PAGES } from '../nav/pages';
-import { PageFrame } from './placeholder-page';
 import './read-source.css';
 
 interface SourceStatus {
@@ -29,9 +27,9 @@ const labels = {
   failed: 'Abruf fehlgeschlagen',
 };
 const stamp = (value: string | null) =>
-  value ? new Date(value).toLocaleString('de-AT') : 'Noch keiner';
+  value ? new Date(value).toLocaleString('de-AT') : 'Noch nicht';
 
-export function ReadSourcePage() {
+export function CryptoReadSourceSection() {
   const query = useQuery({ queryKey: key, queryFn: () => request<SourceStatus>('GET', path) });
   const client = useQueryClient();
   const [busy, setBusy] = useState(false);
@@ -50,34 +48,37 @@ export function ReadSourcePage() {
     }
   }
   return (
-    <PageFrame
-      meta={PAGES.find((p) => p.path === '/einstellungen/datenquellen')!}
-      revealCurrentRegister
-    >
-      <section aria-labelledby="source-title" className="read-source">
-        <SectionHead id="source-title" title="Krypto-Lesequelle" />
-        <p>
-          Bewegungen erscheinen zur Prüfung im Posteingang. Ein- und Auszahlungen dort mit den
-          Bankkonten abgleichen. Buchungen und Trades bestätigst du selbst.
+    <section aria-labelledby="crypto-source-title" className="data-source-section">
+      <SectionHead id="crypto-source-title" title="Krypto-Lesequelle" />
+      <p>
+        Bewegungen erscheinen zur Prüfung im Posteingang. Ein- und Auszahlungen dort mit den
+        Bankkonten abgleichen. Buchungen und Trades bestätigst du selbst.
+      </p>
+      {query.isPending && <p role="status">Lädt …</p>}
+      {query.isError && (
+        <p role="alert">
+          Datenquelle konnte nicht geladen werden.{' '}
+          <Button onClick={() => void query.refetch()}>Erneut laden</Button>
         </p>
-        {query.isPending && <p role="status">Lädt …</p>}
-        {query.isError && (
-          <p role="alert">
-            Datenquelle konnte nicht geladen werden.{' '}
-            <Button onClick={() => void query.refetch()}>Erneut laden</Button>
-          </p>
-        )}
-        {query.data && !query.isError && (
-          <>
-            <p>Schlüssel gesetzt: {query.data.configured ? 'ja' : 'nein'}</p>
-            <dl>
+      )}
+      {query.data && !query.isError && (
+        <>
+          <p>Schlüssel gesetzt: {query.data.configured ? 'ja' : 'nein'}</p>
+          <dl className="source-status">
+            <div>
               <dt>Status</dt>
               <dd>{query.data.running || busy ? 'Abruf läuft …' : labels[query.data.status]}</dd>
-              <dt>Letzter vollständiger Abruf</dt>
+            </div>
+            <div>
+              <dt>Letztes abgeschlossenes Bewegungsfenster</dt>
               <dd>{stamp(query.data.lastSuccess)}</dd>
+            </div>
+            <div>
               <dt>Letzter Versuch</dt>
               <dd>{stamp(query.data.lastAttempt)}</dd>
-            </dl>
+            </div>
+          </dl>
+          <div className="sources-actions">
             <Button
               disabled={busy || query.data.running || !query.data.configured}
               onClick={() => void refresh()}
@@ -91,22 +92,22 @@ export function ReadSourcePage() {
             >
               Gesamten Verlauf prüfen
             </Button>
-            <p>
-              Bei aktivem Nachtlauf wird die Quelle automatisch abgerufen. Ein Schlüssel mit
-              Leserechten wird ausschließlich am Server gesetzt.
-            </p>
-            {query.data.balances.map((balance) => (
-              <Mapping key={balance.key} balance={balance} data={query.data} />
-            ))}
-          </>
-        )}
-        {error && (
-          <p role="alert" className="field-error">
-            {error}
+          </div>
+          <p>
+            Bei aktivem Nachtlauf wird die Quelle automatisch abgerufen. Ein Schlüssel mit
+            Leserechten wird ausschließlich am Server gesetzt.
           </p>
-        )}
-      </section>
-    </PageFrame>
+          {query.data.balances.map((balance) => (
+            <Mapping key={balance.key} balance={balance} data={query.data} />
+          ))}
+        </>
+      )}
+      {error && (
+        <p role="alert" className="field-error">
+          {error}
+        </p>
+      )}
+    </section>
   );
 }
 function Mapping({ balance, data }: { balance: SourceBalance; data: SourceStatus }) {
@@ -132,6 +133,7 @@ function Mapping({ balance, data }: { balance: SourceBalance; data: SourceStatus
         }),
       );
       await client.invalidateQueries({ queryKey: key });
+      await client.invalidateQueries({ queryKey: INBOX_KEY });
       setMessage('Zuordnung gespeichert. Der nächste Abruf vergleicht die Salden.');
     } catch {
       setMessage('Zuordnung nicht gespeichert. Konto, Instrument und Anmeldung prüfen.');
@@ -152,8 +154,14 @@ function Mapping({ balance, data }: { balance: SourceBalance; data: SourceStatus
         {balance.key}
       </h3>
       <p>
-        Quellbestand: {balance.amount.value.replace('.', ',')}
-        {balance.currency ? ' ' + balance.currency : ' Anteile'}
+        {balance.issue ? (
+          'Quellbestand nicht verfügbar. Datenformat oder doppelte Saldozeilen prüfen.'
+        ) : (
+          <>
+            Quellbestand: {balance.amount.value.replace('.', ',')}
+            {balance.currency ? ' ' + balance.currency : ' Anteile'}
+          </>
+        )}
       </p>
       <Field label={asset ? 'Anlagekonto' : 'Verrechnungskonto'}>
         {({ id }) => (

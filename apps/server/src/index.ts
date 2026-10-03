@@ -10,7 +10,7 @@ import { createAuth } from './auth/routes';
 import { ImportJobs } from './imports/jobs';
 import { AuthStore } from './auth/store';
 import { createMarketSources, marketModeFromEnv, startDailyMarketTimer } from './market';
-import { bitpandaReadSource } from './sources/bitpanda';
+import { cryptoReadSource } from './sources/crypto-api';
 import { refreshReadSourceIfDue } from './sources/refresh';
 import { todayFromEnv } from './today';
 
@@ -71,7 +71,7 @@ if (process.env['BUDGET_MARKET_DAILY'] === '1') {
     db,
     sources: createMarketSources(db, mode),
     catchUpOnStart: true,
-    onTick: (now) => refreshReadSourceIfDue(db, bitpandaReadSource(), now),
+    onTick: (now) => refreshReadSourceIfDue(db, cryptoReadSource(), now),
   });
   console.log(`Daily market refresh on (${mode} sources)`);
 }

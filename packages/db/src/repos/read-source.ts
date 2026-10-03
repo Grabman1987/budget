@@ -5,6 +5,7 @@ import {
   type SourceBalance,
   type SourceMapping,
   type SourceOperation,
+  type SourceFailureCategory,
 } from '@budget/domain';
 import { appSetting, inboxItem, account, security } from '../schema';
 import { getEntity, createEntity, updateEntity } from './entities';
@@ -24,6 +25,7 @@ export interface ReadSourceState {
     cursor: string | null;
     complete?: boolean;
     seen?: string[];
+    pages?: number;
   } | null;
   balances: SourceBalance[];
 }
@@ -31,9 +33,14 @@ const stateKey = 'source.crypto.state';
 const mappingKey = 'source.crypto.mappings';
 export function readSourceState(db: Executor): ReadSourceState {
   const row = getEntity(db, appSetting, stateKey);
-  return row
-    ? (JSON.parse(row.value) as ReadSourceState)
-    : { lastSuccess: null, lastAttempt: null, status: 'idle', window: null, balances: [] };
+  if (!row)
+    return { lastSuccess: null, lastAttempt: null, status: 'idle', window: null, balances: [] };
+  const state = JSON.parse(row.value) as ReadSourceState;
+  if (state.window?.seen) {
+    state.window.pages ??= state.window.seen.length;
+    state.window.seen = state.window.seen.slice(-64);
+  }
+  return state;
 }
 export function readSourceMappings(db: Executor): SourceMapping[] {
   const row = getEntity(db, appSetting, mappingKey);
@@ -78,6 +85,43 @@ const itemId = (key: string) =>
   createHash('sha256')
     .update('crypto:' + key)
     .digest('hex');
+function operationFields(detail: string) {
+  const fields = JSON.parse(detail) as Record<string, unknown>;
+  delete fields['mappings'];
+  return JSON.stringify(fields);
+}
+/** Mappings are current display data, independent of the acknowledged source facts. */
+export function readSourceDisplayDetail(detail: string | null, mappings: SourceMapping[]) {
+  if (!detail) return detail;
+  let op: SourceOperation;
+  try {
+    op = JSON.parse(detail) as SourceOperation;
+  } catch {
+    return detail;
+  }
+  if (!op || typeof op !== 'object') return detail;
+  if (!Array.isArray(op.transactions)) return detail;
+  return JSON.stringify({
+    ...op,
+    mappings: mappings.filter((m) =>
+      op.transactions.some(
+        (t) =>
+          m.key ===
+          (t.amount.assetId ? 'asset:' + t.amount.assetId : 'currency:' + t.amount.currencyId),
+      ),
+    ),
+  });
+}
+function balanceFields(detail: string) {
+  const value = JSON.parse(detail) as {
+    source: string | null;
+    local: number | null;
+    reason: string;
+  };
+  // Decimal formatting and mapping display changes do not change the discrepancy.
+  const source = value.source?.replace(/(\.\d*?)0+$/, '$1').replace(/\.$/, '') ?? null;
+  return JSON.stringify({ source, local: value.local, reason: value.reason });
+}
 function item(
   db: Executor,
   key: string,
@@ -86,6 +130,7 @@ function item(
   kind: 'import' | 'reconciliation' | 'other',
   ctx: GroupedContext,
   reopen = false,
+  compare: (detail: string) => string = (detail) => detail,
 ) {
   const id = itemId(key);
   const old = getEntity(db, inboxItem, id);
@@ -104,14 +149,29 @@ function item(
       },
       ctx,
     );
-  else if (old.detail !== detail || (reopen && old.resolvedAt))
-    updateEntity(db, inboxItem, id, { title, detail, resolvedAt: null, resolution: null }, ctx);
+  else if (old.detail !== detail || old.kind !== kind || (reopen && old.resolvedAt)) {
+    const changed = old.kind !== kind || !old.detail || compare(old.detail) !== compare(detail);
+    updateEntity(
+      db,
+      inboxItem,
+      id,
+      {
+        title,
+        detail,
+        kind,
+        urgent: kind !== 'import',
+        ...(changed || reopen ? { resolvedAt: null, resolution: null } : {}),
+      },
+      ctx,
+    );
+  }
 }
 export function stageSourcePage(
   db: Executor,
   operations: SourceOperation[],
   state: ReadSourceState,
   ctx: AuditContext,
+  invalidOperations: Array<{ id: string; reason: 'schema' }> = [],
 ) {
   const grouped = withGroup(ctx);
   return runInTransaction(db, (tx) => {
@@ -122,22 +182,22 @@ export function stageSourcePage(
         tx,
         'operation:' + op.id,
         transfer ? 'Quellbewegung: Umbuchung abgleichen' : 'Quellbewegung: Anlage prüfen',
-        JSON.stringify({
-          ...op,
-          mappings: readSourceMappings(tx).filter((m) =>
-            op.transactions.some(
-              (t) =>
-                m.key ===
-                (t.amount.assetId
-                  ? 'asset:' + t.amount.assetId
-                  : 'currency:' + t.amount.currencyId),
-            ),
-          ),
-        }),
+        JSON.stringify(op),
         'import',
         grouped,
+        false,
+        operationFields,
       );
     }
+    for (const invalid of invalidOperations)
+      item(
+        tx,
+        'operation:' + invalid.id,
+        'Quellbewegung: Datenformat prüfen',
+        JSON.stringify(invalid),
+        'other',
+        grouped,
+      );
     saveReadSourceState(tx, state, grouped);
     return grouped.groupId;
   });
@@ -159,8 +219,51 @@ export function finishReadSource(
       ...holdings.missingPricePositions,
     ];
     const mappings = readSourceMappings(tx);
-    // Missing mapped balances stay actionable on every run, even after acknowledgement.
+    const resolveBalance = (key: string, detail: string) => {
+      const warning = getEntity(tx, inboxItem, itemId('balance:' + key));
+      if (warning && (!warning.resolvedAt || warning.detail !== detail))
+        updateEntity(
+          tx,
+          inboxItem,
+          warning.id,
+          {
+            detail,
+            ...(!warning.resolvedAt
+              ? { resolvedAt: now, resolution: 'Quellsaldo stimmt beim Abruf überein.' }
+              : {}),
+          },
+          grouped,
+        );
+    };
     for (const mapping of mappings.filter((m) => !balances.some((b) => b.key === m.key))) {
+      const acc = accounts.find((a) => a.id === mapping.accountId);
+      const local =
+        !acc ||
+        acc.onBudget ||
+        acc.closedAt ||
+        (mapping.securityId &&
+          (!getEntity(tx, security, mapping.securityId) ||
+            !['crypto', 'brokerage'].includes(acc.type)))
+          ? null
+          : mapping.securityId
+            ? (positions.find(
+                (p) => p.accountId === mapping.accountId && p.securityId === mapping.securityId,
+              )?.unitsE8 ?? 0)
+            : acc.balanceCents;
+      if (local === 0) {
+        resolveBalance(
+          mapping.key,
+          JSON.stringify({
+            key: mapping.key,
+            source: null,
+            local,
+            scale: mapping.securityId ? 8 : 2,
+            accountId: mapping.accountId,
+            reason: 'source_missing',
+          }),
+        );
+        continue;
+      }
       item(
         tx,
         'balance:' + mapping.key,
@@ -168,20 +271,23 @@ export function finishReadSource(
         JSON.stringify({
           key: mapping.key,
           source: null,
-          local: null,
+          local,
           scale: mapping.securityId ? 8 : 2,
           accountId: mapping.accountId,
           reason: 'source_missing',
         }),
         'reconciliation',
         grouped,
-        true,
+        false,
+        balanceFields,
       );
     }
     for (const balance of balances) {
       const mapping = mappings.find((m) => m.key === balance.key);
       const acc = accounts.find((a) => a.id === mapping?.accountId);
-      const source = sourceInteger(balance.amount.value, balance.amount.assetId ? 8 : 2);
+      const source = balance.issue
+        ? null
+        : sourceInteger(balance.amount.value, balance.amount.assetId ? 8 : 2);
       const valid =
         mapping &&
         acc &&
@@ -210,27 +316,33 @@ export function finishReadSource(
             local,
             scale: balance.amount.assetId ? 8 : 2,
             accountId: mapping?.accountId ?? null,
-            reason: !valid
-              ? 'mapping_required'
-              : source === null
-                ? 'precision_unsupported'
-                : 'difference',
+            reason: balance.issue
+              ? balance.issue === 'duplicate'
+                ? 'duplicate_rows'
+                : 'invalid_balance'
+              : !valid
+                ? 'mapping_required'
+                : source === null
+                  ? 'precision_unsupported'
+                  : 'difference',
           }),
           'reconciliation',
           grouped,
-          true,
+          false,
+          balanceFields,
         );
       } else {
-        const id = itemId('balance:' + balance.key);
-        const warning = getEntity(tx, inboxItem, id);
-        if (warning && !warning.resolvedAt)
-          updateEntity(
-            tx,
-            inboxItem,
-            id,
-            { resolvedAt: now, resolution: 'Quellsaldo stimmt beim Abruf überein.' },
-            grouped,
-          );
+        resolveBalance(
+          balance.key,
+          JSON.stringify({
+            key: balance.key,
+            source: balance.amount.value,
+            local,
+            scale: balance.amount.assetId ? 8 : 2,
+            accountId: mapping!.accountId,
+            reason: 'matched',
+          }),
+        );
       }
     }
     const state = readSourceState(tx);
@@ -258,15 +370,30 @@ export function finishReadSource(
     return grouped.groupId;
   });
 }
-export function failReadSource(db: Executor, now: string) {
+export function failReadSource(
+  db: Executor,
+  now: string,
+  category: SourceFailureCategory = 'http',
+  completeWindow = false,
+) {
   const ctx = withGroup({ actor: 'system' });
   runInTransaction(db, (tx) => {
-    saveReadSourceState(tx, { ...readSourceState(tx), lastAttempt: now, status: 'failed' }, ctx);
+    const state = readSourceState(tx);
+    saveReadSourceState(
+      tx,
+      {
+        ...state,
+        lastAttempt: now,
+        status: 'failed',
+        ...(completeWindow ? { lastSuccess: state.window!.to, window: null } : {}),
+      },
+      ctx,
+    );
     item(
       tx,
       'failure',
       'Datenquelle: Abruf fehlgeschlagen',
-      'Schlüssel, Leserechte und Verbindung prüfen. Gespeicherter Fortschritt bleibt erhalten.',
+      JSON.stringify({ category }),
       'other',
       ctx,
       true,
