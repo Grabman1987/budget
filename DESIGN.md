@@ -321,6 +321,7 @@ Arbeitsflächen sind Karten: `surface`, 12 px Radius, Rand `card-border`, Schatt
 - **Planliste (Desktop):** Beschriftung „Planliste“, Zeilen 42 px mit Lucide-Symbol, Name und Blattnummer 01–05 in Barlow SC. Aktiv: `raised`-Grund, kräftige Haarlinie, 600, Blattnummer in Tusche. Eingeklappt nur Symbole.
 - **Kontenhierarchie (Seitenleiste):** Gruppen in YNAB-Reihenfolge, einklappbar; negative Beträge (Konto und Gruppensumme) als rote Pille (`red-soft`, `red`), positive als schlichter Text. Unten Profil-Block mit Kürzel im Kreis und Namen aus Einstellungen › Profil (ohne Eintrag generisch „Profil“ / „NU“).
 - **Tab-Leiste (mobil):** fünf Einträge, 22-px-Symbole, 11,5 px Text; aktiv in Tusche mit 2-px-Strich an der Oberkante.
+- **Einstellungen (gruppiert):** elf Seiten passen nicht in eine Registerleiste. Desktop: senkrechte Liste links neben der Seite (208 px) mit Gruppenköpfen Daten · Automatik · System in Barlow SC, Zeilen 40 px, aktiv wie in der Planliste (`raised`-Grund, kräftige Haarlinie, 600, `aria-current="page"`). Handy: `/einstellungen` ist die Übersicht mit denselben Gruppen als ganzbreite 44-px-Zeilen mit Pfeil; jede Seite zeigt darüber einen Rücksprung „‹ Einstellungen“ und ihren Namen. Alle Adressen bleiben.
 - **Segmentschalter:** Rahmen 8 px mit 4 px Innenabstand; aktives Segment als Tusche-Fläche.
 
 ### Schriftfeld
