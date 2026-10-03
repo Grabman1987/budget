@@ -94,6 +94,15 @@ export interface RuleInputs {
   /** R13 to R15: positions with their security kind, class and platform (institution). */
   positions: ReadonlyArray<WealthPosition>;
   classTargets: ReadonlyArray<ClassTarget>;
+  /** The target tier (dynamic weights by investment sum) behind `classTargets`, if one applies. */
+  classTargetTier?: {
+    /** German label such as "bis 20.000 €". */
+    label: string;
+    upToCents: number | null;
+    position: number;
+    count: number;
+    investmentSumCents: number;
+  } | null;
   /** Labels for ids in details and texts. */
   names: {
     assetClasses: Record<string, string>;

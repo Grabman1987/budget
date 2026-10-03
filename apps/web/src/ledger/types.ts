@@ -38,6 +38,11 @@ export interface AccountRow {
   interestRateBp: number | null;
   termEnd: string | null;
   monthlyFeeCents: number | null;
+  /** Loan terms (Einstellungen › Konten). */
+  interestKind: 'fixed' | 'variable' | null;
+  installmentCents: number | null;
+  termStart: string | null;
+  originalAmountCents: number | null;
   sortOrder: number;
   closedAt: string | null;
   note: string | null;

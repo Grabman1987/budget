@@ -43,6 +43,11 @@ export interface AccountSummary {
   interestRateBp: number | null;
   termEnd: string | null;
   monthlyFeeCents: number | null;
+  /** Loan terms: fixed or variable interest, monthly installment, start of the term, original amount. */
+  interestKind: 'fixed' | 'variable' | null;
+  installmentCents: number | null;
+  termStart: string | null;
+  originalAmountCents: number | null;
   sortOrder: number;
   closedAt: string | null;
   note: string | null;
@@ -113,6 +118,10 @@ export function accountSummaries(db: Executor, asOf: string): AccountSummary[] {
     interestRateBp: r.account.interestRateBp,
     termEnd: r.account.termEnd,
     monthlyFeeCents: r.account.monthlyFeeCents,
+    interestKind: r.account.interestKind,
+    installmentCents: r.account.installmentCents,
+    termStart: r.account.termStart,
+    originalAmountCents: r.account.originalAmountCents,
     sortOrder: r.account.sortOrder,
     closedAt: r.account.closedAt,
     note: r.account.note,

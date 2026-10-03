@@ -1,14 +1,45 @@
-import { defaultBandBp } from '@budget/domain';
+import { defaultBandBp, targetTierLabel } from '@budget/domain';
 import { isNull } from 'drizzle-orm';
 import { account, institution, security } from '../schema';
-import { listAssetClasses, targetsAsOf } from './securities';
+import { activeTargetsAsOf, listTargetTiers, type ActiveTargets } from './asset-target-tiers';
+import { listAssetClasses } from './securities';
 import { portfolioPositions } from './portfolio-positions';
 import { riskOf, type RiskPosition } from './portfolio-summary';
 import type { Executor } from './types';
 
+/** Which Soll-Allocation is active and, with tiers, which tier the investment sum selects. */
+export interface TargetSetView {
+  source: ActiveTargets['source'];
+  /** German label of the active tier ("bis 20.000 €"), `null` without an active tier. */
+  tierLabel: string | null;
+  upToCents: number | null;
+  position: number | null;
+  count: number | null;
+  /** Investment sum (market value of investment accounts and their cash accounts), if used. */
+  investmentSumCents: number | null;
+  /** Tiers exist but the sum could not be valued, so the dated targets were used. */
+  sumUnavailable: boolean;
+}
+
+export function targetSetView(db: Executor, active: ActiveTargets): TargetSetView {
+  const tiers = active.tier ? listTargetTiers(db) : [];
+  const chosen = active.tier ? tiers.find((t) => t.id === active.tier!.id) : undefined;
+  return {
+    source: active.source,
+    tierLabel: chosen ? targetTierLabel(chosen, tiers) : null,
+    upToCents: active.tier?.upToCents ?? null,
+    position: active.tier?.position ?? null,
+    count: active.tier?.count ?? null,
+    investmentSumCents: active.investmentSumCents,
+    sumUnavailable: active.sumUnavailable,
+  };
+}
+
 export interface PortfolioAllocationView {
   asOf: string;
   valueCents: number | null;
+  /** The Soll-Allocation behind `classes[].targetBp` (dynamic by investment sum, or dated). */
+  targetSet: TargetSetView;
   status: 'known' | 'empty' | 'unavailable' | 'nonpositive';
   missing: ('missing_price' | 'missing_fx')[];
   classes: {
@@ -42,7 +73,8 @@ export function portfolioAllocation(db: Executor, asOf: string): PortfolioAlloca
       .all()
       .map((row) => [row.id, row]),
   );
-  const targets = new Map(targetsAsOf(db, asOf).map((row) => [row.assetClassId, row]));
+  const activeTargets = activeTargetsAsOf(db, asOf);
+  const targets = new Map(activeTargets.targets.map((row) => [row.assetClassId, row]));
   const status =
     current.valueCents === null
       ? 'unavailable'
@@ -77,6 +109,7 @@ export function portfolioAllocation(db: Executor, asOf: string): PortfolioAlloca
   return {
     asOf,
     valueCents: current.valueCents,
+    targetSet: targetSetView(db, activeTargets),
     status,
     missing,
     classes: listAssetClasses(db).map((row) => {

@@ -2,6 +2,7 @@ import { and, asc, eq, isNotNull, isNull, ne } from 'drizzle-orm';
 import {
   assetClass,
   assetClassTarget,
+  assetTargetTierShare,
   holding,
   institution,
   savingsPlan,
@@ -136,6 +137,38 @@ export const getAssetClass = (db: Executor, id: string) => assetClassRepo.get(db
 export const createAssetClass = assetClassRepo.create;
 export const updateAssetClass = assetClassRepo.update;
 
+/**
+ * Set the order of the asset classes: `ids` (live, unique) come first in the given order, classes
+ * not listed follow in their current order, so the result is one gapless sequence 1..n. One audit
+ * group, so a single undo restores the old order; positions that do not change are not written.
+ */
+export function orderAssetClasses(
+  db: Executor,
+  ids: ReadonlyArray<string>,
+  ctx: AuditContext,
+): { order: string[]; changed: number; groupId: string } {
+  const grouped = withGroup(ctx);
+  return runInTransaction(db, (tx) => {
+    const live = assetClassRepo.list(tx);
+    const known = new Set(live.map((c) => c.id));
+    const seen = new Set<string>();
+    for (const id of ids) {
+      if (!known.has(id)) throw new EntityNotFoundError('asset_class', id);
+      if (seen.has(id)) throw new ConflictError(`Asset class ${id} is listed twice`);
+      seen.add(id);
+    }
+    const order = [...ids, ...live.map((c) => c.id).filter((id) => !seen.has(id))];
+    const before = new Map(live.map((c) => [c.id, c.sortOrder]));
+    let changed = 0;
+    order.forEach((id, index) => {
+      if (before.get(id) === index + 1) return;
+      updateTracked(tx, assetClass, [id], { sortOrder: index + 1 }, grouped);
+      changed += 1;
+    });
+    return { order, changed, groupId: grouped.groupId };
+  });
+}
+
 /** Soft-delete an asset class; refused while a live security belongs to it. */
 export function deleteAssetClass(db: Executor, id: string, ctx: AuditContext): void {
   runInTransaction(db, (tx) => {
@@ -145,6 +178,13 @@ export function deleteAssetClass(db: Executor, id: string, ctx: AuditContext): v
       .where(and(eq(security.assetClassId, id), isNull(security.deletedAt)))
       .get();
     if (used) throw new ConflictError('Securities still belong to this asset class');
+    const inTier = tx
+      .select({ id: assetTargetTierShare.id })
+      .from(assetTargetTierShare)
+      .where(and(eq(assetTargetTierShare.assetClassId, id), isNull(assetTargetTierShare.deletedAt)))
+      .get();
+    if (inTier)
+      throw new ConflictError('The asset class is part of target sets; remove it there first');
     assetClassRepo.softDelete(tx, id, ctx);
   });
 }

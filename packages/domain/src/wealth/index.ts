@@ -60,3 +60,10 @@ export {
 } from './allocation-report';
 
 export { freedomMonths } from './freedom';
+export {
+  selectTargetTier,
+  sortTargetTiers,
+  targetTierLabel,
+  targetTierListProblem,
+  type TargetTierBound,
+} from './target-tiers';

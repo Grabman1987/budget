@@ -3,6 +3,7 @@ import { basename, resolve } from 'node:path';
 import {
   applyBookEntries,
   applyInstrumentFacts,
+  applyOwnerConfig,
   applyMoves,
   applyPayslips,
   listAuditGroups,
@@ -13,7 +14,9 @@ import {
   parseGroupsFile,
   parsePayslipsFile,
   parseInstrumentFactsFile,
+  parseOwnerConfigFile,
   planGroupMoves,
+  summarizeOwnerConfig,
   summarizePayslips,
   undoAuditGroups,
   type MovePlan,
@@ -38,6 +41,7 @@ import { findRun, runTask, type ImportTask } from './tasks';
  *   node migrate-cli.js book --file <json> [--dry-run] [--details]
  *   node migrate-cli.js payslips --file <json> [--dry-run] [--details] [--replace]
  *   node migrate-cli.js instrument-facts --file <json> [--dry-run]
+ *   node migrate-cli.js owner-config --file <json> [--dry-run]
  *
  * Output is aggregates only (counts, problem codes, number of differences); `--details` adds the
  * differences themselves for the operator's terminal. Nothing is logged to files.
@@ -79,6 +83,13 @@ import { findRun, runTask, type ImportTask } from './tasks';
  * the rules settings function. Every entry is one audit group (actor `operator`) that Rückgängig
  * or `undo-group` reverts on its own; `--dry-run` reports exactly what would change. Exit code 3
  * if an entry was skipped.
+ * `owner-config` loads the owner's private settings from one JSON file (never in the repo), all
+ * sections optional: `profile`, `rules`, `categoryStages`, `assetClasses`, `assetTargets`,
+ * `securities`, `expectedPayments`, `skipOccurrences`, `clearBookings` (schema: docs/ops.md).
+ * Every entry calls the function behind the matching app route, is one audit group (actor
+ * `operator`, `undo-group` reverts it on its own) and reports `created`, `updated`, `unchanged`
+ * or `skipped <reason>`; a second run reports everything as unchanged. Exit code 3 if an entry
+ * was skipped; `--dry-run` rolls everything back and reports what would change.
  */
 
 const args = process.argv.slice(2);
@@ -424,9 +435,50 @@ try {
         process.exitCode = 3;
       break;
     }
+    case 'owner-config': {
+      const dryRun = args.includes('--dry-run');
+      const config = parseOwnerConfigFile(
+        JSON.parse(readFileSync(required('file'), 'utf8')),
+        ctx.today,
+      );
+      const outcomes = applyOwnerConfig(
+        db,
+        config,
+        { actor: 'operator' },
+        { dryRun, today: ctx.today },
+      );
+      for (const o of outcomes) {
+        if (o.status === 'skipped') {
+          console.log('skipped       ', o.section, o.key, o.reason);
+          if (args.includes('--details')) console.log('              ', o.detail);
+        } else
+          console.log(
+            o.status.padEnd(14),
+            o.section,
+            o.key,
+            o.detail,
+            o.groupId || (o.status === 'unchanged' ? '' : '(dry run)'),
+          );
+      }
+      for (const s of summarizeOwnerConfig(outcomes))
+        console.log(
+          s.section.padEnd(16),
+          'created',
+          s.created,
+          'updated',
+          s.updated,
+          'unchanged',
+          s.unchanged,
+          'skipped',
+          s.skipped,
+          dryRun ? '(dry run)' : '',
+        );
+      if (outcomes.some((o) => o.status === 'skipped')) process.exitCode = 3;
+      break;
+    }
     default:
       console.log(
-        'usage: migrate-cli.js stage|dry-run|report|commit|revert|delete|order-accounts|list-groups|undo-group|move-money|book|payslips|instrument-facts [options]',
+        'usage: migrate-cli.js stage|dry-run|report|commit|revert|delete|order-accounts|list-groups|undo-group|move-money|book|payslips|instrument-facts|owner-config [options]',
       );
       process.exitCode = 2;
   }

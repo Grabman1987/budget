@@ -17,6 +17,7 @@ import {
   getSecurity,
   getTrade,
   listAssetClasses,
+  orderAssetClasses,
   listSavingsPlans,
   listSecurities,
   listTargetVersions,
@@ -37,12 +38,15 @@ import {
   confirmSavingsExecution,
   savingsProposal,
   setTargets,
-  targetsAsOf,
   TRADE_KINDS,
   updateAssetClass,
   updateSecurity,
   updateTrade,
   accounts,
+  activeTargetsAsOf,
+  listTargetTiers,
+  setTargetTiers,
+  targetSetView,
   type AssetTargetInput,
   type Db,
   type SavingsPlanInput,
@@ -166,14 +170,38 @@ const targetsBody = z.object({
     .max(50),
 });
 
+const classOrder = z.object({
+  ids: z
+    .array(id)
+    .min(1)
+    .max(200)
+    .refine((ids) => new Set(ids).size === ids.length, 'Each asset class only once'),
+});
+const tiersBody = z.object({
+  tiers: z
+    .array(
+      z.object({
+        /** Inclusive upper bound of the investment sum; `null` = above the last threshold. */
+        upToCents: z.int().min(0).nullable(),
+        targets: z
+          .array(z.object({ assetClassId: id, targetShareBp: bp, bandBp: bp.optional() }))
+          .min(1)
+          .max(50),
+      }),
+    )
+    .max(20),
+});
+
 export function assetClassRoutes(db: Db, today: () => string): Hono {
   const app = new Hono();
   const audit = () => ({ actor: ACTOR, groupId: randomUUID() });
 
   app.get('/', (c) => {
-    const current = new Map(targetsAsOf(db, today()).map((t) => [t.assetClassId, t]));
+    const active = activeTargetsAsOf(db, today());
+    const current = new Map(active.targets.map((t) => [t.assetClassId, t]));
     const inUse = assetClassesInUse(db);
     return c.json({
+      targetSet: targetSetView(db, active),
       assetClasses: listAssetClasses(db).map((cls) => ({
         ...cls,
         target: current.get(cls.id) ?? null,
@@ -184,12 +212,46 @@ export function assetClassRoutes(db: Db, today: () => string): Hono {
   app.post('/', async (c) => {
     const body = await readBody(c, classCreate);
     const ctx = audit();
-    const row = createAssetClass(db, defined(body), ctx);
+    // A new class goes to the end of the order unless the request says where.
+    const last = listAssetClasses(db).reduce((max, cls) => Math.max(max, cls.sortOrder), 0);
+    const row = createAssetClass(
+      db,
+      defined({ ...body, sortOrder: body.sortOrder ?? last + 1 }),
+      ctx,
+    );
     return c.json({ assetClass: row, groupId: ctx.groupId }, 201);
   });
 
   // Fixed paths before `/:id`.
+  app.patch('/order', async (c) => {
+    const { ids } = await readBody(c, classOrder);
+    const ctx = audit();
+    const result = orderAssetClasses(db, ids, ctx);
+    return c.json({ order: result.order, groupId: result.groupId });
+  });
   app.get('/targets', (c) => c.json({ versions: listTargetVersions(db) }));
+  // Dynamic target weights by investment sum: the tiers and the one the current sum selects.
+  const tiersView = () => {
+    const active = activeTargetsAsOf(db, today());
+    return {
+      tiers: listTargetTiers(db),
+      active: targetSetView(db, active),
+    };
+  };
+  app.get('/tiers', (c) => c.json(tiersView()));
+  app.put('/tiers', async (c) => {
+    const { tiers } = await readBody(c, tiersBody);
+    const ctx = audit();
+    setTargetTiers(
+      db,
+      tiers.map((t) => ({
+        upToCents: t.upToCents,
+        targets: t.targets.map((x) => defined<AssetTargetInput>(x)),
+      })),
+      ctx,
+    );
+    return c.json({ ...tiersView(), groupId: ctx.groupId });
+  });
   app.put('/targets', async (c) => {
     const { validFrom, targets } = await readBody(c, targetsBody);
     const ctx = audit();

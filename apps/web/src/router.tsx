@@ -17,6 +17,8 @@ import {
   ACCOUNT_PAGE,
   CSV_EXPORT_META,
   EINSTELLUNGEN_KATEGORIEN,
+  ANLAGEKLASSEN_META,
+  KONTEN_SETTINGS_META,
   PLAN_ERWARTET,
   EINSTELLUNGEN_REGELWERK,
   PLAN_MONAT,
@@ -126,6 +128,8 @@ const BUILT_PATHS = new Set<string>([
   SECURITY_META.path,
   PROFILE_META.path,
   INVESTMENT_SETTINGS_META.path,
+  KONTEN_SETTINGS_META.path,
+  ANLAGEKLASSEN_META.path,
   '/konten',
   '/einstellungen/projekte',
   '/konten/buchungen',
@@ -203,6 +207,21 @@ const investmentSettingsRoute = createRoute({
   component: lazyRouteComponent(
     () => import('./pages/investment-settings'),
     'InvestmentSettingsPage',
+  ),
+});
+const accountsSettingsRoute = createRoute({
+  getParentRoute: () => shellRoute,
+  path: KONTEN_SETTINGS_META.path,
+  staticData: { meta: KONTEN_SETTINGS_META },
+  component: lazyRouteComponent(() => import('./pages/accounts-settings'), 'AccountsSettingsPage'),
+});
+const assetClassesSettingsRoute = createRoute({
+  getParentRoute: () => shellRoute,
+  path: ANLAGEKLASSEN_META.path,
+  staticData: { meta: ANLAGEKLASSEN_META },
+  component: lazyRouteComponent(
+    () => import('./pages/asset-classes-settings'),
+    'AssetClassesSettingsPage',
   ),
 });
 const categoriesRoute = createRoute({
@@ -463,6 +482,8 @@ const routeTree = rootRoute.addChildren([
     profileRoute,
     projectsSettingsRoute,
     investmentSettingsRoute,
+    accountsSettingsRoute,
+    assetClassesSettingsRoute,
     categoriesRoute,
     rulesRoute,
     exportRoute,

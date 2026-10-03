@@ -211,6 +211,13 @@
       "when": 1791050631585,
       "tag": "0029_savings_execution_guards",
       "breakpoints": true
+    },
+    {
+      "idx": 30,
+      "version": "6",
+      "when": 1791059702204,
+      "tag": "0030_owner_config",
+      "breakpoints": true
     }
   ]
 }

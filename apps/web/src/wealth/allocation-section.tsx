@@ -8,6 +8,7 @@ import { eurWhole } from '../ledger/format';
 import { allocationQuery, type PortfolioAllocationView } from './allocation-api';
 import { percentText } from './portfolio-format';
 import { TargetPanel } from './target-panel';
+import { TargetSetNote } from './target-set';
 import './allocation.css';
 
 export function PortfolioAllocation() {
@@ -68,6 +69,7 @@ export function PortfolioAllocation() {
         )}
         {view && (
           <>
+            <TargetSetNote set={view.targetSet} />
             {!known && (
               <p className="vnote" role="status">
                 {view.status === 'unavailable'
@@ -130,7 +132,9 @@ export function PortfolioAllocation() {
             )}
             <div className="allocation-actions">
               <Button variant="ghost" onClick={() => select('ziele')}>
-                Sollquoten bearbeiten
+                {view.targetSet.source === 'tiers'
+                  ? 'Datierte Sollquoten bearbeiten'
+                  : 'Sollquoten bearbeiten'}
               </Button>
             </div>
           </>

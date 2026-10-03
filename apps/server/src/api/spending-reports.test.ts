@@ -567,6 +567,44 @@ describe('2.6 Bank- und Zinskosten on a small ledger', () => {
     });
   });
 
+  it('reads the loan terms from Konten: installment, fee, kind and term in the scenario', async () => {
+    // Without an installment the expected payments (none here) give a payment of 0 that does not cover interest.
+    expect((await get(app, '/reports/spending/costs')).body.loan).toMatchObject({
+      paymentCents: 0,
+      paymentSource: 'contracts',
+      belowInterest: true,
+    });
+    accounts.update(
+      opened.db,
+      'kredit',
+      {
+        installmentCents: 30_000,
+        interestKind: 'fixed',
+        termStart: '2023-10-01',
+        termEnd: '2033-10-01',
+        originalAmountCents: 1_200_000,
+        monthlyFeeCents: 500,
+      },
+      ctx,
+    );
+    const body = (await get(app, '/reports/spending/costs')).body;
+    expect(body.loan).toMatchObject({
+      rateBp: 600,
+      paymentCents: 30_000,
+      paymentSource: 'terms',
+      interestKind: 'fixed',
+      belowInterest: false,
+    });
+    expect(body.loan.plan.base.totalFeeCents).toBeGreaterThan(0);
+    expect(body.creditLines.find((l: any) => l.id === 'kredit')).toMatchObject({
+      interestKind: 'fixed',
+      installmentCents: 30_000,
+      termStart: '2023-10-01',
+      termEnd: '2033-10-01',
+      originalAmountCents: 1_200_000,
+    });
+  });
+
   it('shows interest and dividends apart as earnings, not as household income', async () => {
     createBooking(
       opened.db,

@@ -15,7 +15,9 @@ import {
 import { isNull } from 'drizzle-orm';
 import { account, security } from '../schema';
 import { portfolioFlows, valuationSeries } from './portfolio';
-import { classTargets, firstDay, positionLines, riskOf } from './portfolio-summary';
+import { activeTargetsAsOf } from './asset-target-tiers';
+import { targetSetView, type TargetSetView } from './portfolio-allocation';
+import { firstDay, positionLines, riskOf } from './portfolio-summary';
 import { listAssetClasses } from './securities';
 import type { Executor } from './types';
 
@@ -54,6 +56,8 @@ export interface AllocationRegion {
 
 export interface AllocationHistory {
   dates: string[];
+  /** German label of the active target tier at each date; `null` without tiers. */
+  tierLabels: Array<string | null>;
   totalCents: number[];
   classes: Array<{
     assetClassId: string | null;
@@ -68,6 +72,8 @@ export interface AllocationHistory {
 export interface AllocationReport {
   asOf: string;
   totalCents: number;
+  /** The Soll-Allocation of the table (tier of the investment sum, or dated targets). */
+  targetSet: TargetSetView;
   classes: AllocationClass[];
   regions: AllocationRegion[];
   /** False when part of the portfolio has no (valid) region weights. */
@@ -195,6 +201,7 @@ export function allocationReport(db: Executor, options: { today: string }): Allo
   if (series && start !== null && series.days.length > 0) {
     const dates = monthBoundaries(start, today);
     const dayIndex = new Map(series.days.map((d, i) => [d, i]));
+    const tierLabelsByDate = new Map<string, string | null>();
     const snapshots = dates.map((date) => {
       const i = dayIndex.get(date) as number;
       const positions: WealthPosition[] = series.positions.flatMap((p) => {
@@ -211,11 +218,22 @@ export function allocationReport(db: Executor, options: { today: string }): Allo
           },
         ];
       });
-      return { date, positions, targets: classTargets(db, date) };
+      const active = activeTargetsAsOf(db, date);
+      tierLabelsByDate.set(date, targetSetView(db, active).tierLabel);
+      return {
+        date,
+        positions,
+        targets: active.targets.map((t) => ({
+          assetClass: t.assetClassId,
+          targetBp: t.targetShareBp,
+          bandBp: t.bandBp,
+        })),
+      };
     });
     const timeline = allocationTimeline(snapshots);
     history = {
       dates: timeline.dates,
+      tierLabels: timeline.dates.map((d) => tierLabelsByDate.get(d) ?? null),
       totalCents: timeline.totalCents,
       classes: timeline.classes.map((c) => ({
         assetClassId: c.assetClass === NO_CLASS ? null : c.assetClass,
@@ -231,6 +249,7 @@ export function allocationReport(db: Executor, options: { today: string }): Allo
   return {
     asOf: today,
     totalCents,
+    targetSet: targetSetView(db, activeTargetsAsOf(db, today)),
     classes,
     regions,
     regionsComplete: !regions.some((r) => r.region === null),

@@ -363,13 +363,17 @@ const r13: Rule<'R13'> = (p, i) => {
   const action = under
     ? `Nächste Sparrate vollständig in ${nameOf(under.assetClass)} (fehlen ${eur(under.gapCents)}).`
     : `${nameOf(worst.assetClass)} nicht weiter aufstocken (${eur(-worst.gapCents)} über dem Soll).`;
+  const tier = i.classTargetTier ?? null;
   return result(
     status,
-    `${nameOf(worst.assetClass)} ${formatPoints(worst.deviationBp ?? 0)}`,
+    `${nameOf(worst.assetClass)} ${formatPoints(worst.deviationBp ?? 0)}${
+      tier ? ` · Zielset ${tier.label}` : ''
+    }`,
     action,
     {
       maxDeviationBp: worst.deviationBp === null ? 0 : Math.abs(worst.deviationBp),
       breaches: st.breaches.map((r) => r.assetClass),
+      ...(tier && { tier }),
     },
   );
 };

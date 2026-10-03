@@ -54,7 +54,7 @@ import {
   valuationSeries,
 } from './portfolio';
 import { MissingFxRateError } from './errors';
-import { targetsAsOf } from './securities';
+import { activeTargetsAsOf } from './asset-target-tiers';
 import { investmentPreferences } from './investment-preferences';
 import type { Executor } from './types';
 
@@ -659,9 +659,12 @@ export const toWealthPositions = (lines: ReadonlyArray<RiskPosition>): WealthPos
     })),
   );
 
-/** R13 inputs: the Soll-Allocation valid on `asOf`. */
+/**
+ * R13 inputs: the Soll-Allocation valid on `asOf` (the tier of the investment sum when target
+ * tiers exist, else the dated versions).
+ */
 export function classTargets(db: Executor, asOf: string) {
-  return targetsAsOf(db, asOf).map((t) => ({
+  return activeTargetsAsOf(db, asOf).targets.map((t) => ({
     assetClass: t.assetClassId,
     targetBp: t.targetShareBp,
     bandBp: t.bandBp,

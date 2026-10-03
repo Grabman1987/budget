@@ -31,6 +31,7 @@ import {
   type SinkingFund,
   type WealthPosition,
   type Rhythm,
+  targetTierLabel,
 } from '@budget/domain';
 import { and, asc, eq, isNull } from 'drizzle-orm';
 import {
@@ -52,6 +53,7 @@ import {
   rule,
 } from '../schema';
 import { allocationMonth, isIncomeCategorySplit } from './allocation';
+import { activeTargetsAsOf, investmentSumFrom, listTargetTiers } from './asset-target-tiers';
 import { scheduleVersion, schedulePayment } from './expected';
 import { holdingValuesAsOf, netWorthAsOf, type NetWorth } from './portfolio';
 import { fxRateOnOrBefore } from './prices';
@@ -636,14 +638,37 @@ export function ruleInputs(
       },
     ];
   });
-  const classTargets: ClassTarget[] = [
-    ...new Set(f.classTargets.map((t) => t.assetClassId)),
-  ].flatMap((id) => {
-    const t = f.classTargets
-      .filter((x) => x.assetClassId === id && x.validFrom <= asOf)
-      .sort((a, b) => b.validFrom.localeCompare(a.validFrom))[0];
-    return t ? [{ assetClass: id, targetBp: t.targetShareBp, bandBp: t.bandBp }] : [];
-  });
+  // With target tiers the investment sum chooses the Soll-Allocation, else the dated versions.
+  const tiers = listTargetTiers(db);
+  const tierTargets =
+    tiers.length > 0
+      ? activeTargetsAsOf(db, asOf, {
+          sumCents: investmentSumFrom(f.accounts, asOf, nw.byAccount),
+        })
+      : null;
+  const classTargets: ClassTarget[] =
+    tierTargets && tierTargets.source === 'tiers'
+      ? tierTargets.targets.map((t) => ({
+          assetClass: t.assetClassId,
+          targetBp: t.targetShareBp,
+          bandBp: t.bandBp,
+        }))
+      : [...new Set(f.classTargets.map((t) => t.assetClassId))].flatMap((id) => {
+          const t = f.classTargets
+            .filter((x) => x.assetClassId === id && x.validFrom <= asOf)
+            .sort((a, b) => b.validFrom.localeCompare(a.validFrom))[0];
+          return t ? [{ assetClass: id, targetBp: t.targetShareBp, bandBp: t.bandBp }] : [];
+        });
+  const classTargetTier =
+    tierTargets?.source === 'tiers' && tierTargets.tier && tierTargets.investmentSumCents !== null
+      ? {
+          label: targetTierLabel(tierTargets.tier, tiers),
+          upToCents: tierTargets.tier.upToCents,
+          position: tierTargets.tier.position,
+          count: tierTargets.tier.count,
+          investmentSumCents: tierTargets.investmentSumCents,
+        }
+      : null;
 
   // R16: invested wealth over 25 annual spends, now and three months ago
   const progressAt = (day: string, refM: string): { invested: number; spend: number } => {
@@ -697,6 +722,7 @@ export function ruleInputs(
     windfall,
     positions,
     classTargets,
+    classTargetTier,
     names: {
       assetClasses: f.classNames,
       securities: Object.fromEntries([...f.securities.values()].map((s) => [s.id, s.name])),
