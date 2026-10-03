@@ -23,7 +23,7 @@ import { mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { Hono } from 'hono';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createApp, type AuthGate } from '../app';
 import { writeImport } from './commit';
 
@@ -36,6 +36,7 @@ let stepUpFresh: boolean;
 let app: ReturnType<typeof createApp>;
 
 beforeEach(() => {
+  vi.stubEnv('BUDGET_IMPORT_HTTP', '1');
   db = createTestDatabase().db;
   stepUpFresh = true;
   const gate: AuthGate = {
@@ -47,6 +48,7 @@ beforeEach(() => {
   };
   app = createApp({ webDir, auth: gate, ledger: { db, today: () => '2026-09-29' } });
 });
+afterEach(() => vi.unstubAllEnvs());
 
 /** A call of the import API; a job (202) is followed until it ends, like the wizard does. */
 async function call(method: string, path: string, body?: unknown) {

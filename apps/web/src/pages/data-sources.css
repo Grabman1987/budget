@@ -1,0 +1,65 @@
+.data-sources {
+  display: grid;
+  gap: var(--space-lg, 16px);
+}
+.sources-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 12px;
+}
+.source-connection {
+  border-top: 1px solid var(--rule);
+  padding-block: 24px;
+  min-width: 0;
+}
+.source-status {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+.source-status dt {
+  color: var(--ink-3);
+  font-size: 12px;
+}
+.source-status dd {
+  margin: 4px 0 0;
+  overflow-wrap: anywhere;
+}
+.source-account {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 12px;
+  padding-block: 16px;
+  border-top: 1px solid var(--rule);
+}
+.source-account p {
+  flex-basis: 100%;
+  overflow-wrap: anywhere;
+}
+.source-account .field-row {
+  flex: 1 1 180px;
+  min-width: 0;
+}
+.data-sources button,
+.bank-candidate button {
+  min-height: 44px;
+}
+.bank-candidate {
+  display: grid;
+  gap: 8px;
+}
+@media (max-width: 767px) {
+  .source-status {
+    grid-template-columns: 1fr;
+  }
+  .source-account {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+  .sources-actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+}

@@ -7,7 +7,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { promisify } from 'node:util';
 import { backupDay, backupKey, backupsToDelete } from './retention';
-import { S3Client, type S3Config } from './s3';
+import { S3Client, safeBackupMessage, type S3Config } from './s3';
 
 const run = promisify(execFile);
 type Sqlite = OpenedDatabase['sqlite'];
@@ -170,7 +170,7 @@ export class BackupScheduler {
       return result;
     } catch (error) {
       this.lastRetry = now.getTime();
-      const message = error instanceof Error ? error.message : String(error);
+      const message = safeBackupMessage(error);
       this.log(`Encrypted backup failed: ${message}`);
       this.reportInbox(message, now);
       return undefined;

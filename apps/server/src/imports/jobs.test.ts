@@ -17,7 +17,7 @@ import { mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createApp, type AuthGate } from '../app';
 import { ImportJobs } from './jobs';
 import { stageExport } from './staging';
@@ -44,11 +44,13 @@ let close: () => void;
 let jobs: ImportJobs;
 
 beforeEach(() => {
+  vi.stubEnv('BUDGET_IMPORT_HTTP', '1');
   path = join(mkdtempSync(join(tmpdir(), 'budget-jobs-')), 'budget.sqlite');
   ({ db, close } = openDatabase(path));
   migrateDatabase(db);
 });
 afterEach(async () => {
+  vi.unstubAllEnvs();
   await jobs?.terminate();
   close();
 });
