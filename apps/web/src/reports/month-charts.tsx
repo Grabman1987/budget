@@ -1,4 +1,12 @@
-import { AxisLine, ChartSvg, Graticule, Line, XTicks, type Point } from '@budget/ui';
+import {
+  useAmountPrivacy,
+  AxisLine,
+  ChartSvg,
+  Graticule,
+  Line,
+  XTicks,
+  type Point,
+} from '@budget/ui';
 import { scaleLinear } from 'd3-scale';
 import { useElementWidth } from '../charts/use-element-width';
 import { eur } from '../ledger/format';
@@ -55,6 +63,7 @@ export function StackedMonthsChart({
   testId: string;
   height?: number;
 }) {
+  useAmountPrivacy();
   const [ref, width] = useElementWidth<HTMLDivElement>();
   return (
     <div ref={ref} className="mr-chart-box">
@@ -87,6 +96,7 @@ function Drawing({
   width: number;
   height: number;
 }) {
+  useAmountPrivacy();
   const left = 46;
   const right = 8;
   const top = 16;
@@ -162,6 +172,7 @@ export function NetWorthMini({
   points: Array<{ month: string; cents: number }>;
   label: string;
 }) {
+  useAmountPrivacy();
   const [ref, width] = useElementWidth<HTMLDivElement>();
   return (
     <div ref={ref} className="mr-chart-box">
@@ -181,6 +192,7 @@ function MiniDrawing({
   label: string;
   width: number;
 }) {
+  useAmountPrivacy();
   const height = 130;
   const left = 8;
   const right = 8;

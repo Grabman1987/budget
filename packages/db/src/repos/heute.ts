@@ -17,6 +17,7 @@ import {
   nextPayday,
   paceForecastCurve,
   paceModel,
+  paymentCoverage,
   type BudgetMonth,
   type FreeEnvelope,
   type FreeUntilPayday,
@@ -31,6 +32,7 @@ import {
 } from '@budget/domain';
 import { and, eq, gte, isNull, lte } from 'drizzle-orm';
 import { booking, bookingSplit, contact, expectedOccurrence, INCOME_TYPES } from '../schema';
+import { budget as readBudget } from './queries';
 import { queryBookings } from './ledger-queries';
 import { cashSeries, netWorthAsOf, netWorthValuationAsOf } from './portfolio';
 import { forecastInputs, loadFacts, scheduled, type RuleFacts } from './rule-inputs';
@@ -497,9 +499,17 @@ export function heute(db: Executor, query: HeuteQuery): Heute {
     });
 
   // ---- upcoming, Finanz-Check, net worth, bookings, next steps ----
-  const upcoming14 = all.filter(
+  const upcomingRows = all.filter(
     (o) => o.dueDate >= today && o.dueDate <= addDays(today, UPCOMING_DAYS),
   );
+  const upcomingMonths = [...new Set(upcomingRows.map((o) => monthOf(o.dueDate)))];
+  const available = Object.fromEntries(
+    readBudget(db, upcomingMonths).map((m) => [
+      m.month,
+      Object.fromEntries(Object.entries(m.envelopes).map(([id, e]) => [id, e.availableCents])),
+    ]),
+  );
+  const upcoming14 = paymentCoverage(upcomingRows, available);
   const check = availableSection(() => {
     const result = financeCheck(db, today, facts);
     return { counts: result.counts, keyRules: result.keyRules };

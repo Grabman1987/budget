@@ -1,4 +1,14 @@
 import {
+  useAmountPrivacy,
+  AmountInput,
+  Button,
+  DetailPanel,
+  Field,
+  Select,
+  TextInput,
+  useToast,
+} from '@budget/ui';
+import {
   allocateContactReceipt,
   cents,
   formatDecimal,
@@ -8,7 +18,6 @@ import {
   type ContactMovement,
   type OpenContactOutlay,
 } from '@budget/domain';
-import { AmountInput, Button, DetailPanel, Field, Select, TextInput, useToast } from '@budget/ui';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate, useSearch } from '@tanstack/react-router';
 import { useState } from 'react';
@@ -68,6 +77,7 @@ function useContactWrite() {
 }
 
 export function ContactsPage() {
+  useAmountPrivacy();
   const [history, setHistory] = useState(false);
   const search = useSearch({ strict: false }) as { kontakt?: string };
   const selected = search.kontakt ?? '';
@@ -163,6 +173,7 @@ export function ContactsPage() {
 }
 
 function NewContact({ onDone }: { onDone: () => void }) {
+  useAmountPrivacy();
   const [name, setName] = useState('');
   const [busy, setBusy] = useState(false);
   const write = useContactWrite();
@@ -200,6 +211,7 @@ function NewContact({ onDone }: { onDone: () => void }) {
 }
 
 function ContactPanel({ id, onClose }: { id: string; onClose: () => void }) {
+  useAmountPrivacy();
   const statement = useQuery({
     queryKey: [...LEDGER_KEY, 'contact', id],
     enabled: !!id,
@@ -221,6 +233,7 @@ function ContactPanel({ id, onClose }: { id: string; onClose: () => void }) {
 }
 
 function ContactBody({ statement }: { statement: Statement }) {
+  useAmountPrivacy();
   const [receipt, setReceipt] = useState(false);
   return (
     <div className="contacts-form">
@@ -289,6 +302,7 @@ function ContactBody({ statement }: { statement: Statement }) {
 }
 
 function ReceiptForm({ statement, onDone }: { statement: Statement; onDone: () => void }) {
+  useAmountPrivacy();
   const accounts = useQuery(accountsQuery());
   const cash =
     accounts.data?.accounts.filter(
@@ -418,6 +432,7 @@ function ReceiptForm({ statement, onDone }: { statement: Statement; onDone: () =
               id={id}
               inputMode="decimal"
               value={values[o.splitId] ?? '0'}
+              money
               onChange={(e) => setChosen({ ...values, [o.splitId]: e.target.value })}
             />
           )}

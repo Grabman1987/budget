@@ -2,6 +2,7 @@ import {
   cents,
   formatEuro,
   summarizeMonth,
+  unclassifiedMonth,
   type CardRule,
   type MonthSummary,
 } from '@budget/domain';
@@ -12,7 +13,7 @@ import { getEntity } from './entities';
 import { categoryTree } from './categories';
 import { setAssigned } from './envelopes';
 import { CategoryRuleError, EntityNotFoundError } from './errors';
-import { budget } from './queries';
+import { budget, budgetLedger } from './queries';
 import { runInTransaction, type Executor } from './types';
 
 /**
@@ -172,9 +173,18 @@ export function budgetSummary(
   db: Executor,
   month: string,
   options: { cardRule?: CardRule } = {},
-): { summary: MonthSummary; tree: ReturnType<typeof categoryTree> } {
+): {
+  summary: MonthSummary & { unclassified: ReturnType<typeof unclassifiedMonth> };
+  tree: ReturnType<typeof categoryTree>;
+} {
   const tree = categoryTree(db);
   const [m] = budget(db, [month], options);
   if (!m) throw new RangeError(`No budget for ${month}`);
-  return { summary: summarizeMonth(m, tree.categories, tree.targets), tree };
+  return {
+    summary: {
+      ...summarizeMonth(m, tree.categories, tree.targets),
+      unclassified: unclassifiedMonth(budgetLedger(db), month),
+    },
+    tree,
+  };
 }

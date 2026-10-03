@@ -1,3 +1,4 @@
+import { useAmountPrivacy, DimensionChain, Segmented } from '@budget/ui';
 import {
   cents,
   monthIncomeOfRole,
@@ -5,7 +6,6 @@ import {
   savingsOverview,
   type MoneyAgePoint,
 } from '@budget/domain';
-import { DimensionChain, Segmented } from '@budget/ui';
 import { AlertTriangle, CheckCircle2 } from 'lucide-react';
 import { useMemo } from 'react';
 import { eur } from '../ledger/format';
@@ -21,6 +21,7 @@ const PERIOD_OPTIONS = ZEITRAUM_VALUES.map((value) => ({ value, label: value }))
 
 /** 1.7 Sparquote und Geldalter: how much is left, and how old the money is that gets spent. */
 export function SavingsReport({ report, meta }: { report: ReportEntry; meta: PageMeta }) {
+  useAmountPrivacy();
   const [period, setPeriod] = useZeitraum();
   const query = useReportTables();
   return (
@@ -60,6 +61,7 @@ function DaysChain({
   label: string;
   terms: ReadonlyArray<{ label: string; value: string; op?: '+' | '−' | '='; result?: boolean }>;
 }) {
+  useAmountPrivacy();
   return (
     <div className="chain-inline" role="group" aria-label={label}>
       {terms.map((term, i) => (
@@ -86,6 +88,7 @@ function SavingsBody({
   data: ReportTables;
   period: (typeof ZEITRAUM_VALUES)[number];
 }) {
+  useAmountPrivacy();
   const window = useMemo(
     () =>
       data.firstMonth && data.lastFullMonth

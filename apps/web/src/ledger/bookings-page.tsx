@@ -1,4 +1,4 @@
-import { Button, Field, Select, TextInput } from '@budget/ui';
+import { useAmountPrivacy, Button, Field, Select, TextInput } from '@budget/ui';
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
 import { useNavigate, useSearch } from '@tanstack/react-router';
 import { Plus } from 'lucide-react';
@@ -29,6 +29,7 @@ import {
 
 /** Alle Buchungen: filters in the URL, search, day groups, multi-select with bulk edit and undo. */
 export function BookingsPage() {
+  useAmountPrivacy();
   const search = useSearch({ strict: false }) as BookingsSearch;
   const navigate = useNavigate();
   const setSearch = (patch: Partial<BookingsSearch>) =>
@@ -279,6 +280,7 @@ function FilterRow({
   accounts: ReadonlyArray<AccountRow>;
   lookups: Lookups | undefined;
 }) {
+  useAmountPrivacy();
   const [showClosed, setShowClosed] = useState(false);
   // The search box writes to the URL after a short pause so that every key stroke is not a request.
   const [q, setQ] = useState(search.q ?? '');
@@ -448,6 +450,7 @@ function CategoryFilter({
   lookups: Lookups | undefined;
   onChange: (categoryId: string) => void;
 }) {
+  useAmountPrivacy();
   const month = useMemo(() => todayInVienna().slice(0, 7), []);
   const budget = useQuery(budgetQuery(month));
   const categories = useMemo(

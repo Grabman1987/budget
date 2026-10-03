@@ -1,4 +1,5 @@
-import { addDays, daysBetween, formatEuro, cents as toCents } from '@budget/domain';
+import { formatPrivateEuro as formatEuro } from '@budget/ui';
+import { addDays, daysBetween, cents as toCents } from '@budget/domain';
 import { eurOf, type ExpectedPayment, type Occurrence, type Rhythm } from './api';
 
 /** Presentation rules of Plan › Erwartet. The figures themselves come from the API. */

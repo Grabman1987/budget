@@ -1,5 +1,5 @@
+import { useAmountPrivacy, ChartSvg, Graticule, Line, ElevationMark, type Point } from '@budget/ui';
 import { addMonths, MAX_FREEDOM_MONTHS, type FreedomProjection } from '@budget/domain';
-import { ChartSvg, Graticule, Line, ElevationMark, type Point } from '@budget/ui';
 import { useElementWidth } from '../charts/use-element-width';
 import { eur } from '../ledger/format';
 import { kfmt, yTicks } from './networth-model';
@@ -15,6 +15,7 @@ export function FreedomChart({
   target: number;
   startMonth: string;
 }) {
+  useAmountPrivacy();
   const [ref, width] = useElementWidth<HTMLDivElement>();
   const H = 260,
     L = 56,

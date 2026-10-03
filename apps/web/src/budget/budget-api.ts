@@ -23,6 +23,7 @@ export interface EnvelopeSummary {
 }
 
 export interface MonthSummary {
+  unclassified?: { count: number; inflowCents: number; outflowCents: number; netCents: number };
   month: string;
   carryInCents: number;
   incomeCents: number;

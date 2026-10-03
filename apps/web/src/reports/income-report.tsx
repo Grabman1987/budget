@@ -1,3 +1,4 @@
+import { useAmountPrivacy } from '@budget/ui';
 import type { IncomeLineStatus } from '@budget/domain';
 import { useQuery } from '@tanstack/react-query';
 import {
@@ -40,6 +41,7 @@ const STATUS: Record<
 };
 
 export function IncomeReport({ report, meta }: { report: ReportEntry; meta: PageMeta }) {
+  useAmountPrivacy();
   const { month, shift, current } = useReportMonth();
   const query = useQuery(incomeReportQuery(month));
   const data = query.data;
@@ -72,6 +74,7 @@ export function IncomeReport({ report, meta }: { report: ReportEntry; meta: Page
 }
 
 function IncomeBody({ data }: { data: IncomeReportData }) {
+  useAmountPrivacy();
   const { income, expected, window } = data;
   const parts = eurParts(income.earnedCents);
   const title = monthTitle(data.month, data.partial, data.asOf);
@@ -285,6 +288,7 @@ function IncomeBody({ data }: { data: IncomeReportData }) {
 }
 
 function CapitalSection({ data }: { data: IncomeReportData }) {
+  useAmountPrivacy();
   const { window, income } = data;
   const cap = window.capital;
   return (

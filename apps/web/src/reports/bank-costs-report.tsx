@@ -1,6 +1,6 @@
+import { useAmountPrivacy, DimensionChain } from '@budget/ui';
 import { cents } from '@budget/domain';
 import type { BankCostsReport, FundCostsReport } from '@budget/db';
-import { DimensionChain } from '@budget/ui';
 import { queryOptions, useQuery } from '@tanstack/react-query';
 import { request } from '../api/http';
 import { eur, longDay } from '../ledger/format';
@@ -42,6 +42,7 @@ const monthEnd = (month: string | undefined) => (month ? monthShort(month) : '')
 
 /** 2.6 Bank- und Zinskosten: Was kostet uns das Geld selbst? */
 export function BankCostsReportPage({ report, meta }: { report: ReportEntry; meta: PageMeta }) {
+  useAmountPrivacy();
   const query = useQuery(costsQuery);
   const data = query.data && !query.isFetching ? query.data : undefined;
   return (
@@ -73,6 +74,7 @@ export function BankCostsReportPage({ report, meta }: { report: ReportEntry; met
 }
 
 function Body({ data }: { data: BankCostsReport }) {
+  useAmountPrivacy();
   const fund = useQuery(fundQuery);
   if (data.months.length === 0)
     return (

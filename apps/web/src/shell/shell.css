@@ -405,6 +405,37 @@ a.btn {
     width: 44px;
     height: 44px;
   }
+  .m-profile {
+    position: relative;
+    flex: none;
+  }
+  .m-profile summary {
+    cursor: pointer;
+    list-style: none;
+  }
+  .m-profile summary::-webkit-details-marker {
+    display: none;
+  }
+  .m-profile-actions {
+    position: absolute;
+    right: 0;
+    top: calc(100% + 8px);
+    z-index: 40;
+    display: grid;
+    gap: 8px;
+    width: max-content;
+    max-width: calc(100vw - 32px);
+    padding: 12px;
+    border: 1px solid var(--rule-strong);
+    border-radius: 8px;
+    background: var(--surface);
+    box-shadow: var(--shadow-float);
+  }
+  /* The closed menu's content is not rendered, so a theme switch would start colour transitions
+     that never get a frame to finish on (document.getAnimations() lingers for seconds). */
+  .m-profile:not([open]) .m-profile-actions * {
+    transition: none;
+  }
 
   .tabbar {
     display: grid;

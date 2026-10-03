@@ -1,4 +1,12 @@
-import { Button, Field, Select, TextInput, useToast } from '@budget/ui';
+import {
+  Button,
+  Field,
+  Select,
+  TextInput,
+  useToast,
+  maskMoneyText,
+  useAmountPrivacy,
+} from '@budget/ui';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRef, useState, type FormEvent } from 'react';
 import { ApiError, request } from '../api/http';
@@ -49,6 +57,7 @@ export function InstrumentForm({
   onSelect: (id?: string) => void;
   onBusy: (busy: boolean) => void;
 }) {
+  useAmountPrivacy();
   const [original] = useState(() => draftFor(security));
   const [draft, setDraft] = useState(original);
   const [errors, setErrors] = useState<Errors>({});
@@ -233,7 +242,7 @@ export function InstrumentForm({
         </Field>
         {errors.form && (
           <p role="alert" className="field-error">
-            {errors.form}
+            {maskMoneyText(errors.form)}
           </p>
         )}
         <Button type="submit" disabled={busy || !classes.isSuccess || (!!security && !changed)}>

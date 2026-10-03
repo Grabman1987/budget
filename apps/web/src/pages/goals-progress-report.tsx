@@ -1,5 +1,5 @@
+import { useAmountPrivacy, ClassSwatch, DetailPanel, type SwatchKind } from '@budget/ui';
 import { lastDayOfMonth } from '@budget/domain';
-import { ClassSwatch, DetailPanel, type SwatchKind } from '@budget/ui';
 import { queryOptions, useQuery } from '@tanstack/react-query';
 import { AlertTriangle, Check } from 'lucide-react';
 import { useState } from 'react';
@@ -50,6 +50,7 @@ export const goalsProgressReportQuery = () =>
   });
 
 export function GoalsProgressReport({ report, meta }: { report: ReportEntry; meta: PageMeta }) {
+  useAmountPrivacy();
   const query = useQuery(goalsProgressReportQuery());
   const [selected, setSelected] = useState<string | null>(null);
   // Never combine cached figures with loading or failed source metadata, including background refresh.
@@ -110,6 +111,7 @@ function ReportBody({
   rows: GoalReportRow[];
   onSelect: (id: string) => void;
 }) {
+  useAmountPrivacy();
   const known = rows.flatMap((r) => (r.progress ? [r.progress] : []));
   const unknown = rows.length - known.length;
   return (
@@ -285,6 +287,7 @@ function sourceLabel(row: GoalReportRow) {
     : 'Quelle ungeklärt';
 }
 function GoalBar({ goal }: { goal: GoalView }) {
+  useAmountPrivacy();
   const bar = goalBar(goal);
   return (
     <div
@@ -298,6 +301,7 @@ function GoalBar({ goal }: { goal: GoalView }) {
   );
 }
 function GoalStatus({ goal, month }: { goal: GoalView; month: string }) {
+  useAmountPrivacy();
   const line = goalLine(goal, month);
   const Icon = line.tone === 'warn' ? AlertTriangle : Check;
   return (
@@ -308,6 +312,7 @@ function GoalStatus({ goal, month }: { goal: GoalView; month: string }) {
   );
 }
 function Forecast({ goal }: { goal: GoalView }) {
+  useAmountPrivacy();
   return (
     <span>
       {goal.status === 'reached'
@@ -319,6 +324,7 @@ function Forecast({ goal }: { goal: GoalView }) {
   );
 }
 function GoalDetail({ row, month }: { row: GoalReportRow; month: string }) {
+  useAmountPrivacy();
   const g = row.progress;
   return (
     <div className="goal-report-detail">

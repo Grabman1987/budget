@@ -1,4 +1,6 @@
-import { cents as toCents, formatEuro, type Cents } from '@budget/domain';
+import { useAmountPrivacy } from '../amount-privacy';
+import { formatPrivateEuro as formatEuro } from '../amount-privacy';
+import { cents as toCents, type Cents } from '@budget/domain';
 import type { KeyboardEvent } from 'react';
 import { ClassPatterns, patternFill, usePatternPrefix } from '../charts/class-patterns';
 import { SlashTick } from '../charts/frame';
@@ -85,6 +87,7 @@ export function DimensionChainDrawing({
   open = true,
   width: fixedWidth,
 }: DimensionChainDrawingProps) {
+  useAmountPrivacy();
   const [ref, measured] = useElementWidth<HTMLDivElement>();
   const prefix = usePatternPrefix('ch');
   const width = fixedWidth ?? measured;

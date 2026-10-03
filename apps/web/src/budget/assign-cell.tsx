@@ -1,3 +1,4 @@
+import { useAmountPrivacy, maskMoneyText } from '@budget/ui';
 import { cents, formatDecimal } from '@budget/domain';
 import { useRef, useState, type KeyboardEvent } from 'react';
 import { eur } from '../ledger/format';
@@ -24,6 +25,7 @@ export function AssignCell({
   onEdit: (on: boolean) => void;
   onCommit: (value: number) => void;
 }) {
+  const hidden = useAmountPrivacy();
   const [text, setText] = useState('');
   const [invalid, setInvalid] = useState(false);
   /** Why the guard refused the typed amount, with the highest amount that is still allowed. */
@@ -67,6 +69,7 @@ export function AssignCell({
       {editing ? (
         <input
           className="assign-input"
+          type={hidden ? 'password' : 'text'}
           inputMode="decimal"
           autoComplete="off"
           // eslint-disable-next-line jsx-a11y/no-autofocus -- the field replaces the button just clicked
@@ -95,7 +98,7 @@ export function AssignCell({
           className="assign-btn"
           aria-label={`Zugewiesen ${eur(r.assignedCents)} für ${r.name} ändern`}
           onClick={() => {
-            setText(eur(r.assignedCents).replace(/\s?€$/, ''));
+            setText(formatDecimal(cents(r.assignedCents)));
             setRelative(false);
             setRefused(null);
             settled.current = false;
@@ -107,7 +110,7 @@ export function AssignCell({
       )}
       {editing && refused && (
         <span className="assign-note" id={noteId} role="alert">
-          {refused.message}
+          {maskMoneyText(refused.message)}
           {refused.maxCents > r.assignedCents && (
             <button
               type="button"

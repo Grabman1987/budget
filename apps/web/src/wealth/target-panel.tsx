@@ -1,5 +1,14 @@
 import { parseScaledDecimal } from '@budget/domain';
-import { Button, DetailPanel, Field, Select, TextInput, useToast } from '@budget/ui';
+import {
+  Button,
+  DetailPanel,
+  Field,
+  Select,
+  TextInput,
+  useToast,
+  maskMoneyText,
+  useAmountPrivacy,
+} from '@budget/ui';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
 import { useBlocker } from '@tanstack/react-router';
@@ -51,6 +60,7 @@ export function TargetPanel({
   pending: boolean;
   error: unknown;
 }) {
+  useAmountPrivacy();
   const versions = useQuery({ ...targetVersionsQuery(), enabled: open });
   const dirtyRef = useRef({ target: false, cls: false });
   const busyRef = useRef(false);
@@ -169,6 +179,7 @@ function TargetEditor({
   onBusy: (value: boolean) => void;
   onSaved: () => void;
 }) {
+  useAmountPrivacy();
   const [original, setOriginal] = useState(() => draftFor(view, versions, view.asOf));
   const [draft, setDraft] = useState(original);
   const [template, setTemplate] = useState(view.asOf);
@@ -394,7 +405,7 @@ function TargetEditor({
       </form>
       {!!error && (
         <p className="field-error" role="alert">
-          {error}
+          {maskMoneyText(error)}
         </p>
       )}
     </>
