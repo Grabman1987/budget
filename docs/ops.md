@@ -560,3 +560,17 @@ Same rules as section 12 (no import feature in the app, files and the private ma
 6. Remove the private files: `rm -rf /data/migration`. Undo if needed: `... revert --run <id>` (refused once trades were added to its securities).
 
 Notes: after the commit the YNAB Gate 2 report shows differences on the depot accounts that PP took over (their balance now includes trades); the PP report is authoritative for them. A re-import of a newer file (stage, commit) is idempotent and prints what changed (`unchanged`, `changed`, `missing`). Deliveries in and out count as capital flows in the depot view (as in PP); securities without any quote count as 0 in the returns and are listed.
+
+
+### Legacy HTTP importer and bounded backup requests
+
+The application has no import UI. `BUDGET_IMPORT_HTTP` is unset by default;
+`BUDGET_IMPORT_HTTP=1` may enable legacy HTTP routes in development/tests only.
+Production (`NODE_ENV=production`) always leaves them unmounted. Operator
+`/app/migrate-cli.js` and `/app/migrate-pp-cli.js` do not depend on this flag.
+
+Encrypted-backup S3 requests have a fixed 30-second deadline including response
+body reads. Error bodies are limited to 4 KiB and list pages to 1 MiB. Unknown
+provider text and operational exception details never reach logs/inbox; only
+allowlisted S3 codes or generic German failure hints do. The existing hourly
+retry and inbox resolution policy is unchanged. No new secret/env value is needed.

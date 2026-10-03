@@ -6,6 +6,7 @@ import { serve } from '@hono/node-server';
 import { createApp } from './app';
 import { authConfigFromEnv } from './auth/config';
 import { backupConfigFromEnv, BackupScheduler } from './backup/backup';
+import { safeBackupMessage } from './backup/s3';
 import { createAuth } from './auth/routes';
 import { ImportJobs } from './imports/jobs';
 import { AuthStore } from './auth/store';
@@ -80,7 +81,7 @@ if (backupConfig) {
     () => console.log(`Encrypted backup on (${backupConfig.recipients.length} recipient(s))`),
     (error: unknown) =>
       console.error(
-        `Encrypted backup: listing the bucket failed (${error instanceof Error ? error.message : String(error)}); will retry`,
+        `Encrypted backup: listing the bucket failed (${safeBackupMessage(error)}); will retry`,
       ),
   );
   backupTimers.push(setTimeout(tick, 2 * 60_000), setInterval(tick, 15 * 60_000));

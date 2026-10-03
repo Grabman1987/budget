@@ -12,6 +12,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { Readable } from 'node:stream';
 import yazl from 'yazl';
+import { admitExport } from './export-admission';
 import {
   account,
   assetClass,
@@ -650,135 +651,156 @@ function exportEntries(
 export function exportRoutes(db: Db, today: () => string, stepUp: MiddlewareHandler): Hono {
   const api = new Hono();
   api.get('/csv.zip', stepUp, async (c) => {
-    const asOf = today();
-    // Read every CSV from one SQLite backup so concurrent writes cannot mix ledger versions.
-    const tempDir = mkdtempSync(join(tmpdir(), 'budget-export-'));
-    chmodSync(tempDir, 0o700);
-    const snapshotPath = join(tempDir, 'snapshot.sqlite');
-    let snapshot: ReturnType<typeof openDatabase> | undefined;
-    let released = false;
-    let cleanup: Promise<void> | undefined;
-    let backupDone = false;
-    let requestAborted = false;
-    const outputRef: { stream?: Readable } = {};
-    const sources = new Set<Readable>();
-    const requestSignal = c.req.raw.signal;
-    const onRequestAbort = () => {
-      requestAborted = true;
-      if (backupDone) {
-        outputRef.stream?.destroy();
-        void release();
-      }
-    };
-    requestSignal.addEventListener('abort', onRequestAbort, { once: true });
-    const release = (): Promise<void> => {
-      if (cleanup) return cleanup;
-      released = true;
-      const active = [...sources];
-      const closed = active.map((source) =>
-        source.closed
-          ? Promise.resolve()
-          : new Promise<void>((resolve) => source.once('close', resolve)),
-      );
-      for (const source of active) source.destroy();
-      cleanup = Promise.all(closed).then(() => {
-        try {
-          snapshot?.close();
-        } catch {
-          // Always remove the private snapshot, even if a driver reports a close error on abort.
-        } finally {
-          rmSync(tempDir, { recursive: true, force: true });
-          requestSignal.removeEventListener('abort', onRequestAbort);
-        }
-      });
-      return cleanup;
-    };
-    try {
-      await sqliteOf(db).backup(snapshotPath, {
-        progress: () => {
-          if (requestSignal.aborted) throw new Error('Export request was cancelled');
-          return 100;
+    const releaseSlot = admitExport(db);
+    if (!releaseSlot)
+      return c.json(
+        {
+          error: 'export_busy',
+          message: 'Ein Export läuft bereits. Bitte warte, bis er abgeschlossen ist.',
         },
+        429,
+      );
+    try {
+      const asOf = today();
+      // Read every CSV from one SQLite backup so concurrent writes cannot mix ledger versions.
+      const tempDir = mkdtempSync(join(tmpdir(), 'budget-export-'));
+      const snapshotPath = join(tempDir, 'snapshot.sqlite');
+      let snapshot: ReturnType<typeof openDatabase> | undefined;
+      let released = false;
+      let cleanup: Promise<void> | undefined;
+      let backupDone = false;
+      let requestAborted = false;
+      const outputRef: { stream?: Readable } = {};
+      const sources = new Set<Readable>();
+      const requestSignal = c.req.raw.signal;
+      const onRequestAbort = () => {
+        requestAborted = true;
+        if (backupDone) {
+          outputRef.stream?.destroy();
+          void finish();
+        }
+      };
+      requestSignal.addEventListener('abort', onRequestAbort, { once: true });
+      const release = (): Promise<void> => {
+        if (cleanup) return cleanup;
+        released = true;
+        const active = [...sources];
+        const closed = active.map((source) =>
+          source.closed
+            ? Promise.resolve()
+            : new Promise<void>((resolve) => source.once('close', resolve)),
+        );
+        for (const source of active) source.destroy();
+        cleanup = Promise.all(closed).then(() => {
+          try {
+            snapshot?.close();
+          } catch {
+            // Always remove the private snapshot, even if a driver reports a close error on abort.
+          } finally {
+            rmSync(tempDir, { recursive: true, force: true });
+          }
+        });
+        return cleanup;
+      };
+      const finish = async () => {
+        try {
+          await release();
+        } finally {
+          requestSignal.removeEventListener('abort', onRequestAbort);
+          releaseSlot();
+        }
+      };
+      try {
+        chmodSync(tempDir, 0o700);
+        await sqliteOf(db).backup(snapshotPath, {
+          progress: () => {
+            if (requestSignal.aborted) throw new Error('Export request was cancelled');
+            return 100;
+          },
+        });
+        backupDone = true;
+        if (requestAborted || requestSignal.aborted) {
+          await finish();
+          return c.body(null, 503);
+        }
+        chmodSync(snapshotPath, 0o600);
+        snapshot = openDatabase(snapshotPath);
+        snapshot.sqlite.pragma('query_only = ON');
+      } catch (error) {
+        backupDone = true;
+        await finish();
+        throw error;
+      }
+      const zip = new yazl.ZipFile();
+      const output = zip.outputStream as Readable;
+      outputRef.stream = output;
+      zip.on('error', (error) => {
+        outputRef.stream?.destroy(error);
+        void release();
       });
-      backupDone = true;
+      try {
+        for (const entry of exportEntries(snapshot.db, asOf)) {
+          zip.addReadStreamLazy(entry.name, (done) => {
+            if (released) return done(new Error('Export stream was cancelled'), Readable.from([]));
+            const source = Readable.from(csv(entry.header, entry.rows));
+            sources.add(source);
+            source.once('close', () => sources.delete(source));
+            source.once('error', (error) => {
+              outputRef.stream?.destroy(error);
+              void release();
+            });
+            done(null, source);
+          });
+        }
+      } catch (error) {
+        await finish();
+        throw error;
+      }
+      zip.end();
+      output.once('end', () => void release());
+      output.once('close', () => void release());
+      output.once('error', () => void finish());
       if (requestAborted || requestSignal.aborted) {
-        await release();
+        output.destroy();
+        await finish();
         return c.body(null, 503);
       }
-      chmodSync(snapshotPath, 0o600);
-      snapshot = openDatabase(snapshotPath);
-      snapshot.sqlite.pragma('query_only = ON');
+      c.header('Content-Type', 'application/zip');
+      c.header('Content-Disposition', `attachment; filename="budget-export-${asOf}.zip"`);
+      c.header('Cache-Control', 'no-store');
+      c.header('X-Content-Type-Options', 'nosniff');
+      const nodeIterator = output[Symbol.asyncIterator]();
+      let cancelled = false;
+      const stream = new ReadableStream<Uint8Array>({
+        async pull(controller) {
+          try {
+            const next = await nodeIterator.next();
+            if (cancelled) return;
+            if (next.done) {
+              await finish();
+              controller.close();
+            } else controller.enqueue(next.value);
+          } catch (error) {
+            await finish();
+            if (!cancelled) controller.error(error);
+          }
+        },
+        async cancel() {
+          cancelled = true;
+          output.destroy();
+          try {
+            await nodeIterator.return?.();
+          } catch {
+            // Cancellation already closed the response stream.
+          }
+          await finish();
+        },
+      });
+      return c.body(stream);
     } catch (error) {
-      backupDone = true;
-      await release();
+      releaseSlot();
       throw error;
     }
-    const zip = new yazl.ZipFile();
-    const output = zip.outputStream as Readable;
-    outputRef.stream = output;
-    zip.on('error', (error) => {
-      outputRef.stream?.destroy(error);
-      void release();
-    });
-    try {
-      for (const entry of exportEntries(snapshot.db, asOf)) {
-        zip.addReadStreamLazy(entry.name, (done) => {
-          if (released) return done(new Error('Export stream was cancelled'), Readable.from([]));
-          const source = Readable.from(csv(entry.header, entry.rows));
-          sources.add(source);
-          source.once('close', () => sources.delete(source));
-          source.once('error', (error) => {
-            outputRef.stream?.destroy(error);
-            void release();
-          });
-          done(null, source);
-        });
-      }
-    } catch (error) {
-      await release();
-      throw error;
-    }
-    zip.end();
-    output.once('end', () => void release());
-    output.once('close', () => void release());
-    output.once('error', () => void release());
-    if (requestAborted || requestSignal.aborted) {
-      output.destroy();
-      await release();
-      return c.body(null, 503);
-    }
-    c.header('Content-Type', 'application/zip');
-    c.header('Content-Disposition', `attachment; filename="budget-export-${asOf}.zip"`);
-    c.header('Cache-Control', 'no-store');
-    c.header('X-Content-Type-Options', 'nosniff');
-    const nodeIterator = output[Symbol.asyncIterator]();
-    let cancelled = false;
-    const stream = new ReadableStream<Uint8Array>({
-      async pull(controller) {
-        try {
-          const next = await nodeIterator.next();
-          if (cancelled) return;
-          if (next.done) {
-            controller.close();
-            void release();
-          } else controller.enqueue(next.value);
-        } catch (error) {
-          if (!cancelled) controller.error(error);
-          void release();
-        }
-      },
-      async cancel() {
-        cancelled = true;
-        output.destroy();
-        try {
-          await nodeIterator.return?.();
-        } catch {
-          // Cancellation already closed the response stream.
-        }
-        await release();
-      },
-    });
-    return c.body(stream);
   });
   return api;
 }
