@@ -165,7 +165,11 @@ export class S3Client {
       service: 's3',
     });
     const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), this.timeoutMs);
+    // Streamed archives grow with the receipts; allow about 1 s per MiB on top of the base timeout.
+    const timeoutMs = file
+      ? this.timeoutMs + Math.ceil(file.size / 1_048_576) * 1000
+      : this.timeoutMs;
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
     try {
       const response = await fetch(url, {
         method,
