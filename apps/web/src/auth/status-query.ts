@@ -1,8 +1,9 @@
 import { QueryClient, queryOptions } from '@tanstack/react-query';
+import { shouldRetry } from '../api/http';
 import { fetchAuthStatus } from './api';
 
 /** One query client for the whole app (also used by the router guards). */
-export const queryClient = new QueryClient();
+export const queryClient = new QueryClient({ defaultOptions: { queries: { retry: shouldRetry } } });
 
 export const AUTH_STATUS_KEY = ['auth', 'status'] as const;
 export const PASSKEYS_KEY = ['auth', 'passkeys'] as const;

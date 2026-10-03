@@ -10,6 +10,7 @@ import { useQuery } from '@tanstack/react-query';
 import { HeutePaceChart } from '../heute/charts';
 import { eur, eurParts, longDay } from '../ledger/format';
 import { EmptyNote, ErrorNote, LoadingNote } from '../ledger/states';
+import { ValuationHint } from '../ledger/valuation-hint';
 import { monthLabel } from '../nav/month';
 import type { PageMeta } from '../nav/pages';
 import type { ReportEntry } from '../nav/reports-catalog';
@@ -256,6 +257,7 @@ function NetWorth({ data }: { data: OnePagerData }) {
           <p className="ps-note">
             Eigenleistung {signed(nw.ownCents)} · Markt {signed(nw.marketCents)}
           </p>
+          <ValuationHint incomplete={data.incomplete} />
         </>
       )}
     </section>

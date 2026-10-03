@@ -86,7 +86,9 @@ export function portfolioAllocation(db: Executor, asOf: string): PortfolioAlloca
   const missing = [
     ...new Set(
       positions.flatMap((position) =>
-        position.accounts.flatMap((row) => (row.valueStatus === 'known' ? [] : [row.valueStatus])),
+        position.accounts.flatMap((row) =>
+          row.valueStatus === 'known' || row.valueStatus === 'estimated' ? [] : [row.valueStatus],
+        ),
       ),
     ),
   ];

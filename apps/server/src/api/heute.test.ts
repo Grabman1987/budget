@@ -101,7 +101,7 @@ async function call(method: string, path: string, body?: unknown) {
 }
 
 describe('GET /heute', () => {
-  it('keeps daily budget, upcoming and bookings usable while missing quotes isolate valuation sections', async () => {
+  it('keeps every section available while a never-quoted holding is valued at cost and flagged', async () => {
     const before = await call('GET', '/heute');
     db.insert(schema.account)
       .values({
@@ -139,23 +139,22 @@ describe('GET /heute', () => {
       'nextSteps',
     ])
       expect(result.body[section], section).toEqual(before.body[section]);
-    expect(result.body.financeCheck).toEqual({
-      unavailable: {
-        reason: 'missing_price',
-        asOf: TODAY,
-        message: expect.stringContaining('Wertpapierkurs fehlt'),
-      },
-    });
-    expect(result.body.netWorth).toMatchObject({ unavailable: { reason: 'missing_price' } });
+    expect(result.body.financeCheck.unavailable).toBeUndefined();
+    expect(result.body.netWorth.unavailable).toBeUndefined();
+    expect(result.body.incomplete).toEqual([
+      expect.objectContaining({ securityId: 'unpriced', quality: 'estimated' }),
+    ]);
     expect(
       (await call('PUT', `/securities/unpriced/prices/${TODAY}`, { price: '120' })).status,
     ).toBe(200);
     result = await call('GET', '/heute');
     expect(result.status).toBe(200);
     expect(result.body.financeCheck.counts.total).toBe(16);
-    expect(result.body.netWorth).toMatchObject({
-      unavailable: { reason: 'missing_price', asOf: '2026-01-31' },
-    });
+    // The days before the first quote are estimates, flagged but not unavailable.
+    expect(result.body.netWorth.unavailable).toBeUndefined();
+    expect(result.body.incomplete).toEqual([
+      expect.objectContaining({ securityId: 'unpriced', quality: 'estimated' }),
+    ]);
     expect(result.body.balance).toEqual(before.body.balance);
     expect(result.body.lastBookings).toEqual(before.body.lastBookings);
   });

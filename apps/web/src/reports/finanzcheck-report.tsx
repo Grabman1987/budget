@@ -21,6 +21,7 @@ import { AlertCircle, AlertTriangle, CheckCircle2, CircleDashed } from 'lucide-r
 import { useElementWidth } from '../charts/use-element-width';
 import { eur, longDay } from '../ledger/format';
 import { ErrorNote, LoadingNote } from '../ledger/states';
+import { ValuationHint } from '../ledger/valuation-hint';
 import type { PageMeta } from '../nav/pages';
 import type { ReportEntry } from '../nav/reports-catalog';
 import { PageFrame } from '../pages/placeholder-page';
@@ -108,6 +109,7 @@ export function FinanzcheckReport({ report, meta }: { report: ReportEntry; meta:
             onRetry={() => void query.refetch()}
           />
         )}
+        <ValuationHint incomplete={data?.incomplete} />
         {data && <Body data={data} />}
       </div>
     </PageFrame>

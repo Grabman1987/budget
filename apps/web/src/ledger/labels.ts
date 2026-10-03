@@ -1,4 +1,5 @@
 import { maskMoneyText } from '@budget/ui';
+import { apiErrorText } from '../api/error-text';
 import { ApiError } from '../api/http';
 import type { BulkResult, BulkSkipReason } from './api';
 import { pluralBookings } from './format';
@@ -115,11 +116,15 @@ export function errorText(
   error: unknown,
   fallback = 'Das hat nicht geklappt. Versuch es noch einmal.',
 ) {
-  if (error instanceof Error && 'detail' in error && typeof error.detail === 'string') {
-    return maskMoneyText(error.detail);
-  }
-  if (error instanceof Error && 'status' in error && error.status === 0) {
-    return 'Keine Verbindung zum Server.';
+  if (error instanceof Error && ('detail' in error || 'status' in error || 'code' in error)) {
+    const like = error as { detail?: unknown; status?: unknown; code?: unknown };
+    // Never the raw server text of a generic or technical answer: German text by code instead.
+    const text = apiErrorText({
+      ...(typeof like.detail === 'string' ? { detail: like.detail } : {}),
+      ...(typeof like.status === 'number' ? { status: like.status } : {}),
+      ...(typeof like.code === 'string' ? { code: like.code } : {}),
+    });
+    if (text) return maskMoneyText(text);
   }
   return fallback;
 }

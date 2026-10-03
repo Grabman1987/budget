@@ -50,41 +50,86 @@ const quote = (date: string, priceMicro: number) =>
     .run();
 const positions = () => portfolioPositions(opened.db, TODAY);
 describe('held positions without market quotes', () => {
-  it('keeps known basis but exposes null current values and explicit missing-price metadata', () => {
+  it('values a position without any quote at its cost basis, flagged as an estimate', () => {
     const valuation = netWorthValuationAsOf(opened.db, TODAY);
     expect(valuation).toMatchObject({
+      totalCents: 10000,
+      byAccount: { depot: 10000 },
+      holdingsByAccount: { depot: 10000 },
+      missingFxCurrencies: [],
+      missingPriceSecurityIds: [],
+      incomplete: [
+        {
+          accountId: 'depot',
+          securityId: 's',
+          quality: 'estimated',
+          days: 1,
+          from: TODAY,
+          to: TODAY,
+        },
+      ],
+    });
+    expect(holdingValuesAsOf(opened.db, TODAY)).toEqual([
+      expect.objectContaining({
+        securityId: 's',
+        valueCents: 10000,
+        quality: 'estimated',
+        priceDate: null,
+      }),
+    ]);
+    expect(positions()).toMatchObject({ valueCents: 10000, costCents: 10000, gainCents: 0 });
+    expect(positions().classes[0]!.positions[0]!.accounts[0]).toMatchObject({
+      valueStatus: 'estimated',
+      valueCents: 10000,
+    });
+    for (const read of [netWorthAsOf, accountValuesAsOf, positionLines])
+      expect(() => read(opened.db, TODAY)).not.toThrow();
+    expect(() => portfolioSummary(opened.db, { today: TODAY })).not.toThrow();
+  });
+  it('the strict rule (no estimate) keeps the quote explicitly unavailable', () => {
+    const strict = { estimate: false };
+    expect(netWorthValuationAsOf(opened.db, TODAY, strict)).toMatchObject({
       totalCents: null,
       byAccount: { depot: null },
       holdingsByAccount: { depot: null },
-      missingFxCurrencies: [],
       missingPriceSecurityIds: ['s'],
       missingPriceByAccount: { depot: ['s'] },
+      incomplete: [],
     });
-    expect(positions()).toMatchObject({ valueCents: null, costCents: 10000, gainCents: null });
-    expect(positionCostDetailsAsOf(opened.db, TODAY)).toEqual([
-      expect.objectContaining({
-        accountId: 'depot',
-        securityId: 's',
-        costCents: 10000,
-        gainCents: null,
-        basisStatus: 'known',
-      }),
-    ]);
-    for (const read of [holdingValuesAsOf, netWorthAsOf, accountValuesAsOf, positionLines])
-      expect(() => read(opened.db, TODAY)).toThrow(/price/i);
-    expect(() => portfolioSummary(opened.db, { today: TODAY })).toThrow(/price/i);
+    expect(() => valuationSeries(opened.db, { from: TODAY, to: TODAY }, strict)).toThrow(/Kurs/);
   });
-  it('a quote of120 establishes current value/gain but cannot invent a prior value or120 market gain', () => {
+  it('a position without cost basis and quote adds nothing and is flagged missing', () => {
+    opened.db.update(holding).set({ costBasisCents: null }).run();
+    const valuation = netWorthValuationAsOf(opened.db, TODAY);
+    expect(valuation).toMatchObject({
+      totalCents: 0,
+      missingPriceSecurityIds: ['s'],
+      missingPriceByAccount: { depot: ['s'] },
+      incomplete: [expect.objectContaining({ securityId: 's', quality: 'missing' })],
+    });
+    expect(holdingValuesAsOf(opened.db, TODAY)).toEqual([]);
+    expect(positions()).toMatchObject({ valueCents: null });
+    expect(() => netWorthAsOf(opened.db, TODAY)).not.toThrow();
+  });
+  it('a quote of 120 sets the value; days before it use a close later quote or the cost', () => {
     quote(TODAY, 120_000_000);
     expect(positions()).toMatchObject({ valueCents: 12000, costCents: 10000, gainCents: 2000 });
     expect(netWorthAsOf(opened.db, TODAY).totalCents).toBe(12000);
-    expect(() => valuationSeries(opened.db, { from: '2026-09-16', to: TODAY })).toThrow(/price/i);
-    expect(() => netWorthDaily(opened.db, TODAY, TODAY)).toThrow(/price/i);
-    expect(() => portfolioSummary(opened.db, { today: TODAY })).toThrow(/price/i);
-    quote('2026-09-16', 100_000_000);
-    expect(valuationSeries(opened.db, { from: '2026-09-16', to: TODAY }).totalCents).toEqual([
-      10000, 12000,
+    // 16.09. has no quote of its own: the quote of the next day stands in for it (estimated).
+    const without = valuationSeries(opened.db, { from: '2026-09-16', to: TODAY });
+    expect(without.totalCents).toEqual([12000, 12000]);
+    expect(without.positions[0]!.quality).toBe('estimated');
+    expect(without.incomplete).toEqual([
+      expect.objectContaining({ securityId: 's', quality: 'estimated', days: 1 }),
     ]);
+    // Far from any quote the cost basis is used.
+    expect(valuationSeries(opened.db, { from: '2026-09-02', to: '2026-09-02' }).totalCents).toEqual(
+      [10000],
+    );
+    quote('2026-09-16', 100_000_000);
+    const exact = valuationSeries(opened.db, { from: '2026-09-16', to: TODAY });
+    expect(exact.totalCents).toEqual([10000, 12000]);
+    expect(exact.incomplete).toEqual([]);
     expect(netWorthDaily(opened.db, TODAY, TODAY)).toEqual([
       expect.objectContaining({
         netWorthCents: 12000,
@@ -94,7 +139,7 @@ describe('held positions without market quotes', () => {
       }),
     ]);
   });
-  it('retains every missing-price and missing-FX reason while keeping unaffected account values known', () => {
+  it('retains every missing-FX reason while estimated and unaffected account values stay known', () => {
     opened.db
       .insert(account)
       .values({
@@ -138,11 +183,11 @@ describe('held positions without market quotes', () => {
       holdingsByAccount: { depot: null },
       missingFxCurrencies: ['CHF'],
       missingFxByAccount: { depot: ['CHF'] },
-      missingPriceSecurityIds: ['s'],
-      missingPriceByAccount: { depot: ['s'] },
+      missingPriceSecurityIds: [],
+      incomplete: [expect.objectContaining({ securityId: 's', quality: 'estimated' })],
     });
     expect(positionCostDetailsAsOf(opened.db, TODAY)).toEqual([
-      expect.objectContaining({ securityId: 's', costCents: 10000, gainCents: null }),
+      expect.objectContaining({ securityId: 's', costCents: 10000, gainCents: 0 }),
       expect.objectContaining({ securityId: 'chf', costCents: 2000, gainCents: null }),
     ]);
     expect(positions()).toMatchObject({ valueCents: null, costCents: 12000, gainCents: null });

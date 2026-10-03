@@ -1,4 +1,5 @@
 /** Shapes of the ledger API (`docs/api-ledger.md`); amounts are integer cents, days `YYYY-MM-DD`. */
+import type { WithValuationNotes } from './valuation-hint';
 
 export const ACCOUNT_ROLES = ['budget', 'reserve', 'investment', 'debt', 'receivable'] as const;
 export type AccountRole = (typeof ACCOUNT_ROLES)[number];
@@ -69,7 +70,7 @@ export interface AccountRow {
   } | null;
 }
 
-export interface AccountList {
+export interface AccountList extends WithValuationNotes {
   asOf: string;
   accounts: AccountRow[];
   netWorthEurCents: number | null;

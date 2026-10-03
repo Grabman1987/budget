@@ -120,3 +120,13 @@
     grid-auto-columns: 1fr;
   }
 }
+.valuation-hint {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  color: var(--ink-2);
+}
+.valuation-hint .icon {
+  flex: none;
+  margin-top: 1px;
+}

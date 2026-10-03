@@ -5,6 +5,7 @@ import { VERMOEGEN_NETTO_META } from '../nav/pages';
 import { PageFrame } from '../pages/placeholder-page';
 import { eurParts, eurWhole } from '../ledger/format';
 import { EmptyNote, ErrorNote, LoadingNote } from '../ledger/states';
+import { ValuationHint } from '../ledger/valuation-hint';
 import { netWorthQuery, type CompositionRow, type NetWorthView } from './api';
 import { NetWorthChart } from './networth-chart';
 import { chainTerms, periodText } from './networth-model';
@@ -36,6 +37,7 @@ export function NetWorthPage() {
         {empty && <EmptyNote>Noch keine Konten. Lege unter Konten ein Konto an.</EmptyNote>}
         {view && !empty && (
           <>
+            <ValuationHint incomplete={view.incomplete} />
             <Course view={view} />
             <Composition view={view} />
           </>

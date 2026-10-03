@@ -2,9 +2,11 @@ import { ReportPeriodControl } from './period-quick-select';
 import { useAmountPrivacy, DimensionChain } from '@budget/ui';
 import { useQuery } from '@tanstack/react-query';
 import { ArrowDown, ArrowUp } from 'lucide-react';
+import { userText } from '../api/error-text';
 import { ApiError } from '../api/http';
 import { eur, eurParts, eurWhole, longDay } from '../ledger/format';
 import { EmptyNote, ErrorNote, LoadingNote } from '../ledger/states';
+import { ValuationHint } from '../ledger/valuation-hint';
 import type { PageMeta } from '../nav/pages';
 import type { ReportEntry } from '../nav/reports-catalog';
 import { PageFrame } from '../pages/placeholder-page';
@@ -62,7 +64,7 @@ export function WealthHistoryReport({ report, meta }: { report: ReportEntry; met
           (query.error instanceof ApiError && query.error.code === 'valuation_unavailable' ? (
             <p className="rf-wide" role="alert">
               <strong>Bewertung nicht verfügbar.</strong>{' '}
-              {query.error.detail ?? 'Für den Zeitraum fehlt ein Kurs oder Wechselkurs.'}
+              {userText(query.error.detail, 'Für den Zeitraum fehlt ein Kurs oder Wechselkurs.')}
             </p>
           ) : (
             <ErrorNote
@@ -90,6 +92,7 @@ function Body({ history }: { history: NetWorthHistory }) {
   const assetGroups = groups.filter((g) => !g.liability);
   return (
     <>
+      <ValuationHint incomplete={history.incomplete} />
       <section className="card rf-card rf-wide" aria-labelledby="wh-title">
         <div className="tbd-head">
           <h2 id="wh-title">Nettovermögen · {text}</h2>

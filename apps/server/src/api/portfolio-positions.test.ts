@@ -163,11 +163,12 @@ describe('portfolio positions projection', () => {
     expect((await read()).valueCents).toBe(10000);
     expect((await read()).classes[0]!.positions[0]!.quote?.source).toBe('import');
   });
-  it('first quote, audited undo and redo preserve basis and expose missing current/history values honestly', async () => {
+  it('first quote, audited undo and redo preserve basis; a position without quote is valued at cost and flagged', async () => {
     snapshot('a', 100_000_000, 10000);
     const accountValues = async () =>
       (await (await call('GET', '/accounts')).json()) as {
         netWorthEurCents: number | null;
+        incomplete?: { securityId: string; quality: string }[];
         missingPriceSecurityIds: string[];
         accounts: {
           id: string;
@@ -178,25 +179,27 @@ describe('portfolio positions projection', () => {
         }[];
       };
     const absent = async () => {
-      expect(await read()).toMatchObject({ valueCents: null, costCents: 10000, gainCents: null });
+      // No quote yet: the position is valued at its cost basis and the answer says so.
+      expect(await read()).toMatchObject({ valueCents: 10000, costCents: 10000, gainCents: 0 });
       const accounts = await accountValues();
-      expect(accounts).toMatchObject({ netWorthEurCents: null, missingPriceSecurityIds: ['s'] });
+      expect(accounts).toMatchObject({
+        netWorthEurCents: 10000,
+        missingPriceSecurityIds: [],
+        incomplete: [{ securityId: 's', quality: 'estimated' }],
+      });
       expect(accounts.accounts.find((a) => a.id === 'a')).toMatchObject({
-        holdingsCents: null,
-        valueEurCents: null,
-        missingPriceSecurityIds: ['s'],
+        holdingsCents: 10000,
+        valueEurCents: 10000,
+        missingPriceSecurityIds: [],
         missingFxCurrencies: [],
       });
     };
     await absent();
     for (const endpoint of ['/portfolio', '/wealth/networth']) {
       const response = await call('GET', endpoint);
-      expect(response.status).toBe(503);
+      expect(response.status).toBe(200);
       expect(await response.json()).toMatchObject({
-        error: 'valuation_unavailable',
-        reason: 'missing_price',
-        missingPriceSecurityIds: ['s'],
-        message: expect.stringContaining('Wertpapierkurs fehlt'),
+        incomplete: [{ securityId: 's', quality: 'estimated' }],
       });
     }
     const response = await call('PUT', `/securities/s/prices/${TODAY}`, { price: '120' });
@@ -204,9 +207,9 @@ describe('portfolio positions projection', () => {
     const result = (await response.json()) as { groupId: string };
     expect(await read()).toMatchObject({ valueCents: 12000, costCents: 10000, gainCents: 2000 });
     expect((await accountValues()).netWorthEurCents).toBe(12000);
-    // Current120 is known, but the earlier held-day gap cannot turn into120 market gain.
+    // The days before the first quote are estimates; they answer, flagged, instead of failing.
     for (const endpoint of ['/portfolio', '/wealth/networth'])
-      expect((await call('GET', endpoint)).status).toBe(503);
+      expect((await call('GET', endpoint)).status).toBe(200);
     const undone = await call('POST', '/undo', { groupId: result.groupId });
     expect(undone.status).toBe(200);
     await absent();
