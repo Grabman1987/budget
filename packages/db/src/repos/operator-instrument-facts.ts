@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { and, eq, isNull } from 'drizzle-orm';
 import { employerPension, security } from '../schema';
 import { type AuditContext, type GroupedContext } from './audit';
-import { saveBookSettings } from './book-settings';
+import { getBookSettings, saveBookSettings } from './book-settings';
 import { getEntity } from './entities';
 import { ConflictError, EntityNotFoundError } from './errors';
 import { OperatorInputError } from './operator-ops';
@@ -38,9 +38,15 @@ export interface PensionFactsEntry {
   month: string;
   amountCents: number;
 }
+export interface BookSettingsFacts {
+  birthYear?: number;
+  birthMonth?: number;
+}
 export interface InstrumentFacts {
   securities: SecurityFactsEntry[];
   employerPension: PensionFactsEntry[];
+  /** Absent when the file has no `bookSettings`. */
+  bookSettings?: BookSettingsFacts;
 }
 
 export interface SecurityFactsDone {
@@ -69,9 +75,20 @@ export interface PensionFactsOutcome {
   groupId: string;
 }
 
+export interface SettingsFactsOutcome {
+  status: 'updated' | 'unchanged' | 'skipped';
+  /** `YYYY-MM` after the change (updated), the stored value (unchanged), or empty (skipped). */
+  birthMonth: string;
+  /** `field old -> new` for an update, the refusal for a skip. */
+  detail: string;
+  groupId: string;
+}
+
 export interface InstrumentFactsResult {
   securities: SecurityFactsOutcome[];
   pension: PensionFactsOutcome[];
+  /** `null` when the file has no `bookSettings`. */
+  settings: SettingsFactsOutcome | null;
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -89,11 +106,16 @@ function optionalInt(value: unknown, at: string, min: number, max: number): numb
 }
 
 /** Check a parsed `instrument-facts --file` JSON; throws `OperatorInputError` naming the entry. */
-export function parseInstrumentFactsFile(json: unknown): InstrumentFacts {
+export function parseInstrumentFactsFile(
+  json: unknown,
+  today: string = new Date().toISOString().slice(0, 10),
+): InstrumentFacts {
   if (!isObject(json)) throw new OperatorInputError('The file must hold a JSON object');
   for (const key of Object.keys(json))
-    if (key !== 'securities' && key !== 'employerPension')
-      throw new OperatorInputError(`unknown key "${key}" (expected securities, employerPension)`);
+    if (key !== 'securities' && key !== 'employerPension' && key !== 'bookSettings')
+      throw new OperatorInputError(
+        `unknown key "${key}" (expected securities, employerPension, bookSettings)`,
+      );
   const list = (key: string): unknown[] => {
     const value = json[key];
     if (value === undefined) return [];
@@ -135,7 +157,32 @@ export function parseInstrumentFactsFile(json: unknown): InstrumentFacts {
       throw new OperatorInputError(`${at}.amountCents must be a whole number of cents, 0 or more`);
     return { month, amountCents };
   });
-  return { securities, employerPension: pension };
+  const rawSettings = json['bookSettings'];
+  let bookSettings: BookSettingsFacts | undefined;
+  if (rawSettings !== undefined && rawSettings !== null) {
+    if (!isObject(rawSettings)) throw new OperatorInputError('bookSettings must be an object');
+    for (const key of Object.keys(rawSettings))
+      if (key !== 'birthYear' && key !== 'birthMonth')
+        throw new OperatorInputError(
+          `bookSettings: unknown key "${key}" (expected birthYear, birthMonth)`,
+        );
+    const birthYear = optionalInt(
+      rawSettings['birthYear'],
+      'bookSettings.birthYear',
+      1900,
+      Number(today.slice(0, 4)),
+    );
+    const birthMonth = optionalInt(rawSettings['birthMonth'], 'bookSettings.birthMonth', 1, 12);
+    bookSettings = {
+      ...(birthYear !== undefined && { birthYear }),
+      ...(birthMonth !== undefined && { birthMonth }),
+    };
+  }
+  return {
+    securities,
+    employerPension: pension,
+    ...(bookSettings !== undefined && { bookSettings }),
+  };
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -211,6 +258,36 @@ function applyPension(
   );
 }
 
+function applySettings(
+  tx: Executor,
+  facts: BookSettingsFacts,
+  ctx: GroupedContext,
+  today: string,
+): SettingsFactsOutcome {
+  const skip = (detail: string): SettingsFactsOutcome => ({
+    status: 'skipped',
+    birthMonth: '',
+    detail,
+    groupId: '',
+  });
+  const current = getBookSettings(tx).birthMonth;
+  const [currentYear, currentMonth] = current ? current.split('-').map(Number) : [];
+  const year = facts.birthYear ?? currentYear;
+  const month = facts.birthMonth ?? currentMonth;
+  if (year === undefined || month === undefined)
+    return skip('incomplete_birth_month: no birth month is stored yet, give year and month');
+  const next = `${String(year).padStart(4, '0')}-${String(month).padStart(2, '0')}`;
+  if (next === current)
+    return { status: 'unchanged', birthMonth: current, detail: 'same value', groupId: '' };
+  saveBookSettings(tx, { birthMonth: next }, ctx, today);
+  return {
+    status: 'updated',
+    birthMonth: next,
+    detail: `birthMonth ${current || '(none)'} -> ${next}`,
+    groupId: ctx.groupId,
+  };
+}
+
 /** Any refusal of the domain rules becomes a skip with a stable reason code. */
 function refusalReason(error: unknown): { reason: string; message: string } {
   const message = error instanceof Error ? error.message : 'failed';
@@ -221,7 +298,7 @@ function refusalReason(error: unknown): { reason: string; message: string } {
 }
 
 /**
- * Apply securities first, then pension months, each entry in its own savepoint and audit group
+ * Apply securities first, then pension months, then the book settings, each entry in its own savepoint and audit group
  * (actor from `ctx`). An entry the app would refuse writes nothing and is reported as skipped; the
  * rest goes through. `dryRun` does all of it and rolls everything back, so it reports exactly what
  * the real run would change.
@@ -236,7 +313,7 @@ export function applyInstrumentFacts(
   const grouped = () => ({ actor: ctx.actor, groupId: randomUUID() });
   try {
     return runInTransaction(db, (tx) => {
-      const result: InstrumentFactsResult = { securities: [], pension: [] };
+      const result: InstrumentFactsResult = { securities: [], pension: [], settings: null };
       for (const entry of facts.securities) {
         try {
           result.securities.push(
@@ -269,6 +346,22 @@ export function applyInstrumentFacts(
           });
         }
       }
+      if (facts.bookSettings) {
+        const settings = facts.bookSettings;
+        try {
+          result.settings = runInTransaction(tx, (inner) =>
+            applySettings(inner, settings, grouped(), today),
+          );
+        } catch (error) {
+          const { reason, message } = refusalReason(error);
+          result.settings = {
+            status: 'skipped',
+            birthMonth: '',
+            detail: `${reason}: ${message}`,
+            groupId: '',
+          };
+        }
+      }
       if (options.dryRun) throw Object.assign(new DryRunRollback(), { result });
       return result;
     });
@@ -280,6 +373,10 @@ export function applyInstrumentFacts(
           o.status === 'updated' ? { ...o, groupId: '' } : o,
         ),
         pension: result.pension.map((o) => (o.status === 'upserted' ? { ...o, groupId: '' } : o)),
+        settings:
+          result.settings?.status === 'updated'
+            ? { ...result.settings, groupId: '' }
+            : result.settings,
       };
     }
     throw error;

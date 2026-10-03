@@ -556,7 +556,8 @@ the leverage of single instruments, and the explicit monthly employer pension co
 ```json
 {
   "securities": [{ "isin": "XX0000000001", "terBp": 20, "leverageFactorTenths": null }],
-  "employerPension": [{ "month": "2026-01", "amountCents": 12345 }]
+  "employerPension": [{ "month": "2026-01", "amountCents": 12345 }],
+  "bookSettings": { "birthYear": 1990, "birthMonth": 6 }
 }
 ```
 
@@ -573,13 +574,19 @@ Run it as `fly ssh console -a budget-fg -C "node /app/migrate-cli.js instrument-
   A month is created, changed, or restored if it was deleted; an equal amount is `unchanged`. The
   write is `saveBookSettings`, as behind the rules settings route, so validation and audit match
   the app.
-- The whole file is validated first (a bad value, an ISIN or month listed twice) and nothing runs
+- `bookSettings` (optional): the private birth month for the rules, `birthYear` (1900 up to the
+  current year) and `birthMonth` (1 to 12). Only provided, non-null fields are written; a missing
+  one is taken from the stored birth month, and if none is stored yet both are needed (else
+  skipped). The write is `saveBookSettings`, as behind the rules settings route, so the app's
+  plausibility check applies (a date in the future is skipped). Equal values are `unchanged`.
+- The whole file is validated first (a bad value, an ISIN or month listed twice, a birth year or month out of range) and nothing runs
   if it is wrong. Then each entry runs in its own savepoint and audit group (actor `operator`), so
   the app's Rückgängig or `undo-group --group <id>` reverts it on its own; an entry the app would
   refuse is skipped with its reason, the rest goes through, and the exit code is 3.
 - Output: one line per entry (`updated`/`unchanged`/`skipped <isin> ...`, `pension <month> ...`,
-  with the group id), then the summaries `securities <total> updated <n> unchanged <n> skipped <n>`
-  and `pension <n> upserted <n> unchanged <n> skipped <n>`. `--dry-run` does all of it, reports
+  with the group id), then the summaries `securities <total> updated <n> unchanged <n> skipped <n>`,
+  `pension <n> upserted <n> unchanged <n> skipped <n>`, and, if the file has `bookSettings`,
+  `settings updated|unchanged|skipped`. `--dry-run` does all of it, reports
   exactly what would change (no group ids) and rolls everything back. Running a file twice is safe:
   the second run reports everything as unchanged.
 

@@ -37,7 +37,10 @@ beforeEach(() => {
 afterEach(() => opened.close());
 
 const run = (json: unknown, dryRun = false) =>
-  applyInstrumentFacts(db, parseInstrumentFactsFile(json), operator, { dryRun, today: TODAY });
+  applyInstrumentFacts(db, parseInstrumentFactsFile(json, TODAY), operator, {
+    dryRun,
+    today: TODAY,
+  });
 const auditCount = () => db.select().from(auditLog).all().length;
 const operatorGroups = () =>
   listAuditGroups(db, { since: SINCE }).filter((g) => g.actor === 'operator');
@@ -69,6 +72,13 @@ describe('parseInstrumentFactsFile', () => {
       'leverageFactorTenths',
     ],
     [{ securities: [{ isin: 'XX0000000001' }, { isin: 'xx0000000001' }] }, 'twice'],
+    [{ bookSettings: [] }, 'bookSettings must be an object'],
+    [{ bookSettings: { other: 1 } }, 'unknown key'],
+    [{ bookSettings: { birthYear: 1899 } }, 'birthYear'],
+    [{ bookSettings: { birthYear: 2027 } }, 'birthYear'],
+    [{ bookSettings: { birthYear: 1990.5 } }, 'birthYear'],
+    [{ bookSettings: { birthMonth: 0 } }, 'birthMonth'],
+    [{ bookSettings: { birthMonth: 13 } }, 'birthMonth'],
     [{ employerPension: [{ month: '2026-13', amountCents: 1 }] }, 'YYYY-MM'],
     [{ employerPension: [{ month: '2026-01', amountCents: -1 }] }, 'amountCents'],
     [{ employerPension: [{ month: '2026-01', amountCents: 1.5 }] }, 'amountCents'],
@@ -82,8 +92,8 @@ describe('parseInstrumentFactsFile', () => {
       'twice',
     ],
   ])('rejects %j', (json, message) => {
-    expect(() => parseInstrumentFactsFile(json)).toThrow(OperatorInputError);
-    expect(() => parseInstrumentFactsFile(json)).toThrow(message);
+    expect(() => parseInstrumentFactsFile(json, TODAY)).toThrow(OperatorInputError);
+    expect(() => parseInstrumentFactsFile(json, TODAY)).toThrow(message);
   });
 });
 
@@ -241,5 +251,77 @@ describe('applyInstrumentFacts: employer pension', () => {
     });
     undoAuditGroups(db, [result.pension[0]!.groupId], operator);
     expect(getBookSettings(db).pension).toEqual([{ month: '2026-02', amountCents: 20 }]);
+  });
+});
+
+describe('applyInstrumentFacts: bookSettings', () => {
+  const stored = () => getBookSettings(db).birthMonth;
+
+  it('is absent from the result when the file has no bookSettings', () => {
+    expect(run({}).settings).toBeNull();
+  });
+
+  it('sets year and month together, in one audit group', () => {
+    const result = run({ bookSettings: { birthYear: 1985, birthMonth: 7 } });
+    expect(result.settings).toMatchObject({ status: 'updated', birthMonth: '1985-07' });
+    expect(stored()).toBe('1985-07');
+    expect(operatorGroups()).toHaveLength(1);
+  });
+
+  it('writes only the provided field and keeps the other', () => {
+    saveBookSettings(db, { birthMonth: '1985-07' }, testCtx, TODAY);
+    expect(run({ bookSettings: { birthMonth: 11 } }).settings).toMatchObject({
+      status: 'updated',
+      birthMonth: '1985-11',
+    });
+    expect(run({ bookSettings: { birthYear: 1990, birthMonth: null } }).settings).toMatchObject({
+      status: 'updated',
+      birthMonth: '1990-11',
+    });
+    expect(stored()).toBe('1990-11');
+  });
+
+  it('reports an equal value as unchanged and writes nothing', () => {
+    saveBookSettings(db, { birthMonth: '1985-07' }, testCtx, TODAY);
+    const before = auditCount();
+    expect(run({ bookSettings: { birthYear: 1985, birthMonth: 7 } }).settings).toMatchObject({
+      status: 'unchanged',
+      birthMonth: '1985-07',
+    });
+    expect(run({ bookSettings: {} }).settings?.status).toBe('unchanged');
+    expect(auditCount()).toBe(before);
+  });
+
+  it('skips a single field when no birth month is stored yet', () => {
+    const before = auditCount();
+    expect(run({ bookSettings: { birthYear: 1985 } }).settings).toMatchObject({
+      status: 'skipped',
+    });
+    expect(auditCount()).toBe(before);
+  });
+
+  it('skips a date the app refuses as implausible (in the future)', () => {
+    const result = run({ bookSettings: { birthYear: 2026, birthMonth: 12 } });
+    expect(result.settings).toMatchObject({ status: 'skipped' });
+    expect(result.settings?.detail).toContain('refused_by_rules');
+    expect(stored()).not.toBe('2026-12');
+  });
+
+  it('a dry run reports the update and writes nothing', () => {
+    const before = auditCount();
+    const dry = run({ bookSettings: { birthYear: 1985, birthMonth: 7 } }, true);
+    expect(dry.settings).toMatchObject({ status: 'updated', groupId: '' });
+    expect(auditCount()).toBe(before);
+    expect(stored()).not.toBe('1985-07');
+    expect(withoutGroups(dry)).toEqual(
+      withoutGroups(run({ bookSettings: { birthYear: 1985, birthMonth: 7 } })),
+    );
+  });
+
+  it('can be undone on its own', () => {
+    saveBookSettings(db, { birthMonth: '1980-01' }, testCtx, TODAY);
+    const result = run({ bookSettings: { birthYear: 1985, birthMonth: 7 } });
+    undoAuditGroups(db, [result.settings!.groupId], operator);
+    expect(stored()).toBe('1980-01');
   });
 });

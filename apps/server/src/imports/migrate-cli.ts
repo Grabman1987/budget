@@ -62,7 +62,8 @@ import { findRun, runTask, type ImportTask } from './tasks';
  * `unlockReconciled`); without it a reconciled booking is skipped.
  *
  * `instrument-facts` enters private per-instrument values from a JSON file (never in the repo):
- * `{securities: [{isin, terBp?, leverageFactorTenths?}], employerPension: [{month, amountCents}]}`.
+ * `{securities: [{isin, terBp?, leverageFactorTenths?}], employerPension: [{month, amountCents}],
+ * bookSettings?: {birthYear?, birthMonth?}}`.
  * A security is matched by ISIN (exactly one live one, else skipped with a reason), only non-null
  * fields are written, equal values are reported as unchanged. Pension months are upserted through
  * the rules settings function. Every entry is one audit group (actor `operator`) that Rückgängig
@@ -299,7 +300,10 @@ try {
     }
     case 'instrument-facts': {
       const dryRun = args.includes('--dry-run');
-      const facts = parseInstrumentFactsFile(JSON.parse(readFileSync(required('file'), 'utf8')));
+      const facts = parseInstrumentFactsFile(
+        JSON.parse(readFileSync(required('file'), 'utf8')),
+        ctx.today,
+      );
       const result = applyInstrumentFacts(
         db,
         facts,
@@ -327,6 +331,15 @@ try {
           o.detail,
           o.groupId || (o.status === 'upserted' ? '(dry run)' : ''),
         );
+      if (result.settings) {
+        const o = result.settings;
+        console.log(
+          o.status === 'updated' ? 'settings       ' : `settings ${o.status}`.padEnd(14),
+          o.birthMonth,
+          o.detail,
+          o.groupId || (o.status === 'updated' ? '(dry run)' : ''),
+        );
+      }
       const secSkipped = count('skipped');
       const pensionSkipped = result.pension.filter((o) => o.status === 'skipped').length;
       console.log(
@@ -350,7 +363,10 @@ try {
         'skipped',
         dryRun ? '(dry run)' : '',
       );
-      if (secSkipped + pensionSkipped > 0) process.exitCode = 3;
+      if (result.settings)
+        console.log('settings      ', result.settings.status, dryRun ? '(dry run)' : '');
+      if (secSkipped + pensionSkipped + (result.settings?.status === 'skipped' ? 1 : 0) > 0)
+        process.exitCode = 3;
       break;
     }
     default:
