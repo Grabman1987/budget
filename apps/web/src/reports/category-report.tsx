@@ -1,10 +1,11 @@
+import { ReportPeriodControl } from './period-quick-select';
 import {
   categoryOverview,
   reportPeriodMonths,
   SPEND_CLASS_LABEL,
   type CategoryOverviewRow,
 } from '@budget/domain';
-import { ClassSwatch, Segmented } from '@budget/ui';
+import { ClassSwatch } from '@budget/ui';
 import { useId, useMemo, useState } from 'react';
 import { ZEITRAUM_VALUES, useZeitraum } from '../wealth/zeitraum';
 import { eur } from '../ledger/format';
@@ -34,13 +35,14 @@ export function CategoryReport({ report, meta }: { report: ReportEntry; meta: Pa
       report={report}
       meta={meta}
       through="full"
+      currentAllowed={period.includes('..')}
       query={query}
       className="category-report"
       extraFields={[
         {
           label: 'Zeitraum',
           value: (
-            <Segmented
+            <ReportPeriodControl
               label="Zeitraum"
               options={PERIOD_OPTIONS}
               value={period}
@@ -81,14 +83,24 @@ function CategoryBody({
 }) {
   const window = useMemo(
     () =>
-      data.firstMonth && data.lastFullMonth
-        ? reportPeriodMonths(period, data.lastFullMonth, data.firstMonth)
+      data.firstMonth && (data.lastFullMonth || period.includes('..'))
+        ? reportPeriodMonths(
+            period,
+            period.includes('..') ? data.currentMonth : data.lastFullMonth!,
+            data.firstMonth,
+          )
         : [],
-    [data.firstMonth, data.lastFullMonth, period],
+    [data.firstMonth, data.lastFullMonth, data.currentMonth, period],
   );
   const overview = useMemo(
-    () => categoryOverview(data.months, data, window, data.lastFullMonth),
-    [data, window],
+    () =>
+      categoryOverview(
+        data.months,
+        data,
+        window,
+        period.includes('..') ? data.currentMonth : data.lastFullMonth,
+      ),
+    [data, window, period],
   );
   const [opened, setOpened] = useState<string | null | undefined>(undefined);
   const rows = overview.rows;

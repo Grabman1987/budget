@@ -1,4 +1,5 @@
-import { DimensionChain, Segmented } from '@budget/ui';
+import { ReportPeriodControl } from './period-quick-select';
+import { DimensionChain } from '@budget/ui';
 import { useQuery } from '@tanstack/react-query';
 import { ArrowDown, ArrowUp } from 'lucide-react';
 import { ApiError } from '../api/http';
@@ -43,7 +44,7 @@ export function WealthHistoryReport({ report, meta }: { report: ReportEntry; met
         {
           label: 'Zeitraum',
           value: (
-            <Segmented
+            <ReportPeriodControl
               label="Zeitraum"
               options={PERIOD_OPTIONS}
               value={period}

@@ -1,4 +1,5 @@
-import { ChartSvg, Graticule, Line, LineLegend, Segmented, type Point } from '@budget/ui';
+import { ReportPeriodControl } from '../reports/period-quick-select';
+import { ChartSvg, Graticule, Line, LineLegend, type Point } from '@budget/ui';
 import { returnGap } from '@budget/domain';
 import type { DepotColumn, DepotComparison } from '@budget/db';
 import { queryOptions, useQuery } from '@tanstack/react-query';
@@ -64,7 +65,7 @@ export function PortfolioDepotsReport({ report, meta }: { report: ReportEntry; m
         {
           label: 'Zeitraum',
           value: (
-            <Segmented
+            <ReportPeriodControl
               label="Zeitraum"
               options={PERIOD_OPTIONS}
               value={period}

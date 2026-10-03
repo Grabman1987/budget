@@ -12,6 +12,7 @@ import {
   lastDayOfMonth,
   monthOf,
   monthBoundaries,
+  periodWindow,
   periodPerformance,
   rebalancingProposals,
   shareBps,
@@ -719,7 +720,7 @@ function lastTwelveMonthEnds(today: string): string[] {
  */
 export function portfolioSummary(db: Executor, options: PortfolioOptions): PortfolioSummary {
   const { costMethod } = investmentPreferences(db);
-  const { today } = options;
+  const today = periodWindow(options.period ?? '1J', options.today).to;
   const period = options.period ?? '1J';
   const view = options.view ?? 'securities';
   const loaded = load(db);

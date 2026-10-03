@@ -1,3 +1,5 @@
+import type { Period } from '../invest/performance';
+import { calendarRangeMonths, isCalendarRange } from '../report-range';
 import { addMonths, monthsBetween } from '../date';
 import type { OverviewClass, OverviewData } from './figures';
 
@@ -39,7 +41,7 @@ export type ExplorerDim = (typeof EXPLORER_DIMS)[number]['id'];
 export type ExplorerMeasure = (typeof EXPLORER_MEASURES)[number]['id'];
 export type ExplorerCols = (typeof EXPLORER_COLS)[number]['id'];
 export type ExplorerClass = (typeof EXPLORER_CLASSES)[number]['id'];
-export type ExplorerPeriod = (typeof EXPLORER_PERIODS)[number];
+export type ExplorerPeriod = Period;
 
 export interface ExplorerQuery {
   dim: ExplorerDim;
@@ -84,7 +86,7 @@ export function parseExplorerQuery(raw: Record<string, unknown>): ExplorerQuery 
     !has(EXPLORER_CLASSES, cls) ||
     !has(EXPLORER_COLS, cols) ||
     !has(EXPLORER_MEASURES, meas) ||
-    !(EXPLORER_PERIODS as ReadonlyArray<unknown>).includes(period)
+    !((EXPLORER_PERIODS as ReadonlyArray<unknown>).includes(period) || isCalendarRange(period))
   )
     return null;
   return { dim, cls, cols, period: period as ExplorerPeriod, meas };
@@ -96,6 +98,8 @@ export function explorerWindow(
   ref: string,
   firstMonth: string | null,
 ): string[] {
+  if (firstMonth !== null && isCalendarRange(period))
+    return calendarRangeMonths(period, firstMonth, ref);
   if (firstMonth === null || ref < firstMonth) return [];
   const from =
     period === '1M'

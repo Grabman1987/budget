@@ -1,3 +1,4 @@
+import { checkedReportPeriod, reportPeriodSchema } from './report-period';
 import {
   bankCostsReport,
   budgetAdherence,
@@ -7,7 +8,8 @@ import {
   spendingReport,
   type Db,
 } from '@budget/db';
-import { monthOf, SPENDING_PERIODS } from '@budget/domain';
+import type { SPENDING_PERIODS } from '@budget/domain';
+import { monthOf } from '@budget/domain';
 import { Hono } from 'hono';
 import { z } from 'zod';
 import { ApiError, readQuery } from './http';
@@ -18,7 +20,7 @@ import { ApiError, readQuery } from './http';
  */
 
 const periodQuery = z.object({
-  period: z.enum(SPENDING_PERIODS as [string, ...string[]]).default('1J'),
+  period: reportPeriodSchema.default('1J'),
 });
 
 const monthQuery = z.object({
@@ -48,7 +50,8 @@ export function spendingReportRoutes(db: Db, today: () => string): Hono {
 
   // 2.1 Ausgabenanalyse
   app.get('/analysis', (c) => {
-    const { period } = readQuery(c, periodQuery);
+    const { period: rawPeriod } = readQuery(c, periodQuery);
+    const period = checkedReportPeriod(rawPeriod, today());
     return c.json(
       guarded(() => spendingReport(db, today(), period as (typeof SPENDING_PERIODS)[number])),
     );

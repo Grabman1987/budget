@@ -1,3 +1,5 @@
+import { TrendLine } from './trend';
+
 export interface Bar {
   /** Band centre. */
   x: number;
@@ -25,6 +27,7 @@ export function BarsAroundZero({ bars, y, barWidth, tone = 'ink' }: BarsAroundZe
   const zero = y(0);
   return (
     <g>
+      <TrendLine points={bars.map((b) => [b.x, y(b.value)])} />
       {bars.map((bar) => {
         const top = Math.min(y(bar.value), zero);
         const height = Math.max(1, Math.abs(y(bar.value) - zero));

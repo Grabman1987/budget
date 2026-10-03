@@ -1,3 +1,4 @@
+import { ReportPeriodControl } from '../reports/period-quick-select';
 import { DimensionChain } from '@budget/ui';
 import { cents, type Period } from '@budget/domain';
 import type { PortfolioSummary } from '@budget/db';
@@ -5,7 +6,7 @@ import { useQuery, queryOptions } from '@tanstack/react-query';
 import { useZeitraum, ZEITRAUM_VALUES } from '../wealth/zeitraum';
 import { useNavigate } from '@tanstack/react-router';
 import { ApiError, request } from '../api/http';
-import { Button, Segmented } from '@budget/ui';
+import { Button } from '@budget/ui';
 import { ErrorNote, LoadingNote } from '../ledger/states';
 import { eur, longDay } from '../ledger/format';
 import { periodText } from '../wealth/networth-model';
@@ -129,7 +130,8 @@ function PeriodControl({
   onChange: (period: Period) => void;
 }) {
   return (
-    <Segmented
+    <ReportPeriodControl
+      trend={false}
       label="Zeitraum"
       options={PERIOD_OPTIONS}
       value={period}

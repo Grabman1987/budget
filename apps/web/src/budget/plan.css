@@ -1386,3 +1386,50 @@
     display: none;
   }
 }
+
+.income-targets-source {
+  color: var(--ink-3);
+  font-size: 12px;
+  margin: 8px 0;
+}
+.income-targets-gap {
+  color: var(--red);
+}
+.income-targets-bars {
+  display: grid;
+  gap: 6px;
+  margin: 12px 0;
+}
+.income-targets-bars > div {
+  height: 6px;
+  background: var(--line);
+}
+.income-targets-bars > .income-targets-goal {
+  background: transparent;
+  border-top: 2px dashed var(--line-2);
+}
+.income-targets-links {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.income-targets-links button {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  min-height: 44px;
+  text-align: left;
+  background: transparent;
+  border: 0;
+  border-top: 1px solid var(--rule);
+  color: var(--ink);
+  cursor: pointer;
+}
+.income-targets-links button:hover {
+  background: var(--tint);
+}
+.income-targets-links button span {
+  white-space: nowrap;
+}

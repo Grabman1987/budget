@@ -88,7 +88,7 @@ export function createLedgerApi({
   api.route('/receipts', receiptRoutes(db, receiptsDir));
   api.route('/payees', payeeRoutes(db));
   api.route('/categories', categoryRoutes(db));
-  api.route('/budget', budgetRoutes(db));
+  api.route('/budget', budgetRoutes(db, today));
   api.route('/expected', expectedRoutes(db, today));
   api.route('/export', exportRoutes(db, today, stepUp));
   api.route('/wealth', wealthRoutes(db, today));

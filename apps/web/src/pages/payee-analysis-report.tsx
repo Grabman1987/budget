@@ -1,5 +1,6 @@
-import { cents, type Period } from '@budget/domain';
-import { Button, DimensionChain, Segmented } from '@budget/ui';
+import { ReportPeriodControl } from '../reports/period-quick-select';
+import { isReportPeriod, cents, type Period } from '@budget/domain';
+import { Button, DimensionChain } from '@budget/ui';
 import { queryOptions, useInfiniteQuery, useQuery } from '@tanstack/react-query';
 import { useNavigate, useSearch } from '@tanstack/react-router';
 import React from 'react';
@@ -13,7 +14,7 @@ import type { ReportEntry } from '../nav/reports-catalog';
 import { PageFrame } from './placeholder-page';
 import './payee-analysis-report.css';
 
-type ReportPeriod = '1M' | '3M' | 'YTD' | '1J' | '3J' | 'Alles';
+type ReportPeriod = Period;
 interface PayeeReportRow {
   payeeId: string | null;
   name: string;
@@ -67,7 +68,7 @@ const reportQuery = (period: ReportPeriod) =>
   });
 
 function reportPeriod(value: unknown): ReportPeriod {
-  return PERIODS.includes(value as ReportPeriod) ? (value as ReportPeriod) : '1J';
+  return isReportPeriod(value) ? (value as ReportPeriod) : '1J';
 }
 
 function useReportPeriod(): [ReportPeriod, (value: ReportPeriod) => void] {
@@ -131,7 +132,8 @@ export function PayeeAnalysisReport({ report, meta }: { report: ReportEntry; met
         {
           label: 'Zeitraum',
           value: (
-            <Segmented
+            <ReportPeriodControl
+              trend={false}
               label="Zeitraum"
               options={PERIODS.map((value) => ({ value, label: value }))}
               value={period}

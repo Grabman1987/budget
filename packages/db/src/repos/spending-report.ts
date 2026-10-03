@@ -1,4 +1,5 @@
 import {
+  isCalendarRange,
   analyseSpending,
   lastDayOfMonth,
   monthOf,
@@ -128,7 +129,10 @@ export function spendingReport(
   today: string,
   period: SpendingPeriod,
 ): SpendingReport {
-  const { available } = reportMonths(db, today);
+  const available = reportMonths(
+    db,
+    isCalendarRange(period) ? lastDayOfMonth(monthOf(today)) : today,
+  ).available;
   const months = windowMonths(period, available);
   const previousMonths = previousWindow(months, available);
   const categories = spendCategories(db);
@@ -141,7 +145,11 @@ export function spendingReport(
     ...analysis,
     period,
     from: firstOf(months) ? firstDay(firstOf(months) as string) : null,
-    to: lastOf(months) ? lastDay(lastOf(months) as string) : null,
+    to: lastOf(months)
+      ? lastDay(lastOf(months) as string) < today
+        ? lastDay(lastOf(months) as string)
+        : today
+      : null,
     previousFrom: firstOf(previousMonths) ? firstDay(firstOf(previousMonths) as string) : null,
     previousTo: lastOf(previousMonths) ? lastDay(lastOf(previousMonths) as string) : null,
     availableFrom: firstOf(available) ? firstDay(firstOf(available) as string) : null,

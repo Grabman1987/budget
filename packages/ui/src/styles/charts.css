@@ -306,3 +306,11 @@ svg.chart {
     animation: none;
   }
 }
+
+.report-trend-line {
+  fill: none;
+  stroke: var(--line);
+  stroke-width: 1.5;
+  stroke-dasharray: 2 4;
+  vector-effect: non-scaling-stroke;
+}

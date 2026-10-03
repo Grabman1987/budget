@@ -62,11 +62,13 @@ const rootRoute = createRootRoute({
     monat?: string | undefined;
     period?: HeutePeriod | undefined;
     zeitraum?: Period | undefined;
+    trend?: boolean | undefined;
   } => ({
     panel: isPanelId(search['panel']) ? search['panel'] : undefined,
     monat: isMonth(search['monat']) ? search['monat'] : undefined,
     period:
       search['period'] === 'month' || search['period'] === 'payday' ? search['period'] : undefined,
+    trend: search['trend'] === true || search['trend'] === 'true' ? true : undefined,
     zeitraum: isZeitraum(search['zeitraum']) ? search['zeitraum'] : undefined,
   }),
   component: Outlet,

@@ -1,5 +1,8 @@
+import { isCalendarRange } from '../report-range';
+import type { Period } from '../invest/performance';
+
 /** Period of the spending reports: the same six ranges as Vermögen, counted in full months. */
-export type SpendingPeriod = '1M' | '3M' | 'YTD' | '1J' | '3J' | 'Alles';
+export type SpendingPeriod = Period;
 
 export const SPENDING_PERIODS: ReadonlyArray<SpendingPeriod> = [
   '1M',
@@ -16,10 +19,16 @@ export const SPENDING_PERIODS: ReadonlyArray<SpendingPeriod> = [
  * named: the report says which range it really covers.
  */
 export function windowMonths(period: SpendingPeriod, available: ReadonlyArray<string>): string[] {
+  if (isCalendarRange(period)) {
+    const [from, to] = period.split('..') as [string, string];
+    return available.filter((m) => m >= from && m <= to);
+  }
   const last = available[available.length - 1];
   if (last === undefined) return [];
   if (period === 'YTD') return available.filter((m) => m.startsWith(`${last.slice(0, 4)}-`));
-  const count = { '1M': 1, '3M': 3, '1J': 12, '3J': 36, Alles: Infinity }[period];
+  const count = { '1M': 1, '3M': 3, '1J': 12, '3J': 36, Alles: Infinity }[
+    period as '1M' | '3M' | '1J' | '3J' | 'Alles'
+  ];
   return available.slice(Number.isFinite(count) ? -count : 0);
 }
 
