@@ -305,11 +305,61 @@ describe('bank adapter with synthetic HTTP only', () => {
       psu_type: 'personal',
     });
     await expect(
+      adapter([
+        { url: 'https://tilisy.enablebanking.com/welcome?sessionid=synthetic' },
+      ]).provider.authorize(institutions[0]!, 'state', 'https://budget.example'),
+    ).resolves.toBe('https://tilisy.enablebanking.com/welcome?sessionid=synthetic');
+    await expect(
       adapter([{ url: 'https://untrusted.example/' }]).provider.authorize(
         institutions[0]!,
         'state',
         'https://budget.example',
       ),
     ).rejects.toMatchObject({ code: 'invalid_response' });
+  });
+  it('accepts real session shapes: null names, microsecond validity, IBAN-tail label', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const { provider } = adapter([
+      {
+        session_id: 'synthetic-session',
+        access: { valid_until: '2027-03-31T00:00:00.123456+00:00' },
+        accounts: [
+          {
+            uid: 'acc-1',
+            name: null,
+            product: null,
+            account_id: { iban: 'AT000000000000001234' },
+            currency: 'EUR',
+          },
+          { uid: 'acc-2', name: 'Girokonto', currency: 'EUR' },
+          { uid: 'acc-3', currency: 'EUR' },
+        ],
+      },
+    ]);
+    await expect(provider.session('synthetic-code')).resolves.toEqual({
+      id: 'synthetic-session',
+      validUntil: '2027-03-31T00:00:00.123Z',
+      accounts: [
+        { uid: 'acc-1', label: 'Konto …1234', currency: 'EUR' },
+        { uid: 'acc-2', label: 'Girokonto', currency: 'EUR' },
+        { uid: 'acc-3', label: 'Bankkonto 3', currency: 'EUR' },
+      ],
+    });
+    expect(warn).not.toHaveBeenCalled();
+    warn.mockRestore();
+  });
+  it('logs only field paths of a rejected response, never values', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const { provider } = adapter([
+      { session_id: 'secret-session-value', access: { valid_until: 'never' }, accounts: [] },
+    ]);
+    await expect(provider.session('synthetic-code')).rejects.toMatchObject({
+      code: 'invalid_response',
+    });
+    const logged = JSON.stringify(warn.mock.calls);
+    expect(logged).toContain('access.valid_until');
+    expect(logged).not.toContain('secret-session-value');
+    expect(logged).not.toContain('never');
+    warn.mockRestore();
   });
 });

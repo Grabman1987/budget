@@ -1,4 +1,5 @@
 import { payrollRoutes, projectRoutes } from './payroll-projects';
+import { payslipIntakeRoutes } from './payslip-intake';
 import { incomeMonthRoutes } from './income-month';
 import { bankSyncFromEnv } from '../bank-sync/config';
 import type { BankSync } from '../bank-sync/service';
@@ -77,6 +78,7 @@ export function createLedgerApi({
 }: LedgerApiOptions): Hono {
   const api = new Hono();
   api.route('/payslips', payrollRoutes(db, today));
+  api.route('/payslip-intake', payslipIntakeRoutes(db, receiptsDir));
   api.route('/projects', projectRoutes(db, today));
   api.route('/income-month-rules', incomeMonthRoutes(db));
   api.route('/bank-sync', bankSyncRoutes(bankSync, stepUp, db));

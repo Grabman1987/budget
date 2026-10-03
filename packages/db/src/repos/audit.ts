@@ -647,6 +647,17 @@ export function undo(
     }
     if ('auditId' in target) {
       const [entry] = originals as [AuditEntry];
+      if (
+        entry.groupId &&
+        tx
+          .select()
+          .from(auditLog)
+          .where(
+            and(eq(auditLog.groupId, entry.groupId), eq(auditLog.entityType, 'payslip_intake')),
+          )
+          .get()
+      )
+        throw new AuditError('Gehaltszettel-Aufnahme nur als gesamte Aktion rückgängig machen.');
       const snapshot = entry.after ?? entry.before;
       if (
         entry.entityType === 'booking_split' ||
@@ -754,6 +765,44 @@ export function undo(
     assertLedgerInvariants(tx, touched);
     assertContactUndoDependencies(tx, originals);
     assertReceiptUndo(tx, originals);
+    if (
+      originals.some((e) =>
+        ['payslip_intake', 'receipt', 'inbox_item', 'payslip'].includes(e.entityType),
+      )
+    ) {
+      const intakes = tx
+        .select()
+        .from(schema.payslipIntake)
+        .where(isNull(schema.payslipIntake.deletedAt))
+        .all();
+      for (const row of intakes) {
+        const item = tx
+          .select()
+          .from(schema.inboxItem)
+          .where(
+            and(eq(schema.inboxItem.refType, 'payslip-intake'), eq(schema.inboxItem.refId, row.id)),
+          )
+          .get();
+        const file = tx
+          .select()
+          .from(schema.receipt)
+          .where(eq(schema.receipt.id, row.receiptId))
+          .get();
+        const saved = tx
+          .select()
+          .from(schema.payslip)
+          .where(and(eq(schema.payslip.receiptId, row.receiptId), isNull(schema.payslip.deletedAt)))
+          .get();
+        if (
+          !file ||
+          file.deletedAt ||
+          !item ||
+          (row.status === 'pending') !== (item.resolvedAt === null) ||
+          (row.status === 'pending' && saved)
+        )
+          throw new AuditError('Gehaltszettel, Beleg und Posteingang gemeinsam rückgängig machen.');
+      }
+    }
     const touchedAccounts = originals
       .filter((entry) => entry.entityType === getTableName(schema.account))
       .map((entry) => entry.entityId);

@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { cryptoReadSource } from './crypto-api';
+import { cryptoReadSource, providerCursor } from './crypto-api';
 const amount = { value: '12.34', currency_id: 'currency-test' };
 const operation = {
   operation_id: 'operation-test',
@@ -43,6 +43,34 @@ describe('read-only provider boundary', () => {
     await source.operations({ ...window, cursor: result.nextCursor });
     expect(new URL(String(request.mock.calls[1]![0])).searchParams.get('cursor')).toBe(
       'opaque/next?x=1',
+    );
+  });
+  it('uses the operation type when a transaction carries none (rewards, staking, trades)', async () => {
+    const withoutType: Record<string, unknown> = { ...operation.transactions[0]! };
+    delete withoutType['transaction_type'];
+    const reward = { ...operation, operation_type: 'reward', transactions: [withoutType] };
+    const request = vi
+      .fn<typeof fetch>()
+      .mockResolvedValue(Response.json({ data: [reward], has_next_page: false }));
+    const result = await cryptoReadSource({ ...synthetic, fetch: request }).operations(window);
+    expect(result.invalidOperations).toEqual([]);
+    expect(result.operations[0]?.transactions[0]?.type).toBe('reward');
+  });
+  it('sends whole-second timestamp cursors back with milliseconds, other cursors unchanged', async () => {
+    const b64 = (v: string) => Buffer.from(v).toString('base64');
+    expect(providerCursor(b64('2026-07-21T16:53:47Z'))).toBe(b64('2026-07-21T16:53:47.000Z'));
+    expect(providerCursor(b64('2026-09-07T11:30:47.224Z'))).toBe(b64('2026-09-07T11:30:47.224Z'));
+    expect(providerCursor('opaque/next?x=1')).toBe('opaque/next?x=1');
+    expect(providerCursor(b64('not a timestamp'))).toBe(b64('not a timestamp'));
+    const request = vi
+      .fn<typeof fetch>()
+      .mockResolvedValue(Response.json({ data: [], has_next_page: false }));
+    await cryptoReadSource({ ...synthetic, fetch: request }).operations({
+      ...window,
+      cursor: b64('2026-07-21T16:53:47Z'),
+    });
+    expect(new URL(String(request.mock.calls[0]![0])).searchParams.get('cursor')).toBe(
+      b64('2026-07-21T16:53:47.000Z'),
     );
   });
   it('reads native cash and asset balances rather than equivalent market values', async () => {

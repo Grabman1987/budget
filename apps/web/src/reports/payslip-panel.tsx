@@ -96,7 +96,7 @@ export function PayslipPanel({
     if (!valid.success) {
       setError(
         valid.error.issues.find((issue) => issue.code === 'custom')?.message ??
-          'Bitte gültige Beträge, Monat und Bezeichnungen eingeben. Nur SV und Lohnsteuer dürfen negativ sein.',
+          'Bitte gültige Beträge, Monat und Bezeichnungen eingeben. Aufrollungen mit Vorzeichen erfassen.',
       );
       return;
     }
@@ -253,6 +253,8 @@ export function PayslipPanel({
                   <option value="earning">Zusätzlicher Bezug</option>
                   <option value="deduction">Sonstiger Abzug</option>
                   <option value="reimbursement">Steuerfreie Erstattung</option>
+                  <option value="tax_adjustment">Lohnsteuer-Aufrollung (mit Vorzeichen)</option>
+                  <option value="sv_adjustment">SV-Aufrollung (mit Vorzeichen)</option>
                 </select>
               </label>
               <AmountInput

@@ -47,6 +47,9 @@ export function listReceipts(db: Executor, bookingId?: string) {
         isNull(receipt.deletedAt),
         sql`${receipt.sha256} IS NOT NULL`,
         bookingId ? liveLink : sql`NOT ${liveLink}`,
+        bookingId
+          ? undefined
+          : sql`NOT EXISTS (SELECT 1 FROM payslip_intake pi WHERE pi.receipt_id = ${receipt.id} AND pi.deleted_at IS NULL) AND NOT EXISTS (SELECT 1 FROM payslip p WHERE p.receipt_id = ${receipt.id} AND p.deleted_at IS NULL)`,
       ),
     )
     .orderBy(desc(receipt.createdAt), receipt.id)
@@ -157,4 +160,13 @@ export function assertReceiptUndo(db: Executor, entries: AuditEntry[]) {
     .get();
   if (invalid)
     throw new AuditError('Cannot undo: a receipt is still linked; undo the link action first');
+  const payrollReference = db
+    .select({ id: receipt.id })
+    .from(receipt)
+    .where(
+      sql`${receipt.deletedAt} IS NOT NULL AND EXISTS (SELECT 1 FROM payslip p WHERE p.receipt_id = ${receipt.id} AND p.deleted_at IS NULL)`,
+    )
+    .get();
+  if (payrollReference)
+    throw new AuditError('Cannot undo: a receipt is still referenced by a payslip.');
 }
