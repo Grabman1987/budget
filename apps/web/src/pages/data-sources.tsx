@@ -6,6 +6,7 @@ import { withStepUp } from '../auth/webauthn';
 import { errorText } from '../ledger/labels';
 import { PAGES } from '../nav/pages';
 import { PageFrame } from './placeholder-page';
+import { CryptoReadSourceSection } from './read-source';
 import './data-sources.css';
 
 type LinkedAccount = {
@@ -47,6 +48,20 @@ const statuses: Record<string, string> = {
 };
 
 export function DataSourcesPage() {
+  return (
+    <PageFrame
+      meta={PAGES.find((p) => p.path === '/einstellungen/datenquellen')!}
+      revealCurrentRegister
+    >
+      <div className="data-sources">
+        <BankSourceSection />
+        <CryptoReadSourceSection />
+      </div>
+    </PageFrame>
+  );
+}
+
+function BankSourceSection() {
   const query = useQuery({
     queryKey: ['bank-sync'],
     queryFn: () => request<Status>('GET', PATH),
@@ -80,207 +95,202 @@ export function DataSourcesPage() {
     }
   }
   return (
-    <PageFrame
-      meta={PAGES.find((p) => p.path === '/einstellungen/datenquellen')!}
-      revealCurrentRegister
-    >
-      <section className="data-sources" aria-labelledby="sources-title">
-        <SectionHead id="sources-title" title="Bank-Sync (PSD2)" />
-        <p>
-          Gebuchte Bankumsätze landen zur Prüfung im Posteingang. Erst deine Bestätigung erstellt
-          eine Buchung.
-        </p>
-        {query.isPending && <p role="status">Datenquellen werden geladen …</p>}
-        {query.isError && (
-          <p role="alert">
-            Datenquellen konnten nicht geladen werden.{' '}
-            <Button variant="ghost" onClick={() => void query.refetch()}>
-              Erneut laden
-            </Button>
-          </p>
-        )}
-        {error && (
-          <p className="field-error" role="alert">
-            {error}
-          </p>
-        )}
-        {message && <p role="status">{message}</p>}
-        {callback.error && (
-          <p role="alert">Die Bankfreigabe wurde abgebrochen. Bitte erneut verbinden.</p>
-        )}
-        {callback.code && callback.state && (
-          <Button
-            disabled={busy}
-            onClick={() =>
-              void act(async () => {
-                await withStepUp(() =>
-                  request('POST', PATH + '/callback', {
-                    code: callback.code,
-                    state: callback.state,
-                  }),
-                );
-                setCallback({ code: null, state: null, error: false });
-              }, 'Bankfreigabe gespeichert. Bitte die Konten zuordnen.')
-            }
-          >
-            Bankfreigabe abschließen
+    <section className="data-source-section" aria-labelledby="bank-source-title">
+      <SectionHead id="bank-source-title" title="Bank-Sync (PSD2)" />
+      <p>
+        Gebuchte Bankumsätze landen zur Prüfung im Posteingang. Erst deine Bestätigung erstellt eine
+        Buchung.
+      </p>
+      {query.isPending && <p role="status">Datenquellen werden geladen …</p>}
+      {query.isError && (
+        <p role="alert">
+          Datenquellen konnten nicht geladen werden.{' '}
+          <Button variant="ghost" onClick={() => void query.refetch()}>
+            Erneut laden
           </Button>
-        )}
-        {query.data && !query.data.configured && (
-          <p>
-            Bank-Sync ist noch nicht eingerichtet. Die Zugangsdaten müssen zuerst auf dem Server
-            hinterlegt werden.
+        </p>
+      )}
+      {error && (
+        <p className="field-error" role="alert">
+          {error}
+        </p>
+      )}
+      {message && <p role="status">{message}</p>}
+      {callback.error && (
+        <p role="alert">Die Bankfreigabe wurde abgebrochen. Bitte erneut verbinden.</p>
+      )}
+      {callback.code && callback.state && (
+        <Button
+          disabled={busy}
+          onClick={() =>
+            void act(async () => {
+              await withStepUp(() =>
+                request('POST', PATH + '/callback', {
+                  code: callback.code,
+                  state: callback.state,
+                }),
+              );
+              setCallback({ code: null, state: null, error: false });
+            }, 'Bankfreigabe gespeichert. Bitte die Konten zuordnen.')
+          }
+        >
+          Bankfreigabe abschließen
+        </Button>
+      )}
+      {query.data && !query.data.configured && (
+        <p>
+          Bank-Sync ist noch nicht eingerichtet. Die Zugangsdaten müssen zuerst auf dem Server
+          hinterlegt werden.
+        </p>
+      )}
+      {query.data?.workerEnabled === false && (
+        <p role="status">
+          Der Bankabruf ist auf dem Server pausiert. Auch manuelle Abrufe warten bis zur
+          Aktivierung.
+        </p>
+      )}
+      {query.data?.configured && (
+        <>
+          <div className="sources-actions">
+            <Button
+              disabled={busy}
+              variant="ghost"
+              onClick={() =>
+                void act(async () => {
+                  const data = await withStepUp(() =>
+                    request<{ institutions: Institution[] }>('GET', PATH + '/institutions'),
+                  );
+                  setInstitutions(data.institutions);
+                }, 'Verfügbare Institute geladen.')
+              }
+            >
+              Bank verbinden
+            </Button>
+            {institutions.length > 0 && (
+              <>
+                <Field label="Institut">
+                  {({ id }) => (
+                    <Select
+                      id={id}
+                      value={selection}
+                      onChange={(e) => setSelection(e.target.value)}
+                    >
+                      <option value="">Institut wählen</option>
+                      {institutions.map((a, i) => (
+                        <option key={a.name + a.country} value={i}>
+                          {a.name} · {a.country}
+                        </option>
+                      ))}
+                    </Select>
+                  )}
+                </Field>
+                <Button
+                  disabled={busy || !selection}
+                  onClick={() =>
+                    void act(async () => {
+                      const institution = institutions[Number(selection)]!;
+                      const result = await withStepUp(() =>
+                        request<{ url: string }>('POST', PATH + '/auth', {
+                          name: institution.name,
+                          country: institution.country,
+                        }),
+                      );
+                      window.location.assign(result.url);
+                    }, '')
+                  }
+                >
+                  Zur Bankfreigabe
+                </Button>
+              </>
+            )}
+          </div>
+          {query.data.connections.length === 0 && <p>Noch keine Bank verbunden.</p>}
+          <p className="text-muted">
+            Nächtlicher Abruf mit Nachholen nach Ausfällen. Bei Fehlern gilt eine Abrufpause.
+            Einwilligungen werden 14 Tage vor Ablauf im Posteingang angezeigt.
           </p>
-        )}
-        {query.data?.workerEnabled === false && (
-          <p role="status">
-            Der Bankabruf ist auf dem Server pausiert. Auch manuelle Abrufe warten bis zur
-            Aktivierung.
-          </p>
-        )}
-        {query.data?.configured && (
-          <>
-            <div className="sources-actions">
-              <Button
-                disabled={busy}
-                variant="ghost"
-                onClick={() =>
-                  void act(async () => {
-                    const data = await withStepUp(() =>
-                      request<{ institutions: Institution[] }>('GET', PATH + '/institutions'),
-                    );
-                    setInstitutions(data.institutions);
-                  }, 'Verfügbare Institute geladen.')
-                }
-              >
-                Bank verbinden
-              </Button>
-              {institutions.length > 0 && (
-                <>
-                  <Field label="Institut">
-                    {({ id }) => (
-                      <Select
-                        id={id}
-                        value={selection}
-                        onChange={(e) => setSelection(e.target.value)}
-                      >
-                        <option value="">Institut wählen</option>
-                        {institutions.map((a, i) => (
-                          <option key={a.name + a.country} value={i}>
-                            {a.name} · {a.country}
-                          </option>
-                        ))}
-                      </Select>
-                    )}
-                  </Field>
-                  <Button
-                    disabled={busy || !selection}
-                    onClick={() =>
-                      void act(async () => {
-                        const institution = institutions[Number(selection)]!;
-                        const result = await withStepUp(() =>
-                          request<{ url: string }>('POST', PATH + '/auth', {
-                            name: institution.name,
-                            country: institution.country,
-                          }),
-                        );
-                        window.location.assign(result.url);
-                      }, '')
-                    }
-                  >
-                    Zur Bankfreigabe
-                  </Button>
-                </>
-              )}
-            </div>
-            {query.data.connections.length === 0 && <p>Noch keine Bank verbunden.</p>}
-            <p className="text-muted">
-              Nächtlicher Abruf mit Nachholen nach Ausfällen. Bei Fehlern gilt eine Abrufpause.
-              Einwilligungen werden 14 Tage vor Ablauf im Posteingang angezeigt.
-            </p>
-            {query.data.connections.map((connection) => (
-              <section
-                className="source-connection"
-                key={connection.id}
-                aria-label={connection.label}
-              >
-                <SectionHead
-                  title={connection.label}
-                  aside={statuses[connection.status] ?? 'Bitte prüfen'}
+          {query.data.connections.map((connection) => (
+            <section
+              className="source-connection"
+              key={connection.id}
+              aria-label={connection.label}
+            >
+              <SectionHead
+                title={connection.label}
+                aside={statuses[connection.status] ?? 'Bitte prüfen'}
+              />
+              <dl className="source-status">
+                <div>
+                  <dt>Letzter Versuch</dt>
+                  <dd>{stamp(connection.lastAttemptAt)}</dd>
+                </div>
+                <div>
+                  <dt>Letzter erfolgreicher Abruf</dt>
+                  <dd>{stamp(connection.lastSuccessAt)}</dd>
+                </div>
+                <div>
+                  <dt>Einwilligung bis</dt>
+                  <dd>{stamp(connection.validUntil)}</dd>
+                </div>
+                <div>
+                  <dt>Nächster Abruf</dt>
+                  <dd>
+                    {connection.status === 'paused' ? 'Pausiert' : stamp(connection.nextRunAt)}
+                  </dd>
+                </div>
+              </dl>
+              {connection.accounts.map((a) => (
+                <AccountLink
+                  key={a.id}
+                  row={a}
+                  accounts={query.data.accounts}
+                  disabled={busy || a.locked || connection.status === 'paused'}
+                  save={(accountId, fromDate) =>
+                    act(
+                      () =>
+                        withStepUp(() =>
+                          request('PUT', PATH + '/accounts/' + a.id, { accountId, fromDate }),
+                        ),
+                      'Kontozuordnung gespeichert.',
+                    )
+                  }
                 />
-                <dl className="source-status">
-                  <div>
-                    <dt>Letzter Versuch</dt>
-                    <dd>{stamp(connection.lastAttemptAt)}</dd>
-                  </div>
-                  <div>
-                    <dt>Letzter erfolgreicher Abruf</dt>
-                    <dd>{stamp(connection.lastSuccessAt)}</dd>
-                  </div>
-                  <div>
-                    <dt>Einwilligung bis</dt>
-                    <dd>{stamp(connection.validUntil)}</dd>
-                  </div>
-                  <div>
-                    <dt>Nächster Abruf</dt>
-                    <dd>
-                      {connection.status === 'paused' ? 'Pausiert' : stamp(connection.nextRunAt)}
-                    </dd>
-                  </div>
-                </dl>
-                {connection.accounts.map((a) => (
-                  <AccountLink
-                    key={a.id}
-                    row={a}
-                    accounts={query.data.accounts}
-                    disabled={busy || a.locked || connection.status === 'paused'}
-                    save={(accountId, fromDate) =>
-                      act(
-                        () =>
-                          withStepUp(() =>
-                            request('PUT', PATH + '/accounts/' + a.id, { accountId, fromDate }),
-                          ),
-                        'Kontozuordnung gespeichert.',
+              ))}
+              {connection.validUntil && connection.status !== 'paused' && (
+                <div className="sources-actions">
+                  <Button
+                    disabled={busy}
+                    onClick={() =>
+                      void act(
+                        () => request('POST', PATH + '/' + connection.id + '/sync', {}),
+                        'Abruf vorgemerkt. Neue Umsätze erscheinen im Posteingang.',
                       )
                     }
-                  />
-                ))}
-                {connection.validUntil && connection.status !== 'paused' && (
-                  <div className="sources-actions">
-                    <Button
-                      disabled={busy}
-                      onClick={() =>
-                        void act(
-                          () => request('POST', PATH + '/' + connection.id + '/sync', {}),
-                          'Abruf vorgemerkt. Neue Umsätze erscheinen im Posteingang.',
-                        )
-                      }
-                    >
-                      Jetzt abrufen
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      disabled={busy}
-                      onClick={() =>
-                        void act(
-                          () =>
-                            withStepUp(() =>
-                              request('POST', PATH + '/' + connection.id + '/pause', {}),
-                            ),
-                          'Verbindung pausiert. Eine neue Freigabe ist über „Bank verbinden“ möglich.',
-                        )
-                      }
-                    >
-                      Verbindung pausieren
-                    </Button>
-                  </div>
-                )}
-              </section>
-            ))}
-          </>
-        )}
-      </section>
-    </PageFrame>
+                  >
+                    Jetzt abrufen
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    disabled={busy}
+                    onClick={() =>
+                      void act(
+                        () =>
+                          withStepUp(() =>
+                            request('POST', PATH + '/' + connection.id + '/pause', {}),
+                          ),
+                        'Verbindung pausiert. Eine neue Freigabe ist über „Bank verbinden“ möglich.',
+                      )
+                    }
+                  >
+                    Verbindung pausieren
+                  </Button>
+                </div>
+              )}
+            </section>
+          ))}
+        </>
+      )}
+    </section>
   );
 }
 

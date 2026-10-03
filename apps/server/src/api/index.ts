@@ -1,6 +1,8 @@
 import { bankSyncFromEnv } from '../bank-sync/config';
 import type { BankSync } from '../bank-sync/service';
 import { bankSyncRoutes } from './bank-sync';
+import { cryptoReadSource } from '../sources/crypto-api';
+import { readSourceRoutes } from './read-source';
 import { searchRoutes } from './search';
 import { inboxRoutes } from './inbox';
 import { contactRoutes } from './contacts';
@@ -73,6 +75,7 @@ export function createLedgerApi({
 }: LedgerApiOptions): Hono {
   const api = new Hono();
   api.route('/bank-sync', bankSyncRoutes(bankSync, stepUp));
+  api.route('/sources/crypto', readSourceRoutes(db, today, stepUp, cryptoReadSource()));
   api.route('/search', searchRoutes(db));
   api.route('/accounts', accountRoutes(db, today));
   api.route('/inbox', inboxRoutes(db, today));
