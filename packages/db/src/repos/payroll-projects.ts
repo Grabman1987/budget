@@ -1,4 +1,5 @@
 import {
+  isCalendarRange,
   payrollReport,
   payslipInput,
   payrollTotals,
@@ -235,7 +236,7 @@ export function readProjects(db: Executor, period: SpendingPeriod, today: string
     .all();
   const first = rows.map((r) => monthOf(r.b.date)).sort()[0] ?? monthOf(today);
   // Closed months, like the prototype; YTD in January still means the current calendar year.
-  const end = addMonths(monthOf(today), -1);
+  const end = isCalendarRange(period) ? monthOf(today) : addMonths(monthOf(today), -1);
   const available = first <= end ? monthsBetween(first, end) : [];
   const months =
     period === 'YTD'

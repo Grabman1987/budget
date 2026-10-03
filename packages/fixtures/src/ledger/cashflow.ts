@@ -306,7 +306,7 @@ export function buildCashflow(): CashflowResult {
       amountCents: -interest,
       payeeId: payeeId('Bank F'),
       memo: 'Sollzinsen',
-      splits: [{ categoryId: null, amountCents: -interest }],
+      splits: [{ categoryId: catId('bankspesen'), amountCents: -interest }],
     });
 
     // ---------- Notgroschen ----------
