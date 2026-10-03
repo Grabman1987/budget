@@ -74,7 +74,7 @@ No keypad. The amount is a text field with arithmetic (`12,50+8,20`, `+ − × �
 
 ## 5. Data model and invariants (concept ch. 5)
 
-Entities: Konto (with role: Budget-Konto / Rücklage / Anlage / Schuld, and terms: credit line, overdraft limit, rates, term, fees), Buchung with Anteile (splits), Umbuchung, Empfänger, Kategorie/Gruppe/Klasse, Envelope-Monat (assigned, activity, available), Erwartete Zahlung (versioned), Kontakt with Forderungskonto, Sparziel, Wertpapier/Produkt, Trade, Bestand, Kurs (source per price), Wechselkurs, Anlageklasse with Soll-Allocation, Regel + Regelergebnis, Posteingang-Eintrag, Zuordnungsregel, Bank-Verbindung, Beleg (object storage), Änderungsprotokoll, Gehaltszettel (payslip lines), Projekt (side income: income and costs), Geplantes Ereignis (forecast events).
+Entities: Konto (with role: Budget-Konto / Rücklage / Anlage / Schuld, and terms: credit line, overdraft limit, rates, term, fees), Buchung with Anteile (splits), Umbuchung, Empfänger, Kategorie/Gruppe/Klasse, Envelope-Monat (assigned, activity, available), Erwartete Zahlung (versioned), Kontakt with Forderungskonto, Sparziel, Wertpapier/Produkt, Trade, Bestand, Kurs (source per price), Wechselkurs, Anlageklasse with Soll-Allocation, Regel + Regelergebnis, Posteingang-Eintrag, Zuordnungsregel, Bank-Verbindung, Beleg (content-addressed volume files), Änderungsprotokoll, Gehaltszettel (payslip lines), Projekt (side income: income and costs), Geplantes Ereignis (forecast events).
 
 Invariants (binding):
 - Amounts are integers in cents. Sum of splits = booking amount. A transfer = exactly two bookings.
@@ -134,7 +134,7 @@ Build pages to match `design/prototype/` and `design/screens/`. When in doubt, o
 | Backend | Hono + zod (request validation on the server today; schemas move to a shared package when a client form needs the same rules, from P2), REST/JSON |
 | Database | SQLite (WAL) with Drizzle ORM and migrations |
 | Backup | Litestream to object storage + nightly age-encrypted copy |
-| Receipts / payslips | Object storage, reference in DB |
+| Receipts / payslips | Receipts: content-addressed files on the Fly volume (`RECEIPTS_DIR`), metadata/booking links in DB and files in the encrypted archive backup (owner task decision 2026-10-02). Payslip file workflow remains separate. |
 | Jobs | Separate worker process with schedule and catch-up of missed runs (P4) |
 | Auth | Passkeys via SimpleWebAuthn, several devices, ten recovery codes, HttpOnly SameSite=Strict session cookie (30 days), step-up for export, bank connection, new passkeys |
 | Security | Strict CSP (`script-src 'self'`), HSTS, no `eval` |
@@ -189,5 +189,5 @@ Tax filing, AI advice or AI categorisation (AI-assisted planning is a later goal
 ## 13. Open items
 
 - Private account/category/instrument inventory and approved migration mapping (O3/O7); source access and the actual transfer/reconciliation remain open.
-- Receipt object storage and the later independent second encrypted-backup target must be established for their workflows. Existing backup code and a verified deployment do not prove receipt storage or a real restore.
+- Receipt volume storage and encrypted archive backup are implemented in Y21; real-phone capture and an owner restore remain unaccepted. The later independent second encrypted-backup target remains open. Existing backup code and a verified deployment do not prove a real restore.
 - Feature-specific completion and remaining requirements are tracked in `docs/FEATURES.md` and `docs/REQUIREMENTS-GAPS.md`; the selected SVG/d3 chart approach is recorded in §9 and ADR 0001.
