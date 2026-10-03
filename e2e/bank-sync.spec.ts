@@ -1,5 +1,6 @@
 ﻿import AxeBuilder from '@axe-core/playwright';
-import { expect, test } from '@playwright/test';
+import { expect } from '@playwright/test';
+import { test } from './isolated-ledger';
 
 test('bank source callback, mapping, queue action and responsive review', async ({
   page,
@@ -106,6 +107,9 @@ test('bank inbox suggestion requires an explicit posting decision', async ({ pag
             ],
       },
     }),
+  );
+  await page.route('**/api/bank-sync/candidates/**/matches', (route) =>
+    route.fulfill({ json: { merge: [], transfers: [] } }),
   );
   await page.route('**/api/bank-sync/candidates/**/confirm', (route) => {
     expect(route.request().method()).toBe('POST');

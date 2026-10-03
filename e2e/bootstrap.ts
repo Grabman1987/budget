@@ -1,6 +1,6 @@
 import { expect, type APIRequestContext } from '@playwright/test';
 import { SoftAuthenticator } from '../apps/server/src/auth/testing/authenticator';
-import { E2E_SETUP_TOKEN } from '../playwright.config';
+import { E2E_SETUP_TOKEN } from './setup-token';
 
 /**
  * Registers the first passkey on a fresh test server through the API (software authenticator, real

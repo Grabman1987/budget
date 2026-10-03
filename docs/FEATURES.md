@@ -39,7 +39,7 @@ Prototype references: [Heute](../design/prototype/index.html),
 | Y02 | Account register, filters, sorting, booking details and running balances | UI + engine | Full native/EUR currency labelling across tables, charts and reconciliation |
 | Y03 | Income, expenses, arithmetic amount input, payees, categories and notes | UI + engine | Owner phone/desktop usability acceptance with migrated data |
 | Y04 | Split bookings, account transfers and bulk actions | UI + engine | Private reconciliation; trade/currency invariants have regression coverage |
-| Y05 | Kontostand prüfen and confirmed bookings | UI + engine | Real account comparison; no fabricated reconciliation adjustments |
+| Y05 | Kontostand prüfen and confirmed bookings | UI + engine + bank observation | Bank balance/date/fetch stamp and reconciled-through date; matching current balances can lock through today with audit/undo. Real account acceptance remains open |
 | Y06 | Categories/groups, Bedarf/Wunsch/Zukunft, targets and ordering | UI + engine | Owner-approved target categories and migration mapping |
 | Y07 | Zu verteilen, Zugewiesen, Aktivität, Verfügbar and rollover | UI + engine | Gate 2: cent-exact account/month/category comparison with mapped source |
 | Y08 | Credit-card payment categories and cash advances | Engine/API + budget integration | Real card mapping and payment-balance acceptance in Gate 2 |
@@ -50,10 +50,10 @@ Prototype references: [Heute](../design/prototype/index.html),
 | Y13 | Heute: free until payday, pace, low point, upcoming payments, next steps | UI + engine | Functional desktop/mobile checks passed, including capture/undo/redo and source navigation; owner visual/device acceptance remains open |
 | Y14 | Plan › Jahr, planned events and scenario workflow | Partial; read-only calendar-year overview connected (PR #133) | Twelve existing month reads, groups/categories, assigned/activity totals and December available balance; sticky desktop table and phone month selector. Scenario editing and owner acceptance remain open |
 | Y15 | Contacts, receivables, repayments and contact statements | EUR ledger/API + connected UI | Actual statement, retained balanced history, editable oldest-first allocation, explicit credit, atomic audit/undo and dependency guards implemented; foreign-currency statements, broader contact editing and owner workflow/design acceptance remain open. Derived balances do not enter net worth |
-| Y16 | Posteingang: categorize, accept/reject suggestions, resolve exceptions | Working basics: actual queue/count, categorize/confirm, warning acknowledgement with undo | Bank/assignment suggestion accept/reject flows and owner workflow acceptance remain open |
+| Y16 | Posteingang: categorize, accept/reject suggestions, resolve exceptions | Queue/count, categorize/confirm, bank merge/transfer decisions and acknowledgement with undo | Assignment-rule decisions and owner workflow acceptance remain open |
 | Y17 | Global search (Ctrl K) | UI + engine | Session-protected, bounded booking/payee/category/account/contact search; keyboard/touch navigation. Owner acceptance pending |
 | Y18 | Assignment rules / Immer so zuordnen | Partial; UI placeholder | Rule editor, safe automatic application and inbox decision integration |
-| Y19 | Bank connection, consent renewal and reconciliation | Open | Adapter, authorized connection workflow, deduplication, error handling and private bank acceptance |
+| Y19 | Bank connection, consent renewal and reconciliation | Adapter + workflow + matching | Owner-confirmed manual merge and mirror/selected-pair transfer linking (+/-5 days), dated balance/reconciliation lock, audit/undo. Provider setup and private bank acceptance remain open |
 | Y20 | Nightly bank/source worker with catch-up | Partial | Market timer exists; full worker and 14-day stable nightly acceptance do not |
 | Y21 | Receipt photograph/upload and links to bookings | Implemented; owner acceptance open | Volume blobs, bounded authenticated upload, booking links/undo, inbox capture, previews/download and encrypted archive backup; metadata limits and real-phone/restore acceptance: [receipts](receipts.md) |
 | Y22 | Payslip lines, projects and side income | Partial | Project attribution on bookings exists; project management/P&L, payslip capture and reports remain open |

@@ -1,5 +1,5 @@
 import { assertContactSettlementInvariants } from './contact-invariants';
-import { isIncomeTrade, settlementCents } from '@budget/domain';
+import { isIncomeTrade, settlementCents, withinBankWindow } from '@budget/domain';
 import { and, eq, inArray, isNull, or, sql } from 'drizzle-orm';
 import { account, auditLog, booking, bookingSplit, INCOME_TYPES, trade } from '../schema';
 import { BookingInvariantError } from './errors';
@@ -12,7 +12,7 @@ import type { Executor } from './types';
  *
  * - a live booking uses its account's currency and has at least one split whose sum equals amount;
  * - a transfer has exactly two live legs (whole bookings or single splits) on two different
- *   accounts in the same currency, on the same date, with opposite amounts; a leg never survives
+ *   accounts in the same currency, within five days, with opposite amounts; a leg never survives
  *   alone.
  */
 export function assertLedgerInvariants(
@@ -307,12 +307,12 @@ function assertTransfer(transferId: string, legs: readonly Leg[]): void {
   }
   if (
     a.accountId === b.accountId ||
-    a.date !== b.date ||
+    !withinBankWindow(a.date, b.date) ||
     a.cents + b.cents !== 0 ||
     a.cents === 0
   ) {
     throw new BookingInvariantError(
-      `Transfer ${transferId} legs must be on two accounts, on one date, with opposite non-zero amounts`,
+      `Transfer ${transferId} legs must be on two accounts, within five days, with opposite non-zero amounts`,
     );
   }
 }

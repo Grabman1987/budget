@@ -1,3 +1,5 @@
+import { candidateMatches, mergeBankCandidate, linkBankCandidate, type Db } from '@budget/db';
+import { randomUUID } from 'node:crypto';
 import { Hono, type MiddlewareHandler } from 'hono';
 import { z } from 'zod';
 import { BankError } from '../bank-sync/provider';
@@ -5,7 +7,7 @@ import type { BankSync } from '../bank-sync/service';
 import type { SessionRow } from '../auth/store';
 import { readBody } from './http';
 
-export function bankSyncRoutes(service: BankSync | null, stepUp: MiddlewareHandler) {
+export function bankSyncRoutes(service: BankSync | null, stepUp: MiddlewareHandler, db: Db) {
   const app = new Hono<{ Variables: { session: SessionRow } }>();
   app.use('*', async (c, next) => {
     c.header('Cache-Control', 'no-store');
@@ -18,6 +20,23 @@ export function bankSyncRoutes(service: BankSync | null, stepUp: MiddlewareHandl
         : { configured: false, connections: [], accounts: [] },
     ),
   );
+  app.get('/candidates/:id/matches', (c) =>
+    c.json(candidateMatches(db, z.string().uuid().parse(c.req.param('id')))),
+  );
+  for (const action of ['merge', 'transfer'] as const)
+    app.post('/candidates/:id/' + action, async (c) => {
+      const input = await readBody(c, z.object({ bookingId: z.string().min(1).max(200) }).strict());
+      const mutate = action === 'merge' ? mergeBankCandidate : linkBankCandidate;
+      return c.json(
+        mutate(
+          db,
+          z.string().uuid().parse(c.req.param('id')),
+          input.bookingId,
+          { actor: 'owner', groupId: randomUUID() },
+          service?.clock().toISOString() ?? new Date().toISOString(),
+        ),
+      );
+    });
   app.use('*', async (c, next) => (service ? next() : c.json({ error: 'not_configured' }, 503)));
   const id = z.string().uuid();
   const short = z.string().min(1).max(200);

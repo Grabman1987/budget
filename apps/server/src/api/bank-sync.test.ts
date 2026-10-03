@@ -1,5 +1,5 @@
 import { createHash, randomUUID } from 'node:crypto';
-import { createTestDatabase, schema, type OpenedDatabase } from '@budget/db';
+import { createTestDatabase, createBooking, schema, type OpenedDatabase } from '@budget/db';
 import { Hono } from 'hono';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createApp, type AuthGate } from '../app';
@@ -92,6 +92,59 @@ const call = (
     ...(body === undefined ? {} : { body: JSON.stringify(body) }),
   });
 describe('bank API security boundary', () => {
+  it('protects candidate decisions by session/origin, validates bodies and returns audited undo groups', async () => {
+    const id = randomUUID();
+    const bookingId = createBooking(
+      opened.db,
+      {
+        accountId: 'giro',
+        date: '2026-09-30',
+        amountCents: -129,
+        memo: 'Handnotiz',
+        splits: [{ amountCents: -129, categoryId: 'essen' }],
+      },
+      { actor: 'owner' },
+    );
+    opened.db
+      .insert(schema.bankSyncCandidate)
+      .values({
+        id,
+        accountId: 'giro',
+        date: '2026-10-01',
+        amountCents: -129,
+        currency: 'EUR',
+        memo: 'Banktext',
+        dedupeKey: 'entry-a',
+      })
+      .run();
+    opened.db
+      .insert(schema.inboxItem)
+      .values({ id, title: 'Bankumsatz prüfen', kind: 'import' })
+      .run();
+    authenticated = false;
+    expect((await call('/candidates/' + id + '/matches')).status).toBe(401);
+    expect((await call('/candidates/' + id + '/merge', { bookingId })).status).toBe(401);
+    authenticated = true;
+    fresh = false; // Ledger decisions use the existing session, no provider or consent mutation.
+    expect(
+      (await call('/candidates/' + id + '/merge', { bookingId }, 'https://other.example')).status,
+    ).toBe(403);
+    expect((await call('/candidates/' + id + '/merge', { bookingId, extra: true })).status).toBe(
+      400,
+    );
+    const matches = (await (await call('/candidates/' + id + '/matches')).json()) as {
+      merge: { id: string }[];
+    };
+    expect(matches.merge[0]!.id).toBe(bookingId);
+    expect((await call('/candidates/' + id + '/transfer', { bookingId })).status).toBe(409);
+    const response = await call('/candidates/' + id + '/merge', { bookingId });
+    expect(response.status).toBe(200);
+    const result = await response.json();
+    expect(result).toEqual({ bookingId, groupId: expect.any(String) });
+    expect((await call('/candidates/' + id + '/merge', { bookingId })).status).toBe(409);
+    expect(provider.transactions).not.toHaveBeenCalled();
+    expect(provider.balance).not.toHaveBeenCalled();
+  });
   it('requires session, origin and fresh step-up before any consent HTTP request', async () => {
     authenticated = false;
     expect((await call('')).status).toBe(401);

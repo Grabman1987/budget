@@ -1,3 +1,4 @@
+import { BankBalance } from './bank-balance';
 import { lastDayOfMonth, monthOf, todayInVienna } from '@budget/domain';
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
 import { Link, useParams } from '@tanstack/react-router';
@@ -125,6 +126,7 @@ function AccountBody({ account }: { account: AccountRow }) {
           </strong>
         </div>
       </div>
+      <BankBalance account={account} />
       {series.isPending && <LoadingNote what="Saldoverlauf" />}
       {series.isError && (
         <ErrorNote what="Saldoverlauf" error={series.error} onRetry={() => void series.refetch()} />

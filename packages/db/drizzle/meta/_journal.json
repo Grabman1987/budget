@@ -141,6 +141,13 @@
       "when": 1790989112582,
       "tag": "0019_receipts",
       "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "6",
+      "when": 1790995286963,
+      "tag": "0020_bank_followups",
+      "breakpoints": true
     }
   ]
 }

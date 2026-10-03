@@ -594,6 +594,9 @@
 .kbulk .select-sm {
   min-width: 150px;
 }
+.kbulk .bank-link-action {
+  min-height: 44px;
+}
 .kbulk-confirm {
   display: inline-flex;
   flex-wrap: wrap;

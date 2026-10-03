@@ -72,7 +72,7 @@ export function createLedgerApi({
   receiptsDir = receiptDirectory(sqliteOf(db).name),
 }: LedgerApiOptions): Hono {
   const api = new Hono();
-  api.route('/bank-sync', bankSyncRoutes(bankSync, stepUp));
+  api.route('/bank-sync', bankSyncRoutes(bankSync, stepUp, db));
   api.route('/search', searchRoutes(db));
   api.route('/accounts', accountRoutes(db, today));
   api.route('/inbox', inboxRoutes(db, today));

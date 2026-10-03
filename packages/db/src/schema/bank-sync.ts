@@ -31,6 +31,9 @@ export const bankSyncAccount = sqliteTable('bank_sync_account', {
   accountId: text('account_id').references(() => account.id),
   fromDate: text('from_date'),
   lastSyncAt: text('last_sync_at'),
+  balanceCents: cents('balance_cents'),
+  balanceDate: text('balance_date'),
+  balanceFetchedAt: text('balance_fetched_at'),
   requestDay: text('request_day'),
   requestCount: integer('request_count').notNull().default(0),
 });

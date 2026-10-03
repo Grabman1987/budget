@@ -56,3 +56,5 @@ export * from './bank-costs-report';
 export * from './inflation-report';
 export * from './report-tables';
 export * from './cpi';
+
+export * from './bank-followups';
