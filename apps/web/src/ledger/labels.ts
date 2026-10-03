@@ -88,10 +88,6 @@ export function groupIdOf(account: Pick<AccountRow, 'type' | 'onBudget'>): Accou
 export const groupOf = (account: Pick<AccountRow, 'type' | 'onBudget'>): AccountGroup =>
   ACCOUNT_GROUPS.find((g) => g.id === groupIdOf(account)) ?? (ACCOUNT_GROUPS[0] as AccountGroup);
 
-/** Historical detail-page value; it remains native cash plus holdings until FX detail work. */
-export const accountValue = (account: AccountRow): number | null =>
-  account.holdingsCents === null ? null : account.balanceCents + account.holdingsCents;
-
 /** The overview's shared EUR valuation; never reinterpret a missing rate as zero. */
 export const accountValueEur = (account: AccountRow): number | null => account.valueEurCents;
 
@@ -108,7 +104,8 @@ export function valuationMissingText(value: {
 }
 
 /** Accounts on which Kontostand prüfen makes sense: the bank statement has a closing balance. */
-export const canReconcile = (account: AccountRow): boolean => account.onBudget && !account.closedAt;
+export const canReconcile = (account: AccountRow): boolean =>
+  !account.closedAt && (account.onBudget || account.currency !== 'EUR');
 
 /** Error text for the user; the server's German message is shown when it sent one. */
 export function errorText(

@@ -1,5 +1,49 @@
 /* Konten: overview, single account, booking lists. Ported from design/prototype/styles.css. */
 
+.kfx-money {
+  display: block;
+  max-width: 28ch;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+.kfigs .fig {
+  min-width: 0;
+}
+.kfigs .fig .kmeta {
+  max-width: 36ch;
+  overflow-wrap: anywhere;
+}
+.kfx-history summary {
+  cursor: pointer;
+  min-height: var(--touch);
+  padding-block: 12px;
+}
+.kfx-history summary:focus-visible {
+  outline: 2px solid var(--line);
+  outline-offset: 2px;
+}
+.kfx-history td {
+  white-space: normal;
+}
+.kform .kv-list dd {
+  min-width: 0;
+  max-width: 34ch;
+  overflow-wrap: anywhere;
+}
+@media (max-width: 767px) {
+  .ktx:has(.kfx-money) .kfx-money {
+    max-width: 100%;
+  }
+  .ktx:has(.kfx-money) tr:has(.kfx-money:not(:empty)) {
+    grid-template-columns: auto minmax(0, 1fr);
+    grid-template-areas: 'flag payee' '. cat' '. amount' '. run' '. date' '. status';
+  }
+  .ktx-all:has(.kfx-money) tr:has(.kfx-money:not(:empty)) {
+    grid-template-columns: 28px auto minmax(0, 1fr);
+    grid-template-areas: 'check flag payee' '. . cat' '. . amount' '. . acct' '. . date' '. . status';
+  }
+}
+
 .kview {
   display: grid;
   gap: 28px;
