@@ -153,6 +153,7 @@ export function startDailyMarketTimer(options: {
   sources: MarketSources;
   log?: (message: string) => void;
   checkEveryMs?: number;
+  onTick?: (now: Date) => Promise<void>;
   catchUpOnStart?: boolean;
 }): DailyTimer {
   const { db, sources, log = console.log, checkEveryMs = 60_000 } = options;
@@ -162,9 +163,10 @@ export function startDailyMarketTimer(options: {
     if (running) return false;
     // An import task owns the write lock: try again at the next check.
     if (writesHeld(db)) return false;
-    if (!nightlyDue(db, at)) return false;
     running = true;
     try {
+      await options.onTick?.(at);
+      if (!nightlyDue(db, at)) return false;
       const asOf = addDays(todayInVienna(at), -1);
       const { prices, fx, cpi } = await refreshMarket(db, sources, asOf, {
         trigger: 'nightly',

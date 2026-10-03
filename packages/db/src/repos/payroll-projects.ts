@@ -24,12 +24,12 @@ import {
   payslip,
   payslipLine,
   project,
-  receipt,
   trade,
 } from '../schema';
 import { createEntity, getEntity, listEntities, softDeleteEntity, updateEntity } from './entities';
 import { withGroup, type AuditContext } from './audit';
-import { BookingInvariantError } from './errors';
+import { BookingInvariantError, EntityNotFoundError } from './errors';
+import { getReceipt } from './receipts';
 import { runInTransaction, type Executor } from './types';
 
 export function listPayslips(db: Executor): CapturedPayslip[] {
@@ -79,8 +79,15 @@ export function savePayslip(db: Executor, raw: PayslipInput, ctx: AuditContext, 
       )
         throw new BookingInvariantError('Bitte eine bestehende EUR-Gehaltsbuchung verknüpfen.');
     }
-    if (input.receiptId && !getEntity(tx, receipt, input.receiptId))
-      throw new BookingInvariantError('Der Beleg ist nicht verfügbar.');
+    if (input.receiptId) {
+      try {
+        getReceipt(tx, input.receiptId);
+      } catch (error) {
+        if (error instanceof EntityNotFoundError)
+          throw new BookingInvariantError('Der Beleg ist nicht verfügbar.');
+        throw error;
+      }
+    }
     const { lines, ...header } = input;
     const saved = id
       ? updateEntity(tx, payslip, id, header, grouped)

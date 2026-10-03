@@ -1,7 +1,7 @@
 import type { BankSync } from './bank-sync/service';
 import { existsSync } from 'node:fs';
-import { relative, resolve } from 'node:path';
-import { writesHeld, type Db } from '@budget/db';
+import { isAbsolute, relative, resolve, sep } from 'node:path';
+import { sqliteOf, writesHeld, type Db } from '@budget/db';
 import type { MarketSources } from '@budget/market';
 import { serveStatic } from '@hono/node-server/serve-static';
 import { Hono } from 'hono';
@@ -12,6 +12,7 @@ import { createLedgerApi } from './api';
 import { debugSummary } from './debug-summary';
 import type { ImportJobs } from './imports/jobs';
 import { IMPORT_BODY_LIMIT, IMPORT_UPLOAD_LIMIT } from './imports/routes';
+import { receiptDirectory, RECEIPT_BODY_LIMIT } from './receipts/files';
 import { importHttpEnabled } from './imports/config';
 
 /** What the app needs from the passkey login: the CSRF check, its routes and the session guard. */
@@ -42,6 +43,7 @@ export type AppOptions = BaseOptions &
               today?: () => string;
               market?: MarketSources | undefined;
               jobs?: ImportJobs | undefined;
+              receiptsDir?: string | undefined;
             }
           | undefined;
       }
@@ -93,6 +95,12 @@ export function createApp({ webDir, database, auth, ledger, buildRevision }: App
     return c.json({ error: 'server_error', message: 'Something went wrong' }, 500);
   });
   const root = resolve(webDir);
+  if (ledger) {
+    const files = resolve(ledger.receiptsDir ?? receiptDirectory(sqliteOf(ledger.db).name));
+    const within = relative(root, files);
+    if (!isAbsolute(within) && within !== '..' && !within.startsWith(`..${sep}`))
+      throw new Error('RECEIPTS_DIR must be outside the public web directory');
+  }
   // serveStatic resolves `root` against the current working directory.
   const staticRoot = relative(process.cwd(), root) || '.';
 
@@ -123,8 +131,10 @@ export function createApp({ webDir, database, auth, ledger, buildRevision }: App
   const apiLimit = limit(API_BODY_LIMIT, '64 KB');
   const uploadLimit = limit(IMPORT_UPLOAD_LIMIT, '20 MB');
   const importLimit = limit(IMPORT_BODY_LIMIT, '2 MB');
+  const receiptLimit = limit(RECEIPT_BODY_LIMIT, '15 MB + multipart headers');
   const importsEnabled = importHttpEnabled();
   app.use('/api/*', (c, next) => {
+    if (c.req.method === 'POST' && c.req.path === '/api/receipts') return receiptLimit(c, next);
     if (importsEnabled && c.req.path === '/api/imports/ynab') return uploadLimit(c, next);
     if (importsEnabled && c.req.path.startsWith('/api/imports/')) return importLimit(c, next);
     return apiLimit(c, next);

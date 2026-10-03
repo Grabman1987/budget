@@ -1,3 +1,4 @@
+ALTER TABLE `payslip_line` ADD `deleted_at` text;--> statement-breakpoint
 PRAGMA foreign_keys=OFF;--> statement-breakpoint
 CREATE TABLE `__new_payslip_line` (
 	`id` text PRIMARY KEY NOT NULL,
@@ -14,4 +15,8 @@ CREATE TABLE `__new_payslip_line` (
 INSERT INTO `__new_payslip_line`("id", "deleted_at", "payslip_id", "section", "label", "amount_cents", "sort_order") SELECT "id", "deleted_at", "payslip_id", "section", "label", "amount_cents", "sort_order" FROM `payslip_line`;--> statement-breakpoint
 DROP TABLE `payslip_line`;--> statement-breakpoint
 ALTER TABLE `__new_payslip_line` RENAME TO `payslip_line`;--> statement-breakpoint
-PRAGMA foreign_keys=ON;
+PRAGMA foreign_keys=ON;--> statement-breakpoint
+ALTER TABLE `project` ADD `archived_at` text;--> statement-breakpoint
+ALTER TABLE `payslip` ADD `sv_cents` integer DEFAULT 0 NOT NULL;--> statement-breakpoint
+ALTER TABLE `payslip` ADD `tax_cents` integer DEFAULT 0 NOT NULL;--> statement-breakpoint
+ALTER TABLE `payslip` ADD `special_type` text;

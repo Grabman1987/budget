@@ -42,15 +42,37 @@ export const transfer = sqliteTable('transfer', {
   createdAt: text('created_at').notNull().default(nowSql),
 });
 
-/** Receipts live in object storage; the row is the reference. Linked to splits (n:m). */
+/** Immutable receipt blobs on the volume; legacy storage references remain readable. */
 export const receipt = sqliteTable('receipt', {
   id: id(),
   storageKey: text('storage_key').notNull(),
   mime: text('mime').notNull(),
   sizeBytes: integer('size_bytes').notNull(),
+  sha256: text('sha256'),
+  originalFilename: text('original_filename'),
+  createdBy: text('created_by'),
   createdAt: text('created_at').notNull().default(nowSql),
   deletedAt: text('deleted_at'),
 });
+
+/** Booking-level links survive split edits; unlinking is soft deletion with audit/undo. */
+export const bookingReceipt = sqliteTable(
+  'booking_receipt',
+  {
+    bookingId: text('booking_id')
+      .notNull()
+      .references(() => booking.id),
+    receiptId: text('receipt_id')
+      .notNull()
+      .references(() => receipt.id),
+    createdAt: text('created_at').notNull().default(nowSql),
+    deletedAt: text('deleted_at'),
+  },
+  (t) => [
+    primaryKey({ columns: [t.bookingId, t.receiptId] }),
+    index('booking_receipt_receipt_idx').on(t.receiptId),
+  ],
+);
 
 /**
  * Booking on one account. `amount_cents` is signed (outflow negative) in the account currency.

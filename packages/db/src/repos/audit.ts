@@ -1,6 +1,8 @@
 import { assertContactUndoDependencies } from './contact-invariants';
 import { isDuplicatePayslip } from '@budget/domain';
+import { assertReceiptUndo } from './receipts';
 import { randomUUID } from 'node:crypto';
+import { isDeepStrictEqual } from 'node:util';
 import {
   and,
   desc,
@@ -155,7 +157,7 @@ const snapshotKey = (meta: TableMeta, snap: Snapshot): RowKey =>
 
 const snapshotsEqual = (a: Snapshot, b: Snapshot): boolean => {
   const keys = new Set([...Object.keys(a), ...Object.keys(b)]);
-  for (const k of keys) if ((a[k] ?? null) !== (b[k] ?? null)) return false;
+  for (const k of keys) if (!isDeepStrictEqual(a[k] ?? null, b[k] ?? null)) return false;
   return true;
 };
 
@@ -356,7 +358,7 @@ export function updateTracked(
     if (!col) throw new Error(`Unknown column "${prop}" on ${meta.name}`);
     if (meta.keyProps.includes(prop))
       throw new Error(`Cannot patch key column "${prop}" of ${meta.name}`);
-    if ((before[col.name] ?? null) !== value) changes[prop] = value;
+    if (!isDeepStrictEqual(before[col.name] ?? null, value)) changes[prop] = value;
   }
   if (Object.keys(changes).length === 0) return false;
   if (meta.updatedAtProp && !(meta.updatedAtProp in changes))
@@ -751,6 +753,7 @@ export function undo(
     }
     assertLedgerInvariants(tx, touched);
     assertContactUndoDependencies(tx, originals);
+    assertReceiptUndo(tx, originals);
     const touchedAccounts = originals
       .filter((entry) => entry.entityType === getTableName(schema.account))
       .map((entry) => entry.entityId);

@@ -1,9 +1,10 @@
-﻿import AxeBuilder from '@axe-core/playwright';
+import AxeBuilder from '@axe-core/playwright';
 import { expect, test } from '@playwright/test';
 
 test('bank source callback, mapping, queue action and responsive review', async ({
   page,
 }, info) => {
+  const bank = page.getByRole('region', { name: 'Bank-Sync (PSD2)', exact: true });
   const calls: { path: string; body: unknown }[] = [];
   const status = {
     configured: true,
@@ -57,7 +58,7 @@ test('bank source callback, mapping, queue action and responsive review', async 
   await page.getByRole('button', { name: 'Konto zuordnen' }).click();
   await expect(page.getByText('Kontozuordnung gespeichert.')).toBeVisible();
   expect(calls[1]?.body).toEqual({ accountId: 'synthetic-account', fromDate: '2026-09-01' });
-  await page.getByRole('button', { name: 'Jetzt abrufen' }).click();
+  await bank.getByRole('button', { name: 'Jetzt abrufen' }).click();
   await expect(page.getByText('Abruf vorgemerkt.', { exact: false })).toBeVisible();
   expect(calls[2]?.path).toContain('/sync');
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(

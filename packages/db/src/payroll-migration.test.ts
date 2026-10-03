@@ -1,49 +1,53 @@
 import { readMigrationFiles } from 'drizzle-orm/migrator';
 import { describe, expect, it } from 'vitest';
 import { defaultMigrationsFolder, openDatabase } from './client';
-import { savePayslip } from './repos/payroll-projects';
 import { auditLog, payslipLine } from './schema';
 
-describe('payroll reimbursement migration', () => {
-  it('retains captured lines, soft deletions and audit history while extending the section check', () => {
+const PAYROLL_MIGRATION = 21;
+
+describe('payroll migration 0021', () => {
+  it('retains captured payslips, lines, projects and audit history while extending the schema', () => {
     const { db, sqlite, close } = openDatabase(':memory:');
     try {
       const migrations = readMigrationFiles({ migrationsFolder: defaultMigrationsFolder() });
-      for (const migration of migrations.slice(0, 20))
+      expect(migrations).toHaveLength(PAYROLL_MIGRATION + 1);
+      for (const migration of migrations.slice(0, PAYROLL_MIGRATION))
         for (const statement of migration.sql) sqlite.exec(statement);
-      const header = {
-        month: '2026-09',
-        kind: 'regular' as const,
-        specialType: null,
-        grossCents: 10000,
-        svCents: 0,
-        taxCents: 0,
-        netCents: 10500,
-        bookingId: null,
-        receiptId: null,
-        lines: [{ section: 'earning' as const, label: 'Synthetischer Bezug', amountCents: 500 }],
-      };
-      const captured = savePayslip(db, header, { actor: 'tester' });
-      db.insert(payslipLine)
-        .values({
-          id: 'retained-line',
-          payslipId: captured.id,
-          section: 'deduction',
-          label: 'Synthetischer alter Abzug',
-          amountCents: 100,
-          sortOrder: 1,
-          deletedAt: '2026-10-01T00:00:00.000Z',
-        })
-        .run();
-      const before = db.select().from(payslipLine).all();
-      const audits = db.select().from(auditLog).all();
-      for (const statement of migrations[20]!.sql) sqlite.exec(statement);
-      expect(db.select().from(payslipLine).all()).toEqual(before);
-      expect(db.select().from(auditLog).all()).toEqual(audits);
+      sqlite.exec(`
+        INSERT INTO project (id, name) VALUES ('p1', 'Synthetisches Projekt');
+        INSERT INTO payslip (id, month, kind, gross_cents, net_cents)
+          VALUES ('s1', '2026-09', 'regular', 10000, 7000);
+        INSERT INTO payslip_line (id, payslip_id, section, label, amount_cents, sort_order)
+          VALUES ('l1', 's1', 'earning', 'Synthetischer Bezug', 10000, 0),
+                 ('l2', 's1', 'deduction', 'Synthetischer Abzug', 3000, 1);
+        INSERT INTO audit_log (id, action, entity_type, entity_id, after_json)
+          VALUES ('a1', 'create', 'payslip', 's1', '{"id":"s1"}');
+      `);
+      const projectBefore = sqlite.prepare('SELECT * FROM project').all();
+      const auditBefore = db.select().from(auditLog).all();
+      for (const statement of migrations[PAYROLL_MIGRATION]!.sql) sqlite.exec(statement);
+
+      expect(sqlite.prepare('SELECT * FROM project').all()).toEqual(
+        projectBefore.map((row) => ({ ...(row as object), archived_at: null })),
+      );
+      expect(db.select().from(auditLog).all()).toEqual(auditBefore);
+      expect(
+        sqlite.prepare('SELECT sv_cents, tax_cents, special_type, gross_cents FROM payslip').all(),
+      ).toEqual([{ sv_cents: 0, tax_cents: 0, special_type: null, gross_cents: 10000 }]);
+      expect(
+        sqlite
+          .prepare(
+            'SELECT id, section, amount_cents, sort_order, deleted_at FROM payslip_line ORDER BY id',
+          )
+          .all(),
+      ).toEqual([
+        { id: 'l1', section: 'earning', amount_cents: 10000, sort_order: 0, deleted_at: null },
+        { id: 'l2', section: 'deduction', amount_cents: 3000, sort_order: 1, deleted_at: null },
+      ]);
       db.insert(payslipLine)
         .values({
           id: 'new-reimbursement',
-          payslipId: captured.id,
+          payslipId: 's1',
           section: 'reimbursement',
           label: 'Synthetische Reisekosten',
           amountCents: 200,
@@ -54,7 +58,7 @@ describe('payroll reimbursement migration', () => {
           .insert(payslipLine)
           .values({
             id: 'invalid-section',
-            payslipId: captured.id,
+            payslipId: 's1',
             section: 'unknown' as never,
             label: 'Synthetische ungültige Zeile',
             amountCents: 200,

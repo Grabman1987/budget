@@ -56,6 +56,7 @@ import { FlagPicker } from './flag-picker';
 import { SplitEditor } from './split-editor';
 import { AccountOptions } from './account-options';
 import { eur, monthName } from './format';
+import { ReceiptSection } from '../receipts/receipt-section';
 import { errorText } from './labels';
 import { useLedgerWrites } from './mutations';
 import { accountsQuery, lookupsQuery, payeesQuery } from './queries';
@@ -686,6 +687,7 @@ export function CaptureForm({
             {errors.form}
           </p>
         )}
+        {editing && <ReceiptSection bookingId={editing.id} />}
         <p className="khint" aria-hidden="true">
           Enter weiter · Strg Enter speichert · Strg Umschalt Enter speichert und beginnt neu · Esc
           schließt

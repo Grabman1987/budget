@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "1d2f907d-ce21-4197-9142-2c2c0a24183b",
+  "id": "3d4edfe0-4958-4471-9501-c1d3d9eb23fd",
   "prevId": "dcf74b0d-4d43-41cc-bb6a-08ebaa033f8e",
   "tables": {
     "account": {
@@ -2553,6 +2553,75 @@
         }
       }
     },
+    "booking_receipt": {
+      "name": "booking_receipt",
+      "columns": {
+        "booking_id": {
+          "name": "booking_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "receipt_id": {
+          "name": "receipt_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "(strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))"
+        },
+        "deleted_at": {
+          "name": "deleted_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "booking_receipt_receipt_idx": {
+          "name": "booking_receipt_receipt_idx",
+          "columns": ["receipt_id"],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "booking_receipt_booking_id_booking_id_fk": {
+          "name": "booking_receipt_booking_id_booking_id_fk",
+          "tableFrom": "booking_receipt",
+          "tableTo": "booking",
+          "columnsFrom": ["booking_id"],
+          "columnsTo": ["id"],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "booking_receipt_receipt_id_receipt_id_fk": {
+          "name": "booking_receipt_receipt_id_receipt_id_fk",
+          "tableFrom": "booking_receipt",
+          "tableTo": "receipt",
+          "columnsFrom": ["receipt_id"],
+          "columnsTo": ["id"],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "booking_receipt_booking_id_receipt_id_pk": {
+          "columns": ["booking_id", "receipt_id"],
+          "name": "booking_receipt_booking_id_receipt_id_pk"
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
     "booking_split": {
       "name": "booking_split",
       "columns": {
@@ -2727,13 +2796,6 @@
           "notNull": false,
           "autoincrement": false
         },
-        "archived_at": {
-          "name": "archived_at",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
         "created_at": {
           "name": "created_at",
           "type": "text",
@@ -2793,6 +2855,27 @@
           "type": "integer",
           "primaryKey": false,
           "notNull": true,
+          "autoincrement": false
+        },
+        "sha256": {
+          "name": "sha256",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "original_filename": {
+          "name": "original_filename",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "created_by": {
+          "name": "created_by",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
           "autoincrement": false
         },
         "created_at": {
@@ -4768,29 +4851,6 @@
           "notNull": true,
           "autoincrement": false
         },
-        "sv_cents": {
-          "name": "sv_cents",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false,
-          "default": 0
-        },
-        "tax_cents": {
-          "name": "tax_cents",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false,
-          "default": 0
-        },
-        "special_type": {
-          "name": "special_type",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
         "net_cents": {
           "name": "net_cents",
           "type": "integer",
@@ -4900,13 +4960,6 @@
           "type": "text",
           "primaryKey": true,
           "notNull": true,
-          "autoincrement": false
-        },
-        "deleted_at": {
-          "name": "deleted_at",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false,
           "autoincrement": false
         },
         "payslip_id": {

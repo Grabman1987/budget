@@ -2,13 +2,20 @@ import {
   createPlannedEvent,
   deletePlannedEvent,
   liquidityReportView,
+  plannedEventsView,
+  plannedEventAccounts,
   restorePlannedEvent,
   updatePlannedEvent,
   type Db,
   type PlannedEventInput,
   type PlannedEventPatch,
 } from '@budget/db';
-import { LIQUIDITY_HORIZONS, LIQUIDITY_LEVERS, type LiquidityLeverId } from '@budget/domain';
+import {
+  EVENT_RECURRENCES,
+  LIQUIDITY_HORIZONS,
+  LIQUIDITY_LEVERS,
+  type LiquidityLeverId,
+} from '@budget/domain';
 import { randomUUID } from 'node:crypto';
 import { Hono } from 'hono';
 import { z } from 'zod';
@@ -28,6 +35,14 @@ const eventCreate = z.object({
   accountId: z.string().min(1).max(64).nullable().optional(),
   enabled: z.boolean().optional(),
   note: z.string().max(500).nullable().optional(),
+  categoryId: z.string().min(1).max(64).nullable().optional(),
+  recurrence: z.enum(EVENT_RECURRENCES).optional(),
+  recurrenceMonths: z
+    .array(z.number().int().min(1).max(12))
+    .max(12)
+    .refine((v) => new Set(v).size === v.length)
+    .optional(),
+  recurrenceUntil: day.nullable().optional(),
 });
 const eventPatch = eventCreate.partial();
 
@@ -40,6 +55,14 @@ const eventPatch = eventCreate.partial();
 export function liquidityRoutes(db: Db, today: () => string): Hono {
   const app = new Hono();
   const audit = () => ({ actor: ACTOR, groupId: randomUUID() });
+  app.get('/events', (c) => {
+    const asOf = today();
+    return c.json({
+      asOf,
+      events: plannedEventsView(db, asOf),
+      budgetAccounts: plannedEventAccounts(db, asOf),
+    });
+  });
 
   app.get('/', (c) => {
     const q = readQuery(c, query);

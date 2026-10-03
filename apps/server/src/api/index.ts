@@ -2,10 +2,14 @@ import { payrollRoutes, projectRoutes } from './payroll-projects';
 import { bankSyncFromEnv } from '../bank-sync/config';
 import type { BankSync } from '../bank-sync/service';
 import { bankSyncRoutes } from './bank-sync';
+import { cryptoReadSource } from '../sources/crypto-api';
+import { readSourceRoutes } from './read-source';
 import { searchRoutes } from './search';
 import { inboxRoutes } from './inbox';
 import { contactRoutes } from './contacts';
-import type { Db } from '@budget/db';
+import { sqliteOf, type Db } from '@budget/db';
+import { receiptDirectory } from '../receipts/files';
+import { receiptRoutes } from './receipts';
 import { todayInVienna } from '@budget/domain';
 import type { MarketSources } from '@budget/market';
 import { Hono, type MiddlewareHandler } from 'hono';
@@ -53,6 +57,7 @@ export interface LedgerApiOptions {
   stepUp: MiddlewareHandler;
   /** Runner of the import tasks (worker threads); one per database. */
   jobs?: ImportJobs | undefined;
+  receiptsDir?: string | undefined;
 }
 
 /**
@@ -67,15 +72,18 @@ export function createLedgerApi({
   stepUp,
   bankSync = bankSyncFromEnv(db),
   jobs,
+  receiptsDir = receiptDirectory(sqliteOf(db).name),
 }: LedgerApiOptions): Hono {
   const api = new Hono();
   api.route('/payslips', payrollRoutes(db, today));
   api.route('/projects', projectRoutes(db, today));
   api.route('/bank-sync', bankSyncRoutes(bankSync, stepUp));
+  api.route('/sources/crypto', readSourceRoutes(db, today, stepUp, cryptoReadSource()));
   api.route('/search', searchRoutes(db));
   api.route('/accounts', accountRoutes(db, today));
   api.route('/inbox', inboxRoutes(db, today));
   api.route('/bookings', bookingRoutes(db));
+  api.route('/receipts', receiptRoutes(db, receiptsDir));
   api.route('/payees', payeeRoutes(db));
   api.route('/categories', categoryRoutes(db));
   api.route('/budget', budgetRoutes(db));

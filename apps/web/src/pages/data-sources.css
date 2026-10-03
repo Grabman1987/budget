@@ -2,6 +2,14 @@
   display: grid;
   gap: var(--space-lg, 16px);
 }
+.data-source-section {
+  min-width: 0;
+  max-width: 860px;
+}
+.data-source-section + .data-source-section {
+  border-top: 1px solid var(--rule);
+  padding-top: 24px;
+}
 .sources-actions {
   display: flex;
   flex-wrap: wrap;

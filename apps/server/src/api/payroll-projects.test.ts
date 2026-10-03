@@ -184,6 +184,11 @@ describe('payslip API and grouped audit', () => {
     expect((await call('POST', '/payslips', { ...input, netCents: 279501 })).status).toBe(400);
     expect((await call('POST', '/payslips', { ...input, svCents: 70000.5 })).status).toBe(400);
     expect((await call('POST', '/payslips', { ...input, receiptId: 'absent' })).status).toBe(422);
+    db.run(sql`INSERT INTO receipt (id, storage_key, mime, size_bytes)
+      VALUES ('legacy-receipt', 'synthetic-legacy-key', 'image/png', 1)`);
+    expect(
+      (await call('POST', '/payslips', { ...input, receiptId: 'legacy-receipt' })).status,
+    ).toBe(422);
     expect((await call('POST', '/payslips', { ...input, bookingId: 'absent' })).status).toBe(422);
     expect(db.select().from(schema.payslip).all()).toHaveLength(0);
     expect(db.select().from(schema.payslipLine).all()).toHaveLength(0);
