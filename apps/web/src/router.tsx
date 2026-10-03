@@ -23,6 +23,7 @@ import {
   PLAN_JAHR,
   PLAN_SPARZIELE,
   HEUTE,
+  SETTINGS_INDEX,
   KONTEN_BUCHUNGEN_META,
   KONTEN_META,
   PAGES,
@@ -321,12 +322,27 @@ const planGoalsRoute = createRoute({
   staticData: { meta: PLAN_SPARZIELE },
   component: lazyRouteComponent(() => import('./budget/goals-page'), 'GoalsPage'),
 });
+/** Whether the viewport is wide enough for the settings rail (the app's desktop breakpoint). */
+const isDesktopViewport = () =>
+  typeof window !== 'undefined' &&
+  typeof window.matchMedia === 'function' &&
+  window.matchMedia('(min-width: 768px)').matches;
+// Phone: the grouped index list. Desktop keeps the old behaviour: the rail is always visible, so the
+// bare address opens the first page.
+const settingsIndexRoute = createRoute({
+  getParentRoute: () => shellRoute,
+  path: '/einstellungen',
+  staticData: { meta: SETTINGS_INDEX },
+  beforeLoad: () => {
+    if (isDesktopViewport()) throw redirect({ to: '/einstellungen/konten' as never });
+  },
+  component: lazyRouteComponent(() => import('./pages/settings-index'), 'SettingsIndexPage'),
+});
 const redirects = [
   // Legacy import bookmarks lead to the export placeholder; no import action remains in the UI.
   redirectRoute('/einstellungen/import', '/einstellungen/export'),
   redirectRoute('/plan', '/plan/monat'),
   redirectRoute('/vermoegen', '/vermoegen/nettovermoegen'),
-  redirectRoute('/einstellungen', '/einstellungen/konten'),
 ];
 
 const accountRoute = createRoute({
@@ -461,6 +477,7 @@ const routeTree = rootRoute.addChildren([
     debtsRoute,
     planGoalsRoute,
     ...redirects,
+    settingsIndexRoute,
     overviewRoute,
     bookingsRoute,
     contactsRoute,
