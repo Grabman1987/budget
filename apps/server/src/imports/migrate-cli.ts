@@ -45,8 +45,8 @@ import { findRun, runTask, type ImportTask } from './tasks';
  * name. All three only call the app's domain functions (`undo`, `moveMoney`, `assignMany`); the
  * writes are audited with the actor `operator`, one audit group per undo and per move.
  *
- * `book` adds, re-dates, re-prices or deletes single bookings from a JSON list (private file, never
- * in the repo): `[{id, kind: add|change_amount|change_date|delete, ...}]`. Accounts, categories
+ * `book` adds, re-dates, re-prices, re-splits or deletes single bookings from a JSON list (private
+ * file, never in the repo): `[{id, kind: add|change_amount|change_date|set_splits|delete, ...}]`. Accounts, categories
  * and payees are given by exact name (accounts and categories are never created, a payee is, as in
  * the app); an existing booking is addressed by `match {account, date, amountCents, payee?, memo?}`
  * and must resolve to exactly one. It calls the booking functions behind the HTTP routes, so

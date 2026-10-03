@@ -11,6 +11,8 @@ import { sqliteOf, type Db } from './client';
  *   instead of blocking.
  *
  * Reads are not affected (WAL: readers see the last committed state).
+ * This flag is per process/Db handle, not a cross-process lock. Other processes rely on
+ * SQLite's busy handling and must catch write failures (including timer callbacks).
  */
 const held = new WeakMap<object, number>();
 

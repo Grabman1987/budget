@@ -606,6 +606,40 @@ export function undo(
   const grouped = withGroup(ctx);
   return runInTransaction(db, (tx) => {
     const originals = loadTarget(tx, target);
+    // Protocol state cannot be replayed by undo: callbacks are one-shot and remote consent is external.
+    if (
+      originals.some((entry) =>
+        ['bank_sync_consent', 'bank_sync_candidate'].includes(entry.entityType),
+      )
+    )
+      throw new AuditError(
+        'Bank sync protocol history cannot be replayed. Pause or reconnect the source.',
+      );
+    for (const entry of originals.filter((e) => e.entityType === 'bank_sync_account')) {
+      const linked = tx
+        .select()
+        .from(schema.bankSyncAccount)
+        .where(eq(schema.bankSyncAccount.id, entry.entityId))
+        .get();
+      const parent =
+        linked &&
+        tx
+          .select()
+          .from(schema.bankSyncConsent)
+          .where(eq(schema.bankSyncConsent.id, linked.consentId))
+          .get();
+      if (
+        !entry.before ||
+        !entry.after ||
+        entry.before?.['request_count'] !== entry.after?.['request_count'] ||
+        entry.before?.['request_day'] !== entry.after?.['request_day'] ||
+        linked?.lastSyncAt ||
+        (parent?.leaseUntil && parent.leaseUntil > nowIso())
+      )
+        throw new AuditError(
+          'Cannot undo bank account mapping after a fetch or during a running sync.',
+        );
+    }
     if ('auditId' in target) {
       const [entry] = originals as [AuditEntry];
       const snapshot = entry.after ?? entry.before;
@@ -646,6 +680,21 @@ export function undo(
       throw new AuditError(
         'Cannot undo: the result would leave an expected payment linked to a missing, deleted, or mismatched booking; undo the related booking and occurrence action together',
       );
+    }
+    if (originals.some((entry) => entry.entityType === 'bank_sync_account')) {
+      const mappings = tx
+        .select({ accountId: schema.bankSyncAccount.accountId })
+        .from(schema.bankSyncAccount)
+        .innerJoin(
+          schema.bankSyncConsent,
+          eq(schema.bankSyncConsent.id, schema.bankSyncAccount.consentId),
+        )
+        .where(inArray(schema.bankSyncConsent.status, ['active', 'error']))
+        .all()
+        .map((row) => row.accountId)
+        .filter((id) => id !== null);
+      if (new Set(mappings).size !== mappings.length)
+        throw new AuditError('Cannot undo: an account would have two active bank sources.');
     }
     assertLedgerInvariants(tx, touched);
     assertContactUndoDependencies(tx, originals);

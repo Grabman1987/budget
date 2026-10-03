@@ -14,6 +14,7 @@ import { Readable } from 'node:stream';
 import { Hono } from 'hono';
 import yauzl from 'yauzl';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { sqliteOf } from '@budget/db';
 import { createApp, type AuthGate } from '../app';
 
 const TODAY = '2026-03-31';
@@ -544,6 +545,87 @@ describe('GET /api/export/csv.zip', () => {
     expect(files.size).toBe(12);
     expect(parseCsv((files.get('accounts.csv') as Buffer).toString('utf8'))).toHaveLength(1);
     expect(parseCsv((files.get('prices.csv') as Buffer).toString('utf8'))).toHaveLength(1);
+  });
+
+  it('holds admission for a slow client across sessions/app instances and releases on cancellation', async () => {
+    const snapshots = () =>
+      readdirSync(tmpdir())
+        .filter(
+          (name) =>
+            name.startsWith('budget-export-') &&
+            existsSync(join(tmpdir(), name, 'snapshot.sqlite')),
+        )
+        .sort();
+    const before = snapshots();
+    const otherApp = createApp({ webDir, auth, ledger: { db, today: () => TODAY } });
+    const response = await app.request('/api/export/csv.zip');
+    try {
+      const refused = await otherApp.request('/api/export/csv.zip');
+      expect(refused.status).toBe(429);
+      expect(snapshots().filter((name) => !before.includes(name))).toHaveLength(1);
+      expect(await refused.json()).toEqual({
+        error: 'export_busy',
+        message: 'Ein Export läuft bereits. Bitte warte, bis er abgeschlossen ist.',
+      });
+    } finally {
+      await response.body?.cancel();
+    }
+    expect(snapshots()).toEqual(before);
+    const retry = await otherApp.request('/api/export/csv.zip');
+    expect(retry.status).toBe(200);
+    await retry.arrayBuffer();
+  });
+
+  it('enforces the process cap across owners before allocating snapshots', async () => {
+    const second = createTestDatabase();
+    const third = createTestDatabase();
+    const requestFor = (database: Db) =>
+      createApp({ webDir, auth, ledger: { db: database, today: () => TODAY } }).request(
+        '/api/export/csv.zip',
+      );
+    const firstResponse = await requestFor(db);
+    const secondResponse = await requestFor(second.db);
+    try {
+      expect((await requestFor(third.db)).status).toBe(429);
+    } finally {
+      await firstResponse.body?.cancel();
+      await secondResponse.body?.cancel();
+    }
+    const retry = await requestFor(third.db);
+    expect(retry.status).toBe(200);
+    await retry.arrayBuffer();
+    second.close();
+    third.close();
+  });
+
+  it('releases admission and removes temp files when snapshot creation fails', async () => {
+    const folders = () =>
+      readdirSync(tmpdir())
+        .filter((name) => name.startsWith('budget-export-'))
+        .sort();
+    const before = folders();
+    const spy = vi
+      .spyOn(sqliteOf(db), 'backup')
+      .mockRejectedValueOnce(new Error('Synthetic backup failure'));
+    try {
+      expect((await app.request('/api/export/csv.zip')).status).toBe(500);
+      expect(folders()).toEqual(before);
+      const retry = await app.request('/api/export/csv.zip');
+      expect(retry.status).toBe(200);
+      await retry.arrayBuffer();
+    } finally {
+      spy.mockRestore();
+    }
+  });
+
+  it('releases admission on request abort before the response is consumed', async () => {
+    const controller = new AbortController();
+    const response = await app.request('/api/export/csv.zip', { signal: controller.signal });
+    controller.abort();
+    await response.body?.cancel().catch(() => undefined);
+    const retry = await app.request('/api/export/csv.zip');
+    expect(retry.status).toBe(200);
+    await retry.arrayBuffer();
   });
 
   it('closes the ZIP snapshot and removes its temporary database when the client aborts', async () => {

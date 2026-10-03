@@ -1,3 +1,6 @@
+import { bankSyncFromEnv } from '../bank-sync/config';
+import type { BankSync } from '../bank-sync/service';
+import { bankSyncRoutes } from './bank-sync';
 import { searchRoutes } from './search';
 import { inboxRoutes } from './inbox';
 import { contactRoutes } from './contacts';
@@ -9,6 +12,7 @@ import type { MarketSources } from '@budget/market';
 import { Hono, type MiddlewareHandler } from 'hono';
 import { ImportJobs } from '../imports/jobs';
 import { importRoutes } from '../imports/routes';
+import { importHttpEnabled } from '../imports/config';
 import { accountRoutes } from './accounts';
 import { bookingRoutes } from './bookings';
 import { budgetRoutes, categoryRoutes } from './budget';
@@ -41,6 +45,7 @@ import { payeeReportRoutes } from './payee-report';
 
 export interface LedgerApiOptions {
   db: Db;
+  bankSync?: BankSync | null;
   /** "Today" as `YYYY-MM-DD` (Europe/Vienna by default); tests pass a fixed day. */
   today?: () => string;
   /** Price and rate sources for the market refresh; default per `BUDGET_MARKET_SOURCES`. */
@@ -62,10 +67,12 @@ export function createLedgerApi({
   today = () => todayInVienna(),
   market = createMarketSources(db, marketModeFromEnv()),
   stepUp,
-  jobs = new ImportJobs(db),
+  bankSync = bankSyncFromEnv(db),
+  jobs,
   receiptsDir = receiptDirectory(sqliteOf(db).name),
 }: LedgerApiOptions): Hono {
   const api = new Hono();
+  api.route('/bank-sync', bankSyncRoutes(bankSync, stepUp));
   api.route('/search', searchRoutes(db));
   api.route('/accounts', accountRoutes(db, today));
   api.route('/inbox', inboxRoutes(db, today));
@@ -98,7 +105,8 @@ export function createLedgerApi({
   api.route('/lookups', lookupRoutes(db));
   api.route('/undo', undoRoutes(db));
   api.route('/', marketRoutes(db, today, market));
-  api.route('/imports', importRoutes(db, today, stepUp, jobs));
+  if (importHttpEnabled())
+    api.route('/imports', importRoutes(db, today, stepUp, jobs ?? new ImportJobs(db)));
   api.onError(errorResponse);
   return api;
 }

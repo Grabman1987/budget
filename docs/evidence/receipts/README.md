@@ -82,3 +82,8 @@ Browser checks use the standard configuration and production build with
 `E2E_PORT=4510` because the default port was already occupied. The standard `tsx`
 sample seed worked in this resumed Node 24 run; no wrapper was required. No
 assertions, pixel baselines or timeouts were changed during the resume.
+
+Re-merged `origin/main` at `17e655b` (banking migrations `0017`/`0018`). Drizzle Kit
+regenerated the receipts migration as `0019_receipts` chained to main's `0018`
+snapshot; the SQL is byte-identical to the earlier `0017_receipts`. It will be
+renumbered once more after the payslip PR #139 lands.

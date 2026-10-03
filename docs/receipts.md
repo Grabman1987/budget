@@ -17,7 +17,7 @@ links with the shared undo/redo toast. Receipt capture never creates a booking.
   entire filename. A temporary file is atomically published before the database
   transaction. Identical bytes share a blob; each upload has independent metadata
   and its own audit action. No client filename can select a filesystem path.
-- Additive migration 0017 extends the existing `receipt` placeholder with
+- Additive migration 0019 extends the existing `receipt` placeholder with
   `sha256`, `original_filename`, `created_by`. `size_bytes`, MIME and creation
   time remain; `booking_receipt` supplies n:m booking links with soft deletion.
   Old split-level placeholders remain untouched and are excluded from the new
