@@ -183,7 +183,12 @@ it('reports missing starting/monthly quotes and FX explicitly without hiding por
   expect(portfolio.performanceHistory?.months[0]?.benchmarkGap).toBe('missing_fx');
   expect(portfolio.performanceHistory?.benchmarkReturn).toBeNull();
   opened.sqlite.exec("DELETE FROM price WHERE security_id='a' AND date='2025-12-31'");
-  expect((await read()).status).toBe(503);
+  // A missing holding quote is estimated and flagged (valuation fallback), never a 503.
+  const response = await read();
+  expect(response.status).toBe(200);
+  expect(
+    ((await response.json()) as { incomplete?: unknown[] }).incomplete?.length,
+  ).toBeGreaterThan(0);
 });
 
 it('rolls the setting back when audit insertion fails, and validates report ranges', async () => {
