@@ -5,8 +5,10 @@ import type { PortfolioSummary } from '@budget/db';
 import { useQuery, queryOptions } from '@tanstack/react-query';
 import { useZeitraum, ZEITRAUM_VALUES } from '../wealth/zeitraum';
 import { useNavigate } from '@tanstack/react-router';
+import { userText } from '../api/error-text';
 import { ApiError, request } from '../api/http';
 import { ErrorNote, LoadingNote } from '../ledger/states';
+import { ValuationHint, type WithValuationNotes } from '../ledger/valuation-hint';
 import { eur, longDay } from '../ledger/format';
 import { periodText } from '../wealth/networth-model';
 import { LEDGER_KEY } from '../ledger/queries';
@@ -15,7 +17,7 @@ import type { PageMeta } from '../nav/pages';
 import type { ReportEntry } from '../nav/reports-catalog';
 import './portfolio-performance-report.css';
 
-interface PortfolioResponse {
+interface PortfolioResponse extends WithValuationNotes {
   portfolio: PortfolioSummary;
 }
 
@@ -76,6 +78,7 @@ export function PortfolioPerformanceReport({
       ]}
     >
       <div className="kview vview portfolio-performance-report">
+        <ValuationHint incomplete={query.data?.incomplete} />
         {query.isPending && <LoadingNote what="Portfolioauswertung" />}
         {query.isError &&
           (query.error instanceof ApiError && query.error.code === 'valuation_unavailable' ? (
@@ -84,8 +87,10 @@ export function PortfolioPerformanceReport({
                 <strong>Portfolioauswertung nicht verfügbar.</strong>
                 <p>
                   Es fehlt ein benötigter Wertpapierkurs oder Wechselkurs.{' '}
-                  {query.error.detail ??
-                    'Die Bewertung kann deshalb nicht vollständig erstellt werden.'}
+                  {userText(
+                    query.error.detail,
+                    'Die Bewertung kann deshalb nicht vollständig erstellt werden.',
+                  )}
                 </p>
                 <p>
                   Die Gesamtauswertung einschließlich der realisierten Gewinne ist deshalb nicht

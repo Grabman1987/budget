@@ -1,5 +1,6 @@
 import { useAmountPrivacy, Button } from '@budget/ui';
 import type { ReactNode } from 'react';
+import { isUserText, userText } from '../api/error-text';
 import { ApiError } from '../api/http';
 import { MINUS, eur } from '../ledger/format';
 import { AppLink } from '../shell/app-link';
@@ -114,11 +115,11 @@ export function ReportUnavailable({
         </strong>
         <p>
           {missing
-            ? `Es fehlt ein benötigter Wertpapierkurs oder Wechselkurs. ${
-                (error as ApiError).detail ??
-                'Die Bewertung kann deshalb nicht vollständig erstellt werden.'
-              }`
-            : error instanceof ApiError && error.detail
+            ? `Es fehlt ein benötigter Wertpapierkurs oder Wechselkurs. ${userText(
+                (error as ApiError).detail,
+                'Die Bewertung kann deshalb nicht vollständig erstellt werden.',
+              )}`
+            : error instanceof ApiError && error.detail && isUserText(error.detail)
               ? error.detail
               : 'Der Server hat die Auswertung nicht geliefert.'}
         </p>
