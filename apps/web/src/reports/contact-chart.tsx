@@ -1,4 +1,4 @@
-import { ChartSvg, Graticule, Line, type Point } from '@budget/ui';
+import { useAmountPrivacy, ChartSvg, Graticule, Line, type Point } from '@budget/ui';
 import { useElementWidth } from '../charts/use-element-width';
 import { eur, shortDay } from '../ledger/format';
 import { yTicks } from '../wealth/networth-model';
@@ -6,6 +6,7 @@ import type { ContactReportStatement } from './contact-api';
 
 /** Event order, not equal daily intervals, as in the original contact balance stair chart. */
 export function ContactBalanceChart({ statement }: { statement: ContactReportStatement }) {
+  useAmountPrivacy();
   const [ref, width] = useElementWidth<HTMLDivElement>();
   const rows = statement.movements;
   const values = [0, ...rows.map((row) => row.balanceCents / 100)];

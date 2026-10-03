@@ -1,5 +1,5 @@
-import { cents, formatDecimal, parseAmount, todayInVienna } from '@budget/domain';
 import {
+  useAmountPrivacy,
   AmountInput,
   Button,
   DetailPanel,
@@ -8,7 +8,9 @@ import {
   Select,
   Switch,
   TextInput,
+  maskMoneyText,
 } from '@budget/ui';
+import { cents, formatDecimal, parseAmount, todayInVienna } from '@budget/domain';
 import { useQuery } from '@tanstack/react-query';
 import { useRef, useState, type FormEvent } from 'react';
 import { accountsQuery } from '../ledger/queries';
@@ -61,6 +63,7 @@ export function CategoryPanel({
   onClose: () => void;
   onSwitch: (next: PanelState) => void;
 }) {
+  useAmountPrivacy();
   const title =
     state?.mode === 'edit' && !state.category
       ? 'Kategorie anlegen'
@@ -92,6 +95,7 @@ export function CategoryPanel({
 }
 
 function GroupForm({ group, onDone }: { group: GroupRow | undefined; onDone: () => void }) {
+  useAmountPrivacy();
   const write = useBudgetWrite();
   const [name, setName] = useState(group?.name ?? '');
   // A second Enter while the first write runs must not rename or create twice.
@@ -148,6 +152,7 @@ function CategoryForm({
   onDone: () => void;
   onSwitch: (next: PanelState) => void;
 }) {
+  useAmountPrivacy();
   const write = useBudgetWrite();
   const accounts = useQuery(accountsQuery()).data?.accounts ?? [];
   const cards = accounts.filter((a) => a.type === 'credit_card' && !a.closedAt);
@@ -405,7 +410,7 @@ function CategoryForm({
       )}
       {error && (
         <p className="field-error" role="alert">
-          {error}
+          {maskMoneyText(error)}
         </p>
       )}
       <div className="panel-actions">
@@ -436,6 +441,7 @@ function MergeForm({
   tree: CategoryTree;
   onDone: () => void;
 }) {
+  useAmountPrivacy();
   const write = useBudgetWrite();
   // Never into a card payment; into an income category only from income (spending would turn
   // into "Zu verteilen").
@@ -525,6 +531,7 @@ function SplitForm({
   tree: CategoryTree;
   onDone: () => void;
 }) {
+  useAmountPrivacy();
   const write = useBudgetWrite();
   const [q, setQ] = useState('');
   const [from, setFrom] = useState('');

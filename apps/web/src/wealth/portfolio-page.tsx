@@ -1,4 +1,4 @@
-import { Button, DimensionChain } from '@budget/ui';
+import { useAmountPrivacy, Button, DimensionChain } from '@budget/ui';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate, useSearch } from '@tanstack/react-router';
 import { ChartNoAxesCombined, ChevronRight } from 'lucide-react';
@@ -29,6 +29,7 @@ import './portfolio.css';
 import { PortfolioAllocation } from './allocation-section';
 
 export function PortfolioPage() {
+  useAmountPrivacy();
   const query = useQuery(portfolioPositionsQuery());
   const instruments = useQuery(instrumentsQuery());
   const search = useSearch({ strict: false }) as {
@@ -227,6 +228,7 @@ export function PortfolioPage() {
   );
 }
 function PortfolioLead({ view }: { view: PortfolioPositionsView }) {
+  useAmountPrivacy();
   const parts = view.valueCents === null ? null : eurParts(view.valueCents);
   return (
     <section className="vnw" aria-labelledby="portfolio-title">
@@ -272,6 +274,7 @@ function GroupRows({
   gi: number;
   onSelect: (id: string) => void;
 }) {
+  useAmountPrivacy();
   return (
     <>
       <tr className="kgroup">
@@ -305,6 +308,7 @@ function PositionRow({
   number: string;
   onSelect: (id: string) => void;
 }) {
+  useAmountPrivacy();
   const unavailable = p.accounts.some((a) => a.valueStatus === 'missing_price')
     ? 'Kurs fehlt'
     : 'Wechselkurs fehlt';

@@ -1,4 +1,5 @@
 import {
+  useAmountPrivacy,
   AxisLine,
   ChartSvg,
   ElevationMark,
@@ -33,6 +34,7 @@ export function BalanceChart({
   chainOpen: boolean;
   onToggleChain: () => void;
 }) {
+  useAmountPrivacy();
   const [ref, width] = useWidth();
   const { actual, forecast } = data.balance;
   const all = [...actual, ...forecast];
@@ -62,6 +64,7 @@ function BalanceDrawing({
   chainOpen: boolean;
   onToggleChain: () => void;
 }) {
+  useAmountPrivacy();
   const [figureRef, figureWidth] = useElementWidth<HTMLButtonElement>();
   const narrow = width < 640;
   const height = narrow ? 232 : 330;
@@ -213,6 +216,7 @@ export interface PaceChartData {
 }
 
 export function HeutePaceChart({ data }: { data: PaceChartData }) {
+  useAmountPrivacy();
   const [ref, width] = useWidth();
   return (
     <div ref={ref} className="heute-chart">
@@ -222,6 +226,7 @@ export function HeutePaceChart({ data }: { data: PaceChartData }) {
 }
 
 function PaceDrawing({ data, width }: { data: PaceChartData; width: number }) {
+  useAmountPrivacy();
   const m = data.pace;
   const height = width < 640 ? 200 : 250;
   const narrow = width < 520;

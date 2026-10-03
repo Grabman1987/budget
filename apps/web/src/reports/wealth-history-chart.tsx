@@ -1,4 +1,4 @@
-import { AxisLine, ChartSvg, Graticule, Line, type Point } from '@budget/ui';
+import { useAmountPrivacy, AxisLine, ChartSvg, Graticule, Line, type Point } from '@budget/ui';
 import { MINUS } from '@budget/domain';
 import { useElementWidth } from '../charts/use-element-width';
 import { eur, longDay } from '../ledger/format';
@@ -22,6 +22,7 @@ export const toneOf = (index: number, count: number): string => {
  * at every week or month end and today (linear in between), the line is the daily series.
  */
 export function WealthHistoryChart({ history }: { history: NetWorthHistory }) {
+  useAmountPrivacy();
   const [ref, width] = useElementWidth<HTMLDivElement>();
   return (
     <div ref={ref} className="rf-chart rf-chart-lg">
@@ -31,6 +32,7 @@ export function WealthHistoryChart({ history }: { history: NetWorthHistory }) {
 }
 
 function Drawing({ history, width: W }: { history: NetWorthHistory; width: number }) {
+  useAmountPrivacy();
   const narrow = W < 520;
   const H = narrow ? 280 : 340;
   const R = narrow ? 56 : 84;

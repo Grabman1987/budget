@@ -1,11 +1,10 @@
-import { DimensionChain } from '@budget/ui';
+import { useAmountPrivacy, DimensionChain, Button, Segmented } from '@budget/ui';
 import { balanceChain, cents, type Period } from '@budget/domain';
 import type { PortfolioSummary, ContributionHistory } from '@budget/db';
 import { queryOptions, useQuery } from '@tanstack/react-query';
 import { useNavigate } from '@tanstack/react-router';
 import { useZeitraum, ZEITRAUM_VALUES } from '../wealth/zeitraum';
 import { ApiError, request } from '../api/http';
-import { Button, Segmented } from '@budget/ui';
 import { ErrorNote, LoadingNote } from '../ledger/states';
 import { longDay, eur } from '../ledger/format';
 import { periodText } from '../wealth/networth-model';
@@ -42,6 +41,7 @@ export function PortfolioContributionsReport({
   report: ReportEntry;
   meta: PageMeta;
 }) {
+  useAmountPrivacy();
   const [period, setPeriod] = useZeitraum();
   const query = useQuery(contributionsQuery(period));
   const navigate = useNavigate();
@@ -138,6 +138,7 @@ function ContributionsBody({
   period: Period;
   onOpenPortfolio: () => void;
 }) {
+  useAmountPrivacy();
   const flowAmount = (label: string, value: number) => ({
     label,
     value: cents(Math.abs(value)),
@@ -241,6 +242,7 @@ function ContributionsBody({
 }
 
 function ContributionsChart({ history }: { history: ContributionHistory }) {
+  useAmountPrivacy();
   const rows = history.months;
   const values = [history.startValueCents, ...rows.map((row) => row.valueCents)];
   const invested = [history.startValueCents, ...rows.map((row) => row.investedCents)];

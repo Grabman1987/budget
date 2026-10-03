@@ -1,5 +1,14 @@
+import {
+  useAmountPrivacy,
+  Button,
+  DetailPanel,
+  Field,
+  Select,
+  TextInput,
+  useToast,
+  maskMoneyText,
+} from '@budget/ui';
 import { parseAmount } from '@budget/domain';
-import { Button, DetailPanel, Field, Select, TextInput, useToast } from '@budget/ui';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
 import { useBlocker } from '@tanstack/react-router';
@@ -184,6 +193,7 @@ function TradeForm({
   onBusy: (busy: boolean) => void;
   onSaved: (securityId: string) => void;
 }) {
+  useAmountPrivacy();
   const [original] = useState(() =>
     tradeDraft(date, securityId, eligible.length === 1 ? eligible[0]!.id : '', trade),
   );
@@ -360,6 +370,7 @@ function TradeForm({
                   id={id}
                   inputMode="decimal"
                   value={draft[key]}
+                  money
                   required
                   maxLength={40}
                   aria-describedby={describedBy}
@@ -397,7 +408,7 @@ function TradeForm({
         </Field>
         {errors.form && (
           <p className="field-error" role="alert">
-            {errors.form}
+            {maskMoneyText(errors.form)}
           </p>
         )}
         <Button

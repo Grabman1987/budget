@@ -1,5 +1,13 @@
+import {
+  useAmountPrivacy,
+  privateAmount,
+  Button,
+  CircleNumber,
+  DimensionChain,
+  type DimensionChainTerm,
+  cx,
+} from '@budget/ui';
 import { addDays, cents, todayInVienna } from '@budget/domain';
-import { Button, CircleNumber, DimensionChain, type DimensionChainTerm, cx } from '@budget/ui';
 import { useQueries, useQuery } from '@tanstack/react-query';
 import { Link } from '@tanstack/react-router';
 import { Check, Pencil, Plus, TrendingDown, TrendingUp } from 'lucide-react';
@@ -34,6 +42,7 @@ const WINDOW_DAYS = 90;
 
 /** Konten › Übersicht: net worth with its chain by group, then the parts list of the accounts. */
 export function OverviewPage() {
+  useAmountPrivacy();
   const accounts = useQuery(accountsQuery());
   const [creating, setCreating] = useState(false);
   const [ordering, setOrdering] = useState(false);
@@ -104,6 +113,7 @@ function NetWorth({
   accounts: AccountRow[];
   asOf: string;
 }) {
+  useAmountPrivacy();
   const before = addDays(asOf, -WINDOW_DAYS);
   const prior = useQuery({
     queryKey: [...LEDGER_KEY, 'accounts', before],
@@ -204,6 +214,7 @@ function AccountsTable({
   ordering: boolean;
   onReorder: (groupId: AccountGroupId, ids: string[]) => void;
 }) {
+  useAmountPrivacy();
   const open = model.groups.flatMap((g) => g.accounts);
   const series = useQueries({
     queries: open.map((a) => seriesQuery(a.id, WINDOW_DAYS)),
@@ -294,6 +305,7 @@ function GroupRows({
   ordering: boolean;
   onReorder: (ids: string[]) => void;
 }) {
+  useAmountPrivacy();
   const names = new Map(view.accounts.map((a) => [a.id, a.name]));
   const reorder = useReorder(
     view.accounts.map((a) => a.id),
@@ -349,7 +361,7 @@ function GroupRows({
               {delta !== null && (
                 <span className="kdelta">
                   {Math.abs(delta) < 50
-                    ? `±0 ${a.currency}`
+                    ? privateAmount(`±0 ${a.currency}`)
                     : nativeCurrencyWhole(delta, a.currency, true)}
                 </span>
               )}

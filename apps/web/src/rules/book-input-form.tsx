@@ -1,5 +1,13 @@
 import { formatDecimal, cents, parseAmount } from '@budget/domain';
-import { AmountInput, Button, Field, SectionHead, TextInput } from '@budget/ui';
+import {
+  AmountInput,
+  Button,
+  Field,
+  SectionHead,
+  TextInput,
+  privateAmount,
+  useAmountPrivacy,
+} from '@budget/ui';
 import { useQuery } from '@tanstack/react-query';
 import { useState, type FormEvent } from 'react';
 import { request } from '../api/http';
@@ -33,6 +41,7 @@ export function BookInputForm() {
 }
 
 function Inputs({ settings }: { settings: Settings }) {
+  useAmountPrivacy();
   const [birthMonth, setBirth] = useState(settings.birthMonth);
   const [month, setMonth] = useState('');
   const [amount, setAmount] = useState('');
@@ -114,7 +123,7 @@ function Inputs({ settings }: { settings: Settings }) {
             {settings.pension.map((r) => (
               <tr key={r.month}>
                 <td>{r.month}</td>
-                <td>{formatDecimal(cents(r.amountCents))}</td>
+                <td>{privateAmount(formatDecimal(cents(r.amountCents)))}</td>
               </tr>
             ))}
           </tbody>

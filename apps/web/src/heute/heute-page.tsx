@@ -1,5 +1,6 @@
-import { cents } from '@budget/domain';
 import {
+  useAmountPrivacy,
+  maskMoneyText,
   Button,
   ClassTag,
   DimensionChain,
@@ -11,6 +12,7 @@ import {
   type DimensionChainTerm,
   type RevisionRow,
 } from '@budget/ui';
+import { cents } from '@budget/domain';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate, useSearch } from '@tanstack/react-router';
 import { useEffect, useState } from 'react';
@@ -35,6 +37,7 @@ import { AppLink } from '../shell/app-link';
 import { BalanceChart, HeutePaceChart } from './charts';
 import { heuteQuery, type Heute, type HeutePeriod } from './api';
 import './heute.css';
+import { AttentionBar } from './attention-bar';
 
 const pct = new Intl.NumberFormat('de-AT', { maximumFractionDigits: 2 });
 const STATUS: Record<string, string> = {
@@ -44,6 +47,7 @@ const STATUS: Record<string, string> = {
 };
 
 export function HeutePage() {
+  useAmountPrivacy();
   const [month] = useMonth();
   const { period: searchPeriod } = useSearch({ strict: false }) as { period?: HeutePeriod };
   const period = searchPeriod ?? 'month';
@@ -89,6 +93,7 @@ export function HeutePage() {
 }
 
 function HeuteBody({ data }: { data: Heute }) {
+  useAmountPrivacy();
   const [chainOpen, setChainOpen] = useState(false);
   const [netDetail, setNetDetail] = useState<'liquid' | 'invested' | 'receivable' | 'debt' | null>(
     null,
@@ -217,6 +222,8 @@ function HeuteBody({ data }: { data: Heute }) {
           )}
         </section>
       )}
+
+      <AttentionBar data={data} />
 
       <div className="heute-main-grid">
         <section className="heute-section heute-pace" aria-labelledby="heute-pace-title">
@@ -393,14 +400,18 @@ function HeuteBody({ data }: { data: Heute }) {
                   </div>
                   <div className="heute-amount-status">
                     <strong>{eur(item.amountCents, { sign: true })}</strong>
-                    <span className={item.covered ? 'heute-good' : ''}>
+                    <span
+                      className={
+                        item.covered === false ? 'heute-alert' : item.covered ? 'heute-good' : ''
+                      }
+                    >
                       {item.covered === true ? (
                         <>
                           <CircleCheck size={14} aria-hidden="true" /> Rücklage voll
                         </>
                       ) : item.covered === false ? (
                         <>
-                          <Clock3 size={14} aria-hidden="true" /> Rücklage offen
+                          <Clock3 size={14} aria-hidden="true" /> nicht gedeckt
                         </>
                       ) : (
                         statusText(item.status)
@@ -435,7 +446,7 @@ function HeuteBody({ data }: { data: Heute }) {
                     <li className="heute-rule" key={rule.code}>
                       <div>
                         <strong>{rule.name}</strong>
-                        <span>{rule.valueText}</span>
+                        <span>{maskMoneyText(rule.valueText)}</span>
                       </div>
                       <span className={`heute-state is-${rule.status}`}>
                         <StatusIcon status={rule.status} />
@@ -604,6 +615,7 @@ function NetWorthDetail({
   kind: 'liquid' | 'invested' | 'receivable' | 'debt' | null;
   onClose: () => void;
 }) {
+  useAmountPrivacy();
   const names = {
     liquid: 'Liquidität',
     invested: 'Investiert',
@@ -662,6 +674,7 @@ function NetWorthDetail({
 }
 
 function LeadDetail({ data, kind }: { data: Heute; kind: 'need' | 'want' | 'open' }) {
+  useAmountPrivacy();
   if (kind === 'open')
     return (
       <div className="heute-breakdown" aria-live="polite">
@@ -717,6 +730,7 @@ function PaceFigure({
   setSelected: (key: 'spent' | 'plan' | 'forecast' | null) => void;
   extra?: string;
 }) {
+  useAmountPrivacy();
   const open = selected === kind;
   return (
     <button
@@ -733,6 +747,7 @@ function PaceFigure({
 }
 
 function ValuationNote({ message }: { message: string }) {
+  useAmountPrivacy();
   return (
     <div className="rev-empty">
       <AlertTriangle className="icon" size={18} strokeWidth={1.75} aria-hidden="true" />
@@ -748,6 +763,7 @@ function CheckCounts({
 }: {
   check: Exclude<Heute['financeCheck'], { unavailable: unknown }>;
 }) {
+  useAmountPrivacy();
   const { ok, warn, bad, total } = check.counts;
   return (
     <div
@@ -783,6 +799,7 @@ function CheckCounts({
 }
 
 function StatusIcon({ status }: { status: 'ok' | 'warn' | 'bad' }) {
+  useAmountPrivacy();
   if (status === 'ok') return <CircleCheck size={15} aria-hidden="true" />;
   if (status === 'warn') return <Clock3 size={15} aria-hidden="true" />;
   return <AlertTriangle size={15} aria-hidden="true" />;

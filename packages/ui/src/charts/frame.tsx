@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import type { Point } from './types';
+import { useAmountPrivacy, maskMoneyText, privateAmount } from '../amount-privacy';
 
 export interface ChartSvgProps {
   width: number;
@@ -12,6 +13,7 @@ export interface ChartSvgProps {
 
 /** `<svg>` shell: fixed pixel viewBox, one text alternative. Colour comes only from tokens. */
 export function ChartSvg({ width, height, label, children, testId }: ChartSvgProps) {
+  useAmountPrivacy();
   return (
     <svg
       className="chart"
@@ -19,7 +21,7 @@ export function ChartSvg({ width, height, label, children, testId }: ChartSvgPro
       width={width}
       height={height}
       role="img"
-      aria-label={label}
+      aria-label={maskMoneyText(label)}
       data-testid={testId}
     >
       {children}
@@ -48,6 +50,7 @@ export function Graticule({
   lines: ReadonlyArray<GraticuleLine>;
   labelGap?: number;
 }) {
+  useAmountPrivacy();
   return (
     <g>
       {lines.map((line) => (
@@ -55,7 +58,7 @@ export function Graticule({
           <line x1={x1} x2={x2} y1={line.y} y2={line.y} className="graticule" />
           {line.label && (
             <text x={x1 - labelGap} y={line.y + 4} textAnchor="end" className="svg-label">
-              {line.label}
+              {privateAmount(line.label)}
             </text>
           )}
         </g>

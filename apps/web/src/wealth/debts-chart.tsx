@@ -1,5 +1,5 @@
+import { useAmountPrivacy, ChartSvg, Graticule, Line, type Point } from '@budget/ui';
 import { addDays, addMonths } from '@budget/domain';
-import { ChartSvg, Graticule, Line, type Point } from '@budget/ui';
 import { useElementWidth } from '../charts/use-element-width';
 import type { SeriesPoint } from '../ledger/types';
 import type { DebtAccount, DebtProjection } from './debts-api';
@@ -17,6 +17,7 @@ export function DebtChart({
   history: SeriesPoint[];
   result: DebtProjection | null;
 }) {
+  useAmountPrivacy();
   const [ref, width] = useElementWidth<HTMLDivElement>();
   const dateNumber = (date: string) => Date.parse(`${date.slice(0, 10)}T00:00:00Z`);
   const actual = history.map((p) => ({ date: p.date, amount: -p.balanceCents }));

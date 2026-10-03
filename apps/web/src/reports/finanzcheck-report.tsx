@@ -1,4 +1,14 @@
 import {
+  useAmountPrivacy,
+  maskMoneyText,
+  ChartSvg,
+  Graticule,
+  Line,
+  LineLegend,
+  RevisionTable,
+  type Point,
+} from '@budget/ui';
+import {
   dayCounts,
   lastDayOfMonth,
   ruleTimelines,
@@ -6,7 +16,6 @@ import {
   type DayCounts,
   type RuleTimeline,
 } from '@budget/domain';
-import { ChartSvg, Graticule, Line, LineLegend, RevisionTable, type Point } from '@budget/ui';
 import { useQuery } from '@tanstack/react-query';
 import { AlertCircle, AlertTriangle, CheckCircle2, CircleDashed } from 'lucide-react';
 import { useElementWidth } from '../charts/use-element-width';
@@ -32,6 +41,7 @@ const STATUS_TEXT: Record<'ok' | 'warn' | 'bad' | 'open', string> = {
 };
 
 function StatusMark({ status }: { status: Status }) {
+  useAmountPrivacy();
   const key = status ?? 'open';
   const Icon =
     key === 'ok'
@@ -68,6 +78,7 @@ const stripLabel = (line: RuleTimeline) =>
     .join(', ')}`;
 
 export function FinanzcheckReport({ report, meta }: { report: ReportEntry; meta: PageMeta }) {
+  useAmountPrivacy();
   const query = useQuery(finanzcheckVerlaufQuery());
   const data = query.data;
   const days = data?.matrix.days ?? [];
@@ -104,6 +115,7 @@ export function FinanzcheckReport({ report, meta }: { report: ReportEntry; meta:
 }
 
 function Body({ data }: { data: FinanzcheckVerlauf }) {
+  useAmountPrivacy();
   const { matrix, check, book } = data;
   const timelines = ruleTimelines(matrix);
   const counts = dayCounts(matrix);
@@ -187,7 +199,7 @@ function Body({ data }: { data: FinanzcheckVerlauf }) {
                           {item.ruleCode ? ` · ${item.ruleCode}` : ''}
                         </small>
                       </td>
-                      <td>{item.valueText ?? ''}</td>
+                      <td>{maskMoneyText(item.valueText ?? '')}</td>
                       <td>
                         <StatusMark status={item.status} />
                       </td>
@@ -208,7 +220,7 @@ function Body({ data }: { data: FinanzcheckVerlauf }) {
                     <strong>{item.text}</strong>
                     <small>
                       {item.source ?? ''}
-                      {item.valueText ? ` · ${item.valueText}` : ''}
+                      {item.valueText ? ` · ${maskMoneyText(item.valueText)}` : ''}
                     </small>
                   </li>
                 ))}
@@ -331,7 +343,7 @@ function Body({ data }: { data: FinanzcheckVerlauf }) {
                         <span className="ov-pos">{t.code}</span>
                         <span className="ov-name">{t.name}</span>
                       </td>
-                      <td>{rule?.latest?.valueText ?? '–'}</td>
+                      <td>{maskMoneyText(rule?.latest?.valueText ?? '–')}</td>
                       <td className="muted">{rule ? thresholdText(t.code, rule.params) : ''}</td>
                       <td>
                         <span className="ov-strip" role="img" aria-label={stripLabel(t)}>
@@ -339,7 +351,7 @@ function Body({ data }: { data: FinanzcheckVerlauf }) {
                             <span
                               key={c.asOf}
                               className={`ov-cell is-${c.status ?? 'none'}`}
-                              title={`${dayLabel(c.asOf)}: ${c.status === null ? 'nicht bewertbar' : STATUS_TEXT[c.status]}${c.valueText ? ` · ${c.valueText}` : ''}`}
+                              title={`${dayLabel(c.asOf)}: ${c.status === null ? 'nicht bewertbar' : STATUS_TEXT[c.status]}${c.valueText ? ` · ${maskMoneyText(c.valueText)}` : ''}`}
                             />
                           ))}
                         </span>
@@ -367,6 +379,7 @@ function Body({ data }: { data: FinanzcheckVerlauf }) {
 
 /** Count of fulfilled rules per evaluated day: flat segments, dashed line at "all rules". */
 function VerlaufChart({ counts, total }: { counts: DayCounts[]; total: number }) {
+  useAmountPrivacy();
   const [ref, width] = useElementWidth<HTMLDivElement>();
   const height = 200;
   const left = 34;
