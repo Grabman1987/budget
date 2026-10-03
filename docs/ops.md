@@ -546,6 +546,43 @@ keep `/data/migration` until the end.
    what you want.
 6. Check Plan › Monat for the months involved, then remove the private files (section 12, step 5).
 
+### 12.4 Instrument facts and employer pension (operator task)
+
+The Finanz-Check rules (R17 to R22) need private values that do not belong in the repo: the TER and
+the leverage of single instruments, and the explicit monthly employer pension contributions.
+`instrument-facts --file <json> [--dry-run] [--details]` enters them from a private file (keep it on
+`/data/migration/`, never in the repo):
+
+```json
+{
+  "securities": [{ "isin": "XX0000000001", "terBp": 20, "leverageFactorTenths": null }],
+  "employerPension": [{ "month": "2026-01", "amountCents": 12345 }]
+}
+```
+
+Run it as `fly ssh console -a budget-fg -C "node /app/migrate-cli.js instrument-facts --file
+/data/migration/facts.json --dry-run"`, check the output, then again without `--dry-run`.
+
+- `securities`: matched by `isin` (case-insensitive) to exactly one live security; no match or
+  several are skipped (`unknown_isin`, `ambiguous_isin`). `terBp` is the total expense ratio in
+  basis points (0 to 10000), `leverageFactorTenths` the leverage in tenths (10 = 1.0x, 10 to 1000).
+  Only fields that are present and not `null` are written; a value equal to the stored one is
+  reported as `unchanged` and writes nothing. Same ranges as the security routes; the write is
+  `updateSecurity`, as behind `PATCH /api/securities/:id`.
+- `employerPension`: one row per month (`YYYY-MM`, `amountCents` 0 or more, an explicit 0 counts).
+  A month is created, changed, or restored if it was deleted; an equal amount is `unchanged`. The
+  write is `saveBookSettings`, as behind the rules settings route, so validation and audit match
+  the app.
+- The whole file is validated first (a bad value, an ISIN or month listed twice) and nothing runs
+  if it is wrong. Then each entry runs in its own savepoint and audit group (actor `operator`), so
+  the app's Rückgängig or `undo-group --group <id>` reverts it on its own; an entry the app would
+  refuse is skipped with its reason, the rest goes through, and the exit code is 3.
+- Output: one line per entry (`updated`/`unchanged`/`skipped <isin> ...`, `pension <month> ...`,
+  with the group id), then the summaries `securities <total> updated <n> unchanged <n> skipped <n>`
+  and `pension <n> upserted <n> unchanged <n> skipped <n>`. `--dry-run` does all of it, reports
+  exactly what would change (no group ids) and rolls everything back. Running a file twice is safe:
+  the second run reports everything as unchanged.
+
 ## 13. One-time Portfolio Performance migration (operator task)
 
 Same rules as section 12 (no import feature in the app, files and the private mapping never enter the repo). Prerequisite: the YNAB migration is committed (the depot, crypto and P2P accounts exist). `migrate-pp-cli.js` has the same shape: each step is one transaction, `revert` undoes a whole run (the newest committed one only, also across sources). What is written and why: `docs/migration/pp-export.md` §Commit.
