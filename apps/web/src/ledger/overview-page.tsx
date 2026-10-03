@@ -1,5 +1,6 @@
 import {
   useAmountPrivacy,
+  privateAmount,
   Button,
   CircleNumber,
   DimensionChain,
@@ -360,7 +361,7 @@ function GroupRows({
               {delta !== null && (
                 <span className="kdelta">
                   {Math.abs(delta) < 50
-                    ? `±0 ${a.currency}`
+                    ? privateAmount(`±0 ${a.currency}`)
                     : nativeCurrencyWhole(delta, a.currency, true)}
                 </span>
               )}

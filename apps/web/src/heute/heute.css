@@ -612,6 +612,7 @@
   }
 }
 .heute-attention {
+  grid-row: 1;
   padding: 16px;
   border: 1px solid var(--rule-strong);
   border-radius: 8px;
@@ -634,4 +635,9 @@
   align-items: center;
   min-height: 44px;
   color: var(--red);
+}
+@media (max-width: 767px) {
+  .heute-attention {
+    grid-row: auto;
+  }
 }

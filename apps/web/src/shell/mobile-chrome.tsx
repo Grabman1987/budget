@@ -1,5 +1,6 @@
 import { Count } from '@budget/ui';
 import { Inbox, Plus } from 'lucide-react';
+import { useEffect, useRef } from 'react';
 import { MAIN_AREAS, areaById, type AreaId } from '../nav/areas';
 import type { PageMeta } from '../nav/pages';
 import { AppLink } from './app-link';
@@ -27,6 +28,26 @@ export function phoneTitle(page: PageMeta | undefined, fallback: string): string
 export function MobileHeader({ title, asHeading }: { title: string; asHeading: boolean }) {
   const inbox = useInboxCount();
   const identity = useShellIdentity();
+  const profileMenu = useRef<HTMLDetailsElement>(null);
+  useEffect(() => {
+    const menu = profileMenu.current;
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape' && menu) {
+        menu.open = false;
+        menu.querySelector('summary')?.focus();
+      }
+    };
+    const onOutside = (event: PointerEvent) => {
+      if (menu?.open && event.target instanceof Node && !menu.contains(event.target))
+        menu.open = false;
+    };
+    menu?.addEventListener('keydown', onKey);
+    document.addEventListener('pointerdown', onOutside);
+    return () => {
+      menu?.removeEventListener('keydown', onKey);
+      document.removeEventListener('pointerdown', onOutside);
+    };
+  }, []);
   return (
     <header className="m-head">
       <div className="m-title">
@@ -42,14 +63,21 @@ export function MobileHeader({ title, asHeading }: { title: string; asHeading: b
         {inbox.count !== undefined && inbox.count > 0 && <Count>{inbox.count}</Count>}
       </PanelLink>
       <ThemeButton variant="icon" />
-      <PrivacyButton />
-      <AppLink
-        className="avatar"
-        to="/einstellungen/profil"
-        aria-label={`${identity.name}: Profil und Einstellungen`}
-      >
-        {identity.initials}
-      </AppLink>
+      <details className="m-profile" ref={profileMenu}>
+        <summary className="avatar" aria-label={`${identity.name}: Profilmenü`}>
+          {identity.initials}
+        </summary>
+        <div className="m-profile-actions">
+          <PrivacyButton text />
+          <AppLink
+            className="btn btn-ghost"
+            to="/einstellungen/profil"
+            onClick={(event) => event.currentTarget.closest('details')?.removeAttribute('open')}
+          >
+            Profil und Einstellungen
+          </AppLink>
+        </div>
+      </details>
     </header>
   );
 }

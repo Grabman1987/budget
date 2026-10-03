@@ -149,7 +149,6 @@ function HeuteBody({ data }: { data: Heute }) {
 
   return (
     <>
-      <AttentionBar data={data} />
       {away && (
         <p className="heute-month-note" role="note" data-testid="heute-month-note">
           <Info size={16} aria-hidden="true" />
@@ -223,6 +222,8 @@ function HeuteBody({ data }: { data: Heute }) {
           )}
         </section>
       )}
+
+      <AttentionBar data={data} />
 
       <div className="heute-main-grid">
         <section className="heute-section heute-pace" aria-labelledby="heute-pace-title">

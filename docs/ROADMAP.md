@@ -265,6 +265,7 @@ Expected payments, contacts with receivables, savings goals, rule set R01–R16 
 - [x] Plan › Monat uncategorized/pending inflow, outflow and net row with booking links; no duplicate budget deduction
 - [x] Rest verteilen fills an active populated split line with integer-cent remainder
 - [x] Today attention links for overspending, monthly funding, inbox and sequential payment cover; hidden when empty
+- [x] Mobile regression fixes: attention follows the urgent lead, privacy moves into the keyboard-accessible profile menu, and loaded zero account changes use the shared amount mask
 - [x] Validated `/erfassen` draft links, safe login continuation, normal explicit save and documentation
 - [ ] Delivery checks, draft PR and owner desktop/phone acceptance
 
