@@ -5,6 +5,12 @@ import { z } from 'zod';
 import { BankError, type BankInstitution, type BankProvider } from './provider';
 
 const string = z.string().min(1).max(4096);
+/** ISO timestamp with offset; providers send up to microseconds, which JavaScript dates truncate. */
+const providerTime = z
+  .string()
+  .regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{1,9})?(Z|[+-]\d{2}:\d{2})$/)
+  .transform((v) => v.replace(/(\.\d{3})\d+/, '$1'))
+  .refine((v) => Number.isFinite(Date.parse(v)));
 const day = z.iso.date();
 const amount = z.object({ amount: string, currency: z.string().regex(/^[A-Z]{3}$/) });
 const transaction = z.object({
@@ -15,8 +21,8 @@ const transaction = z.object({
   transaction_date: day.nullish(),
   transaction_amount: amount,
   credit_debit_indicator: z.enum(['CRDT', 'DBIT']),
-  creditor: z.object({ name: string.optional() }).nullish(),
-  debtor: z.object({ name: string.optional() }).nullish(),
+  creditor: z.object({ name: string.nullish() }).nullish(),
+  debtor: z.object({ name: string.nullish() }).nullish(),
   remittance_information: z.array(z.string().max(4096)).max(100).optional(),
 });
 export function bankJwt(appId: string, key: KeyObject, now = new Date()): string {
@@ -109,11 +115,23 @@ export function enableBanking(options: {
         Number.isFinite(seconds) ? Math.max(60, Math.min(seconds, 86400)) : 900,
       );
     }
+    let raw: unknown;
     try {
-      return schema.parse(await readJson(response));
+      raw = await readJson(response);
     } catch {
       throw new BankError('invalid_response');
     }
+    const parsed = schema.safeParse(raw);
+    if (!parsed.success) {
+      // Field paths and issue codes only: never provider values, identifiers or amounts.
+      console.warn(
+        'Bank provider response rejected',
+        path.split('?')[0]!.replace(/\/accounts\/[^/]+/, '/accounts/:uid'),
+        parsed.error.issues.map((i) => i.code + '@' + i.path.join('.')).slice(0, 10),
+      );
+      throw new BankError('invalid_response');
+    }
+    return parsed.data;
   }
   return {
     async institutions() {
@@ -173,10 +191,17 @@ export function enableBanking(options: {
         '/sessions',
         z.object({
           session_id: string,
-          access: z.object({ valid_until: z.iso.datetime({ offset: true }) }),
+          access: z.object({ valid_until: providerTime }),
           accounts: z
             .array(
-              z.object({ uid: string, name: string.optional(), currency: z.string().length(3) }),
+              z.object({
+                uid: string,
+                // Banks often send null for the optional names; the IBAN tail labels the account.
+                name: string.nullish(),
+                product: string.nullish(),
+                account_id: z.object({ iban: string.nullish() }).nullish(),
+                currency: z.string().regex(/^[A-Z]{3}$/),
+              }),
             )
             .min(1)
             .max(100),
@@ -188,7 +213,10 @@ export function enableBanking(options: {
         validUntil: new Date(data.access.valid_until).toISOString(),
         accounts: data.accounts.map((a, i) => ({
           uid: a.uid,
-          label: a.name ?? 'Bankkonto ' + (i + 1),
+          label:
+            a.name ??
+            a.product ??
+            (a.account_id?.iban ? 'Konto …' + a.account_id.iban.slice(-4) : 'Bankkonto ' + (i + 1)),
           currency: a.currency,
         })),
       };

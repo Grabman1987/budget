@@ -87,7 +87,7 @@ Datenquellen: Enable Banking (PSD2) für österreichische Banken, Bitpanda-Lese-
 | Vermögen | Was besitze ich? |
 | Reports | Warum und wohin? |
 
-Einstellungen liegen im Profil-Menü. Auf jeder Seite: Suche, Posteingang mit Zähler, „+ Buchung“. Zweite Ebene als Register, keine dritte Menüebene; Details als Seitenpanel (Desktop) oder Blatt von unten (Handy). Jede Ansicht hat eine eigene URL.
+Einstellungen liegen im Profil-Menü. Auf jeder Seite: Suche, Posteingang mit Zähler, „+ Buchung“. Zweite Ebene als Register (Einstellungen: gruppierte Liste statt Register, am Handy als Übersicht), keine dritte Menüebene; Details als Seitenpanel (Desktop) oder Blatt von unten (Handy). Jede Ansicht hat eine eigene URL.
 
 **Fachliche Invarianten (Kapitel 5.2):** Beträge als Integer in Cent; Summe der Anteile = Buchungsbetrag; Umbuchung = genau zwei Buchungen; nichts wird hart gelöscht, jede Änderung ist protokolliert und rückgängig machbar; Importe idempotent; Stichtag 01.10.2023 mit Eröffnungssalden, Kurshistorie vollständig auch davor.
 

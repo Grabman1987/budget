@@ -103,3 +103,31 @@ export const areaById = (id: AreaId): AreaDef => {
   if (!area) throw new Error(`Unknown area ${id}`);
   return area;
 };
+
+/** Einstellungen are navigated in groups (left rail on desktop, index list on the phone). */
+export interface SettingsGroup {
+  id: string;
+  label: string;
+  items: ReadonlyArray<RegisterDef>;
+}
+
+/** Register ids of Einstellungen per group, in display order. Every register is in exactly one. */
+const SETTINGS_GROUP_IDS: ReadonlyArray<{ id: string; label: string; registers: string[] }> = [
+  {
+    id: 'daten',
+    label: 'Daten',
+    registers: ['konten', 'kategorien', 'projekte', 'anlageklassen', 'depots'],
+  },
+  { id: 'automatik', label: 'Automatik', registers: ['regelwerk', 'zuordnung', 'datenquellen'] },
+  { id: 'system', label: 'System', registers: ['sicherheit', 'export', 'profil'] },
+];
+
+export const SETTINGS_GROUPS: ReadonlyArray<SettingsGroup> = SETTINGS_GROUP_IDS.map((group) => ({
+  id: group.id,
+  label: group.label,
+  items: group.registers.map((id) => {
+    const register = areaById('einstellungen').registers.find((r) => r.id === id);
+    if (!register) throw new Error(`Unknown settings register ${id}`);
+    return register;
+  }),
+}));

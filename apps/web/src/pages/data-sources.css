@@ -16,6 +16,15 @@
   align-items: end;
   gap: 12px;
 }
+.bank-picker {
+  display: grid;
+  gap: 12px;
+  max-width: 520px;
+}
+.bank-picker select[size] {
+  height: auto;
+  padding-block: 4px;
+}
 .source-connection {
   border-top: 1px solid var(--rule);
   padding-block: 24px;

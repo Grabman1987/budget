@@ -14,6 +14,7 @@ test('source status, read-only capture, explicit mapping and responsive themes',
   const crypto = page.getByRole('region', { name: 'Krypto-Lesequelle', exact: true });
   const bank = page.getByRole('region', { name: 'Bank-Sync (PSD2)', exact: true });
   let refreshed = false;
+  let refreshes = 0;
   let saved = false;
   let since: string | null = null;
   const data = {
@@ -57,8 +58,10 @@ test('source status, read-only capture, explicit mapping and responsive themes',
   await page.route('**/api/sources/crypto**', async (route) => {
     const request = route.request();
     if (request.url().endsWith('/refresh')) {
-      refreshed = true;
-      await route.fulfill({ json: { status: 'ok' } });
+      // One click keeps fetching while the server reports further pages.
+      refreshes += 1;
+      refreshed = refreshes >= 2;
+      await route.fulfill({ json: { status: refreshed ? 'ok' : 'partial' } });
     } else if (request.url().endsWith('/since')) {
       since = (request.postDataJSON() as { since: string | null }).since;
       await route.fulfill({ json: { groupId: 'synthetic-since-group' } });
@@ -100,6 +103,7 @@ test('source status, read-only capture, explicit mapping and responsive themes',
   await crypto.getByRole('button', { name: 'Jetzt abrufen' }).click();
   await expect(page.getByText('Abruf abgeschlossen', { exact: true })).toBeVisible();
   expect(refreshed).toBe(true);
+  expect(refreshes).toBe(2);
   await expect(bank.getByText('Abruf fehlgeschlagen', { exact: true })).toBeVisible();
   await expect(crypto.getByText('Abruf abgeschlossen', { exact: true })).toBeVisible();
   await expect(
