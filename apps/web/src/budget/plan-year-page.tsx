@@ -1,12 +1,15 @@
+import { reportTablesQuery } from '../reports/table-reports-api';
 import { useAmountPrivacy, Registers, Select, TitleBlock, cx } from '@budget/ui';
 import {
+  buildYearView,
+  savingsRateOf,
   planYearMonths,
   planYearRows,
   sumPlanYearRows,
   type PlanYearAmounts,
   type PlanYearRow,
 } from '@budget/domain';
-import { useQueries } from '@tanstack/react-query';
+import { useQueries, useQuery } from '@tanstack/react-query';
 import { ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { eur } from '../ledger/format';
@@ -33,6 +36,7 @@ export function PlanYearPage() {
   const [month, , setMonth] = useMonth();
   const year = Number(month.slice(0, 4));
   const months = useMemo(() => planYearMonths(year), [year]);
+  const reports = useQuery(reportTablesQuery(false));
   const results = useQueries({ queries: months.map((m) => budgetQuery(m)) });
   const failed = results.find((result) => result.isError);
   const loaded = results.every((result) => result.data);
@@ -89,6 +93,45 @@ export function PlanYearPage() {
           <LoadingNote what="Jahresplan" />
         ) : (
           <>
+            {reports.isError ? (
+              <ErrorNote
+                what="Jahressummen"
+                error={reports.error}
+                onRetry={() => void reports.refetch()}
+              />
+            ) : reports.data ? (
+              (() => {
+                const source = reports.data;
+                const period = buildYearView(
+                  source.months,
+                  year,
+                  source.lastFullMonth,
+                ).months.filter((m) => m !== null);
+                const totals = savingsRateOf(period, source);
+                return (
+                  <section className="card year-sheet" aria-label="Jahressummen des Haushalts">
+                    <dl className="year-totals">
+                      <div>
+                        <dt>Haushaltseinnahmen</dt>
+                        <dd>{eur(totals.incomeCents)}</dd>
+                      </div>
+                      <div>
+                        <dt>Konsum (Bedarf und Wunsch)</dt>
+                        <dd>{eur(totals.consumptionCents)}</dd>
+                      </div>
+                    </dl>
+                    <p className="year-note">
+                      Abgeschlossene Monate wie im Jahresreport. Erstattungen mindern Konsum;
+                      Kapitalerträge, Umbuchungen und Eröffnungssalden sind keine
+                      Haushaltseinnahmen. Die Envelope-Tabelle zeigt Budgetbewegungen und den
+                      gespeicherten Plan.
+                    </p>
+                  </section>
+                );
+              })()
+            ) : (
+              <LoadingNote what="Jahressummen" />
+            )}
             <YearPlanning
               key={`events-${year}`}
               year={year}

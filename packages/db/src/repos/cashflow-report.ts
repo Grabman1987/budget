@@ -1,4 +1,5 @@
 import {
+  monthHouseholdIncome,
   cashflowChartMonths,
   cashflowMonth,
   cashflowTotals,
@@ -10,9 +11,8 @@ import {
   type Period,
 } from '@budget/domain';
 import { and, eq, isNull } from 'drizzle-orm';
-import { account, booking, bookingSplit, category, INCOME_TYPES } from '../schema';
-import { isIncomeCategorySplit } from './allocation';
-import { budget } from './queries';
+import { account, booking, bookingSplit, INCOME_TYPES } from '../schema';
+import { reportTables } from './report-tables';
 import type { Executor } from './types';
 
 /**
@@ -63,25 +63,23 @@ export function cashflowReport(db: Executor, today: string, period: Period): Cas
     chartMonths[chartMonths.length - 1] as string,
   );
 
-  const categories = new Map(
-    db
-      .select()
-      .from(category)
-      .where(isNull(category.deletedAt))
-      .all()
-      .map((c) => [c.id, c]),
-  );
+  const tables = reportTables(db, { today });
+  const source = new Map(tables.months.map((m) => [m.month, m]));
+  const classIds = (cls: 'need' | 'want' | 'future') =>
+    tables.categories.filter((c) => c.class === cls).map((c) => c.id);
   const spendByMonth = new Map(
-    budget(db, range, period.includes('..') ? { asOf: today } : {}).map((m) => {
+    range.map((month) => {
       const spent = (cls: 'need' | 'want' | 'future') =>
-        [...categories.values()]
-          .filter((c) => c.class === cls)
-          .reduce((a, c) => a - (m.envelopes[c.id]?.activityCents ?? 0), 0);
-      return [m.month, { need: spent('need'), want: spent('want'), future: spent('future') }];
+        classIds(cls).reduce((sum, id) => sum + (source.get(month)?.spending[id] ?? 0), 0);
+      return [month, { need: spent('need'), want: spent('want'), future: spent('future') }];
     }),
   );
-
-  const income = new Map<string, number>();
+  const income = new Map(
+    range.map((month) => [
+      month,
+      source.has(month) ? monthHouseholdIncome(source.get(month)!, tables) : 0,
+    ]),
+  );
   const capital = new Map<string, number>();
   const rows = db
     .select({
@@ -114,10 +112,6 @@ export function cashflowReport(db: Executor, today: string, period: Period): Cas
       capital.set(month, (capital.get(month) ?? 0) + s.cents);
       continue;
     }
-    if (!s.onBudget || s.incomeTypeId === INCOME_TYPES.refund.id) continue;
-    const kind = s.categoryId === null ? null : (categories.get(s.categoryId)?.kind ?? null);
-    if (!isIncomeCategorySplit(s.categoryId, kind)) continue;
-    income.set(month, (income.get(month) ?? 0) + s.cents);
   }
 
   const inWindow = new Set(windowMonths);
