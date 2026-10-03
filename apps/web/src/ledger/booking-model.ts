@@ -24,6 +24,7 @@ export interface SplitDraft {
 
 export interface BookingDraft {
   kind: BookingKind;
+  incomeNextMonth?: boolean | undefined;
   accountId: string;
   /** Transfers only: the account the money goes to. */
   toAccountId: string;
@@ -94,6 +95,7 @@ export const isTransferBooking = (b: Pick<ListedBooking, 'transferId' | 'splits'
 export function draftFromBooking(b: ListedBooking): BookingDraft {
   const several = b.splits.length > 1;
   return {
+    incomeNextMonth: b.incomeNextMonth ?? false,
     kind: isTransferBooking(b) ? 'transfer' : b.amountCents < 0 ? 'expense' : 'income',
     accountId: b.accountId,
     toAccountId: b.transferAccountId ?? '',
@@ -308,6 +310,9 @@ export function buildCreate(
     ok: true,
     value: {
       type: 'booking',
+      ...(draft.kind === 'income' && draft.incomeNextMonth !== undefined
+        ? { incomeNextMonth: draft.incomeNextMonth }
+        : {}),
       accountId: draft.accountId,
       date: draft.date,
       amountCents: sign(draft.kind, abs),
@@ -364,6 +369,10 @@ export function buildPatch(
   if (Object.keys(errors).length > 0 || abs === undefined) return { ok: false, errors };
   const amountCents = leg ? (original.amountCents < 0 ? -abs : abs) : sign(draft.kind, abs);
   const patch: BookingPatch = {};
+  const incomeNextMonth =
+    draft.kind === 'income' && !leg ? (draft.incomeNextMonth ?? false) : false;
+  if (incomeNextMonth !== (original.incomeNextMonth ?? false))
+    patch.incomeNextMonth = incomeNextMonth;
   if (draft.date !== original.date) patch.date = draft.date;
   if (amountCents !== original.amountCents) patch.amountCents = amountCents;
   if (!leg && draft.accountId !== original.accountId) patch.accountId = draft.accountId;

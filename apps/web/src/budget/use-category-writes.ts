@@ -18,6 +18,8 @@ const AFFECTED = [
   LEDGER_KEY,
   EXPECTED_KEY,
   ['ledger-lookups'],
+  ['income-month-rules'],
+  ['bank-sync'],
 ] as const;
 
 export const categoriesQuery = () =>

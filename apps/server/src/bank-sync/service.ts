@@ -1,12 +1,18 @@
 import { createHash, randomBytes, randomUUID } from 'node:crypto';
-import { and, eq, gt, isNull, lte, or } from 'drizzle-orm';
+import { and, eq, gt, gte, isNull, lte, or, sql } from 'drizzle-orm';
 import {
   bookedBalance,
   ConflictError,
   createBooking,
+  bookingIncomeDefault,
+  importBooking,
+  createEntity,
+  getEntity,
+  updateEntity,
   EntityNotFoundError,
   insertTracked as insertUnwrapped,
   restoreBooking,
+  updateBooking,
   schema,
   updateTracked as updateUnwrapped,
   runInTransaction,
@@ -51,6 +57,60 @@ export class BankSync {
     readonly clock: () => Date = () => new Date(),
   ) {}
 
+  private bookedToLedger(db: Executor, id: string) {
+    return getEntity(db, schema.appSetting, 'bank.booked_to_ledger:' + id)?.value !== 'false';
+  }
+
+  setPolicy(id: string, bookedToLedger: boolean) {
+    return this.db.transaction((tx) => {
+      const row = tx.select().from(consent).where(eq(consent.id, id)).get();
+      if (!row) throw new EntityNotFoundError('bank_sync_consent', id);
+      if (row.leaseUntil && row.leaseUntil > this.clock().toISOString())
+        throw new ConflictError('Der Abruf läuft noch.');
+      const key = 'bank.booked_to_ledger:' + id;
+      const ctx = withGroup({ actor: 'owner' });
+      const value = String(bookedToLedger);
+      if (getEntity(tx, schema.appSetting, key))
+        updateEntity(tx, schema.appSetting, key, { value }, ctx);
+      else createEntity(tx, schema.appSetting, { id: key, value }, ctx);
+      return { groupId: ctx.groupId };
+    });
+  }
+
+  /** Separate replayable ledger audit from irreversible provider protocol history. */
+  private postBooked(tx: Executor, row: typeof candidate.$inferSelect, sourceId: string) {
+    if (row.bankStatus !== 'booked' || !this.bookedToLedger(tx, sourceId)) return;
+    const item = tx.select().from(inboxItem).where(eq(inboxItem.id, row.id)).get();
+    if (!item || item.resolvedAt) return;
+    const ctx = withGroup(system);
+    const result = importBooking(
+      tx,
+      {
+        accountId: row.accountId,
+        date: row.date,
+        amountCents: row.amountCents,
+        currency: row.currency,
+        memo: row.memo,
+        source: 'bank',
+        importKey: 'bank-sync:' + row.dedupeKey,
+        status: 'pending',
+        incomeNextMonth: false,
+        splits: [{ amountCents: row.amountCents, categoryId: null }],
+      },
+      ctx,
+    );
+    updateTracked(
+      tx,
+      inboxItem,
+      [row.id],
+      {
+        resolvedAt: this.clock().toISOString(),
+        resolution: 'Kontowirksam übernommen: ' + result.id,
+      },
+      ctx,
+    );
+  }
+
   status() {
     const connections = this.db
       .select()
@@ -59,6 +119,7 @@ export class BankSync {
       .filter((c) => c.status !== 'abandoned')
       .map((c) => ({
         id: c.id,
+        bookedToLedger: this.bookedToLedger(this.db, c.id),
         label: c.label,
         status:
           c.status !== 'paused' && c.validUntil && c.validUntil <= this.clock().toISOString()
@@ -520,6 +581,10 @@ export class BankSync {
                   )
                   .get();
                 if (existing) {
+                  const promoted =
+                    existing.bankStatus === 'pending' && (t.bankStatus ?? 'booked') === 'booked';
+                  if (promoted)
+                    updateTracked(tx, candidate, [existing.id], { bankStatus: 'booked' }, ctx);
                   if (
                     existing.date !== t.date ||
                     existing.amountCents !== t.amountCents ||
@@ -583,6 +648,12 @@ export class BankSync {
                       );
                     }
                   }
+                  const current = tx
+                    .select()
+                    .from(candidate)
+                    .where(eq(candidate.id, existing.id))
+                    .get()!;
+                  this.postBooked(tx, current, row.id);
                   continue;
                 }
                 const id = randomUUID();
@@ -593,6 +664,7 @@ export class BankSync {
                     id,
                     accountId: a.accountId!,
                     dedupeKey,
+                    bankStatus: t.bankStatus ?? 'booked',
                     date: t.date,
                     amountCents: t.amountCents,
                     currency: t.currency,
@@ -606,7 +678,10 @@ export class BankSync {
                   {
                     id,
                     kind: 'import',
-                    title: 'Bankumsatz prüfen',
+                    title:
+                      t.bankStatus === 'pending'
+                        ? 'Vorgemerkten Bankumsatz prüfen'
+                        : 'Bankumsatz prüfen',
                     detail:
                       acct.name +
                       ' · ' +
@@ -619,6 +694,11 @@ export class BankSync {
                     refId: id,
                   },
                   ctx,
+                );
+                this.postBooked(
+                  tx,
+                  tx.select().from(candidate).where(eq(candidate.id, id)).get()!,
+                  row.id,
                 );
               }
               if (batch.skippedInvalid || batch.skippedOutOfWindow)
@@ -649,11 +729,44 @@ export class BankSync {
                 .select()
                 .from(candidate)
                 .innerJoin(inboxItem, eq(inboxItem.id, candidate.id))
-                .where(and(eq(candidate.accountId, a.accountId!), isNull(inboxItem.resolvedAt)))
+                .where(
+                  and(
+                    eq(candidate.accountId, a.accountId!),
+                    eq(candidate.bankStatus, 'booked'),
+                    isNull(inboxItem.resolvedAt),
+                  ),
+                )
                 .get();
               const warningId = 'bank-balance:' + a.accountId!;
+              // Provider BOOK is cleared at the bank even while the owner's booking is unchecked.
+              const uncheckedBooked = balance.date
+                ? tx
+                    .select({ amount: booking.amountCents })
+                    .from(booking)
+                    .innerJoin(
+                      candidate,
+                      and(
+                        eq(candidate.accountId, booking.accountId),
+                        sql`${booking.importKey} = 'bank-sync:' || ${candidate.dedupeKey}`,
+                      ),
+                    )
+                    .where(
+                      and(
+                        eq(booking.accountId, a.accountId!),
+                        eq(booking.status, 'pending'),
+                        eq(candidate.bankStatus, 'booked'),
+                        isNull(booking.deletedAt),
+                        gte(booking.date, acct.openingDate),
+                        lte(booking.date, balance.date),
+                      ),
+                    )
+                    .all()
+                    .reduce((sum, b) => sum + b.amount, 0)
+                : 0;
               const difference = balance.date
-                ? balance.amountCents - bookedBalance(tx, a.accountId!, balance.date)
+                ? balance.amountCents -
+                  bookedBalance(tx, a.accountId!, balance.date) -
+                  uncheckedBooked
                 : 0;
               if (balance.date && !openCandidates && difference)
                 this.warning(
@@ -774,6 +887,19 @@ export class BankSync {
             ctx,
           );
         restoreBooking(tx, existing.id, ctx);
+        if (splits.length === 0)
+          updateBooking(
+            tx,
+            existing.id,
+            {
+              status: 'confirmed',
+              incomeNextMonth: bookingIncomeDefault(tx, {
+                amountCents: existing.amountCents,
+                splits: [{ amountCents: existing.amountCents, categoryId }],
+              }),
+            },
+            ctx,
+          );
       }
       if (!bookingId)
         bookingId = createBooking(
@@ -787,6 +913,10 @@ export class BankSync {
             source: 'bank',
             importKey,
             status: 'confirmed',
+            incomeNextMonth: bookingIncomeDefault(tx, {
+              amountCents: row.amountCents,
+              splits: [{ amountCents: row.amountCents, categoryId }],
+            }),
             splits: [{ amountCents: row.amountCents, categoryId }],
           },
           ctx,

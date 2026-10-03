@@ -272,7 +272,7 @@ Enable Banking adapter, worker with nightly run and catch-up, inbox items, assig
 
 ### P4.1 — PSD2 bank sync into the inbox
 - [x] RS256 adapter, step-up/session-bound consent, encrypted session/account identifiers, owner-selected EUR account mapping.
-- [x] Booked transaction staging and balance warnings, reference/fallback deduplication, explicit confirmation with audit/undo; no automatic bookings.
+- [x] Owner decision 41: BOOK transactions become unchecked, uncategorized bookings immediately; PDNG remains a candidate until confirmed. Per-connection confirmation-first override, stable-reference promotion/deduplication, bank balance warnings and separate replayable ledger audit; no automatic categorization or distribution.
 - [x] Separate nightly worker on the same volume, catch-up, durable leases/backoff, queued manual refresh and consent reminders.
 - [x] Datenquellen status/mapping UI and owner setup in `docs/DATA_SOURCES.md`; synthetic HTTP, domain, workflow and browser tests.
 - [x] Review corrections: changed-reference updates/warnings, duplicate-reference fallback, isolated account failures, 21-day overlap and durable four-request/day limit; tolerant rows/undated balances, stable balance warnings, redacted auth/config failures, callback pruning and versioned encryption.
@@ -284,6 +284,11 @@ Enable Banking adapter, worker with nightly run and catch-up, inbox items, assig
 - [x] Native balance warnings, audited page/cursor writes, existing nightly timer hook and step-up protected manual fetch/full replay in Datenquellen. See [owner setup and limitations](crypto-read-source.md).
 - [x] Review fixes: mapping-independent acknowledgement/current display, row quarantine and categorized failures, tolerant balance reads with independent operations progress, unchanged-difference acknowledgement and bounded cursor history.
 - [ ] Owner key setup, private reconciliation and 14-day nightly acceptance; dedicated P4 worker and automated posting/matching remain separate.
+### Owner decision 42 — Income for the following budget month
+- [x] Persisted per-inflow "für nächsten Monat" option in desktop/mobile capture and editing; retain cash date, category and income type, defer Zu verteilen across month/year boundaries through the shared budget calculation.
+- [x] Einstellungen › Zuordnungsregeln: defaults per payee, income category or income type, specific precedence and explicit per-booking override. Apply to new owner captures/classification only; retain existing history. Audited rules and booking changes with undo/redo, bounded API validation and rejected transfer/contact/mixed-spend shapes.
+- [x] Cash-flow/income reports keep booking dates; budget 50/30/20 uses the assigned month. Synthetic domain/API tests and fixed-clock isolated desktop/mobile browser scenarios cover save, edit, override, undo/redo, accessibility and both themes. Changed files, checks and the open Windows full-check blocker: [decision evidence](evidence/owner-decisions-41-42.md).
+- [ ] Owner acceptance on actual bank feeds and the first month-end; ambiguous source identity changes still require manual review.
 
 ## P5 Vermögen
 Price history (yfinance + Ariva, source per price), ECB rates, trades and holdings, portfolio performance, allocation, Sparpläne, debts with extra repayment, freedom number with Soll-Pfad. **Gate 3:** returns and holdings equal Portfolio Performance.

@@ -65,6 +65,7 @@ No keypad. The amount is a text field with arithmetic (`12,50+8,20`, `+ − × �
 ## 4. Budget method (concept ch. 3, with overrides)
 
 - **Envelope core:** every euro has one job; "Zu verteilen" target = 0; available rolls over; overspending must be covered (triage).
+- **Income budget month (owner decision 42, 2026-10-03):** an inflow can be marked "für nächsten Monat". Cash/account/report booking dates and income labels remain unchanged; Zu verteilen and budget allocation use the following month. Defaults per payee, income category or income type apply to new owner captures, with payee precedence and a per-booking override; existing bookings are not rewritten.
 - **Three classes:** Bedarf, Wunsch, Zukunft (each category belongs to one). Groups below classes; categories below groups. Target ~40 categories after migration (O3).
 - **Money-flow waterfall: nine stages** (concept 3.6 + decision 28.09.2026): 1 Fixkosten und Mindestraten, **2 Laufender Monat** (variable monthly targets for Bedarf and Wunsch), 3–9 = concept stages 2–8. Plan › Monat orders by stage by default (switchable to groups, classes, time). Overspending shows as a triage bar above the unchanged table.
 - **Expected payments** (versioned schedules), **contacts** with receivables (Kontoblatt per person), **sinking funds**, **savings goals**.
@@ -152,6 +153,8 @@ packages/fixtures synthetic sample ledger (port of design/prototype/reports-core
 ```
 
 Data sources (P4): Enable Banking (PSD2, JWT RS256, booked balances, consent warning 14 days before the 180-day expiry), crypto read API, prices daily via yfinance with fallback Ariva (source stored per price, failures to the inbox), ECB exchange rates (full history), manual valuations. Manual file imports are excluded from the application feature scope; see §3 and the separate migration workflow in §10. Provider-specific code lives in adapters named generically in the domain.
+
+**Bank posting (owner decision 41, 2026-10-03):** fetched BOOK transactions count immediately in account balances as unchecked (`pending`, "vorgemerkt") bookings without a category or income type, shown in Posteingang. PDNG transactions remain candidates until explicit owner confirmation. Each connection can retain the old confirmation-first policy; the default is immediate BOOK posting. No category or envelope assignment is automated. Preserve source identities, deduplication, audit and deleted-booking tombstones.
 
 ## 10. Migration (concept 11.4)
 

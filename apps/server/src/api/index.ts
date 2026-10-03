@@ -1,4 +1,5 @@
 import { payrollRoutes, projectRoutes } from './payroll-projects';
+import { incomeMonthRoutes } from './income-month';
 import { bankSyncFromEnv } from '../bank-sync/config';
 import type { BankSync } from '../bank-sync/service';
 import { bankSyncRoutes } from './bank-sync';
@@ -77,6 +78,7 @@ export function createLedgerApi({
   const api = new Hono();
   api.route('/payslips', payrollRoutes(db, today));
   api.route('/projects', projectRoutes(db, today));
+  api.route('/income-month-rules', incomeMonthRoutes(db));
   api.route('/bank-sync', bankSyncRoutes(bankSync, stepUp));
   api.route('/sources/crypto', readSourceRoutes(db, today, stepUp, cryptoReadSource()));
   api.route('/search', searchRoutes(db));

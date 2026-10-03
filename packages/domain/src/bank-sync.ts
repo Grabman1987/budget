@@ -10,6 +10,8 @@ export function bankCents(value: string): number {
 }
 
 export interface BankTransaction {
+  /** Legacy synthetic adapters omit this; the HTTP adapter always supplies it. */
+  bankStatus?: 'booked' | 'pending';
   reference: string | null;
   date: string;
   amountCents: number;
