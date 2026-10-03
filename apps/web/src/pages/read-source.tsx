@@ -19,6 +19,8 @@ interface SourceStatus {
   securities: { id: string; name: string }[];
 }
 const path = '/api/sources/crypto';
+/** Upper bound per click (25 operations per page); the background tick continues afterwards. */
+const MAX_PAGES = 200;
 const key = ['read-source', 'crypto'] as const;
 const labels = {
   idle: 'Noch nicht abgerufen',
@@ -34,17 +36,32 @@ export function CryptoReadSourceSection() {
   const client = useQueryClient();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const [pages, setPages] = useState(0);
+  // The server reads one bounded page per call; keep fetching until the history is complete.
   async function refresh(fullHistory = false) {
     setBusy(true);
     setError('');
+    setPages(0);
     try {
-      await withStepUp(() => request('POST', path + '/refresh', { fullHistory }));
+      let first = true;
+      for (let page = 1; page <= MAX_PAGES; page++) {
+        const result = await withStepUp(() =>
+          request<{ status: SourceStatus['status'] }>('POST', path + '/refresh', {
+            fullHistory: first && fullHistory,
+          }),
+        );
+        first = false;
+        setPages(page);
+        if (result.status !== 'partial') break;
+        if (page % 5 === 0) await client.invalidateQueries({ queryKey: key });
+      }
     } catch {
       setError('Abruf nicht abgeschlossen. Anmeldung, Schlüssel und Verbindung prüfen.');
     } finally {
       await client.invalidateQueries({ queryKey: key });
       await client.invalidateQueries({ queryKey: INBOX_KEY });
       setBusy(false);
+      setPages(0);
     }
   }
   return (
@@ -67,7 +84,13 @@ export function CryptoReadSourceSection() {
           <dl className="source-status">
             <div>
               <dt>Status</dt>
-              <dd>{query.data.running || busy ? 'Abruf läuft …' : labels[query.data.status]}</dd>
+              <dd>
+                {busy
+                  ? `Abruf läuft … ${pages ? `${pages} ${pages === 1 ? 'Seite' : 'Seiten'} geholt` : ''}`
+                  : query.data.running
+                    ? 'Abruf läuft …'
+                    : labels[query.data.status]}
+              </dd>
             </div>
             <div>
               <dt>Letztes abgeschlossenes Bewegungsfenster</dt>
@@ -94,8 +117,9 @@ export function CryptoReadSourceSection() {
             </Button>
           </div>
           <p>
-            Bei aktivem Nachtlauf wird die Quelle automatisch abgerufen. Ein Schlüssel mit
-            Leserechten wird ausschließlich am Server gesetzt.
+            Ein Klick holt den ganzen ausstehenden Verlauf. Außerdem ruft die App die Quelle im
+            Hintergrund automatisch ab. Ein Schlüssel mit Leserechten wird ausschließlich am Server
+            gesetzt.
           </p>
           {query.data.balances.map((balance) => (
             <Mapping key={balance.key} balance={balance} data={query.data} />
