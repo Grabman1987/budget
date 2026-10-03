@@ -222,6 +222,12 @@ const planYearRoute = createRoute({
   getParentRoute: () => shellRoute,
   path: PLAN_JAHR.path,
   staticData: { meta: PLAN_JAHR },
+  validateSearch: (search: Record<string, unknown>) => ({
+    ereignis:
+      typeof search['ereignis'] === 'string' && search['ereignis'].length <= 64
+        ? search['ereignis']
+        : undefined,
+  }),
   component: lazyRouteComponent(() => import('./budget/plan-year-page'), 'PlanYearPage'),
 });
 const planExpectedRoute = createRoute({

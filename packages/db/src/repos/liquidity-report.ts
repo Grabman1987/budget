@@ -3,12 +3,14 @@ import {
   horizonDays,
   liquidityReport,
   PriceUnavailableError,
+  plannedEventOccurrences,
+  type EventRecurrence,
   type LiquidityHorizon,
   type LiquidityLeverId,
   type LiquidityReport,
 } from '@budget/domain';
 import { asc, isNull } from 'drizzle-orm';
-import { account, plannedEvent } from '../schema';
+import { account, category, plannedEvent } from '../schema';
 import { withGroup, type AuditContext } from './audit';
 import { createEntity, getEntity, restoreEntity, softDeleteEntity, updateEntity } from './entities';
 import { CategoryRuleError, EntityNotFoundError, MissingFxRateError } from './errors';
@@ -37,6 +39,11 @@ export interface PlannedEventView {
   amountCents: number;
   accountId: string | null;
   accountName: string | null;
+  categoryId: string | null;
+  categoryName: string | null;
+  recurrence: EventRecurrence;
+  recurrenceMonths: number[];
+  recurrenceUntil: string | null;
   enabled: boolean;
   note: string | null;
   status: PlannedEventStatus;
@@ -57,6 +64,65 @@ export interface LiquidityReportOptions {
   levers: ReadonlyArray<LiquidityLeverId>;
 }
 
+/** Calendar plans can be read even when unrelated holdings cannot be valued. */
+export function plannedEventsView(db: Executor, asOf: string, horizon = 365): PlannedEventView[] {
+  const accounts = db.select().from(account).where(isNull(account.deletedAt)).all();
+  const categories = db.select().from(category).where(isNull(category.deletedAt)).all();
+  return db
+    .select()
+    .from(plannedEvent)
+    .where(isNull(plannedEvent.deletedAt))
+    .orderBy(asc(plannedEvent.date), asc(plannedEvent.name), asc(plannedEvent.id))
+    .all()
+    .map((e) => {
+      const a = accounts.find((a) => a.id === e.accountId);
+      const next = plannedEventOccurrences(e, addDays(asOf, 1), addDays(asOf, horizon));
+      const nextStart = e.date > asOf ? e.date : addDays(asOf, 1);
+      const nextEnd = nextStart >= '9998-12-31' ? '9999-12-31' : addDays(nextStart, 366);
+      const hasFuture = plannedEventOccurrences(e, nextStart, nextEnd).length > 0;
+      const status: PlannedEventStatus = !e.enabled
+        ? 'disabled'
+        : e.accountId !== null && !a
+          ? 'unknown_account'
+          : a &&
+              (!a.onBudget || a.role !== 'budget' || a.openingDate > asOf || a.currency !== 'EUR')
+            ? 'off_budget'
+            : next.length
+              ? 'in_horizon'
+              : hasFuture
+                ? 'later'
+                : 'past';
+      return {
+        id: e.id,
+        name: e.name,
+        date: e.date,
+        amountCents: e.amountCents,
+        accountId: e.accountId,
+        accountName: a?.name ?? null,
+        categoryId: e.categoryId,
+        categoryName: categories.find((c) => c.id === e.categoryId)?.name ?? null,
+        enabled: e.enabled,
+        note: e.note,
+        recurrence: e.recurrence,
+        recurrenceMonths: e.recurrenceMonths,
+        recurrenceUntil: e.recurrenceUntil,
+        status,
+      };
+    });
+}
+
+export function plannedEventAccounts(db: Executor, asOf: string): { id: string; name: string }[] {
+  return db
+    .select()
+    .from(account)
+    .where(isNull(account.deletedAt))
+    .all()
+    .filter(
+      (a) => a.onBudget && a.role === 'budget' && a.currency === 'EUR' && a.openingDate <= asOf,
+    )
+    .map((a) => ({ id: a.id, name: a.name }));
+}
+
 export function liquidityReportView(
   db: Executor,
   asOf: string,
@@ -65,40 +131,8 @@ export function liquidityReportView(
   const facts = loadFacts(db, asOf);
   const live = facts.accounts.filter((a) => a.openingDate <= asOf);
   const budgetAccounts = live.filter((a) => a.onBudget && a.role === 'budget');
-  const allEvents = db
-    .select()
-    .from(plannedEvent)
-    .where(isNull(plannedEvent.deletedAt))
-    .orderBy(asc(plannedEvent.date), asc(plannedEvent.name), asc(plannedEvent.id))
-    .all();
   const hDays = horizonDays(options.horizon, asOf);
-  const accountById = new Map(facts.accounts.map((a) => [a.id, a]));
-  const events = allEvents.map((e): PlannedEventView => {
-    const a = e.accountId ? accountById.get(e.accountId) : undefined;
-    const offBudget = e.accountId !== null && (!a || !a.onBudget || a.role !== 'budget');
-    const status: PlannedEventStatus = !e.enabled
-      ? 'disabled'
-      : e.accountId !== null && !a
-        ? 'unknown_account'
-        : offBudget
-          ? 'off_budget'
-          : e.date <= asOf
-            ? 'past'
-            : e.date <= addDays(asOf, hDays)
-              ? 'in_horizon'
-              : 'later';
-    return {
-      id: e.id,
-      name: e.name,
-      date: e.date,
-      amountCents: e.amountCents,
-      accountId: e.accountId,
-      accountName: a?.name ?? null,
-      enabled: e.enabled,
-      note: e.note,
-      status,
-    };
-  });
+  const events = plannedEventsView(db, asOf, hDays);
   const accounts = budgetAccounts.map((a) => ({ id: a.id, name: a.name }));
   if (budgetAccounts.length === 0)
     return {
@@ -155,6 +189,10 @@ export interface PlannedEventInput {
   accountId?: string | null;
   enabled?: boolean;
   note?: string | null;
+  categoryId?: string | null;
+  recurrence?: EventRecurrence;
+  recurrenceMonths?: number[];
+  recurrenceUntil?: string | null;
 }
 export type PlannedEventPatch = Partial<PlannedEventInput>;
 
@@ -164,14 +202,34 @@ const cleanName = (name: string): string => {
   return clean;
 };
 
-function checkEvent(db: Executor, e: Pick<EventRow, 'amountCents' | 'accountId'>): void {
+function checkEvent(
+  db: Executor,
+  e: Pick<
+    EventRow,
+    | 'amountCents'
+    | 'accountId'
+    | 'categoryId'
+    | 'date'
+    | 'recurrence'
+    | 'recurrenceMonths'
+    | 'recurrenceUntil'
+  >,
+): void {
   if (e.amountCents === 0) throw new CategoryRuleError('Der Betrag muss ungleich 0 sein.');
   if (e.accountId !== null) {
     const a = getEntity(db, account, e.accountId);
     if (!a) throw new EntityNotFoundError('account', e.accountId);
-    if (!a.onBudget || a.role !== 'budget')
-      throw new CategoryRuleError('Ein Ereignis gehört zu einem Budget-Konto.');
+    if (!a.onBudget || a.role !== 'budget' || a.currency !== 'EUR')
+      throw new CategoryRuleError('Ein Ereignis gehört zu einem EUR-Budget-Konto.');
   }
+  if (e.categoryId !== null && !getEntity(db, category, e.categoryId))
+    throw new EntityNotFoundError('category', e.categoryId);
+  if (e.recurrenceUntil !== null && e.recurrenceUntil < e.date)
+    throw new CategoryRuleError('Das Ende darf nicht vor dem Beginn liegen.');
+  if (e.recurrence === 'months' && e.recurrenceMonths.length === 0)
+    throw new CategoryRuleError('Bitte mindestens einen Monat auswählen.');
+  if (e.recurrence !== 'months' && e.recurrenceMonths.length !== 0)
+    throw new CategoryRuleError('Monate gehören nur zur Wiederholung in bestimmten Monaten.');
 }
 
 export function createPlannedEvent(
@@ -188,6 +246,10 @@ export function createPlannedEvent(
       accountId: input.accountId ?? null,
       enabled: input.enabled ?? true,
       note: input.note ?? null,
+      categoryId: input.categoryId ?? null,
+      recurrence: input.recurrence ?? 'once',
+      recurrenceMonths: input.recurrenceMonths ?? [],
+      recurrenceUntil: input.recurrenceUntil ?? null,
     };
     checkEvent(tx, values);
     return {
@@ -207,10 +269,7 @@ export function updatePlannedEvent(
   return runInTransaction(db, (tx) => {
     const current = getEntity(tx, plannedEvent, id);
     if (!current) throw new EntityNotFoundError('planned_event', id);
-    checkEvent(tx, {
-      amountCents: patch.amountCents ?? current.amountCents,
-      accountId: patch.accountId === undefined ? current.accountId : patch.accountId,
-    });
+    checkEvent(tx, { ...current, ...patch });
     const clean = {
       ...(patch.name !== undefined && { name: cleanName(patch.name) }),
       ...(patch.date !== undefined && { date: patch.date }),
@@ -218,6 +277,10 @@ export function updatePlannedEvent(
       ...(patch.accountId !== undefined && { accountId: patch.accountId }),
       ...(patch.enabled !== undefined && { enabled: patch.enabled }),
       ...(patch.note !== undefined && { note: patch.note }),
+      ...(patch.categoryId !== undefined && { categoryId: patch.categoryId }),
+      ...(patch.recurrence !== undefined && { recurrence: patch.recurrence }),
+      ...(patch.recurrenceMonths !== undefined && { recurrenceMonths: patch.recurrenceMonths }),
+      ...(patch.recurrenceUntil !== undefined && { recurrenceUntil: patch.recurrenceUntil }),
     };
     return {
       event: updateEntity(tx, plannedEvent, id, clean, grouped),

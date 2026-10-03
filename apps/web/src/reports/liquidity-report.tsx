@@ -289,7 +289,7 @@ function EventsCard({ view }: { view: LiquidityReportView }) {
           <table className="rf-table rf-events">
             <thead>
               <tr>
-                <th className="tech">Datum</th>
+                <th className="tech">Datum / Beginn</th>
                 <th className="tech">Ereignis</th>
                 <th className="tech n">Betrag</th>
                 <th className="tech">Zählt</th>
@@ -371,9 +371,10 @@ function EventsCard({ view }: { view: LiquidityReportView }) {
         )}
       </form>
       <p className="vnote">
-        Einmalige Ausgaben und Einnahmen, auch Ausfälle wie ein Monat ohne Gehalt. Sie liegen auf
-        den Budget-Konten und ändern die Prognose sofort; „Zählt“ schaltet ein Ereignis aus, ohne es
-        zu löschen.
+        Einmalige und wiederkehrende Ausgaben und Einnahmen, auch Ausfälle wie ein Monat ohne
+        Gehalt. Sie liegen auf den Budget-Konten und ändern die Prognose sofort; „Zählt“ schaltet
+        ein Ereignis aus, ohne es zu löschen. Kategorien, Wiederholungen und Änderungen pflegst du
+        in <AppLink to="/plan/jahr">Plan · Jahr</AppLink>.
       </p>
     </section>
   );
@@ -394,6 +395,7 @@ function EventRow({
         {e.name}
         <small>
           {STATUS_TEXT[e.status]}
+          {e.recurrence !== 'once' && ' · wiederkehrend'}
           {e.accountName ? ` · ${e.accountName}` : ''}
         </small>
       </td>
