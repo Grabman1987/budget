@@ -14,6 +14,7 @@ import { PageFrame } from './placeholder-page';
 import type { PageMeta } from '../nav/pages';
 import type { ReportEntry } from '../nav/reports-catalog';
 import './portfolio-performance-report.css';
+import { PerformanceComparisons } from './portfolio-performance-comparisons';
 
 interface PortfolioResponse {
   portfolio: PortfolioSummary;
@@ -24,7 +25,10 @@ const portfolioPerformanceQuery = (period: Period) =>
     queryKey: [...LEDGER_KEY, 'portfolio-performance-report', period, 'securities'],
     retry: false,
     queryFn: () =>
-      request<PortfolioResponse>('GET', `/api/portfolio?period=${period}&view=securities`),
+      request<PortfolioResponse>(
+        'GET',
+        `/api/portfolio?period=${period}&view=securities&history=performance`,
+      ),
   });
 
 const PERIOD_OPTIONS = ZEITRAUM_VALUES.map((value) => ({ value, label: value }));
@@ -206,6 +210,7 @@ function PerformanceBody({
           </p>
         )}
       </section>
+      <PerformanceComparisons summary={summary} />
       <section className="performance-realized" aria-labelledby="realized-gain-title">
         <div className="tbd-head">
           <h2 id="realized-gain-title">Realisierte Gewinne</h2>
