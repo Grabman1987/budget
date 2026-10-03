@@ -55,6 +55,13 @@ export interface AccountRow {
   bookingCount: number;
   pendingCount: number;
   lastReconciledOn: string | null;
+  bankBalance?: {
+    amountCents: number | null;
+    date: string | null;
+    fetchedAt: string | null;
+    reconciledThrough: string | null;
+    canLock: boolean;
+  } | null;
 }
 
 export interface AccountList {
@@ -86,6 +93,8 @@ export interface ListedBooking {
   accountId: string;
   accountName: string;
   date: string;
+  incomeNextMonth?: boolean;
+  source?: string;
   amountCents: number;
   payeeId: string | null;
   payeeName: string | null;

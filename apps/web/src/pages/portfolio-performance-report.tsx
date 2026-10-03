@@ -1,4 +1,5 @@
-import { useAmountPrivacy, DimensionChain, Button, Segmented } from '@budget/ui';
+import { ReportPeriodControl } from '../reports/period-quick-select';
+import { useAmountPrivacy, DimensionChain, Button } from '@budget/ui';
 import { cents, type Period } from '@budget/domain';
 import type { PortfolioSummary } from '@budget/db';
 import { useQuery, queryOptions } from '@tanstack/react-query';
@@ -130,7 +131,8 @@ function PeriodControl({
 }) {
   useAmountPrivacy();
   return (
-    <Segmented
+    <ReportPeriodControl
+      trend={false}
       label="Zeitraum"
       options={PERIOD_OPTIONS}
       value={period}

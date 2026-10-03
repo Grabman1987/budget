@@ -18,7 +18,8 @@ export function periodText(period: Period, from: string): string {
       return 'letzte 12 Monate';
     case '3J':
       return 'letzte 3 Jahre';
-    case 'Alles':
+    default:
+      if (period.includes('..')) return period.replace('..', ' bis ');
       return `seit ${monthShort(from)} ${from.slice(0, 4)}`;
   }
 }

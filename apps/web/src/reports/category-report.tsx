@@ -1,4 +1,5 @@
-import { useAmountPrivacy, ClassSwatch, Segmented } from '@budget/ui';
+import { ReportPeriodControl } from './period-quick-select';
+import { useAmountPrivacy, ClassSwatch } from '@budget/ui';
 import {
   categoryOverview,
   reportPeriodMonths,
@@ -35,13 +36,14 @@ export function CategoryReport({ report, meta }: { report: ReportEntry; meta: Pa
       report={report}
       meta={meta}
       through="full"
+      currentAllowed={period.includes('..')}
       query={query}
       className="category-report"
       extraFields={[
         {
           label: 'Zeitraum',
           value: (
-            <Segmented
+            <ReportPeriodControl
               label="Zeitraum"
               options={PERIOD_OPTIONS}
               value={period}
@@ -84,14 +86,24 @@ function CategoryBody({
   useAmountPrivacy();
   const window = useMemo(
     () =>
-      data.firstMonth && data.lastFullMonth
-        ? reportPeriodMonths(period, data.lastFullMonth, data.firstMonth)
+      data.firstMonth && (data.lastFullMonth || period.includes('..'))
+        ? reportPeriodMonths(
+            period,
+            period.includes('..') ? data.currentMonth : data.lastFullMonth!,
+            data.firstMonth,
+          )
         : [],
-    [data.firstMonth, data.lastFullMonth, period],
+    [data.firstMonth, data.lastFullMonth, data.currentMonth, period],
   );
   const overview = useMemo(
-    () => categoryOverview(data.months, data, window, data.lastFullMonth),
-    [data, window],
+    () =>
+      categoryOverview(
+        data.months,
+        data,
+        window,
+        period.includes('..') ? data.currentMonth : data.lastFullMonth,
+      ),
+    [data, window, period],
   );
   const [opened, setOpened] = useState<string | null | undefined>(undefined);
   const rows = overview.rows;

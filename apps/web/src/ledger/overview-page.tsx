@@ -1,3 +1,4 @@
+import { BankBalance } from './bank-balance';
 import {
   useAmountPrivacy,
   privateAmount,
@@ -346,6 +347,7 @@ function GroupRows({
                 {ACCOUNT_TYPE_LABEL[a.type]}
                 {a.pendingCount > 0 && <span>{a.pendingCount} vorgemerkt</span>}
               </span>
+              <BankBalance account={a} />
               {util !== null && a.creditLimitCents !== null && (
                 <span className="kutil">
                   <span className="pbar" aria-hidden="true">

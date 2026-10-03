@@ -1,5 +1,7 @@
 import { PayrollReport } from '../reports/payroll-report';
 import { ProjectsReport } from '../reports/projects-report';
+import { ReportTrendContext } from '@budget/ui';
+import { useSearch } from '@tanstack/react-router';
 import { Registers, SectionHead, type RegisterItem } from '@budget/ui';
 import { ChevronRight, Printer } from 'lucide-react';
 import { BookRuleMetric } from '../rules/book-rule-metric';
@@ -254,5 +256,17 @@ export function ReportGroupRoute() {
 
 export function ReportRoute() {
   const { reportId } = useParams({ strict: false }) as { reportId: string };
-  return <ReportPage reportId={reportId} />;
+  const search = useSearch({ strict: false }) as { trend?: boolean };
+  return (
+    <ReportTrendContext.Provider
+      value={
+        search.trend === true &&
+        ['kategorien', 'sparquote', 'cashflow', 'vermoegen', 'peinzahlungen', 'pdepots'].includes(
+          reportId,
+        )
+      }
+    >
+      <ReportPage reportId={reportId} />
+    </ReportTrendContext.Provider>
+  );
 }

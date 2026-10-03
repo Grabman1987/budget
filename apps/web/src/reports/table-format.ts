@@ -73,7 +73,8 @@ export function periodName(period: Period, window: ReadonlyArray<string>): strin
       return 'letzte 12 Monate';
     case '3J':
       return 'letzte 3 Jahre';
-    case 'Alles':
+    default:
+      if (period.includes('..')) return `${monthLong(first)} bis ${monthLong(last)}`;
       return `seit ${monthShort(first)}`;
   }
 }

@@ -1,4 +1,4 @@
-import { BankCandidate } from './bank-candidate';
+import { BankBookingMerge, BankCandidate } from './bank-candidate';
 import { ReadSourceDetail } from './read-source-detail';
 import {
   useAmountPrivacy,
@@ -275,6 +275,9 @@ function InboxRow({
               >
                 Bestätigen
               </Button>
+            )}
+            {item.status === 'pending' && item.source === 'bank' && (
+              <BankBookingMerge bookingId={item.bookingId} />
             )}
           </>
         ) : (

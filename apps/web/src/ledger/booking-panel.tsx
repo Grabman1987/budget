@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 import { CaptureForm } from './capture-form';
 import type { ListedBooking } from './types';
 import type { BookingDraft } from './booking-model';
+import { useNavigate } from '@tanstack/react-router';
 
 export type BookingPanelState =
   | { mode: 'create'; accountId?: string | undefined; prefill?: Partial<BookingDraft> }
@@ -23,6 +24,7 @@ export function BookingPanel({
   state: BookingPanelState;
   onClose: () => void;
 }) {
+  const navigate = useNavigate();
   const dirty = useRef(false);
   const [asking, setAsking] = useState(false);
   // The last state is kept while the dialog fades out, then dropped so the next one starts fresh.
@@ -71,6 +73,12 @@ export function BookingPanel({
           dirtyRef={dirty}
           requestClose={() => beforeClose() && close()}
           discard={{ asking, keep: () => setAsking(false), discard: close }}
+          onExpected={(booking) =>
+            void navigate({
+              to: '/plan/erwartet' as never,
+              state: { expectedFrom: booking } as never,
+            })
+          }
         />
       )}
     </FormDialog>

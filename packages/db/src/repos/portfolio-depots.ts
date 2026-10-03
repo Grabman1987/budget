@@ -63,7 +63,7 @@ export function depotComparison(
   db: Executor,
   options: { today: string; period?: Period },
 ): DepotComparison {
-  const { today } = options;
+  const today = periodWindow(options.period ?? '1J', options.today).to;
   const period = options.period ?? '1J';
   const start = firstDay(db, today);
   const lines = positionLines(db, today);

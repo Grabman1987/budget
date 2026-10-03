@@ -52,6 +52,13 @@ export const appSetting = sqliteTable(
   (t) => [check('app_setting_id_chk', sql`length(${t.id}) BETWEEN 1 AND 64`)],
 );
 
+/** Durable delivery receipts; undo never releases a booking creation key. */
+export const bookingDelivery = sqliteTable('booking_delivery', {
+  key: text('key').primaryKey().notNull(),
+  requestHash: text('request_hash').notNull(),
+  responseJson: text('response_json').notNull(),
+});
+
 /**
  * Change log. `before_json` / `after_json` hold row snapshots; `undo` replays them. `group_id`
  * ties the entries of one user action together (a booking with its splits, a transfer pair).

@@ -1,3 +1,4 @@
+import { bookingIncomeDefault } from './income-month';
 import { assertContactBookingWrite, assertContactSettlementInvariants } from './contact-invariants';
 import { randomUUID } from 'node:crypto';
 import { and, asc, eq, gte, inArray, isNull, lte, ne, type SQL } from 'drizzle-orm';
@@ -380,7 +381,10 @@ function insertBooking(
 export function createBooking(db: Executor, input: BookingInput, ctx: AuditContext): string {
   const grouped = withGroup(ctx);
   return runInTransaction(db, (tx) => {
-    const id = insertBooking(tx, input, null, grouped);
+    const incomeNextMonth =
+      input.incomeNextMonth ??
+      ((input.source ?? 'manual') === 'manual' ? bookingIncomeDefault(tx, input) : false);
+    const id = insertBooking(tx, { ...input, incomeNextMonth }, null, grouped);
     assertLedgerInvariants(tx, relatedTransferBookings(tx, id));
     return id;
   });
@@ -754,6 +758,18 @@ function updateBookingImpl(
     }
 
     const columns: Record<string, unknown> = { ...patch };
+    if (
+      patch.incomeNextMonth === undefined &&
+      patch.splits &&
+      cur.source === 'bank' &&
+      curSplits.every((s) => !s.categoryId && !s.incomeTypeId && !s.contactId && !s.transferId)
+    ) {
+      columns['incomeNextMonth'] = bookingIncomeDefault(tx, {
+        amountCents: amount,
+        payeeId: patch.payeeId === undefined ? cur.payeeId : patch.payeeId,
+        splits: nextSplits,
+      });
+    }
     delete columns['splits'];
     if (fx.fxFeeCents !== cur.fxFeeCents) columns['fxFeeCents'] = fx.fxFeeCents;
     updateTracked(tx, booking, [id], columns, grouped);

@@ -11,6 +11,39 @@ import {
 } from './budget';
 
 const eur = (v: number) => Math.round(v * 100);
+it('keeps next-month salary in cash while assigning it only in January, with its income label intact', () => {
+  const input: BudgetInput = {
+    accounts: [{ id: 'a', onBudget: true, openingDate: '2026-12-01', openingBalanceCents: 0 }],
+    categories: [
+      { id: 'salary', kind: 'income' },
+      { id: 'food', kind: 'variable' },
+    ],
+    splits: [
+      {
+        accountId: 'a',
+        date: '2026-12-31',
+        amountCents: 200001,
+        categoryId: 'salary',
+        incomeNextMonth: true,
+      },
+    ],
+    months: ['2026-12', '2027-01'],
+    assigned: { '2027-01': { food: 150001 } },
+  };
+  const [dec, jan] = budgetMonths(input);
+  expect(dec).toMatchObject({ cashCents: 200001, incomeCents: 0, toBeAssignedCents: 0 });
+  expect(jan).toMatchObject({ cashCents: 200001, incomeCents: 200001, toBeAssignedCents: 50000 });
+  expect(dec?.envelopes['salary']?.activityCents).toBe(0);
+  expect(input.splits[0]?.categoryId).toBe('salary');
+  expect(
+    toBeAssignedFlow({
+      previousCents: 0,
+      incomeCents: jan!.incomeCents,
+      assignedCents: jan!.assignedCents,
+      uncoveredCents: 0,
+    }),
+  ).toBe(50000);
+});
 const month = (input: BudgetInput, m: string) => {
   const found = budgetMonths(input).find((b) => b.month === m);
   if (!found) throw new Error(`no month ${m}`);

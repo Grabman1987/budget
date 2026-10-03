@@ -162,6 +162,27 @@
       "when": 1790999907207,
       "tag": "0022_fluffy_harpoon",
       "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "6",
+      "when": 1791012476630,
+      "tag": "0023_income_next_month_and_pending",
+      "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "6",
+      "when": 1791012484225,
+      "tag": "0024_bank_followups",
+      "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "6",
+      "when": 1791012486581,
+      "tag": "0025_booking_delivery",
+      "breakpoints": true
     }
   ]
 }

@@ -1,4 +1,4 @@
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test, type Page, type TestInfo } from '@playwright/test';
 import { expectScreenshot } from './visual';
 import { monthLabel, monthOf } from '../apps/web/src/nav/month';
 import { ROUTES } from './routes';
@@ -165,26 +165,36 @@ test.describe('panel via route param', () => {
     await expect(page).toHaveURL(/\/konten$/);
   });
 
-  test('the browser back button closes the panel', async ({ page }) => {
-    await page.goto('/einstellungen/zuordnung');
-    await page.getByRole('link', { name: 'Seitenpanel testen' }).click();
-    const dialog = page.getByRole('dialog', { name: 'Details' });
+  // Opens the "Buchung" panel through the real shell trigger (top bar / phone FAB), so these tests
+  // do not depend on which pages are still placeholders.
+  const openBookingPanel = async (page: Page, testInfo: TestInfo) => {
+    const trigger = isPhone(testInfo)
+      ? page.getByRole('link', { name: 'Buchung erfassen' })
+      : page.getByRole('link', { name: /^Buchung$/ });
+    await trigger.click();
+    await expect(page).toHaveURL(/panel=buchung/);
+  };
+
+  test('the browser back button closes the panel', async ({ page }, testInfo) => {
+    await page.goto('/plan/monat');
+    await openBookingPanel(page, testInfo);
+    const dialog = page.getByRole('dialog', { name: 'Buchung' });
     await expect(dialog).toBeVisible();
     await page.goBack();
     await expect(dialog).toBeHidden();
-    await expect(page).toHaveURL(/\/einstellungen\/zuordnung$/);
+    await expect(page).toHaveURL(/\/plan\/monat$/);
   });
 
   test('the close button closes the panel without leaving a duplicate history entry', async ({
     page,
-  }) => {
+  }, testInfo) => {
+    await page.goto('/konten');
     await page.goto('/plan/monat');
-    await page.goto('/einstellungen/zuordnung');
-    await page.getByRole('link', { name: 'Seitenpanel testen' }).click();
+    await openBookingPanel(page, testInfo);
     await page.getByRole('button', { name: 'Schließen' }).click();
     await expect(page.getByRole('dialog')).toBeHidden();
     await page.goBack();
-    await expect(page).toHaveURL(/\/plan\/monat$/);
+    await expect(page).toHaveURL(/\/konten$/);
   });
 
   test('phone: the panel is a bottom sheet, desktop: a 420 px side panel', async ({

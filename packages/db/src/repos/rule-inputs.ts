@@ -74,7 +74,10 @@ type PaymentRow = typeof expectedPayment.$inferSelect;
 type VersionRow = typeof expectedPaymentVersion.$inferSelect;
 
 interface IncomeSplit {
+  /** Cash (booking) date: rules about paydays and windfalls keep reading this. */
   day: string;
+  /** Decision 42: budget income of this booking is assigned to the following month. */
+  incomeNextMonth: boolean;
   cents: number;
   incomeTypeId: string;
 }
@@ -151,6 +154,7 @@ export function loadFacts(db: Executor, upTo: string): RuleFacts {
   const incomeSplits = db
     .select({
       day: booking.date,
+      incomeNextMonth: booking.incomeNextMonth,
       cents: bookingSplit.amountCents,
       incomeTypeId: bookingSplit.incomeTypeId,
       categoryId: bookingSplit.categoryId,
@@ -171,7 +175,14 @@ export function loadFacts(db: Executor, upTo: string): RuleFacts {
     .flatMap((s) => {
       const kind = s.categoryId === null ? null : (categoryKindById.get(s.categoryId) ?? null);
       return isIncomeCategorySplit(s.categoryId, kind) && s.incomeTypeId !== null && s.cents > 0
-        ? [{ day: s.day, cents: s.cents, incomeTypeId: s.incomeTypeId }]
+        ? [
+            {
+              day: s.day,
+              incomeNextMonth: s.incomeNextMonth,
+              cents: s.cents,
+              incomeTypeId: s.incomeTypeId,
+            },
+          ]
         : [];
     });
 

@@ -1,12 +1,11 @@
-import type { Period } from '@budget/domain';
+import { isReportPeriod, type Period } from '@budget/domain';
 import { useNavigate, useSearch } from '@tanstack/react-router';
 
 /** Zeitraum of the Vermögen pages (`?zeitraum=`), shared by Nettovermögen and Portfolio. */
 export const ZEITRAUM_VALUES: ReadonlyArray<Period> = ['1M', '3M', 'YTD', '1J', '3J', 'Alles'];
 export const DEFAULT_ZEITRAUM: Period = 'YTD';
 
-export const isZeitraum = (value: unknown): value is Period =>
-  typeof value === 'string' && (ZEITRAUM_VALUES as ReadonlyArray<string>).includes(value);
+export const isZeitraum = (value: unknown): value is Period => isReportPeriod(value);
 
 /**
  * Selected Zeitraum (default YTD) and its setter. The choice lives in the URL so it survives a

@@ -1,3 +1,12 @@
+import {
+  bankBookingMatches,
+  candidateMatches,
+  linkBankCandidate,
+  mergeBankBooking,
+  mergeBankCandidate,
+  type Db,
+} from '@budget/db';
+import { randomUUID } from 'node:crypto';
 import { Hono, type MiddlewareHandler } from 'hono';
 import { z } from 'zod';
 import { BankError } from '../bank-sync/provider';
@@ -5,7 +14,7 @@ import type { BankSync } from '../bank-sync/service';
 import type { SessionRow } from '../auth/store';
 import { readBody } from './http';
 
-export function bankSyncRoutes(service: BankSync | null, stepUp: MiddlewareHandler) {
+export function bankSyncRoutes(service: BankSync | null, stepUp: MiddlewareHandler, db: Db) {
   const app = new Hono<{ Variables: { session: SessionRow } }>();
   app.use('*', async (c, next) => {
     c.header('Cache-Control', 'no-store');
@@ -18,6 +27,36 @@ export function bankSyncRoutes(service: BankSync | null, stepUp: MiddlewareHandl
         : { configured: false, connections: [], accounts: [] },
     ),
   );
+  app.get('/candidates/:id/matches', (c) =>
+    c.json(candidateMatches(db, z.string().uuid().parse(c.req.param('id')))),
+  );
+  for (const action of ['merge', 'transfer'] as const)
+    app.post('/candidates/:id/' + action, async (c) => {
+      const input = await readBody(c, z.object({ bookingId: z.string().min(1).max(200) }).strict());
+      const mutate = action === 'merge' ? mergeBankCandidate : linkBankCandidate;
+      return c.json(
+        mutate(
+          db,
+          z.string().uuid().parse(c.req.param('id')),
+          input.bookingId,
+          { actor: 'owner', groupId: randomUUID() },
+          service?.clock().toISOString() ?? new Date().toISOString(),
+        ),
+      );
+    });
+  // Decision 41: a booked bank row is already an unchecked booking, merged into an earlier manual one.
+  app.get('/bookings/:id/matches', (c) =>
+    c.json(bankBookingMatches(db, z.string().min(1).max(200).parse(c.req.param('id')))),
+  );
+  app.post('/bookings/:id/merge', async (c) => {
+    const input = await readBody(c, z.object({ bookingId: z.string().min(1).max(200) }).strict());
+    return c.json(
+      mergeBankBooking(db, z.string().min(1).max(200).parse(c.req.param('id')), input.bookingId, {
+        actor: 'owner',
+        groupId: randomUUID(),
+      }),
+    );
+  });
   app.use('*', async (c, next) => (service ? next() : c.json({ error: 'not_configured' }, 503)));
   const id = z.string().uuid();
   const short = z.string().min(1).max(200);
@@ -52,6 +91,10 @@ export function bankSyncRoutes(service: BankSync | null, stepUp: MiddlewareHandl
   app.post('/:id/pause', stepUp, async (c) => {
     await readBody(c, z.object({}).strict());
     return c.json(service!.pause(id.parse(c.req.param('id'))));
+  });
+  app.put('/:id/policy', stepUp, async (c) => {
+    const input = await readBody(c, z.strictObject({ bookedToLedger: z.boolean() }));
+    return c.json(service!.setPolicy(id.parse(c.req.param('id')), input.bookedToLedger));
   });
   app.post('/:id/sync', async (c) => {
     await readBody(c, z.object({}).strict());

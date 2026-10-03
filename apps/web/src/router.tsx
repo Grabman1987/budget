@@ -63,11 +63,13 @@ const rootRoute = createRootRoute({
     monat?: string | undefined;
     period?: HeutePeriod | undefined;
     zeitraum?: Period | undefined;
+    trend?: boolean | undefined;
   } => ({
     panel: isPanelId(search['panel']) ? search['panel'] : undefined,
     monat: isMonth(search['monat']) ? search['monat'] : undefined,
     period:
       search['period'] === 'month' || search['period'] === 'payday' ? search['period'] : undefined,
+    trend: search['trend'] === true || search['trend'] === 'true' ? true : undefined,
     zeitraum: isZeitraum(search['zeitraum']) ? search['zeitraum'] : undefined,
   }),
   component: Outlet,
@@ -119,6 +121,7 @@ const captureRoute = createRoute({
 });
 const BUILT_PATHS = new Set<string>([
   '/einstellungen/datenquellen',
+  '/einstellungen/zuordnung',
   SECURITY_META.path,
   PROFILE_META.path,
   INVESTMENT_SETTINGS_META.path,
@@ -226,6 +229,12 @@ const planMonthRoute = createRoute({
   }),
   staticData: { meta: PLAN_MONAT },
   component: lazyRouteComponent(() => import('./budget/plan-page'), 'PlanMonthPage'),
+});
+const incomeRulesRoute = createRoute({
+  getParentRoute: () => shellRoute,
+  path: '/einstellungen/zuordnung',
+  staticData: { meta: PAGES.find((p) => p.path === '/einstellungen/zuordnung')! },
+  component: lazyRouteComponent(() => import('./pages/income-month-rules'), 'IncomeMonthRulesPage'),
 });
 const dataSourcesRoute = createRoute({
   getParentRoute: () => shellRoute,
@@ -442,6 +451,7 @@ const routeTree = rootRoute.addChildren([
     rulesRoute,
     exportRoute,
     dataSourcesRoute,
+    incomeRulesRoute,
     planMonthRoute,
     planYearRoute,
     planExpectedRoute,

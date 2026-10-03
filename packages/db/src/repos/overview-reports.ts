@@ -262,7 +262,9 @@ export interface ExplorerReport extends OverviewFrame {
 
 export function explorerReport(db: Executor, query: ExplorerQuery, today: string): ExplorerReport {
   const data = overviewData(db);
+  data.splits = data.splits.filter((s) => s.date <= today);
   const frame = frameOf(data, today);
+  if (query.period.includes('..')) frame.ref = today.slice(0, 7);
   return { ...frame, result: explorerPivot(data, query, frame.ref) };
 }
 
