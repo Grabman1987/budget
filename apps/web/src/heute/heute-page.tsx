@@ -38,6 +38,8 @@ import { BalanceChart, HeutePaceChart } from './charts';
 import { heuteQuery, type Heute, type HeutePeriod } from './api';
 import './heute.css';
 import { AttentionBar } from './attention-bar';
+import { savingsProposalsQuery } from '../wealth/savings-api';
+import { sourceMoney } from '../wealth/trade-api';
 
 const pct = new Intl.NumberFormat('de-AT', { maximumFractionDigits: 2 });
 const STATUS: Record<string, string> = {
@@ -102,6 +104,7 @@ function HeuteBody({ data }: { data: Heute }) {
   const [paceDetail, setPaceDetail] = useState<'spent' | 'plan' | 'forecast' | null>(null);
   const navigate = useNavigate();
   const [, , setMonth] = useMonth();
+  const savings = useQuery(savingsProposalsQuery());
   // Another month than today's: the lead, next steps, upcoming, checks, net worth and bookings
   // stay anchored to today, and the page says so.
   const away = data.stand.month !== data.stand.today.slice(0, 7);
@@ -131,6 +134,18 @@ function HeuteBody({ data }: { data: Heute }) {
     },
   }));
   const urgent = revisions.find((row) => row.urgent);
+  for (const proposal of savings.data?.proposals ?? [])
+    revisions.push({
+      id: proposal.id,
+      letter: String.fromCharCode(65 + (revisions.length % 26)),
+      urgent: false,
+      title: `Sparplan: ${proposal.securityName}`,
+      detail: `${longDay(proposal.date)} · ${sourceMoney(proposal.amountCents, proposal.currency)} · ${proposal.accountName}`,
+      action: {
+        label: 'Ausführung prüfen',
+        onClick: () => void navigate({ to: '/konten/posteingang' }),
+      },
+    });
   const leadTerms: DimensionChainTerm[] = data.lead.chain.map((term, index) => ({
     ...term,
     value: cents(term.value),
@@ -312,9 +327,16 @@ function HeuteBody({ data }: { data: Heute }) {
           <SectionHead
             id="heute-next-title"
             title="Nächste Schritte"
-            aside={`${data.nextSteps.count} offen`}
+            aside={`${revisions.length} offen`}
           />
-          {data.nextSteps.items.length === 0 ? (
+          {savings.isError && (
+            <ErrorNote
+              what="Sparplanvorschläge"
+              error={savings.error}
+              onRetry={() => void savings.refetch()}
+            />
+          )}
+          {revisions.length === 0 ? (
             <EmptyNote>Keine offenen Schritte aus den Heute-Prüfungen.</EmptyNote>
           ) : (
             <RevisionTable

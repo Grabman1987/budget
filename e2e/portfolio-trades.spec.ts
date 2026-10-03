@@ -6,6 +6,156 @@ import { holding, openDatabase, type PortfolioPositionsView } from '@budget/db';
 
 test.use({ locale: 'de-AT' });
 
+test('remaining kinds, source edits and deletion use the same holdings and cash', async ({
+  page,
+  request,
+}, info) => {
+  const { name, account, security } = await fixture(request, info, 'Weitere Arten');
+  await post(request, '/trades', {
+    securityId: security.id,
+    accountId: account.id,
+    date: '2026-01-02',
+    kind: 'buy',
+    unitsE8: 1000000000,
+    amountCents: 10000,
+  });
+  const cases = [
+    { kind: 'delivery_in', units: '2', amount: '20' },
+    { kind: 'split', units: '12' },
+    { kind: 'delivery_out', units: '4', amount: '30' },
+    { kind: 'dividend', amount: '10', fee: '1', tax: '2' },
+    { kind: 'interest', amount: '5', fee: '0,50', tax: '0,50' },
+    { kind: 'fee', amount: '1' },
+    { kind: 'tax', amount: '2' },
+  ];
+  for (const data of cases) {
+    await page.goto(`/vermoegen/portfolio?produkt=${security.id}&handel=neu`);
+    const form = page.getByRole('dialog', { name: 'Handel erfassen', exact: true });
+    await form.getByLabel('Anlagekonto', { exact: true }).selectOption(account.id);
+    await form.getByLabel('Handelsart', { exact: true }).selectOption(data.kind);
+    await form
+      .getByLabel('Handelsdatum')
+      .fill(
+        data.kind === 'delivery_out'
+          ? '2026-01-05'
+          : data.kind === 'split'
+            ? '2026-01-04'
+            : '2026-01-03',
+      );
+    if (data.units)
+      await form
+        .getByLabel(data.kind === 'split' ? 'Stückänderung' : 'Stück', { exact: true })
+        .fill(data.units);
+    if (data.amount)
+      await form
+        .getByLabel(
+          data.kind.startsWith('delivery')
+            ? 'Dokumentierter Einstand / Lieferwert (EUR)'
+            : 'Bruttobetrag (EUR)',
+          { exact: true },
+        )
+        .fill(data.amount);
+    if (data.fee) await form.getByLabel('Gebühren (EUR)', { exact: true }).fill(data.fee);
+    if (data.tax)
+      await form.getByLabel('Einbehaltene Steuer (EUR)', { exact: true }).fill(data.tax);
+    if (data.kind === 'split' || data.kind === 'dividend')
+      await capture(page, info, `trade-${data.kind}`);
+    await form.getByRole('button', { name: 'Handel erfassen', exact: true }).click();
+    await expect(page.getByRole('dialog', { name, exact: true })).toBeVisible();
+  }
+  expect(await balance(request, account.id)).toBe(190800);
+  expect(await position(request, security.id)).toMatchObject({
+    unitsE8: 2000000000,
+    costCents: 10000,
+  });
+  const dividend = (await sourceTrades(request, security.id)).find(
+    (t: { kind: string }) => t.kind === 'dividend',
+  );
+  await page
+    .locator(`[data-trade-id="${dividend.id}"]`)
+    .getByRole('button', { name: /bearbeiten/ })
+    .click();
+  const form = page.getByRole('dialog', { name: 'Handel bearbeiten', exact: true });
+  await form.getByLabel('Einbehaltene Steuer (EUR)', { exact: true }).fill('3');
+  await form.getByRole('button', { name: 'Handel speichern', exact: true }).click();
+  await expect(page.getByRole('dialog', { name, exact: true })).toBeVisible();
+  expect(await balance(request, account.id)).toBe(190700);
+  await page
+    .locator(`[data-trade-id="${dividend.id}"]`)
+    .getByRole('button', { name: /bearbeiten/ })
+    .click();
+  await form.getByRole('button', { name: 'Handel löschen', exact: true }).click();
+  await expect(form.getByRole('alert')).toContainText('Kontobuchung');
+  await capture(page, info, 'trade-delete');
+  await form.getByRole('button', { name: 'Löschen bestätigen', exact: true }).focus();
+  await page.keyboard.press('Enter');
+  await expect(page.getByRole('dialog', { name, exact: true })).toBeVisible();
+  await expect(page.locator(`[data-trade-id="${dividend.id}"]`)).toHaveCount(0);
+  await expect.poll(() => balance(request, account.id)).toBe(190100);
+  await page.getByRole('button', { name: 'Rückgängig', exact: true }).click();
+  await expect(page.locator(`[data-trade-id="${dividend.id}"]`)).toBeVisible();
+  expect(await balance(request, account.id)).toBe(190700);
+  await page.getByRole('button', { name: 'Wiederholen', exact: true }).click();
+  await expect(page.locator(`[data-trade-id="${dividend.id}"]`)).toHaveCount(0);
+  expect(await balance(request, account.id)).toBe(190100);
+});
+
+test('monthly savings proposals require actual execution confirmation and support undo/redo', async ({
+  page,
+  request,
+}, info) => {
+  const { name, account, security } = await fixture(request, info, 'Monatsvorschlag');
+  const { asOf } = await (await request.get(`${MAIN_URL}/api/accounts`)).json();
+  const month = asOf.slice(0, 7);
+  const plan = (
+    await post(request, '/savings-plans', {
+      securityId: security.id,
+      accountId: account.id,
+      amountCents: 10000,
+      dayOfMonth: 1,
+      validFrom: `${month}-01`,
+    })
+  ).plan;
+  expect(await sourceTrades(request, security.id)).toHaveLength(0);
+  expect(await balance(request, account.id)).toBe(200000);
+  await page.goto('/');
+  const step = page.locator('.heute-next-steps .rev-row').filter({ hasText: `Sparplan: ${name}` });
+  await expect(step).toContainText('100,00');
+  await step.getByRole('button', { name: 'Ausführung prüfen' }).click();
+  const row = page.getByTestId('inbox-row').filter({ hasText: name });
+  await row.getByRole('button', { name: 'Ausführung prüfen' }).focus();
+  await page.keyboard.press('Enter');
+  const form = page.getByRole('dialog', { name: 'Sparplanausführung bestätigen', exact: true });
+  await expect(form).toContainText('Kein Bankauftrag');
+  await expect(form.getByLabel('Anlagekonto', { exact: true })).toBeDisabled();
+  await form.getByLabel('Stück', { exact: true }).fill('1,00000001');
+  await form.getByLabel('Bruttobetrag (EUR)', { exact: true }).fill('99');
+  await form.getByLabel('Gebühren (EUR)', { exact: true }).fill('1');
+  await page.evaluate(() => history.back());
+  await expect(form).toContainText('Ungespeicherte Handelsangaben verwerfen?');
+  await form.getByRole('button', { name: 'Weiter bearbeiten', exact: true }).click();
+  await capture(page, info, 'savings-execution');
+  await form.getByRole('button', { name: 'Ausführung bestätigen', exact: true }).click();
+  await expect(form).toHaveCount(0);
+  await expect(row).toHaveCount(0);
+  expect(await balance(request, account.id)).toBe(190000);
+  expect(await sourceTrades(request, security.id)).toMatchObject([
+    {
+      savingsPlanId: plan.id,
+      savingsMonth: month,
+      unitsE8: 100000001,
+      amountCents: 9900,
+      feeCents: 100,
+    },
+  ]);
+  await page.getByRole('button', { name: 'Rückgängig', exact: true }).click();
+  await expect(row).toBeVisible();
+  expect(await balance(request, account.id)).toBe(200000);
+  await page.getByRole('button', { name: 'Wiederholen', exact: true }).click();
+  await expect(row).toHaveCount(0);
+  expect(await balance(request, account.id)).toBe(190000);
+});
+
 const post = async (request: APIRequestContext, path: string, data: unknown) => {
   const response = await request.post(`${MAIN_URL}/api${path}`, {
     headers: { origin: MAIN_URL },

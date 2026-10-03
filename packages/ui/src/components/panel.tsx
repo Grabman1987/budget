@@ -1,5 +1,5 @@
 import { X } from 'lucide-react';
-import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useId, useRef, useState, type KeyboardEvent, type ReactNode } from 'react';
 import { cx } from './cx';
 import { useRegisterToastHost } from './toast-host';
 import { useIsPhone } from './use-media-query';
@@ -14,6 +14,32 @@ export interface PanelProps {
    * `false` to keep it open (e.g. to ask whether unsaved input may be discarded).
    */
   beforeClose?: () => boolean;
+  /** Shown in the head next to the title (e.g. a count); not part of the dialog's name. */
+  headAside?: ReactNode;
+}
+
+const FOCUSABLE =
+  'a[href], button:not([disabled]), input:not([disabled]):not([type="hidden"]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
+
+/**
+ * Keeps Tab inside a large dialog: the native modal makes the page behind inert, but Chrome would
+ * hand the focus on to its own toolbar after the last control. Wrap to the other end instead.
+ */
+function wrapTab(e: KeyboardEvent<HTMLDialogElement>, dialog: HTMLDialogElement) {
+  const items = [...dialog.querySelectorAll<HTMLElement>(FOCUSABLE)].filter(
+    (el) => el.getClientRects().length > 0,
+  );
+  const first = items[0];
+  const last = items[items.length - 1];
+  if (!first || !last) return;
+  const active = document.activeElement;
+  if (e.shiftKey && (active === first || active === dialog)) {
+    e.preventDefault();
+    last.focus();
+  } else if (!e.shiftKey && active === last) {
+    e.preventDefault();
+    first.focus();
+  }
 }
 
 /**
@@ -28,8 +54,10 @@ function Overlay({
   children,
   variant,
   beforeClose,
+  headAside,
   bare = false,
-}: PanelProps & { variant: 'side' | 'bottom' | 'modal'; bare?: boolean }) {
+  wide = false,
+}: PanelProps & { variant: 'side' | 'bottom' | 'modal'; bare?: boolean; wide?: boolean }) {
   const ref = useRef<HTMLDialogElement>(null);
   const titleId = useId();
   // Toasts render inside the open dialog: everything outside a modal dialog is inert.
@@ -57,6 +85,7 @@ function Overlay({
         'overlay',
         variant === 'side' ? 'panel' : variant === 'modal' ? 'modal' : 'sheet-bottom',
         bare && 'is-bare',
+        wide && (variant === 'modal' ? 'is-wide' : 'is-full'),
       )}
       aria-labelledby={titleId}
       onClose={onClose}
@@ -67,6 +96,7 @@ function Overlay({
       // Chrome only fires `cancel` for an Esc that follows a user interaction: a repeated Esc
       // would close the dialog without the question. Handling the key itself always asks.
       onKeyDown={(e) => {
+        if (wide && e.key === 'Tab' && !e.defaultPrevented) wrapTab(e, e.currentTarget);
         if (e.key !== 'Escape' || e.defaultPrevented) return;
         e.preventDefault();
         requestClose();
@@ -91,6 +121,7 @@ function Overlay({
           {variant === 'bottom' && <span className="sheet-grip" aria-hidden="true" />}
           <div className="panel-head">
             <h2 id={titleId}>{title}</h2>
+            {headAside}
             <button
               type="button"
               className="icon-btn"
@@ -129,6 +160,17 @@ export function BottomSheet(props: PanelProps) {
 export function FormDialog(props: PanelProps) {
   const phone = useIsPhone();
   return <Overlay {...props} variant={phone ? 'bottom' : 'modal'} bare />;
+}
+
+/**
+ * Large work dialog (e.g. the Posteingang): a centred modal up to 960 px wide and 85 % of the
+ * screen high on desktop and tablet, a full-screen sheet below 768 px. The head (title, optional
+ * `headAside`, close) stays put; the body scrolls. Native `<dialog>`: focus trap, Esc, backdrop
+ * click and focus return to the trigger come with it.
+ */
+export function WideDialog(props: PanelProps) {
+  const phone = useIsPhone();
+  return <Overlay {...props} variant={phone ? 'bottom' : 'modal'} wide />;
 }
 
 /** Side panel on desktop, bottom sheet below 768 px. */
