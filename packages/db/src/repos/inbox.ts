@@ -19,6 +19,7 @@ export interface InboxBooking {
   amountCents: number;
   currency: string;
   status: typeof booking.$inferSelect.status;
+  source: typeof booking.$inferSelect.source;
   missingSplits: number;
 }
 export interface InboxStored {
@@ -62,6 +63,7 @@ function uncategorizedBookings(db: Executor, today: string): InboxBooking[] {
       amountCents: booking.amountCents,
       currency: booking.currency,
       status: booking.status,
+      source: booking.source,
       missingSplits: sql<number>`count(*)`,
     })
     .from(booking)

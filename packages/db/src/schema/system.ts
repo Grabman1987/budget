@@ -144,6 +144,8 @@ export const assignmentRule = sqliteTable('assignment_rule', {
   id: id(),
   name: text('name').notNull(),
   matchJson: text('match_json').notNull(),
+  actionJson: text('action_json').notNull().default('{}'),
+  automatic: integer('automatic', { mode: 'boolean' }).notNull().default(false),
   payeeId: text('payee_id').references(() => payee.id),
   categoryId: text('category_id').references(() => category.id),
   priority: integer('priority').notNull().default(0),

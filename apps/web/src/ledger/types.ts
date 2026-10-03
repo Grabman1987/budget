@@ -82,6 +82,7 @@ export interface ListedSplit {
 }
 
 export interface ListedBooking {
+  source?: string;
   id: string;
   accountId: string;
   accountName: string;

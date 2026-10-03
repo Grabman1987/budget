@@ -2,6 +2,7 @@ import { FormDialog } from '@budget/ui';
 import { useEffect, useRef, useState } from 'react';
 import { CaptureForm } from './capture-form';
 import type { ListedBooking } from './types';
+import { AssignmentLearnOffer } from '../assignment/review';
 
 export type BookingPanelState =
   | { mode: 'create'; accountId?: string | undefined }
@@ -23,6 +24,7 @@ export function BookingPanel({
   onClose: () => void;
 }) {
   const dirty = useRef(false);
+  const [learnBookingId, setLearnBookingId] = useState<string | null>(null);
   const [asking, setAsking] = useState(false);
   // The last state is kept while the dialog fades out, then dropped so the next one starts fresh.
   const key = state === null ? null : state.mode === 'edit' ? `edit-${state.booking.id}` : 'new';
@@ -61,17 +63,25 @@ export function BookingPanel({
     return false;
   };
   return (
-    <FormDialog open={state !== null} onClose={close} title={title} beforeClose={beforeClose}>
-      {current && shown && (
-        <CaptureForm
-          key={`${shown.n}-${shown.key}`}
-          state={current}
-          onDone={close}
-          dirtyRef={dirty}
-          requestClose={() => beforeClose() && close()}
-          discard={{ asking, keep: () => setAsking(false), discard: close }}
-        />
+    <>
+      {!state && learnBookingId && (
+        <aside role="status">
+          <AssignmentLearnOffer bookingId={learnBookingId} />
+        </aside>
       )}
-    </FormDialog>
+      <FormDialog open={state !== null} onClose={close} title={title} beforeClose={beforeClose}>
+        {current && shown && (
+          <CaptureForm
+            key={`${shown.n}-${shown.key}`}
+            state={current}
+            onDone={close}
+            onBankCategorized={setLearnBookingId}
+            dirtyRef={dirty}
+            requestClose={() => beforeClose() && close()}
+            discard={{ asking, keep: () => setAsking(false), discard: close }}
+          />
+        )}
+      </FormDialog>
+    </>
   );
 }

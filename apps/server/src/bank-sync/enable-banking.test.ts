@@ -181,6 +181,7 @@ describe('bank adapter with synthetic HTTP only', () => {
           date: '2026-09-30',
           amountCents: -1201,
           currency: 'EUR',
+          rawPayee: 'Shop A',
           memo: 'Shop A',
         },
         {
@@ -188,6 +189,7 @@ describe('bank adapter with synthetic HTTP only', () => {
           date: '2026-09-30',
           amountCents: -1201,
           currency: 'EUR',
+          rawPayee: 'Shop A',
           memo: 'Shop A',
         },
       ],
@@ -197,6 +199,30 @@ describe('bank adapter with synthetic HTTP only', () => {
     expect(String(http.mock.calls[1]![0])).toContain('continuation_key=page-next');
     expect(String(http.mock.calls[0]![0])).toContain('transaction_status=BOOK');
     expect(http.mock.calls[0]![1]).toMatchObject({ redirect: 'error' });
+  });
+  it('preserves separate creditor and debtor names beside the original bank memo', async () => {
+    const { provider } = adapter([
+      {
+        transactions: [
+          { ...row, remittance_information: ['Ref: SYN-31'] },
+          {
+            ...row,
+            entry_reference: 'entry-b',
+            credit_debit_indicator: 'CRDT',
+            debtor: { name: 'Shop B' },
+            remittance_information: ['Ref: SYN-32'],
+          },
+        ],
+      },
+    ]);
+    expect(
+      (await provider.transactions('synthetic-uid', '2026-09-01', '2026-10-01')).rows.map(
+        ({ rawPayee, memo, amountCents }) => ({ rawPayee, memo, amountCents }),
+      ),
+    ).toEqual([
+      { rawPayee: 'Shop A', memo: 'Shop A · Ref: SYN-31', amountCents: -1201 },
+      { rawPayee: 'Shop B', memo: 'Shop B · Ref: SYN-32', amountCents: 1201 },
+    ]);
   });
   it('refuses paging cycles but skips malformed money with a redacted count', async () => {
     const cycle = adapter([

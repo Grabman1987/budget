@@ -26,6 +26,7 @@ export interface InboxBooking {
   amountCents: number;
   currency: string;
   status: 'pending' | 'confirmed' | 'reconciled';
+  source?: string;
   missingSplits: number;
 }
 export interface InboxStored {

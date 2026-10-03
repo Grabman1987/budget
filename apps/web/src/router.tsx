@@ -109,6 +109,7 @@ const homeRoute = createRoute({
   component: lazyRouteComponent(heutePage, 'HeutePage'),
 });
 const BUILT_PATHS = new Set<string>([
+  '/einstellungen/zuordnung',
   '/einstellungen/datenquellen',
   SECURITY_META.path,
   PROFILE_META.path,
@@ -203,6 +204,12 @@ const rulesRoute = createRoute({
   path: EINSTELLUNGEN_REGELWERK.path,
   staticData: { meta: EINSTELLUNGEN_REGELWERK },
   component: lazyRouteComponent(() => import('./rules/rules-page'), 'RulesPage'),
+});
+const assignmentRoute = createRoute({
+  getParentRoute: () => shellRoute,
+  path: '/einstellungen/zuordnung',
+  staticData: { meta: PAGES.find((p) => p.path === '/einstellungen/zuordnung')! },
+  component: lazyRouteComponent(() => import('./assignment/assignment-page'), 'AssignmentPage'),
 });
 const planMonthRoute = createRoute({
   getParentRoute: () => shellRoute,
@@ -418,6 +425,7 @@ const routeTree = rootRoute.addChildren([
     investmentSettingsRoute,
     categoriesRoute,
     rulesRoute,
+    assignmentRoute,
     exportRoute,
     dataSourcesRoute,
     planMonthRoute,

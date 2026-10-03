@@ -1,6 +1,7 @@
 import { integer, sqliteTable, text, uniqueIndex } from 'drizzle-orm/sqlite-core';
 import { account } from './accounts';
-import { cents, id, isoDay } from './common';
+import { cents, id, isoDay, timestamps } from './common';
+import { payee } from './budget';
 
 /** Protocol state is separate from owner-editable ledger data. Secrets are AES-GCM. */
 export const bankSyncConsent = sqliteTable('bank_sync_consent', {
@@ -48,9 +49,30 @@ export const bankSyncCandidate = sqliteTable(
     amountCents: cents('amount_cents').notNull(),
     currency: text('currency').notNull(),
     memo: text('memo').notNull(),
+    rawPayee: text('raw_payee'),
+    sourceId: text('source_id').references(() => bankSyncAccount.id),
   },
   (t) => [
     uniqueIndex('bank_sync_candidate_key_uq').on(t.accountId, t.dedupeKey),
     isoDay('bank_sync_candidate_date_chk', t.date),
   ],
+);
+
+export const bankPayeeCleanup = sqliteTable('bank_payee_cleanup', {
+  id: text('id').primaryKey(),
+  configJson: text('config_json').notNull(),
+  ...timestamps(),
+});
+export const bankPayeeAlias = sqliteTable(
+  'bank_payee_alias',
+  {
+    id: text('id').primaryKey(),
+    sourceId: text('source_id').notNull(),
+    rawKey: text('raw_key').notNull(),
+    payeeId: text('payee_id')
+      .notNull()
+      .references(() => payee.id),
+    ...timestamps(),
+  },
+  (t) => [uniqueIndex('bank_payee_alias_key_uq').on(t.sourceId, t.rawKey)],
 );

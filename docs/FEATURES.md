@@ -50,9 +50,9 @@ Prototype references: [Heute](../design/prototype/index.html),
 | Y13 | Heute: free until payday, pace, low point, upcoming payments, next steps | UI + engine | Functional desktop/mobile checks passed, including capture/undo/redo and source navigation; owner visual/device acceptance remains open |
 | Y14 | Plan › Jahr, planned events and scenario workflow | UI + engine; owner acceptance pending | Twelve envelope reads plus category/month event grid; audited create/edit/switch-off/remove and undo/redo; once/monthly/quarterly/yearly/specific-month rules shared with liquidity report 3.1. Unsaved selected-event scenarios overlay future event deltas on stored Zu verteilen, with monthly and December comparison. No bookings, assignments or extra income extrapolation; owner visual/device acceptance remains open |
 | Y15 | Contacts, receivables, repayments and contact statements | EUR ledger/API + connected UI | Actual statement, retained balanced history, editable oldest-first allocation, explicit credit, atomic audit/undo and dependency guards implemented; foreign-currency statements, broader contact editing and owner workflow/design acceptance remain open. Derived balances do not enter net worth |
-| Y16 | Posteingang: categorize, accept/reject suggestions, resolve exceptions | Working basics: actual queue/count, categorize/confirm, warning acknowledgement with undo | Bank/assignment suggestion accept/reject flows and owner workflow acceptance remain open |
+| Y16 | Posteingang: categorize, accept/reject suggestions, resolve exceptions | Connected bank/assignment suggestions, explicit confirmation, warning acknowledgement with undo | Owner workflow acceptance remains open; warning acknowledgement does not repair the source |
 | Y17 | Global search (Ctrl K) | UI + engine | Session-protected, bounded booking/payee/category/account/contact search; keyboard/touch navigation. Owner acceptance pending |
-| Y18 | Assignment rules / Immer so zuordnen | Partial; UI placeholder | Rule editor, safe automatic application and inbox decision integration |
+| Y18 | Assignment rules / Immer so zuordnen | UI + engine: all/any conditions, ordered suggestions, split/transfer actions, history preview, audit/undo and learn-from-booking | Source-specific payee cleanup and learned aliases; automatic preparation never posts a bank candidate without owner confirmation. Bounded regex dialect and transfer matching limits: [contract](assignment-rules.md). Owner/device acceptance remains open |
 | Y19 | Bank connection, consent renewal and reconciliation | Open | Adapter, authorized connection workflow, deduplication, error handling and private bank acceptance |
 | Y20 | Nightly bank/source worker with catch-up | Partial | Market timer exists; full worker and 14-day stable nightly acceptance do not |
 | Y21 | Receipt photograph/upload and links to bookings | Implemented; owner acceptance open | Volume blobs, bounded authenticated upload, booking links/undo, inbox capture, previews/download and encrypted archive backup; metadata limits and real-phone/restore acceptance: [receipts](receipts.md) |
@@ -163,7 +163,8 @@ drill-down or report; the relevant Y/I/report row above stays open until connect
 | Function | Status | Remaining completion evidence |
 | --- | --- | --- |
 | Accounts/categories/rules and investment cost-method settings | UI + engine | Owner data and device acceptance |
-| Sources, assignment rules and asset-class management settings | Partial / placeholders | Complete editors and connected operational status |
+| Sources and asset-class management settings | Partial / placeholders | Complete editors and connected operational status |
+| Assignment rule settings and bank payee cleanup | Connected editor, history preview, ordering, enable/disable, source cleanup and audit/undo | Owner workflow/device acceptance; see [contract](assignment-rules.md) |
 | Passkeys, sessions, recovery and security settings | UI + engine | Owner phone/desktop login, recovery and actual encrypted restore |
 | Audit log and undo | Implemented infrastructure | Verify every newly added user mutation; manual-price API is tested; complete capture UI remains tracked above |
 | Encrypted backup, restore and deployment infrastructure | Implemented, CI checks | Real owner restore; independent second backup destination remains open |

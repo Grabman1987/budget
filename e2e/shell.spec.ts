@@ -166,20 +166,20 @@ test.describe('panel via route param', () => {
   });
 
   test('the browser back button closes the panel', async ({ page }) => {
-    await page.goto('/einstellungen/zuordnung');
+    await page.goto('/einstellungen/anlageklassen');
     await page.getByRole('link', { name: 'Seitenpanel testen' }).click();
     const dialog = page.getByRole('dialog', { name: 'Details' });
     await expect(dialog).toBeVisible();
     await page.goBack();
     await expect(dialog).toBeHidden();
-    await expect(page).toHaveURL(/\/einstellungen\/zuordnung$/);
+    await expect(page).toHaveURL(/\/einstellungen\/anlageklassen$/);
   });
 
   test('the close button closes the panel without leaving a duplicate history entry', async ({
     page,
   }) => {
     await page.goto('/plan/monat');
-    await page.goto('/einstellungen/zuordnung');
+    await page.goto('/einstellungen/anlageklassen');
     await page.getByRole('link', { name: 'Seitenpanel testen' }).click();
     await page.getByRole('button', { name: 'Schließen' }).click();
     await expect(page.getByRole('dialog')).toBeHidden();

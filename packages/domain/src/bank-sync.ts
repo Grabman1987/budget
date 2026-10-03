@@ -15,6 +15,7 @@ export interface BankTransaction {
   amountCents: number;
   currency: string;
   memo: string;
+  rawPayee?: string | null;
 }
 
 /** Preserve identical purchases; repeated complete windows have identical occurrence keys. */
