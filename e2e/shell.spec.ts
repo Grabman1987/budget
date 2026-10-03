@@ -39,10 +39,21 @@ test.describe('routes', () => {
     for (const [from, to] of [
       ['/plan', '/plan/monat'],
       ['/vermoegen', '/vermoegen/nettovermoegen'],
-      ['/einstellungen', '/einstellungen/konten'],
     ] as const) {
       await page.goto(from);
       await expect(page).toHaveURL(new RegExp(`${to}$`));
+    }
+  });
+
+  test('/einstellungen opens the first page on desktop and the grouped index on the phone', async ({
+    page,
+  }, testInfo) => {
+    await page.goto('/einstellungen');
+    if (isPhone(testInfo)) {
+      await expect(page).toHaveURL(/\/einstellungen$/);
+      await expect(page.getByRole('navigation', { name: 'Einstellungen' })).toBeVisible();
+    } else {
+      await expect(page).toHaveURL(/\/einstellungen\/konten$/);
     }
   });
 
@@ -75,8 +86,12 @@ test.describe('routes', () => {
     await expect(page.locator('.registers [aria-current="page"]')).toHaveText(
       'Monat und Einkommen',
     );
+    // Einstellungen have a grouped navigation instead of register tabs (rail on desktop).
     await page.goto('/einstellungen/sicherheit');
-    await expect(page.locator('.registers [aria-current="page"]')).toHaveText('Sicherheit');
+    if (!isPhone(testInfo))
+      await expect(
+        page.getByRole('navigation', { name: 'Einstellungen' }).locator('[aria-current="page"]'),
+      ).toHaveText('Sicherheit');
   });
 
   test('navigation by clicking: areas, registers, catalog and report', async ({

@@ -3,6 +3,7 @@ import { expect, test } from '@playwright/test';
 
 test('average default, saved FIFO switch, reload, both themes and accessible controls', async ({
   page,
+  isMobile,
 }) => {
   // Viewports run against the same server; isolate UI persistence here. SQLite persistence and
   // strict API validation have independent server/DB tests using the actual migrated table.
@@ -17,7 +18,12 @@ test('average default, saved FIFO switch, reload, both themes and accessible con
   await page.goto('/einstellungen/depots');
   const select = page.getByLabel('Einstandskostenmethode');
   await expect(select).toHaveValue('average');
-  await expect(page.getByRole('link', { name: 'Depots & Kryptos', exact: true })).toBeInViewport();
+  // Desktop: the settings rail shows the page; phone: the back bar names it.
+  if (isMobile) await expect(page.locator('.settings-here')).toHaveText('Depots & Kryptos');
+  else
+    await expect(
+      page.getByRole('link', { name: 'Depots & Kryptos', exact: true }),
+    ).toBeInViewport();
   await expect(page.getByRole('button', { name: 'Speichern', exact: true })).toBeDisabled();
   for (const scheme of ['light', 'dark'] as const) {
     await page.emulateMedia({ colorScheme: scheme, reducedMotion: 'reduce' });

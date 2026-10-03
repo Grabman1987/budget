@@ -1,11 +1,19 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test } from '@playwright/test';
 
-test('CSV export downloads all account and portfolio CSVs as one ZIP', async ({ page }) => {
+test('CSV export downloads all account and portfolio CSVs as one ZIP', async ({
+  page,
+  isMobile,
+}) => {
   await page.goto('/einstellungen/export');
   await expect(page).toHaveTitle('Einstellungen · CSV-Export · Budget');
-  const register = page.getByRole('link', { name: 'CSV-Export', exact: true });
-  await expect(register).toHaveAttribute('aria-current', 'page');
+  // Desktop: the settings rail marks the page; phone: the back bar names it.
+  if (isMobile) await expect(page.locator('.settings-here')).toHaveText('CSV-Export');
+  else
+    await expect(page.getByRole('link', { name: 'CSV-Export', exact: true })).toHaveAttribute(
+      'aria-current',
+      'page',
+    );
   await expect(page.getByRole('heading', { name: 'CSV-Export', exact: true })).toBeVisible();
   await expect(
     page.getByText('Alle Konten und Depots als CSV-Dateien in einer ZIP-Datei herunterladen.'),
