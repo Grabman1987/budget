@@ -227,17 +227,6 @@ Order: P2a → P2b and P2c in parallel → P2d (parser can start right after P1f
 
 ## P3 Planung und Steuerung
 
-### UX quick wins (`feat/ux-quick-wins`)
-
-- [x] Device privacy toggle in header/profile and keyboard shortcut; monetary display/input/chart masking without changing stored values
-- [x] Capture category available amount: retained existing grouped picker, warning ink and regression coverage
-- [x] One authenticated storage-persistence request per device; status in Einstellungen › Sicherheit
-- [x] Plan › Monat uncategorized/pending inflow, outflow and net row with booking links; no duplicate budget deduction
-- [x] Rest verteilen fills an active populated split line with integer-cent remainder
-- [x] Today attention links for overspending, monthly funding, inbox and sequential payment cover; hidden when empty
-- [x] Validated `/erfassen` draft links, safe login continuation, normal explicit save and documentation
-- [ ] Delivery checks, draft PR and owner desktop/phone acceptance
-
 Expected payments, contacts with receivables, savings goals, rule set R01–R16 + stages, Heute page, Posteingang basics.
 - [x] P3.3 `p3-kpi-domain`: pure KPI, pace, free-until-payday and liquidity-forecast functions in `packages/domain/src/{kpi,forecast}`
 - [x] Shared budget/category/goal/inbox write toasts report refused undo/redo and connection failures in German; rejected actions preserve stored/query state, successful audited chains retain refresh behavior
@@ -267,6 +256,17 @@ Expected payments, contacts with receivables, savings goals, rule set R01–R16 
 - [x] Shared ledger invalidation refreshes the queue, count and Heute reads after mutations/undo; safe empty/error/loading states and keyboard/touch actions
 - [ ] Bank/assignment suggestions and source repair workflows; acknowledging a warning does not repair its source
 - [ ] Independent review, CI and owner acceptance of this workflow on the deployed app
+
+### UX quick wins (`feat/ux-quick-wins`)
+
+- [x] Device privacy toggle in header/profile and keyboard shortcut; monetary display/input/chart masking without changing stored values
+- [x] Capture category available amount: retained existing grouped picker, warning ink and regression coverage
+- [x] One authenticated storage-persistence request per device; status in Einstellungen › Sicherheit
+- [x] Plan › Monat uncategorized/pending inflow, outflow and net row with booking links; no duplicate budget deduction
+- [x] Rest verteilen fills an active populated split line with integer-cent remainder
+- [x] Today attention links for overspending, monthly funding, inbox and sequential payment cover; hidden when empty
+- [x] Validated `/erfassen` draft links, safe login continuation, normal explicit save and documentation
+- [ ] Delivery checks, draft PR and owner desktop/phone acceptance
 
 ## P4 Datenquellen
 Enable Banking adapter, worker with nightly run and catch-up, inbox items, assignment rules and source status in Einstellungen › Datenquellen. Manual file imports are excluded from app scope; all-account/depot CSV export is available as a step-up authenticated ZIP.

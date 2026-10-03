@@ -36,7 +36,8 @@ attention links and validated owner-saved capture URLs are implemented. The cate
 picker's available-money column and negative warning ink already existed and were
 retained. See [capture links and device conveniences](capture-links.md) for semantics,
 synthetic URL examples and device owner steps. Browser/device acceptance and delivery
-evidence are tracked on the task branch; no database migration is needed.
+evidence are tracked in the [review evidence](screenshots/ux-quick-wins/README.md);
+no database migration is needed.
 
 Prototype references: [Heute](../design/prototype/index.html),
 [Plan](../design/prototype/plan.html), [Konten](../design/prototype/konten.html),
