@@ -34,6 +34,8 @@ describe('rules/books additive migration', () => {
         id: 's1',
         leverageFactor: 10,
       });
+      // Later migrations upgrade the same database; the comparison is against the latest schema.
+      for (const entry of journal.entries.slice(migration + 1)) apply(entry.tag);
       const schemaOf = (o: typeof fresh) =>
         o.sqlite
           .prepare(
