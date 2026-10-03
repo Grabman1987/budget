@@ -1,4 +1,5 @@
-import { addDays } from '../date';
+import { addDays, daysBetween } from '../date';
+import { costOf, type ProductTrade } from './cost';
 import { marketValueEurCents, toEurCents } from './invest';
 import type { CashFlow } from './returns';
 
@@ -79,11 +80,15 @@ export class ExchangeRateUnavailableError extends Error {
     readonly currency: string,
     readonly asOf: string,
   ) {
-    super(`No exchange rate for ${currency} on or before ${asOf}`);
+    // German: this text can reach the UI (never ids or technical wording).
+    super(`Für ${currency} ist bis einschließlich ${asOf} kein Wechselkurs gespeichert.`);
   }
 }
 
-/** A held position cannot be valued without a stored quote on or before the day. */
+/**
+ * A held position cannot be valued without a stored quote on or before the day. Only the strict
+ * rule (`estimate: false`) throws it; the default valuation estimates instead.
+ */
 export class PriceUnavailableError extends Error {
   override readonly name = 'PriceUnavailableError';
   constructor(
@@ -91,7 +96,7 @@ export class PriceUnavailableError extends Error {
     readonly securityId: string,
     readonly asOf: string,
   ) {
-    super(`No price for ${securityId} in ${accountId} on or before ${asOf}`);
+    super(`Für ein Wertpapier fehlt bis einschließlich ${asOf} ein Kurs.`);
   }
 }
 
@@ -129,6 +134,125 @@ export function fxOn(rates: RateTable, currency: string, day: string): number {
   return found.rateMicro;
 }
 
+/**
+ * Valuation fallbacks for a position on a day (a missing quote must never abort a valuation).
+ *
+ * Order, per held position and day:
+ * 1. the latest price on or before the day: `exact` when it is at most `PRICE_STALE_AFTER_DAYS`
+ *    days old (weekends and holidays are carried forward), `stale` when it is older;
+ * 2. no such price: the earliest price AFTER the day, but only within
+ *    `PRICE_BACKFILL_TOLERANCE_DAYS` days (a position bought before its first quote): `estimated`;
+ * 3. still none: the position's cost basis (moving average, in the account currency, converted
+ *    with the rate of the day): `estimated`;
+ * 4. no cost basis either (a snapshot without cost, or an unconvertible currency): the position
+ *    adds nothing and is flagged `missing`.
+ * A position without units (expired, knocked out, sold) needs none of this and adds nothing.
+ */
+export const PRICE_STALE_AFTER_DAYS = 7;
+export const PRICE_BACKFILL_TOLERANCE_DAYS = 7;
+
+/** How trustworthy the value of one position is. */
+export type ValuationQuality = 'exact' | 'stale' | 'estimated' | 'missing';
+
+const QUALITY_RANK: Record<ValuationQuality, number> = {
+  exact: 0,
+  stale: 1,
+  estimated: 2,
+  missing: 3,
+};
+
+/** The worse of two qualities (`missing` > `estimated` > `stale` > `exact`). */
+export function worstQuality(a: ValuationQuality, b: ValuationQuality): ValuationQuality {
+  return QUALITY_RANK[a] >= QUALITY_RANK[b] ? a : b;
+}
+
+/** A position valued only by a cost estimate or not at all: what the UI flags as incomplete. */
+export type IncompleteQuality = 'estimated' | 'missing';
+
+export const isIncompleteQuality = (q: ValuationQuality): q is IncompleteQuality =>
+  q === 'estimated' || q === 'missing';
+
+export interface PriceChoice {
+  price: DatedPrice;
+  quality: 'exact' | 'stale' | 'estimated';
+}
+
+/**
+ * The price a position is valued with on `day` (steps 1 and 2 above), or `undefined` when only the
+ * cost basis is left. `backfill: false` restricts the choice to step 1 (the strict rule).
+ * `sortedPrices` is ascending by date.
+ */
+export function pickPrice(
+  sortedPrices: ReadonlyArray<DatedPrice>,
+  day: string,
+  backfill = true,
+): PriceChoice | undefined {
+  const before = latestOnOrBefore(sortedPrices, day);
+  if (before)
+    return {
+      price: before,
+      quality:
+        before.date === day || daysBetween(before.date, day) <= PRICE_STALE_AFTER_DAYS
+          ? 'exact'
+          : 'stale',
+    };
+  if (!backfill) return undefined;
+  // Nothing on or before the day, so the first price of the ascending list is the earliest after.
+  const after = sortedPrices[0];
+  if (after && daysBetween(day, after.date) <= PRICE_BACKFILL_TOLERANCE_DAYS)
+    return { price: after, quality: 'estimated' };
+  return undefined;
+}
+
+/** What a position cost: the data of the moving-average fallback (step 3). */
+export interface PositionCostInput {
+  /** Currency of the trade amounts and the snapshot costs (the account currency). */
+  currency: string;
+  /** Cost basis of each holding snapshot by its day; `null` = unknown. */
+  snapshots: ReadonlyArray<{ date: string; costBasisCents: number | null }>;
+  /** Units-moving trades with their amounts (other kinds are ignored). */
+  trades: ReadonlyArray<ProductTrade>;
+}
+
+/**
+ * Moving-average cost basis of a position on a day, in the cost currency: the latest snapshot on or
+ * before the day (its cost) plus the trades after the snapshot's day up to the day, like the units.
+ * `null` when the cost is unknown (the snapshot has no cost).
+ */
+export function costBasisOnDay(
+  snapshots: ReadonlyArray<{ date: string; unitsE8: number }>,
+  cost: PositionCostInput,
+  day: string,
+): number | null {
+  const sorted = [...snapshots].sort((a, b) => a.date.localeCompare(b.date));
+  const snap = latestOnOrBefore(sorted, day);
+  let opening = { unitsE8: 0, costBasisCents: 0 };
+  let after = '';
+  if (snap) {
+    const known = cost.snapshots.find((s) => s.date === snap.date)?.costBasisCents ?? null;
+    if (known === null) return null;
+    opening = { unitsE8: snap.unitsE8, costBasisCents: known };
+    after = snap.date;
+  }
+  return costOf(
+    cost.trades.filter((t) => t.date > after && t.date <= day),
+    opening,
+    'average',
+  ).costBasisCents;
+}
+
+/** Cost in `currency` to EUR cents with the rate of the day; `null` without a rate. */
+export function costInEur(
+  costCents: number,
+  currency: string,
+  rates: RateTable,
+  day: string,
+): number | null {
+  if (currency === 'EUR') return costCents;
+  const found = latestOnOrBefore(rates.get(currency) ?? [], day);
+  return found ? toEurCents(costCents, found.rateMicro) : null;
+}
+
 export interface PositionInput {
   accountId: string;
   securityId: string;
@@ -136,8 +260,13 @@ export interface PositionInput {
   snapshots: ReadonlyArray<{ date: string; unitsE8: number }>;
   /** Units-moving trades of this position (buy, sell, delivery, split); other kinds are ignored. */
   trades: ReadonlyArray<{ date: string; unitsE8: number }>;
-  /** Prices of the security ascending by date, including those before the first day. */
+  /**
+   * Prices of the security ascending by date, including those before the first day and (for the
+   * backfill tolerance) a few after the last one.
+   */
   prices: ReadonlyArray<DatedPrice>;
+  /** Cost data for the cost-basis fallback; without it a position with no price is `missing`. */
+  cost?: PositionCostInput;
 }
 
 export interface PositionSeries {
@@ -146,6 +275,19 @@ export interface PositionSeries {
   /** Parallel to `days`. */
   unitsE8: number[];
   valueCents: number[];
+  /** Worst quality over the days the position was held; `exact` when it never was. */
+  quality: ValuationQuality;
+}
+
+/** A position that was valued by an estimate or not at all on some days. */
+export interface IncompleteValuation {
+  accountId: string;
+  securityId: string;
+  quality: IncompleteQuality;
+  /** Number of held days valued like this, and the first and last of them. */
+  days: number;
+  from: string;
+  to: string;
 }
 
 export interface ValuationSeries {
@@ -153,6 +295,17 @@ export interface ValuationSeries {
   positions: PositionSeries[];
   /** Sum of all positions per day, parallel to `days`. */
   totalCents: number[];
+  /** Positions with estimated or missing values, for the "teilweise geschätzt" hint. */
+  incomplete: IncompleteValuation[];
+}
+
+export interface ValuationOptions {
+  /**
+   * Fall back to a later price or the cost basis when there is no price on or before the day
+   * (default). `false` is the strict rule: a held position without a price throws
+   * `PriceUnavailableError` (Portfolio Performance comparisons).
+   */
+  estimate?: boolean;
 }
 
 /**
@@ -176,36 +329,64 @@ function unitsSeries(position: PositionInput, days: ReadonlyArray<string>): numb
 }
 
 /**
- * Daily valuation of positions: units held that day times the latest price on or before it (carried
- * forward over weekends and gaps), times the ECB rate of the price currency of that day, one
- * rounding. A position without units is 0 and needs no quote or rate; missing prices or rates
- * for held positions make the series unavailable.
+ * Daily valuation of positions: units held that day times the price of the fallback order above
+ * (`pickPrice`: the latest price carried forward over weekends and gaps), times the ECB rate of
+ * the price currency of that day, one rounding. A position without units is 0 and needs no quote
+ * or rate. A held position without any usable price falls back to its cost basis (`estimated`) or
+ * adds nothing (`missing`); both are listed in `incomplete`. A missing exchange rate still makes
+ * the series unavailable.
  */
 export function dailyValuation(
   positions: ReadonlyArray<PositionInput>,
   days: ReadonlyArray<string>,
   rates: RateTable,
+  options: ValuationOptions = {},
 ): ValuationSeries {
+  const estimate = options.estimate ?? true;
   const totalCents = days.map(() => 0);
+  const incomplete: IncompleteValuation[] = [];
   const out = positions.map((p): PositionSeries => {
     const prices = [...p.prices].sort((a, b) => a.date.localeCompare(b.date));
     const unitsE8 = unitsSeries(p, days);
+    let quality: ValuationQuality = 'exact';
+    const flagged = new Map<IncompleteQuality, { days: number; from: string; to: string }>();
     const valueCents = days.map((day, i) => {
       const units = unitsE8[i] as number;
       if (units === 0) return 0;
-      const latest = latestOnOrBefore(prices, day);
-      if (!latest) throw new PriceUnavailableError(p.accountId, p.securityId, day);
-      const value = marketValueEurCents(
-        units,
-        latest.priceMicro,
-        fxOn(rates, latest.currency, day),
-      );
+      let value: number;
+      let dayQuality: ValuationQuality;
+      const choice = pickPrice(prices, day, estimate);
+      if (choice) {
+        value = marketValueEurCents(
+          units,
+          choice.price.priceMicro,
+          fxOn(rates, choice.price.currency, day),
+        );
+        dayQuality = choice.quality;
+      } else if (!estimate) {
+        throw new PriceUnavailableError(p.accountId, p.securityId, day);
+      } else {
+        const cost = p.cost ? costBasisOnDay(p.snapshots, p.cost, day) : null;
+        const eur = cost === null || !p.cost ? null : costInEur(cost, p.cost.currency, rates, day);
+        value = eur ?? 0;
+        dayQuality = eur === null ? 'missing' : 'estimated';
+      }
+      quality = worstQuality(quality, dayQuality);
+      if (isIncompleteQuality(dayQuality)) {
+        const f = flagged.get(dayQuality);
+        if (f) {
+          f.days += 1;
+          f.to = day;
+        } else flagged.set(dayQuality, { days: 1, from: day, to: day });
+      }
       totalCents[i] = (totalCents[i] as number) + value;
       return value;
     });
-    return { accountId: p.accountId, securityId: p.securityId, unitsE8, valueCents };
+    for (const [q, f] of flagged)
+      incomplete.push({ accountId: p.accountId, securityId: p.securityId, quality: q, ...f });
+    return { accountId: p.accountId, securityId: p.securityId, unitsE8, valueCents, quality };
   });
-  return { days: [...days], positions: out, totalCents };
+  return { days: [...days], positions: out, totalCents, incomplete };
 }
 
 /** Element-wise sum of series of equal length (positions plus reference cash, and so on). */

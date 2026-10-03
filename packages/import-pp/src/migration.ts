@@ -807,7 +807,9 @@ export function ppDepotSeries(
     p.trades.push({ date: t.date, unitsE8: t.unitsE8 });
   }
   const noRates: RateTable = new Map();
-  const holdings = dailyValuation([...positions.values()], days, noRates).totalCents;
+  const holdings = dailyValuation([...positions.values()], days, noRates, {
+    estimate: false,
+  }).totalCents;
 
   const accounts = model.accounts.filter((a) => target.ppAccountUuids.includes(a.uuid));
   const cashByDay = new Map<string, number>();

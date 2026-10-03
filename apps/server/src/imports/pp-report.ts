@@ -332,8 +332,9 @@ export function gate3Report(db: Executor, input: Gate3Input): Gate3Report {
   };
 
   for (const day of days) {
-    const nw = netWorthValuationAsOf(db, day);
-    const app = holdingValuationExportAsOf(db, day);
+    // Strict: the comparison with Portfolio Performance counts missing quotes, it never estimates.
+    const nw = netWorthValuationAsOf(db, day, { estimate: false });
+    const app = holdingValuationExportAsOf(db, day, { estimate: false });
     const costs = new Map(
       positionCostDetailsAsOf(db, day, app).map((c) => [`${c.accountId}\0${c.securityId}`, c]),
     );
@@ -823,12 +824,16 @@ function depotPerformance(
     let series: ReturnType<typeof valuationSeries> | undefined;
     for (let attempt = 0; series === undefined && attempt <= heldIds.length; attempt++) {
       try {
-        series = valuationSeries(db, {
-          accounts: memberIds,
-          securities: heldIds.filter((id) => !excluded.has(id)),
-          from,
-          to: today,
-        });
+        series = valuationSeries(
+          db,
+          {
+            accounts: memberIds,
+            securities: heldIds.filter((id) => !excluded.has(id)),
+            from,
+            to: today,
+          },
+          { estimate: false },
+        );
       } catch (error) {
         if (!(error instanceof PriceUnavailableError)) throw error;
         excluded.add(error.securityId);

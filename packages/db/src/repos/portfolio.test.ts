@@ -39,6 +39,8 @@ describe('C10 positions per account, valued in EUR with stored rates', () => {
         priceCurrency: 'USD',
         fxRateMicro: 925000,
         valueCents: 148000,
+        quality: 'exact',
+        priceDate: '2026-02-27',
       },
       {
         accountId: 'd2',
@@ -48,6 +50,8 @@ describe('C10 positions per account, valued in EUR with stored rates', () => {
         priceCurrency: 'USD',
         fxRateMicro: 925000,
         valueCents: 46250,
+        quality: 'exact',
+        priceDate: '2026-02-27',
       },
     ]);
   });
@@ -70,6 +74,7 @@ describe('C10 positions per account, valued in EUR with stored rates', () => {
       missingFxByAccount: {},
       missingPriceSecurityIds: [],
       missingPriceByAccount: {},
+      incomplete: [],
     });
 
     db.insert(account)
@@ -118,16 +123,24 @@ describe('C10 positions per account, valued in EUR with stored rates', () => {
     expect(() => netWorthAsOf(opened.db, '2026-02-28')).toThrow(MissingFxRateError);
   });
 
-  it('keeps a held security without a quote explicitly unavailable', () => {
+  it('flags a held security without a quote and without cost instead of failing', () => {
     opened.sqlite.exec(`
       INSERT INTO security (id, name, kind, currency) VALUES ('unpriced-chf-security', 'Unpriced', 'stock', 'CHF');
       INSERT INTO holding (id, security_id, account_id, as_of, units_e8) VALUES ('unpriced-chf-holding', 'unpriced-chf-security', 'd1', '2026-01-01', 1000000000);
     `);
     const valuation = netWorthValuationAsOf(opened.db, '2026-02-28');
-    expect(valuation.totalCents).toBeNull();
+    // It adds nothing, the rest of the valuation stays available.
+    expect(valuation.totalCents).toBe(100_000 + 9_250 + 148_000 + 46_250);
     expect(valuation.missingFxCurrencies).toEqual([]);
-    expect(valuation.holdingsByAccount.d1).toBeNull();
+    expect(valuation.holdingsByAccount.d1).toBe(148_000);
     expect(valuation.missingPriceSecurityIds).toEqual(['unpriced-chf-security']);
+    expect(valuation.incomplete).toEqual([
+      expect.objectContaining({ securityId: 'unpriced-chf-security', quality: 'missing' }),
+    ]);
+    // The strict rule keeps the old, explicit unavailability.
+    const strict = netWorthValuationAsOf(opened.db, '2026-02-28', { estimate: false });
+    expect(strict.totalCents).toBeNull();
+    expect(strict.holdingsByAccount.d1).toBeNull();
   });
 
   it('counts closed cash balances in the same shared net-worth values', () => {
