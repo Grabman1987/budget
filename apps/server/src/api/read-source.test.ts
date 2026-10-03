@@ -84,3 +84,32 @@ it('reports only a key boolean and never persists credentials, upstream bodies o
     category: 'http',
   });
 });
+const put = (path: string, body: unknown) =>
+  app.request('/api/sources/crypto' + path, {
+    method: 'PUT',
+    headers: { origin: 'https://app.test', 'content-type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+it('saves the start day behind step-up with a strict body and reports it in the status', async () => {
+  const status = async () =>
+    ((await (await app.request('/api/sources/crypto')).json()) as { since: string | null }).since;
+  expect(await status()).toBeNull();
+  stepUp = false;
+  expect((await put('/since', { since: '2026-01-01' })).status).toBe(403);
+  session = false;
+  expect((await put('/since', { since: '2026-01-01' })).status).toBe(401);
+  session = true;
+  stepUp = true;
+  expect((await put('/since', { since: '2026-01-01', extra: 1 })).status).toBe(400);
+  expect((await put('/since', {})).status).toBe(400);
+  expect((await put('/since', { since: '2026-13-01' })).status).toBe(400);
+  expect((await put('/since', { since: '2026-02-30' })).status).toBe(400);
+  expect((await put('/since', { since: '01.01.2026' })).status).toBe(400);
+  expect(await status()).toBeNull();
+  const saved = await put('/since', { since: '2026-01-01' });
+  expect(saved.status).toBe(200);
+  expect(await saved.json()).toEqual({ groupId: expect.any(String) });
+  expect(await status()).toBe('2026-01-01');
+  expect((await put('/since', { since: null })).status).toBe(200);
+  expect(await status()).toBeNull();
+});

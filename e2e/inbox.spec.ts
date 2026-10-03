@@ -1,6 +1,6 @@
 import AxeBuilder from '@axe-core/playwright';
 import { inboxItem, insertTracked, openDatabase } from '@budget/db';
-import { expect, test } from '@playwright/test';
+import { expect, test, type Page } from '@playwright/test';
 import { DB_MAIN, MAIN_URL } from '../playwright.config';
 
 test('actual inbox: confirm, categorize, resolve warning, undo and keyboard panel', async ({
@@ -149,4 +149,107 @@ test('empty and failed inbox count never present a fabricated nine', async ({ pa
       .getByRole('link', { name: 'Posteingang, Anzahl noch nicht verfügbar' })
       .filter({ visible: true }),
   ).toBeVisible();
+});
+
+test.describe('Posteingang dialog', () => {
+  const isPhone = (info: { project: { name: string } }) => info.project.name === 'mobile';
+  const trigger = (page: Page, info: { project: { name: string } }) =>
+    page.locator(isPhone(info) ? '.m-head' : '.topbar').getByRole('link', { name: /^Posteingang/ });
+
+  test.beforeEach(async ({ page }) => {
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+    await page.route('**/api/inbox/count', (route) => route.fulfill({ json: { count: 2 } }));
+    await page.route('**/api/inbox', (route) =>
+      route.fulfill({ json: { asOf: '2026-09-17', count: 0, entries: [] } }),
+    );
+  });
+
+  test('opens as a large centred dialog (desktop) or a full-screen sheet (phone)', async ({
+    page,
+  }, info) => {
+    await page.goto('/konten');
+    await trigger(page, info).click();
+    await expect(page).toHaveURL(/\/konten\?panel=posteingang$/);
+    const dialog = page.getByRole('dialog', { name: 'Posteingang', exact: true });
+    await expect(dialog).toBeVisible();
+    await expect(dialog).toHaveAttribute('aria-labelledby', /.+/);
+    // Modal: the page behind is inert (showModal).
+    expect(await dialog.evaluate((el) => el.matches(':modal'))).toBe(true);
+    await expect(dialog.locator('.panel-head .count')).toHaveText(/^2/);
+    const box = await dialog.boundingBox();
+    const viewport = page.viewportSize();
+    expect(box && viewport).toBeTruthy();
+    if (!box || !viewport) return;
+    if (isPhone(info)) {
+      expect(Math.round(box.x)).toBe(0);
+      expect(Math.round(box.y)).toBe(0);
+      expect(Math.round(box.width)).toBe(viewport.width);
+      expect(Math.round(box.height)).toBe(viewport.height);
+    } else {
+      expect(Math.round(box.width)).toBe(Math.min(960, viewport.width - 48));
+      expect(box.height).toBeLessThanOrEqual(viewport.height * 0.85 + 1);
+      expect(Math.abs(box.x + box.width / 2 - viewport.width / 2)).toBeLessThan(2);
+      expect(Math.abs(box.y + box.height / 2 - viewport.height / 2)).toBeLessThan(2);
+    }
+    const axe = await new AxeBuilder({ page }).analyze();
+    expect(axe.violations.filter((v) => v.impact === 'serious' || v.impact === 'critical')).toEqual(
+      [],
+    );
+  });
+
+  test('Esc and the close button close it and focus returns to the trigger', async ({
+    page,
+  }, info) => {
+    await page.goto('/konten');
+    const opener = trigger(page, info);
+    await opener.focus();
+    await page.keyboard.press('Enter');
+    const dialog = page.getByRole('dialog', { name: 'Posteingang', exact: true });
+    await expect(dialog).toBeVisible();
+    await page.keyboard.press('Escape');
+    await expect(dialog).toBeHidden();
+    await expect(page).toHaveURL(/\/konten$/);
+    await expect(opener).toBeFocused();
+    await opener.click();
+    await expect(dialog).toBeVisible();
+    await dialog.getByRole('button', { name: 'Schließen' }).click();
+    await expect(dialog).toBeHidden();
+    await expect(page).toHaveURL(/\/konten$/);
+  });
+
+  test('a click on the backdrop closes it (desktop)', async ({ page }, info) => {
+    test.skip(isPhone(info), 'the phone sheet has no backdrop');
+    await page.goto('/konten?panel=posteingang');
+    const dialog = page.getByRole('dialog', { name: 'Posteingang', exact: true });
+    await expect(dialog).toBeVisible();
+    await page.mouse.click(8, 8);
+    await expect(dialog).toBeHidden();
+    await expect(page).toHaveURL(/\/konten$/);
+  });
+
+  test('focus stays inside while tabbing and the head stays when the body scrolls', async ({
+    page,
+  }, info) => {
+    await page.goto('/konten');
+    await trigger(page, info).click();
+    const dialog = page.getByRole('dialog', { name: 'Posteingang', exact: true });
+    await expect(dialog).toBeVisible();
+    for (let i = 0; i < 8; i++) {
+      await page.keyboard.press('Tab');
+      expect(await dialog.evaluate((el) => el.contains(document.activeElement))).toBe(true);
+    }
+    const head = dialog.locator('.panel-head');
+    await dialog.locator('.panel-body').evaluate((el) => {
+      const filler = document.createElement('div');
+      filler.style.height = '3000px';
+      el.append(filler);
+      el.scrollTop = 1500;
+    });
+    // The dialog grows to its maximum and the body scrolls inside; the head stays at the top.
+    const box = await dialog.boundingBox();
+    const after = await head.boundingBox();
+    expect(Math.round((after?.y ?? -1) - (box?.y ?? 0))).toBeLessThanOrEqual(1);
+    expect(await dialog.locator('.panel-body').evaluate((el) => el.scrollTop)).toBeGreaterThan(0);
+    await expect(dialog.getByRole('button', { name: 'Schließen' })).toBeInViewport();
+  });
 });

@@ -1,4 +1,5 @@
 import {
+  defaultReadSourceSince,
   readSourceState,
   stageSourcePage,
   finishReadSource,
@@ -27,6 +28,7 @@ export async function refreshReadSource(
   running.add(db);
   let operationsComplete = false;
   try {
+    defaultReadSourceSince(db, todayInVienna(now), { actor: 'system' });
     const state = readSourceState(db);
     const at = now.toISOString();
     // Replay overlap catches late arrivals and changes; a bounded window avoids moving pagination.
