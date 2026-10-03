@@ -9,20 +9,42 @@ remain retained for audit, deduplication and recovery.
 
 ## Owner setup
 
-Set `PAYSLIP_PDF_PASSWORD` as a Fly secret on the running app. The command shape is
-`fly secrets set PAYSLIP_PDF_PASSWORD=…`; the ellipsis represents a value supplied
-privately by the owner, never a repository value. Do not paste secrets into issues,
-PRs, logs or screenshots. Secret updates restart the app; use **Erneut auswerten**
+The PDF password can be entered in the app: the upload form has an optional
+**PDF-Passwort** field (type password, no autocomplete) and the checkbox **Für künftige
+Uploads merken**. The server tries, in order: the password sent with this upload, the
+remembered app password, the server secret `PAYSLIP_PDF_PASSWORD`, no password. A typed
+password is remembered only if "merken" is set and it demonstrably opened an encrypted
+PDF. It is stored in table `payslip_secret` as AES-256-GCM ciphertext (the sealing code
+of the bank secret box) under a key derived with HKDF-SHA256 from the existing
+`BUDGET_PEPPER` (info `payslip-pdf-password-v1`); no new secret is needed. Without
+`BUDGET_PEPPER` of at least 32 characters, remembering is disabled and the UI says so.
+The password and extracted text never reach logs, audit entries, API responses or
+browser storage; the audit log records only value-free create/update/delete events for
+`payslip_secret`. The status endpoint returns just `passwordSet` and
+`passwordSource` (`app`, `server` or none). Rotating `BUDGET_PEPPER` makes the stored
+password unreadable (treated as not stored); enter it again. **Einstellungen ›
+Datenquellen › Gehaltszettel** shows *PDF-Passwort hinterlegt: ja (in der App) / ja
+(Server) / nein*, with **Passwort ändern** (stores a new one, checked at the next
+upload) and **Vergessen** (deletes the ciphertext). A PDF that cannot be opened keeps a
+warning in Posteingang with a password field and **Erneut auswerten**, which accepts the
+new password (and "merken") for that retry.
+
+Alternatively set `PAYSLIP_PDF_PASSWORD` as a Fly secret on the running app. The command
+shape is `fly secrets set PAYSLIP_PDF_PASSWORD=…`; the ellipsis represents a value
+supplied privately by the owner, never a repository value. Do not paste secrets into
+issues, PRs, logs or screenshots. Secret updates restart the app; use **Erneut auswerten**
 on an existing warning after fixing the password. Unencrypted PDFs also work.
 
 Optional Dropbox setup:
 
 1. Create a scoped app in the [Dropbox developer console](https://www.dropbox.com/developers/apps).
    An existing folder outside the application's app folder requires Full Dropbox
-   access. Enable only `files.metadata.read` and `files.content.read`; no write scopes.
+   access. Enable `files.metadata.read` and `files.content.read`. Add `files.content.write`
+   only if you want uploads copied to Dropbox (step 6); without that flag no write scope
+   is needed.
 2. Authorize the owner at `https://www.dropbox.com/oauth2/authorize` using the app's
-   `client_id`, `response_type=code`, `token_access_type=offline`, the two read scopes,
-   and a random `state` verified on return. Register and use the same `redirect_uri`
+   `client_id`, `response_type=code`, `token_access_type=offline`, the read scopes,
+   and a random `state` verified on return (add `files.content.write` to `scope` only for step 6). Register and use the same `redirect_uri`
    throughout if using a redirect. This is an owner setup operation outside Budget.
 3. Exchange the returned one-use authorization code with a form-encoded POST to
    `https://api.dropboxapi.com/oauth2/token`: `grant_type=authorization_code`, `code`,
@@ -37,6 +59,23 @@ Optional Dropbox setup:
    account and configure any additional numeric Lohnart mappings. The form stores
    owner data in the database, not in code. Upload a PDF, inspect the draft and
    check the original document before confirming.
+
+6. Optional, write-back of uploads: set `DROPBOX_PAYSLIP_WRITE=1` (with the Dropbox
+   settings above, a refresh-token setup, and the `files.content.write` scope; a
+   read-only `DROPBOX_TOKEN` will make copies fail visibly). A manually uploaded PDF
+   is then also stored byte-for-byte unchanged (still encrypted if it was) as
+   `<DROPBOX_PAYSLIP_ROOT>/<YYYY>/<original file name>`. YYYY is the year of the
+   parsed Abrechnungsmonat, else of a filename `YYYYMM`, else the current year. The
+   upload uses `files/upload` with `mode: add`, `autorename` and `mute`; an identical
+   file already at the target is not uploaded again, a different file of the same name
+   is kept and the new one renamed by Dropbox. The copy happens after the intake is
+   staged and never fails the upload: the upload response carries
+   `dropboxCopy` (`saved`, `failed`, `off`), the UI shows *In Dropbox abgelegt* or
+   *Dropbox-Ablage fehlgeschlagen*, and a failure also raises a generic source warning in
+   Posteingang. Files fetched from Dropbox are never written back; the nightly scan
+   later sees the uploaded copy and skips it through the SHA-256 deduplication.
+   **Einstellungen › Datenquellen › Gehaltszettel** shows whether write-back is active
+   and whether the PDF password is set (stored as server secret `PAYSLIP_PDF_PASSWORD`).
 
 Provider setup reference: [Dropbox OAuth guide](https://developers.dropbox.com/oauth-guide).
 Listing/download contract: [Dropbox HTTP API](https://www.dropbox.com/developers/documentation/http/documentation).

@@ -8,6 +8,9 @@ export const dropboxConfigured = (env = process.env) =>
     (env['DROPBOX_TOKEN'] ||
       (env['DROPBOX_REFRESH_TOKEN'] && env['DROPBOX_APP_KEY'] && env['DROPBOX_APP_SECRET'])),
   );
+/** Optional write-back of manual uploads; needs `files.content.write` and an explicit flag. */
+export const dropboxWriteEnabled = (env = process.env) =>
+  dropboxConfigured(env) && env['DROPBOX_PAYSLIP_WRITE'] === '1';
 const entry = z.object({
   '.tag': z.string(),
   name: z.string(),
@@ -27,7 +30,7 @@ const page = z.object({
 });
 export type DropboxEntry = z.infer<typeof entry>;
 export class DropboxError extends Error {
-  constructor(readonly code: 'provider' | 'cursor_reset' | 'size' | 'integrity') {
+  constructor(readonly code: 'provider' | 'cursor_reset' | 'size' | 'integrity' | 'not_found') {
     super(code);
   }
 }
@@ -41,6 +44,22 @@ export function dropboxContentHash(bytes: Buffer) {
         .digest(),
     );
   return createHash('sha256').update(Buffer.concat(hashes)).digest('hex');
+}
+/** Target year: parsed Abrechnungsmonat, else filename YYYYMM, else the current year. */
+export function dropboxTargetYear(
+  parsed: { draft: { month: string } | null },
+  filename: string,
+  now = new Date(),
+) {
+  const fromDraft = parsed.draft?.month.match(/^(20\d{2})-(?:0[1-9]|1[0-2])$/);
+  if (fromDraft) return fromDraft[1]!;
+  const fromName = filename.match(/(?:^|\D)(20\d{2})(?:0[1-9]|1[0-2])(?:\D|$)/);
+  return fromName ? fromName[1]! : String(now.getUTCFullYear());
+}
+/** `<root>/<YYYY>/<original name>`; the name is already sanitized to a single path segment. */
+export function dropboxTargetPath(root: string, year: string, filename: string) {
+  const name = filename.replace(/[\\/]/g, '_');
+  return `${root.replace(/\/$/, '')}/${year}/${/\.pdf$/i.test(name) ? name : name + '.pdf'}`;
 }
 export function eligiblePayslipPath(root: string, path: string) {
   const base = root.replace(/\/$/, '').toLowerCase(),
@@ -89,6 +108,11 @@ export class DropboxPayslipSource {
           const b = await boundedBody(response, 32768);
           if (/"(?:\.tag|error_summary)"\s*:\s*"reset/.test(b.toString()))
             throw new DropboxError('cursor_reset');
+        }
+        if (response.status === 409 && url.endsWith('/get_metadata')) {
+          const b = await boundedBody(response, 32768);
+          if (/"(?:\.tag|error_summary)"\s*:\s*"(?:path\/)?not_found/.test(b.toString()))
+            throw new DropboxError('not_found');
         }
         await response.body?.cancel();
         throw new DropboxError('provider');
@@ -161,5 +185,51 @@ export class DropboxPayslipSource {
     if (bytes.length !== file.size || dropboxContentHash(bytes) !== file.content_hash)
       throw new DropboxError('integrity');
     return bytes;
+  }
+  /**
+   * Store the original bytes unchanged at `path`. Never overwrites: an identical file already
+   * there counts as stored; a different file with the same name makes Dropbox rename the new one.
+   */
+  async upload(path: string, bytes: Buffer): Promise<'saved' | 'exists'> {
+    if (bytes.length > RECEIPT_LIMIT) throw new DropboxError('size');
+    const token = await this.token();
+    try {
+      const meta = await this.request(
+        'https://api.dropboxapi.com/2/files/get_metadata',
+        {
+          method: 'POST',
+          headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json' },
+          body: JSON.stringify({ path }),
+        },
+        64 * 1024,
+      );
+      const existing = z
+        .object({ content_hash: z.string().optional() })
+        .safeParse(JSON.parse(meta.toString()));
+      if (existing.success && existing.data.content_hash === dropboxContentHash(bytes))
+        return 'exists';
+    } catch (error) {
+      if (!(error instanceof DropboxError && error.code === 'not_found')) throw error;
+    }
+    await this.request(
+      'https://content.dropboxapi.com/2/files/upload',
+      {
+        method: 'POST',
+        headers: {
+          authorization: `Bearer ${token}`,
+          'content-type': 'application/octet-stream',
+          'Dropbox-API-Arg': JSON.stringify({
+            path,
+            mode: 'add',
+            autorename: true,
+            mute: true,
+            strict_conflict: false,
+          }),
+        },
+        body: new Uint8Array(bytes),
+      },
+      64 * 1024,
+    );
+    return 'saved';
   }
 }

@@ -42,7 +42,7 @@ test('synthetic encrypted PDF upload, confirm, undo and reject on phone and desk
   await source.getByLabel('Lohnart 1', { exact: true }).fill('899');
   await source.getByLabel('Typ 1', { exact: true }).selectOption('reimbursement');
   await source.getByRole('button', { name: 'Zuordnung speichern' }).click();
-  await expect(source).toContainText('Passwort gesetzt');
+  await expect(source).toContainText('PDF-Passwort hinterlegt');
   await inspectReport(page, info, 'payslip-source');
   await page.goto('/reports/gehalt?monat=2026-09');
   const bytes = await syntheticPayslipPdf();

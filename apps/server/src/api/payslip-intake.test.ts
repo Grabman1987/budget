@@ -78,7 +78,8 @@ describe('authenticated payslip intake HTTP boundary', () => {
     const response = await upload();
     expect(response.status).toBe(201);
     expect(response.headers.get('cache-control')).toBe('no-store');
-    const result = (await response.json()) as { id: string };
+    const result = (await response.json()) as { id: string; dropboxCopy: string };
+    expect(result.dropboxCopy).toBe('off');
     expect(opened.db.select().from(schema.booking).all()).toHaveLength(0);
     expect(opened.db.select().from(schema.payslip).all()).toHaveLength(0);
     const read = await app.request(`/api/payslip-intake/${result.id}`, { headers });
@@ -103,6 +104,7 @@ describe('authenticated payslip intake HTTP boundary', () => {
     const response = await app.request('/api/payslip-intake/status', { headers });
     const body = await response.text();
     expect(body).toContain('"passwordSet":true');
+    expect(body).toContain('"dropboxWrite":false');
     expect(body).not.toContain('synthetic-pdf-password');
     const bad = await app.request('/api/payslip-intake/config', {
       method: 'PUT',
@@ -126,5 +128,58 @@ describe('authenticated payslip intake HTTP boundary', () => {
     });
     expect(response.status).toBe(400);
     expect(opened.db.select().from(schema.payslipIntake).all()).toHaveLength(0);
+  });
+  it('accepts password/remember fields, reports only the source and forgets on request', async () => {
+    vi.stubEnv('BUDGET_PEPPER', 'synthetic-pepper-0123456789abcdef-synthetic');
+    vi.stubEnv('PAYSLIP_PDF_PASSWORD', '');
+    const form = new FormData();
+    form.set(
+      'file',
+      new File(
+        [new Uint8Array(await syntheticPayslipPdf(undefined, 'synthetic-api-secret'))],
+        'a.pdf',
+        {
+          type: 'application/pdf',
+        },
+      ),
+    );
+    form.set('password', 'synthetic-api-secret');
+    form.set('remember', '1');
+    const response = await app.request('/api/payslip-intake/upload', {
+      method: 'POST',
+      headers,
+      body: form,
+    });
+    expect(response.status).toBe(201);
+    const body = await response.text();
+    expect(body).toContain('"passwordRemember":"saved"');
+    expect(body).not.toContain('synthetic-api-secret');
+    const status = await (await app.request('/api/payslip-intake/status', { headers })).text();
+    expect(status).toContain('"passwordSource":"app"');
+    expect(status).not.toContain('synthetic-api-secret');
+    expect(opened.sqlite.serialize().includes(Buffer.from('synthetic-api-secret'))).toBe(false);
+    const forget = await app.request('/api/payslip-intake/password', { method: 'DELETE', headers });
+    expect(forget.status).toBe(200);
+    expect(await forget.text()).toContain('"passwordSource":null');
+    const extra = new FormData();
+    extra.set('file', new File(['x'], 'a.pdf'));
+    extra.set('secret', 'x');
+    expect(
+      (await app.request('/api/payslip-intake/upload', { method: 'POST', headers, body: extra }))
+        .status,
+    ).toBe(400);
+  });
+  it('replaces the remembered password and requires BUDGET_PEPPER', async () => {
+    const put = (password: string) =>
+      app.request('/api/payslip-intake/password', {
+        method: 'PUT',
+        headers: { ...headers, 'content-type': 'application/json' },
+        body: JSON.stringify({ password }),
+      });
+    vi.stubEnv('BUDGET_PEPPER', '');
+    expect((await put('synthetic-new')).status).toBe(409);
+    vi.stubEnv('BUDGET_PEPPER', 'synthetic-pepper-0123456789abcdef-synthetic');
+    expect((await put('synthetic-new')).status).toBe(200);
+    expect(opened.sqlite.serialize().includes(Buffer.from('synthetic-new'))).toBe(false);
   });
 });

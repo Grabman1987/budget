@@ -1,8 +1,8 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "8db938dd-6336-4eca-997d-790b007c3feb",
-  "prevId": "7aeff5b7-c1ee-4c6a-90ed-61d95753cadb",
+  "id": "443703ae-4584-4574-8edf-abeddd488d61",
+  "prevId": "8db938dd-6336-4eca-997d-790b007c3feb",
   "tables": {
     "account": {
       "name": "account",
@@ -6488,6 +6488,38 @@
           "primaryKey": false,
           "notNull": false,
           "autoincrement": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "payslip_secret": {
+      "name": "payslip_secret",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "ciphertext": {
+          "name": "ciphertext",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "(strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))"
         }
       },
       "indexes": {},

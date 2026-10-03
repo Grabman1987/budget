@@ -15,20 +15,82 @@ import { AppLink } from '../shell/app-link';
 import './payslip-intake.css';
 
 const PATH = '/api/payslip-intake';
+type RememberResult = 'saved' | 'unavailable' | 'not_opened' | 'off';
+const rememberText = (r?: RememberResult) =>
+  r === 'saved'
+    ? 'Passwort für künftige Uploads gemerkt.'
+    : r === 'unavailable'
+      ? 'Passwort nicht gemerkt: Am Server fehlt BUDGET_PEPPER.'
+      : r === 'not_opened'
+        ? 'Passwort nicht gemerkt: Es hat dieses PDF nicht geöffnet.'
+        : '';
+/** Optional PDF password. Kept in component state only and cleared after each request. */
+function PasswordFields({
+  password,
+  remember,
+  disabled,
+  onPassword,
+  onRemember,
+  legend,
+}: {
+  password: string;
+  remember: boolean;
+  disabled: boolean;
+  onPassword: (value: string) => void;
+  onRemember: (value: boolean) => void;
+  legend: string;
+}) {
+  return (
+    <div className="payslip-password">
+      <Field label={legend}>
+        {({ id }) => (
+          <TextInput
+            id={id}
+            type="password"
+            autoComplete="off"
+            maxLength={256}
+            value={password}
+            disabled={disabled}
+            onChange={(e) => onPassword(e.target.value)}
+          />
+        )}
+      </Field>
+      <label className="check-row">
+        <input
+          type="checkbox"
+          checked={remember}
+          disabled={disabled}
+          onChange={(e) => onRemember(e.target.checked)}
+        />{' '}
+        Für künftige Uploads merken
+      </label>
+    </div>
+  );
+}
 export function PayslipUpload() {
   const picker = useRef<HTMLInputElement>(null),
     [busy, setBusy] = useState(false),
     [message, setMessage] = useState(''),
-    [error, setError] = useState('');
+    [error, setError] = useState(''),
+    [dropbox, setDropbox] = useState<'saved' | 'failed' | 'off'>('off'),
+    [password, setPassword] = useState(''),
+    [remember, setRemember] = useState(false),
+    [rememberNote, setRememberNote] = useState('');
   const qc = useQueryClient();
   async function upload(file?: File) {
     if (!file || busy) return;
     setBusy(true);
     setError('');
     setMessage('');
+    setDropbox('off');
+    setRememberNote('');
     try {
       const body = new FormData();
       body.set('file', file);
+      if (password) {
+        body.set('password', password);
+        if (remember) body.set('remember', '1');
+      }
       const response = await fetch(PATH + '/upload', {
         method: 'POST',
         body,
@@ -36,6 +98,8 @@ export function PayslipUpload() {
       });
       const result = (await response.json()) as {
         duplicate: boolean;
+        dropboxCopy?: 'saved' | 'failed' | 'off';
+        passwordRemember?: RememberResult;
         error?: string;
         message?: string;
       };
@@ -46,10 +110,13 @@ export function PayslipUpload() {
           ? 'Dieses PDF wurde bereits aufgenommen.'
           : 'PDF im Posteingang zur Bestätigung bereit.',
       );
+      setDropbox(result.duplicate ? 'off' : (result.dropboxCopy ?? 'off'));
+      setRememberNote(rememberText(result.passwordRemember));
       await qc.invalidateQueries();
     } catch (e) {
       setError(errorText(e));
     } finally {
+      setPassword('');
       setBusy(false);
     }
   }
@@ -72,11 +139,27 @@ export function PayslipUpload() {
         Gehaltszettel hochladen
       </Button>
       <span>PDF · höchstens 15 MB{busy ? ' · Wird ausgewertet …' : ''}</span>
+      <details className="payslip-password-details">
+        <summary>PDF-Passwort eingeben (optional)</summary>
+        <PasswordFields
+          legend="PDF-Passwort"
+          password={password}
+          remember={remember}
+          disabled={busy}
+          onPassword={setPassword}
+          onRemember={setRemember}
+        />
+      </details>
       {message && (
         <p role="status">
           {message} <AppLink to="/konten/posteingang">Posteingang öffnen</AppLink>
         </p>
       )}
+      {message && dropbox === 'saved' && <p role="status">In Dropbox abgelegt</p>}
+      {message && dropbox === 'failed' && (
+        <p role="status">Dropbox-Ablage fehlgeschlagen – Datei liegt sicher in der App</p>
+      )}
+      {message && rememberNote && <p role="status">{rememberNote}</p>}
       {error && (
         <p role="alert" className="field-error">
           {error}
@@ -104,7 +187,9 @@ export function PayslipIntakeDetail({ id }: { id: string }) {
     queryFn: () => request<Intake>('GET', `${PATH}/${id}`),
   });
   const [bookingId, setBookingId] = useState<string | undefined>(),
-    [busy, setBusy] = useState(false);
+    [busy, setBusy] = useState(false),
+    [password, setPassword] = useState(''),
+    [remember, setRemember] = useState(false);
   const write = useBudgetWrite();
   const data = query.isSuccess && !query.isFetching ? query.data : undefined;
   const match =
@@ -128,7 +213,11 @@ export function PayslipIntakeDetail({ id }: { id: string }) {
         request<{ groupId: string }>(
           'POST',
           `${PATH}/${id}/${action === 'retry' ? 'retry' : 'decision'}`,
-          action === 'retry' ? {} : { action, bookingId: match || null },
+          action === 'retry'
+            ? password
+              ? { password, ...(remember ? { remember: true } : {}) }
+              : {}
+            : { action, bookingId: match || null },
         ),
       () =>
         action === 'confirm'
@@ -137,6 +226,7 @@ export function PayslipIntakeDetail({ id }: { id: string }) {
             ? 'Gehaltszettel verworfen.'
             : 'PDF erneut ausgewertet.',
     );
+    if (action === 'retry') setPassword('');
     setBusy(false);
   }
   return (
@@ -160,6 +250,16 @@ export function PayslipIntakeDetail({ id }: { id: string }) {
               {w}
             </p>
           ))}
+          {p?.warnings.some((w) => w.startsWith('PDF-Passwort')) && (
+            <PasswordFields
+              legend="PDF-Passwort"
+              password={password}
+              remember={remember}
+              disabled={busy || data.status !== 'pending'}
+              onPassword={setPassword}
+              onRemember={setRemember}
+            />
+          )}
           {totals && (
             <>
               <dl className="source-status">
@@ -261,8 +361,11 @@ export function PayslipIntakeDetail({ id }: { id: string }) {
 type SourceStatus = {
   accounts: { id: string; name: string }[];
   passwordSet: boolean;
+  passwordSource: 'app' | 'server' | null;
+  passwordRememberAvailable: boolean;
   dropboxConnected: boolean;
   dropboxConfigured: boolean;
+  dropboxWrite: boolean;
   lastScanAt: string | null;
   filesFound: number;
   errors: number;
@@ -288,8 +391,19 @@ export function PayslipSourceSection() {
         <>
           <dl className="source-status">
             <div>
-              <dt>Passwort gesetzt</dt>
-              <dd>{query.data.passwordSet ? 'ja' : 'nein'}</dd>
+              <dt>PDF-Passwort hinterlegt</dt>
+              <dd>
+                {query.data.passwordSource === 'app'
+                  ? 'ja (in der App)'
+                  : query.data.passwordSource === 'server'
+                    ? 'ja (Server)'
+                    : 'nein'}
+                <small> · Server-Geheimnis PAYSLIP_PDF_PASSWORD</small>
+              </dd>
+            </div>
+            <div>
+              <dt>Uploads werden in Dropbox abgelegt</dt>
+              <dd>{query.data.dropboxWrite ? 'ja' : 'nein'}</dd>
             </div>
             <div>
               <dt>Dropbox verbunden</dt>
@@ -317,11 +431,98 @@ export function PayslipSourceSection() {
               <dd>{query.data.errors}</dd>
             </div>
           </dl>
+          <PayslipPasswordControls
+            source={query.data.passwordSource}
+            available={query.data.passwordRememberAvailable}
+          />
           <PayslipSourceForm initial={query.data.config} accounts={query.data.accounts} />
         </>
       )}
       <p>Dropbox wird nachts gelesen. PDFs erscheinen zur Bestätigung im Posteingang.</p>
     </section>
+  );
+}
+function PayslipPasswordControls({
+  source,
+  available,
+}: {
+  source: 'app' | 'server' | null;
+  available: boolean;
+}) {
+  const [editing, setEditing] = useState(false),
+    [password, setPassword] = useState(''),
+    [busy, setBusy] = useState(false),
+    qc = useQueryClient(),
+    toast = useToast();
+  async function run(action: () => Promise<unknown>, done: string) {
+    if (busy) return;
+    setBusy(true);
+    try {
+      await action();
+      setPassword('');
+      setEditing(false);
+      await qc.invalidateQueries({ queryKey: ['payslip-source'] });
+      toast.show({ message: done });
+    } catch (e) {
+      toast.show({ message: errorText(e) });
+    } finally {
+      setBusy(false);
+    }
+  }
+  return (
+    <div className="payslip-password-controls">
+      {!available && (
+        <p>Passwort merken ist deaktiviert: Am Server ist BUDGET_PEPPER nicht gesetzt.</p>
+      )}
+      {editing ? (
+        <div className="sources-actions">
+          <Field label="Neues PDF-Passwort">
+            {({ id }) => (
+              <TextInput
+                id={id}
+                type="password"
+                autoComplete="off"
+                maxLength={256}
+                value={password}
+                disabled={busy}
+                onChange={(e) => setPassword(e.target.value)}
+              />
+            )}
+          </Field>
+          <Button
+            disabled={busy || !password}
+            onClick={() =>
+              void run(
+                () => request('PUT', PATH + '/password', { password }),
+                'Passwort gespeichert. Es wird beim nächsten Upload geprüft.',
+              )
+            }
+          >
+            Speichern
+          </Button>
+          <Button variant="ghost" disabled={busy} onClick={() => setEditing(false)}>
+            Abbrechen
+          </Button>
+        </div>
+      ) : (
+        <div className="sources-actions">
+          <Button variant="ghost" disabled={!available} onClick={() => setEditing(true)}>
+            Passwort ändern
+          </Button>
+          {source === 'app' && (
+            <Button
+              variant="ghost"
+              disabled={busy}
+              onClick={() =>
+                void run(() => request('DELETE', PATH + '/password'), 'Passwort vergessen.')
+              }
+            >
+              Vergessen
+            </Button>
+          )}
+        </div>
+      )}
+    </div>
   );
 }
 const WAGE_LABELS = {

@@ -58,3 +58,21 @@
 .payslip-intake-detail .source-status dd {
   margin: 4px 0;
 }
+.payslip-password-details {
+  flex-basis: 100%;
+}
+.payslip-password-details summary {
+  min-height: 44px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+}
+.payslip-password {
+  display: grid;
+  gap: 8px;
+  max-width: 360px;
+  margin-block: 8px;
+}
+.payslip-password-controls {
+  margin-block: 8px;
+}

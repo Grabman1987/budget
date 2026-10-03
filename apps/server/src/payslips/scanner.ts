@@ -1,16 +1,13 @@
-import { randomUUID } from 'node:crypto';
 import {
   findPayslipIntake,
   getPayslipIntake,
-  inboxItem,
-  insertTracked,
   readPayslipScan,
   writePayslipScan,
   type Db,
 } from '@budget/db';
-import { eq, and, isNull } from 'drizzle-orm';
 import { RECEIPT_LIMIT } from '../receipts/files';
 import { DropboxError, eligiblePayslipPath, type DropboxPayslipSource } from './dropbox';
+import { payslipSourceWarning } from './source-warning';
 import type { PayslipIntakeService } from './service';
 
 export function nextPayslipScan(now: Date) {
@@ -105,26 +102,6 @@ export class PayslipScanner {
     }
   }
   private warning(detail: string) {
-    if (
-      this.db
-        .select()
-        .from(inboxItem)
-        .where(and(eq(inboxItem.refType, 'payslip-source'), isNull(inboxItem.resolvedAt)))
-        .get()
-    )
-      return;
-    insertTracked(
-      this.db,
-      inboxItem,
-      {
-        id: randomUUID(),
-        kind: 'revision',
-        title: 'Gehaltszettel-Datenquelle prüfen',
-        detail,
-        refType: 'payslip-source',
-        urgent: true,
-      },
-      { actor: 'system' },
-    );
+    payslipSourceWarning(this.db, detail);
   }
 }

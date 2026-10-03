@@ -16,9 +16,17 @@ import {
   inboxItem,
   payslipIntake,
   payslipScan,
+  payslipSecret,
   receipt,
 } from '../schema';
-import { insertTracked, updateTracked, withGroup, nowIso, type AuditContext } from './audit';
+import {
+  insertTracked,
+  updateTracked,
+  recordAudit,
+  withGroup,
+  nowIso,
+  type AuditContext,
+} from './audit';
 import { ConflictError, EntityNotFoundError } from './errors';
 import { runInTransaction, type Executor } from './types';
 import { addReceipt, getReceipt, linkReceipt } from './receipts';
@@ -339,4 +347,52 @@ export function writePayslipScan(db: Executor, patch: typeof payslipScan.$inferI
     .values(patch)
     .onConflictDoUpdate({ target: payslipScan.id, set: patch })
     .run();
+}
+
+const PASSWORD_ID = 'pdf-password';
+/** Ciphertext only; decryption is the server's job. */
+export const readPayslipPasswordCiphertext = (db: Executor) =>
+  db.select().from(payslipSecret).where(eq(payslipSecret.id, PASSWORD_ID)).get()?.ciphertext ??
+  null;
+/** Store/replace the sealed password. The audit entry records the event, never a value. */
+export function storePayslipPasswordCiphertext(
+  db: Executor,
+  ciphertext: string,
+  ctx: AuditContext,
+) {
+  runInTransaction(db, (tx) => {
+    const existed = readPayslipPasswordCiphertext(tx) !== null;
+    tx.insert(payslipSecret)
+      .values({ id: PASSWORD_ID, ciphertext, updatedAt: nowIso() })
+      .onConflictDoUpdate({
+        target: payslipSecret.id,
+        set: { ciphertext, updatedAt: nowIso() },
+      })
+      .run();
+    recordAudit(tx, {
+      actor: ctx.actor,
+      action: existed ? 'update' : 'create',
+      entityType: 'payslip_secret',
+      entityId: PASSWORD_ID,
+      before: existed ? { set: true } : null,
+      after: { set: true },
+      ...(ctx.groupId ? { groupId: ctx.groupId } : {}),
+    });
+  });
+}
+export function clearPayslipPassword(db: Executor, ctx: AuditContext) {
+  return runInTransaction(db, (tx) => {
+    if (readPayslipPasswordCiphertext(tx) === null) return false;
+    tx.delete(payslipSecret).where(eq(payslipSecret.id, PASSWORD_ID)).run();
+    recordAudit(tx, {
+      actor: ctx.actor,
+      action: 'delete',
+      entityType: 'payslip_secret',
+      entityId: PASSWORD_ID,
+      before: { set: true },
+      after: null,
+      ...(ctx.groupId ? { groupId: ctx.groupId } : {}),
+    });
+    return true;
+  });
 }

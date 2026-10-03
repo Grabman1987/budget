@@ -1,3 +1,4 @@
+import { sql } from 'drizzle-orm';
 import { integer, sqliteTable, text, uniqueIndex } from 'drizzle-orm/sqlite-core';
 import { receipt } from './bookings';
 import { payslip } from './system';
@@ -29,7 +30,7 @@ export const payslipIntake = sqliteTable(
   ],
 );
 
-/** Operational cursor/schedule; secrets stay exclusively in the process environment. */
+/** Operational cursor/schedule only; secrets live in the environment or `payslip_secret`. */
 export const payslipScan = sqliteTable('payslip_scan', {
   id: text('id').primaryKey().notNull(),
   root: text('root').notNull(),
@@ -39,4 +40,17 @@ export const payslipScan = sqliteTable('payslip_scan', {
   filesFound: integer('files_found').notNull().default(0),
   errors: integer('errors').notNull().default(0),
   errorCode: text('error_code'),
+});
+
+/**
+ * Owner-remembered PDF password as AES-256-GCM ciphertext only (key derived from BUDGET_PEPPER by
+ * the server). Written without row snapshots so neither plaintext nor ciphertext enters the audit
+ * log; each change is recorded by a value-free audit entry instead.
+ */
+export const payslipSecret = sqliteTable('payslip_secret', {
+  id: text('id').primaryKey().notNull(),
+  ciphertext: text('ciphertext').notNull(),
+  updatedAt: text('updated_at')
+    .notNull()
+    .default(sql`(strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))`),
 });

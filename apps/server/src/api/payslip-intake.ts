@@ -13,10 +13,17 @@ import { payslipSourceConfig } from '@budget/domain';
 import { Hono } from 'hono';
 import { z } from 'zod';
 import { PayslipIntakeService } from '../payslips/service';
-import { dropboxConfigured } from '../payslips/dropbox';
+import {
+  forgetPayslipPassword,
+  payslipPasswordBox,
+  payslipPasswordSource,
+  rememberPayslipPassword,
+} from '../payslips/password';
+import { dropboxConfigured, dropboxWriteEnabled } from '../payslips/dropbox';
 import { RECEIPT_LIMIT } from '../receipts/files';
 import { ACTOR, ApiError, readBody } from './http';
 
+const MAX_PASSWORD = 256;
 export function payslipIntakeRoutes(
   db: Db,
   dir: string,
@@ -25,14 +32,18 @@ export function payslipIntakeRoutes(
   const api = new Hono();
   api.get('/status', (c) => {
     const scan = readPayslipScan(db);
+    const passwordSource = payslipPasswordSource(db);
     return c.json({
-      passwordSet: Boolean(process.env['PAYSLIP_PDF_PASSWORD']),
+      passwordSet: passwordSource !== null,
+      passwordSource,
+      passwordRememberAvailable: Boolean(payslipPasswordBox()),
       dropboxConnected:
         dropboxConfigured() &&
         scan?.root === process.env['DROPBOX_PAYSLIP_ROOT']?.replace(/\/$/, '') &&
         Boolean(scan?.cursor) &&
         scan?.errorCode !== 'scan_failed',
       dropboxConfigured: dropboxConfigured(),
+      dropboxWrite: dropboxWriteEnabled(),
       lastScanAt: scan?.lastScanAt ?? null,
       filesFound: scan?.filesFound ?? 0,
       errors: scan?.errors ?? 0,
@@ -54,8 +65,14 @@ export function payslipIntakeRoutes(
       throw new ApiError(400, 'invalid', 'Ungültiger PDF-Upload.');
     }
     const file = form.get('file');
+    const password = form.get('password'),
+      remember = form.get('remember');
     if (
-      [...form.keys()].some((key) => key !== 'file') ||
+      [...form.keys()].some((key) => !['file', 'password', 'remember'].includes(key)) ||
+      form.getAll('password').length > 1 ||
+      form.getAll('remember').length > 1 ||
+      (password !== null && (typeof password !== 'string' || password.length > MAX_PASSWORD)) ||
+      (remember !== null && remember !== '1' && remember !== 'true') ||
       form.getAll('file').length !== 1 ||
       !(file instanceof File) ||
       !file.size
@@ -67,7 +84,10 @@ export function payslipIntakeRoutes(
         413,
       );
     return c.json(
-      await service.ingest(Buffer.from(await file.arrayBuffer()), file.name, 'manual'),
+      await service.ingest(Buffer.from(await file.arrayBuffer()), file.name, 'manual', undefined, {
+        ...(password ? { password: password as string } : {}),
+        remember: remember !== null,
+      }),
       201,
     );
   });
@@ -82,8 +102,32 @@ export function payslipIntakeRoutes(
     });
   });
   api.post('/:id/retry', async (c) => {
-    await readBody(c, z.strictObject({}));
-    return c.json(await service.retry(z.string().uuid().parse(c.req.param('id'))));
+    const options = await readBody(
+      c,
+      z.strictObject({
+        password: z.string().min(1).max(MAX_PASSWORD).optional(),
+        remember: z.boolean().optional(),
+      }),
+    );
+    return c.json(await service.retry(z.string().uuid().parse(c.req.param('id')), options));
+  });
+  /** Replace the remembered password; it is checked on the next upload that needs it. */
+  api.put('/password', async (c) => {
+    const { password } = await readBody(
+      c,
+      z.strictObject({ password: z.string().min(1).max(MAX_PASSWORD) }),
+    );
+    if (!rememberPayslipPassword(db, password))
+      throw new ApiError(
+        409,
+        'remember_unavailable',
+        'Das Passwort kann nicht gespeichert werden: BUDGET_PEPPER fehlt am Server.',
+      );
+    return c.json({ passwordSource: payslipPasswordSource(db) });
+  });
+  api.delete('/password', (c) => {
+    forgetPayslipPassword(db);
+    return c.json({ passwordSource: payslipPasswordSource(db) });
   });
   api.post('/:id/decision', async (c) =>
     c.json(
