@@ -11,7 +11,9 @@ import { useQuery } from '@tanstack/react-query';
 import { Printer } from 'lucide-react';
 import { useState } from 'react';
 import { eur, longDay } from '../ledger/format';
+import { userText } from '../api/error-text';
 import { ErrorNote, LoadingNote } from '../ledger/states';
+import { ValuationHint } from '../ledger/valuation-hint';
 import type { PageMeta } from '../nav/pages';
 import type { ReportEntry } from '../nav/reports-catalog';
 import { PageFrame } from '../pages/placeholder-page';
@@ -205,6 +207,7 @@ function SheetOne({
           </div>
         ) : null}
       </header>
+      <ValuationHint incomplete={data.incomplete} />
       {nw ? (
         <DimensionChain
           label="Maßkette Nettovermögen im Jahr"
@@ -226,7 +229,7 @@ function SheetOne({
       ) : (
         <p className="ov-note" role="status">
           {data.netWorthUnavailable
-            ? `Das Nettovermögen ist nicht verfügbar: ${data.netWorthUnavailable}`
+            ? `Das Nettovermögen ist nicht verfügbar: ${userText(data.netWorthUnavailable, 'Es fehlt ein Kurs oder Wechselkurs.')}`
             : 'Für dieses Jahr liegt kein Nettovermögen vor.'}
         </p>
       )}

@@ -3,19 +3,9 @@ import { useQuery } from '@tanstack/react-query';
 import { accountsQuery } from '../ledger/queries';
 import { ErrorNote, LoadingNote } from '../ledger/states';
 import { longDay } from '../ledger/format';
-import { sourceMoney, tradesQuery, type TradeRow } from './trade-api';
+import { sourceMoney, tradesQuery } from './trade-api';
 import { unitsText } from './portfolio-format';
-const KINDS: Record<TradeRow['kind'], string> = {
-  buy: 'Kauf',
-  sell: 'Verkauf',
-  delivery_in: 'Einlieferung',
-  delivery_out: 'Auslieferung',
-  split: 'Aktiensplit',
-  dividend: 'Dividende',
-  interest: 'Zinsen',
-  fee: 'Gebühr',
-  tax: 'Steuer',
-};
+import { TRADE_LABELS as KINDS } from './trade-draft';
 export function TradeHistory({
   securityId,
   onEdit,
@@ -86,16 +76,14 @@ export function TradeHistory({
                   </div>
                 </dl>
                 {trade.note && <p className="vnote">{trade.note}</p>}
-                {(trade.kind === 'buy' || trade.kind === 'sell') && (
-                  <Button
-                    variant="ghost"
-                    disabled={disabled}
-                    onClick={() => onEdit(trade.id)}
-                    aria-label={`${KINDS[trade.kind]} vom ${longDay(trade.date)} bearbeiten`}
-                  >
-                    Bearbeiten
-                  </Button>
-                )}
+                <Button
+                  variant="ghost"
+                  disabled={disabled}
+                  onClick={() => onEdit(trade.id)}
+                  aria-label={`${KINDS[trade.kind]} vom ${longDay(trade.date)} bearbeiten`}
+                >
+                  Bearbeiten
+                </Button>
               </li>
             );
           })}

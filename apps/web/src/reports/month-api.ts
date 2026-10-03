@@ -1,12 +1,13 @@
 import type { monthFlowReport, monthIncomeReport, monthOnePager } from '@budget/db';
 import { queryOptions } from '@tanstack/react-query';
+import type { WithValuationNotes } from '../ledger/valuation-hint';
 import { request } from '../api/http';
 import { LEDGER_KEY } from '../ledger/queries';
 
 /** The reports of "Monat und Einkommen": one endpoint each, the month in the query. */
 export type IncomeReportData = ReturnType<typeof monthIncomeReport>;
 export type FlowReportData = ReturnType<typeof monthFlowReport>;
-export type OnePagerData = ReturnType<typeof monthOnePager>;
+export type OnePagerData = ReturnType<typeof monthOnePager> & WithValuationNotes;
 export type FlowSpan = FlowReportData['span'];
 
 const KEY = [...LEDGER_KEY, 'month-report'] as const;

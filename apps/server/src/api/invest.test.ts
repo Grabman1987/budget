@@ -643,13 +643,9 @@ describe('invest CRUD', () => {
     const ended = await call('POST', `/savings-plans/${newId}/end`, { to: '2026-12-31' });
     expect(ended.body['plan'].validTo).toBe('2026-12-31');
     expect((await call('GET', '/savings-plans')).body['plans']).toEqual([]);
-    const unavailable = await call('POST', '/savings-plans/apply');
-    expect(unavailable.status).toBe(503);
-    expect(unavailable.body).toMatchObject({
-      error: 'valuation_unavailable',
-      reason: 'missing_price',
-    });
-    // The executed holding has a real stored quote; allocation needs a complete current value.
+    // The executed holding has no quote yet: it is valued at its cost, not refused.
+    const unquoted = await call('POST', '/savings-plans/apply');
+    expect(unquoted.status).toBe(200);
     expect(
       (await call('PUT', `/securities/${sec.id}/prices/2026-08-16`, { price: '300' })).status,
     ).toBe(200);
@@ -719,7 +715,7 @@ describe('invest CRUD', () => {
     });
   });
 
-  it('GET /portfolio reports unavailable valuation history instead of a zero return', async () => {
+  it('GET /portfolio values a never-quoted position at cost and flags it as estimated', async () => {
     const sec = (await call('POST', '/securities', { name: 'Musterinstrument', kind: 'etf' })).body[
       'security'
     ];
@@ -733,15 +729,22 @@ describe('invest CRUD', () => {
     });
 
     const res = await call('GET', '/portfolio?period=1J&view=securities');
-    expect(res.status).toBe(503);
-    expect(res.body).toMatchObject({ error: 'valuation_unavailable', reason: 'missing_price' });
-    expect(res.body['missingPriceSecurityIds']).toContain(sec.id);
-    expect(res.body['portfolio']).toBeUndefined();
+    expect(res.status).toBe(200);
+    expect(res.body['portfolio']).toMatchObject({ valueCents: 10_000 });
+    expect(res.body['incomplete']).toEqual([
+      expect.objectContaining({
+        securityId: sec.id,
+        quality: 'estimated',
+        name: 'Musterinstrument',
+      }),
+    ]);
 
     const report = await call('GET', '/portfolio?period=1J&view=securities&history=contributions');
-    expect(report.status).toBe(503);
-    expect(report.body).toMatchObject({ error: 'valuation_unavailable', reason: 'missing_price' });
-    expect(report.body['portfolio']).toBeUndefined();
+    expect(report.status).toBe(200);
+    expect(report.body['portfolio']).toBeDefined();
+    expect(report.body['incomplete']).toEqual([
+      expect.objectContaining({ securityId: sec.id, quality: 'estimated' }),
+    ]);
   });
 
   it('the contribution series stays unavailable when a security quote needs a missing FX rate', async () => {

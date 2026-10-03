@@ -4,7 +4,7 @@ import { join } from 'node:path';
 import { test } from './isolated-ledger';
 import { toast } from './ledger-helpers';
 
-test('missing market quotes preserve daily work and basis; first quote and undo expose honest history gaps', async ({
+test('a position without market quote is valued at cost and flagged; the first quote and undo keep working', async ({
   page,
   request,
   baseURL,
@@ -37,28 +37,27 @@ test('missing market quotes preserve daily work and basis; first quote and undo 
     amountCents: 10000,
   });
 
+  const hint = 'Bewertung teilweise geschätzt: 1 Wertpapier ohne Kurs';
+
   await page.goto('/konten');
-  await expect(page.getByTestId('net-worth')).toHaveText('Nicht verfügbar');
-  await expect(page.getByText('EUR-Wert nicht verfügbar · Wertpapierkurs fehlt')).toBeVisible();
+  await expect(page.getByTestId('net-worth')).not.toHaveText('Nicht verfügbar');
+  await expect(page.getByTestId('valuation-hint')).toContainText(hint);
   await expect(page.getByText('Wechselkurs fehlt', { exact: false })).toHaveCount(0);
 
   await page.goto('/');
   await expect(page.getByTestId('heute-lead-value')).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Letzte Buchungen' })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Anstehend · 14 Tage' })).toBeVisible();
-  await expect(page.locator('.heute-check-counts')).toHaveCount(0);
-  await expect(page.getByTestId('heute-networth-chart')).toHaveCount(0);
-  await expect(
-    page
-      .locator('.heute-section')
-      .filter({ has: page.getByRole('heading', { name: 'Finanz-Check' }) }),
-  ).toContainText('Wertpapierkurs fehlt');
+  await expect(page.locator('.heute-check-counts')).toBeVisible();
+  await expect(page.locator('.heute-net-worth')).not.toContainText('Bewertung nicht verfügbar');
+  await expect(page.locator('.heute-net-worth').getByTestId('valuation-hint')).toContainText(hint);
 
   await page.goto('/vermoegen/portfolio');
-  await expect(page.getByTestId('portfolio-value')).toHaveText('Bewertung unvollständig');
+  await expect(page.getByTestId('portfolio-value')).toContainText('100,00');
+  await expect(page.getByTestId('valuation-hint')).toContainText(hint);
   await page.getByRole('button', { name, exact: true }).click();
   const panel = page.getByRole('dialog', { name, exact: true });
-  await expect(panel).toContainText('Kurs fehlt');
+  await expect(panel).toContainText('geschätzt');
   await expect(panel).toContainText('100,00 €');
   await panel.getByLabel('Kursdatum').fill(current);
   await panel.getByLabel('Kurs (EUR)', { exact: true }).fill('120');
@@ -69,7 +68,7 @@ test('missing market quotes preserve daily work and basis; first quote and undo 
     panel.getByText('Einstand 100,00 € · Wertzuwachs 20,00 €', { exact: true }),
   ).toContainText('Wertzuwachs 20,00 €');
   await toast(page).getByRole('button', { name: 'Rückgängig' }).click();
-  await expect(panel).toContainText('Kurs fehlt');
+  await expect(panel).toContainText('geschätzt');
   await expect(panel).toContainText('100,00 €');
   await toast(page).getByRole('button', { name: 'Wiederholen' }).click();
   await expect(panel.locator('.instrument-accounts')).toContainText('120,00 €');
@@ -81,9 +80,7 @@ test('missing market quotes preserve daily work and basis; first quote and undo 
   await page.goto('/');
   await expect(page.getByTestId('heute-lead-value')).toBeVisible();
   await expect(page.locator('.heute-check-counts')).toBeVisible();
-  await expect(page.getByTestId('heute-networth-chart')).toHaveCount(0);
-  await expect(page.locator('.heute-net-worth')).toContainText('Bewertung nicht verfügbar');
-  await expect(page.locator('.heute-net-worth')).toContainText('Wertpapierkurs fehlt');
+  await expect(page.locator('.heute-net-worth')).not.toContainText('Bewertung nicht verfügbar');
   await page.evaluate(() => document.fonts.ready);
   for (const theme of ['light', 'dark']) {
     await page.evaluate((value) => {
@@ -105,8 +102,9 @@ test('missing market quotes preserve daily work and basis; first quote and undo 
         : info.outputPath(`missing-quote-today-${theme}.png`),
     });
   }
+  // The days before the first quote are estimates: the history answers, with the hint, no error.
   await page.goto('/vermoegen/nettovermoegen');
-  // The existing history query retries unavailable503 responses before exposing its error.
-  await expect(page.getByRole('alert')).toContainText('Wertpapierkurs fehlt', { timeout: 15000 });
-  await expect(page.getByTestId('nw-figure')).toHaveCount(0);
+  await expect(page.getByTestId('nw-figure')).toBeVisible();
+  await expect(page.getByTestId('valuation-hint')).toContainText(hint);
+  await expect(page.getByRole('alert')).toHaveCount(0);
 });

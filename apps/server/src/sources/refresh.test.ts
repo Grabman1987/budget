@@ -6,6 +6,8 @@ import {
   readSourceState,
   readSourceMappings,
   mapReadSource,
+  readSourceSince,
+  setReadSourceSince,
   readInbox,
   stageSourcePage,
   saveReadSourceState,
@@ -537,5 +539,162 @@ describe('source sync persistence and financial isolation', () => {
     await refreshReadSourceIfDue(opened.db, adapter, new Date(at.getTime() + 86460000));
     expect(adapter.operations).toHaveBeenCalledTimes(2);
     expect(readInbox(opened.db, '2026-10-03').entries.some((i) => i.kind === 'other')).toBe(true);
+  });
+});
+const SINCE_TEXT = 'Vor dem Startdatum – bereits in der App erfasst.';
+const dated = (id: string, creditedAt: string): SourceOperation => ({
+  ...operation,
+  id,
+  transactions: [{ ...operation.transactions[0]!, id: 'tx-' + id, creditedAt }],
+});
+describe('source start date (Bewegungen ab)', () => {
+  const stage = (ops: SourceOperation[], invalid: Array<{ id: string; reason: 'schema' }> = []) =>
+    stageSourcePage(opened.db, ops, readSourceState(opened.db), ctx, invalid);
+  const row = (id: string) => inbox().find((i) => JSON.parse(i.detail!).id === id)!;
+  it('records operations before the start day as resolved, compared by Vienna calendar day', () => {
+    setReadSourceSince(opened.db, '2026-09-30', ctx);
+    expect(readSourceSince(opened.db)).toBe('2026-09-30');
+    stage([
+      dated('old', '2026-09-29T21:59:59.000Z'),
+      // 22:00Z is already Sep 30 in Vienna (CEST).
+      dated('edge', '2026-09-29T22:00:00.000Z'),
+      dated('new', '2026-10-01T12:00:00.000Z'),
+    ]);
+    expect(row('old')).toMatchObject({ resolution: SINCE_TEXT, kind: 'import' });
+    expect(row('old').resolvedAt).toBeTruthy();
+    expect(row('edge')).toMatchObject({ resolvedAt: null, resolution: null });
+    expect(row('new').resolvedAt).toBeNull();
+    expect(inbox().filter((i) => i.refType === 'read_source')).toHaveLength(3);
+  });
+  it('uses the latest transaction of an operation and keeps unknown dates as before', () => {
+    setReadSourceSince(opened.db, '2026-09-30', ctx);
+    const base = operation.transactions[0]!;
+    stage(
+      [
+        {
+          ...operation,
+          id: 'mixed',
+          transactions: [
+            { ...base, id: 't1', creditedAt: '2026-01-01T00:00:00.000Z' },
+            { ...base, id: 't2', creditedAt: '2026-10-01T00:00:00.000Z' },
+          ],
+        },
+        {
+          ...operation,
+          id: 'no-date',
+          transactions: [{ ...base, id: 't3', creditedAt: 'garbage' }],
+        },
+      ],
+      [{ id: 'bad', reason: 'schema' }],
+    );
+    expect(row('mixed').resolvedAt).toBeNull();
+    expect(row('no-date').resolvedAt).toBeNull();
+    expect(row('bad')).toMatchObject({ kind: 'other', resolvedAt: null });
+  });
+  it('does not reopen a pre-start item on replay, even if its detail changes', () => {
+    setReadSourceSince(opened.db, '2026-09-30', ctx);
+    const old = dated('old', '2026-09-01T12:00:00.000Z');
+    stage([old]);
+    const first = row('old');
+    stage([old]);
+    stage([{ ...old, type: 'withdrawal' }]);
+    expect(row('old')).toMatchObject({ resolvedAt: first.resolvedAt, resolution: SINCE_TEXT });
+  });
+  it('reopens a pre-start item on replay when the start day is lowered, and a changed on-or-after item', () => {
+    const old = dated('old', '2026-09-01T12:00:00.000Z');
+    stage([old]);
+    expect(row('old').resolvedAt).toBeNull();
+    setReadSourceSince(opened.db, '2026-10-01', ctx);
+    expect(row('old')).toMatchObject({ resolution: SINCE_TEXT });
+    setReadSourceSince(opened.db, '2026-08-01', ctx);
+    stage([old]);
+    expect(row('old')).toMatchObject({ resolvedAt: null, resolution: null });
+    const recent = dated('recent', '2026-10-01T12:00:00.000Z');
+    stage([recent]);
+    resolveInboxItem(opened.db, row('recent').id, ctx);
+    stage([recent]);
+    expect(row('recent').resolvedAt).toBeTruthy();
+    stage([{ ...recent, type: 'withdrawal' }]);
+    expect(row('recent').resolvedAt).toBeNull();
+  });
+  it('resolves existing open operations when saved, leaves other items alone, and undoes as one group', () => {
+    const old = dated('old', '2026-09-01T12:00:00.000Z');
+    const recent = dated('recent', '2026-10-01T12:00:00.000Z');
+    stage([old, recent], [{ id: 'bad', reason: 'schema' }]);
+    resolveInboxItem(opened.db, row('recent').id, ctx);
+    const result = setReadSourceSince(opened.db, '2026-09-30', ctx);
+    expect(row('old')).toMatchObject({ resolution: SINCE_TEXT });
+    expect(row('old').resolvedAt).toBeTruthy();
+    expect(row('recent').resolution).toBe('Vom Nutzer als erledigt markiert');
+    expect(row('bad').resolvedAt).toBeNull();
+    const undone = undo(opened.db, { groupId: result.groupId }, ctx);
+    expect(readSourceSince(opened.db)).toBeNull();
+    expect(row('old')).toMatchObject({ resolvedAt: null, resolution: null });
+    undo(opened.db, { groupId: undone.groupId }, ctx);
+    expect(readSourceSince(opened.db)).toBe('2026-09-30');
+    expect(row('old').resolution).toBe(SINCE_TEXT);
+  });
+  it('can clear the start day and rejects invalid days', () => {
+    setReadSourceSince(opened.db, '2026-09-30', ctx);
+    setReadSourceSince(opened.db, null, ctx);
+    expect(readSourceSince(opened.db)).toBeNull();
+    expect(() => setReadSourceSince(opened.db, '2026-02-30', ctx)).toThrow();
+    expect(() => setReadSourceSince(opened.db, '30.09.2026', ctx)).toThrow();
+  });
+  it('defaults the start day to the connection day on the first refresh only, as a system change', async () => {
+    const adapter = source([balance]);
+    const old = dated('old', '2026-09-01T12:00:00.000Z');
+    adapter.operations.mockResolvedValue({
+      operations: [old, dated('today', at.toISOString())],
+      nextCursor: null,
+    });
+    expect(readSourceSince(opened.db)).toBeNull();
+    await refreshReadSource(opened.db, adapter, at);
+    expect(readSourceSince(opened.db)).toBe('2026-10-02');
+    expect(inbox().find((i) => JSON.parse(i.detail!).id === 'old')?.resolution).toBe(SINCE_TEXT);
+    expect(inbox().find((i) => JSON.parse(i.detail!).id === 'today')?.resolvedAt).toBeNull();
+    const audit = opened.db.select().from(schema.auditLog).all();
+    expect(
+      audit.some(
+        (a) =>
+          a.entityType === 'app_setting' &&
+          a.entityId === 'source.crypto.since' &&
+          a.actor === 'system',
+      ),
+    ).toBe(true);
+    // A manual choice is kept, also an explicit "no limit".
+    setReadSourceSince(opened.db, null, ctx);
+    await refreshReadSource(opened.db, adapter, new Date(at.getTime() + 86400000));
+    expect(readSourceSince(opened.db)).toBeNull();
+    setReadSourceSince(opened.db, '2026-09-15', ctx);
+    await refreshReadSource(opened.db, adapter, new Date(at.getTime() + 2 * 86400000));
+    expect(readSourceSince(opened.db)).toBe('2026-09-15');
+  });
+  it('moving the start day earlier reopens older items only with a full-history refresh', async () => {
+    const adapter = source([balance]);
+    const old = dated('old', '2026-09-01T12:00:00.000Z');
+    const middle = dated('middle', '2026-09-20T12:00:00.000Z');
+    adapter.operations.mockResolvedValue({ operations: [old, middle], nextCursor: null });
+    await refreshReadSource(opened.db, adapter, at);
+    expect(readSourceSince(opened.db)).toBe('2026-10-02');
+    const status = (id: string) => inbox().find((i) => JSON.parse(i.detail!).id === id)!;
+    expect(status('old').resolution).toBe(SINCE_TEXT);
+    expect(status('middle').resolution).toBe(SINCE_TEXT);
+    setReadSourceSince(opened.db, '2026-09-15', ctx);
+    expect(status('middle').resolution).toBe(SINCE_TEXT);
+    // A normal refresh does not replay history.
+    adapter.operations.mockResolvedValueOnce({ operations: [], nextCursor: null });
+    await refreshReadSource(opened.db, adapter, new Date(at.getTime() + 3600000));
+    expect(status('middle').resolvedAt).toBeTruthy();
+    await refreshReadSource(opened.db, adapter, new Date(at.getTime() + 7200000), true);
+    expect(status('middle')).toMatchObject({ resolvedAt: null, resolution: null });
+    expect(status('old').resolution).toBe(SINCE_TEXT);
+    // Items that did not exist yet are created open when on/after the new start day.
+    adapter.operations.mockResolvedValue({
+      operations: [dated('late', '2026-09-16T12:00:00.000Z')],
+      nextCursor: null,
+    });
+    await refreshReadSource(opened.db, adapter, new Date(at.getTime() + 10800000), true);
+    expect(status('late').resolvedAt).toBeNull();
   });
 });

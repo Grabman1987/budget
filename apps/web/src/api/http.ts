@@ -17,6 +17,15 @@ export class ApiError extends Error {
   }
 }
 
+/**
+ * Retry rule of the app's queries: only a lost connection is worth a retry (twice at most). A
+ * server answer, even an error like 503, is final: retrying a slow failing valuation would keep
+ * the page on its loading note for many seconds before the error shows.
+ */
+export function shouldRetry(failureCount: number, error: unknown): boolean {
+  return error instanceof ApiError && error.status === 0 && failureCount < 2;
+}
+
 export type HttpMethod = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
 
 /** JSON request against the same origin; every failure becomes an `ApiError`. */

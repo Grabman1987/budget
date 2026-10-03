@@ -627,7 +627,9 @@ export function positionCostDetailsAsOf(
       }
       const value = valuedByKey.get(`${accountId}\0${securityId}`);
       const gain =
-        value && pricedSecurities.has(securityId) ? gainOf(value.valueCents, cost) : null;
+        value && (pricedSecurities.has(securityId) || value.quality === 'estimated')
+          ? gainOf(value.valueCents, cost)
+          : null;
       return {
         accountId,
         securityId,

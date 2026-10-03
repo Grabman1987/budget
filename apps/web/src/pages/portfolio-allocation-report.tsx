@@ -5,6 +5,7 @@ import { AlertTriangle, CheckCircle2 } from 'lucide-react';
 import { useElementWidth } from '../charts/use-element-width';
 import { request } from '../api/http';
 import { LoadingNote } from '../ledger/states';
+import { ValuationHint, type WithValuationNotes } from '../ledger/valuation-hint';
 import { eur, eurWhole, longDay } from '../ledger/format';
 import { LEDGER_KEY } from '../ledger/queries';
 import type { PageMeta } from '../nav/pages';
@@ -20,7 +21,7 @@ import {
 import './portfolio-allocation-report.css';
 import { BookRuleMetric } from '../rules/book-rule-metric';
 
-interface AllocationResponse {
+interface AllocationResponse extends WithValuationNotes {
   allocation: AllocationReport;
 }
 
@@ -60,6 +61,7 @@ export function PortfolioAllocationReport({
       }
     >
       <div className="prep portfolio-allocation-report">
+        <ValuationHint incomplete={query.data?.incomplete} />
         <BookRuleMetric code="R21" />
         {query.isPending && <LoadingNote what="Allocation" />}
         {query.isError && (

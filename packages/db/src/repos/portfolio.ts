@@ -1,20 +1,28 @@
 import {
   addDays,
+  costBasisOnDay,
+  costInEur,
   dailyMarketMoveCents,
   dailyValuation,
   depotFlows,
   eachDay,
   fxOn,
   marketValueEurCents,
-  PriceUnavailableError,
   netWorthAttribution,
+  PRICE_BACKFILL_TOLERANCE_DAYS,
+  pickPrice,
   securityFlows,
   toEurCents,
   unitsHeld,
   type CashFlow,
+  type DatedPrice,
+  type IncompleteValuation,
+  type PositionCostInput,
   type PositionInput,
   type RateTable,
   type SeriesTrade,
+  type ValuationOptions,
+  type ValuationQuality,
   type ValuationSeries,
 } from '@budget/domain';
 import { and, eq, gt, inArray, isNotNull, isNull, lte, max, min, sql } from 'drizzle-orm';
@@ -31,6 +39,7 @@ import {
   trade,
 } from '../schema';
 import { lastSuccessfulMarketRun } from './market';
+import { noteIncomplete } from './valuation-notes';
 import { accountBalances } from './queries';
 import { MissingFxRateError } from './errors';
 import type { Executor } from './types';
@@ -46,6 +55,14 @@ export interface HoldingValue {
   /** EUR per unit of the price currency (1 000 000 for EUR). */
   fxRateMicro: number;
   valueCents: number;
+  /**
+   * How the value was found: `exact`/`stale` from a price on or before the day, `estimated` from a
+   * price shortly after it or from the cost basis (then `priceMicro` is the implied price and
+   * `priceDate` null).
+   */
+  quality: ValuationQuality;
+  /** Day of the price used; `null` for a cost-basis estimate. */
+  priceDate: string | null;
 }
 
 type Rates = { currency: string; date: string; rateMicro: number }[];
@@ -65,6 +82,8 @@ function rateOrMissing(rates: Rates, currency: string, asOf: string): number | u
  */
 interface HoldingValuation {
   values: HoldingValue[];
+  /** Estimated positions and (when estimating) positions with neither price nor cost basis. */
+  incomplete: IncompleteValuation[];
   missingFxByAccount: Map<string, Set<string>>;
   missingPricePositions: Array<{ accountId: string; securityId: string; unitsE8: number }>;
   missingFxPositions: Array<{
@@ -77,7 +96,17 @@ interface HoldingValuation {
   }>;
 }
 
-function holdingValuationAsOf(db: Executor, asOf: string): HoldingValuation {
+const positionKey = (p: { accountId: string; securityId: string }) => ({
+  accountId: p.accountId,
+  securityId: p.securityId,
+});
+
+function holdingValuationAsOf(
+  db: Executor,
+  asOf: string,
+  options: ValuationOptions = {},
+): HoldingValuation {
+  const estimate = options.estimate ?? true;
   const live = new Set(
     db
       .select({ id: security.id })
@@ -85,6 +114,13 @@ function holdingValuationAsOf(db: Executor, asOf: string): HoldingValuation {
       .where(isNull(security.deletedAt))
       .all()
       .map((s) => s.id),
+  );
+  const currencies = new Map(
+    db
+      .select({ id: account.id, currency: account.currency })
+      .from(account)
+      .all()
+      .map((a) => [a.id, a.currency]),
   );
   const snapshots = db
     .select()
@@ -96,12 +132,37 @@ function holdingValuationAsOf(db: Executor, asOf: string): HoldingValuation {
       securityId: trade.securityId,
       accountId: trade.accountId,
       date: trade.date,
+      kind: trade.kind,
       unitsE8: trade.unitsE8,
+      amountCents: trade.amountCents,
+      feeCents: trade.feeCents,
+      taxCents: trade.taxCents,
     })
     .from(trade)
     .where(and(lte(trade.date, asOf), isNull(trade.deletedAt)))
     .all();
-  const prices = db.select().from(price).where(lte(price.date, asOf)).all();
+  // Prices of held securities only, ascending; the backfill tolerance reads a few days past `asOf`.
+  const heldSecurities = new Set<string>();
+  for (const r of [...snapshots, ...trades])
+    if (live.has(r.securityId)) heldSecurities.add(r.securityId);
+  const pricesBySecurity = new Map<string, DatedPrice[]>();
+  const priceRows = estimate
+    ? db
+        .select()
+        .from(price)
+        .where(lte(price.date, addDays(asOf, PRICE_BACKFILL_TOLERANCE_DAYS)))
+        .orderBy(price.date)
+        .all()
+    : db.select().from(price).where(lte(price.date, asOf)).orderBy(price.date).all();
+  for (const p of priceRows) {
+    if (!heldSecurities.has(p.securityId)) continue;
+    const list = pricesBySecurity.get(p.securityId) ?? [];
+    // Only the part that can matter: everything up to the day, and the first price after it.
+    if (p.date > asOf && list.length > 0 && (list[list.length - 1] as DatedPrice).date > asOf)
+      continue;
+    list.push({ date: p.date, priceMicro: p.priceMicro, currency: p.currency });
+    pricesBySecurity.set(p.securityId, list);
+  }
   const rates: Rates = db.select().from(fxRate).where(lte(fxRate.date, asOf)).all();
 
   const keys = new Map<string, { accountId: string; securityId: string }>();
@@ -111,35 +172,70 @@ function holdingValuationAsOf(db: Executor, asOf: string): HoldingValuation {
   const missingFxPositions: HoldingValuation['missingFxPositions'] = [];
   const missingPricePositions: HoldingValuation['missingPricePositions'] = [];
   const missingFxByAccount = new Map<string, Set<string>>();
+  const missingFx = (accountId: string, currency: string) => {
+    const missing = missingFxByAccount.get(accountId) ?? new Set<string>();
+    missing.add(currency);
+    missingFxByAccount.set(accountId, missing);
+  };
   for (const { accountId, securityId } of keys.values()) {
     const mine = <T extends { accountId: string; securityId: string }>(rows: T[]) =>
       rows.filter((r) => r.accountId === accountId && r.securityId === securityId);
-    const snapshot = mine(snapshots).sort((a, b) => b.asOf.localeCompare(a.asOf))[0];
+    const mySnapshots = mine(snapshots);
+    const myTrades = mine(trades);
+    const snapshot = [...mySnapshots].sort((a, b) => b.asOf.localeCompare(a.asOf))[0];
     const units = unitsHeld(
       snapshot ? { asOf: snapshot.asOf, unitsE8: snapshot.unitsE8 } : undefined,
-      mine(trades),
+      myTrades,
       asOf,
     );
     if (units === 0) continue;
-    const latest = prices
-      .filter((p) => p.securityId === securityId)
-      .sort((a, b) => b.date.localeCompare(a.date))[0];
-    if (!latest) {
-      missingPricePositions.push({ accountId, securityId, unitsE8: units });
+    const choice = pickPrice(pricesBySecurity.get(securityId) ?? [], asOf, estimate);
+    if (!choice) {
+      // No usable price: the moving-average cost basis, flagged as an estimate (step 3 of the
+      // fallback order), or nothing at all when even the cost is unknown.
+      const accountCurrency = currencies.get(accountId) ?? 'EUR';
+      const cost: PositionCostInput = {
+        currency: accountCurrency,
+        snapshots: mySnapshots.map((r) => ({ date: r.asOf, costBasisCents: r.costBasisCents })),
+        trades: myTrades,
+      };
+      const basis = estimate
+        ? costBasisOnDay(
+            mySnapshots.map((r) => ({ date: r.asOf, unitsE8: r.unitsE8 })),
+            cost,
+            asOf,
+          )
+        : null;
+      const eur =
+        basis === null ? null : costInEur(basis, accountCurrency, toRateTable(rates), asOf);
+      if (eur === null) {
+        missingPricePositions.push({ accountId, securityId, unitsE8: units });
+        continue;
+      }
+      out.push({
+        accountId,
+        securityId,
+        unitsE8: units,
+        // The implied unit price in EUR (micro) behind the estimate.
+        priceMicro: Math.round((eur * 1e12) / units),
+        priceCurrency: 'EUR',
+        fxRateMicro: 1_000_000,
+        valueCents: eur,
+        quality: 'estimated',
+        priceDate: null,
+      });
       continue;
     }
-    const { priceMicro, currency: priceCurrency } = latest;
+    const { priceMicro, currency: priceCurrency } = choice.price;
     const fxRateMicro = rateOrMissing(rates, priceCurrency, asOf);
     if (fxRateMicro === undefined) {
-      const missing = missingFxByAccount.get(accountId) ?? new Set<string>();
-      missing.add(priceCurrency);
-      missingFxByAccount.set(accountId, missing);
+      missingFx(accountId, priceCurrency);
       missingFxPositions.push({
         accountId,
         securityId,
         unitsE8: units,
         priceMicro,
-        priceDate: latest.date,
+        priceDate: choice.price.date,
         priceCurrency,
       });
       continue;
@@ -152,12 +248,36 @@ function holdingValuationAsOf(db: Executor, asOf: string): HoldingValuation {
       priceCurrency,
       fxRateMicro,
       valueCents: marketValueEurCents(units, priceMicro, fxRateMicro),
+      quality: choice.quality,
+      priceDate: choice.price.date,
     });
   }
+  const incomplete: IncompleteValuation[] = [
+    ...out
+      .filter((h) => h.quality === 'estimated')
+      .map((h) => ({
+        ...positionKey(h),
+        quality: 'estimated' as const,
+        days: 1,
+        from: asOf,
+        to: asOf,
+      })),
+    ...(estimate
+      ? missingPricePositions.map((h) => ({
+          ...positionKey(h),
+          quality: 'missing' as const,
+          days: 1,
+          from: asOf,
+          to: asOf,
+        }))
+      : []),
+  ];
+  noteIncomplete(incomplete);
   return {
     values: out.sort(
       (a, b) => a.accountId.localeCompare(b.accountId) || a.securityId.localeCompare(b.securityId),
     ),
+    incomplete,
     missingFxByAccount,
     missingPricePositions: missingPricePositions.sort(
       (a, b) => a.accountId.localeCompare(b.accountId) || a.securityId.localeCompare(b.securityId),
@@ -172,22 +292,26 @@ function holdingValuationAsOf(db: Executor, asOf: string): HoldingValuation {
 export function holdingValuationExportAsOf(
   db: Executor,
   asOf: string,
+  options: ValuationOptions = {},
 ): {
   values: HoldingValue[];
   missingFxByAccount: Map<string, Set<string>>;
   missingFxPositions: HoldingValuation['missingFxPositions'];
   missingPricePositions: HoldingValuation['missingPricePositions'];
 } {
-  return holdingValuationAsOf(db, asOf);
+  return holdingValuationAsOf(db, asOf, options);
 }
 
+/**
+ * Value of every held position on a day (fallback order of the domain's `pickPrice`): a position
+ * without any price is valued at its cost basis (`quality: 'estimated'`); only a position without a
+ * price AND without a cost basis is left out. A missing exchange rate is still an error.
+ */
 export function holdingValuesAsOf(db: Executor, asOf: string): HoldingValue[] {
   const valuation = holdingValuationAsOf(db, asOf);
   const missing = [...valuation.missingFxByAccount.values()].flatMap((set) => [...set]).sort();
   const currency = missing[0];
   if (currency) throw new MissingFxRateError(currency, asOf);
-  const unpriced = valuation.missingPricePositions[0];
-  if (unpriced) throw new PriceUnavailableError(unpriced.accountId, unpriced.securityId, asOf);
   return valuation.values;
 }
 
@@ -195,6 +319,8 @@ export interface NetWorth {
   totalCents: number;
   /** Per account: balance in EUR (converted for foreign-currency accounts) plus its positions. */
   byAccount: Record<string, number>;
+  /** Positions valued by an estimate (cost basis) or not at all on that day. */
+  incomplete: IncompleteValuation[];
 }
 
 /** Non-throwing shared EUR valuation for account reads that must remain usable without all quotes or FX. */
@@ -211,10 +337,17 @@ export interface NetWorthValuation {
   /** Sorted held securities without a quote on or before the requested day. */
   missingPriceSecurityIds: string[];
   missingPriceByAccount: Record<string, string[]>;
+  /** Positions valued by an estimate (cost basis, a later price) or not at all, on this day. */
+  incomplete: IncompleteValuation[];
 }
 
 /** Shared valuation source for account DTOs and the strict wealth calculation. */
-export function netWorthValuationAsOf(db: Executor, asOf: string): NetWorthValuation {
+export function netWorthValuationAsOf(
+  db: Executor,
+  asOf: string,
+  options: ValuationOptions = {},
+): NetWorthValuation {
+  const estimate = options.estimate ?? true;
   const accountRows = db
     .select({ id: account.id, currency: account.currency })
     .from(account)
@@ -237,7 +370,7 @@ export function netWorthValuationAsOf(db: Executor, asOf: string): NetWorthValua
     else byAccount[balance.accountId] = toEurCents(balance.balanceCents, rate);
   }
 
-  const holdings = holdingValuationAsOf(db, asOf);
+  const holdings = holdingValuationAsOf(db, asOf, options);
   const holdingsByAccount: Record<string, number | null> = {};
   for (const holding of holdings.values) {
     if (holdingsByAccount[holding.accountId] === null) continue;
@@ -256,9 +389,14 @@ export function netWorthValuationAsOf(db: Executor, asOf: string): NetWorthValua
     const ids = missingPriceByAccount.get(holding.accountId) ?? new Set<string>();
     ids.add(holding.securityId);
     missingPriceByAccount.set(holding.accountId, ids);
-    holdingsByAccount[holding.accountId] = null;
-    byAccount[holding.accountId] = null;
+    // Strict: an unpriced position makes the account unknown. Otherwise (no price and no cost
+    // basis) it adds nothing and is reported as `missing`.
+    if (!estimate) {
+      holdingsByAccount[holding.accountId] = null;
+      byAccount[holding.accountId] = null;
+    }
   }
+
   const missingPriceSecurityIds = [
     ...new Set([...missingPriceByAccount.values()].flatMap((s) => [...s])),
   ].sort();
@@ -277,6 +415,7 @@ export function netWorthValuationAsOf(db: Executor, asOf: string): NetWorthValua
     holdingsByAccount,
     missingFxCurrencies,
     missingPriceSecurityIds,
+    incomplete: holdings.incomplete,
     missingPriceByAccount: Object.fromEntries(
       [...missingPriceByAccount].map(([id, values]) => [id, [...values].sort()]),
     ),
@@ -291,8 +430,6 @@ export function netWorthAsOf(db: Executor, asOf: string): NetWorth {
   const valuation = netWorthValuationAsOf(db, asOf);
   const missing = valuation.missingFxCurrencies[0];
   if (missing) throw new MissingFxRateError(missing, asOf);
-  const unpriced = Object.entries(valuation.missingPriceByAccount)[0];
-  if (unpriced) throw new PriceUnavailableError(unpriced[0], unpriced[1][0]!, asOf);
   if (valuation.totalCents === null) throw new Error('Complete valuation has no total');
   const byAccount = Object.fromEntries(
     Object.entries(valuation.byAccount).map(([id, value]) => {
@@ -300,22 +437,25 @@ export function netWorthAsOf(db: Executor, asOf: string): NetWorth {
       return [id, value];
     }),
   );
-  return { totalCents: valuation.totalCents, byAccount };
+  return { totalCents: valuation.totalCents, byAccount, incomplete: valuation.incomplete };
 }
 
 // ---------------------------------------------------------------------------------------------
 // P5.2 read models: daily series in one pass (no `netWorthAsOf` per day).
 // ---------------------------------------------------------------------------------------------
 
-function rateTable(db: Executor, to: string): RateTable {
+function toRateTable(rows: Rates): RateTable {
   const table = new Map<string, { date: string; rateMicro: number }[]>();
-  const rows = db.select().from(fxRate).where(lte(fxRate.date, to)).all();
-  for (const r of rows.sort((a, b) => a.date.localeCompare(b.date))) {
+  for (const r of [...rows].sort((a, b) => a.date.localeCompare(b.date))) {
     const list = table.get(r.currency) ?? [];
     list.push({ date: r.date, rateMicro: r.rateMicro });
     table.set(r.currency, list);
   }
   return table;
+}
+
+function rateTable(db: Executor, to: string): RateTable {
+  return toRateTable(db.select().from(fxRate).where(lte(fxRate.date, to)).all());
 }
 
 export interface SeriesFilter {
@@ -331,6 +471,11 @@ export interface SeriesFilter {
 type MutablePosition = PositionInput & {
   snapshots: { date: string; unitsE8: number }[];
   trades: { date: string; unitsE8: number }[];
+  cost: {
+    currency: string;
+    snapshots: { date: string; costBasisCents: number | null }[];
+    trades: SeriesTrade[];
+  };
 };
 
 /**
@@ -340,7 +485,11 @@ type MutablePosition = PositionInput & {
  * once for the whole window. Soft-deleted rows are ignored; positions without units in the whole
  * window are left out.
  */
-export function valuationSeries(db: Executor, filter: SeriesFilter): ValuationSeries {
+export function valuationSeries(
+  db: Executor,
+  filter: SeriesFilter,
+  options: ValuationOptions = {},
+): ValuationSeries {
   const days = eachDay(filter.from, filter.to);
   const live = new Set(
     db
@@ -364,17 +513,28 @@ export function valuationSeries(db: Executor, filter: SeriesFilter): ValuationSe
       securityId: trade.securityId,
       accountId: trade.accountId,
       date: trade.date,
+      kind: trade.kind,
       unitsE8: trade.unitsE8,
+      amountCents: trade.amountCents,
+      feeCents: trade.feeCents,
+      taxCents: trade.taxCents,
     })
     .from(trade)
     .where(and(lte(trade.date, filter.to), isNull(trade.deletedAt)))
     .all()
     .filter((r) => wantSecurity(r.securityId) && wantAccount(r.accountId));
-  const pricesBySecurity = new Map<
-    string,
-    { date: string; priceMicro: number; currency: string }[]
-  >();
-  for (const p of db.select().from(price).where(lte(price.date, filter.to)).all()) {
+  const currencies = new Map(
+    db
+      .select({ id: account.id, currency: account.currency })
+      .from(account)
+      .all()
+      .map((a) => [a.id, a.currency]),
+  );
+  const estimate = options.estimate ?? true;
+  const pricesBySecurity = new Map<string, DatedPrice[]>();
+  // The backfill tolerance reads prices a few days after the window.
+  const lastPriceDay = estimate ? addDays(filter.to, PRICE_BACKFILL_TOLERANCE_DAYS) : filter.to;
+  for (const p of db.select().from(price).where(lte(price.date, lastPriceDay)).all()) {
     if (!wantSecurity(p.securityId)) continue;
     const list = pricesBySecurity.get(p.securityId) ?? [];
     list.push({ date: p.date, priceMicro: p.priceMicro, currency: p.currency });
@@ -392,15 +552,22 @@ export function valuationSeries(db: Executor, filter: SeriesFilter): ValuationSe
         snapshots: [],
         trades: [],
         prices: pricesBySecurity.get(securityId) ?? [],
+        cost: { currency: currencies.get(accountId) ?? 'EUR', snapshots: [], trades: [] },
       };
       positions.set(key, p);
     }
     return p;
   };
-  for (const r of snapshots)
-    at(r.accountId, r.securityId).snapshots.push({ date: r.asOf, unitsE8: r.unitsE8 });
-  for (const r of trades)
-    at(r.accountId, r.securityId).trades.push({ date: r.date, unitsE8: r.unitsE8 });
+  for (const r of snapshots) {
+    const p = at(r.accountId, r.securityId);
+    p.snapshots.push({ date: r.asOf, unitsE8: r.unitsE8 });
+    p.cost.snapshots.push({ date: r.asOf, costBasisCents: r.costBasisCents });
+  }
+  for (const r of trades) {
+    const p = at(r.accountId, r.securityId);
+    p.trades.push({ date: r.date, unitsE8: r.unitsE8 });
+    p.cost.trades.push(r);
+  }
 
   const series = dailyValuation(
     [...positions.values()].sort(
@@ -408,7 +575,9 @@ export function valuationSeries(db: Executor, filter: SeriesFilter): ValuationSe
     ),
     days,
     rateTable(db, filter.to),
+    options,
   );
+  noteIncomplete(series.incomplete);
   return { ...series, positions: series.positions.filter((p) => p.unitsE8.some((u) => u !== 0)) };
 }
 

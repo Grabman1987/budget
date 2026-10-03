@@ -5,8 +5,10 @@ import type { PortfolioSummary, ContributionHistory } from '@budget/db';
 import { queryOptions, useQuery } from '@tanstack/react-query';
 import { useNavigate } from '@tanstack/react-router';
 import { useZeitraum, ZEITRAUM_VALUES } from '../wealth/zeitraum';
+import { userText } from '../api/error-text';
 import { ApiError, request } from '../api/http';
 import { ErrorNote, LoadingNote } from '../ledger/states';
+import { ValuationHint, type WithValuationNotes } from '../ledger/valuation-hint';
 import { longDay, eur } from '../ledger/format';
 import { periodText } from '../wealth/networth-model';
 import { LEDGER_KEY } from '../ledger/queries';
@@ -18,7 +20,7 @@ import './portfolio-contributions-report.css';
 interface ContributionsPortfolio extends PortfolioSummary {
   contributionHistory?: ContributionHistory | null;
 }
-interface PortfolioResponse {
+interface PortfolioResponse extends WithValuationNotes {
   portfolio: ContributionsPortfolio;
 }
 
@@ -78,6 +80,7 @@ export function PortfolioContributionsReport({
       ]}
     >
       <div className="kview vview portfolio-contributions-report">
+        <ValuationHint incomplete={query.data?.incomplete} />
         {query.isPending && <LoadingNote what="Einzahlungen und Wert" />}
         {query.isError &&
           (query.error instanceof ApiError && query.error.code === 'valuation_unavailable' ? (
@@ -86,8 +89,10 @@ export function PortfolioContributionsReport({
                 <strong>Wertpapierbewertung nicht verfügbar.</strong>
                 <p>
                   Für den gewählten Zeitraum fehlt ein benötigter Kurs oder Wechselkurs.{' '}
-                  {query.error.detail ??
-                    'Die Wertentwicklung kann deshalb nicht vollständig berechnet werden.'}
+                  {userText(
+                    query.error.detail,
+                    'Die Wertentwicklung kann deshalb nicht vollständig berechnet werden.',
+                  )}
                 </p>
                 <Button variant="ghost" size="sm" onClick={() => void query.refetch()}>
                   Erneut versuchen

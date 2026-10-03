@@ -5,6 +5,7 @@ import { ChartNoAxesCombined, ChevronRight } from 'lucide-react';
 import { VERMOEGEN_PORTFOLIO_META } from '../nav/pages';
 import { PageFrame } from '../pages/placeholder-page';
 import { ErrorNote, LoadingNote, EmptyNote } from '../ledger/states';
+import { ValuationHint } from '../ledger/valuation-hint';
 import { eurParts, eurWhole, longDay } from '../ledger/format';
 import { AppLink } from '../shell/app-link';
 import {
@@ -88,6 +89,7 @@ export function PortfolioPage() {
         {query.isError && (
           <ErrorNote what="Positionen" error={query.error} onRetry={() => void query.refetch()} />
         )}
+        <ValuationHint incomplete={query.data?.incomplete} />
         {view && <PortfolioLead view={view} />}
         <PortfolioAllocation />
         {view && (
@@ -330,7 +332,13 @@ function PositionRow({
           {p.name}
         </button>
         <small className="portfolio-status">
-          {p.valueCents === null ? unavailable : p.costCents === null ? basis : ''}
+          {p.valueCents === null
+            ? unavailable
+            : p.accounts.some((a) => a.valueStatus === 'estimated')
+              ? 'Wert geschätzt, kein Kurs'
+              : p.costCents === null
+                ? basis
+                : ''}
         </small>
       </th>
       <td className="portfolio-platform">
