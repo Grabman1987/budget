@@ -283,3 +283,9 @@ also invalidate integrated Heute reads. Bank/assignment suggestion decisions rem
 ### Book-rule inputs
 
 `GET /api/rules/inputs` reads optional birth month/year and monthly employer contributions. `PATCH /api/rules/inputs` accepts a strict `{ birthMonth?: "YYYY-MM" | "", pension?: [{ month: "YYYY-MM", amountCents: integer }] }` object. Birth month has no default and must be plausible; duplicate months and negative contributions are rejected. Writes share one audited, undoable savepoint. New instrument `leverageFactor` is integer tenths, between 10 and 1000. `GET /api/rules` includes a preview and `unavailableReason` for book rules, including disabled ones; null evaluations remain unstored.
+
+## Foreign-currency account detail
+
+See [the detail currency contract](fx-account-detail.md) for native cents, dated
+EUR display valuations, cash history, movement totals and reconciliation semantics.
+These projections do not change native reconciliation or book anything on read.
