@@ -55,7 +55,7 @@ Prototype references: [Heute](../design/prototype/index.html),
 | Y18 | Assignment rules / Immer so zuordnen | Partial; UI placeholder | Rule editor, safe automatic application and inbox decision integration |
 | Y19 | Bank connection, consent renewal and reconciliation | Open | Adapter, authorized connection workflow, deduplication, error handling and private bank acceptance |
 | Y20 | Nightly bank/source worker with catch-up | Partial | Market timer exists; full worker and 14-day stable nightly acceptance do not |
-| Y21 | Receipt photograph/upload and links to bookings | Open | Object storage, safe upload, booking linkage and mobile capture |
+| Y21 | Receipt photograph/upload and links to bookings | Implemented; owner acceptance open | Volume blobs, bounded authenticated upload, booking links/undo, inbox capture, previews/download and encrypted archive backup; metadata limits and real-phone/restore acceptance: [receipts](receipts.md) |
 | Y22 | Payslip lines, projects and side income | Partial | Project attribution on bookings exists; project management/P&L, payslip capture and reports remain open |
 | Y23 | R01–R16, stages and Finanz-Check | UI + engine | Owner confirmations and actual-data rule acceptance; history report remains open |
 | Y24 | Weekly inbox, payday distribution, month/year/quarter closing routines | Partial | Guided complete routines, completion states and resulting reports |

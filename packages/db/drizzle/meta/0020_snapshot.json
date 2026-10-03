@@ -1,8 +1,8 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "3d4edfe0-4958-4471-9501-c1d3d9eb23fd",
-  "prevId": "dcf74b0d-4d43-41cc-bb6a-08ebaa033f8e",
+  "id": "c9bc8ca0-4f87-4e67-8a3c-faf19ba3e6bc",
+  "prevId": "3d4edfe0-4958-4471-9501-c1d3d9eb23fd",
   "tables": {
     "account": {
       "name": "account",
@@ -1447,6 +1447,29 @@
           "notNull": true,
           "autoincrement": false,
           "default": true
+        },
+        "recurrence": {
+          "name": "recurrence",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'once'"
+        },
+        "recurrence_months": {
+          "name": "recurrence_months",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'[]'"
+        },
+        "recurrence_until": {
+          "name": "recurrence_until",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
         },
         "note": {
           "name": "note",

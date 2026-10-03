@@ -1,17 +1,23 @@
-import { schema, writesHeld, type Db, type OpenedDatabase } from '@budget/db';
-import { and, eq, isNull } from 'drizzle-orm';
+import { openDatabase, schema, writesHeld, type Db, type OpenedDatabase } from '@budget/db';
+import { and, eq, isNotNull, isNull } from 'drizzle-orm';
 import { execFile } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
-import { mkdtemp, readFile, rm } from 'node:fs/promises';
+import { copyFile, mkdir, mkdtemp, rm, stat } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { promisify } from 'node:util';
 import { backupDay, backupKey, backupsToDelete } from './retention';
 import { S3Client, safeBackupMessage, type S3Config } from './s3';
+import { receiptDirectory, receiptPath, verifyReceiptFile } from '../receipts/files';
 
 const run = promisify(execFile);
 type Sqlite = OpenedDatabase['sqlite'];
 const HOUR = 3_600_000;
+// Windows may put Git's GNU tar first on PATH; its colon parsing treats drive letters as hosts.
+export const tarBinary =
+  process.platform === 'win32'
+    ? join(process.env['SystemRoot'] ?? 'C:\\Windows', 'System32', 'tar.exe')
+    : 'tar';
 
 export interface BackupConfig {
   /** age recipients (public keys, `age1…`). The server can encrypt but never decrypt. */
@@ -68,6 +74,33 @@ export interface BackupResult {
   deleted: string[];
 }
 
+/** A snapshot defines the exact immutable blob set, including soft-deleted rows needed by undo. */
+export async function createBackupArchive(sqlite: Sqlite, dir: string, receiptsDir: string) {
+  const staging = join(dir, 'snapshot');
+  await mkdir(join(staging, 'receipts'), { recursive: true, mode: 0o700 });
+  const snapshot = join(staging, 'budget.sqlite');
+  sqlite.prepare('VACUUM INTO ?').run(snapshot);
+  const copy = openDatabase(snapshot);
+  let blobs: { sha256: string; sizeBytes: number }[];
+  try {
+    blobs = copy.db
+      .selectDistinct({ sha256: schema.receipt.sha256, sizeBytes: schema.receipt.sizeBytes })
+      .from(schema.receipt)
+      .where(isNotNull(schema.receipt.sha256))
+      .all() as { sha256: string; sizeBytes: number }[];
+  } finally {
+    copy.close();
+  }
+  for (const blob of blobs) {
+    const source = await verifyReceiptFile(receiptsDir, blob.sha256, blob.sizeBytes);
+    await copyFile(source, receiptPath(join(staging, 'receipts'), blob.sha256));
+  }
+  const archive = join(dir, 'budget.tar');
+  await run(tarBinary, ['-cf', archive, '-C', staging, 'budget.sqlite', 'receipts']);
+  await rm(staging, { recursive: true, force: true });
+  return archive;
+}
+
 /**
  * One run: consistent snapshot with `VACUUM INTO` (a transaction-consistent copy while the app
  * keeps writing), encrypt it with age to the recipients, upload, apply the retention. The
@@ -78,12 +111,12 @@ export async function runBackup(
   config: BackupConfig,
   now: Date,
   client = new S3Client(config.s3),
+  receiptsDir = receiptDirectory(sqlite.name),
 ): Promise<BackupResult> {
   const dir = await mkdtemp(join(tmpdir(), 'budget-backup-'));
   try {
-    const plain = join(dir, 'budget.sqlite');
+    const plain = await createBackupArchive(sqlite, dir, receiptsDir);
     const sealed = `${plain}.age`;
-    sqlite.prepare('VACUUM INTO ?').run(plain);
     await run(config.ageBin, [
       '--encrypt',
       ...config.recipients.flatMap((r) => ['-r', r]),
@@ -92,12 +125,12 @@ export async function runBackup(
       plain,
     ]);
     await rm(plain);
-    const body = await readFile(sealed);
+    const bytes = (await stat(sealed)).size;
     const key = backupKey(config.prefix, now.toISOString().slice(0, 10));
-    await client.put(key, body);
+    await client.putFile(key, sealed);
     const deleted = backupsToDelete(await client.list(config.prefix));
     for (const old of deleted) await client.delete(old);
-    return { key, bytes: body.length, deleted };
+    return { key, bytes, deleted };
   } finally {
     await rm(dir, { recursive: true, force: true });
   }

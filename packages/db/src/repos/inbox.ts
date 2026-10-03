@@ -3,6 +3,7 @@ import { account, booking, bookingSplit, inboxItem, payee } from '../schema';
 import { nowIso, updateTracked, withGroup, type AuditContext } from './audit';
 import { ConflictError, EntityNotFoundError } from './errors';
 import { runInTransaction, type Executor } from './types';
+import { listReceipts } from './receipts';
 
 export interface InboxBooking {
   type: 'booking';
@@ -102,7 +103,8 @@ export function readInbox(db: Executor, today: string) {
         createdAt: row.createdAt,
       }));
     const entries: InboxEntry[] = [...bookings, ...stored];
-    return { asOf: today, count: entries.length, entries };
+    const unlinkedReceipts = listReceipts(tx);
+    return { asOf: today, count: entries.length + unlinkedReceipts.length, entries };
   });
 }
 
@@ -117,7 +119,7 @@ export function readInboxCount(db: Executor, today: string) {
       .where(unclassifiedWhere(today))
       .get()!.count;
     const stored = tx.select({ count: count() }).from(inboxItem).where(storedWhere()).get()!.count;
-    return { asOf: today, count: bookings + stored };
+    return { asOf: today, count: bookings + stored + listReceipts(tx).length };
   });
 }
 
