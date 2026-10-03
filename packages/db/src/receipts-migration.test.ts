@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { expect, it } from 'vitest';
 import { defaultMigrationsFolder, migrateDatabase, openDatabase } from './client';
-import { createBooking, getBooking } from './repos/bookings';
+import { getBooking } from './repos/bookings';
 import { addReceipt, listReceipts } from './repos/receipts';
 import { seedBasics, testCtx } from './repos/test-helpers';
 
@@ -24,17 +24,13 @@ it('upgrades existing receipt placeholders without losing split links or ledger 
       copyFileSync(join(source, `${entry.tag}.sql`), join(folder, `${entry.tag}.sql`));
     migrateDatabase(opened.db, folder);
     seedBasics(opened.db);
-    const bookingId = createBooking(
-      opened.db,
-      {
-        accountId: 'giro',
-        date: '2026-09-17',
-        amountCents: -1250,
-        splits: [{ amountCents: -1250, categoryId: 'essen' }],
-      },
-      testCtx,
-    );
-    const splitId = getBooking(opened.db, bookingId)!.splits[0]!.id;
+    // Raw rows: later migrations add booking columns that the old schema does not have yet.
+    const bookingId = 'legacy-booking';
+    const splitId = 'legacy-split';
+    opened.sqlite.exec(`
+      INSERT INTO booking (id, account_id, date, amount_cents) VALUES ('legacy-booking', 'giro', '2026-09-17', -1250);
+      INSERT INTO booking_split (id, booking_id, category_id, amount_cents) VALUES ('legacy-split', 'legacy-booking', 'essen', -1250);
+    `);
     opened.sqlite.exec(`INSERT INTO receipt (id, storage_key, mime, size_bytes)
       VALUES ('legacy-receipt', 'synthetic-legacy-key', 'image/png', 1)`);
     opened.sqlite
