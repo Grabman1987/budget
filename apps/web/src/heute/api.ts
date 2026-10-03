@@ -70,6 +70,7 @@ export interface Heute extends WithValuationNotes {
       planToDateCents: number;
       deltaCents: number;
       forecastEndCents: number;
+      forecastAvailable: boolean;
       limitCents: number;
       variableSoFarCents: number;
       openFixedCents: number;

@@ -132,3 +132,20 @@ export function costsOverview(input: {
     years,
   };
 }
+
+/** An account's debt movement alone never establishes an interest/fee cost. */
+export function isBookedCreditCost(input: {
+  creditAccount: boolean;
+  feeCategory: boolean;
+  categoryKind: string;
+  transfer: boolean;
+  systemEntry: boolean;
+}): boolean {
+  return (
+    input.creditAccount &&
+    input.feeCategory &&
+    !input.transfer &&
+    !input.systemEntry &&
+    !['debt', 'invest', 'card_payment', 'advance', 'income'].includes(input.categoryKind)
+  );
+}

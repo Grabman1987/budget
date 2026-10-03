@@ -452,3 +452,16 @@ Owner setup and limits: [payslip intake](payslip-intake.md); synthetic browser e
 - [x] `/einstellungen/projekte`: create, rename, archive/reactivate and undo/redo; retained project attribution/history, active-only new booking attribution. `/reports/projekte`: closed-month split-level income/cost/result, signed refunds, prior-period comparison, monthly results and booking drilldown; side income stays a distinct household income type without adding project profit again.
 - [x] Final local typecheck/lint/full unit and API suite (223 files, 2,166 tests), production build and four synthetic desktop/mobile browser scenarios; light/dark Axe and overflow checks. Local worker/timeout settings and screenshots: [verification evidence](payroll-projects.md#verification-evidence).
 - [ ] Separate receipt object-storage/upload workflow, collective/step-raise metadata and inflation comparison, project hours/hourly rates; owner design/private-data acceptance and Gate 4 remain open.
+
+### Report and KPI correctness audit - 2026-10-03
+
+Scope and shared definitions: [report correctness](report-correctness.md).
+
+- [x] Explicit split-level loan fee attribution; opening, disbursement, principal and transfers excluded.
+- [x] Project reports use the shared legacy/calendar range parser, including partial current months.
+- [x] Nonpositive/cancelled assignment plans retain absolute deviation without misleading percentages.
+- [x] Pace counts fixed/expected payments once and hides first-week/planless forecasts.
+- [x] R08 missing-debt-rate guard and recorded minimum repayments; shared R07 chart horizon/low; monthly R01 units.
+- [x] Shared household classification for yearly/overview/table/cashflow totals and Plan year summary.
+- [x] Mobile Heute safe space and bounded project settings table; synthetic regressions.
+- [ ] Owner design/private-ledger acceptance and pinned Linux visual CI; no private-data access, migration or deployment in this task.

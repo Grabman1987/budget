@@ -185,3 +185,21 @@ export function lowPoint(days: ReadonlyArray<ForecastDay>, withinDays: number): 
   }
   return low ? { day: low.day, index: low.index, cents: low.balanceCents } : null;
 }
+
+/** One unbuffered projection and low point for R07 and the Heute balance chart. */
+export function budgetLiquidityForecast(
+  input: {
+    startDay: string;
+    startCents: number;
+    items: ReadonlyArray<ForecastItem>;
+    variableMonthlyCents: number;
+  },
+  days: number,
+) {
+  const forecast = liquidityForecast({
+    ...input,
+    days,
+    variablePerDay: evenDaily(() => input.variableMonthlyCents),
+  });
+  return { ...forecast, low: lowPoint(forecast.days, days) };
+}

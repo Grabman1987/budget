@@ -299,10 +299,19 @@ function Body({ data }: { data: BudgetAdherenceReport }) {
                     <td className="n">{eur(r.planCents, { cents: false })}</td>
                     <td className="n">{eur(r.istCents, { cents: false })}</td>
                     <td className="n">
-                      <strong>{bpText(r.deviationBp, { sign: true })}</strong>
+                      <strong>
+                        {r.deviationBp === null
+                          ? eur(r.deviationCents, { cents: false, sign: true })
+                          : bpText(r.deviationBp, { sign: true })}
+                      </strong>
+                      {r.deviationBp === null && (
+                        <small>Kein Prozentvergleich · absolute Abweichung</small>
+                      )}
                     </td>
                     <td>
-                      {r.inBand ? (
+                      {r.inBand === null ? (
+                        <span className="sr-status">Abweichung in Euro</span>
+                      ) : r.inBand ? (
                         <span className="sr-status is-ok">
                           <CheckCircle2 size={14} strokeWidth={1.75} aria-hidden="true" />
                           im Band

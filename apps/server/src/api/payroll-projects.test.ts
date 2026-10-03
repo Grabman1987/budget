@@ -252,6 +252,33 @@ describe('payslip API and grouped audit', () => {
   });
 });
 describe('project management and P&L', () => {
+  it('accepts calendar ranges including the live month and rejects malformed or future ranges', async () => {
+    const project = (await call('POST', '/projects', { name: 'Synthetischer Zeitraumtest' })).body
+      .project;
+    for (const [date, amountCents] of [
+      ['2026-09-03', 900],
+      ['2026-10-01', 1200],
+      ['2026-10-03', 9999],
+    ] as const)
+      createBooking(
+        db,
+        {
+          accountId: 'cash',
+          date,
+          amountCents,
+          projectId: project.id,
+          splits: [{ amountCents, incomeTypeId: INCOME_TYPES.side.id }],
+        },
+        { actor: 'tester' },
+      );
+    const selected = await call('GET', '/projects/report?period=2026-09..2026-10');
+    expect(selected.status).toBe(200);
+    expect(selected.body.months).toEqual(['2026-09', '2026-10']);
+    expect(selected.body.total.incomeCents).toBe(2100);
+    expect((await call('GET', '/projects/report?period=1M')).body.total.incomeCents).toBe(900);
+    for (const period of ['2026-10..2026-09', '2026-13..2026-13', '2026-10..2026-11', 'invalid'])
+      expect((await call('GET', `/projects/report?period=${period}`)).status).toBe(400);
+  });
   it('refuses booking redo until its retained project is restored', async () => {
     const created = await call('POST', '/projects', { name: 'Rückgängig-Projekt' });
     createBooking(

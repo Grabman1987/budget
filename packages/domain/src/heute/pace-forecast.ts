@@ -11,6 +11,7 @@ const roundDiv = (a: number, b: number): number => Math.floor((2 * a + b) / (2 *
  */
 export function paceForecastCurve(model: PaceModel, fixed: ReadonlyArray<PaceFixed>): number[] {
   const { todayDay, daysInMonth, figures } = model;
+  if (!figures.forecastAvailable) return [];
   const open = fixed
     .filter((f) => f.day.startsWith(model.month))
     .filter((f) => !(f.settled ?? Number(f.day.slice(8)) <= todayDay));
@@ -18,7 +19,13 @@ export function paceForecastCurve(model: PaceModel, fixed: ReadonlyArray<PaceFix
   const left = daysInMonth - todayDay;
   const out: number[] = [];
   for (let d = todayDay; d <= daysInMonth; d++) {
-    const fixedTo = open.reduce((a, f) => (Number(f.day.slice(8)) <= d ? a + f.cents : a), 0);
+    const fixedTo = open.reduce(
+      (a, f) =>
+        Math.max(todayDay + 1, Number(f.day.slice(8))) <= d
+          ? a + Math.max(0, f.cents - (f.paidCents ?? 0))
+          : a,
+      0,
+    );
     out.push(
       figures.spentCents + fixedTo + (left > 0 ? roundDiv(remaining * (d - todayDay), left) : 0),
     );

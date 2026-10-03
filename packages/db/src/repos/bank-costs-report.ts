@@ -3,6 +3,7 @@ import {
   contractBinding,
   contractsOverview,
   costsOverview,
+  isBookedCreditCost,
   ExchangeRateUnavailableError,
   PriceUnavailableError,
   lastDayOfMonth,
@@ -15,7 +16,16 @@ import {
   type PayoffPlan,
 } from '@budget/domain';
 import { and, eq, gte, isNull } from 'drizzle-orm';
-import { account, booking, bookingSplit, INCOME_TYPES, trade } from '../schema';
+import {
+  account,
+  booking,
+  bookingSplit,
+  INCOME_TYPES,
+  trade,
+  category,
+  categoryGroup,
+  payee,
+} from '../schema';
 import { MissingFxRateError } from './errors';
 import { contractSources } from './contracts-report';
 import { portfolioSummary } from './portfolio-summary';
@@ -26,7 +36,7 @@ import { reportMonths, spendCategories, tableSpendByMonth } from './spending-rep
 import type { Executor } from './types';
 
 /**
- * Bank- und Zinskosten (2.6). Booked costs only: loan interest (charges booked on loan accounts,
+ * Bank- und Zinskosten (2.6). Booked costs only: loan interest/fees (splits explicitly attributed to the fee group on loan accounts,
  * never transfers), bank fees (the category group "Bank und Gebühren"), broker fees of trades and
  * the bank's foreign-currency fee of bookings. Fund costs (TER) are never booked and stay out of
  * the sums. Earnings are interest and dividends booked on budget accounts, labelled and apart:
@@ -96,7 +106,8 @@ export function bankCostsReport(db: Executor, today: string): BankCostsReport {
   const onBudget = new Set(accounts.filter((a) => a.onBudget).map((a) => a.id));
   const currencyOf = new Map(accounts.map((a) => [a.id, a.currency]));
 
-  // Loan interest: charges booked on a loan account, never transfers (rates, extra repayments).
+  // Loan costs require explicit fee-category attribution; debt movements are not costs.
+  const feeCategories = spendCategories(db).filter((c) => c.groupName === BANK_FEE_GROUP);
   const interest: Record<string, number> = {};
   const interestByAccount = new Map<string, Record<string, number>>();
   // Foreign-currency fees of the bank.
@@ -108,25 +119,76 @@ export function bankCostsReport(db: Executor, today: string): BankCostsReport {
       accountId: booking.accountId,
       date: booking.date,
       amountCents: booking.amountCents,
+      id: booking.id,
+      openingDate: account.openingDate,
+      systemKind: payee.systemKind,
       transferId: booking.transferId,
       fee: booking.fxFeeCents,
     })
     .from(booking)
-    .where(isNull(booking.deletedAt))
+    .innerJoin(account, eq(account.id, booking.accountId))
+    .leftJoin(payee, eq(payee.id, booking.payeeId))
+    .where(and(isNull(booking.deletedAt), isNull(account.deletedAt)))
     .all();
   for (const r of rows) {
     const month = monthKey(r.date);
-    if (!inWindow.has(month)) continue;
-    if (loanIds.has(r.accountId) && r.transferId === null && r.amountCents < 0) {
-      add(interest, month, -r.amountCents);
-      const own = interestByAccount.get(r.accountId) ?? {};
-      add(own, month, -r.amountCents);
-      interestByAccount.set(r.accountId, own);
-    }
+    if (
+      !inWindow.has(month) ||
+      r.date < r.openingDate ||
+      r.systemKind !== null ||
+      r.transferId !== null
+    )
+      continue;
     if (r.fee !== null && r.fee !== 0) {
       add(fx, month, Math.abs(r.fee));
       if (last12.has(month)) foreignFeeBookings += 1;
     }
+  }
+  const costSplits = db
+    .select({
+      accountId: booking.accountId,
+      date: booking.date,
+      cents: bookingSplit.amountCents,
+      openingDate: account.openingDate,
+      transferId: booking.transferId,
+      splitTransferId: bookingSplit.transferId,
+      systemKind: payee.systemKind,
+      kind: category.kind,
+      groupName: categoryGroup.name,
+    })
+    .from(bookingSplit)
+    .innerJoin(booking, eq(booking.id, bookingSplit.bookingId))
+    .innerJoin(account, eq(account.id, booking.accountId))
+    .innerJoin(category, eq(category.id, bookingSplit.categoryId))
+    .innerJoin(categoryGroup, eq(categoryGroup.id, category.groupId))
+    .leftJoin(payee, eq(payee.id, booking.payeeId))
+    .where(
+      and(
+        isNull(booking.deletedAt),
+        isNull(account.deletedAt),
+        isNull(category.deletedAt),
+        isNull(categoryGroup.deletedAt),
+      ),
+    )
+    .all();
+  for (const r of costSplits) {
+    const month = monthKey(r.date);
+    if (
+      !inWindow.has(month) ||
+      r.date < r.openingDate ||
+      !isBookedCreditCost({
+        creditAccount: loanIds.has(r.accountId),
+        feeCategory: r.groupName === BANK_FEE_GROUP,
+        categoryKind: r.kind,
+        transfer: r.transferId !== null || r.splitTransferId !== null,
+        systemEntry: r.systemKind !== null,
+      })
+    )
+      continue;
+    add(interest, month, -r.cents);
+    const own = interestByAccount.get(r.accountId) ?? {};
+    add(own, month, -r.cents);
+    interestByAccount.set(r.accountId, own);
   }
   // Earnings: interest and dividends on budget accounts (income type Kapitalerträge).
   const incomeRows = db
@@ -151,11 +213,28 @@ export function bankCostsReport(db: Executor, today: string): BankCostsReport {
 
   // Bank fees: net spending of the fee group (the same envelope activity as everywhere).
   const fees: Record<string, number> = {};
-  const feeCategories = spendCategories(db).filter((c) => c.groupName === BANK_FEE_GROUP);
   if (feeCategories.length > 0 && available.length > 0) {
     const spend = tableSpendByMonth(tables, feeCategories);
     for (const [month, byCategory] of Object.entries(spend))
       for (const cents of Object.values(byCategory)) add(fees, month, cents);
+  }
+
+  // Loan accounts can also be on budget: their explicit cost splits were already counted above.
+  for (const r of costSplits) {
+    const month = monthKey(r.date);
+    if (
+      onBudget.has(r.accountId) &&
+      inWindow.has(month) &&
+      r.date >= r.openingDate &&
+      isBookedCreditCost({
+        creditAccount: loanIds.has(r.accountId),
+        feeCategory: r.groupName === BANK_FEE_GROUP,
+        categoryKind: r.kind,
+        transfer: r.transferId !== null || r.splitTransferId !== null,
+        systemEntry: r.systemKind !== null,
+      })
+    )
+      add(fees, month, r.cents);
   }
 
   // Broker fees of trades (the trade's fee, and standalone fee entries); EUR accounts only.
