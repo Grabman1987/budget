@@ -546,6 +546,66 @@ keep `/data/migration` until the end.
    what you want.
 6. Check Plan › Monat for the months involved, then remove the private files (section 12, step 5).
 
+### 12.4 Historical payslips (operator task)
+
+`payslips --file <json> [--dry-run] [--details] [--replace]` imports the owner's historical payslips
+(Gehaltszettel) from a JSON file. The file holds real amounts: keep it on the private volume
+(`/data/migration/`), never in the repo. Every entry is passed to `savePayslip`, the function behind
+`POST /api/payslips`, so the input rules and the link rules are the app's own:
+
+```json
+{
+  "payslips": [
+    {
+      "month": "2024-06",
+      "kind": "regular",
+      "specialType": null,
+      "grossCents": 300000,
+      "svCents": 50000,
+      "taxCents": 40000,
+      "netCents": 227000,
+      "lines": [
+        { "section": "earning", "label": "Bonus", "amountCents": 10000 },
+        { "section": "deduction", "label": "Canteen", "amountCents": 5000 },
+        { "section": "reimbursement", "label": "Home office", "amountCents": 12000 }
+      ],
+      "salaryBooking": { "account": "Checking", "date": "2024-06-14", "amountCents": 227000, "payee": "Employer" }
+    }
+  ]
+}
+```
+
+- Fields are those of the payslip form: `kind` is `regular` or `special` (a `special` slip needs
+  `specialType` `salary13`, `salary14` or `other`, a regular one must not have it); amounts are
+  cents. `svCents` and `taxCents` are signed (a negative value is a refund or Aufrollung credit),
+  line amounts are not: a line is `earning` (added to the gross), `deduction` (another deduction) or
+  `reimbursement` (tax-free, paid on top; Telearbeit, Fahrgeld, Reisespesen). The net must equal
+  gross + earnings - SV - tax - deductions + reimbursements, or the file is rejected before anything
+  is written (the message names the payslip). A signed Aufrollung goes into `svCents`/`taxCents`;
+  a credit that would be a negative deduction is netted into the deduction it reduces.
+- A regular payslip and the special payslips of the same payout are separate entries (one
+  `kind`/`specialType` each) that name the same payout in `salaryBooking`.
+- `salaryBooking` (optional) finds the booking the payout arrived with: `account` (exact name,
+  case-insensitive), `date` (the booking may be up to 3 days earlier or later), `amountCents` (the
+  booking's amount, the whole payout) and optionally `payee`. The payslip is linked only when exactly
+  one booking matches and the app accepts it as a salary booking (EUR inflow with a Gehalt or
+  Sonderzahlung split). Otherwise the payslip is still imported, without link, and reported as
+  `unlinked` with the reason (`no_salary_booking`, `unknown_account`, `ambiguous_account`,
+  `no_booking`, `ambiguous_booking`, `link_refused`).
+- One savepoint and one audit group (actor `operator`) per payslip; the output prints its group id,
+  so `undo-group --group <id>` (or the app's Rückgängig) removes exactly that payslip again.
+- A payslip for a month, kind and special type that exists already is reported as `exists` and left
+  alone, whatever the file says. `--replace` updates it through the same `savePayslip` path (same
+  id, lines replaced; a working link is kept when the file's booking is not found). Several `other`
+  special payments may exist in one month: they are paired by their figures, and with `--replace`
+  also by being the only unpaired one of the month on both sides.
+- A payslip the app refuses is `skipped` with a reason (`--details` adds the message); the rest goes
+  through and the exit code is 3. `--dry-run` does everything and rolls back, so it reports exactly
+  what the real run would.
+
+The last line is `payslips N created C [replaced R] exists E unlinked U skipped S`. Run `--dry-run`
+first, check the `unlinked` lines, then run it for real. Review the result in Berichte › Gehalt.
+
 ## 13. One-time Portfolio Performance migration (operator task)
 
 Same rules as section 12 (no import feature in the app, files and the private mapping never enter the repo). Prerequisite: the YNAB migration is committed (the depot, crypto and P2P accounts exist). `migrate-pp-cli.js` has the same shape: each step is one transaction, `revert` undoes a whole run (the newest committed one only, also across sources). What is written and why: `docs/migration/pp-export.md` §Commit.

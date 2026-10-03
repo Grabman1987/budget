@@ -3,13 +3,16 @@ import { basename, resolve } from 'node:path';
 import {
   applyBookEntries,
   applyMoves,
+  applyPayslips,
   listAuditGroups,
   migrateDatabase,
   openDatabase,
   orderAccountsByNames,
   parseBookFile,
   parseGroupsFile,
+  parsePayslipsFile,
   planGroupMoves,
+  summarizePayslips,
   undoAuditGroups,
   type MovePlan,
 } from '@budget/db';
@@ -31,6 +34,7 @@ import { findRun, runTask, type ImportTask } from './tasks';
  *   node migrate-cli.js move-money --month YYYY-MM --from "<name>" --to "<name>" --cents N [--dry-run]
  *   node migrate-cli.js move-money --file <list-groups json> [--allow-unbalanced] [--dry-run]
  *   node migrate-cli.js book --file <json> [--dry-run] [--details]
+ *   node migrate-cli.js payslips --file <json> [--dry-run] [--details] [--replace]
  *
  * Output is aggregates only (counts, problem codes, number of differences); `--details` adds the
  * differences themselves for the operator's terminal. Nothing is logged to files.
@@ -57,6 +61,13 @@ import { findRun, runTask, type ImportTask } from './tasks';
  * A transfer `add` may carry `transferCategory`; a `match` may be narrowed with `category` and
  * `transferAccount`. `unlock: true` on a change or delete entry unlocks that one reconciled booking (as the app's
  * `unlockReconciled`); without it a reconciled booking is skipped.
+ *
+ * `payslips` imports historical payslips from a private JSON file `{payslips: [...]}` whose entries
+ * mirror the input of the app's payslip route (`month, kind, specialType, grossCents, svCents,
+ * taxCents, netCents, lines`) plus `salaryBooking {account, date, amountCents, payee?}`, which is
+ * resolved to exactly one booking (date within 3 days) for the link, else the payslip is imported
+ * unlinked. One audit group per payslip (actor `operator`, `undo-group`). An existing payslip for
+ * the same month, kind and special type is reported as `exists` and kept unless `--replace`.
  */
 
 const args = process.argv.slice(2);
@@ -286,9 +297,54 @@ try {
       if (skipped > 0) process.exitCode = 3;
       break;
     }
+    case 'payslips': {
+      const dryRun = args.includes('--dry-run');
+      const replace = args.includes('--replace');
+      const entries = parsePayslipsFile(JSON.parse(readFileSync(required('file'), 'utf8')));
+      const outcomes = applyPayslips(db, entries, { actor: 'operator' }, { dryRun, replace });
+      const details = args.includes('--details');
+      for (const o of outcomes) {
+        const slip = `${o.month} ${o.kind}${o.specialType ? `/${o.specialType}` : ''}`;
+        if (o.status === 'skipped') {
+          console.log('skipped       ', slip, o.reason);
+          if (details) console.log('              ', o.detail);
+          continue;
+        }
+        if (o.status === 'exists') {
+          console.log('exists        ', slip);
+          continue;
+        }
+        const link = o.linked ? 'linked' : `unlinked ${o.unlinkedReason ?? ''}`.trim();
+        console.log(o.status.padEnd(14), slip, link, o.groupId || '(dry run)');
+        if (details && !o.linked)
+          console.log(
+            '              ',
+            `net ${o.netCents}`,
+            `candidates ${o.candidates ?? 0}`,
+            o.detail ?? '',
+          );
+      }
+      const sum = summarizePayslips(outcomes);
+      console.log(
+        'payslips',
+        sum.payslips,
+        'created',
+        sum.created,
+        ...(replace ? ['replaced', sum.replaced] : []),
+        'exists',
+        sum.exists,
+        'unlinked',
+        sum.unlinked,
+        'skipped',
+        sum.skipped,
+        dryRun ? '(dry run)' : '',
+      );
+      if (sum.skipped > 0) process.exitCode = 3;
+      break;
+    }
     default:
       console.log(
-        'usage: migrate-cli.js stage|dry-run|report|commit|revert|delete|order-accounts|list-groups|undo-group|move-money|book [options]',
+        'usage: migrate-cli.js stage|dry-run|report|commit|revert|delete|order-accounts|list-groups|undo-group|move-money|book|payslips [options]',
       );
       process.exitCode = 2;
   }
