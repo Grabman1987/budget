@@ -94,10 +94,7 @@ test('actual inbox: confirm, categorize, resolve warning, undo and keyboard pane
     panel.getByTestId('inbox-row').filter({ hasText: tag }).filter({ hasText: '12,00' }),
   ).toHaveCount(0);
   const warning = panel.getByTestId('inbox-row').filter({ hasText: `Quelle ${tag}` });
-  await warning.getByRole('button', { name: 'Als erledigt markieren' }).click();
-  await expect(warning).toHaveCount(0);
-  await page.locator('.toast.is-open').getByRole('button', { name: 'Rückgängig' }).click();
-  await expect(warning).toBeVisible();
+  // Accessibility scans must not consume the short undo/redo toast lifetime.
   for (const theme of ['light', 'dark'] as const) {
     await page.emulateMedia({ colorScheme: theme });
     await page.evaluate(() => document.fonts.ready);
@@ -110,6 +107,10 @@ test('actual inbox: confirm, categorize, resolve warning, undo and keyboard pane
       fullPage: true,
     });
   }
+  await warning.getByRole('button', { name: 'Als erledigt markieren' }).click();
+  await expect(warning).toHaveCount(0);
+  await page.locator('.toast.is-open').getByRole('button', { name: 'Rückgängig' }).click();
+  await expect(warning).toBeVisible();
   await page.locator('.toast.is-open').getByRole('button', { name: 'Wiederholen' }).click();
   await expect(warning).toHaveCount(0);
   await page.keyboard.press('Escape');

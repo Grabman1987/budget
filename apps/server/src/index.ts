@@ -1,3 +1,4 @@
+import { startBankWorker } from './bank-sync/worker-process';
 import { mkdirSync } from 'node:fs';
 import type { Server } from 'node:http';
 import { dirname, resolve } from 'node:path';
@@ -90,6 +91,12 @@ if (backupConfig) {
   console.warn('Encrypted backup is off (BUDGET_BACKUP_RECIPIENT not set).');
 }
 
+// A separate process shares this machine's SQLite volume; durable due times survive restart.
+const stopBankWorker =
+  process.env['ENABLE_BANKING_APP_ID'] && process.env['BUDGET_BANK_SYNC_DAILY'] !== '0'
+    ? startBankWorker(resolve(import.meta.dirname, 'bank-sync-worker.js'))
+    : () => {};
+
 const server = serve({ fetch: app.fetch, port, hostname: '0.0.0.0' }, (info) => {
   console.log(
     `Budget server listening on http://localhost:${info.port} (web: ${webDir}, origin: ${config.origin})`,
@@ -102,6 +109,7 @@ let stopping = false;
 function shutdown(signal: NodeJS.Signals): void {
   if (stopping) return;
   stopping = true;
+  stopBankWorker();
   for (const timer of backupTimers) clearTimeout(timer);
   console.log(`${signal} received, closing the server and the database`);
   // Force-close after 10 s so a stuck connection cannot delay the stop past Fly's kill_timeout.

@@ -1,3 +1,4 @@
+import type { BankSync } from './bank-sync/service';
 import { existsSync } from 'node:fs';
 import { relative, resolve } from 'node:path';
 import { writesHeld, type Db } from '@budget/db';
@@ -37,6 +38,7 @@ export type AppOptions = BaseOptions &
         ledger?:
           | {
               db: Db;
+              bankSync?: BankSync | null;
               today?: () => string;
               market?: MarketSources | undefined;
               jobs?: ImportJobs | undefined;

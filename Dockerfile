@@ -8,6 +8,7 @@ WORKDIR /repo
 COPY .npmrc package.json package-lock.json ./
 COPY apps/server/package.json apps/server/
 COPY apps/web/package.json apps/web/
+COPY apps/worker/package.json apps/worker/
 COPY packages/db/package.json packages/db/
 COPY packages/domain/package.json packages/domain/
 COPY packages/fixtures/package.json packages/fixtures/
@@ -64,6 +65,7 @@ WORKDIR /app
 COPY --from=build /repo/apps/server/dist/index.js ./server.js
 # Import tasks (YNAB dry run, commit, revert) run in a worker thread loaded from this file.
 COPY --from=build /repo/apps/server/dist/import-worker.js ./import-worker.js
+COPY --from=build /repo/apps/server/dist/bank-sync-worker.js ./bank-sync-worker.js
 # One-time YNAB migration as an operator task (no import feature in the app; docs/ops.md).
 COPY --from=build /repo/apps/server/dist/migrate-cli.js ./migrate-cli.js
 # One-time Portfolio Performance migration as an operator task (docs/ops.md section 13).
