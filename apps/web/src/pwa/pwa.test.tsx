@@ -37,7 +37,9 @@ describe('static offline shell', () => {
     );
     await userEvent.type(screen.getByRole('textbox', { name: 'Notiz' }), 'Noch offen');
     connection(false);
-    expect(screen.getByRole('status').textContent).toContain('Speichern braucht eine Verbindung.');
+    expect(screen.getByRole('status').textContent).toContain(
+      'Neue Buchungen warten auf diesem Gerät.',
+    );
     expect((screen.getByRole('textbox', { name: 'Notiz' }) as HTMLInputElement).value).toBe(
       'Noch offen',
     );

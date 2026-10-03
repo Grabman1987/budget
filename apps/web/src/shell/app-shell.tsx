@@ -9,6 +9,7 @@ import { PanelHost } from './panel-host';
 import { Sidebar } from './sidebar';
 import { Topbar } from './topbar';
 import { useStoredFlag } from './use-stored-flag';
+import { QueueList } from '../pwa/queue-ui';
 
 const APP_NAME = 'Budget';
 
@@ -48,6 +49,7 @@ export function AppShell() {
             asHeading={!(page && TITLE_ON_MOBILE_AREAS.has(page.area))}
           />
           <main className="sheet" id="main" tabIndex={-1} ref={main}>
+            {(page?.area === 'heute' || page?.area === 'konten') && <QueueList />}
             <Outlet />
           </main>
         </div>

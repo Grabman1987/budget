@@ -75,7 +75,7 @@ Prototype references: [Heute](../design/prototype/index.html),
 | Y23 | R01–R16, stages and Finanz-Check | UI + engine | Owner confirmations and actual-data rule acceptance; history report remains open |
 | Y24 | Weekly inbox, payday distribution, month/year/quarter closing routines | Partial | Guided complete routines, completion states and resulting reports |
 | Y25 | Mobile capture, accessible layout, dark mode | UI + engine for built pages | Repeat matching mockup/visual/accessibility checks for every new page |
-| Y26 | Installable PWA and offline booking queue | Static-shell baseline | Manifest/icons, static-only service worker, offline fallback and update prompt implemented; offline bookings, synchronization/conflicts (D07) and physical device acceptance remain open. See [PWA contract](pwa.md) |
+| Y26 | Installable PWA and offline booking queue | Implemented; device acceptance open | Static-only shell plus IndexedDB booking capture/edit/delete, FIFO retry on online/focus/manual send, durable API idempotency and retained conflict/session reasons. No API response caching; physical phone acceptance remains open. See [PWA contract](pwa.md) |
 
 First private migration is EUR-only from 01.10.2023. Unsupported foreign-currency
 budget accounts are guarded; full foreign-currency support remains later scope.

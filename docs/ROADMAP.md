@@ -370,7 +370,8 @@ Price history (yfinance + Ariva, source per price), ECB rates, trades and holdin
 ### P6 — Static PWA baseline
 - [x] Build-versioned static shell cache, install manifest/icons derived from the existing brand mark, offline fallback and opt-in update prompt. API/auth/export/health are network-only.
 - [x] Offline reload has no financial figures; a connection loss retains unsaved form state and shows an offline/stale-data notice.
-- [ ] D07 offline booking persistence, retry/idempotency and conflict decisions, physical phone installation/passkeys and Gate 4 acceptance remain separate.
+- [x] Y26/D07: IndexedDB capture queue with local edit/delete, Heute/Konten counts, cold offline capture from minimal form choices, FIFO online/focus/manual retry and atomic API idempotency (migration 0022). Retain session/reference conflicts; uncertain delivery must be checked before editing/deleting. Synthetic unit/API and desktop/mobile offline browser coverage.
+- [ ] Physical phone installation/passkeys and Gate 4 acceptance remain separate. Month-close write locks have no current server model; the queue retains/explains typed lock rejections when provided, without inventing a month-close policy.
 
 ### Report 5.4 — Kontakte-Abrechnung
 - [x] Fixed all-time EUR report with shared replay running balances/credit chain, nonzero overview, balanced history/deep links, per-person ledger/stair chart, pending metadata and real booking/contact source navigation. No sending/settlement duplication or month selector; unsupported currency makes the entire read unavailable.

@@ -8,6 +8,7 @@ import { useInboxCount } from './inbox';
 import { GlobalSearch } from './global-search';
 import { ThemeButton } from './theme-button';
 import { useShellIdentity } from './use-profile';
+import { QueueBadge } from '../pwa/queue-ui';
 
 /**
  * What the phone header shows, as in the prototype: the area name (the month switch and the strip
@@ -63,6 +64,7 @@ export function TabBar({ area }: { area: AreaId | undefined }) {
             <AppLink key={a.id} to={a.to} aria-current={area === a.id ? 'page' : undefined}>
               {Icon && <Icon className="icon" size={22} strokeWidth={1.75} aria-hidden="true" />}
               {a.label}
+              {(a.id === 'heute' || a.id === 'konten') && <QueueBadge />}
             </AppLink>
           );
         })}

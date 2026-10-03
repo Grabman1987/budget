@@ -53,7 +53,9 @@ export interface SplitEditorProps {
   setDraft: Dispatch<SetStateAction<BookingDraft>>;
   categories: ReadonlyArray<PickCategory>;
   /** Open accounts, for the target of a transfer line. */
-  accounts: ReadonlyArray<AccountRow>;
+  accounts: ReadonlyArray<
+    Pick<AccountRow, 'id' | 'name' | 'type' | 'onBudget' | 'sortOrder' | 'closedAt'>
+  >;
   accountId: string;
   contacts: ReadonlyArray<{ id: string; name: string }>;
   /** Contact shares run through the Auslagen category; the first share creates it if missing. */

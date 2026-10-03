@@ -169,6 +169,13 @@
       "when": 1791005686961,
       "tag": "0023_bank_followups",
       "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "6",
+      "when": 1791005778559,
+      "tag": "0024_booking_delivery",
+      "breakpoints": true
     }
   ]
 }

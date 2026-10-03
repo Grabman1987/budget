@@ -6,6 +6,8 @@ import { queryClient } from './auth/status-query';
 import { router } from './router';
 import './styles.css';
 import { PwaShell } from './pwa/pwa';
+import { ToastProvider } from '@budget/ui';
+import { QueueProvider } from './pwa/queue-ui';
 
 const container = document.getElementById('root');
 if (!container) throw new Error('Missing #root');
@@ -13,9 +15,13 @@ if (!container) throw new Error('Missing #root');
 createRoot(container).render(
   <StrictMode>
     <QueryClientProvider client={queryClient}>
-      <PwaShell>
-        <RouterProvider router={router} />
-      </PwaShell>
+      <ToastProvider>
+        <QueueProvider>
+          <PwaShell>
+            <RouterProvider router={router} />
+          </PwaShell>
+        </QueueProvider>
+      </ToastProvider>
     </QueryClientProvider>
   </StrictMode>,
 );

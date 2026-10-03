@@ -33,3 +33,66 @@
 .pwa-offline p {
   color: var(--ink-2);
 }
+.pwa-offline > .btn {
+  min-height: 44px;
+  margin: 0 8px 12px 0;
+}
+.queue-detail a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+}
+.booking-queue {
+  margin-bottom: 24px;
+  padding: 16px;
+  border: 1px dashed var(--rule-strong);
+  background: var(--surface);
+}
+.queue-head,
+.queue-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.queue-head {
+  justify-content: space-between;
+}
+.queue-head h2 {
+  font-size: 17px;
+  margin: 0;
+}
+.booking-queue p {
+  color: var(--ink-2);
+}
+.queue-items {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+.queue-items li {
+  display: flex;
+  gap: 12px;
+  padding-block: 12px;
+  border-top: 1px solid var(--rule);
+}
+.queue-detail {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.queue-actions .btn,
+.queue-head .btn {
+  min-height: 44px;
+}
+@media (max-width: 767px) {
+  .queue-items li {
+    flex-wrap: wrap;
+  }
+  .queue-actions {
+    width: 100%;
+    justify-content: flex-end;
+  }
+}

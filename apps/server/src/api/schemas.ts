@@ -101,6 +101,8 @@ export const bookingCreate = z.object({
   date: day,
   amountCents: cents,
   payeeId: id.nullable().optional(),
+  /** Capture can resolve a new payee atomically with an offline booking. */
+  payeeName: z.string().trim().min(1).max(80).optional(),
   memo: nullableText.optional(),
   status: writableStatus.default('confirmed'),
   flag: flag.nullable().optional(),
