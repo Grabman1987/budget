@@ -29,6 +29,9 @@ export function bankJwt(appId: string, key: KeyObject, now = new Date()): string
   return body + '.' + sign('RSA-SHA256', Buffer.from(body), key).toString('base64url');
 }
 
+/** Hosts the provider returns for the bank selection/consent start (live: tilisy.enablebanking.com). */
+const AUTH_HOSTS = new Set(['auth.enablebanking.com', 'tilisy.enablebanking.com']);
+
 /** Fixed origin, no redirects, bounded requests, no provider response text in errors or logs. */
 export function enableBanking(options: {
   appId: string;
@@ -158,7 +161,7 @@ export function enableBanking(options: {
       const url = new URL(data.url);
       if (
         url.protocol !== 'https:' ||
-        url.hostname !== 'auth.enablebanking.com' ||
+        !AUTH_HOSTS.has(url.hostname) ||
         url.username ||
         url.password
       )
