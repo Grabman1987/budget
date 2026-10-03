@@ -281,6 +281,25 @@ describe('invest CRUD', () => {
     expect(cleared.body['security']).toMatchObject({ quoteUrl: null, coingeckoId: 'syn-coin' });
   });
 
+  it('validates leverage in tenths and audits TER/leverage edits with undo', async () => {
+    const created = await call('POST', '/securities', {
+      name: 'Synthetischer Prüffonds',
+      kind: 'etf',
+      isin: 'XX0000000027',
+    });
+    const id = created.body['security'].id;
+    expect(created.body['security'].leverageFactor).toBe(10);
+    for (const leverageFactor of [9, 1001, 10.5])
+      expect((await call('PATCH', `/securities/${id}`, { leverageFactor })).status).toBe(400);
+    const edited = await call('PATCH', `/securities/${id}`, { terBp: 35, leverageFactor: 20 });
+    expect(edited.body['security']).toMatchObject({ terBp: 35, leverageFactor: 20 });
+    expect((await call('POST', '/undo', { groupId: edited.body['groupId'] })).status).toBe(200);
+    expect((await call('GET', `/securities/${id}`)).body['security']).toMatchObject({
+      terBp: 0,
+      leverageFactor: 10,
+    });
+  });
+
   it('basic instrument metadata is audited, undoable and leaves source/cost settings intact', async () => {
     const cls = (await call('POST', '/asset-classes', { name: 'Musterklasse' })).body['assetClass'];
     const created = await call('POST', '/securities', {

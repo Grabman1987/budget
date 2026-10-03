@@ -1,3 +1,4 @@
+import { DEFAULT_ACTIVE_RULE_COUNT } from '@budget/domain';
 import { expect as baseExpect, sampleTest as test } from './sample';
 import { inspectReport } from './overview-report';
 
@@ -31,7 +32,7 @@ test('Finanz-Check-Verlauf shows stage, counts, strips and a matching chart', as
 
   // The matrix lists every rule once, each strip has one cell per evaluated day.
   const rows = page.locator('.fc-table tbody tr');
-  await expect(rows).toHaveCount(16);
+  await expect(rows).toHaveCount(DEFAULT_ACTIVE_RULE_COUNT);
   await expect(rows.first().locator('.ov-cell')).toHaveCount(days.length);
   await expect(rows.first().locator('.ov-strip')).toHaveAttribute('aria-label', /^Verlauf R\d\d: /);
 

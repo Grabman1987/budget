@@ -79,7 +79,7 @@ export const auditLog = sqliteTable(
   ],
 );
 
-/** Rules R01–R16 as data: thresholds in `params_json`, status per evaluation in `rule_result`. */
+/** Rules from RULE_CODES as data: thresholds in `params_json`, status per evaluation in `rule_result`. */
 export const rule = sqliteTable(
   'rule',
   {
@@ -92,7 +92,7 @@ export const rule = sqliteTable(
     paramsJson: text('params_json'),
     action: text('action'),
     enabled: integer('enabled', { mode: 'boolean' }).notNull().default(true),
-    /** `rule`: R01–R16, evaluated by the engine. `checklist`: a stage item the owner confirms. */
+    /** `rule`: from RULE_CODES, evaluated by the engine. `checklist`: a stage item the owner confirms. */
     kind: text('kind', { enum: RULE_KINDS }).notNull().default('rule'),
     sortOrder: integer('sort_order').notNull().default(0),
     /** A checklist item the owner marked as done (nullable; only checklist items use it). */
@@ -200,4 +200,20 @@ export const payslipLine = sqliteTable(
     sortOrder: integer('sort_order').notNull().default(0),
   },
   (t) => [oneOf('payslip_section_chk', t.section, PAYSLIP_SECTIONS)],
+);
+
+/** Explicit employer contribution by month, including explicit zero; corrections are audited. */
+export const employerPension = sqliteTable(
+  'employer_pension',
+  {
+    id: id(),
+    month: text('month').notNull(),
+    amountCents: cents('amount_cents').notNull(),
+    ...timestamps(),
+  },
+  (t) => [
+    isoMonth('employer_pension_month_chk', t.month),
+    check('employer_pension_amount_chk', sql`${t.amountCents} >= 0`),
+    uniqueIndex('employer_pension_month_uq').on(t.month),
+  ],
 );

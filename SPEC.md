@@ -51,7 +51,7 @@ Five main areas plus settings (profile menu). Registers are the second level; no
 | Konten | Was ist passiert? | Übersicht, Einzelkonto with Kontostand prüfen, Alle Buchungen, Posteingang, Kontakte (`konten.html`) |
 | Vermögen | Was besitze ich, was entscheide ich? | Nettovermögen, Portfolio (Soll/Ist, Rebalancing, Sparpläne), Schulden (Sondertilgung), Freiheitszahl with Soll-Pfad (`vermoegen.html`) |
 | Reports | Warum und wohin, und wie haben Entscheidungen gewirkt? | Catalog of 30 reports in 5 groups (`reports.html`) |
-| Einstellungen | — | Konten (terms: limits, rates, term), Kategorien, Regelwerk (stages + R01–R16), Zuordnungsregeln, Datenquellen, Anlageklassen, CSV-Export, Sicherheit (`einstellungen.html`, partly built) |
+| Einstellungen | — | Konten (terms: limits, rates, term), Kategorien, Regelwerk (stages + registered rules (`RULE_CODES`)), Zuordnungsregeln, Datenquellen, Anlageklassen, CSV-Export, Sicherheit (`einstellungen.html`, partly built) |
 
 **Import/export feature scope (owner-confirmed 2026-10-01):** the application has no import feature or import UI. Provide one user-initiated ZIP download containing CSV export data for all accounts and depots. Reconfirm authentication before starting the sensitive export. The CSV ZIP is a data export, not an encrypted application backup; exclude auth/session state, secrets, audit events, import staging and raw migration data. This supersedes earlier in-app YNAB/PP and manual CSV/XLSX import requirements. See [`docs/export.md`](docs/export.md) for the file and field conventions. One-time migration remains a separate owner-authorized Codex/Claude task using existing exports and the PP file in private storage (§10).
 
@@ -69,7 +69,7 @@ No keypad. The amount is a text field with arithmetic (`12,50+8,20`, `+ − × �
 - **Money-flow waterfall: nine stages** (concept 3.6 + decision 28.09.2026): 1 Fixkosten und Mindestraten, **2 Laufender Monat** (variable monthly targets for Bedarf and Wunsch), 3–9 = concept stages 2–8. Plan › Monat orders by stage by default (switchable to groups, classes, time). Overspending shows as a triage bar above the unchanged table.
 - **Expected payments** (versioned schedules), **contacts** with receivables (Kontoblatt per person), **sinking funds**, **savings goals**.
 - **50/30/20 on assigned money** (`alloc` in `design/prototype/reports-core.js`): periodic costs, special payments and their windfall transfers count as twelfths; Bedarf + Wunsch + Zukunft + Übrig (or "aus Guthaben", negative) = 100 % of income, always.
-- **Rules R01–R16** (concept 3.5) as data with thresholds, status (erfüllt / Warnung / verletzt) and action.
+- **Rules registered rules (`RULE_CODES`)** (concept 3.5) as data with thresholds, status (erfüllt / Warnung / verletzt) and action.
 - **Stage model** (decision 29.09.2026): stages by net worth up to 10.000 € (Fundament), 100.000 € (Aufbau), 1 Mio. € (Freiheit). Rules per stage from *I Will Teach You to Be Rich*, *Get Good with Money*, *Your Money or Your Life*, *Everyday Millionaires* (see `design/prototype/reports-ueberblick.js` STAGES and `einstellungen.js`). Attitude: dignity, no shame; no report judges a spend as a mistake.
 
 ## 5. Data model and invariants (concept ch. 5)
@@ -111,7 +111,7 @@ Every report answers one question with one fixed chart form (grammar: concept 9.
 2. **Ausgaben und Plan:** 2.1 Ausgabenanalyse, 2.2 Budgettreue incl. 50/30/20, 2.3 Verträge und Abos (terms, notice, USD), 2.4 Persönliche Inflation, 2.5 Empfänger-Analyse, 2.6 Bank- und Zinskosten (credit lines incl. overdraft and card).
 3. **Zukunft und Vermögen:** 3.1 Liquiditätsprognose (planned events, levers, 6-month outlook, verdict), 3.2 Cashflow-Verlauf, 3.3 Vermögensverläufe, 3.4 Jahresvorschau Zahlungen, 3.5 Sparziele.
 4. **Portfolio:** 4.1 Depots im Vergleich, 4.2 Allocation (sunburst class/product and region/product, Soll/Ist over time), 4.3 Einzahlungen und Wert, 4.4 Rendite und Kennzahlen (benchmarks, asset classes side by side, heatmap), 4.5 Kosten, Steuern, Erträge (KESt 27.5 %, latent tax). Products open a panel with daily price history.
-5. **Überblick:** 5.1 Jahresreport (2 printable sheets), 5.2 Finanz-Check-Verlauf (stages + R01–R16), 5.3 Explorer (pivot, saved views), 5.4 Kontakte-Abrechnung (one ledger per person), 5.5 Zeitraumvergleich.
+5. **Überblick:** 5.1 Jahresreport (2 printable sheets), 5.2 Finanz-Check-Verlauf (stages + registered rules (`RULE_CODES`)), 5.3 Explorer (pivot, saved views), 5.4 Kontakte-Abrechnung (one ledger per person), 5.5 Zeitraumvergleich.
 
 Report 5.4 currently provides a fixed all-time EUR overview and selected person ledger with shared running balances, credit and source drilldown. Retained balanced histories remain selectable; pending source bookings are explicitly included under the existing contact statement predicate. Unsupported foreign-currency reads are wholly unavailable. Sending, duplicate settlement controls and monthly selectors are outside this slice; owner/private acceptance and other report bodies remain open.
 
@@ -191,3 +191,7 @@ Tax filing, AI advice or AI categorisation (AI-assisted planning is a later goal
 - Private account/category/instrument inventory and approved migration mapping (O3/O7); source access and the actual transfer/reconciliation remain open.
 - Receipt object storage and the later independent second encrypted-backup target must be established for their workflows. Existing backup code and a verified deployment do not prove receipt storage or a real restore.
 - Feature-specific completion and remaining requirements are tracked in `docs/FEATURES.md` and `docs/REQUIREMENTS-GAPS.md`; the selected SVG/d3 chart approach is recorded in §9 and ADR 0001.
+
+## Accepted book-derived checks
+
+The registered rule set includes the six accepted book-derived checks documented in [book-rules.md](docs/concept/book-rules.md). They start disabled. All thresholds and inclusion switches are configurable; R18 is warning-only. R17 links S2-1; S3-2 requires both R13 and R22, without deleting stored manual confirmations. New optional private sources are birth month/year and monthly employer pension contributions; instruments expose TER and leverage (integer tenths, default 10). Rule history is derived for twelve month ends plus today. Enabled rule counts follow the registry and stored switches; Heute key rules and existing rule semantics stay unchanged. R23 is deferred.

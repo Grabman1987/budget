@@ -1,5 +1,7 @@
 import {
   addMonths,
+  BOOK_RULE_CODES,
+  bookUnavailableReason,
   applyParamsPatch,
   CHECKLIST_DEFS,
   defaultParams,
@@ -57,9 +59,8 @@ export interface EnsureRulesResult {
 }
 
 /**
- * Writes R01 to R16 and the stage checklist when missing, at start. Idempotent. An existing rule
- * keeps everything the owner changed: only missing parameter keys, an empty stage, goal or action
- * and the sort order are filled in. Written directly (like the sample seed), not audited.
+ * Writes registered rules and the stage checklist when missing, at start. Idempotent. An existing rule
+ * keeps all stored fields and results unchanged; checklist links are adapted on read. Written directly (like the sample seed), not audited.
  */
 export function ensureDefaultRules(db: Executor): EnsureRulesResult {
   const result: EnsureRulesResult = { created: 0, updated: 0 };
@@ -84,24 +85,12 @@ export function ensureDefaultRules(db: Executor): EnsureRulesResult {
             action: def.action,
             paramsJson: JSON.stringify(defaultParams(def.code)),
             kind: 'rule',
+            enabled: !BOOK_RULE_CODES.includes(def.code),
             sortOrder: index + 1,
           })
           .run();
         result.created++;
         return;
-      }
-      const params = JSON.stringify({ ...defaultParams(def.code), ...parseJson(row.paramsJson) });
-      const patch = {
-        ...(row.paramsJson === params ? {} : { paramsJson: params }),
-        ...(row.stage === null ? { stage: def.stage } : {}),
-        ...(row.goal === null ? { goal: def.goal } : {}),
-        ...(row.action === null ? { action: def.action } : {}),
-        ...(row.sortOrder === index + 1 ? {} : { sortOrder: index + 1 }),
-        ...(row.kind === 'rule' ? {} : { kind: 'rule' as const }),
-      };
-      if (Object.keys(patch).length > 0) {
-        tx.update(rule).set(patch).where(eq(rule.id, row.id)).run();
-        result.updated++;
       }
     });
     CHECKLIST_DEFS.forEach((def, index) => {
@@ -113,7 +102,10 @@ export function ensureDefaultRules(db: Executor): EnsureRulesResult {
           name: def.text,
           stage: def.stage,
           goal: def.source,
-          paramsJson: JSON.stringify({ ruleCode: def.ruleCode }),
+          paramsJson: JSON.stringify({
+            ruleCode: def.ruleCode,
+            additionalRuleCodes: def.additionalRuleCodes ?? [],
+          }),
           kind: 'checklist',
           sortOrder: 100 + index,
         })
@@ -122,6 +114,24 @@ export function ensureDefaultRules(db: Executor): EnsureRulesResult {
     });
   });
   return result;
+}
+
+function checklistLinks(r: RuleRow) {
+  const params = parseJson(r.paramsJson);
+  const def = CHECKLIST_DEFS.find((d) => d.code === r.code);
+  if ((r.code === 'S2-1' || r.code === 'S3-2') && def)
+    return { ruleCode: def.ruleCode, additionalRuleCodes: def.additionalRuleCodes ?? [] };
+  return {
+    ruleCode: typeof params['ruleCode'] === 'string' ? params['ruleCode'] : null,
+    additionalRuleCodes: [],
+  };
+}
+
+// Updated derived checklist wording without overwriting the stored row or its confirmation.
+function checklistName(r: RuleRow): string {
+  return ['S2-1', 'S2-3', 'S3-2'].includes(r.code)
+    ? (CHECKLIST_DEFS.find((d) => d.code === r.code)?.text ?? r.name)
+    : r.name;
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -150,6 +160,7 @@ export interface RuleListing {
   defaults: Record<string, unknown>;
   /** The newest stored result; `null` when the rule has never been evaluable. */
   latest: StoredResult | null;
+  unavailableReason?: string | null;
 }
 
 export interface ChecklistListing {
@@ -161,6 +172,7 @@ export interface ChecklistListing {
   /** The rule that decides the item, or `null` when the owner confirms it. */
   ruleCode: string | null;
   confirmedAt: string | null;
+  additionalRuleCodes?: ReadonlyArray<string>;
 }
 
 const toStored = (r: typeof ruleResult.$inferSelect): StoredResult => {
@@ -213,7 +225,7 @@ const listing = (r: RuleRow, latest: StoredResult | undefined): RuleListing => {
   };
 };
 
-/** The rules R01 to R16 with their parameters and newest result, and the stage checklist. */
+/** Registered rules with their parameters and newest result, and the stage checklist. */
 export function listRules(
   db: Executor,
   upTo?: string,
@@ -224,17 +236,29 @@ export function listRules(
     rules.map((r) => r.id),
     upTo,
   );
+  const inputs =
+    upTo && rules.some((r) => isRuleCode(r.code) && BOOK_RULE_CODES.includes(r.code))
+      ? ruleInputs(db, upTo)
+      : null;
   return {
-    rules: rules.map((r) => listing(r, latest.get(r.id))),
+    rules: rules.map((r) => {
+      if (!inputs || !isRuleCode(r.code) || !BOOK_RULE_CODES.includes(r.code))
+        return listing(r, latest.get(r.id));
+      const e = evaluateRule(r.code, parseJson(r.paramsJson), inputs);
+      return {
+        ...listing(r, undefined),
+        latest: e ? { asOf: inputs.asOf, ...e } : null,
+        unavailableReason: bookUnavailableReason(r.code, parseJson(r.paramsJson), inputs),
+      };
+    }),
     checklist: liveRows(db, 'checklist').map((r) => {
-      const params = parseJson(r.paramsJson);
       return {
         code: r.code,
-        name: r.name,
+        name: checklistName(r),
         stage: r.stage,
         source: r.goal,
         enabled: r.enabled,
-        ruleCode: typeof params['ruleCode'] === 'string' ? params['ruleCode'] : null,
+        ...checklistLinks(r),
         confirmedAt: r.confirmedAt,
       };
     }),
@@ -294,7 +318,7 @@ export function confirmChecklistItem(
 ): ChecklistListing {
   const row = byCode(db, code);
   if (row.kind !== 'checklist') throw new EntityNotFoundError('checklist item', code);
-  const ruleCode = parseJson(row.paramsJson)['ruleCode'];
+  const ruleCode = checklistLinks(row).ruleCode;
   if (typeof ruleCode === 'string') throw new ChecklistRuleBackedError(code, ruleCode);
   if ((row.confirmedAt !== null) !== confirmed)
     updateEntity(db, rule, row.id, { confirmedAt: confirmed ? now() : null }, ctx);
@@ -331,7 +355,7 @@ function evaluateAll(
   asOf: string,
   facts: RuleFacts,
 ): Map<string, RuleEvaluation | null> {
-  const inputs = ruleInputs(db, asOf, facts);
+  const inputs = ruleInputs(db, asOf, facts, false);
   const out = new Map<string, RuleEvaluation | null>();
   for (const r of rules) {
     if (!r.enabled || !isRuleCode(r.code)) continue;
@@ -396,7 +420,7 @@ export interface ResultMatrix {
     code: string;
     name: string;
     stage: number | null;
-    cells: { asOf: string; status: RuleStatus; valueText: string | null }[];
+    cells: { asOf: string; status: RuleStatus; valueText: string | null; grossBp?: number }[];
   }[];
 }
 
@@ -425,7 +449,15 @@ export function ruleResults(db: Executor, from: string, to: string): ResultMatri
       stage: r.stage,
       cells: rows
         .filter((x) => x.ruleId === r.id)
-        .map((x) => ({ asOf: x.asOf, status: x.status, valueText: x.valueText })),
+        .map((x) => {
+          const grossBp = r.code === 'R17' ? parseJson(x.detailJson)['quoteBp'] : undefined;
+          return {
+            asOf: x.asOf,
+            status: x.status,
+            valueText: x.valueText,
+            ...(typeof grossBp === 'number' ? { grossBp } : {}),
+          };
+        }),
     })),
   };
 }
@@ -455,14 +487,13 @@ export function financeCheck(
     evaluation: evaluated.get(r.code) ?? null,
   }));
   const checklist: CheckChecklistItem[] = liveRows(db, 'checklist').map((r) => {
-    const ruleCode = parseJson(r.paramsJson)['ruleCode'];
     return {
       code: r.code,
       stage: r.stage,
-      text: r.name,
+      text: checklistName(r),
       source: r.goal,
       enabled: r.enabled,
-      ruleCode: typeof ruleCode === 'string' ? ruleCode : null,
+      ...checklistLinks(r),
       confirmedAt: r.confirmedAt,
     };
   });

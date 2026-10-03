@@ -69,6 +69,7 @@ const securityFields = {
     .nullable(),
   currency: z.string().regex(/^[A-Z]{3}$/, 'Currency code such as EUR'),
   terBp: bp,
+  leverageFactor: z.int().min(10).max(1000),
   assetClassId: id.nullable(),
   /** The platform (broker, crypto or P2P provider) that holds the security. */
   institutionId: id.nullable(),
@@ -94,6 +95,7 @@ const securityCreate = z.object({
   isin: securityFields.isin.optional(),
   currency: securityFields.currency.default('EUR'),
   terBp: securityFields.terBp.default(0),
+  leverageFactor: securityFields.leverageFactor.default(10),
   assetClassId: securityFields.assetClassId.optional(),
   institutionId: securityFields.institutionId.optional(),
   benchmark: securityFields.benchmark.optional(),

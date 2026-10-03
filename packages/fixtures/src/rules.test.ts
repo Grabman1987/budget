@@ -1,4 +1,10 @@
 import {
+  DEFAULT_ACTIVE_RULE_COUNT,
+  RULE_CODES,
+  BOOK_RULE_CODES,
+  CHECKLIST_DEFS,
+} from '@budget/domain';
+import {
   confirmChecklistItem,
   createTestDatabase,
   ensureDefaultRules,
@@ -42,13 +48,13 @@ beforeAll(() => {
 const latest = (code: string) => listRules(db).rules.find((r) => r.code === code)?.latest;
 
 describe('ensureDefaultRules', () => {
-  it('keeps the 16 seeded rules, adds the missing data and the 14 checklist items', () => {
+  it('keeps seeded rules and adds the registered disabled rules and checklist', () => {
     const { rules, checklist } = listRules(db);
-    expect(rules.map((r) => r.code)).toEqual(
-      Array.from({ length: 16 }, (_, i) => `R${String(i + 1).padStart(2, '0')}`),
-    );
-    expect(rules.every((r) => r.stage !== null && r.action !== null && r.enabled)).toBe(true);
-    expect(checklist).toHaveLength(14);
+    expect(rules.map((r) => r.code)).toEqual(RULE_CODES);
+    expect(rules.every((r) => r.stage !== null && r.action !== null)).toBe(true);
+    expect(rules.filter((r) => r.enabled)).toHaveLength(DEFAULT_ACTIVE_RULE_COUNT);
+    expect(rules.filter((r) => !r.enabled).map((r) => r.code)).toEqual(BOOK_RULE_CODES);
+    expect(checklist).toHaveLength(CHECKLIST_DEFS.length);
     expect(checklist.find((c) => c.code === 'S1-3')).toMatchObject({
       ruleCode: 'R06',
       confirmedAt: null,
@@ -136,7 +142,7 @@ describe('evaluateRules', () => {
     expect(run.days[11]).toBe('2026-08-31');
     expect(count()).toBe(before);
     const matrix = ruleResults(db, '2025-09-30', TODAY);
-    expect(matrix.rules).toHaveLength(16);
+    expect(matrix.rules).toHaveLength(DEFAULT_ACTIVE_RULE_COUNT);
     expect(matrix.days).toContain('2026-08-31');
     const r15 = matrix.rules.find((r) => r.code === 'R15')!;
     expect(r15.cells.at(-1)).toMatchObject({ asOf: TODAY, status: 'bad' });
@@ -152,7 +158,13 @@ describe('evaluateRules', () => {
 describe('financeCheck', () => {
   it('counts, the six key rules by severity, stage and checklist', () => {
     const c = financeCheck(db, TODAY);
-    expect(c.counts).toEqual({ ok: 9, warn: 3, bad: 4, total: 16, notEvaluated: 0 });
+    expect(c.counts).toEqual({
+      ok: 9,
+      warn: 3,
+      bad: 4,
+      total: DEFAULT_ACTIVE_RULE_COUNT,
+      notEvaluated: 0,
+    });
     // bad first (R02, R15), then warn (R01, R03 is ok here), ties in the key order of Heute
     expect(c.keyRules.map((r) => r.status)).toEqual(
       [...c.keyRules.map((r) => r.status)].sort(

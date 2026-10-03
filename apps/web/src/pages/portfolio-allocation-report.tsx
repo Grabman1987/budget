@@ -18,6 +18,7 @@ import {
   percentText,
 } from './portfolio-report-shared';
 import './portfolio-allocation-report.css';
+import { BookRuleMetric } from '../rules/book-rule-metric';
 
 interface AllocationResponse {
   allocation: AllocationReport;
@@ -58,6 +59,7 @@ export function PortfolioAllocationReport({
       }
     >
       <div className="prep portfolio-allocation-report">
+        <BookRuleMetric code="R21" />
         {query.isPending && <LoadingNote what="Allocation" />}
         {query.isError && (
           <ReportUnavailable

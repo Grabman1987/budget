@@ -18,6 +18,7 @@ import {
   percentText,
 } from './portfolio-report-shared';
 import './portfolio-costs-report.css';
+import { BookRuleMetric } from '../rules/book-rule-metric';
 
 interface CostsResponse {
   costs: CostsTaxesReport;
@@ -46,6 +47,7 @@ export function PortfolioCostsReport({ report, meta }: { report: ReportEntry; me
       }
     >
       <div className="prep portfolio-costs-report">
+        <BookRuleMetric code="R22" />
         {query.isPending && <LoadingNote what="Kosten, Steuern und Erträge" />}
         {query.isError && (
           <ReportUnavailable

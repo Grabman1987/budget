@@ -127,6 +127,48 @@ export const RULE_DEFS: ReadonlyArray<RuleDef> = [
     goal: 'Fortschritt steigt',
     action: 'Sparrate prüfen: der Fortschritt zur Freiheitszahl ist gesunken.',
   },
+  {
+    code: 'R17',
+    name: 'Investitionsquote vom Brutto',
+    stage: 2,
+    goal: 'Ziel 25 %, mindestens 15 %',
+    action: 'Sparplan bis zum Bruttoziel erhöhen.',
+  },
+  {
+    code: 'R18',
+    name: 'Vermögensindex',
+    stage: 2,
+    goal: 'Richtwert Index 1,0; nur Warnung',
+    action: 'Abstand zum Richtwert prüfen.',
+  },
+  {
+    code: 'R19',
+    name: 'Grenz-Sparquote',
+    stage: 3,
+    goal: 'Mindestens 50 % des Zuwachses sparen',
+    action: 'Mehr vom Einkommenszuwachs für Zukunft zuweisen.',
+  },
+  {
+    code: 'R20',
+    name: 'Regelmäßig investieren',
+    stage: 2,
+    goal: '11 von 12 Monaten',
+    action: 'Sparplan und vollständige Tradehistorie prüfen.',
+  },
+  {
+    code: 'R21',
+    name: 'Hebel und Fremdkapital',
+    stage: 2,
+    goal: 'Hebel ≤ 10 %, kein Plattform-Minus',
+    action: 'Hebelanteil und Verrechnungskonten prüfen.',
+  },
+  {
+    code: 'R22',
+    name: 'Fondskosten',
+    stage: 3,
+    goal: 'Kostenquote ≤ 0,30 %',
+    action: 'TER prüfen und günstigere Fonds erwägen.',
+  },
 ];
 
 /**
@@ -141,6 +183,8 @@ export interface ChecklistDef {
   text: string;
   source: string;
   ruleCode: RuleCode | null;
+  /** All linked rules must be ok (S3-2: costs plus allocation). */
+  additionalRuleCodes?: ReadonlyArray<RuleCode>;
 }
 
 export const CHECKLIST_DEFS: ReadonlyArray<ChecklistDef> = [
@@ -175,9 +219,9 @@ export const CHECKLIST_DEFS: ReadonlyArray<ChecklistDef> = [
   {
     code: 'S2-1',
     stage: 2,
-    text: '15 % des Bruttoeinkommens investieren',
-    source: 'Everyday Millionaires',
-    ruleCode: null,
+    text: 'Bruttoziel investieren (inkl. Arbeitgeberbeitrag)',
+    source: 'Financial Order of Operations',
+    ruleCode: 'R17',
   },
   {
     code: 'S2-2',
@@ -189,7 +233,7 @@ export const CHECKLIST_DEFS: ReadonlyArray<ChecklistDef> = [
   {
     code: 'S2-3',
     stage: 2,
-    text: 'Bewusster Ausgabenplan: Fix 50–60 %, Investieren ≥ 10 %, Genuss 20–35 %',
+    text: 'Bewusster Ausgabenplan (Fixkosten R10, Investieren R17): Fix 50–60 %, Investieren ≥ 10 %, Genuss 20–35 %',
     source: 'I Will Teach You to Be Rich',
     ruleCode: 'R01',
   },
@@ -224,9 +268,10 @@ export const CHECKLIST_DEFS: ReadonlyArray<ChecklistDef> = [
   {
     code: 'S3-2',
     stage: 3,
-    text: 'Kostenquote ≤ 0,3 %, Rebalancing im Band',
+    text: 'Fondskosten im Ziel, Rebalancing im Band',
     source: 'I Will Teach You to Be Rich',
-    ruleCode: 'R13',
+    ruleCode: 'R22',
+    additionalRuleCodes: ['R13'],
   },
   {
     code: 'S3-3',

@@ -287,3 +287,8 @@ export function sollPfad(input: {
     }),
   };
 }
+
+/** Display-only independence in tenths of a month; independent of R16's configurable multiple. */
+export function freedomMonths(investedCents: number, annualSpendCents: number): number | null {
+  return annualSpendCents > 0 ? mulDivRound(investedCents, 120, annualSpendCents) : null;
+}

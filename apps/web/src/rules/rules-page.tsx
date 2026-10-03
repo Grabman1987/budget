@@ -1,3 +1,4 @@
+import { BookInputForm } from './book-input-form';
 import { STAGES } from '@budget/domain';
 import { Button, SectionHead, Switch } from '@budget/ui';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -21,7 +22,7 @@ const onOff = (on: boolean) => (on ? 'an' : 'aus');
 
 /**
  * Einstellungen › Regelwerk: the stage checklist (three columns, the current stage marked) and the
- * rules R01 to R16 with their thresholds. Switches and thresholds save at once; every write is one
+ * registered rules with their thresholds. Switches and thresholds save at once; every write is one
  * "Rückgängig". The Finanz-Check reads these rules.
  */
 export function RulesPage() {
@@ -161,7 +162,7 @@ export function RulesPage() {
             <section className="rw-sec" aria-labelledby="rl-title">
               <SectionHead
                 id="rl-title"
-                title="Regeln R01 bis R16"
+                title={`Regeln (${book.rules.length})`}
                 aside={`${active} von ${book.rules.length} aktiv`}
               />
               <ul className="rw-list rw-rules">
@@ -190,6 +191,7 @@ export function RulesPage() {
                 ))}
               </ul>
             </section>
+            <BookInputForm />
           </>
         )}
       </div>

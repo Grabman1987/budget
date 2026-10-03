@@ -1,3 +1,4 @@
+import { defaultParams, RULE_DEFS, isRuleCode } from '@budget/domain';
 import {
   CATS,
   MONTHS_LONG,
@@ -262,7 +263,7 @@ export function buildPlanning(): Planning {
     }
   }
 
-  // ---------- Rules R01–R16 ----------
+  // ---------- Rules from RULE_CODES ----------
   const al = ref.alloc(Array.from({ length: 12 }, (_, i) => LAST_FULL - 11 + i));
   const pc = (['need', 'want', 'future'] as const).map((cl) =>
     Math.round((al[cl] / al.income) * 100),
@@ -303,7 +304,13 @@ export function buildPlanning(): Planning {
     code,
     name,
     goal,
-    ...(params[code] ? { paramsJson: JSON.stringify(params[code]) } : {}),
+    stage: RULE_DEFS.find((d) => d.code === code)?.stage,
+    action: RULE_DEFS.find((d) => d.code === code)?.action,
+    sortOrder: RULE_DEFS.findIndex((d) => d.code === code) + 1,
+    paramsJson: JSON.stringify({
+      ...(isRuleCode(code) ? defaultParams(code) : {}),
+      ...params[code],
+    }),
   }));
   const ruleResults: Planning['ruleResults'] = [];
   for (const [code, , value, , hist] of RULES) {

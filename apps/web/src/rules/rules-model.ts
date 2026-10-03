@@ -6,7 +6,7 @@ import { STAGES, cents, formatEuro, parseScaledDecimal } from '@budget/domain';
  * percent with a decimal comma on screen; the conversion is integer math.
  */
 
-export type FieldUnit = 'pct' | 'count' | 'euro' | 'factor' | 'choice';
+export type FieldUnit = 'pct' | 'count' | 'euro' | 'factor' | 'choice' | 'boolean';
 
 export interface FieldSpec {
   key: string;
@@ -125,6 +125,67 @@ export const RULE_FIELDS: Readonly<Record<string, ReadonlyArray<FieldSpec>>> = {
       hint: '25 entspricht der 4-Prozent-Regel.',
     },
   ],
+  R17: [
+    pct('targetBp', 'Ziel Bruttoquote'),
+    pct('minBp', 'Mindestens Bruttoquote'),
+    { key: 'includeEmployerPension', label: 'Arbeitgeberbeitrag mitzählen', unit: 'boolean' },
+    {
+      key: 'maxSeverity',
+      label: 'Höchste Schwere',
+      unit: 'choice',
+      choices: [
+        { value: 'bad', label: 'Verletzt möglich' },
+        { value: 'warn', label: 'Nur Warnung' },
+      ],
+    },
+  ],
+  R18: [
+    count('okFromX100', 'Erfüllt ab Index × 100', ''),
+    count('warnFromX100', 'Unterer Richtwert × 100', ''),
+    count('aboveAverageX100', 'Überdurchschnittlich ab Index × 100', ''),
+    count('minAge', 'Mindestalter', 'Jahre'),
+    { key: 'includeCapitalIncome', label: 'Kapitalerträge mitzählen', unit: 'boolean' },
+  ],
+  R19: [
+    pct('minGrowthBp', 'Mindestens Einkommenszuwachs'),
+    pct('targetBp', 'Ziel Grenz-Sparquote'),
+    pct('minBp', 'Mindestens Grenz-Sparquote'),
+  ],
+  R20: [
+    { ...count('okMonths', 'Erfüllt ab', 'Monaten'), max: 12 },
+    { ...count('warnMonths', 'Warnung ab', 'Monaten'), max: 12 },
+    {
+      key: 'exemptDebtPriority',
+      label: 'Sondertilgung bei R09-Vorrang mitzählen',
+      unit: 'boolean',
+    },
+  ],
+  R21: [
+    pct('leverageMaxBp', 'Hebelanteil höchstens'),
+    pct('leverageBadOverBp', 'Hebel verletzt ab Abstand', OVER),
+    pct('debitWarnFromBp', 'Plattform-Minus Warnung ab'),
+    pct('debitBadOverBp', 'Plattform-Minus verletzt über'),
+    {
+      key: 'ignoreBelowCents',
+      label: 'Technischen Minusstand ignorieren bis',
+      unit: 'euro',
+      min: 0,
+      max: 100_000_000,
+    },
+  ],
+  R22: [
+    pct('maxBp', 'Fondskosten höchstens'),
+    pct('badOverBp', 'Verletzt ab Abstand', OVER),
+    {
+      key: 'maxUnknownSharePct',
+      label: 'Unbekannter Fondswert höchstens',
+      unit: 'count',
+      suffix: '%',
+      min: 0,
+      max: 100,
+    },
+    { key: 'excludeLeveraged', label: 'Hebelfonds getrennt anzeigen', unit: 'boolean' },
+  ],
 };
 
 /** Basis points as percent text with a decimal comma: 5000 → "50", 1250 → "12,5". */
@@ -145,7 +206,7 @@ export function parseBp(text: string): number | null {
 
 /** Field text of a stored value. */
 export function fieldText(spec: FieldSpec, value: unknown): string {
-  if (spec.unit === 'choice') return String(value ?? '');
+  if (spec.unit === 'choice' || spec.unit === 'boolean') return String(value ?? '');
   if (typeof value !== 'number') return '';
   if (spec.unit === 'pct') return formatBp(value);
   return String(value);
@@ -196,6 +257,18 @@ export function thresholdText(code: string, p: Record<string, unknown>): string 
       return `≤ ${pc(num(p, 'limitBp'))}`;
     case 'R16':
       return `Investiert ÷ ${num(p, 'multiple')} Jahresausgaben`;
+    case 'R17':
+      return `Ziel ${pc(num(p, 'targetBp'))}, min. ${pc(num(p, 'minBp'))} vom Brutto`;
+    case 'R18':
+      return `Index ≥ ${formatBp(num(p, 'okFromX100'))}; nur Warnung`;
+    case 'R19':
+      return `Ziel ${pc(num(p, 'targetBp'))} des Zuwachses, Wachstum ≥ ${pc(num(p, 'minGrowthBp'))}`;
+    case 'R20':
+      return `${num(p, 'okMonths')} von 12 Monaten`;
+    case 'R21':
+      return `Hebel ≤ ${pc(num(p, 'leverageMaxBp'))}, Plattform-Minus verletzt > ${pc(num(p, 'debitBadOverBp'))}`;
+    case 'R22':
+      return `Fondskosten ≤ ${pc(num(p, 'maxBp'))}`;
     default:
       return '';
   }
@@ -216,6 +289,8 @@ export function stageRange(stage: number): string {
 
 /** Message for a field whose text does not fit; `null` when it is fine. */
 export function fieldError(spec: FieldSpec, text: string): string | null {
+  if (spec.unit === 'boolean')
+    return text === 'true' || text === 'false' ? null : 'Bitte ein oder aus wählen.';
   if (spec.unit === 'choice' || spec.unit === 'euro') return null;
   const value =
     spec.unit === 'pct' ? parseBp(text) : /^\d+$/.test(text.trim()) ? Number(text) : null;
@@ -233,7 +308,8 @@ export function fieldError(spec: FieldSpec, text: string): string | null {
 }
 
 /** The wire value of a valid field text. */
-export function fieldValue(spec: FieldSpec, text: string): number | string {
+export function fieldValue(spec: FieldSpec, text: string): number | string | boolean {
+  if (spec.unit === 'boolean') return text === 'true';
   if (spec.unit === 'choice') return text;
   return spec.unit === 'pct' ? (parseBp(text) as number) : Number(text);
 }

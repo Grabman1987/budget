@@ -93,6 +93,8 @@ export const security = sqliteTable(
     currency: text('currency').notNull().default('EUR'),
     /** Total expense ratio in basis points (0,20 % = 20). */
     terBp: integer('ter_bp').notNull().default(0),
+    /** Leverage in integer tenths: 10 = 1.0x, configurable per instrument. */
+    leverageFactor: integer('leverage_factor').notNull().default(10),
     assetClassId: text('asset_class_id').references(() => assetClass.id),
     institutionId: text('institution_id').references(() => institution.id),
     /** Region weights as JSON `{ "Europa": 0.15 }`. */

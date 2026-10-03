@@ -1,3 +1,4 @@
+import { evaluateBookRule } from './books';
 import { addDays, addMonths, monthOf } from '../date';
 import { evenDaily, liquidityForecast, lowPoint } from '../forecast';
 import {
@@ -34,15 +35,8 @@ import type { RuleEvaluation, RuleInputs, RuleStatus } from './types';
 
 // ---- formatting (de-AT) ----
 
-const tenthsOf = (bp: number): number => Math.floor((Math.abs(bp) + 5) / 10);
-
-/** `14,2 %` from basis points; real minus; optional `+`. */
-export function formatPercent(bp: number, sign = false): string {
-  const t = tenthsOf(bp);
-  const body = `${Math.trunc(t / 10)},${t % 10}`;
-  const prefix = t === 0 ? '' : bp < 0 ? MINUS : sign ? '+' : '';
-  return `${prefix}${body} %`;
-}
+import { formatPercent } from './format';
+export { formatPercent } from './format';
 
 /** `−4,0 Pp` from basis points of percentage points. */
 const formatPoints = (bp: number): string => formatPercent(bp, true).replace(/ %$/, ' Pp');
@@ -454,6 +448,12 @@ const RULES: { [C in RuleCode]: Rule<C> } = {
   R14: r14,
   R15: r15,
   R16: r16,
+  R17: (p, i) => evaluateBookRule('R17', p, i),
+  R18: (p, i) => evaluateBookRule('R18', p, i),
+  R19: (p, i) => evaluateBookRule('R19', p, i),
+  R20: (p, i) => evaluateBookRule('R20', p, i),
+  R21: (p, i) => evaluateBookRule('R21', p, i),
+  R22: (p, i) => evaluateBookRule('R22', p, i),
 };
 
 /**

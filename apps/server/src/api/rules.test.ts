@@ -14,7 +14,13 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { Hono } from 'hono';
 import { beforeEach, describe, expect, it } from 'vitest';
-import { dayCounts, ruleTimelines } from '@budget/domain';
+import {
+  BOOK_RULE_CODES,
+  DEFAULT_ACTIVE_RULE_COUNT,
+  RULE_CODES,
+  dayCounts,
+  ruleTimelines,
+} from '@budget/domain';
 import { createApp, type AuthGate } from '../app';
 
 const TODAY = '2026-03-31';
@@ -95,10 +101,10 @@ async function call(method: string, path: string, body?: unknown) {
 }
 
 describe('GET /rules', () => {
-  it('lists R01 to R16 with parameters, defaults and the stage checklist', async () => {
+  it('lists registered rules with parameters, defaults and the stage checklist', async () => {
     const res = await call('GET', '/rules');
     expect(res.status).toBe(200);
-    expect(res.body.rules).toHaveLength(16);
+    expect(res.body.rules).toHaveLength(RULE_CODES.length);
     expect(res.body.rules[1]).toMatchObject({
       code: 'R02',
       name: 'Notgroschen',
@@ -129,7 +135,7 @@ describe('POST /rules/evaluate, GET /rules/results, GET /rules/check', () => {
     await call('POST', '/rules/evaluate');
     const matrix = await call('GET', '/rules/results');
     expect(matrix.status).toBe(200);
-    expect(matrix.body.rules).toHaveLength(16);
+    expect(matrix.body.rules).toHaveLength(DEFAULT_ACTIVE_RULE_COUNT);
     const r02 = matrix.body.rules.find((r: any) => r.code === 'R02');
     expect(r02.cells.at(-1)).toMatchObject({ asOf: TODAY });
     expect((await call('GET', '/rules/results?from=2026-03-31&to=2026-01-01')).status).toBe(400);
@@ -137,7 +143,7 @@ describe('POST /rules/evaluate, GET /rules/results, GET /rules/check', () => {
 
     const check = await call('GET', '/rules/check');
     expect(check.status).toBe(200);
-    expect(check.body.counts.total).toBe(16);
+    expect(check.body.counts.total).toBe(DEFAULT_ACTIVE_RULE_COUNT);
     expect(check.body.stage).toMatchObject({ stage: 1 });
     expect(check.body.checklist.total).toBe(14);
   });
@@ -151,7 +157,7 @@ describe('Finanz-Check-Verlauf (report 5.2)', () => {
     const timelines = ruleTimelines(matrix);
     const counts = dayCounts(matrix);
     expect(counts).toHaveLength(matrix.days.length);
-    expect(timelines).toHaveLength(16);
+    expect(timelines).toHaveLength(DEFAULT_ACTIVE_RULE_COUNT);
     for (const line of timelines) expect(line.strip).toHaveLength(matrix.days.length);
     const newest = counts.at(-1)!;
     expect(newest.asOf).toBe(TODAY);
@@ -182,7 +188,9 @@ describe('PATCH /rules/:code', () => {
 
     const off = await call('PATCH', '/rules/R02', { enabled: false });
     expect(off.body.rule.enabled).toBe(false);
-    expect((await call('GET', '/rules/check')).body.counts.total).toBe(15);
+    expect((await call('GET', '/rules/check')).body.counts.total).toBe(
+      DEFAULT_ACTIVE_RULE_COUNT - 1,
+    );
 
     expect((await call('POST', '/undo', { groupId: off.body.groupId })).status).toBe(200);
     expect((await call('POST', '/undo', { groupId: patched.body.groupId })).status).toBe(200);
@@ -218,5 +226,59 @@ describe('PATCH /rules/checklist/:code', () => {
     expect(refused.body).toMatchObject({ error: 'rule_backed', ruleCode: 'R06' });
     expect((await call('PATCH', '/rules/checklist/X-1', { confirmed: true })).status).toBe(404);
     expect((await call('PATCH', '/rules/checklist/S2-6', {})).status).toBe(400);
+  });
+});
+
+describe('book-rule API edits', () => {
+  it.each(BOOK_RULE_CODES)('validates and audits %s params', async (code) => {
+    const fields: Record<string, string> = {
+      R17: 'targetBp',
+      R18: 'okFromX100',
+      R19: 'targetBp',
+      R20: 'okMonths',
+      R21: 'leverageMaxBp',
+      R22: 'maxBp',
+    };
+    const field = fields[code]!;
+    const value = code === 'R20' ? 10 : code === 'R17' || code === 'R19' ? 2600 : 200;
+    const response = await call('PATCH', `/rules/${code}`, {
+      params: { [field]: value },
+      enabled: true,
+    });
+    expect(response.status).toBe(200);
+    expect(response.body.rule.params[field]).toBe(value);
+    expect(response.body.rule.enabled).toBe(true);
+    expect((await call('PATCH', `/rules/${code}`, { params: { unknown: 1 } })).status).toBe(400);
+    expect((await call('PATCH', `/rules/${code}`, { params: { [field]: -1 } })).status).toBe(400);
+    expect((await call('POST', '/undo', { groupId: response.body.groupId })).status).toBe(200);
+    expect((await call('GET', '/rules')).body.rules.find((r: any) => r.code === code).enabled).toBe(
+      false,
+    );
+  });
+  it('private month/year and pension input validates, audits, and never defaults a date', async () => {
+    expect((await call('GET', '/rules/inputs')).body.birthMonth).toBe('');
+    const saved = await call('PATCH', '/rules/inputs', {
+      birthMonth: '1992-07',
+      pension: [{ month: '2026-03', amountCents: 0 }],
+    });
+    expect(saved.status).toBe(200);
+    expect(saved.body.pension).toEqual([{ month: '2026-03', amountCents: 0 }]);
+    expect((await call('PATCH', '/rules/inputs', { birthMonth: '2100-01' })).status).toBe(400);
+    expect(
+      (await call('PATCH', '/rules/inputs', { pension: [{ month: '2026-03', amountCents: -1 }] }))
+        .status,
+    ).toBe(400);
+    expect(
+      (
+        await call('PATCH', '/rules/inputs', {
+          pension: [
+            { month: '2026-03', amountCents: 1 },
+            { month: '2026-03', amountCents: 2 },
+          ],
+        })
+      ).status,
+    ).toBe(400);
+    expect((await call('POST', '/undo', { groupId: saved.body.groupId })).status).toBe(200);
+    expect((await call('GET', '/rules/inputs')).body).toEqual({ birthMonth: '', pension: [] });
   });
 });

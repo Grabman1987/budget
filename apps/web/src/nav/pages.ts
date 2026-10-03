@@ -159,7 +159,7 @@ export const PAGES: ReadonlyArray<PageDef> = [
     area: 'einstellungen',
     register: 'regelwerk',
     fills: P3,
-    spec: 'Stufen und Regeln R01–R16 mit Schwellen, Status und Aktion.',
+    spec: 'Stufen und konfigurierbare Regeln mit Status und Aktion.',
   },
   {
     path: '/einstellungen/zuordnung',

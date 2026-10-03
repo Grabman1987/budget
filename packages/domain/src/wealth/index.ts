@@ -58,3 +58,5 @@ export {
   type ClassTimeline,
   type RegionWeights,
 } from './allocation-report';
+
+export { freedomMonths } from './freedom';

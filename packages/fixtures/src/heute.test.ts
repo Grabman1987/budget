@@ -10,6 +10,7 @@ import {
 } from '@budget/db';
 import { beforeAll, describe, expect, it, vi } from 'vitest';
 import { seedDatabase } from './seed';
+import { DEFAULT_ACTIVE_RULE_COUNT } from '@budget/domain';
 
 /**
  * The Heute read model on the synthetic sample ledger at 17.09.2026, against the figures of the
@@ -125,8 +126,8 @@ describe('prototype figures reproduced', () => {
     );
   });
 
-  it('the Finanz-Check has 16 rules and the six key ones, most severe first', () => {
-    expect(month.financeCheck.counts.total).toBe(16);
+  it('the Finanz-Check counts enabled rules and keeps the six key ones, most severe first', () => {
+    expect(month.financeCheck.counts.total).toBe(DEFAULT_ACTIVE_RULE_COUNT);
     expect(month.financeCheck.keyRules.map((r) => r.code).sort()).toEqual(
       ['R01', 'R02', 'R03', 'R07', 'R08', 'R15'].sort(),
     );

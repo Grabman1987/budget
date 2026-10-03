@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
-import { lastDayOfMonth, parseAmount, formatDecimal } from '@budget/domain';
+import { lastDayOfMonth, parseAmount, formatDecimal, freedomMonths, MINUS } from '@budget/domain';
 import { Button, Field, Select } from '@budget/ui';
 import { VERMOEGEN_FREIHEIT_META } from '../nav/pages';
 import { PageFrame } from '../pages/placeholder-page';
@@ -34,6 +34,10 @@ export function FreedomPage() {
 function FreedomContent({ view }: { view: FreedomView }) {
   const [saving, setSaving] = useState('');
   const [returnBp, setReturnBp] = useState(view.defaultRealReturnBp);
+  const monthsFreedom =
+    view.investedCents !== null && view.annualSpendCents !== null
+      ? freedomMonths(view.investedCents, view.annualSpendCents)
+      : null;
   const { projection, error } = freedomScenario(view, saving, returnBp);
   const commitSaving = () => {
     const parsed = parseAmount(saving);
@@ -103,6 +107,20 @@ function FreedomContent({ view }: { view: FreedomView }) {
             ))}
           </div>
         )}
+        <p className="vnote" data-testid="freedom-months">
+          Monate Freiheit:{' '}
+          {monthsFreedom === null
+            ? 'nicht bewertbar'
+            : `${monthsFreedom < 0 ? MINUS : ''}${Math.trunc(Math.abs(monthsFreedom) / 10)},${Math.abs(monthsFreedom) % 10}`}
+          . Meilensteine:{' '}
+          {[12, 24, 60]
+            .map(
+              (m) =>
+                `${m} Monate ${monthsFreedom !== null && monthsFreedom >= m * 10 ? '✓' : 'offen'}`,
+            )
+            .join(' · ')}
+          .
+        </p>
         {reason && (
           <p className="vnote" role="status">
             {reason}
