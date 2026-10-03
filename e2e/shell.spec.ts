@@ -259,6 +259,31 @@ test.describe('desktop shell', () => {
     expect(Math.round((await items.first().boundingBox())?.height ?? 0)).toBe(42);
   });
 
+  test('top bar content ends where the page column ends, not at the window edge', async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 2000, height: 900 });
+    await page.goto('/');
+    await expect(page.locator('main')).toBeVisible();
+    const sheet = await page.locator('main.sheet').boundingBox();
+    const topbar = await page.locator('.topbar').boundingBox();
+    const actions = await page.locator('.topbar-actions').boundingBox();
+    const primary = await page.getByRole('link', { name: /^Buchung$/ }).boundingBox();
+    const search = await page.locator('.search').boundingBox();
+    expect(sheet && topbar && actions && primary && search).toBeTruthy();
+    if (!sheet || !topbar || !actions || !primary || !search) return;
+    // The bar still spans the window (background, hairline); its content does not.
+    expect(Math.round(topbar.width)).toBe(2000 - 236);
+    // Same right edge as the content column (sheet padding 40 px), same row for search and actions.
+    expect(Math.round(primary.x + primary.width)).toBe(Math.round(sheet.x + sheet.width - 40));
+    expect(Math.round(search.y + search.height / 2)).toBe(
+      Math.round(primary.y + primary.height / 2),
+    );
+    expect(search.x + search.width).toBeLessThan(actions.x);
+    // The actions are no longer lost at the window edge.
+    expect(2000 - (primary.x + primary.width)).toBeGreaterThan(400);
+  });
+
   test('sidebar collapses to 72 px and the state is remembered', async ({ page }) => {
     await page.goto('/');
     const toggle = page.getByRole('button', { name: 'Seitenleiste einklappen' });
@@ -368,10 +393,16 @@ test.describe('phone shell', () => {
     expect(small).toEqual([]);
   });
 
-  test('phone header opens the inbox as a bottom sheet', async ({ page }) => {
+  test('phone header opens the inbox as a full-screen sheet', async ({ page }) => {
+    await page.emulateMedia({ reducedMotion: 'reduce' });
     await page.goto('/konten');
     await page.getByRole('link', { name: /Posteingang, \d+ offen/ }).click();
-    await expect(page.getByRole('dialog', { name: 'Posteingang' })).toBeVisible();
+    const dialog = page.getByRole('dialog', { name: 'Posteingang' });
+    await expect(dialog).toBeVisible();
+    const box = await dialog.boundingBox();
+    const viewport = page.viewportSize();
+    expect(Math.round(box?.width ?? 0)).toBe(viewport?.width);
+    expect(Math.round(box?.height ?? 0)).toBe(viewport?.height);
   });
 });
 
