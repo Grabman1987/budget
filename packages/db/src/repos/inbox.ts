@@ -3,6 +3,8 @@ import { account, booking, bookingSplit, inboxItem, payee } from '../schema';
 import { nowIso, updateTracked, withGroup, type AuditContext } from './audit';
 import { ConflictError, EntityNotFoundError } from './errors';
 import { runInTransaction, type Executor } from './types';
+import { readSourceDisplayDetail, readSourceMappings } from './read-source';
+import { listReceipts } from './receipts';
 
 export interface InboxBooking {
   type: 'booking';
@@ -84,6 +86,7 @@ function uncategorizedBookings(db: Executor, today: string): InboxBooking[] {
 export function readInbox(db: Executor, today: string) {
   return runInTransaction(db, (tx) => {
     const bookings = uncategorizedBookings(tx, today);
+    const mappings = readSourceMappings(tx);
     const stored: InboxStored[] = tx
       .select()
       .from(inboxItem)
@@ -95,14 +98,18 @@ export function readInbox(db: Executor, today: string) {
         id: row.id,
         kind: row.kind,
         title: row.title,
-        detail: row.detail,
+        detail:
+          row.refType === 'read_source' && row.refId === 'crypto'
+            ? readSourceDisplayDetail(row.detail, mappings)
+            : row.detail,
         refType: row.refType,
         refId: row.refId,
         urgent: row.urgent,
         createdAt: row.createdAt,
       }));
     const entries: InboxEntry[] = [...bookings, ...stored];
-    return { asOf: today, count: entries.length, entries };
+    const unlinkedReceipts = listReceipts(tx);
+    return { asOf: today, count: entries.length + unlinkedReceipts.length, entries };
   });
 }
 
@@ -117,7 +124,7 @@ export function readInboxCount(db: Executor, today: string) {
       .where(unclassifiedWhere(today))
       .get()!.count;
     const stored = tx.select({ count: count() }).from(inboxItem).where(storedWhere()).get()!.count;
-    return { asOf: today, count: bookings + stored };
+    return { asOf: today, count: bookings + stored + listReceipts(tx).length };
   });
 }
 

@@ -1,3 +1,5 @@
+import { PayrollReport } from '../reports/payroll-report';
+import { ProjectsReport } from '../reports/projects-report';
 import { Registers, SectionHead, type RegisterItem } from '@budget/ui';
 import { ChevronRight, Printer } from 'lucide-react';
 import { BookRuleMetric } from '../rules/book-rule-metric';
@@ -205,6 +207,8 @@ export function ReportPage({ reportId }: { reportId: string }) {
   if (report.id === 'psteuern') return <PortfolioCostsReport report={report} meta={meta} />;
   if (report.id === 'peinzahlungen')
     return <PortfolioContributionsReport report={report} meta={meta} />;
+  if (report.id === 'gehalt') return <PayrollReport report={report} meta={meta} />;
+  if (report.id === 'projekte') return <ProjectsReport report={report} meta={meta} />;
   if (report.id === 'einnahmen') return <IncomeReport report={report} meta={meta} />;
   if (report.id === 'geldfluss') return <FlowReport report={report} meta={meta} />;
   if (report.id === 'onepager') return <OnePagerReport report={report} meta={meta} />;

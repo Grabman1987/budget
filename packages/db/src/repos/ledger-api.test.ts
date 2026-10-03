@@ -337,6 +337,15 @@ describe('Kontostand prüfen', () => {
   it('finds "doppelt": the same booking twice explains the difference', () => {
     const { b } = setup();
     const twin = book({ cents: -3000, date: '2026-03-15', status: 'confirmed', payeeId: 'p1' });
+    // Distinct synthetic capture times: equal millisecond defaults otherwise sort by random UUID.
+    db.update(booking)
+      .set({ createdAt: '2026-03-15T08:00:00.000Z' })
+      .where(eq(booking.id, b))
+      .run();
+    db.update(booking)
+      .set({ createdAt: '2026-03-15T09:00:00.000Z' })
+      .where(eq(booking.id, twin))
+      .run();
     const preview = previewReconciliation(db, {
       accountId: 'giro',
       date: day,

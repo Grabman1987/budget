@@ -6,6 +6,10 @@ Name: **Budget** (O10 entschieden am 29.09.2026; privat, nur für den Eigentüme
 
 Current feature coverage: [`docs/FEATURES.md`](docs/FEATURES.md). Remaining
 requirements and historical concept overrides: [`docs/REQUIREMENTS-GAPS.md`](docs/REQUIREMENTS-GAPS.md).
+Receipts use content-addressed files on the Fly volume with encrypted archive backups
+(owner task decision 2026-10-02; see `docs/receipts.md`); the earlier receipt object-storage
+goal is superseded for Y21. Payslip uploads remain a separate workflow.
+
 Product intent, implemented engine/API and complete application workflow are
 recorded separately; mockups alone do not establish completion.
 

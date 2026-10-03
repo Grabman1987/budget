@@ -1,0 +1,215 @@
+.pp-report {
+  grid-template-columns: minmax(0, 7fr) minmax(0, 5fr);
+}
+.pp-report .mr-wide {
+  grid-column: 1 / -1;
+}
+.pp-scroll {
+  overflow-x: auto;
+  margin-top: 16px;
+}
+.pp-scroll table {
+  min-width: 540px;
+  width: 100%;
+  border-collapse: collapse;
+  font-variant-numeric: tabular-nums;
+}
+.pp-scroll .rtable thead th {
+  text-align: left;
+  padding: 8px;
+  border-bottom: 1px solid var(--line-2);
+  font-size: 11px;
+  white-space: nowrap;
+}
+.pp-scroll .rtable td,
+.pp-scroll .rtable tbody th {
+  padding: 10px 8px;
+  border-bottom: 1px solid var(--rule);
+  vertical-align: middle;
+  text-align: left;
+}
+.pp-scroll .rtable .n {
+  text-align: right;
+  white-space: nowrap;
+}
+.pp-scroll .rtable .is-total {
+  font-weight: 620;
+  border-top: 1px solid var(--line-2);
+}
+.pp-slip {
+  padding-bottom: 20px;
+}
+.pp-slip h3 {
+  margin: 8px 0;
+}
+.pp-warning {
+  border: 1px solid var(--red);
+  color: var(--red);
+  padding: 12px;
+}
+.pp-ratio {
+  display: flex;
+  height: 24px;
+  border: 1px solid var(--line);
+  margin-top: 20px;
+}
+.pp-ratio span + span {
+  border-left: 1px solid var(--line);
+}
+.pp-ink-0 {
+  background: var(--line);
+}
+.pp-ink-1 {
+  background: var(--line-2);
+}
+.pp-ink-2 {
+  background: color-mix(in srgb, var(--line) 15%, var(--ground));
+}
+.pp-ink-3 {
+  background: var(--ground);
+}
+.pp-chart {
+  width: 100%;
+  height: auto;
+  display: block;
+  margin: 16px 0;
+}
+.pp-chart text {
+  fill: var(--ink-2);
+  font-family: var(--font-tech);
+  font-size: 12px;
+}
+.pp-grid {
+  stroke: var(--rule);
+  stroke-width: 1;
+}
+.pp-net,
+.pp-gross {
+  fill: none;
+  stroke: var(--line);
+  stroke-width: 2;
+}
+.pp-gross {
+  stroke: var(--line-2);
+}
+.pp-dot {
+  fill: var(--line);
+}
+.pp-positive {
+  fill: var(--heat-green);
+  stroke: var(--line);
+}
+.pp-negative {
+  fill: var(--heat-red);
+  stroke: var(--line);
+  stroke-dasharray: 4 3;
+}
+.pp-profit {
+  background: color-mix(in srgb, var(--heat-green) 50%, transparent);
+}
+.pp-loss {
+  background: color-mix(in srgb, var(--heat-red) 50%, transparent);
+}
+.pp-project-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 270px), 1fr));
+  gap: 32px;
+}
+.pp-project {
+  border-top: 1px solid var(--line-2);
+  padding-top: 16px;
+  min-width: 0;
+}
+.pp-project dl div {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 6px 0;
+}
+.pp-project dd {
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+}
+.pp-project summary {
+  cursor: pointer;
+  min-height: 44px;
+  padding: 12px 0;
+}
+.pp-form {
+  display: grid;
+  gap: 20px;
+}
+.pp-form fieldset {
+  border: 0;
+  border-top: 1px solid var(--rule-strong);
+  padding: 16px 0 0;
+  min-width: 0;
+}
+.pp-form legend {
+  font-weight: 620;
+}
+.pp-form label {
+  display: grid;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+.pp-form input:not(.amount-input),
+.pp-form select {
+  background: var(--ground);
+  color: var(--ink);
+  border: 1px solid var(--rule-strong);
+  border-radius: 4px;
+  min-height: 44px;
+  padding: 8px;
+  width: 100%;
+}
+.pp-line {
+  border-top: 1px solid var(--rule);
+  margin-top: 16px;
+  padding-top: 12px;
+}
+.pp-settings {
+  margin-top: 32px;
+}
+.pp-settings .rtable td,
+.pp-settings .rtable th {
+  vertical-align: middle;
+}
+.pp-name-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: end;
+  margin: 20px 0;
+}
+.pp-name-form label {
+  display: grid;
+  gap: 8px;
+}
+.pp-name-form input {
+  min-height: 44px;
+  background: var(--ground);
+  color: var(--ink);
+  border: 1px solid var(--rule-strong);
+  border-radius: 4px;
+  padding: 8px;
+  max-width: 100%;
+}
+@media (max-width: 767px) {
+  .pp-report {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .pp-form .chain-inline {
+    flex-wrap: wrap;
+  }
+}
+.pp-report .btn {
+  min-height: 44px;
+}
+.pp-slip a,
+.pp-project li a,
+.pp-report .tbd-head a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+}

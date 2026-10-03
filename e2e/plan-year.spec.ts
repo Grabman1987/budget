@@ -66,11 +66,11 @@ test('annual plan: independent figures, all metrics, year navigation and 375px r
   const mobile = info.project.name === 'mobile';
   const row = mobile
     ? page.locator('.year-phone-row', { hasText: categoryName }).first()
-    : page.locator('.year-table tbody tr', { hasText: categoryName });
+    : page.locator('.year-sheet .year-table tbody tr', { hasText: categoryName });
   await expect(row).toContainText('100,01 €');
   if (!mobile) {
     await expect(row.locator('.year-end')).toHaveText('150,01 €');
-    await expect(page.locator('.year-table thead th')).toHaveCount(14);
+    await expect(page.locator('.year-sheet .year-table thead th')).toHaveCount(14);
     expect(await row.locator('th').evaluate((element) => getComputedStyle(element).position)).toBe(
       'sticky',
     );
@@ -81,7 +81,10 @@ test('annual plan: independent figures, all metrics, year navigation and 375px r
   await page.getByRole('button', { name: 'Verfügbar', exact: true }).click();
   await expect(row).toContainText('69,99 €');
   if (mobile) {
-    await page.getByRole('combobox', { name: 'Monat' }).selectOption('2026-02');
+    await page
+      .locator('.year-sheet')
+      .getByRole('combobox', { name: 'Monat' })
+      .selectOption('2026-02');
     await expect(row).toContainText('122,02 €');
     await page.getByText('Jahreswerte je Kategorie', { exact: true }).click();
     await expect(

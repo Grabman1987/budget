@@ -1,4 +1,6 @@
 import { createHash, createHmac } from 'node:crypto';
+import { createReadStream } from 'node:fs';
+import { stat } from 'node:fs/promises';
 
 /**
  * Minimal S3 client (PUT, list, DELETE) with AWS Signature Version 4, enough for the encrypted
@@ -138,13 +140,19 @@ export class S3Client {
     return url;
   }
 
-  private async send(method: string, url: URL, body?: Buffer): Promise<string> {
-    const payloadHash = sha256(body ?? '');
+  private async send(
+    method: string,
+    url: URL,
+    body?: Buffer,
+    file?: { path: string; hash: string; size: number },
+  ): Promise<string> {
+    const payloadHash = file?.hash ?? sha256(body ?? '');
     const date = this.clock();
     const headers: Record<string, string> = {
       'x-amz-content-sha256': payloadHash,
       'x-amz-date': amzDate(date),
     };
+    if (file) headers['content-length'] = String(file.size);
     const authorization = signV4({
       method,
       url,
@@ -157,14 +165,22 @@ export class S3Client {
       service: 's3',
     });
     const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), this.timeoutMs);
+    // Streamed archives grow with the receipts; allow about 1 s per MiB on top of the base timeout.
+    const timeoutMs = file
+      ? this.timeoutMs + Math.ceil(file.size / 1_048_576) * 1000
+      : this.timeoutMs;
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
     try {
       const response = await fetch(url, {
         method,
         headers: { ...headers, authorization },
         signal: controller.signal,
         redirect: 'error',
-        ...(body ? { body: new Uint8Array(body) } : {}),
+        ...(file
+          ? { body: createReadStream(file.path), duplex: 'half' }
+          : body
+            ? { body: new Uint8Array(body) }
+            : {}),
       });
       if (!response.ok) {
         const text = await boundedText(response, 4096);
@@ -185,6 +201,17 @@ export class S3Client {
 
   async put(key: string, body: Buffer): Promise<void> {
     await this.send('PUT', this.url(key), body);
+  }
+
+  /** Hash then stream ciphertext; archive size must not determine the server's RAM use. */
+  async putFile(key: string, path: string): Promise<void> {
+    const hash = createHash('sha256');
+    for await (const chunk of createReadStream(path)) hash.update(chunk as Buffer);
+    await this.send('PUT', this.url(key), undefined, {
+      path,
+      hash: hash.digest('hex'),
+      size: (await stat(path)).size,
+    });
   }
 
   async delete(key: string): Promise<void> {

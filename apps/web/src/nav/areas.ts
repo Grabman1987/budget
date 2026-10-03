@@ -81,6 +81,7 @@ export const AREAS: ReadonlyArray<AreaDef> = [
     to: '/einstellungen/konten',
     registers: [
       { id: 'konten', label: 'Konten', to: '/einstellungen/konten' },
+      { id: 'projekte', label: 'Projekte', to: '/einstellungen/projekte' },
       { id: 'kategorien', label: 'Kategorien', to: '/einstellungen/kategorien' },
       { id: 'regelwerk', label: 'Regelwerk', to: '/einstellungen/regelwerk' },
       { id: 'zuordnung', label: 'Zuordnungsregeln', to: '/einstellungen/zuordnung' },

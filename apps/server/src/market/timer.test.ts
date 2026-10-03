@@ -56,6 +56,23 @@ const start = (sources: MarketSources, logs: string[] = []) =>
 const at = (day: string, hhmm: string) => new Date(`${day}T${hhmm}:00Z`);
 
 describe('nightly market timer', () => {
+  it('advances the source hook even when the market run is already complete', async () => {
+    const ticks: Date[] = [];
+    timer = startDailyMarketTimer({
+      db,
+      sources: fixtureSources(),
+      checkEveryMs: 3_600_000,
+      log: () => {},
+      onTick: async (now) => {
+        ticks.push(now);
+      },
+    });
+    const first = at('2026-07-01', '08:00');
+    const second = at('2026-07-01', '08:01');
+    expect(await timer.tick(first)).toBe(true);
+    expect(await timer.tick(second)).toBe(false);
+    expect(ticks).toEqual([first, second]);
+  });
   it('reads the Vienna wall clock, summer and winter time', () => {
     expect(viennaMinutes(new Date('2026-07-01T20:30:00Z'))).toBe(22 * 60 + 30);
     expect(viennaMinutes(new Date('2026-01-15T21:30:00Z'))).toBe(22 * 60 + 30);
