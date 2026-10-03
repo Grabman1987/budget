@@ -1,5 +1,8 @@
 import { assertContactUndoDependencies } from './contact-invariants';
+import { isDuplicatePayslip } from '@budget/domain';
+import { assertReceiptUndo } from './receipts';
 import { randomUUID } from 'node:crypto';
+import { isDeepStrictEqual } from 'node:util';
 import {
   and,
   desc,
@@ -7,7 +10,10 @@ import {
   getTableColumns,
   getTableName,
   inArray,
+  isNotNull,
+  isNull,
   is,
+  or,
   sql,
   type Column,
 } from 'drizzle-orm';
@@ -151,7 +157,7 @@ const snapshotKey = (meta: TableMeta, snap: Snapshot): RowKey =>
 
 const snapshotsEqual = (a: Snapshot, b: Snapshot): boolean => {
   const keys = new Set([...Object.keys(a), ...Object.keys(b)]);
-  for (const k of keys) if ((a[k] ?? null) !== (b[k] ?? null)) return false;
+  for (const k of keys) if (!isDeepStrictEqual(a[k] ?? null, b[k] ?? null)) return false;
   return true;
 };
 
@@ -352,7 +358,7 @@ export function updateTracked(
     if (!col) throw new Error(`Unknown column "${prop}" on ${meta.name}`);
     if (meta.keyProps.includes(prop))
       throw new Error(`Cannot patch key column "${prop}" of ${meta.name}`);
-    if ((before[col.name] ?? null) !== value) changes[prop] = value;
+    if (!isDeepStrictEqual(before[col.name] ?? null, value)) changes[prop] = value;
   }
   if (Object.keys(changes).length === 0) return false;
   if (meta.updatedAtProp && !(meta.updatedAtProp in changes))
@@ -675,10 +681,60 @@ export function undo(
       else revertEntry(tx, entry, grouped, force);
     }
     flush();
+    if (originals.some((e) => e.entityType === 'payslip')) {
+      const live = tx.select().from(schema.payslip).where(isNull(schema.payslip.deletedAt)).all();
+      const touchedSlips = new Set(
+        originals.filter((e) => e.entityType === 'payslip').map((e) => e.entityId),
+      );
+      if (live.some((p) => touchedSlips.has(p.id) && isDuplicatePayslip(live, p)))
+        throw new AuditError(
+          'Für diesen Monat und diese Zahlungsart ist bereits ein Gehaltszettel erfasst.',
+        );
+    }
     if (expectedLinkPatches(tx, [...expectedLinkBookings]).length > 0) {
       throw new AuditError(
         'Cannot undo: the result would leave an expected payment linked to a missing, deleted, or mismatched booking; undo the related booking and occurrence action together',
       );
+    }
+    for (const entry of originals.filter((e) => e.entityType === 'project')) {
+      const retained = tx
+        .select()
+        .from(schema.project)
+        .where(eq(schema.project.id, entry.entityId))
+        .get();
+      if (
+        retained?.deletedAt &&
+        tx
+          .select({ id: schema.booking.id })
+          .from(schema.booking)
+          .where(
+            and(eq(schema.booking.projectId, entry.entityId), isNull(schema.booking.deletedAt)),
+          )
+          .get()
+      )
+        throw new AuditError(
+          'Projekt wird noch von Buchungen verwendet. Zuerst die Zuordnung rückgängig machen.',
+        );
+    }
+    // Split audit entries repeat parent ids; keep bulk undo checks in bounded batches.
+    const projectBookings = [...new Set(touched)];
+    for (let i = 0; i < projectBookings.length; i += 400) {
+      const missingProject = tx
+        .select({ id: schema.booking.id })
+        .from(schema.booking)
+        .leftJoin(schema.project, eq(schema.project.id, schema.booking.projectId))
+        .where(
+          and(
+            inArray(schema.booking.id, projectBookings.slice(i, i + 400)),
+            isNull(schema.booking.deletedAt),
+            isNotNull(schema.booking.projectId),
+            or(isNull(schema.project.id), isNotNull(schema.project.deletedAt)),
+          ),
+        )
+        .limit(1)
+        .get();
+      if (missingProject)
+        throw new AuditError('Projekt der Buchung fehlt. Zuerst das Projekt wiederherstellen.');
     }
     if (originals.some((entry) => entry.entityType === 'bank_sync_account')) {
       const mappings = tx
@@ -697,6 +753,7 @@ export function undo(
     }
     assertLedgerInvariants(tx, touched);
     assertContactUndoDependencies(tx, originals);
+    assertReceiptUndo(tx, originals);
     const touchedAccounts = originals
       .filter((entry) => entry.entityType === getTableName(schema.account))
       .map((entry) => entry.entityId);

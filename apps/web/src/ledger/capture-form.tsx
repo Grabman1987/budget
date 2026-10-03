@@ -58,6 +58,7 @@ import { FlagPicker } from './flag-picker';
 import { SplitEditor } from './split-editor';
 import { AccountOptions } from './account-options';
 import { eur, monthName } from './format';
+import { ReceiptSection } from '../receipts/receipt-section';
 import { errorText } from './labels';
 import { useLedgerWrites } from './mutations';
 import { accountsQuery, lookupsQuery, payeesQuery } from './queries';
@@ -116,7 +117,7 @@ export function CaptureForm({
   useAmountPrivacy();
   const qc = useQueryClient();
   const accounts = useQuery(accountsQuery());
-  const lookups = useQuery(lookupsQuery());
+  const lookups = useQuery(lookupsQuery(state.mode === 'edit' ? state.booking.id : undefined));
   const payees = useQuery(payeesQuery());
   const writes = useLedgerWrites();
   const navigate = useNavigate();
@@ -678,6 +679,7 @@ export function CaptureForm({
                     {(lookups.data?.projects ?? []).map((p) => (
                       <option key={p.id} value={p.id}>
                         {p.name}
+                        {p.archivedAt ? ' · archiviert' : ''}
                       </option>
                     ))}
                   </Select>
@@ -691,6 +693,7 @@ export function CaptureForm({
             {maskMoneyText(errors.form)}
           </p>
         )}
+        {editing && <ReceiptSection bookingId={editing.id} />}
         <p className="khint" aria-hidden="true">
           Enter weiter · Strg Enter speichert · Strg Umschalt Enter speichert und beginnt neu · Esc
           schließt

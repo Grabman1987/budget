@@ -1,4 +1,5 @@
 import { BankCandidate } from './bank-candidate';
+import { ReadSourceDetail } from './read-source-detail';
 import {
   useAmountPrivacy,
   maskMoneyText,
@@ -24,6 +25,7 @@ import { PageFrame } from '../pages/placeholder-page';
 import { AppLink } from '../shell/app-link';
 import { inboxQuery, resolveInbox, type InboxEntry, type InboxKind, type InboxStored } from './api';
 import './inbox.css';
+import { ReceiptSection } from '../receipts/receipt-section';
 const META = PAGES.find((p) => p.path === '/konten/posteingang')!;
 const LABELS: Record<InboxKind, string> = {
   uncategorized: 'Buchungen ohne Kategorie',
@@ -150,7 +152,7 @@ function InboxBody({
       {queue.data?.count === 0 && (
         <EmptyNote>Posteingang leer. Es sind keine offenen Aufgaben vorhanden.</EmptyNote>
       )}
-      {queue.data && queue.data.count > 0 && (
+      {queue.data && queue.data.entries.length > 0 && (
         <>
           <table className="rev-table kinbox-table">
             <caption className="sr-only">Offene Entscheidungen nach Typ</caption>
@@ -209,6 +211,7 @@ function InboxBody({
           </p>
         </>
       )}
+      <ReceiptSection />
     </section>
   );
 }
@@ -242,11 +245,15 @@ function InboxRow({
             ? `${item.payeeName ?? 'Buchung ohne Empfänger'} · ${nativeCurrency(item.amountCents, item.currency)}`
             : item.title}
         </strong>
-        <span>
-          {item.type === 'booking'
-            ? `${longDay(item.date)} · ${item.accountName} · ${item.missingSplits} ${item.missingSplits === 1 ? 'Anteil' : 'Anteile'} ohne Kategorie${item.status === 'pending' ? ' · vorgemerkt' : ''}${item.memo ? ` · ${item.memo}` : ''}`
-            : maskMoneyText(item.detail ?? '')}
-        </span>
+        {item.type === 'stored' && item.refType === 'read_source' ? (
+          <ReadSourceDetail detail={item.detail} />
+        ) : (
+          <span>
+            {item.type === 'booking'
+              ? `${longDay(item.date)} · ${item.accountName} · ${item.missingSplits} ${item.missingSplits === 1 ? 'Anteil' : 'Anteile'} ohne Kategorie${item.status === 'pending' ? ' · vorgemerkt' : ''}${item.memo ? ` · ${item.memo}` : ''}`
+              : maskMoneyText(item.detail ?? '')}
+          </span>
+        )}
       </td>
       <td className="rev-act kact">
         {item.type === 'booking' ? (
@@ -296,7 +303,7 @@ function InboxRow({
 /** Offer only connected repair views; unknown/legacy references stay readable without inert links. */
 function SourceLink({ item }: { item: InboxStored }) {
   useAmountPrivacy();
-  if (item.refType === 'bank-sync')
+  if (item.refType === 'read_source' || item.refType === 'bank-sync')
     return (
       <AppLink className="btn btn-ghost btn-sm" to="/einstellungen/datenquellen">
         Datenquelle prüfen

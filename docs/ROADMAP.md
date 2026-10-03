@@ -177,7 +177,9 @@ Process from P1f on: one branch per task, PRs ≤ ~1.500 changed lines, tick onl
 - [x] Connect Plan › Jahr to all twelve existing budget-month reads; category and group detail, signed assigned/activity annual sums and December available balance (never sum rollover balances).
 - [x] Sticky category column on desktop; all metrics, month selector and category annual values on a 375px phone, with read-only year navigation.
 - [x] Independent literal domain regression cases and real-server Playwright behaviour tests; no schema or financial mutations.
-- [ ] Owner visual/device acceptance and the remaining annual scenarios/editing workflow.
+- [x] Y14: category/month event calendar, audited side-panel create/edit/switch-off/remove and undo/redo; once/monthly/quarterly/yearly/specific-month recurrences shared by report 3.1 and R07.
+- [x] Unsaved selected-event mit/ohne scenarios: stored monthly Zu verteilen plus cumulative future event delta, month comparisons and December stock; no booking, assignment or extrapolated income.
+- [ ] Owner visual/device acceptance of the annual planning workflow.
 
 ## P2 Kern und Migration
 
@@ -269,6 +271,15 @@ Expected payments, contacts with receivables, savings goals, rule set R01–R16 
 - [x] Validated `/erfassen` draft links, safe login continuation, normal explicit save and documentation
 - [ ] Delivery checks, draft PR and owner desktop/phone acceptance
 
+### Y21 — Receipts
+
+- [x] Content-addressed volume storage (`RECEIPTS_DIR`), additive receipt metadata and n:m booking links; audited upload/link/unlink/remove and guarded undo/redo
+- [x] Session/origin guards, 15 MiB file limit, magic-byte MIME allowlist, JPEG/PNG/WebP metadata removal and safe authenticated download/thumbnail responses
+- [x] German booking Beleg section and capture-first Posteingang list with explicit later booking assignment; no automatic booking
+- [x] Nightly encrypted archive includes retained receipt blobs; legacy DB-only backup retention preserved; restore runbook and metadata limits in [receipts](receipts.md)
+- [x] Synthetic file/API/encrypted-restore tests, additive migration upgrade preserving legacy links, and scoped browser checks with desktop/mobile light/dark [visual evidence](evidence/receipts/README.md)
+- [ ] Owner: real-phone camera capture, directory/space checks and encrypted DB-plus-receipt restore after deployment; independent review/CI acceptance
+
 ## P4 Datenquellen
 Enable Banking adapter, worker with nightly run and catch-up, inbox items, assignment rules and source status in Einstellungen › Datenquellen. Manual file imports are excluded from app scope; all-account/depot CSV export is available as a step-up authenticated ZIP.
 
@@ -280,6 +291,12 @@ Enable Banking adapter, worker with nightly run and catch-up, inbox items, assig
 - [x] Review corrections: changed-reference updates/warnings, duplicate-reference fallback, isolated account failures, 21-day overlap and durable four-request/day limit; tolerant rows/undated balances, stable balance warnings, redacted auth/config failures, callback pruning and versioned encryption.
 - [ ] Owner: register application, configure secrets, connect accounts, reconcile the first run and demonstrate 14 stable nights.
 - [ ] Assignment-rule engine, ambiguous history changes and transfer matching remain separate acceptance work.
+
+### Crypto read source (P4/P5)
+- [x] Read-only current public API adapter; env-only key, paged resumable operation inbox, provider-ID deduplication and explicit investment/cash mappings.
+- [x] Native balance warnings, audited page/cursor writes, existing nightly timer hook and step-up protected manual fetch/full replay in Datenquellen. See [owner setup and limitations](crypto-read-source.md).
+- [x] Review fixes: mapping-independent acknowledgement/current display, row quarantine and categorized failures, tolerant balance reads with independent operations progress, unchanged-difference acknowledgement and bounded cursor history.
+- [ ] Owner key setup, private reconciliation and 14-day nightly acceptance; dedicated P4 worker and automated posting/matching remain separate.
 
 ## P5 Vermögen
 Price history (yfinance + Ariva, source per price), ECB rates, trades and holdings, portfolio performance, allocation, Sparpläne, debts with extra repayment, freedom number with Soll-Pfad. **Gate 3:** returns and holdings equal Portfolio Performance.
@@ -402,3 +419,12 @@ The 30 reports (SPEC §7), explorer, printable sheets, parallel run with reconci
 - [x] Guard unique live EUR sources; missing/deleted/dual/foreign/shared sources retain identity/date but no financial figures or status. Combined goal/category/account reads suppress cached figures during loading or failed refresh; no sums across goals.
 - [x] Source table, read-only detail and filtered source-booking/Plan drilldowns; literal API/read-only and write/undo/redo refresh checks, real synthetic API browser, keyboard/Axe and desktop1440/mobile390 light/dark evidence. See [report 3.5](evidence/report-3.5.md).
 - [ ] Original emergency-fund reach, Tagesgeld split, independently allocated money per goal, linear Soll path and owner acceptance remain open; I02 source allocation is not resolved by these guards.
+
+### Y22 / Reports 1.2 and 1.9 — Captured payroll and side projects
+- [x] PR #139 review fixes: separate tax-free reimbursements, signed SV/Lohnsteuer corrections with exact net conservation and signed ratios, live payslip-position deduplication including undo/redo, salary-split payout linkage and retained archived project choices. Synthetic domain/API/migration and desktop/mobile browser regressions; details in [payroll report scope](payroll-projects.md).
+- [x] Manual EUR payslip capture/edit/remove: base gross plus typed additional earnings, SV-DN, captured Lohnsteuer, other deductions, controlled net; regular, 13th/14th and other special payments. Existing payout booking and optional stored receipt reference; no tax calculation or automatic booking.
+- [x] Drizzle migrations, shared zod validation, header/line savepoint and audit group, soft deletion and grouped undo/redo. Combined payout links compare salary/special splits with the captured salary net sum, excluding reimbursements.
+- [x] `/reports/gehalt`: monthly gross-to-net chain, deduction ratios, recorded calendar-year totals, same-month/kind prior-year comparison, fourteen recorded salary positions, missing-month chart gaps and payout consistency warnings/source links.
+- [x] `/einstellungen/projekte`: create, rename, archive/reactivate and undo/redo; retained project attribution/history, active-only new booking attribution. `/reports/projekte`: closed-month split-level income/cost/result, signed refunds, prior-period comparison, monthly results and booking drilldown; side income stays a distinct household income type without adding project profit again.
+- [x] Final local typecheck/lint/full unit and API suite (223 files, 2,166 tests), production build and four synthetic desktop/mobile browser scenarios; light/dark Axe and overflow checks. Local worker/timeout settings and screenshots: [verification evidence](payroll-projects.md#verification-evidence).
+- [ ] Separate receipt object-storage/upload workflow, collective/step-raise metadata and inflation comparison, project hours/hourly rates; owner design/private-data acceptance and Gate 4 remain open.

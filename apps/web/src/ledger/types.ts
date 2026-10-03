@@ -139,7 +139,7 @@ export interface Category {
 export interface Lookups {
   groups: { id: string; name: string; sortOrder: number }[];
   categories: Category[];
-  projects: { id: string; name: string }[];
+  projects: { id: string; name: string; archivedAt?: string | null }[];
   incomeTypes: { id: string; name: string }[];
   contacts: { id: string; name: string }[];
   institutions: { id: string; name: string; kind: string }[];

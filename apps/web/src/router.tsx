@@ -123,6 +123,7 @@ const BUILT_PATHS = new Set<string>([
   PROFILE_META.path,
   INVESTMENT_SETTINGS_META.path,
   '/konten',
+  '/einstellungen/projekte',
   '/konten/buchungen',
   '/konten/kontakte',
   '/konten/posteingang',
@@ -178,6 +179,12 @@ const securityRoute = createRoute({
   path: SECURITY_META.path,
   staticData: { meta: SECURITY_META },
   component: lazyRouteComponent(() => import('./pages/security-page'), 'SecurityPage'),
+});
+const projectsSettingsRoute = createRoute({
+  getParentRoute: () => shellRoute,
+  path: '/einstellungen/projekte',
+  staticData: { meta: PAGES.find((p) => p.path === '/einstellungen/projekte')! },
+  component: lazyRouteComponent(() => import('./pages/project-settings'), 'ProjectSettings'),
 });
 const profileRoute = createRoute({
   getParentRoute: () => shellRoute,
@@ -239,6 +246,12 @@ const planYearRoute = createRoute({
   getParentRoute: () => shellRoute,
   path: PLAN_JAHR.path,
   staticData: { meta: PLAN_JAHR },
+  validateSearch: (search: Record<string, unknown>) => ({
+    ereignis:
+      typeof search['ereignis'] === 'string' && search['ereignis'].length <= 64
+        ? search['ereignis']
+        : undefined,
+  }),
   component: lazyRouteComponent(() => import('./budget/plan-year-page'), 'PlanYearPage'),
 });
 const planExpectedRoute = createRoute({
@@ -347,6 +360,10 @@ const reportRoute = createRoute({
   getParentRoute: () => shellRoute,
   path: '/reports/$reportId',
   validateSearch: (search: Record<string, unknown>) => ({
+    gehaltszettel:
+      typeof search['gehaltszettel'] === 'string' && search['gehaltszettel'].length <= 64
+        ? search['gehaltszettel']
+        : undefined,
     kontakt:
       typeof search['kontakt'] === 'string' &&
       search['kontakt'].length > 0 &&
@@ -419,6 +436,7 @@ const routeTree = rootRoute.addChildren([
     ...placeholderRoutes,
     securityRoute,
     profileRoute,
+    projectsSettingsRoute,
     investmentSettingsRoute,
     categoriesRoute,
     rulesRoute,

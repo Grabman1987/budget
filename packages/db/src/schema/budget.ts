@@ -346,6 +346,14 @@ export const plannedEvent = sqliteTable(
     accountId: text('account_id').references(() => account.id),
     categoryId: text('category_id').references(() => category.id),
     enabled: integer('enabled', { mode: 'boolean' }).notNull().default(true),
+    recurrence: text('recurrence', { enum: ['once', 'monthly', 'quarterly', 'yearly', 'months'] })
+      .notNull()
+      .default('once'),
+    recurrenceMonths: text('recurrence_months', { mode: 'json' })
+      .$type<number[]>()
+      .notNull()
+      .default(sql`'[]'`),
+    recurrenceUntil: text('recurrence_until'),
     note: text('note'),
     ...timestamps(),
   },

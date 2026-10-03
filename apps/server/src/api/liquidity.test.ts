@@ -12,6 +12,7 @@ import { mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { Hono } from 'hono';
+import { sql } from 'drizzle-orm';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { createApp, type AuthGate } from '../app';
 
@@ -100,6 +101,146 @@ async function seedBudget() {
 }
 
 describe('GET /liquidity', () => {
+  it('year plans and the liquidity report share recurring dates, category and audited undo/redo', async () => {
+    await seedBudget();
+    const budgetBefore = (await call('GET', '/budget/2026-12')).body;
+    const created = await call('POST', '/liquidity/events', {
+      name: 'Versicherung jährlich',
+      date: '2025-04-30',
+      amountCents: -12_345,
+      categoryId: 'miete',
+      accountId: 'giro',
+      recurrence: 'yearly',
+      recurrenceUntil: '2027-04-30',
+    });
+    expect(created.status).toBe(201);
+    const id = created.body.event.id;
+    expect((await call('GET', '/liquidity/events')).body.events).toMatchObject([
+      {
+        id,
+        categoryId: 'miete',
+        categoryName: 'Miete',
+        recurrence: 'yearly',
+        status: 'in_horizon',
+      },
+    ]);
+    expect((await call('GET', '/liquidity')).body.report.eventMarks).toEqual([
+      { day: '2026-04-30', label: 'Versicherung jährlich', cents: -12_345 },
+    ]);
+    const updated = await call('PATCH', `/liquidity/events/${id}`, {
+      name: '13./14. Gehalt',
+      amountCents: 20_001,
+      recurrence: 'months',
+      recurrenceMonths: [6, 11],
+    });
+    expect(updated.status).toBe(200);
+    expect((await call('GET', '/liquidity?horizon=12m')).body.report.eventMarks).toEqual([
+      { day: '2026-06-30', label: '13./14. Gehalt', cents: 20_001 },
+      { day: '2026-11-30', label: '13./14. Gehalt', cents: 20_001 },
+    ]);
+    const undone = await call('POST', '/undo', { groupId: updated.body.groupId });
+    expect(undone.status).toBe(200);
+    expect((await call('GET', '/liquidity/events')).body.events[0].recurrence).toBe('yearly');
+    expect((await call('POST', '/undo', { groupId: undone.body.groupId })).status).toBe(200);
+    const off = await call('PATCH', `/liquidity/events/${id}`, { enabled: false });
+    expect((await call('GET', '/liquidity')).body.report.eventMarks).toEqual([]);
+    expect((await call('POST', '/undo', { groupId: off.body.groupId })).status).toBe(200);
+    const removed = await call('DELETE', `/liquidity/events/${id}`);
+    expect((await call('GET', '/liquidity/events')).body.events).toEqual([]);
+    const restored = await call('POST', '/undo', { groupId: removed.body.groupId });
+    expect((await call('GET', '/liquidity/events')).body.events[0].recurrenceMonths).toEqual([
+      6, 11,
+    ]);
+    expect((await call('POST', '/undo', { groupId: restored.body.groupId })).status).toBe(200);
+    expect((await call('GET', '/liquidity/events')).body.events).toEqual([]);
+    expect((await call('GET', '/budget/2026-12')).body).toEqual(budgetBefore);
+    expect(db.select().from(schema.booking).all()).toEqual([]);
+  });
+
+  it('rejects inconsistent merged recurrence rules and leaves rows and audit untouched on failure', async () => {
+    await seedBudget();
+    const base = { name: 'Urlaub', date: '2026-07-31', amountCents: -10_001 };
+    for (const extra of [
+      { recurrence: 'weekly' },
+      { recurrence: 'months', recurrenceMonths: [] },
+      { recurrence: 'months', recurrenceMonths: [1, 1] },
+      { recurrence: 'months', recurrenceMonths: [13] },
+      { recurrenceUntil: '2026-06-01' },
+      { categoryId: 'missing' },
+      { recurrence: 'yearly', recurrenceMonths: [2] },
+    ])
+      expect(
+        (await call('POST', '/liquidity/events', { ...base, ...extra })).status,
+      ).toBeGreaterThanOrEqual(400);
+    const created = await call('POST', '/liquidity/events', {
+      ...base,
+      recurrence: 'months',
+      recurrenceMonths: [7],
+      recurrenceUntil: '2026-12-31',
+    });
+    const auditBefore = db.select().from(schema.auditLog).all();
+    const rowsBefore = db.select().from(schema.plannedEvent).all();
+    expect(
+      (await call('PATCH', `/liquidity/events/${created.body.event.id}`, { recurrence: 'monthly' }))
+        .status,
+    ).toBe(422);
+    expect(
+      (await call('PATCH', `/liquidity/events/${created.body.event.id}`, { date: '2027-01-01' }))
+        .status,
+    ).toBe(422);
+    expect(db.select().from(schema.auditLog).all()).toEqual(auditBefore);
+    expect(db.select().from(schema.plannedEvent).all()).toEqual(rowsBefore);
+    db.run(
+      sql`CREATE TRIGGER fail_event_audit BEFORE INSERT ON audit_log WHEN NEW.entity_type = 'planned_event' BEGIN SELECT RAISE(ABORT, 'synthetic failure'); END`,
+    );
+    expect(
+      (await call('PATCH', `/liquidity/events/${created.body.event.id}`, { amountCents: -20_000 }))
+        .status,
+    ).toBe(422);
+    expect(db.select().from(schema.plannedEvent).all()).toEqual(rowsBefore);
+    expect(db.select().from(schema.auditLog).all()).toEqual(auditBefore);
+  });
+
+  it('retains legacy once defaults and reads calendar plans without valuing investments', async () => {
+    await seedBudget();
+    createEntity(
+      db,
+      schema.plannedEvent,
+      { id: 'legacy', name: 'Anschaffung', date: '2026-04-01', amountCents: -1_001 },
+      { actor: 'tester' },
+    );
+    expect((await call('GET', '/liquidity/events')).body.events[0]).toMatchObject({
+      recurrence: 'once',
+      recurrenceMonths: [],
+      recurrenceUntil: null,
+      categoryId: null,
+    });
+  });
+
+  it('requires a session for calendar reads and mutations and applies the origin gate', async () => {
+    const denied = createApp({
+      webDir,
+      ledger: { db, today: () => TODAY },
+      auth: {
+        ...signedIn,
+        requireSession: async (c) => c.json({ error: 'unauthorized' }, 401),
+      },
+    });
+    expect((await denied.request('/api/liquidity/events')).status).toBe(401);
+    expect((await denied.request('/api/liquidity/events', { method: 'POST' })).status).toBe(401);
+    const wrongOrigin = createApp({
+      webDir,
+      ledger: { db, today: () => TODAY },
+      auth: {
+        ...signedIn,
+        originGuard: async (c) => c.json({ error: 'forbidden' }, 403),
+      },
+    });
+    expect((await wrongOrigin.request('/api/liquidity/events', { method: 'POST' })).status).toBe(
+      403,
+    );
+  });
+
   it('without a budget account there is nothing to forecast', async () => {
     const r = await call('GET', '/liquidity');
     expect(r.status).toBe(200);

@@ -273,8 +273,8 @@ A second, independent backup next to Litestream: once a night the server takes a
 **How it runs** (`apps/server/src/backup/`, in the server process):
 
 - Every 15 minutes (first check 2 minutes after start) the server checks whether today's copy (UTC) exists. It runs after 02:00 UTC, or at once when the newest copy is more than 26 hours old (catch-up after downtime).
-- `VACUUM INTO` writes a transaction-consistent snapshot into a private temp folder while the app keeps working; `age --encrypt -r <recipient>` seals it; the plaintext file is deleted before the upload.
-- Upload to the same Tigris bucket under **`encrypted/budget-YYYY-MM-DD.sqlite.age`** (Litestream only uses `budget.sqlite/`). Retention: the newest 30 daily copies plus the first copy of each of the newest 12 months; the job deletes older ones and never touches other keys.
+- `VACUUM INTO` writes a transaction-consistent snapshot into a private temp folder while the app keeps working. Hash-referenced receipt files (including soft-deleted rows for undo) are verified and copied into `receipts/`; a TAR with `budget.sqlite` and `receipts/` is sealed with `age --encrypt -r <recipient>`. All plaintext is removed before upload. Missing/corrupt receipt files fail the backup.
+- Upload to the same Tigris bucket under **`encrypted/budget-YYYY-MM-DD.tar.age`** (Litestream only uses `budget.sqlite/`). Retention: the newest 30 daily copies plus the first copy of each of the newest 12 months; the job deletes older ones and never touches other keys.
 - Result in the log: `Encrypted backup uploaded: encrypted/budget-… (N bytes)`. A failure logs `Encrypted backup failed: …` (no secrets), puts one urgent item into the **Posteingang** ("Verschlüsselte Sicherung fehlgeschlagen") and retries an hour later; the next success resolves the item. The app never waits for the backup.
 - `BUDGET_BACKUP_RECIPIENT` is **required in production** once a bucket is configured: without it the server refuses to start.
 
@@ -299,33 +299,37 @@ The public key is not secret, but it is kept out of the repo like everything acc
 
 ```
 fly secrets set BUDGET_BACKUP_RECIPIENT=age1... --app budget-fg   # add --stage before the first deploy
-fly logs --app budget-fg      # "Encrypted backup on (1 recipient(s))", about 2 minutes later "Encrypted backup uploaded: encrypted/budget-YYYY-MM-DD.sqlite.age"
+fly logs --app budget-fg      # "Encrypted backup on (1 recipient(s))", about 2 minutes later "Encrypted backup uploaded: encrypted/budget-YYYY-MM-DD.tar.age"
 ```
 
 Several recipients (e.g. a second key kept only on paper) are separated by commas; each can decrypt on its own. Rotating the key: generate a new pair (8.1), set the new public key, keep the old private key as long as copies encrypted to it exist (up to 12 months).
 
 ### 8.3 Restore from an encrypted copy
 
-1. **Download** the copy. Tigris dashboard (`fly storage dashboard <bucket>`, folder `encrypted/`), or with the AWS CLI and the bucket keys in your session only:
+1. **Download** a receipt-aware copy from the Tigris dashboard (folder `encrypted/`), or with the AWS CLI and bucket keys in your session only:
 
    ```
    aws s3 ls s3://<bucket>/encrypted/ --endpoint-url https://fly.storage.tigris.dev
-   aws s3 cp s3://<bucket>/encrypted/budget-2026-10-01.sqlite.age . --endpoint-url https://fly.storage.tigris.dev
+   aws s3 cp s3://<bucket>/encrypted/budget-YYYY-MM-DD.tar.age . --endpoint-url https://fly.storage.tigris.dev
    ```
 
-2. **Decrypt** on your machine with the key from the password manager (paste it into a temp file, delete that afterwards):
+2. **Decrypt and extract** on the owner's machine with the offline key in a temporary file:
 
    ```
-   age --decrypt -i budget-backup-key.txt -o budget-restored.sqlite budget-2026-10-01.sqlite.age
-   sqlite3 budget-restored.sqlite 'PRAGMA integrity_check;'     # must print: ok
+   age --decrypt -i budget-backup-key.txt -o budget-restored.tar budget-YYYY-MM-DD.tar.age
+   mkdir budget-restored
+   tar -xf budget-restored.tar -C budget-restored
+   sqlite3 budget-restored/budget.sqlite 'PRAGMA integrity_check;'
    rm budget-backup-key.txt
    ```
 
-3. **Put it back** (only when the live database is lost or wrong): exactly as in section 4.3, "To put that file on a new volume": maintenance mode, move the old files aside as in 4.2, upload `budget-restored.sqlite` to `/data/budget.sqlite` with `fly ssh sftp shell`, unset maintenance. Litestream then starts a new history from this state.
+3. **Restore both DB and receipts** only when the live files are lost or wrong. In maintenance mode, move the existing DB/WAL/SHM and receipt directory aside, upload the archive privately to the volume, extract into a staging directory, and restore **both** `budget.sqlite` and `receipts/` before leaving maintenance mode. Preserve previous files for rollback, ensure ownership by the server user, and restore to `RECEIPTS_DIR` if overridden. Verify receipt downloads afterward. Never extract the owner's private backup inside the public repository. See [receipts](receipts.md) for directory, retention and metadata limits.
 
-**Restore test in CI**: `apps/server/src/backup/backup.test.ts` generates a throwaway age key pair for the test, backs up the synthetic ledger to a local fake S3 endpoint, downloads and decrypts the copy, checks `PRAGMA integrity_check` and the row counts of every table, and shows that another key cannot decrypt it. The `check` job installs age and sets `BUDGET_REQUIRE_AGE=1`, so the test cannot silently skip. It never sees the owner's key.
+Older `.sqlite.age` copies contain only the DB: decrypt with `age --decrypt -i budget-backup-key.txt -o budget-restored.sqlite <copy>.sqlite.age`, check integrity and restore as in section 4.3. Retention recognizes both formats. Litestream's point-in-time and automatic empty-volume restores also restore **only the DB**; they cannot replace lost receipt bytes. After volume loss, use the paired encrypted archive. The independent second backup target remains open.
 
-**Drill**: twice a year download one copy, decrypt it with the offline key (both the password-manager copy and the paper, typed in) and run `PRAGMA integrity_check`.
+**Restore test in CI**: `apps/server/src/backup/backup.test.ts` generates a throwaway age key pair for the test, backs up the synthetic ledger to a local fake S3 endpoint, downloads and decrypts the copy, checks `PRAGMA integrity_check`, every table count, retained receipt bytes and SHA-256, and shows that another key cannot decrypt it. The `check` job installs age and sets `BUDGET_REQUIRE_AGE=1`, so the test cannot silently skip. It never sees the owner's key.
+
+**Drill**: twice a year download one copy, decrypt it with the offline key (both the password-manager copy and the paper, typed in) and run `PRAGMA integrity_check`; verify receipt hashes and open/download a restored synthetic receipt.
 
 ## 9. Lost all passkeys
 
