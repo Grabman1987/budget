@@ -33,6 +33,8 @@ import {
   restoreSecurity,
   SECURITY_KINDS,
   savingsExecutions,
+  savingsExecutionProposals,
+  confirmSavingsExecution,
   savingsProposal,
   setTargets,
   targetsAsOf,
@@ -368,6 +370,30 @@ export function savingsPlanRoutes(db: Db, today: () => string): Hono {
     const now = today();
     const target = m ?? monthOf(now);
     return c.json({ month: target, executions: savingsExecutions(db, target, now) });
+  });
+  app.get('/execution-proposals', (c) =>
+    c.json({ proposals: savingsExecutionProposals(db, today()) }),
+  );
+  app.post('/:id/confirm-execution', async (c) => {
+    const body = await readBody(
+      c,
+      z.strictObject({
+        month,
+        date: day,
+        plannedDate: day,
+        plannedAmountCents: z.int().positive(),
+        plannedCurrency: z.string().regex(/^[A-Z]{3}$/),
+        unitsE8: z.int().positive(),
+        amountCents: z.int().positive(),
+        feeCents: z.int().min(0),
+        note: text.nullable(),
+      }),
+    );
+    const ctx = audit();
+    return c.json(
+      confirmSavingsExecution(db, id.parse(c.req.param('id')), body.month, today(), body, ctx),
+      201,
+    );
   });
   app.get('/proposal', (c) => {
     const { step } = readQuery(c, proposalQuery);

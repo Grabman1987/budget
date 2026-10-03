@@ -25,6 +25,8 @@ describe('manual source trade entry', () => {
       note: null,
       bookingId: 'booking',
       importKey: null,
+      savingsPlanId: null,
+      savingsMonth: null,
       createdAt: '2026-01-03T00:00:00Z',
       updatedAt: '2026-01-03T00:00:00Z',
       deletedAt: null,

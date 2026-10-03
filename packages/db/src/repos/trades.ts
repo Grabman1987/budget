@@ -45,6 +45,9 @@ export interface TradeInput {
   source?: 'manual' | 'import';
   /** The import run that writes the trade; the settlement booking carries it too (revert). */
   importRunId?: string | null;
+  /** Internal execution attribution, set only by the savings confirmation repository. */
+  savingsPlanId?: string;
+  savingsMonth?: string;
 }
 
 export interface TradeResult {
@@ -184,6 +187,8 @@ export function createTrade(db: Executor, input: TradeInput, ctx: AuditContext):
         ...fields,
         bookingId,
         importKey: input.importKey ?? null,
+        savingsPlanId: input.savingsPlanId ?? null,
+        savingsMonth: input.savingsMonth ?? null,
         note: input.note ?? null,
       },
       grouped,
@@ -220,6 +225,12 @@ export function updateTrade(
   const grouped = withGroup(ctx);
   return runInTransaction(db, (tx) => {
     const cur = loadTrade(tx, id);
+    if (
+      cur.savingsPlanId &&
+      ((patch.kind && patch.kind !== 'buy') ||
+        (patch.securityId && patch.securityId !== cur.securityId))
+    )
+      throw new TradeRuleError('A savings execution retains its security and buy kind');
     const next: Rules = {
       kind: patch.kind ?? cur.kind,
       unitsE8: patch.unitsE8 ?? cur.unitsE8,
@@ -409,6 +420,8 @@ export function createTradesBulk(
         ...fields,
         bookingId,
         importKey: input.importKey ?? null,
+        savingsPlanId: input.savingsPlanId ?? null,
+        savingsMonth: input.savingsMonth ?? null,
         note: input.note ?? null,
       };
       if (key) fresh.set(key, tradeRows.length);
