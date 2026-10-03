@@ -23,15 +23,40 @@ import {
 } from '../schema';
 import { allocationMonth } from './allocation';
 import { getBookSettings } from './book-settings';
-import {
-  cashSeries,
-  holdingValuesAsOf,
-  netWorthAsOf,
-  valuationSeries,
-  type NetWorth,
-} from './portfolio';
+import { cashSeries, holdingValuesAsOf, valuationSeries, type NetWorth } from './portfolio';
+import { accountBalances } from './queries';
+import { MissingFxRateError } from './errors';
 import { fxRateOnOrBefore } from './prices';
 import type { RuleFacts } from './rule-inputs';
+
+const loanBalanceCache = new WeakMap<RuleFacts, Map<string, Map<string, number>>>();
+
+/**
+ * EUR balance of every loan account on a day. Only the loan ledgers are read (no position
+ * valuation), and the result is shared by every evaluation day that uses the same facts: the
+ * Verlauf evaluates 13 days on one fact set whose 12-month windows overlap.
+ */
+function loanBalancesOn(f: RuleFacts, day: string): Map<string, number> {
+  const perFacts = loanBalanceCache.get(f) ?? new Map<string, Map<string, number>>();
+  loanBalanceCache.set(f, perFacts);
+  const cached = perFacts.get(day);
+  if (cached) return cached;
+  const loans = new Map(f.accounts.filter((a) => a.type === 'loan').map((a) => [a.id, a]));
+  const out = new Map<string, number>();
+  for (const b of accountBalances(f.db, day)) {
+    const loan = loans.get(b.accountId);
+    if (!loan) continue;
+    if (loan.currency === 'EUR' || b.balanceCents === 0) {
+      out.set(loan.id, b.balanceCents);
+      continue;
+    }
+    const rate = fxRateOnOrBefore(f.db, loan.currency, day);
+    if (!rate) throw new MissingFxRateError(loan.currency, day);
+    out.set(loan.id, toEurCents(b.balanceCents, rate.rateMicro));
+  }
+  perFacts.set(day, out);
+  return out;
+}
 
 /** Book rules use stored sources only, clipped to the evaluated day; never today's balances in history. */
 export function bookInputs(
@@ -144,7 +169,7 @@ export function bookInputs(
     // Repayment priority is assessed before this month's repayment, including a final payoff.
     const first = `${month}-01`;
     const historical = accounts.some((a) => a.type === 'loan')
-      ? netWorthAsOf(db, addDays(first, -1))
+      ? loanBalancesOn(f, addDays(first, -1))
       : null;
     const debtCategories = f.categories.filter((c) => c.kind === 'debt' && (c.stage ?? 1) > 1);
     const extraRepaymentCents = Math.max(
@@ -169,7 +194,7 @@ export function bookInputs(
         .map((a) => ({
           balanceCents: Math.max(
             0,
-            -(a.openingDate >= first ? a.openingBalanceCents : (historical?.byAccount[a.id] ?? 0)),
+            -(a.openingDate >= first ? a.openingBalanceCents : (historical?.get(a.id) ?? 0)),
           ),
           rateBp: a.interestRateBp ?? 0,
         })),

@@ -267,4 +267,27 @@ describe('book-rule sources and audited owner input', { timeout: 60_000 }, () =>
     });
     expect(defaultParams('R21')).toMatchObject({ leverageMaxBp: 1000 });
   });
+  it('an unrelated account without exchange rate withholds the book preview but keeps the rule book readable', () => {
+    const db = opened.db;
+    db.insert(account)
+      .values({
+        id: 'books-usd',
+        name: 'Dollarkonto',
+        type: 'checking',
+        role: 'budget',
+        onBudget: false,
+        currency: 'USD',
+        openingDate: '2022-03-01',
+        openingBalanceCents: 10_000,
+      })
+      .run();
+    const listed = listRules(db, DAY);
+    expect(listed.rules).toHaveLength(RULE_CODES.length);
+    for (const code of BOOK_RULE_CODES)
+      expect(listed.rules.find((r) => r.code === code)).toMatchObject({
+        latest: null,
+        unavailableReason: expect.stringContaining('USD'),
+      });
+    expect(listed.rules.find((r) => r.code === 'R01')).not.toHaveProperty('unavailableReason');
+  });
 });

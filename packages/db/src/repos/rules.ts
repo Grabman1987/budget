@@ -9,6 +9,7 @@ import {
   isRuleCode,
   lastDayOfMonth,
   monthOf,
+  PriceUnavailableError,
   resolveParams,
   RULE_DEFS,
   summarizeCheck,
@@ -21,7 +22,7 @@ import {
 import { and, asc, between, eq, inArray, isNull } from 'drizzle-orm';
 import { rule, ruleResult } from '../schema';
 import { updateEntity } from './entities';
-import { EntityNotFoundError } from './errors';
+import { EntityNotFoundError, MissingFxRateError } from './errors';
 import { netWorthAsOf } from './portfolio';
 import { loadFacts, ruleInputs, type RuleFacts } from './rule-inputs';
 import { runInTransaction, type Executor } from './types';
@@ -236,14 +237,28 @@ export function listRules(
     rules.map((r) => r.id),
     upTo,
   );
-  const inputs =
-    upTo && rules.some((r) => isRuleCode(r.code) && BOOK_RULE_CODES.includes(r.code))
-      ? ruleInputs(db, upTo)
-      : null;
+  // The live value of a book rule is a preview. An incomplete valuation (missing exchange rate or
+  // price anywhere in the ledger) must not take the whole rule book down: it only withholds the
+  // preview, like a missing input does, and the thresholds stay editable.
+  let inputs: ReturnType<typeof ruleInputs> | null = null;
+  let withheld: string | null = null;
+  if (upTo && rules.some((r) => isRuleCode(r.code) && BOOK_RULE_CODES.includes(r.code))) {
+    try {
+      inputs = ruleInputs(db, upTo);
+    } catch (error) {
+      if (!(error instanceof MissingFxRateError || error instanceof PriceUnavailableError))
+        throw error;
+      withheld = error.message;
+    }
+  }
   return {
     rules: rules.map((r) => {
-      if (!inputs || !isRuleCode(r.code) || !BOOK_RULE_CODES.includes(r.code))
-        return listing(r, latest.get(r.id));
+      if (!inputs || !isRuleCode(r.code) || !BOOK_RULE_CODES.includes(r.code)) {
+        const row = listing(r, latest.get(r.id));
+        return withheld && isRuleCode(r.code) && BOOK_RULE_CODES.includes(r.code)
+          ? { ...row, unavailableReason: withheld }
+          : row;
+      }
       const e = evaluateRule(r.code, parseJson(r.paramsJson), inputs);
       return {
         ...listing(r, undefined),
