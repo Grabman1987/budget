@@ -1,7 +1,15 @@
 import { assertContactBookingWrite, assertContactSettlementInvariants } from './contact-invariants';
 import { randomUUID } from 'node:crypto';
 import { and, asc, eq, gte, inArray, isNull, lte, ne, type SQL } from 'drizzle-orm';
-import { account, booking, bookingSplit, category, expectedOccurrence, transfer } from '../schema';
+import {
+  account,
+  booking,
+  bookingSplit,
+  category,
+  expectedOccurrence,
+  project,
+  transfer,
+} from '../schema';
 import {
   deleteTracked,
   insertTracked,
@@ -301,6 +309,7 @@ function insertBooking(
   ctx: GroupedContext,
 ): string {
   assertDate(input.date);
+  assertProjectAssignment(tx, input.projectId);
   assertSplits(input.amountCents, input.splits);
   assertSplitRefs(tx, input.splits);
   const acct = liveAccount(tx, input.accountId);
@@ -659,6 +668,8 @@ function updateBookingImpl(
     if (patch.splits?.some((s) => s.transferAccountId))
       throw new BookingInvariantError('Add split transfers when creating the booking');
 
+    if (patch.projectId !== undefined && patch.projectId !== cur.projectId)
+      assertProjectAssignment(tx, patch.projectId);
     if (patch.date !== undefined) assertDate(patch.date);
     const target = liveAccount(tx, patch.accountId ?? cur.accountId);
     if (patch.accountId !== undefined && patch.accountId !== cur.accountId) {
@@ -906,4 +917,16 @@ export function listBookings(db: Executor, filter: BookingFilter = {}): BookingW
     if (split) last.splits.push(split);
   }
   return result;
+}
+
+/** Archived projects retain their ledger, but cannot receive a new attribution. */
+function assertProjectAssignment(tx: Executor, id: string | null | undefined) {
+  if (!id) return;
+  const row = tx
+    .select()
+    .from(project)
+    .where(and(eq(project.id, id), isNull(project.deletedAt), isNull(project.archivedAt)))
+    .get();
+  if (!row)
+    throw new BookingInvariantError('Projekt ist nicht aktiv. Bitte ein aktives Projekt wählen.');
 }

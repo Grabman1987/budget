@@ -8,14 +8,17 @@ import {
   listPayees,
   mergePayees,
   project,
+  booking,
+  getEntity,
   undo,
   updatePayee,
   type Db,
 } from '@budget/db';
-import { asc, isNull } from 'drizzle-orm';
+import { and, asc, eq, isNull, or } from 'drizzle-orm';
 import { randomUUID } from 'node:crypto';
 import { Hono } from 'hono';
-import { ACTOR, ApiError, defined, readBody } from './http';
+import { ACTOR, ApiError, defined, readBody, readQuery } from './http';
+import { z } from 'zod';
 import { payeeCreate, payeeMerge, payeePatch, undoBody } from './schemas';
 
 /** Payees (create, rename, merge), the pick lists the pages need, and undo. */
@@ -58,8 +61,13 @@ export function payeeRoutes(db: Db): Hono {
 /** Everything a pick list needs in one request: categories, groups, projects, income types, contacts. */
 export function lookupRoutes(db: Db): Hono {
   const app = new Hono();
-  app.get('/', (c) =>
-    c.json({
+  app.get('/', (c) => {
+    const { bookingId } = readQuery(
+      c,
+      z.object({ bookingId: z.string().min(1).max(64).optional() }),
+    );
+    const retainedProjectId = bookingId ? getEntity(db, booking, bookingId)?.projectId : null;
+    return c.json({
       groups: db
         .select({
           id: categoryGroup.id,
@@ -84,9 +92,16 @@ export function lookupRoutes(db: Db): Hono {
         .orderBy(asc(category.sortOrder), asc(category.name))
         .all(),
       projects: db
-        .select({ id: project.id, name: project.name })
+        .select({ id: project.id, name: project.name, archivedAt: project.archivedAt })
         .from(project)
-        .where(isNull(project.deletedAt))
+        .where(
+          and(
+            isNull(project.deletedAt),
+            retainedProjectId
+              ? or(isNull(project.archivedAt), eq(project.id, retainedProjectId))
+              : isNull(project.archivedAt),
+          ),
+        )
         .orderBy(asc(project.name))
         .all(),
       incomeTypes: db
@@ -107,8 +122,8 @@ export function lookupRoutes(db: Db): Hono {
         .where(isNull(institution.deletedAt))
         .orderBy(asc(institution.name))
         .all(),
-    }),
-  );
+    });
+  });
   return app;
 }
 

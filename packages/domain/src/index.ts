@@ -20,6 +20,7 @@ export * from './reports/month';
 export * from './overview';
 export * from './spending';
 export * from './report-tables';
+export * from './reports/payroll-projects';
 export * from './bank-sync';
 export * from './read-source';
 export * from './budget-year';

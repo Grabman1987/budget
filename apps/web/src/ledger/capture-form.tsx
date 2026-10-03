@@ -114,7 +114,7 @@ export function CaptureForm({
 }) {
   const qc = useQueryClient();
   const accounts = useQuery(accountsQuery());
-  const lookups = useQuery(lookupsQuery());
+  const lookups = useQuery(lookupsQuery(state.mode === 'edit' ? state.booking.id : undefined));
   const payees = useQuery(payeesQuery());
   const writes = useLedgerWrites();
   const navigate = useNavigate();
@@ -673,6 +673,7 @@ export function CaptureForm({
                     {(lookups.data?.projects ?? []).map((p) => (
                       <option key={p.id} value={p.id}>
                         {p.name}
+                        {p.archivedAt ? ' · archiviert' : ''}
                       </option>
                     ))}
                   </Select>

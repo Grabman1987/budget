@@ -1,3 +1,4 @@
+import { payrollRoutes, projectRoutes } from './payroll-projects';
 import { bankSyncFromEnv } from '../bank-sync/config';
 import type { BankSync } from '../bank-sync/service';
 import { bankSyncRoutes } from './bank-sync';
@@ -74,6 +75,8 @@ export function createLedgerApi({
   receiptsDir = receiptDirectory(sqliteOf(db).name),
 }: LedgerApiOptions): Hono {
   const api = new Hono();
+  api.route('/payslips', payrollRoutes(db, today));
+  api.route('/projects', projectRoutes(db, today));
   api.route('/bank-sync', bankSyncRoutes(bankSync, stepUp));
   api.route('/sources/crypto', readSourceRoutes(db, today, stepUp, cryptoReadSource()));
   api.route('/search', searchRoutes(db));

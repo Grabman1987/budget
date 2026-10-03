@@ -26,10 +26,10 @@ export const bookingsQuery = (filter: BookingFilter, cursor?: string, limit?: nu
   });
 
 /** Pick lists change rarely; they refresh on focus like everything else but are kept a minute. */
-export const lookupsQuery = () =>
+export const lookupsQuery = (bookingId?: string) =>
   queryOptions({
-    queryKey: ['ledger-lookups'],
-    queryFn: fetchLookups,
+    queryKey: bookingId ? ['ledger-lookups', bookingId] : ['ledger-lookups'],
+    queryFn: () => fetchLookups(bookingId),
     staleTime: 60_000,
   });
 

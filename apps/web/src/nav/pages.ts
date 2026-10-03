@@ -146,6 +146,14 @@ export const PAGES: ReadonlyArray<PageDef> = [
     spec: 'Einstandskostenmethode: gleitender Durchschnitt als Standard, FIFO wählbar.',
   },
   {
+    path: '/einstellungen/projekte',
+    title: 'Einstellungen · Projekte',
+    area: 'einstellungen',
+    register: 'projekte',
+    fills: P6,
+    spec: 'Projekte anlegen, umbenennen und archivieren.',
+  },
+  {
     path: '/einstellungen/kategorien',
     title: 'Einstellungen · Kategorien',
     area: 'einstellungen',

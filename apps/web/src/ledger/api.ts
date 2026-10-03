@@ -88,7 +88,8 @@ export const fetchBookings = (filter: BookingFilter, cursor?: string, limit = 50
     `/api/bookings${queryString({ ...filterParams(filter), cursor, limit })}`,
   );
 
-export const fetchLookups = () => request<Lookups>('GET', '/api/lookups');
+export const fetchLookups = (bookingId?: string) =>
+  request<Lookups>('GET', `/api/lookups${queryString({ bookingId })}`);
 export const fetchPayees = () => request<{ payees: PayeeRow[] }>('GET', '/api/payees');
 export const createPayee = (name: string, defaultCategoryId?: string | null) =>
   request<{ payee: PayeeRow } & WriteResult>('POST', '/api/payees', {

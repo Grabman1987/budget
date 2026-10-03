@@ -56,5 +56,6 @@ export * from './bank-costs-report';
 export * from './inflation-report';
 export * from './report-tables';
 export * from './cpi';
+export * from './payroll-projects';
 
 export * from './read-source';
