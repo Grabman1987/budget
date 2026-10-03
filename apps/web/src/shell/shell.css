@@ -221,14 +221,20 @@ a.profile:hover .profile-text strong {
   position: sticky;
   top: 0;
   z-index: 20;
-  display: flex;
-  align-items: center;
-  gap: 12px;
   height: 64px;
-  padding: 0 40px 0 24px;
   background: color-mix(in srgb, var(--ground) 88%, transparent);
   backdrop-filter: blur(10px);
   border-bottom: 1px solid var(--rule);
+}
+/* Same column as .sheet (max width and side padding), so the actions end where the content ends. */
+.topbar-inner {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  max-width: var(--sheet-max);
+  height: 100%;
+  padding: 0 40px 0 24px;
 }
 .topbar .icon-btn {
   width: 40px;
@@ -340,6 +346,9 @@ a.btn {
 @media (max-width: 1180px) {
   .sheet {
     padding-inline: 28px;
+  }
+  .topbar-inner {
+    padding-right: 28px;
   }
 }
 

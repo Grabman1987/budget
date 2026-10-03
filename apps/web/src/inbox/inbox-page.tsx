@@ -5,7 +5,8 @@ import {
   useAmountPrivacy,
   maskMoneyText,
   Button,
-  DetailPanel,
+  Count,
+  WideDialog,
   RevisionTriangle,
   SectionHead,
   useToast,
@@ -24,6 +25,7 @@ import type { ListedBooking } from '../ledger/types';
 import { PAGES } from '../nav/pages';
 import { PageFrame } from '../pages/placeholder-page';
 import { AppLink } from '../shell/app-link';
+import { useInboxCount } from '../shell/inbox';
 import { inboxQuery, resolveInbox, type InboxEntry, type InboxKind, type InboxStored } from './api';
 import './inbox.css';
 import { ReceiptSection } from '../receipts/receipt-section';
@@ -53,6 +55,13 @@ export function InboxPage() {
 export function InboxPanel({ open, onClose }: { open: boolean; onClose: () => void }) {
   useAmountPrivacy();
   return <InboxWorkflow panel={{ open, onClose }} />;
+}
+
+/** Open-task count in the dialog head; stays empty while unknown (never a fabricated zero). */
+function InboxHeadCount() {
+  const { count } = useInboxCount();
+  if (count === undefined) return null;
+  return <Count srSuffix=" offen">{count}</Count>;
 }
 
 /** Same queue/actions in page and global panel; booking editor replaces the panel to avoid nested modals. */
@@ -92,18 +101,19 @@ function InboxWorkflow({ panel }: { panel?: { open: boolean; onClose: () => void
   return (
     <>
       {panel ? (
-        <DetailPanel
+        <WideDialog
           open={panel.open && !editing}
           onClose={() => {
             if (!editing) panel.onClose();
           }}
           title="Posteingang"
+          headAside={<InboxHeadCount />}
         >
           {panel.open && body}
           <AppLink to="/konten/posteingang" search={{}} className="btn btn-ghost">
             Alle Aufgaben anzeigen
           </AppLink>
-        </DetailPanel>
+        </WideDialog>
       ) : (
         body
       )}
