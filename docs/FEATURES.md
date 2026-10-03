@@ -52,8 +52,8 @@ Prototype references: [Heute](../design/prototype/index.html),
 | Y15 | Contacts, receivables, repayments and contact statements | EUR ledger/API + connected UI | Actual statement, retained balanced history, editable oldest-first allocation, explicit credit, atomic audit/undo and dependency guards implemented; foreign-currency statements, broader contact editing and owner workflow/design acceptance remain open. Derived balances do not enter net worth |
 | Y16 | Posteingang: categorize, accept/reject suggestions, resolve exceptions | Working basics: actual queue/count, categorize/confirm, warning acknowledgement with undo | Bank/assignment suggestion accept/reject flows and owner workflow acceptance remain open |
 | Y17 | Global search (Ctrl K) | UI + engine | Session-protected, bounded booking/payee/category/account/contact search; keyboard/touch navigation. Owner acceptance pending |
-| Y18 | Assignment rules / Immer so zuordnen | Partial; UI placeholder | Rule editor, safe automatic application and inbox decision integration |
-| Y19 | Bank connection, consent renewal and reconciliation | Open | Adapter, authorized connection workflow, deduplication, error handling and private bank acceptance |
+| Y18 | Assignment rules / Immer so zuordnen | Partial UI + engine | Income budget-month defaults per payee/category/type implemented (decision 42); broader categorization rules and inbox automation remain open |
+| Y19 | Bank connection, consent renewal and reconciliation | UI + engine | Decision 41: BOOK immediately becomes an unchecked, uncategorized booking; PDNG stays a confirmation candidate. Per-source override, dedupe/audit and balance checks implemented; private bank acceptance remains |
 | Y20 | Nightly bank/source worker with catch-up | Partial | Market timer exists; full worker and 14-day stable nightly acceptance do not |
 | Y21 | Receipt photograph/upload and links to bookings | Open | Object storage, safe upload, booking linkage and mobile capture |
 | Y22 | Payslip lines, projects and side income | Partial | Project attribution on bookings exists; project management/P&L, payslip capture and reports remain open |
@@ -64,6 +64,13 @@ Prototype references: [Heute](../design/prototype/index.html),
 
 First private migration is EUR-only from 01.10.2023. Unsupported foreign-currency
 budget accounts are guarded; full foreign-currency support remains later scope.
+
+Owner decision 42: capture/edit offers **Für nächsten Monat** per inflow. Category
+and income type stay intact; account balances and cash-flow/income reports keep the
+actual date, while Zu verteilen and budget allocation use the following month.
+Defaults in Einstellungen › Zuordnungsregeln affect new owner captures only and can
+be overridden per booking. Transfers, contact repayments and mixed spending cannot
+be deferred. Rules/month changes are audited and undoable; private month-end acceptance remains.
 
 ## Investments and wealth: replacing the agreed Portfolio Performance workflows
 

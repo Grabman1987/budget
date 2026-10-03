@@ -212,6 +212,7 @@ export interface ListedBooking {
   accountId: string;
   accountName: string;
   date: string;
+  incomeNextMonth: boolean;
   amountCents: number;
   payeeId: string | null;
   payeeName: string | null;
@@ -470,6 +471,7 @@ export function queryBookings(db: Executor, query: BookingQuery = {}): BookingPa
       accountId: b.accountId,
       accountName: r.accountName,
       date: b.date,
+      incomeNextMonth: b.incomeNextMonth,
       amountCents: b.amountCents,
       payeeId: b.payeeId,
       payeeName: r.payeeName,

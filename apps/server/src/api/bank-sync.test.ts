@@ -92,6 +92,36 @@ const call = (
     ...(body === undefined ? {} : { body: JSON.stringify(body) }),
   });
 describe('bank API security boundary', () => {
+  it('uses decision 41 by default, audits per-source changes, and requires step-up and origin', async () => {
+    const policy = '/' + connectionId + '/policy';
+    expect(await (await call('')).json()).toMatchObject({
+      connections: [{ bookedToLedger: true }],
+    });
+    fresh = false;
+    expect(
+      (await call(policy, { bookedToLedger: false }, 'https://budget.example', 'PUT')).status,
+    ).toBe(403);
+    fresh = true;
+    expect(
+      (await call(policy, { bookedToLedger: false }, 'https://other.example', 'PUT')).status,
+    ).toBe(403);
+    expect(
+      (await call(policy, { bookedToLedger: 'false' }, 'https://budget.example', 'PUT')).status,
+    ).toBe(400);
+    expect(
+      (await call(policy, { bookedToLedger: false }, 'https://budget.example', 'PUT')).status,
+    ).toBe(200);
+    expect(await (await call('')).json()).toMatchObject({
+      connections: [{ bookedToLedger: false }],
+    });
+    expect(
+      opened.db
+        .select()
+        .from(schema.auditLog)
+        .all()
+        .some((a) => a.entityType === 'app_setting'),
+    ).toBe(true);
+  });
   it('requires session, origin and fresh step-up before any consent HTTP request', async () => {
     authenticated = false;
     expect((await call('')).status).toBe(401);

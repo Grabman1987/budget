@@ -8,6 +8,11 @@ import {
   resolveInboxItem,
   schema,
   undo,
+  accountBalances,
+  deleteBooking,
+  categories,
+  saveIncomeMonthRules,
+  updateBooking,
   type OpenedDatabase,
 } from '@budget/db';
 import { seedBasics } from '../../../../packages/db/src/repos/test-helpers';
@@ -78,6 +83,8 @@ beforeEach(() => {
       fromDate: '2026-09-01',
     })
     .run();
+  // Historical opt-in staging policy remains supported; decision 41 is tested below.
+  service.setPolicy(consentId, false);
 });
 afterEach(() => opened.close());
 const storedInbox = (day: string) =>
@@ -94,6 +101,144 @@ const nextDay = () => {
 };
 
 describe('bank sync workflow', () => {
+  it('applies an income default only at owner classification, with cash unchanged by undo', async () => {
+    categories.create(
+      opened.db,
+      { id: 'salary', name: 'Gehalt', kind: 'income', class: null, groupId: 'g' },
+      { actor: 'tester' },
+    );
+    saveIncomeMonthRules(opened.db, [{ scope: 'category', targetId: 'salary', nextMonth: true }], {
+      actor: 'owner',
+    });
+    service.setPolicy(consentId, true);
+    vi.mocked(provider.transactions).mockResolvedValue(batch([{ ...row, amountCents: 200001 }]));
+    vi.mocked(provider.balance).mockResolvedValue({
+      amountCents: 300001,
+      currency: 'EUR',
+      date: row.date,
+    });
+    await service.tick();
+    const booking = opened.db.select().from(schema.booking).get()!;
+    expect(booking.incomeNextMonth).toBe(false);
+    expect(opened.db.select().from(schema.bookingSplit).get()?.categoryId).toBeNull();
+    const groupId = randomUUID();
+    updateBooking(
+      opened.db,
+      booking.id,
+      { splits: [{ amountCents: 200001, categoryId: 'salary', incomeTypeId: 'income-salary' }] },
+      { actor: 'owner', groupId },
+    );
+    expect(opened.db.select().from(schema.booking).get()?.incomeNextMonth).toBe(true);
+    undo(opened.db, { groupId }, { actor: 'owner' });
+    expect(opened.db.select().from(schema.booking).get()?.incomeNextMonth).toBe(false);
+    expect(opened.db.select().from(schema.bookingSplit).get()?.categoryId).toBeNull();
+    expect(
+      accountBalances(opened.db, '2026-10-01').find((a) => a.accountId === 'giro')?.balanceCents,
+    ).toBe(300001);
+  });
+  it('counts BOOK immediately by default, leaves PDNG as a candidate, and never assigns a category', async () => {
+    opened.db.delete(schema.appSetting).run();
+    vi.mocked(provider.transactions).mockResolvedValue(
+      batch([row, { ...row, reference: 'pending-a', bankStatus: 'pending', amountCents: -301 }]),
+    );
+    await service.tick();
+    expect(service.status().connections[0]?.bookedToLedger).toBe(true);
+    expect(
+      accountBalances(opened.db, '2026-10-01').find((a) => a.accountId === 'giro')?.balanceCents,
+    ).toBe(98799);
+    expect(bookedBalance(opened.db, 'giro', '2026-10-01')).toBe(100000);
+    const bookings = opened.db.select().from(schema.booking).all();
+    expect(bookings).toHaveLength(1);
+    expect(bookings[0]).toMatchObject({
+      status: 'pending',
+      source: 'bank',
+      incomeNextMonth: false,
+    });
+    expect(opened.db.select().from(schema.bookingSplit).all()).toMatchObject([
+      { categoryId: null, incomeTypeId: null },
+    ]);
+    const inbox = readInbox(opened.db, '2026-10-01').entries;
+    expect(inbox.filter((i) => i.type === 'booking')).toHaveLength(1);
+    expect(
+      inbox.filter((i) => i.type === 'stored' && i.refType === 'bank-sync-candidate'),
+    ).toHaveLength(1);
+    expect(inbox.filter((i) => i.kind === 'reconciliation')).toHaveLength(0);
+    nextDay();
+    await service.tick();
+    expect(opened.db.select().from(schema.booking).all()).toHaveLength(1);
+    const pending = candidates().find((c) => c.bankStatus === 'pending')!;
+    service.confirm(pending.id, 'essen');
+    expect(
+      accountBalances(opened.db, '2026-10-02').find((a) => a.accountId === 'giro')?.balanceCents,
+    ).toBe(98498);
+  });
+  it('promotes a stable pending identity once and does not resurrect a deleted booking', async () => {
+    service.setPolicy(consentId, true);
+    vi.mocked(provider.transactions).mockResolvedValue(batch([{ ...row, bankStatus: 'pending' }]));
+    await service.tick();
+    expect(opened.db.select().from(schema.booking).all()).toHaveLength(0);
+    vi.mocked(provider.transactions).mockResolvedValue(batch([row]));
+    nextDay();
+    await service.tick();
+    expect(candidates()).toHaveLength(1);
+    expect(candidates()[0]?.bankStatus).toBe('booked');
+    const booking = opened.db.select().from(schema.booking).get()!;
+    deleteBooking(opened.db, booking.id, { actor: 'owner' });
+    nextDay();
+    await service.tick();
+    expect(opened.db.select().from(schema.booking).all()).toHaveLength(1);
+    expect(opened.db.select().from(schema.booking).get()?.deletedAt).not.toBeNull();
+  });
+  it('keeps automatic ledger creation replayable without replaying provider history', async () => {
+    service.setPolicy(consentId, true);
+    await service.tick();
+    const audit = opened.db
+      .select()
+      .from(schema.auditLog)
+      .all()
+      .find((a) => a.entityType === 'booking')!;
+    const result = undo(opened.db, { groupId: audit.groupId! }, { actor: 'owner' });
+    expect(
+      accountBalances(opened.db, '2026-10-01').find((a) => a.accountId === 'giro')?.balanceCents,
+    ).toBe(100000);
+    expect(candidates()).toHaveLength(1);
+    const redo = undo(opened.db, { groupId: result.groupId }, { actor: 'owner' });
+    expect(
+      accountBalances(opened.db, '2026-10-01').find((a) => a.accountId === 'giro')?.balanceCents,
+    ).toBe(98799);
+    expect(redo.entries.length).toBeGreaterThan(0);
+  });
+  it('does not double count a pending candidate confirmed before it becomes BOOK', async () => {
+    service.setPolicy(consentId, true);
+    vi.mocked(provider.transactions).mockResolvedValue(batch([{ ...row, bankStatus: 'pending' }]));
+    await service.tick();
+    service.confirm(candidates()[0]!.id, 'essen');
+    nextDay();
+    vi.mocked(provider.transactions).mockResolvedValue(batch([row]));
+    await service.tick();
+    expect(opened.db.select().from(schema.booking).all()).toHaveLength(1);
+    expect(
+      accountBalances(opened.db, '2026-10-02').find((a) => a.accountId === 'giro')?.balanceCents,
+    ).toBe(98799);
+  });
+  it('explicitly confirms an automatic BOOK again after undo without duplicating it', async () => {
+    service.setPolicy(consentId, true);
+    await service.tick();
+    const audit = opened.db
+      .select()
+      .from(schema.auditLog)
+      .all()
+      .find((a) => a.entityType === 'booking')!;
+    undo(opened.db, { groupId: audit.groupId! }, { actor: 'owner' });
+    service.confirm(candidates()[0]!.id, 'essen');
+    expect(opened.db.select().from(schema.booking).all()).toMatchObject([
+      { status: 'confirmed', deletedAt: null },
+    ]);
+    expect(opened.db.select().from(schema.bookingSplit).all()).toMatchObject([
+      { categoryId: 'essen' },
+    ]);
+    expect(bookedBalance(opened.db, 'giro', '2026-10-01')).toBe(98799);
+  });
   it('catches up, stages only, warns on expiry and literal balance difference, dedupes repeated runs', async () => {
     await service.tick();
     expect(provider.transactions).toHaveBeenCalledWith(

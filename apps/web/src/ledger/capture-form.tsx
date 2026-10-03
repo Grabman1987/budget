@@ -1,4 +1,9 @@
-import { todayInVienna } from '@budget/domain';
+import {
+  incomeBudgetMonth,
+  incomeMonthDefault,
+  todayInVienna,
+  type IncomeMonthRule,
+} from '@budget/domain';
 import {
   AmountInput,
   Button,
@@ -21,7 +26,7 @@ import {
   type KeyboardEvent,
   type MutableRefObject,
 } from 'react';
-import { ApiError } from '../api/http';
+import { ApiError, request } from '../api/http';
 import { budgetQuery } from '../budget/budget-api';
 import { createPayee, setPayeeDefaultCategory } from './api';
 import {
@@ -115,6 +120,10 @@ export function CaptureForm({
   const accounts = useQuery(accountsQuery());
   const lookups = useQuery(lookupsQuery());
   const payees = useQuery(payeesQuery());
+  const incomeRules = useQuery({
+    queryKey: ['income-month-rules'],
+    queryFn: () => request<{ rules: IncomeMonthRule[] }>('GET', '/api/income-month-rules'),
+  });
   const writes = useLedgerWrites();
   const navigate = useNavigate();
   const formRef = useRef<HTMLFormElement>(null);
@@ -122,9 +131,18 @@ export function CaptureForm({
   const [today] = useState(todayInVienna);
   const [memory] = useState(readMemory);
   const editing = state.mode === 'edit' ? state.booking : null;
+  const editDraft = editing
+    ? {
+        ...draftFromBooking(editing),
+        ...(editing.source === 'bank' &&
+        editing.splits.every((s) => !s.categoryId && !s.incomeTypeId)
+          ? { incomeNextMonth: undefined }
+          : {}),
+      }
+    : null;
   const [draft, setDraft] = useState<BookingDraft>(() =>
-    editing
-      ? draftFromBooking(editing)
+    editDraft
+      ? editDraft
       : emptyDraft(state.mode === 'create' ? (state.accountId ?? '') : '', today),
   );
   const [errors, setErrors] = useState<DraftErrors & { form?: string }>({});
@@ -170,6 +188,12 @@ export function CaptureForm({
     [all, draft.kind, splitCategoryKey],
   );
   const selected = all.find((c) => c.id === draft.categoryId);
+  const ruleNextMonth = incomeMonthDefault(
+    incomeRules.data?.rules ?? [],
+    payees.data?.payees.find((p) => p.name.toLowerCase() === draft.payee.trim().toLowerCase())?.id,
+    draft.categoryId,
+    draft.incomeTypeId,
+  );
   const payeeDefault = (() => {
     const name = draft.payee.trim().toLowerCase();
     const row = payees.data?.payees.find((p) => p.name.toLowerCase() === name);
@@ -204,7 +228,7 @@ export function CaptureForm({
     }));
 
   const dirty = editing
-    ? JSON.stringify(strip(draft)) !== JSON.stringify(strip(draftFromBooking(editing)))
+    ? JSON.stringify(strip(draft)) !== JSON.stringify(strip(editDraft!))
     : captureDirty(draft, keptPayee);
   // The panel opens to record money: the amount is the first thing typed. The dialog moves the
   // focus itself when it opens, so this runs after it.
@@ -246,6 +270,7 @@ export function CaptureForm({
       return {
         ...d,
         kind,
+        incomeNextMonth: kind === 'income' ? d.incomeNextMonth : false,
         categoryId: kind === 'transfer' || !valid ? '' : d.categoryId,
         incomeTypeId: kind === 'income' ? d.incomeTypeId : '',
         contactId: kind === 'transfer' ? '' : d.contactId,
@@ -286,8 +311,18 @@ export function CaptureForm({
 
   const save = async (andNew: boolean) => {
     if (saving.current) return;
+    if (draft.kind === 'income' && draft.incomeNextMonth === undefined && !incomeRules.isSuccess)
+      return setErrors({
+        form: 'Budgetmonat-Regeln noch nicht verfügbar. Bitte einen Monat ausdrücklich wählen oder später erneut versuchen.',
+      });
     if (blocked) return setErrors({ splits: 'Speichern geht erst, wenn der Rest 0,00 € ist.' });
-    const filled = { ...draft, accountId };
+    const filled = {
+      ...draft,
+      accountId,
+      ...(draft.kind === 'income' && editing && draft.incomeNextMonth === undefined
+        ? { incomeNextMonth: ruleNextMonth }
+        : {}),
+    };
     const advance = { advanceCategoryId, trackingAccountIds };
     saving.current = true;
     setBusy(true);
@@ -618,6 +653,33 @@ export function CaptureForm({
             />
           )}
         </Field>
+        {draft.kind === 'income' && (
+          <Field
+            label="Budgetmonat"
+            hint={`Zu verteilen: ${monthName(incomeBudgetMonth(draft.date || today, draft.incomeNextMonth ?? ruleNextMonth))}. Das Buchungsdatum bleibt erhalten.`}
+          >
+            {({ id }) => (
+              <Select
+                id={id}
+                value={
+                  draft.incomeNextMonth === undefined ? 'default' : String(draft.incomeNextMonth)
+                }
+                onChange={(e) =>
+                  set(
+                    'incomeNextMonth',
+                    e.target.value === 'default' ? undefined : e.target.value === 'true',
+                  )
+                }
+              >
+                <option value="default">
+                  Standard: {ruleNextMonth ? 'Folgemonat' : 'Buchungsmonat'}
+                </option>
+                <option value="false">Für diesen Monat</option>
+                <option value="true">Für nächsten Monat</option>
+              </Select>
+            )}
+          </Field>
+        )}
         {draft.kind === 'income' && (
           <Field label="Einnahmeart">
             {({ id }) => (

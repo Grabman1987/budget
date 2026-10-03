@@ -119,6 +119,7 @@ export interface SplitInput {
 export type BookingCreate =
   | {
       type: 'booking';
+      incomeNextMonth?: boolean;
       accountId: string;
       date: string;
       amountCents: number;
@@ -142,6 +143,7 @@ export type BookingCreate =
     };
 
 export interface BookingPatch {
+  incomeNextMonth?: boolean;
   accountId?: string;
   date?: string;
   amountCents?: number;

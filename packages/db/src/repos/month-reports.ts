@@ -522,9 +522,7 @@ export function monthOnePager(db: Executor, today: string, month: string): OnePa
   const assigned = envelopes ? allocationMonth(db, month, envelopes) : null;
   const special = income.types.find((t) => t.typeId === INCOME_TYPES.special.id)?.cents ?? 0;
   const alloc = allocation([
-    assigned
-      ? { ...assigned, incomeCents: income.earnedCents - special }
-      : { incomeCents: 0, annualIncomeCents: 0, items: [] },
+    assigned ? assigned : { incomeCents: 0, annualIncomeCents: 0, items: [] },
   ]);
 
   const spent = spendingOf(f, month);

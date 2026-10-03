@@ -67,6 +67,7 @@ export const booking = sqliteTable(
       .notNull()
       .references(() => account.id),
     date: text('date').notNull(),
+    incomeNextMonth: integer('income_next_month', { mode: 'boolean' }).notNull().default(false),
     amountCents: cents('amount_cents').notNull(),
     payeeId: text('payee_id').references(() => payee.id),
     memo: text('memo'),

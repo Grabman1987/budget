@@ -17,6 +17,7 @@ type LinkedAccount = {
   fromDate: string | null;
 };
 type Connection = {
+  bookedToLedger: boolean;
   id: string;
   label: string;
   status: string;
@@ -87,8 +88,8 @@ export function DataSourcesPage() {
       <section className="data-sources" aria-labelledby="sources-title">
         <SectionHead id="sources-title" title="Bank-Sync (PSD2)" />
         <p>
-          Gebuchte Bankumsätze landen zur Prüfung im Posteingang. Erst deine Bestätigung erstellt
-          eine Buchung.
+          Gebuchte Bankumsätze zählen sofort zum Kontostand und bleiben ohne Kategorie zur Prüfung
+          im Posteingang. Vorgemerkte Bankumsätze zählen erst nach deiner Bestätigung.
         </p>
         {query.isPending && <p role="status">Datenquellen werden geladen …</p>}
         {query.isError && (
@@ -208,6 +209,33 @@ export function DataSourcesPage() {
                   title={connection.label}
                   aside={statuses[connection.status] ?? 'Bitte prüfen'}
                 />
+                <Field
+                  label="Gebuchte Umsätze"
+                  hint="Gilt beim nächsten Abruf. Bereits übernommene Buchungen bleiben erhalten. Kategorien vergibst du selbst."
+                >
+                  {({ id }) => (
+                    <Select
+                      id={id}
+                      value={String(connection.bookedToLedger ?? true)}
+                      disabled={busy}
+                      onChange={(e) => {
+                        const bookedToLedger = e.target.value === 'true';
+                        void act(
+                          () =>
+                            withStepUp(() =>
+                              request('PUT', PATH + '/' + connection.id + '/policy', {
+                                bookedToLedger,
+                              }),
+                            ),
+                          'Übernahme gespeichert.',
+                        );
+                      }}
+                    >
+                      <option value="true">Sofort zum Kontostand zählen (Standard)</option>
+                      <option value="false">Erst nach Bestätigung zählen</option>
+                    </Select>
+                  )}
+                </Field>
                 <dl className="source-status">
                   <div>
                     <dt>Letzter Versuch</dt>

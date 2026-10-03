@@ -1,5 +1,6 @@
 ﻿import AxeBuilder from '@axe-core/playwright';
-import { expect, test } from '@playwright/test';
+import { expect } from '@playwright/test';
+import { test } from './isolated-ledger';
 
 test('bank source callback, mapping, queue action and responsive review', async ({
   page,
@@ -15,6 +16,7 @@ test('bank source callback, mapping, queue action and responsive review', async 
         id: '10000000-0000-4000-8000-000000000001',
         label: 'Bank A · AT',
         status: 'active',
+        bookedToLedger: true,
         validUntil: '2027-03-20T00:00:00Z',
         lastAttemptAt: '2026-10-01T02:30:00Z',
         lastSuccessAt: '2026-10-01T02:31:00Z',
@@ -60,6 +62,12 @@ test('bank source callback, mapping, queue action and responsive review', async 
   await page.getByRole('button', { name: 'Jetzt abrufen' }).click();
   await expect(page.getByText('Abruf vorgemerkt.', { exact: false })).toBeVisible();
   expect(calls[2]?.path).toContain('/sync');
+  await page.getByLabel('Gebuchte Umsätze').selectOption('false');
+  await expect(page.getByText('Übernahme gespeichert.')).toBeVisible();
+  expect(calls[3]).toEqual({
+    path: '/api/bank-sync/' + status.connections[0]!.id + '/policy',
+    body: { bookedToLedger: false },
+  });
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(
     true,
   );

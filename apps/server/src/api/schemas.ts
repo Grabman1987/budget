@@ -96,6 +96,7 @@ const foreign = {
 
 export const bookingCreate = z.object({
   type: z.literal('booking'),
+  incomeNextMonth: z.boolean().optional(),
   accountId: id,
   date: day,
   amountCents: cents,
@@ -126,6 +127,7 @@ export const createBody = z.discriminatedUnion('type', [bookingCreate, transferC
 export const bookingPatch = z
   .object({
     accountId: id,
+    incomeNextMonth: z.boolean(),
     date: day,
     amountCents: cents,
     payeeId: id.nullable(),

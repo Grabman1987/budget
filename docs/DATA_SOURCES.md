@@ -1,11 +1,26 @@
 # Bank sync (P4)
 
-Bank sync stages booked transactions in **Konten › Posteingang**. Fetching never creates
-bookings. The owner selects a category and confirms each item, or chooses **Nicht
-übernehmen** for a duplicate/already recorded movement. Confirmation uses the existing
-ledger validation, audit group and undo/redo path. Transfers should be checked against
-both accounts and recorded using the regular transfer workflow; reject the corresponding
-feed suggestions instead of recording a second movement.
+Owner decision 41: **BOOK** transactions immediately become unchecked (`pending`,
+"vorgemerkt") bookings without a category or income type and count in account balances.
+Their classification task appears in **Konten › Posteingang**. **PDNG** transactions
+remain candidates and count only after owner confirmation. No automatic categorization
+or envelope assignment occurs. Einstellungen › Datenquellen offers a per-connection
+**Gebuchte Umsätze** setting; the default is immediate BOOK posting, with confirmation-first
+as an override for subsequent fetches. Existing bookings are retained.
+
+Source identity remains in staging after posting/deletion, so repeated fetches and a
+stable-identity PDNG→BOOK transition do not create another booking or resurrect one
+the owner deleted. Automatic ledger changes have their own undoable audit group;
+provider protocol history stays protected. Changed booked history produces a review
+warning. Check transfers against both accounts and use the regular transfer workflow
+without retaining duplicate feed bookings. The provider's [API reference](https://enablebanking.com/docs/api/reference/)
+defines BOOK and PDNG; the adapter fetches both without a BOOK-only filter.
+
+Owner decision 42: income can use **Für nächsten Monat** in the booking editor.
+Defaults per payee, income category or income type are in Einstellungen › Zuordnungsregeln.
+They apply when the owner creates/classifies income, never at automatic fetch.
+Payee rules override category rules, which override income-type rules; an explicit
+booking option overrides all defaults. Cash date and labels stay unchanged.
 
 ## Owner setup
 
@@ -92,7 +107,8 @@ feed suggestions instead of recording a second movement.
   three transaction pages plus one balance request. Incomplete pages never stage rows.
   A longer first-run history requires a newer owner-selected start date. A history-period
   refusal gives an explicit start-date message without copying the provider's error text.
-- Only `BOOK` transactions are staged. Identity is scoped to the local account and uses
+- Both `BOOK` and `PDNG` transactions are fetched. `BOOK` enters the ledger immediately
+  unless the connection requires confirmation; `PDNG` stays a candidate. Identity is scoped to the local account and uses
   `entry_reference`, or a SHA-256 hash of date, signed integer cents, currency, text and
   an occurrence index. Two identical reference-free purchases remain two suggestions.
   The provider explicitly says `transaction_id` is unstable and not a unique transaction
@@ -106,7 +122,8 @@ feed suggestions instead of recording a second movement.
   redacted inbox counters; valid rows still stage. Pending rows never stage.
 - Booked `ITBD` / `CLBD` balances with an explicit statement date are compared with the
   existing booked-balance calculation for that date. Pending ledger bookings are excluded.
-  Differences update one warning per account, suppressed while candidates are open;
+  Differences update one warning per account, suppressed while unconfirmed BOOK candidates are open;
+  unchecked BOOK ledger entries count in this comparison, while PDNG candidates do not;
   no balancing booking is created. An undated booked balance leaves transactions intact
   and creates a notice instead of comparing. Missing booked balances and currency
   mismatches fail visibly rather than substituting an available balance or converting

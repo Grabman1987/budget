@@ -21,4 +21,5 @@ export * from './overview';
 export * from './spending';
 export * from './report-tables';
 export * from './bank-sync';
+export * from './income-month';
 export * from './budget-year';

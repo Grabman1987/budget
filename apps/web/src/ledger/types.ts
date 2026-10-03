@@ -86,6 +86,8 @@ export interface ListedBooking {
   accountId: string;
   accountName: string;
   date: string;
+  incomeNextMonth?: boolean;
+  source?: string;
   amountCents: number;
   payeeId: string | null;
   payeeName: string | null;

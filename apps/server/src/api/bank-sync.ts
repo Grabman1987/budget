@@ -53,6 +53,10 @@ export function bankSyncRoutes(service: BankSync | null, stepUp: MiddlewareHandl
     await readBody(c, z.object({}).strict());
     return c.json(service!.pause(id.parse(c.req.param('id'))));
   });
+  app.put('/:id/policy', stepUp, async (c) => {
+    const input = await readBody(c, z.strictObject({ bookedToLedger: z.boolean() }));
+    return c.json(service!.setPolicy(id.parse(c.req.param('id')), input.bookedToLedger));
+  });
   app.post('/:id/sync', async (c) => {
     await readBody(c, z.object({}).strict());
     return c.json(service!.requestRun(id.parse(c.req.param('id'))), 202);

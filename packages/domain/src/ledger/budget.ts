@@ -1,4 +1,5 @@
 import { lastDayOfMonth, nextMonth } from '../date';
+import { incomeBudgetMonth } from '../income-month';
 import { accountBalances, type BalanceAccount } from './balances';
 import { envelopeMonth, type EnvelopeMonth } from './envelope';
 
@@ -75,6 +76,7 @@ export interface LedgerSplit {
   accountId: string;
   /** `YYYY-MM-DD` of the booking. */
   date: string;
+  incomeNextMonth?: boolean;
   amountCents: number;
   categoryId: string | null;
   /** Account of the other leg when this split (or its whole booking) is a transfer leg. */
@@ -195,6 +197,9 @@ export function budgetMonths(input: BudgetInput): BudgetMonth[] {
   const onCard = new Map<string, Map<string, CardRow[]>>();
   const rule: CardRule = input.cardRule ?? 'ynab';
   const cashIds = new Set(cashAccounts.map((a) => a.id));
+  const incomeCategories = new Set(
+    input.categories.filter((c) => c.kind === 'income').map((c) => c.id),
+  );
   const effects = splits.map((s) => {
     if (!Number.isSafeInteger(s.amountCents))
       throw new RangeError(`Amounts are integer cents, got ${String(s.amountCents)}`);
@@ -210,6 +215,9 @@ export function budgetMonths(input: BudgetInput): BudgetMonth[] {
       : advanceOut
         ? { kind: 'neutral' }
         : splitEffect(s, onBudget, live);
+    // Income labels are retained on the split; income still belongs to Zu verteilen.
+    if (effect.kind === 'activity' && incomeCategories.has(effect.categoryId))
+      return { effect: { kind: 'income' } as SplitEffect, advanceOut };
     return { effect, advanceOut };
   });
   const offEnvelope = new Map<string, number>();
@@ -217,7 +225,8 @@ export function budgetMonths(input: BudgetInput): BudgetMonth[] {
     rule === 'ynab' ? creditBalanceCover(input.accounts, cardEnvelope, splits, effects) : [];
   splits.forEach((s, i) => {
     const { effect, advanceOut } = effects[i] as (typeof effects)[number];
-    const month = s.date.slice(0, 7);
+    const month =
+      effect.kind === 'income' ? incomeBudgetMonth(s.date, s.incomeNextMonth) : s.date.slice(0, 7);
     if (effect.kind === 'activity') add(month, effect.categoryId, s.amountCents);
     if (effect.kind === 'income') income.set(month, (income.get(month) ?? 0) + s.amountCents);
     const card = cardEnvelope.get(s.accountId);
@@ -305,6 +314,18 @@ export function budgetMonths(input: BudgetInput): BudgetMonth[] {
     );
     let cashCents = 0;
     for (const v of balances.values()) cashCents += v;
+    // Actual cash has arrived already, but next-month income is unavailable this month.
+    const deferred = splits.reduce(
+      (sum, s, i) =>
+        sum +
+        (cashIds.has(s.accountId) &&
+        effects[i]?.effect.kind === 'income' &&
+        s.incomeNextMonth &&
+        s.date.slice(0, 7) === month
+          ? s.amountCents
+          : 0),
+      0,
+    );
     const heldCents = input.held?.[month] ?? 0;
     out.push({
       month,
@@ -318,7 +339,7 @@ export function budgetMonths(input: BudgetInput): BudgetMonth[] {
       cardOffEnvelopeCents: -(offEnvelope.get(month) ?? 0) || 0,
       uncoveredCents,
       heldCents,
-      toBeAssignedCents: cashCents - availableCents - heldCents - creditOverspentCents,
+      toBeAssignedCents: cashCents - availableCents - heldCents - creditOverspentCents - deferred,
     });
     previous = next;
     previousCredit = creditOverspentCents;
