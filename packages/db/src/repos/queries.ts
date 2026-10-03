@@ -151,9 +151,10 @@ export function budgetLedger(db: Executor): Omit<BudgetInput, 'months'> {
 export function budget(
   db: Executor,
   months: string[],
-  options: { cardRule?: CardRule } = {},
+  options: { cardRule?: CardRule; asOf?: string } = {},
 ): BudgetMonth[] {
   const ledger = budgetLedger(db);
+  if (options.asOf) ledger.splits = ledger.splits.filter((s) => s.date <= options.asOf!);
   const first = months[0];
   if (first === undefined) return [];
   const start = ledger.accounts

@@ -1,0 +1,59 @@
+.titleblock:has(.report-quick) {
+  display: flex;
+  flex-wrap: wrap;
+}
+.titleblock:has(.report-quick) .tb-title {
+  flex: 1 1 280px;
+}
+.titleblock .tb-field:has(.report-quick) {
+  flex: 1 0 100%;
+  border-left: 0;
+  border-top: 1px solid var(--line-2);
+}
+.titleblock .tb-field:has(.report-quick) .tb-value {
+  white-space: normal;
+}
+.report-quick {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+  max-width: 100%;
+}
+.report-quick select {
+  max-width: 100%;
+  min-height: 44px;
+  width: auto;
+}
+.report-custom {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: end;
+}
+.report-custom label {
+  display: grid;
+  gap: 4px;
+}
+.report-custom input {
+  min-height: 44px;
+  max-width: 100%;
+  border: 1px solid var(--rule-strong);
+  border-radius: 6px;
+  padding: 0 8px;
+  background: var(--raised);
+  color: var(--ink);
+}
+.report-trend-control {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  min-height: 44px;
+  cursor: pointer;
+}
+@media print {
+  .report-quick {
+    display: none;
+  }
+}

@@ -1,3 +1,4 @@
+import { calendarRangeWindow, isCalendarRange, type CalendarRange } from '../report-range';
 import { addMonths, daysBetween, lastDayOfMonth } from '../date';
 import { irr, modifiedDietz, type CashFlow, type Valuation } from './returns';
 
@@ -18,7 +19,7 @@ import { irr, modifiedDietz, type CashFlow, type Valuation } from './returns';
  *   report compares this one.
  */
 
-export type Period = '1M' | '3M' | 'YTD' | '1J' | '3J' | 'Alles';
+export type Period = '1M' | '3M' | 'YTD' | '1J' | '3J' | 'Alles' | CalendarRange;
 
 export interface Window {
   /** Day of the start value (the close of this day); flows count from the day after. */
@@ -39,6 +40,7 @@ export function sameDayMonthsBack(day: string, n: number): string {
  * possible; `windowPerformance` clamps the start to the first day of the series).
  */
 export function periodWindow(period: Period, today: string, earliest = '0000-01-01'): Window {
+  if (isCalendarRange(period)) return calendarRangeWindow(period, today);
   switch (period) {
     case '1M':
       return { from: sameDayMonthsBack(today, 1), to: today };
@@ -50,7 +52,7 @@ export function periodWindow(period: Period, today: string, earliest = '0000-01-
       return { from: sameDayMonthsBack(today, 36), to: today };
     case 'YTD':
       return { from: `${Number(today.slice(0, 4)) - 1}-12-31`, to: today };
-    case 'Alles':
+    default:
       return { from: earliest, to: today };
   }
 }

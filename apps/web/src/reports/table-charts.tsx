@@ -1,4 +1,5 @@
 import {
+  TrendLine,
   AxisLine,
   BarsAroundZero,
   ChartSvg,
@@ -117,6 +118,7 @@ export function CategoryChart({
                 />
               ) : null,
             )}
+            <TrendLine points={points.map((p, i) => [x(i), y(p.spentCents / 100)])} />
             <XTicks
               y={height - 8}
               ticks={points.flatMap((p, i) =>

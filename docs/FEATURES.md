@@ -29,6 +29,21 @@ No percentage is inferred by counting pages, commits or tests.
 
 ## Budget and daily work: replacing the agreed YNAB workflows
 
+Planning/report improvement (2026-10-03): Plan › Monat compares live expected household
+income with the existing envelope monthly target requirements, including stored monthly
+holds, and opens unfunded categories. Without due schedules it labels the median of three
+complete earned-income months; incomplete schedules/history remain unavailable. The current
+payday rule has no configured salary amount, so it does not fabricate an amount-rule source.
+
+All implemented selectable-period reports (categories, savings, spending, recipients,
+cashflow, wealth history, depot comparison, contributions, returns and Explorer) share
+calendar-month quick selection and custom inclusive month ranges. Existing short period
+URLs and controls retain their semantics; current-month facts stop at today. Actual
+time-series charts offer an optional descriptive linear trend, off by default and retained
+in the URL. Month/year-only, fixed-source and forecast reports retain their scoped controls.
+No migration; owner acceptance and pinned Linux CI remain separate from local checks.
+See [delivery evidence and changed files](evidence/income-targets-report-ranges.md).
+
 Prototype references: [Heute](../design/prototype/index.html),
 [Plan](../design/prototype/plan.html), [Konten](../design/prototype/konten.html),
 [Einstellungen](../design/prototype/einstellungen.html).

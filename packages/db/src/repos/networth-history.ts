@@ -42,11 +42,12 @@ export interface NetWorthHistory {
 export function netWorthHistory(db: Executor, today: string, period: Period): NetWorthHistory {
   const earliest = earliestAccountDate(db) ?? today;
   const window = periodWindow(period, today, earliest);
-  const from = window.from < earliest ? earliest : window.from;
+  const to = window.to;
+  const from = window.from < earliest ? (earliest < to ? earliest : to) : window.from;
   const startCents = netWorthAsOf(db, from).totalCents;
-  const rows = from < today ? netWorthDaily(db, addDays(from, 1), today) : [];
+  const rows = from < to ? netWorthDaily(db, addDays(from, 1), to) : [];
   const chain = netWorthWindow(rows, startCents);
-  const nowCents = netWorthAsOf(db, today).totalCents;
+  const nowCents = netWorthAsOf(db, to).totalCents;
   if (chain.nowCents !== nowCents) throw new Error('Net worth series and netWorthAsOf disagree');
 
   const typeById = new Map(
@@ -57,7 +58,7 @@ export function netWorthHistory(db: Executor, today: string, period: Period): Ne
       .map((a) => [a.id, a.type as string]),
   );
   const unit = period === '1M' || period === '3M' ? 'week' : 'month';
-  const points = historyDays(from, today, unit).map((date) => {
+  const points = historyDays(from, to, unit).map((date) => {
     const structure = structureOf(netWorthAsOf(db, date).byAccount, (id) => typeById.get(id));
     return { date, structure };
   });
@@ -78,7 +79,7 @@ export function netWorthHistory(db: Executor, today: string, period: Period): Ne
   return {
     period,
     from,
-    to: today,
+    to,
     chain,
     daily: [
       { date: from, netWorthCents: startCents },

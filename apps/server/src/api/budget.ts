@@ -1,4 +1,5 @@
 import {
+  planIncomeTargets,
   assignMany,
   budgetSummary,
   categoryTree,
@@ -145,7 +146,7 @@ export function categoryRoutes(db: Db): Hono {
 }
 
 /** Plan › Monat: month summary, assign, move, cover (`/api/budget/:month`). */
-export function budgetRoutes(db: Db): Hono {
+export function budgetRoutes(db: Db, today: () => string): Hono {
   const app = new Hono();
   const monthParam = (value: string) => month.parse(value);
 
@@ -153,7 +154,12 @@ export function budgetRoutes(db: Db): Hono {
     const m = monthParam(c.req.param('month'));
     const { cardRule } = readQuery(c, budgetQuery);
     const { summary, tree } = budgetSummary(db, m, cardRule ? { cardRule } : {});
-    return c.json({ summary, groups: tree.groups, categories: tree.categories });
+    return c.json({
+      summary,
+      groups: tree.groups,
+      categories: tree.categories,
+      incomeTargets: planIncomeTargets(db, summary, today()),
+    });
   });
 
   app.put('/:month/assigned', async (c) => {

@@ -1,3 +1,4 @@
+import { ReportPeriodControl } from '../reports/period-quick-select';
 import { DimensionChain } from '@budget/ui';
 import { balanceChain, cents, type Period } from '@budget/domain';
 import type { PortfolioSummary, ContributionHistory } from '@budget/db';
@@ -5,7 +6,7 @@ import { queryOptions, useQuery } from '@tanstack/react-query';
 import { useNavigate } from '@tanstack/react-router';
 import { useZeitraum, ZEITRAUM_VALUES } from '../wealth/zeitraum';
 import { ApiError, request } from '../api/http';
-import { Button, Segmented } from '@budget/ui';
+import { Button, TrendLine } from '@budget/ui';
 import { ErrorNote, LoadingNote } from '../ledger/states';
 import { longDay, eur } from '../ledger/format';
 import { periodText } from '../wealth/networth-model';
@@ -65,7 +66,7 @@ export function PortfolioContributionsReport({
         {
           label: 'Zeitraum',
           value: (
-            <Segmented
+            <ReportPeriodControl
               label="Zeitraum"
               options={PERIOD_OPTIONS}
               value={period}
@@ -312,6 +313,13 @@ function ContributionsChart({ history }: { history: ContributionHistory }) {
         })}
         <path d={investedPath} className="contributions-invested-line" />
         <path d={valuePath} className="contributions-value-line" />
+        <TrendLine points={values.map((value, index) => [x(index), y(value)])} />
+        <TrendLine
+          points={rows.map((row, index) => [
+            x(index + 0.5),
+            zero - (row.gainCents / maxAbsGain) * ((barBottom - barTop) / 2 - 4),
+          ])}
+        />
         <line x1={left} x2={width - right} y1={zero} y2={zero} className="contributions-zero" />
         {rows
           .filter(

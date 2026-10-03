@@ -1,3 +1,4 @@
+import { IncomeTargetsCard } from './income-targets-card';
 import { cents, todayInVienna } from '@budget/domain';
 import {
   Button,
@@ -180,7 +181,17 @@ function PlanBody({
   const rows = planRows(data);
   const byId = new Map(rows.map((r) => [r.id, r]));
   const panelView = views?.find((v) => v.summary.month === open?.month) ?? data;
-  const panelRows = panelView === data ? rows : planRows(panelView);
+  const allRows = planRows({
+    ...data,
+    categories: data.categories.map((c) => ({ ...c, hiddenAt: null })),
+  });
+  const panelRows =
+    panelView === data
+      ? allRows
+      : planRows({
+          ...panelView,
+          categories: panelView.categories.map((c) => ({ ...c, hiddenAt: null })),
+        });
   // Several months show the "Gruppen" layout; starting to distribute goes back to one month.
   const multi = months.length > 1 && !distribute;
   const shownView: PlanView = multi ? 'group' : view;
@@ -619,6 +630,13 @@ function PlanBody({
       </div>
       <aside className="inspector" aria-label="Monatsüberblick">
         <MonthOverview data={data} rows={rows} month={months.length > 1 ? month : undefined} />
+        {data.incomeTargets && (
+          <IncomeTargetsCard
+            data={data.incomeTargets}
+            rows={allRows}
+            onOpen={(id) => setOpen({ id, month })}
+          />
+        )}
         <SplitBand data={data} rows={rows} />
         <section className="insp-card card insp-rail" aria-labelledby="rail-title">
           <h2 className="insp-title" id="rail-title">

@@ -190,7 +190,7 @@ export function reportTables(
     .all();
   for (const s of incomeRows) {
     const kind = s.categoryId === null ? null : (categoryKind.get(s.categoryId) ?? null);
-    if (!isIncomeCategorySplit(s.categoryId, kind) || s.cents <= 0) continue;
+    if (!isIncomeCategorySplit(s.categoryId, kind) || s.cents <= 0 || s.day > today) continue;
     const m = monthOf(s.day);
     const type = s.incomeTypeId ?? INCOME_TYPES.other.id;
     const target =
@@ -207,11 +207,15 @@ export function reportTables(
   }
 
   // Spending and assignment per month from the one budget calculation.
-  const envelopes = new Map(budget(db, monthKeys).map((m) => [m.month, m.envelopes]));
+  const envelopes = new Map(
+    budget(db, monthKeys, { asOf: today }).map((m) => [m.month, m.envelopes]),
+  );
 
   // Geldalter at every month end (today for the running month), the rule R03 definition.
   const onBudget = new Set(budgetAccounts.map((a) => a.id));
-  const ledgerSplits = budgetLedger(db).splits.filter((s) => onBudget.has(s.accountId));
+  const ledgerSplits = budgetLedger(db).splits.filter(
+    (s) => onBudget.has(s.accountId) && s.date <= today,
+  );
   const betweenBudgetAccounts = (s: (typeof ledgerSplits)[number]) =>
     s.transferAccountId != null && onBudget.has(s.transferAccountId);
   const events: MoneyEvent[] = [

@@ -1,3 +1,4 @@
+import { calendarRangeMonths, isCalendarRange } from '../report-range';
 import { addMonths, lastDayOfMonth, monthOf, monthsBetween } from '../date';
 import type { Period } from '../invest/performance';
 
@@ -77,6 +78,7 @@ export function lastFullMonth(today: string): string {
  * Alles everything since `firstMonth`. The running month is never part of it.
  */
 export function cashflowWindow(period: Period, today: string, firstMonth: string): string[] {
+  if (isCalendarRange(period)) return calendarRangeMonths(period, firstMonth, today.slice(0, 7));
   const last = lastFullMonth(today);
   if (last < firstMonth) return [];
   const back = (n: number) => addMonths(last, -(n - 1));

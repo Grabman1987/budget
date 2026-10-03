@@ -1,3 +1,4 @@
+import { PeriodQuickSelect } from './period-quick-select';
 import {
   EXPLORER_CLASSES,
   EXPLORER_COLS,
@@ -103,7 +104,9 @@ export function ExplorerReportPage({ report, meta }: { report: ReportEntry; meta
           ? 'nicht verfügbar'
           : data
             ? data.firstMonth
-              ? `volle Monate bis ${monthLong(data.ref)}`
+              ? query.period.includes('..')
+                ? `Monatsdaten bis ${data.today}`
+                : `volle Monate bis ${monthLong(data.ref)}`
               : 'noch keine Buchungen'
             : 'wird geladen'
       }
@@ -148,6 +151,11 @@ export function ExplorerReportPage({ report, meta }: { report: ReportEntry; meta
               </span>
             ))}
           </div>
+          <PeriodQuickSelect
+            period={query.period}
+            onChange={(period) => set('period', period)}
+            trend={false}
+          />
           <div className="ex-bar">
             <Field label="Zeilen">
               {({ id }) => (

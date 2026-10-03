@@ -1,3 +1,4 @@
+import { checkedReportPeriod, reportPeriodSchema } from './report-period';
 import { debtRoutes } from './debts';
 import {
   freedomView,
@@ -8,13 +9,12 @@ import {
   priceStand,
   type Db,
 } from '@budget/db';
-import { addDays, bucketNetWorth, netWorthWindow, periodWindow, type Period } from '@budget/domain';
+import { addDays, bucketNetWorth, netWorthWindow, periodWindow } from '@budget/domain';
 import { Hono } from 'hono';
 import { z } from 'zod';
 import { readQuery } from './http';
 
-const PERIODS = ['1M', '3M', 'YTD', '1J', '3J', 'Alles'] as const satisfies readonly Period[];
-const networthQuery = z.object({ period: z.enum(PERIODS).default('YTD') });
+const networthQuery = z.object({ period: reportPeriodSchema.default('YTD') });
 
 /** Vermögen: net worth, current freedom sources and the shared price stamp. */
 export function wealthRoutes(db: Db, today: () => string): Hono {
@@ -30,11 +30,13 @@ export function wealthRoutes(db: Db, today: () => string): Hono {
    * `netWorthAsOf` of today, the same function the Konten overview figure comes from.
    */
   app.get('/networth', (c) => {
-    const { period } = readQuery(c, networthQuery);
-    const to = today();
-    const earliest = earliestAccountDate(db) ?? to;
-    const window = periodWindow(period, to, earliest);
-    const from = window.from < earliest ? earliest : window.from;
+    const { period: rawPeriod } = readQuery(c, networthQuery);
+    const period = checkedReportPeriod(rawPeriod, today());
+    const asOf = today();
+    const earliest = earliestAccountDate(db) ?? asOf;
+    const window = periodWindow(period, asOf, earliest);
+    const to = window.to;
+    const from = window.from < earliest ? (earliest < to ? earliest : to) : window.from;
     const startCents = netWorthAsOf(db, from).totalCents;
     const rows = from < to ? netWorthDaily(db, addDays(from, 1), to) : [];
     const chain = netWorthWindow(rows, startCents);

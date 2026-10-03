@@ -1,3 +1,5 @@
+import { isCalendarRange, windowMonths } from '@budget/domain';
+import { checkedReportPeriod, reportPeriodSchema } from './report-period';
 import {
   addMonths,
   aggregatePayeeAnalysis,
@@ -13,7 +15,7 @@ import { Hono } from 'hono';
 import { z } from 'zod';
 import { ApiError, readQuery } from './http';
 
-const periodSchema = z.enum(['1M', '3M', 'YTD', '1J', '3J', 'Alles']);
+const periodSchema = reportPeriodSchema;
 const summaryQuery = z.object({ period: periodSchema.default('1J') });
 const day = z
   .string()
@@ -58,6 +60,7 @@ function calculation<T>(run: () => T): T {
 }
 
 function periodMonths(all: string[], period: z.infer<typeof periodSchema>, through: string) {
+  if (isCalendarRange(period)) return windowMonths(period, all);
   const count =
     period === '1M'
       ? 1
@@ -77,12 +80,19 @@ function periodMonths(all: string[], period: z.infer<typeof periodSchema>, throu
 export function payeeReportRoutes(db: Db, today: () => string): Hono {
   const app = new Hono();
   app.get('/', (c) => {
-    const { period } = readQuery(c, summaryQuery);
-    const through = addMonths(monthOf(today()), -1);
+    const { period: rawPeriod } = readQuery(c, summaryQuery);
+    const period = checkedReportPeriod(rawPeriod, today());
+    const through = isCalendarRange(period) ? monthOf(today()) : addMonths(monthOf(today()), -1);
     const available = payeeAvailableMonths(db, through);
     const selected = periodMonths(available, period, through);
     const selectedRange = selected.length
-      ? { from: `${selected[0]}-01`, to: lastDayOfMonth(selected[selected.length - 1]!) }
+      ? {
+          from: `${selected[0]}-01`,
+          to:
+            lastDayOfMonth(selected[selected.length - 1]!) < today()
+              ? lastDayOfMonth(selected[selected.length - 1]!)
+              : today(),
+        }
       : null;
     const previousMonths =
       selected.length && available.length >= selected.length * 2

@@ -1,3 +1,4 @@
+import { ReportPeriodControl } from './period-quick-select';
 import {
   cents,
   monthIncomeOfRole,
@@ -5,7 +6,7 @@ import {
   savingsOverview,
   type MoneyAgePoint,
 } from '@budget/domain';
-import { DimensionChain, Segmented } from '@budget/ui';
+import { DimensionChain } from '@budget/ui';
 import { AlertTriangle, CheckCircle2 } from 'lucide-react';
 import { useMemo } from 'react';
 import { eur } from '../ledger/format';
@@ -28,13 +29,14 @@ export function SavingsReport({ report, meta }: { report: ReportEntry; meta: Pag
       report={report}
       meta={meta}
       through="full"
+      currentAllowed={period.includes('..')}
       query={query}
       className="savings-report"
       extraFields={[
         {
           label: 'Zeitraum',
           value: (
-            <Segmented
+            <ReportPeriodControl
               label="Zeitraum"
               options={PERIOD_OPTIONS}
               value={period}
@@ -88,14 +90,24 @@ function SavingsBody({
 }) {
   const window = useMemo(
     () =>
-      data.firstMonth && data.lastFullMonth
-        ? reportPeriodMonths(period, data.lastFullMonth, data.firstMonth)
+      data.firstMonth && (data.lastFullMonth || period.includes('..'))
+        ? reportPeriodMonths(
+            period,
+            period.includes('..') ? data.currentMonth : data.lastFullMonth!,
+            data.firstMonth,
+          )
         : [],
-    [data.firstMonth, data.lastFullMonth, period],
+    [data.firstMonth, data.lastFullMonth, data.currentMonth, period],
   );
   const overview = useMemo(
-    () => savingsOverview(data.months, data, window, data.lastFullMonth),
-    [data, window],
+    () =>
+      savingsOverview(
+        data.months,
+        data,
+        window,
+        period.includes('..') ? data.currentMonth : data.lastFullMonth,
+      ),
+    [data, window, period],
   );
   const { window: w } = overview;
   const target = data.targets.savingsRateBp;

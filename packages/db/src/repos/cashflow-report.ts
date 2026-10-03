@@ -54,7 +54,9 @@ export function cashflowReport(db: Executor, today: string, period: Period): Cas
   };
   if (firstMonth === null) return empty;
   const windowMonths = cashflowWindow(period, today, firstMonth);
-  const chartMonths = cashflowChartMonths(windowMonths, today, firstMonth);
+  const chartMonths = period.includes('..')
+    ? windowMonths
+    : cashflowChartMonths(windowMonths, today, firstMonth);
   if (chartMonths.length === 0) return { ...empty, windowMonths };
   const range = monthsBetween(
     chartMonths[0] as string,
@@ -70,7 +72,7 @@ export function cashflowReport(db: Executor, today: string, period: Period): Cas
       .map((c) => [c.id, c]),
   );
   const spendByMonth = new Map(
-    budget(db, range).map((m) => {
+    budget(db, range, period.includes('..') ? { asOf: today } : {}).map((m) => {
       const spent = (cls: 'need' | 'want' | 'future') =>
         [...categories.values()]
           .filter((c) => c.class === cls)
@@ -105,7 +107,8 @@ export function cashflowReport(db: Executor, today: string, period: Period): Cas
   const last = range[range.length - 1] as string;
   for (const s of rows) {
     const month = monthOf(s.date);
-    if (s.cents <= 0 || month < first || month > last) continue;
+    if (s.cents <= 0 || month < first || month > last || (period.includes('..') && s.date > today))
+      continue;
     if (s.incomeTypeId === INCOME_TYPES.capital.id) {
       // Dividends and interest count wherever they were booked, but never as household income.
       capital.set(month, (capital.get(month) ?? 0) + s.cents);
