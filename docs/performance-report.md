@@ -29,7 +29,8 @@ The depot cash view and private owner acceptance remain separate.
 - An unset/deleted benchmark never falls back to the largest holding in report 4.4.
   Its stored prices are converted to EUR levels using historical FX on the quote
   date. The comparison is a price return; additional cash distributions are not
-  inferred. Saturday/Sunday boundaries can use Friday's stored close; missing
+  inferred. ETF/fund/stock/bond Saturday/Sunday boundaries can use Friday's stored
+  close; crypto, P2P and other manual instruments require the exact boundary date. Missing
   weekday or holiday closes are explicit gaps because no exchange trading
   calendar is stored. Both interval boundaries must have a qualifying quote.
   Later quotes never backfill a missing beginning. An observed zero end price

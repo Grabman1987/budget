@@ -825,16 +825,20 @@ export function portfolioSummary(db: Executor, options: PortfolioOptions): Portf
               .orderBy(asc(price.date))
               .all()
           : [];
+      const benchmarkKind = selected.securityId
+        ? loaded.securities.get(selected.securityId)?.kind
+        : undefined;
+      const weekendCarry = ['etf', 'fund', 'stock', 'bond'].includes(benchmarkKind ?? '');
       const quotes = rows.map((p) => {
         try {
           const level =
             p.currency === 'EUR'
               ? p.priceMicro
               : (p.priceMicro * 1_000_000) / fxOn(rates, p.currency, p.date);
-          return { date: p.date, level, reason: null };
+          return { date: p.date, level, reason: null, weekendCarry };
         } catch (error) {
           if (!(error instanceof ExchangeRateUnavailableError)) throw error;
-          return { date: p.date, level: null, reason: 'missing_fx' as const };
+          return { date: p.date, level: null, reason: 'missing_fx' as const, weekendCarry };
         }
       });
       const groups = [...loaded.classNames].map(([assetClassId, name]) => ({

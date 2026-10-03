@@ -159,6 +159,18 @@ it('compares stored foreign quotes in EUR using quote-date FX without rounding p
   expect(portfolio.performanceHistory?.months[0]?.benchmarkRate).toBeCloseTo(1.1);
 });
 
+it('allows Friday closes for exchange-traded benchmarks but requires the exact date for crypto', async () => {
+  await save('bench');
+  opened.sqlite.exec(
+    "UPDATE price SET date='2026-02-27' WHERE security_id='bench' AND date='2026-02-28'",
+  );
+  expect((await readPortfolio()).performanceHistory?.benchmarkReturn).toBeCloseTo(0.1025);
+  opened.sqlite.exec("UPDATE security SET kind='crypto' WHERE id='bench'");
+  const history = (await readPortfolio()).performanceHistory!;
+  expect(history.months[1]?.benchmarkGap).toBe('missing_price');
+  expect(history.benchmarkReturn).toBeNull();
+});
+
 it('reports missing starting/monthly quotes and FX explicitly without hiding portfolio returns', async () => {
   await save('bench');
   opened.sqlite.exec("DELETE FROM price WHERE security_id='bench' AND date='2026-01-31'");

@@ -13,6 +13,8 @@ export interface ReportQuote {
   /** EUR price level, not stored money. Null means a stored quote lacks its historical FX. */
   level: number | null;
   reason: 'missing_fx' | null;
+  /** Exchange-traded instruments can use Friday's close; daily/manual sources cannot. */
+  weekendCarry?: boolean;
 }
 
 /** Report 4.4: one calendar partition of the existing daily TTWROR; no second return formula. */
@@ -30,7 +32,10 @@ export function performanceReportSeries(
   // weekday/holiday close is an explicit gap, not an assumption of an unchanged price.
   const currentQuote = (day: string, quote: ReportQuote | undefined) => {
     const weekday = new Date(`${day}T00:00:00Z`).getUTCDay();
-    const closeDay = addDays(day, weekday === 0 ? -2 : weekday === 6 ? -1 : 0);
+    const closeDay = addDays(
+      day,
+      quote?.weekendCarry !== false ? (weekday === 0 ? -2 : weekday === 6 ? -1 : 0) : 0,
+    );
     return quote !== undefined && quote.date >= closeDay;
   };
   const base = quoteOn(from);

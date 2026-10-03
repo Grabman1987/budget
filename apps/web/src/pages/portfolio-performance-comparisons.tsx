@@ -81,8 +81,9 @@ export function PerformanceComparisons({ summary }: { summary: PortfolioSummary 
         />
         <p className="vnote">
           Gleicher Zeitraum, Start = 100. Benchmark: gespeicherte Kurse in Euro mit dem Wechselkurs
-          des Kursdatums, ohne zusätzliche Ausschüttungen. Am Wochenende zählt der gespeicherte
-          Freitagskurs. Fehlende Kurse an Werktagen oder Feiertagen bleiben eine Lücke.
+          des Kursdatums, ohne zusätzliche Ausschüttungen. Bei börsengehandelten Wertpapieren zählt
+          am Wochenende der gespeicherte Freitagskurs; bei Krypto und manuellen Anlagen braucht es
+          das genaue Kursdatum. Fehlende Abschlüsse bleiben eine Lücke.
         </p>
         <details>
           <summary>Verlauf als Tabelle</summary>
