@@ -5,6 +5,8 @@ export * from './entities';
 export * from './account-order';
 export * from './operator-ops';
 export * from './operator-book';
+export * from './operator-payslips';
+export * from './operator-instrument-facts';
 export * from './bookings';
 export { assertLedgerInvariants, relatedTransferBookings } from './invariants';
 export * from './envelopes';
