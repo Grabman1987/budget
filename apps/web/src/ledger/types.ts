@@ -1,3 +1,5 @@
+import type { CashValuation } from '@budget/domain';
+
 /** Shapes of the ledger API (`docs/api-ledger.md`); amounts are integer cents, days `YYYY-MM-DD`. */
 import type { WithValuationNotes } from './valuation-hint';
 
@@ -55,6 +57,8 @@ export interface AccountRow {
   holdingsCents: number | null;
   /** Entire account value in EUR, or null when a required security quote or FX rate is missing. */
   valueEurCents: number | null;
+  cashValuation?: CashValuation;
+  pendingValuation?: CashValuation;
   /** FX currencies that prevented this account's EUR valuation. */
   missingFxCurrencies: string[];
   missingPriceSecurityIds: string[];
@@ -62,6 +66,7 @@ export interface AccountRow {
   pendingCount: number;
   lastReconciledOn: string | null;
   bankBalance?: {
+    valuation?: CashValuation | null;
     amountCents: number | null;
     date: string | null;
     fetchedAt: string | null;
@@ -81,6 +86,7 @@ export interface AccountList extends WithValuationNotes {
 export interface SeriesPoint {
   date: string;
   balanceCents: number;
+  valuation?: CashValuation;
 }
 
 export interface ListedSplit {
@@ -116,6 +122,8 @@ export interface ListedBooking {
   originalCurrency: string | null;
   splits: ListedSplit[];
   balanceAfterCents: number | null;
+  amountValuation?: CashValuation;
+  balanceValuation?: CashValuation | null;
 }
 
 export interface BookingPage {
@@ -123,6 +131,7 @@ export interface BookingPage {
   nextCursor: string | null;
   total: number;
   sumCents: number;
+  sumEurCents?: number | null;
 }
 
 export type BookingSort = 'date' | 'amount' | 'payee' | 'account';
@@ -182,9 +191,17 @@ export interface DuplicateCandidate {
   amountCents: number;
   /** Removing it makes the balances agree. */
   explainsDifference: boolean;
+  valuation?: CashValuation;
 }
 
 export interface ReconciliationPreview {
+  currency?: string;
+  valuations?: {
+    booked: CashValuation;
+    pending: CashValuation;
+    statement: CashValuation;
+    difference: CashValuation;
+  };
   accountId: string;
   date: string;
   statementBalanceCents: number;

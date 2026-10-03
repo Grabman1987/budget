@@ -8,6 +8,8 @@ import { useId, useLayoutEffect, useRef } from 'react';
 import { cx } from './cx';
 
 export interface AmountInputProps {
+  /** Native unit of the input; defaults to EUR for existing budget forms. */
+  currency?: string;
   label: string;
   value: string;
   onChange: (value: string) => void;
@@ -37,6 +39,7 @@ const HINT_INVALID = 'Das lässt sich nicht ausrechnen. Erlaubt sind Zahlen und 
  * commits the result and shows it as `1.234,56`. Invalid input is never committed.
  */
 export function AmountInput({
+  currency = 'EUR',
   label,
   value,
   onChange,
@@ -84,7 +87,7 @@ export function AmountInput({
   let hint = HINT_DEFAULT;
   if (invalid) hint = HINT_INVALID;
   else if (calculating && result.ok) {
-    hint = `= ${formatEuro(result.cents)}  ·  Enter übernimmt das Ergebnis`;
+    hint = `= ${currency === 'EUR' ? formatEuro(result.cents) : `${hidden ? '•••' : formatDecimal(result.cents)} ${currency}`}  ·  Enter übernimmt das Ergebnis`;
   }
 
   return (
@@ -137,7 +140,7 @@ export function AmountInput({
           onBlur={commit}
         />
         <span className="amount-cur" aria-hidden="true">
-          €
+          {currency === 'EUR' ? '€' : currency}
         </span>
       </div>
       {/* Always mounted so that the calculated result is announced (polite) when it appears. */}
