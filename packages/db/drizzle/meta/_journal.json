@@ -141,6 +141,13 @@
       "when": 1790989112582,
       "tag": "0019_receipts",
       "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "6",
+      "when": 1790993749370,
+      "tag": "0020_planned_event_recurrence",
+      "breakpoints": true
     }
   ]
 }

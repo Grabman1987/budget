@@ -9,6 +9,7 @@ import {
   monthOf,
   monthsBetween,
   occurrences,
+  plannedEventOccurrences,
   targetNeed,
   todayInVienna,
   toEurCents,
@@ -350,11 +351,19 @@ export function forecastInputs(
         ...(o.category?.class ? { group: o.category.class } : {}),
       })),
     ...f.plannedEvents
-      .filter((e) => e.date > asOf && e.date <= to)
       .filter((e) => {
         const a = e.accountId ? f.accounts.find((x) => x.id === e.accountId) : undefined;
-        return !a || (a.onBudget && a.role === 'budget');
+        return (
+          e.enabled &&
+          (e.accountId === null ||
+            (a &&
+              a.onBudget &&
+              a.role === 'budget' &&
+              a.openingDate <= asOf &&
+              a.currency === 'EUR'))
+        );
       })
+      .flatMap((e) => plannedEventOccurrences(e, addDays(asOf, 1), to))
       .map((e) => ({ day: e.date, cents: e.amountCents, kind: 'event' as const, label: e.name })),
   ];
   const last3 = monthsBetween(addMonths(ref, -2), ref);

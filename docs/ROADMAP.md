@@ -177,7 +177,9 @@ Process from P1f on: one branch per task, PRs ≤ ~1.500 changed lines, tick onl
 - [x] Connect Plan › Jahr to all twelve existing budget-month reads; category and group detail, signed assigned/activity annual sums and December available balance (never sum rollover balances).
 - [x] Sticky category column on desktop; all metrics, month selector and category annual values on a 375px phone, with read-only year navigation.
 - [x] Independent literal domain regression cases and real-server Playwright behaviour tests; no schema or financial mutations.
-- [ ] Owner visual/device acceptance and the remaining annual scenarios/editing workflow.
+- [x] Y14: category/month event calendar, audited side-panel create/edit/switch-off/remove and undo/redo; once/monthly/quarterly/yearly/specific-month recurrences shared by report 3.1 and R07.
+- [x] Unsaved selected-event mit/ohne scenarios: stored monthly Zu verteilen plus cumulative future event delta, month comparisons and December stock; no booking, assignment or extrapolated income.
+- [ ] Owner visual/device acceptance of the annual planning workflow.
 
 ## P2 Kern und Migration
 

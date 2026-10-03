@@ -1,5 +1,5 @@
 import { eq } from 'drizzle-orm';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createTestDatabase, type OpenedDatabase } from '../client';
 import { account, category, categoryGroup, envelopeMonth, price, security } from '../schema';
 import {
@@ -23,7 +23,10 @@ beforeEach(() => {
   opened = createTestDatabase();
   db = opened.db;
 });
-afterEach(() => opened.close());
+afterEach(() => {
+  opened.close();
+  vi.useRealTimers();
+});
 
 const groupRow = () => db.select().from(categoryGroup).where(eq(categoryGroup.id, 'g1')).get();
 
@@ -81,7 +84,20 @@ describe('tracked writes', () => {
   });
 
   it('records before/after on update, maintains updated_at, and skips no-op patches', () => {
-    createGroup();
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-01-02T00:00:00.000Z'));
+    // SQLite and JavaScript clocks need not have identical millisecond precision.
+    insertTracked(
+      db,
+      categoryGroup,
+      {
+        id: 'g1',
+        name: 'Wohnen',
+        createdAt: '2026-01-01T00:00:00.000Z',
+        updatedAt: '2026-01-01T00:00:00.000Z',
+      },
+      withGroup(ctx),
+    );
     const before = groupRow();
     expect(updateTracked(db, categoryGroup, ['g1'], { name: 'Wohnen' }, ctx)).toBe(false);
     expect(

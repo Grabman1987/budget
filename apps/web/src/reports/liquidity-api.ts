@@ -16,6 +16,17 @@ import type { WriteResult } from '../ledger/types';
  */
 
 export type { LiquidityReportView, PlannedEventView };
+export const plannedEventsQuery = () =>
+  queryOptions({
+    queryKey: [...LEDGER_KEY, 'planned-events'],
+    retry: false,
+    queryFn: () =>
+      request<{
+        asOf: string;
+        events: PlannedEventView[];
+        budgetAccounts: { id: string; name: string }[];
+      }>('GET', '/api/liquidity/events'),
+  });
 
 export const liquidityQuery = (
   horizon: LiquidityHorizon,

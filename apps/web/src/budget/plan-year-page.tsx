@@ -18,6 +18,7 @@ import { useMonth } from '../shell/use-month';
 import { budgetQuery, type BudgetMonthView } from './budget-api';
 import { CategoryIcon } from './category-icon';
 import './plan-year.css';
+import { YearPlanning } from './year-planning';
 
 const metrics = [
   ['assignedCents', 'Zugewiesen'],
@@ -62,7 +63,7 @@ export function PlanYearPage() {
             </button>
           </div>
         }
-        fields={[{ label: 'Ansicht', value: 'Jahresplan · nur lesen', labelOnMobile: true }]}
+        fields={[{ label: 'Ansicht', value: 'Jahresplanung', labelOnMobile: true }]}
       />
       <Registers
         label="Register von Plan"
@@ -86,13 +87,21 @@ export function PlanYearPage() {
         ) : !loaded ? (
           <LoadingNote what="Jahresplan" />
         ) : (
-          <YearOverview
-            key={year}
-            year={year}
-            selectedMonth={month}
-            months={months}
-            views={results.map((r) => r.data!)}
-          />
+          <>
+            <YearPlanning
+              key={`events-${year}`}
+              year={year}
+              selectedMonth={month}
+              views={results.map((r) => r.data!)}
+            />
+            <YearOverview
+              key={year}
+              year={year}
+              selectedMonth={month}
+              months={months}
+              views={results.map((r) => r.data!)}
+            />
+          </>
         )}
       </div>
     </>
