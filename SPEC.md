@@ -69,7 +69,7 @@ No keypad. The amount is a text field with arithmetic (`12,50+8,20`, `+ − × �
 - **Money-flow waterfall: nine stages** (concept 3.6 + decision 28.09.2026): 1 Fixkosten und Mindestraten, **2 Laufender Monat** (variable monthly targets for Bedarf and Wunsch), 3–9 = concept stages 2–8. Plan › Monat orders by stage by default (switchable to groups, classes, time). Overspending shows as a triage bar above the unchanged table.
 - **Expected payments** (versioned schedules), **contacts** with receivables (Kontoblatt per person), **sinking funds**, **savings goals**.
 - **50/30/20 on assigned money** (`alloc` in `design/prototype/reports-core.js`): periodic costs, special payments and their windfall transfers count as twelfths; Bedarf + Wunsch + Zukunft + Übrig (or "aus Guthaben", negative) = 100 % of income, always.
-- **Rules registered rules (`RULE_CODES`)** (concept 3.5) as data with thresholds, status (erfüllt / Warnung / verletzt) and action.
+- **Registered rules (`RULE_CODES`)** (concept 3.5) as data with thresholds, status (erfüllt / Warnung / verletzt) and action.
 - **Stage model** (decision 29.09.2026): stages by net worth up to 10.000 € (Fundament), 100.000 € (Aufbau), 1 Mio. € (Freiheit). Rules per stage from *I Will Teach You to Be Rich*, *Get Good with Money*, *Your Money or Your Life*, *Everyday Millionaires* (see `design/prototype/reports-ueberblick.js` STAGES and `einstellungen.js`). Attitude: dignity, no shame; no report judges a spend as a mistake.
 
 ## 5. Data model and invariants (concept ch. 5)

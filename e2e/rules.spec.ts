@@ -233,4 +233,21 @@ test('book rules start disabled, toggle and threshold edit are undoable', async 
   await expect(panel.getByLabel('Ziel Bruttoquote')).toHaveValue('25');
   await page.keyboard.press('Escape');
   await expect(page.getByLabel('Geburtsmonat und Jahr')).toHaveValue('');
+
+  // Saving and undoing private inputs must refresh the form as well as the stored rows.
+  const inputs = page.locator('section', {
+    has: page.getByRole('heading', { name: 'Daten für die Buchregeln' }),
+  });
+  const before = await (await page.request.get('/api/rules/inputs')).json();
+  await inputs.getByLabel('Beitragsmonat', { exact: true }).fill('2026-08');
+  await inputs.getByLabel('Arbeitgeberbeitrag Pensionskasse', { exact: true }).fill('23');
+  await inputs.getByRole('button', { name: 'Speichern', exact: true }).click();
+  await expect(inputs.getByRole('table')).toContainText('23,00');
+  await expect(inputs.getByLabel('Beitragsmonat', { exact: true })).toHaveValue('');
+  await toast(page).getByRole('button', { name: 'Rückgängig' }).click();
+  await expect(inputs.getByRole('table')).toHaveCount(0);
+  await expect(inputs.getByLabel('Arbeitgeberbeitrag Pensionskasse', { exact: true })).toHaveValue(
+    '',
+  );
+  expect(await (await page.request.get('/api/rules/inputs')).json()).toEqual(before);
 });

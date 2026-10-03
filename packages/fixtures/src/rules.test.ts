@@ -211,13 +211,13 @@ describe('editing', () => {
     updateRule(db, 'R15', { enabled: false }, ctx);
     evaluateRules(db, TODAY);
     const c = financeCheck(db, TODAY);
-    expect(c.counts.total).toBe(15);
+    expect(c.counts.total).toBe(DEFAULT_ACTIVE_RULE_COUNT - 1);
     expect(c.counts.bad).toBe(3);
     expect(c.keyRules.map((r) => r.code)).not.toContain('R15');
     expect(ruleResults(db, '2025-09-30', TODAY).rules.map((r) => r.code)).not.toContain('R15');
     updateRule(db, 'R15', { enabled: true }, ctx);
     evaluateRules(db, TODAY);
-    expect(financeCheck(db, TODAY).counts.total).toBe(16);
+    expect(financeCheck(db, TODAY).counts.total).toBe(DEFAULT_ACTIVE_RULE_COUNT);
   });
 });
 
