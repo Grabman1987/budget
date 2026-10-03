@@ -151,7 +151,7 @@ test('empty portfolio class creation and target editor validate, save, undo/redo
   await expect(panel).not.toBeVisible();
   expect(own(await read(page))).toEqual([7500, 2500]);
 });
-test('unknown current quote withholds actual/proposals and API failures offer retry', async ({
+test('unknown current quote is estimated at cost with a hint, and API failures offer retry', async ({
   page,
   request,
 }, info) => {
@@ -182,9 +182,8 @@ test('unknown current quote withholds actual/proposals and API failures offer re
     amountCents: 6000,
   });
   await page.goto('/vermoegen/portfolio');
-  await expect(page.locator('.valloc')).toContainText('Kurs fehlt.');
-  await expect(page.locator('.vrebal .rev-row')).toHaveCount(0);
-  await expect(page.locator('.va-ist')).toHaveCount(0);
+  // Without any quote the position is valued at its cost basis and flagged, never dropped.
+  await expect(page.getByText(/teilweise geschätzt/).first()).toBeVisible();
   await page.route('**/api/portfolio/allocation', (route) =>
     route.fulfill({ status: 503, json: { error: 'unavailable' } }),
   );
@@ -192,7 +191,8 @@ test('unknown current quote withholds actual/proposals and API failures offer re
   await expect(page.locator('.valloc')).toContainText('Aufteilung konnten nicht geladen werden.');
   await page.unroute('**/api/portfolio/allocation');
   await page.locator('.valloc').getByRole('button', { name: 'Erneut versuchen' }).click();
-  await expect(page.locator('.valloc')).toContainText('Kurs fehlt.');
+  await expect(page.locator('.valloc')).not.toContainText('konnten nicht geladen werden');
+  await expect(page.getByText(/teilweise geschätzt/).first()).toBeVisible();
   await page.route('**/api/asset-classes/targets', (route) =>
     route.fulfill({ status: 503, json: { error: 'unavailable' } }),
   );
