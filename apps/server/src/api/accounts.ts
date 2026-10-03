@@ -47,6 +47,12 @@ const DEFAULTS = {
 } as const;
 const TRACKING_ONLY = new Set(['loan', 'brokerage', 'crypto', 'p2p', 'receivable']);
 
+/** The loan term must not end before it starts. */
+function assertTermOrder(start: string | null | undefined, end: string | null | undefined) {
+  if (start && end && end < start)
+    throw new ApiError(422, 'invalid', 'Das Laufzeitende liegt vor dem Laufzeitbeginn.');
+}
+
 /** EUR valuation fields can be null when a required security quote or exchange rate is missing. */
 export type AccountView = AccountSummary & {
   cashValuation: CashValuation;
@@ -118,6 +124,7 @@ export function accountRoutes(db: Db, today: () => string): Hono {
         'Loans, depots, crypto, P2P and receivables are never budget accounts',
       );
     }
+    assertTermOrder(input.termStart, input.termEnd);
     const ctx = audit();
     const sortOrder =
       (db
@@ -177,6 +184,10 @@ export function accountRoutes(db: Db, today: () => string): Hono {
           'The currency cannot change once the account has bookings',
         );
     }
+    assertTermOrder(
+      patch.termStart === undefined ? current.termStart : patch.termStart,
+      patch.termEnd === undefined ? current.termEnd : patch.termEnd,
+    );
     // The opening balance is part of every checked balance: a stored Kontostand prüfen locks it.
     const opening =
       (patch.openingBalanceCents !== undefined &&
@@ -193,7 +204,12 @@ export function accountRoutes(db: Db, today: () => string): Hono {
         );
     }
     const ctx = audit();
-    accounts.update(db, id, defined(patch), ctx);
+    // A new type brings its usual role, unless the request names one.
+    const next =
+      patch.type !== undefined && patch.type !== current.type && patch.role === undefined
+        ? { ...patch, role: DEFAULTS[patch.type].role }
+        : patch;
+    accounts.update(db, id, defined(next), ctx);
     return c.json({ account: summary(id), groupId: ctx.groupId });
   });
 

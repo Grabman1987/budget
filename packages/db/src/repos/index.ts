@@ -7,6 +7,7 @@ export * from './operator-ops';
 export * from './operator-book';
 export * from './operator-payslips';
 export * from './operator-instrument-facts';
+export * from './operator-owner-config';
 export * from './bookings';
 export { assertLedgerInvariants, relatedTransferBookings } from './invariants';
 export * from './envelopes';

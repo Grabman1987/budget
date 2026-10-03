@@ -650,6 +650,83 @@ Run it as `fly ssh console -a budget-fg -C "node /app/migrate-cli.js instrument-
   exactly what would change (no group ids) and rolls everything back. Running a file twice is safe:
   the second run reports everything as unchanged.
 
+### 12.6 Owner configuration (operator task)
+
+`owner-config --file <json> [--dry-run] [--details]` loads the owner's private settings from one file
+(keep it on `/data/migration/`, never in the repo). Every section is optional; each entry is its own
+audit group (actor `operator`, `undo-group --group <id>` reverts it alone) and calls the function
+behind the matching app route, so validation and audit are those of the UI. A file is checked as a
+whole first (unknown keys, bad values, duplicates); nothing runs if it is wrong. An entry the app
+would refuse is `skipped <reason>` (`--details` adds the message), the rest goes through, the exit
+code is 3. Running a file twice is safe: the second run reports everything as `unchanged`.
+`--dry-run` does all of it and rolls back, so it reports exactly what the real run would change.
+
+```json
+{
+  "profile": {
+    "name": "...", "initials": "AB", "birthDate": "1990-06-15",
+    "country": "AT", "region": "Wien", "householdSize": 2
+  },
+  "rules": { "enable": ["R17"], "disable": ["R18"] },
+  "categoryStages": [{ "category": "Miete", "stage": 1 }, { "category": "Reisen", "stage": null }],
+  "assetClasses": { "rename": [{ "from": "Aktien", "to": "Aktien Welt" }] },
+  "securities": [
+    {
+      "isin": "XX0000000001", "quoteUrl": "https://...", "symbol": "ABC",
+      "quoteExchange": "...", "coingeckoId": "bitcoin", "pricesEnabled": true
+    }
+  ],
+  "expectedPayments": [
+    {
+      "name": "Miete", "kind": "outflow", "accountName": "Giro", "categoryName": "Miete",
+      "rhythm": "monthly", "dueDay": 1, "startDate": "2026-01-01", "amountCents": 80000,
+      "note": "..."
+    }
+  ],
+  "skipOccurrences": [{ "name": "Miete", "month": "2026-12", "reason": "..." }],
+  "clearBookings": { "before": "2026-09-01", "accounts": ["Giro"] }
+}
+```
+
+Sections run in this order: `profile`, `rules`, `categoryStages`, `assetClasses`, `securities`,
+`expectedPayments`, `skipOccurrences`, `clearBookings`. Names are matched exactly (trimmed,
+case-insensitive); unknown and ambiguous names are skipped and never created.
+
+- `profile`: the Einstellungen › Profil values. `region` is the Bundesland (code `AT-1` to `AT-9`
+  or name); `country` only accepts Austria (`AT`, `Österreich`) or, as an alias, a Bundesland;
+  `householdSize` (alias `household`) 1 to 20; `birthDate` a past day. `profile.birth_month` (a rules
+  book input) is set to the month of `birthDate` in the same group. The output lists the changed
+  field names, never the values.
+- `rules`: `enable` / `disable` lists of rule codes (checklist codes such as `S2-1` too); a code in
+  both lists is an input error, an unknown code is skipped (`unknown_rule`).
+- `categoryStages`: `stage` 1 to 9 or `null` (clear), matched by exact category name
+  (`unknown_category`, `ambiguous_category`).
+- `assetClasses.rename`: `from` to `to`. A finished rename (old name gone, new name present) is
+  `unchanged`; a taken new name is `name_taken`. Nothing else about asset classes is touched.
+- `securities`: matched by `isin` (exactly one live one) or `name`; writes `quoteUrl` (https),
+  `symbol`, `quoteExchange`, `coingeckoId`, `pricesEnabled` through `updateSecurity`; `null` clears a
+  text field, equal values are `unchanged`.
+- `expectedPayments`: created or updated by name (exactly one live payment of that name; several are
+  `ambiguous_payment`). `kind` `outflow` / `inflow`, `accountName` (required), `categoryName` or
+  `incomeType` (by name, not both), `rhythm` `monthly` / `quarterly` / `semiannual` / `yearly`
+  (`dueMonth` is required for all but monthly), `dueDay` 1 to 31, `startDate`, `amountCents` above 0.
+  A new payment gets its first version from `validFrom` (default `startDate`). For an existing one,
+  changed fields are updated and, when the amount in force on `validFrom` (default: first day of the
+  current month) differs, a new version starts that day (versions are never edited); occurrences are
+  re-planned as in the app. An omitted `note` keeps the stored one.
+- `skipOccurrences`: marks the one occurrence of the payment in `month` (`YYYY-MM`) as `missed`
+  ("ausgefallen", the existing occurrence status). Occurrences exist from last month to twelve months
+  ahead (`no_occurrence` otherwise); a linked one is refused (`linked_occurrence`). `reason` is
+  required as the file's own documentation and is not stored.
+- `clearBookings`: per account (`accounts`, default all open accounts) every `pending`
+  ("vorgemerkt") booking dated strictly before `before` becomes `confirmed` ("bestätigt", the status
+  the app's bulk action sets) through `updateBooking`. One audit group per account, all or nothing;
+  the output line per account gives the count.
+
+Output: one line per entry (`created`/`updated`/`unchanged <section> <key> <changes> <group>` or
+`skipped <section> <key> <reason>`), then one summary per section
+(`<section> created C updated U unchanged N skipped S`).
+
 ## 13. One-time Portfolio Performance migration (operator task)
 
 Same rules as section 12 (no import feature in the app, files and the private mapping never enter the repo). Prerequisite: the YNAB migration is committed (the depot, crypto and P2P accounts exist). `migrate-pp-cli.js` has the same shape: each step is one transaction, `revert` undoes a whole run (the newest committed one only, also across sources). What is written and why: `docs/migration/pp-export.md` §Commit.

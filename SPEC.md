@@ -51,7 +51,7 @@ Five main areas plus settings (profile menu). Registers are the second level; no
 | Konten | Was ist passiert? | Übersicht, Einzelkonto with Kontostand prüfen, Alle Buchungen, Posteingang, Kontakte (`konten.html`) |
 | Vermögen | Was besitze ich, was entscheide ich? | Nettovermögen, Portfolio (Soll/Ist, Rebalancing, Sparpläne), Schulden (Sondertilgung), Freiheitszahl with Soll-Pfad (`vermoegen.html`) |
 | Reports | Warum und wohin, und wie haben Entscheidungen gewirkt? | Catalog of 30 reports in 5 groups (`reports.html`) |
-| Einstellungen | — | Konten (terms: limits, rates, term), Kategorien, Regelwerk (stages + registered rules (`RULE_CODES`)), Zuordnungsregeln, Datenquellen, Anlageklassen, CSV-Export, Sicherheit (`einstellungen.html`, partly built) |
+| Einstellungen | — | Konten (terms: limits, rates, term; loan terms for the debt calculator and the cost report), Kategorien, Regelwerk (stages + registered rules (`RULE_CODES`)), Zuordnungsregeln, Datenquellen, Anlageklassen, CSV-Export, Sicherheit (`einstellungen.html`, partly built) |
 
 **Import/export feature scope (owner-confirmed 2026-10-01):** the application has no import feature or import UI. Provide one user-initiated ZIP download containing CSV export data for all accounts and depots. Reconfirm authentication before starting the sensitive export. The CSV ZIP is a data export, not an encrypted application backup; exclude auth/session state, secrets, audit events, import staging and raw migration data. This supersedes earlier in-app YNAB/PP and manual CSV/XLSX import requirements. See [`docs/export.md`](docs/export.md) for the file and field conventions. One-time migration remains a separate owner-authorized Codex/Claude task using existing exports and the PP file in private storage (§10).
 
@@ -75,7 +75,7 @@ No keypad. The amount is a text field with arithmetic (`12,50+8,20`, `+ − × �
 
 ## 5. Data model and invariants (concept ch. 5)
 
-Entities: Konto (with role: Budget-Konto / Rücklage / Anlage / Schuld, and terms: credit line, overdraft limit, rates, term, fees), Buchung with Anteile (splits), Umbuchung, Empfänger, Kategorie/Gruppe/Klasse, Envelope-Monat (assigned, activity, available), Erwartete Zahlung (versioned), Kontakt with Forderungskonto, Sparziel, Wertpapier/Produkt, Trade, Bestand, Kurs (source per price), Wechselkurs, Anlageklasse with Soll-Allocation, Regel + Regelergebnis, Posteingang-Eintrag, Zuordnungsregel, Bank-Verbindung, Beleg (content-addressed volume files), Änderungsprotokoll, Gehaltszettel (payslip lines), Projekt (side income: income and costs), Geplantes Ereignis (forecast events).
+Entities: Konto (with role: Budget-Konto / Rücklage / Anlage / Schuld, and terms: credit line, overdraft limit, rates, term, fees; for loans fixed or variable interest, monthly installment, start and end of the term, original amount), Buchung with Anteile (splits), Umbuchung, Empfänger, Kategorie/Gruppe/Klasse, Envelope-Monat (assigned, activity, available), Erwartete Zahlung (versioned), Kontakt with Forderungskonto, Sparziel, Wertpapier/Produkt, Trade, Bestand, Kurs (source per price), Wechselkurs, Anlageklasse with Soll-Allocation, Regel + Regelergebnis, Posteingang-Eintrag, Zuordnungsregel, Bank-Verbindung, Beleg (content-addressed volume files), Änderungsprotokoll, Gehaltszettel (payslip lines), Projekt (side income: income and costs), Geplantes Ereignis (forecast events).
 
 Invariants (binding):
 - Amounts are integers in cents. Sum of splits = booking amount. A transfer = exactly two bookings.

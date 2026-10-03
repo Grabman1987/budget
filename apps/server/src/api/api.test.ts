@@ -256,7 +256,8 @@ describe('accounts', () => {
     const euro = await newAccount({ name: 'Unrelated EUR', openingBalanceCents: 20_000 });
     const patch = await call('PATCH', `/accounts/${euro.id}`, { name: 'Renamed EUR' });
     expect(patch.status).toBe(200);
-    expect(patch.body['account']).toMatchObject({ name: 'Renamed EUR', valueEurCents: 0 });
+    // A rename leaves the opening balance (and so the value) alone.
+    expect(patch.body['account']).toMatchObject({ name: 'Renamed EUR', valueEurCents: 20_000 });
     expect((await call('POST', '/undo', { groupId: patch.body['groupId'] })).status).toBe(200);
     expect((await call('GET', '/accounts')).status).toBe(200);
     expect((await call('GET', `/wealth/networth`)).status).toBe(503);
@@ -344,6 +345,65 @@ describe('accounts', () => {
     ).toEqual([b.id, a.id]);
     expect((await call('PATCH', `/accounts/${a.id}`, { type: 'brokerage' })).status).toBe(422);
     expect((await call('PATCH', '/accounts/none', { name: 'x' })).status).toBe(404);
+  });
+
+  it('an edit that does not name the opening balance leaves it alone', async () => {
+    const a = await newAccount({ openingBalanceCents: 123_456 });
+    const renamed = await call('PATCH', `/accounts/${a.id}`, { name: 'Girokonto' });
+    expect(renamed.status).toBe(200);
+    expect(renamed.body['account']).toMatchObject({
+      name: 'Girokonto',
+      openingBalanceCents: 123_456,
+      balanceCents: 123_456,
+    });
+    expect(
+      (await call('PATCH', `/accounts/${a.id}`, { openingBalanceCents: 1_000 })).body['account'],
+    ).toMatchObject({ openingBalanceCents: 1_000 });
+  });
+
+  it('stores loan terms, validates their order and undoes the edit as one group', async () => {
+    const loan = await newAccount({ name: 'Kredit', type: 'loan', openingBalanceCents: -500_000 });
+    const terms = {
+      interestRateBp: 450,
+      interestKind: 'variable',
+      installmentCents: 25_000,
+      termStart: '2024-01-01',
+      termEnd: '2034-01-01',
+      originalAmountCents: 600_000,
+      monthlyFeeCents: 300,
+    };
+    const patched = await call('PATCH', `/accounts/${loan.id}`, terms);
+    expect(patched.status).toBe(200);
+    expect(patched.body['account']).toMatchObject(terms);
+    // The end of the term must not precede its start, also against the stored other date.
+    expect((await call('PATCH', `/accounts/${loan.id}`, { termEnd: '2023-01-01' })).status).toBe(
+      422,
+    );
+    expect((await call('PATCH', `/accounts/${loan.id}`, { interestKind: 'floating' })).status).toBe(
+      400,
+    );
+    expect(
+      (
+        await call('POST', '/accounts', {
+          name: 'Kredit 2',
+          type: 'loan',
+          openingDate: '2026-01-01',
+          termStart: '2030-01-01',
+          termEnd: '2029-01-01',
+        })
+      ).status,
+    ).toBe(422);
+    // Clearing a term is explicit.
+    const cleared = await call('PATCH', `/accounts/${loan.id}`, {
+      interestKind: null,
+      installmentCents: null,
+    });
+    expect(cleared.body['account']).toMatchObject({ interestKind: null, installmentCents: null });
+    expect((await call('POST', '/undo', { groupId: cleared.body['groupId'] })).status).toBe(200);
+    expect((await call('GET', `/accounts/${loan.id}`)).body['account']).toMatchObject({
+      interestKind: 'variable',
+      installmentCents: 25_000,
+    });
   });
 
   it('reorders accounts by PATCH /accounts/order as one undoable audit group', async () => {
