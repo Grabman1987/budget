@@ -76,10 +76,57 @@ export function signV4(input: SignInput): string {
   return `AWS4-HMAC-SHA256 Credential=${input.accessKeyId}/${scope}, SignedHeaders=${signedHeaders}, Signature=${signature}`;
 }
 
+const ERROR_CODES = new Set([
+  'AccessDenied',
+  'NoSuchBucket',
+  'InvalidAccessKeyId',
+  'SignatureDoesNotMatch',
+  'RequestTimeTooSkewed',
+  'RequestTimeout',
+  'SlowDown',
+  'InternalError',
+  'ServiceUnavailable',
+]);
+export class S3Error extends Error {
+  constructor(readonly code: string) {
+    super(
+      ERROR_CODES.has(code) || ['Timeout', 'NetworkError', 'InvalidResponse'].includes(code)
+        ? `Objektspeicher: ${code}. Bitte die Sicherungskonfiguration und Verbindung prüfen.`
+        : 'Objektspeicher: Anfrage fehlgeschlagen. Bitte die Sicherungskonfiguration und Verbindung prüfen.',
+    );
+  }
+}
+
+/** Never forward arbitrary provider, driver or child-process exception text. */
+export const safeBackupMessage = (error: unknown): string =>
+  error instanceof S3Error
+    ? new S3Error(error.code).message
+    : 'Sicherung fehlgeschlagen. Bitte die Sicherungskonfiguration prüfen.';
+
+async function boundedText(response: Response, limit: number): Promise<string> {
+  if (!response.body) return '';
+  const reader = response.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let bytes = 0;
+  try {
+    for (;;) {
+      const part = await reader.read();
+      if (part.done) return Buffer.concat(chunks).toString('utf8');
+      bytes += part.value.byteLength;
+      if (bytes > limit) throw new S3Error('InvalidResponse');
+      chunks.push(part.value);
+    }
+  } finally {
+    await reader.cancel().catch(() => undefined);
+    reader.releaseLock();
+  }
+}
+
 export class S3Client {
   constructor(
     private readonly config: S3Config,
     private readonly clock: () => Date = () => new Date(),
+    private readonly timeoutMs = 30_000,
   ) {}
 
   private url(key = '', query: Record<string, string> = {}): URL {
@@ -91,7 +138,7 @@ export class S3Client {
     return url;
   }
 
-  private async send(method: string, url: URL, body?: Buffer): Promise<Response> {
+  private async send(method: string, url: URL, body?: Buffer): Promise<string> {
     const payloadHash = sha256(body ?? '');
     const date = this.clock();
     const headers: Record<string, string> = {
@@ -109,18 +156,31 @@ export class S3Client {
       region: this.config.region,
       service: 's3',
     });
-    const response = await fetch(url, {
-      method,
-      headers: { ...headers, authorization },
-      ...(body ? { body: new Uint8Array(body) } : {}),
-    });
-    if (!response.ok) {
-      // S3 error bodies name the code (NoSuchBucket, AccessDenied); they never echo credentials.
-      const text = (await response.text()).slice(0, 300);
-      const code = /<Code>([^<]+)<\/Code>/.exec(text)?.[1] ?? text.replace(/\s+/g, ' ');
-      throw new Error(`S3 ${method} ${url.pathname} failed: ${response.status} ${code}`);
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), this.timeoutMs);
+    try {
+      const response = await fetch(url, {
+        method,
+        headers: { ...headers, authorization },
+        signal: controller.signal,
+        redirect: 'error',
+        ...(body ? { body: new Uint8Array(body) } : {}),
+      });
+      if (!response.ok) {
+        const text = await boundedText(response, 4096);
+        const code = /<Code>([^<]+)<\/Code>/.exec(text)?.[1] ?? '';
+        throw new S3Error(ERROR_CODES.has(code) ? code : 'UnknownError');
+      }
+      if (method === 'GET') return await boundedText(response, 1024 * 1024);
+      await response.body?.cancel();
+      return '';
+    } catch (error) {
+      if (controller.signal.aborted) throw new S3Error('Timeout');
+      throw error instanceof S3Error ? error : new S3Error('NetworkError');
+    } finally {
+      clearTimeout(timer);
+      controller.abort();
     }
-    return response;
   }
 
   async put(key: string, body: Buffer): Promise<void> {
@@ -138,7 +198,9 @@ export class S3Client {
     do {
       const query: Record<string, string> = { 'list-type': '2', prefix };
       if (token) query['continuation-token'] = token;
-      const xml = await (await this.send('GET', this.url('', query))).text();
+      const xml = await this.send('GET', this.url('', query));
+      if (!xml.includes('<ListBucketResult') || !xml.includes('</ListBucketResult>'))
+        throw new S3Error('InvalidResponse');
       for (const match of xml.matchAll(/<Key>([^<]+)<\/Key>/g))
         keys.push(unescapeXml(match[1] as string));
       token = /<IsTruncated>true<\/IsTruncated>/.test(xml)

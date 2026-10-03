@@ -271,6 +271,15 @@ Expected payments, contacts with receivables, savings goals, rule set R01–R16 
 ## P4 Datenquellen
 Enable Banking adapter, worker with nightly run and catch-up, inbox items, assignment rules and source status in Einstellungen › Datenquellen. Manual file imports are excluded from app scope; all-account/depot CSV export is available as a step-up authenticated ZIP.
 
+### P4.1 — PSD2 bank sync into the inbox
+- [x] RS256 adapter, step-up/session-bound consent, encrypted session/account identifiers, owner-selected EUR account mapping.
+- [x] Booked transaction staging and balance warnings, reference/fallback deduplication, explicit confirmation with audit/undo; no automatic bookings.
+- [x] Separate nightly worker on the same volume, catch-up, durable leases/backoff, queued manual refresh and consent reminders.
+- [x] Datenquellen status/mapping UI and owner setup in `docs/DATA_SOURCES.md`; synthetic HTTP, domain, workflow and browser tests.
+- [x] Review corrections: changed-reference updates/warnings, duplicate-reference fallback, isolated account failures, 21-day overlap and durable four-request/day limit; tolerant rows/undated balances, stable balance warnings, redacted auth/config failures, callback pruning and versioned encryption.
+- [ ] Owner: register application, configure secrets, connect accounts, reconcile the first run and demonstrate 14 stable nights.
+- [ ] Assignment-rule engine, ambiguous history changes and transfer matching remain separate acceptance work.
+
 ## P5 Vermögen
 Price history (yfinance + Ariva, source per price), ECB rates, trades and holdings, portfolio performance, allocation, Sparpläne, debts with extra repayment, freedom number with Soll-Pfad. **Gate 3:** returns and holdings equal Portfolio Performance.
 
@@ -384,7 +393,8 @@ The 30 reports (SPEC §7), explorer, printable sheets, parallel run with reconci
 ### Security review — 2026-10-02
 
 - [x] Time-bounded server source review, API no-store, production origin validation, debug authentication guard and safe unexpected/bulk errors; synthetic regressions and desktop/mobile browser checks. See [security audit](audit/2026-10-02-security-review.md).
-- [ ] Full check acceptance and owner decisions: public importer removal, bounded exports/backups, dev-tool advisory and recovery-session export policy. No production verification or security certification claimed.
+- [x] S06-S08: default-off/non-production HTTP importer gate, per-owner/process export admission through stream cleanup, S3 full-request timeout and bounded/sanitized provider errors. Operator CLIs unchanged; synthetic regressions.
+- [ ] S09: supported stable drizzle-kit upgrade remains unavailable (latest 0.31.11 retains vulnerable transitive esbuild); dependency unchanged, schema generation checked. Production verification and encrypted restore remain separate; no security certification claimed.
 
 ### P6.3.5 — Sparziele-Fortschritt (first source slice)
 - [x] `/reports/sparziele`: stored goals at the existing API's server month; reuse progress, needed rate, last-three-month rate, forecast/status and bar geometry without a new money formula. Category sources mean month-end Available; account sources mean native cash balance, not securities value.

@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { and, eq, isNull, ne } from 'drizzle-orm';
-import { account, booking, incomeType, payee } from '../schema';
+import { account, booking, contact, incomeType, payee } from '../schema';
 import { type AuditContext, type GroupedContext } from './audit';
 import {
   createBooking,
@@ -9,6 +9,7 @@ import {
   listBookings,
   updateBooking,
   type BookingRow,
+  type SplitInput,
 } from './bookings';
 import { BookingInvariantError, ConflictError, ReconciledLockedError } from './errors';
 import { OperatorInputError, resolveCategoryNames } from './operator-ops';
@@ -16,7 +17,7 @@ import { createPayee } from './payees';
 import { runInTransaction, type Executor } from './types';
 
 /**
- * Operator bookings (`migrate-cli.js book`): add, change the amount or date of, and delete
+ * Operator bookings (`migrate-cli.js book`): add, change the amount or date of, re-split and delete
  * bookings by account, category and payee *name*. Nothing here writes on its own: every entry goes
  * through the functions behind the booking routes (`createBooking`, `createTransfer`,
  * `updateBooking`, `deleteBooking`, `createPayee`), so transfer pairing, splits, trade-linked cash
@@ -95,7 +96,30 @@ export interface BookDelete extends EntryBase {
   match: BookMatch;
   unlock?: true;
 }
-export type BookEntry = BookAdd | BookChangeAmount | BookChangeDate | BookDelete;
+/** One split of a `set_splits` entry; names, never ids. Without category and income type: "Zu verteilen". */
+export interface BookSplitInput {
+  /** Envelope of the split; excludes `incomeType`. */
+  category?: string;
+  amountCents: number;
+  memo?: string;
+  /** Income type of an inflow split without category (e.g. "Erstattungen"), by name. */
+  incomeType?: string;
+  /** Receivable share (contact, by name); only with an "Auslagen" (advance) category. */
+  contact?: string;
+}
+/**
+ * Replace all splits of one booking at once (e.g. salary into pay and tax-free reimbursements).
+ * `match.amountCents` is the booking's amount and must equal the sum of the new splits; the booking
+ * itself (amount, date, account, payee) does not change. A transfer is refused. `unlock: true` as
+ * for the other changes.
+ */
+export interface BookSetSplits extends EntryBase {
+  kind: 'set_splits';
+  match: BookMatch;
+  splits: BookSplitInput[];
+  unlock?: true;
+}
+export type BookEntry = BookAdd | BookChangeAmount | BookChangeDate | BookDelete | BookSetSplits;
 
 export interface BookDone {
   status: 'done';
@@ -183,6 +207,38 @@ function unlockFlag(raw: Record<string, unknown>, at: string): { unlock?: true }
   throw new OperatorInputError(`${at}.unlock must be true or false`);
 }
 
+function parseSplits(raw: unknown, at: string, bookingCents: number): BookSplitInput[] {
+  if (!Array.isArray(raw) || raw.length === 0)
+    throw new OperatorInputError(`${at}.splits must be a non-empty list`);
+  const splits = raw.map((r: unknown, i): BookSplitInput => {
+    const where = `${at}.splits[${i}]`;
+    if (!isObject(r)) throw new OperatorInputError(`${where} must be an object`);
+    const category = optionalText(r['category'], `${where}.category`);
+    const incomeTypeName = optionalText(r['incomeType'], `${where}.incomeType`);
+    const contactName = optionalText(r['contact'], `${where}.contact`);
+    const memo = optionalText(r['memo'], `${where}.memo`);
+    if (category !== undefined && incomeTypeName !== undefined)
+      throw new OperatorInputError(`${where}: "category" and "incomeType" exclude each other`);
+    if (contactName !== undefined && category === undefined)
+      throw new OperatorInputError(`${where}: "contact" needs a "category"`);
+    const amountCents = wholeCents(r['amountCents'], `${where}.amountCents`);
+    if (amountCents === 0) throw new OperatorInputError(`${where}.amountCents must not be 0`);
+    return {
+      amountCents,
+      ...(category !== undefined && { category }),
+      ...(incomeTypeName !== undefined && { incomeType: incomeTypeName }),
+      ...(contactName !== undefined && { contact: contactName }),
+      ...(memo !== undefined && { memo }),
+    };
+  });
+  const sum = splits.reduce((total, s) => total + s.amountCents, 0);
+  if (sum !== bookingCents)
+    throw new OperatorInputError(
+      `${at}: the splits add up to ${sum} cents, the booking is ${bookingCents} cents`,
+    );
+  return splits;
+}
+
 /** Check a parsed `book --file` JSON; throws `OperatorInputError` naming the entry and the problem. */
 export function parseBookFile(json: unknown): BookEntry[] {
   if (!Array.isArray(json)) throw new OperatorInputError('The file must hold a JSON array');
@@ -263,9 +319,19 @@ export function parseBookFile(json: unknown): BookEntry[] {
           match: parseMatch(raw['match'], `${at}.match`),
           ...unlockFlag(raw, at),
         };
+      case 'set_splits': {
+        const match = parseMatch(raw['match'], `${at}.match`);
+        return {
+          kind: 'set_splits',
+          id,
+          match,
+          splits: parseSplits(raw['splits'], at, match.amountCents),
+          ...unlockFlag(raw, at),
+        };
+      }
       default:
         throw new OperatorInputError(
-          `${at}.kind must be add, change_amount, change_date or delete`,
+          `${at}.kind must be add, change_amount, change_date, set_splits or delete`,
         );
     }
   });
@@ -325,6 +391,18 @@ function findIncomeType(db: Executor, name: string): string {
   if (found.length === 0) throw new Skip('unknown_income_type', 0, `unknown income type "${name}"`);
   if (found.length > 1)
     throw new Skip('ambiguous_income_type', 0, `ambiguous income type "${name}"`);
+  return found[0]!.id;
+}
+
+function findContact(db: Executor, name: string): string {
+  const found = db
+    .select({ id: contact.id, name: contact.name })
+    .from(contact)
+    .where(isNull(contact.deletedAt))
+    .all()
+    .filter((c) => fold(c.name) === fold(name));
+  if (found.length === 0) throw new Skip('unknown_contact', 0, `unknown contact "${name}"`);
+  if (found.length > 1) throw new Skip('ambiguous_contact', 0, `ambiguous contact "${name}"`);
   return found[0]!.id;
 }
 
@@ -426,7 +504,7 @@ function refusal(error: unknown): Skip {
 }
 
 /** The explicit per-entry unlock of a reconciled booking; nothing is unlocked by default. */
-const writeOptions = (entry: BookChangeAmount | BookChangeDate | BookDelete) => ({
+const writeOptions = (entry: BookChangeAmount | BookChangeDate | BookDelete | BookSetSplits) => ({
   unlockReconciled: entry.unlock === true,
 });
 
@@ -502,6 +580,20 @@ function applyEntry(tx: Executor, entry: BookEntry, ctx: GroupedContext): BookDo
       const row = resolveMatch(tx, entry.match);
       updateBooking(tx, row.id, { date: entry.newDate }, ctx, writeOptions(entry));
       return done(entry.match.account, entry.newDate, row.amountCents);
+    }
+    case 'set_splits': {
+      const row = resolveMatch(tx, entry.match);
+      if (row.transferId !== null)
+        throw new Skip('is_transfer', 0, 'a transfer leg has no splits of its own to replace');
+      const splits: SplitInput[] = entry.splits.map((s) => ({
+        categoryId: s.category === undefined ? null : findCategory(tx, s.category),
+        amountCents: s.amountCents,
+        ...(s.memo !== undefined && { memo: s.memo }),
+        ...(s.incomeType !== undefined && { incomeTypeId: findIncomeType(tx, s.incomeType) }),
+        ...(s.contact !== undefined && { contactId: findContact(tx, s.contact) }),
+      }));
+      updateBooking(tx, row.id, { splits }, ctx, writeOptions(entry));
+      return done(entry.match.account, row.date, row.amountCents);
     }
     case 'delete': {
       const row = resolveMatch(tx, entry.match);

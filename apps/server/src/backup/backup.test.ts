@@ -249,6 +249,33 @@ describe('BackupScheduler', () => {
   });
 });
 
+describe('backup operational error redaction', () => {
+  it('stores only a fixed failure hint and retains the hourly retry policy', async () => {
+    const live = migratedDatabase();
+    const messages: string[] = [];
+    const scheduler = new BackupScheduler({
+      sqlite: live.sqlite,
+      db: live.db,
+      config: { ...config, ageBin: 'synthetic-private-command' },
+      log: (message) => messages.push(message),
+    });
+    await scheduler.tick(new Date('2026-10-01T02:00:00Z'));
+    await scheduler.tick(new Date('2026-10-01T02:30:00Z'));
+    expect(messages).toHaveLength(1);
+    await scheduler.tick(new Date('2026-10-01T03:01:00Z'));
+    expect(messages).toHaveLength(2);
+    const items = live.db.select().from(schema.inboxItem).all();
+    expect(items).toHaveLength(1);
+    expect(items[0]?.detail).toBe(
+      'Sicherung fehlgeschlagen. Bitte die Sicherungskonfiguration pr\u00fcfen.',
+    );
+    expect(messages.join(' ')).not.toContain('synthetic-private-command');
+    expect(
+      messages.every((message) => message === `Encrypted backup failed: ${items[0]?.detail}`),
+    ).toBe(true);
+  });
+});
+
 describe('backupConfigFromEnv', () => {
   const bucket = {
     BUCKET_NAME: 'b',
