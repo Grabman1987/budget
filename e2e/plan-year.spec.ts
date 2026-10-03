@@ -12,6 +12,7 @@ test('annual plan: independent figures, all metrics, year navigation and 375px r
   page,
 }, info) => {
   if (info.project.name === 'mobile') await page.setViewportSize({ width: 375, height: 812 });
+  // Household totals use the report definition, apart from envelope funding/balances.
   const tag = `${info.project.name}-${Date.now()}`;
   const account = (
     await post(page.request, '/accounts', {
@@ -63,6 +64,12 @@ test('annual plan: independent figures, all metrics, year navigation and 375px r
   });
   await page.goto('/plan/jahr?monat=2026-01');
   await expect(page.getByRole('heading', { name: '2026', exact: true })).toBeVisible();
+  await expect(page.getByRole('region', { name: 'Jahressummen des Haushalts' })).toContainText(
+    'Haushaltseinnahmen',
+  );
+  await expect(page.getByRole('region', { name: 'Jahressummen des Haushalts' })).toContainText(
+    'Konsum (Bedarf und Wunsch)',
+  );
   const mobile = info.project.name === 'mobile';
   const row = mobile
     ? page.locator('.year-phone-row', { hasText: categoryName }).first()

@@ -1,3 +1,4 @@
+import { checkedReportPeriod, reportPeriodSchema } from './report-period';
 import {
   createEntity,
   deletePayslip,
@@ -9,7 +10,7 @@ import {
   project,
   type Db,
 } from '@budget/db';
-import { payslipInput, SPENDING_PERIODS } from '@budget/domain';
+import { payslipInput } from '@budget/domain';
 import { randomUUID } from 'node:crypto';
 import { Hono } from 'hono';
 import { z } from 'zod';
@@ -56,7 +57,11 @@ export function projectRoutes(db: Db, today: () => string) {
   const audit = () => ({ actor: ACTOR, groupId: randomUUID() });
   app.get('/', (c) => c.json({ projects: projectsList(db) }));
   app.get('/report', (c) => {
-    const { period } = readQuery(c, z.object({ period: z.enum(SPENDING_PERIODS).default('1J') }));
+    const { period: rawPeriod } = readQuery(
+      c,
+      z.object({ period: reportPeriodSchema.default('1J') }),
+    );
+    const period = checkedReportPeriod(rawPeriod, today());
     return c.json(readProjects(db, period, today()));
   });
   app.post('/', async (c) => {

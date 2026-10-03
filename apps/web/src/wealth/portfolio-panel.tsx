@@ -222,7 +222,7 @@ export function InstrumentPanel({
                               ? a.valueStatus === 'missing_price'
                                 ? 'Kurs fehlt'
                                 : 'Wechselkurs fehlt'
-                              : moneyText(a.valueCents)}
+                              : `${moneyText(a.valueCents)}${a.valueStatus === 'estimated' ? ' · geschätzt' : ''}`}
                           </small>
                         </td>
                       </tr>

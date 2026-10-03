@@ -110,6 +110,7 @@ test('project P&L through the real API, retaining archived attribution and mobil
   await page.getByLabel('Projektname', { exact: true }).fill('Synthetisches Nebenprojekt');
   await page.getByRole('button', { name: 'Projekt anlegen', exact: true }).click();
   await expect(page.locator('.pp-settings tbody')).toContainText('Synthetisches Nebenprojekt');
+  await inspectReport(page, info, 'project-settings');
   const projects = await (await request.get('/api/projects')).json();
   const projectId = projects.projects[0].id;
   const incomeBooking = await post('/bookings', {
@@ -130,7 +131,7 @@ test('project P&L through the real API, retaining archived attribution and mobil
   });
   await page.getByRole('button', { name: 'Archivieren', exact: true }).click();
   await expect(page.locator('.pp-settings tbody')).toContainText('archiviert');
-  await page.goto('/reports/projekte?zeitraum=1M');
+  await page.goto('/reports/projekte?zeitraum=2026-09..2026-09');
   await expect(page.getByTestId('projects-report')).toContainText(
     'Synthetisches Nebenprojekt · archiviert',
   );

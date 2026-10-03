@@ -9,7 +9,7 @@ import { readSourceRoutes } from './read-source';
 import { searchRoutes } from './search';
 import { inboxRoutes } from './inbox';
 import { contactRoutes } from './contacts';
-import { sqliteOf, type Db } from '@budget/db';
+import { namedNotes, runWithValuationNotes, sqliteOf, type Db } from '@budget/db';
 import { receiptDirectory } from '../receipts/files';
 import { receiptRoutes } from './receipts';
 import { todayInVienna } from '@budget/domain';
@@ -77,6 +77,28 @@ export function createLedgerApi({
   receiptsDir = receiptDirectory(sqliteOf(db).name),
 }: LedgerApiOptions): Hono {
   const api = new Hono();
+  // A valuation that had to estimate or skip a position (no quote) reports it while it runs; the
+  // answer then carries them as `incomplete` and the page shows "Bewertung teilweise geschätzt".
+  api.use('*', async (c, next) => {
+    await runWithValuationNotes(async (notes) => {
+      await next();
+      const found = notes();
+      if (found.length === 0 || c.res.status < 200 || c.res.status > 201) return;
+      if (!c.res.headers.get('content-type')?.includes('application/json')) return;
+      const body: unknown = await c.res
+        .clone()
+        .json()
+        .catch(() => null);
+      if (body === null || typeof body !== 'object' || Array.isArray(body) || 'incomplete' in body)
+        return;
+      const headers = new Headers(c.res.headers);
+      headers.delete('content-length');
+      c.res = new Response(JSON.stringify({ ...body, incomplete: namedNotes(db, found) }), {
+        status: c.res.status,
+        headers,
+      });
+    });
+  });
   api.route('/payslips', payrollRoutes(db, today));
   api.route('/payslip-intake', payslipIntakeRoutes(db, receiptsDir));
   api.route('/projects', projectRoutes(db, today));

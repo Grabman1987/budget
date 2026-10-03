@@ -42,10 +42,15 @@ describe('generic entities', () => {
 
   it('updates, maintains updated_at, and audits before/after', () => {
     const { id } = createEntity(db, contact, { name: 'A' }, ctx);
+    // SQLite rounds milliseconds; the JS update clock may be one millisecond behind that default.
+    db.update(contact)
+      .set({ updatedAt: '2000-01-01T00:00:00.000Z' })
+      .where(eq(contact.id, id))
+      .run();
     const rowBefore = getEntity(db, contact, id)!;
     const updated = updateEntity(db, contact, id, { name: 'B', note: 'x' }, ctx);
     expect(updated.name).toBe('B');
-    expect(updated.updatedAt >= rowBefore.updatedAt).toBe(true);
+    expect(updated.updatedAt > rowBefore.updatedAt).toBe(true);
     const [entry] = history(db, 'contact', id);
     expect(entry).toMatchObject({
       action: 'update',

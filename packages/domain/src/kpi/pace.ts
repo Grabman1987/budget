@@ -15,6 +15,8 @@ export interface PaceFixed {
   cents: number;
   /** Already paid. Default: due on or before today. Set `false` for overdue but unpaid items. */
   settled?: boolean;
+  /** Actual fixed spending matched to this payment (may differ from the plan). */
+  paidCents?: number;
 }
 
 export interface PaceSpending {
@@ -30,6 +32,8 @@ export interface PaceInput {
   today: string;
   /** Planned spending of the month (assigned to the Bedarf and Wunsch categories). */
   limitCents: number;
+  /** Known fixed/periodic spending; never extrapolated even without a schedule. */
+  fixedSpentCents?: number;
   fixed: ReadonlyArray<PaceFixed>;
   /** All Bedarf and Wunsch outflows of the month, fixed ones included. */
   spending: ReadonlyArray<PaceSpending>;
@@ -46,6 +50,8 @@ export interface PaceFigures {
   deltaCents: number;
   /** Prognose Monatsende. */
   forecastEndCents: number;
+  /** At least seven elapsed days and a positive plan; completed months are actuals. */
+  forecastAvailable: boolean;
   limitCents: number;
   /** Variable spending so far (spent minus fixed costs already paid). */
   variableSoFarCents: number;
@@ -114,9 +120,14 @@ export function paceModel(input: PaceInput): PaceModel {
 
   const spentCents = actual[todayDay] ?? 0;
   const isSettled = (f: PaceFixed) => f.settled ?? dayNumber(f.day) <= todayDay;
-  const settledFixed = fixed.reduce((a, f) => (isSettled(f) ? a + f.cents : a), 0);
-  const openFixedCents = fixedTotal - settledFixed;
-  const variableSoFarCents = spentCents - settledFixed;
+  const openFixedCents = fixed.reduce(
+    (a, f) => a + (isSettled(f) ? 0 : Math.max(0, f.cents - (f.paidCents ?? 0))),
+    0,
+  );
+  const variableSoFarCents =
+    spentCents -
+    (input.fixedSpentCents ??
+      fixed.reduce((a, f) => a + (f.paidCents ?? (isSettled(f) ? f.cents : 0)), 0));
   const remainingVariable =
     todayDay === 0
       ? variablePlan
@@ -137,6 +148,7 @@ export function paceModel(input: PaceInput): PaceModel {
       planToDateCents,
       deltaCents,
       forecastEndCents: spentCents + openFixedCents + remainingVariable,
+      forecastAvailable: todayDay === dim || (todayDay >= 7 && input.limitCents > 0),
       limitCents: input.limitCents,
       variableSoFarCents,
       openFixedCents,

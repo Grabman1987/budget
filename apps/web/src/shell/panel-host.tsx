@@ -7,7 +7,8 @@ import type { PanelSearch } from './panel-state';
 import { PANELS, type PanelId } from './panels';
 
 /**
- * Side panel (desktop) or bottom sheet (phone), driven by `?panel=`. The state lives in the URL,
+ * Side panel (desktop) or bottom sheet (phone), driven by `?panel=`; the Posteingang is a large
+ * centred dialog (full-screen on the phone) and the booking editor a form dialog. The state lives in the URL,
  * so panels are linkable and the browser back button closes them. Esc closes; the native dialog
  * returns focus to the trigger.
  */

@@ -1062,6 +1062,36 @@ dialog.overlay.modal .overlay-inner {
   height: auto;
   max-height: calc(100dvh - 50px);
 }
+/* Large work dialog (Posteingang): up to 960 px wide and 85 % high, the head stays, the body
+   scrolls. Overflow is hidden (no suggestion lists reach out of it). */
+dialog.overlay.modal.is-wide {
+  width: min(960px, calc(100vw - 48px));
+  max-width: none;
+  max-height: 85dvh;
+  overflow: hidden;
+}
+dialog.overlay.modal.is-wide .overlay-inner {
+  max-height: calc(85dvh - 2px);
+}
+dialog.overlay.modal.is-wide .panel-head {
+  background: var(--ground);
+}
+/* Phone: the same dialog fills the whole screen. */
+dialog.sheet-bottom.is-full {
+  inset: 0;
+  width: 100%;
+  height: 100dvh;
+  max-height: none;
+  border: 0;
+  border-radius: 0;
+  padding-top: env(safe-area-inset-top);
+}
+dialog.sheet-bottom.is-full .overlay-inner {
+  max-height: none;
+}
+dialog.sheet-bottom.is-full .sheet-grip {
+  display: none;
+}
 /* The content of a form dialog fills the card: head and footer stay, the body scrolls. */
 .overlay.is-bare .overlay-inner > form {
   display: flex;

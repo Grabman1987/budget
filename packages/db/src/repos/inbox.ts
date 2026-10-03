@@ -5,6 +5,7 @@ import { ConflictError, EntityNotFoundError } from './errors';
 import { runInTransaction, type Executor } from './types';
 import { readSourceDisplayDetail, readSourceMappings } from './read-source';
 import { listReceipts } from './receipts';
+import { savingsExecutionProposals, type SavingsExecutionProposal } from './savings-plans';
 
 export interface InboxBooking {
   type: 'booking';
@@ -33,7 +34,7 @@ export interface InboxStored {
   urgent: boolean;
   createdAt: string;
 }
-export type InboxEntry = InboxBooking | InboxStored;
+export type InboxEntry = InboxBooking | InboxStored | SavingsExecutionProposal;
 
 /** Shared predicates keep task list and lightweight badge count in agreement. */
 const unclassifiedWhere = (today: string) =>
@@ -109,13 +110,13 @@ export function readInbox(db: Executor, today: string) {
         urgent: row.urgent,
         createdAt: row.createdAt,
       }));
-    const entries: InboxEntry[] = [...bookings, ...stored];
+    const entries: InboxEntry[] = [...bookings, ...savingsExecutionProposals(tx, today), ...stored];
     const unlinkedReceipts = listReceipts(tx);
     return { asOf: today, count: entries.length + unlinkedReceipts.length, entries };
   });
 }
 
-/** Header refreshes count IDs in SQL without materializing task titles/details. */
+/** Booking/stored counts use SQL; savings proposals share the queue's read-only projection. */
 export function readInboxCount(db: Executor, today: string) {
   return runInTransaction(db, (tx) => {
     const bookings = tx
@@ -126,7 +127,11 @@ export function readInboxCount(db: Executor, today: string) {
       .where(unclassifiedWhere(today))
       .get()!.count;
     const stored = tx.select({ count: count() }).from(inboxItem).where(storedWhere()).get()!.count;
-    return { asOf: today, count: bookings + stored + listReceipts(tx).length };
+    return {
+      asOf: today,
+      count:
+        bookings + stored + listReceipts(tx).length + savingsExecutionProposals(tx, today).length,
+    };
   });
 }
 

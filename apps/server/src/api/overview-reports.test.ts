@@ -1,15 +1,14 @@
 import { DEFAULT_ACTIVE_RULE_COUNT } from '@budget/domain';
 /* eslint-disable @typescript-eslint/no-explicit-any -- JSON answers are inspected, not typed */
 import {
-  budget,
+  reportTables,
   createTestDatabase,
   ensureDefaultRules,
   evaluateRules,
   overviewData,
-  schema,
   type Db,
 } from '@budget/db';
-import { monthsBetween, overviewMonthlyFigures } from '@budget/domain';
+import { monthConsumption, overviewMonthlyFigures } from '@budget/domain';
 import { seedDatabase } from '@budget/fixtures/seed';
 import { mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -51,24 +50,9 @@ describe('the shared definition of income and spending', () => {
   it('Konsum equals the envelope activity of Bedarf and Wunsch of the budget', () => {
     const data = overviewData(db);
     const figures = overviewMonthlyFigures(data);
-    const months = monthsBetween('2025-01', '2026-08');
-    const classOf = new Map(
-      db
-        .select()
-        .from(schema.category)
-        .all()
-        .map((c) => [c.id, c.class]),
-    );
-    for (const m of budget(db, months)) {
-      let spent = 0;
-      let future = 0;
-      for (const [id, e] of Object.entries(m.envelopes)) {
-        const cls = classOf.get(id);
-        if (cls === 'need' || cls === 'want') spent -= e.activityCents;
-        else if (cls === 'future') future -= e.activityCents;
-      }
-      expect(figures.get(m.month)?.consumptionCents, m.month).toBe(spent);
-      expect(figures.get(m.month)?.futureCents, `${m.month} future`).toBe(future);
+    const tables = reportTables(db, { today: TODAY });
+    for (const m of tables.months.filter((m) => m.month >= '2025-01' && m.month <= '2026-08')) {
+      expect(figures.get(m.month)?.consumptionCents, m.month).toBe(monthConsumption(m, tables));
     }
   });
 

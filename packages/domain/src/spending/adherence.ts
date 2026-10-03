@@ -82,9 +82,10 @@ export interface PlanDeviationRow {
   planCents: number;
   istCents: number;
   /** Ist against plan in basis points (+1 000 = 10 % more than planned). */
-  deviationBp: number;
+  deviationBp: number | null;
+  deviationCents: number;
   /** Within ± 10 %. */
-  inBand: boolean;
+  inBand: boolean | null;
 }
 
 /** The band of the plan deviation: "Ziel ± 10 %". */
@@ -92,21 +93,25 @@ export const DEVIATION_BAND_BP = 1_000;
 
 /**
  * Rolling plan deviation per category: Σ assigned against Σ spent over the given months. Only
- * categories with a plan count; largest deviation first, ties by name.
+ * nonempty categories count; absolute deviation first, ties by name. A nonpositive net plan or
+ * any withdrawal from assigned money has no meaningful percentage comparison.
  */
 export function planDeviation(
   months: ReadonlyArray<ReadonlyArray<AdherenceInput>>,
 ): PlanDeviationRow[] {
   const sums = new Map<string, PlanDeviationRow>();
+  const withdrawals = new Set<string>();
   for (const month of months)
     for (const r of month) {
+      if (r.assignedCents < 0) withdrawals.add(r.id);
       const row = sums.get(r.id) ?? {
         id: r.id,
         name: r.name,
         class: r.class,
         planCents: 0,
         istCents: 0,
-        deviationBp: 0,
+        deviationBp: null,
+        deviationCents: 0,
         inBand: true,
       };
       row.planCents += r.assignedCents;
@@ -114,13 +119,21 @@ export function planDeviation(
       sums.set(r.id, row);
     }
   return [...sums.values()]
-    .filter((r) => r.planCents > 0)
+    .filter((r) => r.planCents !== 0 || r.istCents !== 0)
     .map((r) => {
-      const deviationBp = ratioBp(r.istCents - r.planCents, r.planCents);
-      return { ...r, deviationBp, inBand: Math.abs(deviationBp) <= DEVIATION_BAND_BP };
+      const deviationCents = r.istCents - r.planCents;
+      const deviationBp =
+        r.planCents > 0 && !withdrawals.has(r.id) ? ratioBp(deviationCents, r.planCents) : null;
+      return {
+        ...r,
+        deviationCents,
+        deviationBp,
+        inBand: deviationBp === null ? null : Math.abs(deviationBp) <= DEVIATION_BAND_BP,
+      };
     })
     .sort(
       (a, b) =>
-        Math.abs(b.deviationBp) - Math.abs(a.deviationBp) || a.name.localeCompare(b.name, 'de'),
+        Math.abs(b.deviationCents) - Math.abs(a.deviationCents) ||
+        a.name.localeCompare(b.name, 'de'),
     );
 }

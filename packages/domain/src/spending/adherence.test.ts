@@ -76,7 +76,7 @@ describe('planDeviation', () => {
       ],
     ];
     const rows = planDeviation(months);
-    expect(rows.map((r) => r.id)).toEqual(['a', 'b']);
+    expect(rows.map((r) => r.id)).toEqual(['a', 'b', 'c']);
     expect(rows[0]).toMatchObject({
       planCents: 20_000,
       istCents: 24_000,
@@ -87,5 +87,31 @@ describe('planDeviation', () => {
   });
   it('has no rows without a plan', () => {
     expect(planDeviation([])).toEqual([]);
+  });
+});
+
+it('keeps absolute deviations with no percentage or band for zero/negative plans', () => {
+  const rows = planDeviation([
+    [
+      row({ id: 'negative', assignedCents: -200, spendCents: 18000 }),
+      row({ id: 'zero', spendCents: 3000 }),
+    ],
+  ]);
+  expect(rows).toMatchObject([
+    { id: 'negative', planCents: -200, deviationCents: 18200, deviationBp: null, inBand: null },
+    { id: 'zero', planCents: 0, deviationCents: 3000, deviationBp: null, inBand: null },
+  ]);
+});
+
+it('does not turn assignment withdrawals into a tiny percentage denominator', () => {
+  const rows = planDeviation([
+    [row({ id: 'mixed', assignedCents: -9900 })],
+    [row({ id: 'mixed', assignedCents: 10000, spendCents: 18000 })],
+  ]);
+  expect(rows[0]).toMatchObject({
+    planCents: 100,
+    deviationCents: 17900,
+    deviationBp: null,
+    inBand: null,
   });
 });

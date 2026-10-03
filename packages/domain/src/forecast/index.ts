@@ -1,6 +1,7 @@
 export {
   evenDaily,
   liquidityForecast,
+  budgetLiquidityForecast,
   lowPoint,
   type ForecastDay,
   type ForecastDayItem,

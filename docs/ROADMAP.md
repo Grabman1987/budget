@@ -361,7 +361,9 @@ Price history (yfinance + Ariva, source per price), ECB rates, trades and holdin
 - [x] Instrument metadata and manual quote forms protect dirty edits during browser Back and route changes; pending writes reject navigation, successful creation opens the saved instrument, and explicit close/discard prompts only once. Native unload protection remains browser-controlled.
 - [x] Manual buy/sell creation and editing plus source trade history, including instruments without current holdings; exact units, account-currency gross/fees/withheld tax, atomic settlement and group undo/redo. Shared basis/valuation and per-broker ownership remain authoritative; no new oversell policy.
 - [x] Savings-plan schedule list/create/edit/end in native investment-account currency; today's effective rate separated from future versions, source/history, inclusive end date, audited undo/redo, quote-independent reads and dirty/pending navigation protection. Saving schedules creates no trades, bookings or bank orders; changes at the bank remain manual.
-- [ ] Trade deletion and capture of other trade kinds, extended instrument/source management and deletion, savings-plan proposal/execution UI and performance/report bodies remain later slices; owner design acceptance and Gate 3 private reconciliation remain open
+- [x] Audited trade deletion with linked cash settlement and undo/redo; capture/edit of dividend/distribution, interest, fee/tax, deliveries and signed split deltas using the shared holdings/cost/cash rules. Synthetic unit/API and desktop/mobile light/dark keyboard/browser coverage.
+- [x] Due monthly savings execution proposals in Heute/Posteingang, including overdue months; owner-entered actual units/gross/fees, atomic buy/settlement/audit confirmation, stale/duplicate guards and monthly identity across schedule versions with deletion/undo/redo. Schedule saves and proposals never book money automatically. See [workflow and owner steps](trades-execution.md).
+- [ ] Extended instrument/source management and deletion, rate-optimisation proposal/apply UI and remaining performance/report bodies; owner design acceptance and Gate 3 private reconciliation remain open
 
 ### P5.7 — Current debts and unpersisted monthly repayment model
 - [x] Schulden overview/chain from shared nullable current account values, actual account drilldown/history, explicit unsaved native-currency assumptions and existing server payoffPlan; typed limits/unknown states, no payment or contract writes
@@ -408,7 +410,8 @@ The 30 reports (SPEC §7), explorer, printable sheets, parallel run with reconci
 - [x] `/reports/prendite`: selected-period summary from `GET /api/portfolio` in securities-only view (TTWROR, existing annualized metrics, netflows, period gain and end value) plus separately labelled lifetime realized gain/completeness; no new financial formula.
 - [x] Suppress all report figures when the legacy portfolio summary returns `valuation_unavailable`; keep documented zero gains distinct from unavailable basis and preserve gains when open positions are empty.
 - [x] Focused invest API cases, synthetic browser edge fixtures and read-only sample-ledger browser coverage on desktop/mobile; accessibility and horizontal overflow checked in light/dark mode. Evidence: [report 4.4](evidence/report-4.4.md).
-- [ ] Benchmark comparison, asset-class comparison and monthly heatmap from the prototype; depot-inclusive view and owner acceptance remain outside this first report body.
+- [x] Owner-selected benchmark security persisted via audited app_setting with undo/redo; stored-price comparison over the same period, explicit quote/FX gaps, historical asset-class comparison and accessible monthly returns heatmap. Shared TTWROR/Modified Dietz, synthetic domain/API/browser evidence; see [report 4.4 extension](../docs/performance-report.md).
+- [ ] Depot-inclusive performance view, owner design acceptance and private performance reconciliation remain open.
 
 ### P6.5 — Empfänger-Analyse
 - [x] `/reports/empfaenger`: connected closed-month recipient activity from shared budget `splitEffect` and Bedarf/Wunsch category rules, with explicit unclassified outflow disclosure and stable-ID/null-payee grouping
@@ -450,3 +453,16 @@ Owner setup and limits: [payslip intake](payslip-intake.md); synthetic browser e
 - [x] `/einstellungen/projekte`: create, rename, archive/reactivate and undo/redo; retained project attribution/history, active-only new booking attribution. `/reports/projekte`: closed-month split-level income/cost/result, signed refunds, prior-period comparison, monthly results and booking drilldown; side income stays a distinct household income type without adding project profit again.
 - [x] Final local typecheck/lint/full unit and API suite (223 files, 2,166 tests), production build and four synthetic desktop/mobile browser scenarios; light/dark Axe and overflow checks. Local worker/timeout settings and screenshots: [verification evidence](payroll-projects.md#verification-evidence).
 - [ ] Separate receipt object-storage/upload workflow, collective/step-raise metadata and inflation comparison, project hours/hourly rates; owner design/private-data acceptance and Gate 4 remain open.
+
+### Report and KPI correctness audit - 2026-10-03
+
+Scope and shared definitions: [report correctness](report-correctness.md).
+
+- [x] Explicit split-level loan fee attribution; opening, disbursement, principal and transfers excluded.
+- [x] Project reports use the shared legacy/calendar range parser, including partial current months.
+- [x] Nonpositive/cancelled assignment plans retain absolute deviation without misleading percentages.
+- [x] Pace counts fixed/expected payments once and hides first-week/planless forecasts.
+- [x] R08 missing-debt-rate guard and recorded minimum repayments; shared R07 chart horizon/low; monthly R01 units.
+- [x] Shared household classification for yearly/overview/table/cashflow totals and Plan year summary.
+- [x] Mobile Heute safe space and bounded project settings table; synthetic regressions.
+- [ ] Owner design/private-ledger acceptance and pinned Linux visual CI; no private-data access, migration or deployment in this task.

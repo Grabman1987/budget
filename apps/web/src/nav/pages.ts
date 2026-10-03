@@ -230,6 +230,14 @@ export const HEUTE: PageMeta = {
   spec: 'Leitmaß „frei verfügbar bis Gehalt“, Pace, anstehende Zahlungen, Finanz-Check, Nettovermögen.',
 };
 
+/** Einstellungen index: the grouped list of all settings pages (the phone's entry, SPEC §3). */
+export const SETTINGS_INDEX: PageMeta = {
+  title: 'Einstellungen',
+  area: 'einstellungen',
+  fills: P2,
+  spec: 'Gruppierte Übersicht aller Einstellungen: Daten, Automatik, System.',
+};
+
 export const REPORTS_CATALOG: PageMeta = {
   title: 'Reports',
   area: 'reports',

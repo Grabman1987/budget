@@ -5,7 +5,9 @@ import {
   listEntities,
   mapReadSource,
   readSourceMappings,
+  readSourceSince,
   readSourceState,
+  setReadSourceSince,
   security,
   type Db,
 } from '@budget/db';
@@ -30,6 +32,7 @@ export function readSourceRoutes(
       status,
       balances,
       mappings: readSourceMappings(db),
+      since: readSourceSince(db),
       accounts: accountSummaries(db, today())
         .filter((a) => !a.onBudget && !a.closedAt)
         .map(({ id, name, currency, type }) => ({ id, name, currency, type })),
@@ -52,6 +55,21 @@ export function readSourceRoutes(
         .strict(),
     );
     return c.json(mapReadSource(db, body, { actor: ACTOR }));
+  });
+  app.put('/since', stepUp, async (c) => {
+    const body = await readBody(
+      c,
+      z
+        .object({
+          since: z
+            .string()
+            .regex(/^\d{4}-\d{2}-\d{2}$/)
+            .refine((v) => new Date(v + 'T00:00:00Z').toISOString().startsWith(v))
+            .nullable(),
+        })
+        .strict(),
+    );
+    return c.json(setReadSourceSince(db, body.since, { actor: ACTOR }));
   });
   return app;
 }

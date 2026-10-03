@@ -213,3 +213,19 @@
   align-items: center;
   min-height: 44px;
 }
+
+.pp-settings {
+  min-width: 0;
+  max-width: 100%;
+}
+.pp-settings .pp-scroll {
+  min-width: 0;
+  max-width: 100%;
+}
+.pp-name-form label {
+  min-width: 0;
+  max-width: 100%;
+}
+.pp-name-form input {
+  box-sizing: border-box;
+}

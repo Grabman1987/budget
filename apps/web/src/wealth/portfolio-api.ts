@@ -2,6 +2,7 @@ import type { AssetClassRow, PortfolioPositionsView, SecurityRecord } from '@bud
 import { queryOptions } from '@tanstack/react-query';
 import { request } from '../api/http';
 import { LEDGER_KEY } from '../ledger/queries';
+import type { WithValuationNotes } from '../ledger/valuation-hint';
 export type {
   PortfolioPositionsView,
   PortfolioPosition,
@@ -12,7 +13,8 @@ export const portfolioPositionsQuery = () =>
   queryOptions({
     queryKey: [...LEDGER_KEY, 'portfolio-positions'],
     retry: false,
-    queryFn: () => request<PortfolioPositionsView>('GET', '/api/portfolio/positions'),
+    queryFn: () =>
+      request<PortfolioPositionsView & WithValuationNotes>('GET', '/api/portfolio/positions'),
   });
 export const instrumentQuery = (id: string) =>
   queryOptions({

@@ -29,6 +29,7 @@ import { fetchAccounts } from '../ledger/api';
 import { LEDGER_KEY } from '../ledger/queries';
 import { eur, longDay, shortDay } from '../ledger/format';
 import { EmptyNote, ErrorNote, LoadingNote } from '../ledger/states';
+import { ValuationHint } from '../ledger/valuation-hint';
 import { HEUTE } from '../nav/pages';
 import { PageFrame } from '../pages/placeholder-page';
 import { monthLabel as monthName } from '../nav/month';
@@ -38,6 +39,8 @@ import { BalanceChart, HeutePaceChart } from './charts';
 import { heuteQuery, type Heute, type HeutePeriod } from './api';
 import './heute.css';
 import { AttentionBar } from './attention-bar';
+import { savingsProposalsQuery } from '../wealth/savings-api';
+import { sourceMoney } from '../wealth/trade-api';
 
 const pct = new Intl.NumberFormat('de-AT', { maximumFractionDigits: 2 });
 const STATUS: Record<string, string> = {
@@ -102,6 +105,7 @@ function HeuteBody({ data }: { data: Heute }) {
   const [paceDetail, setPaceDetail] = useState<'spent' | 'plan' | 'forecast' | null>(null);
   const navigate = useNavigate();
   const [, , setMonth] = useMonth();
+  const savings = useQuery(savingsProposalsQuery());
   // Another month than today's: the lead, next steps, upcoming, checks, net worth and bookings
   // stay anchored to today, and the page says so.
   const away = data.stand.month !== data.stand.today.slice(0, 7);
@@ -131,6 +135,18 @@ function HeuteBody({ data }: { data: Heute }) {
     },
   }));
   const urgent = revisions.find((row) => row.urgent);
+  for (const proposal of savings.data?.proposals ?? [])
+    revisions.push({
+      id: proposal.id,
+      letter: String.fromCharCode(65 + (revisions.length % 26)),
+      urgent: false,
+      title: `Sparplan: ${proposal.securityName}`,
+      detail: `${longDay(proposal.date)} · ${sourceMoney(proposal.amountCents, proposal.currency)} · ${proposal.accountName}`,
+      action: {
+        label: 'Ausführung prüfen',
+        onClick: () => void navigate({ to: '/konten/posteingang' }),
+      },
+    });
   const leadTerms: DimensionChainTerm[] = data.lead.chain.map((term, index) => ({
     ...term,
     value: cents(term.value),
@@ -192,6 +208,12 @@ function HeuteBody({ data }: { data: Heute }) {
           chainOpen={chainOpen}
           onToggleChain={() => setChainOpen((open) => !open)}
         />
+        {data.balance.forecast.length > 0 && (
+          <p className="heute-note">
+            Kontoprognose bis {longDay(data.balance.forecast.at(-1)!.day)}; gleicher Horizont und
+            Tiefpunkt wie R07.
+          </p>
+        )}
         {chainOpen && (
           <div id="heute-lead-chain" className="heute-chain-area">
             <DimensionChain
@@ -261,7 +283,9 @@ function HeuteBody({ data }: { data: Heute }) {
             />
             <PaceFigure
               label="Prognose Monatsende"
-              value={data.pace.figures.forecastEndCents}
+              value={
+                data.pace.figures.forecastAvailable ? data.pace.figures.forecastEndCents : null
+              }
               kind="forecast"
               selected={paceDetail}
               setSelected={setPaceDetail}
@@ -283,13 +307,17 @@ function HeuteBody({ data }: { data: Heute }) {
                   ? eur(data.pace.figures.spentCents)
                   : paceDetail === 'plan'
                     ? eur(data.pace.figures.planToDateCents)
-                    : eur(data.pace.figures.forecastEndCents)}
+                    : data.pace.figures.forecastAvailable
+                      ? eur(data.pace.figures.forecastEndCents)
+                      : 'Noch keine verlässliche Prognose'}
               </span>
               {paceDetail === 'forecast' && <span>Limit: {eur(data.pace.figures.limitCents)}</span>}
             </div>
           )}
           <p className="heute-note">
-            Ist, Plan, Prognose und Vormonat stammen aus der Pace-Berechnung für Bedarf und Wunsch.
+            Fixe und erwartete Zahlungen zählen einmal; nur variable Ausgaben werden hochgerechnet.
+            {!data.pace.figures.forecastAvailable &&
+              ' Eine Prognose erscheint ab dem 7. Tag mit positivem Plan.'}
           </p>
         </section>
 
@@ -300,9 +328,16 @@ function HeuteBody({ data }: { data: Heute }) {
           <SectionHead
             id="heute-next-title"
             title="Nächste Schritte"
-            aside={`${data.nextSteps.count} offen`}
+            aside={`${revisions.length} offen`}
           />
-          {data.nextSteps.items.length === 0 ? (
+          {savings.isError && (
+            <ErrorNote
+              what="Sparplanvorschläge"
+              error={savings.error}
+              onRetry={() => void savings.refetch()}
+            />
+          )}
+          {revisions.length === 0 ? (
             <EmptyNote>Keine offenen Schritte aus den Heute-Prüfungen.</EmptyNote>
           ) : (
             <RevisionTable
@@ -550,6 +585,7 @@ function HeuteBody({ data }: { data: Heute }) {
               <p className="heute-note">
                 Stichtag {longDay(net.asOf)} · Vormonatsende {eur(net.previousMonthEndCents)}
               </p>
+              <ValuationHint incomplete={data.incomplete} />
             </>
           ) : (
             'unavailable' in data.netWorth && (
@@ -724,7 +760,7 @@ function PaceFigure({
   extra,
 }: {
   label: string;
-  value: number;
+  value: number | null;
   kind: 'spent' | 'plan' | 'forecast';
   selected: 'spent' | 'plan' | 'forecast' | null;
   setSelected: (key: 'spent' | 'plan' | 'forecast' | null) => void;
@@ -740,7 +776,7 @@ function PaceFigure({
       onClick={() => setSelected(open ? null : kind)}
     >
       <span>{label}</span>
-      <strong>{eur(value, { cents: false })}</strong>
+      <strong>{value === null ? '–' : eur(value, { cents: false })}</strong>
       {extra && <small>{extra}</small>}
     </button>
   );

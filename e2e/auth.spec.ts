@@ -156,10 +156,14 @@ test('bootstrap, login, recovery, device management and CSRF on a fresh server',
   await test.step('sign out from Einstellungen › Sicherheit, then log in again with the passkey', async () => {
     await page.goto('/einstellungen/sicherheit');
     await expect(page.getByRole('heading', { level: 1, name: 'Einstellungen' })).toBeVisible();
-    await expect(page.getByRole('link', { name: 'Sicherheit' })).toHaveAttribute(
-      'aria-current',
-      'page',
-    );
+    // Desktop: the settings rail marks the page; phone: the back bar names it.
+    if (testInfo.project.name === 'auth-mobile')
+      await expect(page.locator('.settings-here')).toHaveText('Sicherheit');
+    else
+      await expect(page.getByRole('link', { name: 'Sicherheit' })).toHaveAttribute(
+        'aria-current',
+        'page',
+      );
     await expect(page.getByText('E2E-Gerät')).toBeVisible();
     await page.getByRole('button', { name: 'Abmelden' }).click();
     await expect(page).toHaveURL(/\/login$/);

@@ -10,13 +10,25 @@ Errors are `{ error, message }` with `error` one of: `invalid` (400, with `issue
 (404), `invariant` (422, e.g. split sum, transfer legs), `constraint` (422), `conflict` (409),
 `account_closed` (409), `account_not_empty` (409), `reconciled_locked` (409, with `bookingIds`; on an
 account edit also `reconciliationIds`),
-`undo_refused` (409), `valuation_unavailable` (503, German reason, `asOf`; missing quotes include
-`reason: missing_price`, `missingPriceSecurityIds` and `accountId`). Numeric valuation/history
-requires quotes on or before every held day. `/accounts` instead returns nullable
-`holdingsCents`, `valueEurCents` and `netWorthEurCents` with global/per-account
-`missingPriceSecurityIds` and `missingFxCurrencies`. `/heute` keeps its daily sections and
-represents unavailable `financeCheck` / `netWorth` as `{ unavailable: { reason, message, asOf } }`.
-A current quote does not repair an earlier history gap.
+`undo_refused` (409), `valuation_unavailable` (503, German reason, `asOf`; only a missing exchange
+rate now, `missingFxCurrencies`). The web app shows German text by `error` code and never the raw
+message of a generic or technical answer (`apps/web/src/api/error-text.ts`).
+
+A missing quote never fails a valuation. Per held position and day the valuation falls back in this
+order (`pickPrice` / `dailyValuation` in `packages/domain/src/invest/series.ts`): the latest price on
+or before the day (`exact`, `stale` when older than 7 days) → the earliest price AFTER the day within
+7 days (`estimated`) → the moving-average cost basis (`estimated`) → nothing, flagged `missing` (no
+price and no cost basis). A position without units (sold, expired, knocked out) adds nothing and is
+not flagged. Every answer of a request that estimated a value carries a top-level
+`incomplete: [{ securityId, name, quality: 'estimated' | 'missing', from, to }]` (one entry per
+security, merged over accounts and days); the pages show "Bewertung teilweise geschätzt: N
+Wertpapiere ohne Kurs". Answers whose values are all exact have no `incomplete`. Strict callers
+(Portfolio Performance comparison, the export) pass `estimate: false` and keep the old behaviour:
+a held position without a price is missing. `/accounts` returns `holdingsCents`, `valueEurCents`
+and `netWorthEurCents` with global/per-account `missingPriceSecurityIds` (only positions without
+price AND cost basis) and `missingFxCurrencies`. `/heute` keeps its daily sections and represents an
+unavailable `financeCheck` / `netWorth` (missing exchange rate) as
+`{ unavailable: { reason, message, asOf } }`.
 
 | Endpoint | Purpose |
 | --- | --- |

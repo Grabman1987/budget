@@ -1,6 +1,7 @@
 import { queryOptions } from '@tanstack/react-query';
 import { request } from '../api/http';
 import { LEDGER_KEY } from '../ledger/queries';
+import type { WithValuationNotes } from '../ledger/valuation-hint';
 
 export interface HeuteUnavailable {
   unavailable: { reason: 'missing_price' | 'missing_fx'; message: string; asOf: string };
@@ -25,7 +26,7 @@ export interface HeuteOccurrence {
   covered: boolean | null;
 }
 
-export interface Heute {
+export interface Heute extends WithValuationNotes {
   stand: {
     today: string;
     month: string;
@@ -69,6 +70,7 @@ export interface Heute {
       planToDateCents: number;
       deltaCents: number;
       forecastEndCents: number;
+      forecastAvailable: boolean;
       limitCents: number;
       variableSoFarCents: number;
       openFixedCents: number;

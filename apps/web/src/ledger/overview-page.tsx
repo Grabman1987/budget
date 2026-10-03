@@ -35,6 +35,7 @@ import {
 } from './overview-model';
 import { accountsQuery, LEDGER_KEY, seriesQuery } from './queries';
 import { EmptyNote, ErrorNote, LoadingNote } from './states';
+import { ValuationHint } from './valuation-hint';
 import type { AccountRow, SeriesPoint } from './types';
 
 const META = KONTEN_META;
@@ -96,6 +97,7 @@ export function OverviewPage() {
               accounts={accounts.data?.accounts ?? []}
               asOf={accounts.data?.asOf ?? todayInVienna()}
             />
+            <ValuationHint incomplete={accounts.data?.incomplete} />
             <AccountsTable model={model} ordering={ordering} onReorder={ordered.save} />
           </>
         )}

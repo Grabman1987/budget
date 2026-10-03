@@ -5,8 +5,10 @@ import type { PortfolioSummary } from '@budget/db';
 import { useQuery, queryOptions } from '@tanstack/react-query';
 import { useZeitraum, ZEITRAUM_VALUES } from '../wealth/zeitraum';
 import { useNavigate } from '@tanstack/react-router';
+import { userText } from '../api/error-text';
 import { ApiError, request } from '../api/http';
 import { ErrorNote, LoadingNote } from '../ledger/states';
+import { ValuationHint, type WithValuationNotes } from '../ledger/valuation-hint';
 import { eur, longDay } from '../ledger/format';
 import { periodText } from '../wealth/networth-model';
 import { LEDGER_KEY } from '../ledger/queries';
@@ -14,8 +16,9 @@ import { PageFrame } from './placeholder-page';
 import type { PageMeta } from '../nav/pages';
 import type { ReportEntry } from '../nav/reports-catalog';
 import './portfolio-performance-report.css';
+import { PerformanceComparisons } from './portfolio-performance-comparisons';
 
-interface PortfolioResponse {
+interface PortfolioResponse extends WithValuationNotes {
   portfolio: PortfolioSummary;
 }
 
@@ -24,7 +27,10 @@ const portfolioPerformanceQuery = (period: Period) =>
     queryKey: [...LEDGER_KEY, 'portfolio-performance-report', period, 'securities'],
     retry: false,
     queryFn: () =>
-      request<PortfolioResponse>('GET', `/api/portfolio?period=${period}&view=securities`),
+      request<PortfolioResponse>(
+        'GET',
+        `/api/portfolio?period=${period}&view=securities&history=performance`,
+      ),
   });
 
 const PERIOD_OPTIONS = ZEITRAUM_VALUES.map((value) => ({ value, label: value }));
@@ -76,6 +82,7 @@ export function PortfolioPerformanceReport({
       ]}
     >
       <div className="kview vview portfolio-performance-report">
+        <ValuationHint incomplete={query.data?.incomplete} />
         {query.isPending && <LoadingNote what="Portfolioauswertung" />}
         {query.isError &&
           (query.error instanceof ApiError && query.error.code === 'valuation_unavailable' ? (
@@ -84,8 +91,10 @@ export function PortfolioPerformanceReport({
                 <strong>Portfolioauswertung nicht verfügbar.</strong>
                 <p>
                   Es fehlt ein benötigter Wertpapierkurs oder Wechselkurs.{' '}
-                  {query.error.detail ??
-                    'Die Bewertung kann deshalb nicht vollständig erstellt werden.'}
+                  {userText(
+                    query.error.detail,
+                    'Die Bewertung kann deshalb nicht vollständig erstellt werden.',
+                  )}
                 </p>
                 <p>
                   Die Gesamtauswertung einschließlich der realisierten Gewinne ist deshalb nicht
@@ -206,6 +215,7 @@ function PerformanceBody({
           </p>
         )}
       </section>
+      <PerformanceComparisons summary={summary} />
       <section className="performance-realized" aria-labelledby="realized-gain-title">
         <div className="tbd-head">
           <h2 id="realized-gain-title">Realisierte Gewinne</h2>

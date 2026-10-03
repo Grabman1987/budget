@@ -72,7 +72,7 @@ export function MobileHeader({ title, asHeading }: { title: string; asHeading: b
           <PrivacyButton text />
           <AppLink
             className="btn btn-ghost"
-            to="/einstellungen/profil"
+            to="/einstellungen"
             onClick={(event) => event.currentTarget.closest('details')?.removeAttribute('open')}
           >
             Profil und Einstellungen

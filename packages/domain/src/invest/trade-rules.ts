@@ -42,6 +42,9 @@ export function moneyRuleViolation(t: TradeMoney): string | null {
     if (!Number.isSafeInteger(v) || v < 0)
       return `The ${name} must be a whole number of cents, 0 or more`;
   if (t.taxCents > 0 && !WITH_FEE_AND_TAX.has(t.kind)) return `A ${t.kind} has no tax`;
+  if (t.kind === 'split' && t.amountCents !== 0) return 'A split moves units only, with amount 0';
+  if (t.kind === 'buy' && !Number.isSafeInteger(t.amountCents + t.feeCents))
+    return 'Settlement amount is too large';
   if (t.feeCents > 0 && t.kind !== 'buy' && !WITH_FEE_AND_TAX.has(t.kind))
     return `A ${t.kind} has no separate fee`;
   if (
