@@ -1,3 +1,4 @@
+import type { BankSync } from './bank-sync/service';
 import { existsSync } from 'node:fs';
 import { relative, resolve } from 'node:path';
 import { writesHeld, type Db } from '@budget/db';
@@ -11,6 +12,7 @@ import { createLedgerApi } from './api';
 import { debugSummary } from './debug-summary';
 import type { ImportJobs } from './imports/jobs';
 import { IMPORT_BODY_LIMIT, IMPORT_UPLOAD_LIMIT } from './imports/routes';
+import { importHttpEnabled } from './imports/config';
 
 /** What the app needs from the passkey login: the CSRF check, its routes and the session guard. */
 export type AuthGate = Pick<Auth, 'originGuard' | 'routes' | 'requireSession' | 'requireStepUp'>;
@@ -36,6 +38,7 @@ export type AppOptions = BaseOptions &
         ledger?:
           | {
               db: Db;
+              bankSync?: BankSync | null;
               today?: () => string;
               market?: MarketSources | undefined;
               jobs?: ImportJobs | undefined;
@@ -120,9 +123,10 @@ export function createApp({ webDir, database, auth, ledger, buildRevision }: App
   const apiLimit = limit(API_BODY_LIMIT, '64 KB');
   const uploadLimit = limit(IMPORT_UPLOAD_LIMIT, '20 MB');
   const importLimit = limit(IMPORT_BODY_LIMIT, '2 MB');
+  const importsEnabled = importHttpEnabled();
   app.use('/api/*', (c, next) => {
-    if (c.req.path === '/api/imports/ynab') return uploadLimit(c, next);
-    if (c.req.path.startsWith('/api/imports/')) return importLimit(c, next);
+    if (importsEnabled && c.req.path === '/api/imports/ynab') return uploadLimit(c, next);
+    if (importsEnabled && c.req.path.startsWith('/api/imports/')) return importLimit(c, next);
     return apiLimit(c, next);
   });
 

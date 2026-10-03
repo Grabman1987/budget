@@ -485,7 +485,7 @@ transaction (a refusal rolls everything back):
 
 ### 12.3 Single bookings (operator task)
 
-`book --file <json> [--dry-run] [--details]` adds, re-dates, re-prices or deletes single bookings
+`book --file <json> [--dry-run] [--details]` adds, re-dates, re-prices, re-splits or deletes single bookings
 from a JSON list. The file holds real names and amounts: keep it on the private volume
 (`/data/migration/`), never in the repo. Entries run in file order; each has a unique `id` and a
 `kind`:
@@ -500,6 +500,14 @@ from a JSON list. The file holds real names and amounts: keep it on the private 
   option as the app's unlock (`PATCH /api/bookings/:id`, `DELETE ...?unlock=1`), so
   the change is audited and undoable. Without it a reconciled booking is skipped
   (`reconciled_locked`); `add` does not take it, and every other rule of the app still applies.
+- `set_splits` replaces all splits of one booking at once (for example a salary inflow into pay and
+  tax-free reimbursements): `match` as above (its `amountCents` is the booking's amount) and
+  `splits: [{category?, amountCents, memo?, incomeType?, contact?}]`, which must add up to that
+  amount (checked before anything runs). A split has either a `category` or an `incomeType` (an
+  inflow without category), or neither (Zu verteilen); `contact` (a receivable share, by name) needs
+  an "Auslagen" category. Amount, date, account and payee of the booking stay; a transfer is
+  refused (`is_transfer`); `unlock: true` as above. The whole replacement is one audit group, so
+  Rückgängig restores the old splits.
 
 Everything goes through the booking functions behind the HTTP routes, so transfer pairing,
 splits, trade cash flows, payment links, reconciliation locks and the envelopes behave as in the
@@ -552,3 +560,17 @@ Same rules as section 12 (no import feature in the app, files and the private ma
 6. Remove the private files: `rm -rf /data/migration`. Undo if needed: `... revert --run <id>` (refused once trades were added to its securities).
 
 Notes: after the commit the YNAB Gate 2 report shows differences on the depot accounts that PP took over (their balance now includes trades); the PP report is authoritative for them. A re-import of a newer file (stage, commit) is idempotent and prints what changed (`unchanged`, `changed`, `missing`). Deliveries in and out count as capital flows in the depot view (as in PP); securities without any quote count as 0 in the returns and are listed.
+
+
+### Legacy HTTP importer and bounded backup requests
+
+The application has no import UI. `BUDGET_IMPORT_HTTP` is unset by default;
+`BUDGET_IMPORT_HTTP=1` may enable legacy HTTP routes in development/tests only.
+Production (`NODE_ENV=production`) always leaves them unmounted. Operator
+`/app/migrate-cli.js` and `/app/migrate-pp-cli.js` do not depend on this flag.
+
+Encrypted-backup S3 requests have a fixed 30-second deadline including response
+body reads. Error bodies are limited to 4 KiB and list pages to 1 MiB. Unknown
+provider text and operational exception details never reach logs/inbox; only
+allowlisted S3 codes or generic German failure hints do. The existing hourly
+retry and inbox resolution policy is unchanged. No new secret/env value is needed.

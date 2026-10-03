@@ -9,3 +9,4 @@ export * from './system';
 export * from './auth';
 
 export * from './contacts';
+export * from './bank-sync';

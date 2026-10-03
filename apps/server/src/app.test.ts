@@ -139,3 +139,38 @@ describe('server', () => {
     }
   });
 });
+
+describe('legacy HTTP import gate', () => {
+  it.each([
+    ['test', undefined, false],
+    ['development', '1', true],
+    ['test', '1', true],
+    ['production', '1', false],
+  ])('gates the mount in %s with flag %s', async (mode, flag, enabled) => {
+    vi.stubEnv('NODE_ENV', mode);
+    vi.stubEnv('BUDGET_IMPORT_HTTP', flag);
+    const opened = createTestDatabase();
+    const gate: AuthGate = {
+      originGuard: async (_c, next) => next(),
+      requireSession: async (_c, next) => next(),
+      requireStepUp: async (_c, next) => next(),
+      routes: new Hono(),
+    };
+    try {
+      const gated = createApp({ webDir: dir, auth: gate, ledger: { db: opened.db } });
+      expect((await gated.request('/api/imports')).status).toBe(enabled ? 200 : 404);
+      if (!enabled) {
+        for (const path of ['/ynab', '/synthetic/commit', '/synthetic/revert'])
+          expect((await gated.request(`/api/imports${path}`, { method: 'POST' })).status).toBe(404);
+        const large = await gated.request('/api/imports/ynab', {
+          method: 'POST',
+          body: 'x'.repeat(65 * 1024),
+        });
+        expect(large.status).toBe(413);
+      }
+    } finally {
+      opened.close();
+      vi.unstubAllEnvs();
+    }
+  });
+});
