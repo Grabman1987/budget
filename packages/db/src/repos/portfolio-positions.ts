@@ -20,7 +20,8 @@ export interface PositionAccount {
   valueCents: number | null;
   costCents: number | null;
   gainCents: number | null;
-  valueStatus: 'known' | 'missing_price' | 'missing_fx';
+  /** `estimated`: valued at the cost basis or a price a few days off, see `quality`. */
+  valueStatus: 'known' | 'estimated' | 'missing_price' | 'missing_fx';
   basisStatus: 'known' | 'undocumented' | 'missing_fx';
 }
 export interface PortfolioPosition {
@@ -109,7 +110,14 @@ export function portfolioPositions(db: Executor, asOf: string): PortfolioPositio
     if (!acct || !sec) continue;
     const quote = quotes.get(sec.id) ?? null;
     const cost = costs.get(`${acct.id}\0${sec.id}`);
-    const valueStatus = !quote ? 'missing_price' : 'valueCents' in holding ? 'known' : 'missing_fx';
+    const valueStatus: PositionAccount['valueStatus'] =
+      'valueCents' in holding
+        ? 'quality' in holding && holding.quality === 'estimated'
+          ? 'estimated'
+          : 'known'
+        : 'priceMicro' in holding
+          ? 'missing_fx'
+          : 'missing_price';
     const line = bySecurity.get(sec.id) ?? {
       securityId: sec.id,
       name: sec.name,
@@ -134,7 +142,8 @@ export function portfolioPositions(db: Executor, asOf: string): PortfolioPositio
           : null,
       valueStatus,
       costCents: cost?.costCents ?? null,
-      gainCents: valueStatus === 'known' ? (cost?.gainCents ?? null) : null,
+      gainCents:
+        valueStatus === 'known' || valueStatus === 'estimated' ? (cost?.gainCents ?? null) : null,
       basisStatus: cost?.basisStatus ?? 'undocumented',
     });
     bySecurity.set(sec.id, line);

@@ -1,14 +1,21 @@
-import type { ExplorerReport, PeriodComparisonReport, YearReportRead } from '@budget/db';
+import type {
+  ExplorerReport,
+  PeriodComparisonReport,
+  YearReportRead as YearReportData,
+} from '@budget/db';
 import type { CompareMode, ExplorerQuery } from '@budget/domain';
 import { queryOptions, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useRef } from 'react';
 import { request } from '../api/http';
 import { LEDGER_KEY } from '../ledger/queries';
+import type { WithValuationNotes } from '../ledger/valuation-hint';
 import { evaluateRules } from '../rules/api';
 
 /** Calls behind the Überblick reports (`/api/overview`). Every ledger write refreshes them. */
 
-export type { ExplorerReport, PeriodComparisonReport, YearReportRead };
+/** The year report as the API answers it: with the securities valued by an estimate, if any. */
+export type YearReportRead = YearReportData & WithValuationNotes;
+export type { ExplorerReport, PeriodComparisonReport };
 
 export const periodComparisonQuery = (mode: CompareMode) =>
   queryOptions({

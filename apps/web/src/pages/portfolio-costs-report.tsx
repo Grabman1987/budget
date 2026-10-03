@@ -4,6 +4,7 @@ import type { CostsTaxesReport } from '@budget/db';
 import { queryOptions, useQuery } from '@tanstack/react-query';
 import { request } from '../api/http';
 import { LoadingNote } from '../ledger/states';
+import { ValuationHint, type WithValuationNotes } from '../ledger/valuation-hint';
 import { eur, longDay } from '../ledger/format';
 import { LEDGER_KEY } from '../ledger/queries';
 import type { PageMeta } from '../nav/pages';
@@ -20,7 +21,7 @@ import {
 import './portfolio-costs-report.css';
 import { BookRuleMetric } from '../rules/book-rule-metric';
 
-interface CostsResponse {
+interface CostsResponse extends WithValuationNotes {
   costs: CostsTaxesReport;
 }
 
@@ -48,6 +49,7 @@ export function PortfolioCostsReport({ report, meta }: { report: ReportEntry; me
       }
     >
       <div className="prep portfolio-costs-report">
+        <ValuationHint incomplete={query.data?.incomplete} />
         <BookRuleMetric code="R22" />
         {query.isPending && <LoadingNote what="Kosten, Steuern und Erträge" />}
         {query.isError && (

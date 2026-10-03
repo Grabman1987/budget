@@ -29,6 +29,7 @@ import { fetchAccounts } from '../ledger/api';
 import { LEDGER_KEY } from '../ledger/queries';
 import { eur, longDay, shortDay } from '../ledger/format';
 import { EmptyNote, ErrorNote, LoadingNote } from '../ledger/states';
+import { ValuationHint } from '../ledger/valuation-hint';
 import { HEUTE } from '../nav/pages';
 import { PageFrame } from '../pages/placeholder-page';
 import { monthLabel as monthName } from '../nav/month';
@@ -572,6 +573,7 @@ function HeuteBody({ data }: { data: Heute }) {
               <p className="heute-note">
                 Stichtag {longDay(net.asOf)} · Vormonatsende {eur(net.previousMonthEndCents)}
               </p>
+              <ValuationHint incomplete={data.incomplete} />
             </>
           ) : (
             'unavailable' in data.netWorth && (

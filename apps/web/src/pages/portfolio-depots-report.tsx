@@ -7,6 +7,7 @@ import type { ReactNode } from 'react';
 import { useElementWidth } from '../charts/use-element-width';
 import { request } from '../api/http';
 import { LoadingNote } from '../ledger/states';
+import { ValuationHint, type WithValuationNotes } from '../ledger/valuation-hint';
 import { eur, longDay, shortDay } from '../ledger/format';
 import { LEDGER_KEY } from '../ledger/queries';
 import { periodText, yTicks } from '../wealth/networth-model';
@@ -27,7 +28,7 @@ import {
 } from './portfolio-report-shared';
 import './portfolio-depots-report.css';
 
-interface DepotsResponse {
+interface DepotsResponse extends WithValuationNotes {
   depots: DepotComparison;
 }
 
@@ -78,6 +79,7 @@ export function PortfolioDepotsReport({ report, meta }: { report: ReportEntry; m
       ]}
     >
       <div className="prep portfolio-depots-report">
+        <ValuationHint incomplete={query.data?.incomplete} />
         {query.isPending && <LoadingNote what="Depots" />}
         {query.isError && (
           <ReportUnavailable

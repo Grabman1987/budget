@@ -425,7 +425,7 @@ test('validation, server retry, busy guard and explicit discard retain source dr
       : route.continue(),
   );
   await form.getByRole('button', { name: 'Handel erfassen', exact: true }).click();
-  await expect(form.getByRole('alert')).toContainText('Das hat nicht geklappt');
+  await expect(form.getByRole('alert')).toContainText('Auf dem Server ist ein Fehler aufgetreten');
   await expect(form.getByLabel('Stück', { exact: true })).toHaveValue('1,00000001');
   expect(await sourceTrades(request, security.id)).toHaveLength(0);
   await page.unroute('**/api/trades');
