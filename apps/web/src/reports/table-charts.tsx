@@ -137,6 +137,7 @@ export interface SavingsChartPoint {
   month: string;
   rateBp: number | null;
   rollingBp: number | null;
+  grossBp?: number | null;
 }
 
 /** Sparquote per month (bars around zero), rolling twelve months (line) and the goal (dashed). */
@@ -158,8 +159,9 @@ export function SavingsChart({
         const pct = (bp: number) => bp / 100;
         const values = points.flatMap((p) => (p.rateBp === null ? [] : [pct(p.rateBp)]));
         const rolling = points.flatMap((p) => (p.rollingBp === null ? [] : [pct(p.rollingBp)]));
-        const lo = Math.min(0, ...values, ...rolling);
-        const hi = Math.max(pct(targetBp), ...values, ...rolling, 1);
+        const gross = points.flatMap((p) => (p.grossBp == null ? [] : [pct(p.grossBp)]));
+        const lo = Math.min(0, ...values, ...rolling, ...gross);
+        const hi = Math.max(pct(targetBp), ...values, ...rolling, ...gross, 1);
         const pad = (hi - lo) * 0.1;
         const a = lo < 0 ? lo - pad : 0;
         const b = hi + pad;
@@ -180,6 +182,11 @@ export function SavingsChart({
         const line: Point[] = points.flatMap((p, i) =>
           p.rollingBp === null ? [] : [[x(i), y(pct(p.rollingBp))] as Point],
         );
+        const grossLines: Point[][] = [[]];
+        points.forEach((p, i) => {
+          if (p.grossBp == null) grossLines.push([]);
+          else grossLines[grossLines.length - 1]!.push([x(i), y(pct(p.grossBp))]);
+        });
         const ticks = yTicks(a, b, 4);
         const labels = labelIndexes(n, W);
         return (
@@ -202,6 +209,10 @@ export function SavingsChart({
               ]}
             />
             {line.length > 1 && <Line kind="actual" points={line} />}
+            {grossLines.map(
+              (segment, i) =>
+                segment.length > 1 && <Line key={i} kind="benchmark" points={segment} />,
+            )}
             <XTicks
               y={height - 8}
               ticks={points.flatMap((p, i) =>

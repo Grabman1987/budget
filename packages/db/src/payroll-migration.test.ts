@@ -10,7 +10,7 @@ describe('payroll migration 0021', () => {
     const { db, sqlite, close } = openDatabase(':memory:');
     try {
       const migrations = readMigrationFiles({ migrationsFolder: defaultMigrationsFolder() });
-      expect(migrations).toHaveLength(PAYROLL_MIGRATION + 1);
+      expect(migrations.length).toBeGreaterThan(PAYROLL_MIGRATION);
       for (const migration of migrations.slice(0, PAYROLL_MIGRATION))
         for (const statement of migration.sql) sqlite.exec(statement);
       sqlite.exec(`

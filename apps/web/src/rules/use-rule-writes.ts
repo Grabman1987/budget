@@ -39,6 +39,7 @@ export function useRuleWrite() {
   return async function write<T extends { groupId: string }>(
     run: () => Promise<T>,
     message: (result: T) => string,
+    restored?: { undo: () => void; redo: () => void },
   ): Promise<T | undefined> {
     try {
       const result = await run();
@@ -49,10 +50,15 @@ export function useRuleWrite() {
           void undoGroup(result.groupId).then(
             async (undone) => {
               await refresh();
+              restored?.undo();
               toast.show({
                 message: 'Rückgängig gemacht.',
                 actionLabel: 'Wiederholen',
-                onAction: () => void undoGroup(undone.groupId).then(refresh),
+                onAction: () =>
+                  void undoGroup(undone.groupId).then(async () => {
+                    await refresh();
+                    restored?.redo();
+                  }),
               });
             },
             (error: unknown) => toast.show({ message: errorText(error) }),

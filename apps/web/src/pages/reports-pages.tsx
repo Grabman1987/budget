@@ -2,6 +2,7 @@ import { PayrollReport } from '../reports/payroll-report';
 import { ProjectsReport } from '../reports/projects-report';
 import { Registers, SectionHead, type RegisterItem } from '@budget/ui';
 import { ChevronRight, Printer } from 'lucide-react';
+import { BookRuleMetric } from '../rules/book-rule-metric';
 import { areaById } from '../nav/areas';
 import { REPORTS_CATALOG, REPORT_GROUP_PAGES, type PageMeta } from '../nav/pages';
 import {
@@ -226,6 +227,9 @@ export function ReportPage({ reportId }: { reportId: string }) {
       extraFields={[
         { label: 'Zeichnung', value: report.pos },
         { label: 'Steuerung', value: <Controls report={report} /> },
+        ...(report.id === 'gehalt'
+          ? [{ label: 'Einkommenszuwachs', value: <BookRuleMetric code="R19" /> }]
+          : []),
       ]}
     />
   );

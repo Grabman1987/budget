@@ -98,7 +98,7 @@ that has the version's currency. Open occurrences whose window has passed become
 
 ## Rules (P3.5)
 
-The rule book R01–R16 and the stage checklist (concept §3.5). Rules are data (`rule`: `params_json`, `enabled`); the engine is `evaluateRule` in `@budget/domain`, the inputs come from `ruleInputs` in `@budget/db` (the one place that assembles them). Results (`rule_result`) are derived and rewritten, edits are audited and undoable with `POST /undo { groupId }`.
+The rule book registered rules (`RULE_CODES`) and the stage checklist (concept §3.5). Rules are data (`rule`: `params_json`, `enabled`); the engine is `evaluateRule` in `@budget/domain`, the inputs come from `ruleInputs` in `@budget/db` (the one place that assembles them). Results (`rule_result`) are derived and rewritten, edits are audited and undoable with `POST /undo { groupId }`.
 
 | Request | What it does |
 | --- | --- |
@@ -279,3 +279,7 @@ summaries and already resolved warnings return 409, and extra request fields ret
 Normal whole-group undo/redo applies, including refusal if a later source write changed the row.
 The web queue/count use the common ledger query key so categorization, acknowledgement and undo
 also invalidate integrated Heute reads. Bank/assignment suggestion decisions remain later scope.
+
+### Book-rule inputs
+
+`GET /api/rules/inputs` reads optional birth month/year and monthly employer contributions. `PATCH /api/rules/inputs` accepts a strict `{ birthMonth?: "YYYY-MM" | "", pension?: [{ month: "YYYY-MM", amountCents: integer }] }` object. Birth month has no default and must be plausible; duplicate months and negative contributions are rejected. Writes share one audited, undoable savepoint. New instrument `leverageFactor` is integer tenths, between 10 and 1000. `GET /api/rules` includes a preview and `unavailableReason` for book rules, including disabled ones; null evaluations remain unstored.

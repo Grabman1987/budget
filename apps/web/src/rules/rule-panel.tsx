@@ -8,11 +8,12 @@ import {
   Select,
   StatusMark,
   TextInput,
+  Switch,
   type RuleStatus,
 } from '@budget/ui';
-import { cents, formatDecimal, parseAmount } from '@budget/domain';
+import { cents, formatDecimal, parseAmount, formatPercent } from '@budget/domain';
 import { useState, type FormEvent } from 'react';
-import { longDay } from '../ledger/format';
+import { longDay, eur } from '../ledger/format';
 import { patchRule, type RuleRow, type RuleStatusCode } from './api';
 import {
   RULE_FIELDS,
@@ -96,6 +97,13 @@ function RuleForm({ rule }: { rule: RuleRow }) {
     await write(
       () => patchRule(rule.code, { params: changed }),
       () => `${rule.code} ${rule.name}: Schwelle gespeichert.`,
+      {
+        // Fast undo can restore the original params before the saved value reached the query
+        // cache. Its structural key then stays equal; restore the local draft explicitly.
+        undo: () =>
+          setTexts(Object.fromEntries(specs.map((s) => [s.key, initial(s, rule.params[s.key])]))),
+        redo: () => setTexts(texts),
+      },
     );
     setBusy(false);
   };
@@ -120,7 +128,9 @@ function RuleForm({ rule }: { rule: RuleRow }) {
           </>
         ) : (
           <p className="rw-now-sub">
-            Noch nicht bewertbar: Es fehlen Daten für diese Regel.
+            {rule.unavailableReason
+              ? maskMoneyText(`Nicht bewertbar: ${rule.unavailableReason}`)
+              : 'Noch nicht bewertbar: Es fehlen Daten für diese Regel.'}
             {!rule.enabled && ' Die Regel ist ausgeschaltet.'}
           </p>
         )}
@@ -134,6 +144,40 @@ function RuleForm({ rule }: { rule: RuleRow }) {
         </p>
         <p className="rw-now-sub">Schwelle: {thresholdText(rule.code, rule.params)}</p>
       </section>
+      {rule.code === 'R21' && latest && (
+        <p className="rw-now-sub">
+          Netto-Hebel-Exposure:{' '}
+          {typeof latest.detail?.['exposureBp'] === 'number'
+            ? formatPercent(latest.detail['exposureBp'])
+            : 'nicht bewertbar'}
+          .
+        </p>
+      )}
+      {rule.code === 'R18' && latest?.detail?.['aboveAverage'] === true && (
+        <p className="rw-now-sub">Überdurchschnittlich (PAW): konfigurierten Richtwert erreicht.</p>
+      )}
+      {rule.code === 'R22' && Array.isArray(latest?.detail?.['leveraged']) && (
+        <p className="rw-now-sub">
+          Hebelfonds separat:{' '}
+          {latest.detail['leveraged']
+            .map(
+              (row: { securityId: string; name?: string; terBp: number; valueCents: number }) =>
+                `${row.name ?? row.securityId}: ${eur(row.valueCents)} · TER ${row.terBp === 0 ? 'fehlt' : formatPercent(row.terBp)}`,
+            )
+            .join('; ') || 'keine'}
+          .
+        </p>
+      )}
+      {typeof latest?.detail?.['note'] === 'string' && (
+        <p className="rw-now-sub">{maskMoneyText(String(latest.detail['note']))}</p>
+      )}
+      {Array.isArray(latest?.detail?.['strip']) && (
+        <p className="rw-now-sub">
+          {(latest.detail['strip'] as { month: string; fulfilled: boolean }[])
+            .map((r) => `${r.month} ${r.fulfilled ? '✓' : '–'}`)
+            .join(' · ')}
+        </p>
+      )}
       {specs.length === 0 && (
         <p className="rw-now-sub">Diese Regel hat keine Schwelle: Sie gilt immer.</p>
       )}
@@ -141,6 +185,15 @@ function RuleForm({ rule }: { rule: RuleRow }) {
         const error = errorOf(s) ?? undefined;
         const text = texts[s.key] ?? '';
         const set = (value: string) => setTexts((t) => ({ ...t, [s.key]: value }));
+        if (s.unit === 'boolean')
+          return (
+            <Switch
+              key={s.key}
+              label={s.label}
+              checked={text === 'true'}
+              onChange={(on) => set(String(on))}
+            />
+          );
         if (s.unit === 'euro')
           return (
             <AmountInput key={s.key} label={s.label} value={text} onChange={set} error={error} />

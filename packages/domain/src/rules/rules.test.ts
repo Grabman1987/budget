@@ -70,13 +70,12 @@ describe('parameters', () => {
     expect(() => applyParamsPatch('R08', {}, { maxBp: 1.5 })).toThrow();
   });
 
-  it('definitions cover R01 to R16 and the 14 checklist items', () => {
+  it('definitions cover the registered rules and the 14 checklist items', () => {
     expect(RULE_DEFS.map((d) => d.code)).toEqual([...RULE_CODES]);
     expect(CHECKLIST_DEFS).toHaveLength(14);
     expect(CHECKLIST_DEFS.filter((c) => c.ruleCode === null).map((c) => c.code)).toEqual([
       'S1-1',
       'S1-2',
-      'S2-1',
       'S2-5',
       'S2-6',
       'S3-3',
