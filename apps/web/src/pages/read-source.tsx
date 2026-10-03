@@ -1,4 +1,4 @@
-import { Button, Field, SectionHead, Select } from '@budget/ui';
+import { Button, Field, SectionHead, Select, TextInput } from '@budget/ui';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import type { SourceBalance, SourceMapping } from '@budget/domain';
@@ -15,6 +15,7 @@ interface SourceStatus {
   status: 'idle' | 'ok' | 'partial' | 'failed';
   balances: SourceBalance[];
   mappings: SourceMapping[];
+  since: string | null;
   accounts: { id: string; name: string; currency: string; type: string }[];
   securities: { id: string; name: string }[];
 }
@@ -121,6 +122,7 @@ export function CryptoReadSourceSection() {
             Hintergrund automatisch ab. Ein Schlüssel mit Leserechten wird ausschließlich am Server
             gesetzt.
           </p>
+          <SinceForm saved={query.data.since} />
           {query.data.balances.map((balance) => (
             <Mapping key={balance.key} balance={balance} data={query.data} />
           ))}
@@ -132,6 +134,59 @@ export function CryptoReadSourceSection() {
         </p>
       )}
     </section>
+  );
+}
+function SinceForm({ saved }: { saved: string | null }) {
+  const [since, setSince] = useState(saved ?? '');
+  const [busy, setBusy] = useState(false);
+  const [message, setMessage] = useState('');
+  const client = useQueryClient();
+  async function save() {
+    setBusy(true);
+    setMessage('');
+    try {
+      await withStepUp(() => request('PUT', path + '/since', { since: since || null }));
+      await client.invalidateQueries({ queryKey: key });
+      await client.invalidateQueries({ queryKey: INBOX_KEY });
+      setMessage(
+        since
+          ? 'Startdatum gespeichert. Ältere offene Bewegungen wurden abgeschlossen.'
+          : 'Startdatum entfernt. Der nächste Abruf prüft alle Bewegungen.',
+      );
+    } catch {
+      setMessage('Startdatum nicht gespeichert. Datum und Anmeldung prüfen.');
+    } finally {
+      setBusy(false);
+    }
+  }
+  return (
+    <form
+      onSubmit={(event) => {
+        event.preventDefault();
+        void save();
+      }}
+      className="source-mapping"
+    >
+      <Field
+        label="Bewegungen ab"
+        hint="Ältere Bewegungen sind bereits erfasst und kommen nicht in den Posteingang. Ein früheres Datum holt ältere Bewegungen beim nächsten „Gesamten Verlauf prüfen“ in den Posteingang."
+      >
+        {({ id, describedBy }) => (
+          <TextInput
+            id={id}
+            aria-describedby={describedBy}
+            type="date"
+            value={since}
+            disabled={busy}
+            onChange={(e) => setSince(e.target.value)}
+          />
+        )}
+      </Field>
+      <Button type="submit" disabled={busy || since === (saved ?? '')}>
+        Startdatum speichern
+      </Button>
+      {message && <p role="status">{message}</p>}
+    </form>
   );
 }
 function Mapping({ balance, data }: { balance: SourceBalance; data: SourceStatus }) {

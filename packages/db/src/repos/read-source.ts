@@ -31,6 +31,11 @@ export interface ReadSourceState {
 }
 const stateKey = 'source.crypto.state';
 const mappingKey = 'source.crypto.mappings';
+const sinceKey = 'source.crypto.since';
+export const SINCE_RESOLUTION = 'Vor dem Startdatum – bereits in der App erfasst.';
+const isoDay = (value: string) =>
+  /^\d{4}-\d{2}-\d{2}$/.test(value) &&
+  new Date(value + 'T00:00:00Z').toISOString().startsWith(value);
 export function readSourceState(db: Executor): ReadSourceState {
   const row = getEntity(db, appSetting, stateKey);
   if (!row)
@@ -45,6 +50,19 @@ export function readSourceState(db: Executor): ReadSourceState {
 export function readSourceMappings(db: Executor): SourceMapping[] {
   const row = getEntity(db, appSetting, mappingKey);
   return row ? (JSON.parse(row.value) as SourceMapping[]) : [];
+}
+/** Start day (`YYYY-MM-DD`) of the movements the source may stage; null means no limit. */
+export function readSourceSince(db: Executor): string | null {
+  const row = getEntity(db, appSetting, sinceKey);
+  const value = row ? (JSON.parse(row.value) as unknown) : null;
+  return typeof value === 'string' && isoDay(value) ? value : null;
+}
+/** Calendar day (Vienna) of the latest transaction, or null when it is unknown. */
+function operationDay(op: { transactions?: Array<{ creditedAt: string }> }): string | null {
+  const times = (Array.isArray(op.transactions) ? op.transactions : [])
+    .map((t) => Date.parse(t.creditedAt))
+    .filter((t) => !Number.isNaN(t));
+  return times.length ? todayInVienna(new Date(Math.max(...times))) : null;
 }
 function setting(db: Executor, id: string, value: unknown, ctx: GroupedContext) {
   const data = { value: JSON.stringify(value) };
@@ -78,6 +96,47 @@ export function mapReadSource(db: Executor, mapping: SourceMapping, ctx: AuditCo
       throw new ConflictError('Dieses Konto bzw. Instrument ist bereits zugeordnet.');
     setting(tx, mappingKey, [...mappings, mapping], grouped);
     return { groupId: grouped.groupId };
+  });
+}
+export function setReadSourceSince(db: Executor, since: string | null, ctx: AuditContext) {
+  if (since !== null && !isoDay(since)) throw new ConflictError('Ungültiges Startdatum.');
+  const grouped = withGroup(ctx);
+  return runInTransaction(db, (tx) => {
+    setting(tx, sinceKey, since, grouped);
+    if (since !== null) {
+      const resolvedAt = new Date().toISOString();
+      for (const row of tx.select().from(inboxItem).all()) {
+        if (
+          row.refType !== 'read_source' ||
+          row.kind !== 'import' ||
+          row.resolvedAt !== null ||
+          !row.detail
+        )
+          continue;
+        let day: string | null = null;
+        try {
+          day = operationDay(JSON.parse(row.detail) as SourceOperation);
+        } catch {
+          continue;
+        }
+        if (day !== null && day < since)
+          updateEntity(
+            tx,
+            inboxItem,
+            row.id,
+            { resolvedAt, resolution: SINCE_RESOLUTION },
+            grouped,
+          );
+      }
+    }
+    return { groupId: grouped.groupId };
+  });
+}
+/** First connection: with no start day ever saved, the source starts at `day` (the connection day). */
+export function defaultReadSourceSince(db: Executor, day: string, ctx: AuditContext) {
+  return runInTransaction(db, (tx) => {
+    if (getEntity(tx, appSetting, sinceKey)) return null;
+    return setReadSourceSince(tx, day, ctx);
   });
 }
 const itemId = (key: string) =>
@@ -131,9 +190,24 @@ function item(
   ctx: GroupedContext,
   reopen = false,
   compare: (detail: string) => string = (detail) => detail,
+  closed: string | null = null,
 ) {
   const id = itemId(key);
   const old = getEntity(db, inboxItem, id);
+  if (closed !== null) {
+    // Recorded for dedupe and replay, but never asks for attention.
+    const resolved = { resolvedAt: new Date().toISOString(), resolution: closed };
+    if (!old)
+      createEntity(
+        db,
+        inboxItem,
+        { id, kind, title, detail, refType: 'read_source', refId: 'crypto', ...resolved },
+        ctx,
+      );
+    else if (!old.resolvedAt)
+      updateEntity(db, inboxItem, id, { title, detail, kind, ...resolved }, ctx);
+    return;
+  }
   if (!old)
     createEntity(
       db,
@@ -149,8 +223,17 @@ function item(
       },
       ctx,
     );
-  else if (old.detail !== detail || old.kind !== kind || (reopen && old.resolvedAt)) {
-    const changed = old.kind !== kind || !old.detail || compare(old.detail) !== compare(detail);
+  else if (
+    old.detail !== detail ||
+    old.kind !== kind ||
+    (reopen && old.resolvedAt) ||
+    old.resolution === SINCE_RESOLUTION
+  ) {
+    const changed =
+      old.kind !== kind ||
+      !old.detail ||
+      old.resolution === SINCE_RESOLUTION ||
+      compare(old.detail) !== compare(detail);
     updateEntity(
       db,
       inboxItem,
@@ -175,7 +258,9 @@ export function stageSourcePage(
 ) {
   const grouped = withGroup(ctx);
   return runInTransaction(db, (tx) => {
+    const since = readSourceSince(tx);
     for (const op of operations) {
+      const day = since === null ? null : operationDay(op);
       const transfer =
         op.transactions.some((t) => !t.amount.assetId) && !op.transactions.some((t) => t.tradeId);
       item(
@@ -187,6 +272,7 @@ export function stageSourcePage(
         grouped,
         false,
         operationFields,
+        day !== null && since !== null && day < since ? SINCE_RESOLUTION : null,
       );
     }
     for (const invalid of invalidOperations)
