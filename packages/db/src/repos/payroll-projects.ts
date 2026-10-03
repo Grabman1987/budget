@@ -1,6 +1,8 @@
 import {
   payrollReport,
   payslipInput,
+  payrollTotals,
+  isDuplicatePayslip,
   projectResult,
   monthsBetween,
   addMonths,
@@ -48,6 +50,10 @@ export function savePayslip(db: Executor, raw: PayslipInput, ctx: AuditContext, 
   const input = payslipInput.parse(raw),
     grouped = withGroup(ctx);
   return runInTransaction(db, (tx) => {
+    if (isDuplicatePayslip(listEntities(tx, payslip), { ...input, ...(id ? { id } : {}) }))
+      throw new BookingInvariantError(
+        'Für diesen Monat und diese Zahlungsart ist bereits ein Gehaltszettel erfasst.',
+      );
     if (input.bookingId) {
       const linked = getEntity(tx, booking, input.bookingId);
       const linkedAccount = linked ? getEntity(tx, account, linked.accountId) : undefined;
@@ -99,19 +105,19 @@ export function deletePayslip(db: Executor, id: string, ctx: AuditContext) {
 /** Combined regular/special slips can reference the same payout booking. Compare the sum once. */
 export function readPayroll(db: Executor, month: string, today: string) {
   const slips = listPayslips(db);
-  const eligible = new Set(
-    db
-      .select()
-      .from(bookingSplit)
-      .all()
-      .filter(
-        (s) =>
-          !s.contactId &&
-          !s.transferId &&
-          (s.incomeTypeId === INCOME_TYPES.salary.id || s.incomeTypeId === INCOME_TYPES.special.id),
-      )
-      .map((s) => s.bookingId),
-  );
+  const salarySplits = db
+    .select()
+    .from(bookingSplit)
+    .all()
+    .filter(
+      (s) =>
+        !s.contactId &&
+        !s.transferId &&
+        (s.incomeTypeId === INCOME_TYPES.salary.id || s.incomeTypeId === INCOME_TYPES.special.id),
+    );
+  const salaryAmounts = new Map<string, number>();
+  for (const s of salarySplits)
+    salaryAmounts.set(s.bookingId, (salaryAmounts.get(s.bookingId) ?? 0) + s.amountCents);
   const links = slips.map((p) => {
     if (!p.bookingId)
       return {
@@ -123,17 +129,16 @@ export function readPayroll(db: Executor, month: string, today: string) {
       };
     const b = getEntity(db, booking, p.bookingId);
     const accountRow = b ? getEntity(db, account, b.accountId) : undefined;
-    const captured = slips
-      .filter((s) => s.bookingId === p.bookingId)
-      .reduce((n, s) => n + s.netCents, 0);
+    const captured = payrollTotals(slips.filter((s) => s.bookingId === p.bookingId)).salaryNetCents;
     const differenceCents =
       b &&
       accountRow &&
+      b.date >= accountRow.openingDate &&
       b.currency === 'EUR' &&
       b.amountCents > 0 &&
       !b.transferId &&
-      eligible.has(b.id)
-        ? b.amountCents - captured
+      salaryAmounts.has(b.id)
+        ? salaryAmounts.get(b.id)! - captured
         : null;
     return {
       id: p.id,
@@ -166,7 +171,8 @@ export function readPayroll(db: Executor, month: string, today: string) {
       ),
     )
     .all()
-    .filter((b) => eligible.has(b.id) && b.amountCents > 0);
+    .filter((b) => salaryAmounts.has(b.id) && b.amountCents > 0)
+    .map((b) => ({ ...b, amountCents: salaryAmounts.get(b.id)! }));
   return {
     ...payrollReport(slips, month),
     captured: slips,

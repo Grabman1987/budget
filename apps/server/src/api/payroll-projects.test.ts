@@ -7,6 +7,7 @@ import {
   createTestDatabase,
   INCOME_TYPES,
   schema,
+  undo,
   type Db,
 } from '@budget/db';
 import type { Hono } from 'hono';
@@ -52,6 +53,95 @@ beforeEach(() => {
   );
 });
 describe('payslip API and grouped audit', () => {
+  it('persists reimbursements and signed corrections through edit, undo and redo', async () => {
+    const created = await call('POST', '/payslips', input);
+    const corrected = {
+      ...input,
+      svCents: -2000,
+      taxCents: -6000,
+      netCents: 417500,
+      lines: [
+        ...input.lines,
+        { section: 'reimbursement', label: 'Telearbeit', amountCents: 2500 },
+        { section: 'reimbursement', label: 'Fahrgeld', amountCents: 3000 },
+        { section: 'reimbursement', label: 'Dienstreise-Auslagen und Diäten', amountCents: 4500 },
+      ],
+    };
+    const changed = await call('PUT', `/payslips/${created.body.payslip.id}`, corrected);
+    expect(changed.status).toBe(200);
+    const report = () => call('GET', '/payslips?month=2026-09');
+    expect((await report()).body.month).toMatchObject({
+      grossCents: 400000,
+      salaryNetCents: 407500,
+      reimbursementsCents: 10000,
+      netCents: 417500,
+      calculatedNetCents: 417500,
+      taxRefundCents: 6000,
+      svRatio: -0.005,
+      taxRatio: -0.015,
+      deductionRatio: -0.01875,
+    });
+    expect((await report()).body.slips[0].lines).toHaveLength(4);
+    const undone = await call('POST', '/undo', { groupId: changed.body.groupId });
+    expect(undone.status).toBe(200);
+    expect((await report()).body.month).toMatchObject({ netCents: 279500, reimbursementsCents: 0 });
+    expect((await call('POST', '/undo', { groupId: undone.body.groupId })).status).toBe(200);
+    expect((await report()).body.month.reimbursementsCents).toBe(10000);
+    expect(
+      (
+        await call('PUT', `/payslips/${created.body.payslip.id}`, {
+          ...corrected,
+          netCents: 417501,
+        })
+      ).status,
+    ).toBe(400);
+    expect((await report()).body.month.netCents).toBe(417500);
+    expect(db.select().from(schema.booking).all()).toHaveLength(0);
+  });
+  it('rejects duplicate regular/13th/14th positions and conflicting edits without audit writes', async () => {
+    const regular = await call('POST', '/payslips', input);
+    for (const data of [
+      input,
+      { ...input, kind: 'special', specialType: 'salary13' },
+      { ...input, kind: 'special', specialType: 'salary14' },
+    ]) {
+      if (data !== input) expect((await call('POST', '/payslips', data)).status).toBe(201);
+      const count = db.select().from(schema.auditLog).all().length;
+      expect((await call('POST', '/payslips', data)).status).toBe(422);
+      expect(db.select().from(schema.auditLog).all()).toHaveLength(count);
+    }
+    expect((await call('PUT', `/payslips/${regular.body.payslip.id}`, input)).status).toBe(200);
+    const next = await call('POST', '/payslips', { ...input, month: '2026-10' });
+    const count = db.select().from(schema.auditLog).all().length;
+    expect((await call('PUT', `/payslips/${next.body.payslip.id}`, input)).status).toBe(422);
+    expect(db.select().from(schema.auditLog).all()).toHaveLength(count);
+    expect((await call('GET', '/payslips?month=2026-10')).body.slips).toHaveLength(1);
+    for (let i = 0; i < 2; i++)
+      expect(
+        (await call('POST', '/payslips', { ...input, kind: 'special', specialType: 'other' }))
+          .status,
+      ).toBe(201);
+  });
+  it('allows replacement after deletion but refuses undo/redo that restores a duplicate', async () => {
+    const created = await call('POST', '/payslips', input);
+    const removed = await call('DELETE', `/payslips/${created.body.payslip.id}`);
+    const replacement = await call('POST', '/payslips', input);
+    expect(replacement.status).toBe(201);
+    const count = db.select().from(schema.auditLog).all().length;
+    expect((await call('POST', '/undo', { groupId: removed.body.groupId })).status).toBe(409);
+    expect(() =>
+      undo(db, { groupId: removed.body.groupId }, { actor: 'tester' }, { force: true }),
+    ).toThrow('bereits');
+    expect(db.select().from(schema.auditLog).all()).toHaveLength(count);
+    expect((await call('GET', '/payslips?month=2026-09')).body.slips.map((p: any) => p.id)).toEqual(
+      [replacement.body.payslip.id],
+    );
+    const undone = await call('POST', '/undo', { groupId: replacement.body.groupId });
+    expect(undone.status).toBe(200);
+    expect((await call('POST', '/undo', { groupId: removed.body.groupId })).status).toBe(200);
+    expect((await call('POST', '/undo', { groupId: undone.body.groupId })).status).toBe(409);
+    expect((await call('GET', '/payslips?month=2026-09')).body.slips).toHaveLength(1);
+  });
   it('rolls back the header and its audit when a child write fails', async () => {
     const auditCount = db.select().from(schema.auditLog).all().length;
     db.run(
@@ -104,15 +194,24 @@ describe('payslip API and grouped audit', () => {
       {
         accountId: 'cash',
         date: '2026-09-30',
-        amountCents: 558000,
+        amountCents: 568000,
         splits: [
           { amountCents: 279500, incomeTypeId: INCOME_TYPES.salary.id },
           { amountCents: 278500, incomeTypeId: INCOME_TYPES.special.id },
+          { amountCents: 10000, incomeTypeId: INCOME_TYPES.refund.id },
         ],
       },
       { actor: 'tester' },
     );
-    const created = await call('POST', '/payslips', { ...input, bookingId: b });
+    const reimbursed = {
+      ...input,
+      netCents: 289500,
+      lines: [
+        ...input.lines,
+        { section: 'reimbursement', label: 'Fahrgeld und Reisekosten', amountCents: 10000 },
+      ],
+    };
+    const created = await call('POST', '/payslips', { ...reimbursed, bookingId: b });
     await call('POST', '/payslips', {
       ...input,
       kind: 'special',
@@ -125,10 +224,11 @@ describe('payslip API and grouped audit', () => {
       'ok',
       'ok',
     ]);
+    expect((await call('GET', '/payslips')).body.candidates[0].amountCents).toBe(558000);
     await call('PUT', `/payslips/${created.body.payslip.id}`, {
-      ...input,
+      ...reimbursed,
       bookingId: b,
-      netCents: 279501,
+      netCents: 289501,
       taxCents: 49999,
     });
     expect((await call('GET', '/payslips')).body.links[0].differenceCents).toBe(-1);
@@ -172,7 +272,7 @@ describe('project management and P&L', () => {
     const created = await call('POST', '/projects', { name: 'Beispielprojekt' });
     expect(created.status).toBe(201);
     const id = created.body.project.id;
-    createBooking(
+    const incomeBooking = createBooking(
       db,
       {
         accountId: 'cash',
@@ -199,6 +299,13 @@ describe('project management and P&L', () => {
     expect(renamed.status).toBe(200);
     const archived = await call('PATCH', `/projects/${id}`, { archived: true });
     expect((await call('GET', '/lookups')).body.projects).toHaveLength(0);
+    expect((await call('GET', `/lookups?bookingId=${incomeBooking}`)).body.projects).toEqual([
+      { id, name: 'Neuer Projektname', archivedAt: expect.any(String) },
+    ]);
+    expect((await call('GET', '/lookups?bookingId=absent')).body.projects).toHaveLength(0);
+    expect(
+      (await call('PATCH', `/bookings/${incomeBooking}`, { memo: 'Synthetische Änderung' })).status,
+    ).toBe(200);
     expect(
       (
         await call('POST', '/bookings', {

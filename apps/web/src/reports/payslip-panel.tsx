@@ -96,7 +96,7 @@ export function PayslipPanel({
     if (!valid.success) {
       setError(
         valid.error.issues.find((issue) => issue.code === 'custom')?.message ??
-          'Bitte gültige nichtnegative Beträge, Monat und Bezeichnungen eingeben.',
+          'Bitte gültige Beträge, Monat und Bezeichnungen eingeben. Nur SV und Lohnsteuer dürfen negativ sein.',
       );
       return;
     }
@@ -194,8 +194,9 @@ export function PayslipPanel({
             }}
           />
           <p className="vnote">
-            Zusätzliche Bezüge unten ergänzen. SV und Lohnsteuer laut Zettel erfassen, auch bei
-            Sonderzahlungen.
+            Zusätzliche Bezüge und steuerfreie Erstattungen unten getrennt ergänzen. Telearbeit,
+            Fahrgeld und Reisespesen sind Erstattungen. Steuer auf Fahrgeld bleibt in der
+            Lohnsteuer.
           </p>
         </fieldset>
         <fieldset disabled={busy}>
@@ -216,6 +217,10 @@ export function PayslipPanel({
               setAmounts({ ...amounts, taxCents: v });
             }}
           />
+          <p className="vnote">
+            SV und Lohnsteuer laut Zettel erfassen. Erstattungen aus Aufrollungen mit negativem
+            Vorzeichen eingeben; Nachzahlungen mit positivem Vorzeichen.
+          </p>
           {lines.map((l, i) => (
             <div className="pp-line" key={i}>
               <label>
@@ -235,13 +240,19 @@ export function PayslipPanel({
                   onChange={(e) =>
                     setLines(
                       lines.map((x, j) =>
-                        j === i ? { ...x, section: e.target.value as 'earning' | 'deduction' } : x,
+                        j === i
+                          ? {
+                              ...x,
+                              section: e.target.value as PayslipInput['lines'][number]['section'],
+                            }
+                          : x,
                       ),
                     )
                   }
                 >
                   <option value="earning">Zusätzlicher Bezug</option>
                   <option value="deduction">Sonstiger Abzug</option>
+                  <option value="reimbursement">Steuerfreie Erstattung</option>
                 </select>
               </label>
               <AmountInput
@@ -294,6 +305,11 @@ export function PayslipPanel({
               { label: 'Brutto inkl. Zusätze', value: cents(control.grossCents) },
               { op: '-', label: 'Abzüge', value: cents(control.deductionsCents) },
               {
+                op: '+',
+                label: 'Steuerfreie Erstattungen',
+                value: cents(control.reimbursementsCents),
+              },
+              {
                 op: '=',
                 label: 'Rechnerische Auszahlung',
                 value: cents(control.calculatedNetCents),
@@ -322,8 +338,8 @@ export function PayslipPanel({
             </select>
           </label>
           <p className="vnote">
-            Eine kombinierte Auszahlung kann mit mehreren Zetteln verknüpft sein. Belegablage folgt
-            später.
+            Eine kombinierte Auszahlung kann mit mehreren Zetteln verknüpft sein. Die Auswahl zeigt
+            den Gehaltsanteil ohne steuerfreie Erstattungen. Belegablage folgt später.
           </p>
         </fieldset>
         {error && (

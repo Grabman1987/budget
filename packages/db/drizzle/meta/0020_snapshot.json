@@ -1,8 +1,8 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "1d2f907d-ce21-4197-9142-2c2c0a24183b",
-  "prevId": "dcf74b0d-4d43-41cc-bb6a-08ebaa033f8e",
+  "id": "ef2e7d5b-6ca8-4426-9370-243302c18ff7",
+  "prevId": "1d2f907d-ce21-4197-9142-2c2c0a24183b",
   "tables": {
     "account": {
       "name": "account",
@@ -4963,7 +4963,7 @@
       "checkConstraints": {
         "payslip_section_chk": {
           "name": "payslip_section_chk",
-          "value": "\"payslip_line\".\"section\" IN ('earning', 'deduction')"
+          "value": "\"payslip_line\".\"section\" IN ('earning', 'deduction', 'reimbursement')"
         }
       }
     },

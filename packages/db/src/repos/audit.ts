@@ -1,4 +1,5 @@
 import { assertContactUndoDependencies } from './contact-invariants';
+import { isDuplicatePayslip } from '@budget/domain';
 import { randomUUID } from 'node:crypto';
 import {
   and,
@@ -678,6 +679,16 @@ export function undo(
       else revertEntry(tx, entry, grouped, force);
     }
     flush();
+    if (originals.some((e) => e.entityType === 'payslip')) {
+      const live = tx.select().from(schema.payslip).where(isNull(schema.payslip.deletedAt)).all();
+      const touchedSlips = new Set(
+        originals.filter((e) => e.entityType === 'payslip').map((e) => e.entityId),
+      );
+      if (live.some((p) => touchedSlips.has(p.id) && isDuplicatePayslip(live, p)))
+        throw new AuditError(
+          'Für diesen Monat und diese Zahlungsart ist bereits ein Gehaltszettel erfasst.',
+        );
+    }
     if (expectedLinkPatches(tx, [...expectedLinkBookings]).length > 0) {
       throw new AuditError(
         'Cannot undo: the result would leave an expected payment linked to a missing, deleted, or mismatched booking; undo the related booking and occurrence action together',

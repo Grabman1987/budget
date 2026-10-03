@@ -17,7 +17,7 @@ import './payroll-projects.css';
 const pct = (ratio: number | null) =>
   ratio === null
     ? '–'
-    : `${new Intl.NumberFormat('de-AT', { maximumFractionDigits: 1 }).format(ratio * 100)} %`;
+    : `${new Intl.NumberFormat('de-AT', { maximumFractionDigits: 1 }).format(ratio * 100).replace('-', '−')} %`;
 const kindName = (p: { kind: string; specialType: string | null }) =>
   p.kind === 'regular'
     ? 'Laufendes Gehalt'
@@ -74,16 +74,34 @@ export function PayrollReport({ report, meta }: { report: ReportEntry; meta: Pag
                 <>
                   <div className="tbd-fig">
                     {parts?.whole}
-                    <small>{parts?.fraction} €</small>
+                    <small>,{parts?.fraction} €</small>
                   </div>
                   <DimensionChain
                     precision="cent"
                     label="Brutto zu Netto"
                     terms={[
                       { label: 'Brutto inkl. Zusätze', value: cents(data.month.grossCents) },
-                      { op: '-', label: 'SV-DN', value: cents(data.month.svCents) },
-                      { op: '-', label: 'Lohnsteuer', value: cents(data.month.taxCents) },
+                      {
+                        op: data.month.svCents < 0 ? '+' : '-',
+                        label: data.month.svCents < 0 ? 'SV-Erstattung (Aufrollung)' : 'SV-DN',
+                        value: cents(Math.abs(data.month.svCents)),
+                      },
+                      { op: '-', label: 'Lohnsteuer', value: cents(data.month.taxChargeCents) },
+                      ...(data.month.taxRefundCents > 0
+                        ? [
+                            {
+                              op: '+' as const,
+                              label: 'Lohnsteuer-Erstattung (Aufrollung)',
+                              value: cents(data.month.taxRefundCents),
+                            },
+                          ]
+                        : []),
                       { op: '-', label: 'Sonstige Abzüge', value: cents(data.month.otherCents) },
+                      {
+                        op: '+',
+                        label: 'Steuerfreie Erstattungen',
+                        value: cents(data.month.reimbursementsCents),
+                      },
                       {
                         op: '=',
                         label: 'Auszahlung',
@@ -92,24 +110,34 @@ export function PayrollReport({ report, meta }: { report: ReportEntry; meta: Pag
                       },
                     ]}
                   />
-                  <div
-                    className="pp-ratio"
-                    role="img"
-                    aria-label={`Abzugsquote ${pct(data.month.deductionRatio)}`}
-                  >
-                    {[
-                      data.month.netCents,
-                      data.month.svCents,
-                      data.month.taxCents,
-                      data.month.otherCents,
-                    ].map((v, i) => (
-                      <span key={i} className={`pp-ink-${i}`} style={{ flex: v || 0.001 }} />
-                    ))}
-                  </div>
+                  {data.month.grossCents > 0 &&
+                    data.month.svCents >= 0 &&
+                    data.month.taxRefundCents === 0 &&
+                    data.month.salaryNetCents >= 0 && (
+                      <div
+                        className="pp-ratio"
+                        role="img"
+                        aria-label={`Abzugsquote ${pct(data.month.deductionRatio)}`}
+                      >
+                        {[
+                          data.month.salaryNetCents,
+                          data.month.svCents,
+                          data.month.taxCents,
+                          data.month.otherCents,
+                        ].map((v, i) => (
+                          <span key={i} className={`pp-ink-${i}`} style={{ flex: v || 0.001 }} />
+                        ))}
+                      </div>
+                    )}
                   <p className="vnote">
                     Abzugsquote {pct(data.month.deductionRatio)} · SV {pct(data.month.svRatio)} ·
                     Lohnsteuer {pct(data.month.taxRatio)} · sonstige Abzüge{' '}
                     {pct(data.month.otherRatio)}
+                  </p>
+                  <p className="vnote">
+                    Quoten auf Brutto ohne steuerfreie Erstattungen. Aufrollungen zählen mit
+                    Vorzeichen; bei Brutto null ist die Quote nicht verfügbar. Das Anteilsband
+                    entfällt bei negativen Abzügen oder einer Lohnsteuer-Erstattung.
                   </p>
                 </>
               )}
@@ -136,12 +164,14 @@ export function PayrollReport({ report, meta }: { report: ReportEntry; meta: Pag
                           </tr>
                         ))}
                       <tr>
-                        <th>SV-DN</th>
-                        <td className="n">{eur(-p.svCents)}</td>
+                        <th>{p.svCents < 0 ? 'SV-Erstattung (Aufrollung)' : 'SV-DN'}</th>
+                        <td className="n">{eur(-p.svCents, { sign: true })}</td>
                       </tr>
                       <tr>
-                        <th>Lohnsteuer</th>
-                        <td className="n">{eur(-p.taxCents)}</td>
+                        <th>
+                          {p.taxCents < 0 ? 'Lohnsteuer-Erstattung (Aufrollung)' : 'Lohnsteuer'}
+                        </th>
+                        <td className="n">{eur(-p.taxCents, { sign: true })}</td>
                       </tr>
                       {p.lines
                         .filter((l) => l.section === 'deduction')
@@ -149,6 +179,14 @@ export function PayrollReport({ report, meta }: { report: ReportEntry; meta: Pag
                           <tr key={i}>
                             <th>{l.label}</th>
                             <td className="n">{eur(-l.amountCents)}</td>
+                          </tr>
+                        ))}
+                      {p.lines
+                        .filter((l) => l.section === 'reimbursement')
+                        .map((l, i) => (
+                          <tr key={`reimbursement-${i}`}>
+                            <th>Steuerfreie Erstattung · {l.label}</th>
+                            <td className="n">{eur(l.amountCents, { sign: true })}</td>
                           </tr>
                         ))}
                       <tr className="is-total">
@@ -170,12 +208,12 @@ export function PayrollReport({ report, meta }: { report: ReportEntry; meta: Pag
               </div>
               <PayrollProjectChart
                 months={data.timeline.map((r) => r.month)}
-                values={data.timeline.map((r) => (r.recorded ? r.netCents : null))}
+                values={data.timeline.map((r) => (r.recorded ? r.salaryNetCents : null))}
                 gross={data.timeline.map((r) => (r.recorded ? r.grossCents : null))}
               />
               <p className="vnote">
-                Tusche: Auszahlung · blasse Tusche: Brutto inkl. Zusätze. Fehlende Zettel bleiben
-                Lücken.
+                Tusche: Nettogehalt ohne steuerfreie Erstattungen · blasse Tusche: Brutto inkl.
+                Zusätze. Fehlende Zettel bleiben Lücken.
               </p>
             </section>
             <section className="mr-card mr-wide">
@@ -227,7 +265,8 @@ export function PayrollReport({ report, meta }: { report: ReportEntry; meta: Pag
                       <th className="n">SV-DN</th>
                       <th className="n">Lohnsteuer</th>
                       <th className="n">Sonstige Abzüge</th>
-                      <th className="n">Netto</th>
+                      <th className="n">Steuerfreie Erstattungen</th>
+                      <th className="n">Auszahlung</th>
                       <th className="n">Abzugsquote</th>
                       <th className="n">Zuwachs / gleiche Monate</th>
                     </tr>
@@ -244,6 +283,7 @@ export function PayrollReport({ report, meta }: { report: ReportEntry; meta: Pag
                           y.svCents,
                           y.taxCents,
                           y.otherCents,
+                          y.reimbursementsCents,
                           y.netCents,
                         ].map((v, i) => (
                           <td className="n" key={i}>
@@ -262,8 +302,8 @@ export function PayrollReport({ report, meta }: { report: ReportEntry; meta: Pag
                 </table>
               </ScrollRegion>
               <p className="vnote">
-                Keine Hochrechnung. Vergleich nur bei erfassten gleichen Monaten und Zahlungsarten
-                im Vorjahr.
+                Keine Hochrechnung. Bruttovergleich ohne steuerfreie Erstattungen und nur bei
+                erfassten gleichen Monaten und Zahlungsarten im Vorjahr.
               </p>
             </section>
             <section className="mr-card mr-wide">
@@ -273,6 +313,8 @@ export function PayrollReport({ report, meta }: { report: ReportEntry; meta: Pag
                   <thead>
                     <tr>
                       <th>Position</th>
+                      <th className="n">Nettogehalt</th>
+                      <th className="n">Steuerfreie Erstattungen</th>
                       <th className="n">Auszahlung</th>
                       <th>Zettel</th>
                     </tr>
@@ -287,9 +329,11 @@ export function PayrollReport({ report, meta }: { report: ReportEntry; meta: Pag
                               )
                             : `${s.position}. Gehalt`}
                         </th>
-                        <td className="n">
-                          {s.netCents === null ? 'nicht erfasst' : eur(s.netCents)}
-                        </td>
+                        {[s.salaryNetCents, s.reimbursementsCents, s.netCents].map((value, i) => (
+                          <td className="n" key={i}>
+                            {value === null ? 'nicht erfasst' : eur(value)}
+                          </td>
+                        ))}
                         <td>
                           {s.ids.map((id) => (
                             <Button variant="ghost" size="sm" key={id} onClick={() => open(id)}>
@@ -345,12 +389,14 @@ function LinkStatus({ data, id }: { data: PayrollData; id: string }) {
           )}
           {link?.status === 'mismatch' && (
             <p className="pp-warning">
-              Auszahlung weicht von der Buchung ab: {eur(link.differenceCents ?? 0, { sign: true })}
-              . Verknüpfte Zettel prüfen.
+              Gehaltsanteil weicht von der Buchung ab:{' '}
+              {eur(link.differenceCents ?? 0, { sign: true })}. Verknüpfte Zettel prüfen.
             </p>
           )}
           {link?.status === 'ok' && (
-            <p className="vnote">Auszahlung stimmt mit der Buchung überein.</p>
+            <p className="vnote">
+              Gehaltsanteil stimmt mit den Gehaltsanteilen der Buchung überein.
+            </p>
           )}
         </>
       )}

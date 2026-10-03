@@ -81,7 +81,18 @@ describe('tracked writes', () => {
   });
 
   it('records before/after on update, maintains updated_at, and skips no-op patches', () => {
-    createGroup();
+    // SQL and JS clocks can differ within a millisecond; use a known earlier fixture timestamp.
+    insertTracked(
+      db,
+      categoryGroup,
+      {
+        id: 'g1',
+        name: 'Wohnen',
+        createdAt: '2024-01-01T00:00:00.000Z',
+        updatedAt: '2024-01-01T00:00:00.000Z',
+      },
+      withGroup(ctx),
+    );
     const before = groupRow();
     expect(updateTracked(db, categoryGroup, ['g1'], { name: 'Wohnen' }, ctx)).toBe(false);
     expect(

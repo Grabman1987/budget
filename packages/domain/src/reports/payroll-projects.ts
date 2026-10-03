@@ -2,6 +2,7 @@ import { monthsBetween } from '../date';
 import { z } from 'zod';
 
 const money = z.number().int().min(0).max(100_000_000_000);
+const signedMoney = z.number().int().min(-100_000_000_000).max(100_000_000_000);
 const ref = z.string().min(1).max(64).nullable();
 export const payslipInput = z
   .object({
@@ -9,15 +10,15 @@ export const payslipInput = z
     kind: z.enum(['regular', 'special']),
     specialType: z.enum(['salary13', 'salary14', 'other']).nullable(),
     grossCents: money,
-    svCents: money,
-    taxCents: money,
+    svCents: signedMoney,
+    taxCents: signedMoney,
     netCents: money,
     bookingId: ref,
     receiptId: ref,
     lines: z
       .array(
         z.strictObject({
-          section: z.enum(['earning', 'deduction']),
+          section: z.enum(['earning', 'deduction', 'reimbursement']),
           label: z.string().trim().min(1).max(160),
           amountCents: money,
         }),
@@ -35,13 +36,29 @@ export const payslipInput = z
       ctx.addIssue({
         code: 'custom',
         path: ['netCents'],
-        message: 'Brutto + Zuschläge − Abzüge muss der Auszahlung entsprechen.',
+        message:
+          'Brutto + Bezüge − SV − Lohnsteuer − sonstige Abzüge + Erstattungen muss der Auszahlung entsprechen.',
       });
   });
 export type PayslipInput = z.infer<typeof payslipInput>;
 export type CapturedPayslip = PayslipInput & { id: string };
 
-/** Gross is the base gross; free earning lines are additional gross benefits. Tax is captured. */
+type PayslipPosition = Pick<PayslipInput, 'month' | 'kind' | 'specialType'> & { id?: string };
+/** The existing model represents other payments as special/other; multiple are allowed. */
+export function isDuplicatePayslip(slips: PayslipPosition[], candidate: PayslipPosition) {
+  return (
+    candidate.specialType !== 'other' &&
+    slips.some(
+      (p) =>
+        (candidate.id === undefined || p.id !== candidate.id) &&
+        p.month === candidate.month &&
+        p.kind === candidate.kind &&
+        p.specialType === candidate.specialType,
+    )
+  );
+}
+
+/** Additional earnings are gross salary; reimbursements are separate. Negative SV/tax means a refund. */
 export function payrollTotals(slips: PayslipInput[]) {
   const sum = (read: (p: PayslipInput) => number) => slips.reduce((n, p) => n + read(p), 0);
   const additionsCents = sum((p) =>
@@ -50,11 +67,16 @@ export function payrollTotals(slips: PayslipInput[]) {
   const otherCents = sum((p) =>
     p.lines.filter((l) => l.section === 'deduction').reduce((n, l) => n + l.amountCents, 0),
   );
+  const reimbursementsCents = sum((p) =>
+    p.lines.filter((l) => l.section === 'reimbursement').reduce((n, l) => n + l.amountCents, 0),
+  );
   const grossCents = sum((p) => p.grossCents) + additionsCents;
   const svCents = sum((p) => p.svCents),
     taxCents = sum((p) => p.taxCents),
     netCents = sum((p) => p.netCents);
   const deductionsCents = svCents + taxCents + otherCents;
+  const salaryNetCents = grossCents - deductionsCents;
+  // Ratios retain their sign for corrections; no gross denominator means unavailable.
   const ratio = (n: number) => (grossCents === 0 ? null : n / grossCents);
   return {
     grossCents,
@@ -63,8 +85,12 @@ export function payrollTotals(slips: PayslipInput[]) {
     taxCents,
     otherCents,
     deductionsCents,
+    reimbursementsCents,
+    salaryNetCents,
+    taxChargeCents: sum((p) => Math.max(0, p.taxCents)),
+    taxRefundCents: sum((p) => Math.max(0, -p.taxCents)),
     netCents,
-    calculatedNetCents: grossCents - deductionsCents,
+    calculatedNetCents: salaryNetCents + reimbursementsCents,
     deductionRatio: ratio(deductionsCents),
     svRatio: ratio(svCents),
     taxRatio: ratio(taxCents),
@@ -112,6 +138,8 @@ export function payrollReport(slips: CapturedPayslip[], month: string) {
     return {
       position: i + 1,
       netCents: matched.length ? payrollTotals(matched).netCents : null,
+      salaryNetCents: matched.length ? payrollTotals(matched).salaryNetCents : null,
+      reimbursementsCents: matched.length ? payrollTotals(matched).reimbursementsCents : null,
       ids: matched.map((p) => p.id),
     };
   });

@@ -40,7 +40,7 @@ export function PayrollProjectChart({
         role="img"
         aria-label={
           gross
-            ? 'Brutto und Auszahlung laufend je Monat; fehlende Werte unterbrechen die Linie.'
+            ? 'Brutto und Nettogehalt ohne steuerfreie Erstattungen laufend je Monat; fehlende Werte unterbrechen die Linie.'
             : 'Projektergebnis je Monat, Balken über und unter Null.'
         }
       >
