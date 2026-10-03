@@ -86,3 +86,22 @@
     min-height: 44px;
   }
 }
+
+.source-inbox-detail {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.source-inbox-detail summary {
+  cursor: pointer;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+}
+.source-inbox-detail pre {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font: inherit;
+}
+.source-inbox-detail ul {
+  padding-left: 20px;
+}

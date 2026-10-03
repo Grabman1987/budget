@@ -35,6 +35,7 @@ test('legacy import entry points cannot open the removed wizard or report', asyn
 
   await page.goto('/einstellungen/datenquellen?lauf=legacy&schritt=konten');
   await expect(page.getByRole('heading', { name: 'Bank-Sync (PSD2)', exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Krypto-Lesequelle' })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'YNAB-Import' })).toHaveCount(0);
   await expect(page.locator('input[type=file]')).toHaveCount(0);
 
