@@ -1,4 +1,4 @@
-import { Button } from '@budget/ui';
+import { Button, useAmountPrivacy } from '@budget/ui';
 import { AlertTriangle, CheckCircle2, Loader2 } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { errorText } from './labels';
@@ -23,6 +23,7 @@ export function ErrorNote({
   error: unknown;
   onRetry: () => void;
 }) {
+  useAmountPrivacy();
   return (
     <div className="rev-empty" role="alert">
       <AlertTriangle className="icon" size={18} strokeWidth={1.75} aria-hidden="true" />

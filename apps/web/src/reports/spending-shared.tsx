@@ -1,5 +1,5 @@
-import { SPENDING_PERIODS, type SpendingPeriod } from '@budget/domain';
-import { Segmented } from '@budget/ui';
+import { ReportPeriodControl } from './period-quick-select';
+import { isReportPeriod, SPENDING_PERIODS, type SpendingPeriod } from '@budget/domain';
 import type { UseQueryResult } from '@tanstack/react-query';
 import { useNavigate, useSearch } from '@tanstack/react-router';
 import type { ReactNode } from 'react';
@@ -61,8 +61,7 @@ export function bpText(bp: number | null, options: { sign?: boolean; digits?: 0 
 
 export const PERIOD_OPTIONS = SPENDING_PERIODS.map((value) => ({ value, label: value }));
 
-const isPeriod = (value: unknown): value is SpendingPeriod =>
-  typeof value === 'string' && (SPENDING_PERIODS as ReadonlyArray<string>).includes(value);
+const isPeriod = (value: unknown): value is SpendingPeriod => isReportPeriod(value);
 
 /** Period of the spending reports (`?zeitraum=`, default the last 12 months). */
 export function useReportPeriod(): [SpendingPeriod, (value: SpendingPeriod) => void] {
@@ -90,7 +89,8 @@ export function PeriodSwitch({
   onChange: (value: SpendingPeriod) => void;
 }) {
   return (
-    <Segmented
+    <ReportPeriodControl
+      trend={false}
       label="Zeitraum"
       options={PERIOD_OPTIONS}
       value={period}
@@ -116,7 +116,8 @@ export function periodName(period: SpendingPeriod, months: ReadonlyArray<string>
       return `letzte ${months.length} Monate`;
     case '3J':
       return `letzte ${months.length} Monate`;
-    case 'Alles':
+    default:
+      if (period.includes('..')) return `${monthLong(first)} bis ${monthLong(last)}`;
       return `seit ${monthShort(first)}`;
   }
 }

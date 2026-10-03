@@ -111,6 +111,14 @@ const server = serve({ fetch: app.fetch, port, hostname: '0.0.0.0' }, (info) => 
   );
 });
 
+// Node closes an idle keep-alive socket after 5 s. A client (or the Fly proxy, idle timeout 60 s)
+// that reuses it just as the server closes it gets ECONNRESET, and a long synchronous evaluation
+// (the rule book derives twelve month ends) makes that race likely. Keep sockets longer than the
+// proxy does; headersTimeout must stay above keepAliveTimeout.
+const httpServer = server as Partial<Server>;
+httpServer.keepAliveTimeout = 65_000;
+httpServer.headersTimeout = 66_000;
+
 // Graceful stop. As PID 1 in the container Node ignores SIGTERM unless a handler exists, and under
 // Litestream the parent waits for this process to exit before it flushes the last WAL frames.
 let stopping = false;

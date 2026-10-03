@@ -1,5 +1,5 @@
-import type { YearMonthRow, YearNetWorth } from '@budget/domain';
 import {
+  useAmountPrivacy,
   ChartSvg,
   ClassPatterns,
   Graticule,
@@ -8,6 +8,7 @@ import {
   usePatternPrefix,
   type Point,
 } from '@budget/ui';
+import type { YearMonthRow, YearNetWorth } from '@budget/domain';
 import { useElementWidth } from '../charts/use-element-width';
 import { eur } from '../ledger/format';
 import { kfmt, yTicks } from '../wealth/networth-model';
@@ -23,6 +24,7 @@ const MONTH_SLOTS = 12;
  * slot for every month of the year; months that are not in the report stay empty.
  */
 export function YearCashflowChart({ year, rows }: { year: number; rows: YearMonthRow[] }) {
+  useAmountPrivacy();
   const [ref, width] = useElementWidth<HTMLDivElement>();
   const prefix = usePatternPrefix('yr');
   const height = 190;
@@ -117,6 +119,7 @@ export function YearCashflowChart({ year, rows }: { year: number; rows: YearMont
 
 /** Sheet 1 B: net worth at the start and at every month end. */
 export function YearNetWorthChart({ netWorth }: { netWorth: YearNetWorth }) {
+  useAmountPrivacy();
   const [ref, width] = useElementWidth<HTMLDivElement>();
   const height = 170;
   const top = 12;

@@ -1,5 +1,6 @@
-import { todayInVienna } from '@budget/domain';
+import { incomeBudgetMonth, incomeMonthDefault, type IncomeMonthRule } from '@budget/domain';
 import {
+  useAmountPrivacy,
   AmountInput,
   Button,
   ClassSwatch,
@@ -9,9 +10,10 @@ import {
   Select,
   TextInput,
   type SegmentedOption,
+  maskMoneyText,
 } from '@budget/ui';
+import { todayInVienna } from '@budget/domain';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { useNavigate } from '@tanstack/react-router';
 import { CalendarClock, Check, Lock, Trash2, X } from 'lucide-react';
 import {
   useEffect,
@@ -21,7 +23,7 @@ import {
   type KeyboardEvent,
   type MutableRefObject,
 } from 'react';
-import { ApiError } from '../api/http';
+import { ApiError, request } from '../api/http';
 import { budgetQuery } from '../budget/budget-api';
 import { createPayee, setPayeeDefaultCategory } from './api';
 import {
@@ -60,6 +62,14 @@ import { ReceiptSection } from '../receipts/receipt-section';
 import { errorText } from './labels';
 import { useLedgerWrites } from './mutations';
 import { accountsQuery, lookupsQuery, payeesQuery } from './queries';
+import {
+  editQueued,
+  readChoices,
+  saveChoices,
+  type CaptureChoices,
+  type QueuedBooking,
+} from '../pwa/queue-store';
+import type { ListedBooking } from './types';
 
 const KINDS: ReadonlyArray<SegmentedOption<BookingKind>> = [
   { value: 'expense', label: 'Ausgabe' },
@@ -104,6 +114,8 @@ export function CaptureForm({
   dirtyRef,
   discard,
   requestClose,
+  queued,
+  onExpected,
 }: {
   state: NonNullable<BookingPanelState>;
   onDone: () => void;
@@ -111,24 +123,50 @@ export function CaptureForm({
   dirtyRef: MutableRefObject<boolean>;
   discard: DiscardAsk;
   requestClose: () => void;
+  queued?: QueuedBooking;
+  onExpected?: (booking: ListedBooking) => void;
 }) {
+  useAmountPrivacy();
   const qc = useQueryClient();
   const accounts = useQuery(accountsQuery());
   const lookups = useQuery(lookupsQuery(state.mode === 'edit' ? state.booking.id : undefined));
   const payees = useQuery(payeesQuery());
+  const incomeRules = useQuery({
+    queryKey: ['income-month-rules'],
+    queryFn: () => request<{ rules: IncomeMonthRule[] }>('GET', '/api/income-month-rules'),
+  });
   const writes = useLedgerWrites();
-  const navigate = useNavigate();
   const formRef = useRef<HTMLFormElement>(null);
 
   const [today] = useState(todayInVienna);
   const [memory] = useState(readMemory);
   const editing = state.mode === 'edit' ? state.booking : null;
+  const editDraft = editing
+    ? {
+        ...draftFromBooking(editing),
+        ...(editing.source === 'bank' &&
+        editing.splits.every((s) => !s.categoryId && !s.incomeTypeId)
+          ? { incomeNextMonth: undefined }
+          : {}),
+      }
+    : null;
   const [draft, setDraft] = useState<BookingDraft>(() =>
-    editing
-      ? draftFromBooking(editing)
-      : emptyDraft(state.mode === 'create' ? (state.accountId ?? '') : '', today),
+    queued
+      ? queued.draft
+      : editDraft
+        ? editDraft
+        : {
+            ...emptyDraft(state.mode === 'create' ? (state.accountId ?? '') : '', today),
+            ...(state.mode === 'create' ? state.prefill : {}),
+          },
   );
   const [errors, setErrors] = useState<DraftErrors & { form?: string }>({});
+  const [offlineChoices, setOfflineChoices] = useState<CaptureChoices>();
+  useEffect(() => {
+    void readChoices()
+      .then(setOfflineChoices)
+      .catch(() => undefined);
+  }, []);
   const [unlock, setUnlock] = useState(false);
   const [busy, setBusy] = useState(false);
   // Guards save() itself: held or repeated Ctrl+Enter must not send the booking twice.
@@ -142,11 +180,10 @@ export function CaptureForm({
     setDraft((d) => ({ ...d, [key]: value }));
 
   const open = useMemo(
-    () => orderAccounts(accounts.data?.accounts ?? [], memory.accounts),
-    [accounts.data, memory],
+    () => orderAccounts(accounts.data?.accounts ?? offlineChoices?.accounts ?? [], memory.accounts),
+    [accounts.data, offlineChoices, memory],
   );
-  const accountId =
-    draft.accountId || defaultAccountId(accounts.data?.accounts ?? [], memory.accounts);
+  const accountId = draft.accountId || defaultAccountId(open, memory.accounts);
   const isTransfer = draft.kind === 'transfer';
   const legOfTransfer = editing !== null && isTransferBooking(editing);
   const locked = editing?.status === 'reconciled';
@@ -159,11 +196,38 @@ export function CaptureForm({
   const month = /^\d{4}-\d{2}-\d{2}$/.test(draft.date) ? draft.date.slice(0, 7) : today.slice(0, 7);
   const budget = useQuery(budgetQuery(month));
   const all = useMemo(
-    () => pickableCategories(budget.data, lookups.data),
-    [budget.data, lookups.data],
+    () =>
+      budget.data || lookups.data
+        ? pickableCategories(budget.data, lookups.data)
+        : (offlineChoices?.categories ?? []),
+    [budget.data, lookups.data, offlineChoices],
   );
   // Archived categories are not offered; the field still names the one an old booking has.
   const pickable = useMemo(() => categoriesFor(all, draft.kind), [all, draft.kind]);
+  useEffect(() => {
+    if (!accounts.data || !lookups.data) return;
+    const choices: CaptureChoices = {
+      accounts: accounts.data.accounts
+        .filter((a) => !a.closedAt)
+        .map(({ id, name, type, onBudget, sortOrder, closedAt }) => ({
+          id,
+          name,
+          type,
+          onBudget,
+          sortOrder,
+          closedAt,
+        })),
+      categories: all.map((c) => ({ ...c, availableCents: null })),
+      contacts: lookups.data.contacts.map(({ id, name }) => ({ id, name })),
+      incomeTypes: lookups.data.incomeTypes.map(({ id, name }) => ({ id, name })),
+      projects: lookups.data.projects.map(({ id, name, archivedAt }) => ({
+        id,
+        name,
+        ...(archivedAt === undefined ? {} : { archivedAt }),
+      })),
+    };
+    void saveChoices(choices).catch(() => undefined);
+  }, [accounts.data, lookups.data, all]);
   const splitCategoryKey = draft.splits.map((x) => x.categoryId).join('|');
   // A split line that already has an archived category keeps listing it, so the line stays valid.
   const splitPickable = useMemo(
@@ -171,6 +235,12 @@ export function CaptureForm({
     [all, draft.kind, splitCategoryKey],
   );
   const selected = all.find((c) => c.id === draft.categoryId);
+  const ruleNextMonth = incomeMonthDefault(
+    incomeRules.data?.rules ?? [],
+    payees.data?.payees.find((p) => p.name.toLowerCase() === draft.payee.trim().toLowerCase())?.id,
+    draft.categoryId,
+    draft.incomeTypeId,
+  );
   const payeeDefault = (() => {
     const name = draft.payee.trim().toLowerCase();
     const row = payees.data?.payees.find((p) => p.name.toLowerCase() === name);
@@ -181,7 +251,7 @@ export function CaptureForm({
   const advanceCategoryId =
     budget.data?.categories.find((c) => c.kind === 'advance' && !c.hiddenAt)?.id ??
     lookups.data?.categories.find((c) => c.kind === 'advance')?.id;
-  const contacts = lookups.data?.contacts ?? [];
+  const contacts = lookups.data?.contacts ?? offlineChoices?.contacts ?? [];
   const trackingAccountIds = useMemo(
     () => new Set(open.filter((a) => !a.onBudget).map((a) => a.id)),
     [open],
@@ -204,9 +274,11 @@ export function CaptureForm({
       ],
     }));
 
-  const dirty = editing
-    ? JSON.stringify(strip(draft)) !== JSON.stringify(strip(draftFromBooking(editing)))
-    : captureDirty(draft, keptPayee);
+  const dirty = queued
+    ? JSON.stringify(strip(draft)) !== JSON.stringify(strip(queued.draft))
+    : editing
+      ? JSON.stringify(strip(draft)) !== JSON.stringify(strip(editDraft!))
+      : captureDirty(draft, keptPayee);
   // The panel opens to record money: the amount is the first thing typed. The dialog moves the
   // focus itself when it opens, so this runs after it.
   useEffect(() => {
@@ -247,6 +319,7 @@ export function CaptureForm({
       return {
         ...d,
         kind,
+        incomeNextMonth: kind === 'income' ? d.incomeNextMonth : false,
         categoryId: kind === 'transfer' || !valid ? '' : d.categoryId,
         incomeTypeId: kind === 'income' ? d.incomeTypeId : '',
         contactId: kind === 'transfer' ? '' : d.contactId,
@@ -287,8 +360,18 @@ export function CaptureForm({
 
   const save = async (andNew: boolean) => {
     if (saving.current) return;
+    if (draft.kind === 'income' && draft.incomeNextMonth === undefined && !incomeRules.isSuccess)
+      return setErrors({
+        form: 'Budgetmonat-Regeln noch nicht verfügbar. Bitte einen Monat ausdrücklich wählen oder später erneut versuchen.',
+      });
     if (blocked) return setErrors({ splits: 'Speichern geht erst, wenn der Rest 0,00 € ist.' });
-    const filled = { ...draft, accountId };
+    const filled = {
+      ...draft,
+      accountId,
+      ...(draft.kind === 'income' && editing && draft.incomeNextMonth === undefined
+        ? { incomeNextMonth: ruleNextMonth }
+        : {}),
+    };
     const advance = { advanceCategoryId, trackingAccountIds };
     saving.current = true;
     setBusy(true);
@@ -312,10 +395,18 @@ export function CaptureForm({
       const options = { ...advance, requireCategory: true, transferNeedsCategory: needsCategory };
       const dry = buildCreate(filled, planned, options);
       if (!dry.ok) return setErrors(dry.errors);
-      const built = buildCreate(filled, await resolvePayee(), options);
+      const built = buildCreate(filled, known?.id ?? null, options);
       if (!built.ok) return setErrors(built.errors);
-      await writes.create.mutateAsync(built.value);
-      learnPayeeDefault();
+      const input =
+        built.value.type === 'booking' && name && !known
+          ? { ...built.value, payeeName: name }
+          : built.value;
+      if (queued) {
+        await editQueued(queued.id, input, filled);
+        return onDone();
+      }
+      const result = await writes.create.mutateAsync({ input, draft: filled });
+      if (result) learnPayeeDefault();
       remember(accountId, draft.categoryId || null);
       if (!andNew) return onDone();
       // The next booking keeps the context (kind, account, date, payee and its category).
@@ -338,7 +429,9 @@ export function CaptureForm({
         form:
           error instanceof ApiError && error.code === 'reconciled_locked'
             ? LOCKED
-            : errorText(error),
+            : error instanceof Error && !(error instanceof ApiError)
+              ? error.message
+              : errorText(error),
       });
     } finally {
       saving.current = false;
@@ -552,7 +645,7 @@ export function CaptureForm({
             categories={splitPickable}
             accounts={open}
             accountId={accountId}
-            contacts={lookups.data?.contacts ?? []}
+            contacts={contacts}
             hasAdvanceCategory={Boolean(advanceCategoryId)}
             locked={splitLocked}
             error={errors.splits}
@@ -620,6 +713,33 @@ export function CaptureForm({
           )}
         </Field>
         {draft.kind === 'income' && (
+          <Field
+            label="Budgetmonat"
+            hint={`Zu verteilen: ${monthName(incomeBudgetMonth(draft.date || today, draft.incomeNextMonth ?? ruleNextMonth))}. Das Buchungsdatum bleibt erhalten.`}
+          >
+            {({ id }) => (
+              <Select
+                id={id}
+                value={
+                  draft.incomeNextMonth === undefined ? 'default' : String(draft.incomeNextMonth)
+                }
+                onChange={(e) =>
+                  set(
+                    'incomeNextMonth',
+                    e.target.value === 'default' ? undefined : e.target.value === 'true',
+                  )
+                }
+              >
+                <option value="default">
+                  Standard: {ruleNextMonth ? 'Folgemonat' : 'Buchungsmonat'}
+                </option>
+                <option value="false">Für diesen Monat</option>
+                <option value="true">Für nächsten Monat</option>
+              </Select>
+            )}
+          </Field>
+        )}
+        {draft.kind === 'income' && (
           <Field label="Einnahmeart">
             {({ id }) => (
               <Select
@@ -628,7 +748,7 @@ export function CaptureForm({
                 onChange={(e) => set('incomeTypeId', e.target.value)}
               >
                 <option value="">keine Angabe</option>
-                {(lookups.data?.incomeTypes ?? []).map((t) => (
+                {(lookups.data?.incomeTypes ?? offlineChoices?.incomeTypes ?? []).map((t) => (
                   <option key={t.id} value={t.id}>
                     {t.name}
                   </option>
@@ -654,7 +774,7 @@ export function CaptureForm({
             }
           />
         )}
-        {(lookups.data?.projects.length ?? 0) > 0 && (
+        {((lookups.data?.projects ?? offlineChoices?.projects)?.length ?? 0) > 0 && (
           <details
             className="kmore"
             open={moreOpen}
@@ -670,7 +790,7 @@ export function CaptureForm({
                     onChange={(e) => set('projectId', e.target.value)}
                   >
                     <option value="">kein Projekt</option>
-                    {(lookups.data?.projects ?? []).map((p) => (
+                    {(lookups.data?.projects ?? offlineChoices?.projects ?? []).map((p) => (
                       <option key={p.id} value={p.id}>
                         {p.name}
                         {p.archivedAt ? ' · archiviert' : ''}
@@ -684,7 +804,7 @@ export function CaptureForm({
         )}
         {errors.form && (
           <p className="field-error" role="alert">
-            {errors.form}
+            {maskMoneyText(errors.form)}
           </p>
         )}
         {editing && <ReceiptSection bookingId={editing.id} />}
@@ -724,10 +844,7 @@ export function CaptureForm({
                     return setErrors({ form: 'Speichere die Änderungen zuerst.' });
                   // The saved booking is the template of the new expected payment.
                   onDone();
-                  void navigate({
-                    to: '/plan/erwartet' as never,
-                    state: { expectedFrom: editing } as never,
-                  });
+                  onExpected?.(editing);
                 }}
               >
                 <CalendarClock size={16} strokeWidth={1.75} aria-hidden="true" />
@@ -736,7 +853,7 @@ export function CaptureForm({
             )}
           </div>
         )}
-        {!editing && (
+        {!editing && !queued && (
           <Button variant="ghost" disabled={busy || blocked} onClick={() => void save(true)}>
             Speichern und neu
           </Button>
@@ -764,6 +881,7 @@ function DateField({
   set: <K extends keyof BookingDraft>(key: K, value: BookingDraft[K]) => void;
   error: string | undefined;
 }) {
+  useAmountPrivacy();
   return (
     <div className="kdate">
       <Field label="Datum" error={error}>

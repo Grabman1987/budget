@@ -201,7 +201,6 @@ export function enableBanking(options: {
         const params = new URLSearchParams({
           date_from: from,
           date_to: to,
-          transaction_status: 'BOOK',
         });
         if (continuation) params.set('continuation_key', continuation);
         if (++pages > 3) throw new BankError('request_limit', 86400);
@@ -220,7 +219,7 @@ export function enableBanking(options: {
             continue;
           }
           const row = parsed.data;
-          if (row.status !== 'BOOK') continue;
+          if (row.status !== 'BOOK' && row.status !== 'PDNG') continue;
           const date = row.booking_date ?? row.value_date ?? row.transaction_date;
           if (!date) {
             skippedInvalid++;
@@ -239,6 +238,7 @@ export function enableBanking(options: {
             continue;
           }
           rows.push({
+            bankStatus: row.status === 'BOOK' ? 'booked' : 'pending',
             reference: row.entry_reference ?? null,
             date,
             amountCents: row.credit_debit_indicator === 'DBIT' ? -cents : cents,

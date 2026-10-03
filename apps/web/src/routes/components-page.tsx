@@ -1,6 +1,5 @@
-import { cents } from '@budget/domain';
-import { formatEuro } from '@budget/domain/money';
 import {
+  useAmountPrivacy,
   AmountInput,
   BottomSheet,
   Button,
@@ -26,6 +25,8 @@ import {
   type RevisionRow,
   type ThemePreference,
 } from '@budget/ui';
+import { cents } from '@budget/domain';
+import { formatEuro } from '@budget/domain/money';
 import { Link } from '@tanstack/react-router';
 import { useState, type CSSProperties } from 'react';
 import { ChartPrimitivesShowcase } from './bauteile-charts';
@@ -64,6 +65,7 @@ const THEME_OPTIONS: Array<{ value: ThemePreference; label: string }> = [
 const eur = (v: number) => formatEuro(cents(v));
 
 function ThemeSwitch() {
+  useAmountPrivacy();
   const [theme, setTheme] = useTheme();
   return (
     <Segmented<ThemePreference>
@@ -76,6 +78,7 @@ function ThemeSwitch() {
 }
 
 function Tokens() {
+  useAmountPrivacy();
   return (
     <section aria-labelledby="farben" id="farben">
       <SectionHead id="farben" title="Farben und Schrift" detail={1} />
@@ -111,6 +114,7 @@ function Tokens() {
 }
 
 function Basics() {
+  useAmountPrivacy();
   const [period, setPeriod] = useState('3M');
   const [auto, setAuto] = useState(true);
   const [text, setText] = useState('');
@@ -179,6 +183,7 @@ function Basics() {
 }
 
 function Amount() {
+  useAmountPrivacy();
   const [value, setValue] = useState('12,50+8,20');
   const [committed, setCommitted] = useState<number | null>(null);
   return (
@@ -205,6 +210,7 @@ function Amount() {
 }
 
 function Chains() {
+  useAmountPrivacy();
   const [panel, setPanel] = useState<string | null>(null);
   const [drawingOpen, setDrawingOpen] = useState(true);
   return (
@@ -317,6 +323,7 @@ const GROUPS = [
 ];
 
 function Lists() {
+  useAmountPrivacy();
   return (
     <section aria-labelledby="stueckliste" id="stueckliste">
       <SectionHead id="stueckliste" title="Stückliste" detail={5} />
@@ -351,6 +358,7 @@ const INITIAL_REVISIONS: RevisionRow[] = [
 ];
 
 function Revisions() {
+  useAmountPrivacy();
   const [rows, setRows] = useState(INITIAL_REVISIONS);
   const { show } = useToast();
   const finish = (id: string) => {
@@ -385,6 +393,7 @@ function Revisions() {
 }
 
 function Overlays() {
+  useAmountPrivacy();
   const [side, setSide] = useState(false);
   const [sheet, setSheet] = useState(false);
   const [amount, setAmount] = useState('');
@@ -416,6 +425,7 @@ function Overlays() {
 }
 
 function Header() {
+  useAmountPrivacy();
   const [register, setRegister] = useState('monat');
   return (
     <>
@@ -443,6 +453,7 @@ function Header() {
 
 /** /dev/bauteile: every primitive of the design system in both themes. */
 function ComponentsPage() {
+  useAmountPrivacy();
   return (
     <main className="dev">
       <Header />
@@ -465,6 +476,7 @@ function ComponentsPage() {
 }
 
 export function ComponentsRoute() {
+  useAmountPrivacy();
   return (
     <ToastProvider>
       <ComponentsPage />

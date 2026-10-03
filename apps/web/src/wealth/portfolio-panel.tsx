@@ -1,4 +1,12 @@
-import { Button, DetailPanel, Field, TextInput, useToast } from '@budget/ui';
+import {
+  useAmountPrivacy,
+  Button,
+  DetailPanel,
+  Field,
+  TextInput,
+  useToast,
+  maskMoneyText,
+} from '@budget/ui';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useBlocker } from '@tanstack/react-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -31,6 +39,7 @@ export function InstrumentPanel({
   onRetryPositions: () => void;
   onTrade: (id: string) => void;
 }) {
+  useAmountPrivacy();
   const creating = id === 'neu';
   const instrument = useQuery(instrumentQuery(creating ? '' : id));
   const [editing, setEditing] = useState(false);
@@ -297,6 +306,7 @@ function ManualQuote({
   onDirty: (dirty: boolean) => void;
   onBusy: (busy: boolean) => void;
 }) {
+  useAmountPrivacy();
   const [date, setDate] = useState(asOf);
   const [price, setPrice] = useState('');
   const [busy, setBusy] = useState(false);
@@ -379,6 +389,7 @@ function ManualQuote({
               id={id}
               inputMode="decimal"
               value={price}
+              money
               required
               maxLength={30}
               placeholder="0,00"
@@ -391,7 +402,7 @@ function ManualQuote({
         </Field>
         {error && (
           <p className="field-error" role="alert">
-            {error}
+            {maskMoneyText(error)}
           </p>
         )}
         <Button type="submit" disabled={busy}>

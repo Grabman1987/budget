@@ -1,3 +1,4 @@
+import { privateAmount } from '@budget/ui';
 import { longDay } from '../ledger/format';
 
 /** Formatting helpers shared by the Überblick reports (5.1, 5.2, 5.3, 5.5). German, de-AT. */
@@ -65,6 +66,6 @@ export const wholeText = (value: number) =>
   `${value < 0 ? '−' : ''}${String(Math.abs(Math.trunc(value))).replace(/\B(?=(\d{3})+(?!\d))/g, '.')}`;
 
 /** Whole euros from cents, grouped, without currency sign (compact table cells). */
-export const euroCellText = (cents: number) => wholeText(Math.round(cents / 100));
+export const euroCellText = (cents: number) => privateAmount(wholeText(Math.round(cents / 100)));
 
 export { longDay };

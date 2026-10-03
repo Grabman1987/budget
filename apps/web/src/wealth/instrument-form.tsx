@@ -1,4 +1,13 @@
-import { Button, Field, Select, TextInput, useToast } from '@budget/ui';
+import { parseScaledDecimal } from '@budget/domain';
+import {
+  Button,
+  Field,
+  Select,
+  TextInput,
+  useToast,
+  maskMoneyText,
+  useAmountPrivacy,
+} from '@budget/ui';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRef, useState, type FormEvent } from 'react';
 import { ApiError, request } from '../api/http';
@@ -24,6 +33,8 @@ type Draft = {
   isin: string;
   symbol: string;
   assetClassId: string;
+  ter: string;
+  leverage: string;
 };
 const draftFor = (security?: SecurityRecord): Draft => ({
   name: security?.name ?? '',
@@ -32,6 +43,8 @@ const draftFor = (security?: SecurityRecord): Draft => ({
   isin: security?.isin ?? '',
   symbol: security?.symbol ?? '',
   assetClassId: security?.assetClassId ?? '',
+  ter: String((security?.terBp ?? 0) / 100).replace('.', ','),
+  leverage: String((security?.leverageFactor ?? 10) / 10).replace('.', ','),
 });
 type Errors = Partial<Record<keyof Draft | 'form', string>>;
 
@@ -49,6 +62,7 @@ export function InstrumentForm({
   onSelect: (id?: string) => void;
   onBusy: (busy: boolean) => void;
 }) {
+  useAmountPrivacy();
   const [original] = useState(() => draftFor(security));
   const [draft, setDraft] = useState(original);
   const [errors, setErrors] = useState<Errors>({});
@@ -96,6 +110,16 @@ export function InstrumentForm({
       invalid.currency = 'Dreistelligen Währungscode eingeben, etwa EUR.';
     if (isin && !/^[A-Z]{2}[A-Z0-9]{9}\d$/.test(isin))
       invalid.isin = 'ISIN mit zwölf Zeichen eingeben.';
+    const terBp = /^\d+(?:[,.]\d{1,2})?$/.test(draft.ter)
+      ? parseScaledDecimal(draft.ter.replace(',', '.'), 2)
+      : null;
+    const leverageFactor = /^\d+(?:[,.]\d)?$/.test(draft.leverage)
+      ? parseScaledDecimal(draft.leverage.replace(',', '.'), 1)
+      : null;
+    if (terBp === null || terBp < 0 || terBp > 10000)
+      invalid.ter = 'TER zwischen 0 und 100 % eingeben, höchstens zwei Nachkommastellen.';
+    if (leverageFactor === null || leverageFactor < 10 || leverageFactor > 1000)
+      invalid.leverage = 'Faktor zwischen 1 und 100 eingeben, höchstens eine Nachkommastelle.';
     setErrors(invalid);
     if (Object.keys(invalid).length) return;
     saving.current = true;
@@ -104,6 +128,8 @@ export function InstrumentForm({
     try {
       const values = {
         name,
+        terBp,
+        leverageFactor,
         kind: draft.kind,
         currency,
         isin,
@@ -206,6 +232,34 @@ export function InstrumentForm({
             />
           )}
         </Field>
+        <Field label="TER (%)" error={errors.ter} hint="Bei ETF und Fonds bedeutet 0: unbekannt.">
+          {({ id, describedBy, invalid }) => (
+            <TextInput
+              id={id}
+              value={draft.ter}
+              inputMode="decimal"
+              aria-describedby={describedBy}
+              aria-invalid={invalid}
+              onChange={(e) => update('ter', e.target.value)}
+            />
+          )}
+        </Field>
+        <Field
+          label="Hebelfaktor"
+          error={errors.leverage}
+          hint="1 = ohne Hebel; etwa 2 für einen zweifachen Hebel."
+        >
+          {({ id, describedBy, invalid }) => (
+            <TextInput
+              id={id}
+              value={draft.leverage}
+              inputMode="decimal"
+              aria-describedby={describedBy}
+              aria-invalid={invalid}
+              onChange={(e) => update('leverage', e.target.value)}
+            />
+          )}
+        </Field>
         {classes.isPending && <LoadingNote what="Anlageklassen" />}
         {classes.isError && (
           <ErrorNote
@@ -233,7 +287,7 @@ export function InstrumentForm({
         </Field>
         {errors.form && (
           <p role="alert" className="field-error">
-            {errors.form}
+            {maskMoneyText(errors.form)}
           </p>
         )}
         <Button type="submit" disabled={busy || !classes.isSuccess || (!!security && !changed)}>

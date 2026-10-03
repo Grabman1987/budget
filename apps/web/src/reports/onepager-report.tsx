@@ -1,5 +1,11 @@
+import {
+  useAmountPrivacy,
+  CLASS_LABEL,
+  ClassSwatch,
+  DimensionChain,
+  RevisionTriangle,
+} from '@budget/ui';
 import { cents, MINUS } from '@budget/domain';
-import { CLASS_LABEL, ClassSwatch, DimensionChain, RevisionTriangle } from '@budget/ui';
 import { useQuery } from '@tanstack/react-query';
 import { HeutePaceChart } from '../heute/charts';
 import { eur, eurParts, longDay } from '../ledger/format';
@@ -21,6 +27,7 @@ const signed = (value: number) => eur(value, { cents: false, sign: true });
 const tone = (value: number) => (value > 0 ? 'is-up' : value < 0 ? 'is-down' : '');
 
 export function OnePagerReport({ report, meta }: { report: ReportEntry; meta: PageMeta }) {
+  useAmountPrivacy();
   const { month, shift, current } = useReportMonth();
   const query = useQuery(onePagerQuery(month));
   const data = query.data;
@@ -58,6 +65,7 @@ export function OnePagerReport({ report, meta }: { report: ReportEntry; meta: Pa
 }
 
 function Sheet({ data }: { data: OnePagerData }) {
+  useAmountPrivacy();
   const { result } = data;
   const parts = eurParts(result.savedCents);
   const yymm = `${data.month.slice(2, 4)}${data.month.slice(5, 7)}`;
@@ -141,6 +149,7 @@ function Sheet({ data }: { data: OnePagerData }) {
 
 /** Zone marks of the drawing frame, 1–6 across and A–F down. */
 function Zones() {
+  useAmountPrivacy();
   const numbers = [1, 2, 3, 4, 5, 6].map((i) => <span key={i}>{i}</span>);
   const letters = ['A', 'B', 'C', 'D', 'E', 'F'].map((i) => <span key={i}>{i}</span>);
   return (
@@ -154,6 +163,7 @@ function Zones() {
 }
 
 function Split523({ data }: { data: OnePagerData }) {
+  useAmountPrivacy();
   const a = data.allocation;
   const spend = a.needCents + a.wantCents + a.futureCents;
   const base = a.incomeCents;
@@ -222,6 +232,7 @@ const splitLabel = (data: OnePagerData) => {
 };
 
 function NetWorth({ data }: { data: OnePagerData }) {
+  useAmountPrivacy();
   const nw = data.netWorth;
   return (
     <section className="ps-sec ps-nw" aria-labelledby="ps-b">
@@ -252,6 +263,7 @@ function NetWorth({ data }: { data: OnePagerData }) {
 }
 
 function Top({ data }: { data: OnePagerData }) {
+  useAmountPrivacy();
   const max = data.top[0]?.cents ?? 1;
   return (
     <section className="ps-sec ps-top" aria-labelledby="ps-c">
@@ -289,6 +301,7 @@ function Top({ data }: { data: OnePagerData }) {
 }
 
 function Plan({ data }: { data: OnePagerData }) {
+  useAmountPrivacy();
   const { plan } = data;
   return (
     <section className="ps-sec ps-bud" aria-labelledby="ps-d">
@@ -316,6 +329,7 @@ function Plan({ data }: { data: OnePagerData }) {
 }
 
 function Check({ data }: { data: OnePagerData }) {
+  useAmountPrivacy();
   const check = data.check;
   return (
     <section className="ps-sec ps-chk" aria-labelledby="ps-e">
@@ -359,6 +373,7 @@ function Check({ data }: { data: OnePagerData }) {
 }
 
 function Findings({ data }: { data: OnePagerData }) {
+  useAmountPrivacy();
   return (
     <section className="ps-sec ps-wide ps-rev" aria-labelledby="ps-g">
       <h3 className="ps-h" id="ps-g">

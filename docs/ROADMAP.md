@@ -228,12 +228,13 @@ Order: P2a → P2b and P2c in parallel → P2d (parser can start right after P1f
 - [ ] Owner: category evaluation and mapping done, real import on the deployed app, Gate 2 report without difference
 
 ## P3 Planung und Steuerung
-Expected payments, contacts with receivables, savings goals, rule set R01–R16 + stages, Heute page, Posteingang basics.
+
+Expected payments, contacts with receivables, savings goals, rule set registered rules (`RULE_CODES`) + stages, Heute page, Posteingang basics.
 - [x] P3.3 `p3-kpi-domain`: pure KPI, pace, free-until-payday and liquidity-forecast functions in `packages/domain/src/{kpi,forecast}`
 - [x] Shared budget/category/goal/inbox write toasts report refused undo/redo and connection failures in German; rejected actions preserve stored/query state, successful audited chains retain refresh behavior
 - [x] P3.4 `p3-goals`: savings goals domain (`packages/domain/src/goals`), repo and `/api/goals` (audit, undo, adopt as category target), Plan › Sparziele page (parts list Offen/Erreicht, bars, panel)
-- [x] P3.5 `p3-rules-api`: rule engine `packages/domain/src/rules` (R01–R16 with zod params, `evaluateRule`, Finanz-Check summary), `ruleInputs` / `evaluateRules` / `financeCheck` read models, `ensureDefaultRules` at start, stage checklist with owner confirmation, additive `rule` migration, `/api/rules`
-- [x] P3.7 `p3-regelwerk-ui`: Einstellungen › Regelwerk (`apps/web/src/rules`): stage checklist in three columns with owner confirmation of non-computable items, rules R01–R16 with typed threshold panel (status, next step, undo), switches and thresholds as audited PATCH with undo toast
+- [x] P3.5 `p3-rules-api`: rule engine `packages/domain/src/rules` (registered rules (`RULE_CODES`) with zod params, `evaluateRule`, Finanz-Check summary), `ruleInputs` / `evaluateRules` / `financeCheck` read models, `ensureDefaultRules` at start, stage checklist with owner confirmation, additive `rule` migration, `/api/rules`
+- [x] P3.7 `p3-regelwerk-ui`: Einstellungen › Regelwerk (`apps/web/src/rules`): stage checklist in three columns with owner confirmation of non-computable items, rules registered rules (`RULE_CODES`) with typed threshold panel (status, next step, undo), switches and thresholds as audited PATCH with undo toast
 - [x] P3.9 `p3-heute-api`: `GET /api/heute?period=month|payday&month=` (one request: stand, lead with chain and drill-down, balance actual and forecast with salary jump and low point, pace, pinned envelopes, upcoming 14 days, Finanz-Check, net worth with delta and 12 month ends, last bookings, next steps), `packages/domain/src/heute`, `heute` read model, `category.pinned_at` (migration 0010) with `PATCH /categories/:id {pinned}`, pinned fixtures
 - [x] P3.10 `heute-page`: Heute wired to its read model (month/payday URL, lead drill-down, balance and pace, pinned envelopes, upcoming payments, Finanz-Check, net worth, latest bookings and next steps); capture/budget/rule edits and undo/redo refresh Today, actions open the source month or uncategorized bookings through today, mobile urgent step follows the lead. Browser coverage includes capture/undo/redo, actual navigation, negative lead in both themes, retry, empty states and settled chart endpoints; owner visual acceptance remains pending.
   - [x] Owner follow-up 2026-10-02: payday selection disabled outside the current month, URL/month fallback, Austrian business-day 15th planning rule, and month-specific Decken in multi-month plans; [behavior and calendar contract](month-navigation.md).
@@ -258,6 +259,18 @@ Expected payments, contacts with receivables, savings goals, rule set R01–R16 
 - [ ] Bank/assignment suggestions and source repair workflows; acknowledging a warning does not repair its source
 - [ ] Independent review, CI and owner acceptance of this workflow on the deployed app
 
+### UX quick wins (`feat/ux-quick-wins`)
+
+- [x] Device privacy toggle in header/profile and keyboard shortcut; monetary display/input/chart masking without changing stored values
+- [x] Capture category available amount: retained existing grouped picker, warning ink and regression coverage
+- [x] One authenticated storage-persistence request per device; status in Einstellungen › Sicherheit
+- [x] Plan › Monat uncategorized/pending inflow, outflow and net row with booking links; no duplicate budget deduction
+- [x] Rest verteilen fills an active populated split line with integer-cent remainder
+- [x] Today attention links for overspending, monthly funding, inbox and sequential payment cover; hidden when empty
+- [x] Mobile regression fixes: attention follows the urgent lead, privacy moves into the keyboard-accessible profile menu, and loaded zero account changes use the shared amount mask
+- [x] Validated `/erfassen` draft links, safe login continuation, normal explicit save and documentation
+- [ ] Delivery checks, draft PR and owner desktop/phone acceptance
+
 ### Y21 — Receipts
 
 - [x] Content-addressed volume storage (`RECEIPTS_DIR`), additive receipt metadata and n:m booking links; audited upload/link/unlink/remove and guarded undo/redo
@@ -272,18 +285,24 @@ Enable Banking adapter, worker with nightly run and catch-up, inbox items, assig
 
 ### P4.1 — PSD2 bank sync into the inbox
 - [x] RS256 adapter, step-up/session-bound consent, encrypted session/account identifiers, owner-selected EUR account mapping.
-- [x] Booked transaction staging and balance warnings, reference/fallback deduplication, explicit confirmation with audit/undo; no automatic bookings.
+- [x] Owner decision 41: BOOK transactions become unchecked, uncategorized bookings immediately; PDNG remains a candidate until confirmed. Per-connection confirmation-first override, stable-reference promotion/deduplication, bank balance warnings and separate replayable ledger audit; no automatic categorization or distribution.
 - [x] Separate nightly worker on the same volume, catch-up, durable leases/backoff, queued manual refresh and consent reminders.
 - [x] Datenquellen status/mapping UI and owner setup in `docs/DATA_SOURCES.md`; synthetic HTTP, domain, workflow and browser tests.
 - [x] Review corrections: changed-reference updates/warnings, duplicate-reference fallback, isolated account failures, 21-day overlap and durable four-request/day limit; tolerant rows/undated balances, stable balance warnings, redacted auth/config failures, callback pruning and versioned encryption.
 - [ ] Owner: register application, configure secrets, connect accounts, reconcile the first run and demonstrate 14 stable nights.
-- [ ] Assignment-rule engine, ambiguous history changes and transfer matching remain separate acceptance work.
+- [x] Bank follow-ups: closest +/-5-day manual-booking merge preserving memo/splits, confirmed mirror/selected-booking transfers with original dates, dated bank balance on Konten and guarded one-click reconciliation lock; grouped audit/undo, synthetic unit/API and isolated desktop/mobile coverage. Migration `0024_bank_followups` stores balance observations.
+- [ ] Assignment-rule engine, ambiguous history changes and owner/private matching and balance acceptance remain separate work.
 
 ### Crypto read source (P4/P5)
 - [x] Read-only current public API adapter; env-only key, paged resumable operation inbox, provider-ID deduplication and explicit investment/cash mappings.
 - [x] Native balance warnings, audited page/cursor writes, existing nightly timer hook and step-up protected manual fetch/full replay in Datenquellen. See [owner setup and limitations](crypto-read-source.md).
 - [x] Review fixes: mapping-independent acknowledgement/current display, row quarantine and categorized failures, tolerant balance reads with independent operations progress, unchanged-difference acknowledgement and bounded cursor history.
 - [ ] Owner key setup, private reconciliation and 14-day nightly acceptance; dedicated P4 worker and automated posting/matching remain separate.
+### Owner decision 42 — Income for the following budget month
+- [x] Persisted per-inflow "für nächsten Monat" option in desktop/mobile capture and editing; retain cash date, category and income type, defer Zu verteilen across month/year boundaries through the shared budget calculation.
+- [x] Einstellungen › Zuordnungsregeln: defaults per payee, income category or income type, specific precedence and explicit per-booking override. Apply to new owner captures/classification only; retain existing history. Audited rules and booking changes with undo/redo, bounded API validation and rejected transfer/contact/mixed-spend shapes.
+- [x] Cash-flow/income reports keep booking dates; budget 50/30/20 uses the assigned month. Synthetic domain/API tests and fixed-clock isolated desktop/mobile browser scenarios cover save, edit, override, undo/redo, accessibility and both themes. Changed files, checks and the open Windows full-check blocker: [decision evidence](evidence/owner-decisions-41-42.md).
+- [ ] Owner acceptance on actual bank feeds and the first month-end; ambiguous source identity changes still require manual review.
 
 ## P5 Vermögen
 Price history (yfinance + Ariva, source per price), ECB rates, trades and holdings, portfolio performance, allocation, Sparpläne, debts with extra repayment, freedom number with Soll-Pfad. **Gate 3:** returns and holdings equal Portfolio Performance.
@@ -355,10 +374,17 @@ Price history (yfinance + Ariva, source per price), ECB rates, trades and holdin
 
 
 ## P6 Reports und Umstellung
+### Planning income and shared report ranges — 2026-10-03
+- [x] Plan › Monat: expected household income versus all envelope monthly target requirements, source label, surplus/gap and keyboard-accessible unfunded-category details; reuse target/carry calculations and stored monthly holds. Live dated schedules take precedence; without schedules use the median of the preceding three complete months (before today for future planning). Missing amounts/currency/history remain unavailable. The existing payday rule defines a date, not a salary amount.
+- [x] Shared quick choices on every implemented selectable period report, including Explorer saved views: current/previous month, 3/6/12 complete months, current/previous calendar year, all, custom inclusive calendar months. Legacy period URLs and segmented controls remain supported; partial current months stop at today. Month/year-only, fixed-source and forecast reports keep their existing controls.
+- [x] Optional dotted linear fit of displayed actual time-series values, default off, URL-backed; no fit of forecasts, missing values or single points. Desktop/mobile light/dark, keyboard/Axe, synthetic fixed-clock unit/API/E2E evidence.
+- [ ] Owner design acceptance; orchestrator review/commit/PR and pinned Linux CI. No migration or automatic booking. No existing Linux screenshot baseline is expected to change: modified report/Plan tests capture evidence images, while shell baselines show the unchanged report catalog/Heute. See [scope, checks and changed files](evidence/income-targets-report-ranges.md).
+
 ### P6 — Static PWA baseline
 - [x] Build-versioned static shell cache, install manifest/icons derived from the existing brand mark, offline fallback and opt-in update prompt. API/auth/export/health are network-only.
 - [x] Offline reload has no financial figures; a connection loss retains unsaved form state and shows an offline/stale-data notice.
-- [ ] D07 offline booking persistence, retry/idempotency and conflict decisions, physical phone installation/passkeys and Gate 4 acceptance remain separate.
+- [x] Y26/D07: IndexedDB capture queue with local edit/delete, Heute/Konten counts, cold offline capture from minimal form choices, FIFO online/focus/manual retry and atomic API idempotency (migration 0022). Retain session/reference conflicts; uncertain delivery must be checked before editing/deleting. Synthetic unit/API and desktop/mobile offline browser coverage.
+- [ ] Physical phone installation/passkeys and Gate 4 acceptance remain separate. Month-close write locks have no current server model; the queue retains/explains typed lock rejections when provided, without inventing a month-close policy.
 
 ### Report 5.4 — Kontakte-Abrechnung
 - [x] Fixed all-time EUR report with shared replay running balances/credit chain, nonzero overview, balanced history/deep links, per-person ledger/stair chart, pending metadata and real booking/contact source navigation. No sending/settlement duplication or month selector; unsupported currency makes the entire read unavailable.

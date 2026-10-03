@@ -1,3 +1,4 @@
+import { checkedReportPeriod, reportPeriodSchema } from './report-period';
 import {
   applySavingsProposal,
   assetClassesInUse,
@@ -69,6 +70,7 @@ const securityFields = {
     .nullable(),
   currency: z.string().regex(/^[A-Z]{3}$/, 'Currency code such as EUR'),
   terBp: bp,
+  leverageFactor: z.int().min(10).max(1000),
   assetClassId: id.nullable(),
   /** The platform (broker, crypto or P2P provider) that holds the security. */
   institutionId: id.nullable(),
@@ -94,6 +96,7 @@ const securityCreate = z.object({
   isin: securityFields.isin.optional(),
   currency: securityFields.currency.default('EUR'),
   terBp: securityFields.terBp.default(0),
+  leverageFactor: securityFields.leverageFactor.default(10),
   assetClassId: securityFields.assetClassId.optional(),
   institutionId: securityFields.institutionId.optional(),
   benchmark: securityFields.benchmark.optional(),
@@ -406,7 +409,7 @@ export function savingsPlanRoutes(db: Db, today: () => string): Hono {
 
 // ---------- portfolio ----------
 const portfolioQuery = z.object({
-  period: z.enum(['1M', '3M', 'YTD', '1J', '3J', 'Alles']).default('1J'),
+  period: reportPeriodSchema.default('1J'),
   view: z.enum(['securities', 'depot']).default('securities'),
   benchmark: id.optional(),
   /** Depot view: comma-separated reference account ids (default: the investment accounts). */
@@ -416,7 +419,7 @@ const portfolioQuery = z.object({
 });
 
 const depotsQuery = z.object({
-  period: z.enum(['1M', '3M', 'YTD', '1J', '3J', 'Alles']).default('1J'),
+  period: reportPeriodSchema.default('1J'),
 });
 
 export function portfolioRoutes(db: Db, today: () => string): Hono {
@@ -425,7 +428,8 @@ export function portfolioRoutes(db: Db, today: () => string): Hono {
   app.get('/allocation', (c) => c.json(portfolioAllocation(db, today())));
   // Report 4.1: depots side by side for the selected period.
   app.get('/depots', (c) => {
-    const { period } = readQuery(c, depotsQuery);
+    const { period: rawPeriod } = readQuery(c, depotsQuery);
+    const period = checkedReportPeriod(rawPeriod, today());
     return c.json({ depots: depotComparison(db, { today: today(), period }) });
   });
   // Report 4.2: allocation by class/product and region/product, Soll/Ist over time.
@@ -444,7 +448,8 @@ export function portfolioRoutes(db: Db, today: () => string): Hono {
     return c.json({ ...setInvestmentCostMethod(db, costMethod, ctx), groupId: ctx.groupId });
   });
   app.get('/', (c) => {
-    const { period, view, benchmark, reference, history } = readQuery(c, portfolioQuery);
+    const { period: rawPeriod, view, benchmark, reference, history } = readQuery(c, portfolioQuery);
+    const period = checkedReportPeriod(rawPeriod, today());
     const refs = reference?.split(',').filter(Boolean);
     try {
       return c.json({

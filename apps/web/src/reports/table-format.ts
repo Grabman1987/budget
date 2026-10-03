@@ -1,4 +1,5 @@
-import { cents, formatEuro, formatPercent, MINUS, type Period } from '@budget/domain';
+import { formatPrivateEuro as formatEuro } from '@budget/ui';
+import { cents, formatPercent, MINUS, type Period } from '@budget/domain';
 
 /** Short month names of the table headers (de-AT). */
 export const MONTH_SHORT = [
@@ -72,7 +73,8 @@ export function periodName(period: Period, window: ReadonlyArray<string>): strin
       return 'letzte 12 Monate';
     case '3J':
       return 'letzte 3 Jahre';
-    case 'Alles':
+    default:
+      if (period.includes('..')) return `${monthLong(first)} bis ${monthLong(last)}`;
       return `seit ${monthShort(first)}`;
   }
 }

@@ -1,5 +1,5 @@
+import { useAmountPrivacy, DimensionChain } from '@budget/ui';
 import { cents } from '@budget/domain';
-import { DimensionChain } from '@budget/ui';
 import { useQuery } from '@tanstack/react-query';
 import { useSearch } from '@tanstack/react-router';
 import { useEffect, useRef, useState } from 'react';
@@ -34,6 +34,7 @@ const initials = (name: string) =>
     .map((word) => word[0])
     .join('');
 export function ContactReportPage() {
+  useAmountPrivacy();
   const overview = useQuery(contactOverviewQuery());
   const baseView = overview.isSuccess ? overview.data : undefined;
   const search = useSearch({ strict: false }) as { kontakt?: string };
@@ -227,6 +228,7 @@ export function ContactReportPage() {
   );
 }
 function ReportError({ what, error, retry }: { what: string; error: unknown; retry: () => void }) {
+  useAmountPrivacy();
   const unsupported = error instanceof ApiError && error.status === 422;
   return (
     <>
@@ -241,6 +243,7 @@ function ReportError({ what, error, retry }: { what: string; error: unknown; ret
   );
 }
 function Ledger({ statement }: { statement: ContactReportStatement }) {
+  useAmountPrivacy();
   return (
     <div className="rscroll">
       <table className="rtable">

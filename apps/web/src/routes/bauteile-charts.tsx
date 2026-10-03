@@ -1,4 +1,5 @@
 import {
+  useAmountPrivacy,
   AxisLine,
   Band,
   BarsAroundZero,
@@ -38,6 +39,7 @@ const market = [4, -9, 6, -3, 8, -12, 5, 9, -4, 7, 3, -6];
 const HEIGHT = 260;
 
 function LineTypes({ width }: { width: number }) {
+  useAmountPrivacy();
   const padL = 40;
   const padR = 20;
   const top = 12;
@@ -95,6 +97,7 @@ function LineTypes({ width }: { width: number }) {
 }
 
 function BarsAndBand({ width }: { width: number }) {
+  useAmountPrivacy();
   const padL = 40;
   const padR = 12;
   const top = 12;
@@ -138,6 +141,7 @@ function BarsAndBand({ width }: { width: number }) {
 }
 
 function SignedBars({ width }: { width: number }) {
+  useAmountPrivacy();
   const padL = 40;
   const padR = 12;
   const top = 12;
@@ -168,6 +172,7 @@ function SignedBars({ width }: { width: number }) {
 }
 
 function ClassBars({ width }: { width: number }) {
+  useAmountPrivacy();
   const prefix = usePatternPrefix('cb');
   const rows = [
     { key: 'need' as const, label: 'Bedarf', value: 50, fill: 'var(--need)' },
@@ -206,6 +211,7 @@ function ClassBars({ width }: { width: number }) {
 
 /** Chart primitives showcase (dev page): every mark of the blueprint grammar once. */
 export function ChartPrimitivesShowcase() {
+  useAmountPrivacy();
   const [aRef, aWidth] = useElementWidth<HTMLDivElement>();
   const [bRef, bWidth] = useElementWidth<HTMLDivElement>();
   const [cRef, cWidth] = useElementWidth<HTMLDivElement>();

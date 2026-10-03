@@ -1,3 +1,4 @@
+import { useAmountPrivacy, Button, ClassSwatch, DimensionChain, Segmented } from '@budget/ui';
 import {
   addMonths,
   cents,
@@ -6,7 +7,6 @@ import {
   type YearFinding,
   type YearReport,
 } from '@budget/domain';
-import { Button, ClassSwatch, DimensionChain, Segmented } from '@budget/ui';
 import { useQuery } from '@tanstack/react-query';
 import { Printer } from 'lucide-react';
 import { useState } from 'react';
@@ -31,6 +31,7 @@ import './jahresreport-page.css';
 const STATUS_WORD = { ok: 'erfüllt', warn: 'Warnung', bad: 'verletzt' } as const;
 
 export function JahresreportPage({ report, meta }: { report: ReportEntry; meta: PageMeta }) {
+  useAmountPrivacy();
   const [year, setYear] = useState<number | null>(null);
   const query = useQuery(yearReportQuery(year));
   const data = query.data;
@@ -111,6 +112,7 @@ export function JahresreportPage({ report, meta }: { report: ReportEntry; meta: 
 }
 
 function Sheets({ data }: { data: YearReportRead }) {
+  useAmountPrivacy();
   const { report } = data;
   const last = report.months[report.months.length - 1] as string;
   const range = report.partial ? `Jän–${monthShort(last)}` : '';
@@ -154,6 +156,7 @@ function Sheets({ data }: { data: YearReportRead }) {
 }
 
 function SheetFrame({ label, children }: { label: string; children: React.ReactNode }) {
+  useAmountPrivacy();
   return (
     <article className="ov-sheet" aria-label={label}>
       <div className="ov-sheet-body">{children}</div>
@@ -162,6 +165,7 @@ function SheetFrame({ label, children }: { label: string; children: React.ReactN
 }
 
 function SectionTitle({ letter, children }: { letter: string; children: React.ReactNode }) {
+  useAmountPrivacy();
   return (
     <h3 className="ov-sheet-h">
       <span aria-hidden="true">{letter}</span>
@@ -179,6 +183,7 @@ function SheetOne({
   range: string;
   titleBlock: React.ReactNode;
 }) {
+  useAmountPrivacy();
   const { report } = data;
   const nw = report.netWorth;
   const t = report.totals;
@@ -306,6 +311,7 @@ function SheetOne({
 }
 
 function CategoriesTable({ report }: { report: YearReport }) {
+  useAmountPrivacy();
   const rows = report.categories;
   const max = rows[0]?.cents ?? 1;
   return (
@@ -344,6 +350,7 @@ function CategoriesTable({ report }: { report: YearReport }) {
 }
 
 function SharesBar({ report }: { report: YearReport }) {
+  useAmountPrivacy();
   const s = report.shares;
   if (!s) return <p className="ov-sheet-note">Ohne Einkommen keine Verteilung.</p>;
   const parts = [
@@ -404,6 +411,7 @@ function findingRow(f: YearFinding, year: number): { text: string; value: string
 }
 
 function SheetTwo({ data, titleBlock }: { data: YearReportRead; titleBlock: React.ReactNode }) {
+  useAmountPrivacy();
   const { report, rules } = data;
   const violated = rules?.cells.filter((c) => c.status === 'bad') ?? [];
   const heatRows = report.categories.map((c) => ({

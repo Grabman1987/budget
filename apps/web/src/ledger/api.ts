@@ -120,10 +120,12 @@ export interface SplitInput {
 export type BookingCreate =
   | {
       type: 'booking';
+      incomeNextMonth?: boolean;
       accountId: string;
       date: string;
       amountCents: number;
       payeeId?: string | null;
+      payeeName?: string;
       memo?: string | null;
       status?: 'pending' | 'confirmed';
       flag?: BookingFlag | null;
@@ -143,6 +145,7 @@ export type BookingCreate =
     };
 
 export interface BookingPatch {
+  incomeNextMonth?: boolean;
   accountId?: string;
   date?: string;
   amountCents?: number;
@@ -155,8 +158,13 @@ export interface BookingPatch {
   unlockReconciled?: boolean;
 }
 
-export const createBooking = (input: BookingCreate) =>
-  request<{ bookings: ListedBooking[] } & WriteResult>('POST', '/api/bookings', input);
+export const createBooking = (input: BookingCreate, key?: string) =>
+  request<{ bookings: ListedBooking[] } & WriteResult>(
+    'POST',
+    '/api/bookings',
+    input,
+    key ? { 'Idempotency-Key': key } : undefined,
+  );
 
 export const patchBooking = (id: string, patch: BookingPatch) =>
   request<{ bookings: ListedBooking[] } & WriteResult>(

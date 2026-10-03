@@ -1,4 +1,4 @@
-import { DetailPanel } from '@budget/ui';
+import { useAmountPrivacy, DetailPanel } from '@budget/ui';
 import { useQuery } from '@tanstack/react-query';
 import { ChevronRight } from 'lucide-react';
 import { eur, longDay } from '../ledger/format';
@@ -9,6 +9,7 @@ import { StatusStamp } from './status-stamp';
 
 /** The month's income as a button (title block value or chain term) that opens the panel. */
 export function IncomeButton({ value, onOpen }: { value: string; onOpen: () => void }) {
+  useAmountPrivacy();
   return (
     <button type="button" className="xp-income-btn" onClick={onOpen}>
       {value}
@@ -34,6 +35,7 @@ export function IncomePanel({
   /** Everything booked as income in the month (Plan › Monat), expected or not. */
   bookedCents?: number | undefined;
 }) {
+  useAmountPrivacy();
   return (
     <DetailPanel open={open} onClose={onClose} title={`Einnahmen ${monthLabel(month)}`}>
       {open && <IncomeBody month={month} bookedCents={bookedCents} />}
@@ -42,6 +44,7 @@ export function IncomePanel({
 }
 
 function IncomeBody({ month, bookedCents }: { month: string; bookedCents?: number | undefined }) {
+  useAmountPrivacy();
   const income = useQuery(incomeQuery(month));
   if (income.isPending) return <LoadingNote what="Einnahmen" />;
   if (income.isError)

@@ -1,3 +1,4 @@
+import { useAmountPrivacy, ClassSwatch, DimensionChain, Segmented } from '@budget/ui';
 import {
   COMPARE_MODES,
   cents,
@@ -5,7 +6,6 @@ import {
   type CompareRow,
   type PeriodComparison,
 } from '@budget/domain';
-import { ClassSwatch, DimensionChain, Segmented } from '@budget/ui';
 import { useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
 import { eur } from '../ledger/format';
@@ -30,6 +30,7 @@ const changeBp = (now: number, before: number) =>
   before > 0 ? Math.round(((now - before) * 10_000) / before) : null;
 
 export function CompareReport({ report, meta }: { report: ReportEntry; meta: PageMeta }) {
+  useAmountPrivacy();
   const [mode, setMode] = useState<CompareMode>('vj');
   const query = useQuery(periodComparisonQuery(mode));
   const data = query.data;
@@ -96,6 +97,7 @@ export function CompareReport({ report, meta }: { report: ReportEntry; meta: Pag
 }
 
 function Delta({ now, before }: { now: number; before: number }) {
+  useAmountPrivacy();
   const bp = changeBp(now, before);
   return (
     <small>
@@ -106,6 +108,7 @@ function Delta({ now, before }: { now: number; before: number }) {
 }
 
 function Body({ comparison, fetching }: { comparison: PeriodComparison; fetching: boolean }) {
+  useAmountPrivacy();
   const { currentTotals: a, previousTotals: b, chain } = comparison;
   const partial = comparison.current.length < comparison.requestedMonths;
   return (
@@ -156,6 +159,7 @@ function Body({ comparison, fetching }: { comparison: PeriodComparison; fetching
 }
 
 function Rows({ rows }: { rows: CompareRow[] }) {
+  useAmountPrivacy();
   const maxDelta = Math.max(1, ...rows.map((r) => Math.abs(r.deltaCents)));
   return (
     <section className="card ov-card" aria-labelledby="vg-rows">

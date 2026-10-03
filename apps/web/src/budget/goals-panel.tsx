@@ -1,5 +1,5 @@
-import { cents, formatDecimal, parseAmount } from '@budget/domain';
 import {
+  useAmountPrivacy,
   AmountInput,
   Button,
   DetailPanel,
@@ -10,6 +10,7 @@ import {
   TextInput,
   type DimensionChainTerm,
 } from '@budget/ui';
+import { cents, formatDecimal, parseAmount } from '@budget/domain';
 import { useState } from 'react';
 import { AccountOptions } from '../ledger/account-options';
 import { eur, longDay } from '../ledger/format';
@@ -44,6 +45,7 @@ export function GoalPanel({
   accounts: AccountRow[];
   onClose: () => void;
 }) {
+  useAmountPrivacy();
   const creating = state.mode === 'create';
   const shown = state.mode === 'closed' || (state.mode === 'edit' && !goal) ? false : true;
   return (
@@ -82,6 +84,7 @@ function GoalBody({
   accounts: AccountRow[];
   onDone: () => void;
 }) {
+  useAmountPrivacy();
   const write = useBudgetWrite();
   const [name, setName] = useState(goal?.name ?? '');
   const [target, setTarget] = useState(goal ? formatDecimal(cents(goal.targetCents)) : '');
@@ -271,6 +274,7 @@ function GoalFigures({
   month: string;
   category: CategoryRow | undefined;
 }) {
+  useAmountPrivacy();
   const extra = Math.max(0, g.savedCents - g.targetCents);
   const terms: DimensionChainTerm[] = [
     { label: 'Gespart', value: cents(g.savedCents - extra) },

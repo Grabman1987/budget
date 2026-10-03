@@ -1,4 +1,14 @@
 import {
+  Button,
+  Field,
+  SectionHead,
+  Select,
+  TextInput,
+  useToast,
+  maskMoneyText,
+  useAmountPrivacy,
+} from '@budget/ui';
+import {
   deriveInitials,
   isPlausibleBirthDate,
   PROFILE_HOUSEHOLD_MAX,
@@ -9,7 +19,6 @@ import {
   type Profile,
   type RegionCode,
 } from '@budget/domain';
-import { Button, Field, SectionHead, Select, TextInput, useToast } from '@budget/ui';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import { ApiError, request } from '../api/http';
@@ -18,6 +27,7 @@ import { PROFILE_META } from '../nav/pages';
 import { PROFILE_KEY, PROFILE_PATH, profileQuery } from '../shell/use-profile';
 import { PageFrame } from './placeholder-page';
 import './profile-settings.css';
+import { PrivacyButton } from '../shell/privacy-button';
 
 interface Draft {
   name: string;
@@ -42,14 +52,24 @@ type Errors = Partial<Record<'birthDate' | 'household', string>>;
 
 /** Einstellungen › Profil: who the owner is, for the later comparison with Statistik Austria. */
 export function ProfileSettingsPage() {
+  useAmountPrivacy();
   return (
     <PageFrame meta={PROFILE_META} revealCurrentRegister>
+      <section className="profile-settings" aria-labelledby="privacy-title">
+        <SectionHead id="privacy-title" title="Privatmodus" />
+        <PrivacyButton text />
+        <p>
+          Beträge auf diesem Gerät verbergen · Strg Umschalt H. Buchungen und Berechnungen bleiben
+          unverändert.
+        </p>
+      </section>
       <ProfilePanel />
     </PageFrame>
   );
 }
 
 export function ProfilePanel() {
+  useAmountPrivacy();
   const query = useQuery(profileQuery());
   return (
     <section className="profile-settings" aria-labelledby="profile-title">
@@ -74,6 +94,7 @@ export function ProfilePanel() {
 }
 
 function ProfileForm({ saved }: { saved: Profile }) {
+  useAmountPrivacy();
   const client = useQueryClient();
   const toast = useToast();
   const [draft, setDraft] = useState<Draft>(() => draftOf(saved));
@@ -227,7 +248,7 @@ function ProfileForm({ saved }: { saved: Profile }) {
       </div>
       {error && (
         <p className="field-error" role="alert">
-          {error}
+          {maskMoneyText(error)}
         </p>
       )}
       <Button type="submit" disabled={busy || !dirty}>

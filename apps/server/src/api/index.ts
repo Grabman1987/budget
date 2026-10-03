@@ -1,5 +1,6 @@
 import { payrollRoutes, projectRoutes } from './payroll-projects';
 import { payslipIntakeRoutes } from './payslip-intake';
+import { incomeMonthRoutes } from './income-month';
 import { bankSyncFromEnv } from '../bank-sync/config';
 import type { BankSync } from '../bank-sync/service';
 import { bankSyncRoutes } from './bank-sync';
@@ -79,7 +80,8 @@ export function createLedgerApi({
   api.route('/payslips', payrollRoutes(db, today));
   api.route('/payslip-intake', payslipIntakeRoutes(db, receiptsDir));
   api.route('/projects', projectRoutes(db, today));
-  api.route('/bank-sync', bankSyncRoutes(bankSync, stepUp));
+  api.route('/income-month-rules', incomeMonthRoutes(db));
+  api.route('/bank-sync', bankSyncRoutes(bankSync, stepUp, db));
   api.route('/sources/crypto', readSourceRoutes(db, today, stepUp, cryptoReadSource()));
   api.route('/search', searchRoutes(db));
   api.route('/accounts', accountRoutes(db, today));
@@ -88,7 +90,7 @@ export function createLedgerApi({
   api.route('/receipts', receiptRoutes(db, receiptsDir));
   api.route('/payees', payeeRoutes(db));
   api.route('/categories', categoryRoutes(db));
-  api.route('/budget', budgetRoutes(db));
+  api.route('/budget', budgetRoutes(db, today));
   api.route('/expected', expectedRoutes(db, today));
   api.route('/export', exportRoutes(db, today, stepUp));
   api.route('/wealth', wealthRoutes(db, today));

@@ -1,4 +1,4 @@
-import { Button, SectionHead } from '@budget/ui';
+import { Button, SectionHead, maskMoneyText, useAmountPrivacy } from '@budget/ui';
 import { useState } from 'react';
 import { ApiError } from '../api/http';
 import { authErrorMessage, withStepUp } from '../auth/webauthn';
@@ -34,6 +34,7 @@ async function downloadCsvZip(): Promise<void> {
 }
 
 export function ExportPlaceholderPage() {
+  useAmountPrivacy();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | undefined>();
 
@@ -61,7 +62,7 @@ export function ExportPlaceholderPage() {
         </p>
         {error && (
           <p className="field-error" role="alert">
-            {error}
+            {maskMoneyText(error)}
           </p>
         )}
         <Button disabled={busy} onClick={() => void download()}>

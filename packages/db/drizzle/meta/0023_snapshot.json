@@ -1,8 +1,8 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "4e3db9b1-4583-4850-a274-9faf9e46c73e",
-  "prevId": "85a196b4-a16a-4dd5-975b-abf3536f2f71",
+  "id": "4e379a0d-6949-4246-bbd2-1e573ebb6e08",
+  "prevId": "99febfa7-7475-4391-8156-a775b03eba31",
   "tables": {
     "account": {
       "name": "account",
@@ -2330,6 +2330,14 @@
           "notNull": true,
           "autoincrement": false
         },
+        "income_next_month": {
+          "name": "income_next_month",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": false
+        },
         "amount_cents": {
           "name": "amount_cents",
           "type": "integer",
@@ -3977,6 +3985,14 @@
           "autoincrement": false,
           "default": 0
         },
+        "leverage_factor": {
+          "name": "leverage_factor",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 10
+        },
         "asset_class_id": {
           "name": "asset_class_id",
           "type": "text",
@@ -4722,6 +4738,75 @@
       "uniqueConstraints": {},
       "checkConstraints": {}
     },
+    "employer_pension": {
+      "name": "employer_pension",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "month": {
+          "name": "month",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "amount_cents": {
+          "name": "amount_cents",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "(strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "(strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))"
+        },
+        "deleted_at": {
+          "name": "deleted_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "employer_pension_month_uq": {
+          "name": "employer_pension_month_uq",
+          "columns": ["month"],
+          "isUnique": true
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {
+        "employer_pension_month_chk": {
+          "name": "employer_pension_month_chk",
+          "value": "\"employer_pension\".\"month\" GLOB '[0-9][0-9][0-9][0-9]-[01][0-9]'"
+        },
+        "employer_pension_amount_chk": {
+          "name": "employer_pension_amount_chk",
+          "value": "\"employer_pension\".\"amount_cents\" >= 0"
+        }
+      }
+    },
     "inbox_item": {
       "name": "inbox_item",
       "columns": {
@@ -5076,7 +5161,7 @@
       "checkConstraints": {
         "payslip_section_chk": {
           "name": "payslip_section_chk",
-          "value": "\"payslip_line\".\"section\" IN ('earning', 'deduction', 'reimbursement', 'tax_adjustment', 'sv_adjustment')"
+          "value": "\"payslip_line\".\"section\" IN ('earning', 'deduction', 'reimbursement')"
         }
       }
     },
@@ -5982,6 +6067,14 @@
           "notNull": true,
           "autoincrement": false
         },
+        "bank_status": {
+          "name": "bank_status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'booked'"
+        },
         "date": {
           "name": "date",
           "type": "text",
@@ -6149,203 +6242,6 @@
           "isUnique": true
         }
       },
-      "foreignKeys": {},
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "checkConstraints": {}
-    },
-    "payslip_intake": {
-      "name": "payslip_intake",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "text",
-          "primaryKey": true,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "sha256": {
-          "name": "sha256",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "content_hash": {
-          "name": "content_hash",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "source": {
-          "name": "source",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "receipt_id": {
-          "name": "receipt_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "parsed_json": {
-          "name": "parsed_json",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "status": {
-          "name": "status",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false,
-          "default": "'pending'"
-        },
-        "payslip_id": {
-          "name": "payslip_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false,
-          "default": "(strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))"
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false,
-          "default": "(strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))"
-        },
-        "deleted_at": {
-          "name": "deleted_at",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        }
-      },
-      "indexes": {
-        "payslip_intake_sha256_uq": {
-          "name": "payslip_intake_sha256_uq",
-          "columns": ["sha256"],
-          "isUnique": true
-        },
-        "payslip_intake_content_uq": {
-          "name": "payslip_intake_content_uq",
-          "columns": ["content_hash"],
-          "isUnique": true
-        }
-      },
-      "foreignKeys": {
-        "payslip_intake_receipt_id_receipt_id_fk": {
-          "name": "payslip_intake_receipt_id_receipt_id_fk",
-          "tableFrom": "payslip_intake",
-          "tableTo": "receipt",
-          "columnsFrom": ["receipt_id"],
-          "columnsTo": ["id"],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "payslip_intake_payslip_id_payslip_id_fk": {
-          "name": "payslip_intake_payslip_id_payslip_id_fk",
-          "tableFrom": "payslip_intake",
-          "tableTo": "payslip",
-          "columnsFrom": ["payslip_id"],
-          "columnsTo": ["id"],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "checkConstraints": {
-        "payslip_intake_status_chk": {
-          "name": "payslip_intake_status_chk",
-          "value": "\"payslip_intake\".\"status\" IN ('pending', 'confirmed', 'rejected')"
-        },
-        "payslip_intake_source_chk": {
-          "name": "payslip_intake_source_chk",
-          "value": "\"payslip_intake\".\"source\" IN ('manual', 'dropbox')"
-        }
-      }
-    },
-    "payslip_scan": {
-      "name": "payslip_scan",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "text",
-          "primaryKey": true,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "root": {
-          "name": "root",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "cursor": {
-          "name": "cursor",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "last_scan_at": {
-          "name": "last_scan_at",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "next_run_at": {
-          "name": "next_run_at",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "files_found": {
-          "name": "files_found",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false,
-          "default": 0
-        },
-        "errors": {
-          "name": "errors",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false,
-          "default": 0
-        },
-        "error_code": {
-          "name": "error_code",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        }
-      },
-      "indexes": {},
       "foreignKeys": {},
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},

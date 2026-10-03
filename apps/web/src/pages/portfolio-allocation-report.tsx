@@ -1,4 +1,4 @@
-import { ChartSvg, Graticule, LineLegend, type GraticuleLine } from '@budget/ui';
+import { useAmountPrivacy, ChartSvg, Graticule, LineLegend, type GraticuleLine } from '@budget/ui';
 import type { AllocationClass, AllocationHistory, AllocationReport } from '@budget/db';
 import { queryOptions, useQuery } from '@tanstack/react-query';
 import { AlertTriangle, CheckCircle2 } from 'lucide-react';
@@ -18,6 +18,7 @@ import {
   percentText,
 } from './portfolio-report-shared';
 import './portfolio-allocation-report.css';
+import { BookRuleMetric } from '../rules/book-rule-metric';
 
 interface AllocationResponse {
   allocation: AllocationReport;
@@ -40,6 +41,7 @@ export function PortfolioAllocationReport({
   report: ReportEntry;
   meta: PageMeta;
 }) {
+  useAmountPrivacy();
   const query = useQuery(allocationQuery);
   const data = query.data?.allocation;
   return (
@@ -58,6 +60,7 @@ export function PortfolioAllocationReport({
       }
     >
       <div className="prep portfolio-allocation-report">
+        <BookRuleMetric code="R21" />
         {query.isPending && <LoadingNote what="Allocation" />}
         {query.isError && (
           <ReportUnavailable
@@ -78,6 +81,7 @@ export function PortfolioAllocationReport({
 }
 
 function AllocationBody({ data }: { data: AllocationReport }) {
+  useAmountPrivacy();
   const unassigned = data.regions.find((r) => r.region === null);
   return (
     <>
@@ -219,6 +223,7 @@ function Sunburst({
   label: string;
   testId: string;
 }) {
+  useAmountPrivacy();
   const [ref, width] = useElementWidth<HTMLDivElement>();
   const size = Math.max(0, Math.min(width, 380));
   const cx = size / 2;
@@ -280,6 +285,7 @@ function Sunburst({
 // ---------- tables ----------
 
 function ClassTable({ classes, totalCents }: { classes: AllocationClass[]; totalCents: number }) {
+  useAmountPrivacy();
   return (
     <div
       className="prep-scroll"
@@ -340,6 +346,7 @@ function ClassTable({ classes, totalCents }: { classes: AllocationClass[]; total
 }
 
 function RegionTable({ data }: { data: AllocationReport }) {
+  useAmountPrivacy();
   return (
     <div
       className="prep-scroll alloc-regions"
@@ -374,6 +381,7 @@ function RegionTable({ data }: { data: AllocationReport }) {
 }
 
 function SollTable({ data }: { data: AllocationReport }) {
+  useAmountPrivacy();
   const spec = data.speculative;
   return (
     <>
@@ -443,6 +451,7 @@ function SollIstChart({
   history: AllocationHistory;
   order: Array<string | null>;
 }) {
+  useAmountPrivacy();
   const [ref, width] = useElementWidth<HTMLDivElement>();
   // Days before the first value have no shares.
   const first = history.totalCents.findIndex((v) => v > 0);

@@ -29,6 +29,30 @@ No percentage is inferred by counting pages, commits or tests.
 
 ## Budget and daily work: replacing the agreed YNAB workflows
 
+Planning/report improvement (2026-10-03): Plan › Monat compares live expected household
+income with the existing envelope monthly target requirements, including stored monthly
+holds, and opens unfunded categories. Without due schedules it labels the median of three
+complete earned-income months; incomplete schedules/history remain unavailable. The current
+payday rule has no configured salary amount, so it does not fabricate an amount-rule source.
+
+All implemented selectable-period reports (categories, savings, spending, recipients,
+cashflow, wealth history, depot comparison, contributions, returns and Explorer) share
+calendar-month quick selection and custom inclusive month ranges. Existing short period
+URLs and controls retain their semantics; current-month facts stop at today. Actual
+time-series charts offer an optional descriptive linear trend, off by default and retained
+in the URL. Month/year-only, fixed-source and forecast reports retain their scoped controls.
+No migration; owner acceptance and pinned Linux CI remain separate from local checks.
+See [delivery evidence and changed files](evidence/income-targets-report-ranges.md).
+UX quick wins (2026-10-03): device privacy mode with header/settings/keyboard controls,
+one authenticated storage-persistence request and settings status, explanatory monthly
+uncategorized/pending cash row, populated split-line remainder distribution, Today
+attention links and validated owner-saved capture URLs are implemented. The category
+picker's available-money column and negative warning ink already existed and were
+retained. See [capture links and device conveniences](capture-links.md) for semantics,
+synthetic URL examples and device owner steps. Browser/device acceptance and delivery
+evidence are tracked in the [review evidence](screenshots/ux-quick-wins/README.md);
+no database migration is needed.
+
 Prototype references: [Heute](../design/prototype/index.html),
 [Plan](../design/prototype/plan.html), [Konten](../design/prototype/konten.html),
 [Einstellungen](../design/prototype/einstellungen.html).
@@ -39,7 +63,7 @@ Prototype references: [Heute](../design/prototype/index.html),
 | Y02 | Account register, filters, sorting, booking details and running balances | UI + engine | Full native/EUR currency labelling across tables, charts and reconciliation |
 | Y03 | Income, expenses, arithmetic amount input, payees, categories and notes | UI + engine | Owner phone/desktop usability acceptance with migrated data |
 | Y04 | Split bookings, account transfers and bulk actions | UI + engine | Private reconciliation; trade/currency invariants have regression coverage |
-| Y05 | Kontostand prüfen and confirmed bookings | UI + engine | Real account comparison; no fabricated reconciliation adjustments |
+| Y05 | Kontostand prüfen and confirmed bookings | UI + engine + bank observation | Bank balance/date/fetch stamp and reconciled-through date; matching current balances can lock through today with audit/undo. Real account acceptance remains open |
 | Y06 | Categories/groups, Bedarf/Wunsch/Zukunft, targets and ordering | UI + engine | Owner-approved target categories and migration mapping |
 | Y07 | Zu verteilen, Zugewiesen, Aktivität, Verfügbar and rollover | UI + engine | Gate 2: cent-exact account/month/category comparison with mapped source |
 | Y08 | Credit-card payment categories and cash advances | Engine/API + budget integration | Real card mapping and payment-balance acceptance in Gate 2 |
@@ -50,20 +74,27 @@ Prototype references: [Heute](../design/prototype/index.html),
 | Y13 | Heute: free until payday, pace, low point, upcoming payments, next steps | UI + engine | Functional desktop/mobile checks passed, including capture/undo/redo and source navigation; owner visual/device acceptance remains open |
 | Y14 | Plan › Jahr, planned events and scenario workflow | UI + engine; owner acceptance pending | Twelve envelope reads plus category/month event grid; audited create/edit/switch-off/remove and undo/redo; once/monthly/quarterly/yearly/specific-month rules shared with liquidity report 3.1. Unsaved selected-event scenarios overlay future event deltas on stored Zu verteilen, with monthly and December comparison. No bookings, assignments or extra income extrapolation; owner visual/device acceptance remains open |
 | Y15 | Contacts, receivables, repayments and contact statements | EUR ledger/API + connected UI | Actual statement, retained balanced history, editable oldest-first allocation, explicit credit, atomic audit/undo and dependency guards implemented; foreign-currency statements, broader contact editing and owner workflow/design acceptance remain open. Derived balances do not enter net worth |
-| Y16 | Posteingang: categorize, accept/reject suggestions, resolve exceptions | Working basics: actual queue/count, categorize/confirm, warning acknowledgement with undo | Bank/assignment suggestion accept/reject flows and owner workflow acceptance remain open |
+| Y16 | Posteingang: categorize, accept/reject suggestions, resolve exceptions | Queue/count, categorize/confirm, bank merge/transfer decisions and acknowledgement with undo | Assignment-rule decisions and owner workflow acceptance remain open |
 | Y17 | Global search (Ctrl K) | UI + engine | Session-protected, bounded booking/payee/category/account/contact search; keyboard/touch navigation. Owner acceptance pending |
-| Y18 | Assignment rules / Immer so zuordnen | Partial; UI placeholder | Rule editor, safe automatic application and inbox decision integration |
-| Y19 | Bank connection, consent renewal and reconciliation | Open | Adapter, authorized connection workflow, deduplication, error handling and private bank acceptance |
+| Y18 | Assignment rules / Immer so zuordnen | Partial UI + engine | Income budget-month defaults per payee/category/type implemented (decision 42); broader categorization rules and inbox automation remain open |
+| Y19 | Bank connection, consent renewal and reconciliation | UI + engine + matching | Decision 41: BOOK immediately becomes an unchecked, uncategorized booking; PDNG stays a confirmation candidate. Per-source override, dedupe/audit and balance checks implemented. Owner-confirmed manual merge and mirror/selected-pair transfer linking (+/-5 days) for candidates and unchecked bank bookings, dated balance/reconciliation lock, audit/undo. Private bank acceptance remains |
 | Y20 | Nightly bank/source worker with catch-up | Partial | Market timer exists; full worker and 14-day stable nightly acceptance do not |
 | Y21 | Receipt photograph/upload and links to bookings | Implemented; owner acceptance open | Volume blobs, bounded authenticated upload, booking links/undo, inbox capture, previews/download and encrypted archive backup; metadata limits and real-phone/restore acceptance: [receipts](receipts.md) |
 | Y22 | Payslip lines, projects and side income | Connected slice | Manual audited/undoable EUR payslip capture and linked payouts; project create/rename/archive, active booking attribution and split-based P&L. Raise metadata and hourly rates remain open; payslip receipt attachment uses the receipts store |
-| Y23 | R01–R16, stages and Finanz-Check | UI + engine | Owner confirmations and actual-data rule acceptance; history report remains open |
+| Y23 | registered rules (`RULE_CODES`), stages and Finanz-Check | UI + engine | Book-derived checks, private inputs, configurable thresholds, disabled defaults; history derives twelve month ends plus today |
 | Y24 | Weekly inbox, payday distribution, month/year/quarter closing routines | Partial | Guided complete routines, completion states and resulting reports |
 | Y25 | Mobile capture, accessible layout, dark mode | UI + engine for built pages | Repeat matching mockup/visual/accessibility checks for every new page |
-| Y26 | Installable PWA and offline booking queue | Static-shell baseline | Manifest/icons, static-only service worker, offline fallback and update prompt implemented; offline bookings, synchronization/conflicts (D07) and physical device acceptance remain open. See [PWA contract](pwa.md) |
+| Y26 | Installable PWA and offline booking queue | Implemented; device acceptance open | Static-only shell plus IndexedDB booking capture/edit/delete, FIFO retry on online/focus/manual send, durable API idempotency and retained conflict/session reasons. No API response caching; physical phone acceptance remains open. See [PWA contract](pwa.md) |
 
 First private migration is EUR-only from 01.10.2023. Unsupported foreign-currency
 budget accounts are guarded; full foreign-currency support remains later scope.
+
+Owner decision 42: capture/edit offers **Für nächsten Monat** per inflow. Category
+and income type stay intact; account balances and cash-flow/income reports keep the
+actual date, while Zu verteilen and budget allocation use the following month.
+Defaults in Einstellungen › Zuordnungsregeln affect new owner captures only and can
+be overridden per booking. Transfers, contact repayments and mixed spending cannot
+be deferred. Rules/month changes are audited and undoable; private month-end acceptance remains.
 
 ## Investments and wealth: replacing the agreed Portfolio Performance workflows
 
@@ -144,7 +175,7 @@ consistent totals, desktop/mobile checks and printing where required.
 | 4.4 | Rendite und Kennzahlen | `reports-portfolio.js` | Partial: connected securities-only period metrics and lifetime documented realized gain; benchmark comparison, asset-class comparison and monthly heatmap remain open |
 | 4.5 | Kosten, Steuern, Erträge | `reports-portfolio.js` | Connected: 12-month chain gross income − broker tax on income − fees and TER = net, parts list, other broker taxes shown separately (as booked, no second withholding), illustrative latent KESt 27,5 % labelled as an example (upper bound, no loss netting), per-product table; unrecorded spreads are not included |
 | 5.1 | Jahresreport | `reports-ueberblick.js` | Connected (`/api/overview/year`): two A4 sheets (print = exactly two pages, checked by PDF e2e) from the full months of a calendar year: net worth chain (start + own + market = end, same series as Vermögen), Einkommen/Konsum/Zukunft/Sparquote, Kapitalerträge apart, cashflow and net worth charts, month list, ten largest categories with change vs. the same months of the year before, 50/30/20 as the rules count them, stored Finanz-Check of the year's last month end (only the last twelve month ends are stored), category × month heat table, findings. Depot return is shown as the market move of the net worth chain, not as TTWROR; Gehaltserhöhungen and Preisänderungen are not findings yet |
-| 5.2 | Finanz-Check-Verlauf | `reports-ueberblick.js` | Connected: stage with progress, current-stage and next-stage items, count chart and R01–R16 status strips from the stored `rule_result` rows (12 month ends + today, `/api/rules/results`), open actions, since-date per rule. Opening the report re-derives the stored results (idempotent); a day without data stays "nicht bewertbar" |
+| 5.2 | Finanz-Check-Verlauf | `reports-ueberblick.js` | Connected: stage with progress, current-stage and next-stage items, count chart and registered rules (`RULE_CODES`) status strips from the stored `rule_result` rows (12 month ends + today, `/api/rules/results`), open actions, since-date per rule. Opening the report re-derives the stored results (idempotent); a day without data stays "nicht bewertbar" |
 | 5.3 | Explorer | `reports-ueberblick.js` | Connected (`/api/overview/explorer`): pivot over the live booking splits (rows Kategorie, Gruppe, Klasse, Empfänger, Einnahmenart; columns Monat, Quartal, Jahr, keine; Summe, Ø je Monat, Anzahl Buchungen; windows 1M to Alles), row heat, totals, category and recipient rows open their bookings. Saved views are kept per browser (`localStorage`), not on the server; the choices are page state, not in the URL |
 | 5.4 | Kontakte-Abrechnung | `reports-ueberblick.js` | Fixed all-time EUR report: shared receivable/credit chain, per-person retained ledger, running balance stair chart and source drilldown. Pending bookings explicitly included; mixed currency unavailable. Owner/private acceptance remains |
 | 5.5 | Zeitraumvergleich | `reports-ueberblick.js` | Connected (`/api/overview/compare`): four modes, month-by-month pairing inside the ledger, Konsum chain (vorher + mehr − weniger = jetzt), per-category bars around zero; Kapitalerträge shown apart from Einkommen and Sparquote. Mode is page state, not in the URL |
@@ -194,3 +225,5 @@ Independent code tasks can proceed while private acceptance inputs are pending.
 The owner's remaining inputs are private export access and mapping decisions,
 source identifiers/conventions, device/recovery/restore checks and gate sign-offs.
 No new layout, bank credentials or financial assumptions should be guessed.
+
+Book-derived rules and their configurable parameters: [English specification](concept/book-rules.md). Optional source inputs remain private database values.

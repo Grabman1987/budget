@@ -1,3 +1,4 @@
+import { E2E_SETUP_TOKEN } from './e2e/setup-token';
 import { defineConfig, devices } from '@playwright/test';
 import { mkdirSync, rmSync } from 'node:fs';
 
@@ -7,7 +8,7 @@ const AUTH_DESKTOP_PORT = MAIN_PORT + 1;
 const AUTH_MOBILE_PORT = MAIN_PORT + 2;
 const SAMPLE_PORT = MAIN_PORT + 3;
 /** Test-only secret for the bootstrap; the servers below are throwaway and local. */
-export const E2E_SETUP_TOKEN = 'e2e-setup-token-not-a-secret';
+export { E2E_SETUP_TOKEN } from './e2e/setup-token';
 export const MAIN_URL = `http://localhost:${MAIN_PORT}`;
 export const STORAGE_STATE = 'test-results/.auth/main.json';
 export const SAMPLE_URL = `http://localhost:${SAMPLE_PORT}`;

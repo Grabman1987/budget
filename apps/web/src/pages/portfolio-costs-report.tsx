@@ -1,4 +1,4 @@
-import { DimensionChain } from '@budget/ui';
+import { useAmountPrivacy, DimensionChain } from '@budget/ui';
 import { cents } from '@budget/domain';
 import type { CostsTaxesReport } from '@budget/db';
 import { queryOptions, useQuery } from '@tanstack/react-query';
@@ -18,6 +18,7 @@ import {
   percentText,
 } from './portfolio-report-shared';
 import './portfolio-costs-report.css';
+import { BookRuleMetric } from '../rules/book-rule-metric';
 
 interface CostsResponse {
   costs: CostsTaxesReport;
@@ -30,6 +31,7 @@ const costsQuery = queryOptions({
 });
 
 export function PortfolioCostsReport({ report, meta }: { report: ReportEntry; meta: PageMeta }) {
+  useAmountPrivacy();
   const query = useQuery(costsQuery);
   const data = query.data?.costs;
   return (
@@ -46,6 +48,7 @@ export function PortfolioCostsReport({ report, meta }: { report: ReportEntry; me
       }
     >
       <div className="prep portfolio-costs-report">
+        <BookRuleMetric code="R22" />
         {query.isPending && <LoadingNote what="Kosten, Steuern und Erträge" />}
         {query.isError && (
           <ReportUnavailable
@@ -72,6 +75,7 @@ function Row({
   cents: number;
   note?: string;
 }) {
+  useAmountPrivacy();
   return (
     <tr>
       <td className="col-pos">{pos}</td>
@@ -85,6 +89,7 @@ function Row({
 }
 
 function CostsBody({ data }: { data: CostsTaxesReport }) {
+  useAmountPrivacy();
   const { net, income, taxes, costs, latent } = data;
   const empty = data.products.length === 0 && net.grossCents === 0 && costs.totalCents === 0;
   if (empty)

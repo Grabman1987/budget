@@ -21,6 +21,8 @@ const AFFECTED = [
   ['payslip-intake'],
   ['payslip-source'],
   ['payroll'],
+  ['income-month-rules'],
+  ['bank-sync'],
 ] as const;
 
 export const categoriesQuery = () =>

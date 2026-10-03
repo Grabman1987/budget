@@ -1,6 +1,6 @@
+import { useAmountPrivacy, ClassSwatch, DimensionChain } from '@budget/ui';
 import { cents } from '@budget/domain';
 import type { AllocationRow, BudgetAdherenceReport } from '@budget/db';
-import { ClassSwatch, DimensionChain } from '@budget/ui';
 import { queryOptions, useQuery } from '@tanstack/react-query';
 import { AlertTriangle, CheckCircle2, ChevronLeft, ChevronRight } from 'lucide-react';
 import { request } from '../api/http';
@@ -32,6 +32,7 @@ export function BudgetAdherenceReportPage({
   report: ReportEntry;
   meta: PageMeta;
 }) {
+  useAmountPrivacy();
   const [month, shift] = useMonth();
   const query = useQuery(adherenceQuery(month));
   const data = query.data && !query.isFetching ? query.data : undefined;
@@ -88,6 +89,7 @@ export function BudgetAdherenceReportPage({
 }
 
 function Unavailable({ data }: { data: BudgetAdherenceReport }) {
+  useAmountPrivacy();
   const text =
     data.status === 'no_budget'
       ? 'Es gibt noch kein Budgetkonto. Sobald eines angelegt ist, zeigt dieser Report Plan und Ist.'
@@ -107,6 +109,7 @@ function Unavailable({ data }: { data: BudgetAdherenceReport }) {
 }
 
 function Body({ data }: { data: BudgetAdherenceReport }) {
+  useAmountPrivacy();
   if (data.status !== 'ok') return <Unavailable data={data} />;
   const day = data.liveUntil ? `${Number(data.liveUntil.slice(8, 10))}.` : null;
   const max = Math.max(1, ...data.items.map((x) => Math.max(x.istCents, x.planCents)));
@@ -330,6 +333,7 @@ function Body({ data }: { data: BudgetAdherenceReport }) {
 }
 
 function Allocation({ row, current }: { row: AllocationRow; current: boolean }) {
+  useAmountPrivacy();
   const spend = row.needCents + row.wantCents + row.futureCents;
   const total = Math.max(row.incomeCents, spend);
   const width = (c: number) => `${total > 0 ? (Math.max(0, c) / total) * 100 : 0}%`;

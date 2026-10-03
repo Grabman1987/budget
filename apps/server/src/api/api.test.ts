@@ -83,6 +83,114 @@ const newBooking = async (accountId: string, over: Record<string, unknown> = {})
   return res.body as { id: string; groupId: string; bookings: Array<Record<string, any>> };
 };
 
+describe('booking delivery keys', () => {
+  const send = async (key: string, body: unknown) => {
+    const response = await app.request('/api/bookings', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', 'Idempotency-Key': key },
+      body: JSON.stringify(body),
+    });
+    return { status: response.status, body: (await response.json()) as Record<string, any> };
+  };
+  const bodyFor = (accountId: string) => ({
+    type: 'booking',
+    accountId,
+    date: '2026-03-10',
+    amountCents: -1250,
+    categoryId: 'essen',
+    payeeName: 'Queue shop',
+  });
+  it('replays one booking/payee/audit group, including after undo, and rejects a different payload', async () => {
+    const account = await newAccount();
+    const body = bodyFor(account.id);
+    const first = await send('synthetic-booking-key-01', body);
+    expect(first.status).toBe(201);
+    const auditCount = db.select().from(schema.auditLog).all().length;
+    const replay = await send('synthetic-booking-key-01', body);
+    expect(replay).toEqual(first);
+    expect(db.select().from(schema.auditLog).all()).toHaveLength(auditCount);
+    expect(
+      db
+        .select()
+        .from(schema.payee)
+        .all()
+        .filter((p) => p.name === 'Queue shop'),
+    ).toHaveLength(1);
+    expect((await send('synthetic-booking-key-01', { ...body, amountCents: -1400 })).status).toBe(
+      409,
+    );
+    expect((await call('POST', '/undo', { groupId: first.body['groupId'] })).status).toBe(200);
+    expect(await send('synthetic-booking-key-01', body)).toEqual(first);
+    expect(
+      db.select().from(schema.booking).where(eq(schema.booking.id, first.body['id'])).get()
+        ?.deletedAt,
+    ).not.toBeNull();
+  });
+  it('replays both transfer legs under concurrent requests without duplicate audit', async () => {
+    const from = await newAccount();
+    const to = await newAccount({ name: 'Queue savings' });
+    const body = {
+      type: 'transfer',
+      fromAccountId: from.id,
+      toAccountId: to.id,
+      date: '2026-03-10',
+      amountCents: 400,
+    };
+    const [first, second] = await Promise.all([
+      send('synthetic-transfer-key-01', body),
+      send('synthetic-transfer-key-01', body),
+    ]);
+    expect(first.status).toBe(201);
+    expect(second).toEqual(first);
+    expect(first.body['bookings']).toHaveLength(2);
+    expect(db.select().from(schema.bookingDelivery).all()).toHaveLength(1);
+    expect(db.select().from(schema.transfer).all()).toHaveLength(1);
+  });
+  it('rolls back payee, receipt and audit on invalid splits; the key remains usable', async () => {
+    const account = await newAccount();
+    const body = bodyFor(account.id);
+    const auditCount = db.select().from(schema.auditLog).all().length;
+    const bad = await send('synthetic-rollback-key-01', {
+      ...body,
+      splits: [{ categoryId: 'essen', amountCents: -100 }],
+    });
+    expect(bad.status).toBe(422);
+    expect(db.select().from(schema.bookingDelivery).all()).toEqual([]);
+    expect(db.select().from(schema.auditLog).all()).toHaveLength(auditCount);
+    expect(
+      db
+        .select()
+        .from(schema.payee)
+        .all()
+        .some((p) => p.name === 'Queue shop'),
+    ).toBe(false);
+    expect((await send('synthetic-rollback-key-01', body)).status).toBe(201);
+  });
+  it('retains actionable closed-account and deleted-category conflicts without claiming the key', async () => {
+    const account = await newAccount();
+    const body = bodyFor(account.id);
+    expect((await call('POST', `/accounts/${account.id}/close`, { force: true })).status).toBe(200);
+    expect((await send('synthetic-conflict-key-01', body)).body['error']).toBe('account_closed');
+    await call('POST', `/accounts/${account.id}/reopen`, {});
+    db.update(schema.category)
+      .set({ deletedAt: '2026-03-31T00:00:00Z' })
+      .where(eq(schema.category.id, 'essen'))
+      .run();
+    expect((await send('synthetic-conflict-key-01', body)).body['error']).toBe('category_deleted');
+    db.update(schema.account)
+      .set({ deletedAt: '2026-03-31T00:00:00Z' })
+      .where(eq(schema.account.id, account.id))
+      .run();
+    expect((await send('synthetic-conflict-key-01', body)).body['error']).toBe('account_deleted');
+    expect(db.select().from(schema.bookingDelivery).all()).toEqual([]);
+  });
+  it('bounds the header before performing any writes', async () => {
+    const account = await newAccount();
+    expect((await send('invalid', bodyFor(account.id))).status).toBe(400);
+    expect(db.select().from(schema.bookingDelivery).all()).toEqual([]);
+  });
+});
+
 describe('accounts', () => {
   it('rejects USD budget accounts with a readable 422 and accepts USD tracking accounts', async () => {
     const rejected = await call('POST', '/accounts', {

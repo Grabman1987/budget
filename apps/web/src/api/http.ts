@@ -20,7 +20,12 @@ export class ApiError extends Error {
 export type HttpMethod = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
 
 /** JSON request against the same origin; every failure becomes an `ApiError`. */
-export async function request<T>(method: HttpMethod, path: string, body?: unknown): Promise<T> {
+export async function request<T>(
+  method: HttpMethod,
+  path: string,
+  body?: unknown,
+  headers?: Record<string, string>,
+): Promise<T> {
   let response: Response;
   try {
     response = await fetch(path, {
@@ -29,7 +34,7 @@ export async function request<T>(method: HttpMethod, path: string, body?: unknow
       ...(method === 'GET'
         ? {}
         : {
-            headers: { 'content-type': 'application/json' },
+            headers: { 'content-type': 'application/json', ...headers },
             ...(body === undefined ? {} : { body: JSON.stringify(body) }),
           }),
     });
@@ -41,6 +46,7 @@ export async function request<T>(method: HttpMethod, path: string, body?: unknow
   try {
     payload = await response.json();
   } catch {
+    if (response.ok) throw new ApiError(0, 'network');
     payload = undefined;
   }
   if (!response.ok) {

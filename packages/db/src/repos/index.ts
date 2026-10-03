@@ -5,6 +5,8 @@ export * from './entities';
 export * from './account-order';
 export * from './operator-ops';
 export * from './operator-book';
+export * from './operator-payslips';
+export * from './operator-instrument-facts';
 export * from './bookings';
 export { assertLedgerInvariants, relatedTransferBookings } from './invariants';
 export * from './envelopes';
@@ -56,7 +58,11 @@ export * from './bank-costs-report';
 export * from './inflation-report';
 export * from './report-tables';
 export * from './cpi';
+export * from './book-settings';
 export * from './payroll-projects';
 export * from './payslip-intake';
 
 export * from './read-source';
+export * from './income-month';
+
+export * from './bank-followups';

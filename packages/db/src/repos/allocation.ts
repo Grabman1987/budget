@@ -1,5 +1,6 @@
 import {
   assignedMonth,
+  incomeBudgetMonth,
   type AllocMonth,
   type AssignedCategory,
   type BudgetMonth,
@@ -84,6 +85,7 @@ export function allocationMonth(
       cents: bookingSplit.amountCents,
       incomeTypeId: bookingSplit.incomeTypeId,
       date: booking.date,
+      incomeNextMonth: booking.incomeNextMonth,
       categoryId: bookingSplit.categoryId,
       categoryKind: category.kind,
     })
@@ -104,7 +106,7 @@ export function allocationMonth(
     .filter(
       (s) =>
         isIncomeCategorySplit(s.categoryId, s.categoryKind) &&
-        s.date.startsWith(month) &&
+        incomeBudgetMonth(s.date, s.incomeNextMonth) === month &&
         s.cents > 0 &&
         s.incomeTypeId !== INCOME_TYPES.special.id &&
         !NOT_HOUSEHOLD_INCOME.has(s.incomeTypeId ?? ''),

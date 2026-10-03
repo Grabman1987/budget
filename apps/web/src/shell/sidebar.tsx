@@ -5,6 +5,7 @@ import { AccountTree } from './account-tree';
 import { AppLink } from './app-link';
 import { ThemeButton } from './theme-button';
 import { useShellIdentity } from './use-profile';
+import { QueueBadge } from '../pwa/queue-ui';
 
 export function BrandMark() {
   return (
@@ -71,6 +72,7 @@ export function Sidebar({ area }: { area: AreaId | undefined }) {
                     <Icon className="icon" size={18} strokeWidth={1.75} aria-hidden="true" />
                   )}
                   <span className="label">{a.label}</span>
+                  {(a.id === 'heute' || a.id === 'konten') && <QueueBadge />}
                   <span className="sheet-no">{a.no}</span>
                 </AppLink>
               </li>

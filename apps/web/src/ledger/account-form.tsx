@@ -1,12 +1,22 @@
+import {
+  useAmountPrivacy,
+  AmountInput,
+  Button,
+  DetailPanel,
+  Field,
+  Select,
+  Switch,
+  TextInput,
+  useToast,
+  maskMoneyText,
+} from '@budget/ui';
 import { parseAmount, todayInVienna } from '@budget/domain';
-import { AmountInput, Button, DetailPanel, Field, Select, Switch, TextInput } from '@budget/ui';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useState, type FormEvent } from 'react';
 import { createAccount, undoGroup, type AccountInput } from './api';
 import { ACCOUNT_TYPE_LABEL, errorText } from './labels';
 import { LEDGER_KEY } from './queries';
 import { ACCOUNT_TYPES, type AccountType } from './types';
-import { useToast } from '@budget/ui';
 
 /** Types that can never be budget accounts (server rule); the switch is off and locked. */
 const TRACKING_ONLY: ReadonlySet<AccountType> = new Set([
@@ -50,6 +60,7 @@ type Errors = Partial<
  * The role and the budget membership follow from the type (loans and depots are tracking accounts).
  */
 export function AccountFormPanel({ open, onClose }: { open: boolean; onClose: () => void }) {
+  useAmountPrivacy();
   return (
     <DetailPanel open={open} onClose={onClose} title="Konto anlegen">
       <AccountForm onDone={onClose} />
@@ -58,6 +69,7 @@ export function AccountFormPanel({ open, onClose }: { open: boolean; onClose: ()
 }
 
 function AccountForm({ onDone }: { onDone: () => void }) {
+  useAmountPrivacy();
   const queryClient = useQueryClient();
   const toast = useToast();
   const [name, setName] = useState('');
@@ -250,7 +262,7 @@ function AccountForm({ onDone }: { onDone: () => void }) {
       )}
       {errors.form && (
         <p className="field-error" role="alert">
-          {errors.form}
+          {maskMoneyText(errors.form)}
         </p>
       )}
       <div className="panel-actions">

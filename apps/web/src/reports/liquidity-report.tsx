@@ -1,11 +1,20 @@
 import {
+  useAmountPrivacy,
+  AmountInput,
+  Button,
+  Field,
+  Select,
+  Segmented,
+  Switch,
+  TextInput,
+} from '@budget/ui';
+import {
   LIQUIDITY_BUFFER_PERCENT,
   parseAmount,
   type LiquidityHorizon,
   type LiquidityLeverId,
   type LiquidityReport,
 } from '@budget/domain';
-import { AmountInput, Button, Field, Select, Segmented, Switch, TextInput } from '@budget/ui';
 import { useQuery } from '@tanstack/react-query';
 import { AlertCircle, AlertTriangle, CheckCircle2, Plus, X } from 'lucide-react';
 import { useState, type FormEvent } from 'react';
@@ -62,6 +71,7 @@ const STATUS_TEXT: Record<PlannedEventView['status'], string> = {
 const monthLong = (month: string) => `${monthName(`${month}-01`)} ${month.slice(0, 4)}`;
 
 export function LiquidityReportPage({ report, meta }: { report: ReportEntry; meta: PageMeta }) {
+  useAmountPrivacy();
   const [horizon, setHorizon] = useState<LiquidityHorizon>('6m');
   const [levers, setLevers] = useState<LiquidityLeverId[]>([]);
   const query = useQuery(liquidityQuery(horizon, levers));
@@ -127,6 +137,7 @@ function ForecastCard({
   levers: ReadonlyArray<LiquidityLeverId>;
   stale: boolean;
 }) {
+  useAmountPrivacy();
   const { verdict, low, lowBuffer, lowPlain } = report;
   const Icon =
     verdict.status === 'ok'
@@ -234,6 +245,7 @@ function ForecastCard({
 }
 
 function EventsCard({ view }: { view: LiquidityReportView }) {
+  useAmountPrivacy();
   const write = useBudgetWrite();
   const today = view.asOf;
   const [name, setName] = useState('');
@@ -387,6 +399,7 @@ function EventRow({
   event: PlannedEventView;
   write: ReturnType<typeof useBudgetWrite>;
 }) {
+  useAmountPrivacy();
   const muted = e.status === 'past' || e.status === 'disabled' || e.status === 'off_budget';
   return (
     <tr className={muted ? 'is-muted' : undefined} data-testid="liq-event">
@@ -440,6 +453,7 @@ function LeversCard({
   report: LiquidityReport;
   onToggle: (id: LiquidityLeverId, on: boolean) => void;
 }) {
+  useAmountPrivacy();
   const levers = report.levers.filter((l) => l.available || l.active);
   return (
     <section className="card rf-card rf-side" aria-labelledby="liq-levers">
@@ -481,6 +495,7 @@ function LeversCard({
 }
 
 function OutlookCard({ report }: { report: LiquidityReport }) {
+  useAmountPrivacy();
   return (
     <section className="card rf-card rf-wide" aria-labelledby="liq-outlook">
       <div className="tbd-head">
@@ -546,6 +561,7 @@ function OutlookCard({ report }: { report: LiquidityReport }) {
 }
 
 function MovementsCard({ report }: { report: LiquidityReport }) {
+  useAmountPrivacy();
   return (
     <section className="card rf-card rf-wide" aria-labelledby="liq-moves">
       <div className="tbd-head">

@@ -33,6 +33,22 @@ function adapter(responses: unknown[], extraInstitutions: string[] = []) {
   };
 }
 describe('bank adapter with synthetic HTTP only', () => {
+  it('fetches both BOOK and PDNG without the BOOK-only filter, rejecting other statuses', async () => {
+    const { provider, http } = adapter([
+      {
+        transactions: [
+          row,
+          { ...row, status: 'PDNG', entry_reference: 'pending-a' },
+          { ...row, status: 'CNCL' },
+        ],
+      },
+    ]);
+    const result = await provider.transactions('uid', '2026-09-01', '2026-10-01');
+    expect(result.rows.map((r) => r.bankStatus)).toEqual(['booked', 'pending']);
+    expect(new URL(String(http.mock.calls[0]![0])).searchParams.has('transaction_status')).toBe(
+      false,
+    );
+  });
   it('signs a five-minute RS256 JWT with documented claims', () => {
     const jwt = bankJwt('synthetic-app', keys.privateKey, now);
     const [header, payload, signature] = jwt.split('.') as [string, string, string];
@@ -166,7 +182,7 @@ describe('bank adapter with synthetic HTTP only', () => {
     );
     expect((await provider.institutions()).map((i) => i.name)).toEqual(['Bank A', 'Bank B']);
   });
-  it('pages booked transactions, drops pending, and never uses unstable detail ids', async () => {
+  it('pages booked and pending transactions and never uses unstable detail ids', async () => {
     const { provider, http } = adapter([
       { transactions: [row, { ...row, status: 'PDNG' }], continuation_key: 'page-next' },
       {
@@ -177,6 +193,7 @@ describe('bank adapter with synthetic HTTP only', () => {
     expect(await provider.transactions('synthetic-uid', '2026-09-01', '2026-10-01')).toEqual({
       rows: [
         {
+          bankStatus: 'booked',
           reference: 'entry-a',
           date: '2026-09-30',
           amountCents: -1201,
@@ -184,6 +201,15 @@ describe('bank adapter with synthetic HTTP only', () => {
           memo: 'Shop A',
         },
         {
+          bankStatus: 'pending',
+          reference: 'entry-a',
+          date: '2026-09-30',
+          amountCents: -1201,
+          currency: 'EUR',
+          memo: 'Shop A',
+        },
+        {
+          bankStatus: 'booked',
           reference: null,
           date: '2026-09-30',
           amountCents: -1201,
@@ -195,7 +221,7 @@ describe('bank adapter with synthetic HTTP only', () => {
       skippedOutOfWindow: 0,
     });
     expect(String(http.mock.calls[1]![0])).toContain('continuation_key=page-next');
-    expect(String(http.mock.calls[0]![0])).toContain('transaction_status=BOOK');
+    expect(String(http.mock.calls[0]![0])).not.toContain('transaction_status=BOOK');
     expect(http.mock.calls[0]![1]).toMatchObject({ redirect: 'error' });
   });
   it('refuses paging cycles but skips malformed money with a redacted count', async () => {

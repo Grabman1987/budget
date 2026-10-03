@@ -1,4 +1,7 @@
-import { Button, Field, Select, TextInput } from '@budget/ui';
+import { canLinkTransfer } from '@budget/domain';
+import { request } from '../api/http';
+import { useBudgetWrite } from '../budget/use-category-writes';
+import { useAmountPrivacy, Button, Field, Select, TextInput } from '@budget/ui';
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
 import { useNavigate, useSearch } from '@tanstack/react-router';
 import { Plus } from 'lucide-react';
@@ -29,6 +32,7 @@ import {
 
 /** Alle Buchungen: filters in the URL, search, day groups, multi-select with bulk edit and undo. */
 export function BookingsPage() {
+  useAmountPrivacy();
   const search = useSearch({ strict: false }) as BookingsSearch;
   const navigate = useNavigate();
   const setSearch = (patch: Partial<BookingsSearch>) =>
@@ -48,6 +52,8 @@ export function BookingsPage() {
   const accounts = useQuery(accountsQuery());
   const lookups = useQuery(lookupsQuery());
   const writes = useLedgerWrites();
+  const write = useBudgetWrite();
+  const [linking, setLinking] = useState(false);
   const [panel, setPanel] = useState<BookingPanelState>(null);
   const [selected, setSelected] = useState<ReadonlySet<string>>(new Set());
   /** Bulk delete asks once more; any change of the selection withdraws the question. */
@@ -81,6 +87,18 @@ export function BookingsPage() {
       setSelected((prev) => (ids.every((id) => prev.has(id)) ? new Set() : new Set(ids))),
   };
   const ids = [...selected];
+  const pair = items.filter((b) => selected.has(b.id));
+  const canLink =
+    selected.size === 2 &&
+    pair.length === 2 &&
+    canLinkTransfer(pair[0]!, pair[1]!) &&
+    pair.every(
+      (b) =>
+        !b.transferId &&
+        b.status !== 'reconciled' &&
+        !b.originalCurrency &&
+        b.splits.every((s) => !s.transferId && !s.contactId),
+    );
   const bulkDone = () => setSelected(new Set());
 
   const sortKey: BookingSort = filter.sort ?? 'date';
@@ -170,6 +188,35 @@ export function BookingsPage() {
               >
                 Als bestätigt markieren
               </Button>
+              {canLink && (
+                <Button
+                  className="bank-link-action"
+                  size="sm"
+                  variant="ghost"
+                  disabled={linking}
+                  onClick={() => {
+                    setLinking(true);
+                    void write(
+                      () =>
+                        request<{ groupId: string }>('POST', '/api/bookings/link-transfer', {
+                          ids,
+                        }),
+                      () => 'Als Umbuchung verbunden; Kategorien entfernt.',
+                    )
+                      .then((result) => {
+                        if (result) bulkDone();
+                      })
+                      .finally(() => setLinking(false));
+                  }}
+                >
+                  Als Umbuchung verbinden
+                </Button>
+              )}
+              {canLink && (
+                <span className="kmeta">
+                  Kategorien werden entfernt. Beide Buchungstage bleiben erhalten.
+                </span>
+              )}
               {confirmDelete ? (
                 <span className="kbulk-confirm" role="group" aria-label="Löschen bestätigen">
                   <span>{pluralBookings(ids.length)} löschen?</span>
@@ -279,6 +326,7 @@ function FilterRow({
   accounts: ReadonlyArray<AccountRow>;
   lookups: Lookups | undefined;
 }) {
+  useAmountPrivacy();
   const [showClosed, setShowClosed] = useState(false);
   // The search box writes to the URL after a short pause so that every key stroke is not a request.
   const [q, setQ] = useState(search.q ?? '');
@@ -448,6 +496,7 @@ function CategoryFilter({
   lookups: Lookups | undefined;
   onChange: (categoryId: string) => void;
 }) {
+  useAmountPrivacy();
   const month = useMemo(() => todayInVienna().slice(0, 7), []);
   const budget = useQuery(budgetQuery(month));
   const categories = useMemo(
