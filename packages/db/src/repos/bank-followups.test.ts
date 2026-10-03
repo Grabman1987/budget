@@ -12,14 +12,16 @@ import {
   auditLog,
 } from '../schema';
 import { seedBasics } from './test-helpers';
-import { createBooking, createTransfer, getBooking } from './bookings';
+import { createBooking, createTransfer, getBooking, importBooking } from './bookings';
 import { undo } from './audit';
 import {
   bankBalanceForAccount,
+  bankBookingMatches,
   candidateMatches,
   linkBankCandidate,
   linkBookings,
   lockBankBalance,
+  mergeBankBooking,
   mergeBankCandidate,
 } from './bank-followups';
 import { bookedBalance } from './reconciliation';
@@ -280,5 +282,96 @@ describe('bank matching, transfer linking and reconciliation', () => {
     expect(() => lockBankBalance(opened.db, 'giro', today, ctx)).toThrow();
     opened.db.update(account).set({ closedAt: today }).where(eq(account.id, 'giro')).run();
     expect(() => lockBankBalance(opened.db, 'giro', today, ctx)).toThrow();
+  });
+});
+
+/** Decision 41: booked bank rows are already unchecked bookings, not open candidates. */
+describe('merging an already posted (unchecked) bank booking into a manual booking', () => {
+  function posted(amountCents = -1201, status: 'pending' | 'confirmed' = 'pending') {
+    const key = randomUUID();
+    const id = candidate(amountCents);
+    opened.db
+      .update(bankSyncCandidate)
+      .set({ dedupeKey: key })
+      .where(eq(bankSyncCandidate.id, id))
+      .run();
+    opened.db
+      .update(inboxItem)
+      .set({ resolvedAt: now, resolution: 'Kontowirksam übernommen' })
+      .where(eq(inboxItem.id, id))
+      .run();
+    const bookingId = createBooking(
+      opened.db,
+      {
+        accountId: 'giro',
+        date: today,
+        amountCents,
+        memo: 'Banktext',
+        source: 'bank',
+        importKey: 'bank-sync:' + key,
+        status,
+        splits: [{ amountCents }],
+      },
+      ctx,
+    );
+    return { id, key, bookingId };
+  }
+  it('counts the money once, keeps the manual identity and survives the next bank fetch', () => {
+    const own = manual();
+    const before = getBooking(opened.db, own)!;
+    const bank = posted();
+    expect(bankBookingMatches(opened.db, bank.bookingId).merge.map((b) => b.id)).toEqual([own]);
+    const result = mergeBankBooking(opened.db, bank.bookingId, own, ctx);
+    expect(getBooking(opened.db, own)).toMatchObject({
+      date: today,
+      source: 'bank',
+      status: 'confirmed',
+      memo: 'Handnotiz',
+      importKey: 'bank-sync:' + bank.key,
+      splits: before.splits,
+    });
+    expect(getBooking(opened.db, bank.bookingId)).toBeUndefined();
+    expect(bookedBalance(opened.db, 'giro', today)).toBe(98799);
+    expect(
+      opened.db.select().from(inboxItem).where(eq(inboxItem.id, bank.id)).get()!.resolution,
+    ).toBe('Zusammengeführt: ' + own);
+    // A later fetch of the same bank row finds the manual booking by its key: no duplicate.
+    expect(
+      importBooking(
+        opened.db,
+        {
+          accountId: 'giro',
+          date: today,
+          amountCents: -1201,
+          source: 'bank',
+          importKey: 'bank-sync:' + bank.key,
+          splits: [{ amountCents: -1201 }],
+        },
+        ctx,
+      ),
+    ).toEqual({ created: false, id: own });
+    const reverted = undo(opened.db, { groupId: result.groupId }, ctx);
+    expect(getBooking(opened.db, bank.bookingId)).toMatchObject({
+      source: 'bank',
+      status: 'pending',
+      importKey: 'bank-sync:' + bank.key,
+    });
+    expect(getBooking(opened.db, own)).toMatchObject({
+      source: 'manual',
+      status: 'pending',
+      importKey: null,
+    });
+    undo(opened.db, { groupId: reverted.groupId }, ctx);
+    expect(getBooking(opened.db, bank.bookingId)).toBeUndefined();
+  });
+  it('refuses checked, reconciled, mismatching and non-bank bookings', () => {
+    const own = manual();
+    expect(() => bankBookingMatches(opened.db, own)).toThrow();
+    const checked = posted(-1201, 'confirmed');
+    expect(() => bankBookingMatches(opened.db, checked.bookingId)).toThrow();
+    const other = posted(-5000);
+    expect(() => mergeBankBooking(opened.db, other.bookingId, own, ctx)).toThrow();
+    expect(getBooking(opened.db, own)!.source).toBe('manual');
+    expect(bankBookingMatches(opened.db, other.bookingId).merge).toEqual([]);
   });
 });

@@ -175,6 +175,44 @@ describe('bank API security boundary', () => {
     expect(provider.transactions).not.toHaveBeenCalled();
     expect(provider.balance).not.toHaveBeenCalled();
   });
+  it('merges an unchecked posted bank booking into a manual booking by session/origin with one undo group', async () => {
+    const make = (source: 'manual' | 'bank') =>
+      createBooking(
+        opened.db,
+        {
+          accountId: 'giro',
+          date: '2026-10-01',
+          amountCents: -129,
+          source,
+          status: 'pending',
+          ...(source === 'bank' ? { importKey: 'bank-sync:synthetic' } : {}),
+          splits: [{ amountCents: -129, ...(source === 'manual' ? { categoryId: 'essen' } : {}) }],
+        },
+        { actor: 'owner' },
+      );
+    const own = make('manual');
+    const posted = make('bank');
+    authenticated = false;
+    expect((await call('/bookings/' + posted + '/matches')).status).toBe(401);
+    authenticated = true;
+    fresh = false;
+    expect(
+      (await call('/bookings/' + posted + '/merge', { bookingId: own }, 'https://other.example'))
+        .status,
+    ).toBe(403);
+    expect(
+      (await call('/bookings/' + posted + '/merge', { bookingId: own, extra: 1 })).status,
+    ).toBe(400);
+    expect((await call('/bookings/' + own + '/matches')).status).toBe(409);
+    const matches = (await (await call('/bookings/' + posted + '/matches')).json()) as {
+      merge: { id: string }[];
+    };
+    expect(matches.merge.map((m) => m.id)).toEqual([own]);
+    const response = await call('/bookings/' + posted + '/merge', { bookingId: own });
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({ bookingId: own, groupId: expect.any(String) });
+    expect((await call('/bookings/' + posted + '/merge', { bookingId: own })).status).toBe(404);
+  });
   it('requires session, origin and fresh step-up before any consent HTTP request', async () => {
     authenticated = false;
     expect((await call('')).status).toBe(401);

@@ -1,4 +1,11 @@
-import { candidateMatches, mergeBankCandidate, linkBankCandidate, type Db } from '@budget/db';
+import {
+  bankBookingMatches,
+  candidateMatches,
+  linkBankCandidate,
+  mergeBankBooking,
+  mergeBankCandidate,
+  type Db,
+} from '@budget/db';
 import { randomUUID } from 'node:crypto';
 import { Hono, type MiddlewareHandler } from 'hono';
 import { z } from 'zod';
@@ -37,6 +44,19 @@ export function bankSyncRoutes(service: BankSync | null, stepUp: MiddlewareHandl
         ),
       );
     });
+  // Decision 41: a booked bank row is already an unchecked booking, merged into an earlier manual one.
+  app.get('/bookings/:id/matches', (c) =>
+    c.json(bankBookingMatches(db, z.string().min(1).max(200).parse(c.req.param('id')))),
+  );
+  app.post('/bookings/:id/merge', async (c) => {
+    const input = await readBody(c, z.object({ bookingId: z.string().min(1).max(200) }).strict());
+    return c.json(
+      mergeBankBooking(db, z.string().min(1).max(200).parse(c.req.param('id')), input.bookingId, {
+        actor: 'owner',
+        groupId: randomUUID(),
+      }),
+    );
+  });
   app.use('*', async (c, next) => (service ? next() : c.json({ error: 'not_configured' }, 503)));
   const id = z.string().uuid();
   const short = z.string().min(1).max(200);

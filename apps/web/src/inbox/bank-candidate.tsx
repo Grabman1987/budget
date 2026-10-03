@@ -144,3 +144,68 @@ export function BankCandidate({ id }: { id: string }) {
     </div>
   );
 }
+
+/**
+ * A booked bank row is already an unchecked booking (decision 41). Offer the merge into an earlier
+ * manual entry; nothing is shown while there is no match or the booking is not eligible.
+ */
+export function BankBookingMerge({ bookingId }: { bookingId: string }) {
+  const matches = useQuery({
+    queryKey: [...LEDGER_KEY, 'bank-booking-matches', bookingId],
+    queryFn: () =>
+      request<{ merge: Match[] }>(
+        'GET',
+        '/api/bank-sync/bookings/' + encodeURIComponent(bookingId) + '/matches',
+      ),
+    retry: false,
+  });
+  const [chosen, setChosen] = useState('');
+  const [busy, setBusy] = useState(false);
+  const write = useBudgetWrite();
+  const rows = matches.data?.merge ?? [];
+  if (!rows.length) return null;
+  const selected = chosen || rows[0]!.id;
+  return (
+    <div className="bank-candidate">
+      <Field label="Passende eigene Buchung (geringster Datumsabstand zuerst)">
+        {({ id: fieldId }) => (
+          <Select
+            id={fieldId}
+            value={selected}
+            disabled={busy}
+            onChange={(e) => setChosen(e.target.value)}
+          >
+            {rows.map((row) => (
+              <option key={row.id} value={row.id}>
+                {shortDay(row.date)} · {row.accountName} · {row.memo || 'Buchung'} ·{' '}
+                {eur(row.amountCents, { sign: true })}
+              </option>
+            ))}
+          </Select>
+        )}
+      </Field>
+      <p className="kmeta">
+        Deine Buchung bleibt mit Kategorie, Anteilen und Notiz erhalten und übernimmt Datum und
+        Bankreferenz. Die doppelte Bankbuchung entfällt.
+      </p>
+      <Button
+        size="sm"
+        disabled={busy}
+        onClick={() => {
+          setBusy(true);
+          void write(
+            () =>
+              request<{ groupId: string }>(
+                'POST',
+                '/api/bank-sync/bookings/' + encodeURIComponent(bookingId) + '/merge',
+                { bookingId: selected },
+              ),
+            () => 'Bankbuchung mit eigener Buchung zusammengeführt.',
+          ).finally(() => setBusy(false));
+        }}
+      >
+        Mit eigener Buchung zusammenführen
+      </Button>
+    </div>
+  );
+}

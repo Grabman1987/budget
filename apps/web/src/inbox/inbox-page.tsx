@@ -1,4 +1,4 @@
-import { BankCandidate } from './bank-candidate';
+import { BankBookingMerge, BankCandidate } from './bank-candidate';
 import { ReadSourceDetail } from './read-source-detail';
 import { Button, DetailPanel, RevisionTriangle, SectionHead, useToast } from '@budget/ui';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -262,6 +262,9 @@ function InboxRow({
               >
                 Bestätigen
               </Button>
+            )}
+            {item.status === 'pending' && item.source === 'bank' && (
+              <BankBookingMerge bookingId={item.bookingId} />
             )}
           </>
         ) : (

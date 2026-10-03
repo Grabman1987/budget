@@ -6,6 +6,7 @@ import { createBooking } from './bookings';
 import { createExpectedPayment, addExpectedVersion } from './expected';
 import { budgetSummary } from './budget';
 import { planIncomeTargets } from './income-targets';
+import { saveIncomeMonthRules } from './income-month';
 import { seedBasics, testCtx as ctx } from './test-helpers';
 import { undo } from './audit';
 
@@ -121,5 +122,58 @@ describe('Plan income target sources', () => {
       expectedCents: null,
       differenceCents: null,
     });
+  });
+  it('counts expected and historic income in the month it is assigned to (decision 42)', () => {
+    const db = opened.db;
+    const made = createExpectedPayment(
+      db,
+      {
+        name: 'Monatseinkommen',
+        kind: 'inflow',
+        rhythm: 'monthly',
+        dueDay: 28,
+        accountId: 'giro',
+        incomeTypeId: INCOME_TYPES.salary.id,
+      },
+      { validFrom: '2026-01-01', amountCents: 200_000 },
+      ctx,
+      '2026-09-17',
+    );
+    addExpectedVersion(
+      db,
+      made.payment.id,
+      { validFrom: '2026-09-01', amountCents: 250_000 },
+      ctx,
+      '2026-09-17',
+    );
+    expect(view().expectedCents).toBe(250_000);
+    // Paid at the end of a month, budgeted for the next one: September uses the 28 August amount.
+    saveIncomeMonthRules(
+      db,
+      [{ scope: 'incomeType', targetId: INCOME_TYPES.salary.id, nextMonth: true }],
+      ctx,
+    );
+    expect(view().expectedCents).toBe(200_000);
+    expect(view('2026-10').expectedCents).toBe(250_000);
+  });
+  it('shifts earned-income history to the assigned month', () => {
+    for (const [date, cents, next] of [
+      ['2026-06-15', 100_000, false],
+      ['2026-07-15', 300_000, false],
+      ['2026-08-31', 900_000, true],
+    ] as const)
+      createBooking(
+        opened.db,
+        {
+          accountId: 'giro',
+          date,
+          amountCents: cents,
+          incomeNextMonth: next,
+          splits: [{ categoryId: null, amountCents: cents, incomeTypeId: INCOME_TYPES.salary.id }],
+        },
+        ctx,
+      );
+    // August has no assigned income: the median of 100.000, 300.000 and 0 is 100.000.
+    expect(view()).toMatchObject({ source: 'median', expectedCents: 100_000 });
   });
 });

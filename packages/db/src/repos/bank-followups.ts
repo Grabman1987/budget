@@ -1,18 +1,31 @@
 import { randomUUID } from 'node:crypto';
-import { bankMatches, canLinkTransfer, addDays, withinBankWindow } from '@budget/domain';
+import {
+  bankMatches,
+  canLinkTransfer,
+  addDays,
+  withinBankWindow,
+  type MatchBooking,
+} from '@budget/domain';
 import { and, desc, eq, isNull, lte, gte, or } from 'drizzle-orm';
 import {
   account,
   bankSyncAccount,
   bankSyncCandidate,
   booking,
+  bookingReceipt,
   bookingSplit,
   inboxItem,
   transfer,
   expectedOccurrence,
 } from '../schema';
 import { insertTracked, updateTracked, withGroup, type AuditContext } from './audit';
-import { createBooking, getBooking, updateBooking, restoreBooking } from './bookings';
+import {
+  createBooking,
+  deleteBooking,
+  getBooking,
+  updateBooking,
+  restoreBooking,
+} from './bookings';
 import { assertContactBookingWrite } from './contact-invariants';
 import {
   assertLedgerInvariants,
@@ -65,6 +78,39 @@ function linkable(db: Executor, id: string) {
   return row;
 }
 
+/** Manual bookings an incoming bank row can be merged into, closest date first. */
+function mergeTargets(db: Executor, row: MatchBooking) {
+  return bankMatches(
+    row,
+    db
+      .select()
+      .from(booking)
+      .where(
+        and(
+          isNull(booking.deletedAt),
+          eq(booking.accountId, row.accountId),
+          eq(booking.amountCents, row.amountCents),
+          eq(booking.source, 'manual'),
+          isNull(booking.importKey),
+          gte(booking.date, addDays(row.date, -5)),
+          lte(booking.date, addDays(row.date, 5)),
+        ),
+      )
+      .all()
+      .filter((b) => {
+        try {
+          mergeable(db, b.id);
+          return relatedTransferBookings(db, b.id).every(
+            (id) => id === b.id || withinBankWindow(row.date, getBooking(db, id)!.date),
+          );
+        } catch {
+          return false;
+        }
+      })
+      .map((b) => ({ ...b, accountName: openAccount(db, b.accountId).name })),
+  );
+}
+
 export function candidateMatches(db: Executor, id: string) {
   const row = openCandidate(db, id);
   const rows = db
@@ -90,37 +136,27 @@ export function candidateMatches(db: Executor, id: string) {
     })
     .map((b) => ({ ...b, accountName: openAccount(db, b.accountId).name }));
   return {
-    merge: bankMatches(
-      row,
-      db
-        .select()
-        .from(booking)
-        .where(
-          and(
-            isNull(booking.deletedAt),
-            eq(booking.accountId, row.accountId),
-            eq(booking.amountCents, row.amountCents),
-            eq(booking.source, 'manual'),
-            isNull(booking.importKey),
-            gte(booking.date, addDays(row.date, -5)),
-            lte(booking.date, addDays(row.date, 5)),
-          ),
-        )
-        .all()
-        .filter((b) => {
-          try {
-            mergeable(db, b.id);
-            return relatedTransferBookings(db, b.id).every(
-              (id) => id === b.id || withinBankWindow(row.date, getBooking(db, id)!.date),
-            );
-          } catch {
-            return false;
-          }
-        })
-        .map((b) => ({ ...b, accountName: openAccount(db, b.accountId).name })),
-    ),
+    merge: mergeTargets(db, row),
     transfers: bankMatches(row, rows, true),
   };
+}
+
+/** The manual booking keeps its identity; it takes over the bank date, source and stable reference. */
+function adoptBankReference(
+  tx: Executor,
+  target: NonNullable<ReturnType<typeof getBooking>>,
+  date: string,
+  importKey: string,
+  grouped: AuditContext,
+) {
+  const patch = { date, source: 'bank' as const, importKey, status: 'confirmed' as const };
+  if (target.transferId || target.splits.some((s) => s.transferId)) {
+    updateTracked(tx, booking, [target.id], patch, grouped);
+    const touched = relatedTransferBookings(tx, target.id);
+    assertLedgerInvariants(tx, touched);
+    for (const change of expectedLinkPatches(tx, touched))
+      updateTracked(tx, expectedOccurrence, [change.id], change.patch, grouped);
+  } else updateBooking(tx, target.id, patch, grouped);
 }
 
 /** Keep identities, receipt links, memo and split allocations; attach the stable bank reference. */
@@ -137,19 +173,7 @@ export function mergeBankCandidate(
     if (target.source !== 'manual' || target.importKey || !bankMatches(row, [target]).length)
       throw new ConflictError('Die Buchung passt nicht mehr zu diesem Bankumsatz.');
     const grouped = withGroup(ctx);
-    const patch = {
-      date: row.date,
-      source: 'bank' as const,
-      importKey: 'bank-sync:' + row.dedupeKey,
-      status: 'confirmed' as const,
-    };
-    if (target.transferId || target.splits.some((s) => s.transferId)) {
-      updateTracked(tx, booking, [bookingId], patch, grouped);
-      const touched = relatedTransferBookings(tx, bookingId);
-      assertLedgerInvariants(tx, touched);
-      for (const change of expectedLinkPatches(tx, touched))
-        updateTracked(tx, expectedOccurrence, [change.id], change.patch, grouped);
-    } else updateBooking(tx, bookingId, patch, grouped);
+    adoptBankReference(tx, target, row.date, 'bank-sync:' + row.dedupeKey, grouped);
     updateTracked(
       tx,
       inboxItem,
@@ -157,6 +181,93 @@ export function mergeBankCandidate(
       { resolvedAt: now, resolution: 'Zusammengeführt: ' + bookingId },
       grouped,
     );
+    return { groupId: grouped.groupId, bookingId };
+  });
+}
+
+/**
+ * Decision 41 posts booked bank rows as unchecked bookings, so a duplicate of an earlier manual
+ * entry is already counted. Only an unchecked, still bank-owned booking may be merged away.
+ */
+function mergeableBankBooking(db: Executor, id: string) {
+  const row = getBooking(db, id);
+  if (!row) throw new EntityNotFoundError('booking', id);
+  openAccount(db, row.accountId);
+  if (row.status === 'reconciled') throw new ReconciledLockedError([id]);
+  if (
+    row.source !== 'bank' ||
+    !row.importKey?.startsWith('bank-sync:') ||
+    row.status !== 'pending' ||
+    row.transferId ||
+    row.originalCurrency ||
+    row.splits.some((s) => s.transferId || s.contactId)
+  )
+    throw new ConflictError('Nur ungeprüfte Bankbuchungen lassen sich zusammenführen.');
+  if (
+    db
+      .select()
+      .from(bookingReceipt)
+      .where(and(eq(bookingReceipt.bookingId, id), isNull(bookingReceipt.deletedAt)))
+      .get()
+  )
+    throw new ConflictError('Die Bankbuchung hat Belege und bleibt eigenständig.');
+  assertContactBookingWrite(db, id, 'delete');
+  assertTradeSettlementBookingWrite(db, id, 'delete');
+  return row;
+}
+
+/** Manual bookings an unchecked bank booking can be merged into; throws when it is not eligible. */
+export function bankBookingMatches(db: Executor, id: string) {
+  const row = mergeableBankBooking(db, id);
+  return { merge: mergeTargets(db, row) };
+}
+
+/**
+ * Merge an unchecked bank booking into the owner's earlier manual booking: the manual booking
+ * keeps identity, notes, receipts and splits and takes the bank date and reference; the bank copy
+ * is removed so the money is counted once. One audit group, so one undo.
+ */
+export function mergeBankBooking(
+  db: Executor,
+  bankBookingId: string,
+  bookingId: string,
+  ctx: AuditContext,
+) {
+  return runInTransaction(db, (tx) => {
+    const bank = mergeableBankBooking(tx, bankBookingId);
+    const target = mergeable(tx, bookingId);
+    if (
+      target.id === bank.id ||
+      !bankMatches(bank, [target]).length ||
+      !relatedTransferBookings(tx, bookingId).every(
+        (id) => id === bookingId || withinBankWindow(bank.date, getBooking(tx, id)!.date),
+      )
+    )
+      throw new ConflictError('Die Buchung passt nicht mehr zu diesem Bankumsatz.');
+    const grouped = withGroup(ctx);
+    const importKey = bank.importKey!;
+    // The key is unique per account even for deleted rows: release it before the manual row takes it.
+    updateTracked(tx, booking, [bank.id], { importKey: null }, grouped);
+    deleteBooking(tx, bank.id, grouped);
+    adoptBankReference(tx, target, bank.date, importKey, grouped);
+    const candidate = tx
+      .select()
+      .from(bankSyncCandidate)
+      .where(
+        and(
+          eq(bankSyncCandidate.accountId, bank.accountId),
+          eq(bankSyncCandidate.dedupeKey, importKey.slice('bank-sync:'.length)),
+        ),
+      )
+      .get();
+    if (candidate)
+      updateTracked(
+        tx,
+        inboxItem,
+        [candidate.id],
+        { resolution: 'Zusammengeführt: ' + bookingId },
+        grouped,
+      );
     return { groupId: grouped.groupId, bookingId };
   });
 }
