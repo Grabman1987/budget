@@ -3,11 +3,15 @@ import {
   accounts,
   categories,
   createBooking,
+  createEntity,
+  schema,
+  undo,
   createTestDatabase,
   createTransfer,
   INCOME_TYPES,
   type OpenedDatabase,
 } from '@budget/db';
+import { monthConsumption, monthHouseholdIncome } from '@budget/domain';
 import type { Hono } from 'hono';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { createLedgerApi } from './index';
@@ -159,4 +163,65 @@ describe('GET /cashflow', () => {
   it('rejects an unknown period', async () => {
     expect((await get('/cashflow?period=7J')).status).toBe(400);
   });
+});
+
+it('reconciles a calendar year across year report, monthly tables and cashflow, including undo', async () => {
+  createEntity(
+    opened.db,
+    schema.payee,
+    { id: 'refund-source', name: 'Synthetische Erstattung', defaultCategoryId: 'essen' },
+    ctx,
+  );
+  inflow('2025-06-30', 300000, { incomeTypeId: INCOME_TYPES.salary.id });
+  inflow('2025-06-15', 1500);
+  inflow('2025-06-16', 500, { incomeTypeId: INCOME_TYPES.other.id });
+  inflow('2025-07-01', 5000, { incomeTypeId: INCOME_TYPES.capital.id });
+  spend('2025-06-03', 80000, 'miete');
+  spend('2025-06-04', 20000, 'essen');
+  const refund = createBooking(
+    opened.db,
+    {
+      accountId: 'giro',
+      date: '2025-07-03',
+      amountCents: 2500,
+      payeeId: 'refund-source',
+      splits: [{ amountCents: 2500, incomeTypeId: INCOME_TYPES.refund.id }],
+    },
+    { ...ctx, groupId: 'synthetic-refund' },
+  );
+  for (const amountCents of [70000, -45000])
+    createBooking(
+      opened.db,
+      {
+        accountId: 'giro',
+        date: '2025-01-01',
+        amountCents,
+        payeeId: 'payee-opening-balance',
+        splits: [{ amountCents, categoryId: amountCents < 0 ? 'essen' : null }],
+      },
+      ctx,
+    );
+  createTransfer(
+    opened.db,
+    { fromAccountId: 'giro', toAccountId: 'spar', date: '2025-02-02', amountCents: 5000 },
+    ctx,
+  );
+  const reconcile = async (expected: number) => {
+    const tables = (await get('/report-tables/months')).body;
+    const year = tables.months.filter((m: any) => m.month.startsWith('2025'));
+    expect(year.reduce((sum: number, m: any) => sum + monthHouseholdIncome(m, tables), 0)).toBe(
+      302000,
+    );
+    expect(year.reduce((sum: number, m: any) => sum + monthConsumption(m, tables), 0)).toBe(
+      expected,
+    );
+    const annual = (await get('/overview/year?year=2025')).body.report.totals;
+    const cash = (await get('/cashflow?period=2025-01..2025-12')).body.totals;
+    for (const totals of [annual, cash])
+      expect(totals).toMatchObject({ incomeCents: 302000, consumptionCents: expected });
+  };
+  expect(refund).toBeTruthy();
+  await reconcile(97500);
+  undo(opened.db, { groupId: 'synthetic-refund' }, ctx);
+  await reconcile(100000);
 });

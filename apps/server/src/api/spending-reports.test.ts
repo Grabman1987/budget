@@ -217,6 +217,19 @@ describe('2.2 Budgettreue on a small ledger', () => {
       ctx,
     );
 
+  it('returns absolute deviations for assignment withdrawals and zero net plans', async () => {
+    setAssigned(opened.db, 'essen', '2026-08', -200, ctx);
+    spend('2026-08-03', 'essen', 18000);
+    const answer = await get(app, '/reports/spending/adherence?month=2026-08');
+    expect(answer.status).toBe(200);
+    expect(answer.body.deviation.rows.find((r: any) => r.id === 'essen')).toMatchObject({
+      planCents: -200,
+      istCents: 18000,
+      deviationCents: 18200,
+      deviationBp: null,
+      inBand: null,
+    });
+  });
   it('compares spending with assigned money, plans periodic costs with their reserve', async () => {
     setAssigned(opened.db, 'essen', '2026-08', 20_000, ctx);
     setAssigned(opened.db, 'miete', '2026-08', 60_000, ctx);
@@ -322,7 +335,8 @@ describe('2.2 Budgettreue on the sample ledger', () => {
     expect(body.items.length).toBeGreaterThan(10);
     expect(body.deviation.from).toBe('2025-09-01');
     expect(body.deviation.to).toBe('2026-08-31');
-    for (const row of body.deviation.rows) expect(row.planCents).toBeGreaterThan(0);
+    for (const row of body.deviation.rows)
+      if (row.planCents <= 0) expect(row.deviationBp).toBeNull();
     const september = (await get(app, '/reports/spending/adherence?month=2026-09')).body;
     expect(september).toMatchObject({ live: true, status: 'ok' });
     expect(september.allocation.at(-1).month).toBe('2026-08');
@@ -528,10 +542,46 @@ describe('2.6 Bank- und Zinskosten on a small ledger', () => {
         accountId: 'kredit',
         date,
         amountCents: -cents,
-        splits: [{ categoryId: null, amountCents: -cents }],
+        splits: [{ categoryId: 'gebuehr', amountCents: -cents }],
       },
       ctx,
     );
+
+  it('excludes loan opening, disbursement, principal and split transfers; counts only explicit cost splits', async () => {
+    for (const [categoryId, payeeId] of [
+      ['gebuehr', 'payee-opening-balance'],
+      [null, null],
+      ['miete', null],
+    ] as const)
+      createBooking(
+        opened.db,
+        {
+          accountId: 'kredit',
+          date: '2026-08-01',
+          amountCents: -720_000,
+          payeeId,
+          splits: [{ categoryId, amountCents: -720_000 }],
+        },
+        ctx,
+      );
+    createBooking(
+      opened.db,
+      {
+        accountId: 'kredit',
+        date: '2026-08-15',
+        amountCents: -10_000,
+        splits: [
+          { categoryId: 'gebuehr', amountCents: -800 },
+          { categoryId: null, amountCents: -9_200 },
+        ],
+      },
+      ctx,
+    );
+    const body = (await get(app, '/reports/spending/costs')).body;
+    expect(body.rows.find((r: any) => r.key === 'interest').cents).toBe(800);
+    expect(body.totalCents).toBe(800);
+    expect(body.creditLines.find((r: any) => r.id === 'kredit').interest12Cents).toBe(800);
+  });
 
   it('counts interest charges of full months only, never transfers, and bank fees of the group', async () => {
     charge('2026-07-31', 5_000);

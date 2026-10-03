@@ -1,3 +1,4 @@
+import { test as isolatedTest } from './isolated-ledger';
 import { expect, sampleTest as test } from './sample';
 import { inspectReport } from './spending-helpers';
 
@@ -72,3 +73,46 @@ test('says why there is nothing to show before the budget starts and in the futu
   await page.goto('/reports/budgettreue?monat=2027-02');
   await expect(page.locator('.sr-empty')).toContainText('Zukunft');
 });
+
+isolatedTest(
+  'negative and zero assignments show absolute deviations in both themes',
+  async ({ page, request, baseURL }, info) => {
+    const post = async (path: string, data: unknown) => {
+      const response = await request.post(`/api${path}`, { data, headers: { origin: baseURL! } });
+      expect(response.ok()).toBe(true);
+      return response.json();
+    };
+    const a = await post('/accounts', {
+      name: 'Synthetisches Plankonto',
+      type: 'checking',
+      role: 'budget',
+      onBudget: true,
+      openingDate: '2026-09-01',
+    });
+    const g = await post('/categories/groups', { name: 'Synthetischer Plan' });
+    const c = await post('/categories', {
+      name: 'Synthetische Kategorie',
+      groupId: g.group.id,
+      class: 'need',
+      kind: 'variable',
+    });
+    const id = c.category.id;
+    await request.put('/api/budget/2026-09/assigned', {
+      data: { items: [{ categoryId: id, assignedCents: -200 }] },
+      headers: { origin: baseURL! },
+    });
+    await post('/bookings', {
+      type: 'booking',
+      accountId: a.account.id,
+      date: '2026-09-03',
+      amountCents: -18000,
+      splits: [{ categoryId: id, amountCents: -18000 }],
+    });
+    await page.goto('/reports/budgettreue?monat=2026-09');
+    const row = page.getByRole('row').filter({ hasText: 'Synthetische Kategorie' });
+    await expect(row).toContainText('absolute Abweichung');
+    await expect(row).toContainText('182');
+    await expect(row).not.toContainText('%');
+    await inspectReport(page, info, 'nonpositive-plan');
+  },
+);

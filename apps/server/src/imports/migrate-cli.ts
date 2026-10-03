@@ -84,7 +84,7 @@ import { findRun, runTask, type ImportTask } from './tasks';
  * or `undo-group` reverts on its own; `--dry-run` reports exactly what would change. Exit code 3
  * if an entry was skipped.
  * `owner-config` loads the owner's private settings from one JSON file (never in the repo), all
- * sections optional: `profile`, `rules`, `categoryStages`, `assetClasses`, `assetTargets`,
+ * sections optional: `profile`, `rules`, `categoryStages`, `assetClasses`,
  * `securities`, `expectedPayments`, `skipOccurrences`, `clearBookings` (schema: docs/ops.md).
  * Every entry calls the function behind the matching app route, is one audit group (actor
  * `operator`, `undo-group` reverts it on its own) and reports `created`, `updated`, `unchanged`

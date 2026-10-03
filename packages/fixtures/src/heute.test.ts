@@ -147,9 +147,9 @@ describe('figures that differ from the prototype, by design of the ledger', () =
     expect((need ?? 0) + (want ?? 0) - (open ?? 0)).toBe(free);
   });
 
-  it('pace: 5,09 EUR under plan today; the forecast curve ends at the forecast', () => {
+  it('pace: known fixed payments are timed once; the forecast curve ends at the forecast', () => {
     const f = month.pace.figures;
-    expect(f).toMatchObject({ spentCents: 256_795, planToDateCents: 257_304, deltaCents: -509 });
+    expect(f).toMatchObject({ spentCents: 256_795, planToDateCents: 260_567, deltaCents: -3_772 });
     expect(f.over).toBe(false);
     expect(month.pace.todayDay).toBe(17);
     expect(month.pace.forecast).toHaveLength(14);
@@ -165,10 +165,12 @@ describe('figures that differ from the prototype, by design of the ledger', () =
     expect(month.stand.budgetBalanceCents).toBe(116_700);
     const fc = month.balance.forecast;
     expect(fc[0]).toEqual({ day: TODAY, balanceCents: 116_700 });
-    expect(fc.at(-1)?.day).toBe('2026-09-30');
-    expect(month.balance.low).toMatchObject({ day: '2026-09-29', cents: 19_101 });
+    expect(fc.at(-1)?.day).toBe('2026-12-16');
+    expect(month.balance.low).toMatchObject({ day: '2026-10-29', cents: 2_135 });
     expect(Math.min(...fc.map((d) => d.balanceCents))).toBe(month.balance.low?.cents);
-    expect(fc.at(-1)!.balanceCents).toBeGreaterThan(fc.at(-2)!.balanceCents + 300_000);
+    expect(fc.find((d) => d.day === '2026-09-30')!.balanceCents).toBeGreaterThan(
+      fc.find((d) => d.day === '2026-09-29')!.balanceCents + 300_000,
+    );
   });
 
   it('next steps list the overspent envelopes, most overspent first', () => {
@@ -190,7 +192,7 @@ describe('windows', () => {
   it('"Bis Gehalt" runs from today to the payday', () => {
     expect(payday.stand).toMatchObject({ period: 'payday', from: TODAY, to: '2026-10-15' });
     expect(payday.balance.actual).toEqual([{ day: TODAY, balanceCents: 116_700 }]);
-    expect(payday.balance.forecast).toHaveLength(29);
+    expect(payday.balance.forecast).toHaveLength(91);
     expect(payday.lead).toEqual(month.lead);
     expect(payday.pace.figures).toEqual(month.pace.figures);
   });

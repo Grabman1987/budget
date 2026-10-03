@@ -98,7 +98,7 @@ function BalanceDrawing({
     .filter((v, i, a) => a.indexOf(v) === i)
     .map((day) => ({
       x: xScale(day),
-      label: day === data.stand.today ? 'heute' : `${day.slice(8, 10)}.`,
+      label: day === data.stand.today ? 'heute' : shortDay(day),
     }));
   const label =
     `Budget-Konten: Ist bis ${data.stand.today} ${eur(actual.at(-1)?.balanceCents ?? 0)}; ` +
@@ -114,6 +114,8 @@ function BalanceDrawing({
   const annotationCollision =
     low !== null && Math.abs(y(low.cents) - (narrow ? 40 : 48) - 6 - (top + 14)) < 22;
   const salaryAtStart = annotationCollision && low !== null && xScale(low.day) >= width / 2;
+  const salaryLabelY =
+    annotationCollision && low !== null ? y(low.cents) - (narrow ? 40 : 48) - 6 + 28 : top + 14;
   return (
     <div className="heute-balance-drawing">
       <button
@@ -161,7 +163,7 @@ function BalanceDrawing({
             />
             <text
               x={salaryAtStart ? left + 8 : Math.min(width - 6, xScale(salary.day) - 8)}
-              y={top + 14}
+              y={salaryLabelY}
               textAnchor={salaryAtStart ? 'start' : 'end'}
               className="svg-label-line heute-salary-label"
             >
@@ -265,7 +267,7 @@ function PaceDrawing({ data, width }: { data: PaceChartData; width: number }) {
     .filter((d, i, a) => a.indexOf(d) === i)
     .map((d) => ({ x: xScale(d), label: `${d}.` }));
   if (currentMonth && m.todayDay > 0) xTicks.push({ x: xScale(m.todayDay), label: 'heute' });
-  const summary = `Pace ${m.month}: ausgegeben ${eur(m.figures.spentCents)}, Plan bis heute ${eur(m.figures.planToDateCents)}, Prognose Monatsende ${eur(m.figures.forecastEndCents)} von ${eur(m.figures.limitCents)}.`;
+  const summary = `Pace ${m.month}: ausgegeben ${eur(m.figures.spentCents)}, Plan bis heute ${eur(m.figures.planToDateCents)}, Prognose Monatsende ${m.figures.forecastAvailable ? eur(m.figures.forecastEndCents) : 'noch nicht verlässlich'} von ${eur(m.figures.limitCents)}.`;
   return (
     <>
       <ChartSvg width={width} height={height} label={summary} testId="heute-pace-chart">

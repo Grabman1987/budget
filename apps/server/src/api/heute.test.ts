@@ -1,3 +1,4 @@
+import { evaluateRule } from '@budget/domain';
 /* eslint-disable @typescript-eslint/no-explicit-any -- JSON answers are inspected, not typed */
 import {
   accounts,
@@ -6,6 +7,7 @@ import {
   createEntity,
   createTestDatabase,
   ensureDefaultRules,
+  ruleInputs,
   INCOME_TYPES,
   schema,
   type Db,
@@ -217,7 +219,7 @@ describe('GET /heute', () => {
     const res = await call('GET', '/heute?period=payday');
     expect(res.body.stand).toMatchObject({ period: 'payday', from: TODAY, to: '2026-04-15' });
     expect(res.body.balance.actual).toHaveLength(1);
-    expect(res.body.balance.forecast).toHaveLength(29);
+    expect(res.body.balance.forecast).toHaveLength(91);
   });
 
   it('month shows another month; bad parameters are 400', async () => {
@@ -272,4 +274,38 @@ describe('PATCH /categories/:id {pinned}', () => {
     expect((await call('GET', '/heute')).body.pinned).toEqual([]);
     expect((await call('PATCH', '/categories/miete', { pinned: 'yes' })).status).toBe(400);
   });
+});
+
+it('uses the R07 projection and configured horizon in the balance chart', async () => {
+  const response = await call('GET', '/heute');
+  const evaluated = evaluateRule('R07', {}, ruleInputs(db, TODAY));
+  expect(response.body.balance.low.cents).toBe(evaluated?.detail['lowCents']);
+  expect(response.body.balance.low.day).toBe(evaluated?.detail['lowDay']);
+  const last = response.body.balance.forecast.at(-1);
+  expect(last.day).toBe('2026-06-16');
+});
+
+it('excludes early paid rent from the variable rate and hides the forecast', async () => {
+  createBooking(
+    db,
+    {
+      accountId: 'giro',
+      date: '2026-03-01',
+      amountCents: -90000,
+      splits: [{ amountCents: -90000, categoryId: 'miete' }],
+    },
+    { actor: 'tester' },
+  );
+  const early = createApp({ webDir, auth: signedIn, ledger: { db, today: () => '2026-03-03' } });
+  const response = await early.request('/api/heute');
+  expect(response.status).toBe(200);
+  const data = (await response.json()) as any;
+  expect(data.pace.figures).toMatchObject({
+    spentCents: 90000,
+    variableSoFarCents: 0,
+    openFixedCents: 0,
+    forecastEndCents: 90000,
+    forecastAvailable: false,
+  });
+  expect(data.pace.forecast).toEqual([]);
 });

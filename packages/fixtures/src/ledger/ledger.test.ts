@@ -50,10 +50,13 @@ describe('sample ledger invariants', () => {
     expect(keys.size).toBe(ledger.bookings.length);
   });
 
-  it('category activity per month equals the prototype spend to the cent', () => {
+  it('budget category activity per month equals the prototype spend to the cent', () => {
     const activity = new Map<string, number>();
+    const budgetAccounts = new Set(ledger.accounts.filter((a) => a.onBudget).map((a) => a.id));
     const bookingMonth = new Map(
-      ledger.bookings.filter((b) => !b.deletedAt).map((b) => [b.id, monthOf(b.date)]),
+      ledger.bookings
+        .filter((b) => !b.deletedAt && budgetAccounts.has(b.accountId))
+        .map((b) => [b.id, monthOf(b.date)]),
     );
     for (const s of ledger.splits) {
       if (!s.categoryId || !bookingMonth.has(s.bookingId)) continue;

@@ -38,6 +38,7 @@ describe('paceModel: prototype sample, September 2026 (today 17.09.)', () => {
       planToDateCents: 237_634,
       deltaCents: -32_400,
       forecastEndCents: 272_824,
+      forecastAvailable: true,
       limitCents: LIMIT,
       variableSoFarCents: 69_034,
       openFixedCents: 14_799,
@@ -161,5 +162,53 @@ describe('paceModel edge cases', () => {
     expect(m.previous[10]).toBe(100);
     expect(m.previous[28]).toBe(150);
     expect(m.previous[31]).toBe(150);
+  });
+});
+
+it('does not extrapolate early rent/insurance and hides the first six days', () => {
+  const m = paceModel({
+    month: '2026-09',
+    today: day(3),
+    limitCents: 150000,
+    fixed: [
+      { day: day(1), cents: 90000, settled: true },
+      { day: day(3), cents: 10000, settled: true },
+    ],
+    fixedSpentCents: 100000,
+    spending: [
+      { day: day(1), cents: 90000 },
+      { day: day(3), cents: 10000 },
+      { day: day(2), cents: 3000 },
+    ],
+  });
+  expect(m.figures).toMatchObject({
+    spentCents: 103000,
+    planToDateCents: 105000,
+    variableSoFarCents: 3000,
+    openFixedCents: 0,
+    forecastEndCents: 130000,
+    forecastAvailable: false,
+  });
+});
+it('uses actual fixed amounts, counts an open bill once and extrapolates only variable spending', () => {
+  const m = paceModel({
+    month: '2026-09',
+    today: day(10),
+    limitCents: 150000,
+    fixedSpentCents: 95000,
+    fixed: [
+      { day: day(1), cents: 90000, settled: true },
+      { day: day(20), cents: 10000, settled: false },
+    ],
+    spending: [
+      { day: day(1), cents: 95000 },
+      { day: day(2), cents: 5000 },
+    ],
+  });
+  expect(m.figures).toMatchObject({
+    variableSoFarCents: 5000,
+    openFixedCents: 10000,
+    forecastEndCents: 120000,
+    forecastAvailable: true,
   });
 });

@@ -457,3 +457,16 @@ Owner setup and limits: [payslip intake](payslip-intake.md); synthetic browser e
 - [x] Operator command `owner-config --file <json> [--dry-run]` (profile, rules, category stages, expected payments with skipped occurrences, bulk "vorgemerkt" to "bestätigt", security quote settings, asset class names): audited per entry, undoable, idempotent, exit code 3 on skips; schema in [ops](ops.md) section 12.6.
 - [x] Einstellungen › Konten: accounts grouped like the sidebar, rename and retype, order, close/reopen, terms by type; loan terms (fixed or variable interest, installment, term start/end, original amount) read by the Schulden calculator (pre-filled) and the Kosten report (installment wins over expected payments). Drizzle migration 0030. Fix: an account edit that does not name the opening balance no longer resets it to 0.
 - [ ] Owner acceptance of the page and of the private owner-config file on the server.
+
+### Report and KPI correctness audit - 2026-10-03
+
+Scope and shared definitions: [report correctness](report-correctness.md).
+
+- [x] Explicit split-level loan fee attribution; opening, disbursement, principal and transfers excluded.
+- [x] Project reports use the shared legacy/calendar range parser, including partial current months.
+- [x] Nonpositive/cancelled assignment plans retain absolute deviation without misleading percentages.
+- [x] Pace counts fixed/expected payments once and hides first-week/planless forecasts.
+- [x] R08 missing-debt-rate guard and recorded minimum repayments; shared R07 chart horizon/low; monthly R01 units.
+- [x] Shared household classification for yearly/overview/table/cashflow totals and Plan year summary.
+- [x] Mobile Heute safe space and bounded project settings table; synthetic regressions.
+- [ ] Owner design/private-ledger acceptance and pinned Linux visual CI; no private-data access, migration or deployment in this task.
