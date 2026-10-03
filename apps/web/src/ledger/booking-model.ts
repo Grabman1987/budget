@@ -150,6 +150,25 @@ export function splitChain(draft: BookingDraft) {
   return { totalCents, distributedCents, restCents: totalCents - distributedCents };
 }
 
+/** Fill one line with the total minus all other lines, preserving signed refund lines. */
+export function distributeRest(draft: BookingDraft, key: string): BookingDraft {
+  const total = amountOf(draft.amount);
+  const others = draft.splits.filter((s) => s.key !== key);
+  if (
+    total === undefined ||
+    others.some((s) => s.amount.trim() !== '' && lineOf(s.amount) === undefined)
+  )
+    return draft;
+  const remaining = total - others.reduce((sum, s) => sum + (lineOf(s.amount) ?? 0), 0);
+  if (!Number.isSafeInteger(remaining)) return draft;
+  return {
+    ...draft,
+    splits: draft.splits.map((s) =>
+      s.key === key ? { ...s, amount: formatDecimal(toCents(remaining)) } : s,
+    ),
+  };
+}
+
 /** Why a split cannot be saved (in words the panel shows), or `undefined` when it can. */
 function splitProblem(
   draft: BookingDraft,

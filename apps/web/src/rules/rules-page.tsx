@@ -1,5 +1,5 @@
+import { useAmountPrivacy, Button, SectionHead, Switch } from '@budget/ui';
 import { STAGES } from '@budget/domain';
-import { Button, SectionHead, Switch } from '@budget/ui';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
 import { ErrorNote, LoadingNote } from '../ledger/states';
@@ -25,6 +25,7 @@ const onOff = (on: boolean) => (on ? 'an' : 'aus');
  * "Rückgängig". The Finanz-Check reads these rules.
  */
 export function RulesPage() {
+  useAmountPrivacy();
   const rules = useQuery(rulesQuery());
   const check = useQuery(rulesCheckQuery());
   const write = useRuleWrite();

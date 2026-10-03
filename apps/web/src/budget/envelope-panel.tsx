@@ -1,5 +1,13 @@
+import {
+  useAmountPrivacy,
+  AmountInput,
+  Button,
+  DetailPanel,
+  Field,
+  Segmented,
+  Select,
+} from '@budget/ui';
 import { cents, formatDecimal, parseAmount } from '@budget/domain';
-import { AmountInput, Button, DetailPanel, Field, Segmented, Select } from '@budget/ui';
 import { AppLink } from '../shell/app-link';
 import { useState } from 'react';
 import { eur } from '../ledger/format';
@@ -33,6 +41,7 @@ export function EnvelopePanel({
   toBeAssignedCents: number;
   onClose: () => void;
 }) {
+  useAmountPrivacy();
   return (
     <DetailPanel open={row !== undefined} onClose={onClose} title={row?.name ?? ''}>
       {row && (
@@ -62,6 +71,7 @@ function EnvelopeBody({
   tba: number;
   onDone: () => void;
 }) {
+  useAmountPrivacy();
   const write = useBudgetWrite();
   const [amount, setAmount] = useState(formatDecimal(cents(r.assignedCents)));
   const [direction, setDirection] = useState<'in' | 'out'>(r.availableCents < 0 ? 'in' : 'out');

@@ -1,4 +1,4 @@
-import { Button } from '@budget/ui';
+import { useAmountPrivacy, Button } from '@budget/ui';
 import { eur } from '../ledger/format';
 import { coverOverspending } from './budget-api';
 import { coverFromToBeAssigned, type PlanRow } from './plan-model';
@@ -38,6 +38,7 @@ export function CoverChoice({
   onCover: (allowNegative: boolean) => void;
   onCancel: () => void;
 }) {
+  useAmountPrivacy();
   const { capCents } = coverFromToBeAssigned(overspentCents, toBeAssignedCents);
   return (
     <div className="cover-choice" role="group" aria-label="Decken aus Zu verteilen">

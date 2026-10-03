@@ -1,4 +1,9 @@
-import { formatDecimal, formatEuro, hasOperator, parseAmount, type Cents } from '@budget/domain';
+import {
+  useAmountPrivacy,
+  maskMoneyText,
+  formatPrivateEuro as formatEuro,
+} from '../amount-privacy';
+import { formatDecimal, hasOperator, parseAmount, type Cents } from '@budget/domain';
 import { useId, useLayoutEffect, useRef } from 'react';
 import { cx } from './cx';
 
@@ -41,6 +46,7 @@ export function AmountInput({
   autoFocus,
   disabled,
 }: AmountInputProps) {
+  const hidden = useAmountPrivacy();
   const id = useId();
   const hintId = `${id}-hint`;
   const errorId = `${id}-error`;
@@ -109,7 +115,7 @@ export function AmountInput({
           ref={inputRef}
           id={id}
           className="amount-input"
-          type="text"
+          type={hidden ? 'password' : 'text'}
           inputMode="text"
           autoComplete="off"
           spellCheck={false}
@@ -118,7 +124,7 @@ export function AmountInput({
           autoFocus={autoFocus}
           disabled={disabled}
           value={value}
-          placeholder="0,00"
+          placeholder={hidden ? '•••' : '0,00'}
           aria-invalid={invalid || Boolean(error)}
           aria-describedby={error ? `${hintId} ${errorId}` : hintId}
           onChange={(e) => onChange(e.target.value)}
@@ -145,7 +151,7 @@ export function AmountInput({
       </p>
       {error && (
         <p id={errorId} className="field-error" role="alert">
-          {error}
+          {maskMoneyText(error)}
         </p>
       )}
     </div>

@@ -1,12 +1,11 @@
 import { ReportPeriodControl } from '../reports/period-quick-select';
-import { DimensionChain } from '@budget/ui';
+import { useAmountPrivacy, DimensionChain, Button } from '@budget/ui';
 import { cents, type Period } from '@budget/domain';
 import type { PortfolioSummary } from '@budget/db';
 import { useQuery, queryOptions } from '@tanstack/react-query';
 import { useZeitraum, ZEITRAUM_VALUES } from '../wealth/zeitraum';
 import { useNavigate } from '@tanstack/react-router';
 import { ApiError, request } from '../api/http';
-import { Button } from '@budget/ui';
 import { ErrorNote, LoadingNote } from '../ledger/states';
 import { eur, longDay } from '../ledger/format';
 import { periodText } from '../wealth/networth-model';
@@ -53,6 +52,7 @@ export function PortfolioPerformanceReport({
   report: ReportEntry;
   meta: PageMeta;
 }) {
+  useAmountPrivacy();
   const [period, setPeriod] = useZeitraum();
   const query = useQuery(portfolioPerformanceQuery(period));
   const navigate = useNavigate();
@@ -129,6 +129,7 @@ function PeriodControl({
   period: Period;
   onChange: (period: Period) => void;
 }) {
+  useAmountPrivacy();
   return (
     <ReportPeriodControl
       trend={false}
@@ -148,6 +149,7 @@ function PerformanceBody({
   summary: PortfolioSummary;
   onOpenPortfolio: () => void;
 }) {
+  useAmountPrivacy();
   const performance = summary.performance;
 
   return (
@@ -238,6 +240,7 @@ function PerformanceBody({
 }
 
 function Metric({ label, value, note }: { label: string; value: string; note?: string }) {
+  useAmountPrivacy();
   return (
     <div className="performance-metric">
       <dt>{label}</dt>

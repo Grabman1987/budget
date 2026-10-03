@@ -1,5 +1,11 @@
-import { cents, formatEuro } from '@budget/domain/money';
-import { ClassPatterns, patternFill, usePatternPrefix } from '@budget/ui';
+import {
+  useAmountPrivacy,
+  formatPrivateEuro as formatEuro,
+  ClassPatterns,
+  patternFill,
+  usePatternPrefix,
+} from '@budget/ui';
+import { cents } from '@budget/domain/money';
 import { sankeyLayout, type SankeyLink, type SankeyNode } from './sankey-layout';
 import {
   classColumn,
@@ -48,6 +54,7 @@ export function SankeyChart({
   label?: string;
   height?: number;
 }) {
+  useAmountPrivacy();
   // Class nodes as in the prototype: Bedarf solid, Wunsch and Zukunft hatched with an outline.
   const prefix = usePatternPrefix('sk');
   if (width <= 0) return null;

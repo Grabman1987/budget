@@ -1,4 +1,4 @@
-import { Button, Count, FormDialog } from '@budget/ui';
+import { Button, Count, FormDialog, useAmountPrivacy } from '@budget/ui';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   createContext,
@@ -161,6 +161,7 @@ export function QueueCapture({ item, onClose }: { item?: QueuedBooking; onClose:
 }
 
 export function QueueList() {
+  useAmountPrivacy();
   const { items, sending, error, send, edit } = useBookingQueue();
   const [localError, setLocalError] = useState('');
   if (!items.length && !error) return null;

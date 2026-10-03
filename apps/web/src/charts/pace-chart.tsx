@@ -1,5 +1,6 @@
-import { cents, formatEuro } from '@budget/domain/money';
 import {
+  useAmountPrivacy,
+  formatPrivateEuro as formatEuro,
   AxisLine,
   ChartSvg,
   DimensionLine,
@@ -11,6 +12,7 @@ import {
   LineLegend,
   type Point,
 } from '@budget/ui';
+import { cents } from '@budget/domain/money';
 import { scaleLinear } from 'd3-scale';
 import { DAYS, LIMIT, TODAY, paceModel } from './pace-model';
 
@@ -23,6 +25,7 @@ const axisNumber = new Intl.NumberFormat('de-AT', { maximumFractionDigits: 0 });
  * packages/ui. Solid = actual (step line), dashed = plan and forecast, dash-dot = previous month.
  */
 export function PaceChart({ width }: { width: number }) {
+  useAmountPrivacy();
   if (width <= 0) return null;
   const model = paceModel();
   const narrow = width < 520;
@@ -117,6 +120,7 @@ export function PaceChart({ width }: { width: number }) {
 }
 
 export function PaceLegend() {
+  useAmountPrivacy();
   return (
     <LineLegend
       items={[

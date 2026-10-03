@@ -1,4 +1,5 @@
-import { STAGES, cents, formatEuro, parseScaledDecimal } from '@budget/domain';
+import { formatPrivateEuro as formatEuro, maskMoneyText } from '@budget/ui';
+import { STAGES, cents, parseScaledDecimal } from '@budget/domain';
 
 /**
  * Presentation model of Einstellungen › Regelwerk: the typed threshold fields per rule, the
@@ -202,7 +203,9 @@ export function thresholdText(code: string, p: Record<string, unknown>): string 
 }
 
 const rangeEuro = (c: number) =>
-  c >= 100_000_000 ? `${c / 100_000_000} Mio. €` : formatEuro(cents(c), { cents: false });
+  c >= 100_000_000
+    ? maskMoneyText(`${c / 100_000_000} Mio. €`)
+    : formatEuro(cents(c), { cents: false });
 
 /** "bis 10.000 €", "10.000 bis 100.000 €", "100.000 bis 1 Mio. €" from the stage model. */
 export function stageRange(stage: number): string {

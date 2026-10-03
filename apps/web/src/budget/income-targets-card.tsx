@@ -1,4 +1,5 @@
 import type { IncomeTargets } from '@budget/domain';
+import { useAmountPrivacy } from '@budget/ui';
 import { eur } from '../ledger/format';
 import type { PlanRow } from './plan-model';
 
@@ -19,6 +20,7 @@ export function IncomeTargetsCard({
   rows: PlanRow[];
   onOpen: (id: string) => void;
 }) {
+  useAmountPrivacy();
   const gap = data.differenceCents !== null && data.differenceCents < 0;
   const max = Math.max(1, data.targetsCents, data.assignedIncomeCents ?? 0);
   const unfunded = data.unfundedCategoryIds

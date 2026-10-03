@@ -1,4 +1,4 @@
-import { Button } from '@budget/ui';
+import { useAmountPrivacy, Button } from '@budget/ui';
 import type { ReactNode } from 'react';
 import { ApiError } from '../api/http';
 import { MINUS, eur } from '../ledger/format';
@@ -44,6 +44,7 @@ export const bpText = (bp: number, options: { sign?: boolean; digits?: number } 
 
 /** Signed money in the signal ink: green for a gain, red-brown for a loss (a signed change). */
 export function SignedMoney({ cents }: { cents: number }) {
+  useAmountPrivacy();
   return (
     <span className={cents > 0 ? 'prep-good' : cents < 0 ? 'prep-bad' : undefined}>
       {eur(cents, { sign: true })}
@@ -53,6 +54,7 @@ export function SignedMoney({ cents }: { cents: number }) {
 
 /** A rate or gap in the signal ink. */
 export function SignedText({ value, children }: { value: number | null; children: ReactNode }) {
+  useAmountPrivacy();
   return (
     <span
       className={
@@ -66,6 +68,7 @@ export function SignedText({ value, children }: { value: number | null; children
 
 /** Link to the product on the Portfolio page (Vermögen), where the decisions are made. */
 export function ProductLink({ id, children }: { id: string; children: ReactNode }) {
+  useAmountPrivacy();
   return (
     <AppLink
       to="/vermoegen/portfolio"
@@ -79,6 +82,7 @@ export function ProductLink({ id, children }: { id: string; children: ReactNode 
 
 /** Link back to the place of decision: reports only look back (PRODUCT.md, Reports). */
 export function DecisionLink() {
+  useAmountPrivacy();
   return (
     <AppLink
       to="/vermoegen/portfolio"
@@ -100,6 +104,7 @@ export function ReportUnavailable({
   error: unknown;
   onRetry: () => void;
 }) {
+  useAmountPrivacy();
   const missing = error instanceof ApiError && error.code === 'valuation_unavailable';
   return (
     <div className="prep-unavailable" role="alert">

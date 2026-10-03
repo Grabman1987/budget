@@ -1,5 +1,14 @@
+import {
+  useAmountPrivacy,
+  privateAmount,
+  AmountInput,
+  Button,
+  DetailPanel,
+  Field,
+  TextInput,
+  maskMoneyText,
+} from '@budget/ui';
 import { parseAmount, todayInVienna } from '@budget/domain';
-import { AmountInput, Button, DetailPanel, Field, TextInput } from '@budget/ui';
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { AlertTriangle, CheckCircle2 } from 'lucide-react';
 import { useEffect, useState } from 'react';
@@ -33,6 +42,7 @@ export function ReconcilePanel({
   open: boolean;
   onClose: () => void;
 }) {
+  useAmountPrivacy();
   return (
     <DetailPanel open={open} onClose={onClose} title={`Kontostand prüfen · ${account.name}`}>
       <ReconcileFlow account={account} onDone={onClose} />
@@ -41,6 +51,7 @@ export function ReconcilePanel({
 }
 
 function ReconcileFlow({ account, onDone }: { account: AccountRow; onDone: () => void }) {
+  useAmountPrivacy();
   const qc = useQueryClient();
   const writes = useLedgerWrites();
   const today = todayInVienna();
@@ -159,7 +170,7 @@ function ReconcileFlow({ account, onDone }: { account: AccountRow; onDone: () =>
                 strokeWidth={1.75}
                 aria-hidden="true"
               />
-              Differenz 0,00 € · stimmt überein
+              Differenz {privateAmount('0,00')} € · stimmt überein
             </p>
             <div className="panel-actions">
               <Button disabled={confirm.isPending} onClick={() => run({})}>
@@ -254,7 +265,7 @@ function ReconcileFlow({ account, onDone }: { account: AccountRow; onDone: () =>
       </div>
       {error && (
         <p className="field-error" role="alert">
-          {error}
+          {maskMoneyText(error)}
         </p>
       )}
       <p className="text-muted">

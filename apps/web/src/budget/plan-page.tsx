@@ -1,6 +1,6 @@
 import { IncomeTargetsCard } from './income-targets-card';
-import { cents, todayInVienna } from '@budget/domain';
 import {
+  useAmountPrivacy,
   Button,
   ClassSwatch,
   Count,
@@ -10,7 +10,9 @@ import {
   cx,
   type DimensionChainTerm,
 } from '@budget/ui';
+import { cents, todayInVienna } from '@budget/domain';
 import { useQueries, useQuery } from '@tanstack/react-query';
+import { useSearch } from '@tanstack/react-router';
 import {
   AlertTriangle,
   ArrowDownToLine,
@@ -29,6 +31,8 @@ import { accountsQuery } from '../ledger/queries';
 import { ErrorNote, LoadingNote } from '../ledger/states';
 import { monthLabel, shiftMonth } from '../nav/month';
 import { useMonth } from '../shell/use-month';
+import { AppLink } from '../shell/app-link';
+import { lastDayOfMonth } from '@budget/domain';
 import {
   MONTH_SPANS,
   setMonthSpan,
@@ -91,6 +95,7 @@ const RAIL_LABEL = {
  * list of the envelopes. Every figure comes from `/api/budget/:month`.
  */
 export function PlanMonthPage() {
+  useAmountPrivacy();
   const [month] = useMonth();
   const span = useMonthSpan();
   const months = useMemo(
@@ -156,16 +161,20 @@ function PlanBody({
   extraError: { error: Error; refetch: () => unknown } | undefined;
   onIncome: () => void;
 }) {
+  useAmountPrivacy();
   const write = useBudgetWrite();
   const accounts = useQuery(accountsQuery()).data?.accounts ?? [];
   const expected = useQuery(expectedQuery()).data;
-  const [view, setView] = useState<PlanView>('stage');
+  const search = useSearch({ strict: false }) as { ansicht?: 'triage'; kategorie?: string };
+  const [view, setView] = useState<PlanView>(search.ansicht ?? 'stage');
   const phone = useIsPhone();
   const storedSpan = useStoredMonthSpan();
   const [distribute, setDistribute] = useState(false);
   const [collapsed, setCollapsed] = useState<ReadonlySet<string>>(new Set());
   const [editing, setEditing] = useState<string | null>(null);
-  const [open, setOpen] = useState<{ id: string; month: string } | null>(null);
+  const [open, setOpen] = useState<{ id: string; month: string } | null>(
+    search.kategorie ? { id: search.kategorie, month } : null,
+  );
   const [sources, setSources] = useState<Record<string, string>>({});
   /** Triage row whose "Decken" from "Zu verteilen" waits for the choice (not enough money). */
   const [choosing, setChoosing] = useState<string | null>(null);
@@ -274,6 +283,33 @@ function PlanBody({
             setView('stage');
           }}
         />
+        {s.unclassified && s.unclassified.count > 0 && (
+          <section className="plan-unclassified" aria-label="Noch ohne Kategorie">
+            <strong>Noch ohne Kategorie</strong>
+            <span>
+              {s.unclassified.count} Buchungen · Eingang{' '}
+              {eur(s.unclassified.inflowCents, { sign: true })} · Ausgang{' '}
+              {eur(-s.unclassified.outflowCents)} · Saldo{' '}
+              {eur(s.unclassified.netCents, { sign: true })}
+            </span>
+            <p>
+              Ohne Kategorie oder noch unbestätigt. Bereits in den Kontosalden und „Zu verteilen“
+              berücksichtigt.
+            </p>
+            <AppLink
+              to="/konten/buchungen"
+              search={{ kategorie: 'none', von: `${month}-01`, bis: lastDayOfMonth(month) }}
+            >
+              Ohne Kategorie öffnen
+            </AppLink>
+            <AppLink
+              to="/konten/buchungen"
+              search={{ status: 'pending', von: `${month}-01`, bis: lastDayOfMonth(month) }}
+            >
+              Unbestätigte öffnen
+            </AppLink>
+          </section>
+        )}
         {(urgent.length > 0 || credit.length > 0 || tba < 0) && (
           <section
             className={cx('triage', urgent.length === 0 && tba >= 0 && 'is-calm')}
@@ -663,6 +699,7 @@ function GroupState({
   group: PlanGroup;
   status: ReturnType<typeof groupStatus>;
 }) {
+  useAmountPrivacy();
   const text = statusText(group, status);
   if (group.key === 'cards') return null;
   return (
@@ -702,6 +739,7 @@ function Hero({
   onIncome: () => void;
   onDistribute: () => void;
 }) {
+  useAmountPrivacy();
   const s = data.summary;
   const tba = s.toBeAssignedCents;
   const { whole, fraction } = eurParts(tba);
@@ -772,6 +810,7 @@ function MonthOverview({
   /** Several months are shown: the overview names the leftmost one. */
   month: string | undefined;
 }) {
+  useAmountPrivacy();
   const s = data.summary;
   const activity = rows.reduce((a, r) => a + r.activityCents, 0);
   const available = rows.reduce((a, r) => a + r.availableCents, 0);
@@ -826,6 +865,7 @@ function MonthOverview({
 
 /** Inspector: the 50/30/20 band of what was assigned, against the month's income. */
 function SplitBand({ data, rows }: { data: BudgetMonthView; rows: PlanRow[] }) {
+  useAmountPrivacy();
   const state = splitState(data.summary, rows);
   const shares = state.kind === 'shares' ? state : null;
   const inSoll = shares !== null && shares.need <= 50 && shares.want <= 30 && shares.future >= 20;
@@ -916,6 +956,7 @@ function Rail({
   data: BudgetMonthView;
   onJump: (key: string) => void;
 }) {
+  useAmountPrivacy();
   const s = data.summary;
   const next =
     view === 'stage' ? groups.find((g) => g.stage && groupStatus(g.rows).need > 0) : undefined;
@@ -1011,6 +1052,7 @@ function EnvelopeRow({
   onTake: () => void;
   onOpen: () => void;
 }) {
+  useAmountPrivacy();
   const cash = isCashOver(r);
   const credit = !cash && r.creditOverspentCents > 0;
   const bar = barFor(r, ctx);

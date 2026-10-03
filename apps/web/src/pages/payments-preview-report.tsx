@@ -1,11 +1,17 @@
 import {
+  useAmountPrivacy,
+  privateAmount,
+  ClassSwatch,
+  DimensionChain,
+  type SwatchKind,
+} from '@budget/ui';
+import {
   cents,
   formatDecimal,
   type PaymentsPreview,
   type PreviewAmount,
   type PreviewCurrency,
 } from '@budget/domain';
-import { ClassSwatch, DimensionChain, type SwatchKind } from '@budget/ui';
 import { queryOptions, useQuery } from '@tanstack/react-query';
 import { request } from '../api/http';
 import { LEDGER_KEY } from '../ledger/queries';
@@ -27,7 +33,7 @@ export const paymentsPreviewQuery = () =>
     queryFn: () => request<PaymentsPreview>('GET', '/api/expected/year-preview'),
   });
 const money = (value: number, currency: string) =>
-  `${formatDecimal(cents(value))} ${currency === 'EUR' ? '€' : currency}`;
+  `${privateAmount(formatDecimal(cents(value)))} ${currency === 'EUR' ? '€' : currency}`;
 const amount = (value: PreviewAmount | null, currency: string | null) => {
   if (!value || !currency) return 'nicht verfügbar';
   const base = money(value.baseCents, currency);
@@ -37,7 +43,7 @@ const amount = (value: PreviewAmount | null, currency: string | null) => {
 };
 const calendarAmount = (value: PreviewAmount | null) => {
   if (!value) return 'nicht verfügbar';
-  const number = (c: number) => formatDecimal(cents(c));
+  const number = (c: number) => privateAmount(formatDecimal(cents(c)));
   return value.baseCents === value.upperCents
     ? number(value.baseCents)
     : `${number(value.baseCents)} bis ${number(value.upperCents)}`;
@@ -53,6 +59,7 @@ const STATUS = {
 };
 
 export function PaymentsPreviewReport({ report, meta }: { report: ReportEntry; meta: PageMeta }) {
+  useAmountPrivacy();
   const query = useQuery(paymentsPreviewQuery());
   return (
     <PageFrame
@@ -78,6 +85,7 @@ export function PaymentsPreviewReport({ report, meta }: { report: ReportEntry; m
   );
 }
 function PreviewBody({ data }: { data: PaymentsPreview }) {
+  useAmountPrivacy();
   const eur = data.currencies.find((g) => g.currency === 'EUR')!;
   return (
     <>
@@ -275,6 +283,7 @@ function PreviewBody({ data }: { data: PaymentsPreview }) {
   );
 }
 function PreviewChart({ data, group }: { data: PaymentsPreview; group: PreviewCurrency }) {
+  useAmountPrivacy();
   const [ref, measured] = useElementWidth<HTMLDivElement>();
   const width = measured || 1000;
   const small = width < 600;
@@ -314,7 +323,7 @@ function PreviewChart({ data, group }: { data: PaymentsPreview; group: PreviewCu
               className="preview-grid"
             />
             <text x={left - 8} y={y(max * part) + 4} textAnchor="end">
-              {Math.round((max * part) / 100)} €
+              {privateAmount(String(Math.round((max * part) / 100)))} €
             </text>
           </g>
         ))}

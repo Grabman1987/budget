@@ -1,5 +1,6 @@
 import {
   TrendLine,
+  useAmountPrivacy,
   AxisLine,
   BarsAroundZero,
   ChartSvg,
@@ -47,6 +48,7 @@ function ChartBox({
   className?: string;
   children: (width: number) => ReactNode;
 }) {
+  useAmountPrivacy();
   const [ref, width] = useElementWidth<HTMLDivElement>();
   return (
     <div ref={ref} className={`tr-chart ${className ?? ''}`} style={{ minHeight: height }}>
@@ -71,6 +73,7 @@ export function CategoryChart({
   cls: SpendClass;
   points: ReadonlyArray<CategoryPoint>;
 }) {
+  useAmountPrivacy();
   const prefix = usePatternPrefix('cat');
   const height = 200;
   return (
@@ -148,6 +151,7 @@ export function SavingsChart({
   targetBp: number;
   label: string;
 }) {
+  useAmountPrivacy();
   const height = 260;
   return (
     <ChartBox height={height}>
@@ -228,6 +232,7 @@ export function MoneyAgeChart({
   targetDays: number;
   label: string;
 }) {
+  useAmountPrivacy();
   const height = 260;
   return (
     <ChartBox height={height}>

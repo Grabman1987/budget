@@ -1,4 +1,5 @@
 import {
+  useAmountPrivacy,
   AxisLine,
   BarsAroundZero,
   ChartSvg,
@@ -27,6 +28,7 @@ const R = 14;
  * and "heute" fade in after the line.
  */
 export function NetWorthChart({ view, periodLabel }: { view: NetWorthView; periodLabel: string }) {
+  useAmountPrivacy();
   const [ref, width] = useElementWidth<HTMLDivElement>();
   return (
     <div ref={ref} className="vline">
@@ -48,6 +50,7 @@ function Drawing({
   height: number;
   periodLabel: string;
 }) {
+  useAmountPrivacy();
   const { daily, bars } = view;
   const n = daily.length - 1;
   const indexOf = new Map(daily.map((d, i) => [d.date, i]));

@@ -1,6 +1,6 @@
 import { ReportPeriodControl } from '../reports/period-quick-select';
 import { isReportPeriod, cents, type Period } from '@budget/domain';
-import { Button, DimensionChain } from '@budget/ui';
+import { useAmountPrivacy, Button, DimensionChain } from '@budget/ui';
 import { queryOptions, useInfiniteQuery, useQuery } from '@tanstack/react-query';
 import { useNavigate, useSearch } from '@tanstack/react-router';
 import React from 'react';
@@ -103,6 +103,7 @@ const statusName: Record<string, string> = {
 const bookingDetailId = 'payee-booking-detail';
 
 export function PayeeAnalysisReport({ report, meta }: { report: ReportEntry; meta: PageMeta }) {
+  useAmountPrivacy();
   const [period, setPeriod] = useReportPeriod();
   const query = useQuery(reportQuery(period));
   const [selected, setSelected] = React.useState<string | null>(null);
@@ -173,6 +174,7 @@ function ReportBody({
   selected: string | null;
   onSelect: (id: string | null) => void;
 }) {
+  useAmountPrivacy();
   const maximum = Math.max(1, ...data.rows.slice(0, 14).map((row) => Math.abs(row.amountCents)));
   const detail = useInfiniteQuery({
     queryKey: [...LEDGER_KEY, 'payee-analysis-detail', selected, data.from, data.to],

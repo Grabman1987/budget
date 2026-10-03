@@ -1,4 +1,12 @@
-import { Button, Field, SectionHead, Select, useToast } from '@budget/ui';
+import {
+  Button,
+  Field,
+  SectionHead,
+  Select,
+  useToast,
+  maskMoneyText,
+  useAmountPrivacy,
+} from '@budget/ui';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import { request } from '../api/http';
@@ -14,6 +22,7 @@ const PATH = '/api/portfolio/preferences';
 const KEY = ['investment-preferences'] as const;
 
 export function InvestmentSettingsPage() {
+  useAmountPrivacy();
   return (
     <PageFrame meta={INVESTMENT_SETTINGS_META} revealCurrentRegister>
       <InvestmentSettingsPanel />
@@ -23,6 +32,7 @@ export function InvestmentSettingsPage() {
 
 /** Stored acquisition method; changing it recalculates figures without changing trade records. */
 export function InvestmentSettingsPanel() {
+  useAmountPrivacy();
   const client = useQueryClient();
   const toast = useToast();
   const query = useQuery({ queryKey: KEY, queryFn: () => request<Preferences>('GET', PATH) });
@@ -102,7 +112,7 @@ export function InvestmentSettingsPanel() {
           </p>
           {error && (
             <p className="field-error" role="alert">
-              {error}
+              {maskMoneyText(error)}
             </p>
           )}
           <Button type="submit" disabled={busy || method === query.data.costMethod}>

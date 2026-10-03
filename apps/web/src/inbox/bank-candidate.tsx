@@ -1,4 +1,4 @@
-import { Button, Field, Select } from '@budget/ui';
+import { Button, Field, Select, useAmountPrivacy } from '@budget/ui';
 import { useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
 import { request } from '../api/http';
@@ -18,6 +18,7 @@ type Match = {
 };
 /** Explicit owner confirmation; the regular editor remains available after posting. */
 export function BankCandidate({ id }: { id: string }) {
+  useAmountPrivacy();
   const query = useQuery(lookupsQuery());
   const matches = useQuery({
     queryKey: [...LEDGER_KEY, 'bank-matches', id],
@@ -150,6 +151,7 @@ export function BankCandidate({ id }: { id: string }) {
  * manual entry; nothing is shown while there is no match or the booking is not eligible.
  */
 export function BankBookingMerge({ bookingId }: { bookingId: string }) {
+  useAmountPrivacy();
   const matches = useQuery({
     queryKey: [...LEDGER_KEY, 'bank-booking-matches', bookingId],
     queryFn: () =>

@@ -10,6 +10,8 @@ import { Sidebar } from './sidebar';
 import { Topbar } from './topbar';
 import { useStoredFlag } from './use-stored-flag';
 import { QueueList } from '../pwa/queue-ui';
+import { useStorageProtection } from '../pwa/storage-protection';
+import { usePrivacyShortcut } from './privacy-button';
 
 const APP_NAME = 'Budget';
 
@@ -18,6 +20,8 @@ const APP_NAME = 'Budget';
  * Both use the same routes and the same order of areas.
  */
 export function AppShell() {
+  useStorageProtection();
+  usePrivacyShortcut();
   const [collapsed, setCollapsed] = useStoredFlag('budget-sidebar-collapsed');
   const page = useActivePage();
   const main = useRef<HTMLElement>(null);

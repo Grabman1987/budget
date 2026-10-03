@@ -1,5 +1,5 @@
 import { ReportPeriodControl } from './period-quick-select';
-import { DimensionChain } from '@budget/ui';
+import { useAmountPrivacy, DimensionChain } from '@budget/ui';
 import { useQuery } from '@tanstack/react-query';
 import { ArrowDown, ArrowUp } from 'lucide-react';
 import { ApiError } from '../api/http';
@@ -25,6 +25,7 @@ const percent = new Intl.NumberFormat('de-AT', {
  * series and chain as Vermögen › Nettovermögen) and how it is made up by account type over time.
  */
 export function WealthHistoryReport({ report, meta }: { report: ReportEntry; meta: PageMeta }) {
+  useAmountPrivacy();
   const [period, setPeriod] = useZeitraum();
   const query = useQuery(netWorthHistoryQuery(period));
   const history = query.isSuccess ? query.data : undefined;
@@ -80,6 +81,7 @@ export function WealthHistoryReport({ report, meta }: { report: ReportEntry; met
 }
 
 function Body({ history }: { history: NetWorthHistory }) {
+  useAmountPrivacy();
   const { chain, groups } = history;
   const text = periodText(history.period, history.from);
   const { whole, fraction } = eurParts(chain.nowCents);

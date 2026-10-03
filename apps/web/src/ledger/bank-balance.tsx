@@ -1,5 +1,5 @@
 import '../pages/data-sources.css';
-import { Button } from '@budget/ui';
+import { Button, useAmountPrivacy } from '@budget/ui';
 import { useState } from 'react';
 import { request } from '../api/http';
 import { useBudgetWrite } from '../budget/use-category-writes';
@@ -7,6 +7,7 @@ import { longDay, nativeCurrency } from './format';
 import type { AccountRow } from './types';
 
 export function BankBalance({ account }: { account: AccountRow }) {
+  useAmountPrivacy();
   const balance = account.bankBalance;
   const [busy, setBusy] = useState(false);
   const write = useBudgetWrite();

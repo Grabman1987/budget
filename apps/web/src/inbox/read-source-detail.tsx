@@ -1,7 +1,9 @@
 import type { SourceOperation } from '@budget/domain';
+import { privateAmount, useAmountPrivacy } from '@budget/ui';
 
 /** Readable source facts, with the retained normalized record available for reconciliation. */
 export function ReadSourceDetail({ detail }: { detail: string | null }) {
+  useAmountPrivacy();
   if (!detail) return null;
   let value: Record<string, unknown>;
   try {
@@ -36,8 +38,8 @@ export function ReadSourceDetail({ detail }: { detail: string | null }) {
             <li key={tx.id}>
               {new Date(tx.creditedAt).toLocaleDateString('de-AT')} · {tx.type} ·{' '}
               {tx.flow === 'INCOMING' ? 'Zugang' : tx.flow === 'OUTGOING' ? 'Abgang' : tx.flow}:{' '}
-              {tx.amount.value.replace('.', ',')}
-              {tx.fee && <> · Gebühr: {tx.fee.value.replace('.', ',')}</>}
+              {privateAmount(tx.amount.value.replace('.', ','))}
+              {tx.fee && <> · Gebühr: {privateAmount(tx.fee.value.replace('.', ','))}</>}
             </li>
           ))}
         </ul>

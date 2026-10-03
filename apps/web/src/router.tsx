@@ -11,6 +11,7 @@ import type { HeutePeriod } from './heute/api';
 import { authStatusQuery, queryClient } from './auth/status-query';
 import { validateBookingsSearch } from './ledger/bookings-search';
 import { accountsQuery } from './ledger/queries';
+import { captureContinuation, validateCaptureSearch } from './ledger/capture-link';
 import { findReport } from './nav/reports-catalog';
 import {
   ACCOUNT_PAGE,
@@ -79,10 +80,11 @@ const rootRoute = createRootRoute({
 const shellRoute = createRoute({
   getParentRoute: () => rootRoute,
   id: 'shell',
-  beforeLoad: async () => {
+  beforeLoad: async ({ location }) => {
     const status = await queryClient.fetchQuery(authStatusQuery);
     if (status.setupRequired) throw redirect({ to: '/setup' });
-    if (!status.authenticated) throw redirect({ to: '/login' });
+    if (!status.authenticated)
+      throw redirect({ to: '/login', search: { weiter: captureContinuation(location.href) } });
   },
   component: AppShell,
 });
@@ -109,6 +111,13 @@ const homeRoute = createRoute({
   path: '/',
   staticData: { meta: HEUTE },
   component: lazyRouteComponent(heutePage, 'HeutePage'),
+});
+const captureRoute = createRoute({
+  getParentRoute: () => shellRoute,
+  path: '/erfassen',
+  staticData: { meta: { ...HEUTE, title: 'Buchung erfassen' } },
+  validateSearch: validateCaptureSearch,
+  component: lazyRouteComponent(() => import('./ledger/capture-page'), 'CapturePage'),
 });
 const BUILT_PATHS = new Set<string>([
   '/einstellungen/datenquellen',
@@ -210,6 +219,14 @@ const rulesRoute = createRoute({
 const planMonthRoute = createRoute({
   getParentRoute: () => shellRoute,
   path: PLAN_MONAT.path,
+  validateSearch: (
+    search: Record<string, unknown>,
+  ): { ansicht?: 'triage'; kategorie?: string } => ({
+    ...(search['ansicht'] === 'triage' ? { ansicht: 'triage' as const } : {}),
+    ...(typeof search['kategorie'] === 'string' && search['kategorie'].length <= 64
+      ? { kategorie: search['kategorie'] }
+      : {}),
+  }),
   staticData: { meta: PLAN_MONAT },
   component: lazyRouteComponent(() => import('./budget/plan-page'), 'PlanMonthPage'),
 });
@@ -375,6 +392,10 @@ const reportRoute = createRoute({
 const loginRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/login',
+  validateSearch: (search: Record<string, unknown>): { weiter?: string | undefined } => {
+    const weiter = captureContinuation(search['weiter']);
+    return weiter ? { weiter } : {};
+  },
   beforeLoad: async () => {
     const status = await queryClient.fetchQuery(authStatusQuery);
     if (status.setupRequired) throw redirect({ to: '/setup' });
@@ -420,6 +441,7 @@ const devRoutes = devRoutesEnabled
 const routeTree = rootRoute.addChildren([
   shellRoute.addChildren([
     homeRoute,
+    captureRoute,
     ...placeholderRoutes,
     securityRoute,
     profileRoute,

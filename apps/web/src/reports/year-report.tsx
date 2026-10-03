@@ -1,3 +1,4 @@
+import { useAmountPrivacy, DimensionChain, Segmented } from '@budget/ui';
 import {
   buildTableRows,
   buildYearView,
@@ -11,7 +12,6 @@ import {
   type TableMeta,
   type TableMonth,
 } from '@budget/domain';
-import { DimensionChain, Segmented } from '@budget/ui';
 import { useMemo, useState } from 'react';
 import { eur } from '../ledger/format';
 import type { PageMeta } from '../nav/pages';
@@ -31,6 +31,7 @@ const sum = (months: ReadonlyArray<TableMonth | null>, pick: (m: TableMonth) => 
 
 /** 1.5 Jahresansicht: category by month for one year, against the same months of the year before. */
 export function YearReport({ report, meta }: { report: ReportEntry; meta: PageMeta }) {
+  useAmountPrivacy();
   const query = useReportTables();
   const [picked, setPicked] = useState<number | null>(null);
   const tables = query.data;
@@ -71,6 +72,7 @@ export function YearReport({ report, meta }: { report: ReportEntry; meta: PageMe
 }
 
 function YearBody({ data, year }: { data: ReportTables; year: number }) {
+  useAmountPrivacy();
   const [depth, setDepth] = useState<(typeof DEPTH)[number]['value']>('gruppen');
   const meta: TableMeta = data;
   const view = useMemo(

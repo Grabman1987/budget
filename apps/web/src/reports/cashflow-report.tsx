@@ -1,6 +1,6 @@
 import { ReportPeriodControl } from './period-quick-select';
+import { useAmountPrivacy, DimensionChain } from '@budget/ui';
 import { cents } from '@budget/domain';
-import { DimensionChain } from '@budget/ui';
 import { useQuery } from '@tanstack/react-query';
 import { AlertCircle, CheckCircle2 } from 'lucide-react';
 import { eur, eurParts, eurWhole, longDay, monthName } from '../ledger/format';
@@ -23,6 +23,7 @@ const long = (month: string) => `${monthName(`${month}-01`)} ${month.slice(0, 4)
  * income and not part of the net cashflow (owner decision 02.10.2026).
  */
 export function CashflowReportPage({ report, meta }: { report: ReportEntry; meta: PageMeta }) {
+  useAmountPrivacy();
   const [period, setPeriod] = useZeitraum();
   const query = useQuery(cashflowQuery(period));
   const data = query.isSuccess ? query.data : undefined;
@@ -74,6 +75,7 @@ export function CashflowReportPage({ report, meta }: { report: ReportEntry; meta
 }
 
 function Body({ data }: { data: CashflowReport }) {
+  useAmountPrivacy();
   const { totals: t } = data;
   const inWindow = data.months.filter((m) => m.inWindow);
   const positive = t.netCents > 0;

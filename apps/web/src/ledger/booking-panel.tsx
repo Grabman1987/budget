@@ -2,10 +2,11 @@ import { FormDialog } from '@budget/ui';
 import { useEffect, useRef, useState } from 'react';
 import { CaptureForm } from './capture-form';
 import type { ListedBooking } from './types';
+import type { BookingDraft } from './booking-model';
 import { useNavigate } from '@tanstack/react-router';
 
 export type BookingPanelState =
-  | { mode: 'create'; accountId?: string | undefined }
+  | { mode: 'create'; accountId?: string | undefined; prefill?: Partial<BookingDraft> }
   | { mode: 'edit'; booking: ListedBooking }
   | null;
 

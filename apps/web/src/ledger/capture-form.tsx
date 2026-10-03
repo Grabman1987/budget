@@ -1,10 +1,6 @@
+import { incomeBudgetMonth, incomeMonthDefault, type IncomeMonthRule } from '@budget/domain';
 import {
-  incomeBudgetMonth,
-  incomeMonthDefault,
-  todayInVienna,
-  type IncomeMonthRule,
-} from '@budget/domain';
-import {
+  useAmountPrivacy,
   AmountInput,
   Button,
   ClassSwatch,
@@ -14,7 +10,9 @@ import {
   Select,
   TextInput,
   type SegmentedOption,
+  maskMoneyText,
 } from '@budget/ui';
+import { todayInVienna } from '@budget/domain';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { CalendarClock, Check, Lock, Trash2, X } from 'lucide-react';
 import {
@@ -128,6 +126,7 @@ export function CaptureForm({
   queued?: QueuedBooking;
   onExpected?: (booking: ListedBooking) => void;
 }) {
+  useAmountPrivacy();
   const qc = useQueryClient();
   const accounts = useQuery(accountsQuery());
   const lookups = useQuery(lookupsQuery(state.mode === 'edit' ? state.booking.id : undefined));
@@ -156,7 +155,10 @@ export function CaptureForm({
       ? queued.draft
       : editDraft
         ? editDraft
-        : emptyDraft(state.mode === 'create' ? (state.accountId ?? '') : '', today),
+        : {
+            ...emptyDraft(state.mode === 'create' ? (state.accountId ?? '') : '', today),
+            ...(state.mode === 'create' ? state.prefill : {}),
+          },
   );
   const [errors, setErrors] = useState<DraftErrors & { form?: string }>({});
   const [offlineChoices, setOfflineChoices] = useState<CaptureChoices>();
@@ -802,7 +804,7 @@ export function CaptureForm({
         )}
         {errors.form && (
           <p className="field-error" role="alert">
-            {errors.form}
+            {maskMoneyText(errors.form)}
           </p>
         )}
         {editing && <ReceiptSection bookingId={editing.id} />}
@@ -879,6 +881,7 @@ function DateField({
   set: <K extends keyof BookingDraft>(key: K, value: BookingDraft[K]) => void;
   error: string | undefined;
 }) {
+  useAmountPrivacy();
   return (
     <div className="kdate">
       <Field label="Datum" error={error}>
