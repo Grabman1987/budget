@@ -5,6 +5,8 @@ import {
   matchExecutions,
   planChanges,
   plannedExecutions,
+  monthOf,
+  addMonths,
   rowAppliesOn,
   savingsPlanProposal,
   type ExecutionCheck,
@@ -20,6 +22,7 @@ import { insertTracked, updateTracked, withGroup, type AuditContext } from './au
 import { ConflictError, EntityNotFoundError } from './errors';
 import { positionLines, riskOf } from './portfolio-summary';
 import { runInTransaction, type Executor } from './types';
+import { createTrade, listTrades, type TradeInput } from './trades';
 
 export type SavingsPlanRecord = typeof savingsPlan.$inferSelect;
 
@@ -241,11 +244,173 @@ export function savingsExecutions(db: Executor, month: string, today: string): E
       date: trade.date,
       amountCents: trade.amountCents,
       feeCents: trade.feeCents,
+      savingsMonth: trade.savingsMonth,
     })
     .from(trade)
     .where(and(isNull(trade.deletedAt), eq(trade.kind, 'buy')))
     .all();
-  return matchExecutions(planned, buys, today);
+  return matchExecutions(
+    planned,
+    buys.filter((b) => !b.savingsMonth),
+    today,
+  ).map((execution) => {
+    const explicit = buys.find(
+      (b) =>
+        b.savingsMonth === month &&
+        b.securityId === execution.securityId &&
+        b.accountId === execution.accountId,
+    );
+    return explicit ? { ...execution, status: 'executed', tradeId: explicit.id } : execution;
+  });
+}
+
+export interface SavingsExecutionProposal {
+  type: 'savings';
+  id: string;
+  kind: 'revision';
+  urgent: false;
+  planId: string;
+  month: string;
+  securityId: string;
+  accountId: string;
+  securityName: string;
+  accountName: string;
+  sourceAccountName: string | null;
+  currency: string;
+  date: string;
+  amountCents: number;
+}
+
+/** Read-only monthly proposals. Never creates a trade, booking or bank instruction. */
+export function savingsExecutionProposals(db: Executor, today: string): SavingsExecutionProposal[] {
+  const rows = listSavingsPlans(db, { includeEnded: true });
+  const currentMonth = monthOf(today);
+  const trades = listTrades(db);
+  const buys = trades.filter((t) => t.kind === 'buy' && !t.savingsMonth);
+  const months = new Set<string>();
+  for (const row of rows) {
+    for (
+      let month = monthOf(row.validFrom);
+      month <= currentMonth && month <= monthOf(row.validTo ?? today);
+      month = addMonths(month, 1)
+    )
+      months.add(month);
+  }
+  const planned = [...months].sort().flatMap((month) => plannedExecutions(rows.map(toRow), month));
+  const pending = planned.filter(
+    (e) =>
+      !trades.some(
+        (t) =>
+          t.savingsMonth === monthOf(e.date) &&
+          t.securityId === e.securityId &&
+          t.accountId === e.accountId,
+      ),
+  );
+  // Match the complete timeline once so one buy cannot fulfil adjacent monthly windows twice.
+  const executions = matchExecutions(pending, buys, today).map((e) => ({
+    ...e,
+    month: monthOf(e.date),
+  }));
+  const securities = db.select().from(security).where(isNull(security.deletedAt)).all();
+  const accounts = db.select().from(account).where(isNull(account.deletedAt)).all();
+  return executions.flatMap((execution) => {
+    if (execution.date > today || execution.status === 'executed') return [];
+    // Overlapping versions cannot be interpreted as two monthly purchases.
+    if (
+      planned.filter(
+        (e) =>
+          monthOf(e.date) === execution.month &&
+          e.securityId === execution.securityId &&
+          e.accountId === execution.accountId,
+      ).length !== 1
+    )
+      return [];
+    if (
+      trades.some(
+        (t) =>
+          t.savingsMonth === execution.month &&
+          t.securityId === execution.securityId &&
+          t.accountId === execution.accountId,
+      )
+    )
+      return [];
+    const plan = rows.find((r) => r.id === execution.planId)!;
+    const sec = securities.find((s) => s.id === execution.securityId);
+    const acct = accounts.find((a) => a.id === execution.accountId);
+    if (!sec || !acct || acct.closedAt || acct.role !== 'investment') return [];
+    return [
+      {
+        type: 'savings' as const,
+        id: `savings:${plan.id}:${execution.month}`,
+        kind: 'revision' as const,
+        urgent: false as const,
+        planId: plan.id,
+        month: execution.month,
+        securityId: sec.id,
+        accountId: acct.id,
+        securityName: sec.name,
+        accountName: acct.name,
+        sourceAccountName: accounts.find((a) => a.id === plan.sourceAccountId)?.name ?? null,
+        currency: acct.currency,
+        date: execution.date,
+        amountCents: execution.amountCents,
+      },
+    ];
+  });
+}
+
+/** Recheck the current proposal inside the same savepoint as trade/cash/audit creation. */
+export function confirmSavingsExecution(
+  db: Executor,
+  planId: string,
+  month: string,
+  today: string,
+  input: Pick<TradeInput, 'date' | 'unitsE8' | 'amountCents' | 'feeCents' | 'note'> & {
+    plannedAmountCents: number;
+    plannedDate: string;
+    plannedCurrency: string;
+  },
+  ctx: AuditContext,
+) {
+  const grouped = withGroup(ctx);
+  return runInTransaction(db, (tx) => {
+    const proposal = savingsExecutionProposals(tx, today).find(
+      (p) => p.planId === planId && p.month === month,
+    );
+    if (!proposal)
+      throw new ConflictError('Der Sparplanvorschlag ist nicht mehr offen. Bitte neu laden.');
+    if (
+      proposal.amountCents !== input.plannedAmountCents ||
+      proposal.date !== input.plannedDate ||
+      proposal.currency !== input.plannedCurrency
+    )
+      throw new ConflictError('Der Sparplan wurde geändert. Bitte den neuen Vorschlag prüfen.');
+    if (
+      input.date > today ||
+      input.date < addDays(proposal.date, -3) ||
+      input.date > addDays(proposal.date, 3)
+    )
+      throw new RangeError(
+        'Ausführungsdatum muss innerhalb von drei Tagen des Vorschlags liegen und darf nicht in der Zukunft liegen.',
+      );
+    const result = createTrade(
+      tx,
+      {
+        securityId: proposal.securityId,
+        accountId: proposal.accountId,
+        kind: 'buy',
+        date: input.date,
+        unitsE8: input.unitsE8 ?? 0,
+        amountCents: input.amountCents,
+        feeCents: input.feeCents ?? 0,
+        note: input.note ?? null,
+        savingsPlanId: planId,
+        savingsMonth: month,
+      },
+      grouped,
+    );
+    return { ...result, groupId: grouped.groupId };
+  });
 }
 
 /** Proposed rates are whole multiples of this (50 €, as in the prototype: 300 and 100). */

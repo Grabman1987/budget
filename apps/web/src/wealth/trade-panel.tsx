@@ -8,7 +8,8 @@ import {
   useToast,
   maskMoneyText,
 } from '@budget/ui';
-import { parseAmount } from '@budget/domain';
+import { formatDecimal, parseAmount, type Cents } from '@budget/domain';
+import { confirmSavings, type SavingsExecutionProposal } from './savings-api';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
 import { useBlocker } from '@tanstack/react-router';
@@ -19,17 +20,27 @@ import { accountsQuery, LEDGER_KEY, lookupsQuery } from '../ledger/queries';
 import { ErrorNote, LoadingNote } from '../ledger/states';
 import type { AccountRow } from '../ledger/types';
 import { instrumentsQuery, type SecurityRecord } from './portfolio-api';
-import { saveTrade, sourceMoney, tradeQuery, type TradeRow } from './trade-api';
-import { tradeDraft, validateTrade, type TradeDraft, type TradeErrors } from './trade-draft';
+import { removeTrade, saveTrade, sourceMoney, tradeQuery, type TradeRow } from './trade-api';
+import {
+  hasUnits,
+  hasDeductions,
+  TRADE_LABELS,
+  tradeDraft,
+  validateTrade,
+  type TradeDraft,
+  type TradeErrors,
+} from './trade-draft';
 
 export function TradePanel({
   id,
   securityId,
+  proposal,
   onClose,
   onSaved,
 }: {
   id: string;
   securityId?: string | undefined;
+  proposal?: SavingsExecutionProposal | undefined;
   onClose: () => void;
   onSaved: (securityId: string) => void;
 }) {
@@ -81,7 +92,13 @@ export function TradePanel({
   return (
     <DetailPanel
       open
-      title={editing ? 'Handel bearbeiten' : 'Handel erfassen'}
+      title={
+        proposal
+          ? 'Sparplanausführung bestätigen'
+          : editing
+            ? 'Handel bearbeiten'
+            : 'Handel erfassen'
+      }
       onClose={close}
       beforeClose={() => {
         if (busyRef.current || blocker.status === 'blocked') return false;
@@ -117,28 +134,25 @@ export function TradePanel({
           onRetry={() => void lookups.refetch()}
         />
       )}
-      {ready && editing && trade.data?.trade.kind !== 'buy' && trade.data?.trade.kind !== 'sell' ? (
-        <p className="vnote">Diese Handelsart kann hier noch nicht bearbeitet werden.</p>
-      ) : (
-        ready && (
-          <TradeForm
-            trade={editing ? trade.data?.trade : undefined}
-            date={accounts.data!.asOf}
-            securityId={securityId}
-            accounts={accounts.data!.accounts}
-            eligible={eligible ?? []}
-            securities={securities.data!.securities}
-            institutions={lookups.data?.institutions ?? []}
-            onDirty={setDirtyNow}
-            onBusy={setBusyNow}
-            onSaved={(securityId) => {
-              setDirtyNow(false);
-              setBusyNow(false);
-              setAsking(false);
-              onSaved(securityId);
-            }}
-          />
-        )
+      {ready && (
+        <TradeForm
+          trade={editing ? trade.data?.trade : undefined}
+          date={accounts.data!.asOf}
+          securityId={securityId}
+          proposal={proposal}
+          accounts={accounts.data!.accounts}
+          eligible={eligible ?? []}
+          securities={securities.data!.securities}
+          institutions={lookups.data?.institutions ?? []}
+          onDirty={setDirtyNow}
+          onBusy={setBusyNow}
+          onSaved={(securityId) => {
+            setDirtyNow(false);
+            setBusyNow(false);
+            setAsking(false);
+            onSaved(securityId);
+          }}
+        />
       )}
       {asking && (
         <div className="instrument-discard" role="alert">
@@ -174,6 +188,7 @@ function TradeForm({
   trade,
   date,
   securityId,
+  proposal,
   accounts,
   eligible,
   securities,
@@ -185,6 +200,7 @@ function TradeForm({
   trade?: TradeRow | undefined;
   date: string;
   securityId?: string | undefined;
+  proposal?: SavingsExecutionProposal | undefined;
   accounts: AccountRow[];
   eligible: AccountRow[];
   securities: SecurityRecord[];
@@ -194,19 +210,32 @@ function TradeForm({
   onSaved: (securityId: string) => void;
 }) {
   useAmountPrivacy();
-  const [original] = useState(() =>
-    tradeDraft(date, securityId, eligible.length === 1 ? eligible[0]!.id : '', trade),
-  );
+  const [original] = useState(() => ({
+    ...tradeDraft(date, securityId, eligible.length === 1 ? eligible[0]!.id : '', trade),
+    ...(proposal
+      ? {
+          accountId: proposal.accountId,
+          securityId: proposal.securityId,
+          date: proposal.date,
+          amount: formatDecimal(proposal.amountCents as Cents),
+        }
+      : {}),
+  }));
   const [draft, setDraft] = useState(original);
   const [errors, setErrors] = useState<TradeErrors>({});
   const [busy, setBusy] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const saving = useRef(false);
   const qc = useQueryClient();
   const toast = useToast();
   const account = accounts.find((account) => account.id === draft.accountId);
   const changed = JSON.stringify(draft) !== JSON.stringify(original);
   const update = (key: keyof TradeDraft, value: string) => {
-    const next = { ...draft, [key]: value };
+    const next = {
+      ...draft,
+      [key]: value,
+      ...(key === 'kind' && value === 'split' ? { amount: '0' } : {}),
+    };
     setDraft(next);
     setErrors({});
     onDirty(JSON.stringify(next) !== JSON.stringify(original));
@@ -226,7 +255,7 @@ function TradeForm({
     );
   const save = async (event: FormEvent) => {
     event.preventDefault();
-    if (saving.current || (trade && !changed)) return;
+    if (saving.current || deleting || (trade && !changed)) return;
     const validated = validateTrade(draft);
     setErrors(validated.errors);
     if (!validated.values) return;
@@ -234,24 +263,57 @@ function TradeForm({
     setBusy(true);
     onBusy(true);
     try {
-      const result = await saveTrade(validated.values, trade?.id);
+      const result = proposal
+        ? await confirmSavings(proposal, validated.values)
+        : await saveTrade(validated.values, trade?.id);
       onDirty(false);
       await refresh();
       onSaved(result.trade.securityId);
       toast.show({
-        message: trade ? 'Handel gespeichert.' : 'Handel erfasst.',
+        message: proposal
+          ? 'Sparplanausführung erfasst.'
+          : trade
+            ? 'Handel gespeichert.'
+            : 'Handel erfasst.',
         actionLabel: 'Rückgängig',
         onAction: () => reverse(result.groupId),
       });
     } catch (error) {
       setErrors({
         form:
-          error instanceof ApiError && error.code === 'account_closed'
-            ? 'Das Anlagekonto wurde geschlossen. Bitte zuerst wieder öffnen.'
-            : error instanceof ApiError && error.status === 400
-              ? 'Handel konnte nicht gespeichert werden. Bitte Angaben prüfen.'
-              : errorText(error),
+          proposal && error instanceof ApiError && error.status === 409
+            ? 'Der Vorschlag ist nicht mehr aktuell oder bereits erfasst. Bitte schließen und neu laden.'
+            : error instanceof ApiError && error.code === 'account_closed'
+              ? 'Das Anlagekonto wurde geschlossen. Bitte zuerst wieder öffnen.'
+              : error instanceof ApiError && error.status === 400
+                ? 'Handel konnte nicht gespeichert werden. Bitte Angaben prüfen.'
+                : errorText(error),
       });
+    } finally {
+      saving.current = false;
+      setBusy(false);
+      onBusy(false);
+    }
+  };
+  const remove = async () => {
+    if (!trade || saving.current) return;
+    saving.current = true;
+    setBusy(true);
+    onBusy(true);
+    try {
+      const result = await removeTrade(trade.id);
+      onDirty(false);
+      await refresh();
+      onSaved(trade.securityId);
+      toast.show({
+        message: trade.bookingId
+          ? 'Handel und zugehörige Kontobuchung gelöscht.'
+          : 'Handel gelöscht.',
+        actionLabel: 'Rückgängig',
+        onAction: () => reverse(result.groupId),
+      });
+    } catch (error) {
+      setErrors({ form: errorText(error) });
     } finally {
       saving.current = false;
       setBusy(false);
@@ -260,22 +322,40 @@ function TradeForm({
   };
   const preview = validateTrade(draft);
   const taxInput = parseAmount(draft.tax);
-  const showTax = draft.kind === 'sell' || !taxInput.ok || taxInput.cents !== 0;
+  const showTax = hasDeductions(draft.kind) || !taxInput.ok || taxInput.cents !== 0;
+  const feeInput = parseAmount(draft.fee);
+  const showFee =
+    draft.kind === 'buy' || hasDeductions(draft.kind) || !feeInput.ok || feeInput.cents !== 0;
   const accountLabel = (account: AccountRow) =>
     `${account.name}${account.institutionId ? ` · ${institutions.find((institution) => institution.id === account.institutionId)?.name ?? 'Institut'}` : ''} (${account.currency})`;
   return (
     <form className="kform" onSubmit={(event) => void save(event)}>
       <fieldset className="instrument-fields" disabled={busy}>
+        {proposal && (
+          <p className="vnote">
+            {proposal.securityName} · {proposal.month} · geplant{' '}
+            {sourceMoney(proposal.amountCents, proposal.currency)}. Tatsächliche Stückzahl, Betrag
+            und Gebühren aus der Abrechnung übernehmen. Die Bestätigung erfasst einen Kauf auf{' '}
+            {proposal.accountName}.{' '}
+            {proposal.sourceAccountName
+              ? `Die Einzahlung von ${proposal.sourceAccountName} separat prüfen.`
+              : 'Eine Einzahlung separat prüfen.'}{' '}
+            Kein Bankauftrag und keine automatische Umbuchung.
+          </p>
+        )}
         <Field label="Handelsart">
           {({ id }) => (
             <Select
               id={id}
               value={draft.kind}
-              disabled={!!trade}
+              disabled={!!trade || !!proposal}
               onChange={(event) => update('kind', event.target.value)}
             >
-              <option value="buy">Kauf</option>
-              <option value="sell">Verkauf</option>
+              {Object.entries(TRADE_LABELS).map(([kind, label]) => (
+                <option key={kind} value={kind}>
+                  {label}
+                </option>
+              ))}
             </Select>
           )}
         </Field>
@@ -289,7 +369,7 @@ function TradeForm({
               id={id}
               value={draft.accountId}
               required
-              disabled={!!trade}
+              disabled={!!trade || !!proposal}
               aria-describedby={describedBy}
               aria-invalid={invalid}
               onChange={(event) => update('accountId', event.target.value)}
@@ -313,6 +393,7 @@ function TradeForm({
             <Select
               id={id}
               value={draft.securityId}
+              disabled={!!trade?.savingsPlanId || !!proposal}
               required
               aria-describedby={describedBy}
               aria-invalid={invalid}
@@ -340,47 +421,57 @@ function TradeForm({
             />
           )}
         </Field>
-        <Field
-          label="Stück"
-          error={errors.units}
-          hint="Positive Stückzahl, bis zu acht Nachkommastellen."
-        >
-          {({ id, describedBy, invalid }) => (
-            <TextInput
-              id={id}
-              inputMode="decimal"
-              value={draft.units}
-              required
-              maxLength={30}
-              aria-describedby={describedBy}
-              aria-invalid={invalid}
-              onChange={(event) => update('units', event.target.value)}
-            />
-          )}
-        </Field>
-        {(['amount', 'fee', ...(showTax ? ['tax'] : [])] as ('amount' | 'fee' | 'tax')[]).map(
-          (key) => (
-            <Field
-              key={key}
-              label={`${key === 'amount' ? 'Bruttobetrag' : key === 'fee' ? 'Gebühren' : 'Einbehaltene Steuer'} (${account?.currency ?? 'Kontowährung'})`}
-              error={errors[key]}
-            >
-              {({ id, describedBy, invalid }) => (
-                <TextInput
-                  id={id}
-                  inputMode="decimal"
-                  value={draft[key]}
-                  money
-                  required
-                  maxLength={40}
-                  aria-describedby={describedBy}
-                  aria-invalid={invalid}
-                  onChange={(event) => update(key, event.target.value)}
-                />
-              )}
-            </Field>
-          ),
+        {hasUnits(draft.kind) && (
+          <Field
+            label={draft.kind === 'split' ? 'Stückänderung' : 'Stück'}
+            error={errors.units}
+            hint={
+              draft.kind === 'split'
+                ? 'Vorzeichenbehaftete Änderung, nicht der neue Gesamtbestand. Beispiel: 10 auf 20 Stück = +10; 20 auf 10 = −10.'
+                : 'Positive Stückzahl, bis zu acht Nachkommastellen.'
+            }
+          >
+            {({ id, describedBy, invalid }) => (
+              <TextInput
+                id={id}
+                inputMode="decimal"
+                value={draft.units}
+                required
+                maxLength={30}
+                aria-describedby={describedBy}
+                aria-invalid={invalid}
+                onChange={(event) => update('units', event.target.value)}
+              />
+            )}
+          </Field>
         )}
+        {(
+          [
+            ...(draft.kind === 'split' ? [] : ['amount']),
+            ...(showFee ? ['fee'] : []),
+            ...(showTax ? ['tax'] : []),
+          ] as ('amount' | 'fee' | 'tax')[]
+        ).map((key) => (
+          <Field
+            key={key}
+            label={`${key === 'amount' ? (draft.kind.startsWith('delivery') ? 'Dokumentierter Einstand / Lieferwert' : 'Bruttobetrag') : key === 'fee' ? 'Gebühren' : 'Einbehaltene Steuer'} (${account?.currency ?? 'Kontowährung'})`}
+            error={errors[key]}
+          >
+            {({ id, describedBy, invalid }) => (
+              <TextInput
+                id={id}
+                inputMode="decimal"
+                value={draft[key]}
+                money
+                required
+                maxLength={40}
+                aria-describedby={describedBy}
+                aria-invalid={invalid}
+                onChange={(event) => update(key, event.target.value)}
+              />
+            )}
+          </Field>
+        ))}
         {draft.kind === 'buy' && showTax && (
           <p className="vnote">
             Ein Kauf hat keine einbehaltene Steuer. Steuer auf 0 setzen oder Verkauf wählen.
@@ -390,6 +481,18 @@ function TradeForm({
           Aus der Abrechnung übernehmen. Gebühren und Steuern werden nicht geschätzt oder nochmals
           berechnet.
         </p>
+        {draft.kind.startsWith('delivery') && (
+          <p className="vnote">
+            Lieferungen ändern den Bestand ohne Kontobuchung. Den dokumentierten Lieferwert
+            übernehmen; Einlieferungen verwenden ihn als Einstand.
+          </p>
+        )}
+        {draft.kind === 'split' && (
+          <p className="vnote">
+            Keine Kontobuchung; der Einstand bleibt erhalten. Gespeicherte Kurse auf den Split
+            prüfen.
+          </p>
+        )}
         {preview.settlement !== undefined && account && (
           <p className="vnote" role="status">
             Kontobuchung: {sourceMoney(preview.settlement, account.currency)}
@@ -400,7 +503,7 @@ function TradeForm({
             <TextInput
               id={id}
               value={draft.note}
-              maxLength={4000}
+              maxLength={500}
               aria-describedby={describedBy}
               onChange={(event) => update('note', event.target.value)}
             />
@@ -413,10 +516,36 @@ function TradeForm({
         )}
         <Button
           type="submit"
-          disabled={busy || !account || !securities.length || (!!trade && !changed)}
+          disabled={busy || deleting || !account || !securities.length || (!!trade && !changed)}
         >
-          {busy ? 'Wird gespeichert …' : trade ? 'Handel speichern' : 'Handel erfassen'}
+          {busy
+            ? 'Wird gespeichert …'
+            : proposal
+              ? 'Ausführung bestätigen'
+              : trade
+                ? 'Handel speichern'
+                : 'Handel erfassen'}
         </Button>
+        {trade && (
+          <Button variant="ghost" type="button" onClick={() => setDeleting(true)}>
+            Handel löschen
+          </Button>
+        )}
+        {deleting && (
+          <div className="instrument-discard" role="alert">
+            <p>
+              Handel löschen? Die zugehörige Kontobuchung wird gemeinsam entfernt. Separate
+              Einzahlungen oder Umbuchungen bleiben bestehen. Ungespeicherte Angaben werden
+              verworfen.
+            </p>
+            <Button type="button" variant="alert" onClick={() => void remove()}>
+              Löschen bestätigen
+            </Button>
+            <Button type="button" variant="ghost" onClick={() => setDeleting(false)}>
+              Abbrechen
+            </Button>
+          </div>
+        )}
       </fieldset>
     </form>
   );
