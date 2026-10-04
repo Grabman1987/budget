@@ -9,7 +9,7 @@ import type {
   MoneyEvent,
   SinkingFund,
 } from '../kpi';
-import type { ClassTarget, WealthPosition } from '../wealth';
+import type { AllocationQuality, ClassTarget, WealthPosition } from '../wealth';
 
 export type RuleStatus = 'ok' | 'warn' | 'bad';
 
@@ -96,6 +96,7 @@ export interface RuleInputs {
   positions: ReadonlyArray<WealthPosition>;
   classTargets: ReadonlyArray<ClassTarget>;
   /** Shared resolved runtime policy, supplied by the repository. */
+  allocationQuality?: AllocationQuality;
   portfolioRiskPolicy?: { R13: RuleParams<'R13'>; R14: RuleParams<'R14'>; R15: RuleParams<'R15'> };
   /** Labels for ids in details and texts. */
   names: {

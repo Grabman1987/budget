@@ -2,6 +2,7 @@ import { todayInVienna } from '@budget/domain';
 import { replaceExposureVersion } from './asset-exposure';
 import { and, asc, eq, isNull, ne } from 'drizzle-orm';
 import {
+  account,
   assetClass,
   assetClassTarget,
   holding,
@@ -183,7 +184,12 @@ export function deleteAssetClass(db: Executor, id: string, ctx: AuditContext): v
       .from(securityAssetExposure)
       .where(eq(securityAssetExposure.assetClassId, id))
       .get();
-    if (used || exposure)
+    const cash = tx
+      .select()
+      .from(account)
+      .where(and(eq(account.allocationAssetClassId, id), isNull(account.deletedAt)))
+      .get();
+    if (used || exposure || cash)
       throw new ConflictError(
         'Diese Anlageklasse wird noch von Wertpapieren oder deren Klassifikationshistorie verwendet.',
       );

@@ -1,6 +1,6 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, type Page, type TestInfo } from '@playwright/test';
-import { cents, formatEuro } from '@budget/domain';
+import { allocationQuality, cents, formatEuro } from '@budget/domain';
 import { mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { sampleTest } from './sample';
@@ -73,10 +73,15 @@ sampleTest('allocation report reads the sample ledger', async ({ page }, info) =
 
 const mock = (overrides: Record<string, unknown>) => ({
   allocation: {
+    quality: allocationQuality([
+      { id: 'p1', kind: 'etf', assetClass: 'a', valueCents: 60000 },
+      { id: 'p2', kind: 'other', assetClass: null, valueCents: 40000 },
+    ]),
     asOf: '2026-09-17',
     totalCents: 100_000,
     classes: [
       {
+        confidence: 'provisional',
         assetClassId: 'a',
         name: 'Klasse A',
         valueCents: 60_000,
@@ -97,6 +102,7 @@ const mock = (overrides: Record<string, unknown>) => ({
         ],
       },
       {
+        confidence: 'provisional',
         assetClassId: null,
         name: 'Ohne Anlageklasse',
         valueCents: 40_000,
@@ -154,6 +160,8 @@ sampleTest(
       timeout: 20_000,
     });
     await expect(page.getByTestId('soll-table')).toContainText('kein Soll hinterlegt');
+    await expect(page.getByTestId('soll-table').locator('.is-out')).toHaveCount(0);
+    await expect(page.getByText(/Vorläufig: Klassifikation/)).toBeVisible();
     await expect(page.getByText('Ohne Regionsangabe: Produkt 1, Produkt 2.')).toBeVisible();
     await expect(
       page.getByText('Für den Verlauf liegt keine bewertbare Historie vor.'),

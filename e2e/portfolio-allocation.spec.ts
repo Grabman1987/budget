@@ -1,4 +1,5 @@
 import AxeBuilder from '@axe-core/playwright';
+import { allocationQuality } from '@budget/domain';
 import type { PortfolioAllocationView } from '@budget/db';
 import { test, expect, type Page, type TestInfo } from '@playwright/test';
 import { join } from 'node:path';
@@ -51,7 +52,7 @@ sampleTest(
     await page.goto('/vermoegen/portfolio');
     const allocation = page.locator('.valloc');
     await expect(allocation).toContainText('Schwellenländer');
-    await expect(page.locator('.vrebal')).toContainText('3.560 € fehlen');
+    await expect(page.locator('.vrebal')).toContainText('Umschichtungsabstand 3.560 €');
     await expect(page.locator('.vrebal')).toContainText('3.700 € Bruttoexposure über der Grenze');
     await expect(
       page.locator('.vrebal').getByRole('button', { name: /Sparplan|Vorschlag übernehmen/ }),
@@ -204,3 +205,77 @@ test('unknown current quote is estimated at cost with a hint, and API failures o
   await panel.getByRole('button', { name: 'Erneut versuchen' }).click();
   await expect(panel.getByRole('button', { name: 'Sollquoten speichern' })).toBeVisible();
 });
+
+sampleTest(
+  'R07/R08 provisional allocation has visible quality and no certain red recommendation',
+  async ({ page }, info) => {
+    const response = await page.request.get('/api/portfolio/allocation');
+    const base = (await response.json()) as PortfolioAllocationView;
+    const quality = allocationQuality(
+      [
+        {
+          id: 'unknown',
+          securityId: 'unknown',
+          kind: 'other',
+          assetClass: null,
+          valueCents: 10000,
+        },
+        {
+          id: 'estimated',
+          securityId: 'estimated',
+          kind: 'etf',
+          assetClass: 'a',
+          valueCents: 90000,
+        },
+      ],
+      { estimatedSecurityIds: ['estimated'] },
+    );
+    await page.route('**/api/portfolio/allocation', (route) =>
+      route.fulfill({
+        json: {
+          ...base,
+          valuationQuality: quality.valuationQuality,
+          quality,
+          risk: {
+            ...base.risk,
+            quality,
+            proposals: base.risk!.proposals.map((p) => ({ ...p, confidence: 'provisional' })),
+          },
+        },
+      }),
+    );
+    await page.goto('/vermoegen/portfolio');
+    await expect(page.locator('.valloc')).toContainText('Unklassifiziert: 100 €');
+    await expect(page.locator('.valloc')).toContainText('teilweise geschätzt');
+    await expect(page.locator('.vrebal')).toContainText('Vorläufig:');
+    await expect(page.locator('.vrebal .is-urgent')).toHaveCount(0);
+    await expect(page.locator('.valloc .is-out')).toHaveCount(0);
+    await expect(page.locator('.vrebal')).toContainText('Umschichtungsabstand');
+    await expect(page.locator('.vrebal')).toContainText('Neues Kapital bis Soll');
+    for (const theme of ['light', 'dark']) {
+      await page.evaluate((value) => (document.documentElement.dataset['theme'] = value), theme);
+      await capture(page, info, `allocation-quality-${theme}`);
+    }
+    await page.unroute('**/api/portfolio/allocation');
+    await page.route('**/api/portfolio/allocation', (route) =>
+      route.fulfill({
+        json: {
+          ...base,
+          status: 'unavailable',
+          valueCents: null,
+          risk: null,
+          missing: ['missing_price'],
+          valuationQuality: 'incomplete',
+          quality: {
+            ...quality,
+            valuationQuality: 'incomplete',
+            missingPriceSecurityIds: ['unknown'],
+          },
+        },
+      }),
+    );
+    await page.reload();
+    await expect(page.locator('.valloc')).toContainText('nicht berechenbar');
+    await expect(page.locator('.vrebal .rev-row')).toHaveCount(0);
+  },
+);

@@ -35,6 +35,7 @@ export function PortfolioAllocation() {
     });
   const view = query.isError ? undefined : query.data;
   const risk = view?.risk;
+  const provisional = view?.quality.confidence === 'provisional';
   const known = !!risk && risk.allocation.totalCents > 0;
   const rows =
     view?.classes.map((cls) => ({
@@ -69,6 +70,25 @@ export function PortfolioAllocation() {
         )}
         {view && (
           <>
+            <p className="vnote" role="status">
+              Anlageuniversum: Depots, Anlage-Cash einschließlich negativer Salden und einbezogene
+              Produkte. Bewertung{' '}
+              {view.quality.valuationQuality === 'exact'
+                ? 'vollständig'
+                : view.quality.valuationQuality === 'estimated'
+                  ? 'teilweise geschätzt / veraltet'
+                  : 'unvollständig'}
+              . Unklassifiziert:{' '}
+              {view.quality.unclassifiedValueCents === null
+                ? 'Wert nicht verfügbar'
+                : eurWhole(view.quality.unclassifiedValueCents)}{' '}
+              · {percentText(view.quality.unclassifiedShareBp)} ·{' '}
+              {view.quality.unclassifiedProductCount} Produkte / Cash-Positionen.
+              {view.quality.valuationQuality === 'estimated' &&
+                ` Geschätzter / veralteter Anteil: ${percentText(view.quality.estimatedShareBp)}.`}
+              {provisional &&
+                ' Hinweise sind vorläufig; zuerst Klassifikation und Bewertung prüfen. Sparplanoptimierung wird zurückgehalten.'}
+            </p>
             {!known && (
               <p className="vnote" role="status">
                 {view.status === 'unavailable'
@@ -84,7 +104,7 @@ export function PortfolioAllocation() {
               <ul className="vallo">
                 {rows.map((row) => {
                   const actual = known ? row.actual : undefined;
-                  const breach = actual?.breach ?? false;
+                  const breach = !provisional && (actual?.breach ?? false);
                   // Geometry only: target/band/actual arrive from the shared server projection.
                   const left =
                     row.targetBp === null || row.bandBp === null
@@ -100,7 +120,7 @@ export function PortfolioAllocation() {
                         {row.name}
                         <small>
                           {actual
-                            ? `${actual.breach ? 'Außerhalb des Bands · ' : ''}${actual.targetBp === null ? 'Kein Soll festgelegt' : `${actual.side === 'under' ? 'Unter Soll' : actual.side === 'over' ? 'Über Soll' : 'Im Soll'} · Abstand ${eurWhole(Math.abs(actual.gapCents))}`}`
+                            ? `${provisional ? 'Vorläufig · ' : ''}${actual.breach ? 'Außerhalb des Bands · ' : ''}${actual.targetBp === null ? 'Kein Soll festgelegt' : `${actual.side === 'under' ? 'Unter Soll' : actual.side === 'over' ? 'Über Soll' : 'Im Soll'} · Umschichtungsabstand ${eurWhole(Math.abs(actual.gapCents))}`}`
                             : row.targetBp === null
                               ? 'Kein Soll festgelegt'
                               : `Band ±${percentText(row.bandBp)}`}
@@ -117,7 +137,12 @@ export function PortfolioAllocation() {
                           </>
                         )}
                         {actual && (
-                          <i className="va-ist" style={{ width: `${actual.shareBp / 100}%` }} />
+                          <i
+                            className="va-ist"
+                            style={{
+                              width: `${Math.max(0, Math.min(100, actual.shareBp / 100))}%`,
+                            }}
+                          />
                         )}
                       </span>
                       <span className="va-val">
@@ -176,7 +201,7 @@ export function PortfolioAllocation() {
                   const text = proposalText(proposal, view!);
                   return (
                     <tr
-                      className={`rev-row${proposal.direction === 'add' ? ' is-urgent' : ''}`}
+                      className={`rev-row${proposal.confidence === 'exact' && proposal.direction === 'add' ? ' is-urgent' : ''}`}
                       key={`${proposal.code}:${proposal.assetClass}:${proposal.subjectId}`}
                     >
                       <td className="rev-mark">
@@ -188,7 +213,10 @@ export function PortfolioAllocation() {
                         </svg>
                       </td>
                       <td className="rev-what">
-                        <strong>{text.title}</strong>
+                        <strong>
+                          {proposal.confidence === 'provisional' ? 'Vorläufig: ' : ''}
+                          {text.title}
+                        </strong>
                         <span>{text.body}</span>
                       </td>
                       <td className="rev-act">
@@ -218,7 +246,7 @@ export function PortfolioAllocation() {
           <p className="rev-empty">
             <CheckCircle2 size={18} strokeWidth={1.75} aria-hidden="true" />
             {view!.classes.some((cls) => cls.targetBp !== null)
-              ? 'Alle Anlageklassen liegen im Band; keine weiteren Risikohinweise.'
+              ? `${provisional ? 'Vorläufig: ' : ''}Alle Anlageklassen liegen im Band; keine weiteren Risikohinweise.`
               : 'Keine Sollquoten erfasst; keine weiteren Risikohinweise.'}
           </p>
         )}
@@ -244,12 +272,12 @@ function proposalText(proposal: RebalanceProposal, view: PortfolioAllocationView
   if (proposal.rule === 'R13')
     return {
       title: `${name} ${proposal.direction === 'add' ? 'unter' : 'über'} Soll`,
-      body: `${percentText(proposal.shareBp)} statt ${percentText(proposal.referenceBp)} · ${amount} ${proposal.direction === 'add' ? 'fehlen. Neues Geld bevorzugt dorthin lenken.' : 'über Soll. Weitere Zukäufe prüfen.'}`,
+      body: `${percentText(proposal.shareBp)} statt ${percentText(proposal.referenceBp)} · Umschichtungsabstand ${amount} bei unverändertem Gesamtwert.${proposal.newCapitalCents !== null ? ` Neues Kapital bis Soll: ${eurWhole(proposal.newCapitalCents)} bei Einzahlung nur in diese Klasse.` : ''}`,
     };
   if (proposal.rule === 'R15')
     return {
       title: `Spekulativer Anteil ${percentText(proposal.shareBp)} über ${percentText(proposal.referenceBp)} (R15)`,
-      body: `${amount} Bruttoexposure über der Grenze. Spekulative Produkte einschließlich gehebelter ETF nicht weiter aufstocken, bis der Anteil innerhalb der Grenze liegt.`,
+      body: `${amount} Bruttoexposure über der Grenze. ${proposal.confidence === 'provisional' ? 'Bewertung und Klassifikation prüfen, bevor weitere Zukäufe beurteilt werden.' : 'Weitere Zukäufe spekulativer Produkte einschließlich gehebelter ETF prüfen.'}`,
     };
   return {
     title: `${name} über ${percentText(proposal.referenceBp)} (R14)`,

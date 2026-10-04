@@ -92,49 +92,56 @@ function AllocationBody({ data }: { data: AllocationReport }) {
           <h2 id="alloc-title">Woraus das Portfolio besteht</h2>
           <DecisionLink />
         </div>
-        <div className="sb-pair">
-          <figure className="sb-fig">
-            <Sunburst
-              testId="sunburst-classes"
-              title="Klassen"
-              totalCents={data.totalCents}
-              label={`Sonnendiagramm: innen Anlageklasse, außen Produkt. ${data.classes
-                .map((c) => `${c.name} ${bpText(c.shareBp)}`)
-                .join(', ')}.`}
-              groups={data.classes.map((c, i) => ({
-                name: c.name,
-                ink: inkOf(i),
-                valueCents: c.valueCents,
-                kids: c.products.map((p) => ({ name: p.name, valueCents: p.valueCents })),
-              }))}
-            />
-            <figcaption>
-              Innen Anlageklasse, außen Produkt. Die Tabelle nennt alle Werte.
-            </figcaption>
-          </figure>
-          <figure className="sb-fig">
-            <Sunburst
-              testId="sunburst-regions"
-              title="Regionen"
-              totalCents={data.totalCents}
-              label={`Sonnendiagramm: innen Region, außen Produkt. ${data.regions
-                .map((r) => `${r.region ?? 'Ohne Regionsangabe'} ${bpText(r.shareBp)}`)
-                .join(', ')}.`}
-              groups={data.regions.map((r, i) => ({
-                name: r.region ?? 'Ohne Angabe',
-                ink: inkOf(i),
-                valueCents: r.valueCents,
-                kids: r.products.map((p) => ({ name: p.name, valueCents: p.valueCents })),
-              }))}
-            />
-            <figcaption>
-              Innen Region (nach gespeicherten Länderanteilen), außen Produkt.
-              {unassigned
-                ? ` Ohne Regionsangabe: ${unassigned.products.map((p) => p.name).join(', ')}.`
-                : ''}
-            </figcaption>
-          </figure>
-        </div>
+        {data.classes.some((c) => c.products.some((p) => p.valueCents < 0)) ? (
+          <p className="vnote">
+            Negative Anlage-Cash-Werte sind in den Tabellen enthalten. Ein Sonnendiagramm lässt sich
+            damit nicht darstellen.
+          </p>
+        ) : (
+          <div className="sb-pair">
+            <figure className="sb-fig">
+              <Sunburst
+                testId="sunburst-classes"
+                title="Klassen"
+                totalCents={data.totalCents}
+                label={`Sonnendiagramm: innen Anlageklasse, außen Produkt. ${data.classes
+                  .map((c) => `${c.name} ${bpText(c.shareBp)}`)
+                  .join(', ')}.`}
+                groups={data.classes.map((c, i) => ({
+                  name: c.name,
+                  ink: inkOf(i),
+                  valueCents: c.valueCents,
+                  kids: c.products.map((p) => ({ name: p.name, valueCents: p.valueCents })),
+                }))}
+              />
+              <figcaption>
+                Innen Anlageklasse, außen Produkt. Die Tabelle nennt alle Werte.
+              </figcaption>
+            </figure>
+            <figure className="sb-fig">
+              <Sunburst
+                testId="sunburst-regions"
+                title="Regionen"
+                totalCents={data.totalCents}
+                label={`Sonnendiagramm: innen Region, außen Produkt. ${data.regions
+                  .map((r) => `${r.region ?? 'Ohne Regionsangabe'} ${bpText(r.shareBp)}`)
+                  .join(', ')}.`}
+                groups={data.regions.map((r, i) => ({
+                  name: r.region ?? 'Ohne Angabe',
+                  ink: inkOf(i),
+                  valueCents: r.valueCents,
+                  kids: r.products.map((p) => ({ name: p.name, valueCents: p.valueCents })),
+                }))}
+              />
+              <figcaption>
+                Innen Region (nach gespeicherten Länderanteilen), außen Produkt.
+                {unassigned
+                  ? ` Ohne Regionsangabe: ${unassigned.products.map((p) => p.name).join(', ')}.`
+                  : ''}
+              </figcaption>
+            </figure>
+          </div>
+        )}
         <ClassTable classes={data.classes} totalCents={data.totalCents} />
         <RegionTable data={data} />
       </section>
@@ -149,6 +156,20 @@ function AllocationBody({ data }: { data: AllocationReport }) {
             Für den Verlauf liegt keine bewertbare Historie vor.
           </p>
         )}
+        <p className="vnote" role="status">
+          {data.quality.confidence === 'provisional'
+            ? 'Vorläufig: Klassifikation und Bewertung prüfen.'
+            : 'Bewertung und Klassifikation vollständig.'}{' '}
+          Unklassifiziert:{' '}
+          {data.quality.unclassifiedValueCents === null
+            ? 'Wert nicht verfügbar'
+            : eur(data.quality.unclassifiedValueCents)}{' '}
+          · {data.quality.unclassifiedProductCount} Produkte / Cash-Positionen ·{' '}
+          {data.quality.unclassifiedShareBp === null
+            ? 'Anteil nicht verfügbar'
+            : bpText(data.quality.unclassifiedShareBp)}
+          .
+        </p>
         <SollTable data={data} />
         <p className="vnote">
           Soll und Band stellst du in den Einstellungen ein; ob und wie umgeschichtet wird,
@@ -412,16 +433,17 @@ function SollTable({ data }: { data: AllocationReport }) {
                 <td className="n">
                   <strong>{bpText(c.shareBp)}</strong>
                 </td>
-                <td className={`n${c.breach ? ' prep-bad' : ''}`}>
+                <td className={`n${c.breach && c.confidence === 'exact' ? ' prep-bad' : ''}`}>
                   {c.deviationBp === null ? '–' : `${bpText(c.deviationBp, { sign: true })}`}
                 </td>
                 <td>
                   {c.targetBp === null ? (
                     <span className="prep-muted">kein Soll hinterlegt</span>
                   ) : c.breach ? (
-                    <span className="alloc-status is-out">
+                    <span className={`alloc-status${c.confidence === 'exact' ? ' is-out' : ''}`}>
                       <AlertTriangle size={16} strokeWidth={1.75} aria-hidden="true" />
-                      außerhalb des Bands (R13, ±{bpText(c.bandBp ?? 0)})
+                      {c.confidence === 'provisional' ? 'vorläufig ' : ''}außerhalb des Bands (R13,
+                      ±{bpText(c.bandBp ?? 0)})
                     </span>
                   ) : (
                     <span className="alloc-status">
@@ -438,7 +460,11 @@ function SollTable({ data }: { data: AllocationReport }) {
       <p className="vnote" data-testid="speculative-note">
         Spekulative Bruttoexposure (einschlie?lich gehebelter ETF) / Marktwert:{' '}
         {bpText(spec.shareBp)} bei höchstens {bpText(spec.limitBp)} (R15)
-        {spec.breach ? ', überschritten.' : ', eingehalten.'}
+        {data.quality.confidence === 'provisional'
+          ? ', vorläufig.'
+          : spec.breach
+            ? ', überschritten.'
+            : ', eingehalten.'}
       </p>
     </>
   );

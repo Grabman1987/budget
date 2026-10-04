@@ -474,5 +474,19 @@ export function evaluateRule(
     policy && (code === 'R13' || code === 'R14' || code === 'R15')
       ? policy[code]
       : resolveParams(code, params);
-  return (RULES[code] as Rule<RuleCode>)(resolved as never, inputs);
+  const evaluation = (RULES[code] as Rule<RuleCode>)(resolved as never, inputs);
+  const quality = inputs.allocationQuality;
+  if (quality && (code === 'R13' || code === 'R14' || code === 'R15')) {
+    if (quality.valuationQuality === 'incomplete') return null;
+    if (quality.confidence === 'provisional')
+      return {
+        status: 'warn',
+        valueText: 'Vorläufig: Datenbasis prüfen',
+        actionNeeded: true,
+        actionText:
+          'Klassifikation und Bewertung vervollständigen; keine verbindliche Umschichtung ableiten.',
+        detail: { ...evaluation?.detail, confidence: 'provisional', quality },
+      };
+  }
+  return evaluation;
 }

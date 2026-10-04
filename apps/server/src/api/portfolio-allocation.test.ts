@@ -111,6 +111,7 @@ it('literal sample risk matches existing summary and shared current total', asyn
   ]);
   const summary = portfolioSummary(db, { today: TODAY, period: '3J' });
   expect(view.risk).toEqual({
+    quality: summary.quality,
     allocation: summary.allocation,
     cluster: summary.cluster,
     speculative: summary.speculative,
@@ -397,4 +398,54 @@ it('same-day replacement writes zero for an omitted class with a prior positive 
   expect((await read()).classes.map((row) => row.targetBp)).toEqual([5000, 5000]);
   await call('POST', '/undo', { groupId: undone.groupId });
   expect((await read()).classes.map((row) => row.targetBp)).toEqual([10_000, 0]);
+});
+
+it('PR3 metadata is editable through audited account/instrument APIs; invalid scope/classes roll back and undo restores quality', async () => {
+  fixture();
+  db.insert(schema.price)
+    .values({
+      securityId: 's',
+      date: TODAY,
+      priceMicro: 100000000,
+      currency: 'EUR',
+      source: 'manual',
+    })
+    .run();
+  const created = await call('POST', '/accounts', {
+    name: 'Synthetic investment cash',
+    type: 'savings',
+    onBudget: false,
+    openingDate: TODAY,
+    openingBalanceCents: 5000,
+    allocationScope: 'included',
+  });
+  expect(created.status).toBe(201);
+  const cash = (await created.json()).account;
+  expect(cash.allocationScope).toBe('included');
+  expect(await read()).toMatchObject({
+    valuationQuality: 'exact',
+    valueCents: 25000,
+    quality: { classification: 'partial', confidence: 'provisional', unclassifiedValueCents: 5000 },
+  });
+  const invalid = await call('PATCH', `/accounts/${cash.id}`, {
+    allocationAssetClassId: 'missing',
+  });
+  expect(invalid.status).toBe(422);
+  expect((await invalid.json()).message).toContain('aktive Anlageklasse');
+  const edited = await call('PATCH', `/accounts/${cash.id}`, { allocationAssetClassId: 'a' });
+  expect(edited.status).toBe(200);
+  const { groupId } = await edited.json();
+  expect((await read()).quality.confidence).toBe('exact');
+  expect((await call('POST', '/undo', { groupId })).status).toBe(200);
+  expect((await read()).quality.confidence).toBe('provisional');
+  const rejectedDebt = await call('POST', '/accounts', {
+    name: 'Synthetic debt',
+    type: 'loan',
+    openingDate: TODAY,
+    allocationScope: 'included',
+  });
+  expect(rejectedDebt.status).toBe(422);
+  const excluded = await call('PATCH', '/securities/s', { allocationIncluded: false });
+  expect(excluded.status).toBe(200);
+  expect(await read()).toMatchObject({ valueCents: 5000, universe: { securityIds: [] } });
 });
