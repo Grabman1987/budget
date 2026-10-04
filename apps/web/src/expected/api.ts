@@ -8,7 +8,7 @@ import type { WriteResult } from '../ledger/types';
 export const EXPECTED_KEY = ['expected'] as const;
 
 export type ExpectedKind = 'outflow' | 'inflow';
-export type Rhythm = 'monthly' | 'quarterly' | 'semiannual' | 'yearly';
+export type Rhythm = 'weekly' | 'monthly' | 'quarterly' | 'semiannual' | 'yearly';
 export type DateShift = 'none' | 'before' | 'after';
 export type OccurrenceStatus = 'expected' | 'received' | 'deviating' | 'missed';
 

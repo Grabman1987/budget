@@ -1,11 +1,9 @@
-import { incomeBudgetMonth, incomeMonthDefault, type IncomeMonthRule } from '@budget/domain';
 import { BookingAssignmentReview } from '../assignment/review';
 import {
   useAmountPrivacy,
   AmountInput,
   Button,
   ClassSwatch,
-  cx,
   Field,
   Segmented,
   Select,
@@ -15,7 +13,7 @@ import {
 } from '@budget/ui';
 import { todayInVienna } from '@budget/domain';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { CalendarClock, Check, Lock, Trash2, X } from 'lucide-react';
+import { Trash2, X } from 'lucide-react';
 import {
   useEffect,
   useMemo,
@@ -24,7 +22,7 @@ import {
   type KeyboardEvent,
   type MutableRefObject,
 } from 'react';
-import { ApiError, request } from '../api/http';
+import { ApiError } from '../api/http';
 import { budgetQuery } from '../budget/budget-api';
 import { createPayee, setPayeeDefaultCategory } from './api';
 import {
@@ -70,7 +68,6 @@ import {
   type CaptureChoices,
   type QueuedBooking,
 } from '../pwa/queue-store';
-import type { ListedBooking } from './types';
 
 const KINDS: ReadonlyArray<SegmentedOption<BookingKind>> = [
   { value: 'expense', label: 'Ausgabe' },
@@ -117,7 +114,6 @@ export function CaptureForm({
   discard,
   requestClose,
   queued,
-  onExpected,
 }: {
   state: NonNullable<BookingPanelState>;
   onDone: () => void;
@@ -127,32 +123,21 @@ export function CaptureForm({
   discard: DiscardAsk;
   requestClose: () => void;
   queued?: QueuedBooking;
-  onExpected?: (booking: ListedBooking) => void;
 }) {
   useAmountPrivacy();
   const qc = useQueryClient();
   const accounts = useQuery(accountsQuery());
   const lookups = useQuery(lookupsQuery(state.mode === 'edit' ? state.booking.id : undefined));
   const payees = useQuery(payeesQuery());
-  const incomeRules = useQuery({
-    queryKey: ['income-month-rules'],
-    queryFn: () => request<{ rules: IncomeMonthRule[] }>('GET', '/api/income-month-rules'),
-  });
   const writes = useLedgerWrites();
   const formRef = useRef<HTMLFormElement>(null);
 
   const [today] = useState(todayInVienna);
   const [memory] = useState(readMemory);
   const editing = state.mode === 'edit' ? state.booking : null;
-  const editDraft = editing
-    ? {
-        ...draftFromBooking(editing),
-        ...(editing.source === 'bank' &&
-        editing.splits.every((s) => !s.categoryId && !s.incomeTypeId)
-          ? { incomeNextMonth: undefined }
-          : {}),
-      }
-    : null;
+  const editDraft = editing ? draftFromBooking(editing) : null;
+  const repeatKey = useRef(crypto.randomUUID());
+  const [statusChosen, setStatusChosen] = useState(false);
   const [draft, setDraft] = useState<BookingDraft>(() =>
     queued
       ? queued.draft
@@ -238,12 +223,6 @@ export function CaptureForm({
     [all, draft.kind, splitCategoryKey],
   );
   const selected = all.find((c) => c.id === draft.categoryId);
-  const ruleNextMonth = incomeMonthDefault(
-    incomeRules.data?.rules ?? [],
-    payees.data?.payees.find((p) => p.name.toLowerCase() === draft.payee.trim().toLowerCase())?.id,
-    draft.categoryId,
-    draft.incomeTypeId,
-  );
   const payeeDefault = (() => {
     const name = draft.payee.trim().toLowerCase();
     const row = payees.data?.payees.find((p) => p.name.toLowerCase() === name);
@@ -281,7 +260,7 @@ export function CaptureForm({
     ? JSON.stringify(strip(draft)) !== JSON.stringify(strip(queued.draft))
     : editing
       ? JSON.stringify(strip(draft)) !== JSON.stringify(strip(editDraft!))
-      : captureDirty(draft, keptPayee);
+      : captureDirty(draft, keptPayee) || Boolean(draft.repeat);
   // The panel opens to record money: the amount is the first thing typed. The dialog moves the
   // focus itself when it opens, so this runs after it.
   useEffect(() => {
@@ -363,18 +342,9 @@ export function CaptureForm({
 
   const save = async (andNew: boolean) => {
     if (saving.current) return;
-    if (draft.kind === 'income' && draft.incomeNextMonth === undefined && !incomeRules.isSuccess)
-      return setErrors({
-        form: 'Budgetmonat-Regeln noch nicht verfügbar. Bitte einen Monat ausdrücklich wählen oder später erneut versuchen.',
-      });
+    if (!editing && !from) return setErrors({ account: 'Bitte ein verfügbares Konto wählen.' });
     if (blocked) return setErrors({ splits: 'Speichern geht erst, wenn der Rest 0,00 € ist.' });
-    const filled = {
-      ...draft,
-      accountId,
-      ...(draft.kind === 'income' && editing && draft.incomeNextMonth === undefined
-        ? { incomeNextMonth: ruleNextMonth }
-        : {}),
-    };
+    const filled = { ...draft, accountId, status: effectiveStatus };
     const advance = { advanceCategoryId, trackingAccountIds };
     saving.current = true;
     setBusy(true);
@@ -392,7 +362,11 @@ export function CaptureForm({
         const built = plan(await resolvePayee());
         if (!built.ok) return setErrors(built.errors);
         if (Object.keys(built.value).length > 0)
-          await writes.patch.mutateAsync({ id: editing.id, patch: built.value });
+          await writes.patch.mutateAsync({
+            id: editing.id,
+            patch: built.value,
+            ...(draft.repeat ? { key: repeatKey.current } : {}),
+          });
         if (
           editing.source === 'bank' &&
           !isTransfer &&
@@ -420,6 +394,7 @@ export function CaptureForm({
       remember(accountId, draft.categoryId || null);
       if (!andNew) return onDone();
       // The next booking keeps the context (kind, account, date, payee and its category).
+      setStatusChosen(false);
       setKeptPayee(draft.payee);
       setDraft((d) => ({
         ...emptyDraft(accountId, d.date),
@@ -502,7 +477,33 @@ export function CaptureForm({
     [draft.kind],
   );
   const showCategory = (!isTransfer || needsCategory) && !draft.contactId;
-  const confirmed = draft.status === 'confirmed';
+  const effectiveStatus =
+    !editing && !queued && !statusChosen && !(state.mode === 'create' && state.prefill?.status)
+      ? from?.type === 'cash'
+        ? 'confirmed'
+        : 'pending'
+      : draft.status;
+  const dateAndStatus = (
+    <div className="kdate-status" data-enter-skip>
+      <DateField draft={draft} set={set} error={errors.date} />
+      {locked && !unlock ? (
+        <span className="status">geprüft</span>
+      ) : (
+        <Segmented
+          label="Status"
+          options={[
+            { value: 'pending', label: 'vorgemerkt' },
+            { value: 'confirmed', label: 'bestätigt' },
+          ]}
+          value={effectiveStatus}
+          onChange={(v) => {
+            setStatusChosen(true);
+            set('status', v);
+          }}
+        />
+      )}
+    </div>
+  );
 
   return (
     // Keyboard flow is handled once for all fields of the form.
@@ -518,7 +519,7 @@ export function CaptureForm({
       noValidate
     >
       <div className="bk-head">
-        {/* Flag first (YNAB), then the kind of booking, then cleared and close. */}
+        {/* Flag first (YNAB), then the kind of booking, then close. */}
         {!isTransfer && <FlagPicker value={draft.flag} onChange={(flag) => set('flag', flag)} />}
         {legOfTransfer ? (
           <span className="bk-kind bk-kind-fixed">Umbuchung</span>
@@ -531,32 +532,6 @@ export function CaptureForm({
             stretch
             className="bk-kind"
           />
-        )}
-        {locked && !unlock ? (
-          <button
-            type="button"
-            className="kcleared is-locked"
-            aria-disabled="true"
-            aria-label="Status: geprüft, gesperrt"
-            title="Geprüft: gesperrt. Mit „Trotzdem ändern“ freigeben."
-          >
-            <Lock size={18} strokeWidth={1.75} aria-hidden="true" />
-          </button>
-        ) : (
-          <button
-            type="button"
-            className={cx('kcleared', confirmed && 'is-on')}
-            aria-pressed={confirmed}
-            aria-label="Bestätigt"
-            title={
-              confirmed
-                ? 'Bestätigt: die Buchung ist auf dem Konto eingegangen'
-                : 'Offen: vorgemerkt, noch nicht bestätigt'
-            }
-            onClick={() => set('status', confirmed ? 'pending' : 'confirmed')}
-          >
-            <Check size={18} strokeWidth={1.75} aria-hidden="true" />
-          </button>
         )}
         <button
           type="button"
@@ -653,10 +628,10 @@ export function CaptureForm({
               )}
             </Field>
           ) : (
-            <DateField draft={draft} set={set} error={errors.date} />
+            dateAndStatus
           )}
         </div>
-        {isTransfer && <DateField draft={draft} set={set} error={errors.date} />}
+        {isTransfer && dateAndStatus}
         {!isTransfer && draft.splitOn ? (
           <SplitEditor
             draft={draft}
@@ -720,6 +695,26 @@ export function CaptureForm({
             )}
           </>
         )}
+        {!isTransfer && (
+          <Field
+            label="Wiederholen"
+            hint="Legt beim Speichern eine wiederkehrende Zahlung an. Die nächste Fälligkeit folgt nach einem Rhythmus."
+          >
+            {({ id }) => (
+              <Select
+                id={id}
+                value={draft.repeat ?? ''}
+                onChange={(e) => set('repeat', e.target.value as BookingDraft['repeat'])}
+              >
+                <option value="">Nie</option>
+                <option value="weekly">Wöchentlich</option>
+                <option value="monthly">Monatlich</option>
+                <option value="quarterly">Vierteljährlich</option>
+                <option value="yearly">Jährlich</option>
+              </Select>
+            )}
+          </Field>
+        )}
         <Field label="Notiz">
           {({ id }) => (
             <TextInput
@@ -731,33 +726,6 @@ export function CaptureForm({
             />
           )}
         </Field>
-        {draft.kind === 'income' && (
-          <Field
-            label="Budgetmonat"
-            hint={`Zu verteilen: ${monthName(incomeBudgetMonth(draft.date || today, draft.incomeNextMonth ?? ruleNextMonth))}. Das Buchungsdatum bleibt erhalten.`}
-          >
-            {({ id }) => (
-              <Select
-                id={id}
-                value={
-                  draft.incomeNextMonth === undefined ? 'default' : String(draft.incomeNextMonth)
-                }
-                onChange={(e) =>
-                  set(
-                    'incomeNextMonth',
-                    e.target.value === 'default' ? undefined : e.target.value === 'true',
-                  )
-                }
-              >
-                <option value="default">
-                  Standard: {ruleNextMonth ? 'Folgemonat' : 'Buchungsmonat'}
-                </option>
-                <option value="false">Für diesen Monat</option>
-                <option value="true">Für nächsten Monat</option>
-              </Select>
-            )}
-          </Field>
-        )}
         {draft.kind === 'income' && (
           <Field label="Einnahmeart">
             {({ id }) => (
@@ -854,22 +822,6 @@ export function CaptureForm({
               <Trash2 size={16} strokeWidth={1.75} aria-hidden="true" />
               Löschen
             </Button>
-            {!isTransfer && (
-              <Button
-                variant="ghost"
-                disabled={busy}
-                onClick={() => {
-                  if (dirtyRef.current)
-                    return setErrors({ form: 'Speichere die Änderungen zuerst.' });
-                  // The saved booking is the template of the new expected payment.
-                  onDone();
-                  onExpected?.(editing);
-                }}
-              >
-                <CalendarClock size={16} strokeWidth={1.75} aria-hidden="true" />
-                Als erwartete Zahlung anlegen
-              </Button>
-            )}
           </div>
         )}
         {!editing && !queued && (

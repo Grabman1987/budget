@@ -3,7 +3,7 @@ import { expect } from '@playwright/test';
 import { test } from './isolated-ledger';
 import { balance, openAccount, pickCategory, toast } from './ledger-helpers';
 
-test('salary default, per-booking override, budget month and undo on desktop/mobile', async ({
+test('new captures use booking month and existing stored values survive dialog edits', async ({
   page,
   request,
   baseURL,
@@ -62,11 +62,7 @@ test('salary default, per-booking override, budget month and undo on desktop/mob
   await panel.getByLabel('Datum', { exact: true }).fill('2026-09-30');
   await pickCategory(panel, category.name);
   await panel.getByLabel('Einnahmeart', { exact: true }).selectOption('income-salary');
-  await expect(panel.getByLabel('Budgetmonat').locator('option:checked')).toHaveText(
-    'Standard: Folgemonat',
-  );
-  await expect(panel.getByText('Zu verteilen:', { exact: false })).toContainText('Oktober');
-  await panel.getByLabel('Budgetmonat').scrollIntoViewIfNeeded();
+  await expect(panel.getByLabel('Budgetmonat')).toHaveCount(0);
   for (const theme of ['light', 'dark']) {
     await page.evaluate((theme) => {
       document.documentElement.dataset['theme'] = theme;
@@ -85,25 +81,30 @@ test('salary default, per-booking override, budget month and undo on desktop/mob
   await expect(balance(page)).toHaveText('2.000,01 €');
   const budget = async (month: string) =>
     (await (await request.get('/api/budget/' + month)).json()).summary;
-  expect(await budget('2026-09')).toMatchObject({ incomeCents: 0, toBeAssignedCents: 0 });
-  expect(await budget('2026-10')).toMatchObject({ incomeCents: 200001, toBeAssignedCents: 200001 });
+  expect(await budget('2026-09')).toMatchObject({ incomeCents: 200001, toBeAssignedCents: 200001 });
+  expect(await budget('2026-10')).toMatchObject({ incomeCents: 0, toBeAssignedCents: 200001 });
+  const list = await (await request.get('/api/bookings?accountId=' + account.id)).json();
+  const stored = list.items[0];
+  const overridden = await request.patch('/api/bookings/' + stored.id, {
+    headers,
+    data: { incomeNextMonth: true },
+  });
+  expect(overridden.ok()).toBe(true);
   await page.goto(`/konten/buchungen?konto=${account.id}`);
-  const row = page.getByRole('row', { name: /Zahler A/ });
-  await row.getByRole('button', { name: /bearbeiten/ }).click();
+  await page
+    .getByRole('row', { name: /Zahler A/ })
+    .getByRole('button', { name: /bearbeiten/ })
+    .click();
   panel = page.getByRole('dialog', { name: 'Buchung bearbeiten' });
-  await expect(panel.getByLabel('Budgetmonat')).toHaveValue('true');
-  await expect(panel.getByLabel('Einnahmeart')).toHaveValue('income-salary');
-  await expect(panel.getByLabel('Kategorie', { exact: true })).toHaveValue(category.name);
-  await panel.getByLabel('Budgetmonat').selectOption('false');
+  await expect(panel.getByLabel('Budgetmonat')).toHaveCount(0);
+  await panel.getByLabel('Notiz').fill('Muster erhalten');
   await panel.getByRole('button', { name: 'Speichern', exact: true }).click();
   await expect(panel).toBeHidden();
-  expect(await budget('2026-09')).toMatchObject({ incomeCents: 200001, toBeAssignedCents: 200001 });
+  const read = async () => (await (await request.get('/api/bookings/' + stored.id)).json()).booking;
+  expect(await read()).toMatchObject({ incomeNextMonth: true, memo: 'Muster erhalten' });
   await toast(page).getByRole('button', { name: 'Rückgängig', exact: true }).click();
-  await expect(toast(page)).toContainText('Rückgängig');
-  expect(await budget('2026-09')).toMatchObject({ incomeCents: 0, toBeAssignedCents: 0 });
-  await toast(page).getByRole('button', { name: 'Wiederholen', exact: true }).click();
-  await expect.poll(async () => (await budget('2026-09')).incomeCents).toBe(200001);
-  expect(await budget('2026-09')).toMatchObject({ incomeCents: 200001 });
+  await expect.poll(async () => (await read()).memo).toBe(null);
+  expect((await read()).incomeNextMonth).toBe(true);
   await openAccount(page, account.name);
   await expect(balance(page)).toHaveText('2.000,01 €');
 });

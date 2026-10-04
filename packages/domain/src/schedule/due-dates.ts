@@ -1,7 +1,7 @@
 import { addDays, addMonths, daysBetween, lastDayOfMonth, monthOf } from '../date';
 import { isBusinessDayAT } from './holidays';
 
-export type Rhythm = 'monthly' | 'quarterly' | 'semiannual' | 'yearly';
+export type Rhythm = 'weekly' | 'monthly' | 'quarterly' | 'semiannual' | 'yearly';
 /** What to do when the due day is no business day: keep it, move to the previous or next one. */
 export type DateShift = 'none' | 'before' | 'after';
 
@@ -17,7 +17,13 @@ export interface ScheduleRule {
   endDate: string | null;
 }
 
-const STEP: Record<Rhythm, number> = { monthly: 1, quarterly: 3, semiannual: 6, yearly: 12 };
+const STEP: Record<Rhythm, number> = {
+  weekly: 0,
+  monthly: 1,
+  quarterly: 3,
+  semiannual: 6,
+  yearly: 12,
+};
 
 /** `day` itself when it is a business day, else the previous (`before`) or next (`after`) one. */
 export function shiftToBusinessDay(day: string, shift: DateShift): string {
@@ -39,6 +45,24 @@ const anchorMonth = (rule: ScheduleRule): number =>
  */
 export function dueDates(rule: ScheduleRule, from: string, to: string): string[] {
   if (to < from) return [];
+  if (rule.rhythm === 'weekly') {
+    // Weekly schedules keep their weekday across month/year boundaries.
+    if (!rule.startDate) throw new RangeError('Weekly schedules need a start date');
+    const anchor = rule.startDate;
+    const first = Math.max(0, Math.floor(daysBetween(anchor, from) / 7) - 1);
+    const out: string[] = [];
+    for (let base = addDays(anchor, first * 7); base <= addDays(to, 7); base = addDays(base, 7)) {
+      const day = shiftToBusinessDay(base, rule.dateShift);
+      if (
+        day >= from &&
+        day <= to &&
+        (!rule.endDate || day <= rule.endDate) &&
+        (!rule.startDate || day >= rule.startDate)
+      )
+        out.push(day);
+    }
+    return [...new Set(out)].sort();
+  }
   const step = STEP[rule.rhythm];
   const anchor = anchorMonth(rule);
   const out: string[] = [];
@@ -55,6 +79,14 @@ export function dueDates(rule: ScheduleRule, from: string, to: string): string[]
     out.push(day);
   }
   return out;
+}
+
+/** One rhythm after a booking, clamped at month end without changing its original due day. */
+export function nextRepeatDate(day: string, rhythm: Rhythm): string {
+  if (rhythm === 'weekly') return addDays(day, 7);
+  const month = addMonths(monthOf(day), STEP[rhythm]);
+  const last = lastDayOfMonth(month);
+  return `${month}-${String(Math.min(Number(day.slice(8)), Number(last.slice(8)))).padStart(2, '0')}`;
 }
 
 /** Whole days between two days, absolute. */

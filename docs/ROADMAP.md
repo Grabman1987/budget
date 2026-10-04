@@ -535,3 +535,5 @@ Scope and shared definitions: [report correctness](report-correctness.md).
 - [ ] PR/CI review, Docker/encrypted restore gates, real-iPhone owner checklist and production reconciliation/deployment.
 
 Contract and baseline matrix: [asset-class settings](asset-classes-settings.md).
+
+- [x] Owner booking UX 2026-10-04: inline date/amount, status/flags, cash default, Wiederholen/weekly schedules, no capture Budgetmonat, ranged account forecast and 0–365-day display setting; CI/owner visual acceptance pending.
