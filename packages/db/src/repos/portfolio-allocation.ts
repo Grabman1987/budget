@@ -1,3 +1,4 @@
+import { resolvePortfolioRiskPolicy } from './portfolio-risk-policy';
 import { exposuresAsOf, singleAssetClass } from './asset-exposure';
 import { defaultBandBp } from '@budget/domain';
 import { isNull } from 'drizzle-orm';
@@ -44,6 +45,7 @@ export function portfolioAllocation(db: Executor, asOf: string): PortfolioAlloca
       .all()
       .map((row) => [row.id, row]),
   );
+  const policy = resolvePortfolioRiskPolicy(db, asOf);
   const targets = new Map(targetsAsOf(db, asOf).map((row) => [row.assetClassId, row]));
   const status =
     current.valueCents === null
@@ -89,7 +91,7 @@ export function portfolioAllocation(db: Executor, asOf: string): PortfolioAlloca
         id: row.id,
         name: row.name,
         targetBp: target?.targetShareBp ?? null,
-        bandBp: target ? target.bandBp || defaultBandBp(target.targetShareBp) : null,
+        bandBp: target ? target.bandBp || defaultBandBp(target.targetShareBp, policy.R13) : null,
         validFrom: target?.validFrom ?? null,
       };
     }),

@@ -1,3 +1,4 @@
+import { resolvePortfolioRiskPolicy } from './portfolio-risk-policy';
 import { exposuresAsOf, splitAssetExposure } from './asset-exposure';
 import {
   allocationTimeline,
@@ -10,19 +11,14 @@ import {
   sumSeries,
   windowPerformance,
   type SpeculativeShare,
+  type ClusterRisk,
   type Valuation,
   type WealthPosition,
 } from '@budget/domain';
 import { isNull } from 'drizzle-orm';
 import { account, security } from '../schema';
 import { portfolioFlows, valuationSeries } from './portfolio';
-import {
-  classTargets,
-  firstDay,
-  positionLines,
-  exposurePositionLines,
-  riskOf,
-} from './portfolio-summary';
+import { firstDay, positionLines, exposurePositionLines, riskOf } from './portfolio-summary';
 import { listAssetClasses } from './securities';
 import type { Executor } from './types';
 
@@ -80,6 +76,7 @@ export interface AllocationReport {
   /** False when part of the portfolio has no (valid) region weights. */
   regionsComplete: boolean;
   speculative: SpeculativeShare;
+  cluster: ClusterRisk;
   /** Month ends from the first day to today; `null` without history. */
   history: AllocationHistory | null;
 }
@@ -215,12 +212,14 @@ export function allocationReport(db: Executor, options: { today: string }): Allo
             id: `${p.securityId}:${p.accountId}:${part.assetClassId ?? ''}`,
             securityId: p.securityId,
             kind: sec.kind,
+            leverageFactor: sec.leverageFactor,
             assetClass: part.assetClassId,
             valueCents: part.valueCents,
           }),
         );
       });
-      return { date, positions, targets: classTargets(db, date) };
+      const policy = resolvePortfolioRiskPolicy(db, date);
+      return { date, positions, targets: policy.targets, bandPolicy: policy.R13 };
     });
     const timeline = allocationTimeline(snapshots);
     history = {
@@ -244,6 +243,7 @@ export function allocationReport(db: Executor, options: { today: string }): Allo
     regions,
     regionsComplete: !regions.some((r) => r.region === null),
     speculative: risk.speculative,
+    cluster: risk.cluster,
     history,
   };
 }

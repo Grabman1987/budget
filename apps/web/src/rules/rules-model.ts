@@ -1,5 +1,5 @@
 import { formatPrivateEuro as formatEuro, maskMoneyText } from '@budget/ui';
-import { STAGES, cents, parseScaledDecimal } from '@budget/domain';
+import { STAGES, cents, parseScaledDecimal, PARAM_SCHEMAS } from '@budget/domain';
 
 /**
  * Presentation model of Einstellungen › Regelwerk: the typed threshold fields per rule, the
@@ -250,8 +250,10 @@ export function thresholdText(code: string, p: Record<string, unknown>): string 
         : `Ausgaben ≤ Einkommen + ${pc(num(p, 'toleranceBp'))}, 12 M`;
     case 'R12':
       return `${pc(num(p, 'enjoyBp'))} Genuss, Rest nach Wasserfall`;
-    case 'R13':
-      return '5 Pp oder 25 % relativ';
+    case 'R13': {
+      const band = PARAM_SCHEMAS.R13.parse(p);
+      return `Standardband: der kleinere Wert aus ±${pc(band.maxBandBp).replace(' %', '')} Prozentpunkten und ±${band.relativeBandPct} % des Sollgewichts. Gespeicherte individuelle Bänder haben Vorrang.`;
+    }
     case 'R14':
       return `Einzeltitel ≤ ${pc(num(p, 'singleBp'))}, Plattform ≤ ${pc(num(p, 'platformBp'))}`;
     case 'R15':

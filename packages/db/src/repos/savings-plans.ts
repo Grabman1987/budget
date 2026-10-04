@@ -440,12 +440,20 @@ export function savingsProposal(
         id: security.id,
         name: security.name,
         kind: security.kind,
+        leverageFactor: security.leverageFactor,
       })
       .from(security)
       .all()
       .map((s) => [s.id, s]),
   );
   const exposures = exposuresAsOf(db, today);
+  const platforms = new Map(
+    db
+      .select({ id: account.id, institutionId: account.institutionId })
+      .from(account)
+      .all()
+      .map((a) => [a.id, a.institutionId]),
+  );
   const basis = listSavingsPlans(db);
   const plans: SavingsPlan[] = basis.flatMap((r) => {
     const sec = names.get(r.securityId);
@@ -453,8 +461,11 @@ export function savingsProposal(
       ? [
           {
             id: r.id,
+            securityId: sec.id,
+            platform: platforms.get(r.accountId) ?? null,
             name: sec.name,
             kind: sec.kind,
+            leverageFactor: sec.leverageFactor,
             assetClass: singleAssetClass(exposures.get(sec.id)?.weights ?? []),
             exposures: exposures.get(sec.id)?.weights ?? [],
             monthlyCents: r.amountCents,
@@ -464,6 +475,7 @@ export function savingsProposal(
   });
   const proposal = savingsPlanProposal(plans, risk.allocation, {
     speculativeBreached: risk.speculative.breach,
+    cluster: risk.cluster,
     stepCents: options.stepCents ?? SAVINGS_PLAN_STEP_CENTS,
   });
   return { ...proposal, basis };

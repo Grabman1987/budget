@@ -1,14 +1,11 @@
 import { mulDivRound, ratioBp } from './int';
-import {
-  PLATFORM_LIMITED_KINDS,
-  SINGLE_TITLE_KINDS,
-  SPECULATIVE_KINDS,
-  type WealthPosition,
-} from './types';
+import { type WealthPosition } from './types';
+import { classifyRisk, grossExposureCents } from './classification';
+import { PARAM_SCHEMAS } from '../rules/params';
 
-export const SINGLE_TITLE_LIMIT_BP = 1000;
-export const PLATFORM_LIMIT_BP = 2000;
-export const SPECULATIVE_LIMIT_BP = 1000;
+export const SINGLE_TITLE_LIMIT_BP = PARAM_SCHEMAS.R14.parse({}).singleBp;
+export const PLATFORM_LIMIT_BP = PARAM_SCHEMAS.R14.parse({}).platformBp;
+export const SPECULATIVE_LIMIT_BP = PARAM_SCHEMAS.R15.parse({}).limitBp;
 
 export interface ClusterLimits {
   singleBp: number;
@@ -18,13 +15,18 @@ export interface ClusterLimits {
 export interface ClusterEntry {
   /** Security id (single title) or platform id. */
   id: string;
+  /** Market value, without leverage. */
   valueCents: number;
+  /** Gross risk numerator; share/limits use this relative to portfolio market value. */
+  grossExposureCents: number;
   shareBp: number;
   breach: boolean;
 }
 
 export interface ClusterRisk {
   totalCents: number;
+  /** Gross economic exposure of all holdings, distinct from total market value. */
+  totalGrossExposureCents: number;
   limits: ClusterLimits;
   /** Single titles (stock, bond, crypto; one security on several platforms summed), largest first. */
   singles: ClusterEntry[];
@@ -41,29 +43,40 @@ const above = (value: number, total: number, limitBp: number): boolean =>
 function groupSum(
   positions: ReadonlyArray<WealthPosition>,
   keyOf: (p: WealthPosition) => string | null,
-): Map<string, number> {
-  const map = new Map<string, number>();
+): Map<string, { valueCents: number; grossExposureCents: number }> {
+  const map = new Map<string, { valueCents: number; grossExposureCents: number }>();
   for (const p of positions) {
     const key = keyOf(p);
-    if (key !== null) map.set(key, (map.get(key) ?? 0) + p.valueCents);
+    if (key !== null) {
+      const prior = map.get(key) ?? { valueCents: 0, grossExposureCents: 0 };
+      map.set(key, {
+        valueCents: prior.valueCents + p.valueCents,
+        grossExposureCents: prior.grossExposureCents + grossExposureCents(p),
+      });
+    }
   }
   return map;
 }
 
-function entries(map: Map<string, number>, total: number, limitBp: number): ClusterEntry[] {
+function entries(
+  map: Map<string, { valueCents: number; grossExposureCents: number }>,
+  total: number,
+  limitBp: number,
+): ClusterEntry[] {
   return [...map.entries()]
-    .map(([id, valueCents]) => ({
+    .map(([id, values]) => ({
       id,
-      valueCents,
-      shareBp: ratioBp(valueCents, total),
-      breach: total > 0 && above(valueCents, total, limitBp),
+      ...values,
+      shareBp: ratioBp(values.grossExposureCents, total),
+      breach: total > 0 && above(values.grossExposureCents, total, limitBp),
     }))
-    .sort((a, b) => b.valueCents - a.valueCents || a.id.localeCompare(b.id));
+    .sort((a, b) => b.grossExposureCents - a.grossExposureCents || a.id.localeCompare(b.id));
 }
 
 /**
  * R14 cluster risk: one single title at most 10 % of the investment, one crypto or P2P platform
- * at most 20 %. Kinds decide what a single title is (`SINGLE_TITLE_KINDS`), never the name.
+ * at most 20 % by default. Central classification includes leveraged/derivative products.
+ * Gross exposure is the numerator; market investment value is the denominator.
  */
 export function clusterRisk(
   positions: ReadonlyArray<WealthPosition>,
@@ -75,17 +88,18 @@ export function clusterRisk(
   };
   const totalCents = positions.reduce((a, p) => a + p.valueCents, 0);
   const singles = entries(
-    groupSum(positions, (p) => (SINGLE_TITLE_KINDS.has(p.kind) ? (p.securityId ?? p.id) : null)),
+    groupSum(positions, (p) => (classifyRisk(p).single ? (p.securityId ?? p.id) : null)),
     totalCents,
     lim.singleBp,
   );
   const platforms = entries(
-    groupSum(positions, (p) => (PLATFORM_LIMITED_KINDS.has(p.kind) ? (p.platform ?? null) : null)),
+    groupSum(positions, (p) => (classifyRisk(p).platform ? (p.platform ?? null) : null)),
     totalCents,
     lim.platformBp,
   );
   return {
     totalCents,
+    totalGrossExposureCents: positions.reduce((a, p) => a + grossExposureCents(p), 0),
     limits: lim,
     singles,
     platforms,
@@ -96,7 +110,10 @@ export function clusterRisk(
 
 export interface SpeculativeShare {
   totalCents: number;
+  /** Market value, without leverage. */
   valueCents: number;
+  /** Gross risk numerator; share/limits use this relative to portfolio market value. */
+  grossExposureCents: number;
   shareBp: number;
   limitBp: number;
   /** Cents above the limit (0 when within). */
@@ -104,22 +121,26 @@ export interface SpeculativeShare {
   breach: boolean;
 }
 
-/** R15: crypto, P2P and single stocks together at most 10 % of the investment. */
+/** R15: classified speculative gross exposure relative to market investment value. */
 export function speculativeShare(
   positions: ReadonlyArray<WealthPosition>,
   limitBp: number = SPECULATIVE_LIMIT_BP,
 ): SpeculativeShare {
   const totalCents = positions.reduce((a, p) => a + p.valueCents, 0);
   const valueCents = positions
-    .filter((p) => SPECULATIVE_KINDS.has(p.kind))
+    .filter((p) => classifyRisk(p).speculative)
     .reduce((a, p) => a + p.valueCents, 0);
+  const gross = positions
+    .filter((p) => classifyRisk(p).speculative)
+    .reduce((a, p) => a + grossExposureCents(p), 0);
   const limitCents = mulDivRound(totalCents, limitBp, 10_000);
   return {
     totalCents,
     valueCents,
-    shareBp: ratioBp(valueCents, totalCents),
+    grossExposureCents: gross,
+    shareBp: ratioBp(gross, totalCents),
     limitBp,
-    overCents: Math.max(0, valueCents - limitCents),
-    breach: totalCents > 0 && above(valueCents, totalCents, limitBp),
+    overCents: Math.max(0, gross - limitCents),
+    breach: totalCents > 0 && above(gross, totalCents, limitBp),
   };
 }
