@@ -86,6 +86,7 @@ it('rejects invalid writes atomically with German messages and no database ident
   for (const input of [
     { ...payload, complete: undefined },
     { ...payload, validFrom: '2026-02-30' },
+    { ...payload, validFrom: '2026-99-99' },
     { ...payload, weights: [{ assetClassId: 'a', weightBp: 9999 }] },
     { ...payload, weights: [{ assetClassId: 'missing', weightBp: 10000 }] },
     { ...payload, weights: [{ assetClassId: 'a', weightBp: 1.5 }] },
@@ -98,6 +99,10 @@ it('rejects invalid writes atomically with German messages and no database ident
     expect(opened.db.select().from(schema.securityExposureVersion).all()).toEqual([]);
     expect(opened.db.select().from(schema.auditLog).all()).toEqual([]);
   }
+  const invalidRead = await call('GET', '/securities/s/exposures?asOf=2026-99-99');
+  expect(invalidRead.status).toBe(400);
+  const invalidMessage = (await invalidRead.json()) as { message: string };
+  expect(invalidMessage.message).toContain('gültiges Bewertungsdatum');
 });
 
 it('preserves the session and origin boundaries for exposure reads and writes', async () => {

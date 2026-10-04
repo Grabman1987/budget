@@ -63,6 +63,16 @@ import { day, month } from './schemas';
 const id = z.string().min(1).max(64);
 const text = z.string().max(500);
 const bp = z.int().min(0).max(10_000);
+// Invalid months must be a validation result, not Date#toISOString throwing an English error.
+const exposureDay = z
+  .string()
+  .refine(
+    (value) =>
+      /^\d{4}-\d{2}-\d{2}$/.test(value) &&
+      Number.isFinite(Date.parse(value)) &&
+      new Date(value).toISOString().slice(0, 10) === value,
+    'Bitte ein gültiges Wirksamkeitsdatum eingeben.',
+  );
 
 // ---------- securities ----------
 const securityFields = {
@@ -78,7 +88,7 @@ const securityFields = {
   terBp: bp,
   leverageFactor: z.int().min(10).max(1000),
   assetClassId: id.nullable(),
-  exposureValidFrom: day.optional(),
+  exposureValidFrom: exposureDay.optional(),
   /** The platform (broker, crypto or P2P provider) that holds the security. */
   institutionId: id.nullable(),
   benchmark: z.string().max(120).nullable(),
@@ -147,7 +157,7 @@ export function securityRoutes(db: Db, today: () => string): Hono {
     const securityId = c.req.param('id');
     if (!getSecurity(db, securityId))
       throw new ApiError(404, 'not_found', 'Das Wertpapier ist nicht verfügbar.');
-    const query = z.object({ asOf: day.optional() }).safeParse(c.req.query());
+    const query = z.object({ asOf: exposureDay.optional() }).safeParse(c.req.query());
     if (!query.success)
       throw new ApiError(400, 'invalid_exposure', 'Bitte ein gültiges Bewertungsdatum eingeben.');
     const { asOf } = query.data;
@@ -155,7 +165,7 @@ export function securityRoutes(db: Db, today: () => string): Hono {
   });
   app.put('/:id/exposures', async (c) => {
     const schema = z.strictObject({
-      validFrom: day.optional(),
+      validFrom: exposureDay.optional(),
       complete: z.boolean(),
       source: z.string().trim().min(1).max(120),
       weights: z
