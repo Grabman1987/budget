@@ -565,20 +565,14 @@
   .amount-input {
     font-size: 26px;
   }
-  /* 44 px operator buttons in their own row below the amount */
+  /* Phone: no operator buttons (owner 04.10.2026: too large); + − × ÷ can still be typed. */
   .amount-box {
     grid-template-columns: auto 1fr auto;
-    grid-template-areas:
-      'sign input cur'
-      'ops ops ops';
-    row-gap: 8px;
-    padding-bottom: 8px;
+    grid-template-areas: 'sign input cur';
   }
   .amount-box:not(:has(.amount-sign)) {
     grid-template-columns: 1fr auto;
-    grid-template-areas:
-      'input cur'
-      'ops ops';
+    grid-template-areas: 'input cur';
   }
   .amount-sign {
     grid-area: sign;
@@ -590,12 +584,7 @@
     grid-area: cur;
   }
   .amount-ops {
-    grid-area: ops;
-    grid-template-columns: repeat(4, 1fr);
-    grid-template-rows: var(--touch);
-    padding: 8px 0 0;
-    border-right: 0;
-    border-top: 1px solid var(--rule);
+    display: none;
   }
 }
 

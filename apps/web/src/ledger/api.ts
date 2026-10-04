@@ -40,6 +40,13 @@ export const fetchSeries = (accountId: string, from: string, to: string) =>
     `/api/accounts/${encodeURIComponent(accountId)}/series${queryString({ from, to })}`,
   );
 
+/** The series of all live accounts in one call (Konten), keyed by account id. */
+export const fetchSeriesBatch = (from: string, to: string) =>
+  request<{ series: Record<string, { accountId: string; points: SeriesPoint[] }> }>(
+    'GET',
+    `/api/accounts/series${queryString({ from, to })}`,
+  );
+
 export interface AccountInput {
   name: string;
   type: string;

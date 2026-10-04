@@ -28,6 +28,7 @@ import {
   asOfQuery,
   reconcileBody,
   reconcilePreview,
+  seriesBatchQuery,
   seriesQuery,
 } from './schemas';
 
@@ -153,6 +154,26 @@ export function accountRoutes(db: Db, today: () => string): Hono {
   app.patch('/order', order);
   app.post('/sort', order);
 
+  /**
+   * The series of every live account (or of `ids`) in one answer: `{ series: { [accountId]: <the
+   * answer of GET /:id/series> } }`. Konten reads all open accounts at once instead of one call each.
+   */
+  app.get('/series', (c) => {
+    const { ids, ...range } = readQuery(c, seriesBatchQuery);
+    const value = cashValuer(db);
+    const wanted = ids ? new Set(ids) : undefined;
+    const rows = db
+      .select({ id: account.id, currency: account.currency })
+      .from(account)
+      .where(isNull(account.deletedAt))
+      .orderBy(account.sortOrder, account.name, account.id)
+      .all()
+      .filter((a) => !wanted || wanted.has(a.id));
+    return c.json({
+      series: Object.fromEntries(rows.map((a) => [a.id, seriesOf(value, a.id, a.currency, range)])),
+    });
+  });
+
   app.get('/:id', (c) => {
     const { asOf } = readQuery(c, asOfQuery);
     return c.json({ account: summary(c.req.param('id'), asOf) });
@@ -241,19 +262,31 @@ export function accountRoutes(db: Db, today: () => string): Hono {
     return c.json({ account: summary(id), groupId: ctx.groupId });
   });
 
+  const seriesOf = (
+    value: ReturnType<typeof cashValuer>,
+    id: string,
+    currency: string,
+    range: { from: string; to: string },
+  ) => ({
+    accountId: id,
+    currency,
+    points: balanceSeries(db, id, range).map((p) => ({
+      ...p,
+      valuation: value(p.balanceCents, currency, p.date),
+    })),
+  });
+
   app.get('/:id/series', (c) => {
     const id = c.req.param('id');
     const range = readQuery(c, seriesQuery);
-    const acct = summary(id);
-    const value = cashValuer(db);
-    return c.json({
-      accountId: id,
-      currency: acct.currency,
-      points: balanceSeries(db, id, range).map((p) => ({
-        ...p,
-        valuation: value(p.balanceCents, acct.currency, p.date),
-      })),
-    });
+    // Only the currency is needed: no valuation of every account and position for it.
+    const acct = db
+      .select({ currency: account.currency })
+      .from(account)
+      .where(and(eq(account.id, id), isNull(account.deletedAt)))
+      .get();
+    if (!acct) throw new ApiError(404, 'not_found', `Account ${id} not found`);
+    return c.json(seriesOf(cashValuer(db), id, acct.currency, range));
   });
 
   app.get('/:id/reconciliations', (c) => {
