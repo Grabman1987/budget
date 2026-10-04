@@ -4,7 +4,7 @@ Scope: §§21–25, R07/R08 and PR3 in §46. Branch `codex/allocation-quality-pr
 
 ## Pre-change matrix
 
-Fetched latest `origin/main`: `3fe0d6fa4618e4fb51e056904318084a90855a9e`. It is already an ancestor of the branch; no additional merge is needed. Latest remote PR2 is the branch base above.
+Continuation merged `origin/codex/risk-policy-pr2` at `047026ee11937028df68c9b448ba3299426bc305` and `origin/main` at `acb54a99cd8f7161a031886e70a66921c62f4598`. Main's assignment-rule booking/inbox/capture behavior is retained. Its 0032 migration, snapshot and journal entry remain unchanged; allocation scope is regenerated as 0033 from that snapshot.
 
 | Finding | Current status | Evidence | Action |
 | --- | --- | --- | --- |
@@ -19,7 +19,7 @@ Fetched latest `origin/main`: `3fe0d6fa4618e4fb51e056904318084a90855a9e`. It is 
 
 `allocationInputsAsOf` is the shared read model for current allocation, R13–R15, rebalancing, report 4.2/month ends and savings proposals. It reuses existing holding valuation and exposure resolution; it does not change trades, prices, balances, performance or net-worth formulas.
 
-Migration **0032_allocation_scope** was generated with the installed Drizzle kit after main's latest 0031. The generated account rebuild's SELECT was corrected to use defaults for new columns; the deterministic data backfill is appended explicitly. Its snapshot/journal remain generated. Tests exercise the complete previous main schema, original columns, FK checks, repeat migration and snapshot restore.
+Migration **0033_allocation_scope** was generated with the installed Drizzle kit after main's 0032_assignment_rules. The generated account rebuild's SELECT was corrected to use defaults for new columns; the deterministic data backfill is appended explicitly. Its snapshot/journal remain generated. Tests exercise the complete previous main schema, original columns, FK checks, repeat migration and snapshot restore.
 
 | Metadata | Meaning/default |
 | --- | --- |

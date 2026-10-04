@@ -1,4 +1,5 @@
 import { incomeBudgetMonth, incomeMonthDefault, type IncomeMonthRule } from '@budget/domain';
+import { BookingAssignmentReview } from '../assignment/review';
 import {
   useAmountPrivacy,
   AmountInput,
@@ -111,6 +112,7 @@ export interface DiscardAsk {
 export function CaptureForm({
   state,
   onDone,
+  onBankCategorized,
   dirtyRef,
   discard,
   requestClose,
@@ -119,6 +121,7 @@ export function CaptureForm({
 }: {
   state: NonNullable<BookingPanelState>;
   onDone: () => void;
+  onBankCategorized?: ((id: string) => void) | undefined;
   /** Tells the dialog whether closing would lose input. */
   dirtyRef: MutableRefObject<boolean>;
   discard: DiscardAsk;
@@ -390,6 +393,13 @@ export function CaptureForm({
         if (!built.ok) return setErrors(built.errors);
         if (Object.keys(built.value).length > 0)
           await writes.patch.mutateAsync({ id: editing.id, patch: built.value });
+        if (
+          editing.source === 'bank' &&
+          !isTransfer &&
+          (built.value.splits?.some((s) => s.categoryId) ||
+            editing.splits.some((s) => s.categoryId))
+        )
+          onBankCategorized?.(editing.id);
         return onDone();
       }
       const options = { ...advance, requireCategory: true, transferNeedsCategory: needsCategory };
@@ -495,7 +505,7 @@ export function CaptureForm({
   const confirmed = draft.status === 'confirmed';
 
   return (
-    // Keyboard flow (Enter, Ctrl+Enter) is handled once for all fields of the form.
+    // Keyboard flow is handled once for all fields of the form.
     // eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions
     <form
       ref={formRef}
@@ -558,6 +568,15 @@ export function CaptureForm({
         </button>
       </div>
       <div className="bk-body kform">
+        {editing?.source === 'bank' && editing.status !== 'reconciled' && (
+          <BookingAssignmentReview
+            id={editing.id}
+            onApplied={(canLearn) => {
+              if (canLearn) onBankCategorized?.(editing.id);
+              onDone();
+            }}
+          />
+        )}
         {locked && (
           <div className="kdiff is-ok" role="note">
             <span>

@@ -2,7 +2,7 @@
 
 ### Owner directive PR3 — Allocation quality and scope (2026-10-04)
 
-- [x] Shared explicit account/instrument policy universe; signed investment cash, scope defaults and audited editable API metadata (Drizzle 0032).
+- [x] Shared explicit account/instrument policy universe; signed investment cash, scope defaults and audited editable API metadata (Drizzle 0033).
 - [x] Central unclassified value/share/count and exact/estimated/incomplete valuation details; provisional rebalancing and safe rule actions, suppressed provisional/out-of-scope savings optimisation.
 - [x] Distinct Umschichtungsabstand and single-class Neues Kapital bis Soll with exact integer arithmetic.
 - [x] Synthetic R07/R08, inclusion/exclusion, estimate/missing-FX, formula and metadata/undo/migration/restore regressions.
@@ -323,8 +323,12 @@ Enable Banking adapter, worker with nightly run and catch-up, inbox items, assig
 - [x] Datenquellen status/mapping UI and owner setup in `docs/DATA_SOURCES.md`; synthetic HTTP, domain, workflow and browser tests.
 - [x] Review corrections: changed-reference updates/warnings, duplicate-reference fallback, isolated account failures, 21-day overlap and durable four-request/day limit; tolerant rows/undated balances, stable balance warnings, redacted auth/config failures, callback pruning and versioned encryption.
 - [ ] Owner: register application, configure secrets, connect accounts, reconcile the first run and demonstrate 14 stable nights.
+- [x] Assignment-rule engine and Einstellungen › Zuordnung: all/any payee/raw-text/regex/signed-amount/account/direction conditions; payee/category/percent-split/memo/flag/transfer actions, history preview, ordering, enable/disable, audit/undo and learn-from-confirmed-bank-row.
+- [x] Source-specific bank payee cleanup and learned raw-to-payee aliases; raw evidence retained through memo edits, merge references updated with undo. Automatic rules prepare assignments; bank staging never posts without owner confirmation.
+- [x] Explicit transfer actions preserve booking identity, pair unambiguous same-day/same-currency/opposite-amount bank candidates, and attach later bank evidence to generated counterparts without posting twice; ambiguous matches roll back. See [limits and validation](assignment-rules.md).
+- [ ] Ambiguous bank history changes, broader transfer matching (including different posting days), and private owner/device acceptance remain separate work.
 - [x] Bank follow-ups: closest +/-5-day manual-booking merge preserving memo/splits, confirmed mirror/selected-booking transfers with original dates, dated bank balance on Konten and guarded one-click reconciliation lock; grouped audit/undo, synthetic unit/API and isolated desktop/mobile coverage. Migration `0024_bank_followups` stores balance observations.
-- [ ] Assignment-rule engine, ambiguous history changes and owner/private matching and balance acceptance remain separate work.
+- [x] Einstellungen › Zuordnungsregeln merges the bank assignment rules and payee cleanup with the income budget-month defaults on one route (`/einstellungen/zuordnung`); migration `0032_assignment_rules`.
 
 ### Crypto read source (P4/P5)
 - [x] Read-only current public API adapter; env-only key, paged resumable operation inbox, provider-ID deduplication and explicit investment/cash mappings.

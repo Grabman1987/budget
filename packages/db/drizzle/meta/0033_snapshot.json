@@ -1,8 +1,8 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "0ff41a22-d418-4c1e-9123-f5ed98b35701",
-  "prevId": "4ba1e720-4a8e-49d8-a178-5faae2222f38",
+  "id": "ed96c22e-5e3e-42a2-ad3f-17d7ebdbfc1d",
+  "prevId": "0ff41a22-d418-4c1e-9123-f5ed98b35701",
   "tables": {
     "account": {
       "name": "account",
@@ -33,6 +33,21 @@
           "type": "text",
           "primaryKey": false,
           "notNull": true,
+          "autoincrement": false
+        },
+        "allocation_scope": {
+          "name": "allocation_scope",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'default'"
+        },
+        "allocation_asset_class_id": {
+          "name": "allocation_asset_class_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
           "autoincrement": false
         },
         "on_budget": {
@@ -203,6 +218,15 @@
         }
       },
       "foreignKeys": {
+        "account_allocation_asset_class_id_asset_class_id_fk": {
+          "name": "account_allocation_asset_class_id_asset_class_id_fk",
+          "tableFrom": "account",
+          "tableTo": "asset_class",
+          "columnsFrom": ["allocation_asset_class_id"],
+          "columnsTo": ["id"],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
         "account_institution_id_institution_id_fk": {
           "name": "account_institution_id_institution_id_fk",
           "tableFrom": "account",
@@ -234,6 +258,10 @@
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "checkConstraints": {
+        "account_allocation_scope_chk": {
+          "name": "account_allocation_scope_chk",
+          "value": "\"account\".\"allocation_scope\" IN ('default', 'included', 'excluded')"
+        },
         "account_type_chk": {
           "name": "account_type_chk",
           "value": "\"account\".\"type\" IN ('checking', 'cash', 'savings', 'credit_card', 'loan', 'brokerage', 'crypto', 'p2p', 'receivable', 'other_asset', 'other_liability')"
@@ -4049,6 +4077,14 @@
           "notNull": true,
           "autoincrement": false,
           "default": 0
+        },
+        "allocation_included": {
+          "name": "allocation_included",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": true
         },
         "leverage_factor": {
           "name": "leverage_factor",
