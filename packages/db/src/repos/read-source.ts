@@ -2,6 +2,10 @@ import { createHash } from 'node:crypto';
 import {
   todayInVienna,
   sourceInteger,
+  informationalResolution,
+  isAutomaticResolution,
+  matchedResolution,
+  type OperationVerdict,
   type SourceBalance,
   type SourceMapping,
   type SourceOperation,
@@ -14,6 +18,7 @@ import { runInTransaction, type Executor } from './types';
 import { accountSummaries } from './ledger-queries';
 import { holdingValuationExportAsOf } from './portfolio';
 import { ConflictError } from './errors';
+import { evaluateReadSource, operationDay, stagedOperations } from './read-source-ledger';
 
 export interface ReadSourceState {
   lastSuccess: string | null;
@@ -56,13 +61,6 @@ export function readSourceSince(db: Executor): string | null {
   const row = getEntity(db, appSetting, sinceKey);
   const value = row ? (JSON.parse(row.value) as unknown) : null;
   return typeof value === 'string' && isoDay(value) ? value : null;
-}
-/** Calendar day (Vienna) of the latest transaction, or null when it is unknown. */
-function operationDay(op: { transactions?: Array<{ creditedAt: string }> }): string | null {
-  const times = (Array.isArray(op.transactions) ? op.transactions : [])
-    .map((t) => Date.parse(t.creditedAt))
-    .filter((t) => !Number.isNaN(t));
-  return times.length ? todayInVienna(new Date(Math.max(...times))) : null;
 }
 function setting(db: Executor, id: string, value: unknown, ctx: GroupedContext) {
   const data = { value: JSON.stringify(value) };
@@ -249,6 +247,66 @@ function item(
     );
   }
 }
+const transferOperation = (op: SourceOperation) =>
+  op.transactions.some((t) => !t.amount.assetId) && !op.transactions.some((t) => t.tradeId);
+const kindLabel = (op: SourceOperation) =>
+  transferOperation(op) ? 'Umbuchung abgleichen' : 'Anlage prüfen';
+/** What an item shows for a verdict: a closing reason (matched, informational) or an open title. */
+function verdictCopy(op: SourceOperation, verdict: OperationVerdict | undefined) {
+  const base = `Quellbewegung: ${kindLabel(op)}`;
+  if (verdict?.status === 'matched')
+    return { title: base, closed: matchedResolution(verdict.refs) };
+  if (verdict?.status === 'informational')
+    return { title: base, closed: informationalResolution(verdict.reason) };
+  if (verdict?.status === 'unmapped')
+    return { title: 'Quellbewegung: Zuordnung fehlt', closed: null };
+  if (verdict?.status === 'missing')
+    return { title: `Quellbewegung fehlt in der App: ${kindLabel(op)}`, closed: null };
+  return { title: base, closed: null };
+}
+/**
+ * Applies a verdict to an item that is open or was closed automatically (never to the owner's
+ * decisions). Writes nothing when the item already shows this verdict; returns whether it changed.
+ */
+function applyVerdict(
+  db: Executor,
+  old: typeof inboxItem.$inferSelect,
+  op: SourceOperation,
+  verdict: OperationVerdict | undefined,
+  ctx: GroupedContext,
+) {
+  const { title, closed } = verdictCopy(op, verdict);
+  const detail = JSON.stringify(op);
+  const detailChanged = old.detail !== detail;
+  if (closed !== null) {
+    const same = old.resolvedAt !== null && old.resolution === closed;
+    if (same && old.title === title && !detailChanged) return false;
+    updateEntity(
+      db,
+      inboxItem,
+      old.id,
+      {
+        title,
+        detail,
+        kind: 'import',
+        urgent: false,
+        resolvedAt: same ? old.resolvedAt : new Date().toISOString(),
+        resolution: closed,
+      },
+      ctx,
+    );
+    return true;
+  }
+  if (!old.resolvedAt && old.title === title && !detailChanged) return false;
+  updateEntity(
+    db,
+    inboxItem,
+    old.id,
+    { title, detail, kind: 'import', urgent: false, resolvedAt: null, resolution: null },
+    ctx,
+  );
+  return true;
+}
 export function stageSourcePage(
   db: Executor,
   operations: SourceOperation[],
@@ -259,21 +317,26 @@ export function stageSourcePage(
   const grouped = withGroup(ctx);
   return runInTransaction(db, (tx) => {
     const since = readSourceSince(tx);
+    const verdicts = operations.length
+      ? evaluateReadSource(tx, readSourceMappings(tx), since, operations)
+      : new Map<string, OperationVerdict>();
     for (const op of operations) {
       const day = since === null ? null : operationDay(op);
-      const transfer =
-        op.transactions.some((t) => !t.amount.assetId) && !op.transactions.some((t) => t.tradeId);
-      item(
-        tx,
-        'operation:' + op.id,
-        transfer ? 'Quellbewegung: Umbuchung abgleichen' : 'Quellbewegung: Anlage prüfen',
-        JSON.stringify(op),
-        'import',
-        grouped,
-        false,
-        operationFields,
-        day !== null && since !== null && day < since ? SINCE_RESOLUTION : null,
-      );
+      const key = 'operation:' + op.id;
+      const detail = JSON.stringify(op);
+      if (day !== null && since !== null && day < since) {
+        const base = `Quellbewegung: ${kindLabel(op)}`;
+        item(tx, key, base, detail, 'import', grouped, false, operationFields, SINCE_RESOLUTION);
+        continue;
+      }
+      const verdict = verdicts.get(op.id);
+      const { title, closed } = verdictCopy(op, verdict);
+      const old = getEntity(tx, inboxItem, itemId(key));
+      if (!old) item(tx, key, title, detail, 'import', grouped, false, operationFields, closed);
+      else if (old.resolvedAt && !isAutomaticResolution(old.resolution))
+        // The owner's decision stands, unless the source facts changed.
+        item(tx, key, title, detail, 'import', grouped, false, operationFields);
+      else applyVerdict(tx, old, op, verdict, grouped);
     }
     for (const invalid of invalidOperations)
       item(
@@ -286,6 +349,73 @@ export function stageSourcePage(
       );
     saveReadSourceState(tx, state, grouped);
     return grouped.groupId;
+  });
+}
+export interface ReadSourceMatchCounts {
+  /** A counterpart exists in the ledger. */
+  matched: number;
+  /** No counterpart: the movement is missing in the app. */
+  missing: number;
+  /** The source asset or currency has no account/instrument mapping yet. */
+  unmapped: number;
+  /** Internal moves and fee-only legs without ledger effect. */
+  informational: number;
+}
+const emptyCounts = (): ReadSourceMatchCounts => ({
+  matched: 0,
+  missing: 0,
+  unmapped: 0,
+  informational: 0,
+});
+function tally(counts: ReadSourceMatchCounts, verdict: OperationVerdict | undefined) {
+  if (verdict?.status === 'matched') counts.matched++;
+  else if (verdict?.status === 'informational') counts.informational++;
+  else if (verdict?.status === 'unmapped') counts.unmapped++;
+  else counts.missing++;
+}
+/** Read-only preview of the matching for all staged movements on/after the start day. */
+export function readSourceMatchSummary(db: Executor): ReadSourceMatchCounts {
+  return runInTransaction(db, (tx) => {
+    const verdicts = evaluateReadSource(tx, readSourceMappings(tx), readSourceSince(tx));
+    const counts = emptyCounts();
+    for (const verdict of verdicts.values()) tally(counts, verdict);
+    return counts;
+  });
+}
+export interface ReadSourceReconcileResult extends ReadSourceMatchCounts {
+  groupId: string;
+  /** Items whose state this run changed. */
+  changed: number;
+  /** Items resolved by the owner, left untouched. */
+  ownerResolved: number;
+}
+/**
+ * "Abgleich neu ausführen": re-checks every staged movement on/after the start day against the
+ * ledger, including items the manual cut-off cleanup closed. Owner decisions stay untouched.
+ * One audit group, so the whole run can be undone. Never creates bookings or trades.
+ */
+export function reconcileReadSource(db: Executor, ctx: AuditContext): ReadSourceReconcileResult {
+  const grouped = withGroup(ctx);
+  return runInTransaction(db, (tx) => {
+    const since = readSourceSince(tx);
+    const verdicts = evaluateReadSource(tx, readSourceMappings(tx), since);
+    const result: ReadSourceReconcileResult = {
+      ...emptyCounts(),
+      groupId: grouped.groupId,
+      changed: 0,
+      ownerResolved: 0,
+    };
+    for (const { row, op, day } of stagedOperations(tx)) {
+      if (since !== null && day !== null && day < since) continue;
+      if (row.resolvedAt && !isAutomaticResolution(row.resolution)) {
+        result.ownerResolved++;
+        continue;
+      }
+      const verdict = verdicts.get(op.id);
+      tally(result, verdict);
+      if (applyVerdict(tx, row, op, verdict, grouped)) result.changed++;
+    }
+    return result;
   });
 }
 export function finishReadSource(

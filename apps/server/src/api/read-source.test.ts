@@ -113,3 +113,34 @@ it('saves the start day behind step-up with a strict body and reports it in the 
   expect((await put('/since', { since: null })).status).toBe(200);
   expect(await status()).toBeNull();
 });
+it('reports the match summary and re-runs the reconciliation behind step-up', async () => {
+  const status = async () =>
+    (await (await app.request('/api/sources/crypto')).json()) as {
+      match: { matched: number; missing: number; unmapped: number; informational: number };
+    };
+  expect((await status()).match).toEqual({
+    matched: 0,
+    missing: 0,
+    unmapped: 0,
+    informational: 0,
+  });
+  stepUp = false;
+  expect((await post('/reconcile')).status).toBe(403);
+  session = false;
+  expect((await post('/reconcile')).status).toBe(401);
+  session = true;
+  stepUp = true;
+  const response = await post('/reconcile');
+  expect(response.status).toBe(200);
+  expect(await response.json()).toEqual({
+    matched: 0,
+    missing: 0,
+    unmapped: 0,
+    informational: 0,
+    groupId: expect.any(String),
+    changed: 0,
+    ownerResolved: 0,
+  });
+  expect(opened.db.select().from(schema.booking).all()).toHaveLength(0);
+  expect(opened.db.select().from(schema.trade).all()).toHaveLength(0);
+});
