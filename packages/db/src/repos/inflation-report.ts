@@ -30,6 +30,24 @@ export interface InflationReport extends PersonalInflation {
   referenceAvailable: boolean;
   /** The stored consumer price series: its key, source, last read and newest month. */
   reference: { series: string; source: string; fetchedAt: string | null; lastMonth: string } | null;
+  /**
+   * Why there is no own index: fewer than 13 closed months, or no fixed contract with a price
+   * version and spending in the first twelve months (`null` when the index exists).
+   */
+  insufficientReason: 'months' | 'basket' | null;
+  /** The stored consumer price index alone: its 12-month change in the newest month, when stored. */
+  referenceLatest: { month: string; changeBp: number } | null;
+}
+
+/** 12-month change of the newest stored month, basis points; `null` without the month a year before. */
+function latestChange(months: Record<string, number>): InflationReport['referenceLatest'] {
+  const latest = Object.keys(months).sort().at(-1);
+  if (!latest) return null;
+  const before = months[`${Number(latest.slice(0, 4)) - 1}${latest.slice(4)}`];
+  const now = months[latest] as number;
+  return before && before > 0
+    ? { month: latest, changeBp: Math.round((now / before - 1) * 10_000) }
+    : null;
 }
 
 export function inflationReport(db: Executor, today: string): InflationReport {
@@ -94,6 +112,8 @@ export function inflationReport(db: Executor, today: string): InflationReport {
     excludedCategories: categories.filter((c) => c.class !== 'future' && !inBasket.has(c.id))
       .length,
     referenceAvailable: stored !== null,
+    insufficientReason: result.status === 'ok' ? null : available.length < 13 ? 'months' : 'basket',
+    referenceLatest: stored ? latestChange(stored.months) : null,
     reference:
       series && stored
         ? {
