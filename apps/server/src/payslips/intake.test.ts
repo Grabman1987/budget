@@ -53,7 +53,8 @@ afterEach(async () => {
 });
 const service = (password: string | undefined = 'synthetic-pdf-password') =>
   new PayslipIntakeService(opened.db, dir, password);
-describe('encrypted synthetic payroll PDFs and owner intake', () => {
+// PDF generation and parsing in a worker thread is slow on loaded CI runners (Windows).
+describe('encrypted synthetic payroll PDFs and owner intake', { timeout: 30_000 }, () => {
   it('conserves signed corrections, separates reimbursements and takes content period before filename', async () => {
     const bytes = await syntheticPayslipPdf();
     const staged = await service().ingest(bytes, 'synthetic-202701.pdf', 'manual');
