@@ -51,7 +51,8 @@ const SCENARIOS: Scenario[] = [
     kind: 'sheet',
     inApp: false,
     open: async (page) => {
-      await app(page, '/konten?panel=beispiel');
+      // A page without ledger data: the shared e2e database must not widen the page behind the panel.
+      await app(page, '/einstellungen/sicherheit?panel=beispiel');
     },
   },
   {
@@ -145,6 +146,7 @@ interface Geometry {
   focusInside: boolean;
   overflowX: string[];
   docOverflow: boolean;
+  docOffenders: string[];
 }
 
 /** Everything the acceptance criteria measure, taken in the page. */
@@ -186,6 +188,15 @@ const geometry = (page: Page): Promise<Geometry> =>
       focusInside: d.contains(document.activeElement),
       overflowX,
       docOverflow: document.documentElement.scrollWidth > w + 1,
+      docOffenders: [...document.querySelectorAll<HTMLElement>('body *')]
+        .filter((el) => !d.contains(el) && el.getClientRects().length > 0)
+        .filter((el) => getComputedStyle(el).position !== 'fixed')
+        .filter((el) => el.getBoundingClientRect().right > w + 1)
+        .slice(0, 5)
+        .map(
+          (el) =>
+            `${el.tagName}.${el.className} right=${Math.round(el.getBoundingClientRect().right)}`,
+        ),
     };
   });
 
@@ -217,7 +228,7 @@ function expectVisibleAndInside(g: Geometry, s: Scenario) {
   expect(g.tabbarCovered).not.toBe(false);
   // M10: nothing sticks out sideways.
   expect(g.overflowX).toEqual([]);
-  expect(g.docOverflow).toBe(false);
+  expect(g.docOverflow, JSON.stringify(g.docOffenders)).toBe(false);
 }
 
 for (const scheme of ['light', 'dark'] as const) {
@@ -340,8 +351,17 @@ test.describe('behaviour', () => {
   }) => {
     const s = SCENARIOS.find((x) => x.name === 'Detail lang') as Scenario;
     await page.goto('/dev/panels');
-    await page.evaluate(() => window.scrollTo(0, 300));
-    await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(300);
+    // The harness is a lazy route: scrolling before its tall spacer exists clamps to 0 (seen on
+    // Linux WebKit). Wait for the page, then scroll until the position holds.
+    await expect(page.getByRole('button', { name: 'Detail lang' })).toBeVisible();
+    await expect
+      .poll(() =>
+        page.evaluate(() => {
+          window.scrollTo(0, 300);
+          return window.scrollY;
+        }),
+      )
+      .toBe(300);
     await page.getByRole('button', { name: 'Detail lang' }).tap();
     await expect(dialogOf(page, s)).toBeVisible();
     await settle(page);
@@ -486,7 +506,7 @@ test.describe('behaviour', () => {
         expect(g.rect.right, label).toBeLessThanOrEqual(g.viewport.w + 0.5);
         expect(g.closeInViewport, label).toBe(true);
         expect(g.closeHit, label).toBe(true);
-        expect(g.docOverflow, label).toBe(false);
+        expect(g.docOverflow, `${label} ${JSON.stringify(g.docOffenders)}`).toBe(false);
         await dialogOf(page, s).getByRole('button', { name: 'Schließen' }).first().tap();
         await expectNoModal(page);
       }

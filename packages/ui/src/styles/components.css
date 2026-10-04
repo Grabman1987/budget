@@ -986,7 +986,7 @@ dialog.overlay .bk-body {
 }
 dialog.sheet-bottom:not(.is-full) .overlay-inner {
   height: auto;
-  max-height: calc(var(--sheet-max) - env(safe-area-inset-bottom) - 1px);
+  max-height: calc(var(--sheet-max) - env(safe-area-inset-bottom));
 }
 .panel {
   position: fixed;
