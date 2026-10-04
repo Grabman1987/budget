@@ -4,7 +4,6 @@ import { CaptureForm } from './capture-form';
 import type { ListedBooking } from './types';
 import { AssignmentLearnOffer } from '../assignment/review';
 import type { BookingDraft } from './booking-model';
-import { useNavigate } from '@tanstack/react-router';
 
 export type BookingPanelState =
   | { mode: 'create'; accountId?: string | undefined; prefill?: Partial<BookingDraft> }
@@ -25,7 +24,6 @@ export function BookingPanel({
   state: BookingPanelState;
   onClose: () => void;
 }) {
-  const navigate = useNavigate();
   const dirty = useRef(false);
   const [learnBookingId, setLearnBookingId] = useState<string | null>(null);
   const [asking, setAsking] = useState(false);
@@ -82,12 +80,6 @@ export function BookingPanel({
             dirtyRef={dirty}
             requestClose={() => beforeClose() && close()}
             discard={{ asking, keep: () => setAsking(false), discard: close }}
-            onExpected={(booking) =>
-              void navigate({
-                to: '/plan/erwartet' as never,
-                state: { expectedFrom: booking } as never,
-              })
-            }
           />
         )}
       </FormDialog>

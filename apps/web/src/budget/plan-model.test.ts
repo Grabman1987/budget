@@ -307,7 +307,7 @@ describe('Plan › Monat view model', () => {
     const none = planGroups('time', rows, data, { ...ctx, expected: [] });
     expect(none.find((g) => g.key === 'tlater')).toMatchObject({
       rows: [],
-      emptyText: 'keine erwarteten Zahlungen erfasst',
+      emptyText: 'keine wiederkehrenden Zahlungen erfasst',
     });
     // Payments exist but none is due in a bucket: plain "nichts fällig".
     expect(by('tlater').emptyText).toBe('nichts fällig');

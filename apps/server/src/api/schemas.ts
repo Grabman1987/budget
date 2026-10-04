@@ -18,7 +18,12 @@ export const cents = z.int();
 export const day = z
   .string()
   .regex(/^\d{4}-\d{2}-\d{2}$/, 'Date as YYYY-MM-DD')
-  .refine((v) => new Date(`${v}T00:00:00Z`).toISOString().startsWith(v), 'Not a calendar date');
+  .refine(
+    (v) =>
+      Number.isFinite(Date.parse(`${v}T00:00:00Z`)) &&
+      new Date(`${v}T00:00:00Z`).toISOString().startsWith(v),
+    'Not a calendar date',
+  );
 const id = z.string().min(1).max(64);
 const text = z.string().max(500);
 const nullableText = text.nullable();
@@ -81,7 +86,11 @@ export const accountOrder = z.object({
     .refine((ids) => new Set(ids).size === ids.length, 'Each account only once'),
 });
 export const asOfQuery = z.object({ asOf: day.optional() });
-export const seriesQuery = z.object({ from: day, to: day });
+export const seriesQuery = z.object({
+  from: day,
+  to: day,
+  previewDays: z.coerce.number().int().min(0).max(365).default(0),
+});
 /** The batch variant: optional comma-separated account ids (default: every live account). */
 export const seriesBatchQuery = seriesQuery.extend({
   ids: z
@@ -112,6 +121,7 @@ const foreign = {
 
 export const bookingCreate = z.object({
   type: z.literal('booking'),
+  repeat: z.enum(RHYTHMS).optional(),
   incomeNextMonth: z.boolean().optional(),
   accountId: id,
   date: day,
@@ -145,6 +155,7 @@ export const createBody = z.discriminatedUnion('type', [bookingCreate, transferC
 export const bookingPatch = z
   .object({
     accountId: id,
+    repeat: z.enum(RHYTHMS),
     incomeNextMonth: z.boolean(),
     date: day,
     amountCents: cents,

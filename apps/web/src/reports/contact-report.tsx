@@ -88,7 +88,7 @@ export function ContactReportPage() {
         </div>
         <p className="vnote">
           Alle erfassten Kontaktbuchungen{view ? ` bis ${longDay(view.asOf)}` : ''} · EUR.
-          Unbestätigte Buchungen sind enthalten; erwartete Zahlungen erst nach ihrer Buchung.
+          Unbestätigte Buchungen sind enthalten; wiederkehrende Zahlungen erst nach ihrer Buchung.
         </p>
         {overview.isPending && <LoadingNote what="Kontaktabrechnung" />}
         {(overview.isError || unsupportedDetail) && (

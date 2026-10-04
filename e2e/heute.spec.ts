@@ -195,7 +195,7 @@ test('empty Heute lists explain what has no rows', async ({ page }) => {
   await page.goto('/?monat=2026-09');
   await expect(page.getByText('Keine Envelopes angepinnt.')).toBeVisible();
   await expect(
-    page.getByText('In den nächsten 14 Tagen sind keine erwarteten Zahlungen gelistet.'),
+    page.getByText('In den nächsten 14 Tagen sind keine wiederkehrenden Zahlungen gelistet.'),
   ).toBeVisible();
   await expect(page.getByText('Keine offenen Schritte aus den Heute-Prüfungen.')).toBeVisible();
   await expect(page.getByText('Noch keine Buchungen vorhanden.')).toBeVisible();

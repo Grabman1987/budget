@@ -290,8 +290,8 @@ function timeGroups(rows: PlanRow[], ctx: PlanContext): PlanGroup[] {
   );
   // Honest empty state: nothing is "not due" while no expected payment exists to say so.
   const none = ctx.expected && ctx.expected.length === 0;
-  const emptyDated = none ? 'keine erwarteten Zahlungen erfasst' : 'nichts fällig';
-  const emptyNote = none ? 'Keine erwarteten Zahlungen erfasst.' : undefined;
+  const emptyDated = none ? 'keine wiederkehrenden Zahlungen erfasst' : 'nichts fällig';
+  const emptyNote = none ? 'Keine wiederkehrenden Zahlungen erfasst.' : undefined;
   const buckets: Omit<PlanGroup, 'no'>[] = [
     {
       key: 't14',

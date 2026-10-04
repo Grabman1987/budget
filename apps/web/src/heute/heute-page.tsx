@@ -316,7 +316,8 @@ function HeuteBody({ data }: { data: Heute }) {
             </div>
           )}
           <p className="heute-note">
-            Fixe und erwartete Zahlungen zählen einmal; nur variable Ausgaben werden hochgerechnet.
+            Fixe und wiederkehrende Zahlungen zählen einmal; nur variable Ausgaben werden
+            hochgerechnet.
             {!data.pace.figures.forecastAvailable &&
               ' Eine Prognose erscheint ab dem 7. Tag mit positivem Plan.'}
           </p>
@@ -437,7 +438,7 @@ function HeuteBody({ data }: { data: Heute }) {
           />
           {data.upcoming14.length === 0 ? (
             <EmptyNote>
-              In den nächsten 14 Tagen sind keine erwarteten Zahlungen gelistet.
+              In den nächsten 14 Tagen sind keine wiederkehrenden Zahlungen gelistet.
             </EmptyNote>
           ) : (
             <ul className="heute-list">

@@ -57,7 +57,7 @@ export function PaymentPanel({
   useAmountPrivacy();
   const payments = useQuery(expectedQuery()).data;
   const payment = state?.mode === 'view' ? payments?.find((p) => p.id === state.id) : undefined;
-  const title = state?.mode === 'create' ? 'Erwartete Zahlung anlegen' : (payment?.name ?? '');
+  const title = state?.mode === 'create' ? 'Wiederkehrende Zahlung anlegen' : (payment?.name ?? '');
   return (
     <DetailPanel open={state !== null} onClose={onClose} title={title}>
       {state?.mode === 'create' && <CreateBody key="new" draft={state.draft} onDone={onClose} />}
@@ -92,7 +92,7 @@ function CreateBody({
     const { fields, version } = read;
     const done = await write(
       () => createPayment(fields, version),
-      () => `${fields.name}: erwartete Zahlung angelegt`,
+      () => `${fields.name}: wiederkehrende Zahlung angelegt`,
     );
     setBusy(false);
     if (done) onDone();
@@ -482,7 +482,7 @@ function EditSection({
   const remove = async () => {
     const done = await write(
       () => deletePayment(p.id),
-      () => `${p.name}: erwartete Zahlung gelöscht`,
+      () => `${p.name}: wiederkehrende Zahlung gelöscht`,
     );
     if (done) onDeleted();
   };

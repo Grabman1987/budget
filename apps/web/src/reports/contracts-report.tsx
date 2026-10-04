@@ -34,6 +34,7 @@ const RHYTHM = {
   monthly: 'monatlich',
   quarterly: 'vierteljährlich',
   semiannual: 'halbjährlich',
+  weekly: 'wöchentlich',
   yearly: 'jährlich',
 } as const;
 
@@ -55,7 +56,7 @@ export function ContractsReportPage({ report, meta }: { report: ReportEntry; met
         query.isError
           ? 'nicht verfügbar'
           : data
-            ? `Erwartete Zahlungen am ${longDay(data.asOf)}`
+            ? `Wiederkehrende Zahlungen am ${longDay(data.asOf)}`
             : 'wird geladen'
       }
       reportStand={{
@@ -81,8 +82,8 @@ function Body({ data }: { data: ContractsReport }) {
           <h2 id="co-empty">Noch keine Verträge</h2>
         </div>
         <p className="sr-empty" role="status">
-          Verträge entstehen aus erwarteten Zahlungen in Fix-, Kredit- und periodischen Kategorien.
-          Sobald eine angelegt ist, erscheint sie hier mit Preis und Preisgeschichte.
+          Verträge entstehen aus wiederkehrenden Zahlungen in Fix-, Kredit- und periodischen
+          Kategorien. Sobald eine angelegt ist, erscheint sie hier mit Preis und Preisgeschichte.
         </p>
       </section>
     );
@@ -180,7 +181,7 @@ function Body({ data }: { data: ContractsReport }) {
           </ul>
         )}
         <p className="sr-note">
-          Vorschläge entstehen aus den gespeicherten Preisversionen der erwarteten Zahlungen.
+          Vorschläge entstehen aus den gespeicherten Preisversionen der wiederkehrenden Zahlungen.
           Bindung und Kündigungsfrist sind im Hauptbuch noch nicht erfasst; ohne diese Angaben nennt
           der Report keine Kündigungstermine.
         </p>
@@ -293,7 +294,7 @@ function Body({ data }: { data: ContractsReport }) {
           Fixe Verträge zählen je Monat, periodische Zahlungen als Zwölftel; dieselbe Auswahl wie
           die Fixkostenquote (R10). Beträge in Fremdwährung stehen mit dem Originalbetrag und werden
           mit dem zuletzt gespeicherten Referenzkurs umgerechnet.{' '}
-          <AppLink to="/plan/erwartet">Erwartete Zahlungen pflegen</AppLink>
+          <AppLink to="/plan/erwartet">Wiederkehrende Zahlungen pflegen</AppLink>
         </p>
       </section>
 

@@ -4,11 +4,11 @@ import { eur } from '../ledger/format';
 import type { PlanRow } from './plan-model';
 
 const SOURCES = {
-  expected: 'Quelle: Erwartete Zahlungen · bei Betragsbereichen der untere Wert',
+  expected: 'Quelle: Wiederkehrende Zahlungen · bei Betragsbereichen der untere Wert',
   salary_rule: 'Quelle: Gehaltsregel',
   median: 'Schätzung: Median der letzten 3 vollständigen Monate',
   unavailable:
-    'Keine vollständige Einkommensquelle: Erwartete Zahlungen prüfen oder 3 vollständige Monate erfassen.',
+    'Keine vollständige Einkommensquelle: Wiederkehrende Zahlungen prüfen oder 3 vollständige Monate erfassen.',
 };
 
 export function IncomeTargetsCard({
