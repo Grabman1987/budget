@@ -1,14 +1,19 @@
+import { and, eq, inArray, isNull } from 'drizzle-orm';
 import {
   contractBinding,
+  contractPrices,
   monthlyEquivalent,
   personalInflation,
   toEurCents,
   versionOn,
   type ContractSource,
+  type ContractVersion,
   type InflationItem,
   type PersonalInflation,
 } from '@budget/domain';
+import { booking, expectedOccurrence } from '../schema';
 import { contractSources } from './contracts-report';
+import { bookedAmountIn } from './expected-links';
 import { cpiMonths, currentCpiSeries } from './cpi';
 import { fxRateOnOrBefore } from './prices';
 import { reportTables } from './report-tables';
@@ -35,6 +40,8 @@ export interface InflationReport extends PersonalInflation {
    * version and spending in the first twelve months (`null` when the index exists).
    */
   insufficientReason: 'months' | 'basket' | null;
+  /** Contracts without a stored price history, priced from their matched bookings instead. */
+  derivedContracts: { id: string; name: string; source: 'bookings'; prices: ContractVersion[] }[];
   /** The stored consumer price index alone: its 12-month change in the newest month, when stored. */
   referenceLatest: { month: string; changeBp: number } | null;
 }
@@ -50,13 +57,40 @@ function latestChange(months: Record<string, number>): InflationReport['referenc
     : null;
 }
 
+/** The live bookings matched to a contract's occurrences, in the contract's currency. */
+function matchedCharges(db: Executor, paymentId: string, currency: string) {
+  return db
+    .select({ date: booking.date, b: booking })
+    .from(expectedOccurrence)
+    .innerJoin(booking, eq(booking.id, expectedOccurrence.bookingId))
+    .where(
+      and(
+        eq(expectedOccurrence.expectedPaymentId, paymentId),
+        inArray(expectedOccurrence.status, ['received', 'deviating']),
+        isNull(expectedOccurrence.deletedAt),
+        isNull(booking.deletedAt),
+      ),
+    )
+    .all()
+    .map((r) => ({ date: r.date, amountCents: bookedAmountIn(r.b, currency) }));
+}
+
 export function inflationReport(db: Executor, today: string): InflationReport {
   const { available } = reportMonths(db, today);
   const categories = spendCategories(db);
   const spend = tableSpendByMonth(reportTables(db, { today }), categories);
-  const fixed = contractSources(db).filter(
-    (s) => s.categoryKind === 'fixed' && s.categoryId !== null && contractBinding(s) === 'fixed',
-  );
+  const derivedContracts: InflationReport['derivedContracts'] = [];
+  const fixed = contractSources(db)
+    .filter(
+      (s) => s.categoryKind === 'fixed' && s.categoryId !== null && contractBinding(s) === 'fixed',
+    )
+    .map((s) => {
+      const charges = matchedCharges(db, s.id, s.versions[0]?.currency ?? 'EUR');
+      const { versions, source } = contractPrices(s.versions, charges);
+      if (source === 'bookings')
+        derivedContracts.push({ id: s.id, name: s.name, source, prices: [...versions] });
+      return { ...s, versions };
+    });
   const byCategory = new Map<string, ContractSource[]>();
   for (const s of fixed)
     byCategory.set(s.categoryId as string, [...(byCategory.get(s.categoryId as string) ?? []), s]);
@@ -112,6 +146,7 @@ export function inflationReport(db: Executor, today: string): InflationReport {
     excludedCategories: categories.filter((c) => c.class !== 'future' && !inBasket.has(c.id))
       .length,
     referenceAvailable: stored !== null,
+    derivedContracts,
     insufficientReason: result.status === 'ok' ? null : available.length < 13 ? 'months' : 'basket',
     referenceLatest: stored ? latestChange(stored.months) : null,
     reference:
