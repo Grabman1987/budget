@@ -62,4 +62,6 @@ Synthetic review captures: [desktop](screenshots/risk-policy/portfolio-desktop-l
 
 The shared worktree Git index became unwritable (`index.lock: Permission denied`). Later commits use `data/task-delivery/repository/.git` with this workspace as work tree; delivery bundle: `data/task-delivery/codex/risk-policy-pr2.bundle`. The shared worktree's HEAD can therefore lag the delivered branch; the bundle/remote branch contains the final commits. No source-file workaround or security setting change was needed.
 
+The branch was pushed successfully. Draft PR creation was rejected by the GitHub connector: it requires tool approval, but this session's approval policy is `never`. No PR was created and no approval control was bypassed. Prepared description: `data/task-delivery/PR2.md`; [open the comparison against PR1](https://github.com/Grabman1987/budget/compare/codex/asset-exposure-pr1...codex/risk-policy-pr2?expand=1). The feature-branch push does not trigger this repository's PR/main-only CI, so Linux visual, Docker and Litestream-restore checks remain pending PR creation.
+
 Remaining: Linux CI/Docker/restore evidence, owner review of configured limits, PR3 quality/scope, PR4 settings, PR5 real-iPhone acceptance. No private-data/provider access or production write.
