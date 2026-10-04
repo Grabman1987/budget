@@ -21,6 +21,7 @@ import {
   getBooking,
   updateTradeSettlementBooking,
   type SplitInput,
+  type TransferInput,
 } from './bookings';
 import { BookingInvariantError, EntityNotFoundError } from './errors';
 import { assertLedgerInvariants, assertTradeSettlementInvariants } from './invariants';
@@ -56,6 +57,21 @@ export interface TradeResult {
   bookingId: string | null;
   /** The `importKey` existed already: nothing was written. */
   duplicate: boolean;
+}
+
+/** PP-style settlement between separate platform cash and securities accounts. */
+export function tradeCashTransferInput(t: TradeInput, cashAccountId: string): TransferInput | null {
+  const net = settlementCents({ ...t, feeCents: t.feeCents ?? 0, taxCents: t.taxCents ?? 0 });
+  if (net === 0) return null;
+  return {
+    fromAccountId: net < 0 ? cashAccountId : t.accountId,
+    toAccountId: net < 0 ? t.accountId : cashAccountId,
+    date: t.date,
+    amountCents: Math.abs(net),
+    memo: 'Verrechnung',
+    source: 'import',
+    importKey: `${t.importKey}:cash`,
+  };
 }
 
 export type TradePatch = Partial<
