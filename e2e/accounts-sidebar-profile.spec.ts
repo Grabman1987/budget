@@ -51,7 +51,9 @@ test('Einstellungen › Profil fills name and initials in the shell', async ({ p
   await expect(page.getByText('Statistik Austria').first()).toBeVisible();
   const avatar = isPhone(testInfo) ? page.locator('.m-head .avatar') : page.locator('.profile');
   await expect(avatar).toContainText('NU');
-  const save = page.getByRole('button', { name: 'Speichern', exact: true });
+  const save = page
+    .locator('section[aria-labelledby="profile-title"]')
+    .getByRole('button', { name: 'Speichern', exact: true });
   await expect(save).toBeDisabled();
 
   await page.getByLabel('Name', { exact: true }).fill('Beispiel Person');

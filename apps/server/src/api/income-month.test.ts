@@ -83,14 +83,14 @@ describe('owner income budget month', () => {
     expect(adherence.allocation.find((m: any) => m.month === '2026-12').incomeCents).toBe(0);
     expect(adherence.allocation.find((m: any) => m.month === '2027-01').incomeCents).toBe(200001);
   });
-  it('applies defaults to future captures only, with payee precedence and per-booking override', async () => {
+  it('keeps defaults stored but new captures use the booking month unless explicitly overridden', async () => {
     const original = await salary();
     const rule = await call('PUT', '/income-month-rules', { rules: [nextRule] });
     expect(rule.status).toBe(200);
     expect((await call('GET', '/bookings/' + original.body.id)).body.booking.incomeNextMonth).toBe(
       false,
     );
-    expect((await salary()).body.bookings[0].incomeNextMonth).toBe(true);
+    expect((await salary()).body.bookings[0].incomeNextMonth).toBe(false);
     expect((await salary({ incomeNextMonth: false })).body.bookings[0].incomeNextMonth).toBe(false);
     await call('PUT', '/income-month-rules', {
       rules: [nextRule, { scope: 'payee', targetId: 'p1', nextMonth: false }],
@@ -99,7 +99,7 @@ describe('owner income budget month', () => {
     await call('PUT', '/income-month-rules', {
       rules: [{ scope: 'category', targetId: 'salary', nextMonth: true }],
     });
-    expect((await salary()).body.bookings[0].incomeNextMonth).toBe(true);
+    expect((await salary()).body.bookings[0].incomeNextMonth).toBe(false);
   });
   it('undoes and redoes date/month changes and rules without changing cash or income labels', async () => {
     const result = await salary({ incomeNextMonth: true });

@@ -1,3 +1,4 @@
+import { nextRepeatDate, todayInVienna, type Rhythm } from '@budget/domain';
 import {
   account,
   linkBookings,
@@ -5,6 +6,7 @@ import {
   category,
   payee,
   createBooking,
+  createExpectedPayment,
   createPayee,
   createTransfer,
   deleteBooking,
@@ -18,6 +20,7 @@ import {
   type AuditContext,
   type BookingPatch,
   type Db,
+  type Executor,
   type ListedBooking,
   type SplitInput,
 } from '@budget/db';
@@ -57,9 +60,35 @@ function withAdvanceCategory(db: Db, splits: SplitInput[], ctx: AuditContext): S
   return splits.map((s) => (s.contactId && !s.categoryId ? { ...s, categoryId: advanceId } : s));
 }
 
-export function bookingRoutes(db: Db): Hono {
+export function bookingRoutes(db: Db, today = () => todayInVienna()): Hono {
   const app = new Hono();
   const audit = () => ({ actor: ACTOR, groupId: randomUUID() });
+
+  const repeatFrom = (tx: Executor, id: string, rhythm: Rhythm, ctx: AuditContext) => {
+    const b = queryBookings(tx, { ids: [id] }).items[0]!;
+    if (b.transferId || b.splits.some((s) => s.transferId))
+      throw new ApiError(422, 'invalid', 'Umbuchungen können hier nicht wiederholt werden.');
+    const next = nextRepeatDate(b.date, rhythm);
+    return createExpectedPayment(
+      tx,
+      {
+        name: (b.payeeName ?? b.memo ?? 'Wiederkehrende Zahlung').slice(0, 120),
+        kind: b.amountCents < 0 ? 'outflow' : 'inflow',
+        accountId: b.accountId,
+        payeeId: b.payeeId,
+        categoryId: b.amountCents < 0 ? (b.splits[0]?.categoryId ?? null) : null,
+        incomeTypeId: b.amountCents > 0 ? (b.splits[0]?.incomeTypeId ?? null) : null,
+        rhythm,
+        dueDay: Number(b.date.slice(8)),
+        dueMonth: rhythm === 'monthly' || rhythm === 'weekly' ? null : Number(next.slice(5, 7)),
+        startDate: next,
+        dateShift: 'none',
+      },
+      { validFrom: next, amountCents: Math.abs(b.amountCents), currency: b.currency },
+      ctx,
+      today(),
+    );
+  };
 
   const read = (ids: string[]): ListedBooking[] => queryBookings(db, { ids, limit: 200 }).items;
   const requireOpen = (accountId: string) => {
@@ -166,7 +195,7 @@ export function bookingRoutes(db: Db): Hono {
           groupId: ctx.groupId,
         };
       } else {
-        const { splits, categoryId, payeeName, ...columns } = withoutType(body);
+        const { repeat, splits, categoryId, payeeName, ...columns } = withoutType(body);
         if (payeeName && columns.payeeId)
           throw new ApiError(400, 'invalid', 'Empfänger entweder als Name oder Auswahl senden.');
         if (payeeName) {
@@ -194,6 +223,7 @@ export function bookingRoutes(db: Db): Hono {
           { ...defined(columns), splits: withAdvanceCategory(tx, lines, ctx) },
           ctx,
         );
+        if (repeat) repeatFrom(tx, id, repeat, ctx);
         result = { id, bookings: read([id]), groupId: ctx.groupId };
       }
       if (key)
@@ -207,10 +237,31 @@ export function bookingRoutes(db: Db): Hono {
 
   app.patch('/:id', async (c) => {
     const id = c.req.param('id');
-    const { unlockReconciled, splits, ...rest } = await readBody(c, bookingPatch);
+    const body = await readBody(c, bookingPatch);
+    const { repeat, unlockReconciled, splits, ...rest } = body;
+    const key = c.req.header('Idempotency-Key');
+    if (key !== undefined && !/^[a-zA-Z0-9-]{16,80}$/.test(key))
+      throw new ApiError(400, 'invalid', 'Ungültiger Sendeschlüssel.');
+    const hash = createHash('sha256').update(JSON.stringify({ id, body })).digest('hex');
     if (rest.accountId) requireOpen(rest.accountId);
     const ctx = audit();
-    runInTransaction(db, (tx) => {
+    const result = runInTransaction(db, (tx) => {
+      if (key) {
+        const previous = tx
+          .select()
+          .from(bookingDelivery)
+          .where(eq(bookingDelivery.key, key))
+          .get();
+        if (previous) {
+          if (previous.requestHash !== hash)
+            throw new ApiError(
+              409,
+              'idempotency_conflict',
+              'Dieser Eintrag wurde bereits mit anderen Feldern gesendet.',
+            );
+          return JSON.parse(previous.responseJson) as Record<string, unknown>;
+        }
+      }
       const patch: BookingPatch = {
         ...defined(rest),
         ...(splits
@@ -223,9 +274,18 @@ export function bookingRoutes(db: Db): Hono {
             }
           : {}),
       };
+      if (repeat && getBooking(tx, id)?.status === 'reconciled' && !unlockReconciled)
+        throw new ReconciledLockedError([id]);
       updateBooking(tx, id, patch, ctx, { unlockReconciled: unlockReconciled ?? false });
+      if (repeat) repeatFrom(tx, id, repeat, ctx);
+      const response = { bookings: read([id]), groupId: ctx.groupId };
+      if (key)
+        tx.insert(bookingDelivery)
+          .values({ key, requestHash: hash, responseJson: JSON.stringify(response) })
+          .run();
+      return response;
     });
-    return c.json({ bookings: read([id]), groupId: ctx.groupId });
+    return c.json(result);
   });
 
   app.delete('/:id', (c) => {

@@ -67,14 +67,14 @@ export function PaymentsPreviewReport({ report, meta }: { report: ReportEntry; m
       title={report.name}
       subtitle={`${report.pos} · ${report.question}`}
       standDay={query.data?.asOf}
-      reportDataBasis="Gespeicherte erwartete Zahlungen"
+      reportDataBasis="Gespeicherte wiederkehrende Zahlungen"
       extraFields={[{ label: 'Horizont', value: '12 volle Folgemonate' }]}
     >
       <div className="kview vview payments-preview-report">
-        {query.isPending && <LoadingNote what="Erwartete Zahlungen" />}
+        {query.isPending && <LoadingNote what="Wiederkehrende Zahlungen" />}
         {query.isError && (
           <ErrorNote
-            what="Erwartete Zahlungen"
+            what="Wiederkehrende Zahlungen"
             error={query.error}
             onRetry={() => void query.refetch()}
           />
@@ -277,7 +277,7 @@ function PreviewBody({ data }: { data: PaymentsPreview }) {
         </div>
       </section>
       <p>
-        <AppLink to="/plan/erwartet">Erwartete Zahlungen öffnen</AppLink>
+        <AppLink to="/plan/erwartet">Wiederkehrende Zahlungen öffnen</AppLink>
       </p>
     </>
   );
@@ -302,7 +302,7 @@ function PreviewChart({ data, group }: { data: PaymentsPreview; group: PreviewCu
         aria-labelledby="preview-chart-title preview-chart-desc"
       >
         <title id="preview-chart-title">
-          Erwartete Zahlungen je Monat · EUR{!data.eurComplete && '-Anteil'}
+          Wiederkehrende Zahlungen je Monat · EUR{!data.eurComplete && '-Anteil'}
         </title>
         <desc id="preview-chart-desc">
           Basisbeträge gestapelt, Periodisch mit gebundenem Geld schraffiert. Gestrichelte Kontur

@@ -162,7 +162,7 @@ describe('GET /accounts/series', () => {
     const batch = (await ok('GET', `/accounts/series?${range}`)).series;
     expect(Object.keys(batch)).toContain(giro.id);
     expect((await call('GET', '/accounts/series?from=2026-08-22&to=2026-08-20')).status).toBe(400);
-    expect((await call('GET', '/accounts/series?from=2020-01-01&to=2026-08-20')).status).toBe(400);
+    expect((await call('GET', '/accounts/series?from=1900-01-01&to=2026-08-20')).status).toBe(400);
     expect((await call('GET', `/accounts/nope/series?${range}`)).status).toBe(404);
   });
 });

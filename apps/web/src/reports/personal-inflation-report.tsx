@@ -71,7 +71,7 @@ function Body({ data }: { data: InflationReport }) {
         <p className="sr-empty" role="status" data-testid="pi-empty-reason">
           {data.insufficientReason === 'months'
             ? 'Für eine Teuerung über zwölf Monate braucht der Report mindestens 13 geschlossene Monate.'
-            : 'Für den eigenen Warenkorb braucht der Report Fixkosten mit Preis und Ausgaben im ersten Jahr der Aufzeichnung: eine erwartete Zahlung braucht dafür eine Preisversion, die in diesem Zeitraum beginnt.'}
+            : 'Für den eigenen Warenkorb braucht der Report Fixkosten mit Preis und Ausgaben im ersten Jahr der Aufzeichnung: eine wiederkehrende Zahlung braucht dafür eine Preisversion, die in diesem Zeitraum beginnt.'}
         </p>
         {data.referenceLatest ? (
           <p className="sr-note" data-testid="pi-empty-reference">
@@ -164,8 +164,8 @@ function Body({ data }: { data: InflationReport }) {
             dieses Jahres ({data.basketItems} Positionen).
           </li>
           <li>
-            <strong>Preise</strong> sind die Preisversionen der erwarteten Zahlungen, je Monat in
-            Euro (Fremdwährung mit dem gespeicherten Kurs).
+            <strong>Preise</strong> sind die Preisversionen der wiederkehrenden Zahlungen, je Monat
+            in Euro (Fremdwährung mit dem gespeicherten Kurs).
             {data.derivedContracts.length > 0 && (
               <span data-testid="pi-derived">
                 {' '}

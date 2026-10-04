@@ -9,7 +9,7 @@ test('Plan income estimate, targets and unfunded category navigation', async ({ 
   await expect(card).toBeVisible();
   const response = await page.request.get('/api/budget/2026-09');
   const { incomeTargets: data } = await response.json();
-  await expect(card).toContainText('Quelle: Erwartete Zahlungen');
+  await expect(card).toContainText('Quelle: Wiederkehrende Zahlungen');
   await expect(card.getByTestId('income-targets-difference')).toHaveText(
     eur(data.differenceCents, { sign: true }),
   );

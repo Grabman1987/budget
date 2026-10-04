@@ -250,8 +250,8 @@ function ContactBody({ statement }: { statement: Statement }) {
         </span>
       </p>
       <p>
-        Auslagen und Rückzahlungen sind tatsächliche Kontobewegungen. Erwartete Zahlungen zählen
-        erst nach der Buchung.
+        Auslagen und Rückzahlungen sind tatsächliche Kontobewegungen. Wiederkehrende Zahlungen
+        zählen erst nach der Buchung.
       </p>
       <Button onClick={() => setReceipt((r) => !r)}>
         {receipt ? 'Rückzahlung schließen' : 'Rückzahlung buchen'}
