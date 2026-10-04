@@ -166,6 +166,13 @@ function Body({ data }: { data: InflationReport }) {
           <li>
             <strong>Preise</strong> sind die Preisversionen der erwarteten Zahlungen, je Monat in
             Euro (Fremdwährung mit dem gespeicherten Kurs).
+            {data.derivedContracts.length > 0 && (
+              <span data-testid="pi-derived">
+                {' '}
+                Ohne gespeicherten Preisverlauf aus Buchungen abgeleitet:{' '}
+                {data.derivedContracts.map((c) => c.name).join(', ')}.
+              </span>
+            )}
           </li>
           <li>
             <strong>Variable Kategorien</strong> ({data.excludedCategories} Kategorien in Bedarf und

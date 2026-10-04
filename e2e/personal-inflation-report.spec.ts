@@ -42,6 +42,9 @@ test('indexes the fixed contracts, attributes the change and says what is not in
   await expect(table.getByRole('row').nth(1)).toContainText('Strom');
   await expect(table.getByRole('row', { name: /Miete/ })).toContainText('0 %');
 
+  // The sample contracts have stored price histories: nothing is derived from bookings.
+  await expect(page.getByTestId('pi-derived')).toHaveCount(0);
+
   // What is out of the basket is named.
   await expect(page.getByText(/Variable Kategorien/)).toBeVisible();
 
