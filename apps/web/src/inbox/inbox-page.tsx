@@ -1,4 +1,5 @@
 import { BankBookingMerge, BankCandidate } from './bank-candidate';
+import { AssignmentLearnOffer, BookingAssignmentReview } from '../assignment/review';
 import { PayslipUpload, PayslipIntakeDetail } from '../reports/payslip-intake';
 import { ReadSourceDetail } from './read-source-detail';
 import {
@@ -160,6 +161,7 @@ function InboxBody({
   const writes = useLedgerWrites();
   const write = useBudgetWrite();
   const [busy, setBusy] = useState<string | null>(null);
+  const [learnBookingId, setLearnBookingId] = useState<string | null>(null);
   const resolve = async (item: InboxStored) => {
     if (busy) return;
     setBusy(item.id);
@@ -179,6 +181,7 @@ function InboxBody({
         aside={queue.data ? `${queue.data.count} offen` : undefined}
       />
       {queue.isPending && <LoadingNote what="Aufgaben" />}
+      {learnBookingId && <AssignmentLearnOffer bookingId={learnBookingId} />}
       {queue.isError && (
         <ErrorNote what="Aufgaben" error={queue.error} onRetry={() => void queue.refetch()} />
       )}
@@ -217,6 +220,7 @@ function InboxBody({
                     <InboxRow
                       key={item.id}
                       item={item}
+                      onBankConfirmed={setLearnBookingId}
                       letter={String.fromCharCode(65 + (index++ % 26))}
                       busy={
                         busy === item.id ||
@@ -252,6 +256,7 @@ function InboxBody({
 }
 
 function InboxRow({
+  onBankConfirmed,
   item,
   letter,
   busy,
@@ -261,6 +266,7 @@ function InboxRow({
   onConfirm,
   confirming,
 }: {
+  onBankConfirmed: (id: string) => void;
   item: InboxEntry;
   letter: string;
   busy: boolean;
@@ -310,6 +316,14 @@ function InboxRow({
             >
               Zuordnen
             </Button>
+            {item.source === 'bank' && item.status !== 'reconciled' && (
+              <BookingAssignmentReview
+                id={item.bookingId}
+                onApplied={(canLearn) => {
+                  if (canLearn) onBankConfirmed(item.bookingId);
+                }}
+              />
+            )}
             {item.status === 'pending' && (
               <Button
                 size="sm"
@@ -335,7 +349,7 @@ function InboxRow({
         ) : (
           <>
             {item.refType === 'bank-sync-candidate' && item.refId && (
-              <BankCandidate id={item.refId} />
+              <BankCandidate id={item.refId} onConfirmed={onBankConfirmed} />
             )}
             <SourceLink item={item} />
             <Button

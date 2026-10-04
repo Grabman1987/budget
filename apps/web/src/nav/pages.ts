@@ -175,7 +175,7 @@ export const PAGES: ReadonlyArray<PageDef> = [
     area: 'einstellungen',
     register: 'zuordnung',
     fills: P4,
-    spec: 'Zuordnungsregeln für den Bank-Sync.',
+    spec: 'Zuordnungsregeln für Bankumsätze, Empfängerbereinigung und Budgetmonat-Vorgaben für Einnahmen.',
   },
   {
     path: '/einstellungen/datenquellen',

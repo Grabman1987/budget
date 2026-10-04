@@ -1,4 +1,5 @@
 import { payrollRoutes, projectRoutes } from './payroll-projects';
+import { assignmentRoutes } from './assignment-rules';
 import { payslipIntakeRoutes } from './payslip-intake';
 import { incomeMonthRoutes } from './income-month';
 import { bankSyncFromEnv } from '../bank-sync/config';
@@ -103,6 +104,7 @@ export function createLedgerApi({
   api.route('/payslip-intake', payslipIntakeRoutes(db, receiptsDir));
   api.route('/projects', projectRoutes(db, today));
   api.route('/income-month-rules', incomeMonthRoutes(db));
+  api.route('/assignment-rules', assignmentRoutes(db));
   api.route('/bank-sync', bankSyncRoutes(bankSync, stepUp, db));
   api.route('/sources/crypto', readSourceRoutes(db, today, stepUp, cryptoReadSource()));
   api.route('/search', searchRoutes(db));
