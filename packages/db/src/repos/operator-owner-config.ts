@@ -4,17 +4,22 @@ import {
   PROFILE_INITIALS_MAX,
   PROFILE_NAME_MAX,
   REGIONS,
+  sourceMappingSchema,
   type Profile,
   type RegionCode,
 } from '@budget/domain';
 import { randomUUID } from 'node:crypto';
+import { isDeepStrictEqual } from 'node:util';
 import { and, asc, eq, isNull, lt } from 'drizzle-orm';
 import {
   account,
   appSetting,
   assetClass,
   booking,
+  bookingSplit,
   category,
+  categoryGroup,
+  contact,
   EXPECTED_KINDS,
   expectedOccurrence,
   expectedPayment,
@@ -22,10 +27,11 @@ import {
   RHYTHMS,
   rule,
   security,
+  SECURITY_KINDS,
 } from '../schema';
 import { type AuditContext, type GroupedContext } from './audit';
 import { saveBookSettings } from './book-settings';
-import { updateBooking } from './bookings';
+import { getBooking, updateBooking } from './bookings';
 import { updateCategory } from './categories';
 import { getEntity } from './entities';
 import { ConflictError, EntityNotFoundError } from './errors';
@@ -39,7 +45,8 @@ import {
 import { OperatorInputError, resolveCategoryNames } from './operator-ops';
 import { getProfile, ProfileValidationError, saveProfile } from './profile';
 import { updateRule } from './rules';
-import { updateAssetClass, updateSecurity } from './securities';
+import { mapReadSource, readSourceMappings } from './read-source';
+import { createSecurity, updateAssetClass, updateSecurity } from './securities';
 import { runInTransaction, type Executor } from './types';
 
 /**
@@ -47,9 +54,10 @@ import { runInTransaction, type Executor } from './types';
  * do not belong in the repo, loaded from one JSON file. Nothing here writes on its own: every
  * section calls the function behind the matching app route (`saveProfile`, `updateRule`,
  * `updateCategory`, `createExpectedPayment` / `updateExpectedPayment` / `addExpectedVersion`,
- * `markOccurrenceMissed`, `updateBooking`, `updateSecurity`, `updateAssetClass`), so validation and audit match the UI path. One audit group per entry (actor
- * `operator`), each in its own savepoint, so Rückgängig or `undo-group` reverts every entry on its
- * own. An entry the app would refuse is skipped with a reason code, the rest goes through.
+ * `markOccurrenceMissed`, `updateBooking`, `createSecurity`, `mapReadSource`, `updateSecurity`,
+ * `updateAssetClass`), so validation and audit match the UI path. One audit group per run (actor
+ * `operator`), each entry in its own savepoint, so Rückgängig or `undo-group` reverts the whole
+ * run. An entry the app would refuse is skipped with a reason code, the rest goes through.
  * Running a file twice reports everything as `unchanged`.
  */
 
@@ -126,6 +134,9 @@ export interface OwnerAssetClasses {
   rename: { from: string; to: string }[];
 }
 export interface OwnerConfig {
+  createSecurities?: OwnerCreateSecurity[];
+  cryptoMappings?: OwnerCryptoMapping[];
+  splitCategories?: OwnerSplitCategory[];
   profile?: OwnerProfile;
   rules?: OwnerRules;
   categoryStages?: OwnerCategoryStage[];
@@ -136,7 +147,30 @@ export interface OwnerConfig {
   assetClasses?: OwnerAssetClasses;
 }
 
+export interface OwnerCreateSecurity {
+  name: string;
+  kind: (typeof SECURITY_KINDS)[number];
+  currency: string;
+  assetClass?: string;
+  isin?: string;
+  symbol?: string;
+  pricesEnabled: boolean;
+}
+export interface OwnerCryptoMapping {
+  key: string;
+  account: string;
+  security?: string;
+}
+export interface OwnerSplitCategory {
+  splitId: string;
+  category: string;
+  contact?: string | null;
+}
+
 export const OWNER_CONFIG_SECTIONS = [
+  'createSecurities',
+  'cryptoMappings',
+  'splitCategories',
   'profile',
   'rules',
   'categoryStages',
@@ -157,7 +191,7 @@ export interface OwnerConfigOutcome {
   detail: string;
   /** Stable reason code of a skip, empty otherwise. */
   reason: string;
-  /** The entry's audit group (empty for unchanged/skipped entries and in a dry run). */
+  /** The run's audit group (empty for unchanged/skipped entries and in a dry run). */
   groupId: string;
 }
 
@@ -348,6 +382,94 @@ export function parseOwnerConfigFile(
 ): OwnerConfig {
   const root = strictObject(json, 'The file', OWNER_CONFIG_SECTIONS);
   const config: OwnerConfig = {};
+  if (root['createSecurities'] !== undefined) {
+    config.createSecurities = list(root['createSecurities'], 'createSecurities').map((raw, i) => {
+      const at = `createSecurities[${i}]`;
+      const o = strictObject(raw, at, [
+        'name',
+        'kind',
+        'currency',
+        'assetClass',
+        'isin',
+        'symbol',
+        'pricesEnabled',
+      ]);
+      const kind = o['kind'];
+      if (typeof kind !== 'string' || !(SECURITY_KINDS as readonly string[]).includes(kind))
+        throw new OperatorInputError(`${at}.kind must be one of ${SECURITY_KINDS.join(', ')}`);
+      const currency = text(
+        o['currency'] === undefined ? 'EUR' : o['currency'],
+        `${at}.currency`,
+        3,
+      );
+      if (!/^[A-Z]{3}$/.test(currency))
+        throw new OperatorInputError(`${at}.currency must be a three-letter uppercase currency`);
+      const out: OwnerCreateSecurity = {
+        name: text(o['name'], `${at}.name`, 120),
+        kind: kind as OwnerCreateSecurity['kind'],
+        currency,
+        pricesEnabled: false,
+      };
+      for (const key of ['assetClass', 'symbol', 'isin'] as const) {
+        if (o[key] !== undefined)
+          out[key] = text(o[key], `${at}.${key}`, key === 'isin' ? 12 : key === 'symbol' ? 40 : 80);
+      }
+      if (out.isin !== undefined) {
+        out.isin = out.isin.toUpperCase();
+        if (!/^[A-Z]{2}[A-Z0-9]{9}\d$/.test(out.isin))
+          throw new OperatorInputError(`${at}.isin must be a 12 character ISIN`);
+      }
+      if (o['pricesEnabled'] !== undefined) {
+        if (typeof o['pricesEnabled'] !== 'boolean')
+          throw new OperatorInputError(`${at}.pricesEnabled must be true or false`);
+        out.pricesEnabled = o['pricesEnabled'];
+      }
+      return out;
+    });
+    uniqueKeys(
+      config.createSecurities.map((e) => e.isin ?? e.name),
+      'createSecurities',
+    );
+  }
+  if (root['cryptoMappings'] !== undefined) {
+    config.cryptoMappings = list(root['cryptoMappings'], 'cryptoMappings').map((raw, i) => {
+      const at = `cryptoMappings[${i}]`;
+      const o = strictObject(raw, at, ['key', 'account', 'security']);
+      const key = text(o['key'], `${at}.key`, 210);
+      if (!/^(asset|currency):[^\s:]+$/.test(key))
+        throw new OperatorInputError(
+          `${at}.key must be asset:<providerId> or currency:<providerId>`,
+        );
+      const out: OwnerCryptoMapping = { key, account: text(o['account'], `${at}.account`, 80) };
+      if (o['security'] !== undefined) out.security = text(o['security'], `${at}.security`, 120);
+      if (key.startsWith('asset:') && out.security === undefined)
+        throw new OperatorInputError(`${at}.security is required for an asset key`);
+      if (key.startsWith('currency:') && out.security !== undefined)
+        throw new OperatorInputError(`${at}.security must be omitted for a currency key`);
+      return out;
+    });
+    uniqueKeys(
+      config.cryptoMappings.map((e) => e.key),
+      'cryptoMappings',
+    );
+  }
+  if (root['splitCategories'] !== undefined) {
+    config.splitCategories = list(root['splitCategories'], 'splitCategories').map((raw, i) => {
+      const at = `splitCategories[${i}]`;
+      const o = strictObject(raw, at, ['splitId', 'category', 'contact']);
+      const out: OwnerSplitCategory = {
+        splitId: text(o['splitId'], `${at}.splitId`, 100),
+        category: text(o['category'], `${at}.category`, 200),
+      };
+      if (o['contact'] !== undefined)
+        out.contact = o['contact'] === null ? null : text(o['contact'], `${at}.contact`, 120);
+      return out;
+    });
+    uniqueKeys(
+      config.splitCategories.map((e) => e.splitId),
+      'splitCategories',
+    );
+  }
   if (root['profile'] !== undefined) config.profile = parseProfile(root['profile'], today);
   if (root['rules'] !== undefined) config.rules = parseRules(root['rules']);
   if (root['categoryStages'] !== undefined) {
@@ -494,16 +616,17 @@ interface Runner {
   tx: Executor;
   actor: string;
   today: string;
+  groupId: string;
 }
 
-/** Run one entry in its own savepoint and audit group; refusals become a skip. */
+/** Run one entry in its own savepoint, within the run's audit group; refusals become a skip. */
 function entry(
   r: Runner,
   section: OwnerConfigSection,
   key: string,
   body: (tx: Executor, ctx: GroupedContext) => Step,
 ): OwnerConfigOutcome {
-  const ctx: GroupedContext = { actor: r.actor, groupId: randomUUID() };
+  const ctx: GroupedContext = { actor: r.actor, groupId: r.groupId };
   try {
     const step = runInTransaction(r.tx, (inner) => body(inner, ctx));
     return {
@@ -572,6 +695,162 @@ function oneExpectedPayment(tx: Executor, name: string) {
   if (found.length > 1)
     throw new EntrySkip('ambiguous_payment', `${found.length} expected payments have this name`);
   return found[0] ?? null;
+}
+
+// --- new securities, source mappings and split categories --------------------------------------
+
+function applyCreateSecurity(tx: Executor, e: OwnerCreateSecurity, ctx: GroupedContext): Step {
+  const found = tx
+    .select()
+    .from(security)
+    .where(isNull(security.deletedAt))
+    .all()
+    .filter((s) => (e.isin !== undefined ? s.isin === e.isin : fold(s.name) === fold(e.name)));
+  if (found.length > 1)
+    throw new EntrySkip('ambiguous_security', 'several live securities have this identity');
+  if (found[0]) {
+    if (found[0].kind !== e.kind || found[0].currency !== e.currency)
+      throw new EntrySkip('conflicting', 'existing security has a different kind or currency');
+    return done([]);
+  }
+  let assetClassId: string | undefined;
+  if (e.assetClass !== undefined) {
+    const classes = tx
+      .select()
+      .from(assetClass)
+      .where(isNull(assetClass.deletedAt))
+      .all()
+      .filter((c) => c.name === e.assetClass);
+    if (!classes.length)
+      throw new EntrySkip('unknown_asset_class', 'no live asset class has this exact name');
+    if (classes.length > 1)
+      throw new EntrySkip(
+        'ambiguous_asset_class',
+        'several live asset classes have this exact name',
+      );
+    assetClassId = classes[0]!.id;
+  }
+  createSecurity(
+    tx,
+    {
+      name: e.name,
+      kind: e.kind,
+      currency: e.currency,
+      pricesEnabled: e.pricesEnabled,
+      ...(e.isin !== undefined && { isin: e.isin }),
+      ...(e.symbol !== undefined && { symbol: e.symbol }),
+      ...(assetClassId !== undefined && { assetClassId }),
+    },
+    ctx,
+  );
+  return done(
+    [
+      `security created: kind ${e.kind}, currency ${e.currency}, assetClass ${e.assetClass ?? 'none'}, symbol ${e.symbol ?? 'none'}, pricesEnabled ${e.pricesEnabled}`,
+    ],
+    true,
+  );
+}
+
+function applyCryptoMapping(tx: Executor, e: OwnerCryptoMapping, ctx: GroupedContext): Step {
+  const accounts = tx
+    .select()
+    .from(account)
+    .where(isNull(account.deletedAt))
+    .all()
+    .filter((a) => a.name === e.account);
+  if (!accounts.length)
+    throw new EntrySkip('unknown_account', 'no live account has this exact name');
+  if (accounts.length > 1)
+    throw new EntrySkip('ambiguous_account', 'several live accounts have this exact name');
+  let securityId: string | null = null;
+  if (e.security !== undefined) {
+    const securities = tx
+      .select()
+      .from(security)
+      .where(isNull(security.deletedAt))
+      .all()
+      .filter((s) => s.isin === e.security!.toUpperCase() || s.name === e.security);
+    if (!securities.length)
+      throw new EntrySkip('unknown_security', 'no live security has this ISIN or exact name');
+    if (securities.length > 1)
+      throw new EntrySkip(
+        'ambiguous_security',
+        'several live securities have this ISIN or exact name',
+      );
+    securityId = securities[0]!.id;
+  }
+  const mapping = sourceMappingSchema.parse({ key: e.key, accountId: accounts[0]!.id, securityId });
+  const previous = readSourceMappings(tx).find((m) => m.key === e.key);
+  if (previous && isDeepStrictEqual(previous, mapping)) return done([]);
+  mapReadSource(tx, mapping, ctx, { allowUnseen: true });
+  return done([
+    `${previous ? 'mapping replaced' : 'mapping added'}: account ${e.account}, security ${e.security ?? 'cash'}`,
+  ]);
+}
+
+function applySplitCategory(tx: Executor, e: OwnerSplitCategory, ctx: GroupedContext): Step {
+  const split = tx.select().from(bookingSplit).where(eq(bookingSplit.id, e.splitId)).get();
+  const current = split && getBooking(tx, split.bookingId);
+  if (!split || !current) throw new EntrySkip('unknown_split', 'no live booking split has this id');
+  const categories = tx
+    .select({ id: category.id, name: category.name, group: categoryGroup.name })
+    .from(category)
+    .leftJoin(
+      categoryGroup,
+      and(eq(category.groupId, categoryGroup.id), isNull(categoryGroup.deletedAt)),
+    )
+    .where(isNull(category.deletedAt))
+    .all()
+    .filter((c) => c.name === e.category || `${c.group} › ${c.name}` === e.category);
+  if (!categories.length)
+    throw new EntrySkip('unknown_category', 'no live category has this exact name');
+  if (categories.length > 1)
+    throw new EntrySkip('ambiguous_category', 'several live categories have this exact name');
+  const categoryId = categories[0]!.id;
+  let contactId = split.contactId;
+  if (e.contact === null) contactId = null;
+  else if (e.contact !== undefined) {
+    const contacts = tx
+      .select()
+      .from(contact)
+      .where(isNull(contact.deletedAt))
+      .all()
+      .filter((c) => c.name === e.contact);
+    if (!contacts.length)
+      throw new EntrySkip('unknown_contact', 'no live contact has this exact name');
+    if (contacts.length > 1)
+      throw new EntrySkip('ambiguous_contact', 'several live contacts have this exact name');
+    contactId = contacts[0]!.id;
+  }
+  const changes = [
+    ...(split.categoryId !== categoryId
+      ? [`category ${split.categoryId ?? 'none'} -> ${categoryId}`]
+      : []),
+    ...(split.contactId !== contactId
+      ? [`contact ${split.contactId ?? 'none'} -> ${contactId ?? 'none'}`]
+      : []),
+  ];
+  if (!changes.length) return done([]);
+  updateBooking(
+    tx,
+    current.id,
+    {
+      splits: current.splits.map((s) => (s.id === split.id ? { ...s, categoryId, contactId } : s)),
+    },
+    ctx,
+  );
+  const after = getBooking(tx, current.id)!;
+  if (
+    after.amountCents !== current.amountCents ||
+    after.date !== current.date ||
+    after.accountId !== current.accountId ||
+    !isDeepStrictEqual(
+      after.splits.map((s) => [s.id, s.amountCents]),
+      current.splits.map((s) => [s.id, s.amountCents]),
+    )
+  )
+    throw new EntrySkip('conflicting', 'split categorisation must keep amounts, date and account');
+  return done(changes);
 }
 
 // --- profile ----------------------------------------------------------------------------------
@@ -808,9 +1087,8 @@ function applyClear(tx: Executor, acct: { id: string }, before: string, ctx: Gro
 }
 
 /**
- * Apply the sections in dependency order: profile, rules, category stages, asset class names,
- * asset targets, securities, expected payments, skipped occurrences, bookings. Each entry runs in
- * its own savepoint and audit group (actor from `ctx`); an entry the app would refuse writes
+ * Apply new securities, crypto mappings and split categories before the existing sections.
+ * Each entry runs in its own savepoint in one shared audit group (actor from `ctx`); a refusal writes
  * nothing and is reported as skipped. `dryRun` does all of it and rolls everything back, so it
  * reports exactly what the real run would change.
  */
@@ -824,8 +1102,14 @@ export function applyOwnerConfig(
   const outcomes: OwnerConfigOutcome[] = [];
   try {
     runInTransaction(db, (tx) => {
-      const r: Runner = { tx, actor: ctx.actor, today };
+      const r: Runner = { tx, actor: ctx.actor, today, groupId: randomUUID() };
       const add = (o: OwnerConfigOutcome) => outcomes.push(o);
+      for (const e of config.createSecurities ?? [])
+        add(entry(r, 'createSecurities', e.isin ?? e.name, (t, c) => applyCreateSecurity(t, e, c)));
+      for (const e of config.cryptoMappings ?? [])
+        add(entry(r, 'cryptoMappings', e.key, (t, c) => applyCryptoMapping(t, e, c)));
+      for (const e of config.splitCategories ?? [])
+        add(entry(r, 'splitCategories', e.splitId, (t, c) => applySplitCategory(t, e, c)));
       if (config.profile)
         add(entry(r, 'profile', 'profile', (t, c) => applyProfile(t, config.profile!, c, today)));
       for (const code of config.rules?.enable ?? [])

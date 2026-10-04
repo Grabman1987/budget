@@ -41,7 +41,7 @@ import { findRun, runTask, type ImportTask } from './tasks';
  *   node migrate-cli.js book --file <json> [--dry-run] [--details]
  *   node migrate-cli.js payslips --file <json> [--dry-run] [--details] [--replace]
  *   node migrate-cli.js instrument-facts --file <json> [--dry-run]
- *   node migrate-cli.js owner-config --file <json> [--dry-run]
+ *   node migrate-cli.js owner-config --file <json> [--dry-run] [--details]
  *
  * Output is aggregates only (counts, problem codes, number of differences); `--details` adds the
  * differences themselves for the operator's terminal. Nothing is logged to files.
@@ -84,10 +84,11 @@ import { findRun, runTask, type ImportTask } from './tasks';
  * or `undo-group` reverts on its own; `--dry-run` reports exactly what would change. Exit code 3
  * if an entry was skipped.
  * `owner-config` loads the owner's private settings from one JSON file (never in the repo), all
- * sections optional: `profile`, `rules`, `categoryStages`, `assetClasses`,
+ * sections optional: `createSecurities`, `cryptoMappings`, `splitCategories`,
+ * `profile`, `rules`, `categoryStages`, `assetClasses`,
  * `securities`, `expectedPayments`, `skipOccurrences`, `clearBookings` (schema: docs/ops.md).
- * Every entry calls the function behind the matching app route, is one audit group (actor
- * `operator`, `undo-group` reverts it on its own) and reports `created`, `updated`, `unchanged`
+ * Every entry calls the function behind the matching app route, shares one audit group per run
+ * (actor `operator`, `undo-group` reverts the run) and reports `created`, `updated`, `unchanged`
  * or `skipped <reason>`; a second run reports everything as unchanged. Exit code 3 if an entry
  * was skipped; `--dry-run` rolls everything back and reports what would change.
  */
