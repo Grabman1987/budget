@@ -210,6 +210,9 @@
 ::selection {
   background: color-mix(in srgb, var(--line) 22%, transparent);
 }
+button {
+  user-select: none;
+}
 * {
   scrollbar-color: var(--rule-strong) transparent;
 }
