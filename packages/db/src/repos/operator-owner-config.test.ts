@@ -871,6 +871,51 @@ describe('splitCategories', () => {
     expect(accountSummaries(db, TODAY).map((a) => [a.id, a.balanceCents])).toEqual(balances);
   });
 
+  it('moves an inflow and an outflow split to an income type, keeping amounts and balances', () => {
+    const id = createBooking(
+      db,
+      {
+        accountId: 'giro',
+        date: '2026-03-01',
+        amountCents: 500,
+        splits: [
+          { categoryId: 'auslagen', contactId: 'k1', amountCents: 700 },
+          { categoryId: 'auslagen', contactId: 'k1', amountCents: -200 },
+        ],
+      },
+      testCtx,
+    );
+    const original = getBooking(db, id)!;
+    const balances = accountSummaries(db, TODAY).map((a) => [a.id, a.balanceCents]);
+    const json = {
+      splitCategories: original.splits.map((s) => ({
+        splitId: s.id,
+        incomeType: 'Gehalt',
+        contact: null,
+      })),
+    };
+    const real = run(json);
+    expect(statuses(real)).toEqual(['updated', 'updated']);
+    expect(getBooking(db, id)!.splits).toMatchObject([
+      { categoryId: null, incomeTypeId: expect.any(String), contactId: null, amountCents: 700 },
+      { categoryId: null, incomeTypeId: expect.any(String), contactId: null, amountCents: -200 },
+    ]);
+    expect(accountSummaries(db, TODAY).map((a) => [a.id, a.balanceCents])).toEqual(balances);
+    expect(statuses(run(json))).toEqual(['unchanged', 'unchanged']);
+    expect(
+      run({ splitCategories: [{ splitId: original.splits[0]!.id, incomeType: 'Nirgends' }] })[0],
+    ).toMatchObject({ status: 'skipped', reason: 'unknown_income_type' });
+    expect(() =>
+      run({
+        splitCategories: [
+          { splitId: original.splits[0]!.id, category: 'Essen', incomeType: 'Gehalt' },
+        ],
+      }),
+    ).toThrow('category or incomeType');
+    undoAuditGroups(db, [real[0]!.groupId], operator);
+    expect(getBooking(db, id)!.splits).toEqual(original.splits);
+  });
+
   it('skips unknown/deleted splits, ambiguous/exact categories, unknown contacts and refuses invalid contacts atomically', () => {
     const id = createBooking(
       db,

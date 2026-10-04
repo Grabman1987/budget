@@ -716,7 +716,8 @@ has a savepoint: a refusal rolls back only that entry. The following examples ar
   accounts and unique account/instrument targets. Explicit setup before the first fetch is allowed;
   when a source balance exists its currency validation applies. No provider request or booking is made.
 - `splitCategories`: `splitId` identifies a split of a live booking; `category` is an exact name or
-  `Group › Category`. Optional `contact` is an exact live name, `null` clears it, omission retains it.
+  `Group › Category`; or give `incomeType` (exact live name) instead to move the split to income
+  without a category. Optional `contact` is an exact live name, `null` clears it, omission retains it.
   The normal booking update validates contacts/categories and respects reconciled/transfer/trade
   locks; refusals are skipped. Booking amount/date/account and all split amounts/identities are
   asserted unchanged. Undo restores categorisation/contact together with the rest of the run.

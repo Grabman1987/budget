@@ -163,7 +163,9 @@ export interface OwnerCryptoMapping {
 }
 export interface OwnerSplitCategory {
   splitId: string;
-  category: string;
+  /** Exactly one of category / incomeType; an income type moves the split to income (no category). */
+  category?: string;
+  incomeType?: string;
   contact?: string | null;
 }
 
@@ -456,11 +458,13 @@ export function parseOwnerConfigFile(
   if (root['splitCategories'] !== undefined) {
     config.splitCategories = list(root['splitCategories'], 'splitCategories').map((raw, i) => {
       const at = `splitCategories[${i}]`;
-      const o = strictObject(raw, at, ['splitId', 'category', 'contact']);
-      const out: OwnerSplitCategory = {
-        splitId: text(o['splitId'], `${at}.splitId`, 100),
-        category: text(o['category'], `${at}.category`, 200),
-      };
+      const o = strictObject(raw, at, ['splitId', 'category', 'incomeType', 'contact']);
+      const out: OwnerSplitCategory = { splitId: text(o['splitId'], `${at}.splitId`, 100) };
+      if (o['incomeType'] !== undefined) {
+        if (o['category'] !== undefined)
+          throw new OperatorInputError(`${at}: give category or incomeType, not both`);
+        out.incomeType = text(o['incomeType'], `${at}.incomeType`, 80);
+      } else out.category = text(o['category'], `${at}.category`, 200);
       if (o['contact'] !== undefined)
         out.contact = o['contact'] === null ? null : text(o['contact'], `${at}.contact`, 120);
       return out;
@@ -792,21 +796,38 @@ function applySplitCategory(tx: Executor, e: OwnerSplitCategory, ctx: GroupedCon
   const split = tx.select().from(bookingSplit).where(eq(bookingSplit.id, e.splitId)).get();
   const current = split && getBooking(tx, split.bookingId);
   if (!split || !current) throw new EntrySkip('unknown_split', 'no live booking split has this id');
-  const categories = tx
-    .select({ id: category.id, name: category.name, group: categoryGroup.name })
-    .from(category)
-    .leftJoin(
-      categoryGroup,
-      and(eq(category.groupId, categoryGroup.id), isNull(categoryGroup.deletedAt)),
-    )
-    .where(isNull(category.deletedAt))
-    .all()
-    .filter((c) => c.name === e.category || `${c.group} › ${c.name}` === e.category);
-  if (!categories.length)
-    throw new EntrySkip('unknown_category', 'no live category has this exact name');
-  if (categories.length > 1)
-    throw new EntrySkip('ambiguous_category', 'several live categories have this exact name');
-  const categoryId = categories[0]!.id;
+  let categoryId: string | null = null;
+  let incomeTypeId = split.incomeTypeId;
+  if (e.incomeType !== undefined) {
+    const found = tx
+      .select()
+      .from(incomeType)
+      .where(isNull(incomeType.deletedAt))
+      .all()
+      .filter((t) => t.name === e.incomeType);
+    if (found.length !== 1)
+      throw new EntrySkip(
+        found.length === 0 ? 'unknown_income_type' : 'ambiguous_income_type',
+        'no unique live income type has this exact name',
+      );
+    incomeTypeId = found[0]!.id;
+  } else {
+    const categories = tx
+      .select({ id: category.id, name: category.name, group: categoryGroup.name })
+      .from(category)
+      .leftJoin(
+        categoryGroup,
+        and(eq(category.groupId, categoryGroup.id), isNull(categoryGroup.deletedAt)),
+      )
+      .where(isNull(category.deletedAt))
+      .all()
+      .filter((c) => c.name === e.category || `${c.group} › ${c.name}` === e.category);
+    if (!categories.length)
+      throw new EntrySkip('unknown_category', 'no live category has this exact name');
+    if (categories.length > 1)
+      throw new EntrySkip('ambiguous_category', 'several live categories have this exact name');
+    categoryId = categories[0]!.id;
+  }
   let contactId = split.contactId;
   if (e.contact === null) contactId = null;
   else if (e.contact !== undefined) {
@@ -826,6 +847,9 @@ function applySplitCategory(tx: Executor, e: OwnerSplitCategory, ctx: GroupedCon
     ...(split.categoryId !== categoryId
       ? [`category ${split.categoryId ?? 'none'} -> ${categoryId}`]
       : []),
+    ...(split.incomeTypeId !== incomeTypeId
+      ? [`incomeType ${split.incomeTypeId ?? 'none'} -> ${incomeTypeId ?? 'none'}`]
+      : []),
     ...(split.contactId !== contactId
       ? [`contact ${split.contactId ?? 'none'} -> ${contactId ?? 'none'}`]
       : []),
@@ -835,7 +859,9 @@ function applySplitCategory(tx: Executor, e: OwnerSplitCategory, ctx: GroupedCon
     tx,
     current.id,
     {
-      splits: current.splits.map((s) => (s.id === split.id ? { ...s, categoryId, contactId } : s)),
+      splits: current.splits.map((s) =>
+        s.id === split.id ? { ...s, categoryId, incomeTypeId, contactId } : s,
+      ),
     },
     ctx,
   );
