@@ -12,16 +12,22 @@ import { and, eq, isNotNull, isNull } from 'drizzle-orm';
 import { booking, expectedOccurrence, INCOME_TYPES } from '../schema';
 import { schedulePayment } from './expected';
 import { incomeMonthRules } from './income-month';
-import { loadFacts } from './rule-inputs';
+import { loadFacts, type RuleFacts } from './rule-inputs';
 import type { Executor } from './types';
 
 /**
  * Read live schedules, including future versions; never materialise or match payments. Income is
  * counted in the month it is assigned to (decision 42), not the month of its cash date.
  */
-export function planIncomeTargets(db: Executor, summary: MonthSummary, today: string) {
+export function planIncomeTargets(
+  db: Executor,
+  summary: MonthSummary,
+  today: string,
+  /** Facts of the month when the caller has them (they only differ by `firstMonth` and budgets). */
+  preloaded?: RuleFacts,
+) {
   const month = summary.month;
-  const facts = loadFacts(db, lastDayOfMonth(month));
+  const facts = preloaded ?? loadFacts(db, lastDayOfMonth(month));
   const excluded = new Set<string>([INCOME_TYPES.capital.id, INCOME_TYPES.refund.id]);
   const accounts = new Map(facts.accounts.map((a) => [a.id, a]));
   const categories = new Map(facts.categories.map((c) => [c.id, c]));

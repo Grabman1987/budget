@@ -123,7 +123,7 @@ test('annual plan: independent figures, all metrics, year navigation and 375px r
 });
 
 test('annual plan: a failed month never becomes a partial zero-filled year', async ({ page }) => {
-  await page.route('**/api/budget/2026-06', (route) =>
+  await page.route('**/api/budget/months*', (route) =>
     route.fulfill({
       status: 503,
       contentType: 'application/json',
@@ -135,7 +135,7 @@ test('annual plan: a failed month never becomes a partial zero-filled year', asy
     timeout: 20_000,
   });
   await expect(page.getByRole('heading', { name: 'Jahresübersicht' })).toHaveCount(0);
-  await page.unroute('**/api/budget/2026-06');
+  await page.unroute('**/api/budget/months*');
   await page.getByRole('button', { name: 'Erneut versuchen' }).click();
   await expect(page.getByRole('heading', { name: 'Jahresübersicht' })).toBeVisible();
 });

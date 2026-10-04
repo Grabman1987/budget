@@ -9,7 +9,7 @@ import {
   cx,
 } from '@budget/ui';
 import { addDays, cents, todayInVienna } from '@budget/domain';
-import { useQueries, useQuery } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { Link } from '@tanstack/react-router';
 import { Check, Pencil, Plus, TrendingDown, TrendingUp } from 'lucide-react';
 import { useState } from 'react';
@@ -33,7 +33,7 @@ import {
   utilisation,
   type GroupView,
 } from './overview-model';
-import { accountsQuery, LEDGER_KEY, seriesQuery } from './queries';
+import { accountsQuery, LEDGER_KEY, seriesBatchQuery } from './queries';
 import { EmptyNote, ErrorNote, LoadingNote } from './states';
 import { ValuationHint } from './valuation-hint';
 import type { AccountRow, SeriesPoint } from './types';
@@ -219,14 +219,13 @@ function AccountsTable({
 }) {
   useAmountPrivacy();
   const open = model.groups.flatMap((g) => g.accounts);
-  const series = useQueries({
-    queries: open.map((a) => seriesQuery(a.id, WINDOW_DAYS)),
-  });
+  // One request for all accounts instead of one per account.
+  const series = useQuery(seriesBatchQuery(WINDOW_DAYS));
   const byId = new Map<string, SeriesPoint[]>();
-  open.forEach((a, i) => {
-    const points = series[i]?.data?.points;
+  for (const a of open) {
+    const points = series.data?.series[a.id]?.points;
     if (points) byId.set(a.id, points);
-  });
+  }
 
   return (
     <section className="kaccts" aria-labelledby="accts-title">
