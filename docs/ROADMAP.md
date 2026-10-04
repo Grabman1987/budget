@@ -1,5 +1,12 @@
 # Roadmap
 
+### Claude Code project automations (2026-10-04)
+
+- [x] Preserve Impeccable configuration; add offline cross-platform formatting and protected-file hooks with synthetic stdin tests.
+- [x] User-invoked PR shipping/operator skills and read-only migration/money reviewers; see [Claude Code setup](claude-code.md).
+- [x] Windows full check (291 files, 2,808 tests) and build; local run used two workers and a 30-second test timeout without changing repository defaults. Delivery uses a separate git directory/bundle because the worktree commit could not create index.lock.
+- [x] Linux/Windows CI; owner acceptance in the next Claude session.
+
 ### Owner directive PR3 — Allocation quality and scope (2026-10-04)
 
 - [x] Shared explicit account/instrument policy universe; signed investment cash, scope defaults and audited editable API metadata (Drizzle 0033).
