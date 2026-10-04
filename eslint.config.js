@@ -49,6 +49,7 @@ export default tseslint.config(
     files: [
       'apps/server/**/*.{ts,mjs}',
       'scripts/**/*.mjs',
+      '.claude/hooks/**/*.mjs',
       'packages/*/scripts/**/*.mjs',
       '*.config.{js,ts}',
       'vitest.setup.ts',
