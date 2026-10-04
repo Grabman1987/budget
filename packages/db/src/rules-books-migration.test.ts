@@ -30,12 +30,24 @@ describe('rules/books additive migration', () => {
         .run();
       apply(journal.entries[migration]!.tag);
 
-      expect(upgraded.db.select().from(security).get()).toMatchObject({
+      expect(
+        upgraded.db
+          .select({ id: security.id, leverageFactor: security.leverageFactor })
+          .from(security)
+          .get(),
+      ).toMatchObject({
         id: 's1',
         leverageFactor: 10,
       });
       // Later migrations upgrade the same database; the comparison is against the latest schema.
       for (const entry of journal.entries.slice(migration + 1)) apply(entry.tag);
+      expect(upgraded.db.select().from(security).get()).toMatchObject({
+        id: 's1',
+        name: 'Synthetischer ETF',
+        kind: 'etf',
+        leverageFactor: 10,
+        allocationIncluded: true,
+      });
       const schemaOf = (o: typeof fresh) =>
         o.sqlite
           .prepare(

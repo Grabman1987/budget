@@ -420,7 +420,8 @@ it('PR3 metadata is editable through audited account/instrument APIs; invalid sc
     allocationScope: 'included',
   });
   expect(created.status).toBe(201);
-  const cash = (await created.json()).account;
+  const cash = ((await created.json()) as { account: { id: string; allocationScope: string } })
+    .account;
   expect(cash.allocationScope).toBe('included');
   expect(await read()).toMatchObject({
     valuationQuality: 'exact',
@@ -431,10 +432,10 @@ it('PR3 metadata is editable through audited account/instrument APIs; invalid sc
     allocationAssetClassId: 'missing',
   });
   expect(invalid.status).toBe(422);
-  expect((await invalid.json()).message).toContain('aktive Anlageklasse');
+  expect(((await invalid.json()) as { message: string }).message).toContain('aktive Anlageklasse');
   const edited = await call('PATCH', `/accounts/${cash.id}`, { allocationAssetClassId: 'a' });
   expect(edited.status).toBe(200);
-  const { groupId } = await edited.json();
+  const { groupId } = (await edited.json()) as { groupId: string };
   expect((await read()).quality.confidence).toBe('exact');
   expect((await call('POST', '/undo', { groupId })).status).toBe(200);
   expect((await read()).quality.confidence).toBe('provisional');
