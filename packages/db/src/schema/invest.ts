@@ -122,6 +122,55 @@ export const security = sqliteTable(
   (t) => [oneOf('security_kind_chk', t.kind, SECURITY_KINDS)],
 );
 
+/** One complete or explicitly incomplete classification set, effective inclusively. */
+export const securityExposureVersion = sqliteTable(
+  'security_exposure_version',
+  {
+    id: id(),
+    securityId: text('security_id')
+      .notNull()
+      .references(() => security.id),
+    validFrom: text('valid_from').notNull(),
+    complete: integer('complete', { mode: 'boolean' }).notNull(),
+    source: text('source').notNull(),
+    auditGroupId: text('audit_group_id'),
+    createdAt: text('created_at').notNull().default(nowSql),
+  },
+  (t) => [
+    uniqueIndex('security_exposure_version_uq').on(t.securityId, t.validFrom),
+    isoDay('security_exposure_version_day_chk', t.validFrom),
+    check('security_exposure_version_complete_chk', sql`${t.complete} IN (0, 1)`),
+  ],
+);
+
+/** Weighted members of a version. Replacements retain exact snapshots in audit_log. */
+export const securityAssetExposure = sqliteTable(
+  'security_asset_exposure',
+  {
+    id: id(),
+    versionId: text('version_id')
+      .notNull()
+      .references(() => securityExposureVersion.id),
+    securityId: text('security_id')
+      .notNull()
+      .references(() => security.id),
+    assetClassId: text('asset_class_id')
+      .notNull()
+      .references(() => assetClass.id),
+    weightBp: integer('weight_bp').notNull(),
+    validFrom: text('valid_from').notNull(),
+    source: text('source').notNull(),
+    auditGroupId: text('audit_group_id'),
+    createdAt: text('created_at').notNull().default(nowSql),
+  },
+  (t) => [
+    uniqueIndex('security_asset_exposure_member_uq').on(t.versionId, t.assetClassId),
+    index('security_asset_exposure_day_idx').on(t.securityId, t.validFrom),
+    isoDay('security_asset_exposure_day_chk', t.validFrom),
+    check('security_asset_exposure_weight_chk', sql`${t.weightBp} BETWEEN 1 AND 10000`),
+  ],
+);
+
 /**
  * Trade. `units_e8` is signed (see `TRADE_KINDS`) in 1e-8 units; `amount_cents` is the gross value
  * (positive) in the account currency, `fee_cents` and `tax_cents` come on top (buy) or are

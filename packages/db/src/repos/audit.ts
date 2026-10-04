@@ -1,3 +1,4 @@
+import { assertExposureInvariants } from './asset-exposure';
 import { assertContactUndoDependencies } from './contact-invariants';
 import { isDuplicatePayslip } from '@budget/domain';
 import { assertReceiptUndo } from './receipts';
@@ -485,6 +486,10 @@ function revertEntry(db: Executor, entry: AuditEntry, ctx: GroupedContext, force
         ? current === null
         : current !== null && snapshotsEqual(current, entry.after);
     if (!unchanged) {
+      if (['security_asset_exposure', 'security_exposure_version'].includes(entry.entityType))
+        throw new AuditError(
+          'Diese Klassenzuordnung wurde später verändert. Bitte zuerst die jüngere Aktion rückgängig machen.',
+        );
       throw new AuditError(
         `Cannot undo ${entry.action} of ${entry.entityType} ${entry.entityId}: it changed after this entry`,
       );
@@ -658,6 +663,8 @@ export function undo(
           .get()
       )
         throw new AuditError('Gehaltszettel-Aufnahme nur als gesamte Aktion rückgängig machen.');
+      if (['security_asset_exposure', 'security_exposure_version'].includes(entry.entityType))
+        throw new AuditError('Klassenzuordnung nur als gesamte Aktion rückgängig machen.');
       const snapshot = entry.after ?? entry.before;
       if (
         entry.entityType === 'booking_split' ||
@@ -761,6 +768,30 @@ export function undo(
         .filter((id) => id !== null);
       if (new Set(mappings).size !== mappings.length)
         throw new AuditError('Cannot undo: an account would have two active bank sources.');
+    }
+    if (
+      originals.some((e) =>
+        ['security_asset_exposure', 'security_exposure_version', 'asset_class'].includes(
+          e.entityType,
+        ),
+      )
+    )
+      assertExposureInvariants(tx);
+    for (const entry of originals.filter((e) => e.entityType === 'asset_class')) {
+      const cls = tx
+        .select()
+        .from(schema.assetClass)
+        .where(eq(schema.assetClass.id, entry.entityId))
+        .get();
+      if (
+        cls?.deletedAt &&
+        tx
+          .select()
+          .from(schema.securityAssetExposure)
+          .where(eq(schema.securityAssetExposure.assetClassId, cls.id))
+          .get()
+      )
+        throw new AuditError('Anlageklasse wird von einer Klassifikationshistorie verwendet.');
     }
     assertLedgerInvariants(tx, touched);
     assertContactUndoDependencies(tx, originals);

@@ -66,5 +66,9 @@ export function reportPortfolioFixture(opened: OpenedDatabase) {
       ('int-1', 'coin', 'depot-b', '2026-07-05', 'interest', 0, 1000, 0, 275, 'k-int-1'),
       ('sell-1', 'div', 'depot-a', '2026-08-10', 'sell', ${-5 * E8}, 26000, 100, 400, 'k-sell-1'),
       ('fee-1', 'etf', 'depot-a', '2026-04-02', 'fee', 0, 120, 0, 0, 'k-fee-1'),
-      ('tax-1', 'etf', 'depot-a', '2026-04-30', 'tax', 0, 80, 0, 0, 'k-tax-1');`);
+      ('tax-1', 'etf', 'depot-a', '2026-04-30', 'tax', 0, 80, 0, 0, 'k-tax-1');
+    INSERT INTO security_exposure_version (id, security_id, valid_from, complete, source)
+      SELECT 'fixture:' || id, id, '2025-12-31', 1, 'synthetic_fixture' FROM security;
+    INSERT INTO security_asset_exposure (id, version_id, security_id, asset_class_id, valid_from, weight_bp, source)
+      SELECT 'fixture:' || id, 'fixture:' || id, id, asset_class_id, '2025-12-31', 10000, 'synthetic_fixture' FROM security;`);
 }

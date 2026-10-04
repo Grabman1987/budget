@@ -1,4 +1,4 @@
-import { parseScaledDecimal } from '@budget/domain';
+import { parseScaledDecimal, todayInVienna } from '@budget/domain';
 import {
   Button,
   Field,
@@ -33,16 +33,18 @@ type Draft = {
   isin: string;
   symbol: string;
   assetClassId: string;
+  exposureValidFrom: string;
   ter: string;
   leverage: string;
 };
-const draftFor = (security?: SecurityRecord): Draft => ({
+const draftFor = (security?: SecurityRecord, effectiveDay = todayInVienna()): Draft => ({
   name: security?.name ?? '',
   kind: security?.kind ?? 'etf',
   currency: security?.currency ?? 'EUR',
   isin: security?.isin ?? '',
   symbol: security?.symbol ?? '',
   assetClassId: security?.assetClassId ?? '',
+  exposureValidFrom: effectiveDay,
   ter: String((security?.terBp ?? 0) / 100).replace('.', ','),
   leverage: String((security?.leverageFactor ?? 10) / 10).replace('.', ','),
 });
@@ -55,15 +57,17 @@ export function InstrumentForm({
   onSaved,
   onSelect,
   onBusy,
+  effectiveDay,
 }: {
   security?: SecurityRecord | undefined;
   onDirty: (dirty: boolean) => void;
   onSaved: (security: SecurityRecord) => void;
   onSelect: (id?: string) => void;
   onBusy: (busy: boolean) => void;
+  effectiveDay?: string | undefined;
 }) {
   useAmountPrivacy();
-  const [original] = useState(() => draftFor(security));
+  const [original] = useState(() => draftFor(security, effectiveDay));
   const [draft, setDraft] = useState(original);
   const [errors, setErrors] = useState<Errors>({});
   const [busy, setBusy] = useState(false);
@@ -134,7 +138,11 @@ export function InstrumentForm({
         currency,
         isin,
         symbol: draft.symbol.trim() || null,
-        assetClassId: draft.assetClassId || null,
+        ...(!security ||
+        draft.assetClassId !== original.assetClassId ||
+        draft.exposureValidFrom !== original.exposureValidFrom
+          ? { assetClassId: draft.assetClassId || null, exposureValidFrom: draft.exposureValidFrom }
+          : {}),
       };
       const result = await request<{ security: SecurityRecord; groupId: string }>(
         security ? 'PATCH' : 'POST',
@@ -283,6 +291,21 @@ export function InstrumentForm({
                 </option>
               ))}
             </Select>
+          )}
+        </Field>
+        <Field
+          label="Klassenzuordnung gültig ab"
+          hint="Die gewählte Klasse gilt ab diesem Tag mit 100 %. Frühere Versionen bleiben erhalten."
+        >
+          {({ id, describedBy }) => (
+            <TextInput
+              id={id}
+              aria-describedby={describedBy}
+              type="date"
+              value={draft.exposureValidFrom}
+              required
+              onChange={(event) => update('exposureValidFrom', event.target.value)}
+            />
           )}
         </Field>
         {errors.form && (

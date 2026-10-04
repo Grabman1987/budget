@@ -573,6 +573,10 @@ export function writePp(
         id: randomUUID(),
         name: s.name,
         kind: s.kind,
+        exposureValidFrom:
+          [
+            ...prep.plan.trades.filter((r) => r.securityPpUuid === s.ppUuid).map((r) => r.date),
+          ].sort()[0] ?? new Date().toISOString().slice(0, 10),
         symbol: s.symbol,
         isin: s.isin,
         currency: s.currency,

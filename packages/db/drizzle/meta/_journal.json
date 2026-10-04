@@ -218,6 +218,13 @@
       "when": 1791067332564,
       "tag": "0030_owner_config",
       "breakpoints": true
+    },
+    {
+      "idx": 31,
+      "version": "6",
+      "when": 1791075904183,
+      "tag": "0031_security_asset_exposure",
+      "breakpoints": true
     }
   ]
 }

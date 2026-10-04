@@ -1,5 +1,6 @@
 import {
   createTestDatabase,
+  replaceExposureVersion,
   portfolioSummary,
   schema,
   type Db,
@@ -70,6 +71,17 @@ function fixture(currency = 'EUR', costBasisCents: number | null = null) {
   db.insert(schema.security)
     .values({ id: 's', name: 'Musterfonds', kind: 'fund', assetClassId: 'a' })
     .run();
+  replaceExposureVersion(
+    db,
+    's',
+    {
+      validFrom: '2026-01-01',
+      complete: true,
+      source: 'synthetic_fixture',
+      weights: [{ assetClassId: 'a', weightBp: 10000 }],
+    },
+    { actor: 'tester' },
+  );
   db.insert(schema.holding)
     .values({
       id: 'h',
@@ -256,6 +268,17 @@ it('band breach is exact on cents, not rounded displayed shares', async () => {
   db.insert(schema.security)
     .values({ id: 't', name: 'Reservefonds', kind: 'fund', assetClassId: 'b' })
     .run();
+  replaceExposureVersion(
+    db,
+    't',
+    {
+      validFrom: '2026-01-01',
+      complete: true,
+      source: 'synthetic_fixture',
+      weights: [{ assetClassId: 'b', weightBp: 10000 }],
+    },
+    { actor: 'tester' },
+  );
   db.insert(schema.holding)
     .values({
       id: 'h2',

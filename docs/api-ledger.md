@@ -1,5 +1,7 @@
 # Ledger API (P2a)
 
+Security exposure API: `GET /api/securities/:id/exposures?asOf=YYYY-MM-DD` reads the effective set; `PUT /api/securities/:id/exposures` atomically replaces `{ validFrom?, complete, source, weights: [{ assetClassId, weightBp }] }` and returns an undoable `groupId`. Server validation requires complete weights to total exactly 10000; missing weight must be explicitly incomplete. Security POST/PATCH single-class writes accept `exposureValidFrom`, default today. See [effective-date and replacement semantics](asset-exposure.md#api).
+
 REST/JSON below `/api`, behind the session guard (CSRF origin check on writes, 64 KB body limit).
 `createApp` refuses to mount the ledger without auth (type error and a throw at start).
 Amounts are integer cents, days are `YYYY-MM-DD`. Source: `apps/server/src/api/`, repositories in

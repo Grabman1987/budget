@@ -148,6 +148,8 @@ test('bootstrap, login, recovery, device management and CSRF on a fresh server',
       'prices.csv',
       'savings_plans.csv',
       'securities.csv',
+      'security_asset_exposures.csv',
+      'security_exposure_versions.csv',
       'trades.csv',
       'valuations.csv',
     ]);

@@ -13,6 +13,8 @@ goal is superseded for Y21. Payslip uploads remain a separate workflow.
 Product intent, implemented engine/API and complete application workflow are
 recorded separately; mockups alone do not establish completion.
 
+Owner directive PR1 (2026-10-04): asset classification now uses effective-dated weighted exposure sets. Today's reassignment never changes earlier Ist; mixed and explicitly incomplete sets conserve the portfolio's cents and preserve unknown weight. The existing instrument editor accepts an effective date; the weighted API supports audited replacement and undo. Asset-class settings, risk unification/leverage and allocation quality remain separate PRs. See [historical asset exposure](docs/asset-exposure.md).
+
 ## Platform
 
 web

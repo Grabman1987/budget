@@ -4,6 +4,7 @@ import { account, assetClass, holding, institution, price, security } from '../s
 import { portfolioSummary } from './portfolio-summary';
 import { loadFacts, ruleInputs } from './rule-inputs';
 import { seedBasics } from './test-helpers';
+import { replaceExposureVersion } from './asset-exposure';
 
 const E8 = 100_000_000;
 const DAY = '2026-02-01';
@@ -39,6 +40,17 @@ function addSecurity(
     .insert(security)
     .values({ id, name: id, kind, currency: 'EUR', institutionId: issuerId, assetClassId: classId })
     .run();
+  replaceExposureVersion(
+    opened.db,
+    id,
+    {
+      validFrom: '2023-10-01',
+      complete: true,
+      source: 'synthetic_fixture',
+      weights: [{ assetClassId: classId, weightBp: 10000 }],
+    },
+    { actor: 'tester' },
+  );
 }
 
 function addHoldings(securityId: string, accounts: string[]) {
