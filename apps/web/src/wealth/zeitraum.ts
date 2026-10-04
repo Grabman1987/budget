@@ -8,10 +8,12 @@ export const DEFAULT_ZEITRAUM: Period = 'YTD';
 export const isZeitraum = (value: unknown): value is Period => isReportPeriod(value);
 
 /**
- * Selected Zeitraum (default YTD) and its setter. The choice lives in the URL so it survives a
+ * Selected Zeitraum (default YTD, or `fallback`) and its setter. The choice lives in the URL so it survives a
  * reload and a link; it replaces the history entry because it is a view setting, not a page visit.
  */
-export function useZeitraum(): [zeitraum: Period, set: (value: Period) => void] {
+export function useZeitraum(
+  fallback: Period = DEFAULT_ZEITRAUM,
+): [zeitraum: Period, set: (value: Period) => void] {
   const { zeitraum } = useSearch({ strict: false }) as { zeitraum?: unknown };
   const navigate = useNavigate();
   const set = (value: Period) =>
@@ -20,5 +22,5 @@ export function useZeitraum(): [zeitraum: Period, set: (value: Period) => void] 
       search: ((prev: Record<string, unknown>) => ({ ...prev, zeitraum: value })) as never,
       replace: true,
     });
-  return [isZeitraum(zeitraum) ? zeitraum : DEFAULT_ZEITRAUM, set];
+  return [isZeitraum(zeitraum) ? zeitraum : fallback, set];
 }

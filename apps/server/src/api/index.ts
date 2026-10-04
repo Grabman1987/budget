@@ -39,6 +39,7 @@ import { liquidityRoutes } from './liquidity';
 import { lookupRoutes, payeeRoutes, undoRoutes } from './lookups';
 import { profileRoutes } from './profile';
 import { marketRoutes } from './market';
+import { assetsDebtsHistoryRoutes } from './assets-debts-history';
 import { networthHistoryRoutes } from './networth-history';
 import { wealthRoutes } from './wealth';
 import { ruleRoutes } from './rules';
@@ -122,6 +123,7 @@ export function createLedgerApi({
   api.route('/liquidity', liquidityRoutes(db, today));
   api.route('/cashflow', cashflowRoutes(db, today));
   api.route('/networth-history', networthHistoryRoutes(db, today));
+  api.route('/assets-debts-history', assetsDebtsHistoryRoutes(db, today));
   api.route('/heute', heuteRoutes(db, today));
   api.route('/rules', ruleRoutes(db, today));
   api.route('/overview', overviewReportRoutes(db, today));

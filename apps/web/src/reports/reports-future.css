@@ -438,3 +438,53 @@
   background: repeating-linear-gradient(135deg, var(--want) 0 2px, transparent 2px 5px);
   border: 1px solid var(--want);
 }
+
+/* 3.6 Vermögen & Schulden: bars per month end, the selected month tinted, table as keyboard path */
+.rf-pick {
+  fill: var(--surface-2);
+}
+.rf-hit {
+  fill: transparent;
+  cursor: pointer;
+}
+.rf-hit:hover {
+  fill: var(--surface-2);
+  opacity: 0.6;
+}
+.rf-month-btn {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-start;
+  padding: 2px 0;
+  min-height: 24px;
+  border: 0;
+  background: none;
+  color: var(--ink);
+  font: inherit;
+  font-weight: 560;
+  text-align: left;
+  text-decoration: underline;
+  text-decoration-color: var(--rule-strong);
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+.rf-month-btn small {
+  margin-top: 0;
+  font-weight: 400;
+  color: var(--ink-2);
+}
+.rf-month-btn[aria-pressed='true'] {
+  text-decoration-color: var(--ink);
+  text-decoration-thickness: 2px;
+}
+.rf-table tr.is-picked th,
+.rf-table tr.is-picked td {
+  background: var(--surface-2);
+}
+.rf-table tbody th[scope='row'] {
+  padding: 8px;
+  border-bottom: 1px solid var(--rule);
+  font-size: inherit;
+  white-space: nowrap;
+  color: var(--ink);
+}
