@@ -209,7 +209,69 @@ it('rolls the setting back when audit insertion fails, and validates report rang
     "CREATE TRIGGER fail_setting_audit BEFORE INSERT ON audit_log BEGIN SELECT RAISE(ABORT,'synthetic audit failure'); END;",
   );
   expect((await save('bench')).status).toBe(422);
+  const multiple = await app.request('/api/portfolio/benchmarks', {
+    method: 'PATCH',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ ids: ['benchmark-ftse'] }),
+  });
+  expect(multiple.status).toBe(422);
+  expect(
+    opened.sqlite.prepare("SELECT COUNT(*) AS n FROM security WHERE id LIKE 'benchmark-%'").get(),
+  ).toEqual({ n: 0 });
+
   expect(opened.sqlite.prepare('SELECT COUNT(*) AS n FROM app_setting').get()).toEqual({ n: 0 });
   expect((await app.request('/api/portfolio?history=unknown')).status).toBe(400);
   expect((await app.request('/api/portfolio?history=performance&period=5J')).status).toBe(400);
+});
+
+it('persists multiple index selections with audit undo and compares synthetic EUR series', async () => {
+  const selected = ['benchmark-ftse', 'benchmark-sp500'];
+  const response = await app.request('/api/portfolio/benchmarks', {
+    method: 'PATCH',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ ids: selected }),
+  });
+  expect(response.status).toBe(200);
+  const saved = (await response.json()) as { ids: string[]; groupId: string };
+  expect(saved.ids).toEqual(selected);
+  for (const id of selected)
+    opened.sqlite
+      .prepare(
+        'INSERT INTO price (security_id,date,price_micro,currency,source) VALUES (?,?,?, ?,?)',
+      )
+      .run(id, '2025-12-31', 100000000, 'EUR', 'manual');
+  for (const id of selected) {
+    opened.sqlite
+      .prepare(
+        'INSERT INTO price (security_id,date,price_micro,currency,source) VALUES (?,?,?, ?,?)',
+      )
+      .run(id, '2026-01-30', 110000000, 'EUR', 'manual');
+    opened.sqlite
+      .prepare(
+        'INSERT INTO price (security_id,date,price_micro,currency,source) VALUES (?,?,?, ?,?)',
+      )
+      .run(id, '2026-02-27', id === 'benchmark-ftse' ? 121000000 : 99000000, 'EUR', 'manual');
+  }
+  const report = await readPortfolio();
+  expect(report.benchmarks.map((b) => b.index[0]!.benchmark)).toEqual([100, 100]);
+  expect(report.benchmarks.map((b) => b.index.at(-1)!.benchmark)).toEqual([121, 99]);
+  expect(report.benchmarks[0]!.benchmarkReturn).toBeCloseTo(0.21);
+  expect(report.benchmarks[1]!.benchmarkReturn).toBeCloseTo(-0.01);
+  expect(await (await app.request('/api/portfolio/benchmarks')).json()).toMatchObject({
+    ids: selected,
+  });
+  undo(db, { groupId: saved.groupId }, { actor: 'tester' });
+  expect(await (await app.request('/api/portfolio/benchmarks')).json()).toMatchObject({ ids: [] });
+  for (const ids of [['unknown'], ['benchmark-ftse', 'benchmark-ftse']])
+    expect(
+      (
+        await app.request('/api/portfolio/benchmarks', {
+          method: 'PATCH',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ ids }),
+        })
+      ).status,
+    ).toBe(400);
+  signedIn = false;
+  expect((await app.request('/api/portfolio/benchmarks')).status).toBe(401);
 });

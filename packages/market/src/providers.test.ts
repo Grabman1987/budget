@@ -233,6 +233,24 @@ describe('Ariva historic-quotes page', () => {
     ]);
   });
 
+  it('supports bounded old backfill windows rather than cutting them off at wall-clock today', async () => {
+    const urls: string[] = [];
+    const on = arivaSource({
+      enabled: true,
+      now: NOW,
+      minIntervalMs: 0,
+      fetch: async (url) => {
+        urls.push(String(url));
+        return new Response(data('ariva-historic.html'));
+      },
+    });
+    await on.history(ref(), '2020-01-01', '2020-02-10');
+    expect(urls.map((u) => new URL(u).searchParams.get('month'))).toEqual([
+      '2020-01-31',
+      '2020-02-29',
+    ]);
+  });
+
   it('waits between two requests and refuses when off or without a usable url', async () => {
     const pauses: number[] = [];
     const on = arivaSource({

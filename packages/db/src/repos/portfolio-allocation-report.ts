@@ -2,6 +2,8 @@ import { resolvePortfolioRiskPolicy } from './portfolio-risk-policy';
 import { allocationInputsAsOf, allocationUniverse } from './allocation-inputs';
 import {
   allocationTimeline,
+  allocationChartPositions,
+  allocationStatus,
   monthBoundaries,
   NO_REGION,
   parseRegionWeights,
@@ -17,7 +19,7 @@ import {
   ExchangeRateUnavailableError,
   type AllocationQuality,
 } from '@budget/domain';
-import { isNull } from 'drizzle-orm';
+import { and, eq, isNull } from 'drizzle-orm';
 import { account, security } from '../schema';
 import { portfolioFlows, valuationSeries } from './portfolio';
 import { firstDay, riskOf } from './portfolio-summary';
@@ -61,11 +63,13 @@ export interface AllocationRegion {
 export interface AllocationHistory {
   dates: string[];
   quality: AllocationQuality[];
+  classifiedCents: number[];
   totalCents: number[];
   classes: Array<{
     assetClassId: string | null;
     name: string;
     istBp: number[];
+    chartBp: number[];
     targetBp: Array<number | null>;
     bandBp: Array<number | null>;
     breach: boolean[];
@@ -74,6 +78,10 @@ export interface AllocationHistory {
 
 export interface AllocationReport {
   quality: AllocationQuality;
+  classifiedCents: number;
+  compositionClasses: AllocationClass[];
+  compositionRegions: AllocationRegion[];
+  separatePositions: { name: string; valueCents: number; reason: string }[];
   asOf: string;
   totalCents: number;
   classes: AllocationClass[];
@@ -134,7 +142,23 @@ export function allocationReport(db: Executor, options: { today: string }): Allo
   );
 
   // Series for the 12-month returns of the products and for the history.
-  const start = firstDay(db, today);
+  const portfolioStart =
+    [firstDay(db, today), ...universe.accounts.map((a) => a.openingDate)]
+      .filter((d): d is string => d !== null && d <= today)
+      .sort()[0] ?? null;
+  const budgetStart = db
+    .select({ date: account.openingDate })
+    .from(account)
+    .where(and(isNull(account.deletedAt), eq(account.onBudget, true)))
+    .all()
+    .map((a) => a.date.slice(0, 7) + '-01')
+    .sort()[0];
+  const start =
+    portfolioStart === null
+      ? null
+      : budgetStart && budgetStart > portfolioStart
+        ? budgetStart
+        : portfolioStart;
   const series =
     start === null
       ? null
@@ -207,6 +231,49 @@ export function allocationReport(db: Executor, options: { today: string }): Allo
     };
   });
 
+  const chartPositions = allocationChartPositions(current.positions);
+  const classifiedCents = chartPositions.reduce((sum, p) => sum + p.valueCents, 0);
+  const chartShares = shareBps(
+    chartPositions.map((p) => p.valueCents),
+    classifiedCents,
+  );
+  const chartRows = allocationStatus(chartPositions, []).rows;
+  const compositionClasses = chartRows.map((row): AllocationClass => {
+    const source = classes.find((c) => c.assetClassId === row.assetClass)!;
+    const parts = chartPositions
+      .map((p, i) => ({ ...p, shareBp: chartShares[i]! }))
+      .filter((p) => p.assetClass === row.assetClass);
+    return {
+      ...source,
+      valueCents: row.valueCents,
+      shareBp: row.shareBp,
+      products: source.products.flatMap((p) => {
+        const mine = parts.filter((part) => part.securityId === p.securityId);
+        return mine.length
+          ? [
+              {
+                ...p,
+                valueCents: mine.reduce((sum, p) => sum + p.valueCents, 0),
+                shareBp: mine.reduce((sum, p) => sum + p.shareBp, 0),
+              },
+            ]
+          : [];
+      }),
+    };
+  });
+  const separatePositions = current.positions
+    .filter((p) => !chartPositions.includes(p))
+    .map((p) => ({
+      name: names.get(p.securityId!) ?? 'Anlageposition',
+      valueCents: p.valueCents,
+      reason:
+        p.valueCents < 0
+          ? 'Negative Position'
+          : p.securityId?.startsWith('cash:') && p.kind !== 'p2p'
+            ? 'Anlage-Cash'
+            : 'Ohne Anlageklasse',
+    }));
+
   // Regions: every product's value split by its stored weights, conserved to the cent.
   const byRegion = new Map<string, AllocationRegion['products']>();
   for (const line of lines) {
@@ -240,6 +307,32 @@ export function allocationReport(db: Executor, options: { today: string }): Allo
     products: r.products,
   }));
 
+  const compositionRegionParts = new Map<string, AllocationRegion['products']>();
+  for (const c of compositionClasses)
+    for (const p of c.products) {
+      for (const part of splitByRegion(
+        p.valueCents,
+        parseRegionWeights(securities.get(p.securityId)?.regionsJson),
+      )) {
+        const list = compositionRegionParts.get(part.region) ?? [];
+        list.push({ securityId: p.securityId, name: p.name, valueCents: part.valueCents });
+        compositionRegionParts.set(part.region, list);
+      }
+    }
+  const compositionRegionRows = [...compositionRegionParts].map(([region, products]) => ({
+    region: region === NO_REGION ? null : region,
+    products,
+    valueCents: products.reduce((sum, p) => sum + p.valueCents, 0),
+  }));
+  const compositionRegionShares = shareBps(
+    compositionRegionRows.map((r) => r.valueCents),
+    classifiedCents,
+  );
+  const compositionRegions = compositionRegionRows.map((r, i) => ({
+    ...r,
+    shareBp: compositionRegionShares[i]!,
+  }));
+
   // Soll/Ist at the month ends, from the same daily series.
   let history: AllocationHistory | null = null;
   if (series && start !== null && series.days.length > 0) {
@@ -253,14 +346,21 @@ export function allocationReport(db: Executor, options: { today: string }): Allo
       return { date, positions: input.positions, targets: policy.targets, bandPolicy: policy.R13 };
     });
     const timeline = allocationTimeline(snapshots);
+    const composition = allocationTimeline(
+      snapshots.map((s) => ({ ...s, positions: allocationChartPositions(s.positions) })),
+    );
     history = {
       dates: timeline.dates,
       quality,
+      classifiedCents: composition.totalCents,
       totalCents: timeline.totalCents,
       classes: timeline.classes.map((c) => ({
         assetClassId: c.assetClass === NO_CLASS ? null : c.assetClass,
         name: className(c.assetClass),
         istBp: c.istBp,
+        chartBp:
+          composition.classes.find((r) => r.assetClass === c.assetClass)?.istBp ??
+          dates.map(() => 0),
         targetBp: c.targetBp,
         bandBp: c.bandBp,
         breach: c.breach,
@@ -271,6 +371,10 @@ export function allocationReport(db: Executor, options: { today: string }): Allo
   return {
     asOf: today,
     quality: current.quality,
+    classifiedCents,
+    compositionClasses,
+    compositionRegions,
+    separatePositions,
     totalCents,
     classes,
     regions,

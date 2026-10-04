@@ -1,4 +1,7 @@
+import { portfolioBenchmarks, type PortfolioBenchmarkSeries } from './portfolio-benchmarks';
+import { cashValuer } from './cash-valuation';
 import {
+  ExchangeRateUnavailableError,
   benchmarkIndexLine,
   depotIndexLine,
   periodWindow,
@@ -13,8 +16,8 @@ import {
   type WindowPerformance,
 } from '@budget/domain';
 import { and, asc, eq, isNull, lte } from 'drizzle-orm';
-import { account, institution, price, security } from '../schema';
-import { portfolioFlows, valuationSeries } from './portfolio';
+import { account, institution, price, security, valuation } from '../schema';
+import { cashSeries, portfolioFlows, valuationSeries } from './portfolio';
 import { firstDay, positionLines } from './portfolio-summary';
 import type { Executor } from './types';
 
@@ -49,6 +52,7 @@ export interface DepotComparison {
   benchmark: { securityId: string; name: string } | null;
   /** The comparison security's level at the same boundaries; `null` without prices. */
   benchmarkIndex: IndexPoint[] | null;
+  benchmarks: PortfolioBenchmarkSeries[];
   depots: DepotColumn[];
   total: DepotColumn | null;
 }
@@ -65,7 +69,22 @@ export function depotComparison(
 ): DepotComparison {
   const today = periodWindow(options.period ?? '1J', options.today).to;
   const period = options.period ?? '1J';
-  const start = firstDay(db, today);
+  const accounts = db
+    .select()
+    .from(account)
+    .where(
+      and(
+        isNull(account.deletedAt),
+        eq(account.role, 'investment'),
+        lte(account.openingDate, today),
+      ),
+    )
+    .all();
+  const historyStart = firstDay(db, today);
+  const start =
+    [historyStart, ...accounts.map((a) => a.openingDate)]
+      .filter((d): d is string => d !== null)
+      .sort()[0] ?? null;
   const lines = positionLines(db, today);
   const empty: DepotComparison = {
     asOf: today,
@@ -73,6 +92,7 @@ export function depotComparison(
     window: null,
     benchmark: null,
     benchmarkIndex: null,
+    benchmarks: [],
     depots: [],
     total: null,
   };
@@ -89,7 +109,13 @@ export function depotComparison(
 
   const accountRows = new Map(
     db
-      .select({ id: account.id, name: account.name, institutionId: account.institutionId })
+      .select({
+        id: account.id,
+        name: account.name,
+        institutionId: account.institutionId,
+        type: account.type,
+        closedAt: account.closedAt,
+      })
       .from(account)
       .all()
       .map((a) => [a.id, a]),
@@ -109,7 +135,27 @@ export function depotComparison(
     }));
     return {
       series: valuations,
-      flows: portfolioFlows(db, { from: start, to: today, view: 'securities', accounts }),
+      flows: [
+        ...portfolioFlows(db, {
+          from: start,
+          to: today,
+          view: 'securities',
+          accounts: accounts.filter((id) =>
+            ['brokerage', 'crypto'].includes(accountRows.get(id)?.type ?? ''),
+          ),
+        }),
+        ...portfolioFlows(db, {
+          from: start,
+          to: today,
+          view: 'depot',
+          accounts: accounts.filter(
+            (id) => !['brokerage', 'crypto'].includes(accountRows.get(id)?.type ?? ''),
+          ),
+          referenceAccounts: accounts.filter(
+            (id) => !['brokerage', 'crypto'].includes(accountRows.get(id)?.type ?? ''),
+          ),
+        }),
+      ],
     };
   };
 
@@ -129,8 +175,42 @@ export function depotComparison(
   const withBenchmark = (input: PerformanceInput): PerformanceInput =>
     levels.length > 0 ? { ...input, benchmark: levels } : input;
 
-  // The total is built exactly like the portfolio summary (all positions, investment account flows).
-  const totalInput = inputOf(series.totalCents, investmentAccounts);
+  const values = new Map<string, number[]>();
+  for (const a of accounts) {
+    const mine = series.positions.filter((p) => p.accountId === a.id);
+    const held = sumSeries(...mine.map((p) => p.valueCents));
+    const cash =
+      a.type === 'brokerage' || a.type === 'crypto'
+        ? series.days.map(() => 0)
+        : cashSeries(db, series.days, [a.id]).get(a.id)!;
+    const manual = db
+      .select()
+      .from(valuation)
+      .where(
+        and(eq(valuation.accountId, a.id), isNull(valuation.deletedAt), lte(valuation.date, today)),
+      )
+      .orderBy(asc(valuation.date))
+      .all();
+    const value = cashValuer(db);
+    let cursor = 0;
+    let latest: (typeof manual)[number] | undefined;
+    values.set(
+      a.id,
+      series.days.map((day, i) => {
+        while (cursor < manual.length && manual[cursor]!.date <= day) latest = manual[cursor++];
+        if (a.type === 'brokerage' || a.type === 'crypto') return held[i] ?? 0;
+        const manualCents =
+          latest && day >= a.openingDate && !(held[i] ?? 0)
+            ? value(latest.valueCents, a.currency, day)
+            : null;
+        if (manualCents && manualCents.eurCents === null)
+          throw new ExchangeRateUnavailableError(a.currency, day);
+        return manualCents?.eurCents ?? (held[i] ?? 0) + cash[i]!;
+      }),
+    );
+  }
+  const allValues = sumSeries(...values.values());
+  const totalInput = inputOf(allValues, investmentAccounts);
   const totalPerformance = windowPerformance(
     withBenchmark(totalInput),
     periodWindow(period, today, totalInput.series[0]?.date),
@@ -147,16 +227,22 @@ export function depotComparison(
   const boundaryDays = totalLine.map((p) => p.date);
   const benchmarkIndex = levels.length > 0 ? benchmarkIndexLine(levels, boundaryDays) : null;
 
-  // One column per account that held a position in the series.
-  const accountIds = [...new Set(series.positions.map((p) => p.accountId))];
-  const values = new Map<string, number[]>();
-  for (const id of accountIds) {
-    const mine = series.positions.filter((p) => p.accountId === id).map((p) => p.valueCents);
-    values.set(id, sumSeries(...mine));
-  }
+  // Closed zero-value accounts remain visible only when this period contains value or flows.
+  const accountIds = accounts
+    .filter(
+      (a) =>
+        !a.closedAt ||
+        series.days.some(
+          (day, i) => day >= effective.from && day <= effective.to && values.get(a.id)![i] !== 0,
+        ) ||
+        inputOf(values.get(a.id)!, [a.id]).flows.some(
+          (f) => f.date > effective.from && f.date <= effective.to && f.cents !== 0,
+        ),
+    )
+    .map((a) => a.id);
   const lastIndex = series.days.length - 1;
   const endValue = (id: string) => (values.get(id) as number[])[lastIndex] as number;
-  const totalValue = series.totalCents[lastIndex] as number;
+  const totalValue = allValues[lastIndex] as number;
   const shares = shareBps(
     accountIds.map(endValue),
     accountIds.reduce((sum, id) => sum + endValue(id), 0),
@@ -223,6 +309,7 @@ export function depotComparison(
       ? { securityId: benchmarkSecurity.id, name: benchmarkSecurity.name }
       : null,
     benchmarkIndex,
+    benchmarks: portfolioBenchmarks(db, totalInput, effective),
     depots,
     total,
   };

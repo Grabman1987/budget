@@ -155,7 +155,7 @@ export function arivaSource(options: ArivaOptions): QuoteSource {
       if (from >= addDays(today, -RECENT_DAYS)) {
         quotes.push(...parseArivaHtml(await fetchPage(target.path, query), ref, from, to));
       } else {
-        const floor = addDays(today, -MAX_MONTHS * 31);
+        const floor = addDays(to, -MAX_MONTHS * 31);
         for (const month of monthsBetween(from < floor ? floor : from, to)) {
           const html = await fetchPage(target.path, { ...query, month: monthEnd(month) });
           quotes.push(...parseArivaHtml(html, ref, from, to));
