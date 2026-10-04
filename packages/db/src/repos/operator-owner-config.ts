@@ -167,6 +167,8 @@ export interface OwnerSplitCategory {
   category?: string;
   incomeType?: string;
   contact?: string | null;
+  /** Explicit per-entry switch for a reconciled (geprüft, locked) booking, as in `book`. */
+  unlock?: true;
 }
 
 export const OWNER_CONFIG_SECTIONS = [
@@ -458,7 +460,7 @@ export function parseOwnerConfigFile(
   if (root['splitCategories'] !== undefined) {
     config.splitCategories = list(root['splitCategories'], 'splitCategories').map((raw, i) => {
       const at = `splitCategories[${i}]`;
-      const o = strictObject(raw, at, ['splitId', 'category', 'incomeType', 'contact']);
+      const o = strictObject(raw, at, ['splitId', 'category', 'incomeType', 'contact', 'unlock']);
       const out: OwnerSplitCategory = { splitId: text(o['splitId'], `${at}.splitId`, 100) };
       if (o['incomeType'] !== undefined) {
         if (o['category'] !== undefined)
@@ -467,6 +469,11 @@ export function parseOwnerConfigFile(
       } else out.category = text(o['category'], `${at}.category`, 200);
       if (o['contact'] !== undefined)
         out.contact = o['contact'] === null ? null : text(o['contact'], `${at}.contact`, 120);
+      if (o['unlock'] !== undefined && o['unlock'] !== false) {
+        if (o['unlock'] !== true)
+          throw new OperatorInputError(`${at}.unlock must be true or false`);
+        out.unlock = true;
+      }
       return out;
     });
     uniqueKeys(
@@ -796,6 +803,8 @@ function applySplitCategory(tx: Executor, e: OwnerSplitCategory, ctx: GroupedCon
   const split = tx.select().from(bookingSplit).where(eq(bookingSplit.id, e.splitId)).get();
   const current = split && getBooking(tx, split.bookingId);
   if (!split || !current) throw new EntrySkip('unknown_split', 'no live booking split has this id');
+  if (current.transferId !== null || current.splits.some((s) => s.transferId !== null))
+    throw new EntrySkip('transfer_leg', 'transfer bookings keep their categorisation');
   let categoryId: string | null = null;
   let incomeTypeId = split.incomeTypeId;
   if (e.incomeType !== undefined) {
@@ -854,6 +863,11 @@ function applySplitCategory(tx: Executor, e: OwnerSplitCategory, ctx: GroupedCon
       ? [`contact ${split.contactId ?? 'none'} -> ${contactId ?? 'none'}`]
       : []),
   ];
+  if (incomeTypeId !== null && contactId !== null)
+    throw new EntrySkip(
+      'contact_with_income_type',
+      'an income split has no contact; give contact: null',
+    );
   if (!changes.length) return done([]);
   updateBooking(
     tx,
@@ -864,12 +878,17 @@ function applySplitCategory(tx: Executor, e: OwnerSplitCategory, ctx: GroupedCon
       ),
     },
     ctx,
+    { unlockReconciled: e.unlock === true },
   );
   const after = getBooking(tx, current.id)!;
   if (
     after.amountCents !== current.amountCents ||
     after.date !== current.date ||
     after.accountId !== current.accountId ||
+    after.status !== current.status ||
+    after.incomeNextMonth !== current.incomeNextMonth ||
+    after.payeeId !== current.payeeId ||
+    after.currency !== current.currency ||
     !isDeepStrictEqual(
       after.splits.map((s) => [s.id, s.amountCents]),
       current.splits.map((s) => [s.id, s.amountCents]),

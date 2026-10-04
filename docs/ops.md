@@ -719,7 +719,8 @@ has a savepoint: a refusal rolls back only that entry. The following examples ar
   `Group › Category`; or give `incomeType` (exact live name) instead to move the split to income
   without a category. Optional `contact` is an exact live name, `null` clears it, omission retains it.
   The normal booking update validates contacts/categories and respects reconciled/transfer/trade
-  locks; refusals are skipped. Booking amount/date/account and all split amounts/identities are
+  locks; refusals are skipped. Transfer legs are skipped (`transfer_leg`); a reconciled booking needs
+  `"unlock": true` on the entry (it stays reconciled). An income split cannot keep a contact. Booking amount/date/account and all split amounts/identities are
   asserted unchanged. Undo restores categorisation/contact together with the rest of the run.
 
 - `profile`: the Einstellungen › Profil values. `region` is the Bundesland (code `AT-1` to `AT-9`

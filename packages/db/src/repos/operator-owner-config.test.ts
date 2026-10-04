@@ -13,7 +13,7 @@ import {
   securityAssetExposure,
 } from '../schema';
 import { getBookSettings } from './book-settings';
-import { createBooking, getBooking } from './bookings';
+import { createBooking, createTransfer, getBooking } from './bookings';
 import { accounts, categories, createEntity, getEntity } from './entities';
 import { accountSummaries } from './ledger-queries';
 import { readSourceMappings, saveReadSourceState } from './read-source';
@@ -914,6 +914,65 @@ describe('splitCategories', () => {
     ).toThrow('category or incomeType');
     undoAuditGroups(db, [real[0]!.groupId], operator);
     expect(getBooking(db, id)!.splits).toEqual(original.splits);
+  });
+
+  it('skips transfer legs and income splits that would keep a contact', () => {
+    const t = createTransfer(
+      db,
+      { fromAccountId: 'giro', toAccountId: 'spar', date: '2026-03-01', amountCents: 1000 },
+      testCtx,
+    );
+    const before = auditCount();
+    for (const bookingId of [t.fromBookingId, t.toBookingId]) {
+      const splitId = getBooking(db, bookingId)!.splits[0]!.id;
+      expect(run({ splitCategories: [{ splitId, category: 'Miete' }] })[0]).toMatchObject({
+        status: 'skipped',
+        reason: 'transfer_leg',
+      });
+    }
+    expect(auditCount()).toBe(before);
+    const id = createBooking(
+      db,
+      {
+        accountId: 'giro',
+        date: '2026-03-01',
+        amountCents: 700,
+        splits: [{ categoryId: 'auslagen', contactId: 'k1', amountCents: 700 }],
+      },
+      testCtx,
+    );
+    const splitId = getBooking(db, id)!.splits[0]!.id;
+    expect(run({ splitCategories: [{ splitId, incomeType: 'Gehalt' }] })[0]).toMatchObject({
+      status: 'skipped',
+      reason: 'contact_with_income_type',
+    });
+  });
+
+  it('changes a reconciled booking only with an explicit unlock and keeps it reconciled', () => {
+    const id = createBooking(
+      db,
+      {
+        accountId: 'giro',
+        date: '2026-03-01',
+        amountCents: -1000,
+        status: 'reconciled',
+        splits: [{ categoryId: 'essen', amountCents: -1000 }],
+      },
+      testCtx,
+    );
+    const splitId = getBooking(db, id)!.splits[0]!.id;
+    expect(run({ splitCategories: [{ splitId, category: 'Miete' }] })[0]).toMatchObject({
+      status: 'skipped',
+      reason: 'refused',
+    });
+    const json = { splitCategories: [{ splitId, category: 'Miete', unlock: true }] };
+    expect(statuses(run(json))).toEqual(['updated']);
+    expect(getBooking(db, id)).toMatchObject({ status: 'reconciled', amountCents: -1000 });
+    expect(getBooking(db, id)!.splits[0]!.categoryId).toBe('miete');
+    expect(statuses(run(json))).toEqual(['unchanged']);
+    expect(() => run({ splitCategories: [{ splitId, category: 'Miete', unlock: 'yes' }] })).toThrow(
+      'unlock',
+    );
   });
 
   it('skips unknown/deleted splits, ambiguous/exact categories, unknown contacts and refuses invalid contacts atomically', () => {
