@@ -103,8 +103,8 @@ describe('sample ledger at 17.09.2026', () => {
     expect(latest('R03')?.status).toBe('ok');
   });
 
-  it('R07 the 90-day low point stays above 0 (the prototype sample low is 145 €)', () => {
-    expect(latest('R07')).toMatchObject({ status: 'ok', valueText: 'Tiefpunkt 21 €' });
+  it('R07 the 35-day low point stays above 0 (the prototype sample low is 145 €)', () => {
+    expect(latest('R07')).toMatchObject({ status: 'ok', valueText: 'Tiefpunkt 191 €' });
   });
 
   it('R08, R10, R09: quotas from the real contracts, Sondertilgung active', () => {

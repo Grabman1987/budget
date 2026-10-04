@@ -321,6 +321,25 @@ describe('R05 and R06', () => {
 });
 
 describe('R07 Dispo', () => {
+  it('does not count a payment after day 35, even with a stored 90-day setting', () => {
+    const f = {
+      startDay: '2026-01-01',
+      startCents: 10000,
+      variableMonthlyCents: 0,
+      overdraftLimitCents: 0,
+      items: [
+        { day: '2026-02-05', cents: -5000, kind: 'fixed' as const },
+        { day: '2026-02-06', cents: -20000, kind: 'fixed' as const },
+      ],
+    };
+    expect(evaluateRule('R07', { horizonDays: 90 }, inputs({ forecast: f }))).toMatchObject({
+      status: 'ok',
+      valueText: 'Tiefpunkt 50 €',
+    });
+    expect(
+      evaluateRule('R07', { horizonDays: 90, minCents: 6000 }, inputs({ forecast: f }))?.status,
+    ).toBe('warn');
+  });
   const forecast = (startCents: number, overdraft = 300_000) => ({
     startDay: '2026-09-17',
     startCents,

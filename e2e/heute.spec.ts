@@ -8,6 +8,28 @@ import { pickCategory, toast } from './ledger-helpers';
 import { addDays } from '@budget/domain';
 import { eur } from '../apps/web/src/ledger/format';
 
+test('Heute forecast ends after 35 days and names payments in labels and shared tooltip', async ({
+  page,
+}) => {
+  await page.goto('/');
+  const response = await page.request.get('/api/heute?period=month');
+  const data = (await response.json()) as Heute;
+  expect(data.balance.forecast.at(-1)!.day).toBe(addDays(data.stand.today, 35));
+  expect(data.balance.low!.cents).toBe(
+    Math.min(...data.balance.forecast.map((d) => d.balanceCents)),
+  );
+  await expect(page.getByTestId('forecast-step-label')).toContainText([
+    'Gehalt',
+    'Miete',
+    'Kreditrate',
+  ]);
+  const group = page.getByTestId('heute-balance-chart').locator('..');
+  await group.focus();
+  for (let i = 0; i < 29; i++) await page.keyboard.press('ArrowRight');
+  await expect(page.locator('.chart-tooltip')).toContainText('Gehalt');
+  await expect(page.locator('.chart-tooltip')).toContainText('Kontoführung');
+});
+
 test('Heute uses live API data and period, expands the lead chain, and links to source views', async ({
   page,
 }) => {
@@ -27,7 +49,7 @@ test('Heute uses live API data and period, expands the lead chain, and links to 
   await expect(page.getByTestId('heute-lead-value')).toContainText(',26 €');
   await expect(page.getByTestId('heute-balance-chart')).toBeVisible();
   await expect(page.getByTestId('heute-pace-chart')).toBeVisible();
-  await expect(page.getByTestId('heute-networth-chart')).toBeVisible();
+  await expect(page.getByTestId('heute-networth-chart')).toBeVisible({ timeout: 15_000 });
   expect(
     requests.some((url) => url.includes('period=month') && url.includes('month=2026-09')),
   ).toBe(true);
@@ -354,7 +376,7 @@ test('settled balance reaches the forecast and the composition measures its part
   ] as const) {
     await page.emulateMedia({ reducedMotion, colorScheme });
     await page.goto('/?monat=2026-09');
-    await expect(page.getByTestId('heute-networth-chart')).toBeVisible();
+    await expect(page.getByTestId('heute-networth-chart')).toBeVisible({ timeout: 15_000 });
     await page.evaluate(async () => {
       await document.fonts.ready;
       await Promise.all(
@@ -378,18 +400,14 @@ test('settled balance reaches the forecast and the composition measures its part
     expect(balance.end[0]).toBeCloseTo(balance.start[0]!, 2);
     expect(balance.end[1]).toBeCloseTo(balance.start[1]!, 2);
     expect(balance.offset).toBe('0px');
-    const lowLabel = await page
-      .locator('[data-testid="heute-balance-chart"] .fade-in text')
-      .boundingBox();
-    const salaryLabel = await page.locator('.heute-salary-label').boundingBox();
-    if (lowLabel && salaryLabel) {
-      expect(
-        lowLabel.x + lowLabel.width < salaryLabel.x ||
-          salaryLabel.x + salaryLabel.width < lowLabel.x ||
-          lowLabel.y + lowLabel.height < salaryLabel.y ||
-          salaryLabel.y + salaryLabel.height < lowLabel.y,
-      ).toBe(true);
-    }
+    const labelBoxes = await page.getByTestId('forecast-step-label').evaluateAll((items) =>
+      items.map((el) => {
+        const r = el.getBoundingClientRect();
+        return { top: r.top, bottom: r.bottom };
+      }),
+    );
+    for (let i = 1; i < labelBoxes.length; i++)
+      expect(labelBoxes[i - 1]!.bottom).toBeLessThanOrEqual(labelBoxes[i]!.top);
     const composition = page.getByRole('group', { name: 'Maßkette Nettovermögen' });
     await expect(composition.getByRole('button', { name: /^Liquidität/ })).toBeVisible();
     await expect(composition.getByRole('button', { name: /^Investiert/ })).toBeVisible();

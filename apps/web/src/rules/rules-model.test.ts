@@ -42,8 +42,8 @@ describe('threshold summaries (defaults match the prototype)', () => {
     );
     expect(thresholdText('R02', { minMonths: 3, targetMonths: 6 })).toBe('min. 3, Ziel 6 Monate');
     expect(thresholdText('R03', { targetDays: 30 })).toBe('Geldalter ≥ 30 Tage');
-    expect(thresholdText('R07', { minCents: 0, horizonDays: 90 })).toBe(
-      'Tiefpunkt ≥ 0 € in 90 Tagen',
+    expect(thresholdText('R07', { minCents: 0, horizonDays: 35 })).toBe(
+      'Tiefpunkt ≥ 0 € in 35 Tagen',
     );
     expect(thresholdText('R08', { maxBp: 3000 })).toBe('≤ 30 % des Nettoeinkommens');
   });

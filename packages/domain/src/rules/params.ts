@@ -66,7 +66,7 @@ export const PARAM_SCHEMAS = {
   }),
   R06: z.object({}),
   R07: z.object({
-    horizonDays: z.number().int().min(1).max(365).default(90),
+    horizonDays: z.number().int().min(1).max(35).default(35),
     minCents: z.number().int().default(0),
   }),
   R08: z.object({
@@ -213,6 +213,15 @@ export function applyParamsPatch(
  * schema falls back to the default of the whole rule.
  */
 export function resolveParams(code: RuleCode, stored: unknown): Record<string, unknown> {
+  if (
+    code === 'R07' &&
+    stored !== null &&
+    typeof stored === 'object' &&
+    'horizonDays' in stored &&
+    typeof stored.horizonDays === 'number' &&
+    stored.horizonDays > 35
+  )
+    stored = { ...stored, horizonDays: 35 };
   const parsed = PARAM_SCHEMAS[code].safeParse(
     stored !== null && typeof stored === 'object' ? stored : {},
   );

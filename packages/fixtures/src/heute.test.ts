@@ -164,9 +164,9 @@ describe('figures that differ from the prototype, by design of the ledger', () =
     expect(month.balance.actual.at(-1)).toEqual({ day: TODAY, balanceCents: 116_700 });
     expect(month.stand.budgetBalanceCents).toBe(116_700);
     const fc = month.balance.forecast;
-    expect(fc[0]).toEqual({ day: TODAY, balanceCents: 116_700 });
-    expect(fc.at(-1)?.day).toBe('2026-12-16');
-    expect(month.balance.low).toMatchObject({ day: '2026-10-29', cents: 2_135 });
+    expect(fc[0]).toMatchObject({ day: TODAY, balanceCents: 116_700 });
+    expect(fc.at(-1)?.day).toBe('2026-10-22');
+    expect(month.balance.low).toMatchObject({ day: '2026-09-29', cents: 19_101 });
     expect(Math.min(...fc.map((d) => d.balanceCents))).toBe(month.balance.low?.cents);
     expect(fc.find((d) => d.day === '2026-09-30')!.balanceCents).toBeGreaterThan(
       fc.find((d) => d.day === '2026-09-29')!.balanceCents + 300_000,
@@ -192,7 +192,7 @@ describe('windows', () => {
   it('"Bis Gehalt" runs from today to the payday', () => {
     expect(payday.stand).toMatchObject({ period: 'payday', from: TODAY, to: '2026-10-15' });
     expect(payday.balance.actual).toEqual([{ day: TODAY, balanceCents: 116_700 }]);
-    expect(payday.balance.forecast).toHaveLength(91);
+    expect(payday.balance.forecast).toHaveLength(36);
     expect(payday.lead).toEqual(month.lead);
     expect(payday.pace.figures).toEqual(month.pace.figures);
   });
