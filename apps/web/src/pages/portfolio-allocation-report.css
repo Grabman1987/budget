@@ -1,21 +1,42 @@
-/* Report 4.2 Allocation: sunbursts in ink tints, tables, Soll/Ist areas with dashed limits. */
+/* Positive classified composition, colours from the design palette. */
 .pk-1 {
   --pk: var(--line);
 }
 .pk-2 {
-  --pk: color-mix(in srgb, var(--line) 62%, transparent);
+  --pk: var(--future);
 }
 .pk-3 {
-  --pk: color-mix(in srgb, var(--line) 38%, transparent);
+  --pk: var(--want);
 }
 .pk-4 {
-  --pk: var(--tint-2);
+  --pk: var(--ink-3);
 }
-.prep-swatch.pk-1,
-.prep-swatch.pk-2,
-.prep-swatch.pk-3,
-.prep-swatch.pk-4 {
+.pk-5 {
+  --pk: var(--line-2);
+}
+.pk-6 {
+  --pk: var(--ink);
+}
+.pk-7 {
+  --pk: var(--ink-2);
+}
+.pk-8 {
+  --pk: color-mix(in srgb, var(--future) 65%, var(--line));
+}
+.prep-swatch[class*='pk-'] {
   background: var(--pk);
+}
+.area[class*='pk-'] {
+  fill: var(--pk);
+  stroke: var(--surface);
+  stroke-width: 0.8;
+}
+.alloc-band {
+  fill: var(--pk);
+  fill-opacity: 0.22;
+  stroke: var(--ink);
+  stroke-width: 0.6;
+  stroke-dasharray: 3 3;
 }
 .sb-arc {
   fill: var(--pk);

@@ -127,14 +127,41 @@
   flex-wrap: wrap;
   gap: 8px 16px;
 }
-.performance-line-1 .l-actual {
-  stroke-dasharray: 7 5;
+.performance-line-0 {
+  --series: var(--line);
 }
-.performance-line-2 .l-actual {
-  stroke-dasharray: 12 4 2 4;
+.performance-line-1 {
+  --series: var(--future);
 }
-.performance-line-3 .l-actual {
-  stroke-dasharray: 2 3;
+.performance-line-2 {
+  --series: var(--want);
+}
+.performance-line-3 {
+  --series: var(--ink-3);
+}
+.performance-line-4 {
+  --series: var(--ink-2);
+}
+.performance-line .l-actual,
+.performance-line .l-forecast {
+  stroke: var(--series);
+}
+.benchmark-choices {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+  border: 0;
+  padding: 0;
+  margin: 12px 0;
+}
+.benchmark-choices legend {
+  font-weight: 600;
+}
+.benchmark-choices label {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
 }
 .performance-heatmap td {
   white-space: nowrap;

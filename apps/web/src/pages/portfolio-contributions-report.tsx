@@ -193,11 +193,39 @@ function ContributionsBody({
         />
         <ContributionsChart history={history} />
         <p className="vnote">
-          Dargestellt sind Wertpapiere ohne Depotkassa. Käufe, Einlieferungen, Gebühren und Steuern
-          zählen als positive Flüsse; Verkäufe, Auslieferungen und ausgezahlte Erträge als negative
-          Flüsse. Eine Zuordnung zu Sparplänen oder R12-Sonderzahlungen ist in den Quelldaten nicht
-          enthalten.
+          Ohne Depotkassa. Flüsse enthalten Käufe, Verkäufe, Lieferungen, Erträge und Kosten;
+          Wertänderung = Ende − Anfang − Nettoflüsse. Keine Sparplan-/R12-Zuordnung.
         </p>
+        <div
+          className="rscroll"
+          role="region"
+          aria-label="Monatswerte"
+          // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- Keyboard scrolling of the month table.
+          tabIndex={0}
+        >
+          <table className="rtable" data-testid="contributions-months">
+            <caption>Je Monat im Zeitraum</caption>
+            <thead>
+              <tr>
+                {['Monat', 'Anfang', 'Zuflüsse', 'Abflüsse', 'Wertänderung', 'Ende'].map((t) => (
+                  <th key={t}>{t}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {history.months.map((m) => (
+                <tr key={m.to}>
+                  <th scope="row">{m.to.slice(0, 7)}</th>
+                  <td className="n">{eur(m.startValueCents)}</td>
+                  <td className="n">{eur(m.inflowsCents, { sign: true })}</td>
+                  <td className="n">{eur(m.outflowsCents, { sign: true })}</td>
+                  <td className="n">{eur(m.gainCents, { sign: true })}</td>
+                  <td className="n">{eur(m.valueCents)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </section>
       <section className="contributions-years" aria-labelledby="contributions-years-title">
         <div className="tbd-head">
@@ -259,7 +287,7 @@ function ContributionsChart({ history }: { history: ContributionHistory }) {
   const rows = history.months;
   const daily = history.daily;
   const values = daily.map((row) => row.valueCents);
-  const invested = daily.map((row) => row.investedCents);
+  const invested = daily.map((row) => row.investedCents - history.startValueCents);
   const maxAbsGain = Math.max(1, ...rows.map((row) => Math.abs(row.gainCents)));
   const minValue = Math.min(...values, ...invested);
   const maxValue = Math.max(...values, ...invested);
@@ -303,13 +331,13 @@ function ContributionsChart({ history }: { history: ContributionHistory }) {
           [
             { name: 'Wert', values },
             {
-              name: 'Anfangswert + kumulierte Nettozuflüsse',
+              name: 'Kumulierte Nettoflüsse',
               values: invested,
               color: 'var(--line-2)',
             },
           ],
         ).map((p, i) => {
-          const row = rows.find((row) => daily[i]!.date > row.from && daily[i]!.date <= row.to);
+          const row = rows.find((row) => daily[i]!.date >= row.from && daily[i]!.date <= row.to);
           return {
             ...p,
             series: [
@@ -317,16 +345,16 @@ function ContributionsChart({ history }: { history: ContributionHistory }) {
               ...(row
                 ? [
                     {
-                      name: `Monatliche Wertänderung (${row.from} · ${row.to})`,
+                      name: 'Wertänderung · Monat',
                       value: eur(row.gainCents, { sign: true }),
-                      color: row.gainCents < 0 ? 'var(--red)' : 'var(--line)',
+                      color: row.gainCents < 0 ? 'var(--red)' : 'var(--good)',
                     },
                   ]
                 : []),
             ],
           };
         })}
-        label="Linien für Wertpapierwert und Wert am Anfang zuzüglich kumulierter Nettozuflüsse; Balken zeigen die monatliche Wertänderung nach Nettozuflüssen."
+        label="Linien für Wertpapierwert und kumulierte Nettozuflüsse; Balken zeigen die monatliche Wertänderung nach Nettozuflüssen."
       >
         {[0, 1, 2, 3].map((i) => {
           const value = maxValue === minValue ? maxValue : minValue + (spread * i) / 3;
@@ -391,7 +419,7 @@ function ContributionsChart({ history }: { history: ContributionHistory }) {
         </span>
         <span>
           <i className="legend-invested" />
-          Anfangswert + kumulierte Nettozuflüsse
+          Kumulierte Nettoflüsse
         </span>
         <span>
           <i className="legend-bars" />

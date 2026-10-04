@@ -67,9 +67,8 @@ sampleTest(
     await expect(kpi.getByRole('row', { name: /^TTWROR/ })).toBeVisible();
     await expect(kpi.getByRole('row', { name: /^Anteil/ })).toContainText('%');
 
-    // A product opens on the Portfolio page (decisions are made there).
-    const link = page.getByRole('link', { name: 'ETF Welt' }).first();
-    await expect(link).toHaveAttribute('href', /\/vermoegen\/portfolio\?.*produkt=/);
+    await expect(page.locator('.depot-prods')).toHaveCount(0);
+    await expect(page.getByRole('checkbox', { name: 'ATX', exact: true })).toBeVisible();
 
     const switched = page.waitForResponse((candidate) => {
       const url = new URL(candidate.url());

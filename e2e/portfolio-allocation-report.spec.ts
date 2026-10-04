@@ -30,6 +30,7 @@ const accessibleAndContained = async (page: Page, expectedWidth: number) => {
 type AllocationPayload = {
   allocation: {
     totalCents: number;
+    classifiedCents: number;
     classes: Array<{ name: string; targetBp: number | null; breach: boolean }>;
     regions: Array<{ region: string | null }>;
     history: { dates: string[]; classes: unknown[] } | null;
@@ -50,7 +51,7 @@ sampleTest('allocation report reads the sample ledger', async ({ page }, info) =
   await expect(page.getByTestId('sunburst-classes')).toBeVisible();
   await expect(page.getByTestId('sunburst-regions')).toBeVisible();
   await expect(page.getByTestId('alloc-total')).toHaveText(
-    formatEuro(cents(allocation.totalCents)),
+    formatEuro(cents(allocation.classifiedCents)),
   );
   await expect(page.getByTestId('soll-ist-chart')).toBeVisible();
   await expect(page.getByTestId('soll-table').locator('tbody tr')).toHaveCount(
@@ -77,6 +78,39 @@ const mock = (overrides: Record<string, unknown>) => ({
       { id: 'p1', kind: 'etf', assetClass: 'a', valueCents: 60000 },
       { id: 'p2', kind: 'other', assetClass: null, valueCents: 40000 },
     ]),
+    classifiedCents: 60_000,
+    compositionClasses: [
+      {
+        confidence: 'provisional',
+        assetClassId: 'a',
+        name: 'Klasse A',
+        valueCents: 60_000,
+        shareBp: 10_000,
+        targetBp: 4_000,
+        bandBp: 500,
+        deviationBp: 2_000,
+        breach: true,
+        products: [
+          {
+            securityId: 'p1',
+            name: 'Produkt 1',
+            valueCents: 60_000,
+            shareBp: 10_000,
+            depots: ['Depot X'],
+            ttwror12: null,
+          },
+        ],
+      },
+    ],
+    compositionRegions: [
+      {
+        region: null,
+        valueCents: 60_000,
+        shareBp: 10_000,
+        products: [{ securityId: 'p1', name: 'Produkt 1', valueCents: 60_000 }],
+      },
+    ],
+    separatePositions: [{ name: 'Produkt 2', valueCents: 40_000, reason: 'Ohne Anlageklasse' }],
     asOf: '2026-09-17',
     totalCents: 100_000,
     classes: [
@@ -162,10 +196,12 @@ sampleTest(
     await expect(page.getByTestId('soll-table')).toContainText('kein Soll hinterlegt');
     await expect(page.getByTestId('soll-table').locator('.is-out')).toHaveCount(0);
     await expect(page.getByText(/Vorläufig: Klassifikation/)).toBeVisible();
-    await expect(page.getByText('Ohne Regionsangabe: Produkt 1, Produkt 2.')).toBeVisible();
+    await expect(page.getByText('Ohne Regionsangabe: Produkt 1.')).toBeVisible();
     await expect(
       page.getByText('Für den Verlauf liegt keine bewertbare Historie vor.'),
     ).toBeVisible();
+    await expect(page.getByTestId('allocation-separate')).toContainText('Produkt 2');
+    await expect(page.getByTestId('alloc-total')).toHaveText('600,00 €');
     await accessibleAndContained(page, info.project.use.viewport!.width as number);
     await page.unroute('**/api/portfolio/allocation-report');
 
