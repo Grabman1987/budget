@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { personalInflation, type InflationItem } from './inflation';
+import {
+  contractPrices,
+  derivePriceHistory,
+  personalInflation,
+  type InflationItem,
+} from './inflation';
 
 const months = (count: number) =>
   Array.from({ length: count }, (_, i) => {
@@ -159,5 +164,77 @@ describe('personalInflation', () => {
     expect(personalInflation({ available, items: [noSpend], baseConsumptionCents: 1 }).status).toBe(
       'insufficient',
     );
+  });
+});
+
+describe('derivePriceHistory', () => {
+  const monthly = (cents: number[], from = 1) =>
+    cents.map((c, i) => ({
+      date: `2026-${String(from + i).padStart(2, '0')}-03`,
+      amountCents: c,
+    }));
+
+  it('opens at the first charge and adds a price that stays', () => {
+    expect(derivePriceHistory(monthly([-1_000, -1_000, -1_200, -1_200, -1_200]))).toEqual([
+      { validFrom: '2026-01-03', amountCents: 1_000 },
+      { validFrom: '2026-03-03', amountCents: 1_200 },
+    ]);
+  });
+
+  it('ignores a one-off outlier but follows a second price change', () => {
+    expect(derivePriceHistory(monthly([-1_000, -1_500, -1_000, -1_000, -1_100, -1_100]))).toEqual([
+      { validFrom: '2026-01-03', amountCents: 1_000 },
+      { validFrom: '2026-05-03', amountCents: 1_100 },
+    ]);
+  });
+
+  it('ignores refunds and sorts by date', () => {
+    const charges = [...monthly([-1_000, 1_000, -1_000, -1_300, -1_300])].reverse();
+    expect(derivePriceHistory(charges)).toEqual([
+      { validFrom: '2026-01-03', amountCents: 1_000 },
+      { validFrom: '2026-04-03', amountCents: 1_300 },
+    ]);
+  });
+
+  it('does not trust the newest charge alone and needs one charge at least', () => {
+    expect(derivePriceHistory(monthly([-1_000, -1_000, -1_400]))).toEqual([
+      { validFrom: '2026-01-03', amountCents: 1_000 },
+    ]);
+    expect(derivePriceHistory(monthly([-1_000]))).toEqual([
+      { validFrom: '2026-01-03', amountCents: 1_000 },
+    ]);
+    expect(derivePriceHistory([])).toEqual([]);
+  });
+});
+
+describe('contractPrices', () => {
+  const charges = [
+    { date: '2026-01-03', amountCents: -1_000 },
+    { date: '2026-02-03', amountCents: -1_200 },
+    { date: '2026-03-03', amountCents: -1_200 },
+  ];
+  const v = (validFrom: string, amountCents: number) => ({
+    validFrom,
+    amountCents,
+    currency: 'EUR',
+  });
+
+  it('lets an explicit history win over the charges', () => {
+    const stored = [v('2025-01-01', 900), v('2025-06-01', 950)];
+    expect(contractPrices(stored, charges)).toEqual({ versions: stored, source: 'stored' });
+  });
+
+  it('derives from the charges when there is no history, in the stored currency', () => {
+    expect(contractPrices([{ ...v('2026-03-01', 1_200), currency: 'USD' }], charges)).toEqual({
+      versions: [
+        { validFrom: '2026-01-03', amountCents: 1_000, currency: 'USD' },
+        { validFrom: '2026-02-03', amountCents: 1_200, currency: 'USD' },
+      ],
+      source: 'bookings',
+    });
+  });
+
+  it('keeps the stored versions when there is no charge', () => {
+    expect(contractPrices([], [])).toEqual({ versions: [], source: 'stored' });
   });
 });

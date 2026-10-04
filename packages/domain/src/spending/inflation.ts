@@ -1,4 +1,5 @@
 import { ratioBp } from '../wealth/int';
+import type { ContractVersion } from './contracts';
 
 /**
  * Persönliche Inflation (2.4): a fixed-weight price index (Laspeyres) of the household's own
@@ -266,4 +267,49 @@ export function personalInflation(input: {
     basketItems: weighted.length,
     coverageBp: input.baseConsumptionCents > 0 ? ratioBp(total, input.baseConsumptionCents) : null,
   };
+}
+
+/** A charge of an outflow contract: the matched booking's date and signed amount in cents. */
+export interface ContractCharge {
+  date: string;
+  amountCents: number;
+}
+
+/**
+ * The price history of a contract read from its charges (the matched bookings), for contracts
+ * without stored price versions. Rule: refunds (amount >= 0) are ignored; the first charge opens
+ * the history; a later charge opens a new price only when its amount differs from the current
+ * price AND the next charge repeats it (a price that stays for at least two consecutive charges),
+ * so one-off outliers never count. The newest charge alone is not trusted yet. Cents are absolute.
+ */
+export function derivePriceHistory(
+  charges: ReadonlyArray<ContractCharge>,
+): Array<{ validFrom: string; amountCents: number }> {
+  const paid = charges
+    .filter((c) => c.amountCents < 0)
+    .map((c) => ({ date: c.date, cents: -c.amountCents }))
+    .sort((a, b) => a.date.localeCompare(b.date));
+  const history: Array<{ validFrom: string; amountCents: number }> = [];
+  paid.forEach((c, i) => {
+    const current = history[history.length - 1]?.amountCents;
+    if (current === undefined || (c.cents !== current && paid[i + 1]?.cents === c.cents))
+      history.push({ validFrom: c.date, amountCents: c.cents });
+  });
+  return history;
+}
+
+/**
+ * The price versions an inflation basket item is valued with. Stored versions win when they hold
+ * a real history (two or more: one version is only the current price); otherwise the history is
+ * derived from the charges, in the currency of the stored version (EUR without one).
+ */
+export function contractPrices(
+  stored: ReadonlyArray<ContractVersion>,
+  charges: ReadonlyArray<ContractCharge>,
+): { versions: ReadonlyArray<ContractVersion>; source: 'stored' | 'bookings' } {
+  if (stored.length >= 2) return { versions: stored, source: 'stored' };
+  const derived = derivePriceHistory(charges);
+  if (derived.length === 0) return { versions: stored, source: 'stored' };
+  const currency = stored[0]?.currency ?? 'EUR';
+  return { versions: derived.map((v) => ({ ...v, currency })), source: 'bookings' };
 }

@@ -869,6 +869,7 @@ describe('2.4 Persönliche Inflation', () => {
       ownChangeBp: null,
       referenceChangeBp: null,
     });
+    expect(body.derivedContracts).toEqual([]);
     expect(body.points[0].index).toBe(100);
     const by = Object.fromEntries(body.contributions.map((c: any) => [c.name, c]));
     // Strom 95 -> 105 EUR in January 2026; Internet was raised before the window starts.
@@ -884,6 +885,87 @@ describe('2.4 Persönliche Inflation', () => {
     expect(body.coverageBp).toBeLessThan(10_000);
     expect(body.excludedCategories).toBeGreaterThan(5);
   }, 60_000);
+
+  it('derives the price history of a contract from its matched bookings', async () => {
+    const small = createTestDatabase();
+    seedBasics(small.db);
+    const ctx = { actor: 'test' };
+    categories.create(
+      small.db,
+      { id: 'wohnen', name: 'Wohnen', groupId: 'g', class: 'need', kind: 'fixed' },
+      ctx,
+    );
+    categories.create(
+      small.db,
+      { id: 'strom', name: 'Strom', groupId: 'g', class: 'need', kind: 'fixed' },
+      ctx,
+    );
+    const asOf = '2026-09-17';
+    const pay = (id: string, categoryId: string, versions: string[]) => {
+      createExpectedPayment(
+        small.db,
+        { id, name: id, kind: 'outflow', rhythm: 'monthly', dueDay: 3, categoryId },
+        { validFrom: versions[0] as string, amountCents: 1_000 },
+        ctx,
+        asOf,
+      );
+      for (const [i, from] of versions.slice(1).entries())
+        addExpectedVersion(small.db, id, { validFrom: from, amountCents: 1_100 + i }, ctx, asOf);
+    };
+    // Wohnen: one stored version only; Strom: a stored history that must win.
+    pay('miete-vertrag', 'wohnen', ['2023-10-01']);
+    pay('strom-vertrag', 'strom', ['2023-10-01', '2025-01-01']);
+    const charge = (id: string, category: string, date: string, cents: number) => {
+      const b = createBooking(
+        small.db,
+        {
+          accountId: 'giro',
+          date,
+          amountCents: cents,
+          splits: [{ categoryId: category, amountCents: cents }],
+        },
+        ctx,
+      );
+      small.db
+        .insert(schema.expectedOccurrence)
+        .values({
+          id: `${id}-${date}`,
+          expectedPaymentId: id,
+          dueDate: date,
+          expectedAmountCents: cents,
+          status: 'received',
+          bookingId: b,
+        })
+        .onConflictDoUpdate({
+          target: [schema.expectedOccurrence.expectedPaymentId, schema.expectedOccurrence.dueDate],
+          set: { status: 'received', bookingId: b },
+        })
+        .run();
+    };
+    for (let i = 0; i < 35; i++) {
+      const date = `${2023 + Math.floor((i + 9) / 12)}-${String(((i + 9) % 12) + 1).padStart(2, '0')}-03`;
+      // 500 EUR, 550 EUR from February 2026 on, one 800 EUR outlier in November 2025.
+      const cents = date >= '2026-02' ? -55_000 : date.startsWith('2025-11') ? -80_000 : -50_000;
+      charge('miete-vertrag', 'wohnen', date, cents);
+      charge('strom-vertrag', 'strom', date, -9_000 - (i % 2));
+    }
+    const body = (await get(api(small.db, asOf), '/reports/spending/inflation')).body;
+    expect(body.status).toBe('ok');
+    expect(body.derivedContracts).toEqual([
+      {
+        id: 'miete-vertrag',
+        name: 'miete-vertrag',
+        source: 'bookings',
+        prices: [
+          { validFrom: '2023-10-03', amountCents: 50_000, currency: 'EUR' },
+          { validFrom: '2026-02-03', amountCents: 55_000, currency: 'EUR' },
+        ],
+      },
+    ]);
+    const by = Object.fromEntries(body.contributions.map((c: any) => [c.name, c]));
+    expect(by['Wohnen'].changeBp).toBe(1_000);
+    small.close();
+  });
 
   it('says why there is no own index and still shows the stored consumer price index alone', async () => {
     const small = createTestDatabase();
