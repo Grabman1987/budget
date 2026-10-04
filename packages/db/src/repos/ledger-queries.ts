@@ -27,6 +27,8 @@ import type { Executor } from './types';
 // ---------------------------------------------------------------------------------------------
 
 export interface AccountSummary {
+  allocationScope: typeof account.$inferSelect.allocationScope;
+  allocationAssetClassId: string | null;
   id: string;
   name: string;
   type: string;
@@ -108,6 +110,8 @@ export function accountSummaries(db: Executor, asOf: string): AccountSummary[] {
     type: r.account.type,
     role: r.account.role,
     onBudget: r.account.onBudget,
+    allocationScope: r.account.allocationScope,
+    allocationAssetClassId: r.account.allocationAssetClassId,
     contactId: r.account.contactId,
     referenceAccountId: r.account.referenceAccountId,
     currency: r.account.currency,

@@ -1,4 +1,4 @@
-import { toWealthPositions } from './portfolio-summary';
+import { allocationInputsAsOf } from './allocation-inputs';
 import { resolvePortfolioRiskPolicy } from './portfolio-risk-policy';
 import { bookInputs } from './book-inputs';
 import {
@@ -53,7 +53,7 @@ import {
 } from '../schema';
 import { allocationMonth, isIncomeCategorySplit } from './allocation';
 import { scheduleVersion, schedulePayment } from './expected';
-import { holdingValuesAsOf, netWorthAsOf, type NetWorth } from './portfolio';
+import { netWorthAsOf, type NetWorth } from './portfolio';
 import { fxRateOnOrBefore } from './prices';
 import { budgetLedger, budgetOfLedger } from './queries';
 import type { Executor } from './types';
@@ -649,30 +649,8 @@ export function ruleInputs(
   });
 
   // R13 to R15: positions valued on the day; platform ownership comes from the holding account.
-  const institutionByAccount = new Map(accounts.map((a) => [a.id, a.institutionId]));
-  const positions = toWealthPositions(
-    db,
-    asOf,
-    holdingValuesAsOf(db, asOf).flatMap((h) => {
-      const s = f.securities.get(h.securityId);
-      return s
-        ? [
-            {
-              securityId: s.id,
-              kind: s.kind,
-              assetClassId: null,
-              accounts: [
-                {
-                  accountId: h.accountId,
-                  institutionId: institutionByAccount.get(h.accountId) ?? null,
-                  valueCents: h.valueCents,
-                },
-              ],
-            },
-          ]
-        : [];
-    }),
-  );
+  const allocationInputs = allocationInputsAsOf(db, asOf);
+  const positions = allocationInputs.positions;
   const portfolioRiskPolicy = resolvePortfolioRiskPolicy(db, asOf);
   const classTargets = portfolioRiskPolicy.targets;
 
@@ -729,6 +707,7 @@ export function ruleInputs(
     positions,
     classTargets,
     portfolioRiskPolicy,
+    allocationQuality: allocationInputs.quality,
     names: {
       assetClasses: f.classNames,
       securities: Object.fromEntries([...f.securities.values()].map((s) => [s.id, s.name])),

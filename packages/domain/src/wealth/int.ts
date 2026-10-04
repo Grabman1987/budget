@@ -32,8 +32,9 @@ export function shareBps(values: ReadonlyArray<number>, total: number): number[]
   const rems: bigint[] = [];
   for (const v of values) {
     const num = BigInt(v) * 10_000n;
-    floors.push(Number(num / bt));
-    rems.push(num % bt);
+    const floor = num >= 0n ? num / bt : (num - bt + 1n) / bt;
+    floors.push(Number(floor));
+    rems.push(num - floor * bt);
   }
   let missing = 10_000 - floors.reduce((a, b) => a + b, 0);
   const order = rems

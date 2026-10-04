@@ -1,16 +1,19 @@
 import { resolvePortfolioRiskPolicy, type PortfolioRiskPolicy } from './portfolio-risk-policy';
-import { exposuresAsOf, singleAssetClass } from './asset-exposure';
+import { allocationInputsAsOf } from './allocation-inputs';
+import type { AllocationQuality } from '@budget/domain';
 import { defaultBandBp } from '@budget/domain';
 import { isNull } from 'drizzle-orm';
-import { account, institution, security } from '../schema';
+import { institution, security } from '../schema';
 import { listAssetClasses, targetsAsOf } from './securities';
-import { portfolioPositions } from './portfolio-positions';
-import { riskOf, type RiskPosition } from './portfolio-summary';
+import { riskOf } from './portfolio-summary';
 import type { Executor } from './types';
 
 export interface PortfolioAllocationView {
   asOf: string;
   policy: PortfolioRiskPolicy;
+  valuationQuality: AllocationQuality['valuationQuality'];
+  quality: AllocationQuality;
+  universe: { accountIds: string[]; securityIds: string[] };
   valueCents: number | null;
   status: 'known' | 'empty' | 'unavailable' | 'nonpositive';
   missing: ('missing_price' | 'missing_fx')[];
@@ -27,22 +30,13 @@ export interface PortfolioAllocationView {
 
 /** Current values only: history/basis gaps never invent values or suppress a known allocation. */
 export function portfolioAllocation(db: Executor, asOf: string): PortfolioAllocationView {
-  const current = portfolioPositions(db, asOf);
+  const current = allocationInputsAsOf(db, asOf);
   const positions = current.positions;
-  const exposures = exposuresAsOf(db, asOf);
   const securities = new Map(
     db
       .select()
       .from(security)
       .where(isNull(security.deletedAt))
-      .all()
-      .map((row) => [row.id, row]),
-  );
-  const accounts = new Map(
-    db
-      .select()
-      .from(account)
-      .where(isNull(account.deletedAt))
       .all()
       .map((row) => [row.id, row]),
   );
@@ -56,34 +50,18 @@ export function portfolioAllocation(db: Executor, asOf: string): PortfolioAlloca
         : current.valueCents <= 0
           ? 'nonpositive'
           : 'known';
-  const missing = [
-    ...new Set(
-      positions.flatMap((position) =>
-        position.accounts.flatMap((row) =>
-          row.valueStatus === 'known' || row.valueStatus === 'estimated' ? [] : [row.valueStatus],
-        ),
-      ),
-    ),
+  const missing: PortfolioAllocationView['missing'] = [
+    ...(current.quality.missingPriceSecurityIds.length ? ['missing_price' as const] : []),
+    ...(current.quality.missingFxSecurityIds.length || current.quality.missingFxAccountIds.length
+      ? ['missing_fx' as const]
+      : []),
   ];
-  const lines: RiskPosition[] =
-    status !== 'known'
-      ? []
-      : positions.map((position) => {
-          const sec = securities.get(position.securityId)!;
-          return {
-            securityId: sec.id,
-            kind: sec.kind,
-            assetClassId: singleAssetClass(exposures.get(sec.id)?.weights ?? []),
-            accounts: position.accounts.map((row) => ({
-              accountId: row.accountId,
-              institutionId: accounts.get(row.accountId)?.institutionId ?? null,
-              valueCents: row.valueCents!,
-            })),
-          };
-        });
   return {
     asOf,
     policy,
+    valuationQuality: current.quality.valuationQuality,
+    quality: current.quality,
+    universe: current.universe,
     valueCents: current.valueCents,
     status,
     missing,
@@ -97,7 +75,7 @@ export function portfolioAllocation(db: Executor, asOf: string): PortfolioAlloca
         validFrom: target?.validFrom ?? null,
       };
     }),
-    risk: status === 'known' ? riskOf(db, asOf, lines) : null,
+    risk: status === 'known' ? riskOf(db, asOf) : null,
     names: {
       securities: Object.fromEntries([...securities.values()].map((row) => [row.id, row.name])),
       institutions: Object.fromEntries(

@@ -33,6 +33,8 @@ export const accountCreate = z.object({
   type: z.enum(ACCOUNT_TYPES),
   role: z.enum(ACCOUNT_ROLES).optional(),
   onBudget: z.boolean().optional(),
+  allocationScope: z.enum(['default', 'included', 'excluded']).optional(),
+  allocationAssetClassId: id.nullable().optional(),
   currency: z
     .string()
     .regex(/^[A-Z]{3}$/)

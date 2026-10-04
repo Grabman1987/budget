@@ -1,5 +1,7 @@
 # Product
 
+Owner directive PR3 (2026-10-04): explicit Anlageuniversum includes depots and signed investment cash; account/instrument metadata defines membership. Unknown/estimated data produces provisional allocation decisions and suppresses savings optimisation. Umschichtungsabstand and Neues Kapital bis Soll are separate decision aids. No settings page or automatic order is added. See [allocation quality/scope](docs/allocation-quality-scope.md).
+
 <!-- impeccable:product-schema 1 -->
 
 Name: **Budget** (O10 entschieden am 29.09.2026; privat, nur für den Eigentümer). Vorrang der Quellen regelt `SPEC.md`; Detailquelle ist `docs/concept/produktkonzept.md`. Diese Datei hält die dauerhaften Produktfakten und alle Entscheidungen der Designphase fest.

@@ -1,3 +1,4 @@
+import { allocationInputsAsOf } from './allocation-inputs';
 import { resolvePortfolioRiskPolicy } from './portfolio-risk-policy';
 import { exposuresAsOf, splitAssetExposure, singleAssetClass } from './asset-exposure';
 import {
@@ -10,7 +11,6 @@ import {
   fxOn,
   fundCosts,
   gainOf,
-  grossExposureCents,
   incomeLast12Months,
   lastDayOfMonth,
   monthOf,
@@ -35,7 +35,7 @@ import {
   type SecurityKind,
   type SpeculativeShare,
   type Valuation,
-  type WealthPosition,
+  type AllocationQuality,
   type WindowPerformance,
   windowPerformance,
 } from '@budget/domain';
@@ -128,6 +128,7 @@ export interface PlatformShare {
 }
 
 export interface PortfolioSummary {
+  quality: AllocationQuality;
   asOf: string;
   costMethod: CostMethod;
   period: Period;
@@ -654,55 +655,14 @@ export function positionCostDetailsAsOf(
   });
 }
 
-/** Only fields needed by current allocation/risk; basis and historical performance are separate. */
-export type RiskPosition = Pick<PositionLine, 'securityId' | 'kind' | 'assetClassId'> & {
-  accounts: Pick<PositionLine['accounts'][number], 'accountId' | 'institutionId' | 'valueCents'>[];
-};
-
-/** The positions as the wealth domain sees them (kind and class, never the name). */
-export const toWealthPositions = (
-  db: Executor,
-  asOf: string,
-  lines: ReadonlyArray<RiskPosition>,
-): WealthPosition[] => {
-  const exposure = exposuresAsOf(db, asOf);
-  const metadata = new Map(
-    db
-      .select()
-      .from(security)
-      .all()
-      .map((s) => [s.id, s]),
-  );
-  return lines.flatMap((line) => {
-    const leverageFactor = metadata.get(line.securityId)?.leverageFactor ?? 10;
-    const weights = exposure.get(line.securityId)?.weights ?? [];
-    return line.accounts.flatMap((position) => {
-      const grossParts = splitAssetExposure(
-        grossExposureCents({ valueCents: position.valueCents, leverageFactor }),
-        weights,
-      );
-      return splitAssetExposure(position.valueCents, weights).map((part, i) => ({
-        id: `${line.securityId}:${position.accountId}:${part.assetClassId ?? ''}`,
-        securityId: line.securityId,
-        kind: line.kind,
-        leverageFactor,
-        grossExposureCents: grossParts[i]!.valueCents,
-        assetClass: part.assetClassId,
-        valueCents: part.valueCents,
-        platform: position.institutionId,
-      }));
-    });
-  });
-};
-
 /** R13 inputs: the Soll-Allocation valid on `asOf`. */
 export function classTargets(db: Executor, asOf: string) {
   return resolvePortfolioRiskPolicy(db, asOf).targets;
 }
 
 /** Allocation, cluster risk, R15 and the rebalancing rows of the positions on `asOf`. */
-export function riskOf(db: Executor, asOf: string, lines: ReadonlyArray<RiskPosition>) {
-  const positions = toWealthPositions(db, asOf, lines);
+export function riskOf(db: Executor, asOf: string) {
+  const { positions, quality } = allocationInputsAsOf(db, asOf);
   const policy = resolvePortfolioRiskPolicy(db, asOf);
   const allocation = allocationStatus(positions, policy.targets, policy.R13);
   const cluster = clusterRisk(positions, policy.R14);
@@ -711,7 +671,8 @@ export function riskOf(db: Executor, asOf: string, lines: ReadonlyArray<RiskPosi
     allocation,
     cluster,
     speculative,
-    proposals: rebalancingProposals({ allocation, cluster, speculative }),
+    quality,
+    proposals: rebalancingProposals({ allocation, cluster, speculative, quality }),
   };
 }
 
@@ -758,7 +719,7 @@ export function portfolioSummary(db: Executor, options: PortfolioOptions): Portf
   const view = options.view ?? 'securities';
   const loaded = load(db);
   const lines = positionLines(db, today);
-  const risk = riskOf(db, today, lines);
+  const risk = riskOf(db, today);
   const valueCents = lines.reduce((a, l) => a + l.valueCents, 0);
   const costCents = lines.some((l) => l.costCents === null)
     ? null

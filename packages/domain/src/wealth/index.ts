@@ -1,5 +1,6 @@
 export * from './types';
 export * from './classification';
+export * from './quality';
 export {
   allocationStatus,
   defaultBandBp,
@@ -22,6 +23,7 @@ export {
 } from './risk';
 export {
   rebalancingProposals,
+  newCapitalToTarget,
   savingsPlanProposal,
   type PlanProposal,
   type PlanReason,

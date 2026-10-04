@@ -867,6 +867,15 @@ describe('Kontostand prüfen', () => {
   it('previews a duplicate and reconciles after removing it', async () => {
     const { a, spent } = await setup();
     const twin = await newBooking(a.id, { date: '2026-03-15', amountCents: -3000, payeeId: 'p1' });
+    // This scenario has an older booking; equal millisecond timestamps are tied by id.
+    db.update(schema.booking)
+      .set({ createdAt: '2026-03-31T12:00:00.000Z' })
+      .where(eq(schema.booking.id, spent.id))
+      .run();
+    db.update(schema.booking)
+      .set({ createdAt: '2026-03-31T12:00:00.001Z' })
+      .where(eq(schema.booking.id, twin.id))
+      .run();
     const preview = (
       await call('POST', `/accounts/${a.id}/reconciliation/preview`, {
         date: TODAY,

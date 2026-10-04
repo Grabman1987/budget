@@ -94,7 +94,7 @@ interface HoldingValuation {
     securityId: string;
     unitsE8: number;
     priceMicro: number;
-    priceDate: string;
+    priceDate: string | null;
     priceCurrency: string;
   }>;
 }
@@ -240,6 +240,18 @@ function computeHoldingValuation(db: Executor, asOf: string, estimate: boolean):
             asOf,
           )
         : null;
+      if (basis !== null && rateOrMissing(rates, accountCurrency, asOf) === undefined) {
+        missingFx(accountId, accountCurrency);
+        missingFxPositions.push({
+          accountId,
+          securityId,
+          unitsE8: units,
+          priceMicro: 0,
+          priceDate: null,
+          priceCurrency: accountCurrency,
+        });
+        continue;
+      }
       const eur =
         basis === null ? null : costInEur(basis, accountCurrency, toRateTable(rates), asOf);
       if (eur === null) {
