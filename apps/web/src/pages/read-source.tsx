@@ -4,6 +4,7 @@ import { useState } from 'react';
 import type { SourceBalance, SourceMapping } from '@budget/domain';
 import { request } from '../api/http';
 import { INBOX_KEY } from '../inbox/api';
+import { undoGroup } from '../ledger/api';
 import { withStepUp } from '../auth/webauthn';
 import './read-source.css';
 
@@ -16,8 +17,20 @@ interface SourceStatus {
   balances: SourceBalance[];
   mappings: SourceMapping[];
   since: string | null;
+  match: MatchCounts;
   accounts: { id: string; name: string; currency: string; type: string }[];
   securities: { id: string; name: string }[];
+}
+interface MatchCounts {
+  matched: number;
+  missing: number;
+  unmapped: number;
+  informational: number;
+}
+interface ReconcileResult extends MatchCounts {
+  groupId: string;
+  changed: number;
+  ownerResolved: number;
 }
 const path = '/api/sources/crypto';
 /** Upper bound per click (25 operations per page); the background tick continues afterwards. */
@@ -123,6 +136,7 @@ export function CryptoReadSourceSection() {
             gesetzt.
           </p>
           <SinceForm saved={query.data.since} />
+          <MatchSection match={query.data.match} disabled={busy || query.data.running} />
           {query.data.balances.map((balance) => (
             <Mapping key={balance.key} balance={balance} data={query.data} />
           ))}
@@ -134,6 +148,93 @@ export function CryptoReadSourceSection() {
         </p>
       )}
     </section>
+  );
+}
+function MatchSection({ match, disabled }: { match: MatchCounts; disabled: boolean }) {
+  const [busy, setBusy] = useState(false);
+  const [message, setMessage] = useState('');
+  const [undoable, setUndoable] = useState<string | null>(null);
+  const client = useQueryClient();
+  async function refreshViews() {
+    await client.invalidateQueries({ queryKey: key });
+    await client.invalidateQueries({ queryKey: INBOX_KEY });
+  }
+  async function run() {
+    setBusy(true);
+    setMessage('');
+    setUndoable(null);
+    try {
+      const result = await withStepUp(() => request<ReconcileResult>('POST', path + '/reconcile'));
+      setMessage(
+        result.changed === 0
+          ? 'Abgleich ausgeführt. Keine Änderung im Posteingang.'
+          : `Abgleich ausgeführt. ${result.changed} ${result.changed === 1 ? 'Eintrag' : 'Einträge'} im Posteingang aktualisiert.`,
+      );
+      setUndoable(result.changed > 0 ? result.groupId : null);
+      await refreshViews();
+    } catch {
+      setMessage('Abgleich nicht ausgeführt. Anmeldung prüfen und erneut versuchen.');
+    } finally {
+      setBusy(false);
+    }
+  }
+  async function undo() {
+    if (!undoable) return;
+    setBusy(true);
+    try {
+      await undoGroup(undoable);
+      setUndoable(null);
+      setMessage('Abgleich rückgängig gemacht.');
+      await refreshViews();
+    } catch {
+      setMessage('Rückgängig nicht möglich. Der Posteingang hat sich inzwischen geändert.');
+    } finally {
+      setBusy(false);
+    }
+  }
+  return (
+    <div className="source-mapping">
+      <h3>Abgleich mit dem Hauptbuch</h3>
+      <p>
+        Jede Bewegung ab dem Startdatum wird mit den vorhandenen Trades und Buchungen der
+        zugeordneten Konten verglichen. Treffer gelten als erfasst, alles andere bleibt im
+        Posteingang. Es werden nie automatisch Buchungen oder Trades angelegt.
+      </p>
+      <dl className="source-status">
+        <div>
+          <dt>Erfasst</dt>
+          <dd>{match.matched}</dd>
+        </div>
+        <div>
+          <dt>Fehlt in der App</dt>
+          <dd>{match.missing}</dd>
+        </div>
+        <div>
+          <dt>Ohne Zuordnung</dt>
+          <dd>{match.unmapped}</dd>
+        </div>
+        <div>
+          <dt>Informativ</dt>
+          <dd>{match.informational}</dd>
+        </div>
+      </dl>
+      <p>
+        Vorschau auf Basis des aktuellen Hauptbuchs. „Abgleich neu ausführen“ prüft auch Bewegungen,
+        die früher pauschal erledigt wurden, und öffnet fehlende wieder. Von dir erledigte Einträge
+        bleiben unverändert. Nach neuen Zuordnungen oder Buchungen erneut ausführen.
+      </p>
+      <div className="sources-actions">
+        <Button disabled={busy || disabled} onClick={() => void run()}>
+          Abgleich neu ausführen
+        </Button>
+        {undoable && (
+          <Button variant="ghost" disabled={busy} onClick={() => void undo()}>
+            Rückgängig
+          </Button>
+        )}
+      </div>
+      {message && <p role="status">{message}</p>}
+    </div>
   );
 }
 function SinceForm({ saved }: { saved: string | null }) {
