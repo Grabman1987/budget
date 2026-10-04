@@ -14,7 +14,7 @@ import {
   security,
   type Db,
 } from '@budget/db';
-import type { ReadSource } from '@budget/domain';
+import { sourceMappingSchema, type ReadSource } from '@budget/domain';
 import { readSourceRunning, refreshReadSource } from '../sources/refresh';
 import { ACTOR, ApiError, readBody } from './http';
 
@@ -53,16 +53,7 @@ export function readSourceRoutes(
     return c.json(reconcileReadSource(db, { actor: ACTOR }));
   });
   app.put('/mapping', stepUp, async (c) => {
-    const body = await readBody(
-      c,
-      z
-        .object({
-          key: z.string().min(1).max(210),
-          accountId: z.string().min(1).max(100),
-          securityId: z.string().min(1).max(100).nullable(),
-        })
-        .strict(),
-    );
+    const body = await readBody(c, sourceMappingSchema);
     return c.json(mapReadSource(db, body, { actor: ACTOR }));
   });
   app.put('/since', stepUp, async (c) => {
