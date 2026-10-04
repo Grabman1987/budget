@@ -30,7 +30,7 @@ it('0033 migrates latest main, preserves every original source column and valuat
   const journal = JSON.parse(readFileSync(join(folder, 'meta/_journal.json'), 'utf8')) as {
     entries: { idx: number; tag: string }[];
   };
-  expect(journal.entries.at(-1)?.tag).toBe('0033_allocation_scope');
+  expect(journal.entries.find((e) => e.idx === 33)?.tag).toBe('0033_allocation_scope');
   const oldJournal = { ...journal, entries: journal.entries.filter((e) => e.idx < 33) };
   expect(oldJournal.entries.at(-1)?.tag).toBe('0032_assignment_rules');
   writeFileSync(join(oldFolder, 'meta/_journal.json'), JSON.stringify(oldJournal));
