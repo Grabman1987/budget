@@ -1,0 +1,224 @@
+/* Variable conditions, scenarios and strategies on Vermögen › Schulden. Tokens only. */
+.debts-view .loan-conditions,
+.debts-view .loan-scenarios,
+.debts-view .debt-strategies {
+  grid-column: 1 / -1;
+  min-width: 0;
+}
+.loan-table {
+  width: 100%;
+  table-layout: auto;
+}
+.loan-table th,
+.loan-table td {
+  overflow-wrap: anywhere;
+  vertical-align: top;
+}
+.loan-name {
+  font-weight: 600;
+}
+.loan-measures {
+  margin: 4px 0 0;
+  padding-left: 16px;
+  font-size: 13px;
+  font-weight: 400;
+  color: var(--ink-2);
+}
+.loan-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 8px;
+  margin-top: 8px;
+}
+.loan-rate-table .loan-actions {
+  margin-top: 0;
+  justify-content: flex-end;
+}
+.loan-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+.loan-error,
+.loan-empty {
+  color: var(--ink-3);
+}
+.debts-view .loan-table th small {
+  overflow-wrap: anywhere;
+}
+.strategy-fields {
+  display: grid;
+  gap: 16px;
+}
+.strategy-extra {
+  max-width: 360px;
+}
+.strategy-result {
+  margin-top: 16px;
+}
+.strategy-input-table td input {
+  min-width: 90px;
+}
+
+/* Form dialogs: head and footer stay, the body scrolls (the primitive makes the form a column). */
+.loan-editor-head,
+.loan-editor-foot {
+  flex: none;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  padding: 16px 24px;
+  border-bottom: 1px solid var(--rule);
+}
+.loan-editor-head {
+  justify-content: space-between;
+}
+.loan-editor-head h3 {
+  margin: 0;
+}
+.loan-editor-foot {
+  border-bottom: 0;
+  border-top: 1px solid var(--rule);
+}
+.loan-editor-body {
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 16px 24px;
+  display: grid;
+  gap: 16px;
+}
+.loan-editor fieldset {
+  min-width: 0;
+  border: 0;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  gap: 12px;
+}
+.loan-editor .loan-measure {
+  border-top: 1px solid var(--rule);
+  padding-top: 12px;
+}
+.loan-editor legend {
+  font-weight: 600;
+  padding: 8px 0;
+}
+.loan-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+.loan-editor input,
+.loan-editor select {
+  width: 100%;
+  min-height: 44px;
+  min-width: 0;
+}
+.loan-preview p {
+  margin: 0 0 4px;
+  overflow-wrap: anywhere;
+}
+
+/* Wide tables turn into one card per row before they can overflow the page. */
+@media (max-width: 900px) {
+  .loan-scenario-table thead,
+  .strategy-table thead,
+  .strategy-input-table thead {
+    display: none;
+  }
+  .loan-scenario-table,
+  .loan-scenario-table tbody,
+  .strategy-table,
+  .strategy-table tbody,
+  .strategy-input-table,
+  .strategy-input-table tbody {
+    display: block;
+  }
+  .loan-scenario-table tr,
+  .strategy-table tr,
+  .strategy-input-table tr {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 8px 16px;
+    border-bottom: 1px solid var(--rule);
+    padding: 12px 0;
+  }
+  .loan-scenario-table th[scope='row'],
+  .strategy-table th[scope='row'],
+  .strategy-input-table th[scope='row'],
+  .loan-scenario-table td[colspan],
+  .strategy-table td[colspan] {
+    grid-column: 1 / -1;
+  }
+  .debts-view .loan-scenario-table td,
+  .debts-view .loan-scenario-table th,
+  .debts-view .strategy-table td,
+  .debts-view .strategy-table th,
+  .debts-view .strategy-input-table td,
+  .debts-view .strategy-input-table th {
+    border: 0;
+    padding: 0;
+    text-align: left;
+  }
+  .loan-scenario-table td[data-label]::before,
+  .strategy-table td[data-label]::before,
+  .strategy-input-table td[data-label]::before {
+    content: attr(data-label);
+    display: block;
+    font-family: var(--font-tech);
+    text-transform: uppercase;
+    font-size: 11px;
+    color: var(--ink-3);
+  }
+  .strategy-input-table td input {
+    min-width: 0;
+  }
+}
+@media (max-width: 767px) {
+  .loan-rate-table thead {
+    display: none;
+  }
+  .loan-rate-table,
+  .loan-rate-table tbody {
+    display: block;
+  }
+  .loan-rate-table tr {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 8px;
+    border-bottom: 1px solid var(--rule);
+    padding: 10px 0;
+  }
+  .loan-rate-table td.loan-actions-cell {
+    grid-column: 1 / -1;
+  }
+  .loan-rate-table .loan-actions {
+    justify-content: flex-start;
+  }
+  .debts-view .loan-rate-table td,
+  .debts-view .loan-rate-table th {
+    border: 0;
+    padding: 0;
+    text-align: left;
+  }
+  .loan-rate-table td[data-label]::before {
+    content: attr(data-label);
+    display: block;
+    font-family: var(--font-tech);
+    text-transform: uppercase;
+    font-size: 11px;
+    color: var(--ink-3);
+  }
+  .loan-editor-head,
+  .loan-editor-foot,
+  .loan-editor-body {
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+  .loan-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

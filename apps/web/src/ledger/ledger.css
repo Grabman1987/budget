@@ -181,6 +181,18 @@
   width: 200px;
   white-space: nowrap;
 }
+/* Tablet: with the sidebar open the page is only 476 px wide at 768 px; the nowrap 200 px
+   sparkline column plus the other columns then needed 524 px and pushed the page sideways. The
+   sparkline and its change figure may wrap instead. */
+@media (min-width: 768px) and (max-width: 900px) {
+  .kc-line {
+    width: auto;
+    white-space: normal;
+  }
+  .kdelta {
+    margin-left: 0;
+  }
+}
 .kmini {
   display: inline-block;
   width: 120px;
@@ -230,6 +242,8 @@
   color: var(--ink);
   text-decoration: none;
   border-radius: 4px;
+  /* A long name without spaces must not widen the table (and with it the page) at tablet widths. */
+  overflow-wrap: anywhere;
 }
 .kname:hover {
   color: var(--line);
