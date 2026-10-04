@@ -24,6 +24,10 @@ it('inclusive cent boundaries, negative investment sums and unavailable valuatio
   expect(resolveTargetTier(policy, 2000001).tierIndex).toBe(2);
   expect(resolveTargetTier(policy, null).targets).toEqual([]);
   expect(resolveTargetTier({ ...policy, tiers: [] }, null).targets).toEqual(policy.targets);
+  // A stored policy whose last tier is not open falls back to that last tier instead of throwing.
+  expect(resolveTargetTier({ ...policy, tiers: policy.tiers.slice(0, 2) }, 9000000).tierIndex).toBe(
+    1,
+  );
 });
 it('each tier has an exact sum, ordered integer-cent boundaries, unique managed classes and an open final tier', () => {
   expect(() =>

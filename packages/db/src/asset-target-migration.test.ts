@@ -39,10 +39,11 @@ it('0035 is generated from main 0034, preserves every existing row/value, repeat
     const tables = (
       opened.sqlite
         .prepare(
-          "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' AND name NOT LIKE '__%' ORDER BY name",
+          "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' AND name NOT GLOB '__*' ORDER BY name",
         )
         .all() as { name: string }[]
     ).map((t) => t.name);
+    expect(tables.length).toBeGreaterThan(30);
     const rows = (database = opened) =>
       tables.map((table) =>
         database.sqlite.prepare(`SELECT * FROM "${table}" ORDER BY rowid`).all(),

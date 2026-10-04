@@ -62,8 +62,10 @@ export function validateTargetPolicy(policy: TargetPolicy, activeIds: ReadonlySe
 export function resolveTargetTier(policy: TargetPolicy, investmentCents: number | null) {
   if (!policy.tiers.length) return { targets: policy.targets, tierIndex: null };
   if (investmentCents === null) return { targets: [] as ManagedTarget[], tierIndex: null };
-  const tierIndex = policy.tiers.findIndex(
+  const found = policy.tiers.findIndex(
     (t) => t.upToCents === null || investmentCents <= t.upToCents,
   );
+  // A stored policy without an open last tier is invalid; read it as if the last tier were open.
+  const tierIndex = found === -1 ? policy.tiers.length - 1 : found;
   return { targets: policy.tiers[tierIndex]!.targets, tierIndex };
 }
