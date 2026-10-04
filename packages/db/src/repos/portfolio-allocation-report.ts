@@ -1,3 +1,4 @@
+import { exposuresAsOf, splitAssetExposure } from './asset-exposure';
 import {
   allocationTimeline,
   monthBoundaries,
@@ -15,7 +16,13 @@ import {
 import { isNull } from 'drizzle-orm';
 import { account, security } from '../schema';
 import { portfolioFlows, valuationSeries } from './portfolio';
-import { classTargets, firstDay, positionLines, riskOf } from './portfolio-summary';
+import {
+  classTargets,
+  firstDay,
+  positionLines,
+  exposurePositionLines,
+  riskOf,
+} from './portfolio-summary';
 import { listAssetClasses } from './securities';
 import type { Executor } from './types';
 
@@ -136,6 +143,7 @@ export function allocationReport(db: Executor, options: { today: string }): Allo
     }
   }
 
+  const classLines = exposurePositionLines(db, today, lines);
   const classes: AllocationClass[] = risk.allocation.rows.map((row) => ({
     assetClassId: row.assetClass === NO_CLASS ? null : row.assetClass,
     name: className(row.assetClass),
@@ -145,7 +153,7 @@ export function allocationReport(db: Executor, options: { today: string }): Allo
     bandBp: row.bandBp,
     deviationBp: row.deviationBp,
     breach: row.breach,
-    products: lines
+    products: classLines
       .filter((l) => (l.assetClassId ?? NO_CLASS) === row.assetClass)
       .map((l) => ({
         securityId: l.securityId,
@@ -197,19 +205,20 @@ export function allocationReport(db: Executor, options: { today: string }): Allo
     const dayIndex = new Map(series.days.map((d, i) => [d, i]));
     const snapshots = dates.map((date) => {
       const i = dayIndex.get(date) as number;
+      const exposures = exposuresAsOf(db, date);
       const positions: WealthPosition[] = series.positions.flatMap((p) => {
         const valueCents = p.valueCents[i] as number;
         const sec = securities.get(p.securityId);
         if (valueCents <= 0 || !sec) return [];
-        return [
-          {
-            id: `${p.securityId}:${p.accountId}`,
+        return splitAssetExposure(valueCents, exposures.get(p.securityId)?.weights ?? []).map(
+          (part) => ({
+            id: `${p.securityId}:${p.accountId}:${part.assetClassId ?? ''}`,
             securityId: p.securityId,
             kind: sec.kind,
-            assetClass: sec.assetClassId,
-            valueCents,
-          },
-        ];
+            assetClass: part.assetClassId,
+            valueCents: part.valueCents,
+          }),
+        );
       });
       return { date, positions, targets: classTargets(db, date) };
     });

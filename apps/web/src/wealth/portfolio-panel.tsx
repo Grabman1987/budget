@@ -130,6 +130,7 @@ export function InstrumentPanel({
         <InstrumentForm
           key={id}
           security={creating ? undefined : instrument.data?.security}
+          effectiveDay={asOf}
           onDirty={setDirtyNow}
           onSaved={(security) => {
             setDirtyNow(false);

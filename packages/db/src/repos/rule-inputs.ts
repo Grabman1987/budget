@@ -1,3 +1,4 @@
+import { exposuresAsOf, splitAssetExposure } from './asset-exposure';
 import { bookInputs } from './book-inputs';
 import {
   addDays,
@@ -646,19 +647,22 @@ export function ruleInputs(
 
   // R13 to R15: positions valued on the day; platform ownership comes from the holding account.
   const institutionByAccount = new Map(accounts.map((a) => [a.id, a.institutionId]));
+  const exposures = exposuresAsOf(db, asOf);
   const positions: WealthPosition[] = holdingValuesAsOf(db, asOf).flatMap((h) => {
     const s = f.securities.get(h.securityId);
     if (!s) return [];
-    return [
-      {
-        id: `${h.accountId}:${h.securityId}`,
-        securityId: h.securityId,
-        kind: s.kind,
-        assetClass: s.assetClassId,
-        valueCents: h.valueCents,
-        platform: institutionByAccount.get(h.accountId) ?? null,
-      },
-    ];
+    const parts = splitAssetExposure(h.valueCents, exposures.get(h.securityId)?.weights ?? []);
+    return parts.map((part) => ({
+      id:
+        parts.length === 1
+          ? `${h.accountId}:${h.securityId}`
+          : `${h.accountId}:${h.securityId}:${part.assetClassId ?? ''}`,
+      securityId: h.securityId,
+      kind: s.kind,
+      assetClass: part.assetClassId,
+      valueCents: part.valueCents,
+      platform: institutionByAccount.get(h.accountId) ?? null,
+    }));
   });
   const classTargets: ClassTarget[] = [
     ...new Set(f.classTargets.map((t) => t.assetClassId)),

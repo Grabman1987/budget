@@ -1,5 +1,7 @@
 # Budget feature coverage: YNAB and Portfolio Performance replacement
 
+Owner directive PR1 (2026-10-04): [historical weighted security exposures](asset-exposure.md) provide dated classification, exact-cent splits, server replacement API and grouped undo/redo across current allocation, R13/rebalancing, savings proposals, historical reports and exports. Settings UI, risk-policy/leverage unification and allocation-quality policy remain later PRs.
+
 Reviewed: 2026-10-01 against merged source `665b52e` (PRs #71–#90),
 plus reviewed manual-price source `05c1ed9` (PR #91; integration tracked in TASKS).
 This is the central coverage inventory for the **agreed Budget V1 scope**. It joins

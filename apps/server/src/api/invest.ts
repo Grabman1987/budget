@@ -1,5 +1,7 @@
 import { checkedReportPeriod, reportPeriodSchema } from './report-period';
 import {
+  assetExposureOfSecurityAsOf,
+  replaceExposureVersion,
   applySavingsProposal,
   assetClassesInUse,
   changeSavingsPlan,
@@ -76,6 +78,7 @@ const securityFields = {
   terBp: bp,
   leverageFactor: z.int().min(10).max(1000),
   assetClassId: id.nullable(),
+  exposureValidFrom: day.optional(),
   /** The platform (broker, crypto or P2P provider) that holds the security. */
   institutionId: id.nullable(),
   benchmark: z.string().max(120).nullable(),
@@ -117,7 +120,7 @@ const securityPatch = z
   .refine((v) => Object.keys(v).length > 0, 'Nothing to change');
 const deletedQuery = z.object({ deleted: z.enum(['1', 'true']).optional() });
 
-export function securityRoutes(db: Db): Hono {
+export function securityRoutes(db: Db, today: () => string): Hono {
   const app = new Hono();
   const audit = () => ({ actor: ACTOR, groupId: randomUUID() });
   const found = (securityId: string) => {
@@ -133,14 +136,66 @@ export function securityRoutes(db: Db): Hono {
   app.post('/', async (c) => {
     const body = await readBody(c, securityCreate);
     const ctx = audit();
-    const row = createSecurity(db, defined(body), ctx);
+    const row = createSecurity(
+      db,
+      defined({ ...body, exposureValidFrom: body.exposureValidFrom ?? today() }),
+      ctx,
+    );
     return c.json({ security: row, groupId: ctx.groupId }, 201);
+  });
+  app.get('/:id/exposures', (c) => {
+    const securityId = c.req.param('id');
+    if (!getSecurity(db, securityId))
+      throw new ApiError(404, 'not_found', 'Das Wertpapier ist nicht verfügbar.');
+    const query = z.object({ asOf: day.optional() }).safeParse(c.req.query());
+    if (!query.success)
+      throw new ApiError(400, 'invalid_exposure', 'Bitte ein gültiges Bewertungsdatum eingeben.');
+    const { asOf } = query.data;
+    return c.json({ exposure: assetExposureOfSecurityAsOf(db, securityId, asOf ?? today()) });
+  });
+  app.put('/:id/exposures', async (c) => {
+    const schema = z.strictObject({
+      validFrom: day.optional(),
+      complete: z.boolean(),
+      source: z.string().trim().min(1).max(120),
+      weights: z
+        .array(z.strictObject({ assetClassId: id, weightBp: z.int().min(1).max(10000) }))
+        .max(50),
+    });
+    const parsed = schema.safeParse(await c.req.json().catch(() => null));
+    if (!parsed.success) {
+      console.warn({ event: 'exposure_write_rejected', reason: 'validation' });
+      throw new ApiError(
+        400,
+        'invalid_exposure',
+        'Bitte Datum, Vollständigkeit, Quelle und Klassengewichte prüfen.',
+      );
+    }
+    const ctx = audit();
+    let exposure;
+    try {
+      exposure = replaceExposureVersion(
+        db,
+        c.req.param('id'),
+        { ...parsed.data, validFrom: parsed.data.validFrom ?? today() },
+        ctx,
+      );
+    } catch (error) {
+      console.warn({ event: 'exposure_write_rejected', reason: 'invariant' });
+      throw error;
+    }
+    return c.json({ exposure, groupId: ctx.groupId });
   });
   app.get('/:id', (c) => c.json({ security: found(c.req.param('id')) }));
   app.patch('/:id', async (c) => {
     const body = await readBody(c, securityPatch);
     const ctx = audit();
-    const row = updateSecurity(db, c.req.param('id'), defined(body), ctx);
+    const row = updateSecurity(
+      db,
+      c.req.param('id'),
+      defined({ ...body, exposureValidFrom: body.exposureValidFrom ?? today() }),
+      ctx,
+    );
     return c.json({ security: row, groupId: ctx.groupId });
   });
   app.delete('/:id', (c) => {

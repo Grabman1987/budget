@@ -75,6 +75,8 @@ No keypad. The amount is a text field with arithmetic (`12,50+8,20`, `+ − × �
 
 ## 5. Data model and invariants (concept ch. 5)
 
+**Owner directive PR1, 2026-10-04:** security asset classes are effective-dated weighted exposure sets, resolved inclusively at each valuation/report date by one shared resolver. Complete sets sum to 10000 bp; explicitly incomplete sets retain their missing weight as unclassified. Largest-remainder integer splits conserve each account/security valuation to the cent. Timeless `security.asset_class_id` remains readable compatibility metadata and is never a calculation source. Version replacement and instrument single-class saves are atomic, audited and undoable. Migration preserves legacy class values from an explicitly labelled assumption at the earliest stored trade/holding (creation day otherwise); it does not claim historical certainty. See [exposure model/API and migration policy](docs/asset-exposure.md). Target/risk/quality policy changes and the settings page remain subsequent PRs.
+
 Entities: Konto (with role: Budget-Konto / Rücklage / Anlage / Schuld, and terms: credit line, overdraft limit, rates, term, fees), Buchung with Anteile (splits), Umbuchung, Empfänger, Kategorie/Gruppe/Klasse, Envelope-Monat (assigned, activity, available), Erwartete Zahlung (versioned), Kontakt with Forderungskonto, Sparziel, Wertpapier/Produkt, Trade, Bestand, Kurs (source per price), Wechselkurs, Anlageklasse with Soll-Allocation, Regel + Regelergebnis, Posteingang-Eintrag, Zuordnungsregel, Bank-Verbindung, Beleg (content-addressed volume files), Änderungsprotokoll, Gehaltszettel (payslip lines), Projekt (side income: income and costs), Geplantes Ereignis (forecast events).
 
 Invariants (binding):

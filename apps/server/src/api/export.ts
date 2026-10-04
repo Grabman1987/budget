@@ -1,4 +1,7 @@
 import {
+  exposuresAsOf,
+  securityAssetExposure,
+  securityExposureVersion,
   accountSummaries,
   holdingValuationExportAsOf,
   positionCostDetailsAsOf,
@@ -190,14 +193,35 @@ function exportEntries(
   );
   const liveAccountIds = new Set(accounts.map((x) => x.id));
   const accountCurrency = new Map(accounts.map((x) => [x.id, x.currency]));
+  const exposure = exposuresAsOf(db, asOf);
+  const classNames = new Map(
+    db
+      .select()
+      .from(assetClass)
+      .all()
+      .map((r) => [r.id, r.name]),
+  );
+  const exposureName = (id: string) => {
+    const weights = exposure.get(id)?.weights ?? [];
+    return weights.length === 1 && weights[0]!.weightBp === 10000
+      ? (classNames.get(weights[0]!.assetClassId) ?? null)
+      : weights.length
+        ? weights
+            .map(
+              (w) =>
+                `${classNames.get(w.assetClassId) ?? 'Ohne Anlageklasse'}: ${w.weightBp / 100} %`,
+            )
+            .join(' / ')
+        : null;
+  };
   const securityRows = db
-    .select({ security, assetClassName: assetClass.name, institutionName: institution.name })
+    .select({ security, institutionName: institution.name })
     .from(security)
-    .leftJoin(assetClass, eq(security.assetClassId, assetClass.id))
     .leftJoin(institution, eq(security.institutionId, institution.id))
     .where(isNull(security.deletedAt))
     .orderBy(asc(security.id))
-    .all();
+    .all()
+    .map((r) => ({ ...r, assetClassName: exposureName(r.security.id) }));
   const classes = db
     .select()
     .from(assetClass)
@@ -628,6 +652,30 @@ function exportEntries(
       name: 'asset_classes.csv',
       header: ['asset_class_id', 'name', 'sort_order'],
       rows: classes.map((x) => [x.id, x.name, x.sortOrder]),
+    },
+    {
+      name: 'security_exposure_versions.csv',
+      header: ['security_id', 'valid_from', 'complete', 'source'],
+      rows: db
+        .select()
+        .from(securityExposureVersion)
+        .orderBy(asc(securityExposureVersion.securityId), asc(securityExposureVersion.validFrom))
+        .all()
+        .map((r) => [r.securityId, r.validFrom, r.complete, r.source]),
+    },
+    {
+      name: 'security_asset_exposures.csv',
+      header: ['security_id', 'asset_class_id', 'weight_bp', 'valid_from', 'source'],
+      rows: db
+        .select()
+        .from(securityAssetExposure)
+        .orderBy(
+          asc(securityAssetExposure.securityId),
+          asc(securityAssetExposure.validFrom),
+          asc(securityAssetExposure.assetClassId),
+        )
+        .all()
+        .map((r) => [r.securityId, r.assetClassId, r.weightBp, r.validFrom, r.source]),
     },
     {
       name: 'asset_class_targets.csv',

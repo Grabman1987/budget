@@ -1,3 +1,4 @@
+import { exposuresAsOf, singleAssetClass } from './asset-exposure';
 import { defaultBandBp } from '@budget/domain';
 import { isNull } from 'drizzle-orm';
 import { account, institution, security } from '../schema';
@@ -25,7 +26,8 @@ export interface PortfolioAllocationView {
 /** Current values only: history/basis gaps never invent values or suppress a known allocation. */
 export function portfolioAllocation(db: Executor, asOf: string): PortfolioAllocationView {
   const current = portfolioPositions(db, asOf);
-  const positions = current.classes.flatMap((group) => group.positions);
+  const positions = current.positions;
+  const exposures = exposuresAsOf(db, asOf);
   const securities = new Map(
     db
       .select()
@@ -68,7 +70,7 @@ export function portfolioAllocation(db: Executor, asOf: string): PortfolioAlloca
           return {
             securityId: sec.id,
             kind: sec.kind,
-            assetClassId: sec.assetClassId,
+            assetClassId: singleAssetClass(exposures.get(sec.id)?.weights ?? []),
             accounts: position.accounts.map((row) => ({
               accountId: row.accountId,
               institutionId: accounts.get(row.accountId)?.institutionId ?? null,

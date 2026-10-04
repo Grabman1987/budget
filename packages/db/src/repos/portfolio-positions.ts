@@ -1,3 +1,4 @@
+import { exposuresAsOf, splitAssetExposure } from './asset-exposure';
 import { cents, ratioBp, shareBps, type ChainTerm } from '@budget/domain';
 import { asc, desc, isNull, lte } from 'drizzle-orm';
 import { account, assetClass, institution, price, security } from '../schema';
@@ -35,6 +36,8 @@ export interface PortfolioPosition {
   gainBp: number | null;
   shareBp: number | null;
   accounts: PositionAccount[];
+  /** Class attribution only; units and quote still describe the whole instrument. */
+  exposureWeightBp?: number;
 }
 export interface PositionClass {
   id: string | null;
@@ -51,6 +54,7 @@ export interface PortfolioPositionsView {
   gainCents: number | null;
   chain: ChainTerm[] | null;
   classes: PositionClass[];
+  positions: PortfolioPosition[];
 }
 const sum = (values: (number | null)[]) =>
   values.some((v) => v === null) ? null : values.reduce<number>((a, v) => a + (v ?? 0), 0);
@@ -178,13 +182,59 @@ export function portfolioPositions(db: Executor, asOf: string): PortfolioPositio
     .where(isNull(assetClass.deletedAt))
     .orderBy(asc(assetClass.sortOrder), asc(assetClass.name))
     .all();
+  const exposures = exposuresAsOf(db, asOf);
+  const slices = positions.flatMap((p) => {
+    const weights = exposures.get(p.securityId)?.weights ?? [];
+    const keys = splitAssetExposure(0, weights);
+    const split = (value: number | null, id: string | null) =>
+      value === null
+        ? null
+        : splitAssetExposure(value, weights).find((x) => x.assetClassId === id)!.valueCents;
+    return keys.map(({ assetClassId, weightBp }) => {
+      const accounts = p.accounts.map((a) => {
+        const valueCents = split(a.valueCents, assetClassId);
+        const costCents = split(a.costCents, assetClassId);
+        return {
+          ...a,
+          valueCents,
+          costCents,
+          gainCents:
+            a.gainCents === null || valueCents === null || costCents === null
+              ? null
+              : valueCents - costCents,
+        };
+      });
+      const gainCents = sum(accounts.map((a) => a.gainCents));
+      const costCents = sum(accounts.map((a) => a.costCents));
+      return {
+        ...p,
+        assetClassId,
+        exposureWeightBp: weightBp,
+        accounts,
+        valueCents: sum(accounts.map((a) => a.valueCents)),
+        costCents,
+        gainCents,
+        gainBp:
+          gainCents !== null && costCents !== null && costCents > 0
+            ? ratioBp(gainCents, costCents)
+            : null,
+      };
+    });
+  });
+  if (valueCents !== null)
+    shareBps(
+      slices.map((p) => p.valueCents ?? 0),
+      valueCents,
+    ).forEach((bp, i) => {
+      slices[i]!.shareBp = bp;
+    });
   const classes: PositionClass[] = [
     ...groups.map((g) => ({ id: g.id as string | null, name: g.name })),
     { id: null, name: 'Ohne Anlageklasse' },
   ]
     .map((g) => {
-      const mine = positions.filter((p) => {
-        const id = securities.get(p.securityId)?.assetClassId ?? null;
+      const mine = slices.filter((p) => {
+        const id = p.assetClassId;
         return (groups.some((group) => group.id === id) ? id : null) === g.id;
       });
       return {
@@ -202,6 +252,7 @@ export function portfolioPositions(db: Executor, asOf: string): PortfolioPositio
     costCents,
     gainCents,
     classes,
+    positions,
     chain:
       valueCents !== null && costCents !== null && gainCents !== null
         ? [

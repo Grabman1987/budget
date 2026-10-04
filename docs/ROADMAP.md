@@ -1,5 +1,15 @@
 # Roadmap
 
+### Owner directive PR1 — Historical asset exposure foundation (2026-10-04)
+
+- [x] Drizzle schema/migration and explicitly labelled legacy seed-date assumption; preserve original storage and class cents.
+- [x] One dated exposure resolver across allocation, report 4.2, class performance, R13, rebalancing, savings proposals and exports; exact weighted cents and unchanged regions.
+- [x] Atomic validated replacement API, dated single-class instrument save, grouped audit/undo and same-day replacement regression tests.
+- [x] Synthetic A01/A02/A03/A08, full-main-schema migration, FK, repeat migration and snapshot restore coverage. A07 target-policy changes are outside PR1.
+- [ ] CI review and owner pre/post-production snapshot/count/value reconciliation. No deployment or real-iPhone acceptance is claimed.
+
+Scope, baseline matrix and operational gate: [historical asset exposure](asset-exposure.md). PR2 risk, PR3 quality, PR4 settings and PR5 mobile primitives remain separate.
+
 Packages and gates from `SPEC.md` §11. Each task below is one cloud session and one pull request. Ready-to-paste prompts: `docs/prompts/`. Tick the boxes in the PR that completes them.
 
 Current implementation and owner/operations evidence: [`STATUS.md`](STATUS.md). Completed boxes record implementation, not full product acceptance or immunity to later defects. Next work is the ordered follow-up below; existing checklists remain the record of completed work.
