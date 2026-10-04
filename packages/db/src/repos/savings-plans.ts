@@ -1,3 +1,4 @@
+import { exposuresAsOf, singleAssetClass } from './asset-exposure';
 import {
   addDays,
   cents,
@@ -439,12 +440,12 @@ export function savingsProposal(
         id: security.id,
         name: security.name,
         kind: security.kind,
-        assetClassId: security.assetClassId,
       })
       .from(security)
       .all()
       .map((s) => [s.id, s]),
   );
+  const exposures = exposuresAsOf(db, today);
   const basis = listSavingsPlans(db);
   const plans: SavingsPlan[] = basis.flatMap((r) => {
     const sec = names.get(r.securityId);
@@ -454,7 +455,8 @@ export function savingsProposal(
             id: r.id,
             name: sec.name,
             kind: sec.kind,
-            assetClass: sec.assetClassId,
+            assetClass: singleAssetClass(exposures.get(sec.id)?.weights ?? []),
+            exposures: exposures.get(sec.id)?.weights ?? [],
             monthlyCents: r.amountCents,
           },
         ]

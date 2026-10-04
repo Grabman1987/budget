@@ -4,6 +4,7 @@ import {
   createTestDatabase,
   createTransfer,
   holdingValuationExportAsOf,
+  replaceExposureVersion,
   schema,
   type Db,
 } from '@budget/db';
@@ -111,6 +112,50 @@ function parseCsv(source: string): string[][] {
 }
 
 describe('GET /api/export/csv.zip', () => {
+  it('exports the effective weighted class label and full dated exposure history', async () => {
+    db.insert(schema.assetClass)
+      .values([
+        { id: 'a', name: 'Klasse A' },
+        { id: 'b', name: 'Klasse B' },
+      ])
+      .run();
+    db.insert(schema.security)
+      .values({ id: 'mixed', name: 'Musterfonds', kind: 'fund', assetClassId: 'a' })
+      .run();
+    for (const [validFrom, weights] of [
+      ['2025-01-01', [{ assetClassId: 'a', weightBp: 10000 }]],
+      [
+        TODAY,
+        [
+          { assetClassId: 'a', weightBp: 6000 },
+          { assetClassId: 'b', weightBp: 4000 },
+        ],
+      ],
+      ['2027-01-01', [{ assetClassId: 'b', weightBp: 10000 }]],
+    ] as const)
+      replaceExposureVersion(
+        db,
+        'mixed',
+        { validFrom, complete: true, source: 'manual', weights: [...weights] },
+        { actor: 'tester' },
+      );
+    const response = await app.request('/api/export/csv.zip');
+    expect(response.status).toBe(200);
+    const files = await readZip(Buffer.from(await response.arrayBuffer()));
+    const securities = parseCsv(files.get('securities.csv')!.toString('utf8'));
+    expect(securities[1]![securities[0]!.indexOf('asset_class')]).toBe(
+      'Klasse A: 60 % / Klasse B: 40 %',
+    );
+    const versions = parseCsv(files.get('security_exposure_versions.csv')!.toString('utf8'));
+    expect(versions.slice(1).map((row) => row[1])).toEqual(['2025-01-01', TODAY, '2027-01-01']);
+    const members = parseCsv(files.get('security_asset_exposures.csv')!.toString('utf8'));
+    expect(members.slice(1)).toEqual([
+      ['mixed', 'a', '10000', '2025-01-01', 'manual'],
+      ['mixed', 'a', '6000', TODAY, 'manual'],
+      ['mixed', 'b', '4000', TODAY, 'manual'],
+      ['mixed', 'b', '10000', '2027-01-01', 'manual'],
+    ]);
+  });
   it('requires a session and fresh step-up at the mounted API boundary', async () => {
     authenticated = false;
     const unauthenticated = await app.request('/api/export/csv.zip');
@@ -444,6 +489,8 @@ describe('GET /api/export/csv.zip', () => {
       'prices.csv',
       'savings_plans.csv',
       'securities.csv',
+      'security_asset_exposures.csv',
+      'security_exposure_versions.csv',
       'trades.csv',
       'valuations.csv',
     ]);
@@ -542,7 +589,7 @@ describe('GET /api/export/csv.zip', () => {
   it('returns header-only CSVs for an empty database', async () => {
     const response = await app.request('/api/export/csv.zip');
     const files = await readZip(Buffer.from(await response.arrayBuffer()));
-    expect(files.size).toBe(12);
+    expect(files.size).toBe(14);
     expect(parseCsv((files.get('accounts.csv') as Buffer).toString('utf8'))).toHaveLength(1);
     expect(parseCsv((files.get('prices.csv') as Buffer).toString('utf8'))).toHaveLength(1);
   });

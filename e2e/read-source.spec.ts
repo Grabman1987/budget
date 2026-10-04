@@ -17,6 +17,7 @@ test('source status, read-only capture, explicit mapping and responsive themes',
   let refreshes = 0;
   let saved = false;
   let since: string | null = null;
+  let reconciled = false;
   const data = {
     configured: true,
     running: false,
@@ -31,6 +32,7 @@ test('source status, read-only capture, explicit mapping and responsive themes',
       },
     ],
     mappings: [],
+    match: { matched: 3, missing: 2, unmapped: 1, informational: 4 },
     accounts: [{ id: 'cash', name: 'Verrechnungskonto', currency: 'EUR', type: 'checking' }],
     securities: [],
   };
@@ -62,6 +64,19 @@ test('source status, read-only capture, explicit mapping and responsive themes',
       refreshes += 1;
       refreshed = refreshes >= 2;
       await route.fulfill({ json: { status: refreshed ? 'ok' : 'partial' } });
+    } else if (request.url().endsWith('/reconcile')) {
+      reconciled = true;
+      await route.fulfill({
+        json: {
+          matched: 3,
+          missing: 2,
+          unmapped: 1,
+          informational: 4,
+          groupId: 'synthetic-reconcile-group',
+          changed: 2,
+          ownerResolved: 0,
+        },
+      });
     } else if (request.url().endsWith('/since')) {
       since = (request.postDataJSON() as { since: string | null }).since;
       await route.fulfill({ json: { groupId: 'synthetic-since-group' } });
@@ -96,6 +111,18 @@ test('source status, read-only capture, explicit mapping and responsive themes',
   await expect(crypto.getByText('Startdatum gespeichert.', { exact: false })).toBeVisible();
   expect(since).toBe('2026-01-01');
   await expect(crypto.getByLabel('Bewegungen ab')).toHaveValue('2026-01-01');
+  const summary = crypto.getByRole('heading', { name: 'Abgleich mit dem Hauptbuch' }).locator('..');
+  await expect(summary.getByText('Erfasst', { exact: true })).toBeVisible();
+  await expect(summary.locator('dd')).toHaveText(['3', '2', '1', '4']);
+  await expect(summary.getByText('Fehlt in der App', { exact: true })).toBeVisible();
+  await expect(summary.getByText('Ohne Zuordnung', { exact: true })).toBeVisible();
+  await expect(summary.getByText('Informativ', { exact: true })).toBeVisible();
+  await summary.getByRole('button', { name: 'Abgleich neu ausführen' }).click();
+  await expect(
+    summary.getByText('2 Einträge im Posteingang aktualisiert.', { exact: false }),
+  ).toBeVisible();
+  expect(reconciled).toBe(true);
+  await expect(summary.getByRole('button', { name: 'Rückgängig' })).toBeVisible();
   await page.getByLabel('Verrechnungskonto', { exact: true }).selectOption('cash');
   await crypto.getByRole('button', { name: 'Zuordnung speichern' }).click();
   await expect(page.getByText('Zuordnung gespeichert.', { exact: false })).toBeVisible();
@@ -145,6 +172,7 @@ test('unconfigured source cannot fetch', async ({ page }) => {
         balances: [],
         mappings: [],
         since: null,
+        match: { matched: 0, missing: 0, unmapped: 0, informational: 0 },
         accounts: [],
         securities: [],
       },

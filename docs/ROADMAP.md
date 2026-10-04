@@ -1,5 +1,15 @@
 # Roadmap
 
+### Owner directive PR1 — Historical asset exposure foundation (2026-10-04)
+
+- [x] Drizzle schema/migration and explicitly labelled legacy seed-date assumption; preserve original storage and class cents.
+- [x] One dated exposure resolver across allocation, report 4.2, class performance, R13, rebalancing, savings proposals and exports; exact weighted cents and unchanged regions.
+- [x] Atomic validated replacement API, dated single-class instrument save, grouped audit/undo and same-day replacement regression tests.
+- [x] Synthetic A01/A02/A03/A08, full-main-schema migration, FK, repeat migration and snapshot restore coverage. A07 target-policy changes are outside PR1.
+- [ ] CI review and owner pre/post-production snapshot/count/value reconciliation. No deployment or real-iPhone acceptance is claimed.
+
+Scope, baseline matrix and operational gate: [historical asset exposure](asset-exposure.md). PR2 risk, PR3 quality, PR4 settings and PR5 mobile primitives remain separate.
+
 Packages and gates from `SPEC.md` §11. Each task below is one cloud session and one pull request. Ready-to-paste prompts: `docs/prompts/`. Tick the boxes in the PR that completes them.
 
 Current implementation and owner/operations evidence: [`STATUS.md`](STATUS.md). Completed boxes record implementation, not full product acceptance or immunity to later defects. Next work is the ordered follow-up below; existing checklists remain the record of completed work.
@@ -296,13 +306,14 @@ Enable Banking adapter, worker with nightly run and catch-up, inbox items, assig
 - [x] Explicit transfer actions preserve booking identity, pair unambiguous same-day/same-currency/opposite-amount bank candidates, and attach later bank evidence to generated counterparts without posting twice; ambiguous matches roll back. See [limits and validation](assignment-rules.md).
 - [ ] Ambiguous bank history changes, broader transfer matching (including different posting days), and private owner/device acceptance remain separate work.
 - [x] Bank follow-ups: closest +/-5-day manual-booking merge preserving memo/splits, confirmed mirror/selected-booking transfers with original dates, dated bank balance on Konten and guarded one-click reconciliation lock; grouped audit/undo, synthetic unit/API and isolated desktop/mobile coverage. Migration `0024_bank_followups` stores balance observations.
-- [x] Einstellungen › Zuordnungsregeln merges the bank assignment rules and payee cleanup with the income budget-month defaults on one route (`/einstellungen/zuordnung`); migration `0031_assignment_rules`.
+- [x] Einstellungen › Zuordnungsregeln merges the bank assignment rules and payee cleanup with the income budget-month defaults on one route (`/einstellungen/zuordnung`); migration `0032_assignment_rules`.
 
 ### Crypto read source (P4/P5)
 - [x] Read-only current public API adapter; env-only key, paged resumable operation inbox, provider-ID deduplication and explicit investment/cash mappings.
 - [x] Native balance warnings, audited page/cursor writes, existing nightly timer hook and step-up protected manual fetch/full replay in Datenquellen. See [owner setup and limitations](crypto-read-source.md).
 - [x] Review fixes: mapping-independent acknowledgement/current display, row quarantine and categorized failures, tolerant balance reads with independent operations progress, unchanged-difference acknowledgement and bounded cursor history.
-- [ ] Owner key setup, private reconciliation and 14-day nightly acceptance; dedicated P4 worker and automated posting/matching remain separate.
+- [x] Automatic reconciliation of source operations against the existing ledger (trades, cash bookings, deliveries, informational stake moves), applied while staging and via the audited, undoable "Abgleich neu ausführen" in Datenquellen; summary erfasst / fehlt / ohne Zuordnung / informativ. See [Ledger reconciliation](crypto-read-source.md#ledger-reconciliation-abgleich).
+- [ ] Owner key setup, private reconciliation and 14-day nightly acceptance; dedicated P4 worker and automated posting remain separate (the matcher never creates bookings or trades).
 ### Owner decision 42 — Income for the following budget month
 - [x] Persisted per-inflow "für nächsten Monat" option in desktop/mobile capture and editing; retain cash date, category and income type, defer Zu verteilen across month/year boundaries through the shared budget calculation.
 - [x] Einstellungen › Zuordnungsregeln: defaults per payee, income category or income type, specific precedence and explicit per-booking override. Apply to new owner captures/classification only; retain existing history. Audited rules and booking changes with undo/redo, bounded API validation and rejected transfer/contact/mixed-spend shapes.

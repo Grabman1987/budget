@@ -1,5 +1,6 @@
 import {
   createTestDatabase,
+  replaceExposureVersion,
   portfolioSummary,
   undo,
   type Db,
@@ -33,6 +34,18 @@ beforeEach(() => {
       ('bench','2025-12-31',100000000,'EUR','manual'),('bench','2026-01-31',105000000,'EUR','manual'),('bench','2026-02-28',110250000,'EUR','manual');
     INSERT INTO trade (id,security_id,account_id,date,kind,units_e8,amount_cents) VALUES ('sell','b','depot','2026-02-01','sell',-100000000,9000);
   `);
+  for (const id of ['a', 'b'])
+    replaceExposureVersion(
+      db,
+      id,
+      {
+        validFrom: '2025-12-31',
+        complete: true,
+        source: 'synthetic_fixture',
+        weights: [{ assetClassId: id, weightBp: 10000 }],
+      },
+      { actor: 'tester' },
+    );
   const auth: AuthGate = {
     requireSession: async (c, next) => (signedIn ? next() : c.json({ error: 'unauthorized' }, 401)),
     originGuard: async (c, next) =>

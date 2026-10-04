@@ -1,4 +1,6 @@
-import { and, asc, eq, isNotNull, isNull, ne } from 'drizzle-orm';
+import { todayInVienna } from '@budget/domain';
+import { replaceExposureVersion } from './asset-exposure';
+import { and, asc, eq, isNull, ne } from 'drizzle-orm';
 import {
   assetClass,
   assetClassTarget,
@@ -6,11 +8,12 @@ import {
   institution,
   savingsPlan,
   security,
+  securityAssetExposure,
   trade,
 } from '../schema';
 import { deleteTracked, insertTracked, updateTracked, withGroup, type AuditContext } from './audit';
 import { entityRepo, type NewRow, type RowPatch } from './entities';
-import { ConflictError, EntityNotFoundError } from './errors';
+import { BookingInvariantError, ConflictError, EntityNotFoundError } from './errors';
 import { runInTransaction, type Executor } from './types';
 
 export type SecurityRecord = typeof security.$inferSelect;
@@ -30,7 +33,7 @@ function checkRefs(
 ) {
   if (values.assetClassId) {
     const row = assetClassRepo.get(tx, values.assetClassId);
-    if (!row) throw new EntityNotFoundError('asset_class', values.assetClassId);
+    if (!row) throw new BookingInvariantError('Bitte eine vorhandene aktive Anlageklasse wählen.');
   }
   if (values.institutionId) {
     const row = tx
@@ -65,26 +68,57 @@ export const getSecurity = (db: Executor, id: string, options: { includeDeleted?
 
 export function createSecurity(
   db: Executor,
-  values: NewRow<typeof security>,
+  values: NewRow<typeof security> & { exposureValidFrom?: string },
   ctx: AuditContext,
 ): SecurityRecord {
   return runInTransaction(db, (tx) => {
     checkRefs(tx, values);
     checkIsin(tx, values.isin);
-    return securityRepo.create(tx, values, ctx);
+    const grouped = withGroup(ctx);
+    const { exposureValidFrom, ...metadata } = values;
+    const row = securityRepo.create(tx, metadata, grouped);
+    replaceExposureVersion(
+      tx,
+      row.id,
+      {
+        validFrom: exposureValidFrom ?? todayInVienna(),
+        complete: Boolean(row.assetClassId),
+        source: 'instrument_edit',
+        weights: row.assetClassId ? [{ assetClassId: row.assetClassId, weightBp: 10000 }] : [],
+      },
+      grouped,
+    );
+    return row;
   });
 }
 
 export function updateSecurity(
   db: Executor,
   id: string,
-  patch: RowPatch<typeof security>,
+  patch: RowPatch<typeof security> & { exposureValidFrom?: string },
   ctx: AuditContext,
 ): SecurityRecord {
   return runInTransaction(db, (tx) => {
     checkRefs(tx, patch);
     checkIsin(tx, patch.isin, id);
-    return securityRepo.update(tx, id, patch, ctx);
+    const grouped = withGroup(ctx);
+    const { exposureValidFrom, ...metadata } = patch;
+    const row = securityRepo.update(tx, id, metadata, grouped);
+    if (patch.assetClassId !== undefined)
+      replaceExposureVersion(
+        tx,
+        id,
+        {
+          validFrom: exposureValidFrom ?? todayInVienna(),
+          complete: Boolean(patch.assetClassId),
+          source: 'instrument_edit',
+          weights: patch.assetClassId
+            ? [{ assetClassId: patch.assetClassId, weightBp: 10000 }]
+            : [],
+        },
+        grouped,
+      );
+    return row;
   });
 }
 
@@ -144,7 +178,15 @@ export function deleteAssetClass(db: Executor, id: string, ctx: AuditContext): v
       .from(security)
       .where(and(eq(security.assetClassId, id), isNull(security.deletedAt)))
       .get();
-    if (used) throw new ConflictError('Securities still belong to this asset class');
+    const exposure = tx
+      .select()
+      .from(securityAssetExposure)
+      .where(eq(securityAssetExposure.assetClassId, id))
+      .get();
+    if (used || exposure)
+      throw new ConflictError(
+        'Diese Anlageklasse wird noch von Wertpapieren oder deren Klassifikationshistorie verwendet.',
+      );
     assetClassRepo.softDelete(tx, id, ctx);
   });
 }
@@ -305,9 +347,8 @@ export function deleteTargetVersion(db: Executor, validFrom: string, ctx: AuditC
 export function assetClassesInUse(db: Executor): Set<string> {
   return new Set(
     db
-      .select({ id: security.assetClassId })
-      .from(security)
-      .where(and(isNull(security.deletedAt), isNotNull(security.assetClassId)))
+      .select({ id: securityAssetExposure.assetClassId })
+      .from(securityAssetExposure)
       .all()
       .map((r) => r.id as string),
   );

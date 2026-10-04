@@ -1,3 +1,4 @@
+import { exposuresAsOf, splitAssetExposure } from './asset-exposure';
 import { bookInputs } from './book-inputs';
 import {
   addDays,
@@ -15,6 +16,7 @@ import {
   targetNeed,
   todayInVienna,
   toEurCents,
+  contractVersionOn,
   versionOn,
   yearlyEquivalent,
   type AllocMonth,
@@ -317,8 +319,12 @@ export function scheduled(f: RuleFacts, from: string, to: string, asOf: string) 
 
 /** One occurrence's amount of a payment in force on `day` (EUR cents, positive), or 0. */
 function unitAmount(f: RuleFacts, p: PaymentRow, day: string): number {
-  if ((p.startDate && p.startDate > day) || (p.endDate && p.endDate < day)) return 0;
-  const v = versionOn(f.versions.get(p.id) ?? [], day);
+  // Same valuation as report 2.3: a payment whose first due date is ahead counts from setup.
+  const v = contractVersionOn(
+    { rhythm: p.rhythm as Rhythm, startDate: p.startDate, endDate: p.endDate },
+    f.versions.get(p.id) ?? [],
+    day,
+  );
   if (!v) return 0;
   if (v.currency === 'EUR') return v.amountCents;
   const rate = fxRateOnOrBefore(f.db, v.currency, day);
@@ -646,19 +652,22 @@ export function ruleInputs(
 
   // R13 to R15: positions valued on the day; platform ownership comes from the holding account.
   const institutionByAccount = new Map(accounts.map((a) => [a.id, a.institutionId]));
+  const exposures = exposuresAsOf(db, asOf);
   const positions: WealthPosition[] = holdingValuesAsOf(db, asOf).flatMap((h) => {
     const s = f.securities.get(h.securityId);
     if (!s) return [];
-    return [
-      {
-        id: `${h.accountId}:${h.securityId}`,
-        securityId: h.securityId,
-        kind: s.kind,
-        assetClass: s.assetClassId,
-        valueCents: h.valueCents,
-        platform: institutionByAccount.get(h.accountId) ?? null,
-      },
-    ];
+    const parts = splitAssetExposure(h.valueCents, exposures.get(h.securityId)?.weights ?? []);
+    return parts.map((part) => ({
+      id:
+        parts.length === 1
+          ? `${h.accountId}:${h.securityId}`
+          : `${h.accountId}:${h.securityId}:${part.assetClassId ?? ''}`,
+      securityId: h.securityId,
+      kind: s.kind,
+      assetClass: part.assetClassId,
+      valueCents: part.valueCents,
+      platform: institutionByAccount.get(h.accountId) ?? null,
+    }));
   });
   const classTargets: ClassTarget[] = [
     ...new Set(f.classTargets.map((t) => t.assetClassId)),

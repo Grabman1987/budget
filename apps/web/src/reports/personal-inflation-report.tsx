@@ -68,10 +68,18 @@ function Body({ data }: { data: InflationReport }) {
         <div className="sr-head">
           <h2 id="pi-empty">Noch kein Preisindex</h2>
         </div>
-        <p className="sr-empty" role="status">
-          Für eine Teuerung über zwölf Monate braucht der Report mindestens 13 geschlossene Monate
-          und Fixkosten mit Preis und Ausgaben im ersten Jahr der Aufzeichnung.
+        <p className="sr-empty" role="status" data-testid="pi-empty-reason">
+          {data.insufficientReason === 'months'
+            ? 'Für eine Teuerung über zwölf Monate braucht der Report mindestens 13 geschlossene Monate.'
+            : 'Für den eigenen Warenkorb braucht der Report Fixkosten mit Preis und Ausgaben im ersten Jahr der Aufzeichnung: eine erwartete Zahlung braucht dafür eine Preisversion, die in diesem Zeitraum beginnt.'}
         </p>
+        {data.referenceLatest ? (
+          <p className="sr-note" data-testid="pi-empty-reference">
+            Zum Vergleich: Der Verbraucherpreisindex (Statistik Austria) ändert sich im{' '}
+            {monthShort(data.referenceLatest.month)} um{' '}
+            {bpText(data.referenceLatest.changeBp, { sign: true })} gegenüber dem Vorjahresmonat.
+          </p>
+        ) : null}
       </section>
     );
   const maxPp = Math.max(1, ...data.contributions.map((c) => Math.abs(c.contributionBp)));

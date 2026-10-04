@@ -1,3 +1,4 @@
+import { exposuresAsOf, splitAssetExposure, singleAssetClass } from './asset-exposure';
 import {
   addMonths,
   allocationStatus,
@@ -499,6 +500,7 @@ export function positionLines(db: Executor, asOf: string): PositionLine[] {
     rates,
     costMethod,
   );
+  const exposure = exposuresAsOf(db, asOf);
   const bySecurity = new Map<string, PositionLine>();
   for (const h of values) {
     const sec = securities.get(h.securityId);
@@ -521,7 +523,7 @@ export function positionLines(db: Executor, asOf: string): PositionLine[] {
         securityId: sec.id,
         name: sec.name,
         kind: sec.kind,
-        assetClassId: sec.assetClassId,
+        assetClassId: singleAssetClass(exposure.get(sec.id)?.weights ?? []),
         institutionId: sec.institutionId ?? accountInstitution.get(h.accountId) ?? null,
         unitsE8: 0,
         valueCents: 0,
@@ -657,17 +659,27 @@ export type RiskPosition = Pick<PositionLine, 'securityId' | 'kind' | 'assetClas
 };
 
 /** The positions as the wealth domain sees them (kind and class, never the name). */
-export const toWealthPositions = (lines: ReadonlyArray<RiskPosition>): WealthPosition[] =>
-  lines.flatMap((line) =>
-    line.accounts.map((position) => ({
-      id: `${line.securityId}:${position.accountId}`,
-      securityId: line.securityId,
-      kind: line.kind,
-      assetClass: line.assetClassId,
-      valueCents: position.valueCents,
-      platform: position.institutionId,
-    })),
+export const toWealthPositions = (
+  db: Executor,
+  asOf: string,
+  lines: ReadonlyArray<RiskPosition>,
+): WealthPosition[] => {
+  const exposure = exposuresAsOf(db, asOf);
+  return lines.flatMap((line) =>
+    line.accounts.flatMap((position) =>
+      splitAssetExposure(position.valueCents, exposure.get(line.securityId)?.weights ?? []).map(
+        (part) => ({
+          id: `${line.securityId}:${position.accountId}:${part.assetClassId ?? ''}`,
+          securityId: line.securityId,
+          kind: line.kind,
+          assetClass: part.assetClassId,
+          valueCents: part.valueCents,
+          platform: position.institutionId,
+        }),
+      ),
+    ),
   );
+};
 
 /** R13 inputs: the Soll-Allocation valid on `asOf`. */
 export function classTargets(db: Executor, asOf: string) {
@@ -680,7 +692,7 @@ export function classTargets(db: Executor, asOf: string) {
 
 /** Allocation, cluster risk, R15 and the rebalancing rows of the positions on `asOf`. */
 export function riskOf(db: Executor, asOf: string, lines: ReadonlyArray<RiskPosition>) {
-  const positions = toWealthPositions(lines);
+  const positions = toWealthPositions(db, asOf, lines);
   const allocation = allocationStatus(positions, classTargets(db, asOf));
   const cluster = clusterRisk(positions);
   const speculative = speculativeShare(positions);
@@ -846,16 +858,10 @@ export function portfolioSummary(db: Executor, options: PortfolioOptions): Portf
       const groups = [...loaded.classNames].map(([assetClassId, name]) => ({
         assetClassId: assetClassId as string | null,
         name,
-        securityIds: [...loaded.securities.values()]
-          .filter((s) => s.assetClassId === assetClassId)
-          .map((s) => s.id),
       }));
-      const unclassified = [...loaded.securities.values()]
-        .filter((s) => s.assetClassId === null || !loaded.classNames.has(s.assetClassId))
-        .map((s) => s.id);
-      if (unclassified.length)
-        groups.push({ assetClassId: null, name: 'Ohne Anlageklasse', securityIds: unclassified });
+      groups.push({ assetClassId: null, name: 'Ohne Anlageklasse' });
       performanceHistory = portfolioPerformanceHistory(
+        db,
         { series: valuations, flows },
         performance,
         series,
@@ -1007,6 +1013,7 @@ export function portfolioSummary(db: Executor, options: PortfolioOptions): Portf
   const income = incomeLast12Months(allTrades, today);
 
   // ---- grouped by asset class and by platform ----
+  const classLines = exposurePositionLines(db, today, lines);
   const classOf = (l: PositionLine) => l.assetClassId ?? NO_CLASS;
   const classes: ClassGroup[] = risk.allocation.rows.map((row) => ({
     assetClassId: row.assetClass === NO_CLASS ? null : row.assetClass,
@@ -1016,7 +1023,7 @@ export function portfolioSummary(db: Executor, options: PortfolioOptions): Portf
     targetBp: row.targetBp,
     bandBp: row.bandBp,
     breach: row.breach,
-    positions: lines.filter((l) => classOf(l) === row.assetClass),
+    positions: classLines.filter((l) => classOf(l) === row.assetClass),
   }));
   const platformValuesByInstitution = new Map<string | null, number>();
   for (const line of lines) {
@@ -1068,4 +1075,39 @@ export function portfolioSummary(db: Executor, options: PortfolioOptions): Portf
       institutions: Object.fromEntries(loaded.institutions),
     },
   };
+}
+
+/** Class slices of product lines, conserving each account's value and keeping risk identity. */
+export function exposurePositionLines(
+  db: Executor,
+  day: string,
+  lines: readonly PositionLine[],
+): PositionLine[] {
+  const exposure = exposuresAsOf(db, day);
+  return lines.flatMap((line) => {
+    const weights = exposure.get(line.securityId)?.weights ?? [];
+    const accounts = line.accounts.flatMap((a) =>
+      splitAssetExposure(a.valueCents, weights).map((p) => ({ ...a, ...p })),
+    );
+    return splitAssetExposure(line.valueCents, weights).map((part) => {
+      const mine = accounts.filter((a) => a.assetClassId === part.assetClassId);
+      const valueCents = mine.reduce((sum, a) => sum + a.valueCents, 0);
+      const split = (value: number | null) =>
+        value === null
+          ? null
+          : splitAssetExposure(value, weights).find((p) => p.assetClassId === part.assetClassId)!
+              .valueCents;
+      return {
+        ...line,
+        assetClassId: part.assetClassId,
+        valueCents,
+        accounts: mine,
+        costCents: split(line.costCents),
+        gainCents: split(line.gainCents),
+        realizedGainCents: split(line.realizedGainCents) ?? 0,
+        shareBp:
+          line.valueCents > 0 ? Math.round((line.shareBp * valueCents) / line.valueCents) : 0,
+      };
+    });
+  });
 }

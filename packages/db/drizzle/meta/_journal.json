@@ -222,8 +222,15 @@
     {
       "idx": 31,
       "version": "6",
-      "when": 1791078026250,
-      "tag": "0031_assignment_rules",
+      "when": 1791075904183,
+      "tag": "0031_security_asset_exposure",
+      "breakpoints": true
+    },
+    {
+      "idx": 32,
+      "version": "6",
+      "when": 1791083495366,
+      "tag": "0032_assignment_rules",
       "breakpoints": true
     }
   ]

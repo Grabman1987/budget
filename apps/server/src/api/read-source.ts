@@ -5,6 +5,9 @@ import {
   listEntities,
   mapReadSource,
   readSourceMappings,
+  readSourceMatchSummary,
+  reconcileReadSource,
+  writesHeld,
   readSourceSince,
   readSourceState,
   setReadSourceSince,
@@ -13,7 +16,7 @@ import {
 } from '@budget/db';
 import type { ReadSource } from '@budget/domain';
 import { readSourceRunning, refreshReadSource } from '../sources/refresh';
-import { ACTOR, readBody } from './http';
+import { ACTOR, ApiError, readBody } from './http';
 
 export function readSourceRoutes(
   db: Db,
@@ -33,6 +36,7 @@ export function readSourceRoutes(
       balances,
       mappings: readSourceMappings(db),
       since: readSourceSince(db),
+      match: readSourceMatchSummary(db),
       accounts: accountSummaries(db, today())
         .filter((a) => !a.onBudget && !a.closedAt)
         .map(({ id, name, currency, type }) => ({ id, name, currency, type })),
@@ -42,6 +46,11 @@ export function readSourceRoutes(
   app.post('/refresh', stepUp, async (c) => {
     const body = await readBody(c, z.object({ fullHistory: z.boolean().optional() }).strict());
     return c.json(await refreshReadSource(db, source, new Date(), body.fullHistory));
+  });
+  app.post('/reconcile', stepUp, (c) => {
+    if (readSourceRunning(db) || writesHeld(db))
+      throw new ApiError(409, 'source_busy', 'Abruf oder Datenübernahme läuft bereits.');
+    return c.json(reconcileReadSource(db, { actor: ACTOR }));
   });
   app.put('/mapping', stepUp, async (c) => {
     const body = await readBody(

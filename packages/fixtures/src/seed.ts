@@ -74,6 +74,35 @@ export function seedDatabase(db: Db, ledger: SampleLedger = sampleLedger()): See
       }
       rows[key] = list.length;
     }
+    for (const sec of ledger.securities) {
+      if (!sec.assetClassId) continue;
+      const dates = [
+        ...ledger.trades.filter((r) => r.securityId === sec.id).map((r) => r.date),
+        ...ledger.holdings.filter((r) => r.securityId === sec.id).map((r) => r.asOf),
+      ].sort();
+      const validFrom = dates[0] ?? '2023-10-01';
+      const versionId = `fixture:${sec.id}`;
+      tx.insert(t.securityExposureVersion)
+        .values({
+          id: versionId,
+          securityId: sec.id,
+          validFrom,
+          complete: true,
+          source: 'synthetic_fixture',
+        })
+        .run();
+      tx.insert(t.securityAssetExposure)
+        .values({
+          id: versionId,
+          versionId,
+          securityId: sec.id,
+          assetClassId: sec.assetClassId,
+          validFrom,
+          weightBp: 10000,
+          source: 'synthetic_fixture',
+        })
+        .run();
+    }
     // Daily prices and USD rates between the month-end prices (fixture market sources).
     const daily = dailyMarketRows(ledger);
     insertChunks(tx, t.price, daily.prices);

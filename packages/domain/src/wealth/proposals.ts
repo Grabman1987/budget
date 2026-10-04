@@ -103,6 +103,7 @@ export interface SavingsPlan {
   name: string;
   kind: SecurityKind;
   assetClass: string | null;
+  exposures?: readonly { assetClassId: string; weightBp: number }[];
   /** Current monthly rate in cents. */
   monthlyCents: number;
 }
@@ -137,16 +138,18 @@ export interface SavingsPlanParams {
 }
 
 /** Split `amount` by `weights` (largest remainder, ties to the earlier entry; equal split if all weights are 0). */
-function apportion(amount: number, weights: ReadonlyArray<number>): number[] {
+function apportion(amount: number, weights: ReadonlyArray<number | bigint>): number[] {
   if (weights.length === 0) return [];
   const w = weights.every((x) => x <= 0)
-    ? weights.map(() => 1)
-    : weights.map((x) => Math.max(0, x));
-  const sum = w.reduce((a, b) => a + b, 0);
+    ? weights.map(() => 1n)
+    : weights.map((x) => (x > 0 ? BigInt(x) : 0n));
+  const sum = w.reduce((a, b) => a + b, 0n);
   const shares = w.map((x) => Math.floor(Number((BigInt(amount) * BigInt(x)) / BigInt(sum))));
-  const rems = w.map((x) => Number((BigInt(amount) * BigInt(x)) % BigInt(sum)));
+  const rems = w.map((x) => (BigInt(amount) * x) % sum);
   let missing = amount - shares.reduce((a, b) => a + b, 0);
-  const order = rems.map((r, i) => ({ r, i })).sort((a, b) => b.r - a.r || a.i - b.i);
+  const order = rems
+    .map((r, i) => ({ r, i }))
+    .sort((a, b) => (a.r === b.r ? a.i - b.i : a.r > b.r ? -1 : 1));
   for (const { i } of order) {
     if (missing <= 0) break;
     shares[i] = (shares[i] ?? 0) + 1;
@@ -189,16 +192,22 @@ export function savingsPlanProposal(
     note,
   });
 
-  const classOf = (p: SavingsPlan): string => p.assetClass ?? '';
-  const rowOf = (p: SavingsPlan): ClassRow | undefined =>
-    allocation.rows.find((r) => r.assetClass === classOf(p));
+  const weightOf = (p: SavingsPlan, cls: string): number =>
+    p.exposures === undefined
+      ? (p.assetClass ?? '') === cls
+        ? 10000
+        : 0
+      : cls === ''
+        ? 10000 - p.exposures.reduce((a, w) => a + w.weightBp, 0)
+        : (p.exposures.find((w) => w.assetClassId === cls)?.weightBp ?? 0);
+  const rowsOf = (p: SavingsPlan) => allocation.rows.filter((r) => weightOf(p, r.assetClass) > 0);
 
   const paused = new Map<string, PlanReason>();
   if (params.speculativeBreached) {
     for (const p of plans) if (SPECULATIVE_KINDS.has(p.kind)) paused.set(p.id, 'paused_r15');
   }
   const live = (): SavingsPlan[] => plans.filter((p) => !paused.has(p.id));
-  const hasPlan = (row: ClassRow): boolean => live().some((p) => classOf(p) === row.assetClass);
+  const hasPlan = (row: ClassRow): boolean => live().some((p) => weightOf(p, row.assetClass) > 0);
 
   // Receivers: under-band classes with a live plan; else every Soll-under class with a live plan.
   const breachedUnder = allocation.breaches.filter((r) => r.side === 'under' && r.gapCents > 0);
@@ -206,8 +215,12 @@ export function savingsPlanProposal(
 
   if (breachedUnder.some(hasPlan)) {
     for (const p of live()) {
-      const row = rowOf(p);
-      if (row?.breach && row.side === 'over') paused.set(p.id, 'paused_r13_over');
+      const rows = rowsOf(p);
+      if (
+        rows.reduce((sum, row) => sum + weightOf(p, row.assetClass), 0) === 10000 &&
+        rows.every((row) => row.breach && row.side === 'over')
+      )
+        paused.set(p.id, 'paused_r13_over');
     }
   }
   const receivers = (() => {
@@ -231,12 +244,12 @@ export function savingsPlanProposal(
       receivers.rows.map((r) => r.gapCents),
     );
     receivers.rows.forEach((row, i) => {
-      const members = remaining.filter((p) => classOf(p) === row.assetClass);
+      const members = remaining.filter((p) => weightOf(p, row.assetClass) > 0);
       const parts = apportion(
         classShare[i] ?? 0,
-        members.map((p) => p.monthlyCents),
+        members.map((p) => BigInt(p.monthlyCents) * BigInt(weightOf(p, row.assetClass))),
       );
-      members.forEach((p, j) => extra.set(p.id, parts[j] ?? 0));
+      members.forEach((p, j) => extra.set(p.id, (extra.get(p.id) ?? 0) + (parts[j] ?? 0)));
     });
     if (receivers.strict) steerTargets = new Set(receivers.rows.map((r) => r.assetClass));
   } else {
@@ -275,7 +288,10 @@ export function savingsPlanProposal(
     let why: PlanReason;
     if (reason) why = reason;
     else if (proposedCents === p.monthlyCents) why = 'unchanged';
-    else if (proposedCents > p.monthlyCents && steerTargets.has(classOf(p)))
+    else if (
+      proposedCents > p.monthlyCents &&
+      [...steerTargets].some((cls) => weightOf(p, cls) > 0)
+    )
       why = 'steer_r13_under';
     else if (
       proposedCents > p.monthlyCents &&
