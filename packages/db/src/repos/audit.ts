@@ -1,4 +1,5 @@
 import { assertExposureInvariants } from './asset-exposure';
+import { assertAssetClassName, assertAssetTargetInvariants } from './securities';
 import { assertLoanPlanInvariants } from './loan-planning';
 import { assertContactUndoDependencies } from './contact-invariants';
 import { isDuplicatePayslip } from '@budget/domain';
@@ -778,8 +779,15 @@ export function undo(
       )
     )
       assertExposureInvariants(tx);
+    if (
+      originals.some((e) =>
+        ['asset_class', 'asset_class_target', 'asset_target_version'].includes(e.entityType),
+      )
+    )
+      assertAssetTargetInvariants(tx);
     if (originals.some((e) => e.entityType === 'loan_rate_change')) assertLoanPlanInvariants(tx);
     for (const entry of originals.filter((e) => e.entityType === 'asset_class')) {
+      assertAssetClassName(tx, entry.entityId);
       const cls = tx
         .select()
         .from(schema.assetClass)

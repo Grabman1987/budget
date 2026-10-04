@@ -1,37 +1,23 @@
 import type { RebalanceProposal } from '@budget/domain';
 import { Button } from '@budget/ui';
 import { useQuery } from '@tanstack/react-query';
-import { useNavigate, useSearch } from '@tanstack/react-router';
+import { useNavigate } from '@tanstack/react-router';
 import { CheckCircle2 } from 'lucide-react';
 import { LoadingNote, ErrorNote } from '../ledger/states';
 import { eurWhole } from '../ledger/format';
 import { allocationQuery, type PortfolioAllocationView } from './allocation-api';
 import { percentText } from './portfolio-format';
-import { TargetPanel } from './target-panel';
 import { thresholdText } from '../rules/rules-model';
 import './allocation.css';
 
 export function PortfolioAllocation() {
   const query = useQuery(allocationQuery());
-  const search = useSearch({ strict: false }) as {
-    allokation?: string;
-    produkt?: string;
-    handel?: string;
-    sparplan?: string;
-  };
   const navigate = useNavigate();
-  const open =
-    search.allokation === 'ziele' && !search.produkt && !search.handel && !search.sparplan;
-  const select = (allokation?: string) =>
+  const select = () =>
     void navigate({
-      to: '/vermoegen/portfolio',
-      search: ((prev: Record<string, unknown>) => ({
-        ...prev,
-        allokation,
-        produkt: undefined,
-        handel: undefined,
-        sparplan: undefined,
-      })) as never,
+      to: '/einstellungen/anlageklassen',
+      search: { panel: 'sollquoten' },
+      state: { panelOpenedInApp: true },
     });
   const view = query.isError ? undefined : query.data;
   const risk = view?.risk;
@@ -155,7 +141,7 @@ export function PortfolioAllocation() {
               </ul>
             )}
             <div className="allocation-actions">
-              <Button variant="ghost" onClick={() => select('ziele')}>
+              <Button variant="ghost" onClick={() => select()}>
                 Sollquoten bearbeiten
               </Button>
             </div>
@@ -251,14 +237,6 @@ export function PortfolioAllocation() {
           </p>
         )}
       </section>
-      <TargetPanel
-        open={open}
-        onClose={() => select()}
-        view={view}
-        onRetry={() => void query.refetch()}
-        error={query.error}
-        pending={query.isPending}
-      />
     </>
   );
 }

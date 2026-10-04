@@ -1,5 +1,13 @@
 /** Panels that can be opened through the `?panel=` search param. */
-export const PANEL_IDS = ['posteingang', 'buchung', 'beispiel'] as const;
+export const PANEL_IDS = [
+  'posteingang',
+  'buchung',
+  'beispiel',
+  'anlageklasse',
+  'sollquoten',
+  'anlageklasse-archivieren',
+  'instrument',
+] as const;
 export type PanelId = (typeof PANEL_IDS)[number];
 
 export const isPanelId = (value: unknown): value is PanelId =>
@@ -13,6 +21,10 @@ export interface PanelDef {
 }
 
 export const PANELS: Record<PanelId, PanelDef> = {
+  anlageklasse: { title: 'Anlageklasse', fills: '', body: '' },
+  sollquoten: { title: 'Sollquoten', fills: '', body: '' },
+  'anlageklasse-archivieren': { title: 'Sollversion und Archivieren', fills: '', body: '' },
+  instrument: { title: 'Instrument', fills: '', body: '' },
   posteingang: {
     title: 'Posteingang',
     fills: 'P3 und P4',

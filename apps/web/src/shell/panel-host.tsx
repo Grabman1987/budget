@@ -5,6 +5,7 @@ import { useState } from 'react';
 import { BookingPanel } from '../ledger/booking-panel';
 import type { PanelSearch } from './panel-state';
 import { PANELS, type PanelId } from './panels';
+import { AssetClassSettingsPanel } from '../pages/asset-classes-settings';
 
 /**
  * Side panel (desktop) or bottom sheet (phone), driven by `?panel=`; the Posteingang is a large
@@ -51,6 +52,9 @@ export function PanelHost() {
   }
 
   if (shown === 'posteingang') return <InboxPanel open={panel === 'posteingang'} onClose={close} />;
+  if (['anlageklasse', 'sollquoten', 'anlageklasse-archivieren', 'instrument'].includes(shown))
+    return <AssetClassSettingsPanel open={panel === shown} onClose={close} mode={shown} />;
+  if (!import.meta.env.DEV && import.meta.env.MODE !== 'e2e') return null;
 
   return (
     <DetailPanel open={panel !== undefined} onClose={close} title={def.title}>

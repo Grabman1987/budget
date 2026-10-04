@@ -66,8 +66,18 @@ const rootRoute = createRootRoute({
     period?: HeutePeriod | undefined;
     zeitraum?: Period | undefined;
     trend?: boolean | undefined;
+    klasse?: string | undefined;
+    instrument?: string | undefined;
   } => ({
     panel: isPanelId(search['panel']) ? search['panel'] : undefined,
+    klasse:
+      typeof search['klasse'] === 'string' && search['klasse'].length <= 64
+        ? search['klasse']
+        : undefined,
+    instrument:
+      typeof search['instrument'] === 'string' && search['instrument'].length <= 64
+        ? search['instrument']
+        : undefined,
     monat: isMonth(search['monat']) ? search['monat'] : undefined,
     period:
       search['period'] === 'month' || search['period'] === 'payday' ? search['period'] : undefined,
@@ -130,6 +140,7 @@ const BUILT_PATHS = new Set<string>([
   KONTEN_SETTINGS_META.path,
   '/konten',
   '/einstellungen/projekte',
+  '/einstellungen/anlageklassen',
   '/konten/buchungen',
   '/konten/kontakte',
   '/konten/posteingang',
@@ -191,6 +202,15 @@ const projectsSettingsRoute = createRoute({
   path: '/einstellungen/projekte',
   staticData: { meta: PAGES.find((p) => p.path === '/einstellungen/projekte')! },
   component: lazyRouteComponent(() => import('./pages/project-settings'), 'ProjectSettings'),
+});
+const assetClassesSettingsRoute = createRoute({
+  getParentRoute: () => shellRoute,
+  path: '/einstellungen/anlageklassen',
+  staticData: { meta: PAGES.find((p) => p.path === '/einstellungen/anlageklassen')! },
+  component: lazyRouteComponent(
+    () => import('./pages/asset-classes-settings'),
+    'AssetClassesSettingsPage',
+  ),
 });
 const profileRoute = createRoute({
   getParentRoute: () => shellRoute,
@@ -475,6 +495,7 @@ const routeTree = rootRoute.addChildren([
     securityRoute,
     profileRoute,
     projectsSettingsRoute,
+    assetClassesSettingsRoute,
     investmentSettingsRoute,
     accountsSettingsRoute,
     categoriesRoute,
