@@ -1,4 +1,4 @@
-import { monthsBetween } from '../date';
+import { addDays, monthsBetween } from '../date';
 import { monthlyEquivalent, versionOn, yearlyEquivalent } from '../schedule';
 import type { Rhythm } from '../schedule';
 import { toEurCents } from '../invest/invest';
@@ -96,8 +96,39 @@ export interface ContractsOverview {
   unconvertedCount: number;
 }
 
-const inForce = (s: ContractSource, day: string) =>
-  !(s.startDate && s.startDate > day) && !(s.endDate && s.endDate < day);
+/** Days of one payment cycle (a month counted as 31), the horizon of a contract that starts soon. */
+const CYCLE_DAYS: Record<Rhythm, number> = {
+  monthly: 31,
+  quarterly: 93,
+  semiannual: 186,
+  yearly: 372,
+};
+
+/**
+ * The version a contract is valued with on `day`: the one in force, or - for a payment that has
+ * its first due date still ahead - its first version. Expected payments are often entered with the
+ * next due date as `startDate` and first `validFrom` (the schedule must not produce due dates in
+ * the past, so the start cannot be moved back), although the contract itself runs for years; such
+ * a payment is a contract from the day it is set up. Only a start within one payment cycle counts,
+ * a payment that begins far ahead is not a contract yet. `undefined` after the end date.
+ */
+export function contractVersionOn<V extends { validFrom: string }>(
+  payment: { rhythm: Rhythm; startDate: string | null; endDate: string | null },
+  versions: ReadonlyArray<V>,
+  day: string,
+): V | undefined {
+  if (payment.endDate && payment.endDate < day) return undefined;
+  const started = !(payment.startDate && payment.startDate > day);
+  const current = versionOn(versions, day);
+  if (current && started) return current;
+  const first = [...versions].sort((a, b) => a.validFrom.localeCompare(b.validFrom))[0];
+  if (!first) return undefined;
+  const begin = [payment.startDate ?? '', first.validFrom].sort().pop() as string;
+  if (begin > addDays(day, CYCLE_DAYS[payment.rhythm])) return undefined;
+  return current ?? first;
+}
+
+const inForce = (s: ContractSource, day: string) => !(s.endDate && s.endDate < day);
 
 function eurOf(
   cents: number,
@@ -135,8 +166,8 @@ export function contractsOverview(
   const items: ContractItem[] = [];
   for (const s of sources) {
     const binding = contractBinding(s);
-    if (!binding || !inForce(s, asOf)) continue;
-    const v = versionOn(s.versions, asOf);
+    if (!binding) continue;
+    const v = contractVersionOn(s, s.versions, asOf);
     if (!v) continue;
     const { eur, rate } = eurOf(v.amountCents, v.currency, asOf, fx);
     const changes = changesOf(s.versions);
@@ -226,7 +257,7 @@ export function contractSeries(
     const day = `${month}-15`;
     let total = 0;
     for (const s of fixed) {
-      if (!inForce(s, day)) continue;
+      if (!inForce(s, day) || (s.startDate && s.startDate > day)) continue;
       const v = versionOn(s.versions, day);
       if (!v) continue;
       const { eur } = eurOf(v.amountCents, v.currency, day, fx);
