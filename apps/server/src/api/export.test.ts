@@ -1,11 +1,13 @@
 /* eslint-disable @typescript-eslint/no-explicit-any -- CSV and ZIP are inspected as serialized data. */
 import {
   createBooking,
+  createAssetClass,
   createTestDatabase,
   createTransfer,
   holdingValuationExportAsOf,
   replaceExposureVersion,
   schema,
+  setTargets,
   type Db,
 } from '@budget/db';
 import { existsSync, mkdtempSync, readdirSync, statSync, writeFileSync } from 'node:fs';
@@ -482,6 +484,7 @@ describe('GET /api/export/csv.zip', () => {
       'accounts.csv',
       'asset_class_targets.csv',
       'asset_classes.csv',
+      'asset_target_policies.csv',
       'bookings.csv',
       'fx_rates.csv',
       'holdings.csv',
@@ -586,10 +589,42 @@ describe('GET /api/export/csv.zip', () => {
     ).toBe(true);
   });
 
+  it('exports version metadata, managed zero and investment tiers without losing the legacy CSV', async () => {
+    const ctx = { actor: 'test', today: TODAY };
+    const a = createAssetClass(db, { name: 'Export Aktien' }, ctx);
+    const b = createAssetClass(db, { name: 'Export Reserve' }, ctx);
+    const targets = [
+      { assetClassId: a.id, targetShareBp: 10000, bandBp: 0, bandMode: 'custom' as const },
+      { assetClassId: b.id, targetShareBp: 0, bandBp: 0, bandMode: 'standard' as const },
+    ];
+    const tiers = [
+      { upToCents: 1000000, targets },
+      { upToCents: null, targets: [{ assetClassId: b.id, targetShareBp: 10000 }] },
+    ];
+    setTargets(db, TODAY, targets, ctx, {
+      completeSnapshot: true,
+      label: 'Strategie Export',
+      reason: 'Synthetischer Test',
+      tiers,
+    });
+    const response = await app.request('/api/export/csv.zip');
+    expect(response.status).toBe(200);
+    const files = await readZip(Buffer.from(await response.arrayBuffer()));
+    const legacy = parseCsv(files.get('asset_class_targets.csv')!.toString('utf8'));
+    expect(legacy.slice(1)).toEqual([
+      [a.id, TODAY, '10000', '0'],
+      [b.id, TODAY, '0', '0'],
+    ]);
+    const policies = parseCsv(files.get('asset_target_policies.csv')!.toString('utf8'));
+    expect(policies[1]!.slice(0, 3)).toEqual([TODAY, 'Strategie Export', 'Synthetischer Test']);
+    expect(JSON.parse(policies[1]![4]!)).toEqual(targets);
+    expect(JSON.parse(policies[1]![5]!)).toEqual(tiers);
+  });
+
   it('returns header-only CSVs for an empty database', async () => {
     const response = await app.request('/api/export/csv.zip');
     const files = await readZip(Buffer.from(await response.arrayBuffer()));
-    expect(files.size).toBe(14);
+    expect(files.size).toBe(15);
     expect(parseCsv((files.get('accounts.csv') as Buffer).toString('utf8'))).toHaveLength(1);
     expect(parseCsv((files.get('prices.csv') as Buffer).toString('utf8'))).toHaveLength(1);
   });

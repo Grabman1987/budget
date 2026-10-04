@@ -100,9 +100,11 @@ export function TabBar({ area }: { area: AreaId | undefined }) {
         })}
       </nav>
       <GlobalSearch mobile />
-      <PanelLink className="fab" panel="buchung" aria-label="Buchung erfassen">
-        <Plus size={26} strokeWidth={2} aria-hidden="true" />
-      </PanelLink>
+      <nav aria-label="Schnellerfassung">
+        <PanelLink className="fab" panel="buchung" aria-label="Buchung erfassen">
+          <Plus size={26} strokeWidth={2} aria-hidden="true" />
+        </PanelLink>
+      </nav>
     </>
   );
 }

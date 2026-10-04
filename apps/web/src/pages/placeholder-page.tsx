@@ -5,7 +5,6 @@ import type { PageMeta } from '../nav/pages';
 import { AppLink } from '../shell/app-link';
 import { AreaHead } from './area-head';
 import { SettingsBack, SettingsNav } from './settings-nav';
-import { PanelLink } from '../shell/panel-link';
 import { Link } from '@tanstack/react-router';
 import type { HeutePeriod } from '../heute/api';
 
@@ -136,24 +135,9 @@ export function PageFrame({
  */
 export function PlaceholderPage({ meta, title, extraFields, children }: PlaceholderPageProps) {
   return (
-    <PageFrame
-      meta={meta}
-      {...(title ? { title } : {})}
-      {...(extraFields ? { extraFields } : {})}
-      placeholder
-    >
+    <PageFrame meta={meta} {...(title ? { title } : {})} {...(extraFields ? { extraFields } : {})}>
       <section className="placeholder" aria-labelledby="placeholder-title">
-        <SectionHead id="placeholder-title" title="Noch nicht gebaut" />
-        <p>
-          Diese Ansicht wird im Paket <strong>{meta.fills}</strong> gefüllt. Bis dahin steht hier
-          nur der Rahmen: Schriftfeld, Register und die Adresse der Ansicht.
-        </p>
-        <p className="text-muted">Vorgesehen laut Spezifikation: {meta.spec}</p>
-        <p>
-          <PanelLink panel="beispiel" className="btn btn-ghost btn-sm">
-            Seitenpanel testen
-          </PanelLink>
-        </p>
+        <SectionHead id="placeholder-title" title={meta.title} />
         {children}
       </section>
     </PageFrame>

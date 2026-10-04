@@ -1,10 +1,10 @@
 import { resolvePortfolioRiskPolicy, type PortfolioRiskPolicy } from './portfolio-risk-policy';
 import { allocationInputsAsOf } from './allocation-inputs';
 import type { AllocationQuality } from '@budget/domain';
-import { defaultBandBp } from '@budget/domain';
+import { resolvedBandBp } from '@budget/domain';
 import { isNull } from 'drizzle-orm';
 import { institution, security } from '../schema';
-import { listAssetClasses, targetsAsOf } from './securities';
+import { listAssetClasses } from './securities';
 import { riskOf } from './portfolio-summary';
 import type { Executor } from './types';
 
@@ -40,8 +40,8 @@ export function portfolioAllocation(db: Executor, asOf: string): PortfolioAlloca
       .all()
       .map((row) => [row.id, row]),
   );
-  const policy = resolvePortfolioRiskPolicy(db, asOf);
-  const targets = new Map(targetsAsOf(db, asOf).map((row) => [row.assetClassId, row]));
+  const policy = resolvePortfolioRiskPolicy(db, asOf, current.valueCents);
+  const targets = new Map(policy.targets.map((row) => [row.assetClass, row]));
   const status =
     current.valueCents === null
       ? 'unavailable'
@@ -70,9 +70,9 @@ export function portfolioAllocation(db: Executor, asOf: string): PortfolioAlloca
       return {
         id: row.id,
         name: row.name,
-        targetBp: target?.targetShareBp ?? null,
-        bandBp: target ? target.bandBp || defaultBandBp(target.targetShareBp, policy.R13) : null,
-        validFrom: target?.validFrom ?? null,
+        targetBp: target?.targetBp ?? null,
+        bandBp: target ? resolvedBandBp(target, policy.R13) : null,
+        validFrom: target ? policy.targetValidFrom : null,
       };
     }),
     risk: status === 'known' ? riskOf(db, asOf) : null,

@@ -23,8 +23,8 @@ const FOCUSABLE =
 
 /**
  * The control the last tap or click landed on. Safari (macOS and iOS) does not focus a button or
- * link that is clicked, so at the moment a panel opens `document.activeElement` is the body and the
- * native dialog has nothing to give the focus back to. The panel then remembers this control
+ * link that is clicked, so at the moment a panel opens `document.activeElement` can be the body
+ * or an earlier navigation control. The panel remembers the actual opener
  * instead (only a recent one: a panel opened by a deep link has no trigger).
  */
 let lastPointerTrigger: { element: Element; at: number } | undefined;
@@ -39,14 +39,14 @@ if (typeof document !== 'undefined') {
 }
 const TRIGGER_MAX_AGE_MS = 2000;
 
-/** Where the focus returns when the dialog closes: the focused control or the recent trigger. */
+/** A recent connected trigger wins: Safari can leave focus on an earlier navigation control. */
 function focusReturnTarget(): HTMLElement | null {
-  const active = document.activeElement;
-  if (active instanceof HTMLElement && active !== document.body) return active;
   if (lastPointerTrigger && Date.now() - lastPointerTrigger.at < TRIGGER_MAX_AGE_MS) {
     const el = lastPointerTrigger.element;
-    if (el instanceof HTMLElement) return el;
+    if (el instanceof HTMLElement && el.isConnected) return el;
   }
+  const active = document.activeElement;
+  if (active instanceof HTMLElement && active !== document.body) return active;
   return null;
 }
 
@@ -104,11 +104,8 @@ function Overlay({
     const target = returnTo.current;
     returnTo.current = null;
     if (!target || !target.isConnected) return;
-    const active = document.activeElement;
-    // Focus that still sits on the dialog (it is displayed through the exit transition) is no
-    // reason to stay; focus that went to another control of the page is.
-    const inDialog = active !== null && Boolean(ref.current?.contains(active));
-    if (active && active !== document.body && !inDialog && active !== target) return;
+    // Native WebKit can restore the previously active main/navigation control because tapping
+    // the actual opener did not focus it. Always return to our captured, connected trigger.
     target.focus({ preventScroll: true });
   };
 

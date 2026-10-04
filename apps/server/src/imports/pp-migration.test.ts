@@ -8,6 +8,7 @@ import {
   INCOME_TYPES,
   createBooking,
   createTestDatabase,
+  listAssetClasses,
   importRun,
   price,
   security,
@@ -234,6 +235,7 @@ describe('idempotent re-run and revert', () => {
   it('reverts the newest run as a whole and the same file commits again', () => {
     const idA = stage();
     run({ kind: 'commit', runId: idA });
+    const classIds = listAssetClasses(db).map((c) => c.id);
     const before = {
       trades: live(trade).length,
       bookings: liveBookings().length,
@@ -257,6 +259,8 @@ describe('idempotent re-run and revert', () => {
     // Retired keys: the same file commits again with the same result.
     const idC = stage();
     const again = run({ kind: 'commit', runId: idC });
+    expect(listAssetClasses(db).map((c) => c.id)).toEqual(classIds);
+    expect(again['change'].assetClasses.created).toBe(0);
     expect(again['change'].trades.added).toBe(before.trades);
     expect(liveBookings()).toHaveLength(before.bookings);
     expect(accountBalances(db, TODAY)).toEqual(before.balance);

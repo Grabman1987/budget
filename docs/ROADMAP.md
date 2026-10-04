@@ -522,3 +522,15 @@ Scope and shared definitions: [report correctness](report-correctness.md).
 - [x] One valuation: months are read with `netWorthAsOf` (same as Vermögen › Nettovermögen); pure split in `packages/domain/src/ledger/assets-debts.ts`; estimated/missing prices flag the month and show `ValuationHint`.
 - [x] Domain unit tests (loans, credit cards, negative cash accounts, zero start), API tests (controlled accounts, equality with `/api/wealth/networth`, valuation quality, no accounts), Playwright desktop/mobile with axe light/dark and overflow checks.
 - [ ] Owner design acceptance on real data.
+### Owner directive PR4 — Asset class settings (2026-10-04)
+
+- [x] Replace `/einstellungen/anlageklassen` placeholder; shared server values/quality, desktop table/mobile stacked rows and URL-driven PanelHost details.
+- [x] Create/rename/order, safe archive/restore and dated instrument-editor reuse; German field errors and audit/undo/redo.
+- [x] One Settings target editor linked from Portfolio; complete exact-100% versions, unmanaged/null versus managed zero, standard/custom bands and optional label/reason.
+- [x] Editable investment-sum tiers in the shared risk resolver; signed cash, inclusive cent boundaries and independent report month-ends.
+- [x] Atomic replacement target version plus retirement, current/future/tier/history/cash dependency guards; undo cannot bypass them.
+- [x] Drizzle-generated additive 0035, representative-main migration/backup regression, complete-policy ZIP export and release note.
+- [x] Final local check/build and page-specific desktop/mobile/WebKit acceptance evidence (304 suites / 2922 unit tests; 95 browser tests).
+- [ ] PR/CI review, Docker/encrypted restore gates, real-iPhone owner checklist and production reconciliation/deployment.
+
+Contract and baseline matrix: [asset-class settings](asset-classes-settings.md).

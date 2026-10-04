@@ -57,6 +57,21 @@ export const assetClass = sqliteTable('asset_class', {
   ...timestamps(),
 });
 
+/** Complete managed universe and optional investment-sum tiers. Legacy rows remain untouched. */
+export const assetTargetVersion = sqliteTable(
+  'asset_target_version',
+  {
+    id: id(),
+    validFrom: text('valid_from').notNull().unique(),
+    label: text('label'),
+    reason: text('reason'),
+    policyJson: text('policy_json').notNull(),
+    auditGroupId: text('audit_group_id'),
+    ...timestamps(),
+  },
+  (t) => [isoDay('asset_target_version_day_chk', t.validFrom)],
+);
+
 /**
  * Soll-Allocation of an asset class from `valid_from` on (versioned, rule R13): target share and
  * the tolerance band around it, both in basis points (10 000 = 100 %).

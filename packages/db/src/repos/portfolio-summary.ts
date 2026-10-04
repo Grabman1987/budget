@@ -662,8 +662,8 @@ export function classTargets(db: Executor, asOf: string) {
 
 /** Allocation, cluster risk, R15 and the rebalancing rows of the positions on `asOf`. */
 export function riskOf(db: Executor, asOf: string) {
-  const { positions, quality } = allocationInputsAsOf(db, asOf);
-  const policy = resolvePortfolioRiskPolicy(db, asOf);
+  const { positions, quality, valueCents } = allocationInputsAsOf(db, asOf);
+  const policy = resolvePortfolioRiskPolicy(db, asOf, valueCents);
   const allocation = allocationStatus(positions, policy.targets, policy.R13);
   const cluster = clusterRisk(positions, policy.R14);
   const speculative = speculativeShare(positions, policy.R15.limitBp);

@@ -307,3 +307,4 @@ also invalidate integrated Heute reads. Bank/assignment suggestion decisions rem
 See [the detail currency contract](fx-account-detail.md) for native cents, dated
 EUR display valuations, cash history, movement totals and reconciliation semantics.
 These projections do not change native reconciliation or book anything on read.
+PR4 asset classes: `GET /api/asset-classes/settings` reuses Portfolio's projection; optional `?deleted=1` includes archived definitions. Audited create/rename/order, safe archive and `POST /api/asset-classes/:id/restore` have German validation. Target PUT accepts complete managed snapshots, optional label/reason, investment-sum tiers (`upToCents`, final null), explicit band mode and atomic `archiveClassId`. Exact sums and lifecycle checks also apply to undo. Contract: [asset-class settings](asset-classes-settings.md).

@@ -78,3 +78,4 @@ export * from './asset-exposure';
 export * from './portfolio-risk-policy';
 
 export * from './loan-planning';
+export * from './asset-classes-settings';

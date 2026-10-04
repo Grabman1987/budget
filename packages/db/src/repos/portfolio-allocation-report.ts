@@ -121,7 +121,9 @@ export function allocationReport(db: Executor, options: { today: string }): Allo
       .all()
       .map((s) => [s.id, s]),
   );
-  const classNames = new Map(listAssetClasses(db).map((c) => [c.id, c.name]));
+  const classNames = new Map(
+    listAssetClasses(db, { includeDeleted: true }).map((c) => [c.id, c.name]),
+  );
   const className = (key: string) => classNames.get(key) ?? 'Ohne Anlageklasse';
   const accountNames = new Map(
     db
@@ -247,7 +249,7 @@ export function allocationReport(db: Executor, options: { today: string }): Allo
       const input = allocationInputsAsOf(db, date);
       if (input.valueCents === null) throwAllocationUnavailable(input, date);
       quality.push(input.quality);
-      const policy = resolvePortfolioRiskPolicy(db, date);
+      const policy = resolvePortfolioRiskPolicy(db, date, input.valueCents);
       return { date, positions: input.positions, targets: policy.targets, bandPolicy: policy.R13 };
     });
     const timeline = allocationTimeline(snapshots);

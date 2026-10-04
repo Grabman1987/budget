@@ -18,6 +18,7 @@ import {
   insertManyTracked,
   insertRows,
   listAssetClasses,
+  restoreAssetClass,
   price,
   priceAudit,
   runInTransaction,
@@ -528,8 +529,9 @@ export function writePp(
     if (t.referenceAccountId !== null && current.get(t.accountId) !== t.referenceAccountId)
       updateTracked(tx, account, [t.accountId], { referenceAccountId: t.referenceAccountId }, ctx);
 
-  // Asset classes by name (created when missing).
-  const classes = new Map(listAssetClasses(tx).map((c) => [norm(c.name), c.id]));
+  // Reuse archived definitions too: reverting an import must remain safely repeatable.
+  const definitions = listAssetClasses(tx, { includeDeleted: true });
+  const classes = new Map(definitions.filter((c) => !c.deletedAt).map((c) => [norm(c.name), c.id]));
   const wanted = [
     ...new Set(
       prep.securities.flatMap((s) => (s.action !== 'skip' && s.assetClass ? [s.assetClass] : [])),
@@ -537,6 +539,12 @@ export function writePp(
   ].sort();
   for (const name of wanted) {
     if (classes.has(norm(name))) continue;
+    const archived = definitions.find((c) => c.deletedAt && norm(c.name) === norm(name));
+    if (archived) {
+      restoreAssetClass(tx, archived.id, ctx);
+      classes.set(norm(name), archived.id);
+      continue;
+    }
     const row = createAssetClass(tx, { name, sortOrder: classes.size }, ctx);
     classes.set(norm(name), row.id);
     report.assetClasses.created += 1;

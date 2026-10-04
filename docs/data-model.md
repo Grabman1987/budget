@@ -1,5 +1,7 @@
 # Data model (schema v2)
 
+PR4 adds only `asset_target_version` in generated migration 0035: unique inclusive date, optional label/reason, complete JSON managed targets/tiers, timestamps and audit group. Legacy targets remain unchanged on migration; explicit same-day replacement is audited and exactly undoable. Tier thresholds are integer cents, target/band values integer bp; null/unmanaged is omission, explicit 0 stays managed. See [settings model/API](asset-classes-settings.md).
+
 PR3 adds account allocation_scope (included/excluded/default), account allocation_asset_class_id (optional deliberate cash/P2P class), and security allocation_included (default true). Drizzle migration 0033, following main's 0032_assignment_rules, freezes initial membership from types/settlement links while preserving all original source columns. Membership/cash class is current metadata; dated security exposures remain historical. No balances or trades are rewritten. See [allocation quality/scope](allocation-quality-scope.md).
 
 Effective-dated security classification is stored in `security_exposure_version` and its weighted `security_asset_exposure` members. Inclusive dates, explicit incomplete sets, largest-remainder cents, audit/undo and the legacy seed-date assumption are defined in [historical asset exposure](asset-exposure.md). `security.asset_class_id` remains compatibility metadata; financial readers resolve versions at their own valuation date.

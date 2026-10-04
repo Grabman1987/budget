@@ -653,7 +653,7 @@ describe('securities and asset classes', () => {
   it('target versions add up to 10 000 bp, replace per day, and end the share of a dropped class', () => {
     expect(() =>
       setTargets(db, '2026-01-01', [{ assetClassId: 'ac1', targetShareBp: 9_000 }], testCtx),
-    ).toThrow(/10 000/);
+    ).toThrow(/100,00 %/);
     setTargets(
       db,
       '2026-01-01',
@@ -701,7 +701,7 @@ describe('securities and asset classes', () => {
         ],
         testCtx,
       ),
-    ).toThrow(/twice/);
+    ).toThrow(/doppelt/);
     deleteTargetVersion(db, '2026-07-01', testCtx);
     expect(targetsAsOf(db, '2026-12-31').map((t) => t.targetShareBp)).toEqual([8_000, 2_000]);
   });

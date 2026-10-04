@@ -1,143 +1,102 @@
-import { parseScaledDecimal } from '@budget/domain';
-import {
-  Button,
-  DetailPanel,
-  Field,
-  Select,
-  TextInput,
-  useToast,
-  maskMoneyText,
-  useAmountPrivacy,
-} from '@budget/ui';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
+import { defaultBandBp, parseScaledDecimal, type ManagedTarget } from '@budget/domain';
+import { Button, DetailPanel, Field, Select, TextInput, maskMoneyText } from '@budget/ui';
 import { useBlocker } from '@tanstack/react-router';
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import { request } from '../api/http';
-import { undoGroup } from '../ledger/api';
 import { errorText } from '../ledger/labels';
-import { ErrorNote, LoadingNote } from '../ledger/states';
-import { thresholdText } from '../rules/rules-model';
-import {
-  targetVersionsQuery,
-  type PortfolioAllocationView,
-  type TargetVersion,
-} from './allocation-api';
+import { useAssetWrite } from '../pages/asset-classes-api';
+import type { PortfolioAllocationView, TargetVersion } from './allocation-api';
 
-type Draft = { validFrom: string; shares: Record<string, string>; bands: Record<string, number> };
-const bpText = (bp: number) => (bp / 100).toFixed(2).replace('.', ',');
-const readBp = (value: string) => {
+export const bpText = (bp: number) =>
+  `${bp < 0 ? '−' : ''}${(Math.abs(bp) / 100).toFixed(2).replace('.', ',')}`;
+export function readBp(value: string) {
   const raw = value.trim().replace(',', '.');
   if (!/^\d{1,3}(\.\d{1,2})?$/.test(raw)) return null;
   const bp = parseScaledDecimal(raw, 2);
-  return bp >= 0 && bp <= 10_000 ? bp : null;
-};
-function draftFor(view: PortfolioAllocationView, versions: TargetVersion[], day: string): Draft {
-  const rows = new Map(
-    versions
-      .filter((version) => version.validFrom <= day)
-      .flatMap((version) => version.targets.map((row) => [row.assetClassId, row] as const)),
-  );
-  return {
-    validFrom: day,
-    shares: Object.fromEntries(
-      view.classes.map((cls) => [cls.id, bpText(rows.get(cls.id)?.targetShareBp ?? 0)]),
-    ),
-    bands: Object.fromEntries(view.classes.map((cls) => [cls.id, rows.get(cls.id)?.bandBp ?? 0])),
-  };
+  return bp <= 10000 ? bp : null;
 }
-
-export function TargetPanel({
+export type EditorControls = {
+  onDirty: (value: boolean) => void;
+  onBusy: (value: boolean) => void;
+  onSaved: () => void;
+};
+/** One URL-driven shell for class and policy forms, including Back/dirty/pending-save guards. */
+export function AssetSettingsPanel({
   open,
   onClose,
-  view,
-  onRetry,
-  pending,
-  error,
+  title,
+  children,
 }: {
   open: boolean;
   onClose: () => void;
-  view: PortfolioAllocationView | undefined;
-  onRetry: () => void;
-  pending: boolean;
-  error: unknown;
+  title: string;
+  children: (controls: EditorControls) => ReactNode;
 }) {
-  useAmountPrivacy();
-  const versions = useQuery({ ...targetVersionsQuery(), enabled: open });
-  const dirtyRef = useRef({ target: false, cls: false });
-  const busyRef = useRef(false);
-  const blockedDuringSave = useRef(false);
-  const setTargetDirty = useCallback((value: boolean) => {
-    dirtyRef.current.target = value;
-  }, []);
-  const setClassDirty = useCallback((value: boolean) => {
-    dirtyRef.current.cls = value;
-  }, []);
-  const [busy, setBusy] = useState(false);
-  const [asking, setAsking] = useState(false);
-  const setBusyNow = useCallback((value: boolean) => {
-    busyRef.current = value;
-    setBusy(value);
-  }, []);
+  const dirty = useRef(false),
+    saving = useRef(false),
+    blockedSaving = useRef(false);
+  const content = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    // Changing URL-driven editors keeps the same dialog and its original return target. If the
+    // focused editor control was removed, move focus to the persistent close button.
+    const dialog = content.current?.closest('dialog');
+    if (open && dialog?.open && !dialog.contains(document.activeElement))
+      dialog.querySelector<HTMLButtonElement>('.panel-head button')?.focus();
+  }, [open, title]);
+  const [busy, setBusy] = useState(false),
+    [asking, setAsking] = useState(false);
   const blocker = useBlocker({
     shouldBlockFn: () => {
-      if (busyRef.current) blockedDuringSave.current = true;
-      return busyRef.current || dirtyRef.current.target || dirtyRef.current.cls;
+      if (saving.current) blockedSaving.current = true;
+      return saving.current || dirty.current;
     },
     withResolver: true,
-    enableBeforeUnload: () => busyRef.current || dirtyRef.current.target || dirtyRef.current.cls,
+    enableBeforeUnload: () => saving.current || dirty.current,
   });
   const { status, reset } = blocker;
   useEffect(() => {
     if (status !== 'blocked') return;
-    if (blockedDuringSave.current || busyRef.current) {
-      blockedDuringSave.current = false;
-      setAsking(false);
+    if (blockedSaving.current || saving.current) {
+      blockedSaving.current = false;
       reset();
-      return;
-    }
-    setAsking(true);
+    } else setAsking(true);
   }, [status, reset, busy]);
-  const close = () => {
-    setTargetDirty(false);
-    setClassDirty(false);
+  const onDirty = useCallback((value: boolean) => {
+    dirty.current = value;
+  }, []);
+  const onBusy = useCallback((value: boolean) => {
+    saving.current = value;
+    setBusy(value);
+  }, []);
+  const close = useCallback(() => {
+    dirty.current = false;
+    saving.current = false;
     setAsking(false);
-    setBusyNow(false);
     onClose();
-  };
+  }, [onClose]);
   return (
     <DetailPanel
       open={open}
-      title="Sollquoten bearbeiten"
+      title={title}
       onClose={close}
       beforeClose={() => {
-        if (busyRef.current || blocker.status === 'blocked') return false;
-        if (!dirtyRef.current.target && !dirtyRef.current.cls) return true;
+        if (saving.current || blocker.status === 'blocked') return false;
+        if (!dirty.current) return true;
         setAsking(true);
         return false;
       }}
     >
-      {(pending || versions.isPending) && <LoadingNote what="Sollquoten" />}
-      {!!error && <ErrorNote what="Anlageklassen" error={error} onRetry={onRetry} />}
-      {versions.isError && (
-        <ErrorNote
-          what="Zielversionen"
-          error={versions.error}
-          onRetry={() => void versions.refetch()}
-        />
-      )}
-      {view && !error && versions.data && !versions.isError && (
-        <TargetEditor
-          view={view}
-          versions={versions.data.versions}
-          onDirty={setTargetDirty}
-          onClassDirty={setClassDirty}
-          onBusy={setBusyNow}
-          onSaved={close}
-        />
-      )}
+      <div ref={content}>
+        {/* eslint-disable-next-line react-hooks/refs -- These are event callbacks; the render prop only passes them to editors, never invokes them during render. */}
+        {children({
+          onDirty,
+          onBusy,
+          onSaved: close,
+        })}
+      </div>
       {asking && (
         <div className="instrument-discard" role="alert">
-          <p>Ungespeicherte Sollquoten oder Klassenangaben verwerfen?</p>
+          <p>Ungespeicherte Änderungen verwerfen?</p>
           <Button
             variant="ghost"
             onClick={() => {
@@ -150,12 +109,10 @@ export function TargetPanel({
           <Button
             disabled={busy}
             onClick={() => {
-              if (blocker.status === 'blocked') {
-                setTargetDirty(false);
-                setClassDirty(false);
-                setAsking(false);
-                blocker.proceed();
-              } else close();
+              dirty.current = false;
+              setAsking(false);
+              if (blocker.status === 'blocked') blocker.proceed();
+              else close();
             }}
           >
             Verwerfen
@@ -165,250 +122,459 @@ export function TargetPanel({
     </DetailPanel>
   );
 }
-function TargetEditor({
+type Entry = { included: boolean; share: string; bandMode: 'standard' | 'custom'; band: string };
+type TierDraft = { limit: string; entries: Record<string, Entry> };
+function entriesFor(view: PortfolioAllocationView, targets: ManagedTarget[]) {
+  return Object.fromEntries(
+    view.classes.map((c) => {
+      const t = targets.find((t) => t.assetClassId === c.id);
+      return [
+        c.id,
+        {
+          included: !!t,
+          share: bpText(t?.targetShareBp ?? 0),
+          bandMode: t?.bandMode ?? (t?.bandBp ? 'custom' : 'standard'),
+          band: bpText(t?.bandBp ?? 0),
+        },
+      ];
+    }),
+  );
+}
+export function TargetEditor({
   view,
   versions,
-  onDirty,
-  onClassDirty,
-  onBusy,
-  onSaved,
-}: {
+  archiveClassId,
+  ...controls
+}: EditorControls & {
   view: PortfolioAllocationView;
   versions: TargetVersion[];
-  onDirty: (value: boolean) => void;
-  onClassDirty: (value: boolean) => void;
-  onBusy: (value: boolean) => void;
-  onSaved: () => void;
+  archiveClassId?: string | undefined;
 }) {
-  useAmountPrivacy();
-  const [original, setOriginal] = useState(() => draftFor(view, versions, view.asOf));
-  const [draft, setDraft] = useState(original);
-  const [template, setTemplate] = useState(view.asOf);
-  const [wantedTemplate, setWantedTemplate] = useState<string>();
-  const [className, setClassName] = useState('');
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string>();
+  const initial = versions.filter((v) => v.validFrom <= view.asOf).at(-1);
+  const [date, setDate] = useState(view.asOf),
+    [label, setLabel] = useState(initial?.label ?? ''),
+    [reason, setReason] = useState(initial?.reason ?? '');
+  const [tiers, setTiers] = useState<TierDraft[]>(() =>
+    initial?.tiers.length
+      ? initial.tiers.map((t) => ({
+          limit: t.upToCents === null ? '' : bpText(t.upToCents),
+          entries: entriesFor(view, t.targets),
+        }))
+      : [{ limit: '', entries: entriesFor(view, initial?.targets ?? []) }],
+  );
+  const [dynamic, setDynamic] = useState(!!initial?.tiers.length),
+    [selected, setSelected] = useState(0),
+    [busy, setBusy] = useState(false);
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [dirty, setDirty] = useState(false);
+  const [wantedTemplate, setWantedTemplate] = useState<TargetVersion | null>(null);
   const saving = useRef(false);
-  const qc = useQueryClient();
-  const toast = useToast();
-  const dirty = JSON.stringify(draft) !== JSON.stringify(original);
-  const shares = view.classes.map((cls) => readBp(draft.shares[cls.id] ?? '0'));
-  const sum = shares.some((value) => value === null)
-    ? null
-    : shares.reduce<number>((a, value) => a + (value ?? 0), 0);
-  const update = (next: Draft) => {
-    setDraft(next);
-    setError(undefined);
-    onDirty(JSON.stringify(next) !== JSON.stringify(original));
+  const write = useAssetWrite();
+  const changed = () => {
+    setDirty(true);
+    controls.onDirty(true);
+    setErrors({});
   };
-  const load = (day: string) => {
-    const next = draftFor(view, versions, day);
-    setDraft(next);
-    setOriginal(next);
-    setTemplate(day);
-    setWantedTemplate(undefined);
-    onDirty(false);
-    setError(undefined);
-  };
-  const reverse = (groupId: string, redo = false) =>
-    void undoGroup(groupId).then(
-      async (result) => {
-        await qc.invalidateQueries();
-        toast.show({
-          message: redo ? 'Wiederholt.' : 'Rückgängig gemacht.',
-          actionLabel: redo ? 'Rückgängig' : 'Wiederholen',
-          onAction: () => reverse(result.groupId, !redo),
-        });
-      },
-      (reason: unknown) =>
-        toast.show({
-          message: `${redo ? 'Wiederholen' : 'Rückgängig'} nicht möglich. ${errorText(reason)}`,
-        }),
+  const update = (id: string, patch: Partial<Entry>) => {
+    changed();
+    setTiers(
+      tiers.map((t, i) =>
+        i !== selected
+          ? t
+          : { ...t, entries: { ...t.entries, [id]: { ...t.entries[id]!, ...patch } } },
+      ),
     );
-  const write = async (event: FormEvent, createClass = false) => {
-    event.preventDefault();
+  };
+  const load = (v: TargetVersion) => {
+    changed();
+    setWantedTemplate(null);
+    setDate(v.validFrom);
+    setLabel(v.label ?? '');
+    setReason(v.reason ?? '');
+    setDynamic(!!v.tiers.length);
+    setSelected(0);
+    setTiers(
+      v.tiers.length
+        ? v.tiers.map((t) => ({
+            limit: t.upToCents === null ? '' : bpText(t.upToCents),
+            entries: entriesFor(view, t.targets),
+          }))
+        : [{ limit: '', entries: entriesFor(view, v.targets) }],
+    );
+  };
+  const sums = tiers.map((tier) =>
+    Object.values(tier.entries)
+      .filter((e) => e.included)
+      .reduce((sum, e) => sum + (readBp(e.share) ?? 0), 0),
+  );
+  const save = async () => {
     if (saving.current) return;
+    const nextErrors: Record<string, string> = {};
     if (
-      createClass
-        ? !className.trim()
-        : sum !== 10_000 || view.classes.length === 0 || view.classes.length > 50
-    ) {
-      setError(
-        createClass
-          ? 'Namen für die Anlageklasse eingeben.'
-          : 'Sollquoten müssen zusammen genau 100,00 % ergeben (höchstens 50 Klassen).',
-      );
-      return;
-    }
-    if (
-      !createClass &&
-      (!/^\d{4}-\d{2}-\d{2}$/.test(draft.validFrom) ||
-        Number.isNaN(Date.parse(draft.validFrom)) ||
-        new Date(draft.validFrom).toISOString().slice(0, 10) !== draft.validFrom)
-    ) {
-      setError('Gültiges Kalenderdatum eingeben.');
+      !/^\d{4}-\d{2}-\d{2}$/.test(date) ||
+      !Number.isFinite(Date.parse(date)) ||
+      new Date(date).toISOString().slice(0, 10) !== date
+    )
+      nextErrors['date'] = 'Bitte ein gültiges Wirksamkeitsdatum eingeben.';
+    const prepared = tiers.map((tier, i) => {
+      const targets = view.classes.flatMap((c): ManagedTarget[] => {
+        const e = tier.entries[c.id]!;
+        if (!e.included) return [];
+        const share = readBp(e.share),
+          band = readBp(e.band);
+        if (share === null)
+          nextErrors[i + ':' + c.id + ':share'] =
+            c.name + ': Bitte einen Wert zwischen 0,00 und 100,00 % eingeben.';
+        if (e.bandMode === 'custom' && band === null)
+          nextErrors[i + ':' + c.id + ':band'] =
+            'Bitte ein Band zwischen 0,00 und 100,00 Prozentpunkten eingeben.';
+        return [
+          {
+            assetClassId: c.id,
+            targetShareBp: share ?? 0,
+            bandBp: e.bandMode === 'custom' ? (band ?? 0) : 0,
+            bandMode: e.bandMode,
+          },
+        ];
+      });
+      if (sums[i] !== 10000)
+        nextErrors['sum'] =
+          'Stufe ' +
+          (i + 1) +
+          ': Die Sollquoten ergeben ' +
+          bpText(sums[i]!) +
+          ' %. Erforderlich sind genau 100,00 %.';
+      let upToCents: number | null = null;
+      if (dynamic && i < tiers.length - 1) {
+        const raw = tier.limit.trim().replace(',', '.');
+        if (!/^\d{1,12}(\.\d{1,2})?$/.test(raw))
+          nextErrors['limit:' + i] = 'Bitte eine positive Stufengrenze in Euro eingeben.';
+        else upToCents = parseScaledDecimal(raw, 2);
+        if (!upToCents)
+          nextErrors['limit:' + i] = 'Bitte eine positive Stufengrenze in Euro eingeben.';
+      }
+      return { upToCents, targets };
+    });
+    for (let i = 1; i < prepared.length - 1; i++)
+      if (prepared[i]!.upToCents! <= prepared[i - 1]!.upToCents!)
+        nextErrors['limit:' + i] = 'Stufengrenzen müssen aufsteigend sein.';
+    if (Object.keys(nextErrors).length) {
+      setErrors(nextErrors);
+      const bad = Object.keys(nextErrors).find((k) => /^\d+:/.test(k));
+      if (bad) setSelected(Number(bad.split(':')[0]));
       return;
     }
     saving.current = true;
     setBusy(true);
-    onBusy(true);
-    setError(undefined);
+    controls.onBusy(true);
     try {
-      const result = await request<{ groupId: string }>(
-        createClass ? 'POST' : 'PUT',
-        createClass ? '/api/asset-classes' : '/api/asset-classes/targets',
-        createClass
-          ? { name: className.trim() }
-          : {
-              validFrom: draft.validFrom,
-              targets: view.classes.map((cls, i) => ({
-                assetClassId: cls.id,
-                targetShareBp: shares[i]!,
-                bandBp: draft.bands[cls.id] ?? 0,
-              })),
-            },
+      await write(
+        () =>
+          request('PUT', '/api/asset-classes/targets', {
+            validFrom: date,
+            label: label || null,
+            reason: reason || null,
+            targets: prepared[0]!.targets,
+            tiers: dynamic ? prepared : [],
+            ...(archiveClassId ? { archiveClassId } : {}),
+          }),
+        archiveClassId
+          ? 'Sollversion gespeichert und Anlageklasse archiviert.'
+          : 'Sollversion gespeichert.',
       );
-      toast.show({
-        message: createClass ? 'Anlageklasse angelegt.' : 'Sollquoten gespeichert.',
-        actionLabel: 'Rückgängig',
-        onAction: () => reverse(result.groupId),
-      });
-      if (createClass) {
-        setClassName('');
-        onClassDirty(false);
-      } else {
-        setOriginal(draft);
-        onDirty(false);
-        if (!className) onSaved();
-      }
-      await qc.invalidateQueries();
-    } catch (reason) {
-      setError(errorText(reason));
+      controls.onDirty(false);
+      controls.onSaved();
+    } catch (error) {
+      setErrors({ form: errorText(error) });
     } finally {
       saving.current = false;
       setBusy(false);
-      onBusy(false);
+      controls.onBusy(false);
     }
   };
+  const tier = tiers[selected]!;
   return (
-    <>
-      <form className="kform" onSubmit={(event) => void write(event)}>
-        <fieldset className="target-fields" disabled={busy}>
-          <Field label="Vorlage">
-            {({ id }) => (
-              <Select
-                id={id}
-                value={template}
-                onChange={(event) =>
-                  dirty ? setWantedTemplate(event.target.value) : load(event.target.value)
+    <form
+      className="kform asset-target-form"
+      noValidate
+      onSubmit={(e) => {
+        e.preventDefault();
+        void save();
+      }}
+    >
+      <fieldset disabled={busy}>
+        <Field label="Vorlage">
+          {({ id }) => (
+            <Select
+              id={id}
+              defaultValue=""
+              onChange={(e) => {
+                const v = versions.find((v) => v.validFrom === e.target.value);
+                if (v) {
+                  if (dirty) setWantedTemplate(v);
+                  else load(v);
                 }
-              >
-                <option value={view.asOf}>Heute wirksame Quoten ({view.asOf})</option>
-                {versions
-                  .filter((version) => version.validFrom !== view.asOf)
-                  .map((version) => (
-                    <option key={version.validFrom} value={version.validFrom}>
-                      Version ab {version.validFrom}
+              }}
+            >
+              <option value="">Heute wirksame Quoten</option>
+              {versions.map((v) => (
+                <option key={v.validFrom} value={v.validFrom}>
+                  Version ab {v.validFrom}
+                  {v.label ? ' · ' + v.label : ''}
+                </option>
+              ))}
+            </Select>
+          )}
+        </Field>
+        {wantedTemplate && (
+          <div role="alert" className="instrument-discard">
+            <p>Ungespeicherte Änderungen durch diese Vorlage ersetzen?</p>
+            <Button variant="ghost" onClick={() => setWantedTemplate(null)}>
+              Weiter bearbeiten
+            </Button>
+            <Button onClick={() => load(wantedTemplate)}>Vorlage laden</Button>
+          </div>
+        )}
+        <Field label="Gültig ab" error={errors['date']}>
+          {({ id, describedBy, invalid }) => (
+            <TextInput
+              id={id}
+              type="date"
+              value={date}
+              aria-invalid={invalid}
+              aria-describedby={describedBy}
+              onChange={(e) => {
+                changed();
+                setDate(e.target.value);
+              }}
+            />
+          )}
+        </Field>
+        <Field label="Bezeichnung (optional)">
+          {({ id }) => (
+            <TextInput
+              id={id}
+              maxLength={80}
+              value={label}
+              onChange={(e) => {
+                changed();
+                setLabel(e.target.value);
+              }}
+            />
+          )}
+        </Field>
+        <Field label="Begründung (optional)">
+          {({ id }) => (
+            <TextInput
+              id={id}
+              maxLength={500}
+              value={reason}
+              onChange={(e) => {
+                changed();
+                setReason(e.target.value);
+              }}
+            />
+          )}
+        </Field>
+        <p className="vnote">
+          {versions.some((v) => v.validFrom === date)
+            ? 'Die Version dieses Datums wird ersetzt.'
+            : 'Eine neue Sollversion wird angelegt.'}{' '}
+          Spätere Versionen bleiben erhalten. Zukünftige Versionen ändern heutige Ziele noch nicht.
+        </p>
+        {archiveClassId && (
+          <p>
+            Zum Archivieren diese Klasse in allen Stufen ausschließen. Historien- oder
+            Cash-Abhängigkeiten können das Archivieren weiterhin verhindern.
+          </p>
+        )}
+        <label className="asset-check">
+          <input
+            type="checkbox"
+            checked={dynamic}
+            onChange={(e) => {
+              changed();
+              setDynamic(e.target.checked);
+              setSelected(0);
+              setTiers(
+                e.target.checked
+                  ? [1000000, 2000000, 5000000, null].map((limit) => ({
+                      limit: limit === null ? '' : bpText(limit),
+                      entries: { ...tiers[0]!.entries },
+                    }))
+                  : [tiers[selected]!],
+              );
+            }}
+          />
+          Dynamische Stufen nach Anlagesumme
+        </label>
+        {dynamic && (
+          <>
+            <p className="vnote">
+              Depots + Anlage-Cash einschließlich negativer Salden. Die Grenze gehört zur
+              niedrigeren Stufe; jedes Monatsende wählt seine eigene Stufe.
+            </p>
+            <Field label="Stufe bearbeiten">
+              {({ id }) => (
+                <Select
+                  id={id}
+                  value={selected}
+                  onChange={(e) => setSelected(Number(e.target.value))}
+                >
+                  {tiers.map((t, i) => (
+                    <option key={i} value={i}>
+                      {i === tiers.length - 1 ? 'Darüber' : 'Bis ' + t.limit + ' €'}
                     </option>
                   ))}
-              </Select>
-            )}
-          </Field>
-          {wantedTemplate && (
-            <div className="instrument-discard" role="alert">
-              <p>Geänderte Quoten verwerfen und diese Vorlage laden?</p>
-              <Button variant="ghost" onClick={() => setWantedTemplate(undefined)}>
-                Weiter bearbeiten
-              </Button>
-              <Button onClick={() => load(wantedTemplate)}>Vorlage laden</Button>
-            </div>
-          )}
-          <Field
-            label="Gültig ab"
-            hint="Ein Datumswechsel übernimmt die eingegebenen Quoten für dieses Datum."
-          >
-            {({ id, describedBy }) => (
-              <TextInput
-                id={id}
-                type="date"
-                required
-                value={draft.validFrom}
-                aria-describedby={describedBy}
-                onChange={(event) => update({ ...draft, validFrom: event.target.value })}
-              />
-            )}
-          </Field>
-          <p className="vnote">
-            {versions.some((version) => version.validFrom === draft.validFrom)
-              ? 'Die vorhandene Version dieses Datums wird ersetzt.'
-              : 'Eine neue Zielversion wird angelegt.'}{' '}
-            {draft.validFrom < view.asOf
-              ? 'Rückdatierung kann die heute wirksamen Ziele ändern.'
-              : draft.validFrom > view.asOf
-                ? 'Zukünftige Ziele ändern die heutige Aufteilung noch nicht.'
-                : ''}{' '}
-            Spätere Versionen bleiben erhalten.
-          </p>
-          {view.classes.map((cls) => (
-            <Field
-              key={cls.id}
-              label={`${cls.name} · Soll (%)`}
-              hint={
-                draft.bands[cls.id]
-                  ? `Gespeichertes Band ±${bpText(draft.bands[cls.id]!)} Prozentpunkte bleibt erhalten.`
-                  : thresholdText('R13', view.policy.R13)
-              }
-            >
-              {({ id, describedBy }) => (
-                <TextInput
-                  id={id}
-                  value={draft.shares[cls.id] ?? '0,00'}
-                  inputMode="decimal"
-                  maxLength={6}
-                  aria-describedby={describedBy}
-                  onChange={(event) =>
-                    update({ ...draft, shares: { ...draft.shares, [cls.id]: event.target.value } })
-                  }
-                />
+                </Select>
               )}
             </Field>
-          ))}
-          <p className="target-total" aria-live="polite">
-            Summe: {sum === null ? 'Angaben prüfen' : `${bpText(sum)} %`} · erforderlich 100,00 %
-          </p>
-          <Button type="submit" disabled={view.classes.length === 0 || view.classes.length > 50}>
-            {busy ? 'Speichert …' : 'Sollquoten speichern'}
-          </Button>
-        </fieldset>
-      </form>
-      <form className="kform target-class-create" onSubmit={(event) => void write(event, true)}>
-        <fieldset className="target-fields" disabled={busy}>
-          <h3>Anlageklasse anlegen</h3>
-          <Field label="Name der Anlageklasse">
-            {({ id }) => (
-              <TextInput
-                id={id}
-                value={className}
-                required
-                maxLength={80}
-                onChange={(event) => {
-                  setClassName(event.target.value);
-                  onClassDirty(!!event.target.value);
-                  setError(undefined);
-                }}
-              />
+            {selected < tiers.length - 1 && (
+              <Field label="Stufengrenze (€)" error={errors['limit:' + selected]}>
+                {({ id, invalid, describedBy }) => (
+                  <TextInput
+                    id={id}
+                    inputMode="decimal"
+                    value={tier.limit}
+                    aria-invalid={invalid}
+                    aria-describedby={describedBy}
+                    onChange={(e) => {
+                      changed();
+                      setTiers(
+                        tiers.map((t, i) => (i === selected ? { ...t, limit: e.target.value } : t)),
+                      );
+                    }}
+                  />
+                )}
+              </Field>
             )}
-          </Field>
-          <Button variant="ghost" type="submit">
-            Anlageklasse anlegen
-          </Button>
-        </fieldset>
-      </form>
-      {!!error && (
-        <p className="field-error" role="alert">
-          {maskMoneyText(error)}
+            <div className="asset-actions">
+              <Button
+                variant="ghost"
+                disabled={tiers.length >= 10}
+                onClick={() => {
+                  changed();
+                  setSelected(tiers.length - 1);
+                  setTiers([
+                    ...tiers.slice(0, -1),
+                    { limit: '', entries: { ...tiers.at(-1)!.entries } },
+                    tiers.at(-1)!,
+                  ]);
+                }}
+              >
+                Stufe hinzufügen
+              </Button>
+              <Button
+                variant="ghost"
+                disabled={tiers.length <= 2 || selected === tiers.length - 1}
+                onClick={() => {
+                  changed();
+                  setTiers(tiers.filter((_, i) => i !== selected));
+                  setSelected(0);
+                }}
+              >
+                Stufe entfernen
+              </Button>
+            </div>
+          </>
+        )}
+        {view.classes.map((c) => {
+          const entry = tier.entries[c.id]!;
+          const share = readBp(entry.share);
+          const band =
+            entry.bandMode === 'standard'
+              ? defaultBandBp(share ?? 0, view.policy.R13)
+              : (readBp(entry.band) ?? 0);
+          return (
+            <div className="asset-target-class" key={c.id}>
+              <h3>{c.name}</h3>
+              <label className="asset-check">
+                <input
+                  type="checkbox"
+                  checked={entry.included}
+                  onChange={(e) => update(c.id, { included: e.target.checked })}
+                />
+                Im Sollmodell berücksichtigen · {c.name}
+              </label>
+              {entry.included ? (
+                <>
+                  <Field
+                    label={c.name + ' · Soll (%)'}
+                    error={errors[selected + ':' + c.id + ':share']}
+                  >
+                    {({ id, describedBy, invalid }) => (
+                      <TextInput
+                        id={id}
+                        inputMode="decimal"
+                        value={entry.share}
+                        maxLength={6}
+                        aria-invalid={invalid}
+                        aria-describedby={describedBy}
+                        onChange={(e) => update(c.id, { share: e.target.value })}
+                      />
+                    )}
+                  </Field>
+                  <Field label={c.name + ' · Band'}>
+                    {({ id }) => (
+                      <Select
+                        id={id}
+                        value={entry.bandMode}
+                        onChange={(e) =>
+                          update(c.id, { bandMode: e.target.value as Entry['bandMode'] })
+                        }
+                      >
+                        <option value="standard">Standard</option>
+                        <option value="custom">Individuell</option>
+                      </Select>
+                    )}
+                  </Field>
+                  {entry.bandMode === 'custom' && (
+                    <Field
+                      label={c.name + ' · Band ± (Prozentpunkte)'}
+                      error={errors[selected + ':' + c.id + ':band']}
+                    >
+                      {({ id, describedBy, invalid }) => (
+                        <TextInput
+                          id={id}
+                          inputMode="decimal"
+                          value={entry.band}
+                          maxLength={6}
+                          aria-invalid={invalid}
+                          aria-describedby={describedBy}
+                          onChange={(e) => update(c.id, { band: e.target.value })}
+                        />
+                      )}
+                    </Field>
+                  )}
+                  <p className="vnote">
+                    Soll {bpText(share ?? 0)} % · Band {bpText(Math.max(0, (share ?? 0) - band))}–
+                    {bpText(Math.min(10000, (share ?? 0) + band))} %
+                  </p>
+                </>
+              ) : (
+                <p className="vnote">Ohne Sollquote · unverwaltet</p>
+              )}
+            </div>
+          );
+        })}
+        <p className="target-total" aria-live="polite">
+          Summe: {bpText(sums[selected]!)} % · erforderlich 100,00 %
         </p>
-      )}
-    </>
+        {Object.entries(errors)
+          .filter(([key]) => key === 'form' || key === 'sum')
+          .map(([key, error]) => (
+            <p key={key} className="field-error" role="alert">
+              {maskMoneyText(error)}
+            </p>
+          ))}
+        <Button type="submit">
+          {busy
+            ? 'Speichert …'
+            : archiveClassId
+              ? 'Sollversion speichern und archivieren'
+              : 'Sollquoten speichern'}
+        </Button>
+      </fieldset>
+    </form>
   );
 }

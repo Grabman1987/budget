@@ -1,10 +1,18 @@
-import { todayInVienna } from '@budget/domain';
+import {
+  todayInVienna,
+  validateTargetPolicy,
+  resolveTargetTier,
+  type ManagedTarget,
+  type TargetTier,
+  type TargetPolicy,
+} from '@budget/domain';
 import { replaceExposureVersion } from './asset-exposure';
 import { and, asc, eq, isNull, ne } from 'drizzle-orm';
 import {
   account,
   assetClass,
   assetClassTarget,
+  assetTargetVersion,
   holding,
   institution,
   savingsPlan,
@@ -19,7 +27,7 @@ import { runInTransaction, type Executor } from './types';
 
 export type SecurityRecord = typeof security.$inferSelect;
 export type AssetClassRow = typeof assetClass.$inferSelect;
-export type TargetRow = typeof assetClassTarget.$inferSelect;
+export type TargetRow = typeof assetClassTarget.$inferSelect & { bandMode?: 'standard' | 'custom' };
 
 const securityRepo = entityRepo(security, (t) => [asc(t.name), asc(t.id)]);
 const assetClassRepo = entityRepo(assetClass, (t) => [asc(t.sortOrder), asc(t.name), asc(t.id)]);
@@ -166,14 +174,95 @@ export const restoreSecurity = securityRepo.restore;
 // Asset classes and their versioned targets
 // ---------------------------------------------------------------------------------------------
 
-export const listAssetClasses = (db: Executor) => assetClassRepo.list(db);
+export const listAssetClasses = (db: Executor, options: { includeDeleted?: boolean } = {}) =>
+  assetClassRepo.list(db, options);
 export const getAssetClass = (db: Executor, id: string) => assetClassRepo.get(db, id);
-export const createAssetClass = assetClassRepo.create;
-export const updateAssetClass = assetClassRepo.update;
+function checkedClassName(tx: Executor, name: string, exceptId?: string) {
+  const trimmed = name.trim();
+  if (!trimmed || trimmed.length > 80)
+    throw new RangeError('Bitte einen Namen mit 1 bis 80 Zeichen eingeben.');
+  if (
+    listAssetClasses(tx, { includeDeleted: true }).some(
+      (c) =>
+        c.id !== exceptId &&
+        c.name.trim().toLocaleLowerCase('de-AT') === trimmed.toLocaleLowerCase('de-AT'),
+    )
+  )
+    throw new ConflictError(
+      'Eine Anlageklasse mit diesem Namen ist bereits vorhanden, gegebenenfalls im Archiv.',
+    );
+  return trimmed;
+}
+export function createAssetClass(
+  db: Executor,
+  values: NewRow<typeof assetClass>,
+  ctx: AuditContext,
+) {
+  if (
+    values.sortOrder !== undefined &&
+    (!Number.isSafeInteger(values.sortOrder) || values.sortOrder < 0 || values.sortOrder > 100000)
+  )
+    throw new RangeError('Bitte eine Sortierposition zwischen 0 und 100000 eingeben.');
+  return runInTransaction(db, (tx) =>
+    assetClassRepo.create(tx, { ...values, name: checkedClassName(tx, values.name) }, ctx),
+  );
+}
+export function updateAssetClass(
+  db: Executor,
+  id: string,
+  patch: RowPatch<typeof assetClass>,
+  ctx: AuditContext,
+) {
+  if (!getAssetClass(db, id)) throw new RangeError('Die Anlageklasse ist nicht verfügbar.');
+  if (
+    patch.sortOrder !== undefined &&
+    (!Number.isSafeInteger(patch.sortOrder) || patch.sortOrder < 0 || patch.sortOrder > 100000)
+  )
+    throw new RangeError('Bitte eine Sortierposition zwischen 0 und 100000 eingeben.');
+  return runInTransaction(db, (tx) =>
+    assetClassRepo.update(
+      tx,
+      id,
+      {
+        ...patch,
+        ...(patch.name !== undefined ? { name: checkedClassName(tx, patch.name, id) } : {}),
+      },
+      ctx,
+    ),
+  );
+}
+export function restoreAssetClass(db: Executor, id: string, ctx: AuditContext) {
+  return runInTransaction(db, (tx) => {
+    const cls = assetClassRepo.get(tx, id, { includeDeleted: true });
+    if (!cls) throw new RangeError('Die Anlageklasse ist nicht verfügbar.');
+    if (!cls.deletedAt) throw new RangeError('Die Anlageklasse ist bereits aktiv.');
+    checkedClassName(tx, cls.name, id);
+    return assetClassRepo.restore(tx, id, ctx);
+  });
+}
 
 /** Soft-delete an asset class; refused while a live security belongs to it. */
-export function deleteAssetClass(db: Executor, id: string, ctx: AuditContext): void {
+export function deleteAssetClass(
+  db: Executor,
+  id: string,
+  ctx: AuditContext,
+  asOf = todayInVienna(),
+): void {
   runInTransaction(db, (tx) => {
+    if (!getAssetClass(tx, id)) throw new RangeError('Die Anlageklasse ist nicht verfügbar.');
+    const versions = listTargetVersions(tx);
+    const current = versions.filter((v) => v.validFrom <= asOf).at(-1);
+    const relevant = [...(current ? [current] : []), ...versions.filter((v) => v.validFrom > asOf)];
+    if (
+      relevant.some((v) =>
+        [...v.targets, ...v.tiers.flatMap((t) => t.targets)].some(
+          (t) => t.assetClassId === id && t.targetShareBp > 0,
+        ),
+      )
+    )
+      throw new ConflictError(
+        'Diese Anlageklasse hat eine positive aktuelle oder zukünftige Sollquote. Bitte im selben Vorgang eine vollständige Ersatz-Sollversion ohne diese Klasse speichern.',
+      );
     const used = tx
       .select({ id: security.id })
       .from(security)
@@ -191,23 +280,23 @@ export function deleteAssetClass(db: Executor, id: string, ctx: AuditContext): v
       .get();
     if (used || exposure || cash)
       throw new ConflictError(
-        'Diese Anlageklasse wird noch von Wertpapieren oder deren Klassifikationshistorie verwendet.',
+        'Archivieren ist nicht möglich: Diese Anlageklasse wird von Wertpapieren, deren Klassifikationshistorie oder Anlage-Cash verwendet. Die Historie bleibt erhalten.',
       );
     assetClassRepo.softDelete(tx, id, ctx);
   });
 }
 
-export interface AssetTargetInput {
-  assetClassId: string;
-  targetShareBp: number;
-  /** Tolerance band in bp; 0 = the R13 default (`min(500 bp, 25 % of the target)`). */
-  bandBp?: number;
-}
+export type AssetTargetInput = ManagedTarget;
 
 export interface TargetVersion {
   validFrom: string;
   targets: TargetRow[];
   sumBp: number;
+  tiers: TargetTier[];
+  label: string | null;
+  reason: string | null;
+  createdAt: string | null;
+  auditGroupId: string | null;
 }
 
 function liveClassIds(tx: Executor): string[] {
@@ -224,129 +313,201 @@ function allTargets(tx: Executor): TargetRow[] {
     .all();
 }
 
-/** Target versions with their sum (a valid version adds up to 10 000 bp), oldest first. */
+/** Complete versions, preserving the legacy storage unchanged until an explicit edit. */
 export function listTargetVersions(db: Executor): TargetVersion[] {
-  const byDay = new Map<string, TargetRow[]>();
-  for (const t of allTargets(db)) byDay.set(t.validFrom, [...(byDay.get(t.validFrom) ?? []), t]);
-  return [...byDay.entries()].map(([validFrom, targets]) => ({
-    validFrom,
-    targets,
-    sumBp: targets.reduce((a, t) => a + t.targetShareBp, 0),
+  const byDay = new Map<string, TargetVersion>();
+  for (const t of allTargets(db)) {
+    const v = byDay.get(t.validFrom) ?? {
+      validFrom: t.validFrom,
+      targets: [],
+      sumBp: 0,
+      tiers: [],
+      label: null,
+      reason: null,
+      createdAt: t.createdAt,
+      auditGroupId: null,
+    };
+    v.targets.push(t);
+    v.sumBp += t.targetShareBp;
+    byDay.set(t.validFrom, v);
+  }
+  for (const row of db.select().from(assetTargetVersion).all()) {
+    if (row.deletedAt !== null) continue;
+    byDay.delete(row.validFrom);
+    const policy = JSON.parse(row.policyJson) as TargetPolicy;
+    byDay.set(row.validFrom, {
+      validFrom: row.validFrom,
+      label: row.label,
+      reason: row.reason,
+      createdAt: row.createdAt,
+      auditGroupId: row.auditGroupId,
+      tiers: policy.tiers,
+      sumBp: policy.targets.reduce((sum, t) => sum + t.targetShareBp, 0),
+      targets: policy.targets.map((t) => ({
+        ...t,
+        id: t.assetClassId + '@' + row.validFrom,
+        validFrom: row.validFrom,
+        bandBp: t.bandBp ?? 0,
+        createdAt: row.createdAt,
+        updatedAt: row.updatedAt,
+        deletedAt: null,
+      })),
+    });
+  }
+  return [...byDay.values()].sort((a, b) => a.validFrom.localeCompare(b.validFrom));
+}
+
+/** Omission is unmanaged; a stored zero is managed. Each version replaces the whole universe. */
+export function targetsAsOf(
+  db: Executor,
+  day: string,
+  includeDay = true,
+  investmentCents: number | null = null,
+): TargetRow[] {
+  const version = listTargetVersions(db)
+    .filter((v) => v.validFrom < day || (includeDay && v.validFrom === day))
+    .at(-1);
+  if (!version) return [];
+  if (!version.tiers.length) return version.targets;
+  return resolveTargetTier(version, investmentCents).targets.map((t) => ({
+    ...t,
+    id: t.assetClassId + '@' + version.validFrom,
+    validFrom: version.validFrom,
+    bandBp: t.bandBp ?? 0,
+    createdAt: version.createdAt ?? '',
+    updatedAt: version.createdAt ?? '',
+    deletedAt: null,
   }));
 }
 
-/**
- * The Soll-Allocation valid on `day`: per live asset class its newest target on or before the day
- * (classes without any target are left out). `includeDay=false` selects strictly prior versions.
- */
-export function targetsAsOf(db: Executor, day: string, includeDay = true): TargetRow[] {
-  const order = new Map(liveClassIds(db).map((id, i) => [id, i]));
-  const latest = new Map<string, TargetRow>();
-  for (const t of allTargets(db)) {
-    if ((t.validFrom < day || (includeDay && t.validFrom === day)) && order.has(t.assetClassId))
-      latest.set(t.assetClassId, t);
-  }
-  // In the order of the asset classes (sort order, name), the order the pages show them in.
-  return [...latest.values()].sort(
-    (a, b) => (order.get(a.assetClassId) as number) - (order.get(b.assetClassId) as number),
-  );
+export interface TargetVersionOptions {
+  label?: string | null;
+  reason?: string | null;
+  tiers?: TargetTier[];
+  /** Legacy programmatic callers retain their explicit reduce-to-zero behaviour. The settings API supplies complete snapshots. */
+  completeSnapshot?: boolean;
+  archiveClassId?: string;
+  asOf?: string;
 }
 
-/**
- * Set the target version that starts on `validFrom`: shares in bp (and bands) per asset class,
- * adding up to exactly 10 000 bp. A live class with a target before that day and no entry here is
- * set to 0 from that day (its old share would otherwise break the sum). Rows of an existing
- * version are replaced; all in one audit group.
- */
 export function setTargets(
   db: Executor,
   validFrom: string,
   targets: ReadonlyArray<AssetTargetInput>,
   ctx: AuditContext,
+  options: TargetVersionOptions = {},
 ): TargetVersion {
   const grouped = withGroup(ctx);
   return runInTransaction(db, (tx) => {
-    const live = new Set(liveClassIds(tx));
-    const seen = new Set<string>();
-    for (const t of targets) {
-      if (!live.has(t.assetClassId)) throw new EntityNotFoundError('asset_class', t.assetClassId);
-      if (seen.has(t.assetClassId))
-        throw new RangeError(`Asset class ${t.assetClassId} is listed twice`);
-      seen.add(t.assetClassId);
-      if (!Number.isInteger(t.targetShareBp) || t.targetShareBp < 0 || t.targetShareBp > 10_000)
-        throw new RangeError('A target share is 0 to 10 000 bp');
-      if (
-        t.bandBp !== undefined &&
-        (!Number.isInteger(t.bandBp) || t.bandBp < 0 || t.bandBp > 10_000)
-      )
-        throw new RangeError('A band is 0 to 10 000 bp');
+    if (
+      !/^\d{4}-\d{2}-\d{2}$/.test(validFrom) ||
+      !Number.isFinite(Date.parse(validFrom)) ||
+      new Date(validFrom).toISOString().slice(0, 10) !== validFrom
+    )
+      throw new RangeError('Bitte ein gültiges Wirksamkeitsdatum eingeben.');
+    const wanted = [...targets];
+    if (!options.completeSnapshot) {
+      for (const t of targetsAsOf(tx, validFrom, false))
+        if (t.targetShareBp > 0 && !wanted.some((w) => w.assetClassId === t.assetClassId))
+          wanted.push({ assetClassId: t.assetClassId, targetShareBp: 0 });
     }
-    const earlier = new Set(
-      targetsAsOf(tx, validFrom, false)
-        .filter((t) => t.targetShareBp > 0)
-        .map((t) => t.assetClassId),
-    );
-    const wanted = new Map<string, { share: number; band: number }>();
-    for (const t of targets)
-      wanted.set(t.assetClassId, { share: t.targetShareBp, band: t.bandBp ?? 0 });
-    for (const id of earlier) if (!wanted.has(id)) wanted.set(id, { share: 0, band: 0 });
-    const sum = [...wanted.values()].reduce((a, w) => a + w.share, 0);
-    if (sum !== 10_000)
-      throw new RangeError(`The targets add up to ${sum} bp, they must add up to 10 000 bp`);
-
-    const existing = new Map(
-      tx
-        .select()
-        .from(assetClassTarget)
-        .where(eq(assetClassTarget.validFrom, validFrom))
-        .all()
-        .map((r) => [r.assetClassId, r]),
-    );
-    for (const [classId, w] of wanted) {
-      const row = existing.get(classId);
-      if (row) {
-        updateTracked(
-          tx,
-          assetClassTarget,
-          [row.id],
-          { targetShareBp: w.share, bandBp: w.band, deletedAt: null },
-          grouped,
-        );
-      } else {
-        insertTracked(
-          tx,
-          assetClassTarget,
-          {
-            id: `${classId}@${validFrom}`,
-            assetClassId: classId,
-            validFrom,
-            targetShareBp: w.share,
-            bandBp: w.band,
-          },
-          grouped,
-        );
-      }
-    }
-    for (const [classId, row] of existing)
-      if (!wanted.has(classId) && row.deletedAt === null)
-        deleteTracked(tx, assetClassTarget, [row.id], grouped);
-    const version = listTargetVersions(tx).find((v) => v.validFrom === validFrom);
-    return version as TargetVersion;
+    const policy: TargetPolicy = { targets: wanted, tiers: options.tiers ?? [] };
+    validateTargetPolicy(policy, new Set(liveClassIds(tx)));
+    const label = options.label?.trim() || null;
+    const reason = options.reason?.trim() || null;
+    if ((label?.length ?? 0) > 80 || (reason?.length ?? 0) > 500)
+      throw new RangeError(
+        'Bezeichnung darf höchstens 80, Begründung höchstens 500 Zeichen haben.',
+      );
+    // Upgrade a legacy same-day version atomically, so undo restores its original rows exactly.
+    for (const row of tx
+      .select()
+      .from(assetClassTarget)
+      .where(and(eq(assetClassTarget.validFrom, validFrom), isNull(assetClassTarget.deletedAt)))
+      .all())
+      deleteTracked(tx, assetClassTarget, [row.id], grouped);
+    const existing = tx
+      .select()
+      .from(assetTargetVersion)
+      .where(eq(assetTargetVersion.validFrom, validFrom))
+      .get();
+    const values = {
+      validFrom,
+      label,
+      reason,
+      policyJson: JSON.stringify(policy),
+      auditGroupId: grouped.groupId,
+      deletedAt: null,
+    };
+    if (existing) updateTracked(tx, assetTargetVersion, [existing.id], values, grouped);
+    else insertTracked(tx, assetTargetVersion, { id: validFrom, ...values }, grouped);
+    if (options.archiveClassId) deleteAssetClass(tx, options.archiveClassId, grouped, options.asOf);
+    return listTargetVersions(tx).find((v) => v.validFrom === validFrom)!;
   });
 }
 
-/** Remove a whole target version (the previous one applies again from that day). */
 export function deleteTargetVersion(db: Executor, validFrom: string, ctx: AuditContext): void {
   const grouped = withGroup(ctx);
   runInTransaction(db, (tx) => {
+    const header = tx
+      .select()
+      .from(assetTargetVersion)
+      .where(and(eq(assetTargetVersion.validFrom, validFrom), isNull(assetTargetVersion.deletedAt)))
+      .get();
+    if (header) deleteTracked(tx, assetTargetVersion, [header.id], grouped);
     const rows = tx
       .select()
       .from(assetClassTarget)
       .where(and(eq(assetClassTarget.validFrom, validFrom), isNull(assetClassTarget.deletedAt)))
       .all();
-    if (rows.length === 0) throw new EntityNotFoundError('asset_class_target', validFrom);
-    for (const r of rows) deleteTracked(tx, assetClassTarget, [r.id], grouped);
+    if (!header && !rows.length) throw new RangeError('Die Sollversion ist nicht verfügbar.');
+    for (const row of rows) deleteTracked(tx, assetClassTarget, [row.id], grouped);
+    assertAssetTargetInvariants(tx);
   });
+}
+
+/** Replayed writes must not bypass sums, references, unique names or archive dependencies. */
+export function assertAssetTargetInvariants(db: Executor, asOf = todayInVienna()) {
+  const classes = listAssetClasses(db, { includeDeleted: true });
+  const ids = new Set(classes.map((c) => c.id));
+  const versions = listTargetVersions(db);
+  for (const v of versions) validateTargetPolicy(v, ids);
+  const relevant = [
+    ...versions.filter((v) => v.validFrom <= asOf).slice(-1),
+    ...versions.filter((v) => v.validFrom > asOf),
+  ];
+  for (const cls of classes.filter((c) => c.deletedAt !== null)) {
+    if (
+      relevant.some((v) =>
+        [...v.targets, ...v.tiers.flatMap((t) => t.targets)].some(
+          (t) => t.assetClassId === cls.id && t.targetShareBp > 0,
+        ),
+      )
+    )
+      throw new ConflictError(
+        'Die Änderung würde einer archivierten Anlageklasse eine positive Sollquote zuweisen.',
+      );
+    if (
+      db
+        .select()
+        .from(account)
+        .where(and(eq(account.allocationAssetClassId, cls.id), isNull(account.deletedAt)))
+        .get() ||
+      db
+        .select()
+        .from(security)
+        .where(and(eq(security.assetClassId, cls.id), isNull(security.deletedAt)))
+        .get()
+    )
+      throw new ConflictError(
+        'Die archivierte Anlageklasse wird noch von Anlage-Cash oder Wertpapieren verwendet.',
+      );
+  }
+}
+
+export function assertAssetClassName(db: Executor, id: string) {
+  const cls = assetClassRepo.get(db, id, { includeDeleted: true });
+  if (cls) checkedClassName(db, cls.name, id);
 }
 
 /** Live asset classes that have a security (for pick lists and the "in use" hint). */
