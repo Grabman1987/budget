@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto';
 import {
   todayInVienna,
+  sourceMappingSchema,
   sourceInteger,
   informationalResolution,
   isAutomaticResolution,
@@ -70,21 +71,31 @@ function setting(db: Executor, id: string, value: unknown, ctx: GroupedContext) 
 export function saveReadSourceState(db: Executor, state: ReadSourceState, ctx: AuditContext) {
   setting(db, stateKey, state, withGroup(ctx));
 }
-export function mapReadSource(db: Executor, mapping: SourceMapping, ctx: AuditContext) {
+/** Operator setup may explicitly map a key before its first balance has been fetched. */
+export function mapReadSource(
+  db: Executor,
+  mapping: SourceMapping,
+  ctx: AuditContext,
+  options: { allowUnseen?: boolean } = {},
+) {
+  mapping = sourceMappingSchema.parse(mapping);
   const grouped = withGroup(ctx);
   return runInTransaction(db, (tx) => {
     const balance = readSourceState(tx).balances.find((b) => b.key === mapping.key);
     const acc = getEntity(tx, account, mapping.accountId);
-    if (!balance || !acc || acc.onBudget || acc.closedAt)
+    if ((!balance && !options.allowUnseen) || !acc || acc.onBudget || acc.closedAt)
       throw new ConflictError('Ein aktives Anlage- oder Verrechnungskonto auswählen.');
-    if (balance.amount.assetId) {
+    if (balance ? balance.amount.assetId : mapping.key.startsWith('asset:')) {
       if (
         !mapping.securityId ||
         !getEntity(tx, security, mapping.securityId) ||
         !['crypto', 'brokerage'].includes(acc.type)
       )
         throw new ConflictError('Anlagekonto und Instrument auswählen.');
-    } else if (mapping.securityId || !balance.currency || acc.currency !== balance.currency) {
+    } else if (
+      mapping.securityId ||
+      (balance && (!balance.currency || acc.currency !== balance.currency))
+    ) {
       throw new ConflictError('Die Kontowährung muss zur Quelle passen.');
     }
     const mappings = readSourceMappings(tx).filter((m) => m.key !== mapping.key);
