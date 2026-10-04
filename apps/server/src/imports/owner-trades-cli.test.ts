@@ -61,11 +61,27 @@ it('owner-trades CLI validates the whole file, reports skips/details and dry-run
     expect(dryRun.stdout).toContain('cash-change Synthetic Depot -100');
     expect(dryRun.stdout).toContain('units-change Synthetic Coin 0.1');
     expect(listTrades(opened.db)).toEqual([]);
-    const invalid = cli([add, { ...add, id: 'invalid', units: '0.000000001' }]);
+    const invalid = cli([
+      add,
+      { ...add, id: 'invalid', units: '0.000000001', importKey: 'synthetic:invalid' },
+    ]);
     expect(invalid.status).toBe(1);
     expect(invalid.stderr).toContain('at most 8 decimals');
     expect(listTrades(opened.db)).toEqual([]);
-    const skipped = cli([add, { ...add, id: 'missing', security: 'Unknown' }], ['--details']);
+    for (const suffix of ['buy', 'div', 'cash']) {
+      const reserved = cli([add, { ...add, id: 'reserved', importKey: `synthetic:${suffix}` }]);
+      expect(reserved.status).toBe(1);
+      expect(reserved.stderr).toContain('reserved suffix');
+      expect(listTrades(opened.db)).toEqual([]);
+    }
+    const duplicate = cli([add, { ...add, id: 'duplicate' }]);
+    expect(duplicate.status).toBe(1);
+    expect(duplicate.stderr).toContain('importKey is listed twice');
+    expect(listTrades(opened.db)).toEqual([]);
+    const skipped = cli(
+      [add, { ...add, id: 'missing', security: 'Unknown', importKey: 'synthetic:missing' }],
+      ['--details'],
+    );
     expect(skipped.status, skipped.stderr).toBe(3);
     expect(skipped.stdout).toContain('skipped missing unknown_security');
     expect(skipped.stdout).toContain('no live match');
@@ -83,4 +99,4 @@ it('owner-trades CLI validates the whole file, reports skips/details and dry-run
     opened.close();
     rmSync(dir, { recursive: true, force: true });
   }
-}, 60000);
+}, 120000);

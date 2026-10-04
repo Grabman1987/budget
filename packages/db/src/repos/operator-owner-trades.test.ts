@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { eq } from 'drizzle-orm';
 import { createTestDatabase, type OpenedDatabase } from '../client';
 import { account, auditLog, booking, bookingSplit, INCOME_TYPES, price, transfer } from '../schema';
+import { deleteBooking } from './bookings';
 import { accounts } from './entities';
 import { accountSummaries } from './ledger-queries';
 import { applyOwnerTrades, parseOwnerTradesFile } from './operator-owner-trades';
@@ -10,7 +11,7 @@ import { costsTaxesReport } from './portfolio-costs';
 import { portfolioSummary } from './portfolio-summary';
 import { portfolioFlows } from './portfolio';
 import { createSecurity } from './securities';
-import { listTrades } from './trades';
+import { createTrade, listTrades, updateTrade } from './trades';
 
 const ctx = { actor: 'operator' };
 let opened: OpenedDatabase;
@@ -26,7 +27,7 @@ const add = (patch: Record<string, unknown> = {}) => ({
   amountCents: 12000,
   feeCents: 100,
   cashAccount: 'Synthetic Cash',
-  importKey: 'synthetic:buy',
+  importKey: 'synthetic:purchase',
   ...patch,
 });
 const run = (trades: unknown[], dryRun = false) =>
@@ -89,9 +90,102 @@ beforeEach(() => {
 afterEach(() => opened.close());
 
 describe('owner-trades', () => {
+  it('repairs a duplicate missing its cash transfer, including dry-run and undo', () => {
+    createTrade(
+      db,
+      {
+        accountId: 'depot',
+        securityId: 'coin',
+        date: '2026-03-02',
+        kind: 'buy',
+        unitsE8: 123456789,
+        amountCents: 12000,
+        feeCents: 100,
+        importKey: 'synthetic:purchase',
+        source: 'import',
+      },
+      ctx,
+    );
+    expect(balances()).toEqual({ cash: 100000, depot: -12100 });
+    const before = counts();
+    const trial = run([add()], true);
+    expect(trial.outcomes[0]).toMatchObject({ status: 'repaired', groupId: '' });
+    expect(trial.cashChanges).toEqual([
+      { account: 'Synthetic Cash', cents: '-12100' },
+      { account: 'Synthetic Depot', cents: '12100' },
+    ]);
+    expect(counts()).toEqual(before);
+    const repaired = run([add()]);
+    expect(repaired.counts).toEqual({
+      added: 0,
+      repaired: 1,
+      unchanged: 0,
+      deleted: 0,
+      skipped: 0,
+    });
+    expect(balances()).toEqual({ cash: 87900, depot: 0 });
+    expect(listTrades(db)).toHaveLength(1);
+    expect(
+      db
+        .select()
+        .from(booking)
+        .where(eq(booking.importKey, 'synthetic:purchase:cash'))
+        .all()
+        .map((b) => [b.accountId, b.amountCents])
+        .sort(),
+    ).toEqual([
+      ['cash', -12100],
+      ['depot', 12100],
+    ]);
+    const afterRepair = counts();
+    expect(run([add()]).outcomes[0]!.status).toBe('unchanged');
+    expect(counts()).toEqual(afterRepair);
+    undoAuditGroups(db, [repaired.outcomes[0]!.groupId], ctx);
+    expect(balances()).toEqual({ cash: 100000, depot: -12100 });
+    const afterUndo = counts();
+    expect(run([add()]).outcomes[0]!.status).toBe('unchanged');
+    expect(counts()).toEqual(afterUndo);
+  });
+
+  it('leaves a cash transfer deleted by the owner unchanged on duplicate add', () => {
+    run([add()]);
+    const leg = db
+      .select()
+      .from(booking)
+      .where(eq(booking.importKey, 'synthetic:purchase:cash'))
+      .get()!;
+    deleteBooking(db, leg.id, ctx);
+    const before = counts();
+    expect(run([add()]).outcomes[0]!.status).toBe('unchanged');
+    expect(counts()).toEqual(before);
+    expect(balances()).toEqual({ cash: 100000, depot: -12100 });
+  });
+
+  it.each(['buy', 'sell', 'dividend', 'interest', 'fee', 'tax'])(
+    'requires cashAccount for %s on a depot with a reference account',
+    (tradeKind) => {
+      const entry = add({
+        tradeKind,
+        units: tradeKind === 'buy' ? '1' : tradeKind === 'sell' ? '-1' : '0',
+        feeCents: 0,
+        cashAccount: undefined,
+      });
+      const before = counts();
+      expect(run([entry]).outcomes[0]).toMatchObject({
+        status: 'skipped',
+        reason: 'missing_cash_account',
+        groupId: '',
+      });
+      expect(counts()).toEqual(before);
+      expect(balances()).toEqual({ cash: 100000, depot: 0 });
+      db.update(account).set({ referenceAccountId: null }).where(eq(account.id, 'depot')).run();
+      expect(run([entry]).outcomes[0]!.status).toBe('added');
+    },
+  );
+
   it('adds an exact buy and PP-style transfer pair, repeats unchanged, deletes and undoes both runs', () => {
     const result = run([add({ account: 'synthetic depot' })]);
-    expect(result.counts).toEqual({ added: 1, unchanged: 0, deleted: 0, skipped: 0 });
+    expect(result.counts).toEqual({ added: 1, repaired: 0, unchanged: 0, deleted: 0, skipped: 0 });
     expect(balances()).toEqual({ cash: 87900, depot: 0 });
     expect(listTrades(db)[0]).toMatchObject({
       unitsE8: 123456789,
@@ -102,7 +196,7 @@ describe('owner-trades', () => {
       .select()
       .from(booking)
       .all()
-      .filter((b) => b.importKey === 'synthetic:buy:cash');
+      .filter((b) => b.importKey === 'synthetic:purchase:cash');
     expect(legs).toHaveLength(2);
     expect(legs.map((b) => [b.accountId, b.amountCents]).sort()).toEqual([
       ['cash', -12100],
@@ -122,6 +216,13 @@ describe('owner-trades', () => {
     expect(deleted.outcomes[0]!.status).toBe('deleted');
     expect(balances()).toEqual({ cash: 100000, depot: 0 });
     expect(listTrades(db)).toEqual([]);
+    const afterDelete = counts();
+    expect(run([add()]).outcomes[0]).toMatchObject({
+      status: 'skipped',
+      reason: 'deleted_by_owner',
+      groupId: '',
+    });
+    expect(counts()).toEqual(afterDelete);
     expect(
       db
         .select()
@@ -134,11 +235,11 @@ describe('owner-trades', () => {
     undoAuditGroups(db, [result.outcomes[0]!.groupId], ctx);
     expect(balances()).toEqual({ cash: 100000, depot: 0 });
     expect(listTrades(db)).toEqual([]);
-    expect(run([add()]).outcomes[0]!.status).toBe('unchanged');
+    expect(run([add()]).outcomes[0]!.reason).toBe('deleted_by_owner');
     expect(balances()).toEqual({ cash: 100000, depot: 0 });
   });
 
-  it('settles sell, dividend, interest, delivery and tax under one undoable group', () => {
+  it('settles sell, dividend, interest, delivery, fee and tax under one undoable group', () => {
     const result = run([
       add({
         id: 'sell',
@@ -155,7 +256,7 @@ describe('owner-trades', () => {
         amountCents: 800,
         feeCents: 0,
         taxCents: 100,
-        importKey: 'synthetic:div',
+        importKey: 'synthetic:dividend',
       }),
       add({
         id: 'interest',
@@ -175,18 +276,51 @@ describe('owner-trades', () => {
         importKey: 'synthetic:delivery',
       }),
       add({
+        id: 'fee',
+        tradeKind: 'fee',
+        units: '0',
+        amountCents: 75,
+        feeCents: 0,
+        importKey: 'synthetic:fee',
+      }),
+      add({
         id: 'tax',
         tradeKind: 'tax',
         units: '0',
         amountCents: 90,
         feeCents: 0,
-        cashAccount: undefined,
         importKey: 'synthetic:tax',
       }),
     ]);
-    expect(result.counts.added).toBe(5);
+    expect(result.counts.added).toBe(6);
     expect(new Set(result.outcomes.map((o) => o.groupId)).size).toBe(1);
-    expect(balances()).toEqual({ cash: 106450, depot: -90 });
+    expect(balances()).toEqual({ cash: 106285, depot: 0 });
+    for (const [key, expected] of [
+      [
+        'synthetic:sell:cash',
+        [
+          ['cash', 5700],
+          ['depot', -5700],
+        ],
+      ],
+      [
+        'synthetic:fee:cash',
+        [
+          ['cash', -75],
+          ['depot', 75],
+        ],
+      ],
+    ] as const) {
+      expect(
+        db
+          .select()
+          .from(booking)
+          .where(eq(booking.importKey, key))
+          .all()
+          .map((b) => [b.accountId, b.amountCents])
+          .sort(),
+      ).toEqual(expected);
+    }
     expect(result.unitChanges[0]!.units).toBe('1.5');
     expect(listTrades(db).find((t) => t.kind === 'delivery_in')!.bookingId).toBeNull();
     undoAuditGroups(db, [result.outcomes[0]!.groupId], ctx);
@@ -234,10 +368,31 @@ describe('owner-trades', () => {
     const before = counts();
     expect(run([reward]).outcomes[0]!.status).toBe('unchanged');
     expect(counts()).toEqual(before);
+    for (const kind of ['buy', 'dividend']) {
+      expect(run([deletion(kind)]).outcomes[0]).toMatchObject({
+        status: 'skipped',
+        reason: 'reward_leg',
+        detail: 'use tradeKind: "reward"',
+        groupId: '',
+      });
+      expect(counts()).toEqual(before);
+      expect(listTrades(db)).toHaveLength(2);
+      expect(balances()).toEqual({ cash: 100000, depot: 0 });
+    }
+    const buy = listTrades(db).find((t) => t.kind === 'buy')!;
+    const dateGroup = 'synthetic-reward-date-change';
+    updateTrade(db, buy.id, { date: '2026-03-03' }, { ...ctx, groupId: dateGroup });
+    const beforeLegDelete = counts();
+    expect(run([deletion('dividend')]).outcomes[0]!.reason).toBe('reward_leg');
+    expect(counts()).toEqual(beforeLegDelete);
+    undoAuditGroups(db, [dateGroup], ctx);
     const deleted = run([deletion('reward', { units: '0.25', amountCents: 500 })]);
     expect(deleted.outcomes[0]!.status).toBe('deleted');
     expect(listTrades(db)).toEqual([]);
     expect(balances()).toEqual({ cash: 100000, depot: 0 });
+    const afterDelete = counts();
+    expect(run([reward]).outcomes[0]!.reason).toBe('deleted_by_owner');
+    expect(counts()).toEqual(afterDelete);
     undoAuditGroups(db, [deleted.outcomes[0]!.groupId], ctx);
     expect(listTrades(db)).toHaveLength(2);
     expect(balances()).toEqual({ cash: 100000, depot: 0 });
@@ -290,15 +445,20 @@ describe('owner-trades', () => {
       cashAccount: undefined,
       importKey: 'synthetic:reward',
     });
-    run([
-      add({
-        tradeKind: 'dividend',
-        units: '0',
-        feeCents: 0,
-        cashAccount: undefined,
+    createTrade(
+      db,
+      {
+        accountId: 'depot',
+        securityId: 'coin',
+        date: '2026-03-02',
+        kind: 'dividend',
+        unitsE8: 0,
+        amountCents: 12000,
         importKey: 'synthetic:reward:div',
-      }),
-    ]);
+        source: 'import',
+      },
+      ctx,
+    );
     const incomplete = counts();
     expect(run([reward]).outcomes[0]!.reason).toBe('conflict');
     expect(counts()).toEqual(incomplete);
@@ -361,11 +521,22 @@ describe('owner-trades', () => {
     ).toBe('invalid_currency');
     const before = counts();
     const result = run([
-      add({ id: 'unknown', security: 'Missing' }),
-      add({ id: 'units', units: '-1' }),
-      add({ id: 'refused', taxCents: 1, cashAccount: undefined }),
-      add({ id: 'transfer', cashAccount: 'Synthetic Foreign' }),
-      add({ id: 'good', cashAccount: undefined }),
+      add({ id: 'unknown', security: 'Missing', importKey: 'synthetic:unknown' }),
+      add({ id: 'units', units: '-1', importKey: 'synthetic:units' }),
+      add({
+        id: 'refused',
+        taxCents: 1,
+        cashAccount: 'Synthetic Foreign',
+        importKey: 'synthetic:refused',
+      }),
+      add({ id: 'transfer', cashAccount: 'Synthetic Foreign', importKey: 'synthetic:transfer' }),
+      add({
+        id: 'good',
+        tradeKind: 'delivery_in',
+        cashAccount: undefined,
+        feeCents: 0,
+        importKey: 'synthetic:good',
+      }),
     ]);
     expect(result.outcomes.map((o) => o.status)).toEqual([
       'skipped',
@@ -381,7 +552,7 @@ describe('owner-trades', () => {
     ]);
     expect(listTrades(db)).toHaveLength(1);
     expect(db.select().from(transfer).all()).toEqual([]);
-    expect(counts()[1]).toBe(before[1]! + 1);
+    expect(counts()[1]).toBe(before[1]);
     db.update(account).set({ closedAt: '2026-03-01' }).where(eq(account.id, 'depot')).run();
     const closed = counts();
     expect(run([add()]).outcomes[0]!.reason).toBe('closed_account');

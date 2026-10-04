@@ -42,7 +42,7 @@ export interface OwnerTradesFile {
 }
 export interface OwnerTradeOutcome extends Match {
   id: string;
-  status: 'added' | 'unchanged' | 'deleted' | 'skipped';
+  status: 'added' | 'repaired' | 'unchanged' | 'deleted' | 'skipped';
   reason: string;
   detail: string;
   groupId: string;
@@ -129,6 +129,7 @@ export function parseOwnerTradesFile(json: unknown): OwnerTradesFile {
   if (!Array.isArray(root['trades']) || root['trades'].length > 500)
     throw new OperatorInputError('trades must be a list of at most 500 entries');
   const ids = new Set<string>();
+  const importKeys = new Set<string>();
   return {
     trades: root['trades'].map((v, i): Entry => {
       const at = `trades[${i}]`;
@@ -175,6 +176,11 @@ export function parseOwnerTradesFile(json: unknown): OwnerTradesFile {
         taxCents: cents(o['taxCents'] === undefined ? 0 : o['taxCents'], `${at}.taxCents`),
         importKey: text(200)(o['importKey'], `${at}.importKey`),
       };
+      if (/:(buy|div|cash)$/.test(out.importKey))
+        throw new OperatorInputError(`${at}.importKey has a reserved suffix (:buy, :div, :cash)`);
+      if (importKeys.has(out.importKey))
+        throw new OperatorInputError(`${at}.importKey is listed twice`);
+      importKeys.add(out.importKey);
       if (
         out.amountCents === 0 &&
         !['delivery_in', 'delivery_out', 'split'].includes(out.tradeKind)
@@ -253,6 +259,12 @@ function applyEntry(
     const unitsE8 = parseScaledDecimal(e.units, 8);
     const violation = unitsRuleViolation(e.tradeKind === 'reward' ? 'buy' : e.tradeKind, unitsE8);
     if (violation) throw new EntrySkip('unitsRuleViolation', violation);
+    if (
+      a.referenceAccountId &&
+      !e.cashAccount &&
+      ['buy', 'sell', 'dividend', 'interest', 'fee', 'tax'].includes(e.tradeKind)
+    )
+      throw new EntrySkip('missing_cash_account', 'cashAccount is required for this depot');
     const cash = e.cashAccount ? oneAccount(tx, e.cashAccount) : null;
     if (cash && a.referenceAccountId !== cash.id)
       throw new EntrySkip(
@@ -279,6 +291,8 @@ function applyEntry(
     const results = inputs.map((input) => createTrade(tx, input, ctx));
     for (const [i, r] of results.entries()) {
       const input = inputs[i]!;
+      if (r.trade.deletedAt)
+        throw new EntrySkip('deleted_by_owner', 'trade was deleted; restore it with undo-group');
       if (
         r.duplicate &&
         ['securityId', 'date', 'kind', 'unitsE8', 'amountCents', 'feeCents', 'taxCents'].some(
@@ -287,28 +301,27 @@ function applyEntry(
       )
         throw new EntrySkip('conflict', 'importKey already has different trade values');
     }
-    if (
-      e.tradeKind === 'reward' &&
-      (results[0]!.duplicate !== results[1]!.duplicate ||
-        Boolean(results[0]!.trade.deletedAt) !== Boolean(results[1]!.trade.deletedAt))
-    )
+    if (e.tradeKind === 'reward' && results[0]!.duplicate !== results[1]!.duplicate)
       throw new EntrySkip('conflict', 'reward pair is incomplete');
-    if (cash && !results[0]!.duplicate) {
+    let repaired = false;
+    if (cash) {
       const input = tradeCashTransferInput(inputs[0]!, cash.id);
       if (input) {
-        if (
-          tx
-            .select()
-            .from(booking)
-            .where(and(eq(booking.importKey, input.importKey!), eq(booking.accountId, a.id)))
-            .get()
-        )
+        const existing = tx
+          .select()
+          .from(booking)
+          .where(and(eq(booking.importKey, input.importKey!), eq(booking.accountId, a.id)))
+          .get();
+        if (existing && (!results[0]!.duplicate || !existing.transferId))
           throw new EntrySkip('conflict', 'settlement transfer key already exists');
-        createTransfer(tx, input, ctx);
+        if (!existing) {
+          createTransfer(tx, input, ctx);
+          repaired = results[0]!.duplicate;
+        }
       }
     }
     return {
-      status: results.every((r) => r.duplicate) ? 'unchanged' : 'added',
+      status: repaired ? 'repaired' : results.every((r) => r.duplicate) ? 'unchanged' : 'added',
       units: e.units,
       amountCents: e.amountCents,
       affectedAccounts: [a.name, ...(cash ? [cash.name] : [])],
@@ -327,6 +340,20 @@ function applyEntry(
       (m.amountCents === undefined || t.amountCents === m.amountCents),
   );
   const t = one(candidates, 'not_found');
+  if (
+    (m.tradeKind === 'buy' || m.tradeKind === 'dividend') &&
+    t.importKey?.endsWith(m.tradeKind === 'buy' ? ':buy' : ':div') &&
+    listTrades(tx, {
+      accountId: a.id,
+      includeDeleted: true,
+    }).some(
+      (sibling) =>
+        sibling.kind === (m.tradeKind === 'buy' ? 'dividend' : 'buy') &&
+        sibling.importKey ===
+          `${t.importKey!.slice(0, -4)}:${m.tradeKind === 'buy' ? 'div' : 'buy'}`,
+    )
+  )
+    throw new EntrySkip('reward_leg', 'use tradeKind: "reward"');
   const targets = m.tradeKind === 'reward' ? [rewardDividend(tx, t), t] : [t];
   const affectedAccounts = [a.name];
   for (const target of targets) {
@@ -465,6 +492,7 @@ export function applyOwnerTrades(
     outcomes,
     counts: {
       added: count('added'),
+      repaired: count('repaired'),
       unchanged: count('unchanged'),
       deleted: count('deleted'),
       skipped: count('skipped'),

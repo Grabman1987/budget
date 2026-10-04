@@ -782,7 +782,7 @@ Synthetic example (the accounts and security must already exist; the depot's
       "units": "1.23456789",
       "amountCents": 12000,
       "feeCents": 100,
-      "importKey": "owner:synthetic:buy"
+      "importKey": "owner:synthetic:purchase"
     },
     {
       "id": "synthetic-reward",
@@ -811,15 +811,20 @@ need positive units; sell and delivery_out negative units; dividend, interest, f
 `"0"`; split needs a nonzero signed change and amount 0. Deliveries may have amount 0.
 The app's trade-kind money rules also apply.
 
-`importKey` is required for adds. Repeating the same entry reports `unchanged`, including a
-previously deleted or undone trade; use undo to restore it, or a new key for a genuinely new
-trade. Reusing a key for different trade values is skipped as `conflict`. Optional `cashAccount`
-must be the depot's open reference account. The PP migration's shared settlement calculation
+`importKey` is required and unique within the file for adds. Suffixes `:buy`, `:div` and `:cash`
+are reserved and rejected at parse. Repeating the same live entry reports `unchanged`;
+a previously deleted or undone trade is skipped as `deleted_by_owner`. Use `undo-group` to
+restore it, or a new key for a genuinely new trade. Reusing a key for different live trade
+values is skipped as `conflict`. `cashAccount` is required for buy/sell/dividend/interest/fee/tax
+when the depot has a `referenceAccountId`; omission is skipped as `missing_cash_account`.
+When supplied, it must be the depot's open reference account. The PP migration's shared settlement calculation
 creates an app transfer with memo `Verrechnung` and key `<importKey>:cash` on both legs:
 buy debits cash and credits depot by gross plus fee; sell/dividend/interest debit depot and
-credit cash by gross minus fee and tax. Standalone fee/tax follow the same settlement direction;
-deliveries/splits create no cash transfer. The depot's trade settlement cancels its transfer leg.
-No cashAccount means settlement stays on the investment account.
+credit cash by gross minus fee and tax. Standalone fee/tax debit cash and credit depot by their
+amount. Deliveries/splits create no cash transfer. The depot's trade settlement cancels its transfer leg.
+Without a depot reference account, settlement stays on the investment account. A duplicate
+add with `cashAccount` repairs a missing `<importKey>:cash` transfer and reports `repaired`.
+An existing transfer, including a soft-deleted one, reports `unchanged` and is not restored.
 
 `reward` is one atomic dividend plus buy for the supplied EUR value on that day, with keys
 `<importKey>:div` / `<importKey>:buy`. It adds units, leaves depot cash unchanged and records
@@ -852,7 +857,8 @@ Delete example (use a separate private file):
 narrowing fields. Exactly one live trade must match, otherwise `not_found` / `ambiguous`.
 Delete uses the app's soft-delete path for trade and settlement, plus both transfer legs found
 through `<importKey>:cash`. A reward match uses the buy's units/value and removes both reward
-trades and settlements. Closed accounts, unknown securities, `unitsRuleViolation`, reconciled
+trades and settlements. Deleting a single buy/dividend reward leg with an existing sibling
+is skipped as `reward_leg`; use `tradeKind: "reward"`. Closed accounts, unknown securities, `unitsRuleViolation`, reconciled
 locks and app refusals are skipped in their entry savepoint; other entries continue.
 
 Run, verify and undo (inside the server, with the existing operator environment from section 12):
@@ -860,7 +866,7 @@ Run, verify and undo (inside the server, with the existing operator environment 
 ```sh
 node /app/migrate-cli.js owner-trades --file /data/private/owner-trades.json --dry-run --details
 node /app/migrate-cli.js owner-trades --file /data/private/owner-trades.json --details
-# Copy the audit group ID from an added/deleted line, then verify app account histories,
+# Copy the audit group ID from an added/repaired/deleted line, then verify app account histories,
 # holdings and Reports > Portfolio > Kosten, Steuern, Erträge against the source.
 node /app/migrate-cli.js owner-trades --file /data/private/owner-trades.json --dry-run
 node /app/migrate-cli.js undo-group --group <group-id> --dry-run
@@ -870,10 +876,11 @@ node /app/migrate-cli.js undo-group --group <group-id>
 Before the real run, inspect skips and compare `cash-change` (signed cents per account) and
 `units-change` (signed decimals per security) with the platform. After the run, the same add file
 must be unchanged with zero deltas. Delete files resolve live trades, so repeating deletion is
-`not_found`. One audit group per run, actor `operator`; `undo-group` restores the entire run.
+`not_found`. One audit group per run, actor `operator`; no `importRunId` is created or accepted.
+Undo is only via `undo-group`, which restores the entire run.
 Dry-run exercises writes, invariants and audit and then rolls everything back, with no group ID.
 
-Output has one status line per entry: `added|unchanged|deleted <id> <account> <date> <tradeKind>
+Output has one status line per entry: `added|repaired|unchanged|deleted <id> <account> <date> <tradeKind>
 <units> <gross-cents> [group]`, or `skipped <id> <reason> <account> <date> <tradeKind> <units>
 <gross-cents>`. Omitted delete match fields show `*` on skips. `--details` adds refusal messages;
 the summary counts logical entries (one reward counts as one). Exit 3 means at least one skip,
