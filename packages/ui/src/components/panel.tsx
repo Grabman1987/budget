@@ -22,6 +22,35 @@ const FOCUSABLE =
   'a[href], button:not([disabled]), input:not([disabled]):not([type="hidden"]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
 /**
+ * The control the last tap or click landed on. Safari (macOS and iOS) does not focus a button or
+ * link that is clicked, so at the moment a panel opens `document.activeElement` is the body and the
+ * native dialog has nothing to give the focus back to. The panel then remembers this control
+ * instead (only a recent one: a panel opened by a deep link has no trigger).
+ */
+let lastPointerTrigger: { element: Element; at: number } | undefined;
+if (typeof document !== 'undefined') {
+  const remember = (e: Event) => {
+    const target = e.target instanceof Element ? e.target.closest(FOCUSABLE) : null;
+    lastPointerTrigger = target ? { element: target, at: Date.now() } : undefined;
+  };
+  // Pointer, touch and click: the engines differ in which of them a tap produces.
+  for (const type of ['pointerdown', 'touchstart', 'mousedown', 'click'])
+    document.addEventListener(type, remember, { capture: true, passive: true });
+}
+const TRIGGER_MAX_AGE_MS = 2000;
+
+/** Where the focus returns when the dialog closes: the focused control or the recent trigger. */
+function focusReturnTarget(): HTMLElement | null {
+  const active = document.activeElement;
+  if (active instanceof HTMLElement && active !== document.body) return active;
+  if (lastPointerTrigger && Date.now() - lastPointerTrigger.at < TRIGGER_MAX_AGE_MS) {
+    const el = lastPointerTrigger.element;
+    if (el instanceof HTMLElement) return el;
+  }
+  return null;
+}
+
+/**
  * Keeps Tab inside a large dialog: the native modal makes the page behind inert, but Chrome would
  * hand the focus on to its own toolbar after the last control. Wrap to the other end instead.
  */
@@ -69,11 +98,31 @@ function Overlay({
     onClose();
   };
 
+  const returnTo = useRef<HTMLElement | null>(null);
+  /** After the dialog closed: the native focus return, or ours where Safari gave none. */
+  const restoreFocus = () => {
+    const target = returnTo.current;
+    returnTo.current = null;
+    if (!target || !target.isConnected) return;
+    const active = document.activeElement;
+    // Focus that still sits on the dialog (it is displayed through the exit transition) is no
+    // reason to stay; focus that went to another control of the page is.
+    const inDialog = active !== null && Boolean(ref.current?.contains(active));
+    if (active && active !== document.body && !inDialog && active !== target) return;
+    target.focus({ preventScroll: true });
+  };
+
   useEffect(() => {
     const dialog = ref.current;
     if (!dialog) return;
-    if (open && !dialog.open) dialog.showModal();
-    if (!open && dialog.open) dialog.close();
+    if (open && !dialog.open) {
+      returnTo.current = focusReturnTarget();
+      dialog.showModal();
+    }
+    if (!open && dialog.open) {
+      dialog.close();
+      restoreFocus();
+    }
   }, [open]);
 
   return (
@@ -88,7 +137,10 @@ function Overlay({
         wide && (variant === 'modal' ? 'is-wide' : 'is-full'),
       )}
       aria-labelledby={titleId}
-      onClose={onClose}
+      onClose={() => {
+        restoreFocus();
+        onClose();
+      }}
       // Esc: the native cancel event, stopped while the guard wants the panel to stay.
       onCancel={(e) => {
         if (beforeClose && !beforeClose()) e.preventDefault();
