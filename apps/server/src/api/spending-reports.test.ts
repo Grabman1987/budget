@@ -869,7 +869,14 @@ describe('2.4 Persönliche Inflation', () => {
       ownChangeBp: null,
       referenceChangeBp: null,
     });
-    expect(body.derivedContracts).toEqual([]);
+    // Contracts with one stored price and no linked bookings are priced from their payee's bookings.
+    expect(body.derivedContracts.map((c: any) => c.name).sort()).toEqual([
+      'Cloud-Speicher',
+      'KI-Assistent',
+      'KI-Bildtool',
+      'Mobilfunk',
+      'Zeitung digital',
+    ]);
     expect(body.points[0].index).toBe(100);
     const by = Object.fromEntries(body.contributions.map((c: any) => [c.name, c]));
     // Strom 95 -> 105 EUR in January 2026; Internet was raised before the window starts.
@@ -964,6 +971,99 @@ describe('2.4 Persönliche Inflation', () => {
     ]);
     const by = Object.fromEntries(body.contributions.map((c: any) => [c.name, c]));
     expect(by['Wohnen'].changeBp).toBe(1_000);
+    small.close();
+  });
+
+  it('derives the history of an imported contract from the bookings of its payee and category', async () => {
+    const small = createTestDatabase();
+    seedBasics(small.db);
+    const ctx = { actor: 'test' };
+    categories.create(
+      small.db,
+      { id: 'handy', name: 'Handy', groupId: 'g', class: 'need', kind: 'fixed' },
+      ctx,
+    );
+    // An account opened the day before the first spending month: its month holds no prices.
+    accounts.create(
+      small.db,
+      {
+        id: 'alt',
+        name: 'Altkonto',
+        type: 'checking',
+        role: 'budget',
+        onBudget: true,
+        openingDate: '2023-09-30',
+        openingBalanceCents: 10_000,
+      },
+      ctx,
+    );
+    const asOf = '2026-09-17';
+    // Imported contract: starts in the future, no occurrence is linked to a past booking.
+    createExpectedPayment(
+      small.db,
+      {
+        id: 'handy-vertrag',
+        name: 'Handyvertrag',
+        kind: 'outflow',
+        rhythm: 'monthly',
+        dueDay: 20,
+        categoryId: 'handy',
+        payeeId: 'p1',
+        startDate: '2026-10-01',
+      },
+      { validFrom: '2026-10-01', amountCents: 3_300 },
+      ctx,
+      asOf,
+    );
+    for (let i = 0; i < 35; i++) {
+      const date = `${2023 + Math.floor((i + 9) / 12)}-${String(((i + 9) % 12) + 1).padStart(2, '0')}-20`;
+      const phone = date >= '2026-01' ? 3_300 : 3_000;
+      // The phone share is a split of a mixed booking: only that split is the price.
+      createBooking(
+        small.db,
+        {
+          accountId: 'giro',
+          date,
+          payeeId: 'p1',
+          amountCents: -(phone + 1_200),
+          splits: [
+            { categoryId: 'handy', amountCents: -phone },
+            { categoryId: 'essen', amountCents: -1_200 },
+          ],
+        },
+        ctx,
+      );
+    }
+    // Same payee, other category only: never part of the contract.
+    createBooking(
+      small.db,
+      {
+        accountId: 'giro',
+        date: '2026-06-05',
+        payeeId: 'p1',
+        amountCents: -99_900,
+        splits: [{ categoryId: 'essen', amountCents: -99_900 }],
+      },
+      ctx,
+    );
+    const body = (await get(api(small.db, asOf), '/reports/spending/inflation')).body;
+    expect(body.derivedContracts).toEqual([
+      {
+        id: 'handy-vertrag',
+        name: 'Handyvertrag',
+        source: 'bookings',
+        prices: [
+          { validFrom: '2023-10-20', amountCents: 3_000, currency: 'EUR' },
+          { validFrom: '2026-01-20', amountCents: 3_300, currency: 'EUR' },
+        ],
+      },
+    ]);
+    expect(body.insufficientReason).toBeNull();
+    expect(body.status).toBe('ok');
+    expect(body.baseMonth).toBe('2023-10');
+    const by = Object.fromEntries(body.contributions.map((c: any) => [c.name, c]));
+    // The raise falls inside the window, so the whole 10 % is the price change of the basket.
+    expect(by['Handy'].changeBp).toBe(1_000);
     small.close();
   });
 
