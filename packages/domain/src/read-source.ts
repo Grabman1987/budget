@@ -1,3 +1,11 @@
+import { z } from 'zod';
+
+export const sourceMappingSchema = z.strictObject({
+  key: z.string().min(1).max(210),
+  accountId: z.string().min(1).max(100),
+  securityId: z.string().min(1).max(100).nullable(),
+});
+
 /** Exact source decimals; unsupported precision remains unavailable, never rounded. */
 export function sourceInteger(value: string, scale: number): number | null {
   if (!/^-?\d{1,30}(\.\d{1,30})?$/.test(value)) return null;

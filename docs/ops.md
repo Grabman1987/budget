@@ -653,8 +653,8 @@ Run it as `fly ssh console -a budget-fg -C "node /app/migrate-cli.js instrument-
 ### 12.6 Owner configuration (operator task)
 
 `owner-config --file <json> [--dry-run] [--details]` loads the owner's private settings from one file
-(keep it on `/data/migration/`, never in the repo). Every section is optional; each entry is its own
-audit group (actor `operator`, `undo-group --group <id>` reverts it alone) and calls the function
+(keep it on `/data/migration/`, never in the repo). Every section is optional; entries share one
+audit group per run (actor `operator`, `undo-group --group <id>` reverts the run) and call the function
 behind the matching app route, so validation and audit are those of the UI. A file is checked as a
 whole first (unknown keys, bad values, duplicates); nothing runs if it is wrong. An entry the app
 would refuse is `skipped <reason>` (`--details` adds the message), the rest goes through, the exit
@@ -688,9 +688,40 @@ code is 3. Running a file twice is safe: the second run reports everything as `u
 }
 ```
 
-Sections run in this order: `profile`, `rules`, `categoryStages`, `assetClasses`, `securities`,
+Sections run in this order: `createSecurities`, `cryptoMappings`, `splitCategories`, then
+`profile`, `rules`, `categoryStages`, `assetClasses`, `securities`,
 `expectedPayments`, `skipOccurrences`, `clearBookings`. Names are matched exactly (trimmed,
-case-insensitive); unknown and ambiguous names are skipped and never created.
+case-insensitive for existing sections); unknown and ambiguous references are skipped. Each entry
+has a savepoint: a refusal rolls back only that entry. The following examples are synthetic:
+
+```json
+{
+  "createSecurities": [{ "name": "Synthetic Coin", "kind": "crypto", "assetClass": "Synthetic Class" }],
+  "cryptoMappings": [{ "key": "asset:synthetic-coin", "account": "Synthetic Depot", "security": "Synthetic Coin" }],
+  "splitCategories": [{ "splitId": "synthetic-split-id", "category": "Synthetic Group › Synthetic Category", "contact": null }]
+}
+```
+
+- `createSecurities`: required `name`, `kind` (`etf`, `stock`, `fund`, `bond`, `crypto`, `p2p`,
+  `commodity`, `other`); `currency` defaults to `EUR` (three uppercase letters), `pricesEnabled`
+  defaults to `false`. Optional `assetClass` is an exact live class name, `isin` a 12-character ISIN,
+  `symbol` a quote symbol. Creates through the normal securities/exposure path. An existing live
+  ISIN, or case-insensitive name when ISIN is omitted, is `unchanged`; different kind/currency is
+  `skipped conflicting`. Other fields of an existing security are retained.
+- `cryptoMappings`: `key` is `asset:<providerId>` or `currency:<providerId>`, `account` an exact live
+  account name. Asset keys require `security` (ISIN or exact live name); currency keys omit it.
+  Merges into `source.crypto.mappings` using the source mapping schema and audited write path:
+  identical target is `unchanged`, changed target is `updated` with `mapping replaced` detail.
+  Unlisted keys remain. Active off-budget accounts are required; assets need crypto/brokerage
+  accounts and unique account/instrument targets. Explicit setup before the first fetch is allowed;
+  when a source balance exists its currency validation applies. No provider request or booking is made.
+- `splitCategories`: `splitId` identifies a split of a live booking; `category` is an exact name or
+  `Group › Category`; or give `incomeType` (exact live name) instead to move the split to income
+  without a category. Optional `contact` is an exact live name, `null` clears it, omission retains it.
+  The normal booking update validates contacts/categories and respects reconciled/transfer/trade
+  locks; refusals are skipped. Transfer legs are skipped (`transfer_leg`); a reconciled booking needs
+  `"unlock": true` on the entry (it stays reconciled). An income split cannot keep a contact. Booking amount/date/account and all split amounts/identities are
+  asserted unchanged. Undo restores categorisation/contact together with the rest of the run.
 
 - `profile`: the Einstellungen › Profil values. `region` is the Bundesland (code `AT-1` to `AT-9`
   or name); `country` only accepts Austria (`AT`, `Österreich`) or, as an alias, a Bundesland;
@@ -720,7 +751,7 @@ case-insensitive); unknown and ambiguous names are skipped and never created.
   required as the file's own documentation and is not stored.
 - `clearBookings`: per account (`accounts`, default all open accounts) every `pending`
   ("vorgemerkt") booking dated strictly before `before` becomes `confirmed` ("bestätigt", the status
-  the app's bulk action sets) through `updateBooking`. One audit group per account, all or nothing;
+  the app's bulk action sets) through `updateBooking`. One savepoint per account, all or nothing;
   the output line per account gives the count.
 
 Output: one line per entry (`created`/`updated`/`unchanged <section> <key> <changes> <group>` or
