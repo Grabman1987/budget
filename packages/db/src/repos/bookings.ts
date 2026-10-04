@@ -1,5 +1,6 @@
 import { bookingIncomeDefault } from './income-month';
 import { assertContactBookingWrite, assertContactSettlementInvariants } from './contact-invariants';
+import { learnBankPayee } from './assignment-rules';
 import { randomUUID } from 'node:crypto';
 import { and, asc, eq, gte, inArray, isNull, lte, ne, type SQL } from 'drizzle-orm';
 import {
@@ -10,6 +11,8 @@ import {
   expectedOccurrence,
   project,
   transfer,
+  bankSyncCandidate,
+  inboxItem,
 } from '../schema';
 import {
   deleteTracked,
@@ -759,6 +762,12 @@ function updateBookingImpl(
 
     const columns: Record<string, unknown> = { ...patch };
     if (
+      cur.source === 'bank' &&
+      cur.bankRawText === null &&
+      !cur.importKey?.startsWith('bank-transfer:')
+    )
+      columns['bankRawText'] = cur.memo;
+    if (
       patch.incomeNextMonth === undefined &&
       patch.splits &&
       cur.source === 'bank' &&
@@ -778,6 +787,196 @@ function updateBookingImpl(
     assertLedgerInvariants(tx, touchedBookings);
     for (const { id: occurrenceId, patch } of expectedLinkPatches(tx, touchedBookings))
       updateTracked(tx, expectedOccurrence, [occurrenceId], patch, grouped);
+    if (
+      cur.source === 'bank' &&
+      !cur.transferId &&
+      patch.payeeId &&
+      patch.payeeId !== cur.payeeId
+    ) {
+      const raw = cur.bankRawPayee || cur.bankRawText || cur.memo || '';
+      learnBankPayee(tx, cur.bankSourceId ?? '', raw, patch.payeeId, grouped);
+    }
+  });
+}
+
+/** Owner-selected bank transfer, retaining the original booking identity and source history. */
+export function markBankBookingTransfer(
+  db: Executor,
+  id: string,
+  targetAccountId: string,
+  categoryId: string | null,
+  ctx: AuditContext,
+  counterpartId?: string,
+) {
+  const grouped = withGroup(ctx);
+  return runInTransaction(db, (tx) => {
+    const row = loadBooking(tx, id);
+    if (
+      !row ||
+      row.source !== 'bank' ||
+      row.status === 'reconciled' ||
+      row.transferId ||
+      row.amountCents === 0 ||
+      loadSplits(tx, id).some((s) => s.transferId || s.contactId)
+    )
+      throw new BookingInvariantError(
+        'Nur ungeprüfte Bankbuchungen ohne bestehende Umbuchung wählen.',
+      );
+    assertContactBookingWrite(tx, id, 'update', ['transferId', 'splits']);
+    assertTradeSettlementBookingWrite(tx, id, 'update', ['transferId', 'splits']);
+    const source = liveAccount(tx, row.accountId),
+      target = liveAccount(tx, targetAccountId);
+    if (source.id === target.id || source.currency !== target.currency)
+      throw new BookingInvariantError('Umbuchung benötigt zwei Konten derselben Währung.');
+    const legs = categoryLegs(source, target, categoryId);
+    // Exact date/currency/amount matching is usable only when there is one unclassified bank leg.
+    const candidates = tx
+      .select({ candidate: bankSyncCandidate })
+      .from(bankSyncCandidate)
+      .innerJoin(inboxItem, eq(inboxItem.id, bankSyncCandidate.id))
+      .where(
+        and(
+          eq(bankSyncCandidate.accountId, targetAccountId),
+          eq(bankSyncCandidate.date, row.date),
+          eq(bankSyncCandidate.amountCents, -row.amountCents),
+          eq(bankSyncCandidate.currency, row.currency),
+          isNull(inboxItem.resolvedAt),
+        ),
+      )
+      .all()
+      .map((r) => r.candidate);
+    const livePartners = tx
+      .select()
+      .from(booking)
+      .where(
+        and(
+          eq(booking.accountId, targetAccountId),
+          eq(booking.date, row.date),
+          eq(booking.amountCents, -row.amountCents),
+          eq(booking.source, 'bank'),
+          isNull(booking.transferId),
+          isNull(booking.deletedAt),
+        ),
+      )
+      .all()
+      .filter(
+        (b) =>
+          b.status !== 'reconciled' &&
+          loadSplits(tx, b.id).every(
+            (s) => !s.categoryId && !s.contactId && !s.transferId && !s.incomeTypeId,
+          ),
+      );
+    const candidatePartners = candidates.filter(
+      (c) => !livePartners.some((b) => b.importKey === 'bank-sync:' + c.dedupeKey),
+    );
+    if (!counterpartId && livePartners.length + candidatePartners.length > 1)
+      throw new BookingInvariantError(
+        'Mehrere Gegenumsätze passen. Bitte die Buchungen einzeln prüfen.',
+      );
+    counterpartId ??= livePartners[0]?.id;
+    const stagedPartner = candidates[0];
+    const partnerKey = stagedPartner
+      ? 'bank-sync:' + stagedPartner.dedupeKey
+      : 'bank-transfer:' + id;
+    updateBooking(
+      tx,
+      id,
+      { payeeId: null, splits: [{ amountCents: row.amountCents, categoryId: legs.from }] },
+      grouped,
+    );
+    const transferId = randomUUID();
+    tx.insert(transfer).values({ id: transferId }).run();
+    let otherId: string;
+    if (counterpartId) {
+      const other = loadBooking(tx, counterpartId);
+      if (
+        !other ||
+        other.source !== 'bank' ||
+        other.status === 'reconciled' ||
+        other.transferId ||
+        other.accountId !== targetAccountId ||
+        other.amountCents !== -row.amountCents ||
+        other.date !== row.date ||
+        loadSplits(tx, counterpartId).some((s) => s.contactId || s.transferId)
+      )
+        throw new BookingInvariantError('Gegenbuchung passt nicht.');
+      updateBooking(
+        tx,
+        counterpartId,
+        { payeeId: null, splits: [{ amountCents: other.amountCents, categoryId: legs.to }] },
+        grouped,
+      );
+      updateTracked(tx, booking, [counterpartId], { transferId }, grouped);
+      otherId = counterpartId;
+    } else {
+      const old = tx
+        .select()
+        .from(booking)
+        .where(and(eq(booking.accountId, targetAccountId), eq(booking.importKey, partnerKey)))
+        .get();
+      if (old && !old.deletedAt)
+        throw new BookingInvariantError('Eine Gegenbuchung besteht bereits.');
+      if (old) {
+        updateTracked(
+          tx,
+          booking,
+          [old.id],
+          {
+            deletedAt: null,
+            transferId,
+            amountCents: -row.amountCents,
+            date: row.date,
+            memo: stagedPartner?.memo ?? row.memo,
+            status: row.status,
+            bankRawText: stagedPartner?.memo ?? null,
+            bankRawPayee: stagedPartner?.rawPayee ?? null,
+            bankSourceId: stagedPartner?.sourceId ?? null,
+          },
+          grouped,
+          'restore',
+        );
+        syncSplits(
+          tx,
+          old.id,
+          loadSplits(tx, old.id),
+          [{ amountCents: -row.amountCents, categoryId: legs.to }],
+          grouped,
+        );
+        otherId = old.id;
+      } else
+        otherId = insertBooking(
+          tx,
+          {
+            accountId: targetAccountId,
+            date: row.date,
+            amountCents: -row.amountCents,
+            currency: target.currency,
+            source: 'bank',
+            status: row.status,
+            memo: row.memo,
+            importKey: partnerKey,
+            bankRawText: stagedPartner?.memo ?? null,
+            bankRawPayee: stagedPartner?.rawPayee ?? null,
+            bankSourceId: stagedPartner?.sourceId ?? null,
+            splits: [{ amountCents: -row.amountCents, categoryId: legs.to }],
+          },
+          transferId,
+          grouped,
+        );
+    }
+    updateTracked(tx, booking, [id], { transferId }, grouped);
+    assertLedgerInvariants(tx, [id, otherId]);
+    for (const { id: occurrenceId, patch } of expectedLinkPatches(tx, [id, otherId]))
+      updateTracked(tx, expectedOccurrence, [occurrenceId], patch, grouped);
+    if (stagedPartner)
+      updateTracked(
+        tx,
+        inboxItem,
+        [stagedPartner.id],
+        { resolvedAt: new Date().toISOString(), resolution: 'Bestätigt: ' + otherId },
+        grouped,
+      );
+    return { bookingId: id, counterpartId: otherId, groupId: grouped.groupId };
   });
 }
 
