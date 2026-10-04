@@ -30,7 +30,7 @@ it('upgrades existing trades without changing cash, import identities or audit h
     const cash = before('booking');
     const splits = before('booking_split');
     const audit = before('audit_log');
-    for (const migration of migrations.slice(28))
+    for (const migration of migrations.slice(28, 31))
       for (const statement of migration.sql) sqlite.exec(statement);
     expect(before('trade')).toEqual(
       retainedTrades.map((row) => ({
