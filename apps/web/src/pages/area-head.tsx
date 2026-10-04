@@ -151,7 +151,7 @@ export function AreaHead({
             <ReportNavigation id={reportId} />
           </div>
         );
-        titleOnMobile = true;
+        // The phone header already carries the report title as its h1.
       }
       // As in the prototype; the phone shows the registers right under the header.
       fields = [
