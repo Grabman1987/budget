@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "4e514d9b-b71b-4c3c-aae6-008d7fa5e469",
+  "id": "99febfa7-7475-4391-8156-a775b03eba31",
   "prevId": "793a19fd-8155-4e21-aa67-1e7cbdb14924",
   "tables": {
     "account": {
@@ -2351,27 +2351,6 @@
           "notNull": false,
           "autoincrement": false
         },
-        "bank_raw_text": {
-          "name": "bank_raw_text",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "bank_raw_payee": {
-          "name": "bank_raw_payee",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "bank_source_id": {
-          "name": "bank_source_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
         "status": {
           "name": "status",
           "type": "text",
@@ -3998,6 +3977,14 @@
           "autoincrement": false,
           "default": 0
         },
+        "leverage_factor": {
+          "name": "leverage_factor",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 10
+        },
         "asset_class_id": {
           "name": "asset_class_id",
           "type": "text",
@@ -4459,22 +4446,6 @@
           "notNull": true,
           "autoincrement": false
         },
-        "action_json": {
-          "name": "action_json",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false,
-          "default": "'{}'"
-        },
-        "automatic": {
-          "name": "automatic",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false,
-          "default": false
-        },
         "payee_id": {
           "name": "payee_id",
           "type": "text",
@@ -4758,6 +4729,75 @@
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "checkConstraints": {}
+    },
+    "employer_pension": {
+      "name": "employer_pension",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "month": {
+          "name": "month",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "amount_cents": {
+          "name": "amount_cents",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "(strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "(strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))"
+        },
+        "deleted_at": {
+          "name": "deleted_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "employer_pension_month_uq": {
+          "name": "employer_pension_month_uq",
+          "columns": ["month"],
+          "isUnique": true
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {
+        "employer_pension_month_chk": {
+          "name": "employer_pension_month_chk",
+          "value": "\"employer_pension\".\"month\" GLOB '[0-9][0-9][0-9][0-9]-[01][0-9]'"
+        },
+        "employer_pension_amount_chk": {
+          "name": "employer_pension_amount_chk",
+          "value": "\"employer_pension\".\"amount_cents\" >= 0"
+        }
+      }
     },
     "inbox_item": {
       "name": "inbox_item",
@@ -5895,130 +5935,6 @@
         }
       }
     },
-    "bank_payee_alias": {
-      "name": "bank_payee_alias",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "text",
-          "primaryKey": true,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "source_id": {
-          "name": "source_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "raw_key": {
-          "name": "raw_key",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "payee_id": {
-          "name": "payee_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false,
-          "default": "(strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))"
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false,
-          "default": "(strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))"
-        },
-        "deleted_at": {
-          "name": "deleted_at",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        }
-      },
-      "indexes": {
-        "bank_payee_alias_key_uq": {
-          "name": "bank_payee_alias_key_uq",
-          "columns": ["source_id", "raw_key"],
-          "isUnique": true
-        }
-      },
-      "foreignKeys": {
-        "bank_payee_alias_payee_id_payee_id_fk": {
-          "name": "bank_payee_alias_payee_id_payee_id_fk",
-          "tableFrom": "bank_payee_alias",
-          "tableTo": "payee",
-          "columnsFrom": ["payee_id"],
-          "columnsTo": ["id"],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "checkConstraints": {}
-    },
-    "bank_payee_cleanup": {
-      "name": "bank_payee_cleanup",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "text",
-          "primaryKey": true,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "config_json": {
-          "name": "config_json",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false,
-          "default": "(strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))"
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false,
-          "default": "(strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))"
-        },
-        "deleted_at": {
-          "name": "deleted_at",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {},
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "checkConstraints": {}
-    },
     "bank_sync_account": {
       "name": "bank_sync_account",
       "columns": {
@@ -6170,20 +6086,6 @@
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false
-        },
-        "raw_payee": {
-          "name": "raw_payee",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "source_id": {
-          "name": "source_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
         }
       },
       "indexes": {
@@ -6199,15 +6101,6 @@
           "tableFrom": "bank_sync_candidate",
           "tableTo": "account",
           "columnsFrom": ["account_id"],
-          "columnsTo": ["id"],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "bank_sync_candidate_source_id_bank_sync_account_id_fk": {
-          "name": "bank_sync_candidate_source_id_bank_sync_account_id_fk",
-          "tableFrom": "bank_sync_candidate",
-          "tableTo": "bank_sync_account",
-          "columnsFrom": ["source_id"],
           "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"

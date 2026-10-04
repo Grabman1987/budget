@@ -1,4 +1,4 @@
-import { ClassSwatch, cx } from '@budget/ui';
+import { useAmountPrivacy, ClassSwatch, cx } from '@budget/ui';
 import { ChevronDown } from 'lucide-react';
 import { useState } from 'react';
 import { currentMonth } from '../shell/use-month';
@@ -42,6 +42,7 @@ export function MultiTable({
   onToggle: (key: string) => void;
   onOpen: (id: string, month: string) => void;
 }) {
+  useAmountPrivacy();
   const write = useBudgetWrite();
   /** The cell being edited: month and envelope. */
   const [editing, setEditing] = useState<{ month: string; id: string } | null>(null);

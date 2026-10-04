@@ -1,4 +1,4 @@
-import { cx } from '@budget/ui';
+import { useAmountPrivacy, cx } from '@budget/ui';
 import { useQuery } from '@tanstack/react-query';
 import { Link, useParams } from '@tanstack/react-router';
 import { ChevronDown, Pencil } from 'lucide-react';
@@ -23,6 +23,7 @@ const short = (value: number | null) =>
  * accounts get a grip and ↑ / ↓ buttons to change their order within their group, "Fertig" ends it.
  */
 export function AccountTree() {
+  useAmountPrivacy();
   const accounts = useQuery(accountsQuery());
   const params = useParams({ strict: false }) as { id?: string };
   const ordered = useOrderedAccounts(accounts.data?.accounts);
@@ -63,6 +64,7 @@ function PencilButton(props: {
   /** The per-account pencil is a mouse shortcut; the group pencil is the keyboard way in. */
   mouseOnly?: boolean;
 }) {
+  useAmountPrivacy();
   return (
     <button
       type="button"
@@ -90,6 +92,7 @@ function AccountGroupBlock({
   onEdit: () => void;
   onReorder: (ids: string[]) => void;
 }) {
+  useAmountPrivacy();
   const groupId: AccountGroupId = view.group.id;
   const [storedFolded, setFolded] = useStoredFlag(`budget-acct-tree-${groupId}`);
   // Editing shows every account without changing what the owner folded.

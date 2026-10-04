@@ -1,4 +1,5 @@
-import { cents, formatEuro, MINUS, type FormatEuroOptions } from '@budget/domain';
+import { formatPrivateEuro as formatEuro, amountsHidden, privateAmount } from '@budget/ui';
+import { cents, MINUS, type FormatEuroOptions, type CashValuation } from '@budget/domain';
 
 export { MINUS };
 
@@ -12,6 +13,7 @@ export const eurWhole = (value: number, sign = false) =>
 
 /** Native money display only: no exchange-rate calculation. */
 const nativeMoney = (valueCents: number, currency: string, sign: boolean, whole: boolean) => {
+  if (amountsHidden()) return `••• ${currency === 'EUR' ? '€' : currency}`;
   if (currency === 'EUR') return eur(valueCents, { cents: !whole, sign });
   const amount = new Intl.NumberFormat('de-AT', {
     style: 'currency',
@@ -30,8 +32,52 @@ export const nativeCurrency = (valueCents: number, currency: string, sign = fals
 export const nativeCurrencyWhole = (valueCents: number, currency: string, sign = false) =>
   nativeMoney(valueCents, currency, sign, true);
 
+/** Shared native + EUR display. Conversion and rate selection belong to the server/domain. */
+export function valuedCurrencyParts(
+  value: number,
+  currency: string,
+  valuation?: CashValuation | null,
+  sign = false,
+): { amount: string; rate: string | null } {
+  const native = nativeCurrency(value, currency, sign);
+  if (currency === 'EUR') return { amount: native, rate: null };
+  if (
+    !valuation ||
+    valuation.eurCents === null ||
+    valuation.rateMicro === null ||
+    !valuation.rateDate
+  )
+    return { amount: `${native} · EUR: Kurs fehlt`, rate: null };
+  const rate = new Intl.NumberFormat('de-AT', { maximumFractionDigits: 6 }).format(
+    valuation.rateMicro / 1_000_000,
+  );
+  return {
+    amount: `${native} · ${eur(valuation.eurCents, { sign })}`,
+    rate: `${valuation.rateSource === 'ecb' ? 'EZB' : (valuation.rateSource ?? 'Kurs')}: 1 ${currency} = ${rate} EUR · ${longDay(valuation.rateDate)}`,
+  };
+}
+
+export function valuedCurrency(
+  value: number,
+  currency: string,
+  valuation?: CashValuation | null,
+  sign = false,
+): string {
+  const parts = valuedCurrencyParts(value, currency, valuation, sign);
+  return parts.rate ? `${parts.amount} · ${parts.rate}` : parts.amount;
+}
+
+/** Movement totals sum booking-day EUR values; no single rate applies to the native total. */
+export function valuedMovement(nativeCents: number, currency: string, eurCents?: number | null) {
+  const native = nativeCurrency(nativeCents, currency, true);
+  return currency === 'EUR'
+    ? native
+    : `${native} · ${eurCents == null ? 'EUR: Kurs fehlt' : eur(eurCents, { sign: true })}`;
+}
+
 /** Exact lead figure split into grouped whole euros and cents, from one de-AT formatting pass. */
 export const eurParts = (value: number) => {
+  if (amountsHidden()) return { whole: privateAmount(''), fraction: privateAmount('') };
   const [whole = '0', fraction = '00'] = eur(value).replace(/ €$/, '').split(',');
   return { whole, fraction };
 };

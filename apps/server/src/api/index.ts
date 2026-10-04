@@ -1,5 +1,7 @@
 import { payrollRoutes, projectRoutes } from './payroll-projects';
 import { assignmentRoutes } from './assignment-rules';
+import { payslipIntakeRoutes } from './payslip-intake';
+import { incomeMonthRoutes } from './income-month';
 import { bankSyncFromEnv } from '../bank-sync/config';
 import type { BankSync } from '../bank-sync/service';
 import { bankSyncRoutes } from './bank-sync';
@@ -8,7 +10,7 @@ import { readSourceRoutes } from './read-source';
 import { searchRoutes } from './search';
 import { inboxRoutes } from './inbox';
 import { contactRoutes } from './contacts';
-import { sqliteOf, type Db } from '@budget/db';
+import { namedNotes, runWithValuationNotes, sqliteOf, type Db } from '@budget/db';
 import { receiptDirectory } from '../receipts/files';
 import { receiptRoutes } from './receipts';
 import { todayInVienna } from '@budget/domain';
@@ -76,10 +78,34 @@ export function createLedgerApi({
   receiptsDir = receiptDirectory(sqliteOf(db).name),
 }: LedgerApiOptions): Hono {
   const api = new Hono();
-  api.route('/assignment-rules', assignmentRoutes(db));
+  // A valuation that had to estimate or skip a position (no quote) reports it while it runs; the
+  // answer then carries them as `incomplete` and the page shows "Bewertung teilweise geschätzt".
+  api.use('*', async (c, next) => {
+    await runWithValuationNotes(async (notes) => {
+      await next();
+      const found = notes();
+      if (found.length === 0 || c.res.status < 200 || c.res.status > 201) return;
+      if (!c.res.headers.get('content-type')?.includes('application/json')) return;
+      const body: unknown = await c.res
+        .clone()
+        .json()
+        .catch(() => null);
+      if (body === null || typeof body !== 'object' || Array.isArray(body) || 'incomplete' in body)
+        return;
+      const headers = new Headers(c.res.headers);
+      headers.delete('content-length');
+      c.res = new Response(JSON.stringify({ ...body, incomplete: namedNotes(db, found) }), {
+        status: c.res.status,
+        headers,
+      });
+    });
+  });
   api.route('/payslips', payrollRoutes(db, today));
+  api.route('/payslip-intake', payslipIntakeRoutes(db, receiptsDir));
   api.route('/projects', projectRoutes(db, today));
-  api.route('/bank-sync', bankSyncRoutes(bankSync, stepUp));
+  api.route('/income-month-rules', incomeMonthRoutes(db));
+  api.route('/assignment-rules', assignmentRoutes(db));
+  api.route('/bank-sync', bankSyncRoutes(bankSync, stepUp, db));
   api.route('/sources/crypto', readSourceRoutes(db, today, stepUp, cryptoReadSource()));
   api.route('/search', searchRoutes(db));
   api.route('/accounts', accountRoutes(db, today));
@@ -88,7 +114,7 @@ export function createLedgerApi({
   api.route('/receipts', receiptRoutes(db, receiptsDir));
   api.route('/payees', payeeRoutes(db));
   api.route('/categories', categoryRoutes(db));
-  api.route('/budget', budgetRoutes(db));
+  api.route('/budget', budgetRoutes(db, today));
   api.route('/expected', expectedRoutes(db, today));
   api.route('/export', exportRoutes(db, today, stepUp));
   api.route('/wealth', wealthRoutes(db, today));

@@ -1,3 +1,4 @@
+import { evaluateRule } from '@budget/domain';
 /* eslint-disable @typescript-eslint/no-explicit-any -- JSON answers are inspected, not typed */
 import {
   accounts,
@@ -6,6 +7,7 @@ import {
   createEntity,
   createTestDatabase,
   ensureDefaultRules,
+  ruleInputs,
   INCOME_TYPES,
   schema,
   type Db,
@@ -101,7 +103,7 @@ async function call(method: string, path: string, body?: unknown) {
 }
 
 describe('GET /heute', () => {
-  it('keeps daily budget, upcoming and bookings usable while missing quotes isolate valuation sections', async () => {
+  it('keeps every section available while a never-quoted holding is valued at cost and flagged', async () => {
     const before = await call('GET', '/heute');
     db.insert(schema.account)
       .values({
@@ -139,23 +141,22 @@ describe('GET /heute', () => {
       'nextSteps',
     ])
       expect(result.body[section], section).toEqual(before.body[section]);
-    expect(result.body.financeCheck).toEqual({
-      unavailable: {
-        reason: 'missing_price',
-        asOf: TODAY,
-        message: expect.stringContaining('Wertpapierkurs fehlt'),
-      },
-    });
-    expect(result.body.netWorth).toMatchObject({ unavailable: { reason: 'missing_price' } });
+    expect(result.body.financeCheck.unavailable).toBeUndefined();
+    expect(result.body.netWorth.unavailable).toBeUndefined();
+    expect(result.body.incomplete).toEqual([
+      expect.objectContaining({ securityId: 'unpriced', quality: 'estimated' }),
+    ]);
     expect(
       (await call('PUT', `/securities/unpriced/prices/${TODAY}`, { price: '120' })).status,
     ).toBe(200);
     result = await call('GET', '/heute');
     expect(result.status).toBe(200);
     expect(result.body.financeCheck.counts.total).toBe(16);
-    expect(result.body.netWorth).toMatchObject({
-      unavailable: { reason: 'missing_price', asOf: '2026-01-31' },
-    });
+    // The days before the first quote are estimates, flagged but not unavailable.
+    expect(result.body.netWorth.unavailable).toBeUndefined();
+    expect(result.body.incomplete).toEqual([
+      expect.objectContaining({ securityId: 'unpriced', quality: 'estimated' }),
+    ]);
     expect(result.body.balance).toEqual(before.body.balance);
     expect(result.body.lastBookings).toEqual(before.body.lastBookings);
   });
@@ -218,7 +219,7 @@ describe('GET /heute', () => {
     const res = await call('GET', '/heute?period=payday');
     expect(res.body.stand).toMatchObject({ period: 'payday', from: TODAY, to: '2026-04-15' });
     expect(res.body.balance.actual).toHaveLength(1);
-    expect(res.body.balance.forecast).toHaveLength(29);
+    expect(res.body.balance.forecast).toHaveLength(91);
   });
 
   it('month shows another month; bad parameters are 400', async () => {
@@ -273,4 +274,38 @@ describe('PATCH /categories/:id {pinned}', () => {
     expect((await call('GET', '/heute')).body.pinned).toEqual([]);
     expect((await call('PATCH', '/categories/miete', { pinned: 'yes' })).status).toBe(400);
   });
+});
+
+it('uses the R07 projection and configured horizon in the balance chart', async () => {
+  const response = await call('GET', '/heute');
+  const evaluated = evaluateRule('R07', {}, ruleInputs(db, TODAY));
+  expect(response.body.balance.low.cents).toBe(evaluated?.detail['lowCents']);
+  expect(response.body.balance.low.day).toBe(evaluated?.detail['lowDay']);
+  const last = response.body.balance.forecast.at(-1);
+  expect(last.day).toBe('2026-06-16');
+});
+
+it('excludes early paid rent from the variable rate and hides the forecast', async () => {
+  createBooking(
+    db,
+    {
+      accountId: 'giro',
+      date: '2026-03-01',
+      amountCents: -90000,
+      splits: [{ amountCents: -90000, categoryId: 'miete' }],
+    },
+    { actor: 'tester' },
+  );
+  const early = createApp({ webDir, auth: signedIn, ledger: { db, today: () => '2026-03-03' } });
+  const response = await early.request('/api/heute');
+  expect(response.status).toBe(200);
+  const data = (await response.json()) as any;
+  expect(data.pace.figures).toMatchObject({
+    spentCents: 90000,
+    variableSoFarCents: 0,
+    openFixedCents: 0,
+    forecastEndCents: 90000,
+    forecastAvailable: false,
+  });
+  expect(data.pace.forecast).toEqual([]);
 });

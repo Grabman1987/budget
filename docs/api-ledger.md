@@ -10,18 +10,30 @@ Errors are `{ error, message }` with `error` one of: `invalid` (400, with `issue
 (404), `invariant` (422, e.g. split sum, transfer legs), `constraint` (422), `conflict` (409),
 `account_closed` (409), `account_not_empty` (409), `reconciled_locked` (409, with `bookingIds`; on an
 account edit also `reconciliationIds`),
-`undo_refused` (409), `valuation_unavailable` (503, German reason, `asOf`; missing quotes include
-`reason: missing_price`, `missingPriceSecurityIds` and `accountId`). Numeric valuation/history
-requires quotes on or before every held day. `/accounts` instead returns nullable
-`holdingsCents`, `valueEurCents` and `netWorthEurCents` with global/per-account
-`missingPriceSecurityIds` and `missingFxCurrencies`. `/heute` keeps its daily sections and
-represents unavailable `financeCheck` / `netWorth` as `{ unavailable: { reason, message, asOf } }`.
-A current quote does not repair an earlier history gap.
+`undo_refused` (409), `valuation_unavailable` (503, German reason, `asOf`; only a missing exchange
+rate now, `missingFxCurrencies`). The web app shows German text by `error` code and never the raw
+message of a generic or technical answer (`apps/web/src/api/error-text.ts`).
+
+A missing quote never fails a valuation. Per held position and day the valuation falls back in this
+order (`pickPrice` / `dailyValuation` in `packages/domain/src/invest/series.ts`): the latest price on
+or before the day (`exact`, `stale` when older than 7 days) → the earliest price AFTER the day within
+7 days (`estimated`) → the moving-average cost basis (`estimated`) → nothing, flagged `missing` (no
+price and no cost basis). A position without units (sold, expired, knocked out) adds nothing and is
+not flagged. Every answer of a request that estimated a value carries a top-level
+`incomplete: [{ securityId, name, quality: 'estimated' | 'missing', from, to }]` (one entry per
+security, merged over accounts and days); the pages show "Bewertung teilweise geschätzt: N
+Wertpapiere ohne Kurs". Answers whose values are all exact have no `incomplete`. Strict callers
+(Portfolio Performance comparison, the export) pass `estimate: false` and keep the old behaviour:
+a held position without a price is missing. `/accounts` returns `holdingsCents`, `valueEurCents`
+and `netWorthEurCents` with global/per-account `missingPriceSecurityIds` (only positions without
+price AND cost basis) and `missingFxCurrencies`. `/heute` keeps its daily sections and represents an
+unavailable `financeCheck` / `netWorth` (missing exchange rate) as
+`{ unavailable: { reason, message, asOf } }`.
 
 | Endpoint | Purpose |
 | --- | --- |
 | `GET /accounts?asOf=` | Accounts with `balanceCents` (as of the day, default today Vienna), `holdingsCents` (market value of securities held, 0 without), `clearedCents` (confirmed + reconciled), `unclearedCents` (pending), `scheduledCents` (dated later), counts, `lastReconciledOn`, `referenceAccountId` (Verrechnungskonto of a depot: its cash account, set by the PP migration; read-only here) |
-| `POST /accounts`, `PATCH /accounts/:id` | Create / edit: type, role, on-budget, currency, opening balance and date, terms (credit limit, overdraft, rate in bp, term end, fee). Role and budget membership default from the type; loans, depots, crypto, P2P and receivables can never be budget accounts. Once a Kontostand prüfen is stored, changing opening balance or date is `reconciled_locked` unless `unlockReconciled: true` |
+| `POST /accounts`, `PATCH /accounts/:id` | Create / edit: type, role, on-budget, currency, opening balance and date, terms (credit limit, overdraft, rate in bp, term end, fee; for loans also `interestKind` `fixed`/`variable`, `installmentCents`, `termStart`, `originalAmountCents`, read by the debt calculator and the cost report; a term end before the term start is 422). Role and budget membership default from the type (a `PATCH` that changes the type also sets the type's usual role unless `role` is given; an edit that does not name `openingBalanceCents` leaves it alone); loans, depots, crypto, P2P and receivables can never be budget accounts. Once a Kontostand prüfen is stored, changing opening balance or date is `reconciled_locked` unless `unlockReconciled: true` |
 | `PATCH /accounts/order` `{ ids }` (alias `POST /accounts/sort`) | The owner's account order: unique ids become `sortOrder` 1..n, accounts left out follow in their current order; one transaction and one audit group (`groupId` for one undo; an unknown or repeated id changes nothing). The sidebar, Konten › Übersicht and the account selects show each group (Budget-Konten, Kreditkarten, Kredite, Investments) in this order |
 | `POST /accounts/:id/close` `{ force? }`, `/reopen` | Close needs balance 0 and nothing pending or scheduled unless `force`; a closed account takes no bookings |
 | `GET /accounts/:id/series?from&to` | End-of-day balance for every day (at most 401 days) |
@@ -98,7 +110,7 @@ that has the version's currency. Open occurrences whose window has passed become
 
 ## Rules (P3.5)
 
-The rule book R01–R16 and the stage checklist (concept §3.5). Rules are data (`rule`: `params_json`, `enabled`); the engine is `evaluateRule` in `@budget/domain`, the inputs come from `ruleInputs` in `@budget/db` (the one place that assembles them). Results (`rule_result`) are derived and rewritten, edits are audited and undoable with `POST /undo { groupId }`.
+The rule book registered rules (`RULE_CODES`) and the stage checklist (concept §3.5). Rules are data (`rule`: `params_json`, `enabled`); the engine is `evaluateRule` in `@budget/domain`, the inputs come from `ruleInputs` in `@budget/db` (the one place that assembles them). Results (`rule_result`) are derived and rewritten, edits are audited and undoable with `POST /undo { groupId }`.
 
 | Request | What it does |
 | --- | --- |
@@ -279,3 +291,13 @@ summaries and already resolved warnings return 409, and extra request fields ret
 Normal whole-group undo/redo applies, including refusal if a later source write changed the row.
 The web queue/count use the common ledger query key so categorization, acknowledgement and undo
 also invalidate integrated Heute reads. Bank/assignment suggestion decisions remain later scope.
+
+### Book-rule inputs
+
+`GET /api/rules/inputs` reads optional birth month/year and monthly employer contributions. `PATCH /api/rules/inputs` accepts a strict `{ birthMonth?: "YYYY-MM" | "", pension?: [{ month: "YYYY-MM", amountCents: integer }] }` object. Birth month has no default and must be plausible; duplicate months and negative contributions are rejected. Writes share one audited, undoable savepoint. New instrument `leverageFactor` is integer tenths, between 10 and 1000. `GET /api/rules` includes a preview and `unavailableReason` for book rules, including disabled ones; null evaluations remain unstored.
+
+## Foreign-currency account detail
+
+See [the detail currency contract](fx-account-detail.md) for native cents, dated
+EUR display valuations, cash history, movement totals and reconciliation semantics.
+These projections do not change native reconciliation or book anything on read.

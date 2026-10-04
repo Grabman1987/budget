@@ -1,6 +1,11 @@
 import type { HistoryMatrix, StageOf } from '@budget/domain';
 import { queryOptions } from '@tanstack/react-query';
 import { request } from '../api/http';
+import {
+  mergeValuationNotes,
+  type ValuationNote,
+  type WithValuationNotes,
+} from '../ledger/valuation-hint';
 import { LEDGER_KEY } from '../ledger/queries';
 import { fetchRules, type RuleBook } from '../rules/api';
 
@@ -30,6 +35,8 @@ export interface FinanzcheckVerlauf {
   matrix: HistoryMatrix;
   check: FinanceCheckFull;
   book: RuleBook;
+  /** Securities the valuation behind check and book had to estimate. */
+  incomplete: ValuationNote[];
 }
 
 /**
@@ -47,6 +54,7 @@ export const finanzcheckVerlaufQuery = () =>
         request<FinanceCheckFull>('GET', '/api/rules/check'),
         fetchRules(),
       ]);
-      return { matrix, check, book };
+      const noted = (v: unknown) => (v as WithValuationNotes).incomplete;
+      return { matrix, check, book, incomplete: mergeValuationNotes(noted(check), noted(book)) };
     },
   });

@@ -52,7 +52,7 @@ Ein Hybrid, den keines der Vorbilder bietet:
 
 - **Envelope-Budgeting im Kern** (YNAB-Prinzip: Jeder vorhandene Euro hat genau einen Job, Zielwert „Zu verteilen“ = 0).
 - **Ausgabenlimit-Sicht obendrauf:** Aus den Zielen je Kategorie entsteht ein Monatslimit mit täglicher Pace-Linie („760 € von 3.000 €“), ohne das Envelope-Prinzip aufzugeben.
-- **Regelwerk aus Finanz-Basics** (R01–R16: 50/30/20, Notgroschen, vom Vormonat leben, Sinking Funds, Dispo nie im Plan, Tilgungsreihenfolge, Asset Allocation, Klumpenrisiko, Freiheitszahl …) als konfigurierbare Daten, laufend geprüft, jede Regel mit Status und konkreter Maßnahme.
+- **Regelwerk aus Finanz-Basics** (registrierte Regeln (`RULE_CODES`): 50/30/20, Notgroschen, vom Vormonat leben, Sinking Funds, Dispo nie im Plan, Tilgungsreihenfolge, Asset Allocation, Klumpenrisiko, Freiheitszahl …) als konfigurierbare Daten, laufend geprüft, jede Regel mit Status und konkreter Maßnahme.
 - **Geldfluss-Wasserfall** in neun Stufen, der am Gehaltstag, bei Windfalls und bei Überschuss beantwortet, wohin der nächste freie Euro fließt.
 - **Vollständiges Vermögens- und Portfolio-Tracking** in derselben Datenbasis (TTWROR, IRR, Benchmark, Allocation Soll/Ist, Schulden mit Tilgungsszenarien).
 
@@ -87,7 +87,7 @@ Datenquellen: Enable Banking (PSD2) für österreichische Banken, Bitpanda-Lese-
 | Vermögen | Was besitze ich? |
 | Reports | Warum und wohin? |
 
-Einstellungen liegen im Profil-Menü. Auf jeder Seite: Suche, Posteingang mit Zähler, „+ Buchung“. Zweite Ebene als Register, keine dritte Menüebene; Details als Seitenpanel (Desktop) oder Blatt von unten (Handy). Jede Ansicht hat eine eigene URL.
+Einstellungen liegen im Profil-Menü. Auf jeder Seite: Suche, Posteingang mit Zähler, „+ Buchung“. Zweite Ebene als Register (Einstellungen: gruppierte Liste statt Register, am Handy als Übersicht), keine dritte Menüebene; Details als Seitenpanel (Desktop) oder Blatt von unten (Handy). Jede Ansicht hat eine eigene URL.
 
 **Fachliche Invarianten (Kapitel 5.2):** Beträge als Integer in Cent; Summe der Anteile = Buchungsbetrag; Umbuchung = genau zwei Buchungen; nichts wird hart gelöscht, jede Änderung ist protokolliert und rückgängig machbar; Importe idempotent; Stichtag 01.10.2023 mit Eröffnungssalden, Kurshistorie vollständig auch davor.
 

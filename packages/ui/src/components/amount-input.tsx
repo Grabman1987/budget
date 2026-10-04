@@ -1,8 +1,15 @@
-import { formatDecimal, formatEuro, hasOperator, parseAmount, type Cents } from '@budget/domain';
+import {
+  useAmountPrivacy,
+  maskMoneyText,
+  formatPrivateEuro as formatEuro,
+} from '../amount-privacy';
+import { formatDecimal, hasOperator, parseAmount, type Cents } from '@budget/domain';
 import { useId, useLayoutEffect, useRef } from 'react';
 import { cx } from './cx';
 
 export interface AmountInputProps {
+  /** Native unit of the input; defaults to EUR for existing budget forms. */
+  currency?: string;
   label: string;
   value: string;
   onChange: (value: string) => void;
@@ -32,6 +39,7 @@ const HINT_INVALID = 'Das lässt sich nicht ausrechnen. Erlaubt sind Zahlen und 
  * commits the result and shows it as `1.234,56`. Invalid input is never committed.
  */
 export function AmountInput({
+  currency = 'EUR',
   label,
   value,
   onChange,
@@ -41,6 +49,7 @@ export function AmountInput({
   autoFocus,
   disabled,
 }: AmountInputProps) {
+  const hidden = useAmountPrivacy();
   const id = useId();
   const hintId = `${id}-hint`;
   const errorId = `${id}-error`;
@@ -78,7 +87,7 @@ export function AmountInput({
   let hint = HINT_DEFAULT;
   if (invalid) hint = HINT_INVALID;
   else if (calculating && result.ok) {
-    hint = `= ${formatEuro(result.cents)}  ·  Enter übernimmt das Ergebnis`;
+    hint = `= ${currency === 'EUR' ? formatEuro(result.cents) : `${hidden ? '•••' : formatDecimal(result.cents)} ${currency}`}  ·  Enter übernimmt das Ergebnis`;
   }
 
   return (
@@ -109,7 +118,7 @@ export function AmountInput({
           ref={inputRef}
           id={id}
           className="amount-input"
-          type="text"
+          type={hidden ? 'password' : 'text'}
           inputMode="text"
           autoComplete="off"
           spellCheck={false}
@@ -118,7 +127,7 @@ export function AmountInput({
           autoFocus={autoFocus}
           disabled={disabled}
           value={value}
-          placeholder="0,00"
+          placeholder={hidden ? '•••' : '0,00'}
           aria-invalid={invalid || Boolean(error)}
           aria-describedby={error ? `${hintId} ${errorId}` : hintId}
           onChange={(e) => onChange(e.target.value)}
@@ -131,7 +140,7 @@ export function AmountInput({
           onBlur={commit}
         />
         <span className="amount-cur" aria-hidden="true">
-          €
+          {currency === 'EUR' ? '€' : currency}
         </span>
       </div>
       {/* Always mounted so that the calculated result is announced (polite) when it appears. */}
@@ -145,7 +154,7 @@ export function AmountInput({
       </p>
       {error && (
         <p id={errorId} className="field-error" role="alert">
-          {error}
+          {maskMoneyText(error)}
         </p>
       )}
     </div>

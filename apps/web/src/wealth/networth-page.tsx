@@ -1,10 +1,11 @@
-import { DimensionChain } from '@budget/ui';
+import { useAmountPrivacy, DimensionChain } from '@budget/ui';
 import { useQuery } from '@tanstack/react-query';
 import { ArrowDown, ArrowUp } from 'lucide-react';
 import { VERMOEGEN_NETTO_META } from '../nav/pages';
 import { PageFrame } from '../pages/placeholder-page';
 import { eurParts, eurWhole } from '../ledger/format';
 import { EmptyNote, ErrorNote, LoadingNote } from '../ledger/states';
+import { ValuationHint } from '../ledger/valuation-hint';
 import { netWorthQuery, type CompositionRow, type NetWorthView } from './api';
 import { NetWorthChart } from './networth-chart';
 import { chainTerms, periodText } from './networth-model';
@@ -12,6 +13,7 @@ import { useZeitraum } from './zeitraum';
 
 /** Vermögen › Nettovermögen: the figure with its Maßkette, the daily course and what it consists of. */
 export function NetWorthPage() {
+  useAmountPrivacy();
   const [zeitraum] = useZeitraum();
   const query = useQuery(netWorthQuery(zeitraum));
   const view = query.data;
@@ -35,6 +37,7 @@ export function NetWorthPage() {
         {empty && <EmptyNote>Noch keine Konten. Lege unter Konten ein Konto an.</EmptyNote>}
         {view && !empty && (
           <>
+            <ValuationHint incomplete={view.incomplete} />
             <Course view={view} />
             <Composition view={view} />
           </>
@@ -45,6 +48,7 @@ export function NetWorthPage() {
 }
 
 function Course({ view }: { view: NetWorthView }) {
+  useAmountPrivacy();
   const { chain } = view;
   const text = periodText(view.period, view.from);
   const { whole, fraction } = eurParts(chain.nowCents);
@@ -96,6 +100,7 @@ function Course({ view }: { view: NetWorthView }) {
 }
 
 function Composition({ view }: { view: NetWorthView }) {
+  useAmountPrivacy();
   const { assets, debts } = view.composition;
   const max = Math.max(...assets.map((a) => a.valueCents), ...debts.map((d) => -d.valueCents), 1);
   const row = (r: CompositionRow, debt: boolean) => (

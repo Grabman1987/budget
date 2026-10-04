@@ -8,6 +8,7 @@ import { useBudgetWrite } from '../budget/use-category-writes';
 import { LEDGER_KEY } from '../ledger/queries';
 import { EmptyNote, ErrorNote, LoadingNote } from '../ledger/states';
 import { PAGES } from '../nav/pages';
+import { IncomeMonthRulesSection } from '../pages/income-month-rules';
 import { PageFrame } from '../pages/placeholder-page';
 import { ScrollRegion } from '../reports/spending-shared';
 import { assignmentQuery } from './api';
@@ -175,6 +176,7 @@ export function AssignmentPage() {
           )}
         </section>
         <CleanupSettings />
+        <IncomeMonthRulesSection />
       </div>
       {create && (
         <AssignmentEditor

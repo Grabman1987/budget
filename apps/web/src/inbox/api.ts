@@ -1,6 +1,7 @@
 import { queryOptions } from '@tanstack/react-query';
 import { request } from '../api/http';
 import { LEDGER_KEY } from '../ledger/queries';
+import type { SavingsExecutionProposal } from '../wealth/savings-api';
 export type InboxKind =
   | 'uncategorized'
   | 'revision'
@@ -26,7 +27,7 @@ export interface InboxBooking {
   amountCents: number;
   currency: string;
   status: 'pending' | 'confirmed' | 'reconciled';
-  source?: string;
+  source: 'manual' | 'bank' | 'import' | 'migration' | 'system';
   missingSplits: number;
 }
 export interface InboxStored {
@@ -40,7 +41,7 @@ export interface InboxStored {
   urgent: boolean;
   createdAt: string;
 }
-export type InboxEntry = InboxBooking | InboxStored;
+export type InboxEntry = InboxBooking | InboxStored | SavingsExecutionProposal;
 export interface InboxView {
   asOf: string;
   count: number;

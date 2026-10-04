@@ -1,3 +1,4 @@
+import type { IncomeTargets } from '@budget/domain';
 import { queryOptions } from '@tanstack/react-query';
 import { request } from '../api/http';
 import type { WriteResult } from '../ledger/types';
@@ -23,6 +24,7 @@ export interface EnvelopeSummary {
 }
 
 export interface MonthSummary {
+  unclassified?: { count: number; inflowCents: number; outflowCents: number; netCents: number };
   month: string;
   carryInCents: number;
   incomeCents: number;
@@ -39,6 +41,7 @@ export interface MonthSummary {
 }
 
 export interface BudgetMonthView {
+  incomeTargets?: IncomeTargets;
   summary: MonthSummary;
   groups: GroupRow[];
   categories: CategoryRow[];

@@ -75,12 +75,15 @@ export function freedomView(db: Executor, asOf: string): FreedomView {
   const targetCents = target !== null && Number.isSafeInteger(target) ? target : null;
   const valuation = netWorthValuationAsOf(db, asOf);
   const sources = freedomInvestmentAccounts(accounts, asOf).map((a) => {
-    const value = valuation.byAccount[a.id] ?? null;
+    const missingPrice = !!valuation.missingPriceByAccount[a.id]?.length;
+    // A position with neither a price nor a cost basis would silently count as 0: the Freiheitszahl
+    // progress stays unknown instead of understating the invested sum.
+    const value = missingPrice ? null : (valuation.byAccount[a.id] ?? null);
     return {
       id: a.id,
       name: a.name,
       valueCents: value !== null && Number.isSafeInteger(value) ? value : null,
-      missingPrice: !!valuation.missingPriceByAccount[a.id]?.length,
+      missingPrice,
       missingFxCurrencies: valuation.missingFxByAccount[a.id] ?? [],
     };
   });

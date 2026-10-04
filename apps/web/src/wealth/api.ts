@@ -2,6 +2,7 @@ import { queryOptions } from '@tanstack/react-query';
 import type { NetWorthBucket, NetWorthWindow, Period } from '@budget/domain';
 import { request } from '../api/http';
 import { LEDGER_KEY } from '../ledger/queries';
+import type { WithValuationNotes } from '../ledger/valuation-hint';
 
 /** Typed calls of the wealth API (`/api/wealth`). */
 
@@ -19,7 +20,7 @@ export interface CompositionRow {
   valueCents: number;
 }
 
-export interface NetWorthView {
+export interface NetWorthView extends WithValuationNotes {
   period: Period;
   /** Start day of the window: its close is the first point of `daily` and the chain's start. */
   from: string;

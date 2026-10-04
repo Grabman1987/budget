@@ -1,5 +1,5 @@
+import { useAmountPrivacy, DimensionChain, Segmented } from '@budget/ui';
 import { CLASS_NAMES, cents, type FlowNode, type MoneyFlow } from '@budget/domain';
-import { DimensionChain, Segmented } from '@budget/ui';
 import { useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
 import { SankeyChart, type SankeyModel } from '../charts/sankey-chart';
@@ -44,6 +44,7 @@ export function sankeyModel(flow: MoneyFlow): SankeyModel {
 }
 
 export function FlowReport({ report, meta }: { report: ReportEntry; meta: PageMeta }) {
+  useAmountPrivacy();
   const { month, shift, current } = useReportMonth();
   const [span, setSpan] = useState<FlowSpan>('month');
   const query = useQuery(flowReportQuery(month, span));
@@ -91,6 +92,7 @@ function FlowBody({
   span: FlowSpan;
   setSpan: (value: FlowSpan) => void;
 }) {
+  useAmountPrivacy();
   const { flow } = data;
   const [ref, width] = useElementWidth<HTMLDivElement>();
   const period =

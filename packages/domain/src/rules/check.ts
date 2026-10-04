@@ -30,6 +30,7 @@ export interface CheckChecklistItem {
   /** The rule that decides this item; `null` items are confirmed by the owner. */
   ruleCode: string | null;
   confirmedAt: string | null;
+  additionalRuleCodes?: ReadonlyArray<string>;
 }
 
 export interface ChecklistStatus {
@@ -104,13 +105,20 @@ export function summarizeCheck(input: {
         confirmedAt: c.confirmedAt,
       };
       if (c.ruleCode !== null) {
-        const e = byCode.get(c.ruleCode)?.evaluation ?? null;
+        const linked = [c.ruleCode, ...(c.additionalRuleCodes ?? [])].map((code) => {
+          const r = byCode.get(code);
+          return r?.enabled ? r.evaluation : null;
+        });
+        const e = linked.some((r) => !r)
+          ? null
+          : linked.reduce((a, b) => (b && a && SEVERITY[b.status] < SEVERITY[a.status] ? b : a));
+        const values = linked.flatMap((r) => (r ? [r.valueText] : []));
         return {
           ...base,
           basis: 'rule' as const,
           status: e ? e.status : ('open' as const),
           done: e?.status === 'ok',
-          valueText: e?.valueText ?? null,
+          valueText: e ? values.join(' · ') : null,
         };
       }
       const done = c.confirmedAt !== null;

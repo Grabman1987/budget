@@ -1,6 +1,6 @@
+import { useAmountPrivacy, ClassSwatch, DimensionChain } from '@budget/ui';
 import { cents, heatCells } from '@budget/domain';
 import type { SpendingReport } from '@budget/db';
-import { ClassSwatch, DimensionChain } from '@budget/ui';
 import { queryOptions, useQuery } from '@tanstack/react-query';
 import type { CSSProperties } from 'react';
 import { request } from '../api/http';
@@ -33,6 +33,7 @@ const CLASS_NAME = { need: 'Bedarf', want: 'Wunsch', future: 'Zukunft' } as cons
 
 /** 2.1 Ausgabenanalyse: Wofür geben wir Geld aus? */
 export function SpendingAnalysisReport({ report, meta }: { report: ReportEntry; meta: PageMeta }) {
+  useAmountPrivacy();
   const [period, setPeriod] = useReportPeriod();
   const query = useQuery(analysisQuery(period));
   const data = query.data && !query.isFetching ? query.data : undefined;
@@ -71,6 +72,7 @@ export function SpendingAnalysisReport({ report, meta }: { report: ReportEntry; 
 }
 
 function Body({ data }: { data: SpendingReport }) {
+  useAmountPrivacy();
   if (data.months.length === 0)
     return (
       <section className="sr-card sr-wide" aria-labelledby="sa-empty">

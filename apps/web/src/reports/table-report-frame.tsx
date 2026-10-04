@@ -21,6 +21,7 @@ export function TableReportFrame({
   report,
   meta,
   through,
+  currentAllowed = false,
   query,
   extraFields,
   className,
@@ -29,13 +30,15 @@ export function TableReportFrame({
   report: ReportEntry;
   meta: PageMeta;
   through: 'full' | 'current';
+  currentAllowed?: boolean;
   query: UseQueryResult<ReportTables>;
   extraFields?: Array<{ label: string; value: ReactNode }> | undefined;
   className: string;
   children: (tables: ReportTables) => ReactNode;
 }) {
   const tables = query.data;
-  const end = tables && (through === 'full' ? tables.lastFullMonth : tables.currentMonth);
+  const end =
+    tables && (through === 'full' && !currentAllowed ? tables.lastFullMonth : tables.currentMonth);
   const basis = query.isError
     ? 'nicht verfügbar'
     : tables?.firstMonth && end
@@ -46,7 +49,7 @@ export function TableReportFrame({
   const usable =
     tables &&
     tables.firstMonth !== null &&
-    (through === 'current' || tables.lastFullMonth !== null);
+    (through === 'current' || currentAllowed || tables.lastFullMonth !== null);
   return (
     <PageFrame
       meta={meta}

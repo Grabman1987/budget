@@ -3,7 +3,6 @@ import { useMutation, useQueryClient, type QueryClient } from '@tanstack/react-q
 import {
   bulkDeleteBookings,
   bulkUpdateBookings,
-  createBooking,
   deleteBooking,
   patchBooking,
   undoGroup,
@@ -17,6 +16,8 @@ import { flashRows } from './flash';
 import { bulkSummary, errorText, redoFailedText } from './labels';
 import { LEDGER_KEY, lookupsQuery, payeesQuery } from './queries';
 import type { ListedBooking, WriteResult } from './types';
+import type { BookingDraft } from './booking-model';
+import { submitCapture, requestQueueSync } from '../pwa/queue';
 
 const BOOKINGS_KEY = [...LEDGER_KEY, 'bookings'] as const;
 
@@ -89,8 +90,16 @@ export function useLedgerWrites() {
     toast.show({ message: `${what} nicht gespeichert. ${errorText(error, '')}`.trim() });
 
   const create = useMutation({
-    mutationFn: (input: BookingCreate) => createBooking(input),
-    onSuccess: ({ bookings, groupId }) => {
+    networkMode: 'always',
+    mutationFn: ({ input, draft }: { input: BookingCreate; draft: BookingDraft }) =>
+      submitCapture(input, draft),
+    onSuccess: (result) => {
+      if (!result) {
+        toast.show({ message: 'Auf diesem Gerät gespeichert · Wartet auf Verbindung.' });
+        void requestQueueSync().catch(() => undefined);
+        return;
+      }
+      const { bookings, groupId } = result;
       flashRows(bookings.map((b) => b.id));
       offerUndo(bookings.length > 1 ? 'Umbuchung gebucht.' : 'Buchung gespeichert.', groupId);
     },

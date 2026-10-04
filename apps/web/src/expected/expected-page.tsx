@@ -1,5 +1,13 @@
+import {
+  useAmountPrivacy,
+  Button,
+  CircleNumber,
+  ClassSwatch,
+  Segmented,
+  SectionHead,
+  cx,
+} from '@budget/ui';
 import { addDays, todayInVienna } from '@budget/domain';
-import { Button, CircleNumber, ClassSwatch, Segmented, SectionHead, cx } from '@budget/ui';
 import { useQuery } from '@tanstack/react-query';
 import { useLocation, useNavigate } from '@tanstack/react-router';
 import { ChevronDown, Plus } from 'lucide-react';
@@ -56,6 +64,7 @@ const HORIZON_DAYS = 90;
  * payment with its versions, occurrences and fields. Figures come from `/api/expected`.
  */
 export function ExpectedPage() {
+  useAmountPrivacy();
   const [month] = useMonth();
   const today = todayInVienna();
   const [view, setView] = useState<View>('next');
@@ -209,6 +218,7 @@ function NextDays({
   onOpen: (paymentId: string) => void;
   onCreate: () => void;
 }) {
+  useAmountPrivacy();
   const [collapsed, toggle] = useCollapsed();
   const groups = useMemo(
     () =>
@@ -306,6 +316,7 @@ function WeekRows({
   onToggle: () => void;
   onOpen: (paymentId: string) => void;
 }) {
+  useAmountPrivacy();
   return (
     <>
       <tr className={cx('pgroup', collapsed && 'is-collapsed')} data-testid={`week-${g.key}`}>
@@ -378,6 +389,7 @@ function WeekRows({
 const CLASSES = new Set(['need', 'want', 'future']);
 
 function Chip({ occurrence: o }: { occurrence: Occurrence }) {
+  useAmountPrivacy();
   const label = o.kind === 'inflow' ? o.incomeTypeName : o.categoryName;
   if (!label) return <span className="xp-sub">–</span>;
   return (
@@ -411,6 +423,7 @@ function Contracts({
   onOpen: (id: string) => void;
   onCreate: () => void;
 }) {
+  useAmountPrivacy();
   const [collapsed, toggle] = useCollapsed();
   const shown = payments.filter((p) =>
     outflowsOnly ? isContract(p.kind, categoryOf(p.categoryId)) : kind === 'all' || p.kind === kind,
@@ -504,6 +517,7 @@ function ContractRows({
   onToggle: () => void;
   onOpen: (id: string) => void;
 }) {
+  useAmountPrivacy();
   const inflow = g.key === 'income';
   return (
     <>

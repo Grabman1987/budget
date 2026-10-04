@@ -1,3 +1,4 @@
+import { useAmountPrivacy, ClassSwatch } from '@budget/ui';
 import {
   heatForCell,
   tableHeatStats,
@@ -5,7 +6,6 @@ import {
   tableRowTotal,
   type TableRow,
 } from '@budget/domain';
-import { ClassSwatch } from '@budget/ui';
 import { forwardRef, type CSSProperties } from 'react';
 import { eur } from '../ledger/format';
 import { euroNumber, percentWhole } from './table-format';
@@ -55,6 +55,7 @@ function Cell({
   value: number | null;
   stats: ReturnType<typeof tableHeatStats>;
 }) {
+  useAmountPrivacy();
   if (value === null) return <td className="n muted">–</td>;
   if (row.kind === 'pct') return <td className="n">{percentWhole(value)}</td>;
   const heated =
@@ -77,6 +78,7 @@ function Cell({
 }
 
 function Change({ row, total, previous }: { row: TableRow; total: number; previous: number }) {
+  useAmountPrivacy();
   const delta = total - previous;
   const better = row.good === 'high' ? delta >= 0 : delta <= 0;
   const tone = delta === 0 ? 'dl-0' : row.good === null ? 'dl-0' : better ? 'dl-good' : 'dl-bad';

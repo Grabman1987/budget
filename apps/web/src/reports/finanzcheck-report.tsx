@@ -1,4 +1,14 @@
 import {
+  useAmountPrivacy,
+  maskMoneyText,
+  ChartSvg,
+  Graticule,
+  Line,
+  LineLegend,
+  RevisionTable,
+  type Point,
+} from '@budget/ui';
+import {
   dayCounts,
   lastDayOfMonth,
   ruleTimelines,
@@ -6,12 +16,12 @@ import {
   type DayCounts,
   type RuleTimeline,
 } from '@budget/domain';
-import { ChartSvg, Graticule, Line, LineLegend, RevisionTable, type Point } from '@budget/ui';
 import { useQuery } from '@tanstack/react-query';
 import { AlertCircle, AlertTriangle, CheckCircle2, CircleDashed } from 'lucide-react';
 import { useElementWidth } from '../charts/use-element-width';
 import { eur, longDay } from '../ledger/format';
 import { ErrorNote, LoadingNote } from '../ledger/states';
+import { ValuationHint } from '../ledger/valuation-hint';
 import type { PageMeta } from '../nav/pages';
 import type { ReportEntry } from '../nav/reports-catalog';
 import { PageFrame } from '../pages/placeholder-page';
@@ -32,6 +42,7 @@ const STATUS_TEXT: Record<'ok' | 'warn' | 'bad' | 'open', string> = {
 };
 
 function StatusMark({ status }: { status: Status }) {
+  useAmountPrivacy();
   const key = status ?? 'open';
   const Icon =
     key === 'ok'
@@ -68,20 +79,12 @@ const stripLabel = (line: RuleTimeline) =>
     .join(', ')}`;
 
 export function FinanzcheckReport({ report, meta }: { report: ReportEntry; meta: PageMeta }) {
+  useAmountPrivacy();
   const query = useQuery(finanzcheckVerlaufQuery());
   const data = query.data;
   const days = data?.matrix.days ?? [];
-  // Stored results that are missing, older than today or different from the live check are stale:
-  // derive them beside the page.
-  const newest = data ? dayCounts(data.matrix).at(-1) : undefined;
-  useRuleDerivation(
-    data !== undefined &&
-      (newest === undefined ||
-        newest.asOf !== data.check.asOf ||
-        newest.ok !== data.check.counts.ok ||
-        newest.warn !== data.check.counts.warn ||
-        newest.bad !== data.check.counts.bad),
-  );
+  // Re-derive idempotently once on every visit, including changes to book-rule sources.
+  useRuleDerivation(data !== undefined);
   return (
     <PageFrame
       meta={meta}
@@ -106,6 +109,7 @@ export function FinanzcheckReport({ report, meta }: { report: ReportEntry; meta:
             onRetry={() => void query.refetch()}
           />
         )}
+        <ValuationHint incomplete={data?.incomplete} />
         {data && <Body data={data} />}
       </div>
     </PageFrame>
@@ -113,6 +117,7 @@ export function FinanzcheckReport({ report, meta }: { report: ReportEntry; meta:
 }
 
 function Body({ data }: { data: FinanzcheckVerlauf }) {
+  useAmountPrivacy();
   const { matrix, check, book } = data;
   const timelines = ruleTimelines(matrix);
   const counts = dayCounts(matrix);
@@ -196,7 +201,7 @@ function Body({ data }: { data: FinanzcheckVerlauf }) {
                           {item.ruleCode ? ` · ${item.ruleCode}` : ''}
                         </small>
                       </td>
-                      <td>{item.valueText ?? ''}</td>
+                      <td>{maskMoneyText(item.valueText ?? '')}</td>
                       <td>
                         <StatusMark status={item.status} />
                       </td>
@@ -217,7 +222,7 @@ function Body({ data }: { data: FinanzcheckVerlauf }) {
                     <strong>{item.text}</strong>
                     <small>
                       {item.source ?? ''}
-                      {item.valueText ? ` · ${item.valueText}` : ''}
+                      {item.valueText ? ` · ${maskMoneyText(item.valueText)}` : ''}
                     </small>
                   </li>
                 ))}
@@ -303,8 +308,7 @@ function Body({ data }: { data: FinanzcheckVerlauf }) {
       <section className="card ov-card" aria-labelledby="fc-matrix">
         <div className="tbd-head">
           <h2 id="fc-matrix">
-            Regelwerk R01–R{String(timelines.length).padStart(2, '0')}, {matrix.days.length}{' '}
-            Auswertungstage
+            {timelines.length} aktive Regeln, {matrix.days.length} Auswertungstage
           </h2>
         </div>
         {empty ? (
@@ -341,7 +345,7 @@ function Body({ data }: { data: FinanzcheckVerlauf }) {
                         <span className="ov-pos">{t.code}</span>
                         <span className="ov-name">{t.name}</span>
                       </td>
-                      <td>{rule?.latest?.valueText ?? '–'}</td>
+                      <td>{maskMoneyText(rule?.latest?.valueText ?? '–')}</td>
                       <td className="muted">{rule ? thresholdText(t.code, rule.params) : ''}</td>
                       <td>
                         <span className="ov-strip" role="img" aria-label={stripLabel(t)}>
@@ -349,7 +353,7 @@ function Body({ data }: { data: FinanzcheckVerlauf }) {
                             <span
                               key={c.asOf}
                               className={`ov-cell is-${c.status ?? 'none'}`}
-                              title={`${dayLabel(c.asOf)}: ${c.status === null ? 'nicht bewertbar' : STATUS_TEXT[c.status]}${c.valueText ? ` · ${c.valueText}` : ''}`}
+                              title={`${dayLabel(c.asOf)}: ${c.status === null ? 'nicht bewertbar' : STATUS_TEXT[c.status]}${c.valueText ? ` · ${maskMoneyText(c.valueText)}` : ''}`}
                             />
                           ))}
                         </span>
@@ -377,6 +381,7 @@ function Body({ data }: { data: FinanzcheckVerlauf }) {
 
 /** Count of fulfilled rules per evaluated day: flat segments, dashed line at "all rules". */
 function VerlaufChart({ counts, total }: { counts: DayCounts[]; total: number }) {
+  useAmountPrivacy();
   const [ref, width] = useElementWidth<HTMLDivElement>();
   const height = 200;
   const left = 34;

@@ -211,7 +211,8 @@ function exportEntries(
       { kind: s.kind, isin: s.isin, symbol: s.symbol, assetClassName },
     ]),
   );
-  const holdings = holdingValuationExportAsOf(db, asOf);
+  // The export states what is stored: a position without a quote stays `missing_price`.
+  const holdings = holdingValuationExportAsOf(db, asOf, { estimate: false });
   const positionCosts = new Map(
     positionCostDetailsAsOf(db, asOf, holdings).map((detail) => [
       `${detail.accountId}\0${detail.securityId}`,
@@ -393,6 +394,10 @@ function exportEntries(
         'interest_rate_bp',
         'term_end',
         'monthly_fee_cents',
+        'interest_kind',
+        'installment_cents',
+        'term_start',
+        'original_amount_cents',
         'closed_at',
         'as_of',
         'contact_id',
@@ -417,6 +422,10 @@ function exportEntries(
         nullable(a.interestRateBp),
         a.termEnd,
         a.monthlyFeeCents,
+        a.interestKind,
+        nullable(a.installmentCents),
+        a.termStart,
+        nullable(a.originalAmountCents),
         a.closedAt,
         asOf,
         a.contactId,

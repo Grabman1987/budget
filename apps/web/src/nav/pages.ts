@@ -135,7 +135,7 @@ export const PAGES: ReadonlyArray<PageDef> = [
     area: 'einstellungen',
     register: 'konten',
     fills: P2,
-    spec: 'Konten mit Rolle und Konditionen (Limits, Zinsen, Laufzeit).',
+    spec: 'Konten mit Rolle und Konditionen (Limits, Zinsen, Laufzeit, Kreditkonditionen).',
   },
   {
     path: '/einstellungen/depots',
@@ -167,7 +167,7 @@ export const PAGES: ReadonlyArray<PageDef> = [
     area: 'einstellungen',
     register: 'regelwerk',
     fills: P3,
-    spec: 'Stufen und Regeln R01–R16 mit Schwellen, Status und Aktion.',
+    spec: 'Stufen und konfigurierbare Regeln mit Status und Aktion.',
   },
   {
     path: '/einstellungen/zuordnung',
@@ -175,7 +175,7 @@ export const PAGES: ReadonlyArray<PageDef> = [
     area: 'einstellungen',
     register: 'zuordnung',
     fills: P4,
-    spec: 'Zuordnungsregeln für den Bank-Sync.',
+    spec: 'Zuordnungsregeln für Bankumsätze, Empfängerbereinigung und Budgetmonat-Vorgaben für Einnahmen.',
   },
   {
     path: '/einstellungen/datenquellen',
@@ -214,6 +214,9 @@ export const PAGES: ReadonlyArray<PageDef> = [
 /** Einstellungen › Sicherheit; its own constant because the route and the (lazy) page both need it. */
 export const INVESTMENT_SETTINGS_META = PAGES.find((p) => p.path === '/einstellungen/depots')!;
 
+/** Einstellungen › Konten. */
+export const KONTEN_SETTINGS_META = PAGES.find((p) => p.path === '/einstellungen/konten')!;
+
 /** Einstellungen › Profil. */
 export const PROFILE_META = PAGES.find((p) => p.path === '/einstellungen/profil')!;
 
@@ -228,6 +231,14 @@ export const HEUTE: PageMeta = {
   area: 'heute',
   fills: P3,
   spec: 'Leitmaß „frei verfügbar bis Gehalt“, Pace, anstehende Zahlungen, Finanz-Check, Nettovermögen.',
+};
+
+/** Einstellungen index: the grouped list of all settings pages (the phone's entry, SPEC §3). */
+export const SETTINGS_INDEX: PageMeta = {
+  title: 'Einstellungen',
+  area: 'einstellungen',
+  fills: P2,
+  spec: 'Gruppierte Übersicht aller Einstellungen: Daten, Automatik, System.',
 };
 
 export const REPORTS_CATALOG: PageMeta = {

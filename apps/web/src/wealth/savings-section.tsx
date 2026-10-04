@@ -1,4 +1,4 @@
-import { Button } from '@budget/ui';
+import { useAmountPrivacy, Button } from '@budget/ui';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate, useSearch } from '@tanstack/react-router';
 import { useState } from 'react';
@@ -12,6 +12,7 @@ import { SavingsPanel } from './savings-panel';
 import './savings.css';
 
 export function SavingsSection() {
+  useAmountPrivacy();
   const plans = useQuery(savingsPlansQuery());
   const accounts = useQuery(accountsQuery());
   const instruments = useQuery(instrumentsQuery());

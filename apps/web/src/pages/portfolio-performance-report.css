@@ -115,6 +115,48 @@
   justify-content: flex-start;
 }
 
+.portfolio-performance-report section {
+  min-width: 0;
+}
+.performance-chart {
+  margin-block: 20px;
+}
+
+.performance-legends {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+}
+.performance-line-1 .l-actual {
+  stroke-dasharray: 7 5;
+}
+.performance-line-2 .l-actual {
+  stroke-dasharray: 12 4 2 4;
+}
+.performance-line-3 .l-actual {
+  stroke-dasharray: 2 3;
+}
+.performance-heatmap td {
+  white-space: nowrap;
+}
+.performance-heatmap .return-positive {
+  background: color-mix(in srgb, var(--heat-green) calc(var(--h) * var(--heat-max)), var(--ground));
+}
+.performance-heatmap .return-negative {
+  background: color-mix(in srgb, var(--heat-red) calc(var(--h) * var(--heat-max)), var(--ground));
+  border-bottom-style: dashed;
+}
+.portfolio-performance-report summary {
+  min-height: 44px;
+  display: list-item;
+  cursor: pointer;
+  padding-block: 12px;
+}
+.portfolio-performance-report summary:focus-visible {
+  outline: 2px solid var(--line);
+  outline-offset: 2px;
+}
+
 @media (max-width: 700px) {
   .performance-metrics {
     grid-template-columns: 1fr 1fr;

@@ -1,6 +1,7 @@
 import { useEffect, useState, useSyncExternalStore, type ReactNode } from 'react';
 import { Button } from '@budget/ui';
 import './pwa.css';
+import { QueueCapture, QueueList } from './queue-ui';
 
 function subscribeOnline(changed: () => void) {
   window.addEventListener('online', changed);
@@ -20,6 +21,7 @@ export function PwaShell({ children }: { children: ReactNode }) {
   );
   const [waiting, setWaiting] = useState<ServiceWorker | null>(null);
   const [hasConnected, setHasConnected] = useState(() => navigator.onLine);
+  const [capture, setCapture] = useState(false);
   useEffect(() => {
     const connected = () => setHasConnected(true);
     window.addEventListener('online', connected);
@@ -83,7 +85,7 @@ export function PwaShell({ children }: { children: ReactNode }) {
       )}
       {!online && hasConnected && (
         <div className="pwa-connection" role="status">
-          Offline · Angezeigte Daten können veraltet sein. Speichern braucht eine Verbindung.
+          Offline · Angezeigte Daten können veraltet sein. Neue Buchungen warten auf diesem Gerät.
         </div>
       )}
       {hasConnected ? (
@@ -93,12 +95,15 @@ export function PwaShell({ children }: { children: ReactNode }) {
           <img src="/icons/budget.svg" width="48" height="48" alt="" />
           <h1>Budget ist offline</h1>
           <p>
-            Deine App ist bereit. Für aktuelle Finanzdaten und zum Speichern brauchst du eine
-            Verbindung.
+            Neue Buchungen bleiben auf diesem Gerät und werden bei Verbindung gesendet. Für aktuelle
+            Finanzdaten brauchst du eine Verbindung.
           </p>
           <Button onClick={() => window.location.reload()}>Erneut verbinden</Button>
+          <Button onClick={() => setCapture(true)}>Buchung erfassen</Button>
+          <QueueList />
         </main>
       )}
+      {capture && <QueueCapture onClose={() => setCapture(false)} />}
     </>
   );
 }

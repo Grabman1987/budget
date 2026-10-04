@@ -1,7 +1,17 @@
-import { BankCandidate } from './bank-candidate';
+import { BankBookingMerge, BankCandidate } from './bank-candidate';
 import { AssignmentLearnOffer, BookingAssignmentReview } from '../assignment/review';
+import { PayslipUpload, PayslipIntakeDetail } from '../reports/payslip-intake';
 import { ReadSourceDetail } from './read-source-detail';
-import { Button, DetailPanel, RevisionTriangle, SectionHead, useToast } from '@budget/ui';
+import {
+  useAmountPrivacy,
+  maskMoneyText,
+  Button,
+  Count,
+  WideDialog,
+  RevisionTriangle,
+  SectionHead,
+  useToast,
+} from '@budget/ui';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
 import { request } from '../api/http';
@@ -16,9 +26,12 @@ import type { ListedBooking } from '../ledger/types';
 import { PAGES } from '../nav/pages';
 import { PageFrame } from '../pages/placeholder-page';
 import { AppLink } from '../shell/app-link';
+import { useInboxCount } from '../shell/inbox';
 import { inboxQuery, resolveInbox, type InboxEntry, type InboxKind, type InboxStored } from './api';
 import './inbox.css';
 import { ReceiptSection } from '../receipts/receipt-section';
+import { TradePanel } from '../wealth/trade-panel';
+import type { SavingsExecutionProposal } from '../wealth/savings-api';
 const META = PAGES.find((p) => p.path === '/konten/posteingang')!;
 const LABELS: Record<InboxKind, string> = {
   uncategorized: 'Buchungen ohne Kategorie',
@@ -35,6 +48,7 @@ const LABELS: Record<InboxKind, string> = {
 };
 
 export function InboxPage() {
+  useAmountPrivacy();
   return (
     <PageFrame meta={META}>
       <InboxWorkflow />
@@ -42,12 +56,27 @@ export function InboxPage() {
   );
 }
 export function InboxPanel({ open, onClose }: { open: boolean; onClose: () => void }) {
+  useAmountPrivacy();
   return <InboxWorkflow panel={{ open, onClose }} />;
+}
+
+/** Open-task count in the dialog head; stays empty while unknown (never a fabricated zero). */
+function InboxHeadCount() {
+  const { count } = useInboxCount();
+  if (count === undefined) return null;
+  return <Count srSuffix=" offen">{count}</Count>;
 }
 
 /** Same queue/actions in page and global panel; booking editor replaces the panel to avoid nested modals. */
 function InboxWorkflow({ panel }: { panel?: { open: boolean; onClose: () => void } }) {
+  useAmountPrivacy();
   const [editing, setEditing] = useState<ListedBooking | null>(null);
+  const [proposal, setProposal] = useState<SavingsExecutionProposal | null>(null);
+  const proposalTrigger = useRef<HTMLElement | null>(null);
+  const closeProposal = () => {
+    setProposal(null);
+    requestAnimationFrame(() => proposalTrigger.current?.focus());
+  };
   const trigger = useRef<HTMLElement | null>(null);
   // Native dialogs lose the original trigger across the editor handoff; retain it for the whole workflow.
   useLayoutEffect(() => {
@@ -77,22 +106,32 @@ function InboxWorkflow({ panel }: { panel?: { open: boolean; onClose: () => void
       setLoading(null);
     }
   };
-  const body = <InboxBody onEdit={(id) => void edit(id)} loadingId={loading} />;
+  const body = (
+    <InboxBody
+      onEdit={(id) => void edit(id)}
+      loadingId={loading}
+      onSavings={(item) => {
+        proposalTrigger.current = document.activeElement as HTMLElement;
+        setProposal(item);
+      }}
+    />
+  );
   return (
     <>
       {panel ? (
-        <DetailPanel
-          open={panel.open && !editing}
+        <WideDialog
+          open={panel.open && !editing && !proposal}
           onClose={() => {
-            if (!editing) panel.onClose();
+            if (!editing && !proposal) panel.onClose();
           }}
           title="Posteingang"
+          headAside={<InboxHeadCount />}
         >
           {panel.open && body}
           <AppLink to="/konten/posteingang" search={{}} className="btn btn-ghost">
             Alle Aufgaben anzeigen
           </AppLink>
-        </DetailPanel>
+        </WideDialog>
       ) : (
         body
       )}
@@ -100,6 +139,9 @@ function InboxWorkflow({ panel }: { panel?: { open: boolean; onClose: () => void
         state={editing && (!panel || panel.open) ? { mode: 'edit', booking: editing } : null}
         onClose={() => setEditing(null)}
       />
+      {proposal && (!panel || panel.open) && (
+        <TradePanel id="neu" proposal={proposal} onClose={closeProposal} onSaved={closeProposal} />
+      )}
     </>
   );
 }
@@ -107,10 +149,13 @@ function InboxWorkflow({ panel }: { panel?: { open: boolean; onClose: () => void
 function InboxBody({
   onEdit,
   loadingId,
+  onSavings,
 }: {
   onEdit: (id: string) => void;
   loadingId: string | null;
+  onSavings: (proposal: SavingsExecutionProposal) => void;
 }) {
+  useAmountPrivacy();
   const headingId = useId();
   const queue = useQuery(inboxQuery());
   const writes = useLedgerWrites();
@@ -184,6 +229,7 @@ function InboxBody({
                           loadingId === item.bookingId)
                       }
                       onEdit={onEdit}
+                      onSavings={onSavings}
                       onResolve={() => {
                         if (item.type === 'stored') void resolve(item);
                       }}
@@ -203,6 +249,7 @@ function InboxBody({
           </p>
         </>
       )}
+      <PayslipUpload />
       <ReceiptSection />
     </section>
   );
@@ -214,6 +261,7 @@ function InboxRow({
   letter,
   busy,
   onEdit,
+  onSavings,
   onResolve,
   onConfirm,
   confirming,
@@ -223,10 +271,12 @@ function InboxRow({
   letter: string;
   busy: boolean;
   onEdit: (id: string) => void;
+  onSavings: (proposal: SavingsExecutionProposal) => void;
   onResolve: () => void;
   onConfirm: (id: string) => void;
   confirming: boolean;
 }) {
+  useAmountPrivacy();
   return (
     <tr className={`rev-row${item.urgent ? ' is-urgent' : ''}`} data-testid="inbox-row">
       <td className="rev-mark">
@@ -236,7 +286,9 @@ function InboxRow({
         <strong>
           {item.type === 'booking'
             ? `${item.payeeName ?? 'Buchung ohne Empfänger'} · ${nativeCurrency(item.amountCents, item.currency)}`
-            : item.title}
+            : item.type === 'savings'
+              ? `Sparplan: ${item.securityName} · ${nativeCurrency(item.amountCents, item.currency)}`
+              : item.title}
         </strong>
         {item.type === 'stored' && item.refType === 'read_source' ? (
           <ReadSourceDetail detail={item.detail} />
@@ -244,8 +296,13 @@ function InboxRow({
           <span>
             {item.type === 'booking'
               ? `${longDay(item.date)} · ${item.accountName} · ${item.missingSplits} ${item.missingSplits === 1 ? 'Anteil' : 'Anteile'} ohne Kategorie${item.status === 'pending' ? ' · vorgemerkt' : ''}${item.memo ? ` · ${item.memo}` : ''}`
-              : item.detail}
+              : item.type === 'savings'
+                ? `${longDay(item.date)} · ${item.accountName} · Ausführung anhand der Abrechnung prüfen`
+                : maskMoneyText(item.detail ?? '')}
           </span>
+        )}
+        {item.type === 'stored' && item.refType === 'payslip-intake' && item.refId && (
+          <PayslipIntakeDetail id={item.refId} />
         )}
       </td>
       <td className="rev-act kact">
@@ -277,7 +334,18 @@ function InboxRow({
                 Bestätigen
               </Button>
             )}
+            {item.status === 'pending' && item.source === 'bank' && (
+              <BankBookingMerge bookingId={item.bookingId} />
+            )}
           </>
+        ) : item.type === 'savings' ? (
+          <Button variant="ghost" onClick={() => onSavings(item)}>
+            Ausführung prüfen
+          </Button>
+        ) : item.refType === 'payslip-intake' && item.refId ? (
+          <AppLink className="btn btn-ghost btn-sm" to="/reports/gehalt">
+            Gehaltsreport
+          </AppLink>
         ) : (
           <>
             {item.refType === 'bank-sync-candidate' && item.refId && (
@@ -303,7 +371,12 @@ function InboxRow({
 
 /** Offer only connected repair views; unknown/legacy references stay readable without inert links. */
 function SourceLink({ item }: { item: InboxStored }) {
-  if (item.refType === 'read_source' || item.refType === 'bank-sync')
+  useAmountPrivacy();
+  if (
+    item.refType === 'read_source' ||
+    item.refType === 'bank-sync' ||
+    item.refType === 'payslip-source'
+  )
     return (
       <AppLink className="btn btn-ghost btn-sm" to="/einstellungen/datenquellen">
         Datenquelle prüfen

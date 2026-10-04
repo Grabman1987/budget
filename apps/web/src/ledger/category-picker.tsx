@@ -1,25 +1,28 @@
-import { cx } from '@budget/ui';
+import { useAmountPrivacy, amountsHidden, cx } from '@budget/ui';
 import { useMemo, useState } from 'react';
 import type { PickCategory } from './capture-model';
 import { Combobox, type ComboOption } from './combobox';
 import { eur } from './format';
 
 /** "Verfügbar" of an option: the amount only (the list has a column heading), red when overspent. */
-export const availableHint = (availableCents: number | null) =>
+export const availableHint = (availableCents: number | null, hidden = amountsHidden()) =>
   availableCents === null ? undefined : (
     <span className={cx('combo-avail', availableCents < 0 && 'is-neg')}>
       <span className="sr-only">Verfügbar </span>
-      {eur(availableCents)}
+      {hidden ? '••• €' : eur(availableCents)}
     </span>
   );
 
 /** Combobox options of the categories: group headers (the groups of the budget) and Verfügbar. */
-export const categoryOptions = (categories: ReadonlyArray<PickCategory>): ComboOption[] =>
+export const categoryOptions = (
+  categories: ReadonlyArray<PickCategory>,
+  hidden = amountsHidden(),
+): ComboOption[] =>
   categories.map((c) => ({
     id: c.id,
     label: c.name,
     group: c.group,
-    hint: availableHint(c.availableCents),
+    hint: availableHint(c.availableCents, hidden),
   }));
 
 /**
@@ -47,11 +50,12 @@ export function CategoryCombobox({
   placeholder?: string;
   pickFirst?: boolean;
 }) {
+  const hidden = useAmountPrivacy();
   // What is being typed to search; `null` shows the chosen name and the whole list.
   const [typing, setTyping] = useState<string | null>(null);
   const options = useMemo(
-    () => [...leading, ...categoryOptions(categories)],
-    [leading, categories],
+    () => [...leading, ...categoryOptions(categories, hidden)],
+    [leading, categories, hidden],
   );
   const showsAvailable = categories.some((c) => c.availableCents !== null);
   return (

@@ -1,3 +1,13 @@
+import { PeriodQuickSelect } from './period-quick-select';
+import {
+  useAmountPrivacy,
+  Button,
+  ClassSwatch,
+  Field,
+  Select,
+  TextInput,
+  useToast,
+} from '@budget/ui';
 import {
   EXPLORER_CLASSES,
   EXPLORER_COLS,
@@ -12,7 +22,6 @@ import {
   type ExplorerQuery,
   type ExplorerResult,
 } from '@budget/domain';
-import { Button, ClassSwatch, Field, Select, TextInput, useToast } from '@budget/ui';
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { Bookmark, X } from 'lucide-react';
 import { useState, type CSSProperties, type FormEvent } from 'react';
@@ -61,6 +70,7 @@ const periodName = (months: string[]) =>
       : `${monthShortYear(months[0] as string)} bis ${monthShortYear(months[months.length - 1] as string)}`;
 
 export function ExplorerReportPage({ report, meta }: { report: ReportEntry; meta: PageMeta }) {
+  useAmountPrivacy();
   const toast = useToast();
   const [query, setQuery] = useState<ExplorerQuery>(DEFAULT_EXPLORER_QUERY);
   const [views, setViews] = useState(() => loadViews(browserStorage()));
@@ -103,7 +113,9 @@ export function ExplorerReportPage({ report, meta }: { report: ReportEntry; meta
           ? 'nicht verfügbar'
           : data
             ? data.firstMonth
-              ? `volle Monate bis ${monthLong(data.ref)}`
+              ? query.period.includes('..')
+                ? `Monatsdaten bis ${data.today}`
+                : `volle Monate bis ${monthLong(data.ref)}`
               : 'noch keine Buchungen'
             : 'wird geladen'
       }
@@ -148,6 +160,11 @@ export function ExplorerReportPage({ report, meta }: { report: ReportEntry; meta
               </span>
             ))}
           </div>
+          <PeriodQuickSelect
+            period={query.period}
+            onChange={(period) => set('period', period)}
+            trend={false}
+          />
           <div className="ex-bar">
             <Field label="Zeilen">
               {({ id }) => (
@@ -271,6 +288,7 @@ function Pivot({
   firstMonth: string | null;
   fetching: boolean;
 }) {
+  useAmountPrivacy();
   const { query, columns, rows, totals } = result;
   const fmt = (value: number) => (result.unit === 'count' ? wholeText(value) : euroCellText(value));
   const first = result.months[0];

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { PRODUCTS, referenceModel } from '../reference/model';
 import { sampleLedger } from './build';
-import { marketValueCents as valueCents } from '@budget/domain';
+import { marketValueCents as valueCents, DEFAULT_ACTIVE_RULE_COUNT } from '@budget/domain';
 
 const ledger = sampleLedger();
 const ref = referenceModel();
@@ -50,10 +50,13 @@ describe('sample ledger invariants', () => {
     expect(keys.size).toBe(ledger.bookings.length);
   });
 
-  it('category activity per month equals the prototype spend to the cent', () => {
+  it('budget category activity per month equals the prototype spend to the cent', () => {
     const activity = new Map<string, number>();
+    const budgetAccounts = new Set(ledger.accounts.filter((a) => a.onBudget).map((a) => a.id));
     const bookingMonth = new Map(
-      ledger.bookings.filter((b) => !b.deletedAt).map((b) => [b.id, monthOf(b.date)]),
+      ledger.bookings
+        .filter((b) => !b.deletedAt && budgetAccounts.has(b.accountId))
+        .map((b) => [b.id, monthOf(b.date)]),
     );
     for (const s of ledger.splits) {
       if (!s.categoryId || !bookingMonth.has(s.bookingId)) continue;
@@ -172,6 +175,6 @@ describe('sample ledger invariants', () => {
       ledger.expectedPaymentVersions.filter((v) => v.expectedPaymentId === 'ep-miete'),
     ).toHaveLength(2);
     expect(ledger.payslips.length).toBeGreaterThan(30);
-    expect(ledger.rules).toHaveLength(16);
+    expect(ledger.rules).toHaveLength(DEFAULT_ACTIVE_RULE_COUNT);
   });
 });

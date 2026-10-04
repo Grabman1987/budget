@@ -1,4 +1,5 @@
 import {
+  monthHouseholdIncome,
   cashflowChartMonths,
   cashflowMonth,
   cashflowTotals,
@@ -10,9 +11,8 @@ import {
   type Period,
 } from '@budget/domain';
 import { and, eq, isNull } from 'drizzle-orm';
-import { account, booking, bookingSplit, category, INCOME_TYPES } from '../schema';
-import { isIncomeCategorySplit } from './allocation';
-import { budget } from './queries';
+import { account, booking, bookingSplit, INCOME_TYPES } from '../schema';
+import { reportTables } from './report-tables';
 import type { Executor } from './types';
 
 /**
@@ -54,32 +54,32 @@ export function cashflowReport(db: Executor, today: string, period: Period): Cas
   };
   if (firstMonth === null) return empty;
   const windowMonths = cashflowWindow(period, today, firstMonth);
-  const chartMonths = cashflowChartMonths(windowMonths, today, firstMonth);
+  const chartMonths = period.includes('..')
+    ? windowMonths
+    : cashflowChartMonths(windowMonths, today, firstMonth);
   if (chartMonths.length === 0) return { ...empty, windowMonths };
   const range = monthsBetween(
     chartMonths[0] as string,
     chartMonths[chartMonths.length - 1] as string,
   );
 
-  const categories = new Map(
-    db
-      .select()
-      .from(category)
-      .where(isNull(category.deletedAt))
-      .all()
-      .map((c) => [c.id, c]),
-  );
+  const tables = reportTables(db, { today });
+  const source = new Map(tables.months.map((m) => [m.month, m]));
+  const classIds = (cls: 'need' | 'want' | 'future') =>
+    tables.categories.filter((c) => c.class === cls).map((c) => c.id);
   const spendByMonth = new Map(
-    budget(db, range).map((m) => {
+    range.map((month) => {
       const spent = (cls: 'need' | 'want' | 'future') =>
-        [...categories.values()]
-          .filter((c) => c.class === cls)
-          .reduce((a, c) => a - (m.envelopes[c.id]?.activityCents ?? 0), 0);
-      return [m.month, { need: spent('need'), want: spent('want'), future: spent('future') }];
+        classIds(cls).reduce((sum, id) => sum + (source.get(month)?.spending[id] ?? 0), 0);
+      return [month, { need: spent('need'), want: spent('want'), future: spent('future') }];
     }),
   );
-
-  const income = new Map<string, number>();
+  const income = new Map(
+    range.map((month) => [
+      month,
+      source.has(month) ? monthHouseholdIncome(source.get(month)!, tables) : 0,
+    ]),
+  );
   const capital = new Map<string, number>();
   const rows = db
     .select({
@@ -105,16 +105,13 @@ export function cashflowReport(db: Executor, today: string, period: Period): Cas
   const last = range[range.length - 1] as string;
   for (const s of rows) {
     const month = monthOf(s.date);
-    if (s.cents <= 0 || month < first || month > last) continue;
+    if (s.cents <= 0 || month < first || month > last || (period.includes('..') && s.date > today))
+      continue;
     if (s.incomeTypeId === INCOME_TYPES.capital.id) {
       // Dividends and interest count wherever they were booked, but never as household income.
       capital.set(month, (capital.get(month) ?? 0) + s.cents);
       continue;
     }
-    if (!s.onBudget || s.incomeTypeId === INCOME_TYPES.refund.id) continue;
-    const kind = s.categoryId === null ? null : (categories.get(s.categoryId)?.kind ?? null);
-    if (!isIncomeCategorySplit(s.categoryId, kind)) continue;
-    income.set(month, (income.get(month) ?? 0) + s.cents);
   }
 
   const inWindow = new Set(windowMonths);

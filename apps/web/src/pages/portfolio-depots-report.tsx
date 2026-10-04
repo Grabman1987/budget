@@ -1,4 +1,5 @@
-import { ChartSvg, Graticule, Line, LineLegend, Segmented, type Point } from '@budget/ui';
+import { ReportPeriodControl } from '../reports/period-quick-select';
+import { useAmountPrivacy, ChartSvg, Graticule, Line, LineLegend, type Point } from '@budget/ui';
 import { returnGap } from '@budget/domain';
 import type { DepotColumn, DepotComparison } from '@budget/db';
 import { queryOptions, useQuery } from '@tanstack/react-query';
@@ -6,6 +7,7 @@ import type { ReactNode } from 'react';
 import { useElementWidth } from '../charts/use-element-width';
 import { request } from '../api/http';
 import { LoadingNote } from '../ledger/states';
+import { ValuationHint, type WithValuationNotes } from '../ledger/valuation-hint';
 import { eur, longDay, shortDay } from '../ledger/format';
 import { LEDGER_KEY } from '../ledger/queries';
 import { periodText, yTicks } from '../wealth/networth-model';
@@ -26,7 +28,7 @@ import {
 } from './portfolio-report-shared';
 import './portfolio-depots-report.css';
 
-interface DepotsResponse {
+interface DepotsResponse extends WithValuationNotes {
   depots: DepotComparison;
 }
 
@@ -43,6 +45,7 @@ const MIN_VOLATILITY_FOR_SHARPE = 0.005;
 const PERIOD_OPTIONS = ZEITRAUM_VALUES.map((value) => ({ value, label: value }));
 
 export function PortfolioDepotsReport({ report, meta }: { report: ReportEntry; meta: PageMeta }) {
+  useAmountPrivacy();
   const [period, setPeriod] = useZeitraum();
   const query = useQuery(depotsQuery(period));
   const data = query.data?.depots;
@@ -64,7 +67,7 @@ export function PortfolioDepotsReport({ report, meta }: { report: ReportEntry; m
         {
           label: 'Zeitraum',
           value: (
-            <Segmented
+            <ReportPeriodControl
               label="Zeitraum"
               options={PERIOD_OPTIONS}
               value={period}
@@ -76,6 +79,7 @@ export function PortfolioDepotsReport({ report, meta }: { report: ReportEntry; m
       ]}
     >
       <div className="prep portfolio-depots-report">
+        <ValuationHint incomplete={query.data?.incomplete} />
         {query.isPending && <LoadingNote what="Depots" />}
         {query.isError && (
           <ReportUnavailable
@@ -97,6 +101,7 @@ export function PortfolioDepotsReport({ report, meta }: { report: ReportEntry; m
 }
 
 function DepotsBody({ data, period }: { data: DepotComparison; period: Period }) {
+  useAmountPrivacy();
   const total = data.total as DepotColumn;
   const columns = [...data.depots, total];
   const window = data.window as { from: string; to: string };
@@ -167,6 +172,7 @@ function DepotCard({
   benchmarkName: string | null;
   benchmarkReturn: number | null;
 }) {
+  useAmountPrivacy();
   const perf = depot.performance;
   const isTotal = depot.accountId === null;
   return (
@@ -251,6 +257,7 @@ function DepotChart({
   benchmark: DepotComparison['benchmarkIndex'];
   benchmarkName: string | null;
 }) {
+  useAmountPrivacy();
   const [ref, width] = useElementWidth<HTMLDivElement>();
   const line = depot.index;
   const first = line[0];
@@ -310,6 +317,7 @@ function KpiTable({
   columns: DepotColumn[];
   benchmarkName: string | null;
 }) {
+  useAmountPrivacy();
   const rows: Array<[string, (depot: DepotColumn) => ReactNode]> = [
     ['Wert', (d) => eur(d.valueCents)],
     ['Anteil', (d) => bpText(d.shareBp)],

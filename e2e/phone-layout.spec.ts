@@ -105,16 +105,33 @@ test.describe('phone layout', () => {
     }
   });
 
-  test('a scrolling register row shows that there is more', async ({ page }) => {
+  test('the profile menu exposes privacy by keyboard and returns focus on Escape', async ({
+    page,
+  }, info) => {
     await page.goto('/einstellungen/sicherheit');
-    const registers = page.locator('.registers');
-    const overflows = await registers.evaluate((el) => el.scrollWidth > el.clientWidth);
-    expect(overflows).toBe(true);
-    // Edge fade at the end while there is more to the right, at the start once scrolled.
-    await expect(registers).toHaveAttribute('data-fade-end', 'true');
-    await expect(registers).not.toHaveAttribute('data-fade-start', 'true');
-    await registers.evaluate((el) => el.scrollTo({ left: el.scrollWidth }));
-    await expect(registers).toHaveAttribute('data-fade-start', 'true');
-    await expect(registers).not.toHaveAttribute('data-fade-end', 'true');
+    const header = page.locator('.m-head');
+    const menu = header.locator('.m-profile summary');
+    const toggle = header.getByRole('button', { name: 'Beträge verbergen', exact: true });
+    await expect(toggle).toBeHidden();
+    const box = await menu.boundingBox();
+    expect(box!.width).toBeGreaterThanOrEqual(44);
+    expect(box!.height).toBeGreaterThanOrEqual(44);
+    await menu.focus();
+    await menu.press('Enter');
+    await expect(toggle).toBeVisible();
+    await page.screenshot({ path: info.outputPath('mobile-profile-menu-light.png') });
+    await page.keyboard.press('Tab');
+    await expect(toggle).toBeFocused();
+    await toggle.press('Space');
+    await expect(toggle).toHaveAttribute('aria-pressed', 'true');
+    await toggle.press('Escape');
+    await expect(toggle).toBeHidden();
+    await expect(menu).toBeFocused();
+    await menu.press('Enter');
+    await page.emulateMedia({ colorScheme: 'dark' });
+    await page.screenshot({ path: info.outputPath('mobile-profile-menu-dark.png') });
+    await header.getByRole('link', { name: 'Profil und Einstellungen', exact: true }).click();
+    await expect(page).toHaveURL(/\/einstellungen$/);
+    await expect(header.locator('.m-profile')).not.toHaveAttribute('open');
   });
 });

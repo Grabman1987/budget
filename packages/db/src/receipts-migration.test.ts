@@ -5,7 +5,7 @@ import { expect, it } from 'vitest';
 import { defaultMigrationsFolder, migrateDatabase, openDatabase } from './client';
 import { getBooking } from './repos/bookings';
 import { addReceipt, listReceipts } from './repos/receipts';
-import { seedBasics, testCtx } from './repos/test-helpers';
+import { testCtx } from './repos/test-helpers';
 
 it('upgrades existing receipt placeholders without losing split links or ledger rows', () => {
   const source = defaultMigrationsFolder();
@@ -23,22 +23,16 @@ it('upgrades existing receipt placeholders without losing split links or ledger 
     for (const entry of entries)
       copyFileSync(join(source, `${entry.tag}.sql`), join(folder, `${entry.tag}.sql`));
     migrateDatabase(opened.db, folder);
-    seedBasics(opened.db);
-    // Use the legacy columns before migrating; current repositories use the current schema.
-    const bookingId = 'legacy-bank-row',
-      splitId = 'legacy-split';
-    opened.sqlite
-      .prepare(
-        `INSERT INTO booking (id, account_id, date, amount_cents)
-      VALUES (?, 'giro', '2026-09-17', -1250)`,
-      )
-      .run(bookingId);
-    opened.sqlite
-      .prepare(
-        `INSERT INTO booking_split (id, booking_id, amount_cents, category_id)
-      VALUES (?, ?, -1250, 'essen')`,
-      )
-      .run(splitId, bookingId);
+    // Raw rows: later migrations add account and booking columns that the old schema does not have yet.
+    const bookingId = 'legacy-booking';
+    const splitId = 'legacy-split';
+    opened.sqlite.exec(`
+      INSERT INTO account (id, name, type, role, on_budget, opening_date, opening_balance_cents, sort_order) VALUES ('giro', 'Giro', 'checking', 'budget', 1, '2023-10-01', 100000, 1);
+      INSERT INTO category_group (id, name) VALUES ('g', 'Fixkosten');
+      INSERT INTO category (id, name, group_id, class, kind) VALUES ('essen', 'Essen', 'g', 'need', 'variable');
+      INSERT INTO booking (id, account_id, date, amount_cents) VALUES ('legacy-booking', 'giro', '2026-09-17', -1250);
+      INSERT INTO booking_split (id, booking_id, category_id, amount_cents) VALUES ('legacy-split', 'legacy-booking', 'essen', -1250);
+    `);
     opened.sqlite.exec(`INSERT INTO receipt (id, storage_key, mime, size_bytes)
       VALUES ('legacy-receipt', 'synthetic-legacy-key', 'image/png', 1)`);
     opened.sqlite

@@ -12,6 +12,7 @@ import { MonthReportFrame, shortMonth, useReportMonth } from './month-frame';
 import { payrollQuery, type PayrollData } from './payroll-projects-api';
 import { PayrollProjectChart } from './payroll-project-chart';
 import { PayslipPanel } from './payslip-panel';
+import { PayslipUpload } from './payslip-intake';
 import './payroll-projects.css';
 
 const pct = (ratio: number | null) =>
@@ -51,6 +52,7 @@ export function PayrollReport({ report, meta }: { report: ReportEntry; meta: Pag
       basis={query.isError ? 'nicht verfügbar' : 'Erfasste Gehaltszettel · EUR'}
     >
       <div className="mrep pp-report" data-testid="payroll-report">
+        <PayslipUpload />
         {query.isFetching && <LoadingNote what="Gehaltsreport" />}
         {query.isError && (
           <ErrorNote
@@ -174,7 +176,9 @@ export function PayrollReport({ report, meta }: { report: ReportEntry; meta: Pag
                         <td className="n">{eur(-p.taxCents, { sign: true })}</td>
                       </tr>
                       {p.lines
-                        .filter((l) => l.section === 'deduction')
+                        .filter((l) =>
+                          ['deduction', 'tax_adjustment', 'sv_adjustment'].includes(l.section),
+                        )
                         .map((l, i) => (
                           <tr key={i}>
                             <th>{l.label}</th>

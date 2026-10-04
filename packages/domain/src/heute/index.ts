@@ -7,3 +7,5 @@ export {
   type NetWorthAccount,
   type NetWorthParts,
 } from './net-worth';
+export * from './attention';
+export { paceSources, type PaceCategorySource } from './pace-sources';

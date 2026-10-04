@@ -1,4 +1,4 @@
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test, type Page, type TestInfo } from '@playwright/test';
 import { expectScreenshot } from './visual';
 import { monthLabel, monthOf } from '../apps/web/src/nav/month';
 import { ROUTES } from './routes';
@@ -39,10 +39,21 @@ test.describe('routes', () => {
     for (const [from, to] of [
       ['/plan', '/plan/monat'],
       ['/vermoegen', '/vermoegen/nettovermoegen'],
-      ['/einstellungen', '/einstellungen/konten'],
     ] as const) {
       await page.goto(from);
       await expect(page).toHaveURL(new RegExp(`${to}$`));
+    }
+  });
+
+  test('/einstellungen opens the first page on desktop and the grouped index on the phone', async ({
+    page,
+  }, testInfo) => {
+    await page.goto('/einstellungen');
+    if (isPhone(testInfo)) {
+      await expect(page).toHaveURL(/\/einstellungen$/);
+      await expect(page.getByRole('navigation', { name: 'Einstellungen' })).toBeVisible();
+    } else {
+      await expect(page).toHaveURL(/\/einstellungen\/konten$/);
     }
   });
 
@@ -75,8 +86,12 @@ test.describe('routes', () => {
     await expect(page.locator('.registers [aria-current="page"]')).toHaveText(
       'Monat und Einkommen',
     );
+    // Einstellungen have a grouped navigation instead of register tabs (rail on desktop).
     await page.goto('/einstellungen/sicherheit');
-    await expect(page.locator('.registers [aria-current="page"]')).toHaveText('Sicherheit');
+    if (!isPhone(testInfo))
+      await expect(
+        page.getByRole('navigation', { name: 'Einstellungen' }).locator('[aria-current="page"]'),
+      ).toHaveText('Sicherheit');
   });
 
   test('navigation by clicking: areas, registers, catalog and report', async ({
@@ -165,26 +180,36 @@ test.describe('panel via route param', () => {
     await expect(page).toHaveURL(/\/konten$/);
   });
 
-  test('the browser back button closes the panel', async ({ page }) => {
-    await page.goto('/einstellungen/anlageklassen');
-    await page.getByRole('link', { name: 'Seitenpanel testen' }).click();
-    const dialog = page.getByRole('dialog', { name: 'Details' });
+  // Opens the "Buchung" panel through the real shell trigger (top bar / phone FAB), so these tests
+  // do not depend on which pages are still placeholders.
+  const openBookingPanel = async (page: Page, testInfo: TestInfo) => {
+    const trigger = isPhone(testInfo)
+      ? page.getByRole('link', { name: 'Buchung erfassen' })
+      : page.getByRole('link', { name: /^Buchung$/ });
+    await trigger.click();
+    await expect(page).toHaveURL(/panel=buchung/);
+  };
+
+  test('the browser back button closes the panel', async ({ page }, testInfo) => {
+    await page.goto('/plan/monat');
+    await openBookingPanel(page, testInfo);
+    const dialog = page.getByRole('dialog', { name: 'Buchung' });
     await expect(dialog).toBeVisible();
     await page.goBack();
     await expect(dialog).toBeHidden();
-    await expect(page).toHaveURL(/\/einstellungen\/anlageklassen$/);
+    await expect(page).toHaveURL(/\/plan\/monat$/);
   });
 
   test('the close button closes the panel without leaving a duplicate history entry', async ({
     page,
-  }) => {
+  }, testInfo) => {
+    await page.goto('/konten');
     await page.goto('/plan/monat');
-    await page.goto('/einstellungen/anlageklassen');
-    await page.getByRole('link', { name: 'Seitenpanel testen' }).click();
+    await openBookingPanel(page, testInfo);
     await page.getByRole('button', { name: 'Schließen' }).click();
     await expect(page.getByRole('dialog')).toBeHidden();
     await page.goBack();
-    await expect(page).toHaveURL(/\/plan\/monat$/);
+    await expect(page).toHaveURL(/\/konten$/);
   });
 
   test('phone: the panel is a bottom sheet, desktop: a 420 px side panel', async ({
@@ -232,6 +257,31 @@ test.describe('desktop shell', () => {
       'Reports',
     ]);
     expect(Math.round((await items.first().boundingBox())?.height ?? 0)).toBe(42);
+  });
+
+  test('top bar content ends where the page column ends, not at the window edge', async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 2000, height: 900 });
+    await page.goto('/');
+    await expect(page.locator('main')).toBeVisible();
+    const sheet = await page.locator('main.sheet').boundingBox();
+    const topbar = await page.locator('.topbar').boundingBox();
+    const actions = await page.locator('.topbar-actions').boundingBox();
+    const primary = await page.getByRole('link', { name: /^Buchung$/ }).boundingBox();
+    const search = await page.locator('.search').boundingBox();
+    expect(sheet && topbar && actions && primary && search).toBeTruthy();
+    if (!sheet || !topbar || !actions || !primary || !search) return;
+    // The bar still spans the window (background, hairline); its content does not.
+    expect(Math.round(topbar.width)).toBe(2000 - 236);
+    // Same right edge as the content column (sheet padding 40 px), same row for search and actions.
+    expect(Math.round(primary.x + primary.width)).toBe(Math.round(sheet.x + sheet.width - 40));
+    expect(Math.round(search.y + search.height / 2)).toBe(
+      Math.round(primary.y + primary.height / 2),
+    );
+    expect(search.x + search.width).toBeLessThan(actions.x);
+    // The actions are no longer lost at the window edge.
+    expect(2000 - (primary.x + primary.width)).toBeGreaterThan(400);
   });
 
   test('sidebar collapses to 72 px and the state is remembered', async ({ page }) => {
@@ -343,10 +393,16 @@ test.describe('phone shell', () => {
     expect(small).toEqual([]);
   });
 
-  test('phone header opens the inbox as a bottom sheet', async ({ page }) => {
+  test('phone header opens the inbox as a full-screen sheet', async ({ page }) => {
+    await page.emulateMedia({ reducedMotion: 'reduce' });
     await page.goto('/konten');
     await page.getByRole('link', { name: /Posteingang, \d+ offen/ }).click();
-    await expect(page.getByRole('dialog', { name: 'Posteingang' })).toBeVisible();
+    const dialog = page.getByRole('dialog', { name: 'Posteingang' });
+    await expect(dialog).toBeVisible();
+    const box = await dialog.boundingBox();
+    const viewport = page.viewportSize();
+    expect(Math.round(box?.width ?? 0)).toBe(viewport?.width);
+    expect(Math.round(box?.height ?? 0)).toBe(viewport?.height);
   });
 });
 

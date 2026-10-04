@@ -1,3 +1,4 @@
+import { calendarRangeMonths, isCalendarRange } from '../report-range';
 import { addMonths, monthsBetween } from '../date';
 import type { Period } from '../invest/performance';
 import { ratioBp } from '../kpi/ratios';
@@ -124,6 +125,7 @@ export function savingsRateOf(
  * 1M the last full month, 3M three months, YTD from January, 1J twelve, 3J thirty-six, Alles all.
  */
 export function reportPeriodMonths(period: Period, lastFull: string, first: string): string[] {
+  if (isCalendarRange(period)) return calendarRangeMonths(period, first, lastFull);
   if (lastFull < first) return [];
   let from: string;
   switch (period) {
@@ -142,7 +144,7 @@ export function reportPeriodMonths(period: Period, lastFull: string, first: stri
     case '3J':
       from = addMonths(lastFull, -35);
       break;
-    case 'Alles':
+    default:
       from = first;
       break;
   }

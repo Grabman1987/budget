@@ -1,5 +1,6 @@
+import { evaluateBookRule } from './books';
 import { addDays, addMonths, monthOf } from '../date';
-import { evenDaily, liquidityForecast, lowPoint } from '../forecast';
+import { budgetLiquidityForecast } from '../forecast';
 import {
   ageOfMoney,
   cardCovered,
@@ -34,15 +35,8 @@ import type { RuleEvaluation, RuleInputs, RuleStatus } from './types';
 
 // ---- formatting (de-AT) ----
 
-const tenthsOf = (bp: number): number => Math.floor((Math.abs(bp) + 5) / 10);
-
-/** `14,2 %` from basis points; real minus; optional `+`. */
-export function formatPercent(bp: number, sign = false): string {
-  const t = tenthsOf(bp);
-  const body = `${Math.trunc(t / 10)},${t % 10}`;
-  const prefix = t === 0 ? '' : bp < 0 ? MINUS : sign ? '+' : '';
-  return `${prefix}${body} %`;
-}
+import { formatPercent } from './format';
+export { formatPercent } from './format';
 
 /** `−4,0 Pp` from basis points of percentage points. */
 const formatPoints = (bp: number): string => formatPercent(bp, true).replace(/ %$/, ' Pp');
@@ -99,7 +93,10 @@ const r01: Rule<'R01'> = (p, i) => {
   const valueText = `${s.need} / ${s.want} / ${s.future} % · ${
     s.rest < 0 ? `aus Guthaben ${MINUS}${-s.rest}` : `übrig ${s.rest}`
   } %`;
-  const euroOver = Math.round((Math.max(worst, 0) * income) / 10_000);
+  const months = Array.from({ length: 12 }, (_, n) => addMonths(i.refMonth, n - 11)).filter(
+    (m) => i.allocByMonth?.[m] !== undefined,
+  ).length;
+  const euroOver = Math.round((Math.max(worst, 0) * income) / (10_000 * months));
   const action = {
     need: `Bedarf liegt über ${formatPercent(p.needMaxBp)} des Einkommens: Fixkosten und Verträge prüfen (${eur(euroOver)} im Monat zu viel).`,
     want: `Wunsch-Envelopes um ${eur(euroOver)} im Monat kürzen.`,
@@ -220,14 +217,7 @@ const r06: Rule<'R06'> = (_p, i) => {
 const r07: Rule<'R07'> = (p, i) => {
   const f = i.forecast;
   if (!f) return null;
-  const run = liquidityForecast({
-    startDay: f.startDay,
-    startCents: f.startCents,
-    days: p.horizonDays,
-    items: f.items,
-    variablePerDay: evenDaily(() => f.variableMonthlyCents),
-  });
-  const low = lowPoint(run.days, p.horizonDays);
+  const { low } = budgetLiquidityForecast(f, p.horizonDays);
   if (!low) return null;
   const status: RuleStatus =
     low.cents >= p.minCents ? 'ok' : low.cents >= -f.overdraftLimitCents ? 'warn' : 'bad';
@@ -240,7 +230,7 @@ const r07: Rule<'R07'> = (p, i) => {
 };
 
 const r08: Rule<'R08'> = (p, i) => {
-  if (i.netIncomeMonthlyCents === null) return null;
+  if (i.netIncomeMonthlyCents === null || i.loanPaymentsMonthlyCents === null) return null;
   const ratio = debtServiceRatio({
     loanPaymentsCents: i.loanPaymentsMonthlyCents,
     netIncomeCents: i.netIncomeMonthlyCents,
@@ -454,6 +444,12 @@ const RULES: { [C in RuleCode]: Rule<C> } = {
   R14: r14,
   R15: r15,
   R16: r16,
+  R17: (p, i) => evaluateBookRule('R17', p, i),
+  R18: (p, i) => evaluateBookRule('R18', p, i),
+  R19: (p, i) => evaluateBookRule('R19', p, i),
+  R20: (p, i) => evaluateBookRule('R20', p, i),
+  R21: (p, i) => evaluateBookRule('R21', p, i),
+  R22: (p, i) => evaluateBookRule('R22', p, i),
 };
 
 /**

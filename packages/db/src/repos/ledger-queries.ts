@@ -1,4 +1,5 @@
-import { addDays, daysBetween } from '@budget/domain';
+import { addDays, daysBetween, type CashValuation } from '@budget/domain';
+import { cashValuer } from './cash-valuation';
 import {
   and,
   asc,
@@ -43,6 +44,11 @@ export interface AccountSummary {
   interestRateBp: number | null;
   termEnd: string | null;
   monthlyFeeCents: number | null;
+  /** Loan terms: fixed or variable interest, monthly installment, start of the term, original amount. */
+  interestKind: 'fixed' | 'variable' | null;
+  installmentCents: number | null;
+  termStart: string | null;
+  originalAmountCents: number | null;
   sortOrder: number;
   closedAt: string | null;
   note: string | null;
@@ -113,6 +119,10 @@ export function accountSummaries(db: Executor, asOf: string): AccountSummary[] {
     interestRateBp: r.account.interestRateBp,
     termEnd: r.account.termEnd,
     monthlyFeeCents: r.account.monthlyFeeCents,
+    interestKind: r.account.interestKind,
+    installmentCents: r.account.installmentCents,
+    termStart: r.account.termStart,
+    originalAmountCents: r.account.originalAmountCents,
     sortOrder: r.account.sortOrder,
     closedAt: r.account.closedAt,
     note: r.account.note,
@@ -212,6 +222,7 @@ export interface ListedBooking {
   accountId: string;
   accountName: string;
   date: string;
+  incomeNextMonth: boolean;
   amountCents: number;
   payeeId: string | null;
   payeeName: string | null;
@@ -232,6 +243,8 @@ export interface ListedBooking {
   splits: ListedSplit[];
   /** Account balance after this booking (only when the list is filtered to one account). */
   balanceAfterCents: number | null;
+  amountValuation: CashValuation;
+  balanceValuation: CashValuation | null;
 }
 
 export interface BookingPage {
@@ -240,6 +253,7 @@ export interface BookingPage {
   /** All bookings matching the filter and their summed amount (not only this page). */
   total: number;
   sumCents: number;
+  sumEurCents: number | null;
 }
 
 const DEFAULT_LIMIT = 50;
@@ -280,6 +294,7 @@ function decodeCursor(cursor: string): [string | number, string] {
  * or removed). Ties in the sort value are ordered by id in the same direction.
  */
 export function queryBookings(db: Executor, query: BookingQuery = {}): BookingPage {
+  const value = cashValuer(db);
   const sort = query.sort ?? 'date';
   const direction = query.direction ?? 'desc';
   const limit = Math.min(Math.max(query.limit ?? DEFAULT_LIMIT, 1), MAX_LIMIT);
@@ -358,6 +373,26 @@ export function queryBookings(db: Executor, query: BookingQuery = {}): BookingPa
     const op = direction === 'asc' ? sql`>` : sql`<`;
     return sql`(${sortExpr} ${op} ${value} OR (${sortExpr} = ${value} AND ${booking.id} ${op} ${id}))`;
   })();
+
+  // Include every matching booking, independent of cursor/page; each movement uses its day.
+  const movements = query.accountId
+    ? db
+        .select({ amount: booking.amountCents, currency: booking.currency, date: booking.date })
+        .from(booking)
+        .innerJoin(account, eq(account.id, booking.accountId))
+        .leftJoin(payee, eq(payee.id, booking.payeeId))
+        .where(base)
+        .all()
+    : [];
+  let sumEurCents: number | null = query.accountId ? 0 : null;
+  for (const movement of movements) {
+    const eur = value(movement.amount, movement.currency, movement.date).eurCents;
+    if (eur === null) {
+      sumEurCents = null;
+      break;
+    }
+    sumEurCents = (sumEurCents ?? 0) + eur;
+  }
 
   // Balance after the booking: opening balance plus every booking up to it in (date, id) order.
   const running = sql<number | null>`CASE WHEN ${query.accountId ?? null} IS NULL THEN NULL ELSE (
@@ -470,6 +505,7 @@ export function queryBookings(db: Executor, query: BookingQuery = {}): BookingPa
       accountId: b.accountId,
       accountName: r.accountName,
       date: b.date,
+      incomeNextMonth: b.incomeNextMonth,
       amountCents: b.amountCents,
       payeeId: b.payeeId,
       payeeName: r.payeeName,
@@ -488,6 +524,9 @@ export function queryBookings(db: Executor, query: BookingQuery = {}): BookingPa
       source: b.source,
       splits: own,
       balanceAfterCents: r.balanceAfter === null ? null : Number(r.balanceAfter),
+      amountValuation: value(b.amountCents, b.currency, b.date),
+      balanceValuation:
+        r.balanceAfter === null ? null : value(Number(r.balanceAfter), b.currency, b.date),
     };
   });
   const last = page.at(-1);
@@ -496,5 +535,6 @@ export function queryBookings(db: Executor, query: BookingQuery = {}): BookingPa
     nextCursor: rows.length > limit && last ? encodeCursor(last.sortValue, last.booking.id) : null,
     total: totals.total,
     sumCents: totals.sum,
+    sumEurCents,
   };
 }

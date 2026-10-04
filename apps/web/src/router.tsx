@@ -11,17 +11,20 @@ import type { HeutePeriod } from './heute/api';
 import { authStatusQuery, queryClient } from './auth/status-query';
 import { validateBookingsSearch } from './ledger/bookings-search';
 import { accountsQuery } from './ledger/queries';
+import { captureContinuation, validateCaptureSearch } from './ledger/capture-link';
 import { findReport } from './nav/reports-catalog';
 import {
   ACCOUNT_PAGE,
   CSV_EXPORT_META,
   EINSTELLUNGEN_KATEGORIEN,
+  KONTEN_SETTINGS_META,
   PLAN_ERWARTET,
   EINSTELLUNGEN_REGELWERK,
   PLAN_MONAT,
   PLAN_JAHR,
   PLAN_SPARZIELE,
   HEUTE,
+  SETTINGS_INDEX,
   KONTEN_BUCHUNGEN_META,
   KONTEN_META,
   PAGES,
@@ -62,11 +65,13 @@ const rootRoute = createRootRoute({
     monat?: string | undefined;
     period?: HeutePeriod | undefined;
     zeitraum?: Period | undefined;
+    trend?: boolean | undefined;
   } => ({
     panel: isPanelId(search['panel']) ? search['panel'] : undefined,
     monat: isMonth(search['monat']) ? search['monat'] : undefined,
     period:
       search['period'] === 'month' || search['period'] === 'payday' ? search['period'] : undefined,
+    trend: search['trend'] === true || search['trend'] === 'true' ? true : undefined,
     zeitraum: isZeitraum(search['zeitraum']) ? search['zeitraum'] : undefined,
   }),
   component: Outlet,
@@ -77,10 +82,11 @@ const rootRoute = createRootRoute({
 const shellRoute = createRoute({
   getParentRoute: () => rootRoute,
   id: 'shell',
-  beforeLoad: async () => {
+  beforeLoad: async ({ location }) => {
     const status = await queryClient.fetchQuery(authStatusQuery);
     if (status.setupRequired) throw redirect({ to: '/setup' });
-    if (!status.authenticated) throw redirect({ to: '/login' });
+    if (!status.authenticated)
+      throw redirect({ to: '/login', search: { weiter: captureContinuation(location.href) } });
   },
   component: AppShell,
 });
@@ -108,12 +114,20 @@ const homeRoute = createRoute({
   staticData: { meta: HEUTE },
   component: lazyRouteComponent(heutePage, 'HeutePage'),
 });
+const captureRoute = createRoute({
+  getParentRoute: () => shellRoute,
+  path: '/erfassen',
+  staticData: { meta: { ...HEUTE, title: 'Buchung erfassen' } },
+  validateSearch: validateCaptureSearch,
+  component: lazyRouteComponent(() => import('./ledger/capture-page'), 'CapturePage'),
+});
 const BUILT_PATHS = new Set<string>([
   '/einstellungen/zuordnung',
   '/einstellungen/datenquellen',
   SECURITY_META.path,
   PROFILE_META.path,
   INVESTMENT_SETTINGS_META.path,
+  KONTEN_SETTINGS_META.path,
   '/konten',
   '/einstellungen/projekte',
   '/konten/buchungen',
@@ -193,6 +207,12 @@ const investmentSettingsRoute = createRoute({
     'InvestmentSettingsPage',
   ),
 });
+const accountsSettingsRoute = createRoute({
+  getParentRoute: () => shellRoute,
+  path: KONTEN_SETTINGS_META.path,
+  staticData: { meta: KONTEN_SETTINGS_META },
+  component: lazyRouteComponent(() => import('./pages/accounts-settings'), 'AccountsSettingsPage'),
+});
 const categoriesRoute = createRoute({
   getParentRoute: () => shellRoute,
   path: EINSTELLUNGEN_KATEGORIEN.path,
@@ -214,6 +234,14 @@ const assignmentRoute = createRoute({
 const planMonthRoute = createRoute({
   getParentRoute: () => shellRoute,
   path: PLAN_MONAT.path,
+  validateSearch: (
+    search: Record<string, unknown>,
+  ): { ansicht?: 'triage'; kategorie?: string } => ({
+    ...(search['ansicht'] === 'triage' ? { ansicht: 'triage' as const } : {}),
+    ...(typeof search['kategorie'] === 'string' && search['kategorie'].length <= 64
+      ? { kategorie: search['kategorie'] }
+      : {}),
+  }),
   staticData: { meta: PLAN_MONAT },
   component: lazyRouteComponent(() => import('./budget/plan-page'), 'PlanMonthPage'),
 });
@@ -302,12 +330,27 @@ const planGoalsRoute = createRoute({
   staticData: { meta: PLAN_SPARZIELE },
   component: lazyRouteComponent(() => import('./budget/goals-page'), 'GoalsPage'),
 });
+/** Whether the viewport is wide enough for the settings rail (the app's desktop breakpoint). */
+const isDesktopViewport = () =>
+  typeof window !== 'undefined' &&
+  typeof window.matchMedia === 'function' &&
+  window.matchMedia('(min-width: 768px)').matches;
+// Phone: the grouped index list. Desktop keeps the old behaviour: the rail is always visible, so the
+// bare address opens the first page.
+const settingsIndexRoute = createRoute({
+  getParentRoute: () => shellRoute,
+  path: '/einstellungen',
+  staticData: { meta: SETTINGS_INDEX },
+  beforeLoad: () => {
+    if (isDesktopViewport()) throw redirect({ to: '/einstellungen/konten' as never });
+  },
+  component: lazyRouteComponent(() => import('./pages/settings-index'), 'SettingsIndexPage'),
+});
 const redirects = [
   // Legacy import bookmarks lead to the export placeholder; no import action remains in the UI.
   redirectRoute('/einstellungen/import', '/einstellungen/export'),
   redirectRoute('/plan', '/plan/monat'),
   redirectRoute('/vermoegen', '/vermoegen/nettovermoegen'),
-  redirectRoute('/einstellungen', '/einstellungen/konten'),
 ];
 
 const accountRoute = createRoute({
@@ -373,6 +416,10 @@ const reportRoute = createRoute({
 const loginRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/login',
+  validateSearch: (search: Record<string, unknown>): { weiter?: string | undefined } => {
+    const weiter = captureContinuation(search['weiter']);
+    return weiter ? { weiter } : {};
+  },
   beforeLoad: async () => {
     const status = await queryClient.fetchQuery(authStatusQuery);
     if (status.setupRequired) throw redirect({ to: '/setup' });
@@ -418,11 +465,13 @@ const devRoutes = devRoutesEnabled
 const routeTree = rootRoute.addChildren([
   shellRoute.addChildren([
     homeRoute,
+    captureRoute,
     ...placeholderRoutes,
     securityRoute,
     profileRoute,
     projectsSettingsRoute,
     investmentSettingsRoute,
+    accountsSettingsRoute,
     categoriesRoute,
     rulesRoute,
     assignmentRoute,
@@ -437,6 +486,7 @@ const routeTree = rootRoute.addChildren([
     debtsRoute,
     planGoalsRoute,
     ...redirects,
+    settingsIndexRoute,
     overviewRoute,
     bookingsRoute,
     contactsRoute,

@@ -5,6 +5,12 @@ import { z } from 'zod';
 import { BankError, type BankInstitution, type BankProvider } from './provider';
 
 const string = z.string().min(1).max(4096);
+/** ISO timestamp with offset; providers send up to microseconds, which JavaScript dates truncate. */
+const providerTime = z
+  .string()
+  .regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{1,9})?(Z|[+-]\d{2}:\d{2})$/)
+  .transform((v) => v.replace(/(\.\d{3})\d+/, '$1'))
+  .refine((v) => Number.isFinite(Date.parse(v)));
 const day = z.iso.date();
 const amount = z.object({ amount: string, currency: z.string().regex(/^[A-Z]{3}$/) });
 const transaction = z.object({
@@ -15,8 +21,8 @@ const transaction = z.object({
   transaction_date: day.nullish(),
   transaction_amount: amount,
   credit_debit_indicator: z.enum(['CRDT', 'DBIT']),
-  creditor: z.object({ name: string.optional() }).nullish(),
-  debtor: z.object({ name: string.optional() }).nullish(),
+  creditor: z.object({ name: string.nullish() }).nullish(),
+  debtor: z.object({ name: string.nullish() }).nullish(),
   remittance_information: z.array(z.string().max(4096)).max(100).optional(),
 });
 export function bankJwt(appId: string, key: KeyObject, now = new Date()): string {
@@ -28,6 +34,9 @@ export function bankJwt(appId: string, key: KeyObject, now = new Date()): string
     encode({ iss: 'enablebanking.com', aud: 'api.enablebanking.com', iat, exp: iat + 300 });
   return body + '.' + sign('RSA-SHA256', Buffer.from(body), key).toString('base64url');
 }
+
+/** Hosts the provider returns for the bank selection/consent start (live: tilisy.enablebanking.com). */
+const AUTH_HOSTS = new Set(['auth.enablebanking.com', 'tilisy.enablebanking.com']);
 
 /** Fixed origin, no redirects, bounded requests, no provider response text in errors or logs. */
 export function enableBanking(options: {
@@ -106,11 +115,23 @@ export function enableBanking(options: {
         Number.isFinite(seconds) ? Math.max(60, Math.min(seconds, 86400)) : 900,
       );
     }
+    let raw: unknown;
     try {
-      return schema.parse(await readJson(response));
+      raw = await readJson(response);
     } catch {
       throw new BankError('invalid_response');
     }
+    const parsed = schema.safeParse(raw);
+    if (!parsed.success) {
+      // Field paths and issue codes only: never provider values, identifiers or amounts.
+      console.warn(
+        'Bank provider response rejected',
+        path.split('?')[0]!.replace(/\/accounts\/[^/]+/, '/accounts/:uid'),
+        parsed.error.issues.map((i) => i.code + '@' + i.path.join('.')).slice(0, 10),
+      );
+      throw new BankError('invalid_response');
+    }
+    return parsed.data;
   }
   return {
     async institutions() {
@@ -158,7 +179,7 @@ export function enableBanking(options: {
       const url = new URL(data.url);
       if (
         url.protocol !== 'https:' ||
-        url.hostname !== 'auth.enablebanking.com' ||
+        !AUTH_HOSTS.has(url.hostname) ||
         url.username ||
         url.password
       )
@@ -170,10 +191,17 @@ export function enableBanking(options: {
         '/sessions',
         z.object({
           session_id: string,
-          access: z.object({ valid_until: z.iso.datetime({ offset: true }) }),
+          access: z.object({ valid_until: providerTime }),
           accounts: z
             .array(
-              z.object({ uid: string, name: string.optional(), currency: z.string().length(3) }),
+              z.object({
+                uid: string,
+                // Banks often send null for the optional names; the IBAN tail labels the account.
+                name: string.nullish(),
+                product: string.nullish(),
+                account_id: z.object({ iban: string.nullish() }).nullish(),
+                currency: z.string().regex(/^[A-Z]{3}$/),
+              }),
             )
             .min(1)
             .max(100),
@@ -185,7 +213,10 @@ export function enableBanking(options: {
         validUntil: new Date(data.access.valid_until).toISOString(),
         accounts: data.accounts.map((a, i) => ({
           uid: a.uid,
-          label: a.name ?? 'Bankkonto ' + (i + 1),
+          label:
+            a.name ??
+            a.product ??
+            (a.account_id?.iban ? 'Konto …' + a.account_id.iban.slice(-4) : 'Bankkonto ' + (i + 1)),
           currency: a.currency,
         })),
       };
@@ -201,7 +232,6 @@ export function enableBanking(options: {
         const params = new URLSearchParams({
           date_from: from,
           date_to: to,
-          transaction_status: 'BOOK',
         });
         if (continuation) params.set('continuation_key', continuation);
         if (++pages > 3) throw new BankError('request_limit', 86400);
@@ -220,7 +250,7 @@ export function enableBanking(options: {
             continue;
           }
           const row = parsed.data;
-          if (row.status !== 'BOOK') continue;
+          if (row.status !== 'BOOK' && row.status !== 'PDNG') continue;
           const date = row.booking_date ?? row.value_date ?? row.transaction_date;
           if (!date) {
             skippedInvalid++;
@@ -239,6 +269,7 @@ export function enableBanking(options: {
             continue;
           }
           rows.push({
+            bankStatus: row.status === 'BOOK' ? 'booked' : 'pending',
             reference: row.entry_reference ?? null,
             date,
             amountCents: row.credit_debit_indicator === 'DBIT' ? -cents : cents,

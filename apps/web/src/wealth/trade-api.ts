@@ -1,3 +1,4 @@
+import { privateAmount } from '@budget/ui';
 import { formatDecimal, type Cents } from '@budget/domain';
 import type { TradeRow } from '@budget/db';
 import { queryOptions } from '@tanstack/react-query';
@@ -8,7 +9,7 @@ export type ManualTrade = {
   accountId: string;
   securityId: string;
   date: string;
-  kind: 'buy' | 'sell';
+  kind: TradeRow['kind'];
   unitsE8: number;
   amountCents: number;
   feeCents: number;
@@ -39,5 +40,7 @@ export const saveTrade = (values: ManualTrade, id?: string) => {
     id ? patch : values,
   );
 };
+export const removeTrade = (id: string) =>
+  request<{ groupId: string }>('DELETE', `/api/trades/${encodeURIComponent(id)}`);
 export const sourceMoney = (cents: number, currency: string) =>
-  `${formatDecimal(cents as Cents)} ${currency === 'EUR' ? '€' : currency}`;
+  `${privateAmount(formatDecimal(cents as Cents))} ${currency === 'EUR' ? '€' : currency}`;

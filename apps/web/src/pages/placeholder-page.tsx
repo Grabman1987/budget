@@ -4,6 +4,7 @@ import { AREAS, areaById } from '../nav/areas';
 import type { PageMeta } from '../nav/pages';
 import { AppLink } from '../shell/app-link';
 import { AreaHead } from './area-head';
+import { SettingsBack, SettingsNav } from './settings-nav';
 import { PanelLink } from '../shell/panel-link';
 import { Link } from '@tanstack/react-router';
 import type { HeutePeriod } from '../heute/api';
@@ -39,6 +40,29 @@ export interface PageFrameProps {
 
 const keepZeitraum = (previous: Record<string, unknown>): Record<string, unknown> =>
   previous['zeitraum'] ? { zeitraum: previous['zeitraum'] } : {};
+
+/**
+ * Einstellungen have too many pages for register tabs: a grouped rail beside the page on desktop,
+ * a back link to the grouped index on the phone. The index itself (no register) shows its own list.
+ */
+function SettingsFrame({
+  register,
+  children,
+}: {
+  register?: string | undefined;
+  children?: ReactNode;
+}) {
+  if (!register) return <>{children}</>;
+  return (
+    <div className="settings-layout">
+      <SettingsNav variant="rail" />
+      <div className="settings-body">
+        <SettingsBack current={register} />
+        {children}
+      </div>
+    </div>
+  );
+}
 
 /** Title block and registers of the area; the body of the page follows as children. */
 export function PageFrame({
@@ -77,25 +101,31 @@ export function PageFrame({
         {...(reportDataBasis ? { reportDataBasis } : {})}
         {...(reportStand ? { reportStand } : {})}
       />
-      {items.length > 0 && (
-        <Registers
-          label={`Register von ${area.label}`}
-          items={items}
-          current={meta.register ?? ''}
-          revealCurrent={revealCurrentRegister}
-          renderLink={(item, props) => (
-            <AppLink
-              to={item.href ?? '/'}
-              // The Zeitraum travels along between the Vermögen registers.
-              search={meta.area === 'vermoegen' ? keepZeitraum : undefined}
-              {...props}
-            >
-              {item.label}
-            </AppLink>
+      {meta.area === 'einstellungen' ? (
+        <SettingsFrame register={meta.register}>{children}</SettingsFrame>
+      ) : (
+        <>
+          {items.length > 0 && (
+            <Registers
+              label={`Register von ${area.label}`}
+              items={items}
+              current={meta.register ?? ''}
+              revealCurrent={revealCurrentRegister}
+              renderLink={(item, props) => (
+                <AppLink
+                  to={item.href ?? '/'}
+                  // The Zeitraum travels along between the Vermögen registers.
+                  search={meta.area === 'vermoegen' ? keepZeitraum : undefined}
+                  {...props}
+                >
+                  {item.label}
+                </AppLink>
+              )}
+            />
           )}
-        />
+          {children}
+        </>
       )}
-      {children}
     </>
   );
 }

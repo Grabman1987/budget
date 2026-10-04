@@ -4,6 +4,7 @@ import {
   defaultParams,
   lastDayOfMonth,
   monthOf,
+  overviewMonthlyFigures,
   monthsBetween,
   resolveParams,
   type IncomeRole,
@@ -25,7 +26,7 @@ import {
   payee,
   rule,
 } from '../schema';
-import { isIncomeCategorySplit } from './allocation';
+import { overviewData } from './report-ledger';
 import { netWorthDaily, earliestAccountDate } from './portfolio';
 import { budget, budgetLedger } from './queries';
 import { referenceMonth } from './rule-inputs';
@@ -136,8 +137,6 @@ export function reportTables(
   const categories: TableCategory[] = categoryRows.flatMap((c) =>
     c.class === null ? [] : [{ ...c, class: c.class as SpendClass }],
   );
-  const categoryKind = new Map(categoryRows.map((c) => [c.id, c.kind]));
-
   const types = db
     .select()
     .from(incomeType)
@@ -151,67 +150,32 @@ export function reportTables(
   }));
 
   const classOf = new Map(categories.map((c) => [c.id, c.class]));
-  // A refund goes back to the spending category it refunds (owner decision 29.09.2026): the
-  // category of the payee. A refund without such a category stays visible as its own row.
-  const refundCategory = new Map(
-    db
-      .select({ id: payee.id, categoryId: payee.defaultCategoryId })
-      .from(payee)
-      .where(isNull(payee.deletedAt))
-      .all()
-      .flatMap((p) =>
-        p.categoryId !== null && classOf.has(p.categoryId) ? [[p.id, p.categoryId] as const] : [],
-      ),
-  );
-  const refunded = new Map<string, Map<string, number>>();
-
-  // Income per month and type: income-category and uncategorised inflows on budget accounts.
+  // Shared ledger classification: cash date, system entries excluded, refunds netted once.
+  const ledger = overviewData(db);
+  const figures = overviewMonthlyFigures({
+    ...ledger,
+    splits: ledger.splits.filter((s) => s.date <= today),
+  });
   const income = new Map<string, Record<string, number>>();
-  const incomeRows = db
-    .select({
-      day: booking.date,
-      cents: bookingSplit.amountCents,
-      incomeTypeId: bookingSplit.incomeTypeId,
-      categoryId: bookingSplit.categoryId,
-      payeeId: booking.payeeId,
-    })
-    .from(bookingSplit)
-    .innerJoin(booking, eq(booking.id, bookingSplit.bookingId))
-    .innerJoin(account, eq(account.id, booking.accountId))
-    .where(
-      and(
-        isNull(booking.deletedAt),
-        isNull(account.deletedAt),
-        eq(account.onBudget, true),
-        isNull(booking.transferId),
-        isNull(bookingSplit.transferId),
-      ),
-    )
-    .all();
-  for (const s of incomeRows) {
-    const kind = s.categoryId === null ? null : (categoryKind.get(s.categoryId) ?? null);
-    if (!isIncomeCategorySplit(s.categoryId, kind) || s.cents <= 0) continue;
-    const m = monthOf(s.day);
-    const type = s.incomeTypeId ?? INCOME_TYPES.other.id;
-    const target =
-      type === INCOME_TYPES.refund.id && s.payeeId ? refundCategory.get(s.payeeId) : undefined;
-    if (target !== undefined) {
-      const byCategory = refunded.get(m) ?? new Map<string, number>();
-      byCategory.set(target, (byCategory.get(target) ?? 0) + s.cents);
-      refunded.set(m, byCategory);
-      continue;
+  for (const [month, f] of figures) {
+    const byType: Record<string, number> = {};
+    for (const [id, cents] of Object.entries(f.incomeByType)) {
+      const type = id || INCOME_TYPES.other.id;
+      byType[type] = (byType[type] ?? 0) + cents;
     }
-    const row = income.get(m) ?? {};
-    row[type] = (row[type] ?? 0) + s.cents;
-    income.set(m, row);
+    income.set(month, byType);
   }
 
   // Spending and assignment per month from the one budget calculation.
-  const envelopes = new Map(budget(db, monthKeys).map((m) => [m.month, m.envelopes]));
+  const envelopes = new Map(
+    budget(db, monthKeys, { asOf: today }).map((m) => [m.month, m.envelopes]),
+  );
 
   // Geldalter at every month end (today for the running month), the rule R03 definition.
   const onBudget = new Set(budgetAccounts.map((a) => a.id));
-  const ledgerSplits = budgetLedger(db).splits.filter((s) => onBudget.has(s.accountId));
+  const ledgerSplits = budgetLedger(db).splits.filter(
+    (s) => onBudget.has(s.accountId) && s.date <= today,
+  );
   const betweenBudgetAccounts = (s: (typeof ledgerSplits)[number]) =>
     s.transferAccountId != null && onBudget.has(s.transferAccountId);
   const events: MoneyEvent[] = [
@@ -271,9 +235,7 @@ export function reportTables(
       const e = env[c.id];
       if (!e) continue;
       const cents =
-        -e.activityCents +
-        (setAside.get(month)?.get(c.id) ?? 0) -
-        (refunded.get(month)?.get(c.id) ?? 0);
+        (figures.get(month)?.byCategory[c.id] ?? 0) + (setAside.get(month)?.get(c.id) ?? 0);
       if (cents !== 0) spending[c.id] = cents;
       if (e.assignedCents !== 0) assigned[c.id] = e.assignedCents;
     }

@@ -83,6 +83,114 @@ const newBooking = async (accountId: string, over: Record<string, unknown> = {})
   return res.body as { id: string; groupId: string; bookings: Array<Record<string, any>> };
 };
 
+describe('booking delivery keys', () => {
+  const send = async (key: string, body: unknown) => {
+    const response = await app.request('/api/bookings', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', 'Idempotency-Key': key },
+      body: JSON.stringify(body),
+    });
+    return { status: response.status, body: (await response.json()) as Record<string, any> };
+  };
+  const bodyFor = (accountId: string) => ({
+    type: 'booking',
+    accountId,
+    date: '2026-03-10',
+    amountCents: -1250,
+    categoryId: 'essen',
+    payeeName: 'Queue shop',
+  });
+  it('replays one booking/payee/audit group, including after undo, and rejects a different payload', async () => {
+    const account = await newAccount();
+    const body = bodyFor(account.id);
+    const first = await send('synthetic-booking-key-01', body);
+    expect(first.status).toBe(201);
+    const auditCount = db.select().from(schema.auditLog).all().length;
+    const replay = await send('synthetic-booking-key-01', body);
+    expect(replay).toEqual(first);
+    expect(db.select().from(schema.auditLog).all()).toHaveLength(auditCount);
+    expect(
+      db
+        .select()
+        .from(schema.payee)
+        .all()
+        .filter((p) => p.name === 'Queue shop'),
+    ).toHaveLength(1);
+    expect((await send('synthetic-booking-key-01', { ...body, amountCents: -1400 })).status).toBe(
+      409,
+    );
+    expect((await call('POST', '/undo', { groupId: first.body['groupId'] })).status).toBe(200);
+    expect(await send('synthetic-booking-key-01', body)).toEqual(first);
+    expect(
+      db.select().from(schema.booking).where(eq(schema.booking.id, first.body['id'])).get()
+        ?.deletedAt,
+    ).not.toBeNull();
+  });
+  it('replays both transfer legs under concurrent requests without duplicate audit', async () => {
+    const from = await newAccount();
+    const to = await newAccount({ name: 'Queue savings' });
+    const body = {
+      type: 'transfer',
+      fromAccountId: from.id,
+      toAccountId: to.id,
+      date: '2026-03-10',
+      amountCents: 400,
+    };
+    const [first, second] = await Promise.all([
+      send('synthetic-transfer-key-01', body),
+      send('synthetic-transfer-key-01', body),
+    ]);
+    expect(first.status).toBe(201);
+    expect(second).toEqual(first);
+    expect(first.body['bookings']).toHaveLength(2);
+    expect(db.select().from(schema.bookingDelivery).all()).toHaveLength(1);
+    expect(db.select().from(schema.transfer).all()).toHaveLength(1);
+  });
+  it('rolls back payee, receipt and audit on invalid splits; the key remains usable', async () => {
+    const account = await newAccount();
+    const body = bodyFor(account.id);
+    const auditCount = db.select().from(schema.auditLog).all().length;
+    const bad = await send('synthetic-rollback-key-01', {
+      ...body,
+      splits: [{ categoryId: 'essen', amountCents: -100 }],
+    });
+    expect(bad.status).toBe(422);
+    expect(db.select().from(schema.bookingDelivery).all()).toEqual([]);
+    expect(db.select().from(schema.auditLog).all()).toHaveLength(auditCount);
+    expect(
+      db
+        .select()
+        .from(schema.payee)
+        .all()
+        .some((p) => p.name === 'Queue shop'),
+    ).toBe(false);
+    expect((await send('synthetic-rollback-key-01', body)).status).toBe(201);
+  });
+  it('retains actionable closed-account and deleted-category conflicts without claiming the key', async () => {
+    const account = await newAccount();
+    const body = bodyFor(account.id);
+    expect((await call('POST', `/accounts/${account.id}/close`, { force: true })).status).toBe(200);
+    expect((await send('synthetic-conflict-key-01', body)).body['error']).toBe('account_closed');
+    await call('POST', `/accounts/${account.id}/reopen`, {});
+    db.update(schema.category)
+      .set({ deletedAt: '2026-03-31T00:00:00Z' })
+      .where(eq(schema.category.id, 'essen'))
+      .run();
+    expect((await send('synthetic-conflict-key-01', body)).body['error']).toBe('category_deleted');
+    db.update(schema.account)
+      .set({ deletedAt: '2026-03-31T00:00:00Z' })
+      .where(eq(schema.account.id, account.id))
+      .run();
+    expect((await send('synthetic-conflict-key-01', body)).body['error']).toBe('account_deleted');
+    expect(db.select().from(schema.bookingDelivery).all()).toEqual([]);
+  });
+  it('bounds the header before performing any writes', async () => {
+    const account = await newAccount();
+    expect((await send('invalid', bodyFor(account.id))).status).toBe(400);
+    expect(db.select().from(schema.bookingDelivery).all()).toEqual([]);
+  });
+});
+
 describe('accounts', () => {
   it('rejects USD budget accounts with a readable 422 and accepts USD tracking accounts', async () => {
     const rejected = await call('POST', '/accounts', {
@@ -148,7 +256,8 @@ describe('accounts', () => {
     const euro = await newAccount({ name: 'Unrelated EUR', openingBalanceCents: 20_000 });
     const patch = await call('PATCH', `/accounts/${euro.id}`, { name: 'Renamed EUR' });
     expect(patch.status).toBe(200);
-    expect(patch.body['account']).toMatchObject({ name: 'Renamed EUR', valueEurCents: 0 });
+    // A rename leaves the opening balance (and so the value) alone.
+    expect(patch.body['account']).toMatchObject({ name: 'Renamed EUR', valueEurCents: 20_000 });
     expect((await call('POST', '/undo', { groupId: patch.body['groupId'] })).status).toBe(200);
     expect((await call('GET', '/accounts')).status).toBe(200);
     expect((await call('GET', `/wealth/networth`)).status).toBe(503);
@@ -236,6 +345,65 @@ describe('accounts', () => {
     ).toEqual([b.id, a.id]);
     expect((await call('PATCH', `/accounts/${a.id}`, { type: 'brokerage' })).status).toBe(422);
     expect((await call('PATCH', '/accounts/none', { name: 'x' })).status).toBe(404);
+  });
+
+  it('an edit that does not name the opening balance leaves it alone', async () => {
+    const a = await newAccount({ openingBalanceCents: 123_456 });
+    const renamed = await call('PATCH', `/accounts/${a.id}`, { name: 'Girokonto' });
+    expect(renamed.status).toBe(200);
+    expect(renamed.body['account']).toMatchObject({
+      name: 'Girokonto',
+      openingBalanceCents: 123_456,
+      balanceCents: 123_456,
+    });
+    expect(
+      (await call('PATCH', `/accounts/${a.id}`, { openingBalanceCents: 1_000 })).body['account'],
+    ).toMatchObject({ openingBalanceCents: 1_000 });
+  });
+
+  it('stores loan terms, validates their order and undoes the edit as one group', async () => {
+    const loan = await newAccount({ name: 'Kredit', type: 'loan', openingBalanceCents: -500_000 });
+    const terms = {
+      interestRateBp: 450,
+      interestKind: 'variable',
+      installmentCents: 25_000,
+      termStart: '2024-01-01',
+      termEnd: '2034-01-01',
+      originalAmountCents: 600_000,
+      monthlyFeeCents: 300,
+    };
+    const patched = await call('PATCH', `/accounts/${loan.id}`, terms);
+    expect(patched.status).toBe(200);
+    expect(patched.body['account']).toMatchObject(terms);
+    // The end of the term must not precede its start, also against the stored other date.
+    expect((await call('PATCH', `/accounts/${loan.id}`, { termEnd: '2023-01-01' })).status).toBe(
+      422,
+    );
+    expect((await call('PATCH', `/accounts/${loan.id}`, { interestKind: 'floating' })).status).toBe(
+      400,
+    );
+    expect(
+      (
+        await call('POST', '/accounts', {
+          name: 'Kredit 2',
+          type: 'loan',
+          openingDate: '2026-01-01',
+          termStart: '2030-01-01',
+          termEnd: '2029-01-01',
+        })
+      ).status,
+    ).toBe(422);
+    // Clearing a term is explicit.
+    const cleared = await call('PATCH', `/accounts/${loan.id}`, {
+      interestKind: null,
+      installmentCents: null,
+    });
+    expect(cleared.body['account']).toMatchObject({ interestKind: null, installmentCents: null });
+    expect((await call('POST', '/undo', { groupId: cleared.body['groupId'] })).status).toBe(200);
+    expect((await call('GET', `/accounts/${loan.id}`)).body['account']).toMatchObject({
+      interestKind: 'variable',
+      installmentCents: 25_000,
+    });
   });
 
   it('reorders accounts by PATCH /accounts/order as one undoable audit group', async () => {

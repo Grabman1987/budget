@@ -91,6 +91,7 @@ export function budgetLedger(db: Executor): Omit<BudgetInput, 'months'> {
       status: booking.status,
       accountId: booking.accountId,
       date: booking.date,
+      incomeNextMonth: booking.incomeNextMonth,
       bookingTransferId: booking.transferId,
       splitTransferId: bookingSplit.transferId,
       amountCents: bookingSplit.amountCents,
@@ -122,6 +123,7 @@ export function budgetLedger(db: Executor): Omit<BudgetInput, 'months'> {
     status: r.status,
     accountId: r.accountId,
     date: r.date,
+    incomeNextMonth: r.incomeNextMonth,
     amountCents: r.amountCents,
     categoryId: r.categoryId,
     transferAccountId: partnerOf(r.splitTransferId ?? r.bookingTransferId, r.bookingId),
@@ -151,9 +153,10 @@ export function budgetLedger(db: Executor): Omit<BudgetInput, 'months'> {
 export function budget(
   db: Executor,
   months: string[],
-  options: { cardRule?: CardRule } = {},
+  options: { cardRule?: CardRule; asOf?: string } = {},
 ): BudgetMonth[] {
   const ledger = budgetLedger(db);
+  if (options.asOf) ledger.splits = ledger.splits.filter((s) => s.date <= options.asOf!);
   const first = months[0];
   if (first === undefined) return [];
   const start = ledger.accounts

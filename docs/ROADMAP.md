@@ -34,7 +34,8 @@ Owner scope update, 2026-10-01: remove import as an app feature. Provide a fresh
 - [x] A05 payment lifecycle: edit/delete/rematch/undo recompute status, links, amounts and related totals.
 - [x] A03 EUR-first guard: unsupported on-budget foreign currencies never enter EUR sums silently; create/update/import/existing accounts covered.
 - [x] A03 account overview aggregation: keep native balances in the account DTO and expose shared EUR account/total values; overview totals, changes and closed residuals use the shared valuation, with explicit missing-rate behavior.
-- [ ] Follow-up FX detail acceptance: individual account tables, charts and reconciliation still use native amounts; make those views explicit and consistent with the overview's EUR valuation.
+- [x] Follow-up FX detail implementation: account lead reuses the overview's EUR value; native cash, booking/running balances, daily charts and reconciliation show explicit currency and dated EUR valuations with stored rate provenance. Shared conversion/formatting, missing-rate states, native audited reconciliation/undo and synthetic unit/API/desktop/mobile coverage; see [currency contract and evidence](fx-account-detail.md).
+- [ ] FX detail owner design/device acceptance and private native/EUR reconciliation; pinned Linux CI remains required before merge.
 - [x] A04 persisted Gate-2 reconciliation: each mapped account/month-end and category checked; structural missing-account/currency/opening-data differences reported explicitly; one-cent added/missing/changed/deleted cases detected, including non-budget and closed accounts.
 - [ ] Separate agent-assisted EUR migration/Gate 2 after corrections and operational acceptance; establish private file access and transfer procedure; never commit exports/mapping or include them in CI/logs.
 - [x] A02 investment costs use historical account-currency FX at each trade/snapshot date; current price valuation, fees/income and typed missing-rate behavior are consistent before Gate 3.
@@ -228,12 +229,13 @@ Order: P2a → P2b and P2c in parallel → P2d (parser can start right after P1f
 - [ ] Owner: category evaluation and mapping done, real import on the deployed app, Gate 2 report without difference
 
 ## P3 Planung und Steuerung
-Expected payments, contacts with receivables, savings goals, rule set R01–R16 + stages, Heute page, Posteingang basics.
+
+Expected payments, contacts with receivables, savings goals, rule set registered rules (`RULE_CODES`) + stages, Heute page, Posteingang basics.
 - [x] P3.3 `p3-kpi-domain`: pure KPI, pace, free-until-payday and liquidity-forecast functions in `packages/domain/src/{kpi,forecast}`
 - [x] Shared budget/category/goal/inbox write toasts report refused undo/redo and connection failures in German; rejected actions preserve stored/query state, successful audited chains retain refresh behavior
 - [x] P3.4 `p3-goals`: savings goals domain (`packages/domain/src/goals`), repo and `/api/goals` (audit, undo, adopt as category target), Plan › Sparziele page (parts list Offen/Erreicht, bars, panel)
-- [x] P3.5 `p3-rules-api`: rule engine `packages/domain/src/rules` (R01–R16 with zod params, `evaluateRule`, Finanz-Check summary), `ruleInputs` / `evaluateRules` / `financeCheck` read models, `ensureDefaultRules` at start, stage checklist with owner confirmation, additive `rule` migration, `/api/rules`
-- [x] P3.7 `p3-regelwerk-ui`: Einstellungen › Regelwerk (`apps/web/src/rules`): stage checklist in three columns with owner confirmation of non-computable items, rules R01–R16 with typed threshold panel (status, next step, undo), switches and thresholds as audited PATCH with undo toast
+- [x] P3.5 `p3-rules-api`: rule engine `packages/domain/src/rules` (registered rules (`RULE_CODES`) with zod params, `evaluateRule`, Finanz-Check summary), `ruleInputs` / `evaluateRules` / `financeCheck` read models, `ensureDefaultRules` at start, stage checklist with owner confirmation, additive `rule` migration, `/api/rules`
+- [x] P3.7 `p3-regelwerk-ui`: Einstellungen › Regelwerk (`apps/web/src/rules`): stage checklist in three columns with owner confirmation of non-computable items, rules registered rules (`RULE_CODES`) with typed threshold panel (status, next step, undo), switches and thresholds as audited PATCH with undo toast
 - [x] P3.9 `p3-heute-api`: `GET /api/heute?period=month|payday&month=` (one request: stand, lead with chain and drill-down, balance actual and forecast with salary jump and low point, pace, pinned envelopes, upcoming 14 days, Finanz-Check, net worth with delta and 12 month ends, last bookings, next steps), `packages/domain/src/heute`, `heute` read model, `category.pinned_at` (migration 0010) with `PATCH /categories/:id {pinned}`, pinned fixtures
 - [x] P3.10 `heute-page`: Heute wired to its read model (month/payday URL, lead drill-down, balance and pace, pinned envelopes, upcoming payments, Finanz-Check, net worth, latest bookings and next steps); capture/budget/rule edits and undo/redo refresh Today, actions open the source month or uncategorized bookings through today, mobile urgent step follows the lead. Browser coverage includes capture/undo/redo, actual navigation, negative lead in both themes, retry, empty states and settled chart endpoints; owner visual acceptance remains pending.
   - [x] Owner follow-up 2026-10-02: payday selection disabled outside the current month, URL/month fallback, Austrian business-day 15th planning rule, and month-specific Decken in multi-month plans; [behavior and calendar contract](month-navigation.md).
@@ -258,6 +260,18 @@ Expected payments, contacts with receivables, savings goals, rule set R01–R16 
 - [ ] Bank/assignment suggestions and source repair workflows; acknowledging a warning does not repair its source
 - [ ] Independent review, CI and owner acceptance of this workflow on the deployed app
 
+### UX quick wins (`feat/ux-quick-wins`)
+
+- [x] Device privacy toggle in header/profile and keyboard shortcut; monetary display/input/chart masking without changing stored values
+- [x] Capture category available amount: retained existing grouped picker, warning ink and regression coverage
+- [x] One authenticated storage-persistence request per device; status in Einstellungen › Sicherheit
+- [x] Plan › Monat uncategorized/pending inflow, outflow and net row with booking links; no duplicate budget deduction
+- [x] Rest verteilen fills an active populated split line with integer-cent remainder
+- [x] Today attention links for overspending, monthly funding, inbox and sequential payment cover; hidden when empty
+- [x] Mobile regression fixes: attention follows the urgent lead, privacy moves into the keyboard-accessible profile menu, and loaded zero account changes use the shared amount mask
+- [x] Validated `/erfassen` draft links, safe login continuation, normal explicit save and documentation
+- [ ] Delivery checks, draft PR and owner desktop/phone acceptance
+
 ### Y21 — Receipts
 
 - [x] Content-addressed volume storage (`RECEIPTS_DIR`), additive receipt metadata and n:m booking links; audited upload/link/unlink/remove and guarded undo/redo
@@ -272,7 +286,7 @@ Enable Banking adapter, worker with nightly run and catch-up, inbox items, assig
 
 ### P4.1 — PSD2 bank sync into the inbox
 - [x] RS256 adapter, step-up/session-bound consent, encrypted session/account identifiers, owner-selected EUR account mapping.
-- [x] Booked transaction staging and balance warnings, reference/fallback deduplication, explicit confirmation with audit/undo; no automatic bookings.
+- [x] Owner decision 41: BOOK transactions become unchecked, uncategorized bookings immediately; PDNG remains a candidate until confirmed. Per-connection confirmation-first override, stable-reference promotion/deduplication, bank balance warnings and separate replayable ledger audit; no automatic categorization or distribution.
 - [x] Separate nightly worker on the same volume, catch-up, durable leases/backoff, queued manual refresh and consent reminders.
 - [x] Datenquellen status/mapping UI and owner setup in `docs/DATA_SOURCES.md`; synthetic HTTP, domain, workflow and browser tests.
 - [x] Review corrections: changed-reference updates/warnings, duplicate-reference fallback, isolated account failures, 21-day overlap and durable four-request/day limit; tolerant rows/undated balances, stable balance warnings, redacted auth/config failures, callback pruning and versioned encryption.
@@ -281,12 +295,19 @@ Enable Banking adapter, worker with nightly run and catch-up, inbox items, assig
 - [x] Source-specific bank payee cleanup and learned raw-to-payee aliases; raw evidence retained through memo edits, merge references updated with undo. Automatic rules prepare assignments; bank staging never posts without owner confirmation.
 - [x] Explicit transfer actions preserve booking identity, pair unambiguous same-day/same-currency/opposite-amount bank candidates, and attach later bank evidence to generated counterparts without posting twice; ambiguous matches roll back. See [limits and validation](assignment-rules.md).
 - [ ] Ambiguous bank history changes, broader transfer matching (including different posting days), and private owner/device acceptance remain separate work.
+- [x] Bank follow-ups: closest +/-5-day manual-booking merge preserving memo/splits, confirmed mirror/selected-booking transfers with original dates, dated bank balance on Konten and guarded one-click reconciliation lock; grouped audit/undo, synthetic unit/API and isolated desktop/mobile coverage. Migration `0024_bank_followups` stores balance observations.
+- [x] Einstellungen › Zuordnungsregeln merges the bank assignment rules and payee cleanup with the income budget-month defaults on one route (`/einstellungen/zuordnung`); migration `0031_assignment_rules`.
 
 ### Crypto read source (P4/P5)
 - [x] Read-only current public API adapter; env-only key, paged resumable operation inbox, provider-ID deduplication and explicit investment/cash mappings.
 - [x] Native balance warnings, audited page/cursor writes, existing nightly timer hook and step-up protected manual fetch/full replay in Datenquellen. See [owner setup and limitations](crypto-read-source.md).
 - [x] Review fixes: mapping-independent acknowledgement/current display, row quarantine and categorized failures, tolerant balance reads with independent operations progress, unchanged-difference acknowledgement and bounded cursor history.
 - [ ] Owner key setup, private reconciliation and 14-day nightly acceptance; dedicated P4 worker and automated posting/matching remain separate.
+### Owner decision 42 — Income for the following budget month
+- [x] Persisted per-inflow "für nächsten Monat" option in desktop/mobile capture and editing; retain cash date, category and income type, defer Zu verteilen across month/year boundaries through the shared budget calculation.
+- [x] Einstellungen › Zuordnungsregeln: defaults per payee, income category or income type, specific precedence and explicit per-booking override. Apply to new owner captures/classification only; retain existing history. Audited rules and booking changes with undo/redo, bounded API validation and rejected transfer/contact/mixed-spend shapes.
+- [x] Cash-flow/income reports keep booking dates; budget 50/30/20 uses the assigned month. Synthetic domain/API tests and fixed-clock isolated desktop/mobile browser scenarios cover save, edit, override, undo/redo, accessibility and both themes. Changed files, checks and the open Windows full-check blocker: [decision evidence](evidence/owner-decisions-41-42.md).
+- [ ] Owner acceptance on actual bank feeds and the first month-end; ambiguous source identity changes still require manual review.
 
 ## P5 Vermögen
 Price history (yfinance + Ariva, source per price), ECB rates, trades and holdings, portfolio performance, allocation, Sparpläne, debts with extra repayment, freedom number with Soll-Pfad. **Gate 3:** returns and holdings equal Portfolio Performance.
@@ -344,7 +365,9 @@ Price history (yfinance + Ariva, source per price), ECB rates, trades and holdin
 - [x] Instrument metadata and manual quote forms protect dirty edits during browser Back and route changes; pending writes reject navigation, successful creation opens the saved instrument, and explicit close/discard prompts only once. Native unload protection remains browser-controlled.
 - [x] Manual buy/sell creation and editing plus source trade history, including instruments without current holdings; exact units, account-currency gross/fees/withheld tax, atomic settlement and group undo/redo. Shared basis/valuation and per-broker ownership remain authoritative; no new oversell policy.
 - [x] Savings-plan schedule list/create/edit/end in native investment-account currency; today's effective rate separated from future versions, source/history, inclusive end date, audited undo/redo, quote-independent reads and dirty/pending navigation protection. Saving schedules creates no trades, bookings or bank orders; changes at the bank remain manual.
-- [ ] Trade deletion and capture of other trade kinds, extended instrument/source management and deletion, savings-plan proposal/execution UI and performance/report bodies remain later slices; owner design acceptance and Gate 3 private reconciliation remain open
+- [x] Audited trade deletion with linked cash settlement and undo/redo; capture/edit of dividend/distribution, interest, fee/tax, deliveries and signed split deltas using the shared holdings/cost/cash rules. Synthetic unit/API and desktop/mobile light/dark keyboard/browser coverage.
+- [x] Due monthly savings execution proposals in Heute/Posteingang, including overdue months; owner-entered actual units/gross/fees, atomic buy/settlement/audit confirmation, stale/duplicate guards and monthly identity across schedule versions with deletion/undo/redo. Schedule saves and proposals never book money automatically. See [workflow and owner steps](trades-execution.md).
+- [ ] Extended instrument/source management and deletion, rate-optimisation proposal/apply UI and remaining performance/report bodies; owner design acceptance and Gate 3 private reconciliation remain open
 
 ### P5.7 — Current debts and unpersisted monthly repayment model
 - [x] Schulden overview/chain from shared nullable current account values, actual account drilldown/history, explicit unsaved native-currency assumptions and existing server payoffPlan; typed limits/unknown states, no payment or contract writes
@@ -358,10 +381,17 @@ Price history (yfinance + Ariva, source per price), ECB rates, trades and holdin
 
 
 ## P6 Reports und Umstellung
+### Planning income and shared report ranges — 2026-10-03
+- [x] Plan › Monat: expected household income versus all envelope monthly target requirements, source label, surplus/gap and keyboard-accessible unfunded-category details; reuse target/carry calculations and stored monthly holds. Live dated schedules take precedence; without schedules use the median of the preceding three complete months (before today for future planning). Missing amounts/currency/history remain unavailable. The existing payday rule defines a date, not a salary amount.
+- [x] Shared quick choices on every implemented selectable period report, including Explorer saved views: current/previous month, 3/6/12 complete months, current/previous calendar year, all, custom inclusive calendar months. Legacy period URLs and segmented controls remain supported; partial current months stop at today. Month/year-only, fixed-source and forecast reports keep their existing controls.
+- [x] Optional dotted linear fit of displayed actual time-series values, default off, URL-backed; no fit of forecasts, missing values or single points. Desktop/mobile light/dark, keyboard/Axe, synthetic fixed-clock unit/API/E2E evidence.
+- [ ] Owner design acceptance; orchestrator review/commit/PR and pinned Linux CI. No migration or automatic booking. No existing Linux screenshot baseline is expected to change: modified report/Plan tests capture evidence images, while shell baselines show the unchanged report catalog/Heute. See [scope, checks and changed files](evidence/income-targets-report-ranges.md).
+
 ### P6 — Static PWA baseline
 - [x] Build-versioned static shell cache, install manifest/icons derived from the existing brand mark, offline fallback and opt-in update prompt. API/auth/export/health are network-only.
 - [x] Offline reload has no financial figures; a connection loss retains unsaved form state and shows an offline/stale-data notice.
-- [ ] D07 offline booking persistence, retry/idempotency and conflict decisions, physical phone installation/passkeys and Gate 4 acceptance remain separate.
+- [x] Y26/D07: IndexedDB capture queue with local edit/delete, Heute/Konten counts, cold offline capture from minimal form choices, FIFO online/focus/manual retry and atomic API idempotency (migration 0022). Retain session/reference conflicts; uncertain delivery must be checked before editing/deleting. Synthetic unit/API and desktop/mobile offline browser coverage.
+- [ ] Physical phone installation/passkeys and Gate 4 acceptance remain separate. Month-close write locks have no current server model; the queue retains/explains typed lock rejections when provided, without inventing a month-close policy.
 
 ### Report 5.4 — Kontakte-Abrechnung
 - [x] Fixed all-time EUR report with shared replay running balances/credit chain, nonzero overview, balanced history/deep links, per-person ledger/stair chart, pending metadata and real booking/contact source navigation. No sending/settlement duplication or month selector; unsupported currency makes the entire read unavailable.
@@ -384,7 +414,8 @@ The 30 reports (SPEC §7), explorer, printable sheets, parallel run with reconci
 - [x] `/reports/prendite`: selected-period summary from `GET /api/portfolio` in securities-only view (TTWROR, existing annualized metrics, netflows, period gain and end value) plus separately labelled lifetime realized gain/completeness; no new financial formula.
 - [x] Suppress all report figures when the legacy portfolio summary returns `valuation_unavailable`; keep documented zero gains distinct from unavailable basis and preserve gains when open positions are empty.
 - [x] Focused invest API cases, synthetic browser edge fixtures and read-only sample-ledger browser coverage on desktop/mobile; accessibility and horizontal overflow checked in light/dark mode. Evidence: [report 4.4](evidence/report-4.4.md).
-- [ ] Benchmark comparison, asset-class comparison and monthly heatmap from the prototype; depot-inclusive view and owner acceptance remain outside this first report body.
+- [x] Owner-selected benchmark security persisted via audited app_setting with undo/redo; stored-price comparison over the same period, explicit quote/FX gaps, historical asset-class comparison and accessible monthly returns heatmap. Shared TTWROR/Modified Dietz, synthetic domain/API/browser evidence; see [report 4.4 extension](../docs/performance-report.md).
+- [ ] Depot-inclusive performance view, owner design acceptance and private performance reconciliation remain open.
 
 ### P6.5 — Empfänger-Analyse
 - [x] `/reports/empfaenger`: connected closed-month recipient activity from shared budget `splitEffect` and Bedarf/Wunsch category rules, with explicit unclassified outflow disclosure and stable-ID/null-payee grouping
@@ -410,6 +441,14 @@ The 30 reports (SPEC §7), explorer, printable sheets, parallel run with reconci
 - [x] Source table, read-only detail and filtered source-booking/Plan drilldowns; literal API/read-only and write/undo/redo refresh checks, real synthetic API browser, keyboard/Axe and desktop1440/mobile390 light/dark evidence. See [report 3.5](evidence/report-3.5.md).
 - [ ] Original emergency-fund reach, Tagesgeld split, independently allocated money per goal, linear Soll path and owner acceptance remain open; I02 source allocation is not resolved by these guards.
 
+### Y22a — Automatic payslip intake
+Owner setup and limits: [payslip intake](payslip-intake.md); synthetic browser evidence: [verification](evidence/payslip-intake/README.md).
+
+- [x] Optional recursive Dropbox scan with dynamic year folders, durable incremental cursor, content-hash/SHA-256 deduplication and shared manual PDF upload.
+- [x] Server-only PDF password, bounded extraction, Austrian wage-line adapter with owner code mappings, separate reimbursements and signed tax/SV corrections; warning/retry, cent check and separate bonus/pension document handling.
+- [x] Audited draft/receipt/inbox staging and owner confirmation/rejection, live salary-booking suggestions, grouped undo/redo and encrypted receipt-backup reuse; source status and setup documentation.
+- [ ] Owner verification of private layouts/mappings, live read-only Dropbox authorization and encrypted restore after deployment.
+
 ### Y22 / Reports 1.2 and 1.9 — Captured payroll and side projects
 - [x] PR #139 review fixes: separate tax-free reimbursements, signed SV/Lohnsteuer corrections with exact net conservation and signed ratios, live payslip-position deduplication including undo/redo, salary-split payout linkage and retained archived project choices. Synthetic domain/API/migration and desktop/mobile browser regressions; details in [payroll report scope](payroll-projects.md).
 - [x] Manual EUR payslip capture/edit/remove: base gross plus typed additional earnings, SV-DN, captured Lohnsteuer, other deductions, controlled net; regular, 13th/14th and other special payments. Existing payout booking and optional stored receipt reference; no tax calculation or automatic booking.
@@ -418,3 +457,21 @@ The 30 reports (SPEC §7), explorer, printable sheets, parallel run with reconci
 - [x] `/einstellungen/projekte`: create, rename, archive/reactivate and undo/redo; retained project attribution/history, active-only new booking attribution. `/reports/projekte`: closed-month split-level income/cost/result, signed refunds, prior-period comparison, monthly results and booking drilldown; side income stays a distinct household income type without adding project profit again.
 - [x] Final local typecheck/lint/full unit and API suite (223 files, 2,166 tests), production build and four synthetic desktop/mobile browser scenarios; light/dark Axe and overflow checks. Local worker/timeout settings and screenshots: [verification evidence](payroll-projects.md#verification-evidence).
 - [ ] Separate receipt object-storage/upload workflow, collective/step-raise metadata and inflation comparison, project hours/hourly rates; owner design/private-data acceptance and Gate 4 remain open.
+
+### Owner configuration and Einstellungen › Konten — 2026-10-03
+- [x] Operator command `owner-config --file <json> [--dry-run]` (profile, rules, category stages, expected payments with skipped occurrences, bulk "vorgemerkt" to "bestätigt", security quote settings, asset class names): audited per entry, undoable, idempotent, exit code 3 on skips; schema in [ops](ops.md) section 12.6.
+- [x] Einstellungen › Konten: accounts grouped like the sidebar, rename and retype, order, close/reopen, terms by type; loan terms (fixed or variable interest, installment, term start/end, original amount) read by the Schulden calculator (pre-filled) and the Kosten report (installment wins over expected payments). Drizzle migration 0030. Fix: an account edit that does not name the opening balance no longer resets it to 0.
+- [ ] Owner acceptance of the page and of the private owner-config file on the server.
+
+### Report and KPI correctness audit - 2026-10-03
+
+Scope and shared definitions: [report correctness](report-correctness.md).
+
+- [x] Explicit split-level loan fee attribution; opening, disbursement, principal and transfers excluded.
+- [x] Project reports use the shared legacy/calendar range parser, including partial current months.
+- [x] Nonpositive/cancelled assignment plans retain absolute deviation without misleading percentages.
+- [x] Pace counts fixed/expected payments once and hides first-week/planless forecasts.
+- [x] R08 missing-debt-rate guard and recorded minimum repayments; shared R07 chart horizon/low; monthly R01 units.
+- [x] Shared household classification for yearly/overview/table/cashflow totals and Plan year summary.
+- [x] Mobile Heute safe space and bounded project settings table; synthetic regressions.
+- [ ] Owner design/private-ledger acceptance and pinned Linux visual CI; no private-data access, migration or deployment in this task.

@@ -2,14 +2,22 @@ import { readFileSync, writeFileSync } from 'node:fs';
 import { basename, resolve } from 'node:path';
 import {
   applyBookEntries,
+  applyInstrumentFacts,
+  applyOwnerConfig,
   applyMoves,
+  applyPayslips,
   listAuditGroups,
   migrateDatabase,
   openDatabase,
   orderAccountsByNames,
   parseBookFile,
   parseGroupsFile,
+  parsePayslipsFile,
+  parseInstrumentFactsFile,
+  parseOwnerConfigFile,
   planGroupMoves,
+  summarizeOwnerConfig,
+  summarizePayslips,
   undoAuditGroups,
   type MovePlan,
 } from '@budget/db';
@@ -31,6 +39,9 @@ import { findRun, runTask, type ImportTask } from './tasks';
  *   node migrate-cli.js move-money --month YYYY-MM --from "<name>" --to "<name>" --cents N [--dry-run]
  *   node migrate-cli.js move-money --file <list-groups json> [--allow-unbalanced] [--dry-run]
  *   node migrate-cli.js book --file <json> [--dry-run] [--details]
+ *   node migrate-cli.js payslips --file <json> [--dry-run] [--details] [--replace]
+ *   node migrate-cli.js instrument-facts --file <json> [--dry-run]
+ *   node migrate-cli.js owner-config --file <json> [--dry-run]
  *
  * Output is aggregates only (counts, problem codes, number of differences); `--details` adds the
  * differences themselves for the operator's terminal. Nothing is logged to files.
@@ -57,6 +68,28 @@ import { findRun, runTask, type ImportTask } from './tasks';
  * A transfer `add` may carry `transferCategory`; a `match` may be narrowed with `category` and
  * `transferAccount`. `unlock: true` on a change or delete entry unlocks that one reconciled booking (as the app's
  * `unlockReconciled`); without it a reconciled booking is skipped.
+ *
+ * `payslips` imports historical payslips from a private JSON file `{payslips: [...]}` whose entries
+ * mirror the input of the app's payslip route (`month, kind, specialType, grossCents, svCents,
+ * taxCents, netCents, lines`) plus `salaryBooking {account, date, amountCents, payee?}`, which is
+ * resolved to exactly one booking (date within 3 days) for the link, else the payslip is imported
+ * unlinked. One audit group per payslip (actor `operator`, `undo-group`). An existing payslip for
+ * the same month, kind and special type is reported as `exists` and kept unless `--replace`.
+ * `instrument-facts` enters private per-instrument values from a JSON file (never in the repo):
+ * `{securities: [{isin, terBp?, leverageFactorTenths?}], employerPension: [{month, amountCents}],
+ * bookSettings?: {birthYear?, birthMonth?}}`.
+ * A security is matched by ISIN (exactly one live one, else skipped with a reason), only non-null
+ * fields are written, equal values are reported as unchanged. Pension months are upserted through
+ * the rules settings function. Every entry is one audit group (actor `operator`) that Rückgängig
+ * or `undo-group` reverts on its own; `--dry-run` reports exactly what would change. Exit code 3
+ * if an entry was skipped.
+ * `owner-config` loads the owner's private settings from one JSON file (never in the repo), all
+ * sections optional: `profile`, `rules`, `categoryStages`, `assetClasses`,
+ * `securities`, `expectedPayments`, `skipOccurrences`, `clearBookings` (schema: docs/ops.md).
+ * Every entry calls the function behind the matching app route, is one audit group (actor
+ * `operator`, `undo-group` reverts it on its own) and reports `created`, `updated`, `unchanged`
+ * or `skipped <reason>`; a second run reports everything as unchanged. Exit code 3 if an entry
+ * was skipped; `--dry-run` rolls everything back and reports what would change.
  */
 
 const args = process.argv.slice(2);
@@ -286,9 +319,166 @@ try {
       if (skipped > 0) process.exitCode = 3;
       break;
     }
+    case 'payslips': {
+      const dryRun = args.includes('--dry-run');
+      const replace = args.includes('--replace');
+      const entries = parsePayslipsFile(JSON.parse(readFileSync(required('file'), 'utf8')));
+      const outcomes = applyPayslips(db, entries, { actor: 'operator' }, { dryRun, replace });
+      const details = args.includes('--details');
+      for (const o of outcomes) {
+        const slip = `${o.month} ${o.kind}${o.specialType ? `/${o.specialType}` : ''}`;
+        if (o.status === 'skipped') {
+          console.log('skipped       ', slip, o.reason);
+          if (details) console.log('              ', o.detail);
+          continue;
+        }
+        if (o.status === 'exists') {
+          console.log('exists        ', slip);
+          continue;
+        }
+        const link = o.linked ? 'linked' : `unlinked ${o.unlinkedReason ?? ''}`.trim();
+        console.log(o.status.padEnd(14), slip, link, o.groupId || '(dry run)');
+        if (details && !o.linked)
+          console.log(
+            '              ',
+            `net ${o.netCents}`,
+            `candidates ${o.candidates ?? 0}`,
+            o.detail ?? '',
+          );
+      }
+      const sum = summarizePayslips(outcomes);
+      console.log(
+        'payslips',
+        sum.payslips,
+        'created',
+        sum.created,
+        ...(replace ? ['replaced', sum.replaced] : []),
+        'exists',
+        sum.exists,
+        'unlinked',
+        sum.unlinked,
+        'skipped',
+        sum.skipped,
+        dryRun ? '(dry run)' : '',
+      );
+      if (sum.skipped > 0) process.exitCode = 3;
+      break;
+    }
+    case 'instrument-facts': {
+      const dryRun = args.includes('--dry-run');
+      const facts = parseInstrumentFactsFile(
+        JSON.parse(readFileSync(required('file'), 'utf8')),
+        ctx.today,
+      );
+      const result = applyInstrumentFacts(
+        db,
+        facts,
+        { actor: 'operator' },
+        { dryRun, today: ctx.today },
+      );
+      const count = (status: string) => result.securities.filter((o) => o.status === status).length;
+      for (const o of result.securities) {
+        if (o.status === 'skipped') {
+          console.log('skipped       ', o.isin, o.reason, o.candidates);
+          if (args.includes('--details')) console.log('              ', o.detail);
+        } else
+          console.log(
+            o.status === 'updated' ? 'updated       ' : 'unchanged     ',
+            o.isin,
+            o.changes.join(', '),
+            o.groupId || (o.status === 'updated' ? '(dry run)' : ''),
+          );
+      }
+      for (const o of result.pension)
+        console.log(
+          o.status === 'upserted' ? 'pension       ' : `pension ${o.status}`.padEnd(14),
+          o.month,
+          o.amountCents,
+          o.detail,
+          o.groupId || (o.status === 'upserted' ? '(dry run)' : ''),
+        );
+      if (result.settings) {
+        const o = result.settings;
+        console.log(
+          o.status === 'updated' ? 'settings       ' : `settings ${o.status}`.padEnd(14),
+          o.birthMonth,
+          o.detail,
+          o.groupId || (o.status === 'updated' ? '(dry run)' : ''),
+        );
+      }
+      const secSkipped = count('skipped');
+      const pensionSkipped = result.pension.filter((o) => o.status === 'skipped').length;
+      console.log(
+        'securities    ',
+        result.securities.length,
+        'updated',
+        count('updated'),
+        'unchanged',
+        count('unchanged'),
+        'skipped',
+        secSkipped,
+        dryRun ? '(dry run)' : '',
+      );
+      console.log(
+        'pension       ',
+        result.pension.filter((o) => o.status === 'upserted').length,
+        'upserted',
+        result.pension.filter((o) => o.status === 'unchanged').length,
+        'unchanged',
+        pensionSkipped,
+        'skipped',
+        dryRun ? '(dry run)' : '',
+      );
+      if (result.settings)
+        console.log('settings      ', result.settings.status, dryRun ? '(dry run)' : '');
+      if (secSkipped + pensionSkipped + (result.settings?.status === 'skipped' ? 1 : 0) > 0)
+        process.exitCode = 3;
+      break;
+    }
+    case 'owner-config': {
+      const dryRun = args.includes('--dry-run');
+      const config = parseOwnerConfigFile(
+        JSON.parse(readFileSync(required('file'), 'utf8')),
+        ctx.today,
+      );
+      const outcomes = applyOwnerConfig(
+        db,
+        config,
+        { actor: 'operator' },
+        { dryRun, today: ctx.today },
+      );
+      for (const o of outcomes) {
+        if (o.status === 'skipped') {
+          console.log('skipped       ', o.section, o.key, o.reason);
+          if (args.includes('--details')) console.log('              ', o.detail);
+        } else
+          console.log(
+            o.status.padEnd(14),
+            o.section,
+            o.key,
+            o.detail,
+            o.groupId || (o.status === 'unchanged' ? '' : '(dry run)'),
+          );
+      }
+      for (const s of summarizeOwnerConfig(outcomes))
+        console.log(
+          s.section.padEnd(16),
+          'created',
+          s.created,
+          'updated',
+          s.updated,
+          'unchanged',
+          s.unchanged,
+          'skipped',
+          s.skipped,
+          dryRun ? '(dry run)' : '',
+        );
+      if (outcomes.some((o) => o.status === 'skipped')) process.exitCode = 3;
+      break;
+    }
     default:
       console.log(
-        'usage: migrate-cli.js stage|dry-run|report|commit|revert|delete|order-accounts|list-groups|undo-group|move-money|book [options]',
+        'usage: migrate-cli.js stage|dry-run|report|commit|revert|delete|order-accounts|list-groups|undo-group|move-money|book|payslips|instrument-facts|owner-config [options]',
       );
       process.exitCode = 2;
   }

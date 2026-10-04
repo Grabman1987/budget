@@ -2,13 +2,11 @@ import {
   addDays,
   addMonths,
   changeBp,
-  daysBetween,
-  evenDaily,
   freeUntilPayday,
   heuteWindow,
   lastDayOfMonth,
-  liquidityForecast,
-  lowPoint,
+  budgetLiquidityForecast,
+  resolveParams,
   monthOf,
   netWorthDays,
   netWorthParts,
@@ -16,7 +14,9 @@ import {
   ExchangeRateUnavailableError,
   nextPayday,
   paceForecastCurve,
+  paceSources,
   paceModel,
+  paymentCoverage,
   type BudgetMonth,
   type FreeEnvelope,
   type FreeUntilPayday,
@@ -24,13 +24,21 @@ import {
   type LowPoint,
   type NetWorthParts,
   type OpenOutflow,
-  type PaceFixed,
   type PaceModel,
   type PaceSpending,
   type Payday,
 } from '@budget/domain';
 import { and, eq, gte, isNull, lte } from 'drizzle-orm';
-import { booking, bookingSplit, contact, expectedOccurrence, INCOME_TYPES } from '../schema';
+import {
+  booking,
+  bookingSplit,
+  contact,
+  expectedOccurrence,
+  rule,
+  INCOME_TYPES,
+  SYSTEM_PAYEE_IDS,
+} from '../schema';
+import { budget as readBudget } from './queries';
 import { queryBookings } from './ledger-queries';
 import { cashSeries, netWorthAsOf, netWorthValuationAsOf } from './portfolio';
 import { forecastInputs, loadFacts, scheduled, type RuleFacts } from './rule-inputs';
@@ -334,29 +342,70 @@ export function paceOfMonth(
     const c = id ? categories.get(id) : undefined;
     return c?.class === 'need' || c?.class === 'want';
   };
-  const limitCents = facts.categories
-    .filter((c) => paceCategory(c.id))
-    .reduce((s, c) => s + (monthBudget?.envelopes[c.id]?.assignedCents ?? 0), 0);
-  const fixed: PaceFixed[] = occurrences
-    .filter(
-      (o) =>
-        o.kind === 'outflow' &&
-        monthOf(o.dueDate) === month &&
-        paceCategory(o.categoryId) &&
-        o.status !== 'missed',
-    )
-    .map((o) => ({
-      day: o.dueDate,
-      cents: -o.amountCents,
-      settled: o.status === 'received' || o.status === 'deviating',
-    }));
-  const spending: PaceSpending[] = facts.ledgerSplits
-    .filter((s) => paceCategory(s.categoryId) && budgetSet.has(s.accountId))
-    .map((s) => ({ day: s.date, cents: -s.amountCents }));
+  const spendingSplits = facts.ledgerSplits.filter(
+    (s) =>
+      !Object.values(SYSTEM_PAYEE_IDS).some((p) => p.id === s.payeeId) &&
+      paceCategory(s.categoryId) &&
+      budgetSet.has(s.accountId) &&
+      !(
+        s.transferAccountId != null &&
+        facts.accounts.some((a) => a.id === s.transferAccountId && a.onBudget)
+      ) &&
+      s.date >= (facts.accounts.find((a) => a.id === s.accountId)?.openingDate ?? ''),
+  );
+  const spending: PaceSpending[] = spendingSplits.map((s) => ({
+    day: s.date,
+    cents: -s.amountCents,
+  }));
+  const actualOf = (id: string) =>
+    spendingSplits
+      .filter((s) => s.categoryId === id && monthOf(s.date) === month && s.date <= today)
+      .reduce((sum, s) => sum - s.amountCents, 0);
+  const plannedOf = (id: string) => {
+    const assigned = monthBudget?.envelopes[id]?.assignedCents ?? 0;
+    const target = facts.targets
+      .filter((t) => t.categoryId === id && t.validFrom <= month)
+      .sort((a, b) => b.validFrom.localeCompare(a.validFrom))[0];
+    return assigned > 0
+      ? assigned
+      : Math.max(
+          0,
+          target?.kind === 'monthly' && target.everyMonths === 1 ? target.amountCents : 0,
+        );
+  };
+  const { fixed, fixedSpentCents, limitCents } = paceSources(
+    month,
+    today,
+    facts.categories
+      .filter((c) => paceCategory(c.id))
+      .map((c) => ({
+        kind: c.kind,
+        planCents: plannedOf(c.id),
+        actualCents: actualOf(c.id),
+        dueDay:
+          facts.targets
+            .filter((t) => t.categoryId === c.id && t.validFrom <= month)
+            .sort((a, b) => b.validFrom.localeCompare(a.validFrom))[0]?.dueDay ?? null,
+        scheduled: occurrences
+          .filter(
+            (o) =>
+              o.kind === 'outflow' &&
+              monthOf(o.dueDate) === month &&
+              o.categoryId === c.id &&
+              o.status !== 'missed',
+          )
+          .map((o) => ({
+            day: o.dueDate,
+            cents: -o.amountCents,
+            settled: o.status === 'received' || o.status === 'deviating',
+          })),
+      })),
+  );
   const model = paceModel({
     month,
     today,
     limitCents,
+    fixedSpentCents,
     fixed,
     spending: spending.filter((s) => monthOf(s.day) === month),
     previousSpending: spending.filter((s) => monthOf(s.day) === addMonths(month, -1)),
@@ -445,15 +494,13 @@ export function heute(db: Executor, query: HeuteQuery): Heute {
   let low: LowPoint | null = null;
   if (window.to > today && budgetAccounts.length > 0) {
     const inputs = forecastInputs(facts, today, { byAccount: budgetValues });
-    const run = liquidityForecast({
-      startDay: today,
-      startCents: inputs.startCents,
-      days: daysBetween(today, window.to),
-      items: inputs.items,
-      variablePerDay: evenDaily(() => inputs.variableMonthlyCents),
-    });
+    const r07 = db.select().from(rule).where(eq(rule.code, 'R07')).get();
+    const horizon = Number(
+      resolveParams('R07', JSON.parse(r07?.paramsJson ?? '{}'))['horizonDays'],
+    );
+    const run = budgetLiquidityForecast(inputs, horizon);
     forecast = run.days.map((d) => ({ day: d.day, balanceCents: d.balanceCents }));
-    low = lowPoint(run.days, run.days.length - 1);
+    low = run.low;
     // A planning boundary must never invent or move a salary receipt in the cash forecast.
     const salaryDay = salary.find((o) => o.dueDate > today && o.dueDate <= window.to)?.dueDate;
     if (salaryDay) {
@@ -497,9 +544,17 @@ export function heute(db: Executor, query: HeuteQuery): Heute {
     });
 
   // ---- upcoming, Finanz-Check, net worth, bookings, next steps ----
-  const upcoming14 = all.filter(
+  const upcomingRows = all.filter(
     (o) => o.dueDate >= today && o.dueDate <= addDays(today, UPCOMING_DAYS),
   );
+  const upcomingMonths = [...new Set(upcomingRows.map((o) => monthOf(o.dueDate)))];
+  const available = Object.fromEntries(
+    readBudget(db, upcomingMonths).map((m) => [
+      m.month,
+      Object.fromEntries(Object.entries(m.envelopes).map(([id, e]) => [id, e.availableCents])),
+    ]),
+  );
+  const upcoming14 = paymentCoverage(upcomingRows, available);
   const check = availableSection(() => {
     const result = financeCheck(db, today, facts);
     return { counts: result.counts, keyRules: result.keyRules };

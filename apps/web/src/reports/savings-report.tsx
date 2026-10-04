@@ -1,11 +1,19 @@
+import { ReportPeriodControl } from './period-quick-select';
+import { useAmountPrivacy, DimensionChain } from '@budget/ui';
 import {
   cents,
+  lastDayOfMonth,
   monthIncomeOfRole,
   reportPeriodMonths,
   savingsOverview,
   type MoneyAgePoint,
+  type HistoryMatrix,
 } from '@budget/domain';
-import { DimensionChain, Segmented } from '@budget/ui';
+import { useQuery } from '@tanstack/react-query';
+import { request } from '../api/http';
+import { LEDGER_KEY } from '../ledger/queries';
+import { rulesQuery } from '../rules/use-rule-writes';
+import { useRuleDerivation } from './overview-api';
 import { AlertTriangle, CheckCircle2 } from 'lucide-react';
 import { useMemo } from 'react';
 import { eur } from '../ledger/format';
@@ -16,11 +24,13 @@ import { MoneyAgeChart, SavingsChart } from './table-charts';
 import { monthShort, percentTenth, percentWhole, periodName } from './table-format';
 import { TableReportFrame, useReportTables } from './table-report-frame';
 import type { ReportTables } from './table-reports-api';
+import { BookRuleMetric } from '../rules/book-rule-metric';
 
 const PERIOD_OPTIONS = ZEITRAUM_VALUES.map((value) => ({ value, label: value }));
 
 /** 1.7 Sparquote und Geldalter: how much is left, and how old the money is that gets spent. */
 export function SavingsReport({ report, meta }: { report: ReportEntry; meta: PageMeta }) {
+  useAmountPrivacy();
   const [period, setPeriod] = useZeitraum();
   const query = useReportTables();
   return (
@@ -28,13 +38,14 @@ export function SavingsReport({ report, meta }: { report: ReportEntry; meta: Pag
       report={report}
       meta={meta}
       through="full"
+      currentAllowed={period.includes('..')}
       query={query}
       className="savings-report"
       extraFields={[
         {
           label: 'Zeitraum',
           value: (
-            <Segmented
+            <ReportPeriodControl
               label="Zeitraum"
               options={PERIOD_OPTIONS}
               value={period}
@@ -60,6 +71,7 @@ function DaysChain({
   label: string;
   terms: ReadonlyArray<{ label: string; value: string; op?: '+' | '−' | '='; result?: boolean }>;
 }) {
+  useAmountPrivacy();
   return (
     <div className="chain-inline" role="group" aria-label={label}>
       {terms.map((term, i) => (
@@ -86,16 +98,35 @@ function SavingsBody({
   data: ReportTables;
   period: (typeof ZEITRAUM_VALUES)[number];
 }) {
+  const book = useQuery(rulesQuery());
+  const grossEnabled = book.data?.rules.some((r) => r.code === 'R17' && r.enabled) === true;
+  const gross = useQuery({
+    queryKey: [...LEDGER_KEY, 'gross-savings-history'],
+    enabled: grossEnabled,
+    queryFn: () => request<HistoryMatrix>('GET', '/api/rules/results'),
+  });
+  useRuleDerivation(grossEnabled);
+  useAmountPrivacy();
   const window = useMemo(
     () =>
-      data.firstMonth && data.lastFullMonth
-        ? reportPeriodMonths(period, data.lastFullMonth, data.firstMonth)
+      data.firstMonth && (data.lastFullMonth || period.includes('..'))
+        ? reportPeriodMonths(
+            period,
+            period.includes('..') ? data.currentMonth : data.lastFullMonth!,
+            data.firstMonth,
+          )
         : [],
-    [data.firstMonth, data.lastFullMonth, period],
+    [data.firstMonth, data.lastFullMonth, data.currentMonth, period],
   );
   const overview = useMemo(
-    () => savingsOverview(data.months, data, window, data.lastFullMonth),
-    [data, window],
+    () =>
+      savingsOverview(
+        data.months,
+        data,
+        window,
+        period.includes('..') ? data.currentMonth : data.lastFullMonth,
+      ),
+    [data, window, period],
   );
   const { window: w } = overview;
   const target = data.targets.savingsRateBp;
@@ -121,6 +152,7 @@ function SavingsBody({
     <>
       <div className="tr-pair">
         <section className="tr-card" aria-labelledby="savings-title">
+          <BookRuleMetric code="R17" />
           <div className="tbd-head">
             <h2 id="savings-title">Sparquote · {periodName(period, window)}</h2>
             <span className="tbd-state">
@@ -162,8 +194,28 @@ function SavingsBody({
           )}
           {overview.series.length > 0 && (
             <>
-              <SavingsChart points={overview.series} targetBp={target} label={chartLabel} />
+              <SavingsChart
+                points={overview.series.map((p) => ({
+                  ...p,
+                  grossBp:
+                    gross.data?.rules
+                      .find((r) => r.code === 'R17')
+                      ?.cells.find((c) => c.asOf === lastDayOfMonth(p.month))?.grossBp ?? null,
+                }))}
+                targetBp={target}
+                label={`${chartLabel} Bruttoquote R17 als zweite Linie, soweit bewertbar.`}
+              />
+              <p className="vnote">
+                Bruttoquote R17: zweite Linie aus zwölf Monatsenden. Ohne vollständige Gehaltszettel
+                und Arbeitgeberbeiträge bleibt sie leer; die Regel muss aktiviert sein.
+              </p>
               <ul className="chart-legend">
+                <li>
+                  <svg aria-hidden="true" viewBox="0 0 32 8">
+                    <line x1="0" x2="32" y1="4" y2="4" className="l-prev" />
+                  </svg>
+                  Bruttoquote R17 · rollierend 12 Monate
+                </li>
                 <li>
                   <i className="lg-sq lg-mkt" aria-hidden="true" />
                   je Monat

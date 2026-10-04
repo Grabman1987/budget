@@ -1,4 +1,4 @@
-import { ClassSwatch, Button, cx } from '@budget/ui';
+import { useAmountPrivacy, ClassSwatch, Button, cx } from '@budget/ui';
 import { useQuery } from '@tanstack/react-query';
 import { AlertTriangle, Check, CheckCircle2, ChevronDown, Plus } from 'lucide-react';
 import { useState } from 'react';
@@ -24,6 +24,7 @@ import { CLASS_TEXT } from './plan-model';
  * (bottom sheet on the phone) to edit, adopt as the envelope's target or delete.
  */
 export function GoalsPage() {
+  useAmountPrivacy();
   const [month] = useMonth();
   const goals = useQuery(goalsQuery(month));
   const budget = useQuery(budgetQuery(month));
@@ -42,6 +43,7 @@ export function GoalsPage() {
 }
 
 function GoalsBody({ month, goals }: { month: string; goals: GoalView[] }) {
+  useAmountPrivacy();
   const tree = useQuery(categoriesQuery()).data;
   const categories = tree?.categories ?? [];
   const accounts = useQuery(accountsQuery()).data?.accounts ?? [];
@@ -183,6 +185,7 @@ function GroupRow({
   collapsed: boolean;
   onToggle: () => void;
 }) {
+  useAmountPrivacy();
   return (
     <tr className={cx('pgroup', collapsed && 'is-collapsed')} id={`grp-${g.key}`}>
       <td className="col-pos">
@@ -229,6 +232,7 @@ function GoalRow({
   accountName: string | undefined;
   onOpen: () => void;
 }) {
+  useAmountPrivacy();
   const bar = goalBar(g);
   const line = goalLine(g, month);
   const cls = category?.class ?? null;

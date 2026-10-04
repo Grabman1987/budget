@@ -70,13 +70,12 @@ describe('parameters', () => {
     expect(() => applyParamsPatch('R08', {}, { maxBp: 1.5 })).toThrow();
   });
 
-  it('definitions cover R01 to R16 and the 14 checklist items', () => {
+  it('definitions cover the registered rules and the 14 checklist items', () => {
     expect(RULE_DEFS.map((d) => d.code)).toEqual([...RULE_CODES]);
     expect(CHECKLIST_DEFS).toHaveLength(14);
     expect(CHECKLIST_DEFS.filter((c) => c.ruleCode === null).map((c) => c.code)).toEqual([
       'S1-1',
       'S1-2',
-      'S2-1',
       'S2-5',
       'S2-6',
       'S3-3',
@@ -148,6 +147,13 @@ describe('R01 50/30/20', () => {
     expect(evaluateRule('R01', { needMaxBp: 3000 }, i)?.status).toBe('bad');
   });
 
+  it('expresses the rolling gap as a monthly amount, including short histories', () => {
+    const month = alloc(300_000, 150_000, 90_000, 30_000);
+    for (const allocByMonth of [twelve(month), { '2026-08': month }])
+      expect(evaluateRule('R01', {}, inputs({ allocByMonth }))?.actionText).toBe(
+        'Zukunft um 300 € im Monat aufstocken.',
+      );
+  });
   it('spending from savings is shown as "aus Guthaben"', () => {
     const i = inputs({ allocByMonth: twelve(alloc(400_000, 212_000, 124_000, 80_000)) });
     const e = evaluateRule('R01', {}, i);
@@ -692,4 +698,14 @@ describe('summarizeCheck', () => {
     ]);
     expect(s.checklist).toMatchObject({ done: 2, total: 4 });
   });
+});
+
+it('does not label missing debt payments as a fulfilled zero ratio', () => {
+  expect(
+    evaluateRule(
+      'R08',
+      {},
+      inputs({ netIncomeMonthlyCents: 300000, loanPaymentsMonthlyCents: null }),
+    ),
+  ).toBeNull();
 });

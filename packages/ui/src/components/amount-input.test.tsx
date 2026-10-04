@@ -34,6 +34,15 @@ const describedBy = (el: HTMLElement) =>
     .map((id) => document.getElementById(id));
 
 describe('AmountInput accessibility', () => {
+  it('uses the native unit for foreign input and arithmetic feedback', () => {
+    render(
+      <AmountInput label="Saldo laut Bank · USD" currency="USD" value="1+2" onChange={vi.fn()} />,
+    );
+    expect(screen.getByText('USD', { exact: true })).toBeTruthy();
+    const hint = describedBy(screen.getByLabelText('Saldo laut Bank · USD'))[0];
+    expect(hint?.textContent).toContain('3,00 USD');
+    expect(hint?.textContent).not.toContain('€');
+  });
   it('describes the input by the hint only when there is no error', () => {
     render(<Harness />);
     const nodes = describedBy(screen.getByLabelText('Betrag'));

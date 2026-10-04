@@ -32,11 +32,14 @@ export const bankSyncAccount = sqliteTable('bank_sync_account', {
   accountId: text('account_id').references(() => account.id),
   fromDate: text('from_date'),
   lastSyncAt: text('last_sync_at'),
+  balanceCents: cents('balance_cents'),
+  balanceDate: text('balance_date'),
+  balanceFetchedAt: text('balance_fetched_at'),
   requestDay: text('request_day'),
   requestCount: integer('request_count').notNull().default(0),
 });
 
-/** Staged transactions never affect balances. Their inbox decision is the confirmation state. */
+/** Provider identity survives posting and deletion; pending rows remain candidates until confirmed. */
 export const bankSyncCandidate = sqliteTable(
   'bank_sync_candidate',
   {
@@ -45,6 +48,9 @@ export const bankSyncCandidate = sqliteTable(
       .notNull()
       .references(() => account.id),
     dedupeKey: text('dedupe_key').notNull(),
+    bankStatus: text('bank_status', { enum: ['booked', 'pending'] })
+      .notNull()
+      .default('booked'),
     date: text('date').notNull(),
     amountCents: cents('amount_cents').notNull(),
     currency: text('currency').notNull(),

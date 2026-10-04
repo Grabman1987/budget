@@ -1,5 +1,5 @@
+import { useAmountPrivacy, Button, DimensionChain, maskMoneyText } from '@budget/ui';
 import { addDays, cents, formatDecimal, parseAmount } from '@budget/domain';
-import { Button, DimensionChain } from '@budget/ui';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate, useSearch } from '@tanstack/react-router';
 import { useId, useState, type ReactNode, type FormEvent } from 'react';
@@ -23,6 +23,7 @@ import './debts.css';
 const modelMonthText = (month: string | null) =>
   month ? `${monthName(month)} ${month.slice(0, 4)}` : 'bereits getilgt';
 export function DebtsPage() {
+  useAmountPrivacy();
   const query = useQuery(debtsQuery());
   const search = useSearch({ strict: false }) as { kredit?: string };
   const navigate = useNavigate();
@@ -67,7 +68,7 @@ export function DebtsPage() {
             <DebtLead view={view} />
             {loan ? (
               <Scenario
-                key={`${loan.id}:${loan.balanceCents}:${view.asOf}:${loan.interestRateBp}:${loan.monthlyFeeCents}`}
+                key={`${loan.id}:${loan.balanceCents}:${view.asOf}:${loan.interestRateBp}:${loan.monthlyFeeCents}:${loan.installmentCents}`}
                 loan={loan}
                 asOf={view.asOf}
                 onBusy={setBusy}
@@ -161,6 +162,7 @@ const unavailable = (a: DebtAccount) =>
       ? 'Kurs für Kontowert fehlt'
       : `Wechselkurs fehlt: ${a.missingFxCurrencies.join(', ')}`;
 function DebtLead({ view }: { view: DebtsView }) {
+  useAmountPrivacy();
   const parts = view.totalEurCents === null ? null : eurParts(view.totalEurCents);
   return (
     <section className="vnw" aria-labelledby="debts-title">
@@ -231,6 +233,7 @@ function Amount({
   value: string;
   onChange: (value: string) => void;
 }) {
+  const hidden = useAmountPrivacy();
   const id = useId();
   return (
     <div className="field-row debt-amount">
@@ -238,6 +241,7 @@ function Amount({
         {label} ({currency})
       </label>
       <input
+        type={hidden ? 'password' : 'text'}
         id={id}
         inputMode="decimal"
         autoComplete="off"
@@ -270,7 +274,10 @@ function Scenario({
   onBusy: (busy: boolean) => void;
   choice: ReactNode;
 }) {
-  const [payment, setPayment] = useState('');
+  useAmountPrivacy();
+  const [payment, setPayment] = useState(
+    loan.installmentCents === null ? '' : formatDecimal(cents(loan.installmentCents)),
+  );
   const [extra, setExtra] = useState('0');
   const [rate, setRate] = useState(
     loan.interestRateBp === null ? '' : formatDecimal(cents(loan.interestRateBp)),
@@ -343,6 +350,7 @@ function Scenario({
           </span>
         </div>
         {choice}
+        <LoanTerms loan={loan} />
         <p className="vnote">
           Ungespeichertes Modell. Keine Vertragsänderung oder Zahlung; Annahmen werden beim Neuladen
           verworfen.
@@ -395,7 +403,7 @@ function Scenario({
           </fieldset>
           {error && (
             <p role="alert" className="field-error">
-              {error}
+              {maskMoneyText(error)}
             </p>
           )}
         </form>
@@ -464,7 +472,48 @@ function Scenario({
     </>
   );
 }
+/** The loan terms stored in Einstellungen › Konten; they pre-fill the model below. */
+function LoanTerms({ loan }: { loan: DebtAccount }) {
+  useAmountPrivacy();
+  const parts = [
+    loan.interestRateBp !== null
+      ? `Zins ${formatDecimal(cents(loan.interestRateBp))} %${
+          loan.interestKind ? (loan.interestKind === 'fixed' ? ' fix' : ' variabel') : ''
+        }`
+      : loan.interestKind
+        ? loan.interestKind === 'fixed'
+          ? 'Zins fix'
+          : 'Zins variabel'
+        : null,
+    loan.installmentCents !== null
+      ? `Monatsrate ${nativeCurrency(loan.installmentCents, loan.currency)}`
+      : null,
+    loan.monthlyFeeCents !== null
+      ? `Gebühr ${nativeCurrency(loan.monthlyFeeCents, loan.currency)} im Monat`
+      : null,
+    loan.termStart || loan.termEnd
+      ? `Laufzeit ${loan.termStart ? `ab ${longDay(loan.termStart)}` : ''}${
+          loan.termStart && loan.termEnd ? ' ' : ''
+        }${loan.termEnd ? `bis ${longDay(loan.termEnd)}` : ''}`
+      : null,
+    loan.originalAmountCents !== null
+      ? `ursprünglich ${nativeCurrency(loan.originalAmountCents, loan.currency)}`
+      : null,
+  ].filter((part): part is string => part !== null);
+  return (
+    <p className="vnote" data-testid="loan-terms">
+      {parts.length > 0 ? (
+        <>Konditionen aus Einstellungen › Konten: {parts.join(' · ')}. </>
+      ) : (
+        <>Für diesen Kredit sind keine Konditionen hinterlegt. </>
+      )}
+      <AppLink to="/einstellungen/konten">Konditionen pflegen</AppLink>
+    </p>
+  );
+}
+
 function Results({ result }: { result: DebtProjection }) {
+  useAmountPrivacy();
   const { withExtra } = result.plan;
   const money = (v: number) => nativeCurrency(v, result.currency);
   return (
@@ -512,6 +561,7 @@ function Results({ result }: { result: DebtProjection }) {
 }
 
 function Comparison({ result }: { result: DebtProjection }) {
+  useAmountPrivacy();
   const { base, withExtra } = result.plan;
   const money = (v: number) => nativeCurrency(v, result.currency);
   return (

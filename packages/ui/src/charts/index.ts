@@ -25,3 +25,5 @@ export {
   type LineProps,
 } from './lines';
 export type { Point } from './types';
+
+export { ReportTrendContext, TrendLine } from './trend';

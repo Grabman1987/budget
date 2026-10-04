@@ -14,7 +14,9 @@ test('source status, read-only capture, explicit mapping and responsive themes',
   const crypto = page.getByRole('region', { name: 'Krypto-Lesequelle', exact: true });
   const bank = page.getByRole('region', { name: 'Bank-Sync (PSD2)', exact: true });
   let refreshed = false;
+  let refreshes = 0;
   let saved = false;
+  let since: string | null = null;
   const data = {
     configured: true,
     running: false,
@@ -56,8 +58,13 @@ test('source status, read-only capture, explicit mapping and responsive themes',
   await page.route('**/api/sources/crypto**', async (route) => {
     const request = route.request();
     if (request.url().endsWith('/refresh')) {
-      refreshed = true;
-      await route.fulfill({ json: { status: 'ok' } });
+      // One click keeps fetching while the server reports further pages.
+      refreshes += 1;
+      refreshed = refreshes >= 2;
+      await route.fulfill({ json: { status: refreshed ? 'ok' : 'partial' } });
+    } else if (request.url().endsWith('/since')) {
+      since = (request.postDataJSON() as { since: string | null }).since;
+      await route.fulfill({ json: { groupId: 'synthetic-since-group' } });
     } else if (request.url().endsWith('/mapping')) {
       expect(request.postDataJSON()).toEqual({
         key: 'currency:synthetic-eur',
@@ -70,6 +77,7 @@ test('source status, read-only capture, explicit mapping and responsive themes',
       await route.fulfill({
         json: {
           ...data,
+          since,
           status: refreshed ? 'ok' : 'idle',
           lastSuccess: refreshed ? '2026-10-02T12:00:00.000Z' : null,
           lastAttempt: refreshed ? '2026-10-02T12:00:00.000Z' : null,
@@ -79,6 +87,15 @@ test('source status, read-only capture, explicit mapping and responsive themes',
   await page.goto('/einstellungen/datenquellen');
   await expect(page.getByRole('heading', { name: 'Bank-Sync (PSD2)', exact: true })).toBeVisible();
   await expect(page.getByText('Schlüssel gesetzt: ja')).toBeVisible();
+  await expect(
+    crypto.getByText('Ältere Bewegungen sind bereits erfasst und kommen nicht in den Posteingang.'),
+  ).toBeVisible();
+  await expect(crypto.getByLabel('Bewegungen ab')).toHaveValue('');
+  await crypto.getByLabel('Bewegungen ab').fill('2026-01-01');
+  await crypto.getByRole('button', { name: 'Startdatum speichern' }).click();
+  await expect(crypto.getByText('Startdatum gespeichert.', { exact: false })).toBeVisible();
+  expect(since).toBe('2026-01-01');
+  await expect(crypto.getByLabel('Bewegungen ab')).toHaveValue('2026-01-01');
   await page.getByLabel('Verrechnungskonto', { exact: true }).selectOption('cash');
   await crypto.getByRole('button', { name: 'Zuordnung speichern' }).click();
   await expect(page.getByText('Zuordnung gespeichert.', { exact: false })).toBeVisible();
@@ -86,6 +103,7 @@ test('source status, read-only capture, explicit mapping and responsive themes',
   await crypto.getByRole('button', { name: 'Jetzt abrufen' }).click();
   await expect(page.getByText('Abruf abgeschlossen', { exact: true })).toBeVisible();
   expect(refreshed).toBe(true);
+  expect(refreshes).toBe(2);
   await expect(bank.getByText('Abruf fehlgeschlagen', { exact: true })).toBeVisible();
   await expect(crypto.getByText('Abruf abgeschlossen', { exact: true })).toBeVisible();
   await expect(
@@ -126,6 +144,7 @@ test('unconfigured source cannot fetch', async ({ page }) => {
         lastAttempt: null,
         balances: [],
         mappings: [],
+        since: null,
         accounts: [],
         securities: [],
       },

@@ -16,6 +16,15 @@
   align-items: end;
   gap: 12px;
 }
+.bank-picker {
+  display: grid;
+  gap: 12px;
+  max-width: 520px;
+}
+.bank-picker select[size] {
+  height: auto;
+  padding-block: 4px;
+}
 .source-connection {
   border-top: 1px solid var(--rule);
   padding-block: 24px;
@@ -57,6 +66,14 @@
 .bank-candidate {
   display: grid;
   gap: 8px;
+  width: 340px;
+  max-width: 100%;
+  min-width: 0;
+  text-align: left;
+}
+.bank-candidate .btn {
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 @media (max-width: 767px) {
   .source-status {
@@ -70,4 +87,28 @@
     align-items: stretch;
     flex-direction: column;
   }
+}
+
+.bank-balance {
+  display: grid;
+  gap: var(--space-sm, 8px);
+  margin-block: 8px;
+  max-width: 100%;
+}
+.bank-balance .btn {
+  justify-self: start;
+  white-space: normal;
+}
+.bank-balance .kmeta {
+  white-space: normal;
+}
+.bank-candidate > div {
+  min-width: 0;
+}
+.bank-candidate select {
+  max-width: 100%;
+}
+
+.bank-balance button {
+  min-height: 44px;
 }

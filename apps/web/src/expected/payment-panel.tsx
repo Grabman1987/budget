@@ -1,5 +1,5 @@
-import { addMonths, monthOf, parseAmount, todayInVienna } from '@budget/domain';
 import {
+  useAmountPrivacy,
   AmountInput,
   Button,
   DetailPanel,
@@ -7,7 +7,9 @@ import {
   RevisionTable,
   Select,
   TextInput,
+  maskMoneyText,
 } from '@budget/ui';
+import { addMonths, monthOf, parseAmount, todayInVienna } from '@budget/domain';
 import { useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
 import { useBudgetWrite } from '../budget/use-category-writes';
@@ -52,6 +54,7 @@ export function PaymentPanel({
   state: PaymentPanelState;
   onClose: () => void;
 }) {
+  useAmountPrivacy();
   const payments = useQuery(expectedQuery()).data;
   const payment = state?.mode === 'view' ? payments?.find((p) => p.id === state.id) : undefined;
   const title = state?.mode === 'create' ? 'Erwartete Zahlung anlegen' : (payment?.name ?? '');
@@ -72,6 +75,7 @@ function CreateBody({
   draft: PaymentDraft | undefined;
   onDone: () => void;
 }) {
+  useAmountPrivacy();
   const write = useBudgetWrite();
   const [today] = useState(todayInVienna);
   const [draft, setDraft] = useState<PaymentDraft>(initial ?? emptyDraft(today));
@@ -117,6 +121,7 @@ function CreateBody({
 }
 
 function ViewBody({ payment: p, onDone }: { payment: ExpectedPayment; onDone: () => void }) {
+  useAmountPrivacy();
   const write = useBudgetWrite();
   const currency = p.version?.currency ?? 'EUR';
   return (
@@ -140,6 +145,7 @@ function ViewBody({ payment: p, onDone }: { payment: ExpectedPayment; onDone: ()
 // ---------- Versionen ----------
 
 function VersionsSection({ payment: p }: { payment: ExpectedPayment }) {
+  useAmountPrivacy();
   const write = useBudgetWrite();
   const versions = useQuery(versionsQuery(p.id));
   const [today] = useState(todayInVienna);
@@ -252,7 +258,7 @@ function VersionsSection({ payment: p }: { payment: ExpectedPayment }) {
         </Field>
         {error && (
           <p className="field-error" role="alert">
-            {error}
+            {maskMoneyText(error)}
           </p>
         )}
         <div className="panel-actions">
@@ -268,6 +274,7 @@ function VersionsSection({ payment: p }: { payment: ExpectedPayment }) {
 // ---------- Zahlungen der letzten und nächsten 12 Monate ----------
 
 function OccurrencesSection({ payment: p }: { payment: ExpectedPayment }) {
+  useAmountPrivacy();
   const [today] = useState(todayInVienna);
   const from = `${addMonths(monthOf(today), -12)}-01`;
   const to = `${addMonths(monthOf(today), 12)}-28`;
@@ -368,6 +375,7 @@ function LinkPicker({
   accountId: string | null;
   onDone: () => void;
 }) {
+  useAmountPrivacy();
   const write = useBudgetWrite();
   const [choice, setChoice] = useState('');
   const day = (n: number) => {
@@ -451,6 +459,7 @@ function EditSection({
   onDeleted: () => void;
   write: ReturnType<typeof useBudgetWrite>;
 }) {
+  useAmountPrivacy();
   const [draft, setDraft] = useState<PaymentDraft>(() => draftFromPayment(p));
   const [errors, setErrors] = useState<DraftErrors>({});
   const [busy, setBusy] = useState(false);

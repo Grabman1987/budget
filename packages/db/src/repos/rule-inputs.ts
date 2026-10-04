@@ -1,7 +1,9 @@
+import { bookInputs } from './book-inputs';
 import {
   addDays,
   addMonths,
   averageCents,
+  BOOK_RULE_CODES,
   freedomProgressBp,
   freedomTargetCents,
   lastDayOfMonth,
@@ -47,6 +49,7 @@ import {
   institution,
   plannedEvent,
   security,
+  rule,
 } from '../schema';
 import { allocationMonth, isIncomeCategorySplit } from './allocation';
 import { scheduleVersion, schedulePayment } from './expected';
@@ -71,7 +74,10 @@ type PaymentRow = typeof expectedPayment.$inferSelect;
 type VersionRow = typeof expectedPaymentVersion.$inferSelect;
 
 interface IncomeSplit {
+  /** Cash (booking) date: rules about paydays and windfalls keep reading this. */
   day: string;
+  /** Decision 42: budget income of this booking is assigned to the following month. */
+  incomeNextMonth: boolean;
   cents: number;
   incomeTypeId: string;
 }
@@ -148,6 +154,7 @@ export function loadFacts(db: Executor, upTo: string): RuleFacts {
   const incomeSplits = db
     .select({
       day: booking.date,
+      incomeNextMonth: booking.incomeNextMonth,
       cents: bookingSplit.amountCents,
       incomeTypeId: bookingSplit.incomeTypeId,
       categoryId: bookingSplit.categoryId,
@@ -168,7 +175,14 @@ export function loadFacts(db: Executor, upTo: string): RuleFacts {
     .flatMap((s) => {
       const kind = s.categoryId === null ? null : (categoryKindById.get(s.categoryId) ?? null);
       return isIncomeCategorySplit(s.categoryId, kind) && s.incomeTypeId !== null && s.cents > 0
-        ? [{ day: s.day, cents: s.cents, incomeTypeId: s.incomeTypeId }]
+        ? [
+            {
+              day: s.day,
+              incomeNextMonth: s.incomeNextMonth,
+              cents: s.cents,
+              incomeTypeId: s.incomeTypeId,
+            },
+          ]
         : [];
     });
 
@@ -387,7 +401,12 @@ export function forecastInputs(
   };
 }
 
-export function ruleInputs(db: Executor, asOf: string, facts?: RuleFacts): RuleInputs {
+export function ruleInputs(
+  db: Executor,
+  asOf: string,
+  facts?: RuleFacts,
+  includeBooks = true,
+): RuleInputs {
   const f = facts ?? loadFacts(db, asOf);
   const cur = monthOf(asOf);
   const ref = referenceMonth(asOf);
@@ -525,9 +544,33 @@ export function ruleInputs(db: Executor, asOf: string, facts?: RuleFacts): RuleI
   const isMinimumDebt = (c: CategoryRow | undefined) => c?.kind === 'debt' && (c.stage ?? 1) === 1;
   const isDebt = (p: PaymentRow) => (p.categoryId ? isMinimumDebt(cats.get(p.categoryId)) : false);
   const kindOf = (p: PaymentRow) => (p.categoryId ? cats.get(p.categoryId)?.kind : undefined);
-  const loanPaymentsMonthlyCents = outflows
-    .filter(isDebt)
-    .reduce((s, p) => s + monthlyAmount(f, p, asOf), 0);
+  const debtAccounts = accounts.filter(
+    (a) =>
+      a.closedAt === null &&
+      (a.type === 'loan' ||
+        a.role === 'debt' ||
+        (a.type === 'credit_card' &&
+          cards.some((c) => c.id === a.id && c.owedCents > c.availableCents))) &&
+      (nw.byAccount[a.id] ?? 0) < 0,
+  );
+  const debtIds = new Set(debtAccounts.map((a) => a.id));
+  const scheduledDebt = outflows.filter(isDebt).reduce((s, p) => s + monthlyAmount(f, p, asOf), 0);
+  // Historical principal repayments to debt accounts are a lower bound, not another schedule.
+  const recordedDebt = f.ledgerSplits
+    .filter(
+      (s) =>
+        monthOf(s.date) === ref &&
+        s.transferAccountId != null &&
+        debtIds.has(s.transferAccountId) &&
+        s.categoryId != null &&
+        isMinimumDebt(cats.get(s.categoryId)) &&
+        s.amountCents < 0 &&
+        onBudget.has(s.accountId),
+    )
+    .reduce((sum, s) => sum - s.amountCents, 0);
+  const knownDebtPayment = scheduledDebt > 0 ? scheduledDebt : recordedDebt;
+  const loanPaymentsMonthlyCents =
+    debtAccounts.length > 0 && knownDebtPayment === 0 ? null : knownDebtPayment;
   const fixedCosts =
     outflows.length > 0
       ? {
@@ -654,6 +697,14 @@ export function ruleInputs(db: Executor, asOf: string, facts?: RuleFacts): RuleI
 
   return {
     asOf,
+    ...(includeBooks ||
+    db
+      .select()
+      .from(rule)
+      .all()
+      .some((r) => r.enabled && BOOK_RULE_CODES.some((code) => code === r.code))
+      ? { books: bookInputs(f, asOf, ref, nw, includeBooks) }
+      : {}),
     refMonth: ref,
     allocByMonth: Object.keys(allocByMonth).length > 0 ? allocByMonth : null,
     emergency,

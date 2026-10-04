@@ -1,7 +1,7 @@
+import { useAmountPrivacy, privateAmount, Button, Field, Select } from '@budget/ui';
 import { useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
-import { lastDayOfMonth, parseAmount, formatDecimal } from '@budget/domain';
-import { Button, Field, Select } from '@budget/ui';
+import { lastDayOfMonth, parseAmount, formatDecimal, freedomMonths, MINUS } from '@budget/domain';
 import { VERMOEGEN_FREIHEIT_META } from '../nav/pages';
 import { PageFrame } from '../pages/placeholder-page';
 import { eur, longDay } from '../ledger/format';
@@ -13,6 +13,7 @@ import { FreedomChart } from './freedom-chart';
 import './freedom.css';
 
 export function FreedomPage() {
+  useAmountPrivacy();
   const query = useQuery(freedomQuery());
   return (
     <PageFrame meta={VERMOEGEN_FREIHEIT_META} revealCurrentRegister>
@@ -32,8 +33,13 @@ export function FreedomPage() {
 }
 
 function FreedomContent({ view }: { view: FreedomView }) {
+  const hidden = useAmountPrivacy();
   const [saving, setSaving] = useState('');
   const [returnBp, setReturnBp] = useState(view.defaultRealReturnBp);
+  const monthsFreedom =
+    view.investedCents !== null && view.annualSpendCents !== null
+      ? freedomMonths(view.investedCents, view.annualSpendCents)
+      : null;
   const { projection, error } = freedomScenario(view, saving, returnBp);
   const commitSaving = () => {
     const parsed = parseAmount(saving);
@@ -103,6 +109,20 @@ function FreedomContent({ view }: { view: FreedomView }) {
             ))}
           </div>
         )}
+        <p className="vnote" data-testid="freedom-months">
+          Monate Freiheit:{' '}
+          {monthsFreedom === null
+            ? 'nicht bewertbar'
+            : `${monthsFreedom < 0 ? MINUS : ''}${Math.trunc(Math.abs(monthsFreedom) / 10)},${Math.abs(monthsFreedom) % 10}`}
+          . Meilensteine:{' '}
+          {[12, 24, 60]
+            .map(
+              (m) =>
+                `${m} Monate ${monthsFreedom !== null && monthsFreedom >= m * 10 ? '✓' : 'offen'}`,
+            )
+            .join(' · ')}
+          .
+        </p>
         {reason && (
           <p className="vnote" role="status">
             {reason}
@@ -136,6 +156,7 @@ function FreedomContent({ view }: { view: FreedomView }) {
           {({ id, describedBy, invalid }) => (
             <div className="amount-field amount-field-sm">
               <input
+                type={hidden ? 'password' : 'text'}
                 id={id}
                 className="amount-input"
                 inputMode="decimal"
@@ -192,7 +213,7 @@ function FreedomContent({ view }: { view: FreedomView }) {
               </strong>
             </div>
             <div className="kv">
-              <span>+100 € Sparrate pro Monat</span>
+              <span>{privateAmount('+100')} € Sparrate pro Monat</span>
               <strong>
                 {projection.monthsEarlier !== null
                   ? `${projection.monthsEarlier} Monate früher`

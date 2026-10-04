@@ -5,7 +5,7 @@ It adds no manual file-import UI. All fixtures and browser/API tests are synthet
 
 ## Owner workflow
 
-Einstellungen › Zuordnung manages ordered rules, enable/disable, removal, history
+Einstellungen › Zuordnungsregeln (`/einstellungen/zuordnung`, group Automatik; the same page also holds the income budget-month defaults of decision 42) manages ordered rules, enable/disable, removal, history
 preview and cleanup per linked bank source. Each write is one audited action with
 undo/redo. The same source label and raw payee/memo remain available as evidence.
 Cleanup strips selected SEPA prefixes, card numbers, dates and reference labels,
@@ -59,7 +59,7 @@ revision checks reject changed evidence before confirmation writes anything.
 
 ## Storage and API
 
-Migration `0022_assignment_rules` extends the existing rule and bank-candidate
+Migration `0031_assignment_rules` extends the existing rule and bank-candidate
 tables, preserves raw bank evidence on bookings and adds soft-deleted source
 cleanup/alias tables. The task checkout matched the cached `origin/main` revision;
 the orchestrator owns fetching, migration renumbering and all git writes.
@@ -76,7 +76,7 @@ savepoint, ledger invariant and grouped audit/undo helpers.
   and `index.ts`.
 - Storage: `packages/db/src/schema/{system,bank-sync,bookings}.ts`,
   `repos/{assignment-rules,bookings,categories,payees,inbox,index}.ts`, migration
-  `0022_assignment_rules.sql`, its Drizzle snapshot and journal; `assignment-migration.test.ts` and the existing
+  `0031_assignment_rules.sql`, its Drizzle snapshot and journal; `assignment-migration.test.ts` and the existing
   receipt/payroll migration regression tests.
 - Server: `apps/server/src/api/{assignment-rules,bank-sync,index}.ts`, assignment
   API tests and `bank-sync/{service,enable-banking}.ts`; adapter tests preserve

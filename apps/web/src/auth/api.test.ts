@@ -10,11 +10,12 @@ import {
 } from './api';
 
 const respond = (status: number, body?: unknown) =>
-  vi.fn().mockResolvedValue(
-    new Response(body === undefined ? null : JSON.stringify(body), {
-      status,
-      headers: { 'content-type': 'application/json' },
-    }),
+  vi.fn().mockImplementation(
+    async () =>
+      new Response(body === undefined ? null : JSON.stringify(body), {
+        status,
+        headers: { 'content-type': 'application/json' },
+      }),
   );
 
 afterEach(() => vi.unstubAllGlobals());
@@ -88,5 +89,12 @@ describe('auth api client', () => {
   it('reports an unreachable server as status 0', async () => {
     vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new TypeError('Failed to fetch')));
     await expect(fetchAuthStatus()).rejects.toMatchObject({ status: 0, code: 'network' });
+  });
+  it('retains uncertain delivery when a successful HTTP response is truncated', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response('{', { status: 201 })));
+    await expect(recoveryLogin('synthetic-code')).rejects.toMatchObject({
+      status: 0,
+      code: 'network',
+    });
   });
 });

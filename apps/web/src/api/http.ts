@@ -17,10 +17,24 @@ export class ApiError extends Error {
   }
 }
 
+/**
+ * Retry rule of the app's queries: only a lost connection is worth a retry (twice at most). A
+ * server answer, even an error like 503, is final: retrying a slow failing valuation would keep
+ * the page on its loading note for many seconds before the error shows.
+ */
+export function shouldRetry(failureCount: number, error: unknown): boolean {
+  return error instanceof ApiError && error.status === 0 && failureCount < 2;
+}
+
 export type HttpMethod = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
 
 /** JSON request against the same origin; every failure becomes an `ApiError`. */
-export async function request<T>(method: HttpMethod, path: string, body?: unknown): Promise<T> {
+export async function request<T>(
+  method: HttpMethod,
+  path: string,
+  body?: unknown,
+  headers?: Record<string, string>,
+): Promise<T> {
   let response: Response;
   try {
     response = await fetch(path, {
@@ -29,7 +43,7 @@ export async function request<T>(method: HttpMethod, path: string, body?: unknow
       ...(method === 'GET'
         ? {}
         : {
-            headers: { 'content-type': 'application/json' },
+            headers: { 'content-type': 'application/json', ...headers },
             ...(body === undefined ? {} : { body: JSON.stringify(body) }),
           }),
     });
@@ -41,6 +55,7 @@ export async function request<T>(method: HttpMethod, path: string, body?: unknow
   try {
     payload = await response.json();
   } catch {
+    if (response.ok) throw new ApiError(0, 'network');
     payload = undefined;
   }
   if (!response.ok) {

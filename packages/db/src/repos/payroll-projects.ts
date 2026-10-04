@@ -1,4 +1,5 @@
 import {
+  isCalendarRange,
   payrollReport,
   payslipInput,
   payrollTotals,
@@ -23,6 +24,7 @@ import {
   INCOME_TYPES,
   payslip,
   payslipLine,
+  payslipIntake,
   project,
   trade,
 } from '../schema';
@@ -46,7 +48,13 @@ export function listPayslips(db: Executor): CapturedPayslip[] {
 }
 
 /** One savepoint and audit group for the header and every captured line. */
-export function savePayslip(db: Executor, raw: PayslipInput, ctx: AuditContext, id?: string) {
+export function savePayslip(
+  db: Executor,
+  raw: PayslipInput,
+  ctx: AuditContext,
+  id?: string,
+  intakeId?: string,
+) {
   const input = payslipInput.parse(raw),
     grouped = withGroup(ctx);
   return runInTransaction(db, (tx) => {
@@ -80,6 +88,21 @@ export function savePayslip(db: Executor, raw: PayslipInput, ctx: AuditContext, 
         throw new BookingInvariantError('Bitte eine bestehende EUR-Gehaltsbuchung verknüpfen.');
     }
     if (input.receiptId) {
+      const pending = tx
+        .select()
+        .from(payslipIntake)
+        .where(
+          and(
+            eq(payslipIntake.receiptId, input.receiptId),
+            eq(payslipIntake.status, 'pending'),
+            isNull(payslipIntake.deletedAt),
+          ),
+        )
+        .get();
+      if (pending && pending.id !== intakeId)
+        throw new BookingInvariantError(
+          'Bitte diesen Gehaltszettel zuerst im Posteingang bestätigen.',
+        );
       try {
         getReceipt(tx, input.receiptId);
       } catch (error) {
@@ -213,7 +236,7 @@ export function readProjects(db: Executor, period: SpendingPeriod, today: string
     .all();
   const first = rows.map((r) => monthOf(r.b.date)).sort()[0] ?? monthOf(today);
   // Closed months, like the prototype; YTD in January still means the current calendar year.
-  const end = addMonths(monthOf(today), -1);
+  const end = isCalendarRange(period) ? monthOf(today) : addMonths(monthOf(today), -1);
   const available = first <= end ? monthsBetween(first, end) : [];
   const months =
     period === 'YTD'

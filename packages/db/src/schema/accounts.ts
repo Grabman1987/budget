@@ -9,6 +9,9 @@ import {
 } from 'drizzle-orm/sqlite-core';
 import { cents, id, isoDay, oneOf, timestamps } from './common';
 
+/** Interest of a loan: fixed for the whole term or variable (Fix / Variabel). */
+export const INTEREST_KINDS = ['fixed', 'variable'] as const;
+
 export const INSTITUTION_KINDS = ['bank', 'broker', 'platform', 'insurer', 'other'] as const;
 /**
  * Account roles group accounts for net worth and reports: Budget-Konto, Rücklage, Anlage, Schuld,
@@ -86,6 +89,14 @@ export const account = sqliteTable(
     interestRateBp: integer('interest_rate_bp'),
     termEnd: text('term_end'),
     monthlyFeeCents: cents('monthly_fee_cents'),
+    /**
+     * Loan terms for the debt calculator and the cost report: fixed or variable interest, the
+     * monthly installment (Rate), the start of the term and the original loan amount.
+     */
+    interestKind: text('interest_kind', { enum: INTEREST_KINDS }),
+    installmentCents: cents('installment_cents'),
+    termStart: text('term_start'),
+    originalAmountCents: cents('original_amount_cents'),
     sortOrder: integer('sort_order').notNull().default(0),
     closedAt: text('closed_at'),
     note: text('note'),
@@ -100,6 +111,10 @@ export const account = sqliteTable(
     ),
     isoDay('account_opening_date_chk', t.openingDate),
     isoDay('account_term_end_chk', t.termEnd),
+    isoDay('account_term_start_chk', t.termStart),
+    check('account_interest_kind_chk', sql`${t.interestKind} IN ('fixed', 'variable')`),
+    check('account_installment_chk', sql`${t.installmentCents} >= 0`),
+    check('account_original_amount_chk', sql`${t.originalAmountCents} >= 0`),
     index('account_role_idx').on(t.role),
   ],
 );

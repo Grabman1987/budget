@@ -1,4 +1,5 @@
 import {
+  useAmountPrivacy,
   AxisLine,
   ChartSvg,
   Graticule,
@@ -11,7 +12,7 @@ import {
 } from '@budget/ui';
 import { scaleLinear } from 'd3-scale';
 import { useElementWidth } from '../charts/use-element-width';
-import { eur, eurWhole, monthStartLabel } from './format';
+import { nativeCurrency, nativeCurrencyWhole, valuedCurrency, monthStartLabel } from './format';
 import type { SeriesPoint } from './types';
 
 const axisNumber = new Intl.NumberFormat('de-AT', { maximumFractionDigits: 0 });
@@ -43,17 +44,46 @@ export function lowPointIndex(points: ReadonlyArray<SeriesPoint>): number {
 export function BalanceChart({
   points,
   windowLabel,
+  currency = 'EUR',
 }: {
   points: ReadonlyArray<SeriesPoint>;
   windowLabel: string;
+  currency?: string;
 }) {
+  useAmountPrivacy();
   const [ref, width] = useElementWidth<HTMLDivElement>();
   const phone = useIsPhone();
   const height = phone ? 200 : 250;
   return (
     <div ref={ref} className="kchart-box">
       {width > 0 && points.length > 1 && (
-        <Drawing points={points} width={width} height={height} windowLabel={windowLabel} />
+        <Drawing
+          points={points}
+          width={width}
+          height={height}
+          windowLabel={windowLabel}
+          currency={currency}
+        />
+      )}
+      {currency !== 'EUR' && width > 0 && points.length > 1 && (
+        <>
+          <p className="kmeta">
+            Cash-Saldo · {currency}; darunter EUR-Bewertung zum jeweiligen Tag
+          </p>
+          {points.some((p) => p.valuation?.eurCents == null) && (
+            <p className="kmeta">
+              Kurs fehlt · EUR-Verlauf hat Lücken. Tageswerte und Kurse stehen unter dem Diagramm.
+            </p>
+          )}
+          <Drawing
+            points={points}
+            width={width}
+            height={height}
+            windowLabel={windowLabel}
+            currency="EUR"
+            eurMode
+          />
+        </>
       )}
     </div>
   );
@@ -64,15 +94,22 @@ function Drawing({
   width,
   height,
   windowLabel,
+  currency,
+  eurMode = false,
 }: {
   points: ReadonlyArray<SeriesPoint>;
   width: number;
   height: number;
   windowLabel: string;
+  currency: string;
+  eurMode?: boolean;
 }) {
-  const values = points.map((p) => p.balanceCents);
-  const lo = Math.min(0, ...values);
-  const hi = Math.max(0, ...values);
+  useAmountPrivacy();
+  const values = points.map((p) => (eurMode ? (p.valuation?.eurCents ?? null) : p.balanceCents));
+  const known = values.filter((v): v is number => v !== null);
+  if (known.length === 0) return <p className="kmeta">EUR-Bewertung: Kurs fehlt</p>;
+  const lo = Math.min(0, ...known);
+  const hi = Math.max(0, ...known);
   const pad = (hi - lo) * 0.12 || 10_000;
   const y0 = lo - (lo < 0 ? pad : 0);
   const y1 = hi + pad;
@@ -84,8 +121,18 @@ function Drawing({
     .domain([0, points.length - 1])
     .range([left, width - right]);
   const y = scaleLinear().domain([y0, y1]).range([bottom, top]);
-  const line: Point[] = points.map((p, i) => [x(i), y(p.balanceCents)]);
-  const last = line[line.length - 1] as Point;
+  // Break the line at missing rates; never interpolate an unavailable day.
+  const segments: Point[][] = [];
+  let segment: Point[] = [];
+  values.forEach((value, i) => {
+    if (value === null) {
+      if (segment.length) segments.push(segment);
+      segment = [];
+    } else segment.push([x(i), y(value)]);
+  });
+  if (segment.length) segments.push(segment);
+  const lastValue = values.at(-1);
+  const last: Point | null = lastValue == null ? null : [x(points.length - 1), y(lastValue)];
   const ticks: XTick[] = monthTicks(points).map((t) => ({
     x: x(t.index) + 4,
     label: monthStartLabel(t.day),
@@ -94,15 +141,22 @@ function Drawing({
     .ticks(3)
     .filter((v) => v !== 0)
     .map((v) => ({ y: y(v), label: axisNumber.format(v / 100) }));
-  const low = lowPointIndex(points);
+  const low = eurMode ? -1 : lowPointIndex(points);
   const lowPoint = low >= 0 ? (points[low] as SeriesPoint) : undefined;
   const summary =
-    `Saldoverlauf ${windowLabel}: von ${eur(values[0] as number)} auf ${eur(values[values.length - 1] as number)}` +
-    (lowPoint ? `, Tiefpunkt ${eur(lowPoint.balanceCents)}` : '') +
+    `Saldoverlauf ${windowLabel} · ${currency}: von ${values[0] == null ? 'Kurs fehlt' : nativeCurrency(values[0], currency)} auf ${lastValue == null ? 'Kurs fehlt' : nativeCurrency(lastValue, currency)}` +
+    (lowPoint
+      ? `, Tiefpunkt ${valuedCurrency(lowPoint.balanceCents, currency, lowPoint.valuation)}`
+      : '') +
     '.';
 
   return (
-    <ChartSvg width={width} height={height} label={summary} testId="balance-chart">
+    <ChartSvg
+      width={width}
+      height={height}
+      label={summary}
+      testId={eurMode ? 'balance-chart-eur' : 'balance-chart'}
+    >
       <Graticule x1={left} x2={width - right} lines={grid} />
       <text x={left - 8} y={y(0) + 4} textAnchor="end" className="svg-label">
         0
@@ -126,8 +180,14 @@ function Drawing({
           className="axis"
         />
       ))}
-      <StepLine kind="actual" points={line} draw />
-      <circle cx={last[0]} cy={last[1]} r={4} className="dot-actual" />
+      {segments.map((part, i) =>
+        part.length > 1 ? (
+          <StepLine key={i} kind="actual" points={part} draw />
+        ) : (
+          <circle key={i} cx={part[0]![0]} cy={part[0]![1]} r={3} className="dot-actual" />
+        ),
+      )}
+      {last && <circle cx={last[0]} cy={last[1]} r={4} className="dot-actual" />}
       {lowPoint && (
         <g className="fade-in">
           <path
@@ -138,7 +198,7 @@ function Drawing({
             x={x(low) + 10}
             y={y(lowPoint.balanceCents) + 22}
             className="svg-label-strong"
-          >{`Tiefpunkt ${eurWhole(lowPoint.balanceCents)}`}</text>
+          >{`Tiefpunkt ${nativeCurrencyWhole(lowPoint.balanceCents, currency)}`}</text>
         </g>
       )}
     </ChartSvg>

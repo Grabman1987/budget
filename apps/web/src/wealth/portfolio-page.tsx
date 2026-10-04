@@ -1,10 +1,11 @@
-import { Button, DimensionChain } from '@budget/ui';
+import { useAmountPrivacy, Button, DimensionChain } from '@budget/ui';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate, useSearch } from '@tanstack/react-router';
 import { ChartNoAxesCombined, ChevronRight } from 'lucide-react';
 import { VERMOEGEN_PORTFOLIO_META } from '../nav/pages';
 import { PageFrame } from '../pages/placeholder-page';
 import { ErrorNote, LoadingNote, EmptyNote } from '../ledger/states';
+import { ValuationHint } from '../ledger/valuation-hint';
 import { eurParts, eurWhole, longDay } from '../ledger/format';
 import { AppLink } from '../shell/app-link';
 import {
@@ -29,6 +30,7 @@ import './portfolio.css';
 import { PortfolioAllocation } from './allocation-section';
 
 export function PortfolioPage() {
+  useAmountPrivacy();
   const query = useQuery(portfolioPositionsQuery());
   const instruments = useQuery(instrumentsQuery());
   const search = useSearch({ strict: false }) as {
@@ -87,6 +89,7 @@ export function PortfolioPage() {
         {query.isError && (
           <ErrorNote what="Positionen" error={query.error} onRetry={() => void query.refetch()} />
         )}
+        <ValuationHint incomplete={query.data?.incomplete} />
         {view && <PortfolioLead view={view} />}
         <PortfolioAllocation />
         {view && (
@@ -227,6 +230,7 @@ export function PortfolioPage() {
   );
 }
 function PortfolioLead({ view }: { view: PortfolioPositionsView }) {
+  useAmountPrivacy();
   const parts = view.valueCents === null ? null : eurParts(view.valueCents);
   return (
     <section className="vnw" aria-labelledby="portfolio-title">
@@ -272,6 +276,7 @@ function GroupRows({
   gi: number;
   onSelect: (id: string) => void;
 }) {
+  useAmountPrivacy();
   return (
     <>
       <tr className="kgroup">
@@ -305,6 +310,7 @@ function PositionRow({
   number: string;
   onSelect: (id: string) => void;
 }) {
+  useAmountPrivacy();
   const unavailable = p.accounts.some((a) => a.valueStatus === 'missing_price')
     ? 'Kurs fehlt'
     : 'Wechselkurs fehlt';
@@ -326,7 +332,13 @@ function PositionRow({
           {p.name}
         </button>
         <small className="portfolio-status">
-          {p.valueCents === null ? unavailable : p.costCents === null ? basis : ''}
+          {p.valueCents === null
+            ? unavailable
+            : p.accounts.some((a) => a.valueStatus === 'estimated')
+              ? 'Wert geschätzt, kein Kurs'
+              : p.costCents === null
+                ? basis
+                : ''}
         </small>
       </th>
       <td className="portfolio-platform">

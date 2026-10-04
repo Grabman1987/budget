@@ -93,6 +93,8 @@ export const security = sqliteTable(
     currency: text('currency').notNull().default('EUR'),
     /** Total expense ratio in basis points (0,20 % = 20). */
     terBp: integer('ter_bp').notNull().default(0),
+    /** Leverage in integer tenths: 10 = 1.0x, configurable per instrument. */
+    leverageFactor: integer('leverage_factor').notNull().default(10),
     assetClassId: text('asset_class_id').references(() => assetClass.id),
     institutionId: text('institution_id').references(() => institution.id),
     /** Region weights as JSON `{ "Europa": 0.15 }`. */
@@ -143,6 +145,9 @@ export const trade = sqliteTable(
     taxCents: cents('tax_cents').notNull().default(0),
     bookingId: text('booking_id').references(() => booking.id),
     importKey: text('import_key'),
+    /** Explicit owner-confirmed monthly execution; identity survives schedule version changes. */
+    savingsPlanId: text('savings_plan_id').references(() => savingsPlan.id),
+    savingsMonth: text('savings_month'),
     note: text('note'),
     ...timestamps(),
   },
@@ -164,6 +169,13 @@ export const trade = sqliteTable(
     index('trade_security_date_idx').on(t.securityId, t.date),
     index('trade_account_date_idx').on(t.accountId, t.date),
     uniqueIndex('trade_import_key_uq').on(t.accountId, t.importKey),
+    uniqueIndex('trade_savings_month_uq')
+      .on(t.accountId, t.securityId, t.savingsMonth)
+      .where(sql`${t.deletedAt} IS NULL`),
+    check(
+      'trade_savings_link_chk',
+      sql`(${t.savingsPlanId} IS NULL AND ${t.savingsMonth} IS NULL) OR (${t.savingsPlanId} IS NOT NULL AND ${t.savingsMonth} IS NOT NULL AND ${t.savingsMonth} GLOB '[0-9][0-9][0-9][0-9]-[0-1][0-9]' AND substr(${t.savingsMonth}, 6, 2) BETWEEN '01' AND '12' AND ${t.kind} = 'buy')`,
+    ),
   ],
 );
 

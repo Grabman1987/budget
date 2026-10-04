@@ -1,3 +1,5 @@
+import { maskMoneyText } from '@budget/ui';
+import { apiErrorText } from '../api/error-text';
 import { ApiError } from '../api/http';
 import type { BulkResult, BulkSkipReason } from './api';
 import { pluralBookings } from './format';
@@ -87,10 +89,6 @@ export function groupIdOf(account: Pick<AccountRow, 'type' | 'onBudget'>): Accou
 export const groupOf = (account: Pick<AccountRow, 'type' | 'onBudget'>): AccountGroup =>
   ACCOUNT_GROUPS.find((g) => g.id === groupIdOf(account)) ?? (ACCOUNT_GROUPS[0] as AccountGroup);
 
-/** Historical detail-page value; it remains native cash plus holdings until FX detail work. */
-export const accountValue = (account: AccountRow): number | null =>
-  account.holdingsCents === null ? null : account.balanceCents + account.holdingsCents;
-
 /** The overview's shared EUR valuation; never reinterpret a missing rate as zero. */
 export const accountValueEur = (account: AccountRow): number | null => account.valueEurCents;
 
@@ -107,18 +105,23 @@ export function valuationMissingText(value: {
 }
 
 /** Accounts on which Kontostand prüfen makes sense: the bank statement has a closing balance. */
-export const canReconcile = (account: AccountRow): boolean => account.onBudget && !account.closedAt;
+export const canReconcile = (account: AccountRow): boolean =>
+  !account.closedAt && (account.onBudget || account.currency !== 'EUR');
 
 /** Error text for the user; the server's German message is shown when it sent one. */
 export function errorText(
   error: unknown,
   fallback = 'Das hat nicht geklappt. Versuch es noch einmal.',
 ) {
-  if (error instanceof Error && 'detail' in error && typeof error.detail === 'string') {
-    return error.detail;
-  }
-  if (error instanceof Error && 'status' in error && error.status === 0) {
-    return 'Keine Verbindung zum Server.';
+  if (error instanceof Error && ('detail' in error || 'status' in error || 'code' in error)) {
+    const like = error as { detail?: unknown; status?: unknown; code?: unknown };
+    // Never the raw server text of a generic or technical answer: German text by code instead.
+    const text = apiErrorText({
+      ...(typeof like.detail === 'string' ? { detail: like.detail } : {}),
+      ...(typeof like.status === 'number' ? { status: like.status } : {}),
+      ...(typeof like.code === 'string' ? { code: like.code } : {}),
+    });
+    if (text) return maskMoneyText(text);
   }
   return fallback;
 }

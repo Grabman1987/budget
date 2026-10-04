@@ -10,6 +10,8 @@ export interface HistoryCell {
   asOf: string;
   status: RuleStatus;
   valueText: string | null;
+  /** R17's numeric rolling gross rate for the savings-report line, in basis points. */
+  grossBp?: number;
 }
 
 export interface HistoryRule {

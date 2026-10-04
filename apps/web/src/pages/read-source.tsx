@@ -1,4 +1,4 @@
-import { Button, Field, SectionHead, Select } from '@budget/ui';
+import { Button, Field, SectionHead, Select, TextInput } from '@budget/ui';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import type { SourceBalance, SourceMapping } from '@budget/domain';
@@ -15,10 +15,13 @@ interface SourceStatus {
   status: 'idle' | 'ok' | 'partial' | 'failed';
   balances: SourceBalance[];
   mappings: SourceMapping[];
+  since: string | null;
   accounts: { id: string; name: string; currency: string; type: string }[];
   securities: { id: string; name: string }[];
 }
 const path = '/api/sources/crypto';
+/** Upper bound per click (25 operations per page); the background tick continues afterwards. */
+const MAX_PAGES = 200;
 const key = ['read-source', 'crypto'] as const;
 const labels = {
   idle: 'Noch nicht abgerufen',
@@ -34,17 +37,32 @@ export function CryptoReadSourceSection() {
   const client = useQueryClient();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const [pages, setPages] = useState(0);
+  // The server reads one bounded page per call; keep fetching until the history is complete.
   async function refresh(fullHistory = false) {
     setBusy(true);
     setError('');
+    setPages(0);
     try {
-      await withStepUp(() => request('POST', path + '/refresh', { fullHistory }));
+      let first = true;
+      for (let page = 1; page <= MAX_PAGES; page++) {
+        const result = await withStepUp(() =>
+          request<{ status: SourceStatus['status'] }>('POST', path + '/refresh', {
+            fullHistory: first && fullHistory,
+          }),
+        );
+        first = false;
+        setPages(page);
+        if (result.status !== 'partial') break;
+        if (page % 5 === 0) await client.invalidateQueries({ queryKey: key });
+      }
     } catch {
       setError('Abruf nicht abgeschlossen. Anmeldung, Schlüssel und Verbindung prüfen.');
     } finally {
       await client.invalidateQueries({ queryKey: key });
       await client.invalidateQueries({ queryKey: INBOX_KEY });
       setBusy(false);
+      setPages(0);
     }
   }
   return (
@@ -67,7 +85,13 @@ export function CryptoReadSourceSection() {
           <dl className="source-status">
             <div>
               <dt>Status</dt>
-              <dd>{query.data.running || busy ? 'Abruf läuft …' : labels[query.data.status]}</dd>
+              <dd>
+                {busy
+                  ? `Abruf läuft … ${pages ? `${pages} ${pages === 1 ? 'Seite' : 'Seiten'} geholt` : ''}`
+                  : query.data.running
+                    ? 'Abruf läuft …'
+                    : labels[query.data.status]}
+              </dd>
             </div>
             <div>
               <dt>Letztes abgeschlossenes Bewegungsfenster</dt>
@@ -94,9 +118,11 @@ export function CryptoReadSourceSection() {
             </Button>
           </div>
           <p>
-            Bei aktivem Nachtlauf wird die Quelle automatisch abgerufen. Ein Schlüssel mit
-            Leserechten wird ausschließlich am Server gesetzt.
+            Ein Klick holt den ganzen ausstehenden Verlauf. Außerdem ruft die App die Quelle im
+            Hintergrund automatisch ab. Ein Schlüssel mit Leserechten wird ausschließlich am Server
+            gesetzt.
           </p>
+          <SinceForm saved={query.data.since} />
           {query.data.balances.map((balance) => (
             <Mapping key={balance.key} balance={balance} data={query.data} />
           ))}
@@ -108,6 +134,59 @@ export function CryptoReadSourceSection() {
         </p>
       )}
     </section>
+  );
+}
+function SinceForm({ saved }: { saved: string | null }) {
+  const [since, setSince] = useState(saved ?? '');
+  const [busy, setBusy] = useState(false);
+  const [message, setMessage] = useState('');
+  const client = useQueryClient();
+  async function save() {
+    setBusy(true);
+    setMessage('');
+    try {
+      await withStepUp(() => request('PUT', path + '/since', { since: since || null }));
+      await client.invalidateQueries({ queryKey: key });
+      await client.invalidateQueries({ queryKey: INBOX_KEY });
+      setMessage(
+        since
+          ? 'Startdatum gespeichert. Ältere offene Bewegungen wurden abgeschlossen.'
+          : 'Startdatum entfernt. Der nächste Abruf prüft alle Bewegungen.',
+      );
+    } catch {
+      setMessage('Startdatum nicht gespeichert. Datum und Anmeldung prüfen.');
+    } finally {
+      setBusy(false);
+    }
+  }
+  return (
+    <form
+      onSubmit={(event) => {
+        event.preventDefault();
+        void save();
+      }}
+      className="source-mapping"
+    >
+      <Field
+        label="Bewegungen ab"
+        hint="Ältere Bewegungen sind bereits erfasst und kommen nicht in den Posteingang. Ein früheres Datum holt ältere Bewegungen beim nächsten „Gesamten Verlauf prüfen“ in den Posteingang."
+      >
+        {({ id, describedBy }) => (
+          <TextInput
+            id={id}
+            aria-describedby={describedBy}
+            type="date"
+            value={since}
+            disabled={busy}
+            onChange={(e) => setSince(e.target.value)}
+          />
+        )}
+      </Field>
+      <Button type="submit" disabled={busy || since === (saved ?? '')}>
+        Startdatum speichern
+      </Button>
+      {message && <p role="status">{message}</p>}
+    </form>
   );
 }
 function Mapping({ balance, data }: { balance: SourceBalance; data: SourceStatus }) {

@@ -1,3 +1,4 @@
+import { TrendLine } from './trend';
 import { area, curveStepAfter, line } from 'd3-shape';
 import type { Point } from './types';
 
@@ -59,18 +60,26 @@ const drawLength = (className: string) => (className.includes(' draw') ? 1 : und
 export function Line({ points, kind, draw = 0, className: extra }: LineProps) {
   const className = drawClass(kind, draw);
   return (
-    <path
-      d={linePath(points)}
-      className={extra ? `${className} ${extra}` : className}
-      pathLength={drawLength(className)}
-    />
+    <g>
+      {kind === 'actual' && !extra?.includes('halo') && <TrendLine points={points} />}
+      <path
+        d={linePath(points)}
+        className={extra ? `${className} ${extra}` : className}
+        pathLength={drawLength(className)}
+      />
+    </g>
   );
 }
 
 /** Step line: the value holds until the next point (balances, cumulative spending). */
 export function StepLine({ points, kind = 'actual', draw = 0 }: LineProps) {
   const className = drawClass(kind, draw);
-  return <path d={stepPath(points)} className={className} pathLength={drawLength(className)} />;
+  return (
+    <g>
+      {kind === 'actual' && <TrendLine points={points} />}
+      <path d={stepPath(points)} className={className} pathLength={drawLength(className)} />
+    </g>
+  );
 }
 
 export interface BandPoint {

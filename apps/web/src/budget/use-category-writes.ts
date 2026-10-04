@@ -18,6 +18,11 @@ const AFFECTED = [
   LEDGER_KEY,
   EXPECTED_KEY,
   ['ledger-lookups'],
+  ['payslip-intake'],
+  ['payslip-source'],
+  ['payroll'],
+  ['income-month-rules'],
+  ['bank-sync'],
 ] as const;
 
 export const categoriesQuery = () =>

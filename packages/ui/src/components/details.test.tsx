@@ -1,8 +1,8 @@
 // @vitest-environment jsdom
-import { act, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
-import { BottomSheet, SidePanel } from './panel';
+import { BottomSheet, SidePanel, WideDialog } from './panel';
 import { Registers } from './registers';
 import { Count } from './stamps';
 import { Switch } from './switch';
@@ -133,5 +133,78 @@ describe('Overlay panels', () => {
     await act(async () => {});
     const ids = screen.getAllByRole('heading', { level: 2 }).map((h) => h.id);
     expect(new Set(ids).size).toBe(2);
+  });
+});
+
+describe('WideDialog', () => {
+  const stubPhone = (phone: boolean) =>
+    vi.stubGlobal('matchMedia', (query: string) => ({
+      matches: phone && query.includes('max-width: 767px'),
+      media: query,
+      addEventListener: () => {},
+      removeEventListener: () => {},
+    }));
+  beforeAll(() => {
+    HTMLDialogElement.prototype.showModal ??= function showModal(this: HTMLDialogElement) {
+      this.setAttribute('open', '');
+    };
+    HTMLDialogElement.prototype.close ??= function close(this: HTMLDialogElement) {
+      this.removeAttribute('open');
+    };
+  });
+  afterEach(() => vi.unstubAllGlobals());
+
+  it('is a wide centred modal on desktop, named by its heading, with head aside and close', async () => {
+    stubPhone(false);
+    const onClose = vi.fn();
+    render(
+      <WideDialog open onClose={onClose} title="Posteingang" headAside={<span>3 offen</span>}>
+        <p>inhalt</p>
+      </WideDialog>,
+    );
+    await act(async () => {});
+    const dialog = document.querySelector('dialog') as HTMLDialogElement;
+    expect(dialog.classList.contains('modal')).toBe(true);
+    expect(dialog.classList.contains('is-wide')).toBe(true);
+    expect(dialog.classList.contains('is-full')).toBe(false);
+    const heading = screen.getByRole('heading', { level: 2, name: 'Posteingang' });
+    expect(dialog.getAttribute('aria-labelledby')).toBe(heading.id);
+    // The aside sits in the head, outside the heading, so the dialog name stays "Posteingang".
+    expect(heading.closest('.panel-head')?.textContent).toContain('3 offen');
+    expect(heading.textContent).toBe('Posteingang');
+    await userEvent.click(screen.getByRole('button', { name: 'Schließen' }));
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it('closes with Escape and with a click on the backdrop, but not on a click inside', async () => {
+    stubPhone(false);
+    const onClose = vi.fn();
+    render(
+      <WideDialog open onClose={onClose} title="Posteingang">
+        <p>inhalt</p>
+      </WideDialog>,
+    );
+    await act(async () => {});
+    const dialog = document.querySelector('dialog') as HTMLDialogElement;
+    await userEvent.click(screen.getByText('inhalt'));
+    expect(onClose).not.toHaveBeenCalled();
+    await userEvent.click(dialog);
+    expect(onClose).toHaveBeenCalledTimes(1);
+    fireEvent.keyDown(dialog, { key: 'Escape' });
+    expect(onClose).toHaveBeenCalledTimes(2);
+  });
+
+  it('becomes a full-screen sheet below 768 px', async () => {
+    stubPhone(true);
+    render(
+      <WideDialog open onClose={() => {}} title="Posteingang">
+        <p>inhalt</p>
+      </WideDialog>,
+    );
+    await act(async () => {});
+    const dialog = document.querySelector('dialog') as HTMLDialogElement;
+    expect(dialog.classList.contains('sheet-bottom')).toBe(true);
+    expect(dialog.classList.contains('is-full')).toBe(true);
+    expect(dialog.classList.contains('is-wide')).toBe(false);
   });
 });

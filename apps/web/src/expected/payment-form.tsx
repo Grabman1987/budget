@@ -1,4 +1,4 @@
-import { AmountInput, Field, Segmented, Select, TextInput } from '@budget/ui';
+import { useAmountPrivacy, AmountInput, Field, Segmented, Select, TextInput } from '@budget/ui';
 import { useQuery } from '@tanstack/react-query';
 import { accountsQuery, lookupsQuery, payeesQuery } from '../ledger/queries';
 import type { DateShift, ExpectedKind, Rhythm } from './api';
@@ -50,6 +50,7 @@ export function PaymentForm({
   creating: boolean;
   onChange: <K extends DraftField>(key: K, value: PaymentDraft[K]) => void;
 }) {
+  useAmountPrivacy();
   const accounts = useQuery(accountsQuery()).data?.accounts.filter((a) => !a.closedAt) ?? [];
   const lookups = useQuery(lookupsQuery()).data;
   const payees = useQuery(payeesQuery()).data?.payees ?? [];

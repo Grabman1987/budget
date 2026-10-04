@@ -10,12 +10,63 @@ export function bankCents(value: string): number {
 }
 
 export interface BankTransaction {
+  /** Legacy synthetic adapters omit this; the HTTP adapter always supplies it. */
+  bankStatus?: 'booked' | 'pending';
   reference: string | null;
   date: string;
   amountCents: number;
   currency: string;
   memo: string;
   rawPayee?: string | null;
+}
+
+export interface MatchBooking {
+  id: string;
+  accountId: string;
+  date: string;
+  amountCents: number;
+  currency: string;
+}
+
+/** Calendar days, inclusive; posting delays must not depend on daylight saving time. */
+export function withinBankWindow(a: string, b: string): boolean {
+  const gap = Math.abs(Date.parse(a + 'T00:00:00Z') - Date.parse(b + 'T00:00:00Z'));
+  return Number.isFinite(gap) && gap <= 5 * 86_400_000;
+}
+
+export function canLinkTransfer(a: MatchBooking, b: MatchBooking): boolean {
+  return (
+    a.id !== b.id &&
+    a.accountId !== b.accountId &&
+    a.currency === b.currency &&
+    a.amountCents !== 0 &&
+    a.amountCents === -b.amountCents &&
+    withinBankWindow(a.date, b.date)
+  );
+}
+
+/** Closest day first, with a stable tie-break. Suggestions never constitute confirmation. */
+export function bankMatches<T extends MatchBooking>(
+  candidate: MatchBooking,
+  rows: readonly T[],
+  transfer = false,
+): T[] {
+  return rows
+    .filter((row) =>
+      transfer
+        ? canLinkTransfer(candidate, row)
+        : row.accountId === candidate.accountId &&
+          row.currency === candidate.currency &&
+          row.amountCents === candidate.amountCents &&
+          withinBankWindow(row.date, candidate.date),
+    )
+    .sort(
+      (a, b) =>
+        Math.abs(Date.parse(a.date) - Date.parse(candidate.date)) -
+          Math.abs(Date.parse(b.date) - Date.parse(candidate.date)) ||
+        a.date.localeCompare(b.date) ||
+        a.id.localeCompare(b.id),
+    );
 }
 
 /** Preserve identical purchases; repeated complete windows have identical occurrence keys. */

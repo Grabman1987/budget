@@ -1,10 +1,11 @@
+import { ReportPeriodControl } from './period-quick-select';
+import { useAmountPrivacy, ClassSwatch } from '@budget/ui';
 import {
   categoryOverview,
   reportPeriodMonths,
   SPEND_CLASS_LABEL,
   type CategoryOverviewRow,
 } from '@budget/domain';
-import { ClassSwatch, Segmented } from '@budget/ui';
 import { useId, useMemo, useState } from 'react';
 import { ZEITRAUM_VALUES, useZeitraum } from '../wealth/zeitraum';
 import { eur } from '../ledger/format';
@@ -27,6 +28,7 @@ const KIND_LABEL: Record<string, string> = {
 
 /** 1.6 Kategorieübersicht: every category with its course, against the period before. */
 export function CategoryReport({ report, meta }: { report: ReportEntry; meta: PageMeta }) {
+  useAmountPrivacy();
   const [period, setPeriod] = useZeitraum();
   const query = useReportTables();
   return (
@@ -34,13 +36,14 @@ export function CategoryReport({ report, meta }: { report: ReportEntry; meta: Pa
       report={report}
       meta={meta}
       through="full"
+      currentAllowed={period.includes('..')}
       query={query}
       className="category-report"
       extraFields={[
         {
           label: 'Zeitraum',
           value: (
-            <Segmented
+            <ReportPeriodControl
               label="Zeitraum"
               options={PERIOD_OPTIONS}
               value={period}
@@ -57,6 +60,7 @@ export function CategoryReport({ report, meta }: { report: ReportEntry; meta: Pa
 }
 
 function Sparkline({ values }: { values: ReadonlyArray<number> }) {
+  useAmountPrivacy();
   if (values.length < 2) return null;
   const max = Math.max(...values, 1);
   const points = values
@@ -79,16 +83,27 @@ function CategoryBody({
   data: ReportTables;
   period: (typeof ZEITRAUM_VALUES)[number];
 }) {
+  useAmountPrivacy();
   const window = useMemo(
     () =>
-      data.firstMonth && data.lastFullMonth
-        ? reportPeriodMonths(period, data.lastFullMonth, data.firstMonth)
+      data.firstMonth && (data.lastFullMonth || period.includes('..'))
+        ? reportPeriodMonths(
+            period,
+            period.includes('..') ? data.currentMonth : data.lastFullMonth!,
+            data.firstMonth,
+          )
         : [],
-    [data.firstMonth, data.lastFullMonth, period],
+    [data.firstMonth, data.lastFullMonth, data.currentMonth, period],
   );
   const overview = useMemo(
-    () => categoryOverview(data.months, data, window, data.lastFullMonth),
-    [data, window],
+    () =>
+      categoryOverview(
+        data.months,
+        data,
+        window,
+        period.includes('..') ? data.currentMonth : data.lastFullMonth,
+      ),
+    [data, window, period],
   );
   const [opened, setOpened] = useState<string | null | undefined>(undefined);
   const rows = overview.rows;
@@ -188,6 +203,7 @@ function CategoryRows({
   onToggle: () => void;
   payees: ReadonlyArray<string>;
 }) {
+  useAmountPrivacy();
   const c = row.category;
   const history = row.history;
   const total12 = history.reduce((a, h) => a + h.spentCents, 0);

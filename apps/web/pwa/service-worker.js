@@ -22,6 +22,15 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('message', (event) => {
   if (event.data?.type === 'APPLY_UPDATE') event.waitUntil(self.skipWaiting());
 });
+// Opportunistic wake-up only: open pages send through the normal authenticated API.
+self.addEventListener('sync', (event) => {
+  if (event.tag !== 'budget-bookings') return;
+  event.waitUntil(
+    self.clients.matchAll({ type: 'window' }).then((clients) => {
+      for (const client of clients) client.postMessage({ type: 'SEND_BOOKINGS' });
+    }),
+  );
+});
 self.addEventListener('fetch', (event) => {
   const request = event.request;
   const url = new URL(request.url);

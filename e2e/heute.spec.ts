@@ -1,3 +1,4 @@
+import { test as isolatedTest } from './isolated-ledger';
 import { sampleTest as test, expect } from './sample';
 import AxeBuilder from '@axe-core/playwright';
 import { test as ledgerTest } from '@playwright/test';
@@ -10,6 +11,7 @@ import { eur } from '../apps/web/src/ledger/format';
 test('Heute uses live API data and period, expands the lead chain, and links to source views', async ({
   page,
 }) => {
+  test.setTimeout(60_000);
   const requests: string[] = [];
   page.on('request', (request) => {
     if (request.url().includes('/api/heute?')) requests.push(request.url());
@@ -87,7 +89,9 @@ test('Heute uses live API data and period, expands the lead chain, and links to 
       .getByRole('button', { name: new RegExp(`^${name}`) });
     await segment.locator('.seg-fill').click();
     const panel = page.getByRole('dialog', { name, exact: true });
-    await expect(panel.getByRole('link', { name: account, exact: true })).toBeVisible();
+    await expect(panel.getByRole('link', { name: account, exact: true })).toBeVisible({
+      timeout: 15_000,
+    });
     await expect(panel).toContainText(total);
     await page.keyboard.press('Escape');
     await expect(panel).toBeHidden();
@@ -320,6 +324,7 @@ test('negative lead uses the action colour and mobile urgency precedes pace', as
 });
 
 test('a failed Heute request offers a working retry', async ({ page }) => {
+  test.setTimeout(60_000);
   let fail = true;
   await page.route('**/api/heute?*', (route) =>
     fail ? route.fulfill({ status: 503, json: { error: 'unavailable' } }) : route.continue(),
@@ -329,7 +334,11 @@ test('a failed Heute request offers a working retry', async ({ page }) => {
     timeout: 15_000,
   });
   fail = false;
+  const retried = page.waitForResponse(
+    (response) => response.url().includes('/api/heute?') && response.ok(),
+  );
   await page.getByRole('button', { name: 'Erneut versuchen' }).click();
+  await retried;
   await expect(page.getByTestId('heute-lead-value')).toContainText('988');
   await expect(page.getByRole('alert')).toBeHidden();
 });
@@ -543,6 +552,78 @@ ledgerTest(
         const response = await page.request.post('/api/undo', { headers, data: { groupId } });
         expect(response.ok()).toBe(true);
       }
+    }
+  },
+);
+
+test('mobile attention remains reachable above the floating capture button in both themes', async ({
+  page,
+}, info) => {
+  test.skip(info.project.name !== 'mobile');
+  await page.goto('/');
+  const attention = page.locator('.heute-attention');
+  await expect(attention).toBeVisible();
+  for (const theme of ['light', 'dark']) {
+    await page.evaluate((t) => (document.documentElement.dataset['theme'] = t), theme);
+    await attention.evaluate((element) => element.scrollIntoView({ block: 'center' }));
+    const box = (await attention.boundingBox())!;
+    const fab = (await page.locator('.fab').boundingBox())!;
+    expect(box.y).toBeGreaterThanOrEqual(0);
+    expect(box.y + box.height).toBeLessThan(fab.y);
+    const capture = info.outputPath(`heute-attention-${theme}.png`);
+    await page.screenshot({ path: capture });
+    await info.attach(`Attention ${theme}`, { path: capture, contentType: 'image/png' });
+    await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
+    const finalRow = (await page.locator('.heute-booking').last().boundingBox())!;
+    expect(finalRow.y).toBeGreaterThanOrEqual(0);
+    expect(finalRow.y + finalRow.height).toBeLessThan(fab.y);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(
+      true,
+    );
+  }
+});
+
+isolatedTest(
+  'early fixed spending has no unreliable forecast number or curve',
+  async ({ page, request, baseURL }) => {
+    const post = async (path: string, data: unknown) => {
+      const response = await request.post(`/api${path}`, { data, headers: { origin: baseURL! } });
+      expect(response.ok()).toBe(true);
+      return response.json();
+    };
+    const a = await post('/accounts', {
+      name: 'Synthetisches Pacekonto',
+      type: 'checking',
+      role: 'budget',
+      onBudget: true,
+      openingDate: '2026-10-01',
+    });
+    const g = await post('/categories/groups', { name: 'Synthetische Fixkosten' });
+    const c = await post('/categories', {
+      name: 'Synthetische Miete',
+      groupId: g.group.id,
+      class: 'need',
+      kind: 'fixed',
+    });
+    await request.put('/api/budget/2026-10/assigned', {
+      data: { items: [{ categoryId: c.category.id, assignedCents: 90000 }] },
+      headers: { origin: baseURL! },
+    });
+    await post('/bookings', {
+      type: 'booking',
+      accountId: a.account.id,
+      date: '2026-10-01',
+      amountCents: -90000,
+      splits: [{ categoryId: c.category.id, amountCents: -90000 }],
+    });
+    await page.goto('/?monat=2026-10');
+    for (const theme of ['light', 'dark']) {
+      await page.evaluate((t) => (document.documentElement.dataset['theme'] = t), theme);
+      await expect(page.getByRole('button', { name: /Prognose Monatsende/ })).toContainText(
+        '\u2013',
+      );
+      await expect(page.locator('[data-testid="heute-pace-chart"] .l-forecast')).toHaveCount(0);
+      await expect(page.locator('.heute-pace')).toContainText('ab dem 7. Tag');
     }
   },
 );

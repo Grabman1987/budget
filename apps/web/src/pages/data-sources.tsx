@@ -7,6 +7,7 @@ import { errorText } from '../ledger/labels';
 import { PAGES } from '../nav/pages';
 import { PageFrame } from './placeholder-page';
 import { CryptoReadSourceSection } from './read-source';
+import { PayslipSourceSection } from '../reports/payslip-intake';
 import './data-sources.css';
 
 type LinkedAccount = {
@@ -18,6 +19,7 @@ type LinkedAccount = {
   fromDate: string | null;
 };
 type Connection = {
+  bookedToLedger: boolean;
   id: string;
   label: string;
   status: string;
@@ -35,6 +37,13 @@ type Status = {
   accounts: Account[];
 };
 type Institution = { name: string; country: string };
+const institutionKey = (a: Institution) => a.country + ':' + a.name;
+/** Case- and accent-insensitive search text ("spängler" finds "Spängler" and "Spangler"). */
+const fold = (value: string) =>
+  value
+    .normalize('NFD')
+    .replace(/\p{Diacritic}/gu, '')
+    .toLocaleLowerCase('de');
 const PATH = '/api/bank-sync';
 const stamp = (value: string | null) =>
   value ? new Date(value).toLocaleString('de-AT') : 'Noch nicht';
@@ -56,6 +65,7 @@ export function DataSourcesPage() {
       <div className="data-sources">
         <BankSourceSection />
         <CryptoReadSourceSection />
+        <PayslipSourceSection />
       </div>
     </PageFrame>
   );
@@ -69,6 +79,9 @@ function BankSourceSection() {
   });
   const [institutions, setInstitutions] = useState<Institution[]>([]);
   const [selection, setSelection] = useState('');
+  const [search, setSearch] = useState('');
+  const matches = institutions.filter((a) => fold(a.name).includes(fold(search.trim())));
+  const chosen = institutions.find((a) => institutionKey(a) === selection);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
@@ -98,8 +111,8 @@ function BankSourceSection() {
     <section className="data-source-section" aria-labelledby="bank-source-title">
       <SectionHead id="bank-source-title" title="Bank-Sync (PSD2)" />
       <p>
-        Gebuchte Bankumsätze landen zur Prüfung im Posteingang. Erst deine Bestätigung erstellt eine
-        Buchung.
+        Gebuchte Bankumsätze zählen sofort zum Kontostand und bleiben ohne Kategorie zur Prüfung im
+        Posteingang. Vorgemerkte Bankumsätze zählen erst nach deiner Bestätigung.
       </p>
       {query.isPending && <p role="status">Datenquellen werden geladen …</p>}
       {query.isError && (
@@ -151,59 +164,96 @@ function BankSourceSection() {
       )}
       {query.data?.configured && (
         <>
-          <div className="sources-actions">
-            <Button
-              disabled={busy}
-              variant="ghost"
-              onClick={() =>
-                void act(async () => {
-                  const data = await withStepUp(() =>
-                    request<{ institutions: Institution[] }>('GET', PATH + '/institutions'),
-                  );
-                  setInstitutions(data.institutions);
-                }, 'Verfügbare Institute geladen.')
-              }
-            >
-              Bank verbinden
-            </Button>
-            {institutions.length > 0 && (
-              <>
-                <Field label="Institut">
-                  {({ id }) => (
-                    <Select
-                      id={id}
-                      value={selection}
-                      onChange={(e) => setSelection(e.target.value)}
-                    >
-                      <option value="">Institut wählen</option>
-                      {institutions.map((a, i) => (
-                        <option key={a.name + a.country} value={i}>
-                          {a.name} · {a.country}
-                        </option>
-                      ))}
-                    </Select>
-                  )}
-                </Field>
+          {callback.code ? null : institutions.length === 0 ? (
+            <div className="sources-actions">
+              <Button
+                disabled={busy}
+                onClick={() =>
+                  void act(async () => {
+                    const data = await withStepUp(() =>
+                      request<{ institutions: Institution[] }>('GET', PATH + '/institutions'),
+                    );
+                    setInstitutions(
+                      [...data.institutions].sort((a, b) =>
+                        a.name.localeCompare(b.name, 'de', { sensitivity: 'base' }),
+                      ),
+                    );
+                  }, '')
+                }
+              >
+                Bank verbinden
+              </Button>
+            </div>
+          ) : (
+            <div className="bank-picker">
+              <Field label="Bank suchen">
+                {({ id }) => (
+                  <TextInput
+                    id={id}
+                    type="search"
+                    autoComplete="off"
+                    placeholder="Name eintippen, z. B. Dadat oder PayPal"
+                    value={search}
+                    onChange={(e) => {
+                      setSearch(e.target.value);
+                      const next = institutions.filter((a) =>
+                        fold(a.name).includes(fold(e.target.value.trim())),
+                      );
+                      if (next.length === 1) setSelection(institutionKey(next[0]!));
+                      else if (!next.some((a) => institutionKey(a) === selection)) setSelection('');
+                    }}
+                  />
+                )}
+              </Field>
+              <Field label={`Institut (${matches.length} von ${institutions.length})`}>
+                {({ id }) => (
+                  <Select
+                    id={id}
+                    size={Math.min(8, Math.max(matches.length, 2))}
+                    value={selection}
+                    onChange={(e) => setSelection(e.target.value)}
+                  >
+                    {matches.map((a) => (
+                      <option key={institutionKey(a)} value={institutionKey(a)}>
+                        {a.name}
+                        {a.country === 'AT' ? '' : ' · ' + a.country}
+                      </option>
+                    ))}
+                  </Select>
+                )}
+              </Field>
+              {matches.length === 0 && <p role="status">Keine Bank gefunden.</p>}
+              <div className="sources-actions">
                 <Button
-                  disabled={busy || !selection}
+                  disabled={busy || !chosen}
                   onClick={() =>
                     void act(async () => {
-                      const institution = institutions[Number(selection)]!;
                       const result = await withStepUp(() =>
                         request<{ url: string }>('POST', PATH + '/auth', {
-                          name: institution.name,
-                          country: institution.country,
+                          name: chosen!.name,
+                          country: chosen!.country,
                         }),
                       );
                       window.location.assign(result.url);
                     }, '')
                   }
                 >
-                  Zur Bankfreigabe
+                  {chosen ? `Weiter zur Freigabe bei ${chosen.name}` : 'Zur Bankfreigabe'}
                 </Button>
-              </>
-            )}
-          </div>
+                <Button
+                  variant="ghost"
+                  disabled={busy}
+                  onClick={() => {
+                    setInstitutions([]);
+                    setSearch('');
+                    setSelection('');
+                  }}
+                >
+                  Abbrechen
+                </Button>
+              </div>
+            </div>
+          )}
           {query.data.connections.length === 0 && <p>Noch keine Bank verbunden.</p>}
           <p className="text-muted">
             Nächtlicher Abruf mit Nachholen nach Ausfällen. Bei Fehlern gilt eine Abrufpause.
@@ -219,6 +269,33 @@ function BankSourceSection() {
                 title={connection.label}
                 aside={statuses[connection.status] ?? 'Bitte prüfen'}
               />
+              <Field
+                label="Gebuchte Umsätze"
+                hint="Gilt beim nächsten Abruf. Bereits übernommene Buchungen bleiben erhalten. Kategorien vergibst du selbst."
+              >
+                {({ id }) => (
+                  <Select
+                    id={id}
+                    value={String(connection.bookedToLedger ?? true)}
+                    disabled={busy}
+                    onChange={(e) => {
+                      const bookedToLedger = e.target.value === 'true';
+                      void act(
+                        () =>
+                          withStepUp(() =>
+                            request('PUT', PATH + '/' + connection.id + '/policy', {
+                              bookedToLedger,
+                            }),
+                          ),
+                        'Übernahme gespeichert.',
+                      );
+                    }}
+                  >
+                    <option value="true">Sofort zum Kontostand zählen (Standard)</option>
+                    <option value="false">Erst nach Bestätigung zählen</option>
+                  </Select>
+                )}
+              </Field>
               <dl className="source-status">
                 <div>
                   <dt>Letzter Versuch</dt>

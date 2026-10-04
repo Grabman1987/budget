@@ -546,6 +546,187 @@ keep `/data/migration` until the end.
    what you want.
 6. Check Plan › Monat for the months involved, then remove the private files (section 12, step 5).
 
+### 12.4 Historical payslips (operator task)
+
+`payslips --file <json> [--dry-run] [--details] [--replace]` imports the owner's historical payslips
+(Gehaltszettel) from a JSON file. The file holds real amounts: keep it on the private volume
+(`/data/migration/`), never in the repo. Every entry is passed to `savePayslip`, the function behind
+`POST /api/payslips`, so the input rules and the link rules are the app's own:
+
+```json
+{
+  "payslips": [
+    {
+      "month": "2024-06",
+      "kind": "regular",
+      "specialType": null,
+      "grossCents": 300000,
+      "svCents": 50000,
+      "taxCents": 40000,
+      "netCents": 227000,
+      "lines": [
+        { "section": "earning", "label": "Bonus", "amountCents": 10000 },
+        { "section": "deduction", "label": "Canteen", "amountCents": 5000 },
+        { "section": "reimbursement", "label": "Home office", "amountCents": 12000 }
+      ],
+      "salaryBooking": { "account": "Checking", "date": "2024-06-14", "amountCents": 227000, "payee": "Employer" }
+    }
+  ]
+}
+```
+
+- Fields are those of the payslip form: `kind` is `regular` or `special` (a `special` slip needs
+  `specialType` `salary13`, `salary14` or `other`, a regular one must not have it); amounts are
+  cents. `svCents` and `taxCents` are signed (a negative value is a refund or Aufrollung credit),
+  line amounts are not: a line is `earning` (added to the gross), `deduction` (another deduction) or
+  `reimbursement` (tax-free, paid on top; Telearbeit, Fahrgeld, Reisespesen). The net must equal
+  gross + earnings - SV - tax - deductions + reimbursements, or the file is rejected before anything
+  is written (the message names the payslip). A signed Aufrollung goes into `svCents`/`taxCents`;
+  a credit that would be a negative deduction is netted into the deduction it reduces.
+- A regular payslip and the special payslips of the same payout are separate entries (one
+  `kind`/`specialType` each) that name the same payout in `salaryBooking`.
+- `salaryBooking` (optional) finds the booking the payout arrived with: `account` (exact name,
+  case-insensitive), `date` (the booking may be up to 3 days earlier or later), `amountCents` (the
+  booking's amount, the whole payout) and optionally `payee`. The payslip is linked only when exactly
+  one booking matches and the app accepts it as a salary booking (EUR inflow with a Gehalt or
+  Sonderzahlung split). Otherwise the payslip is still imported, without link, and reported as
+  `unlinked` with the reason (`no_salary_booking`, `unknown_account`, `ambiguous_account`,
+  `no_booking`, `ambiguous_booking`, `link_refused`).
+- One savepoint and one audit group (actor `operator`) per payslip; the output prints its group id,
+  so `undo-group --group <id>` (or the app's Rückgängig) removes exactly that payslip again.
+- A payslip for a month, kind and special type that exists already is reported as `exists` and left
+  alone, whatever the file says. `--replace` updates it through the same `savePayslip` path (same
+  id, lines replaced; a working link is kept when the file's booking is not found). Several `other`
+  special payments may exist in one month: they are paired by their figures, and with `--replace`
+  also by being the only unpaired one of the month on both sides.
+- A payslip the app refuses is `skipped` with a reason (`--details` adds the message); the rest goes
+  through and the exit code is 3. `--dry-run` does everything and rolls back, so it reports exactly
+  what the real run would.
+
+The last line is `payslips N created C [replaced R] exists E unlinked U skipped S`. Run `--dry-run`
+first, check the `unlinked` lines, then run it for real. Review the result in Berichte › Gehalt.
+
+### 12.5 Instrument facts and employer pension (operator task)
+
+The Finanz-Check rules (R17 to R22) need private values that do not belong in the repo: the TER and
+the leverage of single instruments, and the explicit monthly employer pension contributions.
+`instrument-facts --file <json> [--dry-run] [--details]` enters them from a private file (keep it on
+`/data/migration/`, never in the repo):
+
+```json
+{
+  "securities": [{ "isin": "XX0000000001", "terBp": 20, "leverageFactorTenths": null }],
+  "employerPension": [{ "month": "2026-01", "amountCents": 12345 }],
+  "bookSettings": { "birthYear": 1990, "birthMonth": 6 }
+}
+```
+
+Run it as `fly ssh console -a budget-fg -C "node /app/migrate-cli.js instrument-facts --file
+/data/migration/facts.json --dry-run"`, check the output, then again without `--dry-run`.
+
+- `securities`: matched by `isin` (case-insensitive) to exactly one live security; no match or
+  several are skipped (`unknown_isin`, `ambiguous_isin`). `terBp` is the total expense ratio in
+  basis points (0 to 10000), `leverageFactorTenths` the leverage in tenths (10 = 1.0x, 10 to 1000).
+  Only fields that are present and not `null` are written; a value equal to the stored one is
+  reported as `unchanged` and writes nothing. Same ranges as the security routes; the write is
+  `updateSecurity`, as behind `PATCH /api/securities/:id`.
+- `employerPension`: one row per month (`YYYY-MM`, `amountCents` 0 or more, an explicit 0 counts).
+  A month is created, changed, or restored if it was deleted; an equal amount is `unchanged`. The
+  write is `saveBookSettings`, as behind the rules settings route, so validation and audit match
+  the app.
+- `bookSettings` (optional): the private birth month for the rules, `birthYear` (1900 up to the
+  current year) and `birthMonth` (1 to 12). Only provided, non-null fields are written; a missing
+  one is taken from the stored birth month, and if none is stored yet both are needed (else
+  skipped). The write is `saveBookSettings`, as behind the rules settings route, so the app's
+  plausibility check applies (a date in the future is skipped). Equal values are `unchanged`.
+- The whole file is validated first (a bad value, an ISIN or month listed twice, a birth year or month out of range) and nothing runs
+  if it is wrong. Then each entry runs in its own savepoint and audit group (actor `operator`), so
+  the app's Rückgängig or `undo-group --group <id>` reverts it on its own; an entry the app would
+  refuse is skipped with its reason, the rest goes through, and the exit code is 3.
+- Output: one line per entry (`updated`/`unchanged`/`skipped <isin> ...`, `pension <month> ...`,
+  with the group id), then the summaries `securities <total> updated <n> unchanged <n> skipped <n>`,
+  `pension <n> upserted <n> unchanged <n> skipped <n>`, and, if the file has `bookSettings`,
+  `settings updated|unchanged|skipped`. `--dry-run` does all of it, reports
+  exactly what would change (no group ids) and rolls everything back. Running a file twice is safe:
+  the second run reports everything as unchanged.
+
+### 12.6 Owner configuration (operator task)
+
+`owner-config --file <json> [--dry-run] [--details]` loads the owner's private settings from one file
+(keep it on `/data/migration/`, never in the repo). Every section is optional; each entry is its own
+audit group (actor `operator`, `undo-group --group <id>` reverts it alone) and calls the function
+behind the matching app route, so validation and audit are those of the UI. A file is checked as a
+whole first (unknown keys, bad values, duplicates); nothing runs if it is wrong. An entry the app
+would refuse is `skipped <reason>` (`--details` adds the message), the rest goes through, the exit
+code is 3. Running a file twice is safe: the second run reports everything as `unchanged`.
+`--dry-run` does all of it and rolls back, so it reports exactly what the real run would change.
+
+```json
+{
+  "profile": {
+    "name": "...", "initials": "AB", "birthDate": "1990-06-15",
+    "country": "AT", "region": "Wien", "householdSize": 2
+  },
+  "rules": { "enable": ["R17"], "disable": ["R18"] },
+  "categoryStages": [{ "category": "Miete", "stage": 1 }, { "category": "Reisen", "stage": null }],
+  "assetClasses": { "rename": [{ "from": "Aktien", "to": "Aktien Welt" }] },
+  "securities": [
+    {
+      "isin": "XX0000000001", "quoteUrl": "https://...", "symbol": "ABC",
+      "quoteExchange": "...", "coingeckoId": "bitcoin", "pricesEnabled": true
+    }
+  ],
+  "expectedPayments": [
+    {
+      "name": "Miete", "kind": "outflow", "accountName": "Giro", "categoryName": "Miete",
+      "rhythm": "monthly", "dueDay": 1, "startDate": "2026-01-01", "amountCents": 80000,
+      "note": "..."
+    }
+  ],
+  "skipOccurrences": [{ "name": "Miete", "month": "2026-12", "reason": "..." }],
+  "clearBookings": { "before": "2026-09-01", "accounts": ["Giro"] }
+}
+```
+
+Sections run in this order: `profile`, `rules`, `categoryStages`, `assetClasses`, `securities`,
+`expectedPayments`, `skipOccurrences`, `clearBookings`. Names are matched exactly (trimmed,
+case-insensitive); unknown and ambiguous names are skipped and never created.
+
+- `profile`: the Einstellungen › Profil values. `region` is the Bundesland (code `AT-1` to `AT-9`
+  or name); `country` only accepts Austria (`AT`, `Österreich`) or, as an alias, a Bundesland;
+  `householdSize` (alias `household`) 1 to 20; `birthDate` a past day. `profile.birth_month` (a rules
+  book input) is set to the month of `birthDate` in the same group. The output lists the changed
+  field names, never the values.
+- `rules`: `enable` / `disable` lists of rule codes (checklist codes such as `S2-1` too); a code in
+  both lists is an input error, an unknown code is skipped (`unknown_rule`).
+- `categoryStages`: `stage` 1 to 9 or `null` (clear), matched by exact category name
+  (`unknown_category`, `ambiguous_category`).
+- `assetClasses.rename`: `from` to `to`. A finished rename (old name gone, new name present) is
+  `unchanged`; a taken new name is `name_taken`. Nothing else about asset classes is touched.
+- `securities`: matched by `isin` (exactly one live one) or `name`; writes `quoteUrl` (https),
+  `symbol`, `quoteExchange`, `coingeckoId`, `pricesEnabled` through `updateSecurity`; `null` clears a
+  text field, equal values are `unchanged`.
+- `expectedPayments`: created or updated by name (exactly one live payment of that name; several are
+  `ambiguous_payment`). `kind` `outflow` / `inflow`, `accountName` (required), `categoryName` or
+  `incomeType` (by name, not both), `rhythm` `monthly` / `quarterly` / `semiannual` / `yearly`
+  (`dueMonth` is required for all but monthly), `dueDay` 1 to 31, `startDate`, `amountCents` above 0.
+  A new payment gets its first version from `validFrom` (default `startDate`). For an existing one,
+  changed fields are updated and, when the amount in force on `validFrom` (default: first day of the
+  current month) differs, a new version starts that day (versions are never edited); occurrences are
+  re-planned as in the app. An omitted `note` keeps the stored one.
+- `skipOccurrences`: marks the one occurrence of the payment in `month` (`YYYY-MM`) as `missed`
+  ("ausgefallen", the existing occurrence status). Occurrences exist from last month to twelve months
+  ahead (`no_occurrence` otherwise); a linked one is refused (`linked_occurrence`). `reason` is
+  required as the file's own documentation and is not stored.
+- `clearBookings`: per account (`accounts`, default all open accounts) every `pending`
+  ("vorgemerkt") booking dated strictly before `before` becomes `confirmed` ("bestätigt", the status
+  the app's bulk action sets) through `updateBooking`. One audit group per account, all or nothing;
+  the output line per account gives the count.
+
+Output: one line per entry (`created`/`updated`/`unchanged <section> <key> <changes> <group>` or
+`skipped <section> <key> <reason>`), then one summary per section
+(`<section> created C updated U unchanged N skipped S`).
+
 ## 13. One-time Portfolio Performance migration (operator task)
 
 Same rules as section 12 (no import feature in the app, files and the private mapping never enter the repo). Prerequisite: the YNAB migration is committed (the depot, crypto and P2P accounts exist). `migrate-pp-cli.js` has the same shape: each step is one transaction, `revert` undoes a whole run (the newest committed one only, also across sources). What is written and why: `docs/migration/pp-export.md` §Commit.

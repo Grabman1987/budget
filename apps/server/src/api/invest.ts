@@ -1,3 +1,4 @@
+import { checkedReportPeriod, reportPeriodSchema } from './report-period';
 import {
   applySavingsProposal,
   assetClassesInUse,
@@ -21,6 +22,8 @@ import {
   listTargetVersions,
   listTrades,
   portfolioSummary,
+  portfolioBenchmark,
+  setPortfolioBenchmark,
   ContributionHistoryLimitError,
   portfolioPositions,
   portfolioAllocation,
@@ -32,6 +35,8 @@ import {
   restoreSecurity,
   SECURITY_KINDS,
   savingsExecutions,
+  savingsExecutionProposals,
+  confirmSavingsExecution,
   savingsProposal,
   setTargets,
   targetsAsOf,
@@ -69,6 +74,7 @@ const securityFields = {
     .nullable(),
   currency: z.string().regex(/^[A-Z]{3}$/, 'Currency code such as EUR'),
   terBp: bp,
+  leverageFactor: z.int().min(10).max(1000),
   assetClassId: id.nullable(),
   /** The platform (broker, crypto or P2P provider) that holds the security. */
   institutionId: id.nullable(),
@@ -94,6 +100,7 @@ const securityCreate = z.object({
   isin: securityFields.isin.optional(),
   currency: securityFields.currency.default('EUR'),
   terBp: securityFields.terBp.default(0),
+  leverageFactor: securityFields.leverageFactor.default(10),
   assetClassId: securityFields.assetClassId.optional(),
   institutionId: securityFields.institutionId.optional(),
   benchmark: securityFields.benchmark.optional(),
@@ -366,6 +373,30 @@ export function savingsPlanRoutes(db: Db, today: () => string): Hono {
     const target = m ?? monthOf(now);
     return c.json({ month: target, executions: savingsExecutions(db, target, now) });
   });
+  app.get('/execution-proposals', (c) =>
+    c.json({ proposals: savingsExecutionProposals(db, today()) }),
+  );
+  app.post('/:id/confirm-execution', async (c) => {
+    const body = await readBody(
+      c,
+      z.strictObject({
+        month,
+        date: day,
+        plannedDate: day,
+        plannedAmountCents: z.int().positive(),
+        plannedCurrency: z.string().regex(/^[A-Z]{3}$/),
+        unitsE8: z.int().positive(),
+        amountCents: z.int().positive(),
+        feeCents: z.int().min(0),
+        note: text.nullable(),
+      }),
+    );
+    const ctx = audit();
+    return c.json(
+      confirmSavingsExecution(db, id.parse(c.req.param('id')), body.month, today(), body, ctx),
+      201,
+    );
+  });
   app.get('/proposal', (c) => {
     const { step } = readQuery(c, proposalQuery);
     const { basis, ...proposal } = savingsProposal(db, today(), defined({ stepCents: step }));
@@ -406,26 +437,35 @@ export function savingsPlanRoutes(db: Db, today: () => string): Hono {
 
 // ---------- portfolio ----------
 const portfolioQuery = z.object({
-  period: z.enum(['1M', '3M', 'YTD', '1J', '3J', 'Alles']).default('1J'),
+  period: reportPeriodSchema.default('1J'),
   view: z.enum(['securities', 'depot']).default('securities'),
   benchmark: id.optional(),
   /** Depot view: comma-separated reference account ids (default: the investment accounts). */
   reference: z.string().max(2000).optional(),
   /** Opt-in monthly/yearly series for report 4.3, derived from the portfolio summary read. */
-  history: z.enum(['contributions']).optional(),
+  history: z.enum(['contributions', 'performance']).optional(),
 });
 
 const depotsQuery = z.object({
-  period: z.enum(['1M', '3M', 'YTD', '1J', '3J', 'Alles']).default('1J'),
+  period: reportPeriodSchema.default('1J'),
 });
 
 export function portfolioRoutes(db: Db, today: () => string): Hono {
   const app = new Hono();
   app.get('/positions', (c) => c.json(portfolioPositions(db, today())));
+  app.get('/benchmark', (c) => c.json(portfolioBenchmark(db)));
+  app.patch('/benchmark', async (c) => {
+    const { securityId } = await readBody(c, z.strictObject({ securityId: id.nullable() }));
+    if (securityId !== null && !getSecurity(db, securityId))
+      throw new ApiError(400, 'invalid_benchmark', 'Bitte ein vorhandenes Wertpapier wählen.');
+    const ctx = { actor: ACTOR, groupId: randomUUID() };
+    return c.json({ ...setPortfolioBenchmark(db, securityId, ctx), groupId: ctx.groupId });
+  });
   app.get('/allocation', (c) => c.json(portfolioAllocation(db, today())));
   // Report 4.1: depots side by side for the selected period.
   app.get('/depots', (c) => {
-    const { period } = readQuery(c, depotsQuery);
+    const { period: rawPeriod } = readQuery(c, depotsQuery);
+    const period = checkedReportPeriod(rawPeriod, today());
     return c.json({ depots: depotComparison(db, { today: today(), period }) });
   });
   // Report 4.2: allocation by class/product and region/product, Soll/Ist over time.
@@ -444,7 +484,8 @@ export function portfolioRoutes(db: Db, today: () => string): Hono {
     return c.json({ ...setInvestmentCostMethod(db, costMethod, ctx), groupId: ctx.groupId });
   });
   app.get('/', (c) => {
-    const { period, view, benchmark, reference, history } = readQuery(c, portfolioQuery);
+    const { period: rawPeriod, view, benchmark, reference, history } = readQuery(c, portfolioQuery);
+    const period = checkedReportPeriod(rawPeriod, today());
     const refs = reference?.split(',').filter(Boolean);
     try {
       return c.json({
@@ -457,6 +498,7 @@ export function portfolioRoutes(db: Db, today: () => string): Hono {
             benchmarkSecurityId: benchmark,
             referenceAccounts: refs && refs.length > 0 ? refs : undefined,
             includeContributionHistory: history === 'contributions' && view === 'securities',
+            includePerformanceHistory: history === 'performance' && view === 'securities',
           }),
         ),
       });

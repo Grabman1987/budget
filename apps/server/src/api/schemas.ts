@@ -48,17 +48,24 @@ export const accountCreate = z.object({
   interestRateBp: z.int().min(0).max(100_000).nullable().optional(),
   termEnd: day.nullable().optional(),
   monthlyFeeCents: cents.min(0).nullable().optional(),
+  // Loan terms: fixed or variable interest, monthly installment, term start, original amount.
+  interestKind: z.enum(['fixed', 'variable']).nullable().optional(),
+  installmentCents: cents.min(0).nullable().optional(),
+  termStart: day.nullable().optional(),
+  originalAmountCents: cents.min(0).nullable().optional(),
 });
 export type AccountCreate = z.infer<typeof accountCreate>;
 
 export const accountPatch = accountCreate
   .partial()
-  .omit({ currency: true })
+  .omit({ currency: true, openingBalanceCents: true })
   .extend({
     currency: z
       .string()
       .regex(/^[A-Z]{3}$/)
       .optional(),
+    // No default here: a patch without it must leave the stored opening balance alone.
+    openingBalanceCents: cents.optional(),
     /** Change opening balance or date although Kontostand prüfen snapshots exist. */
     unlockReconciled: z.boolean().optional(),
   });
@@ -96,10 +103,13 @@ const foreign = {
 
 export const bookingCreate = z.object({
   type: z.literal('booking'),
+  incomeNextMonth: z.boolean().optional(),
   accountId: id,
   date: day,
   amountCents: cents,
   payeeId: id.nullable().optional(),
+  /** Capture can resolve a new payee atomically with an offline booking. */
+  payeeName: z.string().trim().min(1).max(80).optional(),
   memo: nullableText.optional(),
   status: writableStatus.default('confirmed'),
   flag: flag.nullable().optional(),
@@ -126,6 +136,7 @@ export const createBody = z.discriminatedUnion('type', [bookingCreate, transferC
 export const bookingPatch = z
   .object({
     accountId: id,
+    incomeNextMonth: z.boolean(),
     date: day,
     amountCents: cents,
     payeeId: id.nullable(),

@@ -18,9 +18,15 @@ export const payslipInput = z
     lines: z
       .array(
         z.strictObject({
-          section: z.enum(['earning', 'deduction', 'reimbursement']),
+          section: z.enum([
+            'earning',
+            'deduction',
+            'reimbursement',
+            'tax_adjustment',
+            'sv_adjustment',
+          ]),
           label: z.string().trim().min(1).max(160),
-          amountCents: money,
+          amountCents: signedMoney,
         }),
       )
       .max(40),
@@ -71,8 +77,18 @@ export function payrollTotals(slips: PayslipInput[]) {
     p.lines.filter((l) => l.section === 'reimbursement').reduce((n, l) => n + l.amountCents, 0),
   );
   const grossCents = sum((p) => p.grossCents) + additionsCents;
-  const svCents = sum((p) => p.svCents),
-    taxCents = sum((p) => p.taxCents),
+  const svCents = sum(
+      (p) =>
+        p.svCents +
+        p.lines.filter((l) => l.section === 'sv_adjustment').reduce((n, l) => n + l.amountCents, 0),
+    ),
+    taxCents = sum(
+      (p) =>
+        p.taxCents +
+        p.lines
+          .filter((l) => l.section === 'tax_adjustment')
+          .reduce((n, l) => n + l.amountCents, 0),
+    ),
     netCents = sum((p) => p.netCents);
   const deductionsCents = svCents + taxCents + otherCents;
   const salaryNetCents = grossCents - deductionsCents;
@@ -87,8 +103,20 @@ export function payrollTotals(slips: PayslipInput[]) {
     deductionsCents,
     reimbursementsCents,
     salaryNetCents,
-    taxChargeCents: sum((p) => Math.max(0, p.taxCents)),
-    taxRefundCents: sum((p) => Math.max(0, -p.taxCents)),
+    taxChargeCents: sum(
+      (p) =>
+        Math.max(0, p.taxCents) +
+        p.lines
+          .filter((l) => l.section === 'tax_adjustment')
+          .reduce((n, l) => n + Math.max(0, l.amountCents), 0),
+    ),
+    taxRefundCents: sum(
+      (p) =>
+        Math.max(0, -p.taxCents) +
+        p.lines
+          .filter((l) => l.section === 'tax_adjustment')
+          .reduce((n, l) => n + Math.max(0, -l.amountCents), 0),
+    ),
     netCents,
     calculatedNetCents: salaryNetCents + reimbursementsCents,
     deductionRatio: ratio(deductionsCents),

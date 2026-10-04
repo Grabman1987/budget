@@ -1,3 +1,4 @@
+import { checkedReportPeriod, reportPeriodSchema } from './report-period';
 import { explorerReport, periodComparisonReport, yearReportRead, type Db } from '@budget/db';
 import {
   COMPARE_MODES,
@@ -5,7 +6,6 @@ import {
   EXPLORER_COLS,
   EXPLORER_DIMS,
   EXPLORER_MEASURES,
-  EXPLORER_PERIODS,
   overviewRefMonth,
   type CompareMode,
   type ExplorerQuery,
@@ -23,7 +23,7 @@ const explorerQuery = z.object({
   dim: z.enum(ids(EXPLORER_DIMS)),
   cls: z.enum(ids(EXPLORER_CLASSES)),
   cols: z.enum(ids(EXPLORER_COLS)),
-  period: z.enum(EXPLORER_PERIODS),
+  period: reportPeriodSchema,
   meas: z.enum(ids(EXPLORER_MEASURES)),
 });
 
@@ -48,6 +48,7 @@ export function overviewReportRoutes(db: Db, today: () => string): Hono {
 
   app.get('/explorer', (c) => {
     const query = readQuery(c, explorerQuery) as ExplorerQuery;
+    checkedReportPeriod(query.period, today());
     return c.json(explorerReport(db, query, today()));
   });
 

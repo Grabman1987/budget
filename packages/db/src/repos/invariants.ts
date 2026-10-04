@@ -1,7 +1,7 @@
 import { assertContactSettlementInvariants } from './contact-invariants';
-import { isIncomeTrade, settlementCents } from '@budget/domain';
+import { isIncomeTrade, settlementCents, withinBankWindow } from '@budget/domain';
 import { and, eq, inArray, isNull, or, sql } from 'drizzle-orm';
-import { account, auditLog, booking, bookingSplit, INCOME_TYPES, trade } from '../schema';
+import { account, auditLog, booking, bookingSplit, category, INCOME_TYPES, trade } from '../schema';
 import { BookingInvariantError } from './errors';
 import type { Executor } from './types';
 
@@ -12,7 +12,7 @@ import type { Executor } from './types';
  *
  * - a live booking uses its account's currency and has at least one split whose sum equals amount;
  * - a transfer has exactly two live legs (whole bookings or single splits) on two different
- *   accounts in the same currency, on the same date, with opposite amounts; a leg never survives
+ *   accounts in the same currency, within five days, with opposite amounts; a leg never survives
  *   alone.
  */
 export function assertLedgerInvariants(
@@ -47,6 +47,28 @@ export function assertLedgerInvariants(
     if (b.transferId) transferIds.add(b.transferId);
     for (const s of splits) if (s.transferId) transferIds.add(s.transferId);
     if (b.deletedAt !== null) continue;
+    if (b.incomeNextMonth) {
+      const eligible =
+        b.amountCents > 0 &&
+        !b.transferId &&
+        splits.length > 0 &&
+        splits.every(
+          (s) =>
+            s.amountCents > 0 &&
+            !s.contactId &&
+            !s.transferId &&
+            (!s.categoryId ||
+              tx
+                .select({ kind: category.kind })
+                .from(category)
+                .where(eq(category.id, s.categoryId))
+                .get()?.kind === 'income'),
+        );
+      if (!eligible)
+        throw new BookingInvariantError(
+          '„Für nächsten Monat“ gilt nur für Einnahmen ohne Umbuchung oder Kontaktanteil.',
+        );
+    }
     const accountCurrency = accountCurrencies.get(b.accountId);
     if (accountCurrency !== b.currency)
       throw new BookingInvariantError(
@@ -307,12 +329,12 @@ function assertTransfer(transferId: string, legs: readonly Leg[]): void {
   }
   if (
     a.accountId === b.accountId ||
-    a.date !== b.date ||
+    !withinBankWindow(a.date, b.date) ||
     a.cents + b.cents !== 0 ||
     a.cents === 0
   ) {
     throw new BookingInvariantError(
-      `Transfer ${transferId} legs must be on two accounts, on one date, with opposite non-zero amounts`,
+      `Transfer ${transferId} legs must be on two accounts, within five days, with opposite non-zero amounts`,
     );
   }
 }

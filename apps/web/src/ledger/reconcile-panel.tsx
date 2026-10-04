@@ -1,11 +1,19 @@
+import {
+  useAmountPrivacy,
+  AmountInput,
+  Button,
+  DetailPanel,
+  Field,
+  TextInput,
+  maskMoneyText,
+} from '@budget/ui';
 import { parseAmount, todayInVienna } from '@budget/domain';
-import { AmountInput, Button, DetailPanel, Field, TextInput } from '@budget/ui';
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { AlertTriangle, CheckCircle2 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { AppLink } from '../shell/app-link';
 import { previewReconciliation, reconcileAccount, type ReconcileRequest } from './api';
-import { eur, longDay, shortDay } from './format';
+import { nativeCurrency, valuedCurrency, longDay, shortDay } from './format';
 import { errorText } from './labels';
 import { useLedgerWrites } from './mutations';
 import { LEDGER_KEY } from './queries';
@@ -33,6 +41,7 @@ export function ReconcilePanel({
   open: boolean;
   onClose: () => void;
 }) {
+  useAmountPrivacy();
   return (
     <DetailPanel open={open} onClose={onClose} title={`Kontostand prüfen · ${account.name}`}>
       <ReconcileFlow account={account} onDone={onClose} />
@@ -41,6 +50,7 @@ export function ReconcilePanel({
 }
 
 function ReconcileFlow({ account, onDone }: { account: AccountRow; onDone: () => void }) {
+  useAmountPrivacy();
   const qc = useQueryClient();
   const writes = useLedgerWrites();
   const today = todayInVienna();
@@ -67,9 +77,17 @@ function ReconcileFlow({ account, onDone }: { account: AccountRow; onDone: () =>
     placeholderData: keepPreviousData,
   });
   const data = preview.data;
+  const money = (amount: number, sign = false) => nativeCurrency(amount, account.currency, sign);
   const finding = data ? findingOf(data) : null;
   // The panel shows the answer for what is typed now, not for the previous input.
-  const current = ready && asked.statement === statement && asked.date === date;
+  const current =
+    ready &&
+    asked.statement === statement &&
+    asked.date === date &&
+    data?.date === date &&
+    data.statementBalanceCents === statement &&
+    !preview.isPlaceholderData &&
+    !preview.isError;
 
   const confirm = useMutation({
     mutationFn: (extra: Partial<ReconcileRequest>) =>
@@ -82,7 +100,7 @@ function ReconcileFlow({ account, onDone }: { account: AccountRow; onDone: () =>
       void qc.invalidateQueries({ queryKey: LEDGER_KEY });
       writes.offerUndo(
         result.adjustmentBookingId
-          ? `Kontostand geprüft, Ausgleich ${eur(result.differenceCents, { sign: true })} gebucht.`
+          ? `Kontostand geprüft, Ausgleich ${money(result.differenceCents, true)} gebucht.`
           : `Kontostand geprüft: ${result.reconciledCount} Buchungen festgeschrieben.`,
         result.groupId,
       );
@@ -124,20 +142,49 @@ function ReconcileFlow({ account, onDone }: { account: AccountRow; onDone: () =>
           Der Stichtag liegt in der Zukunft. Geprüft wird höchstens bis heute.
         </p>
       )}
-      <AmountInput label="Saldo laut Bank" value={text} onChange={setText} />
+      <p className="kmeta">
+        Prüfung und Ausgleich in {account.currency}; EUR ist eine Bewertung zum Stichtag.
+      </p>
+      <AmountInput
+        label={`Saldo laut Bank${account.currency === 'EUR' ? '' : ` · ${account.currency}`}`}
+        currency={account.currency}
+        value={text}
+        onChange={setText}
+      />
       {data && current && (
         <dl className="kv-list">
           <div>
             <dt>App-Saldo gebucht</dt>
-            <dd>{eur(data.bookedBalanceCents)}</dd>
+            <dd>
+              {valuedCurrency(data.bookedBalanceCents, account.currency, data.valuations?.booked)}
+            </dd>
           </div>
           <div>
             <dt>vorgemerkt, nicht gezählt</dt>
-            <dd>{eur(data.pendingCents, { sign: true })}</dd>
+            <dd>
+              {valuedCurrency(data.pendingCents, account.currency, data.valuations?.pending, true)}
+            </dd>
           </div>
           <div>
             <dt>Saldo laut Bank</dt>
-            <dd>{eur(data.statementBalanceCents)}</dd>
+            <dd>
+              {valuedCurrency(
+                data.statementBalanceCents,
+                account.currency,
+                data.valuations?.statement,
+              )}
+            </dd>
+          </div>
+          <div>
+            <dt>Differenz</dt>
+            <dd>
+              {valuedCurrency(
+                data.differenceCents,
+                account.currency,
+                data.valuations?.difference,
+                true,
+              )}
+            </dd>
           </div>
         </dl>
       )}
@@ -159,7 +206,7 @@ function ReconcileFlow({ account, onDone }: { account: AccountRow; onDone: () =>
                 strokeWidth={1.75}
                 aria-hidden="true"
               />
-              Differenz 0,00 € · stimmt überein
+              Differenz {money(0)} · stimmt überein
             </p>
             <div className="panel-actions">
               <Button disabled={confirm.isPending} onClick={() => run({})}>
@@ -181,9 +228,13 @@ function ReconcileFlow({ account, onDone }: { account: AccountRow; onDone: () =>
                 {finding.kind === 'duplicate' && (
                   <>
                     <strong>Doppelt:</strong> {finding.candidate.payeeName ?? 'Buchung'}{' '}
-                    {eur(finding.candidate.amountCents)} am {shortDay(finding.candidate.date)} steht
-                    zweimal in der App, die Bank kennt sie einmal. Differenz{' '}
-                    {eur(data.differenceCents, { sign: true })}.
+                    {valuedCurrency(
+                      finding.candidate.amountCents,
+                      account.currency,
+                      finding.candidate.valuation,
+                    )}{' '}
+                    am {shortDay(finding.candidate.date)} steht zweimal in der App, die Bank kennt
+                    sie einmal. Differenz {money(data.differenceCents, true)}.
                   </>
                 )}
                 {finding.kind === 'pending' && (
@@ -192,8 +243,8 @@ function ReconcileFlow({ account, onDone }: { account: AccountRow; onDone: () =>
                     {finding.bookingIds.length === 1
                       ? 'Eine vorgemerkte Buchung'
                       : `${finding.bookingIds.length} vorgemerkte Buchungen`}{' '}
-                    ({eur(finding.sumCents, { sign: true })}) hat die Bank schon gebucht. Bestätige
-                    sie, dann geht die Rechnung auf.
+                    ({money(finding.sumCents, true)}) hat die Bank schon gebucht. Bestätige sie,
+                    dann geht die Rechnung auf.
                   </>
                 )}
                 {finding.kind === 'missing' && (
@@ -201,16 +252,16 @@ function ReconcileFlow({ account, onDone }: { account: AccountRow; onDone: () =>
                     <strong>
                       Es fehlt {finding.type === 'expense' ? 'eine Ausgabe' : 'eine Einnahme'}
                     </strong>{' '}
-                    über {eur(finding.amountCents)}: Die Bank meldet{' '}
-                    {eur(Math.abs(data.differenceCents))}{' '}
+                    über {money(finding.amountCents)}: Die Bank meldet{' '}
+                    {money(Math.abs(data.differenceCents))}{' '}
                     {data.differenceCents < 0 ? 'weniger' : 'mehr'} als die App. Keine doppelte
                     Buchung passt zu diesem Betrag.
                   </>
                 )}
                 {finding.kind === 'other' && (
                   <>
-                    <strong>Differenz {eur(data.differenceCents, { sign: true })}.</strong> Keine
-                    Buchung erklärt sie.
+                    <strong>Differenz {money(data.differenceCents, true)}.</strong> Keine Buchung
+                    erklärt sie.
                   </>
                 )}
               </span>
@@ -239,7 +290,7 @@ function ReconcileFlow({ account, onDone }: { account: AccountRow; onDone: () =>
                 disabled={confirm.isPending}
                 onClick={() => run({ adjust: true })}
               >
-                Differenz ausgleichen · {eur(data.differenceCents, { sign: true })}
+                Differenz ausgleichen · {money(data.differenceCents, true)}
               </Button>
               <AppLink
                 className="btn btn-ghost"
@@ -254,7 +305,7 @@ function ReconcileFlow({ account, onDone }: { account: AccountRow; onDone: () =>
       </div>
       {error && (
         <p className="field-error" role="alert">
-          {error}
+          {maskMoneyText(error)}
         </p>
       )}
       <p className="text-muted">
