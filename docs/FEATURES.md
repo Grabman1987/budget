@@ -1,5 +1,7 @@
 # Budget feature coverage: YNAB and Portfolio Performance replacement
 
+Owner directive PR4: [connected asset-class settings](asset-classes-settings.md), one target editor, complete dated managed universes, editable bands, investment-sum tiers, atomic safe retirement, restore and audit/undo/redo. Reuses merged PR1/PR2/PR3/PR5; real-iPhone, CI and owner acceptance remain separate from source implementation.
+
 Owner directive PR3: central allocation quality/scope, provisional R13–R15/rebalancing, suppressed provisional savings changes, explicit investment cash and separate rebalancing/contribution amounts. Metadata APIs and synthetic regression coverage; PR4 settings, dynamic tiers and PR5 iPhone panels remain separate. See [allocation quality/scope](allocation-quality-scope.md).
 
 Owner directive PR2 (2026-10-04): [shared risk policy and leverage](portfolio-risk-policy.md) connect stored R13/R14/R15 thresholds across Portfolio, rebalancing, report 4.2, savings recommendations and Heute/finance check. Leveraged ETFs use gross economic exposure in speculative/single-instrument limits; market allocation and regions remain unchanged. Stored class bands override the standard smaller of ±5 percentage points and ±25% of target. Historical risk-parameter/leverage versions, quality/scope, settings and iPhone infrastructure remain outside PR2.

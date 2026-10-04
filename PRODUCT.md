@@ -1,5 +1,7 @@
 # Product
 
+Owner directive PR4 (2026-10-04): real Anlageklassen settings owns configuration, target/band/version editing, lifecycle and dated instrument assignment. Portfolio owns analysis and links to this shared editor. Investment-sum tiers are versioned, select inclusively from depots plus signed investment cash and use the existing resolver at each historical date; unmanaged is distinct from managed zero. Safe atomic retirement and undo preserve targets/history. See [settings contract](docs/asset-classes-settings.md).
+
 Owner directive PR3 (2026-10-04): explicit Anlageuniversum includes depots and signed investment cash; account/instrument metadata defines membership. Unknown/estimated data produces provisional allocation decisions and suppresses savings optimisation. Umschichtungsabstand and Neues Kapital bis Soll are separate decision aids. No settings page or automatic order is added. See [allocation quality/scope](docs/allocation-quality-scope.md).
 
 <!-- impeccable:product-schema 1 -->

@@ -4,6 +4,7 @@ export * from './quality';
 export {
   allocationStatus,
   defaultBandBp,
+  resolvedBandBp,
   MAX_BAND_BP,
   RELATIVE_BAND_PERCENT,
   type AllocationStatus,

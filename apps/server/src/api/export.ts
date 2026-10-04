@@ -1,5 +1,6 @@
 import {
   exposuresAsOf,
+  listTargetVersions,
   securityAssetExposure,
   securityExposureVersion,
   accountSummaries,
@@ -19,7 +20,6 @@ import { admitExport } from './export-admission';
 import {
   account,
   assetClass,
-  assetClassTarget,
   booking,
   bookingSplit,
   fxRate,
@@ -688,19 +688,28 @@ function exportEntries(
     {
       name: 'asset_class_targets.csv',
       header: ['asset_class_id', 'valid_from', 'target_share_bp', 'band_bp'],
-      rows: db
-        .select()
-        .from(assetClassTarget)
-        .innerJoin(assetClass, eq(assetClassTarget.assetClassId, assetClass.id))
-        .where(and(isNull(assetClass.deletedAt), isNull(assetClassTarget.deletedAt)))
-        .orderBy(asc(assetClassTarget.assetClassId), asc(assetClassTarget.validFrom))
-        .all()
-        .map(({ asset_class_target: t }) => [
-          t.assetClassId,
-          t.validFrom,
-          t.targetShareBp,
-          t.bandBp,
-        ]),
+      rows: listTargetVersions(db).flatMap((v) =>
+        v.targets.map((t) => [t.assetClassId, t.validFrom, t.targetShareBp, t.bandBp]),
+      ),
+    },
+    {
+      name: 'asset_target_policies.csv',
+      header: ['valid_from', 'label', 'reason', 'created_at', 'targets_json', 'tiers_json'],
+      rows: listTargetVersions(db).map((v) => [
+        v.validFrom,
+        v.label,
+        v.reason,
+        v.createdAt,
+        JSON.stringify(
+          v.targets.map((t) => ({
+            assetClassId: t.assetClassId,
+            targetShareBp: t.targetShareBp,
+            bandBp: t.bandBp,
+            bandMode: t.bandMode ?? (t.bandBp ? 'custom' : 'standard'),
+          })),
+        ),
+        JSON.stringify(v.tiers),
+      ]),
     },
   ];
 }
