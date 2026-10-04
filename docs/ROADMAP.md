@@ -7,6 +7,17 @@
 - [x] Windows full check (291 files, 2,808 tests) and build; local run used two workers and a 30-second test timeout without changing repository defaults. Delivery uses a separate git directory/bundle because the worktree commit could not create index.lock.
 - [x] Linux/Windows CI; owner acceptance in the next Claude session.
 
+### Owner directive PR3 — Allocation quality and scope (2026-10-04)
+
+- [x] Shared explicit account/instrument policy universe; signed investment cash, scope defaults and audited editable API metadata (Drizzle 0033).
+- [x] Central unclassified value/share/count and exact/estimated/incomplete valuation details; provisional rebalancing and safe rule actions, suppressed provisional/out-of-scope savings optimisation.
+- [x] Distinct Umschichtungsabstand and single-class Neues Kapital bis Soll with exact integer arithmetic.
+- [x] Synthetic R07/R08, inclusion/exclusion, estimate/missing-FX, formula and metadata/undo/migration/restore regressions.
+- [x] Final local typecheck/lint, all 2,797 unit/API tests (load-timeout files rerun alone), production/E2E builds and 81 affected desktop/mobile browser tests; details in the contract below.
+- [ ] Draft PR/CI review and owner acceptance. PR4 settings, dynamic tiers and PR5 real-iPhone panels remain separate.
+
+Contract and pre-change matrix: [allocation quality/scope](allocation-quality-scope.md).
+
 ### Owner directive PR2 — Risk policy unification and leverage (2026-10-04)
 
 - [x] One stored R13/R14/R15 resolver across rule evaluation, Portfolio, rebalancing, report 4.2, savings recommendations and Heute/finance check; schema defaults only for missing values.

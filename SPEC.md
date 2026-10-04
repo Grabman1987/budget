@@ -1,5 +1,7 @@
 # Budget — Specification
 
+**Owner directive PR3, 2026-10-04:** allocation uses explicit account/instrument membership, including signed investment cash. Unknown classification and estimated/stale valuation make decision support provisional; missing price/FX suppresses proposals. Savings optimisation is suppressed on provisional data. Unclassified value/share/product count and structured valuation details are central. R13 euros distinguish Umschichtungsabstand at unchanged total from single-class Neues Kapital bis Soll. Scope metadata is minimal/current, not a historical membership version; dynamic tiers and PR4 settings remain separate. See [allocation quality/scope](docs/allocation-quality-scope.md).
+
 Status: Gate 1 candidate; owner sign-off remains pending, 2026-10-01. App name: **Budget** (O10 decided). Private, single user. Current implementation and operational evidence: `docs/STATUS.md`.
 
 Budget is a private household finance web app (installable PWA) that replaces YNAB (and the interim Actual-Budget cockpit) and Portfolio Performance with one app, one database and one language. Envelope budgeting at the core, a rule set of finance basics on top, full net-worth and portfolio tracking in the same ledger. Goal: not only track cash flow and wealth, but actively optimise them.

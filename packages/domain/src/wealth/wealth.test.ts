@@ -227,6 +227,8 @@ describe('rebalancingProposals', () => {
     });
     expect(rows).toEqual([
       {
+        confidence: 'exact',
+        newCapitalCents: 404545,
         code: 'r13_under',
         rule: 'R13',
         direction: 'add',
@@ -237,6 +239,8 @@ describe('rebalancingProposals', () => {
         gapCents: 356_000,
       },
       {
+        confidence: 'exact',
+        newCapitalCents: null,
         code: 'r15_speculative',
         rule: 'R15',
         direction: 'reduce',

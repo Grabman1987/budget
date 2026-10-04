@@ -2,9 +2,9 @@ import { assertContactSettlementInvariants } from './contact-invariants';
 import { randomUUID } from 'node:crypto';
 import { and, asc, eq, isNull, type SQL } from 'drizzle-orm';
 import type { SQLiteColumn, SQLiteTable } from 'drizzle-orm/sqlite-core';
-import { account, category } from '../schema';
+import { account, assetClass, category } from '../schema';
 import { insertTracked, tableMeta, updateTracked, withGroup, type AuditContext } from './audit';
-import { EntityNotFoundError } from './errors';
+import { BookingInvariantError, EntityNotFoundError } from './errors';
 import { assertAccountBookingCurrencies, assertBudgetAccountCurrency } from './account-invariants';
 import { runInTransaction, type Executor } from './types';
 
@@ -34,6 +34,28 @@ const notDeleted = (table: IdTable, includeDeleted: boolean | undefined): SQL | 
   return includeDeleted || !prop ? undefined : isNull(tableMeta(table).columns[prop]!);
 };
 
+function assertAllocationScope(type: string | undefined, scope: string | undefined) {
+  if (
+    scope === 'included' &&
+    ['credit_card', 'loan', 'other_liability', 'receivable'].includes(type ?? '')
+  )
+    throw new BookingInvariantError(
+      'Schuld-, Kreditkarten- und Forderungskonten gehören nicht zum Anlageuniversum.',
+    );
+}
+
+function assertAllocationClass(db: Executor, id: string | null | undefined) {
+  if (
+    id &&
+    !db
+      .select()
+      .from(assetClass)
+      .where(and(eq(assetClass.id, id), isNull(assetClass.deletedAt)))
+      .get()
+  )
+    throw new BookingInvariantError('Bitte eine vorhandene aktive Anlageklasse wählen.');
+}
+
 /** Insert a row (audit `create`). Returns the stored row. */
 export function createEntity<T extends IdTable>(
   db: Executor,
@@ -46,6 +68,8 @@ export function createEntity<T extends IdTable>(
     if (tableMeta(table).name === tableMeta(account).name) {
       const row = values as Partial<typeof account.$inferInsert>;
       assertBudgetAccountCurrency(row.onBudget ?? false, row.currency ?? 'EUR');
+      assertAllocationClass(tx, row.allocationAssetClassId);
+      assertAllocationScope(row.type, row.allocationScope);
     }
     return insertTracked(
       tx,
@@ -104,6 +128,11 @@ export function updateEntity<T extends IdTable>(
     if (tableMeta(table).name === tableMeta(account).name) {
       const before = current as typeof account.$inferSelect;
       const change = patch as Partial<typeof account.$inferInsert>;
+      assertAllocationClass(tx, change.allocationAssetClassId);
+      assertAllocationScope(
+        change.type ?? before.type,
+        change.allocationScope ?? before.allocationScope,
+      );
       assertBudgetAccountCurrency(
         change.onBudget ?? before.onBudget,
         change.currency ?? before.currency,

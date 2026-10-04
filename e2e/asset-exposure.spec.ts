@@ -22,6 +22,8 @@ test('mixed exposure conserves current cents, preserves September history and wh
       name: 'Synthetisches Depot',
       type: 'brokerage',
       openingDate: '2025-01-01',
+      // Funds the buy below: depot cash counts toward the investment sum (PR3), so it must be 0.
+      openingBalanceCents: 101,
     })
   ).account;
   const security = (

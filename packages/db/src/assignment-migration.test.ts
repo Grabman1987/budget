@@ -4,7 +4,6 @@ import { readMigrationFiles } from 'drizzle-orm/migrator';
 import { expect, it } from 'vitest';
 import { defaultMigrationsFolder, openDatabase } from './client';
 import { listAssignmentRules } from './repos/assignment-rules';
-import { seedBasics } from './repos/test-helpers';
 import { booking, bankSyncCandidate } from './schema';
 
 it('preserves existing bank rows and category rules while adding cleanup and action storage', () => {
@@ -20,8 +19,15 @@ it('preserves existing bank rows and category rules while adding cleanup and act
     const migration = migrations[index]!;
     for (const older of migrations.slice(0, index))
       for (const statement of older.sql) sqlite.exec(statement);
-    seedBasics(db);
+    // Seed the historical schema directly: current repository writers may require later columns.
     sqlite.exec(`
+      INSERT INTO account (id, name, type, role, on_budget, opening_date)
+        VALUES ('giro', 'Synthetic account', 'checking', 'budget', 1, '2023-10-01');
+      INSERT INTO category_group (id, name) VALUES ('g', 'Synthetic group');
+      INSERT INTO category (id, name, group_id, class)
+        VALUES ('essen', 'Synthetic category', 'g', 'need');
+      INSERT INTO audit_log (id, actor, action, entity_type, entity_id)
+        VALUES ('synthetic-audit', 'tester', 'create', 'account', 'giro');
       INSERT INTO booking (id, account_id, date, amount_cents, source, memo)
         VALUES ('legacy-bank', 'giro', '2026-10-02', -1201, 'bank', 'Shop A');
       INSERT INTO booking_split (id, booking_id, amount_cents, category_id)

@@ -1,5 +1,5 @@
 import { resolvePortfolioRiskPolicy } from './portfolio-risk-policy';
-import { exposuresAsOf, splitAssetExposure } from './asset-exposure';
+import { allocationInputsAsOf, allocationUniverse } from './allocation-inputs';
 import {
   allocationTimeline,
   monthBoundaries,
@@ -13,12 +13,14 @@ import {
   type SpeculativeShare,
   type ClusterRisk,
   type Valuation,
-  type WealthPosition,
+  PriceUnavailableError,
+  ExchangeRateUnavailableError,
+  type AllocationQuality,
 } from '@budget/domain';
 import { isNull } from 'drizzle-orm';
 import { account, security } from '../schema';
 import { portfolioFlows, valuationSeries } from './portfolio';
-import { firstDay, positionLines, exposurePositionLines, riskOf } from './portfolio-summary';
+import { firstDay, riskOf } from './portfolio-summary';
 import { listAssetClasses } from './securities';
 import type { Executor } from './types';
 
@@ -34,6 +36,7 @@ export interface AllocationProduct {
 }
 
 export interface AllocationClass {
+  confidence: AllocationQuality['confidence'];
   /** `null` for positions without an asset class. */
   assetClassId: string | null;
   name: string;
@@ -57,6 +60,7 @@ export interface AllocationRegion {
 
 export interface AllocationHistory {
   dates: string[];
+  quality: AllocationQuality[];
   totalCents: number[];
   classes: Array<{
     assetClassId: string | null;
@@ -69,6 +73,7 @@ export interface AllocationHistory {
 }
 
 export interface AllocationReport {
+  quality: AllocationQuality;
   asOf: string;
   totalCents: number;
   classes: AllocationClass[];
@@ -91,9 +96,22 @@ const NO_CLASS = '';
  */
 export function allocationReport(db: Executor, options: { today: string }): AllocationReport {
   const { today } = options;
-  const lines = positionLines(db, today);
-  const risk = riskOf(db, today, lines);
-  const totalCents = lines.reduce((a, l) => a + l.valueCents, 0);
+  const current = allocationInputsAsOf(db, today);
+  const risk = riskOf(db, today);
+  const totalCents = current.valueCents;
+  if (totalCents === null) throwAllocationUnavailable(current, today);
+  const universe = allocationUniverse(db);
+  const names = new Map([
+    ...universe.securities.map((s) => [s.id, s.name] as const),
+    ...universe.accounts.map((a) => [`cash:${a.id}`, a.name] as const),
+  ]);
+  const lines = [...new Set(current.positions.map((p) => p.securityId!))].map((securityId) => ({
+    securityId,
+    name: names.get(securityId) ?? 'Anlage-Cash',
+    valueCents: current.positions
+      .filter((p) => p.securityId === securityId)
+      .reduce((sum, p) => sum + p.valueCents, 0),
+  }));
 
   const securities = new Map(
     db
@@ -115,7 +133,15 @@ export function allocationReport(db: Executor, options: { today: string }): Allo
 
   // Series for the 12-month returns of the products and for the history.
   const start = firstDay(db, today);
-  const series = start === null ? null : valuationSeries(db, { from: start, to: today });
+  const series =
+    start === null
+      ? null
+      : valuationSeries(db, {
+          from: start,
+          to: today,
+          accounts: universe.accounts.map((a) => a.id),
+          securities: universe.securities.map((s) => s.id),
+        });
   const ttwror12 = new Map<string, number | null>();
   if (series && series.days.length > 0) {
     const window = periodWindow('1J', today, series.days[0]);
@@ -131,6 +157,7 @@ export function allocationReport(db: Executor, options: { today: string }): Allo
         to: today,
         view: 'securities',
         securities: [line.securityId],
+        accounts: universe.accounts.map((a) => a.id),
       });
       const hasValue = valuations.some((v) => v.valueCents > 0);
       ttwror12.set(
@@ -140,27 +167,43 @@ export function allocationReport(db: Executor, options: { today: string }): Allo
     }
   }
 
-  const classLines = exposurePositionLines(db, today, lines);
-  const classes: AllocationClass[] = risk.allocation.rows.map((row) => ({
-    assetClassId: row.assetClass === NO_CLASS ? null : row.assetClass,
-    name: className(row.assetClass),
-    valueCents: row.valueCents,
-    shareBp: row.shareBp,
-    targetBp: row.targetBp,
-    bandBp: row.bandBp,
-    deviationBp: row.deviationBp,
-    breach: row.breach,
-    products: classLines
-      .filter((l) => (l.assetClassId ?? NO_CLASS) === row.assetClass)
-      .map((l) => ({
-        securityId: l.securityId,
-        name: l.name,
-        valueCents: l.valueCents,
-        shareBp: l.shareBp,
-        depots: [...new Set(l.accounts.map((a) => accountNames.get(a.accountId) ?? a.accountId))],
-        ttwror12: ttwror12.get(l.securityId) ?? null,
-      })),
-  }));
+  const positionShares = shareBps(
+    current.positions.map((p) => p.valueCents),
+    totalCents,
+  );
+  const sharesByPosition = new Map(current.positions.map((p, i) => [p.id, positionShares[i]!]));
+  const classes: AllocationClass[] = risk.allocation.rows.map((row) => {
+    const mine = current.positions.filter((p) => (p.assetClass ?? NO_CLASS) === row.assetClass);
+    const products = [...new Set(mine.map((p) => p.securityId!))].map((securityId) => {
+      const parts = mine.filter((p) => p.securityId === securityId);
+      return {
+        securityId,
+        name: names.get(securityId) ?? 'Anlage-Cash',
+        valueCents: parts.reduce((sum, p) => sum + p.valueCents, 0),
+        shareBp: parts.reduce((sum, p) => sum + sharesByPosition.get(p.id)!, 0),
+        depots: [
+          ...new Set(
+            parts.map((p) => {
+              return accountNames.get(p.accountId ?? '') ?? 'Anlagekonto';
+            }),
+          ),
+        ],
+        ttwror12: ttwror12.get(securityId) ?? null,
+      };
+    });
+    return {
+      assetClassId: row.assetClass === NO_CLASS ? null : row.assetClass,
+      name: className(row.assetClass),
+      valueCents: row.valueCents,
+      shareBp: row.shareBp,
+      targetBp: row.targetBp,
+      bandBp: row.bandBp,
+      deviationBp: row.deviationBp,
+      breach: row.breach,
+      confidence: current.quality.confidence,
+      products,
+    };
+  });
 
   // Regions: every product's value split by its stored weights, conserved to the cent.
   const byRegion = new Map<string, AllocationRegion['products']>();
@@ -199,31 +242,18 @@ export function allocationReport(db: Executor, options: { today: string }): Allo
   let history: AllocationHistory | null = null;
   if (series && start !== null && series.days.length > 0) {
     const dates = monthBoundaries(start, today);
-    const dayIndex = new Map(series.days.map((d, i) => [d, i]));
+    const quality: AllocationQuality[] = [];
     const snapshots = dates.map((date) => {
-      const i = dayIndex.get(date) as number;
-      const exposures = exposuresAsOf(db, date);
-      const positions: WealthPosition[] = series.positions.flatMap((p) => {
-        const valueCents = p.valueCents[i] as number;
-        const sec = securities.get(p.securityId);
-        if (valueCents <= 0 || !sec) return [];
-        return splitAssetExposure(valueCents, exposures.get(p.securityId)?.weights ?? []).map(
-          (part) => ({
-            id: `${p.securityId}:${p.accountId}:${part.assetClassId ?? ''}`,
-            securityId: p.securityId,
-            kind: sec.kind,
-            leverageFactor: sec.leverageFactor,
-            assetClass: part.assetClassId,
-            valueCents: part.valueCents,
-          }),
-        );
-      });
+      const input = allocationInputsAsOf(db, date);
+      if (input.valueCents === null) throwAllocationUnavailable(input, date);
+      quality.push(input.quality);
       const policy = resolvePortfolioRiskPolicy(db, date);
-      return { date, positions, targets: policy.targets, bandPolicy: policy.R13 };
+      return { date, positions: input.positions, targets: policy.targets, bandPolicy: policy.R13 };
     });
     const timeline = allocationTimeline(snapshots);
     history = {
       dates: timeline.dates,
+      quality,
       totalCents: timeline.totalCents,
       classes: timeline.classes.map((c) => ({
         assetClassId: c.assetClass === NO_CLASS ? null : c.assetClass,
@@ -238,6 +268,7 @@ export function allocationReport(db: Executor, options: { today: string }): Allo
 
   return {
     asOf: today,
+    quality: current.quality,
     totalCents,
     classes,
     regions,
@@ -246,4 +277,14 @@ export function allocationReport(db: Executor, options: { today: string }): Allo
     cluster: risk.cluster,
     history,
   };
+}
+
+function throwAllocationUnavailable(
+  input: ReturnType<typeof allocationInputsAsOf>,
+  day: string,
+): never {
+  const missing = input.unavailable[0]!;
+  if (missing.reason === 'missing_fx')
+    throw new ExchangeRateUnavailableError(missing.currency!, day);
+  throw new PriceUnavailableError(missing.accountId, missing.securityId!, day);
 }
