@@ -3,7 +3,9 @@ import { useQuery } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
 import { request } from '../api/http';
 import { withStepUp } from '../auth/webauthn';
+import { AccountOptions } from '../ledger/account-options';
 import { errorText } from '../ledger/labels';
+import type { AccountRow } from '../ledger/types';
 import { PAGES } from '../nav/pages';
 import { PageFrame } from './placeholder-page';
 import { CryptoReadSourceSection } from './read-source';
@@ -29,7 +31,10 @@ type Connection = {
   nextRunAt: string;
   accounts: LinkedAccount[];
 };
-type Account = { id: string; name: string; currency: string; openingDate: string };
+type Account = Pick<AccountRow, 'id' | 'name' | 'type' | 'onBudget' | 'sortOrder' | 'closedAt'> & {
+  currency: string;
+  openingDate: string;
+};
 type Status = {
   workerEnabled?: boolean;
   configured: boolean;
@@ -409,11 +414,7 @@ function AccountLink({
                 onChange={(e) => setAccount(e.target.value)}
               >
                 <option value="">Konto wählen</option>
-                {accounts.map((a) => (
-                  <option key={a.id} value={a.id}>
-                    {a.name}
-                  </option>
-                ))}
+                <AccountOptions accounts={accounts} keepId={accountId} />
               </Select>
             )}
           </Field>

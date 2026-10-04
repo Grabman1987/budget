@@ -8,7 +8,7 @@ import type { LiquidityHorizon, LiquidityLeverId } from '@budget/domain';
 import { queryOptions } from '@tanstack/react-query';
 import { request } from '../api/http';
 import { LEDGER_KEY } from '../ledger/queries';
-import type { WriteResult } from '../ledger/types';
+import type { AccountRow, WriteResult } from '../ledger/types';
 
 /**
  * Typed calls of the liquidity report API (`/api/liquidity`). The planned events are written
@@ -24,7 +24,10 @@ export const plannedEventsQuery = () =>
       request<{
         asOf: string;
         events: PlannedEventView[];
-        budgetAccounts: { id: string; name: string }[];
+        budgetAccounts: Pick<
+          AccountRow,
+          'id' | 'name' | 'type' | 'onBudget' | 'sortOrder' | 'closedAt'
+        >[];
       }>('GET', '/api/liquidity/events'),
   });
 

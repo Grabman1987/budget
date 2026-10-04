@@ -13,6 +13,7 @@ import { useBlocker } from '@tanstack/react-router';
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { ApiError } from '../api/http';
 import { useBudgetWrite } from '../budget/use-category-writes';
+import { AccountOptions } from '../ledger/account-options';
 import { longDay, nativeCurrency } from '../ledger/format';
 import { errorText } from '../ledger/labels';
 import type { AccountRow } from '../ledger/types';
@@ -237,13 +238,10 @@ export function SavingsPanel({
                           }}
                         >
                           <option value="">Bitte wählen</option>
-                          {accounts
-                            .filter((a) => a.role === 'investment' && !a.closedAt)
-                            .map((a) => (
-                              <option key={a.id} value={a.id}>
-                                {a.name} · {a.currency}
-                              </option>
-                            ))}
+                          <AccountOptions
+                            accounts={accounts.filter((a) => a.role === 'investment')}
+                            keepId={draft.accountId}
+                          />
                         </Select>
                       )}
                     </Field>
@@ -292,18 +290,11 @@ export function SavingsPanel({
                           onChange={(e) => update('sourceAccountId', e.target.value)}
                         >
                           <option value="">Nicht hinterlegt</option>
-                          {accounts
-                            .filter(
-                              (a) =>
-                                a.id !== draft.accountId &&
-                                (!a.closedAt || a.id === draft.sourceAccountId),
-                            )
-                            .map((a) => (
-                              <option key={a.id} value={a.id}>
-                                {a.name} · {a.currency}
-                                {a.closedAt ? ' · geschlossen' : ''}
-                              </option>
-                            ))}
+                          <AccountOptions
+                            accounts={accounts}
+                            exclude={draft.accountId}
+                            keepId={draft.sourceAccountId}
+                          />
                         </Select>
                       )}
                     </Field>

@@ -155,6 +155,10 @@ export class BankSync {
         name: account.name,
         currency: account.currency,
         openingDate: account.openingDate,
+        type: account.type,
+        onBudget: account.onBudget,
+        sortOrder: account.sortOrder,
+        closedAt: account.closedAt,
       })
       .from(account)
       .where(and(isNull(account.deletedAt), isNull(account.closedAt), eq(account.currency, 'EUR')))

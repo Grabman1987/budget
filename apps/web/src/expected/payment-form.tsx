@@ -1,5 +1,7 @@
 import { useAmountPrivacy, AmountInput, Field, Segmented, Select, TextInput } from '@budget/ui';
 import { useQuery } from '@tanstack/react-query';
+import type { ReactNode } from 'react';
+import { AccountOptions } from '../ledger/account-options';
 import { accountsQuery, lookupsQuery, payeesQuery } from '../ledger/queries';
 import type { DateShift, ExpectedKind, Rhythm } from './api';
 import type { DraftErrors, DraftField, PaymentDraft } from './payment-draft';
@@ -81,6 +83,7 @@ export function PaymentForm({
     label: string,
     options: ReadonlyArray<{ value: string; label: string }>,
     empty?: string,
+    children?: ReactNode,
   ) => (
     <Field label={label} error={errors[key]}>
       {({ id, describedBy, invalid }) => (
@@ -92,11 +95,12 @@ export function PaymentForm({
           onChange={(e) => onChange(key, e.target.value as never)}
         >
           {empty !== undefined && <option value="">{empty}</option>}
-          {options.map((o) => (
-            <option key={o.value} value={o.value}>
-              {o.label}
-            </option>
-          ))}
+          {children ??
+            options.map((o) => (
+              <option key={o.value} value={o.value}>
+                {o.label}
+              </option>
+            ))}
         </Select>
       )}
     </Field>
@@ -143,8 +147,9 @@ export function PaymentForm({
         {pick(
           'accountId',
           'Konto',
-          accounts.map((a) => ({ value: a.id, label: a.name })),
+          [],
           'Kein Konto festgelegt',
+          <AccountOptions accounts={accounts} />,
         )}
         {pick(
           'payeeId',

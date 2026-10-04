@@ -4,7 +4,9 @@ import { useState } from 'react';
 import type { SourceBalance, SourceMapping } from '@budget/domain';
 import { request } from '../api/http';
 import { INBOX_KEY } from '../inbox/api';
+import { AccountOptions } from '../ledger/account-options';
 import { undoGroup } from '../ledger/api';
+import type { AccountRow } from '../ledger/types';
 import { withStepUp } from '../auth/webauthn';
 import './read-source.css';
 
@@ -18,7 +20,10 @@ interface SourceStatus {
   mappings: SourceMapping[];
   since: string | null;
   match: MatchCounts;
-  accounts: { id: string; name: string; currency: string; type: string }[];
+  accounts: (Pick<AccountRow, 'id' | 'name' | 'onBudget' | 'sortOrder' | 'closedAt'> & {
+    currency: string;
+    type: AccountRow['type'];
+  })[];
   securities: { id: string; name: string }[];
 }
 interface MatchCounts {
@@ -353,11 +358,7 @@ function Mapping({ balance, data }: { balance: SourceBalance; data: SourceStatus
             onChange={(e) => setAccountId(e.target.value)}
           >
             <option value="">Konto auswählen</option>
-            {accounts.map((a) => (
-              <option key={a.id} value={a.id}>
-                {a.name} ({a.currency})
-              </option>
-            ))}
+            <AccountOptions accounts={accounts} keepId={accountId} />
           </Select>
         )}
       </Field>
