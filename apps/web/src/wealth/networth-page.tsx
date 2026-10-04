@@ -1,9 +1,10 @@
+import { ChartValue } from '@budget/ui';
 import { useAmountPrivacy, DimensionChain } from '@budget/ui';
 import { useQuery } from '@tanstack/react-query';
 import { ArrowDown, ArrowUp } from 'lucide-react';
 import { VERMOEGEN_NETTO_META } from '../nav/pages';
 import { PageFrame } from '../pages/placeholder-page';
-import { eurParts, eurWhole } from '../ledger/format';
+import { eur, eurParts, eurWhole } from '../ledger/format';
 import { EmptyNote, ErrorNote, LoadingNote } from '../ledger/states';
 import { ValuationHint } from '../ledger/valuation-hint';
 import { netWorthQuery, type CompositionRow, type NetWorthView } from './api';
@@ -106,9 +107,15 @@ function Composition({ view }: { view: NetWorthView }) {
   const row = (r: CompositionRow, debt: boolean) => (
     <li key={r.accountId} className={debt ? 'is-debt' : undefined}>
       <span className="vb-name">{r.name}</span>
-      <span className="vb-bar">
-        <i style={{ width: `${(Math.abs(r.valueCents) / max) * 100}%` }} />
-      </span>
+      <ChartValue
+        label="Vermögenszusammensetzung"
+        date={view.to}
+        series={[{ name: 'Konto', value: eur(r.valueCents), color: 'var(--line)' }]}
+      >
+        <span className="vb-bar">
+          <i style={{ width: `${(Math.abs(r.valueCents) / max) * 100}%` }} />
+        </span>
+      </ChartValue>
       <span className="vb-val">{eurWhole(r.valueCents)}</span>
     </li>
   );

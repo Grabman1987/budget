@@ -1,4 +1,4 @@
-import { useAmountPrivacy, ClassSwatch } from '@budget/ui';
+import { useAmountPrivacy, ClassSwatch, ChartValues } from '@budget/ui';
 import {
   heatForCell,
   tableHeatStats,
@@ -7,6 +7,7 @@ import {
   type TableRow,
 } from '@budget/domain';
 import { forwardRef, type CSSProperties } from 'react';
+import { chartPercent } from '../charts/tooltip-data';
 import { eur } from '../ledger/format';
 import { euroNumber, percentWhole } from './table-format';
 
@@ -50,14 +51,26 @@ function Cell({
   row,
   value,
   stats,
+  point,
 }: {
+  point: number;
   row: TableRow;
   value: number | null;
   stats: ReturnType<typeof tableHeatStats>;
 }) {
   useAmountPrivacy();
-  if (value === null) return <td className="n muted">–</td>;
-  if (row.kind === 'pct') return <td className="n">{percentWhole(value)}</td>;
+  if (value === null)
+    return (
+      <td className="n muted" data-chart-point={point}>
+        –
+      </td>
+    );
+  if (row.kind === 'pct')
+    return (
+      <td className="n" data-chart-point={point}>
+        {percentWhole(value)}
+      </td>
+    );
   const heated =
     row.kind === 'group' || row.kind === 'category' || row.kind === 'income'
       ? heatForCell(value, stats, row.good)
@@ -65,7 +78,7 @@ function Cell({
   const style = heated ? ({ '--h': heated.strength.toFixed(2) } as CSSProperties) : undefined;
   const className = heated ? `n hc2 ${heated.tone === 'bad' ? 'hc-red' : 'hc-green'}` : 'n';
   return (
-    <td className={className} style={style}>
+    <td className={className} style={style} data-chart-point={point}>
       {value === 0 ? (
         <span className="muted">·</span>
       ) : row.signed ? (
@@ -112,98 +125,119 @@ export const RowsGrid = forwardRef<HTMLDivElement, RowsGridProps>(function RowsG
   },
   ref,
 ) {
+  const points = rows.flatMap((row) =>
+    row.vals.map((value, i) => ({
+      x: 50,
+      date: columns[i]?.key ?? '',
+      series: [
+        {
+          name: row.label,
+          value: value === null ? '–' : row.kind === 'pct' ? chartPercent(value) : eur(value),
+          color: value !== null && value < 0 ? 'var(--red)' : 'var(--line)',
+        },
+      ],
+    })),
+  );
   return (
-    <div
-      ref={ref}
-      className="rscroll rsticky"
-      role="region"
-      aria-label={regionLabel}
-      // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- Keyboard users must be able to scroll the complete table.
-      tabIndex={0}
-    >
-      <table className={`rtable rgrid ${className ?? ''}`}>
-        <caption className="sr-only">{caption}</caption>
-        <thead>
-          <tr>
-            <th scope="col" className="tech rg-first">
-              Position
-            </th>
-            {columns.map((c) => (
-              <th key={c.key} scope="col" className="tech n" title={c.title}>
-                {c.label}
+    <ChartValues label={caption} points={points}>
+      <div
+        ref={ref}
+        className="rscroll rsticky"
+        role="region"
+        aria-label={regionLabel}
+        // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- Keyboard users must be able to scroll the complete table.
+        tabIndex={0}
+      >
+        <table className={`rtable rgrid ${className ?? ''}`}>
+          <caption className="sr-only">{caption}</caption>
+          <thead>
+            <tr>
+              <th scope="col" className="tech rg-first">
+                Position
               </th>
-            ))}
-            {total && (
-              <th scope="col" className="tech n rg-sum">
-                Summe
-              </th>
-            )}
-            {average && (
-              <th scope="col" className="tech n">
-                Ø Monat
-              </th>
-            )}
-            {previous && (
-              <>
+              {columns.map((c) => (
+                <th key={c.key} scope="col" className="tech n" title={c.title}>
+                  {c.label}
+                </th>
+              ))}
+              {total && (
                 <th scope="col" className="tech n rg-sum">
-                  {previous.label}
+                  Summe
                 </th>
+              )}
+              {average && (
                 <th scope="col" className="tech n">
-                  Veränderung
+                  Ø Monat
                 </th>
-              </>
-            )}
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((row) => {
-            const stats = tableHeatStats(row.vals);
-            const sum = tableRowTotal(row);
-            const avg = tableRowAverage(row);
-            const prev = previous?.totals.get(row.key);
-            return (
-              <tr
-                key={row.key}
-                className={`rk-${ROW_CLASS[row.kind]}${row.level ? ` lv-${row.level}` : ''}`}
-              >
-                <th scope="row" className="rg-first">
-                  {row.swatch && (
-                    <ClassSwatch kind={row.swatch === 'income' ? 'open' : row.swatch} />
-                  )}
-                  {row.label}
-                </th>
-                {row.vals.map((value, i) => (
-                  <Cell key={columns[i]?.key ?? i} row={row} value={value} stats={stats} />
-                ))}
-                {total && (
-                  <td className="n rg-sum">
-                    {sum === null ? (
-                      '–'
-                    ) : (
-                      <strong>
-                        {row.signed ? eur(sum, { cents: false, sign: true }) : euroNumber(sum)}
-                      </strong>
+              )}
+              {previous && (
+                <>
+                  <th scope="col" className="tech n rg-sum">
+                    {previous.label}
+                  </th>
+                  <th scope="col" className="tech n">
+                    Veränderung
+                  </th>
+                </>
+              )}
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((row, rowIndex) => {
+              const stats = tableHeatStats(row.vals);
+              const sum = tableRowTotal(row);
+              const avg = tableRowAverage(row);
+              const prev = previous?.totals.get(row.key);
+              return (
+                <tr
+                  key={row.key}
+                  className={`rk-${ROW_CLASS[row.kind]}${row.level ? ` lv-${row.level}` : ''}`}
+                >
+                  <th scope="row" className="rg-first">
+                    {row.swatch && (
+                      <ClassSwatch kind={row.swatch === 'income' ? 'open' : row.swatch} />
                     )}
-                  </td>
-                )}
-                {average && <td className="n">{avg === null ? '–' : euroNumber(avg)}</td>}
-                {previous &&
-                  (sum === null || prev === undefined ? (
-                    <>
-                      <td className="n rg-sum muted">–</td>
-                      <td className="n muted">–</td>
-                    </>
-                  ) : (
-                    <>
-                      <td className="n rg-sum">{euroNumber(prev)}</td>
-                      <Change row={row} total={sum} previous={prev} />
-                    </>
+                    {row.label}
+                  </th>
+                  {row.vals.map((value, i) => (
+                    <Cell
+                      key={columns[i]?.key ?? i}
+                      row={row}
+                      value={value}
+                      stats={stats}
+                      point={rows.slice(0, rowIndex).reduce((n, r) => n + r.vals.length, 0) + i}
+                    />
                   ))}
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
-    </div>
+                  {total && (
+                    <td className="n rg-sum">
+                      {sum === null ? (
+                        '–'
+                      ) : (
+                        <strong>
+                          {row.signed ? eur(sum, { cents: false, sign: true }) : euroNumber(sum)}
+                        </strong>
+                      )}
+                    </td>
+                  )}
+                  {average && <td className="n">{avg === null ? '–' : euroNumber(avg)}</td>}
+                  {previous &&
+                    (sum === null || prev === undefined ? (
+                      <>
+                        <td className="n rg-sum muted">–</td>
+                        <td className="n muted">–</td>
+                      </>
+                    ) : (
+                      <>
+                        <td className="n rg-sum">{euroNumber(prev)}</td>
+                        <Change row={row} total={sum} previous={prev} />
+                      </>
+                    ))}
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    </ChartValues>
   );
 });

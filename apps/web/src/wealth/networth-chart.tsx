@@ -1,3 +1,4 @@
+import { chartPoints } from '../charts/tooltip-data';
 import {
   useAmountPrivacy,
   AxisLine,
@@ -109,7 +110,45 @@ function Drawing({
     `Darunter Eigenleistung und Markt je ${bars.unit === 'week' ? 'Woche' : 'Monat'}.`;
 
   return (
-    <ChartSvg width={W} height={H} label={summary} testId="networth-chart">
+    <ChartSvg
+      width={W}
+      height={H}
+      label={summary}
+      testId="networth-chart"
+      points={chartPoints(
+        daily.map((d) => d.date),
+        x,
+        [
+          {
+            name: 'Nettovermögen',
+            values: daily.map((d) => d.netWorthCents),
+            color: 'var(--line)',
+          },
+        ],
+      ).map((p, i) => {
+        const b = buckets.find((b) => daily[i]!.date >= b.from && daily[i]!.date <= b.to);
+        return {
+          ...p,
+          series: [
+            ...p.series,
+            ...(b
+              ? [
+                  {
+                    name: `Eigenleistung (${b.from} · ${b.to})`,
+                    value: eur(b.ownCents),
+                    color: b.ownCents < 0 ? 'var(--red)' : 'var(--line)',
+                  },
+                  {
+                    name: `Markt (${b.from} · ${b.to})`,
+                    value: eur(b.marketCents),
+                    color: b.marketCents < 0 ? 'var(--red)' : 'var(--line-2)',
+                  },
+                ]
+              : []),
+          ],
+        };
+      })}
+    >
       <text x={L} y={10} className="svg-label-line">
         Nettovermögen
       </text>

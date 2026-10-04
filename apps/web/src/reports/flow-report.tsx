@@ -143,6 +143,7 @@ function FlowBody({
                 <SankeyChart
                   width={width}
                   model={sankeyModel(flow)}
+                  period={period}
                   label={label}
                   height={width < 600 ? 400 : 380}
                 />

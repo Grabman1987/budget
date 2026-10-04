@@ -1,3 +1,4 @@
+import { ChartValue } from '@budget/ui';
 import { useAmountPrivacy, ClassSwatch, DetailPanel, type SwatchKind } from '@budget/ui';
 import { lastDayOfMonth } from '@budget/domain';
 import { queryOptions, useQuery } from '@tanstack/react-query';
@@ -169,7 +170,7 @@ function ReportBody({
               </p>
               {row.progress ? (
                 <>
-                  <GoalBar goal={row.progress} />
+                  <GoalBar goal={row.progress} month={month} />
                   <div className="goal-report-figures">
                     <span>
                       <strong>{eur(row.progress.savedCents)}</strong> von{' '}
@@ -286,18 +287,27 @@ function sourceLabel(row: GoalReportRow) {
     ? `${row.source.kind === 'account' ? 'Geldsaldo Konto' : 'Verfügbar Kategorie'}: ${row.source.name}`
     : 'Quelle ungeklärt';
 }
-function GoalBar({ goal }: { goal: GoalView }) {
+function GoalBar({ goal, month }: { goal: GoalView; month: string }) {
   useAmountPrivacy();
   const bar = goalBar(goal);
   return (
-    <div
-      className="goal-report-bar"
-      role="img"
-      aria-label={`${eur(goal.savedCents)} von ${eur(goal.targetCents)}; Marke ist Zielbetrag`}
+    <ChartValue
+      label="Sparziel"
+      date={month}
+      series={[
+        { name: 'Gespart', value: eur(goal.savedCents), color: 'var(--line)' },
+        { name: 'Ziel', value: eur(goal.targetCents), color: 'var(--line-2)' },
+      ]}
     >
-      <i style={{ width: `${bar.fill * 100}%` }} />
-      <span style={{ left: `${bar.tick * 100}%` }} />
-    </div>
+      <div
+        className="goal-report-bar"
+        role="img"
+        aria-label={`${eur(goal.savedCents)} von ${eur(goal.targetCents)}; Marke ist Zielbetrag`}
+      >
+        <i style={{ width: `${bar.fill * 100}%` }} />
+        <span style={{ left: `${bar.tick * 100}%` }} />
+      </div>
+    </ChartValue>
   );
 }
 function GoalStatus({ goal, month }: { goal: GoalView; month: string }) {
@@ -333,7 +343,7 @@ function GoalDetail({ row, month }: { row: GoalReportRow; month: string }) {
       </p>
       {g ? (
         <>
-          <GoalBar goal={g} />
+          <GoalBar goal={g} month={month} />
           <GoalStatus goal={g} month={month} />
           <dl>
             {[

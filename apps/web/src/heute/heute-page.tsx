@@ -1,5 +1,6 @@
 import {
   useAmountPrivacy,
+  ChartValue,
   maskMoneyText,
   Button,
   ClassTag,
@@ -384,14 +385,32 @@ function HeuteBody({ data }: { data: Heute }) {
                       {eur(item.availableCents)}
                     </strong>
                   </div>
-                  <div className="he-envelope-bar" aria-hidden="true">
-                    <span
-                      className={item.class ? `hatch-${item.class}` : ''}
-                      style={{
-                        width: `${Math.min(100, item.budgetedCents > 0 ? Math.max(0, (item.spentCents / item.budgetedCents) * 100) : 0)}%`,
-                      }}
-                    />
-                  </div>
+                  <ChartValue
+                    label={item.name}
+                    date={data.stand.today}
+                    series={[
+                      {
+                        name: 'Ausgegeben',
+                        value: eur(item.spentCents),
+                        color: `var(--${item.class ?? 'line'})`,
+                      },
+                      {
+                        name: 'Budgetiert',
+                        value: eur(item.budgetedCents),
+                        color: 'var(--line-2)',
+                      },
+                      { name: 'Pace', value: eur(item.paceMarkCents), color: 'var(--ink-3)' },
+                    ]}
+                  >
+                    <div className="he-envelope-bar" aria-hidden="true">
+                      <span
+                        className={item.class ? `hatch-${item.class}` : ''}
+                        style={{
+                          width: `${Math.min(100, item.budgetedCents > 0 ? Math.max(0, (item.spentCents / item.budgetedCents) * 100) : 0)}%`,
+                        }}
+                      />
+                    </div>
+                  </ChartValue>
                   <p>
                     {eur(item.spentCents)} ausgegeben · {eur(item.budgetedCents)} budgetiert · Pace{' '}
                     {eur(item.paceMarkCents)}
@@ -472,7 +491,7 @@ function HeuteBody({ data }: { data: Heute }) {
           />
           {check ? (
             <>
-              <CheckCounts check={check} />
+              <CheckCounts check={check} date={data.stand.today} />
               {check.keyRules.length === 0 ? (
                 <EmptyNote>Für den Finanz-Check sind noch keine Regeln auswertbar.</EmptyNote>
               ) : (
@@ -796,35 +815,52 @@ function ValuationNote({ message }: { message: string }) {
 
 function CheckCounts({
   check,
+  date,
 }: {
   check: Exclude<Heute['financeCheck'], { unavailable: unknown }>;
+  date: string;
 }) {
   useAmountPrivacy();
   const { ok, warn, bad, total } = check.counts;
   return (
     <div
       className="heute-check-counts"
-      role="img"
+      role="group"
       aria-label={`${ok} erfüllt, ${warn} Warnung, ${bad} verletzt, ${check.counts.notEvaluated} nicht auswertbar`}
     >
       <strong>{ok}</strong>
       <span>von {total} Regeln erfüllt</span>
-      <div className="heute-check-bar" aria-hidden="true">
-        {Array.from({ length: total }, (_, i) => (
-          <i
-            key={i}
-            className={
-              i < ok
-                ? 'is-ok'
-                : i < ok + warn
-                  ? 'is-warn'
-                  : i < ok + warn + bad
-                    ? 'is-bad'
-                    : 'is-open'
-            }
-          />
-        ))}
-      </div>
+      <ChartValue
+        label="Regelerfüllung"
+        date={date}
+        series={[
+          { name: 'Erfüllt', value: String(ok), color: 'var(--line)' },
+          { name: 'Warnung', value: String(warn), color: 'var(--line-2)' },
+          { name: 'Verletzt', value: String(bad), color: 'var(--ink-2)' },
+          {
+            name: 'Nicht auswertbar',
+            value: String(check.counts.notEvaluated),
+            color: 'var(--ink-3)',
+          },
+        ]}
+      >
+        <div className="heute-check-bar" aria-hidden="true">
+          {Array.from({ length: total }, (_, i) => (
+            <i
+              key={i}
+              className={
+                i < ok
+                  ? 'is-ok'
+                  : i < ok + warn
+                    ? 'is-warn'
+                    : i < ok + warn + bad
+                      ? 'is-bad'
+                      : 'is-open'
+              }
+            />
+          ))}
+        </div>
+      </ChartValue>
       <p>
         <span>{ok} erfüllt</span>
         <span>{warn} Warnung</span>

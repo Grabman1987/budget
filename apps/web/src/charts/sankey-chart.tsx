@@ -2,6 +2,7 @@ import {
   useAmountPrivacy,
   formatPrivateEuro as formatEuro,
   ClassPatterns,
+  ChartSvg,
   patternFill,
   usePatternPrefix,
 } from '@budget/ui';
@@ -47,12 +48,14 @@ export function SankeyChart({
   model = SAMPLE_SANKEY,
   label = LABEL,
   height = HEIGHT,
+  period = 'Zeitraum',
 }: {
   width: number;
   /** Nodes and links; default: the spike's synthetic sample. */
   model?: SankeyModel;
   label?: string;
   height?: number;
+  period?: string;
 }) {
   useAmountPrivacy();
   // Class nodes as in the prototype: Bedarf solid, Wunsch and Zukunft hatched with an outline.
@@ -75,24 +78,69 @@ export function SankeyChart({
     padRight: labelWidth(last.map((n) => n.name)) + 8,
   });
 
+  const total = first.reduce((sum, node) => sum + node.value, 0);
+  const share = (value: number) =>
+    new Intl.NumberFormat('de-AT', {
+      style: 'percent',
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format(total > 0 ? value / total : 0);
   return (
-    <svg
-      viewBox={`0 0 ${width} ${height}`}
+    <ChartSvg
       width={width}
       height={height}
-      role="img"
-      aria-label={label}
-      data-testid="sankey-chart"
+      label={label}
+      testId="sankey-chart"
+      crosshair={false}
+      points={[
+        ...layout.nodes.map((n) => ({
+          x: n.x,
+          date: period,
+          series: [
+            {
+              name: n.name,
+              value: formatEuro(cents(n.value)),
+              className: `sk-node n-${n.tone ?? 'inc'}`,
+            },
+            {
+              name: 'Anteil am Zufluss',
+              value: share(n.value),
+            },
+          ],
+        })),
+        ...layout.links.map((l) => ({
+          x: 0,
+          date: period,
+          series: [
+            {
+              name:
+                l.label ??
+                `${layout.nodes.find((n) => n.id === l.from)?.name} → ${layout.nodes.find((n) => n.id === l.to)?.name}`,
+              value: formatEuro(cents(l.value)),
+              className: `sk-node n-${l.tone ?? 'inc'}`,
+            },
+            {
+              name: 'Anteil am Zufluss',
+              value: share(l.value),
+            },
+          ],
+        })),
+      ]}
     >
       <ClassPatterns prefix={prefix} />
       <g>
-        {layout.links.map((l) => (
-          <path key={`${l.from}-${l.to}`} d={l.d} className={`sk-link l-${l.tone ?? 'inc'}`}>
+        {layout.links.map((l, i) => (
+          <path
+            data-chart-point={layout.nodes.length + i}
+            key={`${l.from}-${l.to}`}
+            d={l.d}
+            className={`sk-link l-${l.tone ?? 'inc'}`}
+          >
             <title>{`${l.label ?? ''}: ${eur0(l.value)}`}</title>
           </path>
         ))}
       </g>
-      {layout.nodes.map((n) => {
+      {layout.nodes.map((n, i) => {
         const first = n.column === 0;
         const tx = first ? n.x - 8 : n.x + n.width + 8;
         const anchor = first ? 'end' : 'start';
@@ -100,7 +148,7 @@ export function SankeyChart({
         const showLabel = n.height >= 9 || n.forceLabel === true;
         const tall = n.height >= 26;
         return (
-          <g key={n.id}>
+          <g key={n.id} data-chart-point={i}>
             <rect
               x={n.x}
               y={n.y}
@@ -137,6 +185,6 @@ export function SankeyChart({
           </g>
         );
       })}
-    </svg>
+    </ChartSvg>
   );
 }

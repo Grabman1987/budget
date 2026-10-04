@@ -1,6 +1,8 @@
+import { chartPoints } from '../charts/tooltip-data';
 import {
   useAmountPrivacy,
   ChartSvg,
+  chartDate,
   ClassPatterns,
   Graticule,
   Line,
@@ -48,7 +50,21 @@ export function YearCashflowChart({ year, rows }: { year: number; rows: YearMont
   return (
     <div ref={ref} className="ov-chart">
       {width > 0 && (
-        <ChartSvg width={width} height={height} label={label} testId="yr-cashflow">
+        <ChartSvg
+          width={width}
+          height={height}
+          label={label}
+          testId="yr-cashflow"
+          points={chartPoints(
+            rows.map((r) => r.month),
+            (i) => x(index(rows[i]!.month)),
+            [
+              { name: 'Bedarf', values: rows.map((r) => r.needCents), color: 'var(--need)' },
+              { name: 'Wunsch', values: rows.map((r) => r.wantCents), color: 'var(--want)' },
+              { name: 'Einkommen', values: rows.map((r) => r.incomeCents), color: 'var(--line)' },
+            ],
+          )}
+        >
           <ClassPatterns prefix={prefix} />
           <Graticule
             x1={LEFT}
@@ -141,7 +157,26 @@ export function YearNetWorthChart({ netWorth }: { netWorth: YearNetWorth }) {
   return (
     <div ref={ref} className="ov-chart">
       {width > 0 && (
-        <ChartSvg width={width} height={height} label={label} testId="yr-networth">
+        <ChartSvg
+          width={width}
+          height={height}
+          label={label}
+          testId="yr-networth"
+          points={chartPoints(
+            [
+              `Beginn ${chartDate(netWorth.months[0]?.month ?? '')}`,
+              ...netWorth.months.map((m) => m.month),
+            ],
+            x,
+            [
+              {
+                name: 'Nettovermögen',
+                values: [netWorth.startCents, ...netWorth.months.map((m) => m.endCents)],
+                color: 'var(--line)',
+              },
+            ],
+          )}
+        >
           <Graticule
             x1={LEFT}
             x2={width - RIGHT}

@@ -1,3 +1,4 @@
+import { ChartValues } from '@budget/ui';
 import './month-report.css';
 import { cents } from '@budget/domain';
 import { DimensionChain, Segmented } from '@budget/ui';
@@ -155,46 +156,60 @@ export function ProjectsReport({ report, meta }: { report: ReportEntry; meta: Pa
             </section>
             <section className="mr-card mr-wide">
               <h2>Je Monat</h2>
-              <ScrollRegion className="pp-scroll" label="Monatliche Projektergebnisse">
-                <table className="rtable">
-                  <thead>
-                    <tr>
-                      <th>Projekt</th>
-                      {data.months.map((m) => (
-                        <th key={m} className="n">
-                          {shortMonth(m)}
-                        </th>
+              <ChartValues
+                label="Monatliche Projektergebnisse"
+                points={data.months.map((m, i) => ({
+                  x: 50,
+                  date: m,
+                  series: data.projects.map((p) => ({
+                    name: p.name,
+                    value: eur(p.perMonth[i] ?? 0),
+                    color: (p.perMonth[i] ?? 0) < 0 ? 'var(--red)' : 'var(--line)',
+                  })),
+                }))}
+              >
+                <ScrollRegion className="pp-scroll" label="Monatliche Projektergebnisse">
+                  <table className="rtable">
+                    <thead>
+                      <tr>
+                        <th>Projekt</th>
+                        {data.months.map((m) => (
+                          <th key={m} className="n">
+                            {shortMonth(m)}
+                          </th>
+                        ))}
+                        <th className="n">Summe</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {data.projects.map((p) => (
+                        <tr key={p.id}>
+                          <th>{p.name}</th>
+                          {p.perMonth.map((v, i) => (
+                            <td
+                              key={i}
+                              data-chart-point={i}
+                              className={`n ${v > 0 ? 'pp-profit' : v < 0 ? 'pp-loss' : ''}`}
+                            >
+                              {eur(v, { sign: true })}
+                            </td>
+                          ))}
+                          <td className="n">{eur(p.resultCents, { sign: true })}</td>
+                        </tr>
                       ))}
-                      <th className="n">Summe</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {data.projects.map((p) => (
-                      <tr key={p.id}>
-                        <th>{p.name}</th>
-                        {p.perMonth.map((v, i) => (
-                          <td
-                            key={i}
-                            className={`n ${v > 0 ? 'pp-profit' : v < 0 ? 'pp-loss' : ''}`}
-                          >
+                      <tr className="is-total">
+                        <th>Zusammen</th>
+                        {data.total.perMonth.map((v, i) => (
+                          <td key={i} className="n">
                             {eur(v, { sign: true })}
                           </td>
                         ))}
-                        <td className="n">{eur(p.resultCents, { sign: true })}</td>
+                        <td className="n">{eur(data.total.resultCents, { sign: true })}</td>
                       </tr>
-                    ))}
-                    <tr className="is-total">
-                      <th>Zusammen</th>
-                      {data.total.perMonth.map((v, i) => (
-                        <td key={i} className="n">
-                          {eur(v, { sign: true })}
-                        </td>
-                      ))}
-                      <td className="n">{eur(data.total.resultCents, { sign: true })}</td>
-                    </tr>
-                  </tbody>
-                </table>
-              </ScrollRegion>
+                    </tbody>
+                  </table>
+                </ScrollRegion>
+              </ChartValues>
             </section>
           </>
         )}

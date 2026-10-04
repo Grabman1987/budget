@@ -184,7 +184,7 @@
 
 .payee-bar-track i.is-refund {
   left: calc(50% - var(--bar-width));
-  background: var(--heat-red);
+  background: var(--red);
 }
 
 .payee-bars li > strong {

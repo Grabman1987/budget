@@ -294,6 +294,9 @@ Zeichenmittel: Maßlinien mit Schrägstrich-Begrenzung (Strich 1,25–1,6), gepu
 
 Schraffuren: Bedarf Vollfläche, Wunsch 135°-Schraffur (2 px Strich, 5 px Rapport), Zukunft Kreuzschraffur (45° und 135°, 1,5 px), gebunden 135°-Schraffur in blasser Tusche. Schulden in Ketten: gestrichelte Kontur `5 3`, ohne Füllung.
 
+### Shared chart inspection
+All chart forms share one raised, hairline-bordered tooltip with tabular exact values, a legend-colour swatch and series name per visible layer, and the date/month at the bottom. Time charts snap a vertical dotted crosshair to the nearest stored point; ranked bars, sectors and Sankey nodes/links use their actual hit target (Sankey includes amount and share of the income pool). Focus plus left/right explores points, Escape hides, touch taps select and an outside tap hides. Amount privacy also masks these values. Negative bars use the opaque `red` token in both themes; signs and position around zero carry meaning alongside colour.
+
 ## Components
 
 ### Buttons

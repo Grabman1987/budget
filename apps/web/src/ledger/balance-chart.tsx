@@ -1,3 +1,4 @@
+import { chartPoints } from '../charts/tooltip-data';
 import {
   useAmountPrivacy,
   AxisLine,
@@ -156,6 +157,17 @@ function Drawing({
       height={height}
       label={summary}
       testId={eurMode ? 'balance-chart-eur' : 'balance-chart'}
+      points={chartPoints(
+        points.map((p) => p.date),
+        x,
+        [
+          {
+            name: eurMode ? 'EUR-Bewertung' : 'Saldo',
+            values,
+            format: (v) => nativeCurrency(v, currency),
+          },
+        ],
+      )}
     >
       <Graticule x1={left} x2={width - right} lines={grid} />
       <text x={left - 8} y={y(0) + 4} textAnchor="end" className="svg-label">

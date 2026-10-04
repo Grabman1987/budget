@@ -6,7 +6,6 @@ import { userText } from '../api/error-text';
 import { ApiError } from '../api/http';
 import { eur, eurParts, eurWhole, longDay } from '../ledger/format';
 import { EmptyNote, ErrorNote, LoadingNote } from '../ledger/states';
-import { ValuationHint } from '../ledger/valuation-hint';
 import type { PageMeta } from '../nav/pages';
 import type { ReportEntry } from '../nav/reports-catalog';
 import { PageFrame } from '../pages/placeholder-page';
@@ -92,7 +91,6 @@ function Body({ history }: { history: NetWorthHistory }) {
   const assetGroups = groups.filter((g) => !g.liability);
   return (
     <>
-      <ValuationHint incomplete={history.incomplete} />
       <section className="card rf-card rf-wide" aria-labelledby="wh-title">
         <div className="tbd-head">
           <h2 id="wh-title">Nettovermögen · {text}</h2>
@@ -104,6 +102,7 @@ function Body({ history }: { history: NetWorthHistory }) {
           </span>
         </div>
         <div className="rf-figure" data-testid="wh-figure">
+          {Boolean(history.incomplete?.length) && <abbr title="Teilweise geschätzt">≈</abbr>}
           {whole}
           <span className="cents">,{fraction} €</span>
         </div>

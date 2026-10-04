@@ -1,3 +1,4 @@
+import { chartPoints } from '../charts/tooltip-data';
 import {
   useAmountPrivacy,
   AxisLine,
@@ -135,7 +136,30 @@ function BalanceDrawing({
         <span>{figure.whole}</span>
         <small>,{figure.fraction} €</small>
       </button>
-      <ChartSvg width={width} height={height} label={label} testId="heute-balance-chart">
+      <ChartSvg
+        width={width}
+        height={height}
+        label={label}
+        testId="heute-balance-chart"
+        points={chartPoints(
+          [...new Set(days.map((d) => d.day))].sort(),
+          (i) => xScale([...new Set(days.map((d) => d.day))].sort()[i]!),
+          [
+            {
+              name: 'Ist',
+              values: [...new Set(days.map((d) => d.day))]
+                .sort()
+                .map((day) => actual.find((d) => d.day === day)?.balanceCents),
+            },
+            {
+              name: 'Prognose',
+              values: [...new Set(days.map((d) => d.day))]
+                .sort()
+                .map((day) => forecast.find((d) => d.day === day)?.balanceCents),
+            },
+          ],
+        )}
+      >
         <Graticule x1={left} x2={right} lines={ticks} />
         <AxisLine x1={left} x2={right} y={y(0)} />
         {dayValue(data.stand.today) >= start && dayValue(data.stand.today) <= end && (
@@ -270,7 +294,32 @@ function PaceDrawing({ data, width }: { data: PaceChartData; width: number }) {
   const summary = `Pace ${m.month}: ausgegeben ${eur(m.figures.spentCents)}, Plan bis heute ${eur(m.figures.planToDateCents)}, Prognose Monatsende ${m.figures.forecastAvailable ? eur(m.figures.forecastEndCents) : 'noch nicht verlässlich'} von ${eur(m.figures.limitCents)}.`;
   return (
     <>
-      <ChartSvg width={width} height={height} label={summary} testId="heute-pace-chart">
+      <ChartSvg
+        width={width}
+        height={height}
+        label={summary}
+        testId="heute-pace-chart"
+        points={chartPoints(
+          m.plan.map((_, i) =>
+            i === 0 ? `Beginn ${m.month}` : `${m.month}-${String(i).padStart(2, '0')}`,
+          ),
+          xScale,
+          [
+            { name: 'Ist', values: m.actual },
+            { name: 'Plan', values: m.plan, color: 'var(--line-2)' },
+            { name: 'Vormonat', values: m.previous, color: 'var(--ink-3)' },
+            {
+              name: 'Prognose',
+              values: m.plan.map((_, i) => (i < m.todayDay ? null : m.forecast[i - m.todayDay])),
+            },
+            {
+              name: 'Limit',
+              values: m.plan.map(() => m.figures.limitCents),
+              color: 'var(--rule-strong)',
+            },
+          ],
+        )}
+      >
         <Graticule x1={left} x2={width - right} lines={ticks} />
         <AxisLine x1={left} x2={width - right} y={y(0)} />
         <AxisLine x1={left} x2={width - right} y={limitY} />

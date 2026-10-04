@@ -52,6 +52,11 @@ test('a position without market quote is valued at cost and flagged; the first q
   await expect(page.locator('.heute-net-worth')).not.toContainText('Bewertung nicht verfügbar');
   await expect(page.locator('.heute-net-worth').getByTestId('valuation-hint')).toContainText(hint);
 
+  await page.goto('/reports/peinzahlungen?zeitraum=YTD');
+  await expect(page.getByTestId('contributions-end-value')).toContainText('≈');
+  await expect(page.getByTestId('valuation-hint')).toHaveCount(0);
+  await expect(page.getByText(/Bewertung teilweise geschätzt:/)).toHaveCount(0);
+
   await page.goto('/vermoegen/portfolio');
   await expect(page.getByTestId('portfolio-value')).toContainText('100,00');
   await expect(page.getByTestId('valuation-hint')).toContainText(hint);

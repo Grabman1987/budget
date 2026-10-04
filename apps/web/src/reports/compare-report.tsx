@@ -1,3 +1,4 @@
+import { ChartValue } from '@budget/ui';
 import { useAmountPrivacy, ClassSwatch, DimensionChain, Segmented } from '@budget/ui';
 import {
   COMPARE_MODES,
@@ -88,7 +89,9 @@ export function CompareReport({ report, meta }: { report: ReportEntry; meta: Pag
                 <Body comparison={comparison} fetching={query.isFetching} />
               )}
             </section>
-            {comparison.current.length > 0 && <Rows rows={comparison.rows} />}
+            {comparison.current.length > 0 && (
+              <Rows rows={comparison.rows} date={periodName(comparison.current)} />
+            )}
           </>
         )}
       </div>
@@ -158,7 +161,7 @@ function Body({ comparison, fetching }: { comparison: PeriodComparison; fetching
   );
 }
 
-function Rows({ rows }: { rows: CompareRow[] }) {
+function Rows({ rows, date }: { rows: CompareRow[]; date: string }) {
   useAmountPrivacy();
   const maxDelta = Math.max(1, ...rows.map((r) => Math.abs(r.deltaCents)));
   return (
@@ -190,12 +193,22 @@ function Rows({ rows }: { rows: CompareRow[] }) {
                   <ClassSwatch kind={row.class} />
                   {row.name}
                 </span>
-                <span className="dv-track" aria-hidden="true">
-                  <i
-                    className={row.deltaCents < 0 ? 'is-less' : 'is-more'}
-                    style={{ width: `${(Math.abs(row.deltaCents) / maxDelta) * 50}%` }}
-                  />
-                </span>
+                <ChartValue
+                  label="Zeitraumvergleich"
+                  date={date}
+                  series={[
+                    { name: 'Veränderung', value: eur(row.deltaCents), color: 'var(--line)' },
+                    { name: 'Vorher', value: eur(row.previousCents), color: 'var(--ink-3)' },
+                    { name: 'Aktuell', value: eur(row.currentCents), color: 'var(--line)' },
+                  ]}
+                >
+                  <span className="dv-track" aria-hidden="true">
+                    <i
+                      className={row.deltaCents < 0 ? 'is-less' : 'is-more'}
+                      style={{ width: `${(Math.abs(row.deltaCents) / maxDelta) * 50}%` }}
+                    />
+                  </span>
+                </ChartValue>
                 <span className="dv-val">
                   <strong>{eur(row.deltaCents, { cents: false, sign: true })}</strong>
                   <small>

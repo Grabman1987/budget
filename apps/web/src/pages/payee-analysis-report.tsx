@@ -1,3 +1,4 @@
+import { ChartValue } from '@budget/ui';
 import { ReportPeriodControl } from '../reports/period-quick-select';
 import { isReportPeriod, cents, type Period } from '@budget/domain';
 import { useAmountPrivacy, Button, DimensionChain } from '@budget/ui';
@@ -255,16 +256,24 @@ function ReportBody({
                 >
                   {row.name}
                 </button>
-                <span className="payee-bar-track" aria-hidden="true">
-                  <i
-                    className={row.amountCents < 0 ? 'is-refund' : ''}
-                    style={
-                      {
-                        '--bar-width': `${(Math.abs(row.amountCents) / maximum) * 50}%`,
-                      } as React.CSSProperties
-                    }
-                  />
-                </span>
+                <ChartValue
+                  label="Empfänger nach Nettoausgaben"
+                  date={`${data.from} · ${data.to}`}
+                  series={[
+                    { name: 'Nettoausgaben', value: eur(row.amountCents), color: 'var(--line)' },
+                  ]}
+                >
+                  <span className="payee-bar-track" aria-hidden="true">
+                    <i
+                      className={row.amountCents < 0 ? 'is-refund' : ''}
+                      style={
+                        {
+                          '--bar-width': `${(Math.abs(row.amountCents) / maximum) * 50}%`,
+                        } as React.CSSProperties
+                      }
+                    />
+                  </span>
+                </ChartValue>
                 <strong>{eur(row.amountCents)}</strong>
               </li>
             ))}

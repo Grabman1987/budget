@@ -535,3 +535,11 @@ Scope and shared definitions: [report correctness](report-correctness.md).
 - [ ] PR/CI review, Docker/encrypted restore gates, real-iPhone owner checklist and production reconciliation/deployment.
 
 Contract and baseline matrix: [asset-class settings](asset-classes-settings.md).
+
+### Owner chart/report feedback — 2026-10-04
+
+- [x] Shared chart inspection with exact values, swatches, date/month, snapped crosshair, keyboard and touch; Sankey amounts/shares.
+- [x] Catalog-order report arrows and shortcuts, desktop period controls in one row; remove report valuation banners and preserve approximation marks.
+- [x] Opaque red negative bars; daily report 4.3 values from existing valuations/flows, monthly gain bars retained.
+- [x] Final local check/build and browser verification: 309 suites / 2,967 tests; chart inspection, report regressions and desktop/mobile evidence.
+- [ ] Owner acceptance, local Git alignment and Linux visual baseline review (no local baseline regeneration); draft PR/CI review.

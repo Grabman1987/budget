@@ -1,3 +1,5 @@
+import { ChartSvg } from '@budget/ui';
+import { chartPoints } from '../charts/tooltip-data';
 import {
   useAmountPrivacy,
   privateAmount,
@@ -295,11 +297,32 @@ function PreviewChart({ data, group }: { data: PaymentsPreview; group: PreviewCu
   const y = (c: number) => 232 - (c / max) * 175;
   return (
     <div ref={ref}>
-      <svg
+      <ChartSvg
         className="preview-chart"
-        viewBox={`0 0 ${width} 280`}
-        role="img"
-        aria-labelledby="preview-chart-title preview-chart-desc"
+        width={width}
+        height={280}
+        label={`Erwartete Zahlungen je Monat · EUR${!data.eurComplete ? '-Anteil' : ''}`}
+        points={chartPoints(data.months, (i) => left + step * (i + 0.5), [
+          {
+            name: 'Laufend',
+            values: group.months.map((m, i) => m.baseCents - group.periodicMonths[i]!.baseCents),
+          },
+          {
+            name: 'Periodisch',
+            values: group.periodicMonths.map((m) => m.baseCents),
+            color: 'var(--line-2)',
+          },
+          {
+            name: 'Oberbetrag',
+            values: group.months.map((m) => m.upperCents),
+            color: 'var(--line-2)',
+          },
+          {
+            name: 'Durchschnitt',
+            values: group.months.map(() => group.average.baseCents),
+            color: 'var(--line-2)',
+          },
+        ])}
       >
         <title id="preview-chart-title">
           Erwartete Zahlungen je Monat · EUR{!data.eurComplete && '-Anteil'}
@@ -384,7 +407,7 @@ function PreviewChart({ data, group }: { data: PaymentsPreview; group: PreviewCu
             </g>
           );
         })}
-      </svg>
+      </ChartSvg>
     </div>
   );
 }

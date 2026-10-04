@@ -1,3 +1,4 @@
+import { chartPoints } from '../charts/tooltip-data';
 import {
   useAmountPrivacy,
   AxisLine,
@@ -56,6 +57,23 @@ function LineTypes({ width }: { width: number }) {
       height={HEIGHT}
       label="Linienarten: Ist, Plan, Prognose, Vormonat"
       testId="chart-lines"
+      points={chartPoints(
+        plan.map((_, d) => `2026-09-${String(Math.max(1, d)).padStart(2, '0')}`),
+        (i) => x(i),
+        [
+          { name: 'Ist', values: actual, color: 'var(--line)', format: String },
+          { name: 'Plan', values: plan, color: 'var(--line)', format: String },
+          { name: 'Vormonat', values: previous, color: 'var(--ink-3)', format: String },
+          {
+            name: 'Prognose',
+            values: plan.map((_, d) =>
+              d < 17 ? null : (actual[17] ?? 0) + ((205 - (actual[17] ?? 0)) * (d - 17)) / 13,
+            ),
+            color: 'var(--line)',
+            format: String,
+          },
+        ],
+      )}
     >
       <Graticule
         x1={padL}
@@ -115,6 +133,26 @@ function BarsAndBand({ width }: { width: number }) {
       height={HEIGHT}
       label="Balken um Null mit Toleranzband"
       testId="chart-bars"
+      points={chartPoints(
+        months.map((_, i) => `2026-${String(i + 1).padStart(2, '0')}`),
+        (i) => cx(i),
+        [
+          {
+            name: 'Eigenleistung',
+            values: own,
+            color: 'var(--line)',
+            negativeColor: 'var(--red)',
+            format: String,
+          },
+          {
+            name: 'Markt',
+            values: market,
+            color: 'var(--line-2)',
+            negativeColor: 'var(--red)',
+            format: String,
+          },
+        ],
+      )}
     >
       <Graticule
         x1={padL}
@@ -158,6 +196,19 @@ function SignedBars({ width }: { width: number }) {
       height={bottom + 24}
       label="Veränderung je Monat, Vorzeichen als Balkenrichtung"
       testId="chart-signed"
+      points={chartPoints(
+        months.map((_, i) => `2026-${String(i + 1).padStart(2, '0')}`),
+        (i) => cx(i),
+        [
+          {
+            name: 'Veränderung',
+            values: market,
+            color: 'var(--heat-green)',
+            negativeColor: 'var(--red)',
+            format: String,
+          },
+        ],
+      )}
     >
       <AxisLine x1={padL} x2={width - padR} y={y(0)} />
       <BarsAroundZero
@@ -189,6 +240,17 @@ function ClassBars({ width }: { width: number }) {
       height={70}
       label="50/30/20: Bedarf, Wunsch, Zukunft mit Schraffuren"
       testId="chart-classes"
+      points={[
+        {
+          x: width / 2,
+          date: '2026-09',
+          series: rows.map((row) => ({
+            name: row.label,
+            value: `${row.value} %`,
+            color: `var(--${row.key})`,
+          })),
+        },
+      ]}
     >
       <ClassPatterns prefix={prefix} />
       {rows.map((row) => {

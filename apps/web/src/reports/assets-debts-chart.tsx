@@ -1,3 +1,4 @@
+import { chartPoints } from '../charts/tooltip-data';
 import {
   useAmountPrivacy,
   AxisLine,
@@ -107,7 +108,31 @@ function Drawing({
   const picked = months.findIndex((m) => m.month === selected);
 
   return (
-    <ChartSvg width={W} height={H} label={summary} testId="assets-debts-chart">
+    <ChartSvg
+      width={W}
+      height={H}
+      label={summary}
+      testId="assets-debts-chart"
+      points={chartPoints(
+        months.map((m) => m.month),
+        x,
+        [
+          {
+            name: 'Vermögenswerte',
+            negativeColor: 'var(--red)',
+            values: months.map((m) => m.assetsCents),
+            color: 'var(--line)',
+          },
+          {
+            name: 'Schulden',
+            negativeColor: 'var(--red)',
+            values: months.map((m) => m.debtsCents),
+            color: 'var(--red)',
+          },
+          { name: 'Nettovermögen', values: months.map((m) => m.netCents), color: 'var(--line)' },
+        ],
+      )}
+    >
       {picked >= 0 && (
         <rect
           x={x(picked) - slot / 2}

@@ -1,3 +1,4 @@
+import { chartPoints } from '../charts/tooltip-data';
 import { useAmountPrivacy, ChartSvg, Graticule, Line, type Point } from '@budget/ui';
 import { useElementWidth } from '../charts/use-element-width';
 import { eur, shortDay } from '../ledger/format';
@@ -29,7 +30,19 @@ export function ContactBalanceChart({ statement }: { statement: ContactReportSta
   return (
     <div ref={ref} className="contact-balance-chart">
       {width > 0 && (
-        <ChartSvg width={width} height={234} label={label} testId="contact-balance-chart">
+        <ChartSvg
+          width={width}
+          height={234}
+          label={label}
+          testId="contact-balance-chart"
+          points={chartPoints(['Start', ...rows.map((r) => r.date)], x, [
+            {
+              name: 'Saldo',
+              values: [0, ...rows.map((r) => r.balanceCents)],
+              color: 'var(--line)',
+            },
+          ])}
+        >
           <Graticule
             x1={left}
             x2={right}
