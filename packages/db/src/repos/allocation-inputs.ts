@@ -80,11 +80,9 @@ export function allocationInputsAsOf(db: Executor, asOf: string) {
     .filter((v) => v.deletedAt === null))
     if (!manualValues.has(v.accountId)) manualValues.set(v.accountId, v.valueCents);
   const holdingAccounts = new Set(
-    [
-      ...values,
-      ...valuation.missingPricePositions.filter(included),
-      ...valuation.missingFxPositions.filter(included),
-    ].map((h) => h.accountId),
+    [...valuation.values, ...valuation.missingPricePositions, ...valuation.missingFxPositions]
+      .filter((h) => accounts.has(h.accountId))
+      .map((h) => h.accountId),
   );
   const cashValue = cashValuer(db);
   const missingFxAccountIds: string[] = [];

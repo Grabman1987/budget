@@ -458,7 +458,7 @@ function SollTable({ data }: { data: AllocationReport }) {
         </table>
       </div>
       <p className="vnote" data-testid="speculative-note">
-        Spekulative Bruttoexposure (einschlie?lich gehebelter ETF) / Marktwert:{' '}
+        Spekulative Bruttoexposure (einschließlich gehebelter ETF) / Marktwert:{' '}
         {bpText(spec.shareBp)} bei höchstens {bpText(spec.limitBp)} (R15)
         {data.quality.confidence === 'provisional'
           ? ', vorläufig.'

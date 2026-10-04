@@ -267,3 +267,15 @@ it('savings plans outside the allocation universe suppress redistribution, with 
     changed: false,
   });
 });
+
+it('instrument opt-out cannot re-enter through a P2P manual account valuation', () => {
+  const initial = view().valueCents!;
+  opened.sqlite
+    .exec(`INSERT INTO account (id, name, type, role, on_budget, opening_date, opening_balance_cents, allocation_asset_class_id) VALUES ('p2p-opt-out', 'Synthetic platform', 'p2p', 'investment', 0, '2025-12-31', 100, 'spec');
+    INSERT INTO valuation (id, account_id, date, value_cents) VALUES ('outside-mv', 'p2p-opt-out', '2026-09-01', 500);
+    INSERT INTO security (id, name, kind, allocation_included) VALUES ('outside', 'Synthetic excluded', 'p2p', 0);
+    INSERT INTO holding (id, account_id, security_id, as_of, units_e8, cost_basis_cents) VALUES ('outside-h', 'p2p-opt-out', 'outside', '2026-01-01', 100000000, 400);`);
+  expect(view().valueCents).toBe(initial + 100);
+  expect(view().quality.confidence).toBe('exact');
+  expect(view().quality.estimatedSecurityIds).toEqual([]);
+});

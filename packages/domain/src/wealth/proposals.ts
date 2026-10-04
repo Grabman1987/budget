@@ -129,7 +129,8 @@ export function newCapitalToTarget(
   const numerator = BigInt(totalCents) * BigInt(targetBp) - BigInt(valueCents) * 10000n;
   if (numerator <= 0n) return null;
   const denominator = BigInt(10000 - targetBp);
-  return Number((numerator + denominator / 2n) / denominator);
+  const result = Number((numerator + denominator / 2n) / denominator);
+  return Number.isSafeInteger(result) ? result : null;
 }
 
 // ---- savings-plan proposal ----

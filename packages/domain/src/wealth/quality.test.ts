@@ -55,6 +55,10 @@ describe('PR3 allocation quality and money semantics', () => {
     });
     expect(propose(p, allocationQuality(p, { missingFxSecurityIds: ['a'] }))).toEqual([]);
   });
+  it('does not expose an inexact new-capital amount beyond the safe integer cent range', () => {
+    expect(newCapitalToTarget(1_000_000_000_000, 0, 9999)).toBeNull();
+    expect(newCapitalToTarget(1_000_000_000_000, 0, 5000)).toBe(1_000_000_000_000);
+  });
   it('unknown product counts deduplicate weighted slices and platforms; estimates count only affected slices', () => {
     const p = [
       {
