@@ -39,7 +39,15 @@ export function readSourceRoutes(
       match: readSourceMatchSummary(db),
       accounts: accountSummaries(db, today())
         .filter((a) => !a.onBudget && !a.closedAt)
-        .map(({ id, name, currency, type }) => ({ id, name, currency, type })),
+        .map(({ id, name, currency, type, onBudget, sortOrder, closedAt }) => ({
+          id,
+          name,
+          currency,
+          type,
+          onBudget,
+          sortOrder,
+          closedAt,
+        })),
       securities: listEntities(db, security).map(({ id, name }) => ({ id, name })),
     });
   });

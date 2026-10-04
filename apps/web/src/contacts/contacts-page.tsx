@@ -22,6 +22,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate, useSearch } from '@tanstack/react-router';
 import { useState } from 'react';
 import { request } from '../api/http';
+import { AccountOptions } from '../ledger/account-options';
 import { undoGroup } from '../ledger/api';
 import { eur, longDay } from '../ledger/format';
 import { errorText } from '../ledger/labels';
@@ -382,11 +383,7 @@ function ReceiptForm({ statement, onDone }: { statement: Statement; onDone: () =
             onChange={(e) => setAccountId(e.target.value)}
             required
           >
-            {cash.map((a) => (
-              <option key={a.id} value={a.id}>
-                {a.name}
-              </option>
-            ))}
+            <AccountOptions accounts={cash} />
           </Select>
         )}
       </Field>
