@@ -1,5 +1,7 @@
 # Roadmap
 
+- [x] Owner feedback 04.10.2026: reports 4.1–4.4, four stored benchmarks, positive allocation layers, daily/monthly reconciliation and shared Heute/R07 35-day horizon; see [scope and owner steps](portfolio-reports-1004.md).
+
 ### Claude Code project automations (2026-10-04)
 
 - [x] Preserve Impeccable configuration; add offline cross-platform formatting and protected-file hooks with synthetic stdin tests.

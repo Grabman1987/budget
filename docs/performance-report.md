@@ -21,21 +21,14 @@ The depot cash view and private owner acceptance remain separate.
   into year subtotals. Partial months/years show `*` and exact dates in the fallback
   table. A month without a positive-capital subperiod has no return, distinct from
   an observed zero return. Sharpe below 0.5% volatility is omitted, as in report 4.1.
-- Settings › Depots & Kryptos selects an existing, live security, even without a
-  held position. `GET/PATCH /api/portfolio/benchmark` reads/writes
-  `portfolio.benchmark_security_id` in `app_setting`; null clears it. Writes use the
-  session/origin boundary, strict zod validation, a transaction/savepoint and the
-  existing audit/undo mechanism. No migration or new secret is required.
-- An unset/deleted benchmark never falls back to the largest holding in report 4.4.
-  Its stored prices are converted to EUR levels using historical FX on the quote
-  date. The comparison is a price return; additional cash distributions are not
+- Settings and reports use four native benchmark checkboxes. `GET/PATCH /api/portfolio/benchmarks` reads/writes `portfolio.benchmark_ids` in `app_setting`, a validated unique allowlisted ID array. Writes reuse audit/undo, zod and transaction/savepoints. Empty selection draws no comparison. Public system instruments are excluded from allocation; nightly prices use the normal audited source chain. See [instruments and backfill](portfolio-reports-1004.md). The old single-benchmark endpoint remains compatible for older callers.
+- Unselected benchmarks never fall back to the largest holding. Each selected EUR exchange line starts at 100 in the same effective period. The comparison is a price return; additional cash distributions are not
   inferred. ETF/fund/stock/bond Saturday/Sunday boundaries can use Friday's stored
   close; crypto, P2P and other manual instruments require the exact boundary date. Missing
   weekday or holiday closes are explicit gaps because no exchange trading
   calendar is stored. Both interval boundaries must have a qualifying quote.
   Later quotes never backfill a missing beginning. An observed zero end price
-  remains a valid −100% return; a zero start cannot define a ratio. Quote dates
-  appear in the monthly source table.
+  remains a valid −100% return; a zero start cannot define a ratio. Exact period dates appear in the monthly table.
 - A benchmark quote/FX gap interrupts the index line and withholds aggregate
   benchmark return, difference and beta. Available monthly comparisons remain
   visible. The portfolio keeps its own valid figures. A missing held-security
@@ -43,7 +36,7 @@ The depot cash view and private owner acceptance remain separate.
 
 ## UI and verification
 
-German labels, shared blueprint tokens, actual versus dash-dot benchmark lines,
+German labels, shared blueprint tokens, actual versus dashed benchmark lines,
 signed pastel heat cells, keyboard-scrollable tables, native details fallbacks and
 light/dark layouts follow `reports-portfolio.js` (`R.prendite`). Benchmark settings
 offer audit undo/redo and invalidate report reads after a change.
@@ -78,6 +71,6 @@ auth/import stress tests exceeded their default time limits under Windows load;
 the final run uses the limits above. No dependency install was needed because the
 existing `node_modules` passed the focused domain/API run.
 
-Owner steps: choose a benchmark security and provide its stored price history;
+Owner steps: choose the benchmark checkboxes and let the first nightly run backfill prices;
 review the report with privately reconciled data after deployment. No provider
 credentials, consent, trade, booking or automatic budget assignment is added.

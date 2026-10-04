@@ -82,9 +82,9 @@ them and they fall back to their cryptocalc link. Nothing is guessed. A PP `COIN
   `*` in the marker column and is dropped. A currency other than `security.currency` is refused
   (`currency_mismatch`): choose a European exchange in the URL (`boerse_id`) for a US stock held in EUR.
 - The adapter asks for the 30-day page when the window starts inside the last 27 days (one request
-  per security per night), otherwise for one month page per month (at most 36 months).
+  per security per night), otherwise for one month page per month (bounded to roughly 36 months per history call, relative to the requested end date). Benchmark first refresh walks the budget history in three-year calls; later runs fetch only new days.
 - A page without the price table (login, consent, redesign) is `parse`, never "no prices".
-- Politeness: at least 1 s between two requests to Ariva, one request per security per night, the
+- Politeness: at least 1 s between two requests to Ariva; normally one request per security per night, more month pages during backfill; the
   app's own User-Agent. robots.txt does not exclude these pages.
 - Fixtures in `packages/market/test-data` are synthetic (no real prices): `ariva-historic.html`,
   `ariva-historic-usd.html`, `ariva-login.html`, `coingecko-market-chart.json`.
