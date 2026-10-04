@@ -121,10 +121,25 @@ test('bank inbox suggestion requires an explicit posting decision', async ({ pag
   );
   await page.route('**/api/bank-sync/candidates/**/confirm', (route) => {
     expect(route.request().method()).toBe('POST');
-    expect(route.request().postDataJSON()).toEqual({ categoryId: null });
+    expect(route.request().postDataJSON()).toEqual({
+      categoryId: null,
+      actions: { categoryId: null, payeeId: null },
+      candidateRevision: 'a'.repeat(64),
+    });
     confirmed = true;
     return route.fulfill({ json: { groupId: 'synthetic-confirm-group' } });
   });
+  await page.route('**/api/assignment-rules/candidates/**', (route) =>
+    route.fulfill({
+      json: {
+        candidate: { id: candidateId },
+        candidateRevision: 'a'.repeat(64),
+        cleanup: { cleaned: 'Shop A', payeeId: null, payeeName: null, learned: false },
+        suggestions: [],
+        existingTransfer: null,
+      },
+    }),
+  );
   await page.goto('/konten/posteingang');
   await expect(page.getByText('Bankumsatz prüfen', { exact: true })).toBeVisible();
   expect(confirmed).toBe(false);

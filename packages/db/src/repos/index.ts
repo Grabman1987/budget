@@ -69,6 +69,7 @@ export * from './payroll-projects';
 export * from './payslip-intake';
 
 export * from './read-source';
+export * from './assignment-rules';
 export * from './income-month';
 
 export * from './bank-followups';

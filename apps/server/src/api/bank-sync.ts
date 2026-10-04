@@ -13,6 +13,7 @@ import { BankError } from '../bank-sync/provider';
 import type { BankSync } from '../bank-sync/service';
 import type { SessionRow } from '../auth/store';
 import { readBody } from './http';
+import { bankConfirmSchema } from './assignment-rules';
 
 export function bankSyncRoutes(service: BankSync | null, stepUp: MiddlewareHandler, db: Db) {
   const app = new Hono<{ Variables: { session: SessionRow } }>();
@@ -101,8 +102,8 @@ export function bankSyncRoutes(service: BankSync | null, stepUp: MiddlewareHandl
     return c.json(service!.requestRun(id.parse(c.req.param('id'))), 202);
   });
   app.post('/candidates/:id/confirm', async (c) => {
-    const input = await readBody(c, z.object({ categoryId: short.nullable() }).strict());
-    return c.json(service!.confirm(id.parse(c.req.param('id')), input.categoryId));
+    const { categoryId, ...options } = await readBody(c, bankConfirmSchema);
+    return c.json(service!.confirm(id.parse(c.req.param('id')), categoryId, options));
   });
   app.onError((error, c) => {
     if (error instanceof BankError)

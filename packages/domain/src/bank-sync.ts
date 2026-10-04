@@ -17,6 +17,7 @@ export interface BankTransaction {
   amountCents: number;
   currency: string;
   memo: string;
+  rawPayee?: string | null;
 }
 
 export interface MatchBooking {
