@@ -122,8 +122,8 @@ const captureRoute = createRoute({
   component: lazyRouteComponent(() => import('./ledger/capture-page'), 'CapturePage'),
 });
 const BUILT_PATHS = new Set<string>([
-  '/einstellungen/datenquellen',
   '/einstellungen/zuordnung',
+  '/einstellungen/datenquellen',
   SECURITY_META.path,
   PROFILE_META.path,
   INVESTMENT_SETTINGS_META.path,
@@ -225,6 +225,12 @@ const rulesRoute = createRoute({
   staticData: { meta: EINSTELLUNGEN_REGELWERK },
   component: lazyRouteComponent(() => import('./rules/rules-page'), 'RulesPage'),
 });
+const assignmentRoute = createRoute({
+  getParentRoute: () => shellRoute,
+  path: '/einstellungen/zuordnung',
+  staticData: { meta: PAGES.find((p) => p.path === '/einstellungen/zuordnung')! },
+  component: lazyRouteComponent(() => import('./assignment/assignment-page'), 'AssignmentPage'),
+});
 const planMonthRoute = createRoute({
   getParentRoute: () => shellRoute,
   path: PLAN_MONAT.path,
@@ -238,12 +244,6 @@ const planMonthRoute = createRoute({
   }),
   staticData: { meta: PLAN_MONAT },
   component: lazyRouteComponent(() => import('./budget/plan-page'), 'PlanMonthPage'),
-});
-const incomeRulesRoute = createRoute({
-  getParentRoute: () => shellRoute,
-  path: '/einstellungen/zuordnung',
-  staticData: { meta: PAGES.find((p) => p.path === '/einstellungen/zuordnung')! },
-  component: lazyRouteComponent(() => import('./pages/income-month-rules'), 'IncomeMonthRulesPage'),
 });
 const dataSourcesRoute = createRoute({
   getParentRoute: () => shellRoute,
@@ -479,9 +479,9 @@ const routeTree = rootRoute.addChildren([
     accountsSettingsRoute,
     categoriesRoute,
     rulesRoute,
+    assignmentRoute,
     exportRoute,
     dataSourcesRoute,
-    incomeRulesRoute,
     planMonthRoute,
     planYearRoute,
     planExpectedRoute,

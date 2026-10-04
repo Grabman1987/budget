@@ -4,6 +4,10 @@ import {
   bookedBalance,
   ConflictError,
   createBooking,
+  assignmentPatch,
+  learnBankPayee,
+  markBankBookingTransfer,
+  readAssignmentCandidate,
   bookingIncomeDefault,
   importBooking,
   createEntity,
@@ -29,6 +33,8 @@ import {
   formatEuro,
   nextBankRun,
   todayInVienna,
+  assignmentActionsSchema,
+  type AssignmentActions,
 } from '@budget/domain';
 import { BankError, type BankProvider } from './provider';
 import type { bankSecretBox } from './secrets';
@@ -589,7 +595,8 @@ export class BankSync {
                     existing.date !== t.date ||
                     existing.amountCents !== t.amountCents ||
                     existing.currency !== t.currency ||
-                    existing.memo !== t.memo
+                    existing.memo !== t.memo ||
+                    existing.rawPayee !== (t.rawPayee ?? null)
                   ) {
                     const item = tx
                       .select()
@@ -636,6 +643,8 @@ export class BankSync {
                           amountCents: t.amountCents,
                           currency: t.currency,
                           memo: t.memo,
+                          rawPayee: t.rawPayee ?? null,
+                          sourceId: a.id,
                         },
                         ctx,
                       );
@@ -669,6 +678,8 @@ export class BankSync {
                     amountCents: t.amountCents,
                     currency: t.currency,
                     memo: t.memo,
+                    rawPayee: t.rawPayee ?? null,
+                    sourceId: a.id,
                   },
                   ctx,
                 );
@@ -856,7 +867,17 @@ export class BankSync {
     }
   }
 
-  confirm(id: string, categoryId: string | null) {
+  confirm(
+    id: string,
+    categoryId: string | null,
+    options: {
+      payeeId?: string | null | undefined;
+      ruleId?: string | undefined;
+      revision?: string | undefined;
+      candidateRevision?: string | undefined;
+      actions?: AssignmentActions | undefined;
+    } = {},
+  ) {
     return this.db.transaction((tx) => {
       const row = tx.select().from(candidate).where(eq(candidate.id, id)).get();
       const item = tx.select().from(inboxItem).where(eq(inboxItem.id, id)).get();
@@ -866,6 +887,62 @@ export class BankSync {
       if (!acct || acct.deletedAt || acct.closedAt || acct.currency !== row.currency)
         throw new ConflictError('Konto nicht verfügbar.');
       const ctx = withGroup({ actor: 'owner' });
+      const review = readAssignmentCandidate(tx, id);
+      if (
+        options.candidateRevision !== undefined &&
+        options.candidateRevision !== review.candidateRevision
+      )
+        throw new ConflictError('Der Bankumsatz hat sich geändert. Bitte neu laden.');
+      if (review.existingTransfer) {
+        const bookingId = review.existingTransfer.bookingId;
+        updateTracked(
+          tx,
+          booking,
+          [bookingId],
+          {
+            bankRawText: row.memo,
+            bankRawPayee: row.rawPayee,
+            bankSourceId: row.sourceId,
+            importKey: 'bank-sync:' + row.dedupeKey,
+          },
+          ctx,
+        );
+        updateTracked(
+          tx,
+          inboxItem,
+          [id],
+          { resolvedAt: this.clock().toISOString(), resolution: 'Bestätigt: ' + bookingId },
+          ctx,
+        );
+        return { bookingId, groupId: ctx.groupId };
+      }
+      const rule = options.ruleId
+        ? review.suggestions.find((r) => r.id === options.ruleId)
+        : !options.actions &&
+            options.payeeId === undefined &&
+            categoryId === null &&
+            review.suggestions[0]?.automatic
+          ? review.suggestions[0]
+          : undefined;
+      if (
+        rule?.unavailable ||
+        (options.ruleId &&
+          (!rule || (options.revision !== undefined && options.revision !== rule.revision)))
+      )
+        throw new ConflictError('Regelvorschlag hat sich geändert. Bitte neu prüfen.');
+      const actions = assignmentActionsSchema.parse(
+        options.actions ??
+          rule?.actions ?? {
+            categoryId,
+            payeeId: options.payeeId === undefined ? review.cleanup.payeeId : options.payeeId,
+          },
+      );
+      const patch = assignmentPatch(row.amountCents, actions);
+      // A transfer is attached after creation so both candidate and booking paths use one invariant.
+      const lines = patch.splits?.map(({ transferAccountId, ...s }) => {
+        void transferAccountId;
+        return s;
+      }) ?? [{ amountCents: row.amountCents, categoryId }];
       const importKey = 'bank-sync:' + row.dedupeKey;
       const existing = tx
         .select()
@@ -874,6 +951,8 @@ export class BankSync {
         .get();
       let bookingId = existing?.id;
       if (existing?.deletedAt) {
+        if (existing.transferId)
+          updateTracked(tx, booking, [existing.id], { transferId: null }, ctx);
         // Undo of a creation removes its splits. Re-confirmation recreates them in this savepoint.
         const splits = tx
           .select()
@@ -888,24 +967,31 @@ export class BankSync {
               id: randomUUID(),
               bookingId: existing.id,
               amountCents: existing.amountCents,
-              categoryId,
+              categoryId: actions.categoryId ?? null,
             },
             ctx,
           );
         restoreBooking(tx, existing.id, ctx);
-        if (splits.length === 0)
-          updateBooking(
-            tx,
-            existing.id,
-            {
-              status: 'confirmed',
-              incomeNextMonth: bookingIncomeDefault(tx, {
-                amountCents: existing.amountCents,
-                splits: [{ amountCents: existing.amountCents, categoryId }],
-              }),
-            },
-            ctx,
-          );
+        updateBooking(
+          tx,
+          existing.id,
+          {
+            ...patch,
+            date: row.date,
+            amountCents: row.amountCents,
+            status: 'confirmed',
+            incomeNextMonth: bookingIncomeDefault(tx, {
+              amountCents: row.amountCents,
+              payeeId: patch.payeeId === undefined ? review.cleanup.payeeId : patch.payeeId,
+              splits: patch.splits ?? lines,
+            }),
+            bankRawText: row.memo,
+            bankRawPayee: row.rawPayee,
+            bankSourceId: row.sourceId,
+            splits: lines,
+          },
+          ctx,
+        );
       }
       if (!bookingId)
         bookingId = createBooking(
@@ -915,16 +1001,32 @@ export class BankSync {
             date: row.date,
             amountCents: row.amountCents,
             currency: row.currency,
-            memo: row.memo,
+            memo: patch.memo ?? row.memo,
+            payeeId: patch.payeeId === undefined ? review.cleanup.payeeId : patch.payeeId,
+            flag: patch.flag ?? null,
+            bankRawText: row.memo,
+            bankRawPayee: row.rawPayee,
+            bankSourceId: row.sourceId,
             source: 'bank',
             importKey,
             status: 'confirmed',
             incomeNextMonth: bookingIncomeDefault(tx, {
               amountCents: row.amountCents,
-              splits: [{ amountCents: row.amountCents, categoryId }],
+              payeeId: patch.payeeId === undefined ? review.cleanup.payeeId : patch.payeeId,
+              splits: patch.splits ?? lines,
             }),
-            splits: [{ amountCents: row.amountCents, categoryId }],
+            splits: lines,
           },
+          ctx,
+        );
+      if (actions.payeeId)
+        learnBankPayee(tx, row.sourceId ?? '', row.rawPayee || row.memo, actions.payeeId, ctx);
+      if (actions.transferAccountId)
+        markBankBookingTransfer(
+          tx,
+          bookingId,
+          actions.transferAccountId,
+          actions.categoryId ?? null,
           ctx,
         );
       updateTracked(

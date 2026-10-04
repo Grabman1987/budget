@@ -1,5 +1,6 @@
 import { and, asc, eq, isNull, sql } from 'drizzle-orm';
 import { assignmentRule, booking, category, payee } from '../schema';
+import { remapAssignmentReferences } from './assignment-rules';
 import { withGroup, updateTracked, type AuditContext } from './audit';
 import type { WriteOptions } from './bookings';
 import { createEntity, getEntity, updateEntity } from './entities';
@@ -194,6 +195,7 @@ export function mergePayees(
         .all();
       for (const r of rules)
         updateTracked(tx, assignmentRule, [r.id], { payeeId: targetId }, grouped);
+      remapAssignmentReferences(tx, 'payee', id, targetId, grouped);
       if (kept) keptSourceIds.push(id);
       else
         updateTracked(tx, payee, [id], { deletedAt: new Date().toISOString() }, grouped, 'delete');

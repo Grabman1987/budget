@@ -341,6 +341,7 @@ export function mergeCategories(
         movedMonths += 1;
       }
       opening += source.openingAvailableCents;
+      remapAssignmentReferences(tx, 'category', source.id, targetId, grouped);
       for (const [table, prop] of REFERENCES) {
         const column = getTableColumns(table)[prop as keyof typeof table.$inferSelect];
         const rows = tx.select({ id: table.id }).from(table).where(eq(column, source.id)).all();
@@ -547,3 +548,4 @@ export function ensureAdvanceCategory(db: Executor, ctx: AuditContext): string {
     ).id;
   });
 }
+import { remapAssignmentReferences } from './assignment-rules';

@@ -274,6 +274,9 @@ export function enableBanking(options: {
             date,
             amountCents: row.credit_debit_indicator === 'DBIT' ? -cents : cents,
             currency: row.transaction_amount.currency,
+            rawPayee:
+              (row.credit_debit_indicator === 'DBIT' ? row.creditor?.name : row.debtor?.name) ??
+              null,
             memo: [
               row.credit_debit_indicator === 'DBIT' ? row.creditor?.name : row.debtor?.name,
               ...(row.remittance_information ?? []),
