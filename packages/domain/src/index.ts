@@ -30,3 +30,5 @@ export * from './reports/payslip-intake';
 
 export * from './report-range';
 export * from './income-targets';
+
+export * from './wealth/asset-exposure';
