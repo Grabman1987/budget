@@ -15,11 +15,11 @@ describe('amount operator buttons', () => {
     expect(rule('.amount-ops')).toContain('repeat(2, 22px)');
   });
 
-  it('become a 44 px row on the phone', () => {
+  it('are hidden on the phone (owner decision 2026-10-04; operators can still be typed)', () => {
     const media = css.indexOf('@media (max-width: 767px) {\n  .amount-input');
     expect(media).toBeGreaterThan(0);
     const phoneOps = rule('  .amount-ops', media);
-    expect(phoneOps).toContain('grid-template-rows: var(--touch)');
+    expect(phoneOps).toContain('display: none');
   });
 });
 

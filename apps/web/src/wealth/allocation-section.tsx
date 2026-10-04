@@ -8,6 +8,7 @@ import { eurWhole } from '../ledger/format';
 import { allocationQuery, type PortfolioAllocationView } from './allocation-api';
 import { percentText } from './portfolio-format';
 import { TargetPanel } from './target-panel';
+import { thresholdText } from '../rules/rules-model';
 import './allocation.css';
 
 export function PortfolioAllocation() {
@@ -59,7 +60,7 @@ export function PortfolioAllocation() {
         <div className="head">
           <h2 id="allocation-title">Aufteilung Soll/Ist</h2>
           <span className="aside">
-            Band: höchstens ±5 Prozentpunkte oder ±25 % relativ; gespeicherte Bänder gelten
+            {view ? thresholdText('R13', view.policy.R13) : 'Band laut Regelwerk'}
           </span>
         </div>
         {query.isPending && <LoadingNote what="Aufteilung" />}
@@ -248,10 +249,10 @@ function proposalText(proposal: RebalanceProposal, view: PortfolioAllocationView
   if (proposal.rule === 'R15')
     return {
       title: `Spekulativer Anteil ${percentText(proposal.shareBp)} über ${percentText(proposal.referenceBp)} (R15)`,
-      body: `${amount} über der Grenze. Zukäufe bei Krypto, P2P und Einzelaktien aussetzen, bis der Anteil innerhalb der Grenze liegt.`,
+      body: `${amount} Bruttoexposure über der Grenze. Spekulative Produkte einschließlich gehebelter ETF nicht weiter aufstocken, bis der Anteil innerhalb der Grenze liegt.`,
     };
   return {
     title: `${name} über ${percentText(proposal.referenceBp)} (R14)`,
-    body: `${percentText(proposal.shareBp)} Anteil · ${amount} über der Grenze. Konzentration bei weiteren Zukäufen berücksichtigen.`,
+    body: `${percentText(proposal.shareBp)} Bruttoexposure / Marktwert · ${amount} Bruttoexposure über der Grenze. Konzentration bei weiteren Zukäufen berücksichtigen.`,
   };
 }

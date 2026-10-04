@@ -1,3 +1,4 @@
+import type { RuleParams } from './params';
 import type { ForecastItem } from '../forecast';
 import type { AllocMonth } from '../ledger/alloc';
 import type {
@@ -94,6 +95,8 @@ export interface RuleInputs {
   /** R13 to R15: positions with their security kind, class and platform (institution). */
   positions: ReadonlyArray<WealthPosition>;
   classTargets: ReadonlyArray<ClassTarget>;
+  /** Shared resolved runtime policy, supplied by the repository. */
+  portfolioRiskPolicy?: { R13: RuleParams<'R13'>; R14: RuleParams<'R14'>; R15: RuleParams<'R15'> };
   /** Labels for ids in details and texts. */
   names: {
     assetClasses: Record<string, string>;

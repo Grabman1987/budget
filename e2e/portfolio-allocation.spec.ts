@@ -52,7 +52,7 @@ sampleTest(
     const allocation = page.locator('.valloc');
     await expect(allocation).toContainText('Schwellenländer');
     await expect(page.locator('.vrebal')).toContainText('3.560 € fehlen');
-    await expect(page.locator('.vrebal')).toContainText('3.700 € über der Grenze');
+    await expect(page.locator('.vrebal')).toContainText('3.700 € Bruttoexposure über der Grenze');
     await expect(
       page.locator('.vrebal').getByRole('button', { name: /Sparplan|Vorschlag übernehmen/ }),
     ).toHaveCount(0);

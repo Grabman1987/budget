@@ -76,7 +76,9 @@ describe('ensureDefaultRules', () => {
 describe('sample ledger at 17.09.2026', () => {
   it('R15 spekulativer Anteil is 14,2 % and verletzt, as in the prototype', () => {
     expect(latest('R15')).toMatchObject({ status: 'bad', valueText: '14,2 %', actionNeeded: true });
-    expect(latest('R15')?.actionText).toContain('Sparplan nur ETF');
+    // A leveraged ETF is speculative too; an ETF-only blanket recommendation is unsafe.
+    expect(latest('R15')?.actionText).toContain('einschließlich gehebelter ETF');
+    expect(latest('R15')?.actionText).toContain('3.700 € Bruttoexposure');
   });
 
   it('R14 Klumpenrisiko: the largest position is 4,5 %, as in the prototype', () => {

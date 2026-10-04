@@ -436,8 +436,8 @@ function SollTable({ data }: { data: AllocationReport }) {
         </table>
       </div>
       <p className="vnote" data-testid="speculative-note">
-        Spekulative Anteile gesamt (Krypto, P2P, Einzelaktien): {bpText(spec.shareBp)} bei höchstens{' '}
-        {bpText(spec.limitBp)} (R15)
+        Spekulative Bruttoexposure (einschlie?lich gehebelter ETF) / Marktwert:{' '}
+        {bpText(spec.shareBp)} bei höchstens {bpText(spec.limitBp)} (R15)
         {spec.breach ? ', überschritten.' : ', eingehalten.'}
       </p>
     </>

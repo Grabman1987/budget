@@ -50,6 +50,7 @@ export * from './freedom';
 export * from './profile';
 export * from './liquidity-report';
 export * from './networth-history';
+export * from './assets-debts-history';
 export * from './cashflow-report';
 export * from './month-reports';
 export * from './overview-reports';
@@ -74,3 +75,4 @@ export * from './income-month';
 export * from './bank-followups';
 
 export * from './asset-exposure';
+export * from './portfolio-risk-policy';

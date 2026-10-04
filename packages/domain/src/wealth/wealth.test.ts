@@ -145,7 +145,7 @@ describe('clusterRisk (R14) and speculativeShare (R15)', () => {
     expect(c.breach).toBe(false);
   });
 
-  it('ETFs and brokers are never a cluster, names do not matter', () => {
+  it('unleveraged ETFs and brokers are not a cluster, names do not matter', () => {
     const c = clusterRisk([
       { id: 'etf', kind: 'etf', assetClass: 'welt', valueCents: 9_000, platform: 'b' },
       { id: 'Bitcoin', kind: 'other', assetClass: 'spec', valueCents: 1_000, platform: 'b' },
@@ -193,7 +193,9 @@ describe('clusterRisk (R14) and speculativeShare (R15)', () => {
       },
       { id: 'e', kind: 'etf', assetClass: 'w', valueCents: 8_800, platform: 'b1' },
     ]);
-    expect(c.singles).toEqual([{ id: 's', valueCents: 1_200, shareBp: 1200, breach: true }]);
+    expect(c.singles).toEqual([
+      { id: 's', valueCents: 1_200, grossExposureCents: 1_200, shareBp: 1200, breach: true },
+    ]);
   });
 
   it('prototype: speculative share 14,2 %, 3.700 € over the limit', () => {

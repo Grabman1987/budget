@@ -5,7 +5,18 @@
 - [x] Preserve Impeccable configuration; add offline cross-platform formatting and protected-file hooks with synthetic stdin tests.
 - [x] User-invoked PR shipping/operator skills and read-only migration/money reviewers; see [Claude Code setup](claude-code.md).
 - [x] Windows full check (291 files, 2,808 tests) and build; local run used two workers and a 30-second test timeout without changing repository defaults. Delivery uses a separate git directory/bundle because the worktree commit could not create index.lock.
-- [ ] Required Linux/Windows CI and owner Claude-session acceptance; no merge or production operation in this task.
+- [x] Linux/Windows CI; owner acceptance in the next Claude session.
+
+### Owner directive PR2 — Risk policy unification and leverage (2026-10-04)
+
+- [x] One stored R13/R14/R15 resolver across rule evaluation, Portfolio, rebalancing, report 4.2, savings recommendations and Heute/finance check; schema defaults only for missing values.
+- [x] Central kind/leverage/optional-override classification, leveraged ETF risk, distinct market/gross cents and exact weighted gross splits.
+- [x] Correct R13 standard wording and stored class-band precedence, including report month ends.
+- [x] Synthetic R01–R06 and audited risk-policy undo/redo; existing 1× money/region/history invariants retained.
+- [x] Final local check (286 files / 2,716 tests), production/E2E builds and affected desktop/mobile browser evidence (31 passed / 4 planned skips).
+- [ ] Draft PR, Linux visual/CI review and owner acceptance remain separate.
+
+Contract and baseline matrix: [risk policy](portfolio-risk-policy.md). PR3 quality/scope, PR4 settings and PR5 mobile panels remain separate.
 
 ### Owner directive PR1 — Historical asset exposure foundation (2026-10-04)
 
@@ -493,3 +504,9 @@ Scope and shared definitions: [report correctness](report-correctness.md).
 - [x] Shared household classification for yearly/overview/table/cashflow totals and Plan year summary.
 - [x] Mobile Heute safe space and bounded project settings table; synthetic regressions.
 - [ ] Owner design/private-ledger acceptance and pinned Linux visual CI; no private-data access, migration or deployment in this task.
+
+### Report 3.6 — Vermögen & Schulden
+- [x] `/reports/vermoegen-schulden`: assets and debts at every month end (`GET /api/assets-debts-history?period=`, default `Alles`), net worth line, header with Nettovermögen / Vermögenswerte / Schulden / Veränderung im Zeitraum (EUR and %), month selection (`?monat=`) with the accounts behind the month.
+- [x] One valuation: months are read with `netWorthAsOf` (same as Vermögen › Nettovermögen); pure split in `packages/domain/src/ledger/assets-debts.ts`; estimated/missing prices flag the month and show `ValuationHint`.
+- [x] Domain unit tests (loans, credit cards, negative cash accounts, zero start), API tests (controlled accounts, equality with `/api/wealth/networth`, valuation quality, no accounts), Playwright desktop/mobile with axe light/dark and overflow checks.
+- [ ] Owner design acceptance on real data.

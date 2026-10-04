@@ -1,3 +1,4 @@
+import { resolvePortfolioRiskPolicy } from './portfolio-risk-policy';
 import { exposuresAsOf, splitAssetExposure, singleAssetClass } from './asset-exposure';
 import {
   addMonths,
@@ -9,6 +10,7 @@ import {
   fxOn,
   fundCosts,
   gainOf,
+  grossExposureCents,
   incomeLast12Months,
   lastDayOfMonth,
   monthOf,
@@ -56,7 +58,6 @@ import {
   valuationSeries,
 } from './portfolio';
 import { MissingFxRateError } from './errors';
-import { targetsAsOf } from './securities';
 import { investmentPreferences } from './investment-preferences';
 import type { Executor } from './types';
 import { portfolioBenchmark } from './portfolio-benchmark';
@@ -665,37 +666,47 @@ export const toWealthPositions = (
   lines: ReadonlyArray<RiskPosition>,
 ): WealthPosition[] => {
   const exposure = exposuresAsOf(db, asOf);
-  return lines.flatMap((line) =>
-    line.accounts.flatMap((position) =>
-      splitAssetExposure(position.valueCents, exposure.get(line.securityId)?.weights ?? []).map(
-        (part) => ({
-          id: `${line.securityId}:${position.accountId}:${part.assetClassId ?? ''}`,
-          securityId: line.securityId,
-          kind: line.kind,
-          assetClass: part.assetClassId,
-          valueCents: part.valueCents,
-          platform: position.institutionId,
-        }),
-      ),
-    ),
+  const metadata = new Map(
+    db
+      .select()
+      .from(security)
+      .all()
+      .map((s) => [s.id, s]),
   );
+  return lines.flatMap((line) => {
+    const leverageFactor = metadata.get(line.securityId)?.leverageFactor ?? 10;
+    const weights = exposure.get(line.securityId)?.weights ?? [];
+    return line.accounts.flatMap((position) => {
+      const grossParts = splitAssetExposure(
+        grossExposureCents({ valueCents: position.valueCents, leverageFactor }),
+        weights,
+      );
+      return splitAssetExposure(position.valueCents, weights).map((part, i) => ({
+        id: `${line.securityId}:${position.accountId}:${part.assetClassId ?? ''}`,
+        securityId: line.securityId,
+        kind: line.kind,
+        leverageFactor,
+        grossExposureCents: grossParts[i]!.valueCents,
+        assetClass: part.assetClassId,
+        valueCents: part.valueCents,
+        platform: position.institutionId,
+      }));
+    });
+  });
 };
 
 /** R13 inputs: the Soll-Allocation valid on `asOf`. */
 export function classTargets(db: Executor, asOf: string) {
-  return targetsAsOf(db, asOf).map((t) => ({
-    assetClass: t.assetClassId,
-    targetBp: t.targetShareBp,
-    bandBp: t.bandBp,
-  }));
+  return resolvePortfolioRiskPolicy(db, asOf).targets;
 }
 
 /** Allocation, cluster risk, R15 and the rebalancing rows of the positions on `asOf`. */
 export function riskOf(db: Executor, asOf: string, lines: ReadonlyArray<RiskPosition>) {
   const positions = toWealthPositions(db, asOf, lines);
-  const allocation = allocationStatus(positions, classTargets(db, asOf));
-  const cluster = clusterRisk(positions);
-  const speculative = speculativeShare(positions);
+  const policy = resolvePortfolioRiskPolicy(db, asOf);
+  const allocation = allocationStatus(positions, policy.targets, policy.R13);
+  const cluster = clusterRisk(positions, policy.R14);
+  const speculative = speculativeShare(positions, policy.R15.limitBp);
   return {
     allocation,
     cluster,

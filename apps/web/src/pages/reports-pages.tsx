@@ -23,6 +23,7 @@ import { PaymentsPreviewReport } from './payments-preview-report';
 import { ContactReportPage } from '../reports/contact-report';
 import { CashflowReportPage } from '../reports/cashflow-report';
 import { LiquidityReportPage } from '../reports/liquidity-report';
+import { AssetsDebtsReport } from '../reports/assets-debts-report';
 import { WealthHistoryReport } from '../reports/wealth-history-report';
 import { PayeeAnalysisReport } from './payee-analysis-report';
 import { PortfolioPerformanceReport } from './portfolio-performance-report';
@@ -195,6 +196,7 @@ export function ReportPage({ reportId }: { reportId: string }) {
   if (report.id === 'liquiditaet') return <LiquidityReportPage report={report} meta={meta} />;
   if (report.id === 'cashflow') return <CashflowReportPage report={report} meta={meta} />;
   if (report.id === 'vermoegen') return <WealthHistoryReport report={report} meta={meta} />;
+  if (report.id === 'vermoegen-schulden') return <AssetsDebtsReport report={report} meta={meta} />;
   if (report.id === 'ausgaben') return <SpendingAnalysisReport report={report} meta={meta} />;
   if (report.id === 'budgettreue') return <BudgetAdherenceReportPage report={report} meta={meta} />;
   if (report.id === 'abos') return <ContractsReportPage report={report} meta={meta} />;

@@ -16,6 +16,7 @@ import { request } from '../api/http';
 import { undoGroup } from '../ledger/api';
 import { errorText } from '../ledger/labels';
 import { ErrorNote, LoadingNote } from '../ledger/states';
+import { thresholdText } from '../rules/rules-model';
 import {
   targetVersionsQuery,
   type PortfolioAllocationView,
@@ -355,7 +356,7 @@ function TargetEditor({
               hint={
                 draft.bands[cls.id]
                   ? `Gespeichertes Band ±${bpText(draft.bands[cls.id]!)} Prozentpunkte bleibt erhalten.`
-                  : 'Band nach R13: kleinerer Wert aus 5 Prozentpunkten und 25 % des Solls.'
+                  : thresholdText('R13', view.policy.R13)
               }
             >
               {({ id, describedBy }) => (

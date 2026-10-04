@@ -540,6 +540,15 @@ describe('R13 to R15 portfolio', () => {
       'warn',
     );
   });
+  it('R13 keeps speculative overweight when a stored R15 limit covers it', () => {
+    const i = inputs({ positions, classTargets: targets, names });
+    i.portfolioRiskPolicy = {
+      R13: PARAM_SCHEMAS.R13.parse({}),
+      R14: PARAM_SCHEMAS.R14.parse({}),
+      R15: PARAM_SCHEMAS.R15.parse({ limitBp: 2000 }),
+    };
+    expect(evaluateRule('R13', {}, i)!.detail['breaches']).toContain('spec');
+  });
   it('R14 single titles and platforms', () => {
     const calm = [
       pos('w', 'etf', 'world', 9_000_000),

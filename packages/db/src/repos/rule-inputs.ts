@@ -1,4 +1,5 @@
-import { exposuresAsOf, splitAssetExposure } from './asset-exposure';
+import { toWealthPositions } from './portfolio-summary';
+import { resolvePortfolioRiskPolicy } from './portfolio-risk-policy';
 import { bookInputs } from './book-inputs';
 import {
   addDays,
@@ -24,21 +25,18 @@ import {
   type BudgetMonth,
   type CardBalance,
   type CategoryTarget,
-  type ClassTarget,
   type DebtLoan,
   type ForecastItem,
   type MoneyEvent,
   type MonthFlow,
   type RuleInputs,
   type SinkingFund,
-  type WealthPosition,
   type Rhythm,
 } from '@budget/domain';
 import { and, asc, eq, isNull } from 'drizzle-orm';
 import {
   account,
   assetClass,
-  assetClassTarget,
   auditLog,
   booking,
   bookingSplit,
@@ -94,7 +92,6 @@ export interface RuleFacts {
   plannedEvents: (typeof plannedEvent.$inferSelect)[];
   securities: Map<string, typeof security.$inferSelect>;
   classNames: Record<string, string>;
-  classTargets: (typeof assetClassTarget.$inferSelect)[];
   platformNames: Record<string, string>;
   incomeSplits: IncomeSplit[];
   ledgerSplits: ReturnType<typeof budgetLedger>['splits'];
@@ -221,11 +218,6 @@ export function loadFacts(
         .all()
         .map((c) => [c.id, c.name]),
     ),
-    classTargets: db
-      .select()
-      .from(assetClassTarget)
-      .where(isNull(assetClassTarget.deletedAt))
-      .all(),
     platformNames: Object.fromEntries(
       db
         .select()
@@ -658,31 +650,31 @@ export function ruleInputs(
 
   // R13 to R15: positions valued on the day; platform ownership comes from the holding account.
   const institutionByAccount = new Map(accounts.map((a) => [a.id, a.institutionId]));
-  const exposures = exposuresAsOf(db, asOf);
-  const positions: WealthPosition[] = holdingValuesAsOf(db, asOf).flatMap((h) => {
-    const s = f.securities.get(h.securityId);
-    if (!s) return [];
-    const parts = splitAssetExposure(h.valueCents, exposures.get(h.securityId)?.weights ?? []);
-    return parts.map((part) => ({
-      id:
-        parts.length === 1
-          ? `${h.accountId}:${h.securityId}`
-          : `${h.accountId}:${h.securityId}:${part.assetClassId ?? ''}`,
-      securityId: h.securityId,
-      kind: s.kind,
-      assetClass: part.assetClassId,
-      valueCents: part.valueCents,
-      platform: institutionByAccount.get(h.accountId) ?? null,
-    }));
-  });
-  const classTargets: ClassTarget[] = [
-    ...new Set(f.classTargets.map((t) => t.assetClassId)),
-  ].flatMap((id) => {
-    const t = f.classTargets
-      .filter((x) => x.assetClassId === id && x.validFrom <= asOf)
-      .sort((a, b) => b.validFrom.localeCompare(a.validFrom))[0];
-    return t ? [{ assetClass: id, targetBp: t.targetShareBp, bandBp: t.bandBp }] : [];
-  });
+  const positions = toWealthPositions(
+    db,
+    asOf,
+    holdingValuesAsOf(db, asOf).flatMap((h) => {
+      const s = f.securities.get(h.securityId);
+      return s
+        ? [
+            {
+              securityId: s.id,
+              kind: s.kind,
+              assetClassId: null,
+              accounts: [
+                {
+                  accountId: h.accountId,
+                  institutionId: institutionByAccount.get(h.accountId) ?? null,
+                  valueCents: h.valueCents,
+                },
+              ],
+            },
+          ]
+        : [];
+    }),
+  );
+  const portfolioRiskPolicy = resolvePortfolioRiskPolicy(db, asOf);
+  const classTargets = portfolioRiskPolicy.targets;
 
   // R16: invested wealth over 25 annual spends, now and three months ago
   const progressAt = (day: string, refM: string): { invested: number; spend: number } => {
@@ -736,6 +728,7 @@ export function ruleInputs(
     windfall,
     positions,
     classTargets,
+    portfolioRiskPolicy,
     names: {
       assetClasses: f.classNames,
       securities: Object.fromEntries([...f.securities.values()].map((s) => [s.id, s.name])),

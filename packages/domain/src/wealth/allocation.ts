@@ -1,10 +1,12 @@
 import { deviatesMoreThan, mulDivRound, shareBps } from './int';
-import { SPECULATIVE_KINDS, type WealthPosition } from './types';
+import { type WealthPosition } from './types';
+import { classifyRisk } from './classification';
+import { PARAM_SCHEMAS, type RuleParams } from '../rules/params';
 
 /** R13: a class is out of band beyond 5 percentage points ... */
-export const MAX_BAND_BP = 500;
+export const MAX_BAND_BP = PARAM_SCHEMAS.R13.parse({}).maxBandBp;
 /** ... or 25 % of its own target, whichever is smaller. */
-export const RELATIVE_BAND_PERCENT = 25;
+export const RELATIVE_BAND_PERCENT = PARAM_SCHEMAS.R13.parse({}).relativeBandPct;
 
 /** Soll share of one asset class (from `asset_class_target`). */
 export interface ClassTarget {
@@ -15,8 +17,11 @@ export interface ClassTarget {
 }
 
 /** R13 band of a target: `min(500 bp, 25 % of the target)`, the 25 % rounded half up to whole bp. */
-export function defaultBandBp(targetBp: number): number {
-  return Math.min(MAX_BAND_BP, mulDivRound(targetBp, RELATIVE_BAND_PERCENT, 100));
+export function defaultBandBp(
+  targetBp: number,
+  policy: Pick<RuleParams<'R13'>, 'maxBandBp' | 'relativeBandPct'> = PARAM_SCHEMAS.R13.parse({}),
+): number {
+  return Math.min(policy.maxBandBp, mulDivRound(targetBp, policy.relativeBandPct, 100));
 }
 
 export interface ClassRow {
@@ -56,6 +61,7 @@ export interface AllocationStatus {
 export function allocationStatus(
   positions: ReadonlyArray<WealthPosition>,
   classTargets: ReadonlyArray<ClassTarget>,
+  policy: Pick<RuleParams<'R13'>, 'maxBandBp' | 'relativeBandPct'> = PARAM_SCHEMAS.R13.parse({}),
 ): AllocationStatus {
   const totalCents = positions.reduce((a, p) => a + p.valueCents, 0);
   const keys: string[] = classTargets.map((t) => t.assetClass);
@@ -72,8 +78,7 @@ export function allocationStatus(
     const valueCents = values[i] ?? 0;
     const shareBp = shares[i] ?? 0;
     const inClass = positions.filter((p) => (p.assetClass ?? '') === key);
-    const speculativeOnly =
-      inClass.length > 0 && inClass.every((p) => SPECULATIVE_KINDS.has(p.kind));
+    const speculativeOnly = inClass.length > 0 && inClass.every((p) => classifyRisk(p).speculative);
     if (!target) {
       return {
         assetClass: key,
@@ -89,7 +94,7 @@ export function allocationStatus(
       };
     }
     const bandBp =
-      target.bandBp && target.bandBp > 0 ? target.bandBp : defaultBandBp(target.targetBp);
+      target.bandBp && target.bandBp > 0 ? target.bandBp : defaultBandBp(target.targetBp, policy);
     const gapCents = mulDivRound(totalCents, target.targetBp, 10_000) - valueCents;
     const exact = BigInt(valueCents) * 10_000n - BigInt(target.targetBp) * BigInt(totalCents);
     return {
