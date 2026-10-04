@@ -9,7 +9,7 @@ import {
   type PlanYearAmounts,
   type PlanYearRow,
 } from '@budget/domain';
-import { useQueries, useQuery } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { eur } from '../ledger/format';
@@ -18,7 +18,7 @@ import { areaById } from '../nav/areas';
 import { monthLabel } from '../nav/month';
 import { AppLink } from '../shell/app-link';
 import { useMonth } from '../shell/use-month';
-import { budgetQuery, type BudgetMonthView } from './budget-api';
+import { budgetMonthsQuery, type BudgetMonthView } from './budget-api';
 import { CategoryIcon } from './category-icon';
 import './plan-year.css';
 import { YearPlanning } from './year-planning';
@@ -37,9 +37,14 @@ export function PlanYearPage() {
   const year = Number(month.slice(0, 4));
   const months = useMemo(() => planYearMonths(year), [year]);
   const reports = useQuery(reportTablesQuery(false));
-  const results = useQueries({ queries: months.map((m) => budgetQuery(m)) });
-  const failed = results.find((result) => result.isError);
-  const loaded = results.every((result) => result.data);
+  // One call for the twelve months: the server reads the ledger once for all of them.
+  const yearQuery = useQuery(budgetMonthsQuery(months));
+  const failed = yearQuery.isError ? yearQuery : undefined;
+  const views = useMemo(
+    () => months.flatMap((m) => yearQuery.data?.months[m] ?? []),
+    [months, yearQuery.data],
+  );
+  const loaded = views.length === months.length;
   return (
     <>
       <TitleBlock
@@ -85,9 +90,7 @@ export function PlanYearPage() {
           <ErrorNote
             what="Jahresplan"
             error={failed.error}
-            onRetry={() => {
-              for (const result of results) void result.refetch();
-            }}
+            onRetry={() => void yearQuery.refetch()}
           />
         ) : !loaded ? (
           <LoadingNote what="Jahresplan" />
@@ -132,18 +135,13 @@ export function PlanYearPage() {
             ) : (
               <LoadingNote what="Jahressummen" />
             )}
-            <YearPlanning
-              key={`events-${year}`}
-              year={year}
-              selectedMonth={month}
-              views={results.map((r) => r.data!)}
-            />
+            <YearPlanning key={`events-${year}`} year={year} selectedMonth={month} views={views} />
             <YearOverview
               key={year}
               year={year}
               selectedMonth={month}
               months={months}
-              views={results.map((r) => r.data!)}
+              views={views}
             />
           </>
         )}

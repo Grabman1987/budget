@@ -57,7 +57,7 @@ import { allocationMonth, isIncomeCategorySplit } from './allocation';
 import { scheduleVersion, schedulePayment } from './expected';
 import { holdingValuesAsOf, netWorthAsOf, type NetWorth } from './portfolio';
 import { fxRateOnOrBefore } from './prices';
-import { budget, budgetLedger } from './queries';
+import { budgetLedger, budgetOfLedger } from './queries';
 import type { Executor } from './types';
 import { freedomExpenses, freedomInvestedCents } from './freedom-inputs';
 
@@ -131,16 +131,22 @@ function auditDeltas(db: Executor): RuleFacts['assignmentAudit'] {
   return out;
 }
 
-/** Reads the facts that hold for every day up to `upTo`. */
-export function loadFacts(db: Executor, upTo: string): RuleFacts {
+/**
+ * Reads the facts that hold for every day up to `upTo`. A caller that read the budget ledger
+ * already passes it in (one read per request instead of one per budget).
+ */
+export function loadFacts(
+  db: Executor,
+  upTo: string,
+  ledger: ReturnType<typeof budgetLedger> = budgetLedger(db),
+): RuleFacts {
   const accounts = db.select().from(account).where(isNull(account.deletedAt)).all();
   const categories = db.select().from(category).where(isNull(category.deletedAt)).all();
-  const ledger = budgetLedger(db);
   const budgetStarts = accounts.filter((a) => a.onBudget).map((a) => monthOf(a.openingDate));
   const firstMonth = budgetStarts.reduce((a, m) => (m < a ? m : a), monthOf(upTo));
   const budgetByMonth = new Map<string, BudgetMonth>();
   if (budgetStarts.length > 0)
-    for (const m of budget(db, monthsBetween(firstMonth, monthOf(upTo))))
+    for (const m of budgetOfLedger(ledger, monthsBetween(firstMonth, monthOf(upTo))))
       budgetByMonth.set(m.month, m);
 
   const versions = new Map<string, VersionRow[]>();

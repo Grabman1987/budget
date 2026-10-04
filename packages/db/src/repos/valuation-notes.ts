@@ -7,6 +7,7 @@ import {
 } from '@budget/domain';
 import { inArray } from 'drizzle-orm';
 import { security } from '../schema';
+import { runWithRequestMemo } from './request-memo';
 import type { Executor } from './types';
 
 /**
@@ -23,7 +24,8 @@ const storage = new AsyncLocalStorage<Map<string, IncompleteValuation>>();
  */
 export function runWithValuationNotes<T>(fn: (notes: () => ValuationNote[]) => T): T {
   const store = new Map<string, IncompleteValuation>();
-  return storage.run(store, () => fn(() => mergeNotes(store.values())));
+  // The same scope memoises valuations (a memoised valuation has already reported its notes here).
+  return runWithRequestMemo(() => storage.run(store, () => fn(() => mergeNotes(store.values()))));
 }
 
 /** Report estimated or missing positions to the current request, if one is collecting. */

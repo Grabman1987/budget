@@ -1,11 +1,12 @@
 import {
+  addMonths,
   assignedMonth,
   incomeBudgetMonth,
   type AllocMonth,
   type AssignedCategory,
   type BudgetMonth,
 } from '@budget/domain';
-import { and, eq, isNull } from 'drizzle-orm';
+import { and, eq, gte, isNull, lte, sql } from 'drizzle-orm';
 import {
   account,
   booking,
@@ -98,8 +99,14 @@ export function allocationMonth(
         isNull(booking.deletedAt),
         isNull(account.deletedAt),
         eq(account.onBudget, true),
-        isNull(booking.transferId),
-        isNull(bookingSplit.transferId),
+        // Unary plus: keep SQLite from walking the (almost all NULL) transfer indexes instead of
+        // the date range below, which is ~3x faster here.
+        sql`+${booking.transferId} is null`,
+        sql`+${bookingSplit.transferId} is null`,
+        // Income counts in its booking month or, flagged `incomeNextMonth`, in the month after:
+        // nothing outside these two months can match the filter below (index on `booking.date`).
+        gte(booking.date, `${addMonths(month, -1)}-01`),
+        lte(booking.date, `${month}-31`),
       ),
     )
     .all()

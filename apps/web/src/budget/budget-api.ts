@@ -55,6 +55,17 @@ export const budgetQuery = (month: string) =>
     queryFn: () => request<BudgetMonthView>('GET', path(month)),
   });
 
+/** Several months in one call (Plan › Jahr): the same views as `budgetQuery`, keyed by month. */
+export const budgetMonthsQuery = (months: string[]) =>
+  queryOptions({
+    queryKey: [...BUDGET_KEY, 'months', months],
+    queryFn: () =>
+      request<{ months: Record<string, BudgetMonthView> }>(
+        'GET',
+        `/api/budget/months?months=${months.join(',')}`,
+      ),
+  });
+
 export const assign = (
   month: string,
   items: Array<{ categoryId: string; assignedCents: number }>,
