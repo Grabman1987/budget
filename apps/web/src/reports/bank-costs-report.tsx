@@ -222,8 +222,8 @@ function Body({ data }: { data: BankCostsReport }) {
         )}
         <p className="sr-note">
           {data.loan?.paymentSource === 'terms'
-            ? 'Die Rate stammt aus den Konditionen des Kredits (Einstellungen › Konten), die Sondertilgung aus den erwarteten Zahlungen der Kreditkategorien.'
-            : 'Rate und Sondertilgung stammen aus den erwarteten Zahlungen der Kreditkategorien; eine Monatsrate beim Kredit (Einstellungen › Konten) hat Vorrang.'}{' '}
+            ? 'Die Rate stammt aus den Konditionen des Kredits (Einstellungen › Konten), die Sondertilgung aus den wiederkehrenden Zahlungen der Kreditkategorien.'
+            : 'Rate und Sondertilgung stammen aus den wiederkehrenden Zahlungen der Kreditkategorien; eine Monatsrate beim Kredit (Einstellungen › Konten) hat Vorrang.'}{' '}
           Ändern kannst du die Sondertilgung im{' '}
           <AppLink to="/vermoegen/schulden">Schuldenrechner</AppLink> unter Vermögen.
         </p>

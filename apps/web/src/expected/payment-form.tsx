@@ -11,6 +11,7 @@ const KINDS = [
   { value: 'inflow', label: 'Einnahme' },
 ] as const;
 const RHYTHMS: ReadonlyArray<{ value: Rhythm; label: string }> = [
+  { value: 'weekly', label: 'wöchentlich' },
   { value: 'monthly', label: 'monatlich' },
   { value: 'quarterly', label: 'vierteljährlich' },
   { value: 'semiannual', label: 'halbjährlich' },
@@ -187,6 +188,7 @@ export function PaymentForm({
           {text('dueDay', 'Fälligkeitstag', { inputMode: 'numeric' })}
         </div>
         {draft.rhythm !== 'monthly' &&
+          draft.rhythm !== 'weekly' &&
           pick(
             'dueMonth',
             draft.rhythm === 'yearly' ? 'Fälligkeitsmonat' : 'Erster Monat im Zyklus',

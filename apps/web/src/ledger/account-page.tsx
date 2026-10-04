@@ -1,6 +1,15 @@
 import { BankBalance } from './bank-balance';
-import { useAmountPrivacy, privateAmount, Button, cx } from '@budget/ui';
-import { lastDayOfMonth, monthOf, todayInVienna } from '@budget/domain';
+import { useAmountPrivacy, Button, Segmented, cx } from '@budget/ui';
+import {
+  addMonths,
+  DEFAULT_FUTURE_PREVIEW_DAYS,
+  calendarRangeWindow,
+  isCalendarRange,
+  lastDayOfMonth,
+  monthOf,
+  todayInVienna,
+  type Period,
+} from '@budget/domain';
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
 import { Link, useParams } from '@tanstack/react-router';
 import { CheckCircle2, ChevronLeft, Plus } from 'lucide-react';
@@ -26,12 +35,14 @@ import {
   groupOf,
   valuationMissingText,
 } from './labels';
-import { accountsQuery, bookingsInfiniteQuery, seriesQuery } from './queries';
+import { fetchSeries } from './api';
+import { displaySettingsQuery } from '../pages/future-preview-setting';
+import { PeriodQuickSelect } from '../reports/period-quick-select';
+import { accountsQuery, bookingsInfiniteQuery } from './queries';
 import { ReconcilePanel } from './reconcile-panel';
 import { EmptyNote, ErrorNote, LoadingNote } from './states';
 import type { AccountRow } from './types';
 
-const CHART_DAYS = 90;
 /** Bookings per page of the month list; more load on request. */
 const PAGE_SIZE = 100;
 
@@ -79,7 +90,31 @@ function AccountBody({ account }: { account: AccountRow }) {
   useAmountPrivacy();
   const today = todayInVienna();
   const month = monthOf(today);
-  const series = useQuery(seriesQuery(account.id, CHART_DAYS));
+  const [period, setPeriod] = useState<Period | '6M'>('3M');
+  const settings = useQuery(displaySettingsQuery());
+  const range = isCalendarRange(period)
+    ? calendarRangeWindow(period, today)
+    : {
+        from:
+          period === 'Alles'
+            ? account.openingDate
+            : `${addMonths(month, period === '3M' ? -3 : period === '1J' ? -12 : -6)}-${today.slice(8)}`,
+        to: today,
+      };
+  // Calendar-month ranges reuse the report picker; presets are rolling and end today.
+  if (!isCalendarRange(period) && period !== 'Alles')
+    range.from =
+      range.from > lastDayOfMonth(range.from.slice(0, 7))
+        ? lastDayOfMonth(range.from.slice(0, 7))
+        : range.from;
+  const previewDays =
+    range.to === today ? (settings.data?.futurePreviewDays ?? DEFAULT_FUTURE_PREVIEW_DAYS) : 0;
+  const series = useQuery({
+    queryKey: ['ledger', 'series', account.id, range.from, range.to, previewDays],
+    queryFn: () => fetchSeries(account.id, range.from, range.to, previewDays),
+  });
+  const limit = account.overdraftLimitCents ?? account.creditLimitCents;
+  const limitLabel = account.overdraftLimitCents !== null ? 'Dispolimit' : 'Kreditrahmen';
   // Exactly the month (later months are not part of it), page by page.
   const list = useInfiniteQuery(
     bookingsInfiniteQuery(
@@ -162,6 +197,25 @@ function AccountBody({ account }: { account: AccountRow }) {
         </div>
       </div>
       <BankBalance account={account} />
+      <div className="kchart-range">
+        <Segmented
+          label="Saldoverlauf Zeitraum"
+          value={period}
+          onChange={setPeriod}
+          options={[
+            { value: '3M', label: '3M' },
+            { value: '6M', label: '6M' },
+            { value: '1J', label: '12M' },
+            { value: 'Alles', label: 'Alles' },
+          ]}
+        />
+        <PeriodQuickSelect
+          customOnly
+          period={period === '6M' ? `${addMonths(month, -6)}..${month}` : period}
+          onChange={setPeriod}
+          trend={false}
+        />
+      </div>
       {series.isPending && <LoadingNote what="Saldoverlauf" />}
       {series.isError && (
         <ErrorNote what="Saldoverlauf" error={series.error} onRetry={() => void series.refetch()} />
@@ -170,7 +224,10 @@ function AccountBody({ account }: { account: AccountRow }) {
         <>
           <BalanceChart
             points={series.data.points}
-            windowLabel={`${CHART_DAYS} Tage`}
+            windowLabel={period}
+            previewPoints={series.data.previewPoints ?? []}
+            limitCents={limit}
+            limitLabel={limitLabel}
             currency={account.currency}
           />
           {account.currency !== 'EUR' && (
@@ -198,6 +255,12 @@ function AccountBody({ account }: { account: AccountRow }) {
               </table>
             </details>
           )}
+          {(series.data.unavailableCurrencies?.length ?? 0) > 0 && (
+            <p role="status">
+              Vorschau nicht verfügbar: Wechselkurs fehlt (
+              {series.data.unavailableCurrencies?.join(', ')}).
+            </p>
+          )}
           <div className="legend" aria-hidden="true">
             <span>
               <svg viewBox="0 0 26 8">
@@ -205,13 +268,22 @@ function AccountBody({ account }: { account: AccountRow }) {
               </svg>
               Cash-Saldo · {account.currency}
             </span>
-            <span>
-              <svg viewBox="0 0 26 8">
-                <path className="l-plan" d="M0 4h26" />
-              </svg>
-              {privateAmount('0')} {account.currency === 'EUR' ? '€' : account.currency} ·{' '}
-              {account.type === 'checking' ? 'darunter beginnt der Dispo' : 'Nulllinie'}
-            </span>
+            {(series.data.previewPoints?.length ?? 0) > 1 && (
+              <span>
+                <svg viewBox="0 0 26 8">
+                  <path className="l-forecast" d="M0 4h26" />
+                </svg>
+                Vorschau · {previewDays} Tage
+              </span>
+            )}
+            {limit !== null && (
+              <span>
+                <svg viewBox="0 0 26 8">
+                  <path className="l-plan" d="M0 4h26" />
+                </svg>
+                {limitLabel} · {valuedCurrency(-limit, account.currency)}
+              </span>
+            )}
           </div>
         </>
       )}

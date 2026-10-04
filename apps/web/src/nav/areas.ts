@@ -30,7 +30,7 @@ export const AREAS: ReadonlyArray<AreaDef> = [
     registers: [
       { id: 'monat', label: 'Monat', to: '/plan/monat' },
       { id: 'jahr', label: 'Jahr', to: '/plan/jahr' },
-      { id: 'erwartet', label: 'Erwartet', to: '/plan/erwartet' },
+      { id: 'erwartet', label: 'Wiederkehrende Zahlungen', to: '/plan/erwartet' },
       { id: 'sparziele', label: 'Sparziele', to: '/plan/sparziele' },
     ],
   },

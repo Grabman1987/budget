@@ -1,3 +1,4 @@
+import { FuturePreviewSetting } from './future-preview-setting';
 import {
   Button,
   Field,
@@ -63,6 +64,7 @@ export function ProfileSettingsPage() {
           unverändert.
         </p>
       </section>
+      <FuturePreviewSetting />
       <ProfilePanel />
     </PageFrame>
   );
