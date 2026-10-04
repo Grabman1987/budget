@@ -83,6 +83,18 @@ describe('GET /api/portfolio on the seeded sample ledger (17.09.2026)', () => {
       contributionsCents: 2_677_482,
       gainCents: 2_039_393,
     });
+    expect(h.daily[0]).toEqual({
+      date: '2023-09-30',
+      valueCents: 4_083_125,
+      investedCents: 4_083_125,
+    });
+    expect(h.daily.at(-1)).toEqual({
+      date: '2026-09-17',
+      valueCents: 8_800_000,
+      investedCents: 6_760_607,
+    });
+    expect(h.daily.some((row: any) => row.date === '2023-10-15')).toBe(true);
+    expect(h.daily.length).toBeGreaterThan(1000);
     expect(h.months).toHaveLength(36);
     expect(h.months[0]).toMatchObject({
       from: '2023-09-30',
@@ -765,6 +777,12 @@ describe('invest CRUD', () => {
       contributionsCents: -12_000,
       gainCents: 2_000,
     });
+    expect(
+      res.body['portfolio'].contributionHistory.daily.find((p: any) => p.date === '2026-09-09'),
+    ).toEqual({ date: '2026-09-09', valueCents: 10_000, investedCents: 10_000 });
+    expect(
+      res.body['portfolio'].contributionHistory.daily.find((p: any) => p.date === '2026-09-10'),
+    ).toEqual({ date: '2026-09-10', valueCents: 0, investedCents: -2_000 });
     expect(res.body['portfolio'].contributionHistory.months[0]).toMatchObject({
       from: '2026-09-01',
       contributionsCents: -12_000,
