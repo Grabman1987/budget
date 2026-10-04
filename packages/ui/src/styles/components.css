@@ -949,18 +949,44 @@ dialog.overlay {
   margin: 0;
   overflow: hidden;
 }
-/* The sheet stops at 88 % of the screen and scrolls inside (needs the dialog selector to win). */
+/* The sheet stops at 88 % of the screen and scrolls inside (needs the dialog selector to win).
+   Its height is `auto` on purpose: the UA sheet gives a modal dialog `height: fit-content`, and
+   WebKit (every iOS browser) resolves the `height: 100%` of a child against a fit-content parent
+   as 0, so the sheet collapsed to nothing below the visible area while its backdrop showed
+   (owner recording 04.10.2026, docs/mobile-panels.md). Chromium treats that percentage as auto,
+   which is why only WebKit showed it. A sheet never uses a percentage height for its content:
+   the inner box is auto-high and capped by `--sheet-max`; only a dialog with a definite height
+   (`.panel`, `.is-full`) lets `.overlay-inner` fill it. */
 dialog.sheet-bottom {
-  max-height: 88dvh;
+  --sheet-max: 88dvh;
+  height: auto;
+  max-height: var(--sheet-max);
 }
 dialog.overlay::backdrop {
   background: var(--overlay);
+}
+/* Scroll ownership: the dialog's own scrollers never hand the swipe on to the page behind. */
+dialog.overlay,
+dialog.overlay .panel-body,
+dialog.overlay .bk-body {
+  overscroll-behavior: contain;
+}
+/* Phone: the page behind an open modal does not scroll (iOS chains a swipe at the end of the
+   sheet's scroller to the page otherwise). Desktop keeps its scrollbar, so nothing shifts. */
+@media (max-width: 767px) {
+  html:has(dialog.overlay[open]) {
+    overflow: hidden;
+  }
 }
 .overlay-inner {
   display: flex;
   flex-direction: column;
   height: 100%;
   max-height: inherit;
+}
+dialog.sheet-bottom:not(.is-full) .overlay-inner {
+  height: auto;
+  max-height: calc(var(--sheet-max) - env(safe-area-inset-bottom));
 }
 .panel {
   position: fixed;
@@ -1032,6 +1058,12 @@ dialog.overlay::backdrop {
   }
   .sheet-bottom:not([open]) {
     transform: translateY(104%);
+  }
+  /* The open position is explicit: the entry animation is an enhancement, never the only thing
+     that brings the sheet into view. */
+  .panel[open],
+  .sheet-bottom[open] {
+    transform: none;
   }
   @starting-style {
     .panel[open] {

@@ -32,8 +32,8 @@ jobs:
           node-version-file: .nvmrc
           cache: npm
       - run: npm ci
-      - name: Install Chromium
-        run: npx playwright install --with-deps chromium
+      - name: Install Chromium and WebKit
+        run: npx playwright install --with-deps chromium webkit
       # Non-screenshot failures are reported by the normal CI run on the PR, not here.
       - name: Regenerate changed screenshots
         run: npm run build:e2e && (npx playwright test --update-snapshots=changed || true)
