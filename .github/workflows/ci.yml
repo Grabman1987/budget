@@ -35,8 +35,8 @@ jobs:
         env:
           BUDGET_REQUIRE_AGE: '1'
         run: npm run check
-      - name: Install Chromium
-        run: npx playwright install --with-deps chromium
+      - name: Install Chromium and WebKit
+        run: npx playwright install --with-deps chromium webkit
       - name: E2E (builds first)
         run: npm run test:e2e
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2

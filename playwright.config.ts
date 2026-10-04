@@ -75,6 +75,11 @@ const mobile = {
   hasTouch: true,
 };
 
+// Real WebKit (the engine of every iOS browser), iPhone 13 viewport (390 x 664 visible, 844 tall).
+// Only the specs that exercise engine-specific behaviour run here (mobile-panels.spec.ts): a
+// Chromium run is no proof for Safari (owner report 04.10.2026, docs/mobile-panels.md).
+const iphone = { ...devices['iPhone 13'] };
+
 export default defineConfig({
   testDir: 'e2e',
   fullyParallel: true,
@@ -106,6 +111,12 @@ export default defineConfig({
       dependencies: ['setup', 'setup-sample'],
       testIgnore: /(auth|ledger|sample)\.setup\.ts|auth\.spec\.ts/,
       use: { ...mobile, storageState: STORAGE_STATE },
+    },
+    {
+      name: 'webkit-iphone',
+      dependencies: ['setup', 'setup-sample'],
+      testMatch: /mobile-panels.spec.ts/,
+      use: { ...iphone, storageState: STORAGE_STATE },
     },
     // Real passkey ceremonies with the browser's virtual authenticator on a separate, empty server.
     {
