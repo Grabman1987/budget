@@ -15,6 +15,7 @@ import {
   targetNeed,
   todayInVienna,
   toEurCents,
+  contractVersionOn,
   versionOn,
   yearlyEquivalent,
   type AllocMonth,
@@ -317,8 +318,12 @@ export function scheduled(f: RuleFacts, from: string, to: string, asOf: string) 
 
 /** One occurrence's amount of a payment in force on `day` (EUR cents, positive), or 0. */
 function unitAmount(f: RuleFacts, p: PaymentRow, day: string): number {
-  if ((p.startDate && p.startDate > day) || (p.endDate && p.endDate < day)) return 0;
-  const v = versionOn(f.versions.get(p.id) ?? [], day);
+  // Same valuation as report 2.3: a payment whose first due date is ahead counts from setup.
+  const v = contractVersionOn(
+    { rhythm: p.rhythm as Rhythm, startDate: p.startDate, endDate: p.endDate },
+    f.versions.get(p.id) ?? [],
+    day,
+  );
   if (!v) return 0;
   if (v.currency === 'EUR') return v.amountCents;
   const rate = fxRateOnOrBefore(f.db, v.currency, day);
