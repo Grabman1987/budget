@@ -1,5 +1,12 @@
 # Roadmap
 
+### Claude Code project automations (2026-10-04)
+
+- [x] Preserve Impeccable configuration; add offline cross-platform formatting and protected-file hooks with synthetic stdin tests.
+- [x] User-invoked PR shipping/operator skills and read-only migration/money reviewers; see [Claude Code setup](claude-code.md).
+- [x] Windows full check (291 files, 2,808 tests) and build; local run used two workers and a 30-second test timeout without changing repository defaults. Delivery uses a separate git directory/bundle because the worktree commit could not create index.lock.
+- [ ] Required Linux/Windows CI and owner Claude-session acceptance; no merge or production operation in this task.
+
 ### Owner directive PR1 — Historical asset exposure foundation (2026-10-04)
 
 - [x] Drizzle schema/migration and explicitly labelled legacy seed-date assumption; preserve original storage and class cents.
