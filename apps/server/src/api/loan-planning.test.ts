@@ -296,14 +296,20 @@ describe('scenarios', () => {
   });
 
   it('a scenario the installment cannot carry is a typed error beside the others', async () => {
-    await call('POST', '/loan/scenarios', quarterly);
-    await call('POST', '/loan/scenarios', {
+    const regular = await call('POST', '/loan/scenarios', quarterly);
+    const impossible = await call('POST', '/loan/scenarios', {
       name: 'Zins explodiert',
       measures: [{ kind: 'rate_change', fromMonth: '2027-01', rateBp: 60_000 }],
     });
     const plan = (await call('GET', '/loan/plan')).body;
-    expect(plan.scenarios[0].outcome.status).toBe('ok');
-    expect(plan.scenarios[1].outcome).toEqual({ status: 'error', code: 'payment_below_interest' });
+    // Equal creation timestamps sort by ID, so assert outcomes against their own scenarios.
+    expect(plan.scenarios).toHaveLength(2);
+    expect(
+      plan.scenarios.find((s: { id: string }) => s.id === regular.body.id).outcome.status,
+    ).toBe('ok');
+    expect(plan.scenarios.find((s: { id: string }) => s.id === impossible.body.id).outcome).toEqual(
+      { status: 'error', code: 'payment_below_interest' },
+    );
   });
 
   it('Sondertilgung that lies in the past is refused when saved and counted when it expires', async () => {
