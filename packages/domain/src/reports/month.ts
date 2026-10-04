@@ -265,7 +265,7 @@ export function expectedIncome(input: {
     lines.push({
       key: `unplanned|${b.typeId ?? ''}`,
       name: b.name,
-      sub: 'ohne erwartete Zahlung',
+      sub: 'ohne wiederkehrende Zahlung',
       typeId: b.typeId,
       dueDate: null,
       status: 'unplanned',

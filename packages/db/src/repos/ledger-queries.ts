@@ -140,14 +140,14 @@ export function accountSummaries(db: Executor, asOf: string): AccountSummary[] {
   }));
 }
 
-/** End-of-day balance of one account for every day of `[from, to]` (at most 400 days). */
+/** End-of-day balance of one account for every day of `[from, to]` (at most 100 years). */
 export function balanceSeries(
   db: Executor,
   accountId: string,
   range: { from: string; to: string },
 ): { date: string; balanceCents: number }[] {
-  if (range.to < range.from || daysBetween(range.from, range.to) > 400) {
-    throw new RangeError('The balance series covers 1 to 401 days');
+  if (range.to < range.from || daysBetween(range.from, range.to) > 36_525) {
+    throw new RangeError('The balance series covers at most 100 years');
   }
   const acct = db.select().from(account).where(eq(account.id, accountId)).get();
   if (!acct) return [];

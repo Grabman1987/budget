@@ -384,9 +384,7 @@ function insertBooking(
 export function createBooking(db: Executor, input: BookingInput, ctx: AuditContext): string {
   const grouped = withGroup(ctx);
   return runInTransaction(db, (tx) => {
-    const incomeNextMonth =
-      input.incomeNextMonth ??
-      ((input.source ?? 'manual') === 'manual' ? bookingIncomeDefault(tx, input) : false);
+    const incomeNextMonth = input.incomeNextMonth ?? false;
     const id = insertBooking(tx, { ...input, incomeNextMonth }, null, grouped);
     assertLedgerInvariants(tx, relatedTransferBookings(tx, id));
     return id;
