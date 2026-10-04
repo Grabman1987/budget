@@ -495,37 +495,33 @@ test('the cleared toggle: a new booking starts vorgemerkt, pressing it makes it 
   await openAccount(page, account);
 
   const panel = await openCapture(page, testInfo);
-  const toggle = panel.getByRole('button', { name: 'Bestätigt', exact: true });
-  // Neutral until pressed, the same size as the close button next to it.
+  const toggle = panel.getByRole('button', { name: 'bestätigt', exact: true });
+  // Status is beside the date, with accessible segmented options.
   await expect(toggle).toHaveAttribute('aria-pressed', 'false');
-  const close = panel.getByRole('button', { name: 'Schließen' });
-  const [t, c] = [await toggle.boundingBox(), await close.boundingBox()];
-  expect(Math.abs(t!.width - c!.width)).toBeLessThan(0.5);
-  expect(Math.abs(t!.height - c!.height)).toBeLessThan(0.5);
-  // The status select is gone from "Mehr".
-  await expect(panel.getByLabel('Status', { exact: true })).toHaveCount(0);
+  await expect(panel.getByRole('group', { name: 'Status', exact: true })).toBeVisible();
+  await expect(panel.getByLabel('Budgetmonat')).toHaveCount(0);
   await panel.getByLabel('Betrag', { exact: true }).fill('4');
   await panel.getByLabel('Empfänger').fill(`Vormerk ${tag}`);
   await pickCategory(panel, `Cap B ${tag}`);
   await page.keyboard.press('Control+Enter');
   const row = page.getByRole('row', { name: new RegExp(`Vormerk ${tag}`) });
-  await expect(row).toContainText('vorgemerkt');
+  await expect(row.getByRole('button', { name: 'vorgemerkt', exact: true })).toBeVisible();
 
   // Opened again it shows the stored status; pressing the toggle confirms the booking.
   await row.getByRole('button', { name: /bearbeiten/ }).click();
   const edit = page.getByRole('dialog', { name: 'Buchung bearbeiten' });
-  const editToggle = edit.getByRole('button', { name: 'Bestätigt', exact: true });
+  const editToggle = edit.getByRole('button', { name: 'bestätigt', exact: true });
   await expect(editToggle).toHaveAttribute('aria-pressed', 'false');
   await editToggle.click();
   await expect(editToggle).toHaveAttribute('aria-pressed', 'true');
   await edit.getByRole('button', { name: 'Speichern', exact: true }).click();
   await expect(edit).toBeHidden();
-  await expect(row).toContainText('bestätigt');
+  await expect(row.getByRole('button', { name: 'bestätigt', exact: true })).toBeVisible();
   await row.getByRole('button', { name: /bearbeiten/ }).click();
   await expect(
     page
       .getByRole('dialog', { name: 'Buchung bearbeiten' })
-      .getByRole('button', { name: 'Bestätigt', exact: true }),
+      .getByRole('button', { name: 'bestätigt', exact: true }),
   ).toHaveAttribute('aria-pressed', 'true');
 });
 
