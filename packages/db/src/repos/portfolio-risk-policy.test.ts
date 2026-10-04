@@ -9,7 +9,7 @@ import { resolvePortfolioRiskPolicy } from './portfolio-risk-policy';
 import { portfolioSummary } from './portfolio-summary';
 import { reportPortfolioFixture, REPORT_TODAY } from './portfolio-report-fixture';
 import { ruleInputs } from './rule-inputs';
-import { evaluateRules, financeCheck, updateRule, ensureDefaultRules } from './rules';
+import { evaluateRules, financeCheck, updateRule, ensureDefaultRules, listRules } from './rules';
 import { savingsProposal } from './savings-plans';
 import { undo } from './audit';
 import { replaceExposureVersion } from './asset-exposure';
@@ -29,6 +29,28 @@ const patch = (code: 'R13' | 'R14' | 'R15', params: Record<string, unknown>) =>
   updateRule(opened.db, code, { params }, { actor: 'tester', groupId: `policy-${code}` });
 
 describe('one portfolio risk policy across runtime consumers', () => {
+  it('rule-book risk preview follows current leverage and corrects only legacy built-in copy', () => {
+    evaluateRules(opened.db, REPORT_TODAY);
+    opened.db.update(security).set({ leverageFactor: 30 }).where(eq(security.id, 'etf')).run();
+    const legacyAction = 'Keine neuen Käufe in Krypto, P2P, Einzelaktien; Sparplan nur ETF.';
+    opened.db.update(rule).set({ action: legacyAction }).where(eq(rule.code, 'R15')).run();
+    const listed = listRules(opened.db, REPORT_TODAY).rules.find((r) => r.code === 'R15')!;
+    expect(listed.latest!.detail['shareBp']).toBe(
+      portfolioAllocation(opened.db, REPORT_TODAY).risk!.speculative.shareBp,
+    );
+    expect(listed.action).toContain('gehebelter ETF');
+    expect(opened.db.select().from(rule).where(eq(rule.code, 'R15')).get()!.action).toBe(
+      legacyAction,
+    );
+    opened.db
+      .update(rule)
+      .set({ action: 'Synthetische Vorgabe prüfen.' })
+      .where(eq(rule.code, 'R15'))
+      .run();
+    expect(listRules(opened.db, REPORT_TODAY).rules.find((r) => r.code === 'R15')!.action).toBe(
+      'Synthetische Vorgabe prüfen.',
+    );
+  });
   it('weighted small holdings conserve separately rounded gross cents without changing market cents', () => {
     opened.sqlite.exec("DELETE FROM trade; DELETE FROM holding WHERE security_id != 'etf';");
     opened.db.update(price).set({ priceMicro: 25250 }).where(eq(price.securityId, 'etf')).run();

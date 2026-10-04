@@ -1,4 +1,4 @@
-import { resolvePortfolioRiskPolicy } from './portfolio-risk-policy';
+import { resolvePortfolioRiskPolicy, type PortfolioRiskPolicy } from './portfolio-risk-policy';
 import { exposuresAsOf, singleAssetClass } from './asset-exposure';
 import { defaultBandBp } from '@budget/domain';
 import { isNull } from 'drizzle-orm';
@@ -10,6 +10,7 @@ import type { Executor } from './types';
 
 export interface PortfolioAllocationView {
   asOf: string;
+  policy: PortfolioRiskPolicy;
   valueCents: number | null;
   status: 'known' | 'empty' | 'unavailable' | 'nonpositive';
   missing: ('missing_price' | 'missing_fx')[];
@@ -82,6 +83,7 @@ export function portfolioAllocation(db: Executor, asOf: string): PortfolioAlloca
         });
   return {
     asOf,
+    policy,
     valueCents: current.valueCents,
     status,
     missing,

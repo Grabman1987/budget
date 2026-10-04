@@ -159,7 +159,7 @@ export interface RuleListing {
   /** Stored parameters over the defaults. */
   params: Record<string, unknown>;
   defaults: Record<string, unknown>;
-  /** The newest stored result; `null` when the rule has never been evaluable. */
+  /** Live preview for book/R13–R15 rules at `upTo`, otherwise newest stored result. */
   latest: StoredResult | null;
   unavailableReason?: string | null;
 }
@@ -212,13 +212,19 @@ function latestResults(db: Executor, ruleIds: string[], upTo?: string): Map<stri
 
 const listing = (r: RuleRow, latest: StoredResult | undefined): RuleListing => {
   const code = isRuleCode(r.code) ? r.code : null;
+  const definition = RULE_DEFS.find((d) => d.code === r.code);
   return {
     id: r.id,
     code: r.code,
     name: r.name,
     stage: r.stage,
-    goal: r.goal,
-    action: r.action,
+    // Correct superseded built-in wording on read; never rewrite stored/custom owner copy.
+    goal: r.code === 'R13' && r.goal === '≤ 5 Pp Abweichung' ? definition!.goal : r.goal,
+    action:
+      r.code === 'R15' &&
+      r.action === 'Keine neuen Käufe in Krypto, P2P, Einzelaktien; Sparplan nur ETF.'
+        ? definition!.action
+        : r.action,
     enabled: r.enabled,
     params: code ? resolveParams(code, parseJson(r.paramsJson)) : parseJson(r.paramsJson),
     defaults: code ? defaultParams(code) : {},
@@ -237,12 +243,15 @@ export function listRules(
     rules.map((r) => r.id),
     upTo,
   );
-  // The live value of a book rule is a preview. An incomplete valuation (missing exchange rate or
+  const livePreview = (code: string) =>
+    isRuleCode(code) &&
+    (BOOK_RULE_CODES.includes(code) || code === 'R13' || code === 'R14' || code === 'R15');
+  // Book and portfolio-risk rules preview the current inputs. A missing exchange rate or
   // price anywhere in the ledger) must not take the whole rule book down: it only withholds the
   // preview, like a missing input does, and the thresholds stay editable.
   let inputs: ReturnType<typeof ruleInputs> | null = null;
   let withheld: string | null = null;
-  if (upTo && rules.some((r) => isRuleCode(r.code) && BOOK_RULE_CODES.includes(r.code))) {
+  if (upTo && rules.some((r) => livePreview(r.code))) {
     try {
       inputs = ruleInputs(db, upTo);
     } catch (error) {
@@ -253,17 +262,17 @@ export function listRules(
   }
   return {
     rules: rules.map((r) => {
-      if (!inputs || !isRuleCode(r.code) || !BOOK_RULE_CODES.includes(r.code)) {
-        const row = listing(r, latest.get(r.id));
-        return withheld && isRuleCode(r.code) && BOOK_RULE_CODES.includes(r.code)
-          ? { ...row, unavailableReason: withheld }
-          : row;
+      if (!inputs || !isRuleCode(r.code) || !livePreview(r.code)) {
+        const row = listing(r, withheld && livePreview(r.code) ? undefined : latest.get(r.id));
+        return withheld && livePreview(r.code) ? { ...row, unavailableReason: withheld } : row;
       }
       const e = evaluateRule(r.code, parseJson(r.paramsJson), inputs);
       return {
         ...listing(r, undefined),
         latest: e ? { asOf: inputs.asOf, ...e } : null,
-        unavailableReason: bookUnavailableReason(r.code, parseJson(r.paramsJson), inputs),
+        unavailableReason: BOOK_RULE_CODES.includes(r.code)
+          ? bookUnavailableReason(r.code, parseJson(r.paramsJson), inputs)
+          : null,
       };
     }),
     checklist: liveRows(db, 'checklist').map((r) => {

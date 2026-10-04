@@ -8,6 +8,7 @@ import { eurWhole } from '../ledger/format';
 import { allocationQuery, type PortfolioAllocationView } from './allocation-api';
 import { percentText } from './portfolio-format';
 import { TargetPanel } from './target-panel';
+import { thresholdText } from '../rules/rules-model';
 import './allocation.css';
 
 export function PortfolioAllocation() {
@@ -59,7 +60,7 @@ export function PortfolioAllocation() {
         <div className="head">
           <h2 id="allocation-title">Aufteilung Soll/Ist</h2>
           <span className="aside">
-            Band: höchstens ±5 Prozentpunkte oder ±25 % relativ; gespeicherte Bänder gelten
+            {view ? thresholdText('R13', view.policy.R13) : 'Band laut Regelwerk'}
           </span>
         </div>
         {query.isPending && <LoadingNote what="Aufteilung" />}
