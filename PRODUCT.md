@@ -17,6 +17,8 @@ Owner directive PR1 (2026-10-04): asset classification now uses effective-dated 
 
 ## Platform
 
+Owner directive PR2 (2026-10-04): stored Regelwerk risk thresholds supply Portfolio, report 4.2, rebalancing, savings recommendations and Heute/finance check through one resolver. Leveraged ETFs count in speculative/cluster risk; market value and gross exposure stay distinct. Stored class bands override the smaller-of-5-percentage-points/25%-of-target standard. Historical parameter/leverage versioning remains outside this slice. See [risk policy](docs/portfolio-risk-policy.md).
+
 web
 
 ## Stack

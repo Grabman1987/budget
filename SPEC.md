@@ -92,6 +92,8 @@ Invariants (binding):
 
 ## 6. KPIs and calculations
 
+**Owner directive PR2, 2026-10-04:** one `resolvePortfolioRiskPolicy(db, asOf)` reads stored R13/R14/R15 parameters and dated class targets for rule evaluation, Portfolio, rebalancing, report 4.2, savings recommendations and Heute/finance check. Domain schemas supply defaults only for missing values. Stored class bands override the standard: “Standardband: der kleinere Wert aus ±5 Prozentpunkten und ±25 % des Sollgewichts.” Leverage in tenths (30 = 3×) affects gross/economic risk exposure; market value still drives allocation, regions, net worth and performance. Central kind/leverage classification includes leveraged ETFs in speculative and single-instrument risk. Risk shares use gross exposure over portfolio market value and can exceed 100%; excess amounts are gross exposure, not sell-order values. Rule parameters and leverage are not historically versioned; dated targets/exposures resolve at the report day. See [risk policy and regression evidence](docs/portfolio-risk-policy.md).
+
 27 KPIs, each with one formula, one target and one primary place: concept ch. 8. Additional calculation rules fixed in the prototype (port them 1:1, with tests):
 
 | Rule | Reference |
