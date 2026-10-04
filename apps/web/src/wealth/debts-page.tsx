@@ -68,7 +68,7 @@ export function DebtsPage() {
             <DebtLead view={view} />
             {loan ? (
               <Scenario
-                key={`${loan.id}:${loan.balanceCents}:${view.asOf}:${loan.interestRateBp}:${loan.monthlyFeeCents}`}
+                key={`${loan.id}:${loan.balanceCents}:${view.asOf}:${loan.interestRateBp}:${loan.monthlyFeeCents}:${loan.installmentCents}`}
                 loan={loan}
                 asOf={view.asOf}
                 onBusy={setBusy}
@@ -275,7 +275,9 @@ function Scenario({
   choice: ReactNode;
 }) {
   useAmountPrivacy();
-  const [payment, setPayment] = useState('');
+  const [payment, setPayment] = useState(
+    loan.installmentCents === null ? '' : formatDecimal(cents(loan.installmentCents)),
+  );
   const [extra, setExtra] = useState('0');
   const [rate, setRate] = useState(
     loan.interestRateBp === null ? '' : formatDecimal(cents(loan.interestRateBp)),
@@ -348,6 +350,7 @@ function Scenario({
           </span>
         </div>
         {choice}
+        <LoanTerms loan={loan} />
         <p className="vnote">
           Ungespeichertes Modell. Keine Vertragsänderung oder Zahlung; Annahmen werden beim Neuladen
           verworfen.
@@ -469,6 +472,46 @@ function Scenario({
     </>
   );
 }
+/** The loan terms stored in Einstellungen › Konten; they pre-fill the model below. */
+function LoanTerms({ loan }: { loan: DebtAccount }) {
+  useAmountPrivacy();
+  const parts = [
+    loan.interestRateBp !== null
+      ? `Zins ${formatDecimal(cents(loan.interestRateBp))} %${
+          loan.interestKind ? (loan.interestKind === 'fixed' ? ' fix' : ' variabel') : ''
+        }`
+      : loan.interestKind
+        ? loan.interestKind === 'fixed'
+          ? 'Zins fix'
+          : 'Zins variabel'
+        : null,
+    loan.installmentCents !== null
+      ? `Monatsrate ${nativeCurrency(loan.installmentCents, loan.currency)}`
+      : null,
+    loan.monthlyFeeCents !== null
+      ? `Gebühr ${nativeCurrency(loan.monthlyFeeCents, loan.currency)} im Monat`
+      : null,
+    loan.termStart || loan.termEnd
+      ? `Laufzeit ${loan.termStart ? `ab ${longDay(loan.termStart)}` : ''}${
+          loan.termStart && loan.termEnd ? ' ' : ''
+        }${loan.termEnd ? `bis ${longDay(loan.termEnd)}` : ''}`
+      : null,
+    loan.originalAmountCents !== null
+      ? `ursprünglich ${nativeCurrency(loan.originalAmountCents, loan.currency)}`
+      : null,
+  ].filter((part): part is string => part !== null);
+  return (
+    <p className="vnote" data-testid="loan-terms">
+      {parts.length > 0 ? (
+        <>Konditionen aus Einstellungen › Konten: {parts.join(' · ')}. </>
+      ) : (
+        <>Für diesen Kredit sind keine Konditionen hinterlegt. </>
+      )}
+      <AppLink to="/einstellungen/konten">Konditionen pflegen</AppLink>
+    </p>
+  );
+}
+
 function Results({ result }: { result: DebtProjection }) {
   useAmountPrivacy();
   const { withExtra } = result.plan;

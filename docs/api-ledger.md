@@ -35,7 +35,7 @@ unavailable `financeCheck` / `netWorth` (missing exchange rate) as
 | Endpoint | Purpose |
 | --- | --- |
 | `GET /accounts?asOf=` | Accounts with `balanceCents` (as of the day, default today Vienna), `holdingsCents` (market value of securities held, 0 without), `clearedCents` (confirmed + reconciled), `unclearedCents` (pending), `scheduledCents` (dated later), counts, `lastReconciledOn`, `referenceAccountId` (Verrechnungskonto of a depot: its cash account, set by the PP migration; read-only here) |
-| `POST /accounts`, `PATCH /accounts/:id` | Create / edit: type, role, on-budget, currency, opening balance and date, terms (credit limit, overdraft, rate in bp, term end, fee). Role and budget membership default from the type; loans, depots, crypto, P2P and receivables can never be budget accounts. Once a Kontostand prüfen is stored, changing opening balance or date is `reconciled_locked` unless `unlockReconciled: true` |
+| `POST /accounts`, `PATCH /accounts/:id` | Create / edit: type, role, on-budget, currency, opening balance and date, terms (credit limit, overdraft, rate in bp, term end, fee; for loans also `interestKind` `fixed`/`variable`, `installmentCents`, `termStart`, `originalAmountCents`, read by the debt calculator and the cost report; a term end before the term start is 422). Role and budget membership default from the type (a `PATCH` that changes the type also sets the type's usual role unless `role` is given; an edit that does not name `openingBalanceCents` leaves it alone); loans, depots, crypto, P2P and receivables can never be budget accounts. Once a Kontostand prüfen is stored, changing opening balance or date is `reconciled_locked` unless `unlockReconciled: true` |
 | `PATCH /accounts/order` `{ ids }` (alias `POST /accounts/sort`) | The owner's account order: unique ids become `sortOrder` 1..n, accounts left out follow in their current order; one transaction and one audit group (`groupId` for one undo; an unknown or repeated id changes nothing). The sidebar, Konten › Übersicht and the account selects show each group (Budget-Konten, Kreditkarten, Kredite, Investments) in this order |
 | `POST /accounts/:id/close` `{ force? }`, `/reopen` | Close needs balance 0 and nothing pending or scheduled unless `force`; a closed account takes no bookings |
 | `GET /accounts/:id/series?from&to` | End-of-day balance for every day (at most 401 days) |
@@ -297,3 +297,9 @@ also invalidate integrated Heute reads. Bank/assignment suggestion decisions rem
 ### Book-rule inputs
 
 `GET /api/rules/inputs` reads optional birth month/year and monthly employer contributions. `PATCH /api/rules/inputs` accepts a strict `{ birthMonth?: "YYYY-MM" | "", pension?: [{ month: "YYYY-MM", amountCents: integer }] }` object. Birth month has no default and must be plausible; duplicate months and negative contributions are rejected. Writes share one audited, undoable savepoint. New instrument `leverageFactor` is integer tenths, between 10 and 1000. `GET /api/rules` includes a preview and `unavailableReason` for book rules, including disabled ones; null evaluations remain unstored.
+
+## Foreign-currency account detail
+
+See [the detail currency contract](fx-account-detail.md) for native cents, dated
+EUR display valuations, cash history, movement totals and reconciliation semantics.
+These projections do not change native reconciliation or book anything on read.

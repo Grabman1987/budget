@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "1f79356d-e70c-467f-8da2-b4d77717aac6",
+  "id": "33b90575-86c8-41d7-94bd-7b54d4d8ed0c",
   "prevId": "41e041a5-2d78-41de-84e5-a8a96044821c",
   "tables": {
     "account": {
@@ -121,6 +121,34 @@
           "notNull": false,
           "autoincrement": false
         },
+        "interest_kind": {
+          "name": "interest_kind",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "installment_cents": {
+          "name": "installment_cents",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "term_start": {
+          "name": "term_start",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "original_amount_cents": {
+          "name": "original_amount_cents",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
         "sort_order": {
           "name": "sort_order",
           "type": "integer",
@@ -225,6 +253,22 @@
         "account_term_end_chk": {
           "name": "account_term_end_chk",
           "value": "\"account\".\"term_end\" GLOB '[0-9][0-9][0-9][0-9]-[01][0-9]-[0-3][0-9]'"
+        },
+        "account_term_start_chk": {
+          "name": "account_term_start_chk",
+          "value": "\"account\".\"term_start\" GLOB '[0-9][0-9][0-9][0-9]-[01][0-9]-[0-3][0-9]'"
+        },
+        "account_interest_kind_chk": {
+          "name": "account_interest_kind_chk",
+          "value": "\"account\".\"interest_kind\" IN ('fixed', 'variable')"
+        },
+        "account_installment_chk": {
+          "name": "account_installment_chk",
+          "value": "\"account\".\"installment_cents\" >= 0"
+        },
+        "account_original_amount_chk": {
+          "name": "account_original_amount_chk",
+          "value": "\"account\".\"original_amount_cents\" >= 0"
         }
       }
     },
@@ -4116,213 +4160,6 @@
         "security_kind_chk": {
           "name": "security_kind_chk",
           "value": "\"security\".\"kind\" IN ('etf', 'stock', 'fund', 'bond', 'crypto', 'p2p', 'commodity', 'other')"
-        }
-      }
-    },
-    "security_asset_exposure": {
-      "name": "security_asset_exposure",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "text",
-          "primaryKey": true,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "version_id": {
-          "name": "version_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "security_id": {
-          "name": "security_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "asset_class_id": {
-          "name": "asset_class_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "weight_bp": {
-          "name": "weight_bp",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "valid_from": {
-          "name": "valid_from",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "source": {
-          "name": "source",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "audit_group_id": {
-          "name": "audit_group_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false,
-          "default": "(strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))"
-        }
-      },
-      "indexes": {
-        "security_asset_exposure_member_uq": {
-          "name": "security_asset_exposure_member_uq",
-          "columns": ["version_id", "asset_class_id"],
-          "isUnique": true
-        },
-        "security_asset_exposure_day_idx": {
-          "name": "security_asset_exposure_day_idx",
-          "columns": ["security_id", "valid_from"],
-          "isUnique": false
-        }
-      },
-      "foreignKeys": {
-        "security_asset_exposure_version_id_security_exposure_version_id_fk": {
-          "name": "security_asset_exposure_version_id_security_exposure_version_id_fk",
-          "tableFrom": "security_asset_exposure",
-          "tableTo": "security_exposure_version",
-          "columnsFrom": ["version_id"],
-          "columnsTo": ["id"],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "security_asset_exposure_security_id_security_id_fk": {
-          "name": "security_asset_exposure_security_id_security_id_fk",
-          "tableFrom": "security_asset_exposure",
-          "tableTo": "security",
-          "columnsFrom": ["security_id"],
-          "columnsTo": ["id"],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "security_asset_exposure_asset_class_id_asset_class_id_fk": {
-          "name": "security_asset_exposure_asset_class_id_asset_class_id_fk",
-          "tableFrom": "security_asset_exposure",
-          "tableTo": "asset_class",
-          "columnsFrom": ["asset_class_id"],
-          "columnsTo": ["id"],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "checkConstraints": {
-        "security_asset_exposure_day_chk": {
-          "name": "security_asset_exposure_day_chk",
-          "value": "\"security_asset_exposure\".\"valid_from\" GLOB '[0-9][0-9][0-9][0-9]-[01][0-9]-[0-3][0-9]'"
-        },
-        "security_asset_exposure_weight_chk": {
-          "name": "security_asset_exposure_weight_chk",
-          "value": "\"security_asset_exposure\".\"weight_bp\" BETWEEN 1 AND 10000"
-        }
-      }
-    },
-    "security_exposure_version": {
-      "name": "security_exposure_version",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "text",
-          "primaryKey": true,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "security_id": {
-          "name": "security_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "valid_from": {
-          "name": "valid_from",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "complete": {
-          "name": "complete",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "source": {
-          "name": "source",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "audit_group_id": {
-          "name": "audit_group_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false,
-          "default": "(strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))"
-        }
-      },
-      "indexes": {
-        "security_exposure_version_uq": {
-          "name": "security_exposure_version_uq",
-          "columns": ["security_id", "valid_from"],
-          "isUnique": true
-        }
-      },
-      "foreignKeys": {
-        "security_exposure_version_security_id_security_id_fk": {
-          "name": "security_exposure_version_security_id_security_id_fk",
-          "tableFrom": "security_exposure_version",
-          "tableTo": "security",
-          "columnsFrom": ["security_id"],
-          "columnsTo": ["id"],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "checkConstraints": {
-        "security_exposure_version_day_chk": {
-          "name": "security_exposure_version_day_chk",
-          "value": "\"security_exposure_version\".\"valid_from\" GLOB '[0-9][0-9][0-9][0-9]-[01][0-9]-[0-3][0-9]'"
-        },
-        "security_exposure_version_complete_chk": {
-          "name": "security_exposure_version_complete_chk",
-          "value": "\"security_exposure_version\".\"complete\" IN (0, 1)"
         }
       }
     },

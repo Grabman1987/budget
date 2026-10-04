@@ -135,7 +135,7 @@ export const PAGES: ReadonlyArray<PageDef> = [
     area: 'einstellungen',
     register: 'konten',
     fills: P2,
-    spec: 'Konten mit Rolle und Konditionen (Limits, Zinsen, Laufzeit).',
+    spec: 'Konten mit Rolle und Konditionen (Limits, Zinsen, Laufzeit, Kreditkonditionen).',
   },
   {
     path: '/einstellungen/depots',
@@ -213,6 +213,9 @@ export const PAGES: ReadonlyArray<PageDef> = [
 
 /** Einstellungen › Sicherheit; its own constant because the route and the (lazy) page both need it. */
 export const INVESTMENT_SETTINGS_META = PAGES.find((p) => p.path === '/einstellungen/depots')!;
+
+/** Einstellungen › Konten. */
+export const KONTEN_SETTINGS_META = PAGES.find((p) => p.path === '/einstellungen/konten')!;
 
 /** Einstellungen › Profil. */
 export const PROFILE_META = PAGES.find((p) => p.path === '/einstellungen/profil')!;

@@ -44,7 +44,8 @@ Owner scope update, 2026-10-01: remove import as an app feature. Provide a fresh
 - [x] A05 payment lifecycle: edit/delete/rematch/undo recompute status, links, amounts and related totals.
 - [x] A03 EUR-first guard: unsupported on-budget foreign currencies never enter EUR sums silently; create/update/import/existing accounts covered.
 - [x] A03 account overview aggregation: keep native balances in the account DTO and expose shared EUR account/total values; overview totals, changes and closed residuals use the shared valuation, with explicit missing-rate behavior.
-- [ ] Follow-up FX detail acceptance: individual account tables, charts and reconciliation still use native amounts; make those views explicit and consistent with the overview's EUR valuation.
+- [x] Follow-up FX detail implementation: account lead reuses the overview's EUR value; native cash, booking/running balances, daily charts and reconciliation show explicit currency and dated EUR valuations with stored rate provenance. Shared conversion/formatting, missing-rate states, native audited reconciliation/undo and synthetic unit/API/desktop/mobile coverage; see [currency contract and evidence](fx-account-detail.md).
+- [ ] FX detail owner design/device acceptance and private native/EUR reconciliation; pinned Linux CI remains required before merge.
 - [x] A04 persisted Gate-2 reconciliation: each mapped account/month-end and category checked; structural missing-account/currency/opening-data differences reported explicitly; one-cent added/missing/changed/deleted cases detected, including non-budget and closed accounts.
 - [ ] Separate agent-assisted EUR migration/Gate 2 after corrections and operational acceptance; establish private file access and transfer procedure; never commit exports/mapping or include them in CI/logs.
 - [x] A02 investment costs use historical account-currency FX at each trade/snapshot date; current price valuation, fees/income and typed missing-rate behavior are consistent before Gate 3.
@@ -462,6 +463,11 @@ Owner setup and limits: [payslip intake](payslip-intake.md); synthetic browser e
 - [x] `/einstellungen/projekte`: create, rename, archive/reactivate and undo/redo; retained project attribution/history, active-only new booking attribution. `/reports/projekte`: closed-month split-level income/cost/result, signed refunds, prior-period comparison, monthly results and booking drilldown; side income stays a distinct household income type without adding project profit again.
 - [x] Final local typecheck/lint/full unit and API suite (223 files, 2,166 tests), production build and four synthetic desktop/mobile browser scenarios; light/dark Axe and overflow checks. Local worker/timeout settings and screenshots: [verification evidence](payroll-projects.md#verification-evidence).
 - [ ] Separate receipt object-storage/upload workflow, collective/step-raise metadata and inflation comparison, project hours/hourly rates; owner design/private-data acceptance and Gate 4 remain open.
+
+### Owner configuration and Einstellungen › Konten — 2026-10-03
+- [x] Operator command `owner-config --file <json> [--dry-run]` (profile, rules, category stages, expected payments with skipped occurrences, bulk "vorgemerkt" to "bestätigt", security quote settings, asset class names): audited per entry, undoable, idempotent, exit code 3 on skips; schema in [ops](ops.md) section 12.6.
+- [x] Einstellungen › Konten: accounts grouped like the sidebar, rename and retype, order, close/reopen, terms by type; loan terms (fixed or variable interest, installment, term start/end, original amount) read by the Schulden calculator (pre-filled) and the Kosten report (installment wins over expected payments). Drizzle migration 0030. Fix: an account edit that does not name the opening balance no longer resets it to 0.
+- [ ] Owner acceptance of the page and of the private owner-config file on the server.
 
 ### Report and KPI correctness audit - 2026-10-03
 

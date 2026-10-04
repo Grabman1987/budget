@@ -56,6 +56,11 @@ export interface CreditLineRow {
   /** Amount in use: debt of a loan, negative balance of a card or overdraft. */
   usedCents: number;
   rateBp: number | null;
+  /** Loan terms from Einstellungen › Konten: fixed or variable interest, installment, term start. */
+  interestKind: 'fixed' | 'variable' | null;
+  installmentCents: number | null;
+  termStart: string | null;
+  originalAmountCents: number | null;
   termEnd: string | null;
   /** Interest booked in the last twelve full months; `null` where the ledger has no interest bookings. */
   interest12Cents: number | null;
@@ -69,6 +74,9 @@ export interface LoanScenario {
   balanceCents: number;
   /** Regular payment per month and the extra repayment currently planned per month. */
   paymentCents: number;
+  /** Where `paymentCents` comes from: the loan's terms (Konten) or the expected payments. */
+  paymentSource: 'terms' | 'contracts';
+  interestKind: 'fixed' | 'variable' | null;
   extraCents: number;
   plan: PayoffPlan | null;
   /** The payment does not cover the interest: nothing to project. */
@@ -304,6 +312,10 @@ export function bankCostsReport(db: Executor, today: string): BankCostsReport {
             : (a.creditLimitCents ?? a.overdraftLimitCents),
         usedCents: Math.max(0, -a.balanceCents),
         rateBp: a.interestRateBp,
+        interestKind: a.interestKind,
+        installmentCents: a.installmentCents,
+        termStart: a.termStart,
+        originalAmountCents: a.originalAmountCents,
         termEnd: a.termEnd,
         interest12Cents:
           a.type === 'loan' ? window12.reduce((s, m) => s + (own?.[m] ?? 0), 0) : null,
@@ -333,7 +345,9 @@ export function bankCostsReport(db: Executor, today: string): BankCostsReport {
       extraSources.map((s) => ({ ...s, categoryKind: 'fixed' as const })),
       fxLookup,
     );
-    const paymentCents = minimum.fixedMonthlyCents;
+    // The loan's own terms (Einstellungen › Konten) win over the expected payments.
+    const paymentSource = only.installmentCents !== null ? 'terms' : 'contracts';
+    const paymentCents = only.installmentCents ?? minimum.fixedMonthlyCents;
     const extraCents = extra.fixedMonthlyCents;
     let plan: PayoffPlan | null = null;
     let belowInterest = false;
@@ -343,6 +357,7 @@ export function bankCostsReport(db: Executor, today: string): BankCostsReport {
         rateBp: only.interestRateBp as number,
         paymentCents,
         extraCents,
+        monthlyFeeCents: only.monthlyFeeCents ?? 0,
         startMonth: addMonths(monthOf(today), 1),
       });
     } catch (error) {
@@ -355,6 +370,8 @@ export function bankCostsReport(db: Executor, today: string): BankCostsReport {
       rateBp: only.interestRateBp as number,
       balanceCents: -only.balanceCents,
       paymentCents,
+      paymentSource,
+      interestKind: only.interestKind,
       extraCents,
       plan,
       belowInterest,

@@ -52,6 +52,12 @@ export interface AccountInput {
   interestRateBp?: number | null;
   termEnd?: string | null;
   monthlyFeeCents?: number | null;
+  interestKind?: 'fixed' | 'variable' | null;
+  installmentCents?: number | null;
+  termStart?: string | null;
+  originalAmountCents?: number | null;
+  /** Rename and retype: the role follows the type on the server when it is not given. */
+  role?: string;
 }
 
 /** The owner's account order: ids in the new order, one audit group (undoable). */

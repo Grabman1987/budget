@@ -14,8 +14,14 @@ it('migrates the complete main schema without changing per-security class cents 
   const journal = JSON.parse(readFileSync(join(folder, 'meta/_journal.json'), 'utf8')) as {
     entries: { idx: number; tag: string }[];
   };
-  const mainJournal = { ...journal, entries: journal.entries.filter((e) => e.idx < 30) };
-  expect(mainJournal.entries).toHaveLength(30);
+  const exposureMigration = journal.entries.find((e) => e.tag === '0031_security_asset_exposure');
+  expect(exposureMigration?.idx).toBe(31);
+  const mainJournal = {
+    ...journal,
+    entries: journal.entries.filter((e) => e.idx < exposureMigration!.idx),
+  };
+  expect(mainJournal.entries).toHaveLength(31);
+  expect(mainJournal.entries.at(-1)?.tag).toBe('0030_owner_config');
   writeFileSync(join(mainFolder, 'meta/_journal.json'), JSON.stringify(mainJournal));
   for (const entry of mainJournal.entries)
     copyFileSync(join(folder, `${entry.tag}.sql`), join(mainFolder, `${entry.tag}.sql`));
@@ -64,6 +70,7 @@ it('migrates the complete main schema without changing per-security class cents 
       'asset_class_target',
       'account',
       'audit_log',
+      'app_setting',
     ];
     const sourceRows = () =>
       tables.map((name) => opened.sqlite.prepare(`SELECT * FROM ${name} ORDER BY rowid`).all());
