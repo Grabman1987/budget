@@ -758,6 +758,127 @@ Output: one line per entry (`created`/`updated`/`unchanged <section> <key> <chan
 `skipped <section> <key> <reason>`), then one summary per section
 (`<section> created C updated U unchanged N skipped S`).
 
+### 12.7 Owner trades (operator task)
+
+`owner-trades --file <json> [--dry-run] [--details]` back-fills or removes trades explicitly
+selected by the owner after read-source reconciliation. Server/database only; no provider calls,
+UI or automatic inbox confirmation. Keep the JSON and terminal output on the private volume;
+never copy private input into the repository or a PR. No new secrets or credentials are needed.
+
+Synthetic example (the accounts and security must already exist; the depot's
+`referenceAccountId` must point to `Synthetic Platform - Cash`):
+
+```json
+{
+  "trades": [
+    {
+      "id": "synthetic-buy",
+      "kind": "add",
+      "account": "Synthetic Platform - Depot",
+      "cashAccount": "Synthetic Platform - Cash",
+      "security": "Synthetic Coin",
+      "date": "2026-03-02",
+      "tradeKind": "buy",
+      "units": "1.23456789",
+      "amountCents": 12000,
+      "feeCents": 100,
+      "importKey": "owner:synthetic:buy"
+    },
+    {
+      "id": "synthetic-reward",
+      "kind": "add",
+      "account": "Synthetic Platform - Depot",
+      "security": "Synthetic Coin",
+      "date": "2026-03-03",
+      "tradeKind": "reward",
+      "units": "0.025",
+      "amountCents": 250,
+      "importKey": "owner:synthetic:reward",
+      "note": "Synthetic staking reward"
+    }
+  ]
+}
+```
+
+The entire file is checked before writes: exactly `{trades: [...]}`, at most 500 entries,
+unique non-empty `id`, unknown keys refused, valid ISO day, exactly one `security` name or
+12-character `isin`. Names match exactly ignoring case; no fuzzy match or entity creation.
+All cents are safe non-negative integers in the investment account's currency. `amountCents`
+is the positive gross value, not the net settlement (deliveries and splits may use 0). `feeCents` and `taxCents` default to 0;
+`note` is optional. Required `units` is a signed decimal string with a decimal point and at
+most eight fractional digits, converted exactly (no exponent or rounding). Buy and delivery_in
+need positive units; sell and delivery_out negative units; dividend, interest, fee and tax need
+`"0"`; split needs a nonzero signed change and amount 0. Deliveries may have amount 0.
+The app's trade-kind money rules also apply.
+
+`importKey` is required for adds. Repeating the same entry reports `unchanged`, including a
+previously deleted or undone trade; use undo to restore it, or a new key for a genuinely new
+trade. Reusing a key for different trade values is skipped as `conflict`. Optional `cashAccount`
+must be the depot's open reference account. The PP migration's shared settlement calculation
+creates an app transfer with memo `Verrechnung` and key `<importKey>:cash` on both legs:
+buy debits cash and credits depot by gross plus fee; sell/dividend/interest debit depot and
+credit cash by gross minus fee and tax. Standalone fee/tax follow the same settlement direction;
+deliveries/splits create no cash transfer. The depot's trade settlement cancels its transfer leg.
+No cashAccount means settlement stays on the investment account.
+
+`reward` is one atomic dividend plus buy for the supplied EUR value on that day, with keys
+`<importKey>:div` / `<importKey>:buy`. It adds units, leaves depot cash unchanged and records
+capital income in reports/performance. The investment account must use EUR. Fees/tax must be zero; cashAccount is refused. An incomplete
+or conflicting existing pair is skipped atomically. The owner supplies the historical value;
+the command does not fetch or estimate it.
+
+Delete example (use a separate private file):
+
+```json
+{
+  "trades": [
+    {
+      "id": "synthetic-delete",
+      "kind": "delete",
+      "match": {
+        "account": "Synthetic Platform - Depot",
+        "security": "Synthetic Coin",
+        "date": "2026-03-02",
+        "tradeKind": "buy",
+        "units": "1.23456789",
+        "amountCents": 12000
+      }
+    }
+  ]
+}
+```
+
+`match` requires account, security/isin, date and tradeKind; units and gross amount are optional
+narrowing fields. Exactly one live trade must match, otherwise `not_found` / `ambiguous`.
+Delete uses the app's soft-delete path for trade and settlement, plus both transfer legs found
+through `<importKey>:cash`. A reward match uses the buy's units/value and removes both reward
+trades and settlements. Closed accounts, unknown securities, `unitsRuleViolation`, reconciled
+locks and app refusals are skipped in their entry savepoint; other entries continue.
+
+Run, verify and undo (inside the server, with the existing operator environment from section 12):
+
+```sh
+node /app/migrate-cli.js owner-trades --file /data/private/owner-trades.json --dry-run --details
+node /app/migrate-cli.js owner-trades --file /data/private/owner-trades.json --details
+# Copy the audit group ID from an added/deleted line, then verify app account histories,
+# holdings and Reports > Portfolio > Kosten, Steuern, Erträge against the source.
+node /app/migrate-cli.js owner-trades --file /data/private/owner-trades.json --dry-run
+node /app/migrate-cli.js undo-group --group <group-id> --dry-run
+node /app/migrate-cli.js undo-group --group <group-id>
+```
+
+Before the real run, inspect skips and compare `cash-change` (signed cents per account) and
+`units-change` (signed decimals per security) with the platform. After the run, the same add file
+must be unchanged with zero deltas. Delete files resolve live trades, so repeating deletion is
+`not_found`. One audit group per run, actor `operator`; `undo-group` restores the entire run.
+Dry-run exercises writes, invariants and audit and then rolls everything back, with no group ID.
+
+Output has one status line per entry: `added|unchanged|deleted <id> <account> <date> <tradeKind>
+<units> <gross-cents> [group]`, or `skipped <id> <reason> <account> <date> <tradeKind> <units>
+<gross-cents>`. Omitted delete match fields show `*` on skips. `--details` adds refusal messages;
+the summary counts logical entries (one reward counts as one). Exit 3 means at least one skip,
+1 means a file/command error, 0 means no skip. Output stays in the operator terminal.
+
 ## 13. One-time Portfolio Performance migration (operator task)
 
 Same rules as section 12 (no import feature in the app, files and the private mapping never enter the repo). Prerequisite: the YNAB migration is committed (the depot, crypto and P2P accounts exist). `migrate-pp-cli.js` has the same shape: each step is one transaction, `revert` undoes a whole run (the newest committed one only, also across sources). What is written and why: `docs/migration/pp-export.md` §Commit.
