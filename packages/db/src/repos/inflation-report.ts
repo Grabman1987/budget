@@ -108,9 +108,13 @@ function matchedCharges(db: Executor, paymentId: string, currency: string) {
 }
 
 export function inflationReport(db: Executor, today: string): InflationReport {
-  const { available } = reportMonths(db, today);
   const categories = spendCategories(db);
   const spend = tableSpendByMonth(reportTables(db, { today }), categories);
+  // The index starts with the first month that has spending: an opening-balance month before it
+  // holds no prices and would leave the basket empty.
+  const months = reportMonths(db, today).available;
+  const first = months.findIndex((m) => Object.values(spend[m] ?? {}).some((v) => v !== 0));
+  const available = first < 0 ? months : months.slice(first);
   const derivedContracts: InflationReport['derivedContracts'] = [];
   const fixed = contractSources(db)
     .filter(

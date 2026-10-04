@@ -983,6 +983,20 @@ describe('2.4 Persönliche Inflation', () => {
       { id: 'handy', name: 'Handy', groupId: 'g', class: 'need', kind: 'fixed' },
       ctx,
     );
+    // An account opened the day before the first spending month: its month holds no prices.
+    accounts.create(
+      small.db,
+      {
+        id: 'alt',
+        name: 'Altkonto',
+        type: 'checking',
+        role: 'budget',
+        onBudget: true,
+        openingDate: '2023-09-30',
+        openingBalanceCents: 10_000,
+      },
+      ctx,
+    );
     const asOf = '2026-09-17';
     // Imported contract: starts in the future, no occurrence is linked to a past booking.
     createExpectedPayment(
@@ -1046,6 +1060,7 @@ describe('2.4 Persönliche Inflation', () => {
     ]);
     expect(body.insufficientReason).toBeNull();
     expect(body.status).toBe('ok');
+    expect(body.baseMonth).toBe('2023-10');
     const by = Object.fromEntries(body.contributions.map((c: any) => [c.name, c]));
     // The raise falls inside the window, so the whole 10 % is the price change of the basket.
     expect(by['Handy'].changeBp).toBe(1_000);
