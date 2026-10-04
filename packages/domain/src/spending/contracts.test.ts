@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   contractBinding,
   contractSeries,
+  contractVersionOn,
   contractsOverview,
   type ContractSource,
   type FxLookup,
@@ -168,5 +169,37 @@ describe('contractSeries', () => {
     const r = contractSeries([usdSource], '2024-01', '2024-02', noRate);
     expect(r.partial).toBe(true);
     expect(r.points[0]?.fixedMonthlyCents).toBe(0);
+  });
+});
+
+describe('contractVersionOn', () => {
+  const v = (validFrom: string, amountCents: number) => ({ validFrom, amountCents });
+  const monthly = { rhythm: 'monthly' as const, startDate: null, endDate: null };
+
+  it('returns the version in force on the day', () => {
+    const versions = [v('2025-01-01', 100), v('2026-03-01', 120)];
+    expect(contractVersionOn(monthly, versions, '2026-02-15')?.amountCents).toBe(100);
+    expect(contractVersionOn(monthly, versions, '2026-03-01')?.amountCents).toBe(120);
+  });
+
+  it('values a payment whose first due date is ahead with its first version, within one cycle', () => {
+    const versions = [v('2026-10-05', 1_999)];
+    const p = { rhythm: 'monthly' as const, startDate: '2026-10-05', endDate: null };
+    expect(contractVersionOn(p, versions, '2026-10-03')?.amountCents).toBe(1_999);
+    expect(contractVersionOn(p, versions, '2026-09-03')).toBeUndefined();
+    const yearly = { rhythm: 'yearly' as const, startDate: '2027-02-16', endDate: null };
+    expect(contractVersionOn(yearly, [v('2027-02-16', 8_040)], '2026-10-03')?.amountCents).toBe(
+      8_040,
+    );
+    expect(contractVersionOn(yearly, [v('2027-02-16', 8_040)], '2026-01-01')).toBeUndefined();
+  });
+
+  it('keeps the older price while a new payment start is ahead and ignores ended payments', () => {
+    const versions = [v('2025-01-01', 100)];
+    const restart = { rhythm: 'monthly' as const, startDate: '2026-10-20', endDate: null };
+    expect(contractVersionOn(restart, versions, '2026-10-03')?.amountCents).toBe(100);
+    const ended = { rhythm: 'monthly' as const, startDate: null, endDate: '2026-06-30' };
+    expect(contractVersionOn(ended, versions, '2026-10-03')).toBeUndefined();
+    expect(contractVersionOn(monthly, [], '2026-10-03')).toBeUndefined();
   });
 });

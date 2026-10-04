@@ -6,6 +6,7 @@ import {
   categories,
   createBooking,
   createEntity,
+  addExpectedVersion,
   createExpectedPayment,
   createTransfer,
   portfolioSummary,
@@ -14,6 +15,7 @@ import {
   INCOME_TYPES,
   schema,
   setAssigned,
+  storeCpi,
   type Db,
   type OpenedDatabase,
 } from '@budget/db';
@@ -411,6 +413,65 @@ describe('2.3 Verträge und Abos on a small ledger', () => {
       yearlyCents: 9_500 * 12 + 60_000,
       unconvertedCount: 0,
     });
+  });
+
+  // Real setups enter a contract with its next due date as start and first price date: the
+  // contract runs for years, but that date is still ahead. It must not make the report empty.
+  const upcoming = (
+    name: string,
+    categoryId: string,
+    rhythm: 'monthly' | 'yearly',
+    amountCents: number,
+    startDate: string,
+    extra: { endDate?: string } = {},
+  ) =>
+    createExpectedPayment(
+      opened.db,
+      {
+        name,
+        kind: 'outflow',
+        rhythm,
+        dueDay: Number(startDate.slice(8)),
+        ...(rhythm === 'yearly' ? { dueMonth: Number(startDate.slice(5, 7)) } : {}),
+        startDate,
+        ...extra,
+        categoryId,
+      },
+      { validFrom: startDate, amountCents, currency: 'EUR' },
+      ctx,
+      asOf,
+    );
+
+  it('lists a contract whose first due date is still ahead, within one payment cycle', async () => {
+    upcoming('Stromvertrag', 'strom', 'monthly', 9_500, '2026-10-05');
+    upcoming('Kfz-Service', 'kfz', 'yearly', 60_000, '2027-02-16');
+    // Not a contract yet: starts years ahead; and one that has already ended.
+    upcoming('Später Vertrag', 'abo', 'monthly', 1_000, '2028-01-01');
+    upcoming('Beendet', 'abo', 'monthly', 2_000, '2026-01-01', { endDate: '2026-06-30' });
+    const { body } = await get(app, '/reports/spending/contracts');
+    expect(body.items.map((i: any) => i.name)).toEqual(['Kfz-Service', 'Stromvertrag']);
+    expect(body).toMatchObject({
+      fixedMonthlyCents: 9_500,
+      periodicAnnualCents: 60_000,
+      yearlyCents: 9_500 * 12 + 60_000,
+    });
+    // One calculation: rule R10 values the same payments the same way.
+    const inputs = ruleInputs(opened.db, asOf);
+    expect(inputs.fixedCosts?.fixedMonthlyCents).toBe(9_500);
+    expect(inputs.fixedCosts?.periodicAnnualCents).toBe(60_000);
+  });
+
+  it('uses the version in force once the payment has started, not the first one', async () => {
+    const { payment } = upcoming('Stromvertrag', 'strom', 'monthly', 9_500, '2026-01-01');
+    addExpectedVersion(
+      opened.db,
+      payment.id,
+      { validFrom: '2026-09-01', amountCents: 10_500 },
+      ctx,
+      asOf,
+    );
+    const { body } = await get(app, '/reports/spending/contracts');
+    expect(body.fixedMonthlyCents).toBe(10_500);
   });
 
   it('keeps the original foreign amount and says when no rate exists', async () => {
@@ -824,6 +885,37 @@ describe('2.4 Persönliche Inflation', () => {
     expect(body.excludedCategories).toBeGreaterThan(5);
   }, 60_000);
 
+  it('says why there is no own index and still shows the stored consumer price index alone', async () => {
+    const small = createTestDatabase();
+    seedBasics(small.db);
+    const asOf = '2026-09-17';
+    // A long enough ledger but no contract with a price version: nothing to put in the basket.
+    const none = (await get(api(small.db, asOf), '/reports/spending/inflation')).body;
+    expect(none).toMatchObject({
+      status: 'insufficient',
+      insufficientReason: 'basket',
+      referenceAvailable: false,
+      referenceLatest: null,
+    });
+    storeCpi(
+      small.db,
+      'vpi',
+      [
+        { month: '2025-08', indexMicro: 120_000_000 },
+        { month: '2026-08', indexMicro: 123_600_000 },
+      ],
+      '2026-09-01T00:00:00.000Z',
+    );
+    const withIndex = (await get(api(small.db, asOf), '/reports/spending/inflation')).body;
+    expect(withIndex).toMatchObject({
+      status: 'insufficient',
+      insufficientReason: 'basket',
+      referenceAvailable: true,
+      referenceLatest: { month: '2026-08', changeBp: 300 },
+    });
+    small.close();
+  });
+
   it('says "insufficient" for a short ledger and never writes', async () => {
     const short = createTestDatabase();
     seedBasics(short.db);
@@ -832,6 +924,8 @@ describe('2.4 Persönliche Inflation', () => {
     expect(body.points).toEqual([]);
     expect(body.referenceAvailable).toBe(false);
     expect(body.reference).toBeNull();
+    expect(body.insufficientReason).toBe('months');
+    expect(body.referenceLatest).toBeNull();
     const before = short.sqlite.prepare('select count(*) n from audit_log').get() as { n: number };
     await get(api(short.db, '2026-09-17'), '/reports/spending/inflation');
     const after = short.sqlite.prepare('select count(*) n from audit_log').get() as { n: number };
