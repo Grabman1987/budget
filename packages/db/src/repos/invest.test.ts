@@ -74,7 +74,14 @@ beforeEach(() => {
   createAssetClass(db, { id: 'ac2', name: 'Schwellenländer', sortOrder: 2 }, testCtx);
   createSecurity(
     db,
-    { id: 's1', name: 'Welt-ETF', kind: 'etf', isin: 'IE00B4L5Y983', assetClassId: 'ac1' },
+    {
+      exposureValidFrom: '2023-10-01',
+      id: 's1',
+      name: 'Welt-ETF',
+      kind: 'etf',
+      isin: 'IE00B4L5Y983',
+      assetClassId: 'ac1',
+    },
     testCtx,
   );
 });
@@ -613,9 +620,17 @@ describe('trades settle on the investment account', () => {
 describe('securities and asset classes', () => {
   it('keeps the ISIN unique and refuses to delete a security that is in use', () => {
     expect(() =>
-      createSecurity(db, { name: 'Zweiter', kind: 'etf', isin: 'IE00B4L5Y983' }, testCtx),
+      createSecurity(
+        db,
+        { exposureValidFrom: '2023-10-01', name: 'Zweiter', kind: 'etf', isin: 'IE00B4L5Y983' },
+        testCtx,
+      ),
     ).toThrow(ConflictError);
-    const other = createSecurity(db, { name: 'Zweiter', kind: 'etf' }, testCtx);
+    const other = createSecurity(
+      db,
+      { exposureValidFrom: '2023-10-01', name: 'Zweiter', kind: 'etf' },
+      testCtx,
+    );
     expect(() => updateSecurity(db, other.id, { isin: 'IE00B4L5Y983' }, testCtx)).toThrow(
       ConflictError,
     );

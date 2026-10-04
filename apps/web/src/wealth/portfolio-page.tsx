@@ -215,9 +215,9 @@ export function PortfolioPage() {
       ) : (
         <InstrumentPanel
           id={search.produkt ?? ''}
-          position={view?.classes
-            .flatMap((g) => g.positions)
-            .find((p) => p.securityId === search.produkt)}
+          position={(view?.positions ?? view?.classes.flatMap((g) => g.positions) ?? []).find(
+            (p) => p.securityId === search.produkt,
+          )}
           asOf={view?.asOf}
           onClose={() => select()}
           onSelect={select}
@@ -331,6 +331,11 @@ function PositionRow({
         >
           {p.name}
         </button>
+        {p.exposureWeightBp !== undefined && p.exposureWeightBp < 10000 && (
+          <small className="portfolio-status">
+            {percentText(p.exposureWeightBp)} Klassengewicht · Stück und Kurs: gesamtes Instrument
+          </small>
+        )}
         <small className="portfolio-status">
           {p.valueCents === null
             ? unavailable

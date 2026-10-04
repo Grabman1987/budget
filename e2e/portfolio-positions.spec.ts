@@ -229,12 +229,18 @@ sampleTest(
     await page.unroute('**/api/portfolio/positions');
     await page.route('**/api/portfolio/positions', async (route) => {
       const original = (await (await route.fetch()).json()) as PortfolioPositionsView;
-      const p = original.classes[0]!.positions[0]!;
-      p.costCents = null;
-      p.gainCents = null;
-      p.gainBp = null;
-      p.accounts[0]!.costCents = null;
-      p.accounts[0]!.basisStatus = 'missing_fx';
+      // The class row and the whole-instrument row (used by the product panel) both lose the basis.
+      const id = original.classes[0]!.positions[0]!.securityId;
+      for (const p of [
+        original.classes[0]!.positions[0]!,
+        ...(original.positions ?? []).filter((x) => x.securityId === id),
+      ]) {
+        p.costCents = null;
+        p.gainCents = null;
+        p.gainBp = null;
+        p.accounts[0]!.costCents = null;
+        p.accounts[0]!.basisStatus = 'missing_fx';
+      }
       original.costCents = null;
       original.chain = null;
       await route.fulfill({ json: original });

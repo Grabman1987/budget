@@ -1,5 +1,7 @@
 # Data model (schema v2)
 
+Effective-dated security classification is stored in `security_exposure_version` and its weighted `security_asset_exposure` members. Inclusive dates, explicit incomplete sets, largest-remainder cents, audit/undo and the legacy seed-date assumption are defined in [historical asset exposure](asset-exposure.md). `security.asset_class_id` remains compatibility metadata; financial readers resolve versions at their own valuation date.
+
 SQLite (WAL) with Drizzle. Source: `packages/db/src/schema/*.ts`, migrations in `packages/db/drizzle/`
 (`npm run db:generate` after a schema change), read and write functions in `packages/db/src/repos/`.
 Everything the schema cannot express (split sums, transfer pairs, undo) is enforced in the

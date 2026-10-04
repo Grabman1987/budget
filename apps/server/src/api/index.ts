@@ -126,7 +126,7 @@ export function createLedgerApi({
   api.route('/rules', ruleRoutes(db, today));
   api.route('/overview', overviewReportRoutes(db, today));
   api.route('/report-tables', reportTableRoutes(db, today));
-  api.route('/securities', securityRoutes(db));
+  api.route('/securities', securityRoutes(db, today));
   api.route('/asset-classes', assetClassRoutes(db, today));
   api.route('/trades', tradeRoutes(db));
   api.route('/savings-plans', savingsPlanRoutes(db, today));

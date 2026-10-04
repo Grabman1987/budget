@@ -13,6 +13,8 @@ The export is one user-initiated ZIP download after a fresh passkey step-up. It 
 | `securities.csv` | Security identification and selected quote fields |
 | `asset_classes.csv` | Asset class definitions |
 | `asset_class_targets.csv` | Stored target history |
+| `security_exposure_versions.csv` | Effective dates, source and explicit completeness, including empty unknown sets |
+| `security_asset_exposures.csv` | Full weighted security/class history in integer basis points |
 | `fx_rates.csv` | Stored exchange-rate history |
 | `savings_plans.csv` | Stored savings-plan rows |
 | `positions.csv` | Per-account position read model as of the export date |
@@ -26,6 +28,8 @@ Stored money amounts use integer cents and retain their source currency. Prices 
 For split bookings, `booking_amount_cents` repeats the parent booking amount on each split row. Use `split_amount_cents` to aggregate the split allocation; do not sum the repeated parent amount across rows. `split_id` and `split_index` identify split rows, while booking-level and split-level memos remain separate.
 
 The ZIP is a data export, not a backup or restore artifact. It contains no authentication/session state, credentials, audit events, import staging data or opaque provider configuration.
+
+Current class labels in `securities.csv` and `positions.csv` resolve the exposure effective on the export date. Mixed products show weighted class labels; the two exposure history files preserve the precise dated semantics and incomplete remainder. Legacy `security.asset_class_id` is not used for these labels. See [historical exposure](asset-exposure.md).
 
 
 The API admits one in-flight export for the single owner (database identity, across
