@@ -6,12 +6,11 @@ import {
   personalInflation,
   toEurCents,
   versionOn,
-  type ContractSource,
   type ContractVersion,
   type InflationItem,
   type PersonalInflation,
 } from '@budget/domain';
-import { booking, expectedOccurrence } from '../schema';
+import { booking, bookingSplit, expectedOccurrence, expectedPayment } from '../schema';
 import { contractSources } from './contracts-report';
 import { bookedAmountIn } from './expected-links';
 import { cpiMonths, currentCpiSeries } from './cpi';
@@ -57,9 +56,13 @@ function latestChange(months: Record<string, number>): InflationReport['referenc
     : null;
 }
 
-/** The live bookings matched to a contract's occurrences, in the contract's currency. */
+/**
+ * The live bookings matched to a contract's occurrences, in the contract's currency. Without any
+ * linked occurrence (imported contracts) the history comes from the live bookings of the same
+ * payee with a split in the contract's category: that split's amount, transfers excluded.
+ */
 function matchedCharges(db: Executor, paymentId: string, currency: string) {
-  return db
+  const linked = db
     .select({ date: booking.date, b: booking })
     .from(expectedOccurrence)
     .innerJoin(booking, eq(booking.id, expectedOccurrence.bookingId))
@@ -73,6 +76,35 @@ function matchedCharges(db: Executor, paymentId: string, currency: string) {
     )
     .all()
     .map((r) => ({ date: r.date, amountCents: bookedAmountIn(r.b, currency) }));
+  if (linked.length > 0) return linked;
+  const p = db.select().from(expectedPayment).where(eq(expectedPayment.id, paymentId)).get();
+  if (!p?.payeeId || !p.categoryId) return linked;
+  const perBooking = new Map<string, { date: string; amountCents: number }>();
+  const rows = db
+    .select({ b: booking, split: bookingSplit.amountCents })
+    .from(booking)
+    .innerJoin(bookingSplit, eq(bookingSplit.bookingId, booking.id))
+    .where(
+      and(
+        eq(booking.payeeId, p.payeeId),
+        eq(bookingSplit.categoryId, p.categoryId),
+        isNull(booking.deletedAt),
+        isNull(booking.transferId),
+        isNull(bookingSplit.transferId),
+      ),
+    )
+    .all();
+  for (const { b, split } of rows) {
+    // A foreign-currency charge keeps its split's share of the original amount (integer cents).
+    const amountCents =
+      b.currency === currency || b.originalCurrency !== currency || b.originalAmountCents === null
+        ? split
+        : Math.round((split * b.originalAmountCents) / b.amountCents);
+    const sum = perBooking.get(b.id);
+    if (sum) sum.amountCents += amountCents;
+    else perBooking.set(b.id, { date: b.date, amountCents });
+  }
+  return [...perBooking.values()];
 }
 
 export function inflationReport(db: Executor, today: string): InflationReport {
@@ -89,9 +121,9 @@ export function inflationReport(db: Executor, today: string): InflationReport {
       const { versions, source } = contractPrices(s.versions, charges);
       if (source === 'bookings')
         derivedContracts.push({ id: s.id, name: s.name, source, prices: [...versions] });
-      return { ...s, versions };
+      return { ...s, versions, derived: source === 'bookings' };
     });
-  const byCategory = new Map<string, ContractSource[]>();
+  const byCategory = new Map<string, (typeof fixed)[number][]>();
   for (const s of fixed)
     byCategory.set(s.categoryId as string, [...(byCategory.get(s.categoryId as string) ?? []), s]);
   const cache = new Map<string, number | null>();
@@ -111,8 +143,11 @@ export function inflationReport(db: Executor, today: string): InflationReport {
       let total = 0;
       let any = false;
       for (const p of payments) {
-        if ((p.startDate && p.startDate > day) || (p.endDate && p.endDate < day)) continue;
-        const v = versionOn(p.versions, day);
+        // A derived history is the truth from its first charge on (the imported start date is
+        // not), and a charge anywhere in the month prices the month: the base month can be filled.
+        if ((!p.derived && p.startDate && p.startDate > day) || (p.endDate && p.endDate < day))
+          continue;
+        const v = versionOn(p.versions, p.derived ? `${month}-31` : day);
         if (!v) continue;
         let eur = v.amountCents;
         if (v.currency !== 'EUR') {
