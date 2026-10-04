@@ -25,7 +25,7 @@ import {
   type ValuationQuality,
   type ValuationSeries,
 } from '@budget/domain';
-import { and, eq, gt, inArray, isNotNull, isNull, lte, max, min, sql } from 'drizzle-orm';
+import { and, desc, eq, gt, inArray, isNotNull, isNull, lte, max, min, sql } from 'drizzle-orm';
 import {
   account,
   booking,
@@ -39,6 +39,7 @@ import {
   trade,
 } from '../schema';
 import { lastSuccessfulMarketRun } from './market';
+import { memoized } from './request-memo';
 import { noteIncomplete } from './valuation-notes';
 import { accountBalances } from './queries';
 import { MissingFxRateError } from './errors';
@@ -69,9 +70,11 @@ type Rates = { currency: string; date: string; rateMicro: number }[];
 
 function rateOrMissing(rates: Rates, currency: string, asOf: string): number | undefined {
   if (currency === 'EUR') return 1_000_000;
-  return rates
-    .filter((r) => r.currency === currency && r.date <= asOf)
-    .sort((a, b) => b.date.localeCompare(a.date))[0]?.rateMicro;
+  // Latest rate on or before the day (the first of equal days), without sorting every call.
+  let best: Rates[number] | undefined;
+  for (const r of rates)
+    if (r.currency === currency && r.date <= asOf && (!best || r.date > best.date)) best = r;
+  return best?.rateMicro;
 }
 
 /**
@@ -107,6 +110,12 @@ function holdingValuationAsOf(
   options: ValuationOptions = {},
 ): HoldingValuation {
   const estimate = options.estimate ?? true;
+  return memoized(db, `holdings|${asOf}|${estimate}`, () =>
+    computeHoldingValuation(db, asOf, estimate),
+  );
+}
+
+function computeHoldingValuation(db: Executor, asOf: string, estimate: boolean): HoldingValuation {
   const live = new Set(
     db
       .select({ id: security.id })
@@ -141,33 +150,60 @@ function holdingValuationAsOf(
     .from(trade)
     .where(and(lte(trade.date, asOf), isNull(trade.deletedAt)))
     .all();
-  // Prices of held securities only, ascending; the backfill tolerance reads a few days past `asOf`.
   const heldSecurities = new Set<string>();
   for (const r of [...snapshots, ...trades])
     if (live.has(r.securityId)) heldSecurities.add(r.securityId);
+  // Only the prices `pickPrice` can choose, read by index per held security: the latest on or
+  // before the day and, when estimating and there is none, the first one inside the backfill
+  // tolerance after it. (The whole `price` table is far too big to read for each call.)
+  const latestPrice = (securityId: string) =>
+    db
+      .select({ date: price.date, priceMicro: price.priceMicro, currency: price.currency })
+      .from(price)
+      .where(and(eq(price.securityId, securityId), lte(price.date, asOf)))
+      .orderBy(desc(price.date))
+      .limit(1)
+      .get();
+  const firstPriceAfter = (securityId: string) =>
+    db
+      .select({ date: price.date, priceMicro: price.priceMicro, currency: price.currency })
+      .from(price)
+      .where(
+        and(
+          eq(price.securityId, securityId),
+          gt(price.date, asOf),
+          lte(price.date, addDays(asOf, PRICE_BACKFILL_TOLERANCE_DAYS)),
+        ),
+      )
+      .orderBy(price.date)
+      .limit(1)
+      .get();
   const pricesBySecurity = new Map<string, DatedPrice[]>();
-  const priceRows = estimate
-    ? db
-        .select()
-        .from(price)
-        .where(lte(price.date, addDays(asOf, PRICE_BACKFILL_TOLERANCE_DAYS)))
-        .orderBy(price.date)
-        .all()
-    : db.select().from(price).where(lte(price.date, asOf)).orderBy(price.date).all();
-  for (const p of priceRows) {
-    if (!heldSecurities.has(p.securityId)) continue;
-    const list = pricesBySecurity.get(p.securityId) ?? [];
-    // Only the part that can matter: everything up to the day, and the first price after it.
-    if (p.date > asOf && list.length > 0 && (list[list.length - 1] as DatedPrice).date > asOf)
-      continue;
-    list.push({ date: p.date, priceMicro: p.priceMicro, currency: p.currency });
-    pricesBySecurity.set(p.securityId, list);
+  for (const securityId of heldSecurities) {
+    const found = latestPrice(securityId) ?? (estimate ? firstPriceAfter(securityId) : undefined);
+    if (found) pricesBySecurity.set(securityId, [found]);
   }
   const rates: Rates = db.select().from(fxRate).where(lte(fxRate.date, asOf)).all();
 
+  // Rows of each position (account x security), in the order they were read.
   const keys = new Map<string, { accountId: string; securityId: string }>();
-  for (const r of [...snapshots, ...trades])
-    if (live.has(r.securityId)) keys.set(`${r.accountId} ${r.securityId}`, r);
+  const snapshotsOf = new Map<string, typeof snapshots>();
+  const tradesOf = new Map<string, typeof trades>();
+  const group = <T extends { accountId: string; securityId: string }>(
+    rows: T[],
+    into: Map<string, T[]>,
+  ) => {
+    for (const r of rows) {
+      if (!live.has(r.securityId)) continue;
+      const key = `${r.accountId} ${r.securityId}`;
+      keys.set(key, r);
+      const list = into.get(key);
+      if (list) list.push(r);
+      else into.set(key, [r]);
+    }
+  };
+  group(snapshots, snapshotsOf);
+  group(trades, tradesOf);
   const out: HoldingValue[] = [];
   const missingFxPositions: HoldingValuation['missingFxPositions'] = [];
   const missingPricePositions: HoldingValuation['missingPricePositions'] = [];
@@ -177,11 +213,9 @@ function holdingValuationAsOf(
     missing.add(currency);
     missingFxByAccount.set(accountId, missing);
   };
-  for (const { accountId, securityId } of keys.values()) {
-    const mine = <T extends { accountId: string; securityId: string }>(rows: T[]) =>
-      rows.filter((r) => r.accountId === accountId && r.securityId === securityId);
-    const mySnapshots = mine(snapshots);
-    const myTrades = mine(trades);
+  for (const [key, { accountId, securityId }] of keys) {
+    const mySnapshots = snapshotsOf.get(key) ?? [];
+    const myTrades = tradesOf.get(key) ?? [];
     const snapshot = [...mySnapshots].sort((a, b) => b.asOf.localeCompare(a.asOf))[0];
     const units = unitsHeld(
       snapshot ? { asOf: snapshot.asOf, unitsE8: snapshot.unitsE8 } : undefined,
@@ -358,6 +392,17 @@ export function netWorthValuationAsOf(
   db: Executor,
   asOf: string,
   options: ValuationOptions = {},
+): NetWorthValuation {
+  const estimate = options.estimate ?? true;
+  return memoized(db, `networth|${asOf}|${estimate}`, () =>
+    computeNetWorthValuation(db, asOf, options),
+  );
+}
+
+function computeNetWorthValuation(
+  db: Executor,
+  asOf: string,
+  options: ValuationOptions,
 ): NetWorthValuation {
   const estimate = options.estimate ?? true;
   const accountRows = db

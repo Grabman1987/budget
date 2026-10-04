@@ -246,7 +246,7 @@ export const REPORTS_CATALOG: PageMeta = {
   area: 'reports',
   register: 'katalog',
   fills: P6,
-  spec: 'Katalog der 30 Reports als Stückliste in fünf Baugruppen.',
+  spec: 'Katalog der 31 Reports als Stückliste in fünf Baugruppen.',
 };
 
 export const REPORT_GROUP_PAGES = REPORT_GROUPS.map((g) => ({

@@ -508,3 +508,9 @@ Scope and shared definitions: [report correctness](report-correctness.md).
 - [x] Shared household classification for yearly/overview/table/cashflow totals and Plan year summary.
 - [x] Mobile Heute safe space and bounded project settings table; synthetic regressions.
 - [ ] Owner design/private-ledger acceptance and pinned Linux visual CI; no private-data access, migration or deployment in this task.
+
+### Report 3.6 — Vermögen & Schulden
+- [x] `/reports/vermoegen-schulden`: assets and debts at every month end (`GET /api/assets-debts-history?period=`, default `Alles`), net worth line, header with Nettovermögen / Vermögenswerte / Schulden / Veränderung im Zeitraum (EUR and %), month selection (`?monat=`) with the accounts behind the month.
+- [x] One valuation: months are read with `netWorthAsOf` (same as Vermögen › Nettovermögen); pure split in `packages/domain/src/ledger/assets-debts.ts`; estimated/missing prices flag the month and show `ValuationHint`.
+- [x] Domain unit tests (loans, credit cards, negative cash accounts, zero start), API tests (controlled accounts, equality with `/api/wealth/networth`, valuation quality, no accounts), Playwright desktop/mobile with axe light/dark and overflow checks.
+- [ ] Owner design acceptance on real data.

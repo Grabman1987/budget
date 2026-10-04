@@ -1,4 +1,4 @@
-/** Catalog of the 30 reports (SPEC §7), ported from design/prototype/reports.js. UI text is German. */
+/** Catalog of the reports (SPEC §7; 3.6 Vermögen & Schulden was added after the original 30), ported from design/prototype/reports.js. UI text is German. */
 
 export type ReportControl = 'month' | 'year' | 'period' | 'print';
 
@@ -169,6 +169,13 @@ export const REPORT_GROUPS: ReadonlyArray<ReportGroup> = [
       'Sparziele-Fortschritt',
       'Liegen die Sparziele im Plan?',
       'Fortschrittsbalken mit Soll-Marke',
+    ],
+    [
+      'vermoegen-schulden',
+      'Vermögen & Schulden',
+      'Was besitzen wir, was schulden wir, und wie entwickelt sich der Saldo?',
+      'Balken je Monatsende, Linie Nettovermögen',
+      'period',
     ],
   ]),
   group('portfolio', 4, 'Portfolio', [

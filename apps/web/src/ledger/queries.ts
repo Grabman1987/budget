@@ -1,6 +1,13 @@
 import { infiniteQueryOptions, queryOptions } from '@tanstack/react-query';
 import { addDays, todayInVienna } from '@budget/domain';
-import { fetchAccounts, fetchBookings, fetchLookups, fetchPayees, fetchSeries } from './api';
+import {
+  fetchAccounts,
+  fetchBookings,
+  fetchLookups,
+  fetchPayees,
+  fetchSeries,
+  fetchSeriesBatch,
+} from './api';
 import type { BookingFilter } from './types';
 
 /** Query keys and options of the ledger. Every write invalidates the `LEDGER_KEY` family. */
@@ -16,6 +23,16 @@ export const seriesQuery = (accountId: string, days: number) => {
   return queryOptions({
     queryKey: [...LEDGER_KEY, 'series', accountId, days, to],
     queryFn: () => fetchSeries(accountId, from, to),
+  });
+};
+
+/** `seriesQuery` of every live account in one request (the Konten table's sparklines). */
+export const seriesBatchQuery = (days: number) => {
+  const to = todayInVienna();
+  const from = addDays(to, -days);
+  return queryOptions({
+    queryKey: [...LEDGER_KEY, 'series-batch', days, to],
+    queryFn: () => fetchSeriesBatch(from, to),
   });
 };
 

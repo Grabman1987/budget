@@ -1,7 +1,6 @@
 import {
-  planIncomeTargets,
+  planMonthViews,
   assignMany,
-  budgetSummary,
   categoryTree,
   coverOverspending,
   createCategory,
@@ -25,6 +24,7 @@ import type { z } from 'zod';
 import { ACTOR, defined, readBody, readQuery } from './http';
 import {
   assignBody,
+  budgetMonthsQuery,
   budgetQuery,
   categoryCreate,
   categoryMerge,
@@ -150,16 +150,16 @@ export function budgetRoutes(db: Db, today: () => string): Hono {
   const app = new Hono();
   const monthParam = (value: string) => month.parse(value);
 
+  /** Several months at once: `{ months: { 'YYYY-MM': <the answer of GET /:month> } }`. */
+  app.get('/months', (c) => {
+    const { months, cardRule } = readQuery(c, budgetMonthsQuery);
+    return c.json({ months: planMonthViews(db, months, cardRule ? { cardRule } : {}, today()) });
+  });
+
   app.get('/:month', (c) => {
     const m = monthParam(c.req.param('month'));
     const { cardRule } = readQuery(c, budgetQuery);
-    const { summary, tree } = budgetSummary(db, m, cardRule ? { cardRule } : {});
-    return c.json({
-      summary,
-      groups: tree.groups,
-      categories: tree.categories,
-      incomeTargets: planIncomeTargets(db, summary, today()),
-    });
+    return c.json(planMonthViews(db, [m], cardRule ? { cardRule } : {}, today())[m]);
   });
 
   app.put('/:month/assigned', async (c) => {

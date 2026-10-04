@@ -82,6 +82,13 @@ export const accountOrder = z.object({
 });
 export const asOfQuery = z.object({ asOf: day.optional() });
 export const seriesQuery = z.object({ from: day, to: day });
+/** The batch variant: optional comma-separated account ids (default: every live account). */
+export const seriesBatchQuery = seriesQuery.extend({
+  ids: z
+    .string()
+    .transform((value) => value.split(',').filter((part) => part.length > 0))
+    .optional(),
+});
 
 // ---------- bookings ----------
 const split = z.object({
@@ -267,6 +274,13 @@ export const splitOffBody = z.union([
 export const groupBody = z.object({ name: z.string().trim().min(1).max(80) });
 
 export const budgetQuery = z.object({ cardRule: z.enum(['ynab', 'concept']).optional() });
+/** `?months=2026-01,2026-02,...`: up to three years of months in one request (Plan › Jahr). */
+export const budgetMonthsQuery = budgetQuery.extend({
+  months: z
+    .string()
+    .transform((value) => value.split(','))
+    .pipe(z.array(month).min(1).max(36)),
+});
 export const assignBody = z.object({
   items: z
     .array(z.object({ categoryId: id, assignedCents: cents }))
