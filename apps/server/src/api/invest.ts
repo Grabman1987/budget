@@ -35,6 +35,9 @@ import {
   investmentPreferences,
   setInvestmentCostMethod,
   restoreSecurity,
+  restoreAssetClass,
+  resolvePortfolioRiskPolicy,
+  assetClassesSettings,
   SECURITY_KINDS,
   savingsExecutions,
   savingsExecutionProposals,
@@ -222,16 +225,43 @@ export function securityRoutes(db: Db, today: () => string): Hono {
 }
 
 // ---------- asset classes ----------
-const classCreate = z.object({ name: z.string().min(1).max(80), sortOrder: z.int().optional() });
+const classCreate = z.object({
+  name: z
+    .string()
+    .trim()
+    .min(1, 'Bitte einen Namen eingeben.')
+    .max(80, 'Höchstens 80 Zeichen sind möglich.'),
+  sortOrder: z.int().min(0).max(100000).optional(),
+});
 const classPatch = classCreate
   .partial()
-  .refine((v) => Object.keys(v).length > 0, 'Nothing to change');
+  .refine((v) => Object.keys(v).length > 0, 'Bitte eine Änderung eingeben.');
+const targetRows = z
+  .array(
+    z.object({
+      assetClassId: id,
+      targetShareBp: bp,
+      bandBp: bp.optional(),
+      bandMode: z.enum(['standard', 'custom']).optional(),
+    }),
+  )
+  .min(1)
+  .max(50);
 const targetsBody = z.object({
-  validFrom: day,
-  targets: z
-    .array(z.object({ assetClassId: id, targetShareBp: bp, bandBp: bp.optional() }))
-    .min(1)
-    .max(50),
+  validFrom: exposureDay,
+  targets: targetRows,
+  label: z.string().trim().max(80).nullable().optional(),
+  reason: z.string().trim().max(500).nullable().optional(),
+  tiers: z
+    .array(
+      z.object({
+        upToCents: z.int().min(1).max(Number.MAX_SAFE_INTEGER).nullable(),
+        targets: targetRows,
+      }),
+    )
+    .max(10)
+    .optional(),
+  archiveClassId: id.optional(),
 });
 
 export function assetClassRoutes(db: Db, today: () => string): Hono {
@@ -239,10 +269,14 @@ export function assetClassRoutes(db: Db, today: () => string): Hono {
   const audit = () => ({ actor: ACTOR, groupId: randomUUID() });
 
   app.get('/', (c) => {
-    const current = new Map(targetsAsOf(db, today()).map((t) => [t.assetClassId, t]));
+    const { deleted } = readQuery(c, deletedQuery);
+    const policy = resolvePortfolioRiskPolicy(db, today());
+    const current = new Map(
+      targetsAsOf(db, today(), true, policy.investmentCents).map((t) => [t.assetClassId, t]),
+    );
     const inUse = assetClassesInUse(db);
     return c.json({
-      assetClasses: listAssetClasses(db).map((cls) => ({
+      assetClasses: listAssetClasses(db, { includeDeleted: deleted !== undefined }).map((cls) => ({
         ...cls,
         target: current.get(cls.id) ?? null,
         inUse: inUse.has(cls.id),
@@ -250,44 +284,93 @@ export function assetClassRoutes(db: Db, today: () => string): Hono {
     });
   });
   app.post('/', async (c) => {
-    const body = await readBody(c, classCreate);
+    const parsed = classCreate.safeParse(await c.req.json().catch(() => null));
+    if (!parsed.success) {
+      console.warn({ event: 'asset_class_write_rejected', reason: 'validation' });
+      throw new ApiError(
+        400,
+        'invalid_class',
+        'Bitte einen Namen mit 1 bis 80 Zeichen und eine gültige Sortierposition eingeben.',
+      );
+    }
+    const body = parsed.data;
     const ctx = audit();
     const row = createAssetClass(db, defined(body), ctx);
     return c.json({ assetClass: row, groupId: ctx.groupId }, 201);
   });
 
   // Fixed paths before `/:id`.
+  app.get('/settings', (c) => c.json(assetClassesSettings(db, today())));
   app.get('/targets', (c) => c.json({ versions: listTargetVersions(db) }));
   app.put('/targets', async (c) => {
-    const { validFrom, targets } = await readBody(c, targetsBody);
+    const parsed = targetsBody.safeParse(await c.req.json().catch(() => null));
+    if (!parsed.success) {
+      console.warn({ event: 'target_write_rejected', reason: 'validation' });
+      throw new ApiError(
+        400,
+        'invalid_targets',
+        'Bitte Wirksamkeitsdatum, Sollquoten, Stufengrenzen und Bänder prüfen.',
+      );
+    }
+    const { validFrom, targets, ...metadata } = parsed.data;
     const ctx = audit();
-    const version = setTargets(
-      db,
-      validFrom,
-      targets.map((t) => defined<AssetTargetInput>(t)),
-      ctx,
-    );
+    let version;
+    try {
+      version = setTargets(
+        db,
+        validFrom,
+        targets.map((t) => defined<AssetTargetInput>(t)),
+        ctx,
+        defined({ ...metadata, completeSnapshot: true, asOf: today() }),
+      );
+    } catch (error) {
+      console.warn({ event: 'target_write_rejected', reason: 'invariant' });
+      throw error;
+    }
     return c.json({ version, groupId: ctx.groupId });
   });
   app.delete('/targets/:validFrom', (c) => {
     const validFrom = day.parse(c.req.param('validFrom'));
+    if (!listTargetVersions(db).some((v) => v.validFrom === validFrom))
+      throw new ApiError(404, 'not_found', 'Die Sollversion ist nicht verfügbar.');
     const ctx = audit();
     deleteTargetVersion(db, validFrom, ctx);
     return c.json({ groupId: ctx.groupId });
   });
 
   app.patch('/:id', async (c) => {
-    const body = await readBody(c, classPatch);
+    const parsed = classPatch.safeParse(await c.req.json().catch(() => null));
+    if (!parsed.success) {
+      console.warn({ event: 'asset_class_write_rejected', reason: 'validation' });
+      throw new ApiError(
+        400,
+        'invalid_class',
+        'Bitte einen Namen mit 1 bis 80 Zeichen und eine gültige Sortierposition eingeben.',
+      );
+    }
+    const body = parsed.data;
     const ctx = audit();
     const row = updateAssetClass(db, c.req.param('id'), defined(body), ctx);
     return c.json({ assetClass: row, groupId: ctx.groupId });
   });
   app.delete('/:id', (c) => {
     if (!getAssetClass(db, c.req.param('id')))
-      throw new ApiError(404, 'not_found', 'Asset class not found');
+      throw new ApiError(404, 'not_found', 'Die Anlageklasse ist nicht verfügbar.');
     const ctx = audit();
-    deleteAssetClass(db, c.req.param('id'), ctx);
+    try {
+      deleteAssetClass(db, c.req.param('id'), ctx, today());
+    } catch (error) {
+      console.warn({ event: 'asset_class_archive_blocked', reason: 'dependency' });
+      throw error;
+    }
     return c.json({ groupId: ctx.groupId });
+  });
+  app.post('/:id/restore', (c) => {
+    const ctx = audit();
+    return c.json({
+      assetClass: restoreAssetClass(db, c.req.param('id'), ctx),
+      groupId: ctx.groupId,
+    });
   });
   return app;
 }

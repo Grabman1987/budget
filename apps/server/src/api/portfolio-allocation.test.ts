@@ -231,7 +231,7 @@ it('targets are 10000 bp, dated and atomic with preserved bands and auditable un
   ]);
   expect(
     history.versions[1]!.targets.map((row: { targetShareBp: number }) => row.targetShareBp),
-  ).toEqual([10_000, 0]);
+  ).toEqual([10_000]);
   const changed = (await (
     await call('PUT', '/asset-classes/targets', targets('2026-01-01', 7000, 3000))
   ).json()) as { groupId: string };
@@ -381,7 +381,7 @@ it('first target creation undo removes the effective version; redo and fresh sam
   await call('POST', '/undo', { groupId: saved.groupId });
   expect((await read()).classes.map((row) => row.targetBp)).toEqual([null, null]);
 });
-it('same-day replacement writes zero for an omitted class with a prior positive target', async () => {
+it('same-day complete replacement leaves an omitted class unmanaged and undo restores its prior positive target', async () => {
   fixture();
   await call('PUT', '/asset-classes/targets', targets('2026-01-01', 5000, 5000));
   await call('PUT', '/asset-classes/targets', targets('2026-02-01', 5000, 5000));
@@ -391,13 +391,13 @@ it('same-day replacement writes zero for an omitted class with a prior positive 
       targets: [{ assetClassId: 'a', targetShareBp: 10_000 }],
     })
   ).json()) as { groupId: string };
-  expect((await read()).classes.map((row) => row.targetBp)).toEqual([10_000, 0]);
+  expect((await read()).classes.map((row) => row.targetBp)).toEqual([10_000, null]);
   const undone = (await (await call('POST', '/undo', { groupId: saved.groupId })).json()) as {
     groupId: string;
   };
   expect((await read()).classes.map((row) => row.targetBp)).toEqual([5000, 5000]);
   await call('POST', '/undo', { groupId: undone.groupId });
-  expect((await read()).classes.map((row) => row.targetBp)).toEqual([10_000, 0]);
+  expect((await read()).classes.map((row) => row.targetBp)).toEqual([10_000, null]);
 });
 
 it('PR3 metadata is editable through audited account/instrument APIs; invalid scope/classes roll back and undo restores quality', async () => {

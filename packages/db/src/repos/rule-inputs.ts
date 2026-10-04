@@ -651,7 +651,7 @@ export function ruleInputs(
   // R13 to R15: positions valued on the day; platform ownership comes from the holding account.
   const allocationInputs = allocationInputsAsOf(db, asOf);
   const positions = allocationInputs.positions;
-  const portfolioRiskPolicy = resolvePortfolioRiskPolicy(db, asOf);
+  const portfolioRiskPolicy = resolvePortfolioRiskPolicy(db, asOf, allocationInputs.valueCents);
   const classTargets = portfolioRiskPolicy.targets;
 
   // R16: invested wealth over 25 annual spends, now and three months ago

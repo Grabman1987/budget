@@ -390,7 +390,7 @@ describe('invest CRUD', () => {
       targets: [{ assetClassId: welt.id, targetShareBp: 9_000 }],
     });
     expect(bad.status).toBe(400);
-    expect(bad.body['message']).toMatch(/10 000/);
+    expect(bad.body['message']).toContain('Erforderlich sind genau 100,00 %');
     const ok = await call('PUT', '/asset-classes/targets', {
       validFrom: '2026-01-01',
       targets: [
@@ -418,6 +418,65 @@ describe('invest CRUD', () => {
     expect((await call('DELETE', `/asset-classes/${em.id}`)).status).toBe(409);
     expect((await call('DELETE', '/asset-classes/targets/2026-01-01')).status).toBe(200);
     expect((await call('DELETE', '/asset-classes/targets/2026-01-01')).status).toBe(404);
+  });
+
+  it('PR4 class validation, archived reads, complete target metadata/tiers and atomic retirement use audited API paths', async () => {
+    const invalid = await call('POST', '/asset-classes', { name: ' ' });
+    expect(invalid.status).toBe(400);
+    expect(invalid.body['message']).toContain('Namen');
+    const first = await call('POST', '/asset-classes', { name: '  Klasse A  ', sortOrder: 2 });
+    const second = await call('POST', '/asset-classes', { name: 'Klasse B', sortOrder: 1 });
+    const a = first.body['assetClass'].id,
+      b = second.body['assetClass'].id;
+    expect(first.body['assetClass'].name).toBe('Klasse A');
+    const duplicate = await call('POST', '/asset-classes', { name: 'klasse a' });
+    expect(duplicate.status).toBe(409);
+    expect(duplicate.body['message']).toContain('bereits vorhanden');
+    const targets = [{ assetClassId: a, targetShareBp: 10000, bandBp: 0, bandMode: 'custom' }];
+    const future = await call('PUT', '/asset-classes/targets', {
+      validFrom: '2050-01-01',
+      label: '  Strategie  ',
+      reason: '  Synthetisch  ',
+      targets,
+      tiers: [
+        { upToCents: 1000000, targets },
+        { upToCents: null, targets: [{ assetClassId: b, targetShareBp: 10000 }] },
+      ],
+    });
+    expect(future.status).toBe(200);
+    expect(future.body['version']).toMatchObject({
+      label: 'Strategie',
+      reason: 'Synthetisch',
+      auditGroupId: future.body['groupId'],
+    });
+    const blocked = await call('DELETE', `/asset-classes/${a}`);
+    expect(blocked.status).toBe(409);
+    expect(blocked.body['message']).toContain('zukünftige Sollquote');
+    expect(
+      (
+        await call('PUT', '/asset-classes/targets', {
+          validFrom: '2050-01-01',
+          targets,
+          tiers: [{ upToCents: 0.5, targets }],
+        })
+      ).status,
+    ).toBe(400);
+    await call('DELETE', '/asset-classes/targets/2050-01-01');
+    await call('PUT', '/asset-classes/targets', { validFrom: TODAY, targets });
+    const retired = await call('PUT', '/asset-classes/targets', {
+      validFrom: TODAY,
+      targets: [{ assetClassId: b, targetShareBp: 10000 }],
+      archiveClassId: a,
+    });
+    expect(retired.status).toBe(200);
+    expect(
+      (await call('GET', '/asset-classes')).body['assetClasses'].map((c: any) => c.id),
+    ).toEqual([b]);
+    expect((await call('GET', '/asset-classes?deleted=1')).body['assetClasses']).toHaveLength(2);
+    const settings = await call('GET', '/asset-classes/settings');
+    expect(settings.status).toBe(200);
+    expect(settings.body['classes'].find((c: any) => c.id === a).deletedAt).not.toBeNull();
+    expect((await call('POST', `/asset-classes/${a}/restore`)).status).toBe(200);
   });
 
   it('trades: units rule, settlement booking, decimal units, undo, import key, filters', async () => {

@@ -12,8 +12,9 @@ export const RELATIVE_BAND_PERCENT = PARAM_SCHEMAS.R13.parse({}).relativeBandPct
 export interface ClassTarget {
   assetClass: string;
   targetBp: number;
-  /** Stored band; when absent or 0 the R13 default `min(500 bp, 25 % of the target)` applies. */
+  /** Legacy zero means standard; explicit custom mode also permits a zero-width band. */
   bandBp?: number;
+  bandMode?: 'standard' | 'custom';
 }
 
 /** R13 band of a target: `min(500 bp, 25 % of the target)`, the 25 % rounded half up to whole bp. */
@@ -22,6 +23,15 @@ export function defaultBandBp(
   policy: Pick<RuleParams<'R13'>, 'maxBandBp' | 'relativeBandPct'> = PARAM_SCHEMAS.R13.parse({}),
 ): number {
   return Math.min(policy.maxBandBp, mulDivRound(targetBp, policy.relativeBandPct, 100));
+}
+
+export function resolvedBandBp(
+  target: ClassTarget,
+  policy: Pick<RuleParams<'R13'>, 'maxBandBp' | 'relativeBandPct'> = PARAM_SCHEMAS.R13.parse({}),
+): number {
+  return target.bandMode === 'custom' || (target.bandMode === undefined && (target.bandBp ?? 0) > 0)
+    ? (target.bandBp ?? 0)
+    : defaultBandBp(target.targetBp, policy);
 }
 
 export interface ClassRow {
@@ -93,8 +103,7 @@ export function allocationStatus(
         speculativeOnly,
       };
     }
-    const bandBp =
-      target.bandBp && target.bandBp > 0 ? target.bandBp : defaultBandBp(target.targetBp, policy);
+    const bandBp = resolvedBandBp(target, policy);
     const gapCents = mulDivRound(totalCents, target.targetBp, 10_000) - valueCents;
     const exact = BigInt(valueCents) * 10_000n - BigInt(target.targetBp) * BigInt(totalCents);
     return {
