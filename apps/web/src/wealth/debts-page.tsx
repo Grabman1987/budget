@@ -18,6 +18,8 @@ import {
   type DebtsView,
 } from './debts-api';
 import { DebtChart } from './debts-chart';
+import { DebtStrategies } from './debt-strategies';
+import { LoanPlanning } from './loan-planning';
 import './debts.css';
 
 const modelMonthText = (month: string | null) =>
@@ -67,13 +69,16 @@ export function DebtsPage() {
           <>
             <DebtLead view={view} />
             {loan ? (
-              <Scenario
-                key={`${loan.id}:${loan.balanceCents}:${view.asOf}:${loan.interestRateBp}:${loan.monthlyFeeCents}:${loan.installmentCents}`}
-                loan={loan}
-                asOf={view.asOf}
-                onBusy={setBusy}
-                choice={choice}
-              />
+              <>
+                <Scenario
+                  key={`${loan.id}:${loan.balanceCents}:${view.asOf}:${loan.interestRateBp}:${loan.monthlyFeeCents}:${loan.installmentCents}`}
+                  loan={loan}
+                  asOf={view.asOf}
+                  onBusy={setBusy}
+                  choice={choice}
+                />
+                <LoanPlanning loanId={loan.id} asOf={view.asOf} />
+              </>
             ) : (
               <section className="vcomp" aria-labelledby="scenario-title">
                 <div className="tbd-head">
@@ -94,6 +99,7 @@ export function DebtsPage() {
                 )}
               </section>
             )}
+            <DebtStrategies asOf={view.asOf} />
             <section className="debt-accounts" aria-labelledby="debt-accounts-title">
               <div className="head">
                 <h2 id="debt-accounts-title">Schulden nach Konto</h2>

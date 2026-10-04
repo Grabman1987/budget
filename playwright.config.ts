@@ -115,7 +115,7 @@ export default defineConfig({
     {
       name: 'webkit-iphone',
       dependencies: ['setup', 'setup-sample'],
-      testMatch: /mobile-panels.spec.ts/,
+      testMatch: /(mobile-panels|loan-sheet).spec.ts/,
       use: { ...iphone, storageState: STORAGE_STATE },
     },
     // Real passkey ceremonies with the browser's virtual authenticator on a separate, empty server.

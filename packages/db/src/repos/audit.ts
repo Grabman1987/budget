@@ -1,4 +1,5 @@
 import { assertExposureInvariants } from './asset-exposure';
+import { assertLoanPlanInvariants } from './loan-planning';
 import { assertContactUndoDependencies } from './contact-invariants';
 import { isDuplicatePayslip } from '@budget/domain';
 import { assertReceiptUndo } from './receipts';
@@ -777,6 +778,7 @@ export function undo(
       )
     )
       assertExposureInvariants(tx);
+    if (originals.some((e) => e.entityType === 'loan_rate_change')) assertLoanPlanInvariants(tx);
     for (const entry of originals.filter((e) => e.entityType === 'asset_class')) {
       const cls = tx
         .select()
