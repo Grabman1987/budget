@@ -32,13 +32,13 @@ export function BarsAroundZero({ bars, y, barWidth, tone = 'ink' }: BarsAroundZe
         const top = Math.min(y(bar.value), zero);
         const height = Math.max(1, Math.abs(y(bar.value) - zero));
         const cls =
-          tone === 'signed'
-            ? bar.value >= 0
+          bar.value < 0
+            ? 'bar-neg2'
+            : tone === 'signed'
               ? 'bar-pos'
-              : 'bar-neg2'
-            : tone === 'pale'
-              ? 'bar-mkt'
-              : 'bar-own';
+              : tone === 'pale'
+                ? 'bar-mkt'
+                : 'bar-own';
         return (
           <rect
             key={bar.x}
