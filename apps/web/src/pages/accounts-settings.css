@@ -1,0 +1,76 @@
+/* Einstellungen › Konten: lists by group, hairlines instead of cards. */
+.accounts-settings {
+  margin-top: 24px;
+  display: grid;
+  gap: 24px;
+}
+.accounts-purpose {
+  max-width: 640px;
+  margin: 0;
+  color: var(--ink-2);
+}
+.accounts-group h3 {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  margin: 0 0 4px;
+  font-size: 15px;
+}
+.accounts-group h3 small {
+  font-weight: 500;
+  font-size: 12.5px;
+  color: var(--ink-3);
+}
+.accounts-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.accounts-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 56px;
+  padding: 8px 0;
+  border-top: 1px solid var(--rule);
+}
+.accounts-row:first-child {
+  border-top: 0;
+}
+.accounts-name {
+  display: grid;
+  min-width: 0;
+}
+.accounts-name strong {
+  overflow-wrap: anywhere;
+}
+.accounts-name small {
+  font-size: 12.5px;
+  color: var(--ink-3);
+}
+.accounts-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 4px 8px;
+}
+.settings-confirm {
+  border: 1px solid var(--line-2);
+  padding: 12px;
+}
+.settings-confirm .btn {
+  margin: 4px;
+}
+
+@media (max-width: 640px) {
+  .accounts-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .accounts-actions {
+    justify-content: flex-start;
+  }
+}

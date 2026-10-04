@@ -1,5 +1,6 @@
 import {
   account,
+  cashValuer,
   bankBalanceForAccount,
   lockBankBalance,
   accounts,
@@ -17,6 +18,7 @@ import {
 import { and, eq, isNull, sql } from 'drizzle-orm';
 import { randomUUID } from 'node:crypto';
 import { Hono, type Context } from 'hono';
+import type { CashValuation } from '@budget/domain';
 import { ACTOR, ApiError, defined, readBody, readQuery } from './http';
 import {
   accountClose,
@@ -45,8 +47,16 @@ const DEFAULTS = {
 } as const;
 const TRACKING_ONLY = new Set(['loan', 'brokerage', 'crypto', 'p2p', 'receivable']);
 
+/** The loan term must not end before it starts. */
+function assertTermOrder(start: string | null | undefined, end: string | null | undefined) {
+  if (start && end && end < start)
+    throw new ApiError(422, 'invalid', 'Das Laufzeitende liegt vor dem Laufzeitbeginn.');
+}
+
 /** EUR valuation fields can be null when a required security quote or exchange rate is missing. */
 export type AccountView = AccountSummary & {
+  cashValuation: CashValuation;
+  pendingValuation: CashValuation;
   holdingsCents: number | null;
   valueEurCents: number | null;
   missingFxCurrencies: string[];
@@ -57,22 +67,36 @@ export function accountRoutes(db: Db, today: () => string): Hono {
   const app = new Hono();
 
   const accountList = (asOf: string) => {
+    const value = cashValuer(db);
     const valuation = netWorthValuationAsOf(db, asOf);
     return {
       netWorthEurCents: valuation.totalCents,
       missingFxCurrencies: valuation.missingFxCurrencies,
       missingPriceSecurityIds: valuation.missingPriceSecurityIds,
-      accounts: accountSummaries(db, asOf).map((a) => ({
-        ...a,
-        bankBalance:
-          a.closedAt || asOf !== today() ? null : bankBalanceForAccount(db, a.id, today()),
-        holdingsCents: Object.hasOwn(valuation.holdingsByAccount, a.id)
-          ? valuation.holdingsByAccount[a.id]!
-          : 0,
-        valueEurCents: Object.hasOwn(valuation.byAccount, a.id) ? valuation.byAccount[a.id]! : 0,
-        missingFxCurrencies: valuation.missingFxByAccount[a.id] ?? [],
-        missingPriceSecurityIds: valuation.missingPriceByAccount[a.id] ?? [],
-      })),
+      accounts: accountSummaries(db, asOf).map((a) => {
+        const bankBalance =
+          a.closedAt || asOf !== today() ? null : bankBalanceForAccount(db, a.id, today());
+        return {
+          ...a,
+          cashValuation: value(a.balanceCents, a.currency, asOf),
+          pendingValuation: value(a.unclearedCents, a.currency, asOf),
+          bankBalance: bankBalance
+            ? {
+                ...bankBalance,
+                valuation:
+                  bankBalance.amountCents !== null && bankBalance.date !== null
+                    ? value(bankBalance.amountCents, a.currency, bankBalance.date)
+                    : null,
+              }
+            : null,
+          holdingsCents: Object.hasOwn(valuation.holdingsByAccount, a.id)
+            ? valuation.holdingsByAccount[a.id]!
+            : 0,
+          valueEurCents: Object.hasOwn(valuation.byAccount, a.id) ? valuation.byAccount[a.id]! : 0,
+          missingFxCurrencies: valuation.missingFxByAccount[a.id] ?? [],
+          missingPriceSecurityIds: valuation.missingPriceByAccount[a.id] ?? [],
+        };
+      }),
     };
   };
   const listAccounts = (asOf: string): AccountView[] => accountList(asOf).accounts;
@@ -100,6 +124,7 @@ export function accountRoutes(db: Db, today: () => string): Hono {
         'Loans, depots, crypto, P2P and receivables are never budget accounts',
       );
     }
+    assertTermOrder(input.termStart, input.termEnd);
     const ctx = audit();
     const sortOrder =
       (db
@@ -159,6 +184,10 @@ export function accountRoutes(db: Db, today: () => string): Hono {
           'The currency cannot change once the account has bookings',
         );
     }
+    assertTermOrder(
+      patch.termStart === undefined ? current.termStart : patch.termStart,
+      patch.termEnd === undefined ? current.termEnd : patch.termEnd,
+    );
     // The opening balance is part of every checked balance: a stored Kontostand prüfen locks it.
     const opening =
       (patch.openingBalanceCents !== undefined &&
@@ -175,7 +204,12 @@ export function accountRoutes(db: Db, today: () => string): Hono {
         );
     }
     const ctx = audit();
-    accounts.update(db, id, defined(patch), ctx);
+    // A new type brings its usual role, unless the request names one.
+    const next =
+      patch.type !== undefined && patch.type !== current.type && patch.role === undefined
+        ? { ...patch, role: DEFAULTS[patch.type].role }
+        : patch;
+    accounts.update(db, id, defined(next), ctx);
     return c.json({ account: summary(id), groupId: ctx.groupId });
   });
 
@@ -210,8 +244,16 @@ export function accountRoutes(db: Db, today: () => string): Hono {
   app.get('/:id/series', (c) => {
     const id = c.req.param('id');
     const range = readQuery(c, seriesQuery);
-    summary(id);
-    return c.json({ accountId: id, points: balanceSeries(db, id, range) });
+    const acct = summary(id);
+    const value = cashValuer(db);
+    return c.json({
+      accountId: id,
+      currency: acct.currency,
+      points: balanceSeries(db, id, range).map((p) => ({
+        ...p,
+        valuation: value(p.balanceCents, acct.currency, p.date),
+      })),
+    });
   });
 
   app.get('/:id/reconciliations', (c) => {
@@ -223,8 +265,25 @@ export function accountRoutes(db: Db, today: () => string): Hono {
   app.post('/:id/reconciliation/preview', async (c) => {
     const id = c.req.param('id');
     const input = await readBody(c, reconcilePreview);
+    const acct = accounts.get(db, id);
+    const preview = previewReconciliation(db, { accountId: id, ...input, today: today() });
+    const value = cashValuer(db);
+    const currency = acct!.currency;
     return c.json({
-      preview: previewReconciliation(db, { accountId: id, ...input, today: today() }),
+      preview: {
+        ...preview,
+        currency,
+        valuations: {
+          booked: value(preview.bookedBalanceCents, currency, input.date),
+          pending: value(preview.pendingCents, currency, input.date),
+          statement: value(preview.statementBalanceCents, currency, input.date),
+          difference: value(preview.differenceCents, currency, input.date),
+        },
+        duplicates: preview.duplicates.map((d) => ({
+          ...d,
+          valuation: value(d.amountCents, currency, d.date),
+        })),
+      },
     });
   });
 

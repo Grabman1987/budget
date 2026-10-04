@@ -79,3 +79,4 @@ export {
   type VersionedTarget,
 } from './summary';
 export * from './unclassified';
+export { cashValuation, type CashValuation, type CashRate } from './cash-valuation';

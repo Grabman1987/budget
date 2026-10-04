@@ -221,9 +221,11 @@ function Body({ data }: { data: BankCostsReport }) {
           </p>
         )}
         <p className="sr-note">
-          Rate und Sondertilgung stammen aus den erwarteten Zahlungen der Kreditkategorien. Ändern
-          kannst du die Sondertilgung im <AppLink to="/vermoegen/schulden">Schuldenrechner</AppLink>{' '}
-          unter Vermögen.
+          {data.loan?.paymentSource === 'terms'
+            ? 'Die Rate stammt aus den Konditionen des Kredits (Einstellungen › Konten), die Sondertilgung aus den erwarteten Zahlungen der Kreditkategorien.'
+            : 'Rate und Sondertilgung stammen aus den erwarteten Zahlungen der Kreditkategorien; eine Monatsrate beim Kredit (Einstellungen › Konten) hat Vorrang.'}{' '}
+          Ändern kannst du die Sondertilgung im{' '}
+          <AppLink to="/vermoegen/schulden">Schuldenrechner</AppLink> unter Vermögen.
         </p>
       </section>
 
@@ -256,6 +258,9 @@ function Body({ data }: { data: BankCostsReport }) {
                   <th scope="col" className="n">
                     Zinssatz
                   </th>
+                  <th scope="col" className="n">
+                    Rate
+                  </th>
                   <th scope="col">Laufzeit</th>
                   <th scope="col" className="n">
                     Zinsen {data.months.length} M
@@ -285,8 +290,24 @@ function Body({ data }: { data: BankCostsReport }) {
                           </span>
                         )}
                       </td>
-                      <td className="n">{rateText(l.rateBp)}</td>
-                      <td>{l.termEnd ? `bis ${longDay(l.termEnd)}` : '–'}</td>
+                      <td className="n">
+                        {rateText(l.rateBp)}
+                        {l.rateBp !== null && l.interestKind
+                          ? l.interestKind === 'fixed'
+                            ? ' fix'
+                            : ' variabel'
+                          : ''}
+                      </td>
+                      <td className="n">
+                        {l.installmentCents === null
+                          ? '–'
+                          : eur(l.installmentCents, { cents: false })}
+                      </td>
+                      <td>
+                        {l.termEnd
+                          ? `${l.termStart ? `${longDay(l.termStart)} ` : ''}bis ${longDay(l.termEnd)}`
+                          : '–'}
+                      </td>
                       <td className="n">
                         {l.interest12Cents === null
                           ? '–'

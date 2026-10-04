@@ -3,7 +3,6 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { expect, it } from 'vitest';
 import { defaultMigrationsFolder, migrateDatabase, openDatabase } from './client';
-import { seedBasics } from './repos/test-helpers';
 
 it('adds nullable bank observations without losing existing account mapping or staged transactions', () => {
   const source = defaultMigrationsFolder();
@@ -21,8 +20,9 @@ it('adds nullable bank observations without losing existing account mapping or s
     for (const entry of entries)
       copyFileSync(join(source, entry.tag + '.sql'), join(folder, entry.tag + '.sql'));
     migrateDatabase(opened.db, folder);
-    seedBasics(opened.db);
+    // Raw rows: later migrations add account columns that the old schema does not have yet.
     opened.sqlite.exec(`
+      INSERT INTO account (id, name, type, role, on_budget, opening_date, opening_balance_cents, sort_order) VALUES ('giro', 'Giro', 'checking', 'budget', 1, '2023-10-01', 100000, 1);
       INSERT INTO bank_sync_consent (id, initiator, state_hash, expires_at, label, next_run_at) VALUES ('consent-a', 'synthetic', 'synthetic-hash', '2027-01-01T00:00:00Z', 'Bank A', '2027-01-01T00:00:00Z');
       INSERT INTO bank_sync_account (id, consent_id, secret, label, currency, account_id, from_date, last_sync_at) VALUES ('link-a', 'consent-a', 'synthetic-ciphertext', 'Konto A', 'EUR', 'giro', '2026-09-01', '2026-10-02T10:00:00Z');
       INSERT INTO bank_sync_candidate (id, account_id, dedupe_key, date, amount_cents, currency, memo) VALUES ('candidate-a', 'giro', 'entry-a', '2026-10-02', -129, 'EUR', 'Banktext');
