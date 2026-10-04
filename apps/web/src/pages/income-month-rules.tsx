@@ -5,12 +5,13 @@ import { useState } from 'react';
 import { request } from '../api/http';
 import { useBudgetWrite } from '../budget/use-category-writes';
 import { lookupsQuery, payeesQuery } from '../ledger/queries';
-import { PAGES } from '../nav/pages';
-import { PageFrame } from './placeholder-page';
 import './data-sources.css';
 
-/** Owner defaults for future captures; source categorization is still an explicit decision. */
-export function IncomeMonthRulesPage() {
+/**
+ * Owner defaults for future captures; source categorization is still an explicit decision.
+ * Rendered as a section of the merged Zuordnungsregeln page (/einstellungen/zuordnung).
+ */
+export function IncomeMonthRulesSection() {
   const qc = useQueryClient();
   const query = useQuery({
     queryKey: ['income-month-rules'],
@@ -43,10 +44,7 @@ export function IncomeMonthRulesPage() {
     }
   }
   return (
-    <PageFrame
-      meta={PAGES.find((p) => p.path === '/einstellungen/zuordnung')!}
-      revealCurrentRegister
-    >
+    <>
       <section className="data-sources" aria-labelledby="income-rules-title">
         <SectionHead id="income-rules-title" title="Budgetmonat für Einnahmen" />
         <p>
@@ -154,6 +152,6 @@ export function IncomeMonthRulesPage() {
           </div>
         ))}
       </section>
-    </PageFrame>
+    </>
   );
 }
