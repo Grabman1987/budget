@@ -89,6 +89,47 @@ duplicates are flagged individually; unrelated currency metadata is ignored and
 symbols are not restricted to three letters.
 Cash compares the app's current native balance, including pending bookings.
 
+## Ledger reconciliation (Abgleich)
+
+Each staged operation on/after the start day (`source.crypto.since`) is compared with the
+existing ledger, using the account/instrument mappings. The matcher is pure
+(`packages/domain/src/read-source-match.ts`), read-only, and never creates or changes
+bookings or trades. Result per operation:
+
+- **erfasst** (resolved, "Bereits in der App erfasst (Kauf 10.03.2026)"): a counterpart exists.
+- **fehlt** (open, title "Quellbewegung fehlt in der App"): no counterpart; this is a genuinely
+  missing movement for the owner to record.
+- **ohne Zuordnung** (open, title "Quellbewegung: Zuordnung fehlt"): a needed asset or currency has
+  no mapping yet. Nothing is guessed.
+- **informativ** (resolved, "Informativ: …"): stake/unstake and platform-internal moves, or an
+  operation that only carries fee/tax legs. No ledger effect.
+
+Tolerances and rules:
+
+| Source | Ledger counterpart |
+| --- | --- |
+| buy, sell, savings plan, swap legs, dust swap | Trade of the mapped instrument in the mapped account (buy/sell, deliveries accepted), +-2 days. Units within 1e-8, else amount within 1 cent, else amount and units both within 0.5 %. Fee and tax (stated by the source or on the trade) may explain amount differences. Each trade leg of a swap must match. |
+| reward, bonus, staking reward, merger | Delivery in/out (or buy/sell) of the mapped instrument by units, +-2 days. A commission in the same asset is subtracted (the ledger records the net units). |
+| deposit, withdrawal, cash refund/reward | Booking on the mapped cash account with exact cents (a stated fee may be added or subtracted), +-3 days; positive cash credits may also match an interest/dividend trade of a mapped account. Settlement bookings of trades and transfers between two mapped accounts are internal and never match. |
+| stake, unstake, fee/tax-only operations | Informational. |
+
+A ledger row serves one source movement only (best match first: tier, then day distance, then
+operation order), so two identical purchases need two trades. Operations are always matched
+together, so the verdict does not depend on the page order of the fetch.
+
+"Abgleich neu ausführen" (Einstellungen › Datenquellen, step-up protected) re-checks all staged
+operations on/after the start day, including those closed by the manual cut-off cleanup
+(resolution starting "Vor dem Übernahme-Stichtag" or "Vor dem Startdatum"): matches are resolved,
+others reopened. Items the owner resolved by hand ("Vom Nutzer als erledigt markiert") and items
+before the start day are never touched. The run is one audit group (undo via the button or
+`POST /undo`), idempotent, and also runs, for the fetched page only, whenever operations are
+staged. The Krypto-Lesequelle section shows a live preview of the four counts.
+
+Owner steps before the first run: fetch once so the source balances are known, map every source
+currency to its cash account and every asset to its investment account and instrument
+(Einstellungen › Datenquellen), set "Bewegungen ab", then run "Abgleich neu ausführen". Assets
+without mapping stay open as "Zuordnung fehlt"; after mapping, run it again.
+
 ## Remaining acceptance
 
 No real key, private data or live authenticated API was used. The owner must verify
@@ -101,6 +142,6 @@ cursor invalidated externally can be restarted via “Gesamten Verlauf prüfen�
 existing inbox items and ledger data are retained. Do not change this source to a different
 provider account without an operator-reviewed reset.
 
-The dedicated P4 worker, automated matching proposals and one-click posting from
-source records remain separate work. This integration intentionally uses the current
+The dedicated P4 worker and one-click posting from source records remain separate work
+(reconciliation against existing records is described above). This integration intentionally uses the current
 in-process timer and manual owner-confirmed ledger paths.
