@@ -13,7 +13,7 @@ import { getEntity } from './entities';
 import { categoryTree } from './categories';
 import { setAssigned } from './envelopes';
 import { CategoryRuleError, EntityNotFoundError } from './errors';
-import { budget, budgetLedger } from './queries';
+import { budget, budgetLedger, budgetOfLedger } from './queries';
 import { runInTransaction, type Executor } from './types';
 
 /**
@@ -178,12 +178,13 @@ export function budgetSummary(
   tree: ReturnType<typeof categoryTree>;
 } {
   const tree = categoryTree(db);
-  const [m] = budget(db, [month], options);
+  const ledger = budgetLedger(db);
+  const [m] = budgetOfLedger(ledger, [month], options);
   if (!m) throw new RangeError(`No budget for ${month}`);
   return {
     summary: {
       ...summarizeMonth(m, tree.categories, tree.targets),
-      unclassified: unclassifiedMonth(budgetLedger(db), month),
+      unclassified: unclassifiedMonth(ledger, month),
     },
     tree,
   };

@@ -126,11 +126,29 @@ describe('account ownership in portfolio platforms and risk', () => {
     const summary = portfolioSummary(opened.db, { today: DAY });
     expect(summary.cluster.totalCents).toBe(20_000);
     expect(summary.cluster.singles).toEqual([
-      { id: 'shared-crypto', valueCents: 20_000, shareBp: 10_000, breach: true },
+      {
+        id: 'shared-crypto',
+        valueCents: 20_000,
+        grossExposureCents: 20_000,
+        shareBp: 10_000,
+        breach: true,
+      },
     ]);
     expect(summary.cluster.platforms).toEqual([
-      { id: 'broker-a', valueCents: 10_000, shareBp: 5_000, breach: true },
-      { id: 'broker-b', valueCents: 10_000, shareBp: 5_000, breach: true },
+      {
+        id: 'broker-a',
+        valueCents: 10_000,
+        grossExposureCents: 10_000,
+        shareBp: 5_000,
+        breach: true,
+      },
+      {
+        id: 'broker-b',
+        valueCents: 10_000,
+        grossExposureCents: 10_000,
+        shareBp: 5_000,
+        breach: true,
+      },
     ]);
     expect(summary.proposals.filter((proposal) => proposal.code === 'r14_platform')).toHaveLength(
       2,
@@ -143,8 +161,20 @@ describe('account ownership in portfolio platforms and risk', () => {
 
     const summary = portfolioSummary(opened.db, { today: DAY });
     expect(summary.cluster.platforms).toEqual([
-      { id: 'broker-a', valueCents: 10_000, shareBp: 5_000, breach: true },
-      { id: 'broker-b', valueCents: 10_000, shareBp: 5_000, breach: true },
+      {
+        id: 'broker-a',
+        valueCents: 10_000,
+        grossExposureCents: 10_000,
+        shareBp: 5_000,
+        breach: true,
+      },
+      {
+        id: 'broker-b',
+        valueCents: 10_000,
+        grossExposureCents: 10_000,
+        shareBp: 5_000,
+        breach: true,
+      },
     ]);
     expect(summary.cluster.limits.platformBp).toBe(2_000);
   });
@@ -171,13 +201,13 @@ describe('account ownership in portfolio platforms and risk', () => {
     const inputs = ruleInputs(opened.db, DAY, facts);
     expect(inputs.positions).toEqual([
       expect.objectContaining({
-        id: 'account-a:rules-crypto',
+        id: 'rules-crypto:account-a:world',
         securityId: 'rules-crypto',
         valueCents: 10_000,
         platform: 'broker-a',
       }),
       expect.objectContaining({
-        id: 'account-b:rules-crypto',
+        id: 'rules-crypto:account-b:world',
         securityId: 'rules-crypto',
         valueCents: 10_000,
         platform: 'broker-b',
@@ -193,7 +223,7 @@ describe('account ownership in portfolio platforms and risk', () => {
     const inputs = ruleInputs(opened.db, DAY, facts);
     expect(inputs.positions).toContainEqual(
       expect.objectContaining({
-        id: 'account-unassigned:rules-unassigned-etf',
+        id: 'rules-unassigned-etf:account-unassigned:world',
         securityId: 'rules-unassigned-etf',
         valueCents: 10_000,
         platform: null,

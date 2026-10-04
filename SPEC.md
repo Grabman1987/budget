@@ -1,5 +1,7 @@
 # Budget — Specification
 
+**Owner directive PR3, 2026-10-04:** allocation uses explicit account/instrument membership, including signed investment cash. Unknown classification and estimated/stale valuation make decision support provisional; missing price/FX suppresses proposals. Savings optimisation is suppressed on provisional data. Unclassified value/share/product count and structured valuation details are central. R13 euros distinguish Umschichtungsabstand at unchanged total from single-class Neues Kapital bis Soll. Scope metadata is minimal/current, not a historical membership version; dynamic tiers and PR4 settings remain separate. See [allocation quality/scope](docs/allocation-quality-scope.md).
+
 Status: Gate 1 candidate; owner sign-off remains pending, 2026-10-01. App name: **Budget** (O10 decided). Private, single user. Current implementation and operational evidence: `docs/STATUS.md`.
 
 Budget is a private household finance web app (installable PWA) that replaces YNAB (and the interim Actual-Budget cockpit) and Portfolio Performance with one app, one database and one language. Envelope budgeting at the core, a rule set of finance basics on top, full net-worth and portfolio tracking in the same ledger. Goal: not only track cash flow and wealth, but actively optimise them.
@@ -91,6 +93,8 @@ Invariants (binding):
 - Derived contact receivables and credit do not enter net worth. Actual account balances and investment holdings remain its valuation sources: an outlay lowers cash/net worth until actual repayment. Explicit receivable accounts keep ordinary account valuation.
 
 ## 6. KPIs and calculations
+
+**Owner directive PR2, 2026-10-04:** one `resolvePortfolioRiskPolicy(db, asOf)` reads stored R13/R14/R15 parameters and dated class targets for rule evaluation, Portfolio, rebalancing, report 4.2, savings recommendations and Heute/finance check. Domain schemas supply defaults only for missing values. Stored class bands override the standard: “Standardband: der kleinere Wert aus ±5 Prozentpunkten und ±25 % des Sollgewichts.” Leverage in tenths (30 = 3×) affects gross/economic risk exposure; market value still drives allocation, regions, net worth and performance. Central kind/leverage classification includes leveraged ETFs in speculative and single-instrument risk. Risk shares use gross exposure over portfolio market value and can exceed 100%; excess amounts are gross exposure, not sell-order values. Rule parameters and leverage are not historically versioned; dated targets/exposures resolve at the report day. See [risk policy and regression evidence](docs/portfolio-risk-policy.md).
 
 27 KPIs, each with one formula, one target and one primary place: concept ch. 8. Additional calculation rules fixed in the prototype (port them 1:1, with tests):
 

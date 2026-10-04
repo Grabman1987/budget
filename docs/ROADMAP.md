@@ -1,5 +1,27 @@
 # Roadmap
 
+### Owner directive PR3 — Allocation quality and scope (2026-10-04)
+
+- [x] Shared explicit account/instrument policy universe; signed investment cash, scope defaults and audited editable API metadata (Drizzle 0033).
+- [x] Central unclassified value/share/count and exact/estimated/incomplete valuation details; provisional rebalancing and safe rule actions, suppressed provisional/out-of-scope savings optimisation.
+- [x] Distinct Umschichtungsabstand and single-class Neues Kapital bis Soll with exact integer arithmetic.
+- [x] Synthetic R07/R08, inclusion/exclusion, estimate/missing-FX, formula and metadata/undo/migration/restore regressions.
+- [x] Final local typecheck/lint, all 2,797 unit/API tests (load-timeout files rerun alone), production/E2E builds and 81 affected desktop/mobile browser tests; details in the contract below.
+- [ ] Draft PR/CI review and owner acceptance. PR4 settings, dynamic tiers and PR5 real-iPhone panels remain separate.
+
+Contract and pre-change matrix: [allocation quality/scope](allocation-quality-scope.md).
+
+### Owner directive PR2 — Risk policy unification and leverage (2026-10-04)
+
+- [x] One stored R13/R14/R15 resolver across rule evaluation, Portfolio, rebalancing, report 4.2, savings recommendations and Heute/finance check; schema defaults only for missing values.
+- [x] Central kind/leverage/optional-override classification, leveraged ETF risk, distinct market/gross cents and exact weighted gross splits.
+- [x] Correct R13 standard wording and stored class-band precedence, including report month ends.
+- [x] Synthetic R01–R06 and audited risk-policy undo/redo; existing 1× money/region/history invariants retained.
+- [x] Final local check (286 files / 2,716 tests), production/E2E builds and affected desktop/mobile browser evidence (31 passed / 4 planned skips).
+- [ ] Draft PR, Linux visual/CI review and owner acceptance remain separate.
+
+Contract and baseline matrix: [risk policy](portfolio-risk-policy.md). PR3 quality/scope, PR4 settings and PR5 mobile panels remain separate.
+
 ### Owner directive PR1 — Historical asset exposure foundation (2026-10-04)
 
 - [x] Drizzle schema/migration and explicitly labelled legacy seed-date assumption; preserve original storage and class cents.
@@ -487,3 +509,9 @@ Scope and shared definitions: [report correctness](report-correctness.md).
 - [x] Shared household classification for yearly/overview/table/cashflow totals and Plan year summary.
 - [x] Mobile Heute safe space and bounded project settings table; synthetic regressions.
 - [ ] Owner design/private-ledger acceptance and pinned Linux visual CI; no private-data access, migration or deployment in this task.
+
+### Report 3.6 — Vermögen & Schulden
+- [x] `/reports/vermoegen-schulden`: assets and debts at every month end (`GET /api/assets-debts-history?period=`, default `Alles`), net worth line, header with Nettovermögen / Vermögenswerte / Schulden / Veränderung im Zeitraum (EUR and %), month selection (`?monat=`) with the accounts behind the month.
+- [x] One valuation: months are read with `netWorthAsOf` (same as Vermögen › Nettovermögen); pure split in `packages/domain/src/ledger/assets-debts.ts`; estimated/missing prices flag the month and show `ValuationHint`.
+- [x] Domain unit tests (loans, credit cards, negative cash accounts, zero start), API tests (controlled accounts, equality with `/api/wealth/networth`, valuation quality, no accounts), Playwright desktop/mobile with axe light/dark and overflow checks.
+- [ ] Owner design acceptance on real data.

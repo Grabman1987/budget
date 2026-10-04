@@ -6,3 +6,4 @@ export * as schema from './schema';
 export * from './schema';
 
 export { planIncomeTargets } from './repos/income-targets';
+export { planMonthViews } from './repos/plan-months';

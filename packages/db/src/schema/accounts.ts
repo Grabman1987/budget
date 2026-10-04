@@ -1,3 +1,4 @@
+import { assetClass } from './invest';
 import { sql } from 'drizzle-orm';
 import {
   check,
@@ -70,6 +71,11 @@ export const account = sqliteTable(
      * Budget-Konto (true): its balance is money to distribute, "Zu verteilen" counts it. Tracking
      * account (false): counts only for net worth; a transfer to it needs a category.
      */
+    /** Explicit policy scope; default follows type for newly inserted legacy/raw records. */
+    allocationScope: text('allocation_scope', { enum: ['default', 'included', 'excluded'] })
+      .notNull()
+      .default('default'),
+    allocationAssetClassId: text('allocation_asset_class_id').references(() => assetClass.id),
     onBudget: integer('on_budget', { mode: 'boolean' }).notNull(),
     institutionId: text('institution_id').references(() => institution.id),
     contactId: text('contact_id').references(() => contact.id),
@@ -103,6 +109,7 @@ export const account = sqliteTable(
     ...timestamps(),
   },
   (t) => [
+    oneOf('account_allocation_scope_chk', t.allocationScope, ['default', 'included', 'excluded']),
     oneOf('account_type_chk', t.type, ACCOUNT_TYPES),
     oneOf('account_role_chk', t.role, ACCOUNT_ROLES),
     check(

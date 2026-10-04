@@ -1,5 +1,7 @@
 # Product
 
+Owner directive PR3 (2026-10-04): explicit Anlageuniversum includes depots and signed investment cash; account/instrument metadata defines membership. Unknown/estimated data produces provisional allocation decisions and suppresses savings optimisation. Umschichtungsabstand and Neues Kapital bis Soll are separate decision aids. No settings page or automatic order is added. See [allocation quality/scope](docs/allocation-quality-scope.md).
+
 <!-- impeccable:product-schema 1 -->
 
 Name: **Budget** (O10 entschieden am 29.09.2026; privat, nur für den Eigentümer). Vorrang der Quellen regelt `SPEC.md`; Detailquelle ist `docs/concept/produktkonzept.md`. Diese Datei hält die dauerhaften Produktfakten und alle Entscheidungen der Designphase fest.
@@ -16,6 +18,8 @@ recorded separately; mockups alone do not establish completion.
 Owner directive PR1 (2026-10-04): asset classification now uses effective-dated weighted exposure sets. Today's reassignment never changes earlier Ist; mixed and explicitly incomplete sets conserve the portfolio's cents and preserve unknown weight. The existing instrument editor accepts an effective date; the weighted API supports audited replacement and undo. Asset-class settings, risk unification/leverage and allocation quality remain separate PRs. See [historical asset exposure](docs/asset-exposure.md).
 
 ## Platform
+
+Owner directive PR2 (2026-10-04): stored Regelwerk risk thresholds supply Portfolio, report 4.2, rebalancing, savings recommendations and Heute/finance check through one resolver. Leveraged ETFs count in speculative/cluster risk; market value and gross exposure stay distinct. Stored class bands override the smaller-of-5-percentage-points/25%-of-target standard. Historical parameter/leverage versioning remains outside this slice. See [risk policy](docs/portfolio-risk-policy.md).
 
 web
 

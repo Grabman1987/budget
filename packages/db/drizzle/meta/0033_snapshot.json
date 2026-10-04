@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "cb85d55e-7fc2-4c2f-9f60-2a434b710f41",
+  "id": "ed96c22e-5e3e-42a2-ad3f-17d7ebdbfc1d",
   "prevId": "0ff41a22-d418-4c1e-9123-f5ed98b35701",
   "tables": {
     "account": {
@@ -33,6 +33,21 @@
           "type": "text",
           "primaryKey": false,
           "notNull": true,
+          "autoincrement": false
+        },
+        "allocation_scope": {
+          "name": "allocation_scope",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'default'"
+        },
+        "allocation_asset_class_id": {
+          "name": "allocation_asset_class_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
           "autoincrement": false
         },
         "on_budget": {
@@ -203,6 +218,15 @@
         }
       },
       "foreignKeys": {
+        "account_allocation_asset_class_id_asset_class_id_fk": {
+          "name": "account_allocation_asset_class_id_asset_class_id_fk",
+          "tableFrom": "account",
+          "tableTo": "asset_class",
+          "columnsFrom": ["allocation_asset_class_id"],
+          "columnsTo": ["id"],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
         "account_institution_id_institution_id_fk": {
           "name": "account_institution_id_institution_id_fk",
           "tableFrom": "account",
@@ -234,6 +258,10 @@
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "checkConstraints": {
+        "account_allocation_scope_chk": {
+          "name": "account_allocation_scope_chk",
+          "value": "\"account\".\"allocation_scope\" IN ('default', 'included', 'excluded')"
+        },
         "account_type_chk": {
           "name": "account_type_chk",
           "value": "\"account\".\"type\" IN ('checking', 'cash', 'savings', 'credit_card', 'loan', 'brokerage', 'crypto', 'p2p', 'receivable', 'other_asset', 'other_liability')"
@@ -4050,6 +4078,14 @@
           "autoincrement": false,
           "default": 0
         },
+        "allocation_included": {
+          "name": "allocation_included",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": true
+        },
         "leverage_factor": {
           "name": "leverage_factor",
           "type": "integer",
@@ -6995,180 +7031,6 @@
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "checkConstraints": {}
-    },
-    "loan_rate_change": {
-      "name": "loan_rate_change",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "text",
-          "primaryKey": true,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "account_id": {
-          "name": "account_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "valid_from": {
-          "name": "valid_from",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "rate_bp": {
-          "name": "rate_bp",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false,
-          "default": "(strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))"
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false,
-          "default": "(strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))"
-        },
-        "deleted_at": {
-          "name": "deleted_at",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        }
-      },
-      "indexes": {
-        "loan_rate_change_live_uq": {
-          "name": "loan_rate_change_live_uq",
-          "columns": ["account_id", "valid_from"],
-          "isUnique": true,
-          "where": "\"loan_rate_change\".\"deleted_at\" IS NULL"
-        },
-        "loan_rate_change_account_idx": {
-          "name": "loan_rate_change_account_idx",
-          "columns": ["account_id", "valid_from"],
-          "isUnique": false
-        }
-      },
-      "foreignKeys": {
-        "loan_rate_change_account_id_account_id_fk": {
-          "name": "loan_rate_change_account_id_account_id_fk",
-          "tableFrom": "loan_rate_change",
-          "tableTo": "account",
-          "columnsFrom": ["account_id"],
-          "columnsTo": ["id"],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "checkConstraints": {
-        "loan_rate_change_day_chk": {
-          "name": "loan_rate_change_day_chk",
-          "value": "\"loan_rate_change\".\"valid_from\" GLOB '[0-9][0-9][0-9][0-9]-[01][0-9]-[0-3][0-9]'"
-        },
-        "loan_rate_change_rate_chk": {
-          "name": "loan_rate_change_rate_chk",
-          "value": "\"loan_rate_change\".\"rate_bp\" BETWEEN 0 AND 100000"
-        }
-      }
-    },
-    "loan_scenario": {
-      "name": "loan_scenario",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "text",
-          "primaryKey": true,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "account_id": {
-          "name": "account_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "name": {
-          "name": "name",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "measures_json": {
-          "name": "measures_json",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false,
-          "default": "(strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))"
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false,
-          "default": "(strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))"
-        },
-        "deleted_at": {
-          "name": "deleted_at",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        }
-      },
-      "indexes": {
-        "loan_scenario_account_idx": {
-          "name": "loan_scenario_account_idx",
-          "columns": ["account_id"],
-          "isUnique": false
-        }
-      },
-      "foreignKeys": {
-        "loan_scenario_account_id_account_id_fk": {
-          "name": "loan_scenario_account_id_account_id_fk",
-          "tableFrom": "loan_scenario",
-          "tableTo": "account",
-          "columnsFrom": ["account_id"],
-          "columnsTo": ["id"],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "checkConstraints": {
-        "loan_scenario_measures_chk": {
-          "name": "loan_scenario_measures_chk",
-          "value": "json_valid(\"loan_scenario\".\"measures_json\")"
-        }
-      }
     }
   },
   "views": {},

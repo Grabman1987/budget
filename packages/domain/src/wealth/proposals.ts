@@ -1,7 +1,10 @@
 import type { AllocationStatus, ClassRow } from './allocation';
 import { mulDivRound } from './int';
 import type { ClusterRisk, SpeculativeShare } from './risk';
-import { SPECULATIVE_KINDS, type SecurityKind } from './types';
+import { type SecurityKind } from './types';
+import { classifyRisk, type RiskMetadata } from './classification';
+
+import { allocationQuality, type AllocationQuality, type ProposalConfidence } from './quality';
 
 // ---- rebalancing revision rows ----
 
@@ -9,6 +12,8 @@ export type RebalanceCode =
   'r13_under' | 'r13_over' | 'r14_single' | 'r14_platform' | 'r15_speculative';
 
 export interface RebalanceProposal {
+  confidence: ProposalConfidence;
+  newCapitalCents: number | null;
   code: RebalanceCode;
   rule: 'R13' | 'R14' | 'R15';
   /** `add` = steer new money in, `reduce` = stop buying (or sell) until within the limit. */
@@ -33,10 +38,22 @@ export function rebalancingProposals(input: {
   allocation: AllocationStatus;
   cluster: ClusterRisk;
   speculative: SpeculativeShare;
+  quality?: AllocationQuality;
 }): RebalanceProposal[] {
   const { allocation, cluster, speculative } = input;
   const out: RebalanceProposal[] = [];
+  const confidence =
+    input.quality?.confidence ??
+    (allocation.rows.some((r) => r.assetClass === '' && r.valueCents !== 0)
+      ? 'provisional'
+      : 'exact');
+  if (input.quality?.valuationQuality === 'incomplete' || allocation.totalCents <= 0) return out;
   const r13 = (row: ClassRow, direction: 'add' | 'reduce'): RebalanceProposal => ({
+    confidence,
+    newCapitalCents:
+      direction === 'add'
+        ? newCapitalToTarget(allocation.totalCents, row.valueCents, row.targetBp ?? 0)
+        : null,
     code: direction === 'add' ? 'r13_under' : 'r13_over',
     rule: 'R13',
     direction,
@@ -58,6 +75,8 @@ export function rebalancingProposals(input: {
   for (const e of cluster.singles) {
     if (!e.breach) continue;
     out.push({
+      confidence,
+      newCapitalCents: null,
       code: 'r14_single',
       rule: 'R14',
       direction: 'reduce',
@@ -65,12 +84,14 @@ export function rebalancingProposals(input: {
       subjectId: e.id,
       shareBp: e.shareBp,
       referenceBp: cluster.limits.singleBp,
-      gapCents: e.valueCents - limitCents(cluster.limits.singleBp),
+      gapCents: e.grossExposureCents - limitCents(cluster.limits.singleBp),
     });
   }
   for (const e of cluster.platforms) {
     if (!e.breach) continue;
     out.push({
+      confidence,
+      newCapitalCents: null,
       code: 'r14_platform',
       rule: 'R14',
       direction: 'reduce',
@@ -78,11 +99,13 @@ export function rebalancingProposals(input: {
       subjectId: e.id,
       shareBp: e.shareBp,
       referenceBp: cluster.limits.platformBp,
-      gapCents: e.valueCents - limitCents(cluster.limits.platformBp),
+      gapCents: e.grossExposureCents - limitCents(cluster.limits.platformBp),
     });
   }
   if (speculative.breach) {
     out.push({
+      confidence,
+      newCapitalCents: null,
       code: 'r15_speculative',
       rule: 'R15',
       direction: 'reduce',
@@ -96,22 +119,47 @@ export function rebalancingProposals(input: {
   return out;
 }
 
+/** Single-class contribution at a growing total; round the exact numerator only once. */
+export function newCapitalToTarget(
+  totalCents: number,
+  valueCents: number,
+  targetBp: number,
+): number | null {
+  if (targetBp >= 10000 || totalCents <= 0) return null;
+  const numerator = BigInt(totalCents) * BigInt(targetBp) - BigInt(valueCents) * 10000n;
+  if (numerator <= 0n) return null;
+  const denominator = BigInt(10000 - targetBp);
+  const result = Number((numerator + denominator / 2n) / denominator);
+  return Number.isSafeInteger(result) ? result : null;
+}
+
 // ---- savings-plan proposal ----
 
-export interface SavingsPlan {
+export interface SavingsPlan extends RiskMetadata {
   id: string;
+  securityId?: string;
+  platform?: string | null;
   name: string;
   kind: SecurityKind;
   assetClass: string | null;
   exposures?: readonly { assetClassId: string; weightBp: number }[];
   /** Current monthly rate in cents. */
   monthlyCents: number;
+  inScope?: boolean;
 }
 
 export type PlanReason =
-  'unchanged' | 'paused_r15' | 'paused_r13_over' | 'steer_r13_under' | 'redistributed' | 'rounded';
+  | 'unchanged'
+  | 'paused_r15'
+  | 'paused_r14_single'
+  | 'paused_r14_platform'
+  | 'paused_r13_over'
+  | 'steer_r13_under'
+  | 'redistributed'
+  | 'rounded';
 
 export interface PlanProposal {
+  confidence: ProposalConfidence;
   id: string;
   name: string;
   currentCents: number;
@@ -120,6 +168,7 @@ export interface PlanProposal {
 }
 
 export interface SavingsPlanProposal {
+  confidence: ProposalConfidence;
   plans: PlanProposal[];
   /** Monthly total, identical before and after. */
   totalCents: number;
@@ -127,12 +176,15 @@ export interface SavingsPlanProposal {
   freedCents: number;
   changed: boolean;
   /** `no_eligible_plan`: every plan would have to be paused, so nothing is changed. */
-  note: 'no_eligible_plan' | null;
+  note: 'no_eligible_plan' | 'quality_gate' | 'scope_gate' | null;
 }
 
 export interface SavingsPlanParams {
+  quality?: AllocationQuality;
   /** R15 breached: speculative plans (crypto, P2P, single stocks) are set to 0. */
   speculativeBreached: boolean;
+  /** Same resolved R14 projection as Portfolio; no additions to breached titles/platforms. */
+  cluster?: ClusterRisk;
   /** Proposed rates are whole multiples of this step (default 100 = 1 €); the residue goes to the largest plan. */
   stepCents?: number;
 }
@@ -178,8 +230,20 @@ export function savingsPlanProposal(
   const step = params.stepCents ?? 100;
   if (!Number.isSafeInteger(step) || step <= 0) throw new RangeError('stepCents must be positive');
   const totalCents = plans.reduce((a, p) => a + p.monthlyCents, 0);
+  const confidence =
+    params.quality?.confidence ??
+    allocationQuality(
+      allocation.rows.map((r) => ({
+        id: r.assetClass,
+        kind: 'other',
+        assetClass: r.assetClass || null,
+        valueCents: r.valueCents,
+      })),
+    ).confidence;
   const unchanged = (note: SavingsPlanProposal['note']): SavingsPlanProposal => ({
+    confidence,
     plans: plans.map((p) => ({
+      confidence,
       id: p.id,
       name: p.name,
       currentCents: p.monthlyCents,
@@ -191,6 +255,31 @@ export function savingsPlanProposal(
     changed: false,
     note,
   });
+
+  if (plans.some((p) => p.inScope === false)) {
+    const proposal = unchanged('scope_gate');
+    return {
+      ...proposal,
+      confidence: 'provisional',
+      plans: proposal.plans.map((p) => ({ ...p, confidence: 'provisional' })),
+    };
+  }
+  // Suppress rate changes on provisional data or incomplete plan exposure.
+  if (
+    confidence === 'provisional' ||
+    plans.some((p) =>
+      p.exposures
+        ? p.exposures.reduce((sum, w) => sum + w.weightBp, 0) !== 10000
+        : p.assetClass === null,
+    )
+  ) {
+    const proposal = unchanged('quality_gate');
+    return {
+      ...proposal,
+      confidence: 'provisional',
+      plans: proposal.plans.map((p) => ({ ...p, confidence: 'provisional' })),
+    };
+  }
 
   const weightOf = (p: SavingsPlan, cls: string): number =>
     p.exposures === undefined
@@ -204,7 +293,17 @@ export function savingsPlanProposal(
 
   const paused = new Map<string, PlanReason>();
   if (params.speculativeBreached) {
-    for (const p of plans) if (SPECULATIVE_KINDS.has(p.kind)) paused.set(p.id, 'paused_r15');
+    for (const p of plans) if (classifyRisk(p).speculative) paused.set(p.id, 'paused_r15');
+  }
+  for (const p of plans) {
+    if (paused.has(p.id)) continue;
+    if (params.cluster?.singles.some((e) => e.breach && e.id === (p.securityId ?? p.id)))
+      paused.set(p.id, 'paused_r14_single');
+    else if (
+      classifyRisk(p).platform &&
+      params.cluster?.platforms.some((e) => e.breach && e.id === p.platform)
+    )
+      paused.set(p.id, 'paused_r14_platform');
   }
   const live = (): SavingsPlan[] => plans.filter((p) => !paused.has(p.id));
   const hasPlan = (row: ClassRow): boolean => live().some((p) => weightOf(p, row.assetClass) > 0);
@@ -300,9 +399,17 @@ export function savingsPlanProposal(
     ) {
       why = 'redistributed';
     } else why = 'rounded';
-    return { id: p.id, name: p.name, currentCents: p.monthlyCents, proposedCents, reason: why };
+    return {
+      id: p.id,
+      name: p.name,
+      currentCents: p.monthlyCents,
+      proposedCents,
+      reason: why,
+      confidence,
+    };
   });
   return {
+    confidence,
     plans: out,
     totalCents,
     freedCents,

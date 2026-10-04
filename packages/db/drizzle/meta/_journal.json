@@ -236,8 +236,15 @@
     {
       "idx": 33,
       "version": "6",
-      "when": 1791093126317,
-      "tag": "0033_loan_planning",
+      "when": 1791091348912,
+      "tag": "0033_allocation_scope",
+      "breakpoints": true
+    },
+    {
+      "idx": 34,
+      "version": "6",
+      "when": 1791100998362,
+      "tag": "0034_loan_planning",
       "breakpoints": true
     }
   ]

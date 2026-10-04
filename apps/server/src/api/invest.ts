@@ -86,6 +86,7 @@ const securityFields = {
     .nullable(),
   currency: z.string().regex(/^[A-Z]{3}$/, 'Currency code such as EUR'),
   terBp: bp,
+  allocationIncluded: z.boolean().optional(),
   leverageFactor: z.int().min(10).max(1000),
   assetClassId: id.nullable(),
   exposureValidFrom: exposureDay.optional(),

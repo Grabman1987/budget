@@ -94,6 +94,8 @@ export const security = sqliteTable(
     /** Total expense ratio in basis points (0,20 % = 20). */
     terBp: integer('ter_bp').notNull().default(0),
     /** Leverage in integer tenths: 10 = 1.0x, configurable per instrument. */
+    /** Instrument opt-out inside an included account (money-market products default included). */
+    allocationIncluded: integer('allocation_included', { mode: 'boolean' }).notNull().default(true),
     leverageFactor: integer('leverage_factor').notNull().default(10),
     assetClassId: text('asset_class_id').references(() => assetClass.id),
     institutionId: text('institution_id').references(() => institution.id),

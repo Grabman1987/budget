@@ -100,6 +100,8 @@ export const PARAM_SCHEMAS = {
     windfallShares: z.record(z.string(), z.number()).default({}),
   }),
   R13: z.object({
+    maxBandBp: bp.default(500),
+    relativeBandPct: z.number().int().min(0).max(100).default(25),
     /** Beyond `band x factor / 100` the rule is verletzt. */
     badFactorPct: z.number().int().min(100).max(1_000).default(200),
   }),

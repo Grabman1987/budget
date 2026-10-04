@@ -103,7 +103,7 @@ export const RULE_DEFS: ReadonlyArray<RuleDef> = [
     code: 'R13',
     name: 'Asset Allocation',
     stage: 3,
-    goal: '≤ 5 Pp Abweichung',
+    goal: 'Standardband: der kleinere Wert aus ±5 Prozentpunkten und ±25 % des Sollgewichts. Gespeicherte individuelle Bänder haben Vorrang.',
     action: 'Nächste Sparrate in die untergewichtete Klasse lenken.',
   },
   {
@@ -118,7 +118,7 @@ export const RULE_DEFS: ReadonlyArray<RuleDef> = [
     name: 'Spekulativer Anteil',
     stage: 2,
     goal: '≤ 10 %',
-    action: 'Keine neuen Käufe in Krypto, P2P, Einzelaktien; Sparplan nur ETF.',
+    action: 'Spekulative Produkte einschließlich gehebelter ETF nicht weiter aufstocken.',
   },
   {
     code: 'R16',

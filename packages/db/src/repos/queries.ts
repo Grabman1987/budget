@@ -155,8 +155,18 @@ export function budget(
   months: string[],
   options: { cardRule?: CardRule; asOf?: string } = {},
 ): BudgetMonth[] {
-  const ledger = budgetLedger(db);
-  if (options.asOf) ledger.splits = ledger.splits.filter((s) => s.date <= options.asOf!);
+  return budgetOfLedger(budgetLedger(db), months, options);
+}
+
+/** `budget` on a ledger the caller already read (several budgets of one request share one read). */
+export function budgetOfLedger(
+  source: Omit<BudgetInput, 'months'>,
+  months: string[],
+  options: { cardRule?: CardRule; asOf?: string } = {},
+): BudgetMonth[] {
+  const ledger = options.asOf
+    ? { ...source, splits: source.splits.filter((s) => s.date <= options.asOf!) }
+    : source;
   const first = months[0];
   if (first === undefined) return [];
   const start = ledger.accounts

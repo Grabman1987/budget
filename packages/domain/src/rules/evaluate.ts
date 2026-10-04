@@ -19,6 +19,7 @@ import { cents as toCents, formatEuro, MINUS } from '../money';
 import {
   allocationStatus,
   clusterRisk,
+  mulDivRound,
   freedomProgressBp,
   freedomTargetCents,
   speculativeShare,
@@ -335,10 +336,12 @@ const r12: Rule<'R12'> = (p, i) => {
 
 const r13: Rule<'R13'> = (p, i) => {
   if (i.classTargets.length === 0 || i.positions.length === 0) return null;
-  const full = allocationStatus(i.positions, i.classTargets);
+  const full = allocationStatus(i.positions, i.classTargets, p);
   if (full.totalCents <= 0) return null;
   // A speculative class that is over-weight is R15's business, not a rebalancing case.
-  const covered = (r: (typeof full.rows)[number]) => r.speculativeOnly && r.side === 'over';
+  const speculative = speculativeShare(i.positions, i.portfolioRiskPolicy?.R15.limitBp);
+  const covered = (r: (typeof full.rows)[number]) =>
+    speculative.breach && r.speculativeOnly && r.side === 'over';
   const st = {
     ...full,
     breaches: full.breaches.filter((r) => !covered(r)),
@@ -389,13 +392,13 @@ const r14: Rule<'R14'> = (p, i) => {
       ? `größte Position ${formatPercent(largest.shareBp)}`
       : 'keine Einzeltitel';
   const overCents = breached
-    ? breached.valueCents - Math.floor((risk.totalCents * breached.limit) / 10_000)
+    ? breached.grossExposureCents - mulDivRound(risk.totalCents, breached.limit, 10_000)
     : 0;
   return result(
     status,
     valueText,
     breached
-      ? `${label(breached)} nicht weiter aufstocken; ${eur(overCents)} über dem Limit von ${formatPercent(breached.limit)}.`
+      ? `${label(breached)} nicht weiter aufstocken; ${eur(overCents)} Bruttoexposure über dem Limit von ${formatPercent(breached.limit)}.`
       : null,
     { totalCents: risk.totalCents, singles: risk.singles, platforms: risk.platforms },
   );
@@ -407,8 +410,13 @@ const r15: Rule<'R15'> = (p, i) => {
   return result(
     s.breach ? overLimit(s.shareBp - p.limitBp, p.badOverBp) : 'ok',
     formatPercent(s.shareBp),
-    `Keine neuen Käufe in Krypto, P2P, Einzelaktien (${eur(s.overCents)} über dem Limit); Sparplan nur ETF.`,
-    { shareBp: s.shareBp, valueCents: s.valueCents, overCents: s.overCents },
+    `Spekulative Produkte einschließlich gehebelter ETF nicht weiter aufstocken (${eur(s.overCents)} Bruttoexposure über dem Limit).`,
+    {
+      shareBp: s.shareBp,
+      valueCents: s.valueCents,
+      grossExposureCents: s.grossExposureCents,
+      overCents: s.overCents,
+    },
   );
 };
 
@@ -461,6 +469,24 @@ export function evaluateRule(
   params: unknown,
   inputs: RuleInputs,
 ): RuleEvaluation | null {
-  const resolved = resolveParams(code, params);
-  return (RULES[code] as Rule<RuleCode>)(resolved as never, inputs);
+  const policy = inputs.portfolioRiskPolicy;
+  const resolved =
+    policy && (code === 'R13' || code === 'R14' || code === 'R15')
+      ? policy[code]
+      : resolveParams(code, params);
+  const evaluation = (RULES[code] as Rule<RuleCode>)(resolved as never, inputs);
+  const quality = inputs.allocationQuality;
+  if (quality && (code === 'R13' || code === 'R14' || code === 'R15')) {
+    if (quality.valuationQuality === 'incomplete') return null;
+    if (quality.confidence === 'provisional')
+      return {
+        status: 'warn',
+        valueText: 'Vorläufig: Datenbasis prüfen',
+        actionNeeded: true,
+        actionText:
+          'Klassifikation und Bewertung vervollständigen; keine verbindliche Umschichtung ableiten.',
+        detail: { ...evaluation?.detail, confidence: 'provisional', quality },
+      };
+  }
+  return evaluation;
 }

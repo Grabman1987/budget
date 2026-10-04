@@ -72,8 +72,21 @@ it('migrates the complete main schema without changing per-security class cents 
       'audit_log',
       'app_setting',
     ];
+    // Compare every original column; later additive migrations may append metadata.
+    const originalColumns = new Map(
+      tables.map((name) => [
+        name,
+        (opened.sqlite.pragma(`table_info(${name})`) as { name: string }[])
+          .map((c) => c.name)
+          .join(','),
+      ]),
+    );
     const sourceRows = () =>
-      tables.map((name) => opened.sqlite.prepare(`SELECT * FROM ${name} ORDER BY rowid`).all());
+      tables.map((name) =>
+        opened.sqlite
+          .prepare(`SELECT ${originalColumns.get(name)} FROM ${name} ORDER BY rowid`)
+          .all(),
+      );
     const before = sourceRows();
     await opened.sqlite.backup(join(dir, 'before.sqlite'));
     migrateDatabase(opened.db);
