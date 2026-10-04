@@ -1,5 +1,11 @@
 import {
   resolveInboxItem,
+  createBooking,
+  createTrade,
+  createTransfer,
+  deleteTrade,
+  reconcileReadSource,
+  readSourceMatchSummary,
   createTestDatabase,
   createEntity,
   schema,
@@ -129,7 +135,7 @@ describe('source sync persistence and financial isolation', () => {
       ],
     });
     await refreshReadSource(opened.db, adapter, at);
-    expect(inbox().find((i) => i.kind === 'import')?.title).toBe('Quellbewegung: Anlage prüfen');
+    expect(inbox().find((i) => i.kind === 'import')?.title).toBe('Quellbewegung: Zuordnung fehlt');
   });
 
   it('stages once by provider id, preserves acknowledgement and never writes ledger rows', async () => {
@@ -696,5 +702,277 @@ describe('source start date (Bewegungen ab)', () => {
     });
     await refreshReadSource(opened.db, adapter, new Date(at.getTime() + 10800000), true);
     expect(status('late').resolvedAt).toBeNull();
+  });
+});
+
+describe('ledger matching (Abgleich)', () => {
+  const MATCHED = 'Bereits in der App erfasst';
+  const CLEANUP = 'Vor dem Übernahme-Stichtag 03.10.2026: Bestände stammen aus der Übernahme.';
+  const OWNER = 'Vom Nutzer als erledigt markiert';
+  const row = (id: string) => inbox().find((i) => JSON.parse(i.detail!).id === id)!;
+  const stage = (ops: SourceOperation[]) =>
+    stageSourcePage(opened.db, ops, readSourceState(opened.db), ctx);
+  const buy = (id: string, day: string, euro = 50, units = '0.5'): SourceOperation => ({
+    id,
+    type: 'buy',
+    transactions: [
+      {
+        ...operation.transactions[0]!,
+        id: id + '-cash',
+        type: 'buy',
+        flow: 'OUTGOING',
+        creditedAt: day + 'T10:00:00.000Z',
+        amount: { value: String(euro), assetId: null, currencyId: 'eur', cents: euro * 100 },
+        tradeId: 'trade-' + id,
+      },
+      {
+        ...operation.transactions[0]!,
+        id: id + '-coin',
+        type: 'buy',
+        flow: 'INCOMING',
+        creditedAt: day + 'T10:00:00.000Z',
+        amount: { value: units, assetId: 'coin', currencyId: null, cents: null },
+        tradeId: 'trade-' + id,
+      },
+    ],
+  });
+  const stake = (id: string, day: string): SourceOperation => ({
+    id,
+    type: 'stake',
+    transactions: [
+      {
+        ...operation.transactions[0]!,
+        id: id + '-tx',
+        type: 'stake',
+        flow: 'OUTGOING',
+        creditedAt: day + 'T10:00:00.000Z',
+        amount: { value: '1', assetId: 'coin', currencyId: null, cents: null },
+      },
+    ],
+  });
+  const deposit = (id: string, day: string, euro: number): SourceOperation => ({
+    ...operation,
+    id,
+    transactions: [
+      {
+        ...operation.transactions[0]!,
+        id: id + '-tx',
+        creditedAt: day + 'T10:00:00.000Z',
+        amount: { value: String(euro), assetId: null, currencyId: 'eur', cents: euro * 100 },
+      },
+    ],
+  });
+  const appTrade = (day: string, units: number, euro: number) =>
+    createTrade(
+      opened.db,
+      {
+        securityId: 'coin',
+        accountId: 'depot',
+        date: day,
+        kind: 'buy',
+        unitsE8: units,
+        amountCents: euro * 100,
+      },
+      ctx,
+    );
+  const mapAll = () => {
+    saveReadSourceState(
+      opened.db,
+      { ...readSourceState(opened.db), balances: [balance, asset] },
+      ctx,
+    );
+    mapReadSource(opened.db, { key: balance.key, accountId: 'cash', securityId: null }, ctx);
+    mapReadSource(opened.db, { key: asset.key, accountId: 'depot', securityId: 'coin' }, ctx);
+  };
+  const ledgerCounts = () => [
+    opened.db.select().from(schema.booking).all().length,
+    opened.db.select().from(schema.trade).all().length,
+  ];
+  const close = (id: string, resolution: string) =>
+    updateEntity(
+      opened.db,
+      schema.inboxItem,
+      row(id).id,
+      { resolvedAt: '2026-10-03T08:00:00.000Z', resolution },
+      ctx,
+    );
+  beforeEach(() => {
+    setReadSourceSince(opened.db, '2026-01-01', ctx);
+  });
+
+  it('stages a movement with a counterpart as already recorded and never writes the ledger', () => {
+    mapAll();
+    appTrade('2026-03-10', 50_000_000, 50);
+    const before = ledgerCounts();
+    stage([buy('b1', '2026-03-10')]);
+    expect(row('b1').resolvedAt).toBeTruthy();
+    expect(row('b1').resolution).toBe(MATCHED + ' (Kauf 10.03.2026)');
+    expect(ledgerCounts()).toEqual(before);
+  });
+  it('keeps a movement without counterpart open and says it is missing', () => {
+    mapAll();
+    stage([buy('b1', '2026-03-10'), deposit('d1', '2026-03-10', 20)]);
+    expect(row('b1')).toMatchObject({
+      resolvedAt: null,
+      title: 'Quellbewegung fehlt in der App: Anlage prüfen',
+      kind: 'import',
+    });
+    expect(row('d1').title).toBe('Quellbewegung fehlt in der App: Umbuchung abgleichen');
+  });
+  it('keeps unmapped movements open as "Zuordnung fehlt" and resolves stake as informational', () => {
+    stage([buy('b1', '2026-03-10'), stake('s1', '2026-03-10')]);
+    expect(row('b1')).toMatchObject({ resolvedAt: null, title: 'Quellbewegung: Zuordnung fehlt' });
+    expect(row('s1').resolvedAt).toBeTruthy();
+    expect(row('s1').resolution).toMatch(/^Informativ: /);
+  });
+  it('matches cash deposits on the mapped cash account, ignoring internal transfers', () => {
+    mapAll();
+    createBooking(
+      opened.db,
+      { accountId: 'cash', date: '2026-03-11', amountCents: 2000, splits: [{ amountCents: 2000 }] },
+      ctx,
+    );
+    // Depot to cash is internal to the platform: neither deposit nor withdrawal.
+    createTransfer(
+      opened.db,
+      { fromAccountId: 'depot', toAccountId: 'cash', date: '2026-03-20', amountCents: 3000 },
+      ctx,
+    );
+    stage([
+      deposit('d1', '2026-03-10', 20),
+      deposit('d2', '2026-03-20', 30),
+      deposit('d3', '2026-03-10', 21),
+    ]);
+    expect(row('d1').resolution).toBe(MATCHED + ' (Buchung 11.03.2026)');
+    expect(row('d2').resolvedAt).toBeNull();
+    expect(row('d3').resolvedAt).toBeNull();
+  });
+  it('re-evaluates items closed by the manual cleanup: matched are resolved, others reopened', () => {
+    stage([
+      buy('hit', '2026-03-10'),
+      buy('miss', '2026-04-10'),
+      buy('owner', '2026-05-10'),
+      buy('old', '2025-12-10'),
+      stake('stk', '2026-03-12'),
+    ]);
+    for (const id of ['hit', 'miss', 'old', 'stk']) close(id, CLEANUP);
+    close('owner', OWNER);
+    mapAll();
+    appTrade('2026-03-10', 50_000_000, 50);
+    appTrade('2026-05-10', 50_000_000, 50);
+    const before = ledgerCounts();
+    const result = reconcileReadSource(opened.db, ctx);
+    expect(row('hit').resolution).toBe(MATCHED + ' (Kauf 10.03.2026)');
+    expect(row('miss')).toMatchObject({
+      resolvedAt: null,
+      resolution: null,
+      title: 'Quellbewegung fehlt in der App: Anlage prüfen',
+    });
+    // Owner decisions and pre-start items stay untouched.
+    expect(row('owner').resolution).toBe(OWNER);
+    expect(row('old').resolution).toBe(CLEANUP);
+    expect(row('stk').resolution).toMatch(/^Informativ: /);
+    expect(result).toMatchObject({
+      matched: 1,
+      missing: 1,
+      unmapped: 0,
+      informational: 1,
+      ownerResolved: 1,
+      changed: 3,
+    });
+    expect(ledgerCounts()).toEqual(before);
+  });
+  it('is idempotent and undoes as one audit group, restoring the cleanup resolutions', () => {
+    stage([buy('hit', '2026-03-10'), buy('miss', '2026-04-10')]);
+    for (const id of ['hit', 'miss']) close(id, CLEANUP);
+    mapAll();
+    appTrade('2026-03-10', 50_000_000, 50);
+    const snapshot = JSON.stringify(inbox());
+    const first = reconcileReadSource(opened.db, ctx);
+    expect(first.changed).toBe(2);
+    const after = JSON.stringify(inbox());
+    const second = reconcileReadSource(opened.db, ctx);
+    expect(second).toMatchObject({ changed: 0, matched: 1, missing: 1 });
+    expect(JSON.stringify(inbox())).toBe(after);
+    const touched = new Set(
+      opened.db
+        .select()
+        .from(schema.auditLog)
+        .all()
+        .filter((a) => a.entityType === 'inbox_item' && a.groupId === first.groupId)
+        .map((a) => a.entityId),
+    );
+    expect(touched.size).toBe(2);
+    const undone = undo(opened.db, { groupId: first.groupId }, ctx);
+    expect(JSON.stringify(inbox())).toBe(snapshot);
+    undo(opened.db, { groupId: undone.groupId }, ctx);
+    expect(JSON.stringify(inbox())).toBe(after);
+  });
+  it('follows later changes: a new mapping or trade resolves, a deleted counterpart reopens', () => {
+    stage([buy('b1', '2026-03-10')]);
+    expect(row('b1').title).toBe('Quellbewegung: Zuordnung fehlt');
+    mapAll();
+    expect(reconcileReadSource(opened.db, ctx).missing).toBe(1);
+    expect(row('b1').title).toBe('Quellbewegung fehlt in der App: Anlage prüfen');
+    const created = appTrade('2026-03-09', 50_000_000, 50).trade;
+    expect(reconcileReadSource(opened.db, ctx).matched).toBe(1);
+    expect(row('b1').resolution).toBe(MATCHED + ' (Kauf 09.03.2026)');
+    deleteTrade(opened.db, created.id, ctx);
+    reconcileReadSource(opened.db, ctx);
+    expect(row('b1')).toMatchObject({ resolvedAt: null, resolution: null });
+  });
+  it('claims a ledger trade once across a page and the already staged movements', () => {
+    mapAll();
+    appTrade('2026-03-10', 50_000_000, 50);
+    stage([buy('b1', '2026-03-10')]);
+    stage([buy('b2', '2026-03-10')]);
+    expect(row('b1').resolvedAt).toBeTruthy();
+    expect(row('b2').resolvedAt).toBeNull();
+    appTrade('2026-03-10', 50_000_000, 50);
+    reconcileReadSource(opened.db, ctx);
+    expect(row('b2').resolvedAt).toBeTruthy();
+  });
+  it('leaves an owner-resolved item alone, but reopens it when the source facts changed', () => {
+    mapAll();
+    stage([buy('b1', '2026-03-10')]);
+    resolveInboxItem(opened.db, row('b1').id, ctx);
+    stage([buy('b1', '2026-03-10')]);
+    expect(row('b1').resolution).toBe(OWNER);
+    appTrade('2026-03-10', 50_000_000, 50);
+    expect(reconcileReadSource(opened.db, ctx).ownerResolved).toBe(1);
+    expect(row('b1').resolution).toBe(OWNER);
+    stage([buy('b1', '2026-03-10', 51)]);
+    expect(row('b1').resolvedAt).toBeNull();
+  });
+  it('summarises matched, missing, unmapped and informational movements on/after the start day', () => {
+    stage([buy('a', '2026-03-10'), stake('s', '2026-03-10'), buy('old', '2025-01-10')]);
+    expect(readSourceMatchSummary(opened.db)).toEqual({
+      matched: 0,
+      missing: 0,
+      unmapped: 1,
+      informational: 1,
+    });
+    mapAll();
+    appTrade('2026-03-10', 50_000_000, 50);
+    stage([buy('b', '2026-04-10')]);
+    expect(readSourceMatchSummary(opened.db)).toEqual({
+      matched: 1,
+      missing: 1,
+      unmapped: 0,
+      informational: 1,
+    });
+  });
+  it('applies the same rules during a refresh', async () => {
+    mapAll();
+    appTrade('2026-10-02', 50_000_000, 50);
+    const adapter = source([balance]);
+    adapter.operations.mockResolvedValue({
+      operations: [buy('hit', '2026-10-02'), buy('miss', '2026-10-01')],
+      nextCursor: null,
+    });
+    await refreshReadSource(opened.db, adapter, at);
+    expect(row('hit').resolution).toMatch(/^Bereits in der App erfasst/);
+    expect(row('miss').title).toBe('Quellbewegung fehlt in der App: Anlage prüfen');
+    expect(opened.db.select().from(schema.trade).all()).toHaveLength(1);
   });
 });
