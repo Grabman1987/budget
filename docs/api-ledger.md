@@ -1,5 +1,7 @@
 # Ledger API (P2a)
 
+PR3: account POST/PATCH accepts allocationScope (default/included/excluded) and nullable allocationAssetClassId, returned with account summaries; instrument POST/PATCH accepts allocationIncluded. Auth/origin/audit/undo are preserved, invalid debt/card/receivable inclusion and inactive cash classes are rejected in German. Allocation GET exposes valuationQuality, structured quality and universe ids; report 4.2 adds quality/current class confidence/month-end quality. Rebalancing proposals add confidence and nullable newCapitalCents; savings proposals add confidence per proposal/plan, quality, and quality_gate/scope_gate suppression notes. See [allocation quality/scope](allocation-quality-scope.md).
+
 Security exposure API: `GET /api/securities/:id/exposures?asOf=YYYY-MM-DD` reads the effective set; `PUT /api/securities/:id/exposures` atomically replaces `{ validFrom?, complete, source, weights: [{ assetClassId, weightBp }] }` and returns an undoable `groupId`. Server validation requires complete weights to total exactly 10000; missing weight must be explicitly incomplete. Security POST/PATCH single-class writes accept `exposureValidFrom`, default today. See [effective-date and replacement semantics](asset-exposure.md#api).
 
 REST/JSON below `/api`, behind the session guard (CSRF origin check on writes, 64 KB body limit).

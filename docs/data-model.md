@@ -1,5 +1,7 @@
 # Data model (schema v2)
 
+PR3 adds account allocation_scope (included/excluded/default), account allocation_asset_class_id (optional deliberate cash/P2P class), and security allocation_included (default true). Drizzle migration 0032 freezes initial membership from types/settlement links while preserving all original source columns. Membership/cash class is current metadata; dated security exposures remain historical. No balances or trades are rewritten. See [allocation quality/scope](allocation-quality-scope.md).
+
 Effective-dated security classification is stored in `security_exposure_version` and its weighted `security_asset_exposure` members. Inclusive dates, explicit incomplete sets, largest-remainder cents, audit/undo and the legacy seed-date assumption are defined in [historical asset exposure](asset-exposure.md). `security.asset_class_id` remains compatibility metadata; financial readers resolve versions at their own valuation date.
 
 SQLite (WAL) with Drizzle. Source: `packages/db/src/schema/*.ts`, migrations in `packages/db/drizzle/`
