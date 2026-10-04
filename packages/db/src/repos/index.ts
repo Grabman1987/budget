@@ -75,3 +75,4 @@ export * from './income-month';
 export * from './bank-followups';
 
 export * from './asset-exposure';
+export * from './portfolio-risk-policy';

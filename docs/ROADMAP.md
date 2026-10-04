@@ -1,5 +1,16 @@
 # Roadmap
 
+### Owner directive PR2 — Risk policy unification and leverage (2026-10-04)
+
+- [x] One stored R13/R14/R15 resolver across rule evaluation, Portfolio, rebalancing, report 4.2, savings recommendations and Heute/finance check; schema defaults only for missing values.
+- [x] Central kind/leverage/optional-override classification, leveraged ETF risk, distinct market/gross cents and exact weighted gross splits.
+- [x] Correct R13 standard wording and stored class-band precedence, including report month ends.
+- [x] Synthetic R01–R06 and audited risk-policy undo/redo; existing 1× money/region/history invariants retained.
+- [x] Final local check (286 files / 2,716 tests), production/E2E builds and affected desktop/mobile browser evidence (31 passed / 4 planned skips).
+- [ ] Draft PR, Linux visual/CI review and owner acceptance remain separate.
+
+Contract and baseline matrix: [risk policy](portfolio-risk-policy.md). PR3 quality/scope, PR4 settings and PR5 mobile panels remain separate.
+
 ### Owner directive PR1 — Historical asset exposure foundation (2026-10-04)
 
 - [x] Drizzle schema/migration and explicitly labelled legacy seed-date assumption; preserve original storage and class cents.

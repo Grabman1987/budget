@@ -1,7 +1,8 @@
 import type { AllocationStatus, ClassRow } from './allocation';
 import { mulDivRound } from './int';
 import type { ClusterRisk, SpeculativeShare } from './risk';
-import { SPECULATIVE_KINDS, type SecurityKind } from './types';
+import { type SecurityKind } from './types';
+import { classifyRisk, type RiskMetadata } from './classification';
 
 // ---- rebalancing revision rows ----
 
@@ -65,7 +66,7 @@ export function rebalancingProposals(input: {
       subjectId: e.id,
       shareBp: e.shareBp,
       referenceBp: cluster.limits.singleBp,
-      gapCents: e.valueCents - limitCents(cluster.limits.singleBp),
+      gapCents: e.grossExposureCents - limitCents(cluster.limits.singleBp),
     });
   }
   for (const e of cluster.platforms) {
@@ -78,7 +79,7 @@ export function rebalancingProposals(input: {
       subjectId: e.id,
       shareBp: e.shareBp,
       referenceBp: cluster.limits.platformBp,
-      gapCents: e.valueCents - limitCents(cluster.limits.platformBp),
+      gapCents: e.grossExposureCents - limitCents(cluster.limits.platformBp),
     });
   }
   if (speculative.breach) {
@@ -98,8 +99,10 @@ export function rebalancingProposals(input: {
 
 // ---- savings-plan proposal ----
 
-export interface SavingsPlan {
+export interface SavingsPlan extends RiskMetadata {
   id: string;
+  securityId?: string;
+  platform?: string | null;
   name: string;
   kind: SecurityKind;
   assetClass: string | null;
@@ -109,7 +112,14 @@ export interface SavingsPlan {
 }
 
 export type PlanReason =
-  'unchanged' | 'paused_r15' | 'paused_r13_over' | 'steer_r13_under' | 'redistributed' | 'rounded';
+  | 'unchanged'
+  | 'paused_r15'
+  | 'paused_r14_single'
+  | 'paused_r14_platform'
+  | 'paused_r13_over'
+  | 'steer_r13_under'
+  | 'redistributed'
+  | 'rounded';
 
 export interface PlanProposal {
   id: string;
@@ -133,6 +143,8 @@ export interface SavingsPlanProposal {
 export interface SavingsPlanParams {
   /** R15 breached: speculative plans (crypto, P2P, single stocks) are set to 0. */
   speculativeBreached: boolean;
+  /** Same resolved R14 projection as Portfolio; no additions to breached titles/platforms. */
+  cluster?: ClusterRisk;
   /** Proposed rates are whole multiples of this step (default 100 = 1 €); the residue goes to the largest plan. */
   stepCents?: number;
 }
@@ -204,7 +216,17 @@ export function savingsPlanProposal(
 
   const paused = new Map<string, PlanReason>();
   if (params.speculativeBreached) {
-    for (const p of plans) if (SPECULATIVE_KINDS.has(p.kind)) paused.set(p.id, 'paused_r15');
+    for (const p of plans) if (classifyRisk(p).speculative) paused.set(p.id, 'paused_r15');
+  }
+  for (const p of plans) {
+    if (paused.has(p.id)) continue;
+    if (params.cluster?.singles.some((e) => e.breach && e.id === (p.securityId ?? p.id)))
+      paused.set(p.id, 'paused_r14_single');
+    else if (
+      classifyRisk(p).platform &&
+      params.cluster?.platforms.some((e) => e.breach && e.id === p.platform)
+    )
+      paused.set(p.id, 'paused_r14_platform');
   }
   const live = (): SavingsPlan[] => plans.filter((p) => !paused.has(p.id));
   const hasPlan = (row: ClassRow): boolean => live().some((p) => weightOf(p, row.assetClass) > 0);

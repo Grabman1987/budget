@@ -1,3 +1,4 @@
+import { resolvePortfolioRiskPolicy, type PortfolioRiskPolicy } from './portfolio-risk-policy';
 import { exposuresAsOf, singleAssetClass } from './asset-exposure';
 import { defaultBandBp } from '@budget/domain';
 import { isNull } from 'drizzle-orm';
@@ -9,6 +10,7 @@ import type { Executor } from './types';
 
 export interface PortfolioAllocationView {
   asOf: string;
+  policy: PortfolioRiskPolicy;
   valueCents: number | null;
   status: 'known' | 'empty' | 'unavailable' | 'nonpositive';
   missing: ('missing_price' | 'missing_fx')[];
@@ -44,6 +46,7 @@ export function portfolioAllocation(db: Executor, asOf: string): PortfolioAlloca
       .all()
       .map((row) => [row.id, row]),
   );
+  const policy = resolvePortfolioRiskPolicy(db, asOf);
   const targets = new Map(targetsAsOf(db, asOf).map((row) => [row.assetClassId, row]));
   const status =
     current.valueCents === null
@@ -80,6 +83,7 @@ export function portfolioAllocation(db: Executor, asOf: string): PortfolioAlloca
         });
   return {
     asOf,
+    policy,
     valueCents: current.valueCents,
     status,
     missing,
@@ -89,7 +93,7 @@ export function portfolioAllocation(db: Executor, asOf: string): PortfolioAlloca
         id: row.id,
         name: row.name,
         targetBp: target?.targetShareBp ?? null,
-        bandBp: target ? target.bandBp || defaultBandBp(target.targetShareBp) : null,
+        bandBp: target ? target.bandBp || defaultBandBp(target.targetShareBp, policy.R13) : null,
         validFrom: target?.validFrom ?? null,
       };
     }),

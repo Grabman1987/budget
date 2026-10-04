@@ -28,6 +28,14 @@ describe('basis points as percent text', () => {
 });
 
 describe('threshold summaries (defaults match the prototype)', () => {
+  it('R13 names the smaller standard band and stored override precedence', () => {
+    expect(thresholdText('R13', {})).toBe(
+      'Standardband: der kleinere Wert aus ±5 Prozentpunkten und ±25 % des Sollgewichts. Gespeicherte individuelle Bänder haben Vorrang.',
+    );
+    expect(thresholdText('R13', { maxBandBp: 0, relativeBandPct: 10 })).toContain(
+      '±0 Prozentpunkten und ±10 %',
+    );
+  });
   it('R01 R02 R03 R07 R08', () => {
     expect(thresholdText('R01', { needMaxBp: 5000, wantMaxBp: 3000, futureMinBp: 2000 })).toBe(
       'Bedarf ≤ 50 %, Wunsch ≤ 30 %, Zukunft ≥ 20 %',

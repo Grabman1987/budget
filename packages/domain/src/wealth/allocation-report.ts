@@ -84,6 +84,7 @@ export interface AllocationSnapshot {
   positions: ReadonlyArray<WealthPosition>;
   /** The Soll valid on that day (versioned targets). */
   targets: ReadonlyArray<ClassTarget>;
+  bandPolicy?: Parameters<typeof allocationStatus>[2];
 }
 
 export interface ClassTimeline {
@@ -115,7 +116,7 @@ export function allocationTimeline(
 ): AllocationTimeline {
   const keys: string[] = [];
   const statuses = snapshots.map((snap) => {
-    const status = allocationStatus(snap.positions, snap.targets);
+    const status = allocationStatus(snap.positions, snap.targets, snap.bandPolicy);
     for (const row of status.rows) if (!keys.includes(row.assetClass)) keys.push(row.assetClass);
     return status;
   });

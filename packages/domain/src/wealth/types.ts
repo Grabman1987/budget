@@ -11,6 +11,11 @@ export interface WealthPosition {
   /** Asset class key (id of `asset_class`), `null` when the security has none. */
   assetClass: string | null;
   valueCents: number;
+  /** Economic risk metadata; valueCents remains the unlevered market value. */
+  leverageFactor?: number;
+  grossExposureCents?: number;
+  speculativeOverride?: boolean | null;
+  derivative?: boolean;
   /** Institution (broker, crypto or P2P platform); `null` when unknown. */
   platform?: string | null;
 }
