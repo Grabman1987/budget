@@ -8,9 +8,11 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRef, useState } from 'react';
 import { ApiError, request } from '../api/http';
 import { useBudgetWrite } from '../budget/use-category-writes';
+import { AccountOptions } from '../ledger/account-options';
 import { eur, longDay } from '../ledger/format';
 import { errorText } from '../ledger/labels';
 import { ErrorNote, LoadingNote } from '../ledger/states';
+import type { AccountRow } from '../ledger/types';
 import { AppLink } from '../shell/app-link';
 import './payslip-intake.css';
 
@@ -359,7 +361,7 @@ export function PayslipIntakeDetail({ id }: { id: string }) {
   );
 }
 type SourceStatus = {
-  accounts: { id: string; name: string }[];
+  accounts: Pick<AccountRow, 'id' | 'name' | 'type' | 'onBudget' | 'sortOrder' | 'closedAt'>[];
   passwordSet: boolean;
   passwordSource: 'app' | 'server' | null;
   passwordRememberAvailable: boolean;
@@ -584,11 +586,7 @@ function PayslipSourceForm({
             onChange={(e) => setAccount(e.target.value)}
           >
             <option value="">Kein Konto gewählt</option>
-            {accounts.map((a) => (
-              <option key={a.id} value={a.id}>
-                {a.name}
-              </option>
-            ))}
+            <AccountOptions accounts={accounts} keepId={salaryAccountId} />
           </Select>
         )}
       </Field>

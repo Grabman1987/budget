@@ -50,7 +50,14 @@ export function payslipIntakeRoutes(
       errorCode: scan?.errorCode ?? null,
       accounts: listEntities(db, account)
         .filter((a) => a.currency === 'EUR')
-        .map((a) => ({ id: a.id, name: a.name })),
+        .map(({ id, name, type, onBudget, sortOrder, closedAt }) => ({
+          id,
+          name,
+          type,
+          onBudget,
+          sortOrder,
+          closedAt,
+        })),
       config: getPayslipSourceConfig(db),
     });
   });

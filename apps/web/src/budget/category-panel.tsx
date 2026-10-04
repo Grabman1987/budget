@@ -13,6 +13,7 @@ import {
 import { cents, formatDecimal, parseAmount, todayInVienna } from '@budget/domain';
 import { useQuery } from '@tanstack/react-query';
 import { useRef, useState, type FormEvent } from 'react';
+import { AccountOptions } from '../ledger/account-options';
 import { accountsQuery } from '../ledger/queries';
 import { eur, longDay } from '../ledger/format';
 import {
@@ -320,11 +321,7 @@ function CategoryForm({
               aria-describedby={describedBy}
               onChange={(e) => setCard(e.target.value)}
             >
-              {cards.map((a) => (
-                <option key={a.id} value={a.id}>
-                  {a.name}
-                </option>
-              ))}
+              <AccountOptions accounts={cards} />
             </Select>
           )}
         </Field>

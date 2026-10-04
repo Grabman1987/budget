@@ -9,7 +9,9 @@ import {
 import { AmountInput, Button, DetailPanel, Field, Select, TextInput } from '@budget/ui';
 import { useBlocker } from '@tanstack/react-router';
 import { useEffect, useRef, useState, type FormEvent } from 'react';
+import { AccountOptions } from '../ledger/account-options';
 import { errorText } from '../ledger/labels';
+import type { AccountRow } from '../ledger/types';
 import {
   createPlannedEvent,
   deletePlannedEvent,
@@ -50,7 +52,7 @@ export function EventPanel({
   event: PlannedEventView | undefined;
   date: string;
   categories: CategoryRow[];
-  accounts: { id: string; name: string }[];
+  accounts: Pick<AccountRow, 'id' | 'name' | 'type' | 'onBudget' | 'sortOrder' | 'closedAt'>[];
   onClose: () => void;
 }) {
   const [original] = useState(() => ({
@@ -247,11 +249,7 @@ export function EventPanel({
                 {event?.accountId && !accounts.some((a) => a.id === event.accountId) && (
                   <option value={event.accountId}>Konto nicht verfügbar · bitte neu wählen</option>
                 )}
-                {accounts.map((a) => (
-                  <option key={a.id} value={a.id}>
-                    {a.name}
-                  </option>
-                ))}
+                <AccountOptions accounts={accounts} keepId={draft.accountId} />
               </Select>
             )}
           </Field>

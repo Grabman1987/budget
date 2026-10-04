@@ -111,7 +111,7 @@ export function plannedEventsView(db: Executor, asOf: string, horizon = 365): Pl
     });
 }
 
-export function plannedEventAccounts(db: Executor, asOf: string): { id: string; name: string }[] {
+export function plannedEventAccounts(db: Executor, asOf: string) {
   return db
     .select()
     .from(account)
@@ -120,7 +120,14 @@ export function plannedEventAccounts(db: Executor, asOf: string): { id: string; 
     .filter(
       (a) => a.onBudget && a.role === 'budget' && a.currency === 'EUR' && a.openingDate <= asOf,
     )
-    .map((a) => ({ id: a.id, name: a.name }));
+    .map(({ id, name, type, onBudget, sortOrder, closedAt }) => ({
+      id,
+      name,
+      type,
+      onBudget,
+      sortOrder,
+      closedAt,
+    }));
 }
 
 export function liquidityReportView(

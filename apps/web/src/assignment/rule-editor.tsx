@@ -13,6 +13,7 @@ import { useEffect, useRef, useState } from 'react';
 import { request } from '../api/http';
 import { useBudgetWrite } from '../budget/use-category-writes';
 import { accountsQuery, lookupsQuery, payeesQuery } from '../ledger/queries';
+import { AccountOptions } from '../ledger/account-options';
 import { errorText } from '../ledger/labels';
 import '../assignment/assignment.css';
 
@@ -517,13 +518,10 @@ export function AssignmentEditor({
                     }}
                   >
                     <option value="">Keine Umbuchung</option>
-                    {accounts.data?.accounts
-                      .filter((a) => !a.closedAt)
-                      .map((a) => (
-                        <option key={a.id} value={a.id}>
-                          {a.name}
-                        </option>
-                      ))}
+                    <AccountOptions
+                      accounts={accounts.data?.accounts ?? []}
+                      keepId={actions.transferAccountId}
+                    />
                   </Select>
                 )}
               </Field>
