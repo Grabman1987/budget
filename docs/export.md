@@ -13,6 +13,7 @@ The export is one user-initiated ZIP download after a fresh passkey step-up. It 
 | `securities.csv` | Security identification and selected quote fields |
 | `asset_classes.csv` | Asset class definitions |
 | `asset_class_targets.csv` | Stored target history |
+| `asset_target_policies.csv` | Complete version metadata, managed targets/band modes and investment-sum tiers (JSON); legacy and new versions |
 | `security_exposure_versions.csv` | Effective dates, source and explicit completeness, including empty unknown sets |
 | `security_asset_exposures.csv` | Full weighted security/class history in integer basis points |
 | `fx_rates.csv` | Stored exchange-rate history |

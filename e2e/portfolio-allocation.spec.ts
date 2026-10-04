@@ -69,88 +69,84 @@ sampleTest(
     await expect(page.getByRole('heading', { name: 'Positionen', exact: true })).toBeInViewport();
   },
 );
-test('empty portfolio class creation and target editor validate, save, undo/redo, reload and future version', async ({
+test('Portfolio links to the shared settings editor: sums, dirty/template guards, pending save, future version and undo/redo', async ({
   page,
 }, info) => {
-  const names = [`Aktien ${info.project.name}`, `Reserve ${info.project.name}`];
-  await page.goto('/vermoegen/portfolio');
-  await page.getByRole('button', { name: 'Sollquoten bearbeiten' }).click();
-  const panel = page.getByRole('dialog', { name: 'Sollquoten bearbeiten' });
-  await panel.getByLabel('Name der Anlageklasse').fill('Ungespeicherte Klasse');
-  await browserBack(page);
-  await expect(panel).toContainText('Ungespeicherte Sollquoten oder Klassenangaben');
-  await panel.getByRole('button', { name: 'Weiter bearbeiten' }).click();
-  await expect(panel.getByLabel('Name der Anlageklasse')).toHaveValue('Ungespeicherte Klasse');
+  const names = ['Aktien Editor ' + info.project.name, 'Reserve Editor ' + info.project.name];
   for (const name of names) {
-    await panel.getByLabel('Name der Anlageklasse').fill(name);
-    await panel.getByRole('button', { name: 'Anlageklasse anlegen', exact: true }).click();
-    await expect(panel.getByLabel(`${name} · Soll (%)`)).toBeVisible();
+    const response = await page.request.post('/api/asset-classes', {
+      headers: { origin: MAIN_URL },
+      data: { name },
+    });
+    expect(response.ok()).toBe(true);
   }
+  await page.goto('/vermoegen/portfolio');
+  await page.getByRole('button', { name: 'Sollquoten bearbeiten', exact: true }).click();
+  await expect(page).toHaveURL(/einstellungen\/anlageklassen.*panel=sollquoten/);
+  const panel = page.getByRole('dialog', { name: 'Sollquoten bearbeiten' });
+  await expect(panel.getByLabel('Name der Anlageklasse')).toHaveCount(0);
   const classes = (await read(page)).classes;
-  for (const cls of classes) await panel.getByLabel(`${cls.name} · Soll (%)`).fill('0');
-  await panel.getByLabel(`${names[0]} · Soll (%)`).fill('74,99');
-  await panel.getByLabel(`${names[1]} · Soll (%)`).fill('25');
+  for (const cls of classes)
+    await panel
+      .getByLabel('Im Sollmodell berücksichtigen · ' + cls.name, { exact: true })
+      .setChecked(names.includes(cls.name));
+  await panel.getByLabel(names[0] + ' · Soll (%)').fill('74,99');
+  await panel.getByLabel(names[1] + ' · Soll (%)').fill('25');
   await panel.getByRole('button', { name: 'Sollquoten speichern' }).click();
-  await expect(panel.getByRole('alert')).toContainText('100,00 %');
-  await panel.getByLabel(`${names[0]} · Soll (%)`).fill('75');
+  await expect(panel.getByRole('alert')).toContainText('99,99 %');
+  await panel.getByLabel(names[0] + ' · Soll (%)').fill('75');
   await page.keyboard.press('Escape');
-  await expect(panel).toContainText('Ungespeicherte Sollquoten');
+  await expect(panel).toContainText('Ungespeicherte Änderungen');
   await panel.getByRole('button', { name: 'Weiter bearbeiten' }).click();
-  for (const theme of ['light', 'dark']) {
-    await page.evaluate((value) => (document.documentElement.dataset['theme'] = value), theme);
-    await capture(page, info, `targets-${theme}`);
-  }
-  await panel.getByLabel('Name der Anlageklasse').fill('Offener Klassenentwurf');
+  await browserBack(page);
+  await expect(panel).toContainText('Ungespeicherte Änderungen');
+  await panel.getByRole('button', { name: 'Weiter bearbeiten' }).click();
+  const date = info.project.name === 'desktop' ? '2057-01-01' : '2057-02-01';
+  await panel.getByLabel('Gültig ab').fill(date);
   let release!: () => void;
-  const gate = new Promise<void>((resolve) => (release = resolve));
+  const gate = new Promise<void>((resolve) => {
+    release = resolve;
+  });
   await page.route('**/api/asset-classes/targets', async (route) => {
     if (route.request().method() === 'PUT') await gate;
     await route.continue();
   });
   await panel.getByRole('button', { name: 'Sollquoten speichern' }).click();
-  await expect(panel.getByLabel(`${names[0]} · Soll (%)`)).toBeDisabled();
+  await expect(panel.getByLabel(names[0] + ' · Soll (%)')).toBeDisabled();
   await page.keyboard.press('Escape');
   await browserBack(page);
-  await expect(page).toHaveURL(/allokation=ziele/);
-  await expect(panel.getByLabel('Name der Anlageklasse')).toBeDisabled();
   await expect(panel).toBeVisible();
+  await expect(page).toHaveURL(/panel=sollquoten/);
   release();
-  await expect(page.getByText('Sollquoten gespeichert.', { exact: true })).toBeVisible();
-  await expect(panel.getByLabel('Name der Anlageklasse')).toHaveValue('Offener Klassenentwurf');
+  await expect(page.locator('dialog[open]')).toHaveCount(0);
+  await expect(page).toHaveURL(/vermoegen\/portfolio$/);
   await page.unroute('**/api/asset-classes/targets');
-  const own = (view: PortfolioAllocationView) =>
-    view.classes.filter((cls) => names.includes(cls.name)).map((cls) => cls.targetBp);
-  expect(own(await read(page))).toEqual([7500, 2500]);
-  await expect(page.getByText('Sollquoten gespeichert.', { exact: true })).toBeVisible();
+  const versions = async () =>
+    (await (await page.request.get('/api/asset-classes/targets')).json()).versions as {
+      validFrom: string;
+      targets: { targetShareBp: number }[];
+    }[];
+  expect(
+    (await versions()).find((v) => v.validFrom === date)!.targets.map((t) => t.targetShareBp),
+  ).toEqual([7500, 2500]);
   await page.getByRole('button', { name: 'Rückgängig', exact: true }).click();
-  await expect.poll(async () => own(await read(page))).toEqual([null, null]);
+  await expect.poll(async () => (await versions()).some((v) => v.validFrom === date)).toBe(false);
   await page.getByRole('button', { name: 'Wiederholen', exact: true }).click();
-  await expect.poll(async () => own(await read(page))).toEqual([7500, 2500]);
-  await panel.getByLabel('Name der Anlageklasse').fill('');
-  await page.keyboard.press('Escape');
-  await expect(panel).not.toBeVisible();
-  await page.reload();
-  await page.getByRole('button', { name: 'Sollquoten bearbeiten' }).click();
-  await expect(panel.getByLabel(`${names[0]} · Soll (%)`)).toHaveValue('75,00');
-  await panel.getByLabel('Gültig ab').fill('2050-01-01');
-  await expect(panel).toContainText('Zukünftige Ziele ändern die heutige Aufteilung noch nicht.');
-  await panel.getByRole('button', { name: 'Sollquoten speichern' }).click();
-  await expect(panel).not.toBeVisible();
-  expect(own(await read(page))).toEqual([7500, 2500]);
-  await page.getByRole('button', { name: 'Sollquoten bearbeiten' }).click();
-  await panel.getByLabel('Vorlage').selectOption('2050-01-01');
-  await expect(panel.getByLabel('Gültig ab')).toHaveValue('2050-01-01');
-  await panel.getByLabel(`${names[0]} · Soll (%)`).fill('60');
-  await panel.getByLabel('Name der Anlageklasse').fill('Nicht speichern');
-  await browserBack(page);
-  await expect(panel).toContainText('Ungespeicherte Sollquoten oder Klassenangaben');
+  await expect.poll(async () => (await versions()).some((v) => v.validFrom === date)).toBe(true);
+  await page.getByRole('button', { name: 'Sollquoten bearbeiten', exact: true }).click();
+  await panel.getByLabel('Vorlage').selectOption(date);
+  await expect(panel.getByLabel(names[0] + ' · Soll (%)')).toHaveValue('75,00');
+  await panel.getByLabel(names[1] + ' · Soll (%)').fill('0');
+  await panel.getByLabel('Vorlage').selectOption(date);
+  await expect(panel).toContainText('Ungespeicherte Änderungen durch diese Vorlage ersetzen?');
   await panel.getByRole('button', { name: 'Weiter bearbeiten' }).click();
-  await expect(panel.getByLabel(`${names[0]} · Soll (%)`)).toHaveValue('60');
-  await expect(panel.getByLabel('Name der Anlageklasse')).toHaveValue('Nicht speichern');
+  await expect(panel.getByLabel(names[1] + ' · Soll (%)')).toHaveValue('0');
   await browserBack(page);
   await panel.getByRole('button', { name: 'Verwerfen', exact: true }).click();
-  await expect(panel).not.toBeVisible();
-  expect(own(await read(page))).toEqual([7500, 2500]);
+  await expect(page.locator('dialog[open]')).toHaveCount(0);
+  expect(
+    (await versions()).find((v) => v.validFrom === date)!.targets.map((t) => t.targetShareBp),
+  ).toEqual([7500, 2500]);
 });
 test('unknown current quote is estimated at cost with a hint, and API failures offer retry', async ({
   page,
@@ -199,7 +195,7 @@ test('unknown current quote is estimated at cost with a hint, and API failures o
   );
   await page.getByRole('button', { name: 'Sollquoten bearbeiten' }).click();
   const panel = page.getByRole('dialog');
-  await expect(panel).toContainText('Zielversionen konnten nicht geladen werden.');
+  await expect(panel).toContainText('Sollversionen konnten nicht geladen werden.');
   await expect(panel.getByRole('button', { name: 'Sollquoten speichern' })).toHaveCount(0);
   await page.unroute('**/api/asset-classes/targets');
   await panel.getByRole('button', { name: 'Erneut versuchen' }).click();

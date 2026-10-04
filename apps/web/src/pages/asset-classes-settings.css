@@ -1,0 +1,141 @@
+.asset-settings {
+  min-width: 0;
+}
+/* This settings page has five governance fields; keep every value inside its title cell. */
+.sheet:has(.asset-settings) .titleblock {
+  grid-template-columns: minmax(240px, 1.4fr) repeat(6, minmax(0, 1fr));
+}
+.sheet:has(.asset-settings) .titleblock .tb-value {
+  white-space: normal;
+  flex-wrap: wrap;
+  overflow-wrap: anywhere;
+}
+.asset-settings .head,
+.asset-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+}
+.asset-settings .head {
+  justify-content: space-between;
+  margin-block: 20px;
+}
+.asset-class-table {
+  width: 100%;
+  table-layout: fixed;
+}
+.asset-class-table th,
+.asset-class-table td {
+  overflow-wrap: anywhere;
+}
+.asset-class-table th:first-child {
+  width: 24%;
+}
+.asset-class-table .btn {
+  white-space: normal;
+  text-align: start;
+}
+.asset-detail {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px 16px;
+  margin-block: 24px;
+}
+.asset-detail dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.asset-instruments {
+  list-style: none;
+  padding: 0;
+}
+.asset-instruments li,
+.asset-target-class {
+  border-top: 1px solid var(--rule);
+  padding-block: 12px;
+}
+.asset-check {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  min-height: 44px;
+}
+.asset-check input {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+}
+.asset-target-form fieldset,
+.asset-class-form fieldset {
+  border: 0;
+  padding: 0;
+  min-width: 0;
+}
+.asset-class-form fieldset {
+  display: grid;
+  gap: 16px;
+  margin: 0;
+}
+@media (max-width: 767px) {
+  .sheet:has(.asset-settings) .titleblock {
+    grid-auto-flow: row;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  /* Profile is already reachable in the phone header. */
+  .sheet:has(.asset-settings) .titleblock .tb-field:nth-child(2) {
+    display: none;
+  }
+  .sheet:has(.asset-settings) .titleblock .tb-field:nth-child(odd) {
+    border-left: 0;
+  }
+  .sheet:has(.asset-settings) .titleblock .tb-field:nth-child(n + 5) {
+    border-top: 1px solid var(--line-2);
+  }
+  .sheet:has(.asset-settings) .titleblock .tb-field:last-child {
+    grid-column: 1 / -1;
+  }
+  .sheet:has(.asset-settings) .titleblock .tb-label {
+    position: static;
+    width: auto;
+    height: auto;
+    overflow: visible;
+    clip-path: none;
+    white-space: normal;
+  }
+  .asset-class-table,
+  .asset-class-table tbody {
+    display: block;
+  }
+  .asset-class-table thead {
+    position: absolute;
+    clip-path: inset(50%);
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+  }
+  .asset-class-table tr {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    border-top: 1px solid var(--rule-strong);
+    padding-block: 12px;
+    gap: 8px;
+  }
+  .asset-class-table th:first-child {
+    grid-column: 1 / -1;
+    width: auto;
+  }
+  .asset-class-table td,
+  .asset-class-table th {
+    display: block;
+    padding: 4px;
+    border: 0;
+  }
+  .asset-class-table td::before {
+    content: attr(data-label);
+    display: block;
+    color: var(--ink-3);
+    font-family: var(--font-label);
+    font-size: 12px;
+  }
+}
