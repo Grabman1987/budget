@@ -225,6 +225,13 @@
       "when": 1791075904183,
       "tag": "0031_security_asset_exposure",
       "breakpoints": true
+    },
+    {
+      "idx": 32,
+      "version": "6",
+      "when": 1791084425510,
+      "tag": "0032_allocation_scope",
+      "breakpoints": true
     }
   ]
 }
