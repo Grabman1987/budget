@@ -1,3 +1,4 @@
+import { cents } from '../money';
 import { ratioBp, shareBps } from '../wealth/int';
 
 /**
@@ -72,13 +73,14 @@ export function costsOverview(input: {
   /** Household income of the last twelve months (without Kapitalerträge). */
   incomeCents: number;
 }): CostsOverview {
-  const { available, parts } = input;
+  const { available } = input;
+  const parts = input.parts.filter((p) => available.some((m) => (p.monthly[m] ?? 0) !== 0));
   const months = available.slice(-12);
   const previousMonths = available.length >= 24 ? available.slice(-24, -12) : null;
   const totals = parts.map((p) => sumOver(p.monthly, months));
   const previous = previousMonths ? parts.map((p) => sumOver(p.monthly, previousMonths)) : null;
-  const totalCents = totals.reduce((a, b) => a + b, 0);
-  const previousTotalCents = previous ? previous.reduce((a, b) => a + b, 0) : null;
+  const totalCents = cents(totals.reduce((a, b) => a + b, 0));
+  const previousTotalCents = previous ? cents(previous.reduce((a, b) => a + b, 0)) : null;
   const shares = shareBps(totals, totalCents);
   const rows: CostRow[] = parts.map((p, i) => {
     const before = previous ? (previous[i] as number) : null;

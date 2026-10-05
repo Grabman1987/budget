@@ -6,7 +6,7 @@ import {
   tableRowTotal,
   type TableRow,
 } from '@budget/domain';
-import { forwardRef, type CSSProperties } from 'react';
+import { forwardRef, type ReactNode, type CSSProperties } from 'react';
 import { chartPercent } from '../charts/tooltip-data';
 import { eur } from '../ledger/format';
 import { euroNumber, percentWhole } from './table-format';
@@ -34,6 +34,8 @@ interface RowsGridProps {
   /** Scrollable region name for keyboard users. */
   regionLabel: string;
   className?: string;
+  onCell?: ((row: TableRow, column: number | null) => void) | undefined;
+  renderLabel?: ((row: TableRow) => ReactNode) | undefined;
 }
 
 const ROW_CLASS: Record<TableRow['kind'], string> = {
@@ -52,8 +54,10 @@ function Cell({
   value,
   stats,
   point,
+  onClick,
 }: {
   point: number;
+  onClick?: (() => void) | undefined;
   row: TableRow;
   value: number | null;
   stats: ReturnType<typeof tableHeatStats>;
@@ -79,12 +83,20 @@ function Cell({
   const className = heated ? `n hc2 ${heated.tone === 'bad' ? 'hc-red' : 'hc-green'}` : 'n';
   return (
     <td className={className} style={style} data-chart-point={point}>
-      {value === 0 ? (
-        <span className="muted">·</span>
-      ) : row.signed ? (
-        eur(value, { cents: false, sign: true })
+      {onClick ? (
+        <button type="button" className="table-cell-open" onClick={onClick}>
+          {eur(value)}
+        </button>
       ) : (
-        euroNumber(value)
+        <>
+          {value === 0 ? (
+            <span className="muted">·</span>
+          ) : row.signed ? (
+            eur(value, { cents: false, sign: true })
+          ) : (
+            euroNumber(value)
+          )}
+        </>
       )}
     </td>
   );
@@ -122,6 +134,8 @@ export const RowsGrid = forwardRef<HTMLDivElement, RowsGridProps>(function RowsG
     previous = null,
     regionLabel,
     className,
+    onCell,
+    renderLabel,
   },
   ref,
 ) {
@@ -197,11 +211,12 @@ export const RowsGrid = forwardRef<HTMLDivElement, RowsGridProps>(function RowsG
                     {row.swatch && (
                       <ClassSwatch kind={row.swatch === 'income' ? 'open' : row.swatch} />
                     )}
-                    {row.label}
+                    {renderLabel ? renderLabel(row) : row.label}
                   </th>
                   {row.vals.map((value, i) => (
                     <Cell
                       key={columns[i]?.key ?? i}
+                      onClick={onCell ? () => onCell(row, i) : undefined}
                       row={row}
                       value={value}
                       stats={stats}
@@ -214,12 +229,40 @@ export const RowsGrid = forwardRef<HTMLDivElement, RowsGridProps>(function RowsG
                         '–'
                       ) : (
                         <strong>
-                          {row.signed ? eur(sum, { cents: false, sign: true }) : euroNumber(sum)}
+                          {onCell ? (
+                            <button
+                              type="button"
+                              className="table-cell-open"
+                              onClick={() => onCell(row, null)}
+                            >
+                              {eur(sum)}
+                            </button>
+                          ) : row.signed ? (
+                            eur(sum, { cents: false, sign: true })
+                          ) : (
+                            euroNumber(sum)
+                          )}
                         </strong>
                       )}
                     </td>
                   )}
-                  {average && <td className="n">{avg === null ? '–' : euroNumber(avg)}</td>}
+                  {average && (
+                    <td className="n">
+                      {avg === null ? (
+                        '–'
+                      ) : onCell ? (
+                        <button
+                          type="button"
+                          className="table-cell-open"
+                          onClick={() => onCell(row, null)}
+                        >
+                          {eur(avg)}
+                        </button>
+                      ) : (
+                        euroNumber(avg)
+                      )}
+                    </td>
+                  )}
                   {previous &&
                     (sum === null || prev === undefined ? (
                       <>

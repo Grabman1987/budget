@@ -114,11 +114,11 @@ test.describe('routes', () => {
     await expect(page).toHaveTitle('Geldfluss · Budget');
   });
 
-  test('the report catalog lists 31 reports in five assemblies with positions', async ({
+  test('the report catalog lists 32 reports in five assemblies with positions', async ({
     page,
   }) => {
     await page.goto('/reports');
-    await expect(page.locator('.rcat-row')).toHaveCount(31);
+    await expect(page.locator('.rcat-row')).toHaveCount(32);
     await expect(page.locator('.rcat-grp')).toHaveCount(5);
     await expect(page.locator('.rcat-row .col-pos').first()).toHaveText('1.1');
     await expect(page.locator('.rcat-row .col-pos').last()).toHaveText('5.5');

@@ -13,3 +13,5 @@ export {
   type GoalStatus,
   type GoalTotals,
 } from './goals';
+
+export { goalSollCents } from './goals';

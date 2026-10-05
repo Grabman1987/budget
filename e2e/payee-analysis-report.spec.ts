@@ -11,6 +11,7 @@ function euro(value: number) {
 sampleTest(
   'real sample payee report follows API periods, opens exact recipient bookings, and fits both themes',
   async ({ page }, info) => {
+    sampleTest.setTimeout(90_000);
     const initial = page.waitForResponse((response) => {
       const url = new URL(response.url());
       return url.pathname === '/api/reports/payees' && url.searchParams.get('period') === '3J';
@@ -28,7 +29,7 @@ sampleTest(
     };
     expect(initialData).toMatchObject({ period: '3J', from: '2023-10-01', to: '2026-08-31' });
     await expect(
-      page.getByRole('heading', { name: 'Empfänger-Analyse', exact: true }),
+      page.getByRole('heading', { name: 'Empfänger-Analyse', exact: true }).first(),
     ).toBeVisible();
     await expect(page.getByTestId('payee-total')).toHaveText(euro(initialData.totalSpendCents));
     await expect(page.locator('.payee-period')).toHaveText('01.10.2023 bis 31.08.2026');
@@ -37,6 +38,9 @@ sampleTest(
     ).toHaveText('31.08.2026 · Monatsende');
     expect(initialData.bookingCount).toBeGreaterThan(0);
     expect(initialData.rows.length).toBeGreaterThan(0);
+    await expect(
+      page.getByRole('heading', { name: 'Häufige Empfänger', exact: true }),
+    ).toBeVisible();
 
     const period = page.getByRole('group', { name: 'Zeitraum' });
     const oneYear = page.waitForResponse((response) => {

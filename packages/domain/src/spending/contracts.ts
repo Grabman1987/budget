@@ -1,6 +1,6 @@
-import { addDays, monthsBetween } from '../date';
-import { monthlyEquivalent, versionOn, yearlyEquivalent } from '../schedule';
-import type { Rhythm } from '../schedule';
+import { addDays, monthsBetween, monthOf } from '../date';
+import { dueDates, monthlyEquivalent, versionOn, yearlyEquivalent } from '../schedule';
+import type { DateShift, Rhythm } from '../schedule';
 import { toEurCents } from '../invest/invest';
 import { mulDivRound, ratioBp } from '../wealth/int';
 
@@ -23,23 +23,57 @@ export interface ContractSource {
   name: string;
   groupName: string;
   categoryId: string | null;
+  payeeId?: string | null;
   categoryName: string | null;
   class: 'need' | 'want' | 'future' | null;
   categoryKind: string | null;
   categoryStage: number | null;
   rhythm: Rhythm;
+  dueDay?: number;
+  dueMonth?: number | null;
+  dateShift?: DateShift;
   startDate: string | null;
   endDate: string | null;
   versions: ReadonlyArray<ContractVersion>;
+  currentVersions?: ReadonlyArray<ContractVersion>;
 }
 
 export type ContractBinding = 'fixed' | 'periodic';
 
 /** The role of a payment in the bound costs, or `null` when it is no contract. */
-export function contractBinding(source: {
-  categoryKind: string | null;
-  categoryStage: number | null;
-}): ContractBinding | null {
+export function contractBinding(
+  source: {
+    categoryKind: string | null;
+    categoryStage: number | null;
+    startDate?: string | null;
+    endDate?: string | null;
+    rhythm?: Rhythm;
+    dueDay?: number;
+    dueMonth?: number | null;
+    dateShift?: DateShift;
+  },
+  asOf?: string,
+): ContractBinding | null {
+  if (asOf && source.endDate && source.endDate < asOf) return null;
+  if (source.startDate && source.endDate) {
+    if (monthOf(source.startDate) === monthOf(source.endDate)) return null;
+    if (
+      source.rhythm &&
+      dueDates(
+        {
+          rhythm: source.rhythm,
+          startDate: source.startDate,
+          endDate: source.endDate,
+          dueDay: source.dueDay ?? Number(source.startDate.slice(8)),
+          dueMonth: source.dueMonth ?? null,
+          dateShift: source.dateShift ?? 'none',
+        },
+        source.startDate,
+        source.endDate,
+      ).length <= 1
+    )
+      return null;
+  }
   if (source.categoryKind === 'fixed') return 'fixed';
   if (source.categoryKind === 'periodic') return 'periodic';
   if (source.categoryKind === 'debt' && (source.categoryStage ?? 1) === 1) return 'fixed';
@@ -129,8 +163,6 @@ export function contractVersionOn<V extends { validFrom: string }>(
   return current ?? first;
 }
 
-const inForce = (s: ContractSource, day: string) => !(s.endDate && s.endDate < day);
-
 function eurOf(
   cents: number,
   currency: string,
@@ -166,9 +198,9 @@ export function contractsOverview(
   const yearAgo = `${Number(asOf.slice(0, 4)) - 1}${asOf.slice(4)}`;
   const items: ContractItem[] = [];
   for (const s of sources) {
-    const binding = contractBinding(s);
+    const binding = contractBinding(s, asOf);
     if (!binding) continue;
-    const v = contractVersionOn(s, s.versions, asOf);
+    const v = contractVersionOn(s, s.currentVersions ?? s.versions, asOf);
     if (!v) continue;
     const { eur, rate } = eurOf(v.amountCents, v.currency, asOf, fx);
     const changes = changesOf(s.versions);
@@ -252,14 +284,15 @@ export function contractSeries(
   to: string,
   fx: FxLookup,
 ): { points: ContractSeriesPoint[]; markers: ContractMarker[]; partial: boolean } {
-  const fixed = sources.filter((s) => contractBinding(s) === 'fixed');
+  const fixed = sources.filter((s) => contractBinding(s) !== null);
   let partial = false;
   const points = monthsBetween(from, to).map((month) => {
     const day = `${month}-15`;
     let total = 0;
     for (const s of fixed) {
-      if (!inForce(s, day) || (s.startDate && s.startDate > day)) continue;
-      const v = versionOn(s.versions, day);
+      if (!contractBinding(s, `${month}-01`) || (s.startDate && s.startDate.slice(0, 7) > month))
+        continue;
+      const v = versionOn(s.versions, `${month}-31`);
       if (!v) continue;
       const { eur } = eurOf(v.amountCents, v.currency, day, fx);
       if (eur === null) {

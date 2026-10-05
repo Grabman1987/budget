@@ -75,6 +75,17 @@ describe('report reads the existing API month and figures without writes', () =>
         '/api/goals',
         '/api/categories',
         '/api/accounts?asOf=2026-09-30',
+        '/api/goals/report',
+      ]);
+      expect(data.report.month).toBe('2026-09');
+      expect(data.report.reserveCents).toBe(30000);
+      expect(data.report.cash).toEqual([
+        expect.objectContaining({
+          id: 'spar',
+          balanceCents: 30000,
+          goal: 'Reserve',
+          ambiguous: false,
+        }),
       ]);
       expect(fetcher.mock.calls.every(([, init]) => init?.method === 'GET')).toBe(true);
       await client.fetchQuery(goalsProgressReportQuery());

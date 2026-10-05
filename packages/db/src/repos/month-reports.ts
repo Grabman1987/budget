@@ -34,18 +34,9 @@ import {
   type Rhythm,
   type TopSpendingRow,
 } from '@budget/domain';
-import { and, eq, isNull } from 'drizzle-orm';
-import {
-  account,
-  booking,
-  bookingSplit,
-  categoryGroup,
-  contact,
-  incomeType,
-  INCOME_TYPES,
-  payee,
-} from '../schema';
-import { allocationMonth, isIncomeCategorySplit } from './allocation';
+import { categoryGroup, contact, incomeType, INCOME_TYPES, payee } from '../schema';
+import { allocationMonth } from './allocation';
+import { overviewData } from './report-ledger';
 import { upcoming } from './expected';
 import { availableSection, occurrencesBetween, paceOfMonth, type Heute } from './heute';
 import type { HeuteUnavailable } from './heute';
@@ -125,51 +116,33 @@ const monthsFrom = (f: Frame, from: string): string[] =>
 
 /** Income splits of the budget accounts up to `asOf`, with their type. */
 function incomeFacts(db: Executor, f: Frame, fromMonth: string): IncomeFact[] {
-  const kinds = new Map(f.facts.categories.map((c) => [c.id, c.kind]));
-  return db
-    .select({
-      day: booking.date,
-      cents: bookingSplit.amountCents,
-      categoryId: bookingSplit.categoryId,
-      typeId: bookingSplit.incomeTypeId,
-      typeName: incomeType.name,
-      sortOrder: incomeType.sortOrder,
-    })
-    .from(bookingSplit)
-    .innerJoin(booking, eq(booking.id, bookingSplit.bookingId))
-    .innerJoin(account, eq(account.id, booking.accountId))
-    .leftJoin(incomeType, eq(incomeType.id, bookingSplit.incomeTypeId))
-    .where(
-      and(
-        isNull(booking.deletedAt),
-        isNull(account.deletedAt),
-        eq(account.onBudget, true),
-        isNull(booking.transferId),
-        isNull(bookingSplit.transferId),
-      ),
+  const types = new Map(
+    db
+      .select()
+      .from(incomeType)
+      .all()
+      .map((t) => [t.id, t]),
+  );
+  return overviewData(db).splits.flatMap((s): IncomeFact[] => {
+    if (
+      s.kind !== 'income' ||
+      s.incomeTypeId === null ||
+      s.date > f.asOf ||
+      monthOf(s.date) < fromMonth
     )
-    .all()
-    .flatMap((s): IncomeFact[] => {
-      const kind = s.categoryId === null ? null : (kinds.get(s.categoryId) ?? null);
-      if (
-        s.typeId === null ||
-        s.cents <= 0 ||
-        s.day > f.asOf ||
-        monthOf(s.day) < fromMonth ||
-        !isIncomeCategorySplit(s.categoryId, kind)
-      )
-        return [];
-      return [
-        {
-          month: monthOf(s.day),
-          typeId: s.typeId,
-          typeName: s.typeName ?? 'Sonstiges',
-          kind: incomeKind(s.typeId),
-          sortOrder: s.sortOrder ?? 0,
-          cents: s.cents,
-        },
-      ];
-    });
+      return [];
+    const type = types.get(s.incomeTypeId);
+    return [
+      {
+        month: monthOf(s.date),
+        typeId: s.incomeTypeId,
+        typeName: type?.name ?? 'Sonstiges',
+        kind: incomeKind(s.incomeTypeId),
+        sortOrder: type?.sortOrder ?? 0,
+        cents: s.amountCents,
+      },
+    ];
+  });
 }
 
 /** Spending per category in a month, positive cents (refunds net); categories without class are left out. */

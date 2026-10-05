@@ -48,12 +48,12 @@ describe('personalInflation', () => {
     baseConsumptionCents: 12 * 120_000,
   });
 
-  it('is a fixed-weight index that starts at 100', () => {
+  it('chains annual weights at December and starts at 100', () => {
     expect(result.status).toBe('ok');
     expect(result.points[0]?.index).toBe(100);
     // Weights 8/9 and 1/9: rent +10 % from month 24, power +20 % from month 30.
     expect(result.points[24]?.index).toBeCloseTo(100 + (8 / 9) * 10, 3);
-    expect(result.points[35]?.index).toBeCloseTo(100 + (8 / 9) * 10 + (1 / 9) * 20, 3);
+    expect(result.points[35]?.index).toBeCloseTo(111.3086, 3);
   });
   it('measures the last twelve months against the twelve before', () => {
     expect(result.fromMonth).toBe('2023-10'.replace('2023-10', available[23]!));
@@ -76,7 +76,7 @@ describe('personalInflation', () => {
     expect(result.basketItems).toBe(2);
     expect(result.coverageBp).toBe(Math.round((12 * 90_000 * 10_000) / (12 * 120_000)));
   });
-  it('leaves out contracts that started after the base month and keeps ended ones at their last price', () => {
+  it('links late entries without a jump and freezes ended prices', () => {
     const late: InflationItem = {
       id: 'late',
       name: 'Neu',
@@ -92,10 +92,11 @@ describe('personalInflation', () => {
       spend: spend(2_000),
     };
     const r = personalInflation({ available, items: [rent, late, ended], baseConsumptionCents: 1 });
-    expect(r.basketItems).toBe(2);
+    expect(r.basketItems).toBe(3);
     // The new contract has a price at both ends of the window and no change; the ended one has none.
     expect(r.contributions.map((c) => [c.id, c.changeBp])).toEqual([
       ['rent', 1_000],
+      ['ended', 0],
       ['late', 0],
     ]);
     expect(r.points[35]?.index).toBeGreaterThan(100);
@@ -109,7 +110,7 @@ describe('personalInflation', () => {
     expect(result.referenceBp).toBeNull();
     expect(result.differenceBp).toBeNull();
   });
-  it('compares month by month and by calendar-year averages when the reference ends earlier', () => {
+  it('compares December with December and the latest month with its previous year', () => {
     // A reference that starts before the own data and ends in December 2025: +0,5 per month.
     const refMonths = Array.from({ length: 60 }, (_, i) => {
       const y = 2021 + Math.floor(i / 12);
@@ -132,21 +133,15 @@ describe('personalInflation', () => {
     const y = Object.fromEntries(r.years.map((x) => [x.year, x]));
     expect(r.years.map((x) => x.year)).toEqual([2023, 2024, 2025, 2026]);
     expect([y[2023]?.ownMonths, y[2024]?.ownMonths, y[2026]?.ownMonths]).toEqual([3, 12, 9]);
-    expect(y[2024]?.ownChangeBp).toBeNull();
+    expect(y[2024]?.ownChangeBp).toBe(0);
     expect(y[2025]?.ownChangeBp).not.toBeNull();
     expect(y[2024]?.referenceMonths).toBe(12);
     expect(y[2023]?.referenceMonths).toBe(12);
-    // Reference averages are rebased to the first own month (= 100).
-    const base = reference['2023-10']!;
-    const avg2024 =
-      (refMonths.filter(([m]) => m.startsWith('2024-')).reduce((a, [, v]) => a + v, 0) /
-        12 /
-        base) *
-      100;
-    expect(y[2024]?.referenceAverage).toBeCloseTo(avg2024, 3);
     expect(y[2024]?.referenceChangeBp).toBe(
-      Math.round((y[2024]!.referenceAverage! / y[2023]!.referenceAverage! - 1) * 1e4),
+      Math.round((reference['2024-12']! / reference['2023-12']! - 1) * 1e4),
     );
+    expect(y[2026]?.ownChangeBp).toBe(1_000);
+    expect(y[2026]?.throughMonth).toBe('2026-09');
     expect(y[2026]?.referenceChangeBp).toBeNull();
   });
   it('is insufficient with less than 13 months or without priced items', () => {

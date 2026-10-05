@@ -73,12 +73,13 @@ describe('monthIncomeOf: household income, Kapitalerträge and refunds apart', (
     });
   });
 
-  it('an income booking without a type is household income under its own label', () => {
+  it('an income booking without a type is not household income', () => {
     const m = monthIncomeOf(
       [fact({ month: '2026-08', cents: 900, typeId: null, typeName: 'Ohne Einnahmenart' })],
       '2026-08',
     );
-    expect(m.types).toEqual([{ typeId: null, name: 'Ohne Einnahmenart', cents: 900 }]);
+    expect(m.types).toEqual([]);
+    expect(m.earnedCents).toBe(0);
   });
 });
 
