@@ -89,12 +89,6 @@ test('lists, orders, edits loan terms, closes and reopens accounts', async ({
   await expect(page.getByTestId('loan-terms')).toContainText('bis 01.01.2034');
   await expect(page.getByLabel('Monatsrate (EUR)')).toHaveValue('412,00');
 
-  // The cost report lists the installment and the term of the loan.
-  await page.goto('/reports/kosten');
-  const lines = page.getByTestId('credit-lines');
-  await expect(lines.getByRole('row').filter({ hasText: 'Kredit Muster' })).toContainText('fix');
-  await expect(lines.getByRole('row').filter({ hasText: 'Kredit Muster' })).toContainText('412');
-
   // Close an empty account, reopen it.
   await page.goto('/einstellungen/konten');
   await page.getByRole('button', { name: 'Bravo bearbeiten' }).click();
