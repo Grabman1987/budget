@@ -29,7 +29,7 @@ sampleTest(
     };
     expect(initialData).toMatchObject({ period: '3J', from: '2023-10-01', to: '2026-08-31' });
     await expect(
-      page.locator('main').getByRole('heading', { name: 'Empfänger-Analyse', exact: true }),
+      page.getByRole('heading', { name: 'Empfänger-Analyse', exact: true }).first(),
     ).toBeVisible();
     await expect(page.getByTestId('payee-total')).toHaveText(euro(initialData.totalSpendCents));
     await expect(page.locator('.payee-period')).toHaveText('01.10.2023 bis 31.08.2026');
