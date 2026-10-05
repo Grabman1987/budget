@@ -545,3 +545,5 @@ Contract and baseline matrix: [asset-class settings](asset-classes-settings.md).
 - [x] Opaque red negative bars; daily report 4.3 values from existing valuations/flows, monthly gain bars retained.
 - [x] Final local check/build and browser verification: 309 suites / 2,967 tests; chart inspection, report regressions and desktop/mobile evidence.
 - [ ] Owner acceptance, local Git alignment and Linux visual baseline review (no local baseline regeneration); draft PR/CI review.
+
+Owner feedback 2026-10-04: spending/cost reports 1.4/1.10/2.3–2.6/3.4–3.5 and early Heute pace implemented on `codex/spending-reports-1004`; source-model limitations and evidence are recorded in [spending report feedback](spending-report-feedback.md).
