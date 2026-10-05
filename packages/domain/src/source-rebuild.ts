@@ -664,6 +664,24 @@ export function planSourceRebuild(
         unhandled.push({ id: op.id, type: op.type });
       continue;
     }
+    // Principal fiat of a non-base currency lives in a separate source wallet: such a trade never
+    // touches the base-currency cash account and becomes a delivery valued at the converted cost.
+    const foreignLegs = new Set(
+      TRADING.has(op.type) && current.some((t) => t.amount.assetId && !SECONDARY.has(t.type))
+        ? op.transactions
+            .filter((t) => {
+              if (
+                t.amount.assetId ||
+                SECONDARY.has(t.type) ||
+                sourceAmountKey(t.amount) === cashKey
+              )
+                return false;
+              const code = fx.currencies.find((c) => c.key === sourceAmountKey(t.amount))?.currency;
+              return Boolean(code) && code !== currency;
+            })
+            .map((t) => t.id)
+        : [],
+    );
     // Only eligible unmapped fiat is converted. Bank-side operations retain native facts.
     const converted: RebuildFxConversion[] = [];
     const fallback = new Map<string, RebuildIssue>();
@@ -811,7 +829,7 @@ export function planSourceRebuild(
       };
       fx_converted.push(...converted);
       issues.push(...fallback.values());
-      if (converted.length || fallback.size) {
+      if ((converted.length || fallback.size) && !foreignLegs.size) {
         const days = [...new Set(op.transactions.map(rebuildLegDay))].sort();
         const flowsOnly = (o: SourceOperation) => [
           { ...o, transactions: o.transactions.map((t) => ({ ...t, balanceAfter: null })) },
@@ -1023,6 +1041,11 @@ export function planSourceRebuild(
           });
           continue;
         }
+        const foreign =
+          legs.some((t) => foreignLegs.has(t.id)) &&
+          fiat.length > 0 &&
+          (incoming.length === 0 || outgoing.length === 0);
+        if (foreign) issues.push({ id: op.id, reason: 'fiat_wallet_not_eur' });
         const swap = !fiat.length && incoming.length > 0 && outgoing.length > 0;
         const amounts = assets.map(() => 0),
           allocatedFees = assets.map(() => 0),
@@ -1120,13 +1143,23 @@ export function planSourceRebuild(
               ? values[i] === null
                 ? 'delivery_in'
                 : 'reward'
-              : t.flow === 'INCOMING'
-                ? 'buy'
-                : 'sell',
+              : foreign
+                ? t.flow === 'INCOMING'
+                  ? 'delivery_in'
+                  : 'delivery_out'
+                : t.flow === 'INCOMING'
+                  ? 'buy'
+                  : 'sell',
             unitsE8: units[i]!,
-            amountCents: reward ? (values[i] ?? 0) : amounts[i]!,
-            feeCents: allocatedFees[i]!,
-            taxCents: allocatedTaxes[i]!,
+            amountCents: reward
+              ? (values[i] ?? 0)
+              : foreign
+                ? t.flow === 'INCOMING'
+                  ? amounts[i]! + allocatedFees[i]!
+                  : Math.max(0, amounts[i]! - allocatedFees[i]! - allocatedTaxes[i]!)
+                : amounts[i]!,
+            feeCents: foreign ? 0 : allocatedFees[i]!,
+            taxCents: foreign ? 0 : allocatedTaxes[i]!,
             importKey: `rebuild:${op.id}:${op.transactions.indexOf(t)}`,
             note: op.type,
           };
