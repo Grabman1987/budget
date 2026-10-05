@@ -575,5 +575,5 @@ Owner feedback 2026-10-04: spending/cost reports 1.4/1.10/2.3–2.6/3.4–3.5 an
 - [x] Warenkorb toggle “Seit Basis” / “Je Jahr”; category-grouped items, calendar-year columns, observed monthly price means in integer cents, same-month prior-year mean changes and chained-index contributions in hundredth Pp.
 - [x] Shared index attribution and rounding with the headline; yearly contribution sums equal “Je Kalenderjahr”, including signed changes, annual reweighting and successors. Missing prices/comparisons remain unavailable; running year names its last closed month.
 - [x] Final local check (327 suites / 3,107 tests), production/E2E builds and desktop/mobile light/dark browser evidence; no baseline regeneration.
-- [ ] PR/CI review after part A; the C branch and PR are stacked on the existing part A implementation.
+- [ ] PR/CI review against main; part A was merged in PR #199 while C was being verified.
 - [ ] Owner acceptance of report 2.4 and local protected-index refresh (`git reset --mixed HEAD`); no keys, consents or settings changes are needed for this read-only view.
