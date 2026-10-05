@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "15d12853-28b6-4be0-9cb0-867aac678500",
+  "id": "a8cae8ba-fc06-4c38-ada5-a01a39413c2e",
   "prevId": "088c51fd-adad-409e-9b9c-c54579df410d",
   "tables": {
     "plan_snapshot": {
@@ -105,6 +105,38 @@
           "value": "typeof(\"plan_snapshot\".\"planned_cents\") = 'integer' AND typeof(\"plan_snapshot\".\"spent_cents\") = 'integer' AND typeof(\"plan_snapshot\".\"projected_cents\") = 'integer'"
         }
       }
+    },
+    "plan_snapshot_gap": {
+      "name": "plan_snapshot_gap",
+      "columns": {
+        "month": {
+          "name": "month",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "reason": {
+          "name": "reason",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "(strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
     },
     "account": {
       "name": "account",

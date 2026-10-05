@@ -3,6 +3,7 @@ import { eq, sql } from 'drizzle-orm';
 import { createTestDatabase, type OpenedDatabase } from '../client';
 import {
   auditLog,
+  planSnapshotGap,
   category,
   categoryTarget,
   envelopeMonth,
@@ -90,6 +91,15 @@ it('refuses speculative historical reconstruction, but backfills unchanged dated
   expect(capturePlanSnapshot(opened.db, '2026-09', '2026-10-06').status).toBe(
     'unavailable_history',
   );
+  // The dead month is persisted and not re-evaluated until an operator clears the marker.
+  expect(
+    opened.db
+      .select()
+      .from(planSnapshotGap)
+      .all()
+      .map((g) => g.month),
+  ).toEqual(['2026-09']);
+  opened.db.delete(planSnapshotGap).run();
   for (const table of [
     'account',
     'category',
@@ -118,6 +128,7 @@ it('refuses speculative historical reconstruction, but backfills unchanged dated
   expect(capturePlanSnapshot(opened.db, '2026-09', '2026-10-06').status).toBe(
     'unavailable_history',
   );
+  opened.db.delete(planSnapshotGap).run();
   opened.db
     .update(auditLog)
     .set({ ts: '2026-09-01T00:00:00.000Z' })

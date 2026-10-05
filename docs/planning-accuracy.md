@@ -66,7 +66,9 @@ npx.cmd tsx scripts/plan-snapshot.ts 2026-01 2026-09
 ```
 
 Statuses: `captured`, `exists`, `not_due`, `no_plan`, `unavailable_history`.
-The nightly job applies the same conservative check to past months. No new
+The nightly job applies the same conservative check to the previous two months only; older months need the operator command (docs/ops.md 12.9). A month judged unrecoverable is stored in `plan_snapshot_gap` and not retried. A failing night is attempted at most three times, then reported once to the Posteingang.
+
+Methodology note: the snapshot is taken on the first run after 02:30 Vienna on day 15; bookings entered later that day are excluded, and a month missed on day 15 gets no snapshot (only the conservative backfill can recover it). No new
 secret, consent or dependency is needed. If deployed before 15 October 2026,
 October is the first new observation; two closed months become available in
 December, and the Heute sentence can first appear in January 2027. These dates

@@ -14,4 +14,9 @@ CREATE TABLE `plan_snapshot` (
 );
 --> statement-breakpoint
 CREATE UNIQUE INDEX `plan_snapshot_category_uq` ON `plan_snapshot` (`month`,`day`,`category_id`);--> statement-breakpoint
-CREATE UNIQUE INDEX `plan_snapshot_total_uq` ON `plan_snapshot` (`month`,`day`) WHERE "plan_snapshot"."category_id" IS NULL;
+CREATE UNIQUE INDEX `plan_snapshot_total_uq` ON `plan_snapshot` (`month`,`day`) WHERE "plan_snapshot"."category_id" IS NULL;--> statement-breakpoint
+CREATE TABLE `plan_snapshot_gap` (
+	`month` text PRIMARY KEY NOT NULL,
+	`reason` text NOT NULL,
+	`created_at` text DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')) NOT NULL
+);

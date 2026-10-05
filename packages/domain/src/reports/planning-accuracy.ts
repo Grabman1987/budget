@@ -22,12 +22,12 @@ export function forecastAccuracySummary(
   return {
     count: comparable.length,
     hits: comparable.filter((r) => r.hit).length,
+    // Integer bp per row, one integer division at the end (half up): order independent.
     meanAbsoluteBp: comparable.length
-      ? Math.round(
-          comparable.reduce(
-            (sum, r) => sum + Math.abs((r.deviationCents * 10_000) / r.actualCents),
-            0,
-          ) / comparable.length,
+      ? Math.floor(
+          (2 * comparable.reduce((sum, r) => sum + Math.abs(r.deviationBp!), 0) +
+            comparable.length) /
+            (2 * comparable.length),
         )
       : null,
   };

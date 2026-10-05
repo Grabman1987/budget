@@ -29,3 +29,10 @@ export const planSnapshot = sqliteTable(
       .where(sql`${t.categoryId} IS NULL`),
   ],
 );
+
+/** Months whose day-15 inputs are provably unrecoverable; never retried by the nightly backfill. */
+export const planSnapshotGap = sqliteTable('plan_snapshot_gap', {
+  month: text('month').primaryKey(),
+  reason: text('reason').notNull(),
+  createdAt: text('created_at').notNull().default(nowSql),
+});

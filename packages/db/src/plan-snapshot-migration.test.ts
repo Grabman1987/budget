@@ -4,7 +4,7 @@ import { join } from 'node:path';
 import { expect, it } from 'vitest';
 import { defaultMigrationsFolder, migrateDatabase, openDatabase } from './client';
 
-it('adds only the observation table to the predecessor, preserving the existing synthetic plan', () => {
+it('adds only the observation and gap tables to the predecessor, preserving the existing synthetic plan', () => {
   const source = defaultMigrationsFolder();
   const folder = mkdtempSync(join(tmpdir(), 'budget-snapshot-migration-'));
   const opened = openDatabase(':memory:');
@@ -30,7 +30,7 @@ it('adds only the observation table to the predecessor, preserving the existing 
     expect(
       opened.sqlite
         .prepare(
-          "SELECT name FROM sqlite_master WHERE type='table' AND name <> 'plan_snapshot' ORDER BY name",
+          "SELECT name FROM sqlite_master WHERE type='table' AND name NOT IN ('plan_snapshot','plan_snapshot_gap') ORDER BY name",
         )
         .all(),
     ).toEqual(oldTables);

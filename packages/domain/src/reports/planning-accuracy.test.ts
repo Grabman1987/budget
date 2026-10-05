@@ -48,3 +48,13 @@ it('counts four of six hits with a 3.8% mean; a missing month is never a hit', (
     meanAbsoluteBp: 416,
   });
 });
+
+it('accumulates integer basis points per row so the mean is order independent', () => {
+  const rows = [
+    { month: '2026-03', projectedCents: 4, actualCents: 3 },
+    { month: '2026-04', projectedCents: 4, actualCents: 3 },
+    { month: '2026-05', projectedCents: 13_334, actualCents: 10_000 },
+  ];
+  for (const order of [rows, [...rows].reverse(), [rows[2]!, rows[0]!, rows[1]!]])
+    expect(forecastAccuracySummary(order, '2026-09').meanAbsoluteBp).toBe(3333);
+});

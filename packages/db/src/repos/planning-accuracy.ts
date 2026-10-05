@@ -7,7 +7,8 @@ import {
   monthOf,
   todayInVienna,
 } from '@budget/domain';
-import { and, eq, getTableName, inArray, isNull } from 'drizzle-orm';
+import { and, eq, getTableColumns, getTableName, inArray, isNull, ne, sql } from 'drizzle-orm';
+import type { SQLiteColumn } from 'drizzle-orm/sqlite-core';
 import {
   account,
   auditLog,
@@ -23,6 +24,7 @@ import {
   incomeType,
   payee,
   planSnapshot,
+  planSnapshotGap,
 } from '../schema';
 import { insertTracked } from './audit';
 import { occurrencesBetween, paceOfMonth } from './heute';
@@ -31,6 +33,7 @@ import { runInTransaction, type Executor } from './types';
 
 // Conservative backfill: there is no complete historical version of all Pace inputs. Refuse a
 // reconstruction if any input (including removed rows or restored timestamps) changed later.
+// Only one aggregate query per table and column; no row is loaded.
 const sources = [
   account,
   category,
@@ -49,26 +52,39 @@ function unchangedSince(db: Executor, day: string) {
   // FX observations have no complete edit history; never invent an old converted contract.
   if (
     db
-      .select()
+      .select({ one: sql<number>`1` })
       .from(expectedPaymentVersion)
-      .all()
-      .some((v) => v.currency !== 'EUR')
+      .where(ne(expectedPaymentVersion.currency, 'EUR'))
+      .limit(1)
+      .get()
   )
     return false;
+  let latest = '';
+  const note = (v: unknown) => {
+    if (typeof v === 'string' && v > latest) latest = v;
+  };
   for (const table of sources) {
-    for (const row of db.select().from(table).all()) {
-      for (const field of ['createdAt', 'updatedAt', 'deletedAt'] as const) {
-        const value = (row as unknown as Record<string, unknown>)[field];
-        if (typeof value === 'string' && todayInVienna(new Date(value)) > day) return false;
-      }
+    const cols = getTableColumns(table) as Record<string, SQLiteColumn>;
+    for (const field of ['createdAt', 'updatedAt', 'deletedAt']) {
+      const col = cols[field];
+      if (col)
+        note(
+          db
+            .select({ v: sql<string | null>`max(${col})` })
+            .from(table)
+            .get()?.v,
+        );
     }
   }
-  return !db
-    .select()
-    .from(auditLog)
-    .where(inArray(auditLog.entityType, sources.map(getTableName)))
-    .all()
-    .some((r) => todayInVienna(new Date(r.ts)) > day);
+  note(
+    db
+      .select({ v: sql<string | null>`max(${auditLog.ts})` })
+      .from(auditLog)
+      .where(inArray(auditLog.entityType, sources.map(getTableName)))
+      .get()?.v,
+  );
+  // Vienna day is monotonic in time, so the newest timestamp decides for all rows.
+  return !latest || todayInVienna(new Date(latest)) <= day;
 }
 
 function pace(db: Executor, facts: RuleFacts, month: string, day: string, categoryId?: string) {
@@ -102,8 +118,15 @@ export function capturePlanSnapshot(db: Executor, month: string, today: string) 
         .get()
     )
       return { status: 'exists' as const };
-    if (today !== day && !unchangedSince(tx, day))
+    if (tx.select().from(planSnapshotGap).where(eq(planSnapshotGap.month, month)).get())
       return { status: 'unavailable_history' as const };
+    if (today !== day && !unchangedSince(tx, day)) {
+      tx.insert(planSnapshotGap)
+        .values({ month, reason: 'inputs changed after day 15' })
+        .onConflictDoNothing()
+        .run();
+      return { status: 'unavailable_history' as const };
+    }
     const facts = loadFacts(tx, lastDayOfMonth(month));
     const total = pace(tx, facts, month, day);
     if (!total.forecastAvailable) return { status: 'no_plan' as const };
