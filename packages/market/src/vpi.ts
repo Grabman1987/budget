@@ -1,13 +1,13 @@
-import { parseMicro } from '@budget/domain';
+import { COICOP_CLASSES, parseMicro } from '@budget/domain';
 import { parseCsv } from './csv';
 import { MarketError } from './errors';
 import { getText, type HttpOptions } from './http';
 import type { CpiSource, MonthlyIndex } from './types';
 
 /**
- * Statistik Austria open data (OGD, licence CC BY 4.0), consumer price index (VPI), total index:
- * - `OGD_vpi20_VPI_2020_1` "Verbraucherpreisindex Basis 2020, ECOICOP": January 2021 to December
- *   2025, 2020 average = 100;
+ * Statistik Austria open data (OGD, licence CC BY 4.0), consumer price index (VPI), total and selected sub-indices:
+ * - `OGD_vpi20c18_VPI_2020COICOP18_1`: COICOP 2018 backcast from January 2021,
+ *   2020 average = 100; the previous division-only dataset remains parseable for fixtures.
  * - `OGD_vpi25c18_VPI_2025COICOP18_1` "Verbraucherpreisindex Basis 2025": from January 2026,
  *   2025 average = 100.
  * The files hold the total index and its sub-indices per month (`VPIZR-YYYYMM`) and per year
@@ -16,13 +16,13 @@ import type { CpiSource, MonthlyIndex } from './types';
  *
  * Chaining: the new index has the 2025 average as its base period (= 100), so a month of the new
  * base becomes a month of the old base by the factor "annual average 2025 on the old base / 100"
- * (the year row of the old file, 128,2 / 100). Statistik Austria publishes no separate factor in
+ * (each class uses its own year row). Statistik Austria publishes no separate factor in
  * the open data; the annual average of the base year is the standard link between two index
  * bases. Months that exist in both files keep the old value. The result is one series on the old
  * base (2020 = 100) that runs through the newest month of the new file; values have one decimal
  * in the source, so a chained month is accurate to about 0,1 index points.
  */
-export const VPI_OLD_DATASET = 'OGD_vpi20_VPI_2020_1';
+export const VPI_OLD_DATASET = 'OGD_vpi20c18_VPI_2020COICOP18_1';
 export const VPI_NEW_DATASET = 'OGD_vpi25c18_VPI_2025COICOP18_1';
 /** Year whose average is 100 on the new base and the link between the two bases. */
 export const VPI_NEW_BASE_YEAR = 2025;
@@ -48,8 +48,8 @@ const LAYOUTS = [
   { column: 'C-VPICOICOP18_5-0', total: 'VPICOICOP18-0' },
 ] as const;
 
-/** Monthly and annual total index of one OGD CSV (`;` separated) as micro-units, ascending. */
-export function parseVpiDataset(text: string): VpiDataset {
+/** Monthly and annual selected index of one OGD CSV (`;` separated) as micro-units, ascending. */
+export function parseVpiDataset(text: string, code = '0'): VpiDataset {
   const rows = parseCsv(text, ';');
   if (rows.length === 0) return { months: [], annual: [] };
   const first = rows[0] as Record<string, string>;
@@ -59,7 +59,7 @@ export function parseVpiDataset(text: string): VpiDataset {
   const months = new Map<string, number>();
   const annual = new Map<number, number>();
   for (const row of rows) {
-    if (row[layout.column] !== layout.total) continue;
+    if (row[layout.column] !== layout.total.slice(0, -1) + code) continue;
     const period = row['C-VPIZR-0'] ?? '';
     const value = row['F-VPIMZBM'] ?? '';
     const month = /^VPIZR-(\d{4})(\d{2})$/.exec(period);
@@ -121,20 +121,27 @@ export function chainVpi(
  * it. A missing new file (404) leaves the old series alone; any other failure fails the run.
  */
 export function vpiSource(options: VpiOptions): CpiSource {
+  const monthlySeries = async () => {
+    const older = await getText(options.oldUrl ?? VPI_OLD_URL, options, 'text/csv');
+    if (!parseVpiDataset(older).months.length) throw new MarketError('empty');
+    let newer = '';
+    try {
+      newer = await getText(options.newUrl ?? VPI_NEW_URL, options, 'text/csv');
+    } catch (error) {
+      if (!(error instanceof MarketError) || error.kind !== 'not_found') throw error;
+    }
+    return Object.fromEntries(
+      [{ code: 'total', sourceCode: '0' }, ...COICOP_CLASSES].map((c) => [
+        c.code === 'total' ? VPI_SERIES : `${VPI_SERIES}:${c.code}`,
+        chainVpi(parseVpiDataset(older, c.sourceCode), parseVpiDataset(newer, c.sourceCode)),
+      ]),
+    );
+  };
   return {
     series: VPI_SERIES,
+    monthlySeries,
     async monthly() {
-      const older = parseVpiDataset(
-        await getText(options.oldUrl ?? VPI_OLD_URL, options, 'text/csv'),
-      );
-      if (older.months.length === 0) throw new MarketError('empty');
-      let newer: VpiDataset = { months: [], annual: [] };
-      try {
-        newer = parseVpiDataset(await getText(options.newUrl ?? VPI_NEW_URL, options, 'text/csv'));
-      } catch (error) {
-        if (!(error instanceof MarketError) || error.kind !== 'not_found') throw error;
-      }
-      return chainVpi(older, newer);
+      return (await monthlySeries())[VPI_SERIES]!;
     },
   };
 }
