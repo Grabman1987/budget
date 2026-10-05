@@ -420,6 +420,19 @@
   bottom: -4px;
   border-left: 1.5px solid var(--ink);
 }
+.plan .pbar:has(.pbar-tick) {
+  margin-top: 22px;
+}
+.plan .pbar-tick span {
+  position: absolute;
+  bottom: 100%;
+  right: 3px;
+  font-family: var(--font-tech);
+  font-size: 10px;
+  font-style: normal;
+  line-height: 1.2;
+  color: var(--ink);
+}
 .plan .pbar-goal {
   position: absolute;
   top: -4px;
