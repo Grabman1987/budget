@@ -57,6 +57,8 @@ test.describe('Heute month switch', () => {
 
   test('arrows, keys and the way back to the current month share ?monat=', async ({ page }) => {
     test.slow();
+    // Pace lives in the "Mehr zum Monat" fold, closed on the phone by default (UX-2).
+    await page.addInitScript(() => localStorage.setItem('budget-heute-more-phone', '1'));
     await page.goto('/');
     await expect(page.getByRole('heading', { name: 'September 2026', exact: true })).toBeVisible();
     // The current month needs no way back and no note about anchored figures.
@@ -276,14 +278,14 @@ mainTest(
       await page.goto(`/plan/monat?monat=${selected}`);
       const targetRow = page.locator('tr.prow', { hasText: targetName });
       await expect(targetRow.locator('.col-avail')).toHaveText('−50,00 €');
-      await page.getByLabel(`Aus Envelope für ${targetName}`).selectOption(source.id);
+      // The compact row control opens the envelope panel (UX-2 replaced the triage table rows).
+      await page.getByRole('button', { name: `${targetName} decken`, exact: true }).click();
+      const coverPanel = page.getByRole('dialog', { name: targetName });
+      await coverPanel.getByLabel('Aus', { exact: true }).selectOption(source.id);
       const covered = page.waitForResponse(
         (r) => r.request().method() === 'POST' && r.url().endsWith(`/api/budget/${selected}/cover`),
       );
-      await page
-        .locator('.triage tr', { hasText: targetName })
-        .getByRole('button', { name: 'Decken', exact: true })
-        .click();
+      await coverPanel.getByRole('button', { name: 'Decken · 50,00 €', exact: true }).click();
       expect((await covered).ok()).toBe(true);
       await expect(targetRow.locator('.col-avail')).toHaveText('0,00 €');
       await page.locator('.toast.is-open').getByRole('button', { name: 'Rückgängig' }).click();

@@ -739,6 +739,9 @@
   }
   .plan .ptable .col-avail {
     grid-column: 4;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
   }
   .plan .prow .rev-tri {
     display: block;
@@ -1459,7 +1462,8 @@
   padding-block: 8px;
 }
 .cover-all-controls select {
-  width: auto;
+  /* Keep .select's 100% (compressible): width:auto sized the page to the longest option. */
+  min-width: 0;
   max-width: 100%;
   flex: 1 1 220px;
 }
