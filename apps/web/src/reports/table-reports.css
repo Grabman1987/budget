@@ -326,3 +326,35 @@
     padding: 7px 6px;
   }
 }
+
+.table-cell-open {
+  font: inherit;
+  color: inherit;
+  background: transparent;
+  border: 0;
+  min-height: 44px;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.income-expense-report .rscroll {
+  scroll-padding-inline-start: 190px;
+}
+.income-expense-report .rg-first {
+  width: 190px;
+  min-width: 190px;
+  max-width: 190px;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+@media (max-width: 600px) {
+  .income-expense-report .rscroll {
+    scroll-padding-inline-start: 150px;
+  }
+  .income-expense-report .rg-first {
+    width: 150px;
+    min-width: 150px;
+    max-width: 150px;
+  }
+}

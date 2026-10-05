@@ -9,3 +9,7 @@ export { planIncomeTargets } from './repos/income-targets';
 export { planMonthViews } from './repos/plan-months';
 
 export * from './repos/portfolio-benchmarks';
+
+export { incomeExpenseReport } from './repos/report-tables';
+
+export { goalsReport } from './repos/goals';

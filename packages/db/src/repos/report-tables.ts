@@ -1,5 +1,6 @@
 import {
   addMonths,
+  incomeExpenseMonths,
   ageOfMoney,
   defaultParams,
   lastDayOfMonth,
@@ -304,5 +305,25 @@ export function reportTables(
     payees,
     targets,
     netWorth,
+  };
+}
+
+/** 1.10: actual non-transfer ledger activity, never envelope allocations. */
+export function incomeExpenseReport(db: Executor, today: string) {
+  const tables = reportTables(db, { today });
+  const ledger = overviewData(db, { excludeTransfers: true });
+  const splits = ledger.splits.filter((s) => s.date <= today);
+  const incomeTypes = [
+    ...tables.incomeTypes,
+    { id: 'unclassified', name: 'Ohne Einnahmenart', role: 'income' as const },
+  ];
+  return {
+    ...tables,
+    incomeTypes,
+    months: incomeExpenseMonths(
+      { ...ledger, splits },
+      tables.months.map((m) => m.month),
+    ),
+    splits,
   };
 }

@@ -39,7 +39,10 @@ const groupOf = (typeId: string | null): IncomeGroup =>
  *   without a category;
  * - the app's own payees (opening balance, balance corrections) are left out.
  */
-export function overviewData(db: Executor): OverviewData {
+export function overviewData(
+  db: Executor,
+  options: { excludeTransfers?: boolean } = {},
+): OverviewData {
   assertEurBudgetAccounts(db);
   const onBudget = new Map(
     db
@@ -116,6 +119,7 @@ export function overviewData(db: Executor): OverviewData {
     if (onBudget.get(r.accountId) !== true || r.payeeSystem !== null || r.date < r.openingDate)
       continue;
     const transferId = r.splitTransferId ?? r.bookingTransferId;
+    if (options.excludeTransfers && (transferId !== null || r.contactId !== null)) continue;
     const partner =
       transferId === null
         ? null
