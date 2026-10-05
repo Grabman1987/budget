@@ -116,6 +116,12 @@ function renderEnvelope(row: PlanRow, tba: number, onClose = vi.fn(), month = '2
 }
 
 describe('Envelope panel: Decken from Zu verteilen', () => {
+  it('uses an input dialog, with a visible close action, instead of a desktop side panel', () => {
+    renderEnvelope(envelope(), 10_000);
+    const dialog = screen.getByRole('dialog', { name: 'Lebensmittel' });
+    expect(dialog.classList.contains('modal')).toBe(true);
+    expect(within(dialog).getByRole('button', { name: 'Schließen' })).toBeTruthy();
+  });
   it.each(['2025-12', '2026-09', '2027-01'])(
     'covers the selected month %s without a current-month gate',
     async (month) => {
