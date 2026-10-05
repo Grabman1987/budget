@@ -104,3 +104,22 @@ describe('allocationReport (report 4.2)', () => {
     }
   });
 });
+
+it('shows 100% positive classified layers without negative cash or unknown positions; starts in the budget month', () => {
+  opened.sqlite.exec(`UPDATE account SET opening_date='2026-01-01' WHERE on_budget=1;
+    UPDATE account SET opening_balance_cents=-200000 WHERE id='depot-a';`);
+  const report = allocationReport(opened.db, { today: REPORT_TODAY });
+  expect(report.history!.dates[0]).toBe('2026-01-01');
+  expect(report.compositionClasses.reduce((sum, c) => sum + c.shareBp, 0)).toBe(10000);
+  expect(report.compositionClasses.every((c) => c.shareBp >= 0 && c.shareBp <= 10000)).toBe(true);
+  expect(report.separatePositions).toContainEqual({
+    name: 'Depot A',
+    valueCents: -200000,
+    reason: 'Negative Position',
+  });
+  expect(
+    report.classifiedCents + report.separatePositions.reduce((sum, p) => sum + p.valueCents, 0),
+  ).toBe(report.totalCents);
+  for (let i = 0; i < report.history!.dates.length; i++)
+    expect(report.history!.classes.reduce((sum, c) => sum + c.chartBp[i]!, 0)).toBe(10000);
+});

@@ -1,3 +1,4 @@
+import { BENCHMARKS } from '@budget/db';
 import {
   cpiFetchedAt,
   foreignCurrencies,
@@ -23,6 +24,7 @@ import {
   type MarketErrorKind,
   type MarketSources,
   type QuoteSource,
+  type DailyQuote,
   type QuoteSourceId,
   type SecurityRef,
 } from '@budget/market';
@@ -130,7 +132,21 @@ export async function refreshPrices(
   for (const row of trackedSecurities(db)) {
     result.tracked++;
     const last = lastQuotedDay(db, row.id);
-    const from = last ? addDays(last, 1) : addDays(today, -BACKFILL_DAYS);
+    const benchmark = BENCHMARKS.some((b) => b.id === row.id);
+    const firstAccountDay = benchmark
+      ? db
+          .select({ date: schema.account.openingDate })
+          .from(schema.account)
+          .all()
+          .map((a) => a.date)
+          .filter((date) => date <= today)
+          .sort()[0]
+      : undefined;
+    const from = last
+      ? addDays(last, 1)
+      : benchmark && firstAccountDay
+        ? addDays(firstAccountDay, -3)
+        : addDays(today, -BACKFILL_DAYS);
     if (from > today) {
       result.upToDate++;
       continue;
@@ -143,7 +159,14 @@ export async function refreshPrices(
     let gotNothing = false;
     for (const source of attempts) {
       try {
-        const quotes = await source.history(ref, from, today);
+        const quotes: DailyQuote[] = [];
+        // Bound each history call while covering the full benchmark window on first refresh.
+        for (let start = from; start <= today;) {
+          const end = benchmark ? addDays(start, FX_CHUNK_DAYS - 1) : today;
+          quotes.push(...(await source.history(ref, start, end < today ? end : today)));
+          if (end >= today) break;
+          start = addDays(end, 1);
+        }
         if (quotes.length === 0) {
           gotNothing = true;
           continue;

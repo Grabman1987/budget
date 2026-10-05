@@ -8,4 +8,5 @@ export * from './schema';
 export { planIncomeTargets } from './repos/income-targets';
 export { planMonthViews } from './repos/plan-months';
 
+export * from './repos/portfolio-benchmarks';
 export * from './repos/account-preview';

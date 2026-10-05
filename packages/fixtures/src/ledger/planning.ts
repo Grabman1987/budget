@@ -277,7 +277,7 @@ export function buildPlanning(): Planning {
     ['R04', 'Pay yourself first', 'am Gehaltstag gefüllt', 'Zukunft zuerst', 'oooooooooooo'],
     ['R05', 'Sinking Funds', '6 von 6 gedeckt', 'alle bei Fälligkeit', 'oooowooooooo'],
     ['R06', 'Kreditkarte', 'Saldo gedeckt', 'immer gedeckt', 'oooooooooooo'],
-    ['R07', 'Dispo', 'Tiefpunkt 612 €', '≥ 0 € in 90 Tagen', 'oooooooooooo'],
+    ['R07', 'Dispo', 'Tiefpunkt 612 €', '≥ 0 € in 35 Tagen', 'oooooooooooo'],
     ['R08', 'Schuldenquote', '10,8 %', '≤ 30 %', 'oooooooooooo'],
     ['R09', 'Tilgungsreihenfolge', 'Sondertilgung aktiv', 'Zins > 5 %: tilgen', 'wwwwwwwwoooo'],
     ['R10', 'Fixkostenquote', '37,7 %', '≤ 55 %', 'oooooooooooo'],

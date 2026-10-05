@@ -785,6 +785,9 @@ describe('invest CRUD', () => {
     ).toEqual({ date: '2026-09-10', valueCents: 0, investedCents: -2_000 });
     expect(res.body['portfolio'].contributionHistory.months[0]).toMatchObject({
       from: '2026-09-01',
+      startValueCents: 10_000,
+      inflowsCents: 0,
+      outflowsCents: -12_000,
       contributionsCents: -12_000,
       gainCents: 2_000,
       valueCents: 0,

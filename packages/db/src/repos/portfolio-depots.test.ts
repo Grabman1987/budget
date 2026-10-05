@@ -84,3 +84,29 @@ describe('depotComparison (report 4.1)', () => {
     }
   });
 });
+
+it('includes manual P2P and other investment accounts; hides closed empty depots only in inactive periods', () => {
+  opened.sqlite.exec(`
+    INSERT INTO account (id,name,type,role,on_budget,opening_date,opening_balance_cents,closed_at) VALUES
+      ('p2p','Anlage A','p2p','investment',0,'2025-12-31',10000,NULL),
+      ('other','Anlage B','other_asset','investment',0,'2025-12-31',20000,NULL),
+      ('closed','Geschlossen','brokerage','investment',0,'2025-12-31',0,'2026-02-01');
+    INSERT INTO valuation (id,account_id,date,value_cents) VALUES ('v0','p2p','2025-12-31',10000),('v1','p2p','2026-09-01',12500);
+    INSERT INTO booking (id,account_id,date,amount_cents,currency,status) VALUES ('pflow','p2p','2026-09-05',1000,'EUR','confirmed');
+    INSERT INTO booking_split (id,booking_id,amount_cents) VALUES ('pflow-split','pflow',1000);
+    INSERT INTO trade (id,security_id,account_id,date,kind,units_e8,amount_cents) VALUES ('closed-buy','etf','closed','2026-01-01','buy',100000000,10000),('closed-sell','etf','closed','2026-01-02','sell',-100000000,10000);
+  `);
+  const report = depotComparison(opened.db, { today: REPORT_TODAY, period: '1M' });
+  expect(report.depots.find((d) => d.accountId === 'closed')).toBeUndefined();
+  expect(report.depots.find((d) => d.accountId === 'p2p')).toMatchObject({
+    valueCents: 12500,
+    performance: { startValueCents: 10000, contributionsCents: 1000, gainCents: 1500 },
+  });
+  expect(report.depots.find((d) => d.accountId === 'other')?.valueCents).toBe(20000);
+  expect(report.depots.reduce((sum, d) => sum + d.valueCents, 0)).toBe(report.total!.valueCents);
+  expect(
+    depotComparison(opened.db, { today: REPORT_TODAY, period: 'Alles' }).depots.some(
+      (d) => d.accountId === 'closed',
+    ),
+  ).toBe(true);
+});

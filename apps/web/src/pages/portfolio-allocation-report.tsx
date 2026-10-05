@@ -33,8 +33,8 @@ const allocationQuery = queryOptions({
 });
 
 /** Ink families of the blueprint: solid ink, 60 % ink, 38 % ink, outlined tint (never red or green). */
-const INKS = ['pk-1', 'pk-2', 'pk-3', 'pk-4'] as const;
-const inkOf = (index: number) => INKS[Math.min(index, INKS.length - 1)] as (typeof INKS)[number];
+const INKS = ['pk-1', 'pk-2', 'pk-3', 'pk-4', 'pk-5', 'pk-6', 'pk-7', 'pk-8'] as const;
+const inkOf = (index: number) => INKS[index % INKS.length] as (typeof INKS)[number];
 
 export function PortfolioAllocationReport({
   report,
@@ -84,7 +84,7 @@ export function PortfolioAllocationReport({
 
 function AllocationBody({ data }: { data: AllocationReport }) {
   useAmountPrivacy();
-  const unassigned = data.regions.find((r) => r.region === null);
+  const unassigned = data.compositionRegions.find((r) => r.region === null);
   return (
     <>
       <section className="prep-card" aria-labelledby="alloc-title">
@@ -92,23 +92,18 @@ function AllocationBody({ data }: { data: AllocationReport }) {
           <h2 id="alloc-title">Woraus das Portfolio besteht</h2>
           <DecisionLink />
         </div>
-        {data.classes.some((c) => c.products.some((p) => p.valueCents < 0)) ? (
-          <p className="vnote">
-            Negative Anlage-Cash-Werte sind in den Tabellen enthalten. Ein Sonnendiagramm lässt sich
-            damit nicht darstellen.
-          </p>
-        ) : (
+        {data.classifiedCents > 0 && (
           <div className="sb-pair">
             <figure className="sb-fig">
               <Sunburst
                 date={data.asOf}
                 testId="sunburst-classes"
                 title="Klassen"
-                totalCents={data.totalCents}
-                label={`Sonnendiagramm: innen Anlageklasse, außen Produkt. ${data.classes
+                totalCents={data.classifiedCents}
+                label={`Sonnendiagramm: innen Anlageklasse, außen Produkt. ${data.compositionClasses
                   .map((c) => `${c.name} ${bpText(c.shareBp)}`)
                   .join(', ')}.`}
-                groups={data.classes.map((c, i) => ({
+                groups={data.compositionClasses.map((c, i) => ({
                   name: c.name,
                   ink: inkOf(i),
                   valueCents: c.valueCents,
@@ -124,11 +119,11 @@ function AllocationBody({ data }: { data: AllocationReport }) {
                 date={data.asOf}
                 testId="sunburst-regions"
                 title="Regionen"
-                totalCents={data.totalCents}
-                label={`Sonnendiagramm: innen Region, außen Produkt. ${data.regions
+                totalCents={data.classifiedCents}
+                label={`Sonnendiagramm: innen Region, außen Produkt. ${data.compositionRegions
                   .map((r) => `${r.region ?? 'Ohne Regionsangabe'} ${bpText(r.shareBp)}`)
                   .join(', ')}.`}
-                groups={data.regions.map((r, i) => ({
+                groups={data.compositionRegions.map((r, i) => ({
                   name: r.region ?? 'Ohne Angabe',
                   ink: inkOf(i),
                   valueCents: r.valueCents,
@@ -144,7 +139,7 @@ function AllocationBody({ data }: { data: AllocationReport }) {
             </figure>
           </div>
         )}
-        <ClassTable classes={data.classes} totalCents={data.totalCents} />
+        <ClassTable classes={data.compositionClasses} totalCents={data.classifiedCents} />
         <RegionTable data={data} />
       </section>
       <section className="prep-card" aria-labelledby="alloc-soll-title">
@@ -152,11 +147,48 @@ function AllocationBody({ data }: { data: AllocationReport }) {
           <h2 id="alloc-soll-title">Soll und Ist über die Zeit</h2>
         </div>
         {data.history ? (
-          <SollIstChart history={data.history} order={data.classes.map((c) => c.assetClassId)} />
+          <SollIstChart
+            history={data.history}
+            order={data.compositionClasses.map((c) => c.assetClassId)}
+          />
         ) : (
           <p className="prep-empty" role="status">
             Für den Verlauf liegt keine bewertbare Historie vor.
           </p>
+        )}
+        <p className="vnote">
+          100 % = positiver klassifizierter Marktwert ({eur(data.classifiedCents)}). Cash,
+          unklassifizierte und negative Positionen bilden keine Schicht. R13 verwendet weiterhin das
+          gesamte Anlageuniversum einschließlich signiertem Cash.
+        </p>
+        {data.separatePositions.length > 0 && (
+          <div
+            className="prep-scroll"
+            role="region"
+            aria-label="Separate Positionen"
+            // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- Keyboard scrolling for wide money/name columns.
+            tabIndex={0}
+          >
+            <table className="prep-table" data-testid="allocation-separate">
+              <caption>Positionen außerhalb der Schichten</caption>
+              <thead>
+                <tr>
+                  <th>Position</th>
+                  <th>Einordnung</th>
+                  <th className="n">Wert</th>
+                </tr>
+              </thead>
+              <tbody>
+                {data.separatePositions.map((p, i) => (
+                  <tr key={i}>
+                    <td>{p.name}</td>
+                    <td>{p.reason}</td>
+                    <td className="n">{eur(p.valueCents)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
         <p className="vnote" role="status">
           {data.quality.confidence === 'provisional'
@@ -169,7 +201,7 @@ function AllocationBody({ data }: { data: AllocationReport }) {
           · {data.quality.unclassifiedProductCount} Produkte / Cash-Positionen ·{' '}
           {data.quality.unclassifiedShareBp === null
             ? 'Anteil nicht verfügbar'
-            : bpText(data.quality.unclassifiedShareBp)}
+            : 'in separaten Positionen'}
           .
         </p>
         <SollTable data={data} />
@@ -370,7 +402,11 @@ function ClassTable({ classes, totalCents }: { classes: AllocationClass[]; total
             {c.products.map((p) => (
               <tr key={p.securityId}>
                 <td className="indent">
-                  <ProductLink id={p.securityId}>{p.name}</ProductLink>
+                  {p.securityId.startsWith('cash:') ? (
+                    p.name
+                  ) : (
+                    <ProductLink id={p.securityId}>{p.name}</ProductLink>
+                  )}
                 </td>
                 <td className="prep-muted">{p.depots.join(', ')}</td>
                 <td className="n">{eur(p.valueCents)}</td>
@@ -382,12 +418,12 @@ function ClassTable({ classes, totalCents }: { classes: AllocationClass[]; total
         ))}
         <tfoot>
           <tr className="is-total">
-            <td>Portfolio</td>
+            <td>Klassifizierter Marktwert</td>
             <td />
             <td className="n" data-testid="alloc-total">
               {eur(totalCents)}
             </td>
-            <td className="n">100,0 %</td>
+            <td className="n">{totalCents > 0 ? '100,0 %' : '–'}</td>
             <td />
           </tr>
         </tfoot>
@@ -417,7 +453,7 @@ function RegionTable({ data }: { data: AllocationReport }) {
           </tr>
         </thead>
         <tbody>
-          {data.regions.map((r) => (
+          {data.compositionRegions.map((r) => (
             <tr key={r.region ?? 'none'}>
               <td>{r.region ?? 'Ohne Regionsangabe'}</td>
               <td className="n">{eur(r.valueCents)}</td>
@@ -448,7 +484,8 @@ function SollTable({ data }: { data: AllocationReport }) {
             <tr>
               <th className="tech">Klasse</th>
               <th className="tech n">Soll</th>
-              <th className="tech n">Ist</th>
+              <th className="tech n">Ist · Schichten</th>
+              <th className="tech n">Ist · R13</th>
               <th className="tech n">Abweichung</th>
               <th className="tech">Regel</th>
             </tr>
@@ -459,8 +496,16 @@ function SollTable({ data }: { data: AllocationReport }) {
                 <td>{c.name}</td>
                 <td className="n">{c.targetBp === null ? '–' : bpText(c.targetBp)}</td>
                 <td className="n">
-                  <strong>{bpText(c.shareBp)}</strong>
+                  <strong>
+                    {data.compositionClasses.find((r) => r.assetClassId === c.assetClassId)
+                      ? bpText(
+                          data.compositionClasses.find((r) => r.assetClassId === c.assetClassId)!
+                            .shareBp,
+                        )
+                      : '–'}
+                  </strong>
                 </td>
+                <td className="n">{c.valueCents < 0 ? eur(c.valueCents) : bpText(c.shareBp)}</td>
                 <td className={`n${c.breach && c.confidence === 'exact' ? ' prep-bad' : ''}`}>
                   {c.deviationBp === null ? '–' : `${bpText(c.deviationBp, { sign: true })}`}
                 </td>
@@ -510,7 +555,7 @@ function SollIstChart({
   useAmountPrivacy();
   const [ref, width] = useElementWidth<HTMLDivElement>();
   // Days before the first value have no shares.
-  const first = history.totalCents.findIndex((v) => v > 0);
+  const first = history.classifiedCents.findIndex((v) => v > 0);
   if (first < 0) return null;
   const dates = history.dates.slice(first);
   // Same order and ink as the class table above.
@@ -518,12 +563,14 @@ function SollIstChart({
     const i = order.indexOf(id);
     return i < 0 ? order.length : i;
   };
-  const classes = [...history.classes]
+  const classes = history.classes
+    .filter((c) => c.assetClassId !== null)
     .sort((a, b) => rank(a.assetClassId) - rank(b.assetClassId))
     .map((c) => ({
       ...c,
-      istBp: c.istBp.slice(first),
+      istBp: c.chartBp.slice(first),
       targetBp: c.targetBp.slice(first),
+      bandBp: c.bandBp.slice(first),
       breach: c.breach.slice(first),
     }));
   const height = 280;
@@ -550,7 +597,7 @@ function SollIstChart({
   });
 
   // Soll limits: the running sum of the targets, drawn only where every class below has a Soll.
-  const limits = classes.slice(0, -1).map((_, ci) => {
+  const limits = classes.map((_, ci) => {
     const segments: string[] = [];
     let current: string[] = [];
     dates.forEach((date, i) => {
@@ -566,7 +613,26 @@ function SollIstChart({
     if (current.length) segments.push(current.join(' '));
     return segments;
   });
-  const hasSoll = limits.some((s) => s.length > 0);
+  const bands = classes.map((c, ci) =>
+    dates.flatMap((date, i) => {
+      const parts = classes.slice(0, ci + 1).map((r) => r.targetBp[i]);
+      if (parts.some((p) => p == null) || c.bandBp[i] == null) return [];
+      const sum = parts.reduce<number>((a, p) => a + p!, 0),
+        band = c.bandBp[i]!;
+      const x0 = x(date),
+        x1 = x(dates[i + 1] ?? date);
+      return [
+        {
+          x: x0,
+          y: y(Math.min(10000, sum + band)),
+          width: Math.max(1, x1 - x0),
+          height: y(Math.max(0, sum - band)) - y(Math.min(10000, sum + band)),
+          ink: inkOf(ci),
+        },
+      ];
+    }),
+  );
+  const hasSoll = bands.some((s) => s.length > 0);
   const step = Math.ceil(dates.length / (width < 420 ? 2 : width < 640 ? 3 : 6));
   const tickIndexes = [
     ...Array.from({ length: Math.ceil((dates.length - 1) / step) }, (_, k) => k * step).filter(
@@ -616,6 +682,13 @@ function SollIstChart({
               <title>{`${a.name}: zuletzt ${bpText(a.end)}`}</title>
             </path>
           ))}
+          {bands.flat().map((b, i) => (
+            <rect
+              key={`band-${i}`}
+              {...{ x: b.x, y: b.y, width: b.width, height: b.height }}
+              className={`alloc-band ${b.ink}`}
+            />
+          ))}
           {limits.flat().map((d, i) => (
             <path key={i} d={d} className="l-plan alloc-limit" />
           ))}
@@ -644,7 +717,9 @@ function SollIstChart({
         ))}
       </ul>
       {hasSoll && (
-        <LineLegend items={[{ kind: 'plan', label: 'Soll-Grenzen (Summe der Sollanteile)' }]} />
+        <LineLegend
+          items={[{ kind: 'plan', label: 'Soll-Grenzen mit Band (Summe der Sollanteile)' }]}
+        />
       )}
       {!hasSoll && (
         <p className="vnote" role="status">

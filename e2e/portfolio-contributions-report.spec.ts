@@ -86,6 +86,11 @@ sampleTest(
       portfolio.performance.from.split('-').reverse().join('.'),
     );
     await expect(page.locator('.contributions-years tbody tr')).toHaveCount(4);
+    await expect(
+      page.getByRole('table', {
+        name: 'Je Monat im Zeitraum',
+      }),
+    ).toBeVisible();
 
     const switched = page.waitForResponse((candidate) => {
       const url = new URL(candidate.url());
@@ -133,6 +138,9 @@ sampleTest(
               to: '2026-09-17',
               valueCents: 0,
               investedCents: 0,
+              startValueCents: 25_000,
+              inflowsCents: 0,
+              outflowsCents: -25_000,
               contributionsCents: -25_000,
               gainCents: 0,
             },
@@ -161,7 +169,7 @@ sampleTest(
     await expect(page.getByRole('group', { name: 'Maßkette Einzahlungen und Wert' })).toContainText(
       '−Nettozuflüsse / Entnahmen250 €',
     );
-    await expect(page.getByText(/Sparplänen oder R12-Sonderzahlungen/)).toBeVisible();
+    await expect(page.getByText(/Keine Sparplan-/)).toBeVisible();
     await page.unroute('**/api/portfolio?*');
 
     await page.route('**/api/portfolio?*', async (route) =>
@@ -230,6 +238,9 @@ sampleTest(
                   to: '2026-09-17',
                   valueCents: Number.MAX_SAFE_INTEGER,
                   investedCents: Number.MAX_SAFE_INTEGER,
+                  startValueCents: Number.MAX_SAFE_INTEGER,
+                  inflowsCents: 0,
+                  outflowsCents: 0,
                   contributionsCents: 0,
                   gainCents: 0,
                 },
@@ -277,6 +288,9 @@ sampleTest(
                   to: '2026-09-17',
                   valueCents: 0,
                   investedCents: -1_007_199_254_740_950,
+                  startValueCents: 8_000_000_000_000_000,
+                  inflowsCents: 0,
+                  outflowsCents: -9_007_199_254_740_950,
                   contributionsCents: -9_007_199_254_740_950,
                   gainCents: 1_007_199_254_740_950,
                 },
@@ -324,6 +338,9 @@ sampleTest(
                   to: '2026-09-17',
                   valueCents: 9_007_199_254_740_900,
                   investedCents: 9_007_199_254_740_898,
+                  startValueCents: 9_007_199_254_740_949,
+                  inflowsCents: 0,
+                  outflowsCents: -51,
                   contributionsCents: -51,
                   gainCents: 2,
                 },

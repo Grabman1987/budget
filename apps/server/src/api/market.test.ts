@@ -78,7 +78,7 @@ describe('POST /api/market/refresh', () => {
     expect(res.status).toBe(200);
     // 2026-03-30 (Mon), 03-31 (Tue)
     expect(res.body['prices'].bySource).toEqual({
-      yfinance: { securities: 1, rows: 2 },
+      yfinance: { securities: 5, rows: 270 },
       ariva: { securities: 0, rows: 0 },
       cryptocalc: { securities: 0, rows: 0 },
       coingecko: { securities: 0, rows: 0 },
@@ -87,7 +87,7 @@ describe('POST /api/market/refresh', () => {
     expect(res.body['prices'].failed).toEqual([]);
     // Nothing new on the second call.
     const again = await call('POST', '/market/refresh');
-    expect(again.body['prices']).toMatchObject({ tracked: 1, upToDate: 1 });
+    expect(again.body['prices']).toMatchObject({ tracked: 5, upToDate: 5 });
     expect(again.body['fx']).toMatchObject({ currencies: 1, upToDate: 1 });
   });
 });
@@ -155,7 +155,13 @@ describe('PUT /api/securities/:id/prices/:date', () => {
         source: 'manual',
       },
     ]);
-    expect(db.select().from(schema.priceAudit).all()).toMatchObject([
+    expect(
+      db
+        .select()
+        .from(schema.priceAudit)
+        .all()
+        .filter((row) => row.securityId === 's1'),
+    ).toMatchObject([
       {
         date: '2026-03-30',
         oldPriceMicro: 81_500_000,

@@ -647,3 +647,26 @@
     padding-bottom: calc(88px + env(safe-area-inset-bottom, 0px));
   }
 }
+
+.forecast-step-labels {
+  list-style: none;
+  margin: 12px 0 0;
+  padding: 0;
+}
+.forecast-step-labels li {
+  display: flex;
+  gap: 12px;
+  padding: 4px 0;
+  font-size: 12px;
+}
+.forecast-step-labels span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.forecast-step-labels strong {
+  margin-inline-start: auto;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}

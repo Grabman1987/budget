@@ -195,7 +195,12 @@ describe('GET /heute', () => {
     expect(res.body.lead.items.open).toHaveLength(1);
     expect(res.body.balance.actual.at(-1)).toEqual({ day: TODAY, balanceCents: 188_000 });
     expect(res.body.balance.salary).toEqual({ day: '2026-03-31', cents: 300_000 });
-    expect(res.body.balance.forecast[0]).toEqual({ day: TODAY, balanceCents: 188_000 });
+    expect(res.body.balance.forecast[0]).toEqual({
+      day: TODAY,
+      balanceCents: 188_000,
+      items: [],
+      variableCents: 0,
+    });
     expect(res.body.balance.low.cents).toBeLessThan(188_000);
     expect(res.body.pace.figures).toMatchObject({ spentCents: 12_000, limitCents: 130_000 });
     expect(res.body.pinned).toEqual([
@@ -219,7 +224,7 @@ describe('GET /heute', () => {
     const res = await call('GET', '/heute?period=payday');
     expect(res.body.stand).toMatchObject({ period: 'payday', from: TODAY, to: '2026-04-15' });
     expect(res.body.balance.actual).toHaveLength(1);
-    expect(res.body.balance.forecast).toHaveLength(91);
+    expect(res.body.balance.forecast).toHaveLength(36);
   });
 
   it('month shows another month; bad parameters are 400', async () => {
@@ -282,7 +287,7 @@ it('uses the R07 projection and configured horizon in the balance chart', async 
   expect(response.body.balance.low.cents).toBe(evaluated?.detail['lowCents']);
   expect(response.body.balance.low.day).toBe(evaluated?.detail['lowDay']);
   const last = response.body.balance.forecast.at(-1);
-  expect(last.day).toBe('2026-06-16');
+  expect(last.day).toBe('2026-04-22');
 });
 
 it('excludes early paid rent from the variable rate and hides the forecast', async () => {

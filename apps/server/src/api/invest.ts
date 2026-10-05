@@ -1,3 +1,4 @@
+import { benchmarkSelection, setBenchmarkSelection, BENCHMARKS } from '@budget/db';
 import { checkedReportPeriod, reportPeriodSchema } from './report-period';
 import {
   assetExposureOfSecurityAsOf,
@@ -602,6 +603,20 @@ const depotsQuery = z.object({
 export function portfolioRoutes(db: Db, today: () => string): Hono {
   const app = new Hono();
   app.get('/positions', (c) => c.json(portfolioPositions(db, today())));
+  app.get('/benchmarks', (c) => c.json(benchmarkSelection(db)));
+  app.patch('/benchmarks', async (c) => {
+    const { ids } = await readBody(
+      c,
+      z.strictObject({
+        ids: z
+          .array(z.enum(BENCHMARKS.map((b) => b.id)))
+          .max(4)
+          .refine((ids) => new Set(ids).size === ids.length),
+      }),
+    );
+    const ctx = { actor: ACTOR, groupId: randomUUID() };
+    return c.json({ ...setBenchmarkSelection(db, ids, ctx), groupId: ctx.groupId });
+  });
   app.get('/benchmark', (c) => c.json(portfolioBenchmark(db)));
   app.patch('/benchmark', async (c) => {
     const { securityId } = await readBody(c, z.strictObject({ securityId: id.nullable() }));

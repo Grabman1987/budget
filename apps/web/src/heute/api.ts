@@ -51,7 +51,12 @@ export interface Heute extends WithValuationNotes {
   };
   balance: {
     actual: Array<{ day: string; balanceCents: number }>;
-    forecast: Array<{ day: string; balanceCents: number }>;
+    forecast: Array<{
+      day: string;
+      balanceCents: number;
+      variableCents: number;
+      items: { cents: number; label?: string }[];
+    }>;
     salary: { day: string; cents: number } | null;
     low: { day: string; index: number; cents: number } | null;
   };

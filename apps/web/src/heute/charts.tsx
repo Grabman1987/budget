@@ -1,3 +1,4 @@
+import { forecastStepLabels } from './forecast-labels';
 import { chartPoints } from '../charts/tooltip-data';
 import {
   useAmountPrivacy,
@@ -68,6 +69,7 @@ function BalanceDrawing({
   useAmountPrivacy();
   const [figureRef, figureWidth] = useElementWidth<HTMLButtonElement>();
   const narrow = width < 640;
+  const labels = forecastStepLabels(data.balance.forecast);
   const height = narrow ? 232 : 330;
   const top = narrow ? 104 : 140;
   const bottom = height - (narrow ? 26 : 30);
@@ -112,11 +114,6 @@ function BalanceDrawing({
   const x0 = todayInRange ? xScale(data.stand.today) : left;
   const x1 = paydayInRange ? xScale(data.stand.payday.day) : right;
   const center = (x0 + x1) / 2;
-  const annotationCollision =
-    low !== null && Math.abs(y(low.cents) - (narrow ? 40 : 48) - 6 - (top + 14)) < 22;
-  const salaryAtStart = annotationCollision && low !== null && xScale(low.day) >= width / 2;
-  const salaryLabelY =
-    annotationCollision && low !== null ? y(low.cents) - (narrow ? 40 : 48) - 6 + 28 : top + 14;
   return (
     <div className="heute-balance-drawing">
       <button
@@ -158,7 +155,29 @@ function BalanceDrawing({
                 .map((day) => forecast.find((d) => d.day === day)?.balanceCents),
             },
           ],
-        )}
+        ).map((p) => {
+          const day = forecast.find((d) => d.day === p.date);
+          return {
+            ...p,
+            series: [
+              ...p.series,
+              ...(day?.items ?? []).map((i) => ({
+                name: i.label ?? 'Geplante Zahlung',
+                value: eur(i.cents, { sign: true }),
+                color: i.cents < 0 ? 'var(--red)' : 'var(--line)',
+              })),
+              ...(day && day.variableCents > 0
+                ? [
+                    {
+                      name: 'Variable Ausgaben',
+                      value: eur(-day.variableCents, { sign: true }),
+                      color: 'var(--ink-3)',
+                    },
+                  ]
+                : []),
+            ],
+          };
+        })}
       >
         <Graticule x1={left} x2={right} lines={ticks} />
         <AxisLine x1={left} x2={right} y={y(0)} />
@@ -166,7 +185,7 @@ function BalanceDrawing({
           <TodayLine x={xScale(data.stand.today)} y1={dimY + 6} y2={bottom} />
         )}
         {actualPoints.length > 1 && <StepLine points={actualPoints} kind="actual" />}
-        {forecastPoints.length > 1 && <Line points={forecastPoints} kind="forecast" />}
+        {forecastPoints.length > 1 && <StepLine points={forecastPoints} kind="forecast" />}
         {low && (
           <ElevationMark
             x={xScale(low.day)}
@@ -185,14 +204,6 @@ function BalanceDrawing({
               y2={bottom}
               className="heute-salary-mark"
             />
-            <text
-              x={salaryAtStart ? left + 8 : Math.min(width - 6, xScale(salary.day) - 8)}
-              y={salaryLabelY}
-              textAnchor={salaryAtStart ? 'start' : 'end'}
-              className="svg-label-line heute-salary-label"
-            >
-              Gehalt +{eur(salary.cents)}
-            </text>
           </g>
         )}
         {actualPoints.at(-1) && todayInRange && (
@@ -219,6 +230,30 @@ function BalanceDrawing({
             {narrow ? '' : ` · ${shortDay(data.stand.payday.day)}`}
           </text>
         </g>
+        {[...new Set(labels.map((l) => l.day))].map((day) => {
+          const point = forecast.find((d) => d.day === day)!;
+          const numbers = labels.flatMap((l, i) => (l.day === day ? [i + 1] : [])).join(',');
+          return (
+            <g key={day}>
+              <rect
+                x={xScale(day) - numbers.length * 4 - 3}
+                y={y(point.balanceCents) - 9}
+                width={numbers.length * 8 + 6}
+                height={18}
+                fill="var(--surface)"
+                stroke="var(--line)"
+              />
+              <text
+                x={xScale(day)}
+                y={y(point.balanceCents) + 4}
+                textAnchor="middle"
+                className="svg-label"
+              >
+                {numbers}
+              </text>
+            </g>
+          );
+        })}
         {xTickDays.map((tick) => (
           <text
             key={tick.label + tick.x}
@@ -231,6 +266,18 @@ function BalanceDrawing({
           </text>
         ))}
       </ChartSvg>
+      {labels.length > 0 && (
+        <ol className="forecast-step-labels" aria-label="Größte geplante Zahlungen">
+          {labels.map((item, i) => (
+            <li key={`${item.day}-${i}`} data-testid="forecast-step-label">
+              <span>
+                {i + 1}. {shortDay(item.day)} · {item.label}
+              </span>
+              <strong>{eur(item.cents, { sign: true })}</strong>
+            </li>
+          ))}
+        </ol>
+      )}
     </div>
   );
 }

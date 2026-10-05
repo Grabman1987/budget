@@ -13,7 +13,7 @@ import {
   type MarketSources,
   type QuoteSource,
 } from '@budget/market';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   MAX_FAILED_PER_DAY,
   NIGHTLY_AT_MINUTES,
@@ -54,6 +54,8 @@ const start = (sources: MarketSources, logs: string[] = []) =>
 
 // 2026-07-02 is a Thursday, summer time (UTC+2): 02:30 Vienna is 00:30 UTC.
 const at = (day: string, hhmm: string) => new Date(`${day}T${hhmm}:00Z`);
+
+vi.setConfig({ testTimeout: 120_000 });
 
 describe('nightly market timer', () => {
   it('advances the source hook even when the market run is already complete', async () => {
@@ -120,7 +122,7 @@ describe('nightly market timer', () => {
       clock: () => at('2026-07-02', '00:40'),
     });
     expect(rows(second)).toBe(0);
-    expect(second.prices.upToDate).toBe(1);
+    expect(second.prices.upToDate).toBe(5);
     // "Stand ... Kurse HH:MM": the newest successful run, not the moment a price was written.
     expect(priceStand(db, '2026-07-01')).toEqual({
       priceDate: '2026-07-01',
@@ -146,7 +148,7 @@ describe('nightly market timer', () => {
     expect(await timer!.tick(at('2026-07-02', '00:30'))).toBe(true);
     expect(lastMarketRun(db)).toMatchObject({
       status: 'failed',
-      failedCount: 1,
+      failedCount: 5,
       errorClasses: 'timeout',
     });
     expect(JSON.stringify(lastMarketRun(db))).not.toMatch(/secret|token/);

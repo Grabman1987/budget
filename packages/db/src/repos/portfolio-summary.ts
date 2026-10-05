@@ -1,3 +1,4 @@
+import { portfolioBenchmarks, type PortfolioBenchmarkSeries } from './portfolio-benchmarks';
 import { allocationInputsAsOf } from './allocation-inputs';
 import { resolvePortfolioRiskPolicy } from './portfolio-risk-policy';
 import { exposuresAsOf, splitAssetExposure, singleAssetClass } from './asset-exposure';
@@ -144,6 +145,7 @@ export interface PortfolioSummary {
   /** Optional securities-only contribution report, derived from the same daily series and flows. */
   contributionHistory?: ContributionHistory | null;
   performanceHistory?: PortfolioPerformanceHistory | null;
+  benchmarks: PortfolioBenchmarkSeries[];
   benchmark: { securityId: string; name: string } | null;
   /** TER on month ends plus the fees of 12 months, over the current value. */
   costs: {
@@ -184,6 +186,9 @@ export interface ContributionHistory {
     to: string;
     valueCents: number;
     investedCents: number;
+    startValueCents: number;
+    inflowsCents: number;
+    outflowsCents: number;
     contributionsCents: number;
     gainCents: number;
   }>;
@@ -758,6 +763,7 @@ export function portfolioSummary(db: Executor, options: PortfolioOptions): Portf
   let performance: WindowPerformance | null = null;
   let performanceHistory: PortfolioPerformanceHistory | null = null;
   let benchmark: PortfolioSummary['benchmark'] = null;
+  let benchmarks: PortfolioBenchmarkSeries[] = [];
   const monthEndValues = new Map<string, number[]>();
   let contributionHistory: ContributionHistory | null | undefined =
     options.includeContributionHistory ? null : undefined;
@@ -802,6 +808,7 @@ export function portfolioSummary(db: Executor, options: PortfolioOptions): Portf
       today,
     );
 
+    benchmarks = portfolioBenchmarks(db, { series: valuations, flows }, performance);
     if (options.includePerformanceHistory) {
       const selected = portfolioBenchmark(db);
       const rows =
@@ -907,6 +914,13 @@ export function portfolioSummary(db: Executor, options: PortfolioOptions): Portf
             to,
             valueCents: segment.endValueCents,
             investedCents: selectedPerformance.startValueCents + cumulativeFlow,
+            startValueCents: segment.startValueCents,
+            inflowsCents: flows
+              .filter((f) => f.date > from && f.date <= to && f.cents > 0)
+              .reduce((sum, f) => sum + f.cents, 0),
+            outflowsCents: flows
+              .filter((f) => f.date > from && f.date <= to && f.cents < 0)
+              .reduce((sum, f) => sum + f.cents, 0),
             contributionsCents: segment.contributionsCents,
             gainCents: segment.gainCents,
           };
@@ -1054,6 +1068,7 @@ export function portfolioSummary(db: Executor, options: PortfolioOptions): Portf
       ? { contributionHistory: contributionHistory ?? null }
       : {}),
     benchmark,
+    benchmarks,
     costs,
     income,
     ...risk,
