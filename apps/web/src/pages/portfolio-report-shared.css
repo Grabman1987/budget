@@ -97,6 +97,7 @@
   vertical-align: top;
 }
 .prep-table .n {
+  width: 1%;
   text-align: right;
   white-space: nowrap;
 }

@@ -1,5 +1,12 @@
 # Roadmap
 
+### Full page width — owner feedback 2026-10-05
+
+- [x] Shared unbounded page-width token, existing gutters and narrow text/form/dialog/A4 exceptions.
+- [x] Responsive Heute, account overview, wealth and catalog grids; Allocation charts beside source tables; compact numeric columns.
+- [x] Owner decision in DESIGN.md and one width/viewport E2E spec; [scope and baseline list](full-width-1005.md).
+- [ ] Local browser matrix, full local checks, Linux baseline review and owner acceptance (see PR evidence).
+
 - [x] Owner feedback 04.10.2026: report 5.6 Gesamtübersicht, income-scale 50/30/20 overflow, One-Pager panel swap/income list and shared pace income, bounded valuation notes and dated headers; owner acceptance and CI remain open.
 
 - [x] Owner feedback 04.10.2026: reports 4.1–4.4, four stored benchmarks, positive allocation layers, daily/monthly reconciliation and shared Heute/R07 35-day horizon; see [scope and owner steps](portfolio-reports-1004.md).

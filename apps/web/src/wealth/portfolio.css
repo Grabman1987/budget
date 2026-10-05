@@ -55,6 +55,7 @@
   font-size: 12.5px;
 }
 .portfolio-table .num {
+  width: 1%;
   text-align: right;
   white-space: nowrap;
 }

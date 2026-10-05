@@ -67,7 +67,7 @@
 
 /* Index list: one bordered block per group, hairlines between the rows. */
 .settings-nav-index {
-  max-width: 560px;
+  max-width: var(--page-max);
   gap: 28px;
 }
 .settings-nav-index ul {

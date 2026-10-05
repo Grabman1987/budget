@@ -268,7 +268,9 @@ Eine einzige Tuschfamilie in Blau auf glattem Grund, mit genau einer Fremdtinte:
 
 ## Layout
 
-Das Blatt ist ein 12-Spalten-Raster mit 32 px Spaltenabstand, maximal 1240 px breit, Innenrand 28 / 40 / 72 px, Abschnittsabstand 44 px. Desktop: Seitenleiste 236 px (eingeklappt 72 px), klebende Kopfleiste 64 px mit Suche (max. 460 px), Posteingang und Buchung.
+**Owner-Entscheidung 05.10.2026 „Volle Breite“:** Seiten nutzen die ganze Bildschirmbreite neben der Seitenleiste; nur Fließtext, Formulare, Dialoge und Druckseiten behalten eine eigene Breite.
+
+Das Blatt ist ein 12-Spalten-Raster mit 32 px Spaltenabstand ohne maximale Seitenbreite (`--page-max: none`), Innenrand 28 / 40 / 72 px, Abschnittsabstand 44 px. Desktop: Seitenleiste 236 px (eingeklappt 72 px), klebende Kopfleiste 64 px mit Suche (max. 460 px), Posteingang und Buchung. Kartenraster gewinnen über `auto-fit/minmax` Spalten; ab etwa 1440 px stehen Diagramme und ihre Tabellen nebeneinander. Fließtext bleibt höchstens 72 ch breit, SVG-Beschriftungen behalten ihre Pixelgröße und Diagrammhöhen bleiben begrenzt. One-Pager und Jahresreport behalten ihre A4-Blätter.
 
 Reihenfolge auf „Heute“: Schriftfeld über die volle Breite, darunter das Leitmaß über die volle Breite (Diagramm 330 px hoch, Erklärtext links oben überlagert, max. 34 %), dann Pace (7 Spalten) neben Revisionstabelle (5 Spalten), dann Detailausschnitte in drei Spalten (Nettovermögen über zwei).
 

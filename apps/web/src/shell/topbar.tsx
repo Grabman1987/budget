@@ -7,7 +7,7 @@ import { PrivacyButton } from './privacy-button';
 
 /**
  * Desktop top bar. The bar spans the window, its content (`.topbar-inner`) is as wide as the page
- * column (`--sheet-max`) and uses the same side padding, so search and actions form one row above
+ * column (`--page-max`) and uses the same side padding, so search and actions form one row above
  * the content instead of sitting at the window edge.
  *
  * Contents: collapse toggle, search (Ctrl K), privacy eye, Posteingang with counter, "+ Buchung".
