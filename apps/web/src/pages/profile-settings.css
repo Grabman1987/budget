@@ -5,7 +5,7 @@
   max-width: 640px;
 }
 .profile-purpose {
-  max-width: 640px;
+  max-width: 72ch;
   color: var(--ink-2);
 }
 .profile-grid {

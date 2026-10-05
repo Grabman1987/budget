@@ -504,14 +504,20 @@ export function unassignPlan(rows: PlanRow[], amount: number): Array<[string, nu
   return plan;
 }
 
-/** Default source to cover an overspent envelope: a stage-2 Wunsch with enough money first. */
+/** Only sources that can cover the full row; largest available first. */
+export function coverSources(rows: PlanRow[], target: PlanRow): PlanRow[] {
+  return rows
+    .filter(
+      (r) =>
+        r.id !== target.id &&
+        !isCard(r) &&
+        r.availableCents >= target.overspentCents &&
+        r.availableCents > 0,
+    )
+    .sort((a, b) => b.availableCents - a.availableCents);
+}
 export function coverSource(rows: PlanRow[], target: PlanRow): PlanRow | undefined {
-  const amount = target.overspentCents;
-  const pool = rows.filter((r) => r.id !== target.id && !isCard(r) && r.availableCents > 0);
-  const enough = pool.filter((r) => r.availableCents >= amount);
-  const rank = (r: PlanRow) => (r.stage === 2 ? 0 : 1) + (r.cls === 'want' ? 0 : 0.5);
-  enough.sort((a, b) => rank(a) - rank(b) || b.availableCents - a.availableCents);
-  return enough[0] ?? [...pool].sort((a, b) => b.availableCents - a.availableCents)[0];
+  return coverSources(rows, target)[0];
 }
 
 export interface Bar {

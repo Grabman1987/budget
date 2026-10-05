@@ -259,9 +259,7 @@ test.describe('desktop shell', () => {
     expect(Math.round((await items.first().boundingBox())?.height ?? 0)).toBe(42);
   });
 
-  test('top bar content ends where the page column ends, not at the window edge', async ({
-    page,
-  }) => {
+  test('top bar content ends where the page column ends (the page gutter)', async ({ page }) => {
     await page.setViewportSize({ width: 2000, height: 900 });
     await page.goto('/');
     await expect(page.locator('main')).toBeVisible();
@@ -272,7 +270,7 @@ test.describe('desktop shell', () => {
     const search = await page.locator('.search').boundingBox();
     expect(sheet && topbar && actions && primary && search).toBeTruthy();
     if (!sheet || !topbar || !actions || !primary || !search) return;
-    // The bar still spans the window (background, hairline); its content does not.
+    // The bar spans the window (background, hairline); its content spans the page column.
     expect(Math.round(topbar.width)).toBe(2000 - 236);
     // Same right edge as the content column (sheet padding 40 px), same row for search and actions.
     expect(Math.round(primary.x + primary.width)).toBe(Math.round(sheet.x + sheet.width - 40));
@@ -280,8 +278,8 @@ test.describe('desktop shell', () => {
       Math.round(primary.y + primary.height / 2),
     );
     expect(search.x + search.width).toBeLessThan(actions.x);
-    // The actions are no longer lost at the window edge.
-    expect(2000 - (primary.x + primary.width)).toBeGreaterThan(400);
+    // Full page width: the actions end at the page gutter (40 px), not far from the window edge.
+    expect(Math.round(2000 - (primary.x + primary.width))).toBe(40);
   });
 
   test('sidebar collapses to 72 px and the state is remembered', async ({ page }) => {

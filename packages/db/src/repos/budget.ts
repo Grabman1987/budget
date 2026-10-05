@@ -1,5 +1,6 @@
 import {
   cents,
+  coverPlan,
   formatEuro,
   summarizeMonth,
   unclassifiedMonth,
@@ -188,4 +189,72 @@ export function budgetSummary(
     },
     tree,
   };
+}
+
+/** All covers reuse moveMoney in one transaction/audit group; never create a source overdraft. */
+export function coverAllOverspending(
+  db: Executor,
+  month: string,
+  fromId: string | null | undefined,
+  ctx: AuditContext,
+) {
+  const grouped = withGroup(ctx);
+  return runInTransaction(db, (tx) => {
+    const { summary, tree } = budgetSummary(tx, month);
+    const groupOrder = new Map(tree.groups.map((g, i) => [g.id, i]));
+    const envelopes = new Map(summary.envelopes.map((e) => [e.categoryId, e]));
+    const categories = tree.categories
+      .filter((c) => c.kind !== 'income')
+      .sort(
+        (a, b) =>
+          (a.stage ?? 10) - (b.stage ?? 10) ||
+          (groupOrder.get(a.groupId) ?? 0) - (groupOrder.get(b.groupId) ?? 0) ||
+          a.sortOrder - b.sortOrder,
+      );
+    if (fromId) {
+      requireEnvelope(tx, fromId);
+      if (!categories.some((c) => c.id === fromId && c.kind !== 'card_payment'))
+        throw new CategoryRuleError('Diese Kategorie ist keine Deckungsquelle.');
+    }
+    const targets = categories.flatMap((c) => {
+      const e = envelopes.get(c.id);
+      return e && e.overspentCents > 0 ? [{ id: c.id, overspentCents: e.overspentCents }] : [];
+    });
+    let moved = false;
+    for (const target of targets) {
+      // Covering card spending also funds its payment envelope. Read that effect before the
+      // next target, so a later card-payment deficit is never covered twice.
+      const current = budgetSummary(tx, month).summary;
+      const balances = new Map(current.envelopes.map((e) => [e.categoryId, e]));
+      const pool = categories
+        .filter((c) => c.kind !== 'card_payment')
+        .map((c) => ({ id: c.id, availableCents: balances.get(c.id)?.availableCents ?? 0 }));
+      const free = { id: null, availableCents: current.toBeAssignedCents };
+      const sources =
+        fromId === undefined
+          ? [...pool, free]
+          : fromId === null
+            ? [free]
+            : pool.filter((s) => s.id === fromId);
+      const { moves } = coverPlan(
+        [{ id: target.id, overspentCents: balances.get(target.id)?.overspentCents ?? 0 }],
+        sources,
+      );
+      for (const move of moves) {
+        moveMoney(tx, month, move.fromId, move.toId, move.amountCents, grouped);
+        moved = true;
+      }
+    }
+    if (!moved) throw new CategoryRuleError('Kein verfügbares Geld zum Decken.');
+    const final = new Map(
+      budgetSummary(tx, month).summary.envelopes.map((e) => [e.categoryId, e.overspentCents]),
+    );
+    const open = targets.filter((t) => (final.get(t.id) ?? 0) > 0);
+    return {
+      groupId: grouped.groupId,
+      coveredCount: targets.length - open.length,
+      openCount: open.length,
+      missingCents: open.reduce((sum, t) => sum + (final.get(t.id) ?? 0), 0),
+    };
+  });
 }

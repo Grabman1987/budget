@@ -5,6 +5,7 @@ import {
   barFor,
   coverFromToBeAssigned,
   coverSource,
+  coverSources,
   dueDate,
   expectedDues,
   groupStatus,
@@ -128,7 +129,7 @@ describe('Plan › Monat view model', () => {
     });
   });
 
-  it('suggests top-down, takes back bottom-up, and covers from a Wunsch envelope', () => {
+  it('suggests top-down, takes back bottom-up, and covers from the largest sufficient envelope', () => {
     expect(suggestions(rows, 95_000)).toEqual({ miete: 89_000, essen: 6_000 });
     expect(unassignPlan(rows, 42_000)).toEqual([
       ['etf', 40_000],
@@ -140,7 +141,7 @@ describe('Plan › Monat view model', () => {
         essenRich,
         essenRich.find((r) => r.id === 'treibstoff')!,
       )?.id,
-    ).toBe('cafe');
+    ).toBe('essen');
   });
 
   it('words the pace bar: spent, over pace, overspent, due, new card debt', () => {
@@ -356,4 +357,14 @@ describe('Plan › Monat view model', () => {
     expect(groupStatus(monthCells(groups[0]!.rows, 1)).assigned).toBe(25_000);
     expect(planMulti([])).toEqual([]);
   });
+});
+
+it('never suggests a short or card-payment source, and advances after depletion', () => {
+  const rows = planRows(data);
+  const target = rows.find((r) => r.id === 'treibstoff')!;
+  expect(coverSources(rows, target).map((r) => r.id)).toEqual(['essen']);
+  const drained = rows.map((r) => (r.id === 'essen' ? { ...r, availableCents: 1239 } : r));
+  expect(coverSource(drained, target)).toBeUndefined();
+  const replenished = drained.map((r) => (r.id === 'cafe' ? { ...r, availableCents: 1240 } : r));
+  expect(coverSource(replenished, target)?.id).toBe('cafe');
 });

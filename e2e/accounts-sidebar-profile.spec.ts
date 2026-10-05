@@ -28,12 +28,15 @@ sampleTest(
 
     if (isPhone(testInfo)) return;
     await expect(page.locator('.acct-group-title')).toHaveText(GROUPS);
-    // Negative amounts are pills, positive ones plain text.
-    const negative = page.locator('.acct-tree .acct-amount.is-neg');
-    expect(await negative.count()).toBeGreaterThan(0);
-    for (const text of await negative.allTextContents()) expect(text).toMatch(/^[−-]/);
-    for (const text of await page.locator('.acct-tree .acct-amount:not(.is-neg)').allTextContents())
-      expect(text).not.toMatch(/^[−-]/);
+    // Card and loan balances stay ink with their minus (debt is not an alarm); an overdrawn budget or
+    // investment balance is a red pill. Everything else is plain, unsigned text.
+    await expect(page.locator('#acct-tree-cards .is-neg, #acct-tree-loans .is-neg')).toHaveCount(0);
+    for (const text of await page.locator('.acct-tree .acct-amount.is-neg').allTextContents())
+      expect(text).toMatch(/^[−-]/);
+    const plain = page.locator(
+      '#acct-tree-budget .acct-amount:not(.is-neg), #acct-tree-investments .acct-amount:not(.is-neg)',
+    );
+    for (const text of await plain.allTextContents()) expect(text).not.toMatch(/^[−-]/);
   },
 );
 

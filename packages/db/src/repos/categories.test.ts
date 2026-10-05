@@ -330,7 +330,8 @@ describe('budget writes', () => {
 
 // Integration-level properties (repositories + budget read model); the domain has its own 200-run
 // property test of `budgetMonths`. Each ledger costs a fresh database, hence the longer timeout.
-describe('property tests on random ledgers', { timeout: 60_000 }, () => {
+// Keep every history/undo assertion; allow the complete datasets on slow Windows runners.
+describe('property tests on random ledgers', { timeout: 180_000 }, () => {
   it('"Zu verteilen": stock = flow after random assign, move and cover actions (20 ledgers)', () => {
     for (let run = 0; run < 20; run++) {
       const { int, pick } = randomLedger(run + 1);

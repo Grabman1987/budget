@@ -121,7 +121,7 @@ function BalanceDrawing({
         type="button"
         className={`heute-lead-figure${data.lead.freeCents < 0 ? ' is-negative' : ''}`}
         data-testid="heute-lead-value"
-        aria-label={`Frei verfügbar bis Gehalt: ${eur(data.lead.freeCents)}. Maßkette ${chainOpen ? 'ausblenden' : 'zeigen'}`}
+        aria-label={`Frei verfügbar bis Gehalt: ${eur(data.lead.freeCents)}. Herleitung ${chainOpen ? 'ausblenden' : 'zeigen'}`}
         aria-expanded={chainOpen}
         aria-controls="heute-lead-chain"
         onClick={onToggleChain}

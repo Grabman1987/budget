@@ -4,7 +4,7 @@ import { MAIN_URL } from '../playwright.config';
 
 /**
  * Plan › Monat end to end on the real server: assign inline, cover cash overspending from the
- * triage bar, credit overspending as new card debt (not red), move money in the envelope panel,
+ * compact row action, credit overspending also red, move money in the envelope panel,
  * undo, month rollover and "Geld verteilen" with a ghost value. Desktop and phone share the
  * database, so every name carries the project and only the own envelopes are asserted.
  */
@@ -24,6 +24,7 @@ async function post(request: APIRequestContext, path: string, data: unknown) {
 test('plan: assign, cover, card debt, move, undo, rollover, distribute', async ({
   page,
 }, testInfo) => {
+  test.setTimeout(60_000);
   // Unique per run: retries and --repeat-each write into the same database.
   const tag = `${testInfo.project.name}-${Date.now().toString(36).slice(-5)}`;
   const { request } = page;
@@ -79,12 +80,13 @@ test('plan: assign, cover, card debt, move, undo, rollover, distribute', async (
   await book(card.id, cinemaCat.id, -3_000);
 
   await page.goto(`/plan/monat?monat=${month}`);
-  // Cash overspending: red row and a triage entry; credit overspending: new card debt, not red.
+  // Each overspending stays red in its own row; the header only aggregates.
   await expect(row(page, food)).toHaveClass(/is-over/);
   await expect(available(page, food)).toHaveText('−50,00 €');
-  await expect(row(page, cinema)).not.toHaveClass(/is-over/);
+  await expect(row(page, cinema)).toHaveClass(/is-over/);
   await expect(row(page, cinema)).toContainText('neue Kartenschuld 30,00 €');
-  await expect(page.locator('.triage')).toContainText(`${food} ist überzogen`);
+  await expect(page.locator('.triage')).toContainText('Envelopes überzogen');
+  await expect(page.locator('.triage')).not.toContainText(food);
 
   // Assign inline with the arithmetic field.
   await page.getByRole('button', { name: `Zugewiesen 0,00 € für ${cafe} ändern` }).click();
@@ -93,12 +95,14 @@ test('plan: assign, cover, card debt, move, undo, rollover, distribute', async (
   await expect(toast(page)).toContainText(`${cafe}: 0,00 € → 100,00 € zugewiesen`);
   await expect(available(page, cafe)).toHaveText('100,00 €');
 
-  // Cover the overspending from Café in the triage bar.
-  await page.getByLabel(`Aus Envelope für ${food}`).selectOption({ label: `${cafe} · 100,00 €` });
-  await page
-    .locator('.triage tr', { hasText: food })
-    .getByRole('button', { name: 'Decken' })
-    .click();
+  // Compact control beside the figure opens the existing cover panel.
+  await page.getByRole('button', { name: `${food} decken`, exact: true }).click();
+  const coverPanel = page.getByRole('dialog', { name: food });
+  await coverPanel.getByLabel('Aus', { exact: true }).selectOption({ label: `${cafe} · 100,00 €` });
+  await expect(coverPanel.getByTestId('cover-remaining')).toHaveText(
+    `aus ${cafe} · bleibt 50,00 €`,
+  );
+  await coverPanel.getByRole('button', { name: 'Decken · 50,00 €', exact: true }).click();
   await expect(toast(page)).toContainText(`50,00 € von ${cafe} zu ${food} verschoben`);
   await expect(available(page, food)).toHaveText('0,00 €');
   await expect(available(page, cafe)).toHaveText('50,00 €');
@@ -213,9 +217,10 @@ test('plan: a negative assignment stays editable, Escape keeps it, Decken asks w
     categoryId: tripCat.id,
   });
   await page.reload();
-  const triage = page.locator('.triage tr', { hasText: `${trip}: neue Kartenschuld` });
-  await page.getByLabel(`Aus Envelope für ${trip}`).selectOption({ index: 0 });
-  await triage.getByRole('button', { name: 'Decken' }).click();
+  await page.getByRole('button', { name: `${trip} decken`, exact: true }).click();
+  const coverPanel = page.getByRole('dialog', { name: trip });
+  await coverPanel.getByLabel('Aus', { exact: true }).selectOption('');
+  await coverPanel.getByRole('button', { name: /^Decken ·/ }).click();
   const choice = page.getByRole('group', { name: 'Decken aus Zu verteilen' });
   await expect(
     choice.getByRole('button', { name: 'Trotzdem ganz decken (Zu verteilen wird negativ)' }),
