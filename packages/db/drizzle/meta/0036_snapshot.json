@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "c3006299-4a01-49d5-ade4-7e08d8b1e985",
+  "id": "f57a6541-c9bd-46bf-9597-f0be86a9e925",
   "prevId": "d55bd5c6-1348-4f07-8ecc-47b627de6545",
   "tables": {
     "account": {
@@ -530,13 +530,6 @@
           "notNull": true,
           "autoincrement": false,
           "default": "'variable'"
-        },
-        "inflation_trailing_mean": {
-          "name": "inflation_trailing_mean",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
         },
         "stage": {
           "name": "stage",
@@ -1161,7 +1154,7 @@
         },
         "expected_rhythm_chk": {
           "name": "expected_rhythm_chk",
-          "value": "\"expected_payment\".\"rhythm\" IN ('monthly', 'quarterly', 'semiannual', 'yearly')"
+          "value": "\"expected_payment\".\"rhythm\" IN ('weekly', 'monthly', 'quarterly', 'semiannual', 'yearly')"
         },
         "expected_date_shift_chk": {
           "name": "expected_date_shift_chk",

@@ -103,6 +103,7 @@ export interface ContractsOverview {
 
 /** Days of one payment cycle (a month counted as 31), the horizon of a contract that starts soon. */
 const CYCLE_DAYS: Record<Rhythm, number> = {
+  weekly: 7,
   monthly: 31,
   quarterly: 93,
   semiannual: 186,

@@ -10,6 +10,7 @@ import {
   transfer,
   createSecurity,
   createTradesBulk,
+  tradeCashTransferInput,
   deleteBooking,
   holding,
   importPriceChange,
@@ -47,7 +48,7 @@ import {
   type ResolvedMigration,
   type SecurityPlan,
 } from '@budget/import-pp';
-import { addDays, settlementCents } from '@budget/domain';
+import { addDays } from '@budget/domain';
 import { and, asc, eq, gt, inArray, isNotNull, isNull, like, ne, or, sql } from 'drizzle-orm';
 import { deriveCoingeckoId } from '@budget/market';
 import { randomUUID } from 'node:crypto';
@@ -782,20 +783,15 @@ export function writePp(
   for (const t of fresh) {
     const cashId = cashOf.get(t.accountId);
     if (cashId === undefined) continue;
-    const net = settlementCents({
-      kind: t.kind,
-      amountCents: t.amountCents,
-      feeCents: t.feeCents ?? 0,
-      taxCents: t.taxCents ?? 0,
-    });
-    if (net === 0) continue;
+    const cashTransfer = tradeCashTransferInput(t, cashId);
+    if (!cashTransfer) continue;
     // The cash account gets the trade's settlement (a buy leaves it), the securities account the
     // opposite, which cancels the settlement booking there.
     const transferId = randomUUID();
     legTransfers.push({ id: transferId });
     for (const [accountId, cents] of [
-      [cashId, net],
-      [t.accountId, -net],
+      [cashTransfer.fromAccountId, -cashTransfer.amountCents],
+      [cashTransfer.toAccountId, cashTransfer.amountCents],
     ] as const) {
       const id = randomUUID();
       legBookings.push({
@@ -803,10 +799,10 @@ export function writePp(
         accountId,
         date: t.date,
         amountCents: cents,
-        memo: 'Verrechnung',
+        memo: cashTransfer.memo,
         transferId,
         source: 'import',
-        importKey: `${t.importKey}:cash`,
+        importKey: cashTransfer.importKey,
         importRunId: input.runId,
       });
       legSplits.push({

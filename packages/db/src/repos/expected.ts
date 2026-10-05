@@ -359,6 +359,8 @@ export function createExpectedPayment(
       { ...input, name: cleanName(input.name) },
       grouped,
     );
+    if (payment.rhythm === 'weekly' && !payment.startDate)
+      throw new ConflictError('Wöchentliche Zahlungen brauchen ein Startdatum.');
     const first = insertVersion(tx, payment.id, version, grouped);
     replanPayment(tx, payment, today, grouped);
     return { payment, version: first, groupId: grouped.groupId };
@@ -377,6 +379,8 @@ export function updateExpectedPayment(
   return runInTransaction(db, (tx) => {
     const clean = patch.name === undefined ? patch : { ...patch, name: cleanName(patch.name) };
     const payment = updateEntity(tx, expectedPayment, id, clean, grouped);
+    if (payment.rhythm === 'weekly' && !payment.startDate)
+      throw new ConflictError('Wöchentliche Zahlungen brauchen ein Startdatum.');
     replanPayment(tx, payment, today, grouped);
     return { payment, groupId: grouped.groupId };
   });

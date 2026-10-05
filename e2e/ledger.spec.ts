@@ -198,7 +198,7 @@ test('Kontostand prüfen: doppelt, Ausgleich, geprüft sperrt, undo', async ({ p
     await panel.getByLabel('Empfänger').fill(payee);
     await pickCategory(panel, 'Essen');
     // A new booking starts vorgemerkt; only confirmed ones can be checked against the bank.
-    await panel.getByRole('button', { name: 'Bestätigt', exact: true }).click();
+    await panel.getByRole('button', { name: 'bestätigt', exact: true }).click();
     await panel.getByRole('button', { name: 'Speichern', exact: true }).click();
     await expect(page.getByRole('row', { name: new RegExp(payee) }).first()).toBeVisible();
   };
@@ -217,14 +217,16 @@ test('Kontostand prüfen: doppelt, Ausgleich, geprüft sperrt, undo', async ({ p
   await expect(balance(page)).toHaveText('475,00 €');
   await check.getByRole('button', { name: /Festschreiben/ }).click();
   await expect(toast(page)).toContainText('Kontostand geprüft');
-  await expect(page.getByRole('row', { name: new RegExp(`Laden ${tag}`) })).toContainText(
-    'geprüft',
-  );
+  await expect(
+    page
+      .getByRole('row', { name: new RegExp(`Laden ${tag}`) })
+      .getByLabel('geprüft', { exact: true }),
+  ).toBeVisible();
 
-  // A geprüft booking is locked: the amount needs the explicit release.
+  // The amount cell delegates checked bookings to the dialog's explicit release.
   await page
     .getByRole('row', { name: new RegExp(`Laden ${tag}`) })
-    .getByRole('button', { name: /bearbeiten/ })
+    .getByRole('button', { name: /Betrag ändern/ })
     .click();
   const edit = page.getByRole('dialog', { name: 'Buchung bearbeiten' });
   await edit.getByLabel('Betrag', { exact: true }).fill('21');
@@ -242,7 +244,11 @@ test('Kontostand prüfen: doppelt, Ausgleich, geprüft sperrt, undo', async ({ p
   await second.getByRole('button', { name: /Differenz ausgleichen/ }).click();
   await expect(toast(page)).toContainText('Ausgleich');
   await expect(balance(page)).toHaveText('470,00 €');
-  await expect(page.getByRole('row', { name: /Korrektur Kontoprüfung/ })).toContainText('geprüft');
+  await expect(
+    page
+      .getByRole('row', { name: /Korrektur Kontoprüfung/ })
+      .getByLabel('geprüft', { exact: true }),
+  ).toBeVisible();
   await page.getByRole('button', { name: 'Rückgängig' }).click();
   await expect(balance(page)).toHaveText('474,00 €');
   await expect(page.getByRole('row', { name: /Korrektur Kontoprüfung/ })).toHaveCount(0);

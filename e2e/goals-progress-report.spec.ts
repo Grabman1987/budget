@@ -127,9 +127,9 @@ test('literal goal figures agree in bars, source table and keyboard details', as
   );
   await page.keyboard.press('Tab');
   expect(await dialog.evaluate((el) => el.contains(document.activeElement))).toBe(true);
-  // First Escape dismisses the shared value tooltip focused by Tab.
+  // Focus may sit on the goal bar's value inspection: the first Escape hides it, the next closes.
   await page.keyboard.press('Escape');
-  await page.keyboard.press('Escape');
+  if (await dialog.isVisible()) await page.keyboard.press('Escape');
   await expect(dialog).not.toBeVisible();
   await expect(trigger).toBeFocused();
   await page

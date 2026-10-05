@@ -1,3 +1,4 @@
+import type { Rhythm } from '../expected/api';
 import { queryString, request } from '../api/http';
 import type {
   AccountList,
@@ -34,10 +35,15 @@ const filterParams = (filter: BookingFilter) => ({
 export const fetchAccounts = (asOf?: string) =>
   request<AccountList>('GET', `/api/accounts${queryString({ asOf })}`);
 
-export const fetchSeries = (accountId: string, from: string, to: string) =>
-  request<{ accountId: string; points: SeriesPoint[] }>(
+export const fetchSeries = (accountId: string, from: string, to: string, previewDays = 0) =>
+  request<{
+    accountId: string;
+    points: SeriesPoint[];
+    previewPoints?: SeriesPoint[];
+    unavailableCurrencies?: string[];
+  }>(
     'GET',
-    `/api/accounts/${encodeURIComponent(accountId)}/series${queryString({ from, to })}`,
+    `/api/accounts/${encodeURIComponent(accountId)}/series${queryString({ from, to, previewDays })}`,
   );
 
 /** The series of all live accounts in one call (Konten), keyed by account id. */
@@ -133,6 +139,7 @@ export interface SplitInput {
 export type BookingCreate =
   | {
       type: 'booking';
+      repeat?: Rhythm;
       incomeNextMonth?: boolean;
       accountId: string;
       date: string;
@@ -158,6 +165,7 @@ export type BookingCreate =
     };
 
 export interface BookingPatch {
+  repeat?: Rhythm;
   incomeNextMonth?: boolean;
   accountId?: string;
   date?: string;
@@ -179,11 +187,12 @@ export const createBooking = (input: BookingCreate, key?: string) =>
     key ? { 'Idempotency-Key': key } : undefined,
   );
 
-export const patchBooking = (id: string, patch: BookingPatch) =>
+export const patchBooking = (id: string, patch: BookingPatch, key?: string) =>
   request<{ bookings: ListedBooking[] } & WriteResult>(
     'PATCH',
     `/api/bookings/${encodeURIComponent(id)}`,
     patch,
+    key ? { 'Idempotency-Key': key } : undefined,
   );
 
 export const deleteBooking = (id: string, unlock = false) =>

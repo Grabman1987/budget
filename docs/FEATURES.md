@@ -76,8 +76,8 @@ Prototype references: [Heute](../design/prototype/index.html),
 | ID | Function / owner-facing label | Status | What remains for completion |
 | --- | --- | --- | --- |
 | Y01 | Account overview, budget/tracking/investment/debt roles, closed balances | UI + engine | Private balances; foreign-currency detail acceptance remains separate |
-| Y02 | Account register, filters, sorting, booking details and running balances | UI + engine | Full native/EUR currency labelling across tables, charts and reconciliation |
-| Y03 | Income, expenses, arithmetic amount input, payees, categories and notes | UI + engine | Owner phone/desktop usability acceptance with migrated data |
+| Y02 | Account register: inline date/amount, status icons, visible flags; ranged balance chart with pending/recurring preview (0–365 days), limit and crosshair | UI + engine | Full native/EUR currency labelling across tables, charts and reconciliation |
+| Y03 | Income/expenses: cash confirmed by default, booking-month income, no Budgetmonat; Wiederholen creates a schedule atomically | UI + engine | Owner phone/desktop usability acceptance with migrated data |
 | Y04 | Split bookings, account transfers and bulk actions | UI + engine | Private reconciliation; trade/currency invariants have regression coverage |
 | Y05 | Kontostand prüfen and confirmed bookings | UI + engine + bank observation | Bank balance/date/fetch stamp and reconciled-through date; matching current balances can lock through today with audit/undo. Real account acceptance remains open |
 | Y06 | Categories/groups, Bedarf/Wunsch/Zukunft, targets and ordering | UI + engine | Owner-approved target categories and migration mapping |
@@ -85,7 +85,7 @@ Prototype references: [Heute](../design/prototype/index.html),
 | Y08 | Credit-card payment categories and cash advances | Engine/API + budget integration | Real card mapping and payment-balance acceptance in Gate 2 |
 | Y09 | Month planning: waterfall, time, groups, classes and triage | UI + engine | Owner acceptance; preserve nine-stage order and shared calculations |
 | Y10 | Cover overspending, distribute money and preview next allocations | UI + engine | Real payday/month-end routine acceptance; later inspiration features are separate |
-| Y11 | Expected payments: versions, due dates, contracts, matching, missed payments | UI + engine | Live incoming bank bookings and private schedule acceptance |
+| Y11 | Wiederkehrende Zahlungen: weekly/monthly/quarterly/yearly, versions, due dates, contracts, matching, missed payments | UI + engine | Live incoming bank bookings and private schedule acceptance |
 | Y12 | Savings goals and sinking funds, adopt category targets | UI + engine | Private targets and end-to-end goal review |
 | Y13 | Heute: free until payday, pace, low point, upcoming payments, next steps | UI + engine | Shared R07/Heute horizon at most 35 days; five largest payment steps ≥250 EUR labeled, all daily steps in shared tooltip; synthetic desktop/mobile coverage, forecast from day 1 uses actual + open fixed + unspent variable plan, labelled provisional through day 6; extrapolation from day 7; owner device acceptance open |
 | Y14 | Plan › Jahr, planned events and scenario workflow | UI + engine; owner acceptance pending | Twelve envelope reads plus category/month event grid; audited create/edit/switch-off/remove and undo/redo; once/monthly/quarterly/yearly/specific-month rules shared with liquidity report 3.1. Unsaved selected-event scenarios overlay future event deltas on stored Zu verteilen, with monthly and December comparison. No bookings, assignments or extra income extrapolation; owner visual/device acceptance remains open |
@@ -105,11 +105,12 @@ Prototype references: [Heute](../design/prototype/index.html),
 First private migration is EUR-only from 01.10.2023. Unsupported foreign-currency
 budget accounts are guarded; full foreign-currency support remains later scope.
 
-Owner decision 42: capture/edit offers **Für nächsten Monat** per inflow. Category
+Owner feedback 2026-10-04 supersedes decision 42 in capture: no Budgetmonat field; new bookings use their booking month. Stored deferred values and explicit API overrides remain intact.
+
+Historical decision 42: an inflow can carry **Für nächsten Monat**. Category
 and income type stay intact; account balances and cash-flow/income reports keep the
 actual date, while Zu verteilen and budget allocation use the following month.
-Defaults in Einstellungen › Zuordnungsregeln affect new owner captures only and can
-be overridden per booking. Transfers, contact repayments and mixed spending cannot
+Stored defaults remain available for imported assignment; they no longer defer new manual captures automatically. Transfers, contact repayments and mixed spending cannot
 be deferred. Rules/month changes are audited and undoable; private month-end acceptance remains.
 
 ## Investments and wealth: replacing the agreed Portfolio Performance workflows

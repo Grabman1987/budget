@@ -97,7 +97,7 @@ export function ExpectedPage() {
   ];
   const rates = useFxRates(currencies);
 
-  // "Als erwartete Zahlung anlegen" on a booking brings the booking along in the history state.
+  // "Als wiederkehrende Zahlung anlegen" on a booking brings the booking along in the history state.
   const fromBooking = useLocation({ select: (l) => l.state.expectedFrom });
   const navigate = useNavigate();
   const consumed = useRef(false);
@@ -140,13 +140,13 @@ export function ExpectedPage() {
           <span className="xp-spacer" />
           <Button size="sm" variant="ghost" onClick={() => setPanel({ mode: 'create' })}>
             <Plus size={16} strokeWidth={1.75} aria-hidden="true" />
-            Erwartete Zahlung
+            Wiederkehrende Zahlung
           </Button>
         </div>
-        {pending && <LoadingNote what="Erwartete Zahlungen" />}
+        {pending && <LoadingNote what="Wiederkehrende Zahlungen" />}
         {error && (
           <ErrorNote
-            what="Erwartete Zahlungen"
+            what="Wiederkehrende Zahlungen"
             error={error}
             onRetry={() => {
               void payments.refetch();
@@ -234,7 +234,7 @@ function NextDays({
       <EmptyNote
         action={
           <Button size="sm" variant="ghost" onClick={onCreate}>
-            Erwartete Zahlung anlegen
+            Wiederkehrende Zahlung anlegen
           </Button>
         }
       >
@@ -256,7 +256,7 @@ function NextDays({
       />
       <table className="ptable xp-table xp-next">
         <caption className="sr-only">
-          Fällige und erwartete Zahlungen der nächsten 90 Tage, nach Woche
+          Fällige und wiederkehrende Zahlungen der nächsten 90 Tage, nach Woche
         </caption>
         <thead>
           <tr>
@@ -434,16 +434,16 @@ function Contracts({
       <EmptyNote
         action={
           <Button size="sm" variant="ghost" onClick={onCreate}>
-            Erwartete Zahlung anlegen
+            Wiederkehrende Zahlung anlegen
           </Button>
         }
       >
-        Noch keine erwartete Zahlung.
+        Noch keine wiederkehrende Zahlung.
       </EmptyNote>
     );
   const monthly = groups.reduce((a, g) => a + g.monthlyCents, 0);
   const yearly = groups.reduce((a, g) => a + g.yearlyCents, 0);
-  const title = outflowsOnly ? 'Verträge und Abos' : 'Alle erwarteten Zahlungen';
+  const title = outflowsOnly ? 'Verträge und Abos' : 'Alle wiederkehrenden Zahlungen';
   return (
     <section aria-labelledby="xp-contracts">
       <SectionHead

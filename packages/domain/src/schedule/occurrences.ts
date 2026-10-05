@@ -73,7 +73,13 @@ export function occurrences(
   return out;
 }
 
-const PER_YEAR: Record<Rhythm, number> = { monthly: 12, quarterly: 4, semiannual: 2, yearly: 1 };
+const PER_YEAR: Record<Rhythm, number> = {
+  weekly: 52,
+  monthly: 12,
+  quarterly: 4,
+  semiannual: 2,
+  yearly: 1,
+};
 
 /** Yearly equivalent of one payment of `amountCents` (keeps the sign). */
 export const yearlyEquivalent = (rhythm: Rhythm, amountCents: number): number =>

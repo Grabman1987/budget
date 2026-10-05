@@ -319,8 +319,8 @@ function HeuteBody({ data }: { data: Heute }) {
           )}
           <p className="heute-note">
             {data.pace.todayDay < 7
-              ? 'Vorläufig: ausgegeben plus offene fixe und erwartete Zahlungen plus verbleibender variabler Plan. Ab dem 7. Tag werden variable Ausgaben hochgerechnet.'
-              : 'Fixe und erwartete Zahlungen zählen einmal; nur variable Ausgaben werden hochgerechnet.'}
+              ? 'Vorläufig: ausgegeben plus offene fixe und wiederkehrende Zahlungen plus verbleibender variabler Plan. Ab dem 7. Tag werden variable Ausgaben hochgerechnet.'
+              : 'Fixe und wiederkehrende Zahlungen zählen einmal; nur variable Ausgaben werden hochgerechnet.'}
             {!data.pace.figures.forecastAvailable &&
               ' Für eine Prognose braucht es einen positiven Plan.'}
           </p>
@@ -441,7 +441,7 @@ function HeuteBody({ data }: { data: Heute }) {
           />
           {data.upcoming14.length === 0 ? (
             <EmptyNote>
-              In den nächsten 14 Tagen sind keine erwarteten Zahlungen gelistet.
+              In den nächsten 14 Tagen sind keine wiederkehrenden Zahlungen gelistet.
             </EmptyNote>
           ) : (
             <ul className="heute-list">

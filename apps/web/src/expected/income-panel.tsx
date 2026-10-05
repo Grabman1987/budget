@@ -100,7 +100,7 @@ function IncomeBody({ month, bookedCents }: { month: string; bookedCents?: numbe
           </section>
           <section aria-labelledby="xp-inc-pay">
             <h3 id="xp-inc-pay" className="panel-h">
-              Nach erwarteter Zahlung
+              Nach wiederkehrender Zahlung
             </h3>
             <ul className="xp-occ xp-inc" aria-label="Erwartete Einnahmen des Monats">
               {data.byPayment.map((l) => (

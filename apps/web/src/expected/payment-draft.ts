@@ -97,7 +97,7 @@ export function draftFromPayment(p: ExpectedPayment): PaymentDraft {
   };
 }
 
-/** A booking as the template of a new payment ("Als erwartete Zahlung anlegen"). */
+/** A booking as the template of a new payment ("Als wiederkehrende Zahlung anlegen"). */
 export function draftFromBooking(b: ListedBooking, today: string): PaymentDraft {
   const split = b.splits[0];
   const outflow = b.amountCents < 0;
@@ -147,7 +147,7 @@ export function readDraft(d: PaymentDraft, creating: boolean): ReadResult {
   if (!/^\d{1,2}$/.test(d.dueDay) || dueDay < 1 || dueDay > 31)
     errors.dueDay = 'Ein Tag von 1 bis 31.';
   let dueMonth: number | null = null;
-  if (d.rhythm !== 'monthly') {
+  if (d.rhythm !== 'monthly' && d.rhythm !== 'weekly') {
     dueMonth = Number(d.dueMonth);
     if (!/^\d{1,2}$/.test(d.dueMonth) || dueMonth < 1 || dueMonth > 12)
       errors.dueMonth = 'Bitte einen Monat wählen.';
@@ -160,6 +160,8 @@ export function readDraft(d: PaymentDraft, creating: boolean): ReadResult {
     errors.tolerance = 'Das lässt sich nicht als Betrag lesen.';
   const windowDays = Number(d.windowDays);
   if (!/^\d{1,2}$/.test(d.windowDays) || windowDays > 31) errors.windowDays = 'Null bis 31 Tage.';
+  if (d.rhythm === 'weekly' && !d.startDate)
+    errors.startDate = 'Bitte das erste Fälligkeitsdatum wählen.';
   if (d.startDate && !isDay(d.startDate)) errors.startDate = 'Bitte ein Datum wählen.';
   if (d.endDate && !isDay(d.endDate)) errors.endDate = 'Bitte ein Datum wählen.';
   if (d.startDate && d.endDate && d.endDate < d.startDate)

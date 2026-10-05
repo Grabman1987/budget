@@ -384,7 +384,9 @@ export function linkInflationSuccessors(
   const result: typeof ordered = [];
   for (const item of ordered) {
     const start = bounds(item)[0];
-    const cycle = { monthly: 1, quarterly: 3, semiannual: 6, yearly: 12 }[item.rhythm ?? 'monthly'];
+    const cycle = { weekly: 1, monthly: 1, quarterly: 3, semiannual: 6, yearly: 12 }[
+      item.rhythm ?? 'monthly'
+    ];
     const candidates = result.filter((old) => {
       const end = bounds(old).at(-1);
       return (
@@ -459,7 +461,7 @@ export function useTrailingMean(
     return {
       first: charges[0]!.date,
       last: charges.at(-1)!.date,
-      cycle: { monthly: 1, quarterly: 3, semiannual: 6, yearly: 12 }[rhythm],
+      cycle: { weekly: 1, monthly: 1, quarterly: 3, semiannual: 6, yearly: 12 }[rhythm],
     };
   });
   return billers.some((old) =>

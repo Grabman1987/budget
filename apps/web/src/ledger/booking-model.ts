@@ -1,5 +1,6 @@
 import { formatDecimal, cents as toCents, parseAmount } from '@budget/domain';
 import type { BookingCreate, BookingPatch, SplitInput } from './api';
+import type { Rhythm } from '../expected/api';
 import type { BookingFlag, ListedBooking } from './types';
 
 /** Form state of the booking panel (texts as typed) and its translation to API payloads. */
@@ -24,6 +25,7 @@ export interface SplitDraft {
 
 export interface BookingDraft {
   kind: BookingKind;
+  repeat?: Rhythm | '';
   incomeNextMonth?: boolean | undefined;
   accountId: string;
   /** Transfers only: the account the money goes to. */
@@ -65,6 +67,7 @@ export const newSplit = (over: Partial<SplitDraft> = {}): SplitDraft => ({
 
 export const emptyDraft = (accountId: string, date: string): BookingDraft => ({
   kind: 'expense',
+  incomeNextMonth: false,
   accountId,
   toAccountId: '',
   date,
@@ -329,6 +332,7 @@ export function buildCreate(
     ok: true,
     value: {
       type: 'booking',
+      ...(draft.repeat ? { repeat: draft.repeat } : {}),
       ...(draft.kind === 'income' && draft.incomeNextMonth !== undefined
         ? { incomeNextMonth: draft.incomeNextMonth }
         : {}),
@@ -387,7 +391,7 @@ export function buildPatch(
     errors.category = 'Kategorie fehlt. Ohne Kontakt braucht die Ausgabe eine eigene Kategorie.';
   if (Object.keys(errors).length > 0 || abs === undefined) return { ok: false, errors };
   const amountCents = leg ? (original.amountCents < 0 ? -abs : abs) : sign(draft.kind, abs);
-  const patch: BookingPatch = {};
+  const patch: BookingPatch = { ...(draft.repeat ? { repeat: draft.repeat } : {}) };
   const incomeNextMonth =
     draft.kind === 'income' && !leg ? (draft.incomeNextMonth ?? false) : false;
   if (incomeNextMonth !== (original.incomeNextMonth ?? false))

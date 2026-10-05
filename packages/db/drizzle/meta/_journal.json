@@ -257,8 +257,15 @@
     {
       "idx": 36,
       "version": "6",
-      "when": 1791156024949,
-      "tag": "0036_organic_puck",
+      "when": 1791135686946,
+      "tag": "0036_booking_weekly",
+      "breakpoints": true
+    },
+    {
+      "idx": 37,
+      "version": "6",
+      "when": 1791169954625,
+      "tag": "0037_category_inflation_trailing_mean",
       "breakpoints": true
     }
   ]

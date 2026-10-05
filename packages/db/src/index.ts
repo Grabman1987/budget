@@ -13,3 +13,4 @@ export * from './repos/portfolio-benchmarks';
 export { incomeExpenseReport } from './repos/report-tables';
 
 export { goalsReport } from './repos/goals';
+export * from './repos/account-preview';

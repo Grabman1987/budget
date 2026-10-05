@@ -119,7 +119,7 @@ export function inflationReport(db: Executor, today: string): InflationReport {
         .sort()
         .at(-1);
       // A quarterly/yearly gap is not a cancellation before its next billing period.
-      const cycle = { monthly: 1, quarterly: 3, semiannual: 6, yearly: 12 }[s.rhythm];
+      const cycle = { weekly: 1, monthly: 1, quarterly: 3, semiannual: 6, yearly: 12 }[s.rhythm];
       const ended = lastCharge && addMonths(lastCharge.slice(0, 7), cycle) <= available.at(-1)!;
       return {
         ...s,
@@ -161,7 +161,7 @@ export function inflationReport(db: Executor, today: string): InflationReport {
         endDate:
           addMonths(
             lastCharge.slice(0, 7),
-            { monthly: 1, quarterly: 3, semiannual: 6, yearly: 12 }[rhythm],
+            { weekly: 1, monthly: 1, quarterly: 3, semiannual: 6, yearly: 12 }[rhythm],
           ) <= available.at(-1)!
             ? lastCharge
             : null,

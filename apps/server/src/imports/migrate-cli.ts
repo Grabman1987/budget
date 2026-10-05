@@ -4,6 +4,7 @@ import {
   applyBookEntries,
   applyInstrumentFacts,
   applyOwnerConfig,
+  applyOwnerTrades,
   applyMoves,
   applyPayslips,
   listAuditGroups,
@@ -15,6 +16,7 @@ import {
   parsePayslipsFile,
   parseInstrumentFactsFile,
   parseOwnerConfigFile,
+  parseOwnerTradesFile,
   planGroupMoves,
   summarizeOwnerConfig,
   summarizePayslips,
@@ -42,6 +44,7 @@ import { findRun, runTask, type ImportTask } from './tasks';
  *   node migrate-cli.js payslips --file <json> [--dry-run] [--details] [--replace]
  *   node migrate-cli.js instrument-facts --file <json> [--dry-run]
  *   node migrate-cli.js owner-config --file <json> [--dry-run] [--details]
+ *   node migrate-cli.js owner-trades --file <json> [--dry-run] [--details]
  *
  * Output is aggregates only (counts, problem codes, number of differences); `--details` adds the
  * differences themselves for the operator's terminal. Nothing is logged to files.
@@ -436,6 +439,31 @@ try {
         process.exitCode = 3;
       break;
     }
+    case 'owner-trades': {
+      const dryRun = args.includes('--dry-run');
+      const file = parseOwnerTradesFile(JSON.parse(readFileSync(required('file'), 'utf8')));
+      const result = applyOwnerTrades(db, file, { actor: 'operator' }, { dryRun });
+      for (const o of result.outcomes) {
+        console.log(
+          o.status,
+          o.id,
+          ...(o.status === 'skipped' ? [o.reason] : []),
+          o.account,
+          o.date,
+          o.tradeKind,
+          o.units ?? '*',
+          o.amountCents ?? '*',
+          o.groupId ||
+            (dryRun && o.status !== 'skipped' && o.status !== 'unchanged' ? '(dry run)' : ''),
+        );
+        if (args.includes('--details') && o.detail) console.log('              ', o.detail);
+      }
+      console.log('summary', JSON.stringify(result.counts), dryRun ? '(dry run)' : '');
+      for (const c of result.cashChanges) console.log('cash-change', c.account, c.cents);
+      for (const u of result.unitChanges) console.log('units-change', u.security, u.units);
+      if (result.counts.skipped) process.exitCode = 3;
+      break;
+    }
     case 'owner-config': {
       const dryRun = args.includes('--dry-run');
       const config = parseOwnerConfigFile(
@@ -479,7 +507,7 @@ try {
     }
     default:
       console.log(
-        'usage: migrate-cli.js stage|dry-run|report|commit|revert|delete|order-accounts|list-groups|undo-group|move-money|book|payslips|instrument-facts|owner-config [options]',
+        'usage: migrate-cli.js stage|dry-run|report|commit|revert|delete|order-accounts|list-groups|undo-group|move-money|book|payslips|instrument-facts|owner-config|owner-trades [options]',
       );
       process.exitCode = 2;
   }

@@ -1,3 +1,4 @@
+import { displaySettingsRoutes } from './display-settings';
 import { payrollRoutes, projectRoutes } from './payroll-projects';
 import { assignmentRoutes } from './assignment-rules';
 import { payslipIntakeRoutes } from './payslip-intake';
@@ -111,7 +112,7 @@ export function createLedgerApi({
   api.route('/search', searchRoutes(db));
   api.route('/accounts', accountRoutes(db, today));
   api.route('/inbox', inboxRoutes(db, today));
-  api.route('/bookings', bookingRoutes(db));
+  api.route('/bookings', bookingRoutes(db, today));
   api.route('/receipts', receiptRoutes(db, receiptsDir));
   api.route('/payees', payeeRoutes(db));
   api.route('/categories', categoryRoutes(db));
@@ -135,6 +136,7 @@ export function createLedgerApi({
   api.route('/trades', tradeRoutes(db));
   api.route('/savings-plans', savingsPlanRoutes(db, today));
   api.route('/portfolio', portfolioRoutes(db, today));
+  api.route('/display-settings', displaySettingsRoutes(db));
   api.route('/profile', profileRoutes(db, today));
   api.route('/reports/month', monthReportRoutes(db, today));
   api.route('/reports/spending', spendingReportRoutes(db, today));
