@@ -1,5 +1,13 @@
 # Budget — Specification
 
+Owner navigation directive (2026-10-05): content details use deep-linkable sub-pages
+with breadcrumbs and back navigation, never side panels/drawers/right sheets or
+permanent side columns of content cards. Summaries are full-width inline sections
+or link to sub-pages. Modal dialogs are only for input/confirmation forms; phone
+bottom sheets only for forms and filters. The left application navigation stays.
+This supersedes the earlier detail-panel descriptions below and in the prototype.
+See [inventory and delivery scope](docs/no-side-panels-1005.md).
+
 Owner composition directive (2026-10-05): report 4.2 has one group/class sunburst and a matching legend; products remain a group/class/product table. Additive migration 0038 adds nullable class parents and an explicit empty-group marker; groups never receive positions or targets, depth is at most two. Class targets remain effective shares of the whole investment universe; group targets sum member targets, including unheld classes. The region table appears only when stored weights cover at least half the positive held security value. P2P defaults are created only by an explicit operator `assetClassTree` run. See [composition contract](docs/portfolio-composition.md).
 
 Owner directive (04.10.2026, portfolio reports): reports 4.1/4.4 use four persisted benchmark checkboxes and dashed EUR index-ETF price lines. Report 4.1 includes all investment account types; closed empty depots are period-filtered. Allocation composition uses positive classified market value with cash/negative/unclassified values separately; risk policy retains signed cash. Report 4.3 keeps daily values and adds monthly reconciliation. Heute and R07 share a maximum/default 35-day forecast and low point. See [contract](docs/portfolio-reports-1004.md).

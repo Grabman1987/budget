@@ -1,5 +1,13 @@
 # Product
 
+Owner navigation decision (2026-10-05): details and secondary information use
+sub-pages with their own URLs, breadcrumbs and browser/back navigation. Content
+side panels, drawers, right sheets and permanent side card columns are retired;
+summaries are full-width inline sections or links to sub-pages. Dialogs only hold
+input/confirmation forms; phone bottom sheets only forms and filters. The left app
+navigation stays. This overrides earlier panel descriptions below; see
+[inventory and implementation scope](docs/no-side-panels-1005.md).
+
 Owner composition decision (2026-10-05): Allocation shows groups inside and user-defined classes outside; products remain in the source table. Groups can be created/renamed and classes moved in Einstellungen › Anlageklassen. Soll stays class-specific and dated, with group sums. P2P accounts can be assigned in account settings; defaults are limited to an explicitly run operator configuration. Uninformative region charts are removed. See [composition contract](docs/portfolio-composition.md).
 
 Owner booking directive (2026-10-04): new manual bookings use the booking month; the dialog has no Budgetmonat field and does not apply next-month defaults. Existing stored values stay intact. Booking Wiederholen creates a recurring schedule; owner-facing wording is Wiederkehrende Zahlungen. Account chart preview defaults to 35 days, configurable 0–365.
