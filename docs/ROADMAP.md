@@ -577,3 +577,13 @@ Owner feedback 2026-10-04: spending/cost reports 1.4/1.10/2.3–2.6/3.4–3.5 an
 - [x] Final local check (327 suites / 3,107 tests), production/E2E builds and desktop/mobile light/dark browser evidence; no baseline regeneration.
 - [ ] PR/CI review against main; part A was merged in PR #199 while C was being verified.
 - [ ] Owner acceptance of report 2.4 and local protected-index refresh (`git reset --mixed HEAD`); no keys, consents or settings changes are needed for this read-only view.
+
+### Report 2.4 — CPI sub-index method, part B (owner 2026-10-05)
+
+- [x] VPI-Teilindex with one/two searchable classes and validated exact-100% split; audited persistence reuses part A and preserves payee exclusions.
+- [x] Existing VPI loader/refresh extended to detailed monthly COICOP classes; synthetic recorded-layout responses, class-specific base linking and separate total benchmark.
+- [x] Public price relatives weighted by own base-year spending through the existing annual chain; index units and source/household-weight labels in both basket views, explicit missing-history/publication boundary.
+- [ ] Evening extension: distinct category explorer with multi-select, category price/reference histories since budget start, difference/quantity details, owner interpretation note and two-category E2E; retained as follow-up within the one-hour slice rule.
+- [ ] PR/CI and owner mapping/design acceptance. No private data, baseline regeneration, migration, provider credentials or automatic bookings.
+
+Method, limits and owner steps: [inflation basket](inflation-basket.md#cpi-sub-index-method-part-b-2026-10-05).
