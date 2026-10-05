@@ -241,6 +241,10 @@ Eine einzige Tuschfamilie in Blau auf glattem Grund, mit genau einer Fremdtinte:
 
 **The Rotstift Rule.** Rot bedeutet Handlungsbedarf. Ein verletzter Finanz-Check-Wert ohne akute Aktion steht in Tinte mit Warnsymbol, nicht in Rot. Rot und jeder Status erscheinen nie ohne Vorzeichen oder Symbol.
 
+**Owner-Entscheidung 05.10.2026 — Alarmsemantik.** Jede Überziehung bleibt Rotstift, erscheint aber je Seite nur einmal als Warnung: auf Heute im einzigen Aufmerksamkeitsblock (Top 2, „weitere N“), im Plan als Einzelbetrag mit Symbolaktion. Angepinnte Envelopes wiederholen keinen Warntext; Nächste Schritte enthält keine Überziehungen. Kreditkarten- und Kreditsalden in der Seitenleiste stehen mit Minus in Tinte, ohne rote Pille. Normale Ziel-Finanzierung bleibt Tinte.
+
+**Owner-Entscheidung 05.10.2026 — Wortwahl.** Maßkette, Stückliste, Revision und Wasserstand bleiben in Grafiken. Schaltflächen und Links in Heute und Plan verwenden einfache Handlungswörter („Herleitung zeigen“).
+
 **The Only Blue Rule.** Alle Tinten außer dem Rotstift sind Blautöne, von Preußisch bis Petrol. Grün als Erfolgsfarbe gibt es nicht; „erfüllt“ und positive Deltas stehen in Tusche mit Häkchen oder Pfeil.
 
 ## Typography
@@ -272,9 +276,9 @@ Eine einzige Tuschfamilie in Blau auf glattem Grund, mit genau einer Fremdtinte:
 
 Das Blatt ist ein 12-Spalten-Raster mit 32 px Spaltenabstand ohne maximale Seitenbreite (`--page-max: none`), Innenrand 28 / 40 / 72 px, Abschnittsabstand 44 px. Desktop: Seitenleiste 236 px (eingeklappt 72 px), klebende Kopfleiste 64 px mit Suche (max. 460 px), Posteingang und Buchung. Kartenraster gewinnen über `auto-fit/minmax` Spalten; ab etwa 1440 px stehen Diagramme und ihre Tabellen nebeneinander. Fließtext bleibt höchstens 72 ch breit, SVG-Beschriftungen behalten ihre Pixelgröße und Diagrammhöhen bleiben begrenzt. One-Pager und Jahresreport behalten ihre A4-Blätter.
 
-Reihenfolge auf „Heute“: Schriftfeld über die volle Breite, darunter das Leitmaß über die volle Breite (Diagramm 330 px hoch, Erklärtext links oben überlagert, max. 34 %), dann Pace (7 Spalten) neben Revisionstabelle (5 Spalten), dann Detailausschnitte in drei Spalten (Nettovermögen über zwei).
+Reihenfolge auf „Heute“ (Owner 05.10.2026): Leitfrage „Wie viel darf ich bis zum Gehalt noch ausgeben?“ mit gemeinsamer 35-Tage-Prognose, „Was steht an?“ (nächste sieben Tage), ein Aufmerksamkeitsblock, kompakte Gesamtvermögenszeile (zwölf Monate, heute, Veränderungen seit Monatsbeginn und vor zwölf Monaten). Darunter „Mehr zum Monat“ mit Pace und den übrigen Zahlen; am Handy geschlossen, am Desktop offen, pro Gerät gespeichert. Keine mobile Doppelung einer dringenden Revision. Bestehende Präzisionsschicht, grafische Linienarten und Kennzahlberechnungen bleiben erhalten.
 
-Umbrüche: unter 1180 px zwei Detailspalten; unter 980 px Pace und Revisionen gestapelt; unter 768 px eine Spalte, Innenrand 16 px, Abschnittsabstand 36 px, Seitenleiste wird zur Tab-Leiste (64 px plus Safe Area) mit rundem Tusche-Knopf „Buchung“, die dringendste Revision rückt direkt unter das Leitmaß. Der Buchungsdialog ist einspaltig, 540 px breit, mobil ein Blatt von unten.
+Umbrüche: unter 1180 px zwei Detailspalten; unter 980 px Pace und Revisionen gestapelt; unter 768 px eine Spalte, Innenrand 16 px, Seitenleiste wird zur Tab-Leiste (64 px plus Safe Area) mit rundem Tusche-Knopf „Buchung“. Der Buchungsdialog ist einspaltig, 540 px breit, mobil ein Blatt von unten.
 
 Berührflächen mindestens 44 px auf Mobilgeräten.
 
@@ -324,7 +328,7 @@ Arbeitsflächen sind Karten: `surface`, 12 px Radius, Rand `card-border`, Schatt
 
 ### Navigation
 - **Planliste (Desktop):** Beschriftung „Planliste“, Zeilen 42 px mit Lucide-Symbol, Name und Blattnummer 01–05 in Barlow SC. Aktiv: `raised`-Grund, kräftige Haarlinie, 600, Blattnummer in Tusche. Eingeklappt nur Symbole.
-- **Kontenhierarchie (Seitenleiste):** Gruppen in YNAB-Reihenfolge, einklappbar; negative Beträge (Konto und Gruppensumme) als rote Pille (`red-soft`, `red`), positive als schlichter Text. Unten Profil-Block mit Kürzel im Kreis und Namen aus Einstellungen › Profil (ohne Eintrag generisch „Profil“ / „NU“).
+- **Kontenhierarchie (Seitenleiste):** Gruppen in YNAB-Reihenfolge, einklappbar; negative Budget-/Investmentbeträge (Konto und Gruppensumme) als rote Pille (`red-soft`, `red`); Kreditkarten und Kredite mit Minus in Tinte, positive Beträge als schlichter Text. Unten Profil-Block mit Kürzel im Kreis und Namen aus Einstellungen › Profil (ohne Eintrag generisch „Profil“ / „NU“).
 - **Tab-Leiste (mobil):** fünf Einträge, 22-px-Symbole, 11,5 px Text; aktiv in Tusche mit 2-px-Strich an der Oberkante.
 - **Einstellungen (gruppiert):** elf Seiten passen nicht in eine Registerleiste. Desktop: senkrechte Liste links neben der Seite (208 px) mit Gruppenköpfen Daten · Automatik · System in Barlow SC, Zeilen 40 px, aktiv wie in der Planliste (`raised`-Grund, kräftige Haarlinie, 600, `aria-current="page"`). Handy: `/einstellungen` ist die Übersicht mit denselben Gruppen als ganzbreite 44-px-Zeilen mit Pfeil; jede Seite zeigt darüber einen Rücksprung „‹ Einstellungen“ und ihren Namen. Alle Adressen bleiben.
 - **Segmentschalter:** Rahmen 8 px mit 4 px Innenabstand; aktives Segment als Tusche-Fläche.
@@ -358,7 +362,8 @@ Kategorie-Chips: ausgewählt als Tönung mit Tuschekontur, Häkchen und sichtbar
 - **Zuweisen inline:** „Zugewiesen“ ist eine Schaltfläche; Klick macht sie zum Rechenfeld (Enter übernimmt, Esc bricht ab, „+50“ addiert). Im Seitenpanel dasselbe Betragsfeld wie bei der Buchung mit Operator-Knöpfen und Ergebniszeile.
 - **Geld verteilen:** Vorschläge als gestrichelt umrandete Tuschewerte („+890,00“) unter „Zugewiesen“, Spalte leicht getönt; je Baugruppe „Stufe übernehmen“, oben „Alle übernehmen“. Befüllt wird strikt von oben nach unten; ein Rest ohne Ziel fließt in Stufe 8.
 - **Gliederungen (Segmentschalter):** Wasserfall · Zeit · Gruppen · Klassen · Triage. **Zeit** ordnet nach nächstem Zahlungstermin: nächste 14 Tage, bis Ende nächsten Monats, später mit Termin, ohne festen Termin, zuletzt „Laufend“ (variable Monatsbudgets); bezahlte Fixkosten zeigen „nächste am …“. **Triage** (Wunsch des Nutzers, 28.09.2026) gruppiert Überzogen · Fällig, nicht gedeckt · Fehlt zum Ziel; das rote Zählabzeichen zählt nur die ersten beiden, „Fehlt zum Ziel“ ist normale Verteilarbeit in Tusche.
-- **Triage-Leiste:** zusätzlich zur Triage-Ansicht ein Zustand über der Tabelle. Erscheint nur bei Überziehung oder negativem „Zu verteilen“ als Revisionstabelle in 1-px-Rotstiftrahmen (Rev. · Änderung · Aus Envelope · Aktion) über der unveränderten Tabelle; betroffene Zeilen bekommen Rotstift-Tönung und Revisionsdreieck. Hinweis „Erst decken, dann verteilen“, wenn beides offen ist.
+- **Triage-Leiste (Owner 05.10.2026):** eine rote Summenzeile über der Tabelle, Quellwahl und „Alle aus … decken“; Einzelaktionen als 44-px-Symbol neben dem Betrag öffnen das vorhandene Panel. Quelle zeigt den Rest nach der Deckung; nur ausreichend gefüllte Quellen werden vorgeschlagen. Sammeldeckung nutzt vorhandenes Geld in Wasserfall-Reihenfolge und eine Audit-Gruppe/Rücknahme.
+- **Frühere Triage-Leiste (ersetzt):** zusätzlich zur Triage-Ansicht ein Zustand über der Tabelle. Erscheint nur bei Überziehung oder negativem „Zu verteilen“ als Revisionstabelle in 1-px-Rotstiftrahmen (Rev. · Änderung · Aus Envelope · Aktion) über der unveränderten Tabelle; betroffene Zeilen bekommen Rotstift-Tönung und Revisionsdreieck. Hinweis „Erst decken, dann verteilen“, wenn beides offen ist.
 - **50/30/20-Band:** 18-px-Balken in Tuschekontur mit Klassenfüllungen, Soll-Marken bei 50 und 80 als schwarze Striche, Skala in Barlow SC, Legende nur mit den Ist-Anteilen (das Soll steht im Band).
 
 ### Konten

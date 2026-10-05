@@ -180,6 +180,12 @@ Alle Reports rechnen aus demselben Hauptbuch; Nettovermögen, Rendite und Regels
 4. **Regeln statt Bauchgefühl.** Finanz-Basics sind geprüfte Regeln mit Status und Maßnahme, nicht Hinweistexte.
 5. **Automatisch, wo es zuverlässig ist.** Bank-Sync und Kurse laufen von selbst; manuelle Eingabe ist ein gleichwertiger Weg, kein Notbehelf.
 
+**Owner-Entscheidung 05.10.2026 — Alarmsemantik:** Jede Überziehung bleibt rot und hat pro Seite genau einen Warnort. Heute bündelt sie unter „Braucht Aufmerksamkeit“ (die zwei größten, Rest über „weitere N“); angepinnte Envelopes zeigen nur ihren roten verfügbaren Betrag, Nächste Schritte wiederholt keine Überziehung. Plan zeigt rote Einzelbeträge mit kompaktem Deckungszugriff und eine gemeinsame Deckungsaktion. Kreditkarten- und Kreditsalden in der Seitenleiste sind Tinte mit Minus, keine rote Pille.
+
+**Owner-Entscheidung 05.10.2026 — Wortwahl:** Maßkette, Stückliste, Revision und Wasserstand bleiben als grafische Begriffe. Schaltflächen und Links auf Heute und Plan benennen die Handlung in einfachen Worten, etwa „Herleitung zeigen“.
+
+Heute beginnt mit frei verfügbar bis Gehalt und der gemeinsamen 35-Tage-Prognose, den nächsten sieben Tagen, Aufmerksamkeit und Gesamtvermögen (dieselbe Nettovermögensbewertung wie Vermögen). Pace und weitere Monatszahlen bleiben unter „Mehr zum Monat“, am Handy anfangs geschlossen, am Desktop offen; Auswahl je Gerät gespeichert. Deckung zeigt den verbleibenden Quellbetrag, schlägt nur ausreichend gefüllte Quellen absteigend vor und bietet eine Sammeldeckung in Wasserfall-Reihenfolge bis das Geld aufgebraucht ist, mit einer Rücknahme für die gesamte Aktion.
+
 ## Accessibility & Inclusion
 
 - Rot und Grün nur zusammen mit Vorzeichen oder Symbol (Farbfehlsichtigkeit). Kontrast und Farbfehlsichtigkeit werden mit einem Werkzeug geprüft, bevor Farben festgeschrieben werden.

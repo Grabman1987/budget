@@ -166,6 +166,7 @@ describe('GET /heute', () => {
     expect(res.status).toBe(200);
     expect(Object.keys(res.body).sort()).toEqual(
       [
+        'attention',
         'balance',
         'financeCheck',
         'lastBookings',
@@ -315,4 +316,37 @@ it('excludes early paid rent from the variable rate and returns a provisional fo
   expect(data.pace.forecast).toHaveLength(29);
   expect(data.pace.forecast[0]).toBe(90000);
   expect(data.pace.forecast.at(-1)).toBe(130000);
+});
+
+it('Heute uses the wealth valuation and compares month start and exactly twelve months ago', async () => {
+  const today = (await call('GET', '/heute')).body;
+  const wealth = (await call('GET', '/wealth/networth?period=1J')).body;
+  expect(today.netWorth.totalCents).toBe(188_000);
+  expect(today.netWorth.totalCents).toBe(wealth.chain.nowCents);
+  expect(today.netWorth.series.at(-1).cents).toBe(wealth.chain.nowCents);
+  expect(today.netWorth).toMatchObject({
+    previousMonthEndCents: 200_000,
+    deltaCents: -12_000,
+    yearAgoDay: '2025-03-18',
+    yearAgoCents: 0,
+    yearDeltaCents: 188_000,
+  });
+  expect(today.attention).toMatchObject({ pendingCount: 0, pendingBefore: '2026-03-11' });
+});
+
+it('attention counts pending bookings at least seven days old, with an inclusive cutoff', async () => {
+  for (const date of ['2026-03-10', '2026-03-11', '2026-03-12']) {
+    await call('POST', '/bookings', {
+      type: 'booking',
+      accountId: 'giro',
+      date,
+      categoryId: 'essen',
+      amountCents: -1,
+      status: 'pending',
+    });
+  }
+  expect((await call('GET', '/heute')).body.attention).toMatchObject({
+    pendingCount: 2,
+    pendingBefore: '2026-03-11',
+  });
 });

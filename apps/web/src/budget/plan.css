@@ -739,6 +739,9 @@
   }
   .plan .ptable .col-avail {
     grid-column: 4;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
   }
   .plan .prow .rev-tri {
     display: block;
@@ -1452,4 +1455,42 @@
 }
 .income-targets-links button span {
   white-space: nowrap;
+}
+
+.cover-all-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  padding-block: 8px;
+}
+.cover-all-controls select {
+  /* Keep .select's 100% (compressible): width:auto sized the page to the longest option. */
+  min-width: 0;
+  max-width: 100%;
+  flex: 1 1 220px;
+}
+.triage-compact h2 {
+  font-size: 15px;
+  color: var(--red);
+}
+.cover-row {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--red);
+  cursor: pointer;
+  vertical-align: middle;
+}
+.cover-row:focus-visible {
+  outline: 2px solid var(--line);
+  outline-offset: 2px;
+}
+.cover-row:hover {
+  background: var(--tint);
 }

@@ -8,6 +8,7 @@
 - [ ] Local browser matrix, full local checks, Linux baseline review and owner acceptance (see PR evidence).
 
 - [x] Owner feedback 04.10.2026: report 5.6 Gesamtübersicht, income-scale 50/30/20 overflow, One-Pager panel swap/income list and shared pace income, bounded valuation notes and dated headers; owner acceptance and CI remain open.
+- [ ] UX-2 (owner 05.10.2026): Heute/Plan distill, source rest, bulk cover/undo, shared wealth and device fold implemented; full-check rerun, publication and owner/Linux acceptance pending ([synthetic evidence](evidence/ux-distill-1005/README.md)).
 
 - [x] Owner feedback 04.10.2026: reports 4.1–4.4, four stored benchmarks, positive allocation layers, daily/monthly reconciliation and shared Heute/R07 35-day horizon; see [scope and owner steps](portfolio-reports-1004.md).
 
