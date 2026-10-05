@@ -1,3 +1,4 @@
+import { inflationBasketRoutes } from './inflation-basket';
 import { displaySettingsRoutes } from './display-settings';
 import { payrollRoutes, projectRoutes } from './payroll-projects';
 import { assignmentRoutes } from './assignment-rules';
@@ -116,6 +117,7 @@ export function createLedgerApi({
   api.route('/receipts', receiptRoutes(db, receiptsDir));
   api.route('/payees', payeeRoutes(db));
   api.route('/categories', categoryRoutes(db));
+  api.route('/inflation-basket', inflationBasketRoutes(db, today));
   api.route('/budget', budgetRoutes(db, today));
   api.route('/expected', expectedRoutes(db, today));
   api.route('/export', exportRoutes(db, today, stepUp));
