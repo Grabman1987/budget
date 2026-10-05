@@ -28,6 +28,27 @@
   color: var(--ink);
 }
 
+.control-label {
+  display: none;
+}
+
+@media (pointer: coarse), (max-width: 767px) {
+  .icon-btn:has(.control-label) {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-sm);
+    width: auto;
+    padding-inline: var(--space-sm);
+    flex: none;
+  }
+
+  .control-label {
+    display: inline;
+    font-size: var(--fs-body);
+  }
+}
+
 /* ---------- Buttons ---------- */
 .btn {
   display: inline-flex;
