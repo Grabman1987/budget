@@ -250,17 +250,69 @@ describe('synthetic owner report read models', () => {
       },
       ctx,
     );
+    const dividendBooking = createBooking(
+      opened.db,
+      {
+        accountId: 'giro',
+        date: '2026-08-21',
+        amountCents: 1_600,
+        splits: [{ amountCents: 1_600, incomeTypeId: INCOME_TYPES.capital.id }],
+      },
+      ctx,
+    );
+    createEntity(
+      opened.db,
+      trade,
+      {
+        id: 'dividend',
+        securityId: 'instrument',
+        accountId: 'giro',
+        date: '2026-08-21',
+        kind: 'dividend',
+        amountCents: 2_000,
+        feeCents: 100,
+        taxCents: 300,
+        bookingId: dividendBooking,
+      },
+      ctx,
+    );
+    createBooking(
+      opened.db,
+      {
+        accountId: 'giro',
+        date: '2026-08-22',
+        amountCents: -100,
+        splits: [{ amountCents: -100, incomeTypeId: INCOME_TYPES.capital.id }],
+      },
+      ctx,
+    );
+    createBooking(
+      opened.db,
+      {
+        accountId: 'giro',
+        date: '2026-08-23',
+        amountCents: -102,
+        originalCurrency: 'USD',
+        originalAmountCents: -100,
+        fxRateMicro: 1_000_000,
+        fxFeeCents: -2,
+        splits: [{ categoryId: 'essen', amountCents: -102 }],
+      },
+      ctx,
+    );
     const r = bankCostsReport(opened.db, today);
     expect(Object.fromEntries(r.rows.map((row) => [row.key, row.cents]))).toEqual({
       interest: 1_000,
       account: 500,
-      orders: 100,
+      orders: 200,
+      fx: 2,
       overdraft: 200,
     });
-    expect(r.totalCents).toBe(1_800);
-    expect(r.earningsCents).toBe(900);
-    expect(r.sources.reduce((a, s) => a + s.cents, 0)).toBe(1_800);
-    expect(r.monthly.reduce((a, s) => a + s.totalCents, 0)).toBe(1_800);
+    expect(r.totalCents).toBe(1_902);
+    expect(r.earningsCents).toBe(2_500);
+    expect(r.netCents).toBe(598);
+    expect(r.sources.reduce((a, s) => a + s.cents, 0)).toBe(1_902);
+    expect(r.monthly.reduce((a, s) => a + s.totalCents, 0)).toBe(1_902);
   });
   it('stored loan terms supply missing interest but explicit interest wins for a month', () => {
     accounts.create(

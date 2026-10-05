@@ -108,7 +108,8 @@ function Body({ data }: { data: BankCostsReport }) {
           Buchung schätzen gespeicherte Konditionen die monatlichen Zinsen, mit Zinsänderungen.
           Tilgung bleibt draußen. Bankgebühren, Trade- und Fremdwährungsgebühren verwenden
           gespeicherte Quellen; Sollzinsen/Dispo entsprechend benannte Kategorien. Erträge bleiben
-          separat. Spreads und TER sind nicht gebucht.
+          separat; Trade-Ertr�ge nach gespeicherten Steuern, vor separat gez�hlten Geb�hren. Spreads
+          und TER sind nicht gebucht.
           {data.skippedForeignTrades
             ? ` ${data.skippedForeignTrades} Trades ohne Wechselkurs fehlen.`
             : ''}
@@ -248,9 +249,12 @@ function CostChart({ data }: { data: BankCostsReport }) {
   const lo = Math.min(
     0,
     ...points.map((p) =>
-      Object.values(p.parts)
-        .filter((v) => v < 0)
-        .reduce((a, v) => a + v, 0),
+      Math.min(
+        p.earningsCents,
+        Object.values(p.parts)
+          .filter((v) => v < 0)
+          .reduce((a, v) => a + v, 0),
+      ),
     ),
   );
   const x = (i: number) => 68 + ((i + 0.5) * 660) / Math.max(1, points.length);

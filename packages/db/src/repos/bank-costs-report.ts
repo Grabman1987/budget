@@ -199,7 +199,7 @@ export function bankCostsReport(db: Executor, today: string): BankCostsReport {
     const month = monthKey(b.date);
     if (
       split.incomeTypeId === INCOME_TYPES.capital.id &&
-      split.amountCents > 0 &&
+      split.amountCents !== 0 &&
       !tradeBookingIds.has(b.id)
     ) {
       const value = convert(split.amountCents, b.currency, b.date);
@@ -303,7 +303,7 @@ export function bankCostsReport(db: Executor, today: string): BankCostsReport {
     add(orders, month, cost);
     addSource(a.id, a.name, 'orders', month, cost);
     if (t.kind === 'dividend' || t.kind === 'interest') {
-      const earned = convert(t.amountCents, a.currency, t.date);
+      const earned = convert(cents(t.amountCents - t.taxCents), a.currency, t.date);
       if (earned !== null) add(earnings, month, earned);
     }
   }
