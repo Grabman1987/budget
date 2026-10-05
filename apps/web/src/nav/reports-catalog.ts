@@ -238,8 +238,19 @@ export const REPORT_GROUPS: ReadonlyArray<ReportGroup> = [
     ['explorer', 'Explorer', 'Eigene Frage, eigene Tabelle.', 'Pivot mit gespeicherten Ansichten'],
     ['kontakte', 'Kontakte-Abrechnung', 'Wer schuldet wem wie viel?', 'Saldenlinie, Kontoblatt'],
     ['vergleich', 'Zeitraumvergleich', 'Was hat sich gegenüber damals geändert?', 'Balken um Null'],
+    [
+      'gesamtuebersicht',
+      'Gesamtübersicht',
+      'Was haben Sparen und Markt zum Vermögen beigetragen?',
+      'Monatsbalken und Nettovermögen',
+      'period',
+    ],
   ]),
 ];
+
+// Keep published report numbers stable; the new overview leads its section.
+const overviewGroup = REPORT_GROUPS.find((g) => g.slug === 'ueberblick')!;
+overviewGroup.items = [overviewGroup.items.at(-1)!, ...overviewGroup.items.slice(0, -1)];
 
 export const REPORTS: ReadonlyArray<ReportEntry & { group: ReportGroup }> = REPORT_GROUPS.flatMap(
   (g) => g.items.map((item) => ({ ...item, group: g })),

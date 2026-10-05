@@ -1,3 +1,4 @@
+import { withValuationRange } from './valuation-notes';
 import { portfolioBenchmarks, type PortfolioBenchmarkSeries } from './portfolio-benchmarks';
 import { allocationInputsAsOf } from './allocation-inputs';
 import { resolvePortfolioRiskPolicy } from './portfolio-risk-policy';
@@ -720,6 +721,15 @@ function lastTwelveMonthEnds(today: string): string[] {
  * domain (P5.2, P5.3); nothing is computed twice.
  */
 export function portfolioSummary(db: Executor, options: PortfolioOptions): PortfolioSummary {
+  const range = periodWindow(
+    options.period ?? '1J',
+    options.today,
+    firstDay(db, options.today) ?? options.today,
+  );
+  return withValuationRange(range.from, range.to, () => portfolioSummaryInRange(db, options));
+}
+
+function portfolioSummaryInRange(db: Executor, options: PortfolioOptions): PortfolioSummary {
   const { costMethod } = investmentPreferences(db);
   const today = periodWindow(options.period ?? '1J', options.today).to;
   const period = options.period ?? '1J';

@@ -123,3 +123,27 @@ export function assignedMonth(input: {
     items,
   };
 }
+
+/** Geometry on an income scale: withdrawals never shrink the spending stack. */
+export function allocationBar(
+  a: Pick<Allocation, 'incomeCents' | 'needCents' | 'wantCents' | 'futureCents' | 'restCents'>,
+) {
+  const need = Math.max(0, a.needCents);
+  const want = Math.max(0, a.wantCents);
+  const future = Math.max(0, a.futureCents);
+  const spent = need + want + future;
+  const rest = Math.max(0, Math.min(a.restCents, a.incomeCents - spent));
+  const scale = Math.max(1, a.incomeCents, spent);
+  return {
+    need,
+    want,
+    future,
+    rest,
+    scale,
+    overflowCents: Math.max(0, need + want - a.incomeCents),
+    overflowBp:
+      a.incomeCents > 0
+        ? Math.round((Math.max(0, need + want - a.incomeCents) * 10000) / a.incomeCents)
+        : null,
+  };
+}

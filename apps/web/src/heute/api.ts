@@ -66,6 +66,7 @@ export interface Heute extends WithValuationNotes {
     todayDay: number;
     plan: number[];
     actual: number[];
+    income: number[];
     previous: number[];
     fixedDays: number[];
     forecast: number[];
