@@ -121,6 +121,15 @@ it('source-rebuild CLI reports dry-run, private JSON, idempotency, skips, and ro
       counts: { created: 1, unitDifferences: 0 },
     });
     expect(listTrades(db)).toEqual([]);
+    const stakedPreview = cli(['--dry-run', '--staked-now', 'Synthetic Coin=0.25', '--details']);
+    expect(stakedPreview.status, stakedPreview.stderr).toBe(3); // Opening is unpriced.
+    expect(stakedPreview.stdout).toContain('"openingUnitsE8": 25000000');
+    expect(stakedPreview.stdout).toContain('"todayUnitsE8": 25000000');
+    expect(listTrades(db)).toEqual([]);
+    const invalidStaking = cli(['--staked-now', 'Synthetic Coin=-1']);
+    expect(invalidStaking.status).toBe(1);
+    expect(listTrades(db)).toEqual([]);
+    expect(cli(['--staked-now']).status).toBe(1);
     const refused = cli(['--report', reportPath]);
     expect(refused.status).toBe(1);
     expect(listTrades(db)).toEqual([]);

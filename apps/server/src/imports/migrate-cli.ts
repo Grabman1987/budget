@@ -441,6 +441,7 @@ try {
       break;
     }
     case 'source-rebuild': {
+      if (args.at(-1) === '--staked-now') throw new Error('--staked-now requires ASSET-NAME=units');
       const reportPath = option('report') ? resolve(required('report')) : null;
       if (reportPath) {
         const rel = relative(
@@ -460,6 +461,7 @@ try {
             today: ctx.today,
             dryRun: args.includes('--dry-run'),
             unlock: args.includes('--unlock'),
+            stakedNow: optionsAll('staked-now'),
           },
           { actor: 'operator' },
         );
@@ -478,6 +480,9 @@ try {
       console.log('cash end', JSON.stringify(result.cashEnd));
       console.log('cash top 20', JSON.stringify(result.cashTop20));
       console.log('unit differences', JSON.stringify(result.units.filter((u) => u.differenceE8)));
+      console.log('staked', JSON.stringify(result.staked));
+      console.log('fx_converted', JSON.stringify(result.fx_converted));
+      console.log('unhandled operations', JSON.stringify(result.unhandledOperations));
       if (args.includes('--details')) console.log(JSON.stringify(result, null, 2));
       if (
         (result.counts['skipped'] ?? 0) +

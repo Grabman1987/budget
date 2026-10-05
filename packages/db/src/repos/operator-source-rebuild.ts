@@ -19,19 +19,24 @@ import {
   sourceInteger,
   REBUILD_REWARDS,
   rebuildAssetUnits,
+  rebuildStakedNowSchema,
+  sourceStakedAt,
+  rebuildUnitBreakdown,
+  rebuildCreatedUnitSources,
+  type RebuildFxConversion,
   type RebuildTrade,
   type SourceOperation,
   type SourceMapping,
   type RebuildIssue,
 } from '@budget/domain';
-import { account, booking, inboxItem, price, holding, security } from '../schema';
+import { account, booking, inboxItem, price, holding, security, fxRate } from '../schema';
 import { type AuditContext } from './audit';
 import { createTransfer, deleteBooking, updateBooking } from './bookings';
 import { ReconciledLockedError } from './errors';
 import { balanceSeries } from './ledger-queries';
 import { OperatorInputError } from './operator-ops';
 import { loadMatchLedger } from './read-source-ledger';
-import { readSourceMappings } from './read-source';
+import { readSourceMappings, readSourceState } from './read-source';
 import {
   createTrade,
   deleteTrade,
@@ -68,6 +73,7 @@ export interface SourceRebuildOptions {
   today: string;
   dryRun?: boolean;
   unlock?: boolean;
+  stakedNow?: string[];
 }
 export interface SourceRebuildReport {
   groupId: string;
@@ -98,7 +104,16 @@ export interface SourceRebuildReport {
     appUnitsE8: number;
     sourceUnitsE8: number;
     differenceE8: number;
+    byType?: {
+      type: string;
+      sourceUnitsE8: number;
+      createdUnitsE8: number;
+      differenceE8: number;
+    }[];
   }[];
+  staked: { securityId: string; key: string; openingUnitsE8: number; todayUnitsE8: number }[];
+  fx_converted: RebuildFxConversion[];
+  unhandledOperations: { id: string; type: string }[];
   cash: { date: string; appCents: number; sourceCents: number; differenceCents: number }[];
   cashTop20: SourceRebuildReport['cash'];
   cashEnd: SourceRebuildReport['cash'][number] | null;
@@ -144,6 +159,9 @@ export function applySourceRebuild(
     outcomes: [],
     issues: [],
     units: [],
+    staked: [],
+    fx_converted: [],
+    unhandledOperations: [],
     cash: [],
     cashTop20: [],
     cashEnd: null,
@@ -234,6 +252,18 @@ export function applySourceRebuild(
       )
         throw new OperatorInputError('Duplicate source operation or transaction');
       const prices = tx.select().from(price).all();
+      const stakedNames = rebuildStakedNowSchema.parse(options.stakedNow ?? []);
+      const stakedNow = new Map<string, number>();
+      for (const [name, units] of stakedNames) {
+        const matches = assets.filter(
+          (m) =>
+            fold(tx.select().from(security).where(eq(security.id, m.securityId!)).get()!.name) ===
+            name,
+        );
+        if (matches.length !== 1)
+          throw new OperatorInputError('staked-now must name one mapped security exactly');
+        stakedNow.set(matches[0]!.key, units);
+      }
       const openingDay = addDays(since, -1);
       // Validate replay precision before the first destructive write.
       const allDays: string[] = [];
@@ -243,6 +273,33 @@ export function applySourceRebuild(
         allDays,
         new Set([...assets.map((m) => m.key), cashKey]),
       );
+      const stakingOperations = operations
+        .filter((op) => op.type === 'stake' || op.type === 'unstake')
+        .map((op) => ({
+          ...op,
+          transactions: op.transactions.filter((t) =>
+            assets.some((m) => m.key === sourceAmountKey(t.amount)),
+          ),
+        }));
+      const stakingHistory = new Map(
+        allDays.map((day) => [day, sourceStakedAt(stakingOperations, day, today, stakedNow)]),
+      );
+      for (const day of allDays)
+        for (const m of assets) {
+          const balances = sourceHistory.get(day)!;
+          balances.set(
+            m.key,
+            rebuildSafe(
+              BigInt(balances.get(m.key) ?? 0) + BigInt(stakingHistory.get(day)!.get(m.key) ?? 0),
+            ),
+          );
+        }
+      report.staked = assets.map((m) => ({
+        securityId: m.securityId!,
+        key: m.key,
+        openingUnitsE8: stakingHistory.get(openingDay)!.get(m.key) ?? 0,
+        todayUnitsE8: stakingHistory.get(today)!.get(m.key) ?? 0,
+      }));
       const openingSource = sourceHistory.get(openingDay)!;
       const before = listTrades(tx, { accountId: depot.id });
       const ownerLedger = loadMatchLedger(tx, mappings);
@@ -292,8 +349,21 @@ export function applySourceRebuild(
         ...op,
         transactions: op.transactions.filter((t) => !claimedRewardLegs.has(`${op.id}:${t.id}`)),
       }));
-      const plan = planSourceRebuild(toRebuild, assets, prices, since, cashKey, cash.currency);
+      const currencies = readSourceState(tx)
+        .balances.filter(
+          (b) =>
+            b.key.startsWith('currency:') &&
+            b.currency &&
+            !allMappings.some((m) => m.key === b.key),
+        )
+        .map((b) => ({ key: b.key, currency: b.currency! }));
+      const plan = planSourceRebuild(toRebuild, assets, prices, since, cashKey, cash.currency, {
+        currencies,
+        rates: tx.select().from(fxRate).all(),
+      });
       report.issues.push(...plan.issues);
+      report.fx_converted = plan.fx_converted;
+      report.unhandledOperations = plan.unhandled;
       const desired: RebuildTrade[] = [...plan.trades];
       const sumUnits = (rows: TradeRow[], m: SourceMapping, day: string) =>
         rebuildSafe(
@@ -479,94 +549,105 @@ export function applySourceRebuild(
           ],
         }));
       const matches = matchSourceOperations(synthetic, mappings, preservedLedger);
-      for (const desiredTrade of desired)
-        attempt(desiredTrade.importKey, (inner) => {
-          const match = matches.get(desiredTrade.importKey);
-          if (match?.status === 'matched') {
-            // An owner counterpart added after a prior rebuild replaces our duplicate only.
-            for (const input of inputsOf(desiredTrade)) {
-              const old = listTrades(tx, { accountId: depot.id }).find(
+      for (const candidate of desired) {
+        if (candidate.importKey.endsWith(':merger:in')) continue;
+        const pair = candidate.importKey.endsWith(':merger:out')
+          ? desired.filter(
+              (t) =>
+                t.importKey === candidate.importKey ||
+                t.importKey === candidate.importKey.replace(/:out$/, ':in'),
+            )
+          : [candidate];
+        attempt(candidate.importKey, (inner) => {
+          for (const desiredTrade of pair) {
+            const match = matches.get(desiredTrade.importKey);
+            if (match?.status === 'matched') {
+              // An owner counterpart added after a prior rebuild replaces our duplicate only.
+              for (const input of inputsOf(desiredTrade)) {
+                const old = listTrades(tx, { accountId: depot.id }).find(
+                  (t) => t.importKey === input.importKey,
+                );
+                if (old) remove(inner, old);
+              }
+              report.outcomes.push({
+                id: desiredTrade.importKey,
+                status: 'matched',
+                reason: JSON.stringify(match.refs),
+                trade: inputsOf(desiredTrade).at(-1)!,
+              });
+              continue;
+            }
+            const inputs = inputsOf(desiredTrade);
+            const statuses: string[] = [];
+            for (const input of inputs) {
+              const existing = listTrades(tx, { accountId: depot.id, includeDeleted: true }).find(
                 (t) => t.importKey === input.importKey,
               );
-              if (old) remove(inner, old);
-            }
-            report.outcomes.push({
-              id: desiredTrade.importKey,
-              status: 'matched',
-              reason: JSON.stringify(match.refs),
-              trade: inputsOf(desiredTrade).at(-1)!,
-            });
-            return;
-          }
-          const inputs = inputsOf(desiredTrade);
-          const statuses: string[] = [];
-          for (const input of inputs) {
-            const existing = listTrades(tx, { accountId: depot.id, includeDeleted: true }).find(
-              (t) => t.importKey === input.importKey,
-            );
-            if (existing?.deletedAt)
-              throw new OperatorInputError('rebuild_key_deleted: restore with undo-group first');
-            let status: 'created' | 'updated' | 'unchanged' = 'created';
-            if (existing) {
-              status = equalTrade(existing, input) ? 'unchanged' : 'updated';
-              if (status === 'updated')
-                updateTrade(inner, existing.id, input, grouped, writeOptions);
-            } else createTrade(inner, input, grouped);
-            if (desiredTrade.kind !== 'reward') {
-              const transfer = tradeCashTransferInput(input, cash.id);
-              const old = tx
-                .select()
-                .from(booking)
-                .where(
-                  and(
-                    eq(booking.accountId, depot.id),
-                    eq(booking.importKey, `${input.importKey}:cash`),
-                  ),
+              if (existing?.deletedAt)
+                throw new OperatorInputError('rebuild_key_deleted: restore with undo-group first');
+              let status: 'created' | 'updated' | 'unchanged' = 'created';
+              if (existing) {
+                status = equalTrade(existing, input) ? 'unchanged' : 'updated';
+                if (status === 'updated')
+                  updateTrade(inner, existing.id, input, grouped, writeOptions);
+              } else createTrade(inner, input, grouped);
+              if (desiredTrade.kind !== 'reward') {
+                const transfer = tradeCashTransferInput(input, cash.id);
+                const old = tx
+                  .select()
+                  .from(booking)
+                  .where(
+                    and(
+                      eq(booking.accountId, depot.id),
+                      eq(booking.importKey, `${input.importKey}:cash`),
+                    ),
+                  )
+                  .get();
+                if (old?.deletedAt)
+                  throw new OperatorInputError('cash_key_deleted: restore with undo-group first');
+                if (
+                  old &&
+                  (!old.transferId ||
+                    !liveBookings().some(
+                      (b) => b.transferId === old.transferId && b.accountId === cash.id,
+                    ))
                 )
-                .get();
-              if (old?.deletedAt)
-                throw new OperatorInputError('cash_key_deleted: restore with undo-group first');
-              if (
-                old &&
-                (!old.transferId ||
-                  !liveBookings().some(
-                    (b) => b.transferId === old.transferId && b.accountId === cash.id,
-                  ))
-              )
-                throw new OperatorInputError('Cash settlement conflict');
-              if (transfer && old) {
-                const signed =
-                  transfer.fromAccountId === depot.id
-                    ? -transfer.amountCents
-                    : transfer.amountCents;
-                if (old.amountCents !== signed || old.date !== input.date) {
-                  updateBooking(
-                    inner,
-                    old.id,
-                    { date: input.date, amountCents: signed },
-                    grouped,
-                    writeOptions,
-                  );
+                  throw new OperatorInputError('Cash settlement conflict');
+                if (transfer && old) {
+                  const signed =
+                    transfer.fromAccountId === depot.id
+                      ? -transfer.amountCents
+                      : transfer.amountCents;
+                  if (old.amountCents !== signed || old.date !== input.date) {
+                    updateBooking(
+                      inner,
+                      old.id,
+                      { date: input.date, amountCents: signed },
+                      grouped,
+                      writeOptions,
+                    );
+                    status = 'updated';
+                  }
+                } else if (transfer) {
+                  createTransfer(inner, transfer, grouped);
+                  if (status === 'unchanged') status = 'updated';
+                } else if (old) {
+                  deleteBooking(inner, old.id, grouped, writeOptions);
                   status = 'updated';
                 }
-              } else if (transfer) {
-                createTransfer(inner, transfer, grouped);
-                if (status === 'unchanged') status = 'updated';
-              } else if (old) {
-                deleteBooking(inner, old.id, grouped, writeOptions);
-                status = 'updated';
               }
+              statuses.push(status);
+              report.outcomes.push({ id: input.importKey!, status, trade: input });
             }
-            statuses.push(status);
-            report.outcomes.push({ id: input.importKey!, status, trade: input });
+            if (
+              desiredTrade.kind === 'reward' &&
+              statuses.includes('created') &&
+              statuses.some((s) => s !== 'created')
+            )
+              throw new OperatorInputError('Incomplete reward pair');
           }
-          if (
-            desiredTrade.kind === 'reward' &&
-            statuses.includes('created') &&
-            statuses.some((s) => s !== 'created')
-          )
-            throw new OperatorInputError('Incomplete reward pair');
         });
+      }
       const cashHistory = new Map(
         balanceSeries(tx, cash.id, { from: openingDay, to: today }).map((b) => [
           b.date,
@@ -574,7 +655,13 @@ export function applySourceRebuild(
         ]),
       );
       const balanceAt = (day: string) => rebuildSafe(BigInt(cashHistory.get(day)!));
-      const sourceCash = (day: string) => sourceHistory.get(day)!.get(cashKey) ?? 0;
+      const sourceCash = (day: string) =>
+        rebuildSafe(
+          BigInt(sourceHistory.get(day)!.get(cashKey) ?? 0) +
+            plan.fxCashMovements
+              .filter((m) => m.date <= day)
+              .reduce((sum, m) => sum + BigInt(m.amountCents), 0n),
+        );
       const appOpening = balanceAt(openingDay),
         srcOpening = sourceCash(openingDay);
       const delta = rebuildSafe(BigInt(srcOpening) - BigInt(appOpening));
@@ -602,6 +689,39 @@ export function applySourceRebuild(
         ]),
       ];
       const after = listTrades(tx, { accountId: depot.id });
+      const origins = new Map<string, { type: string; unitsE8: number }[]>();
+      for (const desiredTrade of desired) {
+        const parts = plan.unitSources.get(desiredTrade.importKey) ?? [
+          { type: 'opening', unitsE8: desiredTrade.unitsE8 },
+        ];
+        const live = after.find(
+          (t) =>
+            t.importKey === desiredTrade.importKey ||
+            t.importKey === `${desiredTrade.importKey}:buy`,
+        );
+        if (live) origins.set(live.id, rebuildCreatedUnitSources(parts, live.unitsE8));
+        const matched = report.outcomes.find(
+          (o) => o.id === desiredTrade.importKey && o.status === 'matched',
+        );
+        if (matched) {
+          const refs = JSON.parse(matched.reason!) as { type: string; id: string }[];
+          const counterpart = after.find(
+            (t) =>
+              t.unitsE8 === desiredTrade.unitsE8 &&
+              refs.some((r) => r.type === 'trade' && r.id === t.id),
+          );
+          if (counterpart) origins.set(counterpart.id, parts);
+        }
+      }
+      for (const op of rewardLegs.filter((op) => claimedRewardLegs.has(op.id))) {
+        const match = ownerRewardMatches.get(op.id);
+        if (match?.status !== 'matched') continue;
+        const counterpart = after.find(
+          (t) => t.unitsE8 > 0 && match.refs.some((r) => r.type === 'trade' && r.id === t.id),
+        );
+        if (counterpart)
+          origins.set(counterpart.id, [{ type: op.type, unitsE8: counterpart.unitsE8 }]);
+      }
       for (const day of dates) {
         const source = sourceHistory.get(day)!;
         for (const m of assets) {
@@ -613,6 +733,25 @@ export function applySourceRebuild(
             appUnitsE8: app,
             sourceUnitsE8: src,
             differenceE8: rebuildSafe(BigInt(app) - BigInt(src)),
+            ...(app !== src
+              ? {
+                  byType: rebuildUnitBreakdown(
+                    operations,
+                    m.key,
+                    since,
+                    day,
+                    openingSource.get(m.key) ?? 0,
+                    after
+                      .filter((t) => t.securityId === m.securityId && t.date <= day)
+                      .flatMap(
+                        (t) =>
+                          origins.get(t.id) ?? [
+                            { type: t.date < since ? 'opening' : 'preserved', unitsE8: t.unitsE8 },
+                          ],
+                      ),
+                  ),
+                }
+              : {}),
           });
         }
       }

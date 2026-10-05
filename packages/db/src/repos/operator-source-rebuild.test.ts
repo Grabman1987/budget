@@ -2,13 +2,23 @@ import { afterEach, beforeEach, expect, it } from 'vitest';
 import { eq, isNull } from 'drizzle-orm';
 import type { SourceAmount, SourceOperation } from '@budget/domain';
 import { createTestDatabase, type OpenedDatabase } from '../client';
-import { auditLog, booking, bookingSplit, inboxItem, price, trade, transfer } from '../schema';
+import {
+  auditLog,
+  booking,
+  bookingSplit,
+  inboxItem,
+  price,
+  trade,
+  transfer,
+  fxRate,
+} from '../schema';
 import { accounts } from './entities';
 import { createBooking, createTransfer, updateBooking } from './bookings';
 import { createSecurity } from './securities';
 import { mapReadSource } from './read-source';
+import { saveReadSourceState } from './read-source';
 import { applySourceRebuild } from './operator-source-rebuild';
-import { createTrade, listTrades, tradeCashTransferInput } from './trades';
+import { createTrade, deleteTrade, listTrades, tradeCashTransferInput } from './trades';
 import { undoAuditGroups } from './operator-ops';
 import { accountSummaries } from './ledger-queries';
 import { applyOwnerTrades, parseOwnerTradesFile } from './operator-owner-trades';
@@ -428,4 +438,152 @@ it('keeps a stale reward pair atomic when one settlement is locked, then removes
   const unlocked = applySourceRebuild(db, { ...options, unlock: true }, ctx);
   expect(listTrades(db).filter((t) => pair.some((r) => r.id === t.id))).toHaveLength(0);
   expect(unlocked.units.every((r) => r.differenceE8 === 0)).toBe(true);
+});
+
+it('reconciles a combined fiat swap, discount fee wallets, merger, staking and USD buy; dry-run, idempotency and undo', () => {
+  db.delete(inboxItem).where(eq(inboxItem.id, 'unmapped')).run();
+  stage('discount-swap', 'earn_on_fiat_swap', [
+    leg('ds-out', '2026-03-21', asset('a', '0.5'), 'OUTGOING', { tradeId: 'ds-sell' }),
+    leg('ds-sell-cash', '2026-03-21', eur(5000), 'INCOMING', { tradeId: 'ds-sell' }),
+    leg('ds-in', '2026-03-21', asset('b', '1'), 'INCOMING', { tradeId: 'ds-buy' }),
+    leg('ds-buy-cash', '2026-03-21', eur(5000), 'OUTGOING', { tradeId: 'ds-buy' }),
+    leg('ds-fee-1', '2026-03-21', asset('b', '0.1'), 'OUTGOING', {
+      type: 'fee',
+      tradeId: 'ds-sell',
+      walletId: 'discount-wallet',
+    }),
+    leg('ds-fee-2', '2026-03-21', asset('b', '0.1'), 'OUTGOING', {
+      type: 'fee',
+      tradeId: 'ds-buy',
+      walletId: 'discount-wallet',
+    }),
+  ]);
+  stage('merger', 'merger_crypto', [
+    leg('migration-out', '2026-03-22', asset('a', '0.5'), 'OUTGOING'),
+    leg('migration-in', '2026-03-22', asset('b', '1')),
+  ]);
+  stage('stake', 'stake', [leg('staking-out', '2026-03-23', asset('a', '1'), 'OUTGOING')]);
+  stage('unstake', 'unstake', [leg('staking-in', '2026-04-03', asset('a', '0.5'))]);
+  const usd = (cents: number) => ({ ...eur(cents), currencyId: 'foreign-id' });
+  stage('usd-buy', 'earn_on_fiat_buy', [
+    leg('usd-a', '2026-04-05', asset('a', '1'), 'INCOMING', { tradeId: 'usd' }),
+    leg('usd-cash', '2026-04-05', usd(12500), 'OUTGOING', { tradeId: 'usd' }),
+  ]);
+  stage('usd-interest', 'earn_on_fiat_reward', [leg('usd-interest-cash', '2026-04-05', usd(125))]);
+  saveReadSourceState(
+    db,
+    {
+      lastSuccess: null,
+      lastAttempt: null,
+      status: 'idle',
+      window: null,
+      balances: [{ key: 'currency:foreign-id', amount: usd(0), currency: 'USD' }],
+    },
+    ctx,
+  );
+  db.insert(fxRate)
+    .values({ currency: 'USD', date: '2026-04-05', rateMicro: 800000, source: 'ecb' })
+    .run();
+  const opts = { ...options, stakedNow: ['Synthetic Coin a=1.5', 'Synthetic Coin b=0'] };
+  const before = liveState(),
+    counts = rowCounts();
+  const dry = applySourceRebuild(db, { ...opts, dryRun: true }, ctx);
+  expect(dry.units.every((u) => u.differenceE8 === 0)).toBe(true);
+  expect(liveState()).toEqual(before);
+  expect(rowCounts()).toEqual(counts);
+  const result = applySourceRebuild(db, opts, ctx);
+  expect(result.outcomes.filter((o) => o.status === 'skipped')).toEqual([]);
+  expect(result.units.every((u) => u.differenceE8 === 0)).toBe(true);
+  expect(result.staked).toEqual([
+    { securityId: 'a', key: 'asset:a', openingUnitsE8: 100000000, todayUnitsE8: 150000000 },
+    { securityId: 'b', key: 'asset:b', openingUnitsE8: 0, todayUnitsE8: 0 },
+  ]);
+  expect(
+    result.units.filter((u) => u.date === options.today).map((u) => [u.securityId, u.appUnitsE8]),
+  ).toEqual([
+    ['a', 601345679],
+    ['b', 690000000],
+  ]);
+  expect(result.cash.every((row) => row.date < '2026-03-10')).toBe(true);
+  expect(result.cashEnd).toMatchObject({
+    appCents: 104750,
+    sourceCents: 104750,
+    differenceCents: 0,
+  });
+  expect(result.fx_converted.map((r) => [r.currency, r.originalAmount, r.fromRateMicro])).toEqual([
+    ['USD', '125.00', 800000],
+    ['USD', '1.25', 800000],
+  ]);
+  const rebuilt = liveState(),
+    rebuiltCounts = rowCounts();
+  expect(applySourceRebuild(db, opts, ctx).groupId).toBe('');
+  expect(liveState()).toEqual(rebuilt);
+  expect(rowCounts()).toEqual(rebuiltCounts);
+  undoAuditGroups(db, [result.groupId], ctx);
+  expect(liveState().balances).toEqual(before.balances);
+});
+
+it('diagnoses unhandled source unit movements by type and reports their operation IDs', () => {
+  stage('unknown', 'synthetic_unknown', [
+    leg('unknown-out', '2026-03-25', asset('a', '0.25'), 'OUTGOING'),
+  ]);
+  const result = applySourceRebuild(db, options, ctx);
+  expect(result.unhandledOperations).toEqual([{ id: 'unknown', type: 'synthetic_unknown' }]);
+  const row = result.units.find((u) => u.securityId === 'a' && u.date === options.today)!;
+  expect(row.differenceE8).toBe(25000000);
+  expect(row.byType).toContainEqual({
+    type: 'synthetic_unknown',
+    sourceUnitsE8: -25000000,
+    createdUnitsE8: 0,
+    differenceE8: 25000000,
+  });
+  expect(row.byType!.reduce((sum, r) => sum + r.sourceUnitsE8, 0)).toBe(row.sourceUnitsE8);
+  expect(row.byType!.reduce((sum, r) => sum + r.createdUnitsE8, 0)).toBe(row.appUnitsE8);
+});
+
+it('refuses invalid or unmapped staking declarations before any ledger writes', () => {
+  const counts = rowCounts();
+  expect(() => applySourceRebuild(db, { ...options, stakedNow: ['Missing Coin=1'] }, ctx)).toThrow(
+    'mapped security',
+  );
+  expect(() =>
+    applySourceRebuild(db, { ...options, stakedNow: ['Synthetic Coin a=-1'] }, ctx),
+  ).toThrow();
+  expect(rowCounts()).toEqual(counts);
+});
+
+it('rolls back both merger sides and settlements when the second key was deleted by the owner', () => {
+  stage('blocked-merger', 'merger_crypto', [
+    leg('blocked-out', '2026-03-22', asset('a', '0.5'), 'OUTGOING'),
+    leg('blocked-in', '2026-03-22', asset('b', '1')),
+  ]);
+  const old = createTrade(
+    db,
+    {
+      accountId: 'depot',
+      securityId: 'b',
+      date: '2026-03-22',
+      kind: 'buy',
+      unitsE8: 100000000,
+      amountCents: 5000,
+      importKey: 'rebuild:blocked-merger:merger:in',
+      source: 'import',
+    },
+    ctx,
+  );
+  deleteTrade(db, old.trade.id, ctx);
+  const result = applySourceRebuild(db, options, ctx);
+  expect(result.outcomes.find((o) => o.id === 'rebuild:blocked-merger:merger:out')).toMatchObject({
+    status: 'skipped',
+    reason: 'rebuild_key_deleted: restore with undo-group first',
+  });
+  expect(listTrades(db).filter((t) => t.importKey?.includes('blocked-merger'))).toEqual([]);
+  expect(
+    db
+      .select()
+      .from(booking)
+      .where(isNull(booking.deletedAt))
+      .all()
+      .filter((b) => b.importKey?.includes('blocked-merger')),
+  ).toEqual([]);
 });

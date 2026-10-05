@@ -922,7 +922,7 @@ because bank dates and an unadjusted opening balance can legitimately differ.
    Reconciled rows skip the whole removal unit unless `--unlock` explicitly grants
    the same booking unlock option as `book`.
 2. At `since - 1 day`, sum each asset's wallet balances (`balanceAfter`, then later
-   flows; without snapshots replay from zero). Subtract remaining pre-start trades
+   flows; without snapshots replay from zero) **plus staked units**. Subtract remaining pre-start trades
    and create a delivery correction with that exact day's stored price, or zero
    plus `opening_no_price`. Holding snapshots override trade history in the app,
    so such a depot is refused before writes. Cash opening balance is never changed:
@@ -936,20 +936,48 @@ because bank dates and an unadjusted opening balance can legitimately differ.
 4. Verify `units` at opening, every completed month end and today: all
    `differenceE8` values must be zero. `cash` lists every differing day,
    `cashTop20` the largest differences and `cashEnd` today (even if equal).
+   Each differing security/date includes `byType`: source net units versus actual
+   created/preserved units by source operation type, with an opening baseline.
+   `unhandledOperations` lists IDs/types the planner does not handle.
    JSON also includes created count/cent sums by kind, removed trade/booking
    counts, retained/matched/skipped rows, unmapped fiat effects and the original
    app matcher verdict plus `cashStatus` (including `matched_by_sum`).
 
 | Source type | Ledger effect |
 | --- | --- |
-| `buy`, `sell`, `savings_plan`, `leverage_liquidation`, `index_buy`, `index_sell`, `index_rebalancing`, `swap`, `dust_swap`, `margin_*` | Buy for units in, sell for units out. Same-asset fees reduce incoming or increase outgoing units. Same-currency primary fiat is gross value; fiat fees become `feeCents`, fiat tax becomes sell `taxCents`. Several assets share fiat/fees by stored-price value with conserved cent remainders. Asset swaps sell/buy at equal total stored-price value. Shared PP/owner-trades helper creates `<key>:cash` settlement transfers. |
+| `buy`, `sell`, `earn_on_fiat_buy`, `savings_plan`, `leverage_liquidation`, `index_buy`, `index_sell`, `index_rebalancing`, `swap`, `earn_on_fiat_swap`, `dust_swap`, `margin_*` | Buy for units in, sell for units out. Same-asset fees (including separate legs in another wallet) reduce incoming or increase outgoing units, once. Primary fiat supplies gross value, including separate sell/buy fiat legs in swaps; stored-price swap valuation is the fallback without fiat. Fiat fees become `feeCents`, fiat tax becomes sell `taxCents`. Several assets share fiat/fees by stored-price value with conserved cent remainders. Shared PP/owner-trades helper creates `<key>:cash` settlement transfers. |
+| Separate outgoing `fee` leg in another asset | Sell the fee asset at its stored-price value V with `feeCents = V`: units decrease, settlement nets to zero, no cash transfer. Unmapped/unpriced fee assets are reported (`unmapped_asset` / `fee_no_price`). |
+| `merger_crypto` | One outgoing and one incoming asset on the same day, no fiat/tradeId: sell A and buy B at A's stored-price value. Without A's price, zero-valued `delivery_out` / `delivery_in` plus `merger_no_price`. Net cash is zero. |
+| Asset `deposit`, `withdrawal` | Net-unit `delivery_in` / `delivery_out` at stored-price value; absent price means zero plus `delivery_no_price`. Asset fee legs follow the same rules as trades. |
+| Asset `reclaim` | Zero-valued `delivery_out`, reported as `reclaim_zero_value`. |
 | `reward`, `passive_earn_reward`, `onetime_reward`, `best_reward`, `instant_trade_bonus`, `giveaway`, `trading_premium` (asset in, no fiat) | Equal EUR dividend and buy using a stored EUR price at most seven days old. Aggregate exact net units and individually rounded values per security/month; date = last included reward day, note = count. Unpriced rewards aggregate separately as zero-valued `delivery_in`, with report lines. Reward pairs require an EUR depot. Monthly aggregation shifts within-month timing; month-end units stay exact. |
 | `earn_on_fiat_reward` | Depot interest with cash transfer; the first mapped instrument supplies the existing money-only trade's required security reference. |
-| `stake`, `unstake`, platform `transfer` | No ledger effect; wallet movements still participate in source replay. |
+| `stake`, `unstake`, platform `transfer` | No ledger effect. Main-wallet stake/unstake movements participate in wallet replay; holdings reference adds reconstructed staking (see below). |
 | Fiat `deposit`, `withdrawal`, `refund`, `reclaim`; every unknown type | No trade; report `matchSourceOperations` verdict. Remaining same-sign cash movements may match one cash booking by an exact sum of up to eight movements within ±12 days. Each movement/booking is claimed once. Above 100,000 subtotal states, report `aggregate_search_limit` and leave unresolved. |
 | Unmapped asset | No trade; report per-asset count and signed fiat effect. Allocation requiring an unknown price/mapping reports an unavailable effect; map first, rerun. |
 
+Repeat `--staked-now "<mapped-security-name>=<decimal units>"` for each currently
+staked asset (default zero). Names resolve uniquely against mapped securities;
+units must be nonnegative exact e8 decimals. Example with synthetic names:
+`--staked-now "Synthetic Coin a=1.5" --staked-now "Synthetic Coin b=0"`.
+The staking wallet has no source transactions/balances. At day t, the reference is
+`wallets(t) + staked(t)`, where `staked(t) = staked(now) + unstake after t - stake after t`.
+Opening deliveries use this same reference. `staked` reports opening/today units
+per asset. A negative reconstructed reference is refused before ledger writes;
+check the current declaration and source history.
+
+Unmapped fiat legs in eligible trades/interest use their stored source currency
+identity (`read_source` balances) and the **exact day's stored ECB rate** (EUR per
+native unit, micro-units), with one integer-cent rounding into cash's currency.
+Missing identity/rate is reported; no provider fetch or rate inference occurs.
+`fx_converted` retains currency, original amount/cents, source/target rate and
+converted cents. Their cash settlement uses the mapped cash account; cash
+verification adds the corresponding converted source flows to that account's
+native wallet replay. Fiat-only bank deposits/withdrawals retain their existing
+bank-side behavior. FX valuation changes of a second wallet are not cash flows.
+
 Keys: `rebuild:<operation-id>:<leg-index>`,
+`rebuild:<operation-id>:merger:out/in`,
 `rebuild:opening:<since>:<security-id>`, and
 `rebuild:reward:<YYYY-MM>:<security-id>` (`:div`/`:buy`, or `:unpriced`).
 Equal rebuild rows/transfer pairs are `unchanged`, without second-run writes.
