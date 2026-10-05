@@ -2,6 +2,13 @@
 
 - [x] UX-2b (owner 2026-10-05): free-money caps for individual/bulk cover, pending/recurring dedup, account/used-credit line and missing-money carry option; synthetic regressions, CI and owner acceptance pending.
 
+### UX-3a — Phone shell (owner feedback 2026-10-05)
+
+- [x] One floating booking action; existing search in the phone header, theme switch in the profile menu, 44 px header controls.
+- [x] Shared page padding clears the safe-area-aware tab bar and FAB by 16 px.
+- [x] Synthetic unit and phone touch/search/clearance regressions, including WebKit; [scope and baseline list](ux-mobile-shell-1005.md).
+- [ ] Original avatar interception reproduced on the owner's phone, Linux screenshot review and owner acceptance. The prior tree's avatar was tappable in local Chromium and WebKit; no blocking overlay was found.
+
 ### Full page width — owner feedback 2026-10-05
 
 - [x] Shared unbounded page-width token, existing gutters and narrow text/form/dialog/A4 exceptions.
@@ -592,3 +599,11 @@ Owner feedback 2026-10-04: spending/cost reports 1.4/1.10/2.3–2.6/3.4–3.5 an
 - [x] Automatic need-class fixed/periodic obligations; want/future only by explicit Always. Repeated quarterly, half-yearly and yearly charges become implicit contracts with integer-cent monthly equivalents; yearly price steps count at the second bill.
 - [x] Exclusions precede contract derivation and trailing means, including weights. No name/memo guessing or real-data presets. Audited app_setting plus existing category method, atomic bulk writes and undo; no migration or dependency.
 - [ ] Owner review of category choices and debt-interest payee exclusions in the running application; CI is required before merge. The other parts of the owner report request remain separate tasks.
+
+### Report 2.4 — inflation basket by year, part C (owner 2026-10-05)
+
+- [x] Warenkorb toggle “Seit Basis” / “Je Jahr”; category-grouped items, calendar-year columns, observed monthly price means in integer cents, same-month prior-year mean changes and chained-index contributions in hundredth Pp.
+- [x] Shared index attribution and rounding with the headline; yearly contribution sums equal “Je Kalenderjahr”, including signed changes, annual reweighting and successors. Missing prices/comparisons remain unavailable; running year names its last closed month.
+- [x] Final local check (327 suites / 3,107 tests), production/E2E builds and desktop/mobile light/dark browser evidence; no baseline regeneration.
+- [ ] PR/CI review against main; part A was merged in PR #199 while C was being verified.
+- [ ] Owner acceptance of report 2.4 and local protected-index refresh (`git reset --mixed HEAD`); no keys, consents or settings changes are needed for this read-only view.
