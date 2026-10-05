@@ -22,6 +22,28 @@ const signedIn: AuthGate = {
 const appFor = (db: Db) =>
   createApp({ webDir, auth: signedIn, ledger: { db, today: () => TODAY } });
 
+it('saves validated region weights and rejects invalid weights without overwriting the security', async () => {
+  const opened = createTestDatabase();
+  try {
+    const call = caller(appFor(opened.db));
+    const created = await call('POST', '/securities', { name: 'Produkt A', kind: 'etf' });
+    const id = created.body['security'].id;
+    expect(
+      (await call('PATCH', `/securities/${id}`, { regionsJson: '{"Region A":0.5}' })).body[
+        'security'
+      ].regionsJson,
+    ).toBe('{"Region A":0.5}');
+    expect(
+      (await call('PATCH', `/securities/${id}`, { regionsJson: '{"Region A":1.1}' })).status,
+    ).toBe(400);
+    expect((await call('GET', `/securities/${id}`)).body['security'].regionsJson).toBe(
+      '{"Region A":0.5}',
+    );
+  } finally {
+    opened.close();
+  }
+});
+
 function caller(app: ReturnType<typeof appFor>) {
   return async (method: string, path: string, body?: unknown) => {
     const res = await app.request(`/api${path}`, {

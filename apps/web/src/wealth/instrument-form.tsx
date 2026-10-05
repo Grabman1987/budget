@@ -1,4 +1,4 @@
-import { parseScaledDecimal, todayInVienna } from '@budget/domain';
+import { parseRegionWeights, parseScaledDecimal, todayInVienna } from '@budget/domain';
 import {
   Button,
   Field,
@@ -27,6 +27,7 @@ export const INSTRUMENT_KIND: Record<SecurityRecord['kind'], string> = {
   other: 'Sonstiges',
 };
 type Draft = {
+  regionsJson: string;
   name: string;
   kind: SecurityRecord['kind'];
   currency: string;
@@ -38,6 +39,7 @@ type Draft = {
   leverage: string;
 };
 const draftFor = (security?: SecurityRecord, effectiveDay = todayInVienna()): Draft => ({
+  regionsJson: security?.regionsJson ?? '',
   name: security?.name ?? '',
   kind: security?.kind ?? 'etf',
   currency: security?.currency ?? 'EUR',
@@ -109,6 +111,9 @@ export function InstrumentForm({
     const currency = draft.currency.trim().toUpperCase();
     const isin = draft.isin.trim().toUpperCase() || null;
     const invalid: Errors = {};
+    if (draft.regionsJson.trim() && !parseRegionWeights(draft.regionsJson))
+      invalid.regionsJson =
+        'Länderanteile als JSON eingeben; Anteile zwischen 0 und 1, Summe höchstens 1.';
     if (!name || name.length > 120) invalid.name = 'Name mit 1 bis 120 Zeichen eingeben.';
     if (!/^[A-Z]{3}$/.test(currency))
       invalid.currency = 'Dreistelligen Währungscode eingeben, etwa EUR.';
@@ -131,6 +136,7 @@ export function InstrumentForm({
     onBusy(true);
     try {
       const values = {
+        regionsJson: draft.regionsJson.trim() || null,
         name,
         terBp,
         leverageFactor,
@@ -176,6 +182,22 @@ export function InstrumentForm({
   return (
     <form className="kform instrument-form" onSubmit={(event) => void save(event)}>
       <fieldset className="instrument-fields" disabled={busy}>
+        <Field
+          label="Länderanteile"
+          error={errors.regionsJson}
+          hint={'JSON, z. B. {"Region A":0.6,"Region B":0.4}. Leer bedeutet keine Angabe.'}
+        >
+          {({ id, describedBy, invalid }) => (
+            <TextInput
+              id={id}
+              value={draft.regionsJson}
+              maxLength={10000}
+              aria-describedby={describedBy}
+              aria-invalid={invalid}
+              onChange={(e) => update('regionsJson', e.target.value)}
+            />
+          )}
+        </Field>
         <Field label="Name" error={errors.name}>
           {({ id, describedBy, invalid }) => (
             <TextInput
@@ -285,11 +307,13 @@ export function InstrumentForm({
               onChange={(event) => update('assetClassId', event.target.value)}
             >
               <option value="">Ohne Anlageklasse</option>
-              {classes.data?.assetClasses.map((group) => (
-                <option key={group.id} value={group.id}>
-                  {group.name}
-                </option>
-              ))}
+              {classes.data?.assetClasses
+                .filter((group) => !group.isGroup)
+                .map((group) => (
+                  <option key={group.id} value={group.id}>
+                    {group.name}
+                  </option>
+                ))}
             </Select>
           )}
         </Field>

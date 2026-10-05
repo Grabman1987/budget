@@ -47,6 +47,14 @@ it('serves the allocation report of the sample ledger, consistent with the portf
   expect(allocation.history?.dates.at(-1)).toBe(TODAY);
   expect(allocation.history?.dates).toHaveLength(37);
   expect(allocation.history?.classes.length).toBeGreaterThanOrEqual(3);
+  expect(allocation.compositionGroups.reduce((sum, g) => sum + g.valueCents, 0)).toBe(
+    allocation.classifiedCents,
+  );
+  for (const group of allocation.compositionGroups) {
+    expect(group.classes.reduce((sum, cls) => sum + cls.valueCents, 0)).toBe(group.valueCents);
+    for (const cls of group.classes)
+      expect(cls.products.reduce((sum, p) => sum + p.valueCents, 0)).toBe(cls.valueCents);
+  }
 });
 
 it('needs a session', async () => {

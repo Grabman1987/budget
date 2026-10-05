@@ -69,9 +69,10 @@
   fill: var(--on-primary);
   stroke: var(--line);
 }
-.sb-pair {
+.sb-composition {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: minmax(0, 7fr) minmax(0, 5fr);
+  align-items: center;
   gap: 32px;
   margin: 6px 0 20px;
 }
@@ -98,6 +99,115 @@
 }
 .alloc-table .indent {
   padding-inline-start: 28px;
+}
+.alloc-table .product-indent {
+  padding-inline-start: 48px;
+}
+.composition-legend {
+  min-width: 0;
+}
+.composition-line {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto 64px;
+  gap: 12px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--rule);
+  align-items: baseline;
+}
+.composition-line > :first-child {
+  overflow-wrap: anywhere;
+}
+.composition-line > :not(:first-child) {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.composition-line.is-group {
+  font-weight: 620;
+  margin-top: 12px;
+}
+.composition-line.is-class {
+  padding-inline-start: 16px;
+  font-size: 13px;
+}
+.sb-composition .prep-swatch,
+.alloc-table .prep-swatch {
+  background: var(--pk);
+}
+.sb-composition .sb-out,
+.alloc-table .sb-out,
+.chart-tooltip .alloc-ink.sb-out {
+  --outer: color-mix(
+    in srgb,
+    var(--pk) var(--alloc-fraction, 62%),
+    var(--alloc-tint, var(--surface))
+  );
+  fill: var(--outer);
+  background: var(--outer);
+}
+.alloc-ink.pk-1 {
+  --pk: var(--alloc-1, var(--primary));
+}
+.alloc-ink.pk-2 {
+  --pk: var(--alloc-2, color-mix(in srgb, var(--future) 80%, var(--ink)));
+}
+.alloc-ink.pk-3 {
+  --pk: var(--alloc-3, color-mix(in srgb, var(--want) 75%, var(--primary)));
+}
+.alloc-ink.pk-4 {
+  --pk: var(--alloc-4, var(--ink-3));
+}
+.alloc-ink.pk-5 {
+  --pk: var(--alloc-5, color-mix(in srgb, var(--primary) 80%, var(--line-2)));
+}
+.alloc-ink.pk-6 {
+  --pk: var(--alloc-6, var(--ink));
+}
+.alloc-ink.pk-7 {
+  --pk: var(--alloc-7, var(--ink-2));
+}
+.alloc-ink.pk-8 {
+  --pk: var(--alloc-8, color-mix(in srgb, var(--future) 65%, var(--line)));
+}
+.sb-composition .sb-lbl {
+  fill: var(--alloc-label, var(--ink));
+  stroke: var(--outer);
+  stroke-width: 2px;
+  font-size: 12px;
+}
+.sb-composition .sb-lbl-inv {
+  fill: var(--alloc-inverse, var(--surface));
+  stroke: var(--pk);
+}
+:root[data-theme='dark'] {
+  --alloc-1: color-mix(in srgb, var(--want) 62%, var(--future));
+  --alloc-2: color-mix(in srgb, var(--future) 80%, var(--want));
+  --alloc-3: var(--want);
+  --alloc-4: color-mix(in srgb, var(--want) 80%, var(--ink-3));
+  --alloc-5: color-mix(in srgb, var(--future) 55%, var(--want));
+  --alloc-6: color-mix(in srgb, var(--want) 80%, var(--surface));
+  --alloc-7: color-mix(in srgb, var(--future) 80%, var(--surface));
+  --alloc-8: color-mix(in srgb, var(--want) 55%, var(--ink-3));
+  --alloc-tint: var(--want);
+  --alloc-fraction: 75%;
+  --alloc-label: var(--ground);
+  --alloc-inverse: var(--ground);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    --alloc-1: color-mix(in srgb, var(--want) 62%, var(--future));
+    --alloc-2: color-mix(in srgb, var(--future) 80%, var(--want));
+    --alloc-3: var(--want);
+    --alloc-4: color-mix(in srgb, var(--want) 80%, var(--ink-3));
+    --alloc-5: color-mix(in srgb, var(--future) 55%, var(--want));
+    --alloc-6: color-mix(in srgb, var(--want) 80%, var(--surface));
+    --alloc-7: color-mix(in srgb, var(--future) 80%, var(--surface));
+    --alloc-8: color-mix(in srgb, var(--want) 55%, var(--ink-3));
+    --alloc-tint: var(--want);
+    --alloc-fraction: 75%;
+    --alloc-label: var(--ground);
+    --alloc-inverse: var(--ground);
+  }
 }
 .alloc-regions {
   margin-top: 20px;
@@ -157,7 +267,7 @@
   }
 }
 @media (max-width: 760px) {
-  .sb-pair {
+  .sb-composition {
     grid-template-columns: minmax(0, 1fr);
     gap: 24px;
   }

@@ -57,7 +57,12 @@ import {
   type TradeInput,
   type TradePatch,
 } from '@budget/db';
-import { monthOf, nextExecutionAfter, parseScaledDecimal } from '@budget/domain';
+import {
+  monthOf,
+  nextExecutionAfter,
+  parseScaledDecimal,
+  parseRegionWeights,
+} from '@budget/domain';
 import { randomUUID } from 'node:crypto';
 import { Hono } from 'hono';
 import { z } from 'zod';
@@ -80,6 +85,12 @@ const exposureDay = z
 
 // ---------- securities ----------
 const securityFields = {
+  regionsJson: z
+    .string()
+    .max(10000)
+    .refine((value) => parseRegionWeights(value) !== null, 'Bitte gültige Länderanteile eingeben.')
+    .nullable()
+    .optional(),
   name: z.string().min(1).max(120),
   kind: z.enum(SECURITY_KINDS),
   symbol: z.string().max(40).nullable(),
@@ -227,6 +238,8 @@ export function securityRoutes(db: Db, today: () => string): Hono {
 
 // ---------- asset classes ----------
 const classCreate = z.object({
+  parentId: id.nullable().optional(),
+  isGroup: z.boolean().optional(),
   name: z
     .string()
     .trim()

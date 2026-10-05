@@ -52,7 +52,15 @@ export function PanelHost() {
   }
 
   if (shown === 'posteingang') return <InboxPanel open={panel === 'posteingang'} onClose={close} />;
-  if (['anlageklasse', 'sollquoten', 'anlageklasse-archivieren', 'instrument'].includes(shown))
+  if (
+    [
+      'anlageklasse',
+      'anlagegruppe',
+      'sollquoten',
+      'anlageklasse-archivieren',
+      'instrument',
+    ].includes(shown)
+  )
     return <AssetClassSettingsPanel open={panel === shown} onClose={close} mode={shown} />;
   if (!import.meta.env.DEV && import.meta.env.MODE !== 'e2e') return null;
 

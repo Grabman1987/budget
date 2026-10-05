@@ -652,6 +652,8 @@ Run it as `fly ssh console -a budget-fg -C "node /app/migrate-cli.js instrument-
 
 ### 12.6 Owner configuration (operator task)
 
+The additive `assetClassTree` section manages groups, class assignments, dated targets and explicit account classes, including operator-only P2P defaults. See [configuration, dry-run and owner steps](portfolio-composition.md#operator-configuration).
+
 `owner-config --file <json> [--dry-run] [--details]` loads the owner's private settings from one file
 (keep it on `/data/migration/`, never in the repo). Every section is optional; entries share one
 audit group per run (actor `operator`, `undo-group --group <id>` reverts the run) and call the function
@@ -688,7 +690,7 @@ code is 3. Running a file twice is safe: the second run reports everything as `u
 }
 ```
 
-Sections run in this order: `createSecurities`, `cryptoMappings`, `splitCategories`, then
+Sections run in this order: `assetClassTree`, `createSecurities`, `cryptoMappings`, `splitCategories`, then
 `profile`, `rules`, `categoryStages`, `assetClasses`, `securities`,
 `expectedPayments`, `skipOccurrences`, `clearBookings`. Names are matched exactly (trimmed,
 case-insensitive for existing sections); unknown and ambiguous references are skipped. Each entry
