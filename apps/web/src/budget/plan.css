@@ -768,6 +768,9 @@
   .plan .prow.is-empty .col-name {
     grid-column: 1 / -1;
   }
+  .plan .prow.is-empty .col-pos {
+    display: none;
+  }
   .plan .assign-btn {
     margin: -4px 0;
     padding: 4px 0;

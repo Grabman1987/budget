@@ -2,7 +2,7 @@
 
 .app {
   display: grid;
-  grid-template-columns: var(--sidebar) 1fr;
+  grid-template-columns: var(--sidebar) minmax(0, 1fr);
   min-height: 100vh;
   background: linear-gradient(
     90deg,
@@ -232,7 +232,7 @@ a.profile:hover .profile-text strong {
   align-items: center;
   gap: 12px;
   width: 100%;
-  max-width: var(--sheet-max);
+  max-width: var(--page-max);
   height: 100%;
   padding: 0 40px 0 24px;
 }
@@ -296,7 +296,7 @@ a.btn {
 /* ---------- Sheet (page area) ---------- */
 .sheet {
   width: 100%;
-  max-width: var(--sheet-max);
+  max-width: var(--page-max);
   padding: 28px 40px 72px;
   display: grid;
   grid-template-columns: repeat(12, minmax(0, 1fr));

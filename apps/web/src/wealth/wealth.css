@@ -25,6 +25,7 @@
   display: block;
   width: 100%;
   min-height: 320px;
+  max-height: 400px;
   margin: 4px 0 6px;
 }
 .vnw .chain-inline {
@@ -129,4 +130,17 @@
 .valuation-hint .icon {
   flex: none;
   margin-top: 1px;
+}
+
+@media (min-width: 1440px) {
+  .vview {
+    grid-template-columns: repeat(
+      auto-fit,
+      minmax(min(100%, max(480px, calc((100% - 48px) / 2))), 1fr)
+    );
+  }
+  .vview .vnw,
+  .vview .vcomp {
+    grid-column: auto;
+  }
 }

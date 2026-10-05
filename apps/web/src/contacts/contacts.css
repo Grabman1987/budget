@@ -1,5 +1,5 @@
 .contacts-page {
-  max-width: 1100px;
+  max-width: var(--page-max);
 }
 .contacts-page .ptoolbar {
   display: flex;
