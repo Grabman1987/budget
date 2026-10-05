@@ -626,22 +626,15 @@ export function monthStatus(summary: MonthSummary, rows: PlanRow[]): StatusLine[
 export type SplitState =
   | { kind: 'shares'; need: number; want: number; future: number }
   | { kind: 'empty' }
-  | { kind: 'no-income' }
-  | { kind: 'too-much' };
+  | { kind: 'no-income' };
 
-/**
- * The 50/30/20 shares of what is assigned, against the month's income. They only mean something
- * with an income above 0 and no more assigned than that: otherwise (tiny income, carried money
- * assigned) the shares would read 5129 % or −861 %, so there are none and `kind` says why. Negative
- * class sums count as 0; every share is within 0…100 and the bar needs no clamping.
- */
+/** Income shares stay visible above 100%; the shared bar marks overspending. */
 export function splitState(summary: MonthSummary, rows: PlanRow[]): SplitState {
   const by = { need: 0, want: 0, future: 0 };
   for (const r of rows) if (r.cls) by[r.cls] += Math.max(0, r.assignedCents);
   const total = by.need + by.want + by.future;
   if (summary.incomeCents <= 0) return { kind: 'no-income' };
   if (total === 0) return { kind: 'empty' };
-  if (total > summary.incomeCents) return { kind: 'too-much' };
   const shares = percentShares({
     needCents: by.need,
     wantCents: by.want,

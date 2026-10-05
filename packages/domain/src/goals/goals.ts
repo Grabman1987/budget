@@ -1,3 +1,4 @@
+import { mulDivRound } from '../wealth/int';
 import { addMonths, monthOf, monthsBetween } from '../date';
 
 /**
@@ -143,5 +144,22 @@ export function goalTotals(
       neededMonthlyCents: t.neededMonthlyCents + (g.neededMonthlyCents ?? 0),
     }),
     { targetCents: 0, savedCents: 0, remainingCents: 0, neededMonthlyCents: 0 },
+  );
+}
+
+/** Linear target from the goal's creation month (zero) to its target month. No funding implied. */
+export function goalSollCents(
+  targetCents: number,
+  start: string,
+  target: string,
+  month: string,
+): number {
+  const index = (m: string) => Number(m.slice(0, 4)) * 12 + Number(m.slice(5, 7));
+  const duration = index(target) - index(start);
+  if (duration <= 0) return month >= target ? targetCents : 0;
+  return mulDivRound(
+    targetCents,
+    Math.min(duration, Math.max(0, index(month) - index(start))),
+    duration,
   );
 }

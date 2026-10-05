@@ -69,15 +69,6 @@ export function SankeyChart({
   const first = columns[0] ?? [];
   const last = columns[columns.length - 1] ?? [];
   if (first.length === 0) return null;
-  const layout = sankeyLayout(columns, links, {
-    width,
-    height,
-    nodeWidth: NODE_WIDTH,
-    gap: 9,
-    padLeft: labelWidth(first.map((n) => n.name)),
-    padRight: labelWidth(last.map((n) => n.name)) + 8,
-  });
-
   const total = first.reduce((sum, node) => sum + node.value, 0);
   const share = (value: number) =>
     new Intl.NumberFormat('de-AT', {
@@ -85,6 +76,19 @@ export function SankeyChart({
       minimumFractionDigits: 2,
       maximumFractionDigits: 2,
     }).format(total > 0 ? value / total : 0);
+  const layout = sankeyLayout(columns, links, {
+    width,
+    height,
+    nodeWidth: NODE_WIDTH,
+    gap: 9,
+    padLeft: labelWidth(first.map((n) => n.name)),
+    padRight:
+      Math.max(
+        labelWidth(last.map((n) => `${n.name} · ${eur0(n.value)} · ${share(n.value)}`)),
+        155,
+      ) + 8,
+  });
+
   return (
     <ChartSvg
       width={width}
@@ -103,7 +107,7 @@ export function SankeyChart({
               className: `sk-node n-${n.tone ?? 'inc'}`,
             },
             {
-              name: 'Anteil am Zufluss',
+              name: 'Anteil an Verfügbar',
               value: share(n.value),
             },
           ],
@@ -120,7 +124,7 @@ export function SankeyChart({
               className: `sk-node n-${l.tone ?? 'inc'}`,
             },
             {
-              name: 'Anteil am Zufluss',
+              name: 'Anteil an Verfügbar',
               value: share(l.value),
             },
           ],
@@ -165,7 +169,7 @@ export function SankeyChart({
                   : undefined
               }
             >
-              <title>{`${n.name}: ${eur0(n.value)}`}</title>
+              <title>{`${n.name}: ${eur0(n.value)} · ${share(n.value)}`}</title>
             </rect>
             {showLabel && (
               <text
@@ -175,11 +179,13 @@ export function SankeyChart({
                 className="svg-label-strong"
               >
                 {n.name}
+                {!tall && n.column >= 2 ? ` · ${eur0(n.value)} · ${share(n.value)}` : ''}
               </text>
             )}
             {showLabel && tall && (
               <text x={tx} y={ty + 13} textAnchor={anchor} className="svg-label">
                 {eur0(n.value)}
+                {n.column >= 2 ? ` · ${share(n.value)}` : ''}
               </text>
             )}
           </g>

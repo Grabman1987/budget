@@ -1,3 +1,4 @@
+import { AllocationBar } from '../reports/allocation-bar';
 import { IncomeTargetsCard } from './income-targets-card';
 import {
   useAmountPrivacy,
@@ -816,9 +817,7 @@ function SplitBand({ data, rows }: { data: BudgetMonthView; rows: PlanRow[] }) {
       ? 'Ohne Einnahmen im Monat gibt es keine Anteile.'
       : state.kind === 'empty'
         ? 'Noch nichts zugewiesen.'
-        : state.kind === 'too-much'
-          ? 'Es ist mehr zugewiesen als eingenommen: die Anteile sagen dann nichts.'
-          : '';
+        : '';
   return (
     <section className="insp-card card split-band" aria-labelledby="split-title">
       <div className="insp-head">
@@ -845,30 +844,20 @@ function SplitBand({ data, rows }: { data: BudgetMonthView; rows: PlanRow[] }) {
           )}
         </span>
       </div>
-      <div className="sb-scale" aria-hidden="true">
-        <span style={{ left: '50%' }}>50</span>
-        <span style={{ left: '80%' }}>80</span>
-        <span style={{ left: '100%' }}>100 %</span>
-      </div>
-      <div
-        className="sb-bar"
-        role="img"
-        aria-label={
-          shares
-            ? `Zugewiesen: Bedarf ${shares.need} %, Wunsch ${shares.want} %, Zukunft ${shares.future} % der Einnahmen. Soll 50, 30, 20.`
-            : `Keine Anteile. ${reason}`
-        }
-      >
-        {shares && (
-          <>
-            <span className="sb-seg hatch-need" style={{ width: `${shares.need}%` }} />
-            <span className="sb-seg hatch-want" style={{ width: `${shares.want}%` }} />
-            <span className="sb-seg hatch-future" style={{ width: `${shares.future}%` }} />
-          </>
-        )}
-        <i className="sb-mark" style={{ left: '50%' }} />
-        <i className="sb-mark" style={{ left: '80%' }} />
-      </div>
+      {shares ? (
+        <AllocationBar
+          data={{
+            incomeCents: 10000,
+            needCents: shares.need * 100,
+            wantCents: shares.want * 100,
+            futureCents: shares.future * 100,
+            restCents: (100 - shares.need - shares.want - shares.future) * 100,
+          }}
+          label={`Zugewiesen: Bedarf ${shares.need} %, Wunsch ${shares.want} %, Zukunft ${shares.future} % der Einnahmen. Soll 50, 30, 20.`}
+        />
+      ) : (
+        <p>{reason}</p>
+      )}
       <div className="sb-legend">
         {(['need', 'want', 'future'] as const).map((k) => (
           <span key={k}>

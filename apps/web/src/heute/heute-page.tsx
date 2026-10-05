@@ -275,7 +275,9 @@ function HeuteBody({ data }: { data: Heute }) {
                 setSelected={setPaceDetail}
               />
               <PaceFigure
-                label="Prognose Monatsende"
+                label={
+                  data.pace.todayDay < 7 ? 'Prognose Monatsende · vorläufig' : 'Prognose Monatsende'
+                }
                 value={
                   data.pace.figures.forecastAvailable ? data.pace.figures.forecastEndCents : null
                 }
@@ -310,10 +312,11 @@ function HeuteBody({ data }: { data: Heute }) {
               </div>
             )}
             <p className="heute-note">
-              Fixe und wiederkehrende Zahlungen zählen einmal; nur variable Ausgaben werden
-              hochgerechnet.
+              {data.pace.todayDay < 7
+                ? 'Vorläufig: ausgegeben plus offene fixe und wiederkehrende Zahlungen plus verbleibender variabler Plan. Ab dem 7. Tag werden variable Ausgaben hochgerechnet.'
+                : 'Fixe und wiederkehrende Zahlungen zählen einmal; nur variable Ausgaben werden hochgerechnet.'}
               {!data.pace.figures.forecastAvailable &&
-                ' Eine Prognose erscheint ab dem 7. Tag mit positivem Plan.'}
+                ' Für eine Prognose braucht es einen positiven Plan.'}
             </p>
           </section>
 

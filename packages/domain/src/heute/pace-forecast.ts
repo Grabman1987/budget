@@ -6,7 +6,8 @@ const roundDiv = (a: number, b: number): number => Math.floor((2 * a + b) / (2 *
 /**
  * The forecast curve of the pace chart: cumulative spending from today to the end of the month,
  * index = day of the month (`todayDay..daysInMonth`, entry 0 is today). The open fixed costs fall
- * on their due day, the variable rest runs at the daily rate so far, so the last value is exactly
+ * on their due day; the remaining variable forecast (provisional plan or daily rate) is spread
+ * over the days left, so the last value is exactly
  * `figures.forecastEndCents`.
  */
 export function paceForecastCurve(model: PaceModel, fixed: ReadonlyArray<PaceFixed>): number[] {

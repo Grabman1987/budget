@@ -1,0 +1,97 @@
+.whole-picture {
+  display: grid;
+  gap: 24px;
+  min-width: 0;
+  margin-top: 24px;
+}
+.whole-section {
+  padding: 24px;
+  min-width: 0;
+}
+.whole-section h2 {
+  margin: 0 0 16px;
+  font-size: 20px;
+}
+.whole-verdict {
+  border-top: 1px solid var(--rule);
+  padding-top: 16px;
+  font-weight: 620;
+}
+.whole-table-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.whole-scroll {
+  overflow-x: auto;
+  max-width: 100%;
+}
+.whole-scroll table {
+  width: 100%;
+  border-collapse: collapse;
+  font-variant-numeric: tabular-nums;
+  font-size: 13px;
+}
+.whole-scroll th,
+.whole-scroll td {
+  border-bottom: 1px solid var(--rule);
+  padding: 12px 10px;
+  text-align: right;
+  white-space: nowrap;
+}
+.whole-scroll thead th {
+  white-space: normal;
+  min-width: 110px;
+  color: var(--ink-2);
+}
+.whole-scroll th:first-child {
+  text-align: left;
+}
+.whole-total {
+  font-weight: 650;
+  border-top: 2px solid var(--rule-strong);
+}
+.whole-scroll a {
+  color: inherit;
+  display: inline-block;
+  min-height: 24px;
+}
+.whole-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  padding: 0;
+  list-style: none;
+  font-size: 13px;
+}
+.whole-legend i {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  margin-right: 6px;
+  background: var(--line);
+}
+.whole-legend i.whole-market {
+  background: var(--future);
+}
+@media (max-width: 767px) {
+  .whole-section {
+    padding: 16px;
+  }
+  .whole-scroll {
+    font-size: 12px;
+  }
+  .whole-scroll a {
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+  }
+}
+
+.whole-picture .is-up {
+  color: var(--good-ink);
+}
+.whole-picture .is-down {
+  color: var(--bad-ink);
+}

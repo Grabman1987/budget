@@ -114,11 +114,11 @@ test.describe('routes', () => {
     await expect(page).toHaveTitle('Geldfluss · Budget');
   });
 
-  test('the report catalog lists 31 reports in five assemblies with positions', async ({
+  test('the report catalog lists 33 reports in five assemblies with positions', async ({
     page,
   }) => {
     await page.goto('/reports');
-    await expect(page.locator('.rcat-row')).toHaveCount(31);
+    await expect(page.locator('.rcat-row')).toHaveCount(33);
     await expect(page.locator('.rcat-grp')).toHaveCount(5);
     await expect(page.locator('.rcat-row .col-pos').first()).toHaveText('1.1');
     await expect(page.locator('.rcat-row .col-pos').last()).toHaveText('5.5');
@@ -406,12 +406,11 @@ test.describe('phone shell', () => {
   });
 });
 
-test.describe('regression baselines of the shell (own screenshots)', () => {
-  // The pages show the current month; the baselines are from September 2026. A fixed browser clock
-  // (the prototype's reference day) keeps them valid in every month.
-  test.beforeEach(async ({ page }) => {
-    await page.clock.setFixedTime(new Date('2026-09-17T08:30:00+02:00'));
-    // Preserve the original deterministic visual input; functional inbox tests use real counts.
+sampleTest.describe('regression baselines of the shell (own screenshots)', () => {
+  // Runs on the seeded sample server (clock fixed to 17.09.2026 by `sampleTest`): the sidebar and
+  // the attention list show live data, and the writable main server holds whatever the other specs
+  // of the same run (or shard) created, which made these baselines depend on spec order.
+  sampleTest.beforeEach(async ({ page }) => {
     await page.route('**/api/inbox/count', (route) => route.fulfill({ json: { count: 9 } }));
   });
 
@@ -420,7 +419,7 @@ test.describe('regression baselines of the shell (own screenshots)', () => {
     // Plan › Monat (P2c) and Plan › Jahr show live data; the plan-year spec covers that page.
     ['reports', '/reports'],
   ] as const) {
-    test(`light ${name}`, async ({ page }) => {
+    sampleTest(`light ${name}`, async ({ page }) => {
       await page.emulateMedia({ colorScheme: 'light', reducedMotion: 'reduce' });
       if (name === 'heute') await freezeHeuteVisual(page);
       await page.goto(name === 'heute' ? '/?monat=2026-09' : path);
@@ -434,7 +433,7 @@ test.describe('regression baselines of the shell (own screenshots)', () => {
     });
   }
 
-  test('dark heute', async ({ page }) => {
+  sampleTest('dark heute', async ({ page }) => {
     await page.emulateMedia({ colorScheme: 'dark', reducedMotion: 'reduce' });
     await freezeHeuteVisual(page);
     await page.goto('/?monat=2026-09');

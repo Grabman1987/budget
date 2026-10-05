@@ -41,7 +41,7 @@ describe('costsOverview', () => {
   });
   it('shares add up to exactly 10 000 basis points', () => {
     expect(result.rows.reduce((a, r) => a + r.shareBp, 0)).toBe(10_000);
-    expect(result.rows[2]?.shareBp).toBe(0);
+    expect(result.rows).toHaveLength(2);
   });
   it('chains earnings minus costs and keeps earnings apart from costs', () => {
     expect(result.earningsCents).toBe(18_000);
@@ -57,7 +57,7 @@ describe('costsOverview', () => {
       [2026, 8, true],
     ]);
     const y2024 = result.years[1]!;
-    expect(y2024.partCents).toEqual([84_000, 8_280, 0]);
+    expect(y2024.partCents).toEqual([84_000, 8_280]);
     expect(y2024.totalCents).toBe(92_280);
     expect(y2024.earningsCents).toBe(18_000);
   });

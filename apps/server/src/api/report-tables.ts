@@ -1,4 +1,4 @@
-import { reportTables, type Db } from '@budget/db';
+import { incomeExpenseReport, reportTables, type Db } from '@budget/db';
 import { Hono } from 'hono';
 import { z } from 'zod';
 import { readQuery } from './http';
@@ -19,5 +19,6 @@ export function reportTableRoutes(db: Db, today: () => string): Hono {
     const { netWorth } = readQuery(c, monthsQuery);
     return c.json(reportTables(db, { today: today(), withNetWorth: netWorth === '1' }));
   });
+  app.get('/income-expense', (c) => c.json(incomeExpenseReport(db, today())));
   return app;
 }

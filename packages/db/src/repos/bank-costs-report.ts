@@ -1,9 +1,14 @@
 import {
   addMonths,
+  cents,
   contractBinding,
   contractsOverview,
   costsOverview,
-  isBookedCreditCost,
+  monthlyInterestCents,
+  simulateLoan,
+  settlementCents,
+  toEurCents,
+  rateInForce,
   ExchangeRateUnavailableError,
   PriceUnavailableError,
   lastDayOfMonth,
@@ -15,7 +20,7 @@ import {
   type CostsOverview,
   type PayoffPlan,
 } from '@budget/domain';
-import { and, eq, gte, isNull } from 'drizzle-orm';
+import { eq, isNull } from 'drizzle-orm';
 import {
   account,
   booking,
@@ -25,14 +30,16 @@ import {
   category,
   categoryGroup,
   payee,
+  loanRateChange,
 } from '../schema';
 import { MissingFxRateError } from './errors';
 import { contractSources } from './contracts-report';
 import { portfolioSummary } from './portfolio-summary';
+import { accountBalances } from './queries';
 import { accountSummaries } from './ledger-queries';
 import { fxRateOnOrBefore } from './prices';
 import { reportTables } from './report-tables';
-import { reportMonths, spendCategories, tableSpendByMonth } from './spending-report';
+import { reportMonths } from './spending-report';
 import type { Executor } from './types';
 
 /**
@@ -95,11 +102,20 @@ export interface BankCostsReport extends CostsOverview {
   foreignFeeBookings: number;
   /** Trades of an account in another currency are not converted and not counted. */
   skippedForeignTrades: number;
+  /** Distinct source bookings omitted because their dated FX conversion is missing. */
+  skippedForeignBookings: number;
+  sources: Array<{ id: string; name: string; kind: string; cents: number; derived: boolean }>;
+  monthly: Array<{
+    month: string;
+    parts: Record<string, number>;
+    totalCents: number;
+    earningsCents: number;
+  }>;
 }
 
 const monthKey = (day: string) => day.slice(0, 7);
-const add = (map: Record<string, number>, month: string, cents: number) => {
-  map[month] = (map[month] ?? 0) + cents;
+const add = (map: Record<string, number>, month: string, value: number) => {
+  map[month] = cents((map[month] ?? 0) + value);
 };
 
 export function bankCostsReport(db: Executor, today: string): BankCostsReport {
@@ -111,164 +127,219 @@ export function bankCostsReport(db: Executor, today: string): BankCostsReport {
   const tables = reportTables(db, { today });
   const accounts = db.select().from(account).where(isNull(account.deletedAt)).all();
   const loanIds = new Set(accounts.filter((a) => a.type === 'loan').map((a) => a.id));
-  const onBudget = new Set(accounts.filter((a) => a.onBudget).map((a) => a.id));
-  const currencyOf = new Map(accounts.map((a) => [a.id, a.currency]));
-
-  // Loan costs require explicit fee-category attribution; debt movements are not costs.
-  const feeCategories = spendCategories(db).filter((c) => c.groupName === BANK_FEE_GROUP);
+  const accountById = new Map(accounts.map((a) => [a.id, a]));
   const interest: Record<string, number> = {};
-  const interestByAccount = new Map<string, Record<string, number>>();
-  // Foreign-currency fees of the bank.
-  const fx: Record<string, number> = {};
-  let foreignFeeBookings = 0;
-  const earnings: Record<string, number> = {};
-  const rows = db
-    .select({
-      accountId: booking.accountId,
-      date: booking.date,
-      amountCents: booking.amountCents,
-      id: booking.id,
-      openingDate: account.openingDate,
-      systemKind: payee.systemKind,
-      transferId: booking.transferId,
-      fee: booking.fxFeeCents,
-    })
-    .from(booking)
-    .innerJoin(account, eq(account.id, booking.accountId))
-    .leftJoin(payee, eq(payee.id, booking.payeeId))
-    .where(and(isNull(booking.deletedAt), isNull(account.deletedAt)))
-    .all();
-  for (const r of rows) {
-    const month = monthKey(r.date);
-    if (
-      !inWindow.has(month) ||
-      r.date < r.openingDate ||
-      r.systemKind !== null ||
-      r.transferId !== null
-    )
-      continue;
-    if (r.fee !== null && r.fee !== 0) {
-      add(fx, month, Math.abs(r.fee));
-      if (last12.has(month)) foreignFeeBookings += 1;
-    }
-  }
-  const costSplits = db
-    .select({
-      accountId: booking.accountId,
-      date: booking.date,
-      cents: bookingSplit.amountCents,
-      openingDate: account.openingDate,
-      transferId: booking.transferId,
-      splitTransferId: bookingSplit.transferId,
-      systemKind: payee.systemKind,
-      kind: category.kind,
-      groupName: categoryGroup.name,
-    })
-    .from(bookingSplit)
-    .innerJoin(booking, eq(booking.id, bookingSplit.bookingId))
-    .innerJoin(account, eq(account.id, booking.accountId))
-    .innerJoin(category, eq(category.id, bookingSplit.categoryId))
-    .innerJoin(categoryGroup, eq(categoryGroup.id, category.groupId))
-    .leftJoin(payee, eq(payee.id, booking.payeeId))
-    .where(
-      and(
-        isNull(booking.deletedAt),
-        isNull(account.deletedAt),
-        isNull(category.deletedAt),
-        isNull(categoryGroup.deletedAt),
-      ),
-    )
-    .all();
-  for (const r of costSplits) {
-    const month = monthKey(r.date);
-    if (
-      !inWindow.has(month) ||
-      r.date < r.openingDate ||
-      !isBookedCreditCost({
-        creditAccount: loanIds.has(r.accountId),
-        feeCategory: r.groupName === BANK_FEE_GROUP,
-        categoryKind: r.kind,
-        transfer: r.transferId !== null || r.splitTransferId !== null,
-        systemEntry: r.systemKind !== null,
-      })
-    )
-      continue;
-    add(interest, month, -r.cents);
-    const own = interestByAccount.get(r.accountId) ?? {};
-    add(own, month, -r.cents);
-    interestByAccount.set(r.accountId, own);
-  }
-  // Earnings: interest and dividends on budget accounts (income type Kapitalerträge).
-  const incomeRows = db
-    .select({
-      accountId: booking.accountId,
-      date: booking.date,
-      cents: bookingSplit.amountCents,
-      type: bookingSplit.incomeTypeId,
-      transferId: booking.transferId,
-      splitTransferId: bookingSplit.transferId,
-    })
-    .from(bookingSplit)
-    .innerJoin(booking, eq(booking.id, bookingSplit.bookingId))
-    .where(and(isNull(booking.deletedAt), eq(bookingSplit.incomeTypeId, INCOME_TYPES.capital.id)))
-    .all();
-  for (const r of incomeRows) {
-    const month = monthKey(r.date);
-    if (!inWindow.has(month) || !onBudget.has(r.accountId)) continue;
-    if (r.transferId !== null || r.splitTransferId !== null || r.cents <= 0) continue;
-    add(earnings, month, r.cents);
-  }
-
-  // Bank fees: net spending of the fee group (the same envelope activity as everywhere).
+  const modeledInterest: Record<string, number> = {};
+  const skippedBookings = new Set<string>();
   const fees: Record<string, number> = {};
-  if (feeCategories.length > 0 && available.length > 0) {
-    const spend = tableSpendByMonth(tables, feeCategories);
-    for (const [month, byCategory] of Object.entries(spend))
-      for (const cents of Object.values(byCategory)) add(fees, month, cents);
-  }
-
-  // Loan accounts can also be on budget: their explicit cost splits were already counted above.
-  for (const r of costSplits) {
-    const month = monthKey(r.date);
-    if (
-      onBudget.has(r.accountId) &&
-      inWindow.has(month) &&
-      r.date >= r.openingDate &&
-      isBookedCreditCost({
-        creditAccount: loanIds.has(r.accountId),
-        feeCategory: r.groupName === BANK_FEE_GROUP,
-        categoryKind: r.kind,
-        transfer: r.transferId !== null || r.splitTransferId !== null,
-        systemEntry: r.systemKind !== null,
-      })
-    )
-      add(fees, month, r.cents);
-  }
-
-  // Broker fees of trades (the trade's fee, and standalone fee entries); EUR accounts only.
+  const overdraft: Record<string, number> = {};
   const orders: Record<string, number> = {};
-  let skippedForeignTrades = 0;
-  const tradeRows = db
-    .select({
-      accountId: trade.accountId,
-      date: trade.date,
-      kind: trade.kind,
-      fee: trade.feeCents,
-      amount: trade.amountCents,
-    })
-    .from(trade)
-    .where(and(isNull(trade.deletedAt), gte(trade.date, `${first ?? '9999-12'}-01`)))
+  const fx: Record<string, number> = {};
+  const earnings: Record<string, number> = {};
+  const interestByAccount = new Map<string, Record<string, number>>();
+  const sourceMap = new Map<
+    string,
+    { id: string; name: string; kind: string; cents: number; derived: boolean }
+  >();
+  const addSource = (
+    id: string,
+    name: string,
+    kind: string,
+    month: string,
+    cents: number,
+    derived = false,
+  ) => {
+    if (!last12.has(month)) return;
+    const key = `${kind}:${id}`;
+    const old = sourceMap.get(key) ?? { id: key, name, kind, cents: 0, derived: false };
+    old.cents += cents;
+    old.derived ||= derived;
+    sourceMap.set(key, old);
+  };
+  const convert = (cents: number, currency: string, date: string) => {
+    if (currency === 'EUR') return cents;
+    const rate = fxRateOnOrBefore(db, currency, date)?.rateMicro;
+    return rate == null ? null : toEurCents(cents, rate);
+  };
+  const entries = db
+    .select({ b: booking, systemKind: payee.systemKind })
+    .from(booking)
+    .leftJoin(payee, eq(payee.id, booking.payeeId))
+    .where(isNull(booking.deletedAt))
     .all();
-  for (const t of tradeRows) {
-    const month = monthKey(t.date);
-    if (!inWindow.has(month)) continue;
-    const cents = t.fee + (t.kind === 'fee' ? t.amount : 0);
-    if (cents === 0) continue;
-    if (currencyOf.get(t.accountId) !== 'EUR') {
-      skippedForeignTrades += 1;
+  const rows = entries.filter(({ b, systemKind }) => {
+    const a = accountById.get(b.accountId);
+    return a && b.date >= a.openingDate && inWindow.has(monthKey(b.date)) && systemKind === null;
+  });
+  let foreignFeeBookings = 0;
+  for (const { b } of rows) {
+    if (b.fxFeeCents === null || b.fxFeeCents === 0 || b.transferId !== null) continue;
+    const month = monthKey(b.date);
+    const cost = convert(-b.fxFeeCents, b.currency, b.date);
+    if (cost === null) {
+      skippedBookings.add(b.id);
       continue;
     }
-    add(orders, month, cents);
+    add(fx, month, cost);
+    addSource(b.accountId, accountById.get(b.accountId)!.name, 'fx', month, cost);
+    if (last12.has(month)) foreignFeeBookings++;
+  }
+  const liveIds = new Set(rows.map(({ b }) => b.id));
+  const explicitMonths = new Set<string>();
+  const checkingInterestMonths = new Set<string>();
+  const costSplits = db
+    .select({ split: bookingSplit, b: booking, cat: category, groupName: categoryGroup.name })
+    .from(bookingSplit)
+    .innerJoin(booking, eq(booking.id, bookingSplit.bookingId))
+    .leftJoin(category, eq(category.id, bookingSplit.categoryId))
+    .leftJoin(categoryGroup, eq(categoryGroup.id, category.groupId))
+    .where(isNull(booking.deletedAt))
+    .all();
+  const liveTrades = db.select().from(trade).where(isNull(trade.deletedAt)).all();
+  const tradeBookingIds = new Set(liveTrades.flatMap((t) => (t.bookingId ? [t.bookingId] : [])));
+  // Match each unlinked payout once by its settlement amount, day and cash account.
+  const unmatchedPayouts = liveTrades.filter(
+    (t) =>
+      (t.kind === 'dividend' || t.kind === 'interest') &&
+      !t.bookingId &&
+      inWindow.has(monthKey(t.date)) &&
+      accountById.has(t.accountId),
+  );
+  for (const { split, b, cat, groupName } of costSplits) {
+    if (
+      !liveIds.has(b.id) ||
+      b.transferId !== null ||
+      split.transferId !== null ||
+      split.contactId !== null
+    )
+      continue;
+    const month = monthKey(b.date);
+    if (
+      split.incomeTypeId === INCOME_TYPES.capital.id &&
+      split.amountCents !== 0 &&
+      !tradeBookingIds.has(b.id)
+    ) {
+      const match = unmatchedPayouts.findIndex(
+        (t) =>
+          t.date === b.date &&
+          t.accountId === b.accountId &&
+          settlementCents(t) === split.amountCents,
+      );
+      if (match >= 0) unmatchedPayouts.splice(match, 1);
+      else {
+        const value = convert(split.amountCents, b.currency, b.date);
+        if (value !== null) add(earnings, month, value);
+        else skippedBookings.add(b.id);
+      }
+    }
+    if (
+      !cat ||
+      cat.deletedAt !== null ||
+      groupName !== BANK_FEE_GROUP ||
+      ['debt', 'invest', 'card_payment', 'advance', 'income'].includes(cat.kind) ||
+      tradeBookingIds.has(b.id)
+    )
+      continue;
+    const value = convert(-split.amountCents, b.currency, b.date);
+    if (value === null) {
+      skippedBookings.add(b.id);
+      continue;
+    }
+    const kind = loanIds.has(b.accountId)
+      ? 'interest'
+      : /sollzins|dispo|überziehungszins/i.test(cat.name)
+        ? 'overdraft'
+        : /zins|interest/i.test(cat.name)
+          ? 'interest'
+          : 'account';
+    const map = kind === 'interest' ? interest : kind === 'overdraft' ? overdraft : fees;
+    add(map, month, value);
+    addSource(
+      kind === 'interest' ? b.accountId : `${b.accountId}:${cat.id}`,
+      kind === 'interest'
+        ? accountById.get(b.accountId)!.name
+        : `${accountById.get(b.accountId)!.name} · ${cat.name}`,
+      kind,
+      month,
+      value,
+    );
+    if (kind === 'interest') {
+      if (accountById.get(b.accountId)?.type === 'checking') checkingInterestMonths.add(month);
+      explicitMonths.add(`${b.accountId}:${month}`);
+      const own = interestByAccount.get(b.accountId) ?? {};
+      add(own, month, value);
+      interestByAccount.set(b.accountId, own);
+    }
+  }
+  // A monthly terms model supplies only missing interest components, never principal.
+  const changes = db.select().from(loanRateChange).where(isNull(loanRateChange.deletedAt)).all();
+  for (const a of accounts.filter(
+    (a) => a.type === 'loan' && a.interestRateBp !== null && a.installmentCents !== null,
+  )) {
+    const rates = changes
+      .filter((r) => r.accountId === a.id)
+      .map((r) => ({ month: r.validFrom.slice(0, 7), rateBp: r.rateBp }));
+    let model: Array<{ month: string; interestCents: number; feeCents: number }> = [];
+    if (a.originalAmountCents && a.termStart) {
+      try {
+        model = simulateLoan({
+          balanceCents: a.originalAmountCents,
+          startMonth: monthOf(a.termStart),
+          rateBp: a.interestRateBp!,
+          installmentCents: a.installmentCents!,
+          monthlyFeeCents: a.monthlyFeeCents ?? 0,
+          rateChanges: rates,
+        }).rows;
+      } catch (e) {
+        if (!(e instanceof PaymentBelowInterestError)) throw e;
+      }
+    }
+    for (const month of available) {
+      if (
+        explicitMonths.has(`${a.id}:${month}`) ||
+        checkingInterestMonths.has(month) ||
+        (a.closedAt && a.closedAt.slice(0, 7) < month) ||
+        (a.termEnd && a.termEnd.slice(0, 7) < month) ||
+        month < monthOf(a.termStart ?? a.openingDate)
+      )
+        continue;
+      const modeled = model.find((r) => r.month === month);
+      const opening =
+        a.originalAmountCents && a.termStart
+          ? null
+          : accountBalances(db, lastDayOfMonth(addMonths(month, -1))).find(
+              (r) => r.accountId === a.id,
+            )?.balanceCents;
+      const native =
+        modeled?.interestCents ??
+        (opening != null && opening < 0
+          ? monthlyInterestCents(-opening, rateInForce(a.interestRateBp!, rates, month))
+          : 0);
+      const value = convert(native, a.currency, `${month}-15`);
+      if (value === null || value === 0) continue;
+      add(modeledInterest, month, value);
+      addSource(a.id, a.name, 'modeledInterest', month, value, true);
+      const own = interestByAccount.get(a.id) ?? {};
+      add(own, month, value);
+      interestByAccount.set(a.id, own);
+    }
+  }
+  let skippedForeignTrades = 0;
+  for (const t of liveTrades) {
+    const month = monthKey(t.date);
+    const a = accountById.get(t.accountId);
+    if (!a || !inWindow.has(month) || t.date < a.openingDate) continue;
+    const cost = convert(t.feeCents + (t.kind === 'fee' ? t.amountCents : 0), a.currency, t.date);
+    if (cost === null) {
+      skippedForeignTrades++;
+      continue;
+    }
+    add(orders, month, cost);
+    addSource(a.id, a.name, 'orders', month, cost);
+    if (t.kind === 'dividend' || t.kind === 'interest') {
+      const earned = convert(cents(t.amountCents - t.taxCents), a.currency, t.date);
+      if (earned !== null) add(earnings, month, earned);
+    }
   }
 
   // Household income of the window: the monthly table read model (no Kapitalerträge, no
@@ -281,10 +352,16 @@ export function bankCostsReport(db: Executor, today: string): BankCostsReport {
   const incomeCents = window12.reduce((a, m) => a + (incomeByMonth.get(m) ?? 0), 0);
 
   const parts: CostPart[] = [
-    { key: 'interest', name: 'Kreditzinsen', monthly: interest },
-    { key: 'account', name: 'Kontoführung', monthly: fees },
-    { key: 'orders', name: 'Ordergebühren', monthly: orders },
-    { key: 'fx', name: 'Fremdwährung', monthly: fx },
+    { key: 'interest', name: 'Kreditzinsen · gebucht', monthly: interest },
+    {
+      key: 'modeledInterest',
+      name: 'Kreditzinsen · aus Konditionen geschätzt',
+      monthly: modeledInterest,
+    },
+    { key: 'account', name: 'Kontoführung / Karten / Bankgebühren', monthly: fees },
+    { key: 'orders', name: 'Depot- / Transaktionsgebühren', monthly: orders },
+    { key: 'fx', name: 'Fremdwährungsgebühren', monthly: fx },
+    { key: 'overdraft', name: 'Sollzinsen / Dispo', monthly: overdraft },
   ];
   const overview = costsOverview({ available, parts, earnings, incomeCents });
 
@@ -336,10 +413,10 @@ export function bankCostsReport(db: Executor, today: string): BankCostsReport {
     const debt = sources.filter((s) => s.categoryKind === 'debt');
     const minimum = contractsOverview(
       today,
-      debt.filter((s) => contractBinding(s) === 'fixed'),
+      debt.filter((s) => contractBinding(s, today) === 'fixed'),
       fxLookup,
     );
-    const extraSources = debt.filter((s) => contractBinding(s) === null);
+    const extraSources = debt.filter((s) => contractBinding(s, today) === null);
     const extra = contractsOverview(
       today,
       extraSources.map((s) => ({ ...s, categoryKind: 'fixed' as const })),
@@ -380,6 +457,13 @@ export function bankCostsReport(db: Executor, today: string): BankCostsReport {
 
   return {
     ...overview,
+    sources: [...sourceMap.values()].filter((s) => s.cents !== 0).sort((a, b) => b.cents - a.cents),
+    monthly: overview.months.map((month) => ({
+      month,
+      parts: Object.fromEntries(parts.map((p) => [p.key, p.monthly[month] ?? 0])),
+      totalCents: parts.reduce((a, p) => a + (p.monthly[month] ?? 0), 0),
+      earningsCents: earnings[month] ?? 0,
+    })),
     from: first ? `${first}-01` : null,
     to: last ? lastDayOfMonth(last) : null,
     partLabels: Object.fromEntries(parts.map((p) => [p.key, p.name])),
@@ -388,6 +472,7 @@ export function bankCostsReport(db: Executor, today: string): BankCostsReport {
     loanCount: loans.length,
     foreignFeeBookings,
     skippedForeignTrades,
+    skippedForeignBookings: skippedBookings.size,
   };
 }
 

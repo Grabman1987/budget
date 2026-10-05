@@ -211,7 +211,6 @@ function Body({ data }: { data: ContractsReport }) {
                   je Jahr
                 </th>
                 <th scope="col">seit</th>
-                <th scope="col">Laufzeit</th>
                 <th scope="col">Letzte Preisänderung</th>
               </tr>
             </thead>
@@ -228,7 +227,7 @@ function Body({ data }: { data: ContractsReport }) {
                       <strong>{eur(monthly)}</strong>
                     </td>
                     <td className="n">{eur(yearly, { cents: false })}</td>
-                    <td colSpan={3} />
+                    <td colSpan={2} />
                   </tr>
                   {rows.map((i, n) => {
                     const change = [...i.changes].reverse().find((c) => c.previousCents !== null);
@@ -244,6 +243,9 @@ function Body({ data }: { data: ContractsReport }) {
                           </span>
                           <small>
                             {RHYTHM[i.rhythm]}
+                            {data.derivedContracts.includes(i.id)
+                              ? ' ? aus Buchungen abgeleitet'
+                              : ''}
                             {i.binding === 'periodic' ? ' · periodisch, als Zwölftel' : ''}
                           </small>
                         </th>
@@ -265,7 +267,6 @@ function Body({ data }: { data: ContractsReport }) {
                           {i.yearlyCents === null ? '–' : eur(i.yearlyCents, { cents: false })}
                         </td>
                         <td>{i.since ? monthShort(i.since.slice(0, 7)) : '–'}</td>
-                        <td>{i.endDate ? `bis ${longDay(i.endDate)}` : 'unbefristet'}</td>
                         <td>
                           {change ? (
                             <>
@@ -292,8 +293,8 @@ function Body({ data }: { data: ContractsReport }) {
         </ScrollRegion>
         <p className="sr-note">
           Fixe Verträge zählen je Monat, periodische Zahlungen als Zwölftel; dieselbe Auswahl wie
-          die Fixkostenquote (R10). Beträge in Fremdwährung stehen mit dem Originalbetrag und werden
-          mit dem zuletzt gespeicherten Referenzkurs umgerechnet.{' '}
+          die Fixkostenquote (R10), ohne befristete Einmalzahlungen. Beträge in Fremdwährung stehen
+          mit dem Originalbetrag und werden mit dem zuletzt gespeicherten Referenzkurs umgerechnet.{' '}
           <AppLink to="/plan/erwartet">Wiederkehrende Zahlungen pflegen</AppLink>
         </p>
       </section>
@@ -393,7 +394,7 @@ function CostChart({ data }: { data: ContractsReport }) {
   const values = points.map((p) => p.fixedMonthlyCents);
   const lo = Math.min(...values);
   const hi = Math.max(...values);
-  const pad = Math.max(1, (hi - lo) * 0.18);
+  const pad = Math.max(300, (hi - lo) * 0.18);
   const min = Math.max(0, lo - pad);
   const max = hi + pad;
   const x = (i: number) => L + (i / (points.length - 1)) * (W - L - R);

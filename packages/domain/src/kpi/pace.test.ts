@@ -124,7 +124,7 @@ describe('paceModel edge cases', () => {
       spending: [{ day: day(2), cents: -5000 }],
     });
     expect(refund.figures.spentCents).toBe(-5000);
-    expect(refund.figures.forecastEndCents).toBe(-5000);
+    expect(refund.figures.forecastEndCents).toBe(5000);
   });
 
   it('fixed costs above the limit leave no variable plan; overdue unpaid fixed costs stay open', () => {
@@ -165,7 +165,7 @@ describe('paceModel edge cases', () => {
   });
 });
 
-it('does not extrapolate early rent/insurance and hides the first six days', () => {
+it('uses remaining variable plan in the first six days', () => {
   const m = paceModel({
     month: '2026-09',
     today: day(3),
@@ -186,8 +186,8 @@ it('does not extrapolate early rent/insurance and hides the first six days', () 
     planToDateCents: 105000,
     variableSoFarCents: 3000,
     openFixedCents: 0,
-    forecastEndCents: 130000,
-    forecastAvailable: false,
+    forecastEndCents: 150000,
+    forecastAvailable: true,
   });
 });
 it('uses actual fixed amounts, counts an open bill once and extrapolates only variable spending', () => {

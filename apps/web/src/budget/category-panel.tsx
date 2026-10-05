@@ -170,6 +170,9 @@ function CategoryForm({
   const [stage, setStage] = useState(c?.stage ? String(c.stage) : '');
   const [card, setCard] = useState(c?.cardAccountId ?? cards[0]?.id ?? '');
   const [hidden, setHidden] = useState(Boolean(c?.hiddenAt));
+  const [inflationMethod, setInflationMethod] = useState(
+    c?.inflationTrailingMean == null ? 'auto' : c.inflationTrailingMean ? 'mean' : 'contracts',
+  );
   const [targetKind, setTargetKind] = useState<TargetChoice>(current?.kind ?? 'none');
   const [amount, setAmount] = useState(current ? formatDecimal(cents(current.amountCents)) : '');
   const [every, setEvery] = useState(String(current?.everyMonths ?? 1));
@@ -187,6 +190,7 @@ function CategoryForm({
     const fields = {
       name,
       groupId,
+      inflationTrailingMean: inflationMethod === 'auto' ? null : inflationMethod === 'mean',
       icon: icon.trim() || null,
       class: classless ? null : cls,
       stage: stage ? Number(stage) : null,
@@ -322,6 +326,24 @@ function CategoryForm({
               onChange={(e) => setCard(e.target.value)}
             >
               <AccountOptions accounts={cards} />
+            </Select>
+          )}
+        </Field>
+      )}
+      {kind === 'fixed' && (
+        <Field
+          label="Teuerung als 12-Monats-Mittel"
+          hint="Enthält Verbrauch, Nachzahlungen und Gutschriften."
+        >
+          {({ id }) => (
+            <Select
+              id={id}
+              value={inflationMethod}
+              onChange={(e) => setInflationMethod(e.target.value)}
+            >
+              <option value="auto">Automatisch erkennen</option>
+              <option value="mean">Ja · 12-Monats-Mittel</option>
+              <option value="contracts">Nein · Vertragspreise</option>
             </Select>
           )}
         </Field>

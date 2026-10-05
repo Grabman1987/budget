@@ -22,6 +22,7 @@ export {
 } from './budget';
 export {
   allocation,
+  allocationBar,
   assignedMonth,
   percentShares,
   type AllocItem,

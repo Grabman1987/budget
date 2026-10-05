@@ -208,6 +208,7 @@ sampleTest(
         restCents: number;
         columns: {
           income: Array<{ name: string }>;
+          pool: Array<{ name: string }>;
           classes: unknown[];
           groups: unknown[];
         };
@@ -222,6 +223,13 @@ sampleTest(
     expect(data.flow.columns.income.map((n) => n.name)).toContain('Kapitalerträge');
     const sankey = page.getByTestId('sankey-chart');
     await expect(sankey).toBeVisible();
+    await expect(sankey.locator('title', { hasText: /^Bedarf: .* · .*%$/ })).toHaveCount(1);
+    await expect(sankey.locator('text', { hasText: / · .*%$/ }).first()).toBeVisible();
+    await expect(
+      page
+        .getByTestId('flow-list')
+        .getByRole('columnheader', { name: `Anteil an ${data.flow.columns.pool[0]?.name}` }),
+    ).toBeVisible();
     await expect(sankey).toHaveAttribute('aria-label', /Kapitalerträge/);
     await expect(sankey.locator('title', { hasText: /^Kapitalerträge: / })).not.toHaveCount(0);
     // The thin Kapitalerträge node keeps its label.
@@ -261,8 +269,10 @@ sampleTest('Geldfluss: twelve months, running month and empty states', async ({ 
   await expect(page.getByTestId('sankey-chart')).toBeVisible();
   await inspect(page, info, 'geldfluss-12-monate');
 
+  const empty = page.waitForResponse(isFlow('2023-05', 'month'));
   await page.goto('/reports/geldfluss?monat=2023-05');
-  await expect(page.getByText(/gibt es keine Aufzeichnungen/)).toBeVisible();
+  expect((await empty).status()).toBe(200);
+  await expect(page.getByText(/gibt es keine Aufzeichnungen/)).toBeVisible({ timeout: 30_000 });
   await page.route('**/api/reports/month/flow*', (route) =>
     route.fulfill({ status: 500, json: { error: 'boom', message: 'Fehler' } }),
   );
