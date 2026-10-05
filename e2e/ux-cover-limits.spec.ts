@@ -81,9 +81,9 @@ test('cover limits protect commitments, explain missing money and show credit se
   await expect(money).toContainText('Rahmen 60,00 €');
   const select = page.getByLabel('Quelle für alle Überziehungen');
   await expect(select.locator('option', { hasText: 'Testgesundheit' })).toContainText(
-    'fest verplant 40,00 € · frei 20,00 €',
+    'fest verplant 20,00 € · frei 40,00 €',
   );
-  await expect(page.locator('.cover-missing')).toContainText('Es fehlen 30,00 €');
+  await expect(page.locator('.cover-missing')).toContainText('Es fehlen 10,00 €');
   await expect(page.getByRole('button', { name: 'Umbuchung anlegen' })).toHaveCount(0);
   await expect(page.getByRole('link', { name: 'In den nächsten Monat mitnehmen' })).toHaveAttribute(
     'href',
@@ -100,11 +100,11 @@ test('cover limits protect commitments, explain missing money and show credit se
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   await select.selectOption(source.id);
   await page.getByRole('button', { name: 'Alle aus Testgesundheit decken' }).click();
-  await expect(page.locator('.toast.is-open')).toContainText('0 gedeckt, 1 offen · 30,00 € fehlen');
+  await expect(page.locator('.toast.is-open')).toContainText('0 gedeckt, 1 offen · 10,00 € fehlen');
   await expect(select.locator('option', { hasText: 'Testgesundheit' })).toHaveCount(0);
   const value = (name: string) => page.locator('tr.prow', { hasText: name }).locator('.col-avail');
-  await expect(value('Testgesundheit')).toHaveText('40,00 €');
-  await expect(value('Testalltag')).toHaveText('−30,00 €');
+  await expect(value('Testgesundheit')).toHaveText('20,00 €');
+  await expect(value('Testalltag')).toHaveText('−10,00 €');
   await page.locator('.toast.is-open').getByRole('button', { name: 'Rückgängig' }).click();
   await expect(value('Testgesundheit')).toHaveText('60,00 €');
   await expect(value('Testalltag')).toHaveText('−50,00 €');
