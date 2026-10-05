@@ -1,3 +1,5 @@
+import { ChartSvg } from '@budget/ui';
+import { chartPoints } from '../charts/tooltip-data';
 import { useElementWidth } from '../charts/use-element-width';
 import { scaleLinear } from 'd3-scale';
 import { line, curveStepAfter } from 'd3-shape';
@@ -34,11 +36,21 @@ export function PayrollProjectChart({
     .curve(curveStepAfter);
   return (
     <div ref={ref}>
-      <svg
+      <ChartSvg
         className="pp-chart"
-        viewBox={`0 0 ${width} ${height}`}
-        role="img"
-        aria-label={
+        width={width}
+        height={height}
+        points={chartPoints(
+          months,
+          x,
+          gross
+            ? [
+                { name: 'Brutto', values: gross, color: 'var(--line-2)' },
+                { name: 'Netto', values },
+              ]
+            : [{ name: 'Projektergebnis', values, negativeColor: 'var(--red)' }],
+        )}
+        label={
           gross
             ? 'Brutto und Nettogehalt ohne steuerfreie Erstattungen laufend je Monat; fehlende Werte unterbrechen die Linie.'
             : 'Projektergebnis je Monat, Balken über und unter Null.'
@@ -91,7 +103,7 @@ export function PayrollProjectChart({
             </text>
           ) : null,
         )}
-      </svg>
+      </ChartSvg>
     </div>
   );
 }

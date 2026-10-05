@@ -8,7 +8,7 @@ import { useNavigate } from '@tanstack/react-router';
 import { userText } from '../api/error-text';
 import { ApiError, request } from '../api/http';
 import { ErrorNote, LoadingNote } from '../ledger/states';
-import { ValuationHint, type WithValuationNotes } from '../ledger/valuation-hint';
+import { type WithValuationNotes } from '../ledger/valuation-hint';
 import { eur, longDay } from '../ledger/format';
 import { periodText } from '../wealth/networth-model';
 import { LEDGER_KEY } from '../ledger/queries';
@@ -82,7 +82,6 @@ export function PortfolioPerformanceReport({
       ]}
     >
       <div className="kview vview portfolio-performance-report">
-        <ValuationHint incomplete={query.data?.incomplete} />
         {query.isPending && <LoadingNote what="Portfolioauswertung" />}
         {query.isError &&
           (query.error instanceof ApiError && query.error.code === 'valuation_unavailable' ? (

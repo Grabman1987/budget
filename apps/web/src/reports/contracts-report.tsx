@@ -1,3 +1,4 @@
+import { chartPoints } from '../charts/tooltip-data';
 import {
   useAmountPrivacy,
   privateAmount,
@@ -413,6 +414,11 @@ function CostChart({ data }: { data: ContractsReport }) {
         height={H}
         label={`Verträge je Monat seit ${monthShort(points[0]!.month)}: von ${eur(values[0]!, { cents: false })} auf ${eur(last.fixedMonthlyCents, { cents: false })}. ${data.markers.length} Monate mit Preisänderung oder neuem Vertrag.`}
         testId="contracts-chart"
+        points={chartPoints(
+          points.map((p) => p.month),
+          x,
+          [{ name: 'Verträge', values, color: 'var(--line)' }],
+        )}
       >
         <Graticule x1={L} x2={W - R} lines={grid} />
         <AxisLine x1={L} x2={W - R} y={B} />

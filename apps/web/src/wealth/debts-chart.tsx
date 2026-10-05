@@ -1,8 +1,10 @@
+import { chartPoints } from '../charts/tooltip-data';
 import { useAmountPrivacy, ChartSvg, Graticule, Line, type Point } from '@budget/ui';
 import { addDays, addMonths } from '@budget/domain';
 import { useElementWidth } from '../charts/use-element-width';
 import type { SeriesPoint } from '../ledger/types';
 import type { DebtAccount, DebtProjection } from './debts-api';
+import { nativeCurrency } from '../ledger/format';
 import { kfmt, yTicks } from './networth-model';
 
 /** Geometry only: actual balances and model rows are authoritative API values. */
@@ -53,6 +55,36 @@ export function DebtChart({
           height={height}
           label={`Restschuld ${loan.name} in ${loan.currency}: erfasste Kontohistorie${result ? ', Modell ohne und mit monatlicher Sondertilgung' : ', noch kein Modell berechnet'}.`}
           testId="debt-chart"
+          points={chartPoints(
+            [...new Set(points.map((p) => p.date))].sort(),
+            (i) => x([...new Set(points.map((p) => p.date))].sort()[i]!),
+            [
+              {
+                name: 'Restschuld',
+                values: [...new Set(points.map((p) => p.date))]
+                  .sort()
+                  .map((date) => actual.find((p) => p.date === date)?.amount),
+                color: 'var(--line)',
+                format: (v) => nativeCurrency(v, loan.currency),
+              },
+              {
+                name: 'Ohne Sondertilgung',
+                values: [...new Set(points.map((p) => p.date))]
+                  .sort()
+                  .map((date) => base.find((p) => p.date === date)?.amount),
+                color: 'var(--line-2)',
+                format: (v) => nativeCurrency(v, loan.currency),
+              },
+              {
+                name: 'Mit Sondertilgung',
+                values: [...new Set(points.map((p) => p.date))]
+                  .sort()
+                  .map((date) => extra.find((p) => p.date === date)?.amount),
+                color: 'var(--line)',
+                format: (v) => nativeCurrency(v, loan.currency),
+              },
+            ],
+          )}
         >
           <Graticule
             x1={56}

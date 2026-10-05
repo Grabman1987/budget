@@ -1,3 +1,4 @@
+import { chartPoints } from '../charts/tooltip-data';
 import { ChartSvg, Graticule, Line, LineLegend, useAmountPrivacy, type Point } from '@budget/ui';
 import { useElementWidth } from '../charts/use-element-width';
 import { shortDay } from '../ledger/format';
@@ -39,7 +40,21 @@ export function PerformanceChart({
   return (
     <div ref={ref} className="performance-chart">
       {width > 0 && (
-        <ChartSvg width={width} height={height} label={label}>
+        <ChartSvg
+          width={width}
+          height={height}
+          label={label}
+          points={chartPoints(
+            rows.map((r) => r.date),
+            (i) => x(rows[i]!.date),
+            lines.map((l) => ({
+              name: l.name,
+              values: l.values,
+              color: l.benchmark ? 'var(--ink-3)' : 'var(--line)',
+              format: (v) => `${performanceDecimal(v)}${label.includes('%') ? ' %' : ''}`,
+            })),
+          )}
+        >
           <Graticule
             x1={left}
             x2={right}

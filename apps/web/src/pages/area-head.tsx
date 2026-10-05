@@ -1,3 +1,5 @@
+import { useParams } from '@tanstack/react-router';
+import { ReportNavigation } from '../reports/report-navigation';
 import { Segmented, StandValue, TitleBlock, type TitleBlockField } from '@budget/ui';
 import { KeyRound } from 'lucide-react';
 import { useState } from 'react';
@@ -58,6 +60,7 @@ export function AreaHead({
   reportDataBasis,
   reportStand,
 }: AreaHeadProps) {
+  const { reportId } = useParams({ strict: false }) as { reportId?: string };
   const [month] = useMonth();
   const span = useMonthSpan();
   const [period, setPeriod] = useState<Period>('month');
@@ -141,6 +144,15 @@ export function AreaHead({
       break;
     case 'reports':
       heading = 'Reports';
+      if (reportId) {
+        titleNode = (
+          <div className="report-heading">
+            <h1>{title ?? meta.title}</h1>
+            <ReportNavigation id={reportId} />
+          </div>
+        );
+        // The phone header already carries the report title as its h1.
+      }
       // As in the prototype; the phone shows the registers right under the header.
       fields = [
         { ...(reportStand ?? stand), hideOnMobile: true },

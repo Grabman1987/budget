@@ -1,3 +1,4 @@
+import { chartPercent, chartPoints } from '../charts/tooltip-data';
 import {
   TrendLine,
   useAmountPrivacy,
@@ -83,15 +84,38 @@ export function CategoryChart({
         // Geometry only: euros as plain numbers for the scale, never stored or summed.
         const euros = points.flatMap((p) => [p.spentCents / 100, p.assignedCents / 100]);
         const hi = Math.max(1, ...euros) * 1.08;
+        const lo = Math.min(0, ...euros) * 1.08;
         const bw = (W - L - R) / Math.max(1, n);
         const x = (i: number) => L + (i + 0.5) * bw;
-        const y = (v: number) => height - B - (v / hi) * (height - B - T);
-        const ticks = yTicks(0, hi, 3);
+        const y = (v: number) => height - B - ((v - lo) / (hi - lo)) * (height - B - T);
+        const ticks = yTicks(lo, hi, 3);
         const labels = labelIndexes(n, W);
         const fill = cls === 'need' ? 'var(--need)' : patternFill(prefix, cls);
         const summary = `${name}: Ist und Plan der letzten ${n} Monate. Zuletzt ${eur(points[n - 1]?.spentCents ?? 0)} bei ${eur(points[n - 1]?.assignedCents ?? 0)} Plan.`;
         return (
-          <ChartSvg width={W} height={height} label={summary} testId="category-chart">
+          <ChartSvg
+            width={W}
+            height={height}
+            label={summary}
+            testId="category-chart"
+            points={chartPoints(
+              points.map((p) => p.month),
+              x,
+              [
+                {
+                  name: 'Ist',
+                  values: points.map((p) => p.spentCents),
+                  color: `var(--${cls})`,
+                  negativeColor: 'var(--red)',
+                },
+                {
+                  name: 'Plan',
+                  values: points.map((p) => p.assignedCents),
+                  color: 'var(--line-2)',
+                },
+              ],
+            )}
+          >
             <ClassPatterns prefix={prefix} />
             <Graticule x1={L} x2={W - R} lines={ticks.map((v) => ({ y: y(v), label: kfmt(v) }))} />
             <AxisLine x1={L} x2={W - R} y={y(0)} />
@@ -99,10 +123,10 @@ export function CategoryChart({
               <rect
                 key={p.month}
                 x={x(i) - bw * 0.28}
-                y={y(p.spentCents / 100)}
+                y={Math.min(y(0), y(p.spentCents / 100))}
                 width={bw * 0.56}
-                height={Math.max(0, y(0) - y(p.spentCents / 100))}
-                fill={fill}
+                height={Math.abs(y(0) - y(p.spentCents / 100))}
+                fill={p.spentCents < 0 ? 'var(--red)' : fill}
                 stroke={cls === 'need' ? undefined : `var(--${cls})`}
                 strokeWidth={cls === 'need' ? undefined : 1}
               >
@@ -192,7 +216,46 @@ export function SavingsChart({
         const ticks = yTicks(a, b, 4);
         const labels = labelIndexes(n, W);
         return (
-          <ChartSvg width={W} height={height} label={label} testId="savings-chart">
+          <ChartSvg
+            width={W}
+            height={height}
+            label={label}
+            testId="savings-chart"
+            points={chartPoints(
+              points.map((p) => p.month),
+              x,
+              [
+                {
+                  name: 'Sparquote',
+                  negativeColor: 'var(--red)',
+                  values: points.map((p) => p.rateBp),
+                  color: 'var(--line-2)',
+                  format: chartPercent,
+                },
+                {
+                  name: 'Rollierend 12 Monate',
+                  values: points.map((p) => p.rollingBp),
+                  format: chartPercent,
+                },
+                ...(points.some((p) => p.grossBp != null)
+                  ? [
+                      {
+                        name: 'Brutto',
+                        values: points.map((p) => p.grossBp),
+                        color: 'var(--ink-3)',
+                        format: chartPercent,
+                      },
+                    ]
+                  : []),
+                {
+                  name: 'Ziel',
+                  values: points.map(() => targetBp),
+                  color: 'var(--line-2)',
+                  format: chartPercent,
+                },
+              ],
+            )}
+          >
             <Graticule
               x1={L}
               x2={W - R}
@@ -259,7 +322,30 @@ export function MoneyAgeChart({
         const last = line[line.length - 1];
         const labels = labelIndexes(n, W);
         return (
-          <ChartSvg width={W} height={height} label={label} testId="money-age-chart">
+          <ChartSvg
+            width={W}
+            height={height}
+            label={label}
+            testId="money-age-chart"
+            points={chartPoints(
+              points.map((p) => p.month),
+              x,
+              [
+                {
+                  name: 'Geldalter',
+                  values: points.map((p) => p.days),
+                  color: 'var(--line)',
+                  format: (v) => `${v} Tage`,
+                },
+                {
+                  name: 'Ziel',
+                  values: points.map(() => targetDays),
+                  color: 'var(--line-2)',
+                  format: (v) => `${v} Tage`,
+                },
+              ],
+            )}
+          >
             <Graticule
               x1={L}
               x2={W - R}

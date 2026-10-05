@@ -1,3 +1,4 @@
+import { chartPoints } from '../charts/tooltip-data';
 import { ReportPeriodControl } from '../reports/period-quick-select';
 import { useAmountPrivacy, ChartSvg, Graticule, Line, LineLegend, type Point } from '@budget/ui';
 import { returnGap } from '@budget/domain';
@@ -7,7 +8,7 @@ import type { ReactNode } from 'react';
 import { useElementWidth } from '../charts/use-element-width';
 import { request } from '../api/http';
 import { LoadingNote } from '../ledger/states';
-import { ValuationHint, type WithValuationNotes } from '../ledger/valuation-hint';
+import { type WithValuationNotes } from '../ledger/valuation-hint';
 import { eur, longDay, shortDay } from '../ledger/format';
 import { LEDGER_KEY } from '../ledger/queries';
 import { periodText, yTicks } from '../wealth/networth-model';
@@ -79,7 +80,6 @@ export function PortfolioDepotsReport({ report, meta }: { report: ReportEntry; m
       ]}
     >
       <div className="prep portfolio-depots-report">
-        <ValuationHint incomplete={query.data?.incomplete} />
         {query.isPending && <LoadingNote what="Depots" />}
         {query.isError && (
           <ReportUnavailable
@@ -287,7 +287,36 @@ function DepotChart({
   return (
     <div className="depot-chart" ref={ref}>
       {width > 0 && (
-        <ChartSvg width={width} height={height} label={label} testId="depot-chart">
+        <ChartSvg
+          width={width}
+          height={height}
+          label={label}
+          testId="depot-chart"
+          points={chartPoints(
+            line.map((p) => p.date),
+            (i) => x(line[i]!.date),
+            [
+              {
+                name: depot.name,
+                values: line.map((p) => p.level),
+                color: 'var(--line)',
+                format: (v: number) =>
+                  new Intl.NumberFormat('de-AT', { maximumFractionDigits: 2 }).format(v),
+              },
+              ...(benchmark?.length
+                ? [
+                    {
+                      name: benchmarkName ?? 'Vergleich',
+                      values: line.map((p) => benchmark?.find((b) => b.date === p.date)?.level),
+                      color: 'var(--ink-3)',
+                      format: (v: number) =>
+                        new Intl.NumberFormat('de-AT', { maximumFractionDigits: 2 }).format(v),
+                    },
+                  ]
+                : []),
+            ],
+          )}
+        >
           <Graticule
             x1={left}
             x2={right}

@@ -71,8 +71,7 @@
   opacity: 0.72;
 }
 .contributions-bar-negative {
-  fill: var(--red-soft);
-  opacity: 0.72;
+  fill: var(--red);
 }
 .contributions-legend {
   display: flex;

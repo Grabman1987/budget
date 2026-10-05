@@ -25,7 +25,7 @@ export function ReportPeriodControl({
   trend?: boolean;
 }) {
   return (
-    <div>
+    <div className="report-period-control">
       <Segmented {...props} />
       <PeriodQuickSelect period={props.value} onChange={props.onChange} trend={trend} />
     </div>

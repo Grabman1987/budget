@@ -1,3 +1,4 @@
+import { chartPoints, chartPercent } from '../charts/tooltip-data';
 import { useAmountPrivacy, ChartSvg, Graticule, LineLegend, type GraticuleLine } from '@budget/ui';
 import type { AllocationClass, AllocationHistory, AllocationReport } from '@budget/db';
 import { queryOptions, useQuery } from '@tanstack/react-query';
@@ -5,7 +6,7 @@ import { AlertTriangle, CheckCircle2 } from 'lucide-react';
 import { useElementWidth } from '../charts/use-element-width';
 import { request } from '../api/http';
 import { LoadingNote } from '../ledger/states';
-import { ValuationHint, type WithValuationNotes } from '../ledger/valuation-hint';
+import { type WithValuationNotes } from '../ledger/valuation-hint';
 import { eur, eurWhole, longDay } from '../ledger/format';
 import { LEDGER_KEY } from '../ledger/queries';
 import type { PageMeta } from '../nav/pages';
@@ -61,7 +62,6 @@ export function PortfolioAllocationReport({
       }
     >
       <div className="prep portfolio-allocation-report">
-        <ValuationHint incomplete={query.data?.incomplete} />
         <BookRuleMetric code="R21" />
         {query.isPending && <LoadingNote what="Allocation" />}
         {query.isError && (
@@ -101,6 +101,7 @@ function AllocationBody({ data }: { data: AllocationReport }) {
           <div className="sb-pair">
             <figure className="sb-fig">
               <Sunburst
+                date={data.asOf}
                 testId="sunburst-classes"
                 title="Klassen"
                 totalCents={data.totalCents}
@@ -120,6 +121,7 @@ function AllocationBody({ data }: { data: AllocationReport }) {
             </figure>
             <figure className="sb-fig">
               <Sunburst
+                date={data.asOf}
                 testId="sunburst-regions"
                 title="Regionen"
                 totalCents={data.totalCents}
@@ -239,12 +241,14 @@ function Sunburst({
   title,
   label,
   testId,
+  date,
 }: {
   groups: SbGroup[];
   totalCents: number;
   title: string;
   label: string;
   testId: string;
+  date: string;
 }) {
   useAmountPrivacy();
   const [ref, width] = useElementWidth<HTMLDivElement>();
@@ -254,10 +258,32 @@ function Sunburst({
   const r = [size * 0.14, size * 0.34, size / 2 - 3];
   const total = Math.max(1, totalCents);
   const layout = layoutSunburst(groups, total);
+  const sectors = layout.flatMap(({ group, kids }) => [
+    { name: group.name, valueCents: group.valueCents, ink: group.ink, source: group },
+    ...kids.map(({ kid }) => ({ ...kid, ink: group.ink, source: kid })),
+  ]);
   return (
     <div className="sunburst" ref={ref}>
       {size > 0 && (
-        <ChartSvg width={size} height={size} label={label} testId={testId}>
+        <ChartSvg
+          width={size}
+          height={size}
+          label={label}
+          testId={testId}
+          crosshair={false}
+          points={sectors.map((s) => ({
+            x: cx,
+            date,
+            series: [
+              { name: s.name, value: eur(s.valueCents), className: `sb-arc ${s.ink}` },
+              {
+                name: 'Anteil am Portfolio',
+                value: percentText(s.valueCents / total, { digits: 2 }),
+                className: `sb-arc ${s.ink}`,
+              },
+            ],
+          }))}
+        >
           {layout.map(({ group, a0, a1, kids }) => {
             const mid = (a0 + a1) / 2;
             const [lx, ly] = point(cx, cy, ((r[0] as number) + (r[1] as number)) / 2, mid);
@@ -266,6 +292,7 @@ function Sunburst({
                 <path
                   d={ringPath(cx, cy, r[0] as number, (r[1] as number) - 1.5, a0, a1)}
                   className={`sb-arc ${group.ink}`}
+                  data-chart-point={sectors.findIndex((s) => s.source === group)}
                   fillRule="evenodd"
                 >
                   <title>{`${group.name}: ${eurWhole(group.valueCents)} · ${percentText(group.valueCents / total)}`}</title>
@@ -285,6 +312,7 @@ function Sunburst({
                     key={`${group.name}-${kid.name}`}
                     d={ringPath(cx, cy, r[1] as number, r[2] as number, b0, b1)}
                     className={`sb-arc sb-out ${group.ink}`}
+                    data-chart-point={sectors.findIndex((s) => s.source === kid)}
                     fillRule="evenodd"
                   >
                     <title>{`${kid.name}: ${eurWhole(kid.valueCents)} · ${percentText(kid.valueCents / total)}`}</title>
@@ -563,6 +591,24 @@ function SollIstChart({
           height={height}
           label={`Anteile der Anlageklassen je Monatsende von ${longDay(dates[0] as string)} bis ${longDay(dates[dates.length - 1] as string)}, Soll gestrichelt. Zuletzt: ${summary}.`}
           testId="soll-ist-chart"
+          points={chartPoints(
+            dates,
+            (i) => x(dates[i]!),
+            classes.flatMap((c, i) => [
+              {
+                name: c.name,
+                values: c.istBp,
+                className: `area ${inkOf(i)}`,
+                format: chartPercent,
+              },
+              {
+                name: `${c.name} · Soll`,
+                values: c.targetBp,
+                color: 'var(--line-2)',
+                format: chartPercent,
+              },
+            ]),
+          )}
         >
           <Graticule x1={left} x2={right} lines={lines} />
           {areas.map((a) => (

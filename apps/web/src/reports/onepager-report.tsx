@@ -1,3 +1,5 @@
+import { chartShare } from '../charts/tooltip-data';
+import { ChartValue } from '@budget/ui';
 import {
   useAmountPrivacy,
   CLASS_LABEL,
@@ -10,7 +12,6 @@ import { useQuery } from '@tanstack/react-query';
 import { HeutePaceChart } from '../heute/charts';
 import { eur, eurParts, longDay } from '../ledger/format';
 import { EmptyNote, ErrorNote, LoadingNote } from '../ledger/states';
-import { ValuationHint } from '../ledger/valuation-hint';
 import { monthLabel } from '../nav/month';
 import type { PageMeta } from '../nav/pages';
 import type { ReportEntry } from '../nav/reports-catalog';
@@ -184,19 +185,36 @@ function Split523({ data }: { data: OnePagerData }) {
         <p className="ps-note">Ohne Einnahmen im Monat lässt sich keine Verteilung berechnen.</p>
       ) : (
         <div className="b523" data-testid="onepager-split">
-          <div className="b523-bar" role="img" aria-label={splitLabel(data)}>
-            {CLASSES.map((c) => (
-              <span key={c} className={`sw-${c}`} style={{ width: width(amount[c]) }} />
-            ))}
-            {a.restCents > 0 && (
-              <span className="b523-rest" style={{ width: width(a.restCents) }} />
-            )}
-            <i className="b523-mark" style={{ left: `${((base * 0.5) / total) * 100}%` }} />
-            <i className="b523-mark" style={{ left: `${((base * 0.8) / total) * 100}%` }} />
-            {spend > base && (
-              <i className="b523-mark b523-full" style={{ left: `${(base / total) * 100}%` }} />
-            )}
-          </div>
+          <ChartValue
+            label="Verteilung 50/30/20"
+            date={data.month}
+            series={[
+              ...CLASSES.map((c) => ({
+                name: CLASS_LABEL[c],
+                value: `${eur(amount[c])} · ${chartShare(amount[c], base)}`,
+                color: `var(--${c})`,
+              })),
+              {
+                name: 'Übrig / aus Guthaben',
+                value: `${eur(a.restCents)} · ${chartShare(a.restCents, base)}`,
+                color: 'var(--ink-3)',
+              },
+            ]}
+          >
+            <div className="b523-bar" role="img" aria-label={splitLabel(data)}>
+              {CLASSES.map((c) => (
+                <span key={c} className={`sw-${c}`} style={{ width: width(amount[c]) }} />
+              ))}
+              {a.restCents > 0 && (
+                <span className="b523-rest" style={{ width: width(a.restCents) }} />
+              )}
+              <i className="b523-mark" style={{ left: `${((base * 0.5) / total) * 100}%` }} />
+              <i className="b523-mark" style={{ left: `${((base * 0.8) / total) * 100}%` }} />
+              {spend > base && (
+                <i className="b523-mark b523-full" style={{ left: `${(base / total) * 100}%` }} />
+              )}
+            </div>
+          </ChartValue>
           <div className="b523-leg">
             {CLASSES.map((c) => (
               <span key={c}>
@@ -257,7 +275,6 @@ function NetWorth({ data }: { data: OnePagerData }) {
           <p className="ps-note">
             Eigenleistung {signed(nw.ownCents)} · Markt {signed(nw.marketCents)}
           </p>
-          <ValuationHint incomplete={data.incomplete} />
         </>
       )}
     </section>
@@ -284,8 +301,14 @@ function Top({ data }: { data: OnePagerData }) {
                     <ClassSwatch kind={row.class} />
                     {row.name}
                   </td>
-                  <td className="ps-bar" aria-hidden="true">
-                    <i style={{ width: `${(row.cents / max) * 100}%` }} />
+                  <td className="ps-bar">
+                    <ChartValue
+                      label={row.name}
+                      date={data.month}
+                      series={[{ name: row.name, value: eur(row.cents), color: 'var(--line)' }]}
+                    >
+                      <i style={{ width: `${(row.cents / max) * 100}%` }} aria-hidden="true" />
+                    </ChartValue>
                   </td>
                   <td className="n">{eur(row.cents, { cents: false })}</td>
                   <td className="n">

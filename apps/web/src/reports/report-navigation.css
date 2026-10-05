@@ -1,0 +1,24 @@
+.report-heading {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+}
+.report-heading h1 {
+  flex: 1;
+  min-width: 0;
+}
+.report-navigation {
+  display: flex;
+  gap: 4px;
+  flex-shrink: 0;
+}
+.report-navigation .icon-btn {
+  min-width: 44px;
+  min-height: 44px;
+}
+@media print {
+  .report-navigation {
+    display: none;
+  }
+}

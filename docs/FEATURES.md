@@ -21,6 +21,14 @@ Source precedence remains [SPEC](../SPEC.md) → [PRODUCT](../PRODUCT.md) →
 [ROADMAP](ROADMAP.md) holds acceptance checklists; [TASKS](TASKS.md) tracks delivery.
 The prototype uses synthetic data. A clickable mockup is not a connected app page.
 
+Owner chart feedback (2026-10-04): [shared chart inspection](chart-inspection.md) adds shared mouse/keyboard/touch value inspection across report,
+wealth, Today and account charts, including every stacked layer and Sankey amounts/shares.
+Report headers step through catalog order (Alt+Shift+Left/Right); presets and the period select
+share one desktop row. Report valuation banners are removed; small approximation marks remain.
+Negative bars use opaque red. Report 4.3 plots the existing daily valuations and cumulative
+netflows while retaining monthly gain bars. No dependency or migration added; owner visual
+acceptance and updated Linux screenshot baselines remain separate.
+
 ## How to read the status
 
 - **UI + engine:** an application workflow and its supporting code exist; private

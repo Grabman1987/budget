@@ -1,3 +1,4 @@
+import { chartPoints, chartPercent } from '../charts/tooltip-data';
 import {
   useAmountPrivacy,
   AxisLine,
@@ -406,6 +407,23 @@ function IndexChart({ data }: { data: InflationReport }) {
         height={H}
         label={`Persönlicher Preisindex, ${monthShort(points[0]!.month)} gleich 100, zuletzt ${index1(lastPoint.index)}.`}
         testId="inflation-chart"
+        points={chartPoints(
+          points.map((p) => p.month),
+          x,
+          [
+            { name: 'Persönlicher Preisindex', values: points.map((p) => p.index), format: index1 },
+            ...(data.referenceBp !== null
+              ? [
+                  {
+                    name: 'Verbraucherpreisindex',
+                    values: points.map((p) => p.reference),
+                    color: 'var(--ink-3)',
+                    format: index1,
+                  },
+                ]
+              : []),
+          ],
+        )}
       >
         <Graticule x1={L} x2={W - R} lines={grid} />
         <AxisLine x1={L} x2={W - R} y={y(100)} dashed />
@@ -458,6 +476,23 @@ function MonthlyChart({ data }: { data: InflationReport }) {
         height={H}
         label={`Veränderung zum Vorjahresmonat, eigener Warenkorb gegen Verbraucherpreisindex, von ${monthShort(rows[0]!.month)} bis ${monthShort(rows[rows.length - 1]!.month)}.`}
         testId="inflation-monthly-chart"
+        points={chartPoints(
+          rows.map((m) => m.month),
+          x,
+          [
+            { name: 'Eigener Warenkorb', values: rows.map((m) => m.ownBp), format: chartPercent },
+            ...(reference.length > 1
+              ? [
+                  {
+                    name: 'Verbraucherpreisindex',
+                    values: rows.map((m) => m.referenceBp),
+                    color: 'var(--ink-3)',
+                    format: chartPercent,
+                  },
+                ]
+              : []),
+          ],
+        )}
       >
         <Graticule x1={L} x2={W - R} lines={grid} />
         <AxisLine x1={L} x2={W - R} y={y(0)} />

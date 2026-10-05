@@ -1,3 +1,4 @@
+import { ChartValue } from '@budget/ui';
 import { useAmountPrivacy, DimensionChain } from '@budget/ui';
 import { cents } from '@budget/domain';
 import type { BankCostsReport, FundCostsReport } from '@budget/db';
@@ -136,19 +137,37 @@ function Body({ data }: { data: BankCostsReport }) {
                   </small>
                 ) : null}
               </span>
-              <span
-                className="sr-stack"
-                role="img"
-                aria-label={`${y.year}: ${eur(y.totalCents, { cents: false })}, ${data.rows.map((r, i) => `${r.name} ${eur(y.partCents[i] ?? 0, { cents: false })}`).join(', ')}`}
+              <ChartValue
+                label="Bank- und Zinskosten"
+                date={String(y.year)}
+                series={[
+                  ...data.rows.map((r, i) => ({
+                    name: r.name,
+                    value: eur(y.partCents[i] ?? 0),
+                    color:
+                      [
+                        'var(--line)',
+                        'var(--line-2)',
+                        'color-mix(in srgb, var(--line) 45%, var(--surface))',
+                        'var(--ink-3)',
+                      ][i] ?? 'var(--line)',
+                  })),
+                ]}
               >
-                {y.partCents.map((c, i) => (
-                  <i
-                    key={data.rows[i]?.key}
-                    className={`kc-${i + 1}`}
-                    style={{ width: `${(Math.max(0, c) / maxYear) * 100}%` }}
-                  />
-                ))}
-              </span>
+                <span
+                  className="sr-stack"
+                  role="img"
+                  aria-label={`${y.year}: ${eur(y.totalCents, { cents: false })}, ${data.rows.map((r, i) => `${r.name} ${eur(y.partCents[i] ?? 0, { cents: false })}`).join(', ')}`}
+                >
+                  {y.partCents.map((c, i) => (
+                    <i
+                      key={data.rows[i]?.key}
+                      className={`kc-${i + 1}`}
+                      style={{ width: `${(Math.max(0, c) / maxYear) * 100}%` }}
+                    />
+                  ))}
+                </span>
+              </ChartValue>
               <span className="sr-val">
                 <strong>{eur(y.totalCents, { cents: false })}</strong>
                 <small>Erträge {eur(y.earningsCents, { cents: false })}</small>
@@ -283,9 +302,23 @@ function Body({ data }: { data: BankCostsReport }) {
                           <span className="muted">–</span>
                         ) : (
                           <span className="sr-use">
-                            <span className="sr-use-bar" aria-hidden="true">
-                              <i style={{ width: `${Math.min(100, use * 100)}%` }} />
-                            </span>
+                            <ChartValue
+                              label={`Kreditnutzung ${l.name}`}
+                              date={data.to ?? 'Aktueller Stand'}
+                              series={[
+                                { name: 'Genutzt', value: eur(l.usedCents), color: 'var(--line)' },
+                                {
+                                  name: 'Rahmen',
+                                  value: eur(l.limitCents ?? 0),
+                                  color: 'var(--line-2)',
+                                },
+                                { name: 'Auslastung', value: `${pct2.format(use * 100)} %` },
+                              ]}
+                            >
+                              <span className="sr-use-bar" aria-hidden="true">
+                                <i style={{ width: `${Math.min(100, use * 100)}%` }} />
+                              </span>
+                            </ChartValue>
                             {Math.round(use * 100)} %
                           </span>
                         )}

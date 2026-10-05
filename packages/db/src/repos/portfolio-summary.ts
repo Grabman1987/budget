@@ -171,6 +171,8 @@ export interface PortfolioSummary {
 }
 
 export interface ContributionHistory {
+  /** Finest existing valuation resolution; monthly gains remain separate. */
+  daily: Array<{ date: string; valueCents: number; investedCents: number }>;
   from: string;
   to: string;
   startValueCents: number;
@@ -877,6 +879,22 @@ export function portfolioSummary(db: Executor, options: PortfolioOptions): Portf
           selectedPerformance.contributionsCents,
           selectedPerformance.gainCents,
         ]);
+        const selectedFlows = flows
+          .filter((f) => f.date > selectedPerformance.from && f.date <= selectedPerformance.to)
+          .sort((a, b) => a.date.localeCompare(b.date));
+        let flowIndex = 0;
+        let dailyFlow = 0;
+        const daily = valuations
+          .filter((v) => v.date >= selectedPerformance.from && v.date <= selectedPerformance.to)
+          .map((v) => {
+            while (flowIndex < selectedFlows.length && selectedFlows[flowIndex]!.date <= v.date) {
+              dailyFlow += selectedFlows[flowIndex++]!.cents;
+              assertSafeCents([dailyFlow]);
+            }
+            const investedCents = selectedPerformance.startValueCents + dailyFlow;
+            assertSafeCents([v.valueCents, investedCents]);
+            return { ...v, investedCents };
+          });
         const windowInput = { series: valuations, flows };
         const bounds = monthBoundaries(selectedPerformance.from, selectedPerformance.to);
         let cumulativeFlow = 0;
@@ -934,6 +952,7 @@ export function portfolioSummary(db: Executor, options: PortfolioOptions): Portf
           gainCents: selectedPerformance.gainCents,
           months,
           years,
+          daily,
         };
       }
     }

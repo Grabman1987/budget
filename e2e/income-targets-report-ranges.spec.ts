@@ -79,6 +79,15 @@ test('shared ranges, custom URL reload and optional trend', async ({ page }, inf
     });
   });
   expect(headerFits).toBe(true);
+  if (info.project.name === 'desktop') {
+    const row = page.locator('.report-period-control');
+    const presets = await row.locator('.seg').first().boundingBox();
+    const select = await row.getByLabel('Zeitraum-Schnellauswahl', { exact: true }).boundingBox();
+    expect(presets).not.toBeNull();
+    expect(select).not.toBeNull();
+    expect(Math.abs(presets!.y - select!.y)).toBeLessThan(8);
+    expect(select!.x).toBeGreaterThanOrEqual(presets!.x + presets!.width);
+  }
   for (const theme of ['light', 'dark'] as const) {
     await page.evaluate((value) => {
       document.documentElement.dataset['theme'] = value;

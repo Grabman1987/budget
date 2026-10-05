@@ -1,3 +1,4 @@
+import { chartPoints } from '../charts/tooltip-data';
 import { useAmountPrivacy, ChartSvg, Graticule, Line, ElevationMark, type Point } from '@budget/ui';
 import { addMonths, MAX_FREEDOM_MONTHS, type FreedomProjection } from '@budget/domain';
 import { useElementWidth } from '../charts/use-element-width';
@@ -38,6 +39,14 @@ export function FreedomChart({
           width={width}
           height={H}
           testId="freedom-chart"
+          points={chartPoints(
+            values.map((_, i) => addMonths(startMonth, Math.min(i * 12, months))),
+            (i) => x(Math.min(i * 12, months)),
+            [
+              { name: 'Prognose', values: values, color: 'var(--line)' },
+              { name: 'Ziel', values: values.map(() => target), color: 'var(--line-2)' },
+            ],
+          )}
           label={`Prognose ab ${monthText(startMonth)}: ${p.doneMonth ? `Ziel erreicht ${monthText(p.doneMonth)}` : 'Ziel innerhalb von 60 Jahren nicht erreicht'}. Keine Garantie.`}
         >
           <Graticule

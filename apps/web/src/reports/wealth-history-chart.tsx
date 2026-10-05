@@ -1,3 +1,4 @@
+import { chartPoints } from '../charts/tooltip-data';
 import { useAmountPrivacy, AxisLine, ChartSvg, Graticule, Line, type Point } from '@budget/ui';
 import { MINUS } from '@budget/domain';
 import { useElementWidth } from '../charts/use-element-width';
@@ -85,7 +86,32 @@ function Drawing({ history, width: W }: { history: NetWorthHistory; width: numbe
     `${eur(daily[0]!.netWorthCents)} am ${longDay(history.from)} auf ${eur(lastValue)} am ${longDay(history.to)}.`;
 
   return (
-    <ChartSvg width={W} height={H} label={summary} testId="wealth-history-chart">
+    <ChartSvg
+      width={W}
+      height={H}
+      label={summary}
+      testId="wealth-history-chart"
+      points={chartPoints(
+        points.map((p) => p.date),
+        (i) => px[i]!,
+        [
+          ...assets.map(({ g, gi }) => ({
+            name: g.label,
+            values: points.map((p) => p.structure[g.key]?.assetsCents ?? 0),
+            color: toneOf(gi, groups.length),
+          })),
+          ...debts.map(({ g }) => ({
+            name: `${g.label} · Schulden`,
+            values: points.map((p) => p.structure[g.key]?.debtsCents ?? 0),
+            color: 'var(--ink-2)',
+          })),
+          {
+            name: 'Nettovermögen',
+            values: points.map((p) => daily[index.get(p.date) ?? 0]!.netWorthCents),
+          },
+        ],
+      )}
+    >
       <Graticule x1={L} x2={W - R} lines={grid} />
       {assets.map(({ g, gi, d }) => (
         <path

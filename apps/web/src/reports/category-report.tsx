@@ -1,3 +1,5 @@
+import { ChartSvg } from '@budget/ui';
+import { chartPoints } from '../charts/tooltip-data';
 import { ReportPeriodControl } from './period-quick-select';
 import { useAmountPrivacy, ClassSwatch } from '@budget/ui';
 import {
@@ -59,7 +61,13 @@ export function CategoryReport({ report, meta }: { report: ReportEntry; meta: Pa
   );
 }
 
-function Sparkline({ values }: { values: ReadonlyArray<number> }) {
+function Sparkline({
+  values,
+  months,
+}: {
+  values: ReadonlyArray<number>;
+  months: readonly string[];
+}) {
   useAmountPrivacy();
   if (values.length < 2) return null;
   const max = Math.max(...values, 1);
@@ -70,9 +78,17 @@ function Sparkline({ values }: { values: ReadonlyArray<number> }) {
     )
     .join(' ');
   return (
-    <svg className="spark" viewBox="0 0 100 24" preserveAspectRatio="none" aria-hidden="true">
+    <ChartSvg
+      width={100}
+      height={24}
+      className="spark"
+      label="Kategorieausgaben je Monat"
+      points={chartPoints(months, (i) => (i / (values.length - 1)) * 100, [
+        { name: 'Ausgaben', values },
+      ])}
+    >
       <polyline points={points} vectorEffect="non-scaling-stroke" />
-    </svg>
+    </ChartSvg>
   );
 }
 
@@ -229,7 +245,10 @@ function CategoryRows({
           </button>
         </th>
         <td>
-          <Sparkline values={history.map((h) => h.spentCents)} />
+          <Sparkline
+            values={history.map((h) => h.spentCents)}
+            months={history.map((h) => h.month)}
+          />
         </td>
         <td className="n">
           <strong>{eur(row.sumCents, { cents: false })}</strong>
