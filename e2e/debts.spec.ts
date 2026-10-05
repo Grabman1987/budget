@@ -124,9 +124,14 @@ sampleTest(
     // Full page width: column widths follow the window, so only the prototype's structure is
     // compared (lead panel at the same left edge, model panel beside it on the same row).
     expect(actual.lead!.x).toBeCloseTo(original.lead!.x, 0);
-    for (const g of [actual, original]) {
-      expect(g.model!.x).toBeGreaterThanOrEqual(g.lead!.x + g.lead!.width - 1);
-      expect(Math.abs(g.model!.y - g.lead!.y)).toBeLessThanOrEqual(1);
+    if (info.project.name === 'mobile') {
+      // Phone: the model panel stacks below the lead panel.
+      expect(actual.model!.y).toBeGreaterThanOrEqual(actual.lead!.y + actual.lead!.height - 1);
+    } else {
+      for (const g of [actual, original]) {
+        expect(g.model!.x).toBeGreaterThanOrEqual(g.lead!.x + g.lead!.width - 1);
+        expect(Math.abs(g.model!.y - g.lead!.y)).toBeLessThanOrEqual(1);
+      }
     }
     for (const theme of ['light', 'dark']) {
       await prototype.evaluate((t) => {
