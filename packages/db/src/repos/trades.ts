@@ -22,6 +22,7 @@ import {
   updateTradeSettlementBooking,
   type SplitInput,
   type TransferInput,
+  type WriteOptions,
 } from './bookings';
 import { BookingInvariantError, EntityNotFoundError } from './errors';
 import { assertLedgerInvariants, assertTradeSettlementInvariants } from './invariants';
@@ -72,6 +73,14 @@ export function tradeCashTransferInput(t: TradeInput, cashAccountId: string): Tr
     source: 'import',
     importKey: `${t.importKey}:cash`,
   };
+}
+
+/** Income in kind: the dividend funds an equal buy without moving platform cash. */
+export function rewardTradeInputs(t: TradeInput): TradeInput[] {
+  return [
+    { ...t, kind: 'dividend', unitsE8: 0, importKey: `${t.importKey}:div` },
+    { ...t, kind: 'buy', importKey: `${t.importKey}:buy` },
+  ];
 }
 
 export type TradePatch = Partial<
@@ -237,6 +246,7 @@ export function updateTrade(
   id: string,
   patch: TradePatch,
   ctx: AuditContext,
+  options: WriteOptions = {},
 ): TradeResult {
   const grouped = withGroup(ctx);
   return runInTransaction(db, (tx) => {
@@ -269,7 +279,7 @@ export function updateTrade(
       throw new BookingInvariantError(`Trade ${id} is missing its trade settlement`);
     if (live) {
       if (net === 0) {
-        deleteTradeSettlementBooking(tx, live.id, grouped);
+        deleteTradeSettlementBooking(tx, live.id, grouped, options);
         bookingId = null;
       } else {
         updateTradeSettlementBooking(
@@ -282,6 +292,7 @@ export function updateTrade(
             splits: [settlementSplit(next.kind, net)],
           },
           grouped,
+          options,
         );
       }
     } else if (!cur.bookingId && net !== 0) {
@@ -316,7 +327,12 @@ export function updateTrade(
 }
 
 /** Soft-delete a trade and its settlement booking in one audit group. */
-export function deleteTrade(db: Executor, id: string, ctx: AuditContext): void {
+export function deleteTrade(
+  db: Executor,
+  id: string,
+  ctx: AuditContext,
+  options: WriteOptions = {},
+): void {
   const grouped = withGroup(ctx);
   runInTransaction(db, (tx) => {
     const cur = loadTrade(tx, id);
@@ -324,7 +340,7 @@ export function deleteTrade(db: Executor, id: string, ctx: AuditContext): void {
     if (cur.bookingId) {
       if (!getBooking(tx, cur.bookingId))
         throw new BookingInvariantError(`Trade ${id} has a missing or deleted trade settlement`);
-      deleteTradeSettlementBooking(tx, cur.bookingId, grouped);
+      deleteTradeSettlementBooking(tx, cur.bookingId, grouped, options);
     }
     assertTradeSettlementInvariants(tx, cur.bookingId ? [cur.bookingId] : [], [id]);
   });

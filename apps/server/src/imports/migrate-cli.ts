@@ -1,10 +1,11 @@
-import { readFileSync, writeFileSync } from 'node:fs';
-import { basename, resolve } from 'node:path';
+import { readFileSync, realpathSync, writeFileSync } from 'node:fs';
+import { basename, dirname, isAbsolute, relative, resolve } from 'node:path';
 import {
   applyBookEntries,
   applyInstrumentFacts,
   applyOwnerConfig,
   applyOwnerTrades,
+  applySourceRebuild,
   applyMoves,
   applyPayslips,
   listAuditGroups,
@@ -439,6 +440,54 @@ try {
         process.exitCode = 3;
       break;
     }
+    case 'source-rebuild': {
+      const reportPath = option('report') ? resolve(required('report')) : null;
+      if (reportPath) {
+        const rel = relative(
+          realpathSync(dataDir),
+          resolve(realpathSync(dirname(reportPath)), basename(reportPath)),
+        );
+        if (!rel || rel.startsWith('..') || isAbsolute(rel))
+          throw new Error('--report must be a new file inside DATA_DIR on the private volume');
+      }
+      const result = db.transaction((tx) => {
+        const result = applySourceRebuild(
+          tx,
+          {
+            depot: required('depot'),
+            cash: required('cash'),
+            since: required('since'),
+            today: ctx.today,
+            dryRun: args.includes('--dry-run'),
+            unlock: args.includes('--unlock'),
+          },
+          { actor: 'operator' },
+        );
+        // A report write failure rolls the ledger back too; never overwrite a private report.
+        if (reportPath)
+          writeFileSync(reportPath, JSON.stringify(result, null, 2) + '\n', {
+            mode: 0o600,
+            flag: 'wx',
+          });
+        return result;
+      });
+      console.log('summary', JSON.stringify(result.counts), result.dryRun ? '(dry run)' : '');
+      console.log('group', result.groupId || '(no changes)');
+      console.log('created by kind', JSON.stringify(result.createdByKind));
+      console.log('opening cash', JSON.stringify(result.openingCash));
+      console.log('cash end', JSON.stringify(result.cashEnd));
+      console.log('cash top 20', JSON.stringify(result.cashTop20));
+      console.log('unit differences', JSON.stringify(result.units.filter((u) => u.differenceE8)));
+      if (args.includes('--details')) console.log(JSON.stringify(result, null, 2));
+      if (
+        (result.counts['skipped'] ?? 0) +
+        (result.counts['issues'] ?? 0) +
+        (result.counts['unitDifferences'] ?? 0) +
+        (result.counts['unmatchedFiat'] ?? 0)
+      )
+        process.exitCode = 3;
+      break;
+    }
     case 'owner-trades': {
       const dryRun = args.includes('--dry-run');
       const file = parseOwnerTradesFile(JSON.parse(readFileSync(required('file'), 'utf8')));
@@ -507,7 +556,7 @@ try {
     }
     default:
       console.log(
-        'usage: migrate-cli.js stage|dry-run|report|commit|revert|delete|order-accounts|list-groups|undo-group|move-money|book|payslips|instrument-facts|owner-config|owner-trades [options]',
+        'usage: migrate-cli.js stage|dry-run|report|commit|revert|delete|order-accounts|list-groups|undo-group|move-money|book|payslips|instrument-facts|owner-config|owner-trades|source-rebuild [options]',
       );
       process.exitCode = 2;
   }
