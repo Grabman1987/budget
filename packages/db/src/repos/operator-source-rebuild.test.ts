@@ -534,8 +534,8 @@ it('reconciles a combined fiat swap, discount fee wallets, merger, staking and U
   ]);
   expect(result.cash.every((row) => row.date < '2026-03-10')).toBe(true);
   expect(result.cashEnd).toMatchObject({
-    appCents: 104750,
-    sourceCents: 104750,
+    appCents: 114750,
+    sourceCents: 114750,
     differenceCents: 0,
   });
   expect(result.fx_converted.map((r) => [r.currency, r.originalAmount, r.fromRateMicro])).toEqual([
@@ -867,12 +867,13 @@ it('persists a USD-paid buy at recent EUR asset value without FX; dry-run, repea
   expect(rowCounts()).toEqual(counts);
   const report = applySourceRebuild(db, options, ctx);
   expect(listTrades(db).find((t) => t.importKey === 'rebuild:price-fallback:0')).toMatchObject({
-    kind: 'buy',
+    kind: 'delivery_in',
     unitsE8: 50000000,
     amountCents: 5000,
   });
+  expect(report.issues).toContainEqual({ id: 'price-fallback', reason: 'fiat_wallet_not_eur' });
   expect(report.units.every((r) => r.differenceE8 === 0)).toBe(true);
-  expect(report.cashEnd).toMatchObject({ sourceCents: 107650, differenceCents: 2000 });
+  expect(report.cashEnd).toMatchObject({ sourceCents: 112650, differenceCents: 2000 });
   const rebuiltCounts = rowCounts();
   expect(applySourceRebuild(db, options, ctx).groupId).toBe('');
   expect(rowCounts()).toEqual(rebuiltCounts);
@@ -972,4 +973,83 @@ it('moves a final unit residual into the opening correction with --residual-to-o
   // Newest group first: the repeat re-touched the opening row.
   undoAuditGroups(db, [again.groupId, report.groupId].filter(Boolean), ctx);
   expect(liveState()).toEqual(before);
+});
+
+it('books coin rewards without moving the EUR cash account', () => {
+  const rewardOnly = (...ids: string[]) => {
+    for (const row of db.select().from(inboxItem).all())
+      if (!ids.includes(row.id) && !['opening'].includes(row.id))
+        db.delete(inboxItem).where(eq(inboxItem.id, row.id)).run();
+  };
+  rewardOnly('reward-1', 'reward-2');
+  const cashId = accounts.list(db).find((a) => a.name === 'Synthetic Cash')!.id;
+  const result = applySourceRebuild(db, options, ctx);
+  const rewardTrades = listTrades(db).filter((t) => t.importKey?.startsWith('rebuild:reward:'));
+  expect(rewardTrades.length).toBeGreaterThan(0);
+  const rewardBookingIds = new Set(rewardTrades.map((t) => t.bookingId));
+  const bookings = db.select().from(booking).where(isNull(booking.deletedAt)).all();
+  expect(
+    bookings.filter((b) => b.accountId === cashId && b.importKey?.startsWith('rebuild:reward:')),
+  ).toEqual([]);
+  expect(
+    bookings.filter((b) => rewardBookingIds.has(b.id)).reduce((sum, b) => sum + b.amountCents, 0),
+  ).toBe(0);
+  expect(result.issues.filter((i) => i.reason === 'reward_no_price')).toEqual([]);
+});
+
+it('keeps buys paid from a foreign fiat wallet away from the EUR cash account', () => {
+  const usd = (cents: number) => ({ ...eur(cents), currencyId: 'foreign-id' });
+  stage('usd-only-buy', 'buy', [
+    leg('uo-a', '2026-04-05', asset('a', '1'), 'INCOMING', { tradeId: 'uo' }),
+    leg('uo-cash', '2026-04-05', usd(12500), 'OUTGOING', {
+      tradeId: 'uo',
+      walletId: 'usd-wallet',
+    }),
+    leg('uo-fee', '2026-04-05', usd(250), 'OUTGOING', {
+      type: 'fee',
+      tradeId: 'uo',
+      walletId: 'usd-wallet',
+    }),
+  ]);
+  stage('usd-deposit', 'deposit', [
+    leg('usd-dep', '2026-04-04', usd(12750), 'INCOMING', { walletId: 'usd-wallet' }),
+  ]);
+  saveReadSourceState(
+    db,
+    {
+      lastSuccess: null,
+      lastAttempt: null,
+      status: 'idle',
+      window: null,
+      balances: [{ key: 'currency:foreign-id', amount: usd(0), currency: 'USD' }],
+    },
+    ctx,
+  );
+  db.insert(fxRate)
+    .values({ currency: 'USD', date: '2026-04-05', rateMicro: 800000, source: 'ecb' })
+    .run();
+  db.insert(fxRate)
+    .values({ currency: 'USD', date: '2026-04-04', rateMicro: 800000, source: 'ecb' })
+    .run();
+  const cashId = accounts.list(db).find((a) => a.name === 'Synthetic Cash')!.id;
+  const result = applySourceRebuild(db, options, ctx);
+  const t = listTrades(db).find((r) => r.importKey === 'rebuild:usd-only-buy:0')!;
+  expect(t).toMatchObject({ kind: 'delivery_in', unitsE8: 100000000, feeCents: 0 });
+  expect(t.amountCents).toBe(10200);
+  expect(t.bookingId).toBeNull();
+  expect(
+    db
+      .select()
+      .from(booking)
+      .where(isNull(booking.deletedAt))
+      .all()
+      .filter((b) => b.accountId === cashId && b.date === '2026-04-05'),
+  ).toEqual([]);
+  expect(result.issues).toContainEqual(
+    expect.objectContaining({ id: 'usd-only-buy', reason: 'fiat_wallet_not_eur' }),
+  );
+  expect(accountSummaries(db, options.today).find((a) => a.id === cashId)!.balanceCents).toBe(
+    114650,
+  );
+  expect(result.cashEnd.differenceCents).toBe(2000);
 });

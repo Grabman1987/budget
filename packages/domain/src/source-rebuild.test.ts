@@ -391,15 +391,12 @@ it('converts unmapped fiat principal, fees and interest using stored daily ECB r
     { id: 'usd-interest', type: 'earn_on_fiat_reward', transactions: [tx('interest', usd(10))] },
   ];
   const result = planSourceRebuild(ops, mappings, [], '2026-03-02', 'currency:eur', 'EUR', fx);
-  expect(result.issues).toEqual([]);
+  expect(result.issues).toEqual([{ id: 'usd-buy', reason: 'fiat_wallet_not_eur' }]);
   expect(result.trades.map((t) => [t.kind, t.amountCents, t.feeCents])).toEqual([
-    ['buy', 100, 4],
+    ['delivery_in', 104, 0],
     ['interest', 8, 0],
   ]);
-  expect(result.fxCashMovements).toEqual([
-    { date: '2026-03-02', amountCents: -104 },
-    { date: '2026-03-02', amountCents: 8 },
-  ]);
+  expect(result.fxCashMovements).toEqual([{ date: '2026-03-02', amountCents: 8 }]);
   expect(result.fx_converted[0]).toMatchObject({
     currency: 'USD',
     originalAmount: '1.25',
@@ -416,7 +413,7 @@ it('converts unmapped fiat principal, fees and interest using stored daily ECB r
       ...fx,
       rates: [{ ...fx.rates[0]!, date: '2026-03-01' }],
     }).issues,
-  ).toEqual([]);
+  ).toEqual([{ id: 'usd-buy', reason: 'fiat_wallet_not_eur' }]);
 });
 
 it('reconstructs staking at opening and today from current units, without trades', () => {
@@ -602,9 +599,10 @@ it('uses a recent EUR asset price when FX is missing, preserves fiat fee ratios,
     );
   expect(fallback('2026-02-23').trades[0]).toMatchObject({
     importKey: 'rebuild:fallback-buy:0',
+    kind: 'delivery_in',
     unitsE8: 200000000,
-    amountCents: 250,
-    feeCents: 13,
+    amountCents: 263,
+    feeCents: 0,
   });
   expect(fallback('2026-02-23').issues).toContainEqual({
     id: 'fallback-buy',
@@ -612,9 +610,11 @@ it('uses a recent EUR asset price when FX is missing, preserves fiat fee ratios,
     date: '2026-03-02',
     reason: 'fx_fallback_price',
   });
-  expect(fallback('2026-02-23').fxCashMovements).toEqual([
-    { date: '2026-03-02', amountCents: -263 },
-  ]);
+  expect(fallback('2026-02-23').issues).toContainEqual({
+    id: 'fallback-buy',
+    reason: 'fiat_wallet_not_eur',
+  });
+  expect(fallback('2026-02-23').fxCashMovements).toEqual([]);
   for (const date of ['2026-02-22', '2026-03-03']) {
     expect(fallback(date).trades).toEqual([]);
     expect(fallback(date).issues[0]?.reason).toContain(
@@ -699,13 +699,16 @@ it('uses nearest stored ECB only after daily FX and recent EUR price are unavail
       currency: 'USD',
       rateDate: '2026-03-03',
     },
+    { id: 'nearest-buy', reason: 'fiat_wallet_not_eur' },
   ]);
-  expect(run().fxCashMovements).toEqual([{ date: '2026-03-02', amountCents: -100 }]);
+  expect(run().fxCashMovements).toEqual([]);
   expect(run(prices).trades[0]?.amountCents).toBe(200);
   expect(run(prices).issues[0]?.reason).toBe('fx_fallback_price');
   const past = { ...fx.rates[0]!, date: '2026-02-01', rateMicro: 400000 };
   expect(run([], [...fx.rates, past]).trades[0]?.amountCents).toBe(50);
-  expect(run([], [...fx.rates, past]).issues).toEqual([]);
+  expect(run([], [...fx.rates, past]).issues).toEqual([
+    { id: 'nearest-buy', reason: 'fiat_wallet_not_eur' },
+  ]);
   expect(run([], []).trades).toEqual([]);
 });
 
@@ -731,4 +734,34 @@ it('moves the final unit residual into the opening correction (owner decision 75
   expect(rebuildResidualToOpening(40, 90, 50)).toEqual({ adjustmentE8: -40, openingUnitsE8: 0 });
   // No residual: nothing to move.
   expect(rebuildResidualToOpening(7, 9, 9)).toBeNull();
+});
+
+it('turns a foreign-wallet buy and sell into deliveries and keeps base cash untouched', () => {
+  const usd = (cents: number) => ({ ...cash(cents), currencyId: 'usd' });
+  const fx = {
+    currencies: [{ key: 'currency:usd', currency: 'USD' }],
+    rates: [{ currency: 'USD', date: '2026-03-02', rateMicro: 500000, source: 'ecb' as const }],
+  };
+  const ops: SourceOperation[] = [
+    {
+      id: 'f-buy',
+      type: 'buy',
+      transactions: [tx('fb-a', asset('a', '1')), tx('fb-c', usd(1000), 'OUTGOING')],
+    },
+    {
+      id: 'f-sell',
+      type: 'sell',
+      transactions: [tx('fs-a', asset('a', '1'), 'OUTGOING'), tx('fs-c', usd(600), 'INCOMING')],
+    },
+  ];
+  const result = planSourceRebuild(ops, mappings, [], '2026-03-02', 'currency:eur', 'EUR', fx);
+  expect(result.trades.map((t) => [t.kind, t.amountCents, t.feeCents])).toEqual([
+    ['delivery_in', 500, 0],
+    ['delivery_out', 300, 0],
+  ]);
+  expect(result.fxCashMovements).toEqual([]);
+  expect(result.issues.map((i) => i.reason)).toEqual([
+    'fiat_wallet_not_eur',
+    'fiat_wallet_not_eur',
+  ]);
 });

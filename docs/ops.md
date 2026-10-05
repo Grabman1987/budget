@@ -991,9 +991,14 @@ Without both rate and recent price, use the nearest stored ECB rate of that
 currency in either direction, with `fx_nearest` and its `rateDate`. A currency
 without any stored ECB rate still skips. This also covers fiat interest. No provider is fetched.
 `fx_converted` retains currency, original amount/cents, source/target rate and
-converted cents. Their cash settlement uses the mapped cash account; cash
-verification adds the corresponding converted source flows to that account's
-native wallet replay. Fiat-only bank deposits/withdrawals retain their existing
+converted cents. Interest in such a currency settles on the mapped cash account;
+cash verification adds the corresponding converted source flows to that account's
+native wallet replay. A buy or sell whose principal fiat is a non-base currency
+(separate source wallet, e.g. USD) never touches the base-currency cash account:
+it becomes `delivery_in`/`delivery_out` valued at the converted cost (fees included
+in the cost, proceeds net of fee/tax), adds no `fxCashMovements`, and is listed as
+issue `fiat_wallet_not_eur`. Rewards in coin were never cash: the monthly pair is a
+dividend plus an equal buy on the depot and moves no platform cash. Fiat-only bank deposits/withdrawals retain their existing
 bank-side behavior. FX valuation changes of a second wallet are not cash flows.
 
 Keys: `rebuild:<operation-id>:<leg-index>`,
