@@ -108,7 +108,7 @@ function Body({ data }: { data: BankCostsReport }) {
           Buchung schätzen gespeicherte Konditionen die monatlichen Zinsen, mit Zinsänderungen.
           Tilgung bleibt draußen. Bankgebühren, Trade- und Fremdwährungsgebühren verwenden
           gespeicherte Quellen; Sollzinsen/Dispo entsprechend benannte Kategorien. Erträge bleiben
-          separat; Trade-Ertr�ge nach gespeicherten Steuern, vor separat gez�hlten Geb�hren. Spreads
+          separat; Trade-Erträge nach gespeicherten Steuern, vor separat gezählten Gebühren. Spreads
           und TER sind nicht gebucht.
           {data.skippedForeignTrades
             ? ` ${data.skippedForeignTrades} Trades ohne Wechselkurs fehlen.`
