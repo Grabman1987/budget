@@ -102,9 +102,11 @@ export function AreaHead({
               label="Zeitraum"
               options={periodOptions(month === currentMonth())}
               value={heutePeriod ?? period}
-              onChange={(value) =>
-                onHeutePeriodChange ? onHeutePeriodChange(value) : setPeriod(value)
-              }
+              onChange={(value) => {
+                const next = value as Period;
+                if (onHeutePeriodChange) onHeutePeriodChange(next);
+                else setPeriod(next);
+              }}
             />
           ),
         },
