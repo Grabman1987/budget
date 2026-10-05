@@ -459,6 +459,15 @@ Price history (yfinance + Ariva, source per price), ECB rates, trades and holdin
 
 Contract and operator/owner steps: [portfolio composition](portfolio-composition.md).
 
+### Target classes without holdings — follow-up 2026-10-05
+
+- [x] Positive dated targets remain in the composition and Soll/Ist tables at zero held value; empty legend swatches, assigned unheld product names/ISINs and instrument links.
+- [x] Existing underweight rebalancing hints name assigned unheld securities; allocation flags security kind `other` for correction in the instrument editor.
+- [x] Synthetic read-model regression preserves held values, shares and exact cent totals; desktop/mobile browser cases cover unheld products and rebalancing, without regenerating baselines.
+- [ ] Owner visual acceptance and review of private instrument assignments/kinds after deployment.
+
+Read-model and delivery details: [unheld target classes](allocation-unheld.md).
+
 ### Planning income and shared report ranges — 2026-10-03
 - [x] Plan › Monat: expected household income versus all envelope monthly target requirements, source label, surplus/gap and keyboard-accessible unfunded-category details; reuse target/carry calculations and stored monthly holds. Live dated schedules take precedence; without schedules use the median of the preceding three complete months (before today for future planning). Missing amounts/currency/history remain unavailable. The existing payday rule defines a date, not a salary amount.
 - [x] Shared quick choices on every implemented selectable period report, including Explorer saved views: current/previous month, 3/6/12 complete months, current/previous calendar year, all, custom inclusive calendar months. Legacy period URLs and segmented controls remain supported; partial current months stop at today. Month/year-only, fixed-source and forecast reports keep their existing controls.
