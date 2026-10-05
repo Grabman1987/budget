@@ -249,6 +249,9 @@ export function sourceBalancesOnDays(
       .map((t) => JSON.stringify([groupOf.get(t.id), sourceAmountKey(t.amount)])),
   );
   const chargedTradeFees = new Set<string>();
+  // Staking-wallet unstake OUT legs already reduced that wallet; the matching main-wallet IN leg
+  // (a separate operation) must not deduct the same units again.
+  const unstakeOut = new Map<string, { value: bigint; at: number }[]>();
   const apply = (t: SourceOperation['transactions'][number]) => {
     const key = sourceAmountKey(t.amount);
     if (!keys || keys.has(key)) {
@@ -310,7 +313,23 @@ export function sourceBalancesOnDays(
         value,
         snapshotAt: t.balanceAfter ? Date.parse(t.creditedAt) : wallets.get(wallet)?.snapshotAt,
       });
+      const at = Date.parse(t.creditedAt);
       if (
+        op.type === 'unstake' &&
+        t.amount.assetId &&
+        t.flow === 'OUTGOING' &&
+        !SECONDARY.has(t.type)
+      )
+        unstakeOut.set(key, [
+          ...(unstakeOut.get(key) ?? []),
+          { value: BigInt(native(t.amount)), at },
+        ]);
+      const paired = (unstakeOut.get(key) ?? []).findIndex(
+        (o) => o.value === BigInt(native(t.amount)) && Math.abs(at - o.at) <= 60_000,
+      );
+      if (op.type === 'unstake' && t.flow === 'INCOMING' && paired >= 0)
+        unstakeOut.get(key)!.splice(paired, 1);
+      else if (
         op.type === 'unstake' &&
         t.amount.assetId &&
         t.flow === 'INCOMING' &&

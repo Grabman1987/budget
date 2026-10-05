@@ -448,6 +448,39 @@ it('reconstructs staking at opening and today from current units, without trades
   expect(sourceStakedAt(ops, '2026-02-28', '2026-04-30', new Map()).size).toBe(0);
 });
 
+it('does not deduct an unstake twice when the staking wallet has its own OUT leg in another operation', () => {
+  const leg = (
+    id: string,
+    type: string,
+    at: string,
+    walletId: string,
+    value: string,
+    balance: string,
+    flow = 'INCOMING',
+  ): SourceOperation => ({
+    id,
+    type,
+    transactions: [
+      tx(id + '-leg', asset('a', value), flow, {
+        walletId,
+        balanceAfter: asset('a', balance),
+        creditedAt: at,
+      }),
+    ],
+  });
+  const ops = [
+    leg('stake-out', 'stake', '2026-03-02T12:00:00Z', 'main', '10', '0', 'OUTGOING'),
+    leg('stake-in', 'stake', '2026-03-02T12:00:00Z', 'staking', '10', '10'),
+    leg('unstake-out', 'unstake', '2026-03-04T12:00:00Z', 'staking', '4', '6', 'OUTGOING'),
+    leg('unstake-in', 'unstake', '2026-03-04T12:00:00.200Z', 'main', '4', '4'),
+    leg('restake', 'stake', '2026-03-04T12:01:00Z', 'staking', '1', '7'),
+  ];
+  const diagnostics = { wallets: new Map(), changes: [] as unknown[] };
+  const history = sourceBalancesOnDays(ops, ['2026-03-05'], undefined, diagnostics);
+  expect(diagnostics.changes).toEqual([]);
+  expect(history.get('2026-03-05')!.get('asset:a')).toBe(1100000000);
+});
+
 it('sums visible staking wallets and corrects missing unstake OUT legs until a newer snapshot', () => {
   const movement = (
     id: string,
