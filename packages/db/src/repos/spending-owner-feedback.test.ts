@@ -127,6 +127,35 @@ describe('synthetic owner report read models', () => {
     expect(r.contributionSumBp).toBe(r.inflationBp);
     expect(r.derivedContracts).toHaveLength(2);
   });
+  it('a new annual item does not replace an existing annual item before its next billing period', () => {
+    fixed('annual');
+    createEntity(opened.db, payee, { id: 'p2', name: 'Synthetic annual biller' }, ctx);
+    for (const year of [2024, 2025, 2026]) charge(`${year}-01-03`, 'annual', -1_000);
+    charge('2026-07-03', 'annual', -2_000, 'p2');
+    for (const [payeeId, dueMonth, amountCents] of [
+      ['p1', 1, 1_000],
+      ['p2', 7, 2_000],
+    ] as const)
+      createExpectedPayment(
+        opened.db,
+        {
+          name: `Annual ${payeeId}`,
+          categoryId: 'annual',
+          payeeId,
+          kind: 'outflow',
+          rhythm: 'yearly',
+          dueDay: 3,
+          dueMonth,
+          startDate: '2026-10-01',
+        },
+        { validFrom: '2026-10-01', amountCents },
+        ctx,
+        today,
+      );
+    const r = inflationReport(opened.db, today);
+    expect(r.basket).toHaveLength(2);
+    expect(r.points.every((p) => p.index === 100)).toBe(true);
+  });
   it('automatic utility method smooths settlements; explicit setting is audited and undoable', () => {
     fixed('utility');
     createEntity(opened.db, payee, { id: 'grid', name: 'Synthetic grid' }, ctx);
