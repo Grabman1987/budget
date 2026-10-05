@@ -22,12 +22,14 @@ import type { Executor } from './types';
 
 const SPECIAL_TYPE_ID: string = INCOME_TYPES.special.id;
 
-const groupOf = (typeId: string | null): IncomeGroup =>
-  typeId === INCOME_TYPES.capital.id
-    ? 'capital'
-    : typeId === INCOME_TYPES.refund.id
-      ? 'refund'
-      : 'household';
+export const incomeGroupOf = (typeId: string | null): IncomeGroup =>
+  typeId === null
+    ? 'unclassified'
+    : typeId === INCOME_TYPES.capital.id
+      ? 'capital'
+      : typeId === INCOME_TYPES.refund.id
+        ? 'refund'
+        : 'household';
 
 /**
  * Income and spending splits of the live budget accounts:
@@ -35,7 +37,8 @@ const groupOf = (typeId: string | null): IncomeGroup =>
  *   from an account outside the budget without a category (money moved, not earned or spent);
  * - a categorised split of a spending category is spending (refunds are negative), of an income
  *   category positive income; card-payment and advance (Auslagen) categories only pass money on;
- * - an uncategorised inflow without a contact is income, an uncategorised outflow is spending
+ * - an uncategorised inflow without a contact stays visible; only typed household inflows count.
+ *   An uncategorised outflow is spending
  *   without a category;
  * - the app's own payees (opening balance, balance corrections) are left out.
  */
@@ -72,7 +75,7 @@ export function overviewData(db: Executor): OverviewData {
     .map((t) => ({
       id: t.id,
       name: t.name,
-      group: groupOf(t.id),
+      group: incomeGroupOf(t.id),
       special: t.id === SPECIAL_TYPE_ID,
     }));
 
@@ -159,7 +162,7 @@ export function overviewData(db: Executor): OverviewData {
           amountCents: r.amountCents,
           categoryId: null,
           incomeTypeId: r.incomeTypeId,
-          incomeGroup: groupOf(r.incomeTypeId),
+          incomeGroup: incomeGroupOf(r.incomeTypeId),
         });
       continue;
     }
@@ -171,7 +174,7 @@ export function overviewData(db: Executor): OverviewData {
         amountCents: r.amountCents,
         categoryId: null,
         incomeTypeId: r.incomeTypeId,
-        incomeGroup: groupOf(r.incomeTypeId),
+        incomeGroup: incomeGroupOf(r.incomeTypeId),
       });
     else if (r.amountCents < 0)
       splits.push({

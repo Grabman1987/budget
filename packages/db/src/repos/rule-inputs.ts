@@ -18,6 +18,7 @@ import {
   todayInVienna,
   toEurCents,
   contractVersionOn,
+  contractBinding,
   versionOn,
   yearlyEquivalent,
   type AllocMonth,
@@ -547,7 +548,13 @@ export function ruleInputs(
   // extra repayments (Sondertilgung).
   const isMinimumDebt = (c: CategoryRow | undefined) => c?.kind === 'debt' && (c.stage ?? 1) === 1;
   const isDebt = (p: PaymentRow) => (p.categoryId ? isMinimumDebt(cats.get(p.categoryId)) : false);
-  const kindOf = (p: PaymentRow) => (p.categoryId ? cats.get(p.categoryId)?.kind : undefined);
+  const bindingOf = (p: PaymentRow) => {
+    const cat = cats.get(p.categoryId ?? '');
+    return contractBinding(
+      { ...p, categoryKind: cat?.kind ?? null, categoryStage: cat?.stage ?? null },
+      asOf,
+    );
+  };
   const debtAccounts = accounts.filter(
     (a) =>
       a.closedAt === null &&
@@ -579,10 +586,10 @@ export function ruleInputs(
     outflows.length > 0
       ? {
           fixedMonthlyCents: outflows
-            .filter((p) => kindOf(p) === 'fixed' || isDebt(p))
+            .filter((p) => bindingOf(p) === 'fixed')
             .reduce((s, p) => s + monthlyAmount(f, p, asOf), 0),
           periodicAnnualCents: outflows
-            .filter((p) => kindOf(p) === 'periodic')
+            .filter((p) => bindingOf(p) === 'periodic')
             .reduce((s, p) => s + yearlyAmount(f, p, asOf), 0),
         }
       : null;

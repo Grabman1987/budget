@@ -124,7 +124,7 @@ test('Sankey links and nodes show amounts, shares and period', async ({ page }, 
   else await node.hover();
   const tip = page.locator('.chart-tooltip[role="status"]');
   await expect(tip).toContainText('€');
-  await expect(tip).toContainText('Anteil am Zufluss');
+  await expect(tip).toContainText('Anteil an Verfügbar');
   await expect(tip).toContainText('%');
   await expect(tip.locator('.chart-tooltip-date')).toContainText('2026');
   await chart

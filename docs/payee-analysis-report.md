@@ -1,6 +1,6 @@
 # Empfänger-Analyse (Report 2.5)
 
-`/reports/empfaenger` is a connected first report body, not completion of the report catalog or Gate 4. It reuses the budget ledger's `splitEffect` and `need|want` classification for closed-month activity on live budget accounts. It describes eligible budget consumption, not every cash outflow. Monthly amounts reconcile to the existing budget activity source under the same split opening-date and live-row rules.
+`/reports/empfaenger` is a connected report for the scope below, not completion of the report catalog or Gate 4. It reuses the budget ledger's `splitEffect` and `need|want` classification for closed-month activity on live budget accounts. It describes eligible budget consumption, not every cash outflow. Monthly amounts reconcile to the existing budget activity source under the same split opening-date and live-row rules.
 
 ## Included activity
 
@@ -22,4 +22,4 @@ The net percentage share is available only when total eligible net expenses are 
 
 The read-only detail endpoint returns only qualifying bookings and category splits for the selected payee (including an explicit null-payee filter). It paginates by the stable `(date, booking ID)` key; the client never aggregates a page to produce report totals. Booking links navigate to the existing ledger selection. Query failures and unsafe exact-cent calculations are shown as unavailable/error states; figures are not fabricated.
 
-The visual report and focused evidence cover this bounded body. Other report 2.5 calculations, broader spending coverage, print acceptance, private-data reconciliation, and the remaining report catalog are still open.
+The visual report and focused evidence cover this bounded body. Frequency ranking and average net amount per qualifying booking reuse the complete aggregate (no page-level totals). Broader all-account cash outflows and uncategorized activity have no accepted recipient-consumption scope and remain outside this report. Print acceptance, private-data reconciliation and the remaining report catalog are separate.

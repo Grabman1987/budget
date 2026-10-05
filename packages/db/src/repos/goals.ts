@@ -1,4 +1,12 @@
-import { addMonths, goalProgress, lastDayOfMonth, type GoalProgress } from '@budget/domain';
+import {
+  addMonths,
+  monthsBetween,
+  emergencyCoverage,
+  monthClassSpending,
+  goalProgress,
+  lastDayOfMonth,
+  type GoalProgress,
+} from '@budget/domain';
 import { asc, isNull } from 'drizzle-orm';
 import { account, category, savingsGoal } from '../schema';
 import { withGroup, type AuditContext } from './audit';
@@ -6,6 +14,8 @@ import { setCategoryTarget } from './categories';
 import { createEntity, getEntity, restoreEntity, softDeleteEntity, updateEntity } from './entities';
 import { CategoryRuleError, EntityNotFoundError } from './errors';
 import { accountBalances, budget } from './queries';
+import { reportTables } from './report-tables';
+import { goalSollCents } from '@budget/domain';
 import { runInTransaction, type Executor } from './types';
 
 /**
@@ -219,4 +229,87 @@ export function adoptGoalAsCategoryTarget(
     );
     return { groupId: grouped.groupId, categoryId: goal.categoryId };
   });
+}
+
+/** Read-only additions to report 3.5; no invented attribution from envelopes to bank accounts. */
+export function goalsReport(db: Executor, today: string) {
+  const month = today.slice(0, 7);
+  const goals = listGoals(db, month);
+  const tables = reportTables(db, { today });
+  const balances = new Map(accountBalances(db, today).map((r) => [r.accountId, r.balanceCents]));
+  const accounts = db.select().from(account).where(isNull(account.deletedAt)).all();
+  const reserveCents = accounts
+    .filter((a) => a.role === 'reserve' && a.currency === 'EUR')
+    .reduce((a, c) => a + Math.max(0, balances.get(c.id) ?? 0), 0);
+  const coverage = emergencyCoverage({
+    reserveCents,
+    currentMonth: month,
+    ...(tables.firstMonth ? { firstMonth: tables.firstMonth } : {}),
+    needSpending: tables.months.map((m) => ({
+      month: m.month,
+      cents: monthClassSpending(m, tables, 'need'),
+    })),
+  });
+  const cash = accounts
+    .filter((a) => a.type === 'savings' && a.currency === 'EUR')
+    .map((a) => {
+      const linked = goals.filter((g) => g.accountId === a.id && g.categoryId === null);
+      return {
+        id: a.id,
+        name: a.name,
+        balanceCents: balances.get(a.id) ?? 0,
+        goal: linked.length === 1 ? linked[0]!.name : null,
+        ambiguous: linked.length > 1,
+      };
+    });
+  const counts = new Map<string, number>();
+  for (const g of goals) {
+    const key = g.categoryId ? `category:${g.categoryId}` : `account:${g.accountId}`;
+    counts.set(key, (counts.get(key) ?? 0) + 1);
+  }
+  const history = goals.map((g) => {
+    const start = g.createdAt.slice(0, 7) > month ? month : g.createdAt.slice(0, 7);
+    const target = g.targetDate?.slice(0, 7) ?? month;
+    const end = target > month ? target : month;
+    const keys = monthsBetween(start, end).slice(0, 1201);
+    const key = g.categoryId ? `category:${g.categoryId}` : `account:${g.accountId}`;
+    const source = g.categoryId
+      ? db
+          .select()
+          .from(category)
+          .where(isNull(category.deletedAt))
+          .all()
+          .find((c) => c.id === g.categoryId)
+      : accounts.find((a) => a.id === g.accountId && a.currency === 'EUR');
+    if (!source || (counts.get(key) ?? 0) !== 1 || (g.categoryId !== null && g.accountId !== null))
+      return { id: g.id, points: [] };
+    const past = keys.filter((m) => m <= month);
+    const envelopes = g.categoryId && past.length ? budget(db, past) : [];
+    return {
+      id: g.id,
+      points: keys.map((m, i) => ({
+        month: m,
+        actualCents:
+          m > month
+            ? null
+            : g.categoryId
+              ? Math.max(0, envelopes[i]?.envelopes[g.categoryId]?.availableCents ?? 0)
+              : Math.max(
+                  0,
+                  accountBalances(db, m === month ? today : lastDayOfMonth(m)).find(
+                    (a) => a.accountId === g.accountId,
+                  )?.balanceCents ?? 0,
+                ),
+        sollCents: g.targetDate ? goalSollCents(g.targetCents, start, target, m) : null,
+      })),
+    };
+  });
+  return {
+    month,
+    reserveCents,
+    coverage,
+    cash,
+    history,
+    reserveComplete: !accounts.some((a) => a.role === 'reserve' && a.currency !== 'EUR'),
+  };
 }

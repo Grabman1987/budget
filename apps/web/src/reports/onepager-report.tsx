@@ -468,7 +468,12 @@ function IncomeList({ data }: { data: OnePagerData }) {
               <tr key={`separate-${r.bookingId}-${i}`}>
                 <td>
                   <AppLink to="/konten/buchungen" search={{ buchung: r.bookingId }}>
-                    {r.kind === 'capital' ? 'Kapitalerträge' : 'Erstattungen'} · separat
+                    {r.kind === 'capital'
+                      ? 'Kapitalerträge'
+                      : r.kind === 'refund'
+                        ? 'Erstattungen'
+                        : 'Ohne Einkommensart'}{' '}
+                    · separat
                     {r.payer ? ` · ${r.payer}` : ''}
                   </AppLink>
                 </td>

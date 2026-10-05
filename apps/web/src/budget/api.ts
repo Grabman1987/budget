@@ -41,6 +41,7 @@ export interface CategoryRow {
   stage: number | null;
   cardAccountId: string | null;
   rolloverOverspending: boolean;
+  inflationTrailingMean?: boolean | null;
   sortOrder: number;
   hiddenAt: string | null;
   splitCount: number;
@@ -64,6 +65,7 @@ export interface CategoryTree {
 }
 
 export interface CategoryInput {
+  inflationTrailingMean?: boolean | null;
   name: string;
   groupId: string;
   icon?: string | null;

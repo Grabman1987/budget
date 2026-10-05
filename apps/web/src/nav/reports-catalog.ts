@@ -95,6 +95,13 @@ export const REPORT_GROUPS: ReadonlyArray<ReportGroup> = [
       'Gewinn und Verlust je Projekt',
       'period',
     ],
+    [
+      'einnahmen-ausgaben',
+      'Einnahmen und Ausgaben',
+      'Was bleibt nach den Ausgaben?',
+      'Monatstabelle, Säulen und Nettolinie',
+      'period',
+    ],
   ]),
   group('ausgaben', 2, 'Ausgaben und Plan', [
     [

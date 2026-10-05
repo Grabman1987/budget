@@ -69,7 +69,7 @@ export function PaymentsPreviewReport({ report, meta }: { report: ReportEntry; m
       title={report.name}
       subtitle={`${report.pos} · ${report.question}`}
       standDay={query.data?.asOf}
-      reportDataBasis="Gespeicherte wiederkehrende Zahlungen"
+      reportDataBasis="Wiederkehrende Zahlungen, Sparpläne und vorgemerkte Umbuchungen"
       extraFields={[{ label: 'Horizont', value: '12 volle Folgemonate' }]}
     >
       <div className="kview vview payments-preview-report">
@@ -133,9 +133,11 @@ function PreviewBody({ data }: { data: PaymentsPreview }) {
           {!data.eurComplete && ' · EUR-Anteil'}
         </p>
         <p className="vnote">
-          Vorschau aus gespeicherten erwarteten Auszahlungen mit ihren gültigen Betragsversionen.
-          Eigenständige Sparpläne, weitere künftige Umbuchungen und Kategorieziele sind hier noch
-          nicht enthalten.
+          Vorschau aus erwarteten Auszahlungen, versionierten Sparplänen und gespeicherten künftigen
+          Umbuchungen. Verknüpfte Buchungen zählen einmal; ein identischer Sparplan-Termin mit
+          gleichem Quell- und Zielkonto wird durch die vorgemerkte Umbuchung ersetzt. Kategorieziele
+          sind keine zusätzlichen Zahlungen. Ohne eindeutige Quellenverknüpfung bleiben
+          eigenständige Erwartungen getrennt.
         </p>
         {!data.eurComplete && (
           <p className="preview-incomplete" role="status">

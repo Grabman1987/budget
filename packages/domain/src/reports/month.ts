@@ -1,4 +1,5 @@
 import { ratioBp } from '../kpi/ratios';
+import { householdIncomeCents } from '../overview/figures';
 import type { BudgetClass } from '../ledger/alloc';
 
 /**
@@ -55,7 +56,7 @@ export function monthIncomeOf(facts: ReadonlyArray<IncomeFact>, month: string): 
     if (f.month !== month || f.cents === 0) continue;
     if (f.kind === 'capital') capitalCents += f.cents;
     else if (f.kind === 'refund') refundCents += f.cents;
-    else {
+    else if (householdIncomeCents(f.cents, f.typeId, 'household') !== 0) {
       const key = f.typeId ?? '';
       const entry = types.get(key) ?? {
         typeId: f.typeId,

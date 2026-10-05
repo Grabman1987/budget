@@ -34,8 +34,9 @@ import {
   type Rhythm,
   type TopSpendingRow,
 } from '@budget/domain';
-import { categoryGroup, contact, INCOME_TYPES, payee } from '../schema';
+import { categoryGroup, contact, incomeType, INCOME_TYPES, payee } from '../schema';
 import { allocationMonth } from './allocation';
+import { overviewData } from './report-ledger';
 import { upcoming } from './expected';
 import { availableSection, occurrencesBetween, paceOfMonth, type Heute } from './heute';
 import type { HeuteUnavailable } from './heute';
@@ -43,7 +44,6 @@ import { netWorthAsOf, netWorthDaily } from './portfolio';
 import { ruleStatuses, type RuleStatusEntry } from './rules';
 import { loadFacts, scheduled, type RuleFacts } from './rule-inputs';
 import type { Executor } from './types';
-import { overviewData } from './report-ledger';
 import { withValuationRange } from './valuation-notes';
 
 /**
@@ -63,6 +63,13 @@ export class MonthInFutureError extends RangeError {
     super(`The month ${month} has not started yet`);
   }
 }
+
+const incomeKind = (typeId: string): IncomeFact['kind'] =>
+  typeId === INCOME_TYPES.capital.id
+    ? 'capital'
+    : typeId === INCOME_TYPES.refund.id
+      ? 'refund'
+      : 'earned';
 
 const MONTH_NAMES = [
   'Jänner',
@@ -110,19 +117,33 @@ const monthsFrom = (f: Frame, from: string): string[] =>
 
 /** Income splits of the budget accounts up to `asOf`, with their type. */
 function incomeFacts(db: Executor, f: Frame, fromMonth: string): IncomeFact[] {
-  const ledger = overviewData(db);
-  const types = new Map(ledger.incomeTypes.map((t, i) => [t.id, { name: t.name, sortOrder: i }]));
-  return ledger.splits
-    .filter((s) => s.kind === 'income' && s.date <= f.asOf && monthOf(s.date) >= fromMonth)
-    .map((s) => ({
-      month: monthOf(s.date),
-      typeId: s.incomeTypeId ?? INCOME_TYPES.other.id,
-      typeName: types.get(s.incomeTypeId ?? INCOME_TYPES.other.id)?.name ?? 'Sonstiges',
-      kind:
-        s.incomeGroup === 'capital' ? 'capital' : s.incomeGroup === 'refund' ? 'refund' : 'earned',
-      sortOrder: types.get(s.incomeTypeId ?? INCOME_TYPES.other.id)?.sortOrder ?? 0,
-      cents: s.amountCents,
-    }));
+  const types = new Map(
+    db
+      .select()
+      .from(incomeType)
+      .all()
+      .map((t) => [t.id, t]),
+  );
+  return overviewData(db).splits.flatMap((s): IncomeFact[] => {
+    if (
+      s.kind !== 'income' ||
+      s.incomeTypeId === null ||
+      s.date > f.asOf ||
+      monthOf(s.date) < fromMonth
+    )
+      return [];
+    const type = types.get(s.incomeTypeId);
+    return [
+      {
+        month: monthOf(s.date),
+        typeId: s.incomeTypeId,
+        typeName: type?.name ?? 'Sonstiges',
+        kind: incomeKind(s.incomeTypeId),
+        sortOrder: type?.sortOrder ?? 0,
+        cents: s.amountCents,
+      },
+    ];
+  });
 }
 
 /** Spending per category in a month, positive cents (refunds net); categories without class are left out. */
@@ -390,7 +411,7 @@ export interface OnePager {
     name: string;
     payer: string | null;
     cents: number;
-    kind: 'household' | 'capital' | 'refund';
+    kind: 'household' | 'capital' | 'refund' | 'unclassified';
   }>;
   allocation: Allocation;
   netWorth: OnePagerNetWorth | HeuteUnavailable;

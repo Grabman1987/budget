@@ -1,4 +1,5 @@
 export {
+  householdIncomeCents,
   overviewMonthlyFigures,
   overviewRefMonth,
   overviewSavingsRate,

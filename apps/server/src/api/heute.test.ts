@@ -290,7 +290,7 @@ it('uses the R07 projection and configured horizon in the balance chart', async 
   expect(last.day).toBe('2026-04-22');
 });
 
-it('excludes early paid rent from the variable rate and hides the forecast', async () => {
+it('excludes early paid rent from the variable rate and returns a provisional forecast', async () => {
   createBooking(
     db,
     {
@@ -309,8 +309,10 @@ it('excludes early paid rent from the variable rate and hides the forecast', asy
     spentCents: 90000,
     variableSoFarCents: 0,
     openFixedCents: 0,
-    forecastEndCents: 90000,
-    forecastAvailable: false,
+    forecastEndCents: 130000,
+    forecastAvailable: true,
   });
-  expect(data.pace.forecast).toEqual([]);
+  expect(data.pace.forecast).toHaveLength(29);
+  expect(data.pace.forecast[0]).toBe(90000);
+  expect(data.pace.forecast.at(-1)).toBe(130000);
 });

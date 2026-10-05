@@ -120,7 +120,6 @@ beforeEach(async () => {
     { fromAccountId: 'giro', toAccountId: 'spar', date: '2026-03-10', amountCents: 20_000 },
     ctx,
   );
-  // Untyped cash inflows are household income under the shared overview/table classifier.
   book('giro', '2026-03-10', 9_000, [{ categoryId: null, amountCents: 9_000 }]);
   book('giro', '2026-03-25', 5_000, [
     { categoryId: null, amountCents: 5_000, incomeTypeId: INCOME_TYPES.side.id },
@@ -149,9 +148,8 @@ describe('GET /reports/month/income', () => {
     expect(r.body.income.types).toEqual([
       { typeId: salary(), name: 'Gehalt', cents: 300_000 },
       { typeId: INCOME_TYPES.contribution.id, name: 'Beiträge von Kontakten', cents: 50_000 },
-      { typeId: INCOME_TYPES.other.id, name: 'Sonstiges', cents: 9_000 },
     ]);
-    expect(r.body.income.earnedCents).toBe(359_000);
+    expect(r.body.income.earnedCents).toBe(350_000);
     expect(r.body.income.capitalCents).toBe(4_000);
     // The uncategorised refund is no income; the refund inside "Essen" is not an income split.
     expect(r.body.income.refundCents).toBe(2_000);
@@ -195,7 +193,6 @@ describe('GET /reports/month/income', () => {
       ['Gehalt', 'pending'],
       ['Beiträge von Kontakten', 'unplanned'],
       ['Gehalt', 'unplanned'],
-      ['Sonstiges', 'unplanned'],
     ]);
     expect(before.body.expected).toMatchObject({
       pendingCount: 1,
@@ -210,7 +207,6 @@ describe('GET /reports/month/income', () => {
       ['Beitrag', 'ok', 50_000],
       ['Gehalt', 'pending', 0],
       ['Gehalt', 'unplanned', 300_000],
-      ['Sonstiges', 'unplanned', 9_000],
     ]);
     expect(after.body.expected.missingCount).toBe(0);
   });
@@ -232,20 +228,19 @@ describe('GET /reports/month/flow', () => {
     const r = await call('GET', '/reports/month/flow?month=2026-03');
     expect(r.status).toBe(200);
     const { flow } = r.body;
-    expect(flow.earnedCents).toBe(359_000);
+    expect(flow.earnedCents).toBe(350_000);
     expect(flow.capitalCents).toBe(4_000);
     // Bedarf: Miete 90.000 + Essen 12.000 − refund 1.500; Zukunft: Investieren 5.000.
     expect(flow.chain).toEqual([
-      { label: 'Einnahmen', cents: 359_000 },
+      { label: 'Einnahmen', cents: 350_000 },
       { label: 'Kapitalerträge', cents: 4_000, op: '+' },
       { label: 'Bedarf', cents: 100_500, op: '-' },
       { label: 'Zukunft', cents: 5_000, op: '-' },
-      { label: 'Übrig', cents: 257_500, op: '=', result: true },
+      { label: 'Übrig', cents: 248_500, op: '=', result: true },
     ]);
     expect(flow.columns.income.map((n: any) => [n.name, n.tone])).toEqual([
       ['Gehalt', 'inc'],
       ['Beiträge von Kontakten', 'inc'],
-      ['Sonstiges', 'inc'],
       ['Kapitalerträge', 'cap'],
     ]);
     expect(flow.table.reduce((a: number, x: any) => a + x.sharePercent, 0)).toBe(100);
@@ -265,11 +260,11 @@ describe('GET /reports/month/onepager', () => {
     const r = await call('GET', '/reports/month/onepager?month=2026-03');
     expect(r.status).toBe(200);
     expect(r.body.result).toMatchObject({
-      earnedCents: 359_000,
+      earnedCents: 350_000,
       consumptionCents: 100_500,
       futureCents: 5_000,
-      savedCents: 258_500,
-      restCents: 253_500,
+      savedCents: 249_500,
+      restCents: 244_500,
     });
     expect(r.body.capitalCents).toBe(4_000);
     const s = r.body.allocation.shares;

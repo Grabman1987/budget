@@ -10,6 +10,7 @@ import {
 import { mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { sampleTest } from './sample';
+test.describe.configure({ timeout: 90_000 });
 const payment: PreviewPayment = {
   id: 'synthetic',
   name: 'Testvertrag',

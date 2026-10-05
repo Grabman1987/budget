@@ -2,6 +2,8 @@ import { calendarRangeMonths, isCalendarRange } from '../report-range';
 import { addMonths, monthsBetween } from '../date';
 import type { Period } from '../invest/performance';
 import { ratioBp } from '../kpi/ratios';
+import { mulDivRound } from '../wealth/int';
+import { householdIncomeCents } from '../overview/figures';
 
 /**
  * Monthly tables of the reports 1.5 Jahresansicht, 1.6 Kategorieübersicht, 1.7 Sparquote und
@@ -25,7 +27,7 @@ export const SPEND_CLASS_LABEL: Readonly<Record<SpendClass, string>> = {
 };
 
 /** `income` counts as household income; `capital` and `refund` are shown but never counted. */
-export type IncomeRole = 'income' | 'capital' | 'refund';
+export type IncomeRole = 'income' | 'capital' | 'refund' | 'unclassified';
 
 export interface TableCategory {
   id: string;
@@ -71,7 +73,8 @@ const sum = (values: Iterable<number>): number => {
 };
 
 const typeRole = (meta: TableMeta, id: string): IncomeRole =>
-  meta.incomeTypes.find((t) => t.id === id)?.role ?? 'income';
+  meta.incomeTypes.find((t) => t.id === id)?.role ??
+  (id && id !== 'unclassified' ? 'income' : 'unclassified');
 
 /** Income of one role in a month (Einnahmen = role `income`). */
 export function monthIncomeOfRole(month: TableMonth, meta: TableMeta, role: IncomeRole): number {
@@ -81,9 +84,12 @@ export function monthIncomeOfRole(month: TableMonth, meta: TableMeta, role: Inco
   return total;
 }
 
-/** Household income: everything except Kapitalerträge and Erstattungen. */
+/** Typed household income, shared with One-Pager, Sankey and the rules. */
 export const monthHouseholdIncome = (month: TableMonth, meta: TableMeta): number =>
-  monthIncomeOfRole(month, meta, 'income');
+  Object.entries(month.income).reduce((total, [id, cents]) => {
+    const role = typeRole(meta, id);
+    return total + householdIncomeCents(cents, id, role === 'income' ? 'household' : role);
+  }, 0);
 
 /** Spending of one class in a month. */
 export function monthClassSpending(month: TableMonth, meta: TableMeta, cls: SpendClass): number {
@@ -297,9 +303,11 @@ export function buildTableRows(
       rows.push({
         key: `memo:${type.id}`,
         label:
-          type.role === 'refund'
-            ? `${type.name} ohne Kategorie (nicht in Einnahmen)`
-            : `${type.name} (nicht in Einnahmen)`,
+          type.role === 'unclassified'
+            ? type.name
+            : type.role === 'refund'
+              ? `${type.name} ohne Kategorie (nicht in Einnahmen)`
+              : `${type.name} (nicht in Einnahmen)`,
         kind: 'memo',
         level: 0,
         good: 'high',
@@ -319,7 +327,7 @@ export function tableRowTotal(row: TableRow): number | null {
 export function tableRowAverage(row: TableRow): number | null {
   if (row.kind === 'pct') return null;
   const present = row.vals.filter((v): v is number => v !== null);
-  return present.length === 0 ? 0 : Math.round(sum(present) / present.length);
+  return present.length === 0 ? 0 : mulDivRound(sum(present), 1, present.length);
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -547,7 +555,7 @@ export function categoryOverview(
     rows: rows.map(({ category, sumCents }) => ({
       category,
       sumCents,
-      avgCents: n === 0 ? 0 : Math.round(sumCents / n),
+      avgCents: n === 0 ? 0 : mulDivRound(sumCents, 1, n),
       previousCents: previousComplete
         ? sum((previousMonths as TableMonth[]).map((m) => m.spending[category.id] ?? 0))
         : null,

@@ -195,6 +195,32 @@ export function paymentsPreview(
     g.highestMonth =
       max > 0 ? window.months[g.months.findIndex((m) => m.baseCents === max)]! : null;
   }
+  const merged = new Map<string, PreviewRow>();
+  for (const row of rows) {
+    const key = `${row.paymentId}:${row.currency}`;
+    const old = merged.get(key);
+    if (!old) {
+      merged.set(key, row);
+      continue;
+    }
+    old.events.push(...row.events);
+    old.months = old.months.map((v, i) => {
+      const n = row.months[i];
+      if (v === null || n === null) return null;
+      return {
+        baseCents: cents(v.baseCents + (n?.baseCents ?? 0)),
+        upperCents: cents(v.upperCents + (n?.upperCents ?? 0)),
+      };
+    });
+    old.total =
+      old.total === null || row.total === null
+        ? null
+        : {
+            baseCents: cents(old.total.baseCents + row.total.baseCents),
+            upperCents: cents(old.total.upperCents + row.total.upperCents),
+          };
+  }
+  rows.splice(0, rows.length, ...merged.values());
   const order = ['need', 'want', 'future'];
   rows.sort(
     (a, b) =>
@@ -214,4 +240,39 @@ export function paymentsPreview(
     unavailableCount,
     eurComplete: unavailableCount === 0 && [...groups.keys()].every((c) => c === 'EUR'),
   };
+}
+
+export interface PlannedPreviewSource {
+  id: string;
+  name: string;
+  date: string;
+  amountCents: number;
+  currency: string;
+  sourceAccountId: string | null;
+  targetAccountId: string | null;
+  source: 'savings' | 'transfer';
+  /** Exact live booking identity if present; never use display names as identity. */
+  bookingId?: string;
+}
+/** A stored transfer wins over a schedule for the identical source/destination/date/amount.
+ * Each transfer consumes at most one schedule: two independent identical plans are not collapsed. */
+export function deduplicatePreviewSources(
+  sources: ReadonlyArray<PlannedPreviewSource>,
+): PlannedPreviewSource[] {
+  const key = (s: PlannedPreviewSource) =>
+    `${s.sourceAccountId}|${s.targetAccountId}|${s.date}|${s.currency}|${s.amountCents}`;
+  const booked = sources.filter((s) => s.source === 'transfer');
+  const consumed = new Set<string>();
+  return [
+    ...booked,
+    ...sources
+      .filter((s) => s.source === 'savings')
+      .filter((s) => {
+        if (!s.sourceAccountId || !s.targetAccountId) return true;
+        const match = booked.find((b) => !consumed.has(b.id) && key(b) === key(s));
+        if (!match) return true;
+        consumed.add(match.id);
+        return false;
+      }),
+  ];
 }

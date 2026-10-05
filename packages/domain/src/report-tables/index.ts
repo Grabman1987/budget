@@ -42,3 +42,5 @@ export {
   type YearComparison,
   type YearView,
 } from './tables';
+
+export * from './income-expense';
