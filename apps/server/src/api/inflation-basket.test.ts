@@ -5,6 +5,7 @@ import {
   createEntity,
   categories,
   schema,
+  storeCpi,
   type OpenedDatabase,
   type InflationReport,
 } from '@budget/db';
@@ -48,6 +49,97 @@ describe('inflation basket owner settings (synthetic)', () => {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ changes }),
     });
+
+  it('persists a two-class CPI method, uses household weights and keeps total CPI separate', async () => {
+    categories.update(opened.db, 'reise', { kind: 'variable' }, { actor: 'test' });
+    for (const m of monthsBetween('2023-10', '2025-10')) {
+      charge(`${m}-03`, 'miete', 'p1', 3000);
+      charge(`${m}-04`, 'reise', 'p2', 1000);
+    }
+    const rows = (after: number) =>
+      monthsBetween('2023-10', '2025-10').map((month) => ({
+        month,
+        indexMicro: (month < '2025-01' ? 100 : after) * 1_000_000,
+      }));
+    storeCpi(opened.db, 'vpi', rows(105), '2025-11-01');
+    storeCpi(opened.db, 'vpi:01.1', rows(110), '2025-11-01');
+    storeCpi(opened.db, 'vpi:12.1.3', rows(120), '2025-11-01');
+    const response = await save([
+      {
+        categoryId: 'reise',
+        inclusion: 'always',
+        method: 'cpi',
+        coicop: [
+          { code: '01.1', shareBp: 8000 },
+          { code: '12.1.3', shareBp: 2000 },
+        ],
+      },
+    ]);
+    expect(response.status).toBe(200);
+    const result = await report();
+    expect(result.basketSettings.find((c) => c.id === 'reise')).toMatchObject({
+      method: 'cpi',
+      coicop: [
+        { code: '01.1', shareBp: 8000 },
+        { code: '12.1.3', shareBp: 2000 },
+      ],
+    });
+    expect(result.basket.find((c) => c.categoryId === 'reise')).toMatchObject({
+      source: 'cpi',
+      changeBp: 1200,
+    });
+    expect(result.points.find((p) => p.month === '2025-01')?.index).toBe(103);
+    expect(result.derivedContracts.some((c) => c.id.includes('reise'))).toBe(false);
+    expect(result.reference?.series).toBe('vpi');
+    expect(result.referenceBp).toBe(500);
+    for (const coicop of [
+      [],
+      [{ code: '01.1', shareBp: 9000 }],
+      [{ code: 'missing', shareBp: 10000 }],
+      [
+        { code: '01.1', shareBp: 5000 },
+        { code: '01.1', shareBp: 5000 },
+      ],
+    ])
+      expect((await save([{ categoryId: 'reise', method: 'cpi', coicop }])).status).toBe(400);
+    const { groupId } = (await response.json()) as { groupId: string };
+    expect(
+      (
+        await api().request('/undo', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ groupId }),
+        })
+      ).status,
+    ).toBe(200);
+    expect((await report()).basketSettings.find((c) => c.id === 'reise')).toMatchObject({
+      method: null,
+      coicop: [],
+    });
+  });
+
+  it('withholds a selected CPI category without prices and stops at the last common published month', async () => {
+    for (const m of monthsBetween('2023-10', '2025-10')) {
+      charge(`${m}-03`, 'miete', 'p1', 3000);
+      charge(`${m}-04`, 'reise', 'p2', 1000);
+    }
+    await save([
+      {
+        categoryId: 'reise',
+        inclusion: 'always',
+        method: 'cpi',
+        coicop: [{ code: '07.2.2', shareBp: 10000 }],
+      },
+    ]);
+    expect((await report()).status).toBe('insufficient');
+    storeCpi(
+      opened.db,
+      'vpi:07.2.2',
+      monthsBetween('2023-10', '2025-09').map((month) => ({ month, indexMicro: 100_000_000 })),
+      '2025-11-01',
+    );
+    expect((await report()).toMonth).toBe('2025-09');
+  });
 
   it('keeps want out by default, includes Always, and undoes the audited settings', async () => {
     for (const m of monthsBetween('2023-10', '2025-10')) {

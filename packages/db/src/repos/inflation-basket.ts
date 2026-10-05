@@ -34,11 +34,24 @@ export function saveInflationBasket(db: Executor, input: unknown, ctx: AuditCont
       for (const id of change.excludedPayeeIds ?? [])
         if (id !== null && !getEntity(tx, payee, id)) throw new EntityNotFoundError('payee', id);
       const before = settings.get(c.id) ?? inflationBasketSetting.parse({});
-      if (change.inclusion !== undefined || change.excludedPayeeIds !== undefined) {
-        settings.set(c.id, {
-          inclusion: change.inclusion === undefined ? before.inclusion : change.inclusion,
-          excludedPayeeIds: [...new Set(change.excludedPayeeIds ?? before.excludedPayeeIds)],
-        });
+      const next = inflationBasketSetting.parse({
+        ...before,
+        inclusion: change.inclusion === undefined ? before.inclusion : change.inclusion,
+        excludedPayeeIds: [...new Set(change.excludedPayeeIds ?? before.excludedPayeeIds)],
+        method: change.method === undefined ? before.method : change.method,
+        coicop: change.coicop ?? before.coicop,
+      });
+      if (next.method === 'cpi' && !next.coicop.length)
+        throw new CategoryRuleError(
+          'Für VPI-Teilindex bitte mindestens eine COICOP-Klasse wählen.',
+        );
+      if (
+        change.inclusion !== undefined ||
+        change.excludedPayeeIds !== undefined ||
+        change.method !== undefined ||
+        change.coicop !== undefined
+      ) {
+        settings.set(c.id, next);
         changed = true;
       }
       if (change.trailingMean !== undefined && c.inflationTrailingMean !== change.trailingMean)

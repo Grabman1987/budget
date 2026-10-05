@@ -11,13 +11,23 @@ import { VermoegenStand, ZeitraumSwitch } from '../wealth/frame';
 import type { PageMeta } from '../nav/pages';
 import { useMonth } from '../shell/use-month';
 import type { HeutePeriod } from '../heute/api';
+import { PAYDAY_ONLY_THIS_MONTH } from '../heute/use-balance-period';
+import { currentMonth } from '../shell/use-month';
 
 type Period = 'month' | 'payday';
 
-const PERIODS = [
-  { value: 'month', label: 'Monat' },
-  { value: 'payday', label: 'Bis Gehalt' },
-] as const;
+const periodOptions = (paydayAvailable: boolean) =>
+  [
+    { value: 'month', label: 'Monat' },
+    paydayAvailable
+      ? { value: 'payday', label: 'Bis Gehalt' }
+      : {
+          value: 'payday',
+          label: 'Bis Gehalt',
+          disabled: true,
+          description: PAYDAY_ONLY_THIS_MONTH,
+        },
+  ] as const;
 
 export interface AreaHeadProps {
   meta: PageMeta;
@@ -90,11 +100,13 @@ export function AreaHead({
           value: (
             <Segmented
               label="Zeitraum"
-              options={PERIODS}
+              options={periodOptions(month === currentMonth())}
               value={heutePeriod ?? period}
-              onChange={(value) =>
-                onHeutePeriodChange ? onHeutePeriodChange(value) : setPeriod(value)
-              }
+              onChange={(value) => {
+                const next = value as Period;
+                if (onHeutePeriodChange) onHeutePeriodChange(next);
+                else setPeriod(next);
+              }}
             />
           ),
         },

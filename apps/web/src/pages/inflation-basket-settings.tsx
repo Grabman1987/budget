@@ -3,7 +3,8 @@ import { useQuery } from '@tanstack/react-query';
 import { Button } from '@budget/ui';
 import type { InflationReport } from '@budget/db';
 import type { z } from 'zod';
-import type { inflationBasketChanges } from '@budget/domain';
+import { COICOP_CLASSES, coicopLabel, type inflationBasketChanges } from '@budget/domain';
+import { Combobox } from '../ledger/combobox';
 import { request } from '../api/http';
 import { useBudgetWrite } from '../budget/use-category-writes';
 import { LEDGER_KEY } from '../ledger/queries';
@@ -56,9 +57,10 @@ export function InflationBasketSettingsPage() {
         </div>
         <p className="sr-note">
           Automatisch zählen Bedarf-Fixkosten und regelmäßige periodische Kosten mit. Wunsch und
-          Zukunft brauchen „Immer“. Verträge messen Preise; das 12-Monats-Mittel enthält auch
-          Verbrauch und Nachzahlungen. Schuldzinsen über die Empfänger-Auswahl ausschließen; Namen
-          werden nicht automatisch bewertet.
+          Zukunft brauchen „Immer“. Variable Kategorien: „Immer“ und „VPI-Teilindex“ wählen.
+          Verträge messen Preise; das 12-Monats-Mittel enthält auch Verbrauch und Nachzahlungen.
+          Schuldzinsen über die Empfänger-Auswahl ausschließen; Namen werden nicht automatisch
+          bewertet.
         </p>
         <div className="basket-actions">
           <span role="status">{selected.length} ausgewählt</span>
@@ -123,34 +125,11 @@ export function InflationBasketSettingsPage() {
                         <option value="never">Nie</option>
                       </select>
                     </label>
-                    <label>
-                      Methode
-                      <select
-                        aria-label={'Methode: ' + c.name}
-                        value={
-                          c.trailingMean === null
-                            ? 'automatic'
-                            : c.trailingMean
-                              ? 'trailing'
-                              : 'contracts'
-                        }
-                        onChange={(e) =>
-                          void save([
-                            {
-                              categoryId: c.id,
-                              trailingMean:
-                                e.target.value === 'automatic'
-                                  ? null
-                                  : e.target.value === 'trailing',
-                            },
-                          ])
-                        }
-                      >
-                        <option value="automatic">Automatisch</option>
-                        <option value="contracts">Verträge</option>
-                        <option value="trailing">12-Monats-Mittel</option>
-                      </select>
-                    </label>
+                    <BasketMethod
+                      key={JSON.stringify([c.method, c.trailingMean, c.coicop])}
+                      row={c}
+                      save={save}
+                    />
                   </div>
                   <p className="sr-note">
                     {c.included ? 'Im Warenkorb' : 'Nicht im Warenkorb'} · {c.reason}
@@ -200,5 +179,150 @@ export function InflationBasketSettingsPage() {
         ))}
       </section>
     </PageFrame>
+  );
+}
+
+function CoicopSelect({
+  label,
+  code,
+  onSelect,
+}: {
+  label: string;
+  code: string;
+  onSelect: (code: string) => void;
+}) {
+  const [typing, setTyping] = useState<string | null>(null);
+  return (
+    <Combobox
+      label={label}
+      value={typing ?? coicopLabel(code ? [{ code, shareBp: 10000 }] : [])}
+      filter={typing ?? ''}
+      options={[
+        { id: '', label: 'Keine Klasse' },
+        ...COICOP_CLASSES.map((c) => ({ id: c.code, label: `${c.code} ${c.name}` })),
+      ]}
+      listWhenEmpty
+      pickFirst
+      placeholder="Code oder Name suchen"
+      emptyText="Keine Klasse gefunden."
+      onChange={setTyping}
+      onFocusChange={(focused) => !focused && setTyping(null)}
+      onSelect={(option) => {
+        onSelect(option.id);
+        setTyping(null);
+      }}
+    />
+  );
+}
+
+function BasketMethod({ row, save }: { row: Row; save: (changes: Change[]) => Promise<void> }) {
+  const [method, setMethod] = useState(
+    row.method ??
+      (row.trailingMean === null ? 'automatic' : row.trailingMean ? 'trailing' : 'contracts'),
+  );
+  const [first, setFirst] = useState(row.coicop[0]?.code ?? '');
+  const [second, setSecond] = useState(row.coicop[1]?.code ?? '');
+  const [share, setShare] = useState(String((row.coicop[0]?.shareBp ?? 8000) / 100));
+  const bp = Math.round(Number(share) * 100);
+  const valid =
+    !!first && first !== second && (!second || (Number.isFinite(bp) && bp > 0 && bp < 10000));
+  return (
+    <>
+      <label>
+        Methode
+        <select
+          aria-label={'Methode: ' + row.name}
+          value={method}
+          onChange={(e) => {
+            const value = e.target.value;
+            setMethod(value);
+            if (value !== 'cpi')
+              void save([
+                {
+                  categoryId: row.id,
+                  method: null,
+                  trailingMean: value === 'automatic' ? null : value === 'trailing',
+                },
+              ]);
+          }}
+        >
+          <option value="automatic">Automatisch</option>
+          <option value="contracts">Verträge</option>
+          <option value="trailing">12-Monats-Mittel</option>
+          <option value="cpi">VPI-Teilindex</option>
+        </select>
+      </label>
+      {method === 'cpi' && (
+        <div className="basket-coicop">
+          <p className="sr-note">
+            Der Preis kommt von Statistik Austria, das Gewicht aus deinen Ausgaben im Basisjahr.
+          </p>
+          <div className="basket-coicop-fields">
+            <CoicopSelect
+              label="COICOP-Klasse 1"
+              code={first}
+              onSelect={(code) => {
+                setFirst(code);
+              }}
+            />
+            <CoicopSelect
+              label="COICOP-Klasse 2"
+              code={second}
+              onSelect={(code) => {
+                setSecond(code);
+              }}
+            />
+            {second && (
+              <label>
+                Anteil Klasse 1 (%)
+                <input
+                  type="number"
+                  min="0.01"
+                  max="99.99"
+                  step="0.01"
+                  value={share}
+                  onChange={(e) => {
+                    setShare(e.target.value);
+                  }}
+                />
+                <small>
+                  Klasse 2: {new Intl.NumberFormat('de-AT').format(100 - Number(share))} %
+                </small>
+              </label>
+            )}
+          </div>
+          <Button
+            disabled={!valid}
+            onClick={() => {
+              void save([
+                {
+                  categoryId: row.id,
+                  method: 'cpi',
+                  coicop: [
+                    { code: first, shareBp: second ? bp : 10000 },
+                    ...(second ? [{ code: second, shareBp: 10000 - bp }] : []),
+                  ],
+                },
+              ]);
+            }}
+          >
+            Zuordnung speichern
+          </Button>
+          <span role="status">
+            {row.method === 'cpi' &&
+            first === row.coicop[0]?.code &&
+            second === (row.coicop[1]?.code ?? '') &&
+            (!second || bp === row.coicop[0]?.shareBp)
+              ? 'Zuordnung gespeichert'
+              : 'Zuordnung noch nicht gespeichert'}
+          </span>
+          {!valid && (
+            <p className="sr-note">
+              Bitte eine Klasse wählen; zwei verschiedene Klassen mit Anteilen zusammen 100 %.
+            </p>
+          )}
+        </div>
+      )}
+    </>
   );
 }
