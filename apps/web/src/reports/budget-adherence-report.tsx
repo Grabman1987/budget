@@ -1,3 +1,4 @@
+import { AllocationBar } from './allocation-bar';
 import { chartShare } from '../charts/tooltip-data';
 import { ChartValue } from '@budget/ui';
 import { useAmountPrivacy, ClassSwatch, DimensionChain } from '@budget/ui';
@@ -354,9 +355,6 @@ function Body({ data }: { data: BudgetAdherenceReport }) {
 
 function Allocation({ row, current }: { row: AllocationRow; current: boolean }) {
   useAmountPrivacy();
-  const spend = row.needCents + row.wantCents + row.futureCents;
-  const total = Math.max(row.incomeCents, spend);
-  const width = (c: number) => `${total > 0 ? (Math.max(0, c) / total) * 100 : 0}%`;
   const { need, want, future, rest } = row.shares;
   const hasIncome = row.incomeCents > 0;
   return (
@@ -388,40 +386,10 @@ function Allocation({ row, current }: { row: AllocationRow; current: boolean }) 
           },
         ]}
       >
-        <span
-          className="sr-523-bar"
-          role="img"
-          aria-label={
-            hasIncome
-              ? `${monthShort(row.month)}: Bedarf ${need} %, Wunsch ${want} %, Zukunft ${future} %, ${rest < 0 ? 'aus Guthaben' : 'übrig'} ${Math.abs(rest)} %`
-              : `${monthShort(row.month)}: keine Haushaltseinnahmen`
-          }
-        >
-          <span className="sw-need" style={{ width: width(row.needCents) }} />
-          <span className="sw-want" style={{ width: width(row.wantCents) }} />
-          <span className="sw-future" style={{ width: width(row.futureCents) }} />
-          {row.restCents > 0 ? (
-            <span className="sr-523-rest" style={{ width: width(row.restCents) }} />
-          ) : null}
-          {hasIncome ? (
-            <>
-              <i
-                className="sr-523-mark"
-                style={{ left: `${((row.incomeCents * 0.5) / total) * 100}%` }}
-              />
-              <i
-                className="sr-523-mark"
-                style={{ left: `${((row.incomeCents * 0.8) / total) * 100}%` }}
-              />
-              {spend > row.incomeCents ? (
-                <i
-                  className="sr-523-mark is-full"
-                  style={{ left: `${(row.incomeCents / total) * 100}%` }}
-                />
-              ) : null}
-            </>
-          ) : null}
-        </span>
+        <AllocationBar
+          data={row}
+          label={`${monthShort(row.month)}: Bedarf ${need} %, Wunsch ${want} %, Zukunft ${future} %, Rest ${rest} % der Einnahmen`}
+        />
       </ChartValue>
       <span className="sr-523-num">
         {hasIncome ? (

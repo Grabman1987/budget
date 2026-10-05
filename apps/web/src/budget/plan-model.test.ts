@@ -247,15 +247,18 @@ describe('Plan › Monat view model', () => {
     expect(monthStatus(summary({ uncoveredCents: 100 }), calm)[0]?.tone).toBe('bad');
   });
 
-  it('50/30/20 has no shares without a meaningful base and never leaves 0…100', () => {
+  it('50/30/20 keeps income shares when assignment exceeds income', () => {
     const income = (incomeCents: number) => ({ incomeCents }) as BudgetMonthView['summary'];
     const assigned = (id: string, assignedCents: number) =>
       rows.map((r) => (r.id === id ? { ...r, assignedCents } : { ...r, assignedCents: 0 }));
     expect(splitState(income(0), rows)).toEqual({ kind: 'no-income' });
     expect(splitState(income(-500), rows)).toEqual({ kind: 'no-income' });
     expect(splitState(income(100_000), assigned('essen', 0))).toEqual({ kind: 'empty' });
-    // Tiny income, large assignment: not 5129 %.
-    expect(splitState(income(1_000), assigned('essen', 51_290))).toEqual({ kind: 'too-much' });
+    // Overspending remains visible on the income scale.
+    expect(splitState(income(1_000), assigned('essen', 51_290))).toMatchObject({
+      kind: 'shares',
+      need: 5129,
+    });
     // A negative class sum counts as 0.
     expect(splitState(income(100_000), assigned('cafe', -86_100))).toEqual({ kind: 'empty' });
     const ok = splitState(income(100_000), [

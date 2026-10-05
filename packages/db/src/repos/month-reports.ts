@@ -34,18 +34,8 @@ import {
   type Rhythm,
   type TopSpendingRow,
 } from '@budget/domain';
-import { and, eq, isNull } from 'drizzle-orm';
-import {
-  account,
-  booking,
-  bookingSplit,
-  categoryGroup,
-  contact,
-  incomeType,
-  INCOME_TYPES,
-  payee,
-} from '../schema';
-import { allocationMonth, isIncomeCategorySplit } from './allocation';
+import { categoryGroup, contact, INCOME_TYPES, payee } from '../schema';
+import { allocationMonth } from './allocation';
 import { upcoming } from './expected';
 import { availableSection, occurrencesBetween, paceOfMonth, type Heute } from './heute';
 import type { HeuteUnavailable } from './heute';
@@ -53,6 +43,8 @@ import { netWorthAsOf, netWorthDaily } from './portfolio';
 import { ruleStatuses, type RuleStatusEntry } from './rules';
 import { loadFacts, scheduled, type RuleFacts } from './rule-inputs';
 import type { Executor } from './types';
+import { overviewData } from './report-ledger';
+import { withValuationRange } from './valuation-notes';
 
 /**
  * Read models of the report group "Monat und Einkommen": 1.1 Monats-One-Pager, 1.3 Einnahmen and
@@ -71,13 +63,6 @@ export class MonthInFutureError extends RangeError {
     super(`The month ${month} has not started yet`);
   }
 }
-
-const incomeKind = (typeId: string): IncomeFact['kind'] =>
-  typeId === INCOME_TYPES.capital.id
-    ? 'capital'
-    : typeId === INCOME_TYPES.refund.id
-      ? 'refund'
-      : 'earned';
 
 const MONTH_NAMES = [
   'Jänner',
@@ -125,51 +110,19 @@ const monthsFrom = (f: Frame, from: string): string[] =>
 
 /** Income splits of the budget accounts up to `asOf`, with their type. */
 function incomeFacts(db: Executor, f: Frame, fromMonth: string): IncomeFact[] {
-  const kinds = new Map(f.facts.categories.map((c) => [c.id, c.kind]));
-  return db
-    .select({
-      day: booking.date,
-      cents: bookingSplit.amountCents,
-      categoryId: bookingSplit.categoryId,
-      typeId: bookingSplit.incomeTypeId,
-      typeName: incomeType.name,
-      sortOrder: incomeType.sortOrder,
-    })
-    .from(bookingSplit)
-    .innerJoin(booking, eq(booking.id, bookingSplit.bookingId))
-    .innerJoin(account, eq(account.id, booking.accountId))
-    .leftJoin(incomeType, eq(incomeType.id, bookingSplit.incomeTypeId))
-    .where(
-      and(
-        isNull(booking.deletedAt),
-        isNull(account.deletedAt),
-        eq(account.onBudget, true),
-        isNull(booking.transferId),
-        isNull(bookingSplit.transferId),
-      ),
-    )
-    .all()
-    .flatMap((s): IncomeFact[] => {
-      const kind = s.categoryId === null ? null : (kinds.get(s.categoryId) ?? null);
-      if (
-        s.typeId === null ||
-        s.cents <= 0 ||
-        s.day > f.asOf ||
-        monthOf(s.day) < fromMonth ||
-        !isIncomeCategorySplit(s.categoryId, kind)
-      )
-        return [];
-      return [
-        {
-          month: monthOf(s.day),
-          typeId: s.typeId,
-          typeName: s.typeName ?? 'Sonstiges',
-          kind: incomeKind(s.typeId),
-          sortOrder: s.sortOrder ?? 0,
-          cents: s.cents,
-        },
-      ];
-    });
+  const ledger = overviewData(db);
+  const types = new Map(ledger.incomeTypes.map((t, i) => [t.id, { name: t.name, sortOrder: i }]));
+  return ledger.splits
+    .filter((s) => s.kind === 'income' && s.date <= f.asOf && monthOf(s.date) >= fromMonth)
+    .map((s) => ({
+      month: monthOf(s.date),
+      typeId: s.incomeTypeId ?? INCOME_TYPES.other.id,
+      typeName: types.get(s.incomeTypeId ?? INCOME_TYPES.other.id)?.name ?? 'Sonstiges',
+      kind:
+        s.incomeGroup === 'capital' ? 'capital' : s.incomeGroup === 'refund' ? 'refund' : 'earned',
+      sortOrder: types.get(s.incomeTypeId ?? INCOME_TYPES.other.id)?.sortOrder ?? 0,
+      cents: s.amountCents,
+    }));
 }
 
 /** Spending per category in a month, positive cents (refunds net); categories without class are left out. */
@@ -431,6 +384,14 @@ export interface OnePager {
   result: MonthResult;
   /** Kapitalerträge of the month: shown as a note, not part of the result. */
   capitalCents: number;
+  incomeRows: Array<{
+    bookingId: string;
+    typeId: string | null;
+    name: string;
+    payer: string | null;
+    cents: number;
+    kind: 'household' | 'capital' | 'refund';
+  }>;
   allocation: Allocation;
   netWorth: OnePagerNetWorth | HeuteUnavailable;
   top: TopSpendingRow[];
@@ -503,11 +464,31 @@ function priceChanges(f: Frame): PriceChange[] {
 
 /** The Monats-One-Pager: result chain, 50/30/20, net worth, largest spending, plan, check, pace. */
 export function monthOnePager(db: Executor, today: string, month: string): OnePager {
+  return withValuationRange(
+    `${month}-01`,
+    month === monthOf(today) ? today : lastDayOfMonth(month),
+    () => onePagerInRange(db, today, month),
+  );
+}
+
+function onePagerInRange(db: Executor, today: string, month: string): OnePager {
   const f = frame(db, today, month);
   const previousMonth = addMonths(month, -1);
   const incomeFrom = previousMonth < f.firstMonth ? month : previousMonth;
   const facts = incomeFacts(db, f, incomeFrom);
   const income = monthIncomeOf(facts, month);
+  const ledger = overviewData(db);
+  const names = new Map(ledger.incomeTypes.map((t) => [t.id, t.name]));
+  const incomeRows: OnePager['incomeRows'] = ledger.splits
+    .filter((s) => s.kind === 'income' && monthOf(s.date) === month && s.date <= f.asOf)
+    .map((s) => ({
+      bookingId: s.bookingId,
+      typeId: s.incomeTypeId,
+      name: names.get(s.incomeTypeId ?? '') ?? 'Sonstiges',
+      payer: s.payeeName,
+      cents: s.amountCents,
+      kind: s.incomeGroup ?? 'household',
+    }));
   const previousIncome = monthIncomeOf(facts, previousMonth);
   const totals = classTotals(f, [month]);
   const result = monthResult({
@@ -610,6 +591,7 @@ export function monthOnePager(db: Executor, today: string, month: string): OnePa
     beforeRecords: month < f.firstMonth,
     result,
     capitalCents: income.capitalCents,
+    incomeRows,
     allocation: alloc,
     netWorth,
     top,

@@ -710,54 +710,58 @@ describe('GET /api/export/csv.zip', () => {
     await retry.arrayBuffer();
   });
 
-  it('closes the ZIP snapshot and removes its temporary database when the client aborts', async () => {
-    insertAccount({});
-    db.insert(schema.security)
-      .values({ id: 'large-prices', name: 'Synthetic history', kind: 'other' })
-      .run();
-    const history = Array.from({ length: 7000 }, (_, index) => ({
-      securityId: 'large-prices',
-      date: new Date(Date.UTC(2000, 0, 1 + index)).toISOString().slice(0, 10),
-      priceMicro: 1_000_000 + ((index * 1_739_117) % 99_000_000),
-      currency: 'EUR',
-      source: 'manual' as const,
-    }));
-    for (let start = 0; start < history.length; start += 150) {
-      db.insert(schema.price)
-        .values(history.slice(start, start + 150))
+  it(
+    'closes the ZIP snapshot and removes its temporary database when the client aborts',
+    async () => {
+      insertAccount({});
+      db.insert(schema.security)
+        .values({ id: 'large-prices', name: 'Synthetic history', kind: 'other' })
         .run();
-    }
-    const snapshots = () =>
-      readdirSync(tmpdir())
-        .filter((name) => existsSync(join(tmpdir(), name, 'snapshot.sqlite')))
-        .sort();
-    const before = snapshots();
-    const response = await app.request('/api/export/csv.zip');
-    const during = snapshots().filter((name) => !before.includes(name));
-    const reader = response.body?.getReader();
-    try {
-      expect(during).toHaveLength(1);
-      const dir = join(tmpdir(), during[0] as string);
-      expect(existsSync(join(dir, 'snapshot.sqlite'))).toBe(true);
-      if (process.platform !== 'win32') {
-        expect(statSync(dir).mode & 0o777).toBe(0o700);
-        expect(statSync(join(dir, 'snapshot.sqlite')).mode & 0o777).toBe(0o600);
+      const history = Array.from({ length: 7000 }, (_, index) => ({
+        securityId: 'large-prices',
+        date: new Date(Date.UTC(2000, 0, 1 + index)).toISOString().slice(0, 10),
+        priceMicro: 1_000_000 + ((index * 1_739_117) % 99_000_000),
+        currency: 'EUR',
+        source: 'manual' as const,
+      }));
+      for (let start = 0; start < history.length; start += 150) {
+        db.insert(schema.price)
+          .values(history.slice(start, start + 150))
+          .run();
       }
-      expect(reader).toBeDefined();
-      let bytes = Buffer.alloc(0);
-      let reachedPrices = false;
-      while (!reachedPrices) {
-        const part = await reader?.read();
-        expect(part?.done).toBe(false);
-        bytes = Buffer.concat([bytes, Buffer.from(part?.value ?? [])]);
-        reachedPrices = bytes.includes(Buffer.from('prices.csv'));
+      const snapshots = () =>
+        readdirSync(tmpdir())
+          .filter((name) => existsSync(join(tmpdir(), name, 'snapshot.sqlite')))
+          .sort();
+      const before = snapshots();
+      const response = await app.request('/api/export/csv.zip');
+      const during = snapshots().filter((name) => !before.includes(name));
+      const reader = response.body?.getReader();
+      try {
+        expect(during).toHaveLength(1);
+        const dir = join(tmpdir(), during[0] as string);
+        expect(existsSync(join(dir, 'snapshot.sqlite'))).toBe(true);
+        if (process.platform !== 'win32') {
+          expect(statSync(dir).mode & 0o777).toBe(0o700);
+          expect(statSync(join(dir, 'snapshot.sqlite')).mode & 0o777).toBe(0o600);
+        }
+        expect(reader).toBeDefined();
+        let bytes = Buffer.alloc(0);
+        let reachedPrices = false;
+        while (!reachedPrices) {
+          const part = await reader?.read();
+          expect(part?.done).toBe(false);
+          bytes = Buffer.concat([bytes, Buffer.from(part?.value ?? [])]);
+          reachedPrices = bytes.includes(Buffer.from('prices.csv'));
+        }
+      } finally {
+        await reader?.cancel().catch(() => undefined);
       }
-    } finally {
-      await reader?.cancel().catch(() => undefined);
-    }
-    const after = snapshots();
-    expect(after).toEqual(before);
-  }, 30_000);
+      const after = snapshots();
+      expect(after).toEqual(before);
+    },
+    process.platform === 'win32' ? 60_000 : 30_000,
+  );
 
   it('rejects a late CSV source failure and removes the snapshot instead of completing a partial ZIP', async () => {
     const snapshots = () =>

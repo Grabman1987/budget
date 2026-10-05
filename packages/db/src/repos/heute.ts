@@ -45,6 +45,7 @@ import { forecastInputs, loadFacts, scheduled, type RuleFacts } from './rule-inp
 import { financeCheck, type FinanceCheck } from './rules';
 import { MissingFxRateError } from './errors';
 import type { Executor } from './types';
+import { overviewData } from './report-ledger';
 
 /**
  * The read model of Heute (concept §7.1, SPEC §3): one call, every figure from the domain
@@ -171,7 +172,7 @@ export interface Heute {
     salary: { day: string; cents: number } | null;
     low: LowPoint | null;
   };
-  pace: PaceModel & { forecast: number[]; previousMonth: string };
+  pace: PaceModel & { forecast: number[]; previousMonth: string; income: number[] };
   pinned: HeutePinned[];
   upcoming14: HeuteOccurrence[];
   financeCheck:
@@ -415,8 +416,20 @@ export function paceOfMonth(
     spending: spending.filter((s) => monthOf(s.day) === month),
     previousSpending: spending.filter((s) => monthOf(s.day) === addMonths(month, -1)),
   });
+  const incomes = overviewData(facts.db).splits.filter(
+    (s) =>
+      s.kind === 'income' &&
+      s.incomeGroup === 'household' &&
+      monthOf(s.date) === month &&
+      s.date <= today,
+  );
   return {
     ...model,
+    income: model.actual.map((_, day) =>
+      incomes
+        .filter((s) => Number(s.date.slice(8)) <= day)
+        .reduce((sum, s) => sum + s.amountCents, 0),
+    ),
     forecast: paceForecastCurve(model, fixed),
     previousMonth: addMonths(month, -1),
   };
