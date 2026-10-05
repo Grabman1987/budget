@@ -1,6 +1,7 @@
 import { chartPoints, chartPercent } from '../charts/tooltip-data';
+import { Fragment } from 'react';
 import { useAmountPrivacy, ChartSvg, Graticule, LineLegend, type GraticuleLine } from '@budget/ui';
-import type { AllocationClass, AllocationHistory, AllocationReport } from '@budget/db';
+import type { AllocationGroup, AllocationHistory, AllocationReport } from '@budget/db';
 import { queryOptions, useQuery } from '@tanstack/react-query';
 import { AlertTriangle, CheckCircle2 } from 'lucide-react';
 import { useElementWidth } from '../charts/use-element-width';
@@ -21,6 +22,7 @@ import {
 } from './portfolio-report-shared';
 import './portfolio-allocation-report.css';
 import { BookRuleMetric } from '../rules/book-rule-metric';
+import { AppLink } from '../shell/app-link';
 
 interface AllocationResponse extends WithValuationNotes {
   allocation: AllocationReport;
@@ -84,7 +86,6 @@ export function PortfolioAllocationReport({
 
 function AllocationBody({ data }: { data: AllocationReport }) {
   useAmountPrivacy();
-  const unassigned = data.compositionRegions.find((r) => r.region === null);
   return (
     <>
       <section className="prep-card" aria-labelledby="alloc-title">
@@ -93,53 +94,45 @@ function AllocationBody({ data }: { data: AllocationReport }) {
           <DecisionLink />
         </div>
         {data.classifiedCents > 0 && (
-          <div className="sb-pair">
+          <div className="sb-composition">
             <figure className="sb-fig">
               <Sunburst
                 date={data.asOf}
                 testId="sunburst-classes"
-                title="Klassen"
+                title="Portfolio"
                 totalCents={data.classifiedCents}
-                label={`Sonnendiagramm: innen Anlageklasse, außen Produkt. ${data.compositionClasses
+                portfolioCents={data.totalCents}
+                label={`Sonnendiagramm: innen Gruppe, außen Anlageklasse. ${data.compositionGroups
                   .map((c) => `${c.name} ${bpText(c.shareBp)}`)
                   .join(', ')}.`}
-                groups={data.compositionClasses.map((c, i) => ({
-                  name: c.name,
-                  ink: inkOf(i),
-                  valueCents: c.valueCents,
-                  kids: c.products.map((p) => ({ name: p.name, valueCents: p.valueCents })),
-                }))}
+                groups={data.compositionGroups
+                  .filter((g) => g.valueCents > 0)
+                  .map((c) => ({
+                    name: c.name,
+                    ink: `alloc-ink ${inkOf(data.compositionGroups.indexOf(c))}`,
+                    valueCents: c.valueCents,
+                    shareBp: c.shareBp,
+                    portfolioShareBp: c.portfolioShareBp,
+                    targetBp: c.targetBp,
+                    kids: c.classes
+                      .filter((cls) => cls.valueCents > 0)
+                      .map((cls) => ({
+                        name: cls.name,
+                        valueCents: cls.valueCents,
+                        shareBp: cls.shareBp,
+                        portfolioShareBp: cls.portfolioShareBp,
+                        targetBp: cls.targetBp,
+                      })),
+                  }))}
               />
               <figcaption>
-                Innen Anlageklasse, außen Produkt. Die Tabelle nennt alle Werte.
+                Innen Gruppe, außen Anlageklasse. Produkte stehen in der Stückliste.
               </figcaption>
             </figure>
-            <figure className="sb-fig">
-              <Sunburst
-                date={data.asOf}
-                testId="sunburst-regions"
-                title="Regionen"
-                totalCents={data.classifiedCents}
-                label={`Sonnendiagramm: innen Region, außen Produkt. ${data.compositionRegions
-                  .map((r) => `${r.region ?? 'Ohne Regionsangabe'} ${bpText(r.shareBp)}`)
-                  .join(', ')}.`}
-                groups={data.compositionRegions.map((r, i) => ({
-                  name: r.region ?? 'Ohne Angabe',
-                  ink: inkOf(i),
-                  valueCents: r.valueCents,
-                  kids: r.products.map((p) => ({ name: p.name, valueCents: p.valueCents })),
-                }))}
-              />
-              <figcaption>
-                Innen Region (nach gespeicherten Länderanteilen), außen Produkt.
-                {unassigned
-                  ? ` Ohne Regionsangabe: ${unassigned.products.map((p) => p.name).join(', ')}.`
-                  : ''}
-              </figcaption>
-            </figure>
+            <CompositionLegend groups={data.compositionGroups} />
           </div>
         )}
-        <ClassTable classes={data.compositionClasses} totalCents={data.classifiedCents} />
+        <ClassTable groups={data.compositionGroups} totalCents={data.classifiedCents} />
         <RegionTable data={data} />
       </section>
       <section className="prep-card" aria-labelledby="alloc-soll-title">
@@ -220,11 +213,12 @@ function AllocationBody({ data }: { data: AllocationReport }) {
 interface SbKid {
   name: string;
   valueCents: number;
+  shareBp: number;
+  portfolioShareBp: number;
+  targetBp: number | null;
 }
-interface SbGroup {
-  name: string;
+interface SbGroup extends SbKid {
   ink: string;
-  valueCents: number;
   kids: SbKid[];
 }
 
@@ -250,7 +244,7 @@ function ringPath(cx: number, cy: number, r0: number, r1: number, a0: number, a1
   return `M${x0},${y0} A${r1},${r1} 0 ${large} 1 ${x1},${y1} L${x2},${y2} A${r0},${r0} 0 ${large} 0 ${x3},${y3} Z`;
 }
 
-/** Angles of every group and of the products inside it (pure, in order). */
+/** Angles of every group and its classes (pure, in order). */
 function layoutSunburst(groups: SbGroup[], total: number) {
   let angle = 0;
   return groups.map((group) => {
@@ -270,6 +264,7 @@ function layoutSunburst(groups: SbGroup[], total: number) {
 function Sunburst({
   groups,
   totalCents,
+  portfolioCents,
   title,
   label,
   testId,
@@ -277,6 +272,7 @@ function Sunburst({
 }: {
   groups: SbGroup[];
   totalCents: number;
+  portfolioCents: number;
   title: string;
   label: string;
   testId: string;
@@ -284,15 +280,22 @@ function Sunburst({
 }) {
   useAmountPrivacy();
   const [ref, width] = useElementWidth<HTMLDivElement>();
-  const size = Math.max(0, Math.min(width, 380));
+  const size = Math.max(0, Math.min(width, 500));
   const cx = size / 2;
   const cy = size / 2;
   const r = [size * 0.14, size * 0.34, size / 2 - 3];
   const total = Math.max(1, totalCents);
   const layout = layoutSunburst(groups, total);
+  const portfolioShare = (value: number) =>
+    percentText(portfolioCents > 0 ? value / portfolioCents : null);
   const sectors = layout.flatMap(({ group, kids }) => [
-    { name: group.name, valueCents: group.valueCents, ink: group.ink, source: group },
-    ...kids.map(({ kid }) => ({ ...kid, ink: group.ink, source: kid })),
+    { ...group, within: 1, ink: group.ink, source: group },
+    ...kids.map(({ kid }) => ({
+      ...kid,
+      within: kid.valueCents / group.valueCents,
+      ink: group.ink + ' sb-out',
+      source: kid,
+    })),
   ]);
   return (
     <div className="sunburst" ref={ref}>
@@ -310,9 +313,32 @@ function Sunburst({
               { name: s.name, value: eur(s.valueCents), className: `sb-arc ${s.ink}` },
               {
                 name: 'Anteil am Portfolio',
-                value: percentText(s.valueCents / total, { digits: 2 }),
+                value: portfolioShare(s.valueCents),
                 className: `sb-arc ${s.ink}`,
               },
+              ...(portfolioShare(s.valueCents) === bpText(s.portfolioShareBp)
+                ? []
+                : [
+                    {
+                      name: 'Ist · Sollvergleich',
+                      value: bpText(s.portfolioShareBp),
+                      className: `sb-arc ${s.ink}`,
+                    },
+                  ]),
+              {
+                name: 'Anteil innerhalb der Gruppe',
+                value: percentText(s.within, { digits: 2 }),
+                className: `sb-arc ${s.ink}`,
+              },
+              ...(s.targetBp === null
+                ? []
+                : [
+                    {
+                      name: 'Soll · Portfolio',
+                      value: bpText(s.targetBp),
+                      className: `sb-arc ${s.ink}`,
+                    },
+                  ]),
             ],
           }))}
         >
@@ -327,29 +353,51 @@ function Sunburst({
                   data-chart-point={sectors.findIndex((s) => s.source === group)}
                   fillRule="evenodd"
                 >
-                  <title>{`${group.name}: ${eurWhole(group.valueCents)} · ${percentText(group.valueCents / total)}`}</title>
+                  <title>{`${group.name}: ${eur(group.valueCents)} · Portfolio ${portfolioShare(group.valueCents)} · Ist ${bpText(group.portfolioShareBp)} · innerhalb der Gruppe 100 %${group.targetBp === null ? '' : ` · Soll ${bpText(group.targetBp)}`}`}</title>
                 </path>
-                {a1 - a0 > 0.55 && size > 260 && (
-                  <text
-                    x={lx}
-                    y={ly + 4}
-                    textAnchor="middle"
-                    className={`svg-label-strong sb-lbl${group.ink === 'pk-1' ? ' sb-lbl-inv' : ''}`}
-                  >
-                    {group.name.length > 10 ? `${group.name.slice(0, 9)}…` : group.name}
-                  </text>
-                )}
-                {kids.map(({ kid, b0, b1 }) => (
-                  <path
-                    key={`${group.name}-${kid.name}`}
-                    d={ringPath(cx, cy, r[1] as number, r[2] as number, b0, b1)}
-                    className={`sb-arc sb-out ${group.ink}`}
-                    data-chart-point={sectors.findIndex((s) => s.source === kid)}
-                    fillRule="evenodd"
-                  >
-                    <title>{`${kid.name}: ${eurWhole(kid.valueCents)} · ${percentText(kid.valueCents / total)}`}</title>
-                  </path>
-                ))}
+                {group.shareBp >= 600 &&
+                  group.name.length * 6 < Math.min(size * 0.22, (a1 - a0) * size * 0.24) && (
+                    <text
+                      x={lx}
+                      y={ly + 4}
+                      textAnchor="middle"
+                      className={`svg-label-strong sb-lbl sb-lbl-inv ${group.ink}`}
+                    >
+                      {group.name}
+                    </text>
+                  )}
+                {kids.map(({ kid, b0, b1 }) => {
+                  const [kx, ky] = point(
+                    cx,
+                    cy,
+                    ((r[1] as number) + (r[2] as number)) / 2,
+                    (b0 + b1) / 2,
+                  );
+                  return (
+                    <g key={`${group.name}-${kid.name}`}>
+                      <path
+                        key={`${group.name}-${kid.name}`}
+                        d={ringPath(cx, cy, r[1] as number, r[2] as number, b0, b1)}
+                        className={`sb-arc sb-out ${group.ink}`}
+                        data-chart-point={sectors.findIndex((s) => s.source === kid)}
+                        fillRule="evenodd"
+                      >
+                        <title>{`${kid.name}: ${eur(kid.valueCents)} · Portfolio ${portfolioShare(kid.valueCents)} · Ist ${bpText(kid.portfolioShareBp)} · innerhalb der Gruppe ${percentText(kid.valueCents / group.valueCents)}${kid.targetBp === null ? '' : ` · Soll ${bpText(kid.targetBp)}`}`}</title>
+                      </path>
+                      {kid.shareBp >= 600 &&
+                        kid.name.length * 6 < Math.min(size * 0.15, (b1 - b0) * size * 0.42) && (
+                          <text
+                            x={kx}
+                            y={ky + 4}
+                            textAnchor="middle"
+                            className={`svg-label-strong sb-lbl sb-out ${group.ink}`}
+                          >
+                            {kid.name}
+                          </text>
+                        )}
+                    </g>
+                  );
+                })}
               </g>
             );
           })}
@@ -367,7 +415,37 @@ function Sunburst({
 
 // ---------- tables ----------
 
-function ClassTable({ classes, totalCents }: { classes: AllocationClass[]; totalCents: number }) {
+function CompositionLegend({ groups }: { groups: AllocationGroup[] }) {
+  return (
+    <div className="composition-legend" aria-label="Gruppen und Anlageklassen">
+      <p className="prep-muted">Anteile am klassifizierten Marktwert</p>
+      {groups.map((g, i) => (
+        <div key={g.assetClassId} className={`alloc-ink ${inkOf(i)}`}>
+          <div className="composition-line is-group">
+            <span>
+              <i className="prep-swatch" aria-hidden="true" />
+              {g.name}
+            </span>
+            <strong>{eur(g.valueCents)}</strong>
+            <span>{bpText(g.shareBp)}</span>
+          </div>
+          {g.classes.map((c) => (
+            <div key={c.assetClassId} className="composition-line is-class">
+              <span>
+                <i className="prep-swatch sb-out" aria-hidden="true" />
+                {c.name}
+              </span>
+              <span>{eur(c.valueCents)}</span>
+              <span>{bpText(c.shareBp)}</span>
+            </div>
+          ))}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function ClassTable({ groups, totalCents }: { groups: AllocationGroup[]; totalCents: number }) {
   useAmountPrivacy();
   return (
     <div
@@ -380,39 +458,69 @@ function ClassTable({ classes, totalCents }: { classes: AllocationClass[]; total
       <table className="prep-table alloc-table">
         <thead>
           <tr>
-            <th className="tech">Klasse und Produkt</th>
+            <th className="tech">Gruppe › Klasse › Produkt</th>
             <th className="tech">Depot</th>
             <th className="tech n">Wert</th>
-            <th className="tech n">Anteil</th>
+            <th className="tech n">Anteil · klassifiziert</th>
+            <th className="tech n">Ist · Portfolio</th>
+            <th className="tech n">Soll</th>
+            <th className="tech n">Abweichung</th>
             <th className="tech n">12 Monate</th>
           </tr>
         </thead>
-        {classes.map((c, i) => (
-          <tbody key={c.assetClassId ?? 'none'}>
+        {groups.map((g, i) => (
+          <tbody key={g.assetClassId} className={`alloc-ink ${inkOf(i)}`}>
             <tr className="is-group">
               <td>
-                <i className={`prep-swatch ${inkOf(i)}`} aria-hidden="true" />
-                {c.name}
+                <i className="prep-swatch" aria-hidden="true" />
+                {g.name}
               </td>
               <td />
-              <td className="n">{eur(c.valueCents)}</td>
-              <td className="n">{bpText(c.shareBp)}</td>
+              <td className="n">{eur(g.valueCents)}</td>
+              <td className="n">{bpText(g.shareBp)}</td>
+              <td className="n">{bpText(g.portfolioShareBp)}</td>
+              <td className="n">{g.targetBp === null ? '–' : bpText(g.targetBp)}</td>
+              <td className="n">
+                {g.deviationBp === null ? '–' : bpText(g.deviationBp, { sign: true })}
+              </td>
               <td />
             </tr>
-            {c.products.map((p) => (
-              <tr key={p.securityId}>
-                <td className="indent">
-                  {p.securityId.startsWith('cash:') ? (
-                    p.name
-                  ) : (
-                    <ProductLink id={p.securityId}>{p.name}</ProductLink>
-                  )}
-                </td>
-                <td className="prep-muted">{p.depots.join(', ')}</td>
-                <td className="n">{eur(p.valueCents)}</td>
-                <td className="n">{bpText(p.shareBp)}</td>
-                <td className="n">{percentText(p.ttwror12, { sign: true })}</td>
-              </tr>
+            {g.classes.map((c) => (
+              <Fragment key={c.assetClassId}>
+                <tr className="is-class">
+                  <td className="indent">
+                    <i className="prep-swatch sb-out" aria-hidden="true" />
+                    {c.name}
+                  </td>
+                  <td />
+                  <td className="n">{eur(c.valueCents)}</td>
+                  <td className="n">{bpText(c.shareBp)}</td>
+                  <td className="n">{bpText(c.portfolioShareBp)}</td>
+                  <td className="n">{c.targetBp === null ? '–' : bpText(c.targetBp)}</td>
+                  <td className="n">
+                    {c.deviationBp === null ? '–' : bpText(c.deviationBp, { sign: true })}
+                  </td>
+                  <td />
+                </tr>
+                {c.products.map((p) => (
+                  <tr key={p.securityId}>
+                    <td className="product-indent">
+                      {p.securityId.startsWith('cash:') ? (
+                        p.name
+                      ) : (
+                        <ProductLink id={p.securityId}>{p.name}</ProductLink>
+                      )}
+                    </td>
+                    <td className="prep-muted">{p.depots.join(', ')}</td>
+                    <td className="n">{eur(p.valueCents)}</td>
+                    <td className="n">{bpText(p.shareBp)}</td>
+                    <td />
+                    <td />
+                    <td />
+                    <td className="n">{percentText(p.ttwror12, { sign: true })}</td>
+                  </tr>
+                ))}
+              </Fragment>
             ))}
           </tbody>
         ))}
@@ -425,6 +533,9 @@ function ClassTable({ classes, totalCents }: { classes: AllocationClass[]; total
             </td>
             <td className="n">{totalCents > 0 ? '100,0 %' : '–'}</td>
             <td />
+            <td />
+            <td />
+            <td />
           </tr>
         </tfoot>
       </table>
@@ -434,6 +545,22 @@ function ClassTable({ classes, totalCents }: { classes: AllocationClass[]; total
 
 function RegionTable({ data }: { data: AllocationReport }) {
   useAmountPrivacy();
+  if (!data.regionsAvailable)
+    return (
+      <p className="vnote alloc-regions">
+        Regionen: für die meisten Produkte keine Länderanteile hinterlegt{' '}
+        <AppLink
+          to="/einstellungen/anlageklassen"
+          search={() => ({
+            panel: 'instrument',
+            instrument: data.regionEditSecurityId ?? undefined,
+          })}
+          state={{ panelOpenedInApp: true }}
+        >
+          Länderanteile bearbeiten
+        </AppLink>
+      </p>
+    );
   return (
     <div
       className="prep-scroll alloc-regions"

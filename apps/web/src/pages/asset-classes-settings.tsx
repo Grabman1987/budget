@@ -1,4 +1,4 @@
-import { Button, Field, TextInput, maskMoneyText } from '@budget/ui';
+import { Button, Field, Select, TextInput, maskMoneyText } from '@budget/ui';
 import { useQuery } from '@tanstack/react-query';
 import { useSearch } from '@tanstack/react-router';
 import { useRef, useState } from 'react';
@@ -27,7 +27,7 @@ import './asset-classes-settings.css';
 
 type ClassRow = AssetClassesSettingsView['classes'][number];
 const range = (cls: ClassRow) =>
-  cls.target?.targetBp == null
+  cls.isGroup || cls.target?.targetBp == null
     ? '—'
     : `${bpText(Math.max(0, cls.target.targetBp - (cls.target.bandBp ?? 0)))}–${bpText(Math.min(10000, cls.target.targetBp + (cls.target.bandBp ?? 0)))} %`;
 function SettingsPanelLink({
@@ -100,6 +100,7 @@ export function AssetClassesSettingsPage() {
           <h2 id="asset-list-title">Klassen und Sollmodell</h2>
           <div className="asset-actions">
             <SettingsPanelLink panel="anlageklasse">Anlageklasse anlegen</SettingsPanelLink>
+            <SettingsPanelLink panel="anlagegruppe">Gruppe anlegen</SettingsPanelLink>
             <SettingsPanelLink panel="sollquoten">Sollquoten bearbeiten</SettingsPanelLink>
           </div>
         </div>
@@ -129,13 +130,20 @@ export function AssetClassesSettingsPage() {
             </caption>
             <thead>
               <tr>
-                {['Anlageklasse', 'Instrumente', 'Soll', 'Band', 'Ist', 'Abweichung', 'Status'].map(
-                  (label) => (
-                    <th key={label} scope="col">
-                      {label}
-                    </th>
-                  ),
-                )}
+                {[
+                  'Anlageklasse',
+                  'Gruppe',
+                  'Instrumente',
+                  'Soll',
+                  'Band',
+                  'Ist',
+                  'Abweichung',
+                  'Status',
+                ].map((label) => (
+                  <th key={label} scope="col">
+                    {label}
+                  </th>
+                ))}
               </tr>
             </thead>
             <tbody>
@@ -146,6 +154,13 @@ export function AssetClassesSettingsPage() {
                       {cls.name}
                     </SettingsPanelLink>
                   </th>
+                  <td data-label="Gruppe">
+                    {cls.isGroup ? (
+                      'Gruppe'
+                    ) : (
+                      <GroupSelect cls={cls} groups={active.filter((c) => c.isGroup)} />
+                    )}
+                  </td>
                   <td data-label="Instrumente">{cls.instruments.length}</td>
                   <td data-label="Soll">
                     {data.targetsUnavailable
@@ -193,6 +208,41 @@ export function AssetClassesSettingsPage() {
   );
 }
 
+function GroupSelect({ cls, groups }: { cls: ClassRow; groups: ClassRow[] }) {
+  const write = useAssetWrite();
+  const [busy, setBusy] = useState(false),
+    [error, setError] = useState('');
+  return (
+    <>
+      <Select
+        aria-label={`Gruppe für ${cls.name}`}
+        value={cls.parentId ?? ''}
+        disabled={busy || !!cls.deletedAt}
+        onChange={(e) => {
+          const parentId = e.target.value || null;
+          setBusy(true);
+          setError('');
+          void write(
+            () =>
+              request('PATCH', `/api/asset-classes/${encodeURIComponent(cls.id)}`, { parentId }),
+            'Gruppe gespeichert.',
+          )
+            .catch((error: unknown) => setError(errorText(error)))
+            .finally(() => setBusy(false));
+        }}
+      >
+        <option value="">Eigene Gruppe</option>
+        {groups.map((g) => (
+          <option key={g.id} value={g.id}>
+            {g.name}
+          </option>
+        ))}
+      </Select>
+      {error && <p role="alert">{error}</p>}
+    </>
+  );
+}
+
 /** Called by the existing global PanelHost, so Back, sheet layout and focus stay shared. */
 export function AssetClassSettingsPanel({
   open,
@@ -213,7 +263,7 @@ export function AssetClassSettingsPanel({
       ? 'Instrument bearbeiten'
       : mode === 'sollquoten' || mode === 'anlageklasse-archivieren'
         ? 'Sollquoten bearbeiten'
-        : (cls?.name ?? 'Anlageklasse anlegen');
+        : (cls?.name ?? (mode === 'anlagegruppe' ? 'Gruppe anlegen' : 'Anlageklasse anlegen'));
   return (
     <AssetSettingsPanel open={open} onClose={onClose} title={title}>
       {(controls) => (
@@ -264,6 +314,7 @@ export function AssetClassSettingsPanel({
                 key={cls?.id ?? 'new'}
                 {...controls}
                 cls={cls}
+                createGroup={mode === 'anlagegruppe'}
                 data={query.data}
                 versions={versions.data.versions}
               />
@@ -275,11 +326,13 @@ export function AssetClassSettingsPanel({
 }
 function ClassEditor({
   cls,
+  createGroup,
   data,
   versions,
   ...controls
 }: EditorControls & {
   cls: ClassRow | undefined;
+  createGroup: boolean;
   data: AssetClassesSettingsView;
   versions: TargetVersion[];
 }) {
@@ -328,7 +381,13 @@ function ClassEditor({
                   ? 'PATCH'
                   : 'POST',
             action === 'restore' ? path + '/restore' : path,
-            action === 'save' ? { name: name.trim(), sortOrder: Number(order) } : undefined,
+            action === 'save'
+              ? {
+                  name: name.trim(),
+                  sortOrder: Number(order),
+                  ...(!cls ? { isGroup: createGroup } : {}),
+                }
+              : undefined,
           ),
         action === 'archive'
           ? 'Anlageklasse archiviert.'
@@ -359,7 +418,10 @@ function ClassEditor({
         }}
       >
         <fieldset disabled={busy || !!cls?.deletedAt}>
-          <Field label="Name der Anlageklasse" error={errors['name']}>
+          <Field
+            label={cls?.isGroup || createGroup ? 'Name der Gruppe' : 'Name der Anlageklasse'}
+            error={errors['name']}
+          >
             {({ id, invalid, describedBy }) => (
               <TextInput
                 id={id}
@@ -391,7 +453,13 @@ function ClassEditor({
             )}
           </Field>
           <Button type="submit">
-            {busy ? 'Speichert …' : cls ? 'Änderungen speichern' : 'Anlageklasse anlegen'}
+            {busy
+              ? 'Speichert …'
+              : cls
+                ? 'Änderungen speichern'
+                : createGroup
+                  ? 'Gruppe anlegen'
+                  : 'Anlageklasse anlegen'}
           </Button>
         </fieldset>
       </form>

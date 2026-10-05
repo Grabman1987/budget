@@ -5,6 +5,61 @@ import { sampleTest } from './sample';
 // These complete owner flows include both themes, repeated Axe scans and WebKit rotation.
 test.setTimeout(90_000);
 
+test('groups can be created, renamed and selected; a P2P account keeps its assigned class', async ({
+  page,
+}, info) => {
+  const suffix = info.project.name;
+  const groupName = `Gruppe G ${suffix}`,
+    className = `Klasse C ${suffix}`,
+    accountName = `Plattform P ${suffix}`;
+  await page.goto('/einstellungen/anlageklassen');
+  await page.getByRole('link', { name: 'Gruppe anlegen', exact: true }).click();
+  const dialog = page.getByRole('dialog');
+  await dialog.getByLabel('Name der Gruppe').fill(groupName);
+  await dialog.getByRole('button', { name: 'Gruppe anlegen', exact: true }).click();
+  await expect(page.locator('dialog[open]')).toHaveCount(0);
+  await page
+    .locator('.asset-class-table')
+    .getByRole('link', { name: groupName, exact: true })
+    .click();
+  await dialog.getByLabel('Name der Gruppe').fill(groupName + ' neu');
+  await dialog.getByRole('button', { name: 'Änderungen speichern', exact: true }).click();
+  const headers = { Origin: new URL(page.url()).origin };
+  const res = await page.request.post('/api/asset-classes', { headers, data: { name: className } });
+  expect(res.status()).toBe(201);
+  const cls = (await res.json()).assetClass;
+  const acct = await page.request.post('/api/accounts', {
+    headers,
+    data: { name: accountName, type: 'p2p', openingDate: '2026-01-01', openingBalanceCents: 101 },
+  });
+  expect(acct.status()).toBe(201);
+  await page.reload();
+  await page.getByLabel(`Gruppe für ${className}`).selectOption({ label: groupName + ' neu' });
+  await expect(page.getByLabel(`Gruppe für ${className}`)).toBeEnabled();
+  await page.goto('/einstellungen/konten');
+  const row = page.locator('.accounts-row').filter({ hasText: accountName });
+  await row.getByRole('button', { name: `${accountName} bearbeiten`, exact: true }).click();
+  await dialog.getByLabel('Anlageklasse', { exact: true }).selectOption(cls.id);
+  await dialog.getByRole('button', { name: /speichern/i }).click();
+  await expect(page.locator('dialog[open]')).toHaveCount(0);
+  const id = (await acct.json()).account.id;
+  const saved = (await (await page.request.get('/api/accounts')).json()).accounts.find(
+    (a: { id: string }) => a.id === id,
+  );
+  expect(saved.allocationAssetClassId).toBe(cls.id);
+  await page.goto('/reports/pallocation');
+  await expect(page.locator('.composition-legend')).toContainText(className);
+  await expect(page.locator('.composition-legend')).toContainText(groupName + ' neu');
+  for (const theme of ['light', 'dark']) {
+    await page.evaluate((t) => (document.documentElement.dataset['theme'] = t), theme);
+    await clean(page);
+    await page.screenshot({
+      path: info.outputPath(`group-composition-${theme}.png`),
+      fullPage: true,
+    });
+  }
+});
+
 async function clean(page: Page) {
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   expect(
@@ -161,7 +216,7 @@ test('U02-U12: create, German field errors, duplicate, rename, reorder, safe/blo
     id: string;
     name: string;
   }[];
-  for (const cls of classes)
+  for (const cls of classes.filter((c) => !('isGroup' in c) || !c.isGroup))
     await panel
       .getByLabel(`Im Sollmodell berücksichtigen · ${cls.name}`, { exact: true })
       .setChecked(cls.name === renamed);

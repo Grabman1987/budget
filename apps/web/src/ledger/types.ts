@@ -27,6 +27,7 @@ export const BOOKING_FLAGS = ['red', 'orange', 'yellow', 'green', 'blue', 'purpl
 export type BookingFlag = (typeof BOOKING_FLAGS)[number];
 
 export interface AccountRow {
+  allocationAssetClassId?: string | null;
   id: string;
   name: string;
   type: AccountType;

@@ -54,6 +54,7 @@ export const fetchSeriesBatch = (from: string, to: string) =>
   );
 
 export interface AccountInput {
+  allocationAssetClassId?: string | null;
   name: string;
   type: string;
   onBudget?: boolean;
