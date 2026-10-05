@@ -1,5 +1,7 @@
 # Product
 
+Owner-Entscheidung 05.10.2026: Heute and R07 Kontoprognose share fourteen days of actual lookback through next bank-day payday + 2 (Bis Gehalt) or shown month end + 2 (Monat); payday forecasts shorter than seven days extend to the following payday + 2. The period is remembered, fallback Bis Gehalt.
+
 Owner composition decision (2026-10-05): Allocation shows groups inside and user-defined classes outside; products remain in the source table. Groups can be created/renamed and classes moved in Einstellungen › Anlageklassen. Soll stays class-specific and dated, with group sums. P2P accounts can be assigned in account settings; defaults are limited to an explicitly run operator configuration. Uninformative region charts are removed. See [composition contract](docs/portfolio-composition.md).
 
 Owner booking directive (2026-10-04): new manual bookings use the booking month; the dialog has no Budgetmonat field and does not apply next-month defaults. Existing stored values stay intact. Booking Wiederholen creates a recurring schedule; owner-facing wording is Wiederkehrende Zahlungen. Account chart preview defaults to 35 days, configurable 0–365.

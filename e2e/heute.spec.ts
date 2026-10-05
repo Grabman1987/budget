@@ -6,36 +6,103 @@ import type { Heute } from '../apps/web/src/heute/api';
 import { MAIN_URL } from '../playwright.config';
 import { pickCategory, toast } from './ledger-helpers';
 import { addDays } from '@budget/domain';
-import { eur } from '../apps/web/src/ledger/format';
+import { eur, shortDay } from '../apps/web/src/ledger/format';
 
 const expect = baseExpect.configure({ timeout: 15_000 });
 
 // Existing detailed flows explicitly unfold their moved figures. UX-2 tests cover the device default.
 test.beforeEach(async ({ page }) => {
   test.setTimeout(60_000);
-  await page.addInitScript(() => localStorage.setItem('budget-heute-more-phone', '1'));
+  await page.addInitScript(() => {
+    localStorage.setItem('budget-heute-more-phone', '1');
+  });
 });
 
-test('Heute forecast ends after 35 days and names payments in labels and shared tooltip', async ({
+test('Heute month forecast ends two days after month end and names payments in the shared tooltip', async ({
   page,
 }) => {
-  await page.goto('/');
+  await page.goto('/?monat=2026-09&period=month');
   const response = await page.request.get('/api/heute?period=month');
   const data = (await response.json()) as Heute;
-  expect(data.balance.forecast.at(-1)!.day).toBe(addDays(data.stand.today, 35));
+  expect(data.balance.forecast.at(-1)!.day).toBe('2026-10-02');
+  expect(data.balance.actual[0]!.day).toBe(addDays(data.stand.today, -14));
   expect(data.balance.low!.cents).toBe(
-    Math.min(...data.balance.forecast.map((d) => d.balanceCents)),
+    Math.min(...[...data.balance.actual, ...data.balance.forecast].map((d) => d.balanceCents)),
   );
-  await expect(page.getByTestId('forecast-step-label')).toContainText([
-    'Gehalt',
-    'Miete',
-    'Kreditrate',
-  ]);
+  await expect(page.getByTestId('forecast-step-label')).toContainText(['Gehalt', 'Miete']);
+  await expect(
+    page.getByTestId('forecast-step-label').filter({ hasText: 'Kreditrate' }),
+  ).toHaveCount(0);
+  await expect(page.locator('[data-testid="heute-balance-chart"] .svg-label').last()).toHaveText(
+    '02.10.',
+  );
+  await expect(page.locator('.heute-lead-dimension')).toContainText('15 Tage bis 02.10.');
   const group = page.getByTestId('heute-balance-chart').locator('..');
   await group.focus();
-  for (let i = 0; i < 29; i++) await page.keyboard.press('ArrowRight');
+  for (let i = 0; i < 27; i++) await page.keyboard.press('ArrowRight');
   await expect(page.locator('.chart-tooltip')).toContainText('Gehalt');
   await expect(page.locator('.chart-tooltip')).toContainText('Kontoführung');
+});
+
+test('Heute payday forecast follows the bracket and last axis label', async ({ page }) => {
+  await page.goto('/?monat=2026-09&period=payday');
+  await expect(page.locator('.heute-lead-dimension')).toContainText('28 Tage bis Gehalt 15.10.');
+  await expect(page.locator('[data-testid="heute-balance-chart"] .svg-label').last()).toHaveText(
+    '17.10.',
+  );
+  await expect(
+    page.getByText('Kontoprognose bis 17.10.2026 · 14 Tage Rückblick · gleicher Horizont wie R07.'),
+  ).toBeVisible();
+  await expect(
+    page.getByTestId('forecast-step-label').filter({ hasText: 'Kreditrate' }),
+  ).toBeVisible();
+});
+
+test('a direct R07 visit falls back to Bis Gehalt without a stored choice', async ({ page }) => {
+  await page.goto('/reports/finanzcheck?monat=2026-09');
+  await expect(page.getByRole('button', { name: 'Bis Gehalt', exact: true })).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  );
+  await expect(page.getByTestId('r07-balance-chart').locator('.svg-label').last()).toHaveText(
+    '17.10.',
+  );
+});
+
+test('R07 remembers Heute period and draws the identical forecast and low point in either mode', async ({
+  page,
+}, info) => {
+  for (const period of ['month', 'payday'] as const) {
+    await page.goto(`/?monat=2026-09&period=${period}`);
+    const todayChart = page.getByTestId('heute-balance-chart');
+    await expect(todayChart).toBeVisible();
+    const low = await todayChart.locator('text').filter({ hasText: 'Tiefpunkt' }).textContent();
+    const data: Heute = await (
+      await page.request.get(`/api/heute?month=2026-09&period=${period}`)
+    ).json();
+    await page.goto('/reports/finanzcheck?monat=2026-09');
+    await expect(
+      page.getByRole('button', { name: period === 'month' ? 'Monat' : 'Bis Gehalt', exact: true }),
+    ).toHaveAttribute('aria-pressed', 'true');
+    const reportChart = page.getByTestId('r07-balance-chart');
+    await expect(reportChart).toBeVisible();
+    await expect(reportChart.locator('text').filter({ hasText: 'Tiefpunkt' })).toHaveText(low!);
+    await expect(
+      page.getByText(
+        `Tiefpunkt ${eur(data.balance.low!.cents)} am ${data.balance.low!.day.split('-').reverse().join('.')}`,
+        { exact: true },
+      ),
+    ).toBeVisible();
+    await expect(reportChart.locator('.svg-label').last()).toHaveText(shortDay(data.stand.to));
+    await page.screenshot({
+      path: `test-results/r07-${period}-${info.project.name}.png`,
+      fullPage: true,
+    });
+    await page
+      .getByRole('button', { name: period === 'month' ? 'Bis Gehalt' : 'Monat', exact: true })
+      .click();
+    await expect(page).toHaveURL(new RegExp(`period=${period === 'month' ? 'payday' : 'month'}`));
+  }
 });
 
 test('Heute uses live API data and period, expands the lead chain, and links to source views', async ({
@@ -47,7 +114,7 @@ test('Heute uses live API data and period, expands the lead chain, and links to 
     if (request.url().includes('/api/heute?')) requests.push(request.url());
   });
 
-  await page.goto('/?monat=2026-09');
+  await page.goto('/?monat=2026-09&period=month');
   const response = await page.request.get('/api/heute?period=month&month=2026-09');
   expect(response.ok()).toBe(true);
   expect((await response.json()).lead.freeCents).toBe(98_826);

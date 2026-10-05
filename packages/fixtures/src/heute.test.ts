@@ -159,15 +159,17 @@ describe('figures that differ from the prototype, by design of the ledger', () =
     expect(month.pace.previous).toHaveLength(31);
   });
 
-  it('balance: 17 actual days, the forecast reaches the salary jump, the low is the day before', () => {
-    expect(month.balance.actual).toHaveLength(17);
+  it('balance: actual lookback low and forecast through month end plus two', () => {
+    expect(month.balance.actual).toHaveLength(15);
     expect(month.balance.actual.at(-1)).toEqual({ day: TODAY, balanceCents: 116_700 });
     expect(month.stand.budgetBalanceCents).toBe(116_700);
     const fc = month.balance.forecast;
     expect(fc[0]).toMatchObject({ day: TODAY, balanceCents: 116_700 });
-    expect(fc.at(-1)?.day).toBe('2026-10-22');
-    expect(month.balance.low).toMatchObject({ day: '2026-09-29', cents: 19_101 });
-    expect(Math.min(...fc.map((d) => d.balanceCents))).toBe(month.balance.low?.cents);
+    expect(fc.at(-1)?.day).toBe('2026-10-02');
+    expect(month.balance.low).toMatchObject({ day: '2026-09-16', cents: -607_900 });
+    expect(Math.min(...[...month.balance.actual, ...fc].map((d) => d.balanceCents))).toBe(
+      month.balance.low?.cents,
+    );
     expect(fc.find((d) => d.day === '2026-09-30')!.balanceCents).toBeGreaterThan(
       fc.find((d) => d.day === '2026-09-29')!.balanceCents + 300_000,
     );
@@ -189,18 +191,18 @@ describe('figures that differ from the prototype, by design of the ledger', () =
 });
 
 describe('windows', () => {
-  it('"Bis Gehalt" runs from today to the payday', () => {
-    expect(payday.stand).toMatchObject({ period: 'payday', from: TODAY, to: '2026-10-15' });
-    expect(payday.balance.actual).toEqual([{ day: TODAY, balanceCents: 116_700 }]);
-    expect(payday.balance.forecast).toHaveLength(36);
+  it('"Bis Gehalt" includes the lookback and two days after payday', () => {
+    expect(payday.stand).toMatchObject({ period: 'payday', from: '2026-09-03', to: '2026-10-17' });
+    expect(payday.balance.actual).toHaveLength(15);
+    expect(payday.balance.forecast).toHaveLength(31);
     expect(payday.lead).toEqual(month.lead);
     expect(payday.pace.figures).toEqual(month.pace.figures);
   });
 
-  it('a past month shows its actual balance and a complete pace, no forecast', () => {
-    const past = heute(db, { today: TODAY, period: 'payday', month: '2026-08' });
-    expect(past.stand).toMatchObject({ period: 'month', from: '2026-08-01', to: '2026-08-31' });
-    expect(past.balance.actual).toHaveLength(31);
+  it('a month before the lookback has no balance window and retains its complete pace', () => {
+    const past = heute(db, { today: TODAY, period: 'month', month: '2026-08' });
+    expect(past.stand).toMatchObject({ period: 'month', from: '2026-09-03', to: '2026-09-02' });
+    expect(past.balance.actual).toHaveLength(0);
     expect(past.balance.forecast).toEqual([]);
     expect(past.balance.salary).toBeNull();
     expect(past.pace.todayDay).toBe(31);
