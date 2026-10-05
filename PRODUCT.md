@@ -1,5 +1,7 @@
 # Product
 
+Owner-Entscheidung 05.10.2026: In Report 2.4 bleiben Warenkorbvergleich und Kategorie-Explorer getrennt; die Interpretation von Preis- und Mengeneffekten bleibt beim Owner, ohne automatisches Inflationsurteil.
+
 Owner booking directive (2026-10-04): new manual bookings use the booking month; the dialog has no Budgetmonat field and does not apply next-month defaults. Existing stored values stay intact. Booking Wiederholen creates a recurring schedule; owner-facing wording is Wiederkehrende Zahlungen. Account chart preview defaults to 35 days, configurable 0–365.
 
 Owner directive PR4 (2026-10-04): real Anlageklassen settings owns configuration, target/band/version editing, lifecycle and dated instrument assignment. Portfolio owns analysis and links to this shared editor. Investment-sum tiers are versioned, select inclusively from depots plus signed investment cash and use the existing resolver at each historical date; unmanaged is distinct from managed zero. Safe atomic retirement and undo preserve targets/history. See [settings contract](docs/asset-classes-settings.md).

@@ -225,7 +225,8 @@ function BasketMethod({ row, save }: { row: Row; save: (changes: Change[]) => Pr
   const [share, setShare] = useState(String((row.coicop[0]?.shareBp ?? 8000) / 100));
   const bp = Math.round(Number(share) * 100);
   const valid =
-    !!first && first !== second && (!second || (Number.isFinite(bp) && bp > 0 && bp < 10000));
+    (!first && !second && method !== 'cpi') ||
+    (!!first && first !== second && (!second || (Number.isFinite(bp) && bp > 0 && bp < 10000)));
   return (
     <>
       <label>
@@ -252,10 +253,13 @@ function BasketMethod({ row, save }: { row: Row; save: (changes: Change[]) => Pr
           <option value="cpi">VPI-Teilindex</option>
         </select>
       </label>
-      {method === 'cpi' && (
+      {
         <div className="basket-coicop">
           <p className="sr-note">
-            Der Preis kommt von Statistik Austria, das Gewicht aus deinen Ausgaben im Basisjahr.
+            VPI-Vergleich im Kategorie-Explorer: Zuordnung unabhängig von der Warenkorb-Methode.
+            Ohne Klasse: Gesamt-VPI (kein Teilindex).
+            {method === 'cpi' &&
+              ' Im Warenkorb kommt der Preis von Statistik Austria, das Gewicht aus deinen Ausgaben im Basisjahr.'}
           </p>
           <div className="basket-coicop-fields">
             <CoicopSelect
@@ -297,9 +301,9 @@ function BasketMethod({ row, save }: { row: Row; save: (changes: Change[]) => Pr
               void save([
                 {
                   categoryId: row.id,
-                  method: 'cpi',
+                  method: method === 'cpi' ? 'cpi' : null,
                   coicop: [
-                    { code: first, shareBp: second ? bp : 10000 },
+                    ...(first ? [{ code: first, shareBp: second ? bp : 10000 }] : []),
                     ...(second ? [{ code: second, shareBp: 10000 - bp }] : []),
                   ],
                 },
@@ -309,8 +313,8 @@ function BasketMethod({ row, save }: { row: Row; save: (changes: Change[]) => Pr
             Zuordnung speichern
           </Button>
           <span role="status">
-            {row.method === 'cpi' &&
-            first === row.coicop[0]?.code &&
+            {(method === 'cpi' ? row.method === 'cpi' : row.method === null) &&
+            first === (row.coicop[0]?.code ?? '') &&
             second === (row.coicop[1]?.code ?? '') &&
             (!second || bp === row.coicop[0]?.shareBp)
               ? 'Zuordnung gespeichert'
@@ -322,7 +326,7 @@ function BasketMethod({ row, save }: { row: Row; save: (changes: Change[]) => Pr
             </p>
           )}
         </div>
-      )}
+      }
     </>
   );
 }
