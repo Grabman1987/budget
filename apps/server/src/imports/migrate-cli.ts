@@ -486,12 +486,17 @@ try {
       console.log('staked', JSON.stringify(result.staked));
       console.log('fx_converted', JSON.stringify(result.fx_converted));
       console.log(
+        'fx_nearest',
+        JSON.stringify(result.issues.filter((i) => i.reason === 'fx_nearest')),
+      );
+      console.log('dust', JSON.stringify(result.dust));
+      console.log(
         'fx_fallback_price',
         JSON.stringify(result.issues.filter((i) => i.reason === 'fx_fallback_price')),
       );
       console.log(
-        'unexplained_balance_change',
-        JSON.stringify(result.issues.filter((i) => i.reason === 'unexplained_balance_change')),
+        'split_from_balance',
+        JSON.stringify(result.issues.filter((i) => i.reason === 'split_from_balance')),
       );
       console.log('unhandled operations', JSON.stringify(result.unhandledOperations));
       for (const month of result.trace) console.log('trace', JSON.stringify(month));

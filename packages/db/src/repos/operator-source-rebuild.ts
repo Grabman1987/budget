@@ -11,6 +11,7 @@ import {
   rebuildOperationSchema,
   rebuildSafe,
   rebuildValue,
+  rebuildIsDust,
   sourceBalancesOnDays,
   daysBetween,
   sourceAmountKey,
@@ -116,6 +117,7 @@ export interface SourceRebuildReport {
   }[];
   staked: { securityId: string; key: string; openingUnitsE8: number; todayUnitsE8: number }[];
   fx_converted: RebuildFxConversion[];
+  dust: RebuildTrade[];
   trace: {
     securityId: string;
     securityName: string;
@@ -190,6 +192,7 @@ export function applySourceRebuild(
     units: [],
     staked: [],
     fx_converted: [],
+    dust: [],
     trace: [],
     unhandledOperations: [],
     cash: [],
@@ -333,7 +336,8 @@ export function applySourceRebuild(
         new Set([...assets.map((m) => m.key), cashKey]),
         diagnostics,
       );
-      report.issues.push(...diagnostics.changes!.filter((i) => i.date! >= since));
+      const balanceChanges = diagnostics.changes!.filter((i) => i.date! >= since);
+      report.issues.push(...balanceChanges.map((i) => ({ ...i, reason: 'split_from_balance' })));
       const stakingHistory = new Map(
         dates.map((day) => [day, sourceStakedAt(operations, day, today, stakedNow)]),
       );
@@ -431,6 +435,28 @@ export function applySourceRebuild(
       report.fx_converted = plan.fx_converted;
       report.unhandledOperations = plan.unhandled;
       const desired: RebuildTrade[] = [...plan.trades];
+      for (const change of balanceChanges) {
+        const m = assets.find((m) => m.key === change.key)!;
+        const importKey = `rebuild:split:${m.securityId}:${change.date}`;
+        const existing = desired.find((t) => t.importKey === importKey);
+        if (existing)
+          existing.unitsE8 = rebuildSafe(BigInt(existing.unitsE8) + BigInt(change.unitsE8!));
+        else
+          desired.push({
+            securityId: m.securityId!,
+            date: change.date!,
+            kind: 'split',
+            unitsE8: change.unitsE8!,
+            amountCents: 0,
+            feeCents: 0,
+            taxCents: 0,
+            importKey,
+            note: 'split_from_balance',
+          });
+      }
+      // Several wallet snapshots on one day share the requested security/day identity.
+      for (let i = desired.length - 1; i >= 0; i--)
+        if (desired[i]!.kind === 'split' && !desired[i]!.unitsE8) desired.splice(i, 1);
       const sumUnits = (rows: TradeRow[], m: SourceMapping, day: string) =>
         rebuildSafe(
           rows
@@ -488,7 +514,8 @@ export function applySourceRebuild(
         return t.kind === 'reward' ? rewardTradeInputs(base) : [base];
       };
       const wanted = new Set(desired.flatMap((t) => inputsOf(t).map((i) => i.importKey!)));
-      if (wanted.size !== desired.reduce((sum, t) => sum + inputsOf(t).length, 0))
+      for (const m of assets) wanted.add(`rebuild:dust:${m.securityId}`);
+      if (wanted.size !== desired.reduce((sum, t) => sum + inputsOf(t).length, 0) + assets.length)
         throw new OperatorInputError('Source rebuild keys collide');
       const liveBookings = () => tx.select().from(booking).where(isNull(booking.deletedAt)).all();
       const cashLeg = (t: TradeRow) =>
@@ -592,7 +619,7 @@ export function applySourceRebuild(
           ),
       );
       const synthetic = desired
-        .filter((t) => !t.importKey.startsWith('rebuild:opening:'))
+        .filter((t) => !t.importKey.startsWith('rebuild:opening:') && t.kind !== 'split')
         .map((t): SourceOperation => ({
           id: t.importKey,
           type: t.kind === 'reward' ? 'reward' : t.kind,
@@ -743,6 +770,65 @@ export function applySourceRebuild(
           }
         });
       }
+      for (const m of assets) {
+        const importKey = `rebuild:dust:${m.securityId}`;
+        attempt(importKey, (inner) => {
+          const rows = listTrades(tx, { accountId: depot.id, includeDeleted: true });
+          const existing = rows.find((t) => t.importKey === importKey);
+          const difference = rebuildSafe(
+            BigInt(sourceHistory.get(today)!.get(m.key) ?? 0) -
+              BigInt(
+                sumUnits(
+                  rows.filter((t) => !t.deletedAt && t.importKey !== importKey),
+                  m,
+                  today,
+                ),
+              ),
+          );
+          const latest = prices
+            .filter((p) => p.securityId === m.securityId && p.date <= today)
+            .sort((a, b) => b.date.localeCompare(a.date))[0];
+          const rate =
+            !latest || latest.currency === 'EUR'
+              ? 1_000_000
+              : tx
+                  .select()
+                  .from(fxRate)
+                  .all()
+                  .filter(
+                    (r) => r.currency === latest.currency && r.source === 'ecb' && r.date <= today,
+                  )
+                  .sort((a, b) => b.date.localeCompare(a.date))[0]?.rateMicro;
+          if (rate === undefined || !rebuildIsDust(difference, latest?.priceMicro ?? null, rate)) {
+            if (existing && !existing.deletedAt) remove(inner, existing);
+            return;
+          }
+          if (existing?.deletedAt)
+            throw new OperatorInputError('rebuild_key_deleted: restore with undo-group first');
+          const dust: RebuildTrade = {
+            securityId: m.securityId!,
+            date: today,
+            kind: difference > 0 ? 'delivery_in' : 'delivery_out',
+            unitsE8: difference,
+            amountCents: 0,
+            feeCents: 0,
+            taxCents: 0,
+            importKey,
+            note: 'Rundungsausgleich Quelle',
+          };
+          const input = inputsOf(dust)[0]!;
+          const status = existing
+            ? equalTrade(existing, input)
+              ? 'unchanged'
+              : 'updated'
+            : 'created';
+          if (status === 'created') createTrade(inner, input, grouped);
+          else if (status === 'updated')
+            updateTrade(inner, existing!.id, input, grouped, writeOptions);
+          report.outcomes.push({ id: importKey, status, trade: input });
+          report.dust.push(dust);
+        });
+      }
       const cashHistory = new Map(
         balanceSeries(tx, cash.id, { from: openingDay, to: today }).map((b) => [
           b.date,
@@ -778,7 +864,10 @@ export function applySourceRebuild(
       const origins = new Map<string, { type: string; unitsE8: number }[]>();
       for (const desiredTrade of desired) {
         const parts = plan.unitSources.get(desiredTrade.importKey) ?? [
-          { type: 'opening', unitsE8: desiredTrade.unitsE8 },
+          {
+            type: desiredTrade.kind === 'split' ? 'split_from_balance' : 'opening',
+            unitsE8: desiredTrade.unitsE8,
+          },
         ];
         const live = after.find(
           (t) =>

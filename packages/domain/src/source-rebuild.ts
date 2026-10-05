@@ -451,6 +451,22 @@ export function rebuildValue(
   if (!Number.isSafeInteger(value)) throw new RangeError('Stored-price value exceeds safe cents');
   return value;
 }
+/** Compare the unrounded EUR value: rounding to cents would hide values up to 1.49 cents. */
+export function rebuildIsDust(unitsE8: number, priceMicro: number | null, rateMicro = 1_000_000) {
+  if (
+    !Number.isSafeInteger(unitsE8) ||
+    (priceMicro !== null && (!Number.isSafeInteger(priceMicro) || priceMicro <= 0)) ||
+    !Number.isSafeInteger(rateMicro) ||
+    rateMicro <= 0
+  )
+    throw new RangeError('Invalid dust precision');
+  return (
+    unitsE8 !== 0 &&
+    (priceMicro === null
+      ? Math.abs(unitsE8) < 100000
+      : BigInt(Math.abs(unitsE8)) * BigInt(priceMicro) * BigInt(rateMicro) < 1000000000000000000n)
+  );
+}
 /** Largest remainders conserve cents; bigint products avoid floating point allocation. */
 function split(total: number, weights: (number | bigint)[]): number[] {
   const sum = weights.reduce<bigint>((s, n) => s + BigInt(n), 0n);
@@ -486,6 +502,8 @@ export interface RebuildIssue {
   walletId?: string;
   previousLegId?: string;
   legId?: string;
+  currency?: string;
+  rateDate?: string;
 }
 /** Primary units include an extra outgoing asset fee, or subtract it from an incoming leg. */
 export function rebuildAssetUnits(
@@ -615,12 +633,27 @@ export function planSourceRebuild(
     const converted: RebuildFxConversion[] = [];
     const fallback = new Map<string, RebuildIssue>();
     try {
-      const rate = (code: string, day: string) => {
+      const rate = (code: string, day: string, nearest = false) => {
         if (code === 'EUR') return 1_000_000;
         const r = fx.rates
-          .filter((r) => r.currency === code && r.date <= day && r.source === 'ecb')
-          .sort((a, b) => b.date.localeCompare(a.date))[0];
+          .filter((r) => r.currency === code && (nearest || r.date <= day) && r.source === 'ecb')
+          .sort((a, b) =>
+            nearest
+              ? Math.abs(daysBetween(a.date, day)) - Math.abs(daysBetween(b.date, day)) ||
+                a.date.localeCompare(b.date)
+              : b.date.localeCompare(a.date),
+          )[0];
         if (!r) throw new RangeError(`Missing stored ECB rate: ${code} ${day}`);
+        const key = fx.currencies.find((c) => c.currency === code)?.key;
+        if (nearest && day >= since)
+          fallback.set(JSON.stringify([code, day]), {
+            id: op.id,
+            ...(key ? { key } : {}),
+            date: day,
+            reason: 'fx_nearest',
+            currency: code,
+            rateDate: r.date,
+          });
         return r.rateMicro;
       };
       op = {
@@ -640,8 +673,7 @@ export function planSourceRebuild(
             } catch (error) {
               if (
                 !(error instanceof RangeError) ||
-                !error.message.startsWith('Missing stored ECB rate:') ||
-                currency !== 'EUR'
+                !error.message.startsWith('Missing stored ECB rate:')
               )
                 throw error;
             }
@@ -673,29 +705,47 @@ export function planSourceRebuild(
                     )
                   : null;
               });
-              if (!assets.length || values.some((v) => v === null) || !fiat.length)
-                throw new RangeError('Missing stored ECB rate and recent EUR asset price');
-              const total = rebuildSafe(values.reduce<bigint>((sum, v) => sum + BigInt(v!), 0n));
-              const nativeTotal = fiat.reduce((sum, leg) => sum + BigInt(native(leg.amount)), 0n);
-              if (!nativeTotal)
-                throw new RangeError('Price fallback requires nonzero fiat principal');
-              // Principal uses asset value; ancillary fiat costs keep their ratio to that principal.
-              cents =
-                field === 'amount' && !SECONDARY.has(t.type)
-                  ? split(
-                      total,
-                      fiat.map((leg) => native(leg.amount)),
-                    )[fiat.indexOf(t)]!
-                  : rebuildSafe(
-                      (BigInt(native(a)) * BigInt(total) + nativeTotal / 2n) / nativeTotal,
-                    );
-              if (day >= since)
-                fallback.set(JSON.stringify([tradeGroup(op, t), sourceAmountKey(a), day]), {
-                  id: op.id,
-                  key: sourceAmountKey(a),
-                  date: day,
-                  reason: 'fx_fallback_price',
-                });
+              if (
+                currency !== 'EUR' ||
+                !assets.length ||
+                values.some((v) => v === null) ||
+                !fiat.length
+              ) {
+                try {
+                  from = from ?? rate(code, day, true);
+                  to = to ?? rate(currency, day, true);
+                  cents = convertCashCents(native(a), from, to);
+                } catch (error) {
+                  if (
+                    error instanceof RangeError &&
+                    error.message.startsWith('Missing stored ECB rate:')
+                  )
+                    throw new RangeError('Missing stored ECB rate and recent EUR asset price');
+                  throw error;
+                }
+              } else {
+                const total = rebuildSafe(values.reduce<bigint>((sum, v) => sum + BigInt(v!), 0n));
+                const nativeTotal = fiat.reduce((sum, leg) => sum + BigInt(native(leg.amount)), 0n);
+                if (!nativeTotal)
+                  throw new RangeError('Price fallback requires nonzero fiat principal');
+                // Principal uses asset value; ancillary fiat costs keep their ratio to that principal.
+                cents =
+                  field === 'amount' && !SECONDARY.has(t.type)
+                    ? split(
+                        total,
+                        fiat.map((leg) => native(leg.amount)),
+                      )[fiat.indexOf(t)]!
+                    : rebuildSafe(
+                        (BigInt(native(a)) * BigInt(total) + nativeTotal / 2n) / nativeTotal,
+                      );
+                if (day >= since)
+                  fallback.set(JSON.stringify([tradeGroup(op, t), sourceAmountKey(a), day]), {
+                    id: op.id,
+                    key: sourceAmountKey(a),
+                    date: day,
+                    reason: 'fx_fallback_price',
+                  });
+              }
             }
             if (day >= since && from !== null && to !== null)
               converted.push({

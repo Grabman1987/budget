@@ -7,6 +7,7 @@ import {
   sourceBalancesOnDays,
   sourceStakedAt,
   rebuildStakedNowSchema,
+  rebuildIsDust,
 } from './source-rebuild';
 
 const asset = (id: string, value = '1'): SourceAmount => ({
@@ -629,4 +630,56 @@ it('reports snapshot jumps only when staged legs do not explain the change', () 
   const explained = { wallets: new Map(), changes: [] };
   sourceBalancesOnDays(ops, ['2026-03-03'], undefined, explained);
   expect(explained.changes).toEqual([]);
+});
+
+it('uses nearest stored ECB only after daily FX and recent EUR price are unavailable', () => {
+  const op: SourceOperation = {
+    id: 'nearest-buy',
+    type: 'buy',
+    transactions: [
+      tx('a', asset('a', '2')),
+      tx('usd', { ...cash(125), currencyId: 'usd' }, 'OUTGOING'),
+    ],
+  };
+  const fx = {
+    currencies: [{ key: 'currency:usd', currency: 'USD' }],
+    rates: [
+      { currency: 'USD', date: '2026-03-10', rateMicro: 900000, source: 'ecb' },
+      { currency: 'USD', date: '2026-03-03', rateMicro: 800000, source: 'ecb' },
+      { currency: 'USD', date: '2026-03-02', rateMicro: 700000, source: 'manual' },
+    ],
+  };
+  const run = (quotes = [] as typeof prices, rates = fx.rates) =>
+    planSourceRebuild([op], mappings, quotes, '2026-03-02', 'currency:eur', 'EUR', {
+      ...fx,
+      rates,
+    });
+  expect(run().trades[0]).toMatchObject({ amountCents: 100, unitsE8: 200000000 });
+  expect(run().issues).toEqual([
+    {
+      id: 'nearest-buy',
+      key: 'currency:usd',
+      date: '2026-03-02',
+      reason: 'fx_nearest',
+      currency: 'USD',
+      rateDate: '2026-03-03',
+    },
+  ]);
+  expect(run().fxCashMovements).toEqual([{ date: '2026-03-02', amountCents: -100 }]);
+  expect(run(prices).trades[0]?.amountCents).toBe(200);
+  expect(run(prices).issues[0]?.reason).toBe('fx_fallback_price');
+  const past = { ...fx.rates[0]!, date: '2026-02-01', rateMicro: 400000 };
+  expect(run([], [...fx.rates, past]).trades[0]?.amountCents).toBe(50);
+  expect(run([], [...fx.rates, past]).issues).toEqual([]);
+  expect(run([], []).trades).toEqual([]);
+});
+
+it('closes only nonzero dust strictly below one unrounded cent or 0.001 unpriced units', () => {
+  expect(rebuildIsDust(9999, 100000000)).toBe(true);
+  expect(rebuildIsDust(-9999, 100000000)).toBe(true);
+  expect(rebuildIsDust(10000, 100000000)).toBe(false);
+  expect(rebuildIsDust(10001, 100000000)).toBe(false);
+  expect(rebuildIsDust(99999, null)).toBe(true);
+  expect(rebuildIsDust(-100000, null)).toBe(false);
+  expect(rebuildIsDust(0, null)).toBe(false);
 });

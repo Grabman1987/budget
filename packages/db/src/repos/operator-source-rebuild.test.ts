@@ -669,7 +669,19 @@ it('reconciles two single-leg stakes, rewards and an incomplete unstake with pri
   expect(liveState()).toEqual(before);
 });
 
-it('reports unexplained expiry units and source IDs for fee sells and swap legs in trace', () => {
+it('books unexplained expiry as a split with source IDs, dry-run, repeat and undo', () => {
+  createTrade(
+    db,
+    {
+      accountId: 'depot',
+      securityId: 'b',
+      date: options.today,
+      kind: 'delivery_in',
+      unitsE8: 200000000,
+      amountCents: 0,
+    },
+    ctx,
+  );
   stage('expiry', 'leverage_liquidation', [
     leg('expiry-leg', '2026-04-03', asset('b', '1'), 'OUTGOING', { balanceAfter: asset('b', '0') }),
     leg('expiry-cash', '2026-04-03', eur(100)),
@@ -680,14 +692,15 @@ it('reports unexplained expiry units and source IDs for fee sells and swap legs 
       tradeId: 'discount-buy',
     }),
   ]);
-  const report = applySourceRebuild(
-    db,
-    { ...options, trace: ['Synthetic Coin a', 'Synthetic Coin b'], dryRun: true },
-    ctx,
-  );
+  const before = liveState(),
+    counts = rowCounts();
+  const opts = { ...options, trace: ['Synthetic Coin a', 'Synthetic Coin b'] };
+  const report = applySourceRebuild(db, { ...opts, dryRun: true }, ctx);
+  expect(liveState()).toEqual(before);
+  expect(rowCounts()).toEqual(counts);
   expect(report.issues).toContainEqual({
     id: 'expiry',
-    reason: 'unexplained_balance_change',
+    reason: 'split_from_balance',
     key: 'asset:b',
     date: '2026-04-03',
     unitsE8: -390000000,
@@ -696,6 +709,20 @@ it('reports unexplained expiry units and source IDs for fee sells and swap legs 
     legId: 'expiry-leg',
   });
   const trades = report.trace.flatMap((r) => r.trades);
+  expect(trades.find((t) => t.importKey === 'rebuild:split:b:2026-04-03')).toMatchObject({
+    kind: 'split',
+    unitsE8: -390000000,
+    amountCents: 0,
+  });
+  const remaining = report.units.find((r) => r.securityId === 'b' && r.date === options.today)!;
+  expect(remaining.differenceE8).toBe(200000000);
+  expect(remaining.byType).toContainEqual({
+    type: 'split_from_balance',
+    sourceUnitsE8: 0,
+    createdUnitsE8: -390000000,
+    differenceE8: -390000000,
+  });
+  expect(report.dust.some((t) => t.securityId === 'b')).toBe(false);
   expect(
     trades
       .filter((t) => t.importKey?.includes('rebuild:swap:'))
@@ -711,6 +738,101 @@ it('reports unexplained expiry units and source IDs for fee sells and swap legs 
   expect(() =>
     applySourceRebuild(db, { ...options, trace: ['Unknown synthetic product'] }, ctx),
   ).toThrow('mapped security');
+  const written = applySourceRebuild(db, opts, ctx);
+  expect(written.units).toEqual(report.units);
+  const rebuilt = liveState(),
+    rebuiltCounts = rowCounts();
+  expect(applySourceRebuild(db, opts, ctx).groupId).toBe('');
+  expect(liveState()).toEqual(rebuilt);
+  expect(rowCounts()).toEqual(rebuiltCounts);
+  undoAuditGroups(db, [written.groupId], ctx);
+  expect(liveState()).toEqual(before);
+});
+
+it('persists zero-value dust deliveries after rebuilding, with dry-run, repeat and undo', () => {
+  stage('synthetic-dust', 'synthetic_unhandled', [
+    leg('dust-leg', options.today, asset('a', '0.00009')),
+  ]);
+  createTrade(
+    db,
+    {
+      accountId: 'depot',
+      securityId: 'b',
+      date: options.today,
+      kind: 'delivery_in',
+      unitsE8: 19000,
+      amountCents: 0,
+    },
+    ctx,
+  );
+  const before = liveState(),
+    counts = rowCounts();
+  const dry = applySourceRebuild(db, { ...options, dryRun: true }, ctx);
+  expect(
+    dry.dust.map((t) => [t.importKey, t.kind, t.unitsE8, t.amountCents, t.date, t.note]),
+  ).toEqual([
+    ['rebuild:dust:a', 'delivery_in', 9000, 0, options.today, 'Rundungsausgleich Quelle'],
+    ['rebuild:dust:b', 'delivery_out', -19000, 0, options.today, 'Rundungsausgleich Quelle'],
+  ]);
+  expect(liveState()).toEqual(before);
+  expect(rowCounts()).toEqual(counts);
+  const report = applySourceRebuild(db, options, ctx);
+  expect(report.dust).toEqual(dry.dust);
+  expect(report.units.filter((r) => r.date === options.today).every((r) => !r.differenceE8)).toBe(
+    true,
+  );
+  const rebuilt = liveState(),
+    rebuiltCounts = rowCounts();
+  expect(applySourceRebuild(db, options, ctx).groupId).toBe('');
+  expect(liveState()).toEqual(rebuilt);
+  expect(rowCounts()).toEqual(rebuiltCounts);
+  undoAuditGroups(db, [report.groupId], ctx);
+  expect(liveState()).toEqual(before);
+});
+
+it('retains one-cent differences, closes unpriced dust, and respects deleted dust keys', () => {
+  applySourceRebuild(db, options, ctx);
+  db.delete(price).where(eq(price.securityId, 'b')).run();
+  stage('synthetic-boundary', 'synthetic_unhandled', [
+    leg('cent-leg', options.today, asset('a', '0.0001')),
+    leg('unpriced-leg', options.today, asset('b', '0.00099999')),
+  ]);
+  const opts = { ...options, since: options.today };
+  const report = applySourceRebuild(db, opts, ctx);
+  expect(report.dust.map((t) => [t.securityId, t.unitsE8])).toEqual([['b', 99999]]);
+  expect(
+    report.units.find((r) => r.securityId === 'a' && r.date === options.today)?.differenceE8,
+  ).toBe(-10000);
+  const dust = listTrades(db).find((t) => t.importKey === 'rebuild:dust:b')!;
+  deleteTrade(db, dust.id, ctx);
+  const deleted = applySourceRebuild(db, opts, ctx);
+  expect(deleted.dust).toEqual([]);
+  expect(deleted.outcomes).toContainEqual(
+    expect.objectContaining({
+      id: 'rebuild:dust:b',
+      status: 'skipped',
+      reason: expect.stringContaining('rebuild_key_deleted'),
+    }),
+  );
+  expect(
+    deleted.units.find((r) => r.securityId === 'b' && r.date === options.today)?.differenceE8,
+  ).toBe(-99999);
+});
+
+it('refuses a source key colliding with a reserved dust key before ledger writes', () => {
+  createSecurity(db, { id: '0', name: 'Synthetic reserved key', kind: 'crypto' }, ctx);
+  mapReadSource(db, { key: 'asset:reserved', accountId: 'depot', securityId: '0' }, ctx, {
+    allowUnseen: true,
+  });
+  stage('dust', 'buy', [
+    leg('reserved-asset', options.today, asset('reserved', '1')),
+    leg('reserved-cash', options.today, eur(100), 'OUTGOING'),
+  ]);
+  const before = liveState(),
+    counts = rowCounts();
+  expect(() => applySourceRebuild(db, options, ctx)).toThrow('Source rebuild keys collide');
+  expect(liveState()).toEqual(before);
+  expect(rowCounts()).toEqual(counts);
 });
 
 it('persists a USD-paid buy at recent EUR asset value without FX; dry-run, repeat and undo', () => {

@@ -124,6 +124,9 @@ it('source-rebuild CLI reports dry-run, private JSON, idempotency, skips, and ro
     ]);
     expect(dry.status, dry.stderr).toBe(0);
     expect(dry.stdout).toContain('(dry run)');
+    expect(dry.stdout).toContain('split_from_balance []');
+    expect(dry.stdout).toContain('fx_nearest []');
+    expect(dry.stdout).toContain('dust []');
     expect(dry.stdout).toContain('trace {"securityId":"coin"');
     expect(dry.stdout).toContain('"operationId":"purchase"');
     expect(dry.stdout).toContain('"importKey":"rebuild:purchase:0"');
