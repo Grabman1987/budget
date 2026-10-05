@@ -35,6 +35,7 @@ export * from './portfolio-performance';
 export * from './investment-preferences';
 export * from './savings-plans';
 export * from './heute';
+export * from './planning-accuracy';
 
 export * from './contacts';
 export * from './portfolio-positions';

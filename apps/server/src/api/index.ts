@@ -29,6 +29,7 @@ import { expectedRoutes } from './expected';
 import { exportRoutes } from './export';
 import { goalRoutes } from './goals';
 import { heuteRoutes } from './heute';
+import { planningAccuracyRoutes } from './planning-accuracy';
 import {
   assetClassRoutes,
   portfolioRoutes,
@@ -130,6 +131,7 @@ export function createLedgerApi({
   api.route('/networth-history', networthHistoryRoutes(db, today));
   api.route('/assets-debts-history', assetsDebtsHistoryRoutes(db, today));
   api.route('/heute', heuteRoutes(db, today));
+  api.route('/reports/planning-accuracy', planningAccuracyRoutes(db, today));
   api.route('/rules', ruleRoutes(db, today));
   api.route('/overview', overviewReportRoutes(db, today));
   api.route('/report-tables', reportTableRoutes(db, today));
