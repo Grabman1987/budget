@@ -1,5 +1,7 @@
 # Roadmap
 
+- [ ] UX-2 (owner 05.10.2026): Heute/Plan distill, source rest, bulk cover/undo, shared wealth and device fold implemented; full-check rerun, publication and owner/Linux acceptance pending ([synthetic evidence](evidence/ux-distill-1005/README.md)).
+
 - [x] Owner feedback 04.10.2026: reports 4.1–4.4, four stored benchmarks, positive allocation layers, daily/monthly reconciliation and shared Heute/R07 35-day horizon; see [scope and owner steps](portfolio-reports-1004.md).
 
 ### Claude Code project automations (2026-10-04)

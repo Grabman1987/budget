@@ -88,3 +88,11 @@ export const coverOverspending = (
     fromId,
     ...(allowNegative && { allowNegative }),
   });
+
+/** Omitted source: suggested positive sources in descending order, one audit/undo. */
+export const coverAll = (month: string, fromId?: string | null) =>
+  request<WriteResult & { coveredCount: number; openCount: number; missingCents: number }>(
+    'POST',
+    `${path(month)}/move`,
+    { coverAll: true, ...(fromId !== undefined && { fromId }) },
+  );

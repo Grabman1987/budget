@@ -94,3 +94,5 @@ export {
   type AssetsDebtsDay,
   type NetWorthChange,
 } from './assets-debts';
+
+export * from './cover';

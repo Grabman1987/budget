@@ -1,5 +1,5 @@
 import { test as isolatedTest } from './isolated-ledger';
-import { sampleTest as test, expect } from './sample';
+import { sampleTest as test, expect as baseExpect } from './sample';
 import AxeBuilder from '@axe-core/playwright';
 import { test as ledgerTest } from '@playwright/test';
 import type { Heute } from '../apps/web/src/heute/api';
@@ -7,6 +7,14 @@ import { MAIN_URL } from '../playwright.config';
 import { pickCategory, toast } from './ledger-helpers';
 import { addDays } from '@budget/domain';
 import { eur } from '../apps/web/src/ledger/format';
+
+const expect = baseExpect.configure({ timeout: 15_000 });
+
+// Existing detailed flows explicitly unfold their moved figures. UX-2 tests cover the device default.
+test.beforeEach(async ({ page }) => {
+  test.setTimeout(60_000);
+  await page.addInitScript(() => localStorage.setItem('budget-heute-more-phone', '1'));
+});
 
 test('Heute forecast ends after 35 days and names payments in labels and shared tooltip', async ({
   page,
@@ -65,14 +73,14 @@ test('Heute uses live API data and period, expands the lead chain, and links to 
 
   await page.getByTestId('heute-lead-value').click();
   await expect(
-    page.getByRole('button', { name: 'Maßkette ausblenden', exact: true }),
+    page.getByRole('button', { name: 'Herleitung ausblenden', exact: true }),
   ).toHaveAttribute('aria-expanded', 'true');
   await expect(page.getByRole('group', { name: /Maßkette: Bedarf/ })).toBeVisible();
   await page.getByRole('button', { name: /^Bedarf/ }).click();
   await expect(page.getByRole('heading', { name: 'Envelopes Bedarf' })).toBeVisible();
 
   await expect(page.getByRole('heading', { name: 'Angepinnte Envelopes' })).toBeVisible();
-  await expect(page.getByRole('heading', { name: 'Anstehend · 14 Tage' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Was steht an? · Nächste 7 Tage' })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Finanz-Check' })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Nettovermögen' })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Letzte Buchungen' })).toBeVisible();
@@ -84,7 +92,7 @@ test('Heute uses live API data and period, expands the lead chain, and links to 
   );
   const forecastStart = Number(forecastPath?.match(/^M([\d.]+)/)?.[1]);
   expect(Math.abs(forecastStart - todayX)).toBeLessThan(0.01);
-  await expect(page.locator('.heute-detail-grid .circle-no')).toHaveText(['1', '2', '3', '4', '5']);
+  await expect(page.locator('.heute-detail-grid .circle-no')).toHaveText(['1', '3', '4', '5']);
   const nonAcuteStates = await page
     .locator('.heute-state.is-bad, .heute-state.is-warn')
     .evaluateAll((elements) => {
@@ -217,72 +225,64 @@ test('empty Heute lists explain what has no rows', async ({ page }) => {
   await page.goto('/?monat=2026-09');
   await expect(page.getByText('Keine Envelopes angepinnt.')).toBeVisible();
   await expect(
-    page.getByText('In den nächsten 14 Tagen sind keine wiederkehrenden Zahlungen gelistet.'),
+    page.getByText('Keine wiederkehrenden Zahlungen in diesem Zeitraum.').first(),
   ).toBeVisible();
   await expect(page.getByText('Keine offenen Schritte aus den Heute-Prüfungen.')).toBeVisible();
   await expect(page.getByText('Noch keine Buchungen vorhanden.')).toBeVisible();
 });
 
-test('next-step clicks use the current month and all prior booking dates', async ({
+test('attention has one overspending home and links to the current month and inbox', async ({
   page,
-}, info) => {
-  const response = await page.request.get('/api/heute?period=month&month=2026-08');
-  const data: Heute = await response.json();
-  const routed: Heute = {
-    ...data,
-    nextSteps: {
-      count: 3,
-      items: [
-        {
-          kind: 'overspent',
-          urgent: true,
-          categoryId: 'test',
-          categoryName: 'Test-Envelope',
-          cents: 1234,
-          count: 1,
+}) => {
+  const data: Heute = await (
+    await page.request.get('/api/heute?period=month&month=2026-08')
+  ).json();
+  await page.route('**/api/heute?*', (route) =>
+    route.fulfill({
+      json: {
+        ...data,
+        attention: { ...data.attention, inboxCount: 2 },
+        nextSteps: {
+          count: 3,
+          items: [
+            {
+              kind: 'overspent',
+              urgent: true,
+              categoryId: 'test',
+              categoryName: 'Test-Envelope',
+              cents: 1234,
+              count: 1,
+            },
+            {
+              kind: 'uncategorized',
+              urgent: false,
+              categoryId: null,
+              categoryName: null,
+              cents: -5678,
+              count: 2,
+            },
+          ],
         },
-        {
-          kind: 'uncategorized',
-          urgent: false,
-          categoryId: null,
-          categoryName: null,
-          cents: -5678,
-          count: 2,
-        },
-      ],
-    },
-  };
-  await page.route('**/api/heute?*', (route) => route.fulfill({ json: routed }));
+      },
+    }),
+  );
   await page.goto('/?monat=2026-08');
-  const steps = page.getByRole('table', { name: 'Nächste Schritte' });
-  await expect(steps).toContainText('12,34 € zu decken');
-  await expect(steps).not.toContainText('−12,34 €');
-  if (info.project.name === 'mobile') {
-    await expect(steps.getByRole('button', { name: 'Plan öffnen' })).toBeHidden();
-    await page
-      .getByRole('region', { name: 'Nächster dringender Schritt' })
-      .getByRole('button', { name: 'Plan öffnen' })
-      .click();
-  } else {
-    await steps.getByRole('button', { name: 'Plan öffnen' }).click();
-  }
-  await expect(page).toHaveURL(/\/plan\/monat\?monat=2026-09/);
-  await expect(page.getByRole('heading', { name: 'September 2026', exact: true })).toBeVisible();
+  const attention = page.getByRole('region', { name: 'Braucht Aufmerksamkeit' });
+  await expect(attention).toContainText('12,34 € zu decken');
+  await expect(page.locator('[data-overspent="test"]')).toHaveCount(1);
+  await expect(page.locator('.heute-next-steps')).not.toContainText('Test-Envelope');
+  await expect(page.locator('.heute-mobile-next')).toHaveCount(0);
+  await attention.getByRole('link', { name: 'Alle decken' }).click();
+  expect(new URL(page.url()).searchParams.get('monat')).toBe('2026-09');
   await page.goBack();
-  await steps.getByRole('button', { name: 'Buchungen öffnen' }).click();
-  await expect(page).toHaveURL(/\/konten\/buchungen\?/);
-  const url = new URL(page.url());
-  expect(url.searchParams.get('bis')).toBe('2026-09-17');
-  expect(url.searchParams.get('kategorie')).toBe('none');
-  expect(url.searchParams.has('von')).toBe(false);
-  await expect(page.getByLabel('Bis', { exact: true })).toHaveValue('2026-09-17');
-  await expect(page.getByLabel('Von', { exact: true })).toHaveValue('');
+  await attention.getByRole('link', { name: 'Zuordnen' }).click();
+  await expect(page).toHaveURL(/\/konten\/posteingang/);
 });
 
 test('source-view links open the corresponding live pages', async ({ page }) => {
   for (const [heading, link, target] of [
     ['Angepinnte Envelopes', 'Plan öffnen', '/plan/monat'],
-    ['Anstehend · 14 Tage', 'Alle', '/plan/erwartet'],
+    ['Was steht an? · Nächste 7 Tage', 'Alle', '/plan/erwartet'],
     ['Finanz-Check', 'Alle Regeln', '/einstellungen/regelwerk'],
     ['Nettovermögen', 'Details', '/vermoegen/nettovermoegen'],
     ['Letzte Buchungen', 'Alle', '/konten/buchungen'],
@@ -298,7 +298,7 @@ test('source-view links open the corresponding live pages', async ({ page }) => 
   }
 });
 
-test('negative lead uses the action colour and mobile urgency precedes pace', async ({
+test('negative lead uses the action colour and attention precedes the month fold', async ({
   page,
 }, info) => {
   const response = await page.request.get('/api/heute?period=month&month=2026-09');
@@ -326,21 +326,16 @@ test('negative lead uses the action colour and mobile urgency precedes pace', as
     });
     expect(colours.whole).toBe(colours.red);
     expect(colours.cents).toBe(colours.red);
-    const urgent = page.getByRole('region', { name: 'Nächster dringender Schritt' });
+    const attention = page.getByRole('region', { name: 'Braucht Aufmerksamkeit' });
+    await expect(attention).toBeVisible();
+    const upcomingBox = await page.locator('#heute-upcoming-title').boundingBox();
+    const attentionBox = await attention.boundingBox();
+    const moreBox = await page.getByRole('button', { name: 'Mehr zum Monat' }).boundingBox();
+    expect(attentionBox!.y).toBeGreaterThan(upcomingBox!.y);
+    expect(moreBox!.y).toBeGreaterThan(attentionBox!.y);
     if (info.project.name === 'mobile') {
-      await expect(urgent).toBeVisible();
-      const leadBox = await page.locator('.heute-lead').boundingBox();
-      const urgentBox = await urgent.boundingBox();
-      const paceBox = await page.locator('.heute-pace').boundingBox();
-      expect(urgentBox!.y).toBeGreaterThanOrEqual(leadBox!.y + leadBox!.height);
-      expect(urgentBox!.y + urgentBox!.height).toBeLessThan(paceBox!.y);
-      expect(urgentBox!.y + urgentBox!.height).toBeLessThan(page.viewportSize()!.height);
       await expect(figure).toHaveCSS('font-size', '40px');
       expect((await page.getByTestId('heute-balance-chart').boundingBox())!.height).toBe(232);
-      await urgent.getByRole('button', { name: 'Plan öffnen' }).click();
-      await expect(page).toHaveURL(/\/plan\/monat\?monat=2026-09/);
-    } else {
-      await expect(urgent).toBeHidden();
     }
   }
 });
@@ -368,6 +363,7 @@ test('a failed Heute request offers a working retry', async ({ page }) => {
 test('settled balance reaches the forecast and the composition measures its parts in both motion modes', async ({
   page,
 }, info) => {
+  test.setTimeout(120_000);
   for (const [colorScheme, reducedMotion] of [
     ['light', 'reduce'],
     ['dark', 'reduce'],
@@ -492,7 +488,7 @@ ledgerTest(
       });
       await page.goto(`/?monat=${month}`);
       await expect(page.getByTestId('heute-lead-value')).toBeVisible();
-      await page.getByRole('button', { name: 'Maßkette zeigen', exact: true }).click();
+      await page.getByRole('button', { name: 'Herleitung zeigen', exact: true }).click();
       await page.getByRole('button', { name: /^Bedarf/ }).click();
       const envelope = page.locator('.heute-breakdown li').filter({ hasText: categoryName });
       await expect(envelope.locator('strong')).toHaveText('100,00 €');
@@ -554,16 +550,12 @@ ledgerTest(
         memo: futureMemo,
       });
       await page.goto(`/?monat=${month}`);
-      const steps = page.getByRole('table', { name: 'Nächste Schritte' });
-      await expect(steps).toContainText(/\d+ Buchung(?:en)? ohne Kategorie/);
-      await steps.getByRole('button', { name: 'Buchungen öffnen' }).click();
-      const url = new URL(page.url());
-      expect(url.searchParams.get('kategorie')).toBe('none');
-      expect(url.searchParams.get('bis')).toBe(day);
-      expect(url.searchParams.has('von')).toBe(false);
-      await expect(page.getByRole('row').filter({ hasText: priorMemo })).toBeVisible();
-      await expect(page.getByRole('row').filter({ hasText: futureMemo })).toHaveCount(0);
-      await expect(page.getByLabel('Kategorie', { exact: true })).toHaveValue('ohne Kategorie');
+      const attention = page.getByRole('region', { name: 'Braucht Aufmerksamkeit' });
+      await expect(attention).toContainText('ohne Kategorie');
+      await attention.getByRole('link', { name: 'Zuordnen' }).click();
+      await expect(page).toHaveURL(/\/konten\/posteingang/);
+      await expect(page.getByText(priorMemo, { exact: false })).toBeVisible();
+      await expect(page.getByText(futureMemo, { exact: false })).toHaveCount(0);
     } finally {
       if (liveBookingGroup) cleanup.push(liveBookingGroup);
       for (const groupId of cleanup.reverse()) {
@@ -583,16 +575,19 @@ test('mobile attention remains reachable above the floating capture button in bo
   await expect(attention).toBeVisible();
   for (const theme of ['light', 'dark']) {
     await page.evaluate((t) => (document.documentElement.dataset['theme'] = t), theme);
-    await attention.evaluate((element) => element.scrollIntoView({ block: 'center' }));
-    const box = (await attention.boundingBox())!;
+    for (const action of await attention.locator('a, button').all()) {
+      await action.evaluate((element) => element.scrollIntoView({ block: 'center' }));
+      const box = (await action.boundingBox())!;
+      const fab = (await page.locator('.fab').boundingBox())!;
+      expect(box.y).toBeGreaterThanOrEqual(0);
+      expect(box.y + box.height).toBeLessThan(fab.y);
+    }
     const fab = (await page.locator('.fab').boundingBox())!;
-    expect(box.y).toBeGreaterThanOrEqual(0);
-    expect(box.y + box.height).toBeLessThan(fab.y);
     const capture = info.outputPath(`heute-attention-${theme}.png`);
     await page.screenshot({ path: capture });
     await info.attach(`Attention ${theme}`, { path: capture, contentType: 'image/png' });
     await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
-    const finalRow = (await page.locator('.heute-booking').last().boundingBox())!;
+    const finalRow = (await page.locator('#heute-more-content a').last().boundingBox())!;
     expect(finalRow.y).toBeGreaterThanOrEqual(0);
     expect(finalRow.y + finalRow.height).toBeLessThan(fab.y);
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(

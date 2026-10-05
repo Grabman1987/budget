@@ -16,6 +16,7 @@ import { useSearch } from '@tanstack/react-router';
 import {
   AlertTriangle,
   ArrowDownToLine,
+  ArrowRightLeft,
   Check,
   CheckCircle2,
   ChevronDown,
@@ -42,17 +43,13 @@ import {
 } from './month-span';
 import { MultiTable } from './plan-multi';
 import { AssignCell } from './assign-cell';
-import { assign, budgetQuery, type BudgetMonthView } from './budget-api';
+import { assign, coverAll, budgetQuery, type BudgetMonthView } from './budget-api';
 import { CategoryIcon } from './category-icon';
-import { CoverChoice, useCover } from './cover-choice';
 import { IncomeButton, IncomePanel } from '../expected/income-panel';
 import { EnvelopePanel } from './envelope-panel';
-import { STAGES } from './labels';
 import {
   barFor,
   CLASS_TEXT,
-  coverFromToBeAssigned,
-  coverSource,
   expectedDues,
   groupStatus,
   isCard,
@@ -175,9 +172,9 @@ function PlanBody({
   const [open, setOpen] = useState<{ id: string; month: string } | null>(
     search.kategorie ? { id: search.kategorie, month } : null,
   );
-  const [sources, setSources] = useState<Record<string, string>>({});
-  /** Triage row whose "Decken" from "Zu verteilen" waits for the choice (not enough money). */
-  const [choosing, setChoosing] = useState<string | null>(null);
+  const [bulkSource, setBulkSource] = useState('suggested');
+  const [covering, setCovering] = useState(false);
+  const [coverResult, setCoverResult] = useState<string | null>(null);
 
   const s = data.summary;
   const today = todayInVienna();
@@ -232,11 +229,33 @@ function PlanBody({
       () => `${eur(sum)} verteilt`,
     ).then((done) => done && sum >= tba && setDistribute(false));
   };
-  const coverFrom = useCover(month, (id) => byId.get(id)?.name);
-  const cover = (r: PlanRow) => {
-    const from = sources[r.id] ?? coverSource(rows, r)?.id ?? '';
-    if (from === '' && coverFromToBeAssigned(r.overspentCents, tba).short) return setChoosing(r.id);
-    void coverFrom(r, from === '' ? null : from);
+  const coverPool = rows
+    .filter((r) => !isCard(r) && r.availableCents > 0)
+    .sort((a, b) => b.availableCents - a.availableCents);
+  const source =
+    bulkSource === 'suggested' ||
+    (bulkSource === '' && tba > 0) ||
+    coverPool.some((r) => r.id === bulkSource)
+      ? bulkSource
+      : 'suggested';
+  const coverLabel =
+    source === 'suggested'
+      ? 'verfügbaren Envelopes'
+      : source === ''
+        ? 'Zu verteilen'
+        : byId.get(source)!.name;
+  const coverMonth = async () => {
+    setCovering(true);
+    const result = await write(
+      () => coverAll(month, source === 'suggested' ? undefined : source === '' ? null : source),
+      (res) =>
+        `${res.coveredCount} gedeckt, ${res.openCount} offen · ${eur(res.missingCents)} fehlen`,
+    );
+    if (result)
+      setCoverResult(
+        `${result.coveredCount} gedeckt, ${result.openCount} offen · ${eur(result.missingCents)} fehlen`,
+      );
+    setCovering(false);
   };
   const unassign = () => {
     const plan = unassignPlan(rows, -tba);
@@ -311,131 +330,54 @@ function PlanBody({
           </section>
         )}
         {(urgent.length > 0 || credit.length > 0 || tba < 0) && (
-          <section
-            className={cx('triage', urgent.length === 0 && tba >= 0 && 'is-calm')}
-            aria-labelledby="triage-title"
-          >
+          <section className="triage triage-compact" aria-labelledby="triage-title">
             <div className="head">
-              <h2 id="triage-title">Erst decken</h2>
-              <span className="aside">
-                {tba > 0 && urgent.length
-                  ? 'Erst decken, dann verteilen.'
-                  : `${urgent.length + credit.length + (tba < 0 ? 1 : 0)} offen`}
-              </span>
+              <h2 id="triage-title">
+                {urgent.length + credit.length} Envelopes überzogen ·{' '}
+                {eur(rows.reduce((sum, r) => sum + r.overspentCents, 0))} zu decken
+              </h2>
             </div>
-            <table className="rev-table triage-table">
-              <caption className="sr-only">Überzogene Envelopes</caption>
-              <thead>
-                <tr>
-                  <th className="tech" scope="col">
-                    Rev.
-                  </th>
-                  <th className="tech" scope="col">
-                    Änderung
-                  </th>
-                  <th className="tech" scope="col">
-                    Aus Envelope
-                  </th>
-                  <th className="tech rev-act" scope="col">
-                    Aktion
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {[...urgent, ...credit].map((r, i) => {
-                  const cash = isCashOver(r);
-                  const pick = sources[r.id] ?? coverSource(rows, r)?.id ?? '';
-                  return [
-                    <tr key={r.id} className={cx('rev-row', cash && 'is-urgent')}>
-                      <td className="rev-mark">
-                        <RevisionTriangle letter={String.fromCharCode(65 + i)} urgent={cash} />
-                      </td>
-                      <td className="rev-what">
-                        <strong>
-                          {cash ? `${r.name} ist überzogen` : `${r.name}: neue Kartenschuld`}
-                        </strong>
-                        <span>
-                          {eur(-r.overspentCents)}
-                          {r.stage ? ` · Stufe ${r.stage} ${STAGES[r.stage - 1]?.short}` : ''}
-                          {!cash && ' · nicht gedeckt, bleibt auf der Karte'}
-                        </span>
-                      </td>
-                      <td className="rev-src">
-                        <label className="sr-only" htmlFor={`src-${r.id}`}>
-                          Aus Envelope für {r.name}
-                        </label>
-                        <Select
-                          id={`src-${r.id}`}
-                          className="select-sm"
-                          value={pick}
-                          onChange={(e) => {
-                            setSources({ ...sources, [r.id]: e.target.value });
-                            setChoosing(null);
-                          }}
-                        >
-                          <option value="">Zu verteilen · {eur(tba)}</option>
-                          {rows
-                            .filter((o) => o.id !== r.id && !isCard(o) && o.availableCents > 0)
-                            .map((o) => (
-                              <option key={o.id} value={o.id}>
-                                {o.name} · {eur(o.availableCents)}
-                              </option>
-                            ))}
-                        </Select>
-                      </td>
-                      <td className="rev-act">
-                        <Button
-                          size="sm"
-                          variant={cash ? 'alert' : 'ghost'}
-                          onClick={() => cover(r)}
-                        >
-                          Decken
-                        </Button>
-                      </td>
-                    </tr>,
-                    choosing === r.id && pick === '' && (
-                      <tr key={`${r.id}-choice`} className="rev-row rev-choice">
-                        <td className="rev-mark" />
-                        <td colSpan={3}>
-                          <CoverChoice
-                            overspentCents={r.overspentCents}
-                            toBeAssignedCents={tba}
-                            onCover={(allowNegative) => {
-                              setChoosing(null);
-                              void coverFrom(r, null, allowNegative);
-                            }}
-                            onCancel={() => setChoosing(null)}
-                          />
-                        </td>
-                      </tr>
-                    ),
-                  ];
-                })}
-                {tba < 0 && (
-                  <tr className="rev-row is-urgent">
-                    <td className="rev-mark">
-                      <RevisionTriangle
-                        letter={String.fromCharCode(65 + urgent.length + credit.length)}
-                        urgent
-                      />
-                    </td>
-                    <td className="rev-what">
-                      <strong>Zu viel zugewiesen</strong>
-                      <span>
-                        {eur(tba)} · von unten nach oben zurücknehmen, ab der tiefsten Stufe
-                      </span>
-                    </td>
-                    <td className="rev-src" />
-                    <td className="rev-act">
-                      <Button size="sm" variant="alert" onClick={unassign}>
-                        Zurücknehmen
-                      </Button>
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
+            {urgent.length + credit.length > 0 && (
+              <div className="cover-all-controls">
+                <label className="sr-only" htmlFor="cover-all-source">
+                  Quelle für alle Überziehungen
+                </label>
+                <Select
+                  id="cover-all-source"
+                  value={source}
+                  onChange={(e) => setBulkSource(e.target.value)}
+                >
+                  <option value="suggested">Vorschläge · größtes Guthaben zuerst</option>
+                  {tba > 0 && <option value="">Zu verteilen · {eur(tba)}</option>}
+                  {coverPool.map((r) => (
+                    <option key={r.id} value={r.id}>
+                      {r.name} · {eur(r.availableCents)}
+                    </option>
+                  ))}
+                </Select>
+                <Button
+                  variant="alert"
+                  disabled={covering || (!coverPool.length && tba <= 0)}
+                  onClick={() => void coverMonth()}
+                >
+                  Alle aus {coverLabel} decken
+                </Button>
+              </div>
+            )}
+            {tba < 0 && (
+              <div className="cover-all-controls">
+                <strong>Zu viel zugewiesen · {eur(-tba)} fehlen</strong>
+                <Button variant="ghost" onClick={unassign}>
+                  Zurücknehmen
+                </Button>
+              </div>
+            )}
           </section>
+        )}
+        {coverResult && (
+          <p role="status" className="heute-note">
+            Letzte Deckung: {coverResult}
+          </p>
         )}
         <section className="ptable-wrap card" aria-labelledby="table-title">
           <h2 className="sr-only" id="table-title">
@@ -1055,9 +997,10 @@ function EnvelopeRow({
   useAmountPrivacy();
   const cash = isCashOver(r);
   const credit = !cash && r.creditOverspentCents > 0;
+  const over = r.overspentCents > 0;
   const bar = barFor(r, ctx);
   return (
-    <tr className={cx('prow', cash && 'is-over', credit && 'is-credit')}>
+    <tr className={cx('prow', over && 'is-over', credit && 'is-credit')}>
       <td className="col-pos">
         <span className="pos">{pos}</span>
         {cash && <RevisionTriangle letter="!" urgent />}
@@ -1122,14 +1065,21 @@ function EnvelopeRow({
       </td>
       <td className="col-num col-avail" data-label="Verfügbar">
         <span
-          className={cx(
-            'pill',
-            cash ? 'is-bad' : credit ? 'is-debt' : r.availableCents > 0 && 'is-good',
-          )}
+          className={cx('pill', over ? 'is-bad' : r.availableCents > 0 && 'is-good')}
           title={credit ? 'neue Kartenschuld' : undefined}
         >
           {eur(r.availableCents)}
         </span>
+        {over && (
+          <button
+            type="button"
+            className="cover-row"
+            aria-label={`${r.name} decken`}
+            onClick={onOpen}
+          >
+            <ArrowRightLeft size={16} aria-hidden="true" />
+          </button>
+        )}
       </td>
     </tr>
   );

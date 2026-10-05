@@ -42,6 +42,7 @@ import { budget as readBudget } from './queries';
 import { queryBookings } from './ledger-queries';
 import { cashSeries, netWorthAsOf, netWorthValuationAsOf } from './portfolio';
 import { forecastInputs, loadFacts, scheduled, type RuleFacts } from './rule-inputs';
+import { readInboxCount } from './inbox';
 import { financeCheck, type FinanceCheck } from './rules';
 import { MissingFxRateError } from './errors';
 import type { Executor } from './types';
@@ -178,12 +179,16 @@ export interface Heute {
     | {
         counts: FinanceCheck['counts'];
         keyRules: FinanceCheck['keyRules'];
+        actionRules: FinanceCheck['actionRules'];
       }
     | HeuteUnavailable;
   netWorth:
     | (NetWorthParts & {
         asOf: string;
         previousMonthEndCents: number;
+        yearAgoCents: number;
+        yearAgoDay: string;
+        yearDeltaCents: number;
         deltaCents: number;
         /** Change against the previous month end in basis points; `null` from 0. */
         deltaBp: number | null;
@@ -191,6 +196,7 @@ export interface Heute {
         series: { day: string; cents: number }[];
       })
     | HeuteUnavailable;
+  attention: { inboxCount: number; pendingCount: number; pendingBefore: string };
   lastBookings: HeuteLastBooking[];
   nextSteps: { items: NextStep[]; count: number };
 }
@@ -569,7 +575,7 @@ export function heute(db: Executor, query: HeuteQuery): Heute {
   const upcoming14 = paymentCoverage(upcomingRows, available);
   const check = availableSection(() => {
     const result = financeCheck(db, today, facts);
-    return { counts: result.counts, keyRules: result.keyRules };
+    return { counts: result.counts, keyRules: result.keyRules, actionRules: result.actionRules };
   });
   const netWorth = availableSection(() => {
     const nw = netWorthAsOf(db, today);
@@ -587,8 +593,15 @@ export function heute(db: Executor, query: HeuteQuery): Heute {
     }));
     const previousMonthEndCents = nwSeries[nwSeries.length - 2]?.cents ?? nw.totalCents;
 
+    const yearAgoMonth = addMonths(monthOf(today), -12);
+    const yearAgoDay = earliest(`${yearAgoMonth}-${today.slice(8)}`, lastDayOfMonth(yearAgoMonth));
+    const yearAgoCents = netWorthAsOf(db, yearAgoDay).totalCents;
     return {
       ...parts,
+      totalCents: nw.totalCents,
+      yearAgoDay,
+      yearAgoCents,
+      yearDeltaCents: nw.totalCents - yearAgoCents,
       asOf: today,
       previousMonthEndCents,
       deltaCents: nw.totalCents - previousMonthEndCents,
@@ -633,6 +646,12 @@ export function heute(db: Executor, query: HeuteQuery): Heute {
     upcoming14,
     financeCheck: check,
     netWorth,
+    attention: {
+      inboxCount: readInboxCount(db, today).count,
+      pendingCount: queryBookings(db, { status: 'pending', to: addDays(today, -7), limit: 1 })
+        .total,
+      pendingBefore: addDays(today, -7),
+    },
     lastBookings,
     nextSteps: nextSteps(db, today, facts),
   };

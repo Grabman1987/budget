@@ -98,9 +98,6 @@
   .heute-lead-figure.is-negative small {
     color: var(--red);
   }
-  .heute-mobile-next {
-    display: none;
-  }
   .heute-balance-drawing {
     position: relative;
   }
@@ -495,28 +492,6 @@
     }
   }
   @media (max-width: 767px) {
-    .heute-mobile-next {
-      display: grid;
-      grid-template-columns: 30px minmax(0, 1fr) auto;
-      align-items: center;
-      gap: 10px;
-      margin-top: -18px;
-      padding: 12px 0;
-      border-block: 1px solid var(--rule);
-    }
-    .heute-mobile-next strong {
-      display: block;
-      color: var(--red);
-      font-size: 15px;
-      font-weight: 620;
-    }
-    .heute-mobile-next .rev-what span {
-      color: var(--ink-2);
-      font-size: 13px;
-    }
-    .heute-mobile-next .btn {
-      min-height: 44px;
-    }
     .heute {
       gap: 32px;
       padding: 0 0 24px;
@@ -538,9 +513,6 @@
     }
     .heute-lead-figure {
       font-size: 40px;
-    }
-    .heute-next-steps.has-promoted .rev-table tbody > tr:first-child {
-      display: none;
     }
     .heute-chart {
       min-height: 170px;
@@ -612,33 +584,88 @@
   }
 }
 .heute-attention {
-  grid-row: 1;
-  padding: 16px;
-  border: 1px solid var(--rule-strong);
-  border-radius: 8px;
-  background: var(--surface);
+  padding-block: 16px;
+  border-block: 1px solid var(--rule);
 }
 .heute-attention h2 {
+  font-size: 17px;
+  margin: 0 0 8px;
+}
+.attention-row {
   display: flex;
   align-items: center;
-  gap: 8px;
-  font-size: 17px;
-  margin: 0;
+  justify-content: space-between;
+  gap: 12px;
+  padding-block: 4px;
+  border-top: 1px solid var(--rule);
 }
-.heute-attention > div {
-  display: flex;
-  flex-wrap: wrap;
-  column-gap: 24px;
-}
-.heute-attention a {
+.attention-row a {
   display: inline-flex;
   align-items: center;
   min-height: 44px;
+  flex-shrink: 0;
+}
+.attention-row.is-over,
+.attention-row.is-over a,
+.attention-envelopes a {
   color: var(--red);
 }
+.attention-envelopes {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+.attention-envelopes li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  color: var(--red);
+}
+.attention-envelopes a {
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+}
+.heute-wealth-line {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 20px;
+  padding-block: 12px;
+  border-block: 1px solid var(--rule);
+}
+.heute-wealth-line h2 {
+  font-size: 17px;
+  margin: 0;
+}
+.heute-wealth-line a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  gap: 8px;
+}
+.heute-more > .btn {
+  width: 100%;
+  justify-content: space-between;
+}
+#heute-more-content:not([hidden]) {
+  display: grid;
+  gap: 32px;
+  margin-top: 24px;
+}
 @media (max-width: 767px) {
-  .heute-attention {
-    grid-row: auto;
+  .heute-lead-head {
+    flex-wrap: wrap;
+  }
+  .attention-row {
+    flex-wrap: wrap;
+  }
+  .heute-wealth-line {
+    gap: 4px 12px;
+  }
+  .heute-wealth-line a {
+    font-size: 13px;
   }
 }
 

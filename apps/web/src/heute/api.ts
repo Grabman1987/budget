@@ -107,6 +107,12 @@ export interface Heute extends WithValuationNotes {
           actionNeeded: boolean;
           actionText: string | null;
         }>;
+        actionRules: Array<{
+          code: string;
+          name: string;
+          valueText: string;
+          actionText: string | null;
+        }>;
       }
     | HeuteUnavailable;
   netWorth:
@@ -118,11 +124,15 @@ export interface Heute extends WithValuationNotes {
         totalCents: number;
         asOf: string;
         previousMonthEndCents: number;
+        yearAgoCents: number;
+        yearAgoDay: string;
+        yearDeltaCents: number;
         deltaCents: number;
         deltaBp: number | null;
         series: Array<{ day: string; cents: number }>;
       }
     | HeuteUnavailable;
+  attention: { inboxCount: number; pendingCount: number; pendingBefore: string };
   lastBookings: Array<{
     id: string;
     date: string;
