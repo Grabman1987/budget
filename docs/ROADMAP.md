@@ -1,5 +1,7 @@
 # Roadmap
 
+- [x] UX-2b (owner 2026-10-05): free-money caps for individual/bulk cover, pending/recurring dedup, account/used-credit line and missing-money carry option; synthetic regressions, CI and owner acceptance pending.
+
 ### Full page width — owner feedback 2026-10-05
 
 - [x] Shared unbounded page-width token, existing gutters and narrow text/form/dialog/A4 exceptions.

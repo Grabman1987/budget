@@ -11,7 +11,7 @@ import {
   cx,
   type DimensionChainTerm,
 } from '@budget/ui';
-import { cents, todayInVienna } from '@budget/domain';
+import { cents, coverShortfall, todayInVienna } from '@budget/domain';
 import { useQueries, useQuery } from '@tanstack/react-query';
 import { useSearch } from '@tanstack/react-router';
 import {
@@ -52,6 +52,8 @@ import {
   barFor,
   CLASS_TEXT,
   expectedDues,
+  freeCoverCents,
+  coverSourceLabel,
   groupStatus,
   isCard,
   isCashOver,
@@ -231,8 +233,13 @@ function PlanBody({
     ).then((done) => done && sum >= tba && setDistribute(false));
   };
   const coverPool = rows
-    .filter((r) => !isCard(r) && r.availableCents > 0)
-    .sort((a, b) => b.availableCents - a.availableCents);
+    .filter((r) => !isCard(r) && freeCoverCents(r) > 0)
+    .sort((a, b) => freeCoverCents(b) - freeCoverCents(a));
+  const missing = coverShortfall(
+    rows.reduce((sum, r) => sum + r.overspentCents, 0),
+    coverPool.map(freeCoverCents),
+    tba,
+  );
   const source =
     bulkSource === 'suggested' ||
     (bulkSource === '' && tba > 0) ||
@@ -250,7 +257,7 @@ function PlanBody({
     const result = await write(
       () => coverAll(month, source === 'suggested' ? undefined : source === '' ? null : source),
       (res) =>
-        `${res.coveredCount} gedeckt, ${res.openCount} offen · ${eur(res.missingCents)} fehlen`,
+        `${res.coveredCount} gedeckt, ${res.openCount} offen · ${eur(res.missingCents)} fehlen${res.openCount > 0 ? ' · auf freies Geld begrenzt' : ''}`,
     );
     if (result)
       setCoverResult(
@@ -292,6 +299,39 @@ function PlanBody({
   return (
     <div className={cx('plan-grid', multi && 'is-wide')}>
       <div className="plan-main">
+        {data.budgetMoney && (
+          <details className="plan-budget-money">
+            <summary
+              title={data.budgetMoney.accounts
+                .map(
+                  (a) =>
+                    `${a.name}: ${eur(a.balanceCents)}${a.usedCreditCents > 0 ? ` · Kredit genutzt ${eur(-a.usedCreditCents)}${a.creditLineCents !== null ? ` · Rahmen ${eur(a.creditLineCents)}` : ' · Rahmen nicht hinterlegt'}` : ''}`,
+                )
+                .join(' · ')}
+            >
+              Geld auf Budget-Konten · {eur(data.budgetMoney.totalCents)}
+              {data.budgetMoney.usedCreditCents > 0 && (
+                <> · davon Dispo/Kreditrahmen genutzt {eur(-data.budgetMoney.usedCreditCents)}</>
+              )}
+            </summary>
+            <ul>
+              {data.budgetMoney.accounts.map((a) => (
+                <li key={a.id}>
+                  {a.name} · {eur(a.balanceCents)}
+                  {a.usedCreditCents > 0 && (
+                    <>
+                      {' '}
+                      · Kredit genutzt {eur(-a.usedCreditCents)} ·{' '}
+                      {a.creditLineCents !== null
+                        ? `Rahmen ${eur(a.creditLineCents)}`
+                        : 'Rahmen nicht hinterlegt'}
+                    </>
+                  )}
+                </li>
+              ))}
+            </ul>
+          </details>
+        )}
         <Hero
           data={data}
           month={months.length > 1 ? month : undefined}
@@ -338,6 +378,25 @@ function PlanBody({
                 {eur(rows.reduce((sum, r) => sum + r.overspentCents, 0))} zu decken
               </h2>
             </div>
+            <p className="panel-sub">
+              Decken verschiebt freies Geld zwischen Envelopes; die Summe auf deinen Konten bleibt
+              gleich.
+            </p>
+            {missing > 0 && (
+              <div className="cover-missing" role="note">
+                <p>
+                  Es fehlen {eur(missing)} – Geld kommt nur durch Einnahmen oder Umbuchungen auf ein
+                  Budget-Konto (z. B. aus Tagesgeld oder Depot).
+                </p>
+                <AppLink to="/plan/monat" search={{ monat: shiftMonth(month, 1) }}>
+                  In den nächsten Monat mitnehmen
+                </AppLink>
+                <p>
+                  Offene Barüberziehungen mindern dort „Zu verteilen“; ungedeckte Kartenausgaben
+                  bleiben Kartenschuld.
+                </p>
+              </div>
+            )}
             {urgent.length + credit.length > 0 && (
               <div className="cover-all-controls">
                 <label className="sr-only" htmlFor="cover-all-source">
@@ -352,7 +411,7 @@ function PlanBody({
                   {tba > 0 && <option value="">Zu verteilen · {eur(tba)}</option>}
                   {coverPool.map((r) => (
                     <option key={r.id} value={r.id}>
-                      {r.name} · {eur(r.availableCents)}
+                      {coverSourceLabel(r)}
                     </option>
                   ))}
                 </Select>

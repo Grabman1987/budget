@@ -98,7 +98,9 @@ test('plan: assign, cover, card debt, move, undo, rollover, distribute', async (
   // Compact control beside the figure opens the existing cover panel.
   await page.getByRole('button', { name: `${food} decken`, exact: true }).click();
   const coverPanel = page.getByRole('dialog', { name: food });
-  await coverPanel.getByLabel('Aus', { exact: true }).selectOption({ label: `${cafe} · 100,00 €` });
+  await coverPanel
+    .getByLabel('Aus', { exact: true })
+    .selectOption({ label: `${cafe} · 100,00 € · fest verplant 0,00 € · frei 100,00 €` });
   await expect(coverPanel.getByTestId('cover-remaining')).toHaveText(
     `aus ${cafe} · bleibt 50,00 €`,
   );
@@ -219,17 +221,19 @@ test('plan: a negative assignment stays editable, Escape keeps it, Decken asks w
   await page.reload();
   await page.getByRole('button', { name: `${trip} decken`, exact: true }).click();
   const coverPanel = page.getByRole('dialog', { name: trip });
-  await coverPanel.getByLabel('Aus', { exact: true }).selectOption('');
-  await coverPanel.getByRole('button', { name: /^Decken ·/ }).click();
-  const choice = page.getByRole('group', { name: 'Decken aus Zu verteilen' });
-  await expect(
-    choice.getByRole('button', { name: 'Trotzdem ganz decken (Zu verteilen wird negativ)' }),
-  ).toBeVisible();
-  if (tba > 0) await expect(choice.getByRole('button', { name: /^Nur .* decken$/ })).toBeVisible();
+  if (tba > 0) {
+    await coverPanel.getByLabel('Aus', { exact: true }).selectOption('');
+    await coverPanel.getByRole('button', { name: /^Decken ·/ }).click();
+    const choice = page.getByRole('group', { name: 'Decken aus Zu verteilen' });
+    await expect(choice.getByRole('button', { name: /^Nur .* decken$/ })).toBeVisible();
+    await expect(choice.getByRole('button', { name: /Trotzdem ganz decken/ })).toHaveCount(0);
+    await choice.getByRole('button', { name: 'Abbrechen' }).click();
+    await expect(choice).toHaveCount(0);
+  } else {
+    await expect(coverPanel.getByLabel('Aus').locator('option[value=""]')).toHaveCount(0);
+  }
   const axe = await new AxeBuilder({ page }).include('main').analyze();
   expect(axe.violations.map((v) => `${v.id}: ${v.nodes[0]?.target}`)).toEqual([]);
-  await choice.getByRole('button', { name: 'Abbrechen' }).click();
-  await expect(choice).toHaveCount(0);
   expect(writes).toHaveLength(1);
 });
 
