@@ -46,13 +46,25 @@ for reproduction. No keys, consents, migrations or provider setup are required.
 Local synthetic evidence: [desktop 1440](evidence/ux-mobile-shell-1005/desktop-1440.png)
 and [phone 390](evidence/ux-mobile-shell-1005/phone-390.png).
 
-## Local verification limitation
+## Local verification
 
-The full local check is not green. The unchanged format-hook fixture still fails
-in isolation (33/34 tests pass): its internal 800/900 ms Prettier process limits
-skip formatting under local load. A longer Vitest timeout does not change those
-internal limits. This is outside the shell lane and remains a separate follow-up.
-Three other full-suite timeout files pass in isolation with a longer test timeout
-(80/80 tests). Type checking, lint, production/E2E builds, the new shell unit test
-and the affected browser reruns pass. No green full-suite or Linux visual result
-is claimed. Full-suite and owner/CI acceptance remain open.
+The full check was started once. Two unsupported Testing Library options in the
+new unit test were corrected; the web workspace typecheck was rerun successfully.
+Other workspace typechecks, lint/formatting and production/E2E builds passed.
+The remaining lint and unit phases were run separately, without restarting the
+full check.
+
+The full unit run finished with 3091 passed and four failed tests (327 files).
+Three unchanged files exceeded the default five-second test limit; isolated
+reruns with a longer timeout passed all 80 tests. The unchanged format-hook
+fixture skipped Prettier under its internal 800/900 ms process limits during
+load. After the full suite completed, its isolated rerun passed all 34 tests.
+No assertions or committed timeout settings were changed.
+
+The final shell unit test passed (1/1). The initial affected browser run had
+55 passed, 17 planned skips and four failures: two route-sweep timeouts, an
+incorrect harness count of the off-screen skip link, and a navigation during
+an E2E rebuild. After diagnosis/correction, the targeted rerun passed 11 tests
+with four planned skips, including all four previous failures and all three
+new WebKit checks. Linux visual comparison is skipped on Windows; the affected
+baselines above remain untouched and require CI/owner review.
