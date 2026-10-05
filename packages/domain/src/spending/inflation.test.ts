@@ -161,6 +161,94 @@ describe('personalInflation', () => {
       'insufficient',
     );
   });
+  it('attributes every calendar-year change to items and reports integer-cent monthly means', () => {
+    const r = personalInflation({
+      available,
+      items: [rent, power],
+      baseConsumptionCents: 1,
+      reference: Object.fromEntries(available.map((m, i) => [m, 100 + i])),
+    });
+    const rentYears = r.basket.find((b) => b.id === 'rent')!.years;
+    expect(rentYears).toEqual([
+      { year: 2023, averageCents: 80_000, changeBp: null, contributionBp: null },
+      { year: 2024, averageCents: 80_000, changeBp: null, contributionBp: 0 },
+      { year: 2025, averageCents: 82_000, changeBp: 250, contributionBp: 889 },
+      { year: 2026, averageCents: 88_000, changeBp: 1_000, contributionBp: 889 },
+    ]);
+    expect(r.basket.find((b) => b.id === 'power')!.years.at(-1)).toEqual({
+      year: 2026,
+      averageCents: 11_333,
+      changeBp: 1_333,
+      contributionBp: 242,
+    });
+    expect(r.years.map((y) => y.ownChangeBp)).toEqual([null, 0, 889, 1_131]);
+    for (const y of r.years) {
+      const contributions = r.basket.map(
+        (b) => b.years.find((v) => v.year === y.year)!.contributionBp,
+      );
+      if (y.ownChangeBp === null) expect(contributions.every((v) => v === null)).toBe(true);
+      else expect(contributions.reduce<number>((sum, v) => sum + v!, 0)).toBe(y.ownChangeBp);
+    }
+    expect(r.years.at(-1)?.throughMonth).toBe('2026-09');
+  });
+  it('reconciles signed year contributions across parallel items and annual reweighting', () => {
+    const items = [0, 1, 2].map((i): InflationItem => ({
+      id: `parallel-${i}`,
+      name: `Synthetic contract ${i}`,
+      categoryId: 'parallel',
+      class: 'need',
+      level: steps([
+        [0, 10_000],
+        [18, i === 2 ? 8_999 : 11_003],
+        [30, i === 2 ? 9_999 : 12_007],
+      ]),
+      spend: Object.fromEntries(
+        available.map((m, pos) => [m, pos < 27 ? 10_000 : (i + 1) * 7_000]),
+      ),
+    }));
+    const r = personalInflation({ available, items, baseConsumptionCents: 1 });
+    expect(r.basket).toHaveLength(3);
+    expect(r.basket[2]!.years.find((y) => y.year === 2025)!.contributionBp).toBeLessThan(0);
+    for (const y of r.years.filter((y) => y.ownChangeBp !== null)) {
+      expect(
+        r.basket.reduce(
+          (sum, b) => sum + b.years.find((v) => v.year === y.year)!.contributionBp!,
+          0,
+        ),
+      ).toBe(y.ownChangeBp);
+    }
+  });
+  it('keeps successor prices together and leaves missing yearly prices unavailable', () => {
+    const old = {
+      ...rent,
+      categoryId: 'rent',
+      rhythm: 'monthly' as const,
+      level: Object.fromEntries(available.map((m, i) => [m, i < 24 ? 80_000 : null])),
+      spend: Object.fromEntries(available.map((m, i) => [m, i < 24 ? 80_000 : 0])),
+    };
+    const next = {
+      ...old,
+      id: 'next',
+      name: 'Synthetic successor',
+      level: flat(88_000, 24),
+      spend: Object.fromEntries(available.map((m, i) => [m, i >= 24 ? 88_000 : 0])),
+    };
+    const ended = {
+      ...power,
+      level: Object.fromEntries(available.map((m, i) => [m, i < 15 ? 10_000 : null])),
+    };
+    const r = personalInflation({ available, items: [old, next, ended], baseConsumptionCents: 1 });
+    expect(r.basket).toHaveLength(2);
+    expect(r.basket.find((b) => b.id === 'rent')!.years.find((y) => y.year === 2025)).toMatchObject(
+      { averageCents: 82_000, changeBp: 250 },
+    );
+    expect(r.basket.find((b) => b.id === 'power')!.years.at(-1)).toEqual({
+      year: 2026,
+      averageCents: null,
+      changeBp: null,
+      contributionBp: 0,
+    });
+  });
 });
 
 describe('derivePriceHistory', () => {
