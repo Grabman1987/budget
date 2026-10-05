@@ -7,6 +7,7 @@ it('keeps a literal cent residual and does not erase negative savings', () => {
     otherCents: 133,
   });
   expect(recordedPrincipal(10000, 1000)).toBe(9000);
+  expect(recordedPrincipal(10000, -1000)).toBe(10000);
   expect(() => reconcileWholePicture(Number.MAX_SAFE_INTEGER, -10000, 0, 0)).toThrow(RangeError);
 });
 it('shows the 102% spending stack despite negative future assignment and a positive rest', () => {

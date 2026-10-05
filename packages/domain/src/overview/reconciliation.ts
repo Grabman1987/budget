@@ -16,7 +16,7 @@ export function reconcileWholePicture(
   return { deltaCents, otherCents };
 }
 
-/** Recorded debt payments less explicitly booked interest/fees; card purchases are not fees. */
+/** Recorded payments less net booked interest/fees; fee refunds never create extra payments. */
 export function recordedPrincipal(paymentCents: number, costCents: number) {
-  return Math.max(0, paymentCents - costCents);
+  return Math.max(0, paymentCents - Math.max(0, costCents));
 }

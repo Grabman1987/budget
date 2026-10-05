@@ -124,7 +124,7 @@ export function wholePicture(db: Executor, today: string, period: Period = '1J')
           .filter(
             (s) =>
               s.transferAccountId != null &&
-              budgetAccounts.includes(s.transferAccountId) &&
+              accounts.some((a) => a.id === s.transferAccountId) &&
               !debtIds.has(s.transferAccountId) &&
               s.amountCents > 0,
           )

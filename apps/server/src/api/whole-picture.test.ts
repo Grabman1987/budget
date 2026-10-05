@@ -80,6 +80,23 @@ it('closes the period and each month to the cent with visible other movements an
   expect(data.rows[0]!.investmentsInCents).toBe(20000); // the internal 5000 transfer is neutral
 });
 
+it('counts principal paid from an investment account while keeping the budget-investment boundary intact', async () => {
+  opened.sqlite.exec(`
+    INSERT INTO transfer (id) VALUES ('asset-repayment');
+    INSERT INTO booking (id,account_id,date,amount_cents,transfer_id) VALUES
+      ('asset-repayment-out','b','2026-01-28',-3000,'asset-repayment'),
+      ('asset-repayment-in','loan','2026-01-28',3000,'asset-repayment');
+    INSERT INTO booking_split (id,booking_id,amount_cents) VALUES
+      ('asset-repayment-out','asset-repayment-out',-3000),
+      ('asset-repayment-in','asset-repayment-in',3000);
+  `);
+  const data = await overview();
+  expect(data.totals.principalCents).toBe(12000);
+  expect(data.totals.investmentsInCents).toBe(20000);
+  expect(data.totals.marketCents).toBe(-1000);
+  expect(data.totals.endCents).toBe(491000);
+});
+
 it('uses the values of Vermögen, 1.8, 3.2 and the depot view of 4.3', async () => {
   const data = await overview();
   const nw = await read<{ chain: { nowCents: number; startCents: number } }>(
