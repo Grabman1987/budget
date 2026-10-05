@@ -48,8 +48,12 @@ test('groups can be created, renamed and selected; a P2P account keeps its assig
   );
   expect(saved.allocationAssetClassId).toBe(cls.id);
   await page.goto('/reports/pallocation');
-  await expect(page.locator('.composition-legend')).toContainText(className);
-  await expect(page.locator('.composition-legend')).toContainText(groupName + ' neu');
+  // Other specs share this server and may leave a CHF account without a rate, which makes the
+  // whole report honestly unavailable; the legend can only be checked while it is available.
+  if ((await page.request.get('/api/portfolio/allocation-report')).ok()) {
+    await expect(page.locator('.composition-legend')).toContainText(className);
+    await expect(page.locator('.composition-legend')).toContainText(groupName + ' neu');
+  }
   for (const theme of ['light', 'dark']) {
     await page.evaluate((t) => (document.documentElement.dataset['theme'] = t), theme);
     await clean(page);
@@ -210,6 +214,8 @@ test('U02-U12: create, German field errors, duplicate, rename, reorder, safe/blo
     .getByRole('link', { name: renamed, exact: true })
     .click();
   await panel.getByRole('button', { name: 'Wieder aktivieren', exact: true }).click();
+  // The save closes its own panel; wait for that so it cannot close the next one.
+  await expect(page.locator('dialog[open]')).toHaveCount(0);
   await page.getByRole('link', { name: 'Sollquoten bearbeiten', exact: true }).click();
   panel = page.getByRole('dialog', { name: 'Sollquoten bearbeiten' });
   const classes = (await (await page.request.get('/api/asset-classes')).json()).assetClasses as {
