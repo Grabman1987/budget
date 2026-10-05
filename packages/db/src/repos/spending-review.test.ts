@@ -14,7 +14,7 @@ import { monthOnePager, monthFlowReport } from './month-reports';
 import { allocationMonth } from './allocation';
 import { bankCostsReport } from './bank-costs-report';
 import { contractsReport } from './contracts-report';
-import { createExpectedPayment } from './expected';
+import { createExpectedPayment, matchOccurrences, refreshOccurrences } from './expected';
 import { ruleInputs } from './rule-inputs';
 import { matchedCharges } from './contract-history';
 import { inflationReport } from './inflation-report';
@@ -483,4 +483,59 @@ it('ambiguous unlinked schedules never each claim the same payee spending', () =
   );
   expect(matchedCharges(opened.db, 'a', 'EUR')).toEqual([]);
   expect(matchedCharges(opened.db, 'b', 'EUR')).toEqual([]);
+});
+
+it('a contract whose recent occurrences are linked keeps its older unlinked history in the basket', () => {
+  categories.create(
+    opened.db,
+    { id: 'fixed', name: 'Synthetic fixed', groupId: 'g', class: 'need', kind: 'fixed' },
+    ctx,
+  );
+  const months = Array.from({ length: 14 }, (_, i) => {
+    const index = 9 + i;
+    return `${2023 + Math.floor(index / 12)}-${String((index % 12) + 1).padStart(2, '0')}`;
+  });
+  createExpectedPayment(
+    opened.db,
+    {
+      id: 'rent',
+      name: 'Synthetic rent',
+      categoryId: 'fixed',
+      payeeId: 'p1',
+      accountId: 'giro',
+      kind: 'outflow',
+      rhythm: 'monthly',
+      dueDay: 3,
+      startDate: '2023-10-01',
+    },
+    { validFrom: '2023-10-01', amountCents: 1_000 },
+    ctx,
+    '2024-11-17',
+  );
+  for (const month of months)
+    createBooking(
+      opened.db,
+      {
+        accountId: 'giro',
+        date: `${month}-03`,
+        payeeId: 'p1',
+        amountCents: month < '2024-06' ? -1_000 : -1_100,
+        splits: [{ amountCents: month < '2024-06' ? -1_000 : -1_100, categoryId: 'fixed' }],
+      },
+      ctx,
+    );
+  const before = inflationReport(opened.db, '2024-11-17');
+  refreshOccurrences(opened.db, '2024-11-17', ctx);
+  matchOccurrences(opened.db, '2024-11-17', ctx);
+  const linked = opened.db
+    .select()
+    .from(expectedOccurrence)
+    .all()
+    .filter((o) => o.bookingId !== null);
+  expect(linked.length).toBeGreaterThan(0);
+  expect(matchedCharges(opened.db, 'rent', 'EUR')).toHaveLength(months.length);
+  const after = inflationReport(opened.db, '2024-11-17');
+  expect(before.status).toBe('ok');
+  expect(after.status).toBe('ok');
+  expect(after.inflationBp).toBe(before.inflationBp);
 });
