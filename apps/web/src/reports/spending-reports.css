@@ -678,6 +678,10 @@ a.sr-state {
 }
 
 /* Persönliche Inflation: steps and contribution bars. */
+.pi-basket-view button {
+  min-height: 44px;
+}
+
 .sr-steps {
   display: grid;
   gap: 10px;

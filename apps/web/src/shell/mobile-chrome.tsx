@@ -25,7 +25,7 @@ export function phoneTitle(page: PageMeta | undefined, fallback: string): string
   return areaById(page.area).label;
 }
 
-/** Phone header (< 768 px): page title, inbox, theme, profile. */
+/** Phone header (< 768 px): page title, search, inbox, profile. */
 export function MobileHeader({ title, asHeading }: { title: string; asHeading: boolean }) {
   const inbox = useInboxCount();
   const identity = useShellIdentity();
@@ -59,17 +59,18 @@ export function MobileHeader({ title, asHeading }: { title: string; asHeading: b
         )}
       </div>
       <span className="spacer" />
+      <GlobalSearch mobile />
       <PanelLink className="icon-btn" panel="posteingang" aria-label={inbox.label}>
         <Inbox size={18} strokeWidth={1.75} aria-hidden="true" />
         {inbox.count !== undefined && inbox.count > 0 && <Count>{inbox.count}</Count>}
       </PanelLink>
-      <ThemeButton variant="icon" />
       <details className="m-profile" ref={profileMenu}>
         <summary className="avatar" aria-label={`${identity.name}: Profilmenü`}>
           {identity.initials}
         </summary>
         <div className="m-profile-actions">
           <PrivacyButton text />
+          <ThemeButton variant="side" />
           <AppLink
             className="btn btn-ghost"
             to="/einstellungen"
@@ -99,7 +100,6 @@ export function TabBar({ area }: { area: AreaId | undefined }) {
           );
         })}
       </nav>
-      <GlobalSearch mobile />
       <nav aria-label="Schnellerfassung">
         <PanelLink className="fab" panel="buchung" aria-label="Buchung erfassen">
           <Plus size={26} strokeWidth={2} aria-hidden="true" />

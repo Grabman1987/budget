@@ -1,5 +1,5 @@
 import { AppLink } from '../shell/app-link';
-import { useId, useState } from 'react';
+import { Fragment, useId, useState } from 'react';
 import { chartPoints, chartPercent } from '../charts/tooltip-data';
 import {
   useAmountPrivacy,
@@ -10,6 +10,7 @@ import {
   Line,
   LineLegend,
   XTicks,
+  Segmented,
 } from '@budget/ui';
 import type { InflationReport } from '@budget/db';
 import { queryOptions, useQuery } from '@tanstack/react-query';
@@ -32,6 +33,8 @@ const num2 = new Intl.NumberFormat('de-AT', { minimumFractionDigits: 2, maximumF
 const index1 = (value: number) => num1.format(value);
 /** Percentage points from hundredths of a point (`81` = +0,81 Pp). */
 const pp = (bp: number) => `${bp < 0 ? MINUS : '+'}${num2.format(Math.abs(bp) / 100)}`;
+const yearPercent = (bp: number | null) =>
+  bp === null ? '–' : `${bp < 0 ? MINUS : bp > 0 ? '+' : ''}${num2.format(Math.abs(bp) / 100)} %`;
 
 /** 2.4 Persönliche Inflation: Wie stark steigen unsere Preise? */
 export function PersonalInflationReport({ report, meta }: { report: ReportEntry; meta: PageMeta }) {
@@ -68,6 +71,7 @@ export function PersonalInflationReport({ report, meta }: { report: ReportEntry;
 
 function Body({ data }: { data: InflationReport }) {
   useAmountPrivacy();
+  const [basketView, setBasketView] = useState<'base' | 'year'>('base');
   if (data.status !== 'ok')
     return (
       <section className="sr-card sr-wide" aria-labelledby="pi-empty">
@@ -248,8 +252,8 @@ function Body({ data }: { data: InflationReport }) {
                         <td colSpan={3}>Für diesen Monat fehlt der Vergleichsmonat im Vorjahr.</td>
                       ) : (
                         <>
-                          <td>{bpText(y.ownChangeBp, { sign: true })}</td>
-                          <td>{bpText(y.referenceChangeBp, { sign: true })}</td>
+                          <td>{yearPercent(y.ownChangeBp)}</td>
+                          <td>{yearPercent(y.referenceChangeBp)}</td>
                           <td
                             className={
                               y.differenceBp !== null && y.differenceBp < 0
@@ -352,32 +356,47 @@ function Body({ data }: { data: InflationReport }) {
       <section className="sr-card sr-wide" aria-labelledby="pi-basket">
         <div className="sr-head">
           <h2 id="pi-basket">Warenkorb</h2>
+          <Segmented
+            label="Warenkorbansicht"
+            className="pi-basket-view"
+            options={[
+              { value: 'base', label: 'Seit Basis' },
+              { value: 'year', label: 'Je Jahr' },
+            ]}
+            value={basketView}
+            onChange={setBasketView}
+          />
         </div>
-        <ScrollRegion label="Verträge im Warenkorb">
-          <table className="sr-table" data-testid="inflation-basket">
-            <thead>
-              <tr>
-                <th scope="col">Kategorie / Vertrag</th>
-                <th scope="col">Quelle</th>
-                <th scope="col">Gewicht</th>
-                <th scope="col">Basis je Monat</th>
-                <th scope="col">Jetzt je Monat</th>
-                <th scope="col">Änderung ab Basis</th>
-                <th scope="col">
-                  Beitrag <Term term="Pp" />
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {[...new Set(data.basket.map((b) => b.categoryId))].map((id) => (
-                <BasketCategory key={id} id={id} data={data} />
-              ))}
-            </tbody>
-          </table>
-        </ScrollRegion>
+        {basketView === 'year' ? (
+          <BasketYears data={data} />
+        ) : (
+          <ScrollRegion label="Verträge im Warenkorb">
+            <table className="sr-table" data-testid="inflation-basket">
+              <thead>
+                <tr>
+                  <th scope="col">Kategorie / Vertrag</th>
+                  <th scope="col">Quelle</th>
+                  <th scope="col">Gewicht</th>
+                  <th scope="col">Basis je Monat</th>
+                  <th scope="col">Jetzt je Monat</th>
+                  <th scope="col">Änderung ab Basis</th>
+                  <th scope="col">
+                    Beitrag <Term term="Pp" />
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {[...new Set(data.basket.map((b) => b.categoryId))].map((id) => (
+                  <BasketCategory key={id} id={id} data={data} />
+                ))}
+              </tbody>
+            </table>
+          </ScrollRegion>
+        )}
         <p className="sr-note">
-          Basis ist der erste eigene Preis; Änderung vergleicht Basis und Jetzt. Gewichte werden
-          jährlich erneuert. Beiträge zeigen die letzten zwölf Monate und ergeben die Leitkennzahl.
+          {basketView === 'year'
+            ? 'Ø je Monat ist das Mittel der beobachteten Monatspreise. Die Preisänderung vergleicht dieselben Monate im Vorjahr. Beiträge stammen aus dem verketteten Index: Dezember gegen Dezember, im laufenden Jahr der letzte Monat gegen den Vorjahresmonat. Ihre Summe ergibt genau „Je Kalenderjahr“. Ein Strich heißt: Preis oder Vergleich fehlt.'
+            : 'Basis ist der erste eigene Preis; Änderung vergleicht Basis und Jetzt. Gewichte werden jährlich erneuert. Beiträge zeigen die letzten zwölf Monate und ergeben die Leitkennzahl.'}
         </p>
         {data.hasOverrides && <p className="sr-note">Warenkorb in den Einstellungen festgelegt</p>}
         <details>
@@ -530,7 +549,81 @@ function MonthlyChart({ data }: { data: InflationReport }) {
   );
 }
 
-function BasketCategory({ id, data }: { id: string; data: InflationReport }) {
+function BasketYears({ data }: { data: InflationReport }) {
+  return (
+    <ScrollRegion label="Warenkorb je Kalenderjahr">
+      <table className="sr-table" data-testid="inflation-basket-yearly">
+        <caption className="sr-only">
+          Monatsmittel, Preisänderung zum Vorjahr und Inflationsbeitrag je Warenkorbposition und
+          Jahr
+        </caption>
+        <thead>
+          <tr>
+            <th scope="col" rowSpan={2}>
+              Kategorie / Vertrag
+            </th>
+            {data.years.map((y) => (
+              <th scope="col" colSpan={3} key={y.year}>
+                {y.year}
+                {!y.throughMonth.endsWith('-12') && <small>bis {monthShort(y.throughMonth)}</small>}
+              </th>
+            ))}
+          </tr>
+          <tr>
+            {data.years.map((y) => (
+              <Fragment key={y.year}>
+                <th scope="col" className="n">
+                  Ø je Monat
+                </th>
+                <th scope="col" className="n">
+                  Preis zum Vorjahr
+                </th>
+                <th scope="col" className="n">
+                  Beitrag <Term term="Pp" />
+                </th>
+              </Fragment>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {[...new Set(data.basket.map((b) => b.categoryId))].map((id) => (
+            <BasketCategory key={id} id={id} data={data} yearly />
+          ))}
+        </tbody>
+        <tfoot>
+          <tr className="is-total">
+            <th scope="row">Deine Teuerung</th>
+            {data.years.map((y) => (
+              <td key={y.year} colSpan={3} className="n">
+                {yearPercent(y.ownChangeBp)}
+              </td>
+            ))}
+          </tr>
+          <tr>
+            <th scope="row">
+              <Term term="VPI" />
+            </th>
+            {data.years.map((y) => (
+              <td key={y.year} colSpan={3} className="n">
+                {yearPercent(y.referenceChangeBp)}
+              </td>
+            ))}
+          </tr>
+        </tfoot>
+      </table>
+    </ScrollRegion>
+  );
+}
+
+function BasketCategory({
+  id,
+  data,
+  yearly = false,
+}: {
+  id: string;
+  data: InflationReport;
+  yearly?: boolean;
+}) {
   const rows = data.basket.filter((b) => b.categoryId === id);
   return (
     <>
@@ -552,18 +645,32 @@ function BasketCategory({ id, data }: { id: string; data: InflationReport }) {
               </ul>
             </details>
           </th>
-          <td>
-            {b.source === 'trailing'
-              ? '12-Monats-Mittel, enthält Verbrauch und Nachzahlungen'
-              : b.source === 'bookings'
-                ? 'aus Buchungen abgeleitet'
-                : 'gespeichert'}
-          </td>
-          <td>{bpText(b.shareBp)}</td>
-          <td>{eur(b.baseCents)}</td>
-          <td>{eur(b.nowCents)}</td>
-          <td>{bpText(b.changeBp, { sign: true })}</td>
-          <td>{pp(b.contributionBp)}</td>
+          {yearly ? (
+            b.years.map((y) => (
+              <Fragment key={y.year}>
+                <td className="n">{y.averageCents === null ? '–' : eur(y.averageCents)}</td>
+                <td className="n">{yearPercent(y.changeBp)}</td>
+                <td className="n" data-year={y.year} data-contribution>
+                  {y.contributionBp === null ? '–' : pp(y.contributionBp)}
+                </td>
+              </Fragment>
+            ))
+          ) : (
+            <>
+              <td>
+                {b.source === 'trailing'
+                  ? '12-Monats-Mittel, enthält Verbrauch und Nachzahlungen'
+                  : b.source === 'bookings'
+                    ? 'aus Buchungen abgeleitet'
+                    : 'gespeichert'}
+              </td>
+              <td>{bpText(b.shareBp)}</td>
+              <td>{eur(b.baseCents)}</td>
+              <td>{eur(b.nowCents)}</td>
+              <td>{bpText(b.changeBp, { sign: true })}</td>
+              <td>{pp(b.contributionBp)}</td>
+            </>
+          )}
         </tr>
       ))}
     </>
