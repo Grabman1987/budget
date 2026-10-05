@@ -2,6 +2,8 @@
 
 Synthetic isolated ledgers only. These are review images, not regenerated screenshot baselines.
 
+[Prepared Draft PR description](PR.md). Publication was blocked in the managed session: CLI authentication/TLS credential-store failures and a GitHub write-tool approval requirement with approvals disabled. All changes remain committed locally; no remote branch or PR was created. Owner delivery: refresh the normal local index with `git reset --mixed HEAD`, run `git push -u origin HEAD` from an authenticated shell, and open a Draft against `codex/inflation-basket-b-1005` using the prepared description.
+
 | View | Desktop 1440 | Mobile 390 |
 | --- | --- | --- |
 | Two mapped categories, light | [Image](explorer-two-categories-light-desktop.png) | [Image](explorer-two-categories-light-mobile.png) |
