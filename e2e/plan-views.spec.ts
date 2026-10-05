@@ -20,7 +20,7 @@ test('plan views: status, 50/30/20, triage groups and the time view', async ({ p
 
   // Assigned money far above the income: dashes and a sentence, no 595 % bar.
   const split = page.locator('.split-band');
-  await expect(split).toContainText('mehr zugewiesen als eingenommen');
+  await expect(split).toContainText('über Einnahmen');
   await expect(split.locator('.sb-legend')).not.toContainText(/\d+ %/);
   await expect(split.locator('.sb-seg')).toHaveCount(0);
 
