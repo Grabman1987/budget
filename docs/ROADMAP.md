@@ -1,5 +1,12 @@
 # Roadmap
 
+### UX-3a — Phone shell (owner feedback 2026-10-05)
+
+- [x] One floating booking action; existing search in the phone header, theme switch in the profile menu, 44 px header controls.
+- [x] Shared page padding clears the safe-area-aware tab bar and FAB by 16 px.
+- [x] Synthetic unit and phone touch/search/clearance regressions, including WebKit; [scope and baseline list](ux-mobile-shell-1005.md).
+- [ ] Original avatar interception reproduced on the owner's phone, Linux screenshot review and owner acceptance. The prior tree's avatar was tappable in local Chromium and WebKit; no blocking overlay was found.
+
 ### Full page width — owner feedback 2026-10-05
 
 - [x] Shared unbounded page-width token, existing gutters and narrow text/form/dialog/A4 exceptions.
