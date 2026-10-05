@@ -121,7 +121,7 @@ test.describe('routes', () => {
     await expect(page.locator('.rcat-row')).toHaveCount(32);
     await expect(page.locator('.rcat-grp')).toHaveCount(5);
     await expect(page.locator('.rcat-row .col-pos').first()).toHaveText('1.1');
-    await expect(page.locator('.rcat-row .col-pos').last()).toHaveText('5.6');
+    await expect(page.locator('.rcat-row .col-pos').last()).toHaveText('5.5');
     // As in the prototype: chart form and Steuerung per row; a click on the row opens the report.
     await expect(page.locator('.rcat-row').first().locator('.rcat-form')).toHaveText(
       'Druckblatt A4',
