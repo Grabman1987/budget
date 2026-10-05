@@ -1,5 +1,6 @@
 import { expect, sampleTest as test } from './sample';
 import { inspectReport } from './spending-helpers';
+import type { InflationReport } from '@budget/db';
 
 // 2.4 Persönliche Inflation on the seeded sample ledger (today 17.09.2026).
 
@@ -70,4 +71,63 @@ test('indexes the fixed contracts, attributes the change and says what is not in
   await expect(page.getByText(/Nicht im Warenkorb/)).toBeVisible();
 
   await inspectReport(page, info, 'personal-inflation');
+});
+
+test('shows yearly basket prices and exact contributions matching the calendar-year table', async ({
+  page,
+  request,
+}, info) => {
+  test.setTimeout(120_000);
+  const data = (await (
+    await request.get('/api/reports/spending/inflation')
+  ).json()) as InflationReport;
+  await page.goto('/reports/inflation');
+  await expect(page.getByTestId('pi-rate')).toBeVisible({ timeout: 30_000 });
+  const toggle = page.getByRole('group', { name: 'Warenkorbansicht' });
+  await expect(toggle.getByRole('button', { name: 'Seit Basis' })).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  );
+  const yearlyButton = toggle.getByRole('button', { name: 'Je Jahr' });
+  await yearlyButton.focus();
+  await yearlyButton.press('Enter');
+  await expect(yearlyButton).toHaveAttribute('aria-pressed', 'true');
+  expect((await yearlyButton.boundingBox())!.height).toBeGreaterThanOrEqual(44);
+  const basket = page.getByTestId('inflation-basket-yearly');
+  await expect(basket.getByRole('columnheader', { name: /2026/ })).toContainText('bis Aug 26');
+  const number = new Intl.NumberFormat('de-AT', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+  const percent = (bp: number | null) =>
+    bp === null ? '–' : `${bp < 0 ? '−' : bp > 0 ? '+' : ''}${number.format(Math.abs(bp) / 100)} %`;
+  const totals = basket.getByRole('row', { name: /^Deine Teuerung/ });
+  const vpi = basket.getByRole('row', { name: /^VPI/ });
+  for (const [i, year] of data.years.entries()) {
+    await expect(totals.getByRole('cell').nth(i)).toHaveText(percent(year.ownChangeBp));
+    await expect(vpi.getByRole('cell').nth(i)).toHaveText(percent(year.referenceChangeBp));
+    if (year.ownChangeBp !== null) {
+      await expect(
+        page
+          .getByTestId('yearly-table')
+          .getByRole('row', { name: new RegExp(`^${year.year}`) })
+          .getByRole('cell')
+          .first(),
+      ).toHaveText(percent(year.ownChangeBp));
+      const texts = await basket
+        .locator(`tbody td[data-year="${year.year}"][data-contribution]`)
+        .allTextContents();
+      const sum = texts.reduce(
+        (total, value) =>
+          total + Math.round(Number(value.replace('−', '-').replace(',', '.')) * 100),
+        0,
+      );
+      expect(sum).toBe(year.ownChangeBp);
+    }
+  }
+  await expect(basket).toContainText('Ø je Monat');
+  await inspectReport(page, info, 'personal-inflation-yearly');
+  await toggle.getByRole('button', { name: 'Seit Basis' }).click();
+  await expect(page.getByTestId('inflation-basket')).toBeVisible();
+  await expect(basket).toHaveCount(0);
 });
