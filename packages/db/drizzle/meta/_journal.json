@@ -267,6 +267,13 @@
       "when": 1791169954625,
       "tag": "0037_category_inflation_trailing_mean",
       "breakpoints": true
+    },
+    {
+      "idx": 38,
+      "version": "6",
+      "when": 1791216204302,
+      "tag": "0038_asset_class_tree",
+      "breakpoints": true
     }
   ]
 }

@@ -51,9 +51,20 @@ it('0035 is generated from main 0034, preserves every existing row/value, repeat
     const before = rows(),
       worth = netWorthAsOf(opened.db, REPORT_TODAY),
       values = holdingValuesAsOf(opened.db, REPORT_TODAY);
+    // Current migrations add only these known defaults to the original class rows.
+    // Every original column and every other table remain compared without omission.
+    const expected = before.map((records, i) =>
+      tables[i] === 'asset_class'
+        ? records.map((row) => ({
+            ...(row as Record<string, unknown>),
+            parent_id: null,
+            is_group: 0,
+          }))
+        : records,
+    );
     await opened.sqlite.backup(join(dir, 'before.sqlite'));
     migrateDatabase(opened.db);
-    expect(rows()).toEqual(before);
+    expect(rows()).toEqual(expected);
     expect(netWorthAsOf(opened.db, REPORT_TODAY)).toEqual(worth);
     expect(holdingValuesAsOf(opened.db, REPORT_TODAY)).toEqual(values);
     expect(
@@ -62,10 +73,10 @@ it('0035 is generated from main 0034, preserves every existing row/value, repeat
     expect(opened.sqlite.prepare('SELECT * FROM asset_target_version').all()).toEqual([]);
     expect(opened.sqlite.pragma('foreign_key_check')).toEqual([]);
     migrateDatabase(opened.db);
-    expect(rows()).toEqual(before);
+    expect(rows()).toEqual(expected);
     restored = openDatabase(join(dir, 'before.sqlite'));
     migrateDatabase(restored.db);
-    expect(rows(restored)).toEqual(before);
+    expect(rows(restored)).toEqual(expected);
     expect(netWorthAsOf(restored.db, REPORT_TODAY)).toEqual(worth);
     expect(restored.sqlite.pragma('foreign_key_check')).toEqual([]);
   } finally {
