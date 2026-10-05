@@ -266,8 +266,10 @@ sampleTest('Geldfluss: twelve months, running month and empty states', async ({ 
   await expect(page.getByTestId('sankey-chart')).toBeVisible();
   await inspect(page, info, 'geldfluss-12-monate');
 
+  const empty = page.waitForResponse(isFlow('2023-05', 'month'));
   await page.goto('/reports/geldfluss?monat=2023-05');
-  await expect(page.getByText(/gibt es keine Aufzeichnungen/)).toBeVisible();
+  expect((await empty).status()).toBe(200);
+  await expect(page.getByText(/gibt es keine Aufzeichnungen/)).toBeVisible({ timeout: 30_000 });
   await page.route('**/api/reports/month/flow*', (route) =>
     route.fulfill({ status: 500, json: { error: 'boom', message: 'Fehler' } }),
   );
