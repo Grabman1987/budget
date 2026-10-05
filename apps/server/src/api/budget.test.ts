@@ -340,3 +340,12 @@ it('bulk cover includes a payment envelope and accounts for funding it from cove
     (await call('POST', '/budget/2026-10/move', { coverAll: true, fromId: payment.id })).status,
   ).toBe(422);
 });
+
+it('rejects the old negative-money cover override before any mutation', async () => {
+  const result = await call('POST', '/budget/2026-10/cover', {
+    categoryId: 'test',
+    fromId: null,
+    allowNegative: true,
+  });
+  expect(result.status).toBe(400);
+});

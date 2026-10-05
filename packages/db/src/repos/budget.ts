@@ -3,12 +3,14 @@ import {
   coverPlan,
   formatEuro,
   summarizeMonth,
+  todayInVienna,
   unclassifiedMonth,
   type CardRule,
   type MonthSummary,
 } from '@budget/domain';
 import { and, eq, isNull } from 'drizzle-orm';
 import { category, envelopeMonth } from '../schema';
+import { coverCommitments } from './cover-limits';
 import { withGroup, type AuditContext } from './audit';
 import { getEntity } from './entities';
 import { categoryTree } from './categories';
@@ -49,8 +51,7 @@ function requireEnvelope(db: Executor, id: string) {
  * raises the month's assigned total (`addedCents` > 0) must leave "Zu verteilen" at 0 or more;
  * writes that only reduce or reshuffle (net 0) always pass, also while "Zu verteilen" is already
  * negative. The overdraft of an account is a floor of the account, not money to assign: it is
- * not part of "Zu verteilen" and so never offered here. The only override is the explicit
- * `allowNegative` of "Trotzdem ganz decken" in `coverOverspending`.
+ * not part of "Zu verteilen" and so never offered here. Repository-only `allowNegative` supports synthetic reconciliation; the cover API never permits it.
  */
 function guardAssignable(db: Executor, month: string, addedCents: number): void {
   if (addedCents <= 0) return;
@@ -142,10 +143,10 @@ export function coverOverspending(
   categoryId: string,
   fromId: string | null,
   ctx: AuditContext,
-  options: { cardRule?: CardRule; allowNegative?: boolean } = {},
+  options: { cardRule?: CardRule; allowNegative?: boolean; today?: string } = {},
 ): { groupId: string; coveredCents: number } {
   const grouped = withGroup(ctx);
-  const { allowNegative, ...read } = options;
+  const { allowNegative, today = todayInVienna(), ...read } = options;
   return runInTransaction(db, (tx) => {
     const [m] = budget(tx, [month], read);
     const overspent = m?.envelopes[categoryId]?.overspentCents ?? 0;
@@ -155,15 +156,20 @@ export function coverOverspending(
         ? allowNegative
           ? overspent
           : (m?.toBeAssignedCents ?? 0)
-        : (m?.envelopes[fromId]?.availableCents ?? 0);
+        : (coverCommitments(
+            tx,
+            month,
+            today,
+          )([{ categoryId: fromId, availableCents: m?.envelopes[fromId]?.availableCents ?? 0 }])[0]
+            ?.freeCents ?? 0);
     const coveredCents = Math.min(overspent, Math.max(0, available));
     if (coveredCents === 0)
       throw new CategoryRuleError(
         fromId === null
           ? '„Zu verteilen“ reicht nicht zum Decken.'
-          : 'Die Quelle hat kein Geld verfügbar.',
+          : 'Die Quelle hat kein freies Geld zum Decken.',
       );
-    // The cover amount was capped above; with `allowNegative` the owner confirmed going below 0.
+    // The API always caps above; the repository override is only for reconciliation tests.
     moveMoney(tx, month, fromId, categoryId, coveredCents, grouped, { allowNegative: true });
     return { groupId: grouped.groupId, coveredCents };
   });
@@ -197,10 +203,12 @@ export function coverAllOverspending(
   month: string,
   fromId: string | null | undefined,
   ctx: AuditContext,
+  today: string = todayInVienna(),
 ) {
   const grouped = withGroup(ctx);
   return runInTransaction(db, (tx) => {
     const { summary, tree } = budgetSummary(tx, month);
+    const limits = coverCommitments(tx, month, today);
     const groupOrder = new Map(tree.groups.map((g, i) => [g.id, i]));
     const envelopes = new Map(summary.envelopes.map((e) => [e.categoryId, e]));
     const categories = tree.categories
@@ -226,9 +234,10 @@ export function coverAllOverspending(
       // next target, so a later card-payment deficit is never covered twice.
       const current = budgetSummary(tx, month).summary;
       const balances = new Map(current.envelopes.map((e) => [e.categoryId, e]));
+      const freeById = new Map(limits(current.envelopes).map((e) => [e.categoryId, e.freeCents]));
       const pool = categories
         .filter((c) => c.kind !== 'card_payment')
-        .map((c) => ({ id: c.id, availableCents: balances.get(c.id)?.availableCents ?? 0 }));
+        .map((c) => ({ id: c.id, availableCents: freeById.get(c.id) ?? 0 }));
       const free = { id: null, availableCents: current.toBeAssignedCents };
       const sources =
         fromId === undefined

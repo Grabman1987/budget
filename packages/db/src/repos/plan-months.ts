@@ -1,4 +1,5 @@
 import {
+  budgetAccountMoney,
   lastDayOfMonth,
   monthOf,
   monthsBetween,
@@ -7,9 +8,10 @@ import {
   type BudgetMonth,
   type CardRule,
 } from '@budget/domain';
+import { coverCommitments } from './cover-limits';
 import { categoryTree } from './categories';
 import { planIncomeTargets } from './income-targets';
-import { budgetLedger, budgetOfLedger } from './queries';
+import { accountBalances, budgetLedger, budgetOfLedger } from './queries';
 import { loadFacts } from './rule-inputs';
 import type { Executor } from './types';
 
@@ -32,6 +34,10 @@ export function planMonthViews(
   const tree = categoryTree(db);
   const ledger = budgetLedger(db);
   const facts = loadFacts(db, lastDayOfMonth(last), ledger);
+  const balances = new Map(accountBalances(db, today).map((a) => [a.accountId, a.balanceCents]));
+  const budgetMoney = budgetAccountMoney(
+    facts.accounts.map((a) => ({ ...a, balanceCents: balances.get(a.id) ?? 0 })),
+  );
   const starts = ledger.accounts.filter((a) => a.onBudget).map((a) => monthOf(a.openingDate));
   // One budget run from the first budget month (the facts hold it for the default card rule).
   // Months before it (no budget account was open) keep their own single-month run, as before.
@@ -48,8 +54,19 @@ export function planMonthViews(
       )
     : facts.budgetByMonth;
   const view = (m: BudgetMonth, month: string) => {
+    const base = summarizeMonth(m, tree.categories, tree.targets);
+    const limits = new Map(
+      coverCommitments(
+        db,
+        month,
+        today,
+        ledger,
+        facts,
+      )(base.envelopes).map((e) => [e.categoryId, e]),
+    );
     const summary = {
-      ...summarizeMonth(m, tree.categories, tree.targets),
+      ...base,
+      envelopes: base.envelopes.map((e) => ({ ...e, ...limits.get(e.categoryId)! })),
       unclassified: unclassifiedMonth(ledger, month),
     };
     // Facts as `loadFacts(db, lastDayOfMonth(month))` would read them: only the first month differs.
@@ -59,6 +76,7 @@ export function planMonthViews(
     };
     return {
       summary,
+      budgetMoney,
       groups: tree.groups,
       categories: tree.categories,
       incomeTargets: planIncomeTargets(db, summary, today, monthFacts),
