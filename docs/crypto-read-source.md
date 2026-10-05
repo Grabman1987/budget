@@ -132,6 +132,10 @@ without mapping stay open as "Zuordnung fehlt"; after mapping, run it again.
 
 ## Remaining acceptance
 
+For owner-authorized repair of an incomplete migrated depot, use the separate
+operator [source-rebuild workflow](ops.md#128-rebuild-a-crypto-depot-from-staged-source-operations).
+The read source and inbox matcher continue to perform no automatic ledger writes.
+
 No real key, private data or live authenticated API was used. The owner must verify
 the live payload/scopes, account/asset mapping and reconciliation, then observe the
 nightly run for 14 days. The provider documentation does not guarantee an update

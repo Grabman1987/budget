@@ -42,7 +42,8 @@ function checkRefs(
 ) {
   if (values.assetClassId) {
     const row = assetClassRepo.get(tx, values.assetClassId);
-    if (!row) throw new BookingInvariantError('Bitte eine vorhandene aktive Anlageklasse wählen.');
+    if (!row || row.isGroup)
+      throw new BookingInvariantError('Bitte eine vorhandene aktive Anlageklasse wählen.');
   }
   if (values.institutionId) {
     const row = tx
@@ -203,9 +204,15 @@ export function createAssetClass(
     (!Number.isSafeInteger(values.sortOrder) || values.sortOrder < 0 || values.sortOrder > 100000)
   )
     throw new RangeError('Bitte eine Sortierposition zwischen 0 und 100000 eingeben.');
-  return runInTransaction(db, (tx) =>
-    assetClassRepo.create(tx, { ...values, name: checkedClassName(tx, values.name) }, ctx),
-  );
+  return runInTransaction(db, (tx) => {
+    const row = assetClassRepo.create(
+      tx,
+      { ...values, name: checkedClassName(tx, values.name) },
+      ctx,
+    );
+    assertAssetClassTree(tx);
+    return row;
+  });
 }
 export function updateAssetClass(
   db: Executor,
@@ -219,8 +226,11 @@ export function updateAssetClass(
     (!Number.isSafeInteger(patch.sortOrder) || patch.sortOrder < 0 || patch.sortOrder > 100000)
   )
     throw new RangeError('Bitte eine Sortierposition zwischen 0 und 100000 eingeben.');
-  return runInTransaction(db, (tx) =>
-    assetClassRepo.update(
+  return runInTransaction(db, (tx) => {
+    const current = getAssetClass(tx, id)!;
+    if (patch.isGroup !== undefined && patch.isGroup !== current.isGroup)
+      throw new RangeError('Gruppen und Anlageklassen können nicht ineinander umgewandelt werden.');
+    const row = assetClassRepo.update(
       tx,
       id,
       {
@@ -228,8 +238,10 @@ export function updateAssetClass(
         ...(patch.name !== undefined ? { name: checkedClassName(tx, patch.name, id) } : {}),
       },
       ctx,
-    ),
-  );
+    );
+    assertAssetClassTree(tx);
+    return row;
+  });
 }
 export function restoreAssetClass(db: Executor, id: string, ctx: AuditContext) {
   return runInTransaction(db, (tx) => {
@@ -237,7 +249,9 @@ export function restoreAssetClass(db: Executor, id: string, ctx: AuditContext) {
     if (!cls) throw new RangeError('Die Anlageklasse ist nicht verfügbar.');
     if (!cls.deletedAt) throw new RangeError('Die Anlageklasse ist bereits aktiv.');
     checkedClassName(tx, cls.name, id);
-    return assetClassRepo.restore(tx, id, ctx);
+    const row = assetClassRepo.restore(tx, id, ctx);
+    assertAssetClassTree(tx);
+    return row;
   });
 }
 
@@ -283,6 +297,7 @@ export function deleteAssetClass(
         'Archivieren ist nicht möglich: Diese Anlageklasse wird von Wertpapieren, deren Klassifikationshistorie oder Anlage-Cash verwendet. Die Historie bleibt erhalten.',
       );
     assetClassRepo.softDelete(tx, id, ctx);
+    assertAssetClassTree(tx);
   });
 }
 
@@ -300,7 +315,10 @@ export interface TargetVersion {
 }
 
 function liveClassIds(tx: Executor): string[] {
-  return assetClassRepo.list(tx).map((c) => c.id);
+  return assetClassRepo
+    .list(tx)
+    .filter((c) => !c.isGroup)
+    .map((c) => c.id);
 }
 
 /** Every target row, oldest version first. */
@@ -468,6 +486,7 @@ export function deleteTargetVersion(db: Executor, validFrom: string, ctx: AuditC
 
 /** Replayed writes must not bypass sums, references, unique names or archive dependencies. */
 export function assertAssetTargetInvariants(db: Executor, asOf = todayInVienna()) {
+  assertAssetClassTree(db);
   const classes = listAssetClasses(db, { includeDeleted: true });
   const ids = new Set(classes.map((c) => c.id));
   const versions = listTargetVersions(db);
@@ -502,6 +521,42 @@ export function assertAssetTargetInvariants(db: Executor, asOf = todayInVienna()
       throw new ConflictError(
         'Die archivierte Anlageklasse wird noch von Anlage-Cash oder Wertpapieren verwendet.',
       );
+  }
+}
+
+/** Also checked after audit replay: no cycles, grandchildren or live children of archived groups. */
+export function assertAssetClassTree(db: Executor) {
+  const classes = listAssetClasses(db, { includeDeleted: true });
+  for (const cls of classes) {
+    if (cls.isGroup && cls.parentId)
+      throw new RangeError('Eine Gruppe darf keine übergeordnete Gruppe haben.');
+    if (cls.parentId) {
+      const parent = classes.find((c) => c.id === cls.parentId);
+      if (
+        !parent?.isGroup ||
+        parent.parentId ||
+        (cls.deletedAt === null && parent.deletedAt !== null)
+      )
+        throw new RangeError(
+          'Bitte eine aktive Gruppe wählen. Es sind höchstens zwei Ebenen möglich.',
+        );
+    }
+    if (
+      cls.isGroup &&
+      (db.select().from(security).where(eq(security.assetClassId, cls.id)).get() ||
+        db
+          .select()
+          .from(securityAssetExposure)
+          .where(eq(securityAssetExposure.assetClassId, cls.id))
+          .get() ||
+        db.select().from(account).where(eq(account.allocationAssetClassId, cls.id)).get() ||
+        listTargetVersions(db).some((v) =>
+          [...v.targets, ...v.tiers.flatMap((t) => t.targets)].some(
+            (t) => t.assetClassId === cls.id,
+          ),
+        ))
+    )
+      throw new RangeError('Positionen und Sollquoten gehören zu Anlageklassen, nicht zu Gruppen.');
   }
 }
 

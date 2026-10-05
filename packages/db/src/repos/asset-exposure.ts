@@ -103,7 +103,7 @@ export function replaceExposureVersion(
       tx
         .select()
         .from(assetClass)
-        .where(isNull(assetClass.deletedAt))
+        .where(and(isNull(assetClass.deletedAt), eq(assetClass.isGroup, false)))
         .all()
         .map((r) => r.id),
     );

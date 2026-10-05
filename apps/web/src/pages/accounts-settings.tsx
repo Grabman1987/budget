@@ -27,6 +27,7 @@ import { ErrorNote, LoadingNote } from '../ledger/states';
 import { ACCOUNT_TYPES, type AccountRow, type AccountType } from '../ledger/types';
 import { KONTEN_SETTINGS_META } from '../nav/pages';
 import { PageFrame } from './placeholder-page';
+import { assetClassesQuery } from '../wealth/portfolio-api';
 import '../ledger/account-order.css';
 import './accounts-settings.css';
 
@@ -268,6 +269,8 @@ type Errors = Partial<
 function AccountEditForm({ account, onDone }: { account: AccountRow; onDone: () => void }) {
   useAmountPrivacy();
   const write = useBudgetWrite();
+  const classes = useQuery(assetClassesQuery());
+  const [allocationClass, setAllocationClass] = useState(account.allocationAssetClassId ?? '');
   const [name, setName] = useState(account.name);
   const [type, setType] = useState<AccountType>(account.type);
   const [onBudget, setOnBudget] = useState(account.onBudget);
@@ -295,6 +298,8 @@ function AccountEditForm({ account, onDone }: { account: AccountRow; onDone: () 
     event.preventDefault();
     const found: Errors = {};
     const patch: Partial<AccountInput> = {};
+    if ((allocationClass || null) !== (account.allocationAssetClassId ?? null))
+      patch.allocationAssetClassId = allocationClass || null;
     const trimmed = name.trim();
     if (trimmed === '') found.name = 'Bitte einen Namen eintragen.';
     else if (trimmed !== account.name) patch.name = trimmed;
@@ -416,6 +421,34 @@ function AccountEditForm({ account, onDone }: { account: AccountRow; onDone: () 
           </Select>
         )}
       </Field>
+      {group.id === 'investments' ? (
+        <Field label="Anlageklasse" hint="P2P und Cash-Positionen werden dieser Klasse zugeordnet.">
+          {({ id }) => (
+            <Select
+              id={id}
+              value={allocationClass}
+              disabled={classes.isPending || classes.isError}
+              onChange={(e) => setAllocationClass(e.target.value)}
+            >
+              <option value="">Ohne Anlageklasse</option>
+              {classes.data?.assetClasses
+                .filter((c) => !c.isGroup)
+                .map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name}
+                  </option>
+                ))}
+            </Select>
+          )}
+        </Field>
+      ) : null}
+      {classes.isError && (
+        <ErrorNote
+          what="Anlageklassen"
+          error={classes.error}
+          onRetry={() => void classes.refetch()}
+        />
+      )}
       <div className="kform-switch">
         <span id="settings-on-budget-label">
           Budget-Konto

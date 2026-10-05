@@ -652,6 +652,8 @@ Run it as `fly ssh console -a budget-fg -C "node /app/migrate-cli.js instrument-
 
 ### 12.6 Owner configuration (operator task)
 
+The additive `assetClassTree` section manages groups, class assignments, dated targets and explicit account classes, including operator-only P2P defaults. See [configuration, dry-run and owner steps](portfolio-composition.md#operator-configuration).
+
 `owner-config --file <json> [--dry-run] [--details]` loads the owner's private settings from one file
 (keep it on `/data/migration/`, never in the repo). Every section is optional; entries share one
 audit group per run (actor `operator`, `undo-group --group <id>` reverts the run) and call the function
@@ -688,7 +690,7 @@ code is 3. Running a file twice is safe: the second run reports everything as `u
 }
 ```
 
-Sections run in this order: `createSecurities`, `cryptoMappings`, `splitCategories`, then
+Sections run in this order: `assetClassTree`, `createSecurities`, `cryptoMappings`, `splitCategories`, then
 `profile`, `rules`, `categoryStages`, `assetClasses`, `securities`,
 `expectedPayments`, `skipOccurrences`, `clearBookings`. Names are matched exactly (trimmed,
 case-insensitive for existing sections); unknown and ambiguous references are skipped. Each entry
@@ -885,6 +887,172 @@ Output has one status line per entry: `added|repaired|unchanged|deleted <id> <ac
 <gross-cents>`. Omitted delete match fields show `*` on skips. `--details` adds refusal messages;
 the summary counts logical entries (one reward counts as one). Exit 3 means at least one skip,
 1 means a file/command error, 0 means no skip. Output stays in the operator terminal.
+
+### 12.8. Rebuild a crypto depot from staged source operations
+
+Owner decision 2026-10-04: `source-rebuild` repairs incomplete PP trade history
+using staged `read_source` operations. Complete the history and asset/fiat mappings
+first ([crypto read source](crypto-read-source.md)). It never fetches a provider,
+changes mappings, sends orders or writes to budget accounts. Bank-side transfers
+stay intact. No new dependency, migration, key or secret is required.
+
+```sh
+node /app/migrate-cli.js source-rebuild --depot "<depot-name>" --cash "<cash-name>" \
+  --since 2026-03-01 --dry-run --details --report /data/private/rebuild-preview.json
+node /app/migrate-cli.js source-rebuild --depot "<depot-name>" --cash "<cash-name>" \
+  --since 2026-03-01 --details --report /data/private/rebuild-applied.json
+```
+
+Use the existing operator environment from section 12. Select active off-budget
+investment accounts by exact name; cash must be the depot's separate same-currency
+reference account. Reports must be **new files inside `DATA_DIR` on the private
+volume**, mode 0600. Existing files are never overwritten; report write failure
+rolls back the database run. Terminal output and JSON contain private ledger facts:
+never copy them into the repository, shared logs, issues or PRs.
+
+One transaction/audit group per run, actor `operator`, savepoint per removal or
+trade/reward pair. `--dry-run` exercises writes/invariants/audit, then rolls back
+everything. Exit 3 means skips, problems, unmatched fiat or unit differences;
+1 is an input/run error; 0 means none of these. Cash differences alone are reported
+because bank dates and an unadjusted opening balance can legitimately differ.
+
+With `--residual-to-opening` (owner decision 75) remaining final unit differences move
+to the start: each asset's opening correction at `since - 1 day` is adjusted by the exact
+difference (created if missing), listed under `residualToOpening` and as `residual_to_opening`
+issues, and no correction trades are placed in the history. Intermediate-day differences
+stay reported; `unitDifferences` counts only days still differing.
+
+1. Remove PP import trades on/after `since`, settlements and their `<key>:cash`
+   Verrechnung transfer pair to cash, obsolete rebuild rows, and cash's
+   `pp:cash-target:<account-id>` balancing booking (dated suffix supported).
+   Manual/`owner:` rows stay and the existing matcher claims them once before
+   creating counterparts; individual owner rewards are matched before aggregation.
+   Reconciled rows skip the whole removal unit unless `--unlock` explicitly grants
+   the same booking unlock option as `book`.
+2. At `since - 1 day`, sum each asset's wallet balances (`balanceAfter`, then later
+   flows; without snapshots replay from zero), including visible staking wallets. Subtract remaining pre-start trades
+   and create a delivery correction with that exact day's stored price, or zero
+   plus `opening_no_price`. Holding snapshots override trade history in the app,
+   so such a depot is refused before writes. Cash opening balance is never changed:
+   `openingCash` gives the exact difference, current/proposed `openingBalanceCents`
+   and the operator field **Einstellungen > Konten > Anfangssaldo**. If the account
+   opens after the comparison day, `proposedOpeningDate` requests correcting that
+   date first; the proposed balance is withheld until the operator reruns.
+3. Rebuild each primary mapped asset leg on its Europe/Vienna `creditedAt` day.
+   Group by `tradeId`, falling back to the operation; never round unsupported e8
+   units/cents. Missing prices and ambiguous allocation are reported.
+4. Verify `units` at opening, every completed month end and today: all
+   `differenceE8` values must be zero. `cash` lists every differing day,
+   `cashTop20` the largest differences and `cashEnd` today (even if equal).
+   Each differing security/date includes `byType`: source net units versus actual
+   created/preserved units by source operation type, with an opening baseline.
+   `unhandledOperations` lists IDs/types the planner does not handle.
+   JSON also includes created count/cent sums by kind, removed trade/booking
+   counts, retained/matched/skipped rows, unmapped fiat effects and the original
+   app matcher verdict plus `cashStatus` (including `matched_by_sum`).
+
+| Source type | Ledger effect |
+| --- | --- |
+| `buy`, `sell`, `earn_on_fiat_buy`, `savings_plan`, `leverage_liquidation`, `index_buy`, `index_sell`, `index_rebalancing`, `swap`, `earn_on_fiat_swap`, `dust_swap`, `margin_*` | Buy for units in, sell for units out. Same-asset fees (including separate legs in another wallet) reduce incoming or increase outgoing units, once. Primary fiat supplies gross value, including separate sell/buy fiat legs in swaps; stored-price swap valuation is the fallback without fiat. Fiat fees become `feeCents`, fiat tax becomes sell `taxCents`. Several assets share fiat/fees by stored-price value with conserved cent remainders. Shared PP/owner-trades helper creates `<key>:cash` settlement transfers. |
+| Separate outgoing `fee` leg in another asset | Sell the fee asset at its stored-price value V with `feeCents = V`: units decrease, settlement nets to zero, no cash transfer. Unmapped/unpriced fee assets are reported (`unmapped_asset` / `fee_no_price`). |
+| `merger_crypto` | One outgoing and one incoming asset on the same day, no fiat/tradeId: sell A and buy B at A's stored-price value. Without A's price, zero-valued `delivery_out` / `delivery_in` plus `merger_no_price`. Net cash is zero. |
+| Asset `deposit`, `withdrawal` | Net-unit `delivery_in` / `delivery_out` at stored-price value; absent price means zero plus `delivery_no_price`. Asset fee legs follow the same rules as trades. |
+| Asset `reclaim` | Zero-valued `delivery_out`, reported as `reclaim_zero_value`. |
+| `reward`, `passive_earn_reward`, `onetime_reward`, `best_reward`, `instant_trade_bonus`, `giveaway`, `trading_premium` (asset in, no fiat) | Equal EUR dividend and buy using a stored EUR price at most seven days old. Aggregate exact net units and individually rounded values per security/month; date = last included reward day, note = count. Unpriced rewards aggregate separately as zero-valued `delivery_in`, with report lines. Reward pairs require an EUR depot. Monthly aggregation shifts within-month timing; month-end units stay exact. |
+| `earn_on_fiat_reward` | Depot interest with cash transfer; the first mapped instrument supplies the existing money-only trade's required security reference. |
+| `stake`, `unstake`, platform `transfer` | No ledger effect. Sum main and staking wallets. Separate stake-IN/OUT operations are valid. An unstake-IN without a same-asset OUT in that operation reduces the eligible staking wallet from that instant until its next snapshot. |
+| Fiat `deposit`, `withdrawal`, `refund`, `reclaim`; every unknown type | No trade; report `matchSourceOperations` verdict. Remaining same-sign cash movements may match one cash booking by an exact sum of up to eight movements within ±12 days. Each movement/booking is claimed once. Above 100,000 subtotal states, report `aggregate_search_limit` and leave unresolved. |
+| Unmapped asset | No trade; report per-asset count and signed fiat effect. Allocation requiring an unknown price/mapping reports an unavailable effect; map first, rerun. |
+
+The reference sums each wallet's latest `balanceAfter` plus subsequent staged
+flows. Staking wallets receive stake-IN legs and rewards. For an incomplete
+unstake, choose the eligible staking wallet with the most recent balance at
+least as large as the incoming amount; subtract that amount once. A later
+snapshot supersedes the correction. Explicit unstake-OUT legs need no correction.
+
+`--staked-now "<mapped-security-name>=<decimal units>"` is an optional, repeatable
+override for the declared assets only; omission makes no staking adjustment.
+Names resolve uniquely against mapped securities;
+units must be nonnegative exact e8 decimals. Example with synthetic names:
+`--staked-now "Synthetic Coin a=1.5" --staked-now "Synthetic Coin b=0"`.
+The override replaces the observed staking total, preserving its historical
+changes. If no staking wallet is identifiable, reverse only main-wallet
+stake-OUT/unstake-IN movements from the declared total. Opening and verification
+use the same override; `staked` reports only explicitly declared assets.
+Negative reconstructed units are refused before ledger writes.
+
+Unmapped fiat legs in eligible trades/interest use their stored source currency
+identity (`read_source` balances) and the **latest stored ECB rate on/before the day** (EUR per
+native unit, micro-units), with one integer-cent rounding into cash's currency.
+Without an available rate, an EUR depot trade uses units times the stored EUR
+asset price, at most seven days old, and reports `fx_fallback_price`. Fiat fees
+and taxes preserve their native ratio to the principal with integer-cent rounding.
+Without both rate and recent price, use the nearest stored ECB rate of that
+currency in either direction, with `fx_nearest` and its `rateDate`. A currency
+without any stored ECB rate still skips. This also covers fiat interest. No provider is fetched.
+`fx_converted` retains currency, original amount/cents, source/target rate and
+converted cents. Their cash settlement uses the mapped cash account; cash
+verification adds the corresponding converted source flows to that account's
+native wallet replay. Fiat-only bank deposits/withdrawals retain their existing
+bank-side behavior. FX valuation changes of a second wallet are not cash flows.
+
+Keys: `rebuild:<operation-id>:<leg-index>`,
+`rebuild:<operation-id>:merger:out/in`,
+`rebuild:opening:<since>:<security-id>:source:<JSON-operation-ids>`, and
+`rebuild:reward:<YYYY-MM>:<security-id>[:unpriced]:source:<JSON-operation-ids>`
+(`:div`/`:buy` for reward pairs). Reward IDs are sorted and retain all contributing
+source operations; fee sells and swap legs keep their operation ID too.
+Equal rebuild rows/transfer pairs are `unchanged`, without second-run writes.
+Changed live rows update through trade/booking repositories. Deleted keys skip;
+restore the relevant audit group first rather than silently reviving owner deletions.
+
+Repeat `--trace "<mapped-security-name>"` to print private monthly diagnosis from
+`since - 1 day`, also included in `--report`. Each month has wallet balances with
+their last leg, snapshot and unstake correction; every source asset leg with
+operation ID/type and running source/app units; and live trades with importKey,
+kind, signed units, gross/fee/tax cents and running app/source units. App trades
+have day precision; source legs retain their timestamps. The opening trace
+contains all earlier source legs/trades. Keep terminal output and JSON private.
+Wallet replay detects snapshot deltas not explained by staged wallet legs,
+including leverage/expired products. For mapped assets, the rebuild books these
+exact signed deltas as zero-valued `split` trades. `split_from_balance` reports
+their date, signed e8 units, wallet and both snapshot leg IDs.
+Changes on the same security/day sum under `rebuild:split:<securityId>:<day>`.
+
+After rebuilding, `dust` lists zero-valued deliveries dated today, with note
+`Rundungsausgleich Quelle` and key `rebuild:dust:<securityId>`. They close only
+nonzero unit differences worth strictly less than one unrounded EUR cent at the
+latest stored price on/before today (stored ECB conversion for foreign quotes).
+Without a stored price, the absolute difference must be strictly below 0.001
+units. Missing quote FX or larger differences stay reported. Repeated runs
+reuse the live dust row; deleted keys and reconciled locks retain their safeguards.
+
+Review the private preview against the platform, map missing assets, resolve quotes,
+locked/retained trades and opening cash separately, then run. Repeat to verify
+`unchanged` and zero new writes. Keep the group ID; undo restores previous live
+rows, balances and units (new rows remain audited soft-deleted history):
+
+```sh
+node /app/migrate-cli.js undo-group --group <group-id> --dry-run
+node /app/migrate-cli.js undo-group --group <group-id>
+```
+
+Synthetic domain/database/CLI tests cover wallet replay, Vienna dates, proportional
+cent conservation, swaps, asset/fiat fees and tax, exact monthly rewards, unmapped
+cash effects, aggregated deposits, owner trades, openings, locks/unlock, unchanged
+reruns, dry-run rollback, report write refusal and undo. Live private reconciliation
+and deployment remain owner steps.
+
+Second-round local verification (2026-10-05): complete typecheck/lint, 317 suites
+and 3,066 tests passed; production build passed. The restricted Windows runtime
+used the existing ignored `os.userInfo()` test preload, without changing assertions.
+CI and private reconciliation remain owner steps.
+
+Third-round local verification (2026-10-05): complete `npm run check` passed
+(317 suites, 3,071 tests), and production build passed. The restricted Windows
+runtime used one test worker, extended test limits, one retry, the ignored
+`os.userInfo()` preload and native Node compile cache. Assertions and production
+dependencies are unchanged. CI and private reconciliation remain owner steps.
 
 ## 13. One-time Portfolio Performance migration (operator task)
 

@@ -17,7 +17,7 @@ const short = (value: number | null) =>
 /**
  * Account hierarchy under the Planliste: the overview's groups in YNAB's order (Budget-Konten,
  * Kreditkarten, Kredite, Investments) with their sums, each open account linking to its sheet.
- * Negative amounts are red pills. Groups fold away; the choice is remembered per group.
+ * Only negative budget/investment balances are red pills; card/loan balances remain ink. Groups fold away; the choice is remembered per group.
  *
  * The pencil (on hover or focus of a group head or account) switches the whole tree to edit mode:
  * accounts get a grip and ↑ / ↓ buttons to change their order within their group, "Fertig" ends it.
@@ -123,7 +123,14 @@ function AccountGroupBlock({
             onClick={onEdit}
           />
         )}
-        <span className={cx('acct-amount', sum !== null && sum < 0 && 'is-neg')}>{short(sum)}</span>
+        <span
+          className={cx(
+            'acct-amount',
+            groupId !== 'cards' && groupId !== 'loans' && sum !== null && sum < 0 && 'is-neg',
+          )}
+        >
+          {short(sum)}
+        </span>
       </div>
       <ul id={listId} hidden={folded}>
         {view.accounts.map((a) => {
@@ -144,7 +151,16 @@ function AccountGroupBlock({
                     aria-current={current === a.id ? 'page' : undefined}
                   >
                     <span className="acct-name">{a.name}</span>
-                    <span className={cx('acct-amount', value !== null && value < 0 && 'is-neg')}>
+                    <span
+                      className={cx(
+                        'acct-amount',
+                        groupId !== 'cards' &&
+                          groupId !== 'loans' &&
+                          value !== null &&
+                          value < 0 &&
+                          'is-neg',
+                      )}
+                    >
                       {short(value)}
                     </span>
                   </Link>

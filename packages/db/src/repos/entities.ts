@@ -50,7 +50,9 @@ function assertAllocationClass(db: Executor, id: string | null | undefined) {
     !db
       .select()
       .from(assetClass)
-      .where(and(eq(assetClass.id, id), isNull(assetClass.deletedAt)))
+      .where(
+        and(eq(assetClass.id, id), isNull(assetClass.deletedAt), eq(assetClass.isGroup, false)),
+      )
       .get()
   )
     throw new BookingInvariantError('Bitte eine vorhandene aktive Anlageklasse wählen.');

@@ -33,7 +33,7 @@ import { type AuditContext, type GroupedContext } from './audit';
 import { saveBookSettings } from './book-settings';
 import { getBooking, updateBooking } from './bookings';
 import { updateCategory } from './categories';
-import { getEntity } from './entities';
+import { accounts, getEntity } from './entities';
 import { ConflictError, EntityNotFoundError } from './errors';
 import {
   addExpectedVersion,
@@ -46,7 +46,15 @@ import { OperatorInputError, resolveCategoryNames } from './operator-ops';
 import { getProfile, ProfileValidationError, saveProfile } from './profile';
 import { updateRule } from './rules';
 import { mapReadSource, readSourceMappings } from './read-source';
-import { createSecurity, updateAssetClass, updateSecurity } from './securities';
+import {
+  createAssetClass,
+  createSecurity,
+  listAssetClasses,
+  listTargetVersions,
+  setTargets,
+  updateAssetClass,
+  updateSecurity,
+} from './securities';
 import { runInTransaction, type Executor } from './types';
 
 /**
@@ -134,6 +142,7 @@ export interface OwnerAssetClasses {
   rename: { from: string; to: string }[];
 }
 export interface OwnerConfig {
+  assetClassTree?: OwnerAssetClassTree;
   createSecurities?: OwnerCreateSecurity[];
   cryptoMappings?: OwnerCryptoMapping[];
   splitCategories?: OwnerSplitCategory[];
@@ -145,6 +154,13 @@ export interface OwnerConfig {
   clearBookings?: OwnerClearBookings;
   securities?: OwnerSecurity[];
   assetClasses?: OwnerAssetClasses;
+}
+
+export interface OwnerAssetClassTree {
+  groups: { name: string; classes: string[] }[];
+  createClasses: string[];
+  targets: { className: string; targetShareBp: number; bandBp: number; validFrom: string }[];
+  accountClasses: { accountName: string; className: string }[];
 }
 
 export interface OwnerCreateSecurity {
@@ -172,6 +188,7 @@ export interface OwnerSplitCategory {
 }
 
 export const OWNER_CONFIG_SECTIONS = [
+  'assetClassTree',
   'createSecurities',
   'cryptoMappings',
   'splitCategories',
@@ -261,6 +278,81 @@ function uniqueKeys(keys: string[], at: string): void {
     if (seen.has(folded)) throw new OperatorInputError(`${at}: "${key}" is listed twice`);
     seen.add(folded);
   }
+}
+
+function parseAssetClassTree(raw: unknown): OwnerAssetClassTree {
+  const o = strictObject(raw, 'assetClassTree', [
+    'groups',
+    'createClasses',
+    'targets',
+    'accountClasses',
+  ]);
+  const groups = list(o['groups'] ?? [], 'assetClassTree.groups').map((raw, i) => {
+    const at = `assetClassTree.groups[${i}]`;
+    const g = strictObject(raw, at, ['name', 'classes']);
+    return {
+      name: text(g['name'], at + '.name', 80),
+      classes: list(g['classes'], at + '.classes').map((n) => text(n, at + '.classes', 80)),
+    };
+  });
+  const createClasses = list(o['createClasses'] ?? [], 'assetClassTree.createClasses').map((n) =>
+    text(n, 'assetClassTree.createClasses', 80),
+  );
+  const targets = list(o['targets'] ?? [], 'assetClassTree.targets').map((raw, i) => {
+    const at = `assetClassTree.targets[${i}]`;
+    const t = strictObject(raw, at, ['className', 'targetShareBp', 'bandBp', 'validFrom']);
+    return {
+      className: text(t['className'], at + '.className', 80),
+      targetShareBp: int(t['targetShareBp'], at + '.targetShareBp', 0, 10000),
+      bandBp: int(t['bandBp'], at + '.bandBp', 0, 10000),
+      validFrom: day(t['validFrom'], at + '.validFrom'),
+    };
+  });
+  const accountClasses = list(o['accountClasses'] ?? [], 'assetClassTree.accountClasses').map(
+    (raw, i) => {
+      const at = `assetClassTree.accountClasses[${i}]`;
+      const a = strictObject(raw, at, ['accountName', 'className']);
+      return {
+        accountName: text(a['accountName'], at + '.accountName', 80),
+        className: text(a['className'], at + '.className', 80),
+      };
+    },
+  );
+  uniqueKeys(
+    groups.map((g) => g.name),
+    'assetClassTree.groups',
+  );
+  uniqueKeys(
+    groups.flatMap((g) => g.classes),
+    'assetClassTree.groups.classes',
+  );
+  uniqueKeys(createClasses, 'assetClassTree.createClasses');
+  uniqueKeys(
+    accountClasses.map((a) => a.accountName),
+    'assetClassTree.accountClasses',
+  );
+  uniqueKeys(
+    targets.map((t) => t.validFrom + '|' + t.className),
+    'assetClassTree.targets',
+  );
+  if (
+    groups.some(
+      (g) =>
+        createClasses.some((n) => fold(n) === fold(g.name)) ||
+        groups.some((h) => h.classes.some((n) => fold(n) === fold(g.name))),
+    )
+  )
+    throw new OperatorInputError('assetClassTree: a group cannot also be a class');
+  for (const date of new Set(targets.map((t) => t.validFrom))) {
+    const sum = targets
+      .filter((t) => t.validFrom === date)
+      .reduce((s, t) => s + t.targetShareBp, 0);
+    if (sum !== 10000)
+      throw new OperatorInputError(
+        `assetClassTree.targets ${date}: ${sum} bp, difference ${sum - 10000} bp (expected 10000 bp)`,
+      );
+  }
+  return { groups, createClasses, targets, accountClasses };
 }
 
 function parseProfile(raw: unknown, today: string): OwnerProfile {
@@ -386,6 +478,8 @@ export function parseOwnerConfigFile(
 ): OwnerConfig {
   const root = strictObject(json, 'The file', OWNER_CONFIG_SECTIONS);
   const config: OwnerConfig = {};
+  if (root['assetClassTree'] !== undefined)
+    config.assetClassTree = parseAssetClassTree(root['assetClassTree']);
   if (root['createSecurities'] !== undefined) {
     config.createSecurities = list(root['createSecurities'], 'createSecurities').map((raw, i) => {
       const at = `createSecurities[${i}]`;
@@ -974,6 +1068,110 @@ function applyRename(tx: Executor, e: { from: string; to: string }, ctx: Grouped
 
 // --- securities -------------------------------------------------------------------------------
 
+function treeClass(tx: Executor, name: string, group = false) {
+  const found = listAssetClasses(tx).filter((c) => fold(c.name) === fold(name));
+  if (!found.length) throw new EntrySkip('unknown_asset_class', `unknown asset class: ${name}`);
+  if (found.length !== 1 || found[0]!.isGroup !== group)
+    throw new EntrySkip(
+      'conflicting',
+      `name is not a unique ${group ? 'group' : 'class'}: ${name}`,
+    );
+  return found[0]!;
+}
+function ensureTreeClass(tx: Executor, name: string, isGroup: boolean, ctx: GroupedContext): Step {
+  if (listAssetClasses(tx).some((c) => fold(c.name) === fold(name))) {
+    treeClass(tx, name, isGroup);
+    return done([]);
+  }
+  createAssetClass(tx, { name, isGroup }, ctx);
+  return done([`${isGroup ? 'group' : 'class'} created`], true);
+}
+function applyTree(r: Runner, tree: OwnerAssetClassTree): OwnerConfigOutcome[] {
+  const out: OwnerConfigOutcome[] = [];
+  const add = (key: string, body: Parameters<typeof entry>[3]) =>
+    out.push(entry(r, 'assetClassTree', key, body));
+  for (const name of tree.createClasses) add(name, (t, c) => ensureTreeClass(t, name, false, c));
+  for (const group of tree.groups) {
+    const pending: OwnerConfigOutcome[] = [];
+    try {
+      runInTransaction(r.tx, (tx) => {
+        // One group and all its moves are atomic; unknown members never leave an empty group.
+        for (const name of group.classes) treeClass(tx, name);
+        const inner = { ...r, tx };
+        pending.push(
+          entry(inner, 'assetClassTree', group.name, (t, c) =>
+            ensureTreeClass(t, group.name, true, c),
+          ),
+        );
+        for (const name of group.classes)
+          pending.push(
+            entry(inner, 'assetClassTree', name, (t, c) => {
+              const cls = treeClass(t, name),
+                parent = treeClass(t, group.name, true);
+              if (cls.parentId === parent.id) return done([]);
+              const old = listAssetClasses(t).find((g) => g.id === cls.parentId)?.name ?? 'none';
+              updateAssetClass(t, cls.id, { parentId: parent.id }, c);
+              return done([`group ${old} -> ${group.name}`]);
+            }),
+          );
+        const failed = pending.find((p) => p.status === 'skipped');
+        if (failed) throw new EntrySkip(failed.reason, failed.detail);
+      });
+      out.push(...pending);
+    } catch (error) {
+      add(group.name, () => {
+        throw error;
+      });
+    }
+  }
+  for (const date of new Set(tree.targets.map((t) => t.validFrom)))
+    add(`targets ${date}`, (tx, ctx) => {
+      const targets = tree.targets
+        .filter((t) => t.validFrom === date)
+        .map((t) => ({
+          assetClassId: treeClass(tx, t.className).id,
+          targetShareBp: t.targetShareBp,
+          bandBp: t.bandBp,
+          bandMode: 'custom' as const,
+        }));
+      const current = listTargetVersions(tx).find((v) => v.validFrom === date);
+      if (
+        current &&
+        !current.tiers.length &&
+        isDeepStrictEqual(
+          current.targets
+            .map((t) => [
+              t.assetClassId,
+              t.targetShareBp,
+              t.bandBp,
+              t.bandMode ?? (t.bandBp > 0 ? 'custom' : 'standard'),
+            ])
+            .sort(),
+          targets.map((t) => [t.assetClassId, t.targetShareBp, t.bandBp, t.bandMode]).sort(),
+        )
+      )
+        return done([]);
+      setTargets(tx, date, targets, ctx, { completeSnapshot: true });
+      return done(
+        tree.targets
+          .filter((t) => t.validFrom === date)
+          .map((t) => `${t.className}: Soll ${t.targetShareBp} bp, Band ${t.bandBp} bp`),
+      );
+    });
+  for (const mapping of tree.accountClasses)
+    add(mapping.accountName, (tx, ctx) => {
+      const id = oneAccount(tx, mapping.accountName).id;
+      const acct = accounts.get(tx, id)!;
+      const cls = treeClass(tx, mapping.className);
+      if (acct.allocationAssetClassId === cls.id) return done([]);
+      const old =
+        listAssetClasses(tx).find((c) => c.id === acct.allocationAssetClassId)?.name ?? 'none';
+      accounts.update(tx, id, { allocationAssetClassId: cls.id }, ctx);
+      return done([`class ${old} -> ${cls.name}`]);
+    });
+  return out;
+}
+
 function applySecurity(tx: Executor, e: OwnerSecurity, ctx: GroupedContext): Step {
   const live = tx.select().from(security).where(isNull(security.deletedAt)).all();
   const found =
@@ -1149,6 +1347,54 @@ export function applyOwnerConfig(
     runInTransaction(db, (tx) => {
       const r: Runner = { tx, actor: ctx.actor, today, groupId: randomUUID() };
       const add = (o: OwnerConfigOutcome) => outcomes.push(o);
+      if (config.assetClassTree) {
+        outcomes.push(...applyTree(r, config.assetClassTree));
+        // Only this explicit operator section creates defaults for unclassified P2P accounts.
+        const defaults = tx
+          .select()
+          .from(account)
+          .where(
+            and(
+              isNull(account.deletedAt),
+              eq(account.type, 'p2p'),
+              isNull(account.allocationAssetClassId),
+            ),
+          )
+          .all()
+          .filter(
+            (a) =>
+              !config.assetClassTree!.accountClasses.some(
+                (m) => fold(m.accountName) === fold(a.name),
+              ),
+          );
+        for (const a of defaults) {
+          outcomes.push(
+            entry(r, 'assetClassTree', 'P2P', (t, c) => ensureTreeClass(t, 'P2P', true, c)),
+          );
+          outcomes.push(
+            entry(r, 'assetClassTree', a.name, (t, c) => {
+              const parent = treeClass(t, 'P2P', true);
+              if (listAssetClasses(t).some((cls) => fold(cls.name) === fold(a.name))) {
+                const cls = treeClass(t, a.name);
+                if (cls.parentId !== parent.id)
+                  throw new EntrySkip('conflicting', 'existing class belongs to another group');
+                return done([]);
+              }
+              createAssetClass(t, { name: a.name, parentId: parent.id }, c);
+              return done(['class created in P2P'], true);
+            }),
+          );
+          if (outcomes.at(-1)?.status !== 'skipped')
+            outcomes.push(
+              ...applyTree(r, {
+                groups: [],
+                createClasses: [],
+                targets: [],
+                accountClasses: [{ accountName: a.name, className: a.name }],
+              }),
+            );
+        }
+      }
       for (const e of config.createSecurities ?? [])
         add(entry(r, 'createSecurities', e.isin ?? e.name, (t, c) => applyCreateSecurity(t, e, c)));
       for (const e of config.cryptoMappings ?? [])

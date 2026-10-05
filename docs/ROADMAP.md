@@ -1,6 +1,14 @@
 # Roadmap
 
+### Full page width — owner feedback 2026-10-05
+
+- [x] Shared unbounded page-width token, existing gutters and narrow text/form/dialog/A4 exceptions.
+- [x] Responsive Heute, account overview, wealth and catalog grids; Allocation charts beside source tables; compact numeric columns.
+- [x] Owner decision in DESIGN.md and one width/viewport E2E spec; [scope and baseline list](full-width-1005.md).
+- [ ] Local browser matrix, full local checks, Linux baseline review and owner acceptance (see PR evidence).
+
 - [x] Owner feedback 04.10.2026: report 5.6 Gesamtübersicht, income-scale 50/30/20 overflow, One-Pager panel swap/income list and shared pace income, bounded valuation notes and dated headers; owner acceptance and CI remain open.
+- [ ] UX-2 (owner 05.10.2026): Heute/Plan distill, source rest, bulk cover/undo, shared wealth and device fold implemented; full-check rerun, publication and owner/Linux acceptance pending ([synthetic evidence](evidence/ux-distill-1005/README.md)).
 
 - [x] Owner feedback 04.10.2026: reports 4.1–4.4, four stored benchmarks, positive allocation layers, daily/monthly reconciliation and shared Heute/R07 35-day horizon; see [scope and owner steps](portfolio-reports-1004.md).
 
@@ -426,6 +434,15 @@ Price history (yfinance + Ariva, source per price), ECB rates, trades and holdin
 
 
 ## P6 Reports und Umstellung
+### Portfolio composition — owner feedback 2026-10-05
+
+- [x] Additive parent/group migration; two-level lifecycle and audited moves; dated class targets and group Soll sums.
+- [x] Explicit operator assetClassTree, idempotent dry-run/savepoint/audit behavior and operator-only P2P defaults; account assignment in settings.
+- [x] One group/class sunburst, matching legend and group/class/product subtotals; shared segment inspection, no region chart and threshold-gated region table/editor link.
+- [ ] Final local check/build/browser verification, draft PR and CI review; owner visual acceptance and private reconciliation.
+
+Contract and operator/owner steps: [portfolio composition](portfolio-composition.md).
+
 ### Planning income and shared report ranges — 2026-10-03
 - [x] Plan › Monat: expected household income versus all envelope monthly target requirements, source label, surplus/gap and keyboard-accessible unfunded-category details; reuse target/carry calculations and stored monthly holds. Live dated schedules take precedence; without schedules use the median of the preceding three complete months (before today for future planning). Missing amounts/currency/history remain unavailable. The existing payday rule defines a date, not a salary amount.
 - [x] Shared quick choices on every implemented selectable period report, including Explorer saved views: current/previous month, 3/6/12 complete months, current/previous calendar year, all, custom inclusive calendar months. Legacy period URLs and segmented controls remain supported; partial current months stop at today. Month/year-only, fixed-source and forecast reports keep their existing controls.
@@ -504,6 +521,10 @@ Owner setup and limits: [payslip intake](payslip-intake.md); synthetic browser e
 - [ ] Separate receipt object-storage/upload workflow, collective/step-raise metadata and inflation comparison, project hours/hourly rates; owner design/private-data acceptance and Gate 4 remain open.
 
 ### Owner configuration and Einstellungen › Konten — 2026-10-03
+- [x] Operator `source-rebuild` (2026-10-04): staged crypto depot history, opening deliveries, monthly rewards, cash/units reconciliation, locks/unlock, dry-run/undo and synthetic domain/DB/CLI coverage; [ops §12.8](ops.md#128-rebuild-a-crypto-depot-from-staged-source-operations). Private platform verification remains an owner step.
+- [x] Owner dry-run fixes (2026-10-05): separate asset fees, earn trades/fiat swaps, token migrations, external deliveries/reclaim, stored ECB conversion, wallet-plus-staked opening/verification and source-type diagnosis; synthetic per-case and combined regression coverage. Private rerun remains an owner step.
+- [x] Second owner dry-run fixes (2026-10-05): visible staking-wallet reference and missing unstake-OUT correction, optional staking override, latest stored FX/recent EUR asset-price fallback, repeatable private monthly trace and operation-linked reward keys, unexplained snapshot changes; synthetic domain/DB/CLI regression coverage. Private rerun and reconciliation remain owner steps.
+- [x] Third owner dry-run fixes (2026-10-05): zero-value splits from unexplained mapped balance changes, nearest stored ECB fallback with rate date, and strictly sub-cent/unpriced dust deliveries; synthetic threshold, dry-run, repeat and undo coverage. Private rerun and larger-difference reconciliation remain owner steps.
 - [x] Operator `owner-trades` (2026-10-04): strict private add/delete file, PP-style cash settlement, income-in-kind rewards, idempotent adds, per-entry savepoints, run audit/undo and dry-run; review fixes protect reward legs, repair missing transfers, require reference cash accounts and respect owner deletions; synthetic regressions and [ops](ops.md) section 12.7.
 - [x] Owner-config extension (2026-10-04): create securities, merge crypto mappings, re-categorise live splits; dependency order, one audit group per run, dry-run/undo and synthetic amount/balance regressions. Details: [ops](ops.md) §12.6.
 - [x] Operator command `owner-config --file <json> [--dry-run]` (profile, rules, category stages, expected payments with skipped occurrences, bulk "vorgemerkt" to "bestätigt", security quote settings, asset class names): audited per entry, undoable, idempotent, exit code 3 on skips; schema in [ops](ops.md) section 12.6.

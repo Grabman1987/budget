@@ -4,6 +4,7 @@ export const PANEL_IDS = [
   'buchung',
   'beispiel',
   'anlageklasse',
+  'anlagegruppe',
   'sollquoten',
   'anlageklasse-archivieren',
   'instrument',
@@ -22,6 +23,7 @@ export interface PanelDef {
 
 export const PANELS: Record<PanelId, PanelDef> = {
   anlageklasse: { title: 'Anlageklasse', fills: '', body: '' },
+  anlagegruppe: { title: 'Gruppe', fills: '', body: '' },
   sollquoten: { title: 'Sollquoten', fills: '', body: '' },
   'anlageklasse-archivieren': { title: 'Sollversion und Archivieren', fills: '', body: '' },
   instrument: { title: 'Instrument', fills: '', body: '' },

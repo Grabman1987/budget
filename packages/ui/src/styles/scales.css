@@ -26,5 +26,6 @@
   --hatch-bound: repeating-linear-gradient(135deg, var(--line-2) 0 1.5px, transparent 1.5px 5px);
 
   --sidebar: 236px;
-  --sheet-max: 1240px;
+  /* Pages fill the space beside the sidebar; text, forms and print sheets size themselves. */
+  --page-max: none;
 }

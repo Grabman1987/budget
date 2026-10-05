@@ -20,6 +20,7 @@ import {
   CLASS_TEXT,
   coverFromToBeAssigned,
   coverSource,
+  coverSources,
   isCard,
   moveGuard,
   readAssign,
@@ -75,7 +76,24 @@ function EnvelopeBody({
   const write = useBudgetWrite();
   const [amount, setAmount] = useState(formatDecimal(cents(r.assignedCents)));
   const [direction, setDirection] = useState<'in' | 'out'>(r.availableCents < 0 ? 'in' : 'out');
-  const [other, setOther] = useState(coverSource(rows, r)?.id ?? '');
+  const enough = coverSources(rows, r);
+  const best = coverSource(rows, r);
+  const suggested =
+    r.overspentCents === 0 || (tba >= r.overspentCents && tba >= (best?.availableCents ?? 0))
+      ? ''
+      : (best?.id ?? 'none');
+  const [chosenOther, setOther] = useState(suggested);
+  const [explicitShort, setExplicitShort] = useState(false);
+  const other =
+    r.overspentCents > 0 &&
+    ((chosenOther === '' && tba < r.overspentCents && !explicitShort) ||
+      (chosenOther !== '' && !enough.some((o) => o.id === chosenOther)))
+      ? suggested
+      : chosenOther;
+  const coverOptions = [
+    ...enough,
+    ...(tba >= r.overspentCents ? [{ id: '', name: 'Zu verteilen', availableCents: tba }] : []),
+  ].sort((a, b) => b.availableCents - a.availableCents);
   const [moveText, setMoveText] = useState('');
   const [error, setError] = useState<string>();
   const [moveError, setMoveError] = useState<string>();
@@ -207,11 +225,25 @@ function EnvelopeBody({
             value={other}
             onChange={(e) => {
               setOther(e.target.value);
+              setExplicitShort(e.target.value === '' && tba < r.overspentCents);
               setChoosing(false);
             }}
           >
-            <option value="">Zu verteilen · {eur(tba)}</option>
-            {others.map((o) => (
+            {r.overspentCents > 0 && direction === 'in' ? (
+              <>
+                {other === 'none' && (
+                  <option value="none" disabled>
+                    Keine Quelle reicht vollständig
+                  </option>
+                )}
+                {tba < r.overspentCents && (
+                  <option value="">Zu verteilen · {eur(tba)} · reicht nicht vollständig</option>
+                )}
+              </>
+            ) : (
+              <option value="">Zu verteilen · {eur(tba)}</option>
+            )}
+            {(r.overspentCents > 0 && direction === 'in' ? coverOptions : others).map((o) => (
               <option key={o.id} value={o.id}>
                 {o.name} · {eur(o.availableCents)}
               </option>
@@ -219,6 +251,15 @@ function EnvelopeBody({
           </Select>
         )}
       </Field>
+      {r.overspentCents > 0 && (
+        <p className="panel-sub" data-testid="cover-remaining">
+          {other === 'none'
+            ? 'Keine Quelle reicht vollständig. Wähle Zu verteilen für die vorhandenen Deckungsoptionen.'
+            : other !== '' || tba >= r.overspentCents
+              ? `aus ${name(other)} · bleibt ${eur((other === '' ? tba : rows.find((o) => o.id === other)!.availableCents) - r.overspentCents)}`
+              : `Zu verteilen reicht nicht · ${eur(Math.max(0, r.overspentCents - Math.max(0, tba)))} fehlen`}
+        </p>
+      )}
       <AmountInput
         label="Betrag"
         value={moveText}
@@ -229,12 +270,13 @@ function EnvelopeBody({
         error={moveError}
       />
       <div className="panel-actions">
-        <Button variant="ghost" onClick={move}>
+        <Button variant="ghost" onClick={move} disabled={other === 'none'}>
           Verschieben
         </Button>
         {r.overspentCents > 0 && (
           <Button
             variant={r.cashOverspentCents > 0 ? 'alert' : 'ghost'}
+            disabled={other === 'none'}
             onClick={() => void cover()}
           >
             Decken · {eur(r.overspentCents)}
