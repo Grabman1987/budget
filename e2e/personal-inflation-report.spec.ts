@@ -35,7 +35,15 @@ test('indexes the fixed contracts, attributes the change and says what is not in
     'fehlt der Vergleichsmonat',
   );
   await expect(yearly.getByRole('row', { name: /^2026/ })).toContainText('bis Aug 26');
-  await expect(page.getByTestId('inflation-basket')).toContainText('Miete');
+  const basket = page.getByTestId('inflation-basket');
+  await expect(basket).toContainText('Miete');
+  const history = basket.locator('details').first();
+  const disclosure = history.locator('summary');
+  await disclosure.click();
+  await expect(history.locator('li').first()).toBeVisible();
+  expect((await disclosure.boundingBox())!.height).toBeGreaterThanOrEqual(44);
+  await disclosure.press('Enter');
+  await expect(history.locator('li').first()).toBeHidden();
   await page.getByRole('button', { name: 'Pp', exact: true }).first().focus();
   await expect(
     page.getByRole('tooltip').filter({ hasText: 'Differenz zweier Prozentwerte' }),

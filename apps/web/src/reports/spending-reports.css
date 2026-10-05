@@ -732,3 +732,9 @@ a.sr-state {
   font: var(--font-body);
   white-space: normal;
 }
+
+.sr details > summary {
+  min-height: 44px;
+  padding: 12px 0;
+  cursor: pointer;
+}

@@ -328,6 +328,7 @@
 }
 
 .table-cell-open {
+  min-width: 44px;
   font: inherit;
   color: inherit;
   background: transparent;
