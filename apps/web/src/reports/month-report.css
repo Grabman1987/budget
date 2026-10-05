@@ -171,7 +171,7 @@
   min-width: 440px;
 }
 .mr-table.is-types {
-  min-width: 520px;
+  min-width: 580px;
 }
 
 /* ---------- Income chart ---------- */
@@ -245,7 +245,7 @@
 
 /* ---------- Geldfluss ---------- */
 .mr-sankey {
-  min-width: 0;
+  min-width: 580px;
 }
 .mr-sankey-scroll {
   overflow-x: auto;

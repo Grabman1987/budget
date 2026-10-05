@@ -1,3 +1,6 @@
+import type { goalsReport } from '@budget/db';
+import { chartPoints } from '../charts/tooltip-data';
+import { AxisLine, ChartSvg, Line, XTicks, ChartValue } from '@budget/ui';
 import { useAmountPrivacy, ClassSwatch, DetailPanel, type SwatchKind } from '@budget/ui';
 import { lastDayOfMonth } from '@budget/domain';
 import { queryOptions, useQuery } from '@tanstack/react-query';
@@ -36,14 +39,16 @@ export const goalsProgressReportQuery = () =>
       const data = await request<{ month: string; goals: GoalView[] }>('GET', '/api/goals');
       if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(data.month) || !Array.isArray(data.goals))
         throw new ApiError(503, 'unavailable', 'Monatsstand der Sparziele ist unvollständig.');
-      const [categories, accounts] = await Promise.all([
+      const [categories, accounts, report] = await Promise.all([
         fetchCategories(),
         fetchAccounts(lastDayOfMonth(data.month)),
+        request<ReturnType<typeof goalsReport>>('GET', '/api/goals/report'),
       ]);
       if (!Array.isArray(categories.categories) || !Array.isArray(accounts.accounts))
         throw new ApiError(503, 'unavailable', 'Quellenangaben der Sparziele sind unvollständig.');
       return {
         month: data.month,
+        report,
         rows: goalReportRows(data.goals, categories.categories, accounts.accounts),
       };
     },
@@ -90,7 +95,14 @@ export function GoalsProgressReport({ report, meta }: { report: ReportEntry; met
             onRetry={() => void query.refetch()}
           />
         )}
-        {ready && <ReportBody month={ready.month} rows={ready.rows} onSelect={setSelected} />}
+        {ready && (
+          <ReportBody
+            month={ready.month}
+            rows={ready.rows}
+            report={ready.report}
+            onSelect={setSelected}
+          />
+        )}
       </div>
       <DetailPanel
         open={Boolean(row)}
@@ -106,7 +118,9 @@ function ReportBody({
   month,
   rows,
   onSelect,
+  report,
 }: {
+  report: ReturnType<typeof goalsReport>;
   month: string;
   rows: GoalReportRow[];
   onSelect: (id: string) => void;
@@ -132,9 +146,27 @@ function ReportBody({
           drei Monaten.
         </p>
         <p className="vnote">
-          Die Beträge werden je Ziel gezeigt. Eine gemeinsame Finanzierung, die Aufteilung von
-          Tagesgeld, Notgroschen-Reichweite und ein linearer Soll-Pfad sind hier noch nicht
-          enthalten.
+          Notgroschen bis heute:{' '}
+          {report.reserveComplete
+            ? `${eur(report.reserveCents)} · ${report.coverage.tenthsOfMonth === null ? 'Reichweite ohne Bedarfshistorie nicht berechenbar' : `${new Intl.NumberFormat('de-AT').format(report.coverage.tenthsOfMonth / 10)} Monate Bedarf`}`
+            : 'Reichweite wegen Fremdwährung nicht verfügbar'}
+          . Ø Bedarf {eur(report.coverage.averageNeedCents)} aus {report.coverage.months} vollen
+          Monaten, dieselbe Rechnung wie R02.
+        </p>
+        <h3>Tagesgeld-Zuordnung · bis heute</h3>
+        <ul>
+          {report.cash.map((a) => (
+            <li key={a.id}>
+              {a.name} · {eur(a.balanceCents)} ·{' '}
+              {a.ambiguous
+                ? 'Mehrere Ziele: Mittelzuordnung ungeklärt'
+                : (a.goal ?? 'Kein Kontoziel zugeordnet')}
+            </li>
+          ))}
+        </ul>
+        <p className="vnote">
+          Kategorieziele sind Budget-Envelopes und keinem bestimmten Tagesgeldkonto zugeordnet.
+          Geteilte Quellen bleiben ungeklärt, bis eigene Mittel pro Ziel gespeichert werden.
         </p>
         {rows.length === 0 && (
           <p role="status">
@@ -169,7 +201,11 @@ function ReportBody({
               </p>
               {row.progress ? (
                 <>
-                  <GoalBar goal={row.progress} />
+                  <GoalBar goal={row.progress} month={month} />
+                  <GoalHistory
+                    points={report.history.find((h) => h.id === row.id)?.points ?? []}
+                    name={row.name}
+                  />
                   <div className="goal-report-figures">
                     <span>
                       <strong>{eur(row.progress.savedCents)}</strong> von{' '}
@@ -286,18 +322,27 @@ function sourceLabel(row: GoalReportRow) {
     ? `${row.source.kind === 'account' ? 'Geldsaldo Konto' : 'Verfügbar Kategorie'}: ${row.source.name}`
     : 'Quelle ungeklärt';
 }
-function GoalBar({ goal }: { goal: GoalView }) {
+function GoalBar({ goal, month }: { goal: GoalView; month: string }) {
   useAmountPrivacy();
   const bar = goalBar(goal);
   return (
-    <div
-      className="goal-report-bar"
-      role="img"
-      aria-label={`${eur(goal.savedCents)} von ${eur(goal.targetCents)}; Marke ist Zielbetrag`}
+    <ChartValue
+      label="Sparziel"
+      date={month}
+      series={[
+        { name: 'Gespart', value: eur(goal.savedCents), color: 'var(--line)' },
+        { name: 'Ziel', value: eur(goal.targetCents), color: 'var(--line-2)' },
+      ]}
     >
-      <i style={{ width: `${bar.fill * 100}%` }} />
-      <span style={{ left: `${bar.tick * 100}%` }} />
-    </div>
+      <div
+        className="goal-report-bar"
+        role="img"
+        aria-label={`${eur(goal.savedCents)} von ${eur(goal.targetCents)}; Marke ist Zielbetrag`}
+      >
+        <i style={{ width: `${bar.fill * 100}%` }} />
+        <span style={{ left: `${bar.tick * 100}%` }} />
+      </div>
+    </ChartValue>
   );
 }
 function GoalStatus({ goal, month }: { goal: GoalView; month: string }) {
@@ -333,7 +378,7 @@ function GoalDetail({ row, month }: { row: GoalReportRow; month: string }) {
       </p>
       {g ? (
         <>
-          <GoalBar goal={g} />
+          <GoalBar goal={g} month={month} />
           <GoalStatus goal={g} month={month} />
           <dl>
             {[
@@ -395,5 +440,65 @@ function GoalDetail({ row, month }: { row: GoalReportRow; month: string }) {
         </AppLink>
       </p>
     </div>
+  );
+}
+
+function GoalHistory({
+  points,
+  name,
+}: {
+  points: ReturnType<typeof goalsReport>['history'][number]['points'];
+  name: string;
+}) {
+  if (!points.length) return null;
+  const max = Math.max(1, ...points.flatMap((p) => [p.actualCents ?? 0, p.sollCents ?? 0]));
+  const x = (i: number) => 54 + (i / Math.max(1, points.length - 1)) * 650;
+  const y = (v: number) => 170 - (v / max) * 150;
+  return (
+    <>
+      <ChartSvg
+        width={760}
+        height={220}
+        label={`${name}: Ist und linearer Soll-Pfad`}
+        testId="goal-soll-chart"
+        points={chartPoints(
+          points.map((p) => p.month),
+          x,
+          [
+            { name: 'Gespart', values: points.map((p) => p.actualCents) },
+            {
+              name: 'Linearer Soll-Pfad',
+              color: 'var(--line-2)',
+              values: points.map((p) => p.sollCents),
+            },
+          ],
+        )}
+      >
+        <AxisLine x1={54} x2={704} y={170} />
+        <Line
+          kind="plan"
+          points={points.flatMap((p, i) =>
+            p.sollCents === null ? [] : [[x(i), y(p.sollCents)] as const],
+          )}
+        />
+        <Line
+          kind="actual"
+          points={points.flatMap((p, i) =>
+            p.actualCents === null ? [] : [[x(i), y(p.actualCents)] as const],
+          )}
+        />
+        <XTicks
+          y={202}
+          ticks={points.flatMap((p, i) =>
+            i === 0 || i === points.length - 1 ? [{ x: x(i), label: shortMonth(p.month) }] : [],
+          )}
+        />
+      </ChartSvg>
+      <p className="vnote">
+        Durchgezogen: gespeicherter Quellenstand. Gestrichelt: linear von 0 im Anlagemonat zum
+        Zielbetrag am Zieldatum; vorhandenes Startguthaben kann darüber liegen. Ohne Zieldatum gibt
+        es keine Soll-Linie.
+      </p>
+    </>
   );
 }

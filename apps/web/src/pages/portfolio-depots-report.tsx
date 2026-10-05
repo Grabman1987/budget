@@ -1,16 +1,17 @@
+import { BenchmarkChoices } from './portfolio-benchmark-settings';
+import { PerformanceChart } from './performance-chart';
+import type { PortfolioBenchmarkSeries } from '@budget/db';
 import { ReportPeriodControl } from '../reports/period-quick-select';
-import { useAmountPrivacy, ChartSvg, Graticule, Line, LineLegend, type Point } from '@budget/ui';
-import { returnGap } from '@budget/domain';
+import { useAmountPrivacy } from '@budget/ui';
 import type { DepotColumn, DepotComparison } from '@budget/db';
 import { queryOptions, useQuery } from '@tanstack/react-query';
 import type { ReactNode } from 'react';
-import { useElementWidth } from '../charts/use-element-width';
 import { request } from '../api/http';
 import { LoadingNote } from '../ledger/states';
-import { ValuationHint, type WithValuationNotes } from '../ledger/valuation-hint';
-import { eur, longDay, shortDay } from '../ledger/format';
+import { type WithValuationNotes } from '../ledger/valuation-hint';
+import { eur, longDay } from '../ledger/format';
 import { LEDGER_KEY } from '../ledger/queries';
-import { periodText, yTicks } from '../wealth/networth-model';
+import { periodText } from '../wealth/networth-model';
 import { useZeitraum, ZEITRAUM_VALUES } from '../wealth/zeitraum';
 import type { Period } from '@budget/domain';
 import type { PageMeta } from '../nav/pages';
@@ -18,13 +19,10 @@ import type { ReportEntry } from '../nav/reports-catalog';
 import { PageFrame } from './placeholder-page';
 import {
   DecisionLink,
-  ProductLink,
   ReportUnavailable,
   SignedMoney,
-  SignedText,
   bpText,
   percentText,
-  ppText,
 } from './portfolio-report-shared';
 import './portfolio-depots-report.css';
 
@@ -79,7 +77,6 @@ export function PortfolioDepotsReport({ report, meta }: { report: ReportEntry; m
       ]}
     >
       <div className="prep portfolio-depots-report">
-        <ValuationHint incomplete={query.data?.incomplete} />
         {query.isPending && <LoadingNote what="Depots" />}
         {query.isError && (
           <ReportUnavailable
@@ -105,7 +102,7 @@ function DepotsBody({ data, period }: { data: DepotComparison; period: Period })
   const total = data.total as DepotColumn;
   const columns = [...data.depots, total];
   const window = data.window as { from: string; to: string };
-  const benchmarkName = data.benchmark?.name ?? null;
+
   return (
     <>
       <section className="prep-card" aria-labelledby="depots-title">
@@ -113,46 +110,35 @@ function DepotsBody({ data, period }: { data: DepotComparison; period: Period })
           <h2 id="depots-title">Depots · {periodText(period, window.from)}</h2>
           <DecisionLink />
         </div>
+        <BenchmarkChoices />
         <ul className="depots" aria-label="Depots">
           {columns.map((depot, index) => (
             <DepotCard
               key={depot.accountId ?? 'total'}
               depot={depot}
               position={depot.accountId === null ? 'Σ' : String(index + 1)}
-              benchmark={data.benchmarkIndex}
-              benchmarkName={benchmarkName}
-              benchmarkReturn={depot.performance?.benchmarkTtwror ?? null}
+              benchmarks={data.benchmarks}
             />
           ))}
         </ul>
-        <LineLegend
-          items={[
-            { kind: 'actual', label: 'Depot, zeitgewichtet' },
-            ...(data.benchmarkIndex
-              ? [{ kind: 'previous' as const, label: `Vergleich: ${benchmarkName ?? ''}` }]
-              : []),
-          ]}
-        />
-        {benchmarkName && (
-          <p className="vnote">
-            Vergleichswert ist die Kursentwicklung der größten Position ({benchmarkName}), solange
-            kein eigener Index hinterlegt ist. Er wird nicht um Ausschüttungen bereinigt.
-          </p>
-        )}
+        <p className="vnote">
+          Vergleich: EUR-Kurse von Index-ETF, Start = 100. Fehlende Abschlüsse bleiben Lücken.
+        </p>
       </section>
       <section className="prep-card" aria-labelledby="depots-kpi-title">
         <div className="tbd-head">
           <h2 id="depots-kpi-title">Kennzahlen nebeneinander</h2>
         </div>
-        <KpiTable columns={columns} benchmarkName={benchmarkName} />
+        <KpiTable columns={columns} />
         <p className="vnote">
           TTWROR blendet Ein- und Auszahlungen aus und ist mit dem Vergleichswert vergleichbar; die
           geldgewichtete Rendite (Modified Dietz) zeigt, was das Geld mit den Einzahlungszeitpunkten
           verdient hat
           {total.performance && total.performance.days > 365 ? ' (pro Jahr)' : ''}. Sharpe mit 2,5 %
           sicherem Zins (bei Volatilität unter 0,5 % nicht aussagekräftig und daher ausgelassen).
-          Einzahlungen sind die Nettoflüsse der Wertpapieransicht ohne Depotkassa; Gewinn ist Wert
-          am Ende minus Wert am Anfang minus Nettoflüsse.
+          Broker und Krypto zeigen Wertpapiere ohne Depotkassa; weitere Anlagekonten ihre
+          gespeicherten Werte und externen Flüsse; Gewinn ist Wert am Ende minus Wert am Anfang
+          minus Nettoflüsse.
         </p>
       </section>
     </>
@@ -162,15 +148,11 @@ function DepotsBody({ data, period }: { data: DepotComparison; period: Period })
 function DepotCard({
   depot,
   position,
-  benchmark,
-  benchmarkName,
-  benchmarkReturn,
+  benchmarks,
 }: {
   depot: DepotColumn;
   position: string;
-  benchmark: DepotComparison['benchmarkIndex'];
-  benchmarkName: string | null;
-  benchmarkReturn: number | null;
+  benchmarks: PortfolioBenchmarkSeries[];
 }) {
   useAmountPrivacy();
   const perf = depot.performance;
@@ -221,12 +203,14 @@ function DepotCard({
               <span className="tech">TTWROR</span>
               <strong>{percentText(perf.ttwror, { sign: true })}</strong>
             </div>
-            <div>
-              <span className="tech">Vergleich</span>
-              <strong className="prep-muted">
-                {benchmarkReturn === null ? '–' : percentText(benchmarkReturn, { sign: true })}
-              </strong>
-            </div>
+            {benchmarks.map((b) => (
+              <div key={b.id}>
+                <span className="tech">{b.name}</span>
+                <strong className="prep-muted">
+                  {percentText(b.benchmarkReturn, { sign: true })}
+                </strong>
+              </div>
+            ))}
           </div>
         </>
       ) : (
@@ -234,89 +218,36 @@ function DepotCard({
           Im Zeitraum war dieses Depot nicht bewertet; es wird keine Rendite angenommen.
         </p>
       )}
-      <DepotChart depot={depot} benchmark={benchmark} benchmarkName={benchmarkName} />
-      <ul className="depot-prods" aria-label={`Produkte in ${depot.name}`}>
-        {depot.products.map((product) => (
-          <li key={product.securityId}>
-            <ProductLink id={product.securityId}>{product.name}</ProductLink>
-            <span>{eur(product.valueCents)}</span>
-          </li>
-        ))}
-      </ul>
+      <DepotChart depot={depot} benchmarks={benchmarks} />
     </li>
   );
 }
 
-/** Depot level against the comparison security, both indexed to 100 at the window start. */
 function DepotChart({
   depot,
-  benchmark,
-  benchmarkName,
+  benchmarks,
 }: {
   depot: DepotColumn;
-  benchmark: DepotComparison['benchmarkIndex'];
-  benchmarkName: string | null;
+  benchmarks: PortfolioBenchmarkSeries[];
 }) {
-  useAmountPrivacy();
-  const [ref, width] = useElementWidth<HTMLDivElement>();
-  const line = depot.index;
-  const first = line[0];
-  const last = line[line.length - 1];
-  if (!first || !last || line.length < 2) return <div className="depot-chart" ref={ref} />;
-  const t0 = Date.parse(`${first.date}T00:00:00Z`);
-  const span = Math.max(1, Date.parse(`${last.date}T00:00:00Z`) - t0);
-  const levels = [...line.map((p) => p.level), ...(benchmark ?? []).map((p) => p.level)];
-  const lo = Math.min(...levels);
-  const hi = Math.max(...levels);
-  const pad = (hi - lo) * 0.1 || 1;
-  const height = 120;
-  const left = 34;
-  const right = Math.max(left + 1, width - 8);
-  const top = 8;
-  const bottom = height - 18;
-  const x = (day: string) => left + ((Date.parse(`${day}T00:00:00Z`) - t0) / span) * (right - left);
-  const y = (level: number) =>
-    bottom - ((level - (lo - pad)) / (hi - lo + pad * 2)) * (bottom - top);
-  const points = (items: ReadonlyArray<{ date: string; level: number }>): Point[] =>
-    items.map((p) => [x(p.date), y(p.level)]);
-  const label = `${depot.name}: Verlauf indexiert auf 100, Ende bei ${new Intl.NumberFormat('de-AT', { maximumFractionDigits: 1 }).format(last.level)}${
-    benchmark && benchmarkName
-      ? `; Vergleich ${benchmarkName} bei ${new Intl.NumberFormat('de-AT', { maximumFractionDigits: 1 }).format(benchmark[benchmark.length - 1]?.level ?? 100)}`
-      : ''
-  }.`;
   return (
-    <div className="depot-chart" ref={ref}>
-      {width > 0 && (
-        <ChartSvg width={width} height={height} label={label} testId="depot-chart">
-          <Graticule
-            x1={left}
-            x2={right}
-            lines={yTicks(lo - pad, hi + pad, 3).map((v) => ({
-              y: y(v),
-              label: new Intl.NumberFormat('de-AT', { maximumFractionDigits: 0 }).format(v),
-            }))}
-          />
-          {benchmark && benchmark.length > 1 && <Line points={points(benchmark)} kind="previous" />}
-          <Line points={points(line)} kind="actual" />
-          <text x={left} y={height - 4} className="svg-label">
-            {shortDay(first.date)}
-          </text>
-          <text x={right} y={height - 4} textAnchor="end" className="svg-label">
-            {shortDay(last.date)}
-          </text>
-        </ChartSvg>
-      )}
-    </div>
+    <PerformanceChart
+      testId="depot-chart"
+      label={`${depot.name}, indexiert auf 100`}
+      rows={depot.index}
+      lines={[
+        { name: depot.name, values: depot.index.map((p) => p.level) },
+        ...benchmarks.map((b) => ({
+          name: b.name,
+          values: depot.index.map((p) => b.index.find((q) => q.date === p.date)?.benchmark ?? null),
+          benchmark: true,
+        })),
+      ]}
+    />
   );
 }
 
-function KpiTable({
-  columns,
-  benchmarkName,
-}: {
-  columns: DepotColumn[];
-  benchmarkName: string | null;
-}) {
+function KpiTable({ columns }: { columns: DepotColumn[] }) {
   useAmountPrivacy();
   const rows: Array<[string, (depot: DepotColumn) => ReactNode]> = [
     ['Wert', (d) => eur(d.valueCents)],
@@ -328,15 +259,6 @@ function KpiTable({
     ['Gewinn', (d) => (d.performance ? <SignedMoney cents={d.performance.gainCents} /> : '–')],
     ['TTWROR', (d) => percentText(d.performance?.ttwror, { sign: true })],
     ['Geldgewichtet', (d) => percentText(d.performance?.moneyWeighted, { sign: true })],
-    [
-      benchmarkName ? `gegen ${benchmarkName}` : 'gegen Vergleichswert',
-      (d) => {
-        const gap = d.performance
-          ? returnGap(d.performance.ttwror, d.performance.benchmarkTtwror)
-          : null;
-        return <SignedText value={gap}>{ppText(gap)}</SignedText>;
-      },
-    ],
     ['Volatilität p. a.', (d) => percentText(d.performance?.volatility)],
     ['Max. Rückgang', (d) => percentText(d.performance?.maxDrawdown)],
     [

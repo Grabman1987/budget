@@ -1,3 +1,7 @@
+import { AllocationBar } from './allocation-bar';
+import { AppLink } from '../shell/app-link';
+import { chartShare } from '../charts/tooltip-data';
+import { ChartValue } from '@budget/ui';
 import {
   useAmountPrivacy,
   CLASS_LABEL,
@@ -10,7 +14,6 @@ import { useQuery } from '@tanstack/react-query';
 import { HeutePaceChart } from '../heute/charts';
 import { eur, eurParts, longDay } from '../ledger/format';
 import { EmptyNote, ErrorNote, LoadingNote } from '../ledger/states';
-import { ValuationHint } from '../ledger/valuation-hint';
 import { monthLabel } from '../nav/month';
 import type { PageMeta } from '../nav/pages';
 import type { ReportEntry } from '../nav/reports-catalog';
@@ -115,16 +118,16 @@ function Sheet({ data }: { data: OnePagerData }) {
           )}
           <div className="ps-grid">
             <Split523 data={data} />
-            <NetWorth data={data} />
-            <Top data={data} />
-            <Plan data={data} />
-            <Check data={data} />
-            <section className="ps-sec ps-wide" aria-labelledby="ps-f">
-              <h3 className="ps-h" id="ps-f">
-                <span>F</span>Ausgaben im Monatsverlauf
+            <section className="ps-sec" aria-labelledby="ps-b">
+              <h3 className="ps-h" id="ps-b">
+                <span>B</span>Ausgaben im Monatsverlauf
               </h3>
               <HeutePaceChart data={{ pace: data.pace, stand: { today: data.today } }} />
             </section>
+            <Top data={data} />
+            <Plan data={data} />
+            <Check data={data} />
+            <NetWorth data={data} />
             <Findings data={data} />
           </div>
           <footer className="ps-tb">
@@ -174,7 +177,6 @@ function Split523({ data }: { data: OnePagerData }) {
     want: a.wantCents,
     future: a.futureCents,
   };
-  const width = (value: number) => `${((Math.max(0, value) / total) * 100).toFixed(2)}%`;
   return (
     <section className="ps-sec ps-split" aria-labelledby="ps-a">
       <h3 className="ps-h" id="ps-a">
@@ -184,19 +186,24 @@ function Split523({ data }: { data: OnePagerData }) {
         <p className="ps-note">Ohne Einnahmen im Monat lässt sich keine Verteilung berechnen.</p>
       ) : (
         <div className="b523" data-testid="onepager-split">
-          <div className="b523-bar" role="img" aria-label={splitLabel(data)}>
-            {CLASSES.map((c) => (
-              <span key={c} className={`sw-${c}`} style={{ width: width(amount[c]) }} />
-            ))}
-            {a.restCents > 0 && (
-              <span className="b523-rest" style={{ width: width(a.restCents) }} />
-            )}
-            <i className="b523-mark" style={{ left: `${((base * 0.5) / total) * 100}%` }} />
-            <i className="b523-mark" style={{ left: `${((base * 0.8) / total) * 100}%` }} />
-            {spend > base && (
-              <i className="b523-mark b523-full" style={{ left: `${(base / total) * 100}%` }} />
-            )}
-          </div>
+          <ChartValue
+            label="Verteilung 50/30/20"
+            date={data.month}
+            series={[
+              ...CLASSES.map((c) => ({
+                name: CLASS_LABEL[c],
+                value: `${eur(amount[c])} · ${chartShare(amount[c], base)}`,
+                color: `var(--${c})`,
+              })),
+              {
+                name: 'Übrig / aus Guthaben',
+                value: `${eur(a.restCents)} · ${chartShare(a.restCents, base)}`,
+                color: 'var(--ink-3)',
+              },
+            ]}
+          >
+            <AllocationBar data={a} label={splitLabel(data)} />
+          </ChartValue>
           <div className="b523-leg">
             {CLASSES.map((c) => (
               <span key={c}>
@@ -236,9 +243,9 @@ function NetWorth({ data }: { data: OnePagerData }) {
   useAmountPrivacy();
   const nw = data.netWorth;
   return (
-    <section className="ps-sec ps-nw" aria-labelledby="ps-b">
-      <h3 className="ps-h" id="ps-b">
-        <span>B</span>Nettovermögen
+    <section className="ps-sec ps-nw ps-wide" aria-labelledby="ps-f">
+      <h3 className="ps-h" id="ps-f">
+        <span>F</span>Nettovermögen
       </h3>
       {'unavailable' in nw ? (
         <p className="ps-note" role="status" data-testid="onepager-networth-unavailable">
@@ -247,7 +254,10 @@ function NetWorth({ data }: { data: OnePagerData }) {
       ) : (
         <>
           <div className="ps-nwfig">
-            <strong data-testid="onepager-networth">{eur(nw.cents, { cents: false })}</strong>
+            <strong data-testid="onepager-networth">
+              {data.incomplete?.length ? '≈' : ''}
+              {eur(nw.cents, { cents: false })}
+            </strong>
             <span className={`ps-delta ${tone(nw.deltaCents)}`}>{signed(nw.deltaCents)}</span>
           </div>
           <NetWorthMini
@@ -257,7 +267,6 @@ function NetWorth({ data }: { data: OnePagerData }) {
           <p className="ps-note">
             Eigenleistung {signed(nw.ownCents)} · Markt {signed(nw.marketCents)}
           </p>
-          <ValuationHint incomplete={data.incomplete} />
         </>
       )}
     </section>
@@ -268,36 +277,47 @@ function Top({ data }: { data: OnePagerData }) {
   useAmountPrivacy();
   const max = data.top[0]?.cents ?? 1;
   return (
-    <section className="ps-sec ps-top" aria-labelledby="ps-c">
+    <section className="ps-sec ps-top ps-wide" aria-labelledby="ps-c">
       <h3 className="ps-h" id="ps-c">
         <span>C</span>Größte Ausgaben
       </h3>
-      {data.top.length === 0 ? (
-        <p className="ps-note">In diesem Monat gibt es keine Ausgaben in Bedarf und Wunsch.</p>
-      ) : (
-        <>
-          <table className="ps-cats" data-testid="onepager-top">
-            <tbody>
-              {data.top.map((row) => (
-                <tr key={row.id}>
-                  <td>
-                    <ClassSwatch kind={row.class} />
-                    {row.name}
-                  </td>
-                  <td className="ps-bar" aria-hidden="true">
-                    <i style={{ width: `${(row.cents / max) * 100}%` }} />
-                  </td>
-                  <td className="n">{eur(row.cents, { cents: false })}</td>
-                  <td className="n">
-                    <small className={tone(-row.deltaCents)}>{signed(row.deltaCents)}</small>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          <p className="ps-note">Veränderung gegenüber {monthLabel(data.previousMonth)}.</p>
-        </>
-      )}
+      <div className="ps-sources">
+        <IncomeList data={data} />
+        <div>
+          {data.top.length === 0 ? (
+            <p className="ps-note">In diesem Monat gibt es keine Ausgaben in Bedarf und Wunsch.</p>
+          ) : (
+            <>
+              <table className="ps-cats" data-testid="onepager-top">
+                <tbody>
+                  {data.top.map((row) => (
+                    <tr key={row.id}>
+                      <td>
+                        <ClassSwatch kind={row.class} />
+                        {row.name}
+                      </td>
+                      <td className="ps-bar">
+                        <ChartValue
+                          label={row.name}
+                          date={data.month}
+                          series={[{ name: row.name, value: eur(row.cents), color: 'var(--line)' }]}
+                        >
+                          <i style={{ width: `${(row.cents / max) * 100}%` }} aria-hidden="true" />
+                        </ChartValue>
+                      </td>
+                      <td className="n">{eur(row.cents, { cents: false })}</td>
+                      <td className="n">
+                        <small className={tone(-row.deltaCents)}>{signed(row.deltaCents)}</small>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              <p className="ps-note">Veränderung gegenüber {monthLabel(data.previousMonth)}.</p>
+            </>
+          )}
+        </div>
+      </div>
     </section>
   );
 }
@@ -414,5 +434,55 @@ function Findings({ data }: { data: OnePagerData }) {
         </tbody>
       </table>
     </section>
+  );
+}
+
+function IncomeList({ data }: { data: OnePagerData }) {
+  return (
+    <div className="ps-income">
+      <h4>Einnahmen des Monats</h4>
+      <table className="ps-cats" data-testid="onepager-income">
+        <tbody>
+          {data.incomeRows
+            .filter((r) => r.kind === 'household')
+            .map((r, i) => (
+              <tr key={`${r.bookingId}-${i}`}>
+                <td>
+                  <AppLink to="/konten/buchungen" search={{ buchung: r.bookingId }}>
+                    {r.name}
+                    {r.payer ? ` · ${r.payer}` : ''}
+                  </AppLink>
+                </td>
+                <td className="n">{eur(r.cents)}</td>
+                <td className="n">{chartShare(r.cents, data.result.earnedCents)}</td>
+              </tr>
+            ))}
+          <tr>
+            <th scope="row">Summe Einnahmen</th>
+            <td className="n">{eur(data.result.earnedCents)}</td>
+            <td className="n">{data.result.earnedCents > 0 ? '100 %' : '–'}</td>
+          </tr>
+          {data.incomeRows
+            .filter((r) => r.kind !== 'household')
+            .map((r, i) => (
+              <tr key={`separate-${r.bookingId}-${i}`}>
+                <td>
+                  <AppLink to="/konten/buchungen" search={{ buchung: r.bookingId }}>
+                    {r.kind === 'capital'
+                      ? 'Kapitalerträge'
+                      : r.kind === 'refund'
+                        ? 'Erstattungen'
+                        : 'Ohne Einkommensart'}{' '}
+                    · separat
+                    {r.payer ? ` · ${r.payer}` : ''}
+                  </AppLink>
+                </td>
+                <td className="n">{eur(r.cents)}</td>
+                <td>–</td>
+              </tr>
+            ))}
+        </tbody>
+      </table>
+    </div>
   );
 }

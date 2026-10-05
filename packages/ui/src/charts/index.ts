@@ -4,12 +4,16 @@ export { ElevationMark } from './elevation-mark';
 export {
   AxisLine,
   ChartSvg,
+  ChartValues,
+  ChartValue,
+  chartDate,
   DimensionLine,
   Graticule,
   SlashTick,
   TodayLine,
   XTicks,
   type ChartSvgProps,
+  type ChartTooltipPoint,
   type GraticuleLine,
   type XTick,
 } from './frame';

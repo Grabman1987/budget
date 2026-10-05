@@ -1,3 +1,4 @@
+import { chartPoints } from '../charts/tooltip-data';
 import {
   useAmountPrivacy,
   maskMoneyText,
@@ -21,7 +22,6 @@ import { AlertCircle, AlertTriangle, CheckCircle2, CircleDashed } from 'lucide-r
 import { useElementWidth } from '../charts/use-element-width';
 import { eur, longDay } from '../ledger/format';
 import { ErrorNote, LoadingNote } from '../ledger/states';
-import { ValuationHint } from '../ledger/valuation-hint';
 import type { PageMeta } from '../nav/pages';
 import type { ReportEntry } from '../nav/reports-catalog';
 import { PageFrame } from '../pages/placeholder-page';
@@ -109,7 +109,7 @@ export function FinanzcheckReport({ report, meta }: { report: ReportEntry; meta:
             onRetry={() => void query.refetch()}
           />
         )}
-        <ValuationHint incomplete={data?.incomplete} />
+
         {data && <Body data={data} />}
       </div>
     </PageFrame>
@@ -409,7 +409,30 @@ function VerlaufChart({ counts, total }: { counts: DayCounts[]; total: number })
   return (
     <div ref={ref} className="ov-chart">
       {width > 0 && (
-        <ChartSvg width={width} height={height} label={label} testId="fc-chart">
+        <ChartSvg
+          width={width}
+          height={height}
+          label={label}
+          testId="fc-chart"
+          points={chartPoints(
+            counts.map((c) => c.asOf),
+            x,
+            [
+              {
+                name: 'Erfüllte Regeln',
+                values: counts.map((c) => c.ok),
+                color: 'var(--line)',
+                format: String,
+              },
+              {
+                name: 'Alle Regeln',
+                values: counts.map(() => total),
+                color: 'var(--line-2)',
+                format: String,
+              },
+            ],
+          )}
+        >
           <Graticule
             x1={left}
             x2={width - right}

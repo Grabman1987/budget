@@ -67,12 +67,11 @@
   stroke-width: 1;
 }
 .contributions-bar-positive {
-  fill: var(--line);
+  fill: var(--good);
   opacity: 0.72;
 }
 .contributions-bar-negative {
-  fill: var(--red-soft);
-  opacity: 0.72;
+  fill: var(--red);
 }
 .contributions-legend {
   display: flex;
@@ -113,7 +112,7 @@
 .contributions-years .rtable {
   min-width: 680px;
 }
-.contributions-years .rscroll {
+.portfolio-contributions-report .rscroll {
   width: 100%;
   min-width: 0;
   max-width: 100%;

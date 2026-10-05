@@ -86,6 +86,11 @@ sampleTest(
       portfolio.performance.from.split('-').reverse().join('.'),
     );
     await expect(page.locator('.contributions-years tbody tr')).toHaveCount(4);
+    await expect(
+      page.getByRole('table', {
+        name: 'Je Monat im Zeitraum',
+      }),
+    ).toBeVisible();
 
     const switched = page.waitForResponse((candidate) => {
       const url = new URL(candidate.url());
@@ -117,6 +122,10 @@ sampleTest(
         positions: [],
         performance: { from: '2025-09-17', to: '2026-09-17', days: 365 },
         contributionHistory: {
+          daily: [
+            { date: '2025-09-17', valueCents: 25_000, investedCents: 25_000 },
+            { date: '2026-09-17', valueCents: 0, investedCents: 25_000 + -25_000 },
+          ],
           from: '2025-09-17',
           to: '2026-09-17',
           startValueCents: 25_000,
@@ -129,6 +138,9 @@ sampleTest(
               to: '2026-09-17',
               valueCents: 0,
               investedCents: 0,
+              startValueCents: 25_000,
+              inflowsCents: 0,
+              outflowsCents: -25_000,
               contributionsCents: -25_000,
               gainCents: 0,
             },
@@ -157,7 +169,7 @@ sampleTest(
     await expect(page.getByRole('group', { name: 'Maßkette Einzahlungen und Wert' })).toContainText(
       '−Nettozuflüsse / Entnahmen250 €',
     );
-    await expect(page.getByText(/Sparplänen oder R12-Sonderzahlungen/)).toBeVisible();
+    await expect(page.getByText(/Keine Sparplan-/)).toBeVisible();
     await page.unroute('**/api/portfolio?*');
 
     await page.route('**/api/portfolio?*', async (route) =>
@@ -202,6 +214,18 @@ sampleTest(
             positions: [],
             performance: { from: '2026-09-01', to: '2026-09-17', days: 16 },
             contributionHistory: {
+              daily: [
+                {
+                  date: '2026-09-01',
+                  valueCents: Number.MAX_SAFE_INTEGER,
+                  investedCents: Number.MAX_SAFE_INTEGER,
+                },
+                {
+                  date: '2026-09-17',
+                  valueCents: Number.MAX_SAFE_INTEGER,
+                  investedCents: Number.MAX_SAFE_INTEGER + 0,
+                },
+              ],
               from: '2026-09-01',
               to: '2026-09-17',
               startValueCents: Number.MAX_SAFE_INTEGER,
@@ -214,6 +238,9 @@ sampleTest(
                   to: '2026-09-17',
                   valueCents: Number.MAX_SAFE_INTEGER,
                   investedCents: Number.MAX_SAFE_INTEGER,
+                  startValueCents: Number.MAX_SAFE_INTEGER,
+                  inflowsCents: 0,
+                  outflowsCents: 0,
                   contributionsCents: 0,
                   gainCents: 0,
                 },
@@ -237,6 +264,18 @@ sampleTest(
             positions: [],
             performance: { from: '2026-09-01', to: '2026-09-17', days: 16 },
             contributionHistory: {
+              daily: [
+                {
+                  date: '2026-09-01',
+                  valueCents: 8_000_000_000_000_000,
+                  investedCents: 8_000_000_000_000_000,
+                },
+                {
+                  date: '2026-09-17',
+                  valueCents: 0,
+                  investedCents: 8_000_000_000_000_000 + -9_007_199_254_740_950,
+                },
+              ],
               from: '2026-09-01',
               to: '2026-09-17',
               startValueCents: 8_000_000_000_000_000,
@@ -249,6 +288,9 @@ sampleTest(
                   to: '2026-09-17',
                   valueCents: 0,
                   investedCents: -1_007_199_254_740_950,
+                  startValueCents: 8_000_000_000_000_000,
+                  inflowsCents: 0,
+                  outflowsCents: -9_007_199_254_740_950,
                   contributionsCents: -9_007_199_254_740_950,
                   gainCents: 1_007_199_254_740_950,
                 },
@@ -272,6 +314,18 @@ sampleTest(
             positions: [],
             performance: { from: '2026-09-01', to: '2026-09-17', days: 16 },
             contributionHistory: {
+              daily: [
+                {
+                  date: '2026-09-01',
+                  valueCents: 9_007_199_254_740_949,
+                  investedCents: 9_007_199_254_740_949,
+                },
+                {
+                  date: '2026-09-17',
+                  valueCents: 9_007_199_254_740_900,
+                  investedCents: 9_007_199_254_740_949 + -51,
+                },
+              ],
               from: '2026-09-01',
               to: '2026-09-17',
               startValueCents: 9_007_199_254_740_949,
@@ -284,6 +338,9 @@ sampleTest(
                   to: '2026-09-17',
                   valueCents: 9_007_199_254_740_900,
                   investedCents: 9_007_199_254_740_898,
+                  startValueCents: 9_007_199_254_740_949,
+                  inflowsCents: 0,
+                  outflowsCents: -51,
                   contributionsCents: -51,
                   gainCents: 2,
                 },

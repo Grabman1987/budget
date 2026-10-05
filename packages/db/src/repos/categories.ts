@@ -45,6 +45,7 @@ export interface CategoryFields {
   stage?: number | null;
   cardAccountId?: string | null;
   rolloverOverspending?: boolean;
+  inflationTrailingMean?: boolean | null;
 }
 
 export interface TargetInput {

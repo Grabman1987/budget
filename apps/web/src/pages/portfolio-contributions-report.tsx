@@ -1,3 +1,5 @@
+import { ChartSvg } from '@budget/ui';
+import { chartPoints } from '../charts/tooltip-data';
 import { ReportPeriodControl } from '../reports/period-quick-select';
 import { useAmountPrivacy, DimensionChain, Button, TrendLine } from '@budget/ui';
 import { balanceChain, cents, type Period } from '@budget/domain';
@@ -8,7 +10,7 @@ import { useZeitraum, ZEITRAUM_VALUES } from '../wealth/zeitraum';
 import { userText } from '../api/error-text';
 import { ApiError, request } from '../api/http';
 import { ErrorNote, LoadingNote } from '../ledger/states';
-import { ValuationHint, type WithValuationNotes } from '../ledger/valuation-hint';
+import { type WithValuationNotes } from '../ledger/valuation-hint';
 import { longDay, eur } from '../ledger/format';
 import { periodText } from '../wealth/networth-model';
 import { LEDGER_KEY } from '../ledger/queries';
@@ -80,7 +82,6 @@ export function PortfolioContributionsReport({
       ]}
     >
       <div className="kview vview portfolio-contributions-report">
-        <ValuationHint incomplete={query.data?.incomplete} />
         {query.isPending && <LoadingNote what="Einzahlungen und Wert" />}
         {query.isError &&
           (query.error instanceof ApiError && query.error.code === 'valuation_unavailable' ? (
@@ -109,6 +110,7 @@ export function PortfolioContributionsReport({
         {!query.isError && query.data && history && (
           <ContributionsBody
             summary={query.data.portfolio}
+            estimated={Boolean(query.data.incomplete?.length)}
             history={history}
             period={period}
             onOpenPortfolio={() =>
@@ -135,11 +137,13 @@ export function PortfolioContributionsReport({
 
 function ContributionsBody({
   summary,
+  estimated,
   history,
   period,
   onOpenPortfolio,
 }: {
   summary: ContributionsPortfolio;
+  estimated: boolean;
   history: ContributionHistory;
   period: Period;
   onOpenPortfolio: () => void;
@@ -177,7 +181,10 @@ function ContributionsBody({
         </p>
         <div className="contributions-primary">
           <span className="tech">Wert am Ende des Zeitraums</span>
-          <strong data-testid="contributions-end-value">{eur(history.endValueCents)}</strong>
+          <strong data-testid="contributions-end-value">
+            {estimated && <abbr title="Teilweise geschätzt">≈</abbr>}
+            {eur(history.endValueCents)}
+          </strong>
         </div>
         <DimensionChain
           terms={chainTerms}
@@ -186,11 +193,39 @@ function ContributionsBody({
         />
         <ContributionsChart history={history} />
         <p className="vnote">
-          Dargestellt sind Wertpapiere ohne Depotkassa. Käufe, Einlieferungen, Gebühren und Steuern
-          zählen als positive Flüsse; Verkäufe, Auslieferungen und ausgezahlte Erträge als negative
-          Flüsse. Eine Zuordnung zu Sparplänen oder R12-Sonderzahlungen ist in den Quelldaten nicht
-          enthalten.
+          Ohne Depotkassa. Flüsse enthalten Käufe, Verkäufe, Lieferungen, Erträge und Kosten;
+          Wertänderung = Ende − Anfang − Nettoflüsse. Keine Sparplan-/R12-Zuordnung.
         </p>
+        <div
+          className="rscroll"
+          role="region"
+          aria-label="Monatswerte"
+          // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- Keyboard scrolling of the month table.
+          tabIndex={0}
+        >
+          <table className="rtable" data-testid="contributions-months">
+            <caption>Je Monat im Zeitraum</caption>
+            <thead>
+              <tr>
+                {['Monat', 'Anfang', 'Zuflüsse', 'Abflüsse', 'Wertänderung', 'Ende'].map((t) => (
+                  <th key={t}>{t}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {history.months.map((m) => (
+                <tr key={m.to}>
+                  <th scope="row">{m.to.slice(0, 7)}</th>
+                  <td className="n">{eur(m.startValueCents)}</td>
+                  <td className="n">{eur(m.inflowsCents, { sign: true })}</td>
+                  <td className="n">{eur(m.outflowsCents, { sign: true })}</td>
+                  <td className="n">{eur(m.gainCents, { sign: true })}</td>
+                  <td className="n">{eur(m.valueCents)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </section>
       <section className="contributions-years" aria-labelledby="contributions-years-title">
         <div className="tbd-head">
@@ -250,8 +285,9 @@ function ContributionsBody({
 function ContributionsChart({ history }: { history: ContributionHistory }) {
   useAmountPrivacy();
   const rows = history.months;
-  const values = [history.startValueCents, ...rows.map((row) => row.valueCents)];
-  const invested = [history.startValueCents, ...rows.map((row) => row.investedCents)];
+  const daily = history.daily;
+  const values = daily.map((row) => row.valueCents);
+  const invested = daily.map((row) => row.investedCents - history.startValueCents);
   const maxAbsGain = Math.max(1, ...rows.map((row) => Math.abs(row.gainCents)));
   const minValue = Math.min(...values, ...invested);
   const maxValue = Math.max(...values, ...invested);
@@ -263,10 +299,13 @@ function ContributionsChart({ history }: { history: ContributionHistory }) {
   const barTop = 188;
   const barBottom = 270;
   const width = 720;
-  const x = (index: number) => left + (index / Math.max(1, rows.length)) * (width - left - right);
+  const from = Date.parse(history.from);
+  const span = Math.max(1, Date.parse(history.to) - from);
+  const xDate = (date: string) =>
+    left + ((Date.parse(date) - from) / span) * (width - left - right);
+  const x = (index: number) => xDate(daily[index]!.date);
   const y = (value: number) => top + ((maxValue - value) / spread) * (lineBottom - top);
   const zero = (barTop + barBottom) / 2;
-  const scaleX = width - left - right;
   const valuePath = values
     .map((value, index) => `${index ? 'L' : 'M'}${x(index)},${y(value)}`)
     .join(' ');
@@ -281,12 +320,41 @@ function ContributionsChart({ history }: { history: ContributionHistory }) {
       // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- Keyboard users must be able to scroll the chart on narrow viewports.
       tabIndex={0}
     >
-      <svg
+      <ChartSvg
         className="contributions-chart"
-        data-testid="contributions-chart"
-        viewBox={`0 0 ${width} 286`}
-        role="img"
-        aria-label="Linien für Wertpapierwert und Wert am Anfang zuzüglich kumulierter Nettozuflüsse; Balken zeigen die monatliche Wertänderung nach Nettozuflüssen."
+        testId="contributions-chart"
+        width={width}
+        height={286}
+        points={chartPoints(
+          daily.map((row) => row.date),
+          x,
+          [
+            { name: 'Wert', values },
+            {
+              name: 'Kumulierte Nettoflüsse',
+              values: invested,
+              color: 'var(--line-2)',
+            },
+          ],
+        ).map((p, i) => {
+          const row = rows.find((row) => daily[i]!.date >= row.from && daily[i]!.date <= row.to);
+          return {
+            ...p,
+            series: [
+              ...p.series,
+              ...(row
+                ? [
+                    {
+                      name: 'Wertänderung · Monat',
+                      value: eur(row.gainCents, { sign: true }),
+                      color: row.gainCents < 0 ? 'var(--red)' : 'var(--good)',
+                    },
+                  ]
+                : []),
+            ],
+          };
+        })}
+        label="Linien für Wertpapierwert und kumulierte Nettozuflüsse; Balken zeigen die monatliche Wertänderung nach Nettozuflüssen."
       >
         {[0, 1, 2, 3].map((i) => {
           const value = maxValue === minValue ? maxValue : minValue + (spread * i) / 3;
@@ -300,13 +368,13 @@ function ContributionsChart({ history }: { history: ContributionHistory }) {
             </g>
           );
         })}
-        {rows.map((row, index) => {
-          const slot = scaleX / Math.max(rows.length, 1);
+        {rows.map((row) => {
+          const slot = xDate(row.to) - xDate(row.from);
           const height = (Math.abs(row.gainCents) / maxAbsGain) * ((barBottom - barTop) / 2 - 4);
           return (
             <rect
               key={row.to}
-              x={x(index + 0.5) - slot * 0.27}
+              x={(xDate(row.from) + xDate(row.to)) / 2 - slot * 0.27}
               y={row.gainCents >= 0 ? zero - height : zero}
               width={slot * 0.54}
               height={height}
@@ -322,8 +390,8 @@ function ContributionsChart({ history }: { history: ContributionHistory }) {
         <path d={valuePath} className="contributions-value-line" />
         <TrendLine points={values.map((value, index) => [x(index), y(value)])} />
         <TrendLine
-          points={rows.map((row, index) => [
-            x(index + 0.5),
+          points={rows.map((row) => [
+            (xDate(row.from) + xDate(row.to)) / 2,
             zero - (row.gainCents / maxAbsGain) * ((barBottom - barTop) / 2 - 4),
           ])}
         />
@@ -336,14 +404,14 @@ function ContributionsChart({ history }: { history: ContributionHistory }) {
           .map((row) => (
             <text
               key={`${row.to}-label`}
-              x={x(rows.indexOf(row) + 0.5)}
+              x={(xDate(row.from) + xDate(row.to)) / 2}
               y={barBottom + 15}
               textAnchor="middle"
             >
               {row.to.slice(0, 7)}
             </text>
           ))}
-      </svg>
+      </ChartSvg>
       <div className="contributions-legend" aria-hidden="true">
         <span>
           <i className="legend-value" />
@@ -351,7 +419,7 @@ function ContributionsChart({ history }: { history: ContributionHistory }) {
         </span>
         <span>
           <i className="legend-invested" />
-          Anfangswert + kumulierte Nettozuflüsse
+          Kumulierte Nettoflüsse
         </span>
         <span>
           <i className="legend-bars" />

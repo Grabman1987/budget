@@ -1,5 +1,11 @@
 import { checkedReportPeriod, reportPeriodSchema } from './report-period';
-import { explorerReport, periodComparisonReport, yearReportRead, type Db } from '@budget/db';
+import {
+  wholePicture,
+  explorerReport,
+  periodComparisonReport,
+  yearReportRead,
+  type Db,
+} from '@budget/db';
 import {
   COMPARE_MODES,
   EXPLORER_CLASSES,
@@ -34,6 +40,11 @@ const explorerQuery = z.object({
  */
 export function overviewReportRoutes(db: Db, today: () => string): Hono {
   const app = new Hono();
+
+  app.get('/whole-picture', (c) => {
+    const { period } = readQuery(c, z.object({ period: reportPeriodSchema.default('1J') }));
+    return c.json(wholePicture(db, today(), checkedReportPeriod(period, today())));
+  });
 
   app.get('/year', (c) => {
     const { year } = readQuery(c, yearQuery);

@@ -1,3 +1,4 @@
+import { chartPoints } from './tooltip-data';
 import {
   useAmountPrivacy,
   formatPrivateEuro as formatEuro,
@@ -66,7 +67,38 @@ export function PaceChart({ width }: { width: number }) {
   const dimX = x(TODAY) - 12;
 
   return (
-    <ChartSvg width={width} height={HEIGHT} label={summary} testId="pace-chart">
+    <ChartSvg
+      width={width}
+      height={HEIGHT}
+      label={summary}
+      testId="pace-chart"
+      points={chartPoints(
+        days.map((d) => `2026-09-${String(Math.max(1, d)).padStart(2, '0')}`),
+        (i) => x(days[i]!),
+        [
+          {
+            name: 'Ist',
+            values: days.map((d) => (d <= TODAY ? model.actual(d) : null)),
+            color: 'var(--line)',
+          },
+          { name: 'Plan', values: days.map(model.plan), color: 'var(--line)' },
+          { name: 'Vormonat', values: days.map(model.previous), color: 'var(--ink-3)' },
+          {
+            name: 'Prognose',
+            values: days.map((d) =>
+              d < TODAY
+                ? null
+                : Math.round(
+                    actualToday +
+                      ((model.forecastEnd - actualToday) * (d - TODAY)) / (DAYS - TODAY),
+                  ),
+            ),
+            color: 'var(--line)',
+          },
+          { name: 'Limit', values: days.map(() => LIMIT), color: 'var(--line)' },
+        ],
+      )}
+    >
       <Graticule
         x1={padL}
         x2={width - padR}

@@ -2,6 +2,7 @@ import {
   useAmountPrivacy,
   formatPrivateEuro as formatEuro,
   ClassPatterns,
+  ChartSvg,
   patternFill,
   usePatternPrefix,
 } from '@budget/ui';
@@ -47,12 +48,14 @@ export function SankeyChart({
   model = SAMPLE_SANKEY,
   label = LABEL,
   height = HEIGHT,
+  period = 'Zeitraum',
 }: {
   width: number;
   /** Nodes and links; default: the spike's synthetic sample. */
   model?: SankeyModel;
   label?: string;
   height?: number;
+  period?: string;
 }) {
   useAmountPrivacy();
   // Class nodes as in the prototype: Bedarf solid, Wunsch and Zukunft hatched with an outline.
@@ -66,33 +69,82 @@ export function SankeyChart({
   const first = columns[0] ?? [];
   const last = columns[columns.length - 1] ?? [];
   if (first.length === 0) return null;
+  const total = first.reduce((sum, node) => sum + node.value, 0);
+  const share = (value: number) =>
+    new Intl.NumberFormat('de-AT', {
+      style: 'percent',
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format(total > 0 ? value / total : 0);
   const layout = sankeyLayout(columns, links, {
     width,
     height,
     nodeWidth: NODE_WIDTH,
     gap: 9,
     padLeft: labelWidth(first.map((n) => n.name)),
-    padRight: labelWidth(last.map((n) => n.name)) + 8,
+    padRight:
+      Math.max(
+        labelWidth(last.map((n) => `${n.name} · ${eur0(n.value)} · ${share(n.value)}`)),
+        155,
+      ) + 8,
   });
 
   return (
-    <svg
-      viewBox={`0 0 ${width} ${height}`}
+    <ChartSvg
       width={width}
       height={height}
-      role="img"
-      aria-label={label}
-      data-testid="sankey-chart"
+      label={label}
+      testId="sankey-chart"
+      crosshair={false}
+      points={[
+        ...layout.nodes.map((n) => ({
+          x: n.x,
+          date: period,
+          series: [
+            {
+              name: n.name,
+              value: formatEuro(cents(n.value)),
+              className: `sk-node n-${n.tone ?? 'inc'}`,
+            },
+            {
+              name: 'Anteil an Verfügbar',
+              value: share(n.value),
+            },
+          ],
+        })),
+        ...layout.links.map((l) => ({
+          x: 0,
+          date: period,
+          series: [
+            {
+              name:
+                l.label ??
+                `${layout.nodes.find((n) => n.id === l.from)?.name} → ${layout.nodes.find((n) => n.id === l.to)?.name}`,
+              value: formatEuro(cents(l.value)),
+              className: `sk-node n-${l.tone ?? 'inc'}`,
+            },
+            {
+              name: 'Anteil an Verfügbar',
+              value: share(l.value),
+            },
+          ],
+        })),
+      ]}
     >
       <ClassPatterns prefix={prefix} />
       <g>
-        {layout.links.map((l) => (
-          <path key={`${l.from}-${l.to}`} d={l.d} className={`sk-link l-${l.tone ?? 'inc'}`}>
+        {layout.links.map((l, i) => (
+          <path
+            data-chart-point={layout.nodes.length + i}
+            key={`${l.from}-${l.to}`}
+            d={l.d}
+            className={`sk-link l-${l.tone ?? 'inc'}`}
+          >
             <title>{`${l.label ?? ''}: ${eur0(l.value)}`}</title>
           </path>
         ))}
       </g>
-      {layout.nodes.map((n) => {
+      {layout.nodes.map((n, i) => {
         const first = n.column === 0;
         const tx = first ? n.x - 8 : n.x + n.width + 8;
         const anchor = first ? 'end' : 'start';
@@ -100,7 +152,7 @@ export function SankeyChart({
         const showLabel = n.height >= 9 || n.forceLabel === true;
         const tall = n.height >= 26;
         return (
-          <g key={n.id}>
+          <g key={n.id} data-chart-point={i}>
             <rect
               x={n.x}
               y={n.y}
@@ -117,7 +169,7 @@ export function SankeyChart({
                   : undefined
               }
             >
-              <title>{`${n.name}: ${eur0(n.value)}`}</title>
+              <title>{`${n.name}: ${eur0(n.value)} · ${share(n.value)}`}</title>
             </rect>
             {showLabel && (
               <text
@@ -127,16 +179,18 @@ export function SankeyChart({
                 className="svg-label-strong"
               >
                 {n.name}
+                {!tall && n.column >= 2 ? ` · ${eur0(n.value)} · ${share(n.value)}` : ''}
               </text>
             )}
             {showLabel && tall && (
               <text x={tx} y={ty + 13} textAnchor={anchor} className="svg-label">
                 {eur0(n.value)}
+                {n.column >= 2 ? ` · ${share(n.value)}` : ''}
               </text>
             )}
           </g>
         );
       })}
-    </svg>
+    </ChartSvg>
   );
 }

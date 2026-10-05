@@ -66,7 +66,7 @@ export const RULE_FIELDS: Readonly<Record<string, ReadonlyArray<FieldSpec>>> = {
   R05: [pct('badUncoveredBp', 'Verletzt ab Anteil ungedeckter Rücklagen')],
   R06: [],
   R07: [
-    { ...count('horizonDays', 'Vorschau', 'Tage', undefined, 1), max: 365 },
+    { ...count('horizonDays', 'Vorschau', 'Tage', undefined, 1), max: 35 },
     {
       key: 'minCents',
       label: 'Tiefpunkt mindestens',

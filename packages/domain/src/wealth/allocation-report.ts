@@ -137,3 +137,13 @@ export function allocationTimeline(
     classes,
   };
 }
+
+/** Composition charts show positive classified assets; signed cash remains in risk policy. */
+export function allocationChartPositions(positions: ReadonlyArray<WealthPosition>) {
+  return positions.filter(
+    (p) =>
+      p.valueCents > 0 &&
+      p.assetClass != null &&
+      !(p.securityId?.startsWith('cash:') && p.kind !== 'p2p'),
+  );
+}

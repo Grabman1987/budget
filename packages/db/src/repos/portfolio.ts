@@ -511,7 +511,7 @@ function toRateTable(rows: Rates): RateTable {
   return table;
 }
 
-function rateTable(db: Executor, to: string): RateTable {
+export function rateTable(db: Executor, to: string): RateTable {
   return toRateTable(db.select().from(fxRate).where(lte(fxRate.date, to)).all());
 }
 
@@ -757,7 +757,11 @@ function tradesOf(
  */
 export function portfolioFlows(
   db: Executor,
-  filter: FlowFilter & { view?: 'securities' | 'depot'; referenceAccounts?: ReadonlyArray<string> },
+  filter: FlowFilter & {
+    view?: 'securities' | 'depot';
+    referenceAccounts?: ReadonlyArray<string>;
+    externalAccounts?: ReadonlyArray<string>;
+  },
 ): CashFlow[] {
   const rates = rateTable(db, filter.to);
   if ((filter.view ?? 'securities') === 'securities')
@@ -809,19 +813,28 @@ export function portfolioFlows(
   for (const leg of legs) {
     if (!reference.has(leg.accountId) || leg.date <= filter.from) continue;
     const others = (byTransfer.get(leg.transferId as string) ?? []).filter((l) => l !== leg);
-    if (others.every((o) => !inside.has(o.accountId)))
+    if (
+      others.length > 0 &&
+      others.every((o) => !inside.has(o.accountId)) &&
+      (filter.externalAccounts === undefined ||
+        others.every((o) => filter.externalAccounts!.includes(o.accountId)))
+    )
       boundary.push({ date: leg.date, cents: leg.cents, currency: leg.currency });
   }
   // A plain booking straight onto a reference account is money from
   // outside, like in Portfolio Performance: an inflow is a deposit (Einlage), an outflow a
   // withdrawal (Entnahme). Trade settlements (including standalone fees and taxes, which are
   // trades) and income of type Kapitalerträge stay inside: they are performance.
-  boundary.push(...externalDeposits(db, reference, filter.from, filter.to));
+  if (filter.externalAccounts === undefined)
+    boundary.push(...externalDeposits(db, reference, filter.from, filter.to));
   // Deliveries in and out move value across the boundary without cash, as in Portfolio
   // Performance: capital in or out at their stored amount (transfers between portfolios of the
   // same depot net out, as both legs are deliveries of accounts inside).
   for (const t of tradesOf(db, filter, filter.from))
-    if (t.kind === 'delivery_in' || t.kind === 'delivery_out')
+    if (
+      filter.externalAccounts === undefined &&
+      (t.kind === 'delivery_in' || t.kind === 'delivery_out')
+    )
       boundary.push({
         date: t.date,
         cents: (t.kind === 'delivery_in' ? 1 : -1) * t.amountCents,

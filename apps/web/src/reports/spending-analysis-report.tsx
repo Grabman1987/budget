@@ -1,3 +1,5 @@
+import { chartShare } from '../charts/tooltip-data';
+import { ChartValue, ChartValues } from '@budget/ui';
 import { useAmountPrivacy, ClassSwatch, DimensionChain } from '@budget/ui';
 import { cents, heatCells } from '@budget/domain';
 import type { SpendingReport } from '@budget/db';
@@ -125,19 +127,31 @@ function Body({ data }: { data: SpendingReport }) {
         />
         {total > 0 ? (
           <>
-            <div
-              className="sr-seg"
-              role="img"
-              aria-label={`Bedarf ${data.classShares.need} %, Wunsch ${data.classShares.want} %, Zukunft ${data.classShares.future} %`}
+            <ChartValue
+              label="Ausgaben nach Klassen"
+              date={`${data.from} · ${data.to}`}
+              series={[
+                ...parts.map((p) => ({
+                  name: CLASS_NAME[p.id],
+                  value: `${eur(p.cents)} · ${chartShare(p.cents, total)}`,
+                  color: `var(--${p.id})`,
+                })),
+              ]}
             >
-              {parts.map((p) => (
-                <span
-                  key={p.id}
-                  className={`sw-${p.id}`}
-                  style={{ width: `${(Math.max(0, p.cents) / total) * 100}%` }}
-                />
-              ))}
-            </div>
+              <div
+                className="sr-seg"
+                role="img"
+                aria-label={`Bedarf ${data.classShares.need} %, Wunsch ${data.classShares.want} %, Zukunft ${data.classShares.future} %`}
+              >
+                {parts.map((p) => (
+                  <span
+                    key={p.id}
+                    className={`sw-${p.id}`}
+                    style={{ width: `${(Math.max(0, p.cents) / total) * 100}%` }}
+                  />
+                ))}
+              </div>
+            </ChartValue>
             <ul className="sr-seg-leg">
               {parts.map((p) => (
                 <li key={p.id}>
@@ -175,12 +189,26 @@ function Body({ data }: { data: SpendingReport }) {
                       <ClassSwatch kind={m.class} />
                       <span>{m.name}</span>
                     </span>
-                    <span className="sr-track" aria-hidden="true">
-                      <i
-                        className={m.changeCents < 0 ? 'is-less' : 'is-more'}
-                        style={{ width: `${(Math.abs(m.changeCents) / maxMove) * 50}%` }}
-                      />
-                    </span>
+                    <ChartValue
+                      label="Veränderung zur Vorperiode"
+                      date={`${data.from} · ${data.to}`}
+                      series={[
+                        { name: 'Veränderung', value: eur(m.changeCents), color: 'var(--red)' },
+                        {
+                          name: 'Vorperiode',
+                          value: eur(m.previousCents ?? 0),
+                          color: 'var(--ink-3)',
+                        },
+                        { name: 'Aktuell', value: eur(m.cents), color: 'var(--line)' },
+                      ]}
+                    >
+                      <span className="sr-track" aria-hidden="true">
+                        <i
+                          className={m.changeCents < 0 ? 'is-less' : 'is-more'}
+                          style={{ width: `${(Math.abs(m.changeCents) / maxMove) * 50}%` }}
+                        />
+                      </span>
+                    </ChartValue>
                     <span className="sr-val">
                       <strong className={m.changeCents <= 0 ? 'is-better' : 'is-worse'}>
                         {eur(m.changeCents, { cents: false, sign: true })}
@@ -225,12 +253,18 @@ function Body({ data }: { data: SpendingReport }) {
                   <ClassSwatch kind={r.class} />
                   <span>{r.name}</span>
                 </AppLink>
-                <span className="sr-track" aria-hidden="true">
-                  <i
-                    className={`sw-${r.class}`}
-                    style={{ width: `${(r.cents / maxRow) * 100}%` }}
-                  />
-                </span>
+                <ChartValue
+                  label="Ausgaben nach Kategorie"
+                  date={`${data.from} · ${data.to}`}
+                  series={[{ name: 'Ausgaben', value: eur(r.cents), color: 'var(--line)' }]}
+                >
+                  <span className="sr-track" aria-hidden="true">
+                    <i
+                      className={`sw-${r.class}`}
+                      style={{ width: `${(r.cents / maxRow) * 100}%` }}
+                    />
+                  </span>
+                </ChartValue>
                 <span className="sr-val">
                   {eur(r.cents, { cents: false })}
                   {r.previousCents ? (
@@ -265,62 +299,80 @@ function Body({ data }: { data: SpendingReport }) {
         {data.heatRows.length === 0 ? (
           <p className="sr-empty">Keine Ausgaben für die Heatmap.</p>
         ) : (
-          <ScrollRegion label="Heatmap Kategorie mal Monat, bei Bedarf horizontal verschiebbar">
-            <table className="sr-table sr-heat">
-              <caption className="sr-only">
-                Ausgaben je Kategorie und Monat, eingefärbt gegen den Durchschnitt der Zeile
-              </caption>
-              <thead>
-                <tr>
-                  <th scope="col">Kategorie</th>
-                  {heatLabels.map((label) => (
-                    <th key={label} scope="col" className="n">
-                      {label}
-                    </th>
-                  ))}
-                  <th scope="col" className="n">
-                    Summe
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {data.heatRows.map((row) => {
-                  const cells = heatCells(row.values, 'low');
-                  return (
-                    <tr key={row.id}>
-                      <th scope="row" title={row.name}>
-                        <span className="sr-name">
-                          <ClassSwatch kind={row.class} />
-                          <span>{row.name}</span>
-                        </span>
+          <ChartValues
+            label="Ausgaben je Kategorie und Monat"
+            points={data.heatRows.flatMap((row) =>
+              row.values.map((v, i) => ({
+                x: 50,
+                date: data.heatMonths[i] ?? '',
+                series: [
+                  { name: row.name, value: eur(v), color: v < 0 ? 'var(--red)' : 'var(--line)' },
+                ],
+              })),
+            )}
+          >
+            <ScrollRegion label="Heatmap Kategorie mal Monat, bei Bedarf horizontal verschiebbar">
+              <table className="sr-table sr-heat">
+                <caption className="sr-only">
+                  Ausgaben je Kategorie und Monat, eingefärbt gegen den Durchschnitt der Zeile
+                </caption>
+                <thead>
+                  <tr>
+                    <th scope="col">Kategorie</th>
+                    {heatLabels.map((label) => (
+                      <th key={label} scope="col" className="n">
+                        {label}
                       </th>
-                      {row.values.map((v, i) => {
-                        const cell = cells[i];
-                        const tone =
-                          cell?.tone === 'bad' ? 'is-red' : cell?.tone === 'good' ? 'is-green' : '';
-                        return (
-                          <td
-                            key={data.heatMonths[i]}
-                            className={`n ${tone}${v < 0 ? ' is-refund' : ''}`}
-                            style={{ '--h': cell?.level.toFixed(2) ?? '0' } as CSSProperties}
-                          >
-                            {v === 0 ? (
-                              <span aria-label="nichts ausgegeben">·</span>
-                            ) : (
-                              eur(v, { cents: false })
-                            )}
-                          </td>
-                        );
-                      })}
-                      <td className="n">
-                        <strong>{eur(row.totalCents, { cents: false })}</strong>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </ScrollRegion>
+                    ))}
+                    <th scope="col" className="n">
+                      Summe
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {data.heatRows.map((row, rowIndex) => {
+                    const cells = heatCells(row.values, 'low');
+                    return (
+                      <tr key={row.id}>
+                        <th scope="row" title={row.name}>
+                          <span className="sr-name">
+                            <ClassSwatch kind={row.class} />
+                            <span>{row.name}</span>
+                          </span>
+                        </th>
+                        {row.values.map((v, i) => {
+                          const cell = cells[i];
+                          const tone =
+                            cell?.tone === 'bad'
+                              ? 'is-red'
+                              : cell?.tone === 'good'
+                                ? 'is-green'
+                                : '';
+                          return (
+                            <td
+                              key={data.heatMonths[i]}
+                              data-chart-point={rowIndex * data.heatMonths.length + i}
+                              className={`n ${tone}${v < 0 ? ' is-refund' : ''}`}
+                              style={{ '--h': cell?.level.toFixed(2) ?? '0' } as CSSProperties}
+                            >
+                              {v === 0 ? (
+                                <span aria-label="nichts ausgegeben">·</span>
+                              ) : (
+                                eur(v, { cents: false })
+                              )}
+                            </td>
+                          );
+                        })}
+                        <td className="n">
+                          <strong>{eur(row.totalCents, { cents: false })}</strong>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </ScrollRegion>
+          </ChartValues>
         )}
         <p className="sr-note">
           Farbe je Zeile gegen den Durchschnitt der Kategorie: Rot = teurer Monat, Grün = günstiger;

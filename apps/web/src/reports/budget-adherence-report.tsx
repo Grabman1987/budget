@@ -1,3 +1,6 @@
+import { AllocationBar } from './allocation-bar';
+import { chartShare } from '../charts/tooltip-data';
+import { ChartValue } from '@budget/ui';
 import { useAmountPrivacy, ClassSwatch, DimensionChain } from '@budget/ui';
 import { cents } from '@budget/domain';
 import type { AllocationRow, BudgetAdherenceReport } from '@budget/db';
@@ -175,22 +178,31 @@ function Body({ data }: { data: BudgetAdherenceReport }) {
                         <ClassSwatch kind={x.class} />
                         <span>{x.name}</span>
                       </AppLink>
-                      <span
-                        className="sr-bl-track"
-                        role="img"
-                        aria-label={`Ist ${eur(x.istCents)} von Plan ${eur(x.planCents)}`}
+                      <ChartValue
+                        label="Ist und Plan"
+                        date={data.month}
+                        series={[
+                          { name: 'Ist', value: eur(x.istCents), color: `var(--${x.class})` },
+                          { name: 'Plan', value: eur(x.planCents), color: 'var(--line-2)' },
+                        ]}
                       >
-                        <i
-                          className={`sr-bl-ist sw-${x.class}`}
-                          style={{ width: `${(Math.max(0, x.istCents) / max) * 100}%` }}
-                        />
-                        {x.planCents > 0 ? (
+                        <span
+                          className="sr-bl-track"
+                          role="img"
+                          aria-label={`Ist ${eur(x.istCents)} von Plan ${eur(x.planCents)}`}
+                        >
                           <i
-                            className="sr-bl-plan"
-                            style={{ left: `${Math.min(99.5, (x.planCents / max) * 100)}%` }}
+                            className={`sr-bl-ist sw-${x.class}`}
+                            style={{ width: `${(Math.max(0, x.istCents) / max) * 100}%` }}
                           />
-                        ) : null}
-                      </span>
+                          {x.planCents > 0 ? (
+                            <i
+                              className="sr-bl-plan"
+                              style={{ left: `${Math.min(99.5, (x.planCents / max) * 100)}%` }}
+                            />
+                          ) : null}
+                        </span>
+                      </ChartValue>
                       <span className="sr-val">
                         <strong>{eur(x.istCents, { cents: false })}</strong>
                         <small>/ {eur(x.planCents, { cents: false })}</small>
@@ -343,48 +355,42 @@ function Body({ data }: { data: BudgetAdherenceReport }) {
 
 function Allocation({ row, current }: { row: AllocationRow; current: boolean }) {
   useAmountPrivacy();
-  const spend = row.needCents + row.wantCents + row.futureCents;
-  const total = Math.max(row.incomeCents, spend);
-  const width = (c: number) => `${total > 0 ? (Math.max(0, c) / total) * 100 : 0}%`;
   const { need, want, future, rest } = row.shares;
   const hasIncome = row.incomeCents > 0;
   return (
     <div className={`sr-523-row${current ? ' is-cur' : ''}`} role="listitem">
       <span className="sr-523-month">{monthShort(row.month)}</span>
-      <span
-        className="sr-523-bar"
-        role="img"
-        aria-label={
-          hasIncome
-            ? `${monthShort(row.month)}: Bedarf ${need} %, Wunsch ${want} %, Zukunft ${future} %, ${rest < 0 ? 'aus Guthaben' : 'übrig'} ${Math.abs(rest)} %`
-            : `${monthShort(row.month)}: keine Haushaltseinnahmen`
-        }
+      <ChartValue
+        label="Verteilung 50/30/20"
+        date={row.month}
+        series={[
+          {
+            name: 'Bedarf',
+            value: `${eur(row.needCents)} · ${chartShare(row.needCents, row.incomeCents)}`,
+            color: 'var(--need)',
+          },
+          {
+            name: 'Wunsch',
+            value: `${eur(row.wantCents)} · ${chartShare(row.wantCents, row.incomeCents)}`,
+            color: 'var(--want)',
+          },
+          {
+            name: 'Zukunft',
+            value: `${eur(row.futureCents)} · ${chartShare(row.futureCents, row.incomeCents)}`,
+            color: 'var(--future)',
+          },
+          {
+            name: 'Übrig / aus Guthaben',
+            value: `${eur(row.restCents)} · ${chartShare(row.restCents, row.incomeCents)}`,
+            color: 'var(--ink-3)',
+          },
+        ]}
       >
-        <span className="sw-need" style={{ width: width(row.needCents) }} />
-        <span className="sw-want" style={{ width: width(row.wantCents) }} />
-        <span className="sw-future" style={{ width: width(row.futureCents) }} />
-        {row.restCents > 0 ? (
-          <span className="sr-523-rest" style={{ width: width(row.restCents) }} />
-        ) : null}
-        {hasIncome ? (
-          <>
-            <i
-              className="sr-523-mark"
-              style={{ left: `${((row.incomeCents * 0.5) / total) * 100}%` }}
-            />
-            <i
-              className="sr-523-mark"
-              style={{ left: `${((row.incomeCents * 0.8) / total) * 100}%` }}
-            />
-            {spend > row.incomeCents ? (
-              <i
-                className="sr-523-mark is-full"
-                style={{ left: `${(row.incomeCents / total) * 100}%` }}
-              />
-            ) : null}
-          </>
-        ) : null}
-      </span>
+        <AllocationBar
+          data={row}
+          label={`${monthShort(row.month)}: Bedarf ${need} %, Wunsch ${want} %, Zukunft ${future} %, Rest ${rest} % der Einnahmen`}
+        />
+      </ChartValue>
       <span className="sr-523-num">
         {hasIncome ? (
           <>

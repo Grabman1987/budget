@@ -57,9 +57,23 @@ export function migrateDatabase(db: Db, migrationsFolder = defaultMigrationsFold
   }
 }
 
-/** Fresh in-memory database with all migrations applied. */
+let migratedTemplate: Buffer | undefined;
+
+/**
+ * Fresh in-memory database with all migrations applied. Migrating takes ~0.4 s, so each test
+ * process migrates once and every further database is a copy of that image (~0.3 ms).
+ */
 export function createTestDatabase(): OpenedDatabase {
-  const opened = openDatabase(':memory:');
-  migrateDatabase(opened.db);
-  return opened;
+  if (!migratedTemplate) {
+    const template = openDatabase(':memory:');
+    migrateDatabase(template.db);
+    migratedTemplate = template.sqlite.serialize();
+    template.close();
+  }
+  const sqlite = new Database(migratedTemplate);
+  sqlite.pragma('foreign_keys = ON');
+  sqlite.pragma('busy_timeout = 5000');
+  sqlite.pragma('synchronous = NORMAL');
+  const db = drizzle(sqlite, { schema });
+  return { db, sqlite, close: () => sqlite.close() };
 }

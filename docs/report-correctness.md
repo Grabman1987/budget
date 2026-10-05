@@ -57,7 +57,7 @@ Extra repayments are excluded. Missing payment information yields an unavailable
 not a fulfilled zero percent. No debt with no rates remains a valid zero.
 
 R07 and the current Heute balance chart use `budgetLiquidityForecast` with the stored R07
-horizon (default 90 days), identical source amounts and the same low-point result. Historical
+horizon (default and maximum 35 days; older longer settings clamp to 35 without losing the minimum-balance threshold), identical source amounts and the same low-point result. Historical
 Heute selections remain historical charts. The unbuffered liquidity report uses the same
 underlying daily model; buffered/scenario results remain explicitly separate.
 

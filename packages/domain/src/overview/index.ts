@@ -1,4 +1,5 @@
 export {
+  householdIncomeCents,
   overviewMonthlyFigures,
   overviewRefMonth,
   overviewSavingsRate,
@@ -57,3 +58,5 @@ export {
   type ExplorerRow,
   type HeatCell,
 } from './explorer';
+
+export * from './reconciliation';

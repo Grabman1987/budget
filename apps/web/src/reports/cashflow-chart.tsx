@@ -1,3 +1,4 @@
+import { chartPoints } from '../charts/tooltip-data';
 import {
   useAmountPrivacy,
   AxisLine,
@@ -98,7 +99,21 @@ function Drawing({ report, width: W }: { report: CashflowReport; width: number }
 
   return (
     <>
-      <ChartSvg width={W} height={H1} label={summary} testId="cashflow-chart">
+      <ChartSvg
+        width={W}
+        height={H1}
+        label={summary}
+        testId="cashflow-chart"
+        points={chartPoints(
+          months.map((m) => m.month),
+          x,
+          [
+            { name: 'Bedarf', values: months.map((m) => m.needCents), color: 'var(--need)' },
+            { name: 'Wunsch', values: months.map((m) => m.wantCents), color: 'var(--want)' },
+            { name: 'Einnahmen', values: months.map((m) => m.incomeCents), color: 'var(--line)' },
+          ],
+        )}
+      >
         <ClassPatterns prefix={prefix} />
         <Graticule x1={L} x2={W - R} lines={grid} />
         {months.map((m, i) => {
@@ -137,7 +152,30 @@ function Drawing({ report, width: W }: { report: CashflowReport; width: number }
         ))}
         {ticks(H1)}
       </ChartSvg>
-      <ChartSvg width={W} height={H2} label={summary2} testId="cashflow-net-chart">
+      <ChartSvg
+        width={W}
+        height={H2}
+        label={summary2}
+        testId="cashflow-net-chart"
+        points={chartPoints(
+          months.map((m) => m.month),
+          x,
+          [
+            {
+              name: 'Nettocashflow',
+              negativeColor: 'var(--red)',
+              values: months.map((m) => m.netCents),
+              color: 'var(--line)',
+            },
+            {
+              name: 'Kapitalerträge',
+              negativeColor: 'var(--red)',
+              values: months.map((m) => m.capitalCents),
+              color: 'var(--line-2)',
+            },
+          ],
+        )}
+      >
         <Graticule x1={L} x2={W - R} lines={grid2} />
         <AxisLine x1={L} x2={W - R} y={y2(0)} />
         <BarsAroundZero bars={netBars} y={y2} barWidth={bw} tone="ink" />

@@ -1,3 +1,4 @@
+import { chartPoints } from '../charts/tooltip-data';
 import { ChartSvg, Graticule, Line, LineLegend, useAmountPrivacy, type Point } from '@budget/ui';
 import { useElementWidth } from '../charts/use-element-width';
 import { shortDay } from '../ledger/format';
@@ -10,10 +11,12 @@ export const performanceDecimal = (value: number | null | undefined) =>
 
 export function PerformanceChart({
   label,
+  testId,
   rows,
   lines,
 }: {
   label: string;
+  testId?: string;
   rows: { date: string }[];
   lines: { name: string; values: (number | null)[]; benchmark?: boolean }[];
 }) {
@@ -39,7 +42,28 @@ export function PerformanceChart({
   return (
     <div ref={ref} className="performance-chart">
       {width > 0 && (
-        <ChartSvg width={width} height={height} label={label}>
+        <ChartSvg
+          width={width}
+          height={height}
+          label={label}
+          {...(testId ? { testId } : {})}
+          points={chartPoints(
+            rows.map((r) => r.date),
+            (i) => x(rows[i]!.date),
+            lines.map((l, i) => ({
+              name: l.name,
+              values: l.values,
+              color: [
+                'var(--line)',
+                'var(--future)',
+                'var(--want)',
+                'var(--ink-3)',
+                'var(--ink-2)',
+              ][i % 5]!,
+              format: (v) => `${performanceDecimal(v)}${label.includes('%') ? ' %' : ''}`,
+            })),
+          )}
+        >
           <Graticule
             x1={left}
             x2={right}
@@ -55,17 +79,17 @@ export function PerformanceChart({
               else segments.at(-1)!.push([x(rows[i]!.date), y(v)]);
             });
             return (
-              <g key={li} className={`performance-line performance-line-${li % 4}`}>
+              <g key={li} className={`performance-line performance-line-${li % 5}`}>
                 {segments
                   .filter((s) => s.length)
                   .map((s, i) =>
                     s.length === 1 ? (
-                      <circle key={i} cx={s[0]![0]} cy={s[0]![1]} r={3} fill="var(--line)" />
+                      <circle key={i} cx={s[0]![0]} cy={s[0]![1]} r={3} fill="var(--series)" />
                     ) : (
                       <Line
                         key={i}
                         points={s}
-                        kind={line.benchmark ? 'previous' : 'actual'}
+                        kind={line.benchmark ? 'forecast' : 'actual'}
                         draw={false}
                       />
                     ),
@@ -83,9 +107,9 @@ export function PerformanceChart({
       )}
       <div className="performance-legends">
         {lines.map((l, i) => (
-          <div key={i} className={`performance-line-${i % 4}`}>
+          <div key={i} className={`performance-line performance-line-${i % 5}`}>
             <LineLegend
-              items={[{ kind: l.benchmark ? 'previous' : 'actual', label: `${i + 1}. ${l.name}` }]}
+              items={[{ kind: l.benchmark ? 'forecast' : 'actual', label: `${i + 1}. ${l.name}` }]}
             />
           </div>
         ))}

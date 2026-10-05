@@ -58,7 +58,7 @@ describe('createMarketSources (live)', () => {
     expect(sources.moreQuotes?.map((s) => s.id)).toEqual(['coingecko', 'cryptocalc']);
     expect(sources.fallbackQuotes?.id).toBe('yfinance');
     const { prices } = await refreshMarket(db, sources, '2024-01-04');
-    expect(prices.bySource.ariva.securities).toBe(1);
+    expect(prices.bySource.ariva.securities).toBe(5);
     expect(prices.bySource.coingecko.securities).toBe(2);
     expect(prices.bySource.cryptocalc.securities).toBe(1);
     expect(priceSeries(db, 'lev')[0]?.source).toBe('cryptocalc');

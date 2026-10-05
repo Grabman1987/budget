@@ -4,6 +4,7 @@ import {
   deleteGoal,
   getGoal,
   listGoals,
+  goalsReport,
   restoreGoal,
   updateGoal,
   type Db,
@@ -30,6 +31,8 @@ export function goalRoutes(db: Db, today: () => string): Hono {
     const view = monthOrToday(month);
     return c.json({ month: view, goals: listGoals(db, view, { includeDeleted: deleted === '1' }) });
   });
+
+  app.get('/report', (c) => c.json(goalsReport(db, today())));
 
   app.post('/', async (c) => {
     const { month } = readQuery(c, goalMonthQuery);

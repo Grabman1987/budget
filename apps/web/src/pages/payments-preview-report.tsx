@@ -1,3 +1,5 @@
+import { ChartSvg } from '@budget/ui';
+import { chartPoints } from '../charts/tooltip-data';
 import {
   useAmountPrivacy,
   privateAmount,
@@ -67,7 +69,7 @@ export function PaymentsPreviewReport({ report, meta }: { report: ReportEntry; m
       title={report.name}
       subtitle={`${report.pos} · ${report.question}`}
       standDay={query.data?.asOf}
-      reportDataBasis="Gespeicherte wiederkehrende Zahlungen"
+      reportDataBasis="Wiederkehrende Zahlungen, Sparpläne und vorgemerkte Umbuchungen"
       extraFields={[{ label: 'Horizont', value: '12 volle Folgemonate' }]}
     >
       <div className="kview vview payments-preview-report">
@@ -131,9 +133,11 @@ function PreviewBody({ data }: { data: PaymentsPreview }) {
           {!data.eurComplete && ' · EUR-Anteil'}
         </p>
         <p className="vnote">
-          Vorschau aus gespeicherten erwarteten Auszahlungen mit ihren gültigen Betragsversionen.
-          Eigenständige Sparpläne, weitere künftige Umbuchungen und Kategorieziele sind hier noch
-          nicht enthalten.
+          Vorschau aus erwarteten Auszahlungen, versionierten Sparplänen und gespeicherten künftigen
+          Umbuchungen. Verknüpfte Buchungen zählen einmal; ein identischer Sparplan-Termin mit
+          gleichem Quell- und Zielkonto wird durch die vorgemerkte Umbuchung ersetzt. Kategorieziele
+          sind keine zusätzlichen Zahlungen. Ohne eindeutige Quellenverknüpfung bleiben
+          eigenständige Erwartungen getrennt.
         </p>
         {!data.eurComplete && (
           <p className="preview-incomplete" role="status">
@@ -295,11 +299,32 @@ function PreviewChart({ data, group }: { data: PaymentsPreview; group: PreviewCu
   const y = (c: number) => 232 - (c / max) * 175;
   return (
     <div ref={ref}>
-      <svg
+      <ChartSvg
         className="preview-chart"
-        viewBox={`0 0 ${width} 280`}
-        role="img"
-        aria-labelledby="preview-chart-title preview-chart-desc"
+        width={width}
+        height={280}
+        label={`Erwartete Zahlungen je Monat · EUR${!data.eurComplete ? '-Anteil' : ''}`}
+        points={chartPoints(data.months, (i) => left + step * (i + 0.5), [
+          {
+            name: 'Laufend',
+            values: group.months.map((m, i) => m.baseCents - group.periodicMonths[i]!.baseCents),
+          },
+          {
+            name: 'Periodisch',
+            values: group.periodicMonths.map((m) => m.baseCents),
+            color: 'var(--line-2)',
+          },
+          {
+            name: 'Oberbetrag',
+            values: group.months.map((m) => m.upperCents),
+            color: 'var(--line-2)',
+          },
+          {
+            name: 'Durchschnitt',
+            values: group.months.map(() => group.average.baseCents),
+            color: 'var(--line-2)',
+          },
+        ])}
       >
         <title id="preview-chart-title">
           Wiederkehrende Zahlungen je Monat · EUR{!data.eurComplete && '-Anteil'}
@@ -384,7 +409,7 @@ function PreviewChart({ data, group }: { data: PaymentsPreview; group: PreviewCu
             </g>
           );
         })}
-      </svg>
+      </ChartSvg>
     </div>
   );
 }

@@ -105,6 +105,8 @@ export const category = sqliteTable(
       .references(() => categoryGroup.id),
     class: text('class', { enum: CATEGORY_CLASSES }),
     kind: text('kind', { enum: CATEGORY_KINDS }).notNull().default('variable'),
+    /** null = automatic utility detection, false = contract prices, true = trailing mean. */
+    inflationTrailingMean: integer('inflation_trailing_mean', { mode: 'boolean' }),
     /** Money-flow waterfall stage 1–9 (SPEC §4). */
     stage: integer('stage'),
     /** The credit card whose spending this `card_payment` category collects. */

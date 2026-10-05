@@ -1,3 +1,4 @@
+import { ChartValue } from '@budget/ui';
 import type { RebalanceProposal } from '@budget/domain';
 import { Button } from '@budget/ui';
 import { useQuery } from '@tanstack/react-query';
@@ -6,6 +7,7 @@ import { CheckCircle2 } from 'lucide-react';
 import { LoadingNote, ErrorNote } from '../ledger/states';
 import { eurWhole } from '../ledger/format';
 import { allocationQuery, type PortfolioAllocationView } from './allocation-api';
+import { chartPercent } from '../charts/tooltip-data';
 import { percentText } from './portfolio-format';
 import { thresholdText } from '../rules/rules-model';
 import './allocation.css';
@@ -112,25 +114,45 @@ export function PortfolioAllocation() {
                               : `Band ±${percentText(row.bandBp)}`}
                         </small>
                       </span>
-                      <span className="va-track" aria-hidden="true">
-                        {row.targetBp !== null && (
-                          <>
+                      <ChartValue
+                        label="Allocation Soll/Ist"
+                        date={view!.asOf}
+                        series={[
+                          {
+                            name: 'Ist',
+                            value: actual ? chartPercent(actual.shareBp) : '–',
+                            color: 'var(--line)',
+                          },
+                          {
+                            name: 'Soll',
+                            value: row.targetBp === null ? '–' : chartPercent(row.targetBp),
+                            color: 'var(--line-2)',
+                          },
+                        ]}
+                      >
+                        <span className="va-track" aria-hidden="true">
+                          {row.targetBp !== null && (
+                            <>
+                              <i
+                                className="va-band"
+                                style={{
+                                  left: `${left / 100}%`,
+                                  width: `${(right - left) / 100}%`,
+                                }}
+                              />
+                              <i className="va-soll" style={{ left: `${row.targetBp / 100}%` }} />
+                            </>
+                          )}
+                          {actual && (
                             <i
-                              className="va-band"
-                              style={{ left: `${left / 100}%`, width: `${(right - left) / 100}%` }}
+                              className="va-ist"
+                              style={{
+                                width: `${Math.max(0, Math.min(100, actual.shareBp / 100))}%`,
+                              }}
                             />
-                            <i className="va-soll" style={{ left: `${row.targetBp / 100}%` }} />
-                          </>
-                        )}
-                        {actual && (
-                          <i
-                            className="va-ist"
-                            style={{
-                              width: `${Math.max(0, Math.min(100, actual.shareBp / 100))}%`,
-                            }}
-                          />
-                        )}
-                      </span>
+                          )}
+                        </span>
+                      </ChartValue>
                       <span className="va-val">
                         <strong>{percentText(actual?.shareBp ?? null)}</strong>
                         <small>Soll {percentText(row.targetBp)}</small>

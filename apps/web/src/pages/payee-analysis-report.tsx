@@ -1,3 +1,4 @@
+import { ChartValue } from '@budget/ui';
 import { ReportPeriodControl } from '../reports/period-quick-select';
 import { isReportPeriod, cents, type Period } from '@budget/domain';
 import { useAmountPrivacy, Button, DimensionChain } from '@budget/ui';
@@ -235,6 +236,36 @@ function ReportBody({
           Nettoanteil der Top 5: {share(data.topFiveSharePercent)}
           {data.totalSpendCents <= 0 && ' · bei nicht positiver Gesamtsumme nicht berechenbar'}
         </p>
+        <h3>Häufigste Empfänger</h3>
+        <table className="sr-table" data-testid="payee-frequency">
+          <thead>
+            <tr>
+              <th scope="col">Empfänger</th>
+              <th scope="col">Anzahl</th>
+              <th scope="col">Ø netto je Buchung</th>
+            </tr>
+          </thead>
+          <tbody>
+            {[...data.rows]
+              .sort((a, b) => b.bookingCount - a.bookingCount || a.name.localeCompare(b.name, 'de'))
+              .slice(0, 6)
+              .map((r) => (
+                <tr key={r.payeeId ?? 'none'}>
+                  <th scope="row">
+                    <button
+                      type="button"
+                      className="payee-row-open"
+                      onClick={() => onSelect(r.payeeId ?? 'none')}
+                    >
+                      {r.name}
+                    </button>
+                  </th>
+                  <td>{r.bookingCount}</td>
+                  <td>{eur(r.averageSpendCents)}</td>
+                </tr>
+              ))}
+          </tbody>
+        </table>
         <h3 className="payee-chart-title">Empfänger nach Nettoausgaben</h3>
         {data.rows.length === 0 ? (
           <p role="status">
@@ -255,16 +286,24 @@ function ReportBody({
                 >
                   {row.name}
                 </button>
-                <span className="payee-bar-track" aria-hidden="true">
-                  <i
-                    className={row.amountCents < 0 ? 'is-refund' : ''}
-                    style={
-                      {
-                        '--bar-width': `${(Math.abs(row.amountCents) / maximum) * 50}%`,
-                      } as React.CSSProperties
-                    }
-                  />
-                </span>
+                <ChartValue
+                  label="Empfänger nach Nettoausgaben"
+                  date={`${data.from} · ${data.to}`}
+                  series={[
+                    { name: 'Nettoausgaben', value: eur(row.amountCents), color: 'var(--line)' },
+                  ]}
+                >
+                  <span className="payee-bar-track" aria-hidden="true">
+                    <i
+                      className={row.amountCents < 0 ? 'is-refund' : ''}
+                      style={
+                        {
+                          '--bar-width': `${(Math.abs(row.amountCents) / maximum) * 50}%`,
+                        } as React.CSSProperties
+                      }
+                    />
+                  </span>
+                </ChartValue>
                 <strong>{eur(row.amountCents)}</strong>
               </li>
             ))}

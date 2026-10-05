@@ -1,3 +1,4 @@
+import { ChartValue } from '@budget/ui';
 import { useAmountPrivacy, Button, ClassSwatch, DimensionChain, Segmented } from '@budget/ui';
 import {
   addMonths,
@@ -13,7 +14,6 @@ import { useState } from 'react';
 import { eur, longDay } from '../ledger/format';
 import { userText } from '../api/error-text';
 import { ErrorNote, LoadingNote } from '../ledger/states';
-import { ValuationHint } from '../ledger/valuation-hint';
 import type { PageMeta } from '../nav/pages';
 import type { ReportEntry } from '../nav/reports-catalog';
 import { PageFrame } from '../pages/placeholder-page';
@@ -207,7 +207,7 @@ function SheetOne({
           </div>
         ) : null}
       </header>
-      <ValuationHint incomplete={data.incomplete} />
+
       {nw ? (
         <DimensionChain
           label="Maßkette Nettovermögen im Jahr"
@@ -328,8 +328,14 @@ function CategoriesTable({ report }: { report: YearReport }) {
                 <ClassSwatch kind={c.class} />
                 {c.name}
               </th>
-              <td className="ov-bar" aria-hidden="true">
-                <i style={{ width: `${(c.cents / max) * 100}%` }} />
+              <td className="ov-bar">
+                <ChartValue
+                  label={c.name}
+                  date={String(report.year)}
+                  series={[{ name: c.name, value: eur(c.cents), color: 'var(--line)' }]}
+                >
+                  <i style={{ width: `${(c.cents / max) * 100}%` }} aria-hidden="true" />
+                </ChartValue>
               </td>
               <td className="n">{eur(c.cents, { cents: false })}</td>
               <td className="n">

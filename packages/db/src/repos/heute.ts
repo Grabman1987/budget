@@ -45,6 +45,7 @@ import { forecastInputs, loadFacts, scheduled, type RuleFacts } from './rule-inp
 import { financeCheck, type FinanceCheck } from './rules';
 import { MissingFxRateError } from './errors';
 import type { Executor } from './types';
+import { overviewData } from './report-ledger';
 
 /**
  * The read model of Heute (concept §7.1, SPEC §3): one call, every figure from the domain
@@ -161,12 +162,17 @@ export interface Heute {
     /** End-of-day balance of the budget accounts from the window start up to today. */
     actual: { day: string; balanceCents: number }[];
     /** From today (the start balance) to the end of the window; empty for a past month. */
-    forecast: { day: string; balanceCents: number }[];
+    forecast: {
+      day: string;
+      balanceCents: number;
+      variableCents: number;
+      items: { cents: number; label?: string }[];
+    }[];
     /** The salary on the payday when it falls into the forecast window. */
     salary: { day: string; cents: number } | null;
     low: LowPoint | null;
   };
-  pace: PaceModel & { forecast: number[]; previousMonth: string };
+  pace: PaceModel & { forecast: number[]; previousMonth: string; income: number[] };
   pinned: HeutePinned[];
   upcoming14: HeuteOccurrence[];
   financeCheck:
@@ -410,8 +416,20 @@ export function paceOfMonth(
     spending: spending.filter((s) => monthOf(s.day) === month),
     previousSpending: spending.filter((s) => monthOf(s.day) === addMonths(month, -1)),
   });
+  const incomes = overviewData(facts.db).splits.filter(
+    (s) =>
+      s.kind === 'income' &&
+      s.incomeGroup === 'household' &&
+      monthOf(s.date) === month &&
+      s.date <= today,
+  );
   return {
     ...model,
+    income: model.actual.map((_, day) =>
+      incomes
+        .filter((s) => Number(s.date.slice(8)) <= day)
+        .reduce((sum, s) => sum + s.amountCents, 0),
+    ),
     forecast: paceForecastCurve(model, fixed),
     previousMonth: addMonths(month, -1),
   };
@@ -499,10 +517,17 @@ export function heute(db: Executor, query: HeuteQuery): Heute {
       resolveParams('R07', JSON.parse(r07?.paramsJson ?? '{}'))['horizonDays'],
     );
     const run = budgetLiquidityForecast(inputs, horizon);
-    forecast = run.days.map((d) => ({ day: d.day, balanceCents: d.balanceCents }));
+    forecast = run.days.map((d) => ({
+      day: d.day,
+      balanceCents: d.balanceCents,
+      variableCents: d.variableCents,
+      items: d.items,
+    }));
     low = run.low;
     // A planning boundary must never invent or move a salary receipt in the cash forecast.
-    const salaryDay = salary.find((o) => o.dueDate > today && o.dueDate <= window.to)?.dueDate;
+    const salaryDay = salary.find(
+      (o) => o.dueDate > today && o.dueDate <= run.days.at(-1)!.day,
+    )?.dueDate;
     if (salaryDay) {
       const jump = salary.filter((o) => o.dueDate === salaryDay);
       salaryJump = { day: salaryDay, cents: jump.reduce((a, o) => a + o.amountCents, 0) };

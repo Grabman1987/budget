@@ -8,7 +8,6 @@ import { userText } from '../api/error-text';
 import { ApiError } from '../api/http';
 import { eur, eurParts, longDay } from '../ledger/format';
 import { EmptyNote, ErrorNote, LoadingNote } from '../ledger/states';
-import { ValuationHint } from '../ledger/valuation-hint';
 import type { PageMeta } from '../nav/pages';
 import type { ReportEntry } from '../nav/reports-catalog';
 import { PageFrame } from '../pages/placeholder-page';
@@ -135,7 +134,6 @@ function Body({
   const anyEstimated = months.some((m) => m.incomplete);
   return (
     <>
-      <ValuationHint incomplete={history.incomplete} />
       <section className="card rf-card rf-wide" aria-labelledby="ad-title">
         <div className="tbd-head">
           <h2 id="ad-title">Nettovermögen · {text}</h2>
@@ -308,17 +306,18 @@ function Breakdown({ history, month }: { history: AssetsDebtsHistory; month: str
       data-testid="ad-breakdown"
     >
       <div className="tbd-head">
-        <h2 id="ad-breakdown">Konten · {longMonth(m.month)}</h2>
+        <h2 id="ad-breakdown">
+          Konten · {longMonth(m.month)}{' '}
+          {m.incomplete && (
+            <abbr title="Teilweise geschätzt" data-testid="ad-month-estimated">
+              ≈
+            </abbr>
+          )}
+        </h2>
         <span className="tbd-state">
           {m.partial ? `Stand ${longDay(m.date)}` : `Monatsende ${longDay(m.date)}`}
         </span>
       </div>
-      {m.incomplete && (
-        <p className="vnote valuation-hint" role="status" data-testid="ad-month-estimated">
-          Bewertung teilweise geschätzt: Wertpapiere ohne Kurs zählen in diesem Monat mit ihrem
-          Einstandswert.
-        </p>
-      )}
       <div
         className="rf-scroll"
         role="region"

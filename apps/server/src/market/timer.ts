@@ -1,3 +1,4 @@
+import { ensureBenchmarkInstruments } from '@budget/db';
 import {
   lastMarketRun,
   lastSuccessfulMarketRun,
@@ -68,6 +69,7 @@ export async function refreshMarket(
       errorClasses: [...new Set(classes)].sort().join(',') || null,
     });
   try {
+    ensureBenchmarkInstruments(db);
     const fx = await refreshFx(db, sources, { today });
     const prices = await refreshPrices(db, sources, { today });
     const cpi = await refreshCpi(db, sources, { today });

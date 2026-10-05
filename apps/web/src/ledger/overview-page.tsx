@@ -1,6 +1,7 @@
 import { BankBalance } from './bank-balance';
 import {
   useAmountPrivacy,
+  ChartValue,
   privateAmount,
   Button,
   CircleNumber,
@@ -18,7 +19,7 @@ import { KONTEN_META } from '../nav/pages';
 import { AccountFormPanel } from './account-form';
 import { useOrderedAccounts, useReorder } from './account-order';
 import { fetchAccounts } from './api';
-import { eur, eurParts, eurWhole, nativeCurrencyWhole } from './format';
+import { eur, eurParts, eurWhole, nativeCurrencyWhole, nativeCurrency } from './format';
 import {
   ACCOUNT_TYPE_LABEL,
   accountValueEur,
@@ -351,16 +352,37 @@ function GroupRows({
               <BankBalance account={a} />
               {util !== null && a.creditLimitCents !== null && (
                 <span className="kutil">
-                  <span className="pbar" aria-hidden="true">
-                    <i className="pbar-fill" style={{ width: `${util * 100}%` }} />
-                  </span>
+                  <ChartValue
+                    label={`Kreditnutzung ${a.name}`}
+                    date={points?.at(-1)?.date ?? todayInVienna()}
+                    series={[
+                      {
+                        name: 'Genutzt',
+                        value: nativeCurrency(Math.max(0, -a.balanceCents), a.currency),
+                        color: 'var(--line)',
+                      },
+                      {
+                        name: 'Rahmen',
+                        value: nativeCurrency(a.creditLimitCents, a.currency),
+                        color: 'var(--line-2)',
+                      },
+                      {
+                        name: 'Auslastung',
+                        value: `${new Intl.NumberFormat('de-AT', { maximumFractionDigits: 2 }).format(util * 100)} %`,
+                      },
+                    ]}
+                  >
+                    <span className="pbar" aria-hidden="true">
+                      <i className="pbar-fill" style={{ width: `${util * 100}%` }} />
+                    </span>
+                  </ChartValue>
                   {Math.round(util * 100)} % von{' '}
                   {nativeCurrencyWhole(a.creditLimitCents, a.currency)} Limit
                 </span>
               )}
             </td>
             <td className="kc-line">
-              {points && <MiniLine points={points} />}
+              {points && <MiniLine points={points} currency={a.currency} />}
               {delta !== null && (
                 <span className="kdelta">
                   {Math.abs(delta) < 50

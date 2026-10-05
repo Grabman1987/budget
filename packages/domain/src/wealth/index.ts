@@ -54,6 +54,7 @@ export {
 export { mulDivRound, shareBps } from './int';
 export {
   allocationTimeline,
+  allocationChartPositions,
   NO_REGION,
   parseRegionWeights,
   splitByRegion,

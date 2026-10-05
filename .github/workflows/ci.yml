@@ -15,9 +15,11 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
-  check:
+  # `check`, `check-windows`, `docker` and `restore-test` are the required status checks (branch
+  # protection, merge script): keep their names. `check` is the aggregate of `unit` and `e2e`.
+  unit:
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
@@ -35,18 +37,62 @@ jobs:
         env:
           BUDGET_REQUIRE_AGE: '1'
         run: npm run check
+
+  # E2E is split by Playwright sharding. Every shard builds the bundle and starts its own set of
+  # test servers (fresh databases, see playwright.config.ts), so shards share no state.
+  e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3]
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - name: Playwright version
+        id: playwright
+        run: echo "version=$(node -p "require('@playwright/test/package.json').version")" >> "$GITHUB_OUTPUT"
+      - name: Cache Playwright browsers
+        uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ steps.playwright.outputs.version }}
+      # With a cache hit the browsers are not downloaded again; the system packages still are.
       - name: Install Chromium and WebKit
         run: npx playwright install --with-deps chromium webkit
-      - name: E2E (builds first)
-        run: npm run test:e2e
+      - name: Build (e2e mode)
+        run: npm run build:e2e
+      - name: E2E shard ${{ matrix.shard }}/3
+        run: npx playwright test --shard=${{ matrix.shard }}/3
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         if: failure()
         with:
-          name: playwright-report
+          name: playwright-report-${{ matrix.shard }}
           path: |
             playwright-report/
             test-results/
           retention-days: 7
+
+  # Required status check: green only if the unit job and every e2e shard succeeded.
+  check:
+    needs: [unit, e2e]
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Require unit and e2e
+        env:
+          RESULTS: ${{ needs.unit.result }} ${{ needs.e2e.result }}
+        run: |
+          echo "unit / e2e: $RESULTS"
+          [ "$RESULTS" = "success success" ]
 
   # Windows is the owner's development machine: `npm ci` (no compiler needed, see .npmrc) and the
   # unit tests must pass there, including the path handling of the database package.

@@ -1,3 +1,4 @@
+import { chartPoints } from '../charts/tooltip-data';
 import {
   useAmountPrivacy,
   AxisLine,
@@ -88,7 +89,33 @@ function Drawing({ report, width: W }: { report: LiquidityReport; width: number 
     (report.eventMarks.length ? ` ${report.eventMarks.length} geplante Ereignisse.` : '');
 
   return (
-    <ChartSvg width={W} height={H} label={summary} testId="liquidity-chart">
+    <ChartSvg
+      width={W}
+      height={H}
+      label={summary}
+      testId="liquidity-chart"
+      points={chartPoints(
+        points.map((p) => p.day),
+        x,
+        [
+          {
+            name: 'Mit Ereignissen',
+            values: points.map((p) => p.balanceCents),
+            color: 'var(--line)',
+          },
+          {
+            name: '10 % mehr variable Ausgaben',
+            values: points.map((p) => p.bufferCents),
+            color: 'var(--line-2)',
+          },
+          {
+            name: 'Ohne Ereignisse',
+            values: points.map((p) => p.plainCents),
+            color: 'var(--ink-3)',
+          },
+        ],
+      )}
+    >
       <Graticule x1={L} x2={W - R} lines={grid} />
       <AxisLine x1={L} x2={W - R} y={y(0)} />
       <Band points={band} />

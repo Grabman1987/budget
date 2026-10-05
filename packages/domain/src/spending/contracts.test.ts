@@ -143,12 +143,12 @@ describe('contractSeries', () => {
     source({ id: 'jahr', categoryKind: 'periodic' }),
   ];
   const series = contractSeries(sources, '2023-12', '2024-03', usd);
-  it('values the fixed contracts per month and ignores periodic ones', () => {
+  it('values fixed and periodic contracts by their monthly equivalent', () => {
     expect(series.points).toEqual([
-      { month: '2023-12', fixedMonthlyCents: 80_000 },
-      { month: '2024-01', fixedMonthlyCents: 85_000 },
-      { month: '2024-02', fixedMonthlyCents: 95_000 },
-      { month: '2024-03', fixedMonthlyCents: 95_000 },
+      { month: '2023-12', fixedMonthlyCents: 90_000 },
+      { month: '2024-01', fixedMonthlyCents: 95_000 },
+      { month: '2024-02', fixedMonthlyCents: 105_000 },
+      { month: '2024-03', fixedMonthlyCents: 105_000 },
     ]);
     expect(series.partial).toBe(false);
   });

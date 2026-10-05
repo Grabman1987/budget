@@ -1,3 +1,6 @@
+import { ChartSvg } from '@budget/ui';
+import { chartPoints } from '../charts/tooltip-data';
+import { nativeCurrency } from './format';
 import { Line, StepLine, type Point } from '@budget/ui';
 import type { SeriesPoint } from './types';
 
@@ -5,7 +8,13 @@ const WIDTH = 120;
 const HEIGHT = 30;
 
 /** 30-day line of an account in the overview: the start value as pale reference, end dot. */
-export function MiniLine({ points }: { points: ReadonlyArray<SeriesPoint> }) {
+export function MiniLine({
+  points,
+  currency = 'EUR',
+}: {
+  points: ReadonlyArray<SeriesPoint>;
+  currency?: string;
+}) {
   if (points.length < 2) return <span className="kmini" aria-hidden="true" />;
   const values = points.map((p) => p.balanceCents);
   const lo = Math.min(...values);
@@ -19,7 +28,25 @@ export function MiniLine({ points }: { points: ReadonlyArray<SeriesPoint> }) {
   const last = line[line.length - 1] as Point;
   const start = y(values[0] as number);
   return (
-    <svg className="kmini" viewBox={`0 0 ${WIDTH} ${HEIGHT}`} aria-hidden="true">
+    <ChartSvg
+      width={WIDTH}
+      height={HEIGHT}
+      className="kmini"
+      label="Kontosaldo der letzten 30 Tage"
+      points={chartPoints(
+        points.map((p) => p.date),
+        (i) => line[i]![0],
+        [
+          { name: 'Saldo', values, format: (v) => nativeCurrency(v, currency) },
+          {
+            name: 'Anfangswert',
+            values: values.map(() => values[0]!),
+            color: 'var(--line-2)',
+            format: (v) => nativeCurrency(v, currency),
+          },
+        ],
+      )}
+    >
       <Line
         kind="plan"
         points={[
@@ -29,6 +56,6 @@ export function MiniLine({ points }: { points: ReadonlyArray<SeriesPoint> }) {
       />
       <StepLine kind="actual" points={line} />
       <circle cx={last[0]} cy={last[1]} r={2.5} className="dot-actual" />
-    </svg>
+    </ChartSvg>
   );
 }

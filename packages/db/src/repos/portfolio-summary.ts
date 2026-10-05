@@ -1,3 +1,5 @@
+import { withValuationRange } from './valuation-notes';
+import { portfolioBenchmarks, type PortfolioBenchmarkSeries } from './portfolio-benchmarks';
 import { allocationInputsAsOf } from './allocation-inputs';
 import { resolvePortfolioRiskPolicy } from './portfolio-risk-policy';
 import { exposuresAsOf, splitAssetExposure, singleAssetClass } from './asset-exposure';
@@ -144,6 +146,7 @@ export interface PortfolioSummary {
   /** Optional securities-only contribution report, derived from the same daily series and flows. */
   contributionHistory?: ContributionHistory | null;
   performanceHistory?: PortfolioPerformanceHistory | null;
+  benchmarks: PortfolioBenchmarkSeries[];
   benchmark: { securityId: string; name: string } | null;
   /** TER on month ends plus the fees of 12 months, over the current value. */
   costs: {
@@ -171,6 +174,8 @@ export interface PortfolioSummary {
 }
 
 export interface ContributionHistory {
+  /** Finest existing valuation resolution; monthly gains remain separate. */
+  daily: Array<{ date: string; valueCents: number; investedCents: number }>;
   from: string;
   to: string;
   startValueCents: number;
@@ -182,6 +187,9 @@ export interface ContributionHistory {
     to: string;
     valueCents: number;
     investedCents: number;
+    startValueCents: number;
+    inflowsCents: number;
+    outflowsCents: number;
     contributionsCents: number;
     gainCents: number;
   }>;
@@ -713,6 +721,15 @@ function lastTwelveMonthEnds(today: string): string[] {
  * domain (P5.2, P5.3); nothing is computed twice.
  */
 export function portfolioSummary(db: Executor, options: PortfolioOptions): PortfolioSummary {
+  const range = periodWindow(
+    options.period ?? '1J',
+    options.today,
+    firstDay(db, options.today) ?? options.today,
+  );
+  return withValuationRange(range.from, range.to, () => portfolioSummaryInRange(db, options));
+}
+
+function portfolioSummaryInRange(db: Executor, options: PortfolioOptions): PortfolioSummary {
   const { costMethod } = investmentPreferences(db);
   const today = periodWindow(options.period ?? '1J', options.today).to;
   const period = options.period ?? '1J';
@@ -756,6 +773,7 @@ export function portfolioSummary(db: Executor, options: PortfolioOptions): Portf
   let performance: WindowPerformance | null = null;
   let performanceHistory: PortfolioPerformanceHistory | null = null;
   let benchmark: PortfolioSummary['benchmark'] = null;
+  let benchmarks: PortfolioBenchmarkSeries[] = [];
   const monthEndValues = new Map<string, number[]>();
   let contributionHistory: ContributionHistory | null | undefined =
     options.includeContributionHistory ? null : undefined;
@@ -800,6 +818,7 @@ export function portfolioSummary(db: Executor, options: PortfolioOptions): Portf
       today,
     );
 
+    benchmarks = portfolioBenchmarks(db, { series: valuations, flows }, performance);
     if (options.includePerformanceHistory) {
       const selected = portfolioBenchmark(db);
       const rows =
@@ -877,6 +896,22 @@ export function portfolioSummary(db: Executor, options: PortfolioOptions): Portf
           selectedPerformance.contributionsCents,
           selectedPerformance.gainCents,
         ]);
+        const selectedFlows = flows
+          .filter((f) => f.date > selectedPerformance.from && f.date <= selectedPerformance.to)
+          .sort((a, b) => a.date.localeCompare(b.date));
+        let flowIndex = 0;
+        let dailyFlow = 0;
+        const daily = valuations
+          .filter((v) => v.date >= selectedPerformance.from && v.date <= selectedPerformance.to)
+          .map((v) => {
+            while (flowIndex < selectedFlows.length && selectedFlows[flowIndex]!.date <= v.date) {
+              dailyFlow += selectedFlows[flowIndex++]!.cents;
+              assertSafeCents([dailyFlow]);
+            }
+            const investedCents = selectedPerformance.startValueCents + dailyFlow;
+            assertSafeCents([v.valueCents, investedCents]);
+            return { ...v, investedCents };
+          });
         const windowInput = { series: valuations, flows };
         const bounds = monthBoundaries(selectedPerformance.from, selectedPerformance.to);
         let cumulativeFlow = 0;
@@ -889,6 +924,13 @@ export function portfolioSummary(db: Executor, options: PortfolioOptions): Portf
             to,
             valueCents: segment.endValueCents,
             investedCents: selectedPerformance.startValueCents + cumulativeFlow,
+            startValueCents: segment.startValueCents,
+            inflowsCents: flows
+              .filter((f) => f.date > from && f.date <= to && f.cents > 0)
+              .reduce((sum, f) => sum + f.cents, 0),
+            outflowsCents: flows
+              .filter((f) => f.date > from && f.date <= to && f.cents < 0)
+              .reduce((sum, f) => sum + f.cents, 0),
             contributionsCents: segment.contributionsCents,
             gainCents: segment.gainCents,
           };
@@ -934,6 +976,7 @@ export function portfolioSummary(db: Executor, options: PortfolioOptions): Portf
           gainCents: selectedPerformance.gainCents,
           months,
           years,
+          daily,
         };
       }
     }
@@ -1035,6 +1078,7 @@ export function portfolioSummary(db: Executor, options: PortfolioOptions): Portf
       ? { contributionHistory: contributionHistory ?? null }
       : {}),
     benchmark,
+    benchmarks,
     costs,
     income,
     ...risk,

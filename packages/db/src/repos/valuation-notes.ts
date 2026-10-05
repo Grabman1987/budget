@@ -17,6 +17,19 @@ import type { Executor } from './types';
  * `runWithValuationNotes` (scripts, tests) reporting is a no-op.
  */
 const storage = new AsyncLocalStorage<Map<string, IncompleteValuation>>();
+const rangeStorage = new AsyncLocalStorage<{ from: string; to: string }>();
+
+/** Auxiliary historical reads must not flag positions sold before the displayed range. */
+export function withValuationRange<T>(from: string, to: string, read: () => T): T {
+  const parent = rangeStorage.getStore();
+  return rangeStorage.run(
+    {
+      from: parent && parent.from > from ? parent.from : from,
+      to: parent && parent.to < to ? parent.to : to,
+    },
+    read,
+  );
+}
 
 /**
  * Run `fn` with a fresh collection of valuation notes; `fn` gets a reader that returns the merged
@@ -33,6 +46,8 @@ export function noteIncomplete(items: ReadonlyArray<IncompleteValuation>): void 
   const store = storage.getStore();
   if (!store || items.length === 0) return;
   for (const item of items) {
+    const range = rangeStorage.getStore();
+    if (range && (item.to < range.from || item.from > range.to)) continue;
     const key = `${item.accountId}\0${item.securityId}\0${item.quality}`;
     const known = store.get(key);
     if (!known) store.set(key, { ...item });

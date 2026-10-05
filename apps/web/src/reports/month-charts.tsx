@@ -1,3 +1,4 @@
+import { chartPoints } from '../charts/tooltip-data';
 import {
   useAmountPrivacy,
   AxisLine,
@@ -102,40 +103,65 @@ function Drawing({
   const top = 16;
   const bottom = height - 26;
   const totals = months.map((_, i) => series.reduce((a, s) => a + (s.perMonth[i] ?? 0), 0));
-  const max = Math.max(1, ...totals);
-  const y = scaleLinear().domain([0, max]).nice(4).range([bottom, top]);
+  const max = Math.max(
+    1,
+    ...months.map((_, i) => series.reduce((n, s) => n + Math.max(0, s.perMonth[i] ?? 0), 0)),
+  );
+  const min = Math.min(
+    0,
+    ...months.map((_, i) => series.reduce((n, s) => n + Math.min(0, s.perMonth[i] ?? 0), 0)),
+  );
+  const y = scaleLinear().domain([min, max]).nice(4).range([bottom, top]);
   const slot = (width - left - right) / months.length;
   const bw = Math.min(slot * 0.62, 40);
   const x = (i: number) => left + slot * (i + 0.5);
   const step = slot < 34 ? 2 : 1;
   return (
-    <ChartSvg width={width} height={height} label={label} testId={testId}>
+    <ChartSvg
+      width={width}
+      height={height}
+      label={label}
+      testId={testId}
+      points={chartPoints(
+        months,
+        x,
+        series.map((s) => ({
+          name: s.name,
+          values: s.perMonth,
+          className: s.fillClass,
+          negativeColor: 'var(--red)',
+        })),
+      )}
+    >
       <Graticule
         x1={left}
         x2={width - right}
         lines={y
           .ticks(4)
-          .filter((v) => v > 0)
+          .filter((v) => v !== 0)
           .map((v) => ({ y: y(v), label: axisNumber.format(v / 100) }))}
       />
       <AxisLine x1={left} x2={width - right} y={y(0)} />
       {months.map((m, i) => {
         let acc = 0;
+        let negative = 0;
         return (
           <g key={m}>
             {series.map((s) => {
               const v = s.perMonth[i] ?? 0;
-              if (v <= 0) return null;
-              const y0 = y(acc);
-              acc += v;
+              if (v === 0) return null;
+              const start = v < 0 ? negative : acc;
+              const end = start + v;
+              if (v < 0) negative = end;
+              else acc = end;
               return (
                 <rect
                   key={s.key}
                   x={x(i) - bw / 2}
-                  y={y(acc)}
+                  y={Math.min(y(start), y(end))}
                   width={bw}
-                  height={Math.max(1, y0 - y(acc))}
-                  className={s.fillClass}
+                  height={Math.max(1, Math.abs(y(start) - y(end)))}
+                  className={v < 0 ? 'bar-neg2' : s.fillClass}
                 >
                   <title>{`${s.name} ${monthWithYear(m)}: ${eur(v)}`}</title>
                 </rect>
@@ -210,7 +236,17 @@ function MiniDrawing({
     (v, i, a) => a.indexOf(v) === i,
   );
   return (
-    <ChartSvg width={width} height={height} label={label} testId="onepager-networth-chart">
+    <ChartSvg
+      width={width}
+      height={height}
+      label={label}
+      testId="onepager-networth-chart"
+      points={chartPoints(
+        points.map((p) => p.month),
+        x,
+        [{ name: 'Nettovermögen', values: values, color: 'var(--line)' }],
+      )}
+    >
       <Line points={line} kind="actual" />
       <circle cx={x(last)} cy={y(values[last] ?? 0)} r={3.5} className="dot-actual" />
       <XTicks

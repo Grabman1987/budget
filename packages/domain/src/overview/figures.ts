@@ -16,7 +16,16 @@ import { ratioBp } from '../kpi/ratios';
  */
 
 export type OverviewClass = 'need' | 'want' | 'future';
-export type IncomeGroup = 'household' | 'capital' | 'refund';
+export type IncomeGroup = 'household' | 'capital' | 'refund' | 'unclassified';
+
+/** One household-income definition for reports and rules: only typed household inflows count. */
+export function householdIncomeCents(
+  amountCents: number,
+  typeId: string | null,
+  group: IncomeGroup | null,
+): number {
+  return typeId !== null && group === 'household' ? amountCents : 0;
+}
 
 export interface OverviewCategory {
   id: string;
@@ -101,7 +110,12 @@ function addSplit(
   if (split.kind === 'income') {
     if (split.incomeGroup === 'capital') f.capitalCents += split.amountCents;
     else if (split.incomeGroup === 'refund') f.refundCents += split.amountCents;
-    else f.incomeCents += split.amountCents;
+    else
+      f.incomeCents += householdIncomeCents(
+        split.amountCents,
+        split.incomeTypeId,
+        split.incomeGroup,
+      );
     const key = split.incomeTypeId ?? '';
     f.incomeByType[key] = (f.incomeByType[key] ?? 0) + split.amountCents;
     return;

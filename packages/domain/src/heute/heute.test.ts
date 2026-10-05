@@ -114,7 +114,7 @@ describe('changeBp and netWorthDays', () => {
   });
 });
 
-it('does not draw an unreliable early-month pace forecast', () => {
+it('draws the provisional remaining-plan forecast from the first week', () => {
   const model = paceModel({
     month: '2026-09',
     today: '2026-09-03',
@@ -122,5 +122,8 @@ it('does not draw an unreliable early-month pace forecast', () => {
     fixed: [],
     spending: [{ day: '2026-09-01', cents: 80000 }],
   });
-  expect(paceForecastCurve(model, [])).toEqual([]);
+  const curve = paceForecastCurve(model, []);
+  expect(curve).toHaveLength(28);
+  expect(curve[0]).toBe(80000);
+  expect(curve.at(-1)).toBe(100000);
 });

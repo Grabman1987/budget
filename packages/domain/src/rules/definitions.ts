@@ -61,7 +61,7 @@ export const RULE_DEFS: ReadonlyArray<RuleDef> = [
     code: 'R07',
     name: 'Dispo',
     stage: 1,
-    goal: '≥ 0 € in 90 Tagen',
+    goal: '≥ 0 € in 35 Tagen',
     action: 'Zahlungen verschieben oder Geld auf das Budget-Konto übertragen.',
   },
   {
