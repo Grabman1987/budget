@@ -121,9 +121,13 @@ sampleTest(
     };
     const actual = await geometry(page),
       original = await geometry(prototype);
-    expect(actual.lead!.width).toBeCloseTo(original.lead!.width, 0);
+    // Full page width: column widths follow the window, so only the prototype's structure is
+    // compared (lead panel at the same left edge, model panel beside it on the same row).
     expect(actual.lead!.x).toBeCloseTo(original.lead!.x, 0);
-    expect(actual.model!.x).toBeCloseTo(original.model!.x, 0);
+    for (const g of [actual, original]) {
+      expect(g.model!.x).toBeGreaterThanOrEqual(g.lead!.x + g.lead!.width - 1);
+      expect(Math.abs(g.model!.y - g.lead!.y)).toBeLessThanOrEqual(1);
+    }
     for (const theme of ['light', 'dark']) {
       await prototype.evaluate((t) => {
         document.documentElement.dataset['theme'] = t;

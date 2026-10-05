@@ -70,6 +70,9 @@
     grid-template-columns: repeat(auto-fit, minmax(min(100%, 440px), 1fr));
     gap: 0 24px;
   }
+  .kaccts > .ktable.is-ordering tbody {
+    grid-template-columns: minmax(0, 1fr);
+  }
   .kaccts > .ktable tr {
     display: grid;
     grid-template-columns: 44px minmax(0, 1fr) 132px;
