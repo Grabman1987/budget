@@ -1,5 +1,7 @@
 import {
   incomeExpenseRows,
+  incomeExpenseNet,
+  monthTotalSpending,
   incomeExpenseSources,
   reportPeriodMonths,
   tableCsv,
@@ -148,11 +150,13 @@ export function IncomeExpenseReport({ report, meta }: { report: ReportEntry; met
                 }
               />
               <p className="vnote">
-                Haushaltseinnahmen minus tatsächliche Ausgaben. Kapitalerträge und Erstattungen ohne
-                Kategorie stehen außerhalb der Haushaltseinnahmen; kategorisierte Erstattungen
-                mindern die Ausgaben. Umbuchungen zwischen eigenen Konten und Kontakt-Rückzahlungen
-                fehlen. Eine Zelle öffnet ihre Buchungen; CSV enthält genau die sichtbaren Zeilen,
-                Monate, Summe und Ø. Der laufende Monat reicht bis heute.
+                Haushaltseinnahmen minus Bedarf, Wunsch, Zukunft und Ausgaben ohne Kategorie.
+                Kapitalerträge und Erstattungen ohne Kategorie stehen außerhalb der
+                Haushaltseinnahmen; kategorisierte Erstattungen mindern die Ausgaben. Kategorisierte
+                Zukunft-Umbuchungen zählen wie in der Gesamttabelle. Netto = Übrig nach Zukunft
+                minus Ohne Kategorie. Zuflüsse ohne Einkommensart werden nicht gezählt. Eine Zelle
+                öffnet ihre Buchungen; CSV enthält genau die sichtbaren Zeilen, Monate, Summe und Ø.
+                Der laufende Monat reicht bis heute.
               </p>
             </section>
           )
@@ -184,8 +188,8 @@ function IncomeExpenseChart({ data, months }: { data: ReportTables; months: stri
   useAmountPrivacy();
   const points = data.months.filter((m) => months.includes(m.month));
   const income = points.map((m) => monthHouseholdIncome(m, data));
-  const expenses = points.map((m) => -Object.values(m.spending).reduce((a, v) => a + v, 0));
-  const net = points.map((_, i) => income[i]! + expenses[i]!);
+  const expenses = points.map((m) => -monthTotalSpending(m));
+  const net = points.map((m) => incomeExpenseNet(m, data));
   const lo = Math.min(0, ...expenses, ...income, ...net);
   const hi = Math.max(1, ...income, ...expenses, ...net);
   const x = (i: number) => 64 + ((i + 0.5) * 680) / Math.max(1, points.length);

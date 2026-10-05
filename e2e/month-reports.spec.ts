@@ -208,6 +208,7 @@ sampleTest(
         restCents: number;
         columns: {
           income: Array<{ name: string }>;
+          pool: Array<{ name: string }>;
           classes: unknown[];
           groups: unknown[];
         };
@@ -225,7 +226,9 @@ sampleTest(
     await expect(sankey.locator('title', { hasText: /^Bedarf: .* · .*%$/ })).toHaveCount(1);
     await expect(sankey.locator('text', { hasText: / · .*%$/ }).first()).toBeVisible();
     await expect(
-      page.getByTestId('flow-list').getByRole('columnheader', { name: 'Anteil an Verfügbar' }),
+      page
+        .getByTestId('flow-list')
+        .getByRole('columnheader', { name: `Anteil an ${data.flow.columns.pool[0]?.name}` }),
     ).toBeVisible();
     await expect(sankey).toHaveAttribute('aria-label', /Kapitalerträge/);
     await expect(sankey.locator('title', { hasText: /^Kapitalerträge: / })).not.toHaveCount(0);

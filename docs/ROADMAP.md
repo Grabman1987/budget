@@ -549,3 +549,14 @@ Contract and baseline matrix: [asset-class settings](asset-classes-settings.md).
 
 Owner feedback 2026-10-04: spending/cost reports 1.4/1.10/2.3–2.6/3.4–3.5 and early Heute pace implemented on `codex/spending-reports-1004`; source-model limitations and evidence are recorded in [spending report feedback](spending-report-feedback.md).
 - [x] Owner booking UX 2026-10-04: inline date/amount, status/flags, cash default, Wiederholen/weekly schedules, no capture Budgetmonat, ranged account forecast and 0–365-day display setting; CI/owner visual acceptance pending.
+
+
+### PR #190 money review — 2026-10-05
+
+- [x] Reuse 1.6/1.8 monthly spending and Zukunft set-aside for 1.10; disclose uncategorised spending and assert the exact Netto/Übrig identity.
+- [x] Shared typed household-income definition across monthly tables, One-Pager, Sankey and allocation/rules; typeless inflows remain visible and uncounted.
+- [x] Inclusive contract binding shared with R10/history; future-ended loan rates count, one-offs and ended payments do not; foreign refunds are not payments.
+- [x] Inflation booking-id weights/coverage and same-month successors; separate labelled modelled bank interest, checking-interest suppression, missing booking FX and one-to-one dividend settlement deduplication.
+- [x] Early planless pace withheld; Sankey pool heading and signed half-cent rounding covered by synthetic regressions.
+- [x] Final local check (322 suites / 3,081 tests), production/E2E builds and affected desktop/mobile browser checks; delivery on the existing PR branch.
+- [ ] PR CI/Linux baseline review, private/physical-device owner acceptance and refresh of the protected worktree index (`git reset --mixed HEAD`); no new keys or consents.

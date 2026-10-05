@@ -67,7 +67,7 @@ function Body({ data }: { data: BankCostsReport }) {
           </span>
         </div>
         <div className="sr-fig">
-          <span>Kosten · letzte {data.months.length} Monate</span>
+          <span>Kosten inkl. geschätzter Kreditzinsen · letzte {data.months.length} Monate</span>
           <strong data-testid="bc-total">{eur(data.totalCents)}</strong>
         </div>
         <p className="sr-note">
@@ -81,7 +81,11 @@ function Body({ data }: { data: BankCostsReport }) {
           precision="cent"
           terms={[
             { label: 'Haben- und Dividenden-Erträge', value: cents(data.earningsCents) },
-            { label: 'Kosten', op: '-', value: cents(data.totalCents) },
+            {
+              label: 'Kosten inkl. geschätzter Kreditzinsen',
+              op: '-',
+              value: cents(data.totalCents),
+            },
             { label: 'Erträge − Kosten', op: '=', value: cents(data.netCents), result: true },
           ]}
         />
@@ -110,6 +114,9 @@ function Body({ data }: { data: BankCostsReport }) {
           gespeicherte Quellen; Sollzinsen/Dispo entsprechend benannte Kategorien. Erträge bleiben
           separat; Trade-Erträge nach gespeicherten Steuern, vor separat gezählten Gebühren. Spreads
           und TER sind nicht gebucht.
+          {data.skippedForeignBookings
+            ? ` ${data.skippedForeignBookings} Buchungen ohne Wechselkurs fehlen.`
+            : ''}
           {data.skippedForeignTrades
             ? ` ${data.skippedForeignTrades} Trades ohne Wechselkurs fehlen.`
             : ''}

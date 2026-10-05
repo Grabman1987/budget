@@ -191,7 +191,7 @@ function FlowBody({
                     Betrag
                   </th>
                   <th scope="col" className="tech n">
-                    Anteil an Verfügbar
+                    Anteil an {flow.columns.pool[0]?.name}
                   </th>
                 </tr>
               </thead>

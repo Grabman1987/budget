@@ -12,6 +12,7 @@ test('shows monthly cost stacks, sources and separate earnings', async ({ page }
     page.getByRole('heading', { name: 'Was kostet uns das Geld selbst?' }),
   ).toBeVisible();
   await expect(page.getByTestId('bank-costs-chart')).toBeVisible();
+  await expect(page.getByText(/Kosten inkl. geschätzter Kreditzinsen · letzte/)).toBeVisible();
   await expect(page.getByTestId('cost-sources')).toContainText('Kreditzinsen');
   await expect(page.getByTestId('cost-kinds')).toContainText('Kein Haushaltseinkommen');
   await expect(page.getByRole('group', { name: 'Maßkette Bank- und Zinskosten' })).toContainText(
