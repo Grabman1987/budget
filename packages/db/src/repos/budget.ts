@@ -2,6 +2,7 @@ import {
   cents,
   coverPlan,
   formatEuro,
+  monthOf,
   summarizeMonth,
   todayInVienna,
   unclassifiedMonth,
@@ -10,7 +11,8 @@ import {
 } from '@budget/domain';
 import { and, eq, isNull } from 'drizzle-orm';
 import { category, envelopeMonth } from '../schema';
-import { coverCommitments } from './cover-limits';
+import { coverBudgetMoney, coverCommitments } from './cover-limits';
+import { loadFacts } from './rule-inputs';
 import { withGroup, type AuditContext } from './audit';
 import { getEntity } from './entities';
 import { categoryTree } from './categories';
@@ -24,6 +26,21 @@ import { runInTransaction, type Executor } from './types';
  * overspending. Only the assigned amount of a month is stored (`envelope_month`); everything else
  * is derived by `budgetMonths` (cardRule 'ynab' by default). Each action is one audit group.
  */
+
+/** One rule for single and bulk cover: only a real spending envelope may be a cover source. */
+function assertCoverSource(db: Executor, id: string) {
+  requireEnvelope(db, id);
+  const c = categoryTree(db).categories.find((x) => x.id === id);
+  if (!c || c.kind === 'income' || c.kind === 'card_payment')
+    throw new CategoryRuleError('Diese Kategorie ist keine Deckungsquelle.');
+}
+
+/** Total cover cap (balances plus allowed overdraft); only today's month is bound to it. */
+function coverCap(db: Executor, month: string, today: string) {
+  return month === monthOf(today)
+    ? coverBudgetMoney(db, today, loadFacts(db, today)).coverCapCents
+    : Number.POSITIVE_INFINITY;
+}
 
 function assignedOf(db: Executor, categoryId: string, month: string): number {
   const row = db
@@ -148,9 +165,11 @@ export function coverOverspending(
   const grouped = withGroup(ctx);
   const { allowNegative, today = todayInVienna(), ...read } = options;
   return runInTransaction(db, (tx) => {
+    if (fromId !== null) assertCoverSource(tx, fromId);
     const [m] = budget(tx, [month], read);
     const overspent = m?.envelopes[categoryId]?.overspentCents ?? 0;
     if (overspent === 0) throw new CategoryRuleError('Diese Kategorie ist nicht überzogen.');
+    const cap = coverCap(tx, month, today);
     const available =
       fromId === null
         ? allowNegative
@@ -162,7 +181,12 @@ export function coverOverspending(
             today,
           )([{ categoryId: fromId, availableCents: m?.envelopes[fromId]?.availableCents ?? 0 }])[0]
             ?.freeCents ?? 0);
-    const coveredCents = Math.min(overspent, Math.max(0, available));
+    // Never more than the budget accounts really hold (balances plus allowed overdraft).
+    const coveredCents = Math.min(
+      overspent,
+      Math.max(0, available),
+      allowNegative && fromId === null ? Infinity : cap,
+    );
     if (coveredCents === 0)
       throw new CategoryRuleError(
         fromId === null
@@ -220,15 +244,14 @@ export function coverAllOverspending(
           a.sortOrder - b.sortOrder,
       );
     if (fromId) {
-      requireEnvelope(tx, fromId);
-      if (!categories.some((c) => c.id === fromId && c.kind !== 'card_payment'))
-        throw new CategoryRuleError('Diese Kategorie ist keine Deckungsquelle.');
+      assertCoverSource(tx, fromId);
     }
     const targets = categories.flatMap((c) => {
       const e = envelopes.get(c.id);
       return e && e.overspentCents > 0 ? [{ id: c.id, overspentCents: e.overspentCents }] : [];
     });
     let moved = false;
+    let capLeft = coverCap(tx, month, today);
     for (const target of targets) {
       // Covering card spending also funds its payment envelope. Read that effect before the
       // next target, so a later card-payment deficit is never covered twice.
@@ -246,10 +269,16 @@ export function coverAllOverspending(
             ? [free]
             : pool.filter((s) => s.id === fromId);
       const { moves } = coverPlan(
-        [{ id: target.id, overspentCents: balances.get(target.id)?.overspentCents ?? 0 }],
+        [
+          {
+            id: target.id,
+            overspentCents: Math.min(balances.get(target.id)?.overspentCents ?? 0, capLeft),
+          },
+        ],
         sources,
       );
       for (const move of moves) {
+        capLeft -= move.amountCents;
         moveMoney(tx, month, move.fromId, move.toId, move.amountCents, grouped);
         moved = true;
       }

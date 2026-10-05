@@ -239,6 +239,7 @@ function PlanBody({
     rows.reduce((sum, r) => sum + r.overspentCents, 0),
     coverPool.map(freeCoverCents),
     tba,
+    data.budgetMoney?.coverCapCents,
   );
   const source =
     bulkSource === 'suggested' ||

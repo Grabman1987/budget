@@ -1,6 +1,6 @@
 # Budget feature coverage: YNAB and Portfolio Performance replacement
 
-UX-2b (owner 2026-10-05): shared free-envelope cover limits, pending/recurring commitments through payday, signed budget-account/used-credit details and explicit missing-money carry option; synthetic unit/API/browser coverage, CI and owner acceptance pending.
+UX-2b (owner 2026-10-05): shared free-envelope cover limits, pending/recurring commitments through payday, signed budget-account/used-credit details and explicit missing-money carry option; the total that can be covered is capped at budget-account balances plus allowed overdraft (view, single and bulk cover, server-side), a due matching an unlinked pending booking is reserved once, and commitments/cap apply only to the current month, always as of today; synthetic unit/API/browser coverage, CI and owner acceptance pending.
 
 Owner directive PR4: [connected asset-class settings](asset-classes-settings.md), one target editor, complete dated managed universes, editable bands, investment-sum tiers, atomic safe retirement, restore and audit/undo/redo. Reuses merged PR1/PR2/PR3/PR5; real-iPhone, CI and owner acceptance remain separate from source implementation.
 

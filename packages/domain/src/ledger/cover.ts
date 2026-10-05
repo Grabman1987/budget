@@ -45,6 +45,7 @@ export function coverAvailability(
   month: string,
   today: string,
   nextIncome: string,
+  capCents: number = Number.POSITIVE_INFINITY,
 ) {
   const committed = new Map<string, number>();
   const reserve = (id: string | null, amount: number) => {
@@ -59,7 +60,10 @@ export function coverAvailability(
   return envelopes.map((e) => ({
     categoryId: e.categoryId,
     committedCents: committed.get(e.categoryId) ?? 0,
-    freeCents: Math.max(0, e.availableCents - (committed.get(e.categoryId) ?? 0)),
+    freeCents: Math.min(
+      Math.max(0, capCents),
+      Math.max(0, e.availableCents - (committed.get(e.categoryId) ?? 0)),
+    ),
   }));
 }
 
@@ -67,13 +71,13 @@ export function coverShortfall(
   overspentCents: number,
   freeCents: readonly number[],
   toBeAssignedCents: number,
+  capCents: number = Number.POSITIVE_INFINITY,
 ) {
-  return Math.max(
-    0,
-    overspentCents -
-      freeCents.reduce((sum, value) => sum + Math.max(0, value), 0) -
-      Math.max(0, toBeAssignedCents),
+  const coverable = Math.min(
+    Math.max(0, capCents),
+    freeCents.reduce((sum, value) => sum + Math.max(0, value), 0) + Math.max(0, toBeAssignedCents),
   );
+  return Math.max(0, overspentCents - coverable);
 }
 
 /** Signed on-budget balances; an unused credit line never increases money. */
@@ -96,8 +100,14 @@ export function budgetAccountMoney(
       usedCreditCents: Math.max(0, -a.balanceCents),
       creditLineCents: a.overdraftLimitCents ?? a.creditLimitCents ?? null,
     }));
+  const totalCents = rows.reduce((sum, a) => sum + a.balanceCents, 0);
   return {
-    totalCents: rows.reduce((sum, a) => sum + a.balanceCents, 0),
+    totalCents,
+    /** Most that may be covered in total: balances plus allowed overdraft/credit lines. */
+    coverCapCents: Math.max(
+      0,
+      totalCents + rows.reduce((sum, a) => sum + (a.creditLineCents ?? 0), 0),
+    ),
     usedCreditCents: rows.reduce((sum, a) => sum + a.usedCreditCents, 0),
     accounts: rows,
   };

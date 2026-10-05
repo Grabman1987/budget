@@ -182,6 +182,7 @@ it('bulk cover uses one selected source or suggestions in stage order, stops at 
       type: 'checking',
       openingDate: '2026-10-01',
       openingBalanceCents: 10_000,
+      overdraftLimitCents: 3500,
     })
   ).account;
   const group = (await ok('POST', '/categories/groups', { name: 'Testgruppe' })).group;
@@ -287,6 +288,7 @@ it('bulk cover includes a payment envelope and accounts for funding it from cove
     type: 'checking',
     openingDate: '2026-10-01',
     openingBalanceCents: 10000,
+    overdraftLimitCents: 3000,
   });
   const group = (await ok('POST', '/categories/groups', { name: 'Testdeckung' })).group;
   const target = (
@@ -339,6 +341,32 @@ it('bulk cover includes a payment envelope and accounts for funding it from cove
   expect(
     (await call('POST', '/budget/2026-10/move', { coverAll: true, fromId: payment.id })).status,
   ).toBe(422);
+});
+
+it('refuses a card-payment source for a single cover with the bulk-cover message', async () => {
+  const account = (
+    await ok('POST', '/accounts', {
+      name: 'Testkarte',
+      type: 'credit_card',
+      openingDate: '2026-10-01',
+      openingBalanceCents: 0,
+    })
+  ).account;
+  const group = (await ok('POST', '/categories/groups', { name: 'Testquellen' })).group;
+  const payment = (
+    await ok('POST', '/categories', {
+      name: 'Testzahlung',
+      groupId: group.id,
+      kind: 'card_payment',
+      cardAccountId: account.id,
+    })
+  ).category;
+  const result = await call('POST', '/budget/2026-10/cover', {
+    categoryId: 'test',
+    fromId: payment.id,
+  });
+  expect([400, 422]).toContain(result.status);
+  expect(JSON.stringify(result.body)).toContain('Diese Kategorie ist keine Deckungsquelle.');
 });
 
 it('rejects the old negative-money cover override before any mutation', async () => {

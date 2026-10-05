@@ -101,3 +101,28 @@ it('uses largest sources in order, partially covers the next target and stops at
     missingCents: 0,
   });
 });
+
+it('caps free money and shortfall at balances plus allowed overdraft', () => {
+  const money = budgetAccountMoney([
+    {
+      id: 'bank',
+      name: 'Testgiro',
+      balanceCents: -3000,
+      onBudget: true,
+      overdraftLimitCents: 5000,
+    },
+  ]);
+  expect(money.coverCapCents).toBe(2000);
+  expect(coverShortfall(4000, [4000], 0, money.coverCapCents)).toBe(2000);
+  expect(
+    coverAvailability(
+      [{ categoryId: 'a', availableCents: 4000 }],
+      [],
+      [],
+      '2026-10',
+      '2026-10-05',
+      '2026-10-15',
+      money.coverCapCents,
+    )[0]?.freeCents,
+  ).toBe(2000);
+});
