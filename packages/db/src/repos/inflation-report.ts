@@ -3,6 +3,10 @@ import { category, categoryGroup } from '../schema';
 import { inflationBasketSettings } from './inflation-basket';
 import {
   addMonths,
+  cpiPriceLevels,
+  coicopLabel,
+  COICOP_CLASSES,
+  type CoicopShare,
   implicitContractRhythm,
   inflationCategoryIncluded,
   contractBinding,
@@ -30,8 +34,8 @@ import type { Executor } from './types';
 
 /**
  * Persönliche Inflation (2.4). The basket holds the fixed-cost categories whose price the ledger
- * knows: the stored price versions of their expected payments, valued per month in EUR. Variable
- * categories are not in the basket (quantity and price cannot be separated). The comparison is the
+ * knows: expected payments and recurring charges, valued monthly in EUR. Owner-selected variable
+ * categories can use public CPI price relatives with household spending weights. The comparison is the
  * Statistik Austria consumer price index (VPI, open data) as far as the market run has stored it;
  * without a stored series the report shows its own index alone.
  */
@@ -46,6 +50,8 @@ export interface InflationReport extends PersonalInflation {
     class: string;
     inclusion: 'always' | 'never' | null;
     trailingMean: boolean | null;
+    method: 'cpi' | null;
+    coicop: CoicopShare[];
     excludedPayeeIds: Array<string | null>;
     included: boolean;
     reason: string;
@@ -69,7 +75,7 @@ export interface InflationReport extends PersonalInflation {
    * Why there is no own index: fewer than 13 closed months, or no fixed contract with a price
    * version and spending in the first twelve months (`null` when the index exists).
    */
-  insufficientReason: 'months' | 'basket' | null;
+  insufficientReason: 'months' | 'basket' | 'cpi' | null;
   /** Contracts without a stored price history, priced from their matched bookings instead. */
   derivedContracts: { id: string; name: string; source: 'bookings'; prices: ContractVersion[] }[];
   /** The stored consumer price index alone: its 12-month change in the newest month, when stored. */
@@ -143,6 +149,7 @@ export function inflationReport(db: Executor, today: string): InflationReport {
     .filter(
       (s) =>
         s.categoryId !== null &&
+        ownerSettings.get(s.categoryId)?.method !== 'cpi' &&
         eligible({ id: s.categoryId, class: s.class, kind: s.categoryKind }) &&
         countsPayee(s.categoryId, s.payeeId ?? null) &&
         contractBinding({ ...s, categoryKind: 'fixed' }) !== null,
@@ -172,7 +179,9 @@ export function inflationReport(db: Executor, today: string): InflationReport {
         endDate: source === 'bookings' && ended ? lastCharge! : s.endDate,
       };
     });
-  for (const c of categories.filter(eligible)) {
+  for (const c of categories.filter(
+    (c) => eligible(c) && ownerSettings.get(c.id)?.method !== 'cpi',
+  )) {
     const own = charged.get(c.id) ?? [];
     for (const payeeId of new Set(own.map((r) => r.payeeId))) {
       if (payeeId === null) continue;
@@ -221,9 +230,34 @@ export function inflationReport(db: Executor, today: string): InflationReport {
     return cache.get(key) ?? null;
   };
   const items: InflationItem[] = [];
+  const subindices = Object.fromEntries(
+    COICOP_CLASSES.map((c) => [c.code, cpiMonths(db, `vpi:${c.code}`).months]),
+  );
   for (const category of categories.filter(eligible)) {
     const categoryId = category.id;
     const allCharges = charged.get(categoryId) ?? [];
+    const owner = ownerSettings.get(categoryId);
+    if (owner?.method === 'cpi') {
+      items.push({
+        id: categoryId,
+        categoryId,
+        categoryName: category.name,
+        name: category.name,
+        class: category.class,
+        source: 'cpi',
+        coicopLabel: coicopLabel(owner.coicop),
+        level: cpiPriceLevels(available, owner.coicop, subindices),
+        spend: Object.fromEntries(
+          available.map((m) => [
+            m,
+            allCharges
+              .filter((r) => r.date.startsWith(m))
+              .reduce((sum, r) => sum - r.amountCents, 0),
+          ]),
+        ),
+      });
+      continue;
+    }
     if (useTrailingMean(allCharges, settings.get(categoryId) ?? null)) {
       items.push({
         id: categoryId,
@@ -282,18 +316,26 @@ export function inflationReport(db: Executor, today: string): InflationReport {
       });
     }
   }
+  const series = currentCpiSeries(db);
+  const stored = series ? cpiMonths(db, series) : null;
+  // Never freeze a missing published CPI price or silently drop a selected category's weight.
+  const cpiItems = items.filter(
+    (i) => i.source === 'cpi' && Object.values(i.spend).some((v) => v > 0),
+  );
+  const firstCommon = available.findIndex((m) => cpiItems.every((i) => (i.level[m] ?? 0) > 0));
+  const common = firstCommon < 0 ? [] : available.slice(firstCommon);
+  const firstGap = common.findIndex((m) => cpiItems.some((i) => (i.level[m] ?? 0) <= 0));
+  const indexMonths = firstGap < 0 ? common : common.slice(0, firstGap);
   const firstPrice = Math.max(
     0,
-    available.findIndex((m) => items.some((i) => (i.level[m] ?? 0) > 0)),
+    indexMonths.findIndex((m) => items.some((i) => (i.level[m] ?? 0) > 0)),
   );
-  const base = available.slice(firstPrice, firstPrice + 12);
+  const base = indexMonths.slice(firstPrice, firstPrice + 12);
   const baseConsumptionCents = categories
     .filter((c) => c.class !== 'future')
     .reduce((a, c) => a + base.reduce((s, m) => s + (spend[m]?.[c.id] ?? 0), 0), 0);
-  const series = currentCpiSeries(db);
-  const stored = series ? cpiMonths(db, series) : null;
   const result = personalInflation({
-    available,
+    available: indexMonths,
     items,
     baseConsumptionCents,
     reference: stored?.months ?? null,
@@ -319,7 +361,9 @@ export function inflationReport(db: Executor, today: string): InflationReport {
         : !eligible(c)
           ? automaticReason
           : !included
-            ? 'Kein regelmäßiger Preis mit ausreichender Buchungshistorie nach Empfänger-Auswahl'
+            ? setting?.method === 'cpi'
+              ? 'Keine VPI-Teilindexwerte oder Ausgaben nach Empfänger-Auswahl'
+              : 'Kein regelmäßiger Preis mit ausreichender Buchungshistorie nach Empfänger-Auswahl'
             : setting?.inclusion === 'always'
               ? 'In den Einstellungen aufgenommen'
               : automaticReason;
@@ -337,6 +381,8 @@ export function inflationReport(db: Executor, today: string): InflationReport {
       class: c.class,
       inclusion: setting?.inclusion ?? null,
       trailingMean: settings.get(c.id) ?? null,
+      method: setting?.method ?? null,
+      coicop: setting?.coicop ?? [],
       included,
       reason,
       automaticReason,
@@ -367,6 +413,7 @@ export function inflationReport(db: Executor, today: string): InflationReport {
     hasOverrides: categories.some(
       (c) =>
         settings.get(c.id) != null ||
+        ownerSettings.get(c.id)?.method === 'cpi' ||
         ownerSettings.get(c.id)?.inclusion != null ||
         (ownerSettings.get(c.id)?.excludedPayeeIds.length ?? 0) > 0,
     ),
@@ -374,7 +421,14 @@ export function inflationReport(db: Executor, today: string): InflationReport {
     excluded,
     referenceAvailable: stored !== null,
     derivedContracts,
-    insufficientReason: result.status === 'ok' ? null : available.length < 13 ? 'months' : 'basket',
+    insufficientReason:
+      result.status === 'ok'
+        ? null
+        : cpiItems.length && indexMonths.length < 13
+          ? 'cpi'
+          : available.length < 13
+            ? 'months'
+            : 'basket',
     referenceLatest: stored ? latestChange(stored.months) : null,
     reference:
       series && stored

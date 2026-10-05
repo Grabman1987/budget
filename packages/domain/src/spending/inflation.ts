@@ -6,8 +6,8 @@ import type { ContractVersion } from './contracts';
 /**
  * Persönliche Inflation (2.4): a chained price index (Laspeyres) of the household's own
  * basket. Only items with a real price over time can be in it: contracts and subscriptions with
- * their stored price versions. Variable categories are left out because the ledger cannot
- * separate quantity and price there, and the report says so instead of inventing a price.
+ * their stored price versions, or owner-mapped CPI sub-indices for variable categories.
+ * Own bookings cannot separate quantity and price for variable purchases.
  * Weights are the actual spending of the base year, the index starts at 100 in the first month.
  */
 
@@ -17,9 +17,10 @@ export interface InflationItem {
   categoryId?: string;
   categoryName?: string;
   rhythm?: Rhythm;
-  source?: 'stored' | 'bookings' | 'trailing';
+  source?: 'stored' | 'bookings' | 'trailing' | 'cpi';
+  coicopLabel?: string;
   class: 'need' | 'want' | 'future' | null;
-  /** Price level per month (monthly equivalent in EUR cents); `null` when not in force. */
+  /** EUR monthly equivalent in cents; CPI relatives use 10000 = index 100. Null means unavailable. */
   level: Readonly<Record<string, number | null>>;
   /** Net spending of the category per month, positive cents. */
   spend: Readonly<Record<string, number>>;
@@ -99,10 +100,20 @@ export interface PersonalInflation {
       categoryId: string;
       categoryName: string;
       source: string;
+      coicopLabel?: string;
       baseCents: number;
       nowCents: number;
       history: Array<{ month: string; cents: number }>;
       successors: string[];
+      years: Array<{
+        year: number;
+        /** Mean of observed monthly price equivalents; null without a price in the year. */
+        averageCents: number | null;
+        /** Mean price change against the same observed months of the previous year. */
+        changeBp: number | null;
+        /** Attribution of InflationYear.ownChangeBp, reconciled to hundredth-Pp precision. */
+        contributionBp: number | null;
+      }>;
     }
   >;
   coverageBp: number | null;
@@ -268,23 +279,31 @@ export function personalInflation(input: {
     weighted.map(({ item }) => state.get(item.id)!.weight),
     endStateTotal,
   );
-  const exact = weighted.map(
-    ({ item }) =>
-      (((snapshots.get(toMonth)?.get(item.id) ?? 0) -
-        (snapshots.get(fromMonth)?.get(item.id) ?? 0)) /
-        indexFrom) *
-      10_000,
+  const attribute = (from: string, to: string, target: number) => {
+    const exact = weighted.map(
+      ({ item }) =>
+        (((snapshots.get(to)?.get(item.id) ?? 0) - (snapshots.get(from)?.get(item.id) ?? 0)) /
+          indexAt.get(from)!) *
+        10_000,
+    );
+    const rounded = exact.map(Math.floor);
+    let remainder = target - rounded.reduce((a, v) => a + v, 0);
+    const order = exact
+      .map((v, i) => ({ i, rest: v - Math.floor(v) }))
+      .sort((a, b) => b.rest - a.rest || a.i - b.i);
+    for (const { i } of order) {
+      if (remainder <= 0) break;
+      rounded[i]! += 1;
+      remainder--;
+    }
+    return rounded;
+  };
+  const rounded = attribute(fromMonth, toMonth, inflationBp);
+  const annualContributions = years.map((y) =>
+    y.ownChangeBp === null
+      ? null
+      : attribute(addMonths(y.throughMonth, -12), y.throughMonth, y.ownChangeBp),
   );
-  const rounded = exact.map(Math.floor);
-  let remainder = inflationBp - rounded.reduce((a, v) => a + v, 0);
-  const order = exact
-    .map((v, i) => ({ i, rest: v - Math.floor(v) }))
-    .sort((a, b) => b.rest - a.rest || a.i - b.i);
-  for (const { i } of order) {
-    if (remainder <= 0) break;
-    rounded[i]! += 1;
-    remainder--;
-  }
   const contributions: InflationContribution[] = weighted.map(({ item }, i) => {
     const prices = available
       .map((m) => item.level[m])
@@ -316,11 +335,27 @@ export function personalInflation(input: {
       categoryId: item.categoryId ?? item.id,
       categoryName: item.categoryName ?? item.name,
       source: item.source ?? 'stored',
+      ...(item.coicopLabel === undefined ? {} : { coicopLabel: item.coicopLabel }),
       baseCents: history[0]!.cents,
       nowCents: history.at(-1)!.cents,
       changeBp: bpOf(history[0]!.cents, history.at(-1)!.cents),
       history,
       successors: item.successors ?? [],
+      years: years.map((y, yearIndex) => {
+        const prices = history.filter((p) => p.month.startsWith(`${y.year}-`));
+        const prior = prices.map((p) => item.level[addMonths(p.month, -12)]);
+        const total = prices.reduce((sum, p) => sum + p.cents, 0);
+        const priorTotal = prior.reduce<number>((sum, cents) => sum + (cents ?? 0), 0);
+        return {
+          year: y.year,
+          averageCents: prices.length ? mulDivRound(total, 1, prices.length) : null,
+          changeBp:
+            prices.length && prior.every((cents) => cents != null && cents > 0)
+              ? bpOf(priorTotal, total)
+              : null,
+          contributionBp: annualContributions[yearIndex]?.[i] ?? null,
+        };
+      }),
     };
   });
   const grouped = new Map<string, InflationContribution>();

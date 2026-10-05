@@ -130,6 +130,11 @@ test.describe('phone layout', () => {
     await menu.press('Enter');
     await page.emulateMedia({ colorScheme: 'dark' });
     await page.screenshot({ path: info.outputPath('mobile-profile-menu-dark.png') });
+    const theme = header.getByTitle('Hell/Dunkel umschalten');
+    await expect(theme).toBeVisible();
+    const themeBox = (await theme.boundingBox())!;
+    expect(themeBox.width).toBeGreaterThanOrEqual(44);
+    expect(themeBox.height).toBeGreaterThanOrEqual(44);
     await header.getByRole('link', { name: 'Profil und Einstellungen', exact: true }).click();
     await expect(page).toHaveURL(/\/einstellungen$/);
     await expect(header.locator('.m-profile')).not.toHaveAttribute('open');
