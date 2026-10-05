@@ -30,6 +30,8 @@ const range = (cls: ClassRow) =>
   cls.isGroup || cls.target?.targetBp == null
     ? '—'
     : `${bpText(Math.max(0, cls.target.targetBp - (cls.target.bandBp ?? 0)))}–${bpText(Math.min(10000, cls.target.targetBp + (cls.target.bandBp ?? 0)))} %`;
+const partialTarget = <span title="Nicht alle Klassen haben ein Soll">teilweise</span>;
+
 function SettingsPanelLink({
   panel,
   klasse,
@@ -165,9 +167,11 @@ export function AssetClassesSettingsPage() {
                   <td data-label="Soll">
                     {data.targetsUnavailable
                       ? 'Nicht ermittelbar'
-                      : cls.target?.targetBp == null
-                        ? 'Unverwaltet'
-                        : `${bpText(cls.target.targetBp)} %`}
+                      : cls.isGroup && !cls.targetComplete
+                        ? partialTarget
+                        : cls.target?.targetBp == null
+                          ? 'Unverwaltet'
+                          : `${bpText(cls.target.targetBp)} %`}
                   </td>
                   <td data-label="Band">
                     {data.targetsUnavailable ? 'Nicht ermittelbar' : range(cls)}
@@ -482,9 +486,11 @@ function ClassEditor({
             <dd>
               {data.targetsUnavailable
                 ? 'Nicht ermittelbar'
-                : cls.target?.targetBp == null
-                  ? 'Unverwaltet'
-                  : `${bpText(cls.target.targetBp)} %`}
+                : cls.isGroup && !cls.targetComplete
+                  ? partialTarget
+                  : cls.target?.targetBp == null
+                    ? 'Unverwaltet'
+                    : `${bpText(cls.target.targetBp)} %`}
             </dd>
             <dt>Band</dt>
             <dd>{data.targetsUnavailable ? 'Nicht ermittelbar' : range(cls)}</dd>

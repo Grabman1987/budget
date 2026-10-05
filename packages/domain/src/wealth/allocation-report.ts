@@ -156,6 +156,7 @@ export function compositionGroups<
     name: string;
     valueCents: number;
     shareBp: number;
+    portfolioValueCents: number;
     portfolioShareBp: number;
     targetBp: number | null;
   },
@@ -170,9 +171,12 @@ export function compositionGroups<
       name: string;
       valueCents: number;
       shareBp: number;
+      portfolioValueCents: number;
       portfolioShareBp: number;
       targetBp: number | null;
       deviationBp: number | null;
+      /** False when any member class has no Soll; the group Soll is then unknown (null). */
+      targetComplete: boolean;
       classes: T[];
     }
   >();
@@ -186,20 +190,28 @@ export function compositionGroups<
       name: parent?.name ?? cls.name,
       valueCents: 0,
       shareBp: 0,
+      portfolioValueCents: 0,
       portfolioShareBp: 0,
       targetBp: null,
       deviationBp: null,
+      targetComplete: true,
       classes: [],
     };
     group.classes.push(cls);
     group.shareBp += cls.shareBp;
+    group.portfolioValueCents += cls.portfolioValueCents;
     group.portfolioShareBp += cls.portfolioShareBp;
-    if (cls.targetBp !== null) group.targetBp = (group.targetBp ?? 0) + cls.targetBp;
-    group.deviationBp = group.targetBp === null ? null : group.portfolioShareBp - group.targetBp;
+    if (cls.targetBp === null) group.targetComplete = false;
+    else group.targetBp = (group.targetBp ?? 0) + cls.targetBp;
+    group.deviationBp =
+      group.targetComplete && group.targetBp !== null
+        ? group.portfolioShareBp - group.targetBp
+        : null;
     groups.set(id, group);
   }
   return [...groups.values()].map((group) => ({
     ...group,
+    targetBp: group.targetComplete ? group.targetBp : null,
     valueCents: cents(
       Number(group.classes.reduce((sum, cls) => sum + BigInt(cents(cls.valueCents)), 0n)),
     ),

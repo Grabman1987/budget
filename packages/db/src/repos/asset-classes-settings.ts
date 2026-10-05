@@ -24,6 +24,7 @@ export function assetClassesSettings(db: Executor, asOf: string) {
         name: c.name,
         valueCents: actual?.valueCents ?? 0,
         shareBp: actual?.shareBp ?? 0,
+        portfolioValueCents: actual?.valueCents ?? 0,
         portfolioShareBp: actual?.shareBp ?? 0,
         targetBp: c.targetBp,
       };
@@ -39,6 +40,7 @@ export function assetClassesSettings(db: Executor, asOf: string) {
       const group = cls.isGroup ? groups.find((g) => g.assetClassId === cls.id) : undefined;
       return {
         ...cls,
+        targetComplete: group?.targetComplete ?? true,
         target:
           group?.targetBp != null
             ? {
@@ -61,7 +63,7 @@ export function assetClassesSettings(db: Executor, asOf: string) {
           ? group && allocation.risk
             ? {
                 assetClass: cls.id,
-                valueCents: group.valueCents,
+                valueCents: group.portfolioValueCents,
                 shareBp: group.portfolioShareBp,
                 targetBp: group.targetBp,
                 bandBp: null,

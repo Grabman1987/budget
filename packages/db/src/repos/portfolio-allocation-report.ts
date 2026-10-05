@@ -39,6 +39,8 @@ export interface AllocationProduct {
 }
 
 export interface AllocationClass {
+  /** R13 row value (signed, incl. cash): the base of `portfolioShareBp`. */
+  portfolioValueCents: number;
   /** Share of the whole, signed investment universe; composition shareBp uses classified value. */
   portfolioShareBp: number;
   confidence: AllocationQuality['confidence'];
@@ -229,6 +231,7 @@ export function allocationReport(db: Executor, options: { today: string }): Allo
       name: className(row.assetClass),
       valueCents: row.valueCents,
       shareBp: row.shareBp,
+      portfolioValueCents: row.valueCents,
       portfolioShareBp: row.shareBp,
       targetBp: row.targetBp,
       bandBp: row.bandBp,

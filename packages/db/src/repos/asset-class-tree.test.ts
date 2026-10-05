@@ -94,6 +94,44 @@ it('includes unmanaged cash-only classes in whole-portfolio group Ist without ch
   });
 });
 
+it('pairs value with share on the same base: classified value stays separate from the R13 row value', () => {
+  const db = opened.db;
+  createAssetClass(db, { id: 'g', name: 'Gruppe A', isGroup: true }, ctx);
+  createAssetClass(db, { id: 'a', name: 'Klasse A', parentId: 'g' }, ctx);
+  for (const [id, type, openingBalanceCents] of [
+    ['p', 'p2p', 1000],
+    ['c', 'brokerage', 3000],
+  ] as const)
+    accounts.create(
+      db,
+      {
+        id,
+        name: `Position ${id}`,
+        type,
+        role: 'investment',
+        onBudget: false,
+        openingDate: '2026-01-01',
+        openingBalanceCents,
+        allocationAssetClassId: 'a',
+      },
+      ctx,
+    );
+  const report = allocationReport(db, { today: '2026-01-01' });
+  const cls = report.compositionGroups[0]!.classes[0]!;
+  expect(cls).toMatchObject({
+    portfolioValueCents: 4000,
+    portfolioShareBp: 10000,
+    valueCents: 1000,
+  });
+  expect(report.compositionGroups[0]).toMatchObject({
+    portfolioValueCents: 4000,
+    portfolioShareBp: 10000,
+    valueCents: 1000,
+  });
+  const actual = assetClassesSettings(db, '2026-01-01').classes.find((c) => c.id === 'g')!.actual;
+  expect(actual).toMatchObject({ valueCents: 4000, shareBp: 10000 });
+});
+
 const tree = {
   groups: [{ name: 'Kryptogruppe', classes: ['Coin A', 'Coin B'] }],
   createClasses: ['Coin A', 'Coin B'],

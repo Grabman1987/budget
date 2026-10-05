@@ -258,7 +258,7 @@ export function recordAudit(db: Executor, entry: AuditEntryInput): string {
 const parseSnapshot = (json: string | null, entityType: string): Snapshot | null => {
   if (json === null) return null;
   const snapshot = JSON.parse(json) as Snapshot;
-  // Before migration 0037 every class was a leaf. Preserve old undo without rewriting audit rows.
+  // Before migration 0038 every class was a leaf. Preserve old undo without rewriting audit rows.
   if (entityType === getTableName(schema.assetClass) && !('is_group' in snapshot))
     snapshot['is_group'] = false;
   return snapshot;

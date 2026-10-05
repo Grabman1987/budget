@@ -15,6 +15,7 @@ it('groups classified cents without changing shares; target-only classes contrib
       name: 'Klasse A',
       valueCents: 101,
       shareBp: 5050,
+      portfolioValueCents: 101,
       portfolioShareBp: 2525,
       targetBp: 2000,
       products: [],
@@ -24,6 +25,7 @@ it('groups classified cents without changing shares; target-only classes contrib
       name: 'Klasse B',
       valueCents: 99,
       shareBp: 4950,
+      portfolioValueCents: 99,
       portfolioShareBp: 2475,
       targetBp: null,
       products: [],
@@ -33,6 +35,7 @@ it('groups classified cents without changing shares; target-only classes contrib
       name: 'Klasse C',
       valueCents: 0,
       shareBp: 0,
+      portfolioValueCents: 0,
       portfolioShareBp: 0,
       targetBp: 1000,
       products: [],
@@ -51,12 +54,34 @@ it('groups classified cents without changing shares; target-only classes contrib
       g.portfolioShareBp,
       g.targetBp,
       g.deviationBp,
+      g.targetComplete,
     ]),
   ).toEqual([
-    ['Gruppe A', 101, 5050, 2525, 3000, -475],
-    ['Klasse B', 99, 4950, 2475, null, null],
+    ['Gruppe A', 101, 5050, 2525, 3000, -475, true],
+    ['Klasse B', 99, 4950, 2475, null, null, false],
   ]);
   expect(groups[0]?.classes.map((c) => c.assetClassId)).toEqual(['a', 'c']);
+});
+
+it('a group target is unknown when any member class has no target', () => {
+  const row = (assetClassId: string, targetBp: number | null) => ({
+    assetClassId,
+    name: assetClassId,
+    valueCents: 10,
+    shareBp: 5000,
+    portfolioValueCents: 10,
+    portfolioShareBp: 2500,
+    targetBp,
+  });
+  const defs = [
+    { id: 'g', name: 'G', parentId: null },
+    { id: 'a', name: 'A', parentId: 'g' },
+    { id: 'b', name: 'B', parentId: 'g' },
+  ];
+  const [group] = compositionGroups([row('a', 2000), row('b', null)], defs);
+  expect(group).toMatchObject({ targetBp: null, deviationBp: null, targetComplete: false });
+  const [full] = compositionGroups([row('a', 2000), row('b', 1000)], defs);
+  expect(full).toMatchObject({ targetBp: 3000, deviationBp: 2000, targetComplete: true });
 });
 
 it('sums signed group cents exactly and rejects unsafe totals', () => {
@@ -65,6 +90,7 @@ it('sums signed group cents exactly and rejects unsafe totals', () => {
     name: `Klasse ${i}`,
     valueCents,
     shareBp: 0,
+    portfolioValueCents: 0,
     portfolioShareBp: 0,
     targetBp: null,
   }));

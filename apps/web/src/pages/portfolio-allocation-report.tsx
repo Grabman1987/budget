@@ -8,7 +8,7 @@ import { useElementWidth } from '../charts/use-element-width';
 import { request } from '../api/http';
 import { LoadingNote } from '../ledger/states';
 import { type WithValuationNotes } from '../ledger/valuation-hint';
-import { eur, eurWhole, longDay } from '../ledger/format';
+import { eur, longDay } from '../ledger/format';
 import { LEDGER_KEY } from '../ledger/queries';
 import type { PageMeta } from '../nav/pages';
 import type { ReportEntry } from '../nav/reports-catalog';
@@ -101,7 +101,6 @@ function AllocationBody({ data }: { data: AllocationReport }) {
                 testId="sunburst-classes"
                 title="Portfolio"
                 totalCents={data.classifiedCents}
-                portfolioCents={data.totalCents}
                 label={`Sonnendiagramm: innen Gruppe, außen Anlageklasse. ${data.compositionGroups
                   .map((c) => `${c.name} ${bpText(c.shareBp)}`)
                   .join(', ')}.`}
@@ -114,6 +113,7 @@ function AllocationBody({ data }: { data: AllocationReport }) {
                     shareBp: c.shareBp,
                     portfolioShareBp: c.portfolioShareBp,
                     targetBp: c.targetBp,
+                    targetComplete: c.targetComplete,
                     kids: c.classes
                       .filter((cls) => cls.valueCents > 0)
                       .map((cls) => ({
@@ -218,6 +218,7 @@ interface SbKid {
   targetBp: number | null;
 }
 interface SbGroup extends SbKid {
+  targetComplete: boolean;
   ink: string;
   kids: SbKid[];
 }
@@ -264,7 +265,6 @@ function layoutSunburst(groups: SbGroup[], total: number) {
 function Sunburst({
   groups,
   totalCents,
-  portfolioCents,
   title,
   label,
   testId,
@@ -272,7 +272,6 @@ function Sunburst({
 }: {
   groups: SbGroup[];
   totalCents: number;
-  portfolioCents: number;
   title: string;
   label: string;
   testId: string;
@@ -286,8 +285,6 @@ function Sunburst({
   const r = [size * 0.14, size * 0.34, size / 2 - 3];
   const total = Math.max(1, totalCents);
   const layout = layoutSunburst(groups, total);
-  const portfolioShare = (value: number) =>
-    percentText(portfolioCents > 0 ? value / portfolioCents : null);
   const sectors = layout.flatMap(({ group, kids }) => [
     { ...group, within: 1, ink: group.ink, source: group },
     ...kids.map(({ kid }) => ({
@@ -313,18 +310,9 @@ function Sunburst({
               { name: s.name, value: eur(s.valueCents), className: `sb-arc ${s.ink}` },
               {
                 name: 'Anteil am Portfolio',
-                value: portfolioShare(s.valueCents),
+                value: bpText(s.portfolioShareBp),
                 className: `sb-arc ${s.ink}`,
               },
-              ...(portfolioShare(s.valueCents) === bpText(s.portfolioShareBp)
-                ? []
-                : [
-                    {
-                      name: 'Ist · Sollvergleich',
-                      value: bpText(s.portfolioShareBp),
-                      className: `sb-arc ${s.ink}`,
-                    },
-                  ]),
               {
                 name: 'Anteil innerhalb der Gruppe',
                 value: percentText(s.within, { digits: 2 }),
@@ -353,7 +341,7 @@ function Sunburst({
                   data-chart-point={sectors.findIndex((s) => s.source === group)}
                   fillRule="evenodd"
                 >
-                  <title>{`${group.name}: ${eur(group.valueCents)} · Portfolio ${portfolioShare(group.valueCents)} · Ist ${bpText(group.portfolioShareBp)} · innerhalb der Gruppe 100 %${group.targetBp === null ? '' : ` · Soll ${bpText(group.targetBp)}`}`}</title>
+                  <title>{`${group.name}: ${eur(group.valueCents)} · Portfolio ${bpText(group.portfolioShareBp)} · innerhalb der Gruppe 100 %${group.targetBp === null ? (group.targetComplete ? '' : ' · Soll teilweise') : ` · Soll ${bpText(group.targetBp)}`}`}</title>
                 </path>
                 {group.shareBp >= 600 &&
                   group.name.length * 6 < Math.min(size * 0.22, (a1 - a0) * size * 0.24) && (
@@ -382,7 +370,7 @@ function Sunburst({
                         data-chart-point={sectors.findIndex((s) => s.source === kid)}
                         fillRule="evenodd"
                       >
-                        <title>{`${kid.name}: ${eur(kid.valueCents)} · Portfolio ${portfolioShare(kid.valueCents)} · Ist ${bpText(kid.portfolioShareBp)} · innerhalb der Gruppe ${percentText(kid.valueCents / group.valueCents)}${kid.targetBp === null ? '' : ` · Soll ${bpText(kid.targetBp)}`}`}</title>
+                        <title>{`${kid.name}: ${eur(kid.valueCents)} · Portfolio ${bpText(kid.portfolioShareBp)} · innerhalb der Gruppe ${percentText(kid.valueCents / group.valueCents)}${kid.targetBp === null ? '' : ` · Soll ${bpText(kid.targetBp)}`}`}</title>
                       </path>
                       {kid.shareBp >= 600 &&
                         kid.name.length * 6 < Math.min(size * 0.15, (b1 - b0) * size * 0.42) && (
@@ -405,7 +393,7 @@ function Sunburst({
             {title}
           </text>
           <text x={cx} y={cy + 14} textAnchor="middle" className="svg-label-strong">
-            {eurWhole(totalCents)}
+            {eur(totalCents)}
           </text>
         </ChartSvg>
       )}
@@ -479,7 +467,15 @@ function ClassTable({ groups, totalCents }: { groups: AllocationGroup[]; totalCe
               <td className="n">{eur(g.valueCents)}</td>
               <td className="n">{bpText(g.shareBp)}</td>
               <td className="n">{bpText(g.portfolioShareBp)}</td>
-              <td className="n">{g.targetBp === null ? '–' : bpText(g.targetBp)}</td>
+              <td className="n">
+                {g.targetBp !== null ? (
+                  bpText(g.targetBp)
+                ) : g.targetComplete ? (
+                  '–'
+                ) : (
+                  <span title="Nicht alle Klassen haben ein Soll">teilweise</span>
+                )}
+              </td>
               <td className="n">
                 {g.deviationBp === null ? '–' : bpText(g.deviationBp, { sign: true })}
               </td>
