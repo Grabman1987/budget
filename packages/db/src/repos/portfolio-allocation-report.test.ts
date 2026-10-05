@@ -4,6 +4,8 @@ import { allocationReport } from './portfolio-allocation-report';
 import { portfolioSummary } from './portfolio-summary';
 import { REPORT_TODAY, reportPortfolioFixture } from './portfolio-report-fixture';
 import { seedBasics } from './test-helpers';
+import { portfolioAllocation } from './portfolio-allocation';
+import { replaceExposureVersion } from './asset-exposure';
 
 let opened: OpenedDatabase;
 
@@ -15,6 +17,80 @@ beforeEach(() => {
 afterEach(() => opened.close());
 
 describe('allocationReport (report 4.2)', () => {
+  it('lists dated target classes and assigned unheld securities without changing held cents', () => {
+    const before = allocationReport(opened.db, { today: REPORT_TODAY });
+    opened.sqlite.exec(`
+      INSERT INTO asset_class (id, name) VALUES ('reserve', 'Reserve A');
+      INSERT INTO asset_class_target (id, asset_class_id, valid_from, target_share_bp, band_bp)
+        VALUES ('tr', 'reserve', '2026-06-01', 1000, 200);
+      UPDATE asset_class_target SET target_share_bp=5000 WHERE id='t2w';
+      INSERT INTO security (id, name, isin, kind, currency, allocation_included)
+        VALUES ('unheld', 'Produkt Reserve', 'AT0000000011', 'other', 'EUR', 1),
+               ('excluded', 'Produkt außerhalb', NULL, 'bond', 'EUR', 0),
+               ('future', 'Produkt künftig', NULL, 'bond', 'EUR', 1);
+    `);
+    for (const id of ['unheld', 'excluded', 'future'])
+      replaceExposureVersion(
+        opened.db,
+        id,
+        {
+          validFrom: id === 'future' ? '2026-10-01' : '2026-06-01',
+          complete: true,
+          source: 'synthetic',
+          weights: [{ assetClassId: 'reserve', weightBp: 10000 }],
+        },
+        { actor: 'test' },
+      );
+    const report = allocationReport(opened.db, { today: REPORT_TODAY });
+    const assignedSecurities = [
+      {
+        securityId: 'unheld',
+        name: 'Produkt Reserve',
+        isin: 'AT0000000011',
+        kind: 'other',
+        held: false,
+      },
+    ];
+    expect(report.classes.find((c) => c.assetClassId === 'reserve')).toMatchObject({
+      valueCents: 0,
+      shareBp: 0,
+      targetBp: 1000,
+      deviationBp: -1000,
+      assignedSecurities,
+    });
+    expect(
+      report.compositionGroups.flatMap((g) => g.classes).find((c) => c.assetClassId === 'reserve'),
+    ).toMatchObject({
+      valueCents: 0,
+      shareBp: 0,
+      portfolioShareBp: 0,
+      assignedSecurities,
+    });
+    expect(report.compositionClasses.find((c) => c.assetClassId === 'reserve')).toMatchObject({
+      valueCents: 0,
+      shareBp: 0,
+      assignedSecurities,
+    });
+    expect(report.classifiedCents).toBe(before.classifiedCents);
+    expect(report.compositionGroups.reduce((sum, g) => sum + g.valueCents, 0)).toBe(
+      before.classifiedCents,
+    );
+    for (const cls of before.compositionClasses) {
+      const after = report.compositionClasses.find((c) => c.assetClassId === cls.assetClassId)!;
+      expect(after.products).toEqual(cls.products);
+      expect(after.valueCents).toBe(cls.valueCents);
+      expect(after.shareBp).toBe(cls.shareBp);
+    }
+    const live = portfolioAllocation(opened.db, REPORT_TODAY);
+    expect(live.classes.find((c) => c.id === 'reserve')).toMatchObject({ assignedSecurities });
+    expect(live.risk!.proposals).toContainEqual(
+      expect.objectContaining({
+        code: 'r13_under',
+        assetClass: 'reserve',
+        shareBp: 0,
+      }),
+    );
+  });
   it('shows the same classes, shares and breaches as the portfolio summary', () => {
     const report = allocationReport(opened.db, { today: REPORT_TODAY });
     const summary = portfolioSummary(opened.db, { today: REPORT_TODAY });

@@ -12,6 +12,41 @@ import { cashValuer } from './cash-valuation';
 import { exposuresAsOf, splitAssetExposure } from './asset-exposure';
 import type { Executor } from './types';
 
+export interface AllocationSecurity {
+  securityId: string;
+  name: string;
+  isin: string | null;
+  kind: typeof security.$inferSelect.kind;
+  held: boolean;
+}
+
+/** Current dated assignments, including products that have never been bought. */
+export function allocationSecuritiesAsOf(db: Executor, asOf: string) {
+  const exposures = exposuresAsOf(db, asOf);
+  const valuation = holdingValuationExportAsOf(db, asOf);
+  const held = new Set(
+    [...valuation.values, ...valuation.missingPricePositions, ...valuation.missingFxPositions].map(
+      (p) => p.securityId,
+    ),
+  );
+  const byClass = new Map<string, AllocationSecurity[]>();
+  for (const s of allocationUniverse(db).securities) {
+    for (const weight of exposures.get(s.id)?.weights ?? []) {
+      if (weight.weightBp <= 0) continue;
+      const list = byClass.get(weight.assetClassId) ?? [];
+      list.push({
+        securityId: s.id,
+        name: s.name,
+        isin: s.isin,
+        kind: s.kind,
+        held: held.has(s.id),
+      });
+      byClass.set(weight.assetClassId, list);
+    }
+  }
+  return byClass;
+}
+
 /** One explicit universe for allocation, risk, reports and savings decisions. */
 export function allocationUniverse(db: Executor) {
   const accounts = db.select().from(account).where(isNull(account.deletedAt)).all();
