@@ -70,11 +70,13 @@ test('mixed exposure conserves current cents, preserves September history and wh
   ]);
   expect(positions.positions).toHaveLength(1);
   const report = (await (await request.get('/api/portfolio/allocation-report')).json()).allocation;
-  expect(report.history.dates[0]).toBe('2026-09-30');
+  // The history starts at the budget start now; September keeps its stored classification.
+  const september = report.history.dates.indexOf('2026-09-30');
+  expect(september).toBeGreaterThanOrEqual(0);
   expect(
     report.history.classes.find(
       (cls: { assetClassId: string }) => cls.assetClassId === classes[0].id,
-    ).istBp[0],
+    ).istBp[september],
   ).toBe(10000);
   await page.goto('/vermoegen/portfolio');
   await page.getByRole('button', { name: 'Mischfonds', exact: true }).first().click();
