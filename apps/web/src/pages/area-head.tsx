@@ -1,3 +1,4 @@
+import { todayInVienna } from '@budget/domain';
 import { useParams } from '@tanstack/react-router';
 import { ReportNavigation } from '../reports/report-navigation';
 import { Segmented, StandValue, TitleBlock, type TitleBlockField } from '@budget/ui';
@@ -74,7 +75,10 @@ export function AreaHead({
         }
       : option,
   );
-  const stand: TitleBlockField = { label: 'Stand', value: <StandValue /> };
+  const stand: TitleBlockField = {
+    label: 'Stand',
+    value: <StandValue day={standDay ?? todayInVienna()} />,
+  };
 
   let heading: string | undefined;
   let titleNode: React.ReactNode;

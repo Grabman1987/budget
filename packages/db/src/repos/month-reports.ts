@@ -44,6 +44,7 @@ import { netWorthAsOf, netWorthDaily } from './portfolio';
 import { ruleStatuses, type RuleStatusEntry } from './rules';
 import { loadFacts, scheduled, type RuleFacts } from './rule-inputs';
 import type { Executor } from './types';
+import { withValuationRange } from './valuation-notes';
 
 /**
  * Read models of the report group "Monat und Einkommen": 1.1 Monats-One-Pager, 1.3 Einnahmen and
@@ -404,6 +405,14 @@ export interface OnePager {
   result: MonthResult;
   /** Kapitalerträge of the month: shown as a note, not part of the result. */
   capitalCents: number;
+  incomeRows: Array<{
+    bookingId: string;
+    typeId: string | null;
+    name: string;
+    payer: string | null;
+    cents: number;
+    kind: 'household' | 'capital' | 'refund' | 'unclassified';
+  }>;
   allocation: Allocation;
   netWorth: OnePagerNetWorth | HeuteUnavailable;
   top: TopSpendingRow[];
@@ -476,11 +485,31 @@ function priceChanges(f: Frame): PriceChange[] {
 
 /** The Monats-One-Pager: result chain, 50/30/20, net worth, largest spending, plan, check, pace. */
 export function monthOnePager(db: Executor, today: string, month: string): OnePager {
+  return withValuationRange(
+    `${month}-01`,
+    month === monthOf(today) ? today : lastDayOfMonth(month),
+    () => onePagerInRange(db, today, month),
+  );
+}
+
+function onePagerInRange(db: Executor, today: string, month: string): OnePager {
   const f = frame(db, today, month);
   const previousMonth = addMonths(month, -1);
   const incomeFrom = previousMonth < f.firstMonth ? month : previousMonth;
   const facts = incomeFacts(db, f, incomeFrom);
   const income = monthIncomeOf(facts, month);
+  const ledger = overviewData(db);
+  const names = new Map(ledger.incomeTypes.map((t) => [t.id, t.name]));
+  const incomeRows: OnePager['incomeRows'] = ledger.splits
+    .filter((s) => s.kind === 'income' && monthOf(s.date) === month && s.date <= f.asOf)
+    .map((s) => ({
+      bookingId: s.bookingId,
+      typeId: s.incomeTypeId,
+      name: names.get(s.incomeTypeId ?? '') ?? 'Sonstiges',
+      payer: s.payeeName,
+      cents: s.amountCents,
+      kind: s.incomeGroup ?? 'household',
+    }));
   const previousIncome = monthIncomeOf(facts, previousMonth);
   const totals = classTotals(f, [month]);
   const result = monthResult({
@@ -583,6 +612,7 @@ export function monthOnePager(db: Executor, today: string, month: string): OnePa
     beforeRecords: month < f.firstMonth,
     result,
     capitalCents: income.capitalCents,
+    incomeRows,
     allocation: alloc,
     netWorth,
     top,

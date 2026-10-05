@@ -312,6 +312,7 @@ function PaceDrawing({ data, width }: { data: PaceChartData; width: number }) {
     ...m.actual,
     ...m.previous,
     ...m.forecast,
+    ...(m.income ?? []),
     1,
   );
   const min = Math.min(0, ...m.actual, ...m.previous);
@@ -322,6 +323,7 @@ function PaceDrawing({ data, width }: { data: PaceChartData; width: number }) {
   const pts = (values: number[], offset = 0) =>
     values.map((v, i): Point => [xScale(i + offset), y(v)]);
   const actual = pts(m.actual);
+  const income = pts(m.income ?? []);
   const plan = pts(m.plan);
   const previous = pts(m.previous);
   const forecast = pts(m.forecast, m.todayDay);
@@ -352,7 +354,13 @@ function PaceDrawing({ data, width }: { data: PaceChartData; width: number }) {
           ),
           xScale,
           [
-            { name: 'Ist', values: m.actual },
+            { name: 'Ausgaben bis dahin', values: m.actual },
+            { name: 'Einnahmen bis dahin', values: m.income ?? [], color: 'var(--future)' },
+            {
+              name: 'Differenz',
+              values: m.actual.map((v, i) => (m.income?.[i] ?? 0) - v),
+              color: 'var(--ink)',
+            },
             { name: 'Plan', values: m.plan, color: 'var(--line-2)' },
             { name: 'Vormonat', values: m.previous, color: 'var(--ink-3)' },
             {
@@ -376,16 +384,29 @@ function PaceDrawing({ data, width }: { data: PaceChartData; width: number }) {
         {previous.length > 1 && <Line points={previous} kind="previous" />}
         {plan.length > 1 && <Line points={plan} kind="plan" />}
         {actual.length > 1 && <StepLine points={actual} kind="actual" />}
+        {income.length > 1 && (
+          <StepLine points={income} kind="actual" className="pace-income-line" />
+        )}
         {forecast.length > 1 && <Line points={forecast} kind="forecast" />}
         {currentMonth && m.todayDay > 0 && <TodayLine x={xScale(m.todayDay)} y1={20} y2={bottom} />}
         <XTicks y={height - 7} ticks={xTicks} />
       </ChartSvg>
       <LineLegend
         items={[
-          { kind: 'actual', label: 'Ist' },
-          { kind: 'plan', label: 'Plan' },
-          { kind: 'forecast', label: 'Prognose' },
-          { kind: 'previous', label: `${monthShort(data.pace.previousMonth)} · Vormonat` },
+          ...(actual.length > 1 ? [{ kind: 'actual' as const, label: 'Ausgaben' }] : []),
+          ...(income.length > 1
+            ? [{ kind: 'actual' as const, label: 'Einnahmen', className: 'pace-income-line' }]
+            : []),
+          ...(plan.length > 1 ? [{ kind: 'plan' as const, label: 'Plan' }] : []),
+          ...(forecast.length > 1 ? [{ kind: 'forecast' as const, label: 'Prognose' }] : []),
+          ...(previous.length > 1
+            ? [
+                {
+                  kind: 'previous' as const,
+                  label: `${monthShort(data.pace.previousMonth)} · Vormonat`,
+                },
+              ]
+            : []),
         ]}
       />
     </>

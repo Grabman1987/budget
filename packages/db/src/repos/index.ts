@@ -80,3 +80,5 @@ export * from './portfolio-risk-policy';
 export * from './loan-planning';
 export * from './asset-classes-settings';
 export * from './operator-owner-trades';
+
+export * from './whole-picture';

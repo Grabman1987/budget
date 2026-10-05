@@ -141,7 +141,7 @@
   grid-column: 1 / -1;
 }
 .ps-top {
-  grid-row: span 2;
+  grid-row: auto;
 }
 .ps-grid .ps-rev {
   grid-row: auto;
@@ -499,6 +499,7 @@
       .m-head,
       .tabbar,
       .fab,
+      .global-search-trigger,
       .skip-link,
       .titleblock,
       .registers,
@@ -528,10 +529,10 @@
   /* The sheet is laid out wider than the paper and scaled down to it, so the desktop layout of
      the sheet (two columns, drawing frame) holds on paper whatever the window size. */
   .psheet {
-    zoom: 0.74;
+    zoom: 0.66;
     max-width: none;
-    width: calc(100% / 0.74);
-    height: calc(279mm / 0.74);
+    width: calc(100% / 0.66);
+    height: calc(279mm / 0.66);
     min-height: 0;
     padding: 18px;
     box-shadow: none;
@@ -554,5 +555,30 @@
   }
   .ps-sec .chart {
     max-height: 210px;
+  }
+  .ps-sec .chart .draw {
+    animation: none;
+  }
+}
+
+.ps-sources {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 20px;
+}
+.ps-income h4 {
+  margin: 0 0 8px;
+}
+.ps-income .ps-cats td:first-child {
+  white-space: normal;
+}
+@media screen and (max-width: 767px) {
+  .ps-sources {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .ps-income a {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
   }
 }

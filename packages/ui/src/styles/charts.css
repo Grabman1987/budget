@@ -382,3 +382,11 @@ svg.chart {
 .chart-value-target > span {
   display: block;
 }
+
+/* Household income in the shared monthly pace chart. */
+.pace-income-line {
+  stroke: var(--future);
+}
+.chart-legend li {
+  white-space: nowrap;
+}

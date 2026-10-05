@@ -1,3 +1,4 @@
+import { WholePictureReport } from '../reports/whole-picture-report';
 import { IncomeExpenseReport } from '../reports/income-expense-report';
 import { PayrollReport } from '../reports/payroll-report';
 import { ProjectsReport } from '../reports/projects-report';
@@ -216,6 +217,7 @@ export function ReportPage({ reportId }: { reportId: string }) {
   if (report.id === 'projekte') return <ProjectsReport report={report} meta={meta} />;
   if (report.id === 'einnahmen') return <IncomeReport report={report} meta={meta} />;
   if (report.id === 'geldfluss') return <FlowReport report={report} meta={meta} />;
+  if (report.id === 'gesamtuebersicht') return <WholePictureReport report={report} meta={meta} />;
   if (report.id === 'onepager') return <OnePagerReport report={report} meta={meta} />;
   if (report.id === 'finanzcheck') return <FinanzcheckReport report={report} meta={meta} />;
   if (report.id === 'jahresreport') return <JahresreportPage report={report} meta={meta} />;

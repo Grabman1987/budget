@@ -72,8 +72,8 @@ export function Line({ points, kind, draw = 0, className: extra }: LineProps) {
 }
 
 /** Step line: the value holds until the next point (balances, cumulative spending). */
-export function StepLine({ points, kind = 'actual', draw = 0 }: LineProps) {
-  const className = drawClass(kind, draw);
+export function StepLine({ points, kind = 'actual', draw = 0, className: extra }: LineProps) {
+  const className = `${drawClass(kind, draw)} ${extra ?? ''}`;
   return (
     <g>
       {kind === 'actual' && <TrendLine points={points} />}
