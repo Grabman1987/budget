@@ -15,7 +15,7 @@ import {
   type SecurityRow,
 } from '@budget/db';
 import { and, eq } from 'drizzle-orm';
-import { addDays } from '@budget/domain';
+import { addDays, COICOP_CLASSES } from '@budget/domain';
 import { randomUUID } from 'node:crypto';
 import {
   errorKind,
@@ -316,11 +316,21 @@ export async function refreshCpi(
   const source = sources.cpi;
   if (!source) return { skipped: true, rows: 0, failed: null };
   const last = cpiFetchedAt(db, source.series);
-  if (last !== null && last.slice(0, 10) > addDays(today, -CPI_MAX_AGE_DAYS))
+  const missingSubindices =
+    source.monthlySeries &&
+    COICOP_CLASSES.some((c) => cpiFetchedAt(db, `${source.series}:${c.code}`) === null);
+  if (!missingSubindices && last !== null && last.slice(0, 10) > addDays(today, -CPI_MAX_AGE_DAYS))
     return { skipped: true, rows: 0, failed: null };
   try {
-    const rows = await source.monthly();
-    const written = db.transaction((tx) => storeCpi(tx, source.series, rows, now.toISOString()));
+    const series = source.monthlySeries
+      ? await source.monthlySeries()
+      : { [source.series]: await source.monthly() };
+    const written = db.transaction((tx) =>
+      Object.entries(series).reduce(
+        (sum, [key, rows]) => sum + storeCpi(tx, key, rows, now.toISOString()),
+        0,
+      ),
+    );
     return { skipped: false, rows: written, failed: null };
   } catch (error) {
     const kind = errorKind(error);

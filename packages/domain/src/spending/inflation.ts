@@ -6,8 +6,8 @@ import type { ContractVersion } from './contracts';
 /**
  * Persönliche Inflation (2.4): a chained price index (Laspeyres) of the household's own
  * basket. Only items with a real price over time can be in it: contracts and subscriptions with
- * their stored price versions. Variable categories are left out because the ledger cannot
- * separate quantity and price there, and the report says so instead of inventing a price.
+ * their stored price versions, or owner-mapped CPI sub-indices for variable categories.
+ * Own bookings cannot separate quantity and price for variable purchases.
  * Weights are the actual spending of the base year, the index starts at 100 in the first month.
  */
 
@@ -17,9 +17,10 @@ export interface InflationItem {
   categoryId?: string;
   categoryName?: string;
   rhythm?: Rhythm;
-  source?: 'stored' | 'bookings' | 'trailing';
+  source?: 'stored' | 'bookings' | 'trailing' | 'cpi';
+  coicopLabel?: string;
   class: 'need' | 'want' | 'future' | null;
-  /** Price level per month (monthly equivalent in EUR cents); `null` when not in force. */
+  /** EUR monthly equivalent in cents; CPI relatives use 10000 = index 100. Null means unavailable. */
   level: Readonly<Record<string, number | null>>;
   /** Net spending of the category per month, positive cents. */
   spend: Readonly<Record<string, number>>;
@@ -99,6 +100,7 @@ export interface PersonalInflation {
       categoryId: string;
       categoryName: string;
       source: string;
+      coicopLabel?: string;
       baseCents: number;
       nowCents: number;
       history: Array<{ month: string; cents: number }>;
@@ -333,6 +335,7 @@ export function personalInflation(input: {
       categoryId: item.categoryId ?? item.id,
       categoryName: item.categoryName ?? item.name,
       source: item.source ?? 'stored',
+      ...(item.coicopLabel === undefined ? {} : { coicopLabel: item.coicopLabel }),
       baseCents: history[0]!.cents,
       nowCents: history.at(-1)!.cents,
       changeBp: bpOf(history[0]!.cents, history.at(-1)!.cents),
