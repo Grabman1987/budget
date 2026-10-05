@@ -1,0 +1,19 @@
+# Inflation basket settings (report 2.4, part A)
+
+`/einstellungen/warenkorb` owns category inclusion and payee exclusions. The report links to it and reads the same settings for the headline, contributions and basket. Changes use the existing budget write/undo UI and invalidate ledger queries.
+
+The nullable category `inflation_trailing_mean` remains the method selector: null = automatic, false = contracts, true = trailing mean. Additive owner choices live as validated JSON in the existing audited `app_setting` row `inflation.basket`, keyed by category ID: nullable `inclusion` (`always` / `never`) and `excludedPayeeIds` (including null for bookings without a payee). Missing settings mean automatic inclusion and no exclusions. No schema migration, dependency or real-data preset is added.
+
+Automatic selection is limited to need-class fixed costs and regular periodic obligations. Want/future require Always; Always still needs usable price history and spending. One-off schedules remain excluded. Monthly implicit contracts need six bills, quarterly/half-yearly/yearly two. Due-day shifts of up to twelve days and a missed cycle are tolerated, but at least one directly observed interval is required so yearly bills are not mistaken for missed half-yearly bills. Yearly bills count a changed price immediately; shorter cycles retain the existing two-charge confirmation against outliers. Prices use the existing integer-cent monthly-equivalent function.
+
+Payee exclusions filter the eligible ledger charges before implicit derivation, matching, trailing means and spending weights; stored contracts of excluded payees are also removed. Refunds of retained payees remain netted. No payee/category/memo name implies debt interest: the owner must exclude the relevant payee explicitly. This task adds no memo-rule editor.
+
+Bulk PUT `/api/inflation-basket` validates strict, bounded changes and verifies live expense categories/payees in one transaction. Category method updates and the JSON setting share one audit group; any invalid member rolls all changes back. Undo/redo follows the existing app-setting audit semantics. Settings are current preferences applied to the entire report history, not effective-dated basket versions.
+
+Owner steps: review automatic choices, select desired categories and use “In den Warenkorb”, choose the method where needed, exclude debt-interest payees while retaining card fees, then verify report 2.4. No credentials, provider consent, booking or automatic real-data configuration is involved.
+
+Synthetic evidence: focused domain/API tests for rhythms, yearly price steps, want/future defaults, exclusions in both methods, schema validation, settings round-trip and atomic rollback/undo. `e2e/inflation-basket.spec.ts` uses an isolated ledger per attempt and checks bulk inclusion, persistence after reload, report headline changes and light/dark accessibility at desktop 1440 and mobile 390. Screenshots in `docs/evidence/inflation-basket-1005/` are review evidence, not regenerated baselines.
+
+Annual basket-table breakdown and the other report-request parts are outside the numbered part A scope.
+
+Local verification (2026-10-05): `npm run check` was invoked once; it stopped at type errors in the new API tests, which were corrected. The other workspace typechecks passed in that run and the server typecheck passed on its focused rerun. Full ESLint passed; affected Prettier files were corrected and rechecked. The full Vitest run passed 3102/3104 tests across 327 files; the two unrelated load-sensitive files (`portfolio-allocation.test.ts` and `claude-hooks.test.mjs`) passed in isolation with one worker and a 60-second test timeout (44/44). Production build passed. Final affected Playwright run passed 14 tests, with seven viewport-specific skips, covering basket settings, report 2.4 and settings navigation. No full-suite repetition or baseline regeneration.

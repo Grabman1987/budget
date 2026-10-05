@@ -1,3 +1,4 @@
+import { AppLink } from '../shell/app-link';
 import { useId, useState } from 'react';
 import { chartPoints, chartPercent } from '../charts/tooltip-data';
 import {
@@ -53,6 +54,9 @@ export function PersonalInflationReport({ report, meta }: { report: ReportEntry;
       }
       reportStand={{ label: 'Stichtag', value: 'Monatsende' }}
     >
+      <p>
+        <AppLink to="/einstellungen/warenkorb">Warenkorb bearbeiten</AppLink>
+      </p>
       <div className="kview sr" data-testid="personal-inflation">
         <ReportQuery query={query} what="Persönliche Inflation">
           {(result) => <Body data={result} />}
@@ -73,7 +77,7 @@ function Body({ data }: { data: InflationReport }) {
         <p className="sr-empty" role="status" data-testid="pi-empty-reason">
           {data.insufficientReason === 'months'
             ? 'Für eine Teuerung über zwölf Monate braucht der Report mindestens 13 geschlossene Monate.'
-            : 'Für den eigenen Warenkorb braucht der Report Fixkosten mit Preis und Ausgaben im ersten Jahr der Aufzeichnung: gespeicherte Preisversionen oder mindestens sechs regelmäßig wiederkehrende Buchungen.'}
+            : 'Für den eigenen Warenkorb braucht der Report Fixkosten mit Preis und Ausgaben im ersten Jahr der Aufzeichnung: gespeicherte Preisversionen oder regelmäßige Buchungen, auch Quartals-, Halbjahres- und Jahreszahlungen.'}
         </p>
         {data.referenceLatest ? (
           <p className="sr-note" data-testid="pi-empty-reference">
@@ -375,6 +379,7 @@ function Body({ data }: { data: InflationReport }) {
           Basis ist der erste eigene Preis; Änderung vergleicht Basis und Jetzt. Gewichte werden
           jährlich erneuert. Beiträge zeigen die letzten zwölf Monate und ergeben die Leitkennzahl.
         </p>
+        {data.hasOverrides && <p className="sr-note">Warenkorb in den Einstellungen festgelegt</p>}
         <details>
           <summary>Nicht im Warenkorb · {data.excludedCategories} Kategorien</summary>
           <ul>
@@ -428,7 +433,11 @@ function IndexChart({ data }: { data: InflationReport }) {
           points.map((p) => p.month),
           x,
           [
-            { name: 'Persönlicher Preisindex', values: points.map((p) => p.index), format: index1 },
+            {
+              name: 'Persönlicher Preisindex',
+              values: points.map((p) => p.index),
+              format: index1,
+            },
             ...(data.referenceAvailable
               ? [
                   {
