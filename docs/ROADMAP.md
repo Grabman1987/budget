@@ -583,3 +583,10 @@ Owner feedback 2026-10-04: spending/cost reports 1.4/1.10/2.3–2.6/3.4–3.5 an
 - [x] Early planless pace withheld; Sankey pool heading and signed half-cent rounding covered by synthetic regressions.
 - [x] Final local check (322 suites / 3,081 tests), production/E2E builds and affected desktop/mobile browser checks; delivery on the existing PR branch.
 - [ ] PR CI/Linux baseline review, private/physical-device owner acceptance and refresh of the protected worktree index (`git reset --mixed HEAD`); no new keys or consents.
+
+### Report 2.4 — inflation basket settings, part A (owner 2026-10-05)
+
+- [x] Settings page with grouped expense categories, Automatic / Always / Never, existing trailing-mean method, per-payee exclusions and bulk Always selection; report edit link and override note.
+- [x] Automatic need-class fixed/periodic obligations; want/future only by explicit Always. Repeated quarterly, half-yearly and yearly charges become implicit contracts with integer-cent monthly equivalents; yearly price steps count at the second bill.
+- [x] Exclusions precede contract derivation and trailing means, including weights. No name/memo guessing or real-data presets. Audited app_setting plus existing category method, atomic bulk writes and undo; no migration or dependency.
+- [ ] Owner review of category choices and debt-interest payee exclusions in the running application; CI is required before merge. The other parts of the owner report request remain separate tasks.

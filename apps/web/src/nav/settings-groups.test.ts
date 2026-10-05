@@ -20,7 +20,17 @@ describe('settings groups', () => {
     expect(
       SETTINGS_GROUPS.map((group) => [group.label, group.items.map((item) => item.label)]),
     ).toEqual([
-      ['Daten', ['Konten', 'Kategorien', 'Projekte', 'Anlageklassen', 'Depots & Kryptos']],
+      [
+        'Daten',
+        [
+          'Konten',
+          'Kategorien',
+          'Warenkorb (Teuerung)',
+          'Projekte',
+          'Anlageklassen',
+          'Depots & Kryptos',
+        ],
+      ],
       ['Automatik', ['Regelwerk', 'Zuordnungsregeln', 'Datenquellen']],
       ['System', ['Sicherheit', 'CSV-Export', 'Profil']],
     ]);
@@ -30,6 +40,7 @@ describe('settings groups', () => {
     expect(Object.fromEntries(grouped.map((item) => [item.id, item.to]))).toEqual({
       konten: '/einstellungen/konten',
       kategorien: '/einstellungen/kategorien',
+      warenkorb: '/einstellungen/warenkorb',
       projekte: '/einstellungen/projekte',
       anlageklassen: '/einstellungen/anlageklassen',
       depots: '/einstellungen/depots',

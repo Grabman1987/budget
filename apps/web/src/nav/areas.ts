@@ -82,6 +82,7 @@ export const AREAS: ReadonlyArray<AreaDef> = [
     registers: [
       { id: 'konten', label: 'Konten', to: '/einstellungen/konten' },
       { id: 'projekte', label: 'Projekte', to: '/einstellungen/projekte' },
+      { id: 'warenkorb', label: 'Warenkorb (Teuerung)', to: '/einstellungen/warenkorb' },
       { id: 'kategorien', label: 'Kategorien', to: '/einstellungen/kategorien' },
       { id: 'regelwerk', label: 'Regelwerk', to: '/einstellungen/regelwerk' },
       { id: 'zuordnung', label: 'Zuordnungsregeln', to: '/einstellungen/zuordnung' },
@@ -116,7 +117,7 @@ const SETTINGS_GROUP_IDS: ReadonlyArray<{ id: string; label: string; registers: 
   {
     id: 'daten',
     label: 'Daten',
-    registers: ['konten', 'kategorien', 'projekte', 'anlageklassen', 'depots'],
+    registers: ['konten', 'kategorien', 'warenkorb', 'projekte', 'anlageklassen', 'depots'],
   },
   { id: 'automatik', label: 'Automatik', registers: ['regelwerk', 'zuordnung', 'datenquellen'] },
   { id: 'system', label: 'System', registers: ['sicherheit', 'export', 'profil'] },

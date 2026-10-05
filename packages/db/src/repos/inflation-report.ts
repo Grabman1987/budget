@@ -1,8 +1,10 @@
-import { isNull } from 'drizzle-orm';
-import { category } from '../schema';
+import { asc, isNull } from 'drizzle-orm';
+import { category, categoryGroup } from '../schema';
+import { inflationBasketSettings } from './inflation-basket';
 import {
   addMonths,
   implicitContractRhythm,
+  inflationCategoryIncluded,
   contractBinding,
   derivePriceHistory,
   useTrailingMean,
@@ -13,6 +15,7 @@ import {
   toEurCents,
   versionOn,
   type ContractVersion,
+  type Rhythm,
   type InflationItem,
   type PersonalInflation,
 } from '@budget/domain';
@@ -34,6 +37,27 @@ import type { Executor } from './types';
  */
 
 export interface InflationReport extends PersonalInflation {
+  hasOverrides: boolean;
+  basketSettings: Array<{
+    id: string;
+    name: string;
+    groupName: string;
+    groupId: string;
+    class: string;
+    inclusion: 'always' | 'never' | null;
+    trailingMean: boolean | null;
+    excludedPayeeIds: Array<string | null>;
+    included: boolean;
+    reason: string;
+    automaticReason: string;
+    payees: Array<{
+      id: string | null;
+      name: string;
+      included: boolean;
+      contracts: string[];
+      rhythm: Rhythm | null;
+    }>;
+  }>;
   /** Consumption categories (Bedarf, Wunsch) that are not in the basket. */
   excludedCategories: number;
   excluded: Array<{ id: string; name: string; reason: string }>;
@@ -73,14 +97,22 @@ export function inflationReport(db: Executor, today: string): InflationReport {
   const available = first < 0 ? months : months.slice(first);
   const derivedContracts: InflationReport['derivedContracts'] = [];
   const ledger = overviewData(db);
-  const settings = new Map(
+  const categoryRows = db.select().from(category).where(isNull(category.deletedAt)).all();
+  const settings = new Map(categoryRows.map((c) => [c.id, c.inflationTrailingMean]));
+  const groupIds = new Map(categoryRows.map((c) => [c.id, c.groupId]));
+  const groupOrder = new Map(
     db
       .select()
-      .from(category)
-      .where(isNull(category.deletedAt))
+      .from(categoryGroup)
+      .orderBy(asc(categoryGroup.sortOrder), asc(categoryGroup.name))
       .all()
-      .map((c) => [c.id, c.inflationTrailingMean]),
+      .map((g, i) => [g.id, i]),
   );
+  const ownerSettings = inflationBasketSettings(db);
+  const eligible = (c: { id: string; class: string | null; kind?: string | null }) =>
+    inflationCategoryIncluded(c, ownerSettings.get(c.id)?.inclusion);
+  const countsPayee = (categoryId: string, payeeId: string | null) =>
+    !ownerSettings.get(categoryId)?.excludedPayeeIds.includes(payeeId);
   const charged = new Map<
     string,
     { bookingId: string; date: string; amountCents: number; payeeId: string | null; name: string }[]
@@ -100,15 +132,28 @@ export function inflationReport(db: Executor, today: string): InflationReport {
       });
     charged.set(split.categoryId, own);
   }
-  const fixed = contractSources(db)
+  const allCharged = new Map([...charged].map(([id, rows]) => [id, [...rows]]));
+  for (const [id, rows] of charged)
+    charged.set(
+      id,
+      rows.filter((r) => countsPayee(id, r.payeeId)),
+    );
+  const sources = contractSources(db);
+  const fixed = sources
     .filter(
-      (s) => s.categoryKind === 'fixed' && s.categoryId !== null && contractBinding(s) !== null,
+      (s) =>
+        s.categoryId !== null &&
+        eligible({ id: s.categoryId, class: s.class, kind: s.categoryKind }) &&
+        countsPayee(s.categoryId, s.payeeId ?? null) &&
+        contractBinding({ ...s, categoryKind: 'fixed' }) !== null,
     )
     .map((s) => {
       const charges = matchedCharges(db, s.id, s.versions[0]?.currency ?? 'EUR').filter(
-        (c) => c.date <= today,
+        (c) =>
+          c.date <= today &&
+          (charged.get(s.categoryId!) ?? []).some((r) => r.bookingId === c.bookingId),
       );
-      const { versions, source } = contractPrices(s.versions, charges);
+      const { versions, source } = contractPrices(s.versions, charges, s.rhythm);
       if (source === 'bookings')
         derivedContracts.push({ id: s.id, name: s.name, source, prices: [...versions] });
       const lastCharge = charges
@@ -127,7 +172,7 @@ export function inflationReport(db: Executor, today: string): InflationReport {
         endDate: source === 'bookings' && ended ? lastCharge! : s.endDate,
       };
     });
-  for (const c of categories.filter((c) => c.kind === 'fixed')) {
+  for (const c of categories.filter(eligible)) {
     const own = charged.get(c.id) ?? [];
     for (const payeeId of new Set(own.map((r) => r.payeeId))) {
       if (payeeId === null) continue;
@@ -135,7 +180,7 @@ export function inflationReport(db: Executor, today: string): InflationReport {
       const charges = own.filter((r) => r.payeeId === payeeId);
       const rhythm = implicitContractRhythm(charges);
       if (!rhythm) continue;
-      const versions = derivePriceHistory(charges).map((v) => ({ ...v, currency: 'EUR' }));
+      const versions = derivePriceHistory(charges, rhythm).map((v) => ({ ...v, currency: 'EUR' }));
       const lastCharge: string = charges
         .filter((r) => r.amountCents < 0)
         .map((r) => r.date)
@@ -176,7 +221,7 @@ export function inflationReport(db: Executor, today: string): InflationReport {
     return cache.get(key) ?? null;
   };
   const items: InflationItem[] = [];
-  for (const category of categories.filter((c) => c.kind === 'fixed')) {
+  for (const category of categories.filter(eligible)) {
     const categoryId = category.id;
     const allCharges = charged.get(categoryId) ?? [];
     if (useTrailingMean(allCharges, settings.get(categoryId) ?? null)) {
@@ -188,7 +233,12 @@ export function inflationReport(db: Executor, today: string): InflationReport {
         class: category.class,
         source: 'trailing',
         level: trailingPriceLevels(available, allCharges),
-        spend: Object.fromEntries(available.map((m) => [m, spend[m]?.[categoryId] ?? 0])),
+        spend: Object.fromEntries(
+          available.map((m) => [
+            m,
+            allCharges.filter((r) => r.date.startsWith(m)).reduce((a, r) => a - r.amountCents, 0),
+          ]),
+        ),
       });
       continue;
     }
@@ -249,18 +299,77 @@ export function inflationReport(db: Executor, today: string): InflationReport {
     reference: stored?.months ?? null,
   });
   const inBasket = new Set(result.contributions.map((c) => c.id));
-  const excluded = categories
-    .filter((c) => c.class !== 'future' && !inBasket.has(c.id))
-    .map((c) => ({
+  const basketSettings: InflationReport['basketSettings'] = categories.map((c) => {
+    const setting = ownerSettings.get(c.id);
+    const automaticReason =
+      c.class !== 'need'
+        ? 'Wunsch und Zukunft nur mit „Immer“'
+        : c.kind !== 'fixed' && c.kind !== 'periodic'
+          ? 'Variable Kategorie: Menge und Preis nicht trennbar'
+          : 'Bedarf mit regelmäßigen Vertragspreisen oder 12-Monats-Mittel';
+    const included = items.some(
+      (i) =>
+        i.categoryId === c.id &&
+        Object.values(i.level).some((v) => (v ?? 0) > 0) &&
+        Object.values(i.spend).some((v) => v > 0),
+    );
+    const reason =
+      setting?.inclusion === 'never'
+        ? 'In den Einstellungen ausgeschlossen'
+        : !eligible(c)
+          ? automaticReason
+          : !included
+            ? 'Kein regelmäßiger Preis mit ausreichender Buchungshistorie nach Empfänger-Auswahl'
+            : setting?.inclusion === 'always'
+              ? 'In den Einstellungen aufgenommen'
+              : automaticReason;
+    const rows = allCharged.get(c.id) ?? [];
+    const contracts = sources.filter((s) => s.categoryId === c.id);
+    const payeeIds = new Set([
+      ...rows.map((r) => r.payeeId),
+      ...contracts.map((s) => s.payeeId ?? null),
+    ]);
+    return {
       id: c.id,
       name: c.name,
-      reason:
-        c.kind !== 'fixed'
-          ? 'Variable Kategorie: Menge und Preis nicht trennbar'
-          : 'Kein regelmäßiger Preis mit ausreichender Buchungshistorie',
-    }));
+      groupName: c.groupName ?? 'Ohne Gruppe',
+      groupId: groupIds.get(c.id)!,
+      class: c.class,
+      inclusion: setting?.inclusion ?? null,
+      trailingMean: settings.get(c.id) ?? null,
+      included,
+      reason,
+      automaticReason,
+      excludedPayeeIds: setting?.excludedPayeeIds ?? [],
+      payees: [...payeeIds].map((id) => ({
+        id,
+        name:
+          rows.find((r) => r.payeeId === id)?.name ??
+          contracts.find((s) => (s.payeeId ?? null) === id)?.name ??
+          'Ohne Empfänger',
+        included: countsPayee(c.id, id),
+        contracts: contracts.filter((s) => (s.payeeId ?? null) === id).map((s) => s.name),
+        rhythm:
+          contracts.find((s) => (s.payeeId ?? null) === id)?.rhythm ??
+          implicitContractRhythm(rows.filter((r) => r.payeeId === id)),
+      })),
+    };
+  });
+  basketSettings.sort(
+    (a, b) => (groupOrder.get(a.groupId) ?? 0) - (groupOrder.get(b.groupId) ?? 0),
+  );
+  const excluded = basketSettings
+    .filter((c) => !inBasket.has(c.id))
+    .map((c) => ({ id: c.id, name: c.name, reason: c.reason }));
   return {
     ...result,
+    basketSettings,
+    hasOverrides: categories.some(
+      (c) =>
+        settings.get(c.id) != null ||
+        ownerSettings.get(c.id)?.inclusion != null ||
+        (ownerSettings.get(c.id)?.excludedPayeeIds.length ?? 0) > 0,
+    ),
     excludedCategories: excluded.length,
     excluded,
     referenceAvailable: stored !== null,

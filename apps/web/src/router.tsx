@@ -139,6 +139,7 @@ const BUILT_PATHS = new Set<string>([
   INVESTMENT_SETTINGS_META.path,
   KONTEN_SETTINGS_META.path,
   '/konten',
+  '/einstellungen/warenkorb',
   '/einstellungen/projekte',
   '/einstellungen/anlageklassen',
   '/konten/buchungen',
@@ -196,6 +197,15 @@ const securityRoute = createRoute({
   path: SECURITY_META.path,
   staticData: { meta: SECURITY_META },
   component: lazyRouteComponent(() => import('./pages/security-page'), 'SecurityPage'),
+});
+const inflationBasketSettingsRoute = createRoute({
+  getParentRoute: () => shellRoute,
+  path: '/einstellungen/warenkorb',
+  staticData: { meta: PAGES.find((p) => p.path === '/einstellungen/warenkorb')! },
+  component: lazyRouteComponent(
+    () => import('./pages/inflation-basket-settings'),
+    'InflationBasketSettingsPage',
+  ),
 });
 const projectsSettingsRoute = createRoute({
   getParentRoute: () => shellRoute,
@@ -495,6 +505,7 @@ const routeTree = rootRoute.addChildren([
     securityRoute,
     profileRoute,
     projectsSettingsRoute,
+    inflationBasketSettingsRoute,
     assetClassesSettingsRoute,
     investmentSettingsRoute,
     accountsSettingsRoute,

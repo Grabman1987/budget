@@ -883,14 +883,9 @@ describe('2.4 Persönliche Inflation', () => {
       referenceMonths: 8,
       throughMonth: '2026-08',
     });
-    // Contracts with one stored price and no linked bookings are priced from their payee's bookings.
-    expect(body.derivedContracts.map((c: any) => c.name).sort()).toEqual([
-      'Cloud-Speicher',
-      'KI-Assistent',
-      'KI-Bildtool',
-      'Mobilfunk',
-      'Zeitung digital',
-    ]);
+    // Only need-class contracts enter automatically; want subscriptions require Always.
+    expect(body.derivedContracts.map((c: any) => c.name).sort()).toEqual(['Mobilfunk']);
+    expect(body.basket.every((c: any) => c.class === 'need')).toBe(true);
     expect(body.points[0].index).toBe(100);
     const by = Object.fromEntries(body.contributions.map((c: any) => [c.name, c]));
     // Strom 95 -> 105 EUR in January 2026; Internet was raised before the window starts.

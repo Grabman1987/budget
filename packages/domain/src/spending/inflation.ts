@@ -415,24 +415,26 @@ export function linkInflationSuccessors(
   return result;
 }
 
-/** At least six regularly spaced charges; tolerate shifted due days and one missed period. */
+/** Monthly needs six charges; longer cycles need repeated, regularly spaced bills. */
 export function implicitContractRhythm(charges: ReadonlyArray<ContractCharge>): Rhythm | null {
   const paid = charges
     .filter((c) => c.amountCents < 0)
     .sort((a, b) => a.date.localeCompare(b.date));
-  if (paid.length < 6) return null;
+  if (paid.length < 2) return null;
   const gaps = paid
     .slice(1)
     .map((c, i) => (Date.parse(c.date) - Date.parse(paid[i]!.date)) / 86_400_000);
-  for (const [rhythm, days] of [
-    ['monthly', 30.44],
-    ['quarterly', 91.31],
-    ['semiannual', 182.62],
-    ['yearly', 365.25],
+  for (const [rhythm, days, minimum] of [
+    ['monthly', 30.44, 6],
+    ['quarterly', 91.31, 2],
+    ['semiannual', 182.62, 2],
+    ['yearly', 365.25, 2],
   ] as const)
     if (
+      paid.length >= minimum &&
+      gaps.some((g) => Math.abs(g - days) <= 12) &&
       gaps.filter((g) => Math.abs(g - days) <= 12 || Math.abs(g - 2 * days) <= 12).length >=
-      Math.ceil(gaps.length * 0.8)
+        Math.ceil(gaps.length * 0.8)
     )
       return rhythm;
   return null;
@@ -503,10 +505,11 @@ export interface ContractCharge {
  * without stored price versions. Rule: refunds (amount >= 0) are ignored; the first charge opens
  * the history; a later charge opens a new price only when its amount differs from the current
  * price AND the next charge repeats it (a price that stays for at least two consecutive charges),
- * so one-off outliers never count. The newest charge alone is not trusted yet. Cents are absolute.
+ * so monthly outliers never count. Yearly bills count at the charge itself. Cents are absolute.
  */
 export function derivePriceHistory(
   charges: ReadonlyArray<ContractCharge>,
+  rhythm?: Rhythm,
 ): Array<{ validFrom: string; amountCents: number }> {
   const paid = charges
     .filter((c) => c.amountCents < 0)
@@ -515,7 +518,10 @@ export function derivePriceHistory(
   const history: Array<{ validFrom: string; amountCents: number }> = [];
   paid.forEach((c, i) => {
     const current = history[history.length - 1]?.amountCents;
-    if (current === undefined || (c.cents !== current && paid[i + 1]?.cents === c.cents))
+    if (
+      current === undefined ||
+      (c.cents !== current && (rhythm === 'yearly' || paid[i + 1]?.cents === c.cents))
+    )
       history.push({ validFrom: c.date, amountCents: c.cents });
   });
   return history;
@@ -529,9 +535,10 @@ export function derivePriceHistory(
 export function contractPrices(
   stored: ReadonlyArray<ContractVersion>,
   charges: ReadonlyArray<ContractCharge>,
+  rhythm?: Rhythm,
 ): { versions: ReadonlyArray<ContractVersion>; source: 'stored' | 'bookings' } {
   if (stored.length >= 2) return { versions: stored, source: 'stored' };
-  const derived = derivePriceHistory(charges);
+  const derived = derivePriceHistory(charges, rhythm);
   if (derived.length === 0) return { versions: stored, source: 'stored' };
   const currency = stored[0]?.currency ?? 'EUR';
   return { versions: derived.map((v) => ({ ...v, currency })), source: 'bookings' };

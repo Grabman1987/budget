@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  implicitContractRhythm,
   contractPrices,
   derivePriceHistory,
   personalInflation,
@@ -231,5 +232,31 @@ describe('contractPrices', () => {
 
   it('keeps the stored versions when there is no charge', () => {
     expect(contractPrices([], [])).toEqual({ versions: [], source: 'stored' });
+  });
+});
+
+describe('long billing rhythms', () => {
+  it.each([
+    ['quarterly', ['2024-01-03', '2024-04-03']],
+    ['semiannual', ['2024-01-03', '2024-07-03']],
+    ['yearly', ['2024-01-03', '2025-01-03']],
+  ] as const)('recognizes %s without six charges', (rhythm, dates) => {
+    expect(implicitContractRhythm(dates.map((date) => ({ date, amountCents: -12000 })))).toBe(
+      rhythm,
+    );
+  });
+  it('counts a yearly price step at its second charge', () => {
+    expect(
+      derivePriceHistory(
+        [
+          { date: '2024-01-03', amountCents: -12000 },
+          { date: '2025-01-03', amountCents: -14400 },
+        ],
+        'yearly',
+      ),
+    ).toEqual([
+      { validFrom: '2024-01-03', amountCents: 12000 },
+      { validFrom: '2025-01-03', amountCents: 14400 },
+    ]);
   });
 });

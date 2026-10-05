@@ -154,6 +154,14 @@ export const PAGES: ReadonlyArray<PageDef> = [
     spec: 'Projekte anlegen, umbenennen und archivieren.',
   },
   {
+    path: '/einstellungen/warenkorb',
+    title: 'Einstellungen · Warenkorb (Teuerung)',
+    area: 'einstellungen',
+    register: 'warenkorb',
+    fills: P6,
+    spec: 'Warenkorb, Methoden und Empfänger für die persönliche Inflation.',
+  },
+  {
     path: '/einstellungen/kategorien',
     title: 'Einstellungen · Kategorien',
     area: 'einstellungen',
