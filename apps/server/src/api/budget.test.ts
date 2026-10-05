@@ -174,3 +174,206 @@ describe('categories and budget API', () => {
     expect((await call('GET', '/budget/2026-13')).status).toBe(400);
   });
 });
+
+it('bulk cover uses one selected source or suggestions in stage order, stops at zero, one undo/redo', async () => {
+  const account = (
+    await ok('POST', '/accounts', {
+      name: 'Testkonto',
+      type: 'checking',
+      openingDate: '2026-10-01',
+      openingBalanceCents: 10_000,
+      overdraftLimitCents: 3500,
+    })
+  ).account;
+  const group = (await ok('POST', '/categories/groups', { name: 'Testgruppe' })).group;
+  const make = async (name: string, stage: number) =>
+    (await ok('POST', '/categories', { name, stage, groupId: group.id, class: 'need' })).category
+      .id;
+  const later = await make('Später', 3);
+  const first = await make('Zuerst', 1);
+  const last = await make('Zuletzt', 4);
+  const large = await make('Große Quelle', 2);
+  const small = await make('Kleine Quelle', 2);
+  await ok('PUT', '/budget/2026-10/assigned', {
+    items: [
+      { categoryId: large, assignedCents: 2000 },
+      { categoryId: small, assignedCents: 800 },
+    ],
+  });
+  for (const [categoryId, amountCents] of [
+    [later, -2000],
+    [first, -1200],
+    [last, -300],
+  ] as const)
+    await ok('POST', '/bookings', {
+      type: 'booking',
+      accountId: account.id,
+      date: '2026-10-03',
+      categoryId,
+      amountCents,
+    });
+  const before = (await ok('GET', '/budget/2026-10')).summary;
+  const remaining = async () =>
+    Object.fromEntries(
+      (await ok('GET', '/budget/2026-10')).summary.envelopes.map((e: any) => [
+        e.categoryId,
+        e.availableCents,
+      ]),
+    );
+  const result = await ok('POST', '/budget/2026-10/move', { coverAll: true, fromId: large });
+  expect(result).toMatchObject({ coveredCount: 1, openCount: 2, missingCents: 1500 });
+  expect(await remaining()).toMatchObject({
+    [first]: 0,
+    [later]: -1200,
+    [last]: -300,
+    [large]: 0,
+    [small]: 800,
+  });
+  const undo = await ok('POST', '/undo', { groupId: result.groupId });
+  expect((await ok('GET', '/budget/2026-10')).summary).toEqual(before);
+  const redo = await ok('POST', '/undo', { groupId: undo.groupId });
+  expect(await remaining()).toMatchObject({ [first]: 0, [later]: -1200, [large]: 0 });
+  await ok('POST', '/undo', { groupId: redo.groupId });
+  const freeCover = await ok('POST', '/budget/2026-10/move', { coverAll: true, fromId: null });
+  expect(freeCover).toMatchObject({ coveredCount: 3, openCount: 0, missingCents: 0 });
+  await ok('POST', '/undo', { groupId: freeCover.groupId });
+  // Drain unassigned money into a fully spent envelope; suggestions must stop with two open.
+  const held = await make('Gebunden', 9);
+  await ok('PUT', '/budget/2026-10/assigned', {
+    items: [{ categoryId: held, assignedCents: before.toBeAssignedCents }],
+  });
+  await ok('POST', '/bookings', {
+    type: 'booking',
+    accountId: account.id,
+    date: '2026-10-03',
+    categoryId: held,
+    amountCents: -before.toBeAssignedCents,
+  });
+  const drained = (await ok('GET', '/budget/2026-10')).summary;
+  const auto = await ok('POST', '/budget/2026-10/move', { coverAll: true });
+  expect(auto).toMatchObject({ coveredCount: 1, openCount: 2, missingCents: 700 });
+  expect(await remaining()).toMatchObject({
+    [first]: 0,
+    [later]: -400,
+    [last]: -300,
+    [large]: 0,
+    [small]: 0,
+  });
+  await ok('POST', '/undo', { groupId: auto.groupId });
+  expect((await ok('GET', '/budget/2026-10')).summary).toEqual(drained);
+  expect(
+    (await call('POST', '/budget/2026-10/move', { coverAll: true, fromId: 'missing' })).status,
+  ).toBe(404);
+  expect((await ok('GET', '/budget/2026-10')).summary).toEqual(drained);
+  expect(
+    (await call('POST', '/budget/2026-10/move', { coverAll: true, fromId: first })).status,
+  ).toBe(422);
+  expect(
+    (await call('POST', '/budget/2026-10/move', { coverAll: true, fromId: large, amountCents: 1 }))
+      .status,
+  ).toBe(400);
+});
+
+it('bulk cover includes a payment envelope and accounts for funding it from covered card spending', async () => {
+  const account = (
+    await ok('POST', '/accounts', {
+      name: 'Testkarte',
+      type: 'credit_card',
+      openingDate: '2026-10-01',
+      openingBalanceCents: -10000,
+    })
+  ).account;
+  await ok('POST', '/accounts', {
+    name: 'Testgiro',
+    type: 'checking',
+    openingDate: '2026-10-01',
+    openingBalanceCents: 10000,
+    overdraftLimitCents: 3000,
+  });
+  const group = (await ok('POST', '/categories/groups', { name: 'Testdeckung' })).group;
+  const target = (
+    await ok('POST', '/categories', {
+      name: 'Testkauf',
+      groupId: group.id,
+      stage: 1,
+      class: 'need',
+    })
+  ).category;
+  const source = (
+    await ok('POST', '/categories', {
+      name: 'Testquelle',
+      groupId: group.id,
+      stage: 2,
+      class: 'want',
+    })
+  ).category;
+  const payment = (
+    await ok('POST', '/categories', {
+      name: 'Testzahlung',
+      groupId: group.id,
+      stage: 3,
+      kind: 'card_payment',
+      cardAccountId: account.id,
+    })
+  ).category;
+  await ok('PUT', '/budget/2026-10/assigned', {
+    items: [
+      { categoryId: source.id, assignedCents: 2000 },
+      { categoryId: payment.id, assignedCents: -1000 },
+    ],
+  });
+  await ok('POST', '/bookings', {
+    type: 'booking',
+    accountId: account.id,
+    categoryId: target.id,
+    date: '2026-10-03',
+    amountCents: -1000,
+  });
+  const before = (await ok('GET', '/budget/2026-10')).summary;
+  const result = await ok('POST', '/budget/2026-10/move', { coverAll: true, fromId: source.id });
+  expect(result).toMatchObject({ coveredCount: 2, openCount: 0, missingCents: 0 });
+  const after = (await ok('GET', '/budget/2026-10')).summary;
+  expect(
+    Object.fromEntries(after.envelopes.map((e: any) => [e.categoryId, e.availableCents])),
+  ).toMatchObject({ [target.id]: 0, [source.id]: 1000, [payment.id]: 0 });
+  await ok('POST', '/undo', { groupId: result.groupId });
+  expect((await ok('GET', '/budget/2026-10')).summary).toEqual(before);
+  expect(
+    (await call('POST', '/budget/2026-10/move', { coverAll: true, fromId: payment.id })).status,
+  ).toBe(422);
+});
+
+it('refuses a card-payment source for a single cover with the bulk-cover message', async () => {
+  const account = (
+    await ok('POST', '/accounts', {
+      name: 'Testkarte',
+      type: 'credit_card',
+      openingDate: '2026-10-01',
+      openingBalanceCents: 0,
+    })
+  ).account;
+  const group = (await ok('POST', '/categories/groups', { name: 'Testquellen' })).group;
+  const payment = (
+    await ok('POST', '/categories', {
+      name: 'Testzahlung',
+      groupId: group.id,
+      kind: 'card_payment',
+      cardAccountId: account.id,
+    })
+  ).category;
+  const result = await call('POST', '/budget/2026-10/cover', {
+    categoryId: 'test',
+    fromId: payment.id,
+  });
+  expect([400, 422]).toContain(result.status);
+  expect(JSON.stringify(result.body)).toContain('Diese Kategorie ist keine Deckungsquelle.');
+});
+
+it('rejects the old negative-money cover override before any mutation', async () => {
+  const result = await call('POST', '/budget/2026-10/cover', {
+    categoryId: 'test',
+    fromId: null,
+    allowNegative: true,
+  });
+  expect(result.status).toBe(400);
+});

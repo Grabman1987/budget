@@ -487,6 +487,7 @@ export function ruleResults(db: Executor, from: string, to: string): ResultMatri
 }
 
 export interface FinanceCheck extends FinanceCheckSummary {
+  actionRules: FinanceCheckSummary['keyRules'];
   asOf: string;
   netWorthCents: number;
 }
@@ -522,7 +523,24 @@ export function financeCheck(
     };
   });
   const netWorthCents = netWorthAsOf(db, asOf).totalCents;
-  return { asOf, netWorthCents, ...summarizeCheck({ rules, checklist, netWorthCents }) };
+  const actionRules = rules.flatMap((r) =>
+    r.enabled && r.evaluation?.actionNeeded
+      ? [
+          {
+            code: r.code,
+            name: r.name,
+            stage: r.stage,
+            ...r.evaluation,
+          },
+        ]
+      : [],
+  );
+  return {
+    asOf,
+    netWorthCents,
+    ...summarizeCheck({ rules, checklist, netWorthCents }),
+    actionRules,
+  };
 }
 
 export interface RuleStatusEntry {

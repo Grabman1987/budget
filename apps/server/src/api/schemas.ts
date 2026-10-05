@@ -299,16 +299,15 @@ export const assignBody = z.object({
     .min(1)
     .max(500),
 });
-export const moveBody = z.object({
-  fromId: id.nullable(),
-  toId: id.nullable(),
-  amountCents: cents.positive(),
-});
+export const moveBody = z.union([
+  z.object({ fromId: id.nullable(), toId: id.nullable(), amountCents: cents.positive() }).strict(),
+  z.object({ coverAll: z.literal(true), fromId: id.nullable().optional() }).strict(),
+]);
 export const coverBody = z.object({
   categoryId: id,
   fromId: id.nullable(),
-  /** From "Zu verteilen" beyond what it holds (it goes below 0): only when confirmed. */
-  allowNegative: z.boolean().optional(),
+  /** Reject the legacy override: cover never creates negative unassigned money. */
+  allowNegative: z.literal(false).optional(),
 });
 
 // ---------- expected payments ----------

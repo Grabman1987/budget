@@ -137,6 +137,7 @@ describe('Envelope panel: Decken from Zu verteilen', () => {
       'POST /api/budget/2026-09/cover': () => ok({ groupId: 'grp', coveredCents: 2_000 }),
     });
     renderEnvelope(envelope(), 2_000);
+    await userEvent.selectOptions(screen.getByLabelText('Aus'), '');
     await userEvent.click(screen.getByRole('button', { name: 'Decken · 50,00 €' }));
     expect(calls('POST /api/budget/2026-09/cover')).toEqual([]);
     const choice = screen.getByRole('group', { name: 'Decken aus Zu verteilen' });
@@ -149,24 +150,16 @@ describe('Envelope panel: Decken from Zu verteilen', () => {
     await waitFor(() => expect(status()).toContain('30,00 € bleiben offen'));
   });
 
-  it('only offers the explicit confirmation when Zu verteilen holds nothing', async () => {
+  it('does not offer an empty source or a negative-money override', async () => {
     const calls = stubApi({
-      'POST /api/budget/2026-09/cover': () => ok({ groupId: 'grp', coveredCents: 5_000 }),
+      'POST /api/budget/2026-09/cover': () => ok({ groupId: 'grp', coveredCents: 5000 }),
     });
     renderEnvelope(envelope(), 0);
-    await userEvent.click(screen.getByRole('button', { name: 'Decken · 50,00 €' }));
-    const choice = screen.getByRole('group', { name: 'Decken aus Zu verteilen' });
-    expect(within(choice).queryByRole('button', { name: /^Nur/ })).toBeNull();
-    await userEvent.click(
-      within(choice).getByRole('button', {
-        name: 'Trotzdem ganz decken (Zu verteilen wird negativ)',
-      }),
-    );
-    await waitFor(() =>
-      expect(calls('POST /api/budget/2026-09/cover')).toEqual([
-        { categoryId: 'essen', fromId: null, allowNegative: true },
-      ]),
-    );
+    expect(screen.queryByRole('option', { name: /Zu verteilen/ })).toBeNull();
+    expect(
+      (screen.getByRole('button', { name: 'Decken · 50,00 €' }) as HTMLButtonElement).disabled,
+    ).toBe(true);
+    expect(calls('POST /api/budget/2026-09/cover')).toEqual([]);
   });
 
   it('covers at once when Zu verteilen is enough, and shows a refusal as a toast', async () => {
@@ -361,4 +354,87 @@ describe('Categories page: sorting', () => {
       [['b', 'a', 'c'], []],
     ]);
   });
+});
+
+it('cover label shows the source rest and replaces a depleted source', async () => {
+  const target = envelope({
+    overspentCents: 1240,
+    cashOverspentCents: 1240,
+    availableCents: -1240,
+  });
+  const source = envelope({
+    id: 'free',
+    categoryId: 'free',
+    name: 'Freizeit',
+    availableCents: 2480,
+    overspentCents: 0,
+    cashOverspentCents: 0,
+  });
+  const second = {
+    ...source,
+    id: 'reserve',
+    categoryId: 'reserve',
+    name: 'Rücklage',
+    availableCents: 2000,
+  };
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  const ui = (rows: PlanRow[], tba = 0) => (
+    <QueryClientProvider client={client}>
+      <ToastProvider>
+        <EnvelopePanel
+          month="2026-09"
+          row={target}
+          rows={rows}
+          toBeAssignedCents={tba}
+          onClose={() => {}}
+        />
+      </ToastProvider>
+    </QueryClientProvider>
+  );
+  const view = render(ui([target, source, second]));
+  expect(screen.getByTestId('cover-remaining').textContent).toBe('aus Freizeit · bleibt 12,40 €');
+  view.rerender(ui([target, { ...source, availableCents: 0 }, second]));
+  expect(screen.getByTestId('cover-remaining').textContent).toBe('aus Rücklage · bleibt 7,60 €');
+  expect(screen.queryByRole('option', { name: /Freizeit/ })).toBeNull();
+  view.rerender(ui([target, source, second], 5000));
+  await userEvent.selectOptions(screen.getByLabelText('Aus'), '');
+  expect(screen.getByTestId('cover-remaining').textContent).toBe(
+    'aus Zu verteilen · bleibt 37,60 €',
+  );
+  view.rerender(ui([target, source, second], 0));
+  expect(screen.getByTestId('cover-remaining').textContent).toBe('aus Freizeit · bleibt 12,40 €');
+});
+
+it('offers only free envelope money, shows commitments and permits a capped partial cover', async () => {
+  const target = envelope();
+  const source = envelope({
+    id: 'health',
+    categoryId: 'health',
+    name: 'Testgesundheit',
+    availableCents: 9500,
+    committedCents: 7500,
+    freeCents: 2000,
+    overspentCents: 0,
+    cashOverspentCents: 0,
+  });
+  const blocked = { ...source, id: 'blocked', name: 'Testgebunden', freeCents: 0 };
+  stubApi({
+    'POST /api/budget/2026-10/cover': () => ok({ groupId: 'limited', coveredCents: 2000 }),
+  });
+  renderWith(
+    <EnvelopePanel
+      month="2026-10"
+      row={target}
+      rows={[target, source, blocked]}
+      toBeAssignedCents={0}
+      onClose={() => {}}
+    />,
+  );
+  expect(
+    screen.getByRole('option', { name: /Testgesundheit.*fest verplant 75,00.*frei 20,00/ }),
+  ).toBeTruthy();
+  expect(screen.queryByRole('option', { name: /Testgebunden/ })).toBeNull();
+  expect(screen.getByTestId('cover-remaining').textContent).toContain('30,00 € bleiben offen');
+  await userEvent.click(screen.getByRole('button', { name: 'Decken · 50,00 €' }));
+  await waitFor(() => expect(status()).toContain('auf freies Geld begrenzt'));
 });

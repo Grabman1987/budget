@@ -7,6 +7,7 @@ import {
   sqliteTable,
   text,
   uniqueIndex,
+  type AnySQLiteColumn,
 } from 'drizzle-orm/sqlite-core';
 import { account, institution } from './accounts';
 import { booking } from './bookings';
@@ -53,6 +54,9 @@ export const VALUATION_SOURCES = ['manual', 'import', 'statement'] as const;
 export const assetClass = sqliteTable('asset_class', {
   id: id(),
   name: text('name').notNull(),
+  parentId: text('parent_id').references((): AnySQLiteColumn => assetClass.id),
+  /** Empty groups are identifiable and cannot receive positions or targets. */
+  isGroup: integer('is_group', { mode: 'boolean' }).notNull().default(false),
   sortOrder: integer('sort_order').notNull().default(0),
   ...timestamps(),
 });

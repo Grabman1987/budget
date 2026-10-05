@@ -12,6 +12,7 @@ import {
   deleteTrade,
   listTrades,
   tradeCashTransferInput,
+  rewardTradeInputs,
   type TradeRow,
 } from './trades';
 import { runInTransaction, type Executor } from './types';
@@ -283,10 +284,7 @@ function applyEntry(
     };
     const inputs =
       e.tradeKind === 'reward'
-        ? [
-            { ...base, kind: 'dividend' as const, unitsE8: 0, importKey: `${e.importKey}:div` },
-            { ...base, kind: 'buy' as const, unitsE8, importKey: `${e.importKey}:buy` },
-          ]
+        ? rewardTradeInputs({ ...base, kind: 'buy', unitsE8, importKey: e.importKey })
         : [{ ...base, kind: e.tradeKind, unitsE8, importKey: e.importKey }];
     const results = inputs.map((input) => createTrade(tx, input, ctx));
     for (const [i, r] of results.entries()) {

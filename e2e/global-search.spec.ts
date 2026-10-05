@@ -143,7 +143,7 @@ test('the live server denies unauthenticated search', async ({ browser, baseURL 
   await context.close();
 });
 
-test('mobile search preserves the month and stays clear of the tab bar and capture action', async ({
+test('mobile header search preserves the month and stays clear of the capture action', async ({
   page,
 }, info) => {
   test.skip(info.project.name !== 'mobile', 'Phone layout only');
@@ -153,14 +153,14 @@ test('mobile search preserves the month and stays clear of the tab bar and captu
   await expect(title).toHaveText('Heute');
   await page.evaluate(() => document.fonts.ready);
   await expect.poll(() => title.evaluate((el) => el.scrollWidth <= el.clientWidth)).toBe(true);
-  const trigger = page.getByRole('button', { name: 'Suchen', exact: true });
+  const trigger = page.locator('.m-head').getByRole('button', { name: 'Suchen', exact: true });
   const search = (await trigger.boundingBox())!;
   const capture = (await page.locator('.fab').boundingBox())!;
   const bar = (await page.locator('.tabbar').boundingBox())!;
   expect(search.width).toBe(44);
   expect(search.height).toBe(44);
   expect(search.y + search.height).toBeLessThan(bar.y);
-  expect(search.x + search.width).toBeLessThan(capture.x);
+  expect(search.y + search.height).toBeLessThan(capture.y);
   await trigger.focus();
   await page.keyboard.press('Control+k');
   await expect(page.getByRole('combobox', { name: 'Suchen', exact: true })).toBeFocused();

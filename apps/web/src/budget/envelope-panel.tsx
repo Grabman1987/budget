@@ -19,7 +19,10 @@ import {
   assignGuard,
   CLASS_TEXT,
   coverFromToBeAssigned,
+  coverSourceLabel,
+  freeCoverCents,
   coverSource,
+  coverSources,
   isCard,
   moveGuard,
   readAssign,
@@ -75,13 +78,37 @@ function EnvelopeBody({
   const write = useBudgetWrite();
   const [amount, setAmount] = useState(formatDecimal(cents(r.assignedCents)));
   const [direction, setDirection] = useState<'in' | 'out'>(r.availableCents < 0 ? 'in' : 'out');
-  const [other, setOther] = useState(coverSource(rows, r)?.id ?? '');
+  const enough = coverSources(rows, r);
+  const best = coverSource(rows, r);
+  const suggested =
+    r.overspentCents === 0 || (tba >= r.overspentCents && tba >= (best ? freeCoverCents(best) : 0))
+      ? ''
+      : (best?.id ?? 'none');
+  const [chosenOther, setOther] = useState(suggested);
+  const [explicitShort, setExplicitShort] = useState(false);
+  const other =
+    r.overspentCents > 0 &&
+    ((chosenOther === '' && tba < r.overspentCents && !explicitShort) ||
+      (chosenOther !== '' && !enough.some((o) => o.id === chosenOther)))
+      ? suggested
+      : chosenOther;
+  const coverOptions = [
+    ...enough,
+    ...(tba >= r.overspentCents
+      ? [{ id: '', name: 'Zu verteilen', availableCents: tba, freeCents: tba }]
+      : []),
+  ].sort((a, b) => freeCoverCents(b) - freeCoverCents(a));
   const [moveText, setMoveText] = useState('');
   const [error, setError] = useState<string>();
   const [moveError, setMoveError] = useState<string>();
   const [choosing, setChoosing] = useState(false);
   const others = rows.filter((o) => o.id !== r.id && !isCard(o));
   const fill = Math.min(r.needCents, Math.max(0, tba));
+  const sourceFree =
+    other === ''
+      ? Math.max(0, tba)
+      : freeCoverCents(rows.find((o) => o.id === other) ?? { availableCents: 0 });
+  const cappedRest = Math.max(0, r.overspentCents - sourceFree);
   const name = (id: string) =>
     id === '' ? 'Zu verteilen' : (rows.find((o) => o.id === id)?.name ?? '');
 
@@ -89,12 +116,12 @@ function EnvelopeBody({
     if (await write(fn, () => message)) onDone();
   };
   const coverFrom = useCover(month, name);
-  /** `allowNegative` undefined: the "Decken" button, which asks first when Zu verteilen is short. */
-  const cover = async (allowNegative?: boolean) => {
+  /** Confirm only the capped amount when Zu verteilen is short. */
+  const cover = async (confirmedCap = false) => {
     const short = other === '' && coverFromToBeAssigned(r.overspentCents, tba).short;
-    if (allowNegative === undefined && short) return setChoosing(true);
+    if (!confirmedCap && short) return setChoosing(true);
     setChoosing(false);
-    if (await coverFrom(r, other === '' ? null : other, allowNegative)) onDone();
+    if (await coverFrom(r, other === '' ? null : other)) onDone();
   };
   const save = () => {
     // Absolute: the pre-filled figure (also a negative one) is the value, not a change.
@@ -207,18 +234,43 @@ function EnvelopeBody({
             value={other}
             onChange={(e) => {
               setOther(e.target.value);
+              setExplicitShort(e.target.value === '' && tba < r.overspentCents);
               setChoosing(false);
             }}
           >
-            <option value="">Zu verteilen · {eur(tba)}</option>
-            {others.map((o) => (
+            {r.overspentCents > 0 && direction === 'in' ? (
+              <>
+                {other === 'none' && (
+                  <option value="none" disabled>
+                    Keine Quelle hat freies Geld
+                  </option>
+                )}
+                {tba > 0 && tba < r.overspentCents && (
+                  <option value="">Zu verteilen · {eur(tba)} · reicht nicht vollständig</option>
+                )}
+              </>
+            ) : (
+              <option value="">Zu verteilen · {eur(tba)}</option>
+            )}
+            {(r.overspentCents > 0 && direction === 'in' ? coverOptions : others).map((o) => (
               <option key={o.id} value={o.id}>
-                {o.name} · {eur(o.availableCents)}
+                {o.id === '' || r.overspentCents === 0 || direction !== 'in'
+                  ? `${o.name} · ${eur(o.availableCents)}`
+                  : coverSourceLabel(o)}
               </option>
             ))}
           </Select>
         )}
       </Field>
+      {r.overspentCents > 0 && (
+        <p className="panel-sub" data-testid="cover-remaining">
+          {other === 'none'
+            ? 'Keine Quelle hat freies Geld zum Decken.'
+            : other !== '' || tba >= r.overspentCents
+              ? `aus ${name(other)} · bleibt ${eur(Math.max(0, sourceFree - r.overspentCents))}${cappedRest > 0 ? ` · ${eur(cappedRest)} bleiben offen (auf freies Geld begrenzt)` : ''}`
+              : `Zu verteilen reicht nicht · ${eur(Math.max(0, r.overspentCents - Math.max(0, tba)))} fehlen`}
+        </p>
+      )}
       <AmountInput
         label="Betrag"
         value={moveText}
@@ -229,12 +281,13 @@ function EnvelopeBody({
         error={moveError}
       />
       <div className="panel-actions">
-        <Button variant="ghost" onClick={move}>
+        <Button variant="ghost" onClick={move} disabled={other === 'none'}>
           Verschieben
         </Button>
         {r.overspentCents > 0 && (
           <Button
             variant={r.cashOverspentCents > 0 ? 'alert' : 'ghost'}
+            disabled={other === 'none'}
             onClick={() => void cover()}
           >
             Decken · {eur(r.overspentCents)}
@@ -245,7 +298,7 @@ function EnvelopeBody({
         <CoverChoice
           overspentCents={r.overspentCents}
           toBeAssignedCents={tba}
-          onCover={(allowNegative) => void cover(allowNegative)}
+          onCover={() => void cover(true)}
           onCancel={() => setChoosing(false)}
         />
       )}

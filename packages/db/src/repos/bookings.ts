@@ -995,8 +995,9 @@ export function updateTradeSettlementBooking(
   id: string,
   patch: BookingPatch,
   ctx: AuditContext,
+  options: WriteOptions = {},
 ): void {
-  updateBookingImpl(db, id, patch, ctx, {}, true);
+  updateBookingImpl(db, id, patch, ctx, options, true);
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -1051,8 +1052,13 @@ export function deleteBooking(
 }
 
 /** Internal repository path used only by trade writes to delete their own settlement. */
-export function deleteTradeSettlementBooking(db: Executor, id: string, ctx: AuditContext): void {
-  deleteBookingImpl(db, id, ctx, {}, true);
+export function deleteTradeSettlementBooking(
+  db: Executor,
+  id: string,
+  ctx: AuditContext,
+  options: WriteOptions = {},
+): void {
+  deleteBookingImpl(db, id, ctx, options, true);
 }
 
 /** Restore a soft-deleted booking (and the deleted legs of its transfer). */

@@ -30,7 +30,7 @@
   gap: 10px 16px;
 }
 .rf-card .vnote {
-  max-width: 78ch;
+  max-width: 72ch;
 }
 
 /* Verdict: a plain sentence with a mark; red only when the money does not suffice. */

@@ -1,13 +1,18 @@
 import {
   cents,
+  coverPlan,
   formatEuro,
+  monthOf,
   summarizeMonth,
+  todayInVienna,
   unclassifiedMonth,
   type CardRule,
   type MonthSummary,
 } from '@budget/domain';
 import { and, eq, isNull } from 'drizzle-orm';
 import { category, envelopeMonth } from '../schema';
+import { coverBudgetMoney, coverCommitments } from './cover-limits';
+import { loadFacts } from './rule-inputs';
 import { withGroup, type AuditContext } from './audit';
 import { getEntity } from './entities';
 import { categoryTree } from './categories';
@@ -21,6 +26,21 @@ import { runInTransaction, type Executor } from './types';
  * overspending. Only the assigned amount of a month is stored (`envelope_month`); everything else
  * is derived by `budgetMonths` (cardRule 'ynab' by default). Each action is one audit group.
  */
+
+/** One rule for single and bulk cover: only a real spending envelope may be a cover source. */
+function assertCoverSource(db: Executor, id: string) {
+  requireEnvelope(db, id);
+  const c = categoryTree(db).categories.find((x) => x.id === id);
+  if (!c || c.kind === 'income' || c.kind === 'card_payment')
+    throw new CategoryRuleError('Diese Kategorie ist keine Deckungsquelle.');
+}
+
+/** Total cover cap (balances plus allowed overdraft); only today's month is bound to it. */
+function coverCap(db: Executor, month: string, today: string) {
+  return month === monthOf(today)
+    ? coverBudgetMoney(db, today, loadFacts(db, today)).coverCapCents
+    : Number.POSITIVE_INFINITY;
+}
 
 function assignedOf(db: Executor, categoryId: string, month: string): number {
   const row = db
@@ -48,8 +68,7 @@ function requireEnvelope(db: Executor, id: string) {
  * raises the month's assigned total (`addedCents` > 0) must leave "Zu verteilen" at 0 or more;
  * writes that only reduce or reshuffle (net 0) always pass, also while "Zu verteilen" is already
  * negative. The overdraft of an account is a floor of the account, not money to assign: it is
- * not part of "Zu verteilen" and so never offered here. The only override is the explicit
- * `allowNegative` of "Trotzdem ganz decken" in `coverOverspending`.
+ * not part of "Zu verteilen" and so never offered here. Repository-only `allowNegative` supports synthetic reconciliation; the cover API never permits it.
  */
 function guardAssignable(db: Executor, month: string, addedCents: number): void {
   if (addedCents <= 0) return;
@@ -141,28 +160,40 @@ export function coverOverspending(
   categoryId: string,
   fromId: string | null,
   ctx: AuditContext,
-  options: { cardRule?: CardRule; allowNegative?: boolean } = {},
+  options: { cardRule?: CardRule; allowNegative?: boolean; today?: string } = {},
 ): { groupId: string; coveredCents: number } {
   const grouped = withGroup(ctx);
-  const { allowNegative, ...read } = options;
+  const { allowNegative, today = todayInVienna(), ...read } = options;
   return runInTransaction(db, (tx) => {
+    if (fromId !== null) assertCoverSource(tx, fromId);
     const [m] = budget(tx, [month], read);
     const overspent = m?.envelopes[categoryId]?.overspentCents ?? 0;
     if (overspent === 0) throw new CategoryRuleError('Diese Kategorie ist nicht überzogen.');
+    const cap = coverCap(tx, month, today);
     const available =
       fromId === null
         ? allowNegative
           ? overspent
           : (m?.toBeAssignedCents ?? 0)
-        : (m?.envelopes[fromId]?.availableCents ?? 0);
-    const coveredCents = Math.min(overspent, Math.max(0, available));
+        : (coverCommitments(
+            tx,
+            month,
+            today,
+          )([{ categoryId: fromId, availableCents: m?.envelopes[fromId]?.availableCents ?? 0 }])[0]
+            ?.freeCents ?? 0);
+    // Never more than the budget accounts really hold (balances plus allowed overdraft).
+    const coveredCents = Math.min(
+      overspent,
+      Math.max(0, available),
+      allowNegative && fromId === null ? Infinity : cap,
+    );
     if (coveredCents === 0)
       throw new CategoryRuleError(
         fromId === null
           ? '„Zu verteilen“ reicht nicht zum Decken.'
-          : 'Die Quelle hat kein Geld verfügbar.',
+          : 'Die Quelle hat kein freies Geld zum Decken.',
       );
-    // The cover amount was capped above; with `allowNegative` the owner confirmed going below 0.
+    // The API always caps above; the repository override is only for reconciliation tests.
     moveMoney(tx, month, fromId, categoryId, coveredCents, grouped, { allowNegative: true });
     return { groupId: grouped.groupId, coveredCents };
   });
@@ -188,4 +219,80 @@ export function budgetSummary(
     },
     tree,
   };
+}
+
+/** All covers reuse moveMoney in one transaction/audit group; never create a source overdraft. */
+export function coverAllOverspending(
+  db: Executor,
+  month: string,
+  fromId: string | null | undefined,
+  ctx: AuditContext,
+  today: string = todayInVienna(),
+) {
+  const grouped = withGroup(ctx);
+  return runInTransaction(db, (tx) => {
+    const { summary, tree } = budgetSummary(tx, month);
+    const limits = coverCommitments(tx, month, today);
+    const groupOrder = new Map(tree.groups.map((g, i) => [g.id, i]));
+    const envelopes = new Map(summary.envelopes.map((e) => [e.categoryId, e]));
+    const categories = tree.categories
+      .filter((c) => c.kind !== 'income')
+      .sort(
+        (a, b) =>
+          (a.stage ?? 10) - (b.stage ?? 10) ||
+          (groupOrder.get(a.groupId) ?? 0) - (groupOrder.get(b.groupId) ?? 0) ||
+          a.sortOrder - b.sortOrder,
+      );
+    if (fromId) {
+      assertCoverSource(tx, fromId);
+    }
+    const targets = categories.flatMap((c) => {
+      const e = envelopes.get(c.id);
+      return e && e.overspentCents > 0 ? [{ id: c.id, overspentCents: e.overspentCents }] : [];
+    });
+    let moved = false;
+    let capLeft = coverCap(tx, month, today);
+    for (const target of targets) {
+      // Covering card spending also funds its payment envelope. Read that effect before the
+      // next target, so a later card-payment deficit is never covered twice.
+      const current = budgetSummary(tx, month).summary;
+      const balances = new Map(current.envelopes.map((e) => [e.categoryId, e]));
+      const freeById = new Map(limits(current.envelopes).map((e) => [e.categoryId, e.freeCents]));
+      const pool = categories
+        .filter((c) => c.kind !== 'card_payment')
+        .map((c) => ({ id: c.id, availableCents: freeById.get(c.id) ?? 0 }));
+      const free = { id: null, availableCents: current.toBeAssignedCents };
+      const sources =
+        fromId === undefined
+          ? [...pool, free]
+          : fromId === null
+            ? [free]
+            : pool.filter((s) => s.id === fromId);
+      const { moves } = coverPlan(
+        [
+          {
+            id: target.id,
+            overspentCents: Math.min(balances.get(target.id)?.overspentCents ?? 0, capLeft),
+          },
+        ],
+        sources,
+      );
+      for (const move of moves) {
+        capLeft -= move.amountCents;
+        moveMoney(tx, month, move.fromId, move.toId, move.amountCents, grouped);
+        moved = true;
+      }
+    }
+    if (!moved) throw new CategoryRuleError('Kein verfügbares Geld zum Decken.');
+    const final = new Map(
+      budgetSummary(tx, month).summary.envelopes.map((e) => [e.categoryId, e.overspentCents]),
+    );
+    const open = targets.filter((t) => (final.get(t.id) ?? 0) > 0);
+    return {
+      groupId: grouped.groupId,
+      coveredCount: targets.length - open.length,
+      openCount: open.length,
+      missingCents: open.reduce((sum, t) => sum + (final.get(t.id) ?? 0), 0),
+    };
+  });
 }

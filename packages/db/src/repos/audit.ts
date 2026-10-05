@@ -255,6 +255,15 @@ export function recordAudit(db: Executor, entry: AuditEntryInput): string {
   return id;
 }
 
+const parseSnapshot = (json: string | null, entityType: string): Snapshot | null => {
+  if (json === null) return null;
+  const snapshot = JSON.parse(json) as Snapshot;
+  // Before migration 0038 every class was a leaf. Preserve old undo without rewriting audit rows.
+  if (entityType === getTableName(schema.assetClass) && !('is_group' in snapshot))
+    snapshot['is_group'] = false;
+  return snapshot;
+};
+
 const parseEntry = (row: typeof auditLog.$inferSelect): AuditEntry => ({
   id: row.id,
   ts: row.ts,
@@ -262,8 +271,8 @@ const parseEntry = (row: typeof auditLog.$inferSelect): AuditEntry => ({
   action: row.action,
   entityType: row.entityType,
   entityId: row.entityId,
-  before: row.beforeJson ? (JSON.parse(row.beforeJson) as Snapshot) : null,
-  after: row.afterJson ? (JSON.parse(row.afterJson) as Snapshot) : null,
+  before: parseSnapshot(row.beforeJson, row.entityType),
+  after: parseSnapshot(row.afterJson, row.entityType),
   groupId: row.groupId,
   undoOfId: row.undoOfId,
 });

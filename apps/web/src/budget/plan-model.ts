@@ -165,7 +165,7 @@ export function moveGuard(
 
 /**
  * "Decken" from "Zu verteilen": `capCents` is what it can cover without going below 0; `short`
- * when that is less than the overspending (the rest needs `allowNegative`).
+ * when that is less than the overspending (the rest stays open).
  */
 export function coverFromToBeAssigned(overspentCents: number, toBeAssignedCents: number) {
   const capCents = Math.min(overspentCents, Math.max(0, toBeAssignedCents));
@@ -504,14 +504,20 @@ export function unassignPlan(rows: PlanRow[], amount: number): Array<[string, nu
   return plan;
 }
 
-/** Default source to cover an overspent envelope: a stage-2 Wunsch with enough money first. */
+/** Cover sources use the server boundary; partial sources remain available for capped covers. */
+export const freeCoverCents = (r: Pick<EnvelopeSummary, 'freeCents' | 'availableCents'>) =>
+  r.freeCents ?? Math.max(0, r.availableCents);
+export const coverSourceLabel = (
+  r: Pick<PlanRow, 'name' | 'availableCents' | 'committedCents' | 'freeCents'>,
+) =>
+  `${r.name} · ${eur(r.availableCents)} · fest verplant ${eur(r.committedCents ?? 0)} · frei ${eur(freeCoverCents(r))}`;
+export function coverSources(rows: PlanRow[], target: PlanRow): PlanRow[] {
+  return rows
+    .filter((r) => r.id !== target.id && !isCard(r) && freeCoverCents(r) > 0)
+    .sort((a, b) => freeCoverCents(b) - freeCoverCents(a));
+}
 export function coverSource(rows: PlanRow[], target: PlanRow): PlanRow | undefined {
-  const amount = target.overspentCents;
-  const pool = rows.filter((r) => r.id !== target.id && !isCard(r) && r.availableCents > 0);
-  const enough = pool.filter((r) => r.availableCents >= amount);
-  const rank = (r: PlanRow) => (r.stage === 2 ? 0 : 1) + (r.cls === 'want' ? 0 : 0.5);
-  enough.sort((a, b) => rank(a) - rank(b) || b.availableCents - a.availableCents);
-  return enough[0] ?? [...pool].sort((a, b) => b.availableCents - a.availableCents)[0];
+  return coverSources(rows, target)[0];
 }
 
 export interface Bar {

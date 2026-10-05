@@ -119,6 +119,8 @@ test('monthly savings proposals require actual execution confirmation and suppor
   expect(await sourceTrades(request, security.id)).toHaveLength(0);
   expect(await balance(request, account.id)).toBe(200000);
   await page.goto('/');
+  const fold = page.getByRole('button', { name: 'Mehr zum Monat' });
+  if ((await fold.getAttribute('aria-expanded')) === 'false') await fold.click();
   const step = page.locator('.heute-next-steps .rev-row').filter({ hasText: `Sparplan: ${name}` });
   await expect(step).toContainText('100,00');
   await step.getByRole('button', { name: 'Ausführung prüfen' }).click();

@@ -65,16 +65,18 @@ export function portfolioAllocation(db: Executor, asOf: string): PortfolioAlloca
     valueCents: current.valueCents,
     status,
     missing,
-    classes: listAssetClasses(db).map((row) => {
-      const target = targets.get(row.id);
-      return {
-        id: row.id,
-        name: row.name,
-        targetBp: target?.targetBp ?? null,
-        bandBp: target ? resolvedBandBp(target, policy.R13) : null,
-        validFrom: target ? policy.targetValidFrom : null,
-      };
-    }),
+    classes: listAssetClasses(db)
+      .filter((row) => !row.isGroup)
+      .map((row) => {
+        const target = targets.get(row.id);
+        return {
+          id: row.id,
+          name: row.name,
+          targetBp: target?.targetBp ?? null,
+          bandBp: target ? resolvedBandBp(target, policy.R13) : null,
+          validFrom: target ? policy.targetValidFrom : null,
+        };
+      }),
     risk: status === 'known' ? riskOf(db, asOf) : null,
     names: {
       securities: Object.fromEntries([...securities.values()].map((row) => [row.id, row.name])),

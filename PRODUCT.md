@@ -2,6 +2,8 @@
 
 Owner-Entscheidung 05.10.2026: In Report 2.4 bleiben Warenkorbvergleich und Kategorie-Explorer getrennt; die Interpretation von Preis- und Mengeneffekten bleibt beim Owner, ohne automatisches Inflationsurteil.
 
+Owner composition decision (2026-10-05): Allocation shows groups inside and user-defined classes outside; products remain in the source table. Groups can be created/renamed and classes moved in Einstellungen › Anlageklassen. Soll stays class-specific and dated, with group sums. P2P accounts can be assigned in account settings; defaults are limited to an explicitly run operator configuration. Uninformative region charts are removed. See [composition contract](docs/portfolio-composition.md).
+
 Owner booking directive (2026-10-04): new manual bookings use the booking month; the dialog has no Budgetmonat field and does not apply next-month defaults. Existing stored values stay intact. Booking Wiederholen creates a recurring schedule; owner-facing wording is Wiederkehrende Zahlungen. Account chart preview defaults to 35 days, configurable 0–365.
 
 Owner directive PR4 (2026-10-04): real Anlageklassen settings owns configuration, target/band/version editing, lifecycle and dated instrument assignment. Portfolio owns analysis and links to this shared editor. Investment-sum tiers are versioned, select inclusively from depots plus signed investment cash and use the existing resolver at each historical date; unmanaged is distinct from managed zero. Safe atomic retirement and undo preserve targets/history. See [settings contract](docs/asset-classes-settings.md).
@@ -181,6 +183,12 @@ Alle Reports rechnen aus demselben Hauptbuch; Nettovermögen, Rendite und Regels
 3. **Mobil erfassen, Desktop steuern.** Beide Geräte zeigen dieselbe Sitemap und dieselben Inhalte, sie unterscheiden sich nur in der Tiefe.
 4. **Regeln statt Bauchgefühl.** Finanz-Basics sind geprüfte Regeln mit Status und Maßnahme, nicht Hinweistexte.
 5. **Automatisch, wo es zuverlässig ist.** Bank-Sync und Kurse laufen von selbst; manuelle Eingabe ist ein gleichwertiger Weg, kein Notbehelf.
+
+**Owner-Entscheidung 05.10.2026 — Alarmsemantik:** Jede Überziehung bleibt rot und hat pro Seite genau einen Warnort. Heute bündelt sie unter „Braucht Aufmerksamkeit“ (die zwei größten, Rest über „weitere N“); angepinnte Envelopes zeigen nur ihren roten verfügbaren Betrag, Nächste Schritte wiederholt keine Überziehung. Plan zeigt rote Einzelbeträge mit kompaktem Deckungszugriff und eine gemeinsame Deckungsaktion. Kreditkarten- und Kreditsalden in der Seitenleiste sind Tinte mit Minus, keine rote Pille.
+
+**Owner-Entscheidung 05.10.2026 — Wortwahl:** Maßkette, Stückliste, Revision und Wasserstand bleiben als grafische Begriffe. Schaltflächen und Links auf Heute und Plan benennen die Handlung in einfachen Worten, etwa „Herleitung zeigen“.
+
+Heute beginnt mit frei verfügbar bis Gehalt und der gemeinsamen 35-Tage-Prognose, den nächsten sieben Tagen, Aufmerksamkeit und Gesamtvermögen (dieselbe Nettovermögensbewertung wie Vermögen). Pace und weitere Monatszahlen bleiben unter „Mehr zum Monat“, am Handy anfangs geschlossen, am Desktop offen; Auswahl je Gerät gespeichert. Deckung zeigt den verbleibenden Quellbetrag, schlägt nur ausreichend gefüllte Quellen absteigend vor und bietet eine Sammeldeckung in Wasserfall-Reihenfolge bis das Geld aufgebraucht ist, mit einer Rücknahme für die gesamte Aktion.
 
 ## Accessibility & Inclusion
 

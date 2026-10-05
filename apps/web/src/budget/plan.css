@@ -739,6 +739,9 @@
   }
   .plan .ptable .col-avail {
     grid-column: 4;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
   }
   .plan .prow .rev-tri {
     display: block;
@@ -767,6 +770,9 @@
   }
   .plan .prow.is-empty .col-name {
     grid-column: 1 / -1;
+  }
+  .plan .prow.is-empty .col-pos {
+    display: none;
   }
   .plan .assign-btn {
     margin: -4px 0;
@@ -1449,4 +1455,72 @@
 }
 .income-targets-links button span {
   white-space: nowrap;
+}
+
+.cover-all-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  padding-block: 8px;
+}
+.cover-all-controls select {
+  /* Keep .select's 100% (compressible): width:auto sized the page to the longest option. */
+  min-width: 0;
+  max-width: 100%;
+  flex: 1 1 220px;
+}
+.triage-compact h2 {
+  font-size: 15px;
+  color: var(--red);
+}
+.cover-row {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--red);
+  cursor: pointer;
+  vertical-align: middle;
+}
+.cover-row:focus-visible {
+  outline: 2px solid var(--line);
+  outline-offset: 2px;
+}
+.cover-row:hover {
+  background: var(--tint);
+}
+
+.plan-budget-money {
+  margin-bottom: 12px;
+  color: var(--ink-2);
+  font-size: 13px;
+}
+.plan-budget-money summary {
+  min-height: 44px;
+  cursor: pointer;
+  padding-block: 12px;
+}
+.plan-budget-money summary:focus-visible {
+  outline: 2px solid var(--line);
+  outline-offset: 2px;
+}
+.plan-budget-money ul {
+  margin-block: 0 12px;
+}
+.cover-missing {
+  color: var(--red);
+}
+.cover-missing p {
+  margin-block: 8px;
+}
+.cover-missing a {
+  display: inline-flex;
+  min-height: 44px;
+  align-items: center;
+  color: var(--red);
 }
