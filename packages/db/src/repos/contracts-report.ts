@@ -1,6 +1,7 @@
 import {
   averageRateMicro,
   contractSeries,
+  contractPrices,
   contractsOverview,
   fixedCostRatio,
   lastDayOfMonth,
@@ -25,6 +26,7 @@ import { fxRateOnOrBefore } from './prices';
 import { allocationMonth } from './allocation';
 import { referenceMonth } from './rule-inputs';
 import { reportMonths } from './spending-report';
+import { matchedCharges } from './contract-history';
 import type { Executor } from './types';
 
 /**
@@ -56,6 +58,7 @@ export interface ContractsReport extends ContractsOverview {
   series: ContractSeriesPoint[];
   markers: ContractMarker[];
   seriesPartial: boolean;
+  derivedContracts: string[];
   foreign: ForeignContractRow[];
   foreignFrom: string | null;
   foreignTo: string | null;
@@ -103,6 +106,7 @@ export function contractSources(db: Executor): ContractSource[] {
         name: p.name,
         groupName: c ? (groups.get(c.groupId) ?? 'Ohne Gruppe') : 'Ohne Kategorie',
         categoryId: p.categoryId,
+        payeeId: p.payeeId,
         categoryName: c?.name ?? null,
         class: c?.class ?? null,
         categoryKind: c?.kind ?? null,
@@ -127,7 +131,25 @@ export function contractSources(db: Executor): ContractSource[] {
 }
 
 export function contractsReport(db: Executor, today: string): ContractsReport {
-  const sources = contractSources(db);
+  const derivedContracts: string[] = [];
+  const sources = contractSources(db)
+    .filter((s) => s.endDate === null)
+    .map((s) => {
+      const history = contractPrices(
+        s.versions,
+        matchedCharges(db, s.id, s.versions[0]?.currency ?? 'EUR').filter((c) => c.date <= today),
+      );
+      if (history.source === 'bookings') derivedContracts.push(s.id);
+      return {
+        ...s,
+        currentVersions: s.versions,
+        versions: history.versions,
+        startDate:
+          history.source === 'bookings'
+            ? (history.versions[0]?.validFrom ?? s.startDate)
+            : s.startDate,
+      };
+    });
   const cache = new Map<string, number | null>();
   const fx: FxLookup = (currency, day) => {
     const key = `${currency}|${day}`;
@@ -237,6 +259,7 @@ export function contractsReport(db: Executor, today: string): ContractsReport {
     series: series.points,
     markers: series.markers,
     seriesPartial: series.partial,
+    derivedContracts,
     foreign,
     foreignFrom,
     foreignTo,

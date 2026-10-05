@@ -19,22 +19,34 @@ test('indexes the fixed contracts, attributes the change and says what is not in
 
   // The stored consumer price series (synthetic on the sample server) runs through August 2026: the
   // headline compares the same window and names the source.
-  await expect(page.getByTestId('pi-reference-state')).toContainText(/VPI .* \(Aug 26\)/);
+  await expect(page.getByTestId('pi-reference-state')).toContainText('(Aug 26)');
+  await expect(
+    page.getByTestId('pi-reference-state').getByRole('button', { name: 'VPI', exact: true }),
+  ).toBeVisible();
   await expect(page.getByText(/Synthetische Beispielreihe statt VPI/)).toBeVisible();
   await expect(page.getByText(/höchstens einmal im Monat neu/)).toBeVisible();
 
   // Monthly: the 12-month change per month, personal against the VPI.
   await expect(page.getByTestId('inflation-monthly-chart')).toBeVisible();
-  const monthly = page.getByTestId('monthly-table');
-  await expect(monthly.getByRole('row').nth(1)).toContainText('Aug 26');
-  await expect(monthly.getByRole('row', { name: /^Dez 25/ })).not.toContainText('–');
-  await expect(monthly.getByRole('row').nth(1)).not.toContainText('–');
-
-  // Yearly: annual averages; changes only between two complete years.
+  await expect(page.getByTestId('monthly-table')).toHaveCount(0);
   const yearly = page.getByTestId('yearly-table');
-  await expect(yearly.getByRole('row', { name: /^2025/ })).not.toContainText('–');
-  await expect(yearly.getByRole('row', { name: /^2023/ })).toContainText('3 Monate eigen');
-  await expect(yearly.getByRole('row', { name: /^2026/ })).toContainText('8 VPI');
+  await expect(yearly.getByRole('row', { name: /^2025/ })).toContainText('Prozentpunkte');
+  await expect(yearly.getByRole('row', { name: /^2023/ })).toContainText(
+    'fehlt der Vergleichsmonat',
+  );
+  await expect(yearly.getByRole('row', { name: /^2026/ })).toContainText('bis Aug 26');
+  await expect(page.getByTestId('inflation-basket')).toContainText('Miete');
+  await page.getByRole('button', { name: 'Pp', exact: true }).first().focus();
+  await expect(
+    page.getByRole('tooltip').filter({ hasText: 'Differenz zweier Prozentwerte' }),
+  ).toBeVisible();
+  await page.keyboard.press('Escape');
+  await page.keyboard.press('Tab');
+  await page.getByRole('button', { name: 'Pp', exact: true }).first().click();
+  await expect(
+    page.getByRole('tooltip').filter({ hasText: 'Differenz zweier Prozentwerte' }),
+  ).toBeVisible();
+  await page.keyboard.press('Escape');
 
   // The index chart and the contribution table (Strom raised its price in January 2026).
   await expect(page.getByTestId('inflation-chart')).toBeVisible();
@@ -44,10 +56,10 @@ test('indexes the fixed contracts, attributes the change and says what is not in
 
   // Sample contracts with only their current price are priced from their matched bookings, and
   // the method names them.
-  await expect(page.getByTestId('pi-derived')).toContainText('aus Buchungen abgeleitet');
+  await expect(page.getByTestId('pi-derived')).toContainText('Aus Buchungen abgeleitet');
 
   // What is out of the basket is named.
-  await expect(page.getByText(/Variable Kategorien/)).toBeVisible();
+  await expect(page.getByText(/Nicht im Warenkorb/)).toBeVisible();
 
   await inspectReport(page, info, 'personal-inflation');
 });

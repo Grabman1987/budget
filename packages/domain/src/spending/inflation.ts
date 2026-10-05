@@ -1,8 +1,10 @@
-import { ratioBp } from '../wealth/int';
+import { ratioBp, shareBps } from '../wealth/int';
+import { addMonths } from '../date';
+import type { Rhythm } from '../schedule';
 import type { ContractVersion } from './contracts';
 
 /**
- * Persönliche Inflation (2.4): a fixed-weight price index (Laspeyres) of the household's own
+ * Persönliche Inflation (2.4): a chained price index (Laspeyres) of the household's own
  * basket. Only items with a real price over time can be in it: contracts and subscriptions with
  * their stored price versions. Variable categories are left out because the ledger cannot
  * separate quantity and price there, and the report says so instead of inventing a price.
@@ -12,6 +14,10 @@ import type { ContractVersion } from './contracts';
 export interface InflationItem {
   id: string;
   name: string;
+  categoryId?: string;
+  categoryName?: string;
+  rhythm?: Rhythm;
+  source?: 'stored' | 'bookings' | 'trailing';
   class: 'need' | 'want' | 'future' | null;
   /** Price level per month (monthly equivalent in EUR cents); `null` when not in force. */
   level: Readonly<Record<string, number | null>>;
@@ -47,18 +53,17 @@ export interface InflationMonth {
   referenceBp: number | null;
 }
 
-/** One calendar year on the basis of annual averages. */
+/** December versus December, or the latest running-year month versus its previous year. */
 export interface InflationYear {
   year: number;
   /** Months of the year the own index covers / the reference covers. */
   ownMonths: number;
   referenceMonths: number;
-  /** Average index of the months present (own: first month = 100, reference rebased the same). */
-  ownAverage: number | null;
-  referenceAverage: number | null;
-  /** Change of the annual average against the year before; only between two complete years. */
+  /** Price change against the same month of the previous year. */
   ownChangeBp: number | null;
   referenceChangeBp: number | null;
+  throughMonth: string;
+  differenceBp: number | null;
 }
 
 export interface PersonalInflation {
@@ -89,6 +94,17 @@ export interface PersonalInflation {
   contributionSumBp: number;
   /** Items in the index and their share of the consumption of the base year, basis points. */
   basketItems: number;
+  basket: Array<
+    InflationContribution & {
+      categoryId: string;
+      categoryName: string;
+      source: string;
+      baseCents: number;
+      nowCents: number;
+      history: Array<{ month: string; cents: number }>;
+      successors: string[];
+    }
+  >;
   coverageBp: number | null;
 }
 
@@ -109,6 +125,7 @@ const empty = (): PersonalInflation => ({
   contributions: [],
   contributionSumBp: 0,
   basketItems: 0,
+  basket: [],
   coverageBp: null,
 });
 
@@ -127,35 +144,70 @@ export function personalInflation(input: {
   /** Optional reference index per month (any base); rebased here. */
   reference?: Readonly<Record<string, number>> | null;
 }): PersonalInflation {
-  const { available } = input;
+  // Price relatives belong to items, never to the sum of contracts in a category.
+  const raw = input.items.filter((i) => Object.values(i.level).some((v) => (v ?? 0) > 0));
+  const first = input.available.findIndex((m) => raw.some((i) => (i.level[m] ?? 0) > 0));
+  const available = input.available.slice(Math.max(0, first));
   if (available.length < 13) return empty();
-  const base = available[0] as string;
+  const base = available[0]!;
   const baseYear = available.slice(0, 12);
-  const weighted = input.items
-    .filter((i) => (i.level[base] ?? 0) > 0)
-    .map((i) => ({ item: i, weight: Math.max(0, sumSpend(i, baseYear)) }))
-    .filter((x) => x.weight > 0);
+  const weighted = linkInflationSuccessors(raw, available).map((item) => ({
+    item,
+    weight: Math.max(0, sumSpend(item, baseYear)),
+  }));
   const total = weighted.reduce((a, x) => a + x.weight, 0);
   if (total <= 0) return empty();
-
-  // Fixed weights; an item that is no longer in force keeps its last price (no change).
-  const last = new Map<string, number>();
+  const state = new Map(
+    weighted.map(({ item, weight }) => [
+      item.id,
+      {
+        price: 0,
+        relative: 1,
+        weight,
+        contribution: 0,
+      },
+    ]),
+  );
+  const snapshots = new Map<string, Map<string, number>>();
   const points: InflationPoint[] = [];
   const refBase = input.reference?.[base] ?? null;
-  for (const month of available) {
-    let sum = 0;
-    for (const { item, weight } of weighted) {
-      const own = item.level[month];
-      if (own !== null && own !== undefined && own > 0) last.set(item.id, own);
-      const price = last.get(item.id) ?? (item.level[base] as number);
-      sum += (weight / total) * (price / (item.level[base] as number));
+  let anchor = 100;
+  let previousIndex = 100;
+  for (let pos = 0; pos < available.length; pos++) {
+    const month = available[pos]!;
+    // December link: new calendar-year weights from the previous twelve months.
+    if (pos > 0 && month.endsWith('-01')) {
+      anchor = previousIndex;
+      const prior = available.slice(Math.max(0, pos - 12), pos);
+      for (const { item } of weighted) {
+        const st = state.get(item.id)!;
+        st.relative = 1;
+        st.weight = Math.max(0, sumSpend(item, prior));
+      }
+    }
+    const activeTotal = [...state.values()].reduce((a, v) => a + v.weight, 0);
+    let index = anchor;
+    for (const { item } of weighted) {
+      const st = state.get(item.id)!;
+      const price = item.level[month];
+      const before = st.relative;
+      if (price != null && price > 0) {
+        // Entry is linked at relative 1; a successor already has its predecessor's price.
+        if (st.price > 0) st.relative *= price / st.price;
+        st.price = price;
+      }
+      const share = activeTotal > 0 ? st.weight / activeTotal : 0;
+      index += anchor * share * (st.relative - 1);
+      st.contribution += anchor * share * (st.relative - before);
     }
     const ref = input.reference?.[month];
     points.push({
       month,
-      index: round4(100 * sum),
+      index: round4(index),
       reference: refBase && ref !== undefined ? round4((100 * ref) / refBase) : null,
     });
+    snapshots.set(month, new Map([...state].map(([id, st]) => [id, st.contribution])));
+    previousIndex = index;
   }
   const toMonth = available[available.length - 1] as string;
   const fromMonth = available[available.length - 13] as string;
@@ -185,61 +237,104 @@ export function personalInflation(input: {
   }
   const latest = [...monthly].reverse().find((x) => x.referenceBp !== null);
 
-  // Calendar years on the basis of annual averages.
-  const rebase = refBase ? (v: number) => (100 * v) / refBase : null;
-  const firstYear = Number(base.slice(0, 4));
-  const lastYear = Number(toMonth.slice(0, 4));
-  const yearAverage = (values: number[]) =>
-    values.length ? round4(values.reduce((a, b) => a + b, 0) / values.length) : null;
+  // December against December; for an unfinished year compare the latest same month.
   const years: InflationYear[] = [];
-  for (let year = firstYear; year <= lastYear; year++) {
-    const own = points.filter((x) => x.month.startsWith(`${year}-`)).map((x) => x.index);
-    const ref = rebase
-      ? Object.entries(refRaw)
-          .filter(([m]) => m.startsWith(`${year}-`))
-          .map(([, v]) => rebase(v))
-      : [];
-    const prev = years[years.length - 1];
-    const complete = (a: number, b: number | undefined) => a === 12 && b === 12;
+  for (const year of [...new Set(available.map((m) => Number(m.slice(0, 4))))]) {
+    const own = points.filter((p) => p.month.startsWith(`${year}-`));
+    const end = own.at(-1)!;
+    const beforeMonth = addMonths(end.month, -12);
+    const before = indexAt.get(beforeMonth);
+    const ref = refRaw[end.month];
+    const refBefore = refRaw[beforeMonth];
+    const ownChangeBp = before ? bpOf(before, end.index) : null;
+    const referenceChangeBp =
+      ref !== undefined && refBefore !== undefined && refBefore > 0 ? bpOf(refBefore, ref) : null;
     years.push({
       year,
+      throughMonth: end.month,
       ownMonths: own.length,
-      referenceMonths: ref.length,
-      ownAverage: yearAverage(own),
-      referenceAverage: yearAverage(ref),
-      ownChangeBp:
-        prev && complete(own.length, prev.ownMonths)
-          ? bpOf(prev.ownAverage as number, yearAverage(own) as number)
-          : null,
-      referenceChangeBp:
-        prev && complete(ref.length, prev.referenceMonths)
-          ? bpOf(prev.referenceAverage as number, yearAverage(ref) as number)
-          : null,
+      referenceMonths: Object.keys(refRaw).filter((m) => m.startsWith(`${year}-`)).length,
+      ownChangeBp,
+      referenceChangeBp,
+      differenceBp:
+        ownChangeBp !== null && referenceChangeBp !== null ? ownChangeBp - referenceChangeBp : null,
     });
   }
 
-  // Contributions: weights from the twelve months up to the start of the window.
-  const at = available.indexOf(fromMonth);
-  const weightMonths = available.slice(Math.max(0, at - 11), at + 1);
-  const candidates = input.items
-    .filter((i) => (i.level[fromMonth] ?? 0) > 0 && (i.level[toMonth] ?? 0) > 0)
-    .map((i) => ({ item: i, weight: Math.max(0, sumSpend(i, weightMonths)) }))
-    .filter((x) => x.weight > 0);
-  const wTotal = candidates.reduce((a, x) => a + x.weight, 0);
-  const contributions: InflationContribution[] = candidates
-    .map(({ item, weight }) => {
-      const shareBp = ratioBp(weight, wTotal);
-      const changeBp = bpOf(item.level[fromMonth] as number, item.level[toMonth] as number);
-      return {
-        id: item.id,
-        name: item.name,
-        class: item.class,
-        shareBp,
-        changeBp,
-        contributionBp: Math.round((weight / wTotal) * changeBp),
-      };
-    })
-    .sort((a, b) => b.contributionBp - a.contributionBp || a.name.localeCompare(b.name, 'de'));
+  // Attribute the very same chained index increments, then reconcile hundredth-Pp rounding.
+  const endStateTotal = [...state.values()].reduce((a, v) => a + v.weight, 0);
+  const shares = shareBps(
+    weighted.map(({ item }) => state.get(item.id)!.weight),
+    endStateTotal,
+  );
+  const exact = weighted.map(
+    ({ item }) =>
+      (((snapshots.get(toMonth)?.get(item.id) ?? 0) -
+        (snapshots.get(fromMonth)?.get(item.id) ?? 0)) /
+        indexFrom) *
+      10_000,
+  );
+  const rounded = exact.map(Math.floor);
+  let remainder = inflationBp - rounded.reduce((a, v) => a + v, 0);
+  const order = exact
+    .map((v, i) => ({ i, rest: v - Math.floor(v) }))
+    .sort((a, b) => b.rest - a.rest || a.i - b.i);
+  for (const { i } of order) {
+    if (remainder <= 0) break;
+    rounded[i]! += 1;
+    remainder--;
+  }
+  const contributions: InflationContribution[] = weighted.map(({ item }, i) => {
+    const prices = available
+      .map((m) => item.level[m])
+      .filter((v): v is number => v != null && v > 0);
+    const atFrom =
+      available
+        .slice(0, available.indexOf(fromMonth) + 1)
+        .map((m) => item.level[m])
+        .filter((v): v is number => v != null && v > 0)
+        .at(-1) ?? prices[0]!;
+    return {
+      id: item.id,
+      name: item.categoryName ?? item.name,
+      class: item.class,
+      shareBp: shares[i] ?? 0,
+      changeBp: bpOf(atFrom, prices.at(-1)!),
+      contributionBp: rounded[i] ?? 0,
+    };
+  });
+  const basket = weighted.map(({ item }, i) => {
+    const history = available.flatMap((month) =>
+      item.level[month] != null && item.level[month]! > 0
+        ? [{ month, cents: item.level[month]! }]
+        : [],
+    );
+    return {
+      ...contributions[i]!,
+      name: item.name,
+      categoryId: item.categoryId ?? item.id,
+      categoryName: item.categoryName ?? item.name,
+      source: item.source ?? 'stored',
+      baseCents: history[0]!.cents,
+      nowCents: history.at(-1)!.cents,
+      changeBp: bpOf(history[0]!.cents, history.at(-1)!.cents),
+      history,
+      successors: item.successors ?? [],
+    };
+  });
+  const grouped = new Map<string, InflationContribution>();
+  for (let i = 0; i < weighted.length; i++) {
+    const item = weighted[i]!.item;
+    const id = item.categoryId ?? item.id;
+    const c = contributions[i]!;
+    const old = grouped.get(id);
+    if (old) {
+      old.shareBp += c.shareBp;
+      old.contributionBp += c.contributionBp;
+      old.changeBp = old.shareBp ? Math.round((old.contributionBp * 10_000) / old.shareBp) : 0;
+    } else grouped.set(id, { ...c, id });
+  }
+
   return {
     status: 'ok',
     monthly,
@@ -262,11 +357,136 @@ export function personalInflation(input: {
     differenceBp: referenceBp === null ? null : inflationBp - referenceBp,
     indexFrom,
     indexTo,
-    contributions,
+    contributions: [...grouped.values()].sort((a, b) => b.contributionBp - a.contributionBp),
     contributionSumBp: contributions.reduce((a, c) => a + c.contributionBp, 0),
-    basketItems: weighted.length,
+    basketItems: basket.length,
+    basket,
     coverageBp: input.baseConsumptionCents > 0 ? ratioBp(total, input.baseConsumptionCents) : null,
   };
+}
+
+/** A same-category, same-rhythm non-overlapping successor within two periods is one item. */
+export function linkInflationSuccessors(
+  items: ReadonlyArray<InflationItem>,
+  months: ReadonlyArray<string>,
+): Array<InflationItem & { successors: string[] }> {
+  const bounds = (item: InflationItem) => months.filter((m) => (item.level[m] ?? 0) > 0);
+  const ordered = items
+    .map((i) => ({
+      ...i,
+      level: { ...i.level },
+      spend: { ...i.spend },
+      successors: [] as string[],
+    }))
+    .sort(
+      (a, b) => (bounds(a)[0] ?? '').localeCompare(bounds(b)[0] ?? '') || a.id.localeCompare(b.id),
+    );
+  const result: typeof ordered = [];
+  for (const item of ordered) {
+    const start = bounds(item)[0];
+    const cycle = { monthly: 1, quarterly: 3, semiannual: 6, yearly: 12 }[item.rhythm ?? 'monthly'];
+    const candidates = result.filter((old) => {
+      const end = bounds(old).at(-1);
+      return (
+        item.source !== 'trailing' &&
+        old.source !== 'trailing' &&
+        item.categoryId != null &&
+        old.categoryId === item.categoryId &&
+        old.rhythm === item.rhythm &&
+        end &&
+        start &&
+        end < start &&
+        start <= addMonths(end, 2 * cycle)
+      );
+    });
+    if (candidates.length === 1) {
+      const old = candidates[0]!;
+      old.successors.push(item.name);
+      for (const m of months) {
+        if ((item.level[m] ?? 0) > 0) old.level[m] = item.level[m]!;
+        old.spend[m] = (old.spend[m] ?? 0) + (item.spend[m] ?? 0);
+      }
+      if (item.source === 'bookings') old.source = 'bookings';
+    } else result.push(item);
+  }
+  return result;
+}
+
+/** At least six regularly spaced charges; tolerate shifted due days and one missed period. */
+export function implicitContractRhythm(charges: ReadonlyArray<ContractCharge>): Rhythm | null {
+  const paid = charges
+    .filter((c) => c.amountCents < 0)
+    .sort((a, b) => a.date.localeCompare(b.date));
+  if (paid.length < 6) return null;
+  const gaps = paid
+    .slice(1)
+    .map((c, i) => (Date.parse(c.date) - Date.parse(paid[i]!.date)) / 86_400_000);
+  for (const [rhythm, days] of [
+    ['monthly', 30.44],
+    ['quarterly', 91.31],
+    ['semiannual', 182.62],
+    ['yearly', 365.25],
+  ] as const)
+    if (
+      gaps.filter((g) => Math.abs(g - days) <= 12 || Math.abs(g - 2 * days) <= 12).length >=
+      Math.ceil(gaps.length * 0.8)
+    )
+      return rhythm;
+  return null;
+}
+
+/** Utilities: parallel billers, or a successor plus a large settlement. Explicit choice wins. */
+export function useTrailingMean(
+  charges: ReadonlyArray<ContractCharge & { payeeId: string | null }>,
+  setting: boolean | null,
+): boolean {
+  if (setting !== null) return setting;
+  const paid = charges.filter((c) => c.amountCents < 0);
+  const byMonth = new Map<string, Set<string | null>>();
+  for (const c of paid) {
+    const m = c.date.slice(0, 7);
+    byMonth.set(m, new Set([...(byMonth.get(m) ?? []), c.payeeId]));
+  }
+  if ([...byMonth.values()].filter((p) => p.size >= 2).length >= 2) return true;
+  const values = paid.map((c) => -c.amountCents).sort((a, b) => a - b);
+  const median = values[Math.floor(values.length / 2)] ?? 0;
+  if (!values.some((v) => v > 3 * median)) return false;
+  const billers = [...new Set(paid.map((c) => c.payeeId).filter((id) => id !== null))].map((id) => {
+    const charges = paid
+      .filter((c) => c.payeeId === id)
+      .sort((a, b) => a.date.localeCompare(b.date));
+    const rhythm = implicitContractRhythm(charges) ?? 'monthly';
+    return {
+      first: charges[0]!.date,
+      last: charges.at(-1)!.date,
+      cycle: { monthly: 1, quarterly: 3, semiannual: 6, yearly: 12 }[rhythm],
+    };
+  });
+  return billers.some((old) =>
+    billers.some(
+      (next) =>
+        old !== next &&
+        old.last < next.first &&
+        next.first.slice(0, 7) <= addMonths(old.last.slice(0, 7), 2 * old.cycle),
+    ),
+  );
+}
+
+/** All category charges, including credits; require twelve observed calendar months. */
+export function trailingPriceLevels(
+  months: ReadonlyArray<string>,
+  charges: ReadonlyArray<ContractCharge>,
+): Record<string, number | null> {
+  const first = charges.map((c) => c.date.slice(0, 7)).sort()[0];
+  return Object.fromEntries(
+    months.map((m) => {
+      const from = addMonths(m, -11);
+      const total = charges
+        .filter((c) => c.date.slice(0, 7) >= from && c.date.slice(0, 7) <= m)
+        .reduce((a, c) => a - c.amountCents, 0);
+      return [m, first && from >= first ? Math.round(total / 12) : null];
+    }),
+  );
 }
 
 /** A charge of an outflow contract: the matched booking's date and signed amount in cents. */

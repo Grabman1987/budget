@@ -23,6 +23,7 @@ export interface ContractSource {
   name: string;
   groupName: string;
   categoryId: string | null;
+  payeeId?: string | null;
   categoryName: string | null;
   class: 'need' | 'want' | 'future' | null;
   categoryKind: string | null;
@@ -31,6 +32,7 @@ export interface ContractSource {
   startDate: string | null;
   endDate: string | null;
   versions: ReadonlyArray<ContractVersion>;
+  currentVersions?: ReadonlyArray<ContractVersion>;
 }
 
 export type ContractBinding = 'fixed' | 'periodic';
@@ -39,7 +41,10 @@ export type ContractBinding = 'fixed' | 'periodic';
 export function contractBinding(source: {
   categoryKind: string | null;
   categoryStage: number | null;
+  endDate?: string | null;
+  rhythm?: string;
 }): ContractBinding | null {
+  if (source.endDate != null || source.rhythm === 'once') return null;
   if (source.categoryKind === 'fixed') return 'fixed';
   if (source.categoryKind === 'periodic') return 'periodic';
   if (source.categoryKind === 'debt' && (source.categoryStage ?? 1) === 1) return 'fixed';
@@ -167,7 +172,7 @@ export function contractsOverview(
   for (const s of sources) {
     const binding = contractBinding(s);
     if (!binding) continue;
-    const v = contractVersionOn(s, s.versions, asOf);
+    const v = contractVersionOn(s, s.currentVersions ?? s.versions, asOf);
     if (!v) continue;
     const { eur, rate } = eurOf(v.amountCents, v.currency, asOf, fx);
     const changes = changesOf(s.versions);
@@ -251,14 +256,14 @@ export function contractSeries(
   to: string,
   fx: FxLookup,
 ): { points: ContractSeriesPoint[]; markers: ContractMarker[]; partial: boolean } {
-  const fixed = sources.filter((s) => contractBinding(s) === 'fixed');
+  const fixed = sources.filter((s) => contractBinding(s) !== null);
   let partial = false;
   const points = monthsBetween(from, to).map((month) => {
     const day = `${month}-15`;
     let total = 0;
     for (const s of fixed) {
-      if (!inForce(s, day) || (s.startDate && s.startDate > day)) continue;
-      const v = versionOn(s.versions, day);
+      if (!inForce(s, day) || (s.startDate && s.startDate.slice(0, 7) > month)) continue;
+      const v = versionOn(s.versions, `${month}-31`);
       if (!v) continue;
       const { eur } = eurOf(v.amountCents, v.currency, day, fx);
       if (eur === null) {

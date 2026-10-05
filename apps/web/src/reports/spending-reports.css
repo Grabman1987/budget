@@ -704,3 +704,31 @@ a.sr-state {
 .sr-pp i.is-neg {
   background: var(--good-ink);
 }
+
+.sr-term {
+  position: relative;
+  display: inline-block;
+}
+.sr-term button {
+  color: inherit;
+  font: inherit;
+  background: none;
+  border: 0;
+  border-bottom: 1px dotted currentColor;
+  min-height: 44px;
+  min-width: 44px;
+  cursor: help;
+}
+.sr-term [role='tooltip'] {
+  position: absolute;
+  z-index: 10;
+  top: 100%;
+  left: 0;
+  width: min(280px, 70vw);
+  padding: 12px;
+  background: var(--surface);
+  color: var(--ink);
+  border: 1px solid var(--rule-strong);
+  font: var(--font-body);
+  white-space: normal;
+}

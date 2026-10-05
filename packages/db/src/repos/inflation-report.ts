@@ -1,6 +1,10 @@
-import { and, eq, inArray, isNull } from 'drizzle-orm';
+import { isNull } from 'drizzle-orm';
+import { category } from '../schema';
 import {
-  contractBinding,
+  implicitContractRhythm,
+  derivePriceHistory,
+  useTrailingMean,
+  trailingPriceLevels,
   contractPrices,
   monthlyEquivalent,
   personalInflation,
@@ -10,9 +14,9 @@ import {
   type InflationItem,
   type PersonalInflation,
 } from '@budget/domain';
-import { booking, bookingSplit, expectedOccurrence, expectedPayment } from '../schema';
 import { contractSources } from './contracts-report';
-import { bookedAmountIn } from './expected-links';
+import { matchedCharges } from './contract-history';
+import { overviewData } from './report-ledger';
 import { cpiMonths, currentCpiSeries } from './cpi';
 import { fxRateOnOrBefore } from './prices';
 import { reportTables } from './report-tables';
@@ -30,6 +34,7 @@ import type { Executor } from './types';
 export interface InflationReport extends PersonalInflation {
   /** Consumption categories (Bedarf, Wunsch) that are not in the basket. */
   excludedCategories: number;
+  excluded: Array<{ id: string; name: string; reason: string }>;
   /** A reference index (VPI) is stored. */
   referenceAvailable: boolean;
   /** The stored consumer price series: its key, source, last read and newest month. */
@@ -56,57 +61,6 @@ function latestChange(months: Record<string, number>): InflationReport['referenc
     : null;
 }
 
-/**
- * The live bookings matched to a contract's occurrences, in the contract's currency. Without any
- * linked occurrence (imported contracts) the history comes from the live bookings of the same
- * payee with a split in the contract's category: that split's amount, transfers excluded.
- */
-function matchedCharges(db: Executor, paymentId: string, currency: string) {
-  const linked = db
-    .select({ date: booking.date, b: booking })
-    .from(expectedOccurrence)
-    .innerJoin(booking, eq(booking.id, expectedOccurrence.bookingId))
-    .where(
-      and(
-        eq(expectedOccurrence.expectedPaymentId, paymentId),
-        inArray(expectedOccurrence.status, ['received', 'deviating']),
-        isNull(expectedOccurrence.deletedAt),
-        isNull(booking.deletedAt),
-      ),
-    )
-    .all()
-    .map((r) => ({ date: r.date, amountCents: bookedAmountIn(r.b, currency) }));
-  if (linked.length > 0) return linked;
-  const p = db.select().from(expectedPayment).where(eq(expectedPayment.id, paymentId)).get();
-  if (!p?.payeeId || !p.categoryId) return linked;
-  const perBooking = new Map<string, { date: string; amountCents: number }>();
-  const rows = db
-    .select({ b: booking, split: bookingSplit.amountCents })
-    .from(booking)
-    .innerJoin(bookingSplit, eq(bookingSplit.bookingId, booking.id))
-    .where(
-      and(
-        eq(booking.payeeId, p.payeeId),
-        eq(bookingSplit.categoryId, p.categoryId),
-        isNull(booking.deletedAt),
-        isNull(booking.transferId),
-        isNull(bookingSplit.transferId),
-      ),
-    )
-    .all();
-  for (const { b, split } of rows) {
-    // A foreign-currency charge keeps its split's share of the original amount (integer cents).
-    const amountCents =
-      b.currency === currency || b.originalCurrency !== currency || b.originalAmountCents === null
-        ? split
-        : Math.round((split * b.originalAmountCents) / b.amountCents);
-    const sum = perBooking.get(b.id);
-    if (sum) sum.amountCents += amountCents;
-    else perBooking.set(b.id, { date: b.date, amountCents });
-  }
-  return [...perBooking.values()];
-}
-
 export function inflationReport(db: Executor, today: string): InflationReport {
   const categories = spendCategories(db);
   const spend = tableSpendByMonth(reportTables(db, { today }), categories);
@@ -116,20 +70,98 @@ export function inflationReport(db: Executor, today: string): InflationReport {
   const first = months.findIndex((m) => Object.values(spend[m] ?? {}).some((v) => v !== 0));
   const available = first < 0 ? months : months.slice(first);
   const derivedContracts: InflationReport['derivedContracts'] = [];
+  const ledger = overviewData(db);
+  const settings = new Map(
+    db
+      .select()
+      .from(category)
+      .where(isNull(category.deletedAt))
+      .all()
+      .map((c) => [c.id, c.inflationTrailingMean]),
+  );
+  const charged = new Map<
+    string,
+    { bookingId: string; date: string; amountCents: number; payeeId: string | null; name: string }[]
+  >();
+  for (const split of ledger.splits) {
+    if (split.kind !== 'spend' || !split.categoryId || split.date > today) continue;
+    const own = charged.get(split.categoryId) ?? [];
+    const existing = own.find((r) => r.bookingId === split.bookingId);
+    if (existing) existing.amountCents -= split.amountCents;
+    else
+      own.push({
+        bookingId: split.bookingId,
+        date: split.date,
+        amountCents: -split.amountCents,
+        payeeId: split.payeeId,
+        name: split.payeeName ?? 'Ohne Empfänger',
+      });
+    charged.set(split.categoryId, own);
+  }
   const fixed = contractSources(db)
     .filter(
-      (s) => s.categoryKind === 'fixed' && s.categoryId !== null && contractBinding(s) === 'fixed',
+      (s) =>
+        s.categoryKind === 'fixed' &&
+        s.categoryId !== null &&
+        (s.endDate === null || s.endDate !== s.startDate),
     )
     .map((s) => {
-      const charges = matchedCharges(db, s.id, s.versions[0]?.currency ?? 'EUR');
+      const charges = matchedCharges(db, s.id, s.versions[0]?.currency ?? 'EUR').filter(
+        (c) => c.date <= today,
+      );
       const { versions, source } = contractPrices(s.versions, charges);
       if (source === 'bookings')
         derivedContracts.push({ id: s.id, name: s.name, source, prices: [...versions] });
-      return { ...s, versions, derived: source === 'bookings' };
+      const lastCharge = charges
+        .filter((c) => c.amountCents < 0)
+        .map((c) => c.date)
+        .sort()
+        .at(-1);
+      const ended = lastCharge && lastCharge.slice(0, 7) < available.at(-1)!;
+      return {
+        ...s,
+        versions,
+        derived: source === 'bookings',
+        charges,
+        endDate: source === 'bookings' && ended ? lastCharge! : s.endDate,
+      };
     });
-  const byCategory = new Map<string, (typeof fixed)[number][]>();
-  for (const s of fixed)
-    byCategory.set(s.categoryId as string, [...(byCategory.get(s.categoryId as string) ?? []), s]);
+  for (const c of categories.filter((c) => c.kind === 'fixed')) {
+    const own = charged.get(c.id) ?? [];
+    for (const payeeId of new Set(own.map((r) => r.payeeId))) {
+      if (payeeId === null) continue;
+      if (fixed.some((s) => s.categoryId === c.id && s.payeeId === payeeId)) continue;
+      const charges = own.filter((r) => r.payeeId === payeeId);
+      const rhythm = implicitContractRhythm(charges);
+      if (!rhythm) continue;
+      const versions = derivePriceHistory(charges).map((v) => ({ ...v, currency: 'EUR' }));
+      const lastCharge: string = charges
+        .filter((r) => r.amountCents < 0)
+        .map((r) => r.date)
+        .sort()
+        .at(-1)!;
+      const id = `implicit:${c.id}:${payeeId ?? 'none'}`;
+      const name = charges[0]!.name;
+      derivedContracts.push({ id, name, source: 'bookings', prices: versions });
+      fixed.push({
+        id,
+        name,
+        categoryId: c.id,
+        payeeId,
+        categoryName: c.name,
+        groupName: c.groupName ?? 'Ohne Gruppe',
+        categoryKind: c.kind ?? 'fixed',
+        categoryStage: null,
+        class: c.class,
+        rhythm,
+        startDate: versions[0]?.validFrom ?? null,
+        endDate: lastCharge.slice(0, 7) < available.at(-1)! ? lastCharge : null,
+        versions,
+        derived: true,
+        charges,
+      });
+    }
+  }
   const cache = new Map<string, number | null>();
   const rateOn = (currency: string, day: string) => {
     const key = `${currency}|${day}`;
@@ -137,37 +169,65 @@ export function inflationReport(db: Executor, today: string): InflationReport {
     return cache.get(key) ?? null;
   };
   const items: InflationItem[] = [];
-  for (const [categoryId, payments] of byCategory) {
-    const category = categories.find((c) => c.id === categoryId);
-    if (!category) continue;
-    const level: Record<string, number | null> = {};
-    const own: Record<string, number> = {};
-    for (const month of available) {
-      const day = `${month}-15`;
-      let total = 0;
-      let any = false;
-      for (const p of payments) {
-        // A derived history is the truth from its first charge on (the imported start date is
-        // not), and a charge anywhere in the month prices the month: the base month can be filled.
-        if ((!p.derived && p.startDate && p.startDate > day) || (p.endDate && p.endDate < day))
-          continue;
-        const v = versionOn(p.versions, p.derived ? `${month}-31` : day);
-        if (!v) continue;
-        let eur = v.amountCents;
-        if (v.currency !== 'EUR') {
-          const rate = rateOn(v.currency, day);
-          if (rate === null) continue;
-          eur = toEurCents(v.amountCents, rate);
-        }
-        total += monthlyEquivalent(p.rhythm, eur);
-        any = true;
-      }
-      level[month] = any ? total : null;
-      own[month] = spend[month]?.[categoryId] ?? 0;
+  for (const category of categories.filter((c) => c.kind === 'fixed')) {
+    const categoryId = category.id;
+    const allCharges = charged.get(categoryId) ?? [];
+    if (useTrailingMean(allCharges, settings.get(categoryId) ?? null)) {
+      items.push({
+        id: categoryId,
+        categoryId,
+        categoryName: category.name,
+        name: category.name,
+        class: category.class,
+        source: 'trailing',
+        level: trailingPriceLevels(available, allCharges),
+        spend: Object.fromEntries(available.map((m) => [m, spend[m]?.[categoryId] ?? 0])),
+      });
+      continue;
     }
-    items.push({ id: categoryId, name: category.name, class: category.class, level, spend: own });
+    for (const p of fixed.filter((p) => p.categoryId === categoryId)) {
+      const level: Record<string, number | null> = {};
+      for (const month of available) {
+        const day = `${month}-15`;
+        const v =
+          (!p.derived && p.startDate && p.startDate.slice(0, 7) > month) ||
+          (p.endDate && p.endDate.slice(0, 7) < month)
+            ? undefined
+            : versionOn(p.versions, `${month}-31`);
+        const rate = v && v.currency !== 'EUR' ? rateOn(v.currency, day) : null;
+        level[month] =
+          v && (v.currency === 'EUR' || rate !== null)
+            ? monthlyEquivalent(
+                p.rhythm,
+                v.currency === 'EUR' ? v.amountCents : toEurCents(v.amountCents, rate!),
+              )
+            : null;
+      }
+      items.push({
+        id: p.id,
+        name: p.name,
+        categoryId,
+        categoryName: category.name,
+        rhythm: p.rhythm,
+        class: category.class,
+        source: p.derived ? 'bookings' : 'stored',
+        level,
+        spend: Object.fromEntries(
+          available.map((m) => [
+            m,
+            allCharges
+              .filter((r) => r.payeeId === p.payeeId && r.date.startsWith(m))
+              .reduce((a, r) => a - r.amountCents, 0),
+          ]),
+        ),
+      });
+    }
   }
-  const base = available.slice(0, 12);
+  const firstPrice = Math.max(
+    0,
+    available.findIndex((m) => items.some((i) => (i.level[m] ?? 0) > 0)),
+  );
+  const base = available.slice(firstPrice, firstPrice + 12);
   const baseConsumptionCents = categories
     .filter((c) => c.class !== 'future')
     .reduce((a, c) => a + base.reduce((s, m) => s + (spend[m]?.[c.id] ?? 0), 0), 0);
@@ -180,10 +240,20 @@ export function inflationReport(db: Executor, today: string): InflationReport {
     reference: stored?.months ?? null,
   });
   const inBasket = new Set(result.contributions.map((c) => c.id));
+  const excluded = categories
+    .filter((c) => c.class !== 'future' && !inBasket.has(c.id))
+    .map((c) => ({
+      id: c.id,
+      name: c.name,
+      reason:
+        c.kind !== 'fixed'
+          ? 'Variable Kategorie: Menge und Preis nicht trennbar'
+          : 'Kein regelmäßiger Preis mit ausreichender Buchungshistorie',
+    }));
   return {
     ...result,
-    excludedCategories: categories.filter((c) => c.class !== 'future' && !inBasket.has(c.id))
-      .length,
+    excludedCategories: excluded.length,
+    excluded,
     referenceAvailable: stored !== null,
     derivedContracts,
     insufficientReason: result.status === 'ok' ? null : available.length < 13 ? 'months' : 'basket',

@@ -1,3 +1,4 @@
+import { useId, useState } from 'react';
 import { chartPoints, chartPercent } from '../charts/tooltip-data';
 import {
   useAmountPrivacy,
@@ -12,7 +13,7 @@ import {
 import type { InflationReport } from '@budget/db';
 import { queryOptions, useQuery } from '@tanstack/react-query';
 import { request } from '../api/http';
-import { longDay, MINUS } from '../ledger/format';
+import { eur, longDay, MINUS } from '../ledger/format';
 import { LEDGER_KEY } from '../ledger/queries';
 import type { PageMeta } from '../nav/pages';
 import type { ReportEntry } from '../nav/reports-catalog';
@@ -72,7 +73,7 @@ function Body({ data }: { data: InflationReport }) {
         <p className="sr-empty" role="status" data-testid="pi-empty-reason">
           {data.insufficientReason === 'months'
             ? 'Für eine Teuerung über zwölf Monate braucht der Report mindestens 13 geschlossene Monate.'
-            : 'Für den eigenen Warenkorb braucht der Report Fixkosten mit Preis und Ausgaben im ersten Jahr der Aufzeichnung: eine erwartete Zahlung braucht dafür eine Preisversion, die in diesem Zeitraum beginnt.'}
+            : 'Für den eigenen Warenkorb braucht der Report Fixkosten mit Preis und Ausgaben im ersten Jahr der Aufzeichnung: gespeicherte Preisversionen oder mindestens sechs regelmäßig wiederkehrende Buchungen.'}
         </p>
         {data.referenceLatest ? (
           <p className="sr-note" data-testid="pi-empty-reference">
@@ -90,11 +91,20 @@ function Body({ data }: { data: InflationReport }) {
         <div className="sr-head">
           <h2 id="pi-main">Eigene Teuerung, 12 Monate</h2>
           <span className="sr-state" data-testid="pi-reference-state">
-            {data.latestComparison
-              ? `VPI ${bpText(data.latestComparison.referenceBp, { sign: true })} · Differenz ${num1.format(data.latestComparison.differenceBp / 100)} Pp (${monthShort(data.latestComparison.month)})`
-              : data.referenceAvailable
-                ? 'VPI-Reihe ohne Überschneidung'
-                : 'kein Verbraucherpreisindex gespeichert'}
+            {data.latestComparison ? (
+              <>
+                <Term term="VPI" /> {bpText(data.latestComparison.referenceBp, { sign: true })} ·
+                Differenz {num1.format(data.latestComparison.differenceBp / 100)} <Term term="Pp" />{' '}
+                ({monthShort(data.latestComparison.month)})
+              </>
+            ) : data.referenceAvailable ? (
+              <>
+                <Term term="VPI" />
+                -Reihe ohne Überschneidung
+              </>
+            ) : (
+              'kein Verbraucherpreisindex gespeichert'
+            )}
           </span>
         </div>
         <div className="sr-fig">
@@ -130,14 +140,21 @@ function Body({ data }: { data: InflationReport }) {
           </span>
         </div>
         <IndexChart data={data} />
-        <LineLegend items={[{ kind: 'actual', label: 'Eigener Warenkorb (Index, Start = 100)' }]} />
+        <p className="sr-note">
+          Eigener Warenkorb · <Term term="Index" /> · Start = 100; <Term term="VPI" /> als
+          Vergleich.
+        </p>
         {data.reference ? (
           <p className="sr-note">
-            {data.reference.source === 'fixture'
-              ? 'Synthetische Beispielreihe statt VPI (Entwicklungsdaten).'
-              : data.reference.lastMonth >= '2026-01'
-                ? 'Verbraucherpreisindex: Statistik Austria, VPI Basis 2020 (bis Dez 2025) und VPI Basis 2025 (ab Jän 2026), beide Open Data, CC BY 4.0. Die Basis 2025 ist über den Jahresdurchschnitt 2025 auf die Basis 2020 verkettet.'
-                : 'Verbraucherpreisindex: Statistik Austria, VPI Basis 2020 (Open Data, CC BY 4.0).'}{' '}
+            {data.reference.source === 'fixture' ? (
+              <>
+                Synthetische Beispielreihe statt <Term term="VPI" /> (Entwicklungsdaten).
+              </>
+            ) : data.reference.lastMonth >= '2026-01' ? (
+              'Verbraucherpreisindex: Statistik Austria, Basis 2020 (bis Dez 2025) und Basis 2025 (ab Jän 2026), beide Open Data, CC BY 4.0. Die Basis 2025 ist über den Jahresdurchschnitt 2025 auf die Basis 2020 verkettet.'
+            ) : (
+              'Verbraucherpreisindex: Statistik Austria, Basis 2020 (Open Data, CC BY 4.0).'
+            )}{' '}
             Die Reihe reicht bis {monthShort(data.reference.lastMonth)}
             {data.reference.fetchedAt
               ? ` und wurde am ${longDay(data.reference.fetchedAt.slice(0, 10))} gelesen`
@@ -157,39 +174,31 @@ function Body({ data }: { data: InflationReport }) {
         <div className="sr-head">
           <h2 id="pi-how">So wird gerechnet</h2>
         </div>
-        <ol className="sr-steps">
-          <li>
-            <strong>Warenkorb</strong> = Fixkosten mit gespeichertem Preis (Verträge und Abos), im
-            Index mit den Ausgaben des ersten Jahres gewichtet. Er deckt{' '}
-            {data.coverageBp === null ? '–' : bpText(data.coverageBp, { digits: 0 })} des Konsums
-            dieses Jahres ({data.basketItems} Positionen).
-          </li>
-          <li>
-            <strong>Preise</strong> sind die Preisversionen der erwarteten Zahlungen, je Monat in
-            Euro (Fremdwährung mit dem gespeicherten Kurs).
-            {data.derivedContracts.length > 0 && (
-              <span data-testid="pi-derived">
-                {' '}
-                Ohne gespeicherten Preisverlauf aus Buchungen abgeleitet:{' '}
-                {data.derivedContracts.map((c) => c.name).join(', ')}.
-              </span>
-            )}
-          </li>
-          <li>
-            <strong>Variable Kategorien</strong> ({data.excludedCategories} Kategorien in Bedarf und
-            Wunsch ohne Preisreihe) fehlen: Menge und Preis lassen sich dort nicht trennen.
-          </li>
-          <li>
-            <strong>Beitrag</strong> = Gewicht des Vorjahres × Preisänderung, in Prozentpunkten.
-          </li>
-        </ol>
+        <p className="sr-note">
+          Vertragspreise werden mit ihrem eigenen ersten Preis und den Ausgabenanteilen gewichtet;
+          jährliche Neugewichtung am Dezember-Link. Neue Positionen starten ohne Sprung, zeitnahe
+          Nachfolger derselben Kategorie und Zahlungsfrequenz übernehmen den alten Preisvergleich.
+          Regelmäßige Reihen ohne gespeicherten Verlauf werden aus Buchungen abgeleitet. Der
+          Warenkorb deckt {bpText(data.coverageBp)} des Konsums im Basisjahr.
+        </p>
+        {data.derivedContracts.length > 0 && (
+          <p className="sr-note" data-testid="pi-derived">
+            Aus Buchungen abgeleitet: {data.derivedContracts.map((c) => c.name).join(', ')}.
+          </p>
+        )}
+        <p className="sr-note">
+          Das 12-Monats-Mittel enthält Verbrauch, Nachzahlungen und Gutschriften; es misst damit
+          Preis und Verbrauch gemeinsam.
+        </p>
       </section>
 
-      {data.referenceAvailable && (
+      {
         <>
           <section className="sr-card sr-wide" aria-labelledby="pi-monthly">
             <div className="sr-head">
-              <h2 id="pi-monthly">Teuerung je Monat gegen den VPI</h2>
+              <h2 id="pi-monthly">
+                Teuerung je Monat gegen den <Term term="VPI" />
+              </h2>
               <span className="sr-state">Veränderung zum Vorjahresmonat</span>
             </div>
             <MonthlyChart data={data} />
@@ -199,75 +208,27 @@ function Body({ data }: { data: InflationReport }) {
                 { kind: 'previous', label: 'Verbraucherpreisindex' },
               ]}
             />
-            <ScrollRegion label="Teuerung je Monat, bei Bedarf horizontal verschiebbar">
-              <table className="sr-table" data-testid="monthly-table">
-                <caption className="sr-only">
-                  Veränderung zum Vorjahresmonat: eigener Warenkorb und Verbraucherpreisindex
-                </caption>
-                <thead>
-                  <tr>
-                    <th scope="col">Monat</th>
-                    <th scope="col" className="n">
-                      Eigen
-                    </th>
-                    <th scope="col" className="n">
-                      VPI
-                    </th>
-                    <th scope="col" className="n">
-                      Differenz
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {[...data.monthly].reverse().map((m) => (
-                    <tr key={m.month}>
-                      <th scope="row">{monthShort(m.month)}</th>
-                      <td className="n">{bpText(m.ownBp, { sign: true })}</td>
-                      <td className="n">
-                        {m.referenceBp === null ? '–' : bpText(m.referenceBp, { sign: true })}
-                      </td>
-                      <td className="n">
-                        {m.referenceBp === null ? '–' : `${pp(m.ownBp - m.referenceBp)} Pp`}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </ScrollRegion>
             <p className="sr-note">
-              Ein Strich heißt: Der VPI reicht für diesen Monat oder das Vorjahr nicht. Die
-              Differenz ist die eigene Teuerung minus VPI in Prozentpunkten.
+              Ein Strich heißt: Der <Term term="VPI" /> reicht für diesen Monat oder das Vorjahr
+              nicht. Die Differenz ist die eigene Teuerung minus <Term term="VPI" /> in
+              Prozentpunkten.
             </p>
           </section>
 
           <section className="sr-card sr-wide" aria-labelledby="pi-yearly">
             <div className="sr-head">
-              <h2 id="pi-yearly">Je Kalenderjahr, Jahresdurchschnitte</h2>
-              <span className="sr-state">Index: erster Monat = 100</span>
+              <h2 id="pi-yearly">Je Kalenderjahr</h2>
             </div>
-            <ScrollRegion label="Jahresdurchschnitte, bei Bedarf horizontal verschiebbar">
+            <ScrollRegion label="Teuerung je Kalenderjahr">
               <table className="sr-table" data-testid="yearly-table">
-                <caption className="sr-only">
-                  Durchschnittlicher Index und Veränderung zum Vorjahr je Kalenderjahr
-                </caption>
                 <thead>
                   <tr>
                     <th scope="col">Jahr</th>
-                    <th scope="col" className="n">
-                      Ø Eigen
+                    <th scope="col">Deine Teuerung</th>
+                    <th scope="col">
+                      <Term term="VPI" />
                     </th>
-                    <th scope="col" className="n">
-                      Ø VPI
-                    </th>
-                    <th scope="col" className="n">
-                      Eigen zum Vorjahr
-                    </th>
-                    <th scope="col" className="n">
-                      VPI zum Vorjahr
-                    </th>
-                    <th scope="col" className="n">
-                      Differenz
-                    </th>
+                    <th scope="col">Ergebnis</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -275,46 +236,62 @@ function Body({ data }: { data: InflationReport }) {
                     <tr key={y.year}>
                       <th scope="row">
                         {y.year}
-                        {y.ownMonths < 12 || y.referenceMonths < 12 ? (
-                          <small>
-                            {y.ownMonths} Monate eigen, {y.referenceMonths} VPI
-                          </small>
-                        ) : null}
+                        {!y.throughMonth.endsWith('-12') && (
+                          <small>bis {monthShort(y.throughMonth)}</small>
+                        )}
                       </th>
-                      <td className="n">{y.ownAverage === null ? '–' : index1(y.ownAverage)}</td>
-                      <td className="n">
-                        {y.referenceAverage === null ? '–' : index1(y.referenceAverage)}
-                      </td>
-                      <td className="n">
-                        {y.ownChangeBp === null ? '–' : bpText(y.ownChangeBp, { sign: true })}
-                      </td>
-                      <td className="n">
-                        {y.referenceChangeBp === null
-                          ? '–'
-                          : bpText(y.referenceChangeBp, { sign: true })}
-                      </td>
-                      <td className="n">
-                        {y.ownChangeBp === null || y.referenceChangeBp === null
-                          ? '–'
-                          : `${pp(y.ownChangeBp - y.referenceChangeBp)} Pp`}
-                      </td>
+                      {y.ownChangeBp === null ? (
+                        <td colSpan={3}>Für diesen Monat fehlt der Vergleichsmonat im Vorjahr.</td>
+                      ) : (
+                        <>
+                          <td>{bpText(y.ownChangeBp, { sign: true })}</td>
+                          <td>{bpText(y.referenceChangeBp, { sign: true })}</td>
+                          <td
+                            className={
+                              y.differenceBp !== null && y.differenceBp < 0
+                                ? 'is-better'
+                                : y.differenceBp !== null && y.differenceBp > 0
+                                  ? 'is-worse'
+                                  : ''
+                            }
+                          >
+                            {y.differenceBp === null ? (
+                              <>
+                                Für den <Term term="VPI" /> fehlt der Vergleichsmonat.
+                              </>
+                            ) : y.differenceBp === 0 ? (
+                              <>
+                                Gleich wie der <Term term="VPI" />
+                              </>
+                            ) : (
+                              <>
+                                {num1.format(Math.abs(y.differenceBp) / 100)} Prozentpunkte{' '}
+                                {y.differenceBp < 0 ? 'besser' : 'schlechter'} als der{' '}
+                                <Term term="VPI" />
+                              </>
+                            )}
+                          </td>
+                        </>
+                      )}
                     </tr>
                   ))}
                 </tbody>
               </table>
             </ScrollRegion>
             <p className="sr-note">
-              Eine Veränderung zum Vorjahr gibt es nur zwischen zwei vollständigen Jahren; ein
-              angeschnittenes Jahr zeigt den Durchschnitt der vorhandenen Monate.
+              Dezember gegen Dezember; im laufenden Jahr der letzte Monat gegen denselben
+              Vorjahresmonat.
             </p>
           </section>
         </>
-      )}
+      }
 
       <section className="sr-card sr-wide" aria-labelledby="pi-contrib">
         <div className="sr-head">
           <h2 id="pi-contrib">Beitrag je Kategorie</h2>
-          <span className="sr-state">Summe {pp(data.contributionSumBp)} Pp</span>
+          <span className="sr-state">
+            Summe {pp(data.contributionSumBp)} <Term term="Pp" />
+          </span>
         </div>
         <ScrollRegion label="Beitrag je Kategorie, bei Bedarf horizontal verschiebbar">
           <table className="sr-table" data-testid="contributions-table">
@@ -332,7 +309,7 @@ function Body({ data }: { data: InflationReport }) {
                 </th>
                 <th scope="col">Beitrag</th>
                 <th scope="col" className="n">
-                  Pp
+                  <Term term="Pp" />
                 </th>
               </tr>
             </thead>
@@ -364,10 +341,50 @@ function Body({ data }: { data: InflationReport }) {
           </table>
         </ScrollRegion>
         <p className="sr-note">
-          Der Index gewichtet mit dem ersten Jahr der Aufzeichnung, die Beiträge mit dem Jahr vor
-          dem Zeitfenster; beide Summen können deshalb um wenige Hundertstel Prozentpunkte
-          abweichen.
+          Die Beiträge stammen aus denselben Indexänderungen wie die Leitkennzahl. Gerundete
+          Hundertstel Prozentpunkte werden so verteilt, dass die Summe genau stimmt.
         </p>
+      </section>
+      <section className="sr-card sr-wide" aria-labelledby="pi-basket">
+        <div className="sr-head">
+          <h2 id="pi-basket">Warenkorb</h2>
+        </div>
+        <ScrollRegion label="Verträge im Warenkorb">
+          <table className="sr-table" data-testid="inflation-basket">
+            <thead>
+              <tr>
+                <th scope="col">Kategorie / Vertrag</th>
+                <th scope="col">Quelle</th>
+                <th scope="col">Gewicht</th>
+                <th scope="col">Basis je Monat</th>
+                <th scope="col">Jetzt je Monat</th>
+                <th scope="col">Änderung ab Basis</th>
+                <th scope="col">
+                  Beitrag <Term term="Pp" />
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {[...new Set(data.basket.map((b) => b.categoryId))].map((id) => (
+                <BasketCategory key={id} id={id} data={data} />
+              ))}
+            </tbody>
+          </table>
+        </ScrollRegion>
+        <p className="sr-note">
+          Basis ist der erste eigene Preis; Änderung vergleicht Basis und Jetzt. Gewichte werden
+          jährlich erneuert. Beiträge zeigen die letzten zwölf Monate und ergeben die Leitkennzahl.
+        </p>
+        <details>
+          <summary>Nicht im Warenkorb · {data.excludedCategories} Kategorien</summary>
+          <ul>
+            {data.excluded.map((c) => (
+              <li key={c.id}>
+                {c.name} · {c.reason}
+              </li>
+            ))}
+          </ul>
+        </details>
       </section>
     </>
   );
@@ -412,7 +429,7 @@ function IndexChart({ data }: { data: InflationReport }) {
           x,
           [
             { name: 'Persönlicher Preisindex', values: points.map((p) => p.index), format: index1 },
-            ...(data.referenceBp !== null
+            ...(data.referenceAvailable
               ? [
                   {
                     name: 'Verbraucherpreisindex',
@@ -427,7 +444,7 @@ function IndexChart({ data }: { data: InflationReport }) {
       >
         <Graticule x1={L} x2={W - R} lines={grid} />
         <AxisLine x1={L} x2={W - R} y={y(100)} dashed />
-        {data.referenceBp !== null && (
+        {data.referenceAvailable && (
           <Line
             kind="previous"
             points={points.flatMap((p, i) =>
@@ -501,5 +518,79 @@ function MonthlyChart({ data }: { data: InflationReport }) {
         <XTicks y={H - 18} ticks={ticks} />
       </ChartSvg>
     </ScrollRegion>
+  );
+}
+
+function BasketCategory({ id, data }: { id: string; data: InflationReport }) {
+  const rows = data.basket.filter((b) => b.categoryId === id);
+  return (
+    <>
+      {rows.map((b, i) => (
+        <tr key={b.id}>
+          <th scope="row">
+            {i === 0 && <small>{b.categoryName}</small>}
+            <details>
+              <summary>
+                {b.name}
+                {b.successors.length ? ` → ${b.successors.join(' → ')}` : ''}
+              </summary>
+              <ul>
+                {b.history.map((p) => (
+                  <li key={p.month}>
+                    {monthShort(p.month)} · {eur(p.cents)}
+                  </li>
+                ))}
+              </ul>
+            </details>
+          </th>
+          <td>
+            {b.source === 'trailing'
+              ? '12-Monats-Mittel, enthält Verbrauch und Nachzahlungen'
+              : b.source === 'bookings'
+                ? 'aus Buchungen abgeleitet'
+                : 'gespeichert'}
+          </td>
+          <td>{bpText(b.shareBp)}</td>
+          <td>{eur(b.baseCents)}</td>
+          <td>{eur(b.nowCents)}</td>
+          <td>{bpText(b.changeBp, { sign: true })}</td>
+          <td>{pp(b.contributionBp)}</td>
+        </tr>
+      ))}
+    </>
+  );
+}
+const DEFINITIONS = {
+  Pp: 'Prozentpunkte – Differenz zweier Prozentwerte, z. B. 5,7 % − 3,2 % = 2,5 Pp',
+  VPI: 'Verbraucherpreisindex – Preisentwicklung eines allgemeinen Warenkorbs von Statistik Austria.',
+  Index:
+    'Preisindex – die Preisentwicklung relativ zum ersten Monat mit Daten; dort ist der Wert 100.',
+};
+function Term({ term }: { term: keyof typeof DEFINITIONS }) {
+  const id = useId();
+  const [open, setOpen] = useState(false);
+  return (
+    <span
+      className="sr-term"
+      onMouseEnter={() => setOpen(true)}
+      onMouseLeave={() => setOpen(false)}
+    >
+      <button
+        type="button"
+        aria-describedby={open ? id : undefined}
+        aria-expanded={open}
+        onFocus={() => setOpen(true)}
+        onBlur={() => setOpen(false)}
+        onClick={() => setOpen(true)}
+        onKeyDown={(e) => {
+          if (e.key === 'Escape') setOpen(false);
+        }}
+      >
+        {term}
+      </button>
+      <span role="tooltip" id={id} hidden={!open}>
+        {DEFINITIONS[term]}
+      </span>
+    </span>
   );
 }

@@ -1,0 +1,1 @@
+ALTER TABLE `category` ADD `inflation_trailing_mean` integer;

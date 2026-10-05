@@ -234,6 +234,7 @@ const categoryFields = {
   stage: z.int().min(1).max(9).nullable().optional(),
   cardAccountId: id.nullable().optional(),
   rolloverOverspending: z.boolean().optional(),
+  inflationTrailingMean: z.boolean().nullable().optional(),
 };
 export const targetBody = z.object({
   validFrom: month,

@@ -28,7 +28,8 @@ test('lists the contracts of the expected payments with R10 quote, price history
   const table = page.getByTestId('contracts-table');
   await expect(table.getByRole('row', { name: /KI-Assistent/ })).toContainText(/USD.20,00/);
   await expect(table.getByRole('row', { name: /Strom/ }).first()).toContainText('Jän 26');
-  await expect(table.getByText('unbefristet').first()).toBeVisible();
+  await expect(table.getByRole('columnheader', { name: 'Laufzeit' })).toHaveCount(0);
+  await expect(table).toContainText('aus Buchungen abgeleitet');
 
   // Price hints come from the stored price versions; no notice periods are invented.
   await expect(page.getByRole('heading', { name: 'Preis prüfen' })).toBeVisible();
