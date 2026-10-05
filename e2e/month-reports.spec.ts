@@ -222,6 +222,11 @@ sampleTest(
     expect(data.flow.columns.income.map((n) => n.name)).toContain('Kapitalerträge');
     const sankey = page.getByTestId('sankey-chart');
     await expect(sankey).toBeVisible();
+    await expect(sankey.locator('title', { hasText: /^Bedarf: .* · .*%$/ })).toHaveCount(1);
+    await expect(sankey.locator('text', { hasText: / · .*%$/ }).first()).toBeVisible();
+    await expect(
+      page.getByTestId('flow-list').getByRole('columnheader', { name: 'Anteil an Verfügbar' }),
+    ).toBeVisible();
     await expect(sankey).toHaveAttribute('aria-label', /Kapitalerträge/);
     await expect(sankey.locator('title', { hasText: /^Kapitalerträge: / })).not.toHaveCount(0);
     // The thin Kapitalerträge node keeps its label.

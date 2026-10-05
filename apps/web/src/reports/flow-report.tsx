@@ -181,10 +181,18 @@ function FlowBody({
             <table className="mr-table" data-testid="flow-list">
               <thead>
                 <tr>
-                  <th className="tech">Klasse</th>
-                  <th className="tech">Gruppe</th>
-                  <th className="tech n">Betrag</th>
-                  <th className="tech n">Anteil am Fluss</th>
+                  <th scope="col" className="tech">
+                    Klasse
+                  </th>
+                  <th scope="col" className="tech">
+                    Gruppe
+                  </th>
+                  <th scope="col" className="tech n">
+                    Betrag
+                  </th>
+                  <th scope="col" className="tech n">
+                    Anteil an Verfügbar
+                  </th>
                 </tr>
               </thead>
               <tbody>
