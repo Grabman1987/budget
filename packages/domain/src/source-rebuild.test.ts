@@ -1,6 +1,12 @@
 import { expect, it } from 'vitest';
 import type { SourceAmount, SourceOperation } from './read-source';
-import { matchAggregatedSourceCash, planSourceRebuild, sourceBalancesAt } from './source-rebuild';
+import {
+  matchAggregatedSourceCash,
+  planSourceRebuild,
+  sourceBalancesAt,
+  sourceStakedAt,
+  rebuildStakedNowSchema,
+} from './source-rebuild';
 
 const asset = (id: string, value = '1'): SourceAmount => ({
   value,
@@ -234,4 +240,210 @@ it('claims sums within twelve days once, accepts eight source movements and refu
       [{ ...booking, amountCents: 900 }],
     ).matches,
   ).toEqual([]);
+});
+
+it('books separate discount-token fees at zero net cash and nets same-asset fees once', () => {
+  const op: SourceOperation = {
+    id: 'fee-buy',
+    type: 'buy',
+    transactions: [
+      tx('a', asset('a'), 'INCOMING', { fee: asset('a', '0.1') }),
+      tx('cash', cash(100), 'OUTGOING'),
+      tx('same', asset('a', '0.1'), 'OUTGOING', { type: 'fee', walletId: 'other' }),
+      tx('discount', asset('b', '0.2'), 'OUTGOING', { type: 'fee', walletId: 'discount' }),
+    ],
+  };
+  expect(plan(op).trades.map((t) => [t.kind, t.unitsE8, t.amountCents, t.feeCents])).toEqual([
+    ['sell', -20000000, 20, 20],
+    ['buy', 90000000, 100, 0],
+  ]);
+  expect(plan(op, [prices[0]!]).issues).toContainEqual({
+    id: 'fee-buy',
+    key: 'asset:b',
+    reason: 'fee_no_price',
+    fiatEffectCents: 0,
+  });
+  expect(
+    plan({
+      ...op,
+      transactions: [...op.transactions, tx('unknown', asset('x'), 'OUTGOING', { type: 'fee' })],
+    }).issues,
+  ).toContainEqual({ id: 'fee-buy', key: 'asset:x', reason: 'unmapped_asset', fiatEffectCents: 0 });
+});
+
+it.each(['swap', 'earn_on_fiat_swap'])(
+  'values %s from separate sell/buy fiat legs without quotes',
+  (type) => {
+    const result = plan(
+      {
+        id: 'fiat-swap',
+        type,
+        transactions: [
+          tx('a', asset('a'), 'OUTGOING', { tradeId: 'sale' }),
+          tx('sale', cash(123), 'INCOMING', { tradeId: 'sale' }),
+          tx('b', asset('b'), 'INCOMING', { tradeId: 'purchase' }),
+          tx('purchase', cash(123), 'OUTGOING', { tradeId: 'purchase' }),
+        ],
+      },
+      [],
+    );
+    expect(result.issues).toEqual([]);
+    expect(result.trades.map((t) => [t.kind, t.amountCents])).toEqual([
+      ['sell', 123],
+      ['buy', 123],
+    ]);
+  },
+);
+
+it('treats earn_on_fiat_buy as a buy', () => {
+  expect(
+    plan(
+      {
+        id: 'earn-buy',
+        type: 'earn_on_fiat_buy',
+        transactions: [tx('a', asset('a')), tx('cash', cash(123), 'OUTGOING')],
+      },
+      [],
+    ).trades[0],
+  ).toMatchObject({ kind: 'buy', amountCents: 123, unitsE8: 100000000 });
+});
+
+it('migrates tokens at the outgoing stored value, or delivers both at zero with a report', () => {
+  const op: SourceOperation = {
+    id: 'migration',
+    type: 'merger_crypto',
+    transactions: [
+      tx('a', asset('a'), 'OUTGOING', { tradeId: null }),
+      tx('b', asset('b', '2'), 'INCOMING', { tradeId: null }),
+    ],
+  };
+  expect(plan(op, [prices[0]!]).trades.map((t) => [t.kind, t.amountCents, t.importKey])).toEqual([
+    ['sell', 100, 'rebuild:migration:merger:out'],
+    ['buy', 100, 'rebuild:migration:merger:in'],
+  ]);
+  expect(plan(op, []).trades.map((t) => [t.kind, t.amountCents])).toEqual([
+    ['delivery_out', 0],
+    ['delivery_in', 0],
+  ]);
+  expect(plan(op, []).issues[0]?.reason).toBe('merger_no_price');
+});
+
+it.each(['deposit', 'withdrawal'])(
+  'delivers net %s units with stored value and reports missing quotes',
+  (type) => {
+    const incoming = type === 'deposit';
+    const op: SourceOperation = {
+      id: type,
+      type,
+      transactions: [
+        tx('a', asset('a'), incoming ? 'INCOMING' : 'OUTGOING', {
+          fee: asset('a', '0.1'),
+          tradeId: null,
+        }),
+      ],
+    };
+    expect(plan(op).trades[0]).toMatchObject({
+      kind: incoming ? 'delivery_in' : 'delivery_out',
+      unitsE8: incoming ? 90000000 : -110000000,
+      amountCents: incoming ? 90 : 110,
+    });
+    expect(plan(op, []).trades[0]?.amountCents).toBe(0);
+    expect(plan(op, []).issues[0]?.reason).toBe('delivery_no_price');
+    expect(plan({ id: 'bank', type, transactions: [tx('cash', cash(100))] }).unbooked).toHaveLength(
+      1,
+    );
+  },
+);
+
+it('reports a zero-valued reclaim delivery', () => {
+  const result = plan({
+    id: 'reclaim',
+    type: 'reclaim',
+    transactions: [tx('a', asset('a'), 'OUTGOING')],
+  });
+  expect(result.trades[0]).toMatchObject({
+    kind: 'delivery_out',
+    amountCents: 0,
+    unitsE8: -100000000,
+  });
+  expect(result.issues[0]?.reason).toBe('reclaim_zero_value');
+});
+
+it('converts unmapped fiat principal, fees and interest using stored daily ECB rates', () => {
+  const usd = (cents: number) => ({ ...cash(cents), currencyId: 'foreign-wallet' });
+  const fx = {
+    currencies: [{ key: 'currency:foreign-wallet', currency: 'USD' }],
+    rates: [{ currency: 'USD', date: '2026-03-02', rateMicro: 800000, source: 'ecb' }],
+  };
+  const ops: SourceOperation[] = [
+    {
+      id: 'usd-buy',
+      type: 'buy',
+      transactions: [
+        tx('a', asset('a')),
+        tx('usd', usd(125), 'OUTGOING', { fee: usd(5), tradeFee: usd(5), balanceAfter: usd(500) }),
+      ],
+    },
+    { id: 'usd-interest', type: 'earn_on_fiat_reward', transactions: [tx('interest', usd(10))] },
+  ];
+  const result = planSourceRebuild(ops, mappings, [], '2026-03-02', 'currency:eur', 'EUR', fx);
+  expect(result.issues).toEqual([]);
+  expect(result.trades.map((t) => [t.kind, t.amountCents, t.feeCents])).toEqual([
+    ['buy', 100, 4],
+    ['interest', 8, 0],
+  ]);
+  expect(result.fxCashMovements).toEqual([
+    { date: '2026-03-02', amountCents: -104 },
+    { date: '2026-03-02', amountCents: 8 },
+  ]);
+  expect(result.fx_converted[0]).toMatchObject({
+    currency: 'USD',
+    originalAmount: '1.25',
+    fromRateMicro: 800000,
+    toRateMicro: 1000000,
+    amountCents: 100,
+  });
+  expect(
+    planSourceRebuild(ops, mappings, [], '2026-03-02', 'currency:eur', 'EUR', { ...fx, rates: [] })
+      .trades,
+  ).toEqual([]);
+  expect(
+    planSourceRebuild(ops, mappings, [], '2026-03-02', 'currency:eur', 'EUR', {
+      ...fx,
+      rates: [{ ...fx.rates[0]!, date: '2026-03-01' }],
+    }).issues[0]?.reason,
+  ).toContain('Missing stored ECB rate');
+});
+
+it('reconstructs staking at opening and today from current units, without trades', () => {
+  const ops: SourceOperation[] = [
+    { id: 'stake', type: 'stake', transactions: [tx('s', asset('a', '2'), 'OUTGOING')] },
+    {
+      id: 'unstake',
+      type: 'unstake',
+      transactions: [
+        tx('u', asset('a', '0.5'), 'INCOMING', { creditedAt: '2026-04-01T12:00:00Z' }),
+      ],
+    },
+  ];
+  const now = new Map([['asset:a', 250000000]]);
+  expect(sourceStakedAt(ops, '2026-02-28', '2026-04-30', now).get('asset:a')).toBe(100000000);
+  expect(sourceStakedAt(ops, '2026-03-31', '2026-04-30', now).get('asset:a')).toBe(300000000);
+  expect(sourceStakedAt(ops, '2026-04-30', '2026-04-30', now).get('asset:a')).toBe(250000000);
+  expect(
+    planSourceRebuild(ops, mappings, prices, '2026-03-01', 'currency:eur', 'EUR').trades,
+  ).toEqual([]);
+  expect([...rebuildStakedNowSchema.parse(['Synthetic Coin=2.50000000'])]).toEqual([
+    ['synthetic coin', 250000000],
+  ]);
+  for (const bad of [
+    ['Coin=-1'],
+    ['Coin=0.000000001'],
+    ['Coin=1', 'coin=2'],
+    ['Coin=9007199254740991'],
+  ])
+    expect(() => rebuildStakedNowSchema.parse(bad)).toThrow();
+  expect(() => sourceStakedAt(ops, '2026-02-28', '2026-04-30', new Map())).toThrow(
+    'Negative staked',
+  );
 });

@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { daysBetween, todayInVienna } from './date/date';
 import { marketValueCents } from './invest/invest';
+import { convertCashCents } from './ledger/cash-valuation';
 import type { TradeKind } from './invest/series';
 import {
   sourceInteger,
@@ -90,8 +91,81 @@ const TRADING = new Set([
   'index_rebalancing',
   'swap',
   'dust_swap',
+  'earn_on_fiat_swap',
+  'earn_on_fiat_buy',
 ]);
 const INTERNAL = new Set(['stake', 'unstake', 'transfer']);
+const DELIVERIES = new Set(['deposit', 'withdrawal', 'reclaim']);
+export const rebuildStakedNowSchema = z
+  .array(z.string().min(1).max(300))
+  .transform((entries, ctx) => {
+    const result = new Map<string, number>();
+    for (const entry of entries) {
+      const match = /^(.+)=([0-9]+(?:\.[0-9]+)?)$/.exec(entry);
+      const name = match?.[1]?.trim();
+      const units = match ? sourceInteger(match[2]!, 8) : null;
+      const key = name?.toLocaleLowerCase('de-AT');
+      if (!key || units === null || result.has(key)) {
+        ctx.addIssue({
+          code: 'custom',
+          message: 'staked-now requires unique ASSET-NAME=nonnegative exact e8 units',
+        });
+        continue;
+      }
+      result.set(key, units);
+    }
+    return result;
+  });
+
+/** Staking wallets are absent from source balances: reverse main-wallet movements from today. */
+export function sourceStakedAt(
+  ops: SourceOperation[],
+  day: string,
+  today: string,
+  now: ReadonlyMap<string, number>,
+) {
+  const result = new Map([...now].map(([key, units]) => [key, BigInt(units)]));
+  for (const op of ops.filter((op) => op.type === 'stake' || op.type === 'unstake'))
+    for (const t of op.transactions) {
+      if (
+        !t.amount.assetId ||
+        SECONDARY.has(t.type) ||
+        rebuildLegDay(t) <= day ||
+        rebuildLegDay(t) > today
+      )
+        continue;
+      if ((t.flow === 'OUTGOING') !== (op.type === 'stake'))
+        throw new RangeError('Staking direction conflicts');
+      const key = sourceAmountKey(t.amount);
+      result.set(
+        key,
+        (result.get(key) ?? 0n) + (op.type === 'unstake' ? 1n : -1n) * BigInt(native(t.amount)),
+      );
+    }
+  return new Map(
+    [...result].map(([key, units]) => {
+      if (units < 0n)
+        throw new RangeError('Negative staked reference; check staked-now and source history');
+      return [key, rebuildSafe(units)];
+    }),
+  );
+}
+
+export interface RebuildFxConversion {
+  id: string;
+  legId: string;
+  date: string;
+  currency: string;
+  originalAmount: string;
+  originalCents: number;
+  fromRateMicro: number;
+  toRateMicro: number;
+  amountCents: number;
+}
+export interface RebuildFxOptions {
+  currencies: { key: string; currency: string }[];
+  rates: { currency: string; date: string; rateMicro: number; source: string }[];
+}
 
 /** Wallet snapshots are authoritative; subsequent flows replay exactly, wallets sum only at the end. */
 export function sourceBalancesAt(ops: SourceOperation[], day: string): Map<string, number> {
@@ -308,13 +382,19 @@ export function planSourceRebuild(
   since: string,
   cashKey: string,
   currency: string,
+  fx: RebuildFxOptions = { currencies: [], rates: [] },
 ) {
   const mapping = new Map(mappings.map((m) => [m.key, m]));
   const trades: RebuildTrade[] = [],
     issues: RebuildIssue[] = [],
     unbooked: SourceOperation[] = [];
   const rewards = new Map<string, RebuildTrade & { count: number }>();
-  for (const op of ops) {
+  const rewardTypes = new Map<string, Map<string, number>>();
+  const fx_converted: RebuildFxConversion[] = [];
+  const fxCashMovements: { date: string; amountCents: number }[] = [];
+  const unhandled: { id: string; type: string }[] = [];
+  for (const originalOp of ops) {
+    let op = originalOp;
     const current = op.transactions.filter((t) => rebuildLegDay(t) >= since);
     if (!current.length) continue;
     for (const t of current.filter(
@@ -359,7 +439,9 @@ export function planSourceRebuild(
       !TRADING.has(op.type) &&
       !op.type.startsWith('margin_') &&
       !REBUILD_REWARDS.has(op.type) &&
-      op.type !== 'earn_on_fiat_reward'
+      op.type !== 'earn_on_fiat_reward' &&
+      op.type !== 'merger_crypto' &&
+      !(DELIVERIES.has(op.type) && current.some((t) => t.amount.assetId && !SECONDARY.has(t.type)))
     ) {
       const assetLegs = current.filter((t) => t.amount.assetId && !SECONDARY.has(t.type));
       for (const t of assetLegs.filter((t) => !mapping.has(sourceAmountKey(t.amount))))
@@ -380,6 +462,78 @@ export function planSourceRebuild(
               : null,
         });
       unbooked.push({ ...op, transactions: current });
+      if (!['deposit', 'withdrawal', 'refund', 'reclaim'].includes(op.type))
+        unhandled.push({ id: op.id, type: op.type });
+      continue;
+    }
+    // Only eligible unmapped fiat is converted. Bank-side operations retain native facts.
+    const converted: RebuildFxConversion[] = [];
+    try {
+      const rate = (code: string, day: string) => {
+        if (code === 'EUR') return 1_000_000;
+        const r = fx.rates.find((r) => r.currency === code && r.date === day && r.source === 'ecb');
+        if (!r) throw new RangeError(`Missing stored ECB rate: ${code} ${day}`);
+        return r.rateMicro;
+      };
+      op = {
+        ...op,
+        transactions: op.transactions.map((t) => {
+          const day = rebuildLegDay(t);
+          const convert = (a: SourceAmount | null, field: string): SourceAmount | null => {
+            if (!a || a.assetId || sourceAmountKey(a) === cashKey) return a;
+            const code = fx.currencies.find((c) => c.key === sourceAmountKey(a))?.currency;
+            if (!code)
+              throw new RangeError('Unmapped fiat currency has no stored currency identity');
+            const from = rate(code, day),
+              to = rate(currency, day);
+            const cents = convertCashCents(native(a), from, to);
+            if (day >= since)
+              converted.push({
+                id: op.id,
+                legId: `${t.id}:${field}`,
+                date: day,
+                currency: code,
+                originalAmount: a.value,
+                originalCents: native(a),
+                fromRateMicro: from,
+                toRateMicro: to,
+                amountCents: cents,
+              });
+            return {
+              assetId: null,
+              currencyId: cashKey.slice(9),
+              cents,
+              value: `${BigInt(cents) / 100n}.${(BigInt(cents) % 100n).toString().padStart(2, '0')}`,
+            };
+          };
+          return {
+            ...t,
+            amount: convert(t.amount, 'amount')!,
+            fee: convert(t.fee, 'fee'),
+            tradeFee: convert(t.tradeFee, 'tradeFee'),
+          };
+        }),
+      };
+      fx_converted.push(...converted);
+      if (converted.length) {
+        const days = [...new Set(op.transactions.map(rebuildLegDay))].sort();
+        const flowsOnly = (o: SourceOperation) => [
+          { ...o, transactions: o.transactions.map((t) => ({ ...t, balanceAfter: null })) },
+        ];
+        const normalized = sourceBalancesOnDays(flowsOnly(op), days, new Set([cashKey]));
+        const original = sourceBalancesOnDays(flowsOnly(originalOp), days, new Set([cashKey]));
+        let previous = 0n;
+        for (const day of days) {
+          const delta =
+            BigInt(normalized.get(day)!.get(cashKey) ?? 0) -
+            BigInt(original.get(day)!.get(cashKey) ?? 0);
+          if (day >= since)
+            fxCashMovements.push({ date: day, amountCents: rebuildSafe(delta - previous) });
+          previous = delta;
+        }
+      }
+    } catch (error) {
+      issues.push({ id: op.id, reason: error instanceof Error ? error.message : 'invalid_fx' });
       continue;
     }
     const groups = new Map<string, typeof current>();
@@ -391,10 +545,41 @@ export function planSourceRebuild(
       const tradeCount = trades.length,
         issueCount = issues.length;
       const rewardsBefore = new Map(rewards);
+      const typesBefore = new Map([...rewardTypes].map(([key, types]) => [key, new Map(types)]));
       try {
         if (REBUILD_REWARDS.has(op.type) && currency !== 'EUR')
           throw new RangeError('Reward pair requires an EUR depot');
         const assets = legs.filter((t) => t.amount.assetId && !SECONDARY.has(t.type));
+        if (legs.some((t) => t.type === 'fee' && t.amount.assetId && t.flow !== 'OUTGOING'))
+          throw new RangeError('Asset fee must be outgoing');
+        for (const t of legs.filter(
+          (t) =>
+            t.type === 'fee' &&
+            t.amount.assetId &&
+            !assets.some((a) => sourceAmountKey(a.amount) === sourceAmountKey(t.amount)),
+        )) {
+          if (rebuildLegDay(t) < since) continue;
+          const key = sourceAmountKey(t.amount),
+            m = mapping.get(key);
+          if (!m?.securityId) continue; // Already reported above; do not parse unmapped asset precision.
+          const units = native(t.amount),
+            value = rebuildValue(prices, m.securityId, rebuildLegDay(t), units, currency, Infinity);
+          if (value === null) {
+            issues.push({ id: op.id, key, reason: 'fee_no_price', fiatEffectCents: 0 });
+            continue;
+          }
+          trades.push({
+            securityId: m.securityId,
+            date: rebuildLegDay(t),
+            kind: 'sell',
+            unitsE8: -units,
+            amountCents: value,
+            feeCents: value,
+            taxCents: 0,
+            importKey: `rebuild:${op.id}:${op.transactions.indexOf(t)}`,
+            note: op.type,
+          });
+        }
         const fiat = legs.filter(
           (t) => sourceAmountKey(t.amount) === cashKey && !SECONDARY.has(t.type),
         );
@@ -484,6 +669,64 @@ export function planSourceRebuild(
         const outgoing = assets
           .map((t, i) => (t.flow === 'OUTGOING' ? i : -1))
           .filter((i) => i >= 0);
+        if (op.type === 'merger_crypto' || DELIVERIES.has(op.type)) {
+          if (fiat.length) throw new RangeError('Asset delivery/migration must have no fiat leg');
+          const merger = op.type === 'merger_crypto';
+          if (merger && assets.some((t) => !mapping.get(sourceAmountKey(t.amount))?.securityId))
+            throw new RangeError('Merger requires two mapped assets');
+          if (
+            merger &&
+            (outgoing.length !== 1 ||
+              incoming.length !== 1 ||
+              rebuildLegDay(assets[outgoing[0]!]!) !== rebuildLegDay(assets[incoming[0]!]!))
+          )
+            throw new RangeError(
+              'Merger requires one outgoing and one incoming asset on the same day',
+            );
+          const saleValue = merger ? values[outgoing[0]!] : null;
+          if (merger && saleValue === null) issues.push({ id: op.id, reason: 'merger_no_price' });
+          assets.forEach((t, i) => {
+            if (rebuildLegDay(t) < since) return;
+            const key = sourceAmountKey(t.amount),
+              m = mapping.get(key);
+            if (!m?.securityId) {
+              issues.push({ id: op.id, key, reason: 'unmapped_asset', fiatEffectCents: 0 });
+              return;
+            }
+            if (!units[i] || (t.flow === 'INCOMING' && units[i]! < 0))
+              throw new RangeError('Fee consumes asset units');
+            if (!merger && (t.flow === 'INCOMING') !== (op.type === 'deposit'))
+              throw new RangeError('Delivery direction conflicts');
+            const value = merger ? saleValue : op.type === 'reclaim' ? 0 : values[i];
+            if (!merger && (value === null || op.type === 'reclaim'))
+              issues.push({
+                id: op.id,
+                key,
+                reason: op.type === 'reclaim' ? 'reclaim_zero_value' : 'delivery_no_price',
+              });
+            trades.push({
+              securityId: m.securityId,
+              date: rebuildLegDay(t),
+              kind:
+                merger && saleValue !== null
+                  ? t.flow === 'INCOMING'
+                    ? 'buy'
+                    : 'sell'
+                  : t.flow === 'INCOMING'
+                    ? 'delivery_in'
+                    : 'delivery_out',
+              unitsE8: units[i]!,
+              amountCents: value ?? 0,
+              feeCents: 0,
+              taxCents: 0,
+              importKey: merger
+                ? `rebuild:${op.id}:merger:${t.flow === 'INCOMING' ? 'in' : 'out'}`
+                : `rebuild:${op.id}:${op.transactions.indexOf(t)}`,
+              note: op.type,
+            });
+          });
+          continue;
+        }
         const swap = !fiat.length && incoming.length > 0 && outgoing.length > 0;
         const amounts = assets.map(() => 0),
           allocatedFees = assets.map(() => 0),
@@ -601,6 +844,9 @@ export function planSourceRebuild(
           }
           const rkey = `${input.date.slice(0, 7)}:${m.securityId}:${input.kind}`;
           const r = rewards.get(rkey);
+          const types = rewardTypes.get(rkey) ?? new Map<string, number>();
+          types.set(op.type, rebuildSafe(BigInt(types.get(op.type) ?? 0) + BigInt(input.unitsE8)));
+          rewardTypes.set(rkey, types);
           rewards.set(
             rkey,
             r
@@ -623,6 +869,8 @@ export function planSourceRebuild(
         issues.length = issueCount;
         rewards.clear();
         for (const [key, value] of rewardsBefore) rewards.set(key, value);
+        rewardTypes.clear();
+        for (const [key, value] of typesBefore) rewardTypes.set(key, value);
         issues.push({
           id: op.id,
           reason: error instanceof Error ? error.message : 'invalid_group',
@@ -639,9 +887,67 @@ export function planSourceRebuild(
       }
     }
   }
-  for (const r of rewards.values())
+  const unitSources = new Map<string, { type: string; unitsE8: number }[]>();
+  for (const [key, r] of rewards) {
     trades.push({ ...r, note: `${r.count} source rewards (${r.date.slice(0, 7)})` });
-  return { trades, issues, unbooked };
+    unitSources.set(
+      r.importKey,
+      [...rewardTypes.get(key)!].map(([type, unitsE8]) => ({ type, unitsE8 })),
+    );
+  }
+  for (const t of trades)
+    if (!unitSources.has(t.importKey))
+      unitSources.set(t.importKey, [{ type: t.note, unitsE8: t.unitsE8 }]);
+  return { trades, issues, unbooked, fx_converted, fxCashMovements, unhandled, unitSources };
+}
+
+/** Flow diagnosis ignores snapshots; the opening reference carries their pre-start effect. */
+export function rebuildCreatedUnitSources(
+  parts: { type: string; unitsE8: number }[],
+  actualUnitsE8: number,
+) {
+  const allocated =
+    parts.length === 1
+      ? [Math.abs(actualUnitsE8)]
+      : split(
+          Math.abs(actualUnitsE8),
+          parts.map((p) => Math.abs(p.unitsE8)),
+        );
+  return parts.map((p, i) => ({ type: p.type, unitsE8: Math.sign(actualUnitsE8) * allocated[i]! }));
+}
+
+export function rebuildUnitBreakdown(
+  ops: SourceOperation[],
+  key: string,
+  since: string,
+  day: string,
+  openingUnitsE8: number,
+  created: { type: string; unitsE8: number }[],
+) {
+  const source = new Map<string, bigint>([['opening', BigInt(openingUnitsE8)]]);
+  for (const op of ops) {
+    const transactions = op.transactions
+      .filter((t) => rebuildLegDay(t) >= since && rebuildLegDay(t) <= day)
+      .map((t) => ({ ...t, balanceAfter: null }));
+    if (!transactions.length) continue;
+    const units =
+      op.type === 'stake' || op.type === 'unstake'
+        ? 0
+        : (sourceBalancesOnDays([{ ...op, transactions }], [day], new Set([key]))
+            .get(day)!
+            .get(key) ?? 0);
+    if (transactions.some((t) => sourceAmountKey(t.amount) === key))
+      source.set(op.type, (source.get(op.type) ?? 0n) + BigInt(units));
+  }
+  const actual = new Map<string, bigint>();
+  for (const row of created)
+    actual.set(row.type, (actual.get(row.type) ?? 0n) + BigInt(row.unitsE8));
+  return [...new Set([...source.keys(), ...actual.keys()])].sort().map((type) => ({
+    type,
+    sourceUnitsE8: rebuildSafe(source.get(type) ?? 0n),
+    createdUnitsE8: rebuildSafe(actual.get(type) ?? 0n),
+    differenceE8: rebuildSafe((actual.get(type) ?? 0n) - (source.get(type) ?? 0n)),
+  }));
 }
 
 /** Exact same-sign subsets of up to eight movements; every movement and booking is claimed once. */
