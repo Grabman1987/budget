@@ -922,7 +922,7 @@ because bank dates and an unadjusted opening balance can legitimately differ.
    Reconciled rows skip the whole removal unit unless `--unlock` explicitly grants
    the same booking unlock option as `book`.
 2. At `since - 1 day`, sum each asset's wallet balances (`balanceAfter`, then later
-   flows; without snapshots replay from zero) **plus staked units**. Subtract remaining pre-start trades
+   flows; without snapshots replay from zero), including visible staking wallets. Subtract remaining pre-start trades
    and create a delivery correction with that exact day's stored price, or zero
    plus `opening_no_price`. Holding snapshots override trade history in the app,
    so such a depot is refused before writes. Cash opening balance is never changed:
@@ -952,24 +952,35 @@ because bank dates and an unadjusted opening balance can legitimately differ.
 | Asset `reclaim` | Zero-valued `delivery_out`, reported as `reclaim_zero_value`. |
 | `reward`, `passive_earn_reward`, `onetime_reward`, `best_reward`, `instant_trade_bonus`, `giveaway`, `trading_premium` (asset in, no fiat) | Equal EUR dividend and buy using a stored EUR price at most seven days old. Aggregate exact net units and individually rounded values per security/month; date = last included reward day, note = count. Unpriced rewards aggregate separately as zero-valued `delivery_in`, with report lines. Reward pairs require an EUR depot. Monthly aggregation shifts within-month timing; month-end units stay exact. |
 | `earn_on_fiat_reward` | Depot interest with cash transfer; the first mapped instrument supplies the existing money-only trade's required security reference. |
-| `stake`, `unstake`, platform `transfer` | No ledger effect. Main-wallet stake/unstake movements participate in wallet replay; holdings reference adds reconstructed staking (see below). |
+| `stake`, `unstake`, platform `transfer` | No ledger effect. Sum main and staking wallets. Separate stake-IN/OUT operations are valid. An unstake-IN without a same-asset OUT in that operation reduces the eligible staking wallet from that instant until its next snapshot. |
 | Fiat `deposit`, `withdrawal`, `refund`, `reclaim`; every unknown type | No trade; report `matchSourceOperations` verdict. Remaining same-sign cash movements may match one cash booking by an exact sum of up to eight movements within ±12 days. Each movement/booking is claimed once. Above 100,000 subtotal states, report `aggregate_search_limit` and leave unresolved. |
 | Unmapped asset | No trade; report per-asset count and signed fiat effect. Allocation requiring an unknown price/mapping reports an unavailable effect; map first, rerun. |
 
-Repeat `--staked-now "<mapped-security-name>=<decimal units>"` for each currently
-staked asset (default zero). Names resolve uniquely against mapped securities;
+The reference sums each wallet's latest `balanceAfter` plus subsequent staged
+flows. Staking wallets receive stake-IN legs and rewards. For an incomplete
+unstake, choose the eligible staking wallet with the most recent balance at
+least as large as the incoming amount; subtract that amount once. A later
+snapshot supersedes the correction. Explicit unstake-OUT legs need no correction.
+
+`--staked-now "<mapped-security-name>=<decimal units>"` is an optional, repeatable
+override for the declared assets only; omission makes no staking adjustment.
+Names resolve uniquely against mapped securities;
 units must be nonnegative exact e8 decimals. Example with synthetic names:
 `--staked-now "Synthetic Coin a=1.5" --staked-now "Synthetic Coin b=0"`.
-The staking wallet has no source transactions/balances. At day t, the reference is
-`wallets(t) + staked(t)`, where `staked(t) = staked(now) + unstake after t - stake after t`.
-Opening deliveries use this same reference. `staked` reports opening/today units
-per asset. A negative reconstructed reference is refused before ledger writes;
-check the current declaration and source history.
+The override replaces the observed staking total, preserving its historical
+changes. If no staking wallet is identifiable, reverse only main-wallet
+stake-OUT/unstake-IN movements from the declared total. Opening and verification
+use the same override; `staked` reports only explicitly declared assets.
+Negative reconstructed units are refused before ledger writes.
 
 Unmapped fiat legs in eligible trades/interest use their stored source currency
-identity (`read_source` balances) and the **exact day's stored ECB rate** (EUR per
+identity (`read_source` balances) and the **latest stored ECB rate on/before the day** (EUR per
 native unit, micro-units), with one integer-cent rounding into cash's currency.
-Missing identity/rate is reported; no provider fetch or rate inference occurs.
+Without an available rate, an EUR depot trade uses units times the stored EUR
+asset price, at most seven days old, and reports `fx_fallback_price`. Fiat fees
+and taxes preserve their native ratio to the principal with integer-cent rounding.
+Without both rate and recent price, the operation is skipped with a report line.
+Fiat interest without an asset price remains unavailable. No provider is fetched.
 `fx_converted` retains currency, original amount/cents, source/target rate and
 converted cents. Their cash settlement uses the mapped cash account; cash
 verification adds the corresponding converted source flows to that account's
@@ -978,11 +989,24 @@ bank-side behavior. FX valuation changes of a second wallet are not cash flows.
 
 Keys: `rebuild:<operation-id>:<leg-index>`,
 `rebuild:<operation-id>:merger:out/in`,
-`rebuild:opening:<since>:<security-id>`, and
-`rebuild:reward:<YYYY-MM>:<security-id>` (`:div`/`:buy`, or `:unpriced`).
+`rebuild:opening:<since>:<security-id>:source:<JSON-operation-ids>`, and
+`rebuild:reward:<YYYY-MM>:<security-id>[:unpriced]:source:<JSON-operation-ids>`
+(`:div`/`:buy` for reward pairs). Reward IDs are sorted and retain all contributing
+source operations; fee sells and swap legs keep their operation ID too.
 Equal rebuild rows/transfer pairs are `unchanged`, without second-run writes.
 Changed live rows update through trade/booking repositories. Deleted keys skip;
 restore the relevant audit group first rather than silently reviving owner deletions.
+
+Repeat `--trace "<mapped-security-name>"` to print private monthly diagnosis from
+`since - 1 day`, also included in `--report`. Each month has wallet balances with
+their last leg, snapshot and unstake correction; every source asset leg with
+operation ID/type and running source/app units; and live trades with importKey,
+kind, signed units, gross/fee/tax cents and running app/source units. App trades
+have day precision; source legs retain their timestamps. The opening trace
+contains all earlier source legs/trades. Keep terminal output and JSON private.
+`unexplained_balance_change` reports snapshot deltas not explained by staged
+wallet legs, including leverage/expired products, with date, signed e8 units,
+wallet and both snapshot leg IDs. It reports the gap without inventing a trade.
 
 Review the private preview against the platform, map missing assets, resolve quotes,
 locked/retained trades and opening cash separately, then run. Repeat to verify
@@ -999,6 +1023,11 @@ cent conservation, swaps, asset/fiat fees and tax, exact monthly rewards, unmapp
 cash effects, aggregated deposits, owner trades, openings, locks/unlock, unchanged
 reruns, dry-run rollback, report write refusal and undo. Live private reconciliation
 and deployment remain owner steps.
+
+Second-round local verification (2026-10-05): complete typecheck/lint, 317 suites
+and 3,066 tests passed; production build passed. The restricted Windows runtime
+used the existing ignored `os.userInfo()` test preload, without changing assertions.
+CI and private reconciliation remain owner steps.
 
 ## 13. One-time Portfolio Performance migration (operator task)
 
