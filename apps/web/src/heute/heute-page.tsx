@@ -55,7 +55,7 @@ const STATUS: Record<string, string> = {
 export function HeutePage() {
   useAmountPrivacy();
   const [month] = useMonth();
-  const [period, setPeriod] = useBalancePeriod();
+  const { period, setPeriod } = useBalancePeriod();
   const query = useQuery(heuteQuery(month, period));
   const data = query.data;
   return (
