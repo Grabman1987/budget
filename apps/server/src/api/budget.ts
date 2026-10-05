@@ -3,6 +3,7 @@ import {
   assignMany,
   categoryTree,
   coverOverspending,
+  coverAllOverspending,
   createCategory,
   createCategoryGroup,
   deleteCategoryGroup,
@@ -170,8 +171,9 @@ export function budgetRoutes(db: Db, today: () => string): Hono {
 
   app.post('/:month/move', async (c) => {
     const m = monthParam(c.req.param('month'));
-    const { fromId, toId, amountCents } = await readBody(c, moveBody);
-    return c.json(moveMoney(db, m, fromId, toId, amountCents, audit()));
+    const body = await readBody(c, moveBody);
+    if ('coverAll' in body) return c.json(coverAllOverspending(db, m, body.fromId, audit()));
+    return c.json(moveMoney(db, m, body.fromId, body.toId, body.amountCents, audit()));
   });
 
   app.post('/:month/cover', async (c) => {

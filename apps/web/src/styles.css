@@ -34,7 +34,7 @@
 
   /* ---------- Dev pages ---------- */
   .dev {
-    max-width: 1240px;
+    max-width: var(--page-max);
     margin: 0 auto;
     padding: 28px 16px 72px;
     display: grid;
@@ -123,7 +123,7 @@
   }
 
   .spike {
-    max-width: 1100px;
+    max-width: var(--page-max);
     margin: 0 auto;
     padding: 32px 16px 44px;
   }
@@ -303,4 +303,60 @@
 }
 .rcat .muted {
   color: var(--ink-3);
+}
+
+/* Wide catalog: assemblies next to each other, using the phone's readable row structure. */
+@media (min-width: 1440px) {
+  .rcat {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 520px), 1fr));
+    gap: 24px 32px;
+    align-items: start;
+  }
+  .rcat thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+  }
+  .rcat thead tr {
+    display: table-row;
+  }
+  .rcat tbody {
+    display: block;
+    min-width: 0;
+  }
+  .rcat tr {
+    display: grid;
+    grid-template-columns: 40px minmax(0, 1fr) 20px;
+    gap: 4px 8px;
+    padding: 12px 0;
+    border-bottom: 1px solid var(--rule);
+  }
+  .rcat td {
+    padding: 0;
+    border: 0;
+  }
+  .rcat .col-pos,
+  .rcat-go {
+    width: auto;
+  }
+  .rcat-name {
+    white-space: normal;
+  }
+  .rcat-go {
+    grid-column: 3;
+    grid-row: 1;
+  }
+  .rcat-q,
+  .rcat-form,
+  .rcat-ctl,
+  .rcat-grp td[colspan] {
+    grid-column: 2 / -1;
+  }
+  .rcat .rcat-grp {
+    padding-top: 16px;
+    border-bottom-color: var(--line-2);
+  }
 }
