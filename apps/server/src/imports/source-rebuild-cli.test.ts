@@ -112,9 +112,21 @@ it('source-rebuild CLI reports dry-run, private JSON, idempotency, skips, and ro
           timeout: 60000,
         },
       );
-    const dry = cli(['--dry-run', '--details', '--report', reportPath]);
+    const dry = cli([
+      '--dry-run',
+      '--details',
+      '--trace',
+      'Synthetic Coin',
+      '--trace',
+      'Synthetic Coin',
+      '--report',
+      reportPath,
+    ]);
     expect(dry.status, dry.stderr).toBe(0);
     expect(dry.stdout).toContain('(dry run)');
+    expect(dry.stdout).toContain('trace {"securityId":"coin"');
+    expect(dry.stdout).toContain('"operationId":"purchase"');
+    expect(dry.stdout).toContain('"importKey":"rebuild:purchase:0"');
     expect(JSON.parse(readFileSync(reportPath, 'utf8'))).toMatchObject({
       groupId: '',
       dryRun: true,
@@ -130,6 +142,9 @@ it('source-rebuild CLI reports dry-run, private JSON, idempotency, skips, and ro
     expect(invalidStaking.status).toBe(1);
     expect(listTrades(db)).toEqual([]);
     expect(cli(['--staked-now']).status).toBe(1);
+    expect(cli(['--trace']).status).toBe(1);
+    expect(cli(['--trace', '--dry-run']).status).toBe(1);
+    expect(cli(['--trace', 'Unknown synthetic asset']).status).toBe(1);
     const refused = cli(['--report', reportPath]);
     expect(refused.status).toBe(1);
     expect(listTrades(db)).toEqual([]);

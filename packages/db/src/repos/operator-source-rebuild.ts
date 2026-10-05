@@ -28,6 +28,8 @@ import {
   type SourceOperation,
   type SourceMapping,
   type RebuildIssue,
+  type RebuildBalanceDiagnostics,
+  type RebuildWalletBalance,
 } from '@budget/domain';
 import { account, booking, inboxItem, price, holding, security, fxRate } from '../schema';
 import { type AuditContext } from './audit';
@@ -74,6 +76,7 @@ export interface SourceRebuildOptions {
   dryRun?: boolean;
   unlock?: boolean;
   stakedNow?: string[];
+  trace?: string[];
 }
 export interface SourceRebuildReport {
   groupId: string;
@@ -113,6 +116,32 @@ export interface SourceRebuildReport {
   }[];
   staked: { securityId: string; key: string; openingUnitsE8: number; todayUnitsE8: number }[];
   fx_converted: RebuildFxConversion[];
+  trace: {
+    securityId: string;
+    securityName: string;
+    date: string;
+    appUnitsE8: number;
+    sourceUnitsE8: number;
+    wallets: RebuildWalletBalance[];
+    legs: {
+      operationId: string;
+      type: string;
+      leg: SourceOperation['transactions'][number];
+      sourceUnitsE8: number;
+      appUnitsE8: number;
+    }[];
+    trades: {
+      importKey: string | null;
+      kind: TradeRow['kind'];
+      date: string;
+      unitsE8: number;
+      amountCents: number;
+      feeCents: number;
+      taxCents: number;
+      appUnitsE8: number;
+      sourceUnitsE8: number;
+    }[];
+  }[];
   unhandledOperations: { id: string; type: string }[];
   cash: { date: string; appCents: number; sourceCents: number; differenceCents: number }[];
   cashTop20: SourceRebuildReport['cash'];
@@ -161,6 +190,7 @@ export function applySourceRebuild(
     units: [],
     staked: [],
     fx_converted: [],
+    trace: [],
     unhandledOperations: [],
     cash: [],
     cashTop20: [],
@@ -265,6 +295,35 @@ export function applySourceRebuild(
         stakedNow.set(matches[0]!.key, units);
       }
       const openingDay = addDays(since, -1);
+      const dates = [
+        ...new Set([
+          openingDay,
+          ...monthsBetween(since.slice(0, 7), today.slice(0, 7))
+            .map(lastDayOfMonth)
+            .filter((day) => day <= today),
+          today,
+        ]),
+      ];
+      const traced = new Map<string, string>();
+      for (const name of options.trace ?? []) {
+        if (typeof name !== 'string' || !name.trim() || name.length > 210)
+          throw new OperatorInputError('trace requires a mapped security name');
+        const matches = assets.filter(
+          (m) =>
+            fold(tx.select().from(security).where(eq(security.id, m.securityId!)).get()!.name) ===
+            fold(name),
+        );
+        if (matches.length !== 1)
+          throw new OperatorInputError('trace must name one mapped security exactly');
+        traced.set(matches[0]!.key, name);
+      }
+      const diagnostics: RebuildBalanceDiagnostics = {
+        wallets: new Map(),
+        walletDays: new Set(dates),
+        traceKeys: new Set(traced.keys()),
+        legs: [],
+        changes: [],
+      };
       // Validate replay precision before the first destructive write.
       const allDays: string[] = [];
       for (let day = openingDay; day <= today; day = addDays(day, 1)) allDays.push(day);
@@ -272,36 +331,43 @@ export function applySourceRebuild(
         operations,
         allDays,
         new Set([...assets.map((m) => m.key), cashKey]),
+        diagnostics,
       );
-      const stakingOperations = operations
-        .filter((op) => op.type === 'stake' || op.type === 'unstake')
-        .map((op) => ({
-          ...op,
-          transactions: op.transactions.filter((t) =>
-            assets.some((m) => m.key === sourceAmountKey(t.amount)),
-          ),
-        }));
+      report.issues.push(...diagnostics.changes!.filter((i) => i.date! >= since));
       const stakingHistory = new Map(
-        allDays.map((day) => [day, sourceStakedAt(stakingOperations, day, today, stakedNow)]),
+        dates.map((day) => [day, sourceStakedAt(operations, day, today, stakedNow)]),
       );
-      for (const day of allDays)
-        for (const m of assets) {
+      for (const day of dates)
+        for (const m of assets.filter((m) => stakedNow.has(m.key))) {
           const balances = sourceHistory.get(day)!;
+          const visible = diagnostics.wallets
+            .get(day)!
+            .filter((w) => w.key === m.key && w.staking)
+            .reduce((sum, w) => sum + BigInt(w.units), 0n);
           balances.set(
             m.key,
             rebuildSafe(
-              BigInt(balances.get(m.key) ?? 0) + BigInt(stakingHistory.get(day)!.get(m.key) ?? 0),
+              BigInt(balances.get(m.key) ?? 0) -
+                visible +
+                BigInt(stakingHistory.get(day)!.get(m.key) ?? 0),
             ),
           );
         }
-      report.staked = assets.map((m) => ({
-        securityId: m.securityId!,
-        key: m.key,
-        openingUnitsE8: stakingHistory.get(openingDay)!.get(m.key) ?? 0,
-        todayUnitsE8: stakingHistory.get(today)!.get(m.key) ?? 0,
-      }));
+      report.staked = assets
+        .filter((m) => stakedNow.has(m.key))
+        .map((m) => ({
+          securityId: m.securityId!,
+          key: m.key,
+          openingUnitsE8: stakingHistory.get(openingDay)!.get(m.key) ?? 0,
+          todayUnitsE8: stakingHistory.get(today)!.get(m.key) ?? 0,
+        }));
       const openingSource = sourceHistory.get(openingDay)!;
       const before = listTrades(tx, { accountId: depot.id });
+      const deletedKeys = new Set(
+        listTrades(tx, { accountId: depot.id, includeDeleted: true })
+          .filter((t) => t.deletedAt)
+          .map((t) => t.importKey),
+      );
       const ownerLedger = loadMatchLedger(tx, mappings);
       const ownerIds = new Set(
         before
@@ -372,9 +438,20 @@ export function applySourceRebuild(
             .reduce((s, t) => s + BigInt(t.unitsE8), 0n),
         );
       for (const m of assets) {
-        const key = `rebuild:opening:${since}:${m.securityId}`;
+        const prefix = `rebuild:opening:${since}:${m.securityId}`;
+        const operationIds = operations
+          .filter((op) =>
+            op.transactions.some(
+              (t) => sourceAmountKey(t.amount) === m.key && rebuildLegDay(t) <= openingDay,
+            ),
+          )
+          .map((op) => op.id)
+          .sort();
+        const key = `${prefix}:source:${JSON.stringify(operationIds)}`;
         const app = sumUnits(
-          before.filter((t) => t.importKey !== key),
+          before.filter(
+            (t) => t.importKey !== prefix && !t.importKey?.startsWith(`${prefix}:source:`),
+          ),
           m,
           openingDay,
         );
@@ -560,6 +637,20 @@ export function applySourceRebuild(
           : [candidate];
         attempt(candidate.importKey, (inner) => {
           for (const desiredTrade of pair) {
+            const baseKey = desiredTrade.importKey.replace(/:source:\[.*\]$/, '');
+            if (
+              /^rebuild:(reward|opening):/.test(baseKey) &&
+              listTrades(tx, { accountId: depot.id }).some(
+                (t) =>
+                  t.importKey &&
+                  !wanted.has(t.importKey) &&
+                  (t.importKey === baseKey ||
+                    t.importKey === `${baseKey}:buy` ||
+                    t.importKey === `${baseKey}:div` ||
+                    t.importKey.startsWith(`${baseKey}:source:`)),
+              )
+            )
+              throw new OperatorInputError('stale_rebuild_group_not_removed');
             const match = matches.get(desiredTrade.importKey);
             if (match?.status === 'matched') {
               // An owner counterpart added after a prior rebuild replaces our duplicate only.
@@ -580,6 +671,10 @@ export function applySourceRebuild(
             const inputs = inputsOf(desiredTrade);
             const statuses: string[] = [];
             for (const input of inputs) {
+              // Adding source provenance must not bypass an owner's legacy-key tombstone.
+              const legacyKey = input.importKey!.replace(/:source:\[.*\](?=:(?:buy|div)$|$)/, '');
+              if (deletedKeys.has(legacyKey))
+                throw new OperatorInputError('rebuild_key_deleted: restore with undo-group first');
               const existing = listTrades(tx, { accountId: depot.id, includeDeleted: true }).find(
                 (t) => t.importKey === input.importKey,
               );
@@ -679,15 +774,6 @@ export function applySourceRebuild(
         openingDate: cash.openingDate,
         proposedOpeningDate: cash.openingDate > openingDay ? openingDay : null,
       };
-      const dates = [
-        ...new Set([
-          openingDay,
-          ...monthsBetween(since.slice(0, 7), today.slice(0, 7))
-            .map(lastDayOfMonth)
-            .filter((day) => day <= today),
-          today,
-        ]),
-      ];
       const after = listTrades(tx, { accountId: depot.id });
       const origins = new Map<string, { type: string; unitsE8: number }[]>();
       for (const desiredTrade of desired) {
@@ -754,6 +840,55 @@ export function applySourceRebuild(
               : {}),
           });
         }
+      }
+      for (const m of assets.filter((m) => traced.has(m.key))) {
+        const rows = after
+          .filter((t) => t.securityId === m.securityId)
+          .sort((a, b) => a.date.localeCompare(b.date) || a.id.localeCompare(b.id));
+        const earlier = sourceBalancesOnDays(
+          operations,
+          rows.filter((t) => t.date < openingDay).map((t) => t.date),
+          new Set([m.key]),
+        );
+        let running = 0n;
+        const trades = rows.map((t) => {
+          running += BigInt(t.unitsE8);
+          return {
+            importKey: t.importKey,
+            kind: t.kind,
+            date: t.date,
+            unitsE8: t.unitsE8,
+            amountCents: t.amountCents,
+            feeCents: t.feeCents,
+            taxCents: t.taxCents,
+            appUnitsE8: rebuildSafe(running),
+            sourceUnitsE8: (sourceHistory.get(t.date) ?? earlier.get(t.date))?.get(m.key) ?? 0,
+          };
+        });
+        dates.forEach((day, i) => {
+          const previous = dates[i - 1];
+          report.trace.push({
+            securityId: m.securityId!,
+            securityName: traced.get(m.key)!,
+            date: day,
+            appUnitsE8: sumUnits(after, m, day),
+            sourceUnitsE8: sourceHistory.get(day)!.get(m.key) ?? 0,
+            wallets: diagnostics.wallets.get(day)!.filter((w) => w.key === m.key),
+            legs: diagnostics
+              .legs!.filter(
+                (row) =>
+                  sourceAmountKey(row.leg.amount) === m.key &&
+                  rebuildLegDay(row.leg) <= day &&
+                  (!previous || rebuildLegDay(row.leg) > previous),
+              )
+              .map(({ sourceUnits, ...row }) => ({
+                ...row,
+                sourceUnitsE8: sourceUnits,
+                appUnitsE8: sumUnits(after, m, rebuildLegDay(row.leg)),
+              })),
+            trades: trades.filter((t) => t.date <= day && (!previous || t.date > previous)),
+          });
+        });
       }
       for (let day = openingDay; day <= today; day = addDays(day, 1)) {
         const appCents = balanceAt(day),

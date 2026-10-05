@@ -289,13 +289,19 @@ it('rebuilds exact month ends, openings, monthly rewards, swap, fees/tax, preser
   expect(
     trades.filter((t) => t.importKey?.startsWith('rebuild:swap:')).map((t) => t.amountCents),
   ).toEqual([10000, 10000]);
-  expect(trades.find((t) => t.importKey === 'rebuild:reward:2026-03:a:buy')).toMatchObject({
+  expect(
+    trades.find(
+      (t) => t.importKey?.startsWith('rebuild:reward:2026-03:a:source:') && t.kind === 'buy',
+    ),
+  ).toMatchObject({
     unitsE8: 12345679,
     amountCents: 1235,
     date: '2026-03-20',
     note: '2 source rewards (2026-03)',
   });
-  expect(trades.find((t) => t.importKey === 'rebuild:reward:2026-04:b:unpriced')).toMatchObject({
+  expect(
+    trades.find((t) => t.importKey?.startsWith('rebuild:reward:2026-04:b:unpriced:source:')),
+  ).toMatchObject({
     kind: 'delivery_in',
     amountCents: 0,
   });
@@ -399,7 +405,11 @@ it('matches an individual owner reward before monthly aggregation, including exa
   const result = applySourceRebuild(db, options, ctx);
   expect(result.units.every((r) => r.differenceE8 === 0)).toBe(true);
   expect(result.outcomes.some((r) => r.id === 'reward-2:r2' && r.status === 'matched')).toBe(true);
-  expect(listTrades(db).find((t) => t.importKey === 'rebuild:reward:2026-03:a:buy')).toMatchObject({
+  expect(
+    listTrades(db).find(
+      (t) => t.importKey?.startsWith('rebuild:reward:2026-03:a:source:') && t.kind === 'buy',
+    ),
+  ).toMatchObject({
     unitsE8: 1,
     amountCents: 0,
     date: '2026-03-12',
@@ -437,6 +447,24 @@ it('keeps a stale reward pair atomic when one settlement is locked, then removes
   expect(listTrades(db).filter((t) => pair.some((r) => r.id === t.id))).toHaveLength(2);
   const unlocked = applySourceRebuild(db, { ...options, unlock: true }, ctx);
   expect(listTrades(db).filter((t) => pair.some((r) => r.id === t.id))).toHaveLength(0);
+  expect(unlocked.units.every((r) => r.differenceE8 === 0)).toBe(true);
+});
+
+it('does not create a new reward aggregate when a locked previous source-key pair cannot be removed', () => {
+  applySourceRebuild(db, options, ctx);
+  const pair = listTrades(db).filter((t) => t.importKey?.startsWith('rebuild:reward:2026-03:a:'));
+  const buy = pair.find((t) => t.kind === 'buy')!;
+  updateBooking(db, buy.bookingId!, { status: 'reconciled' }, ctx);
+  stage('reward-extra', 'reward', [leg('extra-reward-leg', '2026-03-20', asset('a', '0.2'))]);
+  const locked = applySourceRebuild(db, options, ctx);
+  expect(locked.outcomes.some((o) => o.reason === 'stale_rebuild_group_not_removed')).toBe(true);
+  expect(
+    listTrades(db).filter((t) => t.importKey?.startsWith('rebuild:reward:2026-03:a:')),
+  ).toEqual(pair);
+  expect(
+    locked.units.find((r) => r.securityId === 'a' && r.date === options.today)?.differenceE8,
+  ).toBe(-20000000);
+  const unlocked = applySourceRebuild(db, { ...options, unlock: true }, ctx);
   expect(unlocked.units.every((r) => r.differenceE8 === 0)).toBe(true);
 });
 
@@ -550,6 +578,208 @@ it('refuses invalid or unmapped staking declarations before any ledger writes', 
     applySourceRebuild(db, { ...options, stakedNow: ['Synthetic Coin a=-1'] }, ctx),
   ).toThrow();
   expect(rowCounts()).toEqual(counts);
+});
+
+it('reconciles two single-leg stakes, rewards and an incomplete unstake with private monthly trace; dry-run, repeat and undo', () => {
+  db.delete(inboxItem).run(); // This isolated synthetic staging has no owner/provider data.
+  sourceTrade('owner-buy', '2026-03-15', 'b', '1', 5000);
+  stage('opening', 'deposit', [
+    leg('main-opening', '2026-02-28', asset('a', '10'), 'INCOMING', {
+      balanceAfter: asset('a', '10'),
+    }),
+    leg('cash-opening', '2026-02-28', eur(100000), 'INCOMING', { balanceAfter: eur(100000) }),
+  ]);
+  stage('stake-out', 'stake', [
+    leg('main-stake-out', '2026-03-03', asset('a', '10'), 'OUTGOING', {
+      balanceAfter: asset('a', '0'),
+    }),
+  ]);
+  stage('stake-in', 'stake', [
+    leg('staking-stake-in', '2026-03-03', asset('a', '10'), 'INCOMING', {
+      walletId: 'staking',
+      balanceAfter: asset('a', '10'),
+    }),
+  ]);
+  stage('staking-reward', 'reward', [
+    leg('staking-reward-leg', '2026-03-12', asset('a', '0.5'), 'INCOMING', {
+      walletId: 'staking',
+      balanceAfter: asset('a', '10.5'),
+    }),
+  ]);
+  stage('unstake', 'unstake', [
+    leg('main-unstake-in', '2026-04-03', asset('a', '10.5'), 'INCOMING', {
+      balanceAfter: asset('a', '10.5'),
+    }),
+  ]);
+  const opts = { ...options, trace: ['Synthetic Coin a', 'Synthetic Coin b'] };
+  const before = liveState(),
+    counts = rowCounts();
+  const dry = applySourceRebuild(db, { ...opts, dryRun: true }, ctx);
+  expect(dry.units.every((r) => r.differenceE8 === 0)).toBe(true);
+  expect(dry.staked).toEqual([]);
+  expect(liveState()).toEqual(before);
+  expect(rowCounts()).toEqual(counts);
+  const report = applySourceRebuild(db, opts, ctx);
+  expect(
+    report.units
+      .filter((r) => r.securityId === 'a')
+      .map((r) => [r.date, r.sourceUnitsE8, r.differenceE8]),
+  ).toEqual([
+    ['2026-02-28', 1000000000, 0],
+    ['2026-03-31', 1050000000, 0],
+    ['2026-04-30', 1050000000, 0],
+  ]);
+  expect(report.issues).toEqual([]);
+  const trace = report.trace.filter((r) => r.securityId === 'a');
+  expect(trace[1]!.wallets.map((w) => [w.walletId, w.units, w.snapshotLeg?.id])).toEqual([
+    ['a', 0, 'main-stake-out'],
+    ['staking', 1050000000, 'staking-reward-leg'],
+  ]);
+  expect(trace[2]!.wallets.find((w) => w.walletId === 'staking')).toMatchObject({
+    units: 0,
+    correctionLeg: { id: 'main-unstake-in' },
+  });
+  expect(trace.flatMap((r) => r.legs).map((r) => r.operationId)).toEqual([
+    'opening',
+    'stake-out',
+    'stake-in',
+    'staking-reward',
+    'unstake',
+  ]);
+  expect(trace[2]!.legs[0]).toMatchObject({ sourceUnitsE8: 1050000000, appUnitsE8: 1050000000 });
+  expect(trace[1]!.trades.find((t) => t.kind === 'buy')).toMatchObject({
+    unitsE8: 50000000,
+    amountCents: 5000,
+    appUnitsE8: 1050000000,
+    sourceUnitsE8: 1050000000,
+  });
+  expect(trace[1]!.trades.every((t) => t.importKey?.includes('staking-reward'))).toBe(true);
+  const override = applySourceRebuild(
+    db,
+    { ...opts, dryRun: true, stakedNow: ['Synthetic Coin a=0'] },
+    ctx,
+  );
+  expect(override.units).toEqual(report.units);
+  const rebuilt = liveState(),
+    rebuiltCounts = rowCounts();
+  expect(applySourceRebuild(db, opts, ctx).groupId).toBe('');
+  expect(liveState()).toEqual(rebuilt);
+  expect(rowCounts()).toEqual(rebuiltCounts);
+  undoAuditGroups(db, [report.groupId], ctx);
+  expect(liveState()).toEqual(before);
+});
+
+it('reports unexplained expiry units and source IDs for fee sells and swap legs in trace', () => {
+  stage('expiry', 'leverage_liquidation', [
+    leg('expiry-leg', '2026-04-03', asset('b', '1'), 'OUTGOING', { balanceAfter: asset('b', '0') }),
+    leg('expiry-cash', '2026-04-03', eur(100)),
+  ]);
+  sourceTrade('discount-buy', '2026-03-20', 'a', '1', 10000, false, [
+    leg('discount-fee', '2026-03-20', asset('b', '0.2'), 'OUTGOING', {
+      type: 'fee',
+      tradeId: 'discount-buy',
+    }),
+  ]);
+  const report = applySourceRebuild(
+    db,
+    { ...options, trace: ['Synthetic Coin a', 'Synthetic Coin b'], dryRun: true },
+    ctx,
+  );
+  expect(report.issues).toContainEqual({
+    id: 'expiry',
+    reason: 'unexplained_balance_change',
+    key: 'asset:b',
+    date: '2026-04-03',
+    unitsE8: -390000000,
+    walletId: 'b',
+    previousLegId: 'ob',
+    legId: 'expiry-leg',
+  });
+  const trades = report.trace.flatMap((r) => r.trades);
+  expect(
+    trades
+      .filter((t) => t.importKey?.includes('rebuild:swap:'))
+      .map((t) => t.kind)
+      .sort(),
+  ).toEqual(['buy', 'sell']);
+  expect(trades.find((t) => t.importKey === 'rebuild:discount-buy:2')).toMatchObject({
+    kind: 'sell',
+    unitsE8: -20000000,
+    amountCents: 1000,
+    feeCents: 1000,
+  });
+  expect(() =>
+    applySourceRebuild(db, { ...options, trace: ['Unknown synthetic product'] }, ctx),
+  ).toThrow('mapped security');
+});
+
+it('persists a USD-paid buy at recent EUR asset value without FX; dry-run, repeat and undo', () => {
+  const usd = { ...eur(12500), currencyId: 'usd' };
+  stage('price-fallback', 'buy', [
+    leg('fallback-asset', '2026-03-20', asset('a', '0.5')),
+    leg('fallback-usd', '2026-03-20', usd, 'OUTGOING'),
+  ]);
+  saveReadSourceState(
+    db,
+    {
+      lastSuccess: null,
+      lastAttempt: null,
+      status: 'idle',
+      window: null,
+      balances: [
+        { key: 'currency:usd', amount: { ...usd, value: '0.00', cents: 0 }, currency: 'USD' },
+      ],
+    },
+    ctx,
+  );
+  const before = liveState(),
+    counts = rowCounts();
+  const preview = applySourceRebuild(db, { ...options, dryRun: true }, ctx);
+  expect(preview.issues).toContainEqual({
+    id: 'price-fallback',
+    key: 'currency:usd',
+    date: '2026-03-20',
+    reason: 'fx_fallback_price',
+  });
+  expect(liveState()).toEqual(before);
+  expect(rowCounts()).toEqual(counts);
+  const report = applySourceRebuild(db, options, ctx);
+  expect(listTrades(db).find((t) => t.importKey === 'rebuild:price-fallback:0')).toMatchObject({
+    kind: 'buy',
+    unitsE8: 50000000,
+    amountCents: 5000,
+  });
+  expect(report.units.every((r) => r.differenceE8 === 0)).toBe(true);
+  expect(report.cashEnd).toMatchObject({ sourceCents: 107650, differenceCents: 2000 });
+  const rebuiltCounts = rowCounts();
+  expect(applySourceRebuild(db, options, ctx).groupId).toBe('');
+  expect(rowCounts()).toEqual(rebuiltCounts);
+  undoAuditGroups(db, [report.groupId], ctx);
+  expect(liveState()).toEqual(before);
+});
+
+it('keeps an owner-deleted legacy monthly reward key blocked after adding operation provenance', () => {
+  const { trade: old } = createTrade(
+    db,
+    {
+      accountId: 'depot',
+      securityId: 'a',
+      date: '2026-03-20',
+      kind: 'buy',
+      unitsE8: 12345679,
+      amountCents: 0,
+      importKey: 'rebuild:reward:2026-03:a:buy',
+    },
+    ctx,
+  );
+  deleteTrade(db, old.id, ctx);
+  const result = applySourceRebuild(db, options, ctx);
+  expect(
+    result.outcomes.some((o) => o.reason === 'rebuild_key_deleted: restore with undo-group first'),
+  ).toBe(true);
+  expect(
+    listTrades(db).filter((t) => t.importKey?.startsWith('rebuild:reward:2026-03:a:')),
+  ).toEqual([]);
 });
 
 it('rolls back both merger sides and settlements when the second key was deleted by the owner', () => {

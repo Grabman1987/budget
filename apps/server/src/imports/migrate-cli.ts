@@ -442,6 +442,8 @@ try {
     }
     case 'source-rebuild': {
       if (args.at(-1) === '--staked-now') throw new Error('--staked-now requires ASSET-NAME=units');
+      if (args.at(-1) === '--trace' || optionsAll('trace').some((name) => name.startsWith('--')))
+        throw new Error('--trace requires a mapped security name');
       const reportPath = option('report') ? resolve(required('report')) : null;
       if (reportPath) {
         const rel = relative(
@@ -462,6 +464,7 @@ try {
             dryRun: args.includes('--dry-run'),
             unlock: args.includes('--unlock'),
             stakedNow: optionsAll('staked-now'),
+            trace: optionsAll('trace'),
           },
           { actor: 'operator' },
         );
@@ -482,7 +485,16 @@ try {
       console.log('unit differences', JSON.stringify(result.units.filter((u) => u.differenceE8)));
       console.log('staked', JSON.stringify(result.staked));
       console.log('fx_converted', JSON.stringify(result.fx_converted));
+      console.log(
+        'fx_fallback_price',
+        JSON.stringify(result.issues.filter((i) => i.reason === 'fx_fallback_price')),
+      );
+      console.log(
+        'unexplained_balance_change',
+        JSON.stringify(result.issues.filter((i) => i.reason === 'unexplained_balance_change')),
+      );
       console.log('unhandled operations', JSON.stringify(result.unhandledOperations));
+      for (const month of result.trace) console.log('trace', JSON.stringify(month));
       if (args.includes('--details')) console.log(JSON.stringify(result, null, 2));
       if (
         (result.counts['skipped'] ?? 0) +

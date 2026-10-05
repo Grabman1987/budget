@@ -4,6 +4,7 @@ import {
   matchAggregatedSourceCash,
   planSourceRebuild,
   sourceBalancesAt,
+  sourceBalancesOnDays,
   sourceStakedAt,
   rebuildStakedNowSchema,
 } from './source-rebuild';
@@ -411,8 +412,8 @@ it('converts unmapped fiat principal, fees and interest using stored daily ECB r
     planSourceRebuild(ops, mappings, [], '2026-03-02', 'currency:eur', 'EUR', {
       ...fx,
       rates: [{ ...fx.rates[0]!, date: '2026-03-01' }],
-    }).issues[0]?.reason,
-  ).toContain('Missing stored ECB rate');
+    }).issues,
+  ).toEqual([]);
 });
 
 it('reconstructs staking at opening and today from current units, without trades', () => {
@@ -443,7 +444,189 @@ it('reconstructs staking at opening and today from current units, without trades
     ['Coin=9007199254740991'],
   ])
     expect(() => rebuildStakedNowSchema.parse(bad)).toThrow();
-  expect(() => sourceStakedAt(ops, '2026-02-28', '2026-04-30', new Map())).toThrow(
-    'Negative staked',
+  expect(sourceStakedAt(ops, '2026-02-28', '2026-04-30', new Map()).size).toBe(0);
+});
+
+it('sums visible staking wallets and corrects missing unstake OUT legs until a newer snapshot', () => {
+  const movement = (
+    id: string,
+    type: string,
+    day: string,
+    walletId: string,
+    value: string,
+    balance: string,
+    flow = 'INCOMING',
+  ): SourceOperation => ({
+    id,
+    type,
+    transactions: [
+      tx(id + '-leg', asset('a', value), flow, {
+        walletId,
+        balanceAfter: asset('a', balance),
+        creditedAt: day + 'T12:00:00Z',
+      }),
+    ],
+  });
+  const ops = [
+    movement('opening', 'deposit', '2026-02-28', 'main', '10', '10'),
+    movement('stake-out', 'stake', '2026-03-02', 'main', '10', '0', 'OUTGOING'),
+    movement('stake-in', 'stake', '2026-03-02', 'staking', '10', '10'),
+    movement('staking-reward', 'reward', '2026-03-03', 'staking', '0.5', '10.5'),
+    movement('unstake-in', 'unstake', '2026-03-04', 'main', '10.5', '10.5'),
+  ];
+  expect(sourceBalancesAt(ops, '2026-03-03').get('asset:a')).toBe(1050000000);
+  expect(sourceBalancesAt(ops, '2026-03-04').get('asset:a')).toBe(1050000000);
+  expect(
+    planSourceRebuild(ops.slice(1, 3), mappings, prices, '2026-03-01', 'currency:eur', 'EUR')
+      .trades,
+  ).toEqual([]);
+  ops.push(movement('later-reward', 'reward', '2026-04-02', 'staking', '0.1', '0.1'));
+  expect(sourceBalancesAt(ops, '2026-04-02').get('asset:a')).toBe(1060000000);
+  const explicit = [
+    ...ops.slice(0, 4),
+    {
+      ...ops[4]!,
+      transactions: [
+        ...ops[4]!.transactions,
+        tx('unstake-out', asset('a', '10.5'), 'OUTGOING', {
+          walletId: 'staking',
+          balanceAfter: asset('a', '0'),
+          creditedAt: '2026-03-04T12:00:00Z',
+        }),
+      ],
+    },
+  ];
+  expect(sourceBalancesAt(explicit, '2026-03-04').get('asset:a')).toBe(1050000000);
+  const another = movement('other-stake', 'stake', '2026-03-03', 'other-staking', '20', '20');
+  another.transactions[0]!.creditedAt = '2026-03-03T11:00:00Z';
+  const diagnostics = { wallets: new Map() };
+  sourceBalancesOnDays(
+    [...ops.slice(0, 3), another, ...ops.slice(3)],
+    ['2026-03-04'],
+    undefined,
+    diagnostics,
   );
+  expect(
+    diagnostics.wallets
+      .get('2026-03-04')
+      .map((w: { walletId: string; units: number }) => [w.walletId, w.units]),
+  ).toEqual([
+    ['main', 1050000000],
+    ['staking', 0],
+    ['other-staking', 2000000000],
+  ]);
+  another.transactions[0]!.creditedAt = '2026-03-03T13:00:00Z';
+  sourceBalancesOnDays(
+    [...ops.slice(0, 3), another, ...ops.slice(3)],
+    ['2026-03-04'],
+    undefined,
+    diagnostics,
+  );
+  expect(
+    diagnostics.wallets
+      .get('2026-03-04')
+      .find((w: { walletId: string }) => w.walletId === 'other-staking').units,
+  ).toBe(950000000);
+  another.transactions[0]!.balanceAfter = asset('a', '1');
+  sourceBalancesOnDays(
+    [...ops.slice(0, 3), another, ...ops.slice(3)],
+    ['2026-03-04'],
+    undefined,
+    diagnostics,
+  );
+  expect(
+    diagnostics.wallets
+      .get('2026-03-04')
+      .find((w: { walletId: string }) => w.walletId === 'staking').units,
+  ).toBe(0);
+  expect(
+    sourceStakedAt(ops, '2026-03-03', '2026-04-30', new Map([['asset:a', 10000000]])).get(
+      'asset:a',
+    ),
+  ).toBe(1050000000);
+});
+
+it('uses a recent EUR asset price when FX is missing, preserves fiat fee ratios, and never uses future/stale prices', () => {
+  const usd = (cents: number) => ({ ...cash(cents), currencyId: 'usd' });
+  const op: SourceOperation = {
+    id: 'fallback-buy',
+    type: 'buy',
+    transactions: [tx('asset', asset('a', '2')), tx('usd', usd(500), 'OUTGOING', { fee: usd(25) })],
+  };
+  const fx = { currencies: [{ key: 'currency:usd', currency: 'USD' }], rates: [] };
+  const fallback = (date: string) =>
+    planSourceRebuild(
+      [op],
+      mappings,
+      [{ ...prices[0]!, date, priceMicro: 1250000 }],
+      '2026-03-02',
+      'currency:eur',
+      'EUR',
+      fx,
+    );
+  expect(fallback('2026-02-23').trades[0]).toMatchObject({
+    importKey: 'rebuild:fallback-buy:0',
+    unitsE8: 200000000,
+    amountCents: 250,
+    feeCents: 13,
+  });
+  expect(fallback('2026-02-23').issues).toContainEqual({
+    id: 'fallback-buy',
+    key: 'currency:usd',
+    date: '2026-03-02',
+    reason: 'fx_fallback_price',
+  });
+  expect(fallback('2026-02-23').fxCashMovements).toEqual([
+    { date: '2026-03-02', amountCents: -263 },
+  ]);
+  for (const date of ['2026-02-22', '2026-03-03']) {
+    expect(fallback(date).trades).toEqual([]);
+    expect(fallback(date).issues[0]?.reason).toContain(
+      'Missing stored ECB rate and recent EUR asset price',
+    );
+  }
+});
+
+it('reports snapshot jumps only when staged legs do not explain the change', () => {
+  const ops: SourceOperation[] = [
+    {
+      id: 'start',
+      type: 'buy',
+      transactions: [
+        tx('start-leg', asset('a', '5'), 'INCOMING', {
+          walletId: 'product',
+          balanceAfter: asset('a', '5'),
+        }),
+      ],
+    },
+    {
+      id: 'expired',
+      type: 'leverage_liquidation',
+      transactions: [
+        tx('expired-leg', asset('a', '1'), 'OUTGOING', {
+          walletId: 'product',
+          balanceAfter: asset('a', '0'),
+          creditedAt: '2026-03-03T12:00:00Z',
+        }),
+      ],
+    },
+  ];
+  const diagnostics = { wallets: new Map(), changes: [] };
+  sourceBalancesOnDays(ops, ['2026-03-03'], undefined, diagnostics);
+  expect(diagnostics.changes).toEqual([
+    {
+      id: 'expired',
+      reason: 'unexplained_balance_change',
+      key: 'asset:a',
+      date: '2026-03-03',
+      unitsE8: -400000000,
+      walletId: 'product',
+      previousLegId: 'start-leg',
+      legId: 'expired-leg',
+    },
+  ]);
+  ops[1]!.transactions[0]!.amount = asset('a', '5');
+  const explained = { wallets: new Map(), changes: [] };
+  sourceBalancesOnDays(ops, ['2026-03-03'], undefined, explained);
+  expect(explained.changes).toEqual([]);
 });

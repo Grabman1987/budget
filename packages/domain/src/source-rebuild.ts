@@ -117,7 +117,7 @@ export const rebuildStakedNowSchema = z
     return result;
   });
 
-/** Staking wallets are absent from source balances: reverse main-wallet movements from today. */
+/** Explicit override only; visible staking wallets remain the default reference. */
 export function sourceStakedAt(
   ops: SourceOperation[],
   day: string,
@@ -125,17 +125,31 @@ export function sourceStakedAt(
   now: ReadonlyMap<string, number>,
 ) {
   const result = new Map([...now].map(([key, units]) => [key, BigInt(units)]));
+  if (!now.size) return new Map<string, number>();
+  const diagnostics = { wallets: new Map<string, RebuildWalletBalance[]>() };
+  sourceBalancesOnDays(ops, [day, today], new Set(now.keys()), diagnostics);
+  const observed = (date: string, key: string) =>
+    diagnostics.wallets
+      .get(date)!
+      .filter((w) => w.key === key && w.staking)
+      .reduce((sum, w) => sum + BigInt(w.units), 0n);
+  for (const key of now.keys())
+    if (diagnostics.wallets.get(today)!.some((w) => w.key === key && w.staking))
+      result.set(key, result.get(key)! + observed(day, key) - observed(today, key));
   for (const op of ops.filter((op) => op.type === 'stake' || op.type === 'unstake'))
     for (const t of op.transactions) {
       if (
         !t.amount.assetId ||
         SECONDARY.has(t.type) ||
         rebuildLegDay(t) <= day ||
-        rebuildLegDay(t) > today
+        rebuildLegDay(t) > today ||
+        !now.has(sourceAmountKey(t.amount)) ||
+        diagnostics.wallets
+          .get(today)!
+          .some((w) => w.key === sourceAmountKey(t.amount) && w.staking) ||
+        (t.flow === 'OUTGOING') !== (op.type === 'stake')
       )
         continue;
-      if ((t.flow === 'OUTGOING') !== (op.type === 'stake'))
-        throw new RangeError('Staking direction conflicts');
       const key = sourceAmountKey(t.amount);
       result.set(
         key,
@@ -166,6 +180,28 @@ export interface RebuildFxOptions {
   currencies: { key: string; currency: string }[];
   rates: { currency: string; date: string; rateMicro: number; source: string }[];
 }
+export interface RebuildWalletBalance {
+  key: string;
+  walletId: string;
+  units: number;
+  staking: boolean;
+  leg: SourceOperation['transactions'][number];
+  operationId: string;
+  snapshotLeg: SourceOperation['transactions'][number] | null;
+  correctionLeg: SourceOperation['transactions'][number] | null;
+}
+export interface RebuildBalanceDiagnostics {
+  wallets: Map<string, RebuildWalletBalance[]>;
+  walletDays?: ReadonlySet<string>;
+  traceKeys?: ReadonlySet<string>;
+  legs?: {
+    operationId: string;
+    type: string;
+    leg: SourceOperation['transactions'][number];
+    sourceUnits: number;
+  }[];
+  changes?: RebuildIssue[];
+}
 
 /** Wallet snapshots are authoritative; subsequent flows replay exactly, wallets sum only at the end. */
 export function sourceBalancesAt(ops: SourceOperation[], day: string): Map<string, number> {
@@ -176,14 +212,32 @@ export function sourceBalancesOnDays(
   ops: SourceOperation[],
   days: string[],
   keys?: ReadonlySet<string>,
+  diagnostics?: RebuildBalanceDiagnostics,
 ): Map<string, Map<string, number>> {
-  const wallets = new Map<string, { key: string; value: bigint; snapshotAt: number | undefined }>();
+  const wallets = new Map<
+    string,
+    RebuildWalletBalance & { value: bigint; snapshotAt: number | undefined }
+  >();
   const groups = new Map<string, SourceOperation['transactions']>();
   const groupOf = new Map<string, string>();
+  const operationOf = new Map<string, SourceOperation>();
+  const mainWallets = new Set(
+    ops.flatMap((op) =>
+      op.transactions
+        .filter(
+          (t) =>
+            (op.type === 'stake' && t.flow === 'OUTGOING') ||
+            (op.type === 'unstake' && t.flow === 'INCOMING') ||
+            ((TRADING.has(op.type) || DELIVERIES.has(op.type)) && !SECONDARY.has(t.type)),
+        )
+        .map((t) => JSON.stringify([sourceAmountKey(t.amount), t.walletId])),
+    ),
+  );
   for (const op of ops)
     for (const t of op.transactions) {
       const group = JSON.stringify([op.id, tradeGroup(op, t)]);
       groupOf.set(t.id, group);
+      operationOf.set(t.id, op);
       groups.set(group, [...(groups.get(group) ?? []), t]);
     }
   const txs = ops
@@ -199,6 +253,8 @@ export function sourceBalancesOnDays(
     const key = sourceAmountKey(t.amount);
     if (!keys || keys.has(key)) {
       const wallet = JSON.stringify([key, t.walletId]);
+      const previous = wallets.get(wallet),
+        op = operationOf.get(t.id)!;
       const sign = t.flow === 'INCOMING' ? 1n : -1n;
       let value = (wallets.get(wallet)?.value ?? 0n) + sign * BigInt(native(t.amount));
       // An explicit fee leg already supplies the flow. Inline fees otherwise reduce the balance.
@@ -225,13 +281,62 @@ export function sourceBalancesOnDays(
         const n = sourceInteger(t.balanceAfter.value, t.amount.assetId ? 8 : 2);
         if (n === null || (!t.amount.assetId && t.balanceAfter.cents !== n))
           throw new RangeError('Unsupported balance precision');
+        if (previous?.snapshotLeg && value !== BigInt(n) && t.amount.assetId)
+          diagnostics?.changes?.push({
+            id: op.id,
+            key,
+            reason: 'unexplained_balance_change',
+            date: rebuildLegDay(t),
+            unitsE8: rebuildSafe(BigInt(n) - value),
+            walletId: t.walletId,
+            previousLegId: previous.snapshotLeg.id,
+            legId: t.id,
+          });
         value = BigInt(n);
       }
       wallets.set(wallet, {
         key,
+        walletId: t.walletId,
+        units: rebuildSafe(value),
+        staking:
+          previous?.staking ||
+          (t.amount.assetId !== null &&
+            t.flow === 'INCOMING' &&
+            (op.type === 'stake' || (!mainWallets.has(wallet) && REBUILD_REWARDS.has(op.type)))),
+        leg: t,
+        operationId: op.id,
+        snapshotLeg: t.balanceAfter ? t : (previous?.snapshotLeg ?? null),
+        correctionLeg: t.balanceAfter ? null : (previous?.correctionLeg ?? null),
         value,
         snapshotAt: t.balanceAfter ? Date.parse(t.creditedAt) : wallets.get(wallet)?.snapshotAt,
       });
+      if (
+        op.type === 'unstake' &&
+        t.amount.assetId &&
+        t.flow === 'INCOMING' &&
+        !SECONDARY.has(t.type) &&
+        !op.transactions.some(
+          (leg) =>
+            leg.flow === 'OUTGOING' &&
+            !SECONDARY.has(leg.type) &&
+            sourceAmountKey(leg.amount) === key,
+        )
+      ) {
+        const target = [...wallets.values()]
+          .filter(
+            (w) =>
+              w.key === key &&
+              w.staking &&
+              w.walletId !== t.walletId &&
+              w.value >= BigInt(native(t.amount)),
+          )
+          .sort((a, b) => Date.parse(b.leg.creditedAt) - Date.parse(a.leg.creditedAt))[0];
+        if (target) {
+          target.value -= BigInt(native(t.amount));
+          target.units = rebuildSafe(target.value);
+          target.correctionLeg = t;
+        }
+      }
     }
     for (const fee of [
       t.fee,
@@ -254,12 +359,33 @@ export function sourceBalancesOnDays(
         current = wallets.get(target);
       if ((current?.snapshotAt ?? -Infinity) < Date.parse(t.creditedAt))
         wallets.set(target, {
+          ...current!,
           key: feeKey,
+          walletId: counterparts[0]!.walletId,
+          units: rebuildSafe((current?.value ?? 0n) - BigInt(native(fee))),
+          staking: current?.staking ?? false,
+          leg: t,
+          operationId: operationOf.get(t.id)!.id,
+          snapshotLeg: current?.snapshotLeg ?? null,
+          correctionLeg: current?.correctionLeg ?? null,
           value: (current?.value ?? 0n) - BigInt(native(fee)),
           snapshotAt: current?.snapshotAt,
         });
       chargedTradeFees.add(identity);
     }
+    if (
+      (!keys || keys.has(key)) &&
+      t.amount.assetId &&
+      (!diagnostics?.traceKeys || diagnostics.traceKeys.has(key))
+    )
+      diagnostics?.legs?.push({
+        operationId: operationOf.get(t.id)!.id,
+        type: operationOf.get(t.id)!.type,
+        leg: t,
+        sourceUnits: rebuildSafe(
+          [...wallets.values()].filter((w) => w.key === key).reduce((sum, w) => sum + w.value, 0n),
+        ),
+      });
   };
   let index = 0;
   const history = new Map<string, Map<string, number>>();
@@ -268,6 +394,20 @@ export function sourceBalancesOnDays(
     const totals = new Map<string, bigint>();
     for (const { key, value } of wallets.values()) totals.set(key, (totals.get(key) ?? 0n) + value);
     history.set(day, new Map([...totals].map(([key, value]) => [key, rebuildSafe(value)])));
+    if (diagnostics && (!diagnostics.walletDays || diagnostics.walletDays.has(day)))
+      diagnostics.wallets.set(
+        day,
+        [...wallets.values()].map((w) => ({
+          key: w.key,
+          walletId: w.walletId,
+          units: rebuildSafe(w.value),
+          staking: w.staking,
+          leg: w.leg,
+          operationId: w.operationId,
+          snapshotLeg: w.snapshotLeg,
+          correctionLeg: w.correctionLeg,
+        })),
+      );
   }
   return history;
 }
@@ -341,6 +481,11 @@ export interface RebuildIssue {
   reason: string;
   key?: string;
   fiatEffectCents?: number | null;
+  date?: string;
+  unitsE8?: number;
+  walletId?: string;
+  previousLegId?: string;
+  legId?: string;
 }
 /** Primary units include an extra outgoing asset fee, or subtract it from an incoming leg. */
 export function rebuildAssetUnits(
@@ -388,7 +533,7 @@ export function planSourceRebuild(
   const trades: RebuildTrade[] = [],
     issues: RebuildIssue[] = [],
     unbooked: SourceOperation[] = [];
-  const rewards = new Map<string, RebuildTrade & { count: number }>();
+  const rewards = new Map<string, RebuildTrade & { count: number; operationIds: string[] }>();
   const rewardTypes = new Map<string, Map<string, number>>();
   const fx_converted: RebuildFxConversion[] = [];
   const fxCashMovements: { date: string; amountCents: number }[] = [];
@@ -468,10 +613,13 @@ export function planSourceRebuild(
     }
     // Only eligible unmapped fiat is converted. Bank-side operations retain native facts.
     const converted: RebuildFxConversion[] = [];
+    const fallback = new Map<string, RebuildIssue>();
     try {
       const rate = (code: string, day: string) => {
         if (code === 'EUR') return 1_000_000;
-        const r = fx.rates.find((r) => r.currency === code && r.date === day && r.source === 'ecb');
+        const r = fx.rates
+          .filter((r) => r.currency === code && r.date <= day && r.source === 'ecb')
+          .sort((a, b) => b.date.localeCompare(a.date))[0];
         if (!r) throw new RangeError(`Missing stored ECB rate: ${code} ${day}`);
         return r.rateMicro;
       };
@@ -481,13 +629,75 @@ export function planSourceRebuild(
           const day = rebuildLegDay(t);
           const convert = (a: SourceAmount | null, field: string): SourceAmount | null => {
             if (!a || a.assetId || sourceAmountKey(a) === cashKey) return a;
-            const code = fx.currencies.find((c) => c.key === sourceAmountKey(a))?.currency;
-            if (!code)
-              throw new RangeError('Unmapped fiat currency has no stored currency identity');
-            const from = rate(code, day),
+            const code =
+              fx.currencies.find((c) => c.key === sourceAmountKey(a))?.currency ?? 'unknown';
+            let from: number | null = null,
+              to: number | null = null,
+              cents: number;
+            try {
+              from = rate(code, day);
               to = rate(currency, day);
-            const cents = convertCashCents(native(a), from, to);
-            if (day >= since)
+            } catch (error) {
+              if (
+                !(error instanceof RangeError) ||
+                !error.message.startsWith('Missing stored ECB rate:') ||
+                currency !== 'EUR'
+              )
+                throw error;
+            }
+            if (from !== null && to !== null) cents = convertCashCents(native(a), from, to);
+            else {
+              const group = op.transactions.filter(
+                (leg) => tradeGroup(op, leg) === tradeGroup(op, t),
+              );
+              const principal = group.filter(
+                (leg) =>
+                  sourceAmountKey(leg.amount) === sourceAmountKey(a) && !SECONDARY.has(leg.type),
+              );
+              const direction =
+                SECONDARY.has(t.type) || field !== 'amount' ? principal[0]?.flow : t.flow;
+              const fiat = principal.filter((leg) => leg.flow === direction);
+              const assets = group.filter(
+                (leg) => leg.amount.assetId && !SECONDARY.has(leg.type) && leg.flow !== direction,
+              );
+              const values = assets.map((leg) => {
+                const m = mapping.get(sourceAmountKey(leg.amount));
+                return m?.securityId
+                  ? rebuildValue(
+                      prices,
+                      m.securityId,
+                      rebuildLegDay(leg),
+                      rebuildAssetUnits(leg, group),
+                      'EUR',
+                      7,
+                    )
+                  : null;
+              });
+              if (!assets.length || values.some((v) => v === null) || !fiat.length)
+                throw new RangeError('Missing stored ECB rate and recent EUR asset price');
+              const total = rebuildSafe(values.reduce<bigint>((sum, v) => sum + BigInt(v!), 0n));
+              const nativeTotal = fiat.reduce((sum, leg) => sum + BigInt(native(leg.amount)), 0n);
+              if (!nativeTotal)
+                throw new RangeError('Price fallback requires nonzero fiat principal');
+              // Principal uses asset value; ancillary fiat costs keep their ratio to that principal.
+              cents =
+                field === 'amount' && !SECONDARY.has(t.type)
+                  ? split(
+                      total,
+                      fiat.map((leg) => native(leg.amount)),
+                    )[fiat.indexOf(t)]!
+                  : rebuildSafe(
+                      (BigInt(native(a)) * BigInt(total) + nativeTotal / 2n) / nativeTotal,
+                    );
+              if (day >= since)
+                fallback.set(JSON.stringify([tradeGroup(op, t), sourceAmountKey(a), day]), {
+                  id: op.id,
+                  key: sourceAmountKey(a),
+                  date: day,
+                  reason: 'fx_fallback_price',
+                });
+            }
+            if (day >= since && from !== null && to !== null)
               converted.push({
                 id: op.id,
                 legId: `${t.id}:${field}`,
@@ -515,7 +725,8 @@ export function planSourceRebuild(
         }),
       };
       fx_converted.push(...converted);
-      if (converted.length) {
+      issues.push(...fallback.values());
+      if (converted.length || fallback.size) {
         const days = [...new Set(op.transactions.map(rebuildLegDay))].sort();
         const flowsOnly = (o: SourceOperation) => [
           { ...o, transactions: o.transactions.map((t) => ({ ...t, balanceAfter: null })) },
@@ -856,11 +1067,13 @@ export function planSourceRebuild(
                   unitsE8: rebuildSafe(BigInt(r.unitsE8) + BigInt(input.unitsE8)),
                   amountCents: rebuildSafe(BigInt(r.amountCents) + BigInt(input.amountCents)),
                   count: r.count + 1,
+                  operationIds: [...new Set([...r.operationIds, op.id])],
                 }
               : {
                   ...input,
                   importKey: `rebuild:reward:${input.date.slice(0, 7)}:${m.securityId}${input.kind === 'delivery_in' ? ':unpriced' : ''}`,
                   count: 1,
+                  operationIds: [op.id],
                 },
           );
         });
@@ -889,9 +1102,10 @@ export function planSourceRebuild(
   }
   const unitSources = new Map<string, { type: string; unitsE8: number }[]>();
   for (const [key, r] of rewards) {
-    trades.push({ ...r, note: `${r.count} source rewards (${r.date.slice(0, 7)})` });
+    const importKey = `${r.importKey}:source:${JSON.stringify(r.operationIds.sort())}`;
+    trades.push({ ...r, importKey, note: `${r.count} source rewards (${r.date.slice(0, 7)})` });
     unitSources.set(
-      r.importKey,
+      importKey,
       [...rewardTypes.get(key)!].map(([type, unitsE8]) => ({ type, unitsE8 })),
     );
   }
