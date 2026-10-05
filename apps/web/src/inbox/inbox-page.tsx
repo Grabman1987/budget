@@ -40,7 +40,7 @@ const LABELS: Record<InboxKind, string> = {
   stale_value: 'Veraltete Werte',
   consent: 'Einwilligungen',
   overspent: 'Überzogene Kategorien',
-  expected_payment: 'Erwartete Zahlungen',
+  expected_payment: 'Wiederkehrende Zahlungen',
   receivable: 'Kontakte',
   reconciliation: 'Kontoprüfung',
   backup: 'Sicherung',
@@ -391,7 +391,7 @@ function SourceLink({ item }: { item: InboxStored }) {
   if (item.refType === 'expected_payment')
     return (
       <AppLink className="btn btn-ghost btn-sm" to="/plan/erwartet">
-        Erwartete Zahlung prüfen
+        Wiederkehrende Zahlung prüfen
       </AppLink>
     );
   if (item.refType === 'encrypted_backup')

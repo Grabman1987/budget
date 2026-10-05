@@ -1,4 +1,6 @@
 import { useAmountPrivacy, cx, type SwatchKind } from '@budget/ui';
+import { InlineBookingCell } from './inline-booking-cell';
+import type { BookingPatch } from './api';
 import { keepSplit } from './booking-model';
 import { useQuery } from '@tanstack/react-query';
 import { ArrowDown, ArrowUp, Pencil } from 'lucide-react';
@@ -122,9 +124,11 @@ export function BookingTable({
             {head('Empfänger', 'payee')}
             {all && head('Konto', 'account')}
             {head('Kategorie')}
-            {head('Status')}
             {head('Betrag', 'amount', true)}
             {!all && head('Saldo', undefined, true)}
+            <th scope="col" className="kc-status">
+              <span className="sr-only">Status</span>
+            </th>
           </tr>
         </thead>
         <tbody>
@@ -162,6 +166,8 @@ export function BookingTable({
                   groups={lookups.data?.groups ?? []}
                   onCategory={setCategory}
                   onFlag={setFlag}
+                  onPatch={(patch) => writes.patch.mutateAsync({ id: b.id, patch })}
+                  busy={writes.patch.isPending}
                 />
               ))}
             </Fragment>
@@ -196,6 +202,8 @@ function Row({
   groups,
   onCategory,
   onFlag,
+  onPatch,
+  busy,
 }: {
   booking: ListedBooking;
   variant: 'account' | 'all';
@@ -206,6 +214,8 @@ function Row({
   groups: { id: string; name: string }[];
   onCategory: (b: ListedBooking, categoryId: string | null) => void;
   onFlag: (b: ListedBooking, flag: BookingFlag | null) => void;
+  onPatch: (patch: BookingPatch) => Promise<unknown>;
+  busy: boolean;
 }) {
   useAmountPrivacy();
   const flashing = useFlashing(b.id);
@@ -213,7 +223,12 @@ function Row({
   const checked = selection?.selected.has(b.id) ?? false;
   const label = `${b.payeeName ?? 'Buchung'} am ${shortDay(b.date)}`;
   return (
+    // Individual cell controls handle keyboard access; the rest of the row opens the dialog.
     <tr
+      onClick={(e) => {
+        if (!(e.target as HTMLElement).closest('button, input, select, .kflagmenu, .kinline'))
+          onOpen(b);
+      }}
       className={cx(
         b.status === 'pending' && 'is-pending',
         flashing && 'tx-flash',
@@ -238,7 +253,11 @@ function Row({
           onChange={(flag) => onFlag(b, flag === '' ? null : flag)}
         />
       </td>
-      <td className="kc-date kx-date">{shortDay(b.date)}</td>
+      <td className="kc-date kx-date">
+        <InlineBookingCell booking={b} field="date" onSave={onPatch} onOpen={() => onOpen(b)}>
+          {shortDay(b.date)}
+        </InlineBookingCell>
+      </td>
       <td className="kx-payee">
         <button
           type="button"
@@ -300,13 +319,17 @@ function Row({
           <CategoryCell booking={b} classes={classes} />
         )}
       </td>
-      <td className="kx-status">
-        <StatusCell status={b.status} />
-      </td>
       <td className="kc-num kx-amount">
-        <span className={b.currency === 'EUR' ? undefined : 'kfx-money'}>
-          {valuedCurrency(b.amountCents, b.currency, b.amountValuation, true)}
-        </span>
+        <InlineBookingCell
+          booking={b}
+          field="amountCents"
+          onSave={onPatch}
+          onOpen={() => onOpen(b)}
+        >
+          <span className={b.currency === 'EUR' ? undefined : 'kfx-money'}>
+            {valuedCurrency(b.amountCents, b.currency, b.amountValuation, true)}
+          </span>
+        </InlineBookingCell>
       </td>
       {variant === 'account' && (
         <td className="kc-num kc-run kx-run">
@@ -317,6 +340,22 @@ function Row({
           </span>
         </td>
       )}
+      <td className="kc-status kx-status">
+        <StatusCell
+          status={b.status}
+          iconOnly
+          disabled={busy}
+          onToggle={
+            b.status === 'reconciled'
+              ? undefined
+              : () => {
+                  void onPatch({ status: b.status === 'pending' ? 'confirmed' : 'pending' }).catch(
+                    () => undefined,
+                  );
+                }
+          }
+        />
+      </td>
     </tr>
   );
 }

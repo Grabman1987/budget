@@ -168,7 +168,7 @@ function IncomeBody({ data }: { data: IncomeReportData }) {
           <div
             className="mr-scroll"
             role="region"
-            aria-label="Erwartete Zahlungen, bei Bedarf horizontal verschiebbar"
+            aria-label="Wiederkehrende Zahlungen, bei Bedarf horizontal verschiebbar"
             // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- Keyboard users must be able to scroll the table.
             tabIndex={0}
           >
@@ -220,10 +220,10 @@ function IncomeBody({ data }: { data: IncomeReportData }) {
         )}
         <p className="vnote">
           {data.expectedMaterialised
-            ? 'Erwartete Zahlungen ordnet der Nachtlauf automatisch zu; Abweichungen landen im Posteingang.'
-            : 'Die erwarteten Zahlungen stammen aus dem Zahlungsplan und sind für diesen Monat noch nicht zugeordnet; ob sie eingegangen sind, zeigt die Tabelle darunter.'}
+            ? 'Wiederkehrende Zahlungen ordnet der Nachtlauf automatisch zu; Abweichungen landen im Posteingang.'
+            : 'Die wiederkehrenden Zahlungen stammen aus dem Zahlungsplan und sind für diesen Monat noch nicht zugeordnet; ob sie eingegangen sind, zeigt die Tabelle darunter.'}
           {data.foreignCurrencyCount > 0
-            ? ` ${data.foreignCurrencyCount} erwartete Zahlung${data.foreignCurrencyCount === 1 ? '' : 'en'} in Fremdwährung ${data.foreignCurrencyCount === 1 ? 'ist' : 'sind'} hier nicht enthalten.`
+            ? ` ${data.foreignCurrencyCount} wiederkehrende Zahlung${data.foreignCurrencyCount === 1 ? '' : 'en'} in Fremdwährung ${data.foreignCurrencyCount === 1 ? 'ist' : 'sind'} hier nicht enthalten.`
             : ''}
         </p>
       </section>

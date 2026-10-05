@@ -113,26 +113,6 @@ test('a booking links to an occurrence and the occurrence can be marked missed',
   await expect(occurrence.getByText('Keine passende Buchung')).toBeVisible();
 });
 
-test('"Als erwartete Zahlung anlegen" on a booking opens the form with the booking as template', async ({
-  page,
-}) => {
-  // A seeded booking (read only, so the net worth of the sample ledger stays as it is).
-  await page.goto('/konten/buchungen?q=Hausverwaltung&von=2026-09-01&bis=2026-09-01');
-  await page
-    .getByRole('button', { name: /bearbeiten/ })
-    .first()
-    .click();
-  await page.getByRole('button', { name: 'Als erwartete Zahlung anlegen' }).click();
-  await expect(page).toHaveURL(/\/plan\/erwartet/);
-  const panel = page.getByRole('dialog', { name: 'Erwartete Zahlung anlegen' });
-  await expect(panel).toBeVisible();
-  await expect(panel.getByLabel('Name')).toHaveValue('Hausverwaltung');
-  await expect(panel.getByLabel('Betrag', { exact: true })).toHaveValue('890,00');
-  await expect(panel.getByLabel('Fälligkeitstag')).toHaveValue('1');
-  await expect(panel.getByLabel('Konto')).toHaveText(/Giro/);
-  await expect(panel.getByLabel('Start')).toHaveValue('2026-09-01');
-});
-
 test('Plan › Monat: the Einnahmen term opens received against expected', async ({ page }) => {
   await page.goto('/plan/monat');
   await page

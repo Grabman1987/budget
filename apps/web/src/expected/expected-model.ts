@@ -5,6 +5,7 @@ import { eurOf, type ExpectedPayment, type Occurrence, type Rhythm } from './api
 /** Presentation rules of Plan › Erwartet. The figures themselves come from the API. */
 
 export const RHYTHM_LABEL: Record<Rhythm, string> = {
+  weekly: 'wöchentlich',
   monthly: 'monatlich',
   quarterly: 'vierteljährlich',
   semiannual: 'halbjährlich',
@@ -124,6 +125,7 @@ export function cadenceText(
     : p.dueDay === 31
       ? 'am Monatsletzten'
       : `am ${p.dueDay}.`;
+  if (p.rhythm === 'weekly') return 'w?chentlich';
   if (p.rhythm === 'monthly') return `monatlich ${day}`;
   const month = p.dueMonth ?? 1;
   if (p.rhythm === 'yearly')

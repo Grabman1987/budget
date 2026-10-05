@@ -38,7 +38,7 @@ export const CATEGORY_KINDS = [
 /** Kinds without a 50/30/20 class: income is not spending, the other two only pass money on. */
 export const CLASSLESS_KINDS = ['income', 'card_payment', 'advance'] as const;
 export const EXPECTED_KINDS = ['outflow', 'inflow'] as const;
-export const RHYTHMS = ['monthly', 'quarterly', 'semiannual', 'yearly'] as const;
+export const RHYTHMS = ['weekly', 'monthly', 'quarterly', 'semiannual', 'yearly'] as const;
 /** Move a due date that is no business day (Austria) to the previous or next business day. */
 export const DATE_SHIFTS = ['none', 'before', 'after'] as const;
 /** Payees the app itself uses (YNAB "Starting Balance", "Reconciliation/Manual Balance Adjustment"). */

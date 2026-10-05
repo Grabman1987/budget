@@ -82,7 +82,7 @@ export function LiquidityReportPage({ report, meta }: { report: ReportEntry; met
       meta={meta}
       title={report.name}
       subtitle={`${report.pos} · ${report.question}`}
-      reportDataBasis="Budget-Konten, erwartete Zahlungen und geplante Ereignisse"
+      reportDataBasis="Budget-Konten, wiederkehrende Zahlungen und geplante Ereignisse"
       standDay={view?.asOf}
     >
       <div className="kview rf-report liquidity-report">
@@ -236,9 +236,10 @@ function ForecastCard({
         </li>
       </ul>
       <p className="vnote">
-        Kontostand der Budget-Konten, erwartete Zahlungen und Einnahmen an ihren Fälligkeitstagen,
-        variable Kategorien nach Plan gleichmäßig über den Monat. Ein Überziehungsrahmen zählt nicht
-        als Geld. Rücklagen auf Konten außerhalb des Budgets bleiben draußen.
+        Kontostand der Budget-Konten, wiederkehrende Zahlungen und Einnahmen an ihren
+        Fälligkeitstagen, variable Kategorien nach Plan gleichmäßig über den Monat. Ein
+        Überziehungsrahmen zählt nicht als Geld. Rücklagen auf Konten außerhalb des Budgets bleiben
+        draußen.
       </p>
     </section>
   );
@@ -617,8 +618,8 @@ function MovementsCard({ report }: { report: LiquidityReport }) {
       </div>
       <p className="vnote">
         Je Monat: Anfang, Bewegungen ab 250 € und geplante Ereignisse, der Rest als eine Zeile,
-        Ende. Erwartete Zahlungen kommen aus den gespeicherten Verträgen, variable Kategorien nach
-        Plan. Zahlungen von Konten außerhalb des Budgets stehen nicht darin.
+        Ende. Wiederkehrende Zahlungen kommen aus den gespeicherten Verträgen, variable Kategorien
+        nach Plan. Zahlungen von Konten außerhalb des Budgets stehen nicht darin.
       </p>
     </section>
   );

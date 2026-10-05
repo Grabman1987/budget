@@ -63,6 +63,7 @@ export function useLedgerWrites() {
     Promise.all([
       qc.invalidateQueries({ queryKey: LEDGER_KEY }),
       qc.invalidateQueries({ queryKey: BUDGET_KEY }),
+      qc.invalidateQueries({ queryKey: ['expected'] }),
     ]);
 
   const offerUndo = (message: string, groupId: string) =>
@@ -107,8 +108,8 @@ export function useLedgerWrites() {
   });
 
   const patch = useMutation({
-    mutationFn: ({ id, patch: body }: { id: string; patch: BookingPatch }) =>
-      patchBooking(id, body),
+    mutationFn: ({ id, patch: body, key }: { id: string; patch: BookingPatch; key?: string }) =>
+      patchBooking(id, body, key),
     onMutate: async ({ id, patch: body }) => {
       const names = namesFrom(qc);
       flashRows([id]);

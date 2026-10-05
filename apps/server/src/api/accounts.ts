@@ -6,6 +6,7 @@ import {
   accounts,
   accountSummaries,
   balanceSeries,
+  accountPreview,
   netWorthValuationAsOf,
   booking,
   listReconciliations,
@@ -286,7 +287,20 @@ export function accountRoutes(db: Db, today: () => string): Hono {
       .where(and(eq(account.id, id), isNull(account.deletedAt)))
       .get();
     if (!acct) throw new ApiError(404, 'not_found', `Account ${id} not found`);
-    return c.json(seriesOf(cashValuer(db), id, acct.currency, range));
+    const value = cashValuer(db);
+    const preview = accountPreview(db, id, acct.currency, today(), range.previewDays);
+    return c.json({
+      ...seriesOf(value, id, acct.currency, range),
+      ...(range.previewDays > 0
+        ? {
+            previewPoints: preview.points.map((p) => ({
+              ...p,
+              valuation: value(p.balanceCents, acct.currency, today()),
+            })),
+            unavailableCurrencies: preview.unavailableCurrencies,
+          }
+        : {}),
+    });
   });
 
   app.get('/:id/reconciliations', (c) => {

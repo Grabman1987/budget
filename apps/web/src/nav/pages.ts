@@ -43,11 +43,11 @@ export const PAGES: ReadonlyArray<PageDef> = [
   },
   {
     path: '/plan/erwartet',
-    title: 'Plan · Erwartet',
+    title: 'Plan · Wiederkehrende Zahlungen',
     area: 'plan',
     register: 'erwartet',
     fills: P3,
-    spec: 'Erwartete Zahlungen mit versionierten Zeitplänen.',
+    spec: 'Wiederkehrende Zahlungen mit versionierten Zeitplänen.',
   },
   {
     path: '/plan/sparziele',

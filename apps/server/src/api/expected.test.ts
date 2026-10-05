@@ -94,7 +94,7 @@ describe('POST /expected, GET /expected', () => {
     delete noAmount['amountCents'];
     expect((await call('POST', '/expected', noAmount)).status).toBe(400);
     expect((await call('POST', '/expected', { ...rent, dueDay: 32 })).status).toBe(400);
-    expect((await call('POST', '/expected', { ...rent, rhythm: 'weekly' })).status).toBe(400);
+    expect((await call('POST', '/expected', { ...rent, rhythm: 'daily' })).status).toBe(400);
     expect((await call('POST', '/expected', { ...rent, amountCents: 10.5 })).status).toBe(400);
   });
 

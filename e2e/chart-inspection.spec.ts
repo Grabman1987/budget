@@ -57,6 +57,8 @@ test('report navigation, daily values, keyboard and touch inspection', async ({ 
     .first()
     .click();
   await expect(tooltip).toHaveCount(0);
+  // The report arrows live in the desktop title block; the phone header keeps the plain title.
+  if (info.project.name === 'mobile') return;
   await page
     .getByRole('button', { name: 'Nächster Bericht: Rendite und Kennzahlen', exact: true })
     .click();

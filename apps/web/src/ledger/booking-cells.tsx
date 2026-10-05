@@ -9,12 +9,43 @@ import type { BookingFlag, BookingStatus, ListedBooking } from './types';
 const STATUS_ICON = { pending: Clock, confirmed: Check, reconciled: CheckCheck } as const;
 
 /** Status with icon and word; colour is never the only signal. */
-export function StatusCell({ status }: { status: BookingStatus }) {
+export function StatusCell({
+  status,
+  iconOnly = false,
+  onToggle,
+  disabled = false,
+}: {
+  status: BookingStatus;
+  iconOnly?: boolean;
+  onToggle?: (() => void) | undefined;
+  disabled?: boolean;
+}) {
   const Icon = STATUS_ICON[status];
-  return (
-    <span className={status === 'pending' ? 'status' : 'status ok'}>
+  const content = (
+    <>
       <Icon className="icon" size={14} strokeWidth={1.75} aria-hidden="true" />
-      {STATUS_LABEL[status]}
+      {!iconOnly && STATUS_LABEL[status]}
+    </>
+  );
+  return onToggle ? (
+    <button
+      type="button"
+      className="kstatus-btn"
+      title={STATUS_LABEL[status]}
+      aria-label={STATUS_LABEL[status]}
+      onClick={onToggle}
+      disabled={disabled}
+    >
+      {content}
+    </button>
+  ) : (
+    <span
+      className={iconOnly ? 'kstatus-btn' : status === 'pending' ? 'status' : 'status ok'}
+      role={iconOnly ? 'img' : undefined}
+      title={STATUS_LABEL[status]}
+      aria-label={iconOnly ? STATUS_LABEL[status] : undefined}
+    >
+      {content}
     </span>
   );
 }
@@ -34,9 +65,13 @@ export function FlagCell({
   onChange: (flag: BookingFlag | '') => void;
 }) {
   if (booking.transferId) {
-    if (!booking.flag) return null;
     return (
-      <span className="kflag" title={`Markierung ${FLAG_LABEL[booking.flag]}`}>
+      <span
+        className="kflag"
+        title={
+          booking.flag ? `Markierung ${FLAG_LABEL[booking.flag]}` : 'Umbuchung: ohne Markierung'
+        }
+      >
         <FlagGlyph flag={booking.flag} size={16} />
       </span>
     );

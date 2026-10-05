@@ -37,10 +37,12 @@ export function PeriodQuickSelect({
   period: controlled,
   onChange,
   trend = true,
+  customOnly = false,
 }: {
   period?: Period;
   onChange?: (period: Period) => void;
   trend?: boolean;
+  customOnly?: boolean;
 }) {
   const search = useSearch({ strict: false }) as { zeitraum?: unknown; trend?: boolean };
   const navigate = useNavigate();
@@ -73,7 +75,8 @@ export function PeriodQuickSelect({
     YTD: 'year',
     Alles: 'all',
   };
-  const selected = custom ? 'custom' : (matching ?? legacy[period] ?? 'custom');
+  const selected =
+    customOnly && !custom ? '' : custom ? 'custom' : (matching ?? legacy[period] ?? 'custom');
   const valid = isCalendarRange(`${from}..${to}`) && to <= today.slice(0, 7);
   return (
     <div className="report-quick" role="group" aria-label="Berichtsfilter">
@@ -93,13 +96,20 @@ export function PeriodQuickSelect({
           }
         }}
       >
-        {REPORT_QUICK_OPTIONS.map(([value, label]) => (
-          <option key={value} value={value}>
-            {label}
+        {customOnly && (
+          <option value="" disabled>
+            Zeitraum…
           </option>
-        ))}
+        )}
+        {REPORT_QUICK_OPTIONS.filter(([value]) => !customOnly || value === 'custom').map(
+          ([value, label]) => (
+            <option key={value} value={value}>
+              {label}
+            </option>
+          ),
+        )}
       </Select>
-      {(custom || (selected === 'custom' && isCalendarRange(period))) && (
+      {(custom || (!customOnly && selected === 'custom' && isCalendarRange(period))) && (
         <form
           className="report-custom"
           onSubmit={(e) => {
