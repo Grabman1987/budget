@@ -426,6 +426,15 @@ Price history (yfinance + Ariva, source per price), ECB rates, trades and holdin
 
 
 ## P6 Reports und Umstellung
+### Portfolio composition — owner feedback 2026-10-05
+
+- [x] Additive parent/group migration; two-level lifecycle and audited moves; dated class targets and group Soll sums.
+- [x] Explicit operator assetClassTree, idempotent dry-run/savepoint/audit behavior and operator-only P2P defaults; account assignment in settings.
+- [x] One group/class sunburst, matching legend and group/class/product subtotals; shared segment inspection, no region chart and threshold-gated region table/editor link.
+- [ ] Final local check/build/browser verification, draft PR and CI review; owner visual acceptance and private reconciliation.
+
+Contract and operator/owner steps: [portfolio composition](portfolio-composition.md).
+
 ### Planning income and shared report ranges — 2026-10-03
 - [x] Plan › Monat: expected household income versus all envelope monthly target requirements, source label, surplus/gap and keyboard-accessible unfunded-category details; reuse target/carry calculations and stored monthly holds. Live dated schedules take precedence; without schedules use the median of the preceding three complete months (before today for future planning). Missing amounts/currency/history remain unavailable. The existing payday rule defines a date, not a salary amount.
 - [x] Shared quick choices on every implemented selectable period report, including Explorer saved views: current/previous month, 3/6/12 complete months, current/previous calendar year, all, custom inclusive calendar months. Legacy period URLs and segmented controls remain supported; partial current months stop at today. Month/year-only, fixed-source and forecast reports keep their existing controls.
