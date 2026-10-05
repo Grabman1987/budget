@@ -1,9 +1,45 @@
 // @vitest-environment jsdom
 import { cleanup, render, screen, fireEvent } from '@testing-library/react';
 import { afterEach, expect, it, vi } from 'vitest';
-import { HeutePaceChart, type PaceChartData } from './charts';
+import { DailyBudgetLine, HeutePaceChart, type PaceChartData } from './charts';
+import type { Heute } from './api';
 vi.mock('../charts/use-element-width', () => ({ useElementWidth: () => [vi.fn(), 360] }));
 afterEach(cleanup);
+const dailyData = {
+  stand: { payday: { day: '2026-10-15' } },
+  dailyBudget: { remainingDays: 10, perDayCents: 3800 },
+} as Heute;
+it('shows the daily budget with a formula on hover and keyboard focus', () => {
+  render(<DailyBudgetLine data={dailyData} />);
+  expect(screen.getByText('≈ 38 € pro Tag · noch 10 Tage bis zum Gehalt')).toBeTruthy();
+  const info = screen.getByRole('button', { name: 'Tagesbudget erklären' });
+  fireEvent.mouseEnter(info);
+  expect(screen.getByRole('tooltip').textContent).toBe(
+    'Frei verfügbar bis Gehalt geteilt durch die verbleibenden Tage einschließlich heute bis zum nächsten Gehalt (am Gehaltstag: ein Tag), auf ganze Euro gerundet.',
+  );
+  fireEvent.mouseLeave(info);
+  expect(screen.queryByRole('tooltip')).toBeNull();
+  fireEvent.focus(info);
+  expect(screen.getByRole('tooltip')).toBeTruthy();
+  fireEvent.keyDown(info, { key: 'Escape' });
+  expect(screen.queryByRole('tooltip')).toBeNull();
+});
+it.each([0, -1])('shows alarm copy without a daily figure for lead %i', (freeCents) => {
+  const { container } = render(
+    <DailyBudgetLine
+      data={
+        {
+          ...dailyData,
+          lead: { freeCents },
+          dailyBudget: { remainingDays: 10, perDayCents: null },
+        } as Heute
+      }
+    />,
+  );
+  expect(screen.getByText('Kein Spielraum bis zum Gehalt am 15.10.')).toBeTruthy();
+  expect(container.querySelector('.heute-daily-budget.is-alarm')).toBeTruthy();
+  expect(container.textContent).not.toContain('pro Tag');
+});
 const data: PaceChartData = {
   stand: { today: '2026-02-05' },
   pace: {

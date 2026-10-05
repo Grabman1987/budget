@@ -101,6 +101,52 @@
   .heute-balance-drawing {
     position: relative;
   }
+  .heute-daily-budget {
+    position: absolute;
+    z-index: 2;
+    inset: 94px 8px auto;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    color: var(--ink-2);
+    font-size: 14px;
+    font-variant-numeric: tabular-nums;
+  }
+  .heute-daily-budget.is-alarm {
+    color: var(--red);
+  }
+  .heute-daily-budget button {
+    display: grid;
+    place-items: center;
+    width: 44px;
+    height: 44px;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: inherit;
+    cursor: pointer;
+  }
+  .heute-daily-budget button:focus-visible {
+    outline: 2px solid var(--line);
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+  .heute-daily-help {
+    position: absolute;
+    z-index: 3;
+    inset: 100% 0 auto;
+    padding: 10px 12px;
+    border: 1px solid var(--rule-strong);
+    border-radius: 8px;
+    background: var(--raised);
+    color: var(--ink);
+    box-shadow: var(--card-shadow);
+    font-size: 13px;
+  }
+  .heute-balance-drawing.is-narrow .heute-daily-budget {
+    top: 58px;
+  }
   .heute-lead-figure:focus-visible {
     outline: 2px solid var(--line);
     outline-offset: 4px;
