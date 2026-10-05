@@ -979,8 +979,9 @@ native unit, micro-units), with one integer-cent rounding into cash's currency.
 Without an available rate, an EUR depot trade uses units times the stored EUR
 asset price, at most seven days old, and reports `fx_fallback_price`. Fiat fees
 and taxes preserve their native ratio to the principal with integer-cent rounding.
-Without both rate and recent price, the operation is skipped with a report line.
-Fiat interest without an asset price remains unavailable. No provider is fetched.
+Without both rate and recent price, use the nearest stored ECB rate of that
+currency in either direction, with `fx_nearest` and its `rateDate`. A currency
+without any stored ECB rate still skips. This also covers fiat interest. No provider is fetched.
 `fx_converted` retains currency, original amount/cents, source/target rate and
 converted cents. Their cash settlement uses the mapped cash account; cash
 verification adds the corresponding converted source flows to that account's
@@ -1004,9 +1005,19 @@ operation ID/type and running source/app units; and live trades with importKey,
 kind, signed units, gross/fee/tax cents and running app/source units. App trades
 have day precision; source legs retain their timestamps. The opening trace
 contains all earlier source legs/trades. Keep terminal output and JSON private.
-`unexplained_balance_change` reports snapshot deltas not explained by staged
-wallet legs, including leverage/expired products, with date, signed e8 units,
-wallet and both snapshot leg IDs. It reports the gap without inventing a trade.
+Wallet replay detects snapshot deltas not explained by staged wallet legs,
+including leverage/expired products. For mapped assets, the rebuild books these
+exact signed deltas as zero-valued `split` trades. `split_from_balance` reports
+their date, signed e8 units, wallet and both snapshot leg IDs.
+Changes on the same security/day sum under `rebuild:split:<securityId>:<day>`.
+
+After rebuilding, `dust` lists zero-valued deliveries dated today, with note
+`Rundungsausgleich Quelle` and key `rebuild:dust:<securityId>`. They close only
+nonzero unit differences worth strictly less than one unrounded EUR cent at the
+latest stored price on/before today (stored ECB conversion for foreign quotes).
+Without a stored price, the absolute difference must be strictly below 0.001
+units. Missing quote FX or larger differences stay reported. Repeated runs
+reuse the live dust row; deleted keys and reconciled locks retain their safeguards.
 
 Review the private preview against the platform, map missing assets, resolve quotes,
 locked/retained trades and opening cash separately, then run. Repeat to verify
@@ -1028,6 +1039,12 @@ Second-round local verification (2026-10-05): complete typecheck/lint, 317 suite
 and 3,066 tests passed; production build passed. The restricted Windows runtime
 used the existing ignored `os.userInfo()` test preload, without changing assertions.
 CI and private reconciliation remain owner steps.
+
+Third-round local verification (2026-10-05): complete `npm run check` passed
+(317 suites, 3,071 tests), and production build passed. The restricted Windows
+runtime used one test worker, extended test limits, one retry, the ignored
+`os.userInfo()` preload and native Node compile cache. Assertions and production
+dependencies are unchanged. CI and private reconciliation remain owner steps.
 
 ## 13. One-time Portfolio Performance migration (operator task)
 
