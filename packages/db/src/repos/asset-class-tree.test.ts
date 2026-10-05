@@ -55,6 +55,45 @@ it('keeps groups two levels deep, unassignable and protected from archive; moves
   expect(listAssetClasses(db).find((c) => c.id === 'c')?.parentId).toBe('g');
 });
 
+it('includes unmanaged cash-only classes in whole-portfolio group Ist without chart cents', () => {
+  const db = opened.db;
+  createAssetClass(db, { id: 'g', name: 'Gruppe A', isGroup: true }, ctx);
+  createAssetClass(db, { id: 'a', name: 'Klasse A', parentId: 'g' }, ctx);
+  createAssetClass(db, { id: 'b', name: 'Klasse B', parentId: 'g' }, ctx);
+  for (const [id, type, allocationAssetClassId, openingBalanceCents] of [
+    ['p', 'p2p', 'a', 101],
+    ['c', 'brokerage', 'b', 99],
+  ] as const)
+    accounts.create(
+      db,
+      {
+        id,
+        name: `Position ${id}`,
+        type,
+        role: 'investment',
+        onBudget: false,
+        openingDate: '2026-01-01',
+        openingBalanceCents,
+        allocationAssetClassId,
+      },
+      ctx,
+    );
+  const report = allocationReport(db, { today: '2026-01-01' });
+  expect(report.totalCents).toBe(200);
+  expect(report.classifiedCents).toBe(101);
+  expect(report.compositionGroups[0]).toMatchObject({
+    valueCents: 101,
+    shareBp: 10000,
+    portfolioShareBp: 10000,
+  });
+  expect(report.compositionGroups[0]?.classes.find((c) => c.assetClassId === 'b')).toMatchObject({
+    valueCents: 0,
+    shareBp: 0,
+    portfolioShareBp: 4950,
+    targetBp: null,
+  });
+});
+
 const tree = {
   groups: [{ name: 'Kryptogruppe', classes: ['Coin A', 'Coin B'] }],
   createClasses: ['Coin A', 'Coin B'],

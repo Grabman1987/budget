@@ -289,7 +289,6 @@ export function allocationReport(db: Executor, options: { today: string }): Allo
         .filter(
           (c) =>
             c.assetClassId !== null &&
-            c.targetBp !== null &&
             !compositionClasses.some((r) => r.assetClassId === c.assetClassId),
         )
         .map((c) => ({ ...c, valueCents: 0, shareBp: 0, products: [] })),
