@@ -134,6 +134,21 @@ describe('2.1 Ausgabenanalyse on a small ledger', () => {
     expect((await get(app, '/reports/spending/analysis?period=5J')).status).toBe(400);
   });
 
+  it('serves actual income/expense rows and the read-only goal additions', async () => {
+    spend('2026-08-03', 'essen', 12_000);
+    const before = opened.sqlite.prepare('select count(*) n from audit_log').get();
+    const report = await get(app, '/report-tables/income-expense');
+    expect(report.status).toBe(200);
+    expect(
+      report.body.months.find((m: { month: string }) => m.month === '2026-08').spending.essen,
+    ).toBe(12_000);
+    expect(report.body.splits).toHaveLength(1);
+    const goals = await get(app, '/goals/report');
+    expect(goals.status).toBe(200);
+    expect(goals.body.coverage).toMatchObject({ averageNeedCents: 1_000, months: 12 });
+    expect(opened.sqlite.prepare('select count(*) n from audit_log').get()).toEqual(before);
+  });
+
   it('never writes', async () => {
     spend('2026-08-03', 'miete', 60_000);
     const count = () =>
@@ -866,8 +881,7 @@ describe('2.4 Persönliche Inflation', () => {
     expect(years[2026]).toMatchObject({
       ownMonths: 8,
       referenceMonths: 8,
-      ownChangeBp: null,
-      referenceChangeBp: null,
+      throughMonth: '2026-08',
     });
     // Contracts with one stored price and no linked bookings are priced from their payee's bookings.
     expect(body.derivedContracts.map((c: any) => c.name).sort()).toEqual([
