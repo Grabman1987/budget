@@ -1,23 +1,11 @@
 import { cents } from '../money';
-import type { OverviewData, OverviewSplit } from '../overview';
+import { householdIncomeCents, type OverviewSplit } from '../overview';
 import { monthHouseholdIncome, type TableMeta, type TableMonth, type TableRow } from './tables';
 
-/** Shared household/refund/capital classification has already been applied by the ledger read. */
-export function incomeExpenseMonths(
-  data: OverviewData,
-  months: ReadonlyArray<string>,
-): TableMonth[] {
-  return months.map((month) => {
-    const income: Record<string, number> = {};
-    const spending: Record<string, number> = {};
-    for (const s of data.splits.filter((s) => s.date.startsWith(month))) {
-      const map = s.kind === 'income' ? income : spending;
-      const id = (s.kind === 'income' ? s.incomeTypeId : s.categoryId) ?? 'unclassified';
-      map[id] = cents((map[id] ?? 0) + s.amountCents);
-    }
-    return { month, income, spending, assigned: {}, netWorthCents: null, moneyAgeDays: null };
-  });
-}
+export const monthTotalSpending = (m: TableMonth) =>
+  cents(Object.values(m.spending).reduce((a, v) => a + v, 0));
+export const incomeExpenseNet = (m: TableMonth, meta: TableMeta) =>
+  cents(monthHouseholdIncome(m, meta) - monthTotalSpending(m));
 
 export function incomeExpenseRows(
   months: ReadonlyArray<TableMonth>,
@@ -47,17 +35,18 @@ export function incomeExpenseRows(
       rows.push(
         row(
           `inc:${t.id}`,
-          t.role === 'income'
+          t.role === 'unclassified'
             ? t.name
-            : `${t.name}${t.role === 'refund' ? ' ohne Kategorie' : ''} · außerhalb Haushaltseinnahmen`,
+            : t.role === 'income'
+              ? t.name
+              : `${t.name}${t.role === 'refund' ? ' ohne Kategorie' : ''} · außerhalb Haushaltseinnahmen`,
           t.role === 'income' ? 'income' : 'memo',
           1,
           values,
         ),
       );
   }
-  const totalSpend = (m: TableMonth) => cents(Object.values(m.spending).reduce((a, v) => a + v, 0));
-  rows.push(row('exp', 'Ausgaben', 'sum', 0, vals(totalSpend)));
+  rows.push(row('exp', 'Ausgaben', 'sum', 0, vals(monthTotalSpending)));
   for (const id of new Set(meta.categories.map((c) => c.groupId))) {
     const cats = meta.categories.filter((c) => c.groupId === id);
     const values = vals((m) => cats.reduce((a, c) => cents(a + (m.spending[c.id] ?? 0)), 0));
@@ -78,7 +67,7 @@ export function incomeExpenseRows(
       'Netto (Einnahmen − Ausgaben)',
       'result',
       0,
-      vals((m) => cents(monthHouseholdIncome(m, meta) - totalSpend(m))),
+      vals((m) => incomeExpenseNet(m, meta)),
     ),
     signed: true,
   });
@@ -92,7 +81,8 @@ export function incomeExpenseSources(
   key: string,
   months: ReadonlyArray<string>,
 ): OverviewSplit[] {
-  const household = (s: OverviewSplit) => s.kind === 'income' && s.incomeGroup === 'household';
+  const household = (s: OverviewSplit) =>
+    s.kind === 'income' && householdIncomeCents(s.amountCents, s.incomeTypeId, s.incomeGroup) !== 0;
   return splits.filter(
     (s) =>
       months.includes(s.date.slice(0, 7)) &&

@@ -53,11 +53,32 @@ export function matchedCharges(db: Executor, paymentId: string, currency: string
     )
     .all()
     .filter((r) => eligible(r.b))
-    .map((r) => ({ date: r.date, amountCents: bookedAmountIn(r.b, currency) }));
+    .map((r) => ({ bookingId: r.b.id, date: r.date, amountCents: bookedAmountIn(r.b, currency) }));
   if (linked.length > 0) return linked;
   const p = db.select().from(expectedPayment).where(eq(expectedPayment.id, paymentId)).get();
   if (!p?.payeeId || !p.categoryId) return linked;
-  const perBooking = new Map<string, { date: string; amountCents: number }>();
+  const siblings = db
+    .select()
+    .from(expectedPayment)
+    .where(
+      and(
+        eq(expectedPayment.payeeId, p.payeeId),
+        eq(expectedPayment.categoryId, p.categoryId),
+        eq(expectedPayment.kind, 'outflow'),
+        isNull(expectedPayment.deletedAt),
+      ),
+    )
+    .all();
+  const otherLinks = new Set(
+    db
+      .select()
+      .from(expectedOccurrence)
+      .where(isNull(expectedOccurrence.deletedAt))
+      .all()
+      .filter((o) => o.expectedPaymentId !== p.id && o.bookingId !== null)
+      .map((o) => o.bookingId),
+  );
+  const perBooking = new Map<string, { bookingId: string; date: string; amountCents: number }>();
   const rows = db
     .select({ b: booking, split: bookingSplit.amountCents })
     .from(booking)
@@ -74,7 +95,14 @@ export function matchedCharges(db: Executor, paymentId: string, currency: string
     )
     .all();
   for (const { b, split } of rows) {
-    if (!eligible(b)) continue;
+    if (!eligible(b) || otherLinks.has(b.id)) continue;
+    // With competing schedules only a unique in-force owner can establish a fallback match.
+    if (siblings.length > 1) {
+      const owners = siblings.filter(
+        (s) => (!s.startDate || s.startDate <= b.date) && (!s.endDate || s.endDate >= b.date),
+      );
+      if (owners.length !== 1 || owners[0]?.id !== p.id) continue;
+    }
     // A foreign-currency charge keeps its split's share of the original amount (integer cents).
     const amountCents =
       b.currency === currency || b.originalCurrency !== currency || b.originalAmountCents === null
@@ -84,7 +112,7 @@ export function matchedCharges(db: Executor, paymentId: string, currency: string
           : mulDivRound(split, Math.abs(b.originalAmountCents), Math.abs(b.amountCents));
     const sum = perBooking.get(b.id);
     if (sum) sum.amountCents = cents(sum.amountCents + amountCents);
-    else perBooking.set(b.id, { date: b.date, amountCents });
+    else perBooking.set(b.id, { bookingId: b.id, date: b.date, amountCents });
   }
   return [...perBooking.values()];
 }

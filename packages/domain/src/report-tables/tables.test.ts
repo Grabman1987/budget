@@ -182,6 +182,12 @@ describe('buildTableRows', () => {
     expect(tableRowAverage(sq!)).toBeNull();
   });
 
+  it('rounds signed half-cent averages away from zero', () => {
+    const row = group.find((r) => r.key === 'inc')!;
+    expect(tableRowAverage({ ...row, vals: [-1, 0] })).toBe(-1);
+    expect(tableRowAverage({ ...row, vals: [1, 0] })).toBe(1);
+  });
+
   it('orders the groups of a class by their total, largest first', () => {
     expect(keys(group).indexOf('need:g-home')).toBeLessThan(keys(group).indexOf('need:g-food'));
   });

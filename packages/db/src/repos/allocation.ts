@@ -2,6 +2,7 @@ import {
   addMonths,
   assignedMonth,
   incomeBudgetMonth,
+  householdIncomeCents,
   type AllocMonth,
   type AssignedCategory,
   type BudgetMonth,
@@ -19,17 +20,8 @@ import {
 } from '../schema';
 import { budget } from './queries';
 import { assertEurBudgetAccounts } from './account-invariants';
+import { incomeGroupOf } from './report-ledger';
 import type { Executor } from './types';
-
-/**
- * Income types that are never household income (owner decision 02.10.2026): dividends and
- * interest (Kapitalerträge) and refunds (Erstattungen). They stay out of the income base of
- * 50/30/20 and of everything derived from it (R01, R10, R11, Heute).
- */
-export const NOT_HOUSEHOLD_INCOME: ReadonlySet<string> = new Set([
-  INCOME_TYPES.capital.id,
-  INCOME_TYPES.refund.id,
-]);
 
 /** Uncategorized inflows and live income-category splits contribute to income read models. */
 export function isIncomeCategorySplit(categoryId: string | null, categoryKind: string | null) {
@@ -89,6 +81,8 @@ export function allocationMonth(
       incomeNextMonth: booking.incomeNextMonth,
       categoryId: bookingSplit.categoryId,
       categoryKind: category.kind,
+      contactId: bookingSplit.contactId,
+      openingDate: account.openingDate,
     })
     .from(bookingSplit)
     .innerJoin(booking, eq(booking.id, bookingSplit.bookingId))
@@ -113,10 +107,12 @@ export function allocationMonth(
     .filter(
       (s) =>
         isIncomeCategorySplit(s.categoryId, s.categoryKind) &&
+        s.contactId === null &&
+        s.date >= s.openingDate &&
         incomeBudgetMonth(s.date, s.incomeNextMonth) === month &&
         s.cents > 0 &&
         s.incomeTypeId !== INCOME_TYPES.special.id &&
-        !NOT_HOUSEHOLD_INCOME.has(s.incomeTypeId ?? ''),
+        householdIncomeCents(s.cents, s.incomeTypeId, incomeGroupOf(s.incomeTypeId)) !== 0,
     )
     .reduce((a, s) => a + s.cents, 0);
 

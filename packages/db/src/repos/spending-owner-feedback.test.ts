@@ -48,7 +48,7 @@ function fixed(id: string) {
 }
 
 describe('synthetic owner report read models', () => {
-  it('derived contract history keeps current schedule price, finds sustained rises, excludes end-dated payments', () => {
+  it('derived contract history keeps current schedule price, finds sustained rises, excludes one-off payments', () => {
     fixed('phone');
     createExpectedPayment(
       opened.db,
@@ -339,11 +339,15 @@ describe('synthetic owner report read models', () => {
     );
     charge('2026-08-03', 'interest', -800, 'p1', 'loan');
     const r = bankCostsReport(opened.db, today);
-    expect(r.monthly.find((m) => m.month === '2026-07')?.parts['interest']).toBe(1_200);
+    expect(r.monthly.find((m) => m.month === '2026-07')?.parts['modeledInterest']).toBe(1_200);
     expect(r.monthly.find((m) => m.month === '2026-08')?.parts['interest']).toBe(800);
-    expect(r.sources.find((s) => s.kind === 'interest')).toMatchObject({
-      cents: 2_000,
+    expect(r.sources.find((s) => s.kind === 'modeledInterest')).toMatchObject({
+      cents: 1_200,
       derived: true,
+    });
+    expect(r.sources.find((s) => s.kind === 'interest')).toMatchObject({
+      cents: 800,
+      derived: false,
     });
   });
   it('income/expense reads actual dates, nets refunds, excludes transfers and exposes exact subtotal bookings', () => {

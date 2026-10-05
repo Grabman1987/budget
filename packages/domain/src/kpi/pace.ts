@@ -148,10 +148,7 @@ export function paceModel(input: PaceInput): PaceModel {
       planToDateCents,
       deltaCents,
       forecastEndCents: spentCents + openFixedCents + remainingVariable,
-      forecastAvailable:
-        todayDay === dim ||
-        (todayDay >= 1 && todayDay < 7) ||
-        (todayDay >= 7 && input.limitCents > 0),
+      forecastAvailable: todayDay === dim || (todayDay >= 1 && input.limitCents > 0),
       limitCents: input.limitCents,
       variableSoFarCents,
       openFixedCents,

@@ -209,8 +209,10 @@ it('reconciles a calendar year across year report, monthly tables and cashflow, 
   const reconcile = async (expected: number) => {
     const tables = (await get('/report-tables/months')).body;
     const year = tables.months.filter((m: any) => m.month.startsWith('2025'));
+    // Typeless inflows stay visible but do not enter household income.
+    expect(year.find((m: any) => m.month === '2025-06').income.unclassified).toBe(1500);
     expect(year.reduce((sum: number, m: any) => sum + monthHouseholdIncome(m, tables), 0)).toBe(
-      302000,
+      300500,
     );
     expect(year.reduce((sum: number, m: any) => sum + monthConsumption(m, tables), 0)).toBe(
       expected,
@@ -218,7 +220,7 @@ it('reconciles a calendar year across year report, monthly tables and cashflow, 
     const annual = (await get('/overview/year?year=2025')).body.report.totals;
     const cash = (await get('/cashflow?period=2025-01..2025-12')).body.totals;
     for (const totals of [annual, cash])
-      expect(totals).toMatchObject({ incomeCents: 302000, consumptionCents: expected });
+      expect(totals).toMatchObject({ incomeCents: 300500, consumptionCents: expected });
   };
   expect(refund).toBeTruthy();
   await reconcile(97500);

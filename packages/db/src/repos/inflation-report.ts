@@ -3,6 +3,7 @@ import { category } from '../schema';
 import {
   addMonths,
   implicitContractRhythm,
+  contractBinding,
   derivePriceHistory,
   useTrailingMean,
   trailingPriceLevels,
@@ -101,10 +102,7 @@ export function inflationReport(db: Executor, today: string): InflationReport {
   }
   const fixed = contractSources(db)
     .filter(
-      (s) =>
-        s.categoryKind === 'fixed' &&
-        s.categoryId !== null &&
-        (s.endDate === null || s.endDate !== s.startDate),
+      (s) => s.categoryKind === 'fixed' && s.categoryId !== null && contractBinding(s) !== null,
     )
     .map((s) => {
       const charges = matchedCharges(db, s.id, s.versions[0]?.currency ?? 'EUR').filter(
@@ -225,7 +223,9 @@ export function inflationReport(db: Executor, today: string): InflationReport {
           available.map((m) => [
             m,
             allCharges
-              .filter((r) => r.payeeId === p.payeeId && r.date.startsWith(m))
+              .filter(
+                (r) => p.charges.some((c) => c.bookingId === r.bookingId) && r.date.startsWith(m),
+              )
               .reduce((a, r) => a - r.amountCents, 0),
           ]),
         ),

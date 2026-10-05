@@ -68,6 +68,44 @@ describe('owner report feedback with synthetic prices', () => {
     expect(result.basket[0]).toMatchObject({ baseCents: 60_000, nowCents: 59_400, changeBp: -100 });
     expect(result.contributionSumBp).toBe(result.inflationBp);
   });
+  it('links successors whose end and start share a month and retains the price step', () => {
+    const result = personalInflation({
+      available: months,
+      items: [item('old', 'rent', 0, 26, 60_000), item('new', 'rent', 26, 38, 54_000)],
+      baseConsumptionCents: 720_000,
+    });
+    expect(result.basketItems).toBe(1);
+    expect(result.basket[0]?.successors).toEqual(['new']);
+    expect(result.points[26]?.index).toBe(90);
+  });
+  it('a finite yearly schedule with only one due date is not bound', () => {
+    expect(
+      contractBinding(
+        {
+          categoryKind: 'fixed',
+          categoryStage: null,
+          rhythm: 'yearly',
+          dueDay: 3,
+          dueMonth: 1,
+          startDate: '2026-01-01',
+          endDate: '2026-06-30',
+        },
+        '2026-02-01',
+      ),
+    ).toBeNull();
+    expect(
+      contractBinding(
+        { categoryKind: 'fixed', categoryStage: null, endDate: '2026-09-17' },
+        '2026-09-17',
+      ),
+    ).toBe('fixed');
+    expect(
+      contractBinding(
+        { categoryKind: 'fixed', categoryStage: null, endDate: '2026-09-16' },
+        '2026-09-17',
+      ),
+    ).toBeNull();
+  });
   it('recognizes implicit monthly contracts, rejects sparse and irregular charges', () => {
     const charges = months.slice(0, 8).map((m) => ({ date: `${m}-03`, amountCents: -4_000 }));
     expect(implicitContractRhythm(charges)).toBe('monthly');
@@ -111,6 +149,10 @@ describe('owner report feedback with synthetic prices', () => {
     expect(levels['2024-01']).toBe(10_000);
     expect(levels['2024-02']).toBe(9_500);
   });
+  it('rounds a net credit half-cent in a trailing monthly price away from zero', () => {
+    const charges = [{ date: '2023-01-03', amountCents: 6 }];
+    expect(trailingPriceLevels(months, charges)['2023-12']).toBe(-1);
+  });
   it('year verdict is personal minus reference, December versus December', () => {
     const rent = item('rent', 'rent', 0, 38, 60_000);
     const reference = Object.fromEntries(months.map((m, i) => [m, i < 12 ? 100 : 102]));
@@ -128,12 +170,20 @@ describe('owner report feedback with synthetic prices', () => {
     expect(result.years.find((y) => y.year === 2026)?.throughMonth).toBe('2026-03');
     expect(result.years[0]?.ownChangeBp).toBeNull();
   });
-  it('excludes any ended or end-dated obligation from binding, uses stored current amounts with derived history', () => {
+  it('excludes ended and one-off obligations from binding, uses stored current amounts with derived history', () => {
     expect(
-      contractBinding({ categoryKind: 'fixed', categoryStage: null, endDate: '2027-01-01' }),
-    ).toBeNull();
+      contractBinding(
+        { categoryKind: 'fixed', categoryStage: null, endDate: '2027-01-01' },
+        '2026-09-17',
+      ),
+    ).toBe('fixed');
     expect(
-      contractBinding({ categoryKind: 'fixed', categoryStage: null, rhythm: 'once' }),
+      contractBinding({
+        categoryKind: 'fixed',
+        categoryStage: null,
+        startDate: '2026-09-01',
+        endDate: '2026-09-30',
+      }),
     ).toBeNull();
     const source: ContractSource = {
       id: 'phone',
@@ -193,7 +243,7 @@ describe('owner report feedback with synthetic prices', () => {
     const early = paceModel(input);
     expect(early.figures.forecastEndCents).toBe(100_000);
     expect(early.figures.forecastAvailable).toBe(true);
-    expect(paceModel({ ...input, limitCents: 0 }).figures.forecastAvailable).toBe(true);
+    expect(paceModel({ ...input, limitCents: 0 }).figures.forecastAvailable).toBe(false);
     expect(paceModel({ ...input, today: '2026-09-07' }).figures.forecastEndCents).toBe(81_429);
   });
 });

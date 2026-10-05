@@ -1,6 +1,5 @@
 import {
   addMonths,
-  incomeExpenseMonths,
   ageOfMoney,
   defaultParams,
   lastDayOfMonth,
@@ -10,6 +9,7 @@ import {
   resolveParams,
   type IncomeRole,
   type MoneyEvent,
+  type OverviewSplit,
   type SpendClass,
   type TableCategory,
   type TableIncomeType,
@@ -45,6 +45,7 @@ import type { Executor } from './types';
  */
 
 export interface ReportTables {
+  splits?: OverviewSplit[];
   asOf: string;
   currentMonth: string;
   /** First month with a budget account; `null` without one. */
@@ -88,7 +89,7 @@ function ruleTargets(db: Executor): ReportTables['targets'] {
 
 export function reportTables(
   db: Executor,
-  options: { today: string; withNetWorth?: boolean },
+  options: { today: string; withNetWorth?: boolean; withSources?: boolean },
 ): ReportTables {
   const { today } = options;
   const currentMonth = monthOf(today);
@@ -150,18 +151,22 @@ export function reportTables(
     role: roleOf(t.id),
   }));
 
+  incomeTypes.push({
+    id: 'unclassified',
+    name: 'Zuflüsse ohne Einkommensart (nicht gezählt)',
+    role: 'unclassified',
+  });
+
   const classOf = new Map(categories.map((c) => [c.id, c.class]));
   // Shared ledger classification: cash date, system entries excluded, refunds netted once.
   const ledger = overviewData(db);
-  const figures = overviewMonthlyFigures({
-    ...ledger,
-    splits: ledger.splits.filter((s) => s.date <= today),
-  });
+  const splits = ledger.splits.filter((s) => s.date <= today);
+  const figures = overviewMonthlyFigures({ ...ledger, splits });
   const income = new Map<string, Record<string, number>>();
   for (const [month, f] of figures) {
     const byType: Record<string, number> = {};
     for (const [id, cents] of Object.entries(f.incomeByType)) {
-      const type = id || INCOME_TYPES.other.id;
+      const type = id || 'unclassified';
       byType[type] = (byType[type] ?? 0) + cents;
     }
     income.set(month, byType);
@@ -202,6 +207,18 @@ export function reportTables(
     const row = setAside.get(month) ?? new Map<string, number>();
     row.set(s.categoryId, (row.get(s.categoryId) ?? 0) - s.amountCents);
     setAside.set(month, row);
+    if (options.withSources && s.bookingId)
+      splits.push({
+        bookingId: s.bookingId,
+        date: s.date,
+        kind: 'spend',
+        amountCents: -s.amountCents,
+        categoryId: s.categoryId,
+        incomeTypeId: null,
+        incomeGroup: null,
+        payeeId: s.payeeId ?? null,
+        payeeName: null,
+      });
   }
   const standDay = (month: string) => {
     const end = lastDayOfMonth(month);
@@ -240,6 +257,8 @@ export function reportTables(
       if (cents !== 0) spending[c.id] = cents;
       if (e.assignedCents !== 0) assigned[c.id] = e.assignedCents;
     }
+    const unknown = figures.get(month)?.uncategorisedCents ?? 0;
+    if (unknown !== 0) spending['unclassified'] = unknown;
     return {
       month,
       income: income.get(month) ?? {},
@@ -295,6 +314,7 @@ export function reportTables(
   }
 
   return {
+    ...(options.withSources ? { splits } : {}),
     asOf: today,
     currentMonth,
     firstMonth,
@@ -308,22 +328,8 @@ export function reportTables(
   };
 }
 
-/** 1.10: actual non-transfer ledger activity, never envelope allocations. */
+/** 1.10 uses the same category/month facts as 1.6/1.8, including Zukunft set-aside. */
 export function incomeExpenseReport(db: Executor, today: string) {
-  const tables = reportTables(db, { today });
-  const ledger = overviewData(db, { excludeTransfers: true });
-  const splits = ledger.splits.filter((s) => s.date <= today);
-  const incomeTypes = [
-    ...tables.incomeTypes,
-    { id: 'unclassified', name: 'Ohne Einnahmenart', role: 'income' as const },
-  ];
-  return {
-    ...tables,
-    incomeTypes,
-    months: incomeExpenseMonths(
-      { ...ledger, splits },
-      tables.months.map((m) => m.month),
-    ),
-    splits,
-  };
+  const tables = reportTables(db, { today, withSources: true });
+  return { ...tables, splits: tables.splits ?? [] };
 }

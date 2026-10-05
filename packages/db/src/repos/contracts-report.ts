@@ -1,5 +1,6 @@
 import {
   averageRateMicro,
+  contractBinding,
   contractSeries,
   contractPrices,
   contractsOverview,
@@ -112,6 +113,9 @@ export function contractSources(db: Executor): ContractSource[] {
         categoryKind: c?.kind ?? null,
         categoryStage: c?.stage ?? null,
         rhythm: p.rhythm,
+        dueDay: p.dueDay,
+        dueMonth: p.dueMonth,
+        dateShift: p.dateShift,
         startDate: p.startDate,
         endDate: p.endDate,
         versions: versions
@@ -133,7 +137,7 @@ export function contractSources(db: Executor): ContractSource[] {
 export function contractsReport(db: Executor, today: string): ContractsReport {
   const derivedContracts: string[] = [];
   const sources = contractSources(db)
-    .filter((s) => s.endDate === null)
+    .filter((s) => contractBinding(s) !== null)
     .map((s) => {
       const history = contractPrices(
         s.versions,
@@ -208,6 +212,7 @@ export function contractsReport(db: Executor, today: string): ContractsReport {
             continue;
           }
           const r = splits[0] as (typeof rows)[number];
+          if (r.amountCents >= 0 || (r.originalCents ?? 0) >= 0) continue;
           paidEur += Math.abs(r.amountCents);
           paidNative += Math.abs(r.originalCents as number);
           fee += Math.abs(r.fee ?? 0);

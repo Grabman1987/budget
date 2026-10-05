@@ -6,6 +6,7 @@ import {
   costsOverview,
   monthlyInterestCents,
   simulateLoan,
+  settlementCents,
   toEurCents,
   rateInForce,
   ExchangeRateUnavailableError,
@@ -101,6 +102,8 @@ export interface BankCostsReport extends CostsOverview {
   foreignFeeBookings: number;
   /** Trades of an account in another currency are not converted and not counted. */
   skippedForeignTrades: number;
+  /** Distinct source bookings omitted because their dated FX conversion is missing. */
+  skippedForeignBookings: number;
   sources: Array<{ id: string; name: string; kind: string; cents: number; derived: boolean }>;
   monthly: Array<{
     month: string;
@@ -126,6 +129,8 @@ export function bankCostsReport(db: Executor, today: string): BankCostsReport {
   const loanIds = new Set(accounts.filter((a) => a.type === 'loan').map((a) => a.id));
   const accountById = new Map(accounts.map((a) => [a.id, a]));
   const interest: Record<string, number> = {};
+  const modeledInterest: Record<string, number> = {};
+  const skippedBookings = new Set<string>();
   const fees: Record<string, number> = {};
   const overdraft: Record<string, number> = {};
   const orders: Record<string, number> = {};
@@ -171,13 +176,17 @@ export function bankCostsReport(db: Executor, today: string): BankCostsReport {
     if (b.fxFeeCents === null || b.fxFeeCents === 0 || b.transferId !== null) continue;
     const month = monthKey(b.date);
     const cost = convert(-b.fxFeeCents, b.currency, b.date);
-    if (cost === null) continue;
+    if (cost === null) {
+      skippedBookings.add(b.id);
+      continue;
+    }
     add(fx, month, cost);
     addSource(b.accountId, accountById.get(b.accountId)!.name, 'fx', month, cost);
     if (last12.has(month)) foreignFeeBookings++;
   }
   const liveIds = new Set(rows.map(({ b }) => b.id));
   const explicitMonths = new Set<string>();
+  const checkingInterestMonths = new Set<string>();
   const costSplits = db
     .select({ split: bookingSplit, b: booking, cat: category, groupName: categoryGroup.name })
     .from(bookingSplit)
@@ -188,6 +197,14 @@ export function bankCostsReport(db: Executor, today: string): BankCostsReport {
     .all();
   const liveTrades = db.select().from(trade).where(isNull(trade.deletedAt)).all();
   const tradeBookingIds = new Set(liveTrades.flatMap((t) => (t.bookingId ? [t.bookingId] : [])));
+  // Match each unlinked payout once by its settlement amount, day and cash account.
+  const unmatchedPayouts = liveTrades.filter(
+    (t) =>
+      (t.kind === 'dividend' || t.kind === 'interest') &&
+      !t.bookingId &&
+      inWindow.has(monthKey(t.date)) &&
+      accountById.has(t.accountId),
+  );
   for (const { split, b, cat, groupName } of costSplits) {
     if (
       !liveIds.has(b.id) ||
@@ -202,8 +219,18 @@ export function bankCostsReport(db: Executor, today: string): BankCostsReport {
       split.amountCents !== 0 &&
       !tradeBookingIds.has(b.id)
     ) {
-      const value = convert(split.amountCents, b.currency, b.date);
-      if (value !== null) add(earnings, month, value);
+      const match = unmatchedPayouts.findIndex(
+        (t) =>
+          t.date === b.date &&
+          t.accountId === b.accountId &&
+          settlementCents(t) === split.amountCents,
+      );
+      if (match >= 0) unmatchedPayouts.splice(match, 1);
+      else {
+        const value = convert(split.amountCents, b.currency, b.date);
+        if (value !== null) add(earnings, month, value);
+        else skippedBookings.add(b.id);
+      }
     }
     if (
       !cat ||
@@ -214,12 +241,17 @@ export function bankCostsReport(db: Executor, today: string): BankCostsReport {
     )
       continue;
     const value = convert(-split.amountCents, b.currency, b.date);
-    if (value === null) continue;
+    if (value === null) {
+      skippedBookings.add(b.id);
+      continue;
+    }
     const kind = loanIds.has(b.accountId)
       ? 'interest'
       : /sollzins|dispo|überziehungszins/i.test(cat.name)
         ? 'overdraft'
-        : 'account';
+        : /zins|interest/i.test(cat.name)
+          ? 'interest'
+          : 'account';
     const map = kind === 'interest' ? interest : kind === 'overdraft' ? overdraft : fees;
     add(map, month, value);
     addSource(
@@ -232,6 +264,7 @@ export function bankCostsReport(db: Executor, today: string): BankCostsReport {
       value,
     );
     if (kind === 'interest') {
+      if (accountById.get(b.accountId)?.type === 'checking') checkingInterestMonths.add(month);
       explicitMonths.add(`${b.accountId}:${month}`);
       const own = interestByAccount.get(b.accountId) ?? {};
       add(own, month, value);
@@ -264,6 +297,7 @@ export function bankCostsReport(db: Executor, today: string): BankCostsReport {
     for (const month of available) {
       if (
         explicitMonths.has(`${a.id}:${month}`) ||
+        checkingInterestMonths.has(month) ||
         (a.closedAt && a.closedAt.slice(0, 7) < month) ||
         (a.termEnd && a.termEnd.slice(0, 7) < month) ||
         month < monthOf(a.termStart ?? a.openingDate)
@@ -283,8 +317,8 @@ export function bankCostsReport(db: Executor, today: string): BankCostsReport {
           : 0);
       const value = convert(native, a.currency, `${month}-15`);
       if (value === null || value === 0) continue;
-      add(interest, month, value);
-      addSource(a.id, a.name, 'interest', month, value, true);
+      add(modeledInterest, month, value);
+      addSource(a.id, a.name, 'modeledInterest', month, value, true);
       const own = interestByAccount.get(a.id) ?? {};
       add(own, month, value);
       interestByAccount.set(a.id, own);
@@ -318,7 +352,12 @@ export function bankCostsReport(db: Executor, today: string): BankCostsReport {
   const incomeCents = window12.reduce((a, m) => a + (incomeByMonth.get(m) ?? 0), 0);
 
   const parts: CostPart[] = [
-    { key: 'interest', name: 'Kreditzinsen', monthly: interest },
+    { key: 'interest', name: 'Kreditzinsen · gebucht', monthly: interest },
+    {
+      key: 'modeledInterest',
+      name: 'Kreditzinsen · aus Konditionen geschätzt',
+      monthly: modeledInterest,
+    },
     { key: 'account', name: 'Kontoführung / Karten / Bankgebühren', monthly: fees },
     { key: 'orders', name: 'Depot- / Transaktionsgebühren', monthly: orders },
     { key: 'fx', name: 'Fremdwährungsgebühren', monthly: fx },
@@ -374,10 +413,10 @@ export function bankCostsReport(db: Executor, today: string): BankCostsReport {
     const debt = sources.filter((s) => s.categoryKind === 'debt');
     const minimum = contractsOverview(
       today,
-      debt.filter((s) => contractBinding(s) === 'fixed'),
+      debt.filter((s) => contractBinding(s, today) === 'fixed'),
       fxLookup,
     );
-    const extraSources = debt.filter((s) => contractBinding(s) === null);
+    const extraSources = debt.filter((s) => contractBinding(s, today) === null);
     const extra = contractsOverview(
       today,
       extraSources.map((s) => ({ ...s, categoryKind: 'fixed' as const })),
@@ -433,6 +472,7 @@ export function bankCostsReport(db: Executor, today: string): BankCostsReport {
     loanCount: loans.length,
     foreignFeeBookings,
     skippedForeignTrades,
+    skippedForeignBookings: skippedBookings.size,
   };
 }
 

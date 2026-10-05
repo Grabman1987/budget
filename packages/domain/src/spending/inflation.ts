@@ -1,4 +1,4 @@
-import { ratioBp, shareBps } from '../wealth/int';
+import { mulDivRound, ratioBp, shareBps } from '../wealth/int';
 import { addMonths } from '../date';
 import type { Rhythm } from '../schedule';
 import type { ContractVersion } from './contracts';
@@ -130,6 +130,7 @@ const empty = (): PersonalInflation => ({
 });
 
 /** Index values are ratios, not money: four decimals keep float noise out of the answer. */
+// Index/percentage rounding follows Math.round (ties towards +Infinity); money uses half-away mulDivRound.
 const round4 = (value: number) => Math.round(value * 10_000) / 10_000;
 
 const sumSpend = (item: InflationItem, months: ReadonlyArray<string>) =>
@@ -397,7 +398,7 @@ export function linkInflationSuccessors(
         old.rhythm === item.rhythm &&
         end &&
         start &&
-        end < start &&
+        end <= start &&
         start <= addMonths(end, 2 * cycle)
       );
     });
@@ -486,7 +487,7 @@ export function trailingPriceLevels(
       const total = charges
         .filter((c) => c.date.slice(0, 7) >= from && c.date.slice(0, 7) <= m)
         .reduce((a, c) => a - c.amountCents, 0);
-      return [m, first && from >= first ? Math.round(total / 12) : null];
+      return [m, first && from >= first ? mulDivRound(total, 1, 12) : null];
     }),
   );
 }
