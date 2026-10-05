@@ -50,7 +50,7 @@ export interface PaceFigures {
   deltaCents: number;
   /** Prognose Monatsende. */
   forecastEndCents: number;
-  /** At least seven elapsed days and a positive plan; completed months are actuals. */
+  /** Provisional from day one, then a positive plan; completed months are actuals. */
   forecastAvailable: boolean;
   limitCents: number;
   /** Variable spending so far (spent minus fixed costs already paid). */
@@ -129,8 +129,8 @@ export function paceModel(input: PaceInput): PaceModel {
     (input.fixedSpentCents ??
       fixed.reduce((a, f) => a + (f.paidCents ?? (isSettled(f) ? f.cents : 0)), 0));
   const remainingVariable =
-    todayDay === 0
-      ? variablePlan
+    todayDay < 7
+      ? Math.max(0, variablePlan - Math.max(0, variableSoFarCents))
       : Math.round((Math.max(0, variableSoFarCents) * (dim - todayDay)) / todayDay);
   const planToDateCents = plan[todayDay] ?? 0;
   const deltaCents = spentCents - planToDateCents;
@@ -148,7 +148,10 @@ export function paceModel(input: PaceInput): PaceModel {
       planToDateCents,
       deltaCents,
       forecastEndCents: spentCents + openFixedCents + remainingVariable,
-      forecastAvailable: todayDay === dim || (todayDay >= 7 && input.limitCents > 0),
+      forecastAvailable:
+        todayDay === dim ||
+        (todayDay >= 1 && todayDay < 7) ||
+        (todayDay >= 7 && input.limitCents > 0),
       limitCents: input.limitCents,
       variableSoFarCents,
       openFixedCents,

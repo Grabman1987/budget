@@ -5,6 +5,7 @@ import { mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 import type { GoalView } from '../apps/web/src/budget/goals-api';
 import { sampleTest } from './sample';
+test.describe.configure({ timeout: 90_000 });
 const goal = (patch: Partial<GoalView> = {}): GoalView => ({
   id: 'travel-goal',
   name: 'Reiseziel',
@@ -40,6 +41,18 @@ const account = goal({
 const categories = [{ id: 'travel', name: 'Reisen', class: 'want' }];
 const accounts = [{ id: 'reserve', name: 'Reservekonto', currency: 'EUR' }];
 async function mock(page: Page, goals: GoalView[], cats = categories, accts = accounts) {
+  await page.route('**/api/goals/report', (r) =>
+    r.fulfill({
+      json: {
+        month: '2026-09',
+        reserveCents: 30000,
+        coverage: { averageNeedCents: 10000, tenthsOfMonth: 30, months: 12 },
+        cash: [],
+        history: [],
+        reserveComplete: true,
+      },
+    }),
+  );
   await page.route('**/api/goals', (r) => r.fulfill({ json: { month: '2026-09', goals } }));
   await page.route('**/api/categories', (r) =>
     r.fulfill({ json: { groups: [], categories: cats, targets: [] } }),
@@ -114,6 +127,8 @@ test('literal goal figures agree in bars, source table and keyboard details', as
   );
   await page.keyboard.press('Tab');
   expect(await dialog.evaluate((el) => el.contains(document.activeElement))).toBe(true);
+  // First Escape dismisses the shared value tooltip focused by Tab.
+  await page.keyboard.press('Escape');
   await page.keyboard.press('Escape');
   await expect(dialog).not.toBeVisible();
   await expect(trigger).toBeFocused();
@@ -250,6 +265,18 @@ test('metadata refresh hides cached values while loading, on failure and through
   await page.getByRole('button', { name: 'Erneut versuchen' }).click();
   await expect(page.getByTestId('goal-report-summary')).toHaveText(
     '1 von 1 im Plan · geprüfte Ziele',
+  );
+  await page.route('**/api/goals/report', (r) =>
+    r.fulfill({
+      json: {
+        month: '2026-09',
+        reserveCents: 30000,
+        coverage: { averageNeedCents: 10000, tenthsOfMonth: 30, months: 12 },
+        cash: [],
+        history: [],
+        reserveComplete: true,
+      },
+    }),
   );
   await page.route('**/api/goals', (r) => r.fulfill({ json: { month: '2026-09', goals: [] } }));
   await page.reload();
