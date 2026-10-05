@@ -367,9 +367,8 @@ a.btn {
     display: none;
   }
   .sheet {
-    /* Room for the fixed tab bar, the floating + button above it and a little air, so the last
-       control of every page can be scrolled fully into view (audit D10a). */
-    padding: 8px 16px calc(var(--tabbar-h) + var(--fab-gap) + var(--fab-size) + 24px);
+    /* Clear the safe-area-aware tab bar and FAB, with 16 px above the floating action. */
+    padding: 8px 16px calc(var(--tabbar-h) + var(--fab-gap) + var(--fab-size) + 16px);
     row-gap: 36px;
     column-gap: 0;
     grid-template-columns: minmax(0, 1fr);
@@ -401,6 +400,7 @@ a.btn {
   }
   .m-head .icon-btn {
     position: relative;
+    flex: none;
   }
   .m-head .icon-btn .count {
     position: absolute;
@@ -439,6 +439,9 @@ a.btn {
     border-radius: 8px;
     background: var(--surface);
     box-shadow: var(--shadow-float);
+  }
+  .m-profile-actions .side-btn {
+    height: var(--touch);
   }
   /* The closed menu's content is not rendered, so a theme switch would start colour transitions
      that never get a frame to finish on (document.getAnimations() lingers for seconds). */
