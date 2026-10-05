@@ -1051,5 +1051,5 @@ it('keeps buys paid from a foreign fiat wallet away from the EUR cash account', 
   expect(accountSummaries(db, options.today).find((a) => a.id === cashId)!.balanceCents).toBe(
     114650,
   );
-  expect(result.cashEnd.differenceCents).toBe(2000);
+  expect(result.cashEnd!.differenceCents).toBe(2000);
 });
