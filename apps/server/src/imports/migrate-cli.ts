@@ -463,6 +463,7 @@ try {
             today: ctx.today,
             dryRun: args.includes('--dry-run'),
             unlock: args.includes('--unlock'),
+            residualToOpening: args.includes('--residual-to-opening'),
             stakedNow: optionsAll('staked-now'),
             trace: optionsAll('trace'),
           },
@@ -483,6 +484,8 @@ try {
       console.log('cash end', JSON.stringify(result.cashEnd));
       console.log('cash top 20', JSON.stringify(result.cashTop20));
       console.log('unit differences', JSON.stringify(result.units.filter((u) => u.differenceE8)));
+      console.log('residual to opening', JSON.stringify(result.residualToOpening));
+      console.log('residual to opening', JSON.stringify(result.residualToOpening));
       console.log('staked', JSON.stringify(result.staked));
       console.log('fx_converted', JSON.stringify(result.fx_converted));
       console.log(

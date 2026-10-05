@@ -939,3 +939,37 @@ it('rolls back both merger sides and settlements when the second key was deleted
       .filter((b) => b.importKey?.includes('blocked-merger')),
   ).toEqual([]);
 });
+
+it('moves a final unit residual into the opening correction with --residual-to-opening; dry-run, repeat and undo', () => {
+  stage('synthetic-residual', 'synthetic_unhandled', [
+    leg('residual-leg', options.today, asset('a', '0.00009')),
+  ]);
+  const before = liveState(),
+    counts = rowCounts();
+  const withFlag = { ...options, residualToOpening: true };
+  const dry = applySourceRebuild(db, { ...withFlag, dryRun: true }, ctx);
+  expect(dry.residualToOpening).toHaveLength(1);
+  expect(dry.residualToOpening[0]!.unitsE8).toBe(9000);
+  expect(
+    dry.residualToOpening[0]!.finalSourceUnitsE8 - dry.residualToOpening[0]!.finalAppUnitsE8,
+  ).toBe(9000);
+  expect(liveState()).toEqual(before);
+  expect(rowCounts()).toEqual(counts);
+  const report = applySourceRebuild(db, withFlag, ctx);
+  expect(report.dust).toEqual([]);
+  expect(report.issues.filter((i) => i.reason === 'residual_to_opening')).toHaveLength(1);
+  expect(report.units.filter((r) => r.date === options.today && r.differenceE8)).toEqual([]);
+  const opening = liveState();
+  expect(opening).toEqual(
+    expect.objectContaining({}), // state is serialisable
+  );
+  expect(JSON.stringify(opening)).toContain('rebuild:opening:');
+  const again = applySourceRebuild(db, withFlag, ctx);
+  expect(again.units.filter((r) => r.date === options.today && r.differenceE8)).toEqual([]);
+  // A repeat re-derives the opening then re-applies the residual: same values, fresh updatedAt.
+  const stable = (x: unknown) => JSON.stringify(x).replace(/"updatedAt":"[^"]*"/g, '');
+  expect(stable(liveState())).toEqual(stable(opening));
+  // Newest group first: the repeat re-touched the opening row.
+  undoAuditGroups(db, [again.groupId, report.groupId].filter(Boolean), ctx);
+  expect(liveState()).toEqual(before);
+});

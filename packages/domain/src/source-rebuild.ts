@@ -470,6 +470,22 @@ export function rebuildValue(
   if (!Number.isSafeInteger(value)) throw new RangeError('Stored-price value exceeds safe cents');
   return value;
 }
+/**
+ * Owner decision 75: a remaining final unit difference moves into the opening correction
+ * (never a correction trade in the history). Exact integer arithmetic; null = no residual.
+ */
+export function rebuildResidualToOpening(
+  openingUnitsE8: number,
+  finalAppUnitsE8: number,
+  finalSourceUnitsE8: number,
+): { adjustmentE8: number; openingUnitsE8: number } | null {
+  const adjustment = BigInt(finalSourceUnitsE8) - BigInt(finalAppUnitsE8);
+  if (!adjustment) return null;
+  return {
+    adjustmentE8: rebuildSafe(adjustment),
+    openingUnitsE8: rebuildSafe(BigInt(openingUnitsE8) + adjustment),
+  };
+}
 /** Compare the unrounded EUR value: rounding to cents would hide values up to 1.49 cents. */
 export function rebuildIsDust(unitsE8: number, priceMicro: number | null, rateMicro = 1_000_000) {
   if (

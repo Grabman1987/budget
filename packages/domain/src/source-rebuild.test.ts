@@ -8,6 +8,7 @@ import {
   sourceStakedAt,
   rebuildStakedNowSchema,
   rebuildIsDust,
+  rebuildResidualToOpening,
 } from './source-rebuild';
 
 const asset = (id: string, value = '1'): SourceAmount => ({
@@ -715,4 +716,18 @@ it('closes only nonzero dust strictly below one unrounded cent or 0.001 unpriced
   expect(rebuildIsDust(99999, null)).toBe(true);
   expect(rebuildIsDust(-100000, null)).toBe(false);
   expect(rebuildIsDust(0, null)).toBe(false);
+});
+
+it('moves the final unit residual into the opening correction (owner decision 75)', () => {
+  // Existing opening of 5 units, app ends 2 units above the source: opening shrinks to 3.
+  expect(rebuildResidualToOpening(500_000_000, 1_200_000_000, 1_000_000_000)).toEqual({
+    adjustmentE8: -200_000_000,
+    openingUnitsE8: 300_000_000,
+  });
+  // No opening yet, app ends below the source: a positive correction is created.
+  expect(rebuildResidualToOpening(0, 100, 175)).toEqual({ adjustmentE8: 75, openingUnitsE8: 75 });
+  // Opening cancels exactly: it becomes zero (caller removes the row).
+  expect(rebuildResidualToOpening(40, 90, 50)).toEqual({ adjustmentE8: -40, openingUnitsE8: 0 });
+  // No residual: nothing to move.
+  expect(rebuildResidualToOpening(7, 9, 9)).toBeNull();
 });

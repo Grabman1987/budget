@@ -914,6 +914,12 @@ everything. Exit 3 means skips, problems, unmatched fiat or unit differences;
 1 is an input/run error; 0 means none of these. Cash differences alone are reported
 because bank dates and an unadjusted opening balance can legitimately differ.
 
+With `--residual-to-opening` (owner decision 75) remaining final unit differences move
+to the start: each asset's opening correction at `since - 1 day` is adjusted by the exact
+difference (created if missing), listed under `residualToOpening` and as `residual_to_opening`
+issues, and no correction trades are placed in the history. Intermediate-day differences
+stay reported; `unitDifferences` counts only days still differing.
+
 1. Remove PP import trades on/after `since`, settlements and their `<key>:cash`
    Verrechnung transfer pair to cash, obsolete rebuild rows, and cash's
    `pp:cash-target:<account-id>` balancing booking (dated suffix supported).

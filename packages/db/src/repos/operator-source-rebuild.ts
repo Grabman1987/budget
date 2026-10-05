@@ -12,6 +12,7 @@ import {
   rebuildSafe,
   rebuildValue,
   rebuildIsDust,
+  rebuildResidualToOpening,
   sourceBalancesOnDays,
   daysBetween,
   sourceAmountKey,
@@ -76,6 +77,8 @@ export interface SourceRebuildOptions {
   today: string;
   dryRun?: boolean;
   unlock?: boolean;
+  /** Owner decision 75: move final unit residuals into the opening correction. */
+  residualToOpening?: boolean;
   stakedNow?: string[];
   trace?: string[];
 }
@@ -114,6 +117,12 @@ export interface SourceRebuildReport {
       createdUnitsE8: number;
       differenceE8: number;
     }[];
+  }[];
+  residualToOpening: {
+    securityId: string;
+    unitsE8: number;
+    finalAppUnitsE8: number;
+    finalSourceUnitsE8: number;
   }[];
   staked: { securityId: string; key: string; openingUnitsE8: number; todayUnitsE8: number }[];
   fx_converted: RebuildFxConversion[];
@@ -203,6 +212,7 @@ export function applySourceRebuild(
     aggregatedCashMatches: [],
     removedRows: { trades: 0, bookings: 0 },
     unmapped: [],
+    residualToOpening: [],
     createdByKind: {},
     counts: {},
   };
@@ -770,6 +780,69 @@ export function applySourceRebuild(
           }
         });
       }
+      if (options.residualToOpening)
+        // Owner decision 75: residuals move to the start, never into correction trades in the history.
+        for (const m of assets) {
+          const prefix = `rebuild:opening:${since}:${m.securityId}`;
+          const rows = listTrades(tx, { accountId: depot.id });
+          const opening = rows.find(
+            (t) => t.importKey === prefix || t.importKey?.startsWith(`${prefix}:source:`),
+          );
+          const finalApp = sumUnits(rows, m, today),
+            finalSource = sourceHistory.get(today)!.get(m.key) ?? 0;
+          const moved = rebuildResidualToOpening(opening?.unitsE8 ?? 0, finalApp, finalSource);
+          if (!moved) continue;
+          const importKey = opening?.importKey ?? `${prefix}:residual`;
+          attempt(importKey, (inner) => {
+            if (!moved.openingUnitsE8) {
+              if (opening) remove(inner, opening);
+            } else {
+              const value = rebuildValue(
+                prices,
+                m.securityId!,
+                openingDay,
+                moved.openingUnitsE8,
+                depot.currency,
+                0,
+              );
+              if (value === null)
+                report.issues.push({ id: importKey, key: m.key, reason: 'opening_no_price' });
+              const input: TradeInput = {
+                accountId: depot.id,
+                securityId: m.securityId!,
+                date: openingDay,
+                kind: moved.openingUnitsE8 > 0 ? 'delivery_in' : 'delivery_out',
+                unitsE8: moved.openingUnitsE8,
+                amountCents: value ?? 0,
+                feeCents: 0,
+                taxCents: 0,
+                importKey,
+                note: opening?.note ?? `Source opening at ${openingDay}`,
+                source: 'import',
+              };
+              if (opening) updateTrade(inner, opening.id, input, grouped, writeOptions);
+              else createTrade(inner, input, grouped);
+              report.outcomes.push({
+                id: importKey,
+                status: opening ? 'updated' : 'created',
+                trade: input,
+              });
+            }
+            report.residualToOpening.push({
+              securityId: m.securityId!,
+              unitsE8: moved.adjustmentE8,
+              finalAppUnitsE8: finalApp,
+              finalSourceUnitsE8: finalSource,
+            });
+            report.issues.push({
+              id: importKey,
+              key: m.key,
+              reason: 'residual_to_opening',
+              date: openingDay,
+              unitsE8: moved.adjustmentE8,
+            });
+          });
+        }
       for (const m of assets) {
         const importKey = `rebuild:dust:${m.securityId}`;
         attempt(importKey, (inner) => {
