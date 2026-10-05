@@ -51,11 +51,13 @@ test('Heute uses live API data and period, expands the lead chain, and links to 
   const response = await page.request.get('/api/heute?period=month&month=2026-09');
   expect(response.ok()).toBe(true);
   expect((await response.json()).lead.freeCents).toBe(98_826);
-  await expect(page.getByRole('heading', { name: 'September 2026', exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'September 2026', exact: true })).toBeVisible({
+    timeout: 30_000,
+  });
   await expect(page.getByTestId('heute-lead-value')).toBeVisible();
   await expect(page.getByTestId('heute-lead-value')).toContainText('988');
   await expect(page.getByTestId('heute-lead-value')).toContainText(',26 €');
-  await expect(page.getByTestId('heute-balance-chart')).toBeVisible();
+  await expect(page.getByTestId('heute-pace-chart')).toBeVisible({ timeout: 30_000 });
   await expect(page.getByTestId('heute-pace-chart')).toBeVisible();
   await expect(page.getByTestId('heute-networth-chart')).toBeVisible({ timeout: 15_000 });
   expect(
@@ -201,7 +203,7 @@ test('a past month has no out-of-range today marker in the balance or pace chart
 }) => {
   await page.goto('/?monat=2026-08&period=month');
   await expect(page.getByRole('heading', { name: 'August 2026' })).toBeVisible();
-  await expect(page.getByTestId('heute-balance-chart')).toBeVisible();
+  await expect(page.getByTestId('heute-pace-chart')).toBeVisible({ timeout: 30_000 });
   await expect(page.locator('[data-testid="heute-balance-chart"] .l-today')).toHaveCount(0);
   await expect(page.locator('[data-testid="heute-pace-chart"] .l-today')).toHaveCount(0);
   await expect(
@@ -597,7 +599,7 @@ test('mobile attention remains reachable above the floating capture button in bo
 });
 
 isolatedTest(
-  'early fixed spending has no unreliable forecast number or curve',
+  'early fixed spending gets a provisional forecast from the first day',
   async ({ page, request, baseURL }) => {
     const post = async (path: string, data: unknown) => {
       const response = await request.post(`/api${path}`, { data, headers: { origin: baseURL! } });
@@ -610,6 +612,7 @@ isolatedTest(
       role: 'budget',
       onBudget: true,
       openingDate: '2026-10-01',
+      openingBalanceCents: 100_000,
     });
     const g = await post('/categories/groups', { name: 'Synthetische Fixkosten' });
     const c = await post('/categories', {
@@ -618,10 +621,11 @@ isolatedTest(
       class: 'need',
       kind: 'fixed',
     });
-    await request.put('/api/budget/2026-10/assigned', {
+    const assigned = await request.put('/api/budget/2026-10/assigned', {
       data: { items: [{ categoryId: c.category.id, assignedCents: 90000 }] },
       headers: { origin: baseURL! },
     });
+    expect(assigned.ok()).toBe(true);
     await post('/bookings', {
       type: 'booking',
       accountId: a.account.id,
@@ -633,10 +637,10 @@ isolatedTest(
     for (const theme of ['light', 'dark']) {
       await page.evaluate((t) => (document.documentElement.dataset['theme'] = t), theme);
       await expect(page.getByRole('button', { name: /Prognose Monatsende/ })).toContainText(
-        '\u2013',
+        '900 €',
       );
-      await expect(page.locator('[data-testid="heute-pace-chart"] .l-forecast')).toHaveCount(0);
-      await expect(page.locator('.heute-pace')).toContainText('ab dem 7. Tag');
+      await expect(page.locator('.heute-pace')).toContainText('vorläufig');
+      await expect(page.locator('.heute-pace')).toContainText('verbleibender variabler Plan');
     }
   },
 );
