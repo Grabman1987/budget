@@ -3,6 +3,7 @@ import { allocationInputsAsOf, allocationUniverse } from './allocation-inputs';
 import {
   allocationTimeline,
   allocationChartPositions,
+  compositionGroups,
   allocationStatus,
   monthBoundaries,
   NO_REGION,
@@ -38,6 +39,8 @@ export interface AllocationProduct {
 }
 
 export interface AllocationClass {
+  /** Share of the whole, signed investment universe; composition shareBp uses classified value. */
+  portfolioShareBp: number;
   confidence: AllocationQuality['confidence'];
   /** `null` for positions without an asset class. */
   assetClassId: string | null;
@@ -77,6 +80,9 @@ export interface AllocationHistory {
 }
 
 export interface AllocationReport {
+  compositionGroups: AllocationGroup[];
+  regionsAvailable: boolean;
+  regionEditSecurityId: string | null;
   quality: AllocationQuality;
   classifiedCents: number;
   compositionClasses: AllocationClass[];
@@ -93,6 +99,8 @@ export interface AllocationReport {
   /** Month ends from the first day to today; `null` without history. */
   history: AllocationHistory | null;
 }
+
+export type AllocationGroup = ReturnType<typeof compositionGroups<AllocationClass>>[number];
 
 const NO_CLASS = '';
 
@@ -129,9 +137,8 @@ export function allocationReport(db: Executor, options: { today: string }): Allo
       .all()
       .map((s) => [s.id, s]),
   );
-  const classNames = new Map(
-    listAssetClasses(db, { includeDeleted: true }).map((c) => [c.id, c.name]),
-  );
+  const classDefinitions = listAssetClasses(db, { includeDeleted: true });
+  const classNames = new Map(classDefinitions.map((c) => [c.id, c.name]));
   const className = (key: string) => classNames.get(key) ?? 'Ohne Anlageklasse';
   const accountNames = new Map(
     db
@@ -222,6 +229,7 @@ export function allocationReport(db: Executor, options: { today: string }): Allo
       name: className(row.assetClass),
       valueCents: row.valueCents,
       shareBp: row.shareBp,
+      portfolioShareBp: row.shareBp,
       targetBp: row.targetBp,
       bandBp: row.bandBp,
       deviationBp: row.deviationBp,
@@ -273,6 +281,37 @@ export function allocationReport(db: Executor, options: { today: string }): Allo
             ? 'Anlage-Cash'
             : 'Ohne Anlageklasse',
     }));
+
+  const grouped = compositionGroups(
+    [
+      ...compositionClasses,
+      ...classes
+        .filter(
+          (c) =>
+            c.assetClassId !== null &&
+            c.targetBp !== null &&
+            !compositionClasses.some((r) => r.assetClassId === c.assetClassId),
+        )
+        .map((c) => ({ ...c, valueCents: 0, shareBp: 0, products: [] })),
+    ],
+    classDefinitions,
+  );
+  const heldSecurities = lines.filter((p) => !p.securityId.startsWith('cash:') && p.valueCents > 0);
+  const heldValue = heldSecurities.reduce((sum, p) => sum + p.valueCents, 0);
+  const regionValue = heldSecurities.reduce(
+    (sum, p) =>
+      sum +
+      splitByRegion(p.valueCents, parseRegionWeights(securities.get(p.securityId)?.regionsJson))
+        .filter((r) => r.region !== NO_REGION)
+        .reduce((s, r) => s + r.valueCents, 0),
+    0,
+  );
+  const regionsAvailable = heldValue > 0 && regionValue * 2 >= heldValue;
+  const regionEditSecurityId =
+    heldSecurities.find((p) => !parseRegionWeights(securities.get(p.securityId)?.regionsJson))
+      ?.securityId ??
+    heldSecurities[0]?.securityId ??
+    null;
 
   // Regions: every product's value split by its stored weights, conserved to the cent.
   const byRegion = new Map<string, AllocationRegion['products']>();
@@ -373,6 +412,9 @@ export function allocationReport(db: Executor, options: { today: string }): Allo
     quality: current.quality,
     classifiedCents,
     compositionClasses,
+    compositionGroups: grouped,
+    regionsAvailable,
+    regionEditSecurityId,
     compositionRegions,
     separatePositions,
     totalCents,

@@ -4,8 +4,77 @@ import {
   NO_REGION,
   parseRegionWeights,
   splitByRegion,
+  compositionGroups,
 } from './allocation-report';
 import type { WealthPosition } from './types';
+
+it('groups classified cents without changing shares; target-only classes contribute to group Soll', () => {
+  const rows = [
+    {
+      assetClassId: 'a',
+      name: 'Klasse A',
+      valueCents: 101,
+      shareBp: 5050,
+      portfolioShareBp: 2525,
+      targetBp: 2000,
+      products: [],
+    },
+    {
+      assetClassId: 'b',
+      name: 'Klasse B',
+      valueCents: 99,
+      shareBp: 4950,
+      portfolioShareBp: 2475,
+      targetBp: null,
+      products: [],
+    },
+    {
+      assetClassId: 'c',
+      name: 'Klasse C',
+      valueCents: 0,
+      shareBp: 0,
+      portfolioShareBp: 0,
+      targetBp: 1000,
+      products: [],
+    },
+  ];
+  const groups = compositionGroups(rows, [
+    { id: 'g', name: 'Gruppe A', parentId: null },
+    { id: 'a', name: 'Klasse A', parentId: 'g' },
+    { id: 'c', name: 'Klasse C', parentId: 'g' },
+  ]);
+  expect(
+    groups.map((g) => [
+      g.name,
+      g.valueCents,
+      g.shareBp,
+      g.portfolioShareBp,
+      g.targetBp,
+      g.deviationBp,
+    ]),
+  ).toEqual([
+    ['Gruppe A', 101, 5050, 2525, 3000, -475],
+    ['Klasse B', 99, 4950, 2475, null, null],
+  ]);
+  expect(groups[0]?.classes.map((c) => c.assetClassId)).toEqual(['a', 'c']);
+});
+
+it('sums signed group cents exactly and rejects unsafe totals', () => {
+  const rows = [Number.MAX_SAFE_INTEGER, 2, -2].map((valueCents, i) => ({
+    assetClassId: `class-${i}`,
+    name: `Klasse ${i}`,
+    valueCents,
+    shareBp: 0,
+    portfolioShareBp: 0,
+    targetBp: null,
+  }));
+  const definitions = [
+    ...rows.map((row) => ({ id: row.assetClassId, name: row.name, parentId: 'group' })),
+    { id: 'group', name: 'Gruppe', parentId: null },
+  ];
+  expect(compositionGroups(rows, definitions)[0]?.valueCents).toBe(Number.MAX_SAFE_INTEGER);
+  expect(() => compositionGroups(rows.slice(0, 2), definitions)).toThrow(RangeError);
+});
 
 describe('parseRegionWeights', () => {
   it('reads valid weights', () => {

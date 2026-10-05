@@ -1,4 +1,5 @@
 import { allocationStatus, type ClassTarget } from './allocation';
+import { cents } from '../money/cents';
 import type { WealthPosition } from './types';
 
 /**
@@ -146,4 +147,61 @@ export function allocationChartPositions(positions: ReadonlyArray<WealthPosition
       p.assetClass != null &&
       !(p.securityId?.startsWith('cash:') && p.kind !== 'p2p'),
   );
+}
+
+/** Two-level grouping decorates the existing cent/share projection, including target-only rows. */
+export function compositionGroups<
+  T extends {
+    assetClassId: string | null;
+    name: string;
+    valueCents: number;
+    shareBp: number;
+    portfolioShareBp: number;
+    targetBp: number | null;
+  },
+>(
+  classes: readonly T[],
+  definitions: readonly { id: string; name: string; parentId: string | null }[],
+) {
+  const groups = new Map<
+    string,
+    {
+      assetClassId: string;
+      name: string;
+      valueCents: number;
+      shareBp: number;
+      portfolioShareBp: number;
+      targetBp: number | null;
+      deviationBp: number | null;
+      classes: T[];
+    }
+  >();
+  for (const cls of classes) {
+    if (cls.assetClassId === null) continue;
+    const definition = definitions.find((d) => d.id === cls.assetClassId);
+    const parent = definitions.find((d) => d.id === definition?.parentId);
+    const id = parent?.id ?? cls.assetClassId;
+    const group = groups.get(id) ?? {
+      assetClassId: id,
+      name: parent?.name ?? cls.name,
+      valueCents: 0,
+      shareBp: 0,
+      portfolioShareBp: 0,
+      targetBp: null,
+      deviationBp: null,
+      classes: [],
+    };
+    group.classes.push(cls);
+    group.shareBp += cls.shareBp;
+    group.portfolioShareBp += cls.portfolioShareBp;
+    if (cls.targetBp !== null) group.targetBp = (group.targetBp ?? 0) + cls.targetBp;
+    group.deviationBp = group.targetBp === null ? null : group.portfolioShareBp - group.targetBp;
+    groups.set(id, group);
+  }
+  return [...groups.values()].map((group) => ({
+    ...group,
+    valueCents: cents(
+      Number(group.classes.reduce((sum, cls) => sum + BigInt(cents(cls.valueCents)), 0n)),
+    ),
+  }));
 }
