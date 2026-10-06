@@ -1,5 +1,6 @@
 import { useAmountPrivacy, Button } from '@budget/ui';
 import { useQuery } from '@tanstack/react-query';
+import type { Period } from '@budget/domain';
 import { useNavigate, useSearch } from '@tanstack/react-router';
 import { useState } from 'react';
 import { accountsQuery } from '../ledger/queries';
@@ -16,15 +17,23 @@ export function SavingsSection() {
   const plans = useQuery(savingsPlansQuery());
   const accounts = useQuery(accountsQuery());
   const instruments = useQuery(instrumentsQuery());
-  const search = useSearch({ strict: false }) as { sparplan?: string };
+  const search = useSearch({ strict: false }) as {
+    sparplan?: string;
+    zeitraum?: Period;
+  };
   const navigate = useNavigate();
   const [includeEnded, setIncludeEnded] = useState(false);
   const select = (sparplan?: string) =>
     void navigate({
-      to: '/vermoegen/portfolio',
+      to:
+        sparplan && sparplan !== 'neu'
+          ? '/vermoegen/portfolio/sparplan/$id'
+          : '/vermoegen/portfolio',
+      params: { id: sparplan ?? '' },
+      state: { wealthDetailOpenedInApp: true },
       search: ((prev: Record<string, unknown>) => ({
         ...prev,
-        sparplan,
+        sparplan: sparplan === 'neu' ? sparplan : undefined,
         produkt: undefined,
         handel: undefined,
         allokation: undefined,

@@ -361,7 +361,39 @@ const portfolioRoute = createRoute({
         ? search['handel']
         : undefined,
   }),
+  beforeLoad: ({ search }) => {
+    if (search.sparplan && search.sparplan !== 'neu')
+      throw redirect({
+        to: '/vermoegen/portfolio/sparplan/$id',
+        params: { id: search.sparplan },
+        search: { zeitraum: search.zeitraum },
+      });
+    if (!search.sparplan && search.produkt && search.produkt !== 'neu')
+      throw redirect({
+        to: '/vermoegen/portfolio/instrument/$id',
+        params: { id: search.produkt },
+        search: { zeitraum: search.zeitraum, handel: search.handel },
+      });
+  },
   component: lazyRouteComponent(() => import('./wealth/portfolio-page'), 'PortfolioPage'),
+});
+const instrumentRoute = createRoute({
+  getParentRoute: () => shellRoute,
+  path: '/vermoegen/portfolio/instrument/$id',
+  staticData: { meta: { ...VERMOEGEN_PORTFOLIO_META, title: 'Instrument' } },
+  validateSearch: (search: Record<string, unknown>) => ({
+    handel:
+      typeof search['handel'] === 'string' && search['handel'].length <= 64
+        ? search['handel']
+        : undefined,
+  }),
+  component: lazyRouteComponent(() => import('./wealth/portfolio-detail-page'), 'InstrumentPage'),
+});
+const savingsPlanRoute = createRoute({
+  getParentRoute: () => shellRoute,
+  path: '/vermoegen/portfolio/sparplan/$id',
+  staticData: { meta: { ...VERMOEGEN_PORTFOLIO_META, title: 'Sparplan' } },
+  component: lazyRouteComponent(() => import('./wealth/portfolio-detail-page'), 'SavingsPlanPage'),
 });
 const debtsRoute = createRoute({
   getParentRoute: () => shellRoute,
@@ -562,6 +594,8 @@ const routeTree = rootRoute.addChildren([
     freedomRoute,
     netWorthRoute,
     portfolioRoute,
+    instrumentRoute,
+    savingsPlanRoute,
     debtsRoute,
     planGoalsRoute,
     ...redirects,
@@ -582,7 +616,9 @@ const routeTree = rootRoute.addChildren([
 
 export const router = createRouter({
   routeTree,
-  scrollRestoration: ({ location }) => location.pathname.startsWith('/plan/monat'),
+  scrollRestoration: ({ location }) =>
+    location.pathname.startsWith('/plan/monat') ||
+    location.pathname.startsWith('/vermoegen/portfolio'),
 });
 
 declare module '@tanstack/react-router' {
