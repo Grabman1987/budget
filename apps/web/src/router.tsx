@@ -532,7 +532,7 @@ const routeTree = rootRoute.addChildren([
           title: 'Monatsabschluss',
           area: 'plan',
           fills: 'F1',
-          spec: 'Geführter Monatsabschluss, Schritte 1–3.',
+          spec: 'Geführter Monatsabschluss mit Plan für den nächsten Monat und Rückblick.',
         },
       },
       component: lazyRouteComponent(

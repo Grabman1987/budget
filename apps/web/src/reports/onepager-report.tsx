@@ -9,7 +9,7 @@ import {
   DimensionChain,
   RevisionTriangle,
 } from '@budget/ui';
-import { cents, MINUS } from '@budget/domain';
+import { cents, MINUS, monthCloseVerdict } from '@budget/domain';
 import { useQuery } from '@tanstack/react-query';
 import { HeutePaceChart } from '../heute/charts';
 import { eur, eurParts, longDay } from '../ledger/format';
@@ -62,13 +62,19 @@ export function OnePagerReport({ report, meta }: { report: ReportEntry; meta: Pa
             Monatsblatt.
           </EmptyNote>
         )}
-        {data && !data.beforeRecords && <Sheet data={data} />}
+        {data && !data.beforeRecords && <OnePagerSheet data={data} />}
       </div>
     </MonthReportFrame>
   );
 }
 
-function Sheet({ data }: { data: OnePagerData }) {
+export function OnePagerSheet({
+  data,
+  linkVerdict = false,
+}: {
+  data: OnePagerData;
+  linkVerdict?: boolean;
+}) {
   useAmountPrivacy();
   const { result } = data;
   const parts = eurParts(result.savedCents);
@@ -99,6 +105,15 @@ function Sheet({ data }: { data: OnePagerData }) {
               </span>
             </div>
           </header>
+          <p data-testid="month-close-verdict">
+            {linkVerdict ? (
+              <AppLink to="/reports/onepager" search={{ monat: data.month }}>
+                {monthCloseVerdict(result, eur)}
+              </AppLink>
+            ) : (
+              monthCloseVerdict(result, eur)
+            )}
+          </p>
           <DimensionChain
             label="Maßkette des Monats"
             precision="euro"

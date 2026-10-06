@@ -2,7 +2,7 @@ import { expect } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
 import { test } from './isolated-ledger';
 
-test('guided month close uses existing actions, resumes and leaves F2 pending', async ({
+test('guided month close walks all five steps, undoes the whole plan and keeps an editable close marker', async ({
   page,
   isolatedLedger,
 }, info) => {
@@ -118,18 +118,61 @@ test('guided month close uses existing actions, resumes and leaves F2 pending', 
     await screenshot(`month-close-${scheme}.png`);
   }
   await page.getByRole('button', { name: 'Weiter', exact: true }).click();
+  await expect(page.getByRole('heading', { name: '4. Nächsten Monat planen' })).toBeVisible();
+  await page.getByLabel('Plan für Musterbedarf').fill('95,50');
+  await expect(page.getByTestId('close-plan-remaining')).toContainText('0,00');
+  await expect(page.getByRole('button', { name: 'Weiter', exact: true })).toBeDisabled();
+  await page.getByRole('button', { name: 'Plan übernehmen · alle', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Weiter', exact: true })).toBeEnabled();
+  await page
+    .locator('.toast.is-open')
+    .getByRole('button', { name: 'Rückgängig', exact: true })
+    .click();
+  await expect(page.getByTestId('close-plan-remaining')).toContainText('95,50');
+  await expect(page.getByRole('button', { name: 'Weiter', exact: true })).toBeDisabled();
+  await page.getByLabel('Plan für Musterbedarf').fill('95,50');
+  await page.getByRole('button', { name: 'Plan übernehmen · alle', exact: true }).click();
+  for (const scheme of ['light', 'dark'] as const) {
+    await page.emulateMedia({ colorScheme: scheme });
+    expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
+    expect(
+      await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth),
+    ).toBe(true);
+    await screenshot(`month-close-plan-${scheme}.png`);
+  }
+  if (info.project.name === 'mobile') await expectNextClear();
+  await page.getByRole('button', { name: 'Weiter', exact: true }).click();
+  await expect(page.getByRole('heading', { name: '5. Rückblick' })).toBeVisible();
   await expect(
-    page.getByText('Dieser Schritt folgt. Der Monatsabschluss ist noch nicht vollständig.'),
+    page.getByRole('article', { name: 'Monats-One-Pager September 2026' }),
+  ).toBeVisible();
+  await expect(page.getByTestId('month-close-verdict')).toBeVisible();
+  for (const scheme of ['light', 'dark'] as const) {
+    await page.emulateMedia({ colorScheme: scheme });
+    expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
+    expect(
+      await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth),
+    ).toBe(true);
+    await screenshot(`month-close-review-${scheme}.png`);
+  }
+  await page.getByRole('button', { name: 'Monat abschließen', exact: true }).click();
+  await expect(
+    page.getByText('Abgeschlossen am 02.10.2026. Buchungen bleiben bearbeitbar.'),
+  ).toBeVisible();
+  await page.reload();
+  await expect(
+    page.getByText('Abgeschlossen am 02.10.2026. Buchungen bleiben bearbeitbar.'),
   ).toBeVisible();
   const state = await page.request.get(`${isolatedLedger.origin}/api/month-close/2026-09`);
   const result = await state.json();
-  expect(result.state.currentStep).toBe(4);
+  expect(result.state.currentStep).toBe(5);
+  expect(result.state.closedOn).toBe('2026-10-02');
   expect(result.steps.map((s: { status: string }) => s.status)).toEqual([
     'done',
     'done',
     'done',
-    'following',
-    'following',
+    'done',
+    'done',
   ]);
   const ledger = await page.request.get(`${isolatedLedger.origin}/api/bookings`);
   expect((await ledger.json()).items).toHaveLength(2);
@@ -146,5 +189,5 @@ test('guided month close uses existing actions, resumes and leaves F2 pending', 
     .locator('.global-search-popup')
     .getByRole('link', { name: 'Monatsabschluss starten oder fortsetzen', exact: true })
     .click();
-  await expect(page.getByRole('heading', { name: '4. Nächsten Monat planen' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: '5. Rückblick' })).toBeVisible();
 });
