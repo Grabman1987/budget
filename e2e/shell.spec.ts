@@ -21,6 +21,8 @@ test.describe('routes', () => {
   sampleTest(
     `all ${ROUTES.length} routes are reachable by URL with title, h1 and main landmark`,
     async ({ page }) => {
+      // 66 sequential page loads can exceed the 30 s default on a loaded CI runner.
+      test.setTimeout(120_000);
       const problems = collectProblems(page);
       for (const path of ROUTES) {
         const response = await page.goto(path);

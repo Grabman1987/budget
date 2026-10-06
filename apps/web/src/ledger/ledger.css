@@ -585,6 +585,9 @@
 
 .kx-payee {
   min-width: 0;
+  /* Stay above the neighbouring amount cell so a long memo cannot put it between the pointer and the button. */
+  position: relative;
+  z-index: 1;
 }
 .kname-btn,
 .kcat-btn {
@@ -597,6 +600,8 @@
 .kname-btn {
   max-width: 100%;
   overflow-wrap: anywhere;
+  /* Keep the row clear of the fixed tab bar when it is scrolled into view. */
+  scroll-margin-block: 96px;
 }
 .kname-btn:hover .kname-s {
   color: var(--line);
