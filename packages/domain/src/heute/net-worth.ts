@@ -24,6 +24,14 @@ export interface NetWorthParts {
   totalCents: number;
 }
 
+/** Assets versus amounts owed from the same signed account valuations as net worth. */
+export function netWorthSides(values: readonly number[]) {
+  return {
+    assetsCents: values.reduce((sum, value) => sum + Math.max(0, value), 0),
+    liabilitiesCents: values.reduce((sum, value) => sum - Math.min(0, value), 0),
+  };
+}
+
 export function netWorthParts(accounts: ReadonlyArray<NetWorthAccount>): NetWorthParts {
   let liquidCents = 0;
   let investedCents = 0;

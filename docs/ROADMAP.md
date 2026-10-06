@@ -8,6 +8,14 @@
 - [x] Full local check (351 files / 3,250 tests), production/E2E builds and focused browser checks (22 passed / 9 intentional desktop skips).
 - [ ] Required CI/Linux visual review and owner phone acceptance (see PR evidence).
 
+### Heute three answer cards — owner 05.10.2026
+
+- [x] Three current answer cards reuse Vermögen, Gesamtübersicht, One-Pager, Leitmaß and Pace sources; nearest unfinished Sparziel reuses saved/missing cents and date ordering.
+- [x] Preserve UX-2 attention, Pace, net-worth chart, source drilldowns and remembered further details; replace the large top Leitmaß and duplicate compact wealth figures.
+- [x] Synthetic unit/API/component and six desktop/mobile E2E verifications, phone cards at most 120 px, production/E2E builds and lint.
+- [ ] Full local unit gate: unchanged import worker/CLI tests report SystemError in this Windows session; complete the gate before opening the PR.
+- [ ] CI, pinned Linux baseline review and owner acceptance; [scope and evidence](evidence/heute-cards-1005/README.md).
+
 ### Pace time marker and projection header — owner 05.10.2026
 
 - [x] Shared Heute/One-Pager header, cent-exact pro-rata expectation, existing forecast, Ist / Erwartet / Deckel / Hochrechnung and shared tooltip; legends list drawn series only.

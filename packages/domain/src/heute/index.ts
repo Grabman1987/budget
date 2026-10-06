@@ -6,6 +6,7 @@ export {
   changeBp,
   netWorthDays,
   netWorthParts,
+  netWorthSides,
   type NetWorthAccount,
   type NetWorthParts,
 } from './net-worth';
