@@ -554,6 +554,10 @@
   .ps-grid {
     gap: 14px 30px;
   }
+  /* The optional chart lines are a screen control; the paper shows the default lines only. */
+  .psheet .pace-context-toggle {
+    display: none;
+  }
   .ps-note,
   .b523-note {
     font-size: 11px;

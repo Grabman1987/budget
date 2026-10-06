@@ -118,6 +118,8 @@ sampleTest(
     await expect(page.locator('#ps-b')).toHaveText('BAusgaben im Monatsverlauf');
     await expect(page.locator('#ps-f')).toHaveText('FNettovermögen');
     await expect(page.locator('.chart-legend')).not.toContainText('Prognose');
+    // Income is an optional context line of the pace chart (owner request 06.10.2026).
+    await page.getByRole('button', { name: 'Mehr anzeigen' }).click();
     await expect(page.locator('.pace-income-line').first()).toBeVisible();
     await page.screenshot({
       path: info.outputPath('onepager.png'),
@@ -126,6 +128,8 @@ sampleTest(
     });
     if (info.project.name === 'desktop') {
       await page.setViewportSize({ width: 734, height: 1062 });
+      // The resize redraws the chart; show the optional income line again before switching to paper.
+      await page.getByRole('button', { name: 'Mehr anzeigen' }).click();
       await page.emulateMedia({ media: 'print' });
       await expect(page.locator('.global-search-trigger')).toBeHidden();
       await expect(page.locator('.pace-income-line').first()).toHaveCSS('animation-name', 'none');
