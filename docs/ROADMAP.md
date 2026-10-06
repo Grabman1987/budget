@@ -3,7 +3,8 @@
 ### E1 — Report verdict sentences (owner 2026-10-06)
 
 - [x] Pure typed fact detectors, strongest-fact selection, 230 German templates, deterministic period variation and previous-template exclusion; no new dependency or second ledger calculation.
-- [x] All catalog reports in sections 1–5, Heute fold, One-Pager print header and Gesamtübersicht use existing read-model values and amount privacy; incomplete histories stay explicit.
+- [x] All catalog reports in sections 1–5, Heute fold, One-Pager print header and Gesamtübersicht use existing read-model values and amount privacy; incomplete histories stay explicit. Fed fact families: records, savings/budget/wealth streaks, category streaks, comparisons, wealth marks, debt reduction, market/effort, rules, equivalents.
+- [ ] Not yet fed: `emergency` (Notgroschen reach in months) — no read model keeps a monthly history of it; its templates stay until one does. Heute shows only the primary figure (one running month, no history).
 - [x] Synthetic template/placeholder snapshot, determinism, non-repetition, edge values and privacy tests; extension contract in [report verdicts](verdicts.md).
 - [x] Full local check: 355 files / 3,286 tests; two workers, 30-second test/hook deadlines and one allowed retry. Production build and 17 desktop/mobile browser checks passed, including light/dark, privacy and print.
 - [ ] Required CI and owner language/design/device acceptance; no keys, consents or migration required.

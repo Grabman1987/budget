@@ -43,20 +43,45 @@ invalid months. Partial months and estimated valuations cannot earn records,
 streaks, comparisons or milestones. They carry “laufend” / “vorläufig”. Rule
 findings and existing market attribution remain available with that caveat.
 
-Availability is intentionally conservative. The monthly tables supply savings
-rates, prior-month comparisons and category-plan margins. The One-Pager can use
-its observed top-category monthly cost as an equivalent. Rule and market reports
-supply their evaluated counts and attribution. A detector without supplied
+Availability is intentionally conservative. A detector without supplied
 evidence stays silent: no invented emergency-fund history, price for a tank
 filling, inferred debt repayment, or guessed prior-year figure. Other reports
-use their selected-period primary figure and available comparison. These input
-fields allow richer facts as read models provide them, without changing numbers.
+use their selected-period primary figure and available comparison.
+
+| Fact family | Fed by | Status |
+| --- | --- | --- |
+| `history` (records) | monthly tables (Konsum, Sparquote) | fed |
+| `savingsRates` | monthly tables, Sparquote | fed |
+| `budgetMargins` | monthly tables: minus the overspending of every planned category, `0` = nothing over | fed |
+| `categoryStreaks` | monthly tables, planned categories | fed |
+| `comparisons` | monthly tables (Vormonat) | fed |
+| `wealthChanges` | Vermögensverläufe (month-end changes of the daily series), Vermögen & Schulden (month ends), Gesamtübersicht (monthly rows) | fed |
+| `debt` | Vermögen & Schulden: open debts of the last two month ends | fed |
+| `netWorth`, `marketCents`, `ownCents` | One-Pager, Vermögensverläufe, Gesamtübersicht | fed |
+| `rules` | Finanzcheck | fed |
+| `equivalents` | One-Pager (top category, own observed cost only) | fed |
+| `emergency` | none | **noch nicht gespeist**: no read model keeps a month-by-month Notgroschen reach in months; Heute's `nearestGoal` has no previous value. Its 10 `threshold-emergency` templates stay in the catalogue until a read model supplies `{months, previousMonths}`. |
+
+Heute supplies a single running month, so it can only show the primary figure
+(`summary` / `negative`); streaks, comparisons and thresholds need history that
+Heute does not load. The running month of a wealth series counts as an interim
+reading (the report period stays unchanged), it is not marked “laufend”.
+
+Where a sentence cannot name every figure, `details` are appended after it
+(` · Gespart +1.120 € · Nettovermögen +780 €`); the Gesamtübersicht uses them to
+keep “gespart, Markt, Nettovermögen” without a second sentence. A detail is
+skipped when the winning fact already names that figure.
 
 ## Templates, selection and formatting
 
 `verdict-templates.ts` contains **230 distinct German sentences**: ten per fact
-type, with factual, appreciative, dryly humorous and warning tones. Negative
-months name the result and a useful next step. Tone never changes a fact.
+type, with factual, appreciative, dryly humorous and warning tones. The tone is assigned per
+line by content (not by position); few lines are dry, none follow a negative fact. Negative
+months name the result and a useful next step. Tone never changes a fact. One voice
+(“dein”), every sentence has a verb. Comparisons read “{label} {current}, {amount} mehr als
+{reference}”. Record lines never claim a peak for rank two or three (they name the real rank);
+lower-is-better metrics (Konsum) say “teuerste Monat” / “sparsamsten Monaten” instead of
+“schwächste” / “stärksten”.
 
 Selection hashes report ID and period. Odd and even calendar months use disjoint
 template banks, preventing adjacent-month repeats even when values change the
@@ -65,9 +90,13 @@ for other period boundaries. No reload state or storage is needed. Length
 eligibility considers both visible and masked versions, so privacy preserves the
 template. The resulting line, including caveats, is at most 140 characters.
 
-Formatting reuses `formatEuro`: de-AT, whole euros from EUR 100, otherwise cents,
-and a real minus sign. Percentages and equivalents have one decimal place;
-rate differences use percentage points. Invalid numbers produce an unavailable
+Formatting reuses `formatEuro` (de-AT, whole euros from EUR 100, otherwise cents,
+real minus), `formatPercent` and the shared `monthNameOnly`. Percentages and
+equivalents have one decimal place; rate differences use percentage points.
+A multi-month period has no month to name, so a leading `{month}: ` is dropped
+instead of printing “Zeitraum:”. Round wealth marks (`threshold-wealth`) stay
+readable in privacy mode; every other number is masked. If no template of the
+winning type fits the length limit, the shortest of that type is used. Invalid numbers produce an unavailable
 verdict; zero never becomes “−0”. Amount privacy masks numbers, counts and ranks
 without storing or exposing unmasked numbers in HTML attributes.
 
@@ -77,7 +106,8 @@ without storing or exposing unmasked numbers in HTML attributes.
    existing IDs remain stable. Keep several short options in each parity bank.
 2. Use the supported placeholders: `month`, `label`, `amount`, `n`, `months`,
    `rules`, `verb`, `rank`, `scope`, `threshold`, `reference`, `category`,
-   `equivalent`, `equivalentUnit` (dative), `equivalentUnitNom` (nominative/accusative).
+   `equivalent`, `equivalentUnit` (dative), `equivalentUnitNom` (nominative/accusative),
+   `current` (the figure next to a comparison difference), `strongest` and `worst` (better-aware).
    Plurals use the displayed equivalent or candidate count; ranks include
    “beste”, “zweitbeste” and “drittbeste”. Unknown placeholders fail immediately.
 3. Supply only existing typed read-model values. Mark missing, partial and
