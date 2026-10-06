@@ -45,6 +45,9 @@ test.describe('UX-3a phone shell', () => {
   test('a touch on the avatar opens an unobstructed profile menu', async ({ page }, info) => {
     test.setTimeout(120_000);
     for (const path of PAGES) {
+      // The previous iteration ends on /einstellungen after a tap; WebKit can still fire a
+      // late same-URL navigation, so leave the page first to keep page.goto uncontested.
+      await page.goto('about:blank');
       await page.goto(path);
       const avatar = page.locator('.m-profile summary');
       await expect(avatar).toBeVisible();
