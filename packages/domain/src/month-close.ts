@@ -1,5 +1,9 @@
 import { z } from 'zod';
 import { addMonths, lastDayOfMonth } from './date';
+import { allocation, type BudgetClass } from './ledger/alloc';
+import { mulDivRound } from './wealth/int';
+import type { TableMonth } from './report-tables/tables';
+import type { MonthResult } from './reports/month';
 
 export const closeDecisionSchema = z.strictObject({
   step: z.union([z.literal(1), z.literal(2), z.literal(3)]),
@@ -10,6 +14,7 @@ export const closeDecisionSchema = z.strictObject({
 export const monthCloseStateSchema = z.strictObject({
   currentStep: z.int().min(1).max(5).default(1),
   decisions: z.array(closeDecisionSchema).max(1000).default([]),
+  closedOn: z.iso.date().optional(),
 });
 export type CloseDecision = z.infer<typeof closeDecisionSchema>;
 export type MonthCloseState = z.infer<typeof monthCloseStateSchema>;
@@ -19,9 +24,13 @@ export const CLOSE_TITLES = [
   'Konten abgleichen',
   'Überzogenes ausgleichen',
   'Nächsten Monat planen',
-  'Monatsabschluss prüfen',
+  'Rückblick',
 ] as const;
-export function closeSteps(work: CloseWork[], decisions: CloseDecision[]) {
+export function closeSteps(
+  work: CloseWork[],
+  decisions: CloseDecision[],
+  plan?: { remainingCents: number; closedOn?: string },
+) {
   return CLOSE_TITLES.map((title, i) => {
     const step = i + 1;
     const items = work.filter((w) => w.step === step);
@@ -34,20 +43,107 @@ export function closeSteps(work: CloseWork[], decisions: CloseDecision[]) {
     return {
       step,
       title,
-      openCount,
+      openCount: step === 4 && plan ? Number(plan.remainingCents !== 0) : openCount,
       reasons: [...new Set(accepted.map((d) => d.reason))],
       status:
-        step > 3
-          ? ('following' as const)
-          : openCount > 0
-            ? ('open' as const)
-            : accepted.length > 0
-              ? ('skipped' as const)
-              : ('done' as const),
+        step === 4 && plan
+          ? plan.remainingCents === 0
+            ? ('done' as const)
+            : ('open' as const)
+          : step === 5 && plan
+            ? plan.closedOn
+              ? ('done' as const)
+              : ('open' as const)
+            : step > 3
+              ? ('following' as const)
+              : openCount > 0
+                ? ('open' as const)
+                : accepted.length > 0
+                  ? ('skipped' as const)
+                  : ('done' as const),
     };
   });
 }
 export type CloseStep = ReturnType<typeof closeSteps>[number];
+
+/** Tracked zero-spend months count; partial and pre-tracking months never dilute the mean. */
+export function closePlanHistory(
+  ids: readonly string[],
+  month: string,
+  today: string,
+  history: readonly Pick<TableMonth, 'month' | 'spending'>[],
+) {
+  const last = lastDayOfMonth(month) <= today ? month : addMonths(month, -1);
+  const from = addMonths(last, -11);
+  const closed = history.filter((m) => m.month >= from && m.month <= last);
+  const actual = history.find((m) => m.month === month);
+  return ids.map((categoryId) => ({
+    categoryId,
+    actualCents: actual ? (actual.spending[categoryId] ?? 0) : null,
+    averageCents: closed.length
+      ? mulDivRound(
+          closed.reduce((sum, m) => sum + (m.spending[categoryId] ?? 0), 0),
+          1,
+          closed.length,
+        )
+      : null,
+    historyCount: closed.length,
+  }));
+}
+
+/** Monthly assignments already include the monthly saving for periodic obligations. */
+export function closePlanProjection(
+  remainingCents: number,
+  incomeCents: number,
+  rows: readonly { categoryId: string; class: BudgetClass | null; assignedCents: number }[],
+  draft: Readonly<Record<string, number>>,
+) {
+  let addedCents = 0;
+  const items = rows.flatMap((r) => {
+    const value = draft[r.categoryId] ?? r.assignedCents;
+    addedCents += value - r.assignedCents;
+    return r.class ? [{ class: r.class, cents: value }] : [];
+  });
+  return {
+    remainingCents: remainingCents - addedCents,
+    allocation: allocation([{ incomeCents, annualIncomeCents: 0, items }]),
+  };
+}
+
+export function closeDeviations(
+  rows: readonly {
+    categoryId: string;
+    name: string;
+    carryCents: number;
+    assignedCents: number;
+    activityCents: number;
+  }[],
+) {
+  return rows
+    .map((r) => ({
+      categoryId: r.categoryId,
+      name: r.name,
+      planCents: r.carryCents + r.assignedCents,
+      actualCents: -r.activityCents,
+      deltaCents: -r.activityCents - r.carryCents - r.assignedCents,
+    }))
+    .filter((r) => r.deltaCents !== 0)
+    .sort(
+      (a, b) =>
+        Math.abs(b.deltaCents) - Math.abs(a.deltaCents) || a.categoryId.localeCompare(b.categoryId),
+    )
+    .slice(0, 3);
+}
+
+/** Factual fallback shared by the One-Pager and close review until Job E is available. */
+export function monthCloseVerdict(
+  result: Pick<MonthResult, 'earnedCents' | 'consumptionCents' | 'savedCents'>,
+  money: (value: number) => string,
+) {
+  return result.savedCents >= 0
+    ? `Von ${money(result.earnedCents)} Einnahmen bleiben nach ${money(result.consumptionCents)} Konsum ${money(result.savedCents)} gespart.`
+    : `Bei ${money(result.earnedCents)} Einnahmen und ${money(result.consumptionCents)} Konsum wurden ${money(-result.savedCents)} aus Guthaben verwendet.`;
+}
 /** First five days close the previous month; last five days prepare the current one. */
 export function closeEntryMonth(today: string): string | null {
   const month = today.slice(0, 7);

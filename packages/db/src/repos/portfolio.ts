@@ -965,7 +965,21 @@ export interface NetWorthDay {
 export function netWorthDaily(db: Executor, from: string, to: string): NetWorthDay[] {
   const baseline = addDays(from, -1);
   const days = eachDay(baseline, to);
-  const cash = cashSeries(db, days);
+  const manual = db
+    .select({ id: valuation.id })
+    .from(valuation)
+    .innerJoin(account, eq(account.id, valuation.accountId))
+    .where(
+      and(
+        isNull(valuation.deletedAt),
+        isNull(account.deletedAt),
+        lte(valuation.date, to),
+        inArray(account.type, ['p2p', 'other_asset']),
+      ),
+    )
+    .limit(1)
+    .get();
+  const cash = manual ? new Map<string, number[]>() : cashSeries(db, days);
   const positions = valuationSeries(db, { from: baseline, to });
   const rates = rateTable(db, to);
   const tradesByDay = new Map<string, SeriesTrade[]>();
@@ -974,7 +988,10 @@ export function netWorthDaily(db: Executor, from: string, to: string): NetWorthD
     list.push(t);
     tradesByDay.set(t.date, list);
   }
-  const total = days.map((_, i) => {
+  const total = days.map((day, i) => {
+    // ponytail: manual values reuse the snapshot resolver per day; batch that resolver if long
+    // manual-account report windows prove slow. Never derive a second valuation definition.
+    if (manual) return netWorthAsOf(db, day).totalCents;
     let sum = positions.totalCents[i] as number;
     for (const series of cash.values()) sum += series[i] as number;
     return sum;
