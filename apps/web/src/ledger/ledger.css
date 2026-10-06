@@ -694,6 +694,20 @@
   height: 16px;
   accent-color: var(--line);
 }
+/* Desktop row: the checkbox hangs below the account field so every field sits on one line. */
+.kfilter .kf:has(> .kf-closed) {
+  position: relative;
+}
+.kfilter > .kf > .kf-closed {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  margin-top: 4px;
+  white-space: nowrap;
+}
+.kfilter:has(.kf-closed) {
+  padding-bottom: 36px;
+}
 .kf-search {
   flex: 1 1 240px;
   max-width: 360px;
