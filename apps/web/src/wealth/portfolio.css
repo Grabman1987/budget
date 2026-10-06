@@ -52,7 +52,7 @@
 }
 .vlook small {
   color: var(--ink-3);
-  font-size: 12.5px;
+  font-size: var(--fs-chart-label);
 }
 .portfolio-table .num {
   width: 1%;
@@ -82,7 +82,7 @@
   border-radius: 50%;
   font-family: var(--font-tech);
   font-weight: 600;
-  font-size: 12.5px;
+  font-size: var(--fs-chart-label);
   color: var(--line);
 }
 .portfolio-product {
@@ -114,7 +114,7 @@
 .portfolio-table .kgroup th {
   color: var(--ink);
   font-weight: 640;
-  font-size: 14.5px;
+  font-size: var(--fs-body);
 }
 .instrument-detail {
   display: grid;
@@ -122,7 +122,7 @@
 }
 .instrument-detail h3 {
   margin: 4px 0 0;
-  font-size: 16px;
+  font-size: var(--fs-title);
 }
 .instrument-metadata {
   margin: 0;
@@ -156,7 +156,7 @@
 .instrument-accounts {
   border-collapse: collapse;
   width: 100%;
-  font-size: 13px;
+  font-size: var(--fs-body);
 }
 .instrument-accounts th,
 .instrument-accounts td {

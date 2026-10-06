@@ -18,6 +18,8 @@ import {
   paceSources,
   paceModel,
   paymentCoverage,
+  overspentEnvelopes,
+  summarizeMonth,
   type BudgetMonth,
   type FreeEnvelope,
   type FreeUntilPayday,
@@ -297,8 +299,8 @@ export function occurrencesBetween(
 }
 
 /**
- * What Heute offers as next steps until the inbox (P3.10) takes over: the overspent envelopes of
- * the month (most overspent first, urgent) and the uncategorised bookings on budget accounts.
+ * Heute attention: the shared overspent envelopes of the month (largest first) and
+ * uncategorised bookings on budget accounts. The UI keeps overspending out of Next steps.
  */
 export function nextSteps(
   db: Executor,
@@ -307,17 +309,18 @@ export function nextSteps(
 ): Heute['nextSteps'] {
   const month = facts.budgetByMonth.get(monthOf(today));
   const items: NextStep[] = [];
-  for (const c of facts.categories) {
-    const overspent = month?.envelopes[c.id]?.overspentCents ?? 0;
-    if (overspent > 0)
-      items.push({
-        kind: 'overspent',
-        urgent: true,
-        categoryId: c.id,
-        categoryName: c.name,
-        cents: overspent,
-        count: 1,
-      });
+  for (const e of overspentEnvelopes({
+    envelopes: month ? summarizeMonth(month, facts.categories).envelopes : [],
+  })) {
+    const c = facts.categories.find((c) => c.id === e.categoryId)!;
+    items.push({
+      kind: 'overspent',
+      urgent: true,
+      categoryId: c.id,
+      categoryName: c.name,
+      cents: -e.availableCents,
+      count: 1,
+    });
   }
   items.sort(
     (a, b) => b.cents - a.cents || (a.categoryName ?? '').localeCompare(b.categoryName ?? ''),

@@ -6,6 +6,36 @@
 - [x] Synthetic component/browser regressions, full local check (353 files / 3,274 tests), production/E2E builds and desktop/375 px visual review; [verification evidence](evidence/basket-simple-1006/README.md).
 - [ ] CI and owner acceptance; no keys, consents or migration required.
 
+### UX-6 - Typography and radii (owner task 2026-10-05)
+
+- [x] Off-scale CSS values mapped to DESIGN.md tokens, preserving chart/emoji geometry.
+- [x] Dependency-free CSS scale lint in CI, synthetic unit and desktop/phone theme regressions; [scope and affected baselines](ux-typeset-1005.md).
+- [ ] Pinned Linux visual review, CI and owner acceptance.
+
+### F1 — Guided month close, steps 1–3 (owner 2026-10-04)
+
+- [x] Monthly route, persisted stepper, live inbox/reconciliation/overspending status and reasoned exceptions; reuse audited actions and manual account valuations.
+- [x] Heute entry on the first/last five days, Plan entry and provisional global-search entry; phone has one active step and sticky continuation.
+- [x] Synthetic API status/resume/undo/validation and stepper coverage. [Plan and contract](month-close.md).
+- [x] Typecheck, lint, production/E2E builds and two desktop/phone browser runs with synthetic [evidence](evidence/month-close-f1/README.md).
+- [x] Full local unit gate (354 files / 3272 tests), lint, typecheck, build:e2e and month-close E2E (desktop + mobile) verified on the final tree.
+- [ ] CI and final rebase before merge.
+- [ ] Job E palette/verdict integration (absent from the fetched main baseline), F2 steps 4–5 and owner parallel-operation Gate 4 acceptance.
+
+### UX-4a — One definition of overspent (owner 05.10.2026)
+
+- [x] Shared `overspentEnvelopes(month)`: negative available after existing carry rules; Heute, Plan, live inbox tasks and common badge agree, without duplicate stored warnings or card-account debt.
+- [x] Synthetic cent/carry, cash/card, duplicate-warning, cover/undo and consumer API regressions; desktop/mobile count and repair-link E2E spec.
+- [ ] CI, affected Linux screenshot review and owner acceptance; [scope and baseline list](ux-overspent-1005.md).
+
+### UX-3c - Phone chart/table overflow (owner feedback 2026-10-05)
+
+- [x] Local Liquidity/flow/year table scrolling with visible phone affordance and sticky first columns; existing Plan year stacked layout retained.
+- [x] Simplified vertical Geldfluss phone variant, width-aware Liquidity ticks, full-width Portfolio allocation tracks and complete mobile report headings.
+- [x] Synthetic component and 390 px browser regressions; [scope and baseline review](ux-mobile-overflow-1005.md).
+- [x] Full local check (351 files / 3,250 tests), production/E2E builds and focused browser checks (22 passed / 9 intentional desktop skips).
+- [ ] Required CI/Linux visual review and owner phone acceptance (see PR evidence).
+
 ### Plan › Monat quick assignment — owner 05.10.2026
 
 - [x] Zero-assignment ghosts from existing target need or three-month median spending, with source tooltip; no automatic booking.
@@ -373,6 +403,8 @@ Expected payments, contacts with receivables, savings goals, rule set registered
 - [ ] Owner review of the contact workflow on the deployed app; foreign-currency contact statements remain outside this bounded EUR slice
 
 ### P3 — Posteingang basics
+
+- [x] E4: learn assignments on owner confirmation by normalized counterparty + direction; prefilled **Übernehmen** / **wie zuletzt bei …**, view/remove in Einstellungen › Zuordnungsregeln, last-choice replacement and grouped audit/undo; synthetic learning/matching/deletion/direction tests. Existing rule JSON reused, no migration or dependency; owner acceptance remains open.
 
 - [x] Actual queue and shell counter: one task per due nonzero unclassified budget booking plus unresolved stored warnings; no sample counter or legacy summary double count
 - [x] Konten › Posteingang and global desktop/mobile panel: categorize in the existing booking editor, confirm pending bookings, acknowledge stored warnings with audited undo/redo

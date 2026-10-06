@@ -12,7 +12,7 @@ import {
   type DimensionChainTerm,
   type RevisionRow,
 } from '@budget/ui';
-import { addDays, cents } from '@budget/domain';
+import { addDays, cents, closeEntryMonth } from '@budget/domain';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from '@tanstack/react-router';
 import { useState, type ReactNode } from 'react';
@@ -97,6 +97,24 @@ function HeuteBody({ data }: { data: Heute }) {
   const check = 'unavailable' in data.financeCheck ? null : data.financeCheck;
   const phone = useIsPhone();
   const revisions: RevisionRow[] = [];
+  const closeMonth = closeEntryMonth(data.stand.today);
+  if (closeMonth)
+    revisions.push({
+      id: 'month-close',
+      letter: 'A',
+      urgent: false,
+      title: `Monatsabschluss · ${monthName(closeMonth)}`,
+      detail: 'Posteingang, Konten und Überziehungen prüfen; danach den nächsten Monat planen.',
+      action: {
+        label: 'Fortsetzen',
+        onClick: () =>
+          void navigate({
+            to: '/monatsabschluss/$month',
+            params: { month: closeMonth },
+            search: {},
+          }),
+      },
+    });
   for (const proposal of savings.data?.proposals ?? [])
     revisions.push({
       id: proposal.id,

@@ -1,5 +1,7 @@
 # Budget feature coverage: YNAB and Portfolio Performance replacement
 
+E4 (2026-10-06): inbox confirmations learn category/income type, payee and account suggestions keyed by normalized counterparty plus direction; one-click **Übernehmen**, **wie zuletzt bei …**, settings removal and grouped audit/undo reuse `assignment_rule` without a migration. Suggestions never book automatically; synthetic API/browser coverage, owner acceptance pending.
+
 UX-2b (owner 2026-10-05): shared free-envelope cover limits, pending/recurring commitments through payday, signed budget-account/used-credit details and explicit missing-money carry option; the total that can be covered is capped at budget-account balances plus allowed overdraft (view, single and bulk cover, server-side), a due matching an unlinked pending booking is reserved once, and commitments/cap apply only to the current month, always as of today; synthetic unit/API/browser coverage, CI and owner acceptance pending.
 
 Owner directive PR4: [connected asset-class settings](asset-classes-settings.md), one target editor, complete dated managed universes, editable bands, investment-sum tiers, atomic safe retirement, restore and audit/undo/redo. Reuses merged PR1/PR2/PR3/PR5; real-iPhone, CI and owner acceptance remain separate from source implementation.
@@ -103,7 +105,7 @@ Prototype references: [Heute](../design/prototype/index.html),
 | Y21 | Receipt photograph/upload and links to bookings | Implemented; owner acceptance open | Volume blobs, bounded authenticated upload, booking links/undo, inbox capture, previews/download and encrypted archive backup; metadata limits and real-phone/restore acceptance: [receipts](receipts.md) |
 | Y22 | Payslip lines, projects and side income | Connected slice | Manual audited/undoable EUR payslip capture and linked payouts; project create/rename/archive, active booking attribution and split-based P&L. Raise metadata and hourly rates remain open; payslip receipt attachment uses the receipts store |
 | Y23 | registered rules (`RULE_CODES`), stages and Finanz-Check | UI + engine | Book-derived checks, private inputs, configurable thresholds, disabled defaults; history derives twelve month ends plus today |
-| Y24 | Weekly inbox, payday distribution, month/year/quarter closing routines | Partial | Guided complete routines, completion states and resulting reports |
+| Y24 | Weekly inbox, payday distribution, month/year/quarter closing routines | Partial | [F1 month close](month-close.md): persisted five-step navigation, live monthly inbox/reconciliation/overspending, reasoned exceptions and existing audited actions; F2 plan/closing steps, Job E palette/verdict integration and owner Gate 4 acceptance remain open |
 | Y25 | Mobile capture, accessible layout, dark mode | UI + engine for built pages | Repeat matching mockup/visual/accessibility checks for every new page |
 | Y26 | Installable PWA and offline booking queue | Implemented; device acceptance open | Static-only shell plus IndexedDB booking capture/edit/delete, FIFO retry on online/focus/manual send, durable API idempotency and retained conflict/session reasons. No API response caching; physical phone acceptance remains open. See [PWA contract](pwa.md) |
 

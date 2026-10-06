@@ -11,6 +11,11 @@
   --fs-body: 14px;
   --fs-label: 11.5px;
   --fs-chart-label: 12px;
+  --fs-class-tag: 11px;
+  --fs-chart-label-strong: 13px;
+  --fs-figure-large: 34px;
+  --fs-panel: 36px;
+  --fs-amount: 44px;
 
   /* Radii */
   --radius-titleblock: 2px;
@@ -40,5 +45,6 @@
     --fs-headline: 18px;
     --fs-figure: 21px;
     --fs-body: 15px;
+    --fs-amount: 36px;
   }
 }

@@ -37,6 +37,27 @@ describe('bank recipient cleanup', () => {
   });
 });
 describe('assignment conditions and integer split templates', () => {
+  it('matches normalized counterparties exactly and keeps directions separate', () => {
+    const match = assignmentMatchSchema.parse({
+      mode: 'all',
+      conditions: [
+        { type: 'counterparty', text: 'shop a' },
+        { type: 'direction', direction: 'outflow' },
+      ],
+    });
+    const row = {
+      accountId: 'giro',
+      payeeId: null,
+      amountCents: -2307,
+      rawText: 'Shop AB',
+      counterparty: '  SHOP   Ａ ',
+    };
+    expect(matchesAssignment(match, row)).toBe(true);
+    expect(matchesAssignment(match, { ...row, counterparty: 'Shop AB' })).toBe(false);
+    expect(matchesAssignment(match, { ...row, amountCents: 2307 })).toBe(false);
+    expect(matchesAssignment(match, { ...row, amountCents: 0 })).toBe(false);
+    expect(matchesAssignment(match, { ...row, counterparty: '' })).toBe(false);
+  });
   const row = {
     payeeId: 'p1',
     accountId: 'giro',
