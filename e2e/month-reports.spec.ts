@@ -329,13 +329,17 @@ sampleTest('Monats-One-Pager: the sheet shows the figures of the API', async ({ 
 
 sampleTest(
   'Monats-One-Pager: the running month, the month switch and the print button',
-  async ({ page }) => {
+  async ({ page }, info) => {
     const loaded = page.waitForResponse(isOnePager('2026-09'));
     await page.goto('/reports/onepager');
     expect((await loaded).status()).toBe(200);
     await expect(page.locator('.ps-head small')).toHaveText('laufend');
     // A rate of a month that has just begun is meaningless: it waits for the month end.
     await expect(page.getByTestId('onepager-rate')).toHaveText('Sparquote nach Monatsende');
+    await expect(page.getByTestId('onepager-split')).toContainText('Monat läuft noch');
+    await expect(page.getByTestId('onepager-split')).toContainText('Einnahmen bisher:');
+    await expect(page.getByTestId('onepager-split')).not.toContainText('%');
+    await inspect(page, info, 'onepager-running');
     await expect(page.getByTestId('onepager-findings')).toContainText('R04');
     await expect(page.getByTestId('onepager-findings')).toContainText('Laufender Monat bis 17.09.');
     await expect(page.getByRole('button', { name: 'Nächster Monat' })).toBeDisabled();

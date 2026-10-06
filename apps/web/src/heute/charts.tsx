@@ -264,6 +264,16 @@ function BalanceDrawing({
         )}
         {actualPoints.length > 1 && <StepLine points={actualPoints} kind="actual" />}
         {forecastPoints.length > 1 && <StepLine points={forecastPoints} kind="forecast" />}
+        {actualPoints.length > 1 && todayInRange && (
+          <text
+            x={(left + xScale(data.stand.today)) / 2}
+            y={top - 8}
+            textAnchor="middle"
+            className="svg-label-strong"
+          >
+            bisher
+          </text>
+        )}
         {low && (
           <ElevationMark
             x={xScale(low.day)}
@@ -311,24 +321,18 @@ function BalanceDrawing({
           </g>
         )}
         {[...new Set(labels.map((l) => l.day))].map((day) => {
-          const point = forecast.find((d) => d.day === day)!;
           const numbers = labels.flatMap((l, i) => (l.day === day ? [i + 1] : [])).join(',');
           return (
-            <g key={day}>
+            <g key={day} data-payment-marker={day}>
               <rect
                 x={xScale(day) - numbers.length * 4 - 3}
-                y={y(point.balanceCents) - 9}
+                y={bottom - 18}
                 width={numbers.length * 8 + 6}
                 height={18}
                 fill="var(--surface)"
                 stroke="var(--line)"
               />
-              <text
-                x={xScale(day)}
-                y={y(point.balanceCents) + 4}
-                textAnchor="middle"
-                className="svg-label"
-              >
+              <text x={xScale(day)} y={bottom - 5} textAnchor="middle" className="svg-label">
                 {numbers}
               </text>
             </g>

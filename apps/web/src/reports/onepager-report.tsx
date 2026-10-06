@@ -182,7 +182,27 @@ function Split523({ data }: { data: OnePagerData }) {
       <h3 className="ps-h" id="ps-a">
         <span>A</span>Verteilung 50/30/20
       </h3>
-      {base <= 0 || total <= 0 ? (
+      {data.partial ? (
+        <div className="b523" data-testid="onepager-split">
+          <p className="ps-note">Monat läuft noch · Beträge bisher</p>
+          <div className="b523-leg">
+            {CLASSES.map((c) => (
+              <span key={c}>
+                <ClassSwatch kind={c} />
+                {CLASS_LABEL[c]} <strong>{eur(amount[c], { cents: false })}</strong>
+              </span>
+            ))}
+            <span>
+              {a.restCents >= 0 ? 'Übrig' : 'Aus Guthaben'}{' '}
+              <strong>{eur(a.restCents, { cents: false })}</strong>
+            </span>
+          </div>
+          <p className="b523-note">
+            Einnahmen bisher: {eur(base, { cents: false })}. Zugewiesenes Geld; periodische Kosten,
+            Sonderzahlungen und ihre Umbuchungen zählen als Zwölftel. Anteile nach Monatsende.
+          </p>
+        </div>
+      ) : base <= 0 || total <= 0 ? (
         <p className="ps-note">Ohne Einnahmen im Monat lässt sich keine Verteilung berechnen.</p>
       ) : (
         <div className="b523" data-testid="onepager-split">
