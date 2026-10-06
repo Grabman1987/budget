@@ -111,7 +111,7 @@
   .vallo li {
     grid-template-columns: minmax(0, 1fr) auto;
   }
-  .vallo .va-track {
+  .vallo li > .chart-interactive {
     grid-column: 1 / -1;
     grid-row: 2;
   }

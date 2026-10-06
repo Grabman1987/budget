@@ -1,5 +1,7 @@
 /* Monthly table reports 1.5 Jahresansicht, 1.6 Kategorieübersicht, 1.7 Sparquote und Geldalter,
    1.8 Gesamttabelle. White cards on the slate ground (Präzisionsschicht), blueprint ink inside. */
+@import './table-scroll.css';
+@import './mobile-report-header.css';
 .table-report {
   display: grid;
   grid-template-columns: minmax(0, 1fr);

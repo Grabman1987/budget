@@ -1,5 +1,13 @@
 # Roadmap
 
+### UX-3c - Phone chart/table overflow (owner feedback 2026-10-05)
+
+- [x] Local Liquidity/flow/year table scrolling with visible phone affordance and sticky first columns; existing Plan year stacked layout retained.
+- [x] Simplified vertical Geldfluss phone variant, width-aware Liquidity ticks, full-width Portfolio allocation tracks and complete mobile report headings.
+- [x] Synthetic component and 390 px browser regressions; [scope and baseline review](ux-mobile-overflow-1005.md).
+- [x] Full local check (351 files / 3,250 tests), production/E2E builds and focused browser checks (22 passed / 9 intentional desktop skips).
+- [ ] Required CI/Linux visual review and owner phone acceptance (see PR evidence).
+
 ### Plan › Monat quick assignment — owner 05.10.2026
 
 - [x] Zero-assignment ghosts from existing target need or three-month median spending, with source tooltip; no automatic booking.
@@ -367,6 +375,8 @@ Expected payments, contacts with receivables, savings goals, rule set registered
 - [ ] Owner review of the contact workflow on the deployed app; foreign-currency contact statements remain outside this bounded EUR slice
 
 ### P3 — Posteingang basics
+
+- [x] E4: learn assignments on owner confirmation by normalized counterparty + direction; prefilled **Übernehmen** / **wie zuletzt bei …**, view/remove in Einstellungen › Zuordnungsregeln, last-choice replacement and grouped audit/undo; synthetic learning/matching/deletion/direction tests. Existing rule JSON reused, no migration or dependency; owner acceptance remains open.
 
 - [x] Actual queue and shell counter: one task per due nonzero unclassified budget booking plus unresolved stored warnings; no sample counter or legacy summary double count
 - [x] Konten › Posteingang and global desktop/mobile panel: categorize in the existing booking editor, confirm pending bookings, acknowledge stored warnings with audited undo/redo

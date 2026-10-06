@@ -30,7 +30,7 @@ const conditionDraft = (c: AssignmentCondition): ConditionDraft => ({
       ? c.payeeId
       : c.type === 'account'
         ? c.accountId
-        : c.type === 'contains'
+        : c.type === 'contains' || c.type === 'counterparty'
           ? c.text
           : c.type === 'regex'
             ? c.pattern
@@ -48,6 +48,7 @@ const INITIAL: AssignmentRuleInput = {
   actions: { categoryId: null },
 };
 const LABELS = {
+  counterparty: 'Gegenpart genau',
   payee: 'Empfänger',
   contains: 'Banktext enthält',
   regex: 'Banktext als Muster',
@@ -128,6 +129,7 @@ export function AssignmentEditor({
             case 'account':
               return { type: c.type, accountId: c.value };
             case 'contains':
+            case 'counterparty':
               return { type: c.type, text: c.value };
             case 'regex':
               return { type: c.type, pattern: c.value };

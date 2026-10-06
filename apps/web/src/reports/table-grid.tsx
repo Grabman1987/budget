@@ -162,6 +162,7 @@ export const RowsGrid = forwardRef<HTMLDivElement, RowsGridProps>(function RowsG
         // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- Keyboard users must be able to scroll the complete table.
         tabIndex={0}
       >
+        <p className="table-scroll-hint">Seitlich wischen für weitere Spalten</p>
         <table className={`rtable rgrid ${className ?? ''}`}>
           <caption className="sr-only">{caption}</caption>
           <thead>
