@@ -51,7 +51,8 @@ test('chart spike renders both diagrams and survives a deep-link reload', async 
   await expect(pace.locator('path.l-actual')).toHaveCount(1);
   await expect(pace.locator('path.l-plan')).toHaveCount(1);
   await expect(pace.locator('path.l-prev')).toHaveCount(1);
-  await expect(sankey.locator('rect.sk-node').first()).toBeVisible();
+  // Phone width renders the flow as a staged list (UX-3c) instead of SVG rects.
+  await expect(sankey.locator('rect.sk-node, li[data-chart-point]').first()).toBeVisible();
   await page.reload();
   await expect(page.getByTestId('pace-chart')).toBeVisible();
   expect(problems).toEqual([]);
