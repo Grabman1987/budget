@@ -11,7 +11,9 @@ test('attention links and the unclassified row are usable at both viewport sizes
   await page.screenshot({ path: info.outputPath('attention-strip.png') });
   await bar.getByRole('link', { name: 'Alle decken' }).click();
   await expect(page).toHaveURL(/ansicht=triage/);
-  await expect(page.getByRole('button', { name: /Triage/, exact: false }).first()).toBeVisible();
+  await expect(
+    page.getByRole('button', { name: /Überziehungen prüfen/, exact: false }).first(),
+  ).toBeVisible();
   await expect(page.getByRole('region', { name: 'Noch ohne Kategorie' })).toBeVisible();
   await page.screenshot({ path: info.outputPath('plan-unclassified.png') });
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);

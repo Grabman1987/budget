@@ -2,7 +2,8 @@ import { plannedEventOccurrences, planYearMonths, planYearScenario } from '@budg
 import { Button, Select } from '@budget/ui';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate, useSearch } from '@tanstack/react-router';
-import { useState } from 'react';
+import { useId, useState } from 'react';
+import { Info } from 'lucide-react';
 import { eur, longDay } from '../ledger/format';
 import { ErrorNote, LoadingNote } from '../ledger/states';
 import { monthLabel } from '../nav/month';
@@ -96,45 +97,49 @@ export function YearPlanning({
       <div className="year-toolbar">
         <h2 id="events-title">Ereignisse und Szenario</h2>
         <Button data-event="neu" onClick={() => select('neu')}>
-          Ereignis einplanen
+          Ereignis planen
         </Button>
       </div>
-      <p className="year-note">
-        Gestrichelt: geplante Beträge je Termin, getrennt von Zugewiesen und Aktivität.
-        Wiederholungen gelten ab dem Beginn. Bereits gebuchte Zahlungen werden nicht automatisch mit
-        Ereignissen abgeglichen.
-      </p>
-      <div className="year-toolbar">
-        <div className="seg" role="group" aria-label="Szenario">
-          <button type="button" aria-pressed={!without} onClick={() => setWithout(false)}>
-            Mit Auswahl
-          </button>
-          <button type="button" aria-pressed={without} onClick={() => setWithout(true)}>
-            Ohne Auswahl
-          </button>
-        </div>
-        <AppLink to="/reports/liquiditaet">Liquiditätsprognose · 3.1</AppLink>
-      </div>
-      <p className="year-note">
-        Freies Geld im Szenario = „Zu verteilen“ laut gespeichertem Monatsplan + kumulierte
-        Ereignisse nach {longDay(asOf)}. Keine zusätzlichen Gehaltsannahmen, keine
-        Kontostandsprognose. Die Auswahl wird nicht gespeichert; ausgeschaltete Ereignisse zählen
-        auch in der Liquiditätsprognose nicht.
-      </p>
-      <dl className="year-totals" aria-live="polite">
-        <div>
-          <dt>Freies Geld · Jahresende · {without ? 'ohne Auswahl' : 'mit Auswahl'}</dt>
-          <dd data-testid="scenario-year-end">
-            {eur(without ? scenario.yearEnd.withoutCents : scenario.yearEnd.withCents)}
-          </dd>
-        </div>
-        <div>
-          <dt>Ereigniseffekt · Jahresende</dt>
-          <dd data-testid="scenario-year-effect">
-            {eur(without ? 0 : scenario.yearEnd.effectCents, { sign: true })}
-          </dd>
-        </div>
-      </dl>
+      {events.length > 0 && (
+        <>
+          <p className="year-note">
+            Gestrichelt: geplante Beträge je Termin, getrennt von Zugewiesen und Aktivität.
+            Wiederholungen gelten ab dem Beginn. Bereits gebuchte Zahlungen werden nicht automatisch
+            mit Ereignissen abgeglichen.
+          </p>
+          <div className="year-toolbar">
+            <div className="seg" role="group" aria-label="Szenario">
+              <button type="button" aria-pressed={!without} onClick={() => setWithout(false)}>
+                Mit Auswahl
+              </button>
+              <button type="button" aria-pressed={without} onClick={() => setWithout(true)}>
+                Ohne Auswahl
+              </button>
+            </div>
+            <AppLink to="/reports/liquiditaet">Liquiditätsprognose · 3.1</AppLink>
+          </div>
+          <p className="year-note">
+            Zu verteilen mit Ereignissen = „Zu verteilen“ laut gespeichertem Monatsplan + kumulierte
+            Ereignisse nach {longDay(asOf)}. Keine zusätzlichen Gehaltsannahmen, keine
+            Kontostandsprognose. Die Auswahl wird nicht gespeichert; ausgeschaltete Ereignisse
+            zählen auch in der Liquiditätsprognose nicht.
+          </p>
+          <dl className="year-totals" aria-live="polite">
+            <div>
+              <dt>Freies Geld · Jahresende · {without ? 'ohne Auswahl' : 'mit Auswahl'}</dt>
+              <dd data-testid="scenario-year-end">
+                {eur(without ? scenario.yearEnd.withoutCents : scenario.yearEnd.withCents)}
+              </dd>
+            </div>
+            <div>
+              <dt>Ereigniseffekt · Jahresende</dt>
+              <dd data-testid="scenario-year-effect">
+                {eur(without ? 0 : scenario.yearEnd.effectCents, { sign: true })}
+              </dd>
+            </div>
+          </dl>
+        </>
+      )}
       <div
         className="year-desktop"
         role="region"
@@ -201,33 +206,43 @@ export function YearPlanning({
           </tbody>
           <tfoot>
             <tr>
-              <th scope="row">Zu verteilen · ohne Ereignisse</th>
+              <th scope="row">Zu verteilen</th>
               {scenario.months.map((m) => (
                 <td key={m.month}>{eur(m.withoutCents)}</td>
               ))}
               <td />
             </tr>
-            <tr>
-              <th scope="row">Ereignisse · Monat</th>
-              {scenario.months.map((m) => (
-                <td key={m.month}>{eur(without ? 0 : m.eventCents, { sign: true })}</td>
-              ))}
-              <td />
-            </tr>
-            <tr>
-              <th scope="row">Ereigniseffekt · kumuliert</th>
-              {scenario.months.map((m) => (
-                <td key={m.month}>{eur(without ? 0 : m.effectCents, { sign: true })}</td>
-              ))}
-              <td />
-            </tr>
-            <tr>
-              <th scope="row">Freies Geld · Szenario</th>
-              {scenario.months.map((m) => (
-                <td key={m.month}>{eur(without ? m.withoutCents : m.withCents)}</td>
-              ))}
-              <td />
-            </tr>
+            {events.length > 0 && (
+              <>
+                <tr>
+                  <th scope="row">
+                    <ScenarioLabel kind="month" />
+                  </th>
+                  {scenario.months.map((m) => (
+                    <td key={m.month}>{eur(without ? 0 : m.eventCents, { sign: true })}</td>
+                  ))}
+                  <td />
+                </tr>
+                <tr>
+                  <th scope="row">
+                    <ScenarioLabel kind="sum" />
+                  </th>
+                  {scenario.months.map((m) => (
+                    <td key={m.month}>{eur(without ? 0 : m.effectCents, { sign: true })}</td>
+                  ))}
+                  <td />
+                </tr>
+                <tr>
+                  <th scope="row">
+                    <ScenarioLabel kind="available" />
+                  </th>
+                  {scenario.months.map((m) => (
+                    <td key={m.month}>{eur(without ? m.withoutCents : m.withCents)}</td>
+                  ))}
+                  <td />
+                </tr>
+              </>
+            )}
           </tfoot>
         </table>
       </div>
@@ -270,21 +285,31 @@ export function YearPlanning({
         ))}
         <dl className="year-totals">
           <div>
-            <dt>Zu verteilen · ohne Ereignisse</dt>
+            <dt>Zu verteilen</dt>
             <dd>{eur(activeMonth.withoutCents)}</dd>
           </div>
-          <div>
-            <dt>Ereignisse · Monat</dt>
-            <dd>{eur(without ? 0 : activeMonth.eventCents, { sign: true })}</dd>
-          </div>
-          <div>
-            <dt>Ereigniseffekt · kumuliert</dt>
-            <dd>{eur(without ? 0 : activeMonth.effectCents, { sign: true })}</dd>
-          </div>
-          <div>
-            <dt>Freies Geld · Szenario · {monthLabel(phoneMonth)}</dt>
-            <dd>{eur(without ? activeMonth.withoutCents : activeMonth.withCents)}</dd>
-          </div>
+          {events.length > 0 && (
+            <>
+              <div>
+                <dt>
+                  <ScenarioLabel kind="month" />
+                </dt>
+                <dd>{eur(without ? 0 : activeMonth.eventCents, { sign: true })}</dd>
+              </div>
+              <div>
+                <dt>
+                  <ScenarioLabel kind="sum" />
+                </dt>
+                <dd>{eur(without ? 0 : activeMonth.effectCents, { sign: true })}</dd>
+              </div>
+              <div>
+                <dt>
+                  <ScenarioLabel kind="available" /> · {monthLabel(phoneMonth)}
+                </dt>
+                <dd>{eur(without ? activeMonth.withoutCents : activeMonth.withCents)}</dd>
+              </div>
+            </>
+          )}
         </dl>
       </div>
       {!events.length && (
@@ -311,5 +336,54 @@ export function YearPlanning({
           </p>
         ))}
     </section>
+  );
+}
+
+const SCENARIO_LABELS = {
+  month: [
+    'Geplante Ereignisse in diesem Monat',
+    'Summe der ausgewählten geplanten Beträge in diesem Monat nach dem heutigen Stand.',
+  ],
+  sum: [
+    'Ereignisse bis dahin zusammen',
+    'Summe der ausgewählten geplanten Beträge nach dem heutigen Stand bis zum Ende dieses Monats.',
+  ],
+  available: [
+    'Zu verteilen mit Ereignissen',
+    'Zu verteilen laut Monatsplan plus die ausgewählten geplanten Beträge bis zum Ende dieses Monats.',
+  ],
+} as const;
+
+function ScenarioLabel({ kind }: { kind: keyof typeof SCENARIO_LABELS }) {
+  const [open, setOpen] = useState(false);
+  const id = useId();
+  const [label, explanation] = SCENARIO_LABELS[kind];
+  return (
+    <span
+      className="scenario-label"
+      onMouseEnter={() => setOpen(true)}
+      onMouseLeave={() => setOpen(false)}
+    >
+      {label}{' '}
+      <Button
+        variant="ghost"
+        size="xs"
+        aria-label={`${label} erklären`}
+        aria-describedby={open ? id : undefined}
+        onFocus={() => setOpen(true)}
+        onBlur={() => setOpen(false)}
+        onClick={() => setOpen(true)}
+        onKeyDown={(e) => {
+          if (e.key === 'Escape') setOpen(false);
+        }}
+      >
+        <Info size={14} aria-hidden="true" />
+      </Button>
+      {open && (
+        <span id={id} role="tooltip" className="scenario-help">
+          {explanation}
+        </span>
+      )}
+    </span>
   );
 }

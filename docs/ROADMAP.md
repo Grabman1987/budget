@@ -1,5 +1,14 @@
 # Roadmap
 
+### UX-4b - Plain wording and calmer controls (owner 2026-10-05)
+
+- [x] Plain action/view labels; neutral inbox resolution; actual-history label and separated payment markers.
+- [x] Running One-Pager shows existing amounts without allocation shares; one shared German date input preserves ISO form values and validity.
+- [x] Empty annual planning keeps only Zu verteilen and the planning action; populated scenarios use plain labels with hover/focus explanations.
+- [x] Synthetic component and affected desktop/mobile browser regressions added; no baseline regeneration.
+- [x] Local check phases (352 files / 3,257 tests), production build and affected desktop/mobile browser checks; see [verification](ux-clarify-1005.md).
+- [ ] CI, pinned Linux screenshot review and owner acceptance.
+
 - [x] Owner 2026-10-06: implied gross trade prices before valuation cost fallback; estimate hints only for positive as-of holdings without a quote or trade price, with synthetic domain/DB/API/UI regressions. CI and owner acceptance remain open.
 
 ### Warenkorb settings simplification — owner 2026-10-06
