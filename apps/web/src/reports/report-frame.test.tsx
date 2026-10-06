@@ -85,6 +85,7 @@ describe('report frame', () => {
     expect(screen.queryByTestId('valuation-hint')).toBeNull();
     expect(screen.queryByText(/Bewertung teilweise geschätzt:/)).toBeNull();
     expect(screen.getByTestId('contributions-end-value').textContent).toBe('≈123,45 €');
+    expect(screen.getByRole('button', { name: '≈' }).getAttribute('aria-describedby')).toBeTruthy();
     const path = container.querySelector('.contributions-value-line')?.getAttribute('d');
     expect(path?.match(/L/g)).toHaveLength(2);
   });

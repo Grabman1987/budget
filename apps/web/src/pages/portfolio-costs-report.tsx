@@ -8,6 +8,7 @@ import { type WithValuationNotes } from '../ledger/valuation-hint';
 import { eur, longDay } from '../ledger/format';
 import { LEDGER_KEY } from '../ledger/queries';
 import type { PageMeta } from '../nav/pages';
+import { Term } from '../reports/term';
 import type { ReportEntry } from '../nav/reports-catalog';
 import { PageFrame } from './placeholder-page';
 import {
@@ -263,7 +264,9 @@ function CostsBody({ data }: { data: CostsTaxesReport }) {
             <thead>
               <tr>
                 <th className="tech">Produkt</th>
-                <th className="tech n">Einstand</th>
+                <th className="tech n">
+                  <Term>Einstand</Term>
+                </th>
                 <th className="tech n">Wert</th>
                 <th className="tech n">Kursgewinn</th>
                 <th className="tech n">latente KESt</th>

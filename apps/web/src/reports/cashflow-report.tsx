@@ -6,6 +6,7 @@ import { AlertCircle, CheckCircle2 } from 'lucide-react';
 import { eur, eurParts, eurWhole, longDay, monthName } from '../ledger/format';
 import { EmptyNote, ErrorNote, LoadingNote } from '../ledger/states';
 import type { PageMeta } from '../nav/pages';
+import { Term } from './term';
 import type { ReportEntry } from '../nav/reports-catalog';
 import { PageFrame } from '../pages/placeholder-page';
 import { periodText } from '../wealth/networth-model';
@@ -165,10 +166,16 @@ function Body({ data }: { data: CashflowReport }) {
               <tr>
                 <th className="tech">Monat</th>
                 <th className="tech n">Einnahmen</th>
-                <th className="tech n">Bedarf</th>
-                <th className="tech n">Wunsch</th>
+                <th className="tech n">
+                  <Term>Bedarf</Term>
+                </th>
+                <th className="tech n">
+                  <Term>Wunsch</Term>
+                </th>
                 <th className="tech n">Nettocashflow</th>
-                <th className="tech n">davon in Zukunft</th>
+                <th className="tech n">
+                  davon in <Term>Zukunft</Term>
+                </th>
                 <th className="tech n">Kapitalerträge (separat)</th>
               </tr>
             </thead>

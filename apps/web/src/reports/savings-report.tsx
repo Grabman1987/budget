@@ -18,6 +18,7 @@ import { AlertTriangle, CheckCircle2 } from 'lucide-react';
 import { useMemo } from 'react';
 import { eur } from '../ledger/format';
 import type { PageMeta } from '../nav/pages';
+import { Term } from './term';
 import type { ReportEntry } from '../nav/reports-catalog';
 import { ZEITRAUM_VALUES, useZeitraum } from '../wealth/zeitraum';
 import { MoneyAgeChart, SavingsChart } from './table-charts';
@@ -154,7 +155,9 @@ function SavingsBody({
         <section className="tr-card" aria-labelledby="savings-title">
           <BookRuleMetric code="R17" />
           <div className="tbd-head">
-            <h2 id="savings-title">Sparquote · {periodName(period, window)}</h2>
+            <h2 id="savings-title">
+              <Term>Sparquote</Term> · {periodName(period, window)}
+            </h2>
             <span className="tbd-state">
               <span className={reached ? 'ok' : 'ink'}>
                 {reached ? (
@@ -345,7 +348,7 @@ function SavingsBody({
                   Gespart
                 </th>
                 <th scope="col" className="tech n">
-                  Sparquote
+                  <Term>Sparquote</Term>
                 </th>
                 <th scope="col" className="tech n">
                   Ø Geldalter

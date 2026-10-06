@@ -9,6 +9,7 @@ import { ApiError } from '../api/http';
 import { eur, eurParts, longDay } from '../ledger/format';
 import { EmptyNote, ErrorNote, LoadingNote } from '../ledger/states';
 import type { PageMeta } from '../nav/pages';
+import { Term } from './term';
 import type { ReportEntry } from '../nav/reports-catalog';
 import { PageFrame } from '../pages/placeholder-page';
 import { periodText } from '../wealth/networth-model';
@@ -309,9 +310,9 @@ function Breakdown({ history, month }: { history: AssetsDebtsHistory; month: str
         <h2 id="ad-breakdown">
           Konten · {longMonth(m.month)}{' '}
           {m.incomplete && (
-            <abbr title="Teilweise geschätzt" data-testid="ad-month-estimated">
-              ≈
-            </abbr>
+            <span data-testid="ad-month-estimated">
+              <Term>≈</Term>
+            </span>
           )}
         </h2>
         <span className="tbd-state">

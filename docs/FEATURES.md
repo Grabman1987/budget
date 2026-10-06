@@ -1,5 +1,7 @@
 # Budget feature coverage: YNAB and Portfolio Performance replacement
 
+E2 (2026-10-06): report-only glossary terms have dotted underlines and native popovers with one-sentence German explanations, keyboard/touch controls and 44 px targets; ordinary dynamic headings and Heute stay in everyday language. No dependency or calculation change; CI and owner visual acceptance remain open.
+
 E4 (2026-10-06): inbox confirmations learn category/income type, payee and account suggestions keyed by normalized counterparty plus direction; one-click **Übernehmen**, **wie zuletzt bei …**, settings removal and grouped audit/undo reuse `assignment_rule` without a migration. Suggestions never book automatically; synthetic API/browser coverage, owner acceptance pending.
 
 UX-2b (owner 2026-10-05): shared free-envelope cover limits, pending/recurring commitments through payday, signed budget-account/used-credit details and explicit missing-money carry option; the total that can be covered is capped at budget-account balances plus allowed overdraft (view, single and bulk cover, server-side), a due matching an unlinked pending booking is reserved once, and commitments/cap apply only to the current month, always as of today; synthetic unit/API/browser coverage, CI and owner acceptance pending.

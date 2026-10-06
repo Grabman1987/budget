@@ -1,4 +1,6 @@
 import { ReportPeriodControl } from '../reports/period-quick-select';
+import { Term } from '../reports/term';
+import type { ReactNode } from 'react';
 import { useAmountPrivacy, DimensionChain, Button } from '@budget/ui';
 import { cents, type Period } from '@budget/domain';
 import type { PortfolioSummary } from '@budget/db';
@@ -177,8 +179,8 @@ function PerformanceBody({
           <>
             <div className="performance-primary">
               <span className="tech">
-                TTWROR im Zeitraum · {performance.days} Tage · {performance.monthCount} bewertete
-                Monate
+                <Term>TTWROR</Term> im Zeitraum · {performance.days} Tage · {performance.monthCount}{' '}
+                bewertete Monate
               </span>
               <strong data-testid="period-ttwror">{percent(performance.ttwror)}</strong>
             </div>
@@ -192,14 +194,29 @@ function PerformanceBody({
               label="Maßkette Portfolioleistung im gewählten Zeitraum"
             />
             <dl className="performance-metrics" aria-label="Kennzahlen des gewählten Zeitraums">
-              <Metric label="TTWROR annualisiert" value={percent(performance.ttwrorAnnualised)} />
               <Metric
-                label="Geldgewichtet, Modified Dietz"
+                label={
+                  <>
+                    <Term>TTWROR</Term> annualisiert
+                  </>
+                }
+                value={percent(performance.ttwrorAnnualised)}
+              />
+              <Metric
+                label={
+                  <>
+                    <Term>Geldgewichtet</Term>, <Term>Modified Dietz</Term>
+                  </>
+                }
                 value={percent(performance.moneyWeighted)}
                 note={performance.days > 365 ? 'annualisiert' : 'nicht annualisiert'}
               />
               <Metric
-                label="XIRR annualisiert"
+                label={
+                  <>
+                    <Term>XIRR</Term> annualisiert
+                  </>
+                }
                 value={percent(performance.xirr)}
                 note={
                   performance.xirr === null ? 'für diesen Zeitraum nicht verfügbar' : 'actual/365'
@@ -248,7 +265,7 @@ function PerformanceBody({
   );
 }
 
-function Metric({ label, value, note }: { label: string; value: string; note?: string }) {
+function Metric({ label, value, note }: { label: ReactNode; value: string; note?: string }) {
   useAmountPrivacy();
   return (
     <div className="performance-metric">

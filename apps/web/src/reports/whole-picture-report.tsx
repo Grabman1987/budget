@@ -27,6 +27,7 @@ import type { WithValuationNotes } from '../ledger/valuation-hint';
 import { eur, longDay } from '../ledger/format';
 import { EmptyNote, ErrorNote, LoadingNote } from '../ledger/states';
 import type { PageMeta } from '../nav/pages';
+import { Term } from './term';
 import type { ReportEntry } from '../nav/reports-catalog';
 import { PageFrame } from '../pages/placeholder-page';
 import { AppLink } from '../shell/app-link';
@@ -276,7 +277,7 @@ function Body({ data }: { data: Data }) {
                 <th scope="col">Monat</th>
                 {columns.map((c) => (
                   <th key={c.key} scope="col">
-                    {c.label}
+                    <Term>{c.label}</Term>
                   </th>
                 ))}
               </tr>

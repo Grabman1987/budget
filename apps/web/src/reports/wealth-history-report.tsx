@@ -7,6 +7,7 @@ import { ApiError } from '../api/http';
 import { eur, eurParts, eurWhole, longDay } from '../ledger/format';
 import { EmptyNote, ErrorNote, LoadingNote } from '../ledger/states';
 import type { PageMeta } from '../nav/pages';
+import { Term } from './term';
 import type { ReportEntry } from '../nav/reports-catalog';
 import { PageFrame } from '../pages/placeholder-page';
 import { chainTerms, periodText } from '../wealth/networth-model';
@@ -102,7 +103,7 @@ function Body({ history }: { history: NetWorthHistory }) {
           </span>
         </div>
         <div className="rf-figure" data-testid="wh-figure">
-          {Boolean(history.incomplete?.length) && <abbr title="Teilweise geschätzt">≈</abbr>}
+          {Boolean(history.incomplete?.length) && <Term>≈</Term>}
           {whole}
           <span className="cents">,{fraction} €</span>
         </div>
