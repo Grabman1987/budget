@@ -40,3 +40,4 @@ export * from './wealth/target-policy';
 
 export * from './ledger/account-preview';
 export * from './spending/coicop';
+export * from './reports/verdicts';
