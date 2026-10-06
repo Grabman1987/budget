@@ -134,7 +134,8 @@ export function useReorder(
       );
     const wanted = find(target.part);
     const other = find(target.part === 'up' ? 'down' : target.part === 'down' ? 'up' : 'grip');
-    (wanted && !wanted.disabled ? wanted : other)?.focus();
+    // A finished pointer drag must not scroll the page (a taller fixed tab bar may cover the row).
+    (wanted && !wanted.disabled ? wanted : other)?.focus({ preventScroll: target.part === 'grip' });
   }, [ids, scope]);
 
   const startDrag = (id: string, event: PointerEvent<HTMLElement>) => {

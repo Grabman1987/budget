@@ -19,7 +19,7 @@
 @source '../../../packages/ui/src';
 
 /* Shared touch controls: keep readable labels above compact page-specific styles. */
-@media (pointer: coarse), (max-width: 767px) {
+@media screen and (pointer: coarse), screen and (max-width: 767px) {
   .tabbar a,
   .registers a,
   .registers button,
@@ -50,7 +50,7 @@
   }
 }
 
-@media (max-width: 767px) {
+@media screen and (max-width: 767px) {
   /* Reserve the selection control's 44 px without letting it overlap the neighbouring flag. */
   .ktx-all tr[data-booking] {
     grid-template-columns: var(--touch) auto minmax(0, 1fr) auto;
