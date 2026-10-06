@@ -1,5 +1,14 @@
 # Roadmap
 
+### F2 — Guided month close, plan next month and review (owner 2026-10-04)
+
+- [x] Step 4: expected income and shared bank-day payday, recurring dues, prior plan/actual and up to twelve completed-month average; group/all draft actions and explicit existing-API assign.
+- [x] Need/want/future against 50/30/20, cent-exact remaining money and zero-based completion; repeated step applies share one audited, undoable group and never book forecast income.
+- [x] Step 5: reused full One-Pager and shared factual verdict fallback, three largest signed plan/actual deviations, remaining rule findings and audited close date without a data lock.
+- [x] Synthetic domain/API/component coverage and all-five-step desktop/phone E2E scenario; [contract](month-close.md).
+- [x] Final local typecheck/lint/format/unit gate (358 files / 3308 tests, host test deadline 30 seconds), production/E2E builds and desktop/phone browser evidence; [results and host limits](evidence/month-close-f2/README.md).
+- [ ] CI, rebase against current main and owner design/Gate 4 parallel-operation acceptance. Job E is absent from the baseline; actual palette/phrase integration remains dependent on that task.
+
 ### F1 — Guided month close, steps 1–3 (owner 2026-10-04)
 
 - [x] Monthly route, persisted stepper, live inbox/reconciliation/overspending status and reasoned exceptions; reuse audited actions and manual account valuations.
@@ -8,7 +17,8 @@
 - [x] Typecheck, lint, production/E2E builds and two desktop/phone browser runs with synthetic [evidence](evidence/month-close-f1/README.md).
 - [x] Full local unit gate (354 files / 3272 tests), lint, typecheck, build:e2e and month-close E2E (desktop + mobile) verified on the final tree.
 - [ ] CI and final rebase before merge.
-- [ ] Job E palette/verdict integration (absent from the fetched main baseline), F2 steps 4–5 and owner parallel-operation Gate 4 acceptance.
+- [x] F2 steps 4–5 implemented above.
+- [ ] Job E palette/verdict integration (absent from the fetched main baseline) and owner parallel-operation Gate 4 acceptance.
 
 ### UX-4a — One definition of overspent (owner 05.10.2026)
 
