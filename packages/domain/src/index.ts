@@ -1,4 +1,5 @@
 export * from './money';
+export * from './month-close';
 export * from './chain';
 export * from './ledger';
 export * from './invest';

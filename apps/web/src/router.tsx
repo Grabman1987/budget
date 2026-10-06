@@ -3,6 +3,7 @@ import {
   createRoute,
   createRouter,
   lazyRouteComponent,
+  notFound,
   Outlet,
   redirect,
 } from '@tanstack/react-router';
@@ -520,6 +521,25 @@ const devRoutes = devRoutesEnabled
 const routeTree = rootRoute.addChildren([
   shellRoute.addChildren([
     homeRoute,
+    createRoute({
+      getParentRoute: () => shellRoute,
+      path: '/monatsabschluss/$month',
+      beforeLoad: ({ params }) => {
+        if (!isMonth(params.month)) throw notFound();
+      },
+      staticData: {
+        meta: {
+          title: 'Monatsabschluss',
+          area: 'plan',
+          fills: 'F1',
+          spec: 'Geführter Monatsabschluss, Schritte 1–3.',
+        },
+      },
+      component: lazyRouteComponent(
+        () => import('./month-close/month-close-page'),
+        'MonthClosePage',
+      ),
+    }),
     captureRoute,
     ...placeholderRoutes,
     securityRoute,
