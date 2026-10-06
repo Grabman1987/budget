@@ -26,6 +26,7 @@ test('scenario and rate-change dialogs show their content', async ({
   });
   expect(response.ok()).toBe(true);
   await page.goto('/vermoegen/schulden');
+  await page.getByText('Rechenweg', { exact: true }).click();
   for (const [button, title, field] of [
     ['Szenario anlegen', 'Szenario anlegen', 'Name des Szenarios'],
     ['Zinsänderung erfassen', 'Zinsänderung erfassen', 'Gültig ab'],
