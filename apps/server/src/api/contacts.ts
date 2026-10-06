@@ -4,13 +4,14 @@ import {
   listContactStatements,
   schema,
   settleContact,
+  writeOffContact,
   type Db,
 } from '@budget/db';
 import { randomUUID } from 'node:crypto';
 import { Hono } from 'hono';
 import { z } from 'zod';
 import { contactTotals } from '@budget/domain';
-import { ACTOR, ApiError, readBody, readQuery } from './http';
+import { ACTOR, ApiError, defined, readBody, readQuery } from './http';
 const day = z
   .string()
   .regex(/^\d{4}-\d{2}-\d{2}$/)
@@ -86,6 +87,16 @@ export function contactRoutes(db: Db, today: () => string): Hono {
       ),
       201,
     );
+  });
+  app.post('/:id/write-offs', async (c) => {
+    const input = await readBody(
+      c,
+      receipt.omit({ allocations: true }).extend({
+        categoryId: z.string().min(1).max(100).nullable().optional(),
+        incomeTypeId: z.string().min(1).max(100).nullable().optional(),
+      }),
+    );
+    return c.json(writeOffContact(db, c.req.param('id'), defined(input), audit(), today()), 201);
   });
   return app;
 }

@@ -12,6 +12,25 @@ import {
 import { BookingInvariantError } from './errors';
 import type { Executor } from './types';
 
+/** A zero booking with contact shares reclassifies money already held, never earned cash. */
+export function cashlessContactBookingIds(db: Executor): Set<string> {
+  return new Set(
+    db
+      .select({ id: booking.id })
+      .from(booking)
+      .innerJoin(bookingSplit, eq(bookingSplit.bookingId, booking.id))
+      .where(
+        and(
+          isNull(booking.deletedAt),
+          eq(booking.amountCents, 0),
+          sql`${bookingSplit.contactId} IS NOT NULL`,
+        ),
+      )
+      .all()
+      .map((b) => b.id),
+  );
+}
+
 export function actualContactMovements(tx: Executor, contactId: string, asOf?: string) {
   return tx
     .select({

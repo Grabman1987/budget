@@ -156,11 +156,22 @@ export function reportTables(
     name: 'Zuflüsse ohne Einkommensart (nicht gezählt)',
     role: 'unclassified',
   });
+  incomeTypes.push({
+    id: 'contact-write-off',
+    name: 'Sonstige Einnahmen · Ausgleich Kontakt (außerhalb Haushaltseinnahmen)',
+    role: 'unclassified',
+  });
 
   const classOf = new Map(categories.map((c) => [c.id, c.class]));
   // Shared ledger classification: cash date, system entries excluded, refunds netted once.
   const ledger = overviewData(db);
-  const splits = ledger.splits.filter((s) => s.date <= today);
+  const splits = ledger.splits
+    .filter((s) => s.date <= today)
+    .map((s) =>
+      s.kind === 'income' && s.incomeGroup === 'unclassified' && s.incomeTypeId !== null
+        ? { ...s, incomeTypeId: 'contact-write-off' }
+        : s,
+    );
   const figures = overviewMonthlyFigures({ ...ledger, splits });
   const income = new Map<string, Record<string, number>>();
   for (const [month, f] of figures) {
