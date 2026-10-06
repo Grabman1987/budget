@@ -38,6 +38,13 @@ test('plan: assign, cover, card debt, move, undo, rollover, distribute', async (
       openingBalanceCents: 100_000,
     })
   )['account']!;
+  // Explicit fixture: the shared database's total free money moves with other tests, so give
+  // this test its own overdraft headroom and the cover cap can never be 0 here.
+  const limited = await request.patch(`/api/accounts/${giro.id}`, {
+    data: { overdraftLimitCents: 10_000_000 },
+    headers: { origin: MAIN_URL },
+  });
+  expect(limited.ok(), await limited.text()).toBe(true);
   const card = (
     await post(request, '/accounts', {
       name: `Karte Plan ${tag}`,
@@ -98,6 +105,10 @@ test('plan: assign, cover, card debt, move, undo, rollover, distribute', async (
   await expect(available(page, cafe)).toHaveText('100,00 €');
 
   // Compact control beside the figure opens the existing cover panel.
+  const money = await request.get(`/api/budget/${month}`);
+  const cap = ((await money.json()) as { budgetMoney?: { coverCapCents: number } }).budgetMoney
+    ?.coverCapCents;
+  expect(cap, `cover cap before covering: ${cap}`).toBeGreaterThanOrEqual(10_000);
   await page.getByRole('button', { name: `${food} decken`, exact: true }).click();
   const coverPanel = page.getByRole('dialog', { name: food });
   await coverPanel
