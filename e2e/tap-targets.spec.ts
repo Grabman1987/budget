@@ -2,6 +2,8 @@ import type { Locator } from '@playwright/test';
 import { sampleTest as test, expect } from './sample';
 
 async function expectTouchTargets(controls: Locator) {
+  // Wait for the first control to render; a bare count() right after goto can still see 0.
+  await expect(controls.first()).toBeVisible();
   expect(await controls.count()).toBeGreaterThan(0);
   for (const control of await controls.all()) {
     await control.scrollIntoViewIfNeeded();
