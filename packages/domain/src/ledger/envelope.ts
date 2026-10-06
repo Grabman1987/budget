@@ -12,6 +12,13 @@ export interface EnvelopeMonth extends EnvelopeInput {
   overspentCents: number;
 }
 
+/** Current computed month, after carry rules; account debt is not an envelope. */
+export function overspentEnvelopes<T extends { availableCents: number }>(month: {
+  envelopes: readonly T[];
+}): T[] {
+  return month.envelopes.filter((e) => e.availableCents < 0);
+}
+
 /** One envelope month: available = carry + assigned + activity. Overspending stays visible. */
 export function envelopeMonth(input: EnvelopeInput): EnvelopeMonth {
   const availableCents = input.carryCents + input.assignedCents + input.activityCents;

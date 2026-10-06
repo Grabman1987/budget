@@ -41,7 +41,17 @@ export interface InboxStored {
   urgent: boolean;
   createdAt: string;
 }
-export type InboxEntry = InboxBooking | InboxStored | SavingsExecutionProposal;
+export interface InboxEnvelope {
+  type: 'envelope';
+  id: string;
+  kind: 'overspent';
+  categoryId: string;
+  month: string;
+  title: string;
+  detail: string;
+  urgent: true;
+}
+export type InboxEntry = InboxBooking | InboxStored | InboxEnvelope | SavingsExecutionProposal;
 export interface InboxView {
   asOf: string;
   count: number;
