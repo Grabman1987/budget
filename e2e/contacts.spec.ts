@@ -61,6 +61,10 @@ test('contact statement: edited allocation, excess credit, undo and retained bal
     });
   }
   await page.goto('/konten/kontakte');
+  await expect(page.getByRole('button', { name: tag, exact: true })).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(
+    true,
+  );
   await page.getByRole('button', { name: tag, exact: true }).click();
   const panel = page.getByRole('dialog', { name: tag });
   await expect(panel.locator('.contacts-balance')).toContainText('100,00 €');
