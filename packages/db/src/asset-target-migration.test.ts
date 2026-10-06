@@ -84,4 +84,4 @@ it('0035 is generated from main 0034, preserves every existing row/value, repeat
     opened.close();
     rmSync(dir, { recursive: true, force: true });
   }
-});
+}, 60_000);

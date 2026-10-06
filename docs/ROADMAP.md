@@ -9,6 +9,21 @@
 - [x] Local check phases (352 files / 3,257 tests), production build and affected desktop/mobile browser checks; see [verification](ux-clarify-1005.md).
 - [ ] CI, pinned Linux screenshot review and owner acceptance.
 
+### Plan › Monat quick assignment — owner 05.10.2026
+
+- [x] Zero-assignment ghosts from existing target need or three-month median spending, with source tooltip; no automatic booking.
+- [x] Leere füllen and selected Wie letzter Monat / Ø 3 Monate / Ziel via existing assignment/audit/undo path, capped in displayed sort order with exact shortfall.
+- [x] Synthetic cent/source, partial-fill, validation, rollback, stale-fill, undo/redo and German-copy regression tests; [contract](plan-ghost-1005.md).
+- [ ] CI, pinned Linux visual review and owner acceptance.
+
+### Heute three answer cards — owner 05.10.2026
+
+- [x] Three current answer cards reuse Vermögen, Gesamtübersicht, One-Pager, Leitmaß and Pace sources; nearest unfinished Sparziel reuses saved/missing cents and date ordering.
+- [x] Preserve UX-2 attention, Pace, net-worth chart, source drilldowns and remembered further details; replace the large top Leitmaß and duplicate compact wealth figures.
+- [x] Synthetic unit/API/component and six desktop/mobile E2E verifications, phone cards at most 120 px, production/E2E builds and lint.
+- [ ] Full local unit gate: unchanged import worker/CLI tests report SystemError in this Windows session; complete the gate before opening the PR.
+- [ ] CI, pinned Linux baseline review and owner acceptance; [scope and evidence](evidence/heute-cards-1005/README.md).
+
 ### Pace time marker and projection header — owner 05.10.2026
 
 - [x] Shared Heute/One-Pager header, cent-exact pro-rata expectation, existing forecast, Ist / Erwartet / Deckel / Hochrechnung and shared tooltip; legends list drawn series only.

@@ -44,6 +44,7 @@ import {
 } from './month-span';
 import { MultiTable } from './plan-multi';
 import { AssignCell } from './assign-cell';
+import { QuickAssignActions } from './quick-assign-actions';
 import { assign, coverAll, budgetQuery, type BudgetMonthView } from './budget-api';
 import { CategoryIcon } from './category-icon';
 import { IncomeButton } from '../expected/income-panel';
@@ -172,6 +173,7 @@ function PlanBody({
   const [distribute, setDistribute] = useState(false);
   const [collapsed, setCollapsed] = useState<ReadonlySet<string>>(new Set());
   const [editing, setEditing] = useState<string | null>(null);
+  const [selected, setSelected] = useState<ReadonlySet<string>>(new Set());
   const [open, setOpen] = useState<{ id: string; month: string } | null>(null);
   const navigate = useNavigate();
   const openDetail = (id: string) =>
@@ -211,6 +213,16 @@ function PlanBody({
   const multi = months.length > 1 && !distribute;
   const shownView: PlanView = multi ? 'group' : view;
   const groups = planGroups(shownView, rows, data, ctx);
+  const shownRows = groups.flatMap((g) => g.rows);
+  const shownIds = new Set(shownRows.map((r) => r.id));
+  const orderedRows = [...shownRows, ...rows.filter((r) => !shownIds.has(r.id))];
+  const toggleSelected = (id: string) =>
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
   const tba = s.toBeAssignedCents;
   const sug = distribute ? suggestions(rows, tba) : {};
   const urgent = rows.filter(isCashOver);
@@ -451,6 +463,15 @@ function PlanBody({
             Envelopes im Monat
           </h2>
           <div className="ptoolbar">
+            {!multi && (
+              <QuickAssignActions
+                month={month}
+                emptyIds={orderedRows
+                  .filter((r) => r.assignedCents === 0 && (r.quickAssign?.ghostCents ?? 0) > 0)
+                  .map((r) => r.id)}
+                selectedIds={orderedRows.filter((r) => selected.has(r.id)).map((r) => r.id)}
+              />
+            )}
             {multi ? (
               <p
                 className="pm-layout"
@@ -644,6 +665,8 @@ function PlanBody({
                                 setAssigned(r, v);
                               }}
                               onTake={() => take([r.id])}
+                              selected={selected.has(r.id)}
+                              onSelect={() => toggleSelected(r.id)}
                               onCover={() => setOpen({ id: r.id, month })}
                             />
                           ))),
@@ -1033,6 +1056,8 @@ function EnvelopeRow({
   onEdit,
   onCommit,
   onTake,
+  selected,
+  onSelect,
   onCover,
 }: {
   row: PlanRow;
@@ -1045,6 +1070,8 @@ function EnvelopeRow({
   onEdit: (on: boolean) => void;
   onCommit: (value: number) => void;
   onTake: () => void;
+  selected: boolean;
+  onSelect: () => void;
   onCover: () => void;
 }) {
   useAmountPrivacy();
@@ -1055,6 +1082,16 @@ function EnvelopeRow({
   return (
     <tr className={cx('prow', over && 'is-over', credit && 'is-credit')}>
       <td className="col-pos">
+        {r.quickAssign && (
+          <label className="plan-select">
+            <input
+              type="checkbox"
+              checked={selected}
+              onChange={onSelect}
+              aria-label={`${r.name} auswählen`}
+            />
+          </label>
+        )}
         <span className="pos">{pos}</span>
         {cash && <RevisionTriangle letter="!" urgent />}
       </td>

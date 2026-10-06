@@ -83,11 +83,13 @@ export function BalanceChart({
   chainOpen,
   onToggleChain,
   report = false,
+  showLead = true,
 }: {
   data: Heute;
   chainOpen: boolean;
   onToggleChain: () => void;
   report?: boolean;
+  showLead?: boolean;
 }) {
   useAmountPrivacy();
   const [ref, width] = useWidth();
@@ -108,6 +110,7 @@ export function BalanceChart({
           chainOpen={chainOpen}
           onToggleChain={onToggleChain}
           report={report}
+          showLead={showLead}
         />
       )}
     </div>
@@ -120,18 +123,20 @@ function BalanceDrawing({
   chainOpen,
   onToggleChain,
   report,
+  showLead,
 }: {
   data: Heute;
   width: number;
   chainOpen: boolean;
   onToggleChain: () => void;
   report: boolean;
+  showLead: boolean;
 }) {
   useAmountPrivacy();
   const [figureRef, figureWidth] = useElementWidth<HTMLButtonElement>();
   const narrow = width < 640;
   const labels = forecastStepLabels(data.balance.forecast);
-  const dailySpace = report ? 0 : narrow ? 72 : 48;
+  const dailySpace = report || !showLead ? 0 : narrow ? 72 : 48;
   const height = (report ? (narrow ? 204 : 260) : narrow ? 232 : 330) + dailySpace;
   const top = (report ? 64 : narrow ? 104 : 140) + dailySpace;
   const bottom = height - (narrow ? 26 : 30);
@@ -182,7 +187,7 @@ function BalanceDrawing({
   const dailyWidth = Math.min(width - 16, 500);
   return (
     <div className={`heute-balance-drawing${narrow ? ' is-narrow' : ''}`}>
-      {!report && (
+      {!report && showLead && (
         <button
           ref={figureRef}
           type="button"
@@ -201,7 +206,7 @@ function BalanceDrawing({
           <small>,{figure.fraction} €</small>
         </button>
       )}
-      {!report && (
+      {!report && showLead && (
         <DailyBudgetLine
           data={data}
           style={{

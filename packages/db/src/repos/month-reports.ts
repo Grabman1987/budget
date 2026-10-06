@@ -165,6 +165,21 @@ function classTotals(f: Frame, months: string[]): Record<BudgetClass, number> {
   return t;
 }
 
+/** Current/past month result shared by Heute and the One-Pager. */
+export function monthResultRead(db: Executor, today: string, month: string): MonthResult {
+  const f = frame(db, today, month);
+  return resultOf(f, monthIncomeOf(incomeFacts(db, f, month), month));
+}
+
+function resultOf(f: Frame, income: MonthIncome): MonthResult {
+  const totals = classTotals(f, [f.month]);
+  return monthResult({
+    earnedCents: income.earnedCents,
+    consumptionCents: totals.need + totals.want,
+    futureCents: totals.future,
+  });
+}
+
 // ---------------------------------------------------------------------------------------------
 // 1.3 Einnahmen
 // ---------------------------------------------------------------------------------------------
@@ -511,12 +526,7 @@ function onePagerInRange(db: Executor, today: string, month: string): OnePager {
       kind: s.incomeGroup ?? 'household',
     }));
   const previousIncome = monthIncomeOf(facts, previousMonth);
-  const totals = classTotals(f, [month]);
-  const result = monthResult({
-    earnedCents: income.earnedCents,
-    consumptionCents: totals.need + totals.want,
-    futureCents: totals.future,
-  });
+  const result = resultOf(f, income);
 
   // 50/30/20 on assigned money. Income is household income only; the twelfths of the expected
   // special payments stay as the allocation read model has them.

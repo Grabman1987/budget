@@ -2,6 +2,7 @@ import { useAmountPrivacy, maskMoneyText } from '@budget/ui';
 import { cents, formatDecimal } from '@budget/domain';
 import { useRef, useState, type KeyboardEvent } from 'react';
 import { eur } from '../ledger/format';
+import { monthLabel } from '../nav/month';
 import { assignGuard, readAssign, type PlanRow } from './plan-model';
 
 /**
@@ -26,6 +27,13 @@ export function AssignCell({
   onCommit: (value: number) => void;
 }) {
   const hidden = useAmountPrivacy();
+  const ghost =
+    r.assignedCents === 0 && (r.quickAssign?.ghostCents ?? 0) > 0 ? r.quickAssign : null;
+  const source = ghost
+    ? ghost.ghostSource === 'target'
+      ? 'Ziel · noch zu finanzieren (Übertrag berücksichtigt)'
+      : `Median der Ausgaben · ${ghost.historyMonths.map(monthLabel).join(', ')} · leere Monate zählen als 0`
+    : undefined;
   const [text, setText] = useState('');
   const [invalid, setInvalid] = useState(false);
   /** Why the guard refused the typed amount, with the highest amount that is still allowed. */
@@ -95,7 +103,9 @@ export function AssignCell({
       ) : (
         <button
           type="button"
-          className="assign-btn"
+          className={ghost ? 'assign-btn is-ghost' : 'assign-btn'}
+          title={source}
+          aria-describedby={ghost ? `${noteId}-source` : undefined}
           aria-label={`Zugewiesen ${eur(r.assignedCents)} für ${r.name} ändern`}
           onClick={() => {
             setText(formatDecimal(cents(r.assignedCents)));
@@ -105,8 +115,13 @@ export function AssignCell({
             onEdit(true);
           }}
         >
-          {eur(r.assignedCents)}
+          {ghost ? `≈ ${eur(ghost.ghostCents)}` : eur(r.assignedCents)}
         </button>
+      )}
+      {ghost && (
+        <span className="sr-only" id={`${noteId}-source`}>
+          Vorschlag ≈ {eur(ghost.ghostCents)} · {source}
+        </span>
       )}
       {editing && refused && (
         <span className="assign-note" id={noteId} role="alert">
