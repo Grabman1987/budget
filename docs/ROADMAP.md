@@ -1,5 +1,11 @@
 # Roadmap
 
+### Warenkorb settings simplification — owner 2026-10-06
+
+- [x] Plain intro/current-effect copy and summary, one inclusion choice, collapsed official price groups with automatic CPI selection and validated autosave/undo; payee exceptions remain collapsed. API and domain rules unchanged.
+- [x] Synthetic component/browser regressions, full local check (353 files / 3,274 tests), production/E2E builds and desktop/375 px visual review; [verification evidence](evidence/basket-simple-1006/README.md).
+- [ ] CI and owner acceptance; no keys, consents or migration required.
+
 ### UX-6 - Typography and radii (owner task 2026-10-05)
 
 - [x] Off-scale CSS values mapped to DESIGN.md tokens, preserving chart/emoji geometry.
