@@ -1056,7 +1056,7 @@ export function holdingAccountValueSeries(
   const from = days[0];
   const to = days[days.length - 1];
   if (from === undefined || to === undefined) return out;
-  const positions = valuationSeries(db, { from, to, accounts }).positions;
+  const positions = valuationSeries(db, { from, to, ...(accounts ? { accounts } : {}) }).positions;
   if (positions.length === 0) return out;
   const held = new Set(positions.map((p) => p.accountId));
   const cash = cashSeries(db, days, [...held]);
