@@ -48,20 +48,20 @@
   color: var(--ink-2);
 }
 .ov-figs strong {
-  font-size: 26px;
+  font-size: var(--fs-figure);
   font-weight: 640;
   letter-spacing: -0.015em;
   font-variant-numeric: tabular-nums;
   line-height: 1.1;
 }
 .ov-figs small {
-  font-size: 12.5px;
+  font-size: var(--fs-chart-label);
   color: var(--ink-2);
   font-variant-numeric: tabular-nums;
 }
 .ov-note {
   margin: 12px 0 0;
-  font-size: 13px;
+  font-size: var(--fs-body);
   color: var(--ink-2);
   max-width: 72ch;
 }
@@ -147,7 +147,7 @@
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  font-size: 13px;
+  font-size: var(--fs-body);
   font-weight: 560;
   white-space: nowrap;
   color: var(--ink-2);
@@ -172,7 +172,7 @@
   display: inline-block;
   width: 14px;
   height: 22px;
-  border-radius: 3px;
+  border-radius: var(--radius-titleblock);
   background: var(--quiet-soft);
   border: 1px dashed var(--line-2);
 }
@@ -226,7 +226,7 @@
     gap: 8px 24px;
   }
   .ov-figs strong {
-    font-size: 22px;
+    font-size: var(--fs-figure);
   }
 }
 

@@ -130,7 +130,7 @@
     grid-template-columns: 28px 1fr;
     align-items: center;
     gap: 8px;
-    font-size: 12.5px;
+    font-size: var(--fs-chart-label);
   }
 
   .token i {
@@ -233,7 +233,7 @@
   color: var(--line);
 }
 .rcat-grp strong {
-  font-size: 16px;
+  font-size: var(--fs-title);
   font-weight: 640;
 }
 .rcat-count {
@@ -272,7 +272,7 @@
   color: var(--ink-3);
 }
 .rcat-ctl {
-  font-size: 13px;
+  font-size: var(--fs-body);
   color: var(--ink-2);
   white-space: nowrap;
 }

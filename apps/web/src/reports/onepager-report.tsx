@@ -479,7 +479,9 @@ function IncomeList({ data }: { data: OnePagerData }) {
                       ? 'Kapitalerträge'
                       : r.kind === 'refund'
                         ? 'Erstattungen'
-                        : 'Ohne Einkommensart'}{' '}
+                        : r.typeId
+                          ? `${r.name} · Ausgleich Kontakt`
+                          : 'Ohne Einkommensart'}{' '}
                     · separat
                     {r.payer ? ` · ${r.payer}` : ''}
                   </AppLink>

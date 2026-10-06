@@ -288,11 +288,13 @@ function Ledger({ statement }: { statement: ContactReportStatement }) {
                 <td>{longDay(movement.date)}</td>
                 <td>
                   <AppLink to="/konten/buchungen" search={{ buchung: movement.bookingId }}>
-                    {movement.amountCents < 0
-                      ? 'Auslage'
-                      : movement.amountCents > 0
-                        ? 'Rückzahlung'
-                        : 'Kontaktbuchung'}{' '}
+                    {movement.memo?.startsWith('Ausgleich Kontakt')
+                      ? 'Ausgleich'
+                      : movement.amountCents < 0
+                        ? 'Auslage'
+                        : movement.amountCents > 0
+                          ? 'Rückzahlung'
+                          : 'Kontaktbuchung'}{' '}
                     öffnen
                   </AppLink>
                   <small>

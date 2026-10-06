@@ -8,6 +8,19 @@
 - [x] Synthetic template/placeholder snapshot, determinism, non-repetition, edge values and privacy tests; extension contract in [report verdicts](verdicts.md).
 - [x] Full local check: 355 files / 3,286 tests; two workers, 30-second test/hook deadlines and one allowed retry. Production build and 17 desktop/mobile browser checks passed, including light/dark, privacy and print.
 - [ ] Required CI and owner language/design/device acceptance; no keys, consents or migration required.
+- [x] Owner 2026-10-06: implied gross trade prices before valuation cost fallback; estimate hints only for positive as-of holdings without a quote or trade price, with synthetic domain/DB/API/UI regressions. CI and owner acceptance remain open.
+
+### Warenkorb settings simplification — owner 2026-10-06
+
+- [x] Plain intro/current-effect copy and summary, one inclusion choice, collapsed official price groups with automatic CPI selection and validated autosave/undo; payee exceptions remain collapsed. API and domain rules unchanged.
+- [x] Synthetic component/browser regressions, full local check (353 files / 3,274 tests), production/E2E builds and desktop/375 px visual review; [verification evidence](evidence/basket-simple-1006/README.md).
+- [ ] CI and owner acceptance; no keys, consents or migration required.
+
+### UX-6 - Typography and radii (owner task 2026-10-05)
+
+- [x] Off-scale CSS values mapped to DESIGN.md tokens, preserving chart/emoji geometry.
+- [x] Dependency-free CSS scale lint in CI, synthetic unit and desktop/phone theme regressions; [scope and affected baselines](ux-typeset-1005.md).
+- [ ] Pinned Linux visual review, CI and owner acceptance.
 
 ### F1 — Guided month close, steps 1–3 (owner 2026-10-04)
 
@@ -396,6 +409,7 @@ Expected payments, contacts with receivables, savings goals, rule set registered
 - [x] Pure actual contact statement and oldest-outlay-first repayment allocation, editable before saving; expected occurrences excluded
 - [x] Audited atomic settlement API with persisted excess contact credit, whole-action undo/redo and dependency checks (including forced undo)
 - [x] Konten › Kontakte: nonzero overview, balanced-history toggle, contact creation, Kontoblatt and actual EUR cash repayment with editable allocation
+- [x] Owner feedback 2026-10-05: cashless “Ausgleichen” in contact list/detail, partial credit to Zu verteilen or forgiven debt to category activity; confirmed zero booking, shared validation/audit/undo, separate report classification and synthetic API/component/browser coverage.
 - [x] Synthetic acceptance: 30 + 70 outlays / 40 repayment, edited allocation, 100 owed / 120 receipt / 20 credit, balanced history retained, cash-only net worth through outlay/receipt
 - [ ] Owner review of the contact workflow on the deployed app; foreign-currency contact statements remain outside this bounded EUR slice
 

@@ -20,12 +20,13 @@ message of a generic or technical answer (`apps/web/src/api/error-text.ts`).
 
 A missing quote never fails a valuation. Per held position and day the valuation falls back in this
 order (`pickPrice` / `dailyValuation` in `packages/domain/src/invest/series.ts`): the latest price on
-or before the day (`exact`, `stale` when older than 7 days) → the earliest price AFTER the day within
-7 days (`estimated`) → the moving-average cost basis (`estimated`) → nothing, flagged `missing` (no
+or before the day (`exact`, `stale` when older than 7 days) → the latest gross execution on/before
+the day, otherwise the earliest after it (`exact`, trade currency, excluding fees/taxes) → the
+moving-average cost basis (`estimated`) → nothing, flagged `missing` (no
 price and no cost basis). A position without units (sold, expired, knocked out) adds nothing and is
 not flagged. Every answer of a request that estimated a value carries a top-level
-`incomplete: [{ securityId, name, quality: 'estimated' | 'missing', from, to }]` (one entry per
-security, merged over accounts and days); the pages show "Bewertung teilweise geschätzt: N
+`incomplete: [{ securityId, name, quality: 'estimated' | 'missing', from, to, unitsE8 }]` (one entry
+per security, only positive as-of holdings without a quote or execution price); the pages show "Bewertung teilweise geschätzt: N
 Wertpapiere ohne Kurs". Answers whose values are all exact have no `incomplete`. Strict callers
 (Portfolio Performance comparison, the export) pass `estimate: false` and keep the old behaviour:
 a held position without a price is missing. `/accounts` returns `holdingsCents`, `valueEurCents`

@@ -179,6 +179,23 @@ function IncomeBody({ data }: { data: IncomeReportData }) {
         )}
       </section>
 
+      {data.contactWriteOffs.length > 0 && (
+        <section className="mr-card" aria-labelledby="inc-contact-title">
+          <h2 id="inc-contact-title">Sonstige Einnahmen · Ausgleich Kontakt</h2>
+          <p>
+            Bereits vorhandenes Geld wird ins Budget übernommen. Kein Haushaltseinkommen und keine
+            Kapitalerträge.
+          </p>
+          {data.contactWriteOffs.map((s) => (
+            <p key={s.bookingId}>
+              <a href={`/konten/buchungen?buchung=${encodeURIComponent(s.bookingId)}`}>
+                {shortDay(s.date)} · {eur(s.amountCents)}
+              </a>
+            </p>
+          ))}
+        </section>
+      )}
+
       <section className="mr-card" aria-labelledby="inc-exp-title">
         <div className="tbd-head">
           <h2 id="inc-exp-title">Erwartet gegen eingegangen</h2>

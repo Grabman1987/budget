@@ -14,6 +14,21 @@ const note = (securityId: string, quality: 'estimated' | 'missing' = 'estimated'
 afterEach(cleanup);
 
 describe('ValuationHint', () => {
+  it('counts only positive as-of holdings and names only the affected held security', () => {
+    render(
+      <ValuationHint
+        incomplete={[
+          { ...note('closed'), unitsE8: 0 },
+          { ...note('short'), unitsE8: -1e8 },
+          { ...note('held'), unitsE8: 1e8 },
+        ]}
+      />,
+    );
+    expect(screen.getByRole('status').textContent).toContain('1 Wertpapier ohne Kurs');
+    expect(screen.getByRole('status').textContent).toContain('Instrument held');
+    expect(screen.getByRole('status').textContent).not.toContain('Instrument closed');
+    expect(screen.getByRole('status').textContent).not.toContain('Instrument short');
+  });
   it('says how many securities are valued without a quote', () => {
     expect(valuationHintText(1)).toBe('Bewertung teilweise geschätzt: 1 Wertpapier ohne Kurs');
     expect(valuationHintText(4)).toBe('Bewertung teilweise geschätzt: 4 Wertpapiere ohne Kurs');

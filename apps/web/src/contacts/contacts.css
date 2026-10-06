@@ -1,6 +1,14 @@
 .contacts-page {
   max-width: var(--page-max);
 }
+.contacts-write-off .bk-head {
+  flex-wrap: nowrap;
+}
+.contacts-write-off .bk-kind {
+  order: 0;
+  flex: 1;
+  margin: 0;
+}
 .contacts-page .ptoolbar {
   display: flex;
   align-items: center;
@@ -77,4 +85,9 @@
   .contacts-table td:last-child {
     font-size: 12px;
   }
+}
+
+.contacts-table td:first-child .btn {
+  white-space: normal;
+  text-align: left;
 }
