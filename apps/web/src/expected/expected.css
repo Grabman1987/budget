@@ -17,21 +17,21 @@
   flex: 1;
 }
 .xp-aside {
-  font-size: 13px;
+  font-size: var(--fs-body);
   font-weight: 500;
   color: var(--ink-2);
   font-variant-numeric: tabular-nums;
 }
 .xp-sub {
   display: block;
-  font-size: 12.5px;
+  font-size: var(--fs-chart-label);
   font-weight: 450;
   color: var(--ink-3);
 }
 .xp-note {
   max-width: 62ch;
   margin: 0;
-  font-size: 13px;
+  font-size: var(--fs-body);
   color: var(--ink-3);
 }
 
@@ -72,7 +72,7 @@
 .xp .grp-sub {
   margin-left: 8px;
   font-weight: 450;
-  font-size: 12.5px;
+  font-size: var(--fs-chart-label);
   color: var(--ink-3);
 }
 .xp .prow.is-alert td {
@@ -89,14 +89,14 @@
   padding: 2px 8px;
   border: 1px solid var(--rule-strong);
   border-radius: 4px;
-  font-size: 12.5px;
+  font-size: var(--fs-chart-label);
   line-height: 1.5;
 }
 .xp-status {
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  font-size: 12.5px;
+  font-size: var(--fs-chart-label);
   font-weight: 500;
   color: var(--ink-2);
 }
@@ -178,7 +178,7 @@ h4.xp-sub {
   align-items: center;
   padding: 10px 0;
   border-bottom: 1px solid var(--rule);
-  font-size: 13.5px;
+  font-size: var(--fs-body);
 }
 .xp-occ-date {
   grid-area: date;
@@ -195,7 +195,7 @@ h4.xp-sub {
 }
 .xp-occ-book {
   grid-area: book;
-  font-size: 12.5px;
+  font-size: var(--fs-chart-label);
   color: var(--ink-3);
 }
 .xp-occ-book:empty {
@@ -227,7 +227,7 @@ h4.xp-sub {
 .xp-table:not(.ptable) {
   width: 100%;
   border-collapse: collapse;
-  font-size: 13.5px;
+  font-size: var(--fs-body);
 }
 .xp-table:not(.ptable) th {
   padding: 6px 0 8px;
@@ -317,7 +317,7 @@ h4.xp-sub {
   .xp-next .col-due {
     grid-column: 2;
     grid-row: 2;
-    font-size: 13px;
+    font-size: var(--fs-body);
     color: var(--ink-2);
   }
   .xp-next .col-state {
@@ -338,7 +338,7 @@ h4.xp-sub {
   .xp-contracts .col-due {
     grid-column: 2 / -1;
     grid-row: 2;
-    font-size: 13px;
+    font-size: var(--fs-body);
   }
   .xp-contracts td.col-month {
     grid-column: 2;
@@ -357,7 +357,7 @@ h4.xp-sub {
     content: attr(data-label);
     display: block;
     font-family: var(--font-tech);
-    font-size: 10.5px;
+    font-size: var(--fs-class-tag);
     letter-spacing: 0.06em;
     text-transform: uppercase;
     color: var(--ink-3);

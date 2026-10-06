@@ -25,7 +25,7 @@ test('plan views: status, 50/30/20, triage groups and the time view', async ({ p
   await expect(split.locator('.sb-legend')).toContainText(/Bedarf \d+ %/);
 
   // Triage: title and hint left-aligned on their own lines, the affected envelopes inside.
-  await page.getByRole('button', { name: /^Triage/ }).click();
+  await page.getByRole('button', { name: /^Überziehungen prüfen/ }).click();
   const over = page.locator('tr.pgroup', { hasText: 'Überzogen' });
   await expect(over.locator('.grp-title')).toHaveText('Überzogen');
   await expect(over.locator('.grp-toggle')).toHaveCSS('text-align', /^(left|start)$/);

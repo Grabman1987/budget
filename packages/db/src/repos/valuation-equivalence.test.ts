@@ -2,9 +2,10 @@ import {
   addDays,
   costBasisOnDay,
   costInEur,
-  marketValueEurCents,
+  valueAtPrice,
   PRICE_BACKFILL_TOLERANCE_DAYS,
   pickPrice,
+  pickTradePrice,
   unitsHeld,
   type DatedPrice,
   type RateTable,
@@ -54,11 +55,13 @@ function reference(db: OpenedDatabase['db'], asOf: string, estimate: boolean) {
     .from(holding)
     .where(and(lte(holding.asOf, asOf), isNull(holding.deletedAt)))
     .all();
-  const trades = db
+  const allTrades = db
     .select()
     .from(trade)
-    .where(and(lte(trade.date, asOf), isNull(trade.deletedAt)))
+    .where(isNull(trade.deletedAt))
+    .orderBy(trade.date, trade.id)
     .all();
+  const trades = allTrades.filter((t) => t.date <= asOf);
   const held = new Set<string>();
   for (const r of [...snapshots, ...trades]) if (live.has(r.securityId)) held.add(r.securityId);
   const bySecurity = new Map<string, DatedPrice[]>();
@@ -108,7 +111,17 @@ function reference(db: OpenedDatabase['db'], asOf: string, estimate: boolean) {
       asOf,
     );
     if (units === 0) continue;
-    const choice = pickPrice(bySecurity.get(securityId) ?? [], asOf, estimate);
+    const prices = bySecurity.get(securityId) ?? [];
+    const choice =
+      pickPrice(prices, asOf, false) ??
+      (estimate
+        ? pickTradePrice(
+            allTrades
+              .filter((t) => t.securityId === securityId)
+              .map((t) => ({ ...t, currency: currencies.get(t.accountId) ?? 'EUR' })),
+            asOf,
+          )
+        : undefined);
     if (!choice) {
       const accountCurrency = currencies.get(accountId) ?? 'EUR';
       const cost = {
@@ -155,7 +168,7 @@ function reference(db: OpenedDatabase['db'], asOf: string, estimate: boolean) {
       priceMicro,
       priceCurrency,
       fxRateMicro,
-      valueCents: marketValueEurCents(units, priceMicro, fxRateMicro),
+      valueCents: valueAtPrice(units, choice, fxRateMicro),
       quality: choice.quality,
       priceDate: choice.price.date,
     });
@@ -291,8 +304,23 @@ describe('holding valuation: indexed price lookup equals the full-table read', (
     });
   }
 
-  it('covers every quality: exact, stale, estimated from a later price and from the cost basis', () => {
+  it('covers every quality including cost-only snapshots', () => {
     seedScenario(7);
+    opened.db
+      .insert(security)
+      .values({ id: 'cost-only', name: 'Synthetic cost-only', kind: 'stock', currency: 'EUR' })
+      .run();
+    opened.db
+      .insert(holding)
+      .values({
+        id: 'cost-only-h',
+        accountId: 'depot-a',
+        securityId: 'cost-only',
+        asOf: '2026-01-01',
+        unitsE8: 1e8,
+        costBasisCents: 700,
+      })
+      .run();
     const qualities = new Set<string>();
     for (let d = -10; d < 330; d += 3)
       for (const v of holdingValuationExportAsOf(opened.db, addDays('2026-01-01', d)).values)

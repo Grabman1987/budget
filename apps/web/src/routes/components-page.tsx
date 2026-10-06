@@ -258,7 +258,7 @@ function Chains() {
           aria-controls="kette-frei"
           onClick={() => setDrawingOpen((open) => !open)}
         >
-          {drawingOpen ? 'Maßkette ausblenden' : 'Maßkette zeigen'}
+          {drawingOpen ? 'Herleitung ausblenden' : 'Herleitung zeigen'}
         </Button>
       </p>
       <div id="kette-frei">
