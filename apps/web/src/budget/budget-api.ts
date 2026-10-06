@@ -1,4 +1,4 @@
-import type { IncomeTargets } from '@budget/domain';
+import type { budgetAccountMoney, IncomeTargets } from '@budget/domain';
 import { queryOptions } from '@tanstack/react-query';
 import { request } from '../api/http';
 import type { WriteResult } from '../ledger/types';
@@ -9,6 +9,8 @@ import { BUDGET_KEY } from './use-category-writes';
 
 export interface EnvelopeSummary {
   categoryId: string;
+  committedCents?: number;
+  freeCents?: number;
   carryCents: number;
   assignedCents: number;
   activityCents: number;
@@ -42,6 +44,7 @@ export interface MonthSummary {
 
 export interface BudgetMonthView {
   incomeTargets?: IncomeTargets;
+  budgetMoney?: ReturnType<typeof budgetAccountMoney>;
   summary: MonthSummary;
   groups: GroupRow[];
   categories: CategoryRow[];
@@ -76,17 +79,11 @@ export const moveMoney = (
   toId: string | null,
   amountCents: number,
 ) => request<WriteResult>('POST', `${path(month)}/move`, { fromId, toId, amountCents });
-/** From "Zu verteilen" (`fromId: null`) at most what it holds, unless `allowNegative`. */
-export const coverOverspending = (
-  month: string,
-  categoryId: string,
-  fromId: string | null,
-  allowNegative = false,
-) =>
+/** Cover is capped at the free source amount on the server. */
+export const coverOverspending = (month: string, categoryId: string, fromId: string | null) =>
   request<WriteResult & { coveredCents: number }>('POST', `${path(month)}/cover`, {
     categoryId,
     fromId,
-    ...(allowNegative && { allowNegative }),
   });
 
 /** Omitted source: suggested positive sources in descending order, one audit/undo. */

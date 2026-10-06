@@ -34,7 +34,7 @@ import './overview-reports.css';
 import './finanzcheck-report.css';
 import { heuteQuery } from '../heute/api';
 import { BalanceChart } from '../heute/charts';
-import { useBalancePeriod } from '../heute/use-balance-period';
+import { PAYDAY_ONLY_THIS_MONTH, useBalancePeriod } from '../heute/use-balance-period';
 import { useMonth } from '../shell/use-month';
 import '../heute/heute.css';
 
@@ -87,7 +87,7 @@ const stripLabel = (line: RuleTimeline) =>
 export function FinanzcheckReport({ report, meta }: { report: ReportEntry; meta: PageMeta }) {
   useAmountPrivacy();
   const [month] = useMonth();
-  const [period, setPeriod] = useBalancePeriod();
+  const { period, setPeriod, paydayAvailable } = useBalancePeriod();
   const forecastQuery = useQuery(heuteQuery(month, period));
   const forecast = forecastQuery.data;
   const query = useQuery(finanzcheckVerlaufQuery());
@@ -108,7 +108,12 @@ export function FinanzcheckReport({ report, meta }: { report: ReportEntry; meta:
               label="Zeitraum Kontoprognose"
               options={[
                 { value: 'month', label: 'Monat' },
-                { value: 'payday', label: 'Bis Gehalt' },
+                {
+                  value: 'payday',
+                  label: 'Bis Gehalt',
+                  disabled: !paydayAvailable,
+                  ...(paydayAvailable ? {} : { description: PAYDAY_ONLY_THIS_MONTH }),
+                },
               ]}
               value={period}
               onChange={setPeriod}

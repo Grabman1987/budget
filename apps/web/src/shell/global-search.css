@@ -74,10 +74,6 @@
 @media (max-width: 767px) {
   .global-search-trigger {
     display: grid;
-    position: fixed;
-    z-index: 31;
-    right: calc(var(--fab-gap) + var(--fab-size) + 12px);
-    bottom: calc(var(--tabbar-h) + var(--fab-gap) + 7px);
     width: 44px;
     height: 44px;
     border: 1px solid var(--line-2);
