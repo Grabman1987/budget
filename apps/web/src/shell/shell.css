@@ -243,6 +243,7 @@ a.profile:hover .profile-text strong {
 .search {
   position: relative;
   flex: 1;
+  min-width: 0;
   max-width: 460px;
 }
 .search .icon {
@@ -380,7 +381,7 @@ a.btn {
   .m-head {
     display: flex;
     align-items: flex-start;
-    gap: 8px;
+    gap: 4px;
     padding: 14px 16px 6px;
   }
   .m-head .m-title-text {
@@ -527,6 +528,33 @@ a.btn {
   background: var(--red-soft);
   color: var(--red);
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--red) 28%, transparent);
+}
+/* Medium widths: count only (the full text stays in the accessible name and the popover). */
+@media (max-width: 1180px) {
+  .overspent-chip-detail {
+    display: none;
+  }
+}
+/* Phone header: a 44 px icon with the count as a badge, so the area name keeps its room. */
+.overspent-chip-btn-compact {
+  position: relative;
+  justify-content: center;
+  width: 44px;
+  padding: 0;
+}
+.overspent-chip-btn-compact .overspent-chip-count {
+  position: absolute;
+  top: 2px;
+  right: -2px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 4px;
+  border-radius: 999px;
+  background: var(--red);
+  color: var(--on-primary);
+  font-size: 11px;
+  line-height: 18px;
+  text-align: center;
 }
 .overspent-pop {
   position: absolute;

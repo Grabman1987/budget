@@ -97,7 +97,7 @@ export function OverspentChip({ compact = false }: { compact?: boolean }) {
       <button
         ref={button}
         type="button"
-        className="overspent-chip-btn"
+        className={compact ? 'overspent-chip-btn overspent-chip-btn-compact' : 'overspent-chip-btn'}
         aria-label={label}
         aria-expanded={open}
         aria-controls={id}
@@ -105,9 +105,14 @@ export function OverspentChip({ compact = false }: { compact?: boolean }) {
         onClick={() => setOpen(!open)}
       >
         <AlertTriangle size={16} strokeWidth={1.75} aria-hidden="true" />
-        <span aria-hidden="true">
-          {compact ? over.length : `${over.length} überzogen · ${eur(total)}`}
+        <span className="overspent-chip-count" aria-hidden="true">
+          {over.length}
         </span>
+        {!compact && (
+          <span className="overspent-chip-detail" aria-hidden="true">
+            {` überzogen · ${eur(total)}`}
+          </span>
+        )}
       </button>
       {open &&
         inShell(

@@ -43,6 +43,7 @@ test.describe('UX-3a phone shell', () => {
   });
 
   test('a touch on the avatar opens an unobstructed profile menu', async ({ page }, info) => {
+    test.setTimeout(120_000); // four pages, each with a tap-triggered navigation; ~30 s on a busy runner
     for (const path of PAGES) {
       await page.goto(path);
       const avatar = page.locator('.m-profile summary');
