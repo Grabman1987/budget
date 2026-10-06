@@ -54,6 +54,11 @@ export function useBudgetWrite() {
     try {
       const result = await run();
       await refresh();
+      // A stale quick-fill or an exhausted pool may produce no audit entries.
+      if ('changedCount' in result && result.changedCount === 0) {
+        toast.show({ message: message(result) });
+        return result;
+      }
       toast.show({
         message: message(result),
         actionLabel: 'Rückgängig',

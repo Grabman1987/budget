@@ -3,11 +3,13 @@ import {
   coverPlan,
   formatEuro,
   monthOf,
+  quickAssignPlan,
   summarizeMonth,
   todayInVienna,
   unclassifiedMonth,
   type CardRule,
   type MonthSummary,
+  type QuickAssignMode,
 } from '@budget/domain';
 import { and, eq, isNull } from 'drizzle-orm';
 import { category, envelopeMonth } from '../schema';
@@ -20,6 +22,31 @@ import { setAssigned } from './envelopes';
 import { CategoryRuleError, EntityNotFoundError } from './errors';
 import { budget, budgetLedger, budgetOfLedger } from './queries';
 import { runInTransaction, type Executor } from './types';
+import { planMonthViews } from './plan-months';
+
+/** Re-read suggestions inside the transaction; stale clients cannot overwrite filled rows. */
+export function quickAssignMany(
+  db: Executor,
+  month: string,
+  mode: QuickAssignMode,
+  categoryIds: ReadonlyArray<string>,
+  ctx: AuditContext,
+  today: string,
+) {
+  return runInTransaction(db, (tx) => {
+    const view = planMonthViews(tx, [month], {}, today)[month]!;
+    const byId = new Map(view.summary.envelopes.map((e) => [e.categoryId, e]));
+    if (new Set(categoryIds).size !== categoryIds.length)
+      throw new CategoryRuleError('Eine Kategorie darf nur einmal ausgewählt sein.');
+    const rows = categoryIds.map((id) => {
+      const row = byId.get(id);
+      if (!row?.quickAssign) throw new CategoryRuleError('Bitte eine Ausgabenkategorie auswählen.');
+      return row;
+    });
+    const { items, ...result } = quickAssignPlan(rows, mode, view.summary.toBeAssignedCents);
+    return { ...assignMany(tx, month, items, ctx), ...result };
+  });
+}
 
 /**
  * Budget writes of Plan › Monat: assign, move money between envelopes and "Zu verteilen", cover
