@@ -583,6 +583,9 @@
   }
 }
 
+.kx-payee {
+  min-width: 0;
+}
 .kname-btn,
 .kcat-btn {
   display: block;
@@ -590,6 +593,10 @@
   text-align: left;
   color: inherit;
   border-radius: 4px;
+}
+.kname-btn {
+  max-width: 100%;
+  overflow-wrap: anywhere;
 }
 .kname-btn:hover .kname-s {
   color: var(--line);

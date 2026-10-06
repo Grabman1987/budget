@@ -529,6 +529,11 @@
   /* The sheet is laid out wider than the paper and scaled down to it, so the desktop layout of
      the sheet (two columns, drawing frame) holds on paper whatever the window size. */
   .psheet {
+    /* Paper keeps the compact scale whatever the print viewport width (phone tokens must not leak in). */
+    --fs-body: 13px;
+    --fs-class-tag: 10px;
+    --fs-display: 28px;
+    --fs-figure-large: 32px;
     zoom: 0.66;
     max-width: none;
     width: calc(100% / 0.66);

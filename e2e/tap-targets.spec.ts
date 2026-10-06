@@ -2,6 +2,7 @@ import type { Locator } from '@playwright/test';
 import { sampleTest as test, expect } from './sample';
 
 async function expectTouchTargets(controls: Locator) {
+  await expect(controls.first()).toBeVisible();
   expect(await controls.count()).toBeGreaterThan(0);
   for (const control of await controls.all()) {
     await control.scrollIntoViewIfNeeded();
