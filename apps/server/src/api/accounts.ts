@@ -11,6 +11,7 @@ import {
   accounts,
   accountSummaries,
   balanceSeries,
+  holdingAccountValueSeries,
   accountPreview,
   netWorthValuationAsOf,
   booking,
@@ -25,7 +26,7 @@ import { and, eq, isNull, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import { randomUUID } from 'node:crypto';
 import { Hono, type Context } from 'hono';
-import type { CashValuation } from '@budget/domain';
+import { eachDay, type CashValuation } from '@budget/domain';
 import { ACTOR, ApiError, defined, readBody, readQuery } from './http';
 import {
   accountClose,
@@ -215,6 +216,7 @@ export function accountRoutes(db: Db, today: () => string): Hono {
   app.get('/series', (c) => {
     const { ids, ...range } = readQuery(c, seriesBatchQuery);
     const value = cashValuer(db);
+    const held = holdingAccountValueSeries(db, eachDay(range.from, range.to), ids);
     const wanted = ids ? new Set(ids) : undefined;
     const rows = db
       .select({ id: account.id, currency: account.currency })
@@ -224,7 +226,9 @@ export function accountRoutes(db: Db, today: () => string): Hono {
       .all()
       .filter((a) => !wanted || wanted.has(a.id));
     return c.json({
-      series: Object.fromEntries(rows.map((a) => [a.id, seriesOf(value, a.id, a.currency, range)])),
+      series: Object.fromEntries(
+        rows.map((a) => [a.id, seriesOf(value, a.id, a.currency, range, held.get(a.id))]),
+      ),
     });
   });
 
@@ -321,13 +325,19 @@ export function accountRoutes(db: Db, today: () => string): Hono {
     id: string,
     currency: string,
     range: { from: string; to: string },
+    /** EUR value per day of an account with positions (cash plus securities), see below. */
+    held?: number[],
   ) => ({
     accountId: id,
     currency,
-    points: balanceSeries(db, id, range).map((p) => ({
-      ...p,
-      valuation: value(p.balanceCents, currency, p.date),
-    })),
+    points: balanceSeries(db, id, range).map((p, i) => {
+      // An EUR account with positions follows its value (cash + market value), the number the
+      // value column shows; every other account keeps its cash balance.
+      const total = currency === 'EUR' ? held?.[i] : undefined;
+      return total === undefined
+        ? { ...p, valuation: value(p.balanceCents, currency, p.date) }
+        : { ...p, balanceCents: total, valuation: value(total, currency, p.date) };
+    }),
   });
 
   app.get('/:id/series', (c) => {
@@ -341,9 +351,10 @@ export function accountRoutes(db: Db, today: () => string): Hono {
       .get();
     if (!acct) throw new ApiError(404, 'not_found', `Account ${id} not found`);
     const value = cashValuer(db);
+    const held = holdingAccountValueSeries(db, eachDay(range.from, range.to), [id]);
     const preview = accountPreview(db, id, acct.currency, today(), range.previewDays);
     return c.json({
-      ...seriesOf(value, id, acct.currency, range),
+      ...seriesOf(value, id, acct.currency, range, held.get(id)),
       ...(range.previewDays > 0
         ? {
             previewPoints: preview.points.map((p) => ({

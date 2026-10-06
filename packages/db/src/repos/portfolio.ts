@@ -1073,3 +1073,39 @@ export function accountValuesAsOf(db: Executor, asOf: string): AccountValue[] {
     .map((a) => ({ accountId: a.id, name: a.name, type: a.type, valueCents: byAccount[a.id] ?? 0 }))
     .filter((a) => a.valueCents !== 0);
 }
+
+/**
+ * Daily EUR value of accounts that hold positions: the cash series plus the market value of their
+ * positions, exactly the value of `netWorthValuationAsOf` (the Konten value column) on every day.
+ * Accounts without any position in the window are left out (their value is their cash balance).
+ * The rows are read once for all accounts and days.
+ */
+export function holdingAccountValueSeries(
+  db: Executor,
+  days: ReadonlyArray<string>,
+  accounts?: ReadonlyArray<string>,
+): Map<string, number[]> {
+  const out = new Map<string, number[]>();
+  const from = days[0];
+  const to = days[days.length - 1];
+  if (from === undefined || to === undefined) return out;
+  const positions = valuationSeries(db, { from, to, ...(accounts ? { accounts } : {}) }).positions;
+  if (positions.length === 0) return out;
+  const held = new Set(positions.map((p) => p.accountId));
+  const cash = cashSeries(db, days, [...held]);
+  for (const id of held) {
+    const base = cash.get(id) ?? days.map(() => 0);
+    out.set(
+      id,
+      base.map(
+        (cents, i) =>
+          cents +
+          positions.reduce(
+            (sum, p) => (p.accountId === id ? sum + (p.valueCents[i] ?? 0) : sum),
+            0,
+          ),
+      ),
+    );
+  }
+  return out;
+}
