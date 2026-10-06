@@ -1,5 +1,11 @@
 # Roadmap
 
+### Heute daily budget — owner 05.10.2026
+
+- [x] Daily line below the Leitmaß from its existing cent-exact source and shared payday; today included, one day on payday itself, nonpositive alarm copy, hover/focus formula and phone wrapping.
+- [x] Synthetic domain/API and component regressions plus one desktop/mobile E2E scenario; no local screenshot baseline regeneration.
+- [ ] Pinned Linux visual review, CI and owner acceptance.
+
 ### Heute / R07 horizon — owner 05.10.2026
 
 - [x] Shared period-bound balance/low read, 14-day actual lookback, two-day boundary tail and short payday extension; remembered period and R07 chart in Finanz-Check-Verlauf.

@@ -103,6 +103,26 @@ async function call(method: string, path: string, body?: unknown) {
 }
 
 describe('GET /heute', () => {
+  it('derives daily cents from the existing lead and rule-based payday, independent of chart period', async () => {
+    const month = (await call('GET', '/heute?period=month')).body;
+    const payday = (await call('GET', '/heute?period=payday')).body;
+    expect(month.lead.freeCents).toBe(28_000);
+    expect(month.stand.payday.day).toBe('2026-04-15');
+    expect(month.dailyBudget).toEqual({ remainingDays: 28, perDayCents: 1_000 });
+    expect(payday.dailyBudget).toEqual(month.dailyBudget);
+    expect(payday.lead.freeCents).toBe(month.lead.freeCents);
+  });
+  it.each([72_000, 71_999])(
+    'suppresses the daily figure when the existing lead is nonpositive (%i assigned)',
+    async (assignedCents) => {
+      await call('PUT', '/budget/2026-03/assigned', {
+        items: [{ categoryId: 'miete', assignedCents }],
+      });
+      const result = await call('GET', '/heute');
+      expect(result.body.lead.freeCents).toBe(assignedCents - 72_000);
+      expect(result.body.dailyBudget).toEqual({ remainingDays: 28, perDayCents: null });
+    },
+  );
   it.each([
     ['month', '2026-10-05', '2026-09-21', '2026-11-02'],
     ['payday', '2026-10-05', '2026-09-21', '2026-10-17'],
@@ -186,6 +206,7 @@ describe('GET /heute', () => {
       [
         'attention',
         'balance',
+        'dailyBudget',
         'financeCheck',
         'lastBookings',
         'lead',
