@@ -1,5 +1,13 @@
 # Roadmap
 
+### UX-5c — Violated rules first (owner feedback 2026-10-05)
+
+- [x] Regelwerk starts with violated rules, shared current values, stored thresholds and correction links; met rules follow and disabled rules start collapsed.
+- [x] Warnings and unavailable evaluations stay explicit under Noch offen; every registered rule has its code, a plain explanation, switch and Einstellen. Stage checklist items retain their own S-codes.
+- [x] Synthetic unit and desktop/mobile browser regressions cover grouping, correction navigation, keyboard expansion, parameter validation and undo; no local baseline regeneration.
+- [x] Full local typecheck, lint/format, unit coverage (three load timeouts passed targeted reruns), production/E2E builds and affected browser specs; [results and baseline list](ux-rules-first-1005.md).
+- [ ] Pinned Linux visual review, required CI and owner acceptance.
+
 ### Heute three answer cards — owner 05.10.2026
 
 - [x] Three current answer cards reuse Vermögen, Gesamtübersicht, One-Pager, Leitmaß and Pace sources; nearest unfinished Sparziel reuses saved/missing cents and date ordering.

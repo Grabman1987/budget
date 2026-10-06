@@ -1,0 +1,31 @@
+# UX-5c — Regelwerk: violated rules first
+
+Scope: Einstellungen › Regelwerk only. No dependencies, schema, API or financial calculations change. The page reuses the existing rule book's latest evaluation, threshold formatter, audit writes and undo path.
+
+Registered rules now precede the stage checklist. Verletzt contains only enabled bad evaluations; Noch offen contains warnings and missing evaluations; Eingehalten contains only enabled ok evaluations. Ausgeschaltet is a native, initially closed details element, including rules whose disabled preview has a status. Empty violation/met groups stay explicit. Every row has its registered R-code, one plain sentence, switch and Einstellen action. Stage checklist entries also show their actual S-code, including the two manually confirmed items without a linked R-rule.
+
+Violations show the shared current value and evaluation date beside the stored threshold, the existing next step and a link to the existing correction page. Warnings and missing-data reasons remain visible without being labelled fulfilled. Parameters stay in the existing validated, undoable form, now in a centred input dialog on desktop and a sheet on the phone. No content side panel is added.
+
+## Verification
+
+- Red/green unit regressions for group membership, disabled previews, missing data, complete explanation/link coverage, visible values and thresholds, checklist codes and keyboard expansion.
+- `e2e/rules.spec.ts`: synthetic sample at 1440 px and 390 px, API/group consistency, correction link and browser Back, collapsed disabled rows, keyboard expansion, light/dark Axe, overflow, 44 px controls, input dialog focus return, validation, toggle/threshold/checklist writes and undo.
+- Full local check invoked once: all workspace typechecks passed; lint initially rejected a type import and a local Windows runtime helper. The import was corrected and the helper moved to ignored test output; the complete lint/format check then passed. The full unit run passed 3,259 tests; three files hit the default 5-second timeout under memory pressure. Only those files were repeated with one worker and a 30-second timeout: 17 tests passed, covering all three failures. Test assertions were unchanged.
+- Affected unit files: 12 tests passed. Regelwerk desktop/mobile E2E: 13 passed, four intentional viewport skips. The dependent freedom-capture E2E: four passed including setup. An additional red/green browser regression verifies focus return after a rule moves between groups on save and undo.
+- Windows browser/unit processes used the documented local `os.userInfo` fallback for `uv_os_get_passwd`; no application runtime change is included. Linux screenshot comparison and owner device acceptance remain open.
+- Final production and E2E builds exited 0; final web typecheck, affected ESLint/Prettier checks and `git diff --check` passed after the focus regression fix.
+
+Synthetic viewport review images (not screenshot baselines): [desktop light](evidence/ux-rules-first-1005/desktop-light.png), [desktop dark](evidence/ux-rules-first-1005/desktop-dark.png), [phone light](evidence/ux-rules-first-1005/mobile-light.png), [phone dark](evidence/ux-rules-first-1005/mobile-dark.png).
+
+## Affected visual baselines
+
+No baseline was regenerated locally. Review all four files in `e2e/rules.spec.ts-snapshots/` on the pinned Linux browser:
+
+- `regelwerk-light-desktop-linux.png`
+- `regelwerk-dark-desktop-linux.png`
+- `regelwerk-light-mobile-linux.png`
+- `regelwerk-dark-mobile-linux.png`
+
+## Owner steps
+
+Review the grouped Regelwerk on desktop and phone, including Noch offen, correction destinations and Einstellen. Review the four Linux screenshots before accepting baseline changes and wait for required CI checks before merging. No keys, consents or provider setup are needed for this task.
