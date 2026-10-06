@@ -27,6 +27,7 @@ import {
   inboxItem,
   payee,
   category,
+  incomeType,
 } from '../schema';
 import { insertTracked, updateTracked, withGroup, type AuditContext } from './audit';
 import { ConflictError, EntityNotFoundError } from './errors';
@@ -79,7 +80,10 @@ export function listAssignmentRules(db: Executor): AssignmentRule[] {
 }
 
 function assertReferences(db: Executor, input: AssignmentRuleInput) {
-  const live = (table: typeof payee | typeof category | typeof account, id: string) => {
+  const live = (
+    table: typeof payee | typeof category | typeof account | typeof incomeType,
+    id: string,
+  ) => {
     const row = db
       .select()
       .from(table)
@@ -101,6 +105,8 @@ function assertReferences(db: Executor, input: AssignmentRuleInput) {
   if (input.actions.categoryId) live(category, input.actions.categoryId);
   for (const s of input.actions.splits ?? []) live(category, s.categoryId);
   if (input.actions.transferAccountId) live(account, input.actions.transferAccountId);
+  if (input.actions.accountId) live(account, input.actions.accountId);
+  if (input.actions.incomeTypeId) live(incomeType, input.actions.incomeTypeId);
 }
 
 export function saveAssignmentRule(
@@ -281,6 +287,20 @@ export function assignmentSuggestions(db: Executor, row: AssignmentRow) {
       let unavailable: string | null = null;
       try {
         assertReferences(db, rule);
+        if (rule.actions.incomeTypeId && row.amountCents <= 0)
+          throw new ConflictError('Einnahmeart benötigt einen Zufluss.');
+        if (rule.actions.accountId) {
+          if (row.source === 'bank' && rule.actions.accountId !== row.accountId)
+            throw new ConflictError('Das Bankkonto bleibt an seine Datenquelle gebunden.');
+          const source = db.select().from(account).where(eq(account.id, row.accountId)).get();
+          const target = db
+            .select()
+            .from(account)
+            .where(eq(account.id, rule.actions.accountId))
+            .get();
+          if (!source || !target || source.currency !== target.currency)
+            throw new ConflictError('Konto benötigt dieselbe Währung.');
+        }
         const target = rule.actions.transferAccountId;
         if (target === row.accountId)
           throw new ConflictError('Gegenkonto muss ein anderes Konto sein.');
@@ -337,29 +357,29 @@ export function readAssignmentCandidate(db: Executor, id: string) {
     existingTransfer,
     suggestions: assignmentSuggestions(db, {
       ...candidate,
+      source: 'bank',
       rawText: bankAssignmentText(candidate.rawPayee, candidate.memo),
       payeeId: cleanup.payeeId,
+      counterparty: cleanup.cleaned,
     }),
   };
 }
 
-function uncheckedBankBooking(db: Executor, id: string) {
+function uncheckedInboxBooking(db: Executor, id: string) {
   const row = getBooking(db, id);
   if (
     !row ||
-    row.source !== 'bank' ||
     row.status === 'reconciled' ||
     row.transferId ||
     row.splits.some((s) => s.transferId || s.contactId) ||
-    (row.status !== 'pending' && row.splits.every((s) => s.categoryId !== null))
+    (row.status !== 'pending' &&
+      row.splits.every((s) => s.categoryId !== null || s.incomeTypeId !== null))
   )
-    throw new ConflictError(
-      'Nur offene, ungeprüfte Bankbuchungen können einen Vorschlag übernehmen.',
-    );
+    throw new ConflictError('Nur offene, ungeprüfte Buchungen können einen Vorschlag übernehmen.');
   return row;
 }
 export function readBookingAssignments(db: Executor, id: string) {
-  const row = uncheckedBankBooking(db, id);
+  const row = uncheckedInboxBooking(db, id);
   const cleanup = suggestedBankPayee(
     db,
     row.bankSourceId ?? '',
@@ -372,7 +392,8 @@ export function readBookingAssignments(db: Executor, id: string) {
       ...row,
       payeeId: row.payeeId ?? cleanup.payeeId,
       rawText: bankAssignmentText(row.bankRawPayee, row.bankRawText ?? row.memo ?? ''),
-    }),
+      counterparty: bookingCounterparty(db, row),
+    }).filter((rule) => row.source === 'bank' || rule.id.startsWith('inbox-learn:')),
   };
 }
 
@@ -380,20 +401,22 @@ export function assignmentPatch(
   amountCents: number,
   actions: AssignmentRuleInput['actions'],
 ): BookingPatch {
-  const { categoryId, splits, transferAccountId, ...columns } = actions;
+  const { categoryId, incomeTypeId, accountId, splits, transferAccountId, ...columns } = actions;
   const lines: SplitInput[] | undefined = splits
     ? assignmentSplits(amountCents, splits)
-    : categoryId !== undefined || transferAccountId
+    : categoryId !== undefined || incomeTypeId !== undefined || transferAccountId
       ? [
           {
             amountCents,
             categoryId: categoryId ?? null,
+            ...(incomeTypeId !== undefined ? { incomeTypeId } : {}),
             ...(transferAccountId ? { transferAccountId } : {}),
           },
         ]
       : undefined;
   return {
     ...columns,
+    ...(accountId !== undefined ? { accountId } : {}),
     ...(transferAccountId ? { payeeId: null } : {}),
     ...(lines ? { splits: lines } : {}),
   };
@@ -407,7 +430,7 @@ export function applyBookingAssignment(
 ) {
   const grouped = withGroup(ctx);
   return runInTransaction(db, (tx) => {
-    const row = uncheckedBankBooking(tx, id);
+    const row = uncheckedInboxBooking(tx, id);
     const rule = readBookingAssignments(tx, id).suggestions.find((r) => r.id === ruleId);
     if (!rule || rule.unavailable || (revision !== undefined && revision !== rule.revision))
       throw new ConflictError('Vorschlag hat sich geändert. Bitte neu prüfen.');
@@ -415,7 +438,16 @@ export function applyBookingAssignment(
       const { transferAccountId, categoryId, ...metadata } = rule.actions;
       updateBooking(tx, id, assignmentPatch(row.amountCents, metadata), grouped);
       markBankBookingTransfer(tx, id, transferAccountId, categoryId ?? null, grouped);
-    } else updateBooking(tx, id, assignmentPatch(row.amountCents, rule.actions), grouped);
+    } else
+      updateBooking(
+        tx,
+        id,
+        {
+          ...assignmentPatch(row.amountCents, rule.actions),
+          ...(rule.id.startsWith('inbox-learn:') ? { status: 'confirmed' as const } : {}),
+        },
+        grouped,
+      );
     return { groupId: grouped.groupId, bookingId: id };
   });
 }
@@ -441,6 +473,7 @@ export function previewAssignmentRule(db: Executor, input: AssignmentRuleInput) 
         ...b,
         payeeId: b.payeeId ?? cleanup.payeeId,
         rawText: bankAssignmentText(b.bankRawPayee, b.bankRawText ?? b.memo ?? ''),
+        counterparty: bookingCounterparty(db, b),
       };
     });
   const bookedKeys = new Set(
@@ -460,6 +493,7 @@ export function previewAssignmentRule(db: Executor, input: AssignmentRuleInput) 
       ...c,
       payeeId: cleanup.payeeId,
       rawText: bankAssignmentText(c.rawPayee, c.memo),
+      counterparty: cleanup.cleaned,
     });
   }
   const matched = rows.filter((row) => matchesAssignment(input.match, row));
@@ -469,6 +503,118 @@ export function previewAssignmentRule(db: Executor, input: AssignmentRuleInput) 
       .slice(0, 20)
       .map((r) => ({ id: r.id, date: r.date, amountCents: r.amountCents, rawText: r.rawText })),
   };
+}
+
+function bookingCounterparty(db: Executor, row: typeof booking.$inferSelect) {
+  if (row.source === 'bank')
+    return cleanBankPayee(
+      row.bankRawPayee,
+      row.bankRawText ?? row.memo ?? '',
+      readPayeeCleanup(db, row.bankSourceId ?? ''),
+    );
+  return row.payeeId
+    ? (db.select().from(payee).where(eq(payee.id, row.payeeId)).get()?.name ?? '')
+    : '';
+}
+
+/** Called only by owner confirmation paths, within their savepoint and undo group. */
+export function learnInboxAssignment(db: Executor, id: string, ctx: AuditContext) {
+  const row = getBooking(db, id);
+  if (
+    !row ||
+    row.status !== 'confirmed' ||
+    row.transferId ||
+    !row.amountCents ||
+    row.splits.length > 20 ||
+    row.splits.some(
+      (s) =>
+        s.transferId ||
+        s.contactId ||
+        !s.amountCents ||
+        Math.sign(s.amountCents) !== Math.sign(row.amountCents),
+    )
+  )
+    return;
+  const counterparty = bookingCounterparty(db, row);
+  if (!counterparty) return;
+  if (!row.payeeId && row.splits.every((s) => !s.categoryId && !s.incomeTypeId)) return;
+  // Reuse category templates; mixed category/income templates stay in the manual editor.
+  if (row.splits.length > 1 && row.splits.some((s) => !s.categoryId || s.incomeTypeId)) return;
+  let actions: AssignmentRuleInput['actions'];
+  if (row.splits.length === 1) {
+    const s = row.splits[0]!;
+    actions = {
+      categoryId: s.categoryId,
+      ...(s.incomeTypeId ? { incomeTypeId: s.incomeTypeId } : {}),
+    };
+  } else {
+    try {
+      actions = {
+        splits: learnAssignmentSplits(
+          row.splits.map((s) => ({ categoryId: s.categoryId!, amountCents: s.amountCents })),
+        ),
+      };
+    } catch {
+      return;
+    } // Sub-basis-point splits cannot form a cent-safe reusable template.
+  }
+  actions = {
+    ...actions,
+    payeeId: row.payeeId,
+    accountId: row.accountId,
+  };
+  const direction = row.amountCents < 0 ? 'outflow' : 'inflow';
+  const ruleId =
+    'inbox-learn:' +
+    createHash('sha256')
+      .update(JSON.stringify([bankAliasKey(counterparty), direction]))
+      .digest('hex');
+  const input: AssignmentRuleInput = {
+    name: counterparty.slice(0, 120),
+    enabled: true,
+    automatic: false,
+    match: {
+      mode: 'all',
+      conditions: [
+        { type: 'counterparty', text: bankAliasKey(counterparty) },
+        { type: 'direction', direction },
+      ],
+    },
+    actions,
+  };
+  const rules = listAssignmentRules(db);
+  const existing = db.select().from(assignmentRule).where(eq(assignmentRule.id, ruleId)).get();
+  // The existing rule limit bounds storage without preventing an owner from confirming a booking.
+  if ((!existing || existing.deletedAt) && rules.length >= 100) return;
+  try {
+    assertReferences(db, input);
+  } catch (error) {
+    if (error instanceof ConflictError) return;
+    throw error;
+  }
+  const { payeeId, categoryId, ...other } = actions;
+  const values = {
+    name: input.name,
+    matchJson: JSON.stringify(input.match),
+    actionJson: JSON.stringify({
+      ...other,
+      ...(categoryId === null ? { categoryId: null } : {}),
+      ...(payeeId === null ? { payeeId: null } : {}),
+    }),
+    payeeId: payeeId ?? null,
+    categoryId: categoryId ?? null,
+    enabled: true,
+    automatic: false,
+    deletedAt: null,
+  };
+  if (existing) updateTracked(db, assignmentRule, [ruleId], values, ctx);
+  else
+    insertTracked(
+      db,
+      assignmentRule,
+      { id: ruleId, ...values, priority: Math.max(-1, ...rules.map((r) => r.priority)) + 1 },
+      ctx,
+    );
 }
 
 export function assignmentFromBooking(db: Executor, id: string): AssignmentRuleInput {
