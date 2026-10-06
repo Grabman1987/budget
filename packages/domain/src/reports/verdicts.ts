@@ -1,4 +1,6 @@
+import { monthNameOnly } from '../date';
 import { cents, formatEuro } from '../money';
+import { formatPercent } from '../rules/format';
 import { VERDICT_TEMPLATES } from './verdict-templates';
 export { VERDICT_TEMPLATES } from './verdict-templates';
 
@@ -9,6 +11,12 @@ export interface VerdictMetric {
   unit: VerdictUnit;
   better?: 'higher' | 'lower';
 }
+/** A labelled money figure shown after the sentence unless the winning fact already names it. */
+export interface VerdictDetail {
+  label: string;
+  value: number | null;
+  skipFor?: readonly VerdictFactType[];
+}
 export interface VerdictPoint {
   month: string;
   value: number | null;
@@ -18,6 +26,8 @@ export interface VerdictFacts {
   reportId: string;
   period: string;
   metric?: VerdictMetric | undefined;
+  /** Extra signed figures appended after the sentence, e.g. market effect and net-worth change. */
+  details?: readonly VerdictDetail[];
   partial?: boolean | undefined;
   estimated?: boolean | undefined;
   unavailable?: boolean | undefined;
@@ -71,6 +81,12 @@ export interface VerdictCandidate {
   label?: string;
   value?: number;
   unit?: VerdictUnit;
+  /** The report's own figure; comparisons show it next to the difference in `value`. */
+  current?: number;
+  currentUnit?: VerdictUnit;
+  better?: 'higher' | 'lower';
+  /** Round marks (thresholds) carry no private information and stay readable. */
+  visible?: boolean;
   n?: number;
   rank?: number;
   threshold?: number;
@@ -120,6 +136,7 @@ function candidate(
     label: f.metric?.label ?? 'Stand',
     unit: f.metric?.unit ?? 'money',
     ...(valid(f.metric?.value) ? { value: f.metric.value } : {}),
+    ...(f.metric?.better ? { better: f.metric.better } : {}),
     type,
     strength,
     ...data,
@@ -239,6 +256,8 @@ function detectComparisons(f: VerdictFacts): VerdictCandidate[] {
     )
       add(m.value > c.value ? 'comparison-up' : 'comparison-down', 45, {
         reference: c.reference,
+        current: m.value,
+        currentUnit: m.unit,
         value: Math.abs(m.value - c.value),
         unit: m?.unit === 'percent' ? 'points' : m?.unit,
       });
@@ -255,7 +274,7 @@ function detectThresholds(f: VerdictFacts): VerdictCandidate[] {
     const step = now >= 100000000 ? 100000000 : now >= 10000000 ? 10000000 : 1000000;
     const crossed = Math.floor(now / step) * step;
     if (crossed > 0 && before < crossed && now >= crossed)
-      add('threshold-wealth', 92, { value: crossed, unit: 'money' });
+      add('threshold-wealth', 92, { value: crossed, unit: 'money', visible: true });
   }
   if (
     f.emergency &&
@@ -309,13 +328,10 @@ export function detectVerdictFacts(f: VerdictFacts): VerdictCandidate[] {
   ];
 }
 
-const decimal = new Intl.NumberFormat('de-AT', {
-  minimumFractionDigits: 1,
-  maximumFractionDigits: 1,
-});
+const oneDecimal = (n: number) => (Math.round(n * 10) / 10).toFixed(1).replace('.', ',');
 const short = (s: string) => s.replace(/[{}\r\n]/g, '').slice(0, 32);
 const ordinals = ['beste', 'zweitbeste', 'drittbeste'];
-function numberText(value: number | undefined, unit: VerdictUnit, hidden: boolean) {
+function numberText(value: number | undefined, unit: VerdictUnit, hidden: boolean, signed = false) {
   if (!valid(value)) return '–';
   if (hidden)
     return unit === 'money'
@@ -325,12 +341,18 @@ function numberText(value: number | undefined, unit: VerdictUnit, hidden: boolea
         : unit === 'points'
           ? '••• Pp'
           : '•••';
-  if (unit === 'money') return formatEuro(cents(value), { cents: Math.abs(value) < 10000 });
-  if (unit === 'percent' || unit === 'points') {
-    const rounded = Math.round(Math.abs(value) / 10) / 10;
-    return `${value < 0 && rounded !== 0 ? '−' : ''}${decimal.format(rounded)} ${unit === 'points' ? 'Pp' : '%'}`;
-  }
+  if (unit === 'money')
+    return formatEuro(cents(value), { cents: Math.abs(value) < 10000, sign: signed });
+  if (unit === 'percent') return formatPercent(value, signed);
+  if (unit === 'points') return formatPercent(value, signed).replace(/ %$/, ' Pp');
   return String(Object.is(value, -0) ? 0 : value);
+}
+/** ` · Markt +12 € · Nettovermögen +30 €` for the details that the sentence does not already name. */
+function detailSuffix(facts: VerdictFacts, type: VerdictFactType, hidden: boolean) {
+  return (facts.details ?? [])
+    .filter((d) => valid(d.value) && !d.skipFor?.includes(type))
+    .map((d) => ` · ${short(d.label)} ${numberText(d.value!, 'money', hidden, true)}`)
+    .join('');
 }
 export function renderVerdictTemplate(
   template: VerdictTemplate,
@@ -338,23 +360,11 @@ export function renderVerdictTemplate(
   facts: VerdictFacts,
   hidden = false,
 ): string {
-  const month = endMonth(facts.period);
-  const monthName = /^\d{4}-\d{2}(?:-\d{2})?$/.test(facts.period)
-    ? ([
-        'Jänner',
-        'Februar',
-        'März',
-        'April',
-        'Mai',
-        'Juni',
-        'Juli',
-        'August',
-        'September',
-        'Oktober',
-        'November',
-        'Dezember',
-      ][Number(month.slice(5, 7)) - 1] ?? 'Zeitraum')
-    : 'Zeitraum';
+  const single = /^\d{4}-\d{2}(?:-\d{2})?$/.test(facts.period);
+  const monthName = single ? monthNameOnly(endMonth(facts.period)) : '';
+  // A range has no month to name: drop the leading "Monat: " instead of printing "Zeitraum:".
+  const dropPrefix = !monthName && template.text.startsWith('{month}: ');
+  const text = dropPrefix ? template.text.slice('{month}: '.length) : template.text;
   const count = (n: number | undefined) => numberText(n, 'count', hidden);
   const oneEquivalent = Math.round((candidate.equivalent ?? 0) * 10) === 10;
   const monthlyEquivalent = (candidate.equivalentUnit ?? 'Monatsbeträgen') === 'Monatsbeträgen';
@@ -366,9 +376,16 @@ export function renderVerdictTemplate(
       ? 'Ausgabe'
       : 'Ausgaben';
   const values: Record<string, string> = {
-    month: monthName,
+    month: monthName || 'Zeitraum',
     label: short(candidate.label ?? 'Stand'),
-    amount: numberText(candidate.value, candidate.unit ?? 'money', hidden),
+    amount: numberText(candidate.value, candidate.unit ?? 'money', hidden && !candidate.visible),
+    current: numberText(
+      candidate.current ?? candidate.value,
+      candidate.currentUnit ?? candidate.unit ?? 'money',
+      hidden,
+    ),
+    strongest: candidate.better === 'lower' ? 'sparsamsten' : 'stärksten',
+    worst: candidate.better === 'lower' ? 'teuerste' : 'schwächste',
     n: count(candidate.n),
     months: candidate.n === 1 ? 'Monat' : 'Monate',
     rules: candidate.n === 1 ? 'Regel' : 'Regeln',
@@ -383,15 +400,16 @@ export function renderVerdictTemplate(
     equivalent: hidden
       ? '•••'
       : Number.isFinite(candidate.equivalent)
-        ? decimal.format(candidate.equivalent!)
+        ? oneDecimal(candidate.equivalent!)
         : '–',
     equivalentUnit: monthlyEquivalent && !oneEquivalent ? 'Monatsbeträgen' : equivalentUnitNom,
     equivalentUnitNom,
   };
-  return template.text.replace(/\{(\w+)\}/g, (_, key: string) => {
+  const rendered = text.replace(/\{(\w+)\}/g, (_, key: string) => {
     if (!(key in values)) throw new Error(`Unknown verdict placeholder: ${key}`);
     return values[key]!;
   });
+  return dropPrefix ? rendered.charAt(0).toUpperCase() + rendered.slice(1) : rendered;
 }
 const hash = (s: string) => {
   let h = 0;
@@ -403,34 +421,35 @@ export function reportVerdict(
   options: { hidden?: boolean; previousTemplateId?: string } = {},
 ) {
   const fact = detectVerdictFacts(facts).sort((a, b) => b.strength - a.strength)[0]!;
-  const suffix = `${facts.partial ? ' · laufend' : ''}${facts.estimated ? ' · vorläufig' : ''}`;
+  const flags = `${facts.partial ? ' · laufend' : ''}${facts.estimated ? ' · vorläufig' : ''}`;
+  const extra = (hidden: boolean) => detailSuffix(facts, fact.type, hidden);
+  const suffix = (hidden: boolean) => extra(hidden) + flags;
   const month = endMonth(facts.period);
   const periodIndex = monthIndex(month) ?? hash(facts.period);
-  const choices = VERDICT_TEMPLATES.filter(
-    (t) =>
-      t.type === fact.type &&
-      t.id !== options.previousTemplateId &&
-      Number(t.id.slice(t.id.lastIndexOf('-') + 1)) % 2 === periodIndex % 2 &&
-      Math.max(
-        renderVerdictTemplate(t, fact, facts).length,
-        renderVerdictTemplate(t, fact, facts, true).length,
-      ) +
-        suffix.length <=
-        140,
+  const parity = (t: VerdictTemplate) =>
+    Number(t.id.slice(t.id.lastIndexOf('-') + 1)) % 2 === periodIndex % 2;
+  // Eligibility uses both renderings so toggling privacy never changes the wording.
+  const length = (t: VerdictTemplate) =>
+    Math.max(
+      renderVerdictTemplate(t, fact, facts).length + suffix(false).length,
+      renderVerdictTemplate(t, fact, facts, true).length + suffix(true).length,
+    );
+  const ofType = VERDICT_TEMPLATES.filter(
+    (t) => t.type === fact.type && t.id !== options.previousTemplateId,
   );
   // Disjoint month banks prevent repeats even when values change the fitting templates.
-  // Eligibility uses both renderings so toggling privacy never changes the wording.
+  const choices = ofType.filter((t) => parity(t) && length(t) <= 140);
   const seed = hash(facts.reportId + facts.period);
+  // No template fits: the shortest one of the winning type, never a different fact.
+  const shortest = (list: readonly VerdictTemplate[]) =>
+    list.reduce((best, t) => (length(t) < length(best) ? t : best));
   const template =
     choices[seed % choices.length] ??
-    VERDICT_TEMPLATES.find(
-      (t) =>
-        t.type === 'unavailable' &&
-        t.id !== options.previousTemplateId &&
-        Number(t.id.slice(t.id.lastIndexOf('-') + 1)) % 2 === periodIndex % 2,
-    )!;
+    shortest(ofType.filter(parity).length ? ofType.filter(parity) : ofType);
   return {
-    text: renderVerdictTemplate(template, fact, facts, options.hidden) + suffix,
+    text:
+      renderVerdictTemplate(template, fact, facts, options.hidden) +
+      suffix(Boolean(options.hidden)),
     templateId: template.id,
     fact,
   };

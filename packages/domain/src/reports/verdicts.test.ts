@@ -48,7 +48,7 @@ describe('report verdicts', () => {
     expect(
       api.renderVerdictTemplate(api.VERDICT_TEMPLATES[0]!, sample, facts()),
     ).toMatchInlineSnapshot(
-      '"September: Sparbetrag 1.120 € – der drittbeste Monat seit Aufzeichnungsbeginn."',
+      '"September: Sparbetrag 1.120 € ist der drittbeste Monat seit Aufzeichnungsbeginn."',
     );
   });
   it('is deterministic, changes wording next month and excludes the previous template', () => {
@@ -187,7 +187,8 @@ describe('report verdicts', () => {
   });
   it('distinguishes multi-month totals from monthly figures and preserves the template in privacy mode', () => {
     const total = sentence(facts({ period: '2025-01..2025-09' }));
-    expect(total.text).toMatch(/^Zeitraum:/);
+    expect(total.text).not.toMatch(/Zeitraum:|^[a-zäöü]/);
+    expect(total.text).toMatch(/^[A-ZÄÖÜ0-9]/);
     const large = facts({
       metric: {
         label: 'Synthetischer langer Summenwert',
@@ -312,5 +313,108 @@ describe('report verdicts', () => {
     expect(candidates({ period: '2025-04', history, historyScope: 'all' })).toContainEqual(
       expect.objectContaining({ type: 'record-high', rank: 1, scope: 'in 12 Monaten' }),
     );
+  });
+
+  it('keeps every template free of banned phrasing, in one voice and a content tone', () => {
+    for (const t of api.VERDICT_TEMPLATES) {
+      expect(t.text, t.id).not.toMatch(
+        /beim Wert|dem Vergleich|Vergleichswert|\buns\b|\bunser|darf kurz staunen|Rückenwind muss/,
+      );
+    }
+    const humour = api.VERDICT_TEMPLATES.filter((t) => t.tone === 'trocken-humorvoll');
+    expect(humour.length).toBeGreaterThan(0);
+    expect(humour.length).toBeLessThan(api.VERDICT_TEMPLATES.length / 8);
+    expect(
+      api.VERDICT_TEMPLATES.filter((t) => /^(?:record-low|negative|rule-bad)/.test(t.type)).every(
+        (t) => t.tone !== 'trocken-humorvoll',
+      ),
+    ).toBe(true);
+  });
+  it('names a top-three rank by its real rank and never claims a peak for rank two or three', () => {
+    const history = [20000, 112000, 90000].map((value, i) => ({ month: `2025-0${i + 7}`, value }));
+    const result = sentence(
+      facts({
+        metric: { label: 'Sparbetrag', value: 90000, unit: 'money', better: 'higher' },
+        history,
+        historyScope: 'all',
+      }),
+    );
+    expect(result.fact).toMatchObject({ type: 'record-high', rank: 2 });
+    for (const t of api.VERDICT_TEMPLATES.filter((t) => t.type === 'record-high'))
+      expect(t.text, t.id).not.toMatch(/Spitzenmonat|Spitzenplatz|neuen/);
+    expect(result.text).not.toMatch(/Spitze/);
+  });
+  it('words lower-is-better records as spending news, not as a weak month', () => {
+    const lower = { label: 'Konsum', unit: 'money' as const, better: 'lower' as const };
+    const months = ['2025-07', '2025-08', '2025-09'];
+    const best = candidates({
+      metric: { ...lower, value: 50000 },
+      history: months.map((month, i) => ({ month, value: [90000, 80000, 50000][i]! })),
+    }).find((f) => f.type === 'record-high')!;
+    expect(best).toMatchObject({ better: 'lower', rank: 1 });
+    const worst = candidates({
+      metric: { ...lower, value: 95000 },
+      history: months.map((month, i) => ({ month, value: [60000, 70000, 95000][i]! })),
+    }).find((f) => f.type === 'record-low')!;
+    const render = (id: string, c: VerdictCandidate) =>
+      api.renderVerdictTemplate(
+        api.VERDICT_TEMPLATES.find((t) => t.id === id)!,
+        c,
+        facts(),
+      );
+    expect(render('record-low-1', worst)).toContain('der teuerste Monat');
+    expect(render('record-low-1', { ...worst, better: 'higher' })).toContain(
+      'der schwächste Monat',
+    );
+    expect(render('record-high-7', best)).toContain('sparsamsten Monaten');
+    expect(render('record-high-7', { ...best, better: 'higher' })).toContain('stärksten Monaten');
+  });
+  it('writes comparisons with the figure, the difference and the reference', () => {
+    const result = sentence(
+      facts({
+        metric: { label: 'Konsum', value: 90000, unit: 'money', better: 'lower' },
+        comparisons: [{ reference: 'Vormonat', value: 80000 }],
+      }),
+    );
+    expect(result.fact).toMatchObject({ type: 'comparison-up', current: 90000, value: 10000 });
+    expect(result.text).toMatch(/900 €.*100 €|100 €.*900 €/);
+    expect(result.text).toContain('Vormonat');
+  });
+  it('appends details the winning sentence does not name and skips the ones it does', () => {
+    const f = facts({
+      details: [
+        { label: 'Gespart', value: 112000, skipFor: ['summary'] },
+        { label: 'Markt', value: -34000 },
+      ],
+    });
+    expect(sentence(f).text).toMatch(/ · Markt −340 €$/);
+    expect(sentence(f).text).not.toContain('Gespart');
+    const other = sentence({ ...f, marketCents: 50000 });
+    expect(other.text).toContain('· Gespart +1.120 € · Markt −340 €');
+    expect(sentence(f, { hidden: true }).text).toContain('· Markt ••• €');
+    expect(sentence(f, { hidden: true }).templateId).toBe(sentence(f).templateId);
+  });
+  it('keeps round wealth marks readable in privacy mode and the period free of "undefined"', () => {
+    const crossing = facts({ netWorth: { previousCents: 9900000, currentCents: 10100000 } });
+    expect(sentence(crossing, { hidden: true }).text).toContain('100.000 €');
+    expect(sentence(facts({ period: '2025-09-01..2025-09-30' })).text).not.toMatch(/undefined/);
+  });
+  it('falls back to the shortest template of the winning type when none fits the length', () => {
+    const long = facts({
+      metric: {
+        label: 'Ein sehr langer Synthetischer Kennzahlname',
+        value: 112000,
+        unit: 'money',
+        better: 'higher',
+      },
+      details: [
+        { label: 'Eine zweite sehr lange Bezeichnung', value: 999999999 },
+        { label: 'Noch eine lange Bezeichnung hier', value: -999999999 },
+        { label: 'Und noch eine weitere lange', value: 999999999 },
+      ],
+    });
+    const result = sentence(long);
+    expect(result.fact.type).toBe('summary');
+    expect(result.templateId).toMatch(/^summary-/);
   });
 });
