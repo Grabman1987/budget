@@ -460,7 +460,7 @@ function PaceDrawing({ data, width }: { data: PaceChartData; width: number }) {
               values: m.expected.map(() => m.figures.limitCents),
               color: 'var(--rule-strong)',
             },
-            { name: 'Erwartet', values: m.expected, color: 'var(--ink-3)' },
+            { name: 'Plan bis heute', values: m.plan, color: 'var(--ink-3)' },
             { name: 'Einnahmen bis dahin', values: m.income ?? [], color: 'var(--future)' },
             {
               name: 'Differenz',

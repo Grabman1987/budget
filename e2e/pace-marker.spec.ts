@@ -52,7 +52,7 @@ test('Pace reduces its lines and shares the plan marker and tooltip, with today 
       'Ist',
       'Hochrechnung',
       'Deckel',
-      'Erwartet',
+      'Plan bis heute',
       'Einnahmen bis dahin',
       'Differenz',
       'Vormonat',
@@ -62,7 +62,7 @@ test('Pace reduces its lines and shares the plan marker and tooltip, with today 
     );
     for (const [name, value] of [
       ['Ist', pace.figures.spentCents],
-      ['Erwartet', pace.figures.expectedToDateCents],
+      ['Plan bis heute', pace.figures.planToDateCents],
       ['Deckel', pace.figures.limitCents],
       ['Hochrechnung', pace.figures.spentCents],
     ] as const) {

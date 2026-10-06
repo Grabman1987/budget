@@ -131,6 +131,7 @@ it('uses the scheduled plan for the today marker, while retaining all tooltip va
           daysInMonth: 30,
           todayDay: 26,
           expected: Array.from({ length: 31 }, (_, d) => d * 10_000),
+          plan: Array.from({ length: 31 }, (_, d) => (d === 26 ? 245_000 : d * 9_000)),
           actual: Array.from({ length: 27 }, (_, d) => (d ? 232_000 : 0)),
           forecast: [232_000, 240_923, 249_846, 258_769, 267_692],
           figures: {
@@ -154,14 +155,14 @@ it('uses the scheduled plan for the today marker, while retaining all tooltip va
   for (let d = 0; d < 26; d++) fireEvent.keyDown(group, { key: 'ArrowRight' });
   const tooltip = screen.getByRole('status');
   expect(tooltip.textContent).toContain('Ist2.320,00 €');
-  expect(tooltip.textContent).toContain('Erwartet2.600,00 €');
+  expect(tooltip.textContent).toContain('Plan bis heute2.450,00 €');
   expect(tooltip.textContent).toContain('Deckel3.000,00 €');
   expect(tooltip.textContent).toContain('Hochrechnung2.320,00 €');
   expect(
     Array.from(tooltip.querySelectorAll('.chart-tooltip-row span'))
       .slice(0, 4)
       .map((el) => el.textContent),
-  ).toEqual(['Ist', 'Hochrechnung', 'Deckel', 'Erwartet']);
+  ).toEqual(['Ist', 'Hochrechnung', 'Deckel', 'Plan bis heute']);
   expect(tooltip.lastElementChild?.textContent).toBe(
     'Hochrechnung = Ausgegeben + offene Fixkosten + Rest des variablen Plans (ab Tag 7 hochgerechnet)',
   );
