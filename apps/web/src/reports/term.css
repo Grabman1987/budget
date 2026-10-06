@@ -44,3 +44,12 @@
     display: none;
   }
 }
+.term-trigger {
+  max-width: 100%;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  text-align: inherit;
+}
+th .term-trigger {
+  min-width: 0;
+}
