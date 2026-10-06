@@ -1,4 +1,9 @@
-import type { budgetAccountMoney, IncomeTargets } from '@budget/domain';
+import type {
+  budgetAccountMoney,
+  IncomeTargets,
+  QuickAssignFigures,
+  QuickAssignMode,
+} from '@budget/domain';
 import { queryOptions } from '@tanstack/react-query';
 import { request } from '../api/http';
 import type { WriteResult } from '../ledger/types';
@@ -8,6 +13,7 @@ import { BUDGET_KEY } from './use-category-writes';
 /** Shapes and calls of the budget API (`/api/budget/:month`); amounts are integer cents. */
 
 export interface EnvelopeSummary {
+  quickAssign?: QuickAssignFigures;
   categoryId: string;
   committedCents?: number;
   freeCents?: number;
@@ -73,6 +79,12 @@ export const assign = (
   month: string,
   items: Array<{ categoryId: string; assignedCents: number }>,
 ) => request<WriteResult>('PUT', `${path(month)}/assigned`, { items });
+export const quickAssign = (month: string, mode: QuickAssignMode, categoryIds: string[]) =>
+  request<WriteResult & { changedCount: number; openCount: number; missingCents: number }>(
+    'POST',
+    `${path(month)}/quick-assign`,
+    { mode, categoryIds },
+  );
 export const moveMoney = (
   month: string,
   fromId: string | null,

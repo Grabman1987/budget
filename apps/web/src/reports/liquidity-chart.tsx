@@ -72,7 +72,8 @@ function Drawing({ report, width: W }: { report: LiquidityReport; width: number 
   }));
   const indexOfDay = new Map(points.map((p, i) => [p.day, i]));
   const grid = yTicks(y0, y1).map((v) => ({ y: y(v), label: kfmt(v) }));
-  const step = report.horizon === '90d' ? 14 : report.horizon === '6m' ? 30 : 61;
+  const preferredStep = report.horizon === '90d' ? 14 : report.horizon === '6m' ? 30 : 61;
+  const step = Math.max(preferredStep, Math.ceil((60 * n) / (W - L - R)));
   const ticks = points
     .map((p, i) => ({ p, i }))
     .filter(({ i }) => i % step === 0 && x(i) <= W - R + 4)

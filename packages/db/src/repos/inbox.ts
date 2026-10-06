@@ -1,4 +1,7 @@
 import { and, asc, count, countDistinct, desc, eq, isNull, lte, sql } from 'drizzle-orm';
+import { cents, formatEuro, monthOf, overspentEnvelopes, summarizeMonth } from '@budget/domain';
+import { categoryTree } from './categories';
+import { budget } from './queries';
 import { account, booking, bookingSplit, inboxItem, payee } from '../schema';
 import { nowIso, updateTracked, withGroup, type AuditContext } from './audit';
 import { ConflictError, EntityNotFoundError } from './errors';
@@ -34,7 +37,17 @@ export interface InboxStored {
   urgent: boolean;
   createdAt: string;
 }
-export type InboxEntry = InboxBooking | InboxStored | SavingsExecutionProposal;
+export interface InboxEnvelope {
+  type: 'envelope';
+  id: string;
+  kind: 'overspent';
+  categoryId: string;
+  month: string;
+  title: string;
+  detail: string;
+  urgent: true;
+}
+export type InboxEntry = InboxBooking | InboxStored | InboxEnvelope | SavingsExecutionProposal;
 
 /** Shared predicates keep task list and lightweight badge count in agreement. */
 const unclassifiedWhere = (today: string) =>
@@ -50,7 +63,25 @@ const unclassifiedWhere = (today: string) =>
     sql`${bookingSplit.amountCents} <> 0`,
   );
 const storedWhere = () =>
-  and(isNull(inboxItem.resolvedAt), sql`${inboxItem.kind} <> 'uncategorized'`);
+  and(isNull(inboxItem.resolvedAt), sql`${inboxItem.kind} NOT IN ('uncategorized', 'overspent')`);
+
+/** Stored envelope warnings are superseded by the live ledger, exactly once per category. */
+function envelopeTasks(db: Executor, today: string): InboxEnvelope[] {
+  const month = monthOf(today);
+  const [computed] = budget(db, [month]);
+  if (!computed) return [];
+  const tree = categoryTree(db);
+  return overspentEnvelopes(summarizeMonth(computed, tree.categories)).map((e): InboxEnvelope => ({
+    type: 'envelope',
+    id: `envelope:${month}:${e.categoryId}`,
+    kind: 'overspent',
+    categoryId: e.categoryId,
+    month,
+    title: `${tree.categories.find((c) => c.id === e.categoryId)!.name} ist überzogen`,
+    detail: `${formatEuro(cents(e.availableCents))} · im Plan decken`,
+    urgent: true,
+  }));
+}
 
 /** One task per actual booking, regardless of how many splits need classification. */
 function uncategorizedBookings(db: Executor, today: string): InboxBooking[] {
@@ -85,7 +116,7 @@ function uncategorizedBookings(db: Executor, today: string): InboxBooking[] {
     }));
 }
 
-/** Legacy stored uncategorized summaries are replaced by actual ledger work, never double counted. */
+/** Legacy classification/overspending summaries are replaced by live ledger work. */
 export function readInbox(db: Executor, today: string) {
   return runInTransaction(db, (tx) => {
     const bookings = uncategorizedBookings(tx, today);
@@ -110,13 +141,18 @@ export function readInbox(db: Executor, today: string) {
         urgent: row.urgent,
         createdAt: row.createdAt,
       }));
-    const entries: InboxEntry[] = [...bookings, ...savingsExecutionProposals(tx, today), ...stored];
+    const entries: InboxEntry[] = [
+      ...envelopeTasks(tx, today),
+      ...bookings,
+      ...savingsExecutionProposals(tx, today),
+      ...stored,
+    ];
     const unlinkedReceipts = listReceipts(tx);
     return { asOf: today, count: entries.length + unlinkedReceipts.length, entries };
   });
 }
 
-/** Booking/stored counts use SQL; savings proposals share the queue's read-only projection. */
+/** Booking/stored counts use SQL; derived tasks share the queue's read-only projections. */
 export function readInboxCount(db: Executor, today: string) {
   return runInTransaction(db, (tx) => {
     const bookings = tx
@@ -130,7 +166,11 @@ export function readInboxCount(db: Executor, today: string) {
     return {
       asOf: today,
       count:
-        bookings + stored + listReceipts(tx).length + savingsExecutionProposals(tx, today).length,
+        envelopeTasks(tx, today).length +
+        bookings +
+        stored +
+        listReceipts(tx).length +
+        savingsExecutionProposals(tx, today).length,
     };
   });
 }
@@ -143,6 +183,7 @@ export function resolveInboxItem(db: Executor, id: string, ctx: AuditContext) {
     if (!row) throw new EntityNotFoundError('inbox_item', id);
     if (row.kind === 'uncategorized')
       throw new ConflictError('Eine fehlende Kategorie wird in der Buchung ergänzt.');
+    if (row.kind === 'overspent') throw new ConflictError('Eine Überziehung wird im Plan gedeckt.');
     if (row.refType === 'payslip-intake')
       throw new ConflictError('Bitte den Gehaltszettel bestätigen oder ablehnen.');
     if (row.resolvedAt !== null) throw new ConflictError('Diese Aufgabe wurde bereits erledigt.');

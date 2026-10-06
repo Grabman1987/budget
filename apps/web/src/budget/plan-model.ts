@@ -3,6 +3,7 @@ import {
   lastDayOfMonth,
   parseAmount,
   percentShares,
+  overspentEnvelopes,
   waterfallFill,
 } from '@budget/domain';
 import { eur } from '../ledger/format';
@@ -369,8 +370,7 @@ function timeGroups(rows: PlanRow[], ctx: PlanContext): PlanGroup[] {
 }
 
 function triageGroups(rows: PlanRow[]): PlanGroup[] {
-  const cash = rows.filter(isCashOver);
-  const credit = rows.filter((r) => !isCashOver(r) && r.creditOverspentCents > 0);
+  const over = overspentEnvelopes({ envelopes: rows });
   const dueShort = rows.filter(
     (r) =>
       !isCashOver(r) &&
@@ -379,24 +379,16 @@ function triageGroups(rows: PlanRow[]): PlanGroup[] {
       r.activityCents === 0 &&
       r.needCents > 0,
   );
-  const taken = new Set([...cash, ...credit, ...dueShort]);
+  const taken = new Set([...over, ...dueShort]);
   const missing = rows.filter((r) => !taken.has(r) && r.needCents > 0);
   const gs = [
     {
       key: 'xover',
       title: 'Überzogen',
       sub: 'aus einem anderen Envelope decken',
-      rows: cash,
+      rows: over,
       emptyText: 'nichts überzogen',
-      emptyNote: 'Nichts ist bar überzogen.',
-    },
-    {
-      key: 'xcard',
-      title: 'Neue Kartenschuld',
-      sub: 'mit Karte über das Budget hinaus',
-      rows: credit,
-      emptyText: 'keine',
-      emptyNote: 'Keine neue Kartenschuld.',
+      emptyNote: 'Nichts ist überzogen.',
     },
     {
       key: 'xdue',
@@ -448,7 +440,7 @@ export function groupStatus(rows: PlanRow[]): GroupStatus {
   const assigned = sum((r) => r.assignedCents);
   const goal = sum((r) => r.goalCents);
   const need = sum((r) => r.needCents);
-  const cashOver = rows.filter(isCashOver).length;
+  const cashOver = overspentEnvelopes({ envelopes: rows }).length;
   const state = !rows.length
     ? 'none'
     : cashOver
@@ -595,7 +587,7 @@ export interface StatusLine {
 
 /**
  * The inspector's status of the month, every line that applies, worst first: too much assigned,
- * uncovered overspending carried from the previous month, cash-overspent envelopes, new card debt.
+ * uncovered overspending carried from the previous month, all negative available envelopes.
  * Only when none applies is the month calm; the line never says "nothing" while another says so.
  */
 export function monthStatus(summary: MonthSummary, rows: PlanRow[]): StatusLine[] {
@@ -607,17 +599,11 @@ export function monthStatus(summary: MonthSummary, rows: PlanRow[]): StatusLine[
       tone: 'bad',
       text: `Ungedeckt aus dem Vormonat: ${eur(summary.uncoveredCents)}`,
     });
-  const over = rows.filter(isCashOver).length;
+  const over = overspentEnvelopes({ envelopes: rows }).length;
   if (over > 0)
     lines.push({
       tone: 'bad',
-      text: `${over} ${over === 1 ? 'Envelope' : 'Envelopes'} bar überzogen`,
-    });
-  const credit = rows.filter((r) => !isCashOver(r) && r.creditOverspentCents > 0).length;
-  if (credit > 0)
-    lines.push({
-      tone: 'warn',
-      text: `${credit === 1 ? 'Eine neue Kartenschuld' : `${credit} neue Kartenschulden`} (Karte über das Envelope)`,
+      text: `${over} ${over === 1 ? 'Envelope' : 'Envelopes'} überzogen`,
     });
   if (!lines.length) lines.push({ tone: 'good', text: 'Nichts ist überzogen.' });
   return lines;

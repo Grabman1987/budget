@@ -1,5 +1,7 @@
 # Product
 
+Owner-Entscheidung 05.10.2026: Plan › Monat adopts the YNAB auto-assign principle: explicit empty-fill and selected-category quick assignment use shared target/history figures, available money and one undoable audit group; faded suggestions never book money on their own.
+
 Owner-Entscheidung 05.10.2026 — Heute adopts the three-answer-card principle: one number, one proportional bar and two sublines each for Nettovermögen, Dieser Monat and Budget, followed by the nearest unfinished savings goal; the existing Präzisionsschicht and shared read models remain the design and calculation sources.
 
 Owner-Entscheidung 05.10.2026 — Pace: Heute and One-Pager show elapsed days, actual spending, linear pro-rata expectation and the existing month-end forecast from one shared read model; chart and Plan › Monat category bars label today's time marker. Forecast stays fixed-cost/plan-based before day 7 and extrapolated thereafter.

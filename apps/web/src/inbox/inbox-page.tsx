@@ -317,6 +317,14 @@ function InboxRow({
                 : maskMoneyText(item.detail ?? '')}
           </span>
         )}
+        {item.type === 'booking' && item.status !== 'reconciled' && (
+          <BookingAssignmentReview
+            id={item.bookingId}
+            onApplied={(canLearn) => {
+              if (canLearn) onBankConfirmed(item.bookingId);
+            }}
+          />
+        )}
         {item.type === 'stored' && item.refType === 'payslip-intake' && item.refId && (
           <PayslipIntakeDetail id={item.refId} />
         )}
@@ -332,14 +340,6 @@ function InboxRow({
             >
               Zuordnen
             </Button>
-            {item.source === 'bank' && item.status !== 'reconciled' && (
-              <BookingAssignmentReview
-                id={item.bookingId}
-                onApplied={(canLearn) => {
-                  if (canLearn) onBankConfirmed(item.bookingId);
-                }}
-              />
-            )}
             {item.status === 'pending' && (
               <Button
                 size="sm"
@@ -358,6 +358,14 @@ function InboxRow({
           <Button variant="ghost" onClick={() => onSavings(item)}>
             Ausführung prüfen
           </Button>
+        ) : item.type === 'envelope' ? (
+          <AppLink
+            className="btn btn-alert btn-sm"
+            to="/plan/monat"
+            search={{ monat: item.month, kategorie: item.categoryId }}
+          >
+            Decken
+          </AppLink>
         ) : item.refType === 'payslip-intake' && item.refId ? (
           <AppLink className="btn btn-ghost btn-sm" to="/reports/gehalt">
             Gehaltsreport

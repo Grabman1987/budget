@@ -1,5 +1,7 @@
 # Budget feature coverage: YNAB and Portfolio Performance replacement
 
+E4 (2026-10-06): inbox confirmations learn category/income type, payee and account suggestions keyed by normalized counterparty plus direction; one-click **Übernehmen**, **wie zuletzt bei …**, settings removal and grouped audit/undo reuse `assignment_rule` without a migration. Suggestions never book automatically; synthetic API/browser coverage, owner acceptance pending.
+
 UX-2b (owner 2026-10-05): shared free-envelope cover limits, pending/recurring commitments through payday, signed budget-account/used-credit details and explicit missing-money carry option; the total that can be covered is capped at budget-account balances plus allowed overdraft (view, single and bulk cover, server-side), a due matching an unlinked pending booking is reserved once, and commitments/cap apply only to the current month, always as of today; synthetic unit/API/browser coverage, CI and owner acceptance pending.
 
 Owner directive PR4: [connected asset-class settings](asset-classes-settings.md), one target editor, complete dated managed universes, editable bands, investment-sum tiers, atomic safe retirement, restore and audit/undo/redo. Reuses merged PR1/PR2/PR3/PR5; real-iPhone, CI and owner acceptance remain separate from source implementation.
@@ -88,6 +90,7 @@ Prototype references: [Heute](../design/prototype/index.html),
 | Y07 | Zu verteilen, Zugewiesen, Aktivität, Verfügbar and rollover | UI + engine | Gate 2: cent-exact account/month/category comparison with mapped source |
 | Y08 | Credit-card payment categories and cash advances | Engine/API + budget integration | Real card mapping and payment-balance acceptance in Gate 2 |
 | Y09 | Month planning: waterfall, time, groups, classes and triage | UI + engine | Owner acceptance; preserve nine-stage order and shared calculations |
+| Y09a | Plan › Monat: faded target/median suggestions, Leere füllen, selected Wie letzter Monat / Ø 3 Monate / Ziel | UI + engine/API, synthetic regressions | Shared report spending and budget target/assignment cents; displayed-order partial funding and one undo/redo group. Owner/device and Linux visual acceptance remain open; [contract](plan-ghost-1005.md) |
 | Y10 | Cover overspending with remaining-source label, largest sufficient suggestions and grouped partial bulk cover/undo; distribute money and preview next allocations | UI + engine | Real payday/month-end routine acceptance; later inspiration features are separate |
 | Y11 | Wiederkehrende Zahlungen: weekly/monthly/quarterly/yearly, versions, due dates, contracts, matching, missed payments | UI + engine | Live incoming bank bookings and private schedule acceptance |
 | Y12 | Savings goals and sinking funds, adopt category targets | UI + engine | Private targets and end-to-end goal review |

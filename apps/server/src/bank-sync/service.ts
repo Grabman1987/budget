@@ -6,6 +6,7 @@ import {
   createBooking,
   assignmentPatch,
   learnBankPayee,
+  learnInboxAssignment,
   markBankBookingTransfer,
   readAssignmentCandidate,
   bookingIncomeDefault,
@@ -942,6 +943,8 @@ export class BankSync {
           },
       );
       const patch = assignmentPatch(row.amountCents, actions);
+      if (actions.accountId && actions.accountId !== row.accountId)
+        throw new ConflictError('Das Bankkonto bleibt an seine Datenquelle gebunden.');
       // A transfer is attached after creation so both candidate and booking paths use one invariant.
       const lines = patch.splits?.map(({ transferAccountId, ...s }) => {
         void transferAccountId;
@@ -1033,6 +1036,7 @@ export class BankSync {
           actions.categoryId ?? null,
           ctx,
         );
+      learnInboxAssignment(tx, bookingId, ctx);
       updateTracked(
         tx,
         inboxItem,
