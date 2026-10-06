@@ -86,6 +86,7 @@ Prototype references: [Heute](../design/prototype/index.html),
 | Y07 | Zu verteilen, Zugewiesen, Aktivität, Verfügbar and rollover | UI + engine | Gate 2: cent-exact account/month/category comparison with mapped source |
 | Y08 | Credit-card payment categories and cash advances | Engine/API + budget integration | Real card mapping and payment-balance acceptance in Gate 2 |
 | Y09 | Month planning: waterfall, time, groups, classes and triage | UI + engine | Owner acceptance; preserve nine-stage order and shared calculations |
+| Y09a | Plan › Monat: faded target/median suggestions, Leere füllen, selected Wie letzter Monat / Ø 3 Monate / Ziel | UI + engine/API, synthetic regressions | Shared report spending and budget target/assignment cents; displayed-order partial funding and one undo/redo group. Owner/device and Linux visual acceptance remain open; [contract](plan-ghost-1005.md) |
 | Y10 | Cover overspending with remaining-source label, largest sufficient suggestions and grouped partial bulk cover/undo; distribute money and preview next allocations | UI + engine | Real payday/month-end routine acceptance; later inspiration features are separate |
 | Y11 | Wiederkehrende Zahlungen: weekly/monthly/quarterly/yearly, versions, due dates, contracts, matching, missed payments | UI + engine | Live incoming bank bookings and private schedule acceptance |
 | Y12 | Savings goals and sinking funds, adopt category targets | UI + engine | Private targets and end-to-end goal review |

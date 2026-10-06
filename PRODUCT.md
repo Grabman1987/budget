@@ -1,5 +1,7 @@
 # Product
 
+Owner-Entscheidung 05.10.2026: Plan › Monat adopts the YNAB auto-assign principle: explicit empty-fill and selected-category quick assignment use shared target/history figures, available money and one undoable audit group; faded suggestions never book money on their own.
+
 Owner-Entscheidung 05.10.2026: Heute and R07 Kontoprognose share fourteen days of actual lookback through next bank-day payday + 2 (Bis Gehalt) or shown month end + 2 (Monat); payday forecasts shorter than seven days extend to the following payday + 2. The period is remembered, fallback Bis Gehalt.
 
 Owner composition decision (2026-10-05): Allocation shows groups inside and user-defined classes outside; products remain in the source table. Groups can be created/renamed and classes moved in Einstellungen › Anlageklassen. Soll stays class-specific and dated, with group sums. P2P accounts can be assigned in account settings; defaults are limited to an explicitly run operator configuration. Uninformative region charts are removed. See [composition contract](docs/portfolio-composition.md).
