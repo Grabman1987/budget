@@ -9,6 +9,22 @@
 - [x] Local check phases (352 files / 3,257 tests), production build and affected desktop/mobile browser checks; see [verification](ux-clarify-1005.md).
 - [ ] CI, pinned Linux screenshot review and owner acceptance.
 
+### UX-6 - Typography and radii (owner task 2026-10-05)
+
+- [x] Off-scale CSS values mapped to DESIGN.md tokens, preserving chart/emoji geometry.
+- [x] Dependency-free CSS scale lint in CI, synthetic unit and desktop/phone theme regressions; [scope and affected baselines](ux-typeset-1005.md).
+- [ ] Pinned Linux visual review, CI and owner acceptance.
+
+### F1 — Guided month close, steps 1–3 (owner 2026-10-04)
+
+- [x] Monthly route, persisted stepper, live inbox/reconciliation/overspending status and reasoned exceptions; reuse audited actions and manual account valuations.
+- [x] Heute entry on the first/last five days, Plan entry and provisional global-search entry; phone has one active step and sticky continuation.
+- [x] Synthetic API status/resume/undo/validation and stepper coverage. [Plan and contract](month-close.md).
+- [x] Typecheck, lint, production/E2E builds and two desktop/phone browser runs with synthetic [evidence](evidence/month-close-f1/README.md).
+- [x] Full local unit gate (354 files / 3272 tests), lint, typecheck, build:e2e and month-close E2E (desktop + mobile) verified on the final tree.
+- [ ] CI and final rebase before merge.
+- [ ] Job E palette/verdict integration (absent from the fetched main baseline), F2 steps 4–5 and owner parallel-operation Gate 4 acceptance.
+
 ### UX-4a — One definition of overspent (owner 05.10.2026)
 
 - [x] Shared `overspentEnvelopes(month)`: negative available after existing carry rules; Heute, Plan, live inbox tasks and common badge agree, without duplicate stored warnings or card-account debt.
