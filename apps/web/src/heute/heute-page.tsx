@@ -44,6 +44,8 @@ import { useStoredFlag } from '../shell/use-stored-flag';
 import { AttentionBar, FundingNotes } from './attention-bar';
 import { savingsProposalsQuery } from '../wealth/savings-api';
 import { sourceMoney } from '../wealth/trade-api';
+import { AnswerCards } from './answer-cards';
+import { DailyBudgetLine } from './charts';
 
 const pct = new Intl.NumberFormat('de-AT', { maximumFractionDigits: 2 });
 const STATUS: Record<string, string> = {
@@ -131,16 +133,98 @@ function HeuteBody({ data }: { data: Heute }) {
             Du siehst {monthName(data.stand.month)}. Pace, Verlauf und angepinnte Envelopes folgen
             diesem Monat; Frei verfügbar bis Gehalt, Nächste Schritte, Anstehend, Finanz-Check,
             Nettovermögen und Buchungen zeigen den Stand von heute ({longDay(data.stand.today)}).
+            Die Antwortkarten und das nächste Sparziel zeigen ebenfalls den laufenden Monat.
           </span>
           <Button variant="ghost" size="sm" onClick={() => setMonth(currentMonth())}>
             Zum aktuellen Monat
           </Button>
         </p>
       )}
+      <AnswerCards
+        data={data}
+        chainOpen={chainOpen}
+        onBudgetClick={() => setChainOpen((open) => !open)}
+      />
+      <AttentionBar data={data} />
+      <section className="heute-section heute-pace" aria-labelledby="heute-pace-title">
+        <SectionHead
+          id="heute-pace-title"
+          title={`${monthLabel(data.pace.month)} · Pace`}
+          aside={
+            data.pace.figures.over ? (
+              <span className="heute-alert">
+                <ArrowUp size={16} aria-hidden="true" />
+                {eur(data.pace.figures.deltaCents, { cents: false })} über Plan
+              </span>
+            ) : (
+              <span className="heute-good">
+                <ArrowDown size={16} aria-hidden="true" />
+                {eur(-data.pace.figures.deltaCents, { cents: false })} unter Plan
+              </span>
+            )
+          }
+        />
+        <div className="heute-figures">
+          <PaceFigure
+            label="Ausgegeben"
+            value={data.pace.figures.spentCents}
+            kind="spent"
+            selected={paceDetail}
+            setSelected={setPaceDetail}
+          />
+          <PaceFigure
+            label="Plan bis heute"
+            value={data.pace.figures.planToDateCents}
+            kind="plan"
+            selected={paceDetail}
+            setSelected={setPaceDetail}
+          />
+          <PaceFigure
+            label={
+              data.pace.todayDay < 7 ? 'Prognose Monatsende · vorläufig' : 'Prognose Monatsende'
+            }
+            value={data.pace.figures.forecastAvailable ? data.pace.figures.forecastEndCents : null}
+            kind="forecast"
+            selected={paceDetail}
+            setSelected={setPaceDetail}
+            extra={`von ${eur(data.pace.figures.limitCents, { cents: false })} Limit`}
+          />
+        </div>
+        <HeutePaceChart data={data} />
+        {paceDetail && (
+          <div className="heute-figure-detail" role="status">
+            <strong>
+              {paceDetail === 'spent'
+                ? 'Ausgegeben'
+                : paceDetail === 'plan'
+                  ? 'Plan bis heute'
+                  : 'Prognose Monatsende'}
+            </strong>
+            <span>
+              {paceDetail === 'spent'
+                ? eur(data.pace.figures.spentCents)
+                : paceDetail === 'plan'
+                  ? eur(data.pace.figures.planToDateCents)
+                  : data.pace.figures.forecastAvailable
+                    ? eur(data.pace.figures.forecastEndCents)
+                    : 'Noch keine verlässliche Prognose'}
+            </span>
+            {paceDetail === 'forecast' && <span>Limit: {eur(data.pace.figures.limitCents)}</span>}
+          </div>
+        )}
+        <p className="heute-note">
+          {data.pace.todayDay < 7
+            ? 'Vorläufig: ausgegeben plus offene fixe und wiederkehrende Zahlungen plus verbleibender variabler Plan. Ab dem 7. Tag werden variable Ausgaben hochgerechnet.'
+            : 'Fixe und wiederkehrende Zahlungen zählen einmal; nur variable Ausgaben werden hochgerechnet.'}
+          {!data.pace.figures.forecastAvailable &&
+            ' Für eine Prognose braucht es einen positiven Plan.'}
+        </p>
+      </section>
+
       <section className="heute-lead" aria-labelledby="heute-lead-title">
         <div className="heute-lead-head">
           <div>
-            <h2 id="heute-lead-title">Wie viel darf ich bis zum Gehalt noch ausgeben?</h2>
+            <h2 id="heute-lead-title">Kontoprognose</h2>
             <p>
               Verfügbar in allen Envelopes für Bedarf und Wunsch, abzüglich der Rechnungen, die vor
               dem Gehalt noch fällig sind.
@@ -166,7 +250,9 @@ function HeuteBody({ data }: { data: Heute }) {
           data={data}
           chainOpen={chainOpen}
           onToggleChain={() => setChainOpen((open) => !open)}
+          showLead={false}
         />
+        <DailyBudgetLine data={data} />
         {data.balance.forecast.length > 0 && (
           <p className="heute-note">
             Kontoprognose bis {longDay(data.stand.to)} · 14 Tage Rückblick · gleicher Horizont wie
@@ -194,18 +280,11 @@ function HeuteBody({ data }: { data: Heute }) {
         id="heute-upcoming-title"
         title="Was steht an? · Nächste 7 Tage"
       />
-      <AttentionBar data={data} />
       <section className="heute-wealth-line" aria-labelledby="heute-wealth-title">
-        <h2 id="heute-wealth-title">Gesamtvermögen</h2>
+        <h2 id="heute-wealth-title">Nettovermögen · 12 Monate</h2>
         {net ? (
           <>
-            <AppLink to="/vermoegen/nettovermoegen" search={{ zeitraum: '1J' }}>
-              <strong>{eur(net.totalCents)}</strong> heute
-            </AppLink>
             <WealthSparkline series={net.series} />
-            <AppLink to="/vermoegen/nettovermoegen" search={{ zeitraum: '1M' }}>
-              {eur(net.deltaCents, { sign: true })} seit Monatsbeginn
-            </AppLink>
             <AppLink to="/vermoegen/nettovermoegen" search={{ zeitraum: '1J' }}>
               {eur(net.yearDeltaCents, { sign: true })} seit {shortDay(net.yearAgoDay)} vor 12
               Monaten
@@ -220,85 +299,6 @@ function HeuteBody({ data }: { data: Heute }) {
       </section>
       <MoreMonth key={phone ? 'phone' : 'desktop'} phone={phone}>
         <div className="heute-main-grid">
-          <section className="heute-section heute-pace" aria-labelledby="heute-pace-title">
-            <SectionHead
-              id="heute-pace-title"
-              title={`${monthLabel(data.pace.month)} · Pace`}
-              aside={
-                data.pace.figures.over ? (
-                  <span className="heute-alert">
-                    <ArrowUp size={16} aria-hidden="true" />
-                    {eur(data.pace.figures.deltaCents, { cents: false })} über Plan
-                  </span>
-                ) : (
-                  <span className="heute-good">
-                    <ArrowDown size={16} aria-hidden="true" />
-                    {eur(-data.pace.figures.deltaCents, { cents: false })} unter Plan
-                  </span>
-                )
-              }
-            />
-            <div className="heute-figures">
-              <PaceFigure
-                label="Ausgegeben"
-                value={data.pace.figures.spentCents}
-                kind="spent"
-                selected={paceDetail}
-                setSelected={setPaceDetail}
-              />
-              <PaceFigure
-                label="Plan bis heute"
-                value={data.pace.figures.planToDateCents}
-                kind="plan"
-                selected={paceDetail}
-                setSelected={setPaceDetail}
-              />
-              <PaceFigure
-                label={
-                  data.pace.todayDay < 7 ? 'Prognose Monatsende · vorläufig' : 'Prognose Monatsende'
-                }
-                value={
-                  data.pace.figures.forecastAvailable ? data.pace.figures.forecastEndCents : null
-                }
-                kind="forecast"
-                selected={paceDetail}
-                setSelected={setPaceDetail}
-                extra={`von ${eur(data.pace.figures.limitCents, { cents: false })} Limit`}
-              />
-            </div>
-            <HeutePaceChart data={data} />
-            {paceDetail && (
-              <div className="heute-figure-detail" role="status">
-                <strong>
-                  {paceDetail === 'spent'
-                    ? 'Ausgegeben'
-                    : paceDetail === 'plan'
-                      ? 'Plan bis heute'
-                      : 'Prognose Monatsende'}
-                </strong>
-                <span>
-                  {paceDetail === 'spent'
-                    ? eur(data.pace.figures.spentCents)
-                    : paceDetail === 'plan'
-                      ? eur(data.pace.figures.planToDateCents)
-                      : data.pace.figures.forecastAvailable
-                        ? eur(data.pace.figures.forecastEndCents)
-                        : 'Noch keine verlässliche Prognose'}
-                </span>
-                {paceDetail === 'forecast' && (
-                  <span>Limit: {eur(data.pace.figures.limitCents)}</span>
-                )}
-              </div>
-            )}
-            <p className="heute-note">
-              {data.pace.todayDay < 7
-                ? 'Vorläufig: ausgegeben plus offene fixe und wiederkehrende Zahlungen plus verbleibender variabler Plan. Ab dem 7. Tag werden variable Ausgaben hochgerechnet.'
-                : 'Fixe und wiederkehrende Zahlungen zählen einmal; nur variable Ausgaben werden hochgerechnet.'}
-              {!data.pace.figures.forecastAvailable &&
-                ' Für eine Prognose braucht es einen positiven Plan.'}
-            </p>
-          </section>
-
           <section className="heute-section heute-next-steps" aria-labelledby="heute-next-title">
             <SectionHead
               id="heute-next-title"
@@ -450,7 +450,7 @@ function HeuteBody({ data }: { data: Heute }) {
             <SectionHead
               id="heute-net-title"
               detail={4}
-              title="Nettovermögen"
+              title="Vermögensaufteilung"
               aside={
                 <AppLink to="/vermoegen/nettovermoegen">
                   Details <ChevronRight size={15} aria-hidden="true" />
@@ -606,8 +606,8 @@ function MoreMonth({ phone, children }: { phone: boolean; children: ReactNode })
         Mehr zum Monat
       </Button>
       <p className="heute-note">
-        Pace, angepinnte Envelopes, Finanz-Check, Vermögensaufteilung, 50/30/20, Ziele, weitere
-        Zahlungen und letzte Buchungen.
+        Angepinnte Envelopes, Finanz-Check, Vermögensaufteilung, 50/30/20, Ziele, weitere Zahlungen
+        und letzte Buchungen.
       </p>
       <div id="heute-more-content" hidden={!open}>
         {children}
@@ -690,7 +690,7 @@ function WealthSparkline({ series }: { series: { day: string; cents: number }[] 
         width="160"
         height="36"
         role="img"
-        aria-label="Gesamtvermögen · Verlauf der letzten 12 Monate"
+        aria-label="Nettovermögen · Verlauf der letzten 12 Monate"
       >
         <polyline points={points} fill="none" stroke="var(--line)" strokeWidth="2" />
       </svg>

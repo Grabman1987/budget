@@ -398,7 +398,7 @@ test('source-view links open the corresponding live pages', async ({ page }) => 
     ['Angepinnte Envelopes', 'Plan öffnen', '/plan/monat'],
     ['Was steht an? · Nächste 7 Tage', 'Alle', '/plan/erwartet'],
     ['Finanz-Check', 'Alle Regeln', '/einstellungen/regelwerk'],
-    ['Nettovermögen', 'Details', '/vermoegen/nettovermoegen'],
+    ['Vermögensaufteilung', 'Details', '/vermoegen/nettovermoegen'],
     ['Letzte Buchungen', 'Alle', '/konten/buchungen'],
   ]) {
     await page.goto('/?monat=2026-09');
@@ -441,7 +441,7 @@ test('negative lead uses the action colour and attention precedes the month fold
       return {
         red,
         whole: getComputedStyle(el).color,
-        cents: getComputedStyle(el.querySelector('small')!).color,
+        cents: getComputedStyle(el).color,
       };
     });
     expect(colours.whole).toBe(colours.red);
@@ -451,10 +451,10 @@ test('negative lead uses the action colour and attention precedes the month fold
     const upcomingBox = await page.locator('#heute-upcoming-title').boundingBox();
     const attentionBox = await attention.boundingBox();
     const moreBox = await page.getByRole('button', { name: 'Mehr zum Monat' }).boundingBox();
-    expect(attentionBox!.y).toBeGreaterThan(upcomingBox!.y);
+    expect(attentionBox!.y).toBeLessThan(upcomingBox!.y);
     expect(moreBox!.y).toBeGreaterThan(attentionBox!.y);
     if (info.project.name === 'mobile') {
-      await expect(figure).toHaveCSS('font-size', '40px');
+      await expect(figure).toHaveCSS('font-size', '26px');
       expect((await page.getByTestId('heute-balance-chart').boundingBox())!.height).toBe(232);
     }
   }
