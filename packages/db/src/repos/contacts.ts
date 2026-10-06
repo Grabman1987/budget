@@ -137,26 +137,35 @@ export function writeOffContact(
       counter = { categoryId: expense.id, amountCents: -contactAmount };
     }
     const memo = `Ausgleich Kontakt${input.memo?.trim() ? ` · ${input.memo.trim()}` : ''}`;
-    const bookingId = createBooking(
-      tx,
-      {
-        accountId: input.accountId,
-        date: input.date,
-        amountCents: 0,
-        status: 'confirmed',
-        memo,
-        splits: [
-          {
-            categoryId: ensureAdvanceCategory(tx, grouped),
-            contactId,
-            amountCents: contactAmount,
-            memo,
-          },
-          counter,
-        ],
-      },
-      grouped,
-    );
+    let bookingId: string;
+    try {
+      bookingId = createBooking(
+        tx,
+        {
+          accountId: input.accountId,
+          date: input.date,
+          amountCents: 0,
+          status: 'confirmed',
+          memo,
+          splits: [
+            {
+              categoryId: ensureAdvanceCategory(tx, grouped),
+              contactId,
+              amountCents: contactAmount,
+              memo,
+            },
+            counter,
+          ],
+        },
+        grouped,
+      );
+    } catch (error) {
+      if (error instanceof Error && /Allocation exceeds/.test(error.message))
+        throw new BookingInvariantError(
+          'Ausgleich zu diesem Datum nicht möglich: spätere Zahlungen sind bereits zugeordnet.',
+        );
+      throw error;
+    }
     return { bookingId, groupId: grouped.groupId };
   });
 }
