@@ -30,7 +30,7 @@
 }
 .sr-head h2 {
   margin: 0;
-  font-size: 19px;
+  font-size: var(--fs-headline);
   font-weight: 620;
   letter-spacing: -0.01em;
 }
@@ -63,7 +63,7 @@
   font-size: 12px;
 }
 .sr-fig strong {
-  font-size: clamp(32px, 4.4vw, 46px);
+  font-size: clamp(var(--fs-figure-large), 4.4vw, var(--fs-amount));
   font-weight: 650;
   font-variant-numeric: tabular-nums;
   letter-spacing: -0.02em;
@@ -76,7 +76,7 @@
   margin: 10px 0 0;
   max-width: 72ch;
   color: var(--ink-2);
-  font-size: 13px;
+  font-size: var(--fs-body);
   line-height: 1.5;
 }
 .sr-note strong {
@@ -115,7 +115,7 @@
   padding: 0;
   list-style: none;
   color: var(--ink-2);
-  font-size: 13px;
+  font-size: var(--fs-body);
 }
 .sr-seg-leg li,
 .sr-leg li,
@@ -150,7 +150,7 @@
   min-height: 44px;
   padding: 4px 0;
   border-top: 1px solid var(--rule);
-  font-size: 13.5px;
+  font-size: var(--fs-body);
 }
 .sr-bars li:first-child {
   border-top: 0;
@@ -251,7 +251,7 @@ a.sr-name:hover {
 .sr-table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 13.5px;
+  font-size: var(--fs-body);
 }
 .sr-table th,
 .sr-table td {
@@ -296,7 +296,7 @@ a.sr-name:hover {
 
 /* Heatmap: diverging pastel against the row average, never the only signal (numbers stay). */
 .sr-heat {
-  font-size: 12.5px;
+  font-size: var(--fs-chart-label);
 }
 .sr-heat th,
 .sr-heat td {
@@ -354,7 +354,7 @@ a.sr-name:hover {
   min-height: 44px;
   padding: 4px 0;
   border-top: 1px solid var(--rule);
-  font-size: 13.5px;
+  font-size: var(--fs-body);
 }
 .sr-bl-track {
   position: relative;
@@ -450,7 +450,7 @@ a.sr-name:hover {
   min-height: 32px;
   padding: 2px 6px;
   border-radius: 6px;
-  font-size: 12.5px;
+  font-size: var(--fs-chart-label);
 }
 .sr-523-row.is-cur {
   background: var(--tint);
@@ -541,7 +541,7 @@ a.sr-name:hover {
   gap: 2px 12px;
   padding: 10px 0;
   border-top: 1px solid var(--rule);
-  font-size: 13.5px;
+  font-size: var(--fs-body);
 }
 .sr-hints li:first-child {
   border-top: 0;
@@ -591,7 +591,7 @@ a.sr-name:hover {
   align-items: center;
   gap: 12px;
   min-height: 44px;
-  font-size: 13.5px;
+  font-size: var(--fs-body);
 }
 .sr-year-label {
   display: grid;
@@ -687,7 +687,7 @@ a.sr-state {
   gap: 10px;
   margin: 12px 0 0;
   padding-left: 20px;
-  font-size: 13.5px;
+  font-size: var(--fs-body);
   line-height: 1.5;
 }
 .sr-pp {

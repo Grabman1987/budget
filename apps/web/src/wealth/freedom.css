@@ -43,7 +43,7 @@
 }
 .freedom-view .kv-table {
   width: 100%;
-  font-size: 13px;
+  font-size: var(--fs-body);
   border-collapse: collapse;
   text-align: left;
 }
@@ -74,7 +74,7 @@
   min-height: 44px;
   display: flex;
   align-items: center;
-  font-size: 13px;
+  font-size: var(--fs-body);
 }
 .freedom-view .kv strong {
   text-align: right;
@@ -119,7 +119,7 @@
   gap: 16px;
   padding: 9px 0;
   border-top: 1px solid var(--rule);
-  font-size: 13.5px;
+  font-size: var(--fs-body);
 }
 .freedom-view .kv span:first-child {
   color: var(--ink-2);
