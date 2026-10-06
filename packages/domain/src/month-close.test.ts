@@ -51,7 +51,28 @@ it('keeps a safe monthly mean exact even when the intermediate sum exceeds the s
     9007199254740990,
   );
 });
+it('preserves large monthly class totals and rejects an unsafe aggregate draft', () => {
+  const rows = [{ categoryId: 'a', class: 'need' as const, assignedCents: 0 }];
+  const plan = closePlanProjection(9007199254740990, 9007199254740990, rows, {
+    a: 9007199254740990,
+  });
+  expect(plan.remainingCents).toBe(0);
+  expect(plan.allocation.needCents).toBe(9007199254740990);
+  expect(() => closePlanProjection(0, 0, rows, { a: 9007199254740991 })).not.toThrow();
+  expect(() => closePlanProjection(-1, 0, rows, { a: 9007199254740991 })).toThrow(RangeError);
+});
 it('ranks both signs by absolute plan deviation and words the same factual result for report and review', () => {
+  expect(
+    closeDeviations([
+      {
+        categoryId: 'refund',
+        name: 'Muster',
+        carryCents: 9007199254740991,
+        assignedCents: -9007199254740991,
+        activityCents: 2,
+      },
+    ])[0],
+  ).toMatchObject({ planCents: 0, actualCents: -2, deltaCents: -2 });
   expect(
     closeDeviations([
       { categoryId: 'a', name: 'A', assignedCents: 100, carryCents: 20, activityCents: -220 },

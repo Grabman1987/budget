@@ -20,6 +20,7 @@ import { seedBasics } from '../../../../packages/db/src/repos/test-helpers';
 import { createLedgerApi } from '../../../server/src/api';
 import type { MonthCloseView } from './api';
 import { NextMonthPlan } from './next-month-plan';
+import { cents } from '@budget/domain';
 
 afterEach(cleanup);
 async function getPlan(opened: ReturnType<typeof createTestDatabase>) {
@@ -81,6 +82,7 @@ it('previews all groups, blocks unfunded drafts and applies cent-exact plans wit
     for (const [id, groupId, cls] of [
       ['c1', 'g1', 'need'],
       ['c2', 'g2', 'want'],
+      ['c3', 'g2', 'future'],
     ] as const)
       createEntity(
         opened.db,
@@ -104,9 +106,10 @@ it('previews all groups, blocks unfunded drafts and applies cent-exact plans wit
     );
     let applied: unknown;
     const user = userEvent.setup();
+    const data = await getPlan(opened);
     await renderPlan(
       <NextMonthPlan
-        data={await getPlan(opened)}
+        data={data}
         onApply={async (items) => {
           applied = items;
           return true;
@@ -142,6 +145,40 @@ it('previews all groups, blocks unfunded drafts and applies cent-exact plans wit
     );
     expect(applied).toEqual([{ categoryId: 'c1', assignedCents: 60000 }]);
     expect((screen.getByLabelText('Plan für c2') as HTMLInputElement).value).toBe('400');
+    await user.clear(screen.getByLabelText('Plan für c1'));
+    await user.type(screen.getByLabelText('Plan für c1'), '90071992547409,91');
+    await user.clear(screen.getByLabelText('Plan für c2'));
+    await user.type(screen.getByLabelText('Plan für c2'), '90071992547409,91');
+    expect(screen.getByRole('alert').textContent).toContain('Entwurf ist zu groß');
+    expect(
+      (screen.getByRole('button', { name: 'Plan übernehmen · alle' }) as HTMLButtonElement)
+        .disabled,
+    ).toBe(true);
+    data.budget = {
+      ...data.budget,
+      summary: {
+        ...data.budget.summary,
+        toBeAssignedCents: cents(1),
+        envelopes: data.budget.summary.envelopes.map((e) => ({
+          ...e,
+          assignedCents: cents(
+            e.categoryId === 'c1'
+              ? -9007199254740991
+              : e.categoryId === 'c3'
+                ? 9007199254740991
+                : 0,
+          ),
+        })),
+      },
+    };
+    await user.click(screen.getByRole('button', { name: 'wie Vormonat · alle' }));
+    await user.clear(screen.getByLabelText('Plan für c2'));
+    await user.type(screen.getByLabelText('Plan für c2'), '0,02');
+    expect(screen.getByTestId('close-plan-remaining').textContent).toContain('−0,01');
+    expect(
+      (screen.getByRole('button', { name: 'Plan übernehmen · alle' }) as HTMLButtonElement)
+        .disabled,
+    ).toBe(true);
   } finally {
     opened.close();
   }
@@ -155,7 +192,7 @@ it('history buttons only prepare a draft and do not treat missing history as zer
     data.previousAssigned = { miete: 10000, essen: 20000, reise: 5000 };
     data.history = data.history.map((h) => ({
       ...h,
-      averageCents: h.categoryId === 'essen' ? 25000 : null,
+      averageCents: h.categoryId === 'essen' ? cents(25000) : null,
       historyCount: h.categoryId === 'essen' ? 12 : 0,
     }));
     let applied = false;

@@ -27,7 +27,7 @@ export function NextMonthPlan({
     value: parseAmount(text),
     text,
   }));
-  const invalid = parsed.some(
+  const invalidInput = parsed.some(
     ({ categoryId, value, text }) =>
       text.trim() === '' ||
       !value.ok ||
@@ -42,12 +42,20 @@ export function NextMonthPlan({
       : [],
   );
   const income = data.budget.incomeTargets;
-  const projected = closePlanProjection(
-    data.budget.summary.toBeAssignedCents,
-    income?.expectedCents ?? 0,
-    rows.map((r) => ({ categoryId: r.id, class: r.cls, assignedCents: r.assignedCents })),
-    values,
-  );
+  const projected = (() => {
+    try {
+      return closePlanProjection(
+        data.budget.summary.toBeAssignedCents,
+        income?.expectedCents ?? 0,
+        rows.map((r) => ({ categoryId: r.id, class: r.cls, assignedCents: r.assignedCents })),
+        values,
+      );
+    } catch (error) {
+      if (error instanceof RangeError) return null;
+      throw error;
+    }
+  })();
+  const invalid = invalidInput || projected === null;
   const update = (changes: Record<string, string>) => {
     setDraft((old) => ({ ...old, ...changes }));
     onDirtyChange?.(true);
@@ -64,13 +72,15 @@ export function NextMonthPlan({
     );
   const selection = (ids: string[]) => items.filter((item) => ids.includes(item.categoryId));
   const funded = (ids: string[]) =>
-    data.budget.summary.toBeAssignedCents -
+    BigInt(data.budget.summary.toBeAssignedCents) -
       selection(ids).reduce(
         (sum, item) =>
-          sum + item.assignedCents - rows.find((r) => r.id === item.categoryId)!.assignedCents,
-        0,
+          sum +
+          BigInt(item.assignedCents) -
+          BigInt(rows.find((r) => r.id === item.categoryId)!.assignedCents),
+        0n,
       ) >=
-    0;
+    0n;
   const apply = async (ids: string[]) => {
     const selected = selection(ids);
     if (invalid || !funded(ids) || busy || !selected.length) return;
@@ -127,38 +137,47 @@ export function NextMonthPlan({
       <p
         role="status"
         data-testid="close-plan-remaining"
-        className={projected.remainingCents < 0 ? 'is-urgent' : ''}
+        className={projected && projected.remainingCents < 0 ? 'is-urgent' : ''}
       >
         Noch zu verteilen:{' '}
-        <AppLink to="/reports/gesamttabelle" search={{ monat: data.month }}>
-          {eur(projected.remainingCents)}
-        </AppLink>{' '}
+        {projected ? (
+          <AppLink to="/reports/gesamttabelle" search={{ monat: data.month }}>
+            {eur(projected.remainingCents)}
+          </AppLink>
+        ) : (
+          'nicht berechenbar'
+        )}{' '}
         · Ziel 0,00 €
       </p>
-      {invalid && (
+      {invalidInput && (
         <p role="alert">Bitte gültige Beträge eingeben. Neue Pläne dürfen nicht negativ sein.</p>
       )}
-      {projected.remainingCents < 0 && (
+      {!projected && <p role="alert">Der Entwurf ist zu groß. Bitte kleinere Beträge eingeben.</p>}
+      {projected && projected.remainingCents < 0 && (
         <p>Der Entwurf verteilt mehr Geld, als vorhanden ist. Nimm Zuweisungen zurück.</p>
       )}
       <h3>Bedarf, Wunsch und Zukunft</h3>
-      <AllocationBar
-        data={projected.allocation}
-        label="Plan im Verhältnis zum erwarteten Einkommen, Soll 50/30/20"
-      />
-      <ul className="close-class-totals">
-        {(['need', 'want', 'future'] as const).map((cls, i) => (
-          <li key={cls}>
-            <ClassSwatch kind={cls} />
-            {CLASS_LABEL[cls]}:{' '}
-            <AppLink to="/reports/budgettreue" search={{ monat: data.month }}>
-              {eur(projected.allocation[`${cls}Cents`])}
-            </AppLink>{' '}
-            · {income?.expectedCents ? `${projected.allocation.shares[cls]} %` : '–'} · Soll{' '}
-            {[50, 30, 20][i]} %
-          </li>
-        ))}
-      </ul>
+      {projected && (
+        <>
+          <AllocationBar
+            data={projected.allocation}
+            label="Plan im Verhältnis zum erwarteten Einkommen, Soll 50/30/20"
+          />
+          <ul className="close-class-totals">
+            {(['need', 'want', 'future'] as const).map((cls, i) => (
+              <li key={cls}>
+                <ClassSwatch kind={cls} />
+                {CLASS_LABEL[cls]}:{' '}
+                <AppLink to="/reports/budgettreue" search={{ monat: data.month }}>
+                  {eur(projected.allocation[`${cls}Cents`])}
+                </AppLink>{' '}
+                · {income?.expectedCents ? `${projected.allocation.shares[cls]} %` : '–'} · Soll{' '}
+                {[50, 30, 20][i]} %
+              </li>
+            ))}
+          </ul>
+        </>
+      )}
       <p>
         Monatliche Zuweisungen im Verhältnis zum erwarteten Einkommen. Rücklagen für periodische
         Kosten werden hier monatlich geplant. Karten- und Auslagenkategorien zählen nicht zu den

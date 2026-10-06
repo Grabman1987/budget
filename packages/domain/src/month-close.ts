@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { addMonths, lastDayOfMonth } from './date';
-import { allocation, type BudgetClass } from './ledger/alloc';
+import { percentShares, type BudgetClass } from './ledger/alloc';
 import { mulDivRound } from './wealth/int';
 import { cents } from './money/cents';
 import type { TableMonth } from './report-tables/tables';
@@ -101,15 +101,28 @@ export function closePlanProjection(
   rows: readonly { categoryId: string; class: BudgetClass | null; assignedCents: number }[],
   draft: Readonly<Record<string, number>>,
 ) {
-  let addedCents = 0;
-  const items = rows.flatMap((r) => {
-    const value = draft[r.categoryId] ?? r.assignedCents;
-    addedCents += value - r.assignedCents;
-    return r.class ? [{ class: r.class, cents: value }] : [];
-  });
+  let addedCents = 0n;
+  const totals = { need: 0n, want: 0n, future: 0n };
+  for (const r of rows) {
+    const value = BigInt(cents(draft[r.categoryId] ?? r.assignedCents));
+    addedCents += value - BigInt(cents(r.assignedCents));
+    if (r.class) totals[r.class] += value;
+  }
+  const monthly = {
+    needCents: cents(Number(totals.need)),
+    wantCents: cents(Number(totals.want)),
+    futureCents: cents(Number(totals.future)),
+    incomeCents: cents(incomeCents),
+  };
   return {
-    remainingCents: remainingCents - addedCents,
-    allocation: allocation([{ incomeCents, annualIncomeCents: 0, items }]),
+    remainingCents: cents(Number(BigInt(cents(remainingCents)) - addedCents)),
+    allocation: {
+      ...monthly,
+      restCents: cents(
+        Number(BigInt(monthly.incomeCents) - totals.need - totals.want - totals.future),
+      ),
+      shares: percentShares(monthly),
+    },
   };
 }
 
@@ -123,13 +136,17 @@ export function closeDeviations(
   }[],
 ) {
   return rows
-    .map((r) => ({
-      categoryId: r.categoryId,
-      name: r.name,
-      planCents: r.carryCents + r.assignedCents,
-      actualCents: -r.activityCents,
-      deltaCents: -r.activityCents - r.carryCents - r.assignedCents,
-    }))
+    .map((r) => {
+      const planCents = cents(r.carryCents + r.assignedCents);
+      const actualCents = cents(-r.activityCents);
+      return {
+        categoryId: r.categoryId,
+        name: r.name,
+        planCents,
+        actualCents,
+        deltaCents: cents(actualCents - planCents),
+      };
+    })
     .filter((r) => r.deltaCents !== 0)
     .sort(
       (a, b) =>
