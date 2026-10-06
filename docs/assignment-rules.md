@@ -24,11 +24,25 @@ It does not apply changes to that history.
 
 In the inbox, an owner can inspect rule actions, select a suggestion, reject it and
 choose a manual recipient/category, then confirm the bank row. Existing unchecked
-bank bookings also expose suggestions in the inbox and booking editor. Reconciled,
-manual, contact and existing transfer rows cannot take those suggestions.
+bank bookings also expose suggestions in the inbox and booking editor. Open manual
+bookings can take learned inbox suggestions. Reconciled, contact and existing transfer
+rows cannot take those suggestions.
 After categorizing a bank row, **Regel daraus erstellen** opens a draft editor;
 it never creates a rule without saving. Mixed-direction/contact/transfer splits
 cannot become learned templates; shares smaller than 0.01% require a manual rule.
+
+E4: confirming an inbox assignment remembers the latest category/income type,
+payee (including an explicitly empty payee) and account in the existing rule JSON.
+An exact NFKC/case/whitespace-normalized cleaned counterparty plus inflow/outflow
+is the key; no amount band is needed for this slice. Bank rows use cleaned source
+counterparty text; manual rows use the selected payee name. **wie zuletzt bei …**
+shows the saved assignment and **Übernehmen** explicitly confirms it. Settings marks
+these rows **Gelernt** and removal forgets them until another owner confirmation;
+learning, replacement and deletion share the existing audit/undo paths. No migration
+or dependency is added. Bank source accounts remain fixed; manual suggestions may
+move a booking only between open accounts of the same currency. Mixed category/income
+splits, transfers and contacts remain manual. The existing 100-rule / 20-share bounds
+also apply to learning; at capacity, confirmations still succeed without a new rule.
 
 The first matching enabled rule has priority. **Automatisch übernehmen** prepares
 that rule by default on bank candidates; accepting the staged bank row is still an

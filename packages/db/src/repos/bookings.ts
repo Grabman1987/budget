@@ -1,6 +1,6 @@
 import { bookingIncomeDefault } from './income-month';
 import { assertContactBookingWrite, assertContactSettlementInvariants } from './contact-invariants';
-import { learnBankPayee } from './assignment-rules';
+import { learnBankPayee, learnInboxAssignment } from './assignment-rules';
 import { randomUUID } from 'node:crypto';
 import { and, asc, eq, gte, inArray, isNull, lte, ne, type SQL } from 'drizzle-orm';
 import {
@@ -794,6 +794,16 @@ function updateBookingImpl(
       const raw = cur.bankRawPayee || cur.bankRawText || cur.memo || '';
       learnBankPayee(tx, cur.bankSourceId ?? '', raw, patch.payeeId, grouped);
     }
+    if (
+      ctx.actor === 'owner' &&
+      (cur.status === 'pending' ||
+        curSplits.some((s) => !s.categoryId && !s.incomeTypeId && s.amountCents !== 0)) &&
+      ((patch.status === 'confirmed' && nextSplits.some((s) => s.categoryId || s.incomeTypeId)) ||
+        patch.splits ||
+        patch.payeeId !== undefined ||
+        patch.accountId !== undefined)
+    )
+      learnInboxAssignment(tx, id, grouped);
   });
 }
 
