@@ -113,6 +113,94 @@ it('Heute and One-Pager expose the same cent-exact expectation and existing fore
   expect(report).toEqual(live);
 });
 
+it('answer cards reuse the current One-Pager, pace, valuation and Gesamtübersicht to the cent', async () => {
+  for (const [incomeTypeId, amountCents] of [
+    [INCOME_TYPES.salary.id, 350_001],
+    [INCOME_TYPES.capital.id, 1_003],
+    [INCOME_TYPES.refund.id, 2_007],
+  ] as const)
+    createBooking(
+      db,
+      {
+        accountId: 'giro',
+        date: '2026-03-10',
+        amountCents,
+        splits: [{ incomeTypeId, amountCents }],
+      },
+      { actor: 'tester' },
+    );
+  accounts.create(
+    db,
+    {
+      id: 'loan',
+      name: 'Synthetische Schuld',
+      type: 'loan',
+      role: 'debt',
+      onBudget: false,
+      openingDate: '2026-01-01',
+      openingBalanceCents: -49_003,
+    },
+    { actor: 'tester' },
+  );
+  const data = (await call('GET', '/heute?month=2026-02')).body;
+  const current = (await call('GET', '/heute?month=2026-03')).body;
+  const one = (await call('GET', '/reports/month/onepager?month=2026-03')).body;
+  const whole = (await call('GET', '/overview/whole-picture?period=2026-03..2026-03')).body;
+  const wealth = (await call('GET', '/wealth/networth?period=1J')).body;
+  expect(data.monthResult).toEqual(one.result);
+  expect(data.monthResult).toMatchObject({
+    earnedCents: 350_001,
+    consumptionCents: 12_000,
+    savedCents: 338_001,
+  });
+  expect(data.budgetAnswer).toEqual(current.budgetAnswer);
+  expect(data.budgetAnswer).toEqual({
+    spentCents: 12_000,
+    plannedCents: 130_000,
+    remainingCents: 118_000,
+    day: 18,
+    daysInMonth: 31,
+  });
+  expect(data.budgetAnswer.spentCents).toBe(current.pace.figures.spentCents);
+  expect(data.budgetAnswer.plannedCents).toBe(current.pace.figures.limitCents);
+  expect(data.netWorth.totalCents).toBe(wealth.chain.nowCents);
+  expect(data.netWorth.assetsCents).toBe(541_011);
+  expect(data.netWorth.liabilitiesCents).toBe(49_003);
+  expect(data.netWorth.assetsCents - data.netWorth.liabilitiesCents).toBe(data.netWorth.totalCents);
+  expect(data.netWorth.monthChange).toEqual({
+    deltaCents: whole.totals.deltaCents,
+    investmentsInCents: whole.totals.investmentsInCents,
+    marketCents: whole.totals.marketCents,
+  });
+  expect(data.netWorth.monthChange.deltaCents).toBe(data.netWorth.deltaCents);
+});
+
+it('nearest goal uses Sparziele progress and ordering, skips reached goals and hides when empty', async () => {
+  expect((await call('GET', '/heute')).body.nearestGoal).toBeNull();
+  for (const [name, targetCents, targetDate] of [
+    ['Erreicht', 100, '2026-03-01'],
+    ['Reise', 300_001, '2026-04-01'],
+    ['Später', 400_000, '2026-05-01'],
+  ])
+    expect(
+      (await call('POST', '/goals', { name, targetCents, targetDate, accountId: 'giro' })).status,
+    ).toBe(201);
+  const data = (await call('GET', '/heute')).body;
+  const goals = (await call('GET', '/goals?month=2026-03')).body.goals;
+  const goal = goals.find((g: any) => g.name === 'Reise');
+  expect(data.nearestGoal).toEqual({
+    id: goal.id,
+    name: goal.name,
+    savedCents: goal.savedCents,
+    remainingCents: goal.remainingCents,
+  });
+  expect(data.nearestGoal).toMatchObject({
+    name: 'Reise',
+    savedCents: 188_000,
+    remainingCents: 112_001,
+  });
+});
+
 describe('GET /heute', () => {
   it('derives daily cents from the existing lead and rule-based payday, independent of chart period', async () => {
     const month = (await call('GET', '/heute?period=month')).body;
@@ -217,10 +305,13 @@ describe('GET /heute', () => {
       [
         'attention',
         'balance',
+        'budgetAnswer',
         'dailyBudget',
         'financeCheck',
         'lastBookings',
         'lead',
+        'monthResult',
+        'nearestGoal',
         'netWorth',
         'nextSteps',
         'pace',
