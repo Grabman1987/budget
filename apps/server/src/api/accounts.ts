@@ -1,5 +1,10 @@
 import {
   account,
+  valuation,
+  createEntity,
+  updateEntity,
+  restoreEntity,
+  holdingValuationAsOf,
   cashValuer,
   bankBalanceForAccount,
   lockBankBalance,
@@ -18,12 +23,15 @@ import {
   type Db,
 } from '@budget/db';
 import { and, eq, isNull, sql } from 'drizzle-orm';
+import { z } from 'zod';
 import { randomUUID } from 'node:crypto';
 import { Hono, type Context } from 'hono';
 import { eachDay, type CashValuation } from '@budget/domain';
 import { ACTOR, ApiError, defined, readBody, readQuery } from './http';
 import {
   accountClose,
+  day,
+  cents,
   accountCreate,
   accountPatch,
   accountOrder,
@@ -68,6 +76,51 @@ export type AccountView = AccountSummary & {
 
 export function accountRoutes(db: Db, today: () => string): Hono {
   const app = new Hono();
+
+  app.put('/:id/valuation', async (c) => {
+    const id = c.req.param('id');
+    const input = await readBody(c, z.strictObject({ date: day, valueCents: cents.min(0) }));
+    const ctx = { actor: ACTOR, groupId: randomUUID() };
+    db.transaction((tx) => {
+      const acct = accounts.get(tx, id);
+      if (!acct) throw new ApiError(404, 'not_found', 'Konto nicht gefunden.');
+      if (input.date > today() || input.date < acct.openingDate)
+        throw new ApiError(
+          422,
+          'invalid',
+          'Bitte einen Stichtag zwischen Kontoeröffnung und heute wählen.',
+        );
+      if (acct.closedAt || !['p2p', 'other_asset'].includes(acct.type))
+        throw new ApiError(422, 'invalid', 'Dieses Konto verwendet keine manuelle Bewertung.');
+      if (listReconciliations(tx, id).some((r) => r.date >= input.date))
+        throw new ApiError(409, 'reconciled_locked', 'Der Stichtag ist bereits festgeschrieben.');
+      const holdings = holdingValuationAsOf(tx, input.date);
+      if (
+        [
+          ...holdings.values,
+          ...holdings.missingPricePositions,
+          ...holdings.missingFxPositions,
+        ].some((h) => h.accountId === id)
+      )
+        throw new ApiError(422, 'invalid', 'Dieses Konto wird über seine Produkte bewertet.');
+      const current = tx
+        .select()
+        .from(valuation)
+        .where(and(eq(valuation.accountId, id), eq(valuation.date, input.date)))
+        .get();
+      if (current?.deletedAt) restoreEntity(tx, valuation, current.id, ctx);
+      if (current)
+        updateEntity(
+          tx,
+          valuation,
+          current.id,
+          { valueCents: input.valueCents, source: 'manual' },
+          ctx,
+        );
+      else createEntity(tx, valuation, { accountId: id, ...input, source: 'manual' }, ctx);
+    });
+    return c.json({ groupId: ctx.groupId });
+  });
 
   const accountList = (asOf: string) => {
     const value = cashValuer(db);
