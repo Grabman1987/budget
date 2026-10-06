@@ -46,6 +46,19 @@
   font-size: var(--fs-body);
   margin-top: 16px;
 }
+.kinbox .rev-what > .assignment-review {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  max-width: none;
+  margin-top: 8px;
+}
+.kinbox .rev-what > .assignment-review > .assignment-review {
+  display: flex;
+  flex-wrap: wrap;
+  flex-basis: 100%;
+  max-width: none;
+}
 @media (max-width: 767px) {
   .kinbox-table,
   .kinbox-table tbody {

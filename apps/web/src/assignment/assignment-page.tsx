@@ -13,6 +13,7 @@ import { PageFrame } from '../pages/placeholder-page';
 import { ScrollRegion } from '../reports/spending-shared';
 import { assignmentQuery } from './api';
 import { AssignmentEditor } from './rule-editor';
+import { AssignmentSummary } from './review';
 import './assignment.css';
 
 export function AssignmentPage() {
@@ -66,6 +67,11 @@ export function AssignmentPage() {
             Regeln schlagen Empfänger, Kategorien und weitere Angaben für Bankumsätze vor. Die erste
             passende Regel hat Vorrang. Die Buchung bestätigst du im Posteingang.
           </p>
+          <p>
+            Bestätigte Zuordnungen im Posteingang werden als gelernte Vorschläge gemerkt. Du
+            übernimmst sie mit einem Klick und kannst sie hier entfernen. Es wird nichts automatisch
+            gebucht. Bei 100 Regeln werden keine neuen Vorschläge gelernt.
+          </p>
           <Button
             onClick={(e) => {
               e.currentTarget.focus();
@@ -110,7 +116,18 @@ export function AssignmentPage() {
                         {r.name}
                         <span className="text-muted"> · {r.enabled ? 'aktiv' : 'deaktiviert'}</span>
                       </th>
-                      <td>{r.automatic ? 'automatisch vorbereitet' : 'Vorschlag'}</td>
+                      <td>
+                        {r.id.startsWith('inbox-learn:') ? (
+                          <>
+                            <span>Gelernt</span>
+                            <AssignmentSummary rule={{ ...r, unavailable: null }} />
+                          </>
+                        ) : r.automatic ? (
+                          'automatisch vorbereitet'
+                        ) : (
+                          'Vorschlag'
+                        )}
+                      </td>
                       <td>
                         <div className="assignment-buttons">
                           <Button
