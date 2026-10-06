@@ -32,17 +32,17 @@ test('Heute keeps its device fold choice and the primary order, net worth matche
 }, info) => {
   test.setTimeout(60_000);
   await page.goto('/?monat=2026-09');
-  await expect(
-    page.getByRole('heading', { name: 'Wie viel darf ich bis zum Gehalt noch ausgeben?' }),
-  ).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Budget', exact: true })).toBeVisible();
   const fold = page.getByRole('button', { name: 'Mehr zum Monat' });
   const initiallyOpen = info.project.name === 'desktop';
   await expect(fold).toHaveAttribute('aria-expanded', String(initiallyOpen));
   const boxes = await Promise.all(
     [
+      '.heute-answers',
+      '.heute-attention',
+      '.heute-pace',
       '.heute-lead',
       '#heute-upcoming-title',
-      '.heute-attention',
       '.heute-wealth-line',
       '.heute-more',
     ].map((selector) => page.locator(selector).boundingBox()),
