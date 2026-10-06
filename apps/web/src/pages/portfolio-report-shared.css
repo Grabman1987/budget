@@ -23,7 +23,7 @@
   margin: 14px 0 0;
 }
 .prep-decision {
-  font-size: 13px;
+  font-size: var(--fs-body);
   color: var(--line);
   min-height: 44px;
   display: inline-flex;

@@ -43,7 +43,7 @@
 }
 .inbox-hint {
   color: var(--ink-2);
-  font-size: 13px;
+  font-size: var(--fs-body);
   margin-top: 16px;
 }
 @media (max-width: 767px) {

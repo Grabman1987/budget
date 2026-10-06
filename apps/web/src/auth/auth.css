@@ -114,7 +114,7 @@
   padding: 11px 0;
   border-bottom: 1px solid var(--rule);
   font-family: var(--font-tech);
-  font-size: 16px;
+  font-size: var(--fs-title);
   font-weight: 500;
   letter-spacing: 0.05em;
   font-variant-numeric: tabular-nums;
@@ -132,7 +132,7 @@
   padding: 10px 16px 12px;
   border-top: 1px solid var(--line-2);
   color: var(--ink-2);
-  font-size: 13px;
+  font-size: var(--fs-body);
 }
 /* "Drucken": only the sheet reaches the paper. */
 @media print {
@@ -156,7 +156,7 @@
 }
 .recovery-status {
   color: var(--ink-2);
-  font-size: 13px;
+  font-size: var(--fs-body);
 }
 .check-row {
   display: flex;
@@ -215,7 +215,7 @@
 }
 .sec-meta {
   color: var(--ink-3);
-  font-size: 13px;
+  font-size: var(--fs-body);
 }
 .sec-actions {
   display: flex;

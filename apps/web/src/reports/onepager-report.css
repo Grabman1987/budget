@@ -59,7 +59,7 @@
   display: grid;
   place-items: center;
   font-family: var(--font-tech);
-  font-size: 10.5px;
+  font-size: var(--fs-class-tag);
   font-weight: 500;
   color: var(--ink-3);
 }
@@ -94,7 +94,7 @@
   line-height: 1.05;
 }
 .ps-head h2 small {
-  font-size: 15px;
+  font-size: var(--fs-body);
   font-weight: 500;
   color: var(--ink-3);
   letter-spacing: 0;
@@ -116,7 +116,7 @@
   color: var(--ink-3);
 }
 .ps-fig > span:last-child {
-  font-size: 13px;
+  font-size: var(--fs-body);
   font-weight: 600;
   color: var(--line);
 }
@@ -151,7 +151,7 @@
   align-items: center;
   gap: 8px;
   margin: 0 0 10px;
-  font-size: 13.5px;
+  font-size: var(--fs-body);
   font-weight: 640;
 }
 .ps-h span {
@@ -181,7 +181,7 @@
   font-weight: 650;
 }
 .ps-delta {
-  font-size: 13px;
+  font-size: var(--fs-body);
   font-weight: 600;
 }
 .is-up {
@@ -193,7 +193,7 @@
 .ps-cats {
   width: 100%;
   border-collapse: collapse;
-  font-size: 13px;
+  font-size: var(--fs-body);
   font-variant-numeric: tabular-nums;
 }
 .ps-cats td {
@@ -233,19 +233,19 @@
   gap: 8px;
 }
 .ps-kpi strong {
-  font-size: 28px;
+  font-size: var(--fs-display);
   font-weight: 650;
   line-height: 1;
 }
 .ps-kpi span {
-  font-size: 13px;
+  font-size: var(--fs-body);
   color: var(--ink-2);
 }
 .ps-over {
   list-style: none;
   margin: 10px 0 0;
   padding: 0;
-  font-size: 13px;
+  font-size: var(--fs-body);
 }
 .ps-over li {
   display: flex;
@@ -291,7 +291,7 @@
 .ps-revt thead th {
   padding: 4px 8px 6px 0;
   border-bottom: 1px solid var(--rule-strong);
-  font-size: 10.5px;
+  font-size: var(--fs-class-tag);
   text-align: left;
 }
 .ps-revt thead th.n {
@@ -300,7 +300,7 @@
 .ps-revt td {
   padding: 7px 8px 7px 0;
   border-top: 1px solid var(--rule);
-  font-size: 13px;
+  font-size: var(--fs-body);
   vertical-align: middle;
 }
 .ps-revt td.n {
@@ -344,17 +344,17 @@
   border-bottom: 0;
 }
 .ps-tb-cell .tech {
-  font-size: 9.5px;
+  font-size: var(--fs-class-tag);
 }
 .ps-tb-cell strong {
-  font-size: 13px;
+  font-size: var(--fs-body);
   font-weight: 620;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 .ps-tb-name strong {
-  font-size: 15px;
+  font-size: var(--fs-body);
 }
 
 /* 50/30/20 bar */
@@ -399,7 +399,7 @@
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 8px 14px;
-  font-size: 13px;
+  font-size: var(--fs-body);
 }
 .b523-leg span {
   display: grid;
@@ -447,7 +447,7 @@
     justify-items: start;
   }
   .ps-fig strong {
-    font-size: 32px;
+    font-size: var(--fs-figure-large);
   }
   .ps-grid {
     grid-template-columns: minmax(0, 1fr);

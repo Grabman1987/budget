@@ -95,7 +95,7 @@
   min-width: 76px;
   height: 26px;
   padding: 0 9px;
-  border-radius: 7px;
+  border-radius: var(--radius-sm);
   font-weight: 640;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
@@ -126,7 +126,7 @@
 .hero-kpi {
   position: relative;
   overflow: hidden;
-  border-radius: 14px;
+  border-radius: var(--radius-sheet);
   background: var(--surface);
   border: 1px solid var(--card-border);
   box-shadow: var(--card-shadow);
@@ -183,7 +183,7 @@
   gap: 8px;
   height: 40px;
   padding: 0 16px;
-  border-radius: 9px;
+  border-radius: var(--radius-md);
   background: var(--on-good);
   color: var(--good);
   font-weight: 640;
@@ -240,7 +240,7 @@ button {
   gap: 2px;
   height: 30px;
   padding-right: 10px;
-  border-radius: 7px;
+  border-radius: var(--radius-sm);
   color: var(--ink-3);
   transition: background var(--t-fast) var(--ease-out);
 }
@@ -331,9 +331,9 @@ button {
   gap: 6px;
   height: 36px;
   padding: 0 2px 0 12px;
-  border-radius: 7px;
+  border-radius: var(--radius-sm);
   color: var(--ink-2);
-  font-size: 13.5px;
+  font-size: var(--fs-body);
 }
 .acct-edit-row .icon-btn {
   width: 26px;
@@ -366,10 +366,10 @@ button {
   gap: 10px;
   height: 32px;
   padding: 0 10px 0 28px;
-  border-radius: 7px;
+  border-radius: var(--radius-sm);
   color: var(--ink-2);
   text-decoration: none;
-  font-size: 13.5px;
+  font-size: var(--fs-body);
   transition:
     background var(--t-fast) var(--ease-out),
     color var(--t-fast) var(--ease-out);
@@ -393,7 +393,7 @@ button {
   white-space: nowrap;
 }
 .acct-amount {
-  font-size: 12.5px;
+  font-size: var(--fs-chart-label);
   font-weight: 560;
   font-variant-numeric: tabular-nums;
   color: var(--ink-2);

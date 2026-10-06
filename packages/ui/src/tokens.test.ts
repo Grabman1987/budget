@@ -69,6 +69,23 @@ describe('design tokens', () => {
     }
   });
 
+  it('includes only the extra sizes already named in the DESIGN.md hierarchy', () => {
+    expect(designMd).toContain('Klassen-Tags (11 px');
+    expect(designMd).toContain('Ma\u00dftexte 13 px');
+    expect(designMd).toContain(
+      '34 px (Nettoverm\u00f6gen), 36 px (Panel) und 44 px (Buchungsdisplay',
+    );
+    for (const [role, size] of [
+      ['class-tag', 11],
+      ['chart-label-strong', 13],
+      ['figure-large', 34],
+      ['panel', 36],
+      ['amount', 44],
+    ]) {
+      expect(scaleTokensCss).toContain('--fs-' + role + ': ' + size + 'px;');
+    }
+  });
+
   it('every radius of DESIGN.md is a --radius-* token with the same value', () => {
     const radii = parseRadii(designMd);
     expect(radii['sheet-mobile']).toBe('16px');
