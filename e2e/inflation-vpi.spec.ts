@@ -1,4 +1,4 @@
-﻿import { expect } from '@playwright/test';
+import { expect } from '@playwright/test';
 import { openDatabase, storeCpi } from '@budget/db';
 import { monthsBetween } from '@budget/domain';
 import { test } from './isolated-ledger';
@@ -56,23 +56,37 @@ test('CPI method and searchable two-class mapping persist and show index units',
   opened.close();
   await page.goto('/einstellungen/warenkorb');
   const row = page.getByTestId('basket-category-' + category.id);
-  await row.getByLabel('Im Warenkorb:').selectOption('always');
-  await expect(row.getByLabel('Im Warenkorb:')).toHaveValue('always');
-  await row.getByLabel('Methode:').selectOption('cpi');
-  await row.getByRole('combobox', { name: 'COICOP-Klasse 1' }).fill('Nahrung');
+  await row.getByLabel('Zählt mit:').selectOption('always');
+  await expect(row.getByLabel('Zählt mit:')).toBeEnabled();
+  await row.getByText('Preis aus der offiziellen Statistik', { exact: true }).click();
+  await row.getByRole('combobox', { name: 'Preisgruppe 1' }).fill('Nahrung');
   await row.getByRole('option', { name: '01.1 Nahrungsmittel', exact: true }).click();
-  await row.getByRole('combobox', { name: 'COICOP-Klasse 2' }).fill('Körper');
+  await expect(row.getByLabel('Zählt mit:')).toBeEnabled();
+  await row.getByRole('combobox', { name: 'Preisgruppe 2 (optional)' }).fill('Körper');
   await row.getByRole('option', { name: '12.1.3 Körperpflegeartikel', exact: true }).click();
-  await row.getByLabel('Anteil Klasse 1 (%)').fill('80');
-  await row.getByRole('button', { name: 'Zuordnung speichern' }).click();
-  await expect(row.getByText('Zuordnung gespeichert')).toBeVisible();
+  await expect(row.getByLabel('Zählt mit:')).toBeEnabled();
+  await expect(row.getByLabel('Anteil Preisgruppe 1 (%)')).toHaveValue('50');
+  await row.getByLabel('Anteil Preisgruppe 1 (%)').fill('80');
+  await row.getByLabel('Anteil Preisgruppe 1 (%)').press('Tab');
+  await expect(row.getByLabel('Zählt mit:')).toBeEnabled();
+  const settings = await request.get('/api/inflation-basket');
+  expect(
+    (await settings.json()).categories.find((c: { id: string }) => c.id === category.id).method,
+  ).toBe('cpi');
   await page.reload();
-  await expect(row.getByLabel('Methode:')).toHaveValue('cpi');
-  await expect(row.getByRole('combobox', { name: 'COICOP-Klasse 1' })).toHaveValue(
+  await expect(row.getByRole('combobox', { name: 'Preisgruppe 1' })).toHaveValue(
     '01.1 Nahrungsmittel',
   );
-  await expect(row.getByLabel('Anteil Klasse 1 (%)')).toHaveValue('80');
+  await expect(row.getByLabel('Anteil Preisgruppe 1 (%)')).toHaveValue('80');
   await inspectReport(page, info, 'vpi-settings');
+  if (info.project.name === 'mobile') {
+    await page.setViewportSize({ width: 375, height: 844 });
+    for (const name of ['Preisgruppe 1', 'Preisgruppe 2 (optional)', 'Anteil Preisgruppe 1 (%)']) {
+      const control = await row.getByLabel(name, { exact: true }).boundingBox();
+      expect(control!.height).toBeGreaterThanOrEqual(44);
+    }
+    await inspectReport(page, info, 'vpi-settings-375');
+  }
   await page.getByRole('link', { name: 'Zur persönlichen Inflation' }).click();
   await expect(page.getByTestId('pi-rate')).toHaveText('+12 %');
   const basket = page.getByTestId('inflation-basket');

@@ -691,6 +691,48 @@ export function undo(
         );
       }
     }
+    for (const entry of originals.filter((e) => e.entityType === 'account')) {
+      if (
+        entry.before &&
+        entry.after &&
+        entry.before['currency'] !== entry.after['currency'] &&
+        tx
+          .select({ id: schema.valuation.id })
+          .from(schema.valuation)
+          .where(eq(schema.valuation.accountId, entry.entityId))
+          .get()
+      )
+        throw new AuditError(
+          'Die Kontowährung kann nach der ersten Bewertung nicht geändert werden.',
+        );
+    }
+    const removedChecks = new Set(
+      originals
+        .filter((entry) => entry.entityType === 'account_reconciliation' && entry.before === null)
+        .map((entry) => entry.entityId),
+    );
+    for (const entry of originals.filter((e) => e.entityType === 'valuation')) {
+      const snapshot = entry.after ?? entry.before;
+      const accountId = snapshot?.['account_id'];
+      const date = snapshot?.['date'];
+      if (typeof accountId !== 'string' || typeof date !== 'string')
+        throw new AuditError('Bewertung ohne gültigen Stichtag.');
+      const checks = tx
+        .select()
+        .from(schema.accountReconciliation)
+        .where(
+          and(
+            eq(schema.accountReconciliation.accountId, accountId),
+            isNull(schema.accountReconciliation.deletedAt),
+            sql`${schema.accountReconciliation.date} >= ${date}`,
+          ),
+        )
+        .all();
+      if (checks.some((check) => !removedChecks.has(check.id)))
+        throw new AuditError(
+          'Der Stichtag ist bereits festgeschrieben. Zuerst die Kontoprüfung rückgängig machen.',
+        );
+    }
     const touched = originals.map(bookingOf).filter((id): id is string => id !== undefined);
     const expectedLinkBookings = new Set(touched);
     for (const entry of originals)
@@ -858,6 +900,28 @@ export function undo(
       .map((entry) => entry.entityId);
     assertEurBudgetAccounts(tx, touchedAccounts);
     assertAccountBookingCurrencies(tx, touchedAccounts);
+    const valuationAccounts = originals.flatMap((entry) => {
+      if (entry.entityType !== 'valuation') return [];
+      const id = (entry.after ?? entry.before)?.['account_id'];
+      return typeof id === 'string' ? [id] : [];
+    });
+    const valueAccountIds = [...new Set([...touchedAccounts, ...valuationAccounts])];
+    if (
+      valueAccountIds.length > 0 &&
+      tx
+        .select({ id: schema.valuation.id })
+        .from(schema.valuation)
+        .innerJoin(schema.account, eq(schema.valuation.accountId, schema.account.id))
+        .where(
+          and(
+            inArray(schema.valuation.accountId, valueAccountIds),
+            isNull(schema.valuation.deletedAt),
+            isNotNull(schema.account.deletedAt),
+          ),
+        )
+        .get()
+    )
+      throw new AuditError('Bewertung und Konto gemeinsam rückgängig machen.');
     assertTradeSettlementInvariants(
       tx,
       touched,

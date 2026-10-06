@@ -174,27 +174,18 @@ describe('valuation fallbacks for a missing price', () => {
     expect(s.incomplete).toEqual([]); // stale is not incomplete
   });
 
-  it('estimated: a price shortly AFTER the day is used within the tolerance only', () => {
+  it('a trade takes precedence over an estimated later quote', () => {
     const prices = [eurPrice('2026-03-09', 70)];
     expect(pickPrice(prices, '2026-03-02')).toMatchObject({ quality: 'estimated' }); // 7 days
     expect(pickPrice(prices, '2026-03-01')).toBeUndefined(); // 8 days
     expect(pickPrice(prices, '2026-03-02', false)).toBeUndefined(); // strict: never backfill
     const s = dailyValuation([position({ prices })], ['2026-03-03'], rates);
-    expect(s.totalCents).toEqual([70_000]);
-    expect(s.positions[0]!.quality).toBe('estimated');
-    expect(s.incomplete).toEqual([
-      {
-        accountId: 'a',
-        securityId: 's',
-        quality: 'estimated',
-        days: 1,
-        from: '2026-03-03',
-        to: '2026-03-03',
-      },
-    ]);
+    expect(s.totalCents).toEqual([5_000]);
+    expect(s.positions[0]!.quality).toBe('exact');
+    expect(s.incomplete).toEqual([]);
   });
 
-  it('estimated: no price at all falls back to the moving-average cost basis (fees included)', () => {
+  it('no price uses the latest gross execution price, excluding fees', () => {
     const trades = [
       buy('2026-03-02', 10, 50, 100), // cost 5100 for 10 units
       buy('2026-03-04', 10, 70), // cost 12100 for 20 units
@@ -205,21 +196,12 @@ describe('valuation fallbacks for a missing price', () => {
       cost: { currency: 'EUR', snapshots: [], trades },
     });
     const s = dailyValuation([p], ['2026-03-01', '2026-03-03', '2026-03-05', '2026-03-06'], rates);
-    expect(s.positions[0]!.valueCents).toEqual([0, 5_100, 12_100, 9_075]);
-    expect(s.positions[0]!.quality).toBe('estimated');
-    expect(s.incomplete).toEqual([
-      {
-        accountId: 'a',
-        securityId: 's',
-        quality: 'estimated',
-        days: 3,
-        from: '2026-03-03',
-        to: '2026-03-06',
-      },
-    ]);
+    expect(s.positions[0]!.valueCents).toEqual([0, 5_000, 14_000, 29_700]);
+    expect(s.positions[0]!.quality).toBe('exact');
+    expect(s.incomplete).toEqual([]);
   });
 
-  it('estimated: the cost of a snapshot plus later trades; foreign cost uses the rate of the day', () => {
+  it('known snapshot cost is retained but valuation uses executions and valuation-day FX', () => {
     const snapshots = [{ date: '2026-01-02', unitsE8: 4e8 }];
     const trades = [buy('2026-01-02', 99, 1), buy('2026-01-06', 1, 10)];
     const cost = {
@@ -235,8 +217,8 @@ describe('valuation fallbacks for a missing price', () => {
       ['2026-01-04', '2026-01-06'],
       rates,
     );
-    // 400,00 USD x 0,90 (rate of 01.01.) and 410,00 USD x 0,95 (rate of 05.01.).
-    expect(s.positions[0]!.valueCents).toEqual([36_000, 38_950]);
+    // 4 units at 1 USD / 99 units; then 5 units at 10 USD, with valuation-day FX.
+    expect(s.positions[0]!.valueCents).toEqual([4, 4_750]);
   });
 
   it('missing: no price and no cost basis adds nothing and is flagged, never thrown', () => {
@@ -259,11 +241,11 @@ describe('valuation fallbacks for a missing price', () => {
     void _omit;
     const bare = dailyValuation([bareInput], ['2026-03-03'], rates);
     expect(bare.positions[0]!.quality).toBe('missing');
-    // Foreign cost without a rate cannot be converted.
+    // A foreign execution price still requires a rate.
     const noRate = position({
       cost: { currency: 'CHF', snapshots: [], trades: [buy('2026-03-02', 10, 50)] },
     });
-    expect(dailyValuation([noRate], ['2026-03-03'], rates).positions[0]!.quality).toBe('missing');
+    expect(() => dailyValuation([noRate], ['2026-03-03'], rates)).toThrow(/Wechselkurs/);
   });
 
   it('expired or knocked-out positions without units contribute nothing and are not flagged', () => {
@@ -274,8 +256,7 @@ describe('valuation fallbacks for a missing price', () => {
     });
     const s = dailyValuation([p], ['2026-03-04', '2026-03-06', '2026-03-07'], rates);
     expect(s.positions[0]!.valueCents).toEqual([5_000, 0, 0]);
-    // Only the held day is estimated.
-    expect(s.incomplete).toEqual([expect.objectContaining({ days: 1, from: '2026-03-04' })]);
+    expect(s.incomplete).toEqual([]);
   });
 
   it('exact results are unchanged when every price exists (no flag, no incomplete)', () => {

@@ -110,7 +110,7 @@ test('source status, read-only capture, explicit mapping and responsive themes',
   await crypto.getByRole('button', { name: 'Startdatum speichern' }).click();
   await expect(crypto.getByText('Startdatum gespeichert.', { exact: false })).toBeVisible();
   expect(since).toBe('2026-01-01');
-  await expect(crypto.getByLabel('Bewegungen ab')).toHaveValue('2026-01-01');
+  await expect(crypto.getByLabel('Bewegungen ab')).toHaveValue('01.01.2026');
   const summary = crypto.getByRole('heading', { name: 'Abgleich mit dem Hauptbuch' }).locator('..');
   await expect(summary.getByText('Erfasst', { exact: true })).toBeVisible();
   await expect(summary.locator('dd')).toHaveText(['3', '2', '1', '4']);
