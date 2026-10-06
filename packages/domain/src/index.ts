@@ -17,6 +17,7 @@ export * from './contacts';
 export * from './profile';
 
 export * from './reports/month';
+export * from './reports/planning-accuracy';
 export * from './overview';
 export * from './spending';
 export * from './report-tables';

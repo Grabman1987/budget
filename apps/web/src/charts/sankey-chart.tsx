@@ -1,8 +1,10 @@
 import {
   useAmountPrivacy,
+  maskMoneyText,
   formatPrivateEuro as formatEuro,
   ClassPatterns,
   ChartSvg,
+  ChartValues,
   patternFill,
   usePatternPrefix,
 } from '@budget/ui';
@@ -17,6 +19,7 @@ import {
   incomeLinks,
   poolColumn,
 } from './sankey-data';
+import './sankey-chart.css';
 
 const HEIGHT = 340;
 const NODE_WIDTH = 10;
@@ -76,6 +79,56 @@ export function SankeyChart({
       minimumFractionDigits: 2,
       maximumFractionDigits: 2,
     }).format(total > 0 ? value / total : 0);
+  if (width < 600) {
+    const stages = model.columns.slice(0, 3);
+    const nodes = stages.flat();
+    return (
+      <div data-testid="sankey-chart" role="region" aria-label={maskMoneyText(label)}>
+        <ChartValues
+          label={label}
+          points={nodes.map((node) => ({
+            x: 50,
+            date: period,
+            series: [
+              {
+                name: node.name,
+                value: formatEuro(cents(node.value)),
+                className: `sk-node n-${node.tone ?? 'inc'}`,
+              },
+              { name: 'Anteil an Verfügbar', value: share(node.value) },
+            ],
+          }))}
+        >
+          <ol className="sk-phone" aria-label="Geldfluss nach Stufen">
+            {stages.map((stage, i) => (
+              <li key={i}>
+                <strong className="tech">
+                  {['Zuflüsse', 'Verfügbarer Topf', 'Verwendung'][i]}
+                </strong>
+                <ul>
+                  {stage.map((node, j) => (
+                    <li key={node.id} data-chart-point={stages.slice(0, i).flat().length + j}>
+                      <span>
+                        <i
+                          className={`sk-phone-swatch n-${node.tone ?? 'inc'}`}
+                          aria-hidden="true"
+                        />
+                        {node.name}
+                      </span>
+                      <strong>
+                        {eur0(node.value)}
+                        <small>{share(node.value)}</small>
+                      </strong>
+                    </li>
+                  ))}
+                </ul>
+              </li>
+            ))}
+          </ol>
+        </ChartValues>
+      </div>
+    );
+  }
   const layout = sankeyLayout(columns, links, {
     width,
     height,

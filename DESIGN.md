@@ -188,6 +188,18 @@ components:
 
 # Design System: Finanz-App
 
+**Owner-Entscheidung 05.10.2026 — Unterseiten statt Seitenpanels.** Keine
+Seitenpanels, Drawer, rechten Side Sheets oder dauerhaften seitlichen Karten-Spalten
+für Inhalte. Details und sekundäre Informationen öffnen als Unterseiten mit eigener
+URL, Brotkrumen und Rücksprung; Browser-Zurück funktioniert, direkte Links ebenso.
+Zusammenfassungen stehen ganzbreit oberhalb oder unterhalb des Hauptinhalts oder
+verlinken aus einer einzeiligen Zusammenfassung auf eine Unterseite. Modale Dialoge
+sind ausschließlich für Eingabeformulare (neu/bearbeiten, Buchung, Umbuchung,
+Decken, Abrechnen, Bestätigen). Auf dem Handy gelten dieselben Routen; Bottom Sheets
+bleiben nur für Eingabeformulare und Filter erlaubt. Die linke App-Navigation bleibt.
+Diese Entscheidung ersetzt die früheren Panel- und Inspektor-Vorgaben in diesem
+Dokument und im Prototyp. [Inventar und Umsetzungsstand](docs/no-side-panels-1005.md).
+
 ## Overview
 
 **Creative North Star: "Das Konstruktionsblatt"**

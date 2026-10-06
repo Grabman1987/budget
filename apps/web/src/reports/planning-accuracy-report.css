@@ -1,0 +1,38 @@
+.accuracy-bars {
+  display: flex;
+  gap: 12px;
+  overflow-x: auto;
+  padding: 12px 0;
+}
+.accuracy-report p {
+  max-width: 72ch;
+}
+.accuracy-report .sr-table :is(th, td):not(:first-child) {
+  text-align: right;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.accuracy-bar-column {
+  min-width: 64px;
+  display: grid;
+  gap: 4px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+.accuracy-bar-track {
+  height: 160px;
+  position: relative;
+  background: linear-gradient(
+    to bottom,
+    transparent calc(50% - 1px),
+    var(--rule-strong) 50%,
+    transparent calc(50% + 1px)
+  );
+}
+.accuracy-bar-track i {
+  display: block;
+  position: absolute;
+  width: 60%;
+  left: 20%;
+  background: var(--line);
+}

@@ -1,5 +1,7 @@
 /* Reports 3.1 to 3.3 (Zukunft und Vermögen): shared layout, figures, tables and legends.
    White cards on the slate ground (DESIGN.md, Präzisionsschicht); no colour of its own. */
+@import './table-scroll.css';
+@import './mobile-report-header.css';
 
 .rf-report {
   grid-template-columns: minmax(0, 7fr) minmax(0, 5fr);
@@ -179,6 +181,8 @@
 .rf-scroll {
   overflow-x: auto;
   min-width: 0;
+  max-width: 100%;
+  overscroll-behavior-inline: contain;
   margin-top: 10px;
 }
 .rf-table {
@@ -389,6 +393,22 @@
   }
 }
 @media (max-width: 767px) {
+  .rf-report {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .liquidity-report .rf-table tr > :first-child:not([colspan]) {
+    position: sticky;
+    left: 0;
+    z-index: 1;
+    background: var(--surface);
+    box-shadow: inset -1px 0 var(--rule-strong);
+    min-width: 100px;
+    max-width: 150px;
+    overflow-wrap: anywhere;
+  }
+  .liquidity-report .rf-table th:first-child {
+    white-space: normal;
+  }
   .rf-card {
     padding: 16px;
   }

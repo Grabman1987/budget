@@ -117,6 +117,9 @@ describe('Overlay panels', () => {
     expect(dialog.getAttribute('aria-labelledby')).toBe(heading.id);
     expect(heading.id).not.toBe('');
     expect(dialog.hasAttribute('aria-label')).toBe(false);
+    const close = screen.getByRole('button', { name: /^Schließen$/ });
+    expect(close.textContent).toContain('Schließen');
+    expect(close.querySelector('.control-label')?.getAttribute('aria-hidden')).toBe('true');
   });
 
   it('gives two panels distinct heading ids', async () => {

@@ -301,6 +301,14 @@ function InboxRow({
                 : maskMoneyText(item.detail ?? '')}
           </span>
         )}
+        {item.type === 'booking' && item.status !== 'reconciled' && (
+          <BookingAssignmentReview
+            id={item.bookingId}
+            onApplied={(canLearn) => {
+              if (canLearn) onBankConfirmed(item.bookingId);
+            }}
+          />
+        )}
         {item.type === 'stored' && item.refType === 'payslip-intake' && item.refId && (
           <PayslipIntakeDetail id={item.refId} />
         )}
@@ -316,14 +324,6 @@ function InboxRow({
             >
               Zuordnen
             </Button>
-            {item.source === 'bank' && item.status !== 'reconciled' && (
-              <BookingAssignmentReview
-                id={item.bookingId}
-                onApplied={(canLearn) => {
-                  if (canLearn) onBankConfirmed(item.bookingId);
-                }}
-              />
-            )}
             {item.status === 'pending' && (
               <Button
                 size="sm"

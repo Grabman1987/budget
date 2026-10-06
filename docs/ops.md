@@ -1059,6 +1059,16 @@ runtime used one test worker, extended test limits, one retry, the ignored
 `os.userInfo()` preload and native Node compile cache. Assertions and production
 dependencies are unchanged. CI and private reconciliation remain owner steps.
 
+### 12.9 Plan snapshot backfill (operator task)
+
+The nightly job takes the day-15 snapshot of the current month and tries to reconstruct only
+the previous two months. Older months are an explicit operator job; months whose inputs changed
+after their 15th are recorded in `plan_snapshot_gap` and not retried (delete the row to retry).
+
+```powershell
+npx.cmd tsx scripts/plan-snapshot.ts 2025-01 2026-08   # prints one status per month, no amounts
+```
+
 ## 13. One-time Portfolio Performance migration (operator task)
 
 Same rules as section 12 (no import feature in the app, files and the private mapping never enter the repo). Prerequisite: the YNAB migration is committed (the depot, crypto and P2P accounts exist). `migrate-pp-cli.js` has the same shape: each step is one transaction, `revert` undoes a whole run (the newest committed one only, also across sources). What is written and why: `docs/migration/pp-export.md` §Commit.

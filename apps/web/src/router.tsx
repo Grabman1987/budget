@@ -273,7 +273,27 @@ const planMonthRoute = createRoute({
       : {}),
   }),
   staticData: { meta: PLAN_MONAT },
+  beforeLoad: ({ search }) => {
+    if (search.kategorie)
+      throw redirect({
+        to: '/plan/monat/envelope/$id',
+        params: { id: search.kategorie },
+        search: { monat: search.monat },
+      });
+  },
   component: lazyRouteComponent(() => import('./budget/plan-page'), 'PlanMonthPage'),
+});
+const envelopeRoute = createRoute({
+  getParentRoute: () => shellRoute,
+  path: '/plan/monat/envelope/$id',
+  staticData: { meta: { ...PLAN_MONAT, title: 'Envelope' } },
+  component: lazyRouteComponent(() => import('./budget/envelope-page'), 'EnvelopePage'),
+});
+const planIncomeRoute = createRoute({
+  getParentRoute: () => shellRoute,
+  path: '/plan/monat/einnahmen',
+  staticData: { meta: { ...PLAN_MONAT, title: 'Einnahmen' } },
+  component: lazyRouteComponent(() => import('./budget/envelope-page'), 'PlanIncomePage'),
 });
 const dataSourcesRoute = createRoute({
   getParentRoute: () => shellRoute,
@@ -515,6 +535,8 @@ const routeTree = rootRoute.addChildren([
     exportRoute,
     dataSourcesRoute,
     planMonthRoute,
+    envelopeRoute,
+    planIncomeRoute,
     planYearRoute,
     planExpectedRoute,
     freedomRoute,
@@ -538,7 +560,10 @@ const routeTree = rootRoute.addChildren([
   ...devRoutes,
 ]);
 
-export const router = createRouter({ routeTree });
+export const router = createRouter({
+  routeTree,
+  scrollRestoration: ({ location }) => location.pathname.startsWith('/plan/monat'),
+});
 
 declare module '@tanstack/react-router' {
   interface Register {
