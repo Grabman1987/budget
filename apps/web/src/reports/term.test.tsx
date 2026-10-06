@@ -1,7 +1,9 @@
 // @vitest-environment jsdom
-import { render, screen } from '@testing-library/react';
-import { expect, it } from 'vitest';
+import { cleanup, render, screen } from '@testing-library/react';
+import { afterEach, expect, it } from 'vitest';
 import { Term } from './term';
+
+afterEach(cleanup);
 
 it('links repeated terms to their own explanation without adding prose to report headers', () => {
   const { container } = render(
