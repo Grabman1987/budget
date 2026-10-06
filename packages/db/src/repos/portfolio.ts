@@ -731,7 +731,17 @@ function tradesOf(
     })
     .from(trade)
     .innerJoin(account, eq(account.id, trade.accountId))
-    .where(and(isNull(trade.deletedAt), lte(trade.date, filter.to)))
+    .where(
+      and(
+        isNull(trade.deletedAt),
+        lte(trade.date, filter.to),
+        gt(trade.date, after),
+        // A few securities (one per call in the class histories) use trade_security_date_idx.
+        filter.securities !== undefined && filter.securities.length <= 100
+          ? inArray(trade.securityId, [...filter.securities])
+          : undefined,
+      ),
+    )
     .all()
     .filter(
       (t) =>
