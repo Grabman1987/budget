@@ -1,5 +1,13 @@
 # Roadmap
 
+### UX-3b — Shared touch controls (owner feedback 2026-10-05)
+
+- [x] Shared 44 × 44 px control floor for coarse pointers and phone widths, including separate booking-row selection/flag areas.
+- [x] Phone tab/segment typography above 13 px; named flag and close actions with visible touch labels.
+- [x] Synthetic unit and bounding-box/hit-test phone regressions; [scope and baseline list](ux-tap-targets-1005.md).
+- [x] Final local check phases (336 files / 3,175 tests), production build and affected Chromium/WebKit browser checks; [verification evidence](ux-tap-targets-1005.md).
+- [ ] Pinned Linux screenshot review and owner phone acceptance (see delivery evidence).
+
 ### Heute daily budget — owner 05.10.2026
 
 - [x] Daily line below the Leitmaß from its existing cent-exact source and shared payday; today included, one day on payday itself, nonpositive alarm copy, hover/focus formula and phone wrapping.

@@ -178,6 +178,9 @@ function Overlay({
               onClick={requestClose}
             >
               <X size={18} strokeWidth={1.75} aria-hidden="true" />
+              <span className="control-label" aria-hidden="true">
+                Schließen
+              </span>
             </button>
           </div>
           <div className="panel-body">
