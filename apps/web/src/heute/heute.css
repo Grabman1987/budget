@@ -106,7 +106,7 @@
   }
   .heute-nearest-goal {
     margin: 8px 0 0;
-    font-size: 13px;
+    font-size: 12px;
   }
   .heute-lead > .heute-daily-budget {
     position: relative;
@@ -129,7 +129,7 @@
       line-height: 18px;
     }
     .heute-answer-value {
-      font-size: 26px;
+      font-size: 24px;
       line-height: 28px;
     }
     .heute-answer > a {
