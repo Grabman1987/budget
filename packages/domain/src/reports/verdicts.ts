@@ -85,8 +85,6 @@ export interface VerdictCandidate {
   current?: number;
   currentUnit?: VerdictUnit;
   better?: 'higher' | 'lower';
-  /** Round marks (thresholds) carry no private information and stay readable. */
-  visible?: boolean;
   n?: number;
   rank?: number;
   threshold?: number;
@@ -274,7 +272,7 @@ function detectThresholds(f: VerdictFacts): VerdictCandidate[] {
     const step = now >= 100000000 ? 100000000 : now >= 10000000 ? 10000000 : 1000000;
     const crossed = Math.floor(now / step) * step;
     if (crossed > 0 && before < crossed && now >= crossed)
-      add('threshold-wealth', 92, { value: crossed, unit: 'money', visible: true });
+      add('threshold-wealth', 92, { value: crossed, unit: 'money' });
   }
   if (
     f.emergency &&
@@ -378,7 +376,7 @@ export function renderVerdictTemplate(
   const values: Record<string, string> = {
     month: monthName || 'Zeitraum',
     label: short(candidate.label ?? 'Stand'),
-    amount: numberText(candidate.value, candidate.unit ?? 'money', hidden && !candidate.visible),
+    amount: numberText(candidate.value, candidate.unit ?? 'money', hidden),
     current: numberText(
       candidate.current ?? candidate.value,
       candidate.currentUnit ?? candidate.unit ?? 'money',

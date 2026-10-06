@@ -394,9 +394,10 @@ describe('report verdicts', () => {
     expect(sentence(f, { hidden: true }).text).toContain('· Markt ••• €');
     expect(sentence(f, { hidden: true }).templateId).toBe(sentence(f).templateId);
   });
-  it('keeps round wealth marks readable in privacy mode and the period free of "undefined"', () => {
+  it('masks round wealth marks in privacy mode and keeps the period free of "undefined"', () => {
     const crossing = facts({ netWorth: { previousCents: 9900000, currentCents: 10100000 } });
-    expect(sentence(crossing, { hidden: true }).text).toContain('100.000 €');
+    expect(sentence(crossing).text).toContain('100.000 €');
+    expect(sentence(crossing, { hidden: true }).text).not.toMatch(/\d/);
     expect(sentence(facts({ period: '2025-09-01..2025-09-30' })).text).not.toMatch(/undefined/);
   });
   it('falls back to the shortest template of the winning type when none fits the length', () => {

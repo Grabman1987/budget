@@ -94,8 +94,7 @@ Formatting reuses `formatEuro` (de-AT, whole euros from EUR 100, otherwise cents
 real minus), `formatPercent` and the shared `monthNameOnly`. Percentages and
 equivalents have one decimal place; rate differences use percentage points.
 A multi-month period has no month to name, so a leading `{month}: ` is dropped
-instead of printing “Zeitraum:”. Round wealth marks (`threshold-wealth`) stay
-readable in privacy mode; every other number is masked. If no template of the
+instead of printing “Zeitraum:”. Every number, including round wealth marks, is masked in privacy mode. If no template of the
 winning type fits the length limit, the shortest of that type is used. Invalid numbers produce an unavailable
 verdict; zero never becomes “−0”. Amount privacy masks numbers, counts and ranks
 without storing or exposing unmasked numbers in HTML attributes.
