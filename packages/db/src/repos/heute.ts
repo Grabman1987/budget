@@ -3,6 +3,7 @@ import {
   addMonths,
   changeBp,
   freeUntilPayday,
+  dailyBudget,
   heuteWindow,
   lastDayOfMonth,
   balanceForecast,
@@ -157,6 +158,7 @@ export interface Heute {
     budgetBalanceCents: number;
   };
   lead: FreeUntilPayday;
+  dailyBudget: ReturnType<typeof dailyBudget>;
   balance: {
     /** End-of-day balance of the budget accounts from the window start up to today. */
     actual: { day: string; balanceCents: number }[];
@@ -634,6 +636,7 @@ export function heute(db: Executor, query: HeuteQuery): Heute {
       budgetBalanceCents: sumBudget((id) => budgetValues[id] ?? 0),
     },
     lead,
+    dailyBudget: dailyBudget(lead),
     balance: { actual, forecast, salary: salaryJump, low },
     pace: { ...model, forecast: paceForecast, previousMonth: paceMonthBefore },
     pinned,

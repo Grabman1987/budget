@@ -10,6 +10,51 @@ import { eur, shortDay } from '../apps/web/src/ledger/format';
 
 const expect = baseExpect.configure({ timeout: 15_000 });
 
+test('daily budget uses the live lead and next payday, wraps and explains the formula in both themes', async ({
+  page,
+}, info) => {
+  await page.goto('/?monat=2026-09&period=payday');
+  const data: Heute = await (await page.request.get('/api/heute?period=payday')).json();
+  expect(data.lead.freeCents).toBeGreaterThan(0);
+  expect(data.dailyBudget.remainingDays).toBe(data.lead.daysToPayday);
+  expect(data.dailyBudget.perDayCents).toBe(
+    Math.round(data.lead.freeCents / data.dailyBudget.remainingDays),
+  );
+  const line = page.getByTestId('heute-daily-budget');
+  await expect(line).toContainText(
+    `≈ ${eur(data.dailyBudget.perDayCents!, { cents: false })} pro Tag · noch ${data.dailyBudget.remainingDays} Tage bis zum Gehalt`,
+  );
+  for (const colorScheme of ['light', 'dark'] as const) {
+    await page.emulateMedia({ colorScheme, reducedMotion: 'reduce' });
+    await page.getByRole('button', { name: 'Tagesbudget erklären' }).focus();
+    await expect(page.getByRole('tooltip')).toContainText(
+      'geteilt durch die verbleibenden Tage einschließlich heute',
+    );
+    await page.keyboard.press('Escape');
+    await expect(page.getByRole('tooltip')).toHaveCount(0);
+    await page.getByRole('button', { name: 'Herleitung zeigen', exact: true }).focus();
+    const figure = await page.getByTestId('heute-lead-value').boundingBox();
+    const box = await line.boundingBox();
+    expect(box!.y).toBeGreaterThanOrEqual(figure!.y + figure!.height);
+    expect(
+      await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth),
+    ).toBe(true);
+    await page.screenshot({ path: info.outputPath(`daily-budget-${colorScheme}.png`) });
+  }
+  await page.route('**/api/heute?**', async (route) => {
+    const response = await route.fetch();
+    const json: Heute = await response.json();
+    json.lead.freeCents = 0;
+    json.dailyBudget.perDayCents = null;
+    await route.fulfill({ response, json });
+  });
+  await page.reload();
+  await expect(line).toContainText(
+    `Kein Spielraum bis zum Gehalt am ${shortDay(data.stand.payday.day)}`,
+  );
+  await expect(line).not.toContainText('pro Tag');
+});
+
 // Existing detailed flows explicitly unfold their moved figures. UX-2 tests cover the device default.
 test.beforeEach(async ({ page }) => {
   test.setTimeout(60_000);
@@ -373,7 +418,13 @@ test('negative lead uses the action colour and attention precedes the month fold
   const response = await page.request.get('/api/heute?period=month&month=2026-09');
   const data: Heute = await response.json();
   await page.route('**/api/heute?*', (route) =>
-    route.fulfill({ json: { ...data, lead: { ...data.lead, freeCents: -12345 } } }),
+    route.fulfill({
+      json: {
+        ...data,
+        lead: { ...data.lead, freeCents: -12345 },
+        dailyBudget: { ...data.dailyBudget, perDayCents: null },
+      },
+    }),
   );
   for (const colorScheme of ['light', 'dark'] as const) {
     await page.emulateMedia({ colorScheme });
@@ -404,7 +455,8 @@ test('negative lead uses the action colour and attention precedes the month fold
     expect(moreBox!.y).toBeGreaterThan(attentionBox!.y);
     if (info.project.name === 'mobile') {
       await expect(figure).toHaveCSS('font-size', '40px');
-      expect((await page.getByTestId('heute-balance-chart').boundingBox())!.height).toBe(232);
+      // 232 base + 72 reserved for the daily-budget line (charts.tsx dailySpace)
+      expect((await page.getByTestId('heute-balance-chart').boundingBox())!.height).toBe(232 + 72);
     }
   }
 });
