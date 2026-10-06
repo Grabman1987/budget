@@ -136,42 +136,39 @@ sampleTest(
       .getByRole('button', { name: 'ETF Welt', exact: true });
     await trigger.focus();
     await trigger.press('Enter');
-    await expect(page).toHaveURL(/produkt=sec-etfw/);
-    const panel = page.getByRole('dialog', { name: 'ETF Welt', exact: true });
+    await expect(page).toHaveURL(/\/instrument\/sec-etfw/);
+    const panel = page.getByRole('region', { name: 'ETF Welt', exact: true });
     await expect(panel).toContainText('Broker C');
     await expect(panel).toContainText('Bestand je Konto');
-    await expect(panel.getByLabel('Kursdatum')).toHaveValue('2026-09-17');
+    await expect(panel.getByRole('heading', { name: 'ETF Welt', exact: true })).toBeFocused();
+    await expect(page.getByRole('dialog')).toHaveCount(0);
     await screenshot(page, `portfolio-keyboard-detail-${info.project.name}.png`, info);
+    await panel.getByRole('button', { name: 'Kurs eintragen', exact: true }).click();
+    const quote = page.getByRole('dialog', { name: 'Kurs eintragen', exact: true });
+    await expect(quote.getByLabel('Kursdatum')).toHaveValue('2026-09-17');
     await page.keyboard.press('Tab');
-    expect(await panel.evaluate((element) => element.contains(document.activeElement))).toBe(true);
+    expect(await quote.evaluate((element) => element.contains(document.activeElement))).toBe(true);
     await page.keyboard.press('Escape');
-    await expect(trigger).toBeFocused();
-    if (small) await trigger.tap();
-    else await trigger.click();
+    await expect(panel.getByRole('button', { name: 'Kurs eintragen', exact: true })).toBeFocused();
     for (const theme of ['light', 'dark']) {
       await page.evaluate((value) => (document.documentElement.dataset['theme'] = value), theme);
-      await accessibility(page, 'dialog[open]');
+      await accessibility(page, 'main');
       await settle(page);
       await screenshot(page, `portfolio-detail-${theme}-${info.project.name}.png`, info);
     }
-    await panel
+    await panel.getByRole('button', { name: 'Kurs eintragen', exact: true }).click();
+    await quote
       .getByRole('button', { name: 'Kurs speichern', exact: true })
       .scrollIntoViewIfNeeded();
-    await page.evaluate(() => {
-      if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
-    });
     await screenshot(page, `portfolio-detail-form-${info.project.name}.png`, info);
     await page.keyboard.press('Escape');
-    await expect(trigger).toBeFocused();
-    if (small) await trigger.tap();
-    else await trigger.click();
     await page.reload();
-    await expect(page.getByRole('dialog', { name: 'ETF Welt', exact: true })).toContainText(
+    await expect(page.getByRole('region', { name: 'ETF Welt', exact: true })).toContainText(
       'Bestand je Konto',
     );
-    await page.keyboard.press('Escape');
+    await page.getByRole('link', { name: 'Zurück zum Portfolio' }).click();
     await expect(page.locator('dialog[open]')).toHaveCount(0);
-    await expect(page).not.toHaveURL(/produkt=/);
+    await expect(page).not.toHaveURL(/\/instrument\//);
     if (small)
       await expect(
         page
@@ -206,7 +203,7 @@ sampleTest(
     );
     await page.goto('/vermoegen/portfolio');
     await expect(page.getByRole('button', { name: 'Erneut versuchen' })).toBeVisible();
-    await page.unroute('**/api/portfolio/positions');
+    await page.unrouteAll({ behavior: 'wait' });
     await page.getByRole('button', { name: 'Erneut versuchen' }).click();
     await expect(page.getByTestId('portfolio-value')).toHaveText('88.000,00 €');
     await page.route('**/api/portfolio/positions', async (route) => {
@@ -226,7 +223,7 @@ sampleTest(
     await page.reload();
     await expect(page.getByTestId('portfolio-value')).toHaveText('Bewertung unvollständig');
     await expect(page.locator('.portfolio-table')).toContainText('Kurs fehlt');
-    await page.unroute('**/api/portfolio/positions');
+    // Keep interception active across history refetches; newer mocks take priority.
     await page.route('**/api/portfolio/positions', async (route) => {
       const original = (await (await route.fetch()).json()) as PortfolioPositionsView;
       // The class row and the whole-instrument row (used by the product panel) both lose the basis.
@@ -253,11 +250,11 @@ sampleTest(
       .getByRole('region', { name: 'Positionen', exact: true })
       .getByRole('button', { name: 'ETF Welt', exact: true })
       .click();
-    await expect(page.getByRole('dialog', { name: 'ETF Welt', exact: true })).toContainText(
+    await expect(page.getByRole('region', { name: 'ETF Welt', exact: true })).toContainText(
       'Wechselkurs für Einstand fehlt',
     );
-    await page.keyboard.press('Escape');
-    await page.unroute('**/api/portfolio/positions');
+    await page.getByRole('link', { name: 'Zurück zum Portfolio' }).click();
+    await expect(page).toHaveURL(/\/vermoegen\/portfolio$/);
     await page.route('**/api/portfolio/positions', (route) =>
       route.fulfill({
         json: {
@@ -317,33 +314,35 @@ test('manual quote validation, save, dirty close and undo update the position an
   expect(first.ok()).toBe(true);
   await page.goto('/vermoegen/portfolio');
   await page.getByRole('button', { name, exact: true }).click();
-  const panel = page.getByRole('dialog', { name, exact: true });
-  await panel.getByLabel('Kurs (EUR)', { exact: true }).fill('0');
-  await panel.getByRole('button', { name: 'Kurs speichern', exact: true }).click();
-  await expect(panel.getByRole('alert')).toContainText('Positiven Kurs');
-  await panel.getByLabel('Kurs (EUR)', { exact: true }).fill('60,25');
+  const panel = page.getByRole('region', { name, exact: true });
+  await panel.getByRole('button', { name: 'Kurs eintragen', exact: true }).click();
+  const quote = page.getByRole('dialog', { name: 'Kurs eintragen', exact: true });
+  await quote.getByLabel('Kurs (EUR)', { exact: true }).fill('0');
+  await quote.getByRole('button', { name: 'Kurs speichern', exact: true }).click();
+  await expect(quote.getByRole('alert')).toContainText('Positiven Kurs');
+  await quote.getByLabel('Kurs (EUR)', { exact: true }).fill('60,25');
   await page.keyboard.press('Escape');
-  await expect(panel).toContainText('Ungespeicherten Kurs verwerfen?');
-  await panel.getByRole('button', { name: 'Weiter bearbeiten' }).click();
-  await panel.getByRole('button', { name: 'Kurs speichern', exact: true }).click();
+  await expect(quote).toContainText('Ungespeicherten Kurs verwerfen?');
+  await quote.getByRole('button', { name: 'Weiter bearbeiten' }).click();
+  await quote.getByRole('button', { name: 'Kurs speichern', exact: true }).click();
   await expect(panel.locator('.instrument-quote')).toContainText('60,25 €');
   await expect(panel.locator('.instrument-accounts')).toContainText('120,50 €');
-  await panel.getByRole('button', { name: 'Rückgängig', exact: true }).click();
+  await page.getByRole('button', { name: 'Rückgängig', exact: true }).click();
   await expect(panel.locator('.instrument-quote')).toContainText('50,00 €');
   await expect(panel.locator('.instrument-accounts')).toContainText('100,00 €');
-  await expect(panel).toContainText('Rückgängig gemacht.');
-  await panel.getByRole('button', { name: 'Wiederholen', exact: true }).click();
+  await expect(page.locator('.toast.is-open')).toContainText('Rückgängig gemacht.');
+  await page.getByRole('button', { name: 'Wiederholen', exact: true }).click();
   await expect(panel.locator('.instrument-quote')).toContainText('60,25 €');
   await expect(panel.locator('.instrument-accounts')).toContainText('120,50 €');
-  await expect(panel).toContainText('Wiederholt.');
+  await expect(page.locator('.toast.is-open')).toContainText('Wiederholt.');
   const redone = await request.get(`${MAIN_URL}/api/accounts`);
   expect(
     (await redone.json()).accounts.find((a: { id: string }) => a.id === account.id).holdingsCents,
   ).toBe(12050);
-  await panel.getByRole('button', { name: 'Rückgängig', exact: true }).click();
+  await page.getByRole('button', { name: 'Rückgängig', exact: true }).click();
   await expect(panel.locator('.instrument-quote')).toContainText('50,00 €');
   await expect(panel.locator('.instrument-accounts')).toContainText('100,00 €');
-  await expect(panel).toContainText('Rückgängig gemacht.');
+  await expect(page.locator('.toast.is-open')).toContainText('Rückgängig gemacht.');
   const row = (
     (await (await request.get(`${MAIN_URL}/api/accounts`)).json()) as {
       accounts: { id: string; holdingsCents: number }[];
@@ -361,23 +360,25 @@ test('instrument Back navigation asks once and honors keep or discard for quote 
   await page.goto('/vermoegen/portfolio');
   const row = page.getByRole('button', { name, exact: true });
   await row.click();
-  const panel = page.getByRole('dialog', { name, exact: true });
+  const panel = page.getByRole('region', { name, exact: true });
+  await panel.getByRole('button', { name: 'Kurs eintragen', exact: true }).click();
+  const quote = page.getByRole('dialog', { name: 'Kurs eintragen', exact: true });
 
-  await panel.getByLabel('Kurs (EUR)', { exact: true }).fill('55');
+  await quote.getByLabel('Kurs (EUR)', { exact: true }).fill('55');
   await page.evaluate(() => window.history.back());
-  await expect(panel.getByRole('alert')).toContainText('Ungespeicherten Kurs verwerfen?');
-  await expect(panel.getByLabel('Kurs (EUR)', { exact: true })).toHaveValue('55');
-  await panel.getByRole('button', { name: 'Weiter bearbeiten' }).click();
-  await expect(panel.getByRole('alert')).toHaveCount(0);
-  await expect(page).toHaveURL(new RegExp(`produkt=${security.id}`));
+  await expect(quote.getByRole('alert')).toContainText('Ungespeicherten Kurs verwerfen?');
+  await expect(quote.getByLabel('Kurs (EUR)', { exact: true })).toHaveValue('55');
+  await quote.getByRole('button', { name: 'Weiter bearbeiten' }).click();
+  await expect(quote.getByRole('alert')).toHaveCount(0);
+  await expect(page).toHaveURL(new RegExp(`/instrument/${security.id}`));
   await page.evaluate(() => window.history.back());
-  await expect(panel.getByRole('alert')).toContainText('Ungespeicherten Kurs verwerfen?');
-  await panel.getByRole('button', { name: 'Verwerfen' }).click();
-  await expect(page).not.toHaveURL(/produkt=/);
+  await expect(quote.getByRole('alert')).toContainText('Ungespeicherten Kurs verwerfen?');
+  await quote.getByRole('button', { name: 'Verwerfen' }).click();
+  await expect(page).not.toHaveURL(/\/instrument\//);
   await expect(panel).toHaveCount(0);
 
   await row.click();
-  const reopened = page.getByRole('dialog', { name, exact: true });
+  const reopened = page.getByRole('region', { name, exact: true });
   await reopened.getByRole('button', { name: 'Stammdaten bearbeiten' }).click();
   const editPanel = page.getByRole('dialog', { name: 'Stammdaten bearbeiten', exact: true });
   await editPanel.getByLabel('Name', { exact: true }).fill(`${name} geändert`);
@@ -385,13 +386,13 @@ test('instrument Back navigation asks once and honors keep or discard for quote 
   await expect(editPanel.getByRole('alert')).toContainText('Ungespeicherte Angaben verwerfen?');
   await expect(editPanel.getByLabel('Name', { exact: true })).toHaveValue(`${name} geändert`);
   await editPanel.getByRole('button', { name: 'Weiter bearbeiten' }).click();
-  await expect(page).toHaveURL(new RegExp(`produkt=${security.id}`));
+  await expect(page).toHaveURL(new RegExp(`/instrument/${security.id}`));
   await expect(editPanel.getByLabel('Name', { exact: true })).toHaveValue(`${name} geändert`);
 
   await editPanel.getByRole('button', { name: 'Schließen' }).click();
   await expect(editPanel.getByRole('alert')).toContainText('Ungespeicherte Angaben verwerfen?');
   await editPanel.getByRole('button', { name: 'Verwerfen' }).click();
-  await expect(page).not.toHaveURL(/produkt=/);
+  await expect(page).toHaveURL(new RegExp(`/instrument/${security.id}`));
   await expect(page.locator('.instrument-discard')).toHaveCount(0);
 });
 
@@ -426,8 +427,8 @@ test('pending create and quote requests reject Back until the save finishes', as
   createGate.resolve();
   const created = await createdResponse;
   const createdId = ((await created.json()) as { security: { id: string } }).security.id;
-  await expect(page).toHaveURL(new RegExp(`produkt=${createdId}`));
-  await expect(page.getByRole('dialog', { name })).toBeVisible();
+  await expect(page).toHaveURL(new RegExp(`/instrument/${createdId}`));
+  await expect(page.getByRole('region', { name })).toBeVisible();
 
   const security = await createPositionInstrument(request, `${name} Kurs`);
   const quoteGate = deferred();
@@ -441,21 +442,21 @@ test('pending create and quote requests reject Back until the save finishes', as
   });
   await page.goto('/vermoegen/portfolio');
   await page.getByRole('button', { name: `${name} Kurs`, exact: true }).click();
-  const quotePanel = page.getByRole('dialog', { name: `${name} Kurs`, exact: true });
+  const quoteDetail = page.getByRole('region', { name: `${name} Kurs`, exact: true });
+  await quoteDetail.getByRole('button', { name: 'Kurs eintragen', exact: true }).click();
+  const quotePanel = page.getByRole('dialog', { name: 'Kurs eintragen', exact: true });
   await quotePanel.getByLabel('Kurs (EUR)', { exact: true }).fill('60');
   await quotePanel.getByRole('button', { name: 'Kurs speichern', exact: true }).click();
   await quoteStarted.promise;
   await expect(quotePanel.getByRole('button', { name: 'Kurs wird gespeichert …' })).toBeDisabled();
   await browserBack(page);
-  await expect(page).toHaveURL(new RegExp(`produkt=${security.id}`));
+  await expect(page).toHaveURL(new RegExp(`/instrument/${security.id}`));
   await expect(quotePanel.getByRole('button', { name: 'Kurs wird gespeichert …' })).toBeDisabled();
   await expect(page.locator('.instrument-discard')).toHaveCount(0);
   quoteGate.resolve();
-  await expect(quotePanel.locator('.instrument-quote')).toContainText('60,00 €');
-  await expect(
-    quotePanel.getByRole('button', { name: 'Kurs speichern', exact: true }),
-  ).toBeEnabled();
+  await expect(quoteDetail.locator('.instrument-quote')).toContainText('60,00 €');
+  await expect(quotePanel).toHaveCount(0);
   await page.evaluate(() => window.history.back());
-  await expect(page).not.toHaveURL(/produkt=/);
+  await expect(page).not.toHaveURL(/\/instrument\//);
   await expect(page.locator('.instrument-discard')).toHaveCount(0);
 });

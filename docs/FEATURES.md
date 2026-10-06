@@ -1,5 +1,7 @@
 # Budget feature coverage: YNAB and Portfolio Performance replacement
 
+Sidepanels-2a (2026-10-06): Vermögen instrument/schedule detail URLs, breadcrumbs/back/scroll restoration; existing FormDialog for metadata, quotes, schedules and trades, and full-width net-worth composition. Shared validation, audit/undo and cent logic retained; Linux visual CI and owner acceptance remain open. See [inventory](no-side-panels-1005.md).
+
 E4 (2026-10-06): inbox confirmations learn category/income type, payee and account suggestions keyed by normalized counterparty plus direction; one-click **Übernehmen**, **wie zuletzt bei …**, settings removal and grouped audit/undo reuse `assignment_rule` without a migration. Suggestions never book automatically; synthetic API/browser coverage, owner acceptance pending.
 
 UX-2b (owner 2026-10-05): shared free-envelope cover limits, pending/recurring commitments through payday, signed budget-account/used-credit details and explicit missing-money carry option; the total that can be covered is capped at budget-account balances plus allowed overdraft (view, single and bulk cover, server-side), a due matching an unlinked pending booking is reserved once, and commitments/cap apply only to the current month, always as of today; synthetic unit/API/browser coverage, CI and owner acceptance pending.

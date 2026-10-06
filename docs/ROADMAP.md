@@ -58,6 +58,7 @@
 - [x] Plan › Monat: envelope detail and monthly income URLs, breadcrumb/back, legacy category links, full-width inline summary.
 - [x] Envelope assigning/moving/covering uses the existing input dialog; financial guards and undo remain intact.
 - [x] Synthetic red/green unit and browser-back/scroll, direct-link and dialog-focus regressions.
+- [x] Sidepanels-2a: Vermögen instrument/savings URLs with breadcrumb/back/scroll restoration; metadata, quote, schedule and trade FormDialogs; full-width `.vview` composition. Existing money/validation/audit/undo guards retained.
 - [ ] Remaining inventory, Linux baseline review and owner desktop/phone acceptance.
 
 

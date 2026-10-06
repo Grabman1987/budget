@@ -82,12 +82,12 @@ test('empty portfolio creates reachable metadata with validation, reload, creati
     await capture(page, `instrument-create-${theme}`, info);
   }
   await form.getByRole('button', { name: 'Instrument anlegen', exact: true }).click();
-  const detail = page.getByRole('dialog', { name, exact: true });
+  const detail = page.getByRole('region', { name, exact: true });
   await expect(detail).toContainText('Dieses Instrument hat keinen aktuellen Bestand.');
   await expect(detail).toContainText('USD');
   await expect(detail.getByRole('heading', { name: 'Kurs', exact: true })).toHaveCount(0);
   await expect(detail.getByRole('button', { name: 'Kurs speichern', exact: true })).toHaveCount(0);
-  const id = new URL(page.url()).searchParams.get('produkt')!;
+  const id = decodeURIComponent(new URL(page.url()).pathname.split('/').pop()!);
   const record = (await (await request.get(`${MAIN_URL}/api/securities/${id}`)).json()).security;
   expect(record).toMatchObject({
     name,
@@ -97,21 +97,21 @@ test('empty portfolio creates reachable metadata with validation, reload, creati
     symbol: `SYN-${tag}`,
     assetClassId: null,
   });
-  await detail.getByRole('button', { name: 'Rückgängig', exact: true }).click();
+  await page.getByRole('button', { name: 'Rückgängig', exact: true }).click();
   await expect(page.locator('dialog[open]')).toHaveCount(0);
-  await expect(page).not.toHaveURL(/produkt=/);
+  await expect(page).not.toHaveURL(/\/instrument\//);
   await expect(page.getByRole('button', { name, exact: true })).toHaveCount(0);
   await page.getByRole('button', { name: 'Wiederholen', exact: true }).click();
-  await expect(page.getByRole('dialog', { name, exact: true })).toBeVisible();
-  await expect(page).toHaveURL(new RegExp(`produkt=${id}`));
+  await expect(page.getByRole('region', { name, exact: true })).toBeVisible();
+  await expect(page).toHaveURL(new RegExp(`/instrument/${id}`));
   await page.reload();
-  await expect(page.getByRole('dialog', { name, exact: true })).toContainText('USD');
+  await expect(page.getByRole('region', { name, exact: true })).toContainText('USD');
   // Capture after the action checks: screenshots must not consume the Undo toast lifetime.
   for (const theme of ['light', 'dark']) {
     await page.evaluate((value) => (document.documentElement.dataset['theme'] = value), theme);
     await capture(page, `instrument-unheld-${theme}`, info);
   }
-  await page.keyboard.press('Escape');
+  await page.getByRole('link', { name: 'Zurück zum Portfolio' }).click();
   await expect(
     page.locator('.instrument-catalog').getByRole('button', { name, exact: true }),
   ).toBeVisible();
@@ -170,7 +170,7 @@ test('held instrument editing preserves shared value and quote while undo and re
   ).toBe(true);
   await page.goto('/vermoegen/portfolio');
   await page.getByRole('button', { name, exact: true }).click();
-  const readonly = page.getByRole('dialog', { name, exact: true });
+  const readonly = page.getByRole('region', { name, exact: true });
   let finishQuote!: () => void;
   const quotePending = new Promise<void>((resolve) => {
     finishQuote = resolve;
@@ -179,29 +179,30 @@ test('held instrument editing preserves shared value and quote while undo and re
     await quotePending;
     await route.continue();
   });
-  await readonly.getByLabel('Kurs (EUR)', { exact: true }).fill('60');
-  await readonly.getByRole('button', { name: 'Kurs speichern', exact: true }).click();
+  await readonly.getByRole('button', { name: 'Kurs eintragen', exact: true }).click();
+  const quote = page.getByRole('dialog', { name: 'Kurs eintragen', exact: true });
+  await quote.getByLabel('Kurs (EUR)', { exact: true }).fill('60');
+  await quote.getByRole('button', { name: 'Kurs speichern', exact: true }).click();
   await expect(
-    readonly.getByRole('button', { name: 'Stammdaten bearbeiten', exact: true }),
+    page.getByRole('button', { name: 'Stammdaten bearbeiten', exact: true, includeHidden: true }),
   ).toBeDisabled();
-  await expect(readonly.getByLabel('Kurs (EUR)', { exact: true })).toBeDisabled();
+  await expect(quote.getByLabel('Kurs (EUR)', { exact: true })).toBeDisabled();
   await page.keyboard.press('Escape');
-  await expect(readonly).toBeVisible();
+  await expect(quote).toBeVisible();
   finishQuote();
   await expect(readonly.locator('.instrument-quote')).toContainText('60,00 €');
-  await readonly.getByRole('button', { name: 'Rückgängig', exact: true }).click();
+  await page.getByRole('button', { name: 'Rückgängig', exact: true }).click();
   await expect(readonly.locator('.instrument-quote')).toContainText('50,00 €');
   await page.unroute(`**/api/securities/${security.id}/prices/*`);
-  await readonly.getByLabel('Kurs (EUR)', { exact: true }).fill('60');
+  await readonly.getByRole('button', { name: 'Kurs eintragen', exact: true }).click();
+  await quote.getByLabel('Kurs (EUR)', { exact: true }).fill('60');
+  await page.keyboard.press('Escape');
+  await expect(quote).toContainText('Ungespeicherten Kurs verwerfen?');
+  await quote.getByRole('button', { name: 'Weiter bearbeiten' }).click();
+  await expect(quote.getByLabel('Kurs (EUR)', { exact: true })).toHaveValue('60');
+  await page.keyboard.press('Escape');
+  await quote.getByRole('button', { name: 'Verwerfen', exact: true }).click();
   await readonly.getByRole('button', { name: 'Stammdaten bearbeiten', exact: true }).click();
-  await expect(readonly).toContainText('Ungespeicherten Kurs verwerfen?');
-  await readonly.getByRole('button', { name: 'Weiter bearbeiten' }).click();
-  await expect(readonly.getByLabel('Kurs (EUR)', { exact: true })).toHaveValue('60');
-  await page
-    .getByRole('dialog')
-    .getByRole('button', { name: 'Stammdaten bearbeiten', exact: true })
-    .click();
-  await readonly.getByRole('button', { name: 'Verwerfen', exact: true }).click();
   const form = page.getByRole('dialog', { name: 'Stammdaten bearbeiten', exact: true });
   await expect(form.getByRole('button', { name: 'Stammdaten speichern' })).toBeDisabled();
   const newName = `${name} neu`;
@@ -220,7 +221,7 @@ test('held instrument editing preserves shared value and quote while undo and re
     await capture(page, `instrument-edit-${theme}`, info);
   }
   await form.getByRole('button', { name: 'Stammdaten speichern', exact: true }).click();
-  const detail = page.getByRole('dialog', { name: newName, exact: true });
+  const detail = page.getByRole('region', { name: newName, exact: true });
   await expect(detail.locator('.instrument-quote')).toContainText('50,00 €');
   await expect(detail.locator('.instrument-accounts')).toContainText('100,00 €');
   const record = (await (await request.get(`${MAIN_URL}/api/securities/${security.id}`)).json())
@@ -246,22 +247,18 @@ test('held instrument editing preserves shared value and quote while undo and re
     costCents: 6000,
     quote: { priceMicro: 50000000, source: 'manual', currency: 'EUR' },
   });
-  await detail.getByRole('button', { name: 'Rückgängig', exact: true }).click();
-  await expect(page.getByRole('dialog', { name, exact: true })).toContainText(
-    'Rückgängig gemacht.',
-  );
+  await page.getByRole('button', { name: 'Rückgängig', exact: true }).click();
+  await expect(page.locator('.toast.is-open')).toContainText('Rückgängig gemacht.');
   expect(
     (await (await request.get(`${MAIN_URL}/api/securities/${security.id}`)).json()).security,
   ).toMatchObject({ terBp: 17, leverageFactor: 10 });
-  await page.getByRole('dialog').getByRole('button', { name: 'Wiederholen', exact: true }).click();
-  await expect(page.getByRole('dialog', { name: newName, exact: true })).toContainText(
-    'Wiederholt.',
-  );
+  await page.getByRole('button', { name: 'Wiederholen', exact: true }).click();
+  await expect(page.locator('.toast.is-open')).toContainText('Wiederholt.');
   expect(
     (await (await request.get(`${MAIN_URL}/api/securities/${security.id}`)).json()).security,
   ).toMatchObject({ terBp: 25, leverageFactor: 20 });
-  await page.getByRole('dialog').getByRole('button', { name: 'Rückgängig', exact: true }).click();
-  await expect(page.getByRole('dialog', { name, exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Rückgängig', exact: true }).click();
+  await expect(page.getByRole('region', { name, exact: true })).toBeVisible();
   view = await (await request.get(`${MAIN_URL}/api/portfolio/positions`)).json();
   expect(
     view.classes
@@ -274,7 +271,7 @@ test('held instrument editing preserves shared value and quote while undo and re
   });
   await page.reload();
   await expect(
-    page.getByRole('dialog', { name, exact: true }).locator('.instrument-quote'),
+    page.getByRole('region', { name, exact: true }).locator('.instrument-quote'),
   ).toContainText('50,00 €');
 });
 
@@ -310,7 +307,7 @@ test('asset-class failure keeps draft and retry restores create access', async (
   await expect(form).toBeVisible();
   await expect(form.getByText('Ungespeicherte Angaben verwerfen?')).toHaveCount(0);
   release();
-  const detail = page.getByRole('dialog', { name: `Entwurf ${info.project.name}`, exact: true });
+  const detail = page.getByRole('region', { name: `Entwurf ${info.project.name}`, exact: true });
   await expect(detail).toBeVisible();
   let finishPositions!: () => void;
   const positionsPending = new Promise<void>((resolve) => {

@@ -80,7 +80,7 @@ test('mixed exposure conserves current cents, preserves September history and wh
   ).toBe(10000);
   await page.goto('/vermoegen/portfolio');
   await page.getByRole('button', { name: 'Mischfonds', exact: true }).first().click();
-  const dialog = page.getByRole('dialog', { name: 'Mischfonds', exact: true });
+  const dialog = page.getByRole('region', { name: 'Mischfonds', exact: true });
   await expect(dialog).toContainText('1,01 €');
   await dialog.getByRole('button', { name: 'Stammdaten bearbeiten', exact: true }).click();
   const form = page.getByRole('dialog', { name: 'Stammdaten bearbeiten', exact: true });
@@ -104,7 +104,8 @@ test('mixed exposure conserves current cents, preserves September history and wh
     });
   }
   await form.getByRole('button', { name: 'Stammdaten speichern', exact: true }).click();
-  const renamed = page.getByRole('dialog', { name: 'Mischfonds neu', exact: true });
+  await expect(form).toHaveCount(0);
+  const renamed = page.getByRole('region', { name: 'Mischfonds neu', exact: true });
   await expect(renamed).toBeVisible();
   const current = (await (await request.get(`/api/securities/${security.id}/exposures`)).json())
     .exposure;
@@ -114,6 +115,7 @@ test('mixed exposure conserves current cents, preserves September history and wh
   await form.getByLabel('Anlageklasse', { exact: true }).selectOption(classes[1].id);
   await form.getByLabel('Klassenzuordnung gültig ab', { exact: true }).fill('2027-01-01');
   await form.getByRole('button', { name: 'Stammdaten speichern', exact: true }).click();
+  await expect(form).toHaveCount(0);
   await expect(
     renamed.getByRole('button', { name: 'Stammdaten bearbeiten', exact: true }),
   ).toBeVisible();
