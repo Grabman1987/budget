@@ -472,6 +472,15 @@ Price history (yfinance + Ariva, source per price), ECB rates, trades and holdin
 
 Contract and operator/owner steps: [portfolio composition](portfolio-composition.md).
 
+### Target classes without holdings — follow-up 2026-10-05
+
+- [x] Positive dated targets remain in the composition and Soll/Ist tables at zero held value; empty legend swatches, assigned unheld product names/ISINs and instrument links.
+- [x] Existing underweight rebalancing hints name assigned unheld securities; allocation flags security kind `other` for correction in the instrument editor.
+- [x] Synthetic read-model regression preserves held values, shares and exact cent totals; desktop/mobile browser cases cover unheld products and rebalancing, without regenerating baselines.
+- [ ] Owner visual acceptance and review of private instrument assignments/kinds after deployment.
+
+Read-model and delivery details: [unheld target classes](allocation-unheld.md).
+
 ### Planning income and shared report ranges — 2026-10-03
 - [x] Plan › Monat: expected household income versus all envelope monthly target requirements, source label, surplus/gap and keyboard-accessible unfunded-category details; reuse target/carry calculations and stored monthly holds. Live dated schedules take precedence; without schedules use the median of the preceding three complete months (before today for future planning). Missing amounts/currency/history remain unavailable. The existing payday rule defines a date, not a salary amount.
 - [x] Shared quick choices on every implemented selectable period report, including Explorer saved views: current/previous month, 3/6/12 complete months, current/previous calendar year, all, custom inclusive calendar months. Legacy period URLs and segmented controls remain supported; partial current months stop at today. Month/year-only, fixed-source and forecast reports keep their existing controls.
@@ -633,7 +642,16 @@ Owner feedback 2026-10-04: spending/cost reports 1.4/1.10/2.3–2.6/3.4–3.5 an
 - [x] VPI-Teilindex with one/two searchable classes and validated exact-100% split; audited persistence reuses part A and preserves payee exclusions.
 - [x] Existing VPI loader/refresh extended to detailed monthly COICOP classes; synthetic recorded-layout responses, class-specific base linking and separate total benchmark.
 - [x] Public price relatives weighted by own base-year spending through the existing annual chain; index units and source/household-weight labels in both basket views, explicit missing-history/publication boundary.
-- [ ] Evening extension: distinct category explorer with multi-select, category price/reference histories since budget start, difference/quantity details, owner interpretation note and two-category E2E; retained as follow-up within the one-hour slice rule.
+- [x] Evening extension (part B2): distinct category explorer with multi-select, category price/reference histories since budget start, difference/quantity details, owner interpretation note and two-category/fallback E2E.
 - [ ] PR/CI and owner mapping/design acceptance. No private data, baseline regeneration, migration, provider credentials or automatic bookings.
 
 Method, limits and owner steps: [inflation basket](inflation-basket.md#cpi-sub-index-method-part-b-2026-10-05).
+
+### Report 2.4 — category explorer, part B2 (owner 2026-10-05, evening)
+
+- [x] Separate Warenkorb vs. VPI and Kategorie-Explorer; multi-select defaults to basket categories and does not change headline membership. Category lines and neutral pp differences use October 2023 = 100; missing baseline/reference stays unavailable.
+- [x] Reuse the shared per-contract chain and stored CPI sub-series. Editable one/two-class comparison mapping remains independent of the basket method; unmapped categories show “Gesamt-VPI (kein Teilindex)”.
+- [x] Booking-average/unit price relatives and additive count/unit effects where supported; explicit purchase-mix caveat, volume share denominator and fixed owner-interpretation note. No automatic better/worse verdict.
+- [x] Synthetic domain/API/component tests; two explorer E2E cases on desktop/mobile with light/dark accessibility and review evidence, without baseline regeneration.
+- [x] Local verification: all workspace typechecks and ESLint; the one full check stopped on a late E2E formatting edit, corrected and checked in isolation. Full unit suite: 331 files / 3,121 tests; final affected regression run: 37 tests. Production build passed.
+- [ ] Stacked Draft PR/CI and owner mapping/design acceptance. No keys, consents, migrations or automatic bookings.

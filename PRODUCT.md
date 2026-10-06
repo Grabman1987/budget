@@ -2,6 +2,8 @@
 
 Owner-Entscheidung 05.10.2026 — Pace: Heute and One-Pager show elapsed days, actual spending, linear pro-rata expectation and the existing month-end forecast from one shared read model; chart and Plan › Monat category bars label today's time marker. Forecast stays fixed-cost/plan-based before day 7 and extrapolated thereafter.
 
+Owner-Entscheidung 05.10.2026: In Report 2.4 bleiben Warenkorbvergleich und Kategorie-Explorer getrennt; die Interpretation von Preis- und Mengeneffekten bleibt beim Owner, ohne automatisches Inflationsurteil.
+
 Owner-Entscheidung 05.10.2026 — Tagesbudget: Heute translates the existing cent-exact Leitmaß into an approximate daily allowance through the shared next bank-day payday, including today; nonpositive room uses alarm copy instead of a daily amount, and the formula is available on hover/focus.
 
 Owner-Entscheidung 05.10.2026: Heute and R07 Kontoprognose share fourteen days of actual lookback through next bank-day payday + 2 (Bis Gehalt) or shown month end + 2 (Monat); payday forecasts shorter than seven days extend to the following payday + 2. The period is remembered, fallback Bis Gehalt.
