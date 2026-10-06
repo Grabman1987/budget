@@ -429,7 +429,7 @@
   bottom: 100%;
   right: 3px;
   font-family: var(--font-tech);
-  font-size: 10px;
+  font-size: var(--fs-class-tag);
   font-style: normal;
   line-height: 1.2;
   color: var(--ink);
