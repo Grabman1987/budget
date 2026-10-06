@@ -6,6 +6,23 @@
 - [x] Synthetic filter-count unit regression and phone 390 / desktop browser specs; existing account-filter specs adapted to the sheet.
 - [ ] CI, Linux visual review and owner phone acceptance; [scope and baseline list](ux-mobile-ledger-1005.md).
 
+### UX-4b - Plain wording and calmer controls (owner 2026-10-05)
+
+- [x] Plain action/view labels; neutral inbox resolution; actual-history label and separated payment markers.
+- [x] Running One-Pager shows existing amounts without allocation shares; one shared German date input preserves ISO form values and validity.
+- [x] Empty annual planning keeps only Zu verteilen and the planning action; populated scenarios use plain labels with hover/focus explanations.
+- [x] Synthetic component and affected desktop/mobile browser regressions added; no baseline regeneration.
+- [x] Local check phases (352 files / 3,257 tests), production build and affected desktop/mobile browser checks; see [verification](ux-clarify-1005.md).
+- [ ] CI, pinned Linux screenshot review and owner acceptance.
+
+- [x] Owner 2026-10-06: implied gross trade prices before valuation cost fallback; estimate hints only for positive as-of holdings without a quote or trade price, with synthetic domain/DB/API/UI regressions. CI and owner acceptance remain open.
+
+### Warenkorb settings simplification — owner 2026-10-06
+
+- [x] Plain intro/current-effect copy and summary, one inclusion choice, collapsed official price groups with automatic CPI selection and validated autosave/undo; payee exceptions remain collapsed. API and domain rules unchanged.
+- [x] Synthetic component/browser regressions, full local check (353 files / 3,274 tests), production/E2E builds and desktop/375 px visual review; [verification evidence](evidence/basket-simple-1006/README.md).
+- [ ] CI and owner acceptance; no keys, consents or migration required.
+
 ### UX-6 - Typography and radii (owner task 2026-10-05)
 
 - [x] Off-scale CSS values mapped to DESIGN.md tokens, preserving chart/emoji geometry.
