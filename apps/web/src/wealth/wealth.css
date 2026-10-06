@@ -17,7 +17,7 @@
 }
 .vnote {
   margin: 10px 0 0;
-  font-size: 13px;
+  font-size: var(--fs-body);
   color: var(--ink-2);
   max-width: 64ch;
 }
@@ -62,7 +62,7 @@
   gap: 12px;
   padding: 7px 0;
   border-top: 1px solid var(--rule);
-  font-size: 13.5px;
+  font-size: var(--fs-body);
 }
 .vbars li:first-child {
   border-top: 0;

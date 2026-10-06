@@ -179,13 +179,13 @@
     gap: 8px;
   }
   .goals-report-head > span {
-    font-size: 13px;
+    font-size: var(--fs-body);
   }
   .goal-report-meta {
-    font-size: 13px;
+    font-size: var(--fs-body);
   }
   .goals-report-table {
-    font-size: 13px;
+    font-size: var(--fs-body);
   }
   .goals-report-table th:first-child {
     min-width: 135px;

@@ -33,7 +33,7 @@
   color: var(--ink-3);
 }
 .table-report .tbd-fig {
-  font-size: clamp(40px, 6vw, 56px);
+  font-size: clamp(40px, 6vw, var(--fs-dimension));
 }
 .table-report .tbd-fig .cents {
   font-size: 0.45em;
@@ -92,7 +92,7 @@
 .rgrid td,
 .rgrid tbody th {
   padding: 7px 8px;
-  font-size: 13px;
+  font-size: var(--fs-body);
 }
 .rg-first {
   min-width: 190px;
@@ -159,7 +159,7 @@
   display: inline-flex;
   align-items: center;
   gap: 3px;
-  font-size: 12.5px;
+  font-size: var(--fs-chart-label);
   font-weight: 560;
   white-space: nowrap;
 }
@@ -191,12 +191,12 @@
   gap: 2px;
 }
 .year-compare strong {
-  font-size: 22px;
+  font-size: var(--fs-figure);
   font-weight: 650;
   font-variant-numeric: tabular-nums;
 }
 .year-compare small {
-  font-size: 12.5px;
+  font-size: var(--fs-chart-label);
   color: var(--ink-3);
 }
 

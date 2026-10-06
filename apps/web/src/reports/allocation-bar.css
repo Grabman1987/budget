@@ -43,7 +43,7 @@
   top: -16px;
   transform: translateX(-100%);
   white-space: nowrap;
-  font-size: 10px;
+  font-size: var(--fs-class-tag);
   color: var(--ink-2);
 }
 .income-scale-note {

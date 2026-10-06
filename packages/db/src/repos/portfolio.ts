@@ -37,6 +37,7 @@ import {
   INCOME_TYPES,
   security,
   trade,
+  valuation,
 } from '../schema';
 import { lastSuccessfulMarketRun } from './market';
 import { memoized } from './request-memo';
@@ -103,7 +104,7 @@ const positionKey = (p: { accountId: string; securityId: string }) => ({
   securityId: p.securityId,
 });
 
-function holdingValuationAsOf(
+export function holdingValuationAsOf(
   db: Executor,
   asOf: string,
   options: ValuationOptions = {},
@@ -408,11 +409,43 @@ function computeNetWorthValuation(
 ): NetWorthValuation {
   const estimate = options.estimate ?? true;
   const accountRows = db
-    .select({ id: account.id, currency: account.currency })
+    .select({
+      id: account.id,
+      currency: account.currency,
+      type: account.type,
+      openingDate: account.openingDate,
+    })
     .from(account)
     .where(isNull(account.deletedAt))
     .all();
   const currencies = new Map(accountRows.map((row) => [row.id, row.currency]));
+  const holdings = holdingValuationAsOf(db, asOf, options);
+  const holdingAccounts = new Set(
+    [...holdings.values, ...holdings.missingPricePositions, ...holdings.missingFxPositions].map(
+      (h) => h.accountId,
+    ),
+  );
+  const manualAccounts = new Set(
+    accountRows
+      .filter(
+        (a) =>
+          a.openingDate <= asOf &&
+          (a.type === 'p2p' || a.type === 'other_asset') &&
+          !holdingAccounts.has(a.id),
+      )
+      .map((a) => a.id),
+  );
+  const manualValues = new Map<string, number>();
+  if (manualAccounts.size > 0)
+    for (const row of db
+      .select()
+      .from(valuation)
+      .where(and(isNull(valuation.deletedAt), lte(valuation.date, asOf)))
+      .orderBy(desc(valuation.date))
+      .all()) {
+      if (manualAccounts.has(row.accountId) && !manualValues.has(row.accountId))
+        manualValues.set(row.accountId, row.valueCents);
+    }
   const rates: Rates = db.select().from(fxRate).where(lte(fxRate.date, asOf)).all();
   const byAccount: Record<string, number | null> = {};
   const missingFxByAccount = new Map<string, Set<string>>();
@@ -424,12 +457,12 @@ function computeNetWorthValuation(
   };
   for (const balance of accountBalances(db, asOf)) {
     const currency = currencies.get(balance.accountId) ?? 'EUR';
-    const rate = balance.balanceCents === 0 ? 1_000_000 : rateOrMissing(rates, currency, asOf);
+    const nativeCents = manualValues.get(balance.accountId) ?? balance.balanceCents;
+    const rate = nativeCents === 0 ? 1_000_000 : rateOrMissing(rates, currency, asOf);
     if (rate === undefined) addMissing(balance.accountId, currency);
-    else byAccount[balance.accountId] = toEurCents(balance.balanceCents, rate);
+    else byAccount[balance.accountId] = toEurCents(nativeCents, rate);
   }
 
-  const holdings = holdingValuationAsOf(db, asOf, options);
   const holdingsByAccount: Record<string, number | null> = {};
   for (const holding of holdings.values) {
     if (holdingsByAccount[holding.accountId] === null) continue;
@@ -1049,4 +1082,40 @@ export function accountValuesAsOf(db: Executor, asOf: string): AccountValue[] {
     .all()
     .map((a) => ({ accountId: a.id, name: a.name, type: a.type, valueCents: byAccount[a.id] ?? 0 }))
     .filter((a) => a.valueCents !== 0);
+}
+
+/**
+ * Daily EUR value of accounts that hold positions: the cash series plus the market value of their
+ * positions, exactly the value of `netWorthValuationAsOf` (the Konten value column) on every day.
+ * Accounts without any position in the window are left out (their value is their cash balance).
+ * The rows are read once for all accounts and days.
+ */
+export function holdingAccountValueSeries(
+  db: Executor,
+  days: ReadonlyArray<string>,
+  accounts?: ReadonlyArray<string>,
+): Map<string, number[]> {
+  const out = new Map<string, number[]>();
+  const from = days[0];
+  const to = days[days.length - 1];
+  if (from === undefined || to === undefined) return out;
+  const positions = valuationSeries(db, { from, to, ...(accounts ? { accounts } : {}) }).positions;
+  if (positions.length === 0) return out;
+  const held = new Set(positions.map((p) => p.accountId));
+  const cash = cashSeries(db, days, [...held]);
+  for (const id of held) {
+    const base = cash.get(id) ?? days.map(() => 0);
+    out.set(
+      id,
+      base.map(
+        (cents, i) =>
+          cents +
+          positions.reduce(
+            (sum, p) => (p.accountId === id ? sum + (p.valueCents[i] ?? 0) : sum),
+            0,
+          ),
+      ),
+    );
+  }
+  return out;
 }

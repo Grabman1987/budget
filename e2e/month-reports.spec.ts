@@ -164,6 +164,7 @@ sampleTest(
             unlinkedCount: 0,
           },
           expectedMaterialised: true,
+          contactWriteOffs: [],
           foreignCurrencyCount: 0,
           window: {
             months: ['2026-08'],

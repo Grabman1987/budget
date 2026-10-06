@@ -184,6 +184,15 @@ ${declarations(light, '    ')}
 `;
 }
 
+// Sizes already specified in DESIGN.md's typography hierarchy (outside the frontmatter).
+const HIERARCHY_FONT_SIZES = {
+  'class-tag': '11px',
+  'chart-label-strong': '13px',
+  'figure-large': '34px',
+  panel: '36px',
+  amount: '44px',
+};
+
 // Phone type sizes (DESIGN.md "Typografie": Dimension 40, Display 24, Headline 18, Figure 21, Body 15).
 const MOBILE_FONT_SIZES = {
   dimension: '40px',
@@ -191,10 +200,11 @@ const MOBILE_FONT_SIZES = {
   headline: '18px',
   figure: '21px',
   body: '15px',
+  amount: '36px',
 };
 
 export function generateScaleTokensCss(designMd) {
-  const sizes = parseFontSizes(designMd);
+  const sizes = { ...parseFontSizes(designMd), ...HIERARCHY_FONT_SIZES };
   const radii = parseRadii(designMd);
   const spacing = parseSpacing(designMd);
   const lines = (entries, indent) => entries.map(([k, v]) => `${indent}${k}: ${v};`).join('\n');

@@ -1,11 +1,17 @@
 import {
   account,
+  valuation,
+  createEntity,
+  updateEntity,
+  restoreEntity,
+  holdingValuationAsOf,
   cashValuer,
   bankBalanceForAccount,
   lockBankBalance,
   accounts,
   accountSummaries,
   balanceSeries,
+  holdingAccountValueSeries,
   accountPreview,
   netWorthValuationAsOf,
   booking,
@@ -17,12 +23,15 @@ import {
   type Db,
 } from '@budget/db';
 import { and, eq, isNull, sql } from 'drizzle-orm';
+import { z } from 'zod';
 import { randomUUID } from 'node:crypto';
 import { Hono, type Context } from 'hono';
-import type { CashValuation } from '@budget/domain';
+import { eachDay, type CashValuation } from '@budget/domain';
 import { ACTOR, ApiError, defined, readBody, readQuery } from './http';
 import {
   accountClose,
+  day,
+  cents,
   accountCreate,
   accountPatch,
   accountOrder,
@@ -67,6 +76,51 @@ export type AccountView = AccountSummary & {
 
 export function accountRoutes(db: Db, today: () => string): Hono {
   const app = new Hono();
+
+  app.put('/:id/valuation', async (c) => {
+    const id = c.req.param('id');
+    const input = await readBody(c, z.strictObject({ date: day, valueCents: cents.min(0) }));
+    const ctx = { actor: ACTOR, groupId: randomUUID() };
+    db.transaction((tx) => {
+      const acct = accounts.get(tx, id);
+      if (!acct) throw new ApiError(404, 'not_found', 'Konto nicht gefunden.');
+      if (input.date > today() || input.date < acct.openingDate)
+        throw new ApiError(
+          422,
+          'invalid',
+          'Bitte einen Stichtag zwischen Kontoeröffnung und heute wählen.',
+        );
+      if (acct.closedAt || !['p2p', 'other_asset'].includes(acct.type))
+        throw new ApiError(422, 'invalid', 'Dieses Konto verwendet keine manuelle Bewertung.');
+      if (listReconciliations(tx, id).some((r) => r.date >= input.date))
+        throw new ApiError(409, 'reconciled_locked', 'Der Stichtag ist bereits festgeschrieben.');
+      const holdings = holdingValuationAsOf(tx, input.date);
+      if (
+        [
+          ...holdings.values,
+          ...holdings.missingPricePositions,
+          ...holdings.missingFxPositions,
+        ].some((h) => h.accountId === id)
+      )
+        throw new ApiError(422, 'invalid', 'Dieses Konto wird über seine Produkte bewertet.');
+      const current = tx
+        .select()
+        .from(valuation)
+        .where(and(eq(valuation.accountId, id), eq(valuation.date, input.date)))
+        .get();
+      if (current?.deletedAt) restoreEntity(tx, valuation, current.id, ctx);
+      if (current)
+        updateEntity(
+          tx,
+          valuation,
+          current.id,
+          { valueCents: input.valueCents, source: 'manual' },
+          ctx,
+        );
+      else createEntity(tx, valuation, { accountId: id, ...input, source: 'manual' }, ctx);
+    });
+    return c.json({ groupId: ctx.groupId });
+  });
 
   const accountList = (asOf: string) => {
     const value = cashValuer(db);
@@ -162,6 +216,7 @@ export function accountRoutes(db: Db, today: () => string): Hono {
   app.get('/series', (c) => {
     const { ids, ...range } = readQuery(c, seriesBatchQuery);
     const value = cashValuer(db);
+    const held = holdingAccountValueSeries(db, eachDay(range.from, range.to), ids);
     const wanted = ids ? new Set(ids) : undefined;
     const rows = db
       .select({ id: account.id, currency: account.currency })
@@ -171,7 +226,9 @@ export function accountRoutes(db: Db, today: () => string): Hono {
       .all()
       .filter((a) => !wanted || wanted.has(a.id));
     return c.json({
-      series: Object.fromEntries(rows.map((a) => [a.id, seriesOf(value, a.id, a.currency, range)])),
+      series: Object.fromEntries(
+        rows.map((a) => [a.id, seriesOf(value, a.id, a.currency, range, held.get(a.id))]),
+      ),
     });
   });
 
@@ -269,13 +326,19 @@ export function accountRoutes(db: Db, today: () => string): Hono {
     id: string,
     currency: string,
     range: { from: string; to: string },
+    /** EUR value per day of an account with positions (cash plus securities), see below. */
+    held?: number[],
   ) => ({
     accountId: id,
     currency,
-    points: balanceSeries(db, id, range).map((p) => ({
-      ...p,
-      valuation: value(p.balanceCents, currency, p.date),
-    })),
+    points: balanceSeries(db, id, range).map((p, i) => {
+      // An EUR account with positions follows its value (cash + market value), the number the
+      // value column shows; every other account keeps its cash balance.
+      const total = currency === 'EUR' ? held?.[i] : undefined;
+      return total === undefined
+        ? { ...p, valuation: value(p.balanceCents, currency, p.date) }
+        : { ...p, balanceCents: total, valuation: value(total, currency, p.date) };
+    }),
   });
 
   app.get('/:id/series', (c) => {
@@ -289,9 +352,10 @@ export function accountRoutes(db: Db, today: () => string): Hono {
       .get();
     if (!acct) throw new ApiError(404, 'not_found', `Account ${id} not found`);
     const value = cashValuer(db);
+    const held = holdingAccountValueSeries(db, eachDay(range.from, range.to), [id]);
     const preview = accountPreview(db, id, acct.currency, today(), range.previewDays);
     return c.json({
-      ...seriesOf(value, id, acct.currency, range),
+      ...seriesOf(value, id, acct.currency, range, held.get(id)),
       ...(range.previewDays > 0
         ? {
             previewPoints: preview.points.map((p) => ({

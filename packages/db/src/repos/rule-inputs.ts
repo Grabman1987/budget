@@ -1,4 +1,5 @@
 import { allocationInputsAsOf } from './allocation-inputs';
+import { cashlessContactBookingIds } from './contact-invariants';
 import { resolvePortfolioRiskPolicy } from './portfolio-risk-policy';
 import { bookInputs } from './book-inputs';
 import {
@@ -157,8 +158,10 @@ export function loadFacts(
     versions.set(v.expectedPaymentId, [...(versions.get(v.expectedPaymentId) ?? []), v]);
 
   const categoryKindById = new Map(categories.map((c) => [c.id, c.kind]));
+  const cashless = cashlessContactBookingIds(db);
   const incomeSplits = db
     .select({
+      bookingId: booking.id,
       day: booking.date,
       incomeNextMonth: booking.incomeNextMonth,
       cents: bookingSplit.amountCents,
@@ -180,7 +183,10 @@ export function loadFacts(
     .all()
     .flatMap((s) => {
       const kind = s.categoryId === null ? null : (categoryKindById.get(s.categoryId) ?? null);
-      return isIncomeCategorySplit(s.categoryId, kind) && s.incomeTypeId !== null && s.cents > 0
+      return !cashless.has(s.bookingId) &&
+        isIncomeCategorySplit(s.categoryId, kind) &&
+        s.incomeTypeId !== null &&
+        s.cents > 0
         ? [
             {
               day: s.day,
