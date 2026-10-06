@@ -451,7 +451,7 @@ test('negative lead uses the action colour and attention precedes the month fold
     expect(attentionBox!.y).toBeLessThan(upcomingBox!.y);
     expect(moreBox!.y).toBeGreaterThan(attentionBox!.y);
     if (info.project.name === 'mobile') {
-      await expect(figure).toHaveCSS('font-size', '26px');
+      await expect(figure).toHaveCSS('font-size', '24px');
       expect((await page.getByTestId('heute-balance-chart').boundingBox())!.height).toBe(232);
     }
   }

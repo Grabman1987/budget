@@ -42,7 +42,7 @@
   gap: 12px;
   margin: 14px 0 6px;
   padding: 12px 14px;
-  border-radius: 10px;
+  border-radius: var(--radius-md);
   background: var(--quiet-soft);
   color: var(--ink);
 }
@@ -52,13 +52,13 @@
 }
 .rf-verdict strong {
   display: block;
-  font-size: 16px;
+  font-size: var(--fs-title);
   font-weight: 640;
 }
 .rf-verdict small {
   display: block;
   margin-top: 2px;
-  font-size: 13px;
+  font-size: var(--fs-body);
   color: var(--ink-2);
 }
 .rf-verdict.is-ok {
@@ -94,7 +94,7 @@
 .rf-figs strong {
   display: block;
   margin: 2px 0 0;
-  font-size: 26px;
+  font-size: var(--fs-figure);
   font-weight: 650;
   letter-spacing: -0.02em;
   font-variant-numeric: tabular-nums;
@@ -105,7 +105,7 @@
 }
 .rf-figs small {
   display: block;
-  font-size: 12.5px;
+  font-size: var(--fs-chart-label);
   color: var(--ink-2);
 }
 
@@ -131,7 +131,7 @@
   list-style: none;
   margin: 6px 0 8px;
   padding: 0;
-  font-size: 12.5px;
+  font-size: var(--fs-chart-label);
   color: var(--ink-2);
 }
 .rf-legend li {
@@ -231,7 +231,7 @@
 }
 .rf-table .rf-grp th {
   padding-top: 14px;
-  font-size: 13px;
+  font-size: var(--fs-body);
   color: var(--ink);
   font-weight: 640;
   border-bottom: 1px solid var(--rule-strong);
@@ -334,7 +334,7 @@
 .rf-lever small {
   display: block;
   margin-top: 2px;
-  font-size: 12.5px;
+  font-size: var(--fs-chart-label);
   color: var(--ink-2);
 }
 .rf-gain {
@@ -346,7 +346,7 @@
 
 /* Cashflow: figures beside the chain */
 .rf-figure {
-  font-size: 56px;
+  font-size: var(--fs-dimension);
   font-weight: 650;
   letter-spacing: -0.03em;
   line-height: 1.05;
@@ -359,7 +359,7 @@
   gap: 8px 24px;
   margin: 14px 0 4px;
   padding: 12px 14px;
-  border-radius: 10px;
+  border-radius: var(--radius-md);
   background: var(--surface-2);
   color: var(--ink-2);
   font-size: 14px;

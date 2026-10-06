@@ -2,7 +2,7 @@ import { assertContactSettlementInvariants } from './contact-invariants';
 import { randomUUID } from 'node:crypto';
 import { and, asc, eq, isNull, type SQL } from 'drizzle-orm';
 import type { SQLiteColumn, SQLiteTable } from 'drizzle-orm/sqlite-core';
-import { account, assetClass, category } from '../schema';
+import { account, assetClass, category, valuation } from '../schema';
 import { insertTracked, tableMeta, updateTracked, withGroup, type AuditContext } from './audit';
 import { BookingInvariantError, EntityNotFoundError } from './errors';
 import { assertAccountBookingCurrencies, assertBudgetAccountCurrency } from './account-invariants';
@@ -130,6 +130,14 @@ export function updateEntity<T extends IdTable>(
     if (tableMeta(table).name === tableMeta(account).name) {
       const before = current as typeof account.$inferSelect;
       const change = patch as Partial<typeof account.$inferInsert>;
+      if (
+        change.currency !== undefined &&
+        change.currency !== before.currency &&
+        tx.select({ id: valuation.id }).from(valuation).where(eq(valuation.accountId, id)).get()
+      )
+        throw new BookingInvariantError(
+          'Die Kontowährung kann nach der ersten Bewertung nicht geändert werden.',
+        );
       assertAllocationClass(tx, change.allocationAssetClassId);
       assertAllocationScope(
         change.type ?? before.type,

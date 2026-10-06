@@ -62,7 +62,7 @@
 }
 .brand-name {
   font-weight: 650;
-  font-size: 15.5px;
+  font-size: var(--fs-title);
   letter-spacing: -0.01em;
   white-space: nowrap;
 }
@@ -87,7 +87,7 @@
   color: var(--ink-2);
   text-decoration: none;
   font-weight: 500;
-  font-size: 14.5px;
+  font-size: var(--fs-body);
   border: 1px solid transparent;
   transition:
     background var(--t-fast) var(--ease-out),
@@ -164,7 +164,7 @@ a.profile:hover .profile-text strong {
   border-radius: 50%;
   font-family: var(--font-tech);
   font-weight: 600;
-  font-size: 12.5px;
+  font-size: var(--fs-chart-label);
   letter-spacing: 0.04em;
   color: var(--line);
   text-decoration: none;
@@ -175,7 +175,7 @@ a.profile:hover .profile-text strong {
   min-width: 0;
 }
 .profile-text strong {
-  font-size: 13.5px;
+  font-size: var(--fs-body);
   font-weight: 600;
 }
 .profile-text span {
