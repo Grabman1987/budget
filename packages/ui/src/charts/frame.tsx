@@ -15,6 +15,7 @@ export interface ChartSvgProps {
   /** Non-time charts select the node/sector marked with data-chart-point. */
   crosshair?: boolean;
   content?: ReactNode;
+  tooltipNote?: string;
 }
 
 export interface ChartTooltipPoint {
@@ -45,6 +46,7 @@ export function ChartSvg({
   points = [],
   crosshair = true,
   content,
+  tooltipNote,
 }: ChartSvgProps) {
   useAmountPrivacy();
   const ref = useRef<HTMLDivElement>(null);
@@ -218,6 +220,7 @@ export function ChartSvg({
               </div>
             ))}
             <div className="chart-tooltip-date">{chartDate(point.date)}</div>
+            {tooltipNote && <p className="chart-tooltip-note">{tooltipNote}</p>}
           </div>,
           document.body,
         )}

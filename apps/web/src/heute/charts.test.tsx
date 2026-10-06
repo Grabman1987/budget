@@ -68,33 +68,59 @@ const data: PaceChartData = {
     },
   },
 };
-it('draws income and only labels drawn series in a completed month at half width', () => {
+it('keeps context series off by default and toggles their drawing and legend together', () => {
   const { container } = render(<HeutePaceChart data={data} />);
-  expect(container.querySelector('.pace-income-line')?.getAttribute('d')).toContain('L');
-  expect(container.querySelector('.chart-legend')?.textContent).toContain('Einnahmen');
-  expect(container.querySelector('.chart-legend')?.textContent).not.toContain('Hochrechnung');
+  expect(container.querySelector('.chart-legend')?.textContent).toBe('IstDeckel');
+  expect(container.querySelector('.pace-income-line')).toBeNull();
+  expect(container.querySelector('.l-prev')).toBeNull();
+  expect(container.querySelector('.l-plan:not(.pace-limit-line)')).toBeNull();
+  const toggle = screen.getByRole('button', { name: 'Mehr anzeigen' });
+  expect(toggle.getAttribute('aria-pressed')).toBe('false');
+  fireEvent.click(toggle);
+  expect(container.querySelector('path.pace-income-line')?.getAttribute('d')).toContain('L');
   expect(container.querySelector('.chart-legend')?.textContent).toContain('Dezember · Vormonat');
+  expect(toggle.getAttribute('aria-pressed')).toBe('true');
+  fireEvent.click(toggle);
+  expect(container.querySelector('.chart-legend')?.textContent).toBe('IstDeckel');
   fireEvent.focus(screen.getByRole('group', { name: /Pace 2026-01/ }));
   expect(screen.getByRole('status').textContent).toContain('Einnahmen bis dahin');
   expect(screen.getByRole('status').textContent).toContain('Ist');
   expect(screen.getByRole('status').textContent).toContain('Differenz');
 });
-it('draws and labels the darker forecast starting at the actual point', () => {
+it.each([2999, 3000, 3001])('colours forecast by its endpoint %i against the cap', (end) => {
   const { container } = render(
     <HeutePaceChart
       data={{
         ...data,
         stand: { today: '2026-01-02' },
-        pace: { ...data.pace, todayDay: 2, forecast: [3000, 4000, 5000] },
+        pace: {
+          ...data.pace,
+          todayDay: 2,
+          forecast: [3000, end],
+          figures: { ...data.pace.figures, forecastEndCents: end, forecastAvailable: true },
+        },
       }}
     />,
   );
   expect(container.querySelector('.chart-legend')?.textContent).toContain('Hochrechnung');
   expect(container.querySelector('.l-forecast')?.getAttribute('d')).toMatch(/^M/);
+  expect(container.querySelector('.l-forecast')?.classList.contains('is-over-cap')).toBe(
+    end > 3000,
+  );
+  expect(
+    container.querySelector('.chart-legend .l-forecast')?.classList.contains('is-over-cap'),
+  ).toBe(end > 3000);
+  const actualEnd = container
+    .querySelector('path.l-actual')
+    ?.getAttribute('d')
+    ?.match(/L([^L]+)$/)?.[1];
+  expect(container.querySelector('path.l-forecast')?.getAttribute('d')?.split('L')[0]).toBe(
+    `M${actualEnd}`,
+  );
   expect(container.querySelector('.l-plan')).toBeTruthy();
 });
 
-it('shows the source figures in the header and all four pace series at today', () => {
+it('uses the scheduled plan for the today marker, while retaining all tooltip values in order', () => {
   const { container } = render(
     <HeutePaceChart
       data={{
@@ -110,6 +136,7 @@ it('shows the source figures in the header and all four pace series at today', (
           figures: {
             ...data.pace.figures,
             spentCents: 232_000,
+            planToDateCents: 245_000,
             expectedToDateCents: 260_000,
             forecastEndCents: 267_692,
             forecastAvailable: true,
@@ -119,9 +146,9 @@ it('shows the source figures in the header and all four pace series at today', (
       }}
     />,
   );
-  expect(screen.getByTestId('pace-header').textContent).toBe(
-    'Tag 26 von 30 · Ausgegeben 2.320 € · Erwartet 2.600 € · Hochrechnung 2.677 €',
-  );
+  expect(screen.queryByTestId('pace-header')).toBeNull();
+  expect(screen.getByText('Plan bis heute 2.450 €')).toBeTruthy();
+  expect(container.querySelector('.pace-plan-marker')).toBeTruthy();
   const group = screen.getByRole('group', { name: /Pace 2026-09/ });
   fireEvent.focus(group);
   for (let d = 0; d < 26; d++) fireEvent.keyDown(group, { key: 'ArrowRight' });
@@ -130,6 +157,14 @@ it('shows the source figures in the header and all four pace series at today', (
   expect(tooltip.textContent).toContain('Erwartet2.600,00 €');
   expect(tooltip.textContent).toContain('Deckel3.000,00 €');
   expect(tooltip.textContent).toContain('Hochrechnung2.320,00 €');
+  expect(
+    Array.from(tooltip.querySelectorAll('.chart-tooltip-row span'))
+      .slice(0, 4)
+      .map((el) => el.textContent),
+  ).toEqual(['Ist', 'Hochrechnung', 'Deckel', 'Erwartet']);
+  expect(tooltip.lastElementChild?.textContent).toBe(
+    'Hochrechnung = Ausgegeben + offene Fixkosten + Rest des variablen Plans (ab Tag 7 hochgerechnet)',
+  );
   expect(container.querySelector('.chart-legend')?.textContent).toContain('Ist');
   expect(container.querySelector('.chart-legend')?.textContent).toContain('Deckel');
   expect(container.querySelector('.pace-limit-line')?.getAttribute('d')).toMatch(/^M.+L/);

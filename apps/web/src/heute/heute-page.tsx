@@ -147,6 +147,60 @@ function HeuteBody({ data }: { data: Heute }) {
         onBudgetClick={() => setChainOpen((open) => !open)}
       />
       <AttentionBar data={data} />
+      <section className="heute-lead" aria-labelledby="heute-lead-title">
+        <div className="heute-lead-head">
+          <div>
+            <h2 id="heute-lead-title">Kontoprognose</h2>
+            <p>
+              Verfügbar in allen Envelopes für Bedarf und Wunsch, abzüglich der Rechnungen, die vor
+              dem Gehalt noch fällig sind.
+            </p>
+            {away && (
+              <span className="heute-anchor" data-testid="heute-anchor">
+                Bis Gehalt zählt immer ab heute ({shortDay(data.stand.today)}, Gehalt am{' '}
+                {shortDay(data.stand.payday.day)}), nicht ab {monthName(data.stand.month)}.
+              </span>
+            )}
+          </div>
+          <Button
+            variant="ghost"
+            size="sm"
+            aria-expanded={chainOpen}
+            aria-controls="heute-lead-chain"
+            onClick={() => setChainOpen((open) => !open)}
+          >
+            {chainOpen ? 'Herleitung ausblenden' : 'Herleitung zeigen'}
+          </Button>
+        </div>
+        <BalanceChart
+          data={data}
+          chainOpen={chainOpen}
+          onToggleChain={() => setChainOpen((open) => !open)}
+          showLead={false}
+        />
+        <DailyBudgetLine data={data} />
+        {data.balance.forecast.length > 0 && (
+          <p className="heute-note">
+            Kontoprognose bis {longDay(data.stand.to)} · 14 Tage Rückblick · gleicher Horizont wie
+            R07.
+          </p>
+        )}
+        {chainOpen && (
+          <div id="heute-lead-chain" className="heute-chain-area">
+            <DimensionChain
+              terms={leadTerms}
+              label="Maßkette: Bedarf plus Wunsch minus offene Rechnungen bis Gehalt"
+              precision="cent"
+            />
+            {leadDetail && <LeadDetail data={data} kind={leadDetail} />}
+            <p className="heute-note">
+              Wähle Bedarf, Wunsch oder offen bis Gehalt für die zugehörigen Envelopes und
+              Zahlungen.
+            </p>
+          </div>
+        )}
+      </section>
+
       <section className="heute-section heute-pace" aria-labelledby="heute-pace-title">
         <SectionHead
           id="heute-pace-title"
@@ -221,60 +275,6 @@ function HeuteBody({ data }: { data: Heute }) {
           {!data.pace.figures.forecastAvailable &&
             ' Für eine Prognose braucht es einen positiven Plan.'}
         </p>
-      </section>
-
-      <section className="heute-lead" aria-labelledby="heute-lead-title">
-        <div className="heute-lead-head">
-          <div>
-            <h2 id="heute-lead-title">Kontoprognose</h2>
-            <p>
-              Verfügbar in allen Envelopes für Bedarf und Wunsch, abzüglich der Rechnungen, die vor
-              dem Gehalt noch fällig sind.
-            </p>
-            {away && (
-              <span className="heute-anchor" data-testid="heute-anchor">
-                Bis Gehalt zählt immer ab heute ({shortDay(data.stand.today)}, Gehalt am{' '}
-                {shortDay(data.stand.payday.day)}), nicht ab {monthName(data.stand.month)}.
-              </span>
-            )}
-          </div>
-          <Button
-            variant="ghost"
-            size="sm"
-            aria-expanded={chainOpen}
-            aria-controls="heute-lead-chain"
-            onClick={() => setChainOpen((open) => !open)}
-          >
-            {chainOpen ? 'Herleitung ausblenden' : 'Herleitung zeigen'}
-          </Button>
-        </div>
-        <BalanceChart
-          data={data}
-          chainOpen={chainOpen}
-          onToggleChain={() => setChainOpen((open) => !open)}
-          showLead={false}
-        />
-        <DailyBudgetLine data={data} />
-        {data.balance.forecast.length > 0 && (
-          <p className="heute-note">
-            Kontoprognose bis {longDay(data.stand.to)} · 14 Tage Rückblick · gleicher Horizont wie
-            R07.
-          </p>
-        )}
-        {chainOpen && (
-          <div id="heute-lead-chain" className="heute-chain-area">
-            <DimensionChain
-              terms={leadTerms}
-              label="Maßkette: Bedarf plus Wunsch minus offene Rechnungen bis Gehalt"
-              precision="cent"
-            />
-            {leadDetail && <LeadDetail data={data} kind={leadDetail} />}
-            <p className="heute-note">
-              Wähle Bedarf, Wunsch oder offen bis Gehalt für die zugehörigen Envelopes und
-              Zahlungen.
-            </p>
-          </div>
-        )}
       </section>
 
       <Upcoming

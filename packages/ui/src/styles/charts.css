@@ -384,8 +384,45 @@ svg.chart {
 }
 
 /* Household income in the shared monthly pace chart. */
-.pace-income-line {
+.heute-chart.heute-pace-chart .l-actual.pace-income-line {
   stroke: var(--future);
+}
+.heute-chart.heute-pace-chart .l-actual {
+  stroke: var(--ink);
+  stroke-width: 2.5;
+}
+.heute-chart.heute-pace-chart .l-forecast {
+  stroke: var(--on-good-soft);
+  stroke-width: 2;
+}
+.heute-chart.heute-pace-chart .l-forecast.is-over-cap {
+  stroke: var(--red);
+}
+.heute-chart.heute-pace-chart .pace-limit-line {
+  stroke: var(--rule-strong);
+  stroke-width: 1;
+  stroke-dasharray: none;
+}
+.heute-chart.heute-pace-chart .l-prev,
+.heute-chart.heute-pace-chart .pace-income-line {
+  stroke-width: 1;
+  opacity: 0.5;
+}
+.heute-chart.heute-pace-chart .report-trend-line {
+  display: none;
+}
+.heute-chart.heute-pace-chart .pace-plan-marker {
+  fill: var(--ink-3);
+  stroke: var(--surface);
+  stroke-width: 1;
+}
+.heute-chart.heute-pace-chart .pace-context-toggle {
+  min-height: 44px;
+  margin-top: 8px;
+}
+.chart-tooltip-note {
+  margin: 8px 0 0;
+  color: var(--ink-2);
 }
 .chart-legend li {
   white-space: nowrap;
