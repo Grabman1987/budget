@@ -2,6 +2,20 @@
 
 - [x] Owner 2026-10-06: implied gross trade prices before valuation cost fallback; estimate hints only for positive as-of holdings without a quote or trade price, with synthetic domain/DB/API/UI regressions. CI and owner acceptance remain open.
 
+### UX-4a — One definition of overspent (owner 05.10.2026)
+
+- [x] Shared `overspentEnvelopes(month)`: negative available after existing carry rules; Heute, Plan, live inbox tasks and common badge agree, without duplicate stored warnings or card-account debt.
+- [x] Synthetic cent/carry, cash/card, duplicate-warning, cover/undo and consumer API regressions; desktop/mobile count and repair-link E2E spec.
+- [ ] CI, affected Linux screenshot review and owner acceptance; [scope and baseline list](ux-overspent-1005.md).
+
+### UX-3c - Phone chart/table overflow (owner feedback 2026-10-05)
+
+- [x] Local Liquidity/flow/year table scrolling with visible phone affordance and sticky first columns; existing Plan year stacked layout retained.
+- [x] Simplified vertical Geldfluss phone variant, width-aware Liquidity ticks, full-width Portfolio allocation tracks and complete mobile report headings.
+- [x] Synthetic component and 390 px browser regressions; [scope and baseline review](ux-mobile-overflow-1005.md).
+- [x] Full local check (351 files / 3,250 tests), production/E2E builds and focused browser checks (22 passed / 9 intentional desktop skips).
+- [ ] Required CI/Linux visual review and owner phone acceptance (see PR evidence).
+
 ### Plan › Monat quick assignment — owner 05.10.2026
 
 - [x] Zero-assignment ghosts from existing target need or three-month median spending, with source tooltip; no automatic booking.
