@@ -1,5 +1,10 @@
 import { resolvePortfolioRiskPolicy } from './portfolio-risk-policy';
-import { allocationInputsAsOf, allocationUniverse } from './allocation-inputs';
+import {
+  allocationInputsAsOf,
+  allocationUniverse,
+  allocationSecuritiesAsOf,
+  type AllocationSecurity,
+} from './allocation-inputs';
 import {
   allocationTimeline,
   allocationChartPositions,
@@ -39,6 +44,7 @@ export interface AllocationProduct {
 }
 
 export interface AllocationClass {
+  assignedSecurities: AllocationSecurity[];
   /** R13 row value (signed, incl. cash): the base of `portfolioShareBp`. */
   portfolioValueCents: number;
   /** Share of the whole, signed investment universe; composition shareBp uses classified value. */
@@ -207,6 +213,7 @@ export function allocationReport(db: Executor, options: { today: string }): Allo
     totalCents,
   );
   const sharesByPosition = new Map(current.positions.map((p, i) => [p.id, positionShares[i]!]));
+  const assigned = allocationSecuritiesAsOf(db, today);
   const classes: AllocationClass[] = risk.allocation.rows.map((row) => {
     const mine = current.positions.filter((p) => (p.assetClass ?? NO_CLASS) === row.assetClass);
     const products = [...new Set(mine.map((p) => p.securityId!))].map((securityId) => {
@@ -227,6 +234,7 @@ export function allocationReport(db: Executor, options: { today: string }): Allo
       };
     });
     return {
+      assignedSecurities: assigned.get(row.assetClass) ?? [],
       assetClassId: row.assetClass === NO_CLASS ? null : row.assetClass,
       name: className(row.assetClass),
       valueCents: row.valueCents,
@@ -272,6 +280,16 @@ export function allocationReport(db: Executor, options: { today: string }): Allo
       }),
     };
   });
+  compositionClasses.push(
+    ...classes
+      .filter(
+        (c) =>
+          c.assetClassId !== null &&
+          (c.targetBp ?? 0) > 0 &&
+          !compositionClasses.some((row) => row.assetClassId === c.assetClassId),
+      )
+      .map((c) => ({ ...c, valueCents: 0, shareBp: 0, products: [] })),
+  );
   const separatePositions = current.positions
     .filter((p) => !chartPositions.includes(p))
     .map((p) => ({
