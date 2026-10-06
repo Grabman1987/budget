@@ -53,6 +53,11 @@ test('chart spike renders both diagrams and survives a deep-link reload', async 
   await expect(pace.locator('path.l-prev')).toHaveCount(1);
   await expect(sankey.locator('rect.sk-node').first()).toBeVisible();
   await page.reload();
-  await expect(page.getByTestId('pace-chart')).toBeVisible();
+  const reloadedPace = page.getByTestId('pace-chart');
+  await expect(reloadedPace).toBeVisible({ timeout: 15_000 });
+  await expect(reloadedPace.locator('path.l-actual')).toHaveCount(1, { timeout: 15_000 });
+  await expect(page.getByTestId('sankey-chart').locator('rect.sk-node').first()).toBeVisible({
+    timeout: 15_000,
+  });
   expect(problems).toEqual([]);
 });

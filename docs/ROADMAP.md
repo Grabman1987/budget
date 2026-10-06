@@ -1,5 +1,12 @@
 # Roadmap
 
+### Plan › Monat quick assignment — owner 05.10.2026
+
+- [x] Zero-assignment ghosts from existing target need or three-month median spending, with source tooltip; no automatic booking.
+- [x] Leere füllen and selected Wie letzter Monat / Ø 3 Monate / Ziel via existing assignment/audit/undo path, capped in displayed sort order with exact shortfall.
+- [x] Synthetic cent/source, partial-fill, validation, rollback, stale-fill, undo/redo and German-copy regression tests; [contract](plan-ghost-1005.md).
+- [ ] CI, pinned Linux visual review and owner acceptance.
+
 ### Heute three answer cards — owner 05.10.2026
 
 - [x] Three current answer cards reuse Vermögen, Gesamtübersicht, One-Pager, Leitmaß and Pace sources; nearest unfinished Sparziel reuses saved/missing cents and date ordering.

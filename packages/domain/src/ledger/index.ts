@@ -97,3 +97,4 @@ export {
 } from './assets-debts';
 
 export * from './cover';
+export * from './quick-assign';

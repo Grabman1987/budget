@@ -29,6 +29,42 @@
 .plan .muted {
   color: var(--ink-3);
 }
+.plan .assign-btn.is-ghost {
+  color: var(--ink-3);
+  font-weight: 400;
+}
+.plan .quick-assign-actions,
+.plan .quick-assign-actions [role='group'] {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.plan .quick-assign-actions {
+  flex-basis: 100%;
+}
+.plan .quick-assign-actions span {
+  color: var(--ink-2);
+}
+.plan .quick-assign-actions button {
+  min-height: 44px;
+}
+.plan .plan-select {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 44px;
+  min-height: 44px;
+  cursor: pointer;
+}
+.plan .plan-select input {
+  accent-color: var(--primary);
+}
+@media (max-width: 767px) {
+  .plan .prow:has(.plan-select) {
+    grid-template-columns: 44px repeat(3, minmax(0, 1fr));
+  }
+}
 .plan .hatch-need {
   background: var(--need);
 }
