@@ -22,6 +22,7 @@ import { budget } from './queries';
 import { assertEurBudgetAccounts } from './account-invariants';
 import { incomeGroupOf } from './report-ledger';
 import type { Executor } from './types';
+import { cashlessContactBookingIds } from './contact-invariants';
 
 /** Uncategorized inflows and live income-category splits contribute to income read models. */
 export function isIncomeCategorySplit(categoryId: string | null, categoryKind: string | null) {
@@ -73,8 +74,10 @@ export function allocationMonth(
     (JSON.parse(r12?.paramsJson ?? '{}') as { windfallShares?: Record<string, number> })
       .windfallShares ?? {};
 
+  const cashless = cashlessContactBookingIds(db);
   const regularIncome = db
     .select({
+      bookingId: booking.id,
       cents: bookingSplit.amountCents,
       incomeTypeId: bookingSplit.incomeTypeId,
       date: booking.date,
@@ -106,6 +109,7 @@ export function allocationMonth(
     .all()
     .filter(
       (s) =>
+        !cashless.has(s.bookingId) &&
         isIncomeCategorySplit(s.categoryId, s.categoryKind) &&
         s.contactId === null &&
         s.date >= s.openingDate &&

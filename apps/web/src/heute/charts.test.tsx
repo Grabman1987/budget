@@ -1,10 +1,52 @@
 // @vitest-environment jsdom
 import { cleanup, render, screen, fireEvent } from '@testing-library/react';
 import { afterEach, expect, it, vi } from 'vitest';
-import { DailyBudgetLine, HeutePaceChart, type PaceChartData } from './charts';
+import { BalanceChart, DailyBudgetLine, HeutePaceChart, type PaceChartData } from './charts';
 import type { Heute } from './api';
 vi.mock('../charts/use-element-width', () => ({ useElementWidth: () => [vi.fn(), 360] }));
 afterEach(cleanup);
+it('labels actual history before today and separates payment numbers from the low point', () => {
+  const { container } = render(
+    <BalanceChart
+      chainOpen={false}
+      onToggleChain={() => {}}
+      data={
+        {
+          ...dailyData,
+          lead: { freeCents: 10000 },
+          stand: { ...dailyData.stand, today: '2026-10-06', period: 'payday', to: '2026-10-17' },
+          balance: {
+            actual: [
+              { day: '2026-09-22', balanceCents: 50000 },
+              { day: '2026-10-06', balanceCents: 40000 },
+            ],
+            forecast: [
+              { day: '2026-10-06', balanceCents: 40000, variableCents: 0, items: [] },
+              {
+                day: '2026-10-10',
+                balanceCents: 10000,
+                variableCents: 0,
+                items: [{ cents: -30000, label: 'Geplante Ausgabe' }],
+              },
+              { day: '2026-10-17', balanceCents: 10000, variableCents: 0, items: [] },
+            ],
+            low: { day: '2026-10-10', cents: 10000, index: 1 },
+            salary: null,
+          },
+        } as Heute
+      }
+    />,
+  );
+  expect(screen.getByText('bisher')).toBeTruthy();
+  const actual = screen.getByText('bisher');
+  const today = screen.getByText('heute');
+  expect(Number(actual.getAttribute('x'))).toBeLessThan(Number(today.getAttribute('x')));
+  const marker = container.querySelector('[data-payment-marker] text')!;
+  const low = screen.getByText(/^Tiefpunkt/);
+  expect(
+    Math.abs(Number(marker.getAttribute('y')) - Number(low.getAttribute('y'))),
+  ).toBeGreaterThanOrEqual(20);
+});
 const dailyData = {
   stand: { payday: { day: '2026-10-15' } },
   dailyBudget: { remainingDays: 10, perDayCents: 3800 },

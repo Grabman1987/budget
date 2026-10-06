@@ -132,7 +132,9 @@ test('native savings CRUD, future/current history, end, reload and audited undo'
   await expect(edit.getByLabel('Monatliche Rate (CHF)', { exact: true })).toHaveValue('200,00');
   await expect(edit.getByRole('link', { name: data.source.name })).toHaveCount(2);
   await edit.getByRole('button', { name: 'Sparplan beenden', exact: true }).click();
-  await expect(edit.getByLabel('Ende einschließlich', { exact: true })).toHaveValue(future);
+  await expect(edit.getByLabel('Ende einschließlich', { exact: true })).toHaveValue(
+    future.split('-').reverse().join('.'),
+  );
   await edit.getByRole('button', { name: 'Ende speichern', exact: true }).click();
   await expect(edit).toHaveCount(0);
   expect((await list())[1].validTo).toBe(future);

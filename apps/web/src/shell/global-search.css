@@ -13,7 +13,7 @@
 }
 .global-search-status {
   padding: 12px;
-  font-size: 13px;
+  font-size: var(--fs-body);
   color: var(--ink-2);
 }
 .global-search-result {

@@ -92,7 +92,7 @@ button.event-plan {
 }
 .year-note {
   color: var(--ink-2);
-  font-size: 13px;
+  font-size: var(--fs-body);
   padding: 0 24px 16px;
   margin: 0;
   max-width: 72ch;
@@ -180,6 +180,25 @@ button.event-plan {
 .year-amount.is-over {
   color: var(--red);
 }
+.scenario-label {
+  position: relative;
+  white-space: normal;
+}
+.scenario-help {
+  position: absolute;
+  z-index: 2;
+  left: 0;
+  bottom: 100%;
+  width: min(32rem, 70vw);
+  padding: 8px 12px;
+  background: var(--surface);
+  color: var(--ink);
+  border: 1px solid var(--rule-strong);
+  border-radius: var(--r-sm);
+  font-size: 12px;
+  font-weight: 400;
+  white-space: normal;
+}
 .year-totals {
   display: flex;
   flex-wrap: wrap;
@@ -190,7 +209,7 @@ button.event-plan {
 }
 .year-totals dt {
   color: var(--ink-2);
-  font-size: 13px;
+  font-size: var(--fs-body);
 }
 .year-totals dd {
   margin: 6px 0 0;
@@ -293,7 +312,7 @@ button.event-plan {
   .year-phone-annual h3 {
     margin: 0;
     padding: 12px 16px;
-    font-size: 15px;
+    font-size: var(--fs-body);
     background: var(--surface-2);
   }
   .year-totals {
