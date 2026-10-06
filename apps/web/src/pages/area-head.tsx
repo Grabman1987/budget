@@ -9,15 +9,25 @@ import { useMonthSpan } from '../budget/month-span';
 import { MonthSwitch } from '../shell/month-switch';
 import { VermoegenStand, ZeitraumSwitch } from '../wealth/frame';
 import type { PageMeta } from '../nav/pages';
-import { currentMonth, useMonth } from '../shell/use-month';
+import { useMonth } from '../shell/use-month';
 import type { HeutePeriod } from '../heute/api';
+import { PAYDAY_ONLY_THIS_MONTH } from '../heute/use-balance-period';
+import { currentMonth } from '../shell/use-month';
 
 type Period = 'month' | 'payday';
 
-const PERIODS = [
-  { value: 'month', label: 'Monat' },
-  { value: 'payday', label: 'Bis Gehalt' },
-] as const;
+const periodOptions = (paydayAvailable: boolean) =>
+  [
+    { value: 'month', label: 'Monat' },
+    paydayAvailable
+      ? { value: 'payday', label: 'Bis Gehalt' }
+      : {
+          value: 'payday',
+          label: 'Bis Gehalt',
+          disabled: true,
+          description: PAYDAY_ONLY_THIS_MONTH,
+        },
+  ] as const;
 
 export interface AreaHeadProps {
   meta: PageMeta;
@@ -65,16 +75,6 @@ export function AreaHead({
   const [month] = useMonth();
   const span = useMonthSpan();
   const [period, setPeriod] = useState<Period>('month');
-  const paydayAvailable = month === (standDay?.slice(0, 7) ?? currentMonth());
-  const periods = PERIODS.map((option) =>
-    option.value === 'payday' && !paydayAvailable
-      ? {
-          ...option,
-          disabled: true,
-          description: 'Bis Gehalt ist nur im aktuellen Monat verfügbar.',
-        }
-      : option,
-  );
   const stand: TitleBlockField = {
     label: 'Stand',
     value: <StandValue day={standDay ?? todayInVienna()} />,
@@ -100,11 +100,13 @@ export function AreaHead({
           value: (
             <Segmented
               label="Zeitraum"
-              options={periods}
-              value={paydayAvailable ? (heutePeriod ?? period) : 'month'}
-              onChange={(value) =>
-                onHeutePeriodChange ? onHeutePeriodChange(value) : setPeriod(value)
-              }
+              options={periodOptions(month === currentMonth())}
+              value={heutePeriod ?? period}
+              onChange={(value) => {
+                const next = value as Period;
+                if (onHeutePeriodChange) onHeutePeriodChange(next);
+                else setPeriod(next);
+              }}
             />
           ),
         },

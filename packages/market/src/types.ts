@@ -61,6 +61,8 @@ export interface CpiSource {
   readonly series: string;
   /** The whole monthly series, ascending. Throws a `MarketError`. */
   monthly(): Promise<MonthlyIndex[]>;
+  /** Total and sub-indices from the same monthly read; absent on legacy/test sources. */
+  monthlySeries?(): Promise<Record<string, MonthlyIndex[]>>;
 }
 
 /** Everything the refresh jobs need; the DB is not part of it. */

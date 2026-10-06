@@ -165,7 +165,7 @@ export function moveGuard(
 
 /**
  * "Decken" from "Zu verteilen": `capCents` is what it can cover without going below 0; `short`
- * when that is less than the overspending (the rest needs `allowNegative`).
+ * when that is less than the overspending (the rest stays open).
  */
 export function coverFromToBeAssigned(overspentCents: number, toBeAssignedCents: number) {
   const capCents = Math.min(overspentCents, Math.max(0, toBeAssignedCents));
@@ -504,17 +504,17 @@ export function unassignPlan(rows: PlanRow[], amount: number): Array<[string, nu
   return plan;
 }
 
-/** Only sources that can cover the full row; largest available first. */
+/** Cover sources use the server boundary; partial sources remain available for capped covers. */
+export const freeCoverCents = (r: Pick<EnvelopeSummary, 'freeCents' | 'availableCents'>) =>
+  r.freeCents ?? Math.max(0, r.availableCents);
+export const coverSourceLabel = (
+  r: Pick<PlanRow, 'name' | 'availableCents' | 'committedCents' | 'freeCents'>,
+) =>
+  `${r.name} · ${eur(r.availableCents)} · fest verplant ${eur(r.committedCents ?? 0)} · frei ${eur(freeCoverCents(r))}`;
 export function coverSources(rows: PlanRow[], target: PlanRow): PlanRow[] {
   return rows
-    .filter(
-      (r) =>
-        r.id !== target.id &&
-        !isCard(r) &&
-        r.availableCents >= target.overspentCents &&
-        r.availableCents > 0,
-    )
-    .sort((a, b) => b.availableCents - a.availableCents);
+    .filter((r) => r.id !== target.id && !isCard(r) && freeCoverCents(r) > 0)
+    .sort((a, b) => freeCoverCents(b) - freeCoverCents(a));
 }
 export function coverSource(rows: PlanRow[], target: PlanRow): PlanRow | undefined {
   return coverSources(rows, target)[0];

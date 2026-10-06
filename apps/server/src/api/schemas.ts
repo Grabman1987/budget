@@ -306,8 +306,8 @@ export const moveBody = z.union([
 export const coverBody = z.object({
   categoryId: id,
   fromId: id.nullable(),
-  /** From "Zu verteilen" beyond what it holds (it goes below 0): only when confirmed. */
-  allowNegative: z.boolean().optional(),
+  /** Reject the legacy override: cover never creates negative unassigned money. */
+  allowNegative: z.literal(false).optional(),
 });
 
 // ---------- expected payments ----------
