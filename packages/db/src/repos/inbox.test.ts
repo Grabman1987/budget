@@ -6,6 +6,7 @@ import { createBooking, createTransfer, deleteBooking, updateBooking } from './b
 import { readInbox, readInboxCount, resolveInboxItem } from './inbox';
 import { openStaleValueItem, resolveStaleValueItems } from './market';
 import { seedBasics, testCtx } from './test-helpers';
+import { setAssigned } from './envelopes';
 let opened: OpenedDatabase;
 beforeEach(() => {
   opened = createTestDatabase();
@@ -80,6 +81,7 @@ describe('actual inbox work', () => {
     ).toEqual([1, 2]);
   });
   it('categorization and confirmation use audited booking APIs; undo restores count without duplicate rows', () => {
+    setAssigned(opened.db, 'essen', '2026-09', 1000, testCtx);
     const id = uncat();
     updateBooking(opened.db, id, { status: 'pending' }, testCtx);
     updateBooking(opened.db, id, { status: 'confirmed' }, testCtx);
