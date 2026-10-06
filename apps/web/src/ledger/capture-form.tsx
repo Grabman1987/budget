@@ -58,7 +58,7 @@ import { SplitEditor } from './split-editor';
 import { AccountOptions } from './account-options';
 import { eur, monthName } from './format';
 import { ReceiptSection } from '../receipts/receipt-section';
-import { errorText } from './labels';
+import { CAPTURE_SHORTCUT_HINT, errorText } from './labels';
 import { useLedgerWrites } from './mutations';
 import { accountsQuery, lookupsQuery, payeesQuery } from './queries';
 import {
@@ -796,8 +796,7 @@ export function CaptureForm({
         )}
         {editing && <ReceiptSection bookingId={editing.id} />}
         <p className="khint" aria-hidden="true">
-          Enter weiter · Strg Enter speichert · Strg Umschalt Enter speichert und beginnt neu · Esc
-          schließt
+          {CAPTURE_SHORTCUT_HINT}
         </p>
       </div>
       {discard.asking && (

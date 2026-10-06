@@ -19,6 +19,9 @@ describe('report navigation', () => {
       <>
         <ReportNavigation id="peinzahlungen" />
         <input aria-label="Eingabe" />
+        <dialog open>
+          <button type="button">Dialogaktion</button>
+        </dialog>
       </>,
     );
     fireEvent.click(
@@ -30,6 +33,12 @@ describe('report navigation', () => {
     expect(navigate).toHaveBeenCalledWith(expect.objectContaining({ to: '/reports/pallocation' }));
     navigate.mockClear();
     fireEvent.keyDown(screen.getByRole('textbox'), {
+      altKey: true,
+      shiftKey: true,
+      key: 'ArrowRight',
+    });
+    expect(navigate).not.toHaveBeenCalled();
+    fireEvent.keyDown(screen.getByRole('button', { name: 'Dialogaktion' }), {
       altKey: true,
       shiftKey: true,
       key: 'ArrowRight',

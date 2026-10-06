@@ -2,6 +2,15 @@
   display: block;
   position: relative;
 }
+.shortcut-list dt {
+  margin-top: 16px;
+  font-family: var(--font-tech);
+  font-weight: 600;
+}
+.shortcut-list dd {
+  margin: 4px 0 0;
+  color: var(--ink-2);
+}
 .global-search-popup {
   position: absolute;
   inset: calc(100% + 8px) 0 auto;
