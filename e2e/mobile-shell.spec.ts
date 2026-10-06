@@ -61,6 +61,10 @@ test.describe('UX-3a phone shell', () => {
       await settings.tap();
       await expect(page).toHaveURL(/\/einstellungen$/);
       await expect(page.locator('.m-profile')).not.toHaveAttribute('open');
+      // Let the tap-triggered navigation settle before the next page.goto, which would
+      // otherwise be interrupted when both target the same URL.
+      await page.waitForLoadState('load');
+      await expect(page.locator('main')).toBeVisible();
     }
   });
 

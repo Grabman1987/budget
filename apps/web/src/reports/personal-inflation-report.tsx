@@ -21,6 +21,7 @@ import type { PageMeta } from '../nav/pages';
 import type { ReportEntry } from '../nav/reports-catalog';
 import { PageFrame } from '../pages/placeholder-page';
 import { bpText, monthShort, ReportQuery, ScrollRegion } from './spending-shared';
+import { InflationExplorer } from './inflation-explorer';
 
 const inflationQuery = queryOptions({
   queryKey: [...LEDGER_KEY, 'personal-inflation'],
@@ -52,7 +53,9 @@ export function PersonalInflationReport({ report, meta }: { report: ReportEntry;
           : data
             ? data.points.length
               ? `${monthShort(data.baseMonth as string)} bis ${monthShort(data.toMonth as string)}`
-              : 'weniger als 13 Monate'
+              : data.insufficientReason === 'months'
+                ? 'weniger als 13 Monate'
+                : 'Warenkorb nicht berechenbar'
             : 'wird geladen'
       }
       reportStand={{ label: 'Stichtag', value: 'Monatsende' }}
@@ -70,6 +73,30 @@ export function PersonalInflationReport({ report, meta }: { report: ReportEntry;
 }
 
 function Body({ data }: { data: InflationReport }) {
+  const [view, setView] = useState<'basket' | 'explorer'>('basket');
+  return (
+    <>
+      <div className="sr-wide">
+        <Segmented
+          label="Inflationsansicht"
+          options={[
+            { value: 'basket', label: 'Warenkorb vs. VPI' },
+            { value: 'explorer', label: 'Kategorie-Explorer' },
+          ]}
+          value={view}
+          onChange={setView}
+        />
+      </div>
+      {view === 'explorer' ? (
+        <InflationExplorer categories={data.basketSettings} rows={data.explorer} />
+      ) : (
+        <BasketBody data={data} />
+      )}
+    </>
+  );
+}
+
+function BasketBody({ data }: { data: InflationReport }) {
   useAmountPrivacy();
   const [basketView, setBasketView] = useState<'base' | 'year'>('base');
   if (data.status !== 'ok')
@@ -257,15 +284,7 @@ function Body({ data }: { data: InflationReport }) {
                         <>
                           <td>{yearPercent(y.ownChangeBp)}</td>
                           <td>{yearPercent(y.referenceChangeBp)}</td>
-                          <td
-                            className={
-                              y.differenceBp !== null && y.differenceBp < 0
-                                ? 'is-better'
-                                : y.differenceBp !== null && y.differenceBp > 0
-                                  ? 'is-worse'
-                                  : ''
-                            }
-                          >
+                          <td>
                             {y.differenceBp === null ? (
                               <>
                                 Für den <Term term="VPI" /> fehlt der Vergleichsmonat.
@@ -276,9 +295,7 @@ function Body({ data }: { data: InflationReport }) {
                               </>
                             ) : (
                               <>
-                                {num1.format(Math.abs(y.differenceBp) / 100)} Prozentpunkte{' '}
-                                {y.differenceBp < 0 ? 'besser' : 'schlechter'} als der{' '}
-                                <Term term="VPI" />
+                                {pp(y.differenceBp)} Prozentpunkte Differenz zum <Term term="VPI" />
                               </>
                             )}
                           </td>
@@ -428,7 +445,15 @@ const R = 70;
 const T = 20;
 const B = 220;
 
-function IndexChart({ data }: { data: InflationReport }) {
+export function IndexChart({
+  data,
+  label = 'Persönlicher Preisindex',
+  referenceLabel = 'Verbraucherpreisindex',
+}: {
+  data: Pick<InflationReport, 'points' | 'referenceAvailable'>;
+  label?: string;
+  referenceLabel?: string;
+}) {
   useAmountPrivacy();
   const points = data.points;
   const values = points.flatMap((p) => [p.index, ...(p.reference === null ? [] : [p.reference])]);
@@ -453,21 +478,21 @@ function IndexChart({ data }: { data: InflationReport }) {
       <ChartSvg
         width={W}
         height={H}
-        label={`Persönlicher Preisindex, ${monthShort(points[0]!.month)} gleich 100, zuletzt ${index1(lastPoint.index)}.`}
+        label={`${label}, ${monthShort(points[0]!.month)} gleich 100, zuletzt ${index1(lastPoint.index)}.`}
         testId="inflation-chart"
         points={chartPoints(
           points.map((p) => p.month),
           x,
           [
             {
-              name: 'Persönlicher Preisindex',
+              name: label,
               values: points.map((p) => p.index),
               format: index1,
             },
             ...(data.referenceAvailable
               ? [
                   {
-                    name: 'Verbraucherpreisindex',
+                    name: referenceLabel,
                     values: points.map((p) => p.reference),
                     color: 'var(--ink-3)',
                     format: index1,

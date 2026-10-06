@@ -2,6 +2,7 @@ import { mulDivRound, ratioBp, shareBps } from '../wealth/int';
 import { addMonths } from '../date';
 import type { Rhythm } from '../schedule';
 import type { ContractVersion } from './contracts';
+import { coicopLabel, cpiPriceLevels, type CoicopShare } from './coicop';
 
 /**
  * Persönliche Inflation (2.4): a chained price index (Laspeyres) of the household's own
@@ -146,6 +147,120 @@ const round4 = (value: number) => Math.round(value * 10_000) / 10_000;
 
 const sumSpend = (item: InflationItem, months: ReadonlyArray<string>) =>
   months.reduce((a, m) => a + (item.spend[m] ?? 0), 0);
+
+export interface InflationObservation {
+  month: string;
+  cents: number;
+  count: number;
+  /** Comparable physical units in a common integer scale, recorded for the whole category/month. */
+  units?: number;
+}
+
+/** Independent category selection; all price chaining remains in personalInflation. */
+export function categoryInflationExplorer(input: {
+  available: ReadonlyArray<string>;
+  categories: ReadonlyArray<{ id: string; name: string; coicop: ReadonlyArray<CoicopShare> }>;
+  items: ReadonlyArray<InflationItem>;
+  observations: Readonly<Record<string, ReadonlyArray<InflationObservation>>>;
+  reference: Readonly<Record<string, number>> | null;
+  subindices: Readonly<Record<string, Readonly<Record<string, number>>>>;
+}) {
+  const available = input.available.filter((m) => m >= '2023-10');
+  return input.categories.map((category) => {
+    const observations = input.observations[category.id] ?? [];
+    const units =
+      observations.length > 0 &&
+      observations.every((o) => Number.isSafeInteger(o.units) && (o.units ?? 0) > 0);
+    const unitBase = observations.find((o) => o.month === '2023-10' && o.cents > 0);
+    const prices = input.items.filter((i) => i.categoryId === category.id && i.source !== 'cpi');
+    const source = prices.length ? 'contracts' : units ? 'unit-price' : 'booking-average';
+    const items = prices.length
+      ? prices
+      : [
+          {
+            id: category.id,
+            categoryId: category.id,
+            name: category.name,
+            class: null,
+            source: 'bookings' as const,
+            level: Object.fromEntries(
+              observations.map((o) => [
+                o.month,
+                o.cents > 0 && o.count > 0
+                  ? units
+                    ? unitBase
+                      ? // Unit price relatives are indices, not stored money. Normalize before
+                        // rounding so a common micro-unit scale cannot erase sub-cent prices.
+                        Math.round(
+                          10000 * (o.cents / unitBase.cents) * (unitBase.units! / o.units!),
+                        )
+                      : null
+                    : mulDivRound(o.cents, 1, o.count)
+                  : null,
+              ]),
+            ),
+            spend: Object.fromEntries(observations.map((o) => [o.month, o.cents])),
+          },
+        ];
+    const reference = category.coicop.length
+      ? cpiPriceLevels(available, category.coicop, input.subindices)
+      : input.reference;
+    // Do not relabel a later first observation as the budget-start baseline.
+    const atBase = available[0] === '2023-10' && items.some((i) => (i.level['2023-10'] ?? 0) > 0);
+    const result = personalInflation({
+      available: atBase ? available : [],
+      items,
+      baseConsumptionCents: 0,
+    });
+    const baseReference = reference?.['2023-10'];
+    const points = result.points.map((p) => ({
+      ...p,
+      reference:
+        baseReference && reference?.[p.month] != null
+          ? round4((100 * reference[p.month]!) / baseReference)
+          : null,
+    }));
+    const last = points.at(-1);
+    const ownChangeBp = last ? Math.round((last.index - 100) * 100) : null;
+    const referenceChangeBp =
+      last?.reference != null ? Math.round((last.reference - 100) * 100) : null;
+    const base = observations.find((o) => o.month === '2023-10');
+    const end = observations.find((o) => o.month === last?.month);
+    const spendChangeBp =
+      base && end && base.cents > 0 && end.cents > 0
+        ? Math.round((end.cents / base.cents - 1) * 10000)
+        : null;
+    // Only a complete booking-average/unit series supports this additive decomposition.
+    // The interaction belongs to volume: Δspend = Δprice + priceRelative × Δquantity.
+    const volumeBp =
+      !prices.length && spendChangeBp !== null && ownChangeBp !== null
+        ? spendChangeBp - ownChangeBp
+        : null;
+    const spendingDifferenceBp =
+      spendChangeBp !== null && referenceChangeBp !== null
+        ? spendChangeBp - referenceChangeBp
+        : null;
+    return {
+      id: category.id,
+      name: category.name,
+      source,
+      points,
+      referenceLabel: category.coicop.length
+        ? `VPI-Teilindex ${coicopLabel(category.coicop)}`
+        : 'Gesamt-VPI (kein Teilindex)',
+      ownChangeBp,
+      referenceChangeBp,
+      differenceBp:
+        ownChangeBp !== null && referenceChangeBp !== null ? ownChangeBp - referenceChangeBp : null,
+      volumeBp,
+      spendingDifferenceBp,
+      volumeShareBp:
+        volumeBp !== null && spendingDifferenceBp
+          ? Math.round((volumeBp / spendingDifferenceBp) * 10000)
+          : null,
+    };
+  });
+}
 
 export function personalInflation(input: {
   /** Full months, ascending; at least 13 are needed for a 12-month change. */
