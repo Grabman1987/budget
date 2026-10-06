@@ -214,6 +214,7 @@ describe('GET /heute', () => {
         'nextSteps',
         'pace',
         'pinned',
+        'planningAccuracy',
         'stand',
         'upcoming14',
       ].sort(),

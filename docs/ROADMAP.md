@@ -648,6 +648,12 @@ Owner feedback 2026-10-04: spending/cost reports 1.4/1.10/2.3–2.6/3.4–3.5 an
 
 Method, limits and owner steps: [inflation basket](inflation-basket.md#cpi-sub-index-method-part-b-2026-10-05).
 
+### Owner planning hit rate — 2026-10-05
+
+- [x] Report 1.11 Budgettreue: additive `plan_snapshot`, shared Pace capture, nightly idempotence/retry and conservative per-month backfill status.
+- [x] Closed-month forecast/actual, exact 5% hits, six-calendar-month summary, monthly deviation bars, category drilldown and Heute copy after three comparable months; synthetic unit/API/component/E2E coverage.
+- [ ] Required CI, Linux visual review and owner month-end/data acceptance. See [planning hit rate](planning-accuracy.md).
+
 ### Report 2.4 — category explorer, part B2 (owner 2026-10-05, evening)
 
 - [x] Separate Warenkorb vs. VPI and Kategorie-Explorer; multi-select defaults to basket categories and does not change headline membership. Category lines and neutral pp differences use October 2023 = 100; missing baseline/reference stays unavailable.

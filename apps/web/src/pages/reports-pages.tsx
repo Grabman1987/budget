@@ -39,6 +39,7 @@ import { JahresreportPage } from '../reports/jahresreport-page';
 import { ExplorerReportPage } from '../reports/explorer-report';
 import { SpendingAnalysisReport } from '../reports/spending-analysis-report';
 import { BudgetAdherenceReportPage } from '../reports/budget-adherence-report';
+import { PlanningAccuracyReportPage } from '../reports/planning-accuracy-report';
 import { ContractsReportPage } from '../reports/contracts-report';
 import { BankCostsReportPage } from '../reports/bank-costs-report';
 import { PersonalInflationReport } from '../reports/personal-inflation-report';
@@ -201,6 +202,8 @@ export function ReportPage({ reportId }: { reportId: string }) {
   if (report.id === 'vermoegen-schulden') return <AssetsDebtsReport report={report} meta={meta} />;
   if (report.id === 'ausgaben') return <SpendingAnalysisReport report={report} meta={meta} />;
   if (report.id === 'budgettreue') return <BudgetAdherenceReportPage report={report} meta={meta} />;
+  if (report.id === 'planungstreue')
+    return <PlanningAccuracyReportPage report={report} meta={meta} />;
   if (report.id === 'abos') return <ContractsReportPage report={report} meta={meta} />;
   if (report.id === 'kosten') return <BankCostsReportPage report={report} meta={meta} />;
   if (report.id === 'inflation') return <PersonalInflationReport report={report} meta={meta} />;
