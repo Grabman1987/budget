@@ -19,8 +19,9 @@ test('Plan income estimate, targets and unfunded category navigation', async ({ 
   await expect(buttons).toHaveCount(data.unfundedCategoryIds.length);
   await buttons.first().focus();
   await page.keyboard.press('Enter');
-  await expect(page.getByRole('dialog')).toBeVisible();
-  await page.keyboard.press('Escape');
+  await expect(page).toHaveURL(/\/plan\/monat\/envelope\//);
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+  await page.goBack();
   for (const theme of ['light', 'dark'] as const) {
     await page.evaluate((value) => {
       document.documentElement.dataset['theme'] = value;

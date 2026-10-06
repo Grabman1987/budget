@@ -7,6 +7,15 @@
 - [x] Synthetic domain/API/component coverage and one desktop/mobile E2E scenario; no local baseline regeneration.
 - [ ] Pinned Linux visual review, CI and owner acceptance. Affected screenshots: Heute, Plan › Monat and Monats-One-Pager (desktop/mobile, light/dark); One-Pager print layout also needs review.
 
+### Unterseiten statt Seitenpanels — owner decision 2026-10-05
+
+- [x] Complete web inventory with a replacement decision and explicit open scope ([inventory](no-side-panels-1005.md)).
+- [x] Plan › Monat: envelope detail and monthly income URLs, breadcrumb/back, legacy category links, full-width inline summary.
+- [x] Envelope assigning/moving/covering uses the existing input dialog; financial guards and undo remain intact.
+- [x] Synthetic red/green unit and browser-back/scroll, direct-link and dialog-focus regressions.
+- [ ] Remaining inventory, Linux baseline review and owner desktop/phone acceptance.
+
+
 ### UX-3b — Shared touch controls (owner feedback 2026-10-05)
 
 - [x] Shared 44 × 44 px control floor for coarse pointers and phone widths, including separate booking-row selection/flag areas.
@@ -14,6 +23,8 @@
 - [x] Synthetic unit and bounding-box/hit-test phone regressions; [scope and baseline list](ux-tap-targets-1005.md).
 - [x] Final local check phases (336 files / 3,175 tests), production build and affected Chromium/WebKit browser checks; [verification evidence](ux-tap-targets-1005.md).
 - [ ] Pinned Linux screenshot review and owner phone acceptance (see delivery evidence).
+
+
 
 ### Heute daily budget — owner 05.10.2026
 
@@ -654,6 +665,12 @@ Owner feedback 2026-10-04: spending/cost reports 1.4/1.10/2.3–2.6/3.4–3.5 an
 - [ ] PR/CI and owner mapping/design acceptance. No private data, baseline regeneration, migration, provider credentials or automatic bookings.
 
 Method, limits and owner steps: [inflation basket](inflation-basket.md#cpi-sub-index-method-part-b-2026-10-05).
+
+### Owner planning hit rate — 2026-10-05
+
+- [x] Report 1.11 Budgettreue: additive `plan_snapshot`, shared Pace capture, nightly idempotence/retry and conservative per-month backfill status.
+- [x] Closed-month forecast/actual, exact 5% hits, six-calendar-month summary, monthly deviation bars, category drilldown and Heute copy after three comparable months; synthetic unit/API/component/E2E coverage.
+- [ ] Required CI, Linux visual review and owner month-end/data acceptance. See [planning hit rate](planning-accuracy.md).
 
 ### Report 2.4 — category explorer, part B2 (owner 2026-10-05, evening)
 

@@ -43,7 +43,13 @@ export function IncomePanel({
   );
 }
 
-function IncomeBody({ month, bookedCents }: { month: string; bookedCents?: number | undefined }) {
+export function IncomeBody({
+  month,
+  bookedCents,
+}: {
+  month: string;
+  bookedCents?: number | undefined;
+}) {
   useAmountPrivacy();
   const income = useQuery(incomeQuery(month));
   if (income.isPending) return <LoadingNote what="Einnahmen" />;

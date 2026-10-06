@@ -102,6 +102,13 @@ export const REPORT_GROUPS: ReadonlyArray<ReportGroup> = [
       'Monatstabelle, Säulen und Nettolinie',
       'period',
     ],
+    [
+      'planungstreue',
+      'Budgettreue',
+      'Wie treffsicher ist die Hochrechnung am 15.?',
+      'Monatliche Abweichungsbalken, Prognose/Ist-Tabelle',
+      'month',
+    ],
   ]),
   group('ausgaben', 2, 'Ausgaben und Plan', [
     [

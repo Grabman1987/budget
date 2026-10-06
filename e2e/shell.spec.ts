@@ -118,7 +118,7 @@ test.describe('routes', () => {
     page,
   }) => {
     await page.goto('/reports');
-    await expect(page.locator('.rcat-row')).toHaveCount(33);
+    await expect(page.locator('.rcat-row')).toHaveCount(34);
     await expect(page.locator('.rcat-grp')).toHaveCount(5);
     await expect(page.locator('.rcat-row .col-pos').first()).toHaveText('1.1');
     await expect(page.locator('.rcat-row .col-pos').last()).toHaveText('5.5');

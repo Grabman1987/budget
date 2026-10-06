@@ -27,6 +27,7 @@ export interface HeuteOccurrence {
 }
 
 export interface Heute extends WithValuationNotes {
+  planningAccuracy?: { count: number; hits: number; meanAbsoluteBp: number | null };
   dailyBudget: { remainingDays: number; perDayCents: number | null };
   stand: {
     today: string;
