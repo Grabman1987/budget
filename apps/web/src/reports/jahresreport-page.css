@@ -319,6 +319,7 @@
   body:has(.ov-sheets) .skip-link,
   body:has(.ov-sheets) .titleblock,
   body:has(.ov-sheets) .registers,
+  body:has(.ov-sheets) .report-verdict,
   body:has(.ov-sheets) .ov-noprint {
     display: none !important;
   }
