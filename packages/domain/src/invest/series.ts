@@ -223,8 +223,15 @@ export function pickTradePrice(
 ): PriceChoice | undefined {
   let before: (typeof trades)[number] | undefined;
   let after: (typeof trades)[number] | undefined;
+  const splitDays: string[] = [];
   for (const t of trades) {
-    if (!['buy', 'sell', 'delivery_in', 'delivery_out'].includes(t.kind) || t.unitsE8 === 0)
+    if (t.kind === 'split' && t.unitsE8 !== 0) splitDays.push(t.date);
+    // A zero-amount execution (e.g. a free delivery) has no price: fall through to the cost basis.
+    if (
+      !['buy', 'sell', 'delivery_in', 'delivery_out'].includes(t.kind) ||
+      t.unitsE8 === 0 ||
+      t.amountCents <= 0
+    )
       continue;
     if (t.date <= day) {
       if (!before || t.date >= before.date) before = t;
@@ -232,6 +239,11 @@ export function pickTradePrice(
   }
   const found = before ?? after;
   if (!found) return undefined;
+  // A split between the execution and the day changes the unit basis: the price no longer fits
+  // the units held, so leave it to the (split-aware) cost basis.
+  const [lo, hi] = found.date <= day ? [found.date, day] : [day, found.date];
+  if (splitDays.some((d) => (found.date <= day ? d >= lo && d <= hi : d > lo && d <= hi)))
+    return undefined;
   const units = BigInt(Math.abs(found.unitsE8));
   const scaled = BigInt(found.amountCents) * 10n ** 12n;
   const priceMicro = Number((scaled + units / 2n) / units);

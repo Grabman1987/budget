@@ -62,6 +62,21 @@ describe('implied trade valuation', () => {
     expect(value(position, '2026-01-06').incomplete).toEqual([]);
   });
 
+  it('skips zero-amount executions and executions on the other side of a split', () => {
+    const value = (p: PositionInput, day: string) =>
+      dailyValuation([p], [day], new Map()).totalCents;
+    const freeDelivery = { ...trades[0]!, kind: 'delivery_in' as const, amountCents: 0 };
+    expect(
+      value({ ...position, cost: { ...position.cost!, trades: [freeDelivery] } }, '2026-01-04'),
+    ).toEqual([800]);
+    const split = { ...trades[0]!, date: '2026-01-06', kind: 'split' as const, amountCents: 0 };
+    expect(pickTradePrice([...trades, split], '2026-01-07')).toBeUndefined();
+    expect(pickTradePrice([...trades, split], '2026-01-05')).toBeDefined();
+    expect(
+      pickTradePrice([trades[0]!, { ...split, date: '2026-01-02' }], '2026-01-01'),
+    ).toBeUndefined();
+  });
+
   it('uses trade currency and ignores splits and cash-only trades', () => {
     const p = {
       ...position,
@@ -70,7 +85,7 @@ describe('implied trade valuation', () => {
         currency: 'USD',
         trades: [
           ...trades,
-          { ...trades[0]!, date: '2026-01-06', kind: 'split' as const, amountCents: 0 },
+          { ...trades[0]!, date: '2026-01-02', kind: 'split' as const, amountCents: 0 },
           { ...trades[0]!, date: '2026-01-07', kind: 'dividend' as const, unitsE8: 0 },
         ],
       },
