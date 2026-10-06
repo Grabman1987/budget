@@ -46,6 +46,8 @@ export interface PaceFigures {
   spentCents: number;
   /** Plan bis heute. */
   planToDateCents: number;
+  /** Erwartet: planned total pro rata to today, independent of fixed-cost dates. */
+  expectedToDateCents: number;
   /** Spent minus plan; above 0 = over plan. */
   deltaCents: number;
   /** Prognose Monatsende. */
@@ -67,6 +69,8 @@ export interface PaceModel {
   todayDay: number;
   /** Planned cumulative spending, index 0..daysInMonth. */
   plan: number[];
+  /** Linear pro-rata planned total, index 0..daysInMonth. */
+  expected: number[];
   /** Actual cumulative spending, index 0..todayDay. */
   actual: number[];
   /** Previous month, cumulative, index 0..daysInMonth (holds its last value past its end). */
@@ -107,6 +111,7 @@ export function paceModel(input: PaceInput): PaceModel {
 
   const plan: number[] = [];
   for (let d = 0; d <= dim; d++) plan.push(fixedTo(d) + roundDiv(variablePlan * d, dim));
+  const expected = Array.from({ length: dim + 1 }, (_, d) => roundDiv(input.limitCents * d, dim));
 
   const actualFull = cumulative(input.spending, month, dim);
   const actual = actualFull.slice(0, todayDay + 1);
@@ -140,12 +145,14 @@ export function paceModel(input: PaceInput): PaceModel {
     daysInMonth: dim,
     todayDay,
     plan,
+    expected,
     actual,
     previous,
     fixedDays: [...new Set(fixed.map((f) => dayNumber(f.day)))].sort((a, b) => a - b),
     figures: {
       spentCents,
       planToDateCents,
+      expectedToDateCents: expected[todayDay] ?? 0,
       deltaCents,
       forecastEndCents: spentCents + openFixedCents + remainingVariable,
       forecastAvailable: todayDay === dim || (todayDay >= 1 && input.limitCents > 0),

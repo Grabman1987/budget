@@ -1,5 +1,9 @@
 import { resolvePortfolioRiskPolicy, type PortfolioRiskPolicy } from './portfolio-risk-policy';
-import { allocationInputsAsOf } from './allocation-inputs';
+import {
+  allocationInputsAsOf,
+  allocationSecuritiesAsOf,
+  type AllocationSecurity,
+} from './allocation-inputs';
 import type { AllocationQuality } from '@budget/domain';
 import { resolvedBandBp } from '@budget/domain';
 import { isNull } from 'drizzle-orm';
@@ -18,6 +22,7 @@ export interface PortfolioAllocationView {
   status: 'known' | 'empty' | 'unavailable' | 'nonpositive';
   missing: ('missing_price' | 'missing_fx')[];
   classes: {
+    assignedSecurities: AllocationSecurity[];
     id: string;
     name: string;
     targetBp: number | null;
@@ -42,6 +47,7 @@ export function portfolioAllocation(db: Executor, asOf: string): PortfolioAlloca
   );
   const policy = resolvePortfolioRiskPolicy(db, asOf, current.valueCents);
   const targets = new Map(policy.targets.map((row) => [row.assetClass, row]));
+  const assigned = allocationSecuritiesAsOf(db, asOf);
   const status =
     current.valueCents === null
       ? 'unavailable'
@@ -70,6 +76,7 @@ export function portfolioAllocation(db: Executor, asOf: string): PortfolioAlloca
       .map((row) => {
         const target = targets.get(row.id);
         return {
+          assignedSecurities: assigned.get(row.id) ?? [],
           id: row.id,
           name: row.name,
           targetBp: target?.targetBp ?? null,

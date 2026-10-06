@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { paceModel } from '../kpi/pace';
 import { heuteWindow, nextPayday } from './payday';
 import { paceForecastCurve } from './pace-forecast';
-import { changeBp, netWorthDays, netWorthParts } from './net-worth';
+import { changeBp, netWorthDays, netWorthParts, netWorthSides } from './net-worth';
 
 describe('nextPayday', () => {
   it.each([
@@ -91,6 +91,14 @@ describe('paceForecastCurve', () => {
 });
 
 describe('netWorthParts', () => {
+  it('splits the existing signed valuations into assets and liabilities to the cent, regardless of role', () => {
+    expect(netWorthSides([52_500_001, -49_000_000, 3, -7])).toEqual({
+      assetsCents: 52_500_004,
+      liabilitiesCents: 49_000_007,
+    });
+    expect(netWorthSides([])).toEqual({ assetsCents: 0, liabilitiesCents: 0 });
+    expect(netWorthSides([-101])).toEqual({ assetsCents: 0, liabilitiesCents: 101 });
+  });
   const parts = netWorthParts([
     { role: 'budget', valueCents: 149_700 },
     { role: 'budget', valueCents: -45_000 }, // card owed

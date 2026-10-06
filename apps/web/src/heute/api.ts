@@ -27,6 +27,17 @@ export interface HeuteOccurrence {
 }
 
 export interface Heute extends WithValuationNotes {
+  monthResult: { earnedCents: number; consumptionCents: number; savedCents: number };
+  budgetAnswer: {
+    spentCents: number;
+    plannedCents: number;
+    remainingCents: number;
+    day: number;
+    daysInMonth: number;
+  };
+  nearestGoal: { id: string; name: string; savedCents: number; remainingCents: number } | null;
+  planningAccuracy?: { count: number; hits: number; meanAbsoluteBp: number | null };
+  dailyBudget: { remainingDays: number; perDayCents: number | null };
   stand: {
     today: string;
     month: string;
@@ -65,6 +76,7 @@ export interface Heute extends WithValuationNotes {
     daysInMonth: number;
     todayDay: number;
     plan: number[];
+    expected: number[];
     actual: number[];
     income: number[];
     previous: number[];
@@ -74,6 +86,7 @@ export interface Heute extends WithValuationNotes {
     figures: {
       spentCents: number;
       planToDateCents: number;
+      expectedToDateCents: number;
       deltaCents: number;
       forecastEndCents: number;
       forecastAvailable: boolean;
@@ -119,6 +132,11 @@ export interface Heute extends WithValuationNotes {
   netWorth:
     | {
         liquidCents: number;
+        assetsCents: number;
+        liabilitiesCents: number;
+        monthChange:
+          | { deltaCents: number; investmentsInCents: number; marketCents: number }
+          | HeuteUnavailable;
         investedCents: number;
         receivableCents: number;
         debtCents: number;

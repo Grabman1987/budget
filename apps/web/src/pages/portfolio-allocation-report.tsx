@@ -132,6 +132,7 @@ function AllocationBody({ data }: { data: AllocationReport }) {
             <CompositionLegend groups={data.compositionGroups} />
           </div>
         )}
+        {data.classifiedCents === 0 && <CompositionLegend groups={data.compositionGroups} />}
         <ClassTable groups={data.compositionGroups} totalCents={data.classifiedCents} />
         <RegionTable data={data} />
       </section>
@@ -411,7 +412,10 @@ function CompositionLegend({ groups }: { groups: AllocationGroup[] }) {
         <div key={g.assetClassId} className={`alloc-ink ${inkOf(i)}`}>
           <div className="composition-line is-group">
             <span>
-              <i className="prep-swatch" aria-hidden="true" />
+              <i
+                className={`prep-swatch${g.valueCents === 0 ? ' is-empty' : ''}`}
+                aria-hidden="true"
+              />
               {g.name}
             </span>
             <strong>{eur(g.valueCents)}</strong>
@@ -420,8 +424,14 @@ function CompositionLegend({ groups }: { groups: AllocationGroup[] }) {
           {g.classes.map((c) => (
             <div key={c.assetClassId} className="composition-line is-class">
               <span>
-                <i className="prep-swatch sb-out" aria-hidden="true" />
+                <i
+                  className={`prep-swatch sb-out${c.valueCents === 0 ? ' is-empty' : ''}`}
+                  aria-hidden="true"
+                />
                 {c.name}
+                {c.valueCents === 0 && c.targetBp !== null && (
+                  <small className="unheld-target">0 € von Soll {bpText(c.targetBp)}</small>
+                )}
               </span>
               <span>{eur(c.valueCents)}</span>
               <span>{bpText(c.shareBp)}</span>
@@ -485,7 +495,10 @@ function ClassTable({ groups, totalCents }: { groups: AllocationGroup[]; totalCe
               <Fragment key={c.assetClassId}>
                 <tr className="is-class">
                   <td className="indent">
-                    <i className="prep-swatch sb-out" aria-hidden="true" />
+                    <i
+                      className={`prep-swatch sb-out${c.valueCents === 0 ? ' is-empty' : ''}`}
+                      aria-hidden="true"
+                    />
                     {c.name}
                   </td>
                   <td />
@@ -506,6 +519,13 @@ function ClassTable({ groups, totalCents }: { groups: AllocationGroup[]; totalCe
                       ) : (
                         <ProductLink id={p.securityId}>{p.name}</ProductLink>
                       )}
+                      {c.assignedSecurities?.some(
+                        (s) => s.securityId === p.securityId && s.kind === 'other',
+                      ) && (
+                        <small className="allocation-kind-hint">
+                          Typ „Sonstiges“ prüfen · im Wertpapier bearbeiten
+                        </small>
+                      )}
                     </td>
                     <td className="prep-muted">{p.depots.join(', ')}</td>
                     <td className="n">{eur(p.valueCents)}</td>
@@ -516,6 +536,19 @@ function ClassTable({ groups, totalCents }: { groups: AllocationGroup[]; totalCe
                     <td className="n">{percentText(p.ttwror12, { sign: true })}</td>
                   </tr>
                 ))}
+                {c.assignedSecurities
+                  ?.filter((s) => !s.held)
+                  .map((s) => (
+                    <tr key={`unheld:${s.securityId}`} className="allocation-unheld">
+                      <td className="product-indent" colSpan={8}>
+                        <ProductLink id={s.securityId}>{s.name}</ProductLink>
+                        <small>{s.isin ?? 'ISIN nicht hinterlegt'} · noch nicht gekauft</small>
+                        {s.kind === 'other' && (
+                          <small>Typ „Sonstiges“ prüfen · im Wertpapier bearbeiten</small>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
               </Fragment>
             ))}
           </tbody>

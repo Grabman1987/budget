@@ -22,6 +22,42 @@ const SPENDING: PaceSpending[] = [
   ...FIXED.filter((f) => f.day <= day(17)).map((f) => ({ day: f.day, cents: f.cents })),
 ];
 
+it.each([
+  ['2026-09-03', 30_000, 300_000],
+  ['2026-09-26', 260_000, 267_692],
+  ['2026-08-31', 0, 300_000],
+  ['2026-10-01', 300_000, 232_000],
+])(
+  'exposes pro-rata expectation and keeps the existing forecast on %s',
+  (today, expected, forecast) => {
+    const m = paceModel({
+      month: '2026-09',
+      today: String(today),
+      limitCents: 300_000,
+      fixed: [],
+      spending: [{ day: '2026-09-01', cents: 232_000 }],
+    });
+    expect(m.figures.expectedToDateCents).toBe(expected);
+    expect(m.expected[m.todayDay]).toBe(expected);
+    expect(m.expected[0]).toBe(0);
+    expect(m.expected[30]).toBe(300_000);
+    expect(m.figures.forecastEndCents).toBe(forecast);
+  },
+);
+
+it('rounds the pro-rata expectation to the cent independently of fixed-cost due dates', () => {
+  const m = paceModel({
+    month: '2026-02',
+    today: '2026-02-26',
+    limitCents: 100_001,
+    fixed: [{ day: '2026-02-01', cents: 70_000 }],
+    spending: [],
+  });
+  expect(m.figures.expectedToDateCents).toBe(92_858);
+  expect(m.expected[26]).toBe(92_858);
+  expect(m.figures.planToDateCents).toBe(97_858);
+});
+
 describe('paceModel: prototype sample, September 2026 (today 17.09.)', () => {
   const m = paceModel({
     month: '2026-09',
@@ -36,6 +72,7 @@ describe('paceModel: prototype sample, September 2026 (today 17.09.)', () => {
     expect(m.figures).toEqual({
       spentCents: 205_234,
       planToDateCents: 237_634,
+      expectedToDateCents: 187_000,
       deltaCents: -32_400,
       forecastEndCents: 272_824,
       forecastAvailable: true,

@@ -1,0 +1,30 @@
+.pi-explorer-selection {
+  border: 0;
+  padding: 0;
+  margin-block: 16px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 20px;
+}
+.pi-explorer-selection legend {
+  margin-bottom: 8px;
+  font-weight: 600;
+}
+.pi-explorer-selection label {
+  display: flex;
+  align-items: center;
+  min-height: 44px;
+  gap: 8px;
+  overflow-wrap: anywhere;
+}
+.pi-explorer-selection input {
+  accent-color: var(--line);
+}
+.pi-explorer-category {
+  border-top: 1px solid var(--rule);
+  padding-block: 20px;
+}
+.pi-explorer-category h3 {
+  font-size: 18px;
+  margin: 0;
+}
