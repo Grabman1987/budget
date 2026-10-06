@@ -40,7 +40,7 @@
 .savings-history li {
   padding: 10px 0;
   border-bottom: 1px solid var(--line);
-  font-size: 13px;
+  font-size: var(--fs-body);
 }
 .savings-history p {
   margin: 4px 0 0;

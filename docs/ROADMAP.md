@@ -1,5 +1,11 @@
 # Roadmap
 
+### UX-6 - Typography and radii (owner task 2026-10-05)
+
+- [x] Off-scale CSS values mapped to DESIGN.md tokens, preserving chart/emoji geometry.
+- [x] Dependency-free CSS scale lint in CI, synthetic unit and desktop/phone theme regressions; [scope and affected baselines](ux-typeset-1005.md).
+- [ ] Pinned Linux visual review, CI and owner acceptance.
+
 ### F1 — Guided month close, steps 1–3 (owner 2026-10-04)
 
 - [x] Monthly route, persisted stepper, live inbox/reconciliation/overspending status and reasoned exceptions; reuse audited actions and manual account valuations.
