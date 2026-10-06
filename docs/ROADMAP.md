@@ -6,7 +6,8 @@
 - [x] Heute entry on the first/last five days, Plan entry and provisional global-search entry; phone has one active step and sticky continuation.
 - [x] Synthetic API status/resume/undo/validation and stepper coverage. [Plan and contract](month-close.md).
 - [x] Typecheck, lint, production/E2E builds and two desktop/phone browser runs with synthetic [evidence](evidence/month-close-f1/README.md).
-- [ ] Full local unit gate (failed checks and host memory pressure), CI, final rebase and Git delivery; commit/branch metadata writes are denied in this worktree.
+- [x] Full local unit gate (354 files / 3272 tests), lint, typecheck, build:e2e and month-close E2E (desktop + mobile) verified on the final tree.
+- [ ] CI and final rebase before merge.
 - [ ] Job E palette/verdict integration (absent from the fetched main baseline), F2 steps 4–5 and owner parallel-operation Gate 4 acceptance.
 
 ### Heute three answer cards — owner 05.10.2026
