@@ -11,7 +11,7 @@ import {
   cx,
   type DimensionChainTerm,
 } from '@budget/ui';
-import { cents, coverShortfall, todayInVienna } from '@budget/domain';
+import { cents, coverShortfall, overspentEnvelopes, todayInVienna } from '@budget/domain';
 import { useQueries, useQuery } from '@tanstack/react-query';
 import { useSearch } from '@tanstack/react-router';
 import {
@@ -219,8 +219,7 @@ function PlanBody({
     });
   const tba = s.toBeAssignedCents;
   const sug = distribute ? suggestions(rows, tba) : {};
-  const urgent = rows.filter(isCashOver);
-  const credit = rows.filter((r) => !isCashOver(r) && r.creditOverspentCents > 0);
+  const urgent = overspentEnvelopes({ envelopes: rows });
 
   const setAssigned = (r: PlanRow, value: number) =>
     value !== r.assignedCents &&
@@ -383,11 +382,11 @@ function PlanBody({
             </AppLink>
           </section>
         )}
-        {(urgent.length > 0 || credit.length > 0 || tba < 0) && (
+        {(urgent.length > 0 || tba < 0) && (
           <section className="triage triage-compact" aria-labelledby="triage-title">
             <div className="head">
               <h2 id="triage-title">
-                {urgent.length + credit.length} Envelopes überzogen ·{' '}
+                {urgent.length} Envelopes überzogen ·{' '}
                 {eur(rows.reduce((sum, r) => sum + r.overspentCents, 0))} zu decken
               </h2>
             </div>
@@ -410,7 +409,7 @@ function PlanBody({
                 </p>
               </div>
             )}
-            {urgent.length + credit.length > 0 && (
+            {urgent.length > 0 && (
               <div className="cover-all-controls">
                 <label className="sr-only" htmlFor="cover-all-source">
                   Quelle für alle Überziehungen
