@@ -8,6 +8,7 @@
 - [x] Synthetic red/green unit and browser-back/scroll, direct-link and dialog-focus regressions.
 - [ ] Remaining inventory, Linux baseline review and owner desktop/phone acceptance.
 
+
 ### UX-3b — Shared touch controls (owner feedback 2026-10-05)
 
 - [x] Shared 44 × 44 px control floor for coarse pointers and phone widths, including separate booking-row selection/flag areas.
@@ -15,6 +16,7 @@
 - [x] Synthetic unit and bounding-box/hit-test phone regressions; [scope and baseline list](ux-tap-targets-1005.md).
 - [x] Final local check phases (336 files / 3,175 tests), production build and affected Chromium/WebKit browser checks; [verification evidence](ux-tap-targets-1005.md).
 - [ ] Pinned Linux screenshot review and owner phone acceptance (see delivery evidence).
+
 
 
 ### Heute daily budget — owner 05.10.2026
