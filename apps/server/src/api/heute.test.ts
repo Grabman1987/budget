@@ -102,6 +102,17 @@ async function call(method: string, path: string, body?: unknown) {
   return { status: res.status, body: (await res.json()) as any };
 }
 
+it('Heute and One-Pager expose the same cent-exact expectation and existing forecast', async () => {
+  const live = (await call('GET', '/heute?month=2026-03')).body.pace;
+  const report = (await call('GET', '/reports/month/onepager?month=2026-03')).body.pace;
+  expect(live.figures.expectedToDateCents).toBe(75_484);
+  expect(live.expected[18]).toBe(75_484);
+  expect(live.expected.at(-1)).toBe(live.figures.limitCents);
+  expect(live.forecast[0]).toBe(live.figures.spentCents);
+  expect(live.forecast.at(-1)).toBe(live.figures.forecastEndCents);
+  expect(report).toEqual(live);
+});
+
 describe('GET /heute', () => {
   it('derives daily cents from the existing lead and rule-based payday, independent of chart period', async () => {
     const month = (await call('GET', '/heute?period=month')).body;

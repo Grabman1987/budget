@@ -67,6 +67,7 @@ export interface Heute extends WithValuationNotes {
     daysInMonth: number;
     todayDay: number;
     plan: number[];
+    expected: number[];
     actual: number[];
     income: number[];
     previous: number[];
@@ -76,6 +77,7 @@ export interface Heute extends WithValuationNotes {
     figures: {
       spentCents: number;
       planToDateCents: number;
+      expectedToDateCents: number;
       deltaCents: number;
       forecastEndCents: number;
       forecastAvailable: boolean;
