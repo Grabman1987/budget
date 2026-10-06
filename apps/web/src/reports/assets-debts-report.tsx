@@ -61,6 +61,21 @@ export function AssetsDebtsReport({ report, meta }: { report: ReportEntry; meta:
   const [selected, select] = useSelectedMonth(history);
   return (
     <PageFrame
+      verdict={
+        history && !query.isFetching && !query.isError
+          ? {
+              reportId: report.id,
+              period: `${history.from}..${history.to}`,
+              estimated: history.months.some((m) => m.incomplete),
+              metric: {
+                label: 'Nettovermögensänderung',
+                value: history.change.deltaCents,
+                unit: 'money',
+                better: 'higher',
+              },
+            }
+          : undefined
+      }
       meta={meta}
       title={report.name}
       subtitle={`${report.pos} · ${report.question}`}

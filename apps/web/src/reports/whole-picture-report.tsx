@@ -34,7 +34,9 @@ import { useZeitraum } from '../wealth/zeitraum';
 import { useElementWidth } from '../charts/use-element-width';
 import { chartPercent } from '../charts/tooltip-data';
 import { PeriodQuickSelect } from './period-quick-select';
-import { monthLong, monthNameOnly } from './overview-format';
+import { monthLong } from './overview-format';
+import { VerdictLine } from './verdict-line';
+import { wholeVerdictFacts } from './verdict-facts';
 import './whole-picture-report.css';
 
 type Data = WholePicture & WithValuationNotes;
@@ -68,18 +70,7 @@ const cellText = (row: Row, c: (typeof columns)[number], estimated: boolean) => 
 };
 
 export function WholePictureVerdict({ row, estimated = false }: { row: Row; estimated?: boolean }) {
-  useAmountPrivacy();
-  return (
-    <p className="whole-verdict" data-testid="whole-verdict">
-      {monthNameOnly(row.month)}: {eur(row.savedCents)} gespart, Markt{' '}
-      <span className={tone(row.marketCents)}>
-        {estimated ? '≈' : ''}
-        {eur(row.marketCents, { sign: true })} {verdict(row.marketCents)}
-      </span>
-      , Nettovermögen {estimated ? '≈' : ''}
-      {eur(row.deltaCents, { sign: true })}.
-    </p>
-  );
+  return <VerdictLine facts={wholeVerdictFacts(row, estimated)} testId="whole-verdict" />;
 }
 
 export function WholePictureReport({ report, meta }: { report: ReportEntry; meta: PageMeta }) {
@@ -118,6 +109,18 @@ export function WholePictureReport({ report, meta }: { report: ReportEntry; meta
   );
   return (
     <PageFrame
+      verdict={
+        data && !query.isFetching && !query.isError
+          ? {
+              ...wholeVerdictFacts(
+                data.latestFullMonth ?? { ...data.totals, month: `${data.from}..${data.to}` },
+                Boolean(data.incomplete?.length),
+              ),
+              unavailable: data.rows.length === 0,
+            }
+          : undefined
+      }
+      verdictTestId="whole-verdict"
       meta={meta}
       title={report.name}
       subtitle={`${report.pos} · ${report.question}`}
@@ -225,12 +228,6 @@ function Body({ data }: { data: Data }) {
           Sonstiges und werden nicht nochmals addiert. Sonstiges enthält die übrigen
           Vermögensbewegungen, etwa Bewertungen, Erstattungen und Rundung.
         </p>
-        {data.latestFullMonth && (
-          <WholePictureVerdict
-            row={data.latestFullMonth}
-            estimated={estimated(data.latestFullMonth)}
-          />
-        )}
       </section>
       <section className="card whole-section" aria-label="Monatsverlauf">
         <h2>Sparen, Markt und Nettovermögen</h2>

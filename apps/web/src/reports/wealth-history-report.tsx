@@ -32,6 +32,27 @@ export function WealthHistoryReport({ report, meta }: { report: ReportEntry; met
   const history = query.isSuccess ? query.data : undefined;
   return (
     <PageFrame
+      verdict={
+        history && !query.isFetching && !query.isError
+          ? {
+              reportId: report.id,
+              period: `${history.from}..${history.to}`,
+              estimated: Boolean(history.incomplete?.length),
+              metric: {
+                label: 'Nettovermögensänderung',
+                value: history.chain.deltaCents,
+                unit: 'money',
+                better: 'higher',
+              },
+              marketCents: history.chain.marketCents,
+              ownCents: history.chain.ownCents,
+              netWorth: {
+                currentCents: history.chain.nowCents,
+                previousCents: history.chain.startCents,
+              },
+            }
+          : undefined
+      }
       meta={meta}
       title={report.name}
       subtitle={`${report.pos} · ${report.question}`}

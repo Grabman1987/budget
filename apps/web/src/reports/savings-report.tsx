@@ -38,6 +38,7 @@ export function SavingsReport({ report, meta }: { report: ReportEntry; meta: Pag
       report={report}
       meta={meta}
       through="full"
+      verdictPeriod={period}
       currentAllowed={period.includes('..')}
       query={query}
       className="savings-report"

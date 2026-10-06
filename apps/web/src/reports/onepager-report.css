@@ -506,7 +506,8 @@
       .toast-region,
       .sr-only
     ),
-  body:has(.psheet-wrap) .mrep > :not(.psheet-wrap) {
+  body:has(.psheet-wrap) .mrep > :not(.psheet-wrap),
+  body:has(.psheet-wrap) .sheet > .report-verdict {
     display: none !important;
   }
   body:has(.psheet-wrap) :is(.app, .main, .sheet) {

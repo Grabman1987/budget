@@ -21,6 +21,8 @@ import { NetWorthMini } from './month-charts';
 import { onePagerQuery, type OnePagerData } from './month-api';
 import { MonthReportFrame, shortMonth, useReportMonth } from './month-frame';
 import './onepager-report.css';
+import { onePagerVerdictFacts } from './verdict-facts';
+import { VerdictLine } from './verdict-line';
 
 const CLASSES = ['need', 'want', 'future'] as const;
 const SOLL = { need: 50, want: 30, future: 20 } as const;
@@ -37,6 +39,7 @@ export function OnePagerReport({ report, meta }: { report: ReportEntry; meta: Pa
   const data = query.data;
   return (
     <MonthReportFrame
+      verdict={data && !query.isFetching && !query.isError ? onePagerVerdictFacts(data) : undefined}
       report={report}
       meta={meta}
       month={month}
@@ -99,6 +102,7 @@ function Sheet({ data }: { data: OnePagerData }) {
               </span>
             </div>
           </header>
+          <VerdictLine facts={onePagerVerdictFacts(data)} />
           <DimensionChain
             label="Maßkette des Monats"
             precision="euro"

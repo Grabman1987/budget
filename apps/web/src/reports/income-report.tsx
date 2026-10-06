@@ -47,6 +47,25 @@ export function IncomeReport({ report, meta }: { report: ReportEntry; meta: Page
   const data = query.data;
   return (
     <MonthReportFrame
+      verdict={
+        data && !query.isFetching && !query.isError
+          ? {
+              reportId: report.id,
+              period: data.month,
+              partial: data.partial,
+              unavailable: data.beforeRecords,
+              metric: {
+                label: 'Einnahmen',
+                value: data.income.earnedCents,
+                unit: 'money',
+                better: 'higher',
+              },
+              comparisons: [
+                { reference: 'Monatsdurchschnitt', value: data.window.totalAverageCents },
+              ],
+            }
+          : undefined
+      }
       report={report}
       meta={meta}
       month={month}

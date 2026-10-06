@@ -44,6 +44,19 @@ export function PersonalInflationReport({ report, meta }: { report: ReportEntry;
   const data = query.data && !query.isFetching ? query.data : undefined;
   return (
     <PageFrame
+      verdict={
+        data && !query.isError
+          ? {
+              reportId: report.id,
+              period: data.toMonth ?? '',
+              metric: {
+                label: 'Eigene Preisänderung',
+                value: data.latestComparison?.ownBp ?? null,
+                unit: 'percent',
+              },
+            }
+          : undefined
+      }
       meta={meta}
       title={report.name}
       subtitle={`${report.pos} · ${report.question}`}

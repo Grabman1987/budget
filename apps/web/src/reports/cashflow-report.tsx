@@ -30,6 +30,20 @@ export function CashflowReportPage({ report, meta }: { report: ReportEntry; meta
   const window = data?.windowMonths ?? [];
   return (
     <PageFrame
+      verdict={
+        data && !query.isFetching && !query.isError
+          ? {
+              reportId: report.id,
+              period: `${data.windowMonths[0]}..${data.windowMonths.at(-1)}`,
+              metric: {
+                label: 'Sparbetrag im Zeitraum',
+                value: data.totals.netCents,
+                unit: 'money',
+                better: 'higher',
+              },
+            }
+          : undefined
+      }
       meta={meta}
       title={report.name}
       subtitle={`${report.pos} · ${report.question}`}

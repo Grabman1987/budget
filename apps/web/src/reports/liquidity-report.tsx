@@ -79,6 +79,20 @@ export function LiquidityReportPage({ report, meta }: { report: ReportEntry; met
   const view = query.isSuccess ? query.data : undefined;
   return (
     <PageFrame
+      verdict={
+        view && !query.isFetching && !query.isError
+          ? {
+              reportId: report.id,
+              period: `${view.asOf}..${view.report?.verdictEnd}`,
+              metric: {
+                label: 'Tiefster Prognosestand',
+                value: view.report?.low?.cents ?? null,
+                unit: 'money',
+                better: 'higher',
+              },
+            }
+          : undefined
+      }
       meta={meta}
       title={report.name}
       subtitle={`${report.pos} · ${report.question}`}

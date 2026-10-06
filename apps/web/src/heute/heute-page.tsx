@@ -47,6 +47,8 @@ import { savingsProposalsQuery } from '../wealth/savings-api';
 import { sourceMoney } from '../wealth/trade-api';
 import { AnswerCards } from './answer-cards';
 import { DailyBudgetLine } from './charts';
+import { VerdictLine } from '../reports/verdict-line';
+import { heuteVerdictFacts } from '../reports/verdict-facts';
 
 const pct = new Intl.NumberFormat('de-AT', { maximumFractionDigits: 2 });
 const STATUS: Record<string, string> = {
@@ -146,6 +148,7 @@ function HeuteBody({ data }: { data: Heute }) {
         chainOpen={chainOpen}
         onBudgetClick={() => setChainOpen((open) => !open)}
       />
+      <VerdictLine facts={heuteVerdictFacts(data)} />
       <AttentionBar data={data} />
       <section className="heute-section heute-pace" aria-labelledby="heute-pace-title">
         <SectionHead
