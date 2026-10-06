@@ -8,7 +8,15 @@ import { fetchAuthStatus } from './api';
 export const DEFAULT_STALE_MS = 20_000;
 /** One query client for the whole app (also used by the router guards). */
 export const queryClient = new QueryClient({
-  defaultOptions: { queries: { retry: shouldRetry, staleTime: DEFAULT_STALE_MS } },
+  defaultOptions: {
+    queries: {
+      retry: shouldRetry,
+      staleTime: DEFAULT_STALE_MS,
+      // Coming back to the window still reads again (the pages show a loading state then); the
+      // stale time only spares remounts and route changes.
+      refetchOnWindowFocus: 'always',
+    },
+  },
 });
 // Every successful write makes everything read so far stale (without refetching what is on screen:
 // the writer refetches what it knows it changed). The next visit of any page reads again, as it

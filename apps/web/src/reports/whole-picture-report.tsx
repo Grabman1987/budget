@@ -88,6 +88,8 @@ export function WholePictureReport({ report, meta }: { report: ReportEntry; meta
   const query = useQuery(
     queryOptions({
       queryKey: [...LEDGER_KEY, 'whole-picture', period],
+      // Stepping through periods reads each one again (the page is a period navigator).
+      staleTime: 0,
       retry: false,
       queryFn: () =>
         request<Data>('GET', `/api/overview/whole-picture?period=${encodeURIComponent(period)}`),
