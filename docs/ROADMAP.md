@@ -6,11 +6,35 @@
 - [x] Synthetic filter-count unit regression and phone 390 / desktop browser specs; existing account-filter specs adapted to the sheet.
 - [ ] CI, Linux visual review and owner phone acceptance; [scope and baseline list](ux-mobile-ledger-1005.md).
 
+### UX-6 - Typography and radii (owner task 2026-10-05)
+
+- [x] Off-scale CSS values mapped to DESIGN.md tokens, preserving chart/emoji geometry.
+- [x] Dependency-free CSS scale lint in CI, synthetic unit and desktop/phone theme regressions; [scope and affected baselines](ux-typeset-1005.md).
+- [ ] Pinned Linux visual review, CI and owner acceptance.
+
+### F1 — Guided month close, steps 1–3 (owner 2026-10-04)
+
+- [x] Monthly route, persisted stepper, live inbox/reconciliation/overspending status and reasoned exceptions; reuse audited actions and manual account valuations.
+- [x] Heute entry on the first/last five days, Plan entry and provisional global-search entry; phone has one active step and sticky continuation.
+- [x] Synthetic API status/resume/undo/validation and stepper coverage. [Plan and contract](month-close.md).
+- [x] Typecheck, lint, production/E2E builds and two desktop/phone browser runs with synthetic [evidence](evidence/month-close-f1/README.md).
+- [x] Full local unit gate (354 files / 3272 tests), lint, typecheck, build:e2e and month-close E2E (desktop + mobile) verified on the final tree.
+- [ ] CI and final rebase before merge.
+- [ ] Job E palette/verdict integration (absent from the fetched main baseline), F2 steps 4–5 and owner parallel-operation Gate 4 acceptance.
+
 ### UX-4a — One definition of overspent (owner 05.10.2026)
 
 - [x] Shared `overspentEnvelopes(month)`: negative available after existing carry rules; Heute, Plan, live inbox tasks and common badge agree, without duplicate stored warnings or card-account debt.
 - [x] Synthetic cent/carry, cash/card, duplicate-warning, cover/undo and consumer API regressions; desktop/mobile count and repair-link E2E spec.
 - [ ] CI, affected Linux screenshot review and owner acceptance; [scope and baseline list](ux-overspent-1005.md).
+
+### UX-3c - Phone chart/table overflow (owner feedback 2026-10-05)
+
+- [x] Local Liquidity/flow/year table scrolling with visible phone affordance and sticky first columns; existing Plan year stacked layout retained.
+- [x] Simplified vertical Geldfluss phone variant, width-aware Liquidity ticks, full-width Portfolio allocation tracks and complete mobile report headings.
+- [x] Synthetic component and 390 px browser regressions; [scope and baseline review](ux-mobile-overflow-1005.md).
+- [x] Full local check (351 files / 3,250 tests), production/E2E builds and focused browser checks (22 passed / 9 intentional desktop skips).
+- [ ] Required CI/Linux visual review and owner phone acceptance (see PR evidence).
 
 ### Plan › Monat quick assignment — owner 05.10.2026
 
@@ -18,6 +42,46 @@
 - [x] Leere füllen and selected Wie letzter Monat / Ø 3 Monate / Ziel via existing assignment/audit/undo path, capped in displayed sort order with exact shortfall.
 - [x] Synthetic cent/source, partial-fill, validation, rollback, stale-fill, undo/redo and German-copy regression tests; [contract](plan-ghost-1005.md).
 - [ ] CI, pinned Linux visual review and owner acceptance.
+
+### Heute three answer cards — owner 05.10.2026
+
+- [x] Three current answer cards reuse Vermögen, Gesamtübersicht, One-Pager, Leitmaß and Pace sources; nearest unfinished Sparziel reuses saved/missing cents and date ordering.
+- [x] Preserve UX-2 attention, Pace, net-worth chart, source drilldowns and remembered further details; replace the large top Leitmaß and duplicate compact wealth figures.
+- [x] Synthetic unit/API/component and six desktop/mobile E2E verifications, phone cards at most 120 px, production/E2E builds and lint.
+- [ ] Full local unit gate: unchanged import worker/CLI tests report SystemError in this Windows session; complete the gate before opening the PR.
+- [ ] CI, pinned Linux baseline review and owner acceptance; [scope and evidence](evidence/heute-cards-1005/README.md).
+
+### Pace time marker and projection header — owner 05.10.2026
+
+- [x] Shared Heute/One-Pager header, cent-exact pro-rata expectation, existing forecast, Ist / Erwartet / Deckel / Hochrechnung and shared tooltip; legends list drawn series only.
+- [x] Labelled current-month time marker on the pace chart and Plan › Monat variable category bars; no marker in other months.
+- [x] Synthetic domain/API/component coverage and one desktop/mobile E2E scenario; no local baseline regeneration.
+- [ ] Pinned Linux visual review, CI and owner acceptance. Affected screenshots: Heute, Plan › Monat and Monats-One-Pager (desktop/mobile, light/dark); One-Pager print layout also needs review.
+
+### Unterseiten statt Seitenpanels — owner decision 2026-10-05
+
+- [x] Complete web inventory with a replacement decision and explicit open scope ([inventory](no-side-panels-1005.md)).
+- [x] Plan › Monat: envelope detail and monthly income URLs, breadcrumb/back, legacy category links, full-width inline summary.
+- [x] Envelope assigning/moving/covering uses the existing input dialog; financial guards and undo remain intact.
+- [x] Synthetic red/green unit and browser-back/scroll, direct-link and dialog-focus regressions.
+- [ ] Remaining inventory, Linux baseline review and owner desktop/phone acceptance.
+
+
+### UX-3b — Shared touch controls (owner feedback 2026-10-05)
+
+- [x] Shared 44 × 44 px control floor for coarse pointers and phone widths, including separate booking-row selection/flag areas.
+- [x] Phone tab/segment typography above 13 px; named flag and close actions with visible touch labels.
+- [x] Synthetic unit and bounding-box/hit-test phone regressions; [scope and baseline list](ux-tap-targets-1005.md).
+- [x] Final local check phases (336 files / 3,175 tests), production build and affected Chromium/WebKit browser checks; [verification evidence](ux-tap-targets-1005.md).
+- [ ] Pinned Linux screenshot review and owner phone acceptance (see delivery evidence).
+
+
+
+### Heute daily budget — owner 05.10.2026
+
+- [x] Daily line below the Leitmaß from its existing cent-exact source and shared payday; today included, one day on payday itself, nonpositive alarm copy, hover/focus formula and phone wrapping.
+- [x] Synthetic domain/API and component regressions plus one desktop/mobile E2E scenario; no local screenshot baseline regeneration.
+- [ ] Pinned Linux visual review, CI and owner acceptance.
 
 ### Heute / R07 horizon — owner 05.10.2026
 
@@ -341,6 +405,8 @@ Expected payments, contacts with receivables, savings goals, rule set registered
 
 ### P3 — Posteingang basics
 
+- [x] E4: learn assignments on owner confirmation by normalized counterparty + direction; prefilled **Übernehmen** / **wie zuletzt bei …**, view/remove in Einstellungen › Zuordnungsregeln, last-choice replacement and grouped audit/undo; synthetic learning/matching/deletion/direction tests. Existing rule JSON reused, no migration or dependency; owner acceptance remains open.
+
 - [x] Actual queue and shell counter: one task per due nonzero unclassified budget booking plus unresolved stored warnings; no sample counter or legacy summary double count
 - [x] Konten › Posteingang and global desktop/mobile panel: categorize in the existing booking editor, confirm pending bookings, acknowledge stored warnings with audited undo/redo
 - [x] Shared ledger invalidation refreshes the queue, count and Heute reads after mutations/undo; safe empty/error/loading states and keyboard/touch actions
@@ -478,6 +544,15 @@ Price history (yfinance + Ariva, source per price), ECB rates, trades and holdin
 - [ ] Final local check/build/browser verification, draft PR and CI review; owner visual acceptance and private reconciliation.
 
 Contract and operator/owner steps: [portfolio composition](portfolio-composition.md).
+
+### Target classes without holdings — follow-up 2026-10-05
+
+- [x] Positive dated targets remain in the composition and Soll/Ist tables at zero held value; empty legend swatches, assigned unheld product names/ISINs and instrument links.
+- [x] Existing underweight rebalancing hints name assigned unheld securities; allocation flags security kind `other` for correction in the instrument editor.
+- [x] Synthetic read-model regression preserves held values, shares and exact cent totals; desktop/mobile browser cases cover unheld products and rebalancing, without regenerating baselines.
+- [ ] Owner visual acceptance and review of private instrument assignments/kinds after deployment.
+
+Read-model and delivery details: [unheld target classes](allocation-unheld.md).
 
 ### Planning income and shared report ranges — 2026-10-03
 - [x] Plan › Monat: expected household income versus all envelope monthly target requirements, source label, surplus/gap and keyboard-accessible unfunded-category details; reuse target/carry calculations and stored monthly holds. Live dated schedules take precedence; without schedules use the median of the preceding three complete months (before today for future planning). Missing amounts/currency/history remain unavailable. The existing payday rule defines a date, not a salary amount.
@@ -640,7 +715,22 @@ Owner feedback 2026-10-04: spending/cost reports 1.4/1.10/2.3–2.6/3.4–3.5 an
 - [x] VPI-Teilindex with one/two searchable classes and validated exact-100% split; audited persistence reuses part A and preserves payee exclusions.
 - [x] Existing VPI loader/refresh extended to detailed monthly COICOP classes; synthetic recorded-layout responses, class-specific base linking and separate total benchmark.
 - [x] Public price relatives weighted by own base-year spending through the existing annual chain; index units and source/household-weight labels in both basket views, explicit missing-history/publication boundary.
-- [ ] Evening extension: distinct category explorer with multi-select, category price/reference histories since budget start, difference/quantity details, owner interpretation note and two-category E2E; retained as follow-up within the one-hour slice rule.
+- [x] Evening extension (part B2): distinct category explorer with multi-select, category price/reference histories since budget start, difference/quantity details, owner interpretation note and two-category/fallback E2E.
 - [ ] PR/CI and owner mapping/design acceptance. No private data, baseline regeneration, migration, provider credentials or automatic bookings.
 
 Method, limits and owner steps: [inflation basket](inflation-basket.md#cpi-sub-index-method-part-b-2026-10-05).
+
+### Owner planning hit rate — 2026-10-05
+
+- [x] Report 1.11 Budgettreue: additive `plan_snapshot`, shared Pace capture, nightly idempotence/retry and conservative per-month backfill status.
+- [x] Closed-month forecast/actual, exact 5% hits, six-calendar-month summary, monthly deviation bars, category drilldown and Heute copy after three comparable months; synthetic unit/API/component/E2E coverage.
+- [ ] Required CI, Linux visual review and owner month-end/data acceptance. See [planning hit rate](planning-accuracy.md).
+
+### Report 2.4 — category explorer, part B2 (owner 2026-10-05, evening)
+
+- [x] Separate Warenkorb vs. VPI and Kategorie-Explorer; multi-select defaults to basket categories and does not change headline membership. Category lines and neutral pp differences use October 2023 = 100; missing baseline/reference stays unavailable.
+- [x] Reuse the shared per-contract chain and stored CPI sub-series. Editable one/two-class comparison mapping remains independent of the basket method; unmapped categories show “Gesamt-VPI (kein Teilindex)”.
+- [x] Booking-average/unit price relatives and additive count/unit effects where supported; explicit purchase-mix caveat, volume share denominator and fixed owner-interpretation note. No automatic better/worse verdict.
+- [x] Synthetic domain/API/component tests; two explorer E2E cases on desktop/mobile with light/dark accessibility and review evidence, without baseline regeneration.
+- [x] Local verification: all workspace typechecks and ESLint; the one full check stopped on a late E2E formatting edit, corrected and checked in isolation. Full unit suite: 331 files / 3,121 tests; final affected regression run: 37 tests. Production build passed.
+- [ ] Stacked Draft PR/CI and owner mapping/design acceptance. No keys, consents, migrations or automatic bookings.

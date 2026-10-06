@@ -1,12 +1,17 @@
-import { expect, sampleTest as test } from './sample';
+import { expect as baseExpect, sampleTest as test } from './sample';
 import type { BudgetMonthView } from '../apps/web/src/budget/budget-api';
 import type { Heute } from '../apps/web/src/heute/api';
 import type { InboxView } from '../apps/web/src/inbox/api';
+
+// Heute, Plan and the envelope page each aggregate the whole ledger; under parallel load that
+// takes longer than the default 5 s.
+const expect = baseExpect.configure({ timeout: 45_000 });
 
 test('one synthetic month has the same overspent count in Heute, Plan, inbox and badge', async ({
   page,
   request,
 }, info) => {
+  test.setTimeout(180_000);
   const plan: BudgetMonthView = await (await request.get('/api/budget/2026-09')).json();
   const today: Heute = await (await request.get('/api/heute')).json();
   const inbox: InboxView = await (await request.get('/api/inbox')).json();
@@ -63,6 +68,9 @@ test('one synthetic month has the same overspent count in Heute, Plan, inbox and
   ).toHaveAttribute('aria-label', `Posteingang, ${badge.count} offen`);
   await page.screenshot({ path: info.outputPath('inbox.png'), fullPage: true });
   await rows.getByRole('link', { name: 'Decken', exact: true }).first().click();
-  await expect(page).toHaveURL(/\/plan\/monat\?.*kategorie=/);
+  await expect(page).toHaveURL(/\/plan\/monat\/envelope\/[^?]+\?.*monat=2026-09/);
+  // Envelope details are a page now; the cover controls open from its edit button.
+  await page.getByRole('button', { name: 'Zuweisen oder verschieben' }).click();
   await expect(page.getByRole('dialog')).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Decken oder verschieben' })).toBeVisible();
 });

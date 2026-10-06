@@ -47,6 +47,39 @@ async function browserBack(page: Page) {
   );
 }
 sampleTest(
+  'underweight target shows assigned unheld security names in rebalancing',
+  async ({ page }, info) => {
+    const response = await page.request.get('/api/portfolio/allocation');
+    const base = (await response.json()) as PortfolioAllocationView;
+    const proposal = base.risk!.proposals.find((p) => p.code === 'r13_under')!;
+    const cls = base.classes.find((c) => c.id === proposal.assetClass)!;
+    cls.assignedSecurities = [
+      {
+        securityId: 'unheld',
+        name: 'Produkt Reserve',
+        isin: 'AT0000000011',
+        kind: 'other',
+        held: false,
+      },
+    ];
+    await page.route('**/api/portfolio/allocation', (route) => route.fulfill({ json: base }));
+    await page.goto('/vermoegen/portfolio');
+    await expect(page.locator('.valloc')).toContainText('Produkt Reserve');
+    await expect(page.locator('.valloc')).toContainText('AT0000000011 · noch nicht gekauft');
+    await expect(page.locator('.valloc')).toContainText('Typ „Sonstiges“ prüfen');
+    await expect(
+      page.locator('.valloc').getByRole('link', { name: 'Produkt Reserve' }),
+    ).toHaveAttribute('href', /produkt=unheld/);
+    await expect(page.locator('.vrebal')).toContainText(
+      'Zugeordnet, noch nicht gekauft: Produkt Reserve.',
+    );
+    for (const theme of ['light', 'dark']) {
+      await page.evaluate((value) => (document.documentElement.dataset['theme'] = value), theme);
+      await capture(page, info, `unheld-rebalancing-${theme}`);
+    }
+  },
+);
+sampleTest(
   'prototype allocation bands and existing rebalancing figures remain authoritative',
   async ({ page }, info) => {
     await page.goto('/vermoegen/portfolio');

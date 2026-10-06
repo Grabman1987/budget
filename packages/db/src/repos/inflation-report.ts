@@ -16,6 +16,7 @@ import {
   contractPrices,
   monthlyEquivalent,
   personalInflation,
+  categoryInflationExplorer,
   toEurCents,
   versionOn,
   type ContractVersion,
@@ -41,6 +42,7 @@ import type { Executor } from './types';
  */
 
 export interface InflationReport extends PersonalInflation {
+  explorer: ReturnType<typeof categoryInflationExplorer>;
   hasOverrides: boolean;
   basketSettings: Array<{
     id: string;
@@ -149,8 +151,6 @@ export function inflationReport(db: Executor, today: string): InflationReport {
     .filter(
       (s) =>
         s.categoryId !== null &&
-        ownerSettings.get(s.categoryId)?.method !== 'cpi' &&
-        eligible({ id: s.categoryId, class: s.class, kind: s.categoryKind }) &&
         countsPayee(s.categoryId, s.payeeId ?? null) &&
         contractBinding({ ...s, categoryKind: 'fixed' }) !== null,
     )
@@ -179,9 +179,7 @@ export function inflationReport(db: Executor, today: string): InflationReport {
         endDate: source === 'bookings' && ended ? lastCharge! : s.endDate,
       };
     });
-  for (const c of categories.filter(
-    (c) => eligible(c) && ownerSettings.get(c.id)?.method !== 'cpi',
-  )) {
+  for (const c of categories) {
     const own = charged.get(c.id) ?? [];
     for (const payeeId of new Set(own.map((r) => r.payeeId))) {
       if (payeeId === null) continue;
@@ -233,11 +231,11 @@ export function inflationReport(db: Executor, today: string): InflationReport {
   const subindices = Object.fromEntries(
     COICOP_CLASSES.map((c) => [c.code, cpiMonths(db, `vpi:${c.code}`).months]),
   );
-  for (const category of categories.filter(eligible)) {
+  for (const category of categories) {
     const categoryId = category.id;
     const allCharges = charged.get(categoryId) ?? [];
     const owner = ownerSettings.get(categoryId);
-    if (owner?.method === 'cpi') {
+    if (owner?.method === 'cpi' && eligible(category)) {
       items.push({
         id: categoryId,
         categoryId,
@@ -256,7 +254,6 @@ export function inflationReport(db: Executor, today: string): InflationReport {
           ]),
         ),
       });
-      continue;
     }
     if (useTrailingMean(allCharges, settings.get(categoryId) ?? null)) {
       items.push({
@@ -318,8 +315,48 @@ export function inflationReport(db: Executor, today: string): InflationReport {
   }
   const series = currentCpiSeries(db);
   const stored = series ? cpiMonths(db, series) : null;
+  const explorer = categoryInflationExplorer({
+    available: months,
+    categories: categories.map((c) => ({
+      id: c.id,
+      name: c.name,
+      coicop: ownerSettings.get(c.id)?.coicop ?? [],
+    })),
+    // Regular grocery/fuel bookings are not proof of a contract price. Keep the existing
+    // headline inference, but let variable explorer categories expose their booking average.
+    items: items.filter(
+      (i) =>
+        !(
+          i.id.startsWith('implicit:') &&
+          categories.find((c) => c.id === i.categoryId)?.kind === 'variable'
+        ),
+    ),
+    reference: stored?.months ?? null,
+    subindices,
+    observations: Object.fromEntries(
+      categories.map((c) => [
+        c.id,
+        months.map((month) => {
+          const rows = (charged.get(c.id) ?? []).filter((r) => r.date.startsWith(month));
+          return {
+            month,
+            cents: rows.reduce((sum, r) => sum - r.amountCents, 0),
+            count: rows.filter((r) => r.amountCents < 0).length,
+          };
+        }),
+      ]),
+    ),
+  });
+  // Construct once, then select the headline basket using the unchanged owner rules.
+  const basketItems = items.filter((i) => {
+    const c = categories.find((c) => c.id === i.categoryId)!;
+    return (
+      eligible(c) &&
+      (ownerSettings.get(c.id)?.method === 'cpi' ? i.source === 'cpi' : i.source !== 'cpi')
+    );
+  });
   // Never freeze a missing published CPI price or silently drop a selected category's weight.
-  const cpiItems = items.filter(
+  const cpiItems = basketItems.filter(
     (i) => i.source === 'cpi' && Object.values(i.spend).some((v) => v > 0),
   );
   const firstCommon = available.findIndex((m) => cpiItems.every((i) => (i.level[m] ?? 0) > 0));
@@ -328,7 +365,7 @@ export function inflationReport(db: Executor, today: string): InflationReport {
   const indexMonths = firstGap < 0 ? common : common.slice(0, firstGap);
   const firstPrice = Math.max(
     0,
-    indexMonths.findIndex((m) => items.some((i) => (i.level[m] ?? 0) > 0)),
+    indexMonths.findIndex((m) => basketItems.some((i) => (i.level[m] ?? 0) > 0)),
   );
   const base = indexMonths.slice(firstPrice, firstPrice + 12);
   const baseConsumptionCents = categories
@@ -336,7 +373,7 @@ export function inflationReport(db: Executor, today: string): InflationReport {
     .reduce((a, c) => a + base.reduce((s, m) => s + (spend[m]?.[c.id] ?? 0), 0), 0);
   const result = personalInflation({
     available: indexMonths,
-    items,
+    items: basketItems,
     baseConsumptionCents,
     reference: stored?.months ?? null,
   });
@@ -349,7 +386,7 @@ export function inflationReport(db: Executor, today: string): InflationReport {
         : c.kind !== 'fixed' && c.kind !== 'periodic'
           ? 'Variable Kategorie: Menge und Preis nicht trennbar'
           : 'Bedarf mit regelmäßigen Vertragspreisen oder 12-Monats-Mittel';
-    const included = items.some(
+    const included = basketItems.some(
       (i) =>
         i.categoryId === c.id &&
         Object.values(i.level).some((v) => (v ?? 0) > 0) &&
@@ -409,6 +446,7 @@ export function inflationReport(db: Executor, today: string): InflationReport {
     .map((c) => ({ id: c.id, name: c.name, reason: c.reason }));
   return {
     ...result,
+    explorer,
     basketSettings,
     hasOverrides: categories.some(
       (c) =>
@@ -420,7 +458,7 @@ export function inflationReport(db: Executor, today: string): InflationReport {
     excludedCategories: excluded.length,
     excluded,
     referenceAvailable: stored !== null,
-    derivedContracts,
+    derivedContracts: derivedContracts.filter((p) => basketItems.some((i) => i.id === p.id)),
     insufficientReason:
       result.status === 'ok'
         ? null

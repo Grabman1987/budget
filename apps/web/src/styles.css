@@ -18,6 +18,48 @@
 /* Utility classes used in packages/ui are scanned too. */
 @source '../../../packages/ui/src';
 
+/* Shared touch controls: keep readable labels above compact page-specific styles. */
+@media screen and (pointer: coarse), screen and (max-width: 767px) {
+  .tabbar a,
+  .registers a,
+  .registers button,
+  .seg button {
+    font-size: var(--fs-body) !important;
+  }
+
+  /* Existing accessible names also label the booking header on devices without hover tooltips. */
+  .bk-close,
+  .kflagpick:not(.in-list) .kflagbtn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-sm);
+    width: auto;
+    padding-inline: var(--space-sm);
+    flex: none;
+  }
+
+  .bk-close::after,
+  .kflagpick:not(.in-list) .kflagbtn::after {
+    content: attr(aria-label);
+    font-size: var(--fs-body);
+  }
+
+  .ktable input[type='checkbox'] {
+    margin: 0;
+  }
+}
+
+@media screen and (max-width: 767px) {
+  /* Reserve the selection control's 44 px without letting it overlap the neighbouring flag. */
+  .ktx-all tr[data-booking] {
+    grid-template-columns: var(--touch) auto minmax(0, 1fr) auto;
+  }
+  .ktx-all tr[data-booking]:has(.kfx-money:not(:empty)) {
+    grid-template-columns: var(--touch) auto minmax(0, 1fr);
+  }
+}
+
 @layer pages {
   .home {
     padding: 44px 32px;
@@ -88,7 +130,7 @@
     grid-template-columns: 28px 1fr;
     align-items: center;
     gap: 8px;
-    font-size: 12.5px;
+    font-size: var(--fs-chart-label);
   }
 
   .token i {
@@ -191,7 +233,7 @@
   color: var(--line);
 }
 .rcat-grp strong {
-  font-size: 16px;
+  font-size: var(--fs-title);
   font-weight: 640;
 }
 .rcat-count {
@@ -230,7 +272,7 @@
   color: var(--ink-3);
 }
 .rcat-ctl {
-  font-size: 13px;
+  font-size: var(--fs-body);
   color: var(--ink-2);
   white-space: nowrap;
 }

@@ -1,4 +1,4 @@
-import { heute, type Db } from '@budget/db';
+import { heute, planningAccuracyReport, type Db } from '@budget/db';
 import { Hono } from 'hono';
 import { z } from 'zod';
 import { readQuery } from './http';
@@ -17,7 +17,12 @@ export function heuteRoutes(db: Db, today: () => string): Hono {
   const app = new Hono();
   app.get('/', (c) => {
     const { period, month: shown } = readQuery(c, heuteQuery);
-    return c.json(heute(db, { today: today(), period, ...(shown && { month: shown }) }));
+    const day = today();
+    const data = heute(db, { today: day, period, ...(shown && { month: shown }) });
+    return c.json({
+      ...data,
+      planningAccuracy: planningAccuracyReport(db, data.pace.month, day).summary,
+    });
   });
   return app;
 }

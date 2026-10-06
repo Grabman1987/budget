@@ -164,6 +164,7 @@ sampleTest(
             unlinkedCount: 0,
           },
           expectedMaterialised: true,
+          contactWriteOffs: [],
           foreignCurrencyCount: 0,
           window: {
             months: ['2026-08'],
@@ -223,18 +224,27 @@ sampleTest(
     expect(data.flow.columns.income.map((n) => n.name)).toContain('Kapitalerträge');
     const sankey = page.getByTestId('sankey-chart');
     await expect(sankey).toBeVisible();
-    await expect(sankey.locator('title', { hasText: /^Bedarf: .* · .*%$/ })).toHaveCount(1);
-    await expect(sankey.locator('text', { hasText: / · .*%$/ }).first()).toBeVisible();
+    const phone = info.project.name === 'mobile';
+    if (phone) {
+      const list = sankey.getByRole('list', { name: 'Geldfluss nach Stufen' });
+      await expect(list).toContainText('Bedarf');
+      await expect(list).toContainText('Kapitalerträge');
+      await expect(list).toContainText('%');
+      await expect(list).toContainText('€');
+    } else {
+      await expect(sankey.locator('title', { hasText: /^Bedarf: .* · .*%$/ })).toHaveCount(1);
+      await expect(sankey.locator('text', { hasText: / · .*%$/ }).first()).toBeVisible();
+      await expect(sankey.locator('title', { hasText: /^Kapitalerträge: / })).not.toHaveCount(0);
+      // The thin Kapitalerträge node keeps its label.
+      await expect(sankey.locator('text', { hasText: /^Kapitalerträge$/ })).toHaveCount(1);
+    }
     await expect(
       page
         .getByTestId('flow-list')
         .getByRole('columnheader', { name: `Anteil an ${data.flow.columns.pool[0]?.name}` }),
     ).toBeVisible();
     await expect(sankey).toHaveAttribute('aria-label', /Kapitalerträge/);
-    await expect(sankey.locator('title', { hasText: /^Kapitalerträge: / })).not.toHaveCount(0);
-    // The thin Kapitalerträge node keeps its label.
-    await expect(sankey.locator('text', { hasText: /^Kapitalerträge$/ })).toHaveCount(1);
-    const nodes = await sankey.locator('rect.sk-node').count();
+    const nodes = await sankey.locator(phone ? 'li[data-chart-point]' : 'rect.sk-node').count();
     const wide = (info.project.use.viewport!.width as number) >= 600;
     expect(nodes).toBe(
       data.flow.columns.income.length +

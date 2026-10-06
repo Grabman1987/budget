@@ -127,7 +127,7 @@
   flex-wrap: wrap;
   gap: 6px 18px;
   margin-top: 12px;
-  font-size: 13px;
+  font-size: var(--fs-body);
   color: var(--ink-2);
 }
 .plan .sb-legend span {
@@ -162,7 +162,7 @@
 }
 .plan .select-sm {
   height: 36px;
-  font-size: 13.5px;
+  font-size: var(--fs-body);
 }
 
 /* Rail + table */
@@ -213,14 +213,14 @@
   top: 20px;
 }
 .plan .rail-io strong {
-  font-size: 15px;
+  font-size: var(--fs-body);
   font-weight: 650;
 }
 .plan .rail-io-sub {
   margin-top: -8px;
 }
 .plan .rail-io-sub strong {
-  font-size: 13.5px;
+  font-size: var(--fs-body);
   font-weight: 600;
   color: var(--ink-2);
 }
@@ -251,7 +251,7 @@
   background: var(--ground);
   font-family: var(--font-tech);
   font-weight: 600;
-  font-size: 13px;
+  font-size: var(--fs-body);
   color: var(--ink-2);
 }
 .plan .rail-list:not(.is-flow) .rail-no {
@@ -276,7 +276,7 @@
 .plan .rail-name {
   grid-area: name;
   font-weight: 580;
-  font-size: 13.5px;
+  font-size: var(--fs-body);
   line-height: 1.3;
   padding-top: 4px;
 }
@@ -390,12 +390,12 @@
   border-radius: 50%;
   font-family: var(--font-tech);
   font-weight: 600;
-  font-size: 12.5px;
+  font-size: var(--fs-chart-label);
   color: var(--line);
 }
 .plan .grp-sub {
   margin-left: 8px;
-  font-size: 12.5px;
+  font-size: var(--fs-chart-label);
   font-weight: 500;
   color: var(--ink-3);
 }
@@ -419,6 +419,7 @@
   gap: 8px;
   font-weight: 580;
   font-size: 14px;
+  text-decoration: none;
   text-align: left;
   border-radius: 4px;
 }
@@ -456,6 +457,19 @@
   bottom: -4px;
   border-left: 1.5px solid var(--ink);
 }
+.plan .pbar:has(.pbar-tick) {
+  margin-top: 22px;
+}
+.plan .pbar-tick span {
+  position: absolute;
+  bottom: 100%;
+  right: 3px;
+  font-family: var(--font-tech);
+  font-size: var(--fs-class-tag);
+  font-style: normal;
+  line-height: 1.2;
+  color: var(--ink);
+}
 .plan .pbar-goal {
   position: absolute;
   top: -4px;
@@ -467,7 +481,7 @@
   align-items: center;
   gap: 4px;
   margin-top: 4px;
-  font-size: 12.5px;
+  font-size: var(--fs-chart-label);
   color: var(--ink-3);
 }
 .plan .pmeta svg {
@@ -533,7 +547,7 @@
   border-radius: 4px;
   font-family: var(--font-tech);
   font-weight: 600;
-  font-size: 13px;
+  font-size: var(--fs-body);
   letter-spacing: 0.03em;
   color: var(--line);
 }
@@ -552,7 +566,7 @@
   flex-wrap: wrap;
   gap: 6px 20px;
   margin-top: 12px;
-  font-size: 12.5px;
+  font-size: var(--fs-chart-label);
   color: var(--ink-2);
 }
 .plan .plegend span {
@@ -600,7 +614,7 @@
 }
 .plan .panel-h {
   margin: 12px 0 0;
-  font-size: 15px;
+  font-size: var(--fs-body);
   font-weight: 620;
 }
 .plan .kv-total {
@@ -717,7 +731,7 @@
     font-size: 12px;
   }
   .plan .rail-name {
-    font-size: 12.5px;
+    font-size: var(--fs-chart-label);
     padding-top: 2px;
   }
   .plan .is-next .rail-btn {
@@ -787,7 +801,7 @@
     content: attr(data-label);
     display: block;
     font-family: var(--font-tech);
-    font-size: 10.5px;
+    font-size: var(--fs-class-tag);
     letter-spacing: 0.06em;
     text-transform: uppercase;
     color: var(--ink-3);
@@ -834,11 +848,10 @@
 }
 
 /* ---------- Precision layout (owner brief 02.10.2026) ----------
-   Three columns with the app sidebar: hero, revisions and the parts list as white cards in the
-   middle, the inspector ("Monatsüberblick", 50/30/20, Wasserfall) on the right. */
+   Full-width list followed by the monthly summary (owner decision 05.10.2026). */
 .plan .plan-grid {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 320px;
+  grid-template-columns: minmax(0, 1fr);
   gap: 24px;
   align-items: start;
 }
@@ -870,7 +883,7 @@
 }
 .plan .hero-fig {
   margin-top: 6px;
-  font-size: 52px;
+  font-size: var(--fs-amount);
   font-weight: 650;
   line-height: 1;
   letter-spacing: -0.03em;
@@ -887,7 +900,7 @@
   align-items: center;
   gap: 6px;
   margin-top: 10px;
-  font-size: 13.5px;
+  font-size: var(--fs-body);
   font-weight: 560;
   color: var(--ink-2);
 }
@@ -954,12 +967,12 @@
 .plan .ptable .pbar {
   max-width: none;
   height: 6px;
-  border-radius: 3px;
+  border-radius: var(--radius-titleblock);
   background: color-mix(in srgb, var(--good) 16%, var(--surface-2));
   overflow: visible;
 }
 .plan .ptable .pbar-fill {
-  border-radius: 3px;
+  border-radius: var(--radius-titleblock);
 }
 .plan .col-avail .pill {
   margin: -3px 0;
@@ -970,11 +983,10 @@
   background: var(--surface-2);
 }
 
-/* Inspector */
-.plan .inspector {
-  position: sticky;
-  top: 84px;
+/* Inline monthly summary */
+.plan .plan-summary {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: 16px;
   min-width: 0;
 }
@@ -989,7 +1001,7 @@
 }
 .plan .insp-title {
   margin: 0;
-  font-size: 15px;
+  font-size: var(--fs-body);
   font-weight: 640;
   letter-spacing: -0.005em;
   color: var(--ink);
@@ -1001,7 +1013,7 @@
   margin: 12px 0 4px;
   padding: 8px 10px;
   border-radius: 8px;
-  font-size: 13px;
+  font-size: var(--fs-body);
   font-weight: 560;
 }
 .plan .insp-status.is-good {
@@ -1022,7 +1034,7 @@
   gap: 12px;
   min-height: 34px;
   border-bottom: 1px solid var(--card-border);
-  font-size: 13.5px;
+  font-size: var(--fs-body);
 }
 .plan .insp-list > div:last-child {
   border-bottom: 0;
@@ -1045,7 +1057,7 @@
   color: var(--ink);
 }
 .plan .split-band .tbd-state {
-  font-size: 12.5px;
+  font-size: var(--fs-chart-label);
 }
 .plan .split-band .tbd-state span {
   display: inline-flex;
@@ -1056,32 +1068,16 @@
   color: var(--on-good-soft);
 }
 .plan .split-band .sb-legend {
-  font-size: 12.5px;
+  font-size: var(--fs-chart-label);
 }
 .plan .insp-rail .rail {
   position: static;
   margin-top: 14px;
 }
 
-@media (max-width: 1280px) {
-  .plan .plan-grid {
-    grid-template-columns: minmax(0, 1fr);
-  }
-  .plan .inspector {
-    position: static;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    align-items: start;
-  }
-  .plan .insp-rail {
-    grid-column: 1 / -1;
-  }
-}
 @media (max-width: 767px) {
   .plan .plan-grid {
     gap: 16px;
-  }
-  .plan .inspector {
-    grid-template-columns: minmax(0, 1fr);
   }
   .plan .hero-kpi.tbd {
     padding: 18px 16px 14px;
@@ -1154,7 +1150,7 @@
   gap: 8px;
   padding: 8px 10px;
   border-radius: 8px;
-  font-size: 13px;
+  font-size: var(--fs-body);
   font-weight: 560;
   line-height: 1.35;
 }
@@ -1181,7 +1177,7 @@
   align-items: flex-start;
   gap: 6px;
   margin: 10px 0 0;
-  font-size: 12.5px;
+  font-size: var(--fs-chart-label);
   line-height: 1.4;
   color: var(--ink-3);
 }
@@ -1206,10 +1202,7 @@
   margin-top: 8px;
 }
 .plan .pgroup .grp-text {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: 0 10px;
+  display: grid;
   min-width: 0;
   padding-block: 6px;
   text-align: left;
@@ -1219,7 +1212,7 @@
 }
 .plan .pgroup .grp-sub {
   margin: 0;
-  font-size: 12.5px;
+  font-size: var(--fs-chart-label);
   font-weight: 500;
   color: var(--ink-3);
 }
@@ -1233,7 +1226,7 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  font-size: 13px;
+  font-size: var(--fs-body);
   color: var(--ink-3);
 }
 .plan .pempty svg {
@@ -1249,7 +1242,7 @@
   justify-items: end;
   gap: 4px;
   margin-top: 6px;
-  font-size: 12.5px;
+  font-size: var(--fs-chart-label);
   font-weight: 500;
   line-height: 1.35;
   text-align: right;
@@ -1259,7 +1252,7 @@
 .plan .assign-note button {
   min-height: 32px;
   padding: 0 4px;
-  font-size: 12.5px;
+  font-size: var(--fs-chart-label);
   font-weight: 620;
   color: var(--ink);
   text-decoration: underline;
@@ -1270,7 +1263,7 @@
     padding: 12px 14px 10px;
   }
   .plan .hero-kpi.is-negative .hero-fig {
-    font-size: 26px;
+    font-size: var(--fs-figure);
   }
   .plan .pgroup .grp-text {
     flex-direction: column;
@@ -1291,7 +1284,7 @@
 /* ---------- Several months side by side (feedback 02.10.2026) ---------- */
 .plan .pm-layout {
   margin: 0;
-  font-size: 13px;
+  font-size: var(--fs-body);
   font-weight: 560;
   color: var(--ink-2);
 }
@@ -1324,7 +1317,7 @@
 .plan .ptable-multi {
   min-width: 100%;
   table-layout: fixed;
-  font-size: 13.5px;
+  font-size: var(--fs-body);
 }
 .plan .ptable-multi.has-2 {
   min-width: 720px;
@@ -1379,7 +1372,7 @@
 .plan .ptable-multi .pm-tba {
   display: block;
   margin-top: 2px;
-  font-size: 12.5px;
+  font-size: var(--fs-chart-label);
   font-weight: 500;
   color: var(--ink-2);
 }
@@ -1401,7 +1394,7 @@
 }
 .plan .ptable-multi td.pm-none {
   color: var(--ink-3);
-  font-size: 12.5px;
+  font-size: var(--fs-chart-label);
   text-align: center;
 }
 .plan .ptable-multi .assign-btn,
@@ -1420,25 +1413,6 @@
 }
 .plan .ptable-multi .pname {
   white-space: normal;
-}
-/* Two or three months need the full width: the inspector moves under the list. */
-.plan .plan-grid.is-wide {
-  grid-template-columns: minmax(0, 1fr);
-}
-.plan .plan-grid.is-wide .inspector {
-  position: static;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-}
-.plan .plan-grid.is-wide .insp-rail {
-  grid-column: auto;
-}
-@media (max-width: 1280px) {
-  .plan .plan-grid.is-wide .inspector {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-  .plan .plan-grid.is-wide .insp-rail {
-    grid-column: 1 / -1;
-  }
 }
 @media (max-width: 767px) {
   .plan .pm-span {
@@ -1507,7 +1481,7 @@
   flex: 1 1 220px;
 }
 .triage-compact h2 {
-  font-size: 15px;
+  font-size: var(--fs-body);
   color: var(--red);
 }
 .cover-row {
@@ -1531,10 +1505,28 @@
   background: var(--tint);
 }
 
+.plan-detail {
+  display: grid;
+  gap: 20px;
+}
+.plan-detail .kform {
+  max-width: 640px;
+}
+.plan-detail-nav {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+}
+.plan-detail-nav a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+}
 .plan-budget-money {
   margin-bottom: 12px;
   color: var(--ink-2);
-  font-size: 13px;
+  font-size: var(--fs-body);
 }
 .plan-budget-money summary {
   min-height: 44px;

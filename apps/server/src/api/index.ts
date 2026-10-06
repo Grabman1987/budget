@@ -29,6 +29,7 @@ import { expectedRoutes } from './expected';
 import { exportRoutes } from './export';
 import { goalRoutes } from './goals';
 import { heuteRoutes } from './heute';
+import { planningAccuracyRoutes } from './planning-accuracy';
 import {
   assetClassRoutes,
   portfolioRoutes,
@@ -42,6 +43,7 @@ import { liquidityRoutes } from './liquidity';
 import { lookupRoutes, payeeRoutes, undoRoutes } from './lookups';
 import { profileRoutes } from './profile';
 import { marketRoutes } from './market';
+import { monthCloseRoutes } from './month-close';
 import { assetsDebtsHistoryRoutes } from './assets-debts-history';
 import { networthHistoryRoutes } from './networth-history';
 import { wealthRoutes } from './wealth';
@@ -113,6 +115,7 @@ export function createLedgerApi({
   api.route('/search', searchRoutes(db));
   api.route('/accounts', accountRoutes(db, today));
   api.route('/inbox', inboxRoutes(db, today));
+  api.route('/month-close', monthCloseRoutes(db, today));
   api.route('/bookings', bookingRoutes(db, today));
   api.route('/receipts', receiptRoutes(db, receiptsDir));
   api.route('/payees', payeeRoutes(db));
@@ -130,6 +133,7 @@ export function createLedgerApi({
   api.route('/networth-history', networthHistoryRoutes(db, today));
   api.route('/assets-debts-history', assetsDebtsHistoryRoutes(db, today));
   api.route('/heute', heuteRoutes(db, today));
+  api.route('/reports/planning-accuracy', planningAccuracyRoutes(db, today));
   api.route('/rules', ruleRoutes(db, today));
   api.route('/overview', overviewReportRoutes(db, today));
   api.route('/report-tables', reportTableRoutes(db, today));

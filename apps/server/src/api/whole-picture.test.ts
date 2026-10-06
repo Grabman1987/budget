@@ -1,4 +1,4 @@
-import { createTestDatabase, type WholePicture, type OnePager } from '@budget/db';
+import { createTestDatabase, type WholePicture, type OnePager, type Heute } from '@budget/db';
 import { Hono } from 'hono';
 import { mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -78,6 +78,24 @@ it('closes the period and each month to the cent with visible other movements an
   for (const r of [...data.rows, data.totals])
     expect(r.startCents + r.savedCents + r.marketCents + r.otherCents).toBe(r.endCents);
   expect(data.rows[0]!.investmentsInCents).toBe(20000); // the internal 5000 transfer is neutral
+});
+
+it('Heute reuses the running-month deposit and market split, including other movements', async () => {
+  const dated = createApp({ webDir, auth, ledger: { db: opened.db, today: () => '2026-01-31' } });
+  const live = (await (await dated.request('/api/heute')).json()) as Heute;
+  const report = (await (
+    await dated.request('/api/overview/whole-picture?period=2026-01..2026-01')
+  ).json()) as WholePicture;
+  if ('unavailable' in live.netWorth || 'unavailable' in live.netWorth.monthChange)
+    throw new Error('Synthetic valuation must be available');
+  expect(live.netWorth.monthChange).toEqual({
+    deltaCents: 33_000,
+    investmentsInCents: 20_000,
+    marketCents: 1_000,
+  });
+  expect(live.netWorth.monthChange.deltaCents).toBe(report.totals.deltaCents);
+  expect(live.netWorth.monthChange.investmentsInCents).toBe(report.totals.investmentsInCents);
+  expect(live.netWorth.monthChange.marketCents).toBe(report.totals.marketCents);
 });
 
 it('counts principal paid from an investment account while keeping the budget-investment boundary intact', async () => {
