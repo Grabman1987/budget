@@ -101,6 +101,313 @@ function candidate(
   return id;
 }
 describe('assignment API and owner confirmation', () => {
+  it('does not replace a learned category when only confirming an unassigned booking', async () => {
+    const make = () =>
+      createBooking(
+        opened.db,
+        {
+          accountId: 'giro',
+          date: today,
+          amountCents: -2307,
+          payeeId: 'p1',
+          status: 'pending',
+          splits: [{ amountCents: -2307 }],
+        },
+        { actor: 'test' },
+      );
+    const first = make();
+    expect(
+      (
+        await call('PATCH', '/bookings/' + first, {
+          status: 'confirmed',
+          splits: [{ amountCents: -2307, categoryId: 'essen' }],
+        })
+      ).status,
+    ).toBe(200);
+    const second = make();
+    expect((await call('PATCH', '/bookings/' + second, { status: 'confirmed' })).status).toBe(200);
+    const third = make();
+    const review = (await call('GET', '/assignment-rules/bookings/' + third)).body;
+    expect(review.suggestions).toHaveLength(1);
+    expect(review.suggestions[0].actions.categoryId).toBe('essen');
+  });
+  it('retains category and income type together when learning and applying an inflow', async () => {
+    opened.db.insert(schema.incomeType).values({ id: 'income-a', name: 'Einkommen A' }).run();
+    const make = () =>
+      createBooking(
+        opened.db,
+        {
+          accountId: 'giro',
+          date: today,
+          amountCents: 4207,
+          payeeId: 'p1',
+          status: 'pending',
+          splits: [{ amountCents: 4207 }],
+        },
+        { actor: 'test' },
+      );
+    const first = make();
+    expect(
+      (
+        await call('PATCH', '/bookings/' + first, {
+          status: 'confirmed',
+          splits: [{ amountCents: 4207, categoryId: 'reise', incomeTypeId: 'income-a' }],
+        })
+      ).status,
+    ).toBe(200);
+    const second = make();
+    const review = await call('GET', '/assignment-rules/bookings/' + second);
+    expect(review.status).toBe(200);
+    expect(review.body.suggestions[0].actions).toMatchObject({
+      categoryId: 'reise',
+      incomeTypeId: 'income-a',
+    });
+    expect(
+      (
+        await call('POST', '/assignment-rules/bookings/' + second + '/apply', {
+          ruleId: review.body.suggestions[0].id,
+          revision: review.body.suggestions[0].revision,
+        })
+      ).status,
+    ).toBe(200);
+    expect(getBooking(opened.db, second)?.splits[0]).toMatchObject({
+      amountCents: 4207,
+      categoryId: 'reise',
+      incomeTypeId: 'income-a',
+    });
+  });
+  it('keeps bank source accounts and rejects unavailable learned targets without writing', async () => {
+    const first = candidate();
+    await call('POST', '/bank-sync/candidates/' + first + '/confirm', { categoryId: 'essen' });
+    const otherAccount = candidate('Shop A', 'spar');
+    const review = (await call('GET', '/assignment-rules/candidates/' + otherAccount)).body;
+    expect(review.suggestions).toHaveLength(1);
+    expect(review.suggestions[0].unavailable).toBeTruthy();
+    expect(
+      (
+        await call('POST', '/bank-sync/candidates/' + otherAccount + '/confirm', {
+          categoryId: null,
+          ruleId: review.suggestions[0].id,
+          revision: review.suggestions[0].revision,
+        })
+      ).status,
+    ).toBe(409);
+    expect(opened.db.select().from(schema.booking).all()).toHaveLength(1);
+    expect(
+      (
+        await call('POST', '/bank-sync/candidates/' + otherAccount + '/confirm', {
+          categoryId: null,
+          actions: { categoryId: 'essen', accountId: 'giro' },
+        })
+      ).status,
+    ).toBe(409);
+    expect(opened.db.select().from(schema.booking).all()).toHaveLength(1);
+    opened.db
+      .update(schema.category)
+      .set({ deletedAt: today + 'T12:00:00Z' })
+      .where(eq(schema.category.id, 'essen'))
+      .run();
+    const next = candidate('Shop A');
+    const unavailable = (await call('GET', '/assignment-rules/candidates/' + next)).body;
+    expect(unavailable.suggestions[0].unavailable).toBeTruthy();
+    expect(
+      (
+        await call('POST', '/bank-sync/candidates/' + next + '/confirm', {
+          categoryId: null,
+          ruleId: unavailable.suggestions[0].id,
+          revision: unavailable.suggestions[0].revision,
+        })
+      ).status,
+    ).toBe(409);
+    expect(opened.db.select().from(schema.booking).all()).toHaveLength(1);
+  });
+
+  it('does not learn unfinished or failed owner edits or contact assignments', async () => {
+    const make = () =>
+      createBooking(
+        opened.db,
+        {
+          accountId: 'giro',
+          date: today,
+          amountCents: -1201,
+          payeeId: 'p1',
+          status: 'pending',
+          splits: [{ amountCents: -1201 }],
+        },
+        { actor: 'test' },
+      );
+    const id = make();
+    expect(
+      (
+        await call('PATCH', '/bookings/' + id, {
+          splits: [{ amountCents: -1201, categoryId: 'essen' }],
+        })
+      ).status,
+    ).toBe(200);
+    expect(listAssignmentRules(opened.db)).toEqual([]);
+    expect(
+      (
+        await call('PATCH', '/bookings/' + id, {
+          status: 'confirmed',
+          splits: [{ amountCents: -1200, categoryId: 'essen' }],
+        })
+      ).status,
+    ).toBe(422);
+    expect(listAssignmentRules(opened.db)).toEqual([]);
+    expect(getBooking(opened.db, id)?.status).toBe('pending');
+    expect(
+      (
+        await call('PATCH', '/bookings/' + id, {
+          status: 'confirmed',
+          splits: [{ amountCents: -1201, categoryId: 'auslagen', contactId: 'k1' }],
+        })
+      ).status,
+    ).toBe(200);
+    expect(listAssignmentRules(opened.db)).toEqual([]);
+  });
+
+  it('remembers an explicitly empty payee instead of using a future cleanup fallback', async () => {
+    const id = candidate('SYN-42');
+    opened.db
+      .update(schema.bankSyncCandidate)
+      .set({ rawPayee: 'Vermieter' })
+      .where(eq(schema.bankSyncCandidate.id, id))
+      .run();
+    expect(
+      (
+        await call('POST', '/bank-sync/candidates/' + id + '/confirm', {
+          categoryId: 'essen',
+          payeeId: null,
+        })
+      ).status,
+    ).toBe(200);
+    const next = candidate('SYN-43');
+    opened.db
+      .update(schema.bankSyncCandidate)
+      .set({ rawPayee: 'Vermieter' })
+      .where(eq(schema.bankSyncCandidate.id, next))
+      .run();
+    const review = (await call('GET', '/assignment-rules/candidates/' + next)).body;
+    expect(review.cleanup.payeeId).toBe('p1');
+    expect(review.suggestions[0].actions.payeeId).toBeNull();
+    const applied = await call('POST', '/bank-sync/candidates/' + next + '/confirm', {
+      categoryId: null,
+      ruleId: review.suggestions[0].id,
+      revision: review.suggestions[0].revision,
+    });
+    expect(applied.status).toBe(200);
+    expect(getBooking(opened.db, applied.body.bookingId)?.payeeId).toBeNull();
+  });
+
+  it('learns confirmation, matches normalized counterparties only in the same direction, and deletes with undo', async () => {
+    const first = candidate();
+    const confirmed = await call('POST', '/bank-sync/candidates/' + first + '/confirm', {
+      categoryId: 'essen',
+      payeeId: 'p1',
+    });
+    expect(confirmed.status).toBe(200);
+    const next = candidate('  shop   a  ', 'giro', -2307);
+    const review = (await call('GET', '/assignment-rules/candidates/' + next)).body;
+    expect(review.suggestions).toHaveLength(1);
+    const learned = review.suggestions[0];
+    expect(learned.automatic).toBe(false);
+    expect(learned.actions).toEqual({ categoryId: 'essen', payeeId: 'p1', accountId: 'giro' });
+    expect(getBooking(opened.db, confirmed.body.bookingId)?.splits[0]?.categoryId).toBe('essen');
+    expect(opened.db.select().from(schema.booking).all()).toHaveLength(1);
+    const opposite = candidate('Shop A', 'giro', 2307);
+    expect(
+      (await call('GET', '/assignment-rules/candidates/' + opposite)).body.suggestions,
+    ).toEqual([]);
+    const different = candidate('Shop AB');
+    expect(
+      (await call('GET', '/assignment-rules/candidates/' + different)).body.suggestions,
+    ).toEqual([]);
+    const removed = await call('DELETE', '/assignment-rules/' + learned.id);
+    expect(removed.status).toBe(200);
+    expect((await call('GET', '/assignment-rules/candidates/' + next)).body.suggestions).toEqual(
+      [],
+    );
+    undo(opened.db, { groupId: removed.body.groupId }, { actor: 'owner' });
+    expect(
+      (await call('GET', '/assignment-rules/candidates/' + next)).body.suggestions,
+    ).toHaveLength(1);
+    undo(opened.db, { groupId: confirmed.body.groupId }, { actor: 'owner' });
+    expect((await call('GET', '/assignment-rules/candidates/' + next)).body.suggestions).toEqual(
+      [],
+    );
+  });
+
+  it('learns income type and account on owner classification, replaces the last choice and applies explicitly', async () => {
+    opened.db.insert(schema.incomeType).values({ id: 'income-a', name: 'Einkommen A' }).run();
+    const make = () =>
+      createBooking(
+        opened.db,
+        {
+          accountId: 'giro',
+          date: today,
+          amountCents: 4207,
+          payeeId: 'p1',
+          status: 'pending',
+          splits: [{ amountCents: 4207, categoryId: null }],
+        },
+        { actor: 'owner' },
+      );
+    const first = make();
+    expect(
+      (
+        await call('PATCH', '/bookings/' + first, {
+          accountId: 'spar',
+          status: 'confirmed',
+          splits: [{ amountCents: 4207, categoryId: null, incomeTypeId: 'income-a' }],
+        })
+      ).status,
+    ).toBe(200);
+    const second = make();
+    const review = (await call('GET', '/assignment-rules/bookings/' + second)).body;
+    expect(review.suggestions).toHaveLength(1);
+    expect(review.suggestions[0].actions).toEqual({
+      categoryId: null,
+      incomeTypeId: 'income-a',
+      payeeId: 'p1',
+      accountId: 'spar',
+    });
+    expect(getBooking(opened.db, second)?.status).toBe('pending');
+    const applied = await call('POST', '/assignment-rules/bookings/' + second + '/apply', {
+      ruleId: review.suggestions[0].id,
+      revision: review.suggestions[0].revision,
+    });
+    expect(applied.status).toBe(200);
+    expect(getBooking(opened.db, second)).toMatchObject({ accountId: 'spar', status: 'confirmed' });
+    expect(getBooking(opened.db, second)?.splits[0]?.incomeTypeId).toBe('income-a');
+    const third = make();
+    const changed = await call('PATCH', '/bookings/' + third, {
+      status: 'confirmed',
+      splits: [{ amountCents: 4207, categoryId: 'reise' }],
+    });
+    expect(changed.status).toBe(200);
+    const fourth = make();
+    const updated = (await call('GET', '/assignment-rules/bookings/' + fourth)).body;
+    expect(updated.suggestions).toHaveLength(1);
+    expect(updated.suggestions[0].actions).toEqual({
+      categoryId: 'reise',
+      payeeId: 'p1',
+      accountId: 'giro',
+    });
+    expect(
+      (
+        await call('POST', '/assignment-rules/bookings/' + fourth + '/apply', {
+          ruleId: review.suggestions[0].id,
+          revision: review.suggestions[0].revision,
+        })
+      ).status,
+    ).toBe(409);
+    undo(opened.db, { groupId: changed.body.groupId }, { actor: 'owner' });
+    expect(
+      (await call('GET', '/assignment-rules/bookings/' + fourth)).body.suggestions[0].actions
+        .incomeTypeId,
+    ).toBe('income-a');
+  });
+
   it('previews the same payee fallback as unchecked bookings and honors an explicit cleared payee', async () => {
     const rawPayee = 'Vermieter';
     const id = candidate('SYN-88');
@@ -481,9 +788,15 @@ describe('assignment API and owner confirmation', () => {
     });
     expect(disabled.status).toBe(200);
     const removed = await call('DELETE', '/assignment-rules/' + two.body.id);
-    expect(listAssignmentRules(opened.db)).toHaveLength(1);
-    undo(opened.db, { groupId: removed.body.groupId }, { actor: 'owner' });
     expect(listAssignmentRules(opened.db)).toHaveLength(2);
+    expect(
+      listAssignmentRules(opened.db).find((r) => r.id.startsWith('inbox-learn:'))?.actions.splits,
+    ).toEqual([
+      { categoryId: 'essen', weightBp: 5004 },
+      { categoryId: 'reise', weightBp: 4996 },
+    ]);
+    undo(opened.db, { groupId: removed.body.groupId }, { actor: 'owner' });
+    expect(listAssignmentRules(opened.db)).toHaveLength(3);
   });
   it('learns corrections from bank rows without changing raw text; failed correction rolls back', async () => {
     const id = createBooking(
