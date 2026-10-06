@@ -1,5 +1,7 @@
 # Roadmap
 
+- [x] Owner 2026-10-06: implied gross trade prices before valuation cost fallback; estimate hints only for positive as-of holdings without a quote or trade price, with synthetic domain/DB/API/UI regressions. CI and owner acceptance remain open.
+
 ### Warenkorb settings simplification — owner 2026-10-06
 
 - [x] Plain intro/current-effect copy and summary, one inclusion choice, collapsed official price groups with automatic CPI selection and validated autosave/undo; payee exceptions remain collapsed. API and domain rules unchanged.
