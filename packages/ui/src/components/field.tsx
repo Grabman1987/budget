@@ -1,6 +1,7 @@
 import { useId, type ComponentProps, type ReactNode } from 'react';
 import { cx } from './cx';
 import { maskMoneyText, useAmountPrivacy } from '../amount-privacy';
+import { DateInput } from './date-input';
 
 export interface FieldProps {
   label: string;
@@ -38,6 +39,7 @@ export function TextInput({
   ...rest
 }: ComponentProps<'input'> & { money?: boolean }) {
   const hidden = useAmountPrivacy();
+  if (rest.type === 'date') return <DateInput className={cx('input', className)} {...rest} />;
   return (
     <input
       className={cx('input', className)}

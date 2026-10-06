@@ -52,9 +52,9 @@ test('one synthetic month has the same overspent count in Heute, Plan, inbox and
 
   await page.goto('/plan/monat?monat=2026-09&ansicht=triage');
   await expect(page.locator('.triage')).toContainText(`${count} Envelopes überzogen`);
-  await expect(page.getByRole('button', { name: /^Triage/ }).locator('.count')).toContainText(
-    String(count),
-  );
+  await expect(
+    page.getByRole('button', { name: /^Überziehungen prüfen/ }).locator('.count'),
+  ).toContainText(String(count));
   await expect(page.locator('tr.prow.is-over')).toHaveCount(count);
   await page.screenshot({ path: info.outputPath('plan.png'), fullPage: true });
 

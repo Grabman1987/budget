@@ -108,14 +108,14 @@ test.describe('design system page /dev/bauteile', () => {
     });
     expect(animation).toEqual({ name: 'plot-draw', duration: '0.9s' });
 
-    const toggle = page.getByRole('button', { name: 'Maßkette ausblenden' });
+    const toggle = page.getByRole('button', { name: 'Herleitung ausblenden' });
     await toggle.click();
-    await expect(page.getByRole('button', { name: 'Maßkette zeigen' })).toHaveAttribute(
+    await expect(page.getByRole('button', { name: 'Herleitung zeigen' })).toHaveAttribute(
       'aria-expanded',
       'false',
     );
     await expect(segment).toBeHidden();
-    await page.getByRole('button', { name: 'Maßkette zeigen' }).click();
+    await page.getByRole('button', { name: 'Herleitung zeigen' }).click();
     await expect(segment).toBeVisible();
   });
 

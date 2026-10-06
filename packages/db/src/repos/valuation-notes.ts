@@ -8,11 +8,12 @@ import {
 import { inArray } from 'drizzle-orm';
 import { security } from '../schema';
 import { runWithRequestMemo } from './request-memo';
+import { holdingValuationExportAsOf } from './portfolio';
 import type { Executor } from './types';
 
 /**
- * Valuation notes of one request: every valuation that had to estimate a position (cost basis, a
- * later price) or leave it out reports it here, and the API adds the merged list to the JSON answer
+ * Valuation notes of one request: every valuation that had to use cost or leave a position out
+ * reports it here, and the API adds the merged list to the JSON answer
  * as `incomplete`, so the page can say "Bewertung teilweise geschätzt" instead of failing. Outside
  * `runWithValuationNotes` (scripts, tests) reporting is a no-op.
  */
@@ -89,11 +90,23 @@ function mergeNotes(items: Iterable<IncompleteValuation>): ValuationNote[] {
   return [...bySecurity.values()].sort((a, b) => a.securityId.localeCompare(b.securityId));
 }
 
-/** Names for the notes (the UI lists them in a tooltip). */
+/** Name historical notes; with an as-of date, retain only currently unpriced positive holdings. */
 export function namedNotes(
   db: Executor,
   notes: ReadonlyArray<ValuationNote>,
-): Array<ValuationNote & { name: string }> {
+  asOf?: string,
+): Array<ValuationNote & { name: string; unitsE8?: number }> {
+  const units = new Map<string, number>();
+  if (asOf) {
+    const current = holdingValuationExportAsOf(db, asOf);
+    for (const p of [
+      ...current.values.filter((p) => p.quality === 'estimated'),
+      ...current.missingPricePositions,
+    ]) {
+      if (p.unitsE8 > 0) units.set(p.securityId, (units.get(p.securityId) ?? 0) + p.unitsE8);
+    }
+    notes = notes.filter((n) => units.has(n.securityId));
+  }
   if (notes.length === 0) return [];
   const names = new Map(
     db
@@ -108,5 +121,9 @@ export function namedNotes(
       .all()
       .map((r) => [r.id, r.name]),
   );
-  return notes.map((n) => ({ ...n, name: names.get(n.securityId) ?? '' }));
+  return notes.map((n) => ({
+    ...n,
+    name: names.get(n.securityId) ?? '',
+    ...(asOf && { unitsE8: units.get(n.securityId)! }),
+  }));
 }
