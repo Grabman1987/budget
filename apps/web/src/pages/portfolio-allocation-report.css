@@ -103,6 +103,21 @@
 .alloc-table .product-indent {
   padding-inline-start: 48px;
 }
+.composition-legend .prep-swatch.is-empty,
+.alloc-table .prep-swatch.is-empty {
+  background: transparent;
+  border: 1px solid var(--ink-3);
+}
+.unheld-target,
+.allocation-unheld small,
+.allocation-kind-hint {
+  display: block;
+  color: var(--ink-3);
+  font-size: 12px;
+}
+.allocation-unheld .prep-product {
+  color: var(--ink-3);
+}
 .composition-legend {
   min-width: 0;
 }

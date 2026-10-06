@@ -27,6 +27,7 @@ import {
 } from 'lucide-react';
 import { fetchAccounts } from '../ledger/api';
 import { LEDGER_KEY } from '../ledger/queries';
+import { PaceAccuracyNote } from '../reports/planning-accuracy-report';
 import { eur, longDay, shortDay } from '../ledger/format';
 import { EmptyNote, ErrorNote, LoadingNote } from '../ledger/states';
 import { ValuationHint } from '../ledger/valuation-hint';
@@ -191,6 +192,7 @@ function HeuteBody({ data }: { data: Heute }) {
           />
         </div>
         <HeutePaceChart data={data} />
+        <PaceAccuracyNote summary={data.planningAccuracy} />
         {paceDetail && (
           <div className="heute-figure-detail" role="status">
             <strong>

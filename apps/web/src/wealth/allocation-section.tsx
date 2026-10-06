@@ -10,6 +10,7 @@ import { allocationQuery, type PortfolioAllocationView } from './allocation-api'
 import { chartPercent } from '../charts/tooltip-data';
 import { percentText } from './portfolio-format';
 import { thresholdText } from '../rules/rules-model';
+import { AppLink } from '../shell/app-link';
 import './allocation.css';
 
 export function PortfolioAllocation() {
@@ -31,6 +32,7 @@ export function PortfolioAllocation() {
       name: cls.name,
       targetBp: cls.targetBp,
       bandBp: cls.bandBp,
+      assignedSecurities: cls.assignedSecurities ?? [],
       actual: risk?.allocation.rows.find((row) => row.assetClass === cls.id),
     })) ?? [];
   for (const row of risk?.allocation.rows ?? []) {
@@ -40,6 +42,7 @@ export function PortfolioAllocation() {
         name: 'Ohne Anlageklasse',
         targetBp: row.targetBp,
         bandBp: row.bandBp,
+        assignedSecurities: [],
         actual: row,
       });
   }
@@ -113,6 +116,25 @@ export function PortfolioAllocation() {
                               ? 'Kein Soll festgelegt'
                               : `Band ±${percentText(row.bandBp)}`}
                         </small>
+                        {row.assignedSecurities
+                          .filter((s) => !s.held || s.kind === 'other')
+                          .map((s) => (
+                            <small key={s.securityId}>
+                              <AppLink
+                                className="allocation-security-link"
+                                to="/vermoegen/portfolio"
+                                search={(previous) => ({ ...previous, produkt: s.securityId })}
+                              >
+                                {s.name}
+                              </AppLink>
+                              {!s.held && (
+                                <> · {s.isin ?? 'ISIN nicht hinterlegt'} · noch nicht gekauft</>
+                              )}
+                              {s.kind === 'other' && (
+                                <> · Typ „Sonstiges“ prüfen · im Wertpapier bearbeiten</>
+                              )}
+                            </small>
+                          ))}
                       </span>
                       <ChartValue
                         label="Allocation Soll/Ist"
@@ -269,10 +291,17 @@ function proposalText(proposal: RebalanceProposal, view: PortfolioAllocationView
       ? (view.names.securities[proposal.subjectId ?? ''] ?? 'Instrument')
       : (view.names.institutions[proposal.subjectId ?? ''] ?? 'Plattform');
   const amount = eurWhole(proposal.gapCents);
+  const unheldNames =
+    proposal.direction === 'add'
+      ? (view.classes
+          .find((cls) => cls.id === proposal.assetClass)
+          ?.assignedSecurities?.filter((s) => !s.held)
+          .map((s) => s.name) ?? [])
+      : [];
   if (proposal.rule === 'R13')
     return {
       title: `${name} ${proposal.direction === 'add' ? 'unter' : 'über'} Soll`,
-      body: `${percentText(proposal.shareBp)} statt ${percentText(proposal.referenceBp)} · Umschichtungsabstand ${amount} bei unverändertem Gesamtwert.${proposal.newCapitalCents !== null ? ` Neues Kapital bis Soll: ${eurWhole(proposal.newCapitalCents)} bei Einzahlung nur in diese Klasse.` : ''}`,
+      body: `${percentText(proposal.shareBp)} statt ${percentText(proposal.referenceBp)} · Umschichtungsabstand ${amount} bei unverändertem Gesamtwert.${proposal.newCapitalCents !== null ? ` Neues Kapital bis Soll: ${eurWhole(proposal.newCapitalCents)} bei Einzahlung nur in diese Klasse.` : ''}${unheldNames.length ? ` Zugeordnet, noch nicht gekauft: ${unheldNames.join(', ')}.` : ''}`,
     };
   if (proposal.rule === 'R15')
     return {

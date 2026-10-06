@@ -121,12 +121,16 @@ test('Plan › Monat: the Einnahmen term opens received against expected', async
       name: /Einnahmen/,
     })
     .click();
-  const panel = page.getByRole('dialog', { name: 'Einnahmen September 2026' });
+  await expect(page).toHaveURL(/\/plan\/monat\/einnahmen/);
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+  const panel = page.locator('.plan-detail');
   await expect(panel).toBeVisible();
   await expect(panel.getByText('erwartet 4.612,00 €')).toBeVisible();
   await expect(panel.getByRole('table', { name: /nach Art/ })).toContainText('Gehalt');
   await expect(panel.getByRole('table', { name: /nach Art/ })).toContainText('3.812,00 €');
   await expect(panel).toContainText('kein Geld zum Verteilen');
+  await panel.getByRole('link', { name: 'Zurück zum Monat' }).click();
+  await expect(page).toHaveURL(/\/plan\/monat(\?|$)/);
   await expect(await serious(page)).toEqual([]);
 });
 

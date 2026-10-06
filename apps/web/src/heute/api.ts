@@ -36,6 +36,7 @@ export interface Heute extends WithValuationNotes {
     daysInMonth: number;
   };
   nearestGoal: { id: string; name: string; savedCents: number; remainingCents: number } | null;
+  planningAccuracy?: { count: number; hits: number; meanAbsoluteBp: number | null };
   dailyBudget: { remainingDays: number; perDayCents: number | null };
   stand: {
     today: string;
