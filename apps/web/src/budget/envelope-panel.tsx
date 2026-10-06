@@ -71,7 +71,7 @@ export function EnvelopePanel({
   );
 }
 
-function EnvelopeBody({
+export function EnvelopeBody({
   month,
   row: r,
   rows,

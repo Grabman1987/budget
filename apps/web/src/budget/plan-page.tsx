@@ -124,6 +124,9 @@ export function PlanMonthPage() {
   return (
     <PageFrame meta={PLAN_MONAT} income={income}>
       <div className="plan">
+        <AppLink to={`/monatsabschluss/${month}`} search={{}}>
+          Monatsabschluss starten oder fortsetzen
+        </AppLink>
         {budget.isPending && <LoadingNote what="Envelopes" />}
         {budget.isError && (
           <ErrorNote what="Envelopes" error={budget.error} onRetry={() => void budget.refetch()} />

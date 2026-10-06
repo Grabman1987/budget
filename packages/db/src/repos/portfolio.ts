@@ -37,6 +37,7 @@ import {
   INCOME_TYPES,
   security,
   trade,
+  valuation,
 } from '../schema';
 import { lastSuccessfulMarketRun } from './market';
 import { memoized } from './request-memo';
@@ -104,7 +105,7 @@ const positionKey = (p: { accountId: string; securityId: string }) => ({
   securityId: p.securityId,
 });
 
-function holdingValuationAsOf(
+export function holdingValuationAsOf(
   db: Executor,
   asOf: string,
   options: ValuationOptions = {},
@@ -406,11 +407,43 @@ function computeNetWorthValuation(
 ): NetWorthValuation {
   const estimate = options.estimate ?? true;
   const accountRows = db
-    .select({ id: account.id, currency: account.currency })
+    .select({
+      id: account.id,
+      currency: account.currency,
+      type: account.type,
+      openingDate: account.openingDate,
+    })
     .from(account)
     .where(isNull(account.deletedAt))
     .all();
   const currencies = new Map(accountRows.map((row) => [row.id, row.currency]));
+  const holdings = holdingValuationAsOf(db, asOf, options);
+  const holdingAccounts = new Set(
+    [...holdings.values, ...holdings.missingPricePositions, ...holdings.missingFxPositions].map(
+      (h) => h.accountId,
+    ),
+  );
+  const manualAccounts = new Set(
+    accountRows
+      .filter(
+        (a) =>
+          a.openingDate <= asOf &&
+          (a.type === 'p2p' || a.type === 'other_asset') &&
+          !holdingAccounts.has(a.id),
+      )
+      .map((a) => a.id),
+  );
+  const manualValues = new Map<string, number>();
+  if (manualAccounts.size > 0)
+    for (const row of db
+      .select()
+      .from(valuation)
+      .where(and(isNull(valuation.deletedAt), lte(valuation.date, asOf)))
+      .orderBy(desc(valuation.date))
+      .all()) {
+      if (manualAccounts.has(row.accountId) && !manualValues.has(row.accountId))
+        manualValues.set(row.accountId, row.valueCents);
+    }
   const rates: Rates = db.select().from(fxRate).where(lte(fxRate.date, asOf)).all();
   const byAccount: Record<string, number | null> = {};
   const missingFxByAccount = new Map<string, Set<string>>();
@@ -422,12 +455,12 @@ function computeNetWorthValuation(
   };
   for (const balance of accountBalances(db, asOf)) {
     const currency = currencies.get(balance.accountId) ?? 'EUR';
-    const rate = balance.balanceCents === 0 ? 1_000_000 : rateOrMissing(rates, currency, asOf);
+    const nativeCents = manualValues.get(balance.accountId) ?? balance.balanceCents;
+    const rate = nativeCents === 0 ? 1_000_000 : rateOrMissing(rates, currency, asOf);
     if (rate === undefined) addMissing(balance.accountId, currency);
-    else byAccount[balance.accountId] = toEurCents(balance.balanceCents, rate);
+    else byAccount[balance.accountId] = toEurCents(nativeCents, rate);
   }
 
-  const holdings = holdingValuationAsOf(db, asOf, options);
   const holdingsByAccount: Record<string, number | null> = {};
   for (const holding of holdings.values) {
     if (holdingsByAccount[holding.accountId] === null) continue;

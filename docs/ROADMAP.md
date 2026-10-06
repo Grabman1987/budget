@@ -1,5 +1,14 @@
 # Roadmap
 
+### F1 — Guided month close, steps 1–3 (owner 2026-10-04)
+
+- [x] Monthly route, persisted stepper, live inbox/reconciliation/overspending status and reasoned exceptions; reuse audited actions and manual account valuations.
+- [x] Heute entry on the first/last five days, Plan entry and provisional global-search entry; phone has one active step and sticky continuation.
+- [x] Synthetic API status/resume/undo/validation and stepper coverage. [Plan and contract](month-close.md).
+- [x] Typecheck, lint, production/E2E builds and two desktop/phone browser runs with synthetic [evidence](evidence/month-close-f1/README.md).
+- [ ] Full local unit gate (failed checks and host memory pressure), CI, final rebase and Git delivery; commit/branch metadata writes are denied in this worktree.
+- [ ] Job E palette/verdict integration (absent from the fetched main baseline), F2 steps 4–5 and owner parallel-operation Gate 4 acceptance.
+
 ### Heute three answer cards — owner 05.10.2026
 
 - [x] Three current answer cards reuse Vermögen, Gesamtübersicht, One-Pager, Leitmaß and Pace sources; nearest unfinished Sparziel reuses saved/missing cents and date ordering.
