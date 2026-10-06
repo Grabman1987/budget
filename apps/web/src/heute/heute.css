@@ -148,6 +148,9 @@
       font-size: 11px;
       line-height: 13px;
     }
+    .heute-answer-note {
+      display: none;
+    }
   }
   .heute-lead {
     min-width: 0;
