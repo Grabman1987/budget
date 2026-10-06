@@ -1,7 +1,6 @@
 import { unfundedSavingsGoals } from '@budget/domain';
 import { useQuery } from '@tanstack/react-query';
-import { Button, useAmountPrivacy } from '@budget/ui';
-import { useState } from 'react';
+import { useAmountPrivacy } from '@budget/ui';
 import { eur, longDay } from '../ledger/format';
 import { ErrorNote } from '../ledger/states';
 import { budgetQuery } from '../budget/budget-api';
@@ -10,56 +9,18 @@ import { shiftMonth } from '../nav/month';
 import { AppLink } from '../shell/app-link';
 import type { Heute } from './api';
 
-/** Overspending has one home on Heute; other work is neutral until it needs action. */
+/** Overspending lives in the global top-bar chip; other work is neutral until it needs action. */
 export function AttentionBar({
   data,
 }: {
   data: Pick<Heute, 'stand' | 'nextSteps' | 'financeCheck' | 'attention'>;
 }) {
   useAmountPrivacy();
-  const [expanded, setExpanded] = useState(false);
-  const month = data.stand.today.slice(0, 7);
-  const overspent = data.nextSteps.items.filter((i) => i.kind === 'overspent');
   const rules = 'unavailable' in data.financeCheck ? [] : data.financeCheck.actionRules;
-  const amount = overspent.reduce((sum, i) => sum + i.cents, 0);
   const uncategorized = data.nextSteps.items.find((i) => i.kind === 'uncategorized');
   return (
     <section className="heute-attention" aria-labelledby="attention-title">
       <h2 id="attention-title">Braucht Aufmerksamkeit</h2>
-      {overspent.length > 0 && (
-        <>
-          <div className="attention-row is-over">
-            <strong>
-              {overspent.length} {overspent.length === 1 ? 'Envelope' : 'Envelopes'} überzogen ·{' '}
-              {eur(amount)} zu decken
-            </strong>
-            <AppLink to="/plan/monat" search={{ monat: month, ansicht: 'triage' }}>
-              Alle decken
-            </AppLink>
-          </div>
-          <ul className="attention-envelopes" id="attention-envelopes">
-            {(expanded ? overspent : overspent.slice(0, 2)).map((item) => (
-              <li key={item.categoryId} data-overspent={item.categoryId}>
-                <span>{item.categoryName}</span>
-                <AppLink to="/plan/monat" search={{ monat: month, kategorie: item.categoryId }}>
-                  {eur(-item.cents)}
-                </AppLink>
-              </li>
-            ))}
-          </ul>
-          {overspent.length > 2 && (
-            <Button
-              variant="ghost"
-              size="sm"
-              aria-expanded={expanded}
-              aria-controls="attention-envelopes"
-              onClick={() => setExpanded(!expanded)}
-            >
-              {expanded ? 'Weniger zeigen' : `weitere ${overspent.length - 2}`}
-            </Button>
-          )}
-        </>
-      )}
       {data.attention.inboxCount > 0 && (
         <div className="attention-row">
           <span>
@@ -89,12 +50,9 @@ export function AttentionBar({
           <AppLink to="/einstellungen/regelwerk">Handeln</AppLink>
         </div>
       )}
-      {!overspent.length &&
-        !data.attention.inboxCount &&
-        !data.attention.pendingCount &&
-        !rules.length && (
-          <p className="heute-note">Keine offenen Aufgaben aus den Heute-Prüfungen.</p>
-        )}
+      {!data.attention.inboxCount && !data.attention.pendingCount && !rules.length && (
+        <p className="heute-note">Keine offenen Aufgaben aus den Heute-Prüfungen.</p>
+      )}
       {'unavailable' in data.financeCheck && (
         <p className="heute-note">
           Regelprüfungen nicht verfügbar: {data.financeCheck.unavailable.message}
