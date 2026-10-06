@@ -12,7 +12,7 @@ import {
   type DimensionChainTerm,
 } from '@budget/ui';
 import { cents, coverShortfall, todayInVienna } from '@budget/domain';
-import { useQueries, useQuery } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { useNavigate, useSearch } from '@tanstack/react-router';
 import {
   AlertTriangle,
@@ -45,7 +45,13 @@ import {
 import { MultiTable } from './plan-multi';
 import { AssignCell } from './assign-cell';
 import { QuickAssignActions } from './quick-assign-actions';
-import { assign, coverAll, budgetQuery, type BudgetMonthView } from './budget-api';
+import {
+  assign,
+  coverAll,
+  budgetMonthsQuery,
+  budgetQuery,
+  type BudgetMonthView,
+} from './budget-api';
 import { CategoryIcon } from './category-icon';
 import { IncomeButton } from '../expected/income-panel';
 import { EnvelopePanel } from './envelope-panel';
@@ -104,11 +110,14 @@ export function PlanMonthPage() {
     [month, span],
   );
   // The leftmost month drives hero, triage, inspector and title block; the others only fill columns.
-  const results = useQueries({ queries: months.map((m) => budgetQuery(m)) });
-  const budget = results[0]!;
-  const data = budget.data;
-  const views = results.every((r) => r.data) ? results.map((r) => r.data!) : null;
-  const extraError = results.slice(1).find((r) => r.isError);
+  // One month is the single-month call; several months are ONE batch call (the server derives the
+  // facts and the history once, not once per month column).
+  const first = useQuery({ ...budgetQuery(months[0]!), enabled: months.length === 1 });
+  const batch = useQuery({ ...budgetMonthsQuery(months), enabled: months.length > 1 });
+  const budget = months.length === 1 ? first : batch;
+  const data = months.length === 1 ? first.data : batch.data?.months[months[0]!];
+  const columns = months.map((m) => (months.length === 1 ? first.data : batch.data?.months[m]));
+  const views = columns.every((v) => v) ? columns.map((v) => v!) : null;
   // The month's income (title block and chain term) opens received against expected.
   const navigate = useNavigate();
   const openIncome = () =>
@@ -136,7 +145,6 @@ export function PlanMonthPage() {
             months={months}
             data={data}
             views={views}
-            extraError={extraError}
             onIncome={openIncome}
           />
         )}
@@ -150,7 +158,6 @@ function PlanBody({
   months,
   data,
   views,
-  extraError,
   onIncome,
 }: {
   month: string;
@@ -159,7 +166,6 @@ function PlanBody({
   data: BudgetMonthView;
   /** All visible months once loaded. */
   views: BudgetMonthView[] | null;
-  extraError: { error: Error; refetch: () => unknown } | undefined;
   onIncome: () => void;
 }) {
   useAmountPrivacy();
@@ -534,13 +540,7 @@ function PlanBody({
             )}
           </div>
           {multi ? (
-            extraError ? (
-              <ErrorNote
-                what="Folgemonate"
-                error={extraError.error}
-                onRetry={() => void extraError.refetch()}
-              />
-            ) : views ? (
+            views ? (
               <MultiTable
                 months={months}
                 views={views}
