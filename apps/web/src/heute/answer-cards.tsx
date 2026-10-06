@@ -72,7 +72,7 @@ export function AnswerCards({
           <p>Ausgaben {eur(month.consumptionCents)}</p>
         </section>
         <section className="heute-answer" aria-labelledby="answer-budget-title">
-          <h2 id="answer-budget-title">Budget</h2>
+          <h2 id="answer-budget-title">Frei bis Gehalt</h2>
           <button
             type="button"
             className={`heute-answer-value${data.lead.freeCents < 0 ? ' heute-alert' : ''}`}
@@ -91,10 +91,15 @@ export function AnswerCards({
             marker={budget.day / budget.daysInMonth}
           />
           <p>
-            Ausgegeben {eur(budget.spentCents)} · Übrig {eur(budget.remainingCents)}
+            Ausgabenplan: {eur(budget.spentCents)} ausgegeben von {eur(budget.plannedCents)} ·
+            Plan-Rest {eur(budget.remainingCents)}
           </p>
           <p>
             Tag {budget.day} von {budget.daysInMonth}
+          </p>
+          <p className="heute-answer-note">
+            Plan-Rest = geplante variable Ausgaben des Monats minus bisher ausgegeben; nicht dein
+            freies Geld.
           </p>
         </section>
       </div>

@@ -880,3 +880,8 @@
   white-space: nowrap;
   font-variant-numeric: tabular-nums;
 }
+
+.heute-answer-note {
+  font-size: 0.8125rem;
+  color: var(--text-muted, inherit);
+}
