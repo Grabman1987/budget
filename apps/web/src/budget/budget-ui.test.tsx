@@ -10,6 +10,8 @@ import { CategoriesPage } from './categories-page';
 import { CategoryPanel } from './category-panel';
 import { EnvelopePanel } from './envelope-panel';
 import type { PlanRow } from './plan-model';
+import { AssignCell } from './assign-cell';
+import { QuickAssignActions } from './quick-assign-actions';
 
 vi.mock('../shell/app-link', () => ({
   AppLink: ({ children }: { children: ReactNode }) => <a href="#k">{children}</a>,
@@ -100,6 +102,69 @@ const envelope = (over: Partial<PlanRow> = {}): PlanRow => ({
   dueMonth: null,
   target: null,
   ...over,
+});
+
+it('shows the faded assignment with its source and retains the zero value for editing', async () => {
+  const row = envelope({
+    quickAssign: {
+      ghostCents: 12_000,
+      ghostSource: 'median',
+      averageCents: 11_000,
+      lastMonthCents: 10_000,
+      historyMonths: ['2026-06', '2026-07', '2026-08'],
+    },
+  });
+  const edit = vi.fn();
+  renderWith(
+    <AssignCell
+      row={row}
+      tba={50_000}
+      editing={false}
+      monthKey="2026-09"
+      onEdit={edit}
+      onCommit={() => {}}
+    />,
+  );
+  const button = screen.getByRole('button', { name: /Zugewiesen 0,00 € für Lebensmittel ändern/ });
+  expect(button.textContent).toBe('≈ 120,00 €');
+  expect(button.getAttribute('title')).toContain('Median der Ausgaben');
+  expect(button.getAttribute('title')).toContain('Juni 2026');
+  await userEvent.click(button);
+  expect(edit).toHaveBeenCalledWith(true);
+});
+
+it('offers German quick actions for the selection and one undo for the capped fill', async () => {
+  const calls = stubApi({
+    'POST /api/budget/2026-09/quick-assign': () =>
+      ok({ groupId: 'quick', changedCount: 2, openCount: 1, missingCents: 1_234 }),
+    'POST /api/undo': () => ok({ groupId: 'undone' }),
+  });
+  renderWith(<QuickAssignActions month="2026-09" emptyIds={['a', 'b']} selectedIds={['b', 'a']} />);
+  for (const name of ['Wie letzter Monat', 'Ø 3 Monate', 'Ziel'])
+    expect(screen.getByRole('button', { name })).toBeTruthy();
+  await userEvent.click(screen.getByRole('button', { name: 'Leere füllen' }));
+  await waitFor(() =>
+    expect(status()).toContain('2 Kategorien befüllt · 12,34 € fehlen für 1 Kategorie'),
+  );
+  expect(calls('POST /api/budget/2026-09/quick-assign')).toEqual([
+    { mode: 'empty', categoryIds: ['a', 'b'] },
+  ]);
+  await userEvent.click(screen.getByRole('button', { name: 'Rückgängig' }));
+  await waitFor(() => expect(status()).toContain('Rückgängig gemacht.'));
+  expect(calls('POST /api/undo')).toEqual([{ groupId: 'quick' }]);
+});
+
+it('does not offer undo when a refreshed empty fill changes nothing', async () => {
+  stubApi({
+    'POST /api/budget/2026-09/quick-assign': () =>
+      ok({ groupId: 'none', changedCount: 0, openCount: 1, missingCents: 100 }),
+  });
+  renderWith(<QuickAssignActions month="2026-09" emptyIds={['a']} selectedIds={[]} />);
+  await userEvent.click(screen.getByRole('button', { name: 'Leere füllen' }));
+  await waitFor(() =>
+    expect(status()).toContain('0 Kategorien befüllt · 1,00 € fehlen für 1 Kategorie'),
+  );
+  expect(screen.queryByRole('button', { name: 'Rückgängig' })).toBeNull();
 });
 
 function renderEnvelope(row: PlanRow, tba: number, onClose = vi.fn(), month = '2026-09') {
