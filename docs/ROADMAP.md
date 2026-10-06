@@ -15,6 +15,8 @@
 - [x] Synthetic unit and bounding-box/hit-test phone regressions; [scope and baseline list](ux-tap-targets-1005.md).
 - [x] Final local check phases (336 files / 3,175 tests), production build and affected Chromium/WebKit browser checks; [verification evidence](ux-tap-targets-1005.md).
 - [ ] Pinned Linux screenshot review and owner phone acceptance (see delivery evidence).
+
+
 ### Heute / R07 horizon — owner 05.10.2026
 
 - [x] Shared period-bound balance/low read, 14-day actual lookback, two-day boundary tail and short payday extension; remembered period and R07 chart in Finanz-Check-Verlauf.

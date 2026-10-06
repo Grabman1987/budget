@@ -56,7 +56,7 @@ button {
 }
 
 /* The accessibility floor wins over compact page/utility sizes, including on touch tablets. */
-@media (pointer: coarse), (max-width: 767px) {
+@media screen and (pointer: coarse), screen and (max-width: 767px) {
   :where(button, input:not([type='hidden']), select, textarea, summary, [role='button'], a[href]) {
     min-width: var(--touch) !important;
     min-height: var(--touch) !important;
