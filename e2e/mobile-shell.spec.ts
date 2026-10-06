@@ -46,9 +46,11 @@ test.describe('UX-3a phone shell', () => {
     test.setTimeout(120_000);
     for (const path of PAGES) {
       // The previous iteration ends on /einstellungen after a tap; WebKit can still fire a
-      // late same-URL navigation, so leave the page first to keep page.goto uncontested.
-      await page.goto('about:blank');
-      await page.goto(path);
+      // late same-URL navigation that interrupts this goto, so retry once in that case.
+      await page.goto(path).catch(async (error: unknown) => {
+        if (!String(error).includes('interrupted by another navigation')) throw error;
+        await page.goto(path);
+      });
       const avatar = page.locator('.m-profile summary');
       await expect(avatar).toBeVisible();
       const hit = await avatar.evaluate((el) => {
