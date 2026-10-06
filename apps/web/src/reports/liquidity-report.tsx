@@ -83,7 +83,7 @@ export function LiquidityReportPage({ report, meta }: { report: ReportEntry; met
         view && !query.isFetching && !query.isError
           ? {
               reportId: report.id,
-              period: `${view.asOf}..${view.report?.verdictEnd}`,
+              period: `${view.asOf}..${view.report?.verdictEnd ?? view.asOf}`,
               metric: {
                 label: 'Tiefster Prognosestand',
                 value: view.report?.low?.cents ?? null,

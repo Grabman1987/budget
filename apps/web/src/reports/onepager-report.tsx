@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { AllocationBar } from './allocation-bar';
 import { AppLink } from '../shell/app-link';
 import { chartShare } from '../charts/tooltip-data';
@@ -37,9 +38,10 @@ export function OnePagerReport({ report, meta }: { report: ReportEntry; meta: Pa
   const { month, shift, current } = useReportMonth();
   const query = useQuery(onePagerQuery(month));
   const data = query.data;
+  const facts = useMemo(() => (data ? onePagerVerdictFacts(data) : undefined), [data]);
   return (
     <MonthReportFrame
-      verdict={data && !query.isFetching && !query.isError ? onePagerVerdictFacts(data) : undefined}
+      verdict={facts && !query.isFetching && !query.isError ? facts : undefined}
       report={report}
       meta={meta}
       month={month}
@@ -72,6 +74,7 @@ export function OnePagerReport({ report, meta }: { report: ReportEntry; meta: Pa
 }
 
 function Sheet({ data }: { data: OnePagerData }) {
+  const verdictFacts = useMemo(() => onePagerVerdictFacts(data), [data]);
   useAmountPrivacy();
   const { result } = data;
   const parts = eurParts(result.savedCents);
@@ -102,7 +105,7 @@ function Sheet({ data }: { data: OnePagerData }) {
               </span>
             </div>
           </header>
-          <VerdictLine facts={onePagerVerdictFacts(data)} />
+          <VerdictLine facts={verdictFacts} />
           <DimensionChain
             label="Maßkette des Monats"
             precision="euro"

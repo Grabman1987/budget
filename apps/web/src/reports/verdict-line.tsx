@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { reportVerdict, type VerdictFacts } from '@budget/domain';
 import { useAmountPrivacy } from '@budget/ui';
 import './verdict-line.css';
@@ -10,9 +11,10 @@ export function VerdictLine({
   testId?: string;
 }) {
   const hidden = useAmountPrivacy();
+  const text = useMemo(() => reportVerdict(facts, { hidden }).text, [facts, hidden]);
   return (
     <p className="report-verdict" data-testid={testId}>
-      {reportVerdict(facts, { hidden }).text}
+      {text}
     </p>
   );
 }

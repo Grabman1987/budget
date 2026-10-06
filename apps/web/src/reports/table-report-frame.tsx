@@ -1,5 +1,5 @@
 import { useQuery, type UseQueryResult } from '@tanstack/react-query';
-import type { ReactNode } from 'react';
+import { useMemo, type ReactNode } from 'react';
 import { ErrorNote, LoadingNote, EmptyNote } from '../ledger/states';
 import type { PageMeta } from '../nav/pages';
 import type { ReportEntry } from '../nav/reports-catalog';
@@ -61,13 +61,16 @@ export function TableReportFrame({
     (verdictPeriod && tables?.firstMonth && end
       ? reportPeriodMonths(verdictPeriod, end, tables.firstMonth).at(-1)
       : (end ?? tables?.currentMonth));
+  const verdict = useMemo(
+    () =>
+      tables && verdictMonth && !query.isFetching && !query.isError
+        ? tableVerdictFacts(report.id, tables, verdictMonth)
+        : undefined,
+    [tables, verdictMonth, query.isFetching, query.isError, report.id],
+  );
   return (
     <PageFrame
-      verdict={
-        tables && verdictMonth && !query.isFetching && !query.isError
-          ? tableVerdictFacts(report.id, tables, verdictMonth)
-          : undefined
-      }
+      verdict={verdict}
       meta={meta}
       title={report.name}
       subtitle={`${report.pos} · ${report.question}`}

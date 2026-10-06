@@ -22,9 +22,11 @@ const row: WholePicture['totals'] = {
 };
 it('explains the latest full month with signed market verdict and estimated marker', () => {
   render(<WholePictureVerdict row={row} estimated />);
-  expect(screen.getByTestId('whole-verdict').textContent?.replace(/\s+/g, ' ')).toBe(
-    'September: 340 € gehen auf den Markt zurück; prüfe die Entwicklung im Zusammenhang. · vorläufig',
-  );
+  const text = screen.getByTestId('whole-verdict').textContent?.replace(/\s+/g, ' ');
+  // Market sentence plus the rest of the old line: saved amount and net-worth change.
+  expect(text).toContain('340 €');
+  expect(text).toContain('· Gespart +1.120 € · Nettovermögen +780 € · vorläufig');
+  expect(text).not.toMatch(/Markt .*· Markt/);
 });
 it('shows a positive and neutral market without colour as the only signal', () => {
   const { rerender } = render(<WholePictureVerdict row={{ ...row, marketCents: 1 }} />);

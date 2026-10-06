@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import {
   addMonths,
   cents,
@@ -70,7 +71,8 @@ const cellText = (row: Row, c: (typeof columns)[number], estimated: boolean) => 
 };
 
 export function WholePictureVerdict({ row, estimated = false }: { row: Row; estimated?: boolean }) {
-  return <VerdictLine facts={wholeVerdictFacts(row, estimated)} testId="whole-verdict" />;
+  const facts = useMemo(() => wholeVerdictFacts(row, estimated), [row, estimated]);
+  return <VerdictLine facts={facts} testId="whole-verdict" />;
 }
 
 export function WholePictureReport({ report, meta }: { report: ReportEntry; meta: PageMeta }) {
@@ -107,19 +109,23 @@ export function WholePictureReport({ report, meta }: { report: ReportEntry; meta
     addMonths(navigationMonths.at(-1)!, navigationMonths.length) <=
       (data?.today ?? todayInVienna()).slice(0, 7),
   );
+  const verdict = useMemo(
+    () =>
+      data && !query.isFetching && !query.isError
+        ? {
+            ...wholeVerdictFacts(
+              data.latestFullMonth ?? { ...data.totals, month: `${data.from}..${data.to}` },
+              Boolean(data.incomplete?.length),
+              data.rows,
+            ),
+            unavailable: data.rows.length === 0,
+          }
+        : undefined,
+    [data, query.isFetching, query.isError],
+  );
   return (
     <PageFrame
-      verdict={
-        data && !query.isFetching && !query.isError
-          ? {
-              ...wholeVerdictFacts(
-                data.latestFullMonth ?? { ...data.totals, month: `${data.from}..${data.to}` },
-                Boolean(data.incomplete?.length),
-              ),
-              unavailable: data.rows.length === 0,
-            }
-          : undefined
-      }
+      verdict={verdict}
       verdictTestId="whole-verdict"
       meta={meta}
       title={report.name}
