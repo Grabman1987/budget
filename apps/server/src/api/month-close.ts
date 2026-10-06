@@ -42,18 +42,21 @@ export function readMonthClose(db: Db, m: string, today: string) {
   );
   const stored = getEntity(db, appSetting, key(m));
   const state = monthCloseStateSchema.parse(stored ? JSON.parse(stored.value) : {});
-  const inbox = readInbox(db, asOf).entries.filter((e) => {
-    let date = e.type === 'stored' ? e.createdAt.slice(0, 10) : e.date;
-    if (e.type === 'stored' && e.refId) {
-      if (e.refType === 'bank-sync-candidate')
-        date =
-          db.select().from(bankSyncCandidate).where(eq(bankSyncCandidate.id, e.refId)).get()
-            ?.date ?? date;
-      if (e.refType === 'booking')
-        date = db.select().from(booking).where(eq(booking.id, e.refId)).get()?.date ?? date;
-    }
-    return date.slice(0, 7) === m;
-  });
+  // Overspent envelopes are handled in the dedicated step 3, not as inbox work in step 1.
+  const inbox = readInbox(db, asOf)
+    .entries.filter((e) => e.type !== 'envelope')
+    .filter((e) => {
+      let date = e.type === 'stored' ? e.createdAt.slice(0, 10) : e.date;
+      if (e.type === 'stored' && e.refId) {
+        if (e.refType === 'bank-sync-candidate')
+          date =
+            db.select().from(bankSyncCandidate).where(eq(bankSyncCandidate.id, e.refId)).get()
+              ?.date ?? date;
+        if (e.refType === 'booking')
+          date = db.select().from(booking).where(eq(booking.id, e.refId)).get()?.date ?? date;
+      }
+      return date.slice(0, 7) === m;
+    });
   const accounts = accountSummaries(db, asOf)
     .filter(
       (a) =>
