@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1
 
 # ---- build: install workspaces, build web (Vite) and server (esbuild bundle) ----
-FROM node:22-bookworm-slim@sha256:43ac6c60b8f89723f746e8a92ce91abd5017e627ce1ddfe4238355d3a30b772c AS build
+FROM node:25-bookworm-slim@sha256:81db02c4b671288a03915da9534dbd54f96d0e7c24d80ccc54f5b36b2e684370 AS build
 # Base images are pinned by digest (the tag is only for humans); Dependabot proposes new digests.
 # No compiler toolchain: .npmrc sets ignore-scripts=true and better-sqlite3 ships prebuilt binaries.
 WORKDIR /repo
@@ -25,7 +25,7 @@ COPY design/prototype/fonts design/prototype/fonts
 RUN npm run build
 
 # ---- litestream: pinned release, checksum-verified, one binary per target architecture ----
-FROM node:22-bookworm-slim@sha256:43ac6c60b8f89723f746e8a92ce91abd5017e627ce1ddfe4238355d3a30b772c AS litestream
+FROM node:25-bookworm-slim@sha256:81db02c4b671288a03915da9534dbd54f96d0e7c24d80ccc54f5b36b2e684370 AS litestream
 ARG TARGETARCH
 ARG LITESTREAM_VERSION=0.5.17
 # SHA-256 of litestream-<version>-linux-<arch>.tar.gz, from the release's checksums.txt.
@@ -47,7 +47,7 @@ RUN set -eu; \
     litestream version
 
 # ---- runtime: the server is one bundled file, the web app is static ----
-FROM node:22-bookworm-slim@sha256:43ac6c60b8f89723f746e8a92ce91abd5017e627ce1ddfe4238355d3a30b772c AS runtime
+FROM node:25-bookworm-slim@sha256:81db02c4b671288a03915da9534dbd54f96d0e7c24d80ccc54f5b36b2e684370 AS runtime
 ARG BUDGET_BUILD_REVISION
 ENV NODE_ENV=production \
     PORT=3000 \
