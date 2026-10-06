@@ -196,7 +196,7 @@ test('Heute uses live API data and period, expands the lead chain, and links to 
   await expect(page.getByRole('heading', { name: 'Angepinnte Envelopes' })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Was steht an? · Nächste 7 Tage' })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Finanz-Check' })).toBeVisible();
-  await expect(page.getByRole('heading', { name: 'Nettovermögen' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Nettovermögen · 12 Monate' })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Letzte Buchungen' })).toBeVisible();
   const forecastPath = await page
     .locator('[data-testid="heute-pace-chart"] .l-forecast')
