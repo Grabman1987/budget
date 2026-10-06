@@ -29,6 +29,8 @@ The existing nightly run uses Ariva first and Yahoo fallback. First benchmark re
 
 ## Heute / R07
 
+The chart horizon below is superseded by the [owner decision 05.10.2026](heute-horizon-1005.md); background R07 rule evaluation remains unchanged.
+
 Same `budgetLiquidityForecast` and resolved R07 parameters, default/maximum 35 days after today (today plus 35 future days). Stored longer horizons clamp to 35, preserving the minimum balance. Shorter valid choices remain shared. Five largest named payments of at least 250 EUR have numbered chart markers and a separate readable list; same-day markers combine their numbers. Every payment, including smaller ones and variable spending, remains in the shared daily tooltip. Nothing is booked automatically.
 
 ## Verification and owner steps

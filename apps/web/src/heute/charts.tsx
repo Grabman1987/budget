@@ -1,4 +1,6 @@
 import { forecastStepLabels } from './forecast-labels';
+import { useId, useState, type CSSProperties } from 'react';
+import { Info } from 'lucide-react';
 import { chartPoints } from '../charts/tooltip-data';
 import {
   useAmountPrivacy,
@@ -18,6 +20,7 @@ import { scaleLinear } from 'd3-scale';
 import { useElementWidth } from '../charts/use-element-width';
 import { eur, eurParts, shortDay } from '../ledger/format';
 import type { Heute } from './api';
+import { addDays, daysBetween } from '@budget/domain';
 
 const number = new Intl.NumberFormat('de-AT', { maximumFractionDigits: 0 });
 const dayValue = (day: string) => Date.parse(`${day}T00:00:00Z`);
@@ -26,21 +29,75 @@ function useWidth() {
   return useElementWidth<HTMLDivElement>();
 }
 
+export function DailyBudgetLine({
+  data,
+  style,
+}: {
+  data: Pick<Heute, 'dailyBudget' | 'stand'>;
+  style?: CSSProperties;
+}) {
+  useAmountPrivacy();
+  const [explained, setExplained] = useState(false);
+  const id = useId();
+  const { remainingDays, perDayCents } = data.dailyBudget;
+  return (
+    <div
+      className={`heute-daily-budget${perDayCents === null ? ' is-alarm' : ''}`}
+      data-testid="heute-daily-budget"
+      style={style}
+    >
+      <span>
+        {perDayCents === null
+          ? `Kein Spielraum bis zum Gehalt am ${shortDay(data.stand.payday.day)}`
+          : `≈ ${eur(perDayCents, { cents: false })} pro Tag · noch ${remainingDays} ${remainingDays === 1 ? 'Tag' : 'Tage'} bis zum Gehalt`}
+      </span>
+      <span onMouseEnter={() => setExplained(true)} onMouseLeave={() => setExplained(false)}>
+        <button
+          type="button"
+          aria-label="Tagesbudget erklären"
+          aria-describedby={explained ? id : undefined}
+          onFocus={() => setExplained(true)}
+          onBlur={() => setExplained(false)}
+          onClick={() => setExplained(true)}
+          onKeyDown={(event) => {
+            if (event.key === 'Escape') setExplained(false);
+          }}
+        >
+          <Info size={16} aria-hidden="true" />
+        </button>
+        {explained && (
+          <span id={id} role="tooltip" className="heute-daily-help">
+            Frei verfügbar bis Gehalt geteilt durch die verbleibenden Tage einschließlich heute bis
+            zum nächsten Gehalt (am Gehaltstag: ein Tag), auf ganze Euro gerundet.
+          </span>
+        )}
+      </span>
+    </div>
+  );
+}
+
 /** Budget-account balance from the Heute read model; solid is observed, dashed is forecast. */
 export function BalanceChart({
   data,
   chainOpen,
   onToggleChain,
+  report = false,
 }: {
   data: Heute;
   chainOpen: boolean;
   onToggleChain: () => void;
+  report?: boolean;
 }) {
   useAmountPrivacy();
   const [ref, width] = useWidth();
   const { actual, forecast } = data.balance;
   const all = [...actual, ...forecast];
-  if (all.length === 0) return <div ref={ref} className="heute-chart" />;
+  if (all.length === 0)
+    return (
+      <div ref={ref} className="heute-chart">
+        <p className="heute-note">Kein Verlauf im gewählten Zeitraum.</p>
+      </div>
+    );
   return (
     <div ref={ref} className="heute-chart">
       {width > 0 && (
@@ -49,6 +106,7 @@ export function BalanceChart({
           width={width}
           chainOpen={chainOpen}
           onToggleChain={onToggleChain}
+          report={report}
         />
       )}
     </div>
@@ -60,22 +118,25 @@ function BalanceDrawing({
   width,
   chainOpen,
   onToggleChain,
+  report,
 }: {
   data: Heute;
   width: number;
   chainOpen: boolean;
   onToggleChain: () => void;
+  report: boolean;
 }) {
   useAmountPrivacy();
   const [figureRef, figureWidth] = useElementWidth<HTMLButtonElement>();
   const narrow = width < 640;
   const labels = forecastStepLabels(data.balance.forecast);
-  const height = narrow ? 232 : 330;
-  const top = narrow ? 104 : 140;
+  const dailySpace = report ? 0 : narrow ? 72 : 48;
+  const height = (report ? (narrow ? 204 : 260) : narrow ? 232 : 330) + dailySpace;
+  const top = (report ? 64 : narrow ? 104 : 140) + dailySpace;
   const bottom = height - (narrow ? 26 : 30);
   const left = narrow ? 40 : 48;
   const right = width - 10;
-  const dimY = narrow ? 64 : 100;
+  const dimY = (report ? 30 : narrow ? 64 : 100) + dailySpace;
   const figure = eurParts(data.lead.freeCents);
   const { actual, forecast, low, salary } = data.balance;
   const days = [...actual, ...forecast];
@@ -109,35 +170,51 @@ function BalanceDrawing({
       ? `Prognose bis ${forecast.at(-1)?.day} ${eur(forecast.at(-1)?.balanceCents ?? 0)}.`
       : 'keine Prognose für diesen Zeitraum.');
 
-  const paydayInRange =
-    dayValue(data.stand.payday.day) >= start && dayValue(data.stand.payday.day) <= end;
+  const payday =
+    data.stand.period === 'payday' ? addDays(data.stand.to, -2) : data.stand.payday.day;
+  const paydayInRange = dayValue(payday) >= start && dayValue(payday) <= end;
+  const bracketDay = paydayInRange ? payday : days.at(-1)!.day;
+  const bracketDays = daysBetween(data.stand.today, bracketDay);
   const x0 = todayInRange ? xScale(data.stand.today) : left;
-  const x1 = paydayInRange ? xScale(data.stand.payday.day) : right;
+  const x1 = paydayInRange ? xScale(payday) : right;
   const center = (x0 + x1) / 2;
+  const dailyWidth = Math.min(width - 16, 500);
   return (
-    <div className="heute-balance-drawing">
-      <button
-        ref={figureRef}
-        type="button"
-        className={`heute-lead-figure${data.lead.freeCents < 0 ? ' is-negative' : ''}`}
-        data-testid="heute-lead-value"
-        aria-label={`Frei verfügbar bis Gehalt: ${eur(data.lead.freeCents)}. Herleitung ${chainOpen ? 'ausblenden' : 'zeigen'}`}
-        aria-expanded={chainOpen}
-        aria-controls="heute-lead-chain"
-        onClick={onToggleChain}
-        style={{
-          left: Math.min(Math.max(center - figureWidth / 2, left), width - figureWidth - 2),
-          top: narrow ? 13 : 22,
-        }}
-      >
-        <span>{figure.whole}</span>
-        <small>,{figure.fraction} €</small>
-      </button>
+    <div className={`heute-balance-drawing${narrow ? ' is-narrow' : ''}`}>
+      {!report && (
+        <button
+          ref={figureRef}
+          type="button"
+          className={`heute-lead-figure${data.lead.freeCents < 0 ? ' is-negative' : ''}`}
+          data-testid="heute-lead-value"
+          aria-label={`Frei verfügbar bis Gehalt: ${eur(data.lead.freeCents)}. Herleitung ${chainOpen ? 'ausblenden' : 'zeigen'}`}
+          aria-expanded={chainOpen}
+          aria-controls="heute-lead-chain"
+          onClick={onToggleChain}
+          style={{
+            left: Math.min(Math.max(center - figureWidth / 2, left), width - figureWidth - 2),
+            top: narrow ? 13 : 22,
+          }}
+        >
+          <span>{figure.whole}</span>
+          <small>,{figure.fraction} €</small>
+        </button>
+      )}
+      {!report && (
+        <DailyBudgetLine
+          data={data}
+          style={{
+            left: Math.min(Math.max(center - dailyWidth / 2, 8), width - dailyWidth - 8),
+            right: 'auto',
+            width: dailyWidth,
+          }}
+        />
+      )}
       <ChartSvg
         width={width}
         height={height}
         label={label}
-        testId="heute-balance-chart"
+        testId={report ? 'r07-balance-chart' : 'heute-balance-chart'}
         points={chartPoints(
           [...new Set(days.map((d) => d.day))].sort(),
           (i) => xScale([...new Set(days.map((d) => d.day))].sort()[i]!),
@@ -190,7 +267,7 @@ function BalanceDrawing({
           <ElevationMark
             x={xScale(low.day)}
             y={y(low.cents)}
-            shelf={narrow ? 40 : 48}
+            shelf={low.day < data.stand.today ? 24 : narrow ? 40 : 48}
             label={`Tiefpunkt ${eur(low.cents, { cents: false })}${narrow ? '' : ` · ${shortDay(low.day)}`}`}
             align={xScale(low.day) < width / 2 ? 'start' : 'end'}
           />
@@ -214,22 +291,24 @@ function BalanceDrawing({
             className="dot-actual"
           />
         )}
-        <g className="heute-lead-dimension">
-          <line x1={x1} x2={x1} y1={dimY - 8} y2={bottom} className="l-ext" />
-          <line x1={x0} x2={x0} y1={dimY - 8} y2={dimY + 6} className="l-dim" />
-          <line x1={x0 - 10} x2={x1 + 6} y1={dimY} y2={dimY} className="l-dim" />
-          <SlashTick x={x0} y={dimY} size={9} />
-          <SlashTick x={x1} y={dimY} size={9} />
-          <text
-            x={Math.min(center, width - (narrow ? 70 : 110))}
-            y={narrow ? 82 : 120}
-            textAnchor="middle"
-            className="svg-label-line"
-          >
-            {data.lead.daysToPayday} {data.lead.daysToPayday === 1 ? 'Tag' : 'Tage'} bis Gehalt
-            {narrow ? '' : ` · ${shortDay(data.stand.payday.day)}`}
-          </text>
-        </g>
+        {todayInRange && (
+          <g className="heute-lead-dimension">
+            <line x1={x1} x2={x1} y1={dimY - 8} y2={bottom} className="l-ext" />
+            <line x1={x0} x2={x0} y1={dimY - 8} y2={dimY + 6} className="l-dim" />
+            <line x1={x0 - 10} x2={x1 + 6} y1={dimY} y2={dimY} className="l-dim" />
+            <SlashTick x={x0} y={dimY} size={9} />
+            <SlashTick x={x1} y={dimY} size={9} />
+            <text
+              x={Math.min(center, width - (narrow ? 70 : 110))}
+              y={(report ? 50 : narrow ? 82 : 120) + dailySpace}
+              textAnchor="middle"
+              className="svg-label-line"
+            >
+              {bracketDays} {bracketDays === 1 ? 'Tag' : 'Tage'} bis{' '}
+              {paydayInRange ? `Gehalt ${shortDay(payday)}` : shortDay(bracketDay)}
+            </text>
+          </g>
+        )}
         {[...new Set(labels.map((l) => l.day))].map((day) => {
           const point = forecast.find((d) => d.day === day)!;
           const numbers = labels.flatMap((l, i) => (l.day === day ? [i + 1] : [])).join(',');

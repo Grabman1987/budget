@@ -10,9 +10,8 @@ const heuteQuery = z.object({
 });
 
 /**
- * Heute (concept §7.1): the whole home screen in one request. `period=month` charts the whole
- * month, `period=payday` runs from today to the next salary; `month` shows another month's
- * balance, pace and envelopes (lead, net worth and next steps always refer to today).
+ * Heute and R07 share a period-bound balance forecast with fourteen days of actual history.
+ * Pace/envelopes follow `month`; lead, net worth and next steps always refer to today.
  */
 export function heuteRoutes(db: Db, today: () => string): Hono {
   const app = new Hono();

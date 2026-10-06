@@ -118,6 +118,41 @@ describe('inflation basket owner settings (synthetic)', () => {
     });
   });
 
+  it('explores excluded categories with independent own prices and an editable comparison mapping', async () => {
+    categories.update(opened.db, 'reise', { kind: 'variable' }, { actor: 'test' });
+    for (const m of monthsBetween('2023-10', '2025-10')) {
+      charge(`${m}-03`, 'miete', 'p1', m < '2025-01' ? 3000 : 3300);
+      charge(`${m}-04`, 'reise', 'p2', m < '2025-01' ? 1000 : 1100);
+    }
+    storeCpi(
+      opened.db,
+      'vpi:01.1',
+      monthsBetween('2023-10', '2025-10').map((month) => ({
+        month,
+        indexMicro: (month < '2025-01' ? 100 : 105) * 1_000_000,
+      })),
+      '2025-11-01',
+    );
+    expect(
+      (
+        await save([
+          { categoryId: 'reise', inclusion: 'never', coicop: [{ code: '01.1', shareBp: 10000 }] },
+        ])
+      ).status,
+    ).toBe(200);
+    const result = await report();
+    expect(result.basket.some((b) => b.categoryId === 'reise')).toBe(false);
+    expect(result.explorer.find((c) => c.id === 'reise')).toMatchObject({
+      source: 'booking-average',
+      ownChangeBp: 1000,
+      referenceChangeBp: 500,
+      differenceBp: 500,
+    });
+    expect(result.explorer.find((c) => c.id === 'miete')!.referenceLabel).toBe(
+      'Gesamt-VPI (kein Teilindex)',
+    );
+  });
+
   it('withholds a selected CPI category without prices and stops at the last common published month', async () => {
     for (const m of monthsBetween('2023-10', '2025-10')) {
       charge(`${m}-03`, 'miete', 'p1', 3000);
