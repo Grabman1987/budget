@@ -1075,7 +1075,9 @@ function EnvelopeRow({
               style={{ width: `${(bar.over ? 1 : bar.fill) * 100}%` }}
             />
             {bar.pace !== null && (
-              <i className="pbar-tick" style={{ left: `${bar.pace * 100}%` }} />
+              <i className="pbar-tick" style={{ left: `${bar.pace * 100}%` }}>
+                <span>heute</span>
+              </i>
             )}
             {bar.goalMark && <i className="pbar-goal" style={{ left: '100%' }} />}
           </span>

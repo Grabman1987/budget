@@ -77,6 +77,7 @@ Prototype references: [Heute](../design/prototype/index.html),
 
 | ID | Function / owner-facing label | Status | What remains for completion |
 | --- | --- | --- | --- |
+| Y13-P | Pace precision layer: Heute/One-Pager header, Ist / Erwartet / Deckel / Hochrechnung, shared tooltip and labelled today markers (including Plan › Monat variable bars) | UI + shared read model | Linear pro-rata expectation is computed once in the domain, separate from scheduled Plan bis heute; forecast reuses the existing pre-day-7 fixed-cost/plan logic and later extrapolation. Synthetic unit/API/component and desktop/mobile E2E evidence; Linux visual and owner acceptance remain open |
 | Y01 | Account overview, budget/tracking/investment/debt roles, closed balances; sidebar card/loan debts in ink | UI + engine | Private balances; foreign-currency detail acceptance remains separate |
 | Y02 | Account register: inline date/amount, status icons, visible flags; ranged balance chart with pending/recurring preview (0–365 days), limit and crosshair | UI + engine | Full native/EUR currency labelling across tables, charts and reconciliation |
 | Y03 | Income/expenses: cash confirmed by default, booking-month income, no Budgetmonat; Wiederholen creates a schedule atomically | UI + engine | Owner phone/desktop usability acceptance with migrated data |

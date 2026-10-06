@@ -1,5 +1,7 @@
 # Product
 
+Owner-Entscheidung 05.10.2026 — Pace: Heute and One-Pager show elapsed days, actual spending, linear pro-rata expectation and the existing month-end forecast from one shared read model; chart and Plan › Monat category bars label today's time marker. Forecast stays fixed-cost/plan-based before day 7 and extrapolated thereafter.
+
 Owner navigation decision (2026-10-05): details and secondary information use
 sub-pages with their own URLs, breadcrumbs and browser/back navigation. Content
 side panels, drawers, right sheets and permanent side card columns are retired;

@@ -8,6 +8,13 @@
 - [x] Full local check (351 files / 3,250 tests), production/E2E builds and focused browser checks (22 passed / 9 intentional desktop skips).
 - [ ] Required CI/Linux visual review and owner phone acceptance (see PR evidence).
 
+### Pace time marker and projection header — owner 05.10.2026
+
+- [x] Shared Heute/One-Pager header, cent-exact pro-rata expectation, existing forecast, Ist / Erwartet / Deckel / Hochrechnung and shared tooltip; legends list drawn series only.
+- [x] Labelled current-month time marker on the pace chart and Plan › Monat variable category bars; no marker in other months.
+- [x] Synthetic domain/API/component coverage and one desktop/mobile E2E scenario; no local baseline regeneration.
+- [ ] Pinned Linux visual review, CI and owner acceptance. Affected screenshots: Heute, Plan › Monat and Monats-One-Pager (desktop/mobile, light/dark); One-Pager print layout also needs review.
+
 ### Unterseiten statt Seitenpanels — owner decision 2026-10-05
 
 - [x] Complete web inventory with a replacement decision and explicit open scope ([inventory](no-side-panels-1005.md)).

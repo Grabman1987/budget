@@ -1,0 +1,20 @@
+.pace-header {
+  margin: 0 0 12px;
+  font-family: var(--font-tech);
+  color: var(--ink-2);
+  font-variant-numeric: tabular-nums;
+  line-height: 1.6;
+}
+.pace-header span {
+  display: inline-block;
+}
+.pace-limit-line {
+  stroke: var(--rule-strong);
+}
+@media print {
+  .pace-header {
+    margin-bottom: 4px;
+    font-size: 12px;
+    line-height: 1.3;
+  }
+}
