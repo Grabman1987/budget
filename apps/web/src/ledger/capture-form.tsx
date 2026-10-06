@@ -11,7 +11,7 @@ import {
   type SegmentedOption,
   maskMoneyText,
 } from '@budget/ui';
-import { todayInVienna } from '@budget/domain';
+import { addDays, todayInVienna } from '@budget/domain';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Trash2, X } from 'lucide-react';
 import {
@@ -24,7 +24,7 @@ import {
 } from 'react';
 import { ApiError } from '../api/http';
 import { budgetQuery } from '../budget/budget-api';
-import { createPayee, setPayeeDefaultCategory } from './api';
+import { fetchBookings, createPayee, setPayeeDefaultCategory } from './api';
 import {
   amountOf,
   buildCreate,
@@ -41,10 +41,10 @@ import {
 } from './booking-model';
 import type { BookingPanelState } from './booking-panel';
 import {
+  accountFromPayee,
   captureDirty,
   categoriesFor,
   categoryFromPayee,
-  defaultAccountId,
   orderAccounts,
   pickableCategories,
   readMemory,
@@ -131,6 +131,9 @@ export function CaptureForm({
   const payees = useQuery(payeesQuery());
   const writes = useLedgerWrites();
   const formRef = useRef<HTMLFormElement>(null);
+  const dateRef = useRef<HTMLInputElement>(null);
+  const accountRequest = useRef(0);
+  const accountPayee = useRef('');
 
   const [today] = useState(todayInVienna);
   const [memory] = useState(readMemory);
@@ -159,7 +162,9 @@ export function CaptureForm({
   const [busy, setBusy] = useState(false);
   // Guards save() itself: held or repeated Ctrl+Enter must not send the booking twice.
   const saving = useRef(false);
-  const [moreOpen, setMoreOpen] = useState(Boolean(editing));
+  const [moreOpen, setMoreOpen] = useState(
+    Boolean(editing || draft.splitOn || draft.repeat || draft.memo || draft.projectId),
+  );
   // The category the last chosen payee's default filled in; only that one is replaced by the next.
   const appliedByPayee = useRef<string | null>(null);
   // The payee "Speichern und neu" carried over: context, so it does not make the form dirty.
@@ -171,7 +176,7 @@ export function CaptureForm({
     () => orderAccounts(accounts.data?.accounts ?? offlineChoices?.accounts ?? [], memory.accounts),
     [accounts.data, offlineChoices, memory],
   );
-  const accountId = draft.accountId || defaultAccountId(open, memory.accounts);
+  const accountId = draft.accountId || accountFromPayee(open, memory.accounts, undefined);
   const isTransfer = draft.kind === 'transfer';
   const legOfTransfer = editing !== null && isTransferBooking(editing);
   const locked = editing?.status === 'reconciled';
@@ -279,11 +284,33 @@ export function CaptureForm({
    * The payee's default category is applied when a payee is chosen (list pick or leaving the
    * field), not while typing: "Spar" on the way to "Sparkasse" must not set anything.
    */
-  const applyPayeeDefault = (name: string) => {
+  const applyPayeeDefault = (name: string, chosen = false) => {
     const key = name.trim().toLowerCase();
-    const fallback = payees.data?.payees.find(
-      (p) => p.name.toLowerCase() === key,
-    )?.defaultCategoryId;
+    const payee = payees.data?.payees.find((p) => p.name.toLowerCase() === key);
+    const fallback = payee?.defaultCategoryId;
+    // A delayed lookup must not replace a later payee or a manually selected account.
+    if (
+      !editing &&
+      !queued &&
+      draft.kind !== 'transfer' &&
+      key &&
+      (chosen || key !== accountPayee.current)
+    ) {
+      accountPayee.current = key;
+      const request = ++accountRequest.current;
+      const applyAccount = (last: string | undefined) => {
+        if (request !== accountRequest.current) return;
+        set(
+          'accountId',
+          accountFromPayee(open, memory.accounts.length ? memory.accounts : [accountId], last),
+        );
+      };
+      if (payee)
+        void fetchBookings({ payeeId: payee.id, to: today }, undefined, 1)
+          .then((page) => applyAccount(page.items[0]?.accountId))
+          .catch(() => undefined);
+      else applyAccount(undefined);
+    }
     setDraft((d) => {
       if (d.splitOn || d.kind === 'transfer') return d;
       const next = categoryFromPayee(d.categoryId, appliedByPayee.current, fallback);
@@ -296,6 +323,7 @@ export function CaptureForm({
 
   const changeKind = (kind: BookingKind) =>
     setDraft((d) => {
+      accountRequest.current++;
       appliedByPayee.current = null;
       const valid = kind !== 'expense' || all.find((c) => c.id === d.categoryId)?.kind !== 'income';
       return {
@@ -483,25 +511,58 @@ export function CaptureForm({
         ? 'confirmed'
         : 'pending'
       : draft.status;
+  const moreSummary = [
+    draft.splitOn ? 'Aufgeteilt' : '',
+    draft.repeat
+      ? `Wiederholt ${{ weekly: 'wöchentlich', monthly: 'monatlich', quarterly: 'vierteljährlich', semiannual: 'halbjährlich', yearly: 'jährlich' }[draft.repeat]}`
+      : '',
+    draft.memo.trim() ? 'Notiz' : '',
+    draft.projectId ? 'Projekt' : '',
+  ]
+    .filter(Boolean)
+    .join(' · ');
   const dateAndStatus = (
-    <div className="kdate-status" data-enter-skip>
-      <DateField draft={draft} set={set} error={errors.date} />
-      {locked && !unlock ? (
-        <span className="status">geprüft</span>
-      ) : (
-        <Segmented
-          label="Status"
-          options={[
-            { value: 'pending', label: 'vorgemerkt' },
-            { value: 'confirmed', label: 'bestätigt' },
-          ]}
-          value={effectiveStatus}
-          onChange={(v) => {
-            setStatusChosen(true);
-            set('status', v);
-          }}
-        />
-      )}
+    <div className="bk-dates" data-enter-skip>
+      <div className="kchips bk-date-chips" role="group" aria-label="Datum wählen">
+        <button
+          type="button"
+          className="chip"
+          aria-pressed={draft.date === today}
+          onClick={() => set('date', today)}
+        >
+          Heute
+        </button>
+        <button
+          type="button"
+          className="chip"
+          aria-pressed={draft.date === addDays(today, -1)}
+          onClick={() => set('date', addDays(today, -1))}
+        >
+          Gestern
+        </button>
+        <button type="button" className="chip" onClick={() => dateRef.current?.focus()}>
+          Datum…
+        </button>
+      </div>
+      <div className="kdate-status">
+        <DateField draft={draft} set={set} error={errors.date} inputRef={dateRef} />
+        {locked && !unlock ? (
+          <span className="status">geprüft</span>
+        ) : (
+          <Segmented
+            label="Status"
+            options={[
+              { value: 'pending', label: 'vorgemerkt' },
+              { value: 'confirmed', label: 'bestätigt' },
+            ]}
+            value={effectiveStatus}
+            onChange={(v) => {
+              setStatusChosen(true);
+              set('status', v);
+            }}
+          />
+        )}
+      </div>
     </div>
   );
 
@@ -520,7 +581,9 @@ export function CaptureForm({
     >
       <div className="bk-head">
         {/* Flag first (YNAB), then the kind of booking, then close. */}
-        {!isTransfer && <FlagPicker value={draft.flag} onChange={(flag) => set('flag', flag)} />}
+        {!isTransfer && (
+          <FlagPicker title="Markieren" value={draft.flag} onChange={(flag) => set('flag', flag)} />
+        )}
         {legOfTransfer ? (
           <span className="bk-kind bk-kind-fixed">Umbuchung</span>
         ) : (
@@ -537,6 +600,7 @@ export function CaptureForm({
           type="button"
           className="icon-btn bk-close"
           aria-label="Schließen"
+          title="Schließen"
           onClick={requestClose}
         >
           <X size={18} strokeWidth={1.75} aria-hidden="true" />
@@ -570,34 +634,44 @@ export function CaptureForm({
         )}
         <AmountInput
           label="Betrag"
+          showOperators={false}
           value={draft.amount}
           onChange={(v) => set('amount', v)}
           sign={isTransfer ? null : draft.kind === 'income' ? '+' : '−'}
           error={errors.amount}
         />
         {!isTransfer && (
-          <Combobox
-            label={draft.kind === 'income' ? 'Von (Zahler)' : 'Empfänger'}
-            value={draft.payee}
-            placeholder="Suchen oder neu anlegen"
-            onChange={(text) => set('payee', text)}
-            onSelect={(o) => {
-              set('payee', o.label);
-              applyPayeeDefault(o.label);
-            }}
-            onFocusChange={(focused) => !focused && applyPayeeDefault(draft.payee)}
-            options={(payees.data?.payees ?? [])
-              .filter((p) => !p.systemKind)
-              .sort((a, b) => (b.lastBookingDate ?? '').localeCompare(a.lastBookingDate ?? ''))
-              .map((p) => ({
-                id: p.id,
-                label: p.name,
-                hint: all.find((c) => c.id === p.defaultCategoryId)?.name,
-              }))}
-          />
+          <div className="bk-payee">
+            <Combobox
+              label={draft.kind === 'income' ? 'Von (Zahler)' : 'Empfänger'}
+              value={draft.payee}
+              placeholder="Suchen oder neu anlegen"
+              pickSingle
+              onChange={(text) => {
+                accountRequest.current++;
+                set('payee', text);
+              }}
+              onSelect={(o) => {
+                set('payee', o.label);
+                applyPayeeDefault(o.label, true);
+              }}
+              onFocusChange={(focused) => !focused && applyPayeeDefault(draft.payee)}
+              options={(payees.data?.payees ?? [])
+                .filter((p) => !p.systemKind)
+                .sort((a, b) => (b.lastBookingDate ?? '').localeCompare(a.lastBookingDate ?? ''))
+                .map((p) => ({
+                  id: p.id,
+                  label: p.name,
+                  hint: all.find((c) => c.id === p.defaultCategoryId)?.name,
+                }))}
+            />
+          </div>
         )}
         <div className="kform-pair" {...(isTransfer ? {} : { 'data-enter-skip': true })}>
-          <Field label={isTransfer ? 'Von Konto' : 'Konto'} error={errors.account}>
+          <Field
+            label={isTransfer ? 'Von Konto' : draft.kind === 'expense' ? 'Bezahlt von' : 'Konto'}
+            error={errors.account}
+          >
             {({ id, describedBy, invalid }) => (
               <Select
                 id={id}
@@ -605,7 +679,10 @@ export function CaptureForm({
                 disabled={legOfTransfer}
                 aria-invalid={invalid}
                 aria-describedby={describedBy}
-                onChange={(e) => set('accountId', e.target.value)}
+                onChange={(e) => {
+                  accountRequest.current++;
+                  set('accountId', e.target.value);
+                }}
               >
                 <AccountOptions accounts={open} />
               </Select>
@@ -632,19 +709,7 @@ export function CaptureForm({
           )}
         </div>
         {isTransfer && dateAndStatus}
-        {!isTransfer && draft.splitOn ? (
-          <SplitEditor
-            draft={draft}
-            setDraft={setDraft}
-            categories={splitPickable}
-            accounts={open}
-            accountId={accountId}
-            contacts={contacts}
-            hasAdvanceCategory={Boolean(advanceCategoryId)}
-            locked={splitLocked}
-            error={errors.splits}
-          />
-        ) : (
+        {!draft.splitOn && (
           <>
             {showCategory && (
               <div className="kcatfield">
@@ -688,44 +753,88 @@ export function CaptureForm({
                 )}
               </div>
             )}
-            {!isTransfer && (
-              <Button variant="ghost" size="sm" className="ksplit-start" onClick={startSplit}>
-                Aufteilen
-              </Button>
-            )}
           </>
         )}
-        {!isTransfer && (
-          <Field
-            label="Wiederholen"
-            hint="Legt beim Speichern eine wiederkehrende Zahlung an. Die nächste Fälligkeit folgt nach einem Rhythmus."
-          >
-            {({ id }) => (
-              <Select
-                id={id}
-                value={draft.repeat ?? ''}
-                onChange={(e) => set('repeat', e.target.value as BookingDraft['repeat'])}
+        <details
+          className="kmore"
+          open={moreOpen}
+          onToggle={(e) => setMoreOpen(e.currentTarget.open)}
+        >
+          <summary>
+            Mehr{moreSummary && <span className="bk-more-summary"> · {moreSummary}</span>}
+          </summary>
+          <div className="kform">
+            {!isTransfer &&
+              (draft.splitOn ? (
+                <SplitEditor
+                  draft={draft}
+                  setDraft={setDraft}
+                  categories={splitPickable}
+                  accounts={open}
+                  accountId={accountId}
+                  contacts={contacts}
+                  hasAdvanceCategory={Boolean(advanceCategoryId)}
+                  locked={splitLocked}
+                  error={errors.splits}
+                />
+              ) : (
+                <Button variant="ghost" size="sm" className="ksplit-start" onClick={startSplit}>
+                  Aufteilen
+                </Button>
+              ))}
+            {!isTransfer && (
+              <Field
+                label="Wiederholen"
+                hint="Legt beim Speichern eine wiederkehrende Zahlung an. Die nächste Fälligkeit folgt nach einem Rhythmus."
               >
-                <option value="">Nie</option>
-                <option value="weekly">Wöchentlich</option>
-                <option value="monthly">Monatlich</option>
-                <option value="quarterly">Vierteljährlich</option>
-                <option value="yearly">Jährlich</option>
-              </Select>
+                {({ id }) => (
+                  <Select
+                    id={id}
+                    value={draft.repeat ?? ''}
+                    onChange={(e) => set('repeat', e.target.value as BookingDraft['repeat'])}
+                  >
+                    <option value="">Nie</option>
+                    <option value="weekly">Wöchentlich</option>
+                    <option value="monthly">Monatlich</option>
+                    <option value="quarterly">Vierteljährlich</option>
+                    <option value="yearly">Jährlich</option>
+                  </Select>
+                )}
+              </Field>
             )}
-          </Field>
-        )}
-        <Field label="Notiz">
-          {({ id }) => (
-            <TextInput
-              id={id}
-              value={draft.memo}
-              placeholder="Optional"
-              autoComplete="off"
-              onChange={(e) => set('memo', e.target.value)}
-            />
-          )}
-        </Field>
+            <Field label="Notiz">
+              {({ id }) => (
+                <TextInput
+                  id={id}
+                  value={draft.memo}
+                  placeholder="Optional"
+                  autoComplete="off"
+                  onChange={(e) => set('memo', e.target.value)}
+                />
+              )}
+            </Field>
+
+            {((lookups.data?.projects ?? offlineChoices?.projects)?.length ?? 0) > 0 && (
+              <Field label="Projekt">
+                {({ id }) => (
+                  <Select
+                    id={id}
+                    value={draft.projectId}
+                    onChange={(e) => set('projectId', e.target.value)}
+                  >
+                    <option value="">kein Projekt</option>
+                    {(lookups.data?.projects ?? offlineChoices?.projects ?? []).map((p) => (
+                      <option key={p.id} value={p.id}>
+                        {p.name}
+                        {p.archivedAt ? ' · archiviert' : ''}
+                      </option>
+                    ))}
+                  </Select>
+                )}
+              </Field>
+            )}
+          </div>
+        </details>
         {draft.kind === 'income' && (
           <Field label="Einnahmeart">
             {({ id }) => (
@@ -760,34 +869,6 @@ export function CaptureForm({
                 : undefined
             }
           />
-        )}
-        {((lookups.data?.projects ?? offlineChoices?.projects)?.length ?? 0) > 0 && (
-          <details
-            className="kmore"
-            open={moreOpen}
-            onToggle={(e) => setMoreOpen(e.currentTarget.open)}
-          >
-            <summary>Mehr</summary>
-            <div className="kform">
-              <Field label="Projekt">
-                {({ id }) => (
-                  <Select
-                    id={id}
-                    value={draft.projectId}
-                    onChange={(e) => set('projectId', e.target.value)}
-                  >
-                    <option value="">kein Projekt</option>
-                    {(lookups.data?.projects ?? offlineChoices?.projects ?? []).map((p) => (
-                      <option key={p.id} value={p.id}>
-                        {p.name}
-                        {p.archivedAt ? ' · archiviert' : ''}
-                      </option>
-                    ))}
-                  </Select>
-                )}
-              </Field>
-            </div>
-          </details>
         )}
         {errors.form && (
           <p className="field-error" role="alert">
@@ -847,10 +928,12 @@ function DateField({
   draft,
   set,
   error,
+  inputRef,
 }: {
   draft: BookingDraft;
   set: <K extends keyof BookingDraft>(key: K, value: BookingDraft[K]) => void;
   error: string | undefined;
+  inputRef: React.RefObject<HTMLInputElement | null>;
 }) {
   useAmountPrivacy();
   return (
@@ -860,6 +943,7 @@ function DateField({
           <TextInput
             id={id}
             type="date"
+            ref={inputRef}
             value={draft.date}
             aria-invalid={invalid}
             aria-describedby={describedBy}

@@ -1515,7 +1515,7 @@
   gap: 12px;
   flex-wrap: wrap;
 }
-.kform-pair:has(.kdate-status) {
+.kform-pair:has(.bk-dates) {
   grid-template-columns: minmax(0, 1fr);
 }
 .kdate-status {
@@ -1549,4 +1549,30 @@
 }
 .kchart-range .seg button {
   min-height: 44px;
+}
+
+/* Booking suggestions open above the payee: no overlap or blur reflow at Bezahlt von. */
+.bk-payee .combo-list {
+  top: auto;
+  bottom: calc(100% + 4px);
+  max-height: 132px;
+}
+.bk-date-chips {
+  margin: 0 0 8px;
+}
+.bk-date-chips .chip {
+  height: 44px;
+}
+.bkform .kmore > summary {
+  min-height: 44px;
+  padding-block: 12px;
+}
+.bk-more-summary {
+  font-weight: 400;
+}
+
+@media (max-width: 767px) {
+  dialog.sheet-bottom:has(.bkform) {
+    --sheet-max: 96dvh;
+  }
 }
