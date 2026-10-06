@@ -15,7 +15,7 @@ test('plan views: status, 50/30/20, triage groups and the time view', async ({ p
   // "Nichts ist überzogen." never appears next to them.
   const status = page.getByRole('list', { name: 'Zustand des Monats' });
   await expect(status).toContainText('Ungedeckt aus dem Vormonat');
-  await expect(status).toContainText('bar überzogen');
+  await expect(status).toContainText('Envelopes überzogen');
   await expect(status).not.toContainText('Nichts ist überzogen');
 
   // Assigned money far above the income: the bar runs past 100 % with an overflow label

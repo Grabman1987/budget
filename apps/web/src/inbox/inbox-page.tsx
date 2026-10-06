@@ -342,6 +342,14 @@ function InboxRow({
           <Button variant="ghost" onClick={() => onSavings(item)}>
             Ausführung prüfen
           </Button>
+        ) : item.type === 'envelope' ? (
+          <AppLink
+            className="btn btn-alert btn-sm"
+            to="/plan/monat"
+            search={{ monat: item.month, kategorie: item.categoryId }}
+          >
+            Decken
+          </AppLink>
         ) : item.refType === 'payslip-intake' && item.refId ? (
           <AppLink className="btn btn-ghost btn-sm" to="/reports/gehalt">
             Gehaltsreport
