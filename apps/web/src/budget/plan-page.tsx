@@ -77,7 +77,7 @@ import { useBudgetWrite } from './use-category-writes';
 const dayMonth = (day: string) => `${day.slice(8, 10)}.${day.slice(5, 7)}.`;
 
 const VIEWS = [
-  { value: 'stage', label: 'Wasserfall' },
+  { value: 'stage', label: 'Nach Stufen' },
   { value: 'time', label: 'Zeit' },
   { value: 'group', label: 'Gruppen' },
   { value: 'class', label: 'Klassen' },
@@ -483,19 +483,21 @@ function PlanBody({
               </p>
             ) : (
               <div className="seg" role="group" aria-label="Gliederung">
-                {[...VIEWS, { value: 'triage' as const, label: 'Triage' }].map((v) => (
-                  <button
-                    key={v.value}
-                    type="button"
-                    aria-pressed={view === v.value}
-                    onClick={() => setView(v.value)}
-                  >
-                    {v.label}
-                    {v.value === 'triage' && urgent.length > 0 && (
-                      <Count tone="alert">{urgent.length}</Count>
-                    )}
-                  </button>
-                ))}
+                {[...VIEWS, { value: 'triage' as const, label: 'Überziehungen prüfen' }].map(
+                  (v) => (
+                    <button
+                      key={v.value}
+                      type="button"
+                      aria-pressed={view === v.value}
+                      onClick={() => setView(v.value)}
+                    >
+                      {v.label}
+                      {v.value === 'triage' && urgent.length > 0 && (
+                        <Count tone="alert">{urgent.length}</Count>
+                      )}
+                    </button>
+                  ),
+                )}
               </div>
             )}
             <span className="spacer" />

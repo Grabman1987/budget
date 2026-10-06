@@ -107,7 +107,10 @@ test('actual inbox: confirm, categorize, resolve warning, undo and keyboard pane
       fullPage: true,
     });
   }
-  await warning.getByRole('button', { name: 'Als erledigt markieren' }).click();
+  const resolve = warning.getByRole('button', { name: 'Als erledigt markieren' });
+  await expect(resolve).toHaveClass(/btn-ghost/);
+  await expect(resolve).not.toHaveClass(/btn-alert/);
+  await resolve.click();
   await expect(warning).toHaveCount(0);
   await page.locator('.toast.is-open').getByRole('button', { name: 'Rückgängig' }).click();
   await expect(warning).toBeVisible();
