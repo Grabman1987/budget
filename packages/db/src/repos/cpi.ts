@@ -1,4 +1,4 @@
-import { desc, eq, max, sql } from 'drizzle-orm';
+import { desc, eq, max, notLike, sql } from 'drizzle-orm';
 import { consumerPriceIndex } from '../schema';
 import type { Executor } from './types';
 
@@ -55,6 +55,7 @@ export function currentCpiSeries(db: Executor): string | null {
     db
       .select({ series: consumerPriceIndex.series })
       .from(consumerPriceIndex)
+      .where(notLike(consumerPriceIndex.series, 'vpi:%'))
       .orderBy(desc(consumerPriceIndex.month), desc(consumerPriceIndex.series))
       .limit(1)
       .get()?.series ?? null

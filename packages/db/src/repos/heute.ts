@@ -5,8 +5,7 @@ import {
   freeUntilPayday,
   heuteWindow,
   lastDayOfMonth,
-  budgetLiquidityForecast,
-  resolveParams,
+  balanceForecast,
   monthOf,
   netWorthDays,
   netWorthParts,
@@ -34,7 +33,6 @@ import {
   bookingSplit,
   contact,
   expectedOccurrence,
-  rule,
   INCOME_TYPES,
   SYSTEM_PAYEE_IDS,
 } from '../schema';
@@ -509,38 +507,21 @@ export function heute(db: Executor, query: HeuteQuery): Heute {
   const actualDays: string[] = [];
   for (let d = window.from; d <= window.to && d <= today; d = addDays(d, 1)) actualDays.push(d);
   const series = cashSeries(db, actualDays, budgetIds);
-  const actual = actualDays.map((day, i) => ({
+  const history = actualDays.map((day, i) => ({
     day,
     balanceCents: sumBudget((id) => series.get(id)?.[i] ?? 0),
   }));
-  let forecast: Heute['balance']['forecast'] = [];
+  const inputs = forecastInputs(facts, today, { byAccount: budgetValues });
+  const { actual, forecast: projected, low } = balanceForecast(inputs, window, history);
+  const forecast: Heute['balance']['forecast'] = budgetAccounts.length > 0 ? projected : [];
   let salaryJump: Heute['balance']['salary'] = null;
-  let low: LowPoint | null = null;
   if (window.to > today && budgetAccounts.length > 0) {
-    const inputs = forecastInputs(facts, today, { byAccount: budgetValues });
-    const r07 = db.select().from(rule).where(eq(rule.code, 'R07')).get();
-    const horizon = Number(
-      resolveParams('R07', JSON.parse(r07?.paramsJson ?? '{}'))['horizonDays'],
-    );
-    const run = budgetLiquidityForecast(inputs, horizon);
-    forecast = run.days.map((d) => ({
-      day: d.day,
-      balanceCents: d.balanceCents,
-      variableCents: d.variableCents,
-      items: d.items,
-    }));
-    low = run.low;
     // A planning boundary must never invent or move a salary receipt in the cash forecast.
-    const salaryDay = salary.find(
-      (o) => o.dueDate > today && o.dueDate <= run.days.at(-1)!.day,
-    )?.dueDate;
+    const salaryDay = salary.find((o) => o.dueDate > today && o.dueDate <= window.to)?.dueDate;
     if (salaryDay) {
       const jump = salary.filter((o) => o.dueDate === salaryDay);
       salaryJump = { day: salaryDay, cents: jump.reduce((a, o) => a + o.amountCents, 0) };
     }
-  } else if (actual.length > 0) {
-    const min = actual.reduce((a, b) => (b.balanceCents < a.balanceCents ? b : a));
-    low = { day: min.day, index: actualDays.indexOf(min.day), cents: min.balanceCents };
   }
 
   // ---- pace of Bedarf and Wunsch ----

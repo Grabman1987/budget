@@ -359,12 +359,14 @@ describe('Plan › Monat view model', () => {
   });
 });
 
-it('never suggests a short or card-payment source, and advances after depletion', () => {
+it('uses positive free money, including partial sources, and excludes card payments', () => {
   const rows = planRows(data);
   const target = rows.find((r) => r.id === 'treibstoff')!;
   expect(coverSources(rows, target).map((r) => r.id)).toEqual(['essen']);
   const drained = rows.map((r) => (r.id === 'essen' ? { ...r, availableCents: 1239 } : r));
-  expect(coverSource(drained, target)).toBeUndefined();
+  expect(coverSource(drained, target)?.id).toBe('essen');
+  const committed = rows.map((r) => (r.id === 'essen' ? { ...r, freeCents: 0 } : r));
+  expect(coverSource(committed, target)).toBeUndefined();
   const replenished = drained.map((r) => (r.id === 'cafe' ? { ...r, availableCents: 1240 } : r));
   expect(coverSource(replenished, target)?.id).toBe('cafe');
 });

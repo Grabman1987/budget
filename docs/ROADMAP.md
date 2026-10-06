@@ -15,6 +15,14 @@
 - [x] Synthetic unit and bounding-box/hit-test phone regressions; [scope and baseline list](ux-tap-targets-1005.md).
 - [x] Final local check phases (336 files / 3,175 tests), production build and affected Chromium/WebKit browser checks; [verification evidence](ux-tap-targets-1005.md).
 - [ ] Pinned Linux screenshot review and owner phone acceptance (see delivery evidence).
+### Heute / R07 horizon — owner 05.10.2026
+
+- [x] Shared period-bound balance/low read, 14-day actual lookback, two-day boundary tail and short payday extension; remembered period and R07 chart in Finanz-Check-Verlauf.
+- [x] Synthetic boundary, cent/low-point and desktop/mobile browser regression tests; [scope and baseline list](heute-horizon-1005.md).
+- [x] Full local check: 336 files / 3,179 tests, production/E2E builds and focused desktop/mobile browser verification; see the contract above.
+- [ ] Pinned Linux visual review, CI and owner acceptance (see PR evidence).
+
+- [x] UX-2b (owner 2026-10-05): free-money caps for individual/bulk cover, pending/recurring dedup, account/used-credit line and missing-money carry option; synthetic regressions, CI and owner acceptance pending.
 
 ### UX-3a — Phone shell (owner feedback 2026-10-05)
 
@@ -621,3 +629,13 @@ Owner feedback 2026-10-04: spending/cost reports 1.4/1.10/2.3–2.6/3.4–3.5 an
 - [x] Final local check (327 suites / 3,107 tests), production/E2E builds and desktop/mobile light/dark browser evidence; no baseline regeneration.
 - [ ] PR/CI review against main; part A was merged in PR #199 while C was being verified.
 - [ ] Owner acceptance of report 2.4 and local protected-index refresh (`git reset --mixed HEAD`); no keys, consents or settings changes are needed for this read-only view.
+
+### Report 2.4 — CPI sub-index method, part B (owner 2026-10-05)
+
+- [x] VPI-Teilindex with one/two searchable classes and validated exact-100% split; audited persistence reuses part A and preserves payee exclusions.
+- [x] Existing VPI loader/refresh extended to detailed monthly COICOP classes; synthetic recorded-layout responses, class-specific base linking and separate total benchmark.
+- [x] Public price relatives weighted by own base-year spending through the existing annual chain; index units and source/household-weight labels in both basket views, explicit missing-history/publication boundary.
+- [ ] Evening extension: distinct category explorer with multi-select, category price/reference histories since budget start, difference/quantity details, owner interpretation note and two-category E2E; retained as follow-up within the one-hour slice rule.
+- [ ] PR/CI and owner mapping/design acceptance. No private data, baseline regeneration, migration, provider credentials or automatic bookings.
+
+Method, limits and owner steps: [inflation basket](inflation-basket.md#cpi-sub-index-method-part-b-2026-10-05).

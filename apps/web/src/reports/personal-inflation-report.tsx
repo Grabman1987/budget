@@ -79,9 +79,11 @@ function Body({ data }: { data: InflationReport }) {
           <h2 id="pi-empty">Noch kein Preisindex</h2>
         </div>
         <p className="sr-empty" role="status" data-testid="pi-empty-reason">
-          {data.insufficientReason === 'months'
-            ? 'Für eine Teuerung über zwölf Monate braucht der Report mindestens 13 geschlossene Monate.'
-            : 'Für den eigenen Warenkorb braucht der Report Fixkosten mit Preis und Ausgaben im ersten Jahr der Aufzeichnung: gespeicherte Preisversionen oder regelmäßige Buchungen, auch Quartals-, Halbjahres- und Jahreszahlungen.'}
+          {data.insufficientReason === 'cpi'
+            ? 'Für eine gewählte VPI-Teilindex-Kategorie fehlen mindestens 13 zusammenhängende Monate mit veröffentlichten Preiswerten. Die Kategorie wird nicht still aus dem Warenkorb entfernt.'
+            : data.insufficientReason === 'months'
+              ? 'Für eine Teuerung über zwölf Monate braucht der Report mindestens 13 geschlossene Monate.'
+              : 'Für den eigenen Warenkorb braucht der Report Fixkosten mit Preis und Ausgaben im ersten Jahr der Aufzeichnung: gespeicherte Preisversionen oder regelmäßige Buchungen, auch Quartals-, Halbjahres- und Jahreszahlungen.'}
         </p>
         {data.referenceLatest ? (
           <p className="sr-note" data-testid="pi-empty-reference">
@@ -150,7 +152,8 @@ function Body({ data }: { data: InflationReport }) {
         <IndexChart data={data} />
         <p className="sr-note">
           Eigener Warenkorb · <Term term="Index" /> · Start = 100; <Term term="VPI" /> als
-          Vergleich.
+          Vergleich. VPI-Teilindizes begrenzen den Warenkorb auf den letzten gemeinsam
+          veröffentlichten Monat.
         </p>
         {data.reference ? (
           <p className="sr-note">
@@ -377,8 +380,8 @@ function Body({ data }: { data: InflationReport }) {
                   <th scope="col">Kategorie / Vertrag</th>
                   <th scope="col">Quelle</th>
                   <th scope="col">Gewicht</th>
-                  <th scope="col">Basis je Monat</th>
-                  <th scope="col">Jetzt je Monat</th>
+                  <th scope="col">Basis: Preis / Index</th>
+                  <th scope="col">Jetzt: Preis / Index</th>
                   <th scope="col">Änderung ab Basis</th>
                   <th scope="col">
                     Beitrag <Term term="Pp" />
@@ -397,6 +400,10 @@ function Body({ data }: { data: InflationReport }) {
           {basketView === 'year'
             ? 'Ø je Monat ist das Mittel der beobachteten Monatspreise. Die Preisänderung vergleicht dieselben Monate im Vorjahr. Beiträge stammen aus dem verketteten Index: Dezember gegen Dezember, im laufenden Jahr der letzte Monat gegen den Vorjahresmonat. Ihre Summe ergibt genau „Je Kalenderjahr“. Ein Strich heißt: Preis oder Vergleich fehlt.'
             : 'Basis ist der erste eigene Preis; Änderung vergleicht Basis und Jetzt. Gewichte werden jährlich erneuert. Beiträge zeigen die letzten zwölf Monate und ergeben die Leitkennzahl.'}
+        </p>
+        <p className="sr-note">
+          Bei VPI-Teilindizes kommt der Preis von Statistik Austria, das Gewicht aus deinen Ausgaben
+          im Basisjahr; die Werte sind Indexstände (Basis = 100).
         </p>
         {data.hasOverrides && <p className="sr-note">Warenkorb in den Einstellungen festgelegt</p>}
         <details>
@@ -615,6 +622,9 @@ function BasketYears({ data }: { data: InflationReport }) {
   );
 }
 
+const basketPrice = (b: InflationReport['basket'][number], value: number) =>
+  b.source === 'cpi' ? index1(value / 100) : eur(value);
+
 function BasketCategory({
   id,
   data,
@@ -631,6 +641,9 @@ function BasketCategory({
         <tr key={b.id}>
           <th scope="row">
             {i === 0 && <small>{b.categoryName}</small>}
+            {yearly && b.source === 'cpi' && (
+              <small>VPI-Teilindex {b.coicopLabel}, mit deinem Gewicht</small>
+            )}
             <details>
               <summary>
                 {b.name}
@@ -639,7 +652,7 @@ function BasketCategory({
               <ul>
                 {b.history.map((p) => (
                   <li key={p.month}>
-                    {monthShort(p.month)} · {eur(p.cents)}
+                    {monthShort(p.month)} · {basketPrice(b, p.cents)}
                   </li>
                 ))}
               </ul>
@@ -648,7 +661,9 @@ function BasketCategory({
           {yearly ? (
             b.years.map((y) => (
               <Fragment key={y.year}>
-                <td className="n">{y.averageCents === null ? '–' : eur(y.averageCents)}</td>
+                <td className="n">
+                  {y.averageCents === null ? '–' : basketPrice(b, y.averageCents)}
+                </td>
                 <td className="n">{yearPercent(y.changeBp)}</td>
                 <td className="n" data-year={y.year} data-contribution>
                   {y.contributionBp === null ? '–' : pp(y.contributionBp)}
@@ -658,15 +673,17 @@ function BasketCategory({
           ) : (
             <>
               <td>
-                {b.source === 'trailing'
-                  ? '12-Monats-Mittel, enthält Verbrauch und Nachzahlungen'
-                  : b.source === 'bookings'
-                    ? 'aus Buchungen abgeleitet'
-                    : 'gespeichert'}
+                {b.source === 'cpi'
+                  ? `VPI-Teilindex ${b.coicopLabel}, mit deinem Gewicht`
+                  : b.source === 'trailing'
+                    ? '12-Monats-Mittel, enthält Verbrauch und Nachzahlungen'
+                    : b.source === 'bookings'
+                      ? 'aus Buchungen abgeleitet'
+                      : 'gespeichert'}
               </td>
               <td>{bpText(b.shareBp)}</td>
-              <td>{eur(b.baseCents)}</td>
-              <td>{eur(b.nowCents)}</td>
+              <td>{basketPrice(b, b.baseCents)}</td>
+              <td>{basketPrice(b, b.nowCents)}</td>
               <td>{bpText(b.changeBp, { sign: true })}</td>
               <td>{pp(b.contributionBp)}</td>
             </>

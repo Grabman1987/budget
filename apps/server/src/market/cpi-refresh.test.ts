@@ -1,4 +1,4 @@
-import { cpiFetchedAt, cpiMonths, createTestDatabase, type Db } from '@budget/db';
+import { storeCpi, cpiFetchedAt, cpiMonths, createTestDatabase, type Db } from '@budget/db';
 import { MarketError, fixtureCpiMonths, type CpiSource, type MarketSources } from '@budget/market';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { fixtureFxSource, fixtureQuoteSource } from '@budget/market';
@@ -104,4 +104,27 @@ describe('refreshCpi', () => {
       failed: null,
     });
   });
+});
+
+it('backfills sub-indices even when the stored total was read this month', async () => {
+  storeCpi(db, 'vpi', [{ month: '2025-12', indexMicro: 100_000_000 }], '2026-09-01T00:00:00Z');
+  const source: CpiSource = {
+    series: 'vpi',
+    monthly: async () => [],
+    monthlySeries: async () =>
+      Object.fromEntries(
+        ['vpi', 'vpi:01.1', 'vpi:12.1.3', 'vpi:11.1', 'vpi:07.2.2', 'vpi:12.5'].map((key) => [
+          key,
+          [{ month: '2025-12', indexMicro: 120_000_000 }],
+        ]),
+      ),
+  };
+  expect(
+    await refreshCpi(db, sources(source), {
+      today: '2026-09-02',
+      now: new Date('2026-09-02T00:00:00Z'),
+    }),
+  ).toEqual({ skipped: false, rows: 6, failed: null });
+  expect(cpiMonths(db, 'vpi:07.2.2').months).toEqual({ '2025-12': 120 });
+  expect((await refreshCpi(db, sources(source), { today: '2026-09-03' })).skipped).toBe(true);
 });

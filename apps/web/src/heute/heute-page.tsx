@@ -14,8 +14,8 @@ import {
 } from '@budget/ui';
 import { addDays, cents } from '@budget/domain';
 import { useQuery } from '@tanstack/react-query';
-import { useNavigate, useSearch } from '@tanstack/react-router';
-import { useEffect, useState, type ReactNode } from 'react';
+import { useNavigate } from '@tanstack/react-router';
+import { useState, type ReactNode } from 'react';
 import {
   AlertTriangle,
   ArrowDown,
@@ -36,7 +36,8 @@ import { monthLabel as monthName } from '../nav/month';
 import { currentMonth, useMonth } from '../shell/use-month';
 import { AppLink } from '../shell/app-link';
 import { BalanceChart, HeutePaceChart } from './charts';
-import { heuteQuery, type Heute, type HeutePeriod } from './api';
+import { heuteQuery, type Heute } from './api';
+import { useBalancePeriod } from './use-balance-period';
 import './heute.css';
 import { useIsPhone } from '../budget/month-span';
 import { useStoredFlag } from '../shell/use-stored-flag';
@@ -54,31 +55,9 @@ const STATUS: Record<string, string> = {
 export function HeutePage() {
   useAmountPrivacy();
   const [month] = useMonth();
-  const { period: searchPeriod } = useSearch({ strict: false }) as { period?: HeutePeriod };
-  const period = searchPeriod ?? 'month';
-  const navigate = useNavigate();
-  const setPeriod = (value: HeutePeriod) =>
-    void navigate({
-      to: '/',
-      search: ((previous: Record<string, unknown>) => ({ ...previous, period: value })) as never,
-      replace: true,
-    });
+  const { period, setPeriod } = useBalancePeriod();
   const query = useQuery(heuteQuery(month, period));
   const data = query.data;
-  // Canonicalize bookmarked payday views and month navigation after the server establishes today.
-  // Returning to the current month keeps the explicit month fallback instead of restoring a stale mode.
-  useEffect(() => {
-    if (data && searchPeriod === 'payday' && month !== data.stand.today.slice(0, 7)) {
-      void navigate({
-        to: '/',
-        search: ((previous: Record<string, unknown>) => ({
-          ...previous,
-          period: 'month',
-        })) as never,
-        replace: true,
-      });
-    }
-  }, [data, month, navigate, searchPeriod]);
   return (
     <PageFrame
       meta={HEUTE}
@@ -190,8 +169,8 @@ function HeuteBody({ data }: { data: Heute }) {
         />
         {data.balance.forecast.length > 0 && (
           <p className="heute-note">
-            Kontoprognose bis {longDay(data.balance.forecast.at(-1)!.day)}; gleicher Horizont und
-            Tiefpunkt wie R07.
+            Kontoprognose bis {longDay(data.stand.to)} · 14 Tage Rückblick · gleicher Horizont wie
+            R07.
           </p>
         )}
         {chainOpen && (

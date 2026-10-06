@@ -26,29 +26,39 @@ describe('nextPayday', () => {
 });
 
 describe('heuteWindow', () => {
-  it('Monat spans the month, Bis Gehalt runs from today to the payday', () => {
+  it.each([
+    ['payday', '2026-10-05', '2026-09-21', '2026-10-17'],
+    ['month', '2026-10-05', '2026-09-21', '2026-11-02'],
+    ['payday', '2026-10-14', '2026-09-30', '2026-11-15'],
+  ] as const)('%s on %s includes the lookback and two boundary days', (period, today, from, to) => {
+    expect(heuteWindow(period, '2026-10', today, nextPayday(today).day)).toMatchObject({
+      from,
+      to,
+    });
+  });
+  it('uses the provided payday boundary and the shown month end', () => {
     expect(heuteWindow('month', '2026-09', '2026-09-17', '2026-09-30')).toMatchObject({
-      from: '2026-09-01',
-      to: '2026-09-30',
+      from: '2026-09-03',
+      to: '2026-10-02',
     });
     expect(heuteWindow('payday', '2026-09', '2026-09-17', '2026-09-30')).toMatchObject({
       period: 'payday',
-      from: '2026-09-17',
-      to: '2026-09-30',
+      from: '2026-09-03',
+      to: '2026-10-02',
     });
   });
-  it('shows another month as the whole month', () => {
+  it('keeps the payday window anchored to today when another month is shown', () => {
     expect(heuteWindow('payday', '2026-08', '2026-09-17', '2026-09-30')).toEqual({
-      period: 'month',
+      period: 'payday',
       month: '2026-08',
-      from: '2026-08-01',
-      to: '2026-08-31',
+      from: '2026-09-03',
+      to: '2026-10-02',
     });
   });
-  it('is one day on the payday itself', () => {
-    expect(heuteWindow('payday', '2026-09', '2026-09-30', '2026-09-30')).toMatchObject({
-      from: '2026-09-30',
-      to: '2026-09-30',
+  it('extends on payday itself across December', () => {
+    expect(heuteWindow('payday', '2026-12', '2026-12-15', '2026-12-15')).toMatchObject({
+      from: '2026-12-01',
+      to: '2027-01-17',
     });
   });
 });

@@ -172,15 +172,18 @@ export function budgetRoutes(db: Db, today: () => string): Hono {
   app.post('/:month/move', async (c) => {
     const m = monthParam(c.req.param('month'));
     const body = await readBody(c, moveBody);
-    if ('coverAll' in body) return c.json(coverAllOverspending(db, m, body.fromId, audit()));
+    if ('coverAll' in body)
+      return c.json(coverAllOverspending(db, m, body.fromId, audit(), today()));
     return c.json(moveMoney(db, m, body.fromId, body.toId, body.amountCents, audit()));
   });
 
   app.post('/:month/cover', async (c) => {
     const m = monthParam(c.req.param('month'));
-    const { categoryId, fromId, allowNegative } = await readBody(c, coverBody);
+    const { categoryId, fromId } = await readBody(c, coverBody);
     return c.json(
-      coverOverspending(db, m, categoryId, fromId, audit(), allowNegative ? { allowNegative } : {}),
+      coverOverspending(db, m, categoryId, fromId, audit(), {
+        today: today(),
+      }),
     );
   });
 

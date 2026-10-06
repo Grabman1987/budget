@@ -76,3 +76,33 @@
     grid-column: 1 / -1;
   }
 }
+.basket-coicop {
+  grid-column: 1 / -1;
+}
+.basket-coicop-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  margin-block: 16px;
+}
+.basket-coicop .field {
+  min-width: 0;
+}
+.basket-coicop > [role='status'] {
+  display: inline-block;
+  margin: 12px;
+  color: var(--ink-2);
+}
+.basket-coicop input[type='number'] {
+  min-height: 44px;
+  padding: 8px;
+  border: 1px solid var(--rule-strong);
+  border-radius: 6px;
+  background: var(--raised);
+  color: var(--ink);
+}
+@media (max-width: 767px) {
+  .basket-coicop-fields {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

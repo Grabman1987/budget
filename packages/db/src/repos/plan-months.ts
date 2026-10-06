@@ -7,6 +7,7 @@ import {
   type BudgetMonth,
   type CardRule,
 } from '@budget/domain';
+import { coverBudgetMoney, coverCommitments } from './cover-limits';
 import { categoryTree } from './categories';
 import { planIncomeTargets } from './income-targets';
 import { budgetLedger, budgetOfLedger } from './queries';
@@ -32,6 +33,9 @@ export function planMonthViews(
   const tree = categoryTree(db);
   const ledger = budgetLedger(db);
   const facts = loadFacts(db, lastDayOfMonth(last), ledger);
+  // Cover limits always read today's facts, as the single and bulk cover do.
+  const coverFacts = loadFacts(db, today, ledger);
+  const budgetMoney = coverBudgetMoney(db, today, coverFacts);
   const starts = ledger.accounts.filter((a) => a.onBudget).map((a) => monthOf(a.openingDate));
   // One budget run from the first budget month (the facts hold it for the default card rule).
   // Months before it (no budget account was open) keep their own single-month run, as before.
@@ -48,8 +52,19 @@ export function planMonthViews(
       )
     : facts.budgetByMonth;
   const view = (m: BudgetMonth, month: string) => {
+    const base = summarizeMonth(m, tree.categories, tree.targets);
+    const limits = new Map(
+      coverCommitments(
+        db,
+        month,
+        today,
+        ledger,
+        coverFacts,
+      )(base.envelopes).map((e) => [e.categoryId, e]),
+    );
     const summary = {
-      ...summarizeMonth(m, tree.categories, tree.targets),
+      ...base,
+      envelopes: base.envelopes.map((e) => ({ ...e, ...limits.get(e.categoryId)! })),
       unclassified: unclassifiedMonth(ledger, month),
     };
     // Facts as `loadFacts(db, lastDayOfMonth(month))` would read them: only the first month differs.
@@ -59,6 +74,7 @@ export function planMonthViews(
     };
     return {
       summary,
+      budgetMoney,
       groups: tree.groups,
       categories: tree.categories,
       incomeTargets: planIncomeTargets(db, summary, today, monthFacts),
