@@ -1,5 +1,11 @@
 # Roadmap
 
+### UX-6 - Typography and radii (owner task 2026-10-05)
+
+- [x] Off-scale CSS values mapped to DESIGN.md tokens, preserving chart/emoji geometry.
+- [x] Dependency-free CSS scale lint in CI, synthetic unit and desktop/phone theme regressions; [scope and affected baselines](ux-typeset-1005.md).
+- [ ] Pinned Linux visual review, CI and owner acceptance.
+
 ### Unterseiten statt Seitenpanels — owner decision 2026-10-05
 
 - [x] Complete web inventory with a replacement decision and explicit open scope ([inventory](no-side-panels-1005.md)).
