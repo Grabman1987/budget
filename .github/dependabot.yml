@@ -11,12 +11,12 @@ updates:
     open-pull-requests-limit: 5
     # Playwright minor updates break the offline e2e (service worker vs. setOffline since 1.57); bump it by hand with a trace review.
     ignore:
-      - dependency-name: "@playwright/test"
-        update-types: ["version-update:semver-minor"]
+      - dependency-name: '@playwright/test'
+        update-types: ['version-update:semver-minor']
       - dependency-name: playwright
-        update-types: ["version-update:semver-minor"]
+        update-types: ['version-update:semver-minor']
       - dependency-name: playwright-core
-        update-types: ["version-update:semver-minor"]
+        update-types: ['version-update:semver-minor']
     groups:
       npm-minor-patch:
         update-types: [minor, patch]
