@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any -- JSON answers are inspected, not typed */
-import { createTestDatabase } from '@budget/db';
+import { createTestDatabase, reportTables, type Db } from '@budget/db';
 import { mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -10,6 +10,7 @@ import { createApp, type AuthGate } from '../app';
 const webDir = mkdtempSync(join(tmpdir(), 'budget-api-'));
 writeFileSync(join(webDir, 'index.html'), '<!doctype html><title>Budget</title>');
 let app: ReturnType<typeof createApp>;
+let db: Db;
 /** The session guard has its own tests (auth.test.ts); here every request is signed in. */
 const signedIn: AuthGate = {
   originGuard: async (_c, next) => next(),
@@ -19,11 +20,140 @@ const signedIn: AuthGate = {
 };
 
 beforeEach(() => {
+  db = createTestDatabase().db;
   app = createApp({
     webDir,
     auth: signedIn,
-    ledger: { db: createTestDatabase().db, today: () => '2026-10-15' },
+    ledger: { db, today: () => '2026-10-15' },
   });
+});
+
+it('quick assigns shared target/history cents in one capped, undoable group', async () => {
+  const account = (
+    await ok('POST', '/accounts', {
+      name: 'Synthetic plan account',
+      type: 'checking',
+      openingDate: '2026-07-01',
+      // 3,329 cents stay reserved in History after September's assignment/spending.
+      openingBalanceCents: 103_329,
+    })
+  )['account'];
+  const group = (await ok('POST', '/categories/groups', { name: 'Synthetic plan' }))['group'];
+  const make = async (name: string, extra = {}) =>
+    (
+      await ok('POST', '/categories', {
+        name,
+        groupId: group.id,
+        class: 'need',
+        kind: 'variable',
+        stage: 2,
+        ...extra,
+      })
+    )['category'];
+  const target = await make('Target');
+  const history = await make('History');
+  const empty = await make('Empty');
+  const income = await make('Income', { kind: 'income', class: null, stage: null });
+  await ok('PUT', `/categories/${target.id}/target`, {
+    validFrom: '2026-10',
+    target: { kind: 'monthly', amountCents: 40_001 },
+  });
+  for (const [month, amountCents] of [
+    ['2026-07', -10_001],
+    ['2026-08', -20_002],
+    ['2026-09', -30_004],
+  ] as const)
+    await ok('POST', '/bookings', {
+      type: 'booking',
+      accountId: account.id,
+      date: `${month}-02`,
+      amountCents,
+      categoryId: history.id,
+    });
+  await ok('POST', '/bookings', {
+    type: 'booking',
+    accountId: account.id,
+    date: '2026-08-03',
+    amountCents: 1_000,
+    categoryId: history.id,
+  });
+  await ok('PUT', '/budget/2026-09/assigned', {
+    items: [{ categoryId: history.id, assignedCents: 33_333 }],
+  });
+  const view = await ok('GET', '/budget/2026-10');
+  expect(view['summary'].toBeAssignedCents).toBe(40_993);
+  const env = (id: string, v = view) =>
+    v['summary'].envelopes.find((e: any) => e.categoryId === id);
+  const tables = reportTables(db, { today: '2026-09-30' });
+  expect(tables.months.map((m) => m.spending[history.id])).toEqual([10_001, 19_002, 30_004]);
+  expect(env(history.id).quickAssign).toEqual({
+    lastMonthCents: 33_333,
+    averageCents: 19_669,
+    ghostCents: 19_002,
+    ghostSource: 'median',
+    historyMonths: ['2026-07', '2026-08', '2026-09'],
+  });
+  expect(env(target.id).quickAssign.ghostCents).toBe(env(target.id).needCents);
+  expect(env(empty.id).quickAssign.ghostCents).toBe(0);
+  const fill = await ok('POST', '/budget/2026-10/quick-assign', {
+    mode: 'empty',
+    categoryIds: [target.id, history.id, empty.id],
+  });
+  expect(fill).toMatchObject({ changedCount: 2, openCount: 1, missingCents: 18_010 });
+  const filled = await ok('GET', '/budget/2026-10');
+  expect(filled['summary'].toBeAssignedCents).toBe(0);
+  expect(env(target.id, filled).assignedCents).toBe(40_001);
+  expect(env(history.id, filled).assignedCents).toBe(992);
+  // Repeated/stale empty-fill must never overwrite an already assigned category.
+  expect(
+    (
+      await ok('POST', '/budget/2026-10/quick-assign', {
+        mode: 'empty',
+        categoryIds: [target.id, history.id],
+      })
+    ).changedCount,
+  ).toBe(0);
+  const undone = await ok('POST', '/undo', { groupId: fill.groupId });
+  expect(env(target.id, await ok('GET', '/budget/2026-10')).assignedCents).toBe(0);
+  const redone = await ok('POST', '/undo', { groupId: undone.groupId });
+  expect(env(history.id, await ok('GET', '/budget/2026-10')).assignedCents).toBe(992);
+  await ok('POST', '/undo', { groupId: redone.groupId });
+  for (const [mode, expected] of [
+    ['last-month', 33_333],
+    ['average', 19_669],
+  ] as const) {
+    const assigned = await ok('POST', '/budget/2026-10/quick-assign', {
+      mode,
+      categoryIds: [history.id, empty.id],
+    });
+    expect(env(history.id, await ok('GET', '/budget/2026-10')).assignedCents).toBe(expected);
+    await ok('POST', '/undo', { groupId: assigned.groupId });
+  }
+  const goal = await ok('POST', '/budget/2026-10/quick-assign', {
+    mode: 'target',
+    categoryIds: [target.id, empty.id],
+  });
+  expect(env(target.id, await ok('GET', '/budget/2026-10')).assignedCents).toBe(40_001);
+  await ok('POST', '/undo', { groupId: goal.groupId });
+  await ok('PUT', '/budget/2026-11/assigned', {
+    items: [{ categoryId: history.id, assignedCents: 1_234 }],
+  });
+  const future = await ok('GET', '/budget/2026-12');
+  expect(env(history.id, future).quickAssign.lastMonthCents).toBe(
+    env(history.id, await ok('GET', '/budget/2026-11')).assignedCents,
+  );
+  for (const categoryIds of [
+    [history.id, income.id],
+    [history.id, 'missing'],
+  ])
+    expect(
+      (await call('POST', '/budget/2026-10/quick-assign', { mode: 'empty', categoryIds })).status,
+    ).toBe(422);
+  for (const categoryIds of [[history.id, history.id], []])
+    expect(
+      (await call('POST', '/budget/2026-10/quick-assign', { mode: 'empty', categoryIds })).status,
+    ).toBe(400);
+  expect(env(history.id, await ok('GET', '/budget/2026-10')).assignedCents).toBe(0);
 });
 
 async function call(method: string, path: string, body?: unknown) {

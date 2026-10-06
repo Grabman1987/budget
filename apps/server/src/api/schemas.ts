@@ -299,6 +299,16 @@ export const assignBody = z.object({
     .min(1)
     .max(500),
 });
+export const quickAssignBody = z
+  .object({
+    mode: z.enum(['empty', 'last-month', 'average', 'target']),
+    categoryIds: z
+      .array(id)
+      .min(1)
+      .max(500)
+      .refine((ids) => new Set(ids).size === ids.length),
+  })
+  .strict();
 export const moveBody = z.union([
   z.object({ fromId: id.nullable(), toId: id.nullable(), amountCents: cents.positive() }).strict(),
   z.object({ coverAll: z.literal(true), fromId: id.nullable().optional() }).strict(),
