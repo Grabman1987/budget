@@ -6,6 +6,8 @@ import { Search } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { request } from '../api/http';
 import { LEDGER_KEY } from '../ledger/queries';
+import { closeEntryMonth, todayInVienna } from '@budget/domain';
+import { AppLink } from './app-link';
 import './global-search.css';
 
 const LABELS: Record<SearchKind, string> = {
@@ -142,6 +144,14 @@ export function GlobalSearch({ mobile = false }: { mobile?: boolean }) {
       </label>
       {open && (
         <div className="global-search-popup">
+          <AppLink
+            className="btn btn-ghost"
+            to={`/monatsabschluss/${closeEntryMonth(todayInVienna()) ?? todayInVienna().slice(0, 7)}`}
+            search={{}}
+            onClick={() => setOpen(false)}
+          >
+            Monatsabschluss starten oder fortsetzen
+          </AppLink>
           <div className="global-search-status" id={`${listId}-status`} role="status">
             {text.length < 2
               ? 'Mindestens zwei Zeichen eingeben.'
