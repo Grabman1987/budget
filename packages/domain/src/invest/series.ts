@@ -140,8 +140,8 @@ export function fxOn(rates: RateTable, currency: string, day: string): number {
  * Order, per held position and day:
  * 1. the latest price on or before the day: `exact` when it is at most `PRICE_STALE_AFTER_DAYS`
  *    days old (weekends and holidays are carried forward), `stale` when it is older;
- * 2. no such price: the earliest price AFTER the day, but only within
- *    `PRICE_BACKFILL_TOLERANCE_DAYS` days (a position bought before its first quote): `estimated`;
+ * 2. no such price: latest gross execution on/before the day, otherwise earliest after it,
+ *    excluding fees/taxes, in execution currency: `exact` (not a cost estimate);
  * 3. still none: the position's cost basis (moving average, in the account currency, converted
  *    with the rate of the day): `estimated`;
  * 4. no cost basis either (a snapshot without cost, or an unconvertible currency): the position
@@ -175,12 +175,23 @@ export const isIncompleteQuality = (q: ValuationQuality): q is IncompleteQuality
 export interface PriceChoice {
   price: DatedPrice;
   quality: 'exact' | 'stale' | 'estimated';
+  /** Exact gross/units ratio behind an execution price, before micro rounding. */
+  execution?: { amountCents: number; unitsE8: number };
+}
+
+/** One cent rounding, also when an execution price lies between stored micro-units. */
+export function valueAtPrice(unitsE8: number, choice: PriceChoice, fxRateMicro: number): number {
+  if (!choice.execution) return marketValueEurCents(unitsE8, choice.price.priceMicro, fxRateMicro);
+  const scaled = BigInt(unitsE8) * BigInt(choice.execution.amountCents) * BigInt(fxRateMicro);
+  const denominator = BigInt(Math.abs(choice.execution.unitsE8)) * 1_000_000n;
+  const negative = scaled < 0n;
+  const rounded = ((negative ? -scaled : scaled) + denominator / 2n) / denominator;
+  return Number(negative ? -rounded : rounded);
 }
 
 /**
- * The price a position is valued with on `day` (steps 1 and 2 above), or `undefined` when only the
- * cost basis is left. `backfill: false` restricts the choice to step 1 (the strict rule).
- * `sortedPrices` is ascending by date.
+ * Select a stored quote from an ascending list. Valuation uses `backfill: false` and fills gaps
+ * with execution prices; the optional legacy backfill only accepts a quote within seven days.
  */
 export function pickPrice(
   sortedPrices: ReadonlyArray<DatedPrice>,
@@ -202,6 +213,51 @@ export function pickPrice(
   if (after && daysBetween(day, after.date) <= PRICE_BACKFILL_TOLERANCE_DAYS)
     return { price: after, quality: 'estimated' };
   return undefined;
+}
+
+/** Execution gross / absolute units, without fees/taxes; latest before, earliest after. */
+export function pickTradePrice(
+  trades: ReadonlyArray<ProductTrade & { currency?: string }>,
+  day: string,
+  currency = 'EUR',
+): PriceChoice | undefined {
+  let before: (typeof trades)[number] | undefined;
+  let after: (typeof trades)[number] | undefined;
+  const splitDays: string[] = [];
+  for (const t of trades) {
+    if (t.kind === 'split' && t.unitsE8 !== 0) splitDays.push(t.date);
+    // A zero-amount execution (e.g. a free delivery) has no price: fall through to the cost basis.
+    if (
+      !['buy', 'sell', 'delivery_in', 'delivery_out'].includes(t.kind) ||
+      t.unitsE8 === 0 ||
+      t.amountCents <= 0
+    )
+      continue;
+    if (t.date <= day) {
+      if (!before || t.date >= before.date) before = t;
+    } else if (!after || t.date < after.date) after = t;
+  }
+  const found = before ?? after;
+  if (!found) return undefined;
+  // A split between the execution and the day changes the unit basis: the price no longer fits
+  // the units held, so leave it to the (split-aware) cost basis.
+  const [lo, hi] = found.date <= day ? [found.date, day] : [day, found.date];
+  if (splitDays.some((d) => (found.date <= day ? d >= lo && d <= hi : d > lo && d <= hi)))
+    return undefined;
+  const units = BigInt(Math.abs(found.unitsE8));
+  const scaled = BigInt(found.amountCents) * 10n ** 12n;
+  const priceMicro = Number((scaled + units / 2n) / units);
+  if (!Number.isSafeInteger(priceMicro))
+    throw new RangeError('Execution price exceeds safe integer range');
+  return {
+    price: {
+      date: found.date,
+      priceMicro,
+      currency: found.currency ?? currency,
+    },
+    quality: 'exact',
+    execution: { amountCents: found.amountCents, unitsE8: found.unitsE8 },
+  };
 }
 
 /** What a position cost: the data of the moving-average fallback (step 3). */
@@ -261,10 +317,11 @@ export interface PositionInput {
   /** Units-moving trades of this position (buy, sell, delivery, split); other kinds are ignored. */
   trades: ReadonlyArray<{ date: string; unitsE8: number }>;
   /**
-   * Prices of the security ascending by date, including those before the first day and (for the
-   * backfill tolerance) a few after the last one.
+   * Prices of the security, including those before the first day.
    */
   prices: ReadonlyArray<DatedPrice>;
+  /** All executions of this security, including other accounts and future days. */
+  priceTrades?: ReadonlyArray<SeriesTrade>;
   /** Cost data for the cost-basis fallback; without it a position with no price is `missing`. */
   cost?: PositionCostInput;
 }
@@ -301,7 +358,7 @@ export interface ValuationSeries {
 
 export interface ValuationOptions {
   /**
-   * Fall back to a later price or the cost basis when there is no price on or before the day
+   * Fall back to an execution price or the cost basis when there is no quote on/before the day
    * (default). `false` is the strict rule: a held position without a price throws
    * `PriceUnavailableError` (Portfolio Performance comparisons).
    */
@@ -355,13 +412,13 @@ export function dailyValuation(
       if (units === 0) return 0;
       let value: number;
       let dayQuality: ValuationQuality;
-      const choice = pickPrice(prices, day, estimate);
+      const choice =
+        pickPrice(prices, day, false) ??
+        (estimate
+          ? pickTradePrice(p.priceTrades ?? p.cost?.trades ?? [], day, p.cost?.currency)
+          : undefined);
       if (choice) {
-        value = marketValueEurCents(
-          units,
-          choice.price.priceMicro,
-          fxOn(rates, choice.price.currency, day),
-        );
+        value = valueAtPrice(units, choice, fxOn(rates, choice.price.currency, day));
         dayQuality = choice.quality;
       } else if (!estimate) {
         throw new PriceUnavailableError(p.accountId, p.securityId, day);
