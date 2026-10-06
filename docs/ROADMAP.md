@@ -1,5 +1,7 @@
 # Roadmap
 
+- [x] Owner 2026-10-06: implied gross trade prices before valuation cost fallback; estimate hints only for positive as-of holdings without a quote or trade price, with synthetic domain/DB/API/UI regressions. CI and owner acceptance remain open.
+
 ### Plan › Monat quick assignment — owner 05.10.2026
 
 - [x] Zero-assignment ghosts from existing target need or three-month median spending, with source tooltip; no automatic booking.

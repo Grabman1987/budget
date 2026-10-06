@@ -817,7 +817,7 @@ describe('invest CRUD', () => {
     });
   });
 
-  it('GET /portfolio values a never-quoted position at cost and flags it as estimated', async () => {
+  it('GET /portfolio uses gross execution prices without estimate flags', async () => {
     const sec = (await call('POST', '/securities', { name: 'Musterinstrument', kind: 'etf' })).body[
       'security'
     ];
@@ -828,25 +828,21 @@ describe('invest CRUD', () => {
       kind: 'buy',
       units: '1',
       amountCents: 10_000,
+      feeCents: 100,
     });
 
     const res = await call('GET', '/portfolio?period=1J&view=securities');
     expect(res.status).toBe(200);
     expect(res.body['portfolio']).toMatchObject({ valueCents: 10_000 });
-    expect(res.body['incomplete']).toEqual([
-      expect.objectContaining({
-        securityId: sec.id,
-        quality: 'estimated',
-        name: 'Musterinstrument',
-      }),
+    expect(res.body['portfolio'].positions).toEqual([
+      expect.objectContaining({ securityId: sec.id, costCents: 10_100, gainCents: -100 }),
     ]);
+    expect(res.body['incomplete']).toBeUndefined();
 
     const report = await call('GET', '/portfolio?period=1J&view=securities&history=contributions');
     expect(report.status).toBe(200);
     expect(report.body['portfolio']).toBeDefined();
-    expect(report.body['incomplete']).toEqual([
-      expect.objectContaining({ securityId: sec.id, quality: 'estimated' }),
-    ]);
+    expect(report.body['incomplete']).toBeUndefined();
   });
 
   it('the contribution series stays unavailable when a security quote needs a missing FX rate', async () => {

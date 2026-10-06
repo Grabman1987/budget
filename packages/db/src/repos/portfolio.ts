@@ -7,10 +7,10 @@ import {
   depotFlows,
   eachDay,
   fxOn,
-  marketValueEurCents,
+  valueAtPrice,
   netWorthAttribution,
-  PRICE_BACKFILL_TOLERANCE_DAYS,
   pickPrice,
+  pickTradePrice,
   securityFlows,
   toEurCents,
   unitsHeld,
@@ -57,12 +57,11 @@ export interface HoldingValue {
   fxRateMicro: number;
   valueCents: number;
   /**
-   * How the value was found: `exact`/`stale` from a price on or before the day, `estimated` from a
-   * price shortly after it or from the cost basis (then `priceMicro` is the implied price and
-   * `priceDate` null).
+   * `exact`/`stale` from a quote, `exact` also for gross execution prices, or `estimated` from
+   * the cost basis (then `priceDate` is null).
    */
   quality: ValuationQuality;
-  /** Day of the price used; `null` for a cost-basis estimate. */
+  /** Day of the quote or execution used; `null` for a cost-basis estimate. */
   priceDate: string | null;
 }
 
@@ -136,7 +135,7 @@ function computeHoldingValuation(db: Executor, asOf: string, estimate: boolean):
     .from(holding)
     .where(and(lte(holding.asOf, asOf), isNull(holding.deletedAt)))
     .all();
-  const trades = db
+  const allTrades = db
     .select({
       securityId: trade.securityId,
       accountId: trade.accountId,
@@ -146,16 +145,24 @@ function computeHoldingValuation(db: Executor, asOf: string, estimate: boolean):
       amountCents: trade.amountCents,
       feeCents: trade.feeCents,
       taxCents: trade.taxCents,
+      currency: account.currency,
     })
     .from(trade)
-    .where(and(lte(trade.date, asOf), isNull(trade.deletedAt)))
+    .innerJoin(account, eq(account.id, trade.accountId))
+    .where(isNull(trade.deletedAt))
+    .orderBy(trade.date, trade.id)
     .all();
+  const trades = allTrades.filter((t) => t.date <= asOf);
+  const priceTrades = new Map<string, typeof allTrades>();
+  for (const t of allTrades) {
+    const list = priceTrades.get(t.securityId) ?? [];
+    list.push(t);
+    priceTrades.set(t.securityId, list);
+  }
   const heldSecurities = new Set<string>();
   for (const r of [...snapshots, ...trades])
     if (live.has(r.securityId)) heldSecurities.add(r.securityId);
-  // Only the prices `pickPrice` can choose, read by index per held security: the latest on or
-  // before the day and, when estimating and there is none, the first one inside the backfill
-  // tolerance after it. (The whole `price` table is far too big to read for each call.)
+  // Read the latest stored quote on/before the day by index per held security.
   const latestPrice = (securityId: string) =>
     db
       .select({ date: price.date, priceMicro: price.priceMicro, currency: price.currency })
@@ -164,23 +171,9 @@ function computeHoldingValuation(db: Executor, asOf: string, estimate: boolean):
       .orderBy(desc(price.date))
       .limit(1)
       .get();
-  const firstPriceAfter = (securityId: string) =>
-    db
-      .select({ date: price.date, priceMicro: price.priceMicro, currency: price.currency })
-      .from(price)
-      .where(
-        and(
-          eq(price.securityId, securityId),
-          gt(price.date, asOf),
-          lte(price.date, addDays(asOf, PRICE_BACKFILL_TOLERANCE_DAYS)),
-        ),
-      )
-      .orderBy(price.date)
-      .limit(1)
-      .get();
   const pricesBySecurity = new Map<string, DatedPrice[]>();
   for (const securityId of heldSecurities) {
-    const found = latestPrice(securityId) ?? (estimate ? firstPriceAfter(securityId) : undefined);
+    const found = latestPrice(securityId);
     if (found) pricesBySecurity.set(securityId, [found]);
   }
   const rates: Rates = db.select().from(fxRate).where(lte(fxRate.date, asOf)).all();
@@ -223,7 +216,10 @@ function computeHoldingValuation(db: Executor, asOf: string, estimate: boolean):
       asOf,
     );
     if (units === 0) continue;
-    const choice = pickPrice(pricesBySecurity.get(securityId) ?? [], asOf, estimate);
+    const prices = pricesBySecurity.get(securityId) ?? [];
+    const choice =
+      pickPrice(prices, asOf, false) ??
+      (estimate ? pickTradePrice(priceTrades.get(securityId) ?? [], asOf) : undefined);
     if (!choice) {
       // No usable price: the moving-average cost basis, flagged as an estimate (step 3 of the
       // fallback order), or nothing at all when even the cost is unknown.
@@ -263,7 +259,13 @@ function computeHoldingValuation(db: Executor, asOf: string, estimate: boolean):
         securityId,
         unitsE8: units,
         // The implied unit price in EUR (micro) behind the estimate.
-        priceMicro: Math.round((eur * 1e12) / units),
+        priceMicro:
+          Math.sign(eur) *
+          Math.sign(units) *
+          Number(
+            (BigInt(Math.abs(eur)) * 10n ** 12n + BigInt(Math.abs(units)) / 2n) /
+              BigInt(Math.abs(units)),
+          ),
         priceCurrency: 'EUR',
         fxRateMicro: 1_000_000,
         valueCents: eur,
@@ -293,7 +295,7 @@ function computeHoldingValuation(db: Executor, asOf: string, estimate: boolean):
       priceMicro,
       priceCurrency,
       fxRateMicro,
-      valueCents: marketValueEurCents(units, priceMicro, fxRateMicro),
+      valueCents: valueAtPrice(units, choice, fxRateMicro),
       quality: choice.quality,
       priceDate: choice.price.date,
     });
@@ -575,11 +577,20 @@ export function valuationSeries(
       amountCents: trade.amountCents,
       feeCents: trade.feeCents,
       taxCents: trade.taxCents,
+      currency: account.currency,
     })
     .from(trade)
-    .where(and(lte(trade.date, filter.to), isNull(trade.deletedAt)))
+    .innerJoin(account, eq(account.id, trade.accountId))
+    .where(isNull(trade.deletedAt))
+    .orderBy(trade.date, trade.id)
     .all()
-    .filter((r) => wantSecurity(r.securityId) && wantAccount(r.accountId));
+    .filter((r) => wantSecurity(r.securityId));
+  const priceTrades = new Map<string, typeof trades>();
+  for (const t of trades) {
+    const list = priceTrades.get(t.securityId) ?? [];
+    list.push(t);
+    priceTrades.set(t.securityId, list);
+  }
   const currencies = new Map(
     db
       .select({ id: account.id, currency: account.currency })
@@ -587,11 +598,8 @@ export function valuationSeries(
       .all()
       .map((a) => [a.id, a.currency]),
   );
-  const estimate = options.estimate ?? true;
   const pricesBySecurity = new Map<string, DatedPrice[]>();
-  // The backfill tolerance reads prices a few days after the window.
-  const lastPriceDay = estimate ? addDays(filter.to, PRICE_BACKFILL_TOLERANCE_DAYS) : filter.to;
-  for (const p of db.select().from(price).where(lte(price.date, lastPriceDay)).all()) {
+  for (const p of db.select().from(price).where(lte(price.date, filter.to)).all()) {
     if (!wantSecurity(p.securityId)) continue;
     const list = pricesBySecurity.get(p.securityId) ?? [];
     list.push({ date: p.date, priceMicro: p.priceMicro, currency: p.currency });
@@ -609,6 +617,7 @@ export function valuationSeries(
         snapshots: [],
         trades: [],
         prices: pricesBySecurity.get(securityId) ?? [],
+        priceTrades: priceTrades.get(securityId) ?? [],
         cost: { currency: currencies.get(accountId) ?? 'EUR', snapshots: [], trades: [] },
       };
       positions.set(key, p);
@@ -621,6 +630,7 @@ export function valuationSeries(
     p.cost.snapshots.push({ date: r.asOf, costBasisCents: r.costBasisCents });
   }
   for (const r of trades) {
+    if (r.date > filter.to || !wantAccount(r.accountId)) continue;
     const p = at(r.accountId, r.securityId);
     p.trades.push({ date: r.date, unitsE8: r.unitsE8 });
     p.cost.trades.push(r);

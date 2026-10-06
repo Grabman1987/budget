@@ -98,7 +98,13 @@ export function createLedgerApi({
         return;
       const headers = new Headers(c.res.headers);
       headers.delete('content-length');
-      c.res = new Response(JSON.stringify({ ...body, incomplete: namedNotes(db, found) }), {
+      const asOf =
+        'asOf' in body && typeof body.asOf === 'string'
+          ? body.asOf
+          : 'to' in body && typeof body.to === 'string'
+            ? body.to
+            : today();
+      c.res = new Response(JSON.stringify({ ...body, incomplete: namedNotes(db, found, asOf) }), {
         status: c.res.status,
         headers,
       });

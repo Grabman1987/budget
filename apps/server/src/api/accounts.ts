@@ -177,7 +177,8 @@ export function accountRoutes(db: Db, today: () => string): Hono {
 
   app.get('/:id', (c) => {
     const { asOf } = readQuery(c, asOfQuery);
-    return c.json({ account: summary(c.req.param('id'), asOf) });
+    const day = asOf ?? today();
+    return c.json({ asOf: day, account: summary(c.req.param('id'), day) });
   });
 
   app.patch('/:id', async (c) => {
