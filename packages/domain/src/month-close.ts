@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { addMonths, lastDayOfMonth } from './date';
 import { allocation, type BudgetClass } from './ledger/alloc';
 import { mulDivRound } from './wealth/int';
+import { cents } from './money/cents';
 import type { TableMonth } from './report-tables/tables';
 import type { MonthResult } from './reports/month';
 
@@ -81,10 +82,12 @@ export function closePlanHistory(
     categoryId,
     actualCents: actual ? (actual.spending[categoryId] ?? 0) : null,
     averageCents: closed.length
-      ? mulDivRound(
-          closed.reduce((sum, m) => sum + (m.spending[categoryId] ?? 0), 0),
-          1,
-          closed.length,
+      ? cents(
+          mulDivRound(
+            closed.reduce((sum, m) => sum + BigInt(cents(m.spending[categoryId] ?? 0)), 0n),
+            1,
+            closed.length,
+          ),
         )
       : null,
     historyCount: closed.length,

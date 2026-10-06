@@ -42,6 +42,15 @@ it('counts every edited group and classless assignment in zero-based money, but 
   expect(projection.allocation.needCents).toBe(500);
   expect(projection.allocation.shares).toEqual({ need: 50, want: 20, future: 0, rest: 30 });
 });
+it('keeps a safe monthly mean exact even when the intermediate sum exceeds the safe range', () => {
+  const history = ['2026-03', '2026-04', '2026-05'].map((month) => ({
+    month,
+    spending: { a: 9007199254740990 },
+  }));
+  expect(closePlanHistory(['a'], '2026-05', '2026-06-01', history)[0]?.averageCents).toBe(
+    9007199254740990,
+  );
+});
 it('ranks both signs by absolute plan deviation and words the same factual result for report and review', () => {
   expect(
     closeDeviations([
