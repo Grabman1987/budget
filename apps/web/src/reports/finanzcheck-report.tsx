@@ -7,6 +7,7 @@ import {
   Line,
   LineLegend,
   RevisionTable,
+  Segmented,
   type Point,
 } from '@budget/ui';
 import {
@@ -31,6 +32,11 @@ import { useRuleDerivation } from './overview-api';
 import { monthLong, monthShortYear } from './overview-format';
 import './overview-reports.css';
 import './finanzcheck-report.css';
+import { heuteQuery } from '../heute/api';
+import { BalanceChart } from '../heute/charts';
+import { PAYDAY_ONLY_THIS_MONTH, useBalancePeriod } from '../heute/use-balance-period';
+import { useMonth } from '../shell/use-month';
+import '../heute/heute.css';
 
 type Status = 'ok' | 'warn' | 'bad' | 'open' | null;
 
@@ -80,6 +86,10 @@ const stripLabel = (line: RuleTimeline) =>
 
 export function FinanzcheckReport({ report, meta }: { report: ReportEntry; meta: PageMeta }) {
   useAmountPrivacy();
+  const [month] = useMonth();
+  const { period, setPeriod, paydayAvailable } = useBalancePeriod();
+  const forecastQuery = useQuery(heuteQuery(month, period));
+  const forecast = forecastQuery.data;
   const query = useQuery(finanzcheckVerlaufQuery());
   const data = query.data;
   const days = data?.matrix.days ?? [];
@@ -90,6 +100,27 @@ export function FinanzcheckReport({ report, meta }: { report: ReportEntry; meta:
       meta={meta}
       title={report.name}
       subtitle={`${report.pos} · ${report.question}`}
+      extraFields={[
+        {
+          label: 'Kontoprognose',
+          value: (
+            <Segmented
+              label="Zeitraum Kontoprognose"
+              options={[
+                { value: 'month', label: 'Monat' },
+                {
+                  value: 'payday',
+                  label: 'Bis Gehalt',
+                  disabled: !paydayAvailable,
+                  ...(paydayAvailable ? {} : { description: PAYDAY_ONLY_THIS_MONTH }),
+                },
+              ]}
+              value={period}
+              onChange={setPeriod}
+            />
+          ),
+        },
+      ]}
       reportDataBasis={
         query.isError
           ? 'nicht verfügbar'
@@ -101,6 +132,34 @@ export function FinanzcheckReport({ report, meta }: { report: ReportEntry; meta:
       }
     >
       <div className="kview ov finanzcheck-report">
+        <section className="card ov-card" aria-labelledby="r07-title">
+          <div className="tbd-head">
+            <h2 id="r07-title">R07 · Kontoprognose</h2>
+          </div>
+          {forecastQuery.isPending && <LoadingNote what="Kontoprognose" />}
+          {forecastQuery.isError && (
+            <ErrorNote
+              what="Kontoprognose"
+              error={forecastQuery.error}
+              onRetry={() => void forecastQuery.refetch()}
+            />
+          )}
+          {forecast && (
+            <>
+              <p>
+                Tiefpunkt{' '}
+                {forecast.balance.low
+                  ? `${eur(forecast.balance.low.cents)} am ${longDay(forecast.balance.low.day)}`
+                  : 'nicht verfügbar'}
+              </p>
+              <BalanceChart data={forecast} chainOpen={false} onToggleChain={() => {}} report />
+              <p className="heute-note">
+                Kontoprognose bis {longDay(forecast.stand.to)} · 14 Tage Rückblick · gleicher
+                Horizont wie Heute.
+              </p>
+            </>
+          )}
+        </section>
         {query.isPending && <LoadingNote what="Finanz-Check-Verlauf" />}
         {query.isError && (
           <ErrorNote

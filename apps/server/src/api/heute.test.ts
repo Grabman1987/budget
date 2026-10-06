@@ -1,4 +1,4 @@
-import { evaluateRule } from '@budget/domain';
+import { balanceForecast, heuteWindow, nextPayday } from '@budget/domain';
 /* eslint-disable @typescript-eslint/no-explicit-any -- JSON answers are inspected, not typed */
 import {
   accounts,
@@ -103,6 +103,24 @@ async function call(method: string, path: string, body?: unknown) {
 }
 
 describe('GET /heute', () => {
+  it.each([
+    ['month', '2026-10-05', '2026-09-21', '2026-11-02'],
+    ['payday', '2026-10-05', '2026-09-21', '2026-10-17'],
+    ['payday', '2026-10-14', '2026-09-30', '2026-11-15'],
+  ] as const)('reads %s boundaries on %s end to end', async (period, today, from, to) => {
+    const datedApp = createApp({ webDir, auth: signedIn, ledger: { db, today: () => today } });
+    const res = await datedApp.request(`/api/heute?month=2026-10&period=${period}`);
+    const result = (await res.json()) as any;
+    expect(result.stand).toMatchObject({ from, to, period });
+    expect(result.balance.actual[0].day).toBe(from);
+    expect(result.balance.actual.at(-1).day).toBe(today);
+    expect(result.balance.forecast.at(-1).day).toBe(to);
+    expect(result.balance.low.cents).toBe(
+      Math.min(
+        ...[...result.balance.actual, ...result.balance.forecast].map((d: any) => d.balanceCents),
+      ),
+    );
+  });
   it('keeps every section available while a never-quoted holding is valued at cost and flagged', async () => {
     const before = await call('GET', '/heute');
     db.insert(schema.account)
@@ -183,8 +201,8 @@ describe('GET /heute', () => {
       today: TODAY,
       month: '2026-03',
       period: 'month',
-      from: '2026-03-01',
-      to: '2026-03-31',
+      from: '2026-03-04',
+      to: '2026-04-02',
       payday: { day: '2026-04-15', source: 'payday_rule', daysToPayday: 28 },
       budgetBalanceCents: 188_000,
     });
@@ -221,19 +239,23 @@ describe('GET /heute', () => {
     expect(res.body.nextSteps).toEqual({ items: [], count: 0 });
   });
 
-  it('period=payday runs from today to the payday', async () => {
+  it('period=payday includes fourteen actual days and ends two days after payday', async () => {
     const res = await call('GET', '/heute?period=payday');
-    expect(res.body.stand).toMatchObject({ period: 'payday', from: TODAY, to: '2026-04-15' });
-    expect(res.body.balance.actual).toHaveLength(1);
-    expect(res.body.balance.forecast).toHaveLength(36);
+    expect(res.body.stand).toMatchObject({
+      period: 'payday',
+      from: '2026-03-04',
+      to: '2026-04-17',
+    });
+    expect(res.body.balance.actual).toHaveLength(15);
+    expect(res.body.balance.forecast).toHaveLength(31);
   });
 
   it('month shows another month; bad parameters are 400', async () => {
     const res = await call('GET', '/heute?month=2026-02');
     expect(res.body.stand).toMatchObject({
       month: '2026-02',
-      from: '2026-02-01',
-      to: '2026-02-28',
+      from: '2026-03-04',
+      to: '2026-03-02',
     });
     expect(res.body.balance.forecast).toEqual([]);
     expect((await call('GET', '/heute?period=week')).status).toBe(400);
@@ -282,14 +304,21 @@ describe('PATCH /categories/:id {pinned}', () => {
   });
 });
 
-it('uses the R07 projection and configured horizon in the balance chart', async () => {
-  const response = await call('GET', '/heute');
-  const evaluated = evaluateRule('R07', {}, ruleInputs(db, TODAY));
-  expect(response.body.balance.low.cents).toBe(evaluated?.detail['lowCents']);
-  expect(response.body.balance.low.day).toBe(evaluated?.detail['lowDay']);
-  const last = response.body.balance.forecast.at(-1);
-  expect(last.day).toBe('2026-04-22');
-});
+it.each(['month', 'payday'] as const)(
+  'shares the exact R07 period read in %s mode',
+  async (period) => {
+    const response = await call('GET', `/heute?period=${period}`);
+    const window = heuteWindow(period, '2026-03', TODAY, nextPayday(TODAY).day);
+    const result = balanceForecast(
+      ruleInputs(db, TODAY).forecast!,
+      window,
+      response.body.balance.actual,
+    );
+    expect(response.body.balance.low).toEqual(result.low);
+    expect(response.body.balance.forecast).toEqual(result.forecast);
+    expect(response.body.balance.forecast.at(-1).day).toBe(window.to);
+  },
+);
 
 it('excludes early paid rent from the variable rate and returns a provisional forecast', async () => {
   createBooking(

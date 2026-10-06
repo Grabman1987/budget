@@ -1,5 +1,12 @@
 # Roadmap
 
+### Heute / R07 horizon — owner 05.10.2026
+
+- [x] Shared period-bound balance/low read, 14-day actual lookback, two-day boundary tail and short payday extension; remembered period and R07 chart in Finanz-Check-Verlauf.
+- [x] Synthetic boundary, cent/low-point and desktop/mobile browser regression tests; [scope and baseline list](heute-horizon-1005.md).
+- [x] Full local check: 336 files / 3,179 tests, production/E2E builds and focused desktop/mobile browser verification; see the contract above.
+- [ ] Pinned Linux visual review, CI and owner acceptance (see PR evidence).
+
 - [x] UX-2b (owner 2026-10-05): free-money caps for individual/bulk cover, pending/recurring dedup, account/used-credit line and missing-money carry option; synthetic regressions, CI and owner acceptance pending.
 
 ### UX-3a — Phone shell (owner feedback 2026-10-05)

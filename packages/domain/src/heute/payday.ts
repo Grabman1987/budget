@@ -1,4 +1,4 @@
-import { addMonths, lastDayOfMonth, monthOf } from '../date';
+import { addDays, addMonths, daysBetween, lastDayOfMonth, monthOf } from '../date';
 import { shiftToBusinessDay } from '../schedule/due-dates';
 
 /**
@@ -38,8 +38,8 @@ export interface HeuteWindow {
 }
 
 /**
- * "Monat": the whole month. "Bis Gehalt": from today up to the payday (the payday itself is the
- * salary jump). A month other than today's has no payday window: it is the month then as well.
+ * Shared Heute/R07 chart window: fourteen actual days before today, then the selected boundary
+ * plus two days. A payday forecast shorter than seven days uses the following payday instead.
  */
 export function heuteWindow(
   period: HeutePeriod,
@@ -47,7 +47,8 @@ export function heuteWindow(
   today: string,
   payday: string,
 ): HeuteWindow {
-  if (period === 'payday' && month === monthOf(today))
-    return { period, month, from: today, to: payday > today ? payday : today };
-  return { period: 'month', month, from: `${month}-01`, to: lastDayOfMonth(month) };
+  let boundary = period === 'payday' ? payday : lastDayOfMonth(month);
+  if (period === 'payday' && daysBetween(today, addDays(boundary, 2)) < 7)
+    boundary = nextPayday(addDays(payday, 1)).day;
+  return { period, month, from: addDays(today, -14), to: addDays(boundary, 2) };
 }
