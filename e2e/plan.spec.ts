@@ -1,6 +1,8 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type APIRequestContext, type Page } from '@playwright/test';
 import { MAIN_URL } from '../playwright.config';
+import { shiftMonth } from '../apps/web/src/nav/month';
+import { eur } from '../apps/web/src/ledger/format';
 
 /**
  * Plan › Monat end to end on the real server: assign inline, cover cash overspending from the
@@ -109,17 +111,20 @@ test('plan: assign, cover, card debt, move, undo, rollover, distribute', async (
   await expect(available(page, food)).toHaveText('0,00 €');
   await expect(available(page, cafe)).toHaveText('50,00 €');
 
-  // Move 20 € in the envelope panel, then undo it.
+  // Read details on their own page; input opens a form dialog.
   await row(page, cafe)
-    .getByRole('button', { name: new RegExp(cafe) })
+    .getByRole('link', { name: new RegExp(cafe) })
     .first()
     .click();
+  await expect(page).toHaveURL(/\/plan\/monat\/envelope\//);
+  await page.getByRole('button', { name: 'Zuweisen oder verschieben' }).click();
   const panel = page.getByRole('dialog', { name: cafe });
   await panel.getByRole('button', { name: 'Von hier weg' }).click();
   await panel.getByLabel('Nach', { exact: true }).selectOption({ label: `${food} · 0,00 €` });
   await panel.getByLabel('Betrag', { exact: true }).fill('20');
   await panel.getByRole('button', { name: 'Verschieben' }).click();
   await expect(toast(page)).toContainText(`20,00 € von ${cafe} zu ${food} verschoben`);
+  await page.getByRole('link', { name: 'Zurück zum Monat' }).click();
   await expect(available(page, food)).toHaveText('20,00 €');
   await toast(page).getByRole('button', { name: 'Rückgängig' }).click();
   await expect(available(page, food)).toHaveText('0,00 €');
@@ -129,7 +134,20 @@ test('plan: assign, cover, card debt, move, undo, rollover, distribute', async (
   expect(axe.violations.map((v) => `${v.id}: ${v.nodes[0]?.target}`)).toEqual([]);
 
   // Month rollover: the 50 € left in Café are carried, nothing is assigned yet.
+  const nextMonth = shiftMonth(month, 1);
+  const nextBudget = page.waitForResponse(
+    (response) =>
+      response.url().endsWith(`/api/budget/${nextMonth}`) && response.request().method() === 'GET',
+  );
   await page.getByRole('button', { name: 'Nächster Monat' }).click();
+  // The same carry is visible in both months. Wait for navigation before distributing,
+  // otherwise the click can still reach the old month's body while the new one loads.
+  await expect(page).toHaveURL(new RegExp(`monat=${nextMonth}`));
+  const nextData = await (await nextBudget).json();
+  // Synchronise with the new read, not the identical category carry in the previous month.
+  await expect(page.getByTestId('to-be-assigned')).toHaveText(
+    eur(nextData.summary.toBeAssignedCents),
+  );
   await expect(available(page, cafe)).toHaveText('50,00 €');
   await expect(row(page, cafe).locator('.col-assign')).toContainText('0,00 €');
 

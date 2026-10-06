@@ -1,5 +1,13 @@
 # Product
 
+Owner navigation decision (2026-10-05): details and secondary information use
+sub-pages with their own URLs, breadcrumbs and browser/back navigation. Content
+side panels, drawers, right sheets and permanent side card columns are retired;
+summaries are full-width inline sections or links to sub-pages. Dialogs only hold
+input/confirmation forms; phone bottom sheets only forms and filters. The left app
+navigation stays. This overrides earlier panel descriptions below; see
+[inventory and implementation scope](docs/no-side-panels-1005.md).
+
 Owner-Entscheidung 05.10.2026: In Report 2.4 bleiben Warenkorbvergleich und Kategorie-Explorer getrennt; die Interpretation von Preis- und Mengeneffekten bleibt beim Owner, ohne automatisches Inflationsurteil.
 
 Owner-Entscheidung 05.10.2026 — Tagesbudget: Heute translates the existing cent-exact Leitmaß into an approximate daily allowance through the shared next bank-day payday, including today; nonpositive room uses alarm copy instead of a daily amount, and the formula is available on hover/focus.

@@ -6,6 +6,7 @@ import { eur } from '../ledger/format';
 import { AssignCell } from './assign-cell';
 import { assign, type BudgetMonthView } from './budget-api';
 import { CategoryIcon } from './category-icon';
+import { AppLink } from '../shell/app-link';
 import {
   CLASS_TEXT,
   groupStatus,
@@ -147,16 +148,17 @@ export function MultiTable({
                         <span className="pos">{`${g.no}.${n + 1}`}</span>
                       </td>
                       <td className="col-name">
-                        <button
-                          type="button"
+                        <AppLink
                           className="pname"
-                          onClick={() => onOpen(r.id, months[0]!)}
+                          to={`/plan/monat/envelope/${encodeURIComponent(r.id)}`}
+                          search={{ monat: months[0] }}
+                          state={{ planDetailOpenedInApp: true }}
                         >
                           {r.cls ? <ClassSwatch kind={r.cls} /> : <ClassSwatch kind="bound" />}
                           <CategoryIcon icon={r.icon} />
                           {r.name}
                           {r.cls && <span className="env-class">{CLASS_TEXT[r.cls]}</span>}
-                        </button>
+                        </AppLink>
                       </td>
                       {months.map((m, i) => {
                         const cell = r.cells[i];

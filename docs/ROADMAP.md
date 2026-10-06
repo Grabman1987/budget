@@ -1,5 +1,14 @@
 # Roadmap
 
+### Unterseiten statt Seitenpanels — owner decision 2026-10-05
+
+- [x] Complete web inventory with a replacement decision and explicit open scope ([inventory](no-side-panels-1005.md)).
+- [x] Plan › Monat: envelope detail and monthly income URLs, breadcrumb/back, legacy category links, full-width inline summary.
+- [x] Envelope assigning/moving/covering uses the existing input dialog; financial guards and undo remain intact.
+- [x] Synthetic red/green unit and browser-back/scroll, direct-link and dialog-focus regressions.
+- [ ] Remaining inventory, Linux baseline review and owner desktop/phone acceptance.
+
+
 ### UX-3b — Shared touch controls (owner feedback 2026-10-05)
 
 - [x] Shared 44 × 44 px control floor for coarse pointers and phone widths, including separate booking-row selection/flag areas.
@@ -7,6 +16,8 @@
 - [x] Synthetic unit and bounding-box/hit-test phone regressions; [scope and baseline list](ux-tap-targets-1005.md).
 - [x] Final local check phases (336 files / 3,175 tests), production build and affected Chromium/WebKit browser checks; [verification evidence](ux-tap-targets-1005.md).
 - [ ] Pinned Linux screenshot review and owner phone acceptance (see delivery evidence).
+
+
 
 ### Heute daily budget — owner 05.10.2026
 

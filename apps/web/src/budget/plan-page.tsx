@@ -13,7 +13,7 @@ import {
 } from '@budget/ui';
 import { cents, coverShortfall, todayInVienna } from '@budget/domain';
 import { useQueries, useQuery } from '@tanstack/react-query';
-import { useSearch } from '@tanstack/react-router';
+import { useNavigate, useSearch } from '@tanstack/react-router';
 import {
   AlertTriangle,
   ArrowDownToLine,
@@ -46,7 +46,7 @@ import { MultiTable } from './plan-multi';
 import { AssignCell } from './assign-cell';
 import { assign, coverAll, budgetQuery, type BudgetMonthView } from './budget-api';
 import { CategoryIcon } from './category-icon';
-import { IncomeButton, IncomePanel } from '../expected/income-panel';
+import { IncomeButton } from '../expected/income-panel';
 import { EnvelopePanel } from './envelope-panel';
 import {
   barFor,
@@ -109,9 +109,15 @@ export function PlanMonthPage() {
   const views = results.every((r) => r.data) ? results.map((r) => r.data!) : null;
   const extraError = results.slice(1).find((r) => r.isError);
   // The month's income (title block and chain term) opens received against expected.
-  const [incomeOpen, setIncomeOpen] = useState(false);
+  const navigate = useNavigate();
+  const openIncome = () =>
+    void navigate({
+      to: '/plan/monat/einnahmen',
+      search: { monat: month },
+      state: { planDetailOpenedInApp: true },
+    });
   const income = data ? (
-    <IncomeButton value={eur(data.summary.incomeCents)} onOpen={() => setIncomeOpen(true)} />
+    <IncomeButton value={eur(data.summary.incomeCents)} onOpen={openIncome} />
   ) : (
     '–'
   );
@@ -130,16 +136,10 @@ export function PlanMonthPage() {
             data={data}
             views={views}
             extraError={extraError}
-            onIncome={() => setIncomeOpen(true)}
+            onIncome={openIncome}
           />
         )}
       </div>
-      <IncomePanel
-        month={month}
-        open={incomeOpen}
-        onClose={() => setIncomeOpen(false)}
-        bookedCents={data?.summary.incomeCents}
-      />
     </PageFrame>
   );
 }
@@ -172,9 +172,15 @@ function PlanBody({
   const [distribute, setDistribute] = useState(false);
   const [collapsed, setCollapsed] = useState<ReadonlySet<string>>(new Set());
   const [editing, setEditing] = useState<string | null>(null);
-  const [open, setOpen] = useState<{ id: string; month: string } | null>(
-    search.kategorie ? { id: search.kategorie, month } : null,
-  );
+  const [open, setOpen] = useState<{ id: string; month: string } | null>(null);
+  const navigate = useNavigate();
+  const openDetail = (id: string) =>
+    void navigate({
+      to: '/plan/monat/envelope/$id',
+      params: { id },
+      search: { monat: month },
+      state: { planDetailOpenedInApp: true },
+    });
   const [bulkSource, setBulkSource] = useState('suggested');
   const [covering, setCovering] = useState(false);
   const [coverResult, setCoverResult] = useState<string | null>(null);
@@ -636,7 +642,7 @@ function PlanBody({
                                 setAssigned(r, v);
                               }}
                               onTake={() => take([r.id])}
-                              onOpen={() => setOpen({ id: r.id, month })}
+                              onCover={() => setOpen({ id: r.id, month })}
                             />
                           ))),
                     ];
@@ -667,14 +673,10 @@ function PlanBody({
           )}
         </section>
       </div>
-      <aside className="inspector" aria-label="Monatsüberblick">
+      <section className="plan-summary" aria-label="Weitere Monatszahlen">
         <MonthOverview data={data} rows={rows} month={months.length > 1 ? month : undefined} />
         {data.incomeTargets && (
-          <IncomeTargetsCard
-            data={data.incomeTargets}
-            rows={allRows}
-            onOpen={(id) => setOpen({ id, month })}
-          />
+          <IncomeTargetsCard data={data.incomeTargets} rows={allRows} onOpen={openDetail} />
         )}
         <SplitBand data={data} rows={rows} />
         <section className="insp-card card insp-rail" aria-labelledby="rail-title">
@@ -683,7 +685,7 @@ function PlanBody({
           </h2>
           <Rail view={shownView} groups={groups} data={data} onJump={jump} />
         </section>
-      </aside>
+      </section>
       <EnvelopePanel
         month={open?.month ?? month}
         row={open ? panelRows.find((r) => r.id === open.id) : undefined}
@@ -1029,7 +1031,7 @@ function EnvelopeRow({
   onEdit,
   onCommit,
   onTake,
-  onOpen,
+  onCover,
 }: {
   row: PlanRow;
   pos: string;
@@ -1041,7 +1043,7 @@ function EnvelopeRow({
   onEdit: (on: boolean) => void;
   onCommit: (value: number) => void;
   onTake: () => void;
-  onOpen: () => void;
+  onCover: () => void;
 }) {
   useAmountPrivacy();
   const cash = isCashOver(r);
@@ -1055,12 +1057,17 @@ function EnvelopeRow({
         {cash && <RevisionTriangle letter="!" urgent />}
       </td>
       <td className="col-name">
-        <button type="button" className="pname" onClick={onOpen}>
+        <AppLink
+          className="pname"
+          to={`/plan/monat/envelope/${encodeURIComponent(r.id)}`}
+          search={{ monat: ctx.month }}
+          state={{ planDetailOpenedInApp: true }}
+        >
           {r.cls ? <ClassSwatch kind={r.cls} /> : <ClassSwatch kind="bound" />}
           <CategoryIcon icon={r.icon} />
           {r.name}
           {r.cls && <span className="env-class">{CLASS_TEXT[r.cls]}</span>}
-        </button>
+        </AppLink>
         {bar.fill !== null && (
           <span className={cx('pbar', bar.over && 'is-over')} aria-hidden="true">
             <i
@@ -1124,7 +1131,7 @@ function EnvelopeRow({
             type="button"
             className="cover-row"
             aria-label={`${r.name} decken`}
-            onClick={onOpen}
+            onClick={onCover}
           >
             <ArrowRightLeft size={16} aria-hidden="true" />
           </button>
