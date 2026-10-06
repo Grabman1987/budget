@@ -3,6 +3,7 @@ import AxeBuilder from '@axe-core/playwright';
 import type { Page } from '@playwright/test';
 import { mkdirSync, rmSync, statSync } from 'node:fs';
 import { SAMPLE_URL, sampleTest as test, expect as baseExpect } from './sample';
+import type { RuleBook } from '../apps/web/src/rules/api';
 import { expectScreenshot } from './visual';
 
 /**
@@ -63,6 +64,53 @@ interface Check {
   stage: { stage: number };
 }
 
+test('violations lead with values, thresholds and correction links; disabled rules are collapsed', async ({
+  page,
+}) => {
+  await page.goto('/einstellungen/regelwerk');
+  const r02 = page.locator('#rw-violated').locator('..').locator('[data-rule-code="R02"]');
+  await expect(r02).toContainText('Ist: 2,5 Monate');
+  await expect(r02).toContainText('Schwelle: min. 3, Ziel 6 Monate');
+  const book = (await (await page.request.get('/api/rules')).json()) as RuleBook;
+  for (const rule of book.rules) {
+    const row = page.locator(`[data-rule-code="${rule.code}"]`);
+    if (!rule.enabled) {
+      await expect(
+        page.locator('.rw-disabled').locator(`[data-rule-code="${rule.code}"]`),
+      ).toHaveCount(1);
+      await expect(row).toBeHidden();
+      continue;
+    }
+    const group =
+      rule.latest?.status === 'bad' ? 'violated' : rule.latest?.status === 'ok' ? 'met' : 'pending';
+    await expect(
+      page.locator(`#rw-${group}`).locator('..').locator(`[data-rule-code="${rule.code}"]`),
+    ).toHaveCount(1);
+    if (rule.latest?.status === 'bad') {
+      await expect(row).toContainText(`Ist: ${rule.latest.valueText}`);
+      await expect(row.getByRole('link')).toBeVisible();
+      await expect(row).toContainText('Schwelle:');
+    }
+  }
+  await expect(page.locator('.rw-disabled')).not.toHaveAttribute('open');
+  await expect(page.locator('.rw-sec').first()).toHaveAttribute('aria-labelledby', 'rl-title');
+  const fix = r02.getByRole('link', { name: 'Im Plan aufstocken' });
+  await expect(fix).toHaveAttribute('href', '/plan/monat');
+  await fix.click();
+  await expect(page).toHaveURL(/\/plan\/monat/);
+  await page.goBack();
+  await expect(r02).toBeVisible();
+  const summary = page.locator('.rw-disabled > summary');
+  await summary.focus();
+  await page.keyboard.press('Enter');
+  await expect(page.getByRole('switch', { name: /^R17 / })).toBeVisible();
+  await expect(page.locator('.rw-disabled')).toHaveAttribute('open', '');
+  const horizontalOverflow = await page.evaluate(
+    () => document.documentElement.scrollWidth > window.innerWidth,
+  );
+  expect(horizontalOverflow).toBe(false);
+});
+
 test('stages and rules show the rule book, axe clean in both themes', async ({ page }, info) => {
   await page.goto('/einstellungen/regelwerk');
   await expect(page.getByRole('heading', { name: 'Stufen', level: 2 })).toBeVisible();
@@ -75,6 +123,13 @@ test('stages and rules show the rule book, axe clean in both themes', async ({ p
   await expect(page.locator('.rw-stage.is-cur')).toContainText('Aufbau');
   await expect(page.locator('.rw-stage li')).toHaveCount(CHECKLIST_DEFS.length);
   await expect(page.locator('.rw-rules > li')).toHaveCount(RULE_CODES.length);
+  for (const code of RULE_CODES) {
+    const row = page.locator(`[data-rule-code="${code}"]`);
+    await expect(row.locator('.rw-pos')).toHaveText(code);
+    await expect(row.locator('.rw-explanation')).not.toBeEmpty();
+  }
+  await expect(page.locator('.rw-stage .rw-pos', { hasText: 'S1-1' })).toHaveText('S1-1');
+  await expect(page.locator('.rw-stage .rw-pos', { hasText: 'S1-2' })).toHaveText('S1-2');
   await expect(page.locator('.rw-rules > li', { hasText: 'R02' })).toContainText(
     'min. 3, Ziel 6 Monate',
   );
@@ -86,18 +141,22 @@ test('stages and rules show the rule book, axe clean in both themes', async ({ p
   await page.emulateMedia({ colorScheme: 'light', reducedMotion: 'reduce' });
   expect(await violations(page), 'light').toEqual([]);
   await expectScreenshot(page, 'regelwerk-light.png', { fullPage: true });
+  if (process.platform !== 'linux')
+    await page.screenshot({ path: info.outputPath('regelwerk-light-viewport.png') });
   await page.emulateMedia({ colorScheme: 'dark', reducedMotion: 'reduce' });
   expect(await violations(page), 'dark').toEqual([]);
   await expectScreenshot(page, 'regelwerk-dark.png', { fullPage: true });
   if (process.platform !== 'linux')
-    await page.screenshot({ path: info.outputPath('regelwerk-preview.png'), fullPage: true });
+    await page.screenshot({ path: info.outputPath('regelwerk-dark-viewport.png') });
 });
 
 test('the threshold panel shows status and next step and is axe clean', async ({ page }) => {
   await page.goto('/einstellungen/regelwerk');
-  await page.getByRole('button', { name: 'Schwelle R02 Notgroschen' }).click();
+  const opener = page.getByRole('button', { name: 'Einstellen R02 Notgroschen' });
+  await opener.click();
   const panel = page.getByRole('dialog', { name: 'R02 Notgroschen' });
   await expect(panel).toBeVisible();
+  await expect(panel).not.toHaveClass(/\bpanel\b/);
   await expect(panel).toContainText('2,5 Monate');
   await expect(panel).toContainText('verletzt');
   await expect(panel).toContainText('Nächster Schritt');
@@ -110,6 +169,7 @@ test('the threshold panel shows status and next step and is axe clean', async ({
   await expect(panel.getByRole('button', { name: 'Speichern' })).toBeDisabled();
   await page.keyboard.press('Escape');
   await expect(panel).toBeHidden();
+  await expect(opener).toBeFocused();
 });
 
 test('phone: switches and buttons are 44 px targets', async ({ page }, testInfo) => {
@@ -118,6 +178,7 @@ test('phone: switches and buttons are 44 px targets', async ({ page }, testInfo)
   await expect(
     page.getByText(`${DEFAULT_ACTIVE_RULE_COUNT} von ${RULE_CODES.length} aktiv`),
   ).toBeVisible();
+  await page.locator('.rw-disabled > summary').click();
   const heights = await page
     .locator('.rw-rules .switch, .rw-rules .btn, .rw-stage .switch')
     .evaluateAll((els) => els.map((el) => el.getBoundingClientRect().height));
@@ -144,11 +205,12 @@ test('R15 off changes the Finanz-Check counts, R02 minimum 3 → 2 flips its sta
   ).toBeVisible();
 
   // R15 (Spekulativer Anteil, verletzt in the sample) off: one rule less in the Finanz-Check.
-  const r15 = page.getByRole('switch', { name: 'R15 Spekulativer Anteil' });
+  const r15 = page.getByRole('switch', { name: 'R15 Spekulativer Anteil', includeHidden: true });
   await expect(r15).toBeChecked();
   await r15.click();
   await expect(toast(page)).toContainText('R15 Spekulativer Anteil: aus');
   await expect(r15).not.toBeChecked();
+  await expect(page.locator('.rw-disabled [data-rule-code="R15"]')).toHaveCount(1);
   await expect(
     page.getByText(`${DEFAULT_ACTIVE_RULE_COUNT - 1} von ${RULE_CODES.length} aktiv`),
   ).toBeVisible();
@@ -163,22 +225,29 @@ test('R15 off changes the Finanz-Check counts, R02 minimum 3 → 2 flips its sta
   expect(await check()).toEqual(before);
 
   // R02: minimum from 3 to 2 months turns "verletzt" into "Warnung".
-  await page.getByRole('button', { name: 'Schwelle R02 Notgroschen' }).click();
+  await page.getByRole('button', { name: 'Einstellen R02 Notgroschen' }).click();
   const panel = page.getByRole('dialog', { name: 'R02 Notgroschen' });
   await expect(panel).toContainText('verletzt');
   await panel.getByLabel('Mindestens').fill('2');
   await panel.getByRole('button', { name: 'Speichern' }).click();
   await expect(toast(page)).toContainText('R02 Notgroschen: Schwelle gespeichert.');
   await expect(panel).toContainText('Warnung');
+  await expect(
+    page.locator('#rw-pending').locator('..').locator('[data-rule-code="R02"]'),
+  ).toHaveCount(1);
   await expect(panel.getByLabel('Mindestens')).toHaveValue('2');
   const flipped = await check();
   expect(flipped.counts.bad).toBe(before.counts.bad - 1);
   expect(flipped.counts.warn).toBe(before.counts.warn + 1);
   await toast(page).getByRole('button', { name: 'Rückgängig' }).click();
   await expect(panel).toContainText('verletzt');
+  await expect(
+    page.locator('#rw-violated').locator('..').locator('[data-rule-code="R02"]'),
+  ).toHaveCount(1);
   await expect(panel.getByLabel('Mindestens')).toHaveValue('3');
   expect(await check()).toEqual(before);
   await page.keyboard.press('Escape');
+  await expect(page.getByRole('button', { name: 'Einstellen R02 Notgroschen' })).toBeFocused();
   await expect(page.locator('.rw-rules > li', { hasText: 'R02' })).toContainText(
     'min. 3, Ziel 6 Monate',
   );
@@ -212,6 +281,7 @@ test('book rules start disabled, toggle and threshold edit are undoable', async 
 }, info) => {
   test.skip(info.project.name !== 'desktop', 'shared sample writes once');
   await page.goto('/einstellungen/regelwerk');
+  await page.locator('.rw-disabled > summary').click();
   const row = page.locator('.rw-rules > li').filter({ hasText: 'R17' });
   const toggle = row.getByRole('switch');
   await expect(toggle).not.toBeChecked();
@@ -224,7 +294,7 @@ test('book rules start disabled, toggle and threshold edit are undoable', async 
   ).toBeVisible();
   await toast(page).getByRole('button', { name: 'Rückgängig' }).click();
   await expect(toggle).not.toBeChecked();
-  await row.getByRole('button', { name: /Schwelle/ }).click();
+  await row.getByRole('button', { name: /Einstellen/ }).click();
   const panel = page.getByRole('dialog', { name: /^R17 / });
   await panel.getByLabel('Ziel Bruttoquote').fill('26');
   await panel.getByRole('button', { name: 'Speichern' }).click();
