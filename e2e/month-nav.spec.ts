@@ -133,7 +133,7 @@ test.describe('Plan › Monat with several months', () => {
 
     await span.getByRole('button', { name: '1 Monat' }).click();
     await expect(page.locator('.ptable-multi')).toHaveCount(0);
-    await expect(page.getByRole('button', { name: 'Wasserfall' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Nach Stufen' })).toBeVisible();
   });
 
   test('the phone keeps one month whatever was chosen', async ({ page }, info) => {
@@ -143,7 +143,7 @@ test.describe('Plan › Monat with several months', () => {
     await expect(page.getByRole('heading', { name: 'September 2026', exact: true })).toBeVisible();
     await expect(page.locator('.ptable-multi')).toHaveCount(0);
     await expect(page.getByRole('group', { name: 'Anzahl Monate' })).toHaveCount(0);
-    await expect(page.getByRole('button', { name: 'Wasserfall' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Nach Stufen' })).toBeVisible();
   });
 });
 
