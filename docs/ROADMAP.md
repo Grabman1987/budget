@@ -376,6 +376,8 @@ Expected payments, contacts with receivables, savings goals, rule set registered
 
 ### P3 — Posteingang basics
 
+- [x] E4: learn assignments on owner confirmation by normalized counterparty + direction; prefilled **Übernehmen** / **wie zuletzt bei …**, view/remove in Einstellungen › Zuordnungsregeln, last-choice replacement and grouped audit/undo; synthetic learning/matching/deletion/direction tests. Existing rule JSON reused, no migration or dependency; owner acceptance remains open.
+
 - [x] Actual queue and shell counter: one task per due nonzero unclassified budget booking plus unresolved stored warnings; no sample counter or legacy summary double count
 - [x] Konten › Posteingang and global desktop/mobile panel: categorize in the existing booking editor, confirm pending bookings, acknowledge stored warnings with audited undo/redo
 - [x] Shared ledger invalidation refreshes the queue, count and Heute reads after mutations/undo; safe empty/error/loading states and keyboard/touch actions

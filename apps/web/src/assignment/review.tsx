@@ -23,13 +23,28 @@ export function AssignmentSummary({
   const a = rule.actions;
   return (
     <div className="assignment-review">
-      <strong>{rule.name}</strong>
+      <strong>
+        {rule.id.startsWith('inbox-learn:') ? `wie zuletzt bei ${rule.name}` : rule.name}
+      </strong>
       {a.payeeId !== undefined && (
         <span>
           Empfänger: {payees.data?.payees.find((p) => p.id === a.payeeId)?.name ?? 'entfernen'}
         </span>
       )}
       {a.categoryId !== undefined && <span>Kategorie: {category(a.categoryId)}</span>}
+      {a.incomeTypeId && (
+        <span>
+          Einnahmeart:{' '}
+          {lookups.data?.incomeTypes.find((v) => v.id === a.incomeTypeId)?.name ??
+            'nicht verfügbar'}
+        </span>
+      )}
+      {a.accountId && (
+        <span>
+          Konto:{' '}
+          {accounts.data?.accounts.find((v) => v.id === a.accountId)?.name ?? 'nicht verfügbar'}
+        </span>
+      )}
       {a.splits?.map((s, i) => (
         <span key={i}>
           Split: {category(s.categoryId)} · {s.weightBp / 100} %
@@ -104,7 +119,7 @@ export function BookingAssignmentReview({
             .finally(() => setBusy(false));
         }}
       >
-        Vorschlag übernehmen
+        {rule.id.startsWith('inbox-learn:') ? 'Übernehmen' : 'Vorschlag übernehmen'}
       </Button>
       <Button variant="ghost" onClick={() => setRejected(true)}>
         Vorschlag ablehnen

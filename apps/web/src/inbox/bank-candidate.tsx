@@ -50,7 +50,11 @@ export function BankCandidate({
   const write = useBudgetWrite();
   const first = review.data?.suggestions[0];
   const ruleId =
-    selected === undefined && first?.automatic && !first.unavailable ? first.id : selected;
+    selected === undefined &&
+    (first?.automatic || first?.id.startsWith('inbox-learn:')) &&
+    !first.unavailable
+      ? first.id
+      : selected;
   const rule = review.data?.suggestions.find((r) => r.id === ruleId);
   const recipient = payeeId ?? review.data?.cleanup.payeeId ?? '';
   return (
@@ -250,7 +254,7 @@ export function BankCandidate({
             .finally(() => setBusy(false));
         }}
       >
-        Als Buchung bestätigen
+        {rule?.id.startsWith('inbox-learn:') ? 'Übernehmen' : 'Als Buchung bestätigen'}
       </Button>
     </div>
   );
