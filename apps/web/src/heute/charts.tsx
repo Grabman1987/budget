@@ -1,4 +1,6 @@
 import { forecastStepLabels } from './forecast-labels';
+import { useId, useState, type CSSProperties } from 'react';
+import { Info } from 'lucide-react';
 import { chartPoints } from '../charts/tooltip-data';
 import {
   useAmountPrivacy,
@@ -25,6 +27,53 @@ const dayValue = (day: string) => Date.parse(`${day}T00:00:00Z`);
 
 function useWidth() {
   return useElementWidth<HTMLDivElement>();
+}
+
+export function DailyBudgetLine({
+  data,
+  style,
+}: {
+  data: Pick<Heute, 'dailyBudget' | 'stand'>;
+  style?: CSSProperties;
+}) {
+  useAmountPrivacy();
+  const [explained, setExplained] = useState(false);
+  const id = useId();
+  const { remainingDays, perDayCents } = data.dailyBudget;
+  return (
+    <div
+      className={`heute-daily-budget${perDayCents === null ? ' is-alarm' : ''}`}
+      data-testid="heute-daily-budget"
+      style={style}
+    >
+      <span>
+        {perDayCents === null
+          ? `Kein Spielraum bis zum Gehalt am ${shortDay(data.stand.payday.day)}`
+          : `≈ ${eur(perDayCents, { cents: false })} pro Tag · noch ${remainingDays} ${remainingDays === 1 ? 'Tag' : 'Tage'} bis zum Gehalt`}
+      </span>
+      <span onMouseEnter={() => setExplained(true)} onMouseLeave={() => setExplained(false)}>
+        <button
+          type="button"
+          aria-label="Tagesbudget erklären"
+          aria-describedby={explained ? id : undefined}
+          onFocus={() => setExplained(true)}
+          onBlur={() => setExplained(false)}
+          onClick={() => setExplained(true)}
+          onKeyDown={(event) => {
+            if (event.key === 'Escape') setExplained(false);
+          }}
+        >
+          <Info size={16} aria-hidden="true" />
+        </button>
+        {explained && (
+          <span id={id} role="tooltip" className="heute-daily-help">
+            Frei verfügbar bis Gehalt geteilt durch die verbleibenden Tage einschließlich heute bis
+            zum nächsten Gehalt (am Gehaltstag: ein Tag), auf ganze Euro gerundet.
+          </span>
+        )}
+      </span>
+    </div>
+  );
 }
 
 /** Budget-account balance from the Heute read model; solid is observed, dashed is forecast. */
@@ -81,12 +130,13 @@ function BalanceDrawing({
   const [figureRef, figureWidth] = useElementWidth<HTMLButtonElement>();
   const narrow = width < 640;
   const labels = forecastStepLabels(data.balance.forecast);
-  const height = report ? (narrow ? 204 : 260) : narrow ? 232 : 330;
-  const top = report ? 64 : narrow ? 104 : 140;
+  const dailySpace = report ? 0 : narrow ? 72 : 48;
+  const height = (report ? (narrow ? 204 : 260) : narrow ? 232 : 330) + dailySpace;
+  const top = (report ? 64 : narrow ? 104 : 140) + dailySpace;
   const bottom = height - (narrow ? 26 : 30);
   const left = narrow ? 40 : 48;
   const right = width - 10;
-  const dimY = report ? 30 : narrow ? 64 : 100;
+  const dimY = (report ? 30 : narrow ? 64 : 100) + dailySpace;
   const figure = eurParts(data.lead.freeCents);
   const { actual, forecast, low, salary } = data.balance;
   const days = [...actual, ...forecast];
@@ -128,8 +178,9 @@ function BalanceDrawing({
   const x0 = todayInRange ? xScale(data.stand.today) : left;
   const x1 = paydayInRange ? xScale(payday) : right;
   const center = (x0 + x1) / 2;
+  const dailyWidth = Math.min(width - 16, 500);
   return (
-    <div className="heute-balance-drawing">
+    <div className={`heute-balance-drawing${narrow ? ' is-narrow' : ''}`}>
       {!report && (
         <button
           ref={figureRef}
@@ -148,6 +199,16 @@ function BalanceDrawing({
           <span>{figure.whole}</span>
           <small>,{figure.fraction} €</small>
         </button>
+      )}
+      {!report && (
+        <DailyBudgetLine
+          data={data}
+          style={{
+            left: Math.min(Math.max(center - dailyWidth / 2, 8), width - dailyWidth - 8),
+            right: 'auto',
+            width: dailyWidth,
+          }}
+        />
       )}
       <ChartSvg
         width={width}
@@ -239,7 +300,7 @@ function BalanceDrawing({
             <SlashTick x={x1} y={dimY} size={9} />
             <text
               x={Math.min(center, width - (narrow ? 70 : 110))}
-              y={report ? 50 : narrow ? 82 : 120}
+              y={(report ? 50 : narrow ? 82 : 120) + dailySpace}
               textAnchor="middle"
               className="svg-label-line"
             >
