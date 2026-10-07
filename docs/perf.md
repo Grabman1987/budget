@@ -107,7 +107,7 @@ about 25 ms for 7k rows), the cost was repeated reading and mapping.
 ## Not done / ideas
 
 - The ORM row mapping (`drizzle-orm` `mapResultRow`) is now the largest single cost of the big reads
-  (about 1/3 of Heute). Raw prepared statements for the three big row sets (splits, trades, prices)
+  (about a fifth of Heute). Raw prepared statements for the three big row sets (splits, trades, prices)
   would remove most of it but touch many callers.
 - The net worth of 12 month ends in One-Pager/Heute computes a valuation per day; a series from one
   pass over trades and prices would be faster but has to reproduce the valuation rules exactly.
