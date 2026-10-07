@@ -8,6 +8,11 @@ for (const x of a) {
   if (!y) continue;
   const same = x.hash === y.hash && x.status === y.status;
   if (!same) bad++;
-  console.log(`${same ? 'same' : 'DIFF'} ${String(x.p50).padStart(5)} -> ${String(y.p50).padStart(5)} ms  q ${String(x.q).padStart(4)} -> ${String(y.q).padStart(4)}  ${x.r}`);
+  console.log(
+    `${same ? 'same' : 'DIFF'} ${String(x.p50).padStart(5)} -> ${String(y.p50).padStart(5)} ms  q ${String(x.q).padStart(4)} -> ${String(y.q).padStart(4)}  ${x.r}`,
+  );
 }
-if (bad) { console.error(`${bad} responses differ`); process.exit(1); }
+if (bad) {
+  console.error(`${bad} responses differ`);
+  process.exit(1);
+}

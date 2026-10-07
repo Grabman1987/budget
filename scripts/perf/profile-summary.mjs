@@ -8,7 +8,7 @@ p.samples.forEach((id, i) => self.set(id, (self.get(id) ?? 0) + (dt[i] ?? 0)));
 const parent = new Map();
 for (const n of p.nodes) for (const c of n.children ?? []) parent.set(c, n.id);
 const key = (n) =>
-  `${n.callFrame.functionName || '(anon)'} ${n.callFrame.url.replace(/^.*[\/](packages|apps)[\/]/, '$1/')}:${n.callFrame.lineNumber + 1}`;
+  `${n.callFrame.functionName || '(anon)'} ${n.callFrame.url.replace(/^.*[/](packages|apps)[/]/, '$1/')}:${n.callFrame.lineNumber + 1}`;
 const selfBy = new Map(),
   incl = new Map();
 for (const [id, t] of self) {
@@ -65,5 +65,6 @@ if (parentFn) {
     }
   }
   console.log(`--- children of ${parentFn} (inclusive)`);
-  for (const [k, t] of [...totals].sort((a, b) => b[1] - a[1]).slice(0, 15)) console.log((t / 1000).toFixed(0).padStart(7), k);
+  for (const [k, t] of [...totals].sort((a, b) => b[1] - a[1]).slice(0, 15))
+    console.log((t / 1000).toFixed(0).padStart(7), k);
 }

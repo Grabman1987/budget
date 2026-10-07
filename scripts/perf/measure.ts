@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any -- measurement tool: wraps better-sqlite3 statements and prints JSON */
 import { migrateDatabase, openDatabase } from '@budget/db';
 import { createLedgerApi } from '../../apps/server/src/api/index';
 import { Hono } from 'hono';
