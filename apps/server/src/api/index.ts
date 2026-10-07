@@ -55,6 +55,33 @@ import { spendingReportRoutes } from './spending-reports';
 import { reportTableRoutes } from './report-tables';
 import { payeeReportRoutes } from './payee-report';
 
+/** The ledger API, plus the start-up warm-up of the read-model cache (`warmReadModels`). */
+export type LedgerApi = Hono & { warm: () => Promise<number> };
+
+/**
+ * Asks the pages every visit starts with once, in process (no session needed, nothing is sent), so
+ * the first visit after a deploy or restart is answered from the read-model cache: Heute in both
+ * balance periods for the current month, and the Posteingang count the shell shows everywhere.
+ * Returns the number of answers that were stored.
+ */
+export async function warmReadModels(api: Hono, today: () => string): Promise<number> {
+  const month = today().slice(0, 7);
+  let warmed = 0;
+  for (const path of [
+    `/heute?period=month&month=${month}`,
+    `/heute?period=payday&month=${month}`,
+    '/inbox/count',
+  ]) {
+    try {
+      const response = await api.request(path);
+      if (response.status === 200) warmed++;
+    } catch {
+      // A failing page is for the first real visit to report.
+    }
+  }
+  return warmed;
+}
+
 export interface LedgerApiOptions {
   db: Db;
   bankSync?: BankSync | null;
@@ -82,7 +109,7 @@ export function createLedgerApi({
   bankSync = bankSyncFromEnv(db),
   jobs,
   receiptsDir = receiptDirectory(sqliteOf(db).name),
-}: LedgerApiOptions): Hono {
+}: LedgerApiOptions): LedgerApi {
   const api = new Hono();
   api.use('*', readModelCache(db, today));
   // A valuation that had to estimate or skip a position (no quote) reports it while it runs; the
@@ -160,5 +187,5 @@ export function createLedgerApi({
   if (importHttpEnabled())
     api.route('/imports', importRoutes(db, today, stepUp, jobs ?? new ImportJobs(db)));
   api.onError(errorResponse);
-  return api;
+  return Object.assign(api, { warm: () => warmReadModels(api, today) });
 }

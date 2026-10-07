@@ -1,6 +1,7 @@
 import { createTestDatabase, sqliteOf } from '@budget/db';
 import { Hono } from 'hono';
 import { describe, expect, it } from 'vitest';
+import { warmReadModels } from './index';
 import { readModelCache } from './response-cache';
 
 function setup(day = { value: '2026-03-18' }) {
@@ -32,6 +33,27 @@ describe('readModelCache', () => {
     const second = await (await app.request('/api/heute')).json();
     expect(second).toEqual(first);
     expect(computed()).toBe(1);
+  });
+
+  it('answers a real request from what the in-process warm-up stored', async () => {
+    const { db } = createTestDatabase();
+    let computed = 0;
+    const api = new Hono();
+    api.use(
+      '*',
+      readModelCache(
+        db,
+        () => '2026-03-18',
+        () => 0,
+      ),
+    );
+    api.get('/heute', (c) => c.json({ n: ++computed }));
+    const app = new Hono().route('/api', api);
+    expect(await warmReadModels(api, () => '2026-03-18')).toBeGreaterThanOrEqual(2);
+    expect(computed).toBe(2); // month and payday
+    const real = await app.request('https://budget.example/api/heute?period=month&month=2026-03');
+    expect(await real.json()).toEqual({ n: 1 });
+    expect(computed).toBe(2);
   });
 
   it('keys the answer by query string', async () => {
