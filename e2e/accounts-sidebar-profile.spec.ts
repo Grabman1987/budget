@@ -1,6 +1,7 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test } from '@playwright/test';
 import { sampleTest } from './sample';
+import { openLedgerFilters } from './ledger-helpers';
 
 const GROUPS = ['Budget-Konten', 'Kreditkarten', 'Kredite', 'Investments'];
 const isPhone = (testInfo: { project: { name: string } }) => testInfo.project.name === 'mobile';
@@ -20,6 +21,7 @@ sampleTest(
     await expect(page.getByText('Schulden', { exact: true })).toHaveCount(0);
 
     await page.goto('/konten/buchungen');
+    await openLedgerFilters(page);
     const optgroups = page.getByLabel('Konto', { exact: true }).locator('optgroup');
     await expect(optgroups).toHaveCount(GROUPS.length);
     expect(await optgroups.evaluateAll((els) => els.map((el) => el.getAttribute('label')))).toEqual(

@@ -15,6 +15,20 @@ export interface BookingsSearch {
   richtung?: string | undefined;
 }
 
+const FILTER_KEYS = [
+  'buchung',
+  'konto',
+  'kategorie',
+  'empfaenger',
+  'status',
+  'markierung',
+  'von',
+  'bis',
+] as const;
+/** Search has its own field; sorting does not narrow the list. */
+export const activeFilterKeys = (search: BookingsSearch) =>
+  FILTER_KEYS.filter((key) => Boolean(search[key]));
+
 /*
  * The same limits as the server's query schema (apps/server/src/api/schemas.ts), so a hand-edited
  * or stale link drops the bad value instead of ending on a 400 error page.

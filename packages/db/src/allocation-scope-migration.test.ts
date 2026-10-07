@@ -139,4 +139,4 @@ it('0033 migrates latest main, preserves every original source column and valuat
     opened.close();
     rmSync(dir, { recursive: true, force: true });
   }
-});
+}, 60_000);

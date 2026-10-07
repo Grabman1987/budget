@@ -6,6 +6,12 @@
 - [x] Synthetic component regressions and desktop/phone light/dark browser assertions for legend, keyboard toggle, line styles and label bounds.
 - [ ] CI, pinned Linux visual review and owner acceptance (Heute and shared One-Pager).
 
+### UX-3d — Phone booking filters (owner feedback 2026-10-05)
+
+- [x] Konten › Buchungen: phone search beside Filter (n), draft bottom sheet with reset/apply, removable active-filter chips and short sorting labels; desktop inline controls retained.
+- [x] Synthetic filter-count unit regression and phone 390 / desktop browser specs; existing account-filter specs adapted to the sheet.
+- [ ] CI, Linux visual review and owner phone acceptance; [scope and baseline list](ux-mobile-ledger-1005.md).
+
 ### UX-4b - Plain wording and calmer controls (owner 2026-10-05)
 
 - [x] Plain action/view labels; neutral inbox resolution; actual-history label and separated payment markers.
