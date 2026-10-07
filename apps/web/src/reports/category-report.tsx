@@ -38,6 +38,7 @@ export function CategoryReport({ report, meta }: { report: ReportEntry; meta: Pa
       report={report}
       meta={meta}
       through="full"
+      verdictPeriod={period}
       currentAllowed={period.includes('..')}
       query={query}
       className="category-report"

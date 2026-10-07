@@ -1,7 +1,7 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, type APIRequestContext, type Locator, type Page } from '@playwright/test';
 import { test } from './isolated-ledger';
-import { toast } from './ledger-helpers';
+import { toast, openLedgerFilters } from './ledger-helpers';
 
 /**
  * The owner's account order: edit mode in the sidebar (desktop) and in Konten › Übersicht (also
@@ -123,6 +123,7 @@ test('Konten › Übersicht: reorder by buttons and drag, undo, persistence, sel
   await page.reload();
   await expect.poll(() => tableOrder(page, tag)).toEqual(['Bravo', 'Charlie', 'Delta', 'Alpha']);
   await page.goto('/konten/buchungen');
+  await openLedgerFilters(page);
   const options = page
     .getByLabel('Konto', { exact: true })
     .locator('optgroup')
