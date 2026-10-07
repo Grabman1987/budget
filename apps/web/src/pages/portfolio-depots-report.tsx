@@ -15,6 +15,7 @@ import { periodText } from '../wealth/networth-model';
 import { useZeitraum, ZEITRAUM_VALUES } from '../wealth/zeitraum';
 import type { Period } from '@budget/domain';
 import type { PageMeta } from '../nav/pages';
+import { Term } from '../reports/term';
 import type { ReportEntry } from '../nav/reports-catalog';
 import { PageFrame } from './placeholder-page';
 import {
@@ -214,7 +215,9 @@ function DepotCard({
           </table>
           <div className="depot-perf">
             <div>
-              <span className="tech">TTWROR</span>
+              <span className="tech">
+                <Term>TTWROR</Term>
+              </span>
               <strong>{percentText(perf.ttwror, { sign: true })}</strong>
             </div>
             {benchmarks.map((b) => (
@@ -309,7 +312,7 @@ function KpiTable({ columns }: { columns: DepotColumn[] }) {
           {rows.map(([label, cell]) => (
             <tr key={label}>
               <th scope="row" className="depots-first">
-                {label}
+                <Term>{label}</Term>
               </th>
               {columns.map((depot) => (
                 <td

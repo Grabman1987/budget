@@ -17,6 +17,7 @@ import { eur, eurParts, longDay } from '../ledger/format';
 import { EmptyNote, ErrorNote, LoadingNote } from '../ledger/states';
 import { monthLabel } from '../nav/month';
 import type { PageMeta } from '../nav/pages';
+import { Term } from './term';
 import type { ReportEntry } from '../nav/reports-catalog';
 import { NetWorthMini } from './month-charts';
 import { onePagerQuery, type OnePagerData } from './month-api';
@@ -235,7 +236,7 @@ function Split523({ data }: { data: OnePagerData }) {
             {CLASSES.map((c) => (
               <span key={c}>
                 <ClassSwatch kind={c} />
-                {CLASS_LABEL[c]} <strong>{percent(a.shares[c] * 100)}</strong>
+                <Term>{CLASS_LABEL[c]}</Term> <strong>{percent(a.shares[c] * 100)}</strong>
                 <small>
                   {eur(amount[c], { cents: false })} · Soll {SOLL[c]}
                 </small>
@@ -249,9 +250,9 @@ function Split523({ data }: { data: OnePagerData }) {
             </span>
           </div>
           <p className="b523-note">
-            Zusammen 100 % von {eur(base, { cents: false })} Einnahmen als Zwölftel. Periodische
-            Kosten, Sonderzahlungen und ihre Umbuchungen zählen je Monat mit einem Zwölftel, deshalb
-            weichen die Beträge vom Zahlungsmonat ab.
+            Zusammen 100 % von {eur(base, { cents: false })} Einnahmen als <Term>Zwölftel</Term>.
+            Periodische Kosten, Sonderzahlungen und ihre Umbuchungen zählen je Monat mit einem
+            Zwölftel, deshalb weichen die Beträge vom Zahlungsmonat ab.
           </p>
         </div>
       )}

@@ -11,6 +11,7 @@ import { type WithValuationNotes } from '../ledger/valuation-hint';
 import { eur, longDay } from '../ledger/format';
 import { LEDGER_KEY } from '../ledger/queries';
 import type { PageMeta } from '../nav/pages';
+import { Term } from '../reports/term';
 import type { ReportEntry } from '../nav/reports-catalog';
 import { PageFrame } from './placeholder-page';
 import {
@@ -104,7 +105,9 @@ function AllocationBody({ data }: { data: AllocationReport }) {
     <>
       <section className="prep-card" aria-labelledby="alloc-title">
         <div className="tbd-head">
-          <h2 id="alloc-title">Woraus das Portfolio besteht</h2>
+          <h2 id="alloc-title">
+            <Term>Allokation</Term> · Woraus das Portfolio besteht
+          </h2>
           <DecisionLink />
         </div>
         {data.classifiedCents > 0 && (

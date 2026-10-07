@@ -1,5 +1,7 @@
 # Budget feature coverage: YNAB and Portfolio Performance replacement
 
+E2 (2026-10-06): report-only glossary terms have dotted underlines and native popovers with one-sentence German explanations, keyboard/touch controls and 44 px targets; ordinary dynamic headings and Heute stay in everyday language. No dependency or calculation change; CI and owner visual acceptance remain open.
+
 E1 (2026-10-06): [report verdicts](verdicts.md) use a pure deterministic fact engine and 230 German templates across all five report groups, Heute, One-Pager print header and Gesamtübersicht; existing read-model figures, amount privacy, synthetic domain/component/browser coverage. Fact families fed: records, savings/budget/wealth streaks, category streaks, comparisons, wealth marks, debt reduction, market/effort, rules, equivalents; **not yet fed:** Notgroschen reach (`emergency`, templates kept; see the table in verdicts.md). The Gesamtübersicht keeps “gespart, Markt, Nettovermögen” as appended details. Owner language/device acceptance and required CI remain open.
 
 E4 (2026-10-06): inbox confirmations learn category/income type, payee and account suggestions keyed by normalized counterparty plus direction; one-click **Übernehmen**, **wie zuletzt bei …**, settings removal and grouped audit/undo reuse `assignment_rule` without a migration. Suggestions never book automatically; synthetic API/browser coverage, owner acceptance pending.

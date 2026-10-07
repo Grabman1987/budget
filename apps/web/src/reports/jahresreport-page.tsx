@@ -15,6 +15,7 @@ import { eur, longDay } from '../ledger/format';
 import { userText } from '../api/error-text';
 import { ErrorNote, LoadingNote } from '../ledger/states';
 import type { PageMeta } from '../nav/pages';
+import { Term } from './term';
 import type { ReportEntry } from '../nav/reports-catalog';
 import { PageFrame } from '../pages/placeholder-page';
 import { useRuleDerivation, yearReportQuery, type YearReportRead } from './overview-api';
@@ -291,8 +292,12 @@ function SheetOne({
                 <th className="tech">Monat</th>
                 <th className="tech n">Einkommen</th>
                 <th className="tech n">Konsum</th>
-                <th className="tech n">Zukunft</th>
-                <th className="tech n">Sparquote</th>
+                <th className="tech n">
+                  <Term>Zukunft</Term>
+                </th>
+                <th className="tech n">
+                  <Term>Sparquote</Term>
+                </th>
                 <th className="tech n">Nettovermögen</th>
               </tr>
             </thead>
@@ -388,7 +393,9 @@ function SharesBar({ report }: { report: YearReport }) {
         {parts.map((p) => (
           <li key={p.key}>
             <ClassSwatch kind={p.key} />
-            <span>{p.label}</span>
+            <span>
+              <Term>{p.label}</Term>
+            </span>
             <strong>{p.value} %</strong>
           </li>
         ))}

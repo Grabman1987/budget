@@ -11,6 +11,7 @@ import { eur, longDay, MINUS } from '../ledger/format';
 import { LEDGER_KEY } from '../ledger/queries';
 import { monthLabel } from '../nav/month';
 import type { PageMeta } from '../nav/pages';
+import { Term } from './term';
 import type { ReportEntry } from '../nav/reports-catalog';
 import { PageFrame } from '../pages/placeholder-page';
 import { AppLink } from '../shell/app-link';
@@ -269,7 +270,7 @@ function Body({ data }: { data: BudgetAdherenceReport }) {
           {(['need', 'want', 'future'] as const).map((c, i) => (
             <li key={c}>
               <ClassSwatch kind={c} />
-              {CLASS_NAME[c]} · Soll {[50, 30, 20][i]} %
+              <Term>{CLASS_NAME[c]}</Term> · Soll {[50, 30, 20][i]} %
             </li>
           ))}
           <li>
