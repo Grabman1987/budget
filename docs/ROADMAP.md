@@ -1,5 +1,11 @@
 # Roadmap
 
+### Pace line reduction — owner 06.10.2026
+
+- [x] Move Pace below Kontoprognose; default Ist / Hochrechnung / Deckel, scheduled Plan bis heute dot, optional faint Einnahmen/Vormonat, complete tooltip and unchanged model/footnote.
+- [x] Synthetic component regressions and desktop/phone light/dark browser assertions for legend, keyboard toggle, line styles and label bounds.
+- [ ] CI, pinned Linux visual review and owner acceptance (Heute and shared One-Pager).
+
 ### UX-3d — Phone booking filters (owner feedback 2026-10-05)
 
 - [x] Konten › Buchungen: phone search beside Filter (n), draft bottom sheet with reset/apply, removable active-filter chips and short sorting labels; desktop inline controls retained.
