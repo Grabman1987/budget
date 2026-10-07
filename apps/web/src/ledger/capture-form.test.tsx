@@ -123,9 +123,9 @@ it('keeps optional fields in Mehr with a summary and offers relative dates witho
     expect(container.querySelector('.amount-ops')).toBeNull();
     expect(screen.getByText(/Rechnen im Feld möglich: 12,50\+3/)).toBeTruthy();
     await user.click(screen.getByRole('button', { name: 'Gestern' }));
-    expect((screen.getByLabelText('Datum') as HTMLInputElement).value).toBe('2026-10-04');
+    expect((screen.getByLabelText('Datum') as HTMLInputElement).value).toBe('04.10.2026');
     await user.click(screen.getByRole('button', { name: 'Heute' }));
-    expect((screen.getByLabelText('Datum') as HTMLInputElement).value).toBe('2026-10-05');
+    expect((screen.getByLabelText('Datum') as HTMLInputElement).value).toBe('05.10.2026');
     await user.click(screen.getByRole('button', { name: 'Datum…' }));
     expect(document.activeElement).toBe(screen.getByLabelText('Datum'));
     await user.click(screen.getByText('Mehr', { exact: true }));
