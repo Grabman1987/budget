@@ -1,5 +1,43 @@
 # Roadmap
 
+### E1 — Report verdict sentences (owner 2026-10-06)
+
+- [x] Pure typed fact detectors, strongest-fact selection, 230 German templates, deterministic period variation and previous-template exclusion; no new dependency or second ledger calculation.
+- [x] All catalog reports in sections 1–5, Heute fold, One-Pager print header and Gesamtübersicht use existing read-model values and amount privacy; incomplete histories stay explicit. Fed fact families: records, savings/budget/wealth streaks, category streaks, comparisons, wealth marks, debt reduction, market/effort, rules, equivalents.
+- [ ] Not yet fed: `emergency` (Notgroschen reach in months) — no read model keeps a monthly history of it; its templates stay until one does. Heute shows only the primary figure (one running month, no history).
+- [x] Synthetic template/placeholder snapshot, determinism, non-repetition, edge values and privacy tests; extension contract in [report verdicts](verdicts.md).
+- [x] Full local check: 355 files / 3,286 tests; two workers, 30-second test/hook deadlines and one allowed retry. Production build and 17 desktop/mobile browser checks passed, including light/dark, privacy and print.
+- [ ] Required CI and owner language/design/device acceptance; no keys, consents or migration required.
+
+### Pace line reduction — owner 06.10.2026
+
+- [x] Move Pace below Kontoprognose; default Ist / Hochrechnung / Deckel, scheduled Plan bis heute dot, optional faint Einnahmen/Vormonat, complete tooltip and unchanged model/footnote.
+- [x] Synthetic component regressions and desktop/phone light/dark browser assertions for legend, keyboard toggle, line styles and label bounds.
+- [ ] CI, pinned Linux visual review and owner acceptance (Heute and shared One-Pager).
+
+### UX-3d — Phone booking filters (owner feedback 2026-10-05)
+
+- [x] Konten › Buchungen: phone search beside Filter (n), draft bottom sheet with reset/apply, removable active-filter chips and short sorting labels; desktop inline controls retained.
+- [x] Synthetic filter-count unit regression and phone 390 / desktop browser specs; existing account-filter specs adapted to the sheet.
+- [ ] CI, Linux visual review and owner phone acceptance; [scope and baseline list](ux-mobile-ledger-1005.md).
+
+### UX-4b - Plain wording and calmer controls (owner 2026-10-05)
+
+- [x] Plain action/view labels; neutral inbox resolution; actual-history label and separated payment markers.
+- [x] Running One-Pager shows existing amounts without allocation shares; one shared German date input preserves ISO form values and validity.
+- [x] Empty annual planning keeps only Zu verteilen and the planning action; populated scenarios use plain labels with hover/focus explanations.
+- [x] Synthetic component and affected desktop/mobile browser regressions added; no baseline regeneration.
+- [x] Local check phases (352 files / 3,257 tests), production build and affected desktop/mobile browser checks; see [verification](ux-clarify-1005.md).
+- [ ] CI, pinned Linux screenshot review and owner acceptance.
+
+- [x] Owner 2026-10-06: implied gross trade prices before valuation cost fallback; estimate hints only for positive as-of holdings without a quote or trade price, with synthetic domain/DB/API/UI regressions. CI and owner acceptance remain open.
+
+### Warenkorb settings simplification — owner 2026-10-06
+
+- [x] Plain intro/current-effect copy and summary, one inclusion choice, collapsed official price groups with automatic CPI selection and validated autosave/undo; payee exceptions remain collapsed. API and domain rules unchanged.
+- [x] Synthetic component/browser regressions, full local check (353 files / 3,274 tests), production/E2E builds and desktop/375 px visual review; [verification evidence](evidence/basket-simple-1006/README.md).
+- [ ] CI and owner acceptance; no keys, consents or migration required.
+
 ### UX-6 - Typography and radii (owner task 2026-10-05)
 
 - [x] Off-scale CSS values mapped to DESIGN.md tokens, preserving chart/emoji geometry.
@@ -393,6 +431,7 @@ Expected payments, contacts with receivables, savings goals, rule set registered
 - [x] Pure actual contact statement and oldest-outlay-first repayment allocation, editable before saving; expected occurrences excluded
 - [x] Audited atomic settlement API with persisted excess contact credit, whole-action undo/redo and dependency checks (including forced undo)
 - [x] Konten › Kontakte: nonzero overview, balanced-history toggle, contact creation, Kontoblatt and actual EUR cash repayment with editable allocation
+- [x] Owner feedback 2026-10-05: cashless “Ausgleichen” in contact list/detail, partial credit to Zu verteilen or forgiven debt to category activity; confirmed zero booking, shared validation/audit/undo, separate report classification and synthetic API/component/browser coverage.
 - [x] Synthetic acceptance: 30 + 70 outlays / 40 repayment, edited allocation, 100 owed / 120 receipt / 20 credit, balanced history retained, cash-only net worth through outlay/receipt
 - [ ] Owner review of the contact workflow on the deployed app; foreign-currency contact statements remain outside this bounded EUR slice
 
@@ -727,3 +766,9 @@ Method, limits and owner steps: [inflation basket](inflation-basket.md#cpi-sub-i
 - [x] Synthetic domain/API/component tests; two explorer E2E cases on desktop/mobile with light/dark accessibility and review evidence, without baseline regeneration.
 - [x] Local verification: all workspace typechecks and ESLint; the one full check stopped on a late E2E formatting edit, corrected and checked in isolation. Full unit suite: 331 files / 3,121 tests; final affected regression run: 37 tests. Production build passed.
 - [ ] Stacked Draft PR/CI and owner mapping/design acceptance. No keys, consents, migrations or automatic bookings.
+
+### E2 glossary tooltips — owner 2026-10-05
+
+- [x] Small German glossary and report-only `<Term>`: dotted underline, one-sentence native popover, keyboard/touch, Escape/outside dismissal and 44 px targets; report headings/columns and estimate marks reuse it, with plain print labels.
+- [x] Final local check: all workspace typechecks, lint/format and 354 files / 3,286 unit tests; production build passed. Ten synthetic desktop/mobile/WebKit browser checks passed, including light/dark accessibility, keyboard/touch and print; desktop 1440/mobile 390 review images in `docs/screenshots/glossary-*.png`, without baseline regeneration. Windows sandbox verification used an ignored `os.userInfo` fallback plus one test thread and a 30 s harness timeout; assertions and repository configuration remain unchanged.
+- [ ] Required CI and owner desktop/phone acceptance; no keys, consents or migration needed.

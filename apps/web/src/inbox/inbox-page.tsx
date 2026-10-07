@@ -376,12 +376,7 @@ function InboxRow({
               <BankCandidate id={item.refId} onConfirmed={onBankConfirmed} />
             )}
             <SourceLink item={item} />
-            <Button
-              size="sm"
-              variant={item.urgent ? 'alert' : 'ghost'}
-              disabled={busy}
-              onClick={onResolve}
-            >
+            <Button size="sm" variant="ghost" disabled={busy} onClick={onResolve}>
               {item.refType === 'bank-sync-candidate'
                 ? 'Nicht übernehmen'
                 : 'Als erledigt markieren'}

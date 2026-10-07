@@ -738,6 +738,8 @@
     border-color: var(--line);
   }
   .plan .ptoolbar .seg {
+    position: relative;
+    /* contains the absolutely placed sr-only text of the count badge */
     max-width: 100%;
     overflow-x: auto;
     scrollbar-width: none;

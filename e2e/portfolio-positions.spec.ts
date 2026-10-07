@@ -140,7 +140,7 @@ sampleTest(
     const panel = page.getByRole('dialog', { name: 'ETF Welt', exact: true });
     await expect(panel).toContainText('Broker C');
     await expect(panel).toContainText('Bestand je Konto');
-    await expect(panel.getByLabel('Kursdatum')).toHaveValue('2026-09-17');
+    await expect(panel.getByLabel('Kursdatum')).toHaveValue('17.09.2026');
     await screenshot(page, `portfolio-keyboard-detail-${info.project.name}.png`, info);
     await page.keyboard.press('Tab');
     expect(await panel.evaluate((element) => element.contains(document.activeElement))).toBe(true);

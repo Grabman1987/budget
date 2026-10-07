@@ -3,6 +3,7 @@ import {
   AmountInput,
   Button,
   DetailPanel,
+  FormDialog,
   Field,
   Select,
   TextInput,
@@ -26,11 +27,12 @@ import { AccountOptions } from '../ledger/account-options';
 import { undoGroup } from '../ledger/api';
 import { eur, longDay } from '../ledger/format';
 import { errorText } from '../ledger/labels';
-import { accountsQuery, LEDGER_KEY } from '../ledger/queries';
+import { accountsQuery, lookupsQuery, LEDGER_KEY } from '../ledger/queries';
 import { EmptyNote, ErrorNote, LoadingNote } from '../ledger/states';
 import { PAGES } from '../nav/pages';
 import { PageFrame } from '../pages/placeholder-page';
 import './contacts.css';
+import '../ledger/ledger.css';
 interface ContactRow {
   id: string;
   name: string;
@@ -89,6 +91,7 @@ export function ContactsPage() {
       search: { kontakt: kontakt || undefined } as never,
     });
   const [creating, setCreating] = useState(false);
+  const [writeOff, setWriteOff] = useState<ContactRow | null>(null);
   const contacts = useQuery({
     queryKey: [...LEDGER_KEY, 'contacts', history],
     queryFn: () =>
@@ -151,6 +154,13 @@ export function ContactsPage() {
                         : c.balanceCents < 0
                           ? 'Guthaben des Kontakts'
                           : 'Ausgeglichen'}
+                      {c.balanceCents !== 0 && (
+                        <div>
+                          <Button variant="ghost" onClick={() => setWriteOff(c)}>
+                            Ausgleichen
+                          </Button>
+                        </div>
+                      )}
                     </td>
                   </tr>
                 ))}
@@ -168,6 +178,7 @@ export function ContactsPage() {
           )}
         </DetailPanel>
         <ContactPanel id={selected} onClose={() => setSelected('')} />
+        {writeOff && <ContactWriteOffDialog contact={writeOff} onClose={() => setWriteOff(null)} />}
       </div>
     </PageFrame>
   );
@@ -236,6 +247,7 @@ function ContactPanel({ id, onClose }: { id: string; onClose: () => void }) {
 function ContactBody({ statement }: { statement: Statement }) {
   useAmountPrivacy();
   const [receipt, setReceipt] = useState(false);
+  const [writeOff, setWriteOff] = useState(false);
   return (
     <div className="contacts-form">
       <h2>Kontoblatt</h2>
@@ -250,13 +262,24 @@ function ContactBody({ statement }: { statement: Statement }) {
         </span>
       </p>
       <p>
-        Auslagen und Rückzahlungen sind tatsächliche Kontobewegungen. Wiederkehrende Zahlungen
-        zählen erst nach der Buchung.
+        Auslagen und Rückzahlungen bewegen Geld. Ein Ausgleich übernimmt Guthaben ins Budget oder
+        erlässt eine Forderung als Ausgabe, ohne Geldbewegung.
       </p>
       <Button onClick={() => setReceipt((r) => !r)}>
         {receipt ? 'Rückzahlung schließen' : 'Rückzahlung buchen'}
       </Button>
       {receipt && <ReceiptForm statement={statement} onDone={() => setReceipt(false)} />}
+      {statement.balanceCents !== 0 && (
+        <Button variant="ghost" onClick={() => setWriteOff(true)}>
+          Ausgleichen
+        </Button>
+      )}
+      {writeOff && (
+        <ContactWriteOffDialog
+          contact={{ ...statement.contact, balanceCents: statement.balanceCents }}
+          onClose={() => setWriteOff(false)}
+        />
+      )}
       <h3>Verlauf</h3>
       {statement.movements.length === 0 ? (
         <p>Noch keine Kontaktbuchungen. Beim Erfassen einer Auslage den Kontakt wählen.</p>
@@ -276,7 +299,12 @@ function ContactBody({ statement }: { statement: Statement }) {
               return (
                 <tr key={m.splitId}>
                   <td>
-                    {longDay(m.date)} · {m.amountCents < 0 ? 'Auslage' : 'Rückzahlung'}
+                    {longDay(m.date)} ·{' '}
+                    {m.memo?.startsWith('Ausgleich Kontakt')
+                      ? 'Ausgleich'
+                      : m.amountCents < 0
+                        ? 'Auslage'
+                        : 'Rückzahlung'}
                     {m.memo && <small>{m.memo}</small>}
                     {outlay && <small>Offen: {eur(outlay.remainingCents)}</small>}
                     {repayment && (
@@ -299,6 +327,209 @@ function ContactBody({ statement }: { statement: Statement }) {
         </table>
       )}
     </div>
+  );
+}
+
+export function ContactWriteOffDialog({
+  contact,
+  onClose,
+}: {
+  contact: { id: string; name: string; balanceCents: number };
+  onClose: () => void;
+}) {
+  useAmountPrivacy();
+  const accounts = useQuery(accountsQuery());
+  const lookups = useQuery(lookupsQuery());
+  const budgetAccounts =
+    accounts.data?.accounts.filter(
+      (a) =>
+        a.onBudget &&
+        a.currency === 'EUR' &&
+        a.closedAt === null &&
+        ['checking', 'savings', 'cash'].includes(a.type),
+    ) ?? [];
+  const incomeTypes = lookups.data?.incomeTypes.filter((t) => t.id !== 'income-capital') ?? [];
+  const expenses =
+    lookups.data?.categories.filter(
+      (c) => c.class !== null && !['advance', 'income', 'card_payment'].includes(c.kind),
+    ) ?? [];
+  const credit = contact.balanceCents < 0;
+  const [amount, setAmount] = useState(decimal(Math.abs(contact.balanceCents)));
+  const [dateText, setDateText] = useState(longDay(todayInVienna()));
+  const [memo, setMemo] = useState('');
+  const [accountId, setAccountId] = useState('');
+  const [categoryId, setCategoryId] = useState('');
+  const [incomeTypeId, setIncomeTypeId] = useState('income-other');
+  const [busy, setBusy] = useState(false);
+  const write = useContactWrite();
+  const parsed = parseAmount(amount);
+  const amountCents = parsed.ok ? parsed.cents : 0;
+  const validAmount = amountCents > 0 && amountCents <= Math.abs(contact.balanceCents);
+  const chosenAccount = accountId || budgetAccounts[0]?.id || '';
+  const chosenType = incomeTypes.find((t) => t.id === incomeTypeId)?.id ?? '';
+  const remaining = contact.balanceCents - Math.sign(contact.balanceCents) * amountCents;
+  const date = dateText.replace(/^(\d{2})\.(\d{2})\.(\d{4})$/, '$3-$2-$1');
+  const validDate =
+    /^\d{4}-\d{2}-\d{2}$/.test(date) &&
+    Number.isFinite(Date.parse(date)) &&
+    new Date(date).toISOString().slice(0, 10) === date &&
+    date <= todayInVienna();
+  const valid = validAmount && chosenAccount && validDate && (credit ? chosenType : categoryId);
+  return (
+    <FormDialog open onClose={onClose} title="Kontakt ausgleichen" beforeClose={() => !busy}>
+      <form
+        className="bkform contacts-write-off"
+        onSubmit={(e) => {
+          e.preventDefault();
+          if (!valid || busy) return;
+          setBusy(true);
+          void write(
+            () =>
+              request('POST', `${contactUrl(contact.id)}/write-offs`, {
+                accountId: chosenAccount,
+                date,
+                amountCents,
+                memo,
+                ...(credit ? { incomeTypeId: chosenType } : { categoryId }),
+              }),
+            'Kontakt ausgeglichen.',
+          ).then((ok) => {
+            setBusy(false);
+            if (ok) onClose();
+          });
+        }}
+      >
+        <div className="bk-head">
+          <h2 className="bk-kind bk-kind-fixed">Kontakt ausgleichen</h2>
+          <Button variant="ghost" onClick={onClose} disabled={busy} aria-label="Schließen">
+            ×
+          </Button>
+        </div>
+        <div className="bk-body contacts-form">
+          <p>
+            {contact.name} · {credit ? 'Einnahme ins Budget' : 'Ausgabe'}
+          </p>
+          <AmountInput label="Betrag" value={amount} onChange={setAmount} />
+          {!validAmount && (
+            <p role="alert" className="field-error">
+              Bitte einen Betrag größer als 0 und höchstens {eur(Math.abs(contact.balanceCents))}{' '}
+              eintragen.
+            </p>
+          )}
+          <Field
+            label="Datum"
+            hint="TT.MM.JJJJ"
+            error={!validDate ? 'Bitte ein gültiges Datum bis heute eintragen.' : undefined}
+          >
+            {({ id, describedBy, invalid }) => (
+              <TextInput
+                id={id}
+                aria-describedby={describedBy}
+                aria-invalid={invalid}
+                value={dateText}
+                placeholder="TT.MM.JJJJ"
+                pattern="\d{2}\.\d{2}\.\d{4}"
+                required
+                onChange={(e) => setDateText(e.target.value)}
+              />
+            )}
+          </Field>
+          <Field label="Budgetkonto">
+            {({ id }) => (
+              <Select
+                id={id}
+                value={chosenAccount}
+                required
+                onChange={(e) => setAccountId(e.target.value)}
+              >
+                <AccountOptions accounts={budgetAccounts} />
+              </Select>
+            )}
+          </Field>
+          {credit ? (
+            <Field label="Einnahmenart">
+              {({ id }) => (
+                <Select
+                  id={id}
+                  value={chosenType}
+                  required
+                  onChange={(e) => setIncomeTypeId(e.target.value)}
+                >
+                  {incomeTypes.map((t) => (
+                    <option key={t.id} value={t.id}>
+                      {t.name}
+                    </option>
+                  ))}
+                </Select>
+              )}
+            </Field>
+          ) : (
+            <Field label="Kategorie">
+              {({ id }) => (
+                <Select
+                  id={id}
+                  value={categoryId}
+                  required
+                  onChange={(e) => setCategoryId(e.target.value)}
+                >
+                  <option value="">Kategorie wählen</option>
+                  {expenses.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.name}
+                    </option>
+                  ))}
+                </Select>
+              )}
+            </Field>
+          )}
+          <Field label="Notiz">
+            {({ id }) => (
+              <TextInput
+                id={id}
+                value={memo}
+                maxLength={2000}
+                onChange={(e) => setMemo(e.target.value)}
+              />
+            )}
+          </Field>
+          {validAmount && (
+            <p aria-live="polite">
+              {eur(amountCents)} werden {credit ? 'ins Budget übernommen' : 'als Ausgabe gebucht'};
+              der Kontakt steht danach auf {eur(remaining)}. Kein Geld bewegt sich.
+            </p>
+          )}
+          {accounts.isError && (
+            <ErrorNote
+              what="Budgetkonten"
+              error={accounts.error}
+              onRetry={() => void accounts.refetch()}
+            />
+          )}
+          {lookups.isError && (
+            <ErrorNote
+              what="Kategorien und Einnahmenarten"
+              error={lookups.error}
+              onRetry={() => void lookups.refetch()}
+            />
+          )}
+          {accounts.isPending || lookups.isPending ? (
+            <LoadingNote what="Ausgleich" />
+          ) : (
+            !budgetAccounts.length && (
+              <p>Für den Ausgleich wird ein offenes EUR-Budgetkonto benötigt.</p>
+            )
+          )}
+        </div>
+        <div className="bk-foot">
+          <Button variant="ghost" onClick={onClose} disabled={busy}>
+            Abbrechen
+          </Button>
+          <Button type="submit" disabled={busy || !valid}>
+            Ausgleich speichern
+          </Button>
+        </div>
+      </form>
+    </FormDialog>
   );
 }
 

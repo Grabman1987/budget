@@ -128,6 +128,7 @@ function incomeFacts(db: Executor, f: Frame, fromMonth: string): IncomeFact[] {
     if (
       s.kind !== 'income' ||
       s.incomeTypeId === null ||
+      s.incomeGroup === 'unclassified' ||
       s.date > f.asOf ||
       monthOf(s.date) < fromMonth
     )
@@ -193,6 +194,8 @@ export interface IncomeReport {
   /** The selected month precedes the first record. */
   beforeRecords: boolean;
   income: MonthIncome;
+  /** Already-held contact credit, visible separately and excluded from household income. */
+  contactWriteOffs: ReturnType<typeof overviewData>['splits'];
   expected: ExpectedIncome;
   /** The expected payments of the month are materialised and matched (else they come from the schedule). */
   expectedMaterialised: boolean;
@@ -290,6 +293,14 @@ export function monthIncomeReport(db: Executor, today: string, month: string): I
     firstMonth: f.firstMonth,
     beforeRecords: month < f.firstMonth,
     income,
+    contactWriteOffs: overviewData(db).splits.filter(
+      (s) =>
+        s.kind === 'income' &&
+        s.incomeGroup === 'unclassified' &&
+        s.incomeTypeId !== null &&
+        monthOf(s.date) === month &&
+        s.date <= f.asOf,
+    ),
     expected,
     expectedMaterialised: materialised,
     foreignCurrencyCount,

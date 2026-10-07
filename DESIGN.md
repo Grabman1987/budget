@@ -294,6 +294,8 @@ Reihenfolge auf „Heute“ (Owner 05.10.2026): Leitfrage „Wie viel darf ich b
 
 Umbrüche: unter 1180 px zwei Detailspalten; unter 980 px Pace und Revisionen gestapelt; unter 768 px eine Spalte, Innenrand 16 px, Seitenleiste wird zur Tab-Leiste (64 px plus Safe Area) mit rundem Tusche-Knopf „Buchung“. Der Buchungsdialog ist einspaltig, 540 px breit, mobil ein Blatt von unten.
 
+Heute › Pace (Owner 06.10.2026): follows Kontoprognose; chart hierarchy is Ist solid ink (2.5 px) › Hochrechnung dashed accent (2 px, Mint/Waldgrün through Deckel, Rot above) › Deckel muted solid rule (1 px, sole right-end label); Plan bis heute is a dot on today with its label above the plot, context lines Einnahmen/Vormonat are off by default.
+
 Berührflächen mindestens 44 px auf Mobilgeräten.
 
 ## Elevation & Depth
