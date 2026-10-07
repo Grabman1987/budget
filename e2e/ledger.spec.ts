@@ -1,6 +1,15 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type Page } from '@playwright/test';
-import { again, balance, createAccount, openAccount, pickCategory, toast } from './ledger-helpers';
+import {
+  again,
+  balance,
+  createAccount,
+  openAccount,
+  pickCategory,
+  toast,
+  openLedgerFilters,
+  applyLedgerFilters,
+} from './ledger-helpers';
 
 /**
  * The ledger end to end on the real server: accounts, bookings with split and transfer, edit in
@@ -140,10 +149,14 @@ test('Alle Buchungen: filter in the URL, search, bulk edit with undo', async ({
 
   // The account filter is a URL parameter and survives a reload.
   await page.goto('/konten/buchungen');
+  await openLedgerFilters(page);
   await page.getByLabel('Konto', { exact: true }).selectOption({ label: giro });
+  await applyLedgerFilters(page);
   await expect(page).toHaveURL(/konto=/);
   await page.reload();
+  await openLedgerFilters(page);
   await expect(page.getByLabel('Konto', { exact: true })).toHaveValue(/.+/);
+  await applyLedgerFilters(page);
   await expect(page.getByText('3 Buchungen ·')).toBeVisible();
 
   // A broken link drops the bad values instead of failing: impossible day, overlong id.
@@ -151,7 +164,9 @@ test('Alle Buchungen: filter in the URL, search, bulk edit with undo', async ({
   await expect(page.getByText(/\d+ Buchung(en)? ·/)).toBeVisible();
   await expect(page.getByText(/konnte(n)? nicht geladen/)).toHaveCount(0);
   await page.goBack();
+  await openLedgerFilters(page);
   await expect(page.getByLabel('Konto', { exact: true })).toHaveValue(/.+/);
+  await applyLedgerFilters(page);
 
   // Search narrows the list and lands in the URL.
   await page.getByLabel('In Buchungen suchen').fill('Bio-Laden');
