@@ -111,13 +111,13 @@ describe('held positions without market quotes', () => {
     expect(positions()).toMatchObject({ valueCents: null });
     expect(() => netWorthAsOf(opened.db, TODAY)).not.toThrow();
   });
-  it('a quote of 120 sets the value; days before it use a close later quote or the cost', () => {
+  it('a quote of 120 sets the value; earlier days without trades retain the cost', () => {
     quote(TODAY, 120_000_000);
     expect(positions()).toMatchObject({ valueCents: 12000, costCents: 10000, gainCents: 2000 });
     expect(netWorthAsOf(opened.db, TODAY).totalCents).toBe(12000);
-    // 16.09. has no quote of its own: the quote of the next day stands in for it (estimated).
+    // 16.09. has neither an earlier quote nor a trade: the cost remains the estimate.
     const without = valuationSeries(opened.db, { from: '2026-09-16', to: TODAY });
-    expect(without.totalCents).toEqual([12000, 12000]);
+    expect(without.totalCents).toEqual([10000, 12000]);
     expect(without.positions[0]!.quality).toBe('estimated');
     expect(without.incomplete).toEqual([
       expect.objectContaining({ securityId: 's', quality: 'estimated', days: 1 }),

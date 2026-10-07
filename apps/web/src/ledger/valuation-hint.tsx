@@ -1,6 +1,6 @@
 import { Info } from 'lucide-react';
 
-/** A security the valuation had to estimate (cost basis, a later quote) or leave out. */
+/** A held security valued at cost or left out, without a quote or execution price. */
 export interface ValuationNote {
   securityId: string;
   quality: 'estimated' | 'missing';
@@ -8,6 +8,8 @@ export interface ValuationNote {
   from: string;
   to: string;
   name?: string;
+  /** Positive units held at the response's as-of date. */
+  unitsE8?: number;
 }
 
 /** Answers that may carry `incomplete`: the API adds it to every answer that estimated a value. */
@@ -48,6 +50,7 @@ export function valuationHintText(count: number): string {
  * quote counts at its Einstand (moving average); one without even that adds nothing.
  */
 export function ValuationHint({ incomplete }: { incomplete?: ValuationNote[] | undefined }) {
+  incomplete = incomplete?.filter((n) => n.unitsE8 === undefined || n.unitsE8 > 0);
   if (!incomplete || incomplete.length === 0) return null;
   const missing = incomplete.filter((n) => n.quality === 'missing').length;
   const names = incomplete.map((n) => n.name).filter((n): n is string => !!n);

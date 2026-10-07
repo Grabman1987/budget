@@ -1,9 +1,18 @@
 import { randomUUID } from 'node:crypto';
 import { allocateContactReceipt, contactStatement, type ContactAllocation } from '@budget/domain';
 import { and, eq, isNull } from 'drizzle-orm';
-import { account, bookingSplit, contact, contactAllocation, contactSettlement } from '../schema';
+import {
+  account,
+  bookingSplit,
+  category,
+  contact,
+  contactAllocation,
+  contactSettlement,
+  incomeType,
+  INCOME_TYPES,
+} from '../schema';
 import { insertTracked, withGroup, type AuditContext } from './audit';
-import { createContactSettlementBooking } from './bookings';
+import { createBooking, createContactSettlementBooking, type SplitInput } from './bookings';
 import { ensureAdvanceCategory } from './categories';
 import {
   actualContactMovements,
@@ -50,6 +59,115 @@ export interface ContactReceiptInput {
   amountCents: number;
   memo?: string | null;
   allocations?: ContactAllocation[];
+}
+
+export interface ContactWriteOffInput {
+  accountId: string;
+  date: string;
+  amountCents: number;
+  memo?: string | null;
+  categoryId?: string | null;
+  incomeTypeId?: string | null;
+}
+
+/** Reclassify an existing contact share; the ordinary zero booking is deletable and undoable. */
+export function writeOffContact(
+  db: Executor,
+  contactId: string,
+  input: ContactWriteOffInput,
+  ctx: AuditContext,
+  today: string,
+) {
+  const grouped = withGroup(ctx);
+  return runInTransaction(db, (tx) => {
+    const current = getContactStatement(tx, contactId, today).balanceCents;
+    const dated = getContactStatement(tx, contactId, input.date).balanceCents;
+    if (
+      input.date > today ||
+      !Number.isSafeInteger(input.amountCents) ||
+      input.amountCents <= 0 ||
+      Math.sign(current) !== Math.sign(dated) ||
+      input.amountCents > Math.abs(current) ||
+      input.amountCents > Math.abs(dated)
+    )
+      throw new BookingInvariantError(
+        'Der Betrag darf den offenen Kontaktsaldo nicht übersteigen.',
+      );
+    const cash = tx
+      .select()
+      .from(account)
+      .where(and(eq(account.id, input.accountId), isNull(account.deletedAt)))
+      .get();
+    if (
+      !cash ||
+      cash.closedAt !== null ||
+      !cash.onBudget ||
+      cash.currency !== 'EUR' ||
+      !['checking', 'savings', 'cash'].includes(cash.type) ||
+      input.date < cash.openingDate
+    )
+      throw new BookingInvariantError('Bitte ein offenes EUR-Budgetkonto wählen.');
+    const contactAmount = Math.sign(current) * input.amountCents;
+    let counter: SplitInput;
+    if (current < 0) {
+      const typeId = input.incomeTypeId ?? INCOME_TYPES.other.id;
+      const type = tx
+        .select()
+        .from(incomeType)
+        .where(and(eq(incomeType.id, typeId), isNull(incomeType.deletedAt)))
+        .get();
+      if (input.categoryId || !type || typeId === INCOME_TYPES.capital.id)
+        throw new BookingInvariantError('Bitte eine Einnahmenart außer Kapitalerträge wählen.');
+      counter = { incomeTypeId: typeId, amountCents: -contactAmount };
+    } else {
+      const expense =
+        input.categoryId &&
+        tx
+          .select()
+          .from(category)
+          .where(and(eq(category.id, input.categoryId), isNull(category.deletedAt)))
+          .get();
+      if (
+        !expense ||
+        expense.class === null ||
+        ['advance', 'income', 'card_payment'].includes(expense.kind) ||
+        input.incomeTypeId
+      )
+        throw new BookingInvariantError('Bitte eine Ausgabenkategorie wählen.');
+      counter = { categoryId: expense.id, amountCents: -contactAmount };
+    }
+    const memo = `Ausgleich Kontakt${input.memo?.trim() ? ` · ${input.memo.trim()}` : ''}`;
+    let bookingId: string;
+    try {
+      bookingId = createBooking(
+        tx,
+        {
+          accountId: input.accountId,
+          date: input.date,
+          amountCents: 0,
+          status: 'confirmed',
+          memo,
+          splits: [
+            {
+              categoryId: ensureAdvanceCategory(tx, grouped),
+              contactId,
+              amountCents: contactAmount,
+              memo,
+            },
+            counter,
+          ],
+        },
+        grouped,
+      );
+    } catch (error) {
+      if (error instanceof Error && /Allocation exceeds/.test(error.message))
+        throw new BookingInvariantError(
+          'Ausgleich zu diesem Datum nicht möglich: spätere Zahlungen sind bereits zugeordnet.',
+        );
+      throw error;
+    }
+    return { bookingId, groupId: grouped.groupId };
+  });
 }
 
 /** One transaction and audit group for cash, chosen allocation and explicit contact credit. */

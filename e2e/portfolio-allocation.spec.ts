@@ -211,8 +211,17 @@ test('unknown current quote is estimated at cost with a hint, and API failures o
     units: '2',
     amountCents: 6000,
   });
+  // The split makes the execution price unusable, so only the cost basis is left.
+  await post('/trades', {
+    accountId: account.id,
+    securityId: security.id,
+    date: '2026-09-02',
+    kind: 'split',
+    unitsE8: 2e8,
+    amountCents: 0,
+  });
   await page.goto('/vermoegen/portfolio');
-  // Without any quote the position is valued at its cost basis and flagged, never dropped.
+  // Without any quote or usable execution price the position is valued at its cost basis and flagged, never dropped.
   await expect(page.getByText(/teilweise geschätzt/).first()).toBeVisible();
   await page.route('**/api/portfolio/allocation', (route) =>
     route.fulfill({ status: 503, json: { error: 'unavailable' } }),

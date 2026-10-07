@@ -38,6 +38,17 @@ test('a position without market quote is valued at cost and flagged; the first q
     units: '1',
     amountCents: 10000,
   });
+  // A split (+1 unit, 2 held) after the buy makes the execution price unusable for the units held, so only the
+  // cost basis (100,00 �) is left: the position is valued at cost and flagged. Buys alone are
+  // valued at their trade price and not flagged (see valuation-hint.spec.ts).
+  await post('/trades', {
+    accountId: account.id,
+    securityId: security.id,
+    date: '2026-09-02',
+    kind: 'split',
+    unitsE8: 1e8,
+    amountCents: 0,
+  });
 
   const hint = 'Bewertung teilweise geschätzt: 1 Wertpapier ohne Kurs';
 
@@ -69,7 +80,7 @@ test('a position without market quote is valued at cost and flagged; the first q
   await panel.getByRole('button', { name: 'Kurs eintragen', exact: true }).click();
   const quote = page.getByRole('dialog', { name: 'Kurs eintragen', exact: true });
   await quote.getByLabel('Kursdatum').fill(current);
-  await quote.getByLabel('Kurs (EUR)', { exact: true }).fill('120');
+  await quote.getByLabel('Kurs (EUR)', { exact: true }).fill('60');
   await quote.getByRole('button', { name: 'Kurs speichern', exact: true }).click();
   await expect(toast(page)).toContainText('Manueller Kurs gespeichert');
   await expect(panel.locator('.instrument-accounts')).toContainText('120,00 €');
@@ -111,9 +122,10 @@ test('a position without market quote is valued at cost and flagged; the first q
         : info.outputPath(`missing-quote-today-${theme}.png`),
     });
   }
-  // The days before the first quote are estimates: the history answers, with the hint, no error.
+  // Once quoted, the position is no longer flagged (the hint only names currently held positions
+  // without quote or usable execution price); the history answers without error.
   await page.goto('/vermoegen/nettovermoegen');
   await expect(page.getByTestId('nw-figure')).toBeVisible();
-  await expect(page.getByTestId('valuation-hint')).toContainText(hint);
+  await expect(page.getByTestId('valuation-hint')).toHaveCount(0);
   await expect(page.getByRole('alert')).toHaveCount(0);
 });
