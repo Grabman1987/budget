@@ -102,6 +102,9 @@ test('top-bar chip: not enough money shows the missing amount and the detail lin
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   await pop.getByRole('link', { name: 'Im Detail lösen' }).click();
   await expect(page).toHaveURL(/ansicht=triage/);
+  // The plan page the link opened still fetches the stubbed month; end the stub before the
+  // context closes so that in-flight route.fetch is not reported as a failure.
+  await page.unrouteAll({ behavior: 'ignoreErrors' });
 });
 
 test('top-bar chip: "Alle decken" covers the month and the chip disappears at 0', async ({
@@ -145,4 +148,5 @@ test('top-bar chip: "Alle decken" covers the month and the chip disappears at 0'
   await expect(page.locator('.toast', { hasText: '3 gedeckt' }).first()).toBeVisible();
   await expect(page.getByRole('button', { name: 'Rückgängig' })).toBeVisible();
   await expect(bar.getByRole('button', { name: /Envelopes überzogen/ })).toHaveCount(0);
+  await page.unrouteAll({ behavior: 'ignoreErrors' });
 });
