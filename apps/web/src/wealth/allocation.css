@@ -72,7 +72,7 @@
 }
 .va-val strong {
   display: block;
-  font-size: 16px;
+  font-size: var(--fs-title);
   font-weight: 650;
 }
 .va-val small {
@@ -111,7 +111,7 @@
   .vallo li {
     grid-template-columns: minmax(0, 1fr) auto;
   }
-  .vallo .va-track {
+  .vallo li > .chart-interactive {
     grid-column: 1 / -1;
     grid-row: 2;
   }

@@ -60,6 +60,19 @@ export function PlanningAccuracyReportPage({
   useAmountPrivacy();
   return (
     <PageFrame
+      verdict={
+        query.data && !query.isFetching && !query.isError
+          ? {
+              reportId: report.id,
+              period: month,
+              metric: {
+                label: 'Mittlere Prognoseabweichung',
+                value: query.data.summary.meanAbsoluteBp,
+                unit: 'percent',
+              },
+            }
+          : undefined
+      }
       meta={meta}
       title={report.name}
       subtitle={`${report.pos} · ${report.question}`}

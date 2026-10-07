@@ -20,7 +20,7 @@
 .loan-measures {
   margin: 4px 0 0;
   padding-left: 16px;
-  font-size: 13px;
+  font-size: var(--fs-body);
   font-weight: 400;
   color: var(--ink-2);
 }

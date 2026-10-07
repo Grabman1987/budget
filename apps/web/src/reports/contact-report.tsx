@@ -70,6 +70,19 @@ export function ContactReportPage() {
   const parts = view ? eurParts(view.totals.balanceCents) : undefined;
   return (
     <PageFrame
+      verdict={
+        view && !overview.isFetching && !overview.isError
+          ? {
+              reportId: 'kontakte',
+              period: view.asOf,
+              metric: {
+                label: 'Offener Kontaktsaldo',
+                value: view.totals.balanceCents,
+                unit: 'money',
+              },
+            }
+          : undefined
+      }
       meta={META}
       title="Kontakte-Abrechnung"
       subtitle="Wer schuldet wem wie viel?"
@@ -275,11 +288,13 @@ function Ledger({ statement }: { statement: ContactReportStatement }) {
                 <td>{longDay(movement.date)}</td>
                 <td>
                   <AppLink to="/konten/buchungen" search={{ buchung: movement.bookingId }}>
-                    {movement.amountCents < 0
-                      ? 'Auslage'
-                      : movement.amountCents > 0
-                        ? 'Rückzahlung'
-                        : 'Kontaktbuchung'}{' '}
+                    {movement.memo?.startsWith('Ausgleich Kontakt')
+                      ? 'Ausgleich'
+                      : movement.amountCents < 0
+                        ? 'Auslage'
+                        : movement.amountCents > 0
+                          ? 'Rückzahlung'
+                          : 'Kontaktbuchung'}{' '}
                     öffnen
                   </AppLink>
                   <small>

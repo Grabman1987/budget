@@ -40,7 +40,8 @@ const connectionOf = (db: Executor): Database.Database | undefined =>
 const isTransaction = (db: Executor): boolean =>
   typeof (db as unknown as { rollback?: unknown }).rollback === 'function';
 
-function stampOf(db: Executor): string {
+/** Changes whenever this connection or another one writes (see the safety notes above). */
+export function databaseStamp(db: Executor): string {
   const row = db.get<{ changes: number; version: number }>(
     sql`select total_changes() as changes, (select data_version from pragma_data_version) as version`,
   );
@@ -52,7 +53,7 @@ export function memoized<T>(db: Executor, key: string, compute: () => T): T {
   const memo = storage.getStore();
   const connection = connectionOf(db);
   if (!memo || !connection || (!isTransaction(db) && connection.inTransaction)) return compute();
-  const stamp = stampOf(db);
+  const stamp = databaseStamp(db);
   let entries = memo.byExecutor.get(db);
   if (!entries || entries.stamp !== stamp) {
     entries = { stamp, values: new Map() };
@@ -61,6 +62,6 @@ export function memoized<T>(db: Executor, key: string, compute: () => T): T {
   if (entries.values.has(key)) return structuredClone(entries.values.get(key)) as T;
   const value = compute();
   // `compute` only reads; if it wrote anyway the stamp has moved and nothing may be stored.
-  if (stampOf(db) === stamp) entries.values.set(key, structuredClone(value));
+  if (databaseStamp(db) === stamp) entries.values.set(key, structuredClone(value));
   return value;
 }

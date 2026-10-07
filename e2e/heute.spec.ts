@@ -121,6 +121,19 @@ test('R07 remembers Heute period and draws the identical forecast and low point 
     await page.goto(`/?monat=2026-09&period=${period}`);
     const todayChart = page.getByTestId('heute-balance-chart');
     await expect(todayChart).toBeVisible();
+    const actualLabel = todayChart.getByText('bisher', { exact: true });
+    await expect(actualLabel).toBeVisible();
+    const todayLabel = todayChart.getByText('heute', { exact: true });
+    expect(Number(await actualLabel.getAttribute('x'))).toBeLessThan(
+      Number(await todayLabel.getAttribute('x')),
+    );
+    const lowBox = await todayChart.getByText(/^Tiefpunkt/).boundingBox();
+    for (const marker of await todayChart.locator('[data-payment-marker] text').all()) {
+      const box = await marker.boundingBox();
+      expect(
+        box && lowBox && (box.y >= lowBox.y + lowBox.height || box.y + box.height <= lowBox.y),
+      ).toBe(true);
+    }
     const low = await todayChart.locator('text').filter({ hasText: 'Tiefpunkt' }).textContent();
     const data: Heute = await (
       await page.request.get(`/api/heute?month=2026-09&period=${period}`)
@@ -454,7 +467,7 @@ test('negative lead uses the action colour and attention precedes the month fold
     expect(attentionBox!.y).toBeLessThan(upcomingBox!.y);
     expect(moreBox!.y).toBeGreaterThan(attentionBox!.y);
     if (info.project.name === 'mobile') {
-      await expect(figure).toHaveCSS('font-size', '26px');
+      await expect(figure).toHaveCSS('font-size', '24px');
       expect((await page.getByTestId('heute-balance-chart').boundingBox())!.height).toBe(232);
     }
   }

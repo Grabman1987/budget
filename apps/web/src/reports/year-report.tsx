@@ -46,6 +46,11 @@ export function YearReport({ report, meta }: { report: ReportEntry; meta: PageMe
       report={report}
       meta={meta}
       through="full"
+      verdictEnd={
+        year !== null && tables?.lastFullMonth
+          ? [`${year}-12`, tables.lastFullMonth].sort()[0]
+          : undefined
+      }
       query={query}
       className="year-report"
       extraFields={

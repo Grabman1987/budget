@@ -81,6 +81,7 @@ export function IncomeExpenseReport({ report, meta }: { report: ReportEntry; met
         report={report}
         meta={meta}
         through="full"
+        verdictEnd={window.at(-1)}
         currentAllowed={period.includes('..')}
         query={query}
         className="income-expense-report"

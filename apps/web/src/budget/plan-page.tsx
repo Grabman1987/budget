@@ -11,8 +11,8 @@ import {
   cx,
   type DimensionChainTerm,
 } from '@budget/ui';
-import { cents, coverShortfall, todayInVienna } from '@budget/domain';
-import { useQueries, useQuery } from '@tanstack/react-query';
+import { cents, coverShortfall, overspentEnvelopes, todayInVienna } from '@budget/domain';
+import { useQuery } from '@tanstack/react-query';
 import { useNavigate, useSearch } from '@tanstack/react-router';
 import {
   AlertTriangle,
@@ -45,7 +45,13 @@ import {
 import { MultiTable } from './plan-multi';
 import { AssignCell } from './assign-cell';
 import { QuickAssignActions } from './quick-assign-actions';
-import { assign, coverAll, budgetQuery, type BudgetMonthView } from './budget-api';
+import {
+  assign,
+  coverAll,
+  budgetMonthsQuery,
+  budgetQuery,
+  type BudgetMonthView,
+} from './budget-api';
 import { CategoryIcon } from './category-icon';
 import { IncomeButton } from '../expected/income-panel';
 import { EnvelopePanel } from './envelope-panel';
@@ -77,7 +83,7 @@ import { useBudgetWrite } from './use-category-writes';
 const dayMonth = (day: string) => `${day.slice(8, 10)}.${day.slice(5, 7)}.`;
 
 const VIEWS = [
-  { value: 'stage', label: 'Wasserfall' },
+  { value: 'stage', label: 'Nach Stufen' },
   { value: 'time', label: 'Zeit' },
   { value: 'group', label: 'Gruppen' },
   { value: 'class', label: 'Klassen' },
@@ -104,11 +110,14 @@ export function PlanMonthPage() {
     [month, span],
   );
   // The leftmost month drives hero, triage, inspector and title block; the others only fill columns.
-  const results = useQueries({ queries: months.map((m) => budgetQuery(m)) });
-  const budget = results[0]!;
-  const data = budget.data;
-  const views = results.every((r) => r.data) ? results.map((r) => r.data!) : null;
-  const extraError = results.slice(1).find((r) => r.isError);
+  // One month is the single-month call; several months are ONE batch call (the server derives the
+  // facts and the history once, not once per month column).
+  const first = useQuery({ ...budgetQuery(months[0]!), enabled: months.length === 1 });
+  const batch = useQuery({ ...budgetMonthsQuery(months), enabled: months.length > 1 });
+  const budget = months.length === 1 ? first : batch;
+  const data = months.length === 1 ? first.data : batch.data?.months[months[0]!];
+  const columns = months.map((m) => (months.length === 1 ? first.data : batch.data?.months[m]));
+  const views = columns.every((v) => v) ? columns.map((v) => v!) : null;
   // The month's income (title block and chain term) opens received against expected.
   const navigate = useNavigate();
   const openIncome = () =>
@@ -125,6 +134,9 @@ export function PlanMonthPage() {
   return (
     <PageFrame meta={PLAN_MONAT} income={income}>
       <div className="plan">
+        <AppLink to={`/monatsabschluss/${month}`} search={{}}>
+          Monatsabschluss starten oder fortsetzen
+        </AppLink>
         {budget.isPending && <LoadingNote what="Envelopes" />}
         {budget.isError && (
           <ErrorNote what="Envelopes" error={budget.error} onRetry={() => void budget.refetch()} />
@@ -136,7 +148,6 @@ export function PlanMonthPage() {
             months={months}
             data={data}
             views={views}
-            extraError={extraError}
             onIncome={openIncome}
           />
         )}
@@ -150,7 +161,6 @@ function PlanBody({
   months,
   data,
   views,
-  extraError,
   onIncome,
 }: {
   month: string;
@@ -159,7 +169,6 @@ function PlanBody({
   data: BudgetMonthView;
   /** All visible months once loaded. */
   views: BudgetMonthView[] | null;
-  extraError: { error: Error; refetch: () => unknown } | undefined;
   onIncome: () => void;
 }) {
   useAmountPrivacy();
@@ -225,8 +234,7 @@ function PlanBody({
     });
   const tba = s.toBeAssignedCents;
   const sug = distribute ? suggestions(rows, tba) : {};
-  const urgent = rows.filter(isCashOver);
-  const credit = rows.filter((r) => !isCashOver(r) && r.creditOverspentCents > 0);
+  const urgent = overspentEnvelopes({ envelopes: rows });
 
   const setAssigned = (r: PlanRow, value: number) =>
     value !== r.assignedCents &&
@@ -389,11 +397,11 @@ function PlanBody({
             </AppLink>
           </section>
         )}
-        {(urgent.length > 0 || credit.length > 0 || tba < 0) && (
+        {(urgent.length > 0 || tba < 0) && (
           <section className="triage triage-compact" aria-labelledby="triage-title">
             <div className="head">
               <h2 id="triage-title">
-                {urgent.length + credit.length} Envelopes überzogen ·{' '}
+                {urgent.length} Envelopes überzogen ·{' '}
                 {eur(rows.reduce((sum, r) => sum + r.overspentCents, 0))} zu decken
               </h2>
             </div>
@@ -416,7 +424,7 @@ function PlanBody({
                 </p>
               </div>
             )}
-            {urgent.length + credit.length > 0 && (
+            {urgent.length > 0 && (
               <div className="cover-all-controls">
                 <label className="sr-only" htmlFor="cover-all-source">
                   Quelle für alle Überziehungen
@@ -481,19 +489,21 @@ function PlanBody({
               </p>
             ) : (
               <div className="seg" role="group" aria-label="Gliederung">
-                {[...VIEWS, { value: 'triage' as const, label: 'Triage' }].map((v) => (
-                  <button
-                    key={v.value}
-                    type="button"
-                    aria-pressed={view === v.value}
-                    onClick={() => setView(v.value)}
-                  >
-                    {v.label}
-                    {v.value === 'triage' && urgent.length > 0 && (
-                      <Count tone="alert">{urgent.length}</Count>
-                    )}
-                  </button>
-                ))}
+                {[...VIEWS, { value: 'triage' as const, label: 'Überziehungen prüfen' }].map(
+                  (v) => (
+                    <button
+                      key={v.value}
+                      type="button"
+                      aria-pressed={view === v.value}
+                      onClick={() => setView(v.value)}
+                    >
+                      {v.label}
+                      {v.value === 'triage' && urgent.length > 0 && (
+                        <Count tone="alert">{urgent.length}</Count>
+                      )}
+                    </button>
+                  ),
+                )}
               </div>
             )}
             <span className="spacer" />
@@ -534,13 +544,7 @@ function PlanBody({
             )}
           </div>
           {multi ? (
-            extraError ? (
-              <ErrorNote
-                what="Folgemonate"
-                error={extraError.error}
-                onRetry={() => void extraError.refetch()}
-              />
-            ) : views ? (
+            views ? (
               <MultiTable
                 months={months}
                 views={views}

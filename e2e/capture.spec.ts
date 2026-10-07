@@ -8,6 +8,8 @@ import {
   pickCategory,
   toast,
   visit,
+  openLedgerFilters,
+  applyLedgerFilters,
 } from './ledger-helpers';
 
 /**
@@ -579,6 +581,7 @@ test('the category list: grouped by category group, no archived ones, Verfügbar
   await page.keyboard.press('Escape');
   await expect(panel).toBeHidden();
   await visit(page, '/konten/buchungen');
+  await openLedgerFilters(page);
   await page.getByLabel('Kategorie', { exact: true }).focus();
   const filter = page.getByRole('listbox', { name: /Kategorie, Vorschläge/ });
   await expect(filter.getByRole('option', { name: 'Alle Kategorien' })).toBeVisible();
@@ -586,6 +589,8 @@ test('the category list: grouped by category group, no archived ones, Verfügbar
   await expect(filter.locator('.combo-group', { hasText: 'Fixkosten' })).toBeVisible();
   await expect(filter.getByRole('option', { name: /Archiv Alt/ })).toHaveCount(0);
   await filter.getByRole('option', { name: /^Essen/ }).click();
+  await applyLedgerFilters(page);
   await expect(page).toHaveURL(/kategorie=e2e-essen/);
+  await openLedgerFilters(page);
   await expect(page.getByLabel('Kategorie', { exact: true })).toHaveValue('Essen');
 });

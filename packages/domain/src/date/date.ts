@@ -57,3 +57,21 @@ export function daysBetween(a: string, b: string): number {
 export function addDays(day: string, n: number): string {
   return new Date(Date.parse(`${day}T00:00:00Z`) + n * DAY_MS).toISOString().slice(0, 10);
 }
+
+const MONTH_NAMES = [
+  'Jänner',
+  'Februar',
+  'März',
+  'April',
+  'Mai',
+  'Juni',
+  'Juli',
+  'August',
+  'September',
+  'Oktober',
+  'November',
+  'Dezember',
+] as const;
+/** `September` from `YYYY-MM` or any day of it; `''` for an invalid month. */
+export const monthNameOnly = (month: string): string =>
+  /^\d{4}-(0[1-9]|1[0-2])/.test(month) ? MONTH_NAMES[Number(month.slice(5, 7)) - 1]! : '';

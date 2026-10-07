@@ -35,7 +35,7 @@
   position: relative;
   height: 16px;
   background: var(--tint);
-  border-radius: 3px;
+  border-radius: var(--radius-titleblock);
 }
 .dv-track::before {
   content: '';
@@ -50,7 +50,7 @@
   position: absolute;
   top: 0;
   bottom: 0;
-  border-radius: 3px;
+  border-radius: var(--radius-titleblock);
 }
 .dv-track i.is-more {
   left: 50%;
