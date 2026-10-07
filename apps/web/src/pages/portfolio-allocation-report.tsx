@@ -50,6 +50,20 @@ export function PortfolioAllocationReport({
   const data = query.data?.allocation;
   return (
     <PageFrame
+      verdict={
+        data && !query.isFetching && !query.isError
+          ? {
+              reportId: report.id,
+              period: data.asOf,
+              estimated: data.quality.confidence === 'provisional',
+              metric: {
+                label: 'Klassifizierter Anlagewert',
+                value: data.classifiedCents,
+                unit: 'money',
+              },
+            }
+          : undefined
+      }
       meta={meta}
       title={report.name}
       subtitle={`${report.pos} · ${report.question}`}

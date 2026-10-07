@@ -54,6 +54,21 @@ export function PortfolioContributionsReport({
 
   return (
     <PageFrame
+      verdict={
+        history && !query.isFetching && !query.isError
+          ? {
+              reportId: report.id,
+              period: `${history.from}..${history.to}`,
+              estimated: Boolean(query.data?.incomplete?.length),
+              metric: {
+                label: 'Wertzuwachs im Zeitraum',
+                value: history.gainCents,
+                unit: 'money',
+                better: 'higher',
+              },
+            }
+          : undefined
+      }
       meta={meta}
       title={report.name}
       subtitle={`${report.pos} · ${report.question}`}

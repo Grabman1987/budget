@@ -47,6 +47,21 @@ export function JahresreportPage({ report, meta }: { report: ReportEntry; meta: 
   );
   return (
     <PageFrame
+      verdict={
+        data && !query.isFetching && !query.isError
+          ? {
+              reportId: report.id,
+              period: `${data.report.months[0]}..${data.report.months.at(-1)}`,
+              partial: data.report.partial,
+              metric: {
+                label: 'Sparquote im Jahr',
+                value: data.report.totals.savingsRateBp,
+                unit: 'percent',
+                better: 'higher',
+              },
+            }
+          : undefined
+      }
       meta={meta}
       title={report.name}
       subtitle={`${report.pos} · ${report.question}`}

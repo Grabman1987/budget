@@ -15,7 +15,7 @@ import {
 import { addDays, cents, closeEntryMonth } from '@budget/domain';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from '@tanstack/react-router';
-import { useState, type ReactNode } from 'react';
+import { useMemo, useState, type ReactNode } from 'react';
 import {
   AlertTriangle,
   ArrowDown,
@@ -47,6 +47,8 @@ import { savingsProposalsQuery } from '../wealth/savings-api';
 import { sourceMoney } from '../wealth/trade-api';
 import { AnswerCards } from './answer-cards';
 import { DailyBudgetLine } from './charts';
+import { VerdictLine } from '../reports/verdict-line';
+import { heuteVerdictFacts } from '../reports/verdict-facts';
 
 const pct = new Intl.NumberFormat('de-AT', { maximumFractionDigits: 2 });
 const STATUS: Record<string, string> = {
@@ -81,6 +83,7 @@ export function HeutePage() {
 
 function HeuteBody({ data }: { data: Heute }) {
   useAmountPrivacy();
+  const heuteFacts = useMemo(() => heuteVerdictFacts(data), [data]);
   const [chainOpen, setChainOpen] = useState(false);
   const [netDetail, setNetDetail] = useState<'liquid' | 'invested' | 'receivable' | 'debt' | null>(
     null,
@@ -164,6 +167,7 @@ function HeuteBody({ data }: { data: Heute }) {
         chainOpen={chainOpen}
         onBudgetClick={() => setChainOpen((open) => !open)}
       />
+      <VerdictLine facts={heuteFacts} />
       <AttentionBar data={data} />
       <section className="heute-lead" aria-labelledby="heute-lead-title">
         <div className="heute-lead-head">

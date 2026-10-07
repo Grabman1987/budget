@@ -49,6 +49,20 @@ export function PortfolioDepotsReport({ report, meta }: { report: ReportEntry; m
   const data = query.data?.depots;
   return (
     <PageFrame
+      verdict={
+        data && !query.isFetching && !query.isError
+          ? {
+              reportId: report.id,
+              period: `${data.window?.from}..${data.window?.to}`,
+              estimated: Boolean(query.data?.incomplete?.length),
+              metric: {
+                label: 'Anlagewert am Ende',
+                value: data.total?.valueCents ?? null,
+                unit: 'money',
+              },
+            }
+          : undefined
+      }
       meta={meta}
       title={report.name}
       subtitle={`${report.pos} · ${report.question}`}
