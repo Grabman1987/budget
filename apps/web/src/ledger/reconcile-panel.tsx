@@ -49,12 +49,20 @@ export function ReconcilePanel({
   );
 }
 
-function ReconcileFlow({ account, onDone }: { account: AccountRow; onDone: () => void }) {
+export function ReconcileFlow({
+  account,
+  onDone,
+  initialDate,
+}: {
+  account: AccountRow;
+  onDone: () => void;
+  initialDate?: string | undefined;
+}) {
   useAmountPrivacy();
   const qc = useQueryClient();
   const writes = useLedgerWrites();
   const today = todayInVienna();
-  const [date, setDate] = useState(today);
+  const [date, setDate] = useState(initialDate ?? today);
   const [text, setText] = useState('');
   const [error, setError] = useState<string | null>(null);
 

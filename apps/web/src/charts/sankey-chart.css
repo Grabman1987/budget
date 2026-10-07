@@ -1,0 +1,60 @@
+.sk-phone,
+.sk-phone ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+.sk-phone > li + li::before {
+  content: '↓';
+  display: block;
+  margin: 8px 0;
+  color: var(--line);
+}
+.sk-phone > li > .tech {
+  display: block;
+  margin-bottom: 4px;
+  color: var(--ink-2);
+}
+.sk-phone ul li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--rule);
+}
+.sk-phone li span {
+  overflow-wrap: anywhere;
+}
+.sk-phone ul strong {
+  text-align: right;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.sk-phone small {
+  display: block;
+  color: var(--ink-2);
+  font-weight: 400;
+}
+
+.sk-phone-swatch {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  margin-right: 8px;
+  border: 1px solid var(--line);
+  background: var(--line);
+}
+.sk-phone-swatch.n-want {
+  border-color: var(--want);
+  background: repeating-linear-gradient(135deg, var(--want) 0 2px, transparent 2px 5px);
+}
+.sk-phone-swatch.n-future {
+  border-color: var(--future);
+  background:
+    repeating-linear-gradient(45deg, var(--future) 0 1px, transparent 1px 5px),
+    repeating-linear-gradient(135deg, var(--future) 0 1px, transparent 1px 5px);
+}
+.sk-phone-swatch.n-rest {
+  border-style: dashed;
+  background: transparent;
+}

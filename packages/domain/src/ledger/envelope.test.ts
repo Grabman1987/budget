@@ -1,5 +1,29 @@
 import { describe, expect, it } from 'vitest';
-import { envelopeMonth, envelopeSeries } from './envelope';
+import { envelopeMonth, envelopeSeries, overspentEnvelopes } from './envelope';
+
+it('counts only negative available envelopes after the month carry rules, including one cent', () => {
+  const regular = envelopeSeries([
+    { month: '2026-08', assignedCents: 0, activityCents: -100 },
+    { month: '2026-09', assignedCents: 0, activityCents: 0 },
+  ]);
+  const carried = envelopeSeries(
+    [
+      { month: '2026-08', assignedCents: 0, activityCents: -1 },
+      { month: '2026-09', assignedCents: 0, activityCents: 0 },
+    ],
+    0,
+    { rolloverOverspending: true },
+  );
+  const month = {
+    envelopes: [
+      regular[1]!,
+      carried[1]!,
+      envelopeMonth({ carryCents: 20, assignedCents: 0, activityCents: -21 }),
+    ],
+  };
+  expect(overspentEnvelopes(month)).toEqual([month.envelopes[1], month.envelopes[2]]);
+  expect(overspentEnvelopes({ envelopes: [] })).toEqual([]);
+});
 
 describe('envelopeMonth', () => {
   it('available = carry + assigned + activity (activity is negative for spending)', () => {

@@ -43,6 +43,7 @@ import { liquidityRoutes } from './liquidity';
 import { lookupRoutes, payeeRoutes, undoRoutes } from './lookups';
 import { profileRoutes } from './profile';
 import { marketRoutes } from './market';
+import { monthCloseRoutes } from './month-close';
 import { assetsDebtsHistoryRoutes } from './assets-debts-history';
 import { networthHistoryRoutes } from './networth-history';
 import { wealthRoutes } from './wealth';
@@ -98,7 +99,13 @@ export function createLedgerApi({
         return;
       const headers = new Headers(c.res.headers);
       headers.delete('content-length');
-      c.res = new Response(JSON.stringify({ ...body, incomplete: namedNotes(db, found) }), {
+      const asOf =
+        'asOf' in body && typeof body.asOf === 'string'
+          ? body.asOf
+          : 'to' in body && typeof body.to === 'string'
+            ? body.to
+            : today();
+      c.res = new Response(JSON.stringify({ ...body, incomplete: namedNotes(db, found, asOf) }), {
         status: c.res.status,
         headers,
       });
@@ -114,6 +121,7 @@ export function createLedgerApi({
   api.route('/search', searchRoutes(db));
   api.route('/accounts', accountRoutes(db, today));
   api.route('/inbox', inboxRoutes(db, today));
+  api.route('/month-close', monthCloseRoutes(db, today));
   api.route('/bookings', bookingRoutes(db, today));
   api.route('/receipts', receiptRoutes(db, receiptsDir));
   api.route('/payees', payeeRoutes(db));

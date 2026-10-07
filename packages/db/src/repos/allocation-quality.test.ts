@@ -63,6 +63,13 @@ it('R07 weighted unknown value is central, deduplicated and provisional in live/
 });
 it('R08 cost-basis and stale valuations produce structured provisional proposals, missing quotes/FX suppress them', () => {
   opened.sqlite.exec("DELETE FROM price WHERE security_id = 'etf'");
+  expect(view().quality).toMatchObject({
+    valuationQuality: 'exact',
+    estimatedSecurityIds: [],
+    confidence: 'exact',
+  });
+  // Only snapshots without executions need the cost-basis estimate.
+  opened.sqlite.exec("DELETE FROM trade WHERE security_id = 'etf'");
   let v = view();
   expect(v.quality).toMatchObject({
     valuationQuality: 'estimated',
@@ -77,7 +84,6 @@ it('R08 cost-basis and stale valuations produce structured provisional proposals
     .set({ costBasisCents: null })
     .where(eq(holding.securityId, 'etf'))
     .run();
-  opened.sqlite.exec("DELETE FROM trade WHERE security_id = 'etf'");
   v = view();
   expect(v).toMatchObject({ status: 'unavailable', risk: null });
   expect(v.quality).toMatchObject({

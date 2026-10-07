@@ -215,7 +215,7 @@ test('palette: reports, pages, recent choices, actions and shortcut help', async
   input = await openSearch(page, mobile);
   await input.fill('Monatsabschluss starten');
   await input.press('Enter');
-  await expect(page).toHaveURL(/\/konten$/);
+  await expect(page).toHaveURL(/\/monatsabschluss\/\d{4}-\d{2}/);
   input = await openSearch(page, mobile);
   await input.fill('Datenschutz-Modus umschalten');
   await input.press('Enter');

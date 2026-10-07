@@ -1,0 +1,100 @@
+.month-close {
+  margin-top: 24px;
+}
+.close-breadcrumb {
+  margin-top: 16px;
+}
+.close-stepper ol {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  padding: 0;
+  list-style: none;
+  border-block: 1px solid var(--rule);
+}
+.close-stepper button {
+  display: grid;
+  gap: 8px;
+  width: 100%;
+  min-height: 88px;
+  padding: 12px;
+  text-align: left;
+  color: var(--ink);
+  background: transparent;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  font: inherit;
+  cursor: pointer;
+}
+.close-stepper button[aria-current='step'] {
+  border-bottom-color: var(--line);
+  background: var(--tint);
+  font-weight: 600;
+}
+.close-stepper button:focus-visible {
+  outline: 2px solid var(--line);
+  outline-offset: -2px;
+}
+.close-stepper small {
+  color: var(--ink-2);
+}
+.close-stepper progress {
+  display: block;
+  width: 100%;
+  height: 8px;
+  margin-top: 8px;
+  accent-color: var(--line);
+}
+.close-body {
+  margin-block: 24px;
+}
+.close-row {
+  border-top: 1px solid var(--rule);
+  padding-block: 16px;
+}
+.close-row h3 {
+  margin: 0 0 8px;
+}
+.close-actions,
+.close-footer {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 12px;
+}
+.close-exception {
+  margin-block: 20px;
+  padding-block: 16px;
+  border-block: 1px solid var(--rule-strong);
+}
+.close-footer {
+  justify-content: space-between;
+  padding: 12px 0;
+  border-top: 1px solid var(--rule);
+}
+.month-close .btn {
+  min-height: 44px;
+}
+@media (max-width: 767px) {
+  .close-stepper ol {
+    grid-template-columns: 1fr;
+  }
+  .close-stepper button {
+    min-height: 44px;
+    padding-block: 8px;
+    grid-template-columns: 1fr auto;
+  }
+  .close-stepper button[aria-current='step'] {
+    border-bottom-color: transparent;
+    outline: 1px solid var(--line);
+  }
+  .close-footer {
+    position: sticky;
+    bottom: calc(72px + env(safe-area-inset-bottom));
+    padding-inline-end: 80px;
+    background: var(--surface);
+    z-index: 2;
+  }
+  .close-row .kform {
+    min-width: 0;
+  }
+}

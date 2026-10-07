@@ -19,6 +19,7 @@ import {
 } from '../schema';
 import { assertEurBudgetAccounts } from './account-invariants';
 import type { Executor } from './types';
+import { cashlessContactBookingIds } from './contact-invariants';
 
 const SPECIAL_TYPE_ID: string = INCOME_TYPES.special.id;
 
@@ -115,6 +116,7 @@ export function overviewData(db: Executor): OverviewData {
     }
 
   const splits: OverviewSplit[] = [];
+  const cashless = cashlessContactBookingIds(db);
   for (const r of rows) {
     if (onBudget.get(r.accountId) !== true || r.payeeSystem !== null || r.date < r.openingDate)
       continue;
@@ -162,7 +164,7 @@ export function overviewData(db: Executor): OverviewData {
           amountCents: r.amountCents,
           categoryId: null,
           incomeTypeId: r.incomeTypeId,
-          incomeGroup: incomeGroupOf(r.incomeTypeId),
+          incomeGroup: cashless.has(r.bookingId) ? 'unclassified' : incomeGroupOf(r.incomeTypeId),
         });
       continue;
     }
@@ -174,7 +176,7 @@ export function overviewData(db: Executor): OverviewData {
         amountCents: r.amountCents,
         categoryId: null,
         incomeTypeId: r.incomeTypeId,
-        incomeGroup: incomeGroupOf(r.incomeTypeId),
+        incomeGroup: cashless.has(r.bookingId) ? 'unclassified' : incomeGroupOf(r.incomeTypeId),
       });
     else if (r.amountCents < 0)
       splits.push({

@@ -118,13 +118,12 @@ describe('Plan › Monat view model', () => {
     ]);
     const triage = planGroups('triage', rows, data, ctx);
     expect(triage.map((g) => g.rows.map((r) => r.id))).toEqual([
-      ['treibstoff'],
-      ['cafe'],
+      ['treibstoff', 'cafe'],
       ['miete'],
       ['essen'],
     ]);
     expect(groupStatus(groups.find((g) => g.key === 's2')!.rows)).toMatchObject({
-      cashOver: 1,
+      cashOver: 2,
       state: 'over',
     });
   });
@@ -241,10 +240,9 @@ describe('Plan › Monat view model', () => {
     expect(lines.map((l) => l.text)).toEqual([
       'Zu viel zugewiesen: 30,00 € fehlen',
       'Ungedeckt aus dem Vormonat: 5.121,68 €',
-      '1 Envelope bar überzogen',
-      'Eine neue Kartenschuld (Karte über das Envelope)',
+      '2 Envelopes überzogen',
     ]);
-    expect(lines.map((l) => l.tone)).toEqual(['bad', 'bad', 'bad', 'warn']);
+    expect(lines.map((l) => l.tone)).toEqual(['bad', 'bad', 'bad']);
     expect(monthStatus(summary({ uncoveredCents: 100 }), calm)[0]?.tone).toBe('bad');
   });
 

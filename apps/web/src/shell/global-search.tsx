@@ -1,5 +1,5 @@
 import { useAmountPrivacy, maskMoneyText, DetailPanel, setAmountsHidden } from '@budget/ui';
-import { matchesSearch } from '@budget/domain';
+import { closeEntryMonth, matchesSearch, todayInVienna } from '@budget/domain';
 import type { GlobalSearchResult, SearchKind } from '@budget/db';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from '@tanstack/react-router';
@@ -184,7 +184,10 @@ export function GlobalSearch({ mobile = false }: { mobile?: boolean }) {
     if (result.kind === 'action') {
       if (result.id === 'privacy') setAmountsHidden(!hidden);
       else if (result.id === 'monatsabschluss')
-        void navigate({ to: '/konten', search: {} } as never);
+        void navigate({
+          to: `/monatsabschluss/${closeEntryMonth(todayInVienna()) ?? todayInVienna().slice(0, 7)}`,
+          search: {},
+        } as never);
       else
         void navigate({
           to: '.',

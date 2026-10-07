@@ -24,7 +24,7 @@
   margin: 16px 0;
 }
 .preview-lead strong {
-  font-size: clamp(30px, 4vw, 54px);
+  font-size: clamp(30px, 4vw, var(--fs-amount));
   font-weight: 650;
   letter-spacing: -0.03em;
   line-height: 1.15;
@@ -163,7 +163,7 @@
   .preview-table th:first-child {
     min-width: 135px;
     max-width: 150px;
-    font-size: 13px;
+    font-size: var(--fs-body);
   }
   .preview-table th,
   .preview-table td {
