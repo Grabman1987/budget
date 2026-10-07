@@ -57,6 +57,7 @@ import { allocationMonth, isIncomeCategorySplit } from './allocation';
 import { scheduleVersion, schedulePayment } from './expected';
 import { netWorthAsOf, type NetWorth } from './portfolio';
 import { fxRateOnOrBefore } from './prices';
+import { memoizedShared } from './request-memo';
 import { budgetLedger, budgetOfLedger } from './queries';
 import type { Executor } from './types';
 import { freedomExpenses, freedomInvestedCents } from './freedom-inputs';
@@ -137,8 +138,16 @@ function auditDeltas(db: Executor): RuleFacts['assignmentAudit'] {
 export function loadFacts(
   db: Executor,
   upTo: string,
-  ledger: ReturnType<typeof budgetLedger> = budgetLedger(db),
+  ledger?: ReturnType<typeof budgetLedger>,
 ): RuleFacts {
+  // Without a ledger of the caller the facts only depend on the day: one read per request and
+  // database state (the cache of allocations inside the facts only ever fills with the same values).
+  if (ledger === undefined)
+    return memoizedShared(db, `ruleFacts|${upTo}`, () => readFacts(db, upTo, budgetLedger(db)));
+  return readFacts(db, upTo, ledger);
+}
+
+function readFacts(db: Executor, upTo: string, ledger: ReturnType<typeof budgetLedger>): RuleFacts {
   const accounts = db.select().from(account).where(isNull(account.deletedAt)).all();
   const categories = db.select().from(category).where(isNull(category.deletedAt)).all();
   const budgetStarts = accounts.filter((a) => a.onBudget).map((a) => monthOf(a.openingDate));
