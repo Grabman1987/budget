@@ -1,5 +1,28 @@
 import { describe, expect, it } from 'vitest';
-import { filterFromSearch, hasFilter, validateBookingsSearch } from './bookings-search';
+import {
+  activeFilterKeys,
+  filterFromSearch,
+  hasFilter,
+  validateBookingsSearch,
+} from './bookings-search';
+
+it('counts removable filters including deep links, but keeps search and sorting separate', () => {
+  expect(activeFilterKeys({ q: 'Muster', sortierung: 'amount', richtung: 'asc' })).toEqual([]);
+  expect(
+    activeFilterKeys({
+      buchung: 'booking-synthetic',
+      konto: 'account-synthetic',
+      kategorie: 'none',
+      empfaenger: 'payee-synthetic',
+      status: 'pending',
+      markierung: 'none',
+      von: '2026-09-01',
+      bis: '2026-09-30',
+      q: 'Muster',
+    }),
+  ).toEqual(['buchung', 'konto', 'kategorie', 'empfaenger', 'status', 'markierung', 'von', 'bis']);
+  expect(activeFilterKeys({ konto: '', status: undefined })).toEqual([]);
+});
 
 describe('validateBookingsSearch', () => {
   it('keeps valid values and drops malformed ones', () => {

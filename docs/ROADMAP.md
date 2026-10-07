@@ -9,6 +9,18 @@
 - [x] Full local check: 355 files / 3,286 tests; two workers, 30-second test/hook deadlines and one allowed retry. Production build and 17 desktop/mobile browser checks passed, including light/dark, privacy and print.
 - [ ] Required CI and owner language/design/device acceptance; no keys, consents or migration required.
 
+### Pace line reduction — owner 06.10.2026
+
+- [x] Move Pace below Kontoprognose; default Ist / Hochrechnung / Deckel, scheduled Plan bis heute dot, optional faint Einnahmen/Vormonat, complete tooltip and unchanged model/footnote.
+- [x] Synthetic component regressions and desktop/phone light/dark browser assertions for legend, keyboard toggle, line styles and label bounds.
+- [ ] CI, pinned Linux visual review and owner acceptance (Heute and shared One-Pager).
+
+### UX-3d — Phone booking filters (owner feedback 2026-10-05)
+
+- [x] Konten › Buchungen: phone search beside Filter (n), draft bottom sheet with reset/apply, removable active-filter chips and short sorting labels; desktop inline controls retained.
+- [x] Synthetic filter-count unit regression and phone 390 / desktop browser specs; existing account-filter specs adapted to the sheet.
+- [ ] CI, Linux visual review and owner phone acceptance; [scope and baseline list](ux-mobile-ledger-1005.md).
+
 ### UX-4b - Plain wording and calmer controls (owner 2026-10-05)
 
 - [x] Plain action/view labels; neutral inbox resolution; actual-history label and separated payment markers.
