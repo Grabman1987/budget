@@ -1,4 +1,5 @@
 import { BenchmarkChoices } from './portfolio-benchmark-settings';
+import { Term } from '../reports/term';
 import { useAmountPrivacy, ChartValues } from '@budget/ui';
 import type { PortfolioPerformanceHistory, PortfolioSummary } from '@budget/db';
 import { heatForCell, type BenchmarkGap } from '@budget/domain';
@@ -28,7 +29,9 @@ export function PerformanceComparisons({ summary }: { summary: PortfolioSummary 
     <>
       <section aria-labelledby="performance-benchmark-title">
         <div className="tbd-head">
-          <h2 id="performance-benchmark-title">Portfolio und Benchmark</h2>
+          <h2 id="performance-benchmark-title">
+            Portfolio und <Term>Benchmark</Term>
+          </h2>
         </div>
         <BenchmarkChoices />
         <dl className="performance-metrics">
@@ -36,7 +39,9 @@ export function PerformanceComparisons({ summary }: { summary: PortfolioSummary 
             <div key={b.id} className="performance-metric">
               <dt>{b.name}</dt>
               <dd data-testid="benchmark-return">{rateText(b.benchmarkReturn)}</dd>
-              <dt>Differenz TTWROR · Beta</dt>
+              <dt>
+                Differenz <Term>TTWROR</Term> · <Term>Beta</Term>
+              </dt>
               <dd>
                 {ppText(
                   b.benchmarkReturn === null || !perf ? null : perf.ttwror - b.benchmarkReturn,
@@ -46,15 +51,21 @@ export function PerformanceComparisons({ summary }: { summary: PortfolioSummary 
             </div>
           ))}
           <div className="performance-metric">
-            <dt>Volatilität p. a.</dt>
+            <dt>
+              <Term>Volatilität</Term> p. a.
+            </dt>
             <dd>{percentText(perf?.volatility)}</dd>
           </div>
           <div className="performance-metric">
-            <dt>Max. Rückgang</dt>
+            <dt>
+              <Term>Max. Rückgang</Term>
+            </dt>
             <dd>{rateText(perf?.maxDrawdown)}</dd>
           </div>
           <div className="performance-metric">
-            <dt>Sharpe · sicherer Zins 2,5 %</dt>
+            <dt>
+              <Term>Sharpe</Term> · sicherer Zins 2,5 %
+            </dt>
             <dd>{perf && perf.volatility >= 0.005 ? decimal(perf.sharpe) : '–'}</dd>
           </div>
         </dl>
@@ -139,7 +150,7 @@ export function PerformanceComparisons({ summary }: { summary: PortfolioSummary 
                   'Sharpe',
                 ].map((label) => (
                   <th scope="col" key={label}>
-                    {label}
+                    <Term>{label}</Term>
                   </th>
                 ))}
               </tr>

@@ -1,10 +1,18 @@
 import { canLinkTransfer } from '@budget/domain';
 import { request } from '../api/http';
 import { useBudgetWrite } from '../budget/use-category-writes';
-import { useAmountPrivacy, Button, Field, Select, TextInput } from '@budget/ui';
+import {
+  useAmountPrivacy,
+  useIsPhone,
+  BottomSheet,
+  Button,
+  Field,
+  Select,
+  TextInput,
+} from '@budget/ui';
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
 import { useNavigate, useSearch } from '@tanstack/react-router';
-import { Plus } from 'lucide-react';
+import { Plus, X } from 'lucide-react';
 import { todayInVienna } from '@budget/domain';
 import { useEffect, useMemo, useState } from 'react';
 import { budgetQuery } from '../budget/budget-api';
@@ -13,7 +21,12 @@ import { PageFrame } from '../pages/placeholder-page';
 import { BookingPanel, type BookingPanelState } from './booking-panel';
 import { BookingTable, type Selection } from './booking-table';
 import { CategoryCombobox } from './category-picker';
-import { filterFromSearch, hasFilter, type BookingsSearch } from './bookings-search';
+import {
+  activeFilterKeys,
+  filterFromSearch,
+  hasFilter,
+  type BookingsSearch,
+} from './bookings-search';
 import { pickableCategories } from './capture-model';
 import { eur, pluralBookings, valuedMovement } from './format';
 import { FLAG_LABEL, STATUS_LABEL } from './labels';
@@ -337,7 +350,9 @@ function FilterRow({
   lookups: Lookups | undefined;
 }) {
   useAmountPrivacy();
-  const [showClosed, setShowClosed] = useState(false);
+  const phone = useIsPhone();
+  const [draft, setDraft] = useState<BookingsSearch | null>(null);
+  const keys = activeFilterKeys(search);
   // The search box writes to the URL after a short pause so that every key stroke is not a request.
   const [q, setQ] = useState(search.q ?? '');
   const [seenQ, setSeenQ] = useState(search.q);
@@ -351,23 +366,162 @@ function FilterRow({
     return () => clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [q]);
-
-  return (
-    <div className="kfilter">
-      <div className="kf kf-search">
-        <Field label="In Buchungen suchen">
-          {({ id }) => (
-            <TextInput
-              id={id}
-              type="search"
-              value={q}
-              placeholder="Empfänger, Notiz, Kategorie"
-              autoComplete="off"
-              onChange={(e) => setQ(e.target.value)}
-            />
-          )}
-        </Field>
+  const searchField = (
+    <div className="kf kf-search">
+      <Field label="In Buchungen suchen">
+        {({ id }) => (
+          <TextInput
+            id={id}
+            type="search"
+            value={q}
+            placeholder="Empfänger, Notiz, Kategorie"
+            autoComplete="off"
+            onChange={(e) => setQ(e.target.value)}
+          />
+        )}
+      </Field>
+    </div>
+  );
+  if (!phone)
+    return (
+      <div className="kfilter">
+        {searchField}
+        <FilterControls {...{ search, setSearch, accounts, lookups, sortValue, onSortValue }} />
       </div>
+    );
+  const chips = (value: BookingsSearch, remove: (patch: Partial<BookingsSearch>) => void) =>
+    activeFilterKeys(value).map((key) => {
+      const label = filterChipLabel(key, value[key]!, accounts, lookups);
+      return (
+        <Button
+          key={key}
+          variant="ghost"
+          className="kfilter-chip"
+          aria-label={`${label} entfernen`}
+          onClick={() => remove({ [key]: undefined })}
+        >
+          {label}
+          <X size={16} strokeWidth={1.75} aria-hidden="true" />
+        </Button>
+      );
+    });
+  const draftSort = draft?.sortierung ?? 'date';
+  return (
+    <>
+      <div className="kfilter-phone">
+        <div className="kfilter-search-row">
+          {searchField}
+          <Button
+            variant="ghost"
+            aria-haspopup="dialog"
+            aria-expanded={draft !== null}
+            onClick={() => setDraft({ ...search })}
+          >
+            Filter ({keys.length})
+          </Button>
+        </div>
+        {keys.length > 0 && (
+          <div className="kfilter-chips" role="group" aria-label="Aktive Filter">
+            {chips(search, setSearch)}
+          </div>
+        )}
+      </div>
+      <BottomSheet open={draft !== null} onClose={() => setDraft(null)} title="Buchungen filtern">
+        {draft && (
+          <div className="kfilter-sheet">
+            <div className="kfilter">
+              <FilterControls
+                phone
+                search={draft}
+                setSearch={(patch) => setDraft({ ...draft, ...patch })}
+                accounts={accounts}
+                lookups={lookups}
+                sortValue={`${draftSort}-${draft.richtung ?? (draftSort === 'date' ? 'desc' : 'asc')}`}
+                onSortValue={(value) => {
+                  const [sortierung, richtung] = value.split('-');
+                  setDraft({ ...draft, sortierung, richtung });
+                }}
+              />
+            </div>
+            {(draft.buchung || draft.empfaenger) && (
+              <div className="kfilter-chips">
+                {chips({ buchung: draft.buchung, empfaenger: draft.empfaenger }, (patch) =>
+                  setDraft({ ...draft, ...patch }),
+                )}
+              </div>
+            )}
+            <div className="kfilter-actions">
+              <Button variant="ghost" onClick={() => setDraft({ q: draft.q })}>
+                Zurücksetzen
+              </Button>
+              <Button
+                onClick={() => {
+                  const patch: Partial<BookingsSearch> = {
+                    sortierung: draft.sortierung,
+                    richtung: draft.richtung,
+                  };
+                  for (const key of activeFilterKeys(search)) patch[key] = undefined;
+                  for (const key of activeFilterKeys(draft)) patch[key] = draft[key];
+                  setSearch(patch);
+                  setDraft(null);
+                }}
+              >
+                Anwenden
+              </Button>
+            </div>
+          </div>
+        )}
+      </BottomSheet>
+    </>
+  );
+}
+
+function filterChipLabel(
+  key: ReturnType<typeof activeFilterKeys>[number],
+  value: string,
+  accounts: ReadonlyArray<AccountRow>,
+  lookups: Lookups | undefined,
+): string {
+  switch (key) {
+    case 'buchung':
+      return 'Einzelne Buchung';
+    case 'konto':
+      return `Konto: ${accounts.find((a) => a.id === value)?.name ?? 'ausgewählt'}`;
+    case 'kategorie':
+      return `Kategorie: ${value === 'none' ? 'ohne Kategorie' : (lookups?.categories.find((c) => c.id === value)?.name ?? 'ausgewählt')}`;
+    case 'empfaenger':
+      return 'Ausgewählter Empfänger';
+    case 'status':
+      return `Status: ${STATUS_LABEL[value as keyof typeof STATUS_LABEL]}`;
+    case 'markierung':
+      return `Markierung: ${value === 'none' ? 'keine' : FLAG_LABEL[value as BookingFlag]}`;
+    case 'von':
+      return `Von: ${value.split('-').reverse().join('.')}`;
+    case 'bis':
+      return `Bis: ${value.split('-').reverse().join('.')}`;
+  }
+}
+
+function FilterControls({
+  search,
+  setSearch,
+  accounts,
+  lookups,
+  sortValue,
+  onSortValue,
+  phone = false,
+}: {
+  search: BookingsSearch;
+  setSearch: (patch: Partial<BookingsSearch>) => void;
+  accounts: ReadonlyArray<AccountRow>;
+  lookups: Lookups | undefined;
+  sortValue: string;
+  onSortValue: (value: string) => void;
+  phone?: boolean;
+}) {
+  const [showClosed, setShowClosed] = useState(false);
+  return (
+    <>
       <div className="kf kf-sort">
         <Field label="Sortieren">
           {({ id }) => (
@@ -377,7 +531,9 @@ function FilterRow({
               value={sortValue}
               onChange={(e) => onSortValue(e.target.value)}
             >
-              <option value="date-desc">Datum, neueste zuerst</option>
+              <option value="date-desc">
+                {phone ? 'Neueste zuerst' : 'Datum, neueste zuerst'}
+              </option>
               <option value="date-asc">Datum, älteste zuerst</option>
               <option value="amount-asc">Betrag aufsteigend</option>
               <option value="amount-desc">Betrag absteigend</option>
@@ -482,7 +638,7 @@ function FilterRow({
           )}
         </Field>
       </div>
-    </div>
+    </>
   );
 }
 
