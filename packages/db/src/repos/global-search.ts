@@ -53,12 +53,8 @@ export function globalSearch(
     results.push(...rows.map((row) => ({ kind, id: row.id, label: row.name, detail: null })));
   }
   // ponytail: search the latest 200 bookings; use indexed server search if the recent window grows.
+  const recent = queryBookings(db, { sort: 'date', direction: 'desc', limit: 200 }).items;
   const chosen = history.filter((r) => r.kind === 'booking').map((r) => r.id);
-  // An empty palette without recent bookings needs none: skip the 200-row scan on every first focus.
-  const recent =
-    text || chosen.length
-      ? queryBookings(db, { sort: 'date', direction: 'desc', limit: 200 }).items
-      : [];
   recent.sort((a, b) => rank(chosen, a.id) - rank(chosen, b.id));
   results.push(
     ...recent
