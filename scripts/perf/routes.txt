@@ -26,3 +26,6 @@
 /wealth/networth?period=Alles
 /overview/whole-picture?period=Alles
 /overview/whole-picture?period=YTD
+/heute?period=payday&month=2026-10
+/trades?limit=100
+/inbox?limit=100

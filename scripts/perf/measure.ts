@@ -83,6 +83,7 @@ for (const r of routes) {
     status,
     cold: Math.round(cold),
     p50: Math.round(warm[Math.floor(warm.length / 2)]!),
+    min: Math.round(Math.min(...times)),
     kb: Math.round(size / 1024),
     q,
     qms: Math.round(qms),

@@ -9,7 +9,7 @@ for (const x of a) {
   const same = x.hash === y.hash && x.status === y.status;
   if (!same) bad++;
   console.log(
-    `${same ? 'same' : 'DIFF'} ${String(x.p50).padStart(5)} -> ${String(y.p50).padStart(5)} ms  q ${String(x.q).padStart(4)} -> ${String(y.q).padStart(4)}  ${x.r}`,
+    `${same ? 'same' : 'DIFF'} min ${String(x.min).padStart(5)} -> ${String(y.min).padStart(5)} ms (p50 ${String(x.p50).padStart(5)} -> ${String(y.p50).padStart(5)})  q ${String(x.q).padStart(4)} -> ${String(y.q).padStart(4)}  ${x.r}`,
   );
 }
 if (bad) {
