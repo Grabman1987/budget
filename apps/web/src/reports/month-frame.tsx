@@ -8,6 +8,7 @@ import type { ReportEntry } from '../nav/reports-catalog';
 import { PageFrame } from '../pages/placeholder-page';
 import { useMonth } from '../shell/use-month';
 import './month-report.css';
+import type { VerdictFacts } from '@budget/domain';
 
 /** Selected month of a report (`?monat=`), the current month by default. */
 export function useReportMonth() {
@@ -90,8 +91,10 @@ export function MonthReportFrame({
   print = false,
   extraFields = [],
   children,
+  verdict,
 }: {
   report: ReportEntry;
+  verdict?: VerdictFacts | undefined;
   meta: PageMeta;
   month: string;
   shift: (delta: number) => void;
@@ -107,6 +110,7 @@ export function MonthReportFrame({
 }) {
   return (
     <PageFrame
+      verdict={verdict}
       meta={meta}
       title={report.name}
       subtitle={`${report.pos} · ${report.question}`}

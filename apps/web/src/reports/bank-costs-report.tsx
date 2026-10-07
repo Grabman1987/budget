@@ -31,6 +31,16 @@ export function BankCostsReportPage({ report, meta }: { report: ReportEntry; met
   const data = !query.isFetching ? query.data : undefined;
   return (
     <PageFrame
+      verdict={
+        data && !query.isError
+          ? {
+              reportId: report.id,
+              period: `${data.from}..${data.to}`,
+              metric: { label: 'Bank- und Zinskosten', value: data.totalCents, unit: 'money' },
+              comparisons: [{ reference: 'vorherige 12 Monate', value: data.previousTotalCents }],
+            }
+          : undefined
+      }
       meta={meta}
       title={report.name}
       subtitle={`${report.pos} · ${report.question}`}

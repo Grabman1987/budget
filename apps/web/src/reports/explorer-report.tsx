@@ -105,6 +105,11 @@ export function ExplorerReportPage({ report, meta }: { report: ReportEntry; meta
 
   return (
     <PageFrame
+      verdict={
+        data && !result.isFetching && !result.isPlaceholderData && !result.isError
+          ? { reportId: report.id, period: `${query.period}:${data.ref}` }
+          : undefined
+      }
       meta={meta}
       title={report.name}
       subtitle={`${report.pos} · ${report.question}`}

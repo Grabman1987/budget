@@ -97,6 +97,16 @@ export function FinanzcheckReport({ report, meta }: { report: ReportEntry; meta:
   useRuleDerivation(data !== undefined);
   return (
     <PageFrame
+      verdict={
+        data && !query.isFetching && !query.isError
+          ? {
+              reportId: report.id,
+              period: data.check.asOf,
+              estimated: Boolean(data.incomplete?.length),
+              rules: data.check.counts,
+            }
+          : undefined
+      }
       meta={meta}
       title={report.name}
       subtitle={`${report.pos} · ${report.question}`}

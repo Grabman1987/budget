@@ -38,6 +38,21 @@ export function PortfolioCostsReport({ report, meta }: { report: ReportEntry; me
   const data = query.data?.costs;
   return (
     <PageFrame
+      verdict={
+        data && !query.isFetching && !query.isError
+          ? {
+              reportId: report.id,
+              period: `${data.from}..${data.to}`,
+              estimated: Boolean(query.data?.incomplete?.length),
+              metric: {
+                label: 'Nettoertrag',
+                value: data.net.netCents,
+                unit: 'money',
+                better: 'higher',
+              },
+            }
+          : undefined
+      }
       meta={meta}
       title={report.name}
       subtitle={`${report.pos} · ${report.question}`}

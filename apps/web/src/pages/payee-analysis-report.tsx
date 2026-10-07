@@ -116,6 +116,19 @@ export function PayeeAnalysisReport({ report, meta }: { report: ReportEntry; met
 
   return (
     <PageFrame
+      verdict={
+        data && !query.isError
+          ? {
+              reportId: report.id,
+              period: `${data.from}..${data.to}`,
+              metric: {
+                label: 'Konsum bei Empfängern',
+                value: data.totalSpendCents,
+                unit: 'money',
+              },
+            }
+          : undefined
+      }
       meta={meta}
       title={report.name}
       subtitle={`${report.pos} · ${report.question}`}

@@ -42,6 +42,22 @@ export function BudgetAdherenceReportPage({
   const data = query.data && !query.isFetching ? query.data : undefined;
   return (
     <PageFrame
+      verdict={
+        data && !query.isError
+          ? {
+              reportId: report.id,
+              period: data.month,
+              partial: data.live,
+              unavailable: data.status !== 'ok',
+              metric: {
+                label: 'Rest zum Plan',
+                value: data.restCents,
+                unit: 'money',
+                better: 'higher',
+              },
+            }
+          : undefined
+      }
       meta={meta}
       title={report.name}
       subtitle={`${report.pos} · ${report.question}`}

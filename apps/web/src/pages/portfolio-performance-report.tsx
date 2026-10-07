@@ -67,6 +67,21 @@ export function PortfolioPerformanceReport({
 
   return (
     <PageFrame
+      verdict={
+        query.data && !query.isFetching && !query.isError
+          ? {
+              reportId: report.id,
+              period: `${query.data.portfolio.performance?.from}..${query.data.portfolio.performance?.to}`,
+              estimated: Boolean(query.data.incomplete?.length),
+              metric: {
+                label: 'Periodenergebnis',
+                value: query.data.portfolio.performance?.gainCents ?? null,
+                unit: 'money',
+                better: 'higher',
+              },
+            }
+          : undefined
+      }
       meta={meta}
       title={report.name}
       subtitle={`${report.pos} · ${report.question}`}
