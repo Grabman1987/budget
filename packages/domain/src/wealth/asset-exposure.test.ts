@@ -32,3 +32,18 @@ describe('A02 weighted asset exposure', () => {
     ]);
   });
 });
+
+describe('splitAssetExposure beyond the plain-number range', () => {
+  it('gives the same exact split for huge values as for small ones scaled', () => {
+    const weights = [
+      { assetClassId: 'a', weightBp: 3333 },
+      { assetClassId: 'b', weightBp: 3333 },
+      { assetClassId: 'c', weightBp: 3333 },
+    ];
+    for (const value of [1, 7, 101, 999_999_999, 901_000_000_000, 9_007_199_254_740_991, -12_345]) {
+      const parts = splitAssetExposure(value, weights);
+      expect(parts.reduce((sum, p) => sum + p.valueCents, 0)).toBe(value);
+      expect(parts.map((p) => p.assetClassId)).toEqual(['a', 'b', 'c', null]);
+    }
+  });
+});

@@ -1,7 +1,7 @@
 import { Button, SectionHead, useToast } from '@budget/ui';
 import { useQuery } from '@tanstack/react-query';
 import { useId, useRef, useState } from 'react';
-import { ApiError, request } from '../api/http';
+import { ApiError, notifyApiWrite, request } from '../api/http';
 import { useBudgetWrite } from '../budget/use-category-writes';
 import { nativeCurrency } from '../ledger/format';
 import { bookingsQuery, LEDGER_KEY } from '../ledger/queries';
@@ -66,6 +66,7 @@ export function ReceiptSection({ bookingId }: { bookingId?: string }) {
         };
         if (!response.ok)
           throw new ApiError(response.status, result.error ?? 'unknown', result.message);
+        notifyApiWrite();
         return result;
       },
       () => (bookingId ? 'Beleg angehängt.' : 'Beleg im Posteingang gespeichert.'),
