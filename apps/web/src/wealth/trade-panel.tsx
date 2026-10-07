@@ -46,9 +46,9 @@ export function TradePanel({
 }) {
   const editing = !!id && id !== 'neu';
   const trade = useQuery(tradeQuery(editing ? id : ''));
-  const accounts = useQuery({ ...accountsQuery(), retry: false });
-  const securities = useQuery(instrumentsQuery());
-  const lookups = useQuery({ ...lookupsQuery(), retry: false });
+  const accounts = useQuery({ ...accountsQuery(), retry: false, enabled: !!id });
+  const securities = useQuery({ ...instrumentsQuery(), enabled: !!id });
+  const lookups = useQuery({ ...lookupsQuery(), retry: false, enabled: !!id });
   const dirtyRef = useRef(false);
   const busyRef = useRef(false);
   const blockedDuringSaveRef = useRef(false);
