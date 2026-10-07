@@ -124,17 +124,16 @@ for (const mapped of [true, false]) {
           'Bitte mindestens eine Kategorie auswählen.',
         );
 
-      // Mapping is editable even while the own basket method remains automatic.
+      // Choosing a price group also switches the basket price source to the official index.
       if (!mapped) {
         await page.goto('/einstellungen/warenkorb');
         const row = page.getByTestId('basket-category-' + categories[0]!.id);
-        await row.getByRole('combobox', { name: 'COICOP-Klasse 1' }).fill('Nahrung');
+        await row.getByText('Preis aus der offiziellen Statistik', { exact: true }).click();
+        await row.getByRole('combobox', { name: 'Preisgruppe 1' }).fill('Nahrung');
         await row.getByRole('option', { name: '01.1 Nahrungsmittel', exact: true }).click();
-        await row.getByRole('button', { name: 'Zuordnung speichern' }).click();
-        await expect(row.getByText('Zuordnung gespeichert', { exact: true })).toBeVisible();
+        await expect(row.getByLabel('Zählt mit:')).toBeEnabled();
         await page.reload();
-        await expect(row.getByLabel('Methode:')).toHaveValue('automatic');
-        await expect(row.getByRole('combobox', { name: 'COICOP-Klasse 1' })).toHaveValue(
+        await expect(row.getByRole('combobox', { name: 'Preisgruppe 1' })).toHaveValue(
           '01.1 Nahrungsmittel',
         );
         await page.getByRole('link', { name: 'Zur persönlichen Inflation' }).click();

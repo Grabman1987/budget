@@ -1,6 +1,80 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test } from '@playwright/test';
 import { SAMPLE_NOW } from './sample';
+import { MAIN_URL } from '../playwright.config';
+
+test('learned inbox assignment needs one owner click and can be removed in settings', async ({
+  page,
+  request,
+}, info) => {
+  const name = `Lernshop ${info.project.name} ${info.retry}`;
+  const headers = { origin: MAIN_URL };
+  const post = async (path: string, data: unknown) => {
+    const r = await request.post('/api' + path, { headers, data });
+    expect(r.ok()).toBe(true);
+    return r.json();
+  };
+  const account = (await post('/accounts', { name, type: 'checking', openingDate: '2026-09-01' }))
+    .account;
+  const payee = (await post('/payees', { name })).payee;
+  const make = async () =>
+    post('/bookings', {
+      type: 'booking',
+      accountId: account.id,
+      date: '2026-09-01',
+      amountCents: -2307,
+      payeeId: payee.id,
+      status: 'pending',
+      splits: [{ amountCents: -2307 }],
+    });
+  const first = await make();
+  const confirmation = await request.patch('/api/bookings/' + first.id, {
+    headers,
+    data: { status: 'confirmed', splits: [{ amountCents: -2307, categoryId: 'e2e-essen' }] },
+  });
+  expect(confirmation.ok()).toBe(true);
+  const second = await make();
+  await page.goto('/konten/posteingang');
+  const row = page.getByTestId('inbox-row').filter({ hasText: name });
+  await expect(row.getByText(`wie zuletzt bei ${name}`, { exact: true })).toBeVisible();
+  await expect(row).toContainText('Kategorie: Essen');
+  const before = (await (await request.get('/api/bookings/' + second.id)).json()).booking;
+  expect(before.status).toBe('pending');
+  expect(before.splits[0].categoryId).toBeNull();
+  for (const theme of ['light', 'dark']) {
+    await page.evaluate((value) => {
+      document.documentElement.dataset['theme'] = value;
+    }, theme);
+    expect((await new AxeBuilder({ page }).include('.kinbox-table').analyze()).violations).toEqual(
+      [],
+    );
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(
+      true,
+    );
+    await page.screenshot({ path: info.outputPath(`learned-inbox-${theme}.png`), fullPage: true });
+  }
+  await row.getByRole('button', { name: 'Übernehmen', exact: true }).click();
+  await expect(row).toHaveCount(0);
+  const after = (await (await request.get('/api/bookings/' + second.id)).json()).booking;
+  expect(after.status).toBe('confirmed');
+  expect(after.splits[0].categoryId).toBe('e2e-essen');
+  await page.goto('/einstellungen/zuordnung');
+  const learned = page
+    .getByRole('row')
+    .filter({ has: page.getByRole('rowheader', { name: new RegExp(name) }) });
+  await expect(learned).toContainText('Gelernt');
+  await expect(learned).toContainText('Kategorie: Essen');
+  await page.screenshot({ path: info.outputPath('learned-settings.png'), fullPage: true });
+  await learned.getByRole('button', { name: new RegExp('Entfernen') }).click();
+  await expect(learned).toHaveCount(0);
+  const third = await make();
+  await page.goto('/konten/posteingang');
+  await expect(row).toBeVisible();
+  await expect(row.getByRole('button', { name: 'Übernehmen', exact: true })).toHaveCount(0);
+  for (const id of [first.id, second.id, third.id]) {
+    expect((await request.delete('/api/bookings/' + id, { headers })).ok()).toBe(true);
+  }
+});
 
 test('assignment editor saves, tests, toggles and undoes on the real API', async ({
   page,

@@ -79,6 +79,20 @@ export function LiquidityReportPage({ report, meta }: { report: ReportEntry; met
   const view = query.isSuccess ? query.data : undefined;
   return (
     <PageFrame
+      verdict={
+        view && !query.isFetching && !query.isError
+          ? {
+              reportId: report.id,
+              period: `${view.asOf}..${view.report?.verdictEnd ?? view.asOf}`,
+              metric: {
+                label: 'Tiefster Prognosestand',
+                value: view.report?.low?.cents ?? null,
+                unit: 'money',
+                better: 'higher',
+              },
+            }
+          : undefined
+      }
       meta={meta}
       title={report.name}
       subtitle={`${report.pos} · ${report.question}`}
@@ -299,6 +313,7 @@ function EventsCard({ view }: { view: LiquidityReportView }) {
           // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- Keyboard users must be able to scroll the table on narrow viewports.
           tabIndex={0}
         >
+          <p className="table-scroll-hint">Seitlich wischen für weitere Spalten</p>
           <table className="rf-table rf-events">
             <thead>
               <tr>
@@ -512,6 +527,7 @@ function OutlookCard({ report }: { report: LiquidityReport }) {
         // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- Keyboard users must be able to scroll the table on narrow viewports.
         tabIndex={0}
       >
+        <p className="table-scroll-hint">Seitlich wischen für weitere Spalten</p>
         <table className="rf-table" data-testid="liq-outlook">
           <thead>
             <tr>
@@ -575,6 +591,7 @@ function MovementsCard({ report }: { report: LiquidityReport }) {
         // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- Keyboard users must be able to scroll the table on narrow viewports.
         tabIndex={0}
       >
+        <p className="table-scroll-hint">Seitlich wischen für weitere Spalten</p>
         <table className="rf-table rf-moves">
           <thead>
             <tr>

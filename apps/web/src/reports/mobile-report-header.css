@@ -1,0 +1,15 @@
+/* Reports need their whole title above the shared 44 px phone controls. */
+@media (max-width: 767px) {
+  .app:has(.rf-report, .mrep, .table-report) .m-head {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) repeat(3, auto);
+  }
+  .app:has(.rf-report, .mrep, .table-report) .m-title {
+    grid-column: 1 / -1;
+  }
+  .app:has(.rf-report, .mrep, .table-report) .m-title-text {
+    white-space: normal;
+    overflow: visible;
+    line-height: 1.15;
+  }
+}

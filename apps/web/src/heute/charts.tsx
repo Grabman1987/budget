@@ -1,11 +1,11 @@
 import { forecastStepLabels } from './forecast-labels';
-import './pace-chart.css';
 import { useId, useState, type CSSProperties } from 'react';
 import { Info } from 'lucide-react';
 import { chartPoints } from '../charts/tooltip-data';
 import {
   useAmountPrivacy,
   AxisLine,
+  Button,
   ChartSvg,
   ElevationMark,
   SlashTick,
@@ -269,6 +269,16 @@ function BalanceDrawing({
         )}
         {actualPoints.length > 1 && <StepLine points={actualPoints} kind="actual" />}
         {forecastPoints.length > 1 && <StepLine points={forecastPoints} kind="forecast" />}
+        {actualPoints.length > 1 && todayInRange && (
+          <text
+            x={(left + xScale(data.stand.today)) / 2}
+            y={top - 8}
+            textAnchor="middle"
+            className="svg-label-strong"
+          >
+            bisher
+          </text>
+        )}
         {low && (
           <ElevationMark
             x={xScale(low.day)}
@@ -316,24 +326,18 @@ function BalanceDrawing({
           </g>
         )}
         {[...new Set(labels.map((l) => l.day))].map((day) => {
-          const point = forecast.find((d) => d.day === day)!;
           const numbers = labels.flatMap((l, i) => (l.day === day ? [i + 1] : [])).join(',');
           return (
-            <g key={day}>
+            <g key={day} data-payment-marker={day}>
               <rect
                 x={xScale(day) - numbers.length * 4 - 3}
-                y={y(point.balanceCents) - 9}
+                y={bottom - 18}
                 width={numbers.length * 8 + 6}
                 height={18}
                 fill="var(--surface)"
                 stroke="var(--line)"
               />
-              <text
-                x={xScale(day)}
-                y={y(point.balanceCents) + 4}
-                textAnchor="middle"
-                className="svg-label"
-              >
+              <text x={xScale(day)} y={bottom - 5} textAnchor="middle" className="svg-label">
                 {numbers}
               </text>
             </g>
@@ -376,25 +380,8 @@ export interface PaceChartData {
 export function HeutePaceChart({ data }: { data: PaceChartData }) {
   useAmountPrivacy();
   const [ref, width] = useWidth();
-  const m = data.pace;
   return (
-    <div ref={ref} className="heute-chart">
-      <p className="pace-header" data-testid="pace-header">
-        <span>
-          Tag {m.todayDay} von {m.daysInMonth}
-        </span>
-        {' · '}
-        <span>Ausgegeben {eur(m.figures.spentCents, { cents: false })}</span>
-        {' · '}
-        <span>Erwartet {eur(m.figures.expectedToDateCents, { cents: false })}</span>
-        {' · '}
-        <span>
-          Hochrechnung{' '}
-          {m.figures.forecastAvailable
-            ? eur(m.figures.forecastEndCents, { cents: false })
-            : 'noch nicht verlässlich'}
-        </span>
-      </p>
+    <div ref={ref} className="heute-chart heute-pace-chart">
       {width > 0 && <PaceDrawing data={data} width={width} />}
     </div>
   );
@@ -402,23 +389,26 @@ export function HeutePaceChart({ data }: { data: PaceChartData }) {
 
 function PaceDrawing({ data, width }: { data: PaceChartData; width: number }) {
   useAmountPrivacy();
+  const [showContext, setShowContext] = useState(false);
   const m = data.pace;
-  const height = width < 640 ? 200 : 250;
+  const height = width < 640 ? 230 : 280;
   const narrow = width < 520;
   const left = 44;
-  const right = narrow ? 52 : 92;
+  const capLabel = `Deckel ${eur(m.figures.limitCents, { cents: false })}`;
+  const planLabel = `Plan bis heute ${eur(m.figures.planToDateCents, { cents: false })}`;
+  const right = Math.max(100, capLabel.length * 7 + 12);
   const bottom = height - 30;
   const max = Math.max(
     m.figures.limitCents,
-    ...m.expected,
+    m.figures.planToDateCents,
     ...m.actual,
-    ...m.previous,
+    ...(showContext ? m.previous : []),
     ...m.forecast,
-    ...(m.income ?? []),
+    ...(showContext ? (m.income ?? []) : []),
     1,
   );
-  const min = Math.min(0, ...m.actual, ...m.previous);
-  const yScale = scaleLinear().domain([min, max]).nice(4).range([bottom, 20]);
+  const min = Math.min(0, ...m.actual, ...(showContext ? m.previous : []));
+  const yScale = scaleLinear().domain([min, max]).nice(4).range([bottom, 54]);
   const xScale = (day: number) =>
     left + (day / Math.max(1, m.daysInMonth)) * (width - left - right);
   const y = (value: number) => yScale(value);
@@ -426,7 +416,6 @@ function PaceDrawing({ data, width }: { data: PaceChartData; width: number }) {
     values.map((v, i): Point => [xScale(i + offset), y(v)]);
   const actual = pts(m.actual);
   const income = pts(m.income ?? []);
-  const plan = pts(m.expected);
   const previous = pts(m.previous);
   const forecast = pts(m.forecast, m.todayDay);
   const limitY = y(m.figures.limitCents);
@@ -444,7 +433,10 @@ function PaceDrawing({ data, width }: { data: PaceChartData; width: number }) {
     .filter((d) => !showToday || Math.abs(d - m.todayDay) >= (narrow ? 4 : 2))
     .map((d) => ({ x: xScale(d), label: `${d}.` }));
   if (showToday) xTicks.push({ x: xScale(m.todayDay), label: 'heute' });
-  const summary = `Pace ${m.month}: Ist ${eur(m.figures.spentCents)}, Erwartet ${eur(m.figures.expectedToDateCents)}, Hochrechnung ${m.figures.forecastAvailable ? eur(m.figures.forecastEndCents) : 'noch nicht verlässlich'}, Deckel ${eur(m.figures.limitCents)}.`;
+  const overCap = m.figures.forecastEndCents > m.figures.limitCents;
+  const forecastClass = overCap ? 'is-over-cap' : '';
+  const forecastColor = overCap ? 'var(--red)' : 'var(--on-good-soft)';
+  const summary = `Pace ${m.month}: Tag ${m.todayDay} von ${m.daysInMonth}, Ist ${eur(m.figures.spentCents)}, Plan bis heute ${eur(m.figures.planToDateCents)}, Hochrechnung ${m.figures.forecastAvailable ? eur(m.figures.forecastEndCents) : 'noch nicht verlässlich'}${m.figures.forecastAvailable && overCap ? ' über Deckel' : ''}, Deckel ${eur(m.figures.limitCents)}.`;
   return (
     <>
       <ChartSvg
@@ -452,23 +444,17 @@ function PaceDrawing({ data, width }: { data: PaceChartData; width: number }) {
         height={height}
         label={summary}
         testId="heute-pace-chart"
+        tooltipNote="Hochrechnung = Ausgegeben + offene Fixkosten + Rest des variablen Plans (ab Tag 7 hochgerechnet)"
         points={chartPoints(
           m.expected.map((_, i) =>
             i === 0 ? `Beginn ${m.month}` : `${m.month}-${String(i).padStart(2, '0')}`,
           ),
           xScale,
           [
-            { name: 'Ist', values: m.actual },
-            { name: 'Einnahmen bis dahin', values: m.income ?? [], color: 'var(--future)' },
-            {
-              name: 'Differenz',
-              values: m.actual.map((v, i) => (m.income?.[i] ?? 0) - v),
-              color: 'var(--ink)',
-            },
-            { name: 'Erwartet', values: m.expected, color: 'var(--line-2)' },
-            { name: 'Vormonat', values: m.previous, color: 'var(--ink-3)' },
+            { name: 'Ist', values: m.actual, color: 'var(--ink)' },
             {
               name: 'Hochrechnung',
+              color: forecastColor,
               values: m.expected.map((_, i) =>
                 i < m.todayDay ? null : m.forecast[i - m.todayDay],
               ),
@@ -478,6 +464,14 @@ function PaceDrawing({ data, width }: { data: PaceChartData; width: number }) {
               values: m.expected.map(() => m.figures.limitCents),
               color: 'var(--rule-strong)',
             },
+            { name: 'Plan bis heute', values: m.plan, color: 'var(--ink-3)' },
+            { name: 'Einnahmen bis dahin', values: m.income ?? [], color: 'var(--future)' },
+            {
+              name: 'Differenz',
+              values: m.actual.map((v, i) => (m.income?.[i] ?? 0) - v),
+              color: 'var(--ink)',
+            },
+            { name: 'Vormonat', values: m.previous, color: 'var(--ink-3)' },
           ],
         )}
       >
@@ -491,29 +485,48 @@ function PaceDrawing({ data, width }: { data: PaceChartData; width: number }) {
           kind="plan"
           className="pace-limit-line"
         />
-        <text x={width - right + 5} y={limitY + 4} className="svg-label">
-          {narrow ? 'Deckel' : `Deckel ${eur(m.figures.limitCents, { cents: false })}`}
+        <text x={width - right + 8} y={limitY + 4} className="svg-label pace-cap-label">
+          {capLabel}
         </text>
-        {previous.length > 1 && <Line points={previous} kind="previous" />}
-        {plan.length > 1 && <Line points={plan} kind="plan" />}
-        {actual.length > 1 && <StepLine points={actual} kind="actual" />}
-        {income.length > 1 && (
-          <StepLine points={income} kind="actual" className="pace-income-line" />
+        {showContext && previous.length > 1 && <Line points={previous} kind="previous" />}
+        {showContext && income.length > 1 && (
+          <StepLine points={income} kind="actual" draw={false} className="pace-income-line" />
         )}
-        {forecast.length > 1 && <Line points={forecast} kind="forecast" />}
-        {showToday && <TodayLine x={xScale(m.todayDay)} y1={20} y2={bottom} />}
+        {actual.length > 1 && <StepLine points={actual} kind="actual" draw={false} />}
+        {forecast.length > 1 && (
+          <Line points={forecast} kind="forecast" className={forecastClass} />
+        )}
+        {showToday && (
+          <>
+            <TodayLine x={xScale(m.todayDay)} y1={32} y2={bottom} />
+            <circle
+              cx={xScale(m.todayDay)}
+              cy={y(m.figures.planToDateCents)}
+              r={3}
+              className="pace-plan-marker"
+            />
+            <text
+              x={Math.max(left, Math.min(xScale(m.todayDay) + 6, width - planLabel.length * 7 - 8))}
+              y={18}
+              className="svg-label pace-plan-label"
+            >
+              {planLabel}
+            </text>
+          </>
+        )}
         <XTicks y={height - 7} ticks={xTicks} />
       </ChartSvg>
       <LineLegend
         items={[
           ...(actual.length > 1 ? [{ kind: 'actual' as const, label: 'Ist' }] : []),
-          ...(income.length > 1
+          ...(forecast.length > 1
+            ? [{ kind: 'forecast' as const, label: 'Hochrechnung', className: forecastClass }]
+            : []),
+          { kind: 'plan' as const, label: 'Deckel', className: 'pace-limit-line' },
+          ...(showContext && income.length > 1
             ? [{ kind: 'actual' as const, label: 'Einnahmen', className: 'pace-income-line' }]
             : []),
-          ...(plan.length > 1 ? [{ kind: 'plan' as const, label: 'Erwartet' }] : []),
-          { kind: 'plan' as const, label: 'Deckel', className: 'pace-limit-line' },
-          ...(forecast.length > 1 ? [{ kind: 'forecast' as const, label: 'Hochrechnung' }] : []),
-          ...(previous.length > 1
+          ...(showContext && previous.length > 1
             ? [
                 {
                   kind: 'previous' as const,
@@ -523,6 +536,17 @@ function PaceDrawing({ data, width }: { data: PaceChartData; width: number }) {
             : []),
         ]}
       />
+      {(income.length > 1 || previous.length > 1) && (
+        <Button
+          variant="ghost"
+          size="sm"
+          className="pace-context-toggle"
+          aria-pressed={showContext}
+          onClick={() => setShowContext((visible) => !visible)}
+        >
+          {showContext ? 'Weniger anzeigen' : 'Mehr anzeigen'}
+        </Button>
+      )}
     </>
   );
 }

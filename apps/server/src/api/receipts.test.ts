@@ -4,6 +4,7 @@ import {
   createTestDatabase,
   getReceipt,
   schema,
+  setAssigned,
   undo,
   type OpenedDatabase,
 } from '@budget/db';
@@ -148,6 +149,7 @@ describe('authenticated receipts', () => {
     expect((await upload(PDF, null, 'synthetic.pdf')).status).toBe(201);
   });
   it('unlinks into the inbox, undoes/redoes and retains links across split edits and booking deletion', async () => {
+    setAssigned(opened.db, 'essen', '2026-09', 1250, { actor: 'test' });
     const result = await upload(),
       id = result.body.receipt.id;
     const detached = await call('DELETE', `/receipts/${id}/links/${bookingId}`);

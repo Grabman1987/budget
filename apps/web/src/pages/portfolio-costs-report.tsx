@@ -8,6 +8,7 @@ import { type WithValuationNotes } from '../ledger/valuation-hint';
 import { eur, longDay } from '../ledger/format';
 import { LEDGER_KEY } from '../ledger/queries';
 import type { PageMeta } from '../nav/pages';
+import { Term } from '../reports/term';
 import type { ReportEntry } from '../nav/reports-catalog';
 import { PageFrame } from './placeholder-page';
 import {
@@ -37,6 +38,21 @@ export function PortfolioCostsReport({ report, meta }: { report: ReportEntry; me
   const data = query.data?.costs;
   return (
     <PageFrame
+      verdict={
+        data && !query.isFetching && !query.isError
+          ? {
+              reportId: report.id,
+              period: `${data.from}..${data.to}`,
+              estimated: Boolean(query.data?.incomplete?.length),
+              metric: {
+                label: 'Nettoertrag',
+                value: data.net.netCents,
+                unit: 'money',
+                better: 'higher',
+              },
+            }
+          : undefined
+      }
       meta={meta}
       title={report.name}
       subtitle={`${report.pos} · ${report.question}`}
@@ -263,7 +279,9 @@ function CostsBody({ data }: { data: CostsTaxesReport }) {
             <thead>
               <tr>
                 <th className="tech">Produkt</th>
-                <th className="tech n">Einstand</th>
+                <th className="tech n">
+                  <Term>Einstand</Term>
+                </th>
                 <th className="tech n">Wert</th>
                 <th className="tech n">Kursgewinn</th>
                 <th className="tech n">latente KESt</th>

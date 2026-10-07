@@ -2,6 +2,19 @@ import { expect, type Locator, type Page, type TestInfo } from '@playwright/test
 
 /** Helpers shared by the ledger and capture specs. */
 
+/** Phone filters live in a sheet; desktop keeps the inline controls. */
+export async function openLedgerFilters(page: Page) {
+  await page.getByLabel('In Buchungen suchen').waitFor({ state: 'visible' });
+  const trigger = page.getByRole('button', { name: /^Filter \(/ });
+  if (await trigger.isVisible()) await trigger.click();
+}
+
+export async function applyLedgerFilters(page: Page) {
+  const sheet = page.getByRole('dialog', { name: 'Buchungen filtern', exact: true });
+  if (await sheet.isVisible())
+    await sheet.getByRole('button', { name: 'Anwenden', exact: true }).click();
+}
+
 /** The open toast (the dialog hosts its own region, the page has another one). */
 export const toast = (page: Page) => page.locator('.toast.is-open');
 

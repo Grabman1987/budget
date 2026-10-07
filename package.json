@@ -16,7 +16,7 @@
     "build": "npm run build -w @budget/web && npm run build -w @budget/server",
     "start": "node apps/server/dist/index.js",
     "typecheck": "npm run typecheck --workspaces --if-present",
-    "lint": "eslint . && prettier --check .",
+    "lint": "node packages/ui/scripts/check-css-scale.mjs && eslint . && prettier --check .",
     "format": "prettier --write .",
     "test": "vitest run",
     "check": "npm run typecheck && npm run lint && npm run test",

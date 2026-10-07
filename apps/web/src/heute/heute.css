@@ -106,7 +106,7 @@
   }
   .heute-nearest-goal {
     margin: 8px 0 0;
-    font-size: 13px;
+    font-size: 12px;
   }
   .heute-lead > .heute-daily-budget {
     position: relative;
@@ -129,7 +129,7 @@
       line-height: 18px;
     }
     .heute-answer-value {
-      font-size: 26px;
+      font-size: 24px;
       line-height: 28px;
     }
     .heute-answer > a {
@@ -177,7 +177,7 @@
     display: block;
     max-width: 56ch;
     margin-top: 6px;
-    font-size: 13px;
+    font-size: var(--fs-body);
     font-weight: 560;
     color: var(--ink);
   }
@@ -192,7 +192,7 @@
     border-radius: 12px;
     background: var(--surface);
     box-shadow: var(--card-shadow);
-    font-size: 13.5px;
+    font-size: var(--fs-body);
     color: var(--ink-2);
   }
   .heute-month-note > svg {
@@ -279,7 +279,7 @@
     background: var(--raised);
     color: var(--ink);
     box-shadow: var(--card-shadow);
-    font-size: 13px;
+    font-size: var(--fs-body);
   }
   .heute-balance-drawing.is-narrow .heute-daily-budget {
     top: 58px;
@@ -335,7 +335,7 @@
   }
   .heute-breakdown h3 {
     margin: 12px 0 2px;
-    font-size: 15px;
+    font-size: var(--fs-body);
   }
   .heute-breakdown ul {
     margin: 0;
@@ -403,7 +403,7 @@
   }
   .heute-figure strong {
     color: var(--ink);
-    font-size: 22px;
+    font-size: var(--fs-figure);
     font-weight: 640;
     font-variant-numeric: tabular-nums;
   }
@@ -421,6 +421,7 @@
     font-variant-numeric: tabular-nums;
   }
   .heute-pace .heute-chart {
+    min-width: 0;
     margin-top: 12px;
   }
   .heute-pace .legend {
@@ -450,7 +451,7 @@
     gap: 5px;
     margin: 0 0 8px;
     color: var(--line);
-    font-size: 13px;
+    font-size: var(--fs-body);
     font-weight: 600;
   }
   .heute-net-composition {
@@ -503,7 +504,7 @@
     white-space: nowrap;
   }
   .heute .class-tag {
-    font-size: 10.5px;
+    font-size: var(--fs-class-tag);
   }
   .he-envelope-bar {
     height: 7px;
@@ -573,7 +574,7 @@
     margin-bottom: 10px;
   }
   .heute-check-counts > strong {
-    font-size: 28px;
+    font-size: var(--fs-display);
     font-weight: 640;
     font-variant-numeric: tabular-nums;
   }
@@ -717,7 +718,7 @@
       flex: 1 1 28%;
     }
     .heute-figure strong {
-      font-size: 19px;
+      font-size: var(--fs-headline);
     }
     .heute-upcoming {
       grid-template-columns: 44px minmax(0, 1fr);
@@ -848,7 +849,7 @@
     gap: 4px 12px;
   }
   .heute-wealth-line a {
-    font-size: 13px;
+    font-size: var(--fs-body);
   }
 }
 

@@ -47,6 +47,25 @@ export function IncomeReport({ report, meta }: { report: ReportEntry; meta: Page
   const data = query.data;
   return (
     <MonthReportFrame
+      verdict={
+        data && !query.isFetching && !query.isError
+          ? {
+              reportId: report.id,
+              period: data.month,
+              partial: data.partial,
+              unavailable: data.beforeRecords,
+              metric: {
+                label: 'Einnahmen',
+                value: data.income.earnedCents,
+                unit: 'money',
+                better: 'higher',
+              },
+              comparisons: [
+                { reference: 'Monatsdurchschnitt', value: data.window.totalAverageCents },
+              ],
+            }
+          : undefined
+      }
       report={report}
       meta={meta}
       month={month}
@@ -159,6 +178,23 @@ function IncomeBody({ data }: { data: IncomeReportData }) {
           <p className="vnote">In den letzten Monaten gibt es keine Einnahmen.</p>
         )}
       </section>
+
+      {data.contactWriteOffs.length > 0 && (
+        <section className="mr-card" aria-labelledby="inc-contact-title">
+          <h2 id="inc-contact-title">Sonstige Einnahmen · Ausgleich Kontakt</h2>
+          <p>
+            Bereits vorhandenes Geld wird ins Budget übernommen. Kein Haushaltseinkommen und keine
+            Kapitalerträge.
+          </p>
+          {data.contactWriteOffs.map((s) => (
+            <p key={s.bookingId}>
+              <a href={`/konten/buchungen?buchung=${encodeURIComponent(s.bookingId)}`}>
+                {shortDay(s.date)} · {eur(s.amountCents)}
+              </a>
+            </p>
+          ))}
+        </section>
+      )}
 
       <section className="mr-card" aria-labelledby="inc-exp-title">
         <div className="tbd-head">

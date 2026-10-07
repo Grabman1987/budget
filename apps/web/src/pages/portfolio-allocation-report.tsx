@@ -11,6 +11,7 @@ import { type WithValuationNotes } from '../ledger/valuation-hint';
 import { eur, longDay } from '../ledger/format';
 import { LEDGER_KEY } from '../ledger/queries';
 import type { PageMeta } from '../nav/pages';
+import { Term } from '../reports/term';
 import type { ReportEntry } from '../nav/reports-catalog';
 import { PageFrame } from './placeholder-page';
 import {
@@ -50,6 +51,20 @@ export function PortfolioAllocationReport({
   const data = query.data?.allocation;
   return (
     <PageFrame
+      verdict={
+        data && !query.isFetching && !query.isError
+          ? {
+              reportId: report.id,
+              period: data.asOf,
+              estimated: data.quality.confidence === 'provisional',
+              metric: {
+                label: 'Klassifizierter Anlagewert',
+                value: data.classifiedCents,
+                unit: 'money',
+              },
+            }
+          : undefined
+      }
       meta={meta}
       title={report.name}
       subtitle={`${report.pos} · ${report.question}`}
@@ -90,7 +105,9 @@ function AllocationBody({ data }: { data: AllocationReport }) {
     <>
       <section className="prep-card" aria-labelledby="alloc-title">
         <div className="tbd-head">
-          <h2 id="alloc-title">Woraus das Portfolio besteht</h2>
+          <h2 id="alloc-title">
+            <Term>Allokation</Term> · Woraus das Portfolio besteht
+          </h2>
           <DecisionLink />
         </div>
         {data.classifiedCents > 0 && (

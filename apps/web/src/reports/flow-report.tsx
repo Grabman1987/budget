@@ -51,6 +51,21 @@ export function FlowReport({ report, meta }: { report: ReportEntry; meta: PageMe
   const data = query.data;
   return (
     <MonthReportFrame
+      verdict={
+        data && !query.isFetching && !query.isError
+          ? {
+              reportId: report.id,
+              period: `${data.from}..${data.to}`,
+              partial: data.partial,
+              metric: {
+                label: 'Übrig nach Geldfluss',
+                value: data.flow.restCents,
+                unit: 'money',
+                better: 'higher',
+              },
+            }
+          : undefined
+      }
       report={report}
       meta={meta}
       month={month}
@@ -135,7 +150,7 @@ function FlowBody({
             <div
               className="mr-sankey-scroll"
               role="region"
-              aria-label="Sankey-Diagramm, bei Bedarf horizontal verschiebbar"
+              aria-label="Geldfluss-Diagramm"
               // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- Keyboard users must be able to scroll the chart.
               tabIndex={0}
             >
@@ -178,6 +193,7 @@ function FlowBody({
             // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- Keyboard users must be able to scroll the table.
             tabIndex={0}
           >
+            <p className="table-scroll-hint">Seitlich wischen für weitere Spalten</p>
             <table className="mr-table" data-testid="flow-list">
               <thead>
                 <tr>

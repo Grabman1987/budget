@@ -28,6 +28,19 @@ export function shouldRetry(failureCount: number, error: unknown): boolean {
 
 export type HttpMethod = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
 
+/**
+ * Whoever caches reads (the query client) hears about every successful write, so that no cached
+ * page outlives a change, whatever the caller remembers to invalidate by name.
+ */
+const writeListeners = new Set<() => void>();
+export function onApiWrite(listener: () => void): () => void {
+  writeListeners.add(listener);
+  return () => writeListeners.delete(listener);
+}
+export function notifyApiWrite(): void {
+  for (const listener of writeListeners) listener();
+}
+
 /** JSON request against the same origin; every failure becomes an `ApiError`. */
 export async function request<T>(
   method: HttpMethod,
@@ -71,6 +84,7 @@ export async function request<T>(
       ids,
     );
   }
+  if (method !== 'GET') notifyApiWrite();
   return payload as T;
 }
 

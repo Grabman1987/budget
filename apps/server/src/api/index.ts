@@ -15,6 +15,7 @@ import { contactRoutes } from './contacts';
 import { namedNotes, runWithValuationNotes, sqliteOf, type Db } from '@budget/db';
 import { receiptDirectory } from '../receipts/files';
 import { receiptRoutes } from './receipts';
+import { readModelCache } from './response-cache';
 import { todayInVienna } from '@budget/domain';
 import type { MarketSources } from '@budget/market';
 import { Hono, type MiddlewareHandler } from 'hono';
@@ -43,6 +44,7 @@ import { liquidityRoutes } from './liquidity';
 import { lookupRoutes, payeeRoutes, undoRoutes } from './lookups';
 import { profileRoutes } from './profile';
 import { marketRoutes } from './market';
+import { monthCloseRoutes } from './month-close';
 import { assetsDebtsHistoryRoutes } from './assets-debts-history';
 import { networthHistoryRoutes } from './networth-history';
 import { wealthRoutes } from './wealth';
@@ -82,6 +84,7 @@ export function createLedgerApi({
   receiptsDir = receiptDirectory(sqliteOf(db).name),
 }: LedgerApiOptions): Hono {
   const api = new Hono();
+  api.use('*', readModelCache(db, today));
   // A valuation that had to estimate or skip a position (no quote) reports it while it runs; the
   // answer then carries them as `incomplete` and the page shows "Bewertung teilweise geschätzt".
   api.use('*', async (c, next) => {
@@ -98,7 +101,13 @@ export function createLedgerApi({
         return;
       const headers = new Headers(c.res.headers);
       headers.delete('content-length');
-      c.res = new Response(JSON.stringify({ ...body, incomplete: namedNotes(db, found) }), {
+      const asOf =
+        'asOf' in body && typeof body.asOf === 'string'
+          ? body.asOf
+          : 'to' in body && typeof body.to === 'string'
+            ? body.to
+            : today();
+      c.res = new Response(JSON.stringify({ ...body, incomplete: namedNotes(db, found, asOf) }), {
         status: c.res.status,
         headers,
       });
@@ -114,6 +123,7 @@ export function createLedgerApi({
   api.route('/search', searchRoutes(db));
   api.route('/accounts', accountRoutes(db, today));
   api.route('/inbox', inboxRoutes(db, today));
+  api.route('/month-close', monthCloseRoutes(db, today));
   api.route('/bookings', bookingRoutes(db, today));
   api.route('/receipts', receiptRoutes(db, receiptsDir));
   api.route('/payees', payeeRoutes(db));

@@ -38,6 +38,25 @@ export function CompareReport({ report, meta }: { report: ReportEntry; meta: Pag
   const comparison = data?.comparison;
   return (
     <PageFrame
+      verdict={
+        data && comparison && !query.isFetching && !query.isError
+          ? {
+              reportId: report.id,
+              period: `${comparison.current[0]}..${comparison.current.at(-1)}`,
+              metric: {
+                label: 'Konsum',
+                value: comparison.currentTotals.consumptionCents,
+                unit: 'money',
+              },
+              comparisons: [
+                {
+                  reference: 'Vergleichszeitraum',
+                  value: comparison.previousTotals.consumptionCents,
+                },
+              ],
+            }
+          : undefined
+      }
       meta={meta}
       title={report.name}
       subtitle={`${report.pos} · ${report.question}`}

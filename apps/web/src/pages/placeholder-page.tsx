@@ -7,6 +7,8 @@ import { AreaHead } from './area-head';
 import { SettingsBack, SettingsNav } from './settings-nav';
 import { Link } from '@tanstack/react-router';
 import type { HeutePeriod } from '../heute/api';
+import type { VerdictFacts } from '@budget/domain';
+import { VerdictLine } from '../reports/verdict-line';
 
 export interface PlaceholderPageProps {
   meta: PageMeta;
@@ -17,6 +19,8 @@ export interface PlaceholderPageProps {
 }
 
 export interface PageFrameProps {
+  verdict?: VerdictFacts | undefined;
+  verdictTestId?: string | undefined;
   meta: PageMeta;
   title?: string;
   subtitle?: string;
@@ -78,6 +82,8 @@ export function PageFrame({
   reportStand,
   children,
   revealCurrentRegister,
+  verdict,
+  verdictTestId,
 }: PageFrameProps) {
   const area = areaById(meta.area);
   const items: RegisterItem[] = area.registers.map((r) => ({
@@ -100,6 +106,9 @@ export function PageFrame({
         {...(reportDataBasis ? { reportDataBasis } : {})}
         {...(reportStand ? { reportStand } : {})}
       />
+      {verdict && (
+        <VerdictLine facts={verdict} {...(verdictTestId ? { testId: verdictTestId } : {})} />
+      )}
       {meta.area === 'einstellungen' ? (
         <SettingsFrame register={meta.register}>{children}</SettingsFrame>
       ) : (

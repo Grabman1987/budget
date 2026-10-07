@@ -63,6 +63,15 @@ export function GoalsProgressReport({ report, meta }: { report: ReportEntry; met
   const row = ready?.rows.find((r) => r.id === selected);
   return (
     <PageFrame
+      verdict={
+        ready
+          ? {
+              reportId: report.id,
+              period: ready.month,
+              metric: { label: 'Erfasste Sparziele', value: ready.rows.length, unit: 'count' },
+            }
+          : undefined
+      }
       meta={meta}
       title={report.name}
       subtitle={`${report.pos} · ${report.question}`}
