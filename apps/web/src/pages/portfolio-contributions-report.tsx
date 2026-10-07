@@ -1,6 +1,7 @@
 import { ChartSvg } from '@budget/ui';
 import { chartPoints } from '../charts/tooltip-data';
 import { ReportPeriodControl } from '../reports/period-quick-select';
+import { Term } from '../reports/term';
 import { useAmountPrivacy, DimensionChain, Button, TrendLine } from '@budget/ui';
 import { balanceChain, cents, type Period } from '@budget/domain';
 import type { PortfolioSummary, ContributionHistory } from '@budget/db';
@@ -54,6 +55,21 @@ export function PortfolioContributionsReport({
 
   return (
     <PageFrame
+      verdict={
+        history && !query.isFetching && !query.isError
+          ? {
+              reportId: report.id,
+              period: `${history.from}..${history.to}`,
+              estimated: Boolean(query.data?.incomplete?.length),
+              metric: {
+                label: 'Wertzuwachs im Zeitraum',
+                value: history.gainCents,
+                unit: 'money',
+                better: 'higher',
+              },
+            }
+          : undefined
+      }
       meta={meta}
       title={report.name}
       subtitle={`${report.pos} · ${report.question}`}
@@ -182,7 +198,7 @@ function ContributionsBody({
         <div className="contributions-primary">
           <span className="tech">Wert am Ende des Zeitraums</span>
           <strong data-testid="contributions-end-value">
-            {estimated && <abbr title="Teilweise geschätzt">≈</abbr>}
+            {estimated && <Term>≈</Term>}
             {eur(history.endValueCents)}
           </strong>
         </div>

@@ -2,6 +2,7 @@ import { ReportPeriodControl } from './period-quick-select';
 import { useAmountPrivacy } from '@budget/ui';
 import { MINUS } from '@budget/domain';
 import { useQuery } from '@tanstack/react-query';
+import { useMemo } from 'react';
 import { useNavigate, useSearch } from '@tanstack/react-router';
 import { ArrowDown, ArrowUp } from 'lucide-react';
 import { userText } from '../api/error-text';
@@ -9,12 +10,14 @@ import { ApiError } from '../api/http';
 import { eur, eurParts, longDay } from '../ledger/format';
 import { EmptyNote, ErrorNote, LoadingNote } from '../ledger/states';
 import type { PageMeta } from '../nav/pages';
+import { Term } from './term';
 import type { ReportEntry } from '../nav/reports-catalog';
 import { PageFrame } from '../pages/placeholder-page';
 import { periodText } from '../wealth/networth-model';
 import { useZeitraum, ZEITRAUM_VALUES } from '../wealth/zeitraum';
 import { assetsDebtsHistoryQuery, type AssetsDebtsHistory } from './assets-debts-api';
 import { AssetsDebtsChart, longMonth } from './assets-debts-chart';
+import { assetsDebtsVerdictFacts } from './verdict-facts';
 import './reports-future.css';
 
 const PERIOD_OPTIONS = ZEITRAUM_VALUES.map((value) => ({ value, label: value }));
@@ -59,8 +62,16 @@ export function AssetsDebtsReport({ report, meta }: { report: ReportEntry; meta:
   const query = useQuery(assetsDebtsHistoryQuery(period));
   const history = query.isSuccess ? query.data : undefined;
   const [selected, select] = useSelectedMonth(history);
+  const verdict = useMemo(
+    () =>
+      history && !query.isFetching && !query.isError
+        ? assetsDebtsVerdictFacts(report.id, history)
+        : undefined,
+    [history, query.isFetching, query.isError, report.id],
+  );
   return (
     <PageFrame
+      verdict={verdict}
       meta={meta}
       title={report.name}
       subtitle={`${report.pos} · ${report.question}`}
@@ -309,9 +320,9 @@ function Breakdown({ history, month }: { history: AssetsDebtsHistory; month: str
         <h2 id="ad-breakdown">
           Konten · {longMonth(m.month)}{' '}
           {m.incomplete && (
-            <abbr title="Teilweise geschätzt" data-testid="ad-month-estimated">
-              ≈
-            </abbr>
+            <span data-testid="ad-month-estimated">
+              <Term>≈</Term>
+            </span>
           )}
         </h2>
         <span className="tbd-state">
