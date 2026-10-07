@@ -12,11 +12,6 @@
   margin: 0 0 16px;
   font-size: 20px;
 }
-.whole-verdict {
-  border-top: 1px solid var(--rule);
-  padding-top: 16px;
-  font-weight: 620;
-}
 .whole-table-head {
   display: flex;
   align-items: center;

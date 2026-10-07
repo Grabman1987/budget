@@ -1,5 +1,20 @@
 # Roadmap
 
+### E1 — Report verdict sentences (owner 2026-10-06)
+
+- [x] Pure typed fact detectors, strongest-fact selection, 230 German templates, deterministic period variation and previous-template exclusion; no new dependency or second ledger calculation.
+- [x] All catalog reports in sections 1–5, Heute fold, One-Pager print header and Gesamtübersicht use existing read-model values and amount privacy; incomplete histories stay explicit. Fed fact families: records, savings/budget/wealth streaks, category streaks, comparisons, wealth marks, debt reduction, market/effort, rules, equivalents.
+- [ ] Not yet fed: `emergency` (Notgroschen reach in months) — no read model keeps a monthly history of it; its templates stay until one does. Heute shows only the primary figure (one running month, no history).
+- [x] Synthetic template/placeholder snapshot, determinism, non-repetition, edge values and privacy tests; extension contract in [report verdicts](verdicts.md).
+- [x] Full local check: 355 files / 3,286 tests; two workers, 30-second test/hook deadlines and one allowed retry. Production build and 17 desktop/mobile browser checks passed, including light/dark, privacy and print.
+- [ ] Required CI and owner language/design/device acceptance; no keys, consents or migration required.
+
+### Pace line reduction — owner 06.10.2026
+
+- [x] Move Pace below Kontoprognose; default Ist / Hochrechnung / Deckel, scheduled Plan bis heute dot, optional faint Einnahmen/Vormonat, complete tooltip and unchanged model/footnote.
+- [x] Synthetic component regressions and desktop/phone light/dark browser assertions for legend, keyboard toggle, line styles and label bounds.
+- [ ] CI, pinned Linux visual review and owner acceptance (Heute and shared One-Pager).
+
 ### UX-3d — Phone booking filters (owner feedback 2026-10-05)
 
 - [x] Konten › Buchungen: phone search beside Filter (n), draft bottom sheet with reset/apply, removable active-filter chips and short sorting labels; desktop inline controls retained.
@@ -759,3 +774,9 @@ Method, limits and owner steps: [inflation basket](inflation-basket.md#cpi-sub-i
 - [x] Synthetic domain/API/component tests; two explorer E2E cases on desktop/mobile with light/dark accessibility and review evidence, without baseline regeneration.
 - [x] Local verification: all workspace typechecks and ESLint; the one full check stopped on a late E2E formatting edit, corrected and checked in isolation. Full unit suite: 331 files / 3,121 tests; final affected regression run: 37 tests. Production build passed.
 - [ ] Stacked Draft PR/CI and owner mapping/design acceptance. No keys, consents, migrations or automatic bookings.
+
+### E2 glossary tooltips — owner 2026-10-05
+
+- [x] Small German glossary and report-only `<Term>`: dotted underline, one-sentence native popover, keyboard/touch, Escape/outside dismissal and 44 px targets; report headings/columns and estimate marks reuse it, with plain print labels.
+- [x] Final local check: all workspace typechecks, lint/format and 354 files / 3,286 unit tests; production build passed. Ten synthetic desktop/mobile/WebKit browser checks passed, including light/dark accessibility, keyboard/touch and print; desktop 1440/mobile 390 review images in `docs/screenshots/glossary-*.png`, without baseline regeneration. Windows sandbox verification used an ignored `os.userInfo` fallback plus one test thread and a 30 s harness timeout; assertions and repository configuration remain unchanged.
+- [ ] Required CI and owner desktop/phone acceptance; no keys, consents or migration needed.

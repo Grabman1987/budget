@@ -1,11 +1,16 @@
 // @vitest-environment jsdom
-import { render, screen } from '@testing-library/react';
+import { cleanup, render, screen } from '@testing-library/react';
 import { readFileSync } from 'node:fs';
 import { describe, expect, it, vi } from 'vitest';
 import { ReportPeriodControl } from './period-quick-select';
 import { PortfolioContributionsReport } from '../pages/portfolio-contributions-report';
 import { findReport } from '../nav/reports-catalog';
 import { REPORTS_CATALOG } from '../nav/pages';
+import { TableReportFrame } from './table-report-frame';
+import { VerdictLine } from './verdict-line';
+import type { VerdictFacts } from '@budget/domain';
+import type { ReportTables } from '@budget/db';
+import type { UseQueryResult } from '@tanstack/react-query';
 const response = {
   incomplete: [
     { securityId: 'synthetic', quality: 'estimated', from: '2026-01-01', to: '2026-01-03' },
@@ -42,20 +47,52 @@ vi.mock('../pages/placeholder-page', () => ({
   PageFrame: ({
     children,
     extraFields,
+    verdict,
   }: {
     children: React.ReactNode;
-    extraFields: { value: React.ReactNode }[];
+    extraFields?: { value: React.ReactNode }[];
+    verdict?: VerdictFacts;
   }) => (
     <>
-      {extraFields.map((f, i) => (
+      {extraFields?.map((f, i) => (
         <div key={i}>{f.value}</div>
       ))}
+      {verdict && <VerdictLine facts={verdict} />}
       {children}
     </>
   ),
 }));
 
 describe('report frame', () => {
+  it('keeps an honest verdict when the selected table has no complete month yet', () => {
+    cleanup();
+    const data: ReportTables = {
+      asOf: '2025-10-05',
+      currentMonth: '2025-10',
+      firstMonth: null,
+      lastFullMonth: null,
+      netWorth: 'omitted',
+      payees: {},
+      months: [],
+      categories: [],
+      incomeTypes: [],
+      targets: { savingsRateBp: 2000, moneyAgeDays: 30 },
+    };
+    render(
+      <TableReportFrame
+        report={findReport('sparquote')!}
+        meta={REPORTS_CATALOG}
+        through="full"
+        className="synthetic-report"
+        query={{ data, isFetching: false, isError: false } as UseQueryResult<ReportTables>}
+      >
+        {() => null}
+      </TableReportFrame>,
+    );
+    expect(screen.getByTestId('report-verdict').textContent).toMatch(/Oktober:.*laufend/);
+    expect(screen.getByTestId('report-verdict').textContent).not.toMatch(/undefined|NaN|0,0 %/);
+    cleanup();
+  });
   it('puts presets and the period select in one row container, with wrapping only on narrow screens', () => {
     const { container } = render(
       <ReportPeriodControl
@@ -85,6 +122,7 @@ describe('report frame', () => {
     expect(screen.queryByTestId('valuation-hint')).toBeNull();
     expect(screen.queryByText(/Bewertung teilweise geschätzt:/)).toBeNull();
     expect(screen.getByTestId('contributions-end-value').textContent).toBe('≈123,45 €');
+    expect(screen.getByRole('button', { name: '≈' }).getAttribute('aria-describedby')).toBeTruthy();
     const path = container.querySelector('.contributions-value-line')?.getAttribute('d');
     expect(path?.match(/L/g)).toHaveLength(2);
   });

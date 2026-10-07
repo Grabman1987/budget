@@ -43,6 +43,15 @@ export function PayrollReport({ report, meta }: { report: ReportEntry; meta: Pag
   const parts = data ? eurParts(data.month.netCents) : undefined;
   return (
     <MonthReportFrame
+      verdict={
+        data && !query.isError
+          ? {
+              reportId: report.id,
+              period: month,
+              metric: { label: 'Erfasstes Nettogehalt', value: data.month.netCents, unit: 'money' },
+            }
+          : undefined
+      }
       report={report}
       meta={meta}
       month={month}

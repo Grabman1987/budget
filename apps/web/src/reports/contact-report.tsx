@@ -70,6 +70,19 @@ export function ContactReportPage() {
   const parts = view ? eurParts(view.totals.balanceCents) : undefined;
   return (
     <PageFrame
+      verdict={
+        view && !overview.isFetching && !overview.isError
+          ? {
+              reportId: 'kontakte',
+              period: view.asOf,
+              metric: {
+                label: 'Offener Kontaktsaldo',
+                value: view.totals.balanceCents,
+                unit: 'money',
+              },
+            }
+          : undefined
+      }
       meta={META}
       title="Kontakte-Abrechnung"
       subtitle="Wer schuldet wem wie viel?"
