@@ -45,12 +45,10 @@ test.describe('UX-3a phone shell', () => {
   test('a touch on the avatar opens an unobstructed profile menu', async ({ page }, info) => {
     test.setTimeout(120_000);
     for (const path of PAGES) {
-      // The previous iteration ends on /einstellungen after a tap; WebKit can still fire a
-      // late same-URL navigation that interrupts this goto, so retry once in that case.
-      await page.goto(path).catch(async (error: unknown) => {
-        if (!String(error).includes('interrupted by another navigation')) throw error;
-        await page.goto(path);
-      });
+      // The previous iteration ends on /einstellungen after a tap. Reloading that same URL
+      // races WebKit's own pending navigation (interrupted goto, then a crashed page), so
+      // only navigate when the page is not already there.
+      if (new URL(page.url()).pathname !== path) await page.goto(path);
       const avatar = page.locator('.m-profile summary');
       await expect(avatar).toBeVisible();
       const hit = await avatar.evaluate((el) => {
