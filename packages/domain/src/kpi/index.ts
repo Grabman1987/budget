@@ -1,4 +1,4 @@
-export { ageOfMoney, AGE_OF_MONEY_WINDOW, type AgeOfMoney, type MoneyEvent } from './age-of-money';
+export { ageOfMoney, ageOfMoneyAt, AGE_OF_MONEY_WINDOW, type AgeOfMoney, type MoneyEvent } from './age-of-money';
 export {
   classShares,
   debtServiceRatio,
