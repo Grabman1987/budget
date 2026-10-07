@@ -27,6 +27,7 @@ async function screenshot(page: Page) {
   await test.info().attach('Exact lead amount', { path, contentType: 'image/png' });
 }
 
+// The top-bar overspent chip and other shell queries can still be in flight through a// route.fetch stub when a test ends; drop the stubs so teardown does not abort them.test.afterEach(async ({ page }) => {  await page.unrouteAll({ behavior: 'ignoreErrors' });});
 test('Konten shows exact cents at rounding, sign and grouping boundaries', async ({ page }) => {
   let value = 0;
   await page.route(/\/api\/accounts(?:\?.*)?$/, async (route) => {
