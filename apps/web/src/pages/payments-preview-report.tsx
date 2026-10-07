@@ -65,6 +65,21 @@ export function PaymentsPreviewReport({ report, meta }: { report: ReportEntry; m
   const query = useQuery(paymentsPreviewQuery());
   return (
     <PageFrame
+      verdict={
+        query.data && !query.isFetching && !query.isError
+          ? {
+              reportId: report.id,
+              period: `${query.data.from}..${query.data.to}`,
+              unavailable: !query.data.eurComplete,
+              metric: {
+                label: 'Geplante Zahlungen ab',
+                value:
+                  query.data.currencies.find((g) => g.currency === 'EUR')?.total.baseCents ?? null,
+                unit: 'money',
+              },
+            }
+          : undefined
+      }
       meta={meta}
       title={report.name}
       subtitle={`${report.pos} · ${report.question}`}

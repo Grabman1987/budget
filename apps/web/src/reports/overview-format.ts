@@ -1,3 +1,4 @@
+import { monthNameOnly } from '@budget/domain';
 import { privateAmount } from '@budget/ui';
 import { longDay } from '../ledger/format';
 
@@ -17,20 +18,6 @@ const MONTHS_SHORT = [
   'Nov',
   'Dez',
 ] as const;
-const MONTHS_LONG = [
-  'Jänner',
-  'Februar',
-  'März',
-  'April',
-  'Mai',
-  'Juni',
-  'Juli',
-  'August',
-  'September',
-  'Oktober',
-  'November',
-  'Dezember',
-] as const;
 
 const monthIndex = (month: string) => Number(month.slice(5, 7)) - 1;
 
@@ -39,10 +26,9 @@ export const monthShort = (month: string) => MONTHS_SHORT[monthIndex(month)] ?? 
 /** `Sep 26` */
 export const monthShortYear = (month: string) => `${monthShort(month)} ${month.slice(2, 4)}`;
 /** `September 2026` */
-export const monthLong = (month: string) =>
-  `${MONTHS_LONG[monthIndex(month)] ?? ''} ${month.slice(0, 4)}`;
+export const monthLong = (month: string) => `${monthNameOnly(month)} ${month.slice(0, 4)}`;
 /** `September` */
-export const monthNameOnly = (month: string) => MONTHS_LONG[monthIndex(month)] ?? '';
+export { monthNameOnly };
 
 /** `Q3 26` for a month. */
 export const quarterLabel = (month: string) =>

@@ -22,6 +22,21 @@ export function ProjectsReport({ report, meta }: { report: ReportEntry; meta: Pa
   const parts = supported ? eurParts(data.total.resultCents) : undefined;
   return (
     <PageFrame
+      verdict={
+        data && !query.isError
+          ? {
+              reportId: report.id,
+              period: `${data.months[0]}..${data.months.at(-1)}`,
+              unavailable: !supported,
+              metric: {
+                label: 'Projektergebnis',
+                value: data.total.resultCents,
+                unit: 'money',
+                better: 'higher',
+              },
+            }
+          : undefined
+      }
       meta={meta}
       title={report.name}
       subtitle={`${report.pos} · ${report.question}`}

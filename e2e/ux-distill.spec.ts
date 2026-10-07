@@ -40,8 +40,8 @@ test('Heute keeps its device fold choice and the primary order, net worth matche
     [
       '.heute-answers',
       '.heute-attention',
-      '.heute-pace',
       '.heute-lead',
+      '.heute-pace',
       '#heute-upcoming-title',
       '.heute-wealth-line',
       '.heute-more',

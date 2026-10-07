@@ -51,6 +51,21 @@ export function FlowReport({ report, meta }: { report: ReportEntry; meta: PageMe
   const data = query.data;
   return (
     <MonthReportFrame
+      verdict={
+        data && !query.isFetching && !query.isError
+          ? {
+              reportId: report.id,
+              period: `${data.from}..${data.to}`,
+              partial: data.partial,
+              metric: {
+                label: 'Übrig nach Geldfluss',
+                value: data.flow.restCents,
+                unit: 'money',
+                better: 'higher',
+              },
+            }
+          : undefined
+      }
       report={report}
       meta={meta}
       month={month}
