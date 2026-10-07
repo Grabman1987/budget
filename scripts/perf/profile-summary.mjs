@@ -47,3 +47,23 @@ if (target) {
   for (const [k, t] of [...callers].sort((a, b) => b[1] - a[1]).slice(0, 10))
     console.log((t / 1000).toFixed(0).padStart(7), k);
 }
+// Optional: node profile-summary.mjs file N callerOf childrenOf  -- inclusive time of the direct children of that function.
+const parentFn = process.argv[5];
+if (parentFn) {
+  const totals = new Map();
+  const total = (id) => {
+    const n = byId.get(id);
+    let t = self.get(id) ?? 0;
+    for (const c of n.children ?? []) t += total(c);
+    return t;
+  };
+  for (const n of p.nodes) {
+    if (n.callFrame.functionName !== parentFn) continue;
+    for (const c of n.children ?? []) {
+      const k = key(byId.get(c));
+      totals.set(k, (totals.get(k) ?? 0) + total(c));
+    }
+  }
+  console.log(`--- children of ${parentFn} (inclusive)`);
+  for (const [k, t] of [...totals].sort((a, b) => b[1] - a[1]).slice(0, 15)) console.log((t / 1000).toFixed(0).padStart(7), k);
+}

@@ -128,8 +128,13 @@ sampleTest(
     });
     if (info.project.name === 'desktop') {
       await page.setViewportSize({ width: 734, height: 1062 });
-      // The resize redraws the chart; show the optional income line again before switching to paper.
-      await page.getByRole('button', { name: 'Mehr anzeigen' }).click();
+      // The resize may or may not redraw the chart (and with it the toggle): make sure the optional
+      // income line is on before switching to paper, whatever state the toggle is in.
+      const toggle = page.getByRole('button', { name: /^(Mehr|Weniger) anzeigen$/ });
+      await expect(async () => {
+        if ((await toggle.getAttribute('aria-pressed')) !== 'true') await toggle.click();
+        await expect(page.locator('.pace-income-line').first()).toBeVisible({ timeout: 2_000 });
+      }).toPass();
       await page.emulateMedia({ media: 'print' });
       await expect(page.locator('.global-search-trigger')).toBeHidden();
       await expect(page.locator('.pace-income-line').first()).toHaveCSS('animation-name', 'none');
