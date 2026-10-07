@@ -81,7 +81,81 @@ const flagged = (body: any) =>
 vi.setConfig({ testTimeout: 60_000 });
 
 describe('a security held in the past and never quoted', () => {
-  it('Vermögen › Nettovermögen answers for every period, flagged as estimated', async () => {
+  it('uses the requested as-of holdings for hints while Heute excludes closed snapshots', async () => {
+    const opened = createTestDatabase();
+    try {
+      opened.db
+        .insert(schema.account)
+        .values({
+          id: 'depot',
+          name: 'Synthetic depot',
+          type: 'brokerage',
+          role: 'investment',
+          onBudget: false,
+          openingDate: '2026-01-01',
+        })
+        .run();
+      opened.db
+        .insert(schema.security)
+        .values({
+          id: 'snapshot-only',
+          name: 'Synthetic snapshot',
+          kind: 'stock',
+          currency: 'EUR',
+        })
+        .run();
+      opened.db
+        .insert(schema.holding)
+        .values([
+          {
+            id: 'held',
+            accountId: 'depot',
+            securityId: 'snapshot-only',
+            asOf: '2026-01-01',
+            unitsE8: 1e8,
+            costBasisCents: 700,
+          },
+          {
+            id: 'closed',
+            accountId: 'depot',
+            securityId: 'snapshot-only',
+            asOf: '2026-02-05',
+            unitsE8: 0,
+            costBasisCents: 0,
+          },
+        ])
+        .run();
+      const isolated = createApp({
+        webDir,
+        auth: signedIn,
+        ledger: { db: opened.db, today: () => TODAY },
+      });
+      const historical = await isolated.request('/api/accounts?asOf=2026-01-02');
+      expect(historical.status).toBe(200);
+      expect(((await historical.json()) as any).incomplete).toEqual([
+        expect.objectContaining({ securityId: 'snapshot-only', unitsE8: 1e8 }),
+      ]);
+      const detail = await isolated.request('/api/accounts/depot?asOf=2026-01-02');
+      expect(((await detail.json()) as any).incomplete).toEqual([
+        expect.objectContaining({ securityId: 'snapshot-only', unitsE8: 1e8 }),
+      ]);
+      for (const path of ['/api/wealth/networth', '/api/networth-history']) {
+        const report = await isolated.request(`${path}?period=2026-01..2026-01`);
+        expect(report.status).toBe(200);
+        expect(((await report.json()) as any).incomplete).toEqual([
+          expect.objectContaining({ securityId: 'snapshot-only', unitsE8: 1e8 }),
+        ]);
+      }
+      for (const path of ['/api/heute', '/api/heute?asOf=2026-01-02']) {
+        const current = await isolated.request(path);
+        expect(current.status).toBe(200);
+        expect(((await current.json()) as any).incomplete ?? []).toEqual([]);
+      }
+    } finally {
+      opened.close();
+    }
+  });
+  it('Vermögen › Nettovermögen answers for every period without flagging a closed instrument', async () => {
     for (const period of ['1M', '3M', 'YTD', '1J', '3J', 'Alles']) {
       const { status, body } = await get(`/wealth/networth?period=${period}`);
       expect(status, period).toBe(200);
@@ -89,10 +163,7 @@ describe('a security held in the past and never quoted', () => {
       expect(c.startCents + c.ownCents + c.marketCents, period).toBe(c.nowCents);
     }
     const ytd = await get('/wealth/networth?period=YTD');
-    expect(flagged(ytd.body)).toEqual([
-      ['ko-warrant', 'estimated', 'Synthetic knocked-out warrant'],
-    ]);
-    expect(ytd.body.incomplete[0]).toMatchObject({ from: '2026-05-04', to: '2026-05-19' });
+    expect(flagged(ytd.body)).toEqual([]);
     // A window without the holding days carries no flag.
     expect((await get('/wealth/networth?period=1M')).body.incomplete).toBeUndefined();
   });
@@ -103,6 +174,7 @@ describe('a security held in the past and never quoted', () => {
       expect(status, path).toBe(200);
     }
     const heute = (await get('/heute')).body;
+    expect(flagged(heute)).toEqual([]);
     expect(heute.netWorth.unavailable).toBeUndefined();
     expect(heute.financeCheck.unavailable).toBeUndefined();
   });

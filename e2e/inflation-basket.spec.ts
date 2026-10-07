@@ -52,21 +52,45 @@ test('owner basket choices recalculate report 2.4 and survive reload', async ({
   await expect(page.getByTestId('pi-rate')).toHaveText('0 %');
   await page.getByRole('link', { name: 'Warenkorb bearbeiten' }).click();
   const row = page.getByTestId('basket-category-' + software.id);
-  await expect(row).toContainText('Wunsch und Zukunft');
-  await row.getByLabel('Auswählen').check();
-  await page.getByRole('button', { name: 'In den Warenkorb', exact: true }).click();
-  await expect(row.getByLabel('Im Warenkorb')).toHaveValue('always');
+  if (info.project.name === 'mobile') await page.setViewportSize({ width: 375, height: 844 });
+  await expect(row).toContainText('Wunsch oder Zukunft');
+  await row.getByLabel('Zählt mit:').selectOption('always');
+  await expect(row.getByLabel('Zählt mit:')).toHaveValue('always');
+  await expect(
+    page.getByText(
+      'Im Warenkorb: 2 Kategorien · Automatisch: 1 · Von dir gesetzt: 1 · Ausgeschlossen: 0',
+    ),
+  ).toBeVisible();
   await page.reload();
-  await expect(row.getByLabel('Im Warenkorb')).toHaveValue('always');
-  await row.locator('summary').click();
+  await expect(row.getByLabel('Zählt mit:')).toHaveValue('always');
+  await expect(row.getByRole('combobox')).toHaveCount(1);
+  await expect(row.getByRole('checkbox')).toHaveCount(0);
+  await expect(
+    row.getByText('Abwählen, was nicht als Preis zählen soll (z. B. Zinsen).'),
+  ).toBeVisible();
+  await expect(row.getByRole('button', { name: 'Zuordnung speichern' })).toHaveCount(0);
+  const choice = await row.getByLabel('Zählt mit:').boundingBox();
+  expect(choice!.height).toBeGreaterThanOrEqual(44);
+  await row.getByText('Ausnahmen (1)', { exact: true }).click();
   await expect(row.getByLabel('Abo Muster zählt mit')).toBeChecked();
   await inspectReport(page, info, 'inflation-basket-settings');
+  await row.getByLabel('Abo Muster zählt mit').uncheck();
+  await expect(row.getByLabel('Abo Muster zählt mit')).not.toBeChecked();
+  await expect(row).toContainText('Nach den Ausnahmen fehlen regelmäßige Preise');
+  await expect(row.getByLabel('Abo Muster zählt mit')).toBeEnabled();
+  await page.getByRole('button', { name: 'Rückgängig', exact: true }).click();
+  await expect(row.getByLabel('Abo Muster zählt mit')).toBeChecked();
   await page.getByRole('link', { name: 'Zur persönlichen Inflation' }).click();
   await expect(page.getByTestId('pi-rate')).not.toHaveText('0 %');
   await expect(page.getByTestId('contributions-table')).toContainText('Software Muster');
   await expect(page.getByText('Warenkorb in den Einstellungen festgelegt')).toBeVisible();
   await page.getByRole('link', { name: 'Warenkorb bearbeiten' }).click();
-  await row.getByLabel('Im Warenkorb').selectOption('never');
+  await row.getByLabel('Zählt mit:').selectOption('never');
+  await expect(row.getByText('Ausgeschlossen', { exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Rückgängig', exact: true }).click();
+  await expect(row.getByLabel('Zählt mit:')).toHaveValue('always');
+  await row.getByLabel('Zählt mit:').selectOption('never');
+  await expect(row.getByLabel('Zählt mit:')).toBeEnabled();
   await page.getByRole('link', { name: 'Zur persönlichen Inflation' }).click();
   await expect(page.getByTestId('pi-rate')).toHaveText('0 %');
   await inspectReport(page, info, 'inflation-basket-report');

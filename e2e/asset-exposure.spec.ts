@@ -85,7 +85,7 @@ test('mixed exposure conserves current cents, preserves September history and wh
   await dialog.getByRole('button', { name: 'Stammdaten bearbeiten', exact: true }).click();
   const form = page.getByRole('dialog', { name: 'Stammdaten bearbeiten', exact: true });
   await expect(form.getByLabel('Klassenzuordnung gültig ab', { exact: true })).toHaveValue(
-    '2026-10-02',
+    '02.10.2026',
   );
   await form.getByLabel('Name', { exact: true }).fill('Mischfonds neu');
   await form.getByLabel('Klassenzuordnung gültig ab', { exact: true }).scrollIntoViewIfNeeded();

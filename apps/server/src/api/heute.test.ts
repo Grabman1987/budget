@@ -289,11 +289,9 @@ describe('GET /heute', () => {
     result = await call('GET', '/heute');
     expect(result.status).toBe(200);
     expect(result.body.financeCheck.counts.total).toBe(16);
-    // The days before the first quote are estimates, flagged but not unavailable.
+    // Historical estimates do not flag a holding with a real quote today.
     expect(result.body.netWorth.unavailable).toBeUndefined();
-    expect(result.body.incomplete).toEqual([
-      expect.objectContaining({ securityId: 'unpriced', quality: 'estimated' }),
-    ]);
+    expect(result.body.incomplete).toEqual([]);
     expect(result.body.balance).toEqual(before.body.balance);
     expect(result.body.lastBookings).toEqual(before.body.lastBookings);
   });

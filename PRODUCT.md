@@ -1,5 +1,7 @@
 # Product
 
+Owner decision 2026-10-06: Einstellungen › Warenkorb explains everyday spending and automatic inclusion, shows one Automatic/Always/Never choice with its current effect, and autosaves optional official price groups (switching to CPI on selection) and payee exceptions with undo; the existing basket API and domain rules stay unchanged.
+
 Owner-Entscheidung 05.10.2026: Plan › Monat adopts the YNAB auto-assign principle: explicit empty-fill and selected-category quick assignment use shared target/history figures, available money and one undoable audit group; faded suggestions never book money on their own.
 
 Owner-Entscheidung 05.10.2026 — Heute adopts the three-answer-card principle: one number, one proportional bar and two sublines each for Nettovermögen, Dieser Monat and Budget, followed by the nearest unfinished savings goal; the existing Präzisionsschicht and shared read models remain the design and calculation sources.

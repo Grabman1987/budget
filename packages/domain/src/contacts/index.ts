@@ -1,4 +1,4 @@
-/** Actual cash shares only; a positive contact balance means the contact owes the owner. */
+/** Booked contact shares; a positive contact balance means the contact owes the owner. */
 export interface ContactMovement {
   splitId: string;
   bookingId: string;

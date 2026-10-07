@@ -146,5 +146,5 @@ test('refuses a term end before its start and keeps the stored terms', async ({
   await expect(panel.getByText('Das Laufzeitende liegt vor dem Beginn.')).toBeVisible();
   await panel.getByRole('button', { name: 'Abbrechen' }).click();
   await page.getByRole('button', { name: 'Kredit Muster bearbeiten' }).click();
-  await expect(page.getByRole('dialog').getByLabel('Laufzeit bis')).toHaveValue('2030-01-01');
+  await expect(page.getByRole('dialog').getByLabel('Laufzeit bis')).toHaveValue('01.01.2030');
 });
