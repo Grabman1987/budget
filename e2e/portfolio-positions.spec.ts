@@ -145,7 +145,7 @@ sampleTest(
     await screenshot(page, `portfolio-keyboard-detail-${info.project.name}.png`, info);
     await panel.getByRole('button', { name: 'Kurs eintragen', exact: true }).click();
     const quote = page.getByRole('dialog', { name: 'Kurs eintragen', exact: true });
-    await expect(quote.getByLabel('Kursdatum')).toHaveValue('2026-09-17');
+    await expect(quote.getByLabel('Kursdatum')).toHaveValue('17.09.2026');
     await page.keyboard.press('Tab');
     expect(await quote.evaluate((element) => element.contains(document.activeElement))).toBe(true);
     await page.keyboard.press('Escape');

@@ -440,7 +440,9 @@ test('schedule details have a URL, version history and separate guarded input di
   await expect(page).toHaveURL(/\/vermoegen\/portfolio\?zeitraum=3J$/);
   await page.goto(url);
   await page.getByRole('button', { name: 'Sparplan beenden', exact: true }).click();
-  await expect(form.getByLabel('Ende einschließlich')).toHaveValue(data.today);
+  await expect(form.getByLabel('Ende einschließlich')).toHaveValue(
+    data.today.split('-').reverse().join('.'),
+  );
   await page.keyboard.press('Escape');
   await form.getByRole('button', { name: 'Verwerfen', exact: true }).click();
   await page.getByRole('link', { name: 'Zurück zum Portfolio' }).click();
