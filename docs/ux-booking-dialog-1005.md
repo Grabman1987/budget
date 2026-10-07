@@ -11,7 +11,7 @@ native date input, details disclosure and arithmetic parser are reused.
 - Mehr holds Aufteilen, Wiederholen, Notiz and the existing Projekt selector.
   A summary names set options; closing it preserves all entered values. Edits and
   drafts with optional content open it automatically. Mehr follows Kategorie; the
-  booking-only phone sheet may use 96dvh, keeping the summary above its sticky footer.
+  phone sheet retains the shared 88dvh cap; the form body scrolls above its sticky footer.
   The existing repeat action
   still creates a schedule on save; this task does not add schedule editing.
 - Today/yesterday use the existing Vienna date and addDays; Datum… focuses the
@@ -98,3 +98,28 @@ then open a draft PR and wait for required CI/pinned Linux visual checks.
 Review desktop/phone evidence and test dates, suggestion picking, account overrides
 and Mehr on the physical phone in both themes.
 No keys, consents, provider configuration, migration or deployment is required.
+
+## CI repair follow-up — 2026-10-07
+
+The earlier verification and delivery limits above describe the original authoring
+run. A separate repair branch reproduces the CI date-display and phone-height
+failures against commit `f6fc243a4bf2ccf223467ebcf52bacd97ec06821`.
+
+- Date-action assertions now expect the shared date field's German display.
+- The booking sheet uses the existing 88dvh cap, with compact phone spacing and
+  unchanged 44px controls. Mehr is fully visible at 390 × 844 pixels.
+- Exact-cent tests finish active route handlers before page teardown.
+- The print test waits for the phone shell and ensures the optional context lines
+  are selected after crossing the responsive breakpoint. The income-line and
+  print-animation assertions remain in place.
+- The complete affected Playwright run passes for desktop Chromium, phone Chromium
+  and the configured iPhone WebKit panel cases; the last-run report has no failed
+  tests. Full configured CI and pinned Linux snapshot checks remain merge gates.
+
+Fresh [phone evidence](evidence/astra-ci-repairs-1007/README.md) records the repaired
+layout. The temporary runner retains every configured server and setup and uses
+`node --import tsx` only for sample seeding.
+
+Fresh local validation: all workspace typechecks, CSS scale/ESLint/Prettier,
+the production build, and 3,389 unit tests in 370 files pass. Unit tests run with one worker and
+`BUDGET_REQUIRE_AGE=1`; no test timeouts or assertions are changed.

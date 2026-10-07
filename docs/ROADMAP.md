@@ -758,7 +758,8 @@ Method, limits and owner steps: [inflation basket](inflation-basket.md#cpi-sub-i
 - [x] Bounded payee suggestions above the input; Enter accepts exactly one suggestion. Read the selected payee's latest booking through the existing API; fall back to capture memory/current account context and ignore stale answers after further input.
 - [x] Native Mehr disclosure for splits, repetition, notes and the existing project field; summary preserves visibility of set options. Editing and prefilled optional content open it automatically.
 - [x] Markieren/Schließen tooltips, Heute/Gestern/Datum… chips and Bezahlt von expense label; targeted synthetic unit and desktop/phone browser regressions.
-- [ ] Required green full local check (runner CLI/worker/timeouts remain open), draft PR/CI, pinned Linux visual review and physical-phone owner acceptance. No local screenshot baseline regeneration; shared AmountInput only gains a default-preserving opt-in. Delivery and actual verification: [UX-3e](ux-booking-dialog-1005.md).
+- [x] CI repair 2026-10-07: full local typecheck/lint, 3,389 unit tests, production build and affected Chromium/WebKit browser run pass. The phone sheet retains the shared 88dvh cap and 44px controls; date checks use the German display. Fresh [phone evidence](evidence/astra-ci-repairs-1007/README.md).
+- [ ] Draft repair PR/required CI, pinned Linux visual review and physical-phone owner acceptance. No local screenshot baseline regeneration; shared AmountInput only gains a default-preserving opt-in. Delivery and actual verification: [UX-3e](ux-booking-dialog-1005.md).
 
 ### Owner planning hit rate — 2026-10-05
 
