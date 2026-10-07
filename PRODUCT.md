@@ -1,10 +1,30 @@
 # Product
 
+Owner decision 2026-10-06: Einstellungen › Warenkorb explains everyday spending and automatic inclusion, shows one Automatic/Always/Never choice with its current effect, and autosaves optional official price groups (switching to CPI on selection) and payee exceptions with undo; the existing basket API and domain rules stay unchanged.
+
 Owner-Entscheidung 05.10.2026: Plan › Monat adopts the YNAB auto-assign principle: explicit empty-fill and selected-category quick assignment use shared target/history figures, available money and one undoable audit group; faded suggestions never book money on their own.
+
+Owner-Entscheidung 05.10.2026 — Heute adopts the three-answer-card principle: one number, one proportional bar and two sublines each for Nettovermögen, Dieser Monat and Budget, followed by the nearest unfinished savings goal; the existing Präzisionsschicht and shared read models remain the design and calculation sources.
+
+Owner-Entscheidung 05.10.2026 — Pace: Heute and One-Pager show elapsed days, actual spending, linear pro-rata expectation and the existing month-end forecast from one shared read model; chart and Plan › Monat category bars label today's time marker. Forecast stays fixed-cost/plan-based before day 7 and extrapolated thereafter.
+
+Owner navigation decision (2026-10-05): details and secondary information use
+sub-pages with their own URLs, breadcrumbs and browser/back navigation. Content
+side panels, drawers, right sheets and permanent side card columns are retired;
+summaries are full-width inline sections or links to sub-pages. Dialogs only hold
+input/confirmation forms; phone bottom sheets only forms and filters. The left app
+navigation stays. This overrides earlier panel descriptions below; see
+[inventory and implementation scope](docs/no-side-panels-1005.md).
+
+Owner-Entscheidung 05.10.2026: In Report 2.4 bleiben Warenkorbvergleich und Kategorie-Explorer getrennt; die Interpretation von Preis- und Mengeneffekten bleibt beim Owner, ohne automatisches Inflationsurteil.
+
+Owner-Entscheidung 05.10.2026 — Tagesbudget: Heute translates the existing cent-exact Leitmaß into an approximate daily allowance through the shared next bank-day payday, including today; nonpositive room uses alarm copy instead of a daily amount, and the formula is available on hover/focus.
 
 Owner-Entscheidung 05.10.2026: Heute and R07 Kontoprognose share fourteen days of actual lookback through next bank-day payday + 2 (Bis Gehalt) or shown month end + 2 (Monat); payday forecasts shorter than seven days extend to the following payday + 2. The period is remembered, fallback Bis Gehalt.
 
 Owner composition decision (2026-10-05): Allocation shows groups inside and user-defined classes outside; products remain in the source table. Groups can be created/renamed and classes moved in Einstellungen › Anlageklassen. Soll stays class-specific and dated, with group sums. P2P accounts can be assigned in account settings; defaults are limited to an explicitly run operator configuration. Uninformative region charts are removed. See [composition contract](docs/portfolio-composition.md).
+
+Owner-Entscheidung 05.10.2026: Planungsqualität wird an gespeicherten Pace-Prognosen vom 15. gegen tatsächliche Monatsausgaben gemessen; fehlende historische Prognosen bleiben offen statt rückwirkend erfunden. See [planning hit rate](docs/planning-accuracy.md).
 
 Owner booking directive (2026-10-04): new manual bookings use the booking month; the dialog has no Budgetmonat field and does not apply next-month defaults. Existing stored values stay intact. Booking Wiederholen creates a recurring schedule; owner-facing wording is Wiederkehrende Zahlungen. Account chart preview defaults to 35 days, configurable 0–365.
 

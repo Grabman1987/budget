@@ -207,6 +207,77 @@ const mock = (overrides: Record<string, unknown>) => {
 };
 
 sampleTest(
+  'target classes retain unheld products, empty swatches and kind hints',
+  async ({ page }, info) => {
+    sampleTest.setTimeout(90_000);
+    const payload = mock({});
+    const group = payload.allocation.compositionGroups[0]!;
+    const unheld = {
+      ...group.classes[0]!,
+      assetClassId: 'reserve',
+      name: 'Reserve A',
+      valueCents: 0,
+      shareBp: 0,
+      portfolioShareBp: 0,
+      targetBp: 1000,
+      deviationBp: -1000,
+      products: [],
+      assignedSecurities: [
+        {
+          securityId: 'unheld',
+          name: 'Produkt Reserve',
+          isin: 'AT0000000011',
+          kind: 'other',
+          held: false,
+        },
+      ],
+    };
+    group.classes.push(unheld);
+    payload.allocation.classes.push(unheld);
+    payload.allocation.compositionClasses.push(unheld);
+    await page.route('**/api/portfolio/allocation-report', (route) =>
+      route.fulfill({ json: payload }),
+    );
+    await page.goto('/reports/pallocation');
+    const row = page.locator('.alloc-table tr.is-class').filter({ hasText: 'Reserve A' });
+    await expect(row).toContainText('0,0 %');
+    await expect(row).toContainText('10,0 %');
+    await expect(row).toContainText('−10,0');
+    await expect(
+      page.getByTestId('soll-table').locator('tr').filter({ hasText: 'Reserve A' }),
+    ).toContainText('0,0 %');
+    const product = page.locator('.alloc-table tr').filter({ hasText: 'Produkt Reserve' });
+    await expect(product).toContainText('noch nicht gekauft');
+    await expect(product).toContainText('AT0000000011');
+    await expect(product).toContainText('Typ „Sonstiges“ prüfen');
+    await expect(product.getByRole('link', { name: 'Produkt Reserve' })).toHaveAttribute(
+      'href',
+      /produkt=unheld/,
+    );
+    const legend = page.locator('.composition-line.is-class').filter({ hasText: 'Reserve A' });
+    await expect(legend).toContainText('0 € von Soll 10,0 %');
+    await expect(legend.locator('.is-empty')).toHaveCount(1);
+    await expect(page.getByTestId('sunburst-classes').locator('.sb-arc')).toHaveCount(2);
+    for (const theme of ['light', 'dark']) {
+      await page.evaluate((value) => (document.documentElement.dataset['theme'] = value), theme);
+      await accessibleAndContained(page, info.project.use.viewport!.width as number);
+      await screenshot(page, `unheld-${theme}-${info.project.name}.png`, info);
+    }
+    // An entirely unheld portfolio still shows its targets and assigned products.
+    payload.allocation.classifiedCents = 0;
+    payload.allocation.totalCents = 0;
+    payload.allocation.classes = [unheld];
+    group.classes = [unheld];
+    group.valueCents = 0;
+    group.shareBp = 0;
+    await page.reload();
+    await expect(page.locator('.composition-legend')).toContainText('Reserve A');
+    await expect(product).toContainText('noch nicht gekauft');
+    await expect(page.getByTestId('sunburst-classes')).toHaveCount(0);
+  },
+);
+
+sampleTest(
   'group and class rings retain full names and keyboard tooltips below six percent',
   async ({ page }, info) => {
     sampleTest.setTimeout(90_000);

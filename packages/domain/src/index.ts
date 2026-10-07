@@ -1,4 +1,5 @@
 export * from './money';
+export * from './month-close';
 export * from './chain';
 export * from './ledger';
 export * from './invest';
@@ -17,6 +18,7 @@ export * from './contacts';
 export * from './profile';
 
 export * from './reports/month';
+export * from './reports/planning-accuracy';
 export * from './overview';
 export * from './spending';
 export * from './report-tables';

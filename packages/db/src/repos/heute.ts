@@ -3,12 +3,14 @@ import {
   addMonths,
   changeBp,
   freeUntilPayday,
+  dailyBudget,
   heuteWindow,
   lastDayOfMonth,
   balanceForecast,
   monthOf,
   netWorthDays,
   netWorthParts,
+  netWorthSides,
   PriceUnavailableError,
   ExchangeRateUnavailableError,
   nextPayday,
@@ -47,6 +49,9 @@ import { financeCheck, type FinanceCheck } from './rules';
 import { MissingFxRateError } from './errors';
 import type { Executor } from './types';
 import { overviewData } from './report-ledger';
+import { monthResultRead } from './month-reports';
+import { wholePicture } from './whole-picture';
+import { listGoals } from './goals';
 
 /**
  * The read model of Heute (concept §7.1, SPEC §3): one call, every figure from the domain
@@ -148,6 +153,15 @@ export function availableSection<T>(read: () => T): T | HeuteUnavailable {
 }
 
 export interface Heute {
+  monthResult: ReturnType<typeof monthResultRead>;
+  budgetAnswer: {
+    spentCents: number;
+    plannedCents: number;
+    remainingCents: number;
+    day: number;
+    daysInMonth: number;
+  };
+  nearestGoal: { id: string; name: string; savedCents: number; remainingCents: number } | null;
   stand: {
     today: string;
     month: string;
@@ -159,6 +173,7 @@ export interface Heute {
     budgetBalanceCents: number;
   };
   lead: FreeUntilPayday;
+  dailyBudget: ReturnType<typeof dailyBudget>;
   balance: {
     /** End-of-day balance of the budget accounts from the window start up to today. */
     actual: { day: string; balanceCents: number }[];
@@ -185,6 +200,11 @@ export interface Heute {
     | HeuteUnavailable;
   netWorth:
     | (NetWorthParts & {
+        assetsCents: number;
+        liabilitiesCents: number;
+        monthChange:
+          | { deltaCents: number; investmentsInCents: number; marketCents: number }
+          | HeuteUnavailable;
         asOf: string;
         previousMonthEndCents: number;
         yearAgoCents: number;
@@ -576,6 +596,16 @@ export function heute(db: Executor, query: HeuteQuery): Heute {
   });
   const netWorth = availableSection(() => {
     const nw = netWorthAsOf(db, today);
+    const { assetsCents, liabilitiesCents } = netWorthSides(Object.values(nw.byAccount));
+    const monthChange = availableSection(() => {
+      const currentMonth = monthOf(today);
+      const { totals } = wholePicture(db, today, `${currentMonth}..${currentMonth}`);
+      return {
+        deltaCents: totals.deltaCents,
+        investmentsInCents: totals.investmentsInCents,
+        marketCents: totals.marketCents,
+      };
+    });
 
     const roles = new Map(facts.accounts.map((a) => [a.id, a.role]));
     const parts = netWorthParts(
@@ -595,6 +625,9 @@ export function heute(db: Executor, query: HeuteQuery): Heute {
     const yearAgoCents = netWorthAsOf(db, yearAgoDay).totalCents;
     return {
       ...parts,
+      assetsCents,
+      liabilitiesCents,
+      monthChange,
       totalCents: nw.totalCents,
       yearAgoDay,
       yearAgoCents,
@@ -626,7 +659,26 @@ export function heute(db: Executor, query: HeuteQuery): Heute {
     },
   );
 
+  const currentPace =
+    month === monthOf(today) ? model : paceOfMonth(facts, monthOf(today), today, all);
+  const goal = listGoals(db, monthOf(today)).find((g) => g.remainingCents > 0);
   return {
+    monthResult: monthResultRead(db, today, monthOf(today)),
+    budgetAnswer: {
+      spentCents: currentPace.figures.spentCents,
+      plannedCents: currentPace.figures.limitCents,
+      remainingCents: currentPace.figures.limitCents - currentPace.figures.spentCents,
+      day: currentPace.todayDay,
+      daysInMonth: currentPace.daysInMonth,
+    },
+    nearestGoal: goal
+      ? {
+          id: goal.id,
+          name: goal.name,
+          savedCents: goal.savedCents,
+          remainingCents: goal.remainingCents,
+        }
+      : null,
     stand: {
       today,
       month,
@@ -637,6 +689,7 @@ export function heute(db: Executor, query: HeuteQuery): Heute {
       budgetBalanceCents: sumBudget((id) => budgetValues[id] ?? 0),
     },
     lead,
+    dailyBudget: dailyBudget(lead),
     balance: { actual, forecast, salary: salaryJump, low },
     pace: { ...model, forecast: paceForecast, previousMonth: paceMonthBefore },
     pinned,

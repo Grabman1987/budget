@@ -2,7 +2,7 @@ import {
   useAmountPrivacy,
   AmountInput,
   Button,
-  DetailPanel,
+  FormDialog,
   Field,
   Segmented,
   Select,
@@ -30,7 +30,7 @@ import {
 } from './plan-model';
 import { useBudgetWrite } from './use-category-writes';
 
-/** Side panel (desktop) / bottom sheet (phone) of one envelope: figures, assign, move, cover. */
+/** Input form for assigning, moving and covering money; details live on the envelope page. */
 export function EnvelopePanel({
   month,
   row,
@@ -46,22 +46,32 @@ export function EnvelopePanel({
 }) {
   useAmountPrivacy();
   return (
-    <DetailPanel open={row !== undefined} onClose={onClose} title={row?.name ?? ''}>
+    <FormDialog open={row !== undefined} onClose={onClose} title={row?.name ?? ''}>
       {row && (
-        <EnvelopeBody
-          key={`${month}:${row.id}`}
-          month={month}
-          row={row}
-          rows={rows}
-          tba={toBeAssignedCents}
-          onDone={onClose}
-        />
+        <div className="bk-head">
+          <h2>{row.name}</h2>
+          <Button variant="ghost" onClick={onClose}>
+            Schließen
+          </Button>
+        </div>
       )}
-    </DetailPanel>
+      <div className="bk-body">
+        {row && (
+          <EnvelopeBody
+            key={`${month}:${row.id}`}
+            month={month}
+            row={row}
+            rows={rows}
+            tba={toBeAssignedCents}
+            onDone={onClose}
+          />
+        )}
+      </div>
+    </FormDialog>
   );
 }
 
-function EnvelopeBody({
+export function EnvelopeBody({
   month,
   row: r,
   rows,
@@ -154,39 +164,6 @@ function EnvelopeBody({
 
   return (
     <div className="kform">
-      <div className={r.cashOverspentCents > 0 ? 'big neg-alert' : 'big'}>
-        {eur(r.availableCents)}
-      </div>
-      <p className="panel-sub">
-        Verfügbar im {monthLabel(month).split(' ')[0]}
-        {r.cls && ` · ${CLASS_TEXT[r.cls]}`}
-        {r.stage && ` · Stufe ${r.stage} ${STAGES[r.stage - 1]?.name}`}
-      </p>
-      <dl className="kv-list">
-        <div className="kv">
-          <dt>Übertrag</dt>
-          <dd>{eur(r.carryCents)}</dd>
-        </div>
-        <div className="kv">
-          <dt>Zugewiesen</dt>
-          <dd>{eur(r.assignedCents, { sign: true })}</dd>
-        </div>
-        <div className="kv">
-          <dt>Aktivität</dt>
-          <dd>{eur(r.activityCents)}</dd>
-        </div>
-        <div className="kv kv-total">
-          <dt>= Verfügbar</dt>
-          <dd>{eur(r.availableCents)}</dd>
-        </div>
-        {r.creditOverspentCents > 0 && (
-          <div className="kv">
-            <dt>davon neue Kartenschuld</dt>
-            <dd className="debt-val">{eur(r.creditOverspentCents)}</dd>
-          </div>
-        )}
-      </dl>
-
       <h3 className="panel-h">Zuweisen</h3>
       <AmountInput
         label="Zugewiesen"
@@ -302,6 +279,47 @@ function EnvelopeBody({
           onCancel={() => setChoosing(false)}
         />
       )}
+    </div>
+  );
+}
+
+/** Read-only envelope figures reused as the detail page body. */
+export function EnvelopeDetails({ month, row: r }: { month: string; row: PlanRow }) {
+  useAmountPrivacy();
+  return (
+    <div className="kform">
+      <div className={r.cashOverspentCents > 0 ? 'big neg-alert' : 'big'}>
+        {eur(r.availableCents)}
+      </div>
+      <p className="panel-sub">
+        Verfügbar im {monthLabel(month).split(' ')[0]}
+        {r.cls && ` · ${CLASS_TEXT[r.cls]}`}
+        {r.stage && ` · Stufe ${r.stage} ${STAGES[r.stage - 1]?.name}`}
+      </p>
+      <dl className="kv-list">
+        <div className="kv">
+          <dt>Übertrag</dt>
+          <dd>{eur(r.carryCents)}</dd>
+        </div>
+        <div className="kv">
+          <dt>Zugewiesen</dt>
+          <dd>{eur(r.assignedCents, { sign: true })}</dd>
+        </div>
+        <div className="kv">
+          <dt>Aktivität</dt>
+          <dd>{eur(r.activityCents)}</dd>
+        </div>
+        <div className="kv kv-total">
+          <dt>= Verfügbar</dt>
+          <dd>{eur(r.availableCents)}</dd>
+        </div>
+        {r.creditOverspentCents > 0 && (
+          <div className="kv">
+            <dt>davon neue Kartenschuld</dt>
+            <dd className="debt-val">{eur(r.creditOverspentCents)}</dd>
+          </div>
+        )}
+      </dl>
 
       <h3 className="panel-h">Ziel</h3>
       <p className="panel-sub">

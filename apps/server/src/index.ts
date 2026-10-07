@@ -15,6 +15,7 @@ import { createMarketSources, marketModeFromEnv, startDailyMarketTimer } from '.
 import { cryptoReadSource } from './sources/crypto-api';
 import { refreshReadSourceIfDue } from './sources/refresh';
 import { todayFromEnv } from './today';
+import { startPlanSnapshotTimer } from './plan-snapshots';
 
 const port = Number(process.env['PORT'] ?? 3000);
 const webDir = resolve(process.env['WEB_DIR'] ?? resolve(import.meta.dirname, '../../web/dist'));
@@ -52,6 +53,7 @@ for (const timer of housekeeping) timer.unref();
 
 // BUDGET_TODAY pins the ledger's "today" (test aid, refused in production).
 const today = todayFromEnv();
+const stopPlanSnapshots = today ? () => {} : startPlanSnapshotTimer(db);
 
 // Heavy import tasks (YNAB dry run, commit, revert) run in a worker thread on its own connection.
 const importJobs = new ImportJobs(db);
@@ -123,6 +125,7 @@ httpServer.headersTimeout = 66_000;
 // Litestream the parent waits for this process to exit before it flushes the last WAL frames.
 let stopping = false;
 function shutdown(signal: NodeJS.Signals): void {
+  stopPlanSnapshots();
   if (stopping) return;
   stopping = true;
   stopBankWorker();

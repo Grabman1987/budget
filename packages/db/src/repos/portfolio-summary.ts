@@ -596,14 +596,6 @@ export function positionCostDetailsAsOf(
     .all();
   const trades = tradesUpTo(db, asOf);
   const valuedByKey = new Map(valuation.values.map((v) => [`${v.accountId}\0${v.securityId}`, v]));
-  const pricedSecurities = new Set(
-    db
-      .select({ securityId: price.securityId })
-      .from(price)
-      .where(lte(price.date, asOf))
-      .all()
-      .map((p) => p.securityId),
-  );
   const keys = [
     ...valuation.values.map((v) => ({ accountId: v.accountId, securityId: v.securityId })),
     ...valuation.missingPricePositions.map((v) => ({
@@ -638,10 +630,7 @@ export function positionCostDetailsAsOf(
         };
       }
       const value = valuedByKey.get(`${accountId}\0${securityId}`);
-      const gain =
-        value && (pricedSecurities.has(securityId) || value.quality === 'estimated')
-          ? gainOf(value.valueCents, cost)
-          : null;
+      const gain = value ? gainOf(value.valueCents, cost) : null;
       return {
         accountId,
         securityId,

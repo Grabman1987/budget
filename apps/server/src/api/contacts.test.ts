@@ -131,6 +131,124 @@ describe('contacts API', () => {
     expect((await call('POST', '/undo', { groupId: undone.body.groupId })).status).toBe(200);
     expect((await call('GET', '/contacts/k1')).body.balanceCents).toBe(6100);
   });
+  it('binds an outlay to a later write-off: edit and delete refuse until undone', async () => {
+    const id = outlay(8400);
+    const w = await call('POST', '/contacts/k1/write-offs', {
+      accountId: 'giro',
+      date: '2026-09-17',
+      amountCents: 2300,
+      categoryId: 'reise',
+    });
+    expect(w.status).toBe(201);
+    for (const patch of [
+      { amountCents: -2000 },
+      { date: '2026-09-02' },
+      { splits: [{ categoryId: 'auslagen', contactId: 'k1', amountCents: -2000 }] },
+    ]) {
+      const r = await call('PATCH', `/bookings/${id}`, patch);
+      expect(r.status).toBe(422);
+      expect(JSON.stringify(r.body)).toMatch(/Ausgleich vom 17\.09\.2026/);
+    }
+    const del = await call('DELETE', `/bookings/${id}`);
+    expect(del.status).toBe(422);
+    expect(JSON.stringify(del.body)).toMatch(/Ausgleich/);
+    expect((await call('GET', '/contacts/k1')).body.balanceCents).toBe(6100);
+    expect((await call('POST', '/undo', { groupId: w.body.groupId })).status).toBe(200);
+    expect((await call('PATCH', `/bookings/${id}`, { amountCents: -2000 })).status).toBe(200);
+  });
+  it('refuses a backdated write-off that would break later allocations with a German 422', async () => {
+    const mk = (date: string) =>
+      createBooking(
+        opened.db,
+        {
+          accountId: 'giro',
+          date,
+          amountCents: -100,
+          splits: [{ categoryId: 'auslagen', contactId: 'k1', amountCents: -100 }],
+        },
+        { actor: 'test' },
+      );
+    mk('2026-09-01');
+    const second = mk('2026-09-02');
+    const first = opened.db
+      .select()
+      .from(schema.bookingSplit)
+      .all()
+      .find((x) => x.contactId === 'k1' && x.amountCents === -100)!;
+    const rec = await call('POST', '/contacts/k1/settlements', {
+      accountId: 'giro',
+      date: '2026-09-04',
+      amountCents: 100,
+      allocations: [{ outlaySplitId: first.id, amountCents: 100 }],
+    });
+    expect(rec.status).toBe(201);
+    expect(second).toBeTruthy();
+    const r = await call('POST', '/contacts/k1/write-offs', {
+      accountId: 'giro',
+      date: '2026-09-03',
+      amountCents: 60,
+      categoryId: 'reise',
+    });
+    expect(r.status).toBe(422);
+    expect(JSON.stringify(r.body)).toMatch(/spätere Zahlungen sind bereits zugeordnet/);
+    expect((await call('GET', '/contacts/k1')).body.balanceCents).toBe(100);
+  });
+  it('allows a backdated write-off inside a reconciled period without touching the balance', async () => {
+    createBooking(
+      opened.db,
+      {
+        accountId: 'giro',
+        date: '2026-09-01',
+        amountCents: -500,
+        status: 'reconciled',
+        splits: [{ categoryId: 'auslagen', contactId: 'k1', amountCents: -500 }],
+      },
+      { actor: 'test' },
+    );
+    const balance = (await call('GET', '/accounts')).body.accounts.find(
+      (a: any) => a.id === 'giro',
+    ).balanceCents;
+    const r = await call('POST', '/contacts/k1/write-offs', {
+      accountId: 'giro',
+      date: '2026-09-01',
+      amountCents: 200,
+      categoryId: 'reise',
+    });
+    expect(r.status).toBe(201);
+    expect(
+      (await call('GET', '/accounts')).body.accounts.find((a: any) => a.id === 'giro').balanceCents,
+    ).toBe(balance);
+  });
+  it('undoes a credit write-off: income split removed, receivable restored', async () => {
+    await call('POST', '/contacts/k1/settlements', {
+      accountId: 'giro',
+      date: '2026-09-02',
+      amountCents: 2300,
+    });
+    const w = await call('POST', '/contacts/k1/write-offs', {
+      accountId: 'giro',
+      date: '2026-09-17',
+      amountCents: 2300,
+    });
+    expect(w.status).toBe(201);
+    expect((await call('GET', '/contacts?history=1')).body.totals).toMatchObject({
+      receivableCents: 0,
+      payableCents: 0,
+      balanceCents: 0,
+    });
+    expect((await call('POST', '/undo', { groupId: w.body.groupId })).status).toBe(200);
+    expect((await call('GET', '/contacts?history=1')).body.totals).toMatchObject({
+      receivableCents: 0,
+      payableCents: 2300,
+      balanceCents: -2300,
+    });
+    const report = (await call('GET', '/reports/month/income?month=2026-09')).body;
+    expect(report.contactWriteOffs).toEqual([]);
+    const splits = opened.db.select().from(schema.bookingSplit).all();
+    expect(splits.filter((x) => x.incomeTypeId === 'income-other' && x.contactId === null)).toEqual(
+      [],
+    );
+  });
   it('rejects invalid, excessive, stale and wrong-counter write-offs atomically', async () => {
     outlay(8400);
     const body = { accountId: 'giro', date: '2026-09-17', amountCents: 8400, categoryId: 'reise' };

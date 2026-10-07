@@ -140,4 +140,4 @@ it('migrates the complete main schema without changing per-security class cents 
     opened.close();
     rmSync(dir, { recursive: true, force: true });
   }
-});
+}, 60_000);

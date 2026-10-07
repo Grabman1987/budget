@@ -191,7 +191,7 @@ describe('GET /api/assets-debts-history without accounts', () => {
 });
 
 describe('GET /api/assets-debts-history valuation quality', () => {
-  it('flags only the month ends that rest on an estimated position', async () => {
+  it('execution-priced historical holdings do not mark month ends or the as-of hint as estimated', async () => {
     const db = createTestDatabase().db;
     seedDatabase(db);
     const depot = db
@@ -237,14 +237,12 @@ describe('GET /api/assets-debts-history valuation quality', () => {
     const flags = Object.fromEntries(body.months.map((m: any) => [m.month, m.incomplete]));
     expect(flags).toEqual({
       '2026-05': false,
-      '2026-06': true,
+      '2026-06': false,
       '2026-07': false,
       '2026-08': false,
     });
-    expect(body.incomplete.map((n: any) => [n.securityId, n.quality])).toEqual([
-      ['ko-warrant', 'estimated'],
-    ]);
-    // Still the same valuation as the net worth page, estimate included.
+    expect(body.incomplete ?? []).toEqual([]);
+    // Still the same valuation as the net worth page, including the execution-price fallback.
     const page = await getFrom(app, '/wealth/networth?period=2026-05..2026-08');
     expect(body.change.endCents).toBe(page.body.chain.nowCents);
   }, 60_000);

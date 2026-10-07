@@ -1,0 +1,15 @@
+.table-scroll-hint {
+  display: none;
+}
+@media (max-width: 767px) {
+  .table-scroll-hint {
+    display: block;
+    position: sticky;
+    left: 0;
+    width: fit-content;
+    max-width: 100%;
+    margin: 0 0 8px;
+    font-size: 12px;
+    color: var(--ink-2);
+  }
+}

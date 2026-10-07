@@ -12,6 +12,143 @@
   .heute p {
     margin-top: 0;
   }
+  .heute-answer-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 12px;
+  }
+  .heute-answer {
+    min-width: 0;
+    display: grid;
+    gap: 4px;
+    align-content: start;
+    padding: 12px 16px;
+    border: 1px solid var(--card-border);
+    border-radius: 12px;
+    background: var(--surface);
+    box-shadow: var(--card-shadow);
+  }
+  .heute-answer h2 {
+    margin: 0;
+    font-size: 17px;
+    line-height: 20px;
+    font-weight: 620;
+  }
+  .heute-answer a {
+    color: inherit;
+    text-decoration: none;
+  }
+  .heute-answer-value {
+    display: block;
+    width: fit-content;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: var(--on-good-soft);
+    font: inherit;
+    font-size: 30px;
+    line-height: 1.1;
+    font-weight: 640;
+    letter-spacing: -0.02em;
+    font-variant-numeric: tabular-nums;
+  }
+  button.heute-answer-value {
+    cursor: pointer;
+    min-height: 44px;
+  }
+  .heute-answer-value.heute-alert {
+    color: var(--red);
+  }
+  .heute-answer-value.is-nonpositive {
+    color: var(--ink);
+  }
+  .heute-answer :is(a, button):focus-visible {
+    outline: 2px solid var(--line);
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+  .heute-answer p {
+    margin: 0;
+    font-size: 12px;
+    line-height: 1.3;
+    color: var(--ink-2);
+    overflow-wrap: anywhere;
+  }
+  .heute-answer-bar {
+    position: relative;
+    height: 6px;
+    background: var(--good);
+    border-radius: 2px;
+    margin: 4px 0;
+  }
+  .heute-answer-fill {
+    display: block;
+    height: 100%;
+    background: var(--rule-strong);
+    border-radius: inherit;
+  }
+  .heute-answer-bar.is-assets {
+    background: var(--rule-strong);
+  }
+  .heute-answer-bar.is-empty {
+    background: var(--rule-strong);
+  }
+  .is-assets .heute-answer-fill {
+    background: var(--good);
+  }
+  .heute-answer-marker {
+    position: absolute;
+    top: -3px;
+    height: 12px;
+    border-left: 2px solid var(--ink);
+    transform: translateX(-1px);
+  }
+  .heute-nearest-goal {
+    margin: 8px 0 0;
+    font-size: 12px;
+  }
+  .heute-lead > .heute-daily-budget {
+    position: relative;
+    inset: auto;
+    justify-content: start;
+  }
+  @media (max-width: 767px) {
+    .heute-answer-grid {
+      grid-template-columns: minmax(0, 1fr);
+      gap: 8px;
+    }
+    .heute-answer {
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 4px 8px;
+      padding: 8px 12px;
+    }
+    .heute-answer h2 {
+      align-self: center;
+      font-size: 14px;
+      line-height: 18px;
+    }
+    .heute-answer-value {
+      font-size: 24px;
+      line-height: 28px;
+    }
+    .heute-answer > a {
+      min-height: 44px;
+      display: flex;
+      align-items: center;
+    }
+    .heute-answer-bar,
+    .heute-answer p {
+      grid-column: 1 / -1;
+    }
+    .heute-answer-bar {
+      margin: 0;
+    }
+    .heute-answer p {
+      font-size: 11px;
+      line-height: 13px;
+    }
+  }
   .heute-lead {
     min-width: 0;
   }
@@ -40,7 +177,7 @@
     display: block;
     max-width: 56ch;
     margin-top: 6px;
-    font-size: 13px;
+    font-size: var(--fs-body);
     font-weight: 560;
     color: var(--ink);
   }
@@ -55,7 +192,7 @@
     border-radius: 12px;
     background: var(--surface);
     box-shadow: var(--card-shadow);
-    font-size: 13.5px;
+    font-size: var(--fs-body);
     color: var(--ink-2);
   }
   .heute-month-note > svg {
@@ -100,6 +237,52 @@
   }
   .heute-balance-drawing {
     position: relative;
+  }
+  .heute-daily-budget {
+    position: absolute;
+    z-index: 2;
+    inset: 94px 8px auto;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    color: var(--ink-2);
+    font-size: 14px;
+    font-variant-numeric: tabular-nums;
+  }
+  .heute-daily-budget.is-alarm {
+    color: var(--red);
+  }
+  .heute-daily-budget button {
+    display: grid;
+    place-items: center;
+    width: 44px;
+    height: 44px;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: inherit;
+    cursor: pointer;
+  }
+  .heute-daily-budget button:focus-visible {
+    outline: 2px solid var(--line);
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+  .heute-daily-help {
+    position: absolute;
+    z-index: 3;
+    inset: 100% 0 auto;
+    padding: 10px 12px;
+    border: 1px solid var(--rule-strong);
+    border-radius: 8px;
+    background: var(--raised);
+    color: var(--ink);
+    box-shadow: var(--card-shadow);
+    font-size: var(--fs-body);
+  }
+  .heute-balance-drawing.is-narrow .heute-daily-budget {
+    top: 58px;
   }
   .heute-lead-figure:focus-visible {
     outline: 2px solid var(--line);
@@ -152,7 +335,7 @@
   }
   .heute-breakdown h3 {
     margin: 12px 0 2px;
-    font-size: 15px;
+    font-size: var(--fs-body);
   }
   .heute-breakdown ul {
     margin: 0;
@@ -220,7 +403,7 @@
   }
   .heute-figure strong {
     color: var(--ink);
-    font-size: 22px;
+    font-size: var(--fs-figure);
     font-weight: 640;
     font-variant-numeric: tabular-nums;
   }
@@ -267,7 +450,7 @@
     gap: 5px;
     margin: 0 0 8px;
     color: var(--line);
-    font-size: 13px;
+    font-size: var(--fs-body);
     font-weight: 600;
   }
   .heute-net-composition {
@@ -320,7 +503,7 @@
     white-space: nowrap;
   }
   .heute .class-tag {
-    font-size: 10.5px;
+    font-size: var(--fs-class-tag);
   }
   .he-envelope-bar {
     height: 7px;
@@ -390,7 +573,7 @@
     margin-bottom: 10px;
   }
   .heute-check-counts > strong {
-    font-size: 28px;
+    font-size: var(--fs-display);
     font-weight: 640;
     font-variant-numeric: tabular-nums;
   }
@@ -534,7 +717,7 @@
       flex: 1 1 28%;
     }
     .heute-figure strong {
-      font-size: 19px;
+      font-size: var(--fs-headline);
     }
     .heute-upcoming {
       grid-template-columns: 44px minmax(0, 1fr);
@@ -665,7 +848,7 @@
     gap: 4px 12px;
   }
   .heute-wealth-line a {
-    font-size: 13px;
+    font-size: var(--fs-body);
   }
 }
 

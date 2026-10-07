@@ -54,6 +54,7 @@ export function safeBankRegex(pattern: string): boolean {
 }
 
 export const assignmentConditionSchema = z.discriminatedUnion('type', [
+  z.object({ type: z.literal('counterparty'), text: z.string().min(1).max(4096) }).strict(),
   z.object({ type: z.literal('payee'), payeeId: identifier }).strict(),
   z.object({ type: z.literal('contains'), text: z.string().trim().min(1).max(200) }).strict(),
   z
@@ -89,6 +90,8 @@ export const assignmentActionsSchema = z
   .object({
     payeeId: identifier.nullable().optional(),
     categoryId: identifier.nullable().optional(),
+    incomeTypeId: identifier.nullable().optional(),
+    accountId: identifier.optional(),
     splits: z
       .array(
         z.object({ categoryId: identifier, weightBp: z.number().int().min(1).max(10000) }).strict(),
@@ -102,6 +105,10 @@ export const assignmentActionsSchema = z
   })
   .strict()
   .refine((v) => Object.keys(v).length > 0, 'Mindestens eine Aktion wählen.')
+  .refine(
+    (v) => !v.incomeTypeId || (!v.splits && !v.transferAccountId),
+    'Einnahmeart nicht mit Split-Vorlage oder Umbuchung kombinieren.',
+  )
   .refine(
     (v) =>
       !v.splits ||
@@ -137,11 +144,17 @@ export interface AssignmentRow {
   amountCents: number;
   payeeId: string | null;
   rawText: string;
+  counterparty?: string;
+  source?: string;
 }
 
 export function matchesAssignment(match: AssignmentMatch, row: AssignmentRow): boolean {
   const test = (condition: AssignmentCondition): boolean => {
     switch (condition.type) {
+      case 'counterparty':
+        return (
+          !!row.counterparty && bankAliasKey(row.counterparty) === bankAliasKey(condition.text)
+        );
       case 'payee':
         return row.payeeId === condition.payeeId;
       case 'contains':

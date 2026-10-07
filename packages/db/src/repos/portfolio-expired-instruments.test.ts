@@ -96,17 +96,15 @@ afterEach(() => opened.close());
 
 const ETF = 100_000; // 10 units x 100,00
 describe('held in the past, never priced', () => {
-  it('net worth on a day it was held works and values it at cost, flagged estimated', () => {
+  it('net worth on a held day uses the gross trade price without an estimate flag', () => {
     const during = netWorthAsOf(opened.db, '2026-01-10');
-    expect(during.totalCents).toBe(100_000 + ETF + 20_100);
-    expect(during.incomplete).toEqual([
-      expect.objectContaining({ securityId: 'ko', quality: 'estimated' }),
-    ]);
+    expect(during.totalCents).toBe(100_000 + ETF + 20_000);
+    expect(during.incomplete).toEqual([]);
     expect(
       holdingValuesAsOf(opened.db, '2026-01-10').map((h) => [h.securityId, h.quality]),
     ).toEqual([
       ['etf', 'exact'],
-      ['ko', 'estimated'],
+      ['ko', 'exact'],
     ]);
     // Before it was bought and after it was knocked out it contributes nothing and is no issue.
     for (const day of ['2026-01-05', '2026-01-14', '2026-01-20']) {
@@ -119,19 +117,10 @@ describe('held in the past, never priced', () => {
   it('the daily series spans the whole holding window without failing', () => {
     const series = valuationSeries(opened.db, { from: '2026-01-04', to: '2026-01-16' });
     const warrant = series.positions.find((p) => p.securityId === 'ko')!;
-    expect(warrant.quality).toBe('estimated');
-    // 6.1. to 13.1.: eight held days at the cost, nothing before and after.
-    expect(warrant.valueCents).toEqual([0, 0, ...Array(8).fill(20_100), 0, 0, 0]);
-    expect(series.incomplete).toEqual([
-      {
-        accountId: 'depot',
-        securityId: 'ko',
-        quality: 'estimated',
-        days: 8,
-        from: '2026-01-06',
-        to: '2026-01-13',
-      },
-    ]);
+    expect(warrant.quality).toBe('exact');
+    // 6.1. to 13.1.: eight held days at the execution price, excluding fees.
+    expect(warrant.valueCents).toEqual([0, 0, ...Array(8).fill(20_000), 0, 0, 0]);
+    expect(series.incomplete).toEqual([]);
     const days = netWorthDaily(opened.db, '2026-01-02', '2026-01-18');
     expect(days).toHaveLength(17);
     expect(days.find((d) => d.date === '2026-01-10')!.netWorthCents).toBe(
@@ -146,7 +135,7 @@ describe('held in the past, never priced', () => {
     });
   });
 
-  it('reports the securities of one request as notes, merged and named', () => {
+  it('does not report execution-priced positions as estimated request notes', () => {
     const { notes, named } = runWithValuationNotes((read) => {
       netWorthAsOf(opened.db, '2026-01-10');
       netWorthAsOf(opened.db, '2026-01-12');
@@ -154,10 +143,8 @@ describe('held in the past, never priced', () => {
       const found = read();
       return { notes: found, named: namedNotes(opened.db, found) };
     });
-    expect(notes).toEqual([
-      { securityId: 'ko', quality: 'estimated', from: '2026-01-06', to: '2026-01-13' },
-    ]);
-    expect(named[0]!.name).toBe('Synthetic warrant');
+    expect(notes).toEqual([]);
+    expect(named).toEqual([]);
     // Outside a request nothing is collected.
     expect(() => netWorthAsOf(opened.db, '2026-01-10')).not.toThrow();
   });
