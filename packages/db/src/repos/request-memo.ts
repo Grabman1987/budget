@@ -50,6 +50,18 @@ export function databaseStamp(db: Executor): string {
 
 /** `compute()` once per key and database state within the current request. */
 export function memoized<T>(db: Executor, key: string, compute: () => T): T {
+  return memoizedEntry(db, key, compute, true);
+}
+
+/**
+ * Like `memoized`, but every caller receives the stored object itself: no copy of large row sets.
+ * Only for read models whose callers never change what they get (they filter, map and sum).
+ */
+export function memoizedShared<T>(db: Executor, key: string, compute: () => T): T {
+  return memoizedEntry(db, key, compute, false);
+}
+
+function memoizedEntry<T>(db: Executor, key: string, compute: () => T, clone: boolean): T {
   const memo = storage.getStore();
   const connection = connectionOf(db);
   if (!memo || !connection || (!isTransaction(db) && connection.inTransaction)) return compute();
@@ -59,9 +71,12 @@ export function memoized<T>(db: Executor, key: string, compute: () => T): T {
     entries = { stamp, values: new Map() };
     memo.byExecutor.set(db, entries);
   }
-  if (entries.values.has(key)) return structuredClone(entries.values.get(key)) as T;
+  if (entries.values.has(key)) {
+    const stored = entries.values.get(key);
+    return (clone ? structuredClone(stored) : stored) as T;
+  }
   const value = compute();
   // `compute` only reads; if it wrote anyway the stamp has moved and nothing may be stored.
-  if (databaseStamp(db) === stamp) entries.values.set(key, structuredClone(value));
+  if (databaseStamp(db) === stamp) entries.values.set(key, clone ? structuredClone(value) : value);
   return value;
 }
