@@ -26,6 +26,14 @@ Older CI/publication checkboxes below describe their original deliveries. Curren
 - [x] Independent final visual review confirmed the stored terms and model values are distinguishable in the refreshed captures.
 - [ ] PR integration and owner acceptance remain pending.
 
+### P0 #295 — Bank-cost coverage disclosure — 2026-10-08
+
+- [x] Preserve the existing bank-cost known subtotal while stating its coverage beside the headline; distinguish current unknown-rate usage and nonzero modeled account/month periods without dated EUR conversion, with the current-conditions date separate from closed-month dates.
+- [x] Keep known zero distinct from missing FX and keep TER/spread excluded; the portfolio cost report and existing cost formulas remain unchanged.
+- [x] Reproduce each API gap with synthetic RED cases; focused report API/DB regressions pass, E2E build succeeds, and final existing plus new desktop/mobile bank-cost report checks pass with literal nonzero booked/estimated amounts, Axe and overflow checks. [Evidence and captures](evidence/bank-cost-coverage-295/README.md).
+- [x] Full repository check: 378 files / 3,491 tests, exit 0. Afterward, shorten the verdict metric label and clarify the DTO comment; scoped lint/format, E2E build and final 9-case desktop/mobile run pass on that copy-only follow-up.
+- [ ] PR integration and owner acceptance.
+
 ### #286 — Income pause domain amount — 2026-10-08
 
 - [x] Add a pure shared-domain amount adapter for a matching scheduled EUR inflow inside a caller-validated inclusive interval; preserve the original occurrence and all other sources, kinds, currencies, and dates.
