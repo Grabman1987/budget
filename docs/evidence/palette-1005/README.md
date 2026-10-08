@@ -7,9 +7,10 @@ choices are prioritized before the per-kind server limit; only eight IDs are kep
 in session memory, with fresh server validation on reopening. No dependencies,
 provider calls or booking mutations were added.
 
-The four actions reuse capture, Posteingang, account reconciliation and device
-amount privacy. **Monatsabschluss starten** opens Konten with the hint
-**Zuerst Kontostände prüfen**; the app has no month-close wizard. The `?` help uses
+The four actions reuse capture, Posteingang, the existing month-close flow and
+device amount privacy. **Monatsabschluss starten** opens the period's existing
+month-close wizard and resumes saved progress; its hint is
+**Zuerst Kontostände prüfen**. The `?` help uses
 the existing capture shortcut text and flag key/label lists. Native dialogs retain
 Escape, focus return and keyboard scrolling; arrow keys and Enter select results.
 
