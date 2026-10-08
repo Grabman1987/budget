@@ -31,6 +31,123 @@ async function postTo(
 const post = (request: APIRequestContext, path: string, data: unknown) =>
   postTo(request, path, data);
 
+isolatedTest(
+  'plan: distinguish an empty target inventory from zero and reached targets',
+  async ({ page, baseURL }, testInfo) => {
+    const month = '2026-10';
+    const origin = baseURL!;
+    const { request } = page;
+    const post = (path: string, data: unknown) => postTo(request, path, data, origin);
+    const tag = `${testInfo.project.name}-${Date.now().toString(36).slice(-5)}`;
+    const group = (await post('/categories/groups', { name: `Zielstatus ${tag}` }))['group']!;
+    const category = (
+      await post('/categories', {
+        name: `Ohne Monatsziel ${tag}`,
+        groupId: group.id,
+        class: 'need',
+        stage: 2,
+        target: {
+          validFrom: '2026-11',
+          target: { kind: 'monthly', amountCents: 0 },
+        },
+      })
+    )['category']!;
+    const hidden = await request.patch(`/api/categories/${category.id}`, {
+      data: { hidden: true },
+      headers: { origin },
+    });
+    expect(hidden.ok(), await hidden.text()).toBe(true);
+
+    await page.goto(`/plan/monat?monat=${month}`);
+    const card = page.getByTestId('income-targets');
+    await expect(card).toContainText('Noch nicht eingerichtet.');
+    const checkCardPresentation = async (state: 'empty' | 'zero') => {
+      const viewport = page.viewportSize();
+      expect(viewport).toBeTruthy();
+      expect(
+        await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth),
+        'the plan page should not scroll horizontally',
+      ).toBe(true);
+
+      for (const scheme of ['light', 'dark'] as const) {
+        await page.emulateMedia({ colorScheme: scheme, reducedMotion: 'reduce' });
+        const axe = await new AxeBuilder({ page })
+          .include('[data-testid="income-targets"]')
+          .analyze();
+        expect(axe.violations.map((violation) => violation.id)).toEqual([]);
+        await card.screenshot({
+          path: testInfo.outputPath(`income-targets-${state}-${viewport!.width}-${scheme}.png`),
+        });
+      }
+    };
+    await checkCardPresentation('empty');
+    const readBudget = async () => {
+      const response = await request.get(`/api/budget/${month}`);
+      expect(response.ok(), await response.text()).toBe(true);
+      return (await response.json()) as {
+        incomeTargets: { targetsCents: number; unfundedCategoryIds: string[] };
+        summary: {
+          envelopes: Array<{
+            categoryId: string;
+            needCents: number;
+            target: { amountCents: number } | null;
+          }>;
+        };
+      };
+    };
+    let budget = await readBudget();
+    expect(budget.incomeTargets.targetsCents).toBe(0);
+    expect(
+      budget.summary.envelopes.find((row) => row.categoryId === category.id)?.target,
+    ).toBeNull();
+
+    const zeroTarget = await request.put(`/api/categories/${category.id}/target`, {
+      data: { validFrom: month, target: { kind: 'monthly', amountCents: 0 } },
+      headers: { origin },
+    });
+    expect(zeroTarget.ok(), await zeroTarget.text()).toBe(true);
+    await page.reload();
+    await expect(card).toContainText('Alle Monatsziele sind finanziert.');
+    await checkCardPresentation('zero');
+    budget = await readBudget();
+    expect(
+      budget.summary.envelopes.find((row) => row.categoryId === category.id)?.target,
+    ).toMatchObject({ amountCents: 0 });
+
+    await post('/accounts', {
+      name: `Konto Zielstatus ${tag}`,
+      type: 'checking',
+      openingDate: `${month}-01`,
+      openingBalanceCents: 10_000,
+    });
+    const reached = (
+      await post('/categories', {
+        name: `Erreichtes Monatsziel ${tag}`,
+        groupId: group.id,
+        class: 'need',
+        stage: 2,
+        target: {
+          validFrom: month,
+          target: { kind: 'monthly', amountCents: 10_000 },
+        },
+      })
+    )['category']!;
+    const assigned = await request.put(`/api/budget/${month}/assigned`, {
+      data: { items: [{ categoryId: reached.id, assignedCents: 10_000 }] },
+      headers: { origin },
+    });
+    expect(assigned.ok(), await assigned.text()).toBe(true);
+    await page.reload();
+    await expect(card).toContainText('Alle Monatsziele sind finanziert.');
+    budget = await readBudget();
+    expect(budget.summary.envelopes.find((row) => row.categoryId === reached.id)).toMatchObject({
+      needCents: 0,
+      target: { amountCents: 10_000 },
+    });
+    expect(budget.incomeTargets.unfundedCategoryIds).not.toContain(reached.id);
+  },
+);
+
 // Isolated ledger: the cover step's "fest verplant" figures must not depend on expected payments
 // or pending bookings other specs create in the shared database. Its today is pinned.
 isolatedTest(

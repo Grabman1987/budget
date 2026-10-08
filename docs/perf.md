@@ -1,5 +1,13 @@
 # Performance
 
+The timings below are historical synthetic measurements from the original performance branch,
+before the #282 cache repair and its union with current main. The current integration's evidence is
+in [cache integrity](evidence/cache-integrity-282.md); it verifies selected financial responses and
+regressions, not all-route performance or live speed. The measurement loop invalidates the response
+cache before every repetition, and the comparison script currently skips missing after-routes.
+Reproducible browser cold/warm measurement and profiling remain #280/#281; the inaccurate warmed
+model count for `/inbox/count` remains #349. Do not treat the old table as their acceptance evidence.
+
 Server timings of the read models on a production-sized synthetic ledger, how to measure them and
 what was changed (part 1: PR #236, part 2: this document). Money results are integer cents and
 stay identical: every optimised read model is compared response by response (`scripts/perf/compare.mjs`)

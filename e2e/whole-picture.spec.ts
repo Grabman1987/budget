@@ -128,11 +128,16 @@ sampleTest(
     });
     if (info.project.name === 'desktop') {
       await page.setViewportSize({ width: 734, height: 1062 });
-      // The resize may or may not redraw the chart (and with it the toggle): make sure the optional
-      // income line is on before switching to paper, whatever state the toggle is in.
-      const toggle = page.getByRole('button', { name: /^(Mehr|Weniger) anzeigen$/ });
+      // Wait for the phone shell before selecting the optional lines for print.
+      // Crossing the shell breakpoint can remount the chart and reset its local selection.
+      await expect(page.locator('.m-head')).toBeVisible();
+      const contextToggle = page.locator('.pace-context-toggle');
+      await expect(contextToggle).toBeVisible();
       await expect(async () => {
-        if ((await toggle.getAttribute('aria-pressed')) !== 'true') await toggle.click();
+        if ((await contextToggle.getAttribute('aria-pressed')) !== 'true') {
+          await contextToggle.click();
+        }
+        await expect(contextToggle).toHaveAttribute('aria-pressed', 'true');
         await expect(page.locator('.pace-income-line').first()).toBeVisible({ timeout: 2_000 });
       }).toPass();
       await page.emulateMedia({ media: 'print' });

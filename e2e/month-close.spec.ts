@@ -143,8 +143,8 @@ test('guided month close uses existing actions, resumes and leaves F2 pending', 
     await page.getByRole('button', { name: 'Suchen', exact: true }).click();
   else await page.keyboard.press('Control+k');
   await page
-    .locator('.global-search-popup')
-    .getByRole('link', { name: 'Monatsabschluss starten oder fortsetzen', exact: true })
+    .getByRole('listbox', { name: 'Suchergebnisse' })
+    .getByRole('option', { name: /Monatsabschluss starten/ })
     .click();
   await expect(page.getByRole('heading', { name: '4. Nächsten Monat planen' })).toBeVisible();
 });

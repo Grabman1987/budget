@@ -49,6 +49,7 @@ import { AnswerCards } from './answer-cards';
 import { DailyBudgetLine } from './charts';
 import { VerdictLine } from '../reports/verdict-line';
 import { heuteVerdictFacts } from '../reports/verdict-facts';
+import { Upcoming } from './upcoming-payments';
 
 const pct = new Intl.NumberFormat('de-AT', { maximumFractionDigits: 2 });
 const STATUS: Record<string, string> = {
@@ -640,64 +641,6 @@ function MoreMonth({ phone, children }: { phone: boolean; children: ReactNode })
   );
 }
 
-function Upcoming({ items, id, title }: { items: Heute['upcoming14']; id: string; title: string }) {
-  useAmountPrivacy();
-  return (
-    <section className="heute-section" aria-labelledby={id}>
-      <SectionHead
-        id={id}
-        title={title}
-        aside={
-          <AppLink to="/plan/erwartet">
-            Alle <ChevronRight size={15} aria-hidden="true" />
-          </AppLink>
-        }
-      />
-      {items.length === 0 ? (
-        <EmptyNote>Keine wiederkehrenden Zahlungen in diesem Zeitraum.</EmptyNote>
-      ) : (
-        <ul className="heute-list">
-          {items.map((item) => (
-            <li className="heute-upcoming" key={`${item.paymentId}-${item.dueDate}`}>
-              <time dateTime={item.dueDate}>{shortDay(item.dueDate)}</time>
-              <div>
-                <strong>{item.name}</strong>
-                <span>
-                  {[item.accountName, item.contactName, item.categoryName]
-                    .filter(Boolean)
-                    .join(' · ') || 'Ohne weitere Angabe'}
-                </span>
-              </div>
-              <div className="heute-amount-status">
-                <AppLink to="/plan/erwartet" search={{ zahlung: item.paymentId }}>
-                  {eur(item.amountCents, { sign: true })}
-                </AppLink>
-                <span
-                  className={
-                    item.covered === false ? 'heute-note' : item.covered ? 'heute-good' : ''
-                  }
-                >
-                  {item.covered === true ? (
-                    <>
-                      <CircleCheck size={14} aria-hidden="true" /> Rücklage voll
-                    </>
-                  ) : item.covered === false ? (
-                    <>
-                      <Clock3 size={14} aria-hidden="true" /> nicht gedeckt
-                    </>
-                  ) : (
-                    statusText(item.status)
-                  )}
-                </span>
-              </div>
-            </li>
-          ))}
-        </ul>
-      )}
-    </section>
-  );
-}
-
 function WealthSparkline({ series }: { series: { day: string; cents: number }[] }) {
   const min = Math.min(...series.map((p) => p.cents));
   const span = Math.max(1, Math.max(...series.map((p) => p.cents)) - min);
@@ -936,16 +879,6 @@ function StatusIcon({ status }: { status: 'ok' | 'warn' | 'bad' }) {
   if (status === 'ok') return <CircleCheck size={15} aria-hidden="true" />;
   if (status === 'warn') return <Clock3 size={15} aria-hidden="true" />;
   return <AlertTriangle size={15} aria-hidden="true" />;
-}
-
-function statusText(status: Heute['upcoming14'][number]['status']) {
-  return status === 'expected'
-    ? 'erwartet'
-    : status === 'received'
-      ? 'erhalten'
-      : status === 'deviating'
-        ? 'abweichend'
-        : 'versäumt';
 }
 
 function monthLabel(month: string) {
