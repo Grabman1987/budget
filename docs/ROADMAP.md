@@ -9,6 +9,14 @@
 
 Older CI/publication checkboxes below describe their original deliveries. Current integration evidence is in [STATUS](STATUS.md); private/device acceptance stays open unless independently recorded.
 
+### #272 — Expected income is not free surplus — 2026-10-08
+
+- [x] Label a positive expected-income/target remainder as a planning difference; retain the existing expected-income label and note that it is unavailable until received. Leave all calculations and negative `Zu verteilen` status unchanged.
+- [x] Add literal component and isolated-ledger regressions for expected income €3,000, targets €2,000, cash €1,000, and `Zu verteilen` −€500, with desktop/mobile light/dark browser evidence; see [synthetic evidence](evidence/income-targets-272/README.md).
+- [x] Focused component regression, web typecheck, scoped ESLint/Prettier, E2E build and isolated desktop/mobile browser checks pass on integrated HEAD `9922b6a6`; no owner data or live ledger used.
+- [x] Full repository check passes (373 files / 3,448 tests), and independent final review found no issue-specific findings.
+- [ ] Owner iPhone/device acceptance remains tracked separately under #310.
+
 ### E1 — Report verdict sentences (owner 2026-10-06)
 
 - [x] Pure typed fact detectors, strongest-fact selection, 230 German templates, deterministic period variation and previous-template exclusion; no new dependency or second ledger calculation.
