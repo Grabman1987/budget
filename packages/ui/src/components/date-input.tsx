@@ -1,7 +1,14 @@
 import { useEffect, useRef, type ComponentProps } from 'react';
 
 /** German display; form state keeps ISO dates and incomplete input stays editable. */
-export function DateInput({ value = '', onChange, min, max, ...rest }: ComponentProps<'input'>) {
+export function DateInput({
+  value = '',
+  onChange,
+  min,
+  max,
+  ref,
+  ...rest
+}: ComponentProps<'input'>) {
   const input = useRef<HTMLInputElement>(null);
   const raw = String(value);
   const iso = raw.replace(/^(\d{2})\.(\d{2})\.(\d{4})$/, '$3-$2-$1');
@@ -19,7 +26,11 @@ export function DateInput({ value = '', onChange, min, max, ...rest }: Component
   return (
     <input
       {...rest}
-      ref={input}
+      ref={(node) => {
+        input.current = node;
+        if (typeof ref === 'function') ref(node);
+        else if (ref) ref.current = node;
+      }}
       type="text"
       inputMode="numeric"
       placeholder="TT.MM.JJJJ"
