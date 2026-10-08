@@ -2,6 +2,10 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { createTestDatabase, type OpenedDatabase } from '../client';
 import { account } from '../schema';
 import { memoized, memoizedShared, runWithRequestMemo } from './request-memo';
+import { createBooking } from './bookings';
+import { explorerReport } from './overview-reports';
+import { overviewData } from './report-ledger';
+import { seedBasics, testCtx } from './test-helpers';
 
 let opened: OpenedDatabase;
 beforeEach(() => {
@@ -24,6 +28,45 @@ const insertAccount = (id: string) =>
     .run();
 
 describe('request memo', () => {
+  it('keeps later spending available after an earlier Explorer read in the same request', () => {
+    seedBasics(opened.db);
+    const ids = (
+      [
+        ['2026-09-10', -125],
+        ['2026-09-20', -375],
+      ] as const
+    ).map(([date, cents]) =>
+      createBooking(
+        opened.db,
+        {
+          accountId: 'giro',
+          date,
+          amountCents: cents,
+          splits: [{ categoryId: 'reise', amountCents: cents }],
+        },
+        testCtx,
+      ),
+    );
+    const query = {
+      dim: 'kategorie',
+      cls: 'alle',
+      cols: 'monat',
+      period: '2026-09..2026-09',
+      meas: 'summe',
+    } as const;
+    runWithRequestMemo(() => {
+      const first = explorerReport(opened.db, query, '2026-09-15');
+      expect(first.result.rows.find((r) => r.key === 'reise')?.total).toBe(125);
+      const later = explorerReport(opened.db, query, '2026-09-30');
+      expect(later.result.rows.find((r) => r.key === 'reise')?.total).toBe(500);
+      expect(
+        overviewData(opened.db)
+          .splits.map((s) => s.bookingId)
+          .sort(),
+      ).toEqual(ids.sort());
+    });
+  });
+
   it('computes once per request and gives the stored object to every caller (shared)', () => {
     let computed = 0;
     const read = () => memoizedShared(opened.db, 'k', () => ({ n: ++computed }));

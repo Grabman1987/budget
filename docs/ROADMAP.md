@@ -1,5 +1,11 @@
 # Roadmap
 
+### P0 #282 — Request cache integrity
+
+- [x] Reproduce and repair shared Explorer/history mutations and nested-savepoint stale valuation; four focused files / 29 tests pass, including real API mutation/undo/redo and rollback checks. [Evidence](evidence/cache-integrity-282.md).
+- [x] Full `npm run check`: 372 files / 3,410 tests, exit 0 (Vitest 970.12s). [Evidence](evidence/cache-integrity-282.md).
+- [ ] Final PR integration.
+
 ### E1 — Report verdict sentences (owner 2026-10-06)
 
 - [x] Pure typed fact detectors, strongest-fact selection, 230 German templates, deterministic period variation and previous-template exclusion; no new dependency or second ledger calculation.
