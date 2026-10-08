@@ -50,7 +50,19 @@ export function lastDayOfMonth(month: string): string {
 
 /** Whole days from `a` to `b` (positive when `b` is later). */
 export function daysBetween(a: string, b: string): number {
-  return Math.round((Date.parse(`${b}T00:00:00Z`) - Date.parse(`${a}T00:00:00Z`)) / DAY_MS);
+  return Math.round((dayMs(b) - dayMs(a)) / DAY_MS);
+}
+
+/** Parsed days are reused: the age and matching loops call this millions of times per request. */
+const parsedDays = new Map<string, number>();
+function dayMs(day: string): number {
+  let ms = parsedDays.get(day);
+  if (ms === undefined) {
+    if (parsedDays.size >= 50_000) parsedDays.clear();
+    ms = Date.parse(`${day}T00:00:00Z`);
+    parsedDays.set(day, ms);
+  }
+  return ms;
 }
 
 /** The day `n` days after `day` (`YYYY-MM-DD`, negative `n` goes back). */

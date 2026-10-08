@@ -9,6 +9,13 @@
 
 Older CI/publication checkboxes below describe their original deliveries. Current integration evidence is in [STATUS](STATUS.md); private/device acceptance stays open unless independently recorded.
 
+### P0 #282 — Request cache integrity
+
+- [x] Reproduce and repair shared Explorer/history mutations and nested-savepoint stale valuation; four focused files / 29 tests pass, including real API mutation/undo/redo and rollback checks. [Evidence](evidence/cache-integrity-282.md).
+- [x] Pre-integration full `npm run check`: 372 files / 3,410 tests, exit 0 (Vitest 970.12s); see [evidence](evidence/cache-integrity-282.md).
+- [x] Full check on the #250 + verified-main union: 376 files / 3,476 tests, exit 0; E2E build and focused desktop/mobile inbox and One-Pager checks passed (18 passed, one desktop-only skip). [Evidence](evidence/cache-integrity-282.md).
+- [ ] Complete PR integration.
+
 ### #272 — Expected income is not free surplus — 2026-10-08
 
 - [x] Label a positive expected-income/target remainder as a planning difference; retain the existing expected-income label and note that it is unavailable until received. Leave all calculations and negative `Zu verteilen` status unchanged.

@@ -37,9 +37,9 @@ export function planMonthViews(
   const ledger = budgetLedger(db);
   const history = reportTables(db, { today }).months;
   const categoryById = new Map(tree.categories.map((c) => [c.id, c]));
-  const facts = loadFacts(db, lastDayOfMonth(last), ledger);
+  const facts = loadFacts(db, lastDayOfMonth(last));
   // Cover limits always read today's facts, as the single and bulk cover do.
-  const coverFacts = loadFacts(db, today, ledger);
+  const coverFacts = loadFacts(db, today);
   const budgetMoney = coverBudgetMoney(db, today, coverFacts);
   const starts = ledger.accounts.filter((a) => a.onBudget).map((a) => monthOf(a.openingDate));
   // One budget run from the first budget month (the facts hold it for the default card rule).

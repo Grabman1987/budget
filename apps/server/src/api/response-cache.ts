@@ -44,7 +44,9 @@ export function readModelCache(
   };
   return async (c, next) => {
     if (c.req.method !== 'GET' || !CACHEABLE.test(c.req.path.replace(/^\/api/, ''))) return next();
-    const key = `${today()}|${c.req.url}`;
+    // Path and query only: the in-process warm-up (`api/warm.ts`) asks without host and `/api`.
+    const url = new URL(c.req.url);
+    const key = `${today()}|${url.pathname.replace(/^\/api(?=\/)/, '')}${url.search}`;
     const stamp = databaseStamp(db);
     const hit = entries.get(key);
     if (hit && hit.stamp === stamp && now() - hit.storedAt < MAX_AGE_MS) {

@@ -133,11 +133,13 @@ sampleTest(
       await expect(page.locator('.m-head')).toBeVisible();
       const contextToggle = page.locator('.pace-context-toggle');
       await expect(contextToggle).toBeVisible();
-      if ((await contextToggle.getAttribute('aria-pressed')) !== 'true') {
-        await contextToggle.click();
-      }
-      await expect(contextToggle).toHaveAttribute('aria-pressed', 'true');
-      await expect(page.locator('.pace-income-line').first()).toBeVisible();
+      await expect(async () => {
+        if ((await contextToggle.getAttribute('aria-pressed')) !== 'true') {
+          await contextToggle.click();
+        }
+        await expect(contextToggle).toHaveAttribute('aria-pressed', 'true');
+        await expect(page.locator('.pace-income-line').first()).toBeVisible({ timeout: 2_000 });
+      }).toPass();
       await page.emulateMedia({ media: 'print' });
       await expect(page.locator('.global-search-trigger')).toBeHidden();
       await expect(page.locator('.pace-income-line').first()).toHaveCSS('animation-name', 'none');

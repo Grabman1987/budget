@@ -10,10 +10,16 @@ import {
   contactSettlement,
 } from '../schema';
 import { BookingInvariantError } from './errors';
+import { memoizedShared } from './request-memo';
 import type { Executor } from './types';
 
 /** A zero booking with contact shares reclassifies money already held, never earned cash. */
+/** Read once per request and database state; callers only look ids up (`has`). */
 export function cashlessContactBookingIds(db: Executor): Set<string> {
+  return memoizedShared(db, 'cashlessContactBookingIds', () => readCashlessContactBookingIds(db));
+}
+
+function readCashlessContactBookingIds(db: Executor): Set<string> {
   return new Set(
     db
       .select({ id: booking.id })
