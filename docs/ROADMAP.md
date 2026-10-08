@@ -1,5 +1,14 @@
 # Roadmap
 
+### Current source and acceptance baseline — 2026-10-08
+
+- [x] Reconcile README and STATUS with verified main/live `5193b0a`, connected workflows and all 34 report bodies; preserve historical audit evidence.
+- [x] Add [ACCEPTANCE](ACCEPTANCE.md) separating source, PR/checks, deployment and financial/device/owner acceptance, with the ordered small-task queue.
+- [ ] Required checks and independent documentation PR review/integration; this baseline is not the later post-stack refresh #352.
+- [ ] Reconcile historical FEATURES/TASKS/requirement and per-task roadmap details as their concrete tasks are reviewed; no blanket gate/owner acceptance.
+
+Older CI/publication checkboxes below describe their original deliveries. Current integration evidence is in [STATUS](STATUS.md); private/device acceptance stays open unless independently recorded.
+
 ### E1 — Report verdict sentences (owner 2026-10-06)
 
 - [x] Pure typed fact detectors, strongest-fact selection, 230 German templates, deterministic period variation and previous-template exclusion; no new dependency or second ledger calculation.
@@ -753,6 +762,15 @@ Owner feedback 2026-10-04: spending/cost reports 1.4/1.10/2.3–2.6/3.4–3.5 an
 - [ ] PR/CI and owner mapping/design acceptance. No private data, baseline regeneration, migration, provider credentials or automatic bookings.
 
 Method, limits and owner steps: [inflation basket](inflation-basket.md#cpi-sub-index-method-part-b-2026-10-05).
+
+### UX-3e — Booking dialog polish (owner 2026-10-05)
+
+- [x] Replace tiny calculator keys in booking capture with an arithmetic hint; preserve the existing cent parser and no-numpad decision.
+- [x] Bounded payee suggestions above the input; Enter accepts exactly one suggestion. Read the selected payee's latest booking through the existing API; fall back to capture memory/current account context and ignore stale answers after further input.
+- [x] Native Mehr disclosure for splits, repetition, notes and the existing project field; summary preserves visibility of set options. Editing and prefilled optional content open it automatically.
+- [x] Markieren/Schließen tooltips, Heute/Gestern/Datum… chips and Bezahlt von expense label; targeted synthetic unit and desktop/phone browser regressions.
+- [x] CI repair 2026-10-07: full local typecheck/lint, 3,389 unit tests, production build and affected Chromium/WebKit browser run pass. The phone sheet retains the shared 88dvh cap and 44px controls; date checks use the German display. Fresh [phone evidence](evidence/astra-ci-repairs-1007/README.md).
+- [ ] Draft repair PR/required CI, pinned Linux visual review and physical-phone owner acceptance. No local screenshot baseline regeneration; shared AmountInput only gains a default-preserving opt-in. Delivery and actual verification: [UX-3e](ux-booking-dialog-1005.md).
 
 ### Owner planning hit rate — 2026-10-05
 
