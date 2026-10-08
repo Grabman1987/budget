@@ -277,6 +277,8 @@ Backlog: [`inspirations.md`](inspirations.md). These are possible later improvem
 ### P1c — App shell and routing (`docs/prompts/P1c.md`)
 - [x] Desktop: sidebar "Planliste" 01–05 with collapse, top bar (search Ctrl K, Posteingang with counter, + Buchung), theme toggle, profile
 - [x] Connected global search: session-protected queries (2–200 characters), at most five results each for bookings/payees/categories/accounts/contacts, existing destinations with reload-safe booking/contact links, loading/empty/retry states, Ctrl K/arrow/Enter/Escape and mobile bottom sheet; synthetic API/browser verification. Owner acceptance remains open.
+- [ ] E3 command palette (implementation and focused tests present): reuse header/mobile search with fuzzy pages/full report catalog (position/slug/name), open accounts, categories/contacts/payees and latest 200 bookings (payee/memo/native amount); recent IDs in session memory with fresh server validation, capture/inbox/privacy actions, month-close entry through account reconciliation and shared `?` keyboard help. Empty query offers recent bookings; no close wizard, dependencies or automatic bookings added. Full local verification, owner/device and Linux visual acceptance remain open; [results/evidence](evidence/palette-1005/README.md).
+- [x] E3 CI repair 2026-10-07: month-close regression selects the palette command and still verifies resume at step 4. Full local typecheck/lint, 3,437 unit tests, production/E2E builds and 18 search/month-close browser cases pass. Required CI and owner acceptance remain open; [verification](palette-ci-repair-1007.md).
 - [x] Mobile (< 768 px): header, tab bar, floating + button; same routes and order
 - [x] Routes for all areas and registers (SPEC §3) with placeholder pages built from TitleBlock + Registers; every view has its own URL
 - [x] Side panel (desktop) / bottom sheet (phone) pattern wired to a route param
@@ -760,6 +762,15 @@ Owner feedback 2026-10-04: spending/cost reports 1.4/1.10/2.3–2.6/3.4–3.5 an
 - [ ] PR/CI and owner mapping/design acceptance. No private data, baseline regeneration, migration, provider credentials or automatic bookings.
 
 Method, limits and owner steps: [inflation basket](inflation-basket.md#cpi-sub-index-method-part-b-2026-10-05).
+
+### UX-3e — Booking dialog polish (owner 2026-10-05)
+
+- [x] Replace tiny calculator keys in booking capture with an arithmetic hint; preserve the existing cent parser and no-numpad decision.
+- [x] Bounded payee suggestions above the input; Enter accepts exactly one suggestion. Read the selected payee's latest booking through the existing API; fall back to capture memory/current account context and ignore stale answers after further input.
+- [x] Native Mehr disclosure for splits, repetition, notes and the existing project field; summary preserves visibility of set options. Editing and prefilled optional content open it automatically.
+- [x] Markieren/Schließen tooltips, Heute/Gestern/Datum… chips and Bezahlt von expense label; targeted synthetic unit and desktop/phone browser regressions.
+- [x] CI repair 2026-10-07: full local typecheck/lint, 3,389 unit tests, production build and affected Chromium/WebKit browser run pass. The phone sheet retains the shared 88dvh cap and 44px controls; date checks use the German display. Fresh [phone evidence](evidence/astra-ci-repairs-1007/README.md).
+- [ ] Draft repair PR/required CI, pinned Linux visual review and physical-phone owner acceptance. No local screenshot baseline regeneration; shared AmountInput only gains a default-preserving opt-in. Delivery and actual verification: [UX-3e](ux-booking-dialog-1005.md).
 
 ### Owner planning hit rate — 2026-10-05
 

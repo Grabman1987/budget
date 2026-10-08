@@ -10,6 +10,8 @@ import { cx } from './cx';
 export interface AmountInputProps {
   /** Native unit of the input; defaults to EUR for existing budget forms. */
   currency?: string;
+  /** Booking capture uses a hint instead of operator buttons. */
+  showOperators?: boolean;
   label: string;
   value: string;
   onChange: (value: string) => void;
@@ -40,6 +42,7 @@ const HINT_INVALID = 'Das lässt sich nicht ausrechnen. Erlaubt sind Zahlen und 
  */
 export function AmountInput({
   currency = 'EUR',
+  showOperators = true,
   label,
   value,
   onChange,
@@ -84,7 +87,7 @@ export function AmountInput({
     input?.focus();
   };
 
-  let hint = HINT_DEFAULT;
+  let hint = showOperators ? HINT_DEFAULT : 'Rechnen im Feld möglich: 12,50+3';
   if (invalid) hint = HINT_INVALID;
   else if (calculating && result.ok) {
     hint = `= ${currency === 'EUR' ? formatEuro(result.cents) : `${hidden ? '•••' : formatDecimal(result.cents)} ${currency}`}  ·  Enter übernimmt das Ergebnis`;
@@ -94,21 +97,23 @@ export function AmountInput({
     <div className="field-row amount">
       <label htmlFor={id}>{label}</label>
       <div className={cx('amount-box', (invalid || error) && 'is-invalid')}>
-        <div className="amount-ops" role="group" aria-label="Rechenzeichen">
-          {OPERATORS.map((op) => (
-            <button
-              key={op.char}
-              type="button"
-              aria-label={op.name}
-              disabled={disabled}
-              // Keep the caret in the field when a button is pressed.
-              onMouseDown={(e) => e.preventDefault()}
-              onClick={() => insert(op.char)}
-            >
-              {op.char}
-            </button>
-          ))}
-        </div>
+        {showOperators && (
+          <div className="amount-ops" role="group" aria-label="Rechenzeichen">
+            {OPERATORS.map((op) => (
+              <button
+                key={op.char}
+                type="button"
+                aria-label={op.name}
+                disabled={disabled}
+                // Keep the caret in the field when a button is pressed.
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={() => insert(op.char)}
+              >
+                {op.char}
+              </button>
+            ))}
+          </div>
+        )}
         {sign && (
           <span className="amount-sign" aria-hidden="true">
             {sign}
