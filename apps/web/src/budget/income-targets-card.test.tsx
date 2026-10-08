@@ -109,3 +109,29 @@ describe('income target setup state', () => {
     expect(screen.getByRole('button', { name: /Lebensmittel\s*12,34 €/ })).toBeTruthy();
   });
 });
+
+it('labels expected income directly and names its positive remainder as a planning difference', () => {
+  renderCard(
+    [
+      row(target(200_000), {
+        goalCents: 200_000,
+        assignedCents: 150_000,
+        availableCents: 150_000,
+        needCents: 50_000,
+      }),
+    ],
+    incomeTargets({
+      expectedCents: 300_000,
+      assignedIncomeCents: 300_000,
+      targetsCents: 200_000,
+      differenceCents: 100_000,
+      unfundedCategoryIds: ['food'],
+      unfundedCents: 50_000,
+    }),
+  );
+
+  expect(screen.getByText('Erwartetes Einkommen', { selector: 'dt' })).toBeTruthy();
+  expect(screen.getByText('3.000,00 €')).toBeTruthy();
+  expect(screen.getByText('Planungsdifferenz')).toBeTruthy();
+  expect(screen.queryByText('Überschuss')).toBeNull();
+});

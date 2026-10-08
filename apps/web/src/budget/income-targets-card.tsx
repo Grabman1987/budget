@@ -72,7 +72,7 @@ export function IncomeTargetsCard({
                 ? 'Lücke'
                 : data.differenceCents === 0
                   ? 'Ausgeglichen'
-                  : 'Überschuss'}
+                  : 'Planungsdifferenz'}
           </dt>
           <dd
             className={gap ? 'income-targets-gap' : undefined}

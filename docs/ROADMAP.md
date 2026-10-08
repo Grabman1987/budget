@@ -9,6 +9,27 @@
 
 Older CI/publication checkboxes below describe their original deliveries. Current integration evidence is in [STATUS](STATUS.md); private/device acceptance stays open unless independently recorded.
 
+### P0 #282 — Request cache integrity
+
+- [x] Reproduce and repair shared Explorer/history mutations and nested-savepoint stale valuation; four focused files / 29 tests pass, including real API mutation/undo/redo and rollback checks. [Evidence](evidence/cache-integrity-282.md).
+- [x] Pre-integration full `npm run check`: 372 files / 3,410 tests, exit 0 (Vitest 970.12s); see [evidence](evidence/cache-integrity-282.md).
+- [x] Full check on the #250 + verified-main union: 376 files / 3,476 tests, exit 0; E2E build and focused desktop/mobile inbox and One-Pager checks passed (18 passed, one desktop-only skip). [Evidence](evidence/cache-integrity-282.md).
+- [ ] Complete PR integration.
+
+### #272 — Expected income is not free surplus — 2026-10-08
+
+- [x] Label a positive expected-income/target remainder as a planning difference; retain the existing expected-income label and note that it is unavailable until received. Leave all calculations and negative `Zu verteilen` status unchanged.
+- [x] Add literal component and isolated-ledger regressions for expected income €3,000, targets €2,000, cash €1,000, and `Zu verteilen` −€500, with desktop/mobile light/dark browser evidence; see [synthetic evidence](evidence/income-targets-272/README.md).
+- [x] Focused component regression, web typecheck, scoped ESLint/Prettier, E2E build and isolated desktop/mobile browser checks pass on integrated HEAD `9922b6a6`; no owner data or live ledger used.
+- [x] Full repository check passes (373 files / 3,448 tests), and independent final review found no issue-specific findings.
+- [ ] Owner iPhone/device acceptance remains tracked separately under #310.
+
+### #272 CI readiness follow-up — 2026-10-08
+
+- [x] Add dialog-closed and settings-URL readiness waits after rename and archive; focused desktop, mobile and WebKit U02–U12 checks passed (6 tests), with evidence in [asset-class panel CI follow-up](evidence/asset-class-panel-ci-1008.md).
+- [x] Full `npm run check` passed at the frozen branch head: 373 test files and 3,448 tests; no application code or screenshot baselines changed.
+- [x] Final independent review found no actionable findings.
+
 ### E1 — Report verdict sentences (owner 2026-10-06)
 
 - [x] Pure typed fact detectors, strongest-fact selection, 230 German templates, deterministic period variation and previous-template exclusion; no new dependency or second ledger calculation.
@@ -439,6 +460,8 @@ Expected payments, contacts with receivables, savings goals, rule set registered
 - [x] P3.7 `p3-regelwerk-ui`: Einstellungen › Regelwerk (`apps/web/src/rules`): stage checklist in three columns with owner confirmation of non-computable items, rules registered rules (`RULE_CODES`) with typed threshold panel (status, next step, undo), switches and thresholds as audited PATCH with undo toast
 - [x] P3.9 `p3-heute-api`: `GET /api/heute?period=month|payday&month=` (one request: stand, lead with chain and drill-down, balance actual and forecast with salary jump and low point, pace, pinned envelopes, upcoming 14 days, Finanz-Check, net worth with delta and 12 month ends, last bookings, next steps), `packages/domain/src/heute`, `heute` read model, `category.pinned_at` (migration 0010) with `PATCH /categories/:id {pinned}`, pinned fixtures
 - [x] P3.10 `heute-page`: Heute wired to its read model (month/payday URL, lead drill-down, balance and pace, pinned envelopes, upcoming payments, Finanz-Check, net worth, latest bookings and next steps); capture/budget/rule edits and undo/redo refresh Today, actions open the source month or uncategorized bookings through today, mobile urgent step follows the lead. Browser coverage includes capture/undo/redo, actual navigation, negative lead in both themes, retry, empty states and settled chart endpoints; owner visual acceptance remains pending.
+  - [x] P0 #273: Upcoming payment status names only the Budgetrücklage/Envelope amount; its note explicitly says account balance and overdraft limit are not checked. The read model remains envelope-only; no account-coverage calculation or payment behavior is added. Synthetic API/component regressions and isolated desktop/mobile light/dark browser evidence pass; [evidence](evidence/payment-budget-273.md).
+  - [x] Full frozen-tree `npm run check` passed on Windows (374 test files / 3,451 tests); lead and independent screenshot/source review found no remaining #273 issue-specific finding. Actual iPhone Safari acceptance is tracked separately under #310; [full check and evidence](evidence/payment-budget-273.md).
   - [x] Owner follow-up 2026-10-02: payday selection disabled outside the current month, URL/month fallback, Austrian business-day 15th planning rule, and month-specific Decken in multi-month plans; [behavior and calendar contract](month-navigation.md).
   - [ ] Follow-up delivery acceptance: full check, desktop/mobile browser evidence and owner device review (PR #132).
 
