@@ -772,3 +772,10 @@ Method, limits and owner steps: [inflation basket](inflation-basket.md#cpi-sub-i
 - [x] Small German glossary and report-only `<Term>`: dotted underline, one-sentence native popover, keyboard/touch, Escape/outside dismissal and 44 px targets; report headings/columns and estimate marks reuse it, with plain print labels.
 - [x] Final local check: all workspace typechecks, lint/format and 354 files / 3,286 unit tests; production build passed. Ten synthetic desktop/mobile/WebKit browser checks passed, including light/dark accessibility, keyboard/touch and print; desktop 1440/mobile 390 review images in `docs/screenshots/glossary-*.png`, without baseline regeneration. Windows sandbox verification used an ignored `os.userInfo` fallback plus one test thread and a 30 s harness timeout; assertions and repository configuration remain unchanged.
 - [ ] Required CI and owner desktop/phone acceptance; no keys, consents or migration needed.
+
+### Transitive dependency advisories — 2026-10-08
+
+- [x] Pin `concurrently`'s exact `shell-quote` dependency to patched 1.11.0 with a narrow npm override; update `source-map-js` to patched 1.2.2 within existing ranges. Keep `concurrently` 9.2.4 and the Node version unchanged. Record why the override is needed and when to remove it in [advisory evidence](dependency-advisories-2026-10-08.md).
+- [x] Clean install, dependency-tree inspection, quoted-command and source-map round-trip smoke checks; full audit now has 4 moderate / 0 high / 0 critical findings, production audit has 0.
+- [x] Full local check passed with one Vitest worker and required age setting: 370 test files / 3,385 tests; the local log is retained outside the repository.
+- [ ] Required final-head CI, main integration and actual deploy/health verification; remaining moderate development advisories are separate work.
