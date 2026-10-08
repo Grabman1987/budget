@@ -36,7 +36,11 @@ export function BankCostsReportPage({ report, meta }: { report: ReportEntry; met
           ? {
               reportId: report.id,
               period: `${data.from}..${data.to}`,
-              metric: { label: 'Bank- und Zinskosten', value: data.totalCents, unit: 'money' },
+              metric: {
+                label: 'Erfasste Kosten',
+                value: data.totalCents,
+                unit: 'money',
+              },
               comparisons: [{ reference: 'vorherige 12 Monate', value: data.previousTotalCents }],
             }
           : undefined
@@ -49,7 +53,7 @@ export function BankCostsReportPage({ report, meta }: { report: ReportEntry; met
           ? `${monthShort(data.months[0]!)} bis ${monthShort(data.months.at(-1)!)}`
           : 'keine geschlossenen Monate'
       }
-      reportStand={{ label: 'Stichtag', value: data?.to ? longDay(data.to) : 'Monatsende' }}
+      reportStand={{ label: 'Konditionen am', value: data?.asOf ? longDay(data.asOf) : 'heute' }}
     >
       <div className="kview sr" data-testid="bank-costs-report">
         <ReportQuery query={query} what="Bank- und Zinskosten">
@@ -62,6 +66,14 @@ export function BankCostsReportPage({ report, meta }: { report: ReportEntry; met
 function Body({ data }: { data: BankCostsReport }) {
   useAmountPrivacy();
   const biggest = data.sources[0];
+  const estimatedInterestCents = data.rows.find((row) => row.key === 'modeledInterest')?.cents ?? 0;
+  const bookedCostCents = data.totalCents - estimatedInterestCents;
+  const unknownRateLineCount = data.creditLines.filter(
+    (line) =>
+      line.usedCents > 0 &&
+      line.rateBp === null &&
+      ['loan', 'credit_card', 'checking'].includes(line.type),
+  ).length;
   if (!data.months.length) return <p role="status">Noch keine geschlossenen Monate mit Daten.</p>;
   return (
     <>
@@ -77,9 +89,23 @@ function Body({ data }: { data: BankCostsReport }) {
           </span>
         </div>
         <div className="sr-fig">
-          <span>Kosten inkl. geschätzter Kreditzinsen · letzte {data.months.length} Monate</span>
+          <span>Erfasste Bank- und Zinskosten · letzte {data.months.length} Monate</span>
           <strong data-testid="bc-total">{eur(data.totalCents)}</strong>
         </div>
+        <p className="sr-note" data-testid="bc-components">
+          Gebucht: {eur(bookedCostCents)} · aus Konditionen geschätzt: {eur(estimatedInterestCents)}
+        </p>
+        <p className="sr-note" data-testid="bc-coverage">
+          Diese Summe zeigt bekannte Buchungen und verfügbare Zinsschätzungen, nicht die
+          vollständige Gesamtbelastung. Aktuell genutzte Kredit-/Dispolinien ohne Zinsangabe zum{' '}
+          {longDay(data.asOf)}: {unknownRateLineCount}. Geschätzte Zinszeiträume ohne EUR-Kurs in
+          den letzten zwölf Monaten: {data.modeledInterestMissingFxPeriods}.
+        </p>
+        <p className="sr-note">
+          Darlehenszinsen werden nur mit den vorhandenen Modellangaben und EUR-Kursen geschätzt;
+          Kreditkarten- und Dispozinsen erscheinen nur, wenn sie gebucht wurden. TER und Spreads
+          bleiben ausgeschlossen.
+        </p>
         <p className="sr-note">
           Ø {eur(Math.round(data.totalCents / data.months.length))} je Monat ·{' '}
           {biggest
@@ -87,12 +113,12 @@ function Body({ data }: { data: BankCostsReport }) {
             : 'Keine erfassten Kosten im Zeitraum.'}
         </p>
         <DimensionChain
-          label="Maßkette Bank- und Zinskosten"
+          label="Maßkette erfasste Bank- und Zinskosten"
           precision="cent"
           terms={[
             { label: 'Haben- und Dividenden-Erträge', value: cents(data.earningsCents) },
             {
-              label: 'Kosten inkl. geschätzter Kreditzinsen',
+              label: 'Erfasste Kosten (gebucht + geschätzt)',
               op: '-',
               value: cents(data.totalCents),
             },
