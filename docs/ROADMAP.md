@@ -16,6 +16,13 @@ Older CI/publication checkboxes below describe their original deliveries. Curren
 - [x] Full check on the #250 + verified-main union: 376 files / 3,476 tests, exit 0; E2E build and focused desktop/mobile inbox and One-Pager checks passed (18 passed, one desktop-only skip). [Evidence](evidence/cache-integrity-282.md).
 - [ ] Complete PR integration.
 
+### #286 — Income pause domain amount — 2026-10-08
+
+- [x] Add a pure shared-domain amount adapter for a matching scheduled EUR inflow inside a caller-validated inclusive interval; preserve the original occurrence and all other sources, kinds, currencies, and dates.
+- [x] Reproduce RED (6 failed / 1 passed) and focused GREEN (4 files / 42 tests), including feeding the adjusted occurrence stream to the shared liquidity forecast and report; see [evidence](evidence/income-pause-286.md).
+- [x] Full check on the verified main + checked #284/#285 union: typecheck, lint, formatting, 377 test files / 3,483 tests, exit 0.
+- [ ] DB/UI forecast integration and dependent #287 salary-marker handling remain pending.
+
 ### #272 — Expected income is not free surplus — 2026-10-08
 
 - [x] Label a positive expected-income/target remainder as a planning difference; retain the existing expected-income label and note that it is unavailable until received. Leave all calculations and negative `Zu verteilen` status unchanged.
