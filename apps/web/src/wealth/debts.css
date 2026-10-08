@@ -67,6 +67,30 @@
 .debt-overview .vtable a {
   overflow-wrap: anywhere;
 }
+.debt-stored-terms {
+  margin-top: 8px;
+  max-width: 30rem;
+  font-size: 12px;
+  font-weight: 400;
+}
+.debt-stored-terms dl {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  gap: 3px 8px;
+  margin: 0 0 4px;
+}
+.debt-stored-terms dl > div {
+  display: contents;
+}
+.debt-stored-terms dt {
+  color: var(--ink-3);
+  font-weight: 400;
+}
+.debt-stored-terms dd {
+  min-width: 0;
+  margin: 0;
+  overflow-wrap: anywhere;
+}
 .debt-rechenweg > summary,
 .debt-adjustments > summary {
   cursor: pointer;

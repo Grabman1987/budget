@@ -43,6 +43,7 @@ test('rate changes, scenarios and strategies on Schulden', async ({
     interestRateBp: 632,
     interestKind: 'variable',
     installmentCents: 41_200,
+    monthlyFeeCents: 0,
   });
   await post(request, origin, '/accounts', {
     name: 'Karte Muster',

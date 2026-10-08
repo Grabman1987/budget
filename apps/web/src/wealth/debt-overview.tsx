@@ -13,6 +13,7 @@ const amount = (v: string) => {
   const parsed = parseAmount(v);
   return parsed.ok && parsed.cents >= 0 ? parsed.cents : null;
 };
+type OverviewAccount = DebtAccount & { storedInterestRateBp: number | null };
 
 export function DebtOverview({ view }: { view: DebtsView }) {
   const query = useQuery(strategyCandidatesQuery(view.asOf));
@@ -27,12 +28,13 @@ export function DebtOverview({ view }: { view: DebtsView }) {
     );
   const accounts = view.accounts.map((a) => ({
     ...a,
+    storedInterestRateBp: a.interestRateBp,
     interestRateBp: query.data.debts.find((d) => d.accountId === a.id)?.rateBp ?? a.interestRateBp,
   }));
   return <Overview key={JSON.stringify(accounts)} accounts={accounts} asOf={view.asOf} />;
 }
 
-function Overview({ accounts, asOf }: { accounts: DebtAccount[]; asOf: string }) {
+function Overview({ accounts, asOf }: { accounts: OverviewAccount[]; asOf: string }) {
   useAmountPrivacy();
   const [terms, setTerms] = useState(() =>
     accounts.map((a) => ({
@@ -83,9 +85,7 @@ function Overview({ accounts, asOf }: { accounts: DebtAccount[]; asOf: string })
           </p>
         )}
         {overview.currency === null && accounts.length > 0 && (
-          <p className="vnote">
-            Zinsen und Fortschritt werden nicht über verschiedene Währungen summiert.
-          </p>
+          <p className="vnote">Zinsen werden nicht über verschiedene Währungen summiert.</p>
         )}
         {overview.progress ? (
           <div className="debt-progress">
@@ -102,8 +102,10 @@ function Overview({ accounts, asOf }: { accounts: DebtAccount[]; asOf: string })
         ) : (
           accounts.length > 0 && (
             <p className="vnote">
-              Fortschritt unbekannt: ursprüngliche Kreditbeträge fehlen oder passen nicht zur
-              Restschuld. <AppLink to="/einstellungen/konten">Konditionen pflegen</AppLink>
+              {overview.currency === null
+                ? 'Tilgungsfortschritt kann über verschiedene Währungen nicht zusammengefasst werden.'
+                : 'Fortschritt unbekannt: ursprüngliche Kreditbeträge fehlen oder passen nicht zur Restschuld.'}{' '}
+              <AppLink to="/einstellungen/konten">Konditionen pflegen</AppLink>
             </p>
           )
         )}
@@ -155,8 +157,8 @@ function Overview({ accounts, asOf }: { accounts: DebtAccount[]; asOf: string })
                 {[
                   'Konto',
                   'Restschuld',
-                  'Monatsrate',
-                  'Zins',
+                  'Modellrate',
+                  'Modellzins',
                   'Schuldenfrei am',
                   'Noch Zinsen',
                 ].map((s) => (
@@ -181,14 +183,85 @@ function Overview({ accounts, asOf }: { accounts: DebtAccount[]; asOf: string })
                             ? 'Kreditkarte'
                             : 'Negativer Kontowert'}
                       </small>
+                      <div
+                        className="debt-stored-terms"
+                        data-testid={`debt-terms-${a.id}`}
+                        role="group"
+                        aria-label={`Gespeicherte Konditionen ${a.name}`}
+                      >
+                        <strong>Gespeicherte Konditionen</strong>
+                        <dl>
+                          <div>
+                            <dt>Zinssatz</dt>
+                            <dd>
+                              {a.storedInterestRateBp === null
+                                ? 'unbekannt'
+                                : `${text(a.storedInterestRateBp)} %`}
+                            </dd>
+                          </div>
+                          {a.type === 'loan' && (
+                            <div>
+                              <dt>Zinsart</dt>
+                              <dd>
+                                {a.interestKind === null
+                                  ? 'unbekannt'
+                                  : a.interestKind === 'fixed'
+                                    ? 'fix'
+                                    : 'variabel'}
+                              </dd>
+                            </div>
+                          )}
+                          <div>
+                            <dt>Monatsrate</dt>
+                            <dd>
+                              {a.installmentCents === null
+                                ? 'unbekannt'
+                                : nativeCurrency(a.installmentCents, a.currency)}
+                            </dd>
+                          </div>
+                          <div>
+                            <dt>Gebühr</dt>
+                            <dd>
+                              {a.monthlyFeeCents === null
+                                ? 'unbekannt'
+                                : nativeCurrency(a.monthlyFeeCents, a.currency)}
+                            </dd>
+                          </div>
+                          {a.type === 'credit_card' && (
+                            <div>
+                              <dt>Kartenlimit</dt>
+                              <dd>
+                                {a.creditLimitCents === null
+                                  ? 'unbekannt'
+                                  : nativeCurrency(a.creditLimitCents, a.currency)}
+                              </dd>
+                            </div>
+                          )}
+                          {a.type === 'checking' && (
+                            <div>
+                              <dt>Überziehungsrahmen</dt>
+                              <dd>
+                                {a.overdraftLimitCents === null
+                                  ? 'unbekannt'
+                                  : nativeCurrency(a.overdraftLimitCents, a.currency)}
+                              </dd>
+                            </div>
+                          )}
+                          <div>
+                            <dt>Konditionen-Datenstand</dt>
+                            <dd>unbekannt</dd>
+                          </div>
+                        </dl>
+                        <AppLink to="/einstellungen/konten">Konditionen pflegen</AppLink>
+                      </div>
                     </th>
                     <td data-label="Restschuld">{nativeCurrency(-a.balanceCents, a.currency)}</td>
-                    <td data-label="Monatsrate">
+                    <td data-label="Modellrate">
                       {amount(terms[i]!.payment) === null
                         ? '—'
                         : nativeCurrency(amount(terms[i]!.payment)!, a.currency)}
                     </td>
-                    <td data-label="Zins">
+                    <td data-label="Modellzins">
                       {amount(terms[i]!.rate) === null ? '—' : `${text(amount(terms[i]!.rate))} %`}
                     </td>
                     <td data-label="Schuldenfrei am">

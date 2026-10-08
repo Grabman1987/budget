@@ -16,6 +16,16 @@ Older CI/publication checkboxes below describe their original deliveries. Curren
 - [x] Full check on the #250 + verified-main union: 376 files / 3,476 tests, exit 0; E2E build and focused desktop/mobile inbox and One-Pager checks passed (18 passed, one desktop-only skip). [Evidence](evidence/cache-integrity-282.md).
 - [ ] Complete PR integration.
 
+### P0 #293 — Debt terms completeness — 2026-10-08
+
+- [x] Keep an unknown monthly fee `null` distinct from an explicit zero; a loan baseline is withheld until all required stored inputs are known.
+- [x] Show stored debt rates, kind, installment, fees, type-specific limits and unknown terms freshness separately from editable preview inputs; retain dated rate changes and the existing account settings route.
+- [x] Reproduce the API, UI and mixed-currency explanation gaps with synthetic RED cases, then pass the API test (23 tests), E2E build, and combined desktop/mobile/WebKit-iPhone browser checks (22 tests across five specs); targeted Axe and no-overflow checks pass. Existing PR225 loan fixtures now explicitly store zero fee, preserving the 33-month / 1,094.05 EUR baseline. [Evidence](evidence/debt-terms-293/README.md).
+- [x] Full repository `npm run check`: typecheck, lint, formatting and 378 Vitest files / 3,488 tests passed at frozen source union; see [evidence](evidence/debt-terms-293/README.md).
+- [x] Independent source review finding on mixed-currency progress was corrected and covered by a passing browser regression.
+- [x] Independent final visual review confirmed the stored terms and model values are distinguishable in the refreshed captures.
+- [ ] PR integration and owner acceptance remain pending.
+
 ### #286 — Income pause domain amount — 2026-10-08
 
 - [x] Add a pure shared-domain amount adapter for a matching scheduled EUR inflow inside a caller-validated inclusive interval; preserve the original occurrence and all other sources, kinds, currencies, and dates.

@@ -22,6 +22,7 @@ test('scenario and rate-change dialogs show their content', async ({
       openingBalanceCents: -1_217_600,
       interestRateBp: 632,
       installmentCents: 41_200,
+      monthlyFeeCents: 0,
     },
   });
   expect(response.ok()).toBe(true);
