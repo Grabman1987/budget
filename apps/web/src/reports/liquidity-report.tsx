@@ -29,13 +29,18 @@ import { PageFrame } from '../pages/placeholder-page';
 import { AppLink } from '../shell/app-link';
 import {
   createPlannedEvent,
+  createIncomePause,
+  deleteIncomePause,
   deletePlannedEvent,
   liquidityQuery,
+  patchIncomePause,
   patchPlannedEvent,
+  type IncomePauseView,
   type LiquidityReportView,
   type PlannedEventView,
 } from './liquidity-api';
 import { LiquidityChart } from './liquidity-chart';
+import { expectedQuery, type ExpectedPayment } from '../expected/api';
 import './reports-future.css';
 
 const HORIZON_OPTIONS: ReadonlyArray<{ value: LiquidityHorizon; label: string }> = [
@@ -98,7 +103,7 @@ export function LiquidityReportPage({ report, meta }: { report: ReportEntry; met
       meta={meta}
       title={report.name}
       subtitle={`${report.pos} · ${report.question}`}
-      reportDataBasis="Budget-Konten, wiederkehrende Zahlungen und geplante Ereignisse"
+      reportDataBasis="Budget-Konten, wiederkehrende Zahlungen, Einkommenspausen und geplante Ereignisse"
       standDay={view?.asOf}
     >
       <div className="kview rf-report liquidity-report">
@@ -122,6 +127,7 @@ export function LiquidityReportPage({ report, meta }: { report: ReportEntry; met
               levers={levers}
               stale={query.isFetching}
             />
+            <IncomePausesCard view={view} />
             <EventsCard view={view} />
             <LeversCard
               report={view.report}
@@ -173,21 +179,40 @@ function ForecastCard({
     (event) =>
       plannedEventOccurrences(event, addDays(report.startDay, 1), report.verdictEnd).length > 0,
   ).length;
+  const chartPauses = view.incomePauses.filter((pause) => pause.coverage === 'applied');
+  const chartPauseCount = chartPauses.length;
+  const verdictPauseCount = view.incomePauses.filter(
+    (pause) => pause.verdictSuppressedOccurrences.length > 0,
+  ).length;
   const scenarioBasis =
-    report.eventMarks.length > 0
-      ? 'Grundplan aus hinterlegten Zahlungen und variabler Planung, ergänzt um geplante Ereignisse.'
-      : activeEvents.length > 0
-        ? 'Grundplan aus hinterlegten Zahlungen und variabler Planung. Geplante Ereignisse liegen außerhalb des gewählten Prognosezeitraums.'
-        : view.events.length > 0
-          ? 'Grundplan aus hinterlegten Zahlungen und variabler Planung. Vorhandene Ereignisse zählen derzeit nicht zur Prognose.'
-          : 'Grundplan aus hinterlegten Zahlungen und variabler Planung. Noch keine geplanten Ereignisse eingerichtet; ergänze bei Bedarf unten ein Ereignis.';
+    chartPauseCount > 0
+      ? `Die Cash-Prognose berücksichtigt ${chartPauseCount} ${chartPauseCount === 1 ? 'Einkommenspause' : 'Einkommenspausen'} bei den ausgewiesenen Fälligkeiten. Der hinterlegte Zahlungsplan bleibt unverändert.`
+      : verdictPauseCount > 0
+        ? `Der 6-Monats-Tiefpunkt berücksichtigt ${verdictPauseCount} ${verdictPauseCount === 1 ? 'Einkommenspause' : 'Einkommenspausen'} außerhalb des gewählten Diagrammzeitraums.`
+        : report.eventMarks.length > 0
+          ? 'Grundplan aus hinterlegten Zahlungen und variabler Planung, ergänzt um geplante Ereignisse.'
+          : activeEvents.length > 0
+            ? 'Grundplan aus hinterlegten Zahlungen und variabler Planung. Geplante Ereignisse liegen außerhalb des gewählten Prognosezeitraums.'
+            : view.events.length > 0
+              ? 'Grundplan aus hinterlegten Zahlungen und variabler Planung. Vorhandene Ereignisse zählen derzeit nicht zur Prognose.'
+              : 'Grundplan aus hinterlegten Zahlungen und variabler Planung. Noch keine geplanten Ereignisse eingerichtet; ergänze bei Bedarf unten ein Ereignis.';
   const activeLeverNames = levers.map((id) => LEVER_TEXT[id].name);
   const forecastLabel =
-    report.eventMarks.length > 0
-      ? 'Prognose mit geplanten Ereignissen'
-      : activeEvents.length > 0
-        ? 'Grundplan im gewählten Prognosezeitraum'
-        : 'Grundplan ohne aktive geplante Ereignisse';
+    chartPauseCount > 0
+      ? report.eventMarks.length > 0
+        ? 'Prognose mit geplanten Ereignissen und Einkommenspausen'
+        : 'Prognose mit Einkommenspausen'
+      : report.eventMarks.length > 0
+        ? 'Prognose mit geplanten Ereignissen'
+        : activeEvents.length > 0
+          ? 'Grundplan im gewählten Prognosezeitraum'
+          : 'Grundplan ohne aktive geplante Ereignisse';
+  const verdictInputs = [
+    eventCount > 0 ? `${eventCount} geplante ${eventCount === 1 ? 'Ereignis' : 'Ereignisse'}` : '',
+    verdictPauseCount > 0
+      ? `${verdictPauseCount} ${verdictPauseCount === 1 ? 'Einkommenspause' : 'Einkommenspausen'}`
+      : '',
+  ].filter(Boolean);
   return (
     <section
       className="card rf-card rf-wide"
@@ -210,8 +235,8 @@ function ForecastCard({
           <strong>{text}</strong>
           <small>
             6 Monate bis {longDay(report.verdictEnd)} ·{' '}
-            {eventCount > 0
-              ? `mit ${eventCount} ${eventCount === 1 ? 'geplantem Ereignis' : 'geplanten Ereignissen'}`
+            {verdictInputs.length > 0
+              ? `mit ${verdictInputs.join(' und ')}`
               : 'ohne Ereignisse im Entscheidungszeitraum'}
             {levers.length > 0 &&
               ` und ${levers.length} ${levers.length === 1 ? 'Stellschraube' : 'Stellschrauben'}`}
@@ -225,8 +250,14 @@ function ForecastCard({
       </p>
       <div className="rf-figs">
         <div>
-          <span className="tech">
-            {report.eventMarks.length > 0 ? 'Tiefpunkt mit Ereignissen' : 'Tiefpunkt im Grundplan'}
+          <span className="tech" data-testid="liq-low-context">
+            {chartPauseCount > 0
+              ? report.eventMarks.length > 0
+                ? 'Tiefpunkt mit Ereignissen und Einkommenspausen'
+                : 'Tiefpunkt mit Einkommenspausen'
+              : report.eventMarks.length > 0
+                ? 'Tiefpunkt mit Ereignissen'
+                : 'Tiefpunkt im Grundplan'}
           </span>
           <strong className={low && low.cents < 0 ? 'is-alert' : undefined} data-testid="liq-low">
             {eur(low?.cents ?? 0)}
@@ -254,7 +285,7 @@ function ForecastCard({
         </div>
       </div>
       <LiquidityChart report={report} />
-      <ul className="rf-legend" aria-label="Legende">
+      <ul className="rf-legend" aria-label="Legende" data-testid="liq-legend">
         <li>
           <svg viewBox="0 0 26 8" aria-hidden="true">
             <path className="l-forecast" d="M0 4h26" />
@@ -269,7 +300,7 @@ function ForecastCard({
           <svg viewBox="0 0 26 8" aria-hidden="true">
             <path className="l-prev" d="M0 4h26" />
           </svg>
-          ohne Ereignisse
+          ohne geplante Ereignisse
         </li>
         <li>
           <svg viewBox="0 0 12 10" aria-hidden="true">
@@ -288,6 +319,287 @@ function ForecastCard({
         Überziehungsrahmen zählt nicht als Geld. Rücklagen auf Konten außerhalb des Budgets bleiben
         draußen.
       </p>
+    </section>
+  );
+}
+
+const PAUSE_SOURCE_STATE: Record<IncomePauseView['sourceState'], string> = {
+  active: 'Quelle aktiv',
+  inactive: 'Quelle inaktiv',
+  deleted: 'Quelle gelöscht',
+  missing: 'Quelle nicht gefunden',
+};
+
+function eligiblePauseSource(payment: ExpectedPayment, asOf: string): boolean {
+  return (
+    payment.kind === 'inflow' &&
+    payment.deletedAt === null &&
+    payment.version?.currency === 'EUR' &&
+    (payment.startDate === null || payment.startDate <= asOf) &&
+    (payment.endDate === null || payment.endDate >= asOf)
+  );
+}
+
+function IncomePausesCard({ view }: { view: LiquidityReportView }) {
+  useAmountPrivacy();
+  const write = useBudgetWrite();
+  const paymentQuery = useQuery(expectedQuery());
+  const sources = (paymentQuery.data ?? []).filter((payment) =>
+    eligiblePauseSource(payment, view.asOf),
+  );
+  const [sourceId, setSourceId] = useState('');
+  const [startDate, setStartDate] = useState(addDays(view.asOf, 1));
+  const [endDate, setEndDate] = useState(addDays(view.asOf, 1));
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [rangeError, setRangeError] = useState<string | null>(null);
+  const editing = view.incomePauses.find((pause) => pause.id === editingId);
+  if (editingId !== null && !editing) {
+    setEditingId(null);
+    setSourceId('');
+    setStartDate(addDays(view.asOf, 1));
+    setEndDate(addDays(view.asOf, 1));
+    setRangeError(null);
+  }
+  const selectedSourceId = editing
+    ? sourceId
+    : sources.some((payment) => payment.id === sourceId)
+      ? sourceId
+      : (sources[0]?.id ?? '');
+  const source = sources.find((payment) => payment.id === selectedSourceId);
+
+  const reset = () => {
+    setEditingId(null);
+    setSourceId('');
+    setStartDate(addDays(view.asOf, 1));
+    setEndDate(addDays(view.asOf, 1));
+    setRangeError(null);
+  };
+
+  const submit = async (event: FormEvent) => {
+    event.preventDefault();
+    if (!source) return;
+    if (endDate < startDate) return setRangeError('Das Ende darf nicht vor dem Beginn liegen.');
+    setRangeError(null);
+    const input = { sourceId: source.id, startDate, endDate };
+    const saved = await write(
+      () => (editing ? patchIncomePause(editing.id, input) : createIncomePause(input)),
+      () => `Einkommenspause für „${source.name}“ gespeichert.`,
+    );
+    if (saved) reset();
+  };
+
+  const sourceName = (pause: IncomePauseView) =>
+    pause.sourceName ?? `Unbekannte Quelle (${pause.sourceId})`;
+
+  const coverageText = (pause: IncomePauseView) => {
+    if (pause.coverage === 'applied') return null;
+    if (pause.sourceState === 'deleted' || pause.sourceState === 'missing')
+      return 'Diese Quelle liefert derzeit keine Prognosezahlung.';
+    if (pause.sourceState === 'inactive') return 'Die Quelle ist derzeit inaktiv.';
+    if (pause.coverage === 'outside_horizon') return 'Außerhalb des gewählten Prognosezeitraums.';
+    if (pause.coverage === 'outside_budget') return 'Die Quelle liegt außerhalb der Budget-Konten.';
+    if (pause.coverage === 'foreign_currency')
+      return 'Fremdwährungsfälligkeiten bleiben unverändert; die Pause gilt nur für native EUR-Einnahmen.';
+    if (pause.coverage === 'zero_amount')
+      return 'Die EUR-Fälligkeit beträgt 0,00 € und bleibt unverändert.';
+    return 'In diesem Zeitraum gibt es keine passende Fälligkeit.';
+  };
+
+  return (
+    <section className="card rf-card rf-main" aria-labelledby="liq-pauses">
+      <div className="tbd-head">
+        <h2 id="liq-pauses">Einkommenspausen</h2>
+      </div>
+      <p className="vnote">
+        Eine Pause setzt passende wiederkehrende EUR-Einnahmen in der Cash-Prognose auf 0 €. Der
+        hinterlegte Zahlungsplan und der normale Einnahmenbericht bleiben unverändert.
+      </p>
+      {view.incomePauses.length === 0 ? (
+        <p className="muted" role="status">
+          Keine Einkommenspausen eingerichtet.
+        </p>
+      ) : (
+        <ul className="rf-pause-list" data-testid="liq-income-pauses">
+          {view.incomePauses.map((pause) => (
+            <li key={pause.id} data-testid="liq-income-pause">
+              <div className="rf-pause-source">
+                <strong>{sourceName(pause)}</strong>
+                <small>
+                  {longDay(pause.startDate)} bis {longDay(pause.endDate)} ·{' '}
+                  {PAUSE_SOURCE_STATE[pause.sourceState]}
+                </small>
+              </div>
+              <div className="rf-pause-effect">
+                {pause.suppressedOccurrences.length > 0 ||
+                pause.verdictSuppressedOccurrences.length > 0 ||
+                pause.unchangedOccurrences.length > 0 ? (
+                  <div>
+                    {pause.coverage === 'outside_horizon' &&
+                      pause.verdictSuppressedOccurrences.length === 0 && (
+                        <small>{coverageText(pause)}</small>
+                      )}
+                    {pause.suppressedOccurrences.length > 0 ? (
+                      <ul aria-label={`Ausgesetzte Fälligkeiten für ${sourceName(pause)}`}>
+                        {pause.suppressedOccurrences.map((occurrence) => (
+                          <li key={occurrence.dueDate}>
+                            {longDay(occurrence.dueDate)} · {eur(occurrence.amountCents)} Einnahme
+                            ausgesetzt
+                          </li>
+                        ))}
+                      </ul>
+                    ) : pause.verdictSuppressedOccurrences.length > 0 ? (
+                      <>
+                        <small>
+                          Außerhalb des Diagrammzeitraums; wirkt auf den 6-Monats-Tiefpunkt.
+                        </small>
+                        <ul aria-label={`Auswirkung auf den Tiefpunkt für ${sourceName(pause)}`}>
+                          {pause.verdictSuppressedOccurrences.map((occurrence) => (
+                            <li key={occurrence.dueDate}>
+                              {longDay(occurrence.dueDate)} · {eur(occurrence.amountCents)} Einnahme
+                              ausgesetzt
+                            </li>
+                          ))}
+                        </ul>
+                      </>
+                    ) : null}
+                    {pause.unchangedOccurrences.length > 0 && (
+                      <ul aria-label={`Unveränderte Fälligkeiten für ${sourceName(pause)}`}>
+                        {pause.unchangedOccurrences.map((occurrence) => (
+                          <li key={`${occurrence.dueDate}-${occurrence.reason}`}>
+                            {longDay(occurrence.dueDate)} ·{' '}
+                            {occurrence.reason === 'foreign_currency'
+                              ? `${occurrence.currency}-Fälligkeit bleibt unverändert; Pause gilt nur für native EUR-Einnahmen.`
+                              : '0,00 € Fälligkeit bleibt unverändert.'}
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                ) : (
+                  <small>{coverageText(pause)}</small>
+                )}
+              </div>
+              <div className="rf-pause-actions">
+                <Button
+                  variant="ghost"
+                  className="rf-pause-action"
+                  aria-label={`Pause für ${sourceName(pause)} bearbeiten`}
+                  onClick={() => {
+                    setEditingId(pause.id);
+                    setSourceId(pause.sourceId);
+                    setStartDate(pause.startDate);
+                    setEndDate(pause.endDate);
+                    setRangeError(null);
+                  }}
+                >
+                  Bearbeiten
+                </Button>
+                <button
+                  type="button"
+                  className="rf-icon-btn"
+                  aria-label={`Pause für ${sourceName(pause)} entfernen`}
+                  onClick={() =>
+                    void write(
+                      () => deleteIncomePause(pause.id),
+                      () => `Einkommenspause für „${sourceName(pause)}“ entfernt.`,
+                    )
+                  }
+                >
+                  <X size={16} strokeWidth={1.75} aria-hidden="true" />
+                </button>
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
+      {paymentQuery.isPending ? (
+        <LoadingNote what="Einnahmequellen" />
+      ) : paymentQuery.isError ? (
+        <ErrorNote
+          what="Einnahmequellen"
+          error={paymentQuery.error}
+          onRetry={() => void paymentQuery.refetch()}
+        />
+      ) : (
+        <form
+          className="rf-add rf-pause-form"
+          onSubmit={(event) => void submit(event)}
+          noValidate
+          aria-label={editing ? 'Einkommenspause bearbeiten' : 'Einkommenspause einrichten'}
+        >
+          <div className="rf-f">
+            <Field label="Einnahmequelle">
+              {({ id }) => (
+                <Select
+                  id={id}
+                  value={selectedSourceId}
+                  onChange={(event) => setSourceId(event.target.value)}
+                  disabled={sources.length === 0}
+                  required
+                >
+                  {editing && !sources.some((payment) => payment.id === editing.sourceId) && (
+                    <option value={editing.sourceId} disabled>
+                      {sourceName(editing)} · nicht verfügbar
+                    </option>
+                  )}
+                  {sources.map((payment) => (
+                    <option key={payment.id} value={payment.id}>
+                      {payment.name}
+                    </option>
+                  ))}
+                </Select>
+              )}
+            </Field>
+          </div>
+          <div className="rf-f">
+            <Field label="Beginn">
+              {({ id }) => (
+                <TextInput
+                  id={id}
+                  type="date"
+                  value={startDate}
+                  onChange={(event) => setStartDate(event.target.value)}
+                  required
+                />
+              )}
+            </Field>
+          </div>
+          <div className="rf-f">
+            <Field label="Ende">
+              {({ id }) => (
+                <TextInput
+                  id={id}
+                  type="date"
+                  value={endDate}
+                  min={startDate || addDays(view.asOf, 1)}
+                  onChange={(event) => setEndDate(event.target.value)}
+                  required
+                />
+              )}
+            </Field>
+          </div>
+          <div className="rf-pause-submit">
+            <Button type="submit" variant="ghost" className="rf-pause-action" disabled={!source}>
+              {editing ? 'Pause speichern' : 'Pause einrichten'}
+            </Button>
+            {editing && (
+              <Button variant="ghost" className="rf-pause-action" onClick={reset}>
+                Abbrechen
+              </Button>
+            )}
+          </div>
+          {sources.length === 0 && !paymentQuery.isPending && (
+            <p className="muted rf-pause-empty">
+              Keine aktiven wiederkehrenden EUR-Einnahmen verfügbar.
+            </p>
+          )}
+          {rangeError && (
+            <p className="field-error rf-add-error" role="alert">
+              {rangeError}
+            </p>
+          )}
+        </form>
+      )}
     </section>
   );
 }
@@ -432,10 +744,9 @@ function EventsCard({ view }: { view: LiquidityReportView }) {
         )}
       </form>
       <p className="vnote">
-        Einmalige und wiederkehrende Ausgaben und Einnahmen, auch Ausfälle wie ein Monat ohne
-        Gehalt. Sie liegen auf den Budget-Konten und ändern die Prognose sofort; „Zählt“ schaltet
-        ein Ereignis aus, ohne es zu löschen. Kategorien, Wiederholungen und Änderungen pflegst du
-        in <AppLink to="/plan/jahr">Plan · Jahr</AppLink>.
+        Zusätzliche einmalige und wiederkehrende Ausgaben oder Einnahmen verändern die Prognose
+        sofort; „Zählt“ schaltet ein Ereignis aus, ohne es zu löschen. Kategorien, Wiederholungen
+        und Änderungen pflegst du in <AppLink to="/plan/jahr">Plan · Jahr</AppLink>.
       </p>
     </section>
   );

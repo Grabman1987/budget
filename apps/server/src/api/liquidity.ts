@@ -1,11 +1,17 @@
 import {
   createPlannedEvent,
+  createIncomePause,
+  deleteIncomePause,
   deletePlannedEvent,
+  listIncomePauses,
   liquidityReportView,
   plannedEventsView,
   plannedEventAccounts,
   restorePlannedEvent,
   updatePlannedEvent,
+  updateIncomePause,
+  type IncomePauseInput,
+  type IncomePausePatch,
   type Db,
   type PlannedEventInput,
   type PlannedEventPatch,
@@ -17,9 +23,9 @@ import {
   type LiquidityLeverId,
 } from '@budget/domain';
 import { randomUUID } from 'node:crypto';
-import { Hono } from 'hono';
-import { z } from 'zod';
-import { ACTOR, defined, readBody, readQuery } from './http';
+import { Hono, type Context } from 'hono';
+import { ZodError, z } from 'zod';
+import { ACTOR, ApiError, defined, readBody, readQuery } from './http';
 import { cents, day } from './schemas';
 
 const horizon = z.enum(LIQUIDITY_HORIZONS as [string, ...string[]]);
@@ -45,6 +51,54 @@ const eventCreate = z.object({
   recurrenceUntil: day.nullable().optional(),
 });
 const eventPatch = eventCreate.partial();
+const incomePauseCreate = z
+  .object({
+    sourceId: z.string().min(1).max(64),
+    startDate: day,
+    endDate: day,
+  })
+  .strict()
+  .refine(
+    ({ startDate, endDate }) => startDate <= endDate,
+    'Das Ende darf nicht vor dem Beginn liegen.',
+  );
+const incomePausePatch = z
+  .object({
+    sourceId: z.string().min(1).max(64).optional(),
+    startDate: day.optional(),
+    endDate: day.optional(),
+  })
+  .strict()
+  .refine((value) => Object.values(value).some((v) => v !== undefined), 'No changes provided');
+
+async function readIncomePauseBody<T>(c: Context, schema: z.ZodType<T>) {
+  try {
+    return await readBody(c, schema);
+  } catch (error) {
+    if (
+      error instanceof ZodError &&
+      error.issues.some((issue) => issue.code === 'unrecognized_keys')
+    )
+      throw new ApiError(
+        422,
+        'invalid',
+        'Nicht unterstützte Felder für die Einkommenspause sind nicht zulässig.',
+      );
+    throw error;
+  }
+}
+
+const incomePauseView = (pause: {
+  id: string;
+  expectedPaymentId: string;
+  startDate: string;
+  endDate: string;
+}) => ({
+  id: pause.id,
+  sourceId: pause.expectedPaymentId,
+  startDate: pause.startDate,
+  endDate: pause.endDate,
+});
 
 /**
  * Report 3.1 Liquiditätsprognose (`/api/liquidity`): the forecast of the budget accounts with the
@@ -63,6 +117,8 @@ export function liquidityRoutes(db: Db, today: () => string): Hono {
       budgetAccounts: plannedEventAccounts(db, asOf),
     });
   });
+
+  app.get('/income-pauses', (c) => c.json({ pauses: listIncomePauses(db).map(incomePauseView) }));
 
   app.get('/', (c) => {
     const q = readQuery(c, query);
@@ -99,6 +155,31 @@ export function liquidityRoutes(db: Db, today: () => string): Hono {
   });
 
   app.delete('/events/:id', (c) => c.json(deletePlannedEvent(db, c.req.param('id'), audit())));
+
+  app.post('/income-pauses', async (c) => {
+    const result = createIncomePause(
+      db,
+      defined<IncomePauseInput>(await readIncomePauseBody(c, incomePauseCreate)),
+      today(),
+      audit(),
+    );
+    return c.json({ ...result, pause: incomePauseView(result.pause) }, 201);
+  });
+
+  app.patch('/income-pauses/:id', async (c) => {
+    const result = updateIncomePause(
+      db,
+      c.req.param('id'),
+      defined<IncomePausePatch>(await readIncomePauseBody(c, incomePausePatch)),
+      today(),
+      audit(),
+    );
+    return c.json({ ...result, pause: incomePauseView(result.pause) });
+  });
+
+  app.delete('/income-pauses/:id', (c) =>
+    c.json(deleteIncomePause(db, c.req.param('id'), audit())),
+  );
 
   app.post('/events/:id/restore', (c) => {
     const { event, groupId } = restorePlannedEvent(db, c.req.param('id'), audit());

@@ -4,18 +4,19 @@ import {
   liquidityReport,
   PriceUnavailableError,
   plannedEventOccurrences,
+  versionOn,
   type EventRecurrence,
   type LiquidityHorizon,
   type LiquidityLeverId,
   type LiquidityReport,
 } from '@budget/domain';
 import { asc, isNull } from 'drizzle-orm';
-import { account, category, plannedEvent } from '../schema';
+import { account, category, expectedPayment, incomePause, plannedEvent } from '../schema';
 import { withGroup, type AuditContext } from './audit';
 import { createEntity, getEntity, restoreEntity, softDeleteEntity, updateEntity } from './entities';
 import { CategoryRuleError, EntityNotFoundError, MissingFxRateError } from './errors';
 import { netWorthValuationAsOf } from './portfolio';
-import { forecastInputs, loadFacts } from './rule-inputs';
+import { forecastInputs, loadFacts, scheduled, type RuleFacts } from './rule-inputs';
 import { runInTransaction, type Executor } from './types';
 
 /**
@@ -55,13 +56,138 @@ export interface LiquidityReportView {
   available: boolean;
   report: LiquidityReport | null;
   events: PlannedEventView[];
+  incomePauses: IncomePauseView[];
   overdraftLimitCents: number;
   budgetAccounts: { id: string; name: string }[];
+}
+
+export interface IncomePauseView {
+  id: string;
+  sourceId: string;
+  sourceName: string | null;
+  startDate: string;
+  endDate: string;
+  sourceState: 'active' | 'inactive' | 'deleted' | 'missing';
+  coverage:
+    | 'applied'
+    | 'outside_horizon'
+    | 'outside_budget'
+    | 'foreign_currency'
+    | 'zero_amount'
+    | 'no_scheduled_occurrence';
+  /** Scheduled, date-shifted cash rows actually removed from this budget forecast. */
+  suppressedOccurrences: { dueDate: string; amountCents: number }[];
+  /** Scheduled rows that the EUR pause intentionally leaves unchanged. */
+  unchangedOccurrences: {
+    dueDate: string;
+    currency: string;
+    reason: 'foreign_currency' | 'zero_amount';
+    amountCents: number | null;
+  }[];
+  /** Rows removed inside the report's six-month verdict window, even if the chart is shorter. */
+  verdictSuppressedOccurrences: { dueDate: string; amountCents: number }[];
 }
 
 export interface LiquidityReportOptions {
   horizon: LiquidityHorizon;
   levers: ReadonlyArray<LiquidityLeverId>;
+}
+
+function incomePausesView(
+  db: Executor,
+  facts: RuleFacts,
+  asOf: string,
+  horizon: number,
+  verdictEnd: string,
+): IncomePauseView[] {
+  const from = addDays(asOf, 1);
+  const to = addDays(asOf, horizon);
+  const through = verdictEnd > to ? verdictEnd : to;
+  const pauses = db
+    .select()
+    .from(incomePause)
+    .where(isNull(incomePause.deletedAt))
+    .orderBy(asc(incomePause.startDate), asc(incomePause.expectedPaymentId), asc(incomePause.id))
+    .all();
+  const paymentRows = db.select().from(expectedPayment).all();
+  const baseline = scheduled(facts, from, through, asOf);
+  const adjusted = scheduled(facts, from, through, asOf, { applyIncomePauses: true });
+
+  return pauses.map((pause) => {
+    const payment = paymentRows.find((row) => row.id === pause.expectedPaymentId);
+    const sourceState: IncomePauseView['sourceState'] = !payment
+      ? 'missing'
+      : payment.deletedAt !== null
+        ? 'deleted'
+        : (payment.startDate !== null && payment.startDate > asOf) ||
+            (payment.endDate !== null && payment.endDate < asOf)
+          ? 'inactive'
+          : 'active';
+    const sourceRows = baseline.filter(
+      (row) =>
+        row.payment.id === pause.expectedPaymentId &&
+        row.dueDate >= pause.startDate &&
+        row.dueDate <= pause.endDate,
+    );
+    const budgetRows = sourceRows.filter((row) => row.onBudget);
+    const actuallySuppressed = budgetRows.flatMap((row) => {
+      const projected = adjusted.find(
+        (candidate) => candidate.payment.id === row.payment.id && candidate.dueDate === row.dueDate,
+      );
+      return row.cents !== 0 && projected?.cents === 0
+        ? [{ dueDate: row.dueDate, amountCents: row.cents }]
+        : [];
+    });
+    const suppressedOccurrences = actuallySuppressed.filter((row) => row.dueDate <= to);
+    const verdictSuppressedOccurrences = actuallySuppressed.filter(
+      (row) => row.dueDate <= verdictEnd,
+    );
+    const unchangedOccurrences: IncomePauseView['unchangedOccurrences'] = [];
+    for (const row of budgetRows) {
+      if (actuallySuppressed.some((suppressed) => suppressed.dueDate === row.dueDate)) continue;
+      const version = versionOn(facts.versions.get(row.payment.id) ?? [], row.dueDate);
+      if (version && version.currency !== 'EUR')
+        unchangedOccurrences.push({
+          dueDate: row.dueDate,
+          currency: version.currency,
+          reason: 'foreign_currency',
+          amountCents: null,
+        });
+      if (version?.currency === 'EUR' && row.cents === 0)
+        unchangedOccurrences.push({
+          dueDate: row.dueDate,
+          currency: 'EUR',
+          reason: 'zero_amount',
+          amountCents: 0,
+        });
+    }
+    const outsideHorizon = pause.endDate < from || pause.startDate > to;
+    const coverage: IncomePauseView['coverage'] =
+      suppressedOccurrences.length > 0
+        ? 'applied'
+        : outsideHorizon
+          ? 'outside_horizon'
+          : sourceRows.length > 0 && budgetRows.length === 0
+            ? 'outside_budget'
+            : unchangedOccurrences.some((row) => row.reason === 'foreign_currency')
+              ? 'foreign_currency'
+              : unchangedOccurrences.length > 0
+                ? 'zero_amount'
+                : 'no_scheduled_occurrence';
+
+    return {
+      id: pause.id,
+      sourceId: pause.expectedPaymentId,
+      sourceName: payment?.name ?? null,
+      startDate: pause.startDate,
+      endDate: pause.endDate,
+      sourceState,
+      coverage,
+      suppressedOccurrences,
+      verdictSuppressedOccurrences,
+      unchangedOccurrences,
+    };
+  });
 }
 
 /** Calendar plans can be read even when unrelated holdings cannot be valued. */
@@ -147,6 +273,7 @@ export function liquidityReportView(
       available: false,
       report: null,
       events,
+      incomePauses: incomePausesView(db, facts, asOf, hDays, asOf),
       overdraftLimitCents: 0,
       budgetAccounts: accounts,
     };
@@ -180,6 +307,7 @@ export function liquidityReportView(
     available: true,
     report,
     events,
+    incomePauses: incomePausesView(db, facts, asOf, hDays, report.verdictEnd),
     overdraftLimitCents: inputs.overdraftLimitCents,
     budgetAccounts: accounts,
   };
