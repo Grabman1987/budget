@@ -615,6 +615,10 @@ Price history (yfinance + Ariva, source per price), ECB rates, trades and holdin
 
 
 ## P6 Reports und Umstellung
+### Report 3.1 — baseline and scenario clarity (#284)
+  - [x] Label the forecast basis from existing payment assumptions and variable planning; show an event setup hint only when no active planned events are configured, and disclose events outside the selected horizon.
+  - [x] Isolated synthetic browser evidence for no events, later events and recurring-event count, with desktop/mobile screenshots, light/dark Axe and overflow checks. See [evidence](evidence/liquidity-baseline-284.md) for the integrated browser and full-check results.
+
 ### Portfolio composition — owner feedback 2026-10-05
 
 - [x] Additive parent/group migration; two-level lifecycle and audited moves; dated class targets and group Soll sums.
