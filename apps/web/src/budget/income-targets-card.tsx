@@ -26,6 +26,7 @@ export function IncomeTargetsCard({
   const unfunded = data.unfundedCategoryIds
     .map((id) => rows.find((r) => r.id === id))
     .filter((r): r is PlanRow => !!r);
+  const hasTargets = rows.some((row) => row.target !== null);
   return (
     <section
       className="insp-card card income-targets"
@@ -71,7 +72,7 @@ export function IncomeTargetsCard({
                 ? 'Lücke'
                 : data.differenceCents === 0
                   ? 'Ausgeglichen'
-                  : 'Überschuss'}
+                  : 'Planungsdifferenz'}
           </dt>
           <dd
             className={gap ? 'income-targets-gap' : undefined}
@@ -99,7 +100,9 @@ export function IncomeTargetsCard({
       <p>
         {unfunded.length
           ? `Noch zu finanzieren: ${eur(data.unfundedCents)}`
-          : 'Alle Monatsziele sind finanziert.'}
+          : hasTargets
+            ? 'Alle Monatsziele sind finanziert.'
+            : 'Noch nicht eingerichtet.'}
       </p>
       {unfunded.length > 0 && (
         <ul className="income-targets-links" aria-label="Kategorien mit offenen Monatszielen">

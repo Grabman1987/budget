@@ -96,12 +96,12 @@
 .btn-sm {
   height: 34px;
   padding: 0 12px;
-  font-size: 13.5px;
+  font-size: var(--fs-body);
 }
 .btn-xs {
   height: 28px;
   padding: 0 10px;
-  font-size: 12.5px;
+  font-size: var(--fs-chart-label);
 }
 @media (max-width: 767px) {
   /* Touch targets stay at least 44 px on phones. */
@@ -149,7 +149,7 @@
 }
 .tb-title p {
   margin: 0;
-  font-size: 16px;
+  font-size: var(--fs-title);
   color: var(--ink-2);
 }
 .tb-short {
@@ -226,7 +226,7 @@
     min-width: 0;
   }
   .month-switch h1 {
-    font-size: 19px;
+    font-size: var(--fs-headline);
     min-width: 0;
     flex: 1;
   }
@@ -342,7 +342,7 @@
 }
 .head .aside {
   margin-left: auto;
-  font-size: 13px;
+  font-size: var(--fs-body);
   color: var(--ink-2);
   display: flex;
   align-items: center;
@@ -365,7 +365,7 @@
 .circle-no-sm {
   width: 24px;
   height: 24px;
-  font-size: 12.5px;
+  font-size: var(--fs-chart-label);
   translate: none;
 }
 
@@ -385,9 +385,9 @@
 .seg button {
   height: 28px;
   padding: 0 12px;
-  border-radius: 5px;
+  border-radius: var(--radius-xs);
   font-weight: 550;
-  font-size: 13px;
+  font-size: var(--fs-body);
   color: var(--ink-2);
 }
 .seg button[aria-pressed='true'] {
@@ -462,7 +462,7 @@
   margin-bottom: 14px;
 }
 .field-row > label {
-  font-size: 13px;
+  font-size: var(--fs-body);
   font-weight: 560;
   color: var(--ink-2);
 }
@@ -492,13 +492,13 @@
 .field-error {
   margin: 0;
   color: var(--red);
-  font-size: 12.5px;
+  font-size: var(--fs-chart-label);
   font-weight: 560;
 }
 .field-hint {
   margin: 0;
   color: var(--ink-3);
-  font-size: 12.5px;
+  font-size: var(--fs-chart-label);
 }
 
 /* Amount field: arithmetic in the field, operator buttons, evaluated hint below */
@@ -542,7 +542,7 @@
   background: var(--tint-2);
 }
 .amount-sign {
-  font-size: 26px;
+  font-size: var(--fs-figure);
   font-weight: 600;
   color: var(--ink-2);
 }
@@ -572,19 +572,19 @@
 }
 .amount-hint {
   margin: 0;
-  font-size: 12.5px;
+  font-size: var(--fs-chart-label);
   color: var(--ink-3);
 }
 .amount-hint.is-result {
   color: var(--line);
   font-weight: 600;
   font-family: var(--font-tech);
-  font-size: 13.5px;
+  font-size: var(--fs-body);
   letter-spacing: 0.03em;
 }
 @media (max-width: 767px) {
   .amount-input {
-    font-size: 26px;
+    font-size: var(--fs-figure);
   }
   /* Phone: no operator buttons (owner 04.10.2026: too large); + − × ÷ can still be typed. */
   .amount-box {
@@ -658,7 +658,7 @@ button.ct-term:hover {
 }
 .ct-val {
   font-weight: 620;
-  font-size: 15px;
+  font-size: var(--fs-body);
   white-space: nowrap;
 }
 button.ct-term .ct-val {
@@ -719,7 +719,7 @@ button.ct-term .ct-val {
   gap: 6px;
   min-height: 32px;
   font-weight: 640;
-  font-size: 14.5px;
+  font-size: var(--fs-body);
   vertical-align: middle;
 }
 .grp-toggle .lucide,
@@ -734,14 +734,14 @@ button.ct-term .ct-val {
   align-items: center;
   gap: 4px;
   margin-left: 10px;
-  font-size: 12.5px;
+  font-size: var(--fs-chart-label);
   font-weight: 500;
   color: var(--ink-3);
   vertical-align: middle;
 }
 .pos {
   font-family: var(--font-tech);
-  font-size: 12.5px;
+  font-size: var(--fs-chart-label);
   letter-spacing: 0.04em;
   color: var(--ink-3);
 }
@@ -831,13 +831,13 @@ button.ct-term .ct-val {
 .rev-what strong {
   display: block;
   font-weight: 600;
-  font-size: 14.5px;
+  font-size: var(--fs-body);
 }
 .rev-row.is-urgent .rev-what strong {
   color: var(--red);
 }
 .rev-what span {
-  font-size: 13px;
+  font-size: var(--fs-body);
   color: var(--ink-2);
 }
 .rev-act {
@@ -901,7 +901,7 @@ button.ct-term .ct-val {
   display: inline-block;
   padding: 1px 6px;
   border: 1px solid var(--line-2);
-  border-radius: 3px;
+  border-radius: var(--radius-titleblock);
   font-family: var(--font-tech);
   font-size: 12px;
   font-weight: 500;
@@ -919,7 +919,7 @@ button.ct-term .ct-val {
   align-items: center;
   gap: 6px;
   font-weight: 600;
-  font-size: 13px;
+  font-size: var(--fs-body);
   color: var(--ink);
 }
 .status-met svg {
@@ -1196,7 +1196,7 @@ dialog.sheet-bottom.is-full .sheet-grip {
   padding: 12px 12px 12px 18px;
   background: var(--ink);
   color: var(--ground);
-  border-radius: 10px;
+  border-radius: var(--radius-md);
   box-shadow: var(--shadow);
   opacity: 0;
   visibility: hidden;

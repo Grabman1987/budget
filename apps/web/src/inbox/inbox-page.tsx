@@ -68,7 +68,13 @@ function InboxHeadCount() {
 }
 
 /** Same queue/actions in page and global panel; booking editor replaces the panel to avoid nested modals. */
-function InboxWorkflow({ panel }: { panel?: { open: boolean; onClose: () => void } }) {
+export function InboxWorkflow({
+  panel,
+  entryIds,
+}: {
+  panel?: { open: boolean; onClose: () => void };
+  entryIds?: string[] | undefined;
+}) {
   useAmountPrivacy();
   const [editing, setEditing] = useState<ListedBooking | null>(null);
   const [proposal, setProposal] = useState<SavingsExecutionProposal | null>(null);
@@ -108,6 +114,7 @@ function InboxWorkflow({ panel }: { panel?: { open: boolean; onClose: () => void
   };
   const body = (
     <InboxBody
+      entryIds={entryIds}
       onEdit={(id) => void edit(id)}
       loadingId={loading}
       onSavings={(item) => {
@@ -147,10 +154,12 @@ function InboxWorkflow({ panel }: { panel?: { open: boolean; onClose: () => void
 }
 
 function InboxBody({
+  entryIds,
   onEdit,
   loadingId,
   onSavings,
 }: {
+  entryIds?: string[] | undefined;
   onEdit: (id: string) => void;
   loadingId: string | null;
   onSavings: (proposal: SavingsExecutionProposal) => void;
@@ -162,6 +171,8 @@ function InboxBody({
   const write = useBudgetWrite();
   const [busy, setBusy] = useState<string | null>(null);
   const [learnBookingId, setLearnBookingId] = useState<string | null>(null);
+  // A long queue (hundreds of read-source entries) draws in pages; counts stay those of the queue.
+  const [shown, setShown] = useState(INBOX_PAGE_ROWS);
   const resolve = async (item: InboxStored) => {
     if (busy) return;
     setBusy(item.id);
@@ -172,23 +183,27 @@ function InboxBody({
     setBusy(null);
   };
   const groups = Object.keys(LABELS) as InboxKind[];
+  const entries =
+    queue.data?.entries.filter((item) => !entryIds || entryIds.includes(item.id)) ?? [];
+  const count = entryIds ? entries.length : queue.data?.count;
   let index = 0;
+  let room = shown;
   return (
     <section className="kinbox" aria-labelledby={headingId}>
       <SectionHead
         id={headingId}
         title="Offene Entscheidungen"
-        aside={queue.data ? `${queue.data.count} offen` : undefined}
+        aside={count !== undefined ? `${count} offen` : undefined}
       />
       {queue.isPending && <LoadingNote what="Aufgaben" />}
       {learnBookingId && <AssignmentLearnOffer bookingId={learnBookingId} />}
       {queue.isError && (
         <ErrorNote what="Aufgaben" error={queue.error} onRetry={() => void queue.refetch()} />
       )}
-      {queue.data?.count === 0 && (
+      {count === 0 && (
         <EmptyNote>Posteingang leer. Es sind keine offenen Aufgaben vorhanden.</EmptyNote>
       )}
-      {queue.data && queue.data.entries.length > 0 && (
+      {entries.length > 0 && (
         <>
           <table className="rev-table kinbox-table">
             <caption className="sr-only">Offene Entscheidungen nach Typ</caption>
@@ -207,13 +222,15 @@ function InboxBody({
             </thead>
             <tbody>
               {groups.flatMap((kind) => {
-                const items = queue.data.entries.filter((item) => item.kind === kind);
-                if (!items.length) return [];
+                const all = entries.filter((item) => item.kind === kind);
+                if (!all.length || room <= 0) return [];
+                const items = all.slice(0, room);
+                room -= items.length;
                 return [
                   <tr className="kgroup" key={kind}>
                     <td className="rev-mark" />
                     <th scope="rowgroup" colSpan={2}>
-                      {LABELS[kind]} <span className="kgcount">{items.length}</span>
+                      {LABELS[kind]} <span className="kgcount">{all.length}</span>
                     </th>
                   </tr>,
                   ...items.map((item) => (
@@ -243,17 +260,32 @@ function InboxBody({
               })}
             </tbody>
           </table>
+          {entries.length > shown && (
+            <Button
+              variant="ghost"
+              className="inbox-more"
+              onClick={() => setShown((rows) => rows + INBOX_PAGE_ROWS)}
+            >
+              Weitere anzeigen ({entries.length - shown} von {entries.length} noch verborgen)
+            </Button>
+          )}
           <p className="inbox-hint">
             Eine Warnung nur als erledigt markieren, wenn ihre Ursache geklärt ist. Das Markieren
             ändert keine Buchung und repariert keine Datenquelle.
           </p>
         </>
       )}
-      <PayslipUpload />
-      <ReceiptSection />
+      {!entryIds && (
+        <>
+          <PayslipUpload />
+          <ReceiptSection />
+        </>
+      )}
     </section>
   );
 }
+
+const INBOX_PAGE_ROWS = 100;
 
 function InboxRow({
   onBankConfirmed,
@@ -301,6 +333,14 @@ function InboxRow({
                 : maskMoneyText(item.detail ?? '')}
           </span>
         )}
+        {item.type === 'booking' && item.status !== 'reconciled' && (
+          <BookingAssignmentReview
+            id={item.bookingId}
+            onApplied={(canLearn) => {
+              if (canLearn) onBankConfirmed(item.bookingId);
+            }}
+          />
+        )}
         {item.type === 'stored' && item.refType === 'payslip-intake' && item.refId && (
           <PayslipIntakeDetail id={item.refId} />
         )}
@@ -316,14 +356,6 @@ function InboxRow({
             >
               Zuordnen
             </Button>
-            {item.source === 'bank' && item.status !== 'reconciled' && (
-              <BookingAssignmentReview
-                id={item.bookingId}
-                onApplied={(canLearn) => {
-                  if (canLearn) onBankConfirmed(item.bookingId);
-                }}
-              />
-            )}
             {item.status === 'pending' && (
               <Button
                 size="sm"
@@ -342,6 +374,14 @@ function InboxRow({
           <Button variant="ghost" onClick={() => onSavings(item)}>
             Ausführung prüfen
           </Button>
+        ) : item.type === 'envelope' ? (
+          <AppLink
+            className="btn btn-alert btn-sm"
+            to="/plan/monat"
+            search={{ monat: item.month, kategorie: item.categoryId }}
+          >
+            Decken
+          </AppLink>
         ) : item.refType === 'payslip-intake' && item.refId ? (
           <AppLink className="btn btn-ghost btn-sm" to="/reports/gehalt">
             Gehaltsreport
@@ -352,12 +392,7 @@ function InboxRow({
               <BankCandidate id={item.refId} onConfirmed={onBankConfirmed} />
             )}
             <SourceLink item={item} />
-            <Button
-              size="sm"
-              variant={item.urgent ? 'alert' : 'ghost'}
-              disabled={busy}
-              onClick={onResolve}
-            >
+            <Button size="sm" variant="ghost" disabled={busy} onClick={onResolve}>
               {item.refType === 'bank-sync-candidate'
                 ? 'Nicht übernehmen'
                 : 'Als erledigt markieren'}

@@ -98,6 +98,7 @@ test('every rendered chart has shared inspection across reports and main pages',
   ]) {
     await page.goto(path);
     await page.waitForLoadState('networkidle');
+    if (path === '/vermoegen/schulden') await page.getByText('Rechenweg', { exact: true }).click();
     expect(errors, path).toEqual([]);
     if (path === '/dev/bauteile')
       await expect(page.getByRole('alert')).toHaveText('Kategorie ist Pflicht bei Ausgaben.');
@@ -118,7 +119,9 @@ test('every rendered chart has shared inspection across reports and main pages',
 test('Sankey links and nodes show amounts, shares and period', async ({ page }, info) => {
   await page.goto('/reports/geldfluss?monat=2026-09');
   const chart = page.getByTestId('sankey-chart');
-  const node = chart.locator('.sk-node').first();
+  const node = chart
+    .locator(info.project.name === 'mobile' ? 'li[data-chart-point]' : '.sk-node')
+    .first();
   await expect(node).toBeVisible();
   if (info.project.name === 'mobile') await node.tap();
   else await node.hover();
@@ -128,7 +131,7 @@ test('Sankey links and nodes show amounts, shares and period', async ({ page }, 
   await expect(tip).toContainText('%');
   await expect(tip.locator('.chart-tooltip-date')).toContainText('2026');
   await chart
-    .locator('.sk-link')
+    .locator(info.project.name === 'mobile' ? 'li[data-chart-point]' : '.sk-link')
     .first()
     .dispatchEvent('pointerdown', {
       pointerType: info.project.name === 'mobile' ? 'touch' : 'mouse',

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { ageOfMoney, type MoneyEvent } from './age-of-money';
+import { ageOfMoney, ageOfMoneyAt, type MoneyEvent } from './age-of-money';
 
 const ev = (day: string, cents: number): MoneyEvent => ({ day, cents });
 
@@ -60,5 +60,68 @@ describe('ageOfMoney (R03)', () => {
   it('a smaller window can be chosen', () => {
     const events = [ev('2026-01-01', 1000), ev('2026-01-02', -10), ev('2026-01-31', -10)];
     expect(ageOfMoney(events, undefined, 1)).toEqual({ days: 30, outflowsCounted: 1 });
+  });
+});
+
+describe('ageOfMoneyAt', () => {
+  // The previous one-day implementation: sort and replay the events up to the day, every call.
+  function reference(events: MoneyEvent[], asOf?: string, window = 10) {
+    const sorted = events
+      .map((e, i) => ({ ...e, i }))
+      .filter((e) => e.cents !== 0 && (asOf === undefined || e.day <= asOf))
+      .sort(
+        (a, b) =>
+          (a.day < b.day ? -1 : a.day > b.day ? 1 : 0) ||
+          (a.cents > 0 ? 0 : 1) - (b.cents > 0 ? 0 : 1) ||
+          a.i - b.i,
+      );
+    const lots: { day: string; left: number }[] = [];
+    let head = 0;
+    const ages: { centDays: number; consumed: number }[] = [];
+    for (const e of sorted) {
+      if (e.cents > 0) {
+        lots.push({ day: e.day, left: e.cents });
+        continue;
+      }
+      let need = -e.cents;
+      let centDays = 0;
+      let consumed = 0;
+      for (let lot = lots[head]; need > 0 && lot; lot = lots[head]) {
+        const take = Math.min(lot.left, need);
+        centDays +=
+          take *
+          ((Date.parse(`${e.day}T00:00:00Z`) - Date.parse(`${lot.day}T00:00:00Z`)) / 86_400_000);
+        consumed += take;
+        lot.left -= take;
+        need -= take;
+        if (lot.left === 0) head++;
+      }
+      if (consumed > 0) ages.push({ centDays, consumed });
+    }
+    const last = ages.slice(-window);
+    if (last.length === 0) return { days: null, outflowsCounted: 0 };
+    const mean = last.reduce((a, x) => a + x.centDays / x.consumed, 0) / last.length;
+    return { days: Math.round(mean), outflowsCounted: last.length };
+  }
+
+  it('answers every day exactly like one ageOfMoney call per day', () => {
+    let seed = 7;
+    const rnd = () => (seed = (seed * 1_103_515_245 + 12_345) % 2_147_483_648) / 2_147_483_648;
+    const events: MoneyEvent[] = [];
+    for (let i = 0; i < 400; i++) {
+      const day = `2026-${String(1 + Math.floor(rnd() * 9)).padStart(2, '0')}-${String(1 + Math.floor(rnd() * 28)).padStart(2, '0')}`;
+      events.push(ev(day, (rnd() < 0.3 ? 1 : -1) * Math.round(rnd() * 90_000)));
+    }
+    const days = [
+      '2025-12-31',
+      '2026-01-01',
+      '2026-03-31',
+      '2026-02-14',
+      '2026-09-30',
+      '2027-01-01',
+      undefined,
+    ];
+    expect(ageOfMoneyAt(events, days)).toEqual(days.map((d) => reference(events, d)));
+    for (const d of days) expect(ageOfMoney(events, d)).toEqual(reference(events, d));
   });
 });

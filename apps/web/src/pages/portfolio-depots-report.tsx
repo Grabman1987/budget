@@ -15,6 +15,7 @@ import { periodText } from '../wealth/networth-model';
 import { useZeitraum, ZEITRAUM_VALUES } from '../wealth/zeitraum';
 import type { Period } from '@budget/domain';
 import type { PageMeta } from '../nav/pages';
+import { Term } from '../reports/term';
 import type { ReportEntry } from '../nav/reports-catalog';
 import { PageFrame } from './placeholder-page';
 import {
@@ -49,6 +50,20 @@ export function PortfolioDepotsReport({ report, meta }: { report: ReportEntry; m
   const data = query.data?.depots;
   return (
     <PageFrame
+      verdict={
+        data && !query.isFetching && !query.isError
+          ? {
+              reportId: report.id,
+              period: `${data.window?.from}..${data.window?.to}`,
+              estimated: Boolean(query.data?.incomplete?.length),
+              metric: {
+                label: 'Anlagewert am Ende',
+                value: data.total?.valueCents ?? null,
+                unit: 'money',
+              },
+            }
+          : undefined
+      }
       meta={meta}
       title={report.name}
       subtitle={`${report.pos} · ${report.question}`}
@@ -200,7 +215,9 @@ function DepotCard({
           </table>
           <div className="depot-perf">
             <div>
-              <span className="tech">TTWROR</span>
+              <span className="tech">
+                <Term>TTWROR</Term>
+              </span>
               <strong>{percentText(perf.ttwror, { sign: true })}</strong>
             </div>
             {benchmarks.map((b) => (
@@ -295,7 +312,7 @@ function KpiTable({ columns }: { columns: DepotColumn[] }) {
           {rows.map(([label, cell]) => (
             <tr key={label}>
               <th scope="row" className="depots-first">
-                {label}
+                <Term>{label}</Term>
               </th>
               {columns.map((depot) => (
                 <td

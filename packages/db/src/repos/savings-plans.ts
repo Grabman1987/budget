@@ -25,6 +25,7 @@ import { insertTracked, updateTracked, withGroup, type AuditContext } from './au
 import { ConflictError, EntityNotFoundError } from './errors';
 import { riskOf } from './portfolio-summary';
 import { runInTransaction, type Executor } from './types';
+import { memoizedShared } from './request-memo';
 import { createTrade, listTrades, type TradeInput } from './trades';
 
 export type SavingsPlanRecord = typeof savingsPlan.$inferSelect;
@@ -288,8 +289,17 @@ export interface SavingsExecutionProposal {
 export function savingsExecutionProposals(db: Executor, today: string): SavingsExecutionProposal[] {
   const rows = listSavingsPlans(db, { includeEnded: true });
   const currentMonth = monthOf(today);
-  const trades = listTrades(db);
+  // All live trades, read once per request (only filtered and matched here, never changed).
+  const trades = memoizedShared(db, 'allLiveTrades', () => listTrades(db));
   const buys = trades.filter((t) => t.kind === 'buy' && !t.savingsMonth);
+  // Trades that already carry a savings month, by (month, security, account).
+  const slot = (month: string, securityId: string, accountId: string) =>
+    JSON.stringify([month, securityId, accountId]);
+  const booked = new Set(
+    trades.flatMap((t) =>
+      t.savingsMonth ? [slot(t.savingsMonth, t.securityId, t.accountId)] : [],
+    ),
+  );
   const months = new Set<string>();
   for (const row of rows) {
     for (
@@ -301,14 +311,13 @@ export function savingsExecutionProposals(db: Executor, today: string): SavingsE
   }
   const planned = [...months].sort().flatMap((month) => plannedExecutions(rows.map(toRow), month));
   const pending = planned.filter(
-    (e) =>
-      !trades.some(
-        (t) =>
-          t.savingsMonth === monthOf(e.date) &&
-          t.securityId === e.securityId &&
-          t.accountId === e.accountId,
-      ),
+    (e) => !booked.has(slot(monthOf(e.date), e.securityId, e.accountId)),
   );
+  const plannedPerSlot = new Map<string, number>();
+  for (const e of planned) {
+    const key = slot(monthOf(e.date), e.securityId, e.accountId);
+    plannedPerSlot.set(key, (plannedPerSlot.get(key) ?? 0) + 1);
+  }
   // Match the complete timeline once so one buy cannot fulfil adjacent monthly windows twice.
   const executions = matchExecutions(pending, buys, today).map((e) => ({
     ...e,
@@ -319,24 +328,9 @@ export function savingsExecutionProposals(db: Executor, today: string): SavingsE
   return executions.flatMap((execution) => {
     if (execution.date > today || execution.status === 'executed') return [];
     // Overlapping versions cannot be interpreted as two monthly purchases.
-    if (
-      planned.filter(
-        (e) =>
-          monthOf(e.date) === execution.month &&
-          e.securityId === execution.securityId &&
-          e.accountId === execution.accountId,
-      ).length !== 1
-    )
-      return [];
-    if (
-      trades.some(
-        (t) =>
-          t.savingsMonth === execution.month &&
-          t.securityId === execution.securityId &&
-          t.accountId === execution.accountId,
-      )
-    )
-      return [];
+    const key = slot(execution.month, execution.securityId, execution.accountId);
+    if (plannedPerSlot.get(key) !== 1) return [];
+    if (booked.has(key)) return [];
     const plan = rows.find((r) => r.id === execution.planId)!;
     const sec = securities.find((s) => s.id === execution.securityId);
     const acct = accounts.find((a) => a.id === execution.accountId);

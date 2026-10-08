@@ -1,4 +1,5 @@
 export * from './money';
+export * from './month-close';
 export * from './chain';
 export * from './ledger';
 export * from './invest';
@@ -40,3 +41,5 @@ export * from './wealth/target-policy';
 
 export * from './ledger/account-preview';
 export * from './spending/coicop';
+export * from './search';
+export * from './reports/verdicts';

@@ -204,7 +204,7 @@ export function LoanPlanning({ loanId, asOf }: { loanId: string; asOf: string })
                       ? ' (fix)'
                       : plan.terms.interestKind === 'variable'
                         ? ' (variabel)'
-                        : ''
+                        : ' (Zinsart unbekannt)'
                   } bis zur ersten Änderung. `}
               Eine Zinsänderung gilt ab ihrem Monat für den Tilgungsplan und alle Szenarien.{' '}
               <AppLink to="/einstellungen/konten">Konditionen pflegen</AppLink>
@@ -374,8 +374,10 @@ function ScenarioTable({
     return (
       <p className="vnote" data-testid="loan-missing">
         Für Szenarien fehlen hinterlegte Konditionen:{' '}
-        {plan.missing.map((m) => (m === 'rate' ? 'Zinssatz' : 'Monatsrate')).join(' und ')}.{' '}
-        <AppLink to="/einstellungen/konten">Konditionen pflegen</AppLink>
+        {plan.missing
+          .map((m) => (m === 'rate' ? 'Zinssatz' : m === 'fee' ? 'Gebühr' : 'Monatsrate'))
+          .join(' und ')}
+        . <AppLink to="/einstellungen/konten">Konditionen pflegen</AppLink>
       </p>
     );
   const base = plan.baseline;

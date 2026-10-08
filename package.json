@@ -16,7 +16,7 @@
     "build": "npm run build -w @budget/web && npm run build -w @budget/server",
     "start": "node apps/server/dist/index.js",
     "typecheck": "npm run typecheck --workspaces --if-present",
-    "lint": "eslint . && prettier --check .",
+    "lint": "node packages/ui/scripts/check-css-scale.mjs && eslint . && prettier --check .",
     "format": "prettier --write .",
     "test": "vitest run",
     "check": "npm run typecheck && npm run lint && npm run test",
@@ -43,5 +43,10 @@
     "typescript": "~6.0.3",
     "typescript-eslint": "^8.71.0",
     "vitest": "^5.0.2"
+  },
+  "overrides": {
+    "concurrently": {
+      "shell-quote": "1.11.0"
+    }
   }
 }

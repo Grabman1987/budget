@@ -1,18 +1,21 @@
 import { ReportPeriodControl } from './period-quick-select';
 import { useAmountPrivacy, DimensionChain } from '@budget/ui';
 import { useQuery } from '@tanstack/react-query';
+import { useMemo } from 'react';
 import { ArrowDown, ArrowUp } from 'lucide-react';
 import { userText } from '../api/error-text';
 import { ApiError } from '../api/http';
 import { eur, eurParts, eurWhole, longDay } from '../ledger/format';
 import { EmptyNote, ErrorNote, LoadingNote } from '../ledger/states';
 import type { PageMeta } from '../nav/pages';
+import { Term } from './term';
 import type { ReportEntry } from '../nav/reports-catalog';
 import { PageFrame } from '../pages/placeholder-page';
 import { chainTerms, periodText } from '../wealth/networth-model';
 import { useZeitraum, ZEITRAUM_VALUES } from '../wealth/zeitraum';
 import { netWorthHistoryQuery, type NetWorthHistory } from './wealth-history-api';
 import { toneOf, WealthHistoryChart } from './wealth-history-chart';
+import { wealthHistoryVerdictFacts } from './verdict-facts';
 import './reports-future.css';
 
 const PERIOD_OPTIONS = ZEITRAUM_VALUES.map((value) => ({ value, label: value }));
@@ -30,8 +33,16 @@ export function WealthHistoryReport({ report, meta }: { report: ReportEntry; met
   const [period, setPeriod] = useZeitraum();
   const query = useQuery(netWorthHistoryQuery(period));
   const history = query.isSuccess ? query.data : undefined;
+  const verdict = useMemo(
+    () =>
+      history && !query.isFetching && !query.isError
+        ? wealthHistoryVerdictFacts(report.id, history)
+        : undefined,
+    [history, query.isFetching, query.isError, report.id],
+  );
   return (
     <PageFrame
+      verdict={verdict}
       meta={meta}
       title={report.name}
       subtitle={`${report.pos} · ${report.question}`}
@@ -102,7 +113,7 @@ function Body({ history }: { history: NetWorthHistory }) {
           </span>
         </div>
         <div className="rf-figure" data-testid="wh-figure">
-          {Boolean(history.incomplete?.length) && <abbr title="Teilweise geschätzt">≈</abbr>}
+          {Boolean(history.incomplete?.length) && <Term>≈</Term>}
           {whole}
           <span className="cents">,{fraction} €</span>
         </div>

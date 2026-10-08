@@ -1,5 +1,7 @@
 /* Reports 3.1 to 3.3 (Zukunft und Vermögen): shared layout, figures, tables and legends.
    White cards on the slate ground (DESIGN.md, Präzisionsschicht); no colour of its own. */
+@import './table-scroll.css';
+@import './mobile-report-header.css';
 
 .rf-report {
   grid-template-columns: minmax(0, 7fr) minmax(0, 5fr);
@@ -40,7 +42,7 @@
   gap: 12px;
   margin: 14px 0 6px;
   padding: 12px 14px;
-  border-radius: 10px;
+  border-radius: var(--radius-md);
   background: var(--quiet-soft);
   color: var(--ink);
 }
@@ -50,13 +52,13 @@
 }
 .rf-verdict strong {
   display: block;
-  font-size: 16px;
+  font-size: var(--fs-title);
   font-weight: 640;
 }
 .rf-verdict small {
   display: block;
   margin-top: 2px;
-  font-size: 13px;
+  font-size: var(--fs-body);
   color: var(--ink-2);
 }
 .rf-verdict.is-ok {
@@ -92,7 +94,7 @@
 .rf-figs strong {
   display: block;
   margin: 2px 0 0;
-  font-size: 26px;
+  font-size: var(--fs-figure);
   font-weight: 650;
   letter-spacing: -0.02em;
   font-variant-numeric: tabular-nums;
@@ -103,7 +105,7 @@
 }
 .rf-figs small {
   display: block;
-  font-size: 12.5px;
+  font-size: var(--fs-chart-label);
   color: var(--ink-2);
 }
 
@@ -129,7 +131,7 @@
   list-style: none;
   margin: 6px 0 8px;
   padding: 0;
-  font-size: 12.5px;
+  font-size: var(--fs-chart-label);
   color: var(--ink-2);
 }
 .rf-legend li {
@@ -179,6 +181,8 @@
 .rf-scroll {
   overflow-x: auto;
   min-width: 0;
+  max-width: 100%;
+  overscroll-behavior-inline: contain;
   margin-top: 10px;
 }
 .rf-table {
@@ -227,7 +231,7 @@
 }
 .rf-table .rf-grp th {
   padding-top: 14px;
-  font-size: 13px;
+  font-size: var(--fs-body);
   color: var(--ink);
   font-weight: 640;
   border-bottom: 1px solid var(--rule-strong);
@@ -330,7 +334,7 @@
 .rf-lever small {
   display: block;
   margin-top: 2px;
-  font-size: 12.5px;
+  font-size: var(--fs-chart-label);
   color: var(--ink-2);
 }
 .rf-gain {
@@ -342,7 +346,7 @@
 
 /* Cashflow: figures beside the chain */
 .rf-figure {
-  font-size: 56px;
+  font-size: var(--fs-dimension);
   font-weight: 650;
   letter-spacing: -0.03em;
   line-height: 1.05;
@@ -355,7 +359,7 @@
   gap: 8px 24px;
   margin: 14px 0 4px;
   padding: 12px 14px;
-  border-radius: 10px;
+  border-radius: var(--radius-md);
   background: var(--surface-2);
   color: var(--ink-2);
   font-size: 14px;
@@ -389,6 +393,22 @@
   }
 }
 @media (max-width: 767px) {
+  .rf-report {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .liquidity-report .rf-table tr > :first-child:not([colspan]) {
+    position: sticky;
+    left: 0;
+    z-index: 1;
+    background: var(--surface);
+    box-shadow: inset -1px 0 var(--rule-strong);
+    min-width: 100px;
+    max-width: 150px;
+    overflow-wrap: anywhere;
+  }
+  .liquidity-report .rf-table th:first-child {
+    white-space: normal;
+  }
   .rf-card {
     padding: 16px;
   }

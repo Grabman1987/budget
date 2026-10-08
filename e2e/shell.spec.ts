@@ -21,6 +21,8 @@ test.describe('routes', () => {
   sampleTest(
     `all ${ROUTES.length} routes are reachable by URL with title, h1 and main landmark`,
     async ({ page }) => {
+      // 66 sequential page loads can exceed the 30 s default on a loaded CI runner.
+      test.setTimeout(120_000);
       const problems = collectProblems(page);
       for (const path of ROUTES) {
         const response = await page.goto(path);
@@ -217,7 +219,19 @@ test.describe('panel via route param', () => {
   }, testInfo) => {
     await page.emulateMedia({ reducedMotion: 'reduce' });
     await page.goto('/?panel=beispiel');
-    const box = await page.getByRole('dialog', { name: 'Details' }).boundingBox();
+    const dialog = page.getByRole('dialog', { name: 'Details' });
+    await expect(dialog).toBeVisible();
+    // The sheet slides in; sample its box until the animation has settled.
+    let previous = '';
+    await expect
+      .poll(async () => {
+        const now = JSON.stringify(await dialog.boundingBox());
+        const settled = now === previous;
+        previous = now;
+        return settled;
+      })
+      .toBe(true);
+    const box = await dialog.boundingBox();
     const viewport = page.viewportSize();
     expect(box && viewport).toBeTruthy();
     if (!box || !viewport) return;

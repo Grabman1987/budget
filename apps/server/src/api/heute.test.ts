@@ -113,6 +113,50 @@ it('Heute and One-Pager expose the same cent-exact expectation and existing fore
   expect(report).toEqual(live);
 });
 
+it('keeps the upcoming status tied to a filled envelope when its account balance is negative', async () => {
+  accounts.create(
+    db,
+    {
+      id: 'negative-checking',
+      name: 'Testkonto',
+      type: 'checking',
+      role: 'budget',
+      onBudget: true,
+      openingDate: '2026-01-01',
+      openingBalanceCents: -20_000,
+    },
+    { actor: 'tester' },
+  );
+  expect(
+    (await call('GET', '/budget/2026-03')).body.summary.envelopes.find(
+      (envelope: any) => envelope.categoryId === 'miete',
+    )?.availableCents,
+  ).toBe(100_000);
+  expect(
+    (await call('GET', '/accounts')).body.accounts.find(
+      (account: any) => account.id === 'negative-checking',
+    )?.balanceCents,
+  ).toBe(-20_000);
+  await call('POST', '/expected', {
+    accountId: 'negative-checking',
+    rhythm: 'monthly',
+    validFrom: '2026-01-01',
+    name: 'Testzahlung',
+    kind: 'outflow',
+    categoryId: 'miete',
+    dueDay: 24,
+    startDate: '2026-03-01',
+    amountCents: 50_000,
+  });
+
+  const { upcoming14 } = (await call('GET', '/heute?period=month&month=2026-03')).body;
+  expect(upcoming14.find((payment: any) => payment.name === 'Testzahlung')).toMatchObject({
+    accountId: 'negative-checking',
+    amountCents: -50_000,
+    covered: true,
+  });
+});
+
 it('answer cards reuse the current One-Pager, pace, valuation and Gesamtübersicht to the cent', async () => {
   for (const [incomeTypeId, amountCents] of [
     [INCOME_TYPES.salary.id, 350_001],
@@ -289,11 +333,9 @@ describe('GET /heute', () => {
     result = await call('GET', '/heute');
     expect(result.status).toBe(200);
     expect(result.body.financeCheck.counts.total).toBe(16);
-    // The days before the first quote are estimates, flagged but not unavailable.
+    // Historical estimates do not flag a holding with a real quote today.
     expect(result.body.netWorth.unavailable).toBeUndefined();
-    expect(result.body.incomplete).toEqual([
-      expect.objectContaining({ securityId: 'unpriced', quality: 'estimated' }),
-    ]);
+    expect(result.body.incomplete).toEqual([]);
     expect(result.body.balance).toEqual(before.body.balance);
     expect(result.body.lastBookings).toEqual(before.body.lastBookings);
   });

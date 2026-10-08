@@ -36,3 +36,4 @@ export {
   type LiquidityVerdict,
   type VerdictStatus,
 } from './report';
+export { incomePauseAmount, type IncomePause, type IncomePauseOccurrence } from './income-pause';

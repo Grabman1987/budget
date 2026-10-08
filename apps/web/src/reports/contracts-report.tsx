@@ -49,6 +49,16 @@ export function ContractsReportPage({ report, meta }: { report: ReportEntry; met
   const data = query.data && !query.isFetching ? query.data : undefined;
   return (
     <PageFrame
+      verdict={
+        data && !query.isError
+          ? {
+              reportId: report.id,
+              period: data.asOf,
+              unavailable: data.unconvertedCount > 0,
+              metric: { label: 'Monatlich gebunden', value: data.boundMonthlyCents, unit: 'money' },
+            }
+          : undefined
+      }
       meta={meta}
       title={report.name}
       subtitle={`${report.pos} · ${report.question}`}

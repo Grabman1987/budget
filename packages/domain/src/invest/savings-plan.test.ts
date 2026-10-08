@@ -151,3 +151,72 @@ describe('planChanges', () => {
     );
   });
 });
+
+describe('matchExecutions on many positions', () => {
+  // The previous implementation: every execution scans every buy.
+  function reference(
+    planned: ReturnType<typeof plannedExecutions>,
+    buys: ExecutedBuy[],
+    today: string,
+  ) {
+    const day = (d: string) => Date.parse(`${d}T00:00:00Z`) / 86_400_000;
+    const ordered = [...planned].sort(
+      (a, b) => a.date.localeCompare(b.date) || a.planId.localeCompare(b.planId),
+    );
+    const pairs: { index: number; buy: ExecutedBuy; distance: number }[] = [];
+    ordered.forEach((e, index) => {
+      for (const b of buys) {
+        if (b.securityId !== e.securityId || b.accountId !== e.accountId) continue;
+        const distance = Math.abs(day(b.date) - day(e.date));
+        if (distance > 3) continue;
+        if (
+          e.amountCents >= b.amountCents - 100 &&
+          e.amountCents <= b.amountCents + b.feeCents + 100
+        )
+          pairs.push({ index, buy: b, distance });
+      }
+    });
+    pairs.sort(
+      (x, y) =>
+        x.distance - y.distance || x.index - y.index || x.buy.date.localeCompare(y.buy.date),
+    );
+    const matched = new Map<number, string>();
+    const used = new Set<string>();
+    for (const p of pairs) {
+      if (matched.has(p.index) || used.has(p.buy.id)) continue;
+      matched.set(p.index, p.buy.id);
+      used.add(p.buy.id);
+    }
+    return ordered.map((e, index) => ({ ...e, tradeId: matched.get(index) ?? null, today }));
+  }
+
+  it('matches exactly like the full scan', () => {
+    const rows = [0, 1, 2, 3].map((n) =>
+      row({
+        id: `p${n}`,
+        securityId: `s${n % 2}`,
+        accountId: `a${n % 3}`,
+        amountCents: 10_000 + n * 50,
+      }),
+    );
+    const planned = ['01', '02', '03', '04', '05', '06', '07', '08', '09'].flatMap((m) =>
+      plannedExecutions(rows, `2026-${m}`),
+    );
+    const buys: ExecutedBuy[] = [];
+    for (let i = 0; i < 300; i++)
+      buys.push(
+        buy({
+          id: `t${i}`,
+          securityId: `s${i % 2}`,
+          accountId: `a${i % 3}`,
+          date: `2026-0${1 + (i % 9)}-${String(13 + (i % 5)).padStart(2, '0')}`,
+          amountCents: 10_000 + (i % 4) * 50 + (i % 7),
+          feeCents: i % 3,
+        }),
+      );
+    const got = matchExecutions(planned, buys, '2026-10-07');
+    const want = reference(planned, buys, '2026-10-07');
+    expect(got.map((g) => g.tradeId)).toEqual(want.map((w) => w.tradeId));
+    expect(got.some((g) => g.tradeId !== null)).toBe(true);
+  });
+});

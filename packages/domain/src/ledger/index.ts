@@ -5,7 +5,13 @@ export {
   type BalanceAccount,
   type BalanceBooking,
 } from './balances';
-export { envelopeMonth, envelopeSeries, type EnvelopeInput, type EnvelopeMonth } from './envelope';
+export {
+  envelopeMonth,
+  envelopeSeries,
+  overspentEnvelopes,
+  type EnvelopeInput,
+  type EnvelopeMonth,
+} from './envelope';
 export {
   budgetMonths,
   cardBalanceCover,
@@ -97,3 +103,4 @@ export {
 } from './assets-debts';
 
 export * from './cover';
+export * from './quick-assign';

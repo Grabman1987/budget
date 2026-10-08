@@ -53,16 +53,37 @@ test('year events: create, edit recurrence, scenario without writes, off/delete 
       financialWrites.push(r.method());
   });
   await page.goto('/plan/jahr?monat=2026-11');
-  await expect(page.getByTestId('scenario-year-end')).toHaveText('10.000,00 €');
-  await page.getByRole('button', { name: 'Ereignis einplanen', exact: true }).click();
+  await expect(page.locator('.event-grid tfoot tr')).toHaveCount(1);
+  await expect(page.locator('.year-phone dl > div')).toHaveCount(1);
+  const baseline =
+    info.project.name === 'mobile'
+      ? page.locator('.year-phone dl')
+      : page.locator('.event-grid tfoot');
+  await expect(baseline).toContainText('Zu verteilen');
+  await expect(baseline).toContainText('10.000,00 €');
+  await expect(page.getByTestId('scenario-year-end')).toHaveCount(0);
+  await page.getByRole('button', { name: 'Ereignis planen', exact: true }).click();
   let panel = page.getByRole('dialog', { name: 'Ereignis einplanen' });
   await panel.getByLabel('Ereignis', { exact: true }).fill('Urlaub');
-  await panel.getByLabel('Datum / Beginn', { exact: true }).fill('2026-11-15');
+  await panel.getByLabel('Datum / Beginn', { exact: true }).fill('15.11.2026');
+  await expect(panel.getByLabel('Datum / Beginn', { exact: true })).toHaveValue('15.11.2026');
+  await expect(panel.getByLabel('Datum / Beginn', { exact: true })).toHaveAttribute(
+    'placeholder',
+    'TT.MM.JJJJ',
+  );
   await panel.getByLabel('Betrag je Termin', { exact: true }).fill('300,01');
   await panel.getByLabel('Kategorie', { exact: true }).selectOption({ label: 'Reisen' });
   await panel.getByRole('button', { name: 'Ereignis speichern' }).click();
   await expect(panel).not.toBeVisible();
   await expect(page.getByTestId('scenario-year-effect')).toHaveText('−300,01 €');
+  const help = page
+    .getByRole('button', { name: 'Geplante Ereignisse in diesem Monat erklären' })
+    .filter({ visible: true });
+  await help.focus();
+  await help.click();
+  await expect(page.getByRole('tooltip')).toContainText('geplanten Beträge');
+  await page.keyboard.press('Escape');
+  await expect(page.getByRole('tooltip')).toHaveCount(0);
   await page.getByRole('button', { name: 'Urlaub bearbeiten', exact: true }).click();
   panel = page.getByRole('dialog', { name: 'Ereignis bearbeiten' });
   await panel.getByLabel('Datum / Beginn', { exact: true }).fill('2026-10-31');
@@ -131,7 +152,7 @@ test('year event form: dirty close and browser Back protect changes, failed writ
 }) => {
   await page.clock.setFixedTime(new Date('2026-10-02T12:00:00+02:00'));
   await page.goto('/plan/jahr?monat=2026-11');
-  await page.getByRole('button', { name: 'Ereignis einplanen', exact: true }).click();
+  await page.getByRole('button', { name: 'Ereignis planen', exact: true }).click();
   const panel = page.getByRole('dialog', { name: 'Ereignis einplanen' });
   await panel.getByLabel('Ereignis', { exact: true }).fill('Steuerausgleich');
   await page.keyboard.press('Escape');
@@ -164,5 +185,5 @@ test('year event form: dirty close and browser Back protect changes, failed writ
   await page.keyboard.press('Escape');
   await panel.getByRole('button', { name: 'Verwerfen', exact: true }).click();
   await expect(panel).not.toBeVisible();
-  await expect(page.getByRole('button', { name: 'Ereignis einplanen', exact: true })).toBeFocused();
+  await expect(page.getByRole('button', { name: 'Ereignis planen', exact: true })).toBeFocused();
 });

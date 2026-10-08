@@ -186,7 +186,7 @@
   letter-spacing: -0.01em;
 }
 .tbd-state {
-  font-size: 13px;
+  font-size: var(--fs-body);
   font-weight: 600;
 }
 .tbd-state span {
@@ -201,7 +201,7 @@
   color: var(--ink);
 }
 .tbd-fig {
-  font-size: 56px;
+  font-size: var(--fs-dimension);
   font-weight: 650;
   letter-spacing: -0.03em;
   line-height: 1.05;
@@ -272,7 +272,7 @@
   margin-left: 8px;
   text-align: right;
   font-family: var(--font-tech);
-  font-size: 12.5px;
+  font-size: var(--fs-chart-label);
   letter-spacing: 0.03em;
   color: var(--ink-2);
 }
@@ -286,11 +286,11 @@
 }
 .grp-title {
   font-weight: 640;
-  font-size: 14.5px;
+  font-size: var(--fs-body);
 }
 .grp-sub {
   margin-left: 8px;
-  font-size: 12.5px;
+  font-size: var(--fs-chart-label);
   font-weight: 500;
   color: var(--ink-3);
 }
@@ -315,7 +315,7 @@
   align-items: center;
   gap: 4px 8px;
   margin: 3px 0 0;
-  font-size: 12.5px;
+  font-size: var(--fs-chart-label);
   color: var(--ink-3);
 }
 .kutil {
@@ -341,7 +341,7 @@
 }
 .kclosed {
   margin: 14px 0 4px;
-  font-size: 13px;
+  font-size: var(--fs-body);
   color: var(--ink-2);
   border-radius: 6px;
 }
@@ -386,7 +386,7 @@
 }
 .ksum {
   margin: 12px 0 4px;
-  font-size: 13px;
+  font-size: var(--fs-body);
   color: var(--ink-2);
 }
 
@@ -413,7 +413,7 @@
 }
 .kacct-head h2 {
   margin: 0;
-  font-size: 26px;
+  font-size: var(--fs-figure);
   font-weight: 650;
   letter-spacing: -0.02em;
 }
@@ -443,7 +443,7 @@
   font-weight: 560;
 }
 .fig small {
-  font-size: 12.5px;
+  font-size: var(--fs-chart-label);
   color: var(--ink-3);
 }
 .kchart-box {
@@ -458,7 +458,7 @@
   flex-wrap: wrap;
   gap: 6px 20px;
   margin-top: 8px;
-  font-size: 12.5px;
+  font-size: var(--fs-chart-label);
   color: var(--ink-2);
 }
 .legend span {
@@ -476,7 +476,7 @@
 .kc-date {
   width: 76px;
   font-family: var(--font-tech);
-  font-size: 13px;
+  font-size: var(--fs-body);
   letter-spacing: 0.04em;
   color: var(--ink-2);
 }
@@ -488,7 +488,7 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  font-size: 13px;
+  font-size: var(--fs-body);
 }
 .kcat.is-none {
   color: var(--ink);
@@ -507,7 +507,7 @@
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  font-size: 12.5px;
+  font-size: var(--fs-chart-label);
   color: var(--ink-3);
   font-weight: 500;
 }
@@ -552,7 +552,7 @@
 .kform-switch small {
   display: block;
   margin-top: 2px;
-  font-size: 12.5px;
+  font-size: var(--fs-chart-label);
   color: var(--ink-3);
 }
 .panel-actions {
@@ -583,6 +583,12 @@
   }
 }
 
+.kx-payee {
+  min-width: 0;
+  /* Stay above the neighbouring amount cell so a long memo cannot put it between the pointer and the button. */
+  position: relative;
+  z-index: 1;
+}
 .kname-btn,
 .kcat-btn {
   display: block;
@@ -590,6 +596,12 @@
   text-align: left;
   color: inherit;
   border-radius: 4px;
+}
+.kname-btn {
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  /* Keep the row clear of the fixed tab bar when it is scrolled into view. */
+  scroll-margin-block: 96px;
 }
 .kname-btn:hover .kname-s {
   color: var(--line);
@@ -638,14 +650,14 @@
 .kday-sum {
   float: right;
   font-family: var(--font-tech);
-  font-size: 12.5px;
+  font-size: var(--fs-chart-label);
   color: var(--ink-2);
 }
 .ktable tr.is-selected td {
   background: var(--tint-2);
 }
 .kc-acct {
-  font-size: 13px;
+  font-size: var(--fs-body);
   color: var(--ink-2);
 }
 
@@ -654,7 +666,7 @@
   align-items: center;
   gap: 10px;
   margin: 12px 0 0;
-  font-size: 13.5px;
+  font-size: var(--fs-body);
   color: var(--ink-2);
 }
 .kselect-all input {
@@ -686,7 +698,7 @@
   display: flex;
   align-items: center;
   gap: 6px;
-  font-size: 12.5px;
+  font-size: var(--fs-chart-label);
   color: var(--ink-3);
 }
 .kf-closed input {
@@ -694,9 +706,87 @@
   height: 16px;
   accent-color: var(--line);
 }
+/* Desktop row: the checkbox hangs below the account field so every field sits on one line. */
+.kfilter .kf:has(> .kf-closed) {
+  position: relative;
+}
+.kfilter > .kf > .kf-closed {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  margin-top: 4px;
+  white-space: nowrap;
+}
+.kfilter:has(.kf-closed) {
+  padding-bottom: 36px;
+}
 .kf-search {
   flex: 1 1 240px;
   max-width: 360px;
+}
+.kfilter-phone {
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--rule);
+}
+.kfilter-search-row {
+  display: flex;
+  align-items: end;
+  gap: 8px;
+}
+.kfilter-search-row .kf-search {
+  flex: 1;
+  min-width: 0;
+}
+.kfilter-search-row .field-row {
+  margin-bottom: 0;
+}
+.kfilter-search-row > .btn {
+  flex-shrink: 0;
+  min-height: 44px;
+  white-space: nowrap;
+}
+.kfilter-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+.kfilter-chip.btn {
+  min-height: 44px;
+  height: auto;
+  max-width: 100%;
+  border: 1px solid var(--rule-strong);
+  border-radius: var(--radius-pill);
+  white-space: normal;
+  overflow-wrap: anywhere;
+  text-align: left;
+}
+.kfilter-chip svg {
+  flex-shrink: 0;
+}
+.kfilter-sheet .kf.kf-sort {
+  display: grid;
+}
+.kfilter-sheet .kf {
+  min-width: 0;
+}
+.kfilter-sheet .select-sm {
+  min-height: 44px;
+}
+.kfilter-sheet .kf-closed {
+  min-height: 44px;
+}
+.kfilter-actions {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  padding-top: 16px;
+  position: sticky;
+  bottom: 0;
+  background: var(--raised);
+}
+.kfilter-actions .btn {
+  min-height: 44px;
 }
 .kbulk {
   display: flex;
@@ -729,7 +819,7 @@
   padding: 10px 12px;
   border-radius: 6px;
   font-weight: 600;
-  font-size: 13.5px;
+  font-size: var(--fs-body);
 }
 .kdiff.is-ok {
   color: var(--line);
@@ -938,7 +1028,7 @@
 }
 .combo-hint {
   color: var(--ink-2);
-  font-size: 12.5px;
+  font-size: var(--fs-chart-label);
   text-align: right;
 }
 .combo-option.is-active,
@@ -971,7 +1061,7 @@
   padding: 0 12px;
   border: 1px solid var(--rule-strong);
   border-radius: 999px;
-  font-size: 13.5px;
+  font-size: var(--fs-body);
   font-weight: 520;
   color: var(--ink);
 }
@@ -988,7 +1078,7 @@
 .kavail {
   min-height: 1.4em;
   margin: 6px 0 0;
-  font-size: 12.5px;
+  font-size: var(--fs-chart-label);
   color: var(--ink-2);
 }
 .kavail strong {
@@ -1340,7 +1430,15 @@
     margin: 0;
   }
   .bk-body {
-    padding: 14px 16px 8px;
+    padding: 8px 16px;
+    gap: 6px;
+  }
+  .bk-body .field-row {
+    gap: 4px;
+  }
+  .bk-body .amount-box {
+    min-height: var(--touch);
+    padding-block: 4px;
   }
   .bk-foot {
     padding: 10px 16px 12px;
@@ -1451,7 +1549,7 @@
   gap: 12px;
   flex-wrap: wrap;
 }
-.kform-pair:has(.kdate-status) {
+.kform-pair:has(.bk-dates) {
   grid-template-columns: minmax(0, 1fr);
 }
 .kdate-status {
@@ -1485,4 +1583,33 @@
 }
 .kchart-range .seg button {
   min-height: 44px;
+}
+
+/* Booking suggestions open above the payee: no overlap or blur reflow at Bezahlt von. */
+.bk-payee .combo-list {
+  top: auto;
+  bottom: calc(100% + 4px);
+  max-height: 132px;
+}
+.bk-date-chips {
+  margin: 0 0 8px;
+}
+.bk-date-chips .chip {
+  height: 44px;
+}
+.bkform .kmore > summary {
+  min-height: 44px;
+  padding-block: 12px;
+}
+.bk-more-summary {
+  font-weight: 400;
+}
+
+@media (max-width: 767px) {
+  .bk-date-chips {
+    margin-bottom: 4px;
+  }
+  .bkform .kmore > summary {
+    padding-block: 8px;
+  }
 }

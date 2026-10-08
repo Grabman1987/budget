@@ -6,7 +6,7 @@ import {
   type TradeKind,
 } from '@budget/domain';
 import { randomUUID } from 'node:crypto';
-import { and, asc, eq, gte, inArray, isNull, lte, type SQL } from 'drizzle-orm';
+import { and, asc, count, eq, gte, inArray, isNull, lte, type SQL } from 'drizzle-orm';
 import { account, booking, bookingSplit, INCOME_TYPES, security, trade } from '../schema';
 import {
   insertManyTracked,
@@ -352,22 +352,38 @@ export interface TradeFilter {
   from?: string;
   to?: string;
   includeDeleted?: boolean;
+  /** A page of the list (`offset` rows skipped); without `limit` the whole list. */
+  limit?: number;
+  offset?: number;
 }
 
-/** Trades by date (then id), optionally filtered; soft-deleted ones only on request. */
-export function listTrades(db: Executor, filter: TradeFilter = {}): TradeRow[] {
+function tradeWhere(filter: TradeFilter): SQL | undefined {
   const where: SQL[] = [];
   if (!filter.includeDeleted) where.push(isNull(trade.deletedAt));
   if (filter.accountId) where.push(eq(trade.accountId, filter.accountId));
   if (filter.securityId) where.push(eq(trade.securityId, filter.securityId));
   if (filter.from) where.push(gte(trade.date, filter.from));
   if (filter.to) where.push(lte(trade.date, filter.to));
-  return db
+  return and(...where);
+}
+
+/** Trades by date (then id), optionally filtered; soft-deleted ones only on request. */
+export function listTrades(db: Executor, filter: TradeFilter = {}): TradeRow[] {
+  const query = db
     .select()
     .from(trade)
-    .where(and(...where))
-    .orderBy(asc(trade.date), asc(trade.id))
+    .where(tradeWhere(filter))
+    .orderBy(asc(trade.date), asc(trade.id));
+  if (filter.limit === undefined) return query.all();
+  return query
+    .limit(filter.limit)
+    .offset(filter.offset ?? 0)
     .all();
+}
+
+/** How many trades the filter matches (its page window is ignored). */
+export function countTrades(db: Executor, filter: TradeFilter = {}): number {
+  return db.select({ n: count() }).from(trade).where(tradeWhere(filter)).get()?.n ?? 0;
 }
 
 /**

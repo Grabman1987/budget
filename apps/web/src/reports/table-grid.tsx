@@ -8,6 +8,7 @@ import {
 } from '@budget/domain';
 import { forwardRef, type ReactNode, type CSSProperties } from 'react';
 import { chartPercent } from '../charts/tooltip-data';
+import { Term } from './term';
 import { eur } from '../ledger/format';
 import { euroNumber, percentWhole } from './table-format';
 
@@ -162,6 +163,7 @@ export const RowsGrid = forwardRef<HTMLDivElement, RowsGridProps>(function RowsG
         // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- Keyboard users must be able to scroll the complete table.
         tabIndex={0}
       >
+        <p className="table-scroll-hint">Seitlich wischen für weitere Spalten</p>
         <table className={`rtable rgrid ${className ?? ''}`}>
           <caption className="sr-only">{caption}</caption>
           <thead>
@@ -211,7 +213,7 @@ export const RowsGrid = forwardRef<HTMLDivElement, RowsGridProps>(function RowsG
                     {row.swatch && (
                       <ClassSwatch kind={row.swatch === 'income' ? 'open' : row.swatch} />
                     )}
-                    {renderLabel ? renderLabel(row) : row.label}
+                    {renderLabel ? renderLabel(row) : <Term>{row.label}</Term>}
                   </th>
                   {row.vals.map((value, i) => (
                     <Cell

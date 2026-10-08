@@ -10,7 +10,9 @@ import {
 } from '@budget/ui';
 import {
   LIQUIDITY_BUFFER_PERCENT,
+  addDays,
   parseAmount,
+  plannedEventOccurrences,
   type LiquidityHorizon,
   type LiquidityLeverId,
   type LiquidityReport,
@@ -79,6 +81,20 @@ export function LiquidityReportPage({ report, meta }: { report: ReportEntry; met
   const view = query.isSuccess ? query.data : undefined;
   return (
     <PageFrame
+      verdict={
+        view && !query.isFetching && !query.isError
+          ? {
+              reportId: report.id,
+              period: `${view.asOf}..${view.report?.verdictEnd ?? view.asOf}`,
+              metric: {
+                label: 'Tiefster Prognosestand',
+                value: view.report?.low?.cents ?? null,
+                unit: 'money',
+                better: 'higher',
+              },
+            }
+          : undefined
+      }
       meta={meta}
       title={report.name}
       subtitle={`${report.pos} · ${report.question}`}
@@ -151,12 +167,34 @@ function ForecastCard({
       : verdict.status === 'warn'
         ? `Geht sich knapp aus: ohne Puffer ja, mit ${LIQUIDITY_BUFFER_PERCENT} % Puffer fehlen im ${monthLong(verdict.month ?? '')} ${eur(verdict.shortfallCents, { cents: false })}.`
         : `Geht sich nicht aus: im ${monthLong(verdict.month ?? '')} fehlen ${eur(verdict.shortfallCents, { cents: false })}.`;
-  // The verdict covers six months: only events up to then count.
-  const eventCount = view.events.filter(
-    (e) => (e.status === 'in_horizon' || e.status === 'later') && e.date <= report.verdictEnd,
+  const activeEvents = view.events.filter((e) => e.status === 'in_horizon' || e.status === 'later');
+  // Count actual planned occurrences within the six-month verdict window, not old recurrence anchors.
+  const eventCount = activeEvents.filter(
+    (event) =>
+      plannedEventOccurrences(event, addDays(report.startDay, 1), report.verdictEnd).length > 0,
   ).length;
+  const scenarioBasis =
+    report.eventMarks.length > 0
+      ? 'Grundplan aus hinterlegten Zahlungen und variabler Planung, ergänzt um geplante Ereignisse.'
+      : activeEvents.length > 0
+        ? 'Grundplan aus hinterlegten Zahlungen und variabler Planung. Geplante Ereignisse liegen außerhalb des gewählten Prognosezeitraums.'
+        : view.events.length > 0
+          ? 'Grundplan aus hinterlegten Zahlungen und variabler Planung. Vorhandene Ereignisse zählen derzeit nicht zur Prognose.'
+          : 'Grundplan aus hinterlegten Zahlungen und variabler Planung. Noch keine geplanten Ereignisse eingerichtet; ergänze bei Bedarf unten ein Ereignis.';
+  const activeLeverNames = levers.map((id) => LEVER_TEXT[id].name);
+  const forecastLabel =
+    report.eventMarks.length > 0
+      ? 'Prognose mit geplanten Ereignissen'
+      : activeEvents.length > 0
+        ? 'Grundplan im gewählten Prognosezeitraum'
+        : 'Grundplan ohne aktive geplante Ereignisse';
   return (
-    <section className="card rf-card rf-wide" aria-labelledby="liq-title" aria-busy={stale}>
+    <section
+      className="card rf-card rf-wide"
+      aria-labelledby="liq-title"
+      aria-busy={stale}
+      data-testid="liq-forecast-card"
+    >
       <div className="tbd-head">
         <h2 id="liq-title">Budget-Konten · {HORIZON_TITLE[horizon]}</h2>
         <Segmented
@@ -171,16 +209,25 @@ function ForecastCard({
         <div>
           <strong>{text}</strong>
           <small>
-            6 Monate bis {longDay(report.verdictEnd)} · mit {eventCount}{' '}
-            {eventCount === 1 ? 'geplantem Ereignis' : 'geplanten Ereignissen'}
+            6 Monate bis {longDay(report.verdictEnd)} ·{' '}
+            {eventCount > 0
+              ? `mit ${eventCount} ${eventCount === 1 ? 'geplantem Ereignis' : 'geplanten Ereignissen'}`
+              : 'ohne Ereignisse im Entscheidungszeitraum'}
             {levers.length > 0 &&
               ` und ${levers.length} ${levers.length === 1 ? 'Stellschraube' : 'Stellschrauben'}`}
           </small>
         </div>
       </div>
+      <p className="vnote" data-testid="liq-scenario-basis">
+        {scenarioBasis}
+        {activeLeverNames.length > 0 &&
+          ` Vorschau mit aktiver Stellschraube: ${activeLeverNames.join(', ')}.`}
+      </p>
       <div className="rf-figs">
         <div>
-          <span className="tech">Tiefpunkt mit Ereignissen</span>
+          <span className="tech">
+            {report.eventMarks.length > 0 ? 'Tiefpunkt mit Ereignissen' : 'Tiefpunkt im Grundplan'}
+          </span>
           <strong className={low && low.cents < 0 ? 'is-alert' : undefined} data-testid="liq-low">
             {eur(low?.cents ?? 0)}
           </strong>
@@ -212,7 +259,7 @@ function ForecastCard({
           <svg viewBox="0 0 26 8" aria-hidden="true">
             <path className="l-forecast" d="M0 4h26" />
           </svg>
-          Prognose mit Ereignissen
+          {forecastLabel}
         </li>
         <li>
           <i className="rf-sq rf-sq-band" aria-hidden="true" />
@@ -299,6 +346,7 @@ function EventsCard({ view }: { view: LiquidityReportView }) {
           // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- Keyboard users must be able to scroll the table on narrow viewports.
           tabIndex={0}
         >
+          <p className="table-scroll-hint">Seitlich wischen für weitere Spalten</p>
           <table className="rf-table rf-events">
             <thead>
               <tr>
@@ -512,6 +560,7 @@ function OutlookCard({ report }: { report: LiquidityReport }) {
         // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- Keyboard users must be able to scroll the table on narrow viewports.
         tabIndex={0}
       >
+        <p className="table-scroll-hint">Seitlich wischen für weitere Spalten</p>
         <table className="rf-table" data-testid="liq-outlook">
           <thead>
             <tr>
@@ -575,6 +624,7 @@ function MovementsCard({ report }: { report: LiquidityReport }) {
         // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- Keyboard users must be able to scroll the table on narrow viewports.
         tabIndex={0}
       >
+        <p className="table-scroll-hint">Seitlich wischen für weitere Spalten</p>
         <table className="rf-table rf-moves">
           <thead>
             <tr>

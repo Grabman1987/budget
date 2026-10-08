@@ -1,6 +1,7 @@
 import {
   planMonthViews,
   assignMany,
+  quickAssignMany,
   categoryTree,
   coverOverspending,
   coverAllOverspending,
@@ -25,6 +26,7 @@ import type { z } from 'zod';
 import { ACTOR, defined, readBody, readQuery } from './http';
 import {
   assignBody,
+  quickAssignBody,
   budgetMonthsQuery,
   budgetQuery,
   categoryCreate,
@@ -167,6 +169,12 @@ export function budgetRoutes(db: Db, today: () => string): Hono {
     const m = monthParam(c.req.param('month'));
     const { items } = await readBody(c, assignBody);
     return c.json(assignMany(db, m, items, audit()));
+  });
+
+  app.post('/:month/quick-assign', async (c) => {
+    const m = monthParam(c.req.param('month'));
+    const { mode, categoryIds } = await readBody(c, quickAssignBody);
+    return c.json(quickAssignMany(db, m, mode, categoryIds, audit(), today()));
   });
 
   app.post('/:month/move', async (c) => {

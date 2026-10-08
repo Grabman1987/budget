@@ -1,7 +1,9 @@
 import {
+  addMonths,
   lastDayOfMonth,
   monthOf,
   monthsBetween,
+  quickAssignFigures,
   summarizeMonth,
   unclassifiedMonth,
   type BudgetMonth,
@@ -12,6 +14,7 @@ import { categoryTree } from './categories';
 import { planIncomeTargets } from './income-targets';
 import { budgetLedger, budgetOfLedger } from './queries';
 import { loadFacts } from './rule-inputs';
+import { reportTables } from './report-tables';
 import type { Executor } from './types';
 
 /**
@@ -32,9 +35,11 @@ export function planMonthViews(
   if (last === undefined) return {};
   const tree = categoryTree(db);
   const ledger = budgetLedger(db);
-  const facts = loadFacts(db, lastDayOfMonth(last), ledger);
+  const history = reportTables(db, { today }).months;
+  const categoryById = new Map(tree.categories.map((c) => [c.id, c]));
+  const facts = loadFacts(db, lastDayOfMonth(last));
   // Cover limits always read today's facts, as the single and bulk cover do.
-  const coverFacts = loadFacts(db, today, ledger);
+  const coverFacts = loadFacts(db, today);
   const budgetMoney = coverBudgetMoney(db, today, coverFacts);
   const starts = ledger.accounts.filter((a) => a.onBudget).map((a) => monthOf(a.openingDate));
   // One budget run from the first budget month (the facts hold it for the default card rule).
@@ -64,7 +69,21 @@ export function planMonthViews(
     );
     const summary = {
       ...base,
-      envelopes: base.envelopes.map((e) => ({ ...e, ...limits.get(e.categoryId)! })),
+      envelopes: base.envelopes.map((e) => ({
+        ...e,
+        ...limits.get(e.categoryId)!,
+        ...(categoryById.get(e.categoryId)?.class && {
+          quickAssign: quickAssignFigures(
+            month,
+            today,
+            e.categoryId,
+            e.target,
+            e.needCents,
+            history,
+            run.get(addMonths(month, -1))?.envelopes[e.categoryId]?.assignedCents ?? 0,
+          ),
+        }),
+      })),
       unclassified: unclassifiedMonth(ledger, month),
     };
     // Facts as `loadFacts(db, lastDayOfMonth(month))` would read them: only the first month differs.

@@ -7,10 +7,10 @@ import {
   depotFlows,
   eachDay,
   fxOn,
-  marketValueEurCents,
+  valueAtPrice,
   netWorthAttribution,
-  PRICE_BACKFILL_TOLERANCE_DAYS,
   pickPrice,
+  pickTradePrice,
   securityFlows,
   toEurCents,
   unitsHeld,
@@ -37,9 +37,10 @@ import {
   INCOME_TYPES,
   security,
   trade,
+  valuation,
 } from '../schema';
 import { lastSuccessfulMarketRun } from './market';
-import { memoized } from './request-memo';
+import { memoized, memoizedShared } from './request-memo';
 import { noteIncomplete } from './valuation-notes';
 import { accountBalances } from './queries';
 import { MissingFxRateError } from './errors';
@@ -57,12 +58,11 @@ export interface HoldingValue {
   fxRateMicro: number;
   valueCents: number;
   /**
-   * How the value was found: `exact`/`stale` from a price on or before the day, `estimated` from a
-   * price shortly after it or from the cost basis (then `priceMicro` is the implied price and
-   * `priceDate` null).
+   * `exact`/`stale` from a quote, `exact` also for gross execution prices, or `estimated` from
+   * the cost basis (then `priceDate` is null).
    */
   quality: ValuationQuality;
-  /** Day of the price used; `null` for a cost-basis estimate. */
+  /** Day of the quote or execution used; `null` for a cost-basis estimate. */
   priceDate: string | null;
 }
 
@@ -104,7 +104,7 @@ const positionKey = (p: { accountId: string; securityId: string }) => ({
   securityId: p.securityId,
 });
 
-function holdingValuationAsOf(
+export function holdingValuationAsOf(
   db: Executor,
   asOf: string,
   options: ValuationOptions = {},
@@ -112,6 +112,36 @@ function holdingValuationAsOf(
   const estimate = options.estimate ?? true;
   return memoized(db, `holdings|${asOf}|${estimate}`, () =>
     computeHoldingValuation(db, asOf, estimate),
+  );
+}
+
+/** Every live trade with its account currency, in booking order; read once per request. */
+function valuationTrades(db: Executor) {
+  return memoizedShared(db, 'valuationTrades', () =>
+    db
+      .select({
+        securityId: trade.securityId,
+        accountId: trade.accountId,
+        date: trade.date,
+        kind: trade.kind,
+        unitsE8: trade.unitsE8,
+        amountCents: trade.amountCents,
+        feeCents: trade.feeCents,
+        taxCents: trade.taxCents,
+        currency: account.currency,
+      })
+      .from(trade)
+      .innerJoin(account, eq(account.id, trade.accountId))
+      .where(isNull(trade.deletedAt))
+      .orderBy(trade.date, trade.id)
+      .all(),
+  );
+}
+
+/** The stored rates on or before a day (all rates are read once per request). */
+function fxRatesUpTo(db: Executor, asOf: string): Rates {
+  return memoizedShared(db, 'fxRates', () => db.select().from(fxRate).all()).filter(
+    (r) => r.date <= asOf,
   );
 }
 
@@ -136,26 +166,18 @@ function computeHoldingValuation(db: Executor, asOf: string, estimate: boolean):
     .from(holding)
     .where(and(lte(holding.asOf, asOf), isNull(holding.deletedAt)))
     .all();
-  const trades = db
-    .select({
-      securityId: trade.securityId,
-      accountId: trade.accountId,
-      date: trade.date,
-      kind: trade.kind,
-      unitsE8: trade.unitsE8,
-      amountCents: trade.amountCents,
-      feeCents: trade.feeCents,
-      taxCents: trade.taxCents,
-    })
-    .from(trade)
-    .where(and(lte(trade.date, asOf), isNull(trade.deletedAt)))
-    .all();
+  const allTrades = valuationTrades(db);
+  const trades = allTrades.filter((t) => t.date <= asOf);
+  const priceTrades = new Map<string, typeof allTrades>();
+  for (const t of allTrades) {
+    const list = priceTrades.get(t.securityId) ?? [];
+    list.push(t);
+    priceTrades.set(t.securityId, list);
+  }
   const heldSecurities = new Set<string>();
   for (const r of [...snapshots, ...trades])
     if (live.has(r.securityId)) heldSecurities.add(r.securityId);
-  // Only the prices `pickPrice` can choose, read by index per held security: the latest on or
-  // before the day and, when estimating and there is none, the first one inside the backfill
-  // tolerance after it. (The whole `price` table is far too big to read for each call.)
+  // Read the latest stored quote on/before the day by index per held security.
   const latestPrice = (securityId: string) =>
     db
       .select({ date: price.date, priceMicro: price.priceMicro, currency: price.currency })
@@ -164,26 +186,12 @@ function computeHoldingValuation(db: Executor, asOf: string, estimate: boolean):
       .orderBy(desc(price.date))
       .limit(1)
       .get();
-  const firstPriceAfter = (securityId: string) =>
-    db
-      .select({ date: price.date, priceMicro: price.priceMicro, currency: price.currency })
-      .from(price)
-      .where(
-        and(
-          eq(price.securityId, securityId),
-          gt(price.date, asOf),
-          lte(price.date, addDays(asOf, PRICE_BACKFILL_TOLERANCE_DAYS)),
-        ),
-      )
-      .orderBy(price.date)
-      .limit(1)
-      .get();
   const pricesBySecurity = new Map<string, DatedPrice[]>();
   for (const securityId of heldSecurities) {
-    const found = latestPrice(securityId) ?? (estimate ? firstPriceAfter(securityId) : undefined);
+    const found = latestPrice(securityId);
     if (found) pricesBySecurity.set(securityId, [found]);
   }
-  const rates: Rates = db.select().from(fxRate).where(lte(fxRate.date, asOf)).all();
+  const rates: Rates = fxRatesUpTo(db, asOf);
 
   // Rows of each position (account x security), in the order they were read.
   const keys = new Map<string, { accountId: string; securityId: string }>();
@@ -223,7 +231,10 @@ function computeHoldingValuation(db: Executor, asOf: string, estimate: boolean):
       asOf,
     );
     if (units === 0) continue;
-    const choice = pickPrice(pricesBySecurity.get(securityId) ?? [], asOf, estimate);
+    const prices = pricesBySecurity.get(securityId) ?? [];
+    const choice =
+      pickPrice(prices, asOf, false) ??
+      (estimate ? pickTradePrice(priceTrades.get(securityId) ?? [], asOf) : undefined);
     if (!choice) {
       // No usable price: the moving-average cost basis, flagged as an estimate (step 3 of the
       // fallback order), or nothing at all when even the cost is unknown.
@@ -263,7 +274,13 @@ function computeHoldingValuation(db: Executor, asOf: string, estimate: boolean):
         securityId,
         unitsE8: units,
         // The implied unit price in EUR (micro) behind the estimate.
-        priceMicro: Math.round((eur * 1e12) / units),
+        priceMicro:
+          Math.sign(eur) *
+          Math.sign(units) *
+          Number(
+            (BigInt(Math.abs(eur)) * 10n ** 12n + BigInt(Math.abs(units)) / 2n) /
+              BigInt(Math.abs(units)),
+          ),
         priceCurrency: 'EUR',
         fxRateMicro: 1_000_000,
         valueCents: eur,
@@ -293,7 +310,7 @@ function computeHoldingValuation(db: Executor, asOf: string, estimate: boolean):
       priceMicro,
       priceCurrency,
       fxRateMicro,
-      valueCents: marketValueEurCents(units, priceMicro, fxRateMicro),
+      valueCents: valueAtPrice(units, choice, fxRateMicro),
       quality: choice.quality,
       priceDate: choice.price.date,
     });
@@ -406,12 +423,44 @@ function computeNetWorthValuation(
 ): NetWorthValuation {
   const estimate = options.estimate ?? true;
   const accountRows = db
-    .select({ id: account.id, currency: account.currency })
+    .select({
+      id: account.id,
+      currency: account.currency,
+      type: account.type,
+      openingDate: account.openingDate,
+    })
     .from(account)
     .where(isNull(account.deletedAt))
     .all();
   const currencies = new Map(accountRows.map((row) => [row.id, row.currency]));
-  const rates: Rates = db.select().from(fxRate).where(lte(fxRate.date, asOf)).all();
+  const holdings = holdingValuationAsOf(db, asOf, options);
+  const holdingAccounts = new Set(
+    [...holdings.values, ...holdings.missingPricePositions, ...holdings.missingFxPositions].map(
+      (h) => h.accountId,
+    ),
+  );
+  const manualAccounts = new Set(
+    accountRows
+      .filter(
+        (a) =>
+          a.openingDate <= asOf &&
+          (a.type === 'p2p' || a.type === 'other_asset') &&
+          !holdingAccounts.has(a.id),
+      )
+      .map((a) => a.id),
+  );
+  const manualValues = new Map<string, number>();
+  if (manualAccounts.size > 0)
+    for (const row of db
+      .select()
+      .from(valuation)
+      .where(and(isNull(valuation.deletedAt), lte(valuation.date, asOf)))
+      .orderBy(desc(valuation.date))
+      .all()) {
+      if (manualAccounts.has(row.accountId) && !manualValues.has(row.accountId))
+        manualValues.set(row.accountId, row.valueCents);
+    }
+  const rates: Rates = fxRatesUpTo(db, asOf);
   const byAccount: Record<string, number | null> = {};
   const missingFxByAccount = new Map<string, Set<string>>();
   const addMissing = (accountId: string, currency: string) => {
@@ -422,12 +471,12 @@ function computeNetWorthValuation(
   };
   for (const balance of accountBalances(db, asOf)) {
     const currency = currencies.get(balance.accountId) ?? 'EUR';
-    const rate = balance.balanceCents === 0 ? 1_000_000 : rateOrMissing(rates, currency, asOf);
+    const nativeCents = manualValues.get(balance.accountId) ?? balance.balanceCents;
+    const rate = nativeCents === 0 ? 1_000_000 : rateOrMissing(rates, currency, asOf);
     if (rate === undefined) addMissing(balance.accountId, currency);
-    else byAccount[balance.accountId] = toEurCents(balance.balanceCents, rate);
+    else byAccount[balance.accountId] = toEurCents(nativeCents, rate);
   }
 
-  const holdings = holdingValuationAsOf(db, asOf, options);
   const holdingsByAccount: Record<string, number | null> = {};
   for (const holding of holdings.values) {
     if (holdingsByAccount[holding.accountId] === null) continue;
@@ -575,11 +624,20 @@ export function valuationSeries(
       amountCents: trade.amountCents,
       feeCents: trade.feeCents,
       taxCents: trade.taxCents,
+      currency: account.currency,
     })
     .from(trade)
-    .where(and(lte(trade.date, filter.to), isNull(trade.deletedAt)))
+    .innerJoin(account, eq(account.id, trade.accountId))
+    .where(isNull(trade.deletedAt))
+    .orderBy(trade.date, trade.id)
     .all()
-    .filter((r) => wantSecurity(r.securityId) && wantAccount(r.accountId));
+    .filter((r) => wantSecurity(r.securityId));
+  const priceTrades = new Map<string, typeof trades>();
+  for (const t of trades) {
+    const list = priceTrades.get(t.securityId) ?? [];
+    list.push(t);
+    priceTrades.set(t.securityId, list);
+  }
   const currencies = new Map(
     db
       .select({ id: account.id, currency: account.currency })
@@ -587,11 +645,8 @@ export function valuationSeries(
       .all()
       .map((a) => [a.id, a.currency]),
   );
-  const estimate = options.estimate ?? true;
   const pricesBySecurity = new Map<string, DatedPrice[]>();
-  // The backfill tolerance reads prices a few days after the window.
-  const lastPriceDay = estimate ? addDays(filter.to, PRICE_BACKFILL_TOLERANCE_DAYS) : filter.to;
-  for (const p of db.select().from(price).where(lte(price.date, lastPriceDay)).all()) {
+  for (const p of db.select().from(price).where(lte(price.date, filter.to)).all()) {
     if (!wantSecurity(p.securityId)) continue;
     const list = pricesBySecurity.get(p.securityId) ?? [];
     list.push({ date: p.date, priceMicro: p.priceMicro, currency: p.currency });
@@ -609,6 +664,7 @@ export function valuationSeries(
         snapshots: [],
         trades: [],
         prices: pricesBySecurity.get(securityId) ?? [],
+        priceTrades: priceTrades.get(securityId) ?? [],
         cost: { currency: currencies.get(accountId) ?? 'EUR', snapshots: [], trades: [] },
       };
       positions.set(key, p);
@@ -621,6 +677,7 @@ export function valuationSeries(
     p.cost.snapshots.push({ date: r.asOf, costBasisCents: r.costBasisCents });
   }
   for (const r of trades) {
+    if (r.date > filter.to || !wantAccount(r.accountId)) continue;
     const p = at(r.accountId, r.securityId);
     p.trades.push({ date: r.date, unitsE8: r.unitsE8 });
     p.cost.trades.push(r);
@@ -731,7 +788,17 @@ function tradesOf(
     })
     .from(trade)
     .innerJoin(account, eq(account.id, trade.accountId))
-    .where(and(isNull(trade.deletedAt), lte(trade.date, filter.to)))
+    .where(
+      and(
+        isNull(trade.deletedAt),
+        lte(trade.date, filter.to),
+        gt(trade.date, after),
+        // A few securities (one per call in the class histories) use trade_security_date_idx.
+        filter.securities !== undefined && filter.securities.length <= 100
+          ? inArray(trade.securityId, [...filter.securities])
+          : undefined,
+      ),
+    )
     .all()
     .filter(
       (t) =>
@@ -1039,4 +1106,40 @@ export function accountValuesAsOf(db: Executor, asOf: string): AccountValue[] {
     .all()
     .map((a) => ({ accountId: a.id, name: a.name, type: a.type, valueCents: byAccount[a.id] ?? 0 }))
     .filter((a) => a.valueCents !== 0);
+}
+
+/**
+ * Daily EUR value of accounts that hold positions: the cash series plus the market value of their
+ * positions, exactly the value of `netWorthValuationAsOf` (the Konten value column) on every day.
+ * Accounts without any position in the window are left out (their value is their cash balance).
+ * The rows are read once for all accounts and days.
+ */
+export function holdingAccountValueSeries(
+  db: Executor,
+  days: ReadonlyArray<string>,
+  accounts?: ReadonlyArray<string>,
+): Map<string, number[]> {
+  const out = new Map<string, number[]>();
+  const from = days[0];
+  const to = days[days.length - 1];
+  if (from === undefined || to === undefined) return out;
+  const positions = valuationSeries(db, { from, to, ...(accounts ? { accounts } : {}) }).positions;
+  if (positions.length === 0) return out;
+  const held = new Set(positions.map((p) => p.accountId));
+  const cash = cashSeries(db, days, [...held]);
+  for (const id of held) {
+    const base = cash.get(id) ?? days.map(() => 0);
+    out.set(
+      id,
+      base.map(
+        (cents, i) =>
+          cents +
+          positions.reduce(
+            (sum, p) => (p.accountId === id ? sum + (p.valueCents[i] ?? 0) : sum),
+            0,
+          ),
+      ),
+    );
+  }
+  return out;
 }

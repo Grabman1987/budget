@@ -21,7 +21,7 @@ export interface PositionAccount {
   valueCents: number | null;
   costCents: number | null;
   gainCents: number | null;
-  /** `estimated`: valued at the cost basis or a price a few days off, see `quality`. */
+  /** `estimated`: valued at the cost basis. Execution prices have known values. */
   valueStatus: 'known' | 'estimated' | 'missing_price' | 'missing_fx';
   basisStatus: 'known' | 'undocumented' | 'missing_fx';
 }

@@ -10,7 +10,32 @@ import {
   contactSettlement,
 } from '../schema';
 import { BookingInvariantError } from './errors';
+import { memoizedShared } from './request-memo';
 import type { Executor } from './types';
+
+/** A zero booking with contact shares reclassifies money already held, never earned cash. */
+/** Read once per request and database state; callers only look ids up (`has`). */
+export function cashlessContactBookingIds(db: Executor): Set<string> {
+  return memoizedShared(db, 'cashlessContactBookingIds', () => readCashlessContactBookingIds(db));
+}
+
+function readCashlessContactBookingIds(db: Executor): Set<string> {
+  return new Set(
+    db
+      .select({ id: booking.id })
+      .from(booking)
+      .innerJoin(bookingSplit, eq(bookingSplit.bookingId, booking.id))
+      .where(
+        and(
+          isNull(booking.deletedAt),
+          eq(booking.amountCents, 0),
+          sql`${bookingSplit.contactId} IS NOT NULL`,
+        ),
+      )
+      .all()
+      .map((b) => b.id),
+  );
+}
 
 export function actualContactMovements(tx: Executor, contactId: string, asOf?: string) {
   return tx
@@ -164,6 +189,39 @@ export function assertContactSettlementInvariants(tx: Executor): void {
   }
 }
 
+/** Write-offs are plain zero bookings, so their outlay must stay unchanged until they are undone. */
+function assertNoLaterWriteOff(tx: Executor, bookingId: string): void {
+  const row = tx.select().from(booking).where(eq(booking.id, bookingId)).get();
+  if (!row || row.amountCents === 0) return;
+  const contacts = tx
+    .select({ contactId: bookingSplit.contactId })
+    .from(bookingSplit)
+    .where(and(eq(bookingSplit.bookingId, bookingId), sql`${bookingSplit.contactId} IS NOT NULL`))
+    .all()
+    .map((r) => r.contactId!);
+  for (const contactId of new Set(contacts)) {
+    const writeOff = tx
+      .select({ date: booking.date })
+      .from(booking)
+      .innerJoin(bookingSplit, eq(bookingSplit.bookingId, booking.id))
+      .where(
+        and(
+          eq(bookingSplit.contactId, contactId),
+          isNull(booking.deletedAt),
+          eq(booking.amountCents, 0),
+          sql`${booking.date} >= ${row.date}`,
+        ),
+      )
+      .get();
+    if (writeOff) {
+      const [y, m, d] = writeOff.date.split('-');
+      throw new BookingInvariantError(
+        `Auslage ist durch einen Ausgleich vom ${d}.${m}.${y} gebunden; zuerst den Ausgleich rückgängig machen.`,
+      );
+    }
+  }
+}
+
 /** Economic edits of a settlement or its allocated outlay must go through undo of the settlement. */
 export function assertContactBookingWrite(
   tx: Executor,
@@ -189,6 +247,10 @@ export function assertContactBookingWrite(
       ),
     )
     .get();
+  const fieldList = [...fields];
+  const economic =
+    operation === 'update' && !fieldList.every((f) => ['memo', 'status', 'flag'].includes(f));
+  if (operation === 'delete' || economic) assertNoLaterWriteOff(tx, bookingId);
   if (!settlement && !allocated) return;
   if (operation === 'update' && [...fields].every((f) => ['memo', 'status', 'flag'].includes(f)))
     return;

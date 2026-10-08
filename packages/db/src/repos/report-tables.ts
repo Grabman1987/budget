@@ -1,6 +1,6 @@
 import {
   addMonths,
-  ageOfMoney,
+  ageOfMoneyAt,
   defaultParams,
   lastDayOfMonth,
   monthOf,
@@ -156,11 +156,22 @@ export function reportTables(
     name: 'Zuflüsse ohne Einkommensart (nicht gezählt)',
     role: 'unclassified',
   });
+  incomeTypes.push({
+    id: 'contact-write-off',
+    name: 'Sonstige Einnahmen · Ausgleich Kontakt (außerhalb Haushaltseinnahmen)',
+    role: 'unclassified',
+  });
 
   const classOf = new Map(categories.map((c) => [c.id, c.class]));
   // Shared ledger classification: cash date, system entries excluded, refunds netted once.
   const ledger = overviewData(db);
-  const splits = ledger.splits.filter((s) => s.date <= today);
+  const splits = ledger.splits
+    .filter((s) => s.date <= today)
+    .map((s) =>
+      s.kind === 'income' && s.incomeGroup === 'unclassified' && s.incomeTypeId !== null
+        ? { ...s, incomeTypeId: 'contact-write-off' }
+        : s,
+    );
   const figures = overviewMonthlyFigures({ ...ledger, splits });
   const income = new Map<string, Record<string, number>>();
   for (const [month, f] of figures) {
@@ -245,6 +256,12 @@ export function reportTables(
     }
   }
 
+  const moneyAge = new Map(
+    ageOfMoneyAt(
+      events,
+      monthKeys.map((m) => standDay(m)),
+    ).map((a, i) => [monthKeys[i]!, a.days] as const),
+  );
   const months: TableMonth[] = monthKeys.map((month) => {
     const env = envelopes.get(month) ?? {};
     const spending: Record<string, number> = {};
@@ -265,7 +282,7 @@ export function reportTables(
       spending,
       assigned,
       netWorthCents: netWorthAt.get(month) ?? null,
-      moneyAgeDays: ageOfMoney(events, standDay(month)).days,
+      moneyAgeDays: moneyAge.get(month) ?? null,
     };
   });
 

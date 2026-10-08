@@ -1,5 +1,6 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type APIRequestContext, type Page } from '@playwright/test';
+import { test as isolatedTest } from './isolated-ledger';
 import { MAIN_URL } from '../playwright.config';
 import { shiftMonth } from '../apps/web/src/nav/month';
 import { eur } from '../apps/web/src/ledger/format';
@@ -17,146 +18,289 @@ const toast = (page: Page) => page.locator('.toast.is-open');
 const row = (page: Page, name: string) => page.locator('tr.prow', { hasText: name });
 const available = (page: Page, name: string) => row(page, name).locator('.col-avail');
 
-async function post(request: APIRequestContext, path: string, data: unknown) {
-  const res = await request.post(`/api${path}`, { data, headers: { origin: MAIN_URL } });
+async function postTo(
+  request: APIRequestContext,
+  path: string,
+  data: unknown,
+  origin: string = MAIN_URL,
+) {
+  const res = await request.post(`/api${path}`, { data, headers: { origin } });
   expect(res.ok(), await res.text()).toBe(true);
   return (await res.json()) as Record<string, { id: string }>;
 }
+const post = (request: APIRequestContext, path: string, data: unknown) =>
+  postTo(request, path, data);
 
-test('plan: assign, cover, card debt, move, undo, rollover, distribute', async ({
-  page,
-}, testInfo) => {
-  test.setTimeout(60_000);
-  // Unique per run: retries and --repeat-each write into the same database.
-  const tag = `${testInfo.project.name}-${Date.now().toString(36).slice(-5)}`;
-  const { request } = page;
-  const giro = (
-    await post(request, '/accounts', {
-      name: `Giro Plan ${tag}`,
-      type: 'checking',
-      openingDate: `${month}-01`,
-      openingBalanceCents: 100_000,
-    })
-  )['account']!;
-  const card = (
-    await post(request, '/accounts', {
-      name: `Karte Plan ${tag}`,
-      type: 'credit_card',
-      openingDate: `${month}-01`,
-    })
-  )['account']!;
-  const group = (await post(request, '/categories/groups', { name: `Plan ${tag}` }))['group']!;
-  const cat = async (name: string, extra: object) =>
-    (
-      await post(request, '/categories', {
-        name,
+isolatedTest(
+  'plan: distinguish an empty target inventory from zero and reached targets',
+  async ({ page, baseURL }, testInfo) => {
+    const month = '2026-10';
+    const origin = baseURL!;
+    const { request } = page;
+    const post = (path: string, data: unknown) => postTo(request, path, data, origin);
+    const tag = `${testInfo.project.name}-${Date.now().toString(36).slice(-5)}`;
+    const group = (await post('/categories/groups', { name: `Zielstatus ${tag}` }))['group']!;
+    const category = (
+      await post('/categories', {
+        name: `Ohne Monatsziel ${tag}`,
         groupId: group.id,
         class: 'need',
         stage: 2,
-        ...extra,
+        target: {
+          validFrom: '2026-11',
+          target: { kind: 'monthly', amountCents: 0 },
+        },
       })
     )['category']!;
-  const food = `Lebensmittel P ${tag}`;
-  const cafe = `Café P ${tag}`;
-  const cinema = `Kino P ${tag}`;
-  const foodCat = await cat(food, {
-    target: { validFrom: month, target: { kind: 'monthly', amountCents: 30_000 } },
-  });
-  await cat(cafe, { class: 'want' });
-  const cinemaCat = await cat(cinema, { class: 'want' });
-  await post(request, '/categories', {
-    name: `Kartenzahlung ${tag}`,
-    groupId: group.id,
-    kind: 'card_payment',
-    cardAccountId: card.id,
-  });
-  const book = (accountId: string, categoryId: string, amountCents: number) =>
-    post(request, '/bookings', {
-      type: 'booking',
-      accountId,
-      date: today,
-      amountCents,
-      categoryId,
+    const hidden = await request.patch(`/api/categories/${category.id}`, {
+      data: { hidden: true },
+      headers: { origin },
     });
-  await book(giro.id, foodCat.id, -5_000);
-  await book(card.id, cinemaCat.id, -3_000);
+    expect(hidden.ok(), await hidden.text()).toBe(true);
 
-  await page.goto(`/plan/monat?monat=${month}`);
-  // Each overspending stays red in its own row; the header only aggregates.
-  await expect(row(page, food)).toHaveClass(/is-over/);
-  await expect(available(page, food)).toHaveText('−50,00 €');
-  await expect(row(page, cinema)).toHaveClass(/is-over/);
-  await expect(row(page, cinema)).toContainText('neue Kartenschuld 30,00 €');
-  await expect(page.locator('.triage')).toContainText('Envelopes überzogen');
-  await expect(page.locator('.triage')).not.toContainText(food);
+    await page.goto(`/plan/monat?monat=${month}`);
+    const card = page.getByTestId('income-targets');
+    await expect(card).toContainText('Noch nicht eingerichtet.');
+    const checkCardPresentation = async (state: 'empty' | 'zero') => {
+      const viewport = page.viewportSize();
+      expect(viewport).toBeTruthy();
+      expect(
+        await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth),
+        'the plan page should not scroll horizontally',
+      ).toBe(true);
 
-  // Assign inline with the arithmetic field.
-  await page.getByRole('button', { name: `Zugewiesen 0,00 € für ${cafe} ändern` }).click();
-  await page.getByLabel(`Zugewiesen für ${cafe}. Rechnen erlaubt, +50 addiert.`).fill('60+40');
-  await page.keyboard.press('Enter');
-  await expect(toast(page)).toContainText(`${cafe}: 0,00 € → 100,00 € zugewiesen`);
-  await expect(available(page, cafe)).toHaveText('100,00 €');
+      for (const scheme of ['light', 'dark'] as const) {
+        await page.emulateMedia({ colorScheme: scheme, reducedMotion: 'reduce' });
+        const axe = await new AxeBuilder({ page })
+          .include('[data-testid="income-targets"]')
+          .analyze();
+        expect(axe.violations.map((violation) => violation.id)).toEqual([]);
+        await card.screenshot({
+          path: testInfo.outputPath(`income-targets-${state}-${viewport!.width}-${scheme}.png`),
+        });
+      }
+    };
+    await checkCardPresentation('empty');
+    const readBudget = async () => {
+      const response = await request.get(`/api/budget/${month}`);
+      expect(response.ok(), await response.text()).toBe(true);
+      return (await response.json()) as {
+        incomeTargets: { targetsCents: number; unfundedCategoryIds: string[] };
+        summary: {
+          envelopes: Array<{
+            categoryId: string;
+            needCents: number;
+            target: { amountCents: number } | null;
+          }>;
+        };
+      };
+    };
+    let budget = await readBudget();
+    expect(budget.incomeTargets.targetsCents).toBe(0);
+    expect(
+      budget.summary.envelopes.find((row) => row.categoryId === category.id)?.target,
+    ).toBeNull();
 
-  // Compact control beside the figure opens the existing cover panel.
-  await page.getByRole('button', { name: `${food} decken`, exact: true }).click();
-  const coverPanel = page.getByRole('dialog', { name: food });
-  await coverPanel
-    .getByLabel('Aus', { exact: true })
-    .selectOption({ label: `${cafe} · 100,00 € · fest verplant 0,00 € · frei 100,00 €` });
-  await expect(coverPanel.getByTestId('cover-remaining')).toHaveText(
-    `aus ${cafe} · bleibt 50,00 €`,
-  );
-  await coverPanel.getByRole('button', { name: 'Decken · 50,00 €', exact: true }).click();
-  await expect(toast(page)).toContainText(`50,00 € von ${cafe} zu ${food} verschoben`);
-  await expect(available(page, food)).toHaveText('0,00 €');
-  await expect(available(page, cafe)).toHaveText('50,00 €');
+    const zeroTarget = await request.put(`/api/categories/${category.id}/target`, {
+      data: { validFrom: month, target: { kind: 'monthly', amountCents: 0 } },
+      headers: { origin },
+    });
+    expect(zeroTarget.ok(), await zeroTarget.text()).toBe(true);
+    await page.reload();
+    await expect(card).toContainText('Alle Monatsziele sind finanziert.');
+    await checkCardPresentation('zero');
+    budget = await readBudget();
+    expect(
+      budget.summary.envelopes.find((row) => row.categoryId === category.id)?.target,
+    ).toMatchObject({ amountCents: 0 });
 
-  // Read details on their own page; input opens a form dialog.
-  await row(page, cafe)
-    .getByRole('link', { name: new RegExp(cafe) })
-    .first()
-    .click();
-  await expect(page).toHaveURL(/\/plan\/monat\/envelope\//);
-  await page.getByRole('button', { name: 'Zuweisen oder verschieben' }).click();
-  const panel = page.getByRole('dialog', { name: cafe });
-  await panel.getByRole('button', { name: 'Von hier weg' }).click();
-  await panel.getByLabel('Nach', { exact: true }).selectOption({ label: `${food} · 0,00 €` });
-  await panel.getByLabel('Betrag', { exact: true }).fill('20');
-  await panel.getByRole('button', { name: 'Verschieben' }).click();
-  await expect(toast(page)).toContainText(`20,00 € von ${cafe} zu ${food} verschoben`);
-  await page.getByRole('link', { name: 'Zurück zum Monat' }).click();
-  await expect(available(page, food)).toHaveText('20,00 €');
-  await toast(page).getByRole('button', { name: 'Rückgängig' }).click();
-  await expect(available(page, food)).toHaveText('0,00 €');
-  await expect(available(page, cafe)).toHaveText('50,00 €');
+    await post('/accounts', {
+      name: `Konto Zielstatus ${tag}`,
+      type: 'checking',
+      openingDate: `${month}-01`,
+      openingBalanceCents: 10_000,
+    });
+    const reached = (
+      await post('/categories', {
+        name: `Erreichtes Monatsziel ${tag}`,
+        groupId: group.id,
+        class: 'need',
+        stage: 2,
+        target: {
+          validFrom: month,
+          target: { kind: 'monthly', amountCents: 10_000 },
+        },
+      })
+    )['category']!;
+    const assigned = await request.put(`/api/budget/${month}/assigned`, {
+      data: { items: [{ categoryId: reached.id, assignedCents: 10_000 }] },
+      headers: { origin },
+    });
+    expect(assigned.ok(), await assigned.text()).toBe(true);
+    await page.reload();
+    await expect(card).toContainText('Alle Monatsziele sind finanziert.');
+    budget = await readBudget();
+    expect(budget.summary.envelopes.find((row) => row.categoryId === reached.id)).toMatchObject({
+      needCents: 0,
+      target: { amountCents: 10_000 },
+    });
+    expect(budget.incomeTargets.unfundedCategoryIds).not.toContain(reached.id);
+  },
+);
 
-  const axe = await new AxeBuilder({ page }).include('main').analyze();
-  expect(axe.violations.map((v) => `${v.id}: ${v.nodes[0]?.target}`)).toEqual([]);
+// Isolated ledger: the cover step's "fest verplant" figures must not depend on expected payments
+// or pending bookings other specs create in the shared database. Its today is pinned.
+isolatedTest(
+  'plan: assign, cover, card debt, move, undo, rollover, distribute',
+  async ({ page, baseURL }, testInfo) => {
+    const today = '2026-10-02';
+    const month = today.slice(0, 7);
+    const origin = baseURL!;
+    test.setTimeout(60_000);
+    // Unique per run: retries and --repeat-each write into the same database.
+    const tag = `${testInfo.project.name}-${Date.now().toString(36).slice(-5)}`;
+    const { request } = page;
+    const post = (path: string, data: unknown) => postTo(request, path, data, origin);
+    const giro = (
+      await post('/accounts', {
+        name: `Giro Plan ${tag}`,
+        type: 'checking',
+        openingDate: `${month}-01`,
+        openingBalanceCents: 100_000,
+      })
+    )['account']!;
+    // Explicit fixture: the shared database's total free money moves with other tests, so give
+    // this test its own overdraft headroom and the cover cap can never be 0 here.
+    const limited = await request.patch(`/api/accounts/${giro.id}`, {
+      data: { overdraftLimitCents: 10_000_000 },
+      headers: { origin },
+    });
+    expect(limited.ok(), await limited.text()).toBe(true);
+    const card = (
+      await post('/accounts', {
+        name: `Karte Plan ${tag}`,
+        type: 'credit_card',
+        openingDate: `${month}-01`,
+      })
+    )['account']!;
+    const group = (await post('/categories/groups', { name: `Plan ${tag}` }))['group']!;
+    const cat = async (name: string, extra: object) =>
+      (
+        await post('/categories', {
+          name,
+          groupId: group.id,
+          class: 'need',
+          stage: 2,
+          ...extra,
+        })
+      )['category']!;
+    const food = `Lebensmittel P ${tag}`;
+    const cafe = `Café P ${tag}`;
+    const cinema = `Kino P ${tag}`;
+    const foodCat = await cat(food, {
+      target: { validFrom: month, target: { kind: 'monthly', amountCents: 30_000 } },
+    });
+    await cat(cafe, { class: 'want' });
+    const cinemaCat = await cat(cinema, { class: 'want' });
+    await post('/categories', {
+      name: `Kartenzahlung ${tag}`,
+      groupId: group.id,
+      kind: 'card_payment',
+      cardAccountId: card.id,
+    });
+    const book = (accountId: string, categoryId: string, amountCents: number) =>
+      post('/bookings', {
+        type: 'booking',
+        accountId,
+        date: today,
+        amountCents,
+        categoryId,
+      });
+    await book(giro.id, foodCat.id, -5_000);
+    await book(card.id, cinemaCat.id, -3_000);
 
-  // Month rollover: the 50 € left in Café are carried, nothing is assigned yet.
-  const nextMonth = shiftMonth(month, 1);
-  const nextBudget = page.waitForResponse(
-    (response) =>
-      response.url().endsWith(`/api/budget/${nextMonth}`) && response.request().method() === 'GET',
-  );
-  await page.getByRole('button', { name: 'Nächster Monat' }).click();
-  // The same carry is visible in both months. Wait for navigation before distributing,
-  // otherwise the click can still reach the old month's body while the new one loads.
-  await expect(page).toHaveURL(new RegExp(`monat=${nextMonth}`));
-  const nextData = await (await nextBudget).json();
-  // Synchronise with the new read, not the identical category carry in the previous month.
-  await expect(page.getByTestId('to-be-assigned')).toHaveText(
-    eur(nextData.summary.toBeAssignedCents),
-  );
-  await expect(available(page, cafe)).toHaveText('50,00 €');
-  await expect(row(page, cafe).locator('.col-assign')).toContainText('0,00 €');
+    await page.goto(`/plan/monat?monat=${month}`);
+    // Each overspending stays red in its own row; the header only aggregates.
+    await expect(row(page, food)).toHaveClass(/is-over/);
+    await expect(available(page, food)).toHaveText('−50,00 €');
+    await expect(row(page, cinema)).toHaveClass(/is-over/);
+    await expect(row(page, cinema)).toContainText('neue Kartenschuld 30,00 €');
+    await expect(page.locator('.triage')).toContainText('Envelopes überzogen');
+    await expect(page.locator('.triage')).not.toContainText(food);
 
-  // Geld verteilen: the target of Lebensmittel shows as a ghost value and is taken with one click.
-  await page.getByRole('button', { name: 'Geld verteilen' }).click();
-  await page.getByRole('button', { name: `Vorschlag 300,00 € für ${food} übernehmen` }).click();
-  await expect(toast(page)).toContainText('300,00 € verteilt');
-  await expect(available(page, food)).toHaveText('300,00 €');
-});
+    // Assign inline with the arithmetic field.
+    await page.getByRole('button', { name: `Zugewiesen 0,00 € für ${cafe} ändern` }).click();
+    await page.getByLabel(`Zugewiesen für ${cafe}. Rechnen erlaubt, +50 addiert.`).fill('60+40');
+    await page.keyboard.press('Enter');
+    await expect(toast(page)).toContainText(`${cafe}: 0,00 € → 100,00 € zugewiesen`);
+    await expect(available(page, cafe)).toHaveText('100,00 €');
+
+    // Compact control beside the figure opens the existing cover panel.
+    const money = await request.get(`/api/budget/${month}`);
+    const cap = ((await money.json()) as { budgetMoney?: { coverCapCents: number } }).budgetMoney
+      ?.coverCapCents;
+    expect(cap, `cover cap before covering: ${cap}`).toBeGreaterThanOrEqual(10_000);
+    await page.getByRole('button', { name: `${food} decken`, exact: true }).click();
+    const coverPanel = page.getByRole('dialog', { name: food });
+    await coverPanel
+      .getByLabel('Aus', { exact: true })
+      .selectOption({ label: `${cafe} · 100,00 € · fest verplant 0,00 € · frei 100,00 €` });
+    await expect(coverPanel.getByTestId('cover-remaining')).toHaveText(
+      `aus ${cafe} · bleibt 50,00 €`,
+    );
+    await coverPanel.getByRole('button', { name: 'Decken · 50,00 €', exact: true }).click();
+    await expect(toast(page)).toContainText(`50,00 € von ${cafe} zu ${food} verschoben`);
+    await expect(available(page, food)).toHaveText('0,00 €');
+    await expect(available(page, cafe)).toHaveText('50,00 €');
+
+    // Read details on their own page; input opens a form dialog.
+    await row(page, cafe)
+      .getByRole('link', { name: new RegExp(cafe) })
+      .first()
+      .click();
+    await expect(page).toHaveURL(/\/plan\/monat\/envelope\//);
+    await page.getByRole('button', { name: 'Zuweisen oder verschieben' }).click();
+    const panel = page.getByRole('dialog', { name: cafe });
+    await panel.getByRole('button', { name: 'Von hier weg' }).click();
+    await panel.getByLabel('Nach', { exact: true }).selectOption({ label: `${food} · 0,00 €` });
+    await panel.getByLabel('Betrag', { exact: true }).fill('20');
+    await panel.getByRole('button', { name: 'Verschieben' }).click();
+    await expect(toast(page)).toContainText(`20,00 € von ${cafe} zu ${food} verschoben`);
+    await page.getByRole('link', { name: 'Zurück zum Monat' }).click();
+    await expect(available(page, food)).toHaveText('20,00 €');
+    await toast(page).getByRole('button', { name: 'Rückgängig' }).click();
+    await expect(available(page, food)).toHaveText('0,00 €');
+    await expect(available(page, cafe)).toHaveText('50,00 €');
+
+    const axe = await new AxeBuilder({ page }).include('main').analyze();
+    expect(axe.violations.map((v) => `${v.id}: ${v.nodes[0]?.target}`)).toEqual([]);
+
+    // Month rollover: the 50 € left in Café are carried, nothing is assigned yet.
+    const nextMonth = shiftMonth(month, 1);
+    const nextBudget = page.waitForResponse(
+      (response) =>
+        response.url().endsWith(`/api/budget/${nextMonth}`) &&
+        response.request().method() === 'GET',
+    );
+    await page.getByRole('button', { name: 'Nächster Monat' }).click();
+    // The same carry is visible in both months. Wait for navigation before distributing,
+    // otherwise the click can still reach the old month's body while the new one loads.
+    await expect(page).toHaveURL(new RegExp(`monat=${nextMonth}`));
+    const nextData = await (await nextBudget).json();
+    // Synchronise with the new read, not the identical category carry in the previous month.
+    await expect(page.getByTestId('to-be-assigned')).toHaveText(
+      eur(nextData.summary.toBeAssignedCents),
+    );
+    await expect(available(page, cafe)).toHaveText('50,00 €');
+    await expect(row(page, cafe).locator('.col-assign')).toContainText('0,00 €');
+
+    // Geld verteilen: the target of Lebensmittel shows as a ghost value and is taken with one click.
+    await page.getByRole('button', { name: 'Geld verteilen' }).click();
+    await page.getByRole('button', { name: `Vorschlag 300,00 € für ${food} übernehmen` }).click();
+    await expect(toast(page)).toContainText('300,00 € verteilt');
+    await expect(available(page, food)).toHaveText('300,00 €');
+  },
+);
 
 test('plan: a negative assignment stays editable, Escape keeps it, Decken asks when short', async ({
   page,

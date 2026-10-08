@@ -199,7 +199,7 @@ ledgerTest(
     const before: FreedomView = await (await page.request.get('/api/wealth/freedom')).json();
     await page.keyboard.press('n');
     const panel = page.getByRole('dialog', { name: 'Buchung erfassen' });
-    await panel.getByLabel('Konto', { exact: true }).selectOption(account.id);
+    await panel.getByLabel('Bezahlt von', { exact: true }).selectOption(account.id);
     await panel.getByLabel('Datum', { exact: true }).fill(`${previous}-15`);
     await panel.getByLabel('Betrag', { exact: true }).fill('100');
     await pickCategory(panel, 'Essen');
