@@ -1430,7 +1430,15 @@
     margin: 0;
   }
   .bk-body {
-    padding: 14px 16px 8px;
+    padding: 8px 16px;
+    gap: 6px;
+  }
+  .bk-body .field-row {
+    gap: 4px;
+  }
+  .bk-body .amount-box {
+    min-height: var(--touch);
+    padding-block: 4px;
   }
   .bk-foot {
     padding: 10px 16px 12px;
@@ -1598,7 +1606,10 @@
 }
 
 @media (max-width: 767px) {
-  dialog.sheet-bottom:has(.bkform) {
-    --sheet-max: 96dvh;
+  .bk-date-chips {
+    margin-bottom: 4px;
+  }
+  .bkform .kmore > summary {
+    padding-block: 8px;
   }
 }

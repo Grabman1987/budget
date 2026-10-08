@@ -225,9 +225,9 @@ test('single payee suggestion selects its recent account and leaves account cont
   await panel.getByLabel('Betrag', { exact: true }).press('Enter');
   await expect(panel.getByLabel('Betrag', { exact: true })).toHaveValue('15,50');
   await panel.getByRole('button', { name: 'Gestern', exact: true }).click();
-  await expect(panel.getByLabel('Datum', { exact: true })).toHaveValue('2026-10-04');
+  await expect(panel.getByLabel('Datum', { exact: true })).toHaveValue('04.10.2026');
   await panel.getByRole('button', { name: 'Heute', exact: true }).click();
-  await expect(panel.getByLabel('Datum', { exact: true })).toHaveValue('2026-10-05');
+  await expect(panel.getByLabel('Datum', { exact: true })).toHaveValue('05.10.2026');
   await panel.getByRole('button', { name: 'Datum…', exact: true }).click();
   await expect(panel.getByLabel('Datum', { exact: true })).toBeFocused();
   await panel.locator('summary').click();
