@@ -273,3 +273,64 @@ it('persists multiple index selections with audit undo and compares synthetic EU
   signedIn = false;
   expect((await app.request('/api/portfolio/benchmarks')).status).toBe(401);
 });
+
+it('uses dated exposure versions for each historical class return period', async () => {
+  // Leave one EUR holding and no cashflows so each class contribution is independently literal.
+  opened.sqlite.exec(
+    "DELETE FROM trade; DELETE FROM holding WHERE security_id='b'; DELETE FROM price WHERE security_id='b';",
+  );
+  replaceExposureVersion(
+    db,
+    'a',
+    {
+      validFrom: '2025-12-31',
+      complete: true,
+      source: 'synthetic_two_period_fixture',
+      weights: [
+        { assetClassId: 'a', weightBp: 5_000 },
+        { assetClassId: 'b', weightBp: 5_000 },
+      ],
+    },
+    { actor: 'tester' },
+  );
+  replaceExposureVersion(
+    db,
+    'a',
+    {
+      validFrom: '2026-02-01',
+      complete: true,
+      source: 'synthetic_two_period_fixture',
+      weights: [{ assetClassId: 'b', weightBp: 10_000 }],
+    },
+    { actor: 'tester' },
+  );
+
+  const response = await read();
+  expect(response.status).toBe(200);
+  const { portfolio } = (await response.json()) as { portfolio: PortfolioSummary };
+  const history = portfolio.performanceHistory!;
+  expect(history).toMatchObject({ from: '2025-12-31', to: '2026-02-28' });
+  expect(history.months.map(({ month }) => month)).toEqual(['2026-01', '2026-02']);
+
+  const classA = history.classes.find(({ assetClassId }) => assetClassId === 'a')!;
+  const classB = history.classes.find(({ assetClassId }) => assetClassId === 'b')!;
+  const monthEndLevels = (index: typeof classA.index) => {
+    const points = index.filter(({ date }) => date === '2026-01-31' || date === '2026-02-28');
+    expect(points.map(({ date }) => date)).toEqual(['2026-01-31', '2026-02-28']);
+    return points.map(({ portfolio: level }) => level);
+  };
+
+  // The Feb 1 reclassification transfers the carried 5,500 cents without return;
+  // the Feb 28 quote then adds 10% to B's 11,000-cent post-transfer base.
+  expect(classA.valueCents).toBe(0);
+  expect(classB.valueCents).toBe(12_100);
+  const levelsA = monthEndLevels(classA.index);
+  const levelsB = monthEndLevels(classB.index);
+  expect(levelsA[0]).toBeCloseTo(110);
+  expect(levelsA[1]).toBeCloseTo(110);
+  expect(levelsB[0]).toBeCloseTo(110);
+  expect(levelsB[1]).toBeCloseTo(121);
+  expect(classA.performance?.ttwror).toBeCloseTo(0.1);
+  expect(classB.performance?.ttwror).toBeCloseTo(0.21);
+  expect(history.classes.reduce((sum, cls) => sum + cls.valueCents, 0)).toBe(12_100);
+});

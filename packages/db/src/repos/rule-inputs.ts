@@ -9,6 +9,7 @@ import {
   BOOK_RULE_CODES,
   freedomProgressBp,
   freedomTargetCents,
+  incomePauseAmount,
   lastDayOfMonth,
   monthlyEquivalent,
   monthOf,
@@ -47,6 +48,7 @@ import {
   envelopeMonth,
   expectedPayment,
   expectedPaymentVersion,
+  incomePause,
   INCOME_TYPES,
   institution,
   plannedEvent,
@@ -92,6 +94,7 @@ export interface RuleFacts {
   targets: (typeof categoryTarget.$inferSelect)[];
   payments: PaymentRow[];
   versions: Map<string, VersionRow[]>;
+  incomePauses: (typeof incomePause.$inferSelect)[];
   plannedEvents: (typeof plannedEvent.$inferSelect)[];
   securities: Map<string, typeof security.$inferSelect>;
   classNames: Record<string, string>;
@@ -166,6 +169,8 @@ function readFacts(db: Executor, upTo: string, ledger: ReturnType<typeof budgetL
     .all())
     versions.set(v.expectedPaymentId, [...(versions.get(v.expectedPaymentId) ?? []), v]);
 
+  const incomePauses = db.select().from(incomePause).where(isNull(incomePause.deletedAt)).all();
+
   const categoryKindById = new Map(categories.map((c) => [c.id, c.kind]));
   const cashless = cashlessContactBookingIds(db);
   const incomeSplits = db
@@ -213,6 +218,7 @@ function readFacts(db: Executor, upTo: string, ledger: ReturnType<typeof budgetL
     targets: db.select().from(categoryTarget).where(isNull(categoryTarget.deletedAt)).all(),
     payments: db.select().from(expectedPayment).where(isNull(expectedPayment.deletedAt)).all(),
     versions,
+    incomePauses,
     plannedEvents: db
       .select()
       .from(plannedEvent)
@@ -298,7 +304,13 @@ function targetOf(f: RuleFacts, categoryId: string, month: string): CategoryTarg
 }
 
 /** Scheduled occurrences (EUR cents) of the live payments between two days, both included. */
-export function scheduled(f: RuleFacts, from: string, to: string, asOf: string) {
+export function scheduled(
+  f: RuleFacts,
+  from: string,
+  to: string,
+  asOf: string,
+  options: { applyIncomePauses?: boolean } = {},
+) {
   const out: {
     payment: PaymentRow;
     dueDate: string;
@@ -312,7 +324,27 @@ export function scheduled(f: RuleFacts, from: string, to: string, asOf: string) 
     const versions = f.versions.get(p.id) ?? [];
     for (const occ of occurrences(schedulePayment(p), versions.map(scheduleVersion), from, to)) {
       const v = versionOn(versions, occ.dueDate);
-      let cents = occ.amountCents;
+      const pause = options.applyIncomePauses
+        ? f.incomePauses.find(
+            (item) =>
+              item.expectedPaymentId === p.id &&
+              item.startDate <= occ.dueDate &&
+              occ.dueDate <= item.endDate,
+          )
+        : undefined;
+      let cents =
+        pause && v
+          ? incomePauseAmount(
+              {
+                expectedPaymentId: p.id,
+                dueDate: occ.dueDate,
+                kind: p.kind,
+                currency: v.currency,
+                amountCents: occ.amountCents,
+              },
+              pause,
+            )
+          : occ.amountCents;
       if (v && v.currency !== 'EUR') {
         const rate = fxRateOnOrBefore(f.db, v.currency, asOf);
         if (!rate) continue;
@@ -375,7 +407,7 @@ export function forecastInputs(
   );
   const to = addDays(asOf, 365);
   const items: ForecastItem[] = [
-    ...scheduled(f, addDays(asOf, 1), to, asOf)
+    ...scheduled(f, addDays(asOf, 1), to, asOf, { applyIncomePauses: true })
       .filter((o) => o.onBudget)
       .map((o) => ({
         day: o.dueDate,
