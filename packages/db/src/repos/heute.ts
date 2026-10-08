@@ -496,10 +496,32 @@ export function heute(db: Executor, query: HeuteQuery): Heute {
     today,
     todayBudget,
   );
+  const pausedCashSchedule = scheduled(
+    facts,
+    earliest(`${month}-01`, addDays(today, -OPEN_LOOKBACK_DAYS)),
+    latest(lastDayOfMonth(month), addDays(today, 400)),
+    today,
+    { applyIncomePauses: true },
+  );
+  const pausedSalaryDates = new Set(
+    pausedCashSchedule
+      .filter(
+        (o) =>
+          o.payment.kind === 'inflow' &&
+          o.cents === 0 &&
+          o.payment.incomeTypeId === INCOME_TYPES.salary.id,
+      )
+      .map((o) => `${o.payment.id}|${o.dueDate}`),
+  );
   const isSalary = (paymentId: string) =>
     facts.payments.find((p) => p.id === paymentId)?.incomeTypeId === INCOME_TYPES.salary.id;
   const salary = all.filter(
-    (o) => o.kind === 'inflow' && o.status === 'expected' && isSalary(o.paymentId),
+    (o) =>
+      o.kind === 'inflow' &&
+      o.status === 'expected' &&
+      o.amountCents > 0 &&
+      isSalary(o.paymentId) &&
+      !pausedSalaryDates.has(`${o.paymentId}|${o.dueDate}`),
   );
   const payday = nextPayday(today);
   const window = heuteWindow(query.period ?? 'month', month, today, payday.day);

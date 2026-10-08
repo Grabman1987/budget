@@ -19,7 +19,18 @@ export function inboxRoutes(db: Db, today: () => string): Hono {
     const start = offset ?? 0;
     const entries = inbox.entries.slice(start, start + limit);
     const next = start + entries.length < inbox.entries.length ? start + entries.length : null;
-    return c.json({ ...inbox, entries, limit, offset: start, next });
+    const countsByKind: Record<string, number> = {};
+    for (const entry of inbox.entries)
+      countsByKind[entry.kind] = (countsByKind[entry.kind] ?? 0) + 1;
+    return c.json({
+      ...inbox,
+      entries,
+      totalEntries: inbox.entries.length,
+      countsByKind,
+      limit,
+      offset: start,
+      next,
+    });
   });
   app.get('/count', (c) => c.json(readInboxCount(db, today())));
   app.post('/:id/resolve', async (c) => {

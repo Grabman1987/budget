@@ -46,6 +46,9 @@
   font-size: var(--fs-body);
   margin-top: 16px;
 }
+.inbox-more {
+  min-height: 44px;
+}
 .kinbox .rev-what > .assignment-review {
   display: flex;
   flex-wrap: wrap;

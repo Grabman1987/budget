@@ -93,28 +93,47 @@ test('bank source callback, mapping, queue action and responsive review', async 
 test('bank inbox suggestion requires an explicit posting decision', async ({ page }) => {
   const candidateId = '10000000-0000-4000-8000-000000000003';
   let confirmed = false;
-  await page.route('**/api/inbox', (route) =>
-    route.fulfill({
-      json: {
-        asOf: '2026-10-01',
-        count: confirmed ? 0 : 1,
-        entries: confirmed
-          ? []
-          : [
-              {
-                id: candidateId,
-                type: 'stored',
-                kind: 'import',
-                title: 'Bankumsatz prüfen',
-                detail: 'Girokonto A · 30.09.2026 · −12,01 € · Shop A',
-                refType: 'bank-sync-candidate',
-                refId: candidateId,
-                urgent: false,
-                createdAt: '2026-10-01T02:30:00Z',
-              },
-            ],
-      },
-    }),
+  await page.route(
+    (url) => url.pathname === '/api/inbox',
+    (route) => {
+      const entries = confirmed
+        ? []
+        : [
+            {
+              id: candidateId,
+              type: 'stored',
+              kind: 'import',
+              title: 'Bankumsatz prüfen',
+              detail: 'Girokonto A · 30.09.2026 · −12,01 € · Shop A',
+              refType: 'bank-sync-candidate',
+              refId: candidateId,
+              urgent: false,
+              createdAt: '2026-10-01T02:30:00Z',
+            },
+          ];
+      const fixture = { asOf: '2026-10-01', count: entries.length, entries };
+      const url = new URL(route.request().url());
+      const limitText = url.searchParams.get('limit');
+      if (limitText === null) return route.fulfill({ json: fixture });
+      const limit = Number(limitText);
+      const offset = Number(url.searchParams.get('offset') ?? 0);
+      const countsByKind = entries.reduce<Record<string, number>>((counts, entry) => {
+        counts[entry.kind] = (counts[entry.kind] ?? 0) + 1;
+        return counts;
+      }, {});
+      const pageEntries = entries.slice(offset, offset + limit);
+      return route.fulfill({
+        json: {
+          ...fixture,
+          entries: pageEntries,
+          totalEntries: entries.length,
+          countsByKind,
+          limit,
+          offset,
+          next: offset + pageEntries.length < entries.length ? offset + pageEntries.length : null,
+        },
+      });
+    },
   );
   await page.route('**/api/bank-sync/candidates/**/matches', (route) =>
     route.fulfill({ json: { merge: [], transfers: [] } }),
