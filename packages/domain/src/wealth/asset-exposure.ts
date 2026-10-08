@@ -14,10 +14,18 @@ export function splitAssetExposure(valueCents: number, weights: readonly AssetEx
   );
   if (sum < 10000) entries.push({ assetClassId: null, weightBp: 10000 - sum });
   const sign = valueCents < 0 ? -1 : 1;
-  const total = BigInt(Math.abs(valueCents));
+  const abs = Math.abs(valueCents);
+  // Exact in plain numbers while abs * 10000 stays a safe integer (up to ~9 billion euros); only
+  // larger values need BigInt. Both paths floor the same way and keep the same remainders.
+  const exact = abs * 10000 <= Number.MAX_SAFE_INTEGER;
+  const total = exact ? 0n : BigInt(abs);
   const parts = entries.map((e) => {
+    if (exact) {
+      const num = abs * e.weightBp;
+      return { ...e, valueCents: Math.floor(num / 10000), remainder: num % 10000 };
+    }
     const num = total * BigInt(e.weightBp);
-    return { ...e, valueCents: Number(num / 10000n), remainder: num % 10000n };
+    return { ...e, valueCents: Number(num / 10000n), remainder: Number(num % 10000n) };
   });
   let rest = Math.abs(valueCents) - parts.reduce((a, p) => a + p.valueCents, 0);
   for (const p of [...parts].sort((a, b) =>

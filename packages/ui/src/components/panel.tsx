@@ -183,7 +183,11 @@ function Overlay({
               </span>
             </button>
           </div>
-          <div className="panel-body">
+          <div
+            className="panel-body"
+            // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- Keyboard users must be able to scroll long dialog content.
+            tabIndex={wide ? 0 : undefined}
+          >
             {variant === 'side' && <div className="panel-graticule" aria-hidden="true" />}
             {children}
           </div>

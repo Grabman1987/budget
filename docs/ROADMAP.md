@@ -1,5 +1,14 @@
 # Roadmap
 
+### Current source and acceptance baseline — 2026-10-08
+
+- [x] Reconcile README and STATUS with verified main/live `5193b0a`, connected workflows and all 34 report bodies; preserve historical audit evidence.
+- [x] Add [ACCEPTANCE](ACCEPTANCE.md) separating source, PR/checks, deployment and financial/device/owner acceptance, with the ordered small-task queue.
+- [ ] Required checks and independent documentation PR review/integration; this baseline is not the later post-stack refresh #352.
+- [ ] Reconcile historical FEATURES/TASKS/requirement and per-task roadmap details as their concrete tasks are reviewed; no blanket gate/owner acceptance.
+
+Older CI/publication checkboxes below describe their original deliveries. Current integration evidence is in [STATUS](STATUS.md); private/device acceptance stays open unless independently recorded.
+
 ### E1 — Report verdict sentences (owner 2026-10-06)
 
 - [x] Pure typed fact detectors, strongest-fact selection, 230 German templates, deterministic period variation and previous-template exclusion; no new dependency or second ledger calculation.
@@ -268,6 +277,8 @@ Backlog: [`inspirations.md`](inspirations.md). These are possible later improvem
 ### P1c — App shell and routing (`docs/prompts/P1c.md`)
 - [x] Desktop: sidebar "Planliste" 01–05 with collapse, top bar (search Ctrl K, Posteingang with counter, + Buchung), theme toggle, profile
 - [x] Connected global search: session-protected queries (2–200 characters), at most five results each for bookings/payees/categories/accounts/contacts, existing destinations with reload-safe booking/contact links, loading/empty/retry states, Ctrl K/arrow/Enter/Escape and mobile bottom sheet; synthetic API/browser verification. Owner acceptance remains open.
+- [ ] E3 command palette (implementation and focused tests present): reuse header/mobile search with fuzzy pages/full report catalog (position/slug/name), open accounts, categories/contacts/payees and latest 200 bookings (payee/memo/native amount); recent IDs in session memory with fresh server validation, capture/inbox/privacy actions, month-close entry through account reconciliation and shared `?` keyboard help. Empty query offers recent bookings; no close wizard, dependencies or automatic bookings added. Full local verification, owner/device and Linux visual acceptance remain open; [results/evidence](evidence/palette-1005/README.md).
+- [x] E3 CI repair 2026-10-07: month-close regression selects the palette command and still verifies resume at step 4. Full local typecheck/lint, 3,437 unit tests, production/E2E builds and 18 search/month-close browser cases pass. Required CI and owner acceptance remain open; [verification](palette-ci-repair-1007.md).
 - [x] Mobile (< 768 px): header, tab bar, floating + button; same routes and order
 - [x] Routes for all areas and registers (SPEC §3) with placeholder pages built from TitleBlock + Registers; every view has its own URL
 - [x] Side panel (desktop) / bottom sheet (phone) pattern wired to a route param
@@ -752,6 +763,15 @@ Owner feedback 2026-10-04: spending/cost reports 1.4/1.10/2.3–2.6/3.4–3.5 an
 
 Method, limits and owner steps: [inflation basket](inflation-basket.md#cpi-sub-index-method-part-b-2026-10-05).
 
+### UX-3e — Booking dialog polish (owner 2026-10-05)
+
+- [x] Replace tiny calculator keys in booking capture with an arithmetic hint; preserve the existing cent parser and no-numpad decision.
+- [x] Bounded payee suggestions above the input; Enter accepts exactly one suggestion. Read the selected payee's latest booking through the existing API; fall back to capture memory/current account context and ignore stale answers after further input.
+- [x] Native Mehr disclosure for splits, repetition, notes and the existing project field; summary preserves visibility of set options. Editing and prefilled optional content open it automatically.
+- [x] Markieren/Schließen tooltips, Heute/Gestern/Datum… chips and Bezahlt von expense label; targeted synthetic unit and desktop/phone browser regressions.
+- [x] CI repair 2026-10-07: full local typecheck/lint, 3,389 unit tests, production build and affected Chromium/WebKit browser run pass. The phone sheet retains the shared 88dvh cap and 44px controls; date checks use the German display. Fresh [phone evidence](evidence/astra-ci-repairs-1007/README.md).
+- [ ] Draft repair PR/required CI, pinned Linux visual review and physical-phone owner acceptance. No local screenshot baseline regeneration; shared AmountInput only gains a default-preserving opt-in. Delivery and actual verification: [UX-3e](ux-booking-dialog-1005.md).
+
 ### Owner planning hit rate — 2026-10-05
 
 - [x] Report 1.11 Budgettreue: additive `plan_snapshot`, shared Pace capture, nightly idempotence/retry and conservative per-month backfill status.
@@ -772,3 +792,10 @@ Method, limits and owner steps: [inflation basket](inflation-basket.md#cpi-sub-i
 - [x] Small German glossary and report-only `<Term>`: dotted underline, one-sentence native popover, keyboard/touch, Escape/outside dismissal and 44 px targets; report headings/columns and estimate marks reuse it, with plain print labels.
 - [x] Final local check: all workspace typechecks, lint/format and 354 files / 3,286 unit tests; production build passed. Ten synthetic desktop/mobile/WebKit browser checks passed, including light/dark accessibility, keyboard/touch and print; desktop 1440/mobile 390 review images in `docs/screenshots/glossary-*.png`, without baseline regeneration. Windows sandbox verification used an ignored `os.userInfo` fallback plus one test thread and a 30 s harness timeout; assertions and repository configuration remain unchanged.
 - [ ] Required CI and owner desktop/phone acceptance; no keys, consents or migration needed.
+
+### Transitive dependency advisories — 2026-10-08
+
+- [x] Pin `concurrently`'s exact `shell-quote` dependency to patched 1.11.0 with a narrow npm override; update `source-map-js` to patched 1.2.2 within existing ranges. Keep `concurrently` 9.2.4 and the Node version unchanged. Record why the override is needed and when to remove it in [advisory evidence](dependency-advisories-2026-10-08.md).
+- [x] Clean install, dependency-tree inspection, quoted-command and source-map round-trip smoke checks; full audit now has 4 moderate / 0 high / 0 critical findings, production audit has 0.
+- [x] Full local check passed with one Vitest worker and required age setting: 370 test files / 3,385 tests; the local log is retained outside the repository.
+- [ ] Required final-head CI, main integration and actual deploy/health verification; remaining moderate development advisories are separate work.

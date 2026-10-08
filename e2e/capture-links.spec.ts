@@ -25,9 +25,10 @@ ledgerTest(
     );
     const dialog = page.getByRole('dialog', { name: 'Buchung erfassen' });
     await expect(dialog.getByLabel('Betrag', { exact: true })).toHaveValue('50,01');
-    await expect(dialog.getByLabel('Konto', { exact: true })).toHaveValue(account.id);
+    await expect(dialog.getByLabel('Bezahlt von', { exact: true })).toHaveValue(account.id);
     await expect(dialog.getByLabel('Kategorie', { exact: true })).toHaveValue('Essen');
     expect(writes).toEqual([]);
+    await dialog.locator('summary').click();
     await dialog.getByRole('button', { name: 'Aufteilen', exact: true }).click();
     await dialog.getByLabel('Betrag 1', { exact: true }).fill('10');
     await dialog.getByLabel('Betrag 2', { exact: true }).fill('20');

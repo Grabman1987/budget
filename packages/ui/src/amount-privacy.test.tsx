@@ -49,3 +49,10 @@ it('restores the preference per device', () => {
   initAmountPrivacy();
   expect(formatPrivateEuro(cents(1))).toBe('••• €');
 });
+it('masks native amounts for every three-letter currency code accepted by accounts', () => {
+  setAmountsHidden(true);
+  expect(maskMoneyText('Probe · −1.234,56 NOK · 0,01 CZK · +12,34 EUR')).toBe(
+    'Probe · ••• NOK · ••• CZK · ••• EUR',
+  );
+  expect(maskMoneyText('17.09.2026 · Muster · 25 %')).toBe('17.09.2026 · Muster · 25 %');
+});

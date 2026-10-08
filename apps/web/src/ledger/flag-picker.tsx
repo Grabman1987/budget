@@ -44,6 +44,7 @@ export function FlagPicker({
   disabled = false,
   context,
   className,
+  title,
 }: {
   value: BookingFlag | '';
   onChange: (flag: BookingFlag | '') => void;
@@ -51,6 +52,7 @@ export function FlagPicker({
   /** In a list: what the flag belongs to; the button then reads "Markierung ändern: …". */
   context?: string;
   className?: string;
+  title?: string;
 }) {
   const [open, setOpen] = useState(false);
   const wrap = useRef<HTMLDivElement>(null);
@@ -130,7 +132,7 @@ export function FlagPicker({
         aria-expanded={open}
         aria-controls={open ? menuId : undefined}
         aria-label={buttonLabel}
-        title={context ? `Markierung ändern (${current})` : buttonLabel}
+        title={title ?? (context ? `Markierung ändern (${current})` : buttonLabel)}
         disabled={disabled}
         onClick={() => setOpen((o) => !o)}
         onKeyDown={(e) => {
