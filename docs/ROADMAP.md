@@ -45,7 +45,16 @@ Older CI/publication checkboxes below describe their original deliveries. Curren
 - [x] Add a pure shared-domain amount adapter for a matching scheduled EUR inflow inside a caller-validated inclusive interval; preserve the original occurrence and all other sources, kinds, currencies, and dates.
 - [x] Reproduce RED (6 failed / 1 passed) and focused GREEN (4 files / 42 tests), including feeding the adjusted occurrence stream to the shared liquidity forecast and report; see [evidence](evidence/income-pause-286.md).
 - [x] Full check on the verified main + checked #284/#285 union: typecheck, lint, formatting, 377 test files / 3,483 tests, exit 0.
-- [ ] DB/UI forecast integration and dependent #287 salary-marker handling remain pending.
+- [x] DB/UI forecast integration and the #287 salary-marker adapter are covered by the #287 work; the integrated full check and owner acceptance remain separate.
+
+### #287 — Income pause persistence and forecast adapter — 2026-10-08
+
+- [x] Phase A stores one source and inclusive interval as an audited, undoable row; same-source overlaps are rejected on create, edit, and undo/redo.
+- [x] The shared cash forecast and Heute salary cash marker apply the zero override before FX. Normal expected-income reporting, occurrence rows, payday horizon, bookings, and matching retain the original schedule.
+- [x] The liquidity report UI supports inclusive past-start intervals, source/date edits, delete, and undo; chart assumptions and six-month verdict coverage are labeled separately. Deleted, foreign-currency, and zero-EUR cases remain explicit.
+- [x] Focused API/domain tests, desktop/mobile browser acceptance, Axe, overflow, touch-target, and DB/server/web typechecks pass; final four light/dark captures are recorded in [#287 evidence](evidence/income-pause-287.md).
+- [x] Main `73a4a397` union and frozen full `npm run check`: workspace typechecks, lint/formatting, 379 files / 3,503 tests, exit 0. The older 0039 migration test now isolates its target migration while retaining strict predecessor assertions.
+- [ ] PR/CI, deployment, real-device behavior, and owner acceptance remain pending.
 
 ### #272 — Expected income is not free surplus — 2026-10-08
 
@@ -64,7 +73,7 @@ Older CI/publication checkboxes below describe their original deliveries. Curren
 
 - [x] Record the owner decision: exactly one active recurring income source natively denominated in EUR before FX contributes 0 cents during a required inclusive pause interval; no calendar-day proration, schedule rewrite, or envelope/balance change.
 - [x] Contrast replacement with additive `planned_event`, define stable schedule identity, effective/shifted occurrence boundaries, same-source overlap rejection, undoable persistence seam and shared future-cash consumers; see [income pause contract](income-pause.md).
-- [ ] #286 pure calculation and literal occurrence tests; #287 audited persistence, forecast adapter and UI. These remain separate implementation tasks.
+- [x] #286 pure calculation and literal occurrence tests; #287 audited persistence, forecast adapter, and UI are implemented as separate tasks. Integrated full check and owner acceptance remain tracked in #287.
 
 ### E1 — Report verdict sentences (owner 2026-10-06)
 
