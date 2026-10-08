@@ -34,6 +34,12 @@ Older CI/publication checkboxes below describe their original deliveries. Curren
 - [x] Full repository check: 378 files / 3,491 tests, exit 0. Afterward, shorten the verdict metric label and clarify the DTO comment; scoped lint/format, E2E build and final 9-case desktop/mobile run pass on that copy-only follow-up.
 - [ ] PR integration and owner acceptance.
 
+### #302 — Dated historical class exposure — 2026-10-08
+
+- [x] Add a synthetic two-version API case with literal EUR cents, effective dates, January and February month-end index levels, and hand-derived class TTWROR; the prepared case and existing full portfolio API / exposure-repository regressions pass (2 files / 19 tests). No calculation defect was reproduced and no production formula was changed. [Evidence](evidence/dated-exposure-302.md).
+- [x] Full repository `npm run check`: 378 files / 3,492 tests, exit 0. Scoped lint, formatting and `git diff --check` also pass.
+- [ ] Independent review and issue/owner acceptance remain pending.
+
 ### #286 — Income pause domain amount — 2026-10-08
 
 - [x] Add a pure shared-domain amount adapter for a matching scheduled EUR inflow inside a caller-validated inclusive interval; preserve the original occurrence and all other sources, kinds, currencies, and dates.
