@@ -17,6 +17,12 @@ Older CI/publication checkboxes below describe their original deliveries. Curren
 - [x] Full repository check passes (373 files / 3,448 tests), and independent final review found no issue-specific findings.
 - [ ] Owner iPhone/device acceptance remains tracked separately under #310.
 
+### #272 CI readiness follow-up — 2026-10-08
+
+- [x] Add dialog-closed and settings-URL readiness waits after rename and archive; focused desktop, mobile and WebKit U02–U12 checks passed (6 tests), with evidence in [asset-class panel CI follow-up](evidence/asset-class-panel-ci-1008.md).
+- [x] Full `npm run check` passed at the frozen branch head: 373 test files and 3,448 tests; no application code or screenshot baselines changed.
+- [x] Final independent review found no actionable findings.
+
 ### E1 — Report verdict sentences (owner 2026-10-06)
 
 - [x] Pure typed fact detectors, strongest-fact selection, 230 German templates, deterministic period variation and previous-template exclusion; no new dependency or second ledger calculation.
