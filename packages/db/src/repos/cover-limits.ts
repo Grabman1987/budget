@@ -22,7 +22,7 @@ export function coverCommitments(
   month: string,
   today: string,
   ledger: ReturnType<typeof budgetLedger> = budgetLedger(db),
-  facts: RuleFacts = loadFacts(db, today, ledger),
+  facts: RuleFacts = loadFacts(db, today),
 ) {
   const nextIncome = nextPayday(today).day;
   const current = month === monthOf(today);

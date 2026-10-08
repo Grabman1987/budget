@@ -154,6 +154,32 @@ test('empty and failed inbox count never present a fabricated nine', async ({ pa
   ).toBeVisible();
 });
 
+test('a long queue draws in pages of 100 rows and keeps the group count', async ({ page }) => {
+  const entries = Array.from({ length: 130 }, (_, i) => ({
+    type: 'stored',
+    id: `long-${i}`,
+    kind: 'revision',
+    title: `Synthetische Aufgabe ${i}`,
+    detail: null,
+    refType: null,
+    refId: null,
+    urgent: false,
+    createdAt: '2026-09-01T10:00:00.000Z',
+  }));
+  await page.route('**/api/inbox/count', (route) => route.fulfill({ json: { count: 130 } }));
+  await page.route('**/api/inbox', (route) =>
+    route.fulfill({ json: { asOf: '2026-09-17', count: 130, entries } }),
+  );
+  await page.goto('/konten/posteingang');
+  await expect(page.getByTestId('inbox-row')).toHaveCount(100);
+  await expect(page.locator('.kgcount')).toHaveText('130');
+  await page
+    .getByRole('button', { name: /Weitere anzeigen \(30 von 130 noch verborgen\)/ })
+    .click();
+  await expect(page.getByTestId('inbox-row')).toHaveCount(130);
+  await expect(page.getByRole('button', { name: /Weitere anzeigen/ })).toHaveCount(0);
+});
+
 test.describe('Posteingang dialog', () => {
   const isPhone = (info: { project: { name: string } }) => info.project.name === 'mobile';
   const trigger = (page: Page, info: { project: { name: string } }) =>
