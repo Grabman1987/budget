@@ -16,6 +16,24 @@ Older CI/publication checkboxes below describe their original deliveries. Curren
 - [x] Full check on the #250 + verified-main union: 376 files / 3,476 tests, exit 0; E2E build and focused desktop/mobile inbox and One-Pager checks passed (18 passed, one desktop-only skip). [Evidence](evidence/cache-integrity-282.md).
 - [ ] Complete PR integration.
 
+### P0 #293 — Debt terms completeness — 2026-10-08
+
+- [x] Keep an unknown monthly fee `null` distinct from an explicit zero; a loan baseline is withheld until all required stored inputs are known.
+- [x] Show stored debt rates, kind, installment, fees, type-specific limits and unknown terms freshness separately from editable preview inputs; retain dated rate changes and the existing account settings route.
+- [x] Reproduce the API, UI and mixed-currency explanation gaps with synthetic RED cases, then pass the API test (23 tests), E2E build, and combined desktop/mobile/WebKit-iPhone browser checks (22 tests across five specs); targeted Axe and no-overflow checks pass. Existing PR225 loan fixtures now explicitly store zero fee, preserving the 33-month / 1,094.05 EUR baseline. [Evidence](evidence/debt-terms-293/README.md).
+- [x] Full repository `npm run check`: typecheck, lint, formatting and 378 Vitest files / 3,488 tests passed at frozen source union; see [evidence](evidence/debt-terms-293/README.md).
+- [x] Independent source review finding on mixed-currency progress was corrected and covered by a passing browser regression.
+- [x] Independent final visual review confirmed the stored terms and model values are distinguishable in the refreshed captures.
+- [ ] PR integration and owner acceptance remain pending.
+
+### P0 #295 — Bank-cost coverage disclosure — 2026-10-08
+
+- [x] Preserve the existing bank-cost known subtotal while stating its coverage beside the headline; distinguish current unknown-rate usage and nonzero modeled account/month periods without dated EUR conversion, with the current-conditions date separate from closed-month dates.
+- [x] Keep known zero distinct from missing FX and keep TER/spread excluded; the portfolio cost report and existing cost formulas remain unchanged.
+- [x] Reproduce each API gap with synthetic RED cases; focused report API/DB regressions pass, E2E build succeeds, and final existing plus new desktop/mobile bank-cost report checks pass with literal nonzero booked/estimated amounts, Axe and overflow checks. [Evidence and captures](evidence/bank-cost-coverage-295/README.md).
+- [x] Full repository check: 378 files / 3,491 tests, exit 0. Afterward, shorten the verdict metric label and clarify the DTO comment; scoped lint/format, E2E build and final 9-case desktop/mobile run pass on that copy-only follow-up.
+- [ ] PR integration and owner acceptance.
+
 ### #286 — Income pause domain amount — 2026-10-08
 
 - [x] Add a pure shared-domain amount adapter for a matching scheduled EUR inflow inside a caller-validated inclusive interval; preserve the original occurrence and all other sources, kinds, currencies, and dates.
@@ -56,6 +74,13 @@ Older CI/publication checkboxes below describe their original deliveries. Curren
 - [x] Move Pace below Kontoprognose; default Ist / Hochrechnung / Deckel, scheduled Plan bis heute dot, optional faint Einnahmen/Vormonat, complete tooltip and unchanged model/footnote.
 - [x] Synthetic component regressions and desktop/phone light/dark browser assertions for legend, keyboard toggle, line styles and label bounds.
 - [ ] CI, pinned Linux visual review and owner acceptance (Heute and shared One-Pager).
+
+### UX-5a — Debts: result first (owner 2026-10-05)
+
+- [x] Stored loan/card terms and actual balances feed an immediate payoff date, remaining interest, principal progress when original amounts are complete, and compact account rows.
+- [x] Live monthly extra repayment, explicit missing/invalid terms, native-currency guards and collapsed Rechenweg; existing dated planning/scenarios/undo retained.
+- [x] Synthetic cent/limit/progress unit cases and desktop/phone browser regression specs; [scope and visual list](ux-debts-1005.md).
+- [ ] CI, Linux visual review and owner acceptance.
 
 ### UX-3d — Phone booking filters (owner feedback 2026-10-05)
 
