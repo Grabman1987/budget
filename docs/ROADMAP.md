@@ -611,6 +611,15 @@ Read-model and delivery details: [unheld target classes](allocation-unheld.md).
 - [x] Optional dotted linear fit of displayed actual time-series values, default off, URL-backed; no fit of forecasts, missing values or single points. Desktop/mobile light/dark, keyboard/Axe, synthetic fixed-clock unit/API/E2E evidence.
 - [ ] Owner design acceptance; orchestrator review/commit/PR and pinned Linux CI. No migration or automatic booking. No existing Linux screenshot baseline is expected to change: modified report/Plan tests capture evidence images, while shell baselines show the unchanged report catalog/Heute. See [scope, checks and changed files](evidence/income-targets-report-ranges.md).
 
+### P0 #271 — Empty monthly target inventory
+
+- [x] Plan › Monat shows an unconfigured state when no effective monthly target exists; configured zero and reached targets retain the funded state. Use the selected month's effective target metadata, including hidden categories supplied by the existing all-rows read model.
+- [x] Synthetic component regressions cover no rows, rows without an effective target, an explicit zero target, a reached positive target and an unfunded amount formatted from literal integer cents.
+- [x] Add and run the isolated-ledger browser case for future-dated, hidden zero and reached targets through the real API; desktop and mobile passed with Axe, overflow checks and eight light/dark state captures. See [browser evidence](evidence/empty-monthly-targets-271.md).
+- [x] Full repository check passed: typecheck, lint/format validation and 373 Vitest files / 3,447 tests. No target formula or booking write changed.
+- [x] Lead review of all eight synthetic desktop/phone light/dark captures; no visual finding.
+- [ ] Required CI, PR integration and live revision verification. Physical iPhone acceptance remains the separate #310 task. See [evidence](evidence/empty-monthly-targets-271.md).
+
 ### P6 — Static PWA baseline
 - [x] Build-versioned static shell cache, install manifest/icons derived from the existing brand mark, offline fallback and opt-in update prompt. API/auth/export/health are network-only.
 - [x] Offline reload has no financial figures; a connection loss retains unsaved form state and shows an offline/stale-data notice.
