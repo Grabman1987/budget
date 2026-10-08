@@ -97,7 +97,8 @@ Older CI/publication checkboxes below describe their original deliveries. Curren
 - [x] Synthetic red/green browser regression: 100,000 cents planned, 60,000 spent, 40,000 plan-rest; 40,000 available in Bedarf/Wunsch less 50,000 open outflows gives −10,000 cents until payday. Keep the existing lead derivation available.
 - [x] Keep the concise relationship note visible at 390 px and 1440 px in light and dark; [scope and screenshots](evidence/heute-budget-copy-264/README.md).
 - [x] Full local check; Windows first-run fork spawn error and clean unchanged retry are recorded in the evidence.
-- [ ] CI/Linux baseline review and owner acceptance.
+- [x] Review the four pinned Linux Heute baselines; no application source or unrelated image changed.
+- [ ] Required final CI and deployment; physical iPhone acceptance remains a separate task.
 
 ### Pace time marker and projection header — owner 05.10.2026
 
