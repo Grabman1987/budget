@@ -89,8 +89,16 @@ Older CI/publication checkboxes below describe their original deliveries. Curren
 - [x] Three current answer cards reuse Vermögen, Gesamtübersicht, One-Pager, Leitmaß and Pace sources; nearest unfinished Sparziel reuses saved/missing cents and date ordering.
 - [x] Preserve UX-2 attention, Pace, net-worth chart, source drilldowns and remembered further details; replace the large top Leitmaß and duplicate compact wealth figures.
 - [x] Synthetic unit/API/component and six desktop/mobile E2E verifications, phone cards at most 120 px, production/E2E builds and lint.
-- [ ] Full local unit gate: unchanged import worker/CLI tests report SystemError in this Windows session; complete the gate before opening the PR.
+- [x] Full local check on the current branch; the earlier Windows worker failure and clean unchanged retry are recorded in the issue 264 evidence below.
 - [ ] CI, pinned Linux baseline review and owner acceptance; [scope and evidence](evidence/heute-cards-1005/README.md).
+
+### Heute plan-rest distinction — issue 264
+
+- [x] Synthetic red/green browser regression: 100,000 cents planned, 60,000 spent, 40,000 plan-rest; 40,000 available in Bedarf/Wunsch less 50,000 open outflows gives −10,000 cents until payday. Keep the existing lead derivation available.
+- [x] Keep the concise relationship note visible at 390 px and 1440 px in light and dark; [scope and screenshots](evidence/heute-budget-copy-264/README.md).
+- [x] Full local check; Windows first-run fork spawn error and clean unchanged retry are recorded in the evidence.
+- [x] Review the four pinned Linux Heute baselines; no application source or unrelated image changed.
+- [ ] Required final CI and deployment; physical iPhone acceptance remains a separate task.
 
 ### Pace time marker and projection header — owner 05.10.2026
 

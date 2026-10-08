@@ -85,10 +85,8 @@ test('cover limits protect commitments, explain missing money and show credit se
   );
   await expect(page.locator('.cover-missing')).toContainText('Es fehlen 10,00 €');
   await expect(page.getByRole('button', { name: 'Umbuchung anlegen' })).toHaveCount(0);
-  await expect(page.getByRole('link', { name: 'In den nächsten Monat mitnehmen' })).toHaveAttribute(
-    'href',
-    /monat=2026-11/,
-  );
+  await expect(page.getByRole('link', { name: 'In den nächsten Monat mitnehmen' })).toHaveCount(0);
+  await expect(page.locator('.cover-missing')).toContainText('im laufenden Monat gedeckt');
   for (const theme of ['light', 'dark']) {
     await page.evaluate((t) => (document.documentElement.dataset['theme'] = t), theme);
     expect((await new AxeBuilder({ page }).include('main').analyze()).violations).toEqual([]);

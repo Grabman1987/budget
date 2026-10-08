@@ -75,3 +75,63 @@ test('three answer cards use source cents, fit the phone and link to the current
   await expect(page).toHaveURL(/\/reports\/onepager\?monat=2026-09/);
   await expect(page.getByRole('heading', { name: 'Monats-One-Pager', exact: true })).toBeVisible();
 });
+
+test('explains plan-rest beside negative payday room on phone and desktop in both themes', async ({
+  page,
+}, info) => {
+  const response = await page.request.get('/api/heute?month=2026-09');
+  expect(response.ok()).toBe(true);
+  const data: Heute = await response.json();
+  data.lead.freeCents = -10_000;
+  data.budgetAnswer = {
+    spentCents: 60_000,
+    plannedCents: 100_000,
+    remainingCents: 40_000,
+    day: 17,
+    daysInMonth: 30,
+  };
+  data.lead.needCents = 25_000;
+  data.lead.wantCents = 15_000;
+  data.lead.openCents = 50_000;
+  data.lead.chain = [
+    { label: 'Bedarf', value: 25_000 },
+    { label: 'Wunsch', value: 15_000, op: '+' },
+    { label: 'offen bis Gehalt', value: 50_000, op: '-' },
+    { label: 'frei verfügbar', value: -10_000, op: '=', result: true },
+  ];
+  await page.route('**/api/heute?**', (route) =>
+    route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(data) }),
+  );
+  await page.goto('/?monat=2026-09');
+  const budget = page.locator('.heute-answer').nth(2);
+  await expect(budget.getByRole('heading', { name: 'Frei bis Gehalt' })).toBeVisible();
+  await expect(page.getByTestId('heute-lead-value')).toHaveText('−100,00 €');
+  await expect(budget).toContainText(
+    'Ausgabenplan: 600,00 € ausgegeben von 1.000,00 € · Plan-Rest 400,00 €',
+  );
+  await expect(page.getByTestId('heute-lead-value')).toHaveAttribute(
+    'aria-describedby',
+    'heute-plan-rest-note',
+  );
+  await expect(page.getByTestId('heute-plan-rest-note')).toContainText('kein Kontoguthaben');
+  await expect(page.getByTestId('heute-plan-rest-note')).toContainText(
+    'verfügbares Bedarf-/Wunschbudget minus offene Rechnungen',
+  );
+  await expect(page.getByTestId('heute-plan-rest-note')).toBeVisible();
+  await page.getByTestId('heute-lead-value').click();
+  await expect(page.locator('#heute-lead-chain')).toContainText('offen bis Gehalt');
+  await expect(page.locator('#heute-lead-chain')).toContainText('−100');
+  await expect(page.locator('#heute-lead-chain')).toBeVisible();
+  const dir = 'docs/evidence/heute-budget-copy-264';
+  mkdirSync(dir, { recursive: true });
+  for (const theme of ['light', 'dark'] as const) {
+    await page.evaluate((value) => (document.documentElement.dataset['theme'] = value), theme);
+    await expect(page.getByTestId('heute-plan-rest-note')).toBeVisible();
+    const path = `${dir}/${info.project.name}-${theme}.png`;
+    await page.screenshot({ path, fullPage: false, animations: 'disabled' });
+    await info.attach(`Plan-Rest ${info.project.name} ${theme}`, {
+      path,
+      contentType: 'image/png',
+    });
+  }
+});

@@ -415,12 +415,11 @@ function PlanBody({
                   Es fehlen {eur(missing)} – Geld kommt nur durch Einnahmen oder Umbuchungen auf ein
                   Budget-Konto (z. B. aus Tagesgeld oder Depot).
                 </p>
-                <AppLink to="/plan/monat" search={{ monat: shiftMonth(month, 1) }}>
-                  In den nächsten Monat mitnehmen
-                </AppLink>
                 <p>
-                  Offene Barüberziehungen mindern dort „Zu verteilen“; ungedeckte Kartenausgaben
-                  bleiben Kartenschuld.
+                  Überziehungen werden im laufenden Monat gedeckt: Einnahme buchen oder Geld aus
+                  Tagesgeld/Depot auf ein Budget-Konto umbuchen. Ungedeckte Barüberziehungen mindern
+                  sonst im Folgemonat „Zu verteilen“; ungedeckte Kartenausgaben bleiben
+                  Kartenschuld.
                 </p>
               </div>
             )}
