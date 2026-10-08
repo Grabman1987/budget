@@ -1,6 +1,6 @@
 import {
   addMonths,
-  ageOfMoney,
+  ageOfMoneyAt,
   defaultParams,
   lastDayOfMonth,
   monthOf,
@@ -256,6 +256,12 @@ export function reportTables(
     }
   }
 
+  const moneyAge = new Map(
+    ageOfMoneyAt(
+      events,
+      monthKeys.map((m) => standDay(m)),
+    ).map((a, i) => [monthKeys[i]!, a.days] as const),
+  );
   const months: TableMonth[] = monthKeys.map((month) => {
     const env = envelopes.get(month) ?? {};
     const spending: Record<string, number> = {};
@@ -276,7 +282,7 @@ export function reportTables(
       spending,
       assigned,
       netWorthCents: netWorthAt.get(month) ?? null,
-      moneyAgeDays: ageOfMoney(events, standDay(month)).days,
+      moneyAgeDays: moneyAge.get(month) ?? null,
     };
   });
 

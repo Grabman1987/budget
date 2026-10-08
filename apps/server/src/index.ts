@@ -58,12 +58,20 @@ const stopPlanSnapshots = today ? () => {} : startPlanSnapshotTimer(db);
 // Heavy import tasks (YNAB dry run, commit, revert) run in a worker thread on its own connection.
 const importJobs = new ImportJobs(db);
 
+// Heute and the Posteingang count are computed once after start, so the first visit is quick.
+let warmUp: (() => Promise<number>) | undefined;
+
 // The debug endpoint is opt-in, read-only (seed check) and behind the session guard.
 const app = createApp({
   webDir,
   buildRevision: process.env['BUDGET_BUILD_REVISION'],
   auth,
-  ledger: { db, jobs: importJobs, ...(today ? { today } : {}) },
+  ledger: {
+    db,
+    jobs: importJobs,
+    onApi: (api) => (warmUp = api.warm),
+    ...(today ? { today } : {}),
+  },
   database: process.env['BUDGET_DEBUG_API'] === '1' ? db : undefined,
 });
 
@@ -112,6 +120,15 @@ const server = serve({ fetch: app.fetch, port, hostname: '0.0.0.0' }, (info) => 
     `Budget server listening on http://localhost:${info.port} (web: ${webDir}, origin: ${config.origin})`,
   );
 });
+
+if (process.env['BUDGET_WARM_UP'] !== '0')
+  setTimeout(() => {
+    const started = Date.now();
+    warmUp?.().then(
+      (n) => console.log(`Warm-up: ${n} read models ready after ${Date.now() - started} ms`),
+      (error: unknown) => console.error('Warm-up failed', error),
+    );
+  }, 1_500).unref();
 
 // Node closes an idle keep-alive socket after 5 s. A client (or the Fly proxy, idle timeout 60 s)
 // that reuses it just as the server closes it gets ECONNRESET, and a long synchronous evaluation

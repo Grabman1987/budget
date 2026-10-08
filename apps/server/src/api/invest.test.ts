@@ -64,6 +64,30 @@ describe('GET /api/portfolio on the seeded sample ledger (17.09.2026)', () => {
     call = caller(appFor(db));
   });
 
+  it('pages the trade list with limit/offset and keeps the unpaged answer as before', async () => {
+    const all = (await call('GET', '/trades')).body;
+    expect(Object.keys(all)).toEqual(['trades']);
+    const total = all['trades'].length as number;
+    expect(total).toBeGreaterThan(20);
+    const first = (await call('GET', '/trades?limit=20')).body;
+    expect(first).toMatchObject({ total, limit: 20, offset: 0, next: 20 });
+    const ids: string[] = [...first['trades'].map((t: any) => t.id)];
+    let next: number | null = first['next'];
+    while (next !== null) {
+      const page = (await call('GET', `/trades?limit=20&offset=${next}`)).body;
+      ids.push(...page['trades'].map((t: any) => t.id));
+      next = page['next'];
+    }
+    // The pages together are the unpaged list, in the same order.
+    expect(ids).toEqual(all['trades'].map((t: any) => t.id));
+    expect((await call('GET', '/trades?limit=0')).status).toBe(400);
+    expect((await call('GET', '/trades?limit=5&offset=-1')).status).toBe(400);
+    const filtered = (await call('GET', '/trades?security=sec-etfw&limit=3')).body;
+    expect(filtered['total']).toBe(
+      all['trades'].filter((t: any) => t.securityId === 'sec-etfw').length,
+    );
+  });
+
   it('answers with the prototype figures: 68.500 / 7.000 / 3.950 / 3.400 / 935 / 4.215 EUR', async () => {
     const res = await call('GET', '/portfolio?period=3J');
     expect(res.status).toBe(200);

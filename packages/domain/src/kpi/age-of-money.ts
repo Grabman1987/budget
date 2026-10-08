@@ -39,17 +39,46 @@ export function ageOfMoney(
   asOf?: string,
   window: number = AGE_OF_MONEY_WINDOW,
 ): AgeOfMoney {
+  return ageOfMoneyAt(events, [asOf], window)[0]!;
+}
+
+/**
+ * `ageOfMoney` for several days in one pass: the events are sorted once and every day reads the
+ * state after the events up to it (the days may come in any order; `undefined` = all events).
+ * Same result as calling `ageOfMoney` per day, without sorting and replaying the ledger each time.
+ */
+export function ageOfMoneyAt(
+  events: ReadonlyArray<MoneyEvent>,
+  asOfs: ReadonlyArray<string | undefined>,
+  window: number = AGE_OF_MONEY_WINDOW,
+): AgeOfMoney[] {
   // Same day: inflows first, so money that arrives and leaves on one day has age 0.
   const sorted = events
     .map((e, i) => ({ ...e, i }))
-    .filter((e) => e.cents !== 0 && (asOf === undefined || e.day <= asOf))
+    .filter((e) => e.cents !== 0)
     .sort((a, b) => cmp(a.day, b.day) || inflowFirst(a.cents) - inflowFirst(b.cents) || a.i - b.i);
+
+  const result = new Array<AgeOfMoney>(asOfs.length);
+  // `~` sorts after every digit: "no limit" comes last.
+  const pending = asOfs
+    .map((asOf, index) => ({ asOf: asOf ?? '~', index }))
+    .sort((a, b) => cmp(a.asOf, b.asOf));
+  let next = 0;
 
   const lots: { day: string; left: number }[] = [];
   let head = 0;
   /** Age of each outflow that consumed money: [age sum in cent-days, consumed cents]. */
   const ages: { centDays: number; consumed: number }[] = [];
+  const snapshot = (): AgeOfMoney => {
+    const last = ages.slice(-window);
+    if (last.length === 0) return { days: null, outflowsCounted: 0 };
+    const mean = last.reduce((a, x) => a + x.centDays / x.consumed, 0) / last.length;
+    return { days: Math.round(mean), outflowsCounted: last.length };
+  };
   for (const e of sorted) {
+    // A day before this event's day has seen all of its events.
+    while (next < pending.length && pending[next]!.asOf < e.day)
+      result[pending[next++]!.index] = snapshot();
     if (e.cents > 0) {
       lots.push({ day: e.day, left: e.cents });
       continue;
@@ -68,8 +97,6 @@ export function ageOfMoney(
     // The part without money behind it (overspending) has no age; an outflow with no money is skipped.
     if (consumed > 0) ages.push({ centDays, consumed });
   }
-  const last = ages.slice(-window);
-  if (last.length === 0) return { days: null, outflowsCounted: 0 };
-  const mean = last.reduce((a, x) => a + x.centDays / x.consumed, 0) / last.length;
-  return { days: Math.round(mean), outflowsCounted: last.length };
+  while (next < pending.length) result[pending[next++]!.index] = snapshot();
+  return result;
 }
