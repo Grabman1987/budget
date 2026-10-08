@@ -1,5 +1,14 @@
 # Roadmap
 
+### Current source and acceptance baseline — 2026-10-08
+
+- [x] Reconcile README and STATUS with verified main/live `5193b0a`, connected workflows and all 34 report bodies; preserve historical audit evidence.
+- [x] Add [ACCEPTANCE](ACCEPTANCE.md) separating source, PR/checks, deployment and financial/device/owner acceptance, with the ordered small-task queue.
+- [ ] Required checks and independent documentation PR review/integration; this baseline is not the later post-stack refresh #352.
+- [ ] Reconcile historical FEATURES/TASKS/requirement and per-task roadmap details as their concrete tasks are reviewed; no blanket gate/owner acceptance.
+
+Older CI/publication checkboxes below describe their original deliveries. Current integration evidence is in [STATUS](STATUS.md); private/device acceptance stays open unless independently recorded.
+
 ### E1 — Report verdict sentences (owner 2026-10-06)
 
 - [x] Pure typed fact detectors, strongest-fact selection, 230 German templates, deterministic period variation and previous-template exclusion; no new dependency or second ledger calculation.
