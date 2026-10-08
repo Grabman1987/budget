@@ -1,4 +1,97 @@
-/* Original vermoegen.js renderDebts geometry; forms expose explicit model assumptions. */
+/* Result first; original planning geometry stays inside the calculation disclosure. */
+.debt-overview,
+.debt-rechenweg {
+  padding: 24px;
+  background: var(--surface);
+  border: 1px solid var(--card-border);
+  border-radius: 12px;
+  box-shadow: var(--card-shadow);
+}
+.debt-result h2 {
+  margin: 0;
+  font-size: clamp(24px, 3vw, 40px);
+  font-weight: 650;
+  letter-spacing: -0.03em;
+}
+.debt-result-interest {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 20px;
+  align-items: baseline;
+}
+.debt-result-interest strong {
+  font-size: 24px;
+}
+.debt-progress progress {
+  display: block;
+  width: 100%;
+  height: 14px;
+  appearance: none;
+  border: 1px solid var(--line);
+  background: var(--tint);
+}
+.debt-progress progress::-webkit-progress-bar {
+  background: var(--tint);
+}
+.debt-progress progress::-webkit-progress-value {
+  background: var(--line);
+}
+.debt-progress progress::-moz-progress-bar {
+  background: var(--line);
+}
+.debt-progress > div {
+  display: flex;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 8px;
+}
+.debt-quick-scenario {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 16px 24px;
+  margin: 24px 0;
+}
+.debt-quick-scenario label {
+  display: grid;
+  gap: 6px;
+  max-width: 100%;
+}
+.debt-quick-scenario p {
+  margin: 0 0 12px;
+}
+.debt-overview .vtable td {
+  vertical-align: top;
+}
+.debt-overview .vtable a {
+  overflow-wrap: anywhere;
+}
+.debt-rechenweg > summary,
+.debt-adjustments > summary {
+  cursor: pointer;
+  min-height: 44px;
+  align-content: center;
+  font-weight: 600;
+}
+.debt-rechenweg > .vview {
+  margin-top: 24px;
+}
+.debt-rechenweg > summary:focus-visible,
+.debt-adjustments > summary:focus-visible {
+  outline: 2px solid var(--line);
+  outline-offset: 3px;
+}
+@media (max-width: 767px) {
+  .debt-overview,
+  .debt-rechenweg {
+    padding: 16px;
+  }
+  .debt-quick-scenario {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
 .debts-view .debt-full,
 .debts-view .debt-accounts {
   grid-column: 1 / -1;

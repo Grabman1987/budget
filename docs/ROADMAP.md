@@ -57,6 +57,13 @@ Older CI/publication checkboxes below describe their original deliveries. Curren
 - [x] Synthetic component regressions and desktop/phone light/dark browser assertions for legend, keyboard toggle, line styles and label bounds.
 - [ ] CI, pinned Linux visual review and owner acceptance (Heute and shared One-Pager).
 
+### UX-5a — Debts: result first (owner 2026-10-05)
+
+- [x] Stored loan/card terms and actual balances feed an immediate payoff date, remaining interest, principal progress when original amounts are complete, and compact account rows.
+- [x] Live monthly extra repayment, explicit missing/invalid terms, native-currency guards and collapsed Rechenweg; existing dated planning/scenarios/undo retained.
+- [x] Synthetic cent/limit/progress unit cases and desktop/phone browser regression specs; [scope and visual list](ux-debts-1005.md).
+- [ ] CI, Linux visual review and owner acceptance.
+
 ### UX-3d — Phone booking filters (owner feedback 2026-10-05)
 
 - [x] Konten › Buchungen: phone search beside Filter (n), draft bottom sheet with reset/apply, removable active-filter chips and short sorting labels; desktop inline controls retained.

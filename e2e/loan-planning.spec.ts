@@ -53,6 +53,7 @@ test('rate changes, scenarios and strategies on Schulden', async ({
   });
 
   await page.goto('/vermoegen/schulden');
+  await page.getByText('Rechenweg', { exact: true }).click();
   const baseline = page.getByTestId('loan-baseline');
   await expect(baseline).toContainText('Juni 2029');
   await expect(baseline).toContainText('33 Monate');
@@ -78,6 +79,7 @@ test('rate changes, scenarios and strategies on Schulden', async ({
 
   // Persisted: survives a reload.
   await page.reload();
+  await page.getByText('Rechenweg', { exact: true }).click();
   await expect(page.getByTestId('loan-scenario-row')).toHaveCount(1);
 
   // Variable conditions: 0 % from 2027 changes the baseline; undo brings the old value back.
@@ -162,6 +164,7 @@ test('missing loan terms are named instead of guessed', async ({
     openingBalanceCents: -300_000,
   });
   await page.goto('/vermoegen/schulden');
+  await page.getByText('Rechenweg', { exact: true }).click();
   await expect(page.getByTestId('loan-missing')).toContainText('Zinssatz und Monatsrate');
   await expect(page.getByRole('button', { name: 'Szenario anlegen', exact: true })).toBeDisabled();
   // One debt only: no strategy comparison.
