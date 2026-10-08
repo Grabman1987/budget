@@ -29,6 +29,11 @@ Older CI/publication checkboxes below describe their original deliveries. Curren
 - [x] Add dialog-closed and settings-URL readiness waits after rename and archive; focused desktop, mobile and WebKit U02–U12 checks passed (6 tests), with evidence in [asset-class panel CI follow-up](evidence/asset-class-panel-ci-1008.md).
 - [x] Full `npm run check` passed at the frozen branch head: 373 test files and 3,448 tests; no application code or screenshot baselines changed.
 - [x] Final independent review found no actionable findings.
+### #285 — Income pause contract — 2026-10-08
+
+- [x] Record the owner decision: exactly one active recurring income source natively denominated in EUR before FX contributes 0 cents during a required inclusive pause interval; no calendar-day proration, schedule rewrite, or envelope/balance change.
+- [x] Contrast replacement with additive `planned_event`, define stable schedule identity, effective/shifted occurrence boundaries, same-source overlap rejection, undoable persistence seam and shared future-cash consumers; see [income pause contract](income-pause.md).
+- [ ] #286 pure calculation and literal occurrence tests; #287 audited persistence, forecast adapter and UI. These remain separate implementation tasks.
 
 ### E1 — Report verdict sentences (owner 2026-10-06)
 
