@@ -208,7 +208,9 @@ function ForecastCard({
           ? 'Grundplan im gewählten Prognosezeitraum'
           : 'Grundplan ohne aktive geplante Ereignisse';
   const verdictInputs = [
-    eventCount > 0 ? `${eventCount} geplante ${eventCount === 1 ? 'Ereignis' : 'Ereignisse'}` : '',
+    eventCount > 0
+      ? `${eventCount} ${eventCount === 1 ? 'geplantem Ereignis' : 'geplanten Ereignissen'}`
+      : '',
     verdictPauseCount > 0
       ? `${verdictPauseCount} ${verdictPauseCount === 1 ? 'Einkommenspause' : 'Einkommenspausen'}`
       : '',

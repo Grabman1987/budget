@@ -21,4 +21,6 @@ The final synthetic browser captures were copied byte-for-byte from the passing 
 | Mobile, 390 px, light | [390-light.png](income-pause-287/browser-captures/390-light.png) | `1DB66067A35BB894D2BDCF3DD365EFA7CBEC3FDB975ED1BC6773EB82391700D2` |
 | Mobile, 390 px, dark | [390-dark.png](income-pause-287/browser-captures/390-dark.png) | `2A6B86F7C357ADCCEBE94220AAAD85DB46731EAD97B204879C99541F56182003` |
 
+The first PR run (37852421398, head `af84e615`) exposed a deterministic wording regression in the existing assumptions-only liquidity browser test: its unchanged assertion expected `mit 1 geplantem Ereignis`, while the combined context label rendered `mit 1 geplante Ereignis`. The follow-up changes only that label to the correct singular/plural dative forms. Scoped ESLint and Prettier checks passed. The full-check result above precedes this wording-only correction; fresh exact-head CI and affected browser verification are required for delivery.
+
 PR/CI, deployment, real-device behavior, and owner acceptance remain pending. No real financial data or source credentials were used.
