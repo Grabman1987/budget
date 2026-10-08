@@ -171,6 +171,8 @@ function InboxBody({
   const write = useBudgetWrite();
   const [busy, setBusy] = useState<string | null>(null);
   const [learnBookingId, setLearnBookingId] = useState<string | null>(null);
+  // A long queue (hundreds of read-source entries) draws in pages; counts stay those of the queue.
+  const [shown, setShown] = useState(INBOX_PAGE_ROWS);
   const resolve = async (item: InboxStored) => {
     if (busy) return;
     setBusy(item.id);
@@ -185,6 +187,7 @@ function InboxBody({
     queue.data?.entries.filter((item) => !entryIds || entryIds.includes(item.id)) ?? [];
   const count = entryIds ? entries.length : queue.data?.count;
   let index = 0;
+  let room = shown;
   return (
     <section className="kinbox" aria-labelledby={headingId}>
       <SectionHead
@@ -219,13 +222,15 @@ function InboxBody({
             </thead>
             <tbody>
               {groups.flatMap((kind) => {
-                const items = entries.filter((item) => item.kind === kind);
-                if (!items.length) return [];
+                const all = entries.filter((item) => item.kind === kind);
+                if (!all.length || room <= 0) return [];
+                const items = all.slice(0, room);
+                room -= items.length;
                 return [
                   <tr className="kgroup" key={kind}>
                     <td className="rev-mark" />
                     <th scope="rowgroup" colSpan={2}>
-                      {LABELS[kind]} <span className="kgcount">{items.length}</span>
+                      {LABELS[kind]} <span className="kgcount">{all.length}</span>
                     </th>
                   </tr>,
                   ...items.map((item) => (
@@ -255,6 +260,15 @@ function InboxBody({
               })}
             </tbody>
           </table>
+          {entries.length > shown && (
+            <Button
+              variant="ghost"
+              className="inbox-more"
+              onClick={() => setShown((rows) => rows + INBOX_PAGE_ROWS)}
+            >
+              Weitere anzeigen ({entries.length - shown} von {entries.length} noch verborgen)
+            </Button>
+          )}
           <p className="inbox-hint">
             Eine Warnung nur als erledigt markieren, wenn ihre Ursache geklärt ist. Das Markieren
             ändert keine Buchung und repariert keine Datenquelle.
@@ -270,6 +284,8 @@ function InboxBody({
     </section>
   );
 }
+
+const INBOX_PAGE_ROWS = 100;
 
 function InboxRow({
   onBankConfirmed,
