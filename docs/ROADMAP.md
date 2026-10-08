@@ -536,6 +536,7 @@ Expected payments, contacts with receivables, savings goals, rule set registered
 - [x] Actual queue and shell counter: one task per due nonzero unclassified budget booking plus unresolved stored warnings; no sample counter or legacy summary double count
 - [x] Konten › Posteingang and global desktop/mobile panel: categorize in the existing booking editor, confirm pending bookings, acknowledge stored warnings with audited undo/redo
 - [x] Shared ledger invalidation refreshes the queue, count and Heute reads after mutations/undo; safe empty/error/loading states and keyboard/touch actions
+- [x] #279 global inbox pagination: 100-entry network pages, whole-queue task/kind counts, receipt-only badge scope, audited resolve/undo and complete month-close filtering beyond the first page. API regression, fresh E2E build, 42 affected desktop/mobile browser tests (one intended skip) and the final full check (379 files / 3,503 unit tests) passed. CI, deployment and owner acceptance remain pending. The endpoint still constructs the whole queue before slicing, so no database-query performance claim is made. [Evidence](evidence/inbox-pagination-279.md).
 - [ ] Bank/assignment suggestions and source repair workflows; acknowledging a warning does not repair its source
 - [ ] Independent review, CI and owner acceptance of this workflow on the deployed app
 

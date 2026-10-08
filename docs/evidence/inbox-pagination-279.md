@@ -1,0 +1,24 @@
+# #279 Inbox pagination acceptance
+
+The global inbox now requests 100 entries at a time with `useInfiniteQuery`, starting at offset 0 and following the server's next offset only when the user selects **Weitere anzeigen**. Page responses add `totalEntries` and `countsByKind`, calculated over the whole task list. The legacy unpaged response stays unchanged for month close, where `InboxWorkflow(entryIds)` reads the complete queue before filtering the selected month.
+
+The 301-task synthetic API fixture checks ordered, disjoint pages at offsets 0, 100, 200 and 300; all expected IDs occur once. It divides tasks into 150 `import` and 151 `other`, while an unlinked synthetic receipt contributes one to the full/badge count. Thus the badge reports 302, page metadata reports 301 task entries and the two whole-queue kind counts, and the receipt never appears on a task page. Resolved and legacy tasks remain excluded. The unpaged response retains its legacy keys and the full count.
+
+The isolated-browser fixture verifies the actual network requests and visible title sequence across all four pages, full kind counts before the second kind is loaded, and protection against a rapid double activation of the page button. It resolves the final task, checks the reduced task/kind counts while the receipt remains counted, then undoes that audited change. Undo restores the full counts and task list; because the cached infinite query has three pages after the resolved final page became empty, the restored last task appears after the user loads the one remaining page. A second isolated case verifies month close requests the full unpaged queue and selects two September tasks beyond the global first page. The UI also retains loaded rows and exposes retry after a next-page error; the load-more control has a 44-pixel minimum height.
+
+The API regression was observed RED before implementation: 1 failure and 3 passes because `totalEntries` was missing (`budget-inbox-279-page-metadata-red-1009.log`). The browser regression was also observed RED: 1 failure and 3 setup passes because the initial inbox request had no `limit` (`budget-inbox-279-network-red-1009.log`). The focused API suite later passed 4 tests, and a fresh E2E build passed. A full run of 379 files / 3,503 tests in 1,222.63 seconds happened before the material UI pagination implementation and is not final verification. A subsequent browser run had 18 passes, 4 failures and 1 skip; it exposed the now-corrected undo pagination expectation and old mocks that matched only the unpaged URL.
+
+The final affected browser run passed 42 tests with one intentional desktop-only backdrop skip in 3.9 minutes (exit 0): inbox pagination, inbox actions/dialog, month close, assignment rules, bank sync and read-source specs, on desktop and mobile. This includes a 503 next-page failure: the first 100 rows and full counts remain visible, and the actual retry button fetches offset 100 again to complete all 101 tasks. Request offsets are exactly `[0, 100, 100]`. Log: `%TEMP%/budget-inbox-279-affected-e2e-green-1009.log`. Root inspected the four captures below. Light/dark axe checks have no serious or critical violations, and the 390-pixel layout has no horizontal overflow. Chromium mobile is not physical iPhone Safari acceptance.
+
+The final repository-wide `npm run check` passed type checks, lint, formatting and 379 files / 3,503 unit tests (977.94 seconds for the unit run, exit 0). Log: `%TEMP%/budget-inbox-279-final-ui-full-check-1009.log`. After completion, the frozen manifest was rechecked: all 2,107 tracked or non-ignored untracked files had identical paths and SHA-256 hashes, with zero changes. Only this evidence and the roadmap were then updated and format-checked before committing; implementation and tests stayed unchanged.
+
+The source implementation is on the normal union tree at `a037612da760fd3001d4c0091fa9d46ab2c83cde`, based on main `28f0444fa17f2e34455dfc3a10b7049ad1c7f0bf`; retained safety stashes were not altered. Final CI, deployment and live acceptance remain pending.
+
+The API still builds the whole inbox before slicing each response. This change bounds the entries sent to and fetched by the browser; it does not establish bounded database work or a database-query performance improvement. The endpoint has no filter parameter.
+
+| Capture | SHA-256 |
+| --- | --- |
+| [Desktop light](inbox-pagination-279/browser-captures/desktop-light.png) | `5541F10931A5498B6B6C4899ABBE2C77EA54C2D3161EAAC233BB1774293724A2` |
+| [Desktop dark](inbox-pagination-279/browser-captures/desktop-dark.png) | `69538D8E30D0055A9DE289806A689AB26D2140E644206823DBD8379BAD080EE8` |
+| [Mobile light](inbox-pagination-279/browser-captures/mobile-light.png) | `95BA0CCFB6AD1C30CF6C8E4E578F4646056384CC42D78D90148053F8DD5853CA` |
+| [Mobile dark](inbox-pagination-279/browser-captures/mobile-dark.png) | `1697026C95296F5EC220E409BDD1B924184FF4EE53AB67D83DA954CB448B3C76` |
