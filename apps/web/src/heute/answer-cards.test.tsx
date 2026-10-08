@@ -85,3 +85,29 @@ it('keeps zero, overspending, missing valuation and missing goals explicit witho
   expect(container.innerHTML).not.toMatch(/NaN|Infinity/);
   expect(container.querySelectorAll('.heute-answer-bar')).toHaveLength(2);
 });
+
+it('distinguishes positive monthly plan-rest from negative money available until payday', () => {
+  const example = {
+    ...data,
+    lead: { ...data.lead, freeCents: -10_000 },
+    budgetAnswer: {
+      spentCents: 60_000,
+      plannedCents: 100_000,
+      remainingCents: 40_000,
+      day: 17,
+      daysInMonth: 30,
+    },
+  } as Heute;
+  render(<AnswerCards data={example} onBudgetClick={() => {}} />);
+
+  expect(screen.getByRole('heading', { name: 'Frei bis Gehalt' })).toBeTruthy();
+  expect(screen.getByTestId('heute-lead-value').textContent).toBe('−100,00 €');
+  expect(
+    screen.getByText('Ausgabenplan: 600,00 € ausgegeben von 1.000,00 € · Plan-Rest 400,00 €'),
+  ).toBeTruthy();
+  expect(
+    screen.getByText(
+      'Plan-Rest: geplante Monatsausgaben minus bisher ausgegeben, kein Kontoguthaben. Frei bis Gehalt: verfügbares Bedarf-/Wunschbudget minus offene Rechnungen.',
+    ),
+  ).toBeTruthy();
+});

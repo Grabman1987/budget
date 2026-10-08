@@ -148,9 +148,6 @@
       font-size: 11px;
       line-height: 13px;
     }
-    .heute-answer-note {
-      display: none;
-    }
   }
   .heute-lead {
     min-width: 0;
@@ -886,6 +883,8 @@
 }
 
 .heute-answer-note {
+  margin: 6px 0 0 8px;
   font-size: 0.8125rem;
-  color: var(--text-muted, inherit);
+  line-height: 1.4;
+  color: var(--ink-2);
 }

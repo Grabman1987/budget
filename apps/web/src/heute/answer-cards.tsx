@@ -80,6 +80,7 @@ export function AnswerCards({
             onClick={onBudgetClick}
             aria-expanded={chainOpen}
             aria-controls="heute-lead-chain"
+            aria-describedby="heute-plan-rest-note"
             aria-label={`Frei verfügbar bis Gehalt: ${eur(data.lead.freeCents)}. Herleitung ${chainOpen ? 'ausblenden' : 'zeigen'}`}
           >
             {eur(data.lead.freeCents)}
@@ -97,12 +98,12 @@ export function AnswerCards({
           <p>
             Tag {budget.day} von {budget.daysInMonth}
           </p>
-          <p className="heute-answer-note">
-            Plan-Rest = geplante variable Ausgaben des Monats minus bisher ausgegeben; nicht dein
-            freies Geld.
-          </p>
         </section>
       </div>
+      <p className="heute-answer-note" id="heute-plan-rest-note" data-testid="heute-plan-rest-note">
+        Plan-Rest: geplante Monatsausgaben minus bisher ausgegeben, kein Kontoguthaben. Frei bis
+        Gehalt: verfügbares Bedarf-/Wunschbudget minus offene Rechnungen.
+      </p>
       {goal && (
         <p className="heute-nearest-goal">
           <AppLink to="/plan/sparziele">
