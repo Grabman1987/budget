@@ -1,6 +1,7 @@
 export {
   buildTableRows,
   categoryOverview,
+  categoryTrend,
   monthClassSpending,
   monthConsumption,
   csvAmount,
