@@ -200,7 +200,9 @@ export function createAuth(deps: AuthDeps) {
    */
   const requirePasskeySession: MiddlewareHandler<Env> = async (c, next) => {
     const session = c.get('session');
-    if (session && (session.viaRecovery || session.passkeyId === null))
+    // Defence in depth: /api/* already runs requireSession, but never let a missing session through.
+    if (!session) return fail(c, 401, 'unauthorized');
+    if (session.viaRecovery || session.passkeyId === null)
       return fail(c, 403, 'passkey_required');
     return next();
   };
