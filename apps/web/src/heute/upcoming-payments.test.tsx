@@ -5,7 +5,21 @@ import { afterEach, expect, it, vi } from 'vitest';
 import { Upcoming } from './upcoming-payments';
 
 vi.mock('../shell/app-link', () => ({
-  AppLink: ({ children }: { children: ReactNode }) => <a href="#source">{children}</a>,
+  AppLink: ({
+    children,
+    to,
+    search,
+  }: {
+    children: ReactNode;
+    to: string;
+    search?: Record<string, unknown>;
+  }) => (
+    <a
+      href={`${to}${search ? `?${new URLSearchParams(Object.entries(search).map(([k, v]) => [k, String(v)]))}` : ''}`}
+    >
+      {children}
+    </a>
+  ),
 }));
 
 afterEach(cleanup);
@@ -43,6 +57,12 @@ it('labels envelope reserves without implying account coverage', () => {
     ),
   ).toBeTruthy();
   expect(screen.queryByText('nicht gedeckt')).toBeNull();
+  expect(screen.getAllByRole('link', { name: /Beispielkonto/ })[0]?.getAttribute('href')).toContain(
+    '/konten/synthetic-overdrawn-account?',
+  );
+  expect(screen.getAllByRole('link', { name: /Beispielkonto/ })[0]?.getAttribute('href')).toContain(
+    'faellig=2026-10-05',
+  );
 });
 
 it('keeps the existing empty-state treatment when there are no upcoming payments', () => {
