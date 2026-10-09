@@ -1,25 +1,22 @@
-name: Update e2e snapshots
+name: Validate globals 229 Linux preflight
 
-# Manual only. Regenerates the Playwright screenshot baselines on Linux (the CI platform) for one
-# branch and commits them back, for PRs that change the UI on purpose. The owner's Windows machine
-# and the cloud sessions cannot produce Linux baselines themselves.
-# Commits pushed with GITHUB_TOKEN do not start CI: push any commit afterwards (or re-run CI).
+# Temporary helper branch only; never copy this workflow into the task PR.
 on:
   workflow_dispatch:
     inputs:
       branch:
-        description: Branch whose baselines to update (never main)
+        description: Frozen helper branch to validate (never main)
         required: true
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
-  group: update-snapshots-${{ inputs.branch }}
-  cancel-in-progress: true
+  group: globals-229-preflight-${{ inputs.branch }}
+  cancel-in-progress: false
 
 jobs:
-  update:
+  validate:
     if: inputs.branch != 'main'
     runs-on: ubuntu-latest
     timeout-minutes: 45
@@ -27,23 +24,31 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ inputs.branch }}
+          fetch-depth: 2
+          persist-credentials: false
+      - name: Verify source base before running checks
+        env:
+          SOURCE_SHA: 85141290603c9e506d1dd043a1014a0dc5a6359d
+        run: |
+          git cat-file -e "$SOURCE_SHA^{commit}"
+          git diff --exit-code "$SOURCE_SHA" HEAD -- . ':(exclude).github/workflows/update-snapshots.yml'
+          git diff --check "$SOURCE_SHA" HEAD
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version-file: .nvmrc
           cache: npm
       - run: npm ci
-      - name: Install Chromium and WebKit
-        run: npx playwright install --with-deps chromium webkit
-      # Non-screenshot failures are reported by the normal CI run on the PR, not here.
-      - name: Regenerate changed screenshots
-        run: npm run build:e2e && (npx playwright test --update-snapshots=changed || true)
-      - name: Commit the new baselines
+      - name: Install age
+        run: sudo apt-get update && sudo apt-get install -y age
+      - name: Complete repository check
         env:
-          BRANCH: ${{ inputs.branch }}
+          BUDGET_REQUIRE_AGE: '1'
+        run: npm run check
+      - name: Verify source stayed unchanged
+        env:
+          SOURCE_SHA: 85141290603c9e506d1dd043a1014a0dc5a6359d
         run: |
-          git config user.name 'github-actions[bot]'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add -A -- e2e
-          if git diff --cached --quiet; then echo 'No baseline changes.'; exit 0; fi
-          git commit -m 'test: update e2e screenshot baselines (Linux)'
-          git push origin "HEAD:refs/heads/$BRANCH"
+          git diff --exit-code "$SOURCE_SHA" HEAD -- . ':(exclude).github/workflows/update-snapshots.yml'
+          git diff --exit-code
+          git diff --cached --exit-code
+          git diff --check
