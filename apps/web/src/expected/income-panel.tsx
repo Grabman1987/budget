@@ -37,7 +37,12 @@ export function IncomePanel({
 }) {
   useAmountPrivacy();
   return (
-    <DetailPanel open={open} onClose={onClose} title={`Einnahmen ${monthLabel(month)}`}>
+    <DetailPanel
+      open={open}
+      onClose={onClose}
+      title={`Einnahmen ${monthLabel(month)}`}
+      focusableBody
+    >
       {open && <IncomeBody month={month} bookedCents={bookedCents} />}
     </DetailPanel>
   );
