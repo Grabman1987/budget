@@ -1,9 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import type { ExpectedPayment } from './api';
 import {
+  DATE_PRESETS,
+  applyDatePreset,
   changedFields,
   draftFromPayment,
   emptyDraft,
+  matchingDatePreset,
   parsePercentBp,
   percentText,
   readDraft,
@@ -85,5 +88,43 @@ describe('changedFields', () => {
     const draft = { ...draftFromPayment(stored), dueDay: '26', note: 'Abschlag' };
     const read = readDraft(draft, false);
     expect(changedFields(stored, read.fields!)).toEqual({ dueDay: 26, note: 'Abschlag' });
+  });
+});
+
+describe('date presets', () => {
+  it('sets the salary rhythm: the 15th, else the banking day before', () => {
+    const draft = applyDatePreset({ ...base, rhythm: 'yearly', dueMonth: '3' }, 'salary-15');
+    expect(draft).toMatchObject({
+      rhythm: 'monthly',
+      dueDay: '15',
+      dueMonth: '',
+      dateShift: 'before',
+    });
+    const read = readDraft({ ...draft, kind: 'inflow' }, true);
+    expect(read.errors).toEqual({});
+    expect(read.fields).toMatchObject({
+      rhythm: 'monthly',
+      dueDay: 15,
+      dueMonth: null,
+      dateShift: 'before',
+    });
+  });
+  it('sets the last banking day of the month: day 31, shifted back', () => {
+    const read = readDraft(applyDatePreset(base, 'last-banking-day'), true);
+    expect(read.fields).toMatchObject({ rhythm: 'monthly', dueDay: 31, dateShift: 'before' });
+  });
+  it('recognises a preset again and calls anything else an own setting', () => {
+    expect(DATE_PRESETS.map((p) => p.label)).toEqual([
+      'Gehalt: am 15., sonst Banktag davor',
+      'Letzter Banktag des Monats',
+    ]);
+    expect(matchingDatePreset(applyDatePreset(base, 'salary-15'))).toBe('salary-15');
+    expect(matchingDatePreset(applyDatePreset(base, 'last-banking-day'))).toBe('last-banking-day');
+    expect(
+      matchingDatePreset({ rhythm: 'monthly', dueDay: '15', dateShift: 'none' }),
+    ).toBeUndefined();
+    expect(
+      matchingDatePreset({ rhythm: 'weekly', dueDay: '15', dateShift: 'before' }),
+    ).toBeUndefined();
   });
 });

@@ -17,6 +17,7 @@ export const STATUS_LABEL = {
   received: 'eingegangen',
   deviating: 'abweichend',
   missed: 'ausgefallen',
+  skipped: 'gestrichen',
 } as const;
 
 const SYMBOL: Record<string, string> = { USD: '$', GBP: '£', CHF: 'CHF' };
