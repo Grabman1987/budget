@@ -1,19 +1,20 @@
 import { BankBookingMerge, BankCandidate } from './bank-candidate';
 import { AssignmentLearnOffer, BookingAssignmentReview } from '../assignment/review';
 import { PayslipUpload, PayslipIntakeDetail } from '../reports/payslip-intake';
-import { ReadSourceDetail } from './read-source-detail';
+import { ReadSourceDetail, sourceWarningReason } from './read-source-detail';
+import { inboxCause } from '@budget/domain';
+import { useNavigate, useParams, useSearch } from '@tanstack/react-router';
+import { InboxBack, type InboxSearch } from './navigation';
 import {
   useAmountPrivacy,
   maskMoneyText,
   Button,
-  Count,
-  WideDialog,
   RevisionTriangle,
   SectionHead,
   useToast,
 } from '@budget/ui';
 import { useInfiniteQuery, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
+import { useId, useRef, useState } from 'react';
 import { request } from '../api/http';
 import { useBudgetWrite } from '../budget/use-category-writes';
 import { BookingPanel } from '../ledger/booking-panel';
@@ -26,9 +27,9 @@ import type { ListedBooking } from '../ledger/types';
 import { PAGES } from '../nav/pages';
 import { PageFrame } from '../pages/placeholder-page';
 import { AppLink } from '../shell/app-link';
-import { useInboxCount } from '../shell/inbox';
 import {
   inboxPagesQuery,
+  inboxDetailQuery,
   inboxQuery,
   INBOX_PAGE_SIZE,
   resolveInbox,
@@ -57,31 +58,56 @@ const LABELS: Record<InboxKind, string> = {
 
 export function InboxPage() {
   useAmountPrivacy();
+  const search = useSearch({ strict: false }) as InboxSearch;
   return (
     <PageFrame meta={META}>
+      {search.von && <InboxBack to={search.von} label="Zurück zur vorherigen Ansicht" />}
       <InboxWorkflow />
     </PageFrame>
   );
 }
-export function InboxPanel({ open, onClose }: { open: boolean; onClose: () => void }) {
-  useAmountPrivacy();
-  return <InboxWorkflow panel={{ open, onClose }} />;
+export function InboxDetailPage() {
+  const { id } = useParams({ strict: false }) as { id: string };
+  const search = useSearch({ strict: false }) as InboxSearch;
+  const query = useQuery(inboxDetailQuery(id));
+  const params = new URLSearchParams(
+    Object.entries(search).filter((p): p is [string, string] => p[1] !== undefined),
+  );
+  return (
+    <PageFrame meta={META} title={query.data?.entry.title ?? 'Datenwarnung'}>
+      <section className="kinbox">
+        <nav aria-label="Brotkrumen">
+          <AppLink to="/konten" search={{}}>
+            Konten
+          </AppLink>
+          {' › '}
+          <AppLink to="/konten/posteingang" search={search}>
+            Posteingang
+          </AppLink>
+          {' › '}
+          <span aria-current="page">Datenwarnung</span>
+        </nav>
+        <InboxBack to={`/konten/posteingang?${params}`} label="Zurück zum Posteingang" />
+        {query.isPending && <LoadingNote what="Datenwarnung" />}
+        {query.isError && (
+          <ErrorNote
+            what="Datenwarnung (möglicherweise bereits erledigt)"
+            error={query.error}
+            onRetry={() => void query.refetch()}
+          />
+        )}
+        {query.data && !query.isError && <InboxWorkflow detailEntry={query.data.entry} />}
+      </section>
+    </PageFrame>
+  );
 }
-
-/** Open-task count in the dialog head; stays empty while unknown (never a fabricated zero). */
-function InboxHeadCount() {
-  const { count } = useInboxCount();
-  if (count === undefined) return null;
-  return <Count srSuffix=" offen">{count}</Count>;
-}
-
-/** Same queue/actions in page and global panel; booking editor replaces the panel to avoid nested modals. */
+/** Shared queue/actions on the inbox page, warning detail and month close. */
 export function InboxWorkflow({
-  panel,
   entryIds,
+  detailEntry,
 }: {
-  panel?: { open: boolean; onClose: () => void };
   entryIds?: string[] | undefined;
+  detailEntry?: InboxStored | undefined;
 }) {
   useAmountPrivacy();
   const [editing, setEditing] = useState<ListedBooking | null>(null);
@@ -92,20 +118,12 @@ export function InboxWorkflow({
     requestAnimationFrame(() => proposalTrigger.current?.focus());
   };
   const trigger = useRef<HTMLElement | null>(null);
-  // Native dialogs lose the original trigger across the editor handoff; retain it for the whole workflow.
-  useLayoutEffect(() => {
-    if (panel?.open)
-      trigger.current =
-        document.activeElement instanceof HTMLElement ? document.activeElement : null;
-  }, [panel?.open]);
-  useEffect(() => {
-    if (panel?.open === false) trigger.current?.focus();
-  }, [panel?.open]);
   const [loading, setLoading] = useState<string | null>(null);
   const toast = useToast();
   const qc = useQueryClient();
   const edit = async (id: string) => {
     if (loading) return;
+    trigger.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     setLoading(id);
     try {
       const { booking } = await request<{ booking: ListedBooking }>(
@@ -123,6 +141,7 @@ export function InboxWorkflow({
   const body = (
     <InboxBody
       entryIds={entryIds}
+      detailEntry={detailEntry}
       onEdit={(id) => void edit(id)}
       loadingId={loading}
       onSavings={(item) => {
@@ -133,28 +152,15 @@ export function InboxWorkflow({
   );
   return (
     <>
-      {panel ? (
-        <WideDialog
-          open={panel.open && !editing && !proposal}
-          onClose={() => {
-            if (!editing && !proposal) panel.onClose();
-          }}
-          title="Posteingang"
-          headAside={<InboxHeadCount />}
-        >
-          {panel.open && body}
-          <AppLink to="/konten/posteingang" search={{}} className="btn btn-ghost">
-            Alle Aufgaben anzeigen
-          </AppLink>
-        </WideDialog>
-      ) : (
-        body
-      )}
+      {body}
       <BookingPanel
-        state={editing && (!panel || panel.open) ? { mode: 'edit', booking: editing } : null}
-        onClose={() => setEditing(null)}
+        state={editing ? { mode: 'edit', booking: editing } : null}
+        onClose={() => {
+          setEditing(null);
+          requestAnimationFrame(() => trigger.current?.focus());
+        }}
       />
-      {proposal && (!panel || panel.open) && (
+      {proposal && (
         <TradePanel id="neu" proposal={proposal} onClose={closeProposal} onSaved={closeProposal} />
       )}
     </>
@@ -163,15 +169,38 @@ export function InboxWorkflow({
 
 function InboxBody({
   entryIds,
+  detailEntry,
   onEdit,
   loadingId,
   onSavings,
 }: {
   entryIds?: string[] | undefined;
+  detailEntry?: InboxStored | undefined;
   onEdit: (id: string) => void;
   loadingId: string | null;
   onSavings: (proposal: SavingsExecutionProposal) => void;
 }) {
+  if (detailEntry)
+    return (
+      <InboxBodyContent
+        entries={[detailEntry]}
+        count={undefined}
+        totalEntries={1}
+        countsByKind={undefined}
+        pending={false}
+        error={null}
+        onRetry={() => undefined}
+        showReceipts={false}
+        serverPaginated={false}
+        hasMore={false}
+        loadingMore={false}
+        loadMore={() => undefined}
+        onEdit={onEdit}
+        loadingId={loadingId}
+        onSavings={onSavings}
+        detailView
+      />
+    );
   if (entryIds)
     return (
       <FilteredInboxBody
@@ -219,7 +248,9 @@ function FilteredInboxBody({ entryIds, ...props }: InboxBodyProps & { entryIds: 
 
 function PaginatedInboxBody(props: InboxBodyProps) {
   useAmountPrivacy();
-  const queue = useInfiniteQuery(inboxPagesQuery());
+  const search = useSearch({ strict: false }) as InboxSearch;
+  const navigate = useNavigate();
+  const queue = useInfiniteQuery(inboxPagesQuery(search.aufgaben));
   const loadingNextPage = useRef(false);
   const fetchNextPage = async () => {
     if (loadingNextPage.current || queue.isFetching || !queue.hasNextPage) return;
@@ -234,23 +265,50 @@ function PaginatedInboxBody(props: InboxBodyProps) {
   const entries = pages.flatMap((page) => page.entries);
   const firstPage = pages[0];
   return (
-    <InboxBodyContent
-      {...props}
-      entries={entries}
-      count={firstPage?.count}
-      totalEntries={firstPage?.totalEntries}
-      countsByKind={firstPage?.countsByKind}
-      pending={queue.isPending}
-      error={queue.isError && !queue.isFetchNextPageError ? queue.error : null}
-      nextPageError={queue.isFetchNextPageError ? queue.error : null}
-      onRetry={() => void queue.refetch()}
-      onRetryNextPage={() => void fetchNextPage()}
-      showReceipts
-      serverPaginated
-      hasMore={queue.hasNextPage}
-      loadingMore={queue.isFetching}
-      loadMore={() => void fetchNextPage()}
-    />
+    <>
+      <div className="inbox-filters">
+        <label>
+          Zeitraum der Aufgaben
+          <select
+            className="select"
+            value={search.aufgaben}
+            onChange={(event) =>
+              void navigate({
+                to: '/konten/posteingang',
+                search: { ...search, aufgaben: event.target.value, gruppe: undefined },
+              } as never)
+            }
+          >
+            <option value="all">Alle</option>
+            <option value="current">Aktueller Monat</option>
+            <option value="historical">Historische Nacharbeit</option>
+          </select>
+        </label>
+        <p>
+          {firstPage
+            ? `Aktuell: ab ${longDay(`${firstPage.asOf.slice(0, 7)}-01`)} · Historisch: davor`
+            : 'Zeitraum wird geladen.'}
+        </p>
+      </div>
+      <InboxBodyContent
+        {...props}
+        entries={entries}
+        count={firstPage?.count}
+        totalEntries={firstPage?.totalEntries}
+        countsByKind={firstPage?.countsByKind}
+        countsByCause={firstPage?.countsByCause}
+        pending={queue.isPending}
+        error={queue.isError && !queue.isFetchNextPageError ? queue.error : null}
+        nextPageError={queue.isFetchNextPageError ? queue.error : null}
+        onRetry={() => void queue.refetch()}
+        onRetryNextPage={() => void fetchNextPage()}
+        showReceipts
+        serverPaginated
+        hasMore={queue.hasNextPage}
+        loadingMore={queue.isFetching}
+        loadMore={() => void fetchNextPage()}
+      />
+    </>
   );
 }
 
@@ -259,6 +317,8 @@ function InboxBodyContent({
   count,
   totalEntries,
   countsByKind,
+  countsByCause,
+  detailView = false,
   pending,
   error,
   nextPageError,
@@ -277,6 +337,8 @@ function InboxBodyContent({
   count: number | undefined;
   totalEntries: number | undefined;
   countsByKind: Partial<Record<InboxKind, number>> | undefined;
+  countsByCause?: Record<string, number> | undefined;
+  detailView?: boolean;
   pending: boolean;
   error: Error | null;
   nextPageError?: Error | null;
@@ -290,6 +352,8 @@ function InboxBodyContent({
 }) {
   useAmountPrivacy();
   const headingId = useId();
+  const search = useSearch({ strict: false }) as InboxSearch;
+  const navigate = useNavigate();
   const writes = useLedgerWrites();
   const write = useBudgetWrite();
   const [busy, setBusy] = useState<string | null>(null);
@@ -324,6 +388,9 @@ function InboxBodyContent({
       {count === 0 && (
         <EmptyNote>Posteingang leer. Es sind keine offenen Aufgaben vorhanden.</EmptyNote>
       )}
+      {!pending && !error && count !== 0 && entries.length === 0 && (
+        <EmptyNote>Keine offenen Aufgaben in diesem Zeitraum.</EmptyNote>
+      )}
       {entries.length > 0 && (
         <>
           <table className="rev-table kinbox-table">
@@ -355,29 +422,75 @@ function InboxBodyContent({
                       <span className="kgcount">{countsByKind?.[kind] ?? all.length}</span>
                     </th>
                   </tr>,
-                  ...items.map((item) => (
-                    <InboxRow
-                      key={item.id}
-                      item={item}
-                      onBankConfirmed={setLearnBookingId}
-                      letter={String.fromCharCode(65 + (index++ % 26))}
-                      busy={
-                        busy === item.id ||
-                        (loadingId !== null &&
-                          item.type === 'booking' &&
-                          loadingId === item.bookingId)
-                      }
-                      onEdit={onEdit}
-                      onSavings={onSavings}
-                      onResolve={() => {
-                        if (item.type === 'stored') void resolve(item);
-                      }}
-                      onConfirm={(id) =>
-                        writes.patch.mutate({ id, patch: { status: 'confirmed' } })
-                      }
-                      confirming={writes.patch.isPending}
-                    />
-                  )),
+                  ...items.flatMap((item) => {
+                    const cause = !serverPaginated || detailView ? null : inboxCause(item);
+                    const members = cause
+                      ? items.filter((member) => inboxCause(member) === cause)
+                      : [item];
+                    const total = cause ? (countsByCause?.[cause] ?? members.length) : 1;
+                    if (total > 1 && members[0]?.id !== item.id) return [];
+                    const expanded = search.gruppe === item.id;
+                    const group =
+                      total > 1 ? (
+                        <tr className="inbox-cause" key={`cause-${item.id}`}>
+                          <td />
+                          <td colSpan={2}>
+                            <Button
+                              variant="ghost"
+                              aria-expanded={expanded}
+                              onClick={() =>
+                                void navigate({
+                                  to: '.',
+                                  search: { ...search, gruppe: expanded ? undefined : item.id },
+                                  replace: true,
+                                } as never)
+                              }
+                            >
+                              {item.type === 'stored'
+                                ? `${item.title} · ${maskMoneyText(sourceWarningReason(item.detail))}`
+                                : 'Datenprüfung'}{' '}
+                              · {total} Aufgaben ·{' '}
+                              {expanded ? 'Einzelpunkte ausblenden' : 'Einzelpunkte anzeigen'}
+                            </Button>
+                            {members.length < total && (
+                              <p>
+                                {members.length} von {total} geladen · Weitere anzeigen lädt die
+                                nächsten Einzelpunkte.
+                              </p>
+                            )}
+                          </td>
+                        </tr>
+                      ) : null;
+                    return [
+                      group,
+                      ...(total > 1 && !expanded
+                        ? []
+                        : members.map((item) => (
+                            <InboxRow
+                              key={item.id}
+                              item={item}
+                              detailView={detailView}
+                              onBankConfirmed={setLearnBookingId}
+                              letter={String.fromCharCode(65 + (index++ % 26))}
+                              busy={
+                                busy === item.id ||
+                                (loadingId !== null &&
+                                  item.type === 'booking' &&
+                                  loadingId === item.bookingId)
+                              }
+                              onEdit={onEdit}
+                              onSavings={onSavings}
+                              onResolve={() => {
+                                if (item.type === 'stored') void resolve(item);
+                              }}
+                              onConfirm={(id) =>
+                                writes.patch.mutate({ id, patch: { status: 'confirmed' } })
+                              }
+                              confirming={writes.patch.isPending}
+                            />
+                          ))),
+                    ];
+                  }),
                 ];
               })}
             </tbody>
@@ -416,6 +529,7 @@ function InboxBodyContent({
 }
 
 function InboxRow({
+  detailView = false,
   onBankConfirmed,
   item,
   letter,
@@ -426,6 +540,7 @@ function InboxRow({
   onConfirm,
   confirming,
 }: {
+  detailView?: boolean;
   onBankConfirmed: (id: string) => void;
   item: InboxEntry;
   letter: string;
@@ -437,6 +552,7 @@ function InboxRow({
   confirming: boolean;
 }) {
   useAmountPrivacy();
+  const search = useSearch({ strict: false }) as InboxSearch;
   return (
     <tr className={`rev-row${item.urgent ? ' is-urgent' : ''}`} data-testid="inbox-row">
       <td className="rev-mark">
@@ -450,7 +566,12 @@ function InboxRow({
               ? `Sparplan: ${item.securityName} · ${nativeCurrency(item.amountCents, item.currency)}`
               : item.title}
         </strong>
-        {item.type === 'stored' && item.refType === 'read_source' ? (
+        {item.type === 'stored' && item.kind === 'import' && !detailView ? (
+          <span>
+            {longDay(item.createdAt.slice(0, 10))} ·{' '}
+            {maskMoneyText(sourceWarningReason(item.detail))}
+          </span>
+        ) : item.type === 'stored' && item.refType === 'read_source' ? (
           <ReadSourceDetail detail={item.detail} />
         ) : (
           <span>
@@ -518,6 +639,16 @@ function InboxRow({
           <>
             {item.refType === 'bank-sync-candidate' && item.refId && (
               <BankCandidate id={item.refId} onConfirmed={onBankConfirmed} />
+            )}
+            {item.kind === 'import' && !detailView && (
+              <AppLink
+                className="btn btn-ghost btn-sm"
+                to={`/konten/posteingang/${encodeURIComponent(item.id)}`}
+                search={search}
+                state={{ inboxOpenedInApp: true }}
+              >
+                Warnung erklären
+              </AppLink>
             )}
             <SourceLink item={item} />
             <Button size="sm" variant="ghost" disabled={busy} onClick={onResolve}>

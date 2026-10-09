@@ -2,6 +2,7 @@ import { Count } from '@budget/ui';
 import { Inbox, PanelLeft, Plus } from 'lucide-react';
 import { GlobalSearch } from './global-search';
 import { PanelLink } from './panel-link';
+import { InboxHeaderLink } from '../inbox/navigation';
 import { useInboxCount } from './inbox';
 import { OverspentChip } from './overspent-chip';
 import { PrivacyButton } from './privacy-button';
@@ -31,12 +32,12 @@ export function Topbar({ collapsed, onToggle }: { collapsed: boolean; onToggle: 
         <GlobalSearch />
         <div className="topbar-actions">
           <PrivacyButton />
-          <PanelLink className="btn btn-ghost" panel="posteingang" aria-label={inbox.label}>
+          <InboxHeaderLink className="btn btn-ghost" aria-label={inbox.label}>
             <Inbox size={18} strokeWidth={1.75} aria-hidden="true" />
             Posteingang{' '}
             {inbox.count !== undefined && inbox.count > 0 && <Count>{inbox.count}</Count>}
             <span className="sr-only"> offen</span>
-          </PanelLink>
+          </InboxHeaderLink>
           <OverspentChip />
           <PanelLink
             className="btn btn-primary"

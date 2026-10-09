@@ -20,7 +20,7 @@ proposed destinations, not implemented routes.
 | `expected/income-panel.tsx` from Plan › Monat | `/plan/monat/einnahmen?monat=YYYY-MM`; reuse IncomeBody | Done |
 | `heute/heute-page.tsx`: account/wealth dimension details | `/heute/details/:kind`, existing account links | Open |
 | `expected/income-panel.tsx` from Erwartet and `reports/onepager-report.tsx` | Income sub-page preserving month and source return route | Open |
-| `inbox/inbox-page.tsx`, `shell/panel-host.tsx`, header `PanelLink`: wide inbox dialog and nested read-source/bank details | Header links to existing `/konten/posteingang`; inbox item `/konten/posteingang/:id`; confirm/assignment forms in dialogs | Open |
+| `inbox/inbox-page.tsx`, `shell/panel-host.tsx`, header `PanelLink`: wide inbox dialog and nested read-source/bank details | Header links to existing `/konten/posteingang`; data-warning detail `/konten/posteingang/:id`; confirm/assignment forms in dialogs | Done for data warnings (#319/#320); other inbox types retain their existing workflows |
 | `contacts/contacts-page.tsx`: contact statement with receipt/settlement/edit | `/konten/kontakte/:id`; separate input dialogs, including new contact | Open |
 | `budget/category-panel.tsx`: category/group management | Category details `/einstellungen/kategorien/:id`; create/edit/group forms in dialogs | Open |
 | `budget/goals-panel.tsx`, `pages/goals-progress-report.tsx`: savings goal history and forms | `/plan/sparziele/:id`; create/edit in dialogs; reports link to same detail | Open |

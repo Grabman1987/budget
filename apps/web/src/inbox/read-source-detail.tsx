@@ -1,6 +1,23 @@
 import type { SourceOperation } from '@budget/domain';
 import { privateAmount, useAmountPrivacy } from '@budget/ui';
 
+export const SOURCE_REASONS: Record<string, string> = {
+  mapping_required: 'Konto und Instrument in der Datenquelle zuordnen.',
+  source_missing: 'Für diesen zugeordneten Bestand fehlt der aktuelle Quellsaldo.',
+  precision_unsupported: 'Die Genauigkeit des Quellsaldos lässt sich nicht verlustfrei übernehmen.',
+  schema: 'Die Bewegung konnte nicht gelesen werden. Datenformat der Quelle prüfen.',
+  invalid_balance: 'Der Quellsaldo konnte nicht gelesen werden. Datenformat der Quelle prüfen.',
+  duplicate_rows:
+    'Die Quelle liefert mehrere Saldozeilen für denselben Bestand. Quellsaldo prüfen.',
+  difference: 'Quellsaldo und App-Bestand stimmen nicht überein. Bewegungen abgleichen.',
+};
+export const SOURCE_FAILURES: Record<string, string> = {
+  schema: 'Datenformat der Quelle prüfen.',
+  http: 'Schlüssel, Leserechte und Verbindung prüfen.',
+  timeout: 'Die Quelle hat nicht rechtzeitig geantwortet. Später erneut abrufen.',
+  parse: 'Die Antwort der Quelle konnte nicht gelesen werden. Später erneut abrufen.',
+};
+
 /** Readable source facts, with the retained normalized record available for reconciliation. */
 export function ReadSourceDetail({ detail }: { detail: string | null }) {
   useAmountPrivacy();
@@ -12,23 +29,6 @@ export function ReadSourceDetail({ detail }: { detail: string | null }) {
     return <span>{detail}</span>;
   }
   if (!value || typeof value !== 'object') return <span>{detail}</span>;
-  const reasons: Record<string, string> = {
-    mapping_required: 'Konto und Instrument in der Datenquelle zuordnen.',
-    source_missing: 'Für diesen zugeordneten Bestand fehlt der aktuelle Quellsaldo.',
-    precision_unsupported:
-      'Die Genauigkeit des Quellsaldos lässt sich nicht verlustfrei übernehmen.',
-    schema: 'Die Bewegung konnte nicht gelesen werden. Datenformat der Quelle prüfen.',
-    invalid_balance: 'Der Quellsaldo konnte nicht gelesen werden. Datenformat der Quelle prüfen.',
-    duplicate_rows:
-      'Die Quelle liefert mehrere Saldozeilen für denselben Bestand. Quellsaldo prüfen.',
-    difference: 'Quellsaldo und App-Bestand stimmen nicht überein. Bewegungen abgleichen.',
-  };
-  const failures: Record<string, string> = {
-    schema: 'Datenformat der Quelle prüfen.',
-    http: 'Schlüssel, Leserechte und Verbindung prüfen.',
-    timeout: 'Die Quelle hat nicht rechtzeitig geantwortet. Später erneut abrufen.',
-    parse: 'Die Antwort der Quelle konnte nicht gelesen werden. Später erneut abrufen.',
-  };
   const op = Array.isArray(value['transactions']) ? (value as unknown as SourceOperation) : null;
   return (
     <div className="source-inbox-detail">
@@ -46,8 +46,8 @@ export function ReadSourceDetail({ detail }: { detail: string | null }) {
       ) : (
         <p>
           {value['category']
-            ? (failures[String(value['category'])] ?? 'Abruf fehlgeschlagen.')
-            : (reasons[String(value['reason'])] ?? 'Quelldaten prüfen.')}
+            ? (SOURCE_FAILURES[String(value['category'])] ?? 'Abruf fehlgeschlagen.')
+            : (SOURCE_REASONS[String(value['reason'])] ?? 'Quelldaten prüfen.')}
         </p>
       )}
       <details>
@@ -56,4 +56,21 @@ export function ReadSourceDetail({ detail }: { detail: string | null }) {
       </details>
     </div>
   );
+}
+
+export function sourceWarningReason(detail: string | null): string {
+  try {
+    const value: unknown = JSON.parse(detail ?? 'null');
+    if (value && typeof value === 'object') {
+      const record = value as Record<string, unknown>;
+      const reason = record['reason'];
+      const category = record['category'];
+      if (typeof reason === 'string') return SOURCE_REASONS[reason] ?? 'Quelldaten prüfen.';
+      if (typeof category === 'string') return SOURCE_FAILURES[category] ?? 'Abruf fehlgeschlagen.';
+      return 'Datenquelle oder Zuordnung prüfen.';
+    }
+  } catch {
+    /* Legacy warning text remains readable. */
+  }
+  return detail ?? 'Datenquelle oder Zuordnung prüfen.';
 }

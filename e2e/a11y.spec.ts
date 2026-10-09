@@ -38,9 +38,9 @@ test.describe('axe: no serious or critical violations', () => {
       expect(await violations(page), `dark ${path}`).toEqual([]);
     }
     await page.emulateMedia({ reducedMotion: 'reduce', colorScheme: 'light' });
-    await page.goto('/plan/monat?panel=posteingang');
-    await expect(page.getByRole('dialog')).toBeVisible();
-    expect(await violations(page), 'panel open').toEqual([]);
+    await page.goto('/konten/posteingang');
+    await expect(page.getByRole('heading', { name: 'Offene Entscheidungen' })).toBeVisible();
+    expect(await violations(page), 'inbox page').toEqual([]);
 
     // The login page, without a session.
     const anonymous = await browser.newContext({ storageState: { cookies: [], origins: [] } });

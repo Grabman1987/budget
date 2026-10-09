@@ -173,13 +173,11 @@ test.describe('panel via route param', () => {
     await expect(page).toHaveURL(/\/plan\/monat$/);
   });
 
-  test('is linkable: a deep link opens the panel, Esc removes the param', async ({ page }) => {
+  test('legacy inbox links redirect to the page', async ({ page }) => {
     await page.goto('/konten?panel=posteingang');
-    const dialog = page.getByRole('dialog', { name: 'Posteingang' });
-    await expect(dialog).toBeVisible();
-    await page.keyboard.press('Escape');
-    await expect(dialog).toBeHidden();
-    await expect(page).toHaveURL(/\/konten$/);
+    await expect(page).toHaveURL(/\/konten\/posteingang/);
+    await expect(page.getByRole('dialog', { name: 'Posteingang' })).toHaveCount(0);
+    await expect(page.getByRole('heading', { name: 'Offene Entscheidungen' })).toBeVisible();
   });
 
   // Opens the "Buchung" panel through the real shell trigger (top bar / phone FAB), so these tests
@@ -405,16 +403,15 @@ test.describe('phone shell', () => {
     expect(small).toEqual([]);
   });
 
-  test('phone header opens the inbox as a full-screen sheet', async ({ page }) => {
+  test('phone header links to the inbox page and retains return context', async ({ page }) => {
     await page.emulateMedia({ reducedMotion: 'reduce' });
-    await page.goto('/konten');
+    await page.goto('/konten?monat=2026-09');
     await page.getByRole('link', { name: /Posteingang, \d+ offen/ }).click();
-    const dialog = page.getByRole('dialog', { name: 'Posteingang' });
-    await expect(dialog).toBeVisible();
-    const box = await dialog.boundingBox();
-    const viewport = page.viewportSize();
-    expect(Math.round(box?.width ?? 0)).toBe(viewport?.width);
-    expect(Math.round(box?.height ?? 0)).toBe(viewport?.height);
+    await expect(page).toHaveURL(/\/konten\/posteingang/);
+    await expect(page.getByRole('dialog', { name: 'Posteingang' })).toHaveCount(0);
+    await expect(page.getByRole('heading', { name: 'Offene Entscheidungen' })).toBeVisible();
+    await page.getByRole('link', { name: 'Zur\u00fcck zur vorherigen Ansicht' }).click();
+    await expect(page).toHaveURL(/\/konten\?monat=2026-09$/);
   });
 });
 

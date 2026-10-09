@@ -11,6 +11,7 @@ export type PanelSearch = { panel?: PanelId | undefined };
  */
 declare module '@tanstack/history' {
   interface HistoryState {
+    inboxOpenedInApp?: boolean;
     planDetailOpenedInApp?: boolean;
     wealthDetailOpenedInApp?: boolean;
     panelOpenedInApp?: boolean;
