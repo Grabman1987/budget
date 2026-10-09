@@ -18,6 +18,19 @@ migration, provider request or unrelated shared refactor is added.
 The receipt API test funds its spending category so its existing inbox-count
 assertions continue to isolate unlinked receipts; receipt implementation is unchanged.
 
+## Current top-bar link semantics (#237)
+
+The status chip links directly to the current month's Plan triage (`/plan/monat`
+with the current `monat` and `ansicht=triage`). It opens no popover or content
+sheet and performs no write; covering and undoing an envelope happen in Plan.
+While its budget query has no data, it shows no numeric count or zero claim. On
+any query error, including a failed refetch with cached data, it replaces the
+status with a neutral Plan link instead of presenting that cache as current.
+The count remains available if the cent total is unsafe, but the total is shown
+as unknown. Amount privacy applies to both visible and accessible amounts.
+The focused synthetic cover/undo evidence and captures are in
+[top-bar Plan triage evidence](evidence/topbar-plan-triage-237/README.md).
+
 ## Checks
 
 - Unit: negative-cent boundary, zero, ordinary reset and explicit negative carry.
