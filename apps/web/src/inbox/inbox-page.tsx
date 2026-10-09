@@ -62,7 +62,21 @@ export function InboxPage() {
   return (
     <PageFrame meta={META}>
       {search.von && <InboxBack to={search.von} label="Zurück zur vorherigen Ansicht" />}
-      <InboxWorkflow />
+      {search.bankSource && (
+        <p>
+          Aufgaben dieser Bankquelle.{' '}
+          <AppLink
+            to="/konten/posteingang"
+            search={{
+              ...(search.aufgaben !== 'all' && { aufgaben: search.aufgaben }),
+              ...(search.von && { von: search.von }),
+            }}
+          >
+            Alle Aufgaben anzeigen
+          </AppLink>
+        </p>
+      )}
+      <InboxWorkflow bankSource={search.bankSource} />
     </PageFrame>
   );
 }
@@ -105,9 +119,11 @@ export function InboxDetailPage() {
 export function InboxWorkflow({
   entryIds,
   detailEntry,
+  bankSource,
 }: {
   entryIds?: string[] | undefined;
   detailEntry?: InboxStored | undefined;
+  bankSource?: string | undefined;
 }) {
   useAmountPrivacy();
   const [editing, setEditing] = useState<ListedBooking | null>(null);
@@ -142,6 +158,7 @@ export function InboxWorkflow({
     <InboxBody
       entryIds={entryIds}
       detailEntry={detailEntry}
+      bankSource={bankSource}
       onEdit={(id) => void edit(id)}
       loadingId={loading}
       onSavings={(item) => {
@@ -170,12 +187,14 @@ export function InboxWorkflow({
 function InboxBody({
   entryIds,
   detailEntry,
+  bankSource,
   onEdit,
   loadingId,
   onSavings,
 }: {
   entryIds?: string[] | undefined;
   detailEntry?: InboxStored | undefined;
+  bankSource?: string | undefined;
   onEdit: (id: string) => void;
   loadingId: string | null;
   onSavings: (proposal: SavingsExecutionProposal) => void;
@@ -205,12 +224,20 @@ function InboxBody({
     return (
       <FilteredInboxBody
         entryIds={entryIds}
+        bankSource={bankSource}
         onEdit={onEdit}
         loadingId={loadingId}
         onSavings={onSavings}
       />
     );
-  return <PaginatedInboxBody onEdit={onEdit} loadingId={loadingId} onSavings={onSavings} />;
+  return (
+    <PaginatedInboxBody
+      bankSource={bankSource}
+      onEdit={onEdit}
+      loadingId={loadingId}
+      onSavings={onSavings}
+    />
+  );
 }
 
 type InboxBodyProps = {
@@ -219,10 +246,15 @@ type InboxBodyProps = {
   onSavings: (proposal: SavingsExecutionProposal) => void;
 };
 
-function FilteredInboxBody({ entryIds, ...props }: InboxBodyProps & { entryIds: string[] }) {
+function FilteredInboxBody({
+  entryIds,
+  bankSource,
+  ...props
+}: InboxBodyProps & { entryIds?: string[] | undefined; bankSource?: string | undefined }) {
   useAmountPrivacy();
-  const queue = useQuery(inboxQuery());
-  const entries = queue.data?.entries.filter((item) => entryIds.includes(item.id)) ?? [];
+  const queue = useQuery(inboxQuery(bankSource));
+  const entries =
+    queue.data?.entries.filter((item) => !entryIds || entryIds.includes(item.id)) ?? [];
   const countsByKind = entries.reduce<Partial<Record<InboxKind, number>>>((counts, item) => {
     counts[item.kind] = (counts[item.kind] ?? 0) + 1;
     return counts;
@@ -246,11 +278,14 @@ function FilteredInboxBody({ entryIds, ...props }: InboxBodyProps & { entryIds: 
   );
 }
 
-function PaginatedInboxBody(props: InboxBodyProps) {
+function PaginatedInboxBody({
+  bankSource,
+  ...props
+}: InboxBodyProps & { bankSource?: string | undefined }) {
   useAmountPrivacy();
   const search = useSearch({ strict: false }) as InboxSearch;
   const navigate = useNavigate();
-  const queue = useInfiniteQuery(inboxPagesQuery(search.aufgaben));
+  const queue = useInfiniteQuery(inboxPagesQuery(search.aufgaben, bankSource));
   const loadingNextPage = useRef(false);
   const fetchNextPage = async () => {
     if (loadingNextPage.current || queue.isFetching || !queue.hasNextPage) return;
@@ -302,7 +337,7 @@ function PaginatedInboxBody(props: InboxBodyProps) {
         nextPageError={queue.isFetchNextPageError ? queue.error : null}
         onRetry={() => void queue.refetch()}
         onRetryNextPage={() => void fetchNextPage()}
-        showReceipts
+        showReceipts={!bankSource}
         serverPaginated
         hasMore={queue.hasNextPage}
         loadingMore={queue.isFetching}

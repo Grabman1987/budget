@@ -42,6 +42,7 @@ import {
 import { LiquidityChart } from './liquidity-chart';
 import { expectedQuery, skipOccurrence, type ExpectedPayment } from '../expected/api';
 import './reports-future.css';
+import { useLiquiditySelection } from './liquidity-selection';
 
 const HORIZON_OPTIONS: ReadonlyArray<{ value: LiquidityHorizon; label: string }> = [
   { value: '90d', label: '90 Tage' },
@@ -79,8 +80,7 @@ const monthLong = (month: string) => `${monthName(`${month}-01`)} ${month.slice(
 
 export function LiquidityReportPage({ report, meta }: { report: ReportEntry; meta: PageMeta }) {
   useAmountPrivacy();
-  const [horizon, setHorizon] = useState<LiquidityHorizon>('6m');
-  const [levers, setLevers] = useState<LiquidityLeverId[]>([]);
+  const { horizon, setHorizon, levers, setLevers } = useLiquiditySelection();
   const query = useQuery(liquidityQuery(horizon, levers));
   // Never mix cached figures with a failed or loading read of another horizon.
   const view = query.isSuccess ? query.data : undefined;
@@ -132,7 +132,7 @@ export function LiquidityReportPage({ report, meta }: { report: ReportEntry; met
             <LeversCard
               report={view.report}
               onToggle={(id, on) =>
-                setLevers((current) => (on ? [...current, id] : current.filter((l) => l !== id)))
+                setLevers(on ? [...levers, id] : levers.filter((l) => l !== id))
               }
             />
             <OutlookCard report={view.report} />
@@ -169,10 +169,10 @@ function ForecastCard({
         : AlertCircle;
   const text =
     verdict.status === 'ok'
-      ? `Geht sich aus, auch mit ${LIQUIDITY_BUFFER_PERCENT} % Puffer.`
+      ? `Geht sich aus bis ${longDay(report.verdictEnd)}, auch mit ${LIQUIDITY_BUFFER_PERCENT} % Puffer; Tiefpunkt am ${verdict.day ? longDay(verdict.day) : '–'}.`
       : verdict.status === 'warn'
-        ? `Geht sich knapp aus: ohne Puffer ja, mit ${LIQUIDITY_BUFFER_PERCENT} % Puffer fehlen im ${monthLong(verdict.month ?? '')} ${eur(verdict.shortfallCents, { cents: false })}.`
-        : `Geht sich nicht aus: im ${monthLong(verdict.month ?? '')} fehlen ${eur(verdict.shortfallCents, { cents: false })}.`;
+        ? `Geht sich knapp aus bis ${longDay(report.verdictEnd)}: ohne Puffer ja, mit ${LIQUIDITY_BUFFER_PERCENT} % Puffer fehlen am Tiefpunkt ${verdict.day ? longDay(verdict.day) : '–'} ${eur(verdict.shortfallCents, { cents: false })}.`
+        : `Geht sich nicht aus bis ${longDay(report.verdictEnd)}: am Tiefpunkt ${verdict.day ? longDay(verdict.day) : '–'} fehlen ${eur(verdict.shortfallCents, { cents: false })}.`;
   const activeEvents = view.events.filter((e) => e.status === 'in_horizon' || e.status === 'later');
   // Count actual planned occurrences within the six-month verdict window, not old recurrence anchors.
   const eventCount = activeEvents.filter(
@@ -321,6 +321,19 @@ function ForecastCard({
         Überziehungsrahmen zählt nicht als Geld. Rücklagen auf Konten außerhalb des Budgets bleiben
         draußen.
       </p>
+      <p className="vnote">Einzelkontovorschau · gleicher Zeitraum und gleiche Stellschrauben:</p>
+      <div className="kacct-actions">
+        {view.budgetAccounts.map((account) => (
+          <AppLink
+            key={account.id}
+            className="btn btn-ghost"
+            to={`/konten/${encodeURIComponent(account.id)}`}
+            search={{ vorschau: 'liquiditaet', horizon, levers: levers.join(',') }}
+          >
+            {account.name}
+          </AppLink>
+        ))}
+      </div>
     </section>
   );
 }

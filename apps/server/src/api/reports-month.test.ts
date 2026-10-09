@@ -256,6 +256,95 @@ describe('GET /reports/month/flow', () => {
 });
 
 describe('GET /reports/month/onepager', () => {
+  it('comments a running deficit separately from a future salary, then closes the month', async () => {
+    const ctx = { actor: 'tester' };
+    const opened = createTestDatabase();
+    db = opened.db;
+    try {
+      accounts.create(
+        db,
+        {
+          id: 'giro',
+          name: 'Giro',
+          type: 'checking',
+          role: 'budget',
+          onBudget: true,
+          openingDate: '2026-01-01',
+          openingBalanceCents: 0,
+          sortOrder: 1,
+        },
+        ctx,
+      );
+      createEntity(db, schema.categoryGroup, { id: 'g-leben', name: 'Leben' }, ctx);
+      categories.create(db, { id: 'essen', name: 'Essen', groupId: 'g-leben', class: 'need' }, ctx);
+      createBooking(
+        db,
+        {
+          accountId: 'giro',
+          date: '2026-03-10',
+          amountCents: -60_000,
+          splits: [{ categoryId: 'essen', amountCents: -60_000 }],
+        },
+        ctx,
+      );
+      ensureDefaultRules(db);
+      app = createApp({ webDir, auth: signedIn, ledger: { db, today: () => '2026-03-18' } });
+      const expected = await call('POST', '/expected', {
+        accountId: 'giro',
+        name: 'Gehalt',
+        kind: 'inflow',
+        incomeTypeId: salary(),
+        rhythm: 'monthly',
+        validFrom: '2026-01-01',
+        dueDay: 31,
+        dateShift: 'before',
+        amountCents: 300_000,
+      });
+      expect(expected.status).toBe(201);
+
+      const running = await call('GET', '/reports/month/onepager?month=2026-03');
+      expect(running.status).toBe(200);
+      expect(running.body).toMatchObject({
+        asOf: '2026-03-18',
+        partial: true,
+        result: { earnedCents: 0, consumptionCents: 60_000, savedCents: -60_000 },
+        expectedIncomeProgress: {
+          pendingCount: 1,
+          pendingCents: 300_000,
+          fromDueDate: '2026-03-31',
+          throughDueDate: '2026-03-31',
+        },
+      });
+      expect(running.body.findings).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            rule: 'R04',
+            cents: 300_000,
+          }),
+        ]),
+      );
+
+      app = createApp({ webDir, auth: signedIn, ledger: { db, today: () => '2026-04-01' } });
+      const closed = await call('GET', '/reports/month/onepager?month=2026-03');
+      expect(closed.status).toBe(200);
+      expect(closed.body).toMatchObject({
+        asOf: '2026-03-31',
+        partial: false,
+        expectedIncomeProgress: null,
+      });
+      expect(closed.body.result).toMatchObject({
+        earnedCents: 0,
+        consumptionCents: 60_000,
+        savedCents: -60_000,
+      });
+      expect(
+        closed.body.findings.some((finding: { rule: string | null }) => finding.rule === 'R04'),
+      ).toBe(false);
+    } finally {
+      opened.close();
+    }
+  });
+
   it('result chain, 50/30/20 shares and findings come from the same ledger', async () => {
     const r = await call('GET', '/reports/month/onepager?month=2026-03');
     expect(r.status).toBe(200);

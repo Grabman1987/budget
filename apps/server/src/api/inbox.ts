@@ -8,14 +8,15 @@ const page = z.object({
   limit: z.coerce.number().int().min(1).max(1000).optional(),
   offset: z.coerce.number().int().min(0).optional(),
   period: z.enum(['all', 'current', 'historical']).default('all'),
+  bankSource: z.string().uuid().optional(),
 });
 
 /** Actual queue behind the common session/origin guard; stored acknowledgement has one undo group. */
 export function inboxRoutes(db: Db, today: () => string): Hono {
   const app = new Hono();
   app.get('/', (c) => {
-    const { limit, offset, period } = readQuery(c, page);
-    const inbox = readInbox(db, today());
+    const { limit, offset, period, bankSource } = readQuery(c, page);
+    const inbox = readInbox(db, today(), bankSource);
     const filtered = inbox.entries.filter((entry) => inboxMatchesPeriod(entry, period, inbox.asOf));
     // Without `limit` the whole queue, as before; `count` always is the full number of tasks.
     if (limit === undefined) return c.json({ ...inbox, entries: filtered });

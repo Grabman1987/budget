@@ -15,7 +15,13 @@ export function validateInboxSearch(search: Record<string, unknown>) {
     )
       ? value
       : undefined;
+  const source = search['bankSource'];
   return {
+    bankSource:
+      typeof source === 'string' &&
+      /^[\da-f]{8}-[\da-f]{4}-[\da-f]{4}-[\da-f]{4}-[\da-f]{12}$/i.test(source)
+        ? source
+        : undefined,
     aufgaben: (search['aufgaben'] === 'current' || search['aufgaben'] === 'historical'
       ? search['aufgaben']
       : 'all') as InboxPeriod,
