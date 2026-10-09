@@ -116,7 +116,7 @@ export class PayslipScanner {
           }
           if ((file.size ?? 0) > RECEIPT_LIMIT) {
             errors++;
-            this.warning('PDF �berschreitet 15 MB. Bitte Datei manuell pr�fen.');
+            this.warning('PDF überschreitet 15 MB. Bitte Datei manuell prüfen.');
             continue;
           }
           let stage: ScanStage = 'download';
@@ -152,7 +152,7 @@ export class PayslipScanner {
             errors++;
             if (PERMANENT_SCAN_CLASSES.has(code))
               this.warning(
-                `Eine PDF konnte nicht verarbeitet werden (${code}). Bitte Datei manuell pr�fen.`,
+                `Eine PDF konnte nicht verarbeitet werden (${code}). Bitte Datei manuell prüfen.`,
               );
             else retry ??= code;
           }
