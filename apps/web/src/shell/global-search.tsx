@@ -61,6 +61,15 @@ const STATIC_ITEMS: PaletteItem[] = [
     detail: null,
   })),
 ];
+// Exact everyday terms lead only to existing functions, never to ledger data.
+const SEARCH_TERMS: Record<string, readonly string[]> = {
+  'page:/plan/monat': ['budget', 'monatsplanung'],
+  'page:/plan/jahr': ['jahresplanung'],
+  'report:liquiditaet': ['baby', 'einkommenspause', 'elternzeit', 'karenz', 'liquidität'],
+  'page:/plan/sparziele': ['sparen', 'sparziel', 'notgroschen'],
+  'page:/vermoegen/schulden': ['dispo', 'kredit', 'tilgung'],
+  'report:kosten': ['gebühren', 'bankgebühren', 'zinskosten'],
+};
 // Only IDs in session memory; dynamic choices are revalidated by the server on opening.
 let recent: Pick<PaletteItem, 'kind' | 'id'>[] = [];
 const itemKey = (item: Pick<PaletteItem, 'kind' | 'id'>) => `${item.kind}:${item.id}`;
@@ -157,16 +166,27 @@ export function GlobalSearch({ mobile = false }: { mobile?: boolean }) {
   const remote = !loading && query === text && !search.isError ? (search.data?.results ?? []) : [];
   const candidates = [
     ...remote,
-    ...STATIC_ITEMS.filter((item) => matchesSearch(`${item.label} ${item.id}`, text)),
+    ...STATIC_ITEMS.filter(
+      (item) =>
+        matchesSearch(`${item.label} ${item.id}`, text) ||
+        SEARCH_TERMS[itemKey(item)]?.includes(text.toLocaleLowerCase('de-AT')),
+    ),
   ];
   const results = [...new Map(candidates.map((item) => [itemKey(item), item])).values()];
+  const preferActions = COMMANDS.some(
+    (command) => command.label.toLocaleLowerCase('de-AT') === text.toLocaleLowerCase('de-AT'),
+  );
   results.sort((a, b) => {
+    if ((a.kind === 'action') !== (b.kind === 'action'))
+      return (a.kind === 'action') === preferActions ? -1 : 1;
     const rank = (item: PaletteItem) => {
       const position = recent.findIndex((r) => itemKey(r) === itemKey(item));
       return position < 0 ? recent.length : position;
     };
     return rank(a) - rank(b);
   });
+  const hits = results.filter((r) => r.kind !== 'action').length;
+  const actions = results.length - hits;
   const index = Math.min(active, results.length - 1);
   useEffect(() => {
     if (open && index >= 0)
@@ -263,7 +283,7 @@ export function GlobalSearch({ mobile = false }: { mobile?: boolean }) {
                 ? 'Die Suche ist nicht verfügbar.'
                 : results.length === 0
                   ? 'Keine Treffer.'
-                  : `${results.length} Treffer · zuletzt verwendet zuerst · ? Tastenkürzel`}
+                  : `${hits} Treffer · ${actions} globale Aktionen · zuletzt verwendet zuerst · ? Tastenkürzel`}
           </div>
           {query === text && search.isError && (
             <button type="button" className="btn btn-ghost" onClick={() => void search.refetch()}>
@@ -271,24 +291,39 @@ export function GlobalSearch({ mobile = false }: { mobile?: boolean }) {
             </button>
           )}
           <div id={listId} role="listbox" aria-label="Suchergebnisse" aria-busy={loading}>
-            {results.map((result, i) => (
-              <button
-                key={`${result.kind}-${result.id}`}
-                id={`${listId}-${i}`}
-                type="button"
-                role="option"
-                aria-selected={i === index}
-                tabIndex={-1}
-                className="global-search-result"
-                onMouseDown={(event) => event.preventDefault()}
-                onClick={() => select(result)}
+            {[preferActions, !preferActions].map((isAction) => (
+              <div
+                key={String(isAction)}
+                role="group"
+                aria-label={isAction ? 'Globale Aktionen' : 'Passende Treffer'}
               >
-                <span className="global-search-kind">{LABELS[result.kind]}</span>
-                <span className="global-search-label">
-                  {maskMoneyText(result.label)}
-                  {result.detail && <small>{maskMoneyText(result.detail)}</small>}
-                </span>
-              </button>
+                {results.some((r) => (r.kind === 'action') === isAction) && (
+                  <div className="global-search-group" aria-hidden="true">
+                    {isAction ? 'Globale Aktionen' : 'Passende Treffer'}
+                  </div>
+                )}
+                {results.map((result, i) =>
+                  (result.kind === 'action') === isAction ? (
+                    <button
+                      key={`${result.kind}-${result.id}`}
+                      id={`${listId}-${i}`}
+                      type="button"
+                      role="option"
+                      aria-selected={i === index}
+                      tabIndex={-1}
+                      className="global-search-result"
+                      onMouseDown={(event) => event.preventDefault()}
+                      onClick={() => select(result)}
+                    >
+                      <span className="global-search-kind">{LABELS[result.kind]}</span>
+                      <span className="global-search-label">
+                        {maskMoneyText(result.label)}
+                        {result.detail && <small>{maskMoneyText(result.detail)}</small>}
+                      </span>
+                    </button>
+                  ) : null,
+                )}
+              </div>
             ))}
           </div>
           <button type="button" className="btn btn-ghost" onClick={() => setHelp(true)}>

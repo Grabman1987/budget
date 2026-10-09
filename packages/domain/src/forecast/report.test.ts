@@ -42,6 +42,22 @@ describe('horizons', () => {
 });
 
 describe('liquidityReport', () => {
+  it('dates the deciding low within the unchanged six-month verdict, even with a shorter chart', () => {
+    const r = liquidityReport(
+      base({
+        items: [],
+        variableMonthlyCents: 0,
+        horizon: '90d',
+        events: [
+          { day: '2027-03-16', cents: -120_001, kind: 'event' },
+          { day: '2027-03-31', cents: 300_000, kind: 'event' },
+        ],
+      }),
+    );
+    expect(r.verdict).toMatchObject({ status: 'bad', day: '2027-03-16', shortfallCents: 20_001 });
+    expect(r.verdictEnd).toBe('2027-03-17');
+    expect(r.low?.cents).toBe(100_000);
+  });
   it('month rows add up from start to end and chain into each other', () => {
     const r = liquidityReport(base());
     expect(r.months.length).toBe(7);

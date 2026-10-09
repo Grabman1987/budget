@@ -66,10 +66,14 @@ export interface InboxPage extends InboxView {
 }
 export const INBOX_KEY = [...LEDGER_KEY, 'inbox'] as const;
 export const INBOX_PAGE_SIZE = 100;
-export const inboxQuery = () =>
+export const inboxQuery = (bankSource?: string) =>
   queryOptions({
-    queryKey: INBOX_KEY,
-    queryFn: () => request<InboxView>('GET', '/api/inbox'),
+    queryKey: bankSource ? [...INBOX_KEY, 'bank-source', bankSource] : INBOX_KEY,
+    queryFn: () =>
+      request<InboxView>(
+        'GET',
+        '/api/inbox' + (bankSource ? '?bankSource=' + encodeURIComponent(bankSource) : ''),
+      ),
     refetchInterval: 60_000,
   });
 export const inboxPagesQuery = () =>

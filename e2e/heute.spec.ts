@@ -356,7 +356,11 @@ test('empty Heute lists explain what has no rows', async ({ page }) => {
   await expect(
     page.getByText('Keine wiederkehrenden Zahlungen in diesem Zeitraum.').first(),
   ).toBeVisible();
-  await expect(page.getByText('Keine offenen Schritte aus den Heute-Prüfungen.')).toBeVisible();
+  await expect(
+    page.getByText(
+      'Keine zusätzlichen Schritte. Offene Punkte stehen unter „Braucht Aufmerksamkeit“.',
+    ),
+  ).toBeVisible();
   await expect(page.getByText('Noch keine Buchungen vorhanden.')).toBeVisible();
 });
 

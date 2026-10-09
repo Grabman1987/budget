@@ -1,0 +1,22 @@
+.plan-panel-detail {
+  min-width: 0;
+  display: grid;
+  gap: 24px;
+}
+.plan-panel-detail .insp-card {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.plan-panel-nav {
+  display: grid;
+  gap: 8px;
+}
+.plan-panel-nav a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+}
+.plan-panel-detail .kv dd {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}

@@ -8,7 +8,6 @@ import { eur, longDay } from '../ledger/format';
 import { ErrorNote, LoadingNote } from '../ledger/states';
 import { monthLabel } from '../nav/month';
 import { plannedEventsQuery, type PlannedEventView } from '../reports/liquidity-api';
-import { AppLink } from '../shell/app-link';
 import type { BudgetMonthView } from './budget-api';
 import { EventPanel, RECURRENCE_LABELS } from './event-panel';
 
@@ -116,7 +115,6 @@ export function YearPlanning({
                 Ohne Auswahl
               </button>
             </div>
-            <AppLink to="/reports/liquiditaet">Liquiditätsprognose · 3.1</AppLink>
           </div>
           <p className="year-note">
             Zu verteilen mit Ereignissen = „Zu verteilen“ laut gespeichertem Monatsplan + kumulierte

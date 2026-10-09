@@ -1,5 +1,5 @@
 import { useAmountPrivacy } from '@budget/ui';
-import { eur } from '../ledger/format';
+import { eur, shortDay } from '../ledger/format';
 import { monthLabel } from '../nav/month';
 import { AppLink } from '../shell/app-link';
 import type { Heute } from './api';
@@ -24,6 +24,66 @@ export function AnswerCards({
   return (
     <div className="heute-answers">
       <div className="heute-answer-grid">
+        <section className="heute-answer" aria-labelledby="answer-budget-title">
+          <h2 id="answer-budget-title">Frei bis Gehalt</h2>
+          <button
+            type="button"
+            className={`heute-answer-value${data.lead.freeCents < 0 ? ' heute-alert' : ''}`}
+            data-testid="heute-lead-value"
+            onClick={onBudgetClick}
+            aria-expanded={chainOpen}
+            aria-controls="heute-lead-chain"
+            aria-describedby="heute-plan-rest-note"
+            aria-label={`Frei verfügbar bis Gehalt: ${eur(data.lead.freeCents)}. Herleitung ${chainOpen ? 'ausblenden' : 'zeigen'}`}
+          >
+            {eur(data.lead.freeCents)}
+          </button>
+          <ProportionBar
+            value={budget.spentCents}
+            total={budget.plannedCents}
+            label={`Ausgegeben ${eur(budget.spentCents)} von Plan ${eur(budget.plannedCents)} · Tag ${budget.day} von ${budget.daysInMonth}`}
+            marker={budget.day / budget.daysInMonth}
+          />
+          <p>
+            Ausgabenplan: {eur(budget.spentCents)} ausgegeben von {eur(budget.plannedCents)} ·
+            Plan-Rest {eur(budget.remainingCents)}
+          </p>
+          <p>
+            Bis {shortDay(data.stand.payday.day)} · noch {data.stand.payday.daysToPayday} Tage
+          </p>
+          <p>
+            {data.balance.salary
+              ? `Nächster erwarteter Geldeingang: ${shortDay(data.balance.salary.day)} · ${eur(data.balance.salary.cents)}`
+              : 'Kein Geldeingang im Prognosezeitraum erwartet.'}
+          </p>
+          <p>
+            Tag {budget.day} von {budget.daysInMonth}
+          </p>
+        </section>
+        <section className="heute-answer" aria-labelledby="answer-month-title">
+          <h2 id="answer-month-title">Dieser Monat</h2>
+          <AppLink to="/reports/onepager" search={{ monat: data.stand.today.slice(0, 7) }}>
+            <strong
+              className={`heute-answer-value${month.savedCents <= 0 ? ' is-nonpositive' : ''}`}
+            >
+              {eur(month.savedCents)}
+            </strong>
+          </AppLink>
+          <ProportionBar
+            value={month.consumptionCents}
+            total={month.earnedCents}
+            label={`Ausgaben ${eur(month.consumptionCents)} von Haushaltseinnahmen ${eur(month.earnedCents)}`}
+          />
+          <p>Haushaltseinnahmen {eur(month.earnedCents)}</p>
+          <p>
+            Haushaltseinnahmen im {monthLabel(householdMonth)} nach Buchungsdatum. Mit „Für nächsten
+            Monat“ zählt der Zufluss im Plan erst im Folgemonat.{' '}
+            <AppLink to="/plan/monat/einnahmen" search={{ monat: householdMonth }}>
+              Planmonat {monthLabel(householdMonth)} ansehen
+            </AppLink>
+          </p>
+          <p>Ausgaben {eur(month.consumptionCents)}</p>
+        </section>
         <section className="heute-answer" aria-labelledby="answer-wealth-title">
           <h2 id="answer-wealth-title">Nettovermögen</h2>
           {net ? (
@@ -55,58 +115,6 @@ export function AnswerCards({
           ) : (
             <p>{'unavailable' in data.netWorth && data.netWorth.unavailable.message}</p>
           )}
-        </section>
-        <section className="heute-answer" aria-labelledby="answer-month-title">
-          <h2 id="answer-month-title">Dieser Monat</h2>
-          <AppLink to="/reports/onepager" search={{ monat: data.stand.today.slice(0, 7) }}>
-            <strong
-              className={`heute-answer-value${month.savedCents <= 0 ? ' is-nonpositive' : ''}`}
-            >
-              {eur(month.savedCents)}
-            </strong>
-          </AppLink>
-          <ProportionBar
-            value={month.consumptionCents}
-            total={month.earnedCents}
-            label={`Ausgaben ${eur(month.consumptionCents)} von Haushaltseinnahmen ${eur(month.earnedCents)}`}
-          />
-          <p>Haushaltseinnahmen {eur(month.earnedCents)}</p>
-          <p>
-            Haushaltseinnahmen im {monthLabel(householdMonth)} nach Buchungsdatum. Mit „Für nächsten
-            Monat“ zählt der Zufluss im Plan erst im Folgemonat.{' '}
-            <AppLink to="/plan/monat/einnahmen" search={{ monat: householdMonth }}>
-              Planmonat {monthLabel(householdMonth)} ansehen
-            </AppLink>
-          </p>
-          <p>Ausgaben {eur(month.consumptionCents)}</p>
-        </section>
-        <section className="heute-answer" aria-labelledby="answer-budget-title">
-          <h2 id="answer-budget-title">Frei bis Gehalt</h2>
-          <button
-            type="button"
-            className={`heute-answer-value${data.lead.freeCents < 0 ? ' heute-alert' : ''}`}
-            data-testid="heute-lead-value"
-            onClick={onBudgetClick}
-            aria-expanded={chainOpen}
-            aria-controls="heute-lead-chain"
-            aria-describedby="heute-plan-rest-note"
-            aria-label={`Frei verfügbar bis Gehalt: ${eur(data.lead.freeCents)}. Herleitung ${chainOpen ? 'ausblenden' : 'zeigen'}`}
-          >
-            {eur(data.lead.freeCents)}
-          </button>
-          <ProportionBar
-            value={budget.spentCents}
-            total={budget.plannedCents}
-            label={`Ausgegeben ${eur(budget.spentCents)} von Plan ${eur(budget.plannedCents)} · Tag ${budget.day} von ${budget.daysInMonth}`}
-            marker={budget.day / budget.daysInMonth}
-          />
-          <p>
-            Ausgabenplan: {eur(budget.spentCents)} ausgegeben von {eur(budget.plannedCents)} ·
-            Plan-Rest {eur(budget.remainingCents)}
-          </p>
-          <p>
-            Tag {budget.day} von {budget.daysInMonth}
-          </p>
         </section>
       </div>
       <p className="heute-answer-note" id="heute-plan-rest-note" data-testid="heute-plan-rest-note">
