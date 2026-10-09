@@ -7,16 +7,17 @@ import { join, resolve } from 'node:path';
 import { E2E_SETUP_TOKEN } from './setup-token';
 import { bootstrapPasskey } from './bootstrap';
 
-/** The day every isolated ledger runs on; the browser clock is pinned to it as well (see `page`). */
-const LEDGER_TODAY = '2026-10-02';
-const LEDGER_NOW = `${LEDGER_TODAY}T12:00:00+02:00`;
-
-type IsolatedLedger = { origin: string; storageState: string; databasePath: string };
+type IsolatedLedger = {
+  origin: string;
+  storageState: string;
+  databasePath: string;
+};
 const pause = (milliseconds: number) => new Promise((done) => setTimeout(done, milliseconds));
 
 /** A real, empty ledger per attempt: global valuation must not see another test's holdings. */
-export const test = base.extend<{ isolatedLedger: IsolatedLedger }>({
-  isolatedLedger: async ({ playwright }, use, info) => {
+export const test = base.extend<{ isolatedLedger: IsolatedLedger; ledgerToday: string }>({
+  ledgerToday: ['2026-10-02', { option: true }],
+  isolatedLedger: async ({ playwright, ledgerToday }, use, info) => {
     const port = Number(process.env['E2E_PORT'] ?? 4310) + 20 + info.parallelIndex;
     // Refuse an occupied port before starting or sending bootstrap credentials anywhere.
     await new Promise<void>((done, fail) => {
@@ -39,7 +40,7 @@ export const test = base.extend<{ isolatedLedger: IsolatedLedger }>({
         DATABASE_PATH: join(directory, 'ledger.sqlite'),
         BUDGET_ORIGIN: origin,
         BUDGET_SETUP_TOKEN: E2E_SETUP_TOKEN,
-        BUDGET_TODAY: LEDGER_TODAY,
+        BUDGET_TODAY: ledgerToday,
       },
     });
     let stopped = false;
@@ -83,7 +84,11 @@ export const test = base.extend<{ isolatedLedger: IsolatedLedger }>({
         await pause(100);
       }
       await bootstrapPasskey(bootstrap, origin, storageState);
-      await use({ origin, storageState, databasePath: join(directory, 'ledger.sqlite') });
+      await use({
+        origin,
+        storageState,
+        databasePath: join(directory, 'ledger.sqlite'),
+      });
     } finally {
       try {
         await bootstrap?.dispose();
@@ -94,8 +99,8 @@ export const test = base.extend<{ isolatedLedger: IsolatedLedger }>({
   },
   // The server's "today" is pinned (BUDGET_TODAY), so the browser's must be too: forms default
   // their date to the browser's today, and a day after the server's today is a future date to it.
-  page: async ({ page }, use) => {
-    await page.clock.setFixedTime(new Date(LEDGER_NOW));
+  page: async ({ page, ledgerToday }, use) => {
+    await page.clock.setFixedTime(new Date(`${ledgerToday}T12:00:00+02:00`));
     await use(page);
   },
   baseURL: async ({ isolatedLedger }, use) => use(isolatedLedger.origin),
