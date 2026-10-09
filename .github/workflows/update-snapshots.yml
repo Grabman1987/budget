@@ -1,49 +1,69 @@
-name: Update e2e snapshots
+name: Final full-check preflight for pace 265 and globals
 
-# Manual only. Regenerates the Playwright screenshot baselines on Linux (the CI platform) for one
-# branch and commits them back, for PRs that change the UI on purpose. The owner's Windows machine
-# and the cloud sessions cannot produce Linux baselines themselves.
-# Commits pushed with GITHUB_TOKEN do not start CI: push any commit afterwards (or re-run CI).
 on:
   workflow_dispatch:
     inputs:
       branch:
-        description: Branch whose baselines to update (never main)
+        description: Candidate helper branch to validate (never main)
         required: true
+        type: string
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
-  group: update-snapshots-${{ inputs.branch }}
-  cancel-in-progress: true
+  group: pace-265-final-globals-preflight-${{ inputs.branch }}
+  cancel-in-progress: false
 
 jobs:
-  update:
+  preflight:
     if: inputs.branch != 'main'
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ inputs.branch }}
+          fetch-depth: 2
+          persist-credentials: false
+
+      - name: Prove source parent and workflow-only helper before npm ci
+        env:
+          SOURCE_SHA: 29f7fdbecfd5ac8d0238c5bc9b0f5053d62db770
+        run: |
+          git cat-file -e "$SOURCE_SHA^{commit}"
+          test "$(git rev-parse HEAD^)" = "$SOURCE_SHA"
+          git diff --exit-code "$SOURCE_SHA" HEAD -- . ':(exclude).github/workflows/update-snapshots.yml'
+          git diff --check "$SOURCE_SHA" HEAD
+          test -z "$(git status --porcelain --untracked-files=all)"
+          echo "Verified helper parent $SOURCE_SHA and workflow-only diff before npm ci."
+
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version-file: .nvmrc
           cache: npm
-      - run: npm ci
-      - name: Install Chromium and WebKit
-        run: npx playwright install --with-deps chromium webkit
-      # Non-screenshot failures are reported by the normal CI run on the PR, not here.
-      - name: Regenerate changed screenshots
-        run: npm run build:e2e && (npx playwright test --update-snapshots=changed || true)
-      - name: Commit the new baselines
+
+      - name: Install locked dependencies
+        run: npm ci
+
+      - name: Run full type, lint, format, and unit gate
         env:
-          BRANCH: ${{ inputs.branch }}
+          BUDGET_REQUIRE_AGE: '1'
         run: |
-          git config user.name 'github-actions[bot]'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add -A -- e2e
-          if git diff --cached --quiet; then echo 'No baseline changes.'; exit 0; fi
-          git commit -m 'test: update e2e screenshot baselines (Linux)'
-          git push origin "HEAD:refs/heads/$BRANCH"
+          sudo apt-get update
+          sudo apt-get install -y age
+          npm run check
+
+      - name: Verify source, worktree, and index stayed clean
+        if: always()
+        env:
+          SOURCE_SHA: 29f7fdbecfd5ac8d0238c5bc9b0f5053d62db770
+        run: |
+          git cat-file -e "$SOURCE_SHA^{commit}"
+          test "$(git rev-parse HEAD^)" = "$SOURCE_SHA"
+          git diff --exit-code "$SOURCE_SHA" HEAD -- . ':(exclude).github/workflows/update-snapshots.yml'
+          git diff --check "$SOURCE_SHA" HEAD
+          git diff --exit-code
+          git diff --cached --exit-code
+          test -z "$(git status --porcelain --untracked-files=all)"
+          echo "Source, worktree, and index are clean; no baseline or application changes were produced."
