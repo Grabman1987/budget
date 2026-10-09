@@ -64,6 +64,15 @@ Older CI/publication checkboxes below describe their original deliveries. Curren
 - [x] Independent source/raw-data review has no concrete findings; final repository check passes type/lint/format and 379 files / 3,504 tests, with the frozen 2,114-file manifest unchanged.
 - [ ] Exact-head CI and integration/deployment.
 
+### #281 — One Heute request and renderer profile — 2026-10-09
+
+- [x] Extend the existing bounded synthetic harnesses with opt-in `--profile`: process CPU and observed SQLite statement work around the payday request, renderer main-thread CDP counters and DOM counts around complete usable content. Keep default measurements and financial-data guards unchanged.
+- [x] Complete ten cold and ten warm samples in each layer, with matching payload hashes, 180 successful browser GETs, unchanged finance fingerprints and session cleanup. Independently retain sanitized raw JSONL samples and distinguish overlapping counters from wall time and full rendering. [Results and limits](evidence/heute-profile-281.md).
+- [x] Production build, dedicated strict harness typecheck, scoped lint/format and real repository-file rejection checks pass. The reviewed rule-book baseline/doc parent follow-up preserves the measured harness and production bundle hashes.
+- [x] Independent final source/raw-data review has no concrete findings; frozen full repository check passes typecheck, lint, formatting and 380 files / 3,508 tests, with all 2,128 recorded file hashes unchanged.
+- [ ] Exact-head CI and integration/deployment.
+- [ ] Physical iPhone Safari and private financial acceptance remain separate; this local synthetic profile supplies no infrastructure bottleneck or Fly-scaling recommendation.
+
 ### #302 — Dated historical class exposure — 2026-10-08
 
 - [x] Add a synthetic two-version API case with literal EUR cents, effective dates, January and February month-end index levels, and hand-derived class TTWROR; the prepared case and existing full portfolio API / exposure-repository regressions pass (2 files / 19 tests). No calculation defect was reproduced and no production formula was changed. [Evidence](evidence/dated-exposure-302.md).
