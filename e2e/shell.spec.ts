@@ -212,34 +212,10 @@ test.describe('panel via route param', () => {
     await expect(page).toHaveURL(/\/konten$/);
   });
 
-  test('phone: the panel is a bottom sheet, desktop: a 420 px side panel', async ({
-    page,
-  }, testInfo) => {
-    await page.emulateMedia({ reducedMotion: 'reduce' });
+  test('retired example panel does not open product content', async ({ page }) => {
     await page.goto('/?panel=beispiel');
-    const dialog = page.getByRole('dialog', { name: 'Details' });
-    await expect(dialog).toBeVisible();
-    // The sheet slides in; sample its box until the animation has settled.
-    let previous = '';
-    await expect
-      .poll(async () => {
-        const now = JSON.stringify(await dialog.boundingBox());
-        const settled = now === previous;
-        previous = now;
-        return settled;
-      })
-      .toBe(true);
-    const box = await dialog.boundingBox();
-    const viewport = page.viewportSize();
-    expect(box && viewport).toBeTruthy();
-    if (!box || !viewport) return;
-    if (isPhone(testInfo)) {
-      expect(Math.round(box.y + box.height)).toBe(viewport.height);
-      expect(Math.round(box.width)).toBe(viewport.width);
-    } else {
-      expect(Math.round(box.width)).toBe(420);
-      expect(Math.round(box.x + box.width)).toBe(viewport.width);
-    }
+    await expect(page.getByRole('main')).toBeVisible();
+    await expect(page.getByRole('dialog')).toHaveCount(0);
   });
 });
 

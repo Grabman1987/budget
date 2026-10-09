@@ -61,12 +61,12 @@ test('contact statement: edited allocation, excess credit, undo and retained bal
     });
   }
   await page.goto('/konten/kontakte');
-  await expect(page.getByRole('button', { name: tag, exact: true })).toBeVisible();
+  await expect(page.getByRole('link', { name: tag, exact: true })).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(
     true,
   );
-  await page.getByRole('button', { name: tag, exact: true }).click();
-  const panel = page.getByRole('dialog', { name: tag });
+  await page.getByRole('link', { name: tag, exact: true }).click();
+  const panel = page.getByRole('region', { name: 'Kontaktkontoauszug' });
   await expect(panel.locator('.contacts-balance')).toContainText('100,00 €');
   await panel.getByRole('button', { name: 'Rückzahlung buchen', exact: true }).click();
   const accountSelect = panel.getByLabel('Konto', { exact: true });
@@ -138,12 +138,12 @@ test('contact statement: edited allocation, excess credit, undo and retained bal
   await page.reload();
   // The selected statement now survives reload through its URL, including balanced history.
   await expect(panel.locator('.contacts-balance')).toContainText('0,00 €');
-  await page.keyboard.press('Escape');
+  await page.getByRole('link', { name: 'Zurück zu Kontakte', exact: true }).click();
   await expect(panel).toBeHidden();
   await expect(page).not.toHaveURL(/kontakt=/);
-  await expect(page.getByRole('button', { name: tag, exact: true })).toHaveCount(0);
+  await expect(page.getByRole('link', { name: tag, exact: true })).toHaveCount(0);
   await page.getByLabel('Auch ausgeglichene Kontakte').check();
-  await page.getByRole('button', { name: tag, exact: true }).click();
+  await page.getByRole('link', { name: tag, exact: true }).click();
   await expect(panel.locator('.contacts-balance')).toContainText('0,00 €');
   await expect(panel).toContainText('Verlauf');
 });

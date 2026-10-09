@@ -1,7 +1,7 @@
 import {
   useAmountPrivacy,
   AmountInput,
-  BottomSheet,
+  FormDialog,
   Button,
   ClassTag,
   Count,
@@ -13,7 +13,6 @@ import {
   RevisionTable,
   SectionHead,
   Segmented,
-  SidePanel,
   SourceStamp,
   StatusMark,
   Switch,
@@ -27,9 +26,10 @@ import {
 } from '@budget/ui';
 import { cents } from '@budget/domain';
 import { formatEuro } from '@budget/domain/money';
-import { Link } from '@tanstack/react-router';
+import { Link, useNavigate } from '@tanstack/react-router';
 import { useState, type CSSProperties } from 'react';
 import { ChartPrimitivesShowcase } from './bauteile-charts';
+import { AppLink } from '../shell/app-link';
 
 const TOKEN_ROLES = [
   'ground',
@@ -211,7 +211,8 @@ function Amount() {
 
 function Chains() {
   useAmountPrivacy();
-  const [panel, setPanel] = useState<string | null>(null);
+  const navigate = useNavigate();
+  const setPanel = (titel: string) => void navigate({ to: '/dev/details', search: { titel } });
   const [drawingOpen, setDrawingOpen] = useState(true);
   return (
     <section aria-labelledby="massketten" id="massketten">
@@ -285,9 +286,6 @@ function Chains() {
         minus={{ key: 'Schulden', label: 'Schulden', cents: cents(1217600), kind: 'debt' }}
         result={{ label: 'Nettovermögen', cents: cents(8473000) }}
       />
-      <SidePanel open={panel !== null} onClose={() => setPanel(null)} title={panel ?? ''}>
-        <p>Einzelposten von „{panel}“ erscheinen hier im Seitenpanel.</p>
-      </SidePanel>
     </section>
   );
 }
@@ -394,32 +392,52 @@ function Revisions() {
 
 function Overlays() {
   useAmountPrivacy();
-  const [side, setSide] = useState(false);
-  const [sheet, setSheet] = useState(false);
+  const [open, setOpen] = useState(false);
   const [amount, setAmount] = useState('');
   return (
     <section aria-labelledby="ueberlagerungen" id="ueberlagerungen">
-      <SectionHead id="ueberlagerungen" title="Seitenpanel und Bottom Sheet" detail={7} />
+      <SectionHead id="ueberlagerungen" title="Detailseite und Eingabedialog" detail={7} />
       <p className="dev-note">
-        Nativer Dialog: Fokus wird gehalten, Esc schließt, Fokus kehrt zurück. Desktop Seitenpanel,
-        Handy Sheet von unten.
+        Details öffnen eine Unterseite. Eingaben stehen im Formulardialog; Esc schließt und der
+        Fokus kehrt zurück. Auf dem Handy erscheint das Formular als Sheet.
       </p>
       <div className="dev-row">
-        <Button variant="ghost" onClick={() => setSide(true)}>
-          Seitenpanel öffnen
-        </Button>
-        <Button variant="ghost" onClick={() => setSheet(true)}>
-          Bottom Sheet öffnen
+        <AppLink className="btn btn-ghost" to="/dev/details" search={{}}>
+          Detailseite öffnen
+        </AppLink>
+        <Button variant="ghost" onClick={() => setOpen(true)}>
+          Eingabedialog öffnen
         </Button>
       </div>
-      <SidePanel open={side} onClose={() => setSide(false)} title="Kontostand prüfen">
-        <AmountInput label="Saldo laut Bank" value={amount} onChange={setAmount} />
-        <Button onClick={() => setSide(false)}>Festschreiben</Button>
-      </SidePanel>
-      <BottomSheet open={sheet} onClose={() => setSheet(false)} title="Buchung">
-        <AmountInput label="Betrag" value={amount} onChange={setAmount} sign={'−'} />
-        <Button onClick={() => setSheet(false)}>Speichern</Button>
-      </BottomSheet>
+      <FormDialog open={open} onClose={() => setOpen(false)} title="Kontostand prüfen">
+        {open && (
+          <form
+            className="bkform"
+            onSubmit={(event) => {
+              event.preventDefault();
+              setOpen(false);
+            }}
+          >
+            <div className="bk-head">
+              <h2 className="bk-kind-fixed">Kontostand prüfen</h2>
+              <button
+                type="button"
+                className="icon-btn"
+                aria-label="Schließen"
+                onClick={() => setOpen(false)}
+              >
+                ×
+              </button>
+            </div>
+            <div className="bk-body">
+              <AmountInput label="Saldo laut Bank" value={amount} onChange={setAmount} />
+            </div>
+            <div className="bk-foot">
+              <Button type="submit">Festschreiben</Button>
+            </div>
+          </form>
+        )}
+      </FormDialog>
     </section>
   );
 }

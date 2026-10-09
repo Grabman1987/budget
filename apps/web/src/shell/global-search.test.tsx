@@ -2,12 +2,16 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { GlobalSearch } from './global-search';
+import { SearchResults } from './global-search';
 import { REPORTS } from '../nav/reports-catalog';
 import { amountsHidden, setAmountsHidden } from '@budget/ui';
 
 const navigate = vi.fn();
-vi.mock('@tanstack/react-router', () => ({ useNavigate: () => navigate }));
+vi.mock('@tanstack/react-router', async (importOriginal) => ({
+  ...(await importOriginal<Record<string, unknown>>()),
+  useNavigate: () => navigate,
+  useSearch: () => ({ von: '/plan/monat?monat=2026-09' }),
+}));
 beforeEach(() => {
   navigate.mockClear();
   setAmountsHidden(false);
@@ -31,7 +35,7 @@ beforeEach(() => {
 function mount() {
   render(
     <QueryClientProvider client={new QueryClient()}>
-      <GlobalSearch />
+      <SearchResults />
     </QueryClientProvider>,
   );
   const input = screen.getByRole('combobox', { name: 'Suchen' });
@@ -203,11 +207,17 @@ describe('command palette', () => {
         expect(screen.getByRole('option', { name: new RegExp(label!) })).toBeTruthy(),
       );
       fireEvent.keyDown(input, { key: 'Enter' });
-      expect(navigate).toHaveBeenLastCalledWith(
-        expect.objectContaining({ to: '.', search: expect.any(Function) }),
-      );
       const call = navigate.mock.calls.at(-1)![0];
-      expect(call.search({ monat: '2026-09' })).toEqual({ monat: '2026-09', panel });
+      if (panel === 'buchung')
+        expect(call).toMatchObject({
+          to: '/plan/monat',
+          search: { monat: '2026-09', panel: 'buchung' },
+        });
+      else
+        expect(call).toMatchObject({
+          to: '/konten/posteingang',
+          search: { von: '/plan/monat?monat=2026-09' },
+        });
       fireEvent.focus(input);
       expect(screen.getAllByRole('option')[0]?.textContent).toContain(label);
     }

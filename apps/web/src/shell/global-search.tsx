@@ -1,8 +1,8 @@
-import { useAmountPrivacy, maskMoneyText, DetailPanel, setAmountsHidden } from '@budget/ui';
+import { useAmountPrivacy, maskMoneyText, TitleBlock, setAmountsHidden } from '@budget/ui';
 import { closeEntryMonth, matchesSearch, todayInVienna } from '@budget/domain';
 import type { GlobalSearchResult, SearchKind } from '@budget/db';
 import { useQuery } from '@tanstack/react-query';
-import { useNavigate } from '@tanstack/react-router';
+import { useLocation, useNavigate, useRouter, useSearch } from '@tanstack/react-router';
 import { Search } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { request } from '../api/http';
@@ -11,6 +11,7 @@ import { AREAS } from '../nav/areas';
 import { REPORTS } from '../nav/reports-catalog';
 import { isTyping } from './capture-shortcut';
 import { KeyboardShortcuts } from './keyboard-shortcuts';
+import { AppLink } from './app-link';
 import './global-search.css';
 
 type PaletteItem = Omit<GlobalSearchResult, 'kind'> & {
@@ -69,36 +70,153 @@ function destination(result: PaletteItem) {
   if (result.kind === 'report') return { to: `/reports/${result.id}`, search: {} };
   if (result.kind === 'account')
     return { to: `/konten/${encodeURIComponent(result.id)}`, search: {} };
-  if (result.kind === 'contact') return { to: '/konten/kontakte', search: { kontakt: result.id } };
+  if (result.kind === 'contact')
+    return { to: `/konten/kontakte/${encodeURIComponent(result.id)}`, search: {} };
   const key =
     result.kind === 'category' ? 'kategorie' : result.kind === 'payee' ? 'empfaenger' : 'buchung';
   return { to: '/konten/buchungen', search: { [key]: result.id } };
 }
 
-/** Same query and keyboard flow on desktop and in the phone's existing bottom-sheet primitive. */
+/** Header entry point; both viewports use the same deep-linkable result page. */
 export function GlobalSearch({ mobile = false }: { mobile?: boolean }) {
+  const navigate = useNavigate();
+  const router = useRouter();
+  const location = useLocation();
+  const trigger = useRef<HTMLButtonElement>(null);
+  const previousPath = useRef(location.pathname);
+  const [help, setHelp] = useState(false);
+  useEffect(() => {
+    if (
+      previousPath.current === '/suche' &&
+      location.pathname !== '/suche' &&
+      window.matchMedia('(max-width: 767px)').matches === mobile
+    )
+      trigger.current?.focus();
+    previousPath.current = location.pathname;
+  }, [location.pathname, mobile]);
+  const open = () => {
+    const focus = () => {
+      const input = document.getElementById('search-query') as HTMLInputElement | null;
+      input?.focus();
+      input?.select();
+    };
+    const current = router.state.location;
+    if (current.pathname === '/suche') focus();
+    else
+      void navigate({ to: '/suche', search: { von: current.href } }).then(() =>
+        requestAnimationFrame(focus),
+      );
+  };
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      if (
+        window.matchMedia('(max-width: 767px)').matches !== mobile ||
+        event.defaultPrevented ||
+        document.querySelector('dialog[open]')
+      )
+        return;
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'k') {
+        event.preventDefault();
+        open();
+      } else if (
+        event.key === '?' &&
+        !event.ctrlKey &&
+        !event.metaKey &&
+        !event.altKey &&
+        !event.repeat &&
+        !isTyping(event.target)
+      ) {
+        event.preventDefault();
+        setHelp(true);
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  });
+  return (
+    <>
+      <button
+        ref={trigger}
+        id={mobile ? 'global-search-mobile' : 'global-search'}
+        type="button"
+        className={mobile ? 'icon-btn global-search-trigger' : 'search global-search-launch'}
+        aria-label="Suchen"
+        aria-keyshortcuts="Control+k Meta+k"
+        onClick={open}
+      >
+        <Search className="icon" size={18} strokeWidth={1.75} aria-hidden="true" />
+        {!mobile && (
+          <>
+            <span>Suchen: Seiten, Reports, Buchungen, Aktionen</span>
+            <span className="kbd" aria-hidden="true">
+              Strg K
+            </span>
+          </>
+        )}
+      </button>
+      <KeyboardShortcuts open={help} onClose={() => setHelp(false)} />
+    </>
+  );
+}
+
+export function SearchPage() {
+  const search = useSearch({ strict: false }) as { q?: string; von?: string };
+  return (
+    <section className="search-page">
+      <TitleBlock title="Suchen" />
+      <nav aria-label="Brotkrumen">
+        <SearchBack source={search.von} />
+        {' › '}
+        <span aria-current="page">Suchen</span>
+      </nav>
+      <SearchResults />
+    </section>
+  );
+}
+
+function SearchBack({ source }: { source?: string | undefined }) {
+  const url = new URL(source ?? '/', 'https://budget.invalid');
+  return (
+    <AppLink
+      className="btn btn-ghost"
+      to={url.pathname}
+      search={Object.fromEntries(url.searchParams)}
+    >
+      Zurück zur vorherigen Ansicht
+    </AppLink>
+  );
+}
+
+/** Reuses the existing provider, ranking, privacy and arrow/Enter selection. */
+export function SearchResults() {
+  const routeSearch = useSearch({ strict: false }) as { q?: string; von?: string };
+  const source = new URL(routeSearch.von ?? '/', 'https://budget.invalid');
   const hidden = useAmountPrivacy();
   const input = useRef<HTMLInputElement>(null);
   const container = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(true);
   const [help, setHelp] = useState(false);
-  const [value, setValue] = useState('');
+  const [value, setValue] = useState(routeSearch.q ?? '');
   const [query, setQuery] = useState('');
   const [active, setActive] = useState(0);
   const text = value.trim();
-  const listId = mobile ? 'global-search-mobile-results' : 'global-search-results';
+  const listId = 'global-search-results';
+  const close = () =>
+    void navigate({
+      to: source.pathname,
+      search: Object.fromEntries(source.searchParams),
+    } as never);
 
   useEffect(() => {
     const timer = window.setTimeout(() => setQuery(text), 180);
     return () => window.clearTimeout(timer);
   }, [text]);
   useEffect(() => {
-    if (mobile && open) input.current?.focus();
-  }, [mobile, open]);
+    input.current?.focus();
+  }, []);
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
-      if (window.matchMedia('(max-width: 767px)').matches !== mobile) return;
       if (
         event.key === 'Escape' &&
         !event.defaultPrevented &&
@@ -110,6 +228,7 @@ export function GlobalSearch({ mobile = false }: { mobile?: boolean }) {
         event.preventDefault();
         input.current?.focus();
         setOpen(false);
+        close();
         return;
       }
       if (
@@ -135,7 +254,7 @@ export function GlobalSearch({ mobile = false }: { mobile?: boolean }) {
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [mobile, open, help]);
+  });
 
   const history = recent.filter(
     (r) => r.kind !== 'page' && r.kind !== 'report' && r.kind !== 'action',
@@ -177,12 +296,18 @@ export function GlobalSearch({ mobile = false }: { mobile?: boolean }) {
       { kind: result.kind, id: result.id },
       ...recent.filter((r) => itemKey(r) !== itemKey(result)),
     ].slice(0, 8);
+    if (result.kind === 'action' && result.id === 'privacy') {
+      setAmountsHidden(!hidden);
+      input.current?.focus();
+      return;
+    }
     setOpen(false);
-    setValue('');
     setActive(0);
     input.current?.blur();
     if (result.kind === 'action') {
       if (result.id === 'privacy') setAmountsHidden(!hidden);
+      else if (result.id === 'posteingang')
+        void navigate({ to: '/konten/posteingang', search: { von: routeSearch.von } });
       else if (result.id === 'monatsabschluss')
         void navigate({
           to: `/monatsabschluss/${closeEntryMonth(todayInVienna()) ?? todayInVienna().slice(0, 7)}`,
@@ -190,27 +315,21 @@ export function GlobalSearch({ mobile = false }: { mobile?: boolean }) {
         } as never);
       else
         void navigate({
-          to: '.',
-          search: ((prev: Record<string, unknown>) => ({ ...prev, panel: result.id })) as never,
+          to: source.pathname,
+          search: { ...Object.fromEntries(source.searchParams), panel: result.id } as never,
           state: { panelOpenedInApp: true } as never,
         });
     } else void navigate(destination(result) as never);
   };
 
   const field = (
-    <div
-      className={`global-search ${mobile ? 'is-mobile' : 'search'}`}
-      ref={container}
-      onBlur={(event) => {
-        if (!mobile && !help && !event.currentTarget.contains(event.relatedTarget)) setOpen(false);
-      }}
-    >
+    <div className="global-search is-mobile" ref={container}>
       <label className="global-search-field">
         <span className="sr-only">Suchen</span>
         <Search className="icon" size={18} strokeWidth={1.75} aria-hidden="true" />
         <input
           ref={input}
-          id={mobile ? 'global-search-mobile' : 'global-search'}
+          id="search-query"
           type="search"
           role="combobox"
           aria-expanded={open}
@@ -226,6 +345,11 @@ export function GlobalSearch({ mobile = false }: { mobile?: boolean }) {
           onFocus={() => setOpen(true)}
           onChange={(event) => {
             setValue(event.target.value);
+            void navigate({
+              to: '/suche',
+              search: { ...routeSearch, q: event.target.value || undefined },
+              replace: true,
+            });
             setActive(0);
             setOpen(true);
           }}
@@ -233,6 +357,7 @@ export function GlobalSearch({ mobile = false }: { mobile?: boolean }) {
             if (event.key === 'Escape') {
               event.preventDefault();
               setOpen(false);
+              close();
               return;
             }
             if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
@@ -248,11 +373,6 @@ export function GlobalSearch({ mobile = false }: { mobile?: boolean }) {
             }
           }}
         />
-        {!mobile && (
-          <span className="kbd" aria-hidden="true">
-            Strg K
-          </span>
-        )}
       </label>
       {open && (
         <div className="global-search-popup">
@@ -301,24 +421,7 @@ export function GlobalSearch({ mobile = false }: { mobile?: boolean }) {
   return (
     <>
       <KeyboardShortcuts open={help} onClose={() => setHelp(false)} />
-      {mobile ? (
-        <>
-          <button
-            type="button"
-            className="icon-btn global-search-trigger"
-            aria-label="Suchen"
-            aria-haspopup="dialog"
-            onClick={() => setOpen(true)}
-          >
-            <Search size={18} strokeWidth={1.75} aria-hidden="true" />
-          </button>
-          <DetailPanel open={open} onClose={() => setOpen(false)} title="Suchen">
-            {field}
-          </DetailPanel>
-        </>
-      ) : (
-        field
-      )}
+      {field}
     </>
   );
 }

@@ -2,6 +2,30 @@
   display: block;
   position: relative;
 }
+.global-search-launch {
+  height: 40px;
+  padding: 0 70px 0 38px;
+  border: 1px solid var(--rule-strong);
+  border-radius: var(--radius-md);
+  background: var(--raised);
+  color: var(--ink-3);
+  text-align: left;
+}
+.global-search-launch > span:first-of-type {
+  display: block;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.search-page {
+  max-width: var(--page-max);
+}
+.search-page nav {
+  margin-block: 16px;
+}
+.search-page nav a {
+  min-height: 44px;
+}
 .shortcut-list dt {
   margin-top: 16px;
   font-family: var(--font-tech);
@@ -12,13 +36,9 @@
   color: var(--ink-2);
 }
 .global-search-popup {
-  position: absolute;
-  inset: calc(100% + 8px) 0 auto;
   background: var(--raised);
   border: 1px solid var(--line-2);
   border-radius: var(--radius-md);
-  max-height: min(60vh, 480px);
-  overflow-y: auto;
 }
 .global-search-status {
   padding: 12px;
