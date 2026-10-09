@@ -745,6 +745,14 @@ Price history (yfinance + Ariva, source per price), ECB rates, trades and holdin
 - [x] Per-loan payment terms live in Einstellungen › Konten; on top: dated rate changes (variable conditions, versioned, audited, undoable, used by the payoff schedule), persisted scenarios per loan (one-off and recurring Sondertilgung, rate change, higher installment) compared with the baseline (payoff month, interest, interest saved, months earlier; shared integer-cent domain calculation, migration 0033) and an avalanche/snowball comparison for two or more debts (credit cards with a balance included) with an extra monthly amount; decision support only, no payments or bookings; German UI, light/dark, desktop/phone (form dialogs per docs/mobile-panels.md). Limits: monthly model, no prepayment penalties, strategies use the rate in force at the model start.
 - [ ] Connected debt/card rules and private contractual reconciliation remain later
 
+### Debt explanation and full-width package (#294 #296 #342 #343)
+- [x] Explain negative net account values versus negative native-currency cash strategy candidates, including a positive-net depot with negative cash; preserve both existing calculations (#294).
+- [x] Link the debt model to the existing liquidity forecast with its budget-account scope and an explicit no-transfer/no-affordability-claim boundary (#296).
+- [x] Stack the calculation lead and model at full width; preserve numeric comparison columns (#342).
+- [x] Audit the loan summary: baseline and scenarios already follow the model at full width; no remaining layout code change (#343).
+- [x] Scoped local verification and synthetic desktop/390px browser evidence. See [delivery evidence](evidence/debts-scope-1009/README.md).
+- [ ] Required CI and owner visual acceptance; pre-existing loan-dialog trigger-focus restoration remains a separate gap.
+
 ### P5.8 — Freiheitszahl: forecast from today
 - [x] Connected current R16 expense/investment sources and configurable multiple; explicit unknown quote/FX and short-history annualisation, original lead/chain/quarter progress and source navigation.
 - [x] Explicit unsaved saving assumption and 5 % real-return default; shared monthly projection with +100 EUR comparison, bounded numeric errors, desktop/mobile light/dark and accessible values.
