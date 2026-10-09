@@ -102,6 +102,19 @@ export function unlinkedBankTargets(db: Executor, accountId: string, from: strin
 }
 
 /**
+ * The unique index on (account, import key) also covers soft-deleted rows. An undone bank booking
+ * keeps its key (re-confirmation revives that row), so a different booking must not claim it:
+ * the bank_source_id link alone identifies the match then.
+ */
+function bankKeyTaken(tx: Executor, accountId: string, importKey: string) {
+  return !!tx
+    .select({ id: booking.id })
+    .from(booking)
+    .where(and(eq(booking.accountId, accountId), eq(booking.importKey, importKey)))
+    .get();
+}
+
+/**
  * Tie an existing booking to a bank line without touching what the owner entered: date, status,
  * category, splits and notes stay. Only the raw bank data and, when the booking has no import
  * key of its own, the bank key are added.
@@ -122,7 +135,9 @@ export function linkBankReference(
       bankRawText: line.memo,
       bankRawPayee: line.rawPayee,
       bankSourceId: line.sourceId,
-      ...(row.importKey ? {} : { importKey: BANK_KEY_PREFIX + line.dedupeKey }),
+      ...(row.importKey || bankKeyTaken(tx, row.accountId, BANK_KEY_PREFIX + line.dedupeKey)
+        ? {}
+        : { importKey: BANK_KEY_PREFIX + line.dedupeKey }),
     },
     ctx,
   );
@@ -211,7 +226,12 @@ function adoptBankReference(
   importKey: string,
   grouped: AuditContext,
 ) {
-  const patch = { date, source: 'bank' as const, importKey, status: 'confirmed' as const };
+  const patch = {
+    date,
+    source: 'bank' as const,
+    ...(bankKeyTaken(tx, target.accountId, importKey) ? {} : { importKey }),
+    status: 'confirmed' as const,
+  };
   if (target.transferId || target.splits.some((s) => s.transferId)) {
     updateTracked(tx, booking, [target.id], patch, grouped);
     const touched = relatedTransferBookings(tx, target.id);
