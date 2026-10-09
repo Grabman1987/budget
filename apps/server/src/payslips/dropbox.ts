@@ -97,6 +97,15 @@ export function eligiblePayslipPath(root: string, path: string) {
   const parts = full.slice(base.length + 1).split('/');
   return /\.pdf$/i.test(parts.at(-1) ?? '') && (parts.length === 1 || /^\d{4}$/.test(parts[0]!));
 }
+/** Year of the first path segment below the root when it is a four-digit folder; else null. */
+export function payslipFolderYear(root: string, path: string) {
+  const base = root.replace(/\/$/, '').toLowerCase(),
+    parts = path
+      .toLowerCase()
+      .slice(base.length + 1)
+      .split('/');
+  return parts.length > 1 && /^\d{4}$/.test(parts[0]!) ? Number(parts[0]) : null;
+}
 async function boundedBody(response: Response, limit: number) {
   const reader = response.body?.getReader();
   if (!reader) throw new DropboxError('provider');

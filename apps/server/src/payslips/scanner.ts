@@ -1,12 +1,21 @@
 import {
   findPayslipIntake,
   getPayslipIntake,
+  payslipRecordsStart,
   readPayslipScan,
+  readPayslipScanStart,
+  reevaluatePayslipIntake,
   writePayslipScan,
+  writePayslipScanStart,
   type Db,
 } from '@budget/db';
 import { RECEIPT_LIMIT } from '../receipts/files';
-import { DropboxError, eligiblePayslipPath, type DropboxPayslipSource } from './dropbox';
+import {
+  DropboxError,
+  eligiblePayslipPath,
+  payslipFolderYear,
+  type DropboxPayslipSource,
+} from './dropbox';
 import {
   FATAL_SCAN_CLASSES,
   PERMANENT_SCAN_CLASSES,
@@ -26,6 +35,8 @@ export function nextPayslipScan(now: Date) {
 }
 export class PayslipScanner {
   private running = false;
+  /** Counts of the last run; no names or paths. */
+  lastRun = { skippedBeforeStart: 0, alreadyRecorded: 0 };
   constructor(
     private readonly db: Db,
     private readonly source: DropboxPayslipSource,
@@ -33,10 +44,18 @@ export class PayslipScanner {
   ) {}
   async tick(now = new Date()) {
     const old = readPayslipScan(this.db);
-    if (this.running || (old?.root === this.source.root && old.nextRunAt > now.toISOString()))
+    // A changed records start (or the first run with one) needs one full listing to apply it.
+    const start = payslipRecordsStart(this.db),
+      startYear = start ? Number(start.slice(0, 4)) : null,
+      stale = start !== null && readPayslipScanStart(this.db) !== start;
+    if (
+      this.running ||
+      (!stale && old?.root === this.source.root && old.nextRunAt > now.toISOString())
+    )
       return;
     this.running = true;
-    let cursor = old?.root === this.source.root ? old.cursor : null;
+    this.lastRun = { skippedBeforeStart: 0, alreadyRecorded: 0 };
+    let cursor = old?.root === this.source.root && !stale ? old.cursor : null;
     let filesFound = 0,
       errors = 0;
     const write = (nextRunAt: string, errorCode: string | null) =>
@@ -51,6 +70,7 @@ export class PayslipScanner {
         errorCode,
       });
     try {
+      if (stale) writePayslipScanStart(this.db, start, { actor: 'system' });
       let reset = false;
       for (let pages = 0; pages < 100; pages++) {
         let result;
@@ -74,24 +94,55 @@ export class PayslipScanner {
           )
             continue;
           filesFound++;
+          const folderYear = payslipFolderYear(this.source.root, file.path_lower);
           const seen = file.content_hash
             ? findPayslipIntake(this.db, undefined, file.content_hash)
             : undefined;
-          if (seen && !seen.deletedAt) continue;
+          if (seen && !seen.deletedAt) {
+            // Intakes created before the scope rules existed are tidied up in the full listing.
+            if (stale && seen.status === 'pending') {
+              const scope = reevaluatePayslipIntake(this.db, seen.id, folderYear, {
+                actor: 'system',
+              });
+              if (scope === 'before_start') this.lastRun.skippedBeforeStart++;
+              else if (scope === 'recorded') this.lastRun.alreadyRecorded++;
+            }
+            continue;
+          }
+          // Year folders before the records start are not even downloaded.
+          if (startYear !== null && folderYear !== null && folderYear < startYear) {
+            this.lastRun.skippedBeforeStart++;
+            continue;
+          }
           if ((file.size ?? 0) > RECEIPT_LIMIT) {
             errors++;
-            this.warning('PDF �berschreitet 15 MB. Bitte Datei manuell pr�fen.');
+            this.warning('PDF überschreitet 15 MB. Bitte Datei manuell prüfen.');
             continue;
           }
           let stage: ScanStage = 'download';
           try {
             const bytes = await this.source.download(file);
             stage = 'ingest';
-            const staged = await this.intake.ingest(bytes, file.name, 'dropbox', file.content_hash);
+            const staged = await this.intake.ingest(
+              bytes,
+              file.name,
+              'dropbox',
+              file.content_hash,
+              {
+                folderYear,
+              },
+            );
+            if ('skipped' in staged) {
+              this.lastRun.skippedBeforeStart++;
+              continue;
+            }
             // Extraction failures are durable inbox warnings, so this page can still advance.
             if (staged.id) {
-              // Count document warnings without logging their values or the original text.
-              if (getPayslipIntake(this.db, staged.id).parsed.warnings.length) errors++;
+              // Count open document warnings without logging their values or the original text.
+              const row = getPayslipIntake(this.db, staged.id);
+              if (row.status === 'pending' && row.parsed.warnings.length) errors++;
+              else if (!staged.duplicate && row.status !== 'pending')
+                this.lastRun.alreadyRecorded++;
             }
           } catch (error) {
             // Only the failure class is kept: no file names, paths, provider text or amounts.
@@ -101,7 +152,7 @@ export class PayslipScanner {
             errors++;
             if (PERMANENT_SCAN_CLASSES.has(code))
               this.warning(
-                `Eine PDF konnte nicht verarbeitet werden (${code}). Bitte Datei manuell pr�fen.`,
+                `Eine PDF konnte nicht verarbeitet werden (${code}). Bitte Datei manuell prüfen.`,
               );
             else retry ??= code;
           }
