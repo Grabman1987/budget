@@ -2,7 +2,6 @@ import {
   useAmountPrivacy,
   AmountInput,
   Button,
-  DetailPanel,
   Field,
   Select,
   Switch,
@@ -17,6 +16,7 @@ import { createAccount, undoGroup, type AccountInput } from './api';
 import { ACCOUNT_TYPE_LABEL, errorText } from './labels';
 import { LEDGER_KEY } from './queries';
 import { ACCOUNT_TYPES, type AccountType } from './types';
+import { SettingsFormDialog } from '../pages/settings-form-dialog';
 
 /** Types that can never be budget accounts (server rule); the switch is off and locked. */
 const TRACKING_ONLY: ReadonlySet<AccountType> = new Set([
@@ -62,9 +62,9 @@ type Errors = Partial<
 export function AccountFormPanel({ open, onClose }: { open: boolean; onClose: () => void }) {
   useAmountPrivacy();
   return (
-    <DetailPanel open={open} onClose={onClose} title="Konto anlegen">
+    <SettingsFormDialog open={open} onClose={onClose} title="Konto anlegen">
       <AccountForm onDone={onClose} />
-    </DetailPanel>
+    </SettingsFormDialog>
   );
 }
 

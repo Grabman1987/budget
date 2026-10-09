@@ -13,6 +13,7 @@ declare module '@tanstack/history' {
   interface HistoryState {
     planDetailOpenedInApp?: boolean;
     wealthDetailOpenedInApp?: boolean;
+    ruleDetailOpenedInApp?: boolean;
     panelOpenedInApp?: boolean;
   }
 }

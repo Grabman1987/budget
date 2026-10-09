@@ -150,16 +150,18 @@ test('stages and rules show the rule book, axe clean in both themes', async ({ p
     await page.screenshot({ path: info.outputPath('regelwerk-dark-viewport.png') });
 });
 
-test('the threshold panel shows status and next step and is axe clean', async ({ page }) => {
+test('the rule status page separates thresholds and is axe clean', async ({ page }) => {
   await page.goto('/einstellungen/regelwerk');
-  const opener = page.getByRole('button', { name: 'Einstellen R02 Notgroschen' });
+  await page.getByRole('link', { name: 'Einstellen R02 Notgroschen' }).click();
+  const opener = page.getByRole('link', { name: 'Schwellen bearbeiten', exact: true });
   await opener.click();
-  const panel = page.getByRole('dialog', { name: 'R02 Notgroschen' });
+  const panel = page.getByRole('dialog', { name: 'Schwellen bearbeiten \u00b7 R02 Notgroschen' });
   await expect(panel).toBeVisible();
   await expect(panel).not.toHaveClass(/\bpanel\b/);
-  await expect(panel).toContainText('2,5 Monate');
-  await expect(panel).toContainText('verletzt');
-  await expect(panel).toContainText('Nächster Schritt');
+  await expect(page.locator('.rw-now')).toContainText('2,5 Monate');
+  await expect(page.locator('.rw-now')).toContainText('verletzt');
+  await expect(page.locator('.rw-now')).toContainText('Nächster Schritt');
+  await expect(panel).not.toContainText('Nächster Schritt');
   await expect(panel.getByLabel('Mindestens')).toHaveValue('3');
   await expect(panel.getByLabel('Ziel')).toHaveValue('6');
   expect(await violations(page), 'panel').toEqual([]);
@@ -226,7 +228,7 @@ test('R15 off changes the Finanz-Check counts, R02 minimum 3 → 2 flips its sta
   await expect(
     page.getByText(`${DEFAULT_ACTIVE_RULE_COUNT} von ${RULE_CODES.length} aktiv`),
   ).toBeVisible();
-  expect(await check()).toEqual(before);
+  await expect.poll(check).toEqual(before);
 
   // Reopening the disabled group and enabling the moved row must preserve keyboard focus too.
   await r15.focus();
@@ -245,32 +247,28 @@ test('R15 off changes the Finanz-Check counts, R02 minimum 3 → 2 flips its sta
   await expect(
     page.getByText(`${DEFAULT_ACTIVE_RULE_COUNT} von ${RULE_CODES.length} aktiv`),
   ).toBeVisible();
-  expect(await check()).toEqual(before);
+  await expect.poll(check).toEqual(before);
 
   // R02: minimum from 3 to 2 months turns "verletzt" into "Warnung".
-  await page.getByRole('button', { name: 'Einstellen R02 Notgroschen' }).click();
-  const panel = page.getByRole('dialog', { name: 'R02 Notgroschen' });
-  await expect(panel).toContainText('verletzt');
+  await page.getByRole('link', { name: 'Einstellen R02 Notgroschen' }).click();
+  await page.getByRole('link', { name: 'Schwellen bearbeiten', exact: true }).click();
+  const panel = page.getByRole('dialog', { name: 'Schwellen bearbeiten \u00b7 R02 Notgroschen' });
+  await expect(page.locator('.rw-now')).toContainText('verletzt');
   await panel.getByLabel('Mindestens').fill('2');
   await panel.getByRole('button', { name: 'Speichern' }).click();
   await expect(toast(page)).toContainText('R02 Notgroschen: Schwelle gespeichert.');
-  await expect(panel).toContainText('Warnung');
-  await expect(
-    page.locator('#rw-pending').locator('..').locator('[data-rule-code="R02"]'),
-  ).toHaveCount(1);
+  await expect(page.locator('.rw-now')).toContainText('Warnung');
   await expect(panel.getByLabel('Mindestens')).toHaveValue('2');
   const flipped = await check();
   expect(flipped.counts.bad).toBe(before.counts.bad - 1);
   expect(flipped.counts.warn).toBe(before.counts.warn + 1);
   await toast(page).getByRole('button', { name: 'Rückgängig' }).click();
-  await expect(panel).toContainText('verletzt');
-  await expect(
-    page.locator('#rw-violated').locator('..').locator('[data-rule-code="R02"]'),
-  ).toHaveCount(1);
+  await expect(page.locator('.rw-now')).toContainText('verletzt');
   await expect(panel.getByLabel('Mindestens')).toHaveValue('3');
-  expect(await check()).toEqual(before);
+  await expect.poll(check).toEqual(before);
   await page.keyboard.press('Escape');
-  await expect(page.getByRole('button', { name: 'Einstellen R02 Notgroschen' })).toBeFocused();
+  await expect(page.getByRole('link', { name: 'Schwellen bearbeiten', exact: true })).toBeFocused();
+  await page.getByRole('link', { name: 'Zurück zum Regelwerk', exact: true }).click();
   await expect(page.locator('.rw-rules > li', { hasText: 'R02' })).toContainText(
     'min. 3, Ziel 6 Monate',
   );
@@ -317,14 +315,16 @@ test('book rules start disabled, toggle and threshold edit are undoable', async 
   ).toBeVisible();
   await toast(page).getByRole('button', { name: 'Rückgängig' }).click();
   await expect(toggle).not.toBeChecked();
-  await row.getByRole('button', { name: /Einstellen/ }).click();
-  const panel = page.getByRole('dialog', { name: /^R17 / });
+  await row.getByRole('link', { name: /Einstellen/ }).click();
+  await page.getByRole('link', { name: 'Schwellen bearbeiten', exact: true }).click();
+  const panel = page.getByRole('dialog', { name: /R17 / });
   await panel.getByLabel('Ziel Bruttoquote').fill('26');
   await panel.getByRole('button', { name: 'Speichern' }).click();
   await expect(panel.getByLabel('Ziel Bruttoquote')).toHaveValue('26');
   await toast(page).getByRole('button', { name: 'Rückgängig' }).click();
   await expect(panel.getByLabel('Ziel Bruttoquote')).toHaveValue('25');
   await page.keyboard.press('Escape');
+  await page.getByRole('link', { name: 'Zurück zum Regelwerk', exact: true }).click();
   await expect(page.getByLabel('Geburtsmonat und Jahr')).toHaveValue('');
 
   // Saving and undoing private inputs must refresh the form as well as the stored rows.

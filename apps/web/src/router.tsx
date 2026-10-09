@@ -263,6 +263,15 @@ const rulesRoute = createRoute({
   staticData: { meta: EINSTELLUNGEN_REGELWERK },
   component: lazyRouteComponent(() => import('./rules/rules-page'), 'RulesPage'),
 });
+const ruleStatusRoute = createRoute({
+  getParentRoute: () => shellRoute,
+  path: '/einstellungen/regelwerk/$code',
+  staticData: { meta: EINSTELLUNGEN_REGELWERK },
+  validateSearch: (search: Record<string, unknown>) => ({
+    bearbeiten: search['bearbeiten'] === true || search['bearbeiten'] === 'true' ? true : undefined,
+  }),
+  component: lazyRouteComponent(() => import('./rules/rule-status-page'), 'RuleStatusPage'),
+});
 const assignmentRoute = createRoute({
   getParentRoute: () => shellRoute,
   path: '/einstellungen/zuordnung',
@@ -590,6 +599,7 @@ const routeTree = rootRoute.addChildren([
     accountsSettingsRoute,
     categoriesRoute,
     rulesRoute,
+    ruleStatusRoute,
     assignmentRoute,
     exportRoute,
     dataSourcesRoute,
@@ -625,7 +635,8 @@ export const router = createRouter({
   routeTree,
   scrollRestoration: ({ location }) =>
     location.pathname.startsWith('/plan/monat') ||
-    location.pathname.startsWith('/vermoegen/portfolio'),
+    location.pathname.startsWith('/vermoegen/portfolio') ||
+    location.pathname.startsWith('/einstellungen/regelwerk'),
 });
 
 declare module '@tanstack/react-router' {

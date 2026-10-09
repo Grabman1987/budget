@@ -1,12 +1,5 @@
 import { BookInputForm } from './book-input-form';
-import {
-  useAmountPrivacy,
-  maskMoneyText,
-  Button,
-  SectionHead,
-  Switch,
-  StatusMark,
-} from '@budget/ui';
+import { useAmountPrivacy, maskMoneyText, SectionHead, Switch, StatusMark } from '@budget/ui';
 import { STAGES, type RuleCode } from '@budget/domain';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
@@ -17,7 +10,6 @@ import { PageFrame } from '../pages/placeholder-page';
 import { AppLink } from '../shell/app-link';
 import { longDay } from '../ledger/format';
 import { confirmItem, evaluateRules, patchRule, type ChecklistRow, type RuleRow } from './api';
-import { RulePanel } from './rule-panel';
 import { RULE_GUIDANCE, ruleGroup, stageRange, thresholdText, type RuleGroup } from './rules-model';
 import {
   RULES_CHECK_KEY,
@@ -40,7 +32,6 @@ export function RulesPage() {
   const check = useQuery(rulesCheckQuery());
   const write = useRuleWrite();
   const qc = useQueryClient();
-  const [panel, setPanel] = useState<string | null>(null);
   // What the owner just switched, shown at once while the write is on its way.
   const [shown, setShown] = useState<Record<string, boolean>>({});
   const pendingRuleFocus = useRef<{
@@ -102,15 +93,6 @@ export function RulesPage() {
   const book = rules.data;
   const current = check.data?.stage.stage;
   const active = book?.rules.filter((r) => shown[r.code] ?? r.enabled).length ?? 0;
-  const open = book?.rules.find((r) => r.code === panel);
-  const closePanel = () => {
-    const code = panel;
-    setPanel(null);
-    // A status change moves the row to another group and replaces the original dialog trigger.
-    requestAnimationFrame(() =>
-      document.getElementById(`rule-settings-${code}`)?.focus({ preventScroll: true }),
-    );
-  };
 
   const toggleRule = (r: RuleRow, enabled: boolean) => {
     const switchId = `rule-switch-${r.code}`;
@@ -201,15 +183,16 @@ export function RulesPage() {
               )}
             </div>
             <div className="rw-controls">
-              <Button
+              <AppLink
                 id={`rule-settings-${r.code}`}
-                variant="ghost"
-                size="xs"
+                className="btn btn-ghost btn-xs"
                 aria-label={`Einstellen ${r.code} ${r.name}`}
-                onClick={() => setPanel(r.code)}
+                to={`/einstellungen/regelwerk/${r.code}`}
+                search={(previous) => ({ monat: previous['monat'] })}
+                state={{ ruleDetailOpenedInApp: true }}
               >
                 Einstellen
-              </Button>
+              </AppLink>
               <Switch
                 id={`rule-switch-${r.code}`}
                 label={`${r.code} ${r.name}`}
@@ -347,7 +330,6 @@ export function RulesPage() {
           </>
         )}
       </div>
-      <RulePanel rule={open ?? null} onClose={closePanel} />
     </PageFrame>
   );
 }

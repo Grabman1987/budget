@@ -26,11 +26,11 @@ proposed destinations, not implemented routes.
 | `budget/goals-panel.tsx`, `pages/goals-progress-report.tsx`: savings goal history and forms | `/plan/sparziele/:id`; create/edit in dialogs; reports link to same detail | Open |
 | `budget/event-panel.tsx`: annual event create/edit | FormDialog; comparison stays inline in year plan | Open |
 | `expected/payment-panel.tsx`: payment details, versions, occurrences, editing | `/plan/erwartet/:id`; create/edit/confirmation in dialogs | Open |
-| `ledger/account-form.tsx`, `pages/accounts-settings.tsx`: new/edit account | FormDialog; existing `/konten/:id` already owns account detail | Open |
-| `ledger/reconcile-panel.tsx` | FormDialog for bank balance, correction and confirmation | Open |
-| `rules/rule-panel.tsx`: status and threshold editing | `/einstellungen/regelwerk/:code`; threshold form in dialog | Open |
+| `ledger/account-form.tsx`, `pages/accounts-settings.tsx`: new/edit account | FormDialog; existing `/konten/:id` already owns account detail | Implemented #330; owner acceptance open |
+| `ledger/reconcile-panel.tsx` | FormDialog for bank balance, correction and confirmation | Implemented #331; owner acceptance open |
+| `rules/rule-panel.tsx`: status and threshold editing | `/einstellungen/regelwerk/:code`; threshold form in dialog | Implemented #332; owner acceptance open |
 | `wealth/portfolio-panel.tsx`: instrument details, prices, trades, metadata edits | `/vermoegen/portfolio/instrument/:id`; new/edit forms in dialogs | Done |
-| `wealth/target-panel.tsx`, `pages/asset-classes-settings.tsx`: class/group/target/archive/instrument editors | FormDialog retaining dirty/save blockers and atomic audit/undo | Open |
+| `wealth/target-panel.tsx`, `pages/asset-classes-settings.tsx`: class/group/target/archive/instrument editors | FormDialog retaining dirty/save blockers and atomic audit/undo | Implemented #333–#334; owner acceptance open |
 | `wealth/savings-panel.tsx`: savings schedule versions and editing | `/vermoegen/portfolio/sparplan/:id`; new/edit/end in dialogs | Done |
 | `wealth/trade-panel.tsx`: trade capture/edit | FormDialog retaining settlement and execution validation | Done |
 | `reports/payslip-panel.tsx`: payslip history and capture | Payslip detail sub-page under salary report; capture/edit/upload in form dialog | Open |
