@@ -50,7 +50,6 @@ export function coverCommitments(
         o.payment.kind === 'outflow' &&
         (o.payment.accountId === null || onBudget.get(o.payment.accountId)?.onBudget),
     )
-    .filter((o) => stored.get(`${o.payment.id}|${o.dueDate}`)?.status !== 'missed')
     .map((o) => {
       const row = stored.get(`${o.payment.id}|${o.dueDate}`);
       const categoryId = o.category?.id ?? null;

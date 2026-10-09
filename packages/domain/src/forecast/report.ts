@@ -5,6 +5,7 @@ import {
   lowPoint,
   type ForecastDay,
   type ForecastItem,
+  type ForecastItemRef,
   type LiquidityForecast,
   type LowPoint,
 } from './liquidity';
@@ -97,6 +98,8 @@ export interface LiquidityMovement {
   cents: number;
   afterCents: number;
   planned: boolean;
+  /** The expected payment occurrence behind the movement (income and fixed items). */
+  ref?: ForecastItemRef;
 }
 
 export interface LiquidityMovementMonth {
@@ -291,6 +294,7 @@ function movementMonths(
           cents: item.cents,
           afterCents: balance,
           planned,
+          ...(item.ref === undefined ? {} : { ref: item.ref }),
         });
         big += item.cents;
       }
