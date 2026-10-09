@@ -3,17 +3,18 @@
 Package: Refs #309, Refs #314, Refs #315. Lane: Daten/Werkzeug.
 Branch: `codex/pkg-h-booking-acceptance-1009`.
 Baseline HEAD: `6f603966779ed370dae4e8ac5290d3a942dfa670`.
+Verified source/test commit: `d22965013c108ed3f8abf53a5c6cd3d2123fd445`.
 
-**Exact-head acceptance remains blocked.** These are local worktree results, not
-acceptance of the unchanged baseline commit. Git cannot create the shared worktree
-`index.lock` (Permission denied), so the changes could not be committed. Each
-capture's JSON records HEAD, the nonempty worktree status, viewport, reduced-motion
-emulation and the rendered accessibility tree. `source-hashes.json` identifies the
-three changed implementation/test files. Required CI has not run for this package.
+**Exact-head CI acceptance remains open.** Both viewport runs passed at the clean
+source/test commit above. Each capture's JSON records that SHA, an empty worktree
+status, viewport, reduced-motion emulation and the rendered accessibility tree.
+`source-hashes.json` identifies the three changed implementation/test files. The
+evidence follow-up changes documentation only; application/test sources retain
+these hashes. Required CI must still certify the final delivery head.
 
 The existing #222/#251 booking implementation is retained. The separate #252 test
 integration (`e2e/booking-ux.spec.ts` and the configured CI) is unchanged and must
-also pass in required CI; its historical evidence does not certify this worktree.
+also pass in required CI; its historical evidence does not certify this package.
 
 ## Acceptance matrix
 
@@ -21,7 +22,7 @@ also pass in required CI; its historical evidence does not certify this worktree
 | --- | --- | --- |
 | #309 German date, arithmetic amount, defaults and visible Save | Pass in light/dark at 1440 × 900 and synthetic 390 × 844. `1.234,56+0,01` becomes `1.234,57`; `07.10.2026` saves as `2026-10-07`, exactly −123457 cents, once, to the default cash account/category/payee, confirmed. | `e2e/booking-acceptance.spec.ts`, booking captures below |
 | #309 height and phone layout | Pass: sheet ≤88dvh, fully bounded by the viewport, no horizontal page/dialog overflow, visible controls ≥44 × 44 px, expanded content scrolls above the visible Save footer. With a category default, Available and suggestion rows put Mehr below the initial body viewport; scrolling reaches it without moving Save. | Mobile compact/expanded captures; geometry assertions |
-| #309 required CI at exact HEAD | **Open**: no new commit/PR or exact-head CI can be obtained in this runner. | Delivery limits below |
+| #309 required CI at exact HEAD | **Open**: local clean-commit browser acceptance passes, but publication/required CI are still pending. | Delivery limits below |
 | #314 dark Heute | No contrast defect found in the bounded synthetic review. Main-content axe has zero violations; actual/forecast use solid/dashed lines and textual tooltip series names. | Heute captures; `apps/web/src/heute/charts.tsx` (BalanceChart), `packages/ui/src/styles/charts.css`, dark token sources below |
 | #314 dark booking form | No contrast defect found. Labels, amount/date, selected status and Save remain readable; dialog axe has zero violations. | Dark booking captures; `apps/web/src/ledger/ledger.css`, `packages/ui/src/styles/tokens.css` |
 | #315 keyboard / screen-reader focus semantics | Two defects reproduced and corrected: Tab after Save reached browser chrome; the discard alertdialog appeared without receiving focus. BookingPanel now wraps Tab/Shift+Tab and focuses Weiter bearbeiten, traps the question's two actions and returns to the prior control on continuing. Escape/discard return to the opener. | Runnable keyboard regression and discard-focus captures/ARIA JSON |
@@ -75,9 +76,11 @@ No fixture, server, assertion, snapshot baseline or CI check was disabled.
 - `npm run build:e2e`: exit 0, run once. After the reproduced focus defects were
   corrected, the web bundle alone was rebuilt in E2E mode; final build exit 0.
   Existing Rollup annotation, mixed-import and chunk-size warnings remain.
-- Desktop targeted E2E: **6 passed** in 57.7 s, including 3 setup tests.
-- Mobile targeted E2E: **6 passed** in 1.2 min, including 3 setup tests.
-- `git diff --check`: exit 0. The index remains unchanged/unstaged.
+- Desktop targeted E2E at the clean source/test commit: **6 passed** in 1.1 min,
+  including 3 setup tests.
+- Mobile targeted E2E at the same clean commit: **6 passed** in 44.8 s,
+  including 3 setup tests.
+- `git diff --check`: exit 0.
 
 The initial acceptance probe failed on the two focus defects before the fix.
 Test-authoring corrections used the existing accessible names (payee options
@@ -110,17 +113,16 @@ npx.cmd playwright test e2e/booking-acceptance.spec.ts --workers=1 --project=mob
 
 ## Delivery limits and owner steps
 
-- `git add` / `git commit`: shared `index.lock` creation denied. No commit was made;
-  working files remain modified and the index was not staged. A clean worktree
-  cannot be claimed without losing the requested work.
-- `git push -u origin HEAD`: `schannel: AcquireCredentialsHandle failed:
+- Initial `git add` / `git commit` attempts could not create the shared
+  `index.lock`. A later normal retry succeeded, without a workaround. Source/tests
+  were then verified again on the committed clean tree.
+- The push attempt returned `schannel: AcquireCredentialsHandle failed:
   SEC_E_NO_CREDENTIALS`. No alternative publication path was used.
-- Normal PR creation returned **HTTP 401: Requires authentication**. The ready English body
+- The normal PR attempt returned **HTTP 401: Requires authentication**. The ready English body
   is in [PR.md](PR.md); use the requested title from the task.
-- Owner: commit these files from an environment with writable worktree Git
-  metadata, restore normal GitHub authentication, push and open the single normal
-  PR, then require all four checks on its exact final SHA. Rerun the focused spec
-  from a clean head and retain the new SHA/viewport/ARIA artifacts before accepting
-  #309. Review dates/defaults/Save and the two focus changes on a physical phone
+- Owner: restore normal GitHub authentication, push the local commits and open
+  the single normal PR, then require all four checks on its exact final SHA.
+  Retain the final-head CI result alongside these clean source-commit artifacts
+  before accepting #309. Review dates/defaults/Save and the two focus changes on a physical phone
   and with the owner's screen reader. No keys, consents, migration, provider API,
   merge or deployment is needed for this package.

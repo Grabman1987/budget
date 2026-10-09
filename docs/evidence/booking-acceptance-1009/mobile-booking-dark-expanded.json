@@ -1,6 +1,6 @@
 {
-  "sha": "6f603966779ed370dae4e8ac5290d3a942dfa670",
-  "worktreeChanges": " M apps/web/src/ledger/booking-panel.tsx\n M apps/web/src/ledger/ledger.css\n M docs/ROADMAP.md\n?? docs/evidence/booking-acceptance-1009/\n?? e2e/booking-acceptance.spec.ts\n",
+  "sha": "d22965013c108ed3f8abf53a5c6cd3d2123fd445",
+  "worktreeChanges": "",
   "viewport": {
     "width": 390,
     "height": 844

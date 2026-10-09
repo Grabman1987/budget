@@ -4,7 +4,8 @@
 
 - [x] Focused synthetic desktop/390px checks for German date, arithmetic/defaults, exact-cent save, bounded height, visible Save and phone touch targets; dark Heute/dialog review with screenshots and contrast evidence.
 - [x] Reproduce and correct booking-only Tab boundary and discard-question focus; verify labelled focus order, continue/discard/opener return and reduced motion.
-- [ ] Commit/push/normal PR and required CI at the exact final head; worktree index and GitHub authentication block publication in this runner. Physical-device and actual screen-reader owner acceptance remain open. [Local results and evidence](evidence/booking-acceptance-1009/README.md).
+- [x] Clean source/test commit `d22965013c108ed3f8abf53a5c6cd3d2123fd445`: desktop/mobile each pass 6 browser/setup cases; SHA and clean worktree captured with viewport/ARIA evidence.
+- [ ] Push/normal PR and required CI at the exact final head; GitHub authentication blocks publication in this runner. Physical-device and actual screen-reader owner acceptance remain open. [Local results and evidence](evidence/booking-acceptance-1009/README.md).
 
 ### F2 — Guided month close, plan next month and review (owner 2026-10-04)
 

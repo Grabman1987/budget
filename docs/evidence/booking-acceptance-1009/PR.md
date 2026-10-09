@@ -24,14 +24,16 @@ Affected versioned baselines: none; shared component baselines and Heute source
 remain unchanged. This package changes only BookingPanel, its scoped CSS and the
 new acceptance spec, plus evidence and the roadmap.
 
-Publication limitation: this runner could not create the worktree index.lock or
-authenticate a push/PR. Current evidence records baseline SHA
-6f603966779ed370dae4e8ac5290d3a942dfa670 plus the dirty worktree and source hashes;
-it does not claim exact-head CI acceptance. After committing, rerun the focused
-spec at the clean final head and record that SHA and required CI results here.
+Exact source-commit evidence: desktop/mobile each pass at clean commit
+d22965013c108ed3f8abf53a5c6cd3d2123fd445; captures record that SHA, an empty worktree,
+viewport, motion preference and accessibility tree. The evidence follow-up is
+documentation only and retains application/test hashes. Required CI acceptance
+at the final delivery head remains open. Initial Git index access failed, then a
+normal commit retry succeeded. Push/PR attempts report credential errors/HTTP 401;
+no alternative publication path was used.
 
-Owner steps: restore normal Git metadata/GitHub access, commit and push this single
-package, run required check/check-windows/docker/restore-test at its exact head,
+Owner steps: restore normal GitHub access, push this single package's local commits,
+run required check/check-windows/docker/restore-test at its exact final head,
 review the screenshots and try the capture/discard path on a physical phone with
 the owner's screen reader. No keys or consents are required. Do not merge as part
 of this package.

@@ -1,9 +1,10 @@
 {
     "baselineSha":  "6f603966779ed370dae4e8ac5290d3a942dfa670",
-    "committed":  false,
+    "committed":  true,
     "sourceHashes":  {
                          "apps/web/src/ledger/booking-panel.tsx":  "526e90e7c3ac1144e69504a59f04045ffcf41d19f9468595272ec3feb1c3666a",
                          "apps/web/src/ledger/ledger.css":  "0bd3dc3a8bd444c65c94c29967244c8d049b58e6559f7f511a75cf8c29bfe04d",
                          "e2e/booking-acceptance.spec.ts":  "c5f9bac5b643c0c5ec542de57912e9a0fec4d3c370ba62eb2186fbfc65a880d9"
-                     }
+                     },
+    "sourceCommit":  "d22965013c108ed3f8abf53a5c6cd3d2123fd445"
 }
