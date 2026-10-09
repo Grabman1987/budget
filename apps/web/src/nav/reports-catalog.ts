@@ -104,7 +104,7 @@ export const REPORT_GROUPS: ReadonlyArray<ReportGroup> = [
     ],
     [
       'planungstreue',
-      'Budgettreue',
+      'Prognosegenauigkeit',
       'Wie treffsicher ist die Hochrechnung am 15.?',
       'Monatliche Abweichungsbalken, Prognose/Ist-Tabelle',
       'month',

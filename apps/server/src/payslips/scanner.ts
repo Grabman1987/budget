@@ -1,10 +1,13 @@
+import { PAYSLIP_PARSER_VERSION } from '@budget/domain';
 import {
   findPayslipIntake,
   getPayslipIntake,
   payslipRecordsStart,
   readPayslipScan,
+  readPayslipParserVersion,
   readPayslipScanStart,
   reevaluatePayslipIntake,
+  writePayslipParserVersion,
   writePayslipScan,
   writePayslipScanStart,
   type Db,
@@ -33,10 +36,19 @@ export function nextPayslipScan(now: Date) {
   if (next <= now) next.setUTCDate(next.getUTCDate() + 1);
   return next.toISOString();
 }
+const storedParserVersion = (row: { parsedJson: string }) => {
+  try {
+    return (JSON.parse(row.parsedJson) as { parserVersion?: number }).parserVersion ?? 0;
+  } catch {
+    return 0;
+  }
+};
 export class PayslipScanner {
   private running = false;
   /** Counts of the last run; no names or paths. */
   lastRun = { skippedBeforeStart: 0, alreadyRecorded: 0 };
+  /** Pending intakes read again with a newer parser in the last run. */
+  lastReparsed = 0;
   constructor(
     private readonly db: Db,
     private readonly source: DropboxPayslipSource,
@@ -48,14 +60,23 @@ export class PayslipScanner {
     const start = payslipRecordsStart(this.db),
       startYear = start ? Number(start.slice(0, 4)) : null,
       stale = start !== null && readPayslipScanStart(this.db) !== start;
+    // A newer parser reads the pending intakes once: one full listing, unless a failed run waits.
+    const waiting =
+      old?.root === this.source.root &&
+      old.errorCode !== null &&
+      old.errorCode !== 'document_warning' &&
+      old.nextRunAt > now.toISOString();
+    const parserStale = readPayslipParserVersion(this.db) !== String(PAYSLIP_PARSER_VERSION);
+    const full = stale || (parserStale && !waiting);
     if (
       this.running ||
-      (!stale && old?.root === this.source.root && old.nextRunAt > now.toISOString())
+      (!full && old?.root === this.source.root && old.nextRunAt > now.toISOString())
     )
       return;
     this.running = true;
     this.lastRun = { skippedBeforeStart: 0, alreadyRecorded: 0 };
-    let cursor = old?.root === this.source.root && !stale ? old.cursor : null;
+    this.lastReparsed = 0;
+    let cursor = old?.root === this.source.root && !full ? old.cursor : null;
     let filesFound = 0,
       errors = 0;
     const write = (nextRunAt: string, errorCode: string | null) =>
@@ -100,7 +121,20 @@ export class PayslipScanner {
             : undefined;
           if (seen && !seen.deletedAt) {
             // Intakes created before the scope rules existed are tidied up in the full listing.
-            if (stale && seen.status === 'pending') {
+            if (full && seen.status === 'pending') {
+              if (
+                parserStale &&
+                seen.source === 'dropbox' &&
+                storedParserVersion(seen) !== PAYSLIP_PARSER_VERSION
+              ) {
+                try {
+                  await this.intake.reparse(seen.id);
+                  this.lastReparsed++;
+                } catch {
+                  // The earlier result stays; only the count of open warnings is kept.
+                  errors++;
+                }
+              }
               const scope = reevaluatePayslipIntake(this.db, seen.id, folderYear, {
                 actor: 'system',
               });
@@ -170,7 +204,11 @@ export class PayslipScanner {
           result.has_more ? now.toISOString() : nextPayslipScan(now),
           errors ? 'document_warning' : null,
         );
-        if (!result.has_more) return;
+        if (!result.has_more) {
+          if (parserStale)
+            writePayslipParserVersion(this.db, PAYSLIP_PARSER_VERSION, { actor: 'system' });
+          return;
+        }
       }
       write(new Date(now.getTime() + 60_000).toISOString(), errors ? 'document_warning' : null);
     } catch (error) {
