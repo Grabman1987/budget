@@ -514,10 +514,10 @@ function priceChanges(f: Frame): PriceChange[] {
     if (old.amountCents === next.amountCents) continue;
     out.push({
       name: p.name,
-      oldYearlyCents: yearlyEquivalent(p.rhythm as Rhythm, old.amountCents),
-      newYearlyCents: yearlyEquivalent(p.rhythm as Rhythm, next.amountCents),
-      oldMonthlyCents: monthlyEquivalent(p.rhythm as Rhythm, old.amountCents),
-      newMonthlyCents: monthlyEquivalent(p.rhythm as Rhythm, next.amountCents),
+      oldYearlyCents: yearlyEquivalent(p.rhythm as Rhythm, old.amountCents, p.intervalWeeks),
+      newYearlyCents: yearlyEquivalent(p.rhythm as Rhythm, next.amountCents, p.intervalWeeks),
+      oldMonthlyCents: monthlyEquivalent(p.rhythm as Rhythm, old.amountCents, p.intervalWeeks),
+      newMonthlyCents: monthlyEquivalent(p.rhythm as Rhythm, next.amountCents, p.intervalWeeks),
     });
   }
   return out.sort((a, b) => a.name.localeCompare(b.name));

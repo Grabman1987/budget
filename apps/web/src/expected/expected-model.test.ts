@@ -6,6 +6,7 @@ import {
   isContract,
   money,
   needsAction,
+  rhythmText,
   versionLetter,
   weekGroups,
   weekMonday,
@@ -102,6 +103,20 @@ describe('text', () => {
     expect(cadenceText({ ...base, rhythm: 'quarterly', dueDay: 1, dueMonth: 2 })).toBe(
       'vierteljährlich ab Februar, am 1.',
     );
+  });
+  it('describes a weekly rhythm with its interval', () => {
+    const base = {
+      dueMonth: null,
+      dateShift: 'none' as const,
+      dueDay: 1,
+      rhythm: 'weekly' as const,
+    };
+    expect(cadenceText(base)).toBe('wöchentlich');
+    expect(cadenceText({ ...base, intervalWeeks: null })).toBe('wöchentlich');
+    expect(cadenceText({ ...base, intervalWeeks: 1 })).toBe('wöchentlich');
+    expect(cadenceText({ ...base, intervalWeeks: 2 })).toBe('alle 2 Wochen');
+    expect(rhythmText('weekly', 3)).toBe('alle 3 Wochen');
+    expect(rhythmText('monthly', 3)).toBe('monatlich');
   });
   it('letters versions', () => {
     expect([0, 1, 25, 26].map(versionLetter)).toEqual(['A', 'B', 'Z', '27']);

@@ -222,6 +222,14 @@ export function PaymentForm({
           {pick('rhythm', 'Rhythmus', RHYTHMS)}
           {text('dueDay', 'Fälligkeitstag', { inputMode: 'numeric' })}
         </div>
+        {draft.rhythm === 'weekly' &&
+          text('intervalWeeks', 'Alle … Wochen', { inputMode: 'numeric', placeholder: '1' })}
+        {draft.rhythm === 'weekly' && (
+          <p className="field-hint">
+            1 = jede Woche, 2 = alle 2 Wochen (z. B. ein Gehalt im Zwei-Wochen-Rhythmus). Gerechnet
+            ab dem Startdatum.
+          </p>
+        )}
         {draft.rhythm !== 'monthly' &&
           draft.rhythm !== 'weekly' &&
           pick(

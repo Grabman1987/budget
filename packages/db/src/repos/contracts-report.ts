@@ -113,6 +113,7 @@ export function contractSources(db: Executor): ContractSource[] {
         categoryKind: c?.kind ?? null,
         categoryStage: c?.stage ?? null,
         rhythm: p.rhythm,
+        intervalWeeks: p.intervalWeeks,
         dueDay: p.dueDay,
         dueMonth: p.dueMonth,
         dateShift: p.dateShift,
