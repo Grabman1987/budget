@@ -26,9 +26,53 @@
   padding-block: 4px;
 }
 .source-connection {
-  border-top: 1px solid var(--rule);
-  padding-block: 24px;
+  border: 1px solid var(--card-border);
+  border-radius: 12px;
+  background: var(--surface);
+  box-shadow: var(--card-shadow);
+  padding: 24px;
+  margin-block: 16px;
   min-width: 0;
+  overflow-wrap: anywhere;
+}
+.bank-connect {
+  border-bottom: 1px solid var(--rule);
+  padding-block: 16px;
+}
+.source-pill {
+  display: inline-block;
+  border: 1px solid var(--rule-strong);
+  border-radius: 12px;
+  padding: 4px 8px;
+  background: var(--quiet-soft);
+  color: var(--ink);
+}
+.source-account-row {
+  border-top: 1px solid var(--rule);
+  margin-top: 16px;
+  padding-bottom: 16px;
+}
+.source-result {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+.source-result dt {
+  color: var(--ink-3);
+}
+.source-result dd {
+  margin: 4px 0 0;
+  font-weight: 600;
+}
+.data-sources select,
+.data-sources input,
+.data-sources a.btn {
+  min-height: 44px;
+  max-width: 100%;
+}
+.data-sources .btn {
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 .source-status {
   display: grid;
@@ -49,7 +93,6 @@
   align-items: end;
   gap: 12px;
   padding-block: 16px;
-  border-top: 1px solid var(--rule);
 }
 .source-account p {
   flex-basis: 100%;
@@ -76,6 +119,12 @@
   overflow-wrap: anywhere;
 }
 @media (max-width: 767px) {
+  .source-connection {
+    padding: 16px;
+  }
+  .source-result {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
   .source-status {
     grid-template-columns: 1fr;
   }

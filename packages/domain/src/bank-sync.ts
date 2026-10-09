@@ -1,4 +1,14 @@
 ﻿/** Parse decimal bank amounts without binary floating point. */
+import { addDays, todayInVienna } from './date/date';
+
+/** Vienna midnight is UTC+1 or UTC+2, including the DST transition days. */
+export function nextBankRequestDay(now: Date): string {
+  const day = addDays(todayInVienna(now), 1);
+  const utc = Date.parse(day + 'T00:00:00Z');
+  const offset = todayInVienna(new Date(utc - 2 * 3_600_000)) === day ? 2 : 1;
+  return new Date(utc - offset * 3_600_000).toISOString();
+}
+
 export function bankCents(value: string): number {
   if (!/^-?\d{1,14}(?:\.\d{1,2})?$/.test(value)) throw new RangeError('Invalid bank amount');
   const [whole = '0', fraction = ''] = value.replace('-', '').split('.');

@@ -101,6 +101,114 @@ async function seedBudget() {
 }
 
 describe('GET /liquidity', () => {
+  it('shares paused income and lever dates while excluding the variable household plan', async () => {
+    await seedBudget();
+    const category = await call('POST', '/categories', {
+      name: 'Synthetic variable category',
+      groupId: 'g',
+      class: 'need',
+      kind: 'variable',
+      stage: 2,
+    });
+    expect(category.status).toBe(201);
+    expect(
+      (
+        await call('PUT', `/categories/${category.body.category.id}/target`, {
+          validFrom: '2026-03',
+          target: { kind: 'monthly', amountCents: 30_000 },
+        })
+      ).status,
+    ).toBe(200);
+    const salary = (await call('GET', '/expected')).body.payments.find(
+      (p: any) => p.kind === 'inflow',
+    );
+    expect(
+      (
+        await call('POST', '/liquidity/income-pauses', {
+          sourceId: salary.id,
+          startDate: '2026-03-31',
+          endDate: '2026-03-31',
+        })
+      ).status,
+    ).toBe(201);
+    const preview = (
+      await call(
+        'GET',
+        '/accounts/giro/series?from=2026-03-01&to=2026-03-18&horizon=6m&levers=pause-future',
+      )
+    ).body;
+    expect(preview.previewPoints.find((p: any) => p.date === '2026-03-31').balanceCents).toBe(
+      200_000,
+    );
+    expect(preview.previewPoints.find((p: any) => p.date === '2026-04-10').balanceCents).toBe(
+      108_500,
+    );
+    expect(preview.previewCoverage).toMatchObject({
+      partial: true,
+      variableMonthlyCents: 30_000,
+      endDay: '2026-09-18',
+    });
+    expect(
+      (await call('GET', '/accounts/tg/series?from=2026-03-01&to=2026-03-18&horizon=6m')).status,
+    ).toBe(422);
+  });
+  it('projects one account through the household horizon, discloses exclusions and dates transfers', async () => {
+    await seedBudget();
+    await call('POST', '/accounts', {
+      name: 'Second synthetic cash account',
+      type: 'checking',
+      openingDate: '2026-01-01',
+      openingBalanceCents: 100_000,
+    });
+    const second = (await call('GET', '/accounts')).body.accounts.find(
+      (a: any) => a.name === 'Second synthetic cash account',
+    ).id;
+    await call('POST', '/liquidity/events', {
+      name: 'Assigned expense',
+      date: '2026-03-20',
+      amountCents: -10_001,
+      accountId: 'giro',
+    });
+    await call('POST', '/liquidity/events', {
+      name: 'Unassigned expense',
+      date: '2026-03-21',
+      amountCents: -20_002,
+    });
+    await call('POST', '/bookings', {
+      type: 'transfer',
+      fromAccountId: 'giro',
+      toAccountId: second,
+      date: '2026-03-22',
+      amountCents: 30_003,
+    });
+    const range = 'from=2026-03-01&to=2026-03-18&horizon=90d';
+    const first = await call('GET', `/accounts/giro/series?${range}`);
+    expect(first.status).toBe(200);
+    expect(first.body.previewPoints?.at(-1).date).toBe('2026-06-16');
+    expect(first.body.previewPoints.find((p: any) => p.date === '2026-03-20').balanceCents).toBe(
+      189_999,
+    );
+    expect(first.body.previewPoints.find((p: any) => p.date === '2026-03-22').balanceCents).toBe(
+      159_996,
+    );
+    expect(first.body.previewCoverage).toMatchObject({ unassignedEventCount: 1, partial: true });
+    const other = (await call('GET', `/accounts/${second}/series?${range}`)).body;
+    expect(other.previewPoints.find((p: any) => p.date === '2026-03-22').balanceCents).toBe(
+      130_003,
+    );
+    const household = (await call('GET', '/liquidity?horizon=90d')).body.report;
+    expect(household.points.find((p: any) => p.day === '2026-03-22').balanceCents).toBe(269_997);
+    expect(
+      (
+        await call('GET', `/accounts/giro/series?from=2026-03-01&to=2026-03-18&horizon=12m`)
+      ).body.previewPoints.at(-1).date,
+    ).toBe('2027-03-18');
+    expect(
+      (await call('GET', '/accounts/giro/series?from=2026-03-01&to=2026-03-18&horizon=bogus'))
+        .status,
+    ).toBe(400);
+  });
+
   it('year plans and the liquidity report share recurring dates, category and audited undo/redo', async () => {
     await seedBudget();
     const budgetBefore = (await call('GET', '/budget/2026-12')).body;

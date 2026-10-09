@@ -49,7 +49,9 @@ export function AttentionBar({
       {rules.length > 0 && (
         <div className="attention-row">
           <span>{rules.length} Regelbefunde zum Handeln</span>
-          <AppLink to="/einstellungen/regelwerk">Handeln</AppLink>
+          <AppLink to="/einstellungen/regelwerk" hash={`rule-result-${rules[0]!.code}`}>
+            Handeln
+          </AppLink>
         </div>
       )}
       {overspending && (
@@ -63,6 +65,8 @@ export function AttentionBar({
       {!data.attention.inboxCount &&
         !data.attention.pendingCount &&
         !rules.length &&
+        !('unavailable' in data.financeCheck) &&
+        !data.financeCheck.counts?.notEvaluated &&
         !overspending && (
           <p className="heute-note">Keine offenen Aufgaben aus den Heute-Prüfungen.</p>
         )}
