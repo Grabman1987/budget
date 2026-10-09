@@ -571,3 +571,8 @@
   text-align: right;
   white-space: nowrap;
 }
+/* The visually hidden header label is absolutely positioned; without a positioned cell its
+   containing block lies outside the scroll area and widens the whole page on a phone. */
+.rf-moves th.rf-act {
+  position: relative;
+}

@@ -949,7 +949,7 @@ function MovementsCard({ report }: { report: LiquidityReport }) {
               <th className="tech">Bewegung</th>
               <th className="tech n">Betrag</th>
               <th className="tech n">Saldo danach</th>
-              <th className="tech">
+              <th className="tech rf-act">
                 <span className="sr-only">Aktion</span>
               </th>
             </tr>
