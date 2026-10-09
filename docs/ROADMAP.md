@@ -1,5 +1,14 @@
 # Roadmap
 
+### P1 #269 / #270 / #274 / #275 / #276 — Today hints — 2026-10-09
+
+- [x] Label Plan's actual 50/30/20 denominator, withhold a completed-month verdict for open months and link to the last completed One-Pager; preserve allocation calculations and expected-income separation.
+- [x] Put payday room first within the existing three answer cards, with the planning boundary and expected receipt separately visible; retain month and wealth access.
+- [x] Show unevaluated rule counts beside the other statuses and link to missing-input explanations; suppress an all-clear when inputs are missing.
+- [x] Describe empty additional steps consistently with attention points already shown above.
+- [x] Preserve PR #226's result-first rule grouping; deep-link and focus the concrete finding, keeping its value, threshold, action and secondary settings accessible.
+- [ ] Exact-head CI, PR integration, visual baseline review and owner/device acceptance. Scoped local evidence: [Today hints](evidence/heute-hints-1009/README.md).
+
 ### Liquidity package #283 / #290 / #291 / #292 — 2026-10-09
 
 - [x] Plan registers reach the existing liquidity report without a report number; no new report route or household calculation.
@@ -273,6 +282,7 @@ Older CI/publication checkboxes below describe their original deliveries. Curren
 - [x] Synthetic red/green unit and browser-back/scroll, direct-link and dialog-focus regressions.
 - [x] Sidepanels-2a: Vermögen instrument/savings URLs with breadcrumb/back/scroll restoration; metadata, quote, schedule and trade FormDialogs; full-width `.vview` composition. Existing money/validation/audit/undo guards retained.
 - [x] Final Linux #248 preflight on merged head `aba6740923969c3a402d2ca4ab958819f320b498`: focused 7 files / 41 tests, full check 382 / 3,519 tests, builds and 43 Desktop/Mobile E2E tests passed ([captures and evidence](evidence/no-side-panels-wealth-1006/README.md)).
+- [x] Plan panels #323–#327: category detail and shared goal history routes, category/group/goal/event FormDialogs, preserved month/source/hidden-category context and existing audit/undo writes ([evidence](evidence/plan-panels-1009/README.md)).
 - [ ] Linux snapshot-baseline review, exact-head PR CI and remaining inventory; owner desktop/phone acceptance, physical iPhone Safari, private financial Gate 4 and live acceptance remain separate open gates.
 
 
@@ -745,6 +755,14 @@ Price history (yfinance + Ariva, source per price), ECB rates, trades and holdin
 - [x] Per-loan payment terms live in Einstellungen › Konten; on top: dated rate changes (variable conditions, versioned, audited, undoable, used by the payoff schedule), persisted scenarios per loan (one-off and recurring Sondertilgung, rate change, higher installment) compared with the baseline (payoff month, interest, interest saved, months earlier; shared integer-cent domain calculation, migration 0033) and an avalanche/snowball comparison for two or more debts (credit cards with a balance included) with an extra monthly amount; decision support only, no payments or bookings; German UI, light/dark, desktop/phone (form dialogs per docs/mobile-panels.md). Limits: monthly model, no prepayment penalties, strategies use the rate in force at the model start.
 - [ ] Connected debt/card rules and private contractual reconciliation remain later
 
+### Debt explanation and full-width package (#294 #296 #342 #343)
+- [x] Explain negative net account values versus negative native-currency cash strategy candidates, including a positive-net depot with negative cash; preserve both existing calculations (#294).
+- [x] Link the debt model to the existing liquidity forecast with its budget-account scope and an explicit no-transfer/no-affordability-claim boundary (#296).
+- [x] Stack the calculation lead and model at full width; preserve numeric comparison columns (#342).
+- [x] Audit the loan summary: baseline and scenarios already follow the model at full width; no remaining layout code change (#343).
+- [x] Scoped local verification and synthetic desktop/390px browser evidence. See [delivery evidence](evidence/debts-scope-1009/README.md).
+- [ ] Required CI and owner visual acceptance; pre-existing loan-dialog trigger-focus restoration remains a separate gap.
+
 ### P5.8 — Freiheitszahl: forecast from today
 - [x] Connected current R16 expense/investment sources and configurable multiple; explicit unknown quote/FX and short-history annualisation, original lead/chain/quarter progress and source navigation.
 - [x] Explicit unsaved saving assumption and 5 % real-return default; shared monthly projection with +100 EUR comparison, bounded numeric errors, desktop/mobile light/dark and accessible values.
@@ -752,6 +770,16 @@ Price history (yfinance + Ariva, source per price), ECB rates, trades and holdin
 
 
 ## P6 Reports und Umstellung
+
+### Category trend — #385, owner decision 2026-10-09
+
+- [x] Report 1.6 month values/chart points and report 2.1 heatmap cells drill into the exact category/calendar month; classified split/refund contributions reconcile in cents across booking pages.
+- [x] One or more categories in report 1.6; detail follows the existing period control; category selection, period and optional previous-year month survive URL reloads.
+- [x] Previous-year month uses dash-dot lines; absent months stay `–`, recorded zeros stay zero; existing consumption and Zukunft sources are reused.
+- [x] Targeted typechecks in five affected packages, changed-file lint/format, 75 tests in eight affected Vitest files, E2E build; full check/full E2E omitted under the package's parallel-job memory override.
+- [x] All six affected functional cases passed on desktop and 390 px mobile, including focused reruns; light/dark Axe, overflow, monthly touch targets, masking and image review. See [evidence](evidence/category-trend-385/README.md).
+- [ ] Required CI, PR review and owner product acceptance after deployment.
+
 ### Report 3.1 — baseline and scenario clarity (#284)
   - [x] Label the forecast basis from existing payment assumptions and variable planning; show an event setup hint only when no active planned events are configured, and disclose events outside the selected horizon.
   - [x] Isolated synthetic browser evidence for no events, later events and recurring-event count, with desktop/mobile screenshots, light/dark Axe and overflow checks. See [evidence](evidence/liquidity-baseline-284.md) for the integrated browser and full-check results.

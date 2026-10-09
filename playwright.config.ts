@@ -6,7 +6,7 @@ const MAIN_PORT = Number(process.env['E2E_PORT'] ?? 4310);
 const START_TIMEOUT = Number(process.env['E2E_START_TIMEOUT'] ?? 30_000);
 const AUTH_DESKTOP_PORT = MAIN_PORT + 1;
 const AUTH_MOBILE_PORT = MAIN_PORT + 2;
-const SAMPLE_PORT = MAIN_PORT + 3;
+const SAMPLE_PORT = Number(process.env['E2E_SAMPLE_PORT'] ?? MAIN_PORT + 3);
 /** Test-only secret for the bootstrap; the servers below are throwaway and local. */
 export { E2E_SETUP_TOKEN } from './e2e/setup-token';
 export const MAIN_URL = `http://localhost:${MAIN_PORT}`;

@@ -12,6 +12,7 @@ import type { PageMeta } from '../nav/pages';
 import type { ReportEntry } from '../nav/reports-catalog';
 import { PageFrame } from '../pages/placeholder-page';
 import { AppLink } from '../shell/app-link';
+import { categoryMonthSearch } from './category-trend';
 import {
   bpText,
   monthShort,
@@ -364,11 +365,14 @@ function Body({ data }: { data: SpendingReport }) {
                               className={`n ${tone}${v < 0 ? ' is-refund' : ''}`}
                               style={{ '--h': cell?.level.toFixed(2) ?? '0' } as CSSProperties}
                             >
-                              {v === 0 ? (
-                                <span aria-label="nichts ausgegeben">·</span>
-                              ) : (
-                                eur(v, { cents: false })
-                              )}
+                              <AppLink
+                                className="category-month-link"
+                                to="/konten/buchungen"
+                                search={categoryMonthSearch(row.id, data.heatMonths[i]!)}
+                                aria-label={`${row.name} · ${monthShort(data.heatMonths[i]!)} · ${eur(v)}`}
+                              >
+                                {v === 0 ? <span aria-label="nichts ausgegeben">·</span> : eur(v)}
+                              </AppLink>
                             </td>
                           );
                         })}

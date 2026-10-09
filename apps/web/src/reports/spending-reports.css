@@ -1,5 +1,13 @@
 /* Reports of group 2 (Ausgaben und Plan): one vocabulary of white cards on the slate ground,
    bars, bullets, heat tables and parts lists. Green = money that is there, red = action. */
+.sr-heat .category-month-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 44px;
+  min-height: 44px;
+  text-underline-offset: 3px;
+}
 .sr {
   display: grid;
   grid-template-columns: minmax(0, 7fr) minmax(0, 5fr);

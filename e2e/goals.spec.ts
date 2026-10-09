@@ -58,10 +58,10 @@ sampleTest('the five fixture goals show their needed rates for 17.09.2026', asyn
   await expect(page.locator('tr.prow .goal-name').first()).toHaveText('Weihnachten 2026');
 });
 
-sampleTest('the panel of a goal: chain, figures, axe', async ({ page }) => {
+sampleTest('the detail of a goal: chain, figures, axe', async ({ page }) => {
   await page.goto('/plan/sparziele');
-  await page.getByRole('button', { name: 'Urlaub Sommer 2027' }).click();
-  const panel = page.getByRole('dialog', { name: 'Urlaub Sommer 2027' });
+  await page.getByRole('link', { name: 'Urlaub Sommer 2027' }).click();
+  const panel = page.locator('main');
   await expect(panel.getByRole('group', { name: 'Maßkette Sparziel' })).toContainText('2.820,11 €');
   await expect(panel).toContainText('Monate bis dahin');
   await expect(
@@ -73,11 +73,8 @@ sampleTest('the panel of a goal: chain, figures, axe', async ({ page }) => {
 
 sampleTest('adopting a goal as the envelope target is one undoable action', async ({ page }) => {
   await page.goto('/plan/sparziele');
-  await page.getByRole('button', { name: 'Kfz-Service 2027' }).click();
-  await page
-    .getByRole('dialog')
-    .getByRole('button', { name: 'Als Ziel der Kategorie übernehmen' })
-    .click();
+  await page.getByRole('link', { name: 'Kfz-Service 2027' }).click();
+  await page.getByRole('button', { name: 'Als Ziel der Kategorie übernehmen' }).click();
   await expect(toast(page)).toContainText('Kfz-Service: Ziel 580,00 € übernommen');
   const adopted = () =>
     page.evaluate(async () => {
@@ -163,18 +160,22 @@ mainTest('goals: create, edit, delete and undo', async ({ page }, testInfo) => {
 
   // Edit the target; the needed rate follows.
   const rateBefore = await row.locator('.col-rate').innerText();
-  await row.getByRole('button', { name }).click();
+  await row.getByRole('link', { name }).click();
+  await page.getByRole('button', { name: 'Sparziel bearbeiten', exact: true }).click();
   const edit = page.getByRole('dialog', { name });
   await edit.getByLabel('Ziel', { exact: true }).fill('2000');
   await edit.getByRole('button', { name: 'Speichern' }).click();
   await expect(toast(page)).toContainText(`${name} geändert`);
+  await page.getByRole('link', { name: 'Zurück zu Sparzielen' }).click();
   await expect(row.locator('.col-target')).toHaveText('2.000,00 €');
   await expect(row.locator('.col-rate')).not.toHaveText(rateBefore);
 
   // Delete, then undo from the toast.
-  await row.getByRole('button', { name }).click();
+  await row.getByRole('link', { name }).click();
+  await page.getByRole('button', { name: 'Sparziel bearbeiten', exact: true }).click();
   await page.getByRole('dialog', { name }).getByRole('button', { name: 'Löschen' }).click();
   await expect(toast(page)).toContainText(`Sparziel „${name}“ gelöscht`);
+  await page.getByRole('link', { name: 'Zurück zu Sparzielen' }).click();
   await expect(row).toHaveCount(0);
   await toast(page).getByRole('button', { name: 'Rückgängig' }).click();
   await expect(row).toHaveCount(1);
