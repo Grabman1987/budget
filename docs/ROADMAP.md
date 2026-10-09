@@ -1,5 +1,13 @@
 # Roadmap
 
+### Reports and search package — #303–#308 (owner 2026-10-09)
+
+- [x] Qualify the inflation headline at the number; distinguish prices, CPI category proxies and trailing average expenditure in both basket views, retaining sources, common comparison month and coverage.
+- [x] Name per-position first/last observations, rolling twelve-month windows and contribution comparisons; retain the existing reconciled hundredth-Pp calculation.
+- [x] Name report 1.11 Prognosegenauigkeit and report 2.2 Budgettreue consistently in the catalog, search and heading; preserve both published slugs.
+- [x] Add bounded everyday search synonyms for existing planning, liquidity, savings, debt and cost functions; separate content matches from global actions and retain month-close navigation.
+- [ ] Required CI, mobile browser verification (local bootstrap blocked by host ENOMEM), Linux review of the affected report-catalog baselines and owner desktop/phone acceptance. No new keys, consents or configuration required. [Scoped verification and review images](evidence/reports-search-1009/README.md).
+
 ### F2 — Guided month close, plan next month and review (owner 2026-10-04)
 
 - [x] Step 4: expected income and shared bank-day payday, recurring dues, prior plan/actual and up to twelve completed-month average; group/all draft actions and explicit existing-API assign.
@@ -944,7 +952,7 @@ Method, limits and owner steps: [inflation basket](inflation-basket.md#cpi-sub-i
 
 ### Owner planning hit rate — 2026-10-05
 
-- [x] Report 1.11 Budgettreue: additive `plan_snapshot`, shared Pace capture, nightly idempotence/retry and conservative per-month backfill status.
+- [x] Report 1.11 Prognosegenauigkeit: additive `plan_snapshot`, shared Pace capture, nightly idempotence/retry and conservative per-month backfill status.
 - [x] Closed-month forecast/actual, exact 5% hits, six-calendar-month summary, monthly deviation bars, category drilldown and Heute copy after three comparable months; synthetic unit/API/component/E2E coverage.
 - [ ] Required CI, Linux visual review and owner month-end/data acceptance. See [planning hit rate](planning-accuracy.md).
 
