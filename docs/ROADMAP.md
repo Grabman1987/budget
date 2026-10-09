@@ -13,6 +13,7 @@
 - [x] GitHub Actions run [37874069963](https://github.com/Grabman1987/budget/actions/runs/37874069963) succeeded. Verified task parent: `400dc4ff91f8dc2890ae692a19bbf13c66c514ad`; helper `017af6dea4bb221bd59ba2663922ea07219ae345` is workflow-only, with no application-source changes.
 - [x] Focused gate: 4 files / 24 tests in 6.64 s. Full gate: 382 files / 3,519 tests in 149.57 s; TypeScript, lint and format green. Production and E2E builds passed.
 - [x] Desktop/mobile browser preflight: 5 passed including 3 setup cases in 33.3 s; current plan/review screenshots and hashes are recorded in [evidence](evidence/month-close-f2/README.md).
+- [x] Final prepared #281-parent union: [37875468357](https://github.com/Grabman1987/budget/actions/runs/37875468357) passed 4 focused files / 24 tests, the full 382 files / 3,519 tests, both builds and 5 desktop/mobile browser cases. All 2,149 frozen file hashes stayed unchanged; the helper workflow is excluded from the PR.
 - [ ] Exact-head PR CI, integration/deployment, real financial Gate 4 comparison and physical iPhone Safari acceptance remain open. The full preflight ran on Linux; no additional Windows full run was performed for this update.
 
 ### Current source and acceptance baseline — 2026-10-08

@@ -69,7 +69,7 @@ The focused gate covered four files and 24 tests in 6.64 seconds. The full gate
 covered 382 files and 3,519 tests in 149.57 seconds; TypeScript, lint and format
 were green. Production and E2E builds passed. The desktop/mobile browser run
 reported five passes, including three setup cases, in 33.3 seconds. The eight
-current screenshots below were generated from that preflight and reviewed by
+current screenshots below were generated from the two dated preflights and reviewed by
 the lead reviewer without substantive findings. SHA-256 values identify the copied artifacts.
 
 | View   | Desktop                                                                                       | Mobile                                                                                      |
@@ -83,10 +83,31 @@ the lead reviewer without substantive findings. SHA-256 values identify the copi
 | `desktop-plan-dark.png`    | `E655520BC2E42F816C08F966B73786AFFEEA223E2BA3E9B9C5AD3768BBDF37DA` |
 | `desktop-review-light.png` | `BDFE9A161D717D90F4139EB2A8486952C7BF6A1DC825E19646DBA9AA19669751` |
 | `desktop-review-dark.png`  | `C668BCACBC95E6EBF969974B0CA2E620B976338CEBACD81A6A14A651F623934B` |
-| `mobile-plan-light.png`    | `8EB79839F81A66554D7DDC11448BBB27DED05DB603473D5206EF00DAE69123B8` |
+| `mobile-plan-light.png`    | `A66531CB578A393CB0F6A5136C73D8FF453FF22B8AD6E6DB2C4433CE2FAFE48D` |
 | `mobile-plan-dark.png`     | `720AE354AB1000B0FA792175A0D495E9F3825F7A6C057749F240695F90A9509D` |
 | `mobile-review-light.png`  | `3AA13FE594C4E52EAE75CDD225B68C6BAE101504C7DC4819C1ECEF94FACB6E30` |
 | `mobile-review-dark.png`   | `6F98E69982E32FFC0BE95059AF5BEC93DD75B64E4A47FCFAC7509D2CBB119266` |
 
 This was a Linux preflight, not a local full #243 verification. Real financial
 comparison, owner Gate 4 and physical iPhone Safari acceptance remain open.
+
+## Final profile-parent union preflight — 2026-10-09
+
+Run [37875468357](https://github.com/Grabman1987/budget/actions/runs/37875468357)
+passed on task tree `8bbbdf8935de5de31dfd6a2f3f2b0dd939bbe12f`, including the
+prepared #281 parent. Helper `9ebcaa9389ee9a1a2b978fa6aa5460d69f9b5a0a` differed
+only in its temporary read-only workflow; that workflow is not part of this PR.
+All 2,149 frozen task-file hashes remained unchanged. Compared with the first
+preflight, application, package and E2E source was identical; the parent added
+the already reviewed profile scripts and documentation.
+
+The focused four files / 24 tests passed in 10.64 seconds. The full check passed
+typecheck, lint, formatting and 382 files / 3,519 tests (Vitest 241.44 seconds).
+Production and E2E builds passed, as did the five desktop/mobile browser cases
+(including three setup cases, 45.1 seconds). Tracked source remained clean on
+the runner. Seven plan/review image hashes matched the first run exactly; the
+final mobile light plan capture was reviewed again and is the copy listed above.
+This confirms the later persistent booking can reopen account/overspending steps
+without clearing the audited close date; close undo and future/incomplete-close
+guards remain covered. This is synthetic technical evidence; owner financial
+and physical-device gates remain open.
