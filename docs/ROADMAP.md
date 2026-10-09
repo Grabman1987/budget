@@ -13,6 +13,7 @@
 - [x] GitHub Actions run [37874069963](https://github.com/Grabman1987/budget/actions/runs/37874069963) succeeded. Verified task parent: `400dc4ff91f8dc2890ae692a19bbf13c66c514ad`; helper `017af6dea4bb221bd59ba2663922ea07219ae345` is workflow-only, with no application-source changes.
 - [x] Focused gate: 4 files / 24 tests in 6.64 s. Full gate: 382 files / 3,519 tests in 149.57 s; TypeScript, lint and format green. Production and E2E builds passed.
 - [x] Desktop/mobile browser preflight: 5 passed including 3 setup cases in 33.3 s; current plan/review screenshots and hashes are recorded in [evidence](evidence/month-close-f2/README.md).
+- [x] Final prepared #281-parent union: [37875468357](https://github.com/Grabman1987/budget/actions/runs/37875468357) passed 4 focused files / 24 tests, the full 382 files / 3,519 tests, both builds and 5 desktop/mobile browser cases. All 2,149 frozen file hashes stayed unchanged; the helper workflow is excluded from the PR.
 - [ ] Exact-head PR CI, integration/deployment, real financial Gate 4 comparison and physical iPhone Safari acceptance remain open. The full preflight ran on Linux; no additional Windows full run was performed for this update.
 
 ### Current source and acceptance baseline — 2026-10-08
@@ -246,7 +247,9 @@ Older CI/publication checkboxes below describe their original deliveries. Curren
 - [x] Plan › Monat: envelope detail and monthly income URLs, breadcrumb/back, legacy category links, full-width inline summary.
 - [x] Envelope assigning/moving/covering uses the existing input dialog; financial guards and undo remain intact.
 - [x] Synthetic red/green unit and browser-back/scroll, direct-link and dialog-focus regressions.
-- [ ] Remaining inventory, Linux baseline review and owner desktop/phone acceptance.
+- [x] Sidepanels-2a: Vermögen instrument/savings URLs with breadcrumb/back/scroll restoration; metadata, quote, schedule and trade FormDialogs; full-width `.vview` composition. Existing money/validation/audit/undo guards retained.
+- [x] Final Linux #248 preflight on merged head `aba6740923969c3a402d2ca4ab958819f320b498`: focused 7 files / 41 tests, full check 382 / 3,519 tests, builds and 43 Desktop/Mobile E2E tests passed ([captures and evidence](evidence/no-side-panels-wealth-1006/README.md)).
+- [ ] Linux snapshot-baseline review, exact-head PR CI and remaining inventory; owner desktop/phone acceptance, physical iPhone Safari, private financial Gate 4 and live acceptance remain separate open gates.
 
 
 ### UX-3b — Shared touch controls (owner feedback 2026-10-05)

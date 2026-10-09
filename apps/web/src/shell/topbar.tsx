@@ -3,6 +3,7 @@ import { Inbox, PanelLeft, Plus } from 'lucide-react';
 import { GlobalSearch } from './global-search';
 import { PanelLink } from './panel-link';
 import { useInboxCount } from './inbox';
+import { OverspentChip } from './overspent-chip';
 import { PrivacyButton } from './privacy-button';
 
 /**
@@ -36,6 +37,7 @@ export function Topbar({ collapsed, onToggle }: { collapsed: boolean; onToggle: 
             {inbox.count !== undefined && inbox.count > 0 && <Count>{inbox.count}</Count>}
             <span className="sr-only"> offen</span>
           </PanelLink>
+          <OverspentChip />
           <PanelLink
             className="btn btn-primary"
             panel="buchung"

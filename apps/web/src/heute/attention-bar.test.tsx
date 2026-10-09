@@ -1,16 +1,29 @@
 // @vitest-environment jsdom
 import { cleanup, render, screen } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
+import type { AnchorHTMLAttributes } from 'react';
 import type { ReactNode } from 'react';
 import { afterEach, expect, it, vi } from 'vitest';
 import { AttentionBar } from './attention-bar';
 import type { Heute } from './api';
 
 vi.mock('../shell/app-link', () => ({
-  AppLink: ({ children }: { children: ReactNode }) => <a href="#source">{children}</a>,
+  AppLink: ({
+    children,
+    to,
+    search,
+    ...props
+  }: AnchorHTMLAttributes<HTMLAnchorElement> & {
+    children: ReactNode;
+    to: string;
+    search?: unknown;
+  }) => (
+    <a href={to} data-search={JSON.stringify(search)} {...props}>
+      {children}
+    </a>
+  ),
 }));
 afterEach(cleanup);
-it('renders each overspending once, top two first, neutral inbox and a single action per finding', async () => {
+it('keeps overspending out of the bar, with neutral inbox and a single action per finding', async () => {
   const items = Array.from({ length: 8 }, (_, i) => ({
     kind: 'overspent' as const,
     urgent: true,
@@ -28,13 +41,40 @@ it('renders each overspending once, top two first, neutral inbox and a single ac
     },
   } as unknown as Heute;
   const { container } = render(<AttentionBar data={data} />);
-  expect(container.querySelectorAll('[data-overspent]')).toHaveLength(2);
-  await userEvent.click(screen.getByRole('button', { name: 'weitere 6' }));
-  for (const item of items)
-    expect(container.querySelectorAll(`[data-overspent="${item.categoryId}"]`)).toHaveLength(1);
-  expect(screen.getAllByRole('link', { name: 'Alle decken' })).toHaveLength(1);
+  // Overspending lives in the top-bar chip now, not in this bar.
+  expect(container.querySelectorAll('[data-overspent]')).toHaveLength(0);
+  expect(container.textContent).not.toContain('überzogen');
+  expect(screen.queryByRole('link', { name: 'Alle decken' })).toBeNull();
   expect(screen.getAllByRole('link', { name: 'Handeln' })).toHaveLength(1);
   expect(screen.getByRole('link', { name: 'Zuordnen' }).closest('.is-over')).toBeNull();
-  await userEvent.click(screen.getByRole('button', { name: 'Weniger zeigen' }));
-  expect(container.querySelectorAll('[data-overspent]')).toHaveLength(2);
+});
+
+it('does not claim there are no open tasks when overspending is the only finding', () => {
+  const data = {
+    stand: { today: '2026-09-17' },
+    nextSteps: {
+      items: [
+        {
+          kind: 'overspent' as const,
+          urgent: true,
+          categoryId: 'rent',
+          categoryName: 'Envelope rent',
+          cents: 2_500,
+          count: 1,
+        },
+      ],
+    },
+    attention: { inboxCount: 0, pendingCount: 0, pendingBefore: null },
+    financeCheck: { actionRules: [] },
+  } as unknown as Heute;
+
+  render(<AttentionBar data={data} />);
+
+  expect(screen.queryByText('Keine offenen Aufgaben aus den Heute-Prüfungen.')).toBeNull();
+  const link = screen.getByRole('link', { name: 'Plan prüfen' });
+  expect(link.getAttribute('href')).toBe('/plan/monat');
+  expect(link.getAttribute('data-search')).toBe(
+    JSON.stringify({ monat: '2026-09', ansicht: 'triage' }),
+  );
+  expect(link.textContent).not.toContain('25,00');
 });

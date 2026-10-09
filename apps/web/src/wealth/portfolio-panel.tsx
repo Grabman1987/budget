@@ -1,7 +1,7 @@
 import {
   useAmountPrivacy,
   Button,
-  DetailPanel,
+  FormDialog,
   Field,
   TextInput,
   useToast,
@@ -34,7 +34,7 @@ export function InstrumentPanel({
   position?: PortfolioPosition | undefined;
   asOf?: string | undefined;
   onClose: () => void;
-  onSelect: (id?: string) => void;
+  onSelect: (id?: string, replace?: boolean) => void;
   positionState: 'loading' | 'unavailable' | 'ready';
   onRetryPositions: () => void;
   onTrade: (id: string) => void;
@@ -43,6 +43,11 @@ export function InstrumentPanel({
   const creating = id === 'neu';
   const instrument = useQuery(instrumentQuery(creating ? '' : id));
   const [editing, setEditing] = useState(false);
+  const [quoting, setQuoting] = useState(false);
+  const heading = useRef<HTMLHeadingElement>(null);
+  useEffect(() => {
+    heading.current?.focus({ preventScroll: true });
+  }, [instrument.data?.security.id]);
   const [saving, setSaving] = useState(false);
   const [dirty, setDirty] = useState(false);
   const [asking, setAsking] = useState(false);
@@ -97,27 +102,18 @@ export function InstrumentPanel({
     setDirtyNow(false);
     setAsking(false);
     setEditing(false);
-    onClose();
+    setQuoting(false);
+    if (creating) onClose();
+  };
+  const beforeClose = () => {
+    if (savingRef.current || blocker.status === 'blocked') return false;
+    if (!dirtyRef.current) return true;
+    setDiscardTarget('close');
+    setAsking(true);
+    return false;
   };
   return (
-    <DetailPanel
-      open={!!id}
-      title={
-        creating
-          ? 'Instrument anlegen'
-          : editing
-            ? 'Stammdaten bearbeiten'
-            : (instrument.data?.security.name ?? 'Instrument')
-      }
-      onClose={close}
-      beforeClose={() => {
-        if (savingRef.current || blocker.status === 'blocked') return false;
-        if (!dirtyRef.current) return true;
-        setDiscardTarget('close');
-        setAsking(true);
-        return false;
-      }}
-    >
+    <>
       {!creating && instrument.isPending && <LoadingNote what="Instrumentdaten" />}
       {!creating && instrument.isError && (
         <ErrorNote
@@ -126,172 +122,214 @@ export function InstrumentPanel({
           onRetry={() => void instrument.refetch()}
         />
       )}
-      {creating || (editing && instrument.data) ? (
-        <InstrumentForm
-          key={id}
-          security={creating ? undefined : instrument.data?.security}
-          effectiveDay={asOf}
-          onDirty={setDirtyNow}
-          onSaved={(security) => {
-            setDirtyNow(false);
-            setSavingNow(false);
-            setAsking(false);
-            setEditing(false);
-            onSelect(security.id);
-          }}
-          onSelect={onSelect}
-          onBusy={setSavingNow}
-        />
-      ) : (
-        instrument.data && (
-          <div className="instrument-detail">
-            <dl className="instrument-metadata">
-              <div>
-                <dt>Art</dt>
-                <dd>{INSTRUMENT_KIND[instrument.data.security.kind]}</dd>
-              </div>
-              <div>
-                <dt>Währung</dt>
-                <dd>{instrument.data.security.currency}</dd>
-              </div>
-              <div>
-                <dt>ISIN</dt>
-                <dd>{instrument.data.security.isin ?? '—'}</dd>
-              </div>
-              <div>
-                <dt>Symbol</dt>
-                <dd>{instrument.data.security.symbol ?? '—'}</dd>
-              </div>
-            </dl>
-            <Button
-              variant="ghost"
-              disabled={saving}
-              onClick={() => {
-                if (dirty) {
-                  setDiscardTarget('edit');
-                  setAsking(true);
-                } else setEditing(true);
-              }}
-            >
-              Stammdaten bearbeiten
-            </Button>
-            <Button disabled={saving} onClick={() => openTrade('neu')}>
-              Handel erfassen
-            </Button>
-            {!position && positionState === 'loading' && <LoadingNote what="Bestände" />}
-            {!position && positionState === 'unavailable' && (
-              <ErrorNote what="Bestände" error={undefined} onRetry={onRetryPositions} />
-            )}
-            {!position && positionState === 'ready' && (
-              <p className="vnote">Dieses Instrument hat keinen aktuellen Bestand.</p>
-            )}
-            {position && (
-              <>
-                <h3>Kurs</h3>
-                <p className="instrument-quote">
-                  {quoteText(position?.quote ?? null)}
-                  <small>{quoteStand(position?.quote ?? null)}</small>
-                </p>
-              </>
-            )}
-            {position && (
-              <>
-                <h3>Bestand je Konto</h3>
-                <table className="instrument-accounts">
-                  <caption className="sr-only">
-                    Bestand des Instruments je Konto und Plattform
-                  </caption>
-                  <thead>
-                    <tr>
-                      <th>Konto / Plattform</th>
-                      <th className="num">Stück / Wert</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {position.accounts.map((a) => (
-                      <tr key={a.accountId}>
-                        <th scope="row">
-                          <AppLink to={`/konten/${encodeURIComponent(a.accountId)}`}>
-                            {a.name}
-                          </AppLink>
-                          <small>{a.institution ?? 'Kein Institut zugeordnet'}</small>
-                        </th>
-                        <td className="num">
-                          {unitsText(a.unitsE8)}
-                          <small>
-                            {a.valueCents === null
-                              ? a.valueStatus === 'missing_price'
-                                ? 'Kurs fehlt'
-                                : 'Wechselkurs fehlt'
-                              : `${moneyText(a.valueCents)}${a.valueStatus === 'estimated' ? ' · geschätzt' : ''}`}
-                          </small>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-                <p className="vnote">
-                  {position.costCents === null
-                    ? basisReason(position.accounts)
-                    : `Einstand ${moneyText(position.costCents)}`}{' '}
-                  · Wertzuwachs {moneyText(position.gainCents)}
-                </p>
-              </>
-            )}
-            <TradeHistory securityId={id} onEdit={openTrade} disabled={saving} />
-            {asOf && position && (
-              <ManualQuote
-                key={id}
-                securityId={id}
-                currency={instrument.data.security.currency}
-                asOf={asOf}
-                onDirty={setDirtyNow}
-                onBusy={setSavingNow}
-              />
-            )}
-          </div>
-        )
-      )}
-      {asking && (
-        <div className="instrument-discard" role="alert">
-          <p>
-            {creating || editing
-              ? 'Ungespeicherte Angaben verwerfen?'
-              : 'Ungespeicherten Kurs verwerfen?'}
-          </p>
+      {!creating && instrument.data && (
+        <section className="instrument-detail" aria-label={instrument.data.security.name}>
+          <h2 tabIndex={-1} ref={heading}>
+            {instrument.data.security.name}
+          </h2>
+
+          <dl className="instrument-metadata">
+            <div>
+              <dt>Art</dt>
+              <dd>{INSTRUMENT_KIND[instrument.data.security.kind]}</dd>
+            </div>
+            <div>
+              <dt>Währung</dt>
+              <dd>{instrument.data.security.currency}</dd>
+            </div>
+            <div>
+              <dt>ISIN</dt>
+              <dd>{instrument.data.security.isin ?? '—'}</dd>
+            </div>
+            <div>
+              <dt>Symbol</dt>
+              <dd>{instrument.data.security.symbol ?? '—'}</dd>
+            </div>
+          </dl>
           <Button
-            disabled={saving}
-            onClick={() => {
-              setAsking(false);
-              if (discardTarget === 'navigation' && blocker.status === 'blocked') blocker.reset();
-            }}
-          >
-            Weiter bearbeiten
-          </Button>
-          <Button
-            disabled={saving}
             variant="ghost"
+            disabled={saving}
             onClick={() => {
-              if (discardTarget === 'edit') {
-                setDirtyNow(false);
-                setAsking(false);
-                setEditing(true);
-              } else if (discardTarget === 'trade') {
-                setDirtyNow(false);
-                setAsking(false);
-                onTrade(tradeTarget);
-              } else if (discardTarget === 'navigation' && blocker.status === 'blocked') {
-                setDirtyNow(false);
-                setAsking(false);
-                blocker.proceed();
-              } else close();
+              if (dirty) {
+                setDiscardTarget('edit');
+                setAsking(true);
+              } else setEditing(true);
             }}
           >
-            Verwerfen
+            Stammdaten bearbeiten
           </Button>
-        </div>
+          <Button disabled={saving} onClick={() => openTrade('neu')}>
+            Handel erfassen
+          </Button>
+          {!position && positionState === 'loading' && <LoadingNote what="Bestände" />}
+          {!position && positionState === 'unavailable' && (
+            <ErrorNote what="Bestände" error={undefined} onRetry={onRetryPositions} />
+          )}
+          {!position && positionState === 'ready' && (
+            <p className="vnote">Dieses Instrument hat keinen aktuellen Bestand.</p>
+          )}
+          {position && (
+            <>
+              <h3>Kurs</h3>
+              <p className="instrument-quote">
+                {quoteText(position?.quote ?? null)}
+                <small>{quoteStand(position?.quote ?? null)}</small>
+              </p>
+            </>
+          )}
+          {position && (
+            <>
+              <h3>Bestand je Konto</h3>
+              <table className="instrument-accounts">
+                <caption className="sr-only">
+                  Bestand des Instruments je Konto und Plattform
+                </caption>
+                <thead>
+                  <tr>
+                    <th>Konto / Plattform</th>
+                    <th className="num">Stück / Wert</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {position.accounts.map((a) => (
+                    <tr key={a.accountId}>
+                      <th scope="row">
+                        <AppLink to={`/konten/${encodeURIComponent(a.accountId)}`}>
+                          {a.name}
+                        </AppLink>
+                        <small>{a.institution ?? 'Kein Institut zugeordnet'}</small>
+                      </th>
+                      <td className="num">
+                        {unitsText(a.unitsE8)}
+                        <small>
+                          {a.valueCents === null
+                            ? a.valueStatus === 'missing_price'
+                              ? 'Kurs fehlt'
+                              : 'Wechselkurs fehlt'
+                            : `${moneyText(a.valueCents)}${a.valueStatus === 'estimated' ? ' · geschätzt' : ''}`}
+                        </small>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              <p className="vnote">
+                {position.costCents === null
+                  ? basisReason(position.accounts)
+                  : `Einstand ${moneyText(position.costCents)}`}{' '}
+                · Wertzuwachs {moneyText(position.gainCents)}
+              </p>
+            </>
+          )}
+          <TradeHistory securityId={id} onEdit={openTrade} disabled={saving} />
+          {asOf && position && (
+            <Button variant="ghost" disabled={saving} onClick={() => setQuoting(true)}>
+              Kurs eintragen
+            </Button>
+          )}
+        </section>
       )}
-    </DetailPanel>
+      <FormDialog
+        open={creating || editing || quoting}
+        title={
+          creating ? 'Instrument anlegen' : editing ? 'Stammdaten bearbeiten' : 'Kurs eintragen'
+        }
+        onClose={close}
+        beforeClose={beforeClose}
+      >
+        {(creating || editing || quoting) && (
+          <>
+            <div className="bk-head">
+              <h2>
+                {creating
+                  ? 'Instrument anlegen'
+                  : editing
+                    ? 'Stammdaten bearbeiten'
+                    : 'Kurs eintragen'}
+              </h2>
+              <Button
+                variant="ghost"
+                onClick={() => {
+                  if (beforeClose()) close();
+                }}
+              >
+                Schließen
+              </Button>
+            </div>
+            <div className="bk-body">
+              {quoting && asOf && instrument.data ? (
+                <ManualQuote
+                  key={id}
+                  securityId={id}
+                  currency={instrument.data.security.currency}
+                  asOf={asOf}
+                  onDirty={setDirtyNow}
+                  onBusy={setSavingNow}
+                  onSaved={close}
+                />
+              ) : (
+                <InstrumentForm
+                  key={id}
+                  security={creating ? undefined : instrument.data?.security}
+                  effectiveDay={asOf}
+                  onDirty={setDirtyNow}
+                  onSaved={(security) => {
+                    setDirtyNow(false);
+                    setSavingNow(false);
+                    setAsking(false);
+                    setEditing(false);
+                    onSelect(security.id, creating);
+                  }}
+                  onSelect={onSelect}
+                  onBusy={setSavingNow}
+                />
+              )}
+              {asking && (
+                <div className="instrument-discard" role="alert">
+                  <p>
+                    {creating || editing
+                      ? 'Ungespeicherte Angaben verwerfen?'
+                      : 'Ungespeicherten Kurs verwerfen?'}
+                  </p>
+                  <Button
+                    disabled={saving}
+                    onClick={() => {
+                      setAsking(false);
+                      if (discardTarget === 'navigation' && blocker.status === 'blocked')
+                        blocker.reset();
+                    }}
+                  >
+                    Weiter bearbeiten
+                  </Button>
+                  <Button
+                    disabled={saving}
+                    variant="ghost"
+                    onClick={() => {
+                      if (discardTarget === 'edit') {
+                        setDirtyNow(false);
+                        setAsking(false);
+                        setQuoting(false);
+                        setEditing(true);
+                      } else if (discardTarget === 'trade') {
+                        setDirtyNow(false);
+                        setAsking(false);
+                        onTrade(tradeTarget);
+                      } else if (discardTarget === 'navigation' && blocker.status === 'blocked') {
+                        setDirtyNow(false);
+                        setAsking(false);
+                        blocker.proceed();
+                      } else close();
+                    }}
+                  >
+                    Verwerfen
+                  </Button>
+                </div>
+              )}
+            </div>
+          </>
+        )}
+      </FormDialog>
+    </>
   );
 }
 function ManualQuote({
@@ -300,12 +338,14 @@ function ManualQuote({
   asOf,
   onDirty,
   onBusy,
+  onSaved,
 }: {
   securityId: string;
   currency: string;
   asOf: string;
   onDirty: (dirty: boolean) => void;
   onBusy: (busy: boolean) => void;
+  onSaved: () => void;
 }) {
   useAmountPrivacy();
   const [date, setDate] = useState(asOf);
@@ -351,6 +391,7 @@ function ManualQuote({
         actionLabel: 'Rückgängig',
         onAction: () => undo(result.groupId),
       });
+      onSaved();
     } catch (err) {
       setError(errorText(err));
     } finally {

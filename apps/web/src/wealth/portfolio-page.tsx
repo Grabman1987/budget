@@ -1,5 +1,6 @@
 import { useAmountPrivacy, Button, DimensionChain } from '@budget/ui';
 import { useQuery } from '@tanstack/react-query';
+import type { Period } from '@budget/domain';
 import { useNavigate, useSearch } from '@tanstack/react-router';
 import { ChartNoAxesCombined, ChevronRight } from 'lucide-react';
 import { VERMOEGEN_PORTFOLIO_META } from '../nav/pages';
@@ -37,31 +38,24 @@ export function PortfolioPage() {
     produkt?: string;
     handel?: string;
     sparplan?: string;
+    zeitraum?: Period;
   };
   const navigate = useNavigate();
-  const select = (produkt?: string) =>
-    void navigate({
-      to: '/vermoegen/portfolio',
-      search: ((prev: Record<string, unknown>) => ({
-        ...prev,
-        produkt,
-        handel: undefined,
-        allokation: undefined,
-        sparplan: undefined,
-      })) as never,
-    }).then(() => {
-      if (produkt || !search.produkt) return;
-      // A route remount can detach the dialog's native return-focus target.
-      // Restore the current button only after the close navigation has rendered.
-      requestAnimationFrame(() => {
-        if (document.querySelector('dialog[open]')) return;
-        document
-          .querySelector<HTMLButtonElement>(
-            `[data-portfolio-security="${CSS.escape(search.produkt!)}"]`,
-          )
-          ?.focus();
-      });
-    });
+  const select = (produkt?: string, replace = false) =>
+    void navigate(
+      produkt && produkt !== 'neu'
+        ? {
+            to: '/vermoegen/portfolio/instrument/$id',
+            params: { id: produkt },
+            search: { zeitraum: search.zeitraum },
+            state: { wealthDetailOpenedInApp: true },
+            replace,
+          }
+        : {
+            to: '/vermoegen/portfolio',
+            search: { zeitraum: search.zeitraum, produkt },
+          },
+    );
   const trade = (handel?: string, produkt = search.produkt) =>
     void navigate({
       to: '/vermoegen/portfolio',
@@ -212,9 +206,9 @@ export function PortfolioPage() {
           onClose={() => trade()}
           onSaved={(id) => trade(undefined, id)}
         />
-      ) : (
+      ) : search.produkt === 'neu' ? (
         <InstrumentPanel
-          id={search.produkt ?? ''}
+          id="neu"
           position={(view?.positions ?? view?.classes.flatMap((g) => g.positions) ?? []).find(
             (p) => p.securityId === search.produkt,
           )}
@@ -225,7 +219,7 @@ export function PortfolioPage() {
           onRetryPositions={() => void query.refetch()}
           onTrade={trade}
         />
-      )}
+      ) : null}
     </PageFrame>
   );
 }
