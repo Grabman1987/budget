@@ -94,8 +94,15 @@ test('rule status direct links, browser back and return keep context; threshold 
 }) => {
   await page.goto('/einstellungen/regelwerk?monat=2026-09');
   const opener = page.getByRole('link', { name: 'Einstellen R02 Notgroschen' });
+  await opener.waitFor();
+  // Let the page settle first (fonts, re-evaluation): late layout shifts above the row make Chrome's
+  // scroll anchoring move scrollY by a few lines, so the raw scrollY from before is not the position
+  // that is saved when leaving. The invariant is that the row comes back at the same viewport offset.
+  await page.evaluate(() => document.fonts.ready.then(() => undefined));
+  await page.waitForLoadState('networkidle');
   await opener.scrollIntoViewIfNeeded();
-  const scroll = await page.evaluate(() => scrollY);
+  const offset = () => opener.evaluate((el) => el.getBoundingClientRect().top);
+  const before = await offset();
   await opener.click();
   await expect(page).toHaveURL(/\/regelwerk\/R02\?monat=2026-09$/);
   await expect(page.getByRole('navigation', { name: 'Brotkrumen' })).toContainText(
@@ -105,7 +112,7 @@ test('rule status direct links, browser back and return keep context; threshold 
   await inspect(page, 'rule-status');
   await page.goBack();
   await expect(page).toHaveURL(/\/regelwerk\?monat=2026-09$/);
-  await expect.poll(() => page.evaluate(() => scrollY)).toBeCloseTo(scroll, 0);
+  await expect.poll(offset).toBeCloseTo(before, -1);
   await page.goForward();
   const edit = page.getByRole('link', { name: 'Schwellen bearbeiten', exact: true });
   await edit.click();

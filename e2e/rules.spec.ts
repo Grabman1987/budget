@@ -88,7 +88,11 @@ test('violations lead with values, thresholds and correction links; disabled rul
     ).toHaveCount(1);
     if (rule.latest?.status === 'bad') {
       await expect(row).toContainText(`Ist: ${rule.latest.valueText}`);
-      await expect(row.getByRole('link')).toBeVisible();
+      // Correction link (.rw-fix) and the rule-status link ("Einstellen …") are distinct links.
+      await expect(row.locator('a.rw-fix')).toBeVisible();
+      await expect(
+        row.getByRole('link', { name: `Einstellen ${rule.code} ${rule.name}` }),
+      ).toBeVisible();
       await expect(row).toContainText('Schwelle:');
     }
   }
