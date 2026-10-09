@@ -15,7 +15,7 @@ export interface HeuteOccurrence {
   name: string;
   kind: 'outflow' | 'inflow';
   dueDate: string;
-  status: 'expected' | 'received' | 'deviating' | 'missed';
+  status: 'expected' | 'received' | 'deviating' | 'missed' | 'skipped';
   amountCents: number;
   accountId: string | null;
   accountName: string | null;

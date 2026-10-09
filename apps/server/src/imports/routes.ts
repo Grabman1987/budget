@@ -41,7 +41,7 @@ const previewBody = z.object({ mapping: mappingSchema });
 export function importRoutes(
   db: Db,
   today: () => string,
-  stepUp: MiddlewareHandler,
+  passkeySession: MiddlewareHandler,
   jobs: ImportJobs,
 ): Hono {
   const app = new Hono();
@@ -67,7 +67,7 @@ export function importRoutes(
     return c.json({ job });
   });
 
-  app.post('/ynab', stepUp, async (c) => {
+  app.post('/ynab', passkeySession, async (c) => {
     const form = await c.req.parseBody({ all: true });
     const files = Object.values(form)
       .flat()
@@ -121,7 +121,7 @@ export function importRoutes(
     return startJob(c, { kind: 'dry-run', runId: r.id });
   });
 
-  app.post('/:id/commit', stepUp, async (c) => {
+  app.post('/:id/commit', passkeySession, async (c) => {
     refuseCommitted(run(c.req.param('id')));
     const { deleteMissing } = await readBody(c, commitBody);
     // The task reads the run again inside its transaction: a second request (double click,
@@ -132,12 +132,12 @@ export function importRoutes(
   /** Gate 2 report of the run with its latest mapping (after a commit: against the app's data). */
   app.get('/:id/report', (c) => runNow(c, { kind: 'report', runId: run(c.req.param('id')).id }));
 
-  app.post('/:id/revert', stepUp, async (c) => {
+  app.post('/:id/revert', passkeySession, async (c) => {
     const { force } = await readBody(c, revertBody);
     return startJob(c, { kind: 'revert', runId: run(c.req.param('id')).id, force });
   });
 
-  app.delete('/:id', stepUp, (c) => {
+  app.delete('/:id', passkeySession, (c) => {
     const r = run(c.req.param('id'));
     return c.json({ deleted: deleteRun(db, r) });
   });

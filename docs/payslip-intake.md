@@ -129,6 +129,18 @@ availability and the date window. No automatic split reassignment occurs: owner
 booking splits must separately classify reimbursements to exclude them from
 ledger-based savings-rate reports, as in the existing captured-payroll workflow.
 
+### Scope of the scheduled scan
+
+The scan only reviews documents from the start of the records (month of the earliest account
+opening date; never a fixed year). A year folder before that year is not downloaded or staged;
+within the start year, and for any year folder, the period read from the document decides, so
+new year folders such as 2027 are picked up without configuration. A scanned document whose
+month and kind (special payments: same gross) are already captured is staged as rejected with
+the reason "Bereits erfasst." and its inbox task is resolved. When the records start changes
+(and on the first run after this rule exists) one full listing re-evaluates pending Dropbox
+intakes by the same rules; they are rejected with a reason, never deleted. Counts of skipped
+documents are kept per run, never names or paths. Manual uploads are always staged.
+
 ## Backup and verification
 
 The existing encrypted archive includes the SQLite database and every referenced

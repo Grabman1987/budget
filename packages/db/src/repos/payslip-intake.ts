@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { and, eq, isNull, or } from 'drizzle-orm';
 import {
+  isDuplicatePayslip,
   payrollTotals,
   payslipInput,
   payslipSourceConfig,
@@ -16,6 +17,7 @@ import {
   inboxItem,
   payslipIntake,
   payslipScan,
+  payslip,
   payslipSecret,
   receipt,
 } from '../schema';
@@ -31,6 +33,8 @@ import { ConflictError, EntityNotFoundError } from './errors';
 import { runInTransaction, type Executor } from './types';
 import { addReceipt, getReceipt, linkReceipt } from './receipts';
 import { savePayslip } from './payroll-projects';
+import { earliestAccountDate } from './portfolio';
+import { listEntities } from './entities';
 
 export const getPayslipSourceConfig = (db: Executor): PayslipSourceConfig => {
   const value = db
@@ -107,67 +111,40 @@ export function stagePayslip(
     sizeBytes: number;
     filename: string;
     parsed: ParsedPayrollDocument;
+    /** Stage the intake already decided (rejected, inbox task resolved) with this reason. */
+    settle?: string;
   },
   ctx: AuditContext,
 ) {
   const grouped = withGroup(ctx);
   return runInTransaction(db, (tx) => {
-    const old = findPayslipIntake(tx, input.sha256, input.contentHash);
-    if (old && !old.deletedAt) return { id: old.id, duplicate: true, groupId: null };
-    if (old) {
-      updateTracked(
-        tx,
-        payslipIntake,
-        [old.id],
-        {
-          deletedAt: null,
-          parsedJson: JSON.stringify(input.parsed),
-          status: 'pending',
-          payslipId: null,
-        },
-        grouped,
-        'restore',
-      );
-      updateTracked(tx, receipt, [old.receiptId], { deletedAt: null }, grouped, 'restore');
-      insertTracked(
-        tx,
-        inboxItem,
-        {
-          id: randomUUID(),
-          kind: 'revision',
-          title: title(input.parsed),
-          refType: 'payslip-intake',
-          refId: old.id,
-          urgent: input.parsed.warnings.length > 0,
-        },
-        grouped,
-      );
-      return { id: old.id, duplicate: false, groupId: grouped.groupId };
-    }
-    const r = addReceipt(
-      tx,
-      {
-        sha256: input.sha256,
-        mime: 'application/pdf',
-        sizeBytes: input.sizeBytes,
-        originalFilename: input.filename,
-      },
-      undefined,
-      grouped,
-    ).receipt;
-    const row = insertTracked(
+    const staged = stageRow(tx, input, grouped);
+    if (input.settle && !staged.duplicate) settleIntake(tx, staged.id, input.settle, grouped);
+    return staged;
+  });
+}
+function stageRow(
+  tx: Executor,
+  input: Parameters<typeof stagePayslip>[1],
+  grouped: AuditContext,
+): { id: string; duplicate: boolean; groupId: string | null | undefined } {
+  const old = findPayslipIntake(tx, input.sha256, input.contentHash);
+  if (old && !old.deletedAt) return { id: old.id, duplicate: true, groupId: null };
+  if (old) {
+    updateTracked(
       tx,
       payslipIntake,
+      [old.id],
       {
-        id: randomUUID(),
-        sha256: input.sha256,
-        contentHash: input.contentHash ?? null,
-        source: input.source,
-        receiptId: r.id,
+        deletedAt: null,
         parsedJson: JSON.stringify(input.parsed),
+        status: 'pending',
+        payslipId: null,
       },
       grouped,
+      'restore',
     );
+    updateTracked(tx, receipt, [old.receiptId], { deletedAt: null }, grouped, 'restore');
     insertTracked(
       tx,
       inboxItem,
@@ -176,12 +153,152 @@ export function stagePayslip(
         kind: 'revision',
         title: title(input.parsed),
         refType: 'payslip-intake',
-        refId: row.id,
+        refId: old.id,
         urgent: input.parsed.warnings.length > 0,
       },
       grouped,
     );
-    return { id: row.id, duplicate: false, groupId: grouped.groupId };
+    return { id: old.id, duplicate: false, groupId: grouped.groupId };
+  }
+  const r = addReceipt(
+    tx,
+    {
+      sha256: input.sha256,
+      mime: 'application/pdf',
+      sizeBytes: input.sizeBytes,
+      originalFilename: input.filename,
+    },
+    undefined,
+    grouped,
+  ).receipt;
+  const row = insertTracked(
+    tx,
+    payslipIntake,
+    {
+      id: randomUUID(),
+      sha256: input.sha256,
+      contentHash: input.contentHash ?? null,
+      source: input.source,
+      receiptId: r.id,
+      parsedJson: JSON.stringify(input.parsed),
+    },
+    grouped,
+  );
+  insertTracked(
+    tx,
+    inboxItem,
+    {
+      id: randomUUID(),
+      kind: 'revision',
+      title: title(input.parsed),
+      refType: 'payslip-intake',
+      refId: row.id,
+      urgent: input.parsed.warnings.length > 0,
+    },
+    grouped,
+  );
+  return { id: row.id, duplicate: false, groupId: grouped.groupId };
+}
+/** Inbox resolutions for payslip PDFs that are not meant to be reviewed again. */
+export const PAYSLIP_BEFORE_START = 'Vor dem Startdatum – nicht übernommen.';
+export const PAYSLIP_ALREADY_RECORDED = 'Bereits erfasst.';
+export type PayslipScope = 'in_scope' | 'before_start' | 'recorded';
+
+/** Month (`YYYY-MM`) where the records begin: the first live account's opening date. */
+export const payslipRecordsStart = (db: Executor) => earliestAccountDate(db)?.slice(0, 7) ?? null;
+
+const filenameMonth = (filename: string) => {
+  const m = filename.match(/(?:^|\D)(20\d{2})(0[1-9]|1[0-2])(?:\D|$)/);
+  return m ? `${m[1]}-${m[2]}` : null;
+};
+/**
+ * Whether a document belongs into the review queue. The read period decides (Abrechnungsmonat,
+ * else a YYYYMM filename); only without any period the year folder (`folderYear`) is used.
+ * A payslip already captured for the same month and kind (special: same gross) is "recorded".
+ */
+export function payslipScope(
+  db: Executor,
+  parsed: ParsedPayrollDocument,
+  filename: string,
+  folderYear: number | null = null,
+): PayslipScope {
+  const start = payslipRecordsStart(db),
+    month = parsed.draft?.month ?? filenameMonth(filename);
+  if (start) {
+    if (month ? month < start : folderYear !== null && folderYear < Number(start.slice(0, 4)))
+      return 'before_start';
+  }
+  const draft = parsed.draft;
+  if (!draft) return 'in_scope';
+  const live = listEntities(db, payslip);
+  const recorded =
+    draft.kind === 'special' && draft.specialType === 'other'
+      ? live.some(
+          (p) =>
+            p.month === draft.month && p.kind === 'special' && p.grossCents === draft.grossCents,
+        )
+      : isDuplicatePayslip(live, draft);
+  return recorded ? 'recorded' : 'in_scope';
+}
+export const payslipScopeReason = (scope: Exclude<PayslipScope, 'in_scope'>) =>
+  scope === 'before_start' ? PAYSLIP_BEFORE_START : PAYSLIP_ALREADY_RECORDED;
+/** Reject the intake and resolve its inbox task with the reason; nothing is deleted. */
+function settleIntake(tx: Executor, id: string, resolution: string, ctx: AuditContext) {
+  updateTracked(tx, payslipIntake, [id], { status: 'rejected' }, ctx);
+  const item = tx
+    .select()
+    .from(inboxItem)
+    .where(
+      and(
+        eq(inboxItem.refType, 'payslip-intake'),
+        eq(inboxItem.refId, id),
+        isNull(inboxItem.resolvedAt),
+      ),
+    )
+    .get();
+  if (item)
+    updateTracked(
+      tx,
+      inboxItem,
+      [item.id],
+      { resolvedAt: nowIso(), resolution, urgent: false },
+      ctx,
+    );
+}
+/**
+ * Re-evaluate one pending Dropbox intake with the current scope rules (start of the records,
+ * payslips captured since). Returns the verdict; out-of-scope intakes are rejected with a reason.
+ */
+export function reevaluatePayslipIntake(
+  db: Executor,
+  id: string,
+  folderYear: number | null,
+  ctx: AuditContext,
+): PayslipScope {
+  const grouped = withGroup(ctx);
+  return runInTransaction(db, (tx) => {
+    const row = getPayslipIntake(tx, id);
+    if (row.status !== 'pending' || row.source !== 'dropbox') return 'in_scope';
+    const scope = payslipScope(
+      tx,
+      row.parsed,
+      getReceipt(tx, row.receiptId).originalFilename ?? '',
+      folderYear,
+    );
+    if (scope !== 'in_scope') settleIntake(tx, id, payslipScopeReason(scope), grouped);
+    return scope;
+  });
+}
+
+const SCOPE_KEY = 'payslip.scan.start';
+/** Start month the last complete Dropbox listing was filtered with. */
+export const readPayslipScanStart = (db: Executor) =>
+  db.select().from(appSetting).where(eq(appSetting.id, SCOPE_KEY)).get()?.value ?? null;
+export function writePayslipScanStart(db: Executor, start: string, ctx: AuditContext) {
+  runInTransaction(db, (tx) => {
+    if (readPayslipScanStart(tx) === null)
+      insertTracked(tx, appSetting, { id: SCOPE_KEY, value: start }, ctx);
+    else updateTracked(tx, appSetting, [SCOPE_KEY], { value: start }, ctx);
   });
 }
 export function replaceParsedPayslip(

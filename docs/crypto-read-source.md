@@ -39,7 +39,7 @@ reach logs, API errors or audit rows. The API/UI disclose key presence only.
    Replace placeholders privately, avoid shared terminals/shell-history exposure,
    and never paste the key into this repository, chat or a PR.
 3. After deployment, open Einstellungen › Datenquellen. Confirm
-   “Schlüssel gesetzt: ja”, use “Jetzt abrufen” and complete passkey step-up.
+   “Schlüssel gesetzt: ja”, use “Jetzt abrufen” (a session opened with a passkey is enough; no extra confirmation).
    Continue with “Abruf fortsetzen” until the initial history is complete.
 4. Create/select the platform's off-budget investment and cash accounts and
    instruments in the existing screens. Assign each source currency to its
@@ -117,7 +117,7 @@ A ledger row serves one source movement only (best match first: tier, then day d
 operation order), so two identical purchases need two trades. Operations are always matched
 together, so the verdict does not depend on the page order of the fetch.
 
-"Abgleich neu ausführen" (Einstellungen › Datenquellen, step-up protected) re-checks all staged
+"Abgleich neu ausführen" (Einstellungen › Datenquellen, passkey session) re-checks all staged
 operations on/after the start day, including those closed by the manual cut-off cleanup
 (resolution starting "Vor dem Übernahme-Stichtag" or "Vor dem Startdatum"): matches are resolved,
 others reopened. Items the owner resolved by hand ("Vom Nutzer als erledigt markiert") and items

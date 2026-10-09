@@ -40,7 +40,7 @@ import {
   type PlannedEventView,
 } from './liquidity-api';
 import { LiquidityChart } from './liquidity-chart';
-import { expectedQuery, type ExpectedPayment } from '../expected/api';
+import { expectedQuery, skipOccurrence, type ExpectedPayment } from '../expected/api';
 import './reports-future.css';
 
 const HORIZON_OPTIONS: ReadonlyArray<{ value: LiquidityHorizon; label: string }> = [
@@ -923,8 +923,12 @@ function OutlookCard({ report }: { report: LiquidityReport }) {
   );
 }
 
+/** An income is struck "für diesen Monat", a payment "diesmal". */
+const strikeLabel = (cents: number) => (cents > 0 ? 'Diesen Monat streichen' : 'Diesmal streichen');
+
 function MovementsCard({ report }: { report: LiquidityReport }) {
   useAmountPrivacy();
+  const write = useBudgetWrite();
   return (
     <section className="card rf-card rf-wide" aria-labelledby="liq-moves">
       <div className="tbd-head">
@@ -945,6 +949,9 @@ function MovementsCard({ report }: { report: LiquidityReport }) {
               <th className="tech">Bewegung</th>
               <th className="tech n">Betrag</th>
               <th className="tech n">Saldo danach</th>
+              <th className="tech rf-act">
+                <span className="sr-only">Aktion</span>
+              </th>
             </tr>
           </thead>
           {report.movements.map((b) => (
@@ -954,6 +961,7 @@ function MovementsCard({ report }: { report: LiquidityReport }) {
                   {monthLong(b.month)}
                 </th>
                 <td className="n">{eur(b.startCents)}</td>
+                <td />
               </tr>
               {b.rows.map((r, i) => (
                 <tr key={`${r.day}-${i}`} className={r.planned ? 'is-event' : undefined}>
@@ -965,6 +973,24 @@ function MovementsCard({ report }: { report: LiquidityReport }) {
                   </td>
                   <td className="n">{eur(r.cents, { sign: true })}</td>
                   <td className="n">{eur(r.afterCents)}</td>
+                  <td className="rf-act">
+                    {r.ref && !r.planned && (
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        aria-label={`${strikeLabel(r.cents)}: ${r.label}, ${shortDay(r.day)}`}
+                        onClick={() => {
+                          const ref = r.ref!;
+                          void write(
+                            () => skipOccurrence(ref.paymentId, ref.dueDate),
+                            () => `${r.label}: ${shortDay(r.day)} gestrichen`,
+                          );
+                        }}
+                      >
+                        {strikeLabel(r.cents)}
+                      </Button>
+                    )}
+                  </td>
                 </tr>
               ))}
               <tr className="is-rest">
@@ -974,6 +1000,7 @@ function MovementsCard({ report }: { report: LiquidityReport }) {
                 <td className="n">
                   <strong>{eur(b.endCents)}</strong>
                 </td>
+                <td />
               </tr>
             </tbody>
           ))}
@@ -981,8 +1008,10 @@ function MovementsCard({ report }: { report: LiquidityReport }) {
       </div>
       <p className="vnote">
         Je Monat: Anfang, Bewegungen ab 250 € und geplante Ereignisse, der Rest als eine Zeile,
-        Ende. Wiederkehrende Zahlungen kommen aus den gespeicherten Verträgen, variable Kategorien
-        nach Plan. Zahlungen von Konten außerhalb des Budgets stehen nicht darin.
+        Ende. Streichen nimmt nur diese eine Zahlung aus der Prognose, die Regel bleibt; Rückgängig
+        stellt sie wieder her. Wiederkehrende Zahlungen kommen aus den gespeicherten Verträgen,
+        variable Kategorien nach Plan. Zahlungen von Konten außerhalb des Budgets stehen nicht
+        darin.
       </p>
     </section>
   );

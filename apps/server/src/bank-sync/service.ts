@@ -11,6 +11,8 @@ import {
   readAssignmentCandidate,
   bookingIncomeDefault,
   importBooking,
+  linkBankReference,
+  unlinkedBankTargets,
   createEntity,
   getEntity,
   updateEntity,
@@ -29,6 +31,10 @@ import {
 import {
   bankTransactionKeys,
   bankFetchFrom,
+  addDays,
+  BANK_AUTO_LINK_DAYS,
+  type BankLineMatch,
+  matchBankLines,
   cents,
   consentNeedsAttention,
   formatEuro,
@@ -50,6 +56,9 @@ const {
 } = schema;
 /** Longest consent we ever request (180 days); a longer reported validity is capped to it. */
 const MAX_CONSENT_SECONDS = 15_552_000;
+/** ISO 4217 "no currency": a multi-currency account (e.g. PayPal); each line carries its own. */
+const MULTI_CURRENCY = 'XXX';
+const AMBIGUOUS_NOTE = ' · Mehrere passende vorhandene Buchungen, bitte eine auswählen';
 const hash = (value: string) => createHash('sha256').update(value).digest('hex');
 const system = { actor: 'bank-sync' };
 // Standalone protocol/status writes need the same atomic row+audit contract as grouped ledger writes.
@@ -86,38 +95,102 @@ export class BankSync {
     });
   }
 
-  /** Separate replayable ledger audit from irreversible provider protocol history. */
-  private postBooked(tx: Executor, row: typeof candidate.$inferSelect, sourceId: string) {
-    if (row.bankStatus !== 'booked' || !this.bookedToLedger(tx, sourceId)) return;
-    const item = tx.select().from(inboxItem).where(eq(inboxItem.id, row.id)).get();
-    if (!item || item.resolvedAt) return;
+  /**
+   * Post booked bank lines to the ledger. A line first looks for the booking the owner (or the
+   * migration) already made; only without any match it becomes a new unchecked booking.
+   * Ambiguity leaves the line open in the inbox for the owner. Separates the replayable ledger
+   * audit from the irreversible provider protocol history.
+   */
+  private postBooked(tx: Executor, ids: readonly string[], sourceId: string) {
+    // Without the opt-in a line is still tied to a booking that already exists, but never posted.
+    const post = this.bookedToLedger(tx, sourceId);
     const ctx = withGroup(system);
-    const result = importBooking(
-      tx,
-      {
-        accountId: row.accountId,
-        date: row.date,
-        amountCents: row.amountCents,
-        currency: row.currency,
-        memo: row.memo,
-        source: 'bank',
-        importKey: 'bank-sync:' + row.dedupeKey,
-        status: 'pending',
-        incomeNextMonth: false,
-        splits: [{ amountCents: row.amountCents, categoryId: null }],
-      },
-      ctx,
-    );
-    updateTracked(
-      tx,
-      inboxItem,
-      [row.id],
-      {
-        resolvedAt: this.clock().toISOString(),
-        resolution: 'Kontowirksam übernommen: ' + result.id,
-      },
-      ctx,
-    );
+    const resolve = (id: string, resolution: string) =>
+      updateTracked(
+        tx,
+        inboxItem,
+        [id],
+        { resolvedAt: this.clock().toISOString(), resolution },
+        ctx,
+      );
+    const fresh: (typeof candidate.$inferSelect)[] = [];
+    for (const id of new Set(ids)) {
+      const row = tx.select().from(candidate).where(eq(candidate.id, id)).get();
+      const item = tx.select().from(inboxItem).where(eq(inboxItem.id, id)).get();
+      if (!row || row.bankStatus !== 'booked' || !item || item.resolvedAt) continue;
+      const known = tx
+        .select({ id: booking.id })
+        .from(booking)
+        .where(
+          and(
+            eq(booking.accountId, row.accountId),
+            eq(booking.importKey, 'bank-sync:' + row.dedupeKey),
+            // An undone booking is no longer "taken over"; the line is matched again below.
+            isNull(booking.deletedAt),
+          ),
+        )
+        .get();
+      if (known) resolve(id, 'Kontowirksam übernommen: ' + known.id);
+      else fresh.push(row);
+    }
+    const matches = new Map<string, BankLineMatch>();
+    for (const accountId of new Set(fresh.map((r) => r.accountId))) {
+      const rows = fresh.filter((r) => r.accountId === accountId);
+      const dates = rows.map((r) => r.date).sort();
+      const found = matchBankLines(
+        rows.map((r) => ({
+          key: r.id,
+          accountId: r.accountId,
+          date: r.date,
+          amountCents: r.amountCents,
+          currency: r.currency,
+        })),
+        unlinkedBankTargets(
+          tx,
+          accountId,
+          addDays(dates[0]!, -BANK_AUTO_LINK_DAYS),
+          addDays(dates[dates.length - 1]!, BANK_AUTO_LINK_DAYS),
+        ),
+      );
+      for (const [key, value] of found) matches.set(key, value);
+    }
+    for (const row of fresh) {
+      const match = matches.get(row.id) ?? { kind: 'none' as const };
+      if (match.kind === 'linked') {
+        linkBankReference(tx, match.bookingId, row, ctx);
+        resolve(row.id, 'Mit vorhandener Buchung verknüpft: ' + match.bookingId);
+      } else if (match.kind === 'ambiguous') {
+        // Stays open: the owner picks the booking (inbox: "Passende Buchung").
+        const item = tx.select().from(inboxItem).where(eq(inboxItem.id, row.id)).get()!;
+        if (!(item.detail ?? '').endsWith(AMBIGUOUS_NOTE))
+          updateTracked(
+            tx,
+            inboxItem,
+            [row.id],
+            { detail: (item.detail ?? '') + AMBIGUOUS_NOTE },
+            ctx,
+          );
+      } else if (post) {
+        const result = importBooking(
+          tx,
+          {
+            accountId: row.accountId,
+            date: row.date,
+            amountCents: row.amountCents,
+            currency: row.currency,
+            memo: row.memo,
+            source: 'bank',
+            importKey: 'bank-sync:' + row.dedupeKey,
+            status: 'pending',
+            incomeNextMonth: false,
+            splits: [{ amountCents: row.amountCents, categoryId: null }],
+          },
+          ctx,
+        );
+        // The unchecked booking is itself the open task (inbox booking row with confirm / merge).
+        resolve(row.id, 'Als ungeprüfte Buchung angelegt, bitte prüfen: ' + result.id);
+      }
+    }
   }
 
   status() {
@@ -286,7 +359,12 @@ export class BankSync {
         throw new ConflictError(
           'Eine abgerufene oder laufende Zuordnung ist gesperrt. Bitte neu verbinden.',
         );
-      if (acct.deletedAt || acct.closedAt || acct.currency !== 'EUR' || row.currency !== 'EUR')
+      if (
+        acct.deletedAt ||
+        acct.closedAt ||
+        acct.currency !== 'EUR' ||
+        (row.currency !== 'EUR' && row.currency !== MULTI_CURRENCY)
+      )
         throw new ConflictError('Nur offene EUR-Konten können zugeordnet werden.');
       if (fromDate < acct.openingDate || fromDate > todayInVienna(this.clock()))
         throw new ConflictError('Das Startdatum muss zwischen Kontoeröffnung und heute liegen.');
@@ -567,7 +645,12 @@ export class BankSync {
             continue;
           try {
             const acct = this.db.select().from(account).where(eq(account.id, a.accountId)).get();
-            if (!acct || acct.deletedAt || acct.closedAt || acct.currency !== a.currency)
+            if (
+              !acct ||
+              acct.deletedAt ||
+              acct.closedAt ||
+              (a.currency !== MULTI_CURRENCY && acct.currency !== a.currency)
+            )
               throw new BankError('invalid_response');
             // The watermark advances only after the complete account stage commits.
             const uid = this.box.open(a.secret, a.id);
@@ -578,19 +661,28 @@ export class BankSync {
               () => this.reserveRequest(a.id),
             );
             const transactions = batch.rows;
-            const balance = await this.provider.balance(uid, () => this.reserveRequest(a.id));
+            // A multi-currency source reports one balance per currency: only the app account's counts.
+            const balance = await this.provider.balance(
+              uid,
+              () => this.reserveRequest(a.id),
+              a.currency === MULTI_CURRENCY ? acct.currency : undefined,
+            );
             if (
-              balance.currency !== a.currency ||
-              (balance.date && balance.date > todayInVienna(now)) ||
-              transactions.some((t) => t.currency !== a.currency)
+              (balance &&
+                balance.currency !==
+                  (a.currency === MULTI_CURRENCY ? acct.currency : a.currency)) ||
+              (balance?.date && balance.date > todayInVienna(now)) ||
+              (a.currency !== MULTI_CURRENCY && transactions.some((t) => t.currency !== a.currency))
             )
               throw new BankError('invalid_response');
             if (writesHeld(this.db)) throw new BankError('unavailable');
             const keys = bankTransactionKeys(transactions);
             this.db.transaction((tx) => {
               const ctx = withGroup(system);
+              const toPost: string[] = [];
               for (const [i, t] of transactions.entries()) {
                 const dedupeKey = hash(keys[i]!);
+                const foreign = t.currency !== acct.currency;
                 const existing = tx
                   .select()
                   .from(candidate)
@@ -598,6 +690,7 @@ export class BankSync {
                     and(eq(candidate.accountId, a.accountId!), eq(candidate.dedupeKey, dedupeKey)),
                   )
                   .get();
+                if (existing && foreign) continue;
                 if (existing) {
                   const promoted =
                     existing.bankStatus === 'pending' && (t.bankStatus ?? 'booked') === 'booked';
@@ -674,7 +767,7 @@ export class BankSync {
                     .from(candidate)
                     .where(eq(candidate.id, existing.id))
                     .get()!;
-                  this.postBooked(tx, current, row.id);
+                  toPost.push(current.id);
                   continue;
                 }
                 const id = randomUUID();
@@ -701,8 +794,9 @@ export class BankSync {
                   {
                     id,
                     kind: 'import',
-                    title:
-                      t.bankStatus === 'pending'
+                    title: foreign
+                      ? 'Fremdwährung, bitte manuell prüfen'
+                      : t.bankStatus === 'pending'
                         ? 'Vorgemerkten Bankumsatz prüfen'
                         : 'Bankumsatz prüfen',
                     detail:
@@ -710,20 +804,37 @@ export class BankSync {
                       ' · ' +
                       t.date +
                       ' · ' +
-                      formatEuro(cents(t.amountCents)) +
+                      (foreign
+                        ? (t.amountCents / 100).toFixed(2).replace('.', ',') + ' ' + t.currency
+                        : formatEuro(cents(t.amountCents))) +
                       ' · ' +
                       t.memo,
-                    refType: 'bank-sync-candidate',
-                    refId: id,
+                    // A foreign-currency line is never posted; the generic view has no confirm action.
+                    refType: foreign ? 'bank-sync' : 'bank-sync-candidate',
+                    refId: foreign ? a.accountId! : id,
+                    ...(foreign ? { urgent: true } : {}),
                   },
                   ctx,
                 );
-                this.postBooked(
-                  tx,
-                  tx.select().from(candidate).where(eq(candidate.id, id)).get()!,
-                  row.id,
-                );
+                if (!foreign) toPost.push(id);
               }
+              // Lines left open by an earlier fetch are matched again, not only the freshly fetched.
+              for (const open of tx
+                .select({ id: candidate.id })
+                .from(candidate)
+                .innerJoin(inboxItem, eq(inboxItem.id, candidate.id))
+                .where(
+                  and(
+                    eq(candidate.accountId, a.accountId!),
+                    eq(candidate.bankStatus, 'booked'),
+                    eq(candidate.currency, acct.currency),
+                    eq(inboxItem.refType, 'bank-sync-candidate'),
+                    isNull(inboxItem.resolvedAt),
+                  ),
+                )
+                .all())
+                toPost.push(open.id);
+              this.postBooked(tx, toPost, row.id);
               if (batch.skippedInvalid || batch.skippedOutOfWindow)
                 this.warning(
                   tx,
@@ -738,7 +849,7 @@ export class BankSync {
                   a.accountId!,
                   true,
                 );
-              if (!balance.date)
+              if (balance && !balance.date)
                 this.warning(
                   tx,
                   'bank-balance-date:' + a.accountId!,
@@ -748,21 +859,37 @@ export class BankSync {
                   a.accountId!,
                   true,
                 );
-              const openCandidates = tx
-                .select()
-                .from(candidate)
-                .innerJoin(inboxItem, eq(inboxItem.id, candidate.id))
-                .where(
-                  and(
-                    eq(candidate.accountId, a.accountId!),
-                    eq(candidate.bankStatus, 'booked'),
-                    isNull(inboxItem.resolvedAt),
-                  ),
-                )
-                .get();
+              if (!balance)
+                this.warning(
+                  tx,
+                  'bank-balance-currency:' + a.accountId!,
+                  'other',
+                  'Bankstand nicht in Kontowährung',
+                  'Die Bank meldet keinen Saldo in ' +
+                    acct.currency +
+                    '. Bankumsätze gespeichert, Saldenvergleich nicht möglich.',
+                  a.accountId!,
+                  true,
+                );
+              const openCandidates = !balance
+                ? undefined
+                : tx
+                    .select()
+                    .from(candidate)
+                    .innerJoin(inboxItem, eq(inboxItem.id, candidate.id))
+                    .where(
+                      and(
+                        eq(candidate.accountId, a.accountId!),
+                        eq(candidate.bankStatus, 'booked'),
+                        // A foreign-currency line never enters this account's balance.
+                        eq(candidate.currency, acct.currency),
+                        isNull(inboxItem.resolvedAt),
+                      ),
+                    )
+                    .get();
               const warningId = 'bank-balance:' + a.accountId!;
               // Provider BOOK is cleared at the bank even while the owner's booking is unchecked.
-              const uncheckedBooked = balance.date
+              const uncheckedBooked = balance?.date
                 ? tx
                     .select({ amount: booking.amountCents })
                     .from(booking)
@@ -780,18 +907,18 @@ export class BankSync {
                         eq(candidate.bankStatus, 'booked'),
                         isNull(booking.deletedAt),
                         gte(booking.date, acct.openingDate),
-                        lte(booking.date, balance.date),
+                        lte(booking.date, balance.date!),
                       ),
                     )
                     .all()
                     .reduce((sum, b) => sum + b.amount, 0)
                 : 0;
-              const difference = balance.date
+              const difference = balance?.date
                 ? balance.amountCents -
                   bookedBalance(tx, a.accountId!, balance.date) -
                   uncheckedBooked
                 : 0;
-              if (balance.date && !openCandidates && difference)
+              if (balance?.date && !openCandidates && difference)
                 this.warning(
                   tx,
                   warningId,
@@ -827,8 +954,8 @@ export class BankSync {
                 {
                   lastSyncAt: this.clock().toISOString(),
                   secret: this.box.seal(uid, a.id),
-                  balanceCents: balance.amountCents,
-                  balanceDate: balance.date,
+                  balanceCents: balance?.amountCents ?? null,
+                  balanceDate: balance?.date ?? null,
                   balanceFetchedAt: this.clock().toISOString(),
                 },
                 ctx,
