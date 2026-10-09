@@ -16,6 +16,8 @@ export interface PanelProps {
   beforeClose?: () => boolean;
   /** Shown in the head next to the title (e.g. a count); not part of the dialog's name. */
   headAside?: ReactNode;
+  /** Make a long body a named keyboard-scrollable region. Opt in only when the body overflows. */
+  focusableBody?: boolean;
 }
 
 const FOCUSABLE =
@@ -84,6 +86,7 @@ function Overlay({
   variant,
   beforeClose,
   headAside,
+  focusableBody = false,
   bare = false,
   wide = false,
 }: PanelProps & { variant: 'side' | 'bottom' | 'modal'; bare?: boolean; wide?: boolean }) {
@@ -185,8 +188,10 @@ function Overlay({
           </div>
           <div
             className="panel-body"
+            role={focusableBody ? 'region' : undefined}
+            aria-labelledby={focusableBody ? titleId : undefined}
             // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- Keyboard users must be able to scroll long dialog content.
-            tabIndex={wide ? 0 : undefined}
+            tabIndex={wide || focusableBody ? 0 : undefined}
           >
             {variant === 'side' && <div className="panel-graticule" aria-hidden="true" />}
             {children}

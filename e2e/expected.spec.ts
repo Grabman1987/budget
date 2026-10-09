@@ -150,7 +150,7 @@ test.describe('look', () => {
 
   test.describe('dark', () => {
     test.use({ colorScheme: 'dark' });
-    test('the 90 days and the Einnahmen panel', async ({ page }) => {
+    test('the 90 days and the Einnahmen panel', async ({ page }, testInfo) => {
       await page.goto('/plan/erwartet');
       await expect(page.locator('tr.prow').first()).toBeVisible();
       await page.evaluate(() => document.fonts.ready);
@@ -160,6 +160,26 @@ test.describe('look', () => {
       await expect(page.getByRole('dialog', { name: /Einnahmen/ })).toBeVisible();
       await expect(page.getByTestId('income-received')).toBeVisible();
       expect(await serious(page)).toEqual([]);
+      const incomeRegion = page.getByRole('region', { name: 'Einnahmen September 2026' });
+      await expect(incomeRegion).toContainText(
+        /Heute zählt Haushaltseinnahmen nach Buchungsdatum.*„Für nächsten Monat“ zählt im Plan erst im Folgemonat\./,
+      );
+      if (testInfo.project.name === 'mobile') {
+        await page.getByRole('button', { name: 'Schließen' }).focus();
+        await page.keyboard.press('Tab');
+        await expect(incomeRegion).toBeFocused();
+        const before = await incomeRegion.evaluate((element) => element.scrollTop);
+        await page.keyboard.press('PageDown');
+        await expect
+          .poll(() => incomeRegion.evaluate((element) => element.scrollTop))
+          .toBeGreaterThan(before);
+        await incomeRegion.evaluate((element) => {
+          element.scrollTop = 0;
+        });
+        await page.evaluate(() => {
+          if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
+        });
+      }
       await expectScreenshot(page, 'expected-income-dark.png');
     });
   });
