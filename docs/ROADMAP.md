@@ -282,6 +282,7 @@ Older CI/publication checkboxes below describe their original deliveries. Curren
 - [x] Synthetic red/green unit and browser-back/scroll, direct-link and dialog-focus regressions.
 - [x] Sidepanels-2a: Vermögen instrument/savings URLs with breadcrumb/back/scroll restoration; metadata, quote, schedule and trade FormDialogs; full-width `.vview` composition. Existing money/validation/audit/undo guards retained.
 - [x] Final Linux #248 preflight on merged head `aba6740923969c3a402d2ca4ab958819f320b498`: focused 7 files / 41 tests, full check 382 / 3,519 tests, builds and 43 Desktop/Mobile E2E tests passed ([captures and evidence](evidence/no-side-panels-wealth-1006/README.md)).
+- [x] Plan panels #323–#327: category detail and shared goal history routes, category/group/goal/event FormDialogs, preserved month/source/hidden-category context and existing audit/undo writes ([evidence](evidence/plan-panels-1009/README.md)).
 - [ ] Linux snapshot-baseline review, exact-head PR CI and remaining inventory; owner desktop/phone acceptance, physical iPhone Safari, private financial Gate 4 and live acceptance remain separate open gates.
 
 
