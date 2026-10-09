@@ -185,8 +185,8 @@ Older CI/publication checkboxes below describe their original deliveries. Curren
 ### #237 — Top-bar overspending link and Plan triage
 
 - [x] Keep the top-bar overspending chip a direct, read-only link to current-month Plan triage; cover and undo remain on the Plan page. Pending data makes no zero claim, query errors (including failed cached refetches) use a neutral Plan link, unsafe cent totals remain unknown, and amount privacy/accessibility labels are preserved.
-- [x] Synthetic isolated-ledger API cover/undo regression and desktop/mobile browser checks; final focused run passed five tests including setup, with eight light/dark captures. [Evidence and limits](evidence/topbar-plan-triage-237/README.md).
-- [ ] Full repository check, pinned Linux visual review, PR/CI, integration/live proof and private/device acceptance remain open.
+- [x] Synthetic isolated-ledger API cover/undo regression and desktop/mobile browser checks; final focused run passed five tests including setup, with eight original Windows light/dark captures. Linux preflight run [37879767925](https://github.com/Grabman1987/budget/actions/runs/37879767925) passed the full repository check (383 files / 3,526 tests), production and E2E builds, 15 desktop/mobile behavior tests, and 23 Linux visual-comparison tests covering 26 screenshot assertions without baseline updates. Eight Linux top-bar/covered-triage captures were collected in [run 37880079988](https://github.com/Grabman1987/budget/actions/runs/37880079988) from an app-identical source tree.
+- [ ] Exact PR-head CI, integration/live proof, physical-device and private-data acceptance remain open.
 
 ### UX-3c - Phone chart/table overflow (owner feedback 2026-10-05)
 
