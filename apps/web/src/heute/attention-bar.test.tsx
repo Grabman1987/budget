@@ -11,18 +11,30 @@ vi.mock('../shell/app-link', () => ({
     children,
     to,
     search,
+    hash,
     ...props
   }: AnchorHTMLAttributes<HTMLAnchorElement> & {
     children: ReactNode;
     to: string;
     search?: unknown;
+    hash?: string;
   }) => (
-    <a href={to} data-search={JSON.stringify(search)} {...props}>
+    <a href={`${to}${hash ? `#${hash}` : ''}`} data-search={JSON.stringify(search)} {...props}>
       {children}
     </a>
   ),
 }));
 afterEach(cleanup);
+it('does not give an all-clear when rules lack inputs', () => {
+  const data = {
+    stand: { today: '2026-09-17' },
+    nextSteps: { items: [] },
+    attention: { inboxCount: 0, pendingCount: 0 },
+    financeCheck: { actionRules: [], counts: { notEvaluated: 3 } },
+  } as unknown as Heute;
+  render(<AttentionBar data={data} />);
+  expect(screen.queryByText('Keine offenen Aufgaben aus den Heute-Prüfungen.')).toBeNull();
+});
 it('keeps overspending out of the bar, with neutral inbox and a single action per finding', async () => {
   const items = Array.from({ length: 8 }, (_, i) => ({
     kind: 'overspent' as const,
@@ -46,6 +58,9 @@ it('keeps overspending out of the bar, with neutral inbox and a single action pe
   expect(container.textContent).not.toContain('überzogen');
   expect(screen.queryByRole('link', { name: 'Alle decken' })).toBeNull();
   expect(screen.getAllByRole('link', { name: 'Handeln' })).toHaveLength(1);
+  expect(screen.getByRole('link', { name: 'Handeln' }).getAttribute('href')).toBe(
+    '/einstellungen/regelwerk#rule-result-R07',
+  );
   expect(screen.getByRole('link', { name: 'Zuordnen' }).closest('.is-over')).toBeNull();
 });
 

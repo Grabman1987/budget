@@ -895,9 +895,11 @@ function MonthOverview({
 }
 
 /** Inspector: the 50/30/20 band of what was assigned, against the month's income. */
-function SplitBand({ data, rows }: { data: BudgetMonthView; rows: PlanRow[] }) {
+export function SplitBand({ data, rows }: { data: BudgetMonthView; rows: PlanRow[] }) {
   useAmountPrivacy();
   const state = splitState(data.summary, rows);
+  const current = todayInVienna().slice(0, 7);
+  const provisional = data.summary.month >= current;
   const shares = state.kind === 'shares' ? state : null;
   const inSoll = shares !== null && shares.need <= 50 && shares.want <= 30 && shares.future >= 20;
   const reason =
@@ -913,7 +915,9 @@ function SplitBand({ data, rows }: { data: BudgetMonthView; rows: PlanRow[] }) {
           50/30/20
         </h2>
         <span className="tbd-state">
-          {shares === null ? (
+          {provisional ? (
+            <span className="muted">Eingeschränkte Vergleichsbasis</span>
+          ) : shares === null ? (
             <span className="muted">–</span>
           ) : inSoll ? (
             <span className="ok">
@@ -932,6 +936,19 @@ function SplitBand({ data, rows }: { data: BudgetMonthView; rows: PlanRow[] }) {
           )}
         </span>
       </div>
+      <p className="sb-note">
+        Ist-Einnahmen im Planmonat {monthLabel(data.summary.month)}: {eur(data.summary.incomeCents)}
+        . Erwartete Einnahmen sind nicht enthalten.
+      </p>
+      {provisional && (
+        <p className="sb-note sb-comparison">
+          Der Monat ist noch nicht abgeschlossen. Kleine bisherige Einnahmen können die Anteile
+          stark erhöhen; daraus folgt noch keine Monatsbewertung.{' '}
+          <AppLink to="/reports/onepager" search={{ monat: shiftMonth(current, -1) }}>
+            Abgeschlossenen Monat {monthLabel(shiftMonth(current, -1))} vergleichen
+          </AppLink>
+        </p>
+      )}
       {shares ? (
         <AllocationBar
           data={{
