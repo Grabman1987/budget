@@ -7,14 +7,23 @@ import {
   createTestDatabase,
   findPayslipIntake,
   getPayslipIntake,
+  payslipRecordsStart,
   readInbox,
+  readPayslipParserVersion,
+  replaceParsedPayslip,
   savePayslip,
   type OpenedDatabase,
 } from '@budget/db';
+import { PAYSLIP_PARSER_VERSION } from '@budget/domain';
 import { DropboxPayslipSource, dropboxContentHash } from './dropbox';
 import { PayslipScanner } from './scanner';
 import { PayslipIntakeService } from './service';
-import { syntheticPayslipPdf, syntheticWageRows } from './testing';
+import {
+  syntheticColumnarPayslipPdf,
+  syntheticColumnarRows,
+  syntheticPayslipPdf,
+  syntheticWageRows,
+} from './testing';
 
 // Synthetic data only. The records start is derived from the earliest account: 2023-10.
 let opened: OpenedDatabase, dir: string;
@@ -160,5 +169,79 @@ describe('payslip scan scope', () => {
     // The next run is gated by the nightly schedule and changes nothing.
     await s.tick(new Date('2026-10-09T03:00:00Z'));
     expect(items.map(status)).toEqual(['rejected', 'rejected', 'rejected', 'pending']);
+  });
+  it('counts only budget accounts for the start of the records', () => {
+    openAccount();
+    // An investment account that starts the day before must not pull the start into September.
+    accounts.create(
+      opened.db,
+      {
+        id: 'synthetic-depot',
+        name: 'Synthetisches Depot',
+        type: 'brokerage',
+        role: 'investment',
+        onBudget: false,
+        openingDate: '2023-09-30',
+        openingBalanceCents: 0,
+      },
+      { actor: 'test' },
+    );
+    expect(payslipRecordsStart(opened.db)).toBe('2023-10');
+  });
+
+  it('reads pending intakes again once after a parser update and closes recorded months', async () => {
+    openAccount();
+    const may = syntheticColumnarRows.map((r) =>
+      r.map((c) => (c.text === '04.2030' ? { ...c, text: '05.2030' } : c)),
+    );
+    const april = { path: '/synthetic/2030/april.pdf', bytes: await syntheticColumnarPayslipPdf() };
+    const next = { path: '/synthetic/2030/may.pdf', bytes: await syntheticColumnarPayslipPdf(may) };
+    const items = [april, next];
+    for (const i of items) await intake().ingest(i.bytes, 'x.pdf', 'dropbox', hash(i));
+    const draft = getPayslipIntake(
+      opened.db,
+      findPayslipIntake(opened.db, undefined, hash(april))!.id,
+    ).parsed.draft!;
+    expect(draft).toMatchObject({
+      month: '2030-04',
+      grossCents: 1_050_000,
+      svCents: 188_000,
+      taxCents: 210_000,
+      netCents: 695_700,
+    });
+    // Left behind by an earlier parser: no draft, no version.
+    const older = {
+      documentType: 'payslip' as const,
+      periodSource: 'filename' as const,
+      payoutDate: null,
+      draft: null,
+      differenceCents: null,
+      warnings: ['Unbekannte Lohnart oder Aufrollung: Zuordnung prüfen.'],
+    };
+    const ids = items.map((i) => findPayslipIntake(opened.db, undefined, hash(i))!.id);
+    const makeOld = (...which: string[]) =>
+      which.forEach((id) => replaceParsedPayslip(opened.db, id, older, { actor: 'test' }));
+    makeOld(...ids);
+    savePayslip(opened.db, { ...draft, receiptId: null }, { actor: 'test' });
+
+    const { downloaded, scanner } = source(items);
+    const s = scanner();
+    await s.tick(NOW);
+    expect(downloaded).toEqual([]);
+    expect(s.lastReparsed).toBe(2);
+    expect(items.map(status)).toEqual(['rejected', 'pending']);
+    expect(getPayslipIntake(opened.db, ids[1]!).parsed).toMatchObject({
+      parserVersion: PAYSLIP_PARSER_VERSION,
+      warnings: [],
+      draft: { month: '2030-05', netCents: 695_700 },
+    });
+    expect(readPayslipParserVersion(opened.db)).toBe(String(PAYSLIP_PARSER_VERSION));
+
+    // Once per version: the next scheduled check leaves a result alone.
+    makeOld(ids[1]!);
+    const later = scanner();
+    await later.tick(new Date('2026-10-09T03:00:00Z'));
+    expect(later.lastReparsed).toBe(0);
+    expect(getPayslipIntake(opened.db, ids[1]!).parsed.draft).toBeNull();
   });
 });
