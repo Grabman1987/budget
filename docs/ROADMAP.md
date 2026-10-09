@@ -1,5 +1,13 @@
 # Roadmap
 
+### Liquidity package #283 / #290 / #291 / #292 — 2026-10-09
+
+- [x] Plan registers reach the existing liquidity report without a report number; no new report route or household calculation.
+- [x] Upcoming payments link their account and due date to its existing preview; envelope reserves and household totals do not promise account coverage.
+- [x] EUR budget-account previews reuse the selected liquidity horizon, recurring dates, income pauses and applicable levers. Native previews and their configurable day limit remain available; unassigned variable plans/events/payments are explicitly excluded and mark the projection partial. Transfers affect each account on the booking day and remain neutral in household cash.
+- [x] The verdict exposes the exact day of its existing deciding low and names its unchanged six-month end, even when the selected chart covers a different horizon.
+- [ ] Exact-head CI, integration/deployment, physical-device and private financial acceptance remain open. Local verification follows the owner package override: scoped type/lint/format/unit checks and only the changed browser specs; no full local check or snapshot regeneration.
+
 ### Reports and search package — #303–#308 (owner 2026-10-09)
 
 - [x] Qualify the inflation headline at the number; distinguish prices, CPI category proxies and trailing average expenditure in both basket views, retaining sources, common comparison month and coverage.

@@ -32,6 +32,7 @@ export const AREAS: ReadonlyArray<AreaDef> = [
       { id: 'jahr', label: 'Jahr', to: '/plan/jahr' },
       { id: 'erwartet', label: 'Wiederkehrende Zahlungen', to: '/plan/erwartet' },
       { id: 'sparziele', label: 'Sparziele', to: '/plan/sparziele' },
+      { id: 'liquiditaet', label: 'Liquiditätsprognose', to: '/reports/liquiditaet' },
     ],
   },
   {
