@@ -22,6 +22,8 @@ export interface PaymentDraft {
   dateShift: DateShift;
   startDate: string;
   endDate: string;
+  /** Weekly rhythm: weeks between two due dates (1-52). */
+  intervalWeeks: string;
   note: string;
   // First version (creating only).
   amount: string;
@@ -47,6 +49,7 @@ export const emptyDraft = (today: string): PaymentDraft => ({
   dateShift: 'none',
   startDate: '',
   endDate: '',
+  intervalWeeks: '1',
   note: '',
   amount: '',
   amountMax: '',
@@ -89,6 +92,7 @@ export function draftFromPayment(p: ExpectedPayment): PaymentDraft {
     dateShift: p.dateShift,
     startDate: p.startDate ?? '',
     endDate: p.endDate ?? '',
+    intervalWeeks: String(p.intervalWeeks ?? 1),
     note: p.note ?? '',
     amount: '',
     amountMax: '',
@@ -198,6 +202,12 @@ export function readDraft(d: PaymentDraft, creating: boolean): ReadResult {
     errors.tolerance = 'Das lässt sich nicht als Betrag lesen.';
   const windowDays = Number(d.windowDays);
   if (!/^\d{1,2}$/.test(d.windowDays) || windowDays > 31) errors.windowDays = 'Null bis 31 Tage.';
+  const intervalWeeks = Number(d.intervalWeeks);
+  if (
+    d.rhythm === 'weekly' &&
+    (!/^\d{1,2}$/.test(d.intervalWeeks.trim()) || intervalWeeks < 1 || intervalWeeks > 52)
+  )
+    errors.intervalWeeks = 'Eine Zahl von 1 bis 52.';
   if (d.rhythm === 'weekly' && !d.startDate)
     errors.startDate = 'Bitte das erste Fälligkeitsdatum wählen.';
   if (d.startDate && !isDay(d.startDate)) errors.startDate = 'Bitte ein Datum wählen.';
@@ -243,6 +253,7 @@ export function readDraft(d: PaymentDraft, creating: boolean): ReadResult {
     dateShift: d.dateShift,
     startDate: d.startDate || null,
     endDate: d.endDate || null,
+    intervalWeeks: d.rhythm === 'weekly' && intervalWeeks > 1 ? intervalWeeks : null,
     note: d.note.trim() || null,
   };
   return { fields, ...(version ? { version } : {}), errors };
@@ -252,7 +263,7 @@ export function readDraft(d: PaymentDraft, creating: boolean): ReadResult {
 export function changedFields(p: ExpectedPayment, next: PaymentFields): Partial<PaymentFields> {
   const patch: Partial<PaymentFields> = {};
   for (const key of Object.keys(next) as Array<keyof PaymentFields>) {
-    if (next[key] !== p[key]) (patch as Record<string, unknown>)[key] = next[key];
+    if (next[key] !== (p[key] ?? null)) (patch as Record<string, unknown>)[key] = next[key];
   }
   return patch;
 }

@@ -95,6 +95,7 @@ export const schedulePayment = (p: Payment): SchedulePayment => ({
   dateShift: p.dateShift,
   startDate: p.startDate,
   endDate: p.endDate,
+  intervalWeeks: p.intervalWeeks,
   contactShareBp: p.contactShareBp,
 });
 
@@ -485,8 +486,10 @@ export function listExpectedPayments(
       },
       amountCents: signed,
       nextDueDate: next?.dueDate ?? null,
-      monthlyEquivalentCents: signed === null ? null : monthlyEquivalent(p.rhythm, signed),
-      yearlyEquivalentCents: signed === null ? null : yearlyEquivalent(p.rhythm, signed),
+      monthlyEquivalentCents:
+        signed === null ? null : monthlyEquivalent(p.rhythm, signed, p.intervalWeeks),
+      yearlyEquivalentCents:
+        signed === null ? null : yearlyEquivalent(p.rhythm, signed, p.intervalWeeks),
     };
   });
 }

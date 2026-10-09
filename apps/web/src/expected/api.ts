@@ -30,6 +30,8 @@ export interface ExpectedPayment {
   dateShift: DateShift;
   startDate: string | null;
   endDate: string | null;
+  /** Weekly rhythm: every n weeks (null = every week). */
+  intervalWeeks: number | null;
   note: string | null;
   deletedAt: string | null;
   /** The version in force today, else the next one. */
@@ -127,6 +129,7 @@ export interface PaymentFields {
   dateShift: DateShift;
   startDate: string | null;
   endDate: string | null;
+  intervalWeeks: number | null;
   note: string | null;
 }
 

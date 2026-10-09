@@ -36,7 +36,14 @@ it('occurrence-skipped migration keeps stored occurrences, links and audit verba
       opened.sqlite.exec("UPDATE expected_occurrence SET status='skipped' WHERE id='o2'"),
     ).toThrow();
     migrateDatabase(opened.db);
-    expect(rows()).toEqual(before);
+    // Later migrations may add columns (0043: expected_payment.interval_weeks, empty for old rows).
+    expect(rows()).toEqual(
+      before.map((t, i) =>
+        tables[i] === 'expected_payment'
+          ? (t as Record<string, unknown>[]).map((r) => ({ ...r, interval_weeks: null }))
+          : t,
+      ),
+    );
     expect(opened.sqlite.pragma('foreign_key_check')).toEqual([]);
     opened.sqlite.exec("UPDATE expected_occurrence SET status='skipped' WHERE id='o2'");
     expect(

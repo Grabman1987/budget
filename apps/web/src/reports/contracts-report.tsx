@@ -21,6 +21,7 @@ import { LEDGER_KEY } from '../ledger/queries';
 import type { PageMeta } from '../nav/pages';
 import type { ReportEntry } from '../nav/reports-catalog';
 import { PageFrame } from '../pages/placeholder-page';
+import { rhythmText } from '../expected/expected-model';
 import { AppLink } from '../shell/app-link';
 import { bpText, monthShort, ReportQuery, ScrollRegion } from './spending-shared';
 
@@ -252,7 +253,9 @@ function Body({ data }: { data: ContractsReport }) {
                             <span>{i.name}</span>
                           </span>
                           <small>
-                            {RHYTHM[i.rhythm]}
+                            {i.rhythm === 'weekly'
+                              ? rhythmText('weekly', i.intervalWeeks)
+                              : RHYTHM[i.rhythm]}
                             {data.derivedContracts.includes(i.id)
                               ? ' ? aus Buchungen abgeleitet'
                               : ''}
