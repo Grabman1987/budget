@@ -1,49 +1,56 @@
-name: Update e2e snapshots
+name: Validate month-close 243 before PR publication
 
-# Manual only. Regenerates the Playwright screenshot baselines on Linux (the CI platform) for one
-# branch and commits them back, for PRs that change the UI on purpose. The owner's Windows machine
-# and the cloud sessions cannot produce Linux baselines themselves.
-# Commits pushed with GITHUB_TOKEN do not start CI: push any commit afterwards (or re-run CI).
+# Temporary helper branch only; never copy this workflow into the task PR.
 on:
   workflow_dispatch:
     inputs:
       branch:
-        description: Branch whose baselines to update (never main)
+        description: Frozen helper branch to validate (never main)
         required: true
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
-  group: update-snapshots-${{ inputs.branch }}
-  cancel-in-progress: true
+  group: month-close-preflight-${{ inputs.branch }}
+  cancel-in-progress: false
 
 jobs:
-  update:
+  validate:
     if: inputs.branch != 'main'
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ inputs.branch }}
+          persist-credentials: false
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version-file: .nvmrc
           cache: npm
       - run: npm ci
-      - name: Install Chromium and WebKit
-        run: npx playwright install --with-deps chromium webkit
-      # Non-screenshot failures are reported by the normal CI run on the PR, not here.
-      - name: Regenerate changed screenshots
-        run: npm run build:e2e && (npx playwright test --update-snapshots=changed || true)
-      - name: Commit the new baselines
+      - name: Install age
+        run: sudo apt-get update && sudo apt-get install -y age
+      - name: Focused financial and workflow regressions
+        run: npx vitest run packages/domain/src/month-close.test.ts apps/server/src/api/month-close.test.ts apps/web/src/month-close/next-month-plan.test.tsx packages/db/src/repos/portfolio-manual-valuation.test.ts --maxWorkers=1
+      - name: Complete repository check
         env:
-          BRANCH: ${{ inputs.branch }}
-        run: |
-          git config user.name 'github-actions[bot]'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add -A -- e2e
-          if git diff --cached --quiet; then echo 'No baseline changes.'; exit 0; fi
-          git commit -m 'test: update e2e screenshot baselines (Linux)'
-          git push origin "HEAD:refs/heads/$BRANCH"
+          BUDGET_REQUIRE_AGE: '1'
+        run: npm run check
+      - name: Production build
+        run: npm run build
+      - name: Install pinned Chromium
+        run: npx playwright install --with-deps chromium
+      - name: Desktop and phone month-close workflow
+        run: npm run build:e2e && npx playwright test e2e/month-close.spec.ts --project=desktop --project=mobile --workers=1
+      - name: Verify tracked source stayed unchanged
+        run: git diff --exit-code
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        if: always()
+        with:
+          name: month-close-243-preflight
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 7
