@@ -58,7 +58,8 @@ test('accounts, bookings, split, transfer, undo and redo', async ({ page }, test
   await page.getByRole('button', { name: 'Buchung erfassen' }).click();
   panel = page.getByRole('dialog', { name: 'Buchung erfassen' });
   await panel.getByLabel('Betrag', { exact: true }).fill('30');
-  await panel.getByLabel('Empfänger').fill(`Markt ${tag}`);
+  await panel.getByLabel('Empfänger').fill(`Splitmarkt ${tag}`);
+  await panel.locator('summary').click();
   await panel.getByRole('button', { name: 'Aufteilen' }).click();
   await panel.getByLabel('Kategorie 1').selectOption({ value: 'e2e-essen' });
   await panel.getByLabel('Betrag 1').fill('20');
@@ -70,7 +71,7 @@ test('accounts, bookings, split, transfer, undo and redo', async ({ page }, test
   await panel.getByLabel('Betrag 2').fill('10');
   await expect(panel.getByText('Aufteilung geht auf.')).toBeVisible();
   await panel.getByRole('button', { name: 'Speichern', exact: true }).click();
-  await expect(page.getByRole('row', { name: new RegExp(`Markt ${tag}`) })).toContainText(
+  await expect(page.getByRole('row', { name: new RegExp(`Splitmarkt ${tag}`) })).toContainText(
     'Aufgeteilt (2)',
   );
   await expect(balance(page)).toHaveText('957,50 €');
@@ -280,10 +281,10 @@ test('ledger pages with data: axe clean in both themes, no sideways scrolling', 
   await page.getByRole('button', { name: 'Buchung erfassen' }).click();
   const panel = page.getByRole('dialog', { name: 'Buchung erfassen' });
   await panel.getByLabel('Betrag', { exact: true }).fill('9,90');
-  await panel.getByLabel('Empfänger').fill(`Kiosk ${tag}`);
+  await panel.getByLabel('Empfänger').fill(`Kontenkiosk ${tag}`);
   await pickCategory(panel, 'Essen');
   await panel.getByRole('button', { name: 'Speichern', exact: true }).click();
-  await expect(page.getByRole('row', { name: new RegExp(`Kiosk ${tag}`) })).toBeVisible();
+  await expect(page.getByRole('row', { name: new RegExp(`Kontenkiosk ${tag}`) })).toBeVisible();
   const accountUrl = page.url();
 
   const violations = async () =>

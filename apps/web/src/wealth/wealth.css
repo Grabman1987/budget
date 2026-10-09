@@ -144,3 +144,11 @@
     grid-column: auto;
   }
 }
+
+/* This inventory slice changes net-worth composition and Portfolio only. */
+.vview:not(.debts-view, .freedom-view) {
+  grid-template-columns: minmax(0, 1fr);
+}
+.vview:not(.debts-view, .freedom-view) > :is(.vnw, .vcomp) {
+  grid-column: 1 / -1;
+}

@@ -51,6 +51,7 @@ export * from './payee-report';
 export * from './freedom';
 export * from './profile';
 export * from './liquidity-report';
+export * from './income-pauses';
 export * from './networth-history';
 export * from './assets-debts-history';
 export * from './cashflow-report';

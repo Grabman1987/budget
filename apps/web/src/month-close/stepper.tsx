@@ -10,10 +10,12 @@ export function CloseStepper({
   steps,
   current,
   onSelect,
+  disabled = false,
 }: {
   steps: CloseStep[];
   current: number;
   onSelect: (step: number) => void;
+  disabled?: boolean;
 }) {
   const completed = steps.filter((s) => s.status === 'done' || s.status === 'skipped').length;
   return (
@@ -25,6 +27,7 @@ export function CloseStepper({
           <li key={s.step}>
             <button
               type="button"
+              disabled={disabled}
               aria-current={s.step === current ? 'step' : undefined}
               onClick={() => onSelect(s.step)}
             >

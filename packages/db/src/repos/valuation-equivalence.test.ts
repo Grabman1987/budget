@@ -386,6 +386,29 @@ describe('request memo of valuations', () => {
     });
   });
 
+  it('restores the parent valuation after a child savepoint rolls back', () => {
+    seedCash();
+    runWithRequestMemo(() => {
+      opened.db.transaction((outer) => {
+        expect(netWorthValuationAsOf(outer, '2026-06-30').totalCents).toBe(1_000);
+        expect(() =>
+          outer.transaction((inner) => {
+            inner
+              .update(account)
+              .set({ openingBalanceCents: 5_000 })
+              .where(eq(account.id, 'cash'))
+              .run();
+            // Both handles see the child write; populate the surviving parent's memo here.
+            expect(netWorthValuationAsOf(outer, '2026-06-30').totalCents).toBe(5_000);
+            throw new Error('synthetic savepoint failure');
+          }),
+        ).toThrow('synthetic savepoint failure');
+        expect(netWorthValuationAsOf(outer, '2026-06-30').totalCents).toBe(1_000);
+      });
+      expect(netWorthValuationAsOf(opened.db, '2026-06-30').totalCents).toBe(1_000);
+    });
+  });
+
   it('hands out copies: a caller that edits a result does not change the next answer', () => {
     seedScenario(2);
     runWithRequestMemo(() => {

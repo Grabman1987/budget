@@ -16,6 +16,7 @@ import { createBooking } from './bookings';
 import { loadFacts } from './rule-inputs';
 import { occurrencesBetween, paceOfMonth } from './heute';
 import { capturePlanSnapshot, planningAccuracyReport } from './planning-accuracy';
+import { runWithRequestMemo } from './request-memo';
 
 let opened: OpenedDatabase;
 beforeEach(() => {
@@ -193,6 +194,28 @@ it('compares only closed months and retains category identity after archival', (
     categoryId: 'essen',
     actualCents: 15_000,
     deviationCents: 15_000,
+  });
+});
+
+it('keeps live Pace unchanged when historical accuracy includes a deleted category', () => {
+  expect(capturePlanSnapshot(opened.db, '2026-09', '2026-09-15').status).toBe('captured');
+  opened.db
+    .update(category)
+    .set({ deletedAt: '2026-10-01T00:00:00.000Z' })
+    .where(eq(category.id, 'essen'))
+    .run();
+  runWithRequestMemo(() => {
+    const live = loadFacts(opened.db, '2026-10-01');
+    expect(paceOfMonth(live, '2026-09', '2026-09-30', []).figures.spentCents).toBe(0);
+    const historical = planningAccuracyReport(opened.db, '2026-09', '2026-10-01');
+    expect(historical.categories.find((c) => c.categoryId === 'essen')).toMatchObject({
+      name: 'Essen',
+      actualCents: 15_000,
+    });
+    expect(historical.months[0]?.actualCents).toBe(15_000);
+    const again = loadFacts(opened.db, '2026-10-01');
+    expect(paceOfMonth(again, '2026-09', '2026-09-30', []).figures.spentCents).toBe(0);
+    expect(again.categories.map((c) => c.id).sort()).toEqual(['auslagen', 'miete', 'reise']);
   });
 });
 

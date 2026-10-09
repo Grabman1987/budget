@@ -29,17 +29,18 @@ proposed destinations, not implemented routes.
 | `ledger/account-form.tsx`, `pages/accounts-settings.tsx`: new/edit account | FormDialog; existing `/konten/:id` already owns account detail | Open |
 | `ledger/reconcile-panel.tsx` | FormDialog for bank balance, correction and confirmation | Open |
 | `rules/rule-panel.tsx`: status and threshold editing | `/einstellungen/regelwerk/:code`; threshold form in dialog | Open |
-| `wealth/portfolio-panel.tsx`: instrument details, prices, trades, metadata edits | `/vermoegen/portfolio/instrument/:id`; new/edit forms in dialogs | Open |
+| `wealth/portfolio-panel.tsx`: instrument details, prices, trades, metadata edits | `/vermoegen/portfolio/instrument/:id`; new/edit forms in dialogs | Done |
 | `wealth/target-panel.tsx`, `pages/asset-classes-settings.tsx`: class/group/target/archive/instrument editors | FormDialog retaining dirty/save blockers and atomic audit/undo | Open |
-| `wealth/savings-panel.tsx`: savings schedule versions and editing | `/vermoegen/portfolio/sparplan/:id`; new/edit/end in dialogs | Open |
-| `wealth/trade-panel.tsx`: trade capture/edit | FormDialog retaining settlement and execution validation | Open |
+| `wealth/savings-panel.tsx`: savings schedule versions and editing | `/vermoegen/portfolio/sparplan/:id`; new/edit/end in dialogs | Done |
+| `wealth/trade-panel.tsx`: trade capture/edit | FormDialog retaining settlement and execution validation | Done |
 | `reports/payslip-panel.tsx`: payslip history and capture | Payslip detail sub-page under salary report; capture/edit/upload in form dialog | Open |
 | `reports/income-expense-report.tsx`: selected cell booking inspector | Linked booking sub-page preserving report filters | Open |
 | `shell/global-search.tsx`: search results sheet, Ctrl K | Search sub-page with search input; preserve Ctrl K and keyboard result navigation | Open |
 | `shell/panel-host.tsx`, `shell/panels.ts`: example detail | Dev-only detail route; remove placeholder panel entry | Open |
 | `routes/components-page.tsx`, `routes/panels-harness.tsx`: detail/side/sheet/work-dialog demos | Detail page demo and input/filter-only dialog/sheet demos | Open |
 | `heute/heute.css`: `.heute-main-grid`, secondary monthly content | Full-width inline sections or links to existing detail pages | Open |
-| `wealth/wealth.css`: `.vview` composition beside main; `wealth/debts.css`: secondary comparison columns; `wealth/loan-planning.css`: planning summaries | Full-width content sections; comparison tables retain their numeric columns | Open |
+| `wealth/wealth.css`: `.vview` composition beside main | Full-width content sections | Done |
+| `wealth/debts.css`: secondary comparison columns; `wealth/loan-planning.css`: planning summaries | Full-width content sections; comparison tables retain their numeric columns | Open |
 | `reports/reports-future.css`: `.rf-side`; `reports/table-reports.css`: side summaries; report overview/spending/portfolio source grids | Full-width sequential summary/chart/source sections or linked detail pages | Open |
 | `shell/sidebar.tsx` | Left application navigation remains | Retain |
 | `pages/settings-nav.tsx`: settings navigation rail | Navigation, not content; retain existing destinations | Retain |
@@ -108,3 +109,40 @@ Review desktop and phone navigation, returned scroll position, direct links and
 Escape/focus return. Review the new full-width summary order and remaining inventory.
 No keys, consents, migrations or provider setup are required. Do not merge until
 the required CI checks and Linux visual review pass.
+
+## Vermögen slice — sidepanels-2a (2026-10-06)
+
+Instrument and schedule details use `/vermoegen/portfolio/instrument/:id` and
+`/vermoegen/portfolio/sparplan/:id`, with the Plan breadcrumb/history-state/back
+pattern and portfolio scroll restoration. Legacy product/schedule queries redirect
+with their existing priority; period selection is retained. Metadata, manual quotes,
+schedule create/edit/end and trades use the existing FormDialog. Native amount,
+validation, pending/dirty navigation, audit and undo paths remain shared. Net-worth
+composition follows the lead at full width. Debts, reports and other inventory rows
+remain separate deliveries. No Linux screenshot baseline was regenerated locally.
+
+
+Windows verification for this slice: `npm run check -- -- --maxWorkers=2
+--testTimeout=30000 --retry=1` passed (exit 0): 358 files, 3302 tests passed,
+2 existing age backup tests skipped because age/age-keygen are unavailable here.
+The preceding run hit the unchanged formatter hook's short Windows timeout; its
+isolated rerun passed all 34 tests, then the complete check passed. Both
+`npm run build` and `npm run build:e2e` passed (exit 0).
+
+The affected desktop/phone browser matrix and corrected-case reruns passed all
+64 distinct functional cases, including net worth, instrument exposure and
+trade/schedule audit/undo. The final unknown-value and exposure runs each passed
+5 tests including setup; net-worth regressions passed 15 with 8 existing Linux
+visual skips. Local sandbox startup and browser timeout overrides stayed in
+ignored launch files. Old two-column desktop reference regions now assert full
+width/alignment/stacking; header/phone comparisons and complete pixel baselines
+remain. New URL/composition cases were red before implementation.
+
+[Desktop/phone review evidence](evidence/no-side-panels-wealth-1006/README.md)
+uses synthetic fixtures only. Linux net-worth baseline review, required CI and
+owner acceptance remain open; no keys, consents or migrations are needed.
+
+Git delivery uses a local index because the managed sandbox protects this
+worktree's index/HEAD metadata. Commits use guarded common-repository ref updates.
+After delivery, run `git reset --mixed HEAD` in this worktree from a normal
+terminal to synchronize its standard index; this preserves the working files.

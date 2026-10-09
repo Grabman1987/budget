@@ -83,15 +83,52 @@
   margin-top: 2px;
 }
 .rw-rules {
-  columns: 2 380px;
-  column-gap: 40px;
+  width: 100%;
 }
-.rw-rules > li {
-  break-inside: avoid;
+.rw-group {
+  margin-top: 24px;
+  border-top: 1px solid var(--rule-strong);
 }
-.rw-rules .btn-xs {
-  margin-left: auto;
-  margin-right: 10px;
+.rw-group h3,
+.rw-disabled summary {
+  margin: 0;
+  padding: 12px 0;
+  font-size: 17px;
+  font-weight: 600;
+}
+.rw-disabled summary {
+  min-height: var(--touch);
+  cursor: pointer;
+}
+.rw-disabled summary:focus-visible {
+  outline: 2px solid var(--line);
+  outline-offset: 2px;
+}
+.rw-rule-copy {
+  min-width: 0;
+}
+.rw-rule-result {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 12px;
+  margin-top: 8px;
+}
+.rw-rule-result small {
+  margin: 0;
+}
+.rw-controls {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  gap: 16px;
+}
+.rw-fix {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--touch);
+  color: var(--line);
+  text-underline-offset: 3px;
 }
 
 /* "erledigt": the owner confirms an item the app cannot compute (inline, the row keeps its height). */
@@ -178,6 +215,15 @@
     margin: 0;
   }
   .rw-rules {
-    columns: 1;
+    width: 100%;
+  }
+  .rw-rules > li {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .rw-controls {
+    width: 100%;
+    justify-content: space-between;
   }
 }

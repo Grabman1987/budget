@@ -1,6 +1,6 @@
 import { lastDayOfMonth, nextMonth } from '../date';
 import { incomeBudgetMonth } from '../income-month';
-import { accountBalances, type BalanceAccount } from './balances';
+import { balanceSeries, type BalanceAccount } from './balances';
 import { envelopeMonth, type EnvelopeMonth } from './envelope';
 
 /**
@@ -261,7 +261,17 @@ export function budgetMonths(input: BudgetInput): BudgetMonth[] {
   let previous: Map<string, number> = new Map(Object.entries(input.openingCarry ?? {}));
   let previousCredit = 0;
   let firstMonth = true;
-  for (const month of months) {
+  // Cash balances at every month end in one pass, and next-month income arrived per month.
+  const cashSplits = splits.filter((s) => cashIds.has(s.accountId));
+  const cashBalances = balanceSeries(cashAccounts, cashSplits, months.map(lastDayOfMonth));
+  const deferredByMonth = new Map<string, number>();
+  splits.forEach((s, i) => {
+    if (cashIds.has(s.accountId) && effects[i]?.effect.kind === 'income' && s.incomeNextMonth) {
+      const month = s.date.slice(0, 7);
+      deferredByMonth.set(month, (deferredByMonth.get(month) ?? 0) + s.amountCents);
+    }
+  });
+  for (const [monthIndex, month] of months.entries()) {
     const assigned = input.assigned?.[month] ?? {};
     const envelopes: Record<string, BudgetEnvelope> = {};
     const cards: Record<string, { cardDebtGrowthCents: number }> = {};
@@ -307,25 +317,10 @@ export function budgetMonths(input: BudgetInput): BudgetMonth[] {
       assignedCents += e.assignedCents;
       next.set(c.id, e.availableCents);
     }
-    const balances = accountBalances(
-      cashAccounts,
-      splits.filter((s) => cashAccounts.some((a) => a.id === s.accountId)),
-      lastDayOfMonth(month),
-    );
     let cashCents = 0;
-    for (const v of balances.values()) cashCents += v;
+    for (const v of cashBalances[monthIndex]!.balances.values()) cashCents += v;
     // Actual cash has arrived already, but next-month income is unavailable this month.
-    const deferred = splits.reduce(
-      (sum, s, i) =>
-        sum +
-        (cashIds.has(s.accountId) &&
-        effects[i]?.effect.kind === 'income' &&
-        s.incomeNextMonth &&
-        s.date.slice(0, 7) === month
-          ? s.amountCents
-          : 0),
-      0,
-    );
+    const deferred = deferredByMonth.get(month) ?? 0;
     const heldCents = input.held?.[month] ?? 0;
     out.push({
       month,

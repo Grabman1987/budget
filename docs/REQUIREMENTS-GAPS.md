@@ -1,5 +1,7 @@
 # Requirements gaps and superseded concept statements
 
+Current source/live evidence and acceptance baseline (2026-10-08): [STATUS](STATUS.md) and [ACCEPTANCE](ACCEPTANCE.md). The dated delivery/requirements notes below include historical states; verify each against the current source before treating an old placeholder, missing-PR or missing-feature statement as present work. Open owner/financial/device criteria are not automatically accepted.
+
 Reviewed 2026-10-01. This checklist distinguishes incomplete **requirements** from
 unfinished **implementation** in [FEATURES](FEATURES.md). Existing calculations,
 API contracts and prototypes remain binding; an open detail does not invalidate

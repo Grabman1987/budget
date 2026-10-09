@@ -2,14 +2,14 @@ import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type Locator, type Page, type TestInfo } from '@playwright/test';
 import {
   again,
+  openLedgerFilters,
+  applyLedgerFilters,
   balance,
   createAccount,
   openAccount,
   pickCategory,
   toast,
   visit,
-  openLedgerFilters,
-  applyLedgerFilters,
 } from './ledger-helpers';
 
 /**
@@ -44,7 +44,7 @@ test('an expense by keyboard: arithmetic, Enter moves on, Ctrl+Enter saves, Avai
 
   let panel = await openCapture(page, testInfo);
   // The account page is where the booking starts: its account is preselected.
-  await expect(panel.getByLabel('Konto', { exact: true })).toHaveValue(/.+/);
+  await expect(panel.getByLabel('Bezahlt von', { exact: true })).toHaveValue(/.+/);
   const amount = panel.getByLabel('Betrag', { exact: true });
   await expect(amount).toBeFocused();
   await amount.fill('12,50+8,20');
@@ -184,11 +184,12 @@ test('discard question, Speichern und neu keeps the context, the payee brings it
   await page.keyboard.press('Enter');
   await expect(panel.getByLabel('Kategorie', { exact: true })).toHaveValue(category);
   // The last used account is preselected (the list itself is grouped like the sidebar).
-  await expect(panel.getByLabel('Konto', { exact: true }).locator('option:checked')).toHaveText(
-    account,
-  );
-  // The open suggestion list must not shift the page: a click below it still lands (here the
+  await expect(
+    panel.getByLabel('Bezahlt von', { exact: true }).locator('option:checked'),
+  ).toHaveText(account);
+  // Reopen the chosen payee's suggestions; a footer click still lands (here the
   // footer button; the empty amount is refused, which proves the click arrived).
+  await panel.getByLabel('Empfänger').press('ArrowDown');
   await expect(panel.getByRole('listbox')).toBeVisible();
   await panel.getByRole('button', { name: 'Speichern und neu' }).click();
   await expect(panel.getByRole('alert').first()).toBeVisible();
@@ -230,6 +231,7 @@ test('the capture panel is axe clean in both themes and never scrolls sideways',
     // The split editor with a contact line and a transfer line.
     await panel.getByRole('button', { name: 'Ausgabe' }).click();
     await panel.getByLabel('Betrag', { exact: true }).fill('30');
+    await panel.locator('summary').click();
     await panel.getByRole('button', { name: 'Aufteilen' }).click();
     const second = panel.getByRole('group', { name: 'Zeile 2', exact: true });
     await second.getByRole('button', { name: 'Kontakt' }).click();
@@ -260,6 +262,7 @@ test('a split with a contact share: the chain shows what is left, saving waits u
   const panel = await openCapture(page, testInfo);
   await panel.getByLabel('Betrag', { exact: true }).fill('50');
   await panel.getByLabel('Empfänger').fill(`Restaurant ${tag}`);
+  await panel.locator('summary').click();
   await panel.getByRole('button', { name: 'Aufteilen' }).click();
   const chain = panel.getByRole('group', { name: /Aufteilung: Betrag minus Verteilt/ });
   const save = panel.getByRole('button', { name: 'Speichern', exact: true });
@@ -306,6 +309,7 @@ test('a transfer line in a split moves money to the other account', async ({ pag
   const panel = await openCapture(page, testInfo);
   await panel.getByLabel('Betrag', { exact: true }).fill('60');
   await panel.getByLabel('Empfänger').fill(`Bank ${tag}`);
+  await panel.locator('summary').click();
   await panel.getByRole('button', { name: 'Aufteilen' }).click();
   const line1 = panel.getByRole('group', { name: 'Zeile 1', exact: true });
   const line2 = panel.getByRole('group', { name: 'Zeile 2', exact: true });
@@ -316,6 +320,7 @@ test('a transfer line in a split moves money to the other account', async ({ pag
   await line2.getByLabel('Betrag 2').fill('20');
   await panel.getByRole('button', { name: 'Speichern', exact: true }).click();
   await expect(balance(page)).toHaveText('240,00 €');
+  await expect(panel).toBeHidden();
   await openAccount(page, spar);
   await expect(balance(page)).toHaveText('20,00 €');
 });
@@ -379,7 +384,7 @@ test('a second Esc without any interaction still asks before discarding', async 
   await expect(panel.getByLabel('Betrag', { exact: true })).toHaveValue('5');
 });
 
-test('the dialog is a centred card on the desktop and a sheet on the phone; no date quick picks', async ({
+test('the dialog is a centred card on the desktop and a sheet on the phone with date chips', async ({
   page,
 }, testInfo) => {
   await visit(page, '/');
@@ -398,9 +403,9 @@ test('the dialog is a centred card on the desktop and a sheet on the phone; no d
     expect(box!.x + box!.width).toBeLessThan(viewport.width);
   }
   await expect(panel.getByRole('group', { name: 'Schnellwahl' })).toHaveCount(0);
-  await expect(panel.getByRole('button', { name: 'Gestern' })).toHaveCount(0);
-  // Field order: Betrag, Empfänger, Konto, Datum, Kategorie, Notiz.
-  const wanted = ['Betrag', 'Empfänger', 'Konto', 'Datum', 'Kategorie', 'Notiz'];
+  await expect(panel.getByRole('button', { name: 'Gestern' })).toBeVisible();
+  // Field order: amount, payee, account, date, category, optional note.
+  const wanted = ['Betrag', 'Empfänger', 'Bezahlt von', 'Datum', 'Kategorie', 'Notiz'];
   const order = await panel.evaluate(
     (el, names) =>
       Array.from(el.querySelectorAll('label'))

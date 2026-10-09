@@ -1,5 +1,7 @@
 # Budget: Tasks und Fortschritt
 
+Current source/live evidence and acceptance baseline (2026-10-08): [STATUS](STATUS.md) and [ACCEPTANCE](ACCEPTANCE.md). The dated delivery/requirements notes below include historical states; verify each against the current source before treating an old placeholder, missing-PR or missing-feature statement as present work. Open owner/financial/device criteria are not automatically accepted.
+
 Stand: 1. Oktober 2026. Diese Liste zeigt Implementierung, Prüfung und Integration
 getrennt. Maßgeblich bleiben SPEC.md, ROADMAP.md und die tatsächlichen GitHub-Checks.
 Echte Finanzdaten wurden nicht verarbeitet.

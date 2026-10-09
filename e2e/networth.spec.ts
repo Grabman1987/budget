@@ -136,7 +136,7 @@ test.describe('layout', () => {
   });
   const REGISTER_LABELS = text(260, 188, 1160, 26);
 
-  test('desktop: title block and registers, the two columns', async ({ page, isMobile }) => {
+  test('desktop: title block and registers, full-width sections', async ({ page, isMobile }) => {
     test.skip(isMobile, 'desktop layout');
     await ready(page);
     const reference = 'desktop/vermoegen-netto.webp';
@@ -150,26 +150,15 @@ test.describe('layout', () => {
         masks: [text(860, 84, 250, 84), text(290, 96, 300, 60), REGISTER_LABELS],
       }),
     );
-    await expectMatchesReference(
-      page,
-      check({
-        name: 'netto-verlauf',
-        reference,
-        region: { x: 260, y: 262, w: 660, h: 620 },
-        // The daily line is the sample's own prices; the state text differs by a euro or two.
-        masks: [text(330, 420, 580, 190), text(690, 276, 230, 24)],
-      }),
-    );
-    await expectMatchesReference(
-      page,
-      check({
-        name: 'netto-bestandteile',
-        reference,
-        region: { x: 940, y: 262, w: 480, h: 370 },
-        // The account names and amounts are data; the bars and rules are compared.
-        masks: [text(940, 316, 150, 270), text(1300, 316, 100, 270)],
-      }),
-    );
+    const layout = await page.locator('.vview').boundingBox();
+    const lead = await page.locator('.vview .vnw').boundingBox();
+    const composition = await page.locator('.vview .vcomp').boundingBox();
+    expect(layout && lead && composition).toBeTruthy();
+    expect(lead!.x).toBeCloseTo(layout!.x, 0);
+    expect(lead!.width).toBeCloseTo(layout!.width, 0);
+    expect(composition!.x).toBeCloseTo(layout!.x, 0);
+    expect(composition!.width).toBeCloseTo(layout!.width, 0);
+    expect(composition!.y).toBeGreaterThanOrEqual(lead!.y + lead!.height);
   });
 
   test('phone: figure, chart and chain', async ({ page, isMobile }) => {

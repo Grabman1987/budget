@@ -1,5 +1,131 @@
 import { formatPrivateEuro as formatEuro, maskMoneyText } from '@budget/ui';
-import { STAGES, cents, parseScaledDecimal, PARAM_SCHEMAS } from '@budget/domain';
+import { STAGES, cents, parseScaledDecimal, PARAM_SCHEMAS, type RuleCode } from '@budget/domain';
+import type { RuleRow } from './api';
+
+export type RuleGroup = 'violated' | 'pending' | 'met' | 'disabled';
+
+/** Disabled previews and missing evaluations never count as met rules. */
+export function ruleGroup(rule: RuleRow, enabled = rule.enabled): RuleGroup {
+  if (!enabled) return 'disabled';
+  if (rule.latest?.status === 'bad') return 'violated';
+  return rule.latest?.status === 'ok' ? 'met' : 'pending';
+}
+
+/** Plain explanations and correction links; values and thresholds stay in the shared rule book. */
+export const RULE_GUIDANCE: Readonly<
+  Record<RuleCode, { explanation: string; to: string; label: string }>
+> = {
+  R01: {
+    explanation: 'Verteile dein Einkommen auf Bedarf, Wunsch und Zukunft.',
+    to: '/plan/monat',
+    label: 'Im Plan verteilen',
+  },
+  R02: {
+    explanation: 'Halte eine Rücklage für mehrere Monate notwendiger Ausgaben.',
+    to: '/plan/monat',
+    label: 'Im Plan aufstocken',
+  },
+  R03: {
+    explanation: 'Bezahle diesen Monat mit Geld aus dem Vormonat.',
+    to: '/plan/monat',
+    label: 'Puffer im Plan aufbauen',
+  },
+  R04: {
+    explanation: 'Fülle nach dem Gehalt zuerst die Zukunft-Kategorien.',
+    to: '/plan/monat',
+    label: 'Zukunft im Plan füllen',
+  },
+  R05: {
+    explanation: 'Spare für jährliche und andere seltene Ausgaben rechtzeitig an.',
+    to: '/plan/monat',
+    label: 'Rücklagen im Plan füllen',
+  },
+  R06: {
+    explanation: 'Lege genug Geld für den gesamten Kreditkartensaldo zurück.',
+    to: '/plan/monat',
+    label: 'Kartenzahlung im Plan decken',
+  },
+  R07: {
+    explanation: 'Halte die Budget-Konten auch in der Vorschau über der Grenze.',
+    to: '/konten/buchungen',
+    label: 'Zahlungen prüfen',
+  },
+  R08: {
+    explanation: 'Halte die monatlichen Kreditraten im Verhältnis zum Einkommen klein.',
+    to: '/vermoegen/schulden',
+    label: 'Kreditraten prüfen',
+  },
+  R09: {
+    explanation: 'Tilge teure Kredite, bevor du weiteres Geld investierst.',
+    to: '/vermoegen/schulden',
+    label: 'Tilgung planen',
+  },
+  R10: {
+    explanation: 'Begrenze den Anteil deines Einkommens für feste Ausgaben.',
+    to: '/plan/erwartet',
+    label: 'Feste Zahlungen prüfen',
+  },
+  R11: {
+    explanation: 'Lass deine Ausgaben langsamer wachsen als dein Einkommen.',
+    to: '/plan/monat',
+    label: 'Ausgaben im Plan prüfen',
+  },
+  R12: {
+    explanation: 'Verteile Sonderzahlungen auf Genuss und die nächsten Budgetziele.',
+    to: '/plan/monat',
+    label: 'Sonderzahlung verteilen',
+  },
+  R13: {
+    explanation: 'Halte deine Anlageklassen nahe an den festgelegten Zielanteilen.',
+    to: '/vermoegen/portfolio',
+    label: 'Aufteilung prüfen',
+  },
+  R14: {
+    explanation: 'Vermeide zu große Anteile einzelner Produkte oder Plattformen.',
+    to: '/vermoegen/portfolio',
+    label: 'Große Positionen prüfen',
+  },
+  R15: {
+    explanation: 'Begrenze den Anteil besonders riskanter Anlagen.',
+    to: '/vermoegen/portfolio',
+    label: 'Riskante Anlagen prüfen',
+  },
+  R16: {
+    explanation: 'Baue genug Vermögen auf, um deine Jahresausgaben zu decken.',
+    to: '/vermoegen/freiheit',
+    label: 'Sparrate prüfen',
+  },
+  R17: {
+    explanation: 'Investiere einen festen Anteil deines Bruttoeinkommens.',
+    to: '/vermoegen/portfolio',
+    label: 'Sparpläne prüfen',
+  },
+  R18: {
+    explanation: 'Vergleiche dein Vermögen mit einem Richtwert aus Alter und Einkommen.',
+    to: '/einstellungen/profil',
+    label: 'Angaben zum Alter prüfen',
+  },
+  R19: {
+    explanation: 'Spare einen Teil jeder Einkommenserhöhung zusätzlich.',
+    to: '/plan/monat',
+    label: 'Zukunft im Plan erhöhen',
+  },
+  R20: {
+    explanation: 'Investiere regelmäßig über das ganze Jahr.',
+    to: '/vermoegen/portfolio',
+    label: 'Sparpläne prüfen',
+  },
+  R21: {
+    explanation: 'Begrenze gehebelte Anlagen und Schulden auf Verrechnungskonten.',
+    to: '/vermoegen/portfolio',
+    label: 'Hebel und Konten prüfen',
+  },
+  R22: {
+    explanation: 'Halte die laufenden Kosten deiner Fonds niedrig.',
+    to: '/vermoegen/portfolio',
+    label: 'Fondskosten prüfen',
+  },
+};
 
 /**
  * Presentation model of Einstellungen › Regelwerk: the typed threshold fields per rule, the

@@ -1,7 +1,7 @@
 import {
   useAmountPrivacy,
   Button,
-  DetailPanel,
+  FormDialog,
   Field,
   Select,
   TextInput,
@@ -44,11 +44,11 @@ export function TradePanel({
   onClose: () => void;
   onSaved: (securityId: string) => void;
 }) {
-  const editing = id !== 'neu';
+  const editing = !!id && id !== 'neu';
   const trade = useQuery(tradeQuery(editing ? id : ''));
-  const accounts = useQuery({ ...accountsQuery(), retry: false });
-  const securities = useQuery(instrumentsQuery());
-  const lookups = useQuery({ ...lookupsQuery(), retry: false });
+  const accounts = useQuery({ ...accountsQuery(), retry: false, enabled: !!id });
+  const securities = useQuery({ ...instrumentsQuery(), enabled: !!id });
+  const lookups = useQuery({ ...lookupsQuery(), retry: false, enabled: !!id });
   const dirtyRef = useRef(false);
   const busyRef = useRef(false);
   const blockedDuringSaveRef = useRef(false);
@@ -89,99 +89,109 @@ export function TradePanel({
     (account) => account.role === 'investment' && !account.closedAt,
   );
   const ready = accounts.data && securities.data && (!editing || trade.data);
+  const beforeClose = () => {
+    if (busyRef.current || blocker.status === 'blocked') return false;
+    if (!dirtyRef.current) return true;
+    setAsking(true);
+    return false;
+  };
+
+  const title = proposal
+    ? 'Sparplanausführung bestätigen'
+    : editing
+      ? 'Handel bearbeiten'
+      : 'Handel erfassen';
   return (
-    <DetailPanel
-      open
-      title={
-        proposal
-          ? 'Sparplanausführung bestätigen'
-          : editing
-            ? 'Handel bearbeiten'
-            : 'Handel erfassen'
-      }
-      onClose={close}
-      beforeClose={() => {
-        if (busyRef.current || blocker.status === 'blocked') return false;
-        if (!dirtyRef.current) return true;
-        setAsking(true);
-        return false;
-      }}
-    >
-      {accounts.isPending && <LoadingNote what="Anlagekonten" />}
-      {securities.isPending && <LoadingNote what="Instrumente" />}
-      {editing && trade.isPending && <LoadingNote what="Handel" />}
-      {accounts.isError && (
-        <ErrorNote
-          what="Anlagekonten"
-          error={accounts.error}
-          onRetry={() => void accounts.refetch()}
-        />
-      )}
-      {securities.isError && (
-        <ErrorNote
-          what="Instrumente"
-          error={securities.error}
-          onRetry={() => void securities.refetch()}
-        />
-      )}
-      {editing && trade.isError && (
-        <ErrorNote what="Handel" error={trade.error} onRetry={() => void trade.refetch()} />
-      )}
-      {lookups.isError && (
-        <ErrorNote
-          what="Institutsnamen"
-          error={lookups.error}
-          onRetry={() => void lookups.refetch()}
-        />
-      )}
-      {ready && (
-        <TradeForm
-          trade={editing ? trade.data?.trade : undefined}
-          date={accounts.data!.asOf}
-          securityId={securityId}
-          proposal={proposal}
-          accounts={accounts.data!.accounts}
-          eligible={eligible ?? []}
-          securities={securities.data!.securities}
-          institutions={lookups.data?.institutions ?? []}
-          onDirty={setDirtyNow}
-          onBusy={setBusyNow}
-          onSaved={(securityId) => {
-            setDirtyNow(false);
-            setBusyNow(false);
-            setAsking(false);
-            onSaved(securityId);
+    <FormDialog open={!!id} title={title} onClose={close} beforeClose={beforeClose}>
+      <div className="bk-head">
+        <h2>{title}</h2>
+        <Button
+          variant="ghost"
+          onClick={() => {
+            if (beforeClose()) close();
           }}
-        />
-      )}
-      {asking && (
-        <div className="instrument-discard" role="alert">
-          <p>Ungespeicherte Handelsangaben verwerfen?</p>
-          <Button
-            disabled={busy}
-            onClick={() => {
+        >
+          Schließen
+        </Button>
+      </div>
+      <div className="bk-body">
+        {accounts.isPending && <LoadingNote what="Anlagekonten" />}
+        {securities.isPending && <LoadingNote what="Instrumente" />}
+        {editing && trade.isPending && <LoadingNote what="Handel" />}
+        {accounts.isError && (
+          <ErrorNote
+            what="Anlagekonten"
+            error={accounts.error}
+            onRetry={() => void accounts.refetch()}
+          />
+        )}
+        {securities.isError && (
+          <ErrorNote
+            what="Instrumente"
+            error={securities.error}
+            onRetry={() => void securities.refetch()}
+          />
+        )}
+        {editing && trade.isError && (
+          <ErrorNote what="Handel" error={trade.error} onRetry={() => void trade.refetch()} />
+        )}
+        {lookups.isError && (
+          <ErrorNote
+            what="Institutsnamen"
+            error={lookups.error}
+            onRetry={() => void lookups.refetch()}
+          />
+        )}
+        {id && ready && (
+          <TradeForm
+            key={id}
+            trade={editing ? trade.data?.trade : undefined}
+            date={accounts.data!.asOf}
+            securityId={securityId}
+            proposal={proposal}
+            accounts={accounts.data!.accounts}
+            eligible={eligible ?? []}
+            securities={securities.data!.securities}
+            institutions={lookups.data?.institutions ?? []}
+            onDirty={setDirtyNow}
+            onBusy={setBusyNow}
+            onSaved={(securityId) => {
+              setDirtyNow(false);
+              setBusyNow(false);
               setAsking(false);
-              if (blocker.status === 'blocked') blocker.reset();
+              onSaved(securityId);
             }}
-          >
-            Weiter bearbeiten
-          </Button>
-          <Button
-            disabled={busy}
-            variant="ghost"
-            onClick={() => {
-              if (blocker.status === 'blocked') {
-                setDirtyNow(false);
+          />
+        )}
+        {asking && (
+          <div className="instrument-discard" role="alert">
+            <p>Ungespeicherte Handelsangaben verwerfen?</p>
+            <Button
+              disabled={busy}
+              onClick={() => {
                 setAsking(false);
-                blocker.proceed();
-              } else close();
-            }}
-          >
-            Verwerfen
-          </Button>
-        </div>
-      )}
-    </DetailPanel>
+                if (blocker.status === 'blocked') blocker.reset();
+              }}
+            >
+              Weiter bearbeiten
+            </Button>
+            <Button
+              disabled={busy}
+              variant="ghost"
+              onClick={() => {
+                if (blocker.status === 'blocked') {
+                  setDirtyNow(false);
+                  setAsking(false);
+                  blocker.proceed();
+                } else close();
+              }}
+            >
+              Verwerfen
+            </Button>
+          </div>
+        )}
+      </div>
+    </FormDialog>
   );
 }
 function TradeForm({

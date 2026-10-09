@@ -18,6 +18,7 @@ import {
   type DebtsView,
 } from './debts-api';
 import { DebtChart } from './debts-chart';
+import { DebtOverview } from './debt-overview';
 import { DebtStrategies } from './debt-strategies';
 import { LoanPlanning } from './loan-planning';
 import './debts.css';
@@ -67,94 +68,106 @@ export function DebtsPage() {
         )}
         {view && (
           <>
-            <DebtLead view={view} />
-            {loan ? (
-              <>
-                <Scenario
-                  key={`${loan.id}:${loan.balanceCents}:${view.asOf}:${loan.interestRateBp}:${loan.monthlyFeeCents}:${loan.installmentCents}`}
-                  loan={loan}
-                  asOf={view.asOf}
-                  onBusy={setBusy}
-                  choice={choice}
-                />
-                <LoanPlanning loanId={loan.id} asOf={view.asOf} />
-              </>
-            ) : (
-              <section className="vcomp" aria-labelledby="scenario-title">
-                <div className="tbd-head">
-                  <h2 id="scenario-title">Sondertilgung</h2>
-                </div>
-                {loans.length ? (
-                  choice
-                ) : (
-                  <EmptyNote>
-                    Kein Kredit mit offener Restschuld. Karten und andere Verbindlichkeiten stehen
-                    in der Kontoliste.
-                  </EmptyNote>
-                )}
-                {search.kredit && (
-                  <p className="vnote">
-                    Der ausgewählte Kredit hat keine offene Restschuld oder ist nicht verfügbar.
-                  </p>
-                )}
-              </section>
-            )}
-            <DebtStrategies asOf={view.asOf} />
-            <section className="debt-accounts" aria-labelledby="debt-accounts-title">
-              <div className="head">
-                <h2 id="debt-accounts-title">Schulden nach Konto</h2>
-                <span className="aside">Stichtag {longDay(view.asOf)}</span>
-              </div>
-              {view.accounts.length === 0 ? (
-                <EmptyNote>Keine negativen Kontowerte zum Stichtag.</EmptyNote>
-              ) : (
-                <table className="ktable vtable debt-table">
-                  <caption className="sr-only">
-                    Negative Kontowerte mit tatsächlichem Kontosaldo
-                  </caption>
-                  <thead>
-                    <tr>
-                      <th scope="col" className="tech">
-                        Konto
-                      </th>
-                      <th scope="col" className="tech num">
-                        Kontosaldo
-                      </th>
-                      <th scope="col" className="tech num">
-                        Restschuld EUR
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {view.accounts.map((a) => (
-                      <tr key={a.id}>
-                        <th scope="row">
-                          <AppLink to={`/konten/${encodeURIComponent(a.id)}`}>{a.name}</AppLink>
-                          <small>
-                            {a.type === 'loan'
-                              ? 'Kredit'
-                              : a.type === 'credit_card'
-                                ? 'Kreditkarte'
-                                : 'Negativer Kontowert'}
-                          </small>
-                        </th>
-                        <td className="num" data-label="Kontosaldo">
-                          {nativeCurrency(a.balanceCents, a.currency)}
-                        </td>
-                        <td className="num" data-label="Restschuld EUR">
-                          {a.owedEurCents === null ? '—' : eur(a.owedEurCents)}
-                          {a.owedEurCents === null && <small>{unavailable(a)}</small>}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              )}
+            <DebtOverview view={view} />
+            <details className="debt-rechenweg debt-full">
+              <summary>Rechenweg</summary>
               <p className="vnote">
-                Kontosalden enthalten erfasste Buchungen bis zum Stichtag. Eine vollständige
-                monatliche Kartenrückzahlung wird nicht vorausgesetzt.
+                Konstante Konditionen: Jahreszins ÷ 12, monatlich auf Cent gerundet; danach Gebühren
+                und Tilgung. Keine taggenaue Verzinsung, künftigen Zinsänderungen oder
+                Vorfälligkeitskosten. Die Vorschau erzeugt keine Zahlung. Gespeicherte
+                Zinsänderungen und Szenarien stehen in der Detailplanung.
               </p>
-            </section>
+              <div className="kview vview">
+                <DebtLead view={view} />
+                {loan ? (
+                  <>
+                    <Scenario
+                      key={`${loan.id}:${loan.balanceCents}:${view.asOf}:${loan.interestRateBp}:${loan.monthlyFeeCents}:${loan.installmentCents}`}
+                      loan={loan}
+                      asOf={view.asOf}
+                      onBusy={setBusy}
+                      choice={choice}
+                    />
+                    <LoanPlanning loanId={loan.id} asOf={view.asOf} />
+                  </>
+                ) : (
+                  <section className="vcomp" aria-labelledby="scenario-title">
+                    <div className="tbd-head">
+                      <h2 id="scenario-title">Sondertilgung</h2>
+                    </div>
+                    {loans.length ? (
+                      choice
+                    ) : (
+                      <EmptyNote>
+                        Kein Kredit mit offener Restschuld. Karten und andere Verbindlichkeiten
+                        stehen in der Kontoliste.
+                      </EmptyNote>
+                    )}
+                    {search.kredit && (
+                      <p className="vnote">
+                        Der ausgewählte Kredit hat keine offene Restschuld oder ist nicht verfügbar.
+                      </p>
+                    )}
+                  </section>
+                )}
+                <DebtStrategies asOf={view.asOf} />
+                <section className="debt-accounts" aria-labelledby="debt-accounts-title">
+                  <div className="head">
+                    <h2 id="debt-accounts-title">Schulden nach Konto</h2>
+                    <span className="aside">Stichtag {longDay(view.asOf)}</span>
+                  </div>
+                  {view.accounts.length === 0 ? (
+                    <EmptyNote>Keine negativen Kontowerte zum Stichtag.</EmptyNote>
+                  ) : (
+                    <table className="ktable vtable debt-table">
+                      <caption className="sr-only">
+                        Negative Kontowerte mit tatsächlichem Kontosaldo
+                      </caption>
+                      <thead>
+                        <tr>
+                          <th scope="col" className="tech">
+                            Konto
+                          </th>
+                          <th scope="col" className="tech num">
+                            Kontosaldo
+                          </th>
+                          <th scope="col" className="tech num">
+                            Restschuld EUR
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {view.accounts.map((a) => (
+                          <tr key={a.id}>
+                            <th scope="row">
+                              <AppLink to={`/konten/${encodeURIComponent(a.id)}`}>{a.name}</AppLink>
+                              <small>
+                                {a.type === 'loan'
+                                  ? 'Kredit'
+                                  : a.type === 'credit_card'
+                                    ? 'Kreditkarte'
+                                    : 'Negativer Kontowert'}
+                              </small>
+                            </th>
+                            <td className="num" data-label="Kontosaldo">
+                              {nativeCurrency(a.balanceCents, a.currency)}
+                            </td>
+                            <td className="num" data-label="Restschuld EUR">
+                              {a.owedEurCents === null ? '—' : eur(a.owedEurCents)}
+                              {a.owedEurCents === null && <small>{unavailable(a)}</small>}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  )}
+                  <p className="vnote">
+                    Kontosalden enthalten erfasste Buchungen bis zum Stichtag. Eine vollständige
+                    monatliche Kartenrückzahlung wird nicht vorausgesetzt.
+                  </p>
+                </section>
+              </div>
+            </details>
           </>
         )}
       </div>
