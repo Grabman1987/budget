@@ -65,16 +65,19 @@ test('a new version from February 2027 changes only the future occurrences; undo
   await page.getByRole('button', { name: 'Verträge und Abos' }).click();
   await page.getByRole('button', { name: 'Alle', exact: true }).first().click();
   await page.locator('tr.prow', { hasText: name }).getByRole('button').first().click();
-  const panel = page.getByRole('dialog', { name });
+  const panel = page.locator('.xp-detail-body');
+  await expect(page).toHaveURL(/\/plan\/erwartet\/[^?]+/);
   await expect(panel).toBeVisible();
 
   const occurrence = (date: string) => panel.locator('.xp-occ li', { hasText: date });
   await expect(occurrence('28.01.2027')).toContainText('1.000,00 €');
   await expect(occurrence('28.02.2027')).toContainText('1.000,00 €');
 
-  await panel.getByLabel('Ab Monat').fill('2027-02');
-  await panel.getByLabel('Neuer Betrag').fill('1200');
-  await panel.getByRole('button', { name: 'Version speichern' }).click();
+  await panel.getByRole('button', { name: 'Neue Version' }).click();
+  const form = page.getByRole('dialog', { name: 'Neue Version' });
+  await form.getByLabel('Ab Monat').fill('2027-02');
+  await form.getByLabel('Neuer Betrag').fill('1200');
+  await form.getByRole('button', { name: 'Version speichern' }).click();
   await expect(page.locator('.toast.is-open')).toContainText('neue Version ab 01.02.2027');
   await expect(occurrence('28.02.2027')).toContainText('1.200,00 €');
   await expect(occurrence('28.03.2027')).toContainText('1.200,00 €');
@@ -104,13 +107,18 @@ test('a booking links to an occurrence and the occurrence can be marked missed',
   await page.getByRole('button', { name: 'Alle', exact: true }).first().click();
   await page.getByRole('button', { name: 'Verträge und Abos' }).click();
   await page.locator('tr.prow', { hasText: name }).getByRole('button').first().click();
-  const panel = page.getByRole('dialog', { name });
+  const panel = page.locator('.xp-detail-body');
+  await expect(page).toHaveURL(/\/plan\/erwartet\/[^?]+/);
   const occurrence = panel.locator('.xp-occ li', { hasText: '20.03.2027' });
   await occurrence.getByRole('button', { name: 'Ausgefallen' }).click();
   await expect(occurrence).toContainText('ausgefallen');
   await expect(occurrence.locator('.xp-status')).toHaveClass(/is-alert/);
   await occurrence.getByRole('button', { name: 'Verknüpfen' }).click();
-  await expect(occurrence.getByText('Keine passende Buchung')).toBeVisible();
+  await expect(
+    page
+      .getByRole('dialog', { name: 'Buchung verkn\u00fcpfen' })
+      .getByText('Keine passende Buchung'),
+  ).toBeVisible();
 });
 
 test('Plan › Monat: the Einnahmen term opens received against expected', async ({ page }) => {
@@ -148,7 +156,8 @@ test.describe('look', () => {
     expect(await serious(page)).toEqual([]);
     await expectScreenshot(page, 'expected-light.png');
     await page.locator('tr.prow', { hasText: 'Strom' }).getByRole('button').first().click();
-    await expect(page.getByRole('dialog', { name: 'Strom' })).toBeVisible();
+    await expect(page).toHaveURL(/\/plan\/erwartet\/[^?]+/);
+    await expect(page.getByRole('dialog')).toHaveCount(0);
     await expect(page.locator('.xp-occ li').first()).toBeVisible();
     expect(await serious(page)).toEqual([]);
     await expectScreenshot(page, 'expected-panel-light.png');
@@ -163,23 +172,19 @@ test.describe('look', () => {
       expect(await serious(page)).toEqual([]);
       await expectScreenshot(page, 'expected-dark.png');
       await page.getByRole('button', { name: /Einnahmen im Detail/ }).click();
-      await expect(page.getByRole('dialog', { name: /Einnahmen/ })).toBeVisible();
+      await expect(page).toHaveURL(/\/plan\/erwartet\/einnahmen/);
+      await expect(page.getByRole('dialog')).toHaveCount(0);
       await expect(page.getByTestId('income-received')).toBeVisible();
       expect(await serious(page)).toEqual([]);
-      const incomeRegion = page.getByRole('region', { name: 'Einnahmen September 2026' });
+      const incomeRegion = page.getByRole('region', { name: 'Einnahmen', exact: true });
       await expect(incomeRegion).toContainText(
         /Heute zählt Haushaltseinnahmen nach Buchungsdatum.*„Für nächsten Monat“ zählt im Plan erst im Folgemonat\./,
       );
       await expectScreenshot(page, 'expected-income-dark.png');
       if (testInfo.project.name === 'mobile') {
-        await page.getByRole('button', { name: 'Schließen' }).focus();
-        await page.keyboard.press('Tab');
-        await expect(incomeRegion).toBeFocused();
-        const before = await incomeRegion.evaluate((element) => element.scrollTop);
+        await expect(page.locator('.plan-detail h2')).toBeFocused();
         await page.keyboard.press('PageDown');
-        await expect
-          .poll(() => incomeRegion.evaluate((element) => element.scrollTop))
-          .toBeGreaterThan(before);
+        await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThan(0);
       }
     });
   });
