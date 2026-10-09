@@ -5,6 +5,30 @@ import { z } from 'zod';
 import { BankError, type BankInstitution, type BankProvider } from './provider';
 
 const string = z.string().min(1).max(4096);
+/** Optional display text: banks send null, missing or "" for names; anything unusable becomes null. */
+const label = z
+  .unknown()
+  .optional()
+  .transform((v) => (typeof v === 'string' && v.trim() !== '' && v.length <= 4096 ? v : null));
+/**
+ * One account of POST /sessions (AccountResource). Only uid and currency are needed to use it;
+ * name, product and account_id are optional labels. A missing uid means the account cannot be
+ * queried later (all calls address /accounts/{uid}), so such an account is skipped, not stored.
+ */
+const sessionAccount = z.object({
+  uid: string,
+  name: label,
+  product: label,
+  account_id: z.object({ iban: label }).nullish().catch(null),
+  currency: z.string().regex(/^[A-Z]{3}$/),
+});
+/** Zod issues as `code@path`, first three only; field paths and codes never carry provider values. */
+function issueDetail(issues: readonly z.core.$ZodIssue[], prefix = ''): string {
+  return issues
+    .slice(0, 3)
+    .map((i) => (i.code + '@' + prefix + i.path.join('.')).replace(/[^\w.@-]/g, '_'))
+    .join(', ');
+}
 /** ISO timestamp with offset; providers send up to microseconds, which JavaScript dates truncate. */
 const providerTime = z
   .string()
@@ -129,7 +153,7 @@ export function enableBanking(options: {
         path.split('?')[0]!.replace(/\/accounts\/[^/]+/, '/accounts/:uid'),
         parsed.error.issues.map((i) => i.code + '@' + i.path.join('.')).slice(0, 10),
       );
-      throw new BankError('invalid_response');
+      throw new BankError('invalid_response', 900, issueDetail(parsed.error.issues));
     }
     return parsed.data;
   }
@@ -192,33 +216,49 @@ export function enableBanking(options: {
         z.object({
           session_id: string,
           access: z.object({ valid_until: providerTime }),
-          accounts: z
-            .array(
-              z.object({
-                uid: string,
-                // Banks often send null for the optional names; the IBAN tail labels the account.
-                name: string.nullish(),
-                product: string.nullish(),
-                account_id: z.object({ iban: string.nullish() }).nullish(),
-                currency: z.string().regex(/^[A-Z]{3}$/),
-              }),
-            )
-            .min(1)
-            .max(100),
+          accounts: z.array(z.unknown()).max(100),
         }),
         { code },
       );
-      return {
-        id: data.session_id,
-        validUntil: new Date(data.access.valid_until).toISOString(),
-        accounts: data.accounts.map((a, i) => ({
+      // Validate each account on its own so one odd account does not discard the whole consent.
+      const accounts: { uid: string; label: string; currency: string }[] = [];
+      const rejected: string[] = [];
+      let skipped = 0;
+      data.accounts.forEach((raw, i) => {
+        const parsed = sessionAccount.safeParse(raw);
+        if (!parsed.success) {
+          skipped++;
+          rejected.push(issueDetail(parsed.error.issues.slice(0, 1), 'accounts.' + i + '.'));
+          return;
+        }
+        const a = parsed.data;
+        accounts.push({
           uid: a.uid,
           label:
             a.name ??
             a.product ??
             (a.account_id?.iban ? 'Konto …' + a.account_id.iban.slice(-4) : 'Bankkonto ' + (i + 1)),
           currency: a.currency,
-        })),
+        });
+      });
+      if (skipped > 0)
+        console.warn(
+          'Bank session accounts skipped',
+          skipped,
+          'of',
+          data.accounts.length,
+          rejected.slice(0, 3),
+        );
+      if (!accounts.length)
+        throw new BankError(
+          'invalid_response',
+          900,
+          rejected.length ? rejected.slice(0, 3).join(', ') : 'too_small@accounts',
+        );
+      return {
+        id: data.session_id,
+        validUntil: new Date(data.access.valid_until).toISOString(),
+        accounts,
       };
     },
     async transactions(uid, from, to, beforeRequest) {
