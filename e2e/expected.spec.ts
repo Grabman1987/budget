@@ -114,6 +114,9 @@ test('a booking links to an occurrence and the occurrence can be marked missed',
 });
 
 test('Plan › Monat: the Einnahmen term opens received against expected', async ({ page }) => {
+  // Materialize the seeded recurring occurrences independently of other tests in this file.
+  await page.goto('/plan/erwartet');
+  await expect(page.locator('tr.prow', { hasText: 'Gehalt' }).first()).toBeVisible();
   await page.goto('/plan/monat');
   await page
     .getByRole('group', { name: 'Maßkette Zu verteilen' })
@@ -128,7 +131,10 @@ test('Plan › Monat: the Einnahmen term opens received against expected', async
   await expect(panel.getByText('erwartet 4.612,00 €')).toBeVisible();
   await expect(panel.getByRole('table', { name: /nach Art/ })).toContainText('Gehalt');
   await expect(panel.getByRole('table', { name: /nach Art/ })).toContainText('3.812,00 €');
-  await expect(panel).toContainText('kein Geld zum Verteilen');
+  await expect(panel).toContainText('Erwartete Zahlungen sind Planwerte.');
+  await expect(panel).toContainText(
+    'Zu verteilen zählt nur tatsächlich gebuchte Zuflüsse im zugeordneten Planmonat',
+  );
   await panel.getByRole('link', { name: 'Zurück zum Monat' }).click();
   await expect(page).toHaveURL(/\/plan\/monat(\?|$)/);
   await expect(await serious(page)).toEqual([]);
