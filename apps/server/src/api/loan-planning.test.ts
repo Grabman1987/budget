@@ -70,6 +70,7 @@ beforeEach(() => {
         interestRateBp: 632,
         interestKind: 'variable',
         installmentCents: 41_200,
+        monthlyFeeCents: 0,
       },
       {
         id: 'loan2',
@@ -81,6 +82,7 @@ beforeEach(() => {
         openingBalanceCents: -500_000,
         interestRateBp: 300,
         installmentCents: 25_000,
+        monthlyFeeCents: 0,
       },
       {
         id: 'card',
@@ -124,6 +126,19 @@ describe('loan plan: baseline from the stored terms', () => {
         status: 'ok',
         summary: { months: 33, payoffMonth: '2029-06', totalInterestCents: 109_405 },
       },
+    });
+    expect(audits()).toBe(before);
+  });
+
+  it('does not produce a baseline when the fee is unknown', async () => {
+    opened.db.update(schema.account).set({ monthlyFeeCents: null }).run();
+    const before = audits();
+    const { status, body } = await call('GET', '/loan/plan');
+    expect(status).toBe(200);
+    expect(body).toMatchObject({
+      missing: ['fee'],
+      terms: { rateBp: 632, effectiveRateBp: 632, installmentCents: 41_200, monthlyFeeCents: null },
+      baseline: null,
     });
     expect(audits()).toBe(before);
   });

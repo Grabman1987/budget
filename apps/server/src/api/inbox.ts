@@ -1,12 +1,37 @@
 import { readInbox, readInboxCount, resolveInboxItem, type Db } from '@budget/db';
 import { Hono } from 'hono';
 import { z } from 'zod';
-import { ACTOR, readBody } from './http';
+import { ACTOR, readBody, readQuery } from './http';
+
+const page = z.object({
+  limit: z.coerce.number().int().min(1).max(1000).optional(),
+  offset: z.coerce.number().int().min(0).optional(),
+});
 
 /** Actual queue behind the common session/origin guard; stored acknowledgement has one undo group. */
 export function inboxRoutes(db: Db, today: () => string): Hono {
   const app = new Hono();
-  app.get('/', (c) => c.json(readInbox(db, today())));
+  app.get('/', (c) => {
+    const { limit, offset } = readQuery(c, page);
+    const inbox = readInbox(db, today());
+    // Without `limit` the whole queue, as before; `count` always is the full number of tasks.
+    if (limit === undefined) return c.json(inbox);
+    const start = offset ?? 0;
+    const entries = inbox.entries.slice(start, start + limit);
+    const next = start + entries.length < inbox.entries.length ? start + entries.length : null;
+    const countsByKind: Record<string, number> = {};
+    for (const entry of inbox.entries)
+      countsByKind[entry.kind] = (countsByKind[entry.kind] ?? 0) + 1;
+    return c.json({
+      ...inbox,
+      entries,
+      totalEntries: inbox.entries.length,
+      countsByKind,
+      limit,
+      offset: start,
+      next,
+    });
+  });
   app.get('/count', (c) => c.json(readInboxCount(db, today())));
   app.post('/:id/resolve', async (c) => {
     await readBody(c, z.object({}).strict());

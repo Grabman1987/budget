@@ -107,9 +107,17 @@ export function matchExecutions(
   );
   // Candidate pairs, nearest day first; each execution and each buy is used once.
   const pairs: { index: number; buy: ExecutedBuy; distance: number }[] = [];
+  // Buys per position, in their original order, so an execution only looks at its own position.
+  const buysOf = new Map<string, Map<string, ExecutedBuy[]>>();
+  for (const b of buys) {
+    const bySecurity = buysOf.get(b.accountId) ?? new Map<string, ExecutedBuy[]>();
+    buysOf.set(b.accountId, bySecurity);
+    const list = bySecurity.get(b.securityId);
+    if (list) list.push(b);
+    else bySecurity.set(b.securityId, [b]);
+  }
   ordered.forEach((e, index) => {
-    for (const b of buys) {
-      if (b.securityId !== e.securityId || b.accountId !== e.accountId) continue;
+    for (const b of buysOf.get(e.accountId)?.get(e.securityId) ?? []) {
       const distance = Math.abs(daysBetween(e.date, b.date));
       if (distance > MATCH_WINDOW_DAYS) continue;
       const fits =

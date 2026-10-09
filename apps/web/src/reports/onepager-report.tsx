@@ -68,13 +68,19 @@ export function OnePagerReport({ report, meta }: { report: ReportEntry; meta: Pa
             Monatsblatt.
           </EmptyNote>
         )}
-        {data && !data.beforeRecords && <Sheet data={data} />}
+        {data && !data.beforeRecords && <OnePagerSheet data={data} />}
       </div>
     </MonthReportFrame>
   );
 }
 
-function Sheet({ data }: { data: OnePagerData }) {
+export function OnePagerSheet({
+  data,
+  linkVerdict = false,
+}: {
+  data: OnePagerData;
+  linkVerdict?: boolean;
+}) {
   const verdictFacts = useMemo(() => onePagerVerdictFacts(data), [data]);
   useAmountPrivacy();
   const { result } = data;
@@ -106,7 +112,13 @@ function Sheet({ data }: { data: OnePagerData }) {
               </span>
             </div>
           </header>
-          <VerdictLine facts={verdictFacts} />
+          {linkVerdict ? (
+            <AppLink to="/reports/onepager" search={{ monat: data.month }}>
+              <VerdictLine facts={verdictFacts} testId="month-close-verdict" />
+            </AppLink>
+          ) : (
+            <VerdictLine facts={verdictFacts} />
+          )}
           <DimensionChain
             label="Maßkette des Monats"
             precision="euro"

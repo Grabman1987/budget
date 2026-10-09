@@ -74,12 +74,14 @@ test('a position without market quote is valued at cost and flagged; the first q
   await expect(page.getByTestId('portfolio-value')).toContainText('100,00');
   await expect(page.getByTestId('valuation-hint')).toContainText(hint);
   await page.getByRole('button', { name, exact: true }).click();
-  const panel = page.getByRole('dialog', { name, exact: true });
+  const panel = page.getByRole('region', { name, exact: true });
   await expect(panel).toContainText('geschätzt');
   await expect(panel).toContainText('100,00 €');
-  await panel.getByLabel('Kursdatum').fill(current);
-  await panel.getByLabel('Kurs (EUR)', { exact: true }).fill('60');
-  await panel.getByRole('button', { name: 'Kurs speichern', exact: true }).click();
+  await panel.getByRole('button', { name: 'Kurs eintragen', exact: true }).click();
+  const quote = page.getByRole('dialog', { name: 'Kurs eintragen', exact: true });
+  await quote.getByLabel('Kursdatum').fill(current);
+  await quote.getByLabel('Kurs (EUR)', { exact: true }).fill('60');
+  await quote.getByRole('button', { name: 'Kurs speichern', exact: true }).click();
   await expect(toast(page)).toContainText('Manueller Kurs gespeichert');
   await expect(panel.locator('.instrument-accounts')).toContainText('120,00 €');
   await expect(

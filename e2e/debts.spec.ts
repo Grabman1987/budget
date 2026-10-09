@@ -1,7 +1,7 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type Page, type TestInfo } from '@playwright/test';
 import { readFileSync, writeFileSync } from 'node:fs';
-import { join, resolve, extname } from 'node:path';
+import { join, resolve, extname, sep } from 'node:path';
 import { sampleTest, SAMPLE_URL } from './sample';
 import { MAIN_URL } from '../playwright.config';
 
@@ -35,18 +35,21 @@ async function capture(page: Page, info: TestInfo, name: string) {
 }
 async function assumptions(page: Page) {
   await page.getByLabel('Monatsrate (EUR)', { exact: true }).fill('412');
-  await page.getByLabel('Sondertilgung pro Monat (EUR)').fill('300+0');
-  await page.getByLabel('Sondertilgung pro Monat (EUR)').press('Enter');
-  await expect(page.getByLabel('Sondertilgung pro Monat (EUR)')).toHaveValue('300,00');
-  await page.getByLabel('Monatliche Gebühr (EUR)').fill('0');
-  await page.getByLabel('Nominaler Jahreszins (%)').fill('6,32');
-  await page.getByLabel('Erster Modellmonat').fill('2026-10');
+  await page.getByLabel('Sondertilgung pro Monat (EUR)', { exact: true }).fill('300+0');
+  await page.getByLabel('Sondertilgung pro Monat (EUR)', { exact: true }).press('Enter');
+  await expect(page.getByLabel('Sondertilgung pro Monat (EUR)', { exact: true })).toHaveValue(
+    '300,00',
+  );
+  await page.getByLabel('Monatliche Gebühr (EUR)', { exact: true }).fill('0');
+  await page.getByLabel('Nominaler Jahreszins (%)', { exact: true }).fill('6,32');
+  await page.getByLabel('Erster Modellmonat', { exact: true }).fill('2026-10');
 }
 
 sampleTest(
   'current debts, literal native payoff, pending inputs, drilldown and prototype geometry',
   async ({ page, request }, info) => {
     await page.goto('/vermoegen/schulden');
+    await page.getByText('Rechenweg', { exact: true }).click();
     await expect(page.getByTestId('debt-total')).toHaveText('12.626,00 €');
     await expect(page.getByLabel('Monatsrate (EUR)', { exact: true })).toHaveValue('');
     await page.getByRole('button', { name: 'Modell berechnen', exact: true }).click();
@@ -96,7 +99,7 @@ sampleTest(
         root,
         new URL(route.request().url()).pathname.split('/__debt_reference/')[1] ?? '',
       );
-      if (!file.startsWith(`${root}/`)) return route.abort();
+      if (!file.startsWith(`${root}${sep}`)) return route.abort();
       const mime: Record<string, string> = {
         '.html': 'text/html',
         '.js': 'application/javascript',
@@ -121,9 +124,10 @@ sampleTest(
     };
     const actual = await geometry(page),
       original = await geometry(prototype);
-    // Full page width: column widths follow the window, so only the prototype's structure is
-    // compared (lead panel at the same left edge, model panel beside it on the same row).
-    expect(actual.lead!.x).toBeCloseTo(original.lead!.x, 0);
+    // UX-5a puts the result above the disclosed original calculation layout.
+    // Preserve the model's desktop columns and phone stacking inside the disclosure.
+    const leadResult = (await page.locator('.debt-overview').boundingBox())!;
+    expect(leadResult.y + leadResult.height).toBeLessThan(actual.lead!.y);
     if (info.project.name === 'mobile') {
       // Phone: the model panel stacks below the lead panel.
       expect(actual.model!.y).toBeGreaterThanOrEqual(actual.lead!.y + actual.lead!.height - 1);
@@ -154,6 +158,7 @@ sampleTest(
       ).status(),
     ).toBe(403);
     await page.reload();
+    await page.getByText('Rechenweg', { exact: true }).click();
     await expect(page.getByLabel('Monatsrate (EUR)', { exact: true })).toHaveValue('');
     await expect(page.getByRole('region', { name: 'Modellvergleich' })).toHaveCount(0);
     const link = page.locator('.debt-accounts').getByRole('link').first();
@@ -188,14 +193,15 @@ sampleTest(
     await page.goto('/vermoegen/schulden');
     await expect(page.getByText('Schulden konnten nicht geladen werden.')).toBeVisible();
     await page.getByRole('button', { name: 'Erneut versuchen' }).click();
+    await page.getByText('Rechenweg', { exact: true }).click();
     await expect(page.getByTestId('debt-total')).toHaveText('—');
-    await expect(page.getByLabel('Nominaler Jahreszins (%)')).toHaveValue('');
-    await expect(page.getByLabel('Monatliche Gebühr (USD)')).toHaveValue('');
+    await expect(page.getByLabel('Nominaler Jahreszins (%)', { exact: true })).toHaveValue('');
+    await expect(page.getByLabel('Monatliche Gebühr (USD)', { exact: true })).toHaveValue('');
     await expect(page.getByText(/Gesamtschuld unbekannt/)).toContainText('Wechselkurs fehlt: USD');
     await capture(page, info, 'debts-unknown');
     await page.getByLabel('Monatsrate (USD)', { exact: true }).fill('0');
-    await page.getByLabel('Monatliche Gebühr (USD)').fill('0');
-    await page.getByLabel('Nominaler Jahreszins (%)').fill('0');
+    await page.getByLabel('Monatliche Gebühr (USD)', { exact: true }).fill('0');
+    await page.getByLabel('Nominaler Jahreszins (%)', { exact: true }).fill('0');
     await page.getByRole('button', { name: 'Modell berechnen', exact: true }).click();
     await expect(page.getByRole('alert')).toContainText('Monatsrate muss');
     await expect(page.getByRole('region', { name: 'Modellvergleich' })).toHaveCount(0);
@@ -210,6 +216,7 @@ test('empty debts and actual native currency scenario need no EUR exchange rate'
     route.fulfill({ json: { asOf: '2026-10-01', accounts: [], totalEurCents: 0 } }),
   );
   await page.goto('/vermoegen/schulden');
+  await page.getByText('Rechenweg', { exact: true }).click();
   await expect(page.getByText('Keine negativen Kontowerte zum Stichtag.')).toBeVisible();
   await page.unroute('**/api/wealth/debts');
   const created = await request.post('/api/accounts', {
@@ -225,10 +232,11 @@ test('empty debts and actual native currency scenario need no EUR exchange rate'
   expect(created.ok()).toBe(true);
   const { account } = await created.json();
   await page.goto(`/vermoegen/schulden?kredit=${account.id}`);
+  await page.getByText('Rechenweg', { exact: true }).click();
   await expect(page.getByLabel('Monatsrate (USD)', { exact: true })).toBeVisible();
   await page.getByLabel('Monatsrate (USD)', { exact: true }).fill('40');
-  await page.getByLabel('Monatliche Gebühr (USD)').fill('0');
-  await page.getByLabel('Nominaler Jahreszins (%)').fill('0');
+  await page.getByLabel('Monatliche Gebühr (USD)', { exact: true }).fill('0');
+  await page.getByLabel('Nominaler Jahreszins (%)', { exact: true }).fill('0');
   await page.getByRole('button', { name: 'Modell berechnen', exact: true }).click();
   await expect(page.getByRole('region', { name: 'Modellvergleich' })).toContainText('USD');
   await expect(page.getByTestId('debt-total')).toHaveText('—');

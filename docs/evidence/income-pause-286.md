@@ -1,0 +1,13 @@
+# Income pause domain amount — #286
+
+The pure `incomePauseAmount` adapter replaces a resolved occurrence's amount with zero only when its payment source matches, its original scheduled currency is EUR, its kind is inflow, and its resolved due date falls inside the caller-validated inclusive pause interval. The caller remains responsible for ISO date validity, active recurring-source selection, pause validation, and applying FX only after this rule. The helper does not mutate the occurrence or pause.
+
+The prepared seven-test suite produced a behavioral RED: six tests failed and one passed, including the literal 300,000-cent receipt that should be zero during the pause. The test imported and called the real helper; this was not a missing-module or runner-startup failure. The log is `budget-income-pause-286-red-1008.log`.
+
+After the implementation, four focused files passed all 42 tests: the income-pause suite plus existing liquidity forecast, liquidity report, and due-date regressions. The integration test feeds one adjusted stream into the shared `liquidityForecast` and `liquidityReport`, preserving a separate additive event and avoiding salary double counting. This proves the domain seam and shared calculations only; no DB or UI read-model currently applies the helper. Actual DB/UI forecast integration and #287 salary-marker suppression remain pending. During a pause, the salary payment marker must be suppressed; the payday planning horizon remains unchanged.
+
+The domain workspace typecheck passed in the focused phase. The first full-check attempt ran typecheck and lint successfully, then was deliberately stopped during Vitest when the checked #284/#285 source bases arrived; that log is retained as `budget-income-pause-286-full-check-1008.log` and is not a test result. On the final union baseline below, `npm run check` passed typecheck, lint, formatting, and all 377 test files / 3,483 tests (Vitest 949.07 seconds), exit 0. Final log: `budget-income-pause-286-final-union-check-1008.log`.
+
+The final full-check used baseline `694753b33256ed742c97e212df9dba35318fb3a8` plus this task's diff. The baseline contains verified main `b046` plus the checked #284 and #285 source merges. The helper's tested behavior and test file are unchanged from the focused GREEN run; only its explanatory comments changed afterward (the focused run recorded source SHA `198A4E7294AA7FB1A02E1749B7E0E1D69FAFF1FE5CE0D4B9796ED0DA2695FD49`; final union log records source SHA `8ECE8C83DE75F5F39A85361FB637A04BA6C39BB4E457346E99595FA4AE95B3E7`).
+
+Logs: `budget-income-pause-286-red-1008.log`, `budget-income-pause-286-green-1008.log`, and `budget-income-pause-286-typecheck-1008.log`.

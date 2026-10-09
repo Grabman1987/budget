@@ -2,11 +2,11 @@
 
 Private Haushalts-Finanz-App (PWA) für einen Nutzer. Ersetzt das bisherige Cockpit auf Actual Budget, YNAB und Portfolio Performance: Envelope-Budgeting, Regelwerk aus Finanz-Basics und vollständiges Vermögens- und Portfolio-Tracking in einer Datenbasis.
 
-**Status, 2026-10-01:** the foundation and P1 audit fixes are implemented, together with accounts/bookings, the monthly budget, YNAB migration modules, expected payments, goals, rules and the net-worth page. Several other pages remain placeholders. Reviewed source `665b52e` was verified live after successful Main CI and actual deploy; owner device login/recovery and real encrypted restore remain unverified. Gates 1–4 remain unaccepted.
+**Status, 2026-10-08:** accounts/bookings, monthly and annual planning, Heute, contacts/inbox, investment workflows, portfolio/debt/freedom pages, CSV ZIP export and PWA/offline capture are connected. All 34 catalog reports have report bodies. Main `5193b0a` matched live health after successful Main CI and the actual deploy. Open PRs, financial/source coverage, owner device/restore evidence and Gates 1–4 remain separate from implementation; see the [acceptance matrix](docs/ACCEPTANCE.md).
 
-[Feature coverage](docs/FEATURES.md) lists the agreed YNAB/PP replacement workflows and all 30 report bodies. [Requirements gaps](docs/REQUIREMENTS-GAPS.md) records remaining detail and historical overrides. [Current status](docs/STATUS.md) separates implementation from acceptance. [The follow-up audit](docs/audit/2026-10-01-follow-up.md) records corrections before the first **EUR-only** import; [the roadmap](docs/ROADMAP.md) holds ordered tasks. The owner retired the prototype-only Fly app on 2026-10-01; the design reference remains versioned in `design/prototype`.
+[Feature coverage](docs/FEATURES.md) lists the agreed YNAB/PP replacement workflows and report details; some row-level delivery notes are historical. The current catalog contains 34 reports. [Requirements gaps](docs/REQUIREMENTS-GAPS.md) records remaining detail and historical overrides. [Current status](docs/STATUS.md) separates implementation from acceptance. [The follow-up audit](docs/audit/2026-10-01-follow-up.md) records corrections before the first **EUR-only** import; [the roadmap](docs/ROADMAP.md) holds ordered tasks. The owner retired the prototype-only Fly app on 2026-10-01; the design reference remains versioned in `design/prototype`.
 
-Owner scope update: import UI is removed; CSV export of all accounts and portfolios remains a placeholder. The existing server/worker migration modules remain for a separate owner-authorized Codex/Claude task using the existing exports and PP file in private storage.
+Owner scope update: there is no app import UI. CSV export of accounts and portfolios is an implemented ZIP download with fresh-passkey confirmation. Separate owner-authorized migration/operator tools use private exports and the PP file; private reconciliation and gate acceptance remain separate.
 
 ## Wo steht was
 
@@ -21,6 +21,7 @@ Owner scope update: import UI is removed; CSV export of all accounts and portfol
 | `docs/data-model.md` | Datenmodell (Schema v1), Entscheidungen, Beispiel-Hauptbuch |
 | `docs/ROADMAP.md` | Pakete P1–P6 mit Aufgaben und Abnahmekriterien |
 | `docs/STATUS.md` | Current implementation, acceptance and operations status |
+| `docs/ACCEPTANCE.md` | Connected source, deployment evidence, remaining acceptance and ordered next steps |
 | `docs/prompts/` | Fertige Aufträge für die einzelnen Cloud-Sitzungen |
 | `docs/CLOUD-SETUP.md` | Anleitung: GitHub, Claude Code in der Cloud |
 | `docs/ops.md` | Betrieb: erster Deploy, GitHub-Einstellungen, Backup (Litestream), Wiederherstellung, Rollback |

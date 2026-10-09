@@ -294,6 +294,7 @@ export const budgetMonthsQuery = budgetQuery.extend({
     .pipe(z.array(month).min(1).max(36)),
 });
 export const assignBody = z.object({
+  closeMonth: month.optional(),
   items: z
     .array(z.object({ categoryId: id, assignedCents: cents }))
     .min(1)

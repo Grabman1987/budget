@@ -87,7 +87,7 @@ test('lists, orders, edits loan terms, closes and reopens accounts', async ({
   await expect(page.getByTestId('loan-terms')).toContainText('Zins 4,50 % fix');
   await expect(page.getByTestId('loan-terms')).toContainText('Monatsrate 412,00 €');
   await expect(page.getByTestId('loan-terms')).toContainText('bis 01.01.2034');
-  await expect(page.getByLabel('Monatsrate (EUR)')).toHaveValue('412,00');
+  await expect(page.getByLabel('Monatsrate (EUR)', { exact: true })).toHaveValue('412,00');
 
   // Close an empty account, reopen it.
   await page.goto('/einstellungen/konten');

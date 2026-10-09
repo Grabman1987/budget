@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
   RULE_FIELDS,
+  RULE_GUIDANCE,
+  ruleGroup,
   fieldError,
   fieldText,
   fieldValue,
@@ -9,6 +11,33 @@ import {
   stageRange,
   thresholdText,
 } from './rules-model';
+import { RULE_CODES } from '@budget/domain';
+import type { RuleRow } from './api';
+
+describe('rule overview', () => {
+  const rule = (status: 'ok' | 'warn' | 'bad' | null, enabled = true) =>
+    ({ enabled, latest: status ? { status } : null }) as RuleRow;
+
+  it('keeps violations first, warnings and missing data open, and disabled rules separate', () => {
+    expect(ruleGroup(rule('bad'))).toBe('violated');
+    expect(ruleGroup(rule('ok'))).toBe('met');
+    expect(ruleGroup(rule('warn'))).toBe('pending');
+    expect(ruleGroup(rule(null))).toBe('pending');
+    for (const status of ['ok', 'warn', 'bad', null] as const)
+      expect(ruleGroup(rule(status, false))).toBe('disabled');
+    expect(ruleGroup(rule('bad'), false)).toBe('disabled');
+    expect(ruleGroup(rule('ok', false), true)).toBe('met');
+  });
+
+  it('gives every registered rule a short explanation and an existing correction destination', () => {
+    expect(Object.keys(RULE_GUIDANCE)).toEqual(RULE_CODES);
+    for (const code of RULE_CODES) {
+      expect(RULE_GUIDANCE[code].explanation.length).toBeGreaterThan(20);
+      expect(RULE_GUIDANCE[code].to).toMatch(/^\/(plan|konten|vermoegen|einstellungen)\//);
+      expect(RULE_GUIDANCE[code].label.length).toBeGreaterThan(5);
+    }
+  });
+});
 
 describe('basis points as percent text', () => {
   it('formats and parses without floats', () => {

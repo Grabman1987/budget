@@ -184,4 +184,100 @@ describe('inbox API', () => {
     expect((await call('POST', '/inbox/warning/resolve', {})).status).toBe(409);
     expect((await call('GET', '/inbox/count')).body.count).toBe(1);
   });
+
+  it('pages 301 tasks without gaps or overlap while every page retains full counts', async () => {
+    const ctx = { actor: 'test' };
+    const expectedIds = Array.from({ length: 301 }, (_, i) => `page-${String(i).padStart(3, '0')}`);
+    for (let i = 0; i < expectedIds.length; i++) {
+      const minute = String(Math.floor(i / 60)).padStart(2, '0');
+      const second = String(i % 60).padStart(2, '0');
+      insertTracked(
+        opened.db,
+        schema.inboxItem,
+        {
+          id: expectedIds[i]!,
+          kind: i < 150 ? 'import' : 'other',
+          title: `Aufgabe ${String(i).padStart(3, '0')}`,
+          createdAt: `2026-09-01T00:${minute}:${second}.000Z`,
+        },
+        ctx,
+      );
+    }
+    for (const [id, kind] of [
+      ['legacy-uncategorized', 'uncategorized'],
+      ['legacy-overspent', 'overspent'],
+    ] as const)
+      insertTracked(opened.db, schema.inboxItem, { id, kind, title: 'Legacy' }, ctx);
+    insertTracked(
+      opened.db,
+      schema.inboxItem,
+      {
+        id: 'resolved-page-task',
+        kind: 'backup',
+        title: 'Erledigt',
+        resolvedAt: '2026-09-01T00:00:00.000Z',
+        resolution: 'Erledigt',
+      },
+      ctx,
+    );
+    // Synthetic metadata only: the inbox badge counts this unlinked receipt outside task entries.
+    insertTracked(
+      opened.db,
+      schema.receipt,
+      {
+        id: 'unlinked-page-receipt',
+        storageKey: 'synthetic-receipt',
+        mime: 'image/png',
+        sizeBytes: 1,
+        sha256: 'a'.repeat(64),
+        originalFilename: 'synthetic.png',
+      },
+      ctx,
+    );
+    const whole = await call('GET', '/inbox');
+    expect(whole.status).toBe(200);
+    expect(whole.body.entries).toHaveLength(301);
+    expect(whole.body.entries.map((entry: any) => entry.id)).toEqual(expectedIds);
+    expect(whole.body.count).toBe(302);
+    expect(Object.keys(whole.body).sort()).toEqual(['asOf', 'count', 'entries']);
+    const pages = await Promise.all(
+      [0, 100, 200, 300].map((offset) => call('GET', `/inbox?limit=100&offset=${offset}`)),
+    );
+    const expectedNext = [100, 200, 300, null];
+    const expectedLengths = [100, 100, 100, 1];
+    pages.forEach((page, index) => {
+      const offset = index * 100;
+      expect(page.status).toBe(200);
+      expect(page.body).toMatchObject({
+        count: 302,
+        totalEntries: 301,
+        limit: 100,
+        offset,
+        next: expectedNext[index],
+      });
+      expect(page.body.countsByKind).toEqual({ import: 150, other: 151 });
+      expect(page.body.entries).toHaveLength(expectedLengths[index]!);
+      expect(page.body.entries.map((entry: any) => entry.id)).toEqual(
+        expectedIds.slice(offset, offset + expectedLengths[index]!),
+      );
+    });
+    const pagedIds = pages.flatMap((page) => page.body.entries.map((entry: any) => entry.id));
+    expect(pagedIds).toEqual(expectedIds);
+    expect(new Set(pagedIds).size).toBe(301);
+    const empty = await call('GET', '/inbox?limit=100&offset=301');
+    expect(empty.status).toBe(200);
+    expect(empty.body).toMatchObject({
+      count: 302,
+      totalEntries: 301,
+      entries: [],
+      limit: 100,
+      offset: 301,
+      next: null,
+    });
+    expect(empty.body.countsByKind).toEqual({ import: 150, other: 151 });
+    const badge = await call('GET', '/inbox/count');
+    expect(badge.status).toBe(200);
+    expect(badge.body.count).toBe(302);
+    expect((await call('GET', '/inbox?limit=0')).status).toBe(400);
+  });
 });

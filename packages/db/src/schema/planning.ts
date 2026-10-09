@@ -41,3 +41,23 @@ export const expectedOccurrence = sqliteTable(
       .where(sql`${t.bookingId} IS NOT NULL AND ${t.deletedAt} IS NULL`),
   ],
 );
+
+/** Forecast-only zero-income interval for one recurring expected payment. */
+export const incomePause = sqliteTable(
+  'income_pause',
+  {
+    id: id(),
+    expectedPaymentId: text('expected_payment_id')
+      .notNull()
+      .references(() => expectedPayment.id),
+    startDate: text('start_date').notNull(),
+    endDate: text('end_date').notNull(),
+    ...timestamps(),
+  },
+  (t) => [
+    isoDay('income_pause_start_date_chk', t.startDate),
+    isoDay('income_pause_end_date_chk', t.endDate),
+    check('income_pause_range_chk', sql`${t.startDate} <= ${t.endDate}`),
+    index('income_pause_source_idx').on(t.expectedPaymentId, t.startDate, t.endDate),
+  ],
+);

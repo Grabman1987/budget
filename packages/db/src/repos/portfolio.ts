@@ -40,7 +40,7 @@ import {
   valuation,
 } from '../schema';
 import { lastSuccessfulMarketRun } from './market';
-import { memoized } from './request-memo';
+import { memoized, memoizedShared } from './request-memo';
 import { noteIncomplete } from './valuation-notes';
 import { accountBalances } from './queries';
 import { MissingFxRateError } from './errors';
@@ -115,6 +115,36 @@ export function holdingValuationAsOf(
   );
 }
 
+/** Every live trade with its account currency, in booking order; read once per request. */
+function valuationTrades(db: Executor) {
+  return memoizedShared(db, 'valuationTrades', () =>
+    db
+      .select({
+        securityId: trade.securityId,
+        accountId: trade.accountId,
+        date: trade.date,
+        kind: trade.kind,
+        unitsE8: trade.unitsE8,
+        amountCents: trade.amountCents,
+        feeCents: trade.feeCents,
+        taxCents: trade.taxCents,
+        currency: account.currency,
+      })
+      .from(trade)
+      .innerJoin(account, eq(account.id, trade.accountId))
+      .where(isNull(trade.deletedAt))
+      .orderBy(trade.date, trade.id)
+      .all(),
+  );
+}
+
+/** The stored rates on or before a day (all rates are read once per request). */
+function fxRatesUpTo(db: Executor, asOf: string): Rates {
+  return memoizedShared(db, 'fxRates', () => db.select().from(fxRate).all()).filter(
+    (r) => r.date <= asOf,
+  );
+}
+
 function computeHoldingValuation(db: Executor, asOf: string, estimate: boolean): HoldingValuation {
   const live = new Set(
     db
@@ -136,23 +166,7 @@ function computeHoldingValuation(db: Executor, asOf: string, estimate: boolean):
     .from(holding)
     .where(and(lte(holding.asOf, asOf), isNull(holding.deletedAt)))
     .all();
-  const allTrades = db
-    .select({
-      securityId: trade.securityId,
-      accountId: trade.accountId,
-      date: trade.date,
-      kind: trade.kind,
-      unitsE8: trade.unitsE8,
-      amountCents: trade.amountCents,
-      feeCents: trade.feeCents,
-      taxCents: trade.taxCents,
-      currency: account.currency,
-    })
-    .from(trade)
-    .innerJoin(account, eq(account.id, trade.accountId))
-    .where(isNull(trade.deletedAt))
-    .orderBy(trade.date, trade.id)
-    .all();
+  const allTrades = valuationTrades(db);
   const trades = allTrades.filter((t) => t.date <= asOf);
   const priceTrades = new Map<string, typeof allTrades>();
   for (const t of allTrades) {
@@ -177,7 +191,7 @@ function computeHoldingValuation(db: Executor, asOf: string, estimate: boolean):
     const found = latestPrice(securityId);
     if (found) pricesBySecurity.set(securityId, [found]);
   }
-  const rates: Rates = db.select().from(fxRate).where(lte(fxRate.date, asOf)).all();
+  const rates: Rates = fxRatesUpTo(db, asOf);
 
   // Rows of each position (account x security), in the order they were read.
   const keys = new Map<string, { accountId: string; securityId: string }>();
@@ -446,7 +460,7 @@ function computeNetWorthValuation(
       if (manualAccounts.has(row.accountId) && !manualValues.has(row.accountId))
         manualValues.set(row.accountId, row.valueCents);
     }
-  const rates: Rates = db.select().from(fxRate).where(lte(fxRate.date, asOf)).all();
+  const rates: Rates = fxRatesUpTo(db, asOf);
   const byAccount: Record<string, number | null> = {};
   const missingFxByAccount = new Map<string, Set<string>>();
   const addMissing = (accountId: string, currency: string) => {
@@ -774,7 +788,17 @@ function tradesOf(
     })
     .from(trade)
     .innerJoin(account, eq(account.id, trade.accountId))
-    .where(and(isNull(trade.deletedAt), lte(trade.date, filter.to)))
+    .where(
+      and(
+        isNull(trade.deletedAt),
+        lte(trade.date, filter.to),
+        gt(trade.date, after),
+        // A few securities (one per call in the class histories) use trade_security_date_idx.
+        filter.securities !== undefined && filter.securities.length <= 100
+          ? inArray(trade.securityId, [...filter.securities])
+          : undefined,
+      ),
+    )
     .all()
     .filter(
       (t) =>
@@ -967,6 +991,57 @@ export interface NetWorthDay {
 }
 
 /**
+ * Manual valuations (`netWorthValuationAsOf` rule): on a day an account of type p2p/other_asset
+ * without positions that day is worth its newest live valuation dated on or before the day (in the
+ * account currency, converted with the ECB rate of the day; zero needs no rate); without any such
+ * valuation, or before the opening date, its cash balance stays. Replaces those accounts' cash
+ * series in place, read in two queries for the whole window.
+ */
+function applyManualValuations(
+  db: Executor,
+  days: ReadonlyArray<string>,
+  cash: Map<string, number[]>,
+  positions: ReadonlyArray<{ accountId: string; unitsE8: ReadonlyArray<number> }>,
+  rates: RateTable,
+): void {
+  const to = days[days.length - 1];
+  if (to === undefined) return;
+  const manual = db
+    .select({ id: account.id, currency: account.currency, openingDate: account.openingDate })
+    .from(account)
+    .where(and(isNull(account.deletedAt), inArray(account.type, ['p2p', 'other_asset'])))
+    .all();
+  if (manual.length === 0) return;
+  const byAccount = new Map<string, { date: string; valueCents: number }[]>();
+  // Same order as `netWorthValuationAsOf` (newest first): the first row on or before a day wins.
+  for (const row of db
+    .select()
+    .from(valuation)
+    .where(and(isNull(valuation.deletedAt), lte(valuation.date, to)))
+    .orderBy(desc(valuation.date))
+    .all()) {
+    const list = byAccount.get(row.accountId) ?? [];
+    list.push({ date: row.date, valueCents: row.valueCents });
+    byAccount.set(row.accountId, list);
+  }
+  for (const a of manual) {
+    const series = cash.get(a.id);
+    const values = byAccount.get(a.id);
+    if (!series || !values) continue;
+    const held = positions.filter((p) => p.accountId === a.id);
+    days.forEach((day, i) => {
+      if (a.openingDate > day || held.some((p) => p.unitsE8[i] !== 0)) return;
+      const latest = values.find((v) => v.date <= day);
+      if (!latest) return;
+      series[i] =
+        latest.valueCents === 0 || a.currency === 'EUR'
+          ? latest.valueCents
+          : toEurCents(latest.valueCents, fxOn(rates, a.currency, day));
+    });
+  }
+}
+
+/**
  * Net worth per day from `from` to `to` in one pass: balances of all live accounts plus the market
  * value of all positions, equal to `netWorthAsOf` on every day (property-tested), split into the
  * market move of the products and the rest (`netWorthAttribution`, SPEC section 6: own
@@ -978,6 +1053,7 @@ export function netWorthDaily(db: Executor, from: string, to: string): NetWorthD
   const cash = cashSeries(db, days);
   const positions = valuationSeries(db, { from: baseline, to });
   const rates = rateTable(db, to);
+  applyManualValuations(db, days, cash, positions.positions, rates);
   const tradesByDay = new Map<string, SeriesTrade[]>();
   for (const t of tradesOf(db, { from, to }, baseline)) {
     const list = tradesByDay.get(t.date) ?? [];

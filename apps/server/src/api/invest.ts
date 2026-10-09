@@ -24,6 +24,8 @@ import {
   listSecurities,
   listTargetVersions,
   listTrades,
+  countTrades,
+  type TradeFilter,
   portfolioSummary,
   portfolioBenchmark,
   setPortfolioBenchmark,
@@ -436,6 +438,9 @@ const tradeQuery = z.object({
   security: id.optional(),
   from: day.optional(),
   to: day.optional(),
+  /** Optional paging; without `limit` the whole list is returned, as before. */
+  limit: z.coerce.number().int().min(1).max(1000).optional(),
+  offset: z.coerce.number().int().min(0).optional(),
 });
 
 export function tradeRoutes(db: Db): Hono {
@@ -443,9 +448,18 @@ export function tradeRoutes(db: Db): Hono {
   const audit = () => ({ actor: ACTOR, groupId: randomUUID() });
 
   app.get('/', (c) => {
-    const { account, security, from, to } = readQuery(c, tradeQuery);
+    const { account, security, from, to, limit, offset } = readQuery(c, tradeQuery);
+    const filter = defined<TradeFilter>({ accountId: account, securityId: security, from, to });
+    if (limit === undefined) return c.json({ trades: listTrades(db, filter) });
+    const start = offset ?? 0;
+    const trades = listTrades(db, { ...filter, limit, offset: start });
+    const total = countTrades(db, filter);
     return c.json({
-      trades: listTrades(db, defined({ accountId: account, securityId: security, from, to })),
+      trades,
+      total,
+      limit,
+      offset: start,
+      next: start + trades.length < total ? start + trades.length : null,
     });
   });
   app.get('/:id', (c) => c.json({ trade: getTrade(db, c.req.param('id')) }));

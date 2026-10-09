@@ -61,7 +61,8 @@ test('remaining kinds, source edits and deletion use the same holdings and cash'
     if (data.kind === 'split' || data.kind === 'dividend')
       await capture(page, info, `trade-${data.kind}`);
     await form.getByRole('button', { name: 'Handel erfassen', exact: true }).click();
-    await expect(page.getByRole('dialog', { name, exact: true })).toBeVisible();
+    await expect(form).toHaveCount(0);
+    await expect(page.getByRole('region', { name, exact: true })).toBeVisible();
   }
   expect(await balance(request, account.id)).toBe(190800);
   expect(await position(request, security.id)).toMatchObject({
@@ -78,7 +79,8 @@ test('remaining kinds, source edits and deletion use the same holdings and cash'
   const form = page.getByRole('dialog', { name: 'Handel bearbeiten', exact: true });
   await form.getByLabel('Einbehaltene Steuer (EUR)', { exact: true }).fill('3');
   await form.getByRole('button', { name: 'Handel speichern', exact: true }).click();
-  await expect(page.getByRole('dialog', { name, exact: true })).toBeVisible();
+  await expect(form).toHaveCount(0);
+  await expect(page.getByRole('region', { name, exact: true })).toBeVisible();
   expect(await balance(request, account.id)).toBe(190700);
   await page
     .locator(`[data-trade-id="${dividend.id}"]`)
@@ -89,7 +91,8 @@ test('remaining kinds, source edits and deletion use the same holdings and cash'
   await capture(page, info, 'trade-delete');
   await form.getByRole('button', { name: 'Löschen bestätigen', exact: true }).focus();
   await page.keyboard.press('Enter');
-  await expect(page.getByRole('dialog', { name, exact: true })).toBeVisible();
+  await expect(form).toHaveCount(0);
+  await expect(page.getByRole('region', { name, exact: true })).toBeVisible();
   await expect(page.locator(`[data-trade-id="${dividend.id}"]`)).toHaveCount(0);
   await expect.poll(() => balance(request, account.id)).toBe(190100);
   await page.getByRole('button', { name: 'Rückgängig', exact: true }).click();
@@ -214,7 +217,7 @@ async function capture(page: Page, info: TestInfo, name: string) {
     if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
   });
   await page.evaluate(() => document.fonts.ready);
-  await page.locator('dialog[open] .panel-body').evaluate((el) => {
+  await page.locator('dialog[open] .bk-body').evaluate((el) => {
     el.scrollTop = 0;
   });
   await expect
@@ -231,7 +234,7 @@ async function capture(page: Page, info: TestInfo, name: string) {
         ? join(process.env['BUDGET_TRADE_EVIDENCE'], `${name}-${theme}-${info.project.name}.png`)
         : info.outputPath(`${name}-${theme}.png`),
     });
-    await page.locator('dialog[open] .panel-body').evaluate((el) => {
+    await page.locator('dialog[open] .bk-body').evaluate((el) => {
       el.scrollTop = el.scrollHeight;
     });
     await page.screenshot({
@@ -243,7 +246,7 @@ async function capture(page: Page, info: TestInfo, name: string) {
           )
         : info.outputPath(`${name}-lower-${theme}.png`),
     });
-    await page.locator('dialog[open] .panel-body').evaluate((el) => {
+    await page.locator('dialog[open] .bk-body').evaluate((el) => {
       el.scrollTop = 0;
     });
   }
@@ -257,7 +260,15 @@ async function fill(
   await form.getByLabel('Stück', { exact: true }).fill(data.units);
   await form.getByLabel('Bruttobetrag (EUR)', { exact: true }).fill(data.amount);
   await form.getByLabel('Gebühren (EUR)', { exact: true }).fill(data.fee);
-  if (data.tax) await form.getByLabel('Einbehaltene Steuer (EUR)', { exact: true }).fill(data.tax);
+  if (data.tax) {
+    const tax = form.getByLabel('Einbehaltene Steuer (EUR)', { exact: true });
+    if (
+      data.tax === '0' &&
+      (await form.getByLabel('Handelsart', { exact: true }).inputValue()) === 'buy'
+    )
+      await expect(tax).toHaveCount(0);
+    else await tax.fill(data.tax);
+  }
 }
 
 test('manual buy, partial sell, source edit and group undo refresh holdings and cash', async ({
@@ -282,7 +293,7 @@ test('manual buy, partial sell, source edit and group undo refresh holdings and 
   await form.getByRole('button', { name: 'Weiter bearbeiten' }).click();
   await capture(page, info, 'trade-buy');
   await form.getByRole('button', { name: 'Handel erfassen', exact: true }).click();
-  let detail = page.getByRole('dialog', { name, exact: true });
+  let detail = page.getByRole('region', { name, exact: true });
   await expect(detail.locator('.instrument-accounts')).toContainText('1.200,00');
   await expect(detail.locator('.trade-list')).toContainText('1.000,00');
   expect(await balance(request, account.id)).toBe(99000);
@@ -292,11 +303,11 @@ test('manual buy, partial sell, source edit and group undo refresh holdings and 
     valueCents: 120000,
     gainCents: 19000,
   });
-  await detail.getByRole('button', { name: 'Rückgängig', exact: true }).click();
+  await page.getByRole('button', { name: 'Rückgängig', exact: true }).click();
   await expect(detail).toContainText('Dieses Instrument hat keinen aktuellen Bestand.');
   expect(await balance(request, account.id)).toBe(200000);
   expect(await sourceTrades(request, security.id)).toHaveLength(0);
-  await detail.getByRole('button', { name: 'Wiederholen', exact: true }).click();
+  await page.getByRole('button', { name: 'Wiederholen', exact: true }).click();
   await expect(detail.locator('.instrument-accounts')).toContainText('1.200,00');
   expect(await balance(request, account.id)).toBe(99000);
   // Another broker owns the same security; A's source edits must not change B.
@@ -325,7 +336,7 @@ test('manual buy, partial sell, source edit and group undo refresh holdings and 
   await expect(form.locator('p[role=status]')).toContainText('576,00');
   await capture(page, info, 'trade-sell');
   await form.getByRole('button', { name: 'Handel erfassen', exact: true }).click();
-  detail = page.getByRole('dialog', { name, exact: true });
+  detail = page.getByRole('region', { name, exact: true });
   await expect(detail.locator('.trade-list')).toContainText('20,00');
   expect(await balance(request, account.id)).toBe(156600);
   let owned = (await position(request, security.id))!.accounts;
@@ -360,14 +371,14 @@ test('manual buy, partial sell, source edit and group undo refresh holdings and 
   await form.getByLabel('Gebühren (EUR)', { exact: true }).fill('6');
   await capture(page, info, 'trade-edit');
   await form.getByRole('button', { name: 'Handel speichern', exact: true }).click();
-  detail = page.getByRole('dialog', { name, exact: true });
+  detail = page.getByRole('region', { name, exact: true });
   await expect(detail.locator(`[data-trade-id="${sale.id}"]`)).toContainText('6,00');
   expect(await balance(request, account.id)).toBe(156400);
   expect(await balance(request, brokerB.id)).toBe(180000);
-  await detail.getByRole('button', { name: 'Rückgängig', exact: true }).click();
+  await page.getByRole('button', { name: 'Rückgängig', exact: true }).click();
   await expect(detail.locator(`[data-trade-id="${sale.id}"]`)).toContainText('4,00');
   expect(await balance(request, account.id)).toBe(156600);
-  await detail.getByRole('button', { name: 'Wiederholen', exact: true }).click();
+  await page.getByRole('button', { name: 'Wiederholen', exact: true }).click();
   await expect(detail.locator(`[data-trade-id="${sale.id}"]`)).toContainText('6,00');
   expect(await balance(request, account.id)).toBe(156400);
   await page.reload();
@@ -399,7 +410,7 @@ test('validation, server retry, busy guard and explicit discard retain source dr
     ).ok(),
   ).toBe(true);
   await page.goto(`/vermoegen/portfolio?produkt=${security.id}`);
-  const detail = page.getByRole('dialog');
+  const detail = page.locator('.instrument-detail');
   await detail.getByRole('button', { name: 'Handel erfassen', exact: true }).click();
   const form = page.getByRole('dialog', { name: 'Handel erfassen', exact: true });
   await form.getByLabel('Anlagekonto', { exact: true }).selectOption(account.id);
@@ -445,10 +456,10 @@ test('validation, server retry, busy guard and explicit discard retain source dr
   await expect(form).toBeVisible();
   await expect(form.getByText('Ungespeicherte Handelsangaben verwerfen?')).toHaveCount(0);
   release();
-  await expect(page.getByRole('dialog')).toContainText('Handel erfasst.');
+  await expect(page.locator('.toast.is-open')).toContainText('Handel erfasst.');
   expect(await sourceTrades(request, security.id)).toHaveLength(1);
   await page
-    .getByRole('dialog')
+    .locator('.instrument-detail')
     .getByRole('button', { name: 'Handel erfassen', exact: true })
     .click();
   await form.getByLabel('Notiz').fill('Noch nicht speichern');
@@ -457,7 +468,7 @@ test('validation, server retry, busy guard and explicit discard retain source dr
   await form.getByRole('button', { name: 'Verwerfen', exact: true }).click();
   await expect(page).not.toHaveURL(/handel=/);
   await expect(
-    page.getByRole('dialog').getByRole('heading', { name: 'Handelsverlauf' }),
+    page.locator('.instrument-detail').getByRole('heading', { name: 'Handelsverlauf' }),
   ).toBeVisible();
 });
 
@@ -483,7 +494,7 @@ test('undocumented basis and full exit keep source history reachable without inv
     opened.close();
   }
   await page.goto(`/vermoegen/portfolio?produkt=${security.id}`);
-  let detail = page.getByRole('dialog', { name, exact: true });
+  let detail = page.getByRole('region', { name, exact: true });
   await expect(detail).toContainText('Einstand nicht vollständig dokumentiert');
   await expect(detail).toContainText('Noch kein Handel für dieses Instrument erfasst.');
   await detail.getByRole('button', { name: 'Handel erfassen', exact: true }).click();
@@ -492,7 +503,8 @@ test('undocumented basis and full exit keep source history reachable without inv
   await form.getByLabel('Handelsdatum').fill('2026-01-03');
   await fill(page, { kind: 'sell', units: '4', amount: '600', fee: '4', tax: '20' });
   await form.getByRole('button', { name: 'Handel erfassen', exact: true }).click();
-  detail = page.getByRole('dialog', { name, exact: true });
+  await expect(form).toHaveCount(0);
+  detail = page.getByRole('region', { name, exact: true });
   await expect(detail).toContainText('Einstand nicht vollständig dokumentiert');
   expect(await position(request, security.id)).toMatchObject({
     unitsE8: 600000000,
@@ -505,10 +517,11 @@ test('undocumented basis and full exit keep source history reachable without inv
   await form.getByLabel('Handelsdatum').fill('2026-01-04');
   await fill(page, { kind: 'sell', units: '6', amount: '900', fee: '0', tax: '0' });
   await form.getByRole('button', { name: 'Handel erfassen', exact: true }).click();
+  await expect(form).toHaveCount(0);
   await expect(detail).toContainText('Dieses Instrument hat keinen aktuellen Bestand.');
   await expect(detail.locator('.trade-list')).toContainText('Verkauf');
   expect(await balance(request, account.id)).toBe(347600);
-  await page.keyboard.press('Escape');
+  await page.getByRole('link', { name: 'Zurück zum Portfolio' }).click();
   await expect(
     page.locator('.instrument-catalog').getByRole('button', { name, exact: true }),
   ).toBeVisible();
@@ -529,7 +542,7 @@ test('browser Back keeps dirty source fields and rejects pending-save navigation
   const { name, account, security } = await fixture(request, info, 'Zurück');
   await page.goto(`/vermoegen/portfolio?produkt=${security.id}`);
   await page
-    .getByRole('dialog')
+    .locator('.instrument-detail')
     .getByRole('button', { name: 'Handel erfassen', exact: true })
     .click();
   const form = page.getByRole('dialog', { name: 'Handel erfassen', exact: true });
@@ -561,7 +574,7 @@ test('browser Back keeps dirty source fields and rejects pending-save navigation
   await expect(form.getByLabel('Stück', { exact: true })).toBeDisabled();
   await expect(form.getByText('Ungespeicherte Handelsangaben verwerfen?')).toHaveCount(0);
   release();
-  const detail = page.getByRole('dialog', { name, exact: true });
+  const detail = page.getByRole('region', { name, exact: true });
   await expect(detail.locator('.trade-list')).toContainText('Kauf');
   await expect(page).not.toHaveURL(/handel=/);
   expect(await sourceTrades(request, security.id)).toHaveLength(1);
