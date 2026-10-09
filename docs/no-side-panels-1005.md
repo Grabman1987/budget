@@ -22,9 +22,9 @@ proposed destinations, not implemented routes.
 | `expected/income-panel.tsx` from Erwartet and `reports/onepager-report.tsx` | Income sub-page preserving month and source return route | Open |
 | `inbox/inbox-page.tsx`, `shell/panel-host.tsx`, header `PanelLink`: wide inbox dialog and nested read-source/bank details | Header links to existing `/konten/posteingang`; inbox item `/konten/posteingang/:id`; confirm/assignment forms in dialogs | Open |
 | `contacts/contacts-page.tsx`: contact statement with receipt/settlement/edit | `/konten/kontakte/:id`; separate input dialogs, including new contact | Open |
-| `budget/category-panel.tsx`: category/group management | Category details `/einstellungen/kategorien/:id`; create/edit/group forms in dialogs | Open |
-| `budget/goals-panel.tsx`, `pages/goals-progress-report.tsx`: savings goal history and forms | `/plan/sparziele/:id`; create/edit in dialogs; reports link to same detail | Open |
-| `budget/event-panel.tsx`: annual event create/edit | FormDialog; comparison stays inline in year plan | Open |
+| `budget/category-panel.tsx`: category/group management | Category details `/einstellungen/kategorien/:id`; create/edit/group forms in dialogs | Done (#323–#324) |
+| `budget/goals-panel.tsx`, `pages/goals-progress-report.tsx`: savings goal history and forms | `/plan/sparziele/:id`; create/edit in dialogs; reports link to same detail | Done (#325–#326) |
+| `budget/event-panel.tsx`: annual event create/edit | FormDialog; comparison stays inline in year plan | Done (#327) |
 | `expected/payment-panel.tsx`: payment details, versions, occurrences, editing | `/plan/erwartet/:id`; create/edit/confirmation in dialogs | Open |
 | `ledger/account-form.tsx`, `pages/accounts-settings.tsx`: new/edit account | FormDialog; existing `/konten/:id` already owns account detail | Open |
 | `ledger/reconcile-panel.tsx` | FormDialog for bank balance, correction and confirmation | Open |
