@@ -20,10 +20,15 @@ export interface BankProvider {
     to: string,
     beforeRequest?: () => void,
   ): Promise<BankBatch>;
+  /**
+   * With `currency` (multi-currency accounts) only a balance in that currency counts and `null`
+   * means the bank reports none; without it a missing balance is an invalid response.
+   */
   balance(
     uid: string,
     beforeRequest?: () => void,
-  ): Promise<{ amountCents: number; currency: string; date: string | null }>;
+    currency?: string,
+  ): Promise<{ amountCents: number; currency: string; date: string | null } | null>;
 }
 export interface BankBatch {
   rows: BankTransaction[];

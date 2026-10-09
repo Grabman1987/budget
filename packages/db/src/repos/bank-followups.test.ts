@@ -120,6 +120,32 @@ describe('bank matching, transfer linking and reconciliation', () => {
     const id = candidate();
     expect(candidateMatches(opened.db, id).merge.map((b) => b.id)).toEqual([closest, farther]);
   });
+  it('ties a locked or migrated booking to the bank line without moving its date or key', () => {
+    const locked = manual(-1201, 'giro', '2026-09-30');
+    opened.db.update(booking).set({ status: 'reconciled' }).where(eq(booking.id, locked)).run();
+    const migrated = manual(-1201, 'giro', '2026-09-30');
+    opened.db
+      .update(booking)
+      .set({ source: 'migration', importKey: 'ynab:1' })
+      .where(eq(booking.id, migrated))
+      .run();
+    const bankId = candidate();
+    const found = candidateMatches(opened.db, bankId);
+    expect(found.merge).toEqual([]);
+    expect(found.link.map((b) => b.id).sort()).toEqual([locked, migrated].sort());
+    mergeBankCandidate(opened.db, bankId, migrated, ctx, now);
+    expect(getBooking(opened.db, migrated)).toMatchObject({
+      date: '2026-09-30',
+      source: 'migration',
+      importKey: 'ynab:1',
+      bankRawText: 'Banktext',
+    });
+    expect(
+      opened.db.select().from(inboxItem).where(eq(inboxItem.id, bankId)).get()!.resolution,
+    ).toBe('Mit vorhandener Buchung verknüpft: ' + migrated);
+    expect(opened.db.select().from(booking).all()).toHaveLength(2);
+    expect(() => mergeBankCandidate(opened.db, bankId, locked, ctx, now)).toThrow();
+  });
   it('merges without a duplicate, keeps exact splits and memo, and supports undo/redo', () => {
     const id = manual();
     const before = getBooking(opened.db, id)!;

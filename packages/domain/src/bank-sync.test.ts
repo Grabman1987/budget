@@ -6,6 +6,7 @@ import {
   withinBankWindow,
   bankFetchFrom,
   bankTransactionKeys,
+  matchBankLines,
   consentNeedsAttention,
   nextBankRun,
 } from './bank-sync';
@@ -95,5 +96,77 @@ describe('bank matching calendar window', () => {
         { ...candidate, id: 'other', accountId: 'b', amountCents: 0 },
       ),
     ).toBe(false);
+  });
+});
+
+describe('matchBankLines', () => {
+  const line = (key: string, date: string, amountCents = -1201) => ({
+    key,
+    accountId: 'giro',
+    date,
+    amountCents,
+    currency: 'EUR',
+  });
+  const booking = (id: string, date: string, amountCents = -1201, accountId = 'giro') => ({
+    id,
+    accountId,
+    date,
+    amountCents,
+    currency: 'EUR',
+  });
+  const result = (lines: ReturnType<typeof line>[], bookings: ReturnType<typeof booking>[]) =>
+    Object.fromEntries(matchBankLines(lines, bookings));
+
+  it('links an exact match and a match four days away', () => {
+    expect(result([line('a', '2026-09-30')], [booking('x', '2026-09-30')])).toEqual({
+      a: { kind: 'linked', bookingId: 'x' },
+    });
+    expect(result([line('a', '2026-09-30')], [booking('x', '2026-09-26')])).toEqual({
+      a: { kind: 'linked', bookingId: 'x' },
+    });
+  });
+  it('ignores other amounts, accounts and days beyond the window', () => {
+    expect(
+      result(
+        [line('a', '2026-09-30')],
+        [
+          booking('x', '2026-09-25'),
+          booking('y', '2026-09-30', -1200),
+          booking('z', '2026-09-30', -1201, 'other'),
+        ],
+      ),
+    ).toEqual({ a: { kind: 'none' } });
+  });
+  it('reports several candidates, nearest first, without choosing', () => {
+    expect(
+      result(
+        [line('a', '2026-09-30')],
+        [booking('far', '2026-09-27'), booking('near', '2026-09-29')],
+      ),
+    ).toEqual({ a: { kind: 'ambiguous', bookingIds: ['near', 'far'] } });
+  });
+  it('never gives one booking to two lines: the nearest line wins, the other is new', () => {
+    expect(
+      result([line('a', '2026-10-02'), line('b', '2026-09-30')], [booking('x', '2026-09-30')]),
+    ).toEqual({ a: { kind: 'none' }, b: { kind: 'linked', bookingId: 'x' } });
+  });
+  it('pairs identical lines with as many identical bookings, in order', () => {
+    expect(
+      result(
+        [line('a', '2026-09-30'), line('b', '2026-09-30')],
+        [booking('x', '2026-09-30'), booking('y', '2026-09-30')],
+      ),
+    ).toEqual({
+      a: { kind: 'linked', bookingId: 'x' },
+      b: { kind: 'linked', bookingId: 'y' },
+    });
+  });
+  it('keeps identical lines ambiguous when there are more bookings than lines', () => {
+    const found = result(
+      [line('a', '2026-09-30'), line('b', '2026-09-30')],
+      [booking('x', '2026-09-30'), booking('y', '2026-09-30'), booking('z', '2026-09-30')],
+    );
+    expect(found['a']!.kind).toBe('ambiguous');
+    expect(found['b']!.kind).toBe('ambiguous');
   });
 });

@@ -10,7 +10,7 @@ import { seedBasics } from '../../../../packages/db/src/repos/test-helpers';
 
 let opened: OpenedDatabase;
 let app: ReturnType<typeof createApp>;
-let fresh: boolean;
+let passkeyOk: boolean;
 let authenticated: boolean;
 let provider: BankProvider;
 const state = 'synthetic-state-for-callback-0000000000000';
@@ -35,12 +35,15 @@ const auth: AuthGate = {
     });
     return next();
   },
-  requireStepUp: async (c, next) => (fresh ? next() : c.json({ error: 'step_up_required' }, 403)),
+  // Bank sync needs a passkey-opened session, not a fresh step-up: the step-up gate must stay unused.
+  requirePasskeySession: async (c, next) =>
+    passkeyOk ? next() : c.json({ error: 'passkey_required' }, 403),
+  requireStepUp: async (c) => c.json({ error: 'step_up_required' }, 403),
 };
 beforeEach(() => {
   opened = createTestDatabase();
   seedBasics(opened.db);
-  fresh = true;
+  passkeyOk = true;
   authenticated = true;
   provider = {
     institutions: vi.fn(async () => [
@@ -92,16 +95,16 @@ const call = (
     ...(body === undefined ? {} : { body: JSON.stringify(body) }),
   });
 describe('bank API security boundary', () => {
-  it('uses decision 41 by default, audits per-source changes, and requires step-up and origin', async () => {
+  it('uses decision 41 by default, audits per-source changes, and requires a passkey session and origin', async () => {
     const policy = '/' + connectionId + '/policy';
     expect(await (await call('')).json()).toMatchObject({
       connections: [{ bookedToLedger: true }],
     });
-    fresh = false;
+    passkeyOk = false;
     expect(
       (await call(policy, { bookedToLedger: false }, 'https://budget.example', 'PUT')).status,
     ).toBe(403);
-    fresh = true;
+    passkeyOk = true;
     expect(
       (await call(policy, { bookedToLedger: false }, 'https://other.example', 'PUT')).status,
     ).toBe(403);
@@ -155,7 +158,7 @@ describe('bank API security boundary', () => {
     expect((await call('/candidates/' + id + '/matches')).status).toBe(401);
     expect((await call('/candidates/' + id + '/merge', { bookingId })).status).toBe(401);
     authenticated = true;
-    fresh = false; // Ledger decisions use the existing session, no provider or consent mutation.
+    passkeyOk = false; // Ledger decisions use the existing session, no provider or consent mutation.
     expect(
       (await call('/candidates/' + id + '/merge', { bookingId }, 'https://other.example')).status,
     ).toBe(403);
@@ -195,7 +198,7 @@ describe('bank API security boundary', () => {
     authenticated = false;
     expect((await call('/bookings/' + posted + '/matches')).status).toBe(401);
     authenticated = true;
-    fresh = false;
+    passkeyOk = false;
     expect(
       (await call('/bookings/' + posted + '/merge', { bookingId: own }, 'https://other.example'))
         .status,
@@ -213,14 +216,14 @@ describe('bank API security boundary', () => {
     expect(await response.json()).toEqual({ bookingId: own, groupId: expect.any(String) });
     expect((await call('/bookings/' + posted + '/merge', { bookingId: own })).status).toBe(404);
   });
-  it('requires session, origin and fresh step-up before any consent HTTP request', async () => {
+  it('requires session, origin and a passkey session before any consent HTTP request', async () => {
     authenticated = false;
     expect((await call('')).status).toBe(401);
     authenticated = true;
     expect(
       (await call('/auth', { name: 'Bank A', country: 'AT' }, 'https://other.example')).status,
     ).toBe(403);
-    fresh = false;
+    passkeyOk = false;
     expect((await call('/institutions')).status).toBe(403);
     expect((await call('/auth', { name: 'Bank A', country: 'AT' })).status).toBe(403);
     expect((await call('/callback', { state, code: 'code' })).status).toBe(403);

@@ -1,8 +1,8 @@
 import { Button, Field, SectionHead, Select, TextInput } from '@budget/ui';
+import { todayInVienna } from '@budget/domain';
 import { useQuery } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
 import { request } from '../api/http';
-import { withStepUp } from '../auth/webauthn';
 import { AccountOptions } from '../ledger/account-options';
 import { errorText } from '../ledger/labels';
 import type { AccountRow } from '../ledger/types';
@@ -142,12 +142,10 @@ function BankSourceSection() {
           disabled={busy}
           onClick={() =>
             void act(async () => {
-              await withStepUp(() =>
-                request('POST', PATH + '/callback', {
-                  code: callback.code,
-                  state: callback.state,
-                }),
-              );
+              await request('POST', PATH + '/callback', {
+                code: callback.code,
+                state: callback.state,
+              });
               setCallback({ code: null, state: null, error: false });
             }, 'Bankfreigabe gespeichert. Bitte die Konten zuordnen.')
           }
@@ -175,8 +173,9 @@ function BankSourceSection() {
                 disabled={busy}
                 onClick={() =>
                   void act(async () => {
-                    const data = await withStepUp(() =>
-                      request<{ institutions: Institution[] }>('GET', PATH + '/institutions'),
+                    const data = await request<{ institutions: Institution[] }>(
+                      'GET',
+                      PATH + '/institutions',
                     );
                     setInstitutions(
                       [...data.institutions].sort((a, b) =>
@@ -233,12 +232,10 @@ function BankSourceSection() {
                   disabled={busy || !chosen}
                   onClick={() =>
                     void act(async () => {
-                      const result = await withStepUp(() =>
-                        request<{ url: string }>('POST', PATH + '/auth', {
-                          name: chosen!.name,
-                          country: chosen!.country,
-                        }),
-                      );
+                      const result = await request<{ url: string }>('POST', PATH + '/auth', {
+                        name: chosen!.name,
+                        country: chosen!.country,
+                      });
                       window.location.assign(result.url);
                     }, '')
                   }
@@ -287,11 +284,9 @@ function BankSourceSection() {
                       const bookedToLedger = e.target.value === 'true';
                       void act(
                         () =>
-                          withStepUp(() =>
-                            request('PUT', PATH + '/' + connection.id + '/policy', {
-                              bookedToLedger,
-                            }),
-                          ),
+                          request('PUT', PATH + '/' + connection.id + '/policy', {
+                            bookedToLedger,
+                          }),
                         'Übernahme gespeichert.',
                       );
                     }}
@@ -329,10 +324,7 @@ function BankSourceSection() {
                   disabled={busy || a.locked || connection.status === 'paused'}
                   save={(accountId, fromDate) =>
                     act(
-                      () =>
-                        withStepUp(() =>
-                          request('PUT', PATH + '/accounts/' + a.id, { accountId, fromDate }),
-                        ),
+                      () => request('PUT', PATH + '/accounts/' + a.id, { accountId, fromDate }),
                       'Kontozuordnung gespeichert.',
                     )
                   }
@@ -356,10 +348,7 @@ function BankSourceSection() {
                     disabled={busy}
                     onClick={() =>
                       void act(
-                        () =>
-                          withStepUp(() =>
-                            request('POST', PATH + '/' + connection.id + '/pause', {}),
-                          ),
+                        () => request('POST', PATH + '/' + connection.id + '/pause', {}),
                         'Verbindung pausiert. Eine neue Freigabe ist über „Bank verbinden“ möglich.',
                       )
                     }
@@ -388,7 +377,7 @@ function AccountLink({
   save: (account: string, from: string) => Promise<void>;
 }) {
   const [accountId, setAccount] = useState(row.accountId ?? '');
-  const [fromDate, setFrom] = useState(row.fromDate ?? new Date().toISOString().slice(0, 10));
+  const [fromDate, setFrom] = useState(row.fromDate ?? todayInVienna());
   return (
     <form
       className="source-account"
@@ -400,10 +389,17 @@ function AccountLink({
       <p>
         {row.label} · {row.currency}
       </p>
-      {row.currency !== 'EUR' ? (
+      {row.currency !== 'EUR' && row.currency !== 'XXX' ? (
         <p>Diese Währung wird noch nicht unterstützt. Es werden keine Umsätze übernommen.</p>
       ) : (
         <>
+          {row.currency === 'XXX' && (
+            <p className="kmeta">
+              Mehrwährungskonto: Es zählen die Umsätze in der Währung des gewählten Kontos. Umsätze
+              in anderen Währungen werden nicht gebucht, sondern im Posteingang zur Prüfung
+              angezeigt.
+            </p>
+          )}
           <Field label="Konto in Budget">
             {({ id }) => (
               <Select
@@ -431,6 +427,10 @@ function AccountLink({
               />
             )}
           </Field>
+          <p className="kmeta">
+            Ältere Umsätze werden mit vorhandenen Buchungen abgeglichen. Ein früheres Datum nur
+            wählen, wenn dafür noch Buchungen fehlen.
+          </p>
           <Button variant="ghost" type="submit" disabled={disabled || !accountId}>
             {row.accountId ? 'Zuordnung speichern' : 'Konto zuordnen'}
           </Button>
