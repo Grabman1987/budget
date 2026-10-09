@@ -2,7 +2,7 @@ import {
   useAmountPrivacy,
   AmountInput,
   Button,
-  DetailPanel,
+  FormDialog,
   Field,
   Segmented,
   Select,
@@ -52,7 +52,7 @@ const TITLE = {
   split: 'Buchungen abspalten',
 } as const;
 
-/** Side panel (desktop) / bottom sheet (phone) of Einstellungen › Kategorien. */
+/** Existing category/group write forms in an input dialog. */
 export function CategoryPanel({
   state,
   tree,
@@ -74,24 +74,32 @@ export function CategoryPanel({
           ? TITLE[state.mode]
           : '';
   return (
-    <DetailPanel open={state !== null} onClose={onClose} title={title}>
-      {state?.mode === 'edit' && (
-        <CategoryForm
-          key={state.category?.id ?? 'new'}
-          state={state}
-          tree={tree}
-          onDone={onClose}
-          onSwitch={onSwitch}
-        />
-      )}
-      {state?.mode === 'group' && <GroupForm group={state.group} onDone={onClose} />}
-      {state?.mode === 'merge' && (
-        <MergeForm source={state.category} tree={tree} onDone={onClose} />
-      )}
-      {state?.mode === 'split' && (
-        <SplitForm source={state.category} tree={tree} onDone={onClose} />
-      )}
-    </DetailPanel>
+    <FormDialog open={state !== null} onClose={onClose} title={title}>
+      <div className="bk-head">
+        <h2>{title}</h2>
+        <Button variant="ghost" onClick={onClose}>
+          Schließen
+        </Button>
+      </div>
+      <div className="bk-body">
+        {state?.mode === 'edit' && (
+          <CategoryForm
+            key={state.category?.id ?? 'new'}
+            state={state}
+            tree={tree}
+            onDone={onClose}
+            onSwitch={onSwitch}
+          />
+        )}
+        {state?.mode === 'group' && <GroupForm group={state.group} onDone={onClose} />}
+        {state?.mode === 'merge' && (
+          <MergeForm source={state.category} tree={tree} onDone={onClose} />
+        )}
+        {state?.mode === 'split' && (
+          <SplitForm source={state.category} tree={tree} onDone={onClose} />
+        )}
+      </div>
+    </FormDialog>
   );
 }
 

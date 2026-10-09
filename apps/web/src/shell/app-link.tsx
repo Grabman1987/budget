@@ -13,6 +13,8 @@ type Props = Omit<AnchorHTMLAttributes<HTMLAnchorElement>, 'href'> & {
   search?: SearchParams | ((previous: SearchParams) => SearchParams) | undefined;
   /** Browser history state of the new entry. */
   state?: Record<string, unknown> | undefined;
+  /** In-page destination, e.g. a concrete rule finding. */
+  hash?: string | undefined;
 };
 
 /** Router link for paths that come from data tables (nav config), where literal types are lost. */
