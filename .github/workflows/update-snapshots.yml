@@ -1,49 +1,69 @@
-name: Update e2e snapshots
+name: Validate wealth detail navigation 248 before PR publication
 
-# Manual only. Regenerates the Playwright screenshot baselines on Linux (the CI platform) for one
-# branch and commits them back, for PRs that change the UI on purpose. The owner's Windows machine
-# and the cloud sessions cannot produce Linux baselines themselves.
-# Commits pushed with GITHUB_TOKEN do not start CI: push any commit afterwards (or re-run CI).
+# Temporary helper branch only; never copy this workflow into the task PR.
 on:
   workflow_dispatch:
     inputs:
       branch:
-        description: Branch whose baselines to update (never main)
+        description: Frozen helper branch to validate (never main)
         required: true
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
-  group: update-snapshots-${{ inputs.branch }}
-  cancel-in-progress: true
+  group: wealth-248-preflight-${{ inputs.branch }}
+  cancel-in-progress: false
 
 jobs:
-  update:
+  validate:
     if: inputs.branch != 'main'
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ inputs.branch }}
+          fetch-depth: 2
+          persist-credentials: false
+      - name: Verify source base before running checks
+        env:
+          SOURCE_SHA: aba6740923969c3a402d2ca4ab958819f320b498
+        run: |
+          git cat-file -e "$SOURCE_SHA^{commit}"
+          git diff --exit-code "$SOURCE_SHA" HEAD -- . ':(exclude).github/workflows/update-snapshots.yml'
+          git diff --check "$SOURCE_SHA" HEAD
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version-file: .nvmrc
           cache: npm
       - run: npm ci
-      - name: Install Chromium and WebKit
-        run: npx playwright install --with-deps chromium webkit
-      # Non-screenshot failures are reported by the normal CI run on the PR, not here.
-      - name: Regenerate changed screenshots
-        run: npm run build:e2e && (npx playwright test --update-snapshots=changed || true)
-      - name: Commit the new baselines
+      - name: Install age
+        run: sudo apt-get update && sudo apt-get install -y age
+      - name: Focused wealth regressions
+        run: npx vitest run packages/domain/src/invest/savings-plan.test.ts apps/web/src/wealth/savings-model.test.ts apps/server/src/api/savings-schedules.test.ts apps/server/src/api/savings-confirmation.test.ts apps/server/src/api/portfolio-positions.test.ts packages/db/src/repos/portfolio-missing-quotes.test.ts packages/db/src/repos/portfolio-manual-valuation.test.ts --maxWorkers=1
+      - name: Complete repository check
         env:
-          BRANCH: ${{ inputs.branch }}
+          BUDGET_REQUIRE_AGE: '1'
+        run: npm run check
+      - name: Production build
+        run: npm run build
+      - name: Install pinned Chromium and WebKit
+        run: npx playwright install --with-deps chromium webkit
+      - name: Build E2E app
+        run: npm run build:e2e
+      - name: Desktop and mobile wealth detail workflows
+        run: npx playwright test e2e/wealth-detail-pages.spec.ts e2e/portfolio-instruments.spec.ts e2e/portfolio-positions.spec.ts e2e/missing-quotes.spec.ts e2e/savings-plans.spec.ts e2e/trade-confirmation.spec.ts --project=desktop --project=mobile --workers=1
+      - name: Verify source stayed unchanged
         run: |
-          git config user.name 'github-actions[bot]'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add -A -- e2e
-          if git diff --cached --quiet; then echo 'No baseline changes.'; exit 0; fi
-          git commit -m 'test: update e2e screenshot baselines (Linux)'
-          git push origin "HEAD:refs/heads/$BRANCH"
+          git diff --exit-code
+          git diff --cached --exit-code
+          git diff --check
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        if: always()
+        with:
+          name: wealth-248-final-linux-preflight
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 7
