@@ -13,6 +13,7 @@ import {
   Segmented,
 } from '@budget/ui';
 import type { InflationReport } from '@budget/db';
+import { addMonths } from '@budget/domain';
 import { queryOptions, useQuery } from '@tanstack/react-query';
 import { request } from '../api/http';
 import { eur, longDay, MINUS } from '../ledger/format';
@@ -109,7 +110,7 @@ function Body({ data }: { data: InflationReport }) {
   );
 }
 
-function BasketBody({ data }: { data: InflationReport }) {
+export function BasketBody({ data }: { data: InflationReport }) {
   useAmountPrivacy();
   const [basketView, setBasketView] = useState<'base' | 'year'>('base');
   if (data.status !== 'ok')
@@ -135,6 +136,8 @@ function BasketBody({ data }: { data: InflationReport }) {
       </section>
     );
   const maxPp = Math.max(1, ...data.contributions.map((c) => Math.abs(c.contributionBp)));
+  const hasConsumption = data.basket.some((b) => b.source === 'trailing');
+  const hasProxy = data.basket.some((b) => b.source === 'cpi');
   return (
     <>
       <section className="sr-card" aria-labelledby="pi-main">
@@ -158,9 +161,22 @@ function BasketBody({ data }: { data: InflationReport }) {
           </span>
         </div>
         <div className="sr-fig">
-          <span>Preisänderung des eigenen Warenkorbs</span>
+          <span>
+            {hasConsumption
+              ? 'Warenkorbänderung · Preis und Verbrauch'
+              : 'Preisbeobachtung des Warenkorbs'}
+            {hasProxy ? ' · mit Kategorieproxy' : ''}
+          </span>
           <strong data-testid="pi-rate">{bpText(data.inflationBp, { sign: true })}</strong>
         </div>
+        <p className="sr-note" data-testid="pi-method">
+          {hasConsumption
+            ? 'Enthält Durchschnittsausgaben: Das gleitende 12-Monats-Mittel mischt Preis, Verbrauch, Nachzahlungen und Gutschriften.'
+            : 'Vertragspreise zeigen Preisänderungen; aus Buchungen abgeleitete Preise bleiben eine Näherung ohne Mengenprüfung.'}
+          {hasProxy
+            ? ' VPI-Teilindizes sind ein Kategorieproxy, keine Beobachtung deiner eigenen Kaufpreise.'
+            : ''}
+        </p>
         <div className="chain-inline" role="group" aria-label="Maßkette persönliche Inflation">
           <span className="ct-pair">
             <span className="ct-term">
@@ -237,10 +253,6 @@ function BasketBody({ data }: { data: InflationReport }) {
             Aus Buchungen abgeleitet: {data.derivedContracts.map((c) => c.name).join(', ')}.
           </p>
         )}
-        <p className="sr-note">
-          Das 12-Monats-Mittel enthält Verbrauch, Nachzahlungen und Gutschriften; es misst damit
-          Preis und Verbrauch gemeinsam.
-        </p>
       </section>
 
       {
@@ -334,6 +346,10 @@ function BasketBody({ data }: { data: InflationReport }) {
             Summe {pp(data.contributionSumBp)} <Term term="Pp" />
           </span>
         </div>
+        <p className="sr-note">
+          Vergleich {monthShort(data.fromMonth as string)} bis {monthShort(data.toMonth as string)}{' '}
+          · Veränderung zum Vorjahresmonat.
+        </p>
         <ScrollRegion label="Beitrag je Kategorie, bei Bedarf horizontal verschiebbar">
           <table className="sr-table" data-testid="contributions-table">
             <caption className="sr-only">
@@ -346,7 +362,7 @@ function BasketBody({ data }: { data: InflationReport }) {
                   Gewicht
                 </th>
                 <th scope="col" className="n">
-                  Preis 12 M
+                  Änderung 12 M
                 </th>
                 <th scope="col">Beitrag</th>
                 <th scope="col" className="n">
@@ -400,6 +416,10 @@ function BasketBody({ data }: { data: InflationReport }) {
             onChange={setBasketView}
           />
         </div>
+        <p className="sr-note" data-testid="pi-coverage">
+          Abdeckung: {bpText(data.coverageBp)} des Konsums im Basisjahr. Der Index beschreibt nur
+          diesen Warenkorb; {data.excludedCategories} Kategorien sind nicht enthalten.
+        </p>
         {basketView === 'year' ? (
           <BasketYears data={data} />
         ) : (
@@ -408,10 +428,10 @@ function BasketBody({ data }: { data: InflationReport }) {
               <thead>
                 <tr>
                   <th scope="col">Kategorie / Vertrag</th>
-                  <th scope="col">Quelle</th>
+                  <th scope="col">Messung / Quelle</th>
                   <th scope="col">Gewicht</th>
                   <th scope="col">Basis: Preis / Index</th>
-                  <th scope="col">Jetzt: Preis / Index</th>
+                  <th scope="col">Zuletzt: Preis / Index</th>
                   <th scope="col">Änderung ab Basis</th>
                   <th scope="col">
                     Beitrag <Term term="Pp" />
@@ -429,7 +449,7 @@ function BasketBody({ data }: { data: InflationReport }) {
         <p className="sr-note">
           {basketView === 'year'
             ? 'Ø je Monat ist das Mittel der beobachteten Monatspreise. Die Preisänderung vergleicht dieselben Monate im Vorjahr. Beiträge stammen aus dem verketteten Index: Dezember gegen Dezember, im laufenden Jahr der letzte Monat gegen den Vorjahresmonat. Ihre Summe ergibt genau „Je Kalenderjahr“. Ein Strich heißt: Preis oder Vergleich fehlt.'
-            : 'Basis ist der erste eigene Preis; Änderung vergleicht Basis und Jetzt. Gewichte werden jährlich erneuert. Beiträge zeigen die letzten zwölf Monate und ergeben die Leitkennzahl.'}
+            : `Änderung ab Basis vergleicht den ersten und letzten beobachteten Monat der jeweiligen Position (bei beendeten Positionen nicht heute). Gewichte werden jährlich erneuert. Beiträge vergleichen ${monthShort(data.fromMonth as string)} bis ${monthShort(data.toMonth as string)} und ergeben die Leitkennzahl.`}
         </p>
         <p className="sr-note">
           Bei VPI-Teilindizes kommt der Preis von Statistik Austria, das Gewicht aus deinen Ausgaben
@@ -611,6 +631,11 @@ function BasketYears({ data }: { data: InflationReport }) {
               <th scope="col" colSpan={3} key={y.year}>
                 {y.year}
                 {!y.throughMonth.endsWith('-12') && <small>bis {monthShort(y.throughMonth)}</small>}
+                <small>Ø: beobachtete Monate im Kalenderjahr</small>
+                <small>
+                  Beitrag: {monthShort(addMonths(y.throughMonth, -12))} bis{' '}
+                  {monthShort(y.throughMonth)}
+                </small>
               </th>
             ))}
           </tr>
@@ -662,6 +687,18 @@ function BasketYears({ data }: { data: InflationReport }) {
 
 const basketPrice = (b: InflationReport['basket'][number], value: number) =>
   b.source === 'cpi' ? index1(value / 100) : eur(value);
+const basketMeasurement = (b: InflationReport['basket'][number]) =>
+  b.source === 'cpi'
+    ? `Kategorieproxy · VPI-Teilindex ${b.coicopLabel ?? ''}, mit deinem Gewicht`
+    : b.source === 'trailing'
+      ? 'Durchschnittsausgabe · gleitendes 12-Monats-Mittel, enthält Verbrauch und Nachzahlungen'
+      : b.source === 'bookings'
+        ? 'Preis · aus Buchungen abgeleitet, ohne Mengenprüfung'
+        : 'Preis · gespeichert';
+const basketPeriod = (b: InflationReport['basket'][number], month: string) =>
+  b.source === 'trailing'
+    ? `${monthShort(addMonths(month, -11))} bis ${monthShort(month)}`
+    : monthShort(month);
 
 function BasketCategory({
   id,
@@ -679,9 +716,7 @@ function BasketCategory({
         <tr key={b.id}>
           <th scope="row">
             {i === 0 && <small>{b.categoryName}</small>}
-            {yearly && b.source === 'cpi' && (
-              <small>VPI-Teilindex {b.coicopLabel}, mit deinem Gewicht</small>
-            )}
+            {yearly && <small>{basketMeasurement(b)}</small>}
             <details>
               <summary>
                 {b.name}
@@ -710,18 +745,16 @@ function BasketCategory({
             ))
           ) : (
             <>
-              <td>
-                {b.source === 'cpi'
-                  ? `VPI-Teilindex ${b.coicopLabel}, mit deinem Gewicht`
-                  : b.source === 'trailing'
-                    ? '12-Monats-Mittel, enthält Verbrauch und Nachzahlungen'
-                    : b.source === 'bookings'
-                      ? 'aus Buchungen abgeleitet'
-                      : 'gespeichert'}
-              </td>
+              <td>{basketMeasurement(b)}</td>
               <td>{bpText(b.shareBp)}</td>
-              <td>{basketPrice(b, b.baseCents)}</td>
-              <td>{basketPrice(b, b.nowCents)}</td>
+              <td>
+                {basketPrice(b, b.baseCents)}
+                <small>{basketPeriod(b, b.history[0]!.month)}</small>
+              </td>
+              <td>
+                {basketPrice(b, b.nowCents)}
+                <small>{basketPeriod(b, b.history.at(-1)!.month)}</small>
+              </td>
               <td>{bpText(b.changeBp, { sign: true })}</td>
               <td>{pp(b.contributionBp)}</td>
             </>
