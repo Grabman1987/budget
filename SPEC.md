@@ -161,7 +161,7 @@ Build pages to match `design/prototype/` and `design/screens/`. When in doubt, o
 | Backup | Litestream to object storage + nightly age-encrypted copy |
 | Receipts / payslips | Receipts: content-addressed files on the Fly volume (`RECEIPTS_DIR`), metadata/booking links in DB and files in the encrypted archive backup (owner task decision 2026-10-02). Payslip file workflow remains separate. |
 | Jobs | Separate worker process with schedule and catch-up of missed runs (P4) |
-| Auth | Passkeys via SimpleWebAuthn, several devices, ten recovery codes, HttpOnly SameSite=Strict session cookie (30 days), step-up for export, bank connection, new passkeys |
+| Auth | Passkeys via SimpleWebAuthn, several devices, ten recovery codes, HttpOnly SameSite=Strict session cookie (30 days), fresh step-up (last 5 minutes) only for the full export, new passkeys, recovery-code regeneration and passkey removal; data sources (bank sync, crypto read source) and imports need only a session opened with a passkey (owner decision 09.10.2026), never a recovery-code session |
 | Security | Strict CSP (`script-src 'self'`), HSTS, no `eval` |
 | Hosting | Fly.io, region `fra`, own app (not the old cockpit), volume for SQLite, deploy via GitHub Actions |
 | Tests | Vitest (domain, API), Playwright (E2E and visual comparison against `design/screens`) |

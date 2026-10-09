@@ -116,6 +116,44 @@ export function draftFromBooking(b: ListedBooking, today: string): PaymentDraft 
   };
 }
 
+/** Ready-made rhythms for a salary. They only set rhythm, due day and the weekend shift. */
+export const DATE_PRESETS = [
+  {
+    id: 'salary-15',
+    label: 'Gehalt: am 15., sonst Banktag davor',
+    set: { rhythm: 'monthly', dueDay: '15', dueMonth: '', dateShift: 'before' },
+  },
+  {
+    id: 'last-banking-day',
+    label: 'Letzter Banktag des Monats',
+    set: { rhythm: 'monthly', dueDay: '31', dueMonth: '', dateShift: 'before' },
+  },
+] as const satisfies ReadonlyArray<{
+  id: string;
+  label: string;
+  set: Pick<PaymentDraft, 'rhythm' | 'dueDay' | 'dueMonth' | 'dateShift'>;
+}>;
+
+export type DatePresetId = (typeof DATE_PRESETS)[number]['id'];
+
+/** The draft with the preset's rhythm, due day and shift. */
+export function applyDatePreset(d: PaymentDraft, id: DatePresetId): PaymentDraft {
+  const preset = DATE_PRESETS.find((p) => p.id === id);
+  return preset ? { ...d, ...preset.set } : d;
+}
+
+/** The preset the draft currently matches, or undefined for an own setting. */
+export function matchingDatePreset(
+  d: Pick<PaymentDraft, 'rhythm' | 'dueDay' | 'dateShift'>,
+): DatePresetId | undefined {
+  return DATE_PRESETS.find(
+    (p) =>
+      p.set.rhythm === d.rhythm &&
+      p.set.dueDay === d.dueDay.trim() &&
+      p.set.dateShift === d.dateShift,
+  )?.id;
+}
+
 export type DraftField = keyof PaymentDraft;
 export type DraftErrors = Partial<Record<DraftField, string>>;
 

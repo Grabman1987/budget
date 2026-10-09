@@ -10,7 +10,7 @@ export const EXPECTED_KEY = ['expected'] as const;
 export type ExpectedKind = 'outflow' | 'inflow';
 export type Rhythm = 'weekly' | 'monthly' | 'quarterly' | 'semiannual' | 'yearly';
 export type DateShift = 'none' | 'before' | 'after';
-export type OccurrenceStatus = 'expected' | 'received' | 'deviating' | 'missed';
+export type OccurrenceStatus = 'expected' | 'received' | 'deviating' | 'missed' | 'skipped';
 
 export interface ExpectedPayment {
   id: string;
@@ -146,13 +146,16 @@ export const expectedQuery = () =>
     queryFn: () => request<{ payments: ExpectedPayment[] }>('GET', url()).then((r) => r.payments),
   });
 
-export const occurrencesQuery = (from: string, to: string) =>
+/** `includeSkipped` also lists the struck (gestrichen) occurrences, so they can be brought back. */
+export const occurrencesQuery = (from: string, to: string, includeSkipped = false) =>
   queryOptions({
-    queryKey: [...EXPECTED_KEY, 'occurrences', from, to],
+    queryKey: [...EXPECTED_KEY, 'occurrences', from, to, ...(includeSkipped ? ['skipped'] : [])],
     queryFn: () =>
       request<{ occurrences: Occurrence[] }>(
         'GET',
-        url(`/occurrences${queryString({ from, to })}`),
+        url(
+          `/occurrences${queryString({ from, to, includeSkipped: includeSkipped ? '1' : undefined })}`,
+        ),
       ).then((r) => r.occurrences),
   });
 
@@ -193,6 +196,15 @@ export const unlinkOccurrence = (id: string) =>
   request<WriteResult>('POST', url(`/occurrences/${enc(id)}/unlink`), {});
 export const markMissed = (id: string) =>
   request<WriteResult>('POST', url(`/occurrences/${enc(id)}/missed`), {});
+
+/** Strike one occurrence from the plan without touching the rule (also one not stored yet). */
+export const skipOccurrence = (paymentId: string, dueDate: string) =>
+  request<{ occurrence: { id: string } } & WriteResult>('POST', url(`/${enc(paymentId)}/skip`), {
+    dueDate,
+  });
+/** Bring a struck occurrence back into the plan. */
+export const unskipOccurrence = (id: string) =>
+  request<WriteResult>('POST', url(`/occurrences/${enc(id)}/unskip`), {});
 
 /** Latest known rate (EUR per unit, micro) of every foreign currency in `currencies`. */
 export function useFxRates(currencies: ReadonlyArray<string>): Record<string, number> {

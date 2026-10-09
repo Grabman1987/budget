@@ -125,6 +125,8 @@ export class BankSync {
           and(
             eq(booking.accountId, row.accountId),
             eq(booking.importKey, 'bank-sync:' + row.dedupeKey),
+            // An undone booking is no longer "taken over"; the line is matched again below.
+            isNull(booking.deletedAt),
           ),
         )
         .get();
