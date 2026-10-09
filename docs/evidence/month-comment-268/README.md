@@ -14,10 +14,7 @@ closed, the intermediate commentary is absent and the existing R04 behavior rema
 
 ## Verification
 
-- Source revision at capture: `a517fcfe052c70388f51042d72ba0f648bedfcdf`.
-- Focused check: 44 tests in 4 files passed in 27.29 seconds.
-- Browser run: 5 tests passed in 1.7 minutes, including three setup tests; the feature case passed
-  on desktop in 21.7 seconds and mobile in 12.6 seconds.
+- Captures taken at source revision `a517fcfe052c70388f51042d72ba0f648bedfcdf`. After merging main (`904114bd`, which includes #267) the checks were re-run on the merged tree: type checks for web, server, domain and db clean; 81 tests in 7 files passed (report month API, verdict facts, verdict line, domain reports); the isolated browser case passed on desktop (12.3 seconds) and mobile (11.1 seconds).
 - The isolated browser case checks the API's cents and due-date fields, Today and One-Pager copy,
   equal verdicts where the two One-Pager placements appear, hidden amounts and restoration, mobile
   Escape/focus return, both color themes, Axe violations, and horizontal overflow.

@@ -4,10 +4,11 @@ import { test } from './isolated-ledger';
 
 test.use({ ledgerToday: '2026-03-18' });
 
-test('Today and One-Pager explain booked month progress beside expected salary', async (
-  { page, request, isolatedLedger },
-  info,
-) => {
+test('Today and One-Pager explain booked month progress beside expected salary', async ({
+  page,
+  request,
+  isolatedLedger,
+}, info) => {
   test.setTimeout(120_000);
   const { origin } = isolatedLedger;
   const headers = { origin };
@@ -158,4 +159,3 @@ test('Today and One-Pager explain booked month progress beside expected salary',
     }
   }
 });
-
