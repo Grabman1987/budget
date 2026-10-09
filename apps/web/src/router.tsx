@@ -7,7 +7,12 @@ import {
   Outlet,
   redirect,
 } from '@tanstack/react-router';
-import type { Period } from '@budget/domain';
+import {
+  LIQUIDITY_HORIZONS,
+  LIQUIDITY_LEVERS,
+  type Period,
+  type LiquidityHorizon,
+} from '@budget/domain';
 import type { HeutePeriod } from './heute/api';
 import { authStatusQuery, queryClient } from './auth/status-query';
 import { validateBookingsSearch } from './ledger/bookings-search';
@@ -439,6 +444,25 @@ const redirects = [
 const accountRoute = createRoute({
   getParentRoute: () => shellRoute,
   path: '/konten/$id',
+  validateSearch: (search: Record<string, unknown>) => ({
+    vorschau: search['vorschau'] === 'liquiditaet' ? 'liquiditaet' : undefined,
+    horizon: LIQUIDITY_HORIZONS.includes(search['horizon'] as LiquidityHorizon)
+      ? (search['horizon'] as LiquidityHorizon)
+      : undefined,
+    levers:
+      typeof search['levers'] === 'string' && search['levers'].length <= 200
+        ? LIQUIDITY_LEVERS.filter((id) =>
+            (search['levers'] as string).split(',').includes(id),
+          ).join(',')
+        : undefined,
+    faellig:
+      typeof search['faellig'] === 'string' &&
+      /^\d{4}-\d{2}-\d{2}$/.test(search['faellig']) &&
+      Number.isFinite(Date.parse(`${search['faellig']}T00:00:00Z`)) &&
+      new Date(`${search['faellig']}T00:00:00Z`).toISOString().startsWith(search['faellig'])
+        ? search['faellig']
+        : undefined,
+  }),
   staticData: { meta: ACCOUNT_PAGE },
   // The title is the account name, so the document title is right from the first render.
   loader: async ({ params }): Promise<PageTitleData> => {
