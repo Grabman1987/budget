@@ -34,6 +34,13 @@ Older CI/publication checkboxes below describe their original deliveries. Curren
 - [x] Full repository check: 378 files / 3,491 tests, exit 0. Afterward, shorten the verdict metric label and clarify the DTO comment; scoped lint/format, E2E build and final 9-case desktop/mobile run pass on that copy-only follow-up.
 - [ ] PR integration and owner acceptance.
 
+### #349 — Honest Heute warm-up count — 2026-10-08
+
+- [x] Reproduced the warm-up count mismatch: the test expected two cacheable Heute responses but observed three because `/inbox/count` was included. The real inbox badge route is intentionally uncached; after the correction it returns successfully and performs a fresh database transaction on each of two requests.
+- [x] Focused response-cache and inbox API checks pass: 2 files / 12 tests; server typecheck passes. Historical performance timings remain historical, not a new measurement. [Evidence](evidence/warmup-349.md).
+- [x] Final full repository check passed type/lint/format and 379 files / 3,504 unit tests; the frozen 2,108-file manifest was unchanged both after checking and after normally unioning the actual #279 main merge.
+- [ ] Exact-head CI, integration/deployment and owner acceptance remain pending.
+
 ### #302 — Dated historical class exposure — 2026-10-08
 
 - [x] Add a synthetic two-version API case with literal EUR cents, effective dates, January and February month-end index levels, and hand-derived class TTWROR; the prepared case and existing full portfolio API / exposure-repository regressions pass (2 files / 19 tests). No calculation defect was reproduced and no production formula was changed. [Evidence](evidence/dated-exposure-302.md).

@@ -5,8 +5,11 @@ before the #282 cache repair and its union with current main. The current integr
 in [cache integrity](evidence/cache-integrity-282.md); it verifies selected financial responses and
 regressions, not all-route performance or live speed. The measurement loop invalidates the response
 cache before every repetition, and the comparison script currently skips missing after-routes.
-Reproducible browser cold/warm measurement and profiling remain #280/#281; the inaccurate warmed
-model count for `/inbox/count` remains #349. Do not treat the old table as their acceptance evidence.
+The #349 correction below warms only the two cacheable Heute responses; the real `/inbox/count`
+route remains uncached and a focused API regression checks a second live call. Focused checks and
+the final repository-wide check passed; exact-head CI and integration remain pending.
+Reproducible browser cold/warm measurement and profiling remain #280/#281. Do not treat the old
+table as their acceptance evidence.
 
 Server timings of the read models on a production-sized synthetic ledger, how to measure them and
 what was changed (part 1: PR #236, part 2: this document). Money results are integer cents and
@@ -90,8 +93,10 @@ trades, all FX rates) through the ORM and re-deriving the same budget several ti
 4. **Sparplan-Abgleich** (`matchExecutions`, `savingsExecutionProposals`): buys are grouped per
    position and bookings looked up by (month, security, account) instead of nested scans over all trades.
 5. **Heute warm-up**: after start (1.5 s) the server asks Heute for the current month in both balance
-   periods once, in process, so the first visit after a deploy is answered from the read-model cache
-   (`BUDGET_WARM_UP=0` switches it off). The cache key is now path and query without host.
+   periods once, in process, so the first visit after a deploy can use those cached read models
+   (`BUDGET_WARM_UP=0` switches it off). The warm-up count covers these two cacheable Heute responses.
+   `GET /api/inbox/count` is excluded from the response cache and is not warmed; the shell badge reads
+   its live count on each request. The cache key is path and query without host.
 6. **Pagination**: `GET /api/trades?limit=&offset=` (answers `total`, `next`) and
    `GET /api/inbox?limit=&offset=`. The Posteingang page draws a long queue 100 rows at a time
    ("Weitere anzeigen"); group counts stay those of the whole queue.

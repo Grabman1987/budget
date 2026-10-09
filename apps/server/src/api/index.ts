@@ -59,10 +59,9 @@ import { payeeReportRoutes } from './payee-report';
 export type LedgerApi = Hono & { warm: () => Promise<number> };
 
 /**
- * Asks the pages every visit starts with once, in process (no session needed, nothing is sent), so
- * the first visit after a deploy or restart is answered from the read-model cache: Heute in both
- * balance periods for the current month, and the Posteingang count the shell shows everywhere.
- * Returns the number of answers that were stored.
+ * Asks Heute in both balance periods for the current month once, in process (no session needed,
+ * nothing is sent), so the first visit after a deploy or restart can use the read-model cache.
+ * Returns the number of successful responses from those cacheable read models.
  */
 export async function warmReadModels(api: Hono, today: () => string): Promise<number> {
   const month = today().slice(0, 7);
@@ -70,7 +69,6 @@ export async function warmReadModels(api: Hono, today: () => string): Promise<nu
   for (const path of [
     `/heute?period=month&month=${month}`,
     `/heute?period=payday&month=${month}`,
-    '/inbox/count',
   ]) {
     try {
       const response = await api.request(path);
