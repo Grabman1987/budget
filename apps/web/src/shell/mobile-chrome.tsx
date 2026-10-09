@@ -10,6 +10,7 @@ import { GlobalSearch } from './global-search';
 import { ThemeButton } from './theme-button';
 import { useShellIdentity } from './use-profile';
 import { QueueBadge } from '../pwa/queue-ui';
+import { OverspentChip } from './overspent-chip';
 import { PrivacyButton } from './privacy-button';
 
 /**
@@ -64,6 +65,7 @@ export function MobileHeader({ title, asHeading }: { title: string; asHeading: b
         <Inbox size={18} strokeWidth={1.75} aria-hidden="true" />
         {inbox.count !== undefined && inbox.count > 0 && <Count>{inbox.count}</Count>}
       </PanelLink>
+      <OverspentChip compact />
       <details className="m-profile" ref={profileMenu}>
         <summary className="avatar" aria-label={`${identity.name}: Profilmenü`}>
           {identity.initials}

@@ -37,13 +37,22 @@ test('one synthetic month has the same overspent count in Heute, Plan, inbox and
   expect(badge.count).toBe(inbox.count);
 
   await page.goto('/');
-  const attention = page.locator('.heute-attention');
-  await expect(attention).toContainText(`${count} Envelopes überzogen`);
-  await expect(attention.locator('[data-overspent]')).toHaveCount(2);
-  await attention.getByRole('button', { name: `weitere ${count - 2}` }).click();
-  await expect(attention.locator('[data-overspent]')).toHaveCount(count);
-  for (const id of ids) await expect(page.locator(`[data-overspent="${id}"]`)).toHaveCount(1);
+  const bar = page.locator(info.project.name === 'mobile' ? '.m-head' : '.topbar');
+  const chip = bar.getByRole('link', {
+    name: new RegExp(`^${count} Envelopes überzogen, .* zu decken – Überziehungen prüfen$`),
+  });
+  await expect(chip).toBeVisible();
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+  await expect(page.locator('.heute-attention')).not.toContainText('überzogen');
+  await expect(chip).toHaveAttribute('href', /\/plan\/monat/);
   await page.screenshot({ path: info.outputPath('heute.png'), fullPage: true });
+  await chip.click();
+  await expect(page).toHaveURL(/\/plan\/monat\?/);
+  const triageUrl = new URL(page.url());
+  expect(triageUrl.searchParams.get('monat')).toBe('2026-09');
+  expect(triageUrl.searchParams.get('ansicht')).toBe('triage');
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+  await expect(page.locator('.triage')).toContainText(`${count} Envelopes überzogen`);
 
   await page.goto('/plan/monat?monat=2026-09&ansicht=triage');
   await expect(page.locator('.triage')).toContainText(`${count} Envelopes überzogen`);
@@ -73,4 +82,40 @@ test('one synthetic month has the same overspent count in Heute, Plan, inbox and
   await page.getByRole('button', { name: 'Zuweisen oder verschieben' }).click();
   await expect(page.getByRole('dialog')).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Decken oder verschieben' })).toBeVisible();
+});
+
+test('top-bar link opens triage with the missing amount and performs no cover write', async ({
+  page,
+}, info) => {
+  test.setTimeout(120_000);
+  await page.route('**/api/budget/2026-09', async (route) => {
+    const response = await route.fetch();
+    const body: BudgetMonthView = await response.json();
+    body.summary.toBeAssignedCents = 0;
+    body.summary.envelopes = body.summary.envelopes.map((e) => ({ ...e, freeCents: 0 }));
+    delete body.budgetMoney;
+    await route.fulfill({ response, json: body });
+  });
+  await page.goto('/');
+  const bar = page.locator(info.project.name === 'mobile' ? '.m-head' : '.topbar');
+  const chip = bar.getByRole('link', { name: /Envelopes überzogen/ });
+  let coverPosts = 0;
+  await page.route('**/api/budget/2026-09/move', async (route) => {
+    coverPosts += 1;
+    await route.fulfill({ status: 409, json: { error: 'Unexpected chip write' } });
+  });
+  await expect(chip).toBeVisible();
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+  await chip.click();
+  await expect(page).toHaveURL(/\/plan\/monat\?/);
+  const destination = new URL(page.url());
+  expect(destination.searchParams.get('monat')).toBe('2026-09');
+  expect(destination.searchParams.get('ansicht')).toBe('triage');
+  await expect(page.locator('.cover-missing')).toContainText('Es fehlen');
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+  expect(coverPosts).toBe(0);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  // The plan page the link opened still fetches the stubbed month; end the stub before the
+  // context closes so that in-flight route.fetch is not reported as a failure.
+  await page.unrouteAll({ behavior: 'ignoreErrors' });
 });
