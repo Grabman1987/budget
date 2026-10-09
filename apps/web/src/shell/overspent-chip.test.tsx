@@ -3,13 +3,22 @@ import { ToastProvider, setAmountsHidden } from '@budget/ui';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { cleanup, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import type { ReactNode } from 'react';
+import type { AnchorHTMLAttributes, ReactNode } from 'react';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { OverspentChip } from './overspent-chip';
 
 vi.mock('./app-link', () => ({
-  AppLink: ({ children, to, search }: { children: ReactNode; to: string; search?: unknown }) => (
-    <a href={`#${to}`} data-search={JSON.stringify(search)}>
+  AppLink: ({
+    children,
+    to,
+    search,
+    ...props
+  }: AnchorHTMLAttributes<HTMLAnchorElement> & {
+    children: ReactNode;
+    to: string;
+    search?: unknown;
+  }) => (
+    <a href={to} data-search={JSON.stringify(search)} {...props}>
       {children}
     </a>
   ),
@@ -68,8 +77,16 @@ function stub(body: unknown) {
     }),
   );
 }
-function mount() {
-  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+function stubError() {
+  posts = [];
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(async () => {
+      throw new Error('synthetic budget request failure');
+    }),
+  );
+}
+function mount(client = new QueryClient({ defaultOptions: { queries: { retry: false } } })) {
   return render(
     <QueryClientProvider client={client}>
       <ToastProvider>
@@ -103,41 +120,68 @@ it('is hidden without overspent envelopes', async () => {
   expect(container.querySelector('.overspent-chip')).toBeNull();
 });
 
-it('shows count and amount, and "Alle decken" when enough money exists', async () => {
-  stub(view([env('a', -10_000), env('b', -5_000), env('c', 100_000)], 0));
+it('links the overspending status to this month’s triage without opening an overlay or writing', async () => {
+  stub(view([env('a', -1_000), env('b', -2_000)], 0));
   mount();
-  const chip = await screen.findByRole('button', {
-    name: '2 Envelopes überzogen, 150,00 € zu decken – Überziehungen prüfen',
+  const link = await screen.findByRole('link', {
+    name: '2 Envelopes überzogen, 30,00 € zu decken – Überziehungen prüfen',
   });
-  expect(chip.getAttribute('aria-expanded')).toBe('false');
-  await userEvent.click(chip);
-  expect(chip.getAttribute('aria-expanded')).toBe('true');
-  expect(screen.getByText(/Env a · 100,00 €/)).toBeTruthy();
-  expect(screen.queryByText(/Es fehlen/)).toBeNull();
-  await userEvent.click(screen.getByRole('button', { name: 'Alle decken' }));
-  await waitFor(() => expect(posts).toEqual([{ coverAll: true }]));
-  await userEvent.keyboard('{Escape}');
-  expect(chip.getAttribute('aria-expanded')).toBe('false');
-  expect(document.activeElement).toBe(chip);
+  expect(link.getAttribute('href')).toBe('/plan/monat');
+  expect(link.getAttribute('data-search')).toBe(
+    JSON.stringify({ monat: '2026-09', ansicht: 'triage' }),
+  );
+  expect(screen.queryByRole('dialog')).toBeNull();
+  await userEvent.click(link);
+  expect(posts).toEqual([]);
 });
 
-it('names the missing amount and links to the detail when money is short', async () => {
-  stub(view([env('a', -131_515), env('c', 1_000)], 0));
+it('keeps the count and plan link visible while masking every amount', async () => {
+  stub(view([env('a', -1_000), env('c', 100_000)], 0));
+  setAmountsHidden(true);
   mount();
-  await userEvent.click(await screen.findByRole('button', { name: /1 Envelope überzogen/ }));
-  expect(screen.getByText(/Es fehlen 1\.305,15 €/)).toBeTruthy();
-  expect(screen.queryByRole('button', { name: 'Alle decken' })).toBeNull();
-  const link = screen.getByRole('link', { name: 'Im Detail lösen' });
+  const link = await screen.findByRole('link', { name: /1 Envelope überzogen/ });
+  expect(link.textContent).toContain('1');
+  expect(link.textContent).not.toContain('10,00');
+  expect(link.getAttribute('aria-label')).not.toContain('10,00');
+  expect(link.getAttribute('href')).toBe('/plan/monat');
+});
+
+it('keeps the count and plan link when the summed cents exceed safe integer precision', async () => {
+  stub(view([env('a', -Number.MAX_SAFE_INTEGER), env('b', -1)], 0));
+  mount();
+  const link = await screen.findByRole('link', { name: /2 Envelopes überzogen/ });
+  expect(link.textContent).toContain('Betrag unbekannt');
+  expect(link.textContent).not.toContain('90.071.992.547.409,92');
+  expect(link.getAttribute('href')).toBe('/plan/monat');
   expect(link.getAttribute('data-search')).toBe(
     JSON.stringify({ monat: '2026-09', ansicht: 'triage' }),
   );
 });
 
-it('masks amounts in privacy mode', async () => {
-  stub(view([env('a', -10_000), env('c', 100_000)], 0));
-  setAmountsHidden(true);
+it('shows a neutral plan link when the budget status cannot be loaded', async () => {
+  stubError();
   mount();
-  const chip = await screen.findByRole('button', { name: /1 Envelope überzogen/ });
-  expect(chip.getAttribute('aria-label')).not.toContain('100,00');
-  expect(chip.textContent).not.toContain('100,00');
+  const link = await screen.findByRole('link', {
+    name: 'Budgetstatus nicht verfügbar – Plan prüfen',
+  });
+  expect(link.getAttribute('href')).toBe('/plan/monat');
+  expect(link.getAttribute('data-search')).toBe(
+    JSON.stringify({ monat: '2026-09', ansicht: 'triage' }),
+  );
+  expect(screen.queryByRole('dialog')).toBeNull();
+  expect(posts).toEqual([]);
+});
+
+it('does not present cached overspending as current after a failed refetch', async () => {
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  stub(view([env('a', -1_000)], 0));
+  mount(client);
+  await screen.findByRole('link', { name: /1 Envelope überzogen/ });
+  stubError();
+  await client.invalidateQueries();
+  const link = await screen.findByRole('link', {
+    name: 'Budgetstatus nicht verfügbar – Plan prüfen',
+  });
+  expect(link.getAttribute('href')).toBe('/plan/monat');
+  expect(screen.queryByRole('link', { name: /Envelope überzogen/ })).toBeNull();
 });

@@ -18,6 +18,8 @@ export function AttentionBar({
   useAmountPrivacy();
   const rules = 'unavailable' in data.financeCheck ? [] : data.financeCheck.actionRules;
   const uncategorized = data.nextSteps.items.find((i) => i.kind === 'uncategorized');
+  const overspending = data.nextSteps.items.some((i) => i.kind === 'overspent');
+  const month = data.stand.today.slice(0, 7);
   return (
     <section className="heute-attention" aria-labelledby="attention-title">
       <h2 id="attention-title">Braucht Aufmerksamkeit</h2>
@@ -50,9 +52,20 @@ export function AttentionBar({
           <AppLink to="/einstellungen/regelwerk">Handeln</AppLink>
         </div>
       )}
-      {!data.attention.inboxCount && !data.attention.pendingCount && !rules.length && (
-        <p className="heute-note">Keine offenen Aufgaben aus den Heute-Prüfungen.</p>
+      {overspending && (
+        <div className="attention-row">
+          <span>Überziehungen im Plan prüfen</span>
+          <AppLink to="/plan/monat" search={{ monat: month, ansicht: 'triage' }}>
+            Plan prüfen
+          </AppLink>
+        </div>
       )}
+      {!data.attention.inboxCount &&
+        !data.attention.pendingCount &&
+        !rules.length &&
+        !overspending && (
+          <p className="heute-note">Keine offenen Aufgaben aus den Heute-Prüfungen.</p>
+        )}
       {'unavailable' in data.financeCheck && (
         <p className="heute-note">
           Regelprüfungen nicht verfügbar: {data.financeCheck.unavailable.message}

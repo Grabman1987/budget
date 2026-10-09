@@ -38,17 +38,21 @@ test('one synthetic month has the same overspent count in Heute, Plan, inbox and
 
   await page.goto('/');
   const bar = page.locator(info.project.name === 'mobile' ? '.m-head' : '.topbar');
-  const chip = bar.getByRole('button', {
+  const chip = bar.getByRole('link', {
     name: new RegExp(`^${count} Envelopes überzogen, .* zu decken – Überziehungen prüfen$`),
   });
   await expect(chip).toBeVisible();
+  await expect(page.getByRole('dialog')).toHaveCount(0);
   await expect(page.locator('.heute-attention')).not.toContainText('überzogen');
-  await chip.click();
-  await expect(chip).toHaveAttribute('aria-expanded', 'true');
-  for (const id of ids) await expect(page.locator(`[data-overspent-row="${id}"]`)).toHaveCount(1);
-  await page.keyboard.press('Escape');
-  await expect(chip).toBeFocused();
+  await expect(chip).toHaveAttribute('href', /\/plan\/monat/);
   await page.screenshot({ path: info.outputPath('heute.png'), fullPage: true });
+  await chip.click();
+  await expect(page).toHaveURL(/\/plan\/monat\?/);
+  const triageUrl = new URL(page.url());
+  expect(triageUrl.searchParams.get('monat')).toBe('2026-09');
+  expect(triageUrl.searchParams.get('ansicht')).toBe('triage');
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+  await expect(page.locator('.triage')).toContainText(`${count} Envelopes überzogen`);
 
   await page.goto('/plan/monat?monat=2026-09&ansicht=triage');
   await expect(page.locator('.triage')).toContainText(`${count} Envelopes überzogen`);
@@ -80,7 +84,7 @@ test('one synthetic month has the same overspent count in Heute, Plan, inbox and
   await expect(page.getByRole('heading', { name: 'Decken oder verschieben' })).toBeVisible();
 });
 
-test('top-bar chip: not enough money shows the missing amount and the detail link', async ({
+test('top-bar link opens triage with the missing amount and performs no cover write', async ({
   page,
 }, info) => {
   test.setTimeout(120_000);
@@ -94,59 +98,24 @@ test('top-bar chip: not enough money shows the missing amount and the detail lin
   });
   await page.goto('/');
   const bar = page.locator(info.project.name === 'mobile' ? '.m-head' : '.topbar');
-  const chip = bar.getByRole('button', { name: /Envelopes überzogen/ });
+  const chip = bar.getByRole('link', { name: /Envelopes überzogen/ });
+  let coverPosts = 0;
+  await page.route('**/api/budget/2026-09/move', async (route) => {
+    coverPosts += 1;
+    await route.fulfill({ status: 409, json: { error: 'Unexpected chip write' } });
+  });
+  await expect(chip).toBeVisible();
+  await expect(page.getByRole('dialog')).toHaveCount(0);
   await chip.click();
-  const pop = page.getByRole('dialog', { name: 'Überzogene Envelopes' });
-  await expect(pop).toContainText('Es fehlen');
-  await expect(pop.getByRole('button', { name: 'Alle decken' })).toHaveCount(0);
+  await expect(page).toHaveURL(/\/plan\/monat\?/);
+  const destination = new URL(page.url());
+  expect(destination.searchParams.get('monat')).toBe('2026-09');
+  expect(destination.searchParams.get('ansicht')).toBe('triage');
+  await expect(page.locator('.cover-missing')).toContainText('Es fehlen');
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+  expect(coverPosts).toBe(0);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
-  await pop.getByRole('link', { name: 'Im Detail lösen' }).click();
-  await expect(page).toHaveURL(/ansicht=triage/);
   // The plan page the link opened still fetches the stubbed month; end the stub before the
   // context closes so that in-flight route.fetch is not reported as a failure.
-  await page.unrouteAll({ behavior: 'ignoreErrors' });
-});
-
-test('top-bar chip: "Alle decken" covers the month and the chip disappears at 0', async ({
-  page,
-}, info) => {
-  test.setTimeout(120_000);
-  // The cover write is stubbed so this spec never changes the ledger other specs share.
-  let covered = false;
-  const posts: unknown[] = [];
-  await page.route('**/api/budget/2026-09', async (route) => {
-    const response = await route.fetch();
-    if (route.request().method() !== 'GET') return route.fulfill({ response });
-    const body: BudgetMonthView = await response.json();
-    const need = body.summary.envelopes.reduce((s, e) => s + Math.max(0, -e.availableCents), 0);
-    body.summary.toBeAssignedCents = covered ? 0 : need;
-    delete body.budgetMoney;
-    body.summary.envelopes = body.summary.envelopes.map((e) => ({
-      ...e,
-      freeCents: 0,
-      ...(covered && e.availableCents < 0
-        ? { availableCents: 0, overspentCents: 0, cashOverspentCents: 0, creditOverspentCents: 0 }
-        : {}),
-    }));
-    return route.fulfill({ response, json: body });
-  });
-  await page.route('**/api/budget/2026-09/move', async (route) => {
-    posts.push(route.request().postDataJSON());
-    covered = true;
-    await route.fulfill({
-      json: { groupId: 'stub-group', coveredCount: 3, openCount: 0, missingCents: 0 },
-    });
-  });
-  await page.goto('/');
-  const bar = page.locator(info.project.name === 'mobile' ? '.m-head' : '.topbar');
-  const chip = bar.getByRole('button', { name: /Envelopes überzogen/ });
-  await chip.click();
-  const pop = page.getByRole('dialog', { name: 'Überzogene Envelopes' });
-  await expect(pop).not.toContainText('Es fehlen');
-  await pop.getByRole('button', { name: 'Alle decken' }).click();
-  expect(posts).toEqual([{ coverAll: true }]);
-  await expect(page.locator('.toast', { hasText: '3 gedeckt' }).first()).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Rückgängig' })).toBeVisible();
-  await expect(bar.getByRole('button', { name: /Envelopes überzogen/ })).toHaveCount(0);
   await page.unrouteAll({ behavior: 'ignoreErrors' });
 });
