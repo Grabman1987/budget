@@ -49,7 +49,11 @@ sampleTest('Fazit: Heute, One-Pager header, reload, month change and privacy', a
   await expect(verdicts.first()).toContainText('•••');
   expect(await verdicts.first().textContent()).not.toMatch(/\d/);
   await page.goto('/');
-  await expect(page.getByTestId('report-verdict')).toContainText('laufend', { timeout: 45_000 });
+  // #268: the open month is marked as an interim state ("Zwischenstand bis TT.MM.", booked result so far).
+  await expect(page.getByTestId('report-verdict')).toContainText(
+    /Zwischenstand bis \d{2}\.\d{2}\.: gebuchtes Monatsergebnis/,
+    { timeout: 45_000 },
+  );
   await expect(page.getByTestId('report-verdict')).toContainText('•••');
 });
 

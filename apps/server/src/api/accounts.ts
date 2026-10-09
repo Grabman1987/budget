@@ -353,16 +353,24 @@ export function accountRoutes(db: Db, today: () => string): Hono {
     if (!acct) throw new ApiError(404, 'not_found', `Account ${id} not found`);
     const value = cashValuer(db);
     const held = holdingAccountValueSeries(db, eachDay(range.from, range.to), [id]);
-    const preview = accountPreview(db, id, acct.currency, today(), range.previewDays);
+    const preview = accountPreview(
+      db,
+      id,
+      acct.currency,
+      today(),
+      range.previewDays,
+      range.horizon ? { horizon: range.horizon, levers: range.levers } : undefined,
+    );
     return c.json({
       ...seriesOf(value, id, acct.currency, range, held.get(id)),
-      ...(range.previewDays > 0
+      ...(range.previewDays > 0 || range.horizon
         ? {
             previewPoints: preview.points.map((p) => ({
               ...p,
               valuation: value(p.balanceCents, acct.currency, today()),
             })),
             unavailableCurrencies: preview.unavailableCurrencies,
+            ...(preview.previewCoverage ? { previewCoverage: preview.previewCoverage } : {}),
           }
         : {}),
     });
