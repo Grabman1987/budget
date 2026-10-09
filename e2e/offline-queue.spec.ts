@@ -23,7 +23,7 @@ async function prepare(page: Page, info: TestInfo) {
   const { account } = await response.json();
   await page.goto(`/konten/${account.id}?panel=buchung`);
   const panel = page.getByRole('dialog', { name: 'Buchung erfassen', exact: true });
-  await expect(panel.getByLabel('Konto', { exact: true })).toHaveValue(account.id);
+  await expect(panel.getByLabel('Bezahlt von', { exact: true })).toHaveValue(account.id);
   await pickCategory(panel, 'Essen');
   await panel.getByLabel('Betrag', { exact: true }).fill('12,50');
   await panel.getByLabel('Empfänger', { exact: true }).fill('Queue shop');
@@ -68,7 +68,7 @@ test('offline capture survives reload, edits/deletes locally and sends on reconn
   // Capture also works after a cold offline restart, using form choices without balances.
   await page.getByRole('button', { name: 'Buchung erfassen', exact: true }).click();
   const next = page.getByRole('dialog', { name: 'Buchung erfassen', exact: true });
-  await next.getByLabel('Konto', { exact: true }).selectOption(accountId);
+  await next.getByLabel('Bezahlt von', { exact: true }).selectOption(accountId);
   await next.getByLabel('Betrag', { exact: true }).fill('2');
   await pickCategory(next, 'Essen');
   await next.getByRole('button', { name: 'Speichern', exact: true }).click();

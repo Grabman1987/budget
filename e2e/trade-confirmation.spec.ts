@@ -107,9 +107,9 @@ test('monthly confirmation rejects a stale proposal, then confirms and undoes wi
   await panel.getByRole('button', { name: 'Handel löschen', exact: true }).click();
   await expect(panel.getByRole('alert')).toContainText('Kontobuchung');
   await panel.getByRole('button', { name: 'Löschen bestätigen', exact: true }).click();
-  await expect(page.getByRole('dialog', { name: data.name, exact: true })).toBeVisible();
+  await expect(page.getByRole('region', { name: data.name, exact: true })).toBeVisible();
   await expect(page.locator(`[data-trade-id="${trade.id}"]`)).toHaveCount(0);
   await expect.poll(trades).toEqual([]);
-  await page.getByRole('dialog').getByRole('button', { name: 'Rückgängig', exact: true }).click();
+  await page.getByRole('button', { name: 'Rückgängig', exact: true }).click();
   await expect(page.locator(`[data-trade-id="${trade.id}"]`)).toBeVisible();
 });

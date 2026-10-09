@@ -32,7 +32,7 @@ test('Heute keeps its device fold choice and the primary order, net worth matche
 }, info) => {
   test.setTimeout(60_000);
   await page.goto('/?monat=2026-09');
-  await expect(page.getByRole('heading', { name: 'Budget', exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Frei bis Gehalt', exact: true })).toBeVisible();
   const fold = page.getByRole('button', { name: 'Mehr zum Monat' });
   const initiallyOpen = info.project.name === 'desktop';
   await expect(fold).toHaveAttribute('aria-expanded', String(initiallyOpen));
@@ -85,11 +85,8 @@ test('Heute has eight warning items once, two first, neutral debts and accessibl
   ];
   await page.route('**/api/heute?*', (route) => route.fulfill({ json: today }));
   await page.goto('/?monat=2026-09');
-  const attention = page.getByRole('region', { name: 'Braucht Aufmerksamkeit' });
-  await expect(attention.locator('[data-overspent]')).toHaveCount(2);
-  await attention.getByRole('button', { name: 'weitere 6' }).click();
-  for (let i = 0; i < 8; i++)
-    await expect(page.locator(`[data-overspent="synthetic-over-${i}"]`)).toHaveCount(1);
+  // Overspending lives in the top-bar chip, not in the attention bar.
+  await expect(page.locator('[data-overspent]')).toHaveCount(0);
   await expect(page.locator('.heute-next-steps')).not.toContainText('Testenvelope');
   await expect(page.locator('.heute-envelope .heute-alert')).toHaveCount(1);
   await expect(page.locator('.heute-envelope')).not.toContainText('überzogen');

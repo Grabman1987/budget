@@ -1,7 +1,33 @@
 import AxeBuilder from '@axe-core/playwright';
 import { inboxItem, insertTracked, openDatabase } from '@budget/db';
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test, type Page, type Route } from '@playwright/test';
 import { DB_MAIN, MAIN_URL } from '../playwright.config';
+
+type InboxFixture = { asOf: string; count: number; entries: Array<{ kind: string }> };
+
+async function fulfillInboxFixture(route: Route, fixture: InboxFixture) {
+  const url = new URL(route.request().url());
+  const limitText = url.searchParams.get('limit');
+  if (limitText === null) return route.fulfill({ json: fixture });
+  const limit = Number(limitText);
+  const offset = Number(url.searchParams.get('offset') ?? 0);
+  const countsByKind = fixture.entries.reduce<Record<string, number>>((counts, entry) => {
+    counts[entry.kind] = (counts[entry.kind] ?? 0) + 1;
+    return counts;
+  }, {});
+  const entries = fixture.entries.slice(offset, offset + limit);
+  return route.fulfill({
+    json: {
+      ...fixture,
+      entries,
+      totalEntries: fixture.entries.length,
+      countsByKind,
+      limit,
+      offset,
+      next: offset + entries.length < fixture.entries.length ? offset + entries.length : null,
+    },
+  });
+}
 
 test('actual inbox: confirm, categorize, resolve warning, undo and keyboard panel', async ({
   page,
@@ -134,8 +160,9 @@ test('actual inbox: confirm, categorize, resolve warning, undo and keyboard pane
 
 test('empty and failed inbox count never present a fabricated nine', async ({ page }) => {
   await page.route('**/api/inbox/count', (route) => route.fulfill({ json: { count: 0 } }));
-  await page.route('**/api/inbox', (route) =>
-    route.fulfill({ json: { asOf: '2026-09-17', count: 0, entries: [] } }),
+  await page.route(
+    (url) => url.pathname === '/api/inbox',
+    (route) => fulfillInboxFixture(route, { asOf: '2026-09-17', count: 0, entries: [] }),
   );
   await page.goto('/konten/posteingang');
   await expect(page.getByText('Posteingang leer.', { exact: false })).toBeVisible();
@@ -154,6 +181,33 @@ test('empty and failed inbox count never present a fabricated nine', async ({ pa
   ).toBeVisible();
 });
 
+test('a long queue draws in pages of 100 rows and keeps the group count', async ({ page }) => {
+  const entries = Array.from({ length: 130 }, (_, i) => ({
+    type: 'stored',
+    id: `long-${i}`,
+    kind: 'revision',
+    title: `Synthetische Aufgabe ${i}`,
+    detail: null,
+    refType: null,
+    refId: null,
+    urgent: false,
+    createdAt: '2026-09-01T10:00:00.000Z',
+  }));
+  await page.route('**/api/inbox/count', (route) => route.fulfill({ json: { count: 130 } }));
+  await page.route(
+    (url) => url.pathname === '/api/inbox',
+    (route) => fulfillInboxFixture(route, { asOf: '2026-09-17', count: 130, entries }),
+  );
+  await page.goto('/konten/posteingang');
+  await expect(page.getByTestId('inbox-row')).toHaveCount(100);
+  await expect(page.locator('.kgcount')).toHaveText('130');
+  await page
+    .getByRole('button', { name: /Weitere anzeigen \(30 von 130 noch verborgen\)/ })
+    .click();
+  await expect(page.getByTestId('inbox-row')).toHaveCount(130);
+  await expect(page.getByRole('button', { name: /Weitere anzeigen/ })).toHaveCount(0);
+});
+
 test.describe('Posteingang dialog', () => {
   const isPhone = (info: { project: { name: string } }) => info.project.name === 'mobile';
   const trigger = (page: Page, info: { project: { name: string } }) =>
@@ -162,8 +216,9 @@ test.describe('Posteingang dialog', () => {
   test.beforeEach(async ({ page }) => {
     await page.emulateMedia({ reducedMotion: 'reduce' });
     await page.route('**/api/inbox/count', (route) => route.fulfill({ json: { count: 2 } }));
-    await page.route('**/api/inbox', (route) =>
-      route.fulfill({ json: { asOf: '2026-09-17', count: 0, entries: [] } }),
+    await page.route(
+      (url) => url.pathname === '/api/inbox',
+      (route) => fulfillInboxFixture(route, { asOf: '2026-09-17', count: 0, entries: [] }),
     );
   });
 

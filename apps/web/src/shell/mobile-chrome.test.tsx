@@ -10,6 +10,7 @@ import {
 import { render, screen, within } from '@testing-library/react';
 import { afterEach, expect, it, vi } from 'vitest';
 import { EMPTY_PROFILE } from '@budget/domain';
+import { ToastProvider } from '@budget/ui';
 import { MobileHeader, TabBar } from './mobile-chrome';
 
 afterEach(() => vi.unstubAllGlobals());
@@ -32,8 +33,10 @@ it('offers search in the phone header and only booking capture below the page', 
   const root = createRootRoute({
     component: () => (
       <QueryClientProvider client={client}>
-        <MobileHeader title="Heute" asHeading={false} />
-        <TabBar area="heute" />
+        <ToastProvider>
+          <MobileHeader title="Heute" asHeading={false} />
+          <TabBar area="heute" />
+        </ToastProvider>
       </QueryClientProvider>
     ),
   });

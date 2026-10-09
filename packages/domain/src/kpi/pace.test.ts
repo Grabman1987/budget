@@ -249,3 +249,25 @@ it('uses actual fixed amounts, counts an open bill once and extrapolates only va
     forecastAvailable: true,
   });
 });
+
+it('keeps under-plan actuals distinct from an over-limit month-end forecast with an unpaid due bill', () => {
+  const m = paceModel({
+    month: '2026-09',
+    today: '2026-09-15',
+    limitCents: 10_000,
+    fixed: [{ day: '2026-09-15', cents: 4_000, settled: false }],
+    fixedSpentCents: 0,
+    spending: [{ day: '2026-09-15', cents: 3_500 }],
+  });
+
+  expect(m.figures).toMatchObject({
+    planToDateCents: 7_000,
+    spentCents: 3_500,
+    deltaCents: -3_500,
+    variableSoFarCents: 3_500,
+    openFixedCents: 4_000,
+    forecastEndCents: 11_000,
+    forecastAvailable: true,
+    over: false,
+  });
+});

@@ -74,6 +74,60 @@
 .month-close .btn {
   min-height: 44px;
 }
+.close-class-totals,
+.close-payments,
+.close-deviations,
+.close-open-rules {
+  padding-inline-start: 24px;
+}
+.close-payments li,
+.close-deviations li,
+.close-open-rules li {
+  padding-block: 8px;
+  overflow-wrap: anywhere;
+}
+.close-plan-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 16px;
+}
+.close-plan-table th,
+.close-plan-table td {
+  border-bottom: 1px solid var(--rule);
+  padding: 12px 8px;
+  text-align: right;
+  vertical-align: middle;
+}
+.close-plan-table th:first-child {
+  text-align: left;
+}
+.close-plan-table input {
+  width: 140px;
+  max-width: 100%;
+  min-height: 44px;
+  text-align: right;
+}
+.close-plan-table small {
+  display: block;
+  color: var(--ink-2);
+}
+.close-plan-table a,
+.close-payments a,
+.close-deviations a,
+.close-open-rules a,
+.month-close p > a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  min-width: 44px;
+}
+.close-plan-table .class-swatch,
+.close-class-totals .class-swatch {
+  margin-inline-end: 8px;
+}
+.close-stepper button:disabled {
+  cursor: default;
+}
 @media (max-width: 767px) {
   .close-stepper ol {
     grid-template-columns: 1fr;
@@ -96,5 +150,33 @@
   }
   .close-row .kform {
     min-width: 0;
+  }
+  .close-plan-table thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+  }
+  .close-plan-table tr {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    border-bottom: 1px solid var(--rule-strong);
+  }
+  .close-plan-table th,
+  .close-plan-table td {
+    min-width: 0;
+    overflow-wrap: anywhere;
+    text-align: left;
+  }
+  .close-plan-table th {
+    grid-column: 1 / -1;
+  }
+  .close-plan-table td::before {
+    content: attr(data-label);
+    display: block;
+    margin-bottom: 8px;
+    font: 12px var(--font-tech);
+    color: var(--ink-2);
   }
 }

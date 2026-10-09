@@ -82,7 +82,7 @@ test('loading, empty and failed searches are explicit, retry works, Escape retur
   await page.goto('/');
   const mobile = info.project.name === 'mobile';
   const input = await openSearch(page, mobile);
-  await expect(page.getByText('Mindestens zwei Zeichen eingeben.')).toBeVisible();
+  await expect(page.getByRole('option', { name: /Neue Buchung/ })).toBeVisible();
   await input.fill('nichtvorhandenesuchfolge');
   await expect(page.getByText('Keine Treffer.', { exact: true })).toBeVisible();
   await page.route('**/api/search?*', async (route) =>
@@ -176,4 +176,85 @@ test('mobile header search preserves the month and stays clear of the capture ac
         : info.outputPath(file),
     });
   }
+});
+
+test('palette: reports, pages, recent choices, actions and shortcut help', async ({
+  page,
+}, info) => {
+  const mobile = info.project.name === 'mobile';
+  await page.goto('/plan/monat?monat=2026-08');
+  let input = await openSearch(page, mobile);
+  await input.fill('1.10 ein');
+  await expect(page.getByRole('option', { name: /1.10 Einnahmen und Ausgaben/ })).toBeVisible();
+  await input.press('Enter');
+  await expect(page).toHaveURL(/\/reports\/einnahmen-ausgaben$/);
+  input = await openSearch(page, mobile);
+  await expect(page.getByRole('listbox').getByRole('option').first()).toContainText(
+    '1.10 Einnahmen und Ausgaben',
+  );
+  await input.fill('vrmgn prtf');
+  await input.press('Enter');
+  await expect(page).toHaveURL(/\/vermoegen\/portfolio$/);
+  for (const [label, panel] of [
+    ['Neue Buchung', 'buchung'],
+    ['Posteingang öffnen', 'posteingang'],
+  ] as const) {
+    input = await openSearch(page, mobile);
+    await input.fill(label);
+    await input.press('Enter');
+    await expect(page).toHaveURL(new RegExp(`panel=${panel}`));
+    await expect(
+      page.getByRole('dialog', {
+        name: panel === 'buchung' ? 'Buchung erfassen' : 'Posteingang',
+        exact: true,
+      }),
+    ).toBeVisible();
+    await page.keyboard.press('Escape');
+    await expect(page.getByRole('dialog')).toHaveCount(0);
+  }
+  input = await openSearch(page, mobile);
+  await input.fill('Monatsabschluss starten');
+  await input.press('Enter');
+  await expect(page).toHaveURL(/\/monatsabschluss\/\d{4}-\d{2}/);
+  input = await openSearch(page, mobile);
+  await input.fill('Datenschutz-Modus umschalten');
+  await input.press('Enter');
+  await expect
+    .poll(() => page.evaluate(() => localStorage.getItem('budget-amounts-hidden')))
+    .toBe('1');
+  input = await openSearch(page, mobile);
+  await input.fill('Supermarkt');
+  const booking = page
+    .getByRole('option')
+    .filter({ has: page.locator('.global-search-kind', { hasText: /^Buchung$/ }) })
+    .first();
+  await expect(booking).toContainText('••• EUR');
+  await expect(booking).not.toContainText(/\d+,\d{2} EUR/);
+  await page.getByRole('button', { name: 'Tastenkürzel anzeigen (?)', exact: true }).click();
+  const help = page.getByRole('dialog', { name: 'Tastenkürzel', exact: true });
+  await expect(help).toBeVisible();
+  await expect(help).toContainText('Enter weiter');
+  await expect(help).toContainText('6 Violett');
+  for (const theme of ['light', 'dark']) {
+    await page.evaluate((value) => (document.documentElement.dataset['theme'] = value), theme);
+    expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
+    await page.screenshot({
+      path: info.outputPath(`shortcuts-${theme}-${info.project.name}.png`),
+      animations: 'disabled',
+    });
+  }
+  await page.keyboard.press('Escape');
+  await expect(help).not.toBeVisible();
+  await expect(
+    page.getByRole('button', { name: 'Tastenkürzel anzeigen (?)', exact: true }),
+  ).toBeFocused();
+  await page.keyboard.press('Escape');
+  await expect(page.getByRole('listbox')).toHaveCount(0);
+  if (mobile) await expect(page.getByRole('button', { name: 'Suchen', exact: true })).toBeFocused();
+  else await expect(input).toBeFocused();
+  await page.locator('main').click({ position: { x: 8, y: 8 } });
+  await page.keyboard.press('?');
+  await expect(help).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(help).not.toBeVisible();
 });

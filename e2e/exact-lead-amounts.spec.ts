@@ -4,6 +4,12 @@ import type { AccountList } from '../apps/web/src/ledger/types';
 import type { NetWorthView } from '../apps/web/src/wealth/api';
 import type { BudgetMonthView } from '../apps/web/src/budget/budget-api';
 
+// The shell can still be reading the intercepted endpoint when the last assertion finishes.
+// Complete those handlers before Playwright closes the page; keep every exact-cent assertion.
+test.afterEach(async ({ page }) => {
+  await page.unrouteAll({ behavior: 'wait' });
+});
+
 // Literal expected strings are independent of the application's formatter. In particular,
 // fractions >= 50 cents must never round the whole-euro part of the same displayed amount.
 const cases = [
@@ -26,6 +32,12 @@ async function screenshot(page: Page) {
   await page.screenshot({ path, fullPage: true });
   await test.info().attach('Exact lead amount', { path, contentType: 'image/png' });
 }
+
+// The top-bar overspent chip and other shell queries can still be in flight through a
+// route.fetch stub when a test ends; drop the stubs so teardown does not abort them.
+test.afterEach(async ({ page }) => {
+  await page.unrouteAll({ behavior: 'ignoreErrors' });
+});
 
 test('Konten shows exact cents at rounding, sign and grouping boundaries', async ({ page }) => {
   let value = 0;

@@ -25,7 +25,17 @@ it('adds only the observation and gap tables to the predecessor, preserving the 
     const oldTables = opened.sqlite
       .prepare("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name")
       .all();
-    migrateDatabase(opened.db);
+    const snapshotEntries = journal.entries.slice(0, index + 1);
+    writeFileSync(
+      join(folder, 'meta', '_journal.json'),
+      JSON.stringify({ ...journal, entries: snapshotEntries }),
+    );
+    const snapshotEntry = snapshotEntries.at(-1)!;
+    copyFileSync(
+      join(source, `${snapshotEntry.tag}.sql`),
+      join(folder, `${snapshotEntry.tag}.sql`),
+    );
+    migrateDatabase(opened.db, folder);
     expect(opened.sqlite.prepare('SELECT * FROM envelope_month').all()).toEqual(before);
     expect(
       opened.sqlite

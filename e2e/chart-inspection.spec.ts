@@ -98,6 +98,7 @@ test('every rendered chart has shared inspection across reports and main pages',
   ]) {
     await page.goto(path);
     await page.waitForLoadState('networkidle');
+    if (path === '/vermoegen/schulden') await page.getByText('Rechenweg', { exact: true }).click();
     expect(errors, path).toEqual([]);
     if (path === '/dev/bauteile')
       await expect(page.getByRole('alert')).toHaveText('Kategorie ist Pflicht bei Ausgaben.');

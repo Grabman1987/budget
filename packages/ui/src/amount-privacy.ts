@@ -45,7 +45,7 @@ export const privateAmount = (text: string) => (hidden ? HIDDEN_AMOUNT : text);
 export function maskMoneyText(text: string): string {
   if (!hidden) return text;
   return text.replace(
-    /[+−-]?\d[\d.,\s]*(?:Mio\.\s*)?(€|EUR|USD|GBP|CHF|JPY|CAD|AUD)(?![A-Z])/g,
+    /[+−-]?\d[\d.,\s]*(?:Mio\.\s*)?(€|[A-Z]{3})(?![A-Z])/g,
     `${HIDDEN_AMOUNT} $1`,
   );
 }

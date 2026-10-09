@@ -1,4 +1,7 @@
 import type {
+  IncomePauseView,
+  IncomePauseInput,
+  IncomePausePatch,
   LiquidityReportView,
   PlannedEventInput,
   PlannedEventPatch,
@@ -15,7 +18,7 @@ import type { AccountRow, WriteResult } from '../ledger/types';
  * through `useBudgetWrite`, which refreshes everything under `LEDGER_KEY`, so the query lives there.
  */
 
-export type { LiquidityReportView, PlannedEventView };
+export type { IncomePauseView, LiquidityReportView, PlannedEventView };
 export const plannedEventsQuery = () =>
   queryOptions({
     queryKey: [...LEDGER_KEY, 'planned-events'],
@@ -57,3 +60,16 @@ export const patchPlannedEvent = (id: string, patch: PlannedEventPatch) =>
 
 export const deletePlannedEvent = (id: string) =>
   request<WriteResult>('DELETE', `/api/liquidity/events/${encodeURIComponent(id)}`);
+
+export const createIncomePause = (input: IncomePauseInput) =>
+  request<
+    WriteResult & { pause: Pick<IncomePauseView, 'id' | 'sourceId' | 'startDate' | 'endDate'> }
+  >('POST', '/api/liquidity/income-pauses', input);
+
+export const patchIncomePause = (id: string, patch: IncomePausePatch) =>
+  request<
+    WriteResult & { pause: Pick<IncomePauseView, 'id' | 'sourceId' | 'startDate' | 'endDate'> }
+  >('PATCH', `/api/liquidity/income-pauses/${encodeURIComponent(id)}`, patch);
+
+export const deleteIncomePause = (id: string) =>
+  request<WriteResult>('DELETE', `/api/liquidity/income-pauses/${encodeURIComponent(id)}`);

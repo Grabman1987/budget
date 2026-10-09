@@ -199,13 +199,13 @@ export interface LoanPlanView {
   startMonth: string;
   /** Debt to repay (positive cents); 0 when the account owes nothing. */
   balanceCents: number;
-  /** Terms the plan needs and the account does not have yet: `rate`, `installment`. */
-  missing: Array<'rate' | 'installment'>;
+  /** Terms the plan needs and the account does not have yet. */
+  missing: Array<'rate' | 'installment' | 'fee'>;
   terms: {
     rateBp: number | null;
     interestKind: 'fixed' | 'variable' | null;
     installmentCents: number | null;
-    monthlyFeeCents: number;
+    monthlyFeeCents: number | null;
     /** Rate in force in the first modelled month (the account rate or the latest dated change). */
     effectiveRateBp: number | null;
   };
@@ -254,6 +254,7 @@ export function loanPlanView(
   if (account.interestRateBp === null) missing.push('rate');
   if (account.installmentCents === null || account.installmentCents === 0)
     missing.push('installment');
+  if (account.monthlyFeeCents === null) missing.push('fee');
   const points = asPoints(rateChanges);
   const terms: LoanTermsInput | null =
     missing.length === 0 && balanceCents > 0
@@ -262,7 +263,7 @@ export function loanPlanView(
           startMonth,
           rateBp: account.interestRateBp!,
           installmentCents: account.installmentCents!,
-          monthlyFeeCents: account.monthlyFeeCents ?? 0,
+          monthlyFeeCents: account.monthlyFeeCents!,
           rateChanges: points,
         }
       : null;
@@ -288,7 +289,7 @@ export function loanPlanView(
       rateBp: account.interestRateBp,
       interestKind: account.interestKind,
       installmentCents: account.installmentCents,
-      monthlyFeeCents: account.monthlyFeeCents ?? 0,
+      monthlyFeeCents: account.monthlyFeeCents,
       effectiveRateBp:
         account.interestRateBp === null
           ? null

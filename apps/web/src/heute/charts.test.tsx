@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { cleanup, render, screen, fireEvent } from '@testing-library/react';
 import { afterEach, expect, it, vi } from 'vitest';
+import { paceForecastCurve, paceModel } from '@budget/domain';
 import { BalanceChart, DailyBudgetLine, HeutePaceChart, type PaceChartData } from './charts';
 import type { Heute } from './api';
 vi.mock('../charts/use-element-width', () => ({ useElementWidth: () => [vi.fn(), 360] }));
@@ -213,4 +214,61 @@ it('uses the scheduled plan for the today marker, while retaining all tooltip va
   expect(container.querySelector('.pace-limit-line')?.getAttribute('d')).toMatch(/^M.+L/);
   expect(container.querySelectorAll('.l-today')).toHaveLength(1);
   expect(container.querySelectorAll('.svg-label').length).toBeGreaterThan(0);
+});
+
+it('shows under-plan actuals beside the over-cap forecast from the same September pace model', () => {
+  const input = {
+    month: '2026-09',
+    today: '2026-09-15',
+    limitCents: 10_000,
+    fixed: [{ day: '2026-09-15', cents: 4_000, settled: false }],
+    fixedSpentCents: 0,
+    spending: [{ day: '2026-09-15', cents: 3_500 }],
+  } as const;
+  const model = paceModel(input);
+  const { container } = render(
+    <HeutePaceChart
+      data={{
+        ...data,
+        stand: { today: '2026-09-15' },
+        pace: {
+          ...data.pace,
+          month: model.month,
+          daysInMonth: model.daysInMonth,
+          todayDay: model.todayDay,
+          plan: model.plan,
+          expected: model.expected,
+          actual: model.actual,
+          previous: model.previous,
+          fixedDays: model.fixedDays,
+          forecast: paceForecastCurve(model, input.fixed),
+          income: [],
+          figures: model.figures,
+        },
+      }}
+    />,
+  );
+
+  expect(screen.getByText('Plan bis heute 70 €')).toBeTruthy();
+  expect(container.querySelector('.chart-legend')?.textContent).toBe('IstHochrechnungDeckel');
+  expect(container.querySelector('path.l-actual')).toBeTruthy();
+  expect(container.querySelector('path.l-forecast.is-over-cap')).toBeTruthy();
+  expect(screen.getByRole('group', { name: /Pace 2026-09/ }).getAttribute('aria-label')).toContain(
+    'Ist 35,00 €, Plan bis heute 70,00 €, Hochrechnung 110,00 € über Deckel, Deckel 100,00 €',
+  );
+
+  const group = screen.getByRole('group', { name: /Pace 2026-09/ });
+  fireEvent.focus(group);
+  for (let d = 0; d < 15; d++) fireEvent.keyDown(group, { key: 'ArrowRight' });
+  let tooltip = screen.getByRole('status');
+  expect(tooltip.textContent).toContain('Ist35,00 €');
+  expect(tooltip.textContent).toContain('Plan bis heute70,00 €');
+  expect(tooltip.textContent).toContain('Deckel100,00 €');
+  expect(tooltip.textContent).toContain(
+    'Hochrechnung = Ausgegeben + offene Fixkosten + Rest des variablen Plans (ab Tag 7 hochgerechnet)',
+  );
+
+  for (let d = 15; d < 30; d++) fireEvent.keyDown(group, { key: 'ArrowRight' });
+  tooltip = screen.getByRole('status');
+  expect(tooltip.textContent).toContain('Hochrechnung110,00 €');
 });

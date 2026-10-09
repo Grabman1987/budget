@@ -1,7 +1,7 @@
 import {
   useAmountPrivacy,
   Button,
-  DetailPanel,
+  FormDialog,
   Field,
   Select,
   TextInput,
@@ -28,6 +28,7 @@ export function SavingsPanel({
   securities,
   today,
   onClose,
+  initiallyEnding = false,
 }: {
   id: string;
   plans: SavingsPlanRecord[];
@@ -35,6 +36,7 @@ export function SavingsPanel({
   securities: SecurityRecord[];
   today: string;
   onClose: () => void;
+  initiallyEnding?: boolean;
 }) {
   useAmountPrivacy();
   const plan = plans.find((p) => p.id === id);
@@ -51,13 +53,13 @@ export function SavingsPanel({
     endDate: plan && plan.validFrom > today ? plan.validFrom : today,
   }));
   const [draft, setDraft] = useState(original);
-  const [ending, setEnding] = useState(false);
+  const [ending, setEnding] = useState(initiallyEnding);
   const [busy, setBusy] = useState(false);
   const [asking, setAsking] = useState(false);
   const [navigation, setNavigation] = useState(false);
   const [error, setError] = useState('');
   const changed = ending || JSON.stringify(draft) !== JSON.stringify(original);
-  const dirty = useRef(false);
+  const dirty = useRef(initiallyEnding);
   const saving = useRef(false);
   const blockedDuringSave = useRef(false);
   const write = useBudgetWrite();
@@ -93,11 +95,6 @@ export function SavingsPanel({
     setError('');
   };
   const currency = accounts.find((a) => a.id === draft.accountId)?.currency;
-  const history = plan
-    ? plans
-        .filter((p) => p.securityId === plan.securityId && p.accountId === plan.accountId)
-        .sort((a, b) => b.validFrom.localeCompare(a.validFrom))
-    : [];
   const effective =
     draft.date ||
     nextExecutionAfter(
@@ -170,271 +167,304 @@ export function SavingsPanel({
     setBusy(false);
     if (result) close();
   };
+  const beforeClose = () => {
+    if (saving.current || blocker.status === 'blocked') return false;
+    if (!dirty.current) return true;
+    setNavigation(false);
+    setAsking(true);
+    return false;
+  };
+
   return (
-    <DetailPanel
+    <FormDialog
       open
       title={creating ? 'Sparplan anlegen' : 'Sparplan bearbeiten'}
       onClose={close}
-      beforeClose={() => {
-        if (saving.current || blocker.status === 'blocked') return false;
-        if (!dirty.current) return true;
-        setNavigation(false);
-        setAsking(true);
-        return false;
-      }}
+      beforeClose={beforeClose}
     >
-      {!creating && !plan ? (
-        <p role="alert">
-          Dieser Sparplan ist nicht verfügbar. Bitte den Verlauf in der Liste öffnen.
-        </p>
-      ) : (
-        <>
-          <p className="vnote">{BANK_NOTE}</p>
-          {plan && (
-            <p>
-              {securities.find((s) => s.id === plan.securityId)?.name ??
-                'Nicht verfügbares Instrument'}{' '}
-              ·{' '}
-              <AppLink to={`/konten/${plan.accountId}`}>
-                {accounts.find((a) => a.id === plan.accountId)?.name ?? 'Anlagekonto öffnen'}
-              </AppLink>
-              <br />
-              Diese Version: {longDay(plan.validFrom)} bis{' '}
-              {plan.validTo ? longDay(plan.validTo) : 'offen'}.
-            </p>
-          )}
-          {editable && (
-            <form className="kform" onSubmit={(event) => void submit(event)}>
-              <fieldset className="instrument-fields" disabled={busy}>
-                {creating && (
-                  <>
-                    <Field label="Instrument">
-                      {({ id }) => (
-                        <Select
-                          id={id}
-                          required
-                          value={draft.securityId}
-                          onChange={(e) => update('securityId', e.target.value)}
-                        >
-                          <option value="">Bitte wählen</option>
-                          {securities.map((s) => (
-                            <option key={s.id} value={s.id}>
-                              {s.name}
-                            </option>
-                          ))}
-                        </Select>
-                      )}
-                    </Field>
-                    <Field label="Anlagekonto">
-                      {({ id }) => (
-                        <Select
-                          id={id}
-                          required
-                          value={draft.accountId}
-                          onChange={(e) => {
-                            update('accountId', e.target.value);
-                            if (draft.sourceAccountId === e.target.value)
-                              setDraft((d) => ({ ...d, sourceAccountId: '' }));
-                          }}
-                        >
-                          <option value="">Bitte wählen</option>
-                          <AccountOptions
-                            accounts={accounts.filter((a) => a.role === 'investment')}
-                            keepId={draft.accountId}
+      <div className="bk-head">
+        <h2>{creating ? 'Sparplan anlegen' : 'Sparplan bearbeiten'}</h2>
+        <Button
+          variant="ghost"
+          onClick={() => {
+            if (beforeClose()) close();
+          }}
+        >
+          Schließen
+        </Button>
+      </div>
+      <div className="bk-body">
+        {!creating && !plan ? (
+          <p role="alert">
+            Dieser Sparplan ist nicht verfügbar. Bitte den Verlauf in der Liste öffnen.
+          </p>
+        ) : (
+          <>
+            <p className="vnote">{BANK_NOTE}</p>
+            {plan && (
+              <p>
+                {securities.find((s) => s.id === plan.securityId)?.name ??
+                  'Nicht verfügbares Instrument'}{' '}
+                ·{' '}
+                <AppLink to={`/konten/${plan.accountId}`}>
+                  {accounts.find((a) => a.id === plan.accountId)?.name ?? 'Anlagekonto öffnen'}
+                </AppLink>
+                <br />
+                Diese Version: {longDay(plan.validFrom)} bis{' '}
+                {plan.validTo ? longDay(plan.validTo) : 'offen'}.
+              </p>
+            )}
+            {editable && (
+              <form className="kform" onSubmit={(event) => void submit(event)}>
+                <fieldset className="instrument-fields" disabled={busy}>
+                  {creating && (
+                    <>
+                      <Field label="Instrument">
+                        {({ id }) => (
+                          <Select
+                            id={id}
+                            required
+                            value={draft.securityId}
+                            onChange={(e) => update('securityId', e.target.value)}
+                          >
+                            <option value="">Bitte wählen</option>
+                            {securities.map((s) => (
+                              <option key={s.id} value={s.id}>
+                                {s.name}
+                              </option>
+                            ))}
+                          </Select>
+                        )}
+                      </Field>
+                      <Field label="Anlagekonto">
+                        {({ id }) => (
+                          <Select
+                            id={id}
+                            required
+                            value={draft.accountId}
+                            onChange={(e) => {
+                              update('accountId', e.target.value);
+                              if (draft.sourceAccountId === e.target.value)
+                                setDraft((d) => ({ ...d, sourceAccountId: '' }));
+                            }}
+                          >
+                            <option value="">Bitte wählen</option>
+                            <AccountOptions
+                              accounts={accounts.filter((a) => a.role === 'investment')}
+                              keepId={draft.accountId}
+                            />
+                          </Select>
+                        )}
+                      </Field>
+                    </>
+                  )}
+                  {!ending ? (
+                    <>
+                      <Field
+                        label={`Monatliche Rate${currency ? ` (${currency})` : ''}`}
+                        hint="Positive Rate. Keine Umrechnung oder Bankorder."
+                      >
+                        {({ id, describedBy }) => (
+                          <TextInput
+                            id={id}
+                            required
+                            inputMode="decimal"
+                            value={draft.amount}
+                            aria-describedby={describedBy}
+                            onChange={(e) => update('amount', e.target.value)}
                           />
-                        </Select>
-                      )}
-                    </Field>
-                  </>
-                )}
-                {!ending ? (
-                  <>
-                    <Field
-                      label={`Monatliche Rate${currency ? ` (${currency})` : ''}`}
-                      hint="Positive Rate. Keine Umrechnung oder Bankorder."
-                    >
-                      {({ id, describedBy }) => (
-                        <TextInput
-                          id={id}
-                          required
-                          inputMode="decimal"
-                          value={draft.amount}
-                          aria-describedby={describedBy}
-                          onChange={(e) => update('amount', e.target.value)}
-                        />
-                      )}
-                    </Field>
-                    <Field label="Ausführungstag" hint="In kurzen Monaten gilt der letzte Tag.">
-                      {({ id, describedBy }) => (
-                        <TextInput
-                          id={id}
-                          type="number"
-                          required
-                          min={1}
-                          max={31}
-                          value={draft.day}
-                          aria-describedby={describedBy}
-                          onChange={(e) => update('day', e.target.value)}
-                        />
-                      )}
-                    </Field>
-                    <Field
-                      label="Quellkonto"
-                      hint="Informativ. Geldbewegungen werden erst bei tatsächlicher Ausführung gebucht."
-                    >
-                      {({ id, describedBy }) => (
-                        <Select
-                          id={id}
-                          value={draft.sourceAccountId}
-                          aria-describedby={describedBy}
-                          onChange={(e) => update('sourceAccountId', e.target.value)}
-                        >
-                          <option value="">Nicht hinterlegt</option>
-                          <AccountOptions
-                            accounts={accounts}
-                            exclude={draft.accountId}
-                            keepId={draft.sourceAccountId}
+                        )}
+                      </Field>
+                      <Field label="Ausführungstag" hint="In kurzen Monaten gilt der letzte Tag.">
+                        {({ id, describedBy }) => (
+                          <TextInput
+                            id={id}
+                            type="number"
+                            required
+                            min={1}
+                            max={31}
+                            value={draft.day}
+                            aria-describedby={describedBy}
+                            onChange={(e) => update('day', e.target.value)}
                           />
-                        </Select>
-                      )}
-                    </Field>
+                        )}
+                      </Field>
+                      <Field
+                        label="Quellkonto"
+                        hint="Informativ. Geldbewegungen werden erst bei tatsächlicher Ausführung gebucht."
+                      >
+                        {({ id, describedBy }) => (
+                          <Select
+                            id={id}
+                            value={draft.sourceAccountId}
+                            aria-describedby={describedBy}
+                            onChange={(e) => update('sourceAccountId', e.target.value)}
+                          >
+                            <option value="">Nicht hinterlegt</option>
+                            <AccountOptions
+                              accounts={accounts}
+                              exclude={draft.accountId}
+                              keepId={draft.sourceAccountId}
+                            />
+                          </Select>
+                        )}
+                      </Field>
+                      <Field
+                        label={creating ? 'Beginn' : 'Änderung ab'}
+                        hint={
+                          creating
+                            ? undefined
+                            : `Leer: nächste Ausführung nach heute, ${longDay(effective)}. Datum bis zum Versionsbeginn korrigiert diese Version; spätere Änderungen erhalten den Verlauf.`
+                        }
+                      >
+                        {({ id, describedBy }) => (
+                          <TextInput
+                            id={id}
+                            type="date"
+                            required={creating}
+                            value={draft.date}
+                            aria-describedby={describedBy}
+                            onChange={(e) => update('date', e.target.value)}
+                          />
+                        )}
+                      </Field>
+                      <Field label="Notiz">
+                        {({ id }) => (
+                          <TextInput
+                            id={id}
+                            value={draft.note}
+                            maxLength={500}
+                            onChange={(e) => update('note', e.target.value)}
+                          />
+                        )}
+                      </Field>
+                    </>
+                  ) : (
                     <Field
-                      label={creating ? 'Beginn' : 'Änderung ab'}
-                      hint={
-                        creating
-                          ? undefined
-                          : `Leer: nächste Ausführung nach heute, ${longDay(effective)}. Datum bis zum Versionsbeginn korrigiert diese Version; spätere Änderungen erhalten den Verlauf.`
-                      }
+                      label="Ende einschließlich"
+                      hint="Diese Version bleibt bis zu diesem Tag gültig. Frühere Versionen werden nicht reaktiviert."
                     >
                       {({ id, describedBy }) => (
                         <TextInput
                           id={id}
                           type="date"
-                          required={creating}
-                          value={draft.date}
+                          required
+                          min={plan!.validFrom}
+                          value={draft.endDate}
                           aria-describedby={describedBy}
-                          onChange={(e) => update('date', e.target.value)}
+                          onChange={(e) => update('endDate', e.target.value)}
                         />
                       )}
                     </Field>
-                    <Field label="Notiz">
-                      {({ id }) => (
-                        <TextInput
-                          id={id}
-                          value={draft.note}
-                          maxLength={500}
-                          onChange={(e) => update('note', e.target.value)}
-                        />
-                      )}
-                    </Field>
-                  </>
-                ) : (
-                  <Field
-                    label="Ende einschließlich"
-                    hint="Diese Version bleibt bis zu diesem Tag gültig. Frühere Versionen werden nicht reaktiviert."
-                  >
-                    {({ id, describedBy }) => (
-                      <TextInput
-                        id={id}
-                        type="date"
-                        required
-                        min={plan!.validFrom}
-                        value={draft.endDate}
-                        aria-describedby={describedBy}
-                        onChange={(e) => update('endDate', e.target.value)}
-                      />
-                    )}
-                  </Field>
-                )}
-                {error && (
-                  <p className="field-error" role="alert">
-                    {maskMoneyText(error)}
-                  </p>
-                )}
-                <div className="savings-actions">
-                  <Button type="submit" disabled={busy || (!creating && !changed)}>
-                    {busy
-                      ? 'Wird gespeichert …'
-                      : ending
-                        ? 'Ende speichern'
-                        : creating
-                          ? 'Sparplan anlegen'
-                          : 'Änderung speichern'}
-                  </Button>
-                  {plan && (
-                    <Button
-                      variant="ghost"
-                      onClick={() => {
-                        setEnding(!ending);
-                        dirty.current =
-                          !ending || JSON.stringify(draft) !== JSON.stringify(original);
-                        setError('');
-                      }}
-                    >
-                      {ending ? 'Rate bearbeiten' : 'Sparplan beenden'}
-                    </Button>
                   )}
-                </div>
-              </fieldset>
-            </form>
-          )}
-          {history.length > 0 && (
-            <section className="savings-history" aria-label="Versionsverlauf">
-              <h3>Verlauf</h3>
-              <ol>
-                {history.map((row) => (
-                  <li key={row.id}>
-                    <strong>
-                      {currency
-                        ? nativeCurrency(row.amountCents, currency)
-                        : 'Währung nicht verfügbar'}{' '}
-                      · am {row.dayOfMonth}.
-                    </strong>
-                    <br />
-                    {longDay(row.validFrom)} bis {row.validTo ? longDay(row.validTo) : 'offen'}
-                    {row.sourceAccountId && (
-                      <>
-                        <br />
-                        Quelle:{' '}
-                        <AppLink to={`/konten/${row.sourceAccountId}`}>
-                          {accounts.find((a) => a.id === row.sourceAccountId)?.name ??
-                            'Quellkonto öffnen'}
-                        </AppLink>
-                      </>
+                  {error && (
+                    <p className="field-error" role="alert">
+                      {maskMoneyText(error)}
+                    </p>
+                  )}
+                  <div className="savings-actions">
+                    <Button type="submit" disabled={busy || (!creating && !changed)}>
+                      {busy
+                        ? 'Wird gespeichert …'
+                        : ending
+                          ? 'Ende speichern'
+                          : creating
+                            ? 'Sparplan anlegen'
+                            : 'Änderung speichern'}
+                    </Button>
+                    {plan && (
+                      <Button
+                        variant="ghost"
+                        onClick={() => {
+                          setEnding(!ending);
+                          dirty.current =
+                            !ending || JSON.stringify(draft) !== JSON.stringify(original);
+                          setError('');
+                        }}
+                      >
+                        {ending ? 'Rate bearbeiten' : 'Sparplan beenden'}
+                      </Button>
                     )}
-                    {row.note && <p>{row.note}</p>}
-                  </li>
-                ))}
-              </ol>
-            </section>
-          )}
-        </>
+                  </div>
+                </fieldset>
+              </form>
+            )}
+          </>
+        )}
+        {asking && (
+          <div className="instrument-discard">
+            <p>Ungespeicherte Angaben verwerfen?</p>
+            <Button
+              variant="ghost"
+              onClick={() => {
+                setAsking(false);
+                if (navigation && blocker.status === 'blocked') blocker.reset();
+              }}
+            >
+              Weiter bearbeiten
+            </Button>
+            <Button
+              variant="ghost"
+              onClick={() => {
+                dirty.current = false;
+                setAsking(false);
+                if (navigation && blocker.status === 'blocked') blocker.proceed();
+                else close();
+              }}
+            >
+              Verwerfen
+            </Button>
+          </div>
+        )}
+      </div>
+    </FormDialog>
+  );
+}
+
+export function SavingsHistory({
+  plan,
+  plans,
+  accounts,
+}: {
+  plan: SavingsPlanRecord;
+  plans: SavingsPlanRecord[];
+  accounts: AccountRow[];
+}) {
+  useAmountPrivacy();
+  const currency = accounts.find((a) => a.id === plan.accountId)?.currency;
+  const history = plans
+    .filter((p) => p.securityId === plan.securityId && p.accountId === plan.accountId)
+    .sort((a, b) => b.validFrom.localeCompare(a.validFrom));
+  return (
+    <>
+      {history.length > 0 && (
+        <section className="savings-history" aria-label="Versionsverlauf">
+          <h3>Verlauf</h3>
+          <ol>
+            {history.map((row) => (
+              <li key={row.id}>
+                <strong>
+                  {currency ? nativeCurrency(row.amountCents, currency) : 'Währung nicht verfügbar'}{' '}
+                  · am {row.dayOfMonth}.
+                </strong>
+                <br />
+                {longDay(row.validFrom)} bis {row.validTo ? longDay(row.validTo) : 'offen'}
+                {row.sourceAccountId && (
+                  <>
+                    <br />
+                    Quelle:{' '}
+                    <AppLink to={`/konten/${row.sourceAccountId}`}>
+                      {accounts.find((a) => a.id === row.sourceAccountId)?.name ??
+                        'Quellkonto öffnen'}
+                    </AppLink>
+                  </>
+                )}
+                {row.note && <p>{row.note}</p>}
+              </li>
+            ))}
+          </ol>
+        </section>
       )}
-      {asking && (
-        <div className="instrument-discard">
-          <p>Ungespeicherte Angaben verwerfen?</p>
-          <Button
-            variant="ghost"
-            onClick={() => {
-              setAsking(false);
-              if (navigation && blocker.status === 'blocked') blocker.reset();
-            }}
-          >
-            Weiter bearbeiten
-          </Button>
-          <Button
-            variant="ghost"
-            onClick={() => {
-              dirty.current = false;
-              setAsking(false);
-              if (navigation && blocker.status === 'blocked') blocker.proceed();
-              else close();
-            }}
-          >
-            Verwerfen
-          </Button>
-        </div>
-      )}
-    </DetailPanel>
+    </>
   );
 }

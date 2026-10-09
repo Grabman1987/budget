@@ -358,7 +358,7 @@ test('empty Heute lists explain what has no rows', async ({ page }) => {
   await expect(page.getByText('Noch keine Buchungen vorhanden.')).toBeVisible();
 });
 
-test('attention has one overspending home and links to the current month and inbox', async ({
+test('attention leaves overspending to the top-bar chip and links to the inbox', async ({
   page,
 }) => {
   const data: Heute = await (
@@ -395,13 +395,10 @@ test('attention has one overspending home and links to the current month and inb
   );
   await page.goto('/?monat=2026-08');
   const attention = page.getByRole('region', { name: 'Braucht Aufmerksamkeit' });
-  await expect(attention).toContainText('12,34 € zu decken');
-  await expect(page.locator('[data-overspent="test"]')).toHaveCount(1);
+  await expect(attention).not.toContainText('zu decken');
+  await expect(page.locator('[data-overspent="test"]')).toHaveCount(0);
   await expect(page.locator('.heute-next-steps')).not.toContainText('Test-Envelope');
   await expect(page.locator('.heute-mobile-next')).toHaveCount(0);
-  await attention.getByRole('link', { name: 'Alle decken' }).click();
-  expect(new URL(page.url()).searchParams.get('monat')).toBe('2026-09');
-  await page.goBack();
   await attention.getByRole('link', { name: 'Zuordnen' }).click();
   await expect(page).toHaveURL(/\/konten\/posteingang/);
 });
@@ -636,7 +633,7 @@ ledgerTest(
         page.waitForResponse((response) => response.url().includes('/api/heute?') && response.ok());
       await page.keyboard.press('n');
       const panel = page.getByRole('dialog', { name: 'Buchung erfassen' });
-      await panel.getByLabel('Konto', { exact: true }).selectOption(account.id);
+      await panel.getByLabel('Bezahlt von', { exact: true }).selectOption(account.id);
       await panel.getByLabel('Datum', { exact: true }).fill(day);
       await panel.getByLabel('Betrag', { exact: true }).fill('20,70');
       await pickCategory(panel, categoryName);

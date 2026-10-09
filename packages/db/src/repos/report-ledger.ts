@@ -18,6 +18,7 @@ import {
   payee,
 } from '../schema';
 import { assertEurBudgetAccounts } from './account-invariants';
+import { memoizedShared } from './request-memo';
 import type { Executor } from './types';
 import { cashlessContactBookingIds } from './contact-invariants';
 
@@ -44,6 +45,11 @@ export const incomeGroupOf = (typeId: string | null): IncomeGroup =>
  * - the app's own payees (opening balance, balance corrections) are left out.
  */
 export function overviewData(db: Executor): OverviewData {
+  // One read and classification per request and database state (callers only filter and sum).
+  return memoizedShared(db, 'overviewData', () => readOverviewData(db));
+}
+
+function readOverviewData(db: Executor): OverviewData {
   assertEurBudgetAccounts(db);
   const onBudget = new Map(
     db

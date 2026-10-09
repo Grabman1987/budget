@@ -279,3 +279,20 @@
 .trade-list .vnote {
   overflow-wrap: anywhere;
 }
+
+.portfolio-detail-nav {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+}
+.portfolio-detail-nav a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+}
+.portfolio-detail {
+  display: grid;
+  gap: 24px;
+  min-width: 0;
+}
