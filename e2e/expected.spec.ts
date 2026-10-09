@@ -174,8 +174,9 @@ test.describe('look', () => {
           .poll(() => incomeRegion.evaluate((element) => element.scrollTop))
           .toBeGreaterThan(before);
         await incomeRegion.evaluate((element) => {
-          element.scrollTop = 0;
+          element.scrollTo({ top: 0, behavior: 'instant' });
         });
+        await expect.poll(() => incomeRegion.evaluate((element) => element.scrollTop)).toBe(0);
         await page.evaluate(() => {
           if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
         });
