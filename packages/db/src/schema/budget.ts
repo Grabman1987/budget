@@ -272,6 +272,8 @@ export const expectedPayment = sqliteTable(
     dateShift: text('date_shift', { enum: DATE_SHIFTS }).notNull().default('none'),
     startDate: text('start_date'),
     endDate: text('end_date'),
+    /** Weekly rhythm only: one due date every n weeks (1-52); NULL = every week. */
+    intervalWeeks: integer('interval_weeks'),
     note: text('note'),
     ...timestamps(),
   },

@@ -288,6 +288,7 @@ export function inflationReport(db: Executor, today: string): InflationReport {
             ? monthlyEquivalent(
                 p.rhythm,
                 v.currency === 'EUR' ? v.amountCents : toEurCents(v.amountCents, rate!),
+                p.intervalWeeks,
               )
             : null;
       }
