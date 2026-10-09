@@ -396,6 +396,52 @@ describe('bank sync workflow', () => {
     expect(audits).not.toContain('synthetic-code');
     expect(audits).not.toContain(state);
   });
+  it('caps a validity longer than requested and rejects one in the past with its own code', async () => {
+    await service.start('Bank A', 'AT', 'initiator-a');
+    const state = vi.mocked(provider.authorize).mock.calls[0]![1];
+    vi.mocked(provider.session).mockResolvedValueOnce({
+      id: 'synthetic-session',
+      validUntil: '2031-01-01T00:00:00.000Z',
+      accounts: [{ uid: 'synthetic-uid', label: 'Konto A', currency: 'EUR' }],
+    });
+    const result = await service.callback('synthetic-code', state, 'initiator-a');
+    const saved = opened.db
+      .select()
+      .from(schema.bankSyncConsent)
+      .where(eq(schema.bankSyncConsent.id, result.id))
+      .get()!;
+    expect(saved.status).toBe('active');
+    expect(saved.validUntil).toBe(new Date(now.getTime() + 15_552_000_000).toISOString());
+
+    await service.start('Bank A', 'AT', 'initiator-b');
+    const state2 = vi.mocked(provider.authorize).mock.calls[1]![1];
+    vi.mocked(provider.session).mockResolvedValueOnce({
+      id: 'synthetic-session',
+      validUntil: '2026-09-30T00:00:00.000Z',
+      accounts: [{ uid: 'synthetic-uid', label: 'Konto A', currency: 'EUR' }],
+    });
+    await expect(service.callback('synthetic-code', state2, 'initiator-b')).rejects.toThrow();
+    const failed = opened.db
+      .select()
+      .from(schema.bankSyncConsent)
+      .where(
+        eq(schema.bankSyncConsent.stateHash, createHash('sha256').update(state2).digest('hex')),
+      )
+      .get()!;
+    expect(failed.status).toBe('failed');
+    expect(JSON.stringify(readInbox(opened.db, '2026-10-01'))).toContain('invalid_validity');
+  });
+  it('shows the failing field in the inbox message without provider values', async () => {
+    await service.start('Bank A', 'AT', 'initiator-a');
+    const state = vi.mocked(provider.authorize).mock.calls[0]![1];
+    vi.mocked(provider.session).mockRejectedValueOnce(
+      new BankError('invalid_response', 900, 'too_small@accounts.0.uid'),
+    );
+    await expect(service.callback('synthetic-code', state, 'initiator-a')).rejects.toThrow();
+    expect(JSON.stringify(readInbox(opened.db, '2026-10-01'))).toContain(
+      'Fehlerklasse: invalid_response (too_small@accounts.0.uid)',
+    );
+  });
   it('cannot restore consumed consent protocol state even with forced undo', async () => {
     await service.start('Bank A', 'AT', 'initiator-a');
     const log = opened.db

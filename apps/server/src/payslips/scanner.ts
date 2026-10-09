@@ -7,6 +7,14 @@ import {
 } from '@budget/db';
 import { RECEIPT_LIMIT } from '../receipts/files';
 import { DropboxError, eligiblePayslipPath, type DropboxPayslipSource } from './dropbox';
+import {
+  FATAL_SCAN_CLASSES,
+  PERMANENT_SCAN_CLASSES,
+  ScanStageError,
+  scanErrorCode,
+  type ScanErrorClass,
+  type ScanStage,
+} from './scan-error';
 import { payslipSourceWarning } from './source-warning';
 import type { PayslipIntakeService } from './service';
 
@@ -56,6 +64,8 @@ export class PayslipScanner {
           }
           throw error;
         }
+        // First retryable per-file failure on this page; it keeps the page (and cursor) open.
+        let retry: ScanErrorClass | null = null;
         for (const file of result.entries) {
           if (
             file['.tag'] !== 'file' ||
@@ -70,20 +80,39 @@ export class PayslipScanner {
           if (seen && !seen.deletedAt) continue;
           if ((file.size ?? 0) > RECEIPT_LIMIT) {
             errors++;
-            this.warning('PDF überschreitet 15 MB. Bitte Datei manuell prüfen.');
+            this.warning('PDF �berschreitet 15 MB. Bitte Datei manuell pr�fen.');
             continue;
           }
-          const staged = await this.intake.ingest(
-            await this.source.download(file),
-            file.name,
-            'dropbox',
-            file.content_hash,
-          );
-          // Extraction failures are durable inbox warnings, so this page can still advance.
-          if (staged.id) {
-            // Count document warnings without logging their values or the original text.
-            if (getPayslipIntake(this.db, staged.id).parsed.warnings.length) errors++;
+          let stage: ScanStage = 'download';
+          try {
+            const bytes = await this.source.download(file);
+            stage = 'ingest';
+            const staged = await this.intake.ingest(bytes, file.name, 'dropbox', file.content_hash);
+            // Extraction failures are durable inbox warnings, so this page can still advance.
+            if (staged.id) {
+              // Count document warnings without logging their values or the original text.
+              if (getPayslipIntake(this.db, staged.id).parsed.warnings.length) errors++;
+            }
+          } catch (error) {
+            // Only the failure class is kept: no file names, paths, provider text or amounts.
+            const code = scanErrorCode(stage, error);
+            // Auth, scope and rate limits affect every file: stop instead of repeating them.
+            if (FATAL_SCAN_CLASSES.has(code)) throw new ScanStageError(code);
+            errors++;
+            if (PERMANENT_SCAN_CLASSES.has(code))
+              this.warning(
+                `Eine PDF konnte nicht verarbeitet werden (${code}). Bitte Datei manuell pr�fen.`,
+              );
+            else retry ??= code;
           }
+        }
+        if (retry) {
+          // Keep the previous cursor so the page is listed again; stored files are skipped by hash.
+          write(new Date(now.getTime() + 15 * 60_000).toISOString(), retry);
+          this.warning(
+            `Gehaltszettel-Abruf fehlgeschlagen (${retry}). Der Scan wird erneut versucht.`,
+          );
+          return;
         }
         cursor = result.cursor;
         write(
@@ -93,10 +122,11 @@ export class PayslipScanner {
         if (!result.has_more) return;
       }
       write(new Date(now.getTime() + 60_000).toISOString(), errors ? 'document_warning' : null);
-    } catch {
+    } catch (error) {
       errors++;
-      write(new Date(now.getTime() + 15 * 60_000).toISOString(), 'scan_failed');
-      this.warning('Gehaltszettel-Abruf fehlgeschlagen. Der Scan wird erneut versucht.');
+      const code = scanErrorCode('list', error);
+      write(new Date(now.getTime() + 15 * 60_000).toISOString(), code);
+      this.warning(`Gehaltszettel-Abruf fehlgeschlagen (${code}). Der Scan wird erneut versucht.`);
     } finally {
       this.running = false;
     }

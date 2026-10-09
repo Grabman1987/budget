@@ -29,10 +29,39 @@ const page = z.object({
   has_more: z.boolean(),
 });
 export type DropboxEntry = z.infer<typeof entry>;
+/** Provider error reasons that may be kept; anything else in an error body is discarded. */
+export const DROPBOX_REASONS = [
+  'missing_scope',
+  'expired_access_token',
+  'invalid_access_token',
+  'invalid_grant',
+  'path/not_found',
+  'path/malformed_path',
+  'too_many_requests',
+] as const;
+export type DropboxReason = (typeof DROPBOX_REASONS)[number];
 export class DropboxError extends Error {
-  constructor(readonly code: 'provider' | 'cursor_reset' | 'size' | 'integrity' | 'not_found') {
+  constructor(
+    readonly code: 'provider' | 'cursor_reset' | 'size' | 'integrity' | 'not_found',
+    /** HTTP status of the failed response, when there was one. */
+    readonly status?: number,
+    readonly reason?: DropboxReason,
+  ) {
     super(code);
   }
+}
+/** Allowlisted reason from a bounded error body (`.tag` / `error_summary` values only). */
+function dropboxReason(body: string, status: number): DropboxReason | undefined {
+  if (status === 429) return 'too_many_requests';
+  // Both the `.tag` form (`"missing_scope"`) and the `error_summary` form (`"path/not_found/.."`).
+  for (const reason of DROPBOX_REASONS)
+    if (
+      new RegExp(
+        String.raw`"(?:\.tag|error_summary)"\s*:\s*"(?:path/)?${reason.replace('path/', '')}(?:[/."]|$)`,
+      ).test(body)
+    )
+      return reason;
+  return undefined;
 }
 /** Dropbox hashes SHA-256 hashes of 4 MiB blocks, then hashes their concatenation. */
 export function dropboxContentHash(bytes: Buffer) {
@@ -103,19 +132,23 @@ export class DropboxPayslipSource {
         signal: AbortSignal.timeout(30_000),
       });
       if (!response.ok) {
-        // Read only a bounded error to detect cursor reset; never retain or expose provider text.
-        if (response.status === 409 && url.endsWith('/list_folder/continue')) {
-          const b = await boundedBody(response, 32768);
-          if (/"(?:\.tag|error_summary)"\s*:\s*"reset/.test(b.toString()))
-            throw new DropboxError('cursor_reset');
-        }
-        if (response.status === 409 && url.endsWith('/get_metadata')) {
-          const b = await boundedBody(response, 32768);
-          if (/"(?:\.tag|error_summary)"\s*:\s*"(?:path\/)?not_found/.test(b.toString()))
-            throw new DropboxError('not_found');
-        }
-        await response.body?.cancel();
-        throw new DropboxError('provider');
+        // Read only a bounded error to classify it; never retain or expose provider text.
+        const body = await boundedBody(response, 32768)
+          .then((b) => b.toString())
+          .catch(() => '');
+        if (
+          response.status === 409 &&
+          url.endsWith('/list_folder/continue') &&
+          /"(?:\.tag|error_summary)"\s*:\s*"reset/.test(body)
+        )
+          throw new DropboxError('cursor_reset', response.status);
+        if (
+          response.status === 409 &&
+          url.endsWith('/get_metadata') &&
+          /"(?:\.tag|error_summary)"\s*:\s*"(?:path\/)?not_found/.test(body)
+        )
+          throw new DropboxError('not_found', response.status);
+        throw new DropboxError('provider', response.status, dropboxReason(body, response.status));
       }
       return await boundedBody(response, limit);
     } catch (error) {
@@ -177,7 +210,7 @@ export class DropboxPayslipSource {
         method: 'POST',
         headers: {
           authorization: `Bearer ${token}`,
-          'Dropbox-API-Arg': JSON.stringify({ path: file.id, rev: file.rev }),
+          'Dropbox-API-Arg': JSON.stringify({ path: 'rev:' + file.rev }),
         },
       },
       RECEIPT_LIMIT,
