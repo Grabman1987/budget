@@ -202,8 +202,7 @@ export function createAuth(deps: AuthDeps) {
     const session = c.get('session');
     // Defence in depth: /api/* already runs requireSession, but never let a missing session through.
     if (!session) return fail(c, 401, 'unauthorized');
-    if (session.viaRecovery || session.passkeyId === null)
-      return fail(c, 403, 'passkey_required');
+    if (session.viaRecovery || session.passkeyId === null) return fail(c, 403, 'passkey_required');
     return next();
   };
 
