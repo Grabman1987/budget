@@ -19,6 +19,7 @@ import type {
 /** Typed calls of the ledger API. Pages never build URLs themselves. */
 
 const filterParams = (filter: BookingFilter) => ({
+  basis: filter.basis,
   ids: filter.id,
   accountId: filter.accountId,
   from: filter.from,
