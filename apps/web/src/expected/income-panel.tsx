@@ -66,9 +66,14 @@ export function IncomeBody({
           {eur(data.receivedCents)}
         </div>
         <p className="panel-sub">
-          eingegangen im {monthLabel(month).split(' ')[0]} · erwartet {eur(data.expectedCents)}
-          {bookedCents !== undefined && ` · als Einnahme gebucht ${eur(bookedCents)}`}
+          Zu erwarteten Zahlungen eingegangen im {monthLabel(month).split(' ')[0]} · erwartet{' '}
+          {eur(data.expectedCents)}
         </p>
+        {bookedCents !== undefined && (
+          <p className="panel-sub">
+            Budgetrelevante Zuflüsse im Planmonat {monthLabel(month)}: {eur(bookedCents)}
+          </p>
+        )}
       </div>
       {empty ? (
         <p className="rev-empty">Für diesen Monat sind keine Einnahmen erwartet.</p>
@@ -127,8 +132,9 @@ export function IncomeBody({
         </>
       )}
       <p className="xp-note">
-        Erwartete Einnahmen sind kein Geld zum Verteilen. In Zu verteilen zählt nur, was als Buchung
-        auf dem Konto angekommen ist.
+        Erwartete Zahlungen sind Planwerte. Zu verteilen zählt nur tatsächlich gebuchte Zuflüsse im
+        zugeordneten Planmonat. Heute zählt Haushaltseinnahmen nach Buchungsdatum; „Für nächsten
+        Monat“ zählt im Plan erst im Folgemonat.
       </p>
     </div>
   );

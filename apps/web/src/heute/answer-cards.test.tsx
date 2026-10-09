@@ -43,7 +43,15 @@ it('answers three questions with exact money, source links, proportional bars an
     screen.getByText('Δ Monat: +1.120,01 € davon Einzahlung +800,01 € · Markt +320,00 €'),
   ).toBeTruthy();
   expect(screen.getByText('Vermögen 525.000,01 € · Schulden 490.000,00 €')).toBeTruthy();
-  expect(screen.getByText('Einnahmen 3.500,01 €')).toBeTruthy();
+  expect(screen.getByText('Haushaltseinnahmen 3.500,01 €')).toBeTruthy();
+  expect(
+    screen.getByRole('img', { name: /Ausgaben 2\.320,00 € von Haushaltseinnahmen 3\.500,01 €/ }),
+  ).toBeTruthy();
+  expect(
+    screen.getByText(
+      /Haushaltseinnahmen im September 2026 nach Buchungsdatum.*Für nächsten Monat.*Plan erst im Folgemonat/i,
+    ),
+  ).toBeTruthy();
   expect(screen.getByText('Ausgaben 2.320,00 €')).toBeTruthy();
   expect(
     screen.getByText(/Ausgabenplan: 2\.320,00 € ausgegeben von 3\.000,00 € · Plan-Rest 680,00 €/),
@@ -79,7 +87,7 @@ it('keeps zero, overspending, missing valuation and missing goals explicit witho
   } as Heute;
   const { container } = render(<AnswerCards data={edge} onBudgetClick={() => {}} />);
   expect(screen.getByText('Ein Wertpapierkurs fehlt.')).toBeTruthy();
-  expect(screen.getByText('Einnahmen 0,00 €')).toBeTruthy();
+  expect(screen.getByText('Haushaltseinnahmen 0,00 €')).toBeTruthy();
   expect(screen.getByText('−0,01 €')).toBeTruthy();
   expect(screen.queryByText(/gespart/)).toBeNull();
   expect(container.innerHTML).not.toMatch(/NaN|Infinity/);
