@@ -1,5 +1,5 @@
 import { BankBalance } from './bank-balance';
-import { useAmountPrivacy, Button, Segmented, cx } from '@budget/ui';
+import { useAmountPrivacy, Button, Segmented, Select, Field, cx } from '@budget/ui';
 import {
   addMonths,
   DEFAULT_FUTURE_PREVIEW_DAYS,
@@ -9,9 +9,11 @@ import {
   monthOf,
   todayInVienna,
   type Period,
+  type LiquidityHorizon,
+  type LiquidityLeverId,
 } from '@budget/domain';
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
-import { Link, useParams } from '@tanstack/react-router';
+import { Link, useParams, useSearch, useNavigate } from '@tanstack/react-router';
 import { CheckCircle2, ChevronLeft, Plus } from 'lucide-react';
 import { useState } from 'react';
 import { ACCOUNT_PAGE } from '../nav/pages';
@@ -42,6 +44,8 @@ import { accountsQuery, bookingsInfiniteQuery } from './queries';
 import { ReconcilePanel } from './reconcile-panel';
 import { EmptyNote, ErrorNote, LoadingNote } from './states';
 import type { AccountRow } from './types';
+import { useLiquiditySelection } from '../reports/liquidity-selection';
+import { AppLink } from '../shell/app-link';
 
 /** Bookings per page of the month list; more load on request. */
 const PAGE_SIZE = 100;
@@ -88,6 +92,22 @@ export function AccountPage({ id }: { id: string }) {
 
 function AccountBody({ account }: { account: AccountRow }) {
   useAmountPrivacy();
+  const search = useSearch({ strict: false }) as {
+    vorschau?: string;
+    faellig?: string;
+    horizon?: LiquidityHorizon;
+    levers?: string;
+  };
+  const navigate = useNavigate();
+  const selection = useLiquiditySelection();
+  const horizon = search.horizon ?? selection.horizon;
+  const levers =
+    search.levers === undefined
+      ? selection.levers
+      : (search.levers.split(',').filter(Boolean) as LiquidityLeverId[]);
+  const canUseLiquidity =
+    account.currency === 'EUR' && account.onBudget && account.role === 'budget';
+  const liquidity = canUseLiquidity && search.vorschau === 'liquiditaet';
   const today = todayInVienna();
   const month = monthOf(today);
   const [period, setPeriod] = useState<Period | '6M'>('3M');
@@ -110,8 +130,24 @@ function AccountBody({ account }: { account: AccountRow }) {
   const previewDays =
     range.to === today ? (settings.data?.futurePreviewDays ?? DEFAULT_FUTURE_PREVIEW_DAYS) : 0;
   const series = useQuery({
-    queryKey: ['ledger', 'series', account.id, range.from, range.to, previewDays],
-    queryFn: () => fetchSeries(account.id, range.from, range.to, previewDays),
+    queryKey: [
+      'ledger',
+      'series',
+      account.id,
+      range.from,
+      range.to,
+      previewDays,
+      liquidity ? horizon : null,
+      liquidity ? levers.join(',') : '',
+    ],
+    queryFn: () =>
+      fetchSeries(
+        account.id,
+        range.from,
+        range.to,
+        previewDays,
+        liquidity ? { horizon, levers } : undefined,
+      ),
   });
   const limit = account.overdraftLimitCents ?? account.creditLimitCents;
   const limitLabel = account.overdraftLimitCents !== null ? 'Dispolimit' : 'Kreditrahmen';
@@ -197,6 +233,49 @@ function AccountBody({ account }: { account: AccountRow }) {
         </div>
       </div>
       <BankBalance account={account} />
+      {search.faellig && (
+        <p className="kmeta" data-testid="account-payment-context">
+          <AppLink className="btn btn-ghost" to="/">
+            Heute · Bevorstehende Zahlungen
+          </AppLink>{' '}
+          · {account.name} · Fälligkeit {longDay(search.faellig)}
+        </p>
+      )}
+      {canUseLiquidity && (
+        <Field label="Kontovorschau Zeitraum">
+          {({ id }) => (
+            <Select
+              id={id}
+              value={liquidity ? horizon : 'standard'}
+              onChange={(event) => {
+                const next = event.target.value;
+                if (next !== 'standard') selection.setHorizon(next as LiquidityHorizon);
+                void navigate({
+                  search: ((previous: Record<string, unknown>) => ({
+                    ...previous,
+                    vorschau: next === 'standard' ? undefined : 'liquiditaet',
+                    horizon: next === 'standard' ? undefined : next,
+                    levers: levers.join(','),
+                  })) as never,
+                  replace: true,
+                });
+              }}
+            >
+              <option value="standard">Vorschau laut Einstellungen · {previewDays} Tage</option>
+              <option value="90d">Liquidität · 90 Tage</option>
+              <option value="6m">Liquidität · 6 Monate</option>
+              <option value="12m">Liquidität · 12 Monate</option>
+            </Select>
+          )}
+        </Field>
+      )}
+      {liquidity && (
+        <p className="kmeta">
+          Gleicher Liquiditätshorizont und gespeicherte Stellschrauben wie in der Haushaltsprognose.
+          Nur diesem Konto zugeordnete Beträge; die Haushaltssumme ist kein Nachweis der
+          Kontodeckung.
+        </p>
+      )}
       <div className="kchart-range">
         <Segmented
           label="Saldoverlauf Zeitraum"
@@ -222,6 +301,27 @@ function AccountBody({ account }: { account: AccountRow }) {
       )}
       {series.data && (
         <>
+          {series.data.previewCoverage && (
+            <>
+              <p className="kmeta" data-testid="account-preview-range">
+                {account.name} · Vorschau von {longDay(today)} bis{' '}
+                {longDay(series.data.previewCoverage.endDay)}
+              </p>
+              <p className="kmeta" data-testid="account-preview-coverage">
+                {series.data.previewCoverage.partial
+                  ? 'Teilprognose · fehlende Konto-Zuordnung:'
+                  : 'Kontoprognose · nur zugeordnete Beträge:'}{' '}
+                Variable Haushaltsausgaben ({eur(series.data.previewCoverage.variableMonthlyCents)}{' '}
+                pro Monat), {series.data.previewCoverage.unassignedEventCount}{' '}
+                {series.data.previewCoverage.unassignedEventCount === 1
+                  ? 'geplantes Ereignis'
+                  : 'geplante Ereignisse'}{' '}
+                und {series.data.previewCoverage.unassignedPaymentCount} wiederkehrende Zahlungen
+                ohne Konto sind ausgeschlossen. Keine Verteilung der Haushaltssumme und keine Zusage
+                sicherer Kontodeckung.
+              </p>
+            </>
+          )}
           <BalanceChart
             points={series.data.points}
             windowLabel={period}
@@ -273,7 +373,9 @@ function AccountBody({ account }: { account: AccountRow }) {
                 <svg viewBox="0 0 26 8">
                   <path className="l-forecast" d="M0 4h26" />
                 </svg>
-                Vorschau · {previewDays} Tage
+                {liquidity
+                  ? `Liquiditätsvorschau · bis ${longDay(series.data.previewCoverage?.endDay ?? today)}`
+                  : `Vorschau · ${previewDays} Tage`}
               </span>
             )}
             {limit !== null && (

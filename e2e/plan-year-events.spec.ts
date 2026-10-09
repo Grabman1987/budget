@@ -140,7 +140,7 @@ test('year events: create, edit recurrence, scenario without writes, off/delete 
     { day: '2026-11-30', label: 'Urlaub', cents: -10_001 },
     { day: '2026-12-31', label: 'Urlaub', cents: -10_001 },
   ]);
-  await page.getByRole('link', { name: 'Liquiditätsprognose · 3.1' }).click();
+  await page.getByRole('link', { name: 'Liquiditätsprognose', exact: true }).click();
   await expect(
     page.getByRole('heading', { name: 'Liquiditätsprognose', exact: true }),
   ).toBeVisible();

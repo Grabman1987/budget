@@ -40,7 +40,7 @@ proposed destinations, not implemented routes.
 | `routes/components-page.tsx`, `routes/panels-harness.tsx`: detail/side/sheet/work-dialog demos | Detail page demo and input/filter-only dialog/sheet demos | Open |
 | `heute/heute.css`: `.heute-main-grid`, secondary monthly content | Full-width inline sections or links to existing detail pages | Open |
 | `wealth/wealth.css`: `.vview` composition beside main | Full-width content sections | Done |
-| `wealth/debts.css`: secondary comparison columns; `wealth/loan-planning.css`: planning summaries | Full-width content sections; comparison tables retain their numeric columns | Open |
+| `wealth/debts.css`: secondary calculation column (#342); `wealth/loan-planning.css`: planning summaries (#343) | Full-width content sections; comparison tables retain their numeric columns | Done; #343 already full-width, desktop/390px evidence in `evidence/debts-scope-1009` |
 | `reports/reports-future.css`: `.rf-side`; `reports/table-reports.css`: side summaries; report overview/spending/portfolio source grids | Full-width sequential summary/chart/source sections or linked detail pages | Open |
 | `shell/sidebar.tsx` | Left application navigation remains | Retain |
 | `pages/settings-nav.tsx`: settings navigation rail | Navigation, not content; retain existing destinations | Retain |

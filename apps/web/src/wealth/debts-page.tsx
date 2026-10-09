@@ -20,6 +20,7 @@ import {
 import { DebtChart } from './debts-chart';
 import { DebtOverview } from './debt-overview';
 import { DebtStrategies } from './debt-strategies';
+import { DebtLiquidityCheck } from './debt-liquidity-check';
 import { LoanPlanning } from './loan-planning';
 import './debts.css';
 
@@ -370,6 +371,7 @@ function Scenario({
         </div>
         {choice}
         <LoanTerms loan={loan} />
+        <DebtLiquidityCheck />
         <p className="vnote">
           Ungespeichertes Modell. Keine Vertragsänderung oder Zahlung; Annahmen werden beim Neuladen
           verworfen.

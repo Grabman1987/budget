@@ -102,6 +102,113 @@ const nextDay = () => {
 };
 
 describe('bank sync workflow', () => {
+  it('requires confirmation for a newly authorized connection without changing legacy policy', async () => {
+    opened.db.delete(schema.appSetting).run();
+    await service.start('Bank A', 'AT', 'new-owner-session');
+    const fresh = service.status().connections.find((c) => c.id !== consentId)!;
+    expect(fresh.bookedToLedger).toBe(false);
+    expect(service.status().connections.find((c) => c.id === consentId)?.bookedToLedger).toBe(true);
+  });
+
+  it('exposes the daily request budget and blocks manual runs before the provider is called', () => {
+    opened.db
+      .update(schema.bankSyncAccount)
+      .set({ requestDay: '2026-10-01', requestCount: 4 })
+      .run();
+    expect(service.status().connections[0]).toMatchObject({
+      manualBlockedReason: expect.stringContaining('Tageslimit'),
+      manualAvailableAt: '2026-10-01T22:00:00.000Z',
+      accounts: [{ requestsToday: 4, requestLimit: 4 }],
+    });
+    expect(() => service.requestRun(consentId)).toThrow('Tageslimit');
+    now = new Date('2026-10-01T22:00:00.000Z');
+    expect(service.status().connections[0]).toMatchObject({
+      manualBlockedReason: null,
+      accounts: [{ requestsToday: 0 }],
+    });
+    expect(service.requestRun(consentId)).toEqual({ queued: true });
+  });
+
+  it.each([
+    ['2026-03-29T03:00:00Z', '2026-03-29T22:00:00.000Z'],
+    ['2026-10-25T03:00:00Z', '2026-10-25T23:00:00.000Z'],
+  ])('resets the request budget at Vienna midnight on %s', (time, next) => {
+    now = new Date(time);
+    opened.db.update(schema.bankSyncConsent).set({ validUntil: '2027-03-01T00:00:00Z' }).run();
+    opened.db
+      .update(schema.bankSyncAccount)
+      .set({ requestDay: time.slice(0, 10), requestCount: 4 })
+      .run();
+    expect(service.status().connections[0]).toMatchObject({ manualAvailableAt: next });
+  });
+
+  it('excludes older inbox matches from the fetched-row result', async () => {
+    await service.tick();
+    createBooking(
+      opened.db,
+      {
+        accountId: 'giro',
+        date: row.date,
+        amountCents: row.amountCents,
+        status: 'confirmed',
+        splits: [{ amountCents: row.amountCents, categoryId: 'essen' }],
+      },
+      { actor: 'owner' },
+    );
+    nextDay();
+    vi.mocked(provider.transactions).mockResolvedValue(batch([]));
+    await service.tick();
+    expect(service.status().connections[0]?.accounts[0]?.lastResult).toEqual({
+      fetched: 0,
+      linked: 0,
+      new: 0,
+    });
+  });
+
+  it('persists the last complete account result across retries and filters the source inbox', async () => {
+    createBooking(
+      opened.db,
+      {
+        accountId: 'giro',
+        date: row.date,
+        amountCents: row.amountCents,
+        status: 'confirmed',
+        splits: [{ amountCents: row.amountCents, categoryId: 'essen' }],
+      },
+      { actor: 'owner' },
+    );
+    vi.mocked(provider.transactions).mockResolvedValue(
+      batch([row, { ...row, reference: 'entry-b', amountCents: -301 }]),
+    );
+    await service.tick();
+    expect(service.status().connections[0]?.accounts[0]).toMatchObject({
+      lastResult: { fetched: 2, linked: 1, new: 1 },
+      open: 1,
+    });
+    createBooking(
+      opened.db,
+      {
+        accountId: 'giro',
+        date: row.date,
+        amountCents: -901,
+        splits: [{ amountCents: -901 }],
+      },
+      { actor: 'owner' },
+    );
+    expect(readInbox(opened.db, '2026-10-01', linkId).entries.map((e) => e.id)).toEqual([
+      candidates().find((c) => c.amountCents === -301)!.id,
+    ]);
+    service.confirm(candidates().find((c) => c.amountCents === -301)!.id, 'essen');
+    expect(service.status().connections[0]?.accounts[0]).toMatchObject({ open: 0 });
+    nextDay();
+    vi.mocked(provider.transactions).mockRejectedValue(new BankError('unavailable'));
+    await service.tick();
+    service = new BankSync(opened.db, provider, box, 'https://budget.example', () => now);
+    expect(service.status().connections[0]?.accounts[0]).toMatchObject({
+      lastResult: { fetched: 2, linked: 1, new: 1 },
+      warnings: [expect.objectContaining({ title: 'Bankabruf fehlgeschlagen' })],
+    });
+  });
   it('applies an income default only at owner classification, with cash unchanged by undo', async () => {
     categories.create(
       opened.db,
