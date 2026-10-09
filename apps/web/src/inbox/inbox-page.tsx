@@ -12,7 +12,7 @@ import {
   SectionHead,
   useToast,
 } from '@budget/ui';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useInfiniteQuery, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
 import { request } from '../api/http';
 import { useBudgetWrite } from '../budget/use-category-writes';
@@ -27,7 +27,15 @@ import { PAGES } from '../nav/pages';
 import { PageFrame } from '../pages/placeholder-page';
 import { AppLink } from '../shell/app-link';
 import { useInboxCount } from '../shell/inbox';
-import { inboxQuery, resolveInbox, type InboxEntry, type InboxKind, type InboxStored } from './api';
+import {
+  inboxPagesQuery,
+  inboxQuery,
+  INBOX_PAGE_SIZE,
+  resolveInbox,
+  type InboxEntry,
+  type InboxKind,
+  type InboxStored,
+} from './api';
 import './inbox.css';
 import { ReceiptSection } from '../receipts/receipt-section';
 import { TradePanel } from '../wealth/trade-panel';
@@ -164,15 +172,129 @@ function InboxBody({
   loadingId: string | null;
   onSavings: (proposal: SavingsExecutionProposal) => void;
 }) {
+  if (entryIds)
+    return (
+      <FilteredInboxBody
+        entryIds={entryIds}
+        onEdit={onEdit}
+        loadingId={loadingId}
+        onSavings={onSavings}
+      />
+    );
+  return <PaginatedInboxBody onEdit={onEdit} loadingId={loadingId} onSavings={onSavings} />;
+}
+
+type InboxBodyProps = {
+  onEdit: (id: string) => void;
+  loadingId: string | null;
+  onSavings: (proposal: SavingsExecutionProposal) => void;
+};
+
+function FilteredInboxBody({ entryIds, ...props }: InboxBodyProps & { entryIds: string[] }) {
+  useAmountPrivacy();
+  const queue = useQuery(inboxQuery());
+  const entries = queue.data?.entries.filter((item) => entryIds.includes(item.id)) ?? [];
+  const countsByKind = entries.reduce<Partial<Record<InboxKind, number>>>((counts, item) => {
+    counts[item.kind] = (counts[item.kind] ?? 0) + 1;
+    return counts;
+  }, {});
+  return (
+    <InboxBodyContent
+      {...props}
+      entries={entries}
+      count={queue.data ? entries.length : undefined}
+      totalEntries={entries.length}
+      countsByKind={countsByKind}
+      pending={queue.isPending}
+      error={queue.isError ? queue.error : null}
+      onRetry={() => void queue.refetch()}
+      showReceipts={false}
+      serverPaginated={false}
+      hasMore={false}
+      loadingMore={false}
+      loadMore={() => undefined}
+    />
+  );
+}
+
+function PaginatedInboxBody(props: InboxBodyProps) {
+  useAmountPrivacy();
+  const queue = useInfiniteQuery(inboxPagesQuery());
+  const loadingNextPage = useRef(false);
+  const fetchNextPage = async () => {
+    if (loadingNextPage.current || queue.isFetching || !queue.hasNextPage) return;
+    loadingNextPage.current = true;
+    try {
+      await queue.fetchNextPage();
+    } finally {
+      loadingNextPage.current = false;
+    }
+  };
+  const pages = queue.data?.pages ?? [];
+  const entries = pages.flatMap((page) => page.entries);
+  const firstPage = pages[0];
+  return (
+    <InboxBodyContent
+      {...props}
+      entries={entries}
+      count={firstPage?.count}
+      totalEntries={firstPage?.totalEntries}
+      countsByKind={firstPage?.countsByKind}
+      pending={queue.isPending}
+      error={queue.isError && !queue.isFetchNextPageError ? queue.error : null}
+      nextPageError={queue.isFetchNextPageError ? queue.error : null}
+      onRetry={() => void queue.refetch()}
+      onRetryNextPage={() => void fetchNextPage()}
+      showReceipts
+      serverPaginated
+      hasMore={queue.hasNextPage}
+      loadingMore={queue.isFetching}
+      loadMore={() => void fetchNextPage()}
+    />
+  );
+}
+
+function InboxBodyContent({
+  entries,
+  count,
+  totalEntries,
+  countsByKind,
+  pending,
+  error,
+  nextPageError,
+  onRetry,
+  onRetryNextPage,
+  showReceipts,
+  serverPaginated,
+  hasMore,
+  loadingMore,
+  loadMore,
+  onEdit,
+  loadingId,
+  onSavings,
+}: InboxBodyProps & {
+  entries: InboxEntry[];
+  count: number | undefined;
+  totalEntries: number | undefined;
+  countsByKind: Partial<Record<InboxKind, number>> | undefined;
+  pending: boolean;
+  error: Error | null;
+  nextPageError?: Error | null;
+  onRetry: () => void;
+  onRetryNextPage?: () => void;
+  showReceipts: boolean;
+  serverPaginated: boolean;
+  hasMore: boolean | undefined;
+  loadingMore: boolean;
+  loadMore: () => void;
+}) {
   useAmountPrivacy();
   const headingId = useId();
-  const queue = useQuery(inboxQuery());
   const writes = useLedgerWrites();
   const write = useBudgetWrite();
   const [busy, setBusy] = useState<string | null>(null);
   const [learnBookingId, setLearnBookingId] = useState<string | null>(null);
-  // A long queue (hundreds of read-source entries) draws in pages; counts stay those of the queue.
-  const [shown, setShown] = useState(INBOX_PAGE_ROWS);
+  const [shown, setShown] = useState(INBOX_PAGE_SIZE);
   const resolve = async (item: InboxStored) => {
     if (busy) return;
     setBusy(item.id);
@@ -183,11 +305,12 @@ function InboxBody({
     setBusy(null);
   };
   const groups = Object.keys(LABELS) as InboxKind[];
-  const entries =
-    queue.data?.entries.filter((item) => !entryIds || entryIds.includes(item.id)) ?? [];
-  const count = entryIds ? entries.length : queue.data?.count;
   let index = 0;
-  let room = shown;
+  let room = serverPaginated ? entries.length : shown;
+  const canLoadMore = serverPaginated ? Boolean(hasMore) : entries.length > shown;
+  const remaining = serverPaginated
+    ? Math.max((totalEntries ?? entries.length) - entries.length, 0)
+    : entries.length - shown;
   return (
     <section className="kinbox" aria-labelledby={headingId}>
       <SectionHead
@@ -195,11 +318,9 @@ function InboxBody({
         title="Offene Entscheidungen"
         aside={count !== undefined ? `${count} offen` : undefined}
       />
-      {queue.isPending && <LoadingNote what="Aufgaben" />}
+      {pending && <LoadingNote what="Aufgaben" />}
       {learnBookingId && <AssignmentLearnOffer bookingId={learnBookingId} />}
-      {queue.isError && (
-        <ErrorNote what="Aufgaben" error={queue.error} onRetry={() => void queue.refetch()} />
-      )}
+      {error && <ErrorNote what="Aufgaben" error={error} onRetry={onRetry} />}
       {count === 0 && (
         <EmptyNote>Posteingang leer. Es sind keine offenen Aufgaben vorhanden.</EmptyNote>
       )}
@@ -223,14 +344,15 @@ function InboxBody({
             <tbody>
               {groups.flatMap((kind) => {
                 const all = entries.filter((item) => item.kind === kind);
-                if (!all.length || room <= 0) return [];
+                if (!all.length || (!serverPaginated && room <= 0)) return [];
                 const items = all.slice(0, room);
                 room -= items.length;
                 return [
                   <tr className="kgroup" key={kind}>
                     <td className="rev-mark" />
                     <th scope="rowgroup" colSpan={2}>
-                      {LABELS[kind]} <span className="kgcount">{all.length}</span>
+                      {LABELS[kind]}{' '}
+                      <span className="kgcount">{countsByKind?.[kind] ?? all.length}</span>
                     </th>
                   </tr>,
                   ...items.map((item) => (
@@ -260,13 +382,21 @@ function InboxBody({
               })}
             </tbody>
           </table>
-          {entries.length > shown && (
+          {nextPageError && onRetryNextPage && (
+            <ErrorNote what="weitere Aufgaben" error={nextPageError} onRetry={onRetryNextPage} />
+          )}
+          {canLoadMore && (
             <Button
               variant="ghost"
               className="inbox-more"
-              onClick={() => setShown((rows) => rows + INBOX_PAGE_ROWS)}
+              disabled={loadingMore}
+              onClick={() => {
+                if (loadingMore) return;
+                if (serverPaginated) loadMore();
+                else setShown((rows) => rows + INBOX_PAGE_SIZE);
+              }}
             >
-              Weitere anzeigen ({entries.length - shown} von {entries.length} noch verborgen)
+              Weitere anzeigen ({remaining} von {totalEntries ?? entries.length} noch verborgen)
             </Button>
           )}
           <p className="inbox-hint">
@@ -275,7 +405,7 @@ function InboxBody({
           </p>
         </>
       )}
-      {!entryIds && (
+      {showReceipts && (
         <>
           <PayslipUpload />
           <ReceiptSection />
@@ -284,8 +414,6 @@ function InboxBody({
     </section>
   );
 }
-
-const INBOX_PAGE_ROWS = 100;
 
 function InboxRow({
   onBankConfirmed,

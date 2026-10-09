@@ -58,7 +58,7 @@ const stopPlanSnapshots = today ? () => {} : startPlanSnapshotTimer(db);
 // Heavy import tasks (YNAB dry run, commit, revert) run in a worker thread on its own connection.
 const importJobs = new ImportJobs(db);
 
-// Heute and the Posteingang count are computed once after start, so the first visit is quick.
+// Heute's two balance-period read models are computed once after start for the first visit.
 let warmUp: (() => Promise<number>) | undefined;
 
 // The debug endpoint is opt-in, read-only (seed check) and behind the session guard.
