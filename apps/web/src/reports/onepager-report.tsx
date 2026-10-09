@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { AllocationBar } from './allocation-bar';
 import { AppLink } from '../shell/app-link';
 import { chartShare } from '../charts/tooltip-data';
@@ -9,18 +10,21 @@ import {
   DimensionChain,
   RevisionTriangle,
 } from '@budget/ui';
-import { cents, MINUS, monthCloseVerdict } from '@budget/domain';
+import { cents, MINUS } from '@budget/domain';
 import { useQuery } from '@tanstack/react-query';
 import { HeutePaceChart } from '../heute/charts';
 import { eur, eurParts, longDay } from '../ledger/format';
 import { EmptyNote, ErrorNote, LoadingNote } from '../ledger/states';
 import { monthLabel } from '../nav/month';
 import type { PageMeta } from '../nav/pages';
+import { Term } from './term';
 import type { ReportEntry } from '../nav/reports-catalog';
 import { NetWorthMini } from './month-charts';
 import { onePagerQuery, type OnePagerData } from './month-api';
 import { MonthReportFrame, shortMonth, useReportMonth } from './month-frame';
 import './onepager-report.css';
+import { onePagerVerdictFacts } from './verdict-facts';
+import { VerdictLine } from './verdict-line';
 
 const CLASSES = ['need', 'want', 'future'] as const;
 const SOLL = { need: 50, want: 30, future: 20 } as const;
@@ -35,8 +39,10 @@ export function OnePagerReport({ report, meta }: { report: ReportEntry; meta: Pa
   const { month, shift, current } = useReportMonth();
   const query = useQuery(onePagerQuery(month));
   const data = query.data;
+  const facts = useMemo(() => (data ? onePagerVerdictFacts(data) : undefined), [data]);
   return (
     <MonthReportFrame
+      verdict={facts && !query.isFetching && !query.isError ? facts : undefined}
       report={report}
       meta={meta}
       month={month}
@@ -75,6 +81,7 @@ export function OnePagerSheet({
   data: OnePagerData;
   linkVerdict?: boolean;
 }) {
+  const verdictFacts = useMemo(() => onePagerVerdictFacts(data), [data]);
   useAmountPrivacy();
   const { result } = data;
   const parts = eurParts(result.savedCents);
@@ -105,15 +112,13 @@ export function OnePagerSheet({
               </span>
             </div>
           </header>
-          <p data-testid="month-close-verdict">
-            {linkVerdict ? (
-              <AppLink to="/reports/onepager" search={{ monat: data.month }}>
-                {monthCloseVerdict(result, eur)}
-              </AppLink>
-            ) : (
-              monthCloseVerdict(result, eur)
-            )}
-          </p>
+          {linkVerdict ? (
+            <AppLink to="/reports/onepager" search={{ monat: data.month }}>
+              <VerdictLine facts={verdictFacts} testId="month-close-verdict" />
+            </AppLink>
+          ) : (
+            <VerdictLine facts={verdictFacts} />
+          )}
           <DimensionChain
             label="Maßkette des Monats"
             precision="euro"
@@ -243,7 +248,7 @@ function Split523({ data }: { data: OnePagerData }) {
             {CLASSES.map((c) => (
               <span key={c}>
                 <ClassSwatch kind={c} />
-                {CLASS_LABEL[c]} <strong>{percent(a.shares[c] * 100)}</strong>
+                <Term>{CLASS_LABEL[c]}</Term> <strong>{percent(a.shares[c] * 100)}</strong>
                 <small>
                   {eur(amount[c], { cents: false })} · Soll {SOLL[c]}
                 </small>
@@ -257,9 +262,9 @@ function Split523({ data }: { data: OnePagerData }) {
             </span>
           </div>
           <p className="b523-note">
-            Zusammen 100 % von {eur(base, { cents: false })} Einnahmen als Zwölftel. Periodische
-            Kosten, Sonderzahlungen und ihre Umbuchungen zählen je Monat mit einem Zwölftel, deshalb
-            weichen die Beträge vom Zahlungsmonat ab.
+            Zusammen 100 % von {eur(base, { cents: false })} Einnahmen als <Term>Zwölftel</Term>.
+            Periodische Kosten, Sonderzahlungen und ihre Umbuchungen zählen je Monat mit einem
+            Zwölftel, deshalb weichen die Beträge vom Zahlungsmonat ab.
           </p>
         </div>
       )}

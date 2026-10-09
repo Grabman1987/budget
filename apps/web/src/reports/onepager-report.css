@@ -506,7 +506,8 @@
       .toast-region,
       .sr-only
     ),
-  body:has(.psheet-wrap) .mrep > :not(.psheet-wrap) {
+  body:has(.psheet-wrap) .mrep > :not(.psheet-wrap),
+  body:has(.psheet-wrap) .sheet > .report-verdict {
     display: none !important;
   }
   body:has(.psheet-wrap) :is(.app, .main, .sheet) {
@@ -545,8 +546,8 @@
     overflow: hidden;
   }
   .ps-body {
-    gap: 12px;
-    padding: 24px 28px 0;
+    gap: 8px;
+    padding: 18px 28px 0;
   }
   .ps-tb {
     margin-right: -28px;
@@ -554,12 +555,22 @@
   .ps-grid {
     gap: 14px 30px;
   }
+  /* The optional chart lines are a screen control; the paper shows the default lines only. */
+  .psheet .pace-context-toggle {
+    display: none;
+  }
   .ps-note,
   .b523-note {
     font-size: 11px;
   }
+  /* The verdict takes part of the fixed sheet height: tighter than on screen so nothing is cut. */
+  .psheet .report-verdict {
+    margin: 0;
+    font-size: 12px;
+    line-height: 1.35;
+  }
   .ps-sec .chart {
-    max-height: 210px;
+    max-height: 196px;
   }
   .ps-sec .chart .draw {
     animation: none;

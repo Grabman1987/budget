@@ -12,7 +12,7 @@ import {
   type DimensionChainTerm,
 } from '@budget/ui';
 import { cents, coverShortfall, overspentEnvelopes, todayInVienna } from '@budget/domain';
-import { useQueries, useQuery } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { useNavigate, useSearch } from '@tanstack/react-router';
 import {
   AlertTriangle,
@@ -45,7 +45,13 @@ import {
 import { MultiTable } from './plan-multi';
 import { AssignCell } from './assign-cell';
 import { QuickAssignActions } from './quick-assign-actions';
-import { assign, coverAll, budgetQuery, type BudgetMonthView } from './budget-api';
+import {
+  assign,
+  coverAll,
+  budgetMonthsQuery,
+  budgetQuery,
+  type BudgetMonthView,
+} from './budget-api';
 import { CategoryIcon } from './category-icon';
 import { IncomeButton } from '../expected/income-panel';
 import { EnvelopePanel } from './envelope-panel';
@@ -104,11 +110,14 @@ export function PlanMonthPage() {
     [month, span],
   );
   // The leftmost month drives hero, triage, inspector and title block; the others only fill columns.
-  const results = useQueries({ queries: months.map((m) => budgetQuery(m)) });
-  const budget = results[0]!;
-  const data = budget.data;
-  const views = results.every((r) => r.data) ? results.map((r) => r.data!) : null;
-  const extraError = results.slice(1).find((r) => r.isError);
+  // One month is the single-month call; several months are ONE batch call (the server derives the
+  // facts and the history once, not once per month column).
+  const first = useQuery({ ...budgetQuery(months[0]!), enabled: months.length === 1 });
+  const batch = useQuery({ ...budgetMonthsQuery(months), enabled: months.length > 1 });
+  const budget = months.length === 1 ? first : batch;
+  const data = months.length === 1 ? first.data : batch.data?.months[months[0]!];
+  const columns = months.map((m) => (months.length === 1 ? first.data : batch.data?.months[m]));
+  const views = columns.every((v) => v) ? columns.map((v) => v!) : null;
   // The month's income (title block and chain term) opens received against expected.
   const navigate = useNavigate();
   const openIncome = () =>
@@ -139,7 +148,6 @@ export function PlanMonthPage() {
             months={months}
             data={data}
             views={views}
-            extraError={extraError}
             onIncome={openIncome}
           />
         )}
@@ -153,7 +161,6 @@ function PlanBody({
   months,
   data,
   views,
-  extraError,
   onIncome,
 }: {
   month: string;
@@ -162,7 +169,6 @@ function PlanBody({
   data: BudgetMonthView;
   /** All visible months once loaded. */
   views: BudgetMonthView[] | null;
-  extraError: { error: Error; refetch: () => unknown } | undefined;
   onIncome: () => void;
 }) {
   useAmountPrivacy();
@@ -409,12 +415,11 @@ function PlanBody({
                   Es fehlen {eur(missing)} – Geld kommt nur durch Einnahmen oder Umbuchungen auf ein
                   Budget-Konto (z. B. aus Tagesgeld oder Depot).
                 </p>
-                <AppLink to="/plan/monat" search={{ monat: shiftMonth(month, 1) }}>
-                  In den nächsten Monat mitnehmen
-                </AppLink>
                 <p>
-                  Offene Barüberziehungen mindern dort „Zu verteilen“; ungedeckte Kartenausgaben
-                  bleiben Kartenschuld.
+                  Überziehungen werden im laufenden Monat gedeckt: Einnahme buchen oder Geld aus
+                  Tagesgeld/Depot auf ein Budget-Konto umbuchen. Ungedeckte Barüberziehungen mindern
+                  sonst im Folgemonat „Zu verteilen“; ungedeckte Kartenausgaben bleiben
+                  Kartenschuld.
                 </p>
               </div>
             )}
@@ -538,13 +543,7 @@ function PlanBody({
             )}
           </div>
           {multi ? (
-            extraError ? (
-              <ErrorNote
-                what="Folgemonate"
-                error={extraError.error}
-                onRetry={() => void extraError.refetch()}
-              />
-            ) : views ? (
+            views ? (
               <MultiTable
                 months={months}
                 views={views}

@@ -1,5 +1,5 @@
 import { splitAssetExposure, todayInVienna } from '@budget/domain';
-import { and, asc, desc, eq, isNull, lte } from 'drizzle-orm';
+import { and, asc, eq, isNull } from 'drizzle-orm';
 import { randomUUID } from 'node:crypto';
 import { assetClass, security, securityAssetExposure, securityExposureVersion } from '../schema';
 import { deleteTracked, insertTracked, updateTracked, withGroup, type AuditContext } from './audit';
@@ -13,40 +13,59 @@ export interface ExposureInput {
   weights: { assetClassId: string; weightBp: number }[];
 }
 
-/** The only effective-date resolver. No timeless legacy fallback, including before first version. */
-export function exposuresAsOf(db: Executor, day: string) {
+type Exposure = {
+  validFrom: string;
+  complete: boolean;
+  source: string;
+  weights: { assetClassId: string; weightBp: number }[];
+};
+
+/**
+ * Effective-date resolver for many days: reads the versions and members once and answers every
+ * day from memory. The answer only changes at a `validFrom`, so days between two versions share
+ * one result (and the same `weights` arrays, which callers use as a cheap "unchanged" test).
+ */
+export function exposureResolver(db: Executor) {
   const versions = db
     .select()
     .from(securityExposureVersion)
-    .where(lte(securityExposureVersion.validFrom, day))
-    .orderBy(desc(securityExposureVersion.validFrom))
+    .orderBy(asc(securityExposureVersion.validFrom))
     .all();
-  const members = db
+  const membersByVersion = new Map<string, { assetClassId: string; weightBp: number }[]>();
+  for (const m of db
     .select()
     .from(securityAssetExposure)
     .orderBy(asc(securityAssetExposure.assetClassId))
-    .all();
-  const result = new Map<
-    string,
-    {
-      validFrom: string;
-      complete: boolean;
-      source: string;
-      weights: { assetClassId: string; weightBp: number }[];
-    }
-  >();
-  for (const v of versions) {
-    if (result.has(v.securityId)) continue;
-    result.set(v.securityId, {
-      validFrom: v.validFrom,
-      complete: v.complete,
-      source: v.source,
-      weights: members
-        .filter((m) => m.versionId === v.id)
-        .map((m) => ({ assetClassId: m.assetClassId, weightBp: m.weightBp })),
-    });
+    .all()) {
+    const list = membersByVersion.get(m.versionId) ?? [];
+    list.push({ assetClassId: m.assetClassId, weightBp: m.weightBp });
+    membersByVersion.set(m.versionId, list);
   }
-  return result;
+  const cache = new Map<number, Map<string, Exposure>>();
+  return (day: string): Map<string, Exposure> => {
+    let applicable = 0;
+    while (applicable < versions.length && versions[applicable]!.validFrom <= day) applicable++;
+    const hit = cache.get(applicable);
+    if (hit) return hit;
+    const result = new Map<string, Exposure>();
+    for (let i = applicable - 1; i >= 0; i--) {
+      const v = versions[i]!;
+      if (result.has(v.securityId)) continue;
+      result.set(v.securityId, {
+        validFrom: v.validFrom,
+        complete: v.complete,
+        source: v.source,
+        weights: (membersByVersion.get(v.id) ?? []).map((w) => ({ ...w })),
+      });
+    }
+    cache.set(applicable, result);
+    return result;
+  };
+}
+
+/** The only effective-date resolver. No timeless legacy fallback, including before first version. */
+export function exposuresAsOf(db: Executor, day: string) {
+  return exposureResolver(db)(day);
 }
 
 export function assetExposureOfSecurityAsOf(db: Executor, securityId: string, day: string) {

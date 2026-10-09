@@ -43,11 +43,11 @@ import { reportMonths } from './spending-report';
 import type { Executor } from './types';
 
 /**
- * Bank- und Zinskosten (2.6). Booked costs only: loan interest/fees (splits explicitly attributed to the fee group on loan accounts,
- * never transfers), bank fees (the category group "Bank und Gebühren"), broker fees of trades and
- * the bank's foreign-currency fee of bookings. Fund costs (TER) are never booked and stay out of
- * the sums. Earnings are interest and dividends booked on budget accounts, labelled and apart:
- * they are not household income (owner decision 02.10.2026).
+ * Bank- und Zinskosten (2.6). Counts booked costs and estimates of missing loan interest only
+ * where stored inputs and dated FX permit the existing model: loan cost-group splits, bank fees
+ * (the category group "Bank und Gebühren"), broker fees of trades and booking FX fees. Fund costs
+ * (TER) are never booked and stay out of the sums. Earnings are interest and dividends booked on
+ * budget accounts, labelled and apart: they are not household income (owner decision 02.10.2026).
  */
 
 /** Name of the category group whose spending counts as bank fees. */
@@ -69,7 +69,7 @@ export interface CreditLineRow {
   termStart: string | null;
   originalAmountCents: number | null;
   termEnd: string | null;
-  /** Interest booked in the last twelve full months; `null` where the ledger has no interest bookings. */
+  /** Booked and modeled interest in the last twelve full months; null for non-loan lines. Zero does not assert complete coverage. */
   interest12Cents: number | null;
   currency: string;
 }
@@ -91,6 +91,8 @@ export interface LoanScenario {
 }
 
 export interface BankCostsReport extends CostsOverview {
+  /** Current-conditions date, separate from the historical closed-month range. */
+  asOf: string;
   from: string | null;
   to: string | null;
   partLabels: Record<string, string>;
@@ -104,6 +106,8 @@ export interface BankCostsReport extends CostsOverview {
   skippedForeignTrades: number;
   /** Distinct source bookings omitted because their dated FX conversion is missing. */
   skippedForeignBookings: number;
+  /** Account/month estimates with nonzero native interest but no EUR rate at the valuation date. */
+  modeledInterestMissingFxPeriods: number;
   sources: Array<{ id: string; name: string; kind: string; cents: number; derived: boolean }>;
   monthly: Array<{
     month: string;
@@ -187,6 +191,7 @@ export function bankCostsReport(db: Executor, today: string): BankCostsReport {
   const liveIds = new Set(rows.map(({ b }) => b.id));
   const explicitMonths = new Set<string>();
   const checkingInterestMonths = new Set<string>();
+  let modeledInterestMissingFxPeriods = 0;
   const costSplits = db
     .select({ split: bookingSplit, b: booking, cat: category, groupName: categoryGroup.name })
     .from(bookingSplit)
@@ -315,8 +320,13 @@ export function bankCostsReport(db: Executor, today: string): BankCostsReport {
         (opening != null && opening < 0
           ? monthlyInterestCents(-opening, rateInForce(a.interestRateBp!, rates, month))
           : 0);
+      if (native === 0) continue;
       const value = convert(native, a.currency, `${month}-15`);
-      if (value === null || value === 0) continue;
+      if (value === null) {
+        if (last12.has(month)) modeledInterestMissingFxPeriods++;
+        continue;
+      }
+      if (value === 0) continue;
       add(modeledInterest, month, value);
       addSource(a.id, a.name, 'modeledInterest', month, value, true);
       const own = interestByAccount.get(a.id) ?? {};
@@ -373,6 +383,7 @@ export function bankCostsReport(db: Executor, today: string): BankCostsReport {
         a.closedAt === null &&
         (a.type === 'loan' ||
           a.type === 'credit_card' ||
+          (a.type === 'checking' && a.balanceCents < 0) ||
           (a.overdraftLimitCents ?? 0) > 0 ||
           (a.creditLimitCents ?? 0) > 0),
     )
@@ -464,6 +475,7 @@ export function bankCostsReport(db: Executor, today: string): BankCostsReport {
       totalCents: parts.reduce((a, p) => a + (p.monthly[month] ?? 0), 0),
       earningsCents: earnings[month] ?? 0,
     })),
+    asOf: today,
     from: first ? `${first}-01` : null,
     to: last ? lastDayOfMonth(last) : null,
     partLabels: Object.fromEntries(parts.map((p) => [p.key, p.name])),
@@ -473,6 +485,7 @@ export function bankCostsReport(db: Executor, today: string): BankCostsReport {
     foreignFeeBookings,
     skippedForeignTrades,
     skippedForeignBookings: skippedBookings.size,
+    modeledInterestMissingFxPeriods,
   };
 }
 

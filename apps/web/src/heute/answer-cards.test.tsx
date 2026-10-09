@@ -34,7 +34,7 @@ it('answers three questions with exact money, source links, proportional bars an
   expect(screen.getAllByRole('heading', { level: 2 }).map((h) => h.textContent)).toEqual([
     'Nettovermögen',
     'Dieser Monat',
-    'Budget',
+    'Frei bis Gehalt',
   ]);
   expect(screen.getByText('35.000,01 €')).toBeTruthy();
   expect(screen.getByText('1.180,01 €')).toBeTruthy();
@@ -45,7 +45,9 @@ it('answers three questions with exact money, source links, proportional bars an
   expect(screen.getByText('Vermögen 525.000,01 € · Schulden 490.000,00 €')).toBeTruthy();
   expect(screen.getByText('Einnahmen 3.500,01 €')).toBeTruthy();
   expect(screen.getByText('Ausgaben 2.320,00 €')).toBeTruthy();
-  expect(screen.getByText('Ausgegeben 2.320,00 € · Übrig 680,00 €')).toBeTruthy();
+  expect(
+    screen.getByText(/Ausgabenplan: 2\.320,00 € ausgegeben von 3\.000,00 € · Plan-Rest 680,00 €/),
+  ).toBeTruthy();
   expect(screen.getByText('Tag 26 von 30')).toBeTruthy();
   expect(screen.getByText('Reise · gespart 1.200,01 € · fehlt 800,00 €')).toBeTruthy();
   expect(screen.getAllByRole('img')).toHaveLength(3);
@@ -82,4 +84,30 @@ it('keeps zero, overspending, missing valuation and missing goals explicit witho
   expect(screen.queryByText(/gespart/)).toBeNull();
   expect(container.innerHTML).not.toMatch(/NaN|Infinity/);
   expect(container.querySelectorAll('.heute-answer-bar')).toHaveLength(2);
+});
+
+it('distinguishes positive monthly plan-rest from negative money available until payday', () => {
+  const example = {
+    ...data,
+    lead: { ...data.lead, freeCents: -10_000 },
+    budgetAnswer: {
+      spentCents: 60_000,
+      plannedCents: 100_000,
+      remainingCents: 40_000,
+      day: 17,
+      daysInMonth: 30,
+    },
+  } as Heute;
+  render(<AnswerCards data={example} onBudgetClick={() => {}} />);
+
+  expect(screen.getByRole('heading', { name: 'Frei bis Gehalt' })).toBeTruthy();
+  expect(screen.getByTestId('heute-lead-value').textContent).toBe('−100,00 €');
+  expect(
+    screen.getByText('Ausgabenplan: 600,00 € ausgegeben von 1.000,00 € · Plan-Rest 400,00 €'),
+  ).toBeTruthy();
+  expect(
+    screen.getByText(
+      'Plan-Rest: geplante Monatsausgaben minus bisher ausgegeben, kein Kontoguthaben. Frei bis Gehalt: verfügbares Bedarf-/Wunschbudget minus offene Rechnungen.',
+    ),
+  ).toBeTruthy();
 });

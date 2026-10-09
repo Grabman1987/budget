@@ -161,9 +161,9 @@ export function planningAccuracyReport(db: Executor, month: string, today: strin
   const totals = snapshots
     .filter((s) => s.categoryId === null && s.month < currentMonth)
     .sort((a, b) => a.month.localeCompare(b.month));
-  const facts = loadFacts(db, today);
+  const loadedFacts = loadFacts(db, today);
   // Retain deleted category identity for historical spending; no live forecast is reconstructed.
-  facts.categories = db.select().from(category).all();
+  const facts = { ...loadedFacts, categories: db.select().from(category).all() };
   const months = totals.map((s) => {
     const actualCents = pace(db, facts, s.month, lastDayOfMonth(s.month)).spentCents;
     return {

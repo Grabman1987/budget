@@ -1,5 +1,5 @@
 import { useQuery, type UseQueryResult } from '@tanstack/react-query';
-import type { ReactNode } from 'react';
+import { useMemo, type ReactNode } from 'react';
 import { ErrorNote, LoadingNote, EmptyNote } from '../ledger/states';
 import type { PageMeta } from '../nav/pages';
 import type { ReportEntry } from '../nav/reports-catalog';
@@ -7,6 +7,8 @@ import { PageFrame } from '../pages/placeholder-page';
 import { monthShort } from './table-format';
 import { reportTablesQuery, type ReportTables } from './table-reports-api';
 import './table-reports.css';
+import { tableVerdictFacts } from './verdict-facts';
+import { reportPeriodMonths, type Period } from '@budget/domain';
 
 /** The one read of the monthly facts; reports call it for their title-block controls and pass it on. */
 export const useReportTables = (netWorth = false): UseQueryResult<ReportTables> =>
@@ -26,8 +28,12 @@ export function TableReportFrame({
   extraFields,
   className,
   children,
+  verdictEnd,
+  verdictPeriod,
 }: {
   report: ReportEntry;
+  verdictEnd?: string | undefined;
+  verdictPeriod?: Period | undefined;
   meta: PageMeta;
   through: 'full' | 'current';
   currentAllowed?: boolean;
@@ -50,8 +56,21 @@ export function TableReportFrame({
     tables &&
     tables.firstMonth !== null &&
     (through === 'current' || currentAllowed || tables.lastFullMonth !== null);
+  const verdictMonth =
+    verdictEnd ??
+    (verdictPeriod && tables?.firstMonth && end
+      ? reportPeriodMonths(verdictPeriod, end, tables.firstMonth).at(-1)
+      : (end ?? tables?.currentMonth));
+  const verdict = useMemo(
+    () =>
+      tables && verdictMonth && !query.isFetching && !query.isError
+        ? tableVerdictFacts(report.id, tables, verdictMonth)
+        : undefined,
+    [tables, verdictMonth, query.isFetching, query.isError, report.id],
+  );
   return (
     <PageFrame
+      verdict={verdict}
       meta={meta}
       title={report.name}
       subtitle={`${report.pos} · ${report.question}`}

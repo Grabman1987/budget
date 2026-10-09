@@ -1,6 +1,15 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type Page } from '@playwright/test';
-import { again, balance, createAccount, openAccount, pickCategory, toast } from './ledger-helpers';
+import {
+  again,
+  balance,
+  createAccount,
+  openAccount,
+  pickCategory,
+  toast,
+  openLedgerFilters,
+  applyLedgerFilters,
+} from './ledger-helpers';
 
 /**
  * The ledger end to end on the real server: accounts, bookings with split and transfer, edit in
@@ -49,7 +58,8 @@ test('accounts, bookings, split, transfer, undo and redo', async ({ page }, test
   await page.getByRole('button', { name: 'Buchung erfassen' }).click();
   panel = page.getByRole('dialog', { name: 'Buchung erfassen' });
   await panel.getByLabel('Betrag', { exact: true }).fill('30');
-  await panel.getByLabel('Empfänger').fill(`Markt ${tag}`);
+  await panel.getByLabel('Empfänger').fill(`Splitmarkt ${tag}`);
+  await panel.locator('summary').click();
   await panel.getByRole('button', { name: 'Aufteilen' }).click();
   await panel.getByLabel('Kategorie 1').selectOption({ value: 'e2e-essen' });
   await panel.getByLabel('Betrag 1').fill('20');
@@ -61,7 +71,7 @@ test('accounts, bookings, split, transfer, undo and redo', async ({ page }, test
   await panel.getByLabel('Betrag 2').fill('10');
   await expect(panel.getByText('Aufteilung geht auf.')).toBeVisible();
   await panel.getByRole('button', { name: 'Speichern', exact: true }).click();
-  await expect(page.getByRole('row', { name: new RegExp(`Markt ${tag}`) })).toContainText(
+  await expect(page.getByRole('row', { name: new RegExp(`Splitmarkt ${tag}`) })).toContainText(
     'Aufgeteilt (2)',
   );
   await expect(balance(page)).toHaveText('957,50 €');
@@ -140,10 +150,14 @@ test('Alle Buchungen: filter in the URL, search, bulk edit with undo', async ({
 
   // The account filter is a URL parameter and survives a reload.
   await page.goto('/konten/buchungen');
+  await openLedgerFilters(page);
   await page.getByLabel('Konto', { exact: true }).selectOption({ label: giro });
+  await applyLedgerFilters(page);
   await expect(page).toHaveURL(/konto=/);
   await page.reload();
+  await openLedgerFilters(page);
   await expect(page.getByLabel('Konto', { exact: true })).toHaveValue(/.+/);
+  await applyLedgerFilters(page);
   await expect(page.getByText('3 Buchungen ·')).toBeVisible();
 
   // A broken link drops the bad values instead of failing: impossible day, overlong id.
@@ -151,7 +165,9 @@ test('Alle Buchungen: filter in the URL, search, bulk edit with undo', async ({
   await expect(page.getByText(/\d+ Buchung(en)? ·/)).toBeVisible();
   await expect(page.getByText(/konnte(n)? nicht geladen/)).toHaveCount(0);
   await page.goBack();
+  await openLedgerFilters(page);
   await expect(page.getByLabel('Konto', { exact: true })).toHaveValue(/.+/);
+  await applyLedgerFilters(page);
 
   // Search narrows the list and lands in the URL.
   await page.getByLabel('In Buchungen suchen').fill('Bio-Laden');
@@ -265,10 +281,10 @@ test('ledger pages with data: axe clean in both themes, no sideways scrolling', 
   await page.getByRole('button', { name: 'Buchung erfassen' }).click();
   const panel = page.getByRole('dialog', { name: 'Buchung erfassen' });
   await panel.getByLabel('Betrag', { exact: true }).fill('9,90');
-  await panel.getByLabel('Empfänger').fill(`Kiosk ${tag}`);
+  await panel.getByLabel('Empfänger').fill(`Kontenkiosk ${tag}`);
   await pickCategory(panel, 'Essen');
   await panel.getByRole('button', { name: 'Speichern', exact: true }).click();
-  await expect(page.getByRole('row', { name: new RegExp(`Kiosk ${tag}`) })).toBeVisible();
+  await expect(page.getByRole('row', { name: new RegExp(`Kontenkiosk ${tag}`) })).toBeVisible();
   const accountUrl = page.url();
 
   const violations = async () =>

@@ -15,7 +15,7 @@ import {
 import { addDays, cents, closeEntryMonth } from '@budget/domain';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from '@tanstack/react-router';
-import { useState, type ReactNode } from 'react';
+import { useMemo, useState, type ReactNode } from 'react';
 import {
   AlertTriangle,
   ArrowDown,
@@ -47,6 +47,9 @@ import { savingsProposalsQuery } from '../wealth/savings-api';
 import { sourceMoney } from '../wealth/trade-api';
 import { AnswerCards } from './answer-cards';
 import { DailyBudgetLine } from './charts';
+import { VerdictLine } from '../reports/verdict-line';
+import { heuteVerdictFacts } from '../reports/verdict-facts';
+import { Upcoming } from './upcoming-payments';
 
 const pct = new Intl.NumberFormat('de-AT', { maximumFractionDigits: 2 });
 const STATUS: Record<string, string> = {
@@ -81,6 +84,7 @@ export function HeutePage() {
 
 function HeuteBody({ data }: { data: Heute }) {
   useAmountPrivacy();
+  const heuteFacts = useMemo(() => heuteVerdictFacts(data), [data]);
   const [chainOpen, setChainOpen] = useState(false);
   const [netDetail, setNetDetail] = useState<'liquid' | 'invested' | 'receivable' | 'debt' | null>(
     null,
@@ -164,7 +168,62 @@ function HeuteBody({ data }: { data: Heute }) {
         chainOpen={chainOpen}
         onBudgetClick={() => setChainOpen((open) => !open)}
       />
+      <VerdictLine facts={heuteFacts} />
       <AttentionBar data={data} />
+      <section className="heute-lead" aria-labelledby="heute-lead-title">
+        <div className="heute-lead-head">
+          <div>
+            <h2 id="heute-lead-title">Kontoprognose</h2>
+            <p>
+              Verfügbar in allen Envelopes für Bedarf und Wunsch, abzüglich der Rechnungen, die vor
+              dem Gehalt noch fällig sind.
+            </p>
+            {away && (
+              <span className="heute-anchor" data-testid="heute-anchor">
+                Bis Gehalt zählt immer ab heute ({shortDay(data.stand.today)}, Gehalt am{' '}
+                {shortDay(data.stand.payday.day)}), nicht ab {monthName(data.stand.month)}.
+              </span>
+            )}
+          </div>
+          <Button
+            variant="ghost"
+            size="sm"
+            aria-expanded={chainOpen}
+            aria-controls="heute-lead-chain"
+            onClick={() => setChainOpen((open) => !open)}
+          >
+            {chainOpen ? 'Herleitung ausblenden' : 'Herleitung zeigen'}
+          </Button>
+        </div>
+        <BalanceChart
+          data={data}
+          chainOpen={chainOpen}
+          onToggleChain={() => setChainOpen((open) => !open)}
+          showLead={false}
+        />
+        <DailyBudgetLine data={data} />
+        {data.balance.forecast.length > 0 && (
+          <p className="heute-note">
+            Kontoprognose bis {longDay(data.stand.to)} · 14 Tage Rückblick · gleicher Horizont wie
+            R07.
+          </p>
+        )}
+        {chainOpen && (
+          <div id="heute-lead-chain" className="heute-chain-area">
+            <DimensionChain
+              terms={leadTerms}
+              label="Maßkette: Bedarf plus Wunsch minus offene Rechnungen bis Gehalt"
+              precision="cent"
+            />
+            {leadDetail && <LeadDetail data={data} kind={leadDetail} />}
+            <p className="heute-note">
+              Wähle Bedarf, Wunsch oder offen bis Gehalt für die zugehörigen Envelopes und
+              Zahlungen.
+            </p>
+          </div>
+        )}
+      </section>
+
       <section className="heute-section heute-pace" aria-labelledby="heute-pace-title">
         <SectionHead
           id="heute-pace-title"
@@ -239,60 +298,6 @@ function HeuteBody({ data }: { data: Heute }) {
           {!data.pace.figures.forecastAvailable &&
             ' Für eine Prognose braucht es einen positiven Plan.'}
         </p>
-      </section>
-
-      <section className="heute-lead" aria-labelledby="heute-lead-title">
-        <div className="heute-lead-head">
-          <div>
-            <h2 id="heute-lead-title">Kontoprognose</h2>
-            <p>
-              Verfügbar in allen Envelopes für Bedarf und Wunsch, abzüglich der Rechnungen, die vor
-              dem Gehalt noch fällig sind.
-            </p>
-            {away && (
-              <span className="heute-anchor" data-testid="heute-anchor">
-                Bis Gehalt zählt immer ab heute ({shortDay(data.stand.today)}, Gehalt am{' '}
-                {shortDay(data.stand.payday.day)}), nicht ab {monthName(data.stand.month)}.
-              </span>
-            )}
-          </div>
-          <Button
-            variant="ghost"
-            size="sm"
-            aria-expanded={chainOpen}
-            aria-controls="heute-lead-chain"
-            onClick={() => setChainOpen((open) => !open)}
-          >
-            {chainOpen ? 'Herleitung ausblenden' : 'Herleitung zeigen'}
-          </Button>
-        </div>
-        <BalanceChart
-          data={data}
-          chainOpen={chainOpen}
-          onToggleChain={() => setChainOpen((open) => !open)}
-          showLead={false}
-        />
-        <DailyBudgetLine data={data} />
-        {data.balance.forecast.length > 0 && (
-          <p className="heute-note">
-            Kontoprognose bis {longDay(data.stand.to)} · 14 Tage Rückblick · gleicher Horizont wie
-            R07.
-          </p>
-        )}
-        {chainOpen && (
-          <div id="heute-lead-chain" className="heute-chain-area">
-            <DimensionChain
-              terms={leadTerms}
-              label="Maßkette: Bedarf plus Wunsch minus offene Rechnungen bis Gehalt"
-              precision="cent"
-            />
-            {leadDetail && <LeadDetail data={data} kind={leadDetail} />}
-            <p className="heute-note">
-              Wähle Bedarf, Wunsch oder offen bis Gehalt für die zugehörigen Envelopes und
-              Zahlungen.
-            </p>
-          </div>
-        )}
       </section>
 
       <Upcoming
@@ -636,64 +641,6 @@ function MoreMonth({ phone, children }: { phone: boolean; children: ReactNode })
   );
 }
 
-function Upcoming({ items, id, title }: { items: Heute['upcoming14']; id: string; title: string }) {
-  useAmountPrivacy();
-  return (
-    <section className="heute-section" aria-labelledby={id}>
-      <SectionHead
-        id={id}
-        title={title}
-        aside={
-          <AppLink to="/plan/erwartet">
-            Alle <ChevronRight size={15} aria-hidden="true" />
-          </AppLink>
-        }
-      />
-      {items.length === 0 ? (
-        <EmptyNote>Keine wiederkehrenden Zahlungen in diesem Zeitraum.</EmptyNote>
-      ) : (
-        <ul className="heute-list">
-          {items.map((item) => (
-            <li className="heute-upcoming" key={`${item.paymentId}-${item.dueDate}`}>
-              <time dateTime={item.dueDate}>{shortDay(item.dueDate)}</time>
-              <div>
-                <strong>{item.name}</strong>
-                <span>
-                  {[item.accountName, item.contactName, item.categoryName]
-                    .filter(Boolean)
-                    .join(' · ') || 'Ohne weitere Angabe'}
-                </span>
-              </div>
-              <div className="heute-amount-status">
-                <AppLink to="/plan/erwartet" search={{ zahlung: item.paymentId }}>
-                  {eur(item.amountCents, { sign: true })}
-                </AppLink>
-                <span
-                  className={
-                    item.covered === false ? 'heute-note' : item.covered ? 'heute-good' : ''
-                  }
-                >
-                  {item.covered === true ? (
-                    <>
-                      <CircleCheck size={14} aria-hidden="true" /> Rücklage voll
-                    </>
-                  ) : item.covered === false ? (
-                    <>
-                      <Clock3 size={14} aria-hidden="true" /> nicht gedeckt
-                    </>
-                  ) : (
-                    statusText(item.status)
-                  )}
-                </span>
-              </div>
-            </li>
-          ))}
-        </ul>
-      )}
-    </section>
-  );
-}
-
 function WealthSparkline({ series }: { series: { day: string; cents: number }[] }) {
   const min = Math.min(...series.map((p) => p.cents));
   const span = Math.max(1, Math.max(...series.map((p) => p.cents)) - min);
@@ -932,16 +879,6 @@ function StatusIcon({ status }: { status: 'ok' | 'warn' | 'bad' }) {
   if (status === 'ok') return <CircleCheck size={15} aria-hidden="true" />;
   if (status === 'warn') return <Clock3 size={15} aria-hidden="true" />;
   return <AlertTriangle size={15} aria-hidden="true" />;
-}
-
-function statusText(status: Heute['upcoming14'][number]['status']) {
-  return status === 'expected'
-    ? 'erwartet'
-    : status === 'received'
-      ? 'erhalten'
-      : status === 'deviating'
-        ? 'abweichend'
-        : 'versäumt';
 }
 
 function monthLabel(month: string) {

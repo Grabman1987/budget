@@ -706,9 +706,87 @@
   height: 16px;
   accent-color: var(--line);
 }
+/* Desktop row: the checkbox hangs below the account field so every field sits on one line. */
+.kfilter .kf:has(> .kf-closed) {
+  position: relative;
+}
+.kfilter > .kf > .kf-closed {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  margin-top: 4px;
+  white-space: nowrap;
+}
+.kfilter:has(.kf-closed) {
+  padding-bottom: 36px;
+}
 .kf-search {
   flex: 1 1 240px;
   max-width: 360px;
+}
+.kfilter-phone {
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--rule);
+}
+.kfilter-search-row {
+  display: flex;
+  align-items: end;
+  gap: 8px;
+}
+.kfilter-search-row .kf-search {
+  flex: 1;
+  min-width: 0;
+}
+.kfilter-search-row .field-row {
+  margin-bottom: 0;
+}
+.kfilter-search-row > .btn {
+  flex-shrink: 0;
+  min-height: 44px;
+  white-space: nowrap;
+}
+.kfilter-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+.kfilter-chip.btn {
+  min-height: 44px;
+  height: auto;
+  max-width: 100%;
+  border: 1px solid var(--rule-strong);
+  border-radius: var(--radius-pill);
+  white-space: normal;
+  overflow-wrap: anywhere;
+  text-align: left;
+}
+.kfilter-chip svg {
+  flex-shrink: 0;
+}
+.kfilter-sheet .kf.kf-sort {
+  display: grid;
+}
+.kfilter-sheet .kf {
+  min-width: 0;
+}
+.kfilter-sheet .select-sm {
+  min-height: 44px;
+}
+.kfilter-sheet .kf-closed {
+  min-height: 44px;
+}
+.kfilter-actions {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  padding-top: 16px;
+  position: sticky;
+  bottom: 0;
+  background: var(--raised);
+}
+.kfilter-actions .btn {
+  min-height: 44px;
 }
 .kbulk {
   display: flex;
@@ -1352,7 +1430,15 @@
     margin: 0;
   }
   .bk-body {
-    padding: 14px 16px 8px;
+    padding: 8px 16px;
+    gap: 6px;
+  }
+  .bk-body .field-row {
+    gap: 4px;
+  }
+  .bk-body .amount-box {
+    min-height: var(--touch);
+    padding-block: 4px;
   }
   .bk-foot {
     padding: 10px 16px 12px;
@@ -1463,7 +1549,7 @@
   gap: 12px;
   flex-wrap: wrap;
 }
-.kform-pair:has(.kdate-status) {
+.kform-pair:has(.bk-dates) {
   grid-template-columns: minmax(0, 1fr);
 }
 .kdate-status {
@@ -1497,4 +1583,33 @@
 }
 .kchart-range .seg button {
   min-height: 44px;
+}
+
+/* Booking suggestions open above the payee: no overlap or blur reflow at Bezahlt von. */
+.bk-payee .combo-list {
+  top: auto;
+  bottom: calc(100% + 4px);
+  max-height: 132px;
+}
+.bk-date-chips {
+  margin: 0 0 8px;
+}
+.bk-date-chips .chip {
+  height: 44px;
+}
+.bkform .kmore > summary {
+  min-height: 44px;
+  padding-block: 12px;
+}
+.bk-more-summary {
+  font-weight: 400;
+}
+
+@media (max-width: 767px) {
+  .bk-date-chips {
+    margin-bottom: 4px;
+  }
+  .bkform .kmore > summary {
+    padding-block: 8px;
+  }
 }

@@ -40,7 +40,7 @@ import {
   valuation,
 } from '../schema';
 import { lastSuccessfulMarketRun } from './market';
-import { memoized } from './request-memo';
+import { memoized, memoizedShared } from './request-memo';
 import { noteIncomplete } from './valuation-notes';
 import { accountBalances } from './queries';
 import { MissingFxRateError } from './errors';
@@ -115,6 +115,36 @@ export function holdingValuationAsOf(
   );
 }
 
+/** Every live trade with its account currency, in booking order; read once per request. */
+function valuationTrades(db: Executor) {
+  return memoizedShared(db, 'valuationTrades', () =>
+    db
+      .select({
+        securityId: trade.securityId,
+        accountId: trade.accountId,
+        date: trade.date,
+        kind: trade.kind,
+        unitsE8: trade.unitsE8,
+        amountCents: trade.amountCents,
+        feeCents: trade.feeCents,
+        taxCents: trade.taxCents,
+        currency: account.currency,
+      })
+      .from(trade)
+      .innerJoin(account, eq(account.id, trade.accountId))
+      .where(isNull(trade.deletedAt))
+      .orderBy(trade.date, trade.id)
+      .all(),
+  );
+}
+
+/** The stored rates on or before a day (all rates are read once per request). */
+function fxRatesUpTo(db: Executor, asOf: string): Rates {
+  return memoizedShared(db, 'fxRates', () => db.select().from(fxRate).all()).filter(
+    (r) => r.date <= asOf,
+  );
+}
+
 function computeHoldingValuation(db: Executor, asOf: string, estimate: boolean): HoldingValuation {
   const live = new Set(
     db
@@ -136,23 +166,7 @@ function computeHoldingValuation(db: Executor, asOf: string, estimate: boolean):
     .from(holding)
     .where(and(lte(holding.asOf, asOf), isNull(holding.deletedAt)))
     .all();
-  const allTrades = db
-    .select({
-      securityId: trade.securityId,
-      accountId: trade.accountId,
-      date: trade.date,
-      kind: trade.kind,
-      unitsE8: trade.unitsE8,
-      amountCents: trade.amountCents,
-      feeCents: trade.feeCents,
-      taxCents: trade.taxCents,
-      currency: account.currency,
-    })
-    .from(trade)
-    .innerJoin(account, eq(account.id, trade.accountId))
-    .where(isNull(trade.deletedAt))
-    .orderBy(trade.date, trade.id)
-    .all();
+  const allTrades = valuationTrades(db);
   const trades = allTrades.filter((t) => t.date <= asOf);
   const priceTrades = new Map<string, typeof allTrades>();
   for (const t of allTrades) {
@@ -177,7 +191,7 @@ function computeHoldingValuation(db: Executor, asOf: string, estimate: boolean):
     const found = latestPrice(securityId);
     if (found) pricesBySecurity.set(securityId, [found]);
   }
-  const rates: Rates = db.select().from(fxRate).where(lte(fxRate.date, asOf)).all();
+  const rates: Rates = fxRatesUpTo(db, asOf);
 
   // Rows of each position (account x security), in the order they were read.
   const keys = new Map<string, { accountId: string; securityId: string }>();
@@ -446,7 +460,7 @@ function computeNetWorthValuation(
       if (manualAccounts.has(row.accountId) && !manualValues.has(row.accountId))
         manualValues.set(row.accountId, row.valueCents);
     }
-  const rates: Rates = db.select().from(fxRate).where(lte(fxRate.date, asOf)).all();
+  const rates: Rates = fxRatesUpTo(db, asOf);
   const byAccount: Record<string, number | null> = {};
   const missingFxByAccount = new Map<string, Set<string>>();
   const addMissing = (accountId: string, currency: string) => {
@@ -774,7 +788,17 @@ function tradesOf(
     })
     .from(trade)
     .innerJoin(account, eq(account.id, trade.accountId))
-    .where(and(isNull(trade.deletedAt), lte(trade.date, filter.to)))
+    .where(
+      and(
+        isNull(trade.deletedAt),
+        lte(trade.date, filter.to),
+        gt(trade.date, after),
+        // A few securities (one per call in the class histories) use trade_security_date_idx.
+        filter.securities !== undefined && filter.securities.length <= 100
+          ? inArray(trade.securityId, [...filter.securities])
+          : undefined,
+      ),
+    )
     .all()
     .filter(
       (t) =>

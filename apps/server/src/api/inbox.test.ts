@@ -184,4 +184,32 @@ describe('inbox API', () => {
     expect((await call('POST', '/inbox/warning/resolve', {})).status).toBe(409);
     expect((await call('GET', '/inbox/count')).body.count).toBe(1);
   });
+
+  it('pages the queue with limit/offset; without limit the whole queue as before', async () => {
+    const ctx = { actor: 'test' };
+    for (let i = 0; i < 7; i++)
+      insertTracked(
+        opened.db,
+        schema.inboxItem,
+        {
+          id: `page-${i}`,
+          kind: 'other',
+          title: `Aufgabe ${i}`,
+          createdAt: `2026-09-0${i + 1}T10:00:00.000Z`,
+        },
+        ctx,
+      );
+    const whole = await call('GET', '/inbox');
+    expect(whole.body.entries).toHaveLength(7);
+    expect(Object.keys(whole.body).sort()).toEqual(['asOf', 'count', 'entries']);
+    const first = await call('GET', '/inbox?limit=3');
+    expect(first.body).toMatchObject({ count: whole.body.count, limit: 3, offset: 0, next: 3 });
+    const second = await call('GET', '/inbox?limit=3&offset=3');
+    const third = await call('GET', '/inbox?limit=3&offset=6');
+    expect(third.body.next).toBeNull();
+    expect([...first.body.entries, ...second.body.entries, ...third.body.entries]).toEqual(
+      whole.body.entries,
+    );
+    expect((await call('GET', '/inbox?limit=0')).status).toBe(400);
+  });
 });

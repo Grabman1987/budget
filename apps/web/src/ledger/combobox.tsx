@@ -39,6 +39,8 @@ export interface ComboboxProps {
   onFocusChange?: (focused: boolean) => void;
   /** With text typed, the first match is highlighted, so Enter picks it (category search). */
   pickFirst?: boolean;
+  /** Booking payees: Enter accepts an unambiguous suggestion without selecting among several. */
+  pickSingle?: boolean;
   /** Column heading above the right-aligned hints ("Verfügbar"); shown with the list. */
   hintHeading?: string;
 }
@@ -67,6 +69,7 @@ export function Combobox({
   filter,
   onFocusChange,
   pickFirst = false,
+  pickSingle = false,
   hintHeading,
 }: ComboboxProps) {
   const listId = useId();
@@ -108,7 +111,9 @@ export function Combobox({
   const activeIndex =
     active >= 0
       ? Math.min(active, shown.length - 1)
-      : pickFirst && fold(filter ?? value) !== '' && shown.length > 0
+      : (pickFirst || (pickSingle && shown.length === 1)) &&
+          fold(filter ?? value) !== '' &&
+          shown.length > 0
         ? 0
         : -1;
 

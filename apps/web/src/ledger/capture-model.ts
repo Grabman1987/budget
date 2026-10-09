@@ -117,6 +117,18 @@ export function defaultAccountId(
   return (ordered.find((a) => a.onBudget) ?? ordered[0])?.id ?? '';
 }
 
+/** Account for a chosen payee; a closed/missing source falls back to the last live account. */
+export function accountFromPayee(
+  accounts: ReadonlyArray<Pick<AccountRow, 'id' | 'onBudget' | 'closedAt'>>,
+  recent: ReadonlyArray<string>,
+  lastPayeeAccount: string | undefined,
+): string {
+  const preferred = [lastPayeeAccount, ...recent].find((id) =>
+    accounts.some((a) => a.id === id && !a.closedAt),
+  );
+  return defaultAccountId(accounts, recent, preferred);
+}
+
 export interface CaptureMemory {
   accounts: string[];
   categories: string[];

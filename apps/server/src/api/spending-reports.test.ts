@@ -759,6 +759,107 @@ describe('2.6 Bank- und Zinskosten on a small ledger', () => {
     expect(body.incomeShareBp).toBe(Math.round((body.totalCents * 10_000) / 300_000));
   });
 
+  it('dates current terms separately from the historical report period', async () => {
+    const { body } = await get(app, '/reports/spending/costs');
+    expect(body).toMatchObject({ asOf: '2026-09-17', to: '2026-08-31' });
+  });
+
+  it('includes currently used checking and loan accounts with unknown rates', async () => {
+    accounts.create(
+      opened.db,
+      {
+        id: 'unknown-checking',
+        name: 'Synthetic negative checking',
+        type: 'checking',
+        role: 'budget',
+        onBudget: true,
+        openingDate: '2026-09-01',
+        openingBalanceCents: -5_000,
+      },
+      ctx,
+    );
+    accounts.create(
+      opened.db,
+      {
+        id: 'unknown-loan',
+        name: 'Synthetic loan without rate',
+        type: 'loan',
+        role: 'debt',
+        onBudget: false,
+        openingDate: '2026-08-01',
+        openingBalanceCents: -50_000,
+      },
+      ctx,
+    );
+
+    const { body } = await get(app, '/reports/spending/costs');
+    expect(body.creditLines.find((line: any) => line.id === 'unknown-checking')).toMatchObject({
+      type: 'checking',
+      usedCents: 5_000,
+      limitCents: null,
+      rateBp: null,
+    });
+    expect(body.creditLines.find((line: any) => line.id === 'unknown-loan')).toMatchObject({
+      usedCents: 50_000,
+      rateBp: null,
+    });
+  });
+
+  it('counts nonzero modeled interest months without an FX rate on the valuation date', async () => {
+    accounts.create(
+      opened.db,
+      {
+        id: 'usd-loan',
+        name: 'Synthetic USD loan',
+        type: 'loan',
+        role: 'debt',
+        onBudget: false,
+        openingDate: '2026-08-01',
+        openingBalanceCents: -100_000,
+        currency: 'USD',
+        originalAmountCents: 100_000,
+        termStart: '2026-08-01',
+        interestRateBp: 1_200,
+        installmentCents: 2_000,
+      },
+      ctx,
+    );
+    accounts.create(
+      opened.db,
+      {
+        id: 'usd-zero-rate-loan',
+        name: 'Synthetic zero-rate USD loan',
+        type: 'loan',
+        role: 'debt',
+        onBudget: false,
+        openingDate: '2026-08-01',
+        openingBalanceCents: -25_000,
+        currency: 'USD',
+        originalAmountCents: 25_000,
+        termStart: '2026-08-01',
+        interestRateBp: 0,
+        installmentCents: 2_000,
+      },
+      ctx,
+    );
+    opened.db
+      .insert(schema.fxRate)
+      .values({
+        currency: 'USD',
+        date: '2026-08-16',
+        rateMicro: 900_000,
+        source: 'synthetic',
+      } as never)
+      .run();
+
+    const { body } = await get(app, '/reports/spending/costs');
+    expect(body.modeledInterestMissingFxPeriods).toBe(1);
+    expect(body.creditLines.find((line: any) => line.id === 'usd-zero-rate-loan')?.rateBp).toBe(0);
+    expect(
+      body.monthly.find((month: any) => month.month === '2026-08')?.parts.modeledInterest,
+    ).toBe(0);
+  });
+
   it('is empty and calm without a loan, and the fund costs have their own request', async () => {
     const body = (await get(app, '/reports/spending/costs')).body;
     expect(body.loan).not.toBeNull();

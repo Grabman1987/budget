@@ -186,8 +186,8 @@ test('guided month close walks all five steps, undoes the whole plan and keeps a
     await page.getByRole('button', { name: 'Suchen', exact: true }).click();
   else await page.keyboard.press('Control+k');
   await page
-    .locator('.global-search-popup')
-    .getByRole('link', { name: 'Monatsabschluss starten oder fortsetzen', exact: true })
+    .getByRole('listbox', { name: 'Suchergebnisse' })
+    .getByRole('option', { name: /Monatsabschluss starten/ })
     .click();
   await expect(page.getByRole('heading', { name: '5. Rückblick' })).toBeVisible();
 });
