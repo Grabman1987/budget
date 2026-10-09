@@ -30,11 +30,14 @@ import {
   monthIncome,
   refreshOccurrences,
   restoreExpectedPayment,
+  skipOccurrence,
   unlinkOccurrence,
+  unskipOccurrence,
   updateExpectedPayment,
   upcoming,
   versionSuggestions,
 } from './expected';
+import { forecastInputs, loadFacts, scheduled } from './rule-inputs';
 import { seedBasics, testCtx as ctx } from './test-helpers';
 
 let opened: OpenedDatabase;
@@ -746,5 +749,183 @@ describe('booking lifecycle for expected payments', () => {
       status: 'deviating',
       bookingId: transfer.toBookingId,
     });
+  });
+});
+
+describe('skipping one occurrence (gestrichen)', () => {
+  /** A salary on the 15th, 3.000,00 €, next to the rent on the 1st. */
+  const salary = () =>
+    createExpectedPayment(
+      db,
+      {
+        name: 'Gehalt',
+        kind: 'inflow',
+        accountId: 'giro',
+        incomeTypeId: db.select().from(incomeType).all()[0]!.id,
+        dueDay: 15,
+        startDate: '2026-01-01',
+      },
+      { validFrom: '2026-01-01', amountCents: 300_000 },
+      ctx,
+      TODAY,
+    ).payment;
+  const row = (paymentId: string, dueDate: string) =>
+    occurrencesOf(paymentId).find((o) => o.dueDate === dueDate);
+  const forecastItems = () => forecastInputs(loadFacts(db, TODAY), TODAY, { byAccount: {} }).items;
+  const forecastDays = () => forecastItems().map((i) => i.day);
+
+  it('creates the row of a not yet materialised occurrence and is idempotent', () => {
+    const p = salary();
+    db.delete(expectedOccurrence).run();
+    expect(occurrencesOf(p.id)).toEqual([]);
+    const first = skipOccurrence(db, p.id, '2026-05-15', ctx, TODAY);
+    expect(first.occurrence).toMatchObject({
+      dueDate: '2026-05-15',
+      status: 'skipped',
+      expectedAmountCents: 300_000,
+      bookingId: null,
+    });
+    expect(skipOccurrence(db, p.id, '2026-05-15', ctx, TODAY).occurrence.id).toBe(
+      first.occurrence.id,
+    );
+    expect(occurrencesOf(p.id)).toHaveLength(1);
+  });
+
+  it('skips a materialised row without touching the rule or the other rows', () => {
+    const p = salary();
+    const before = occurrencesOf(p.id);
+    skipOccurrence(db, p.id, '2026-04-15', ctx, TODAY);
+    const after = occurrencesOf(p.id);
+    expect(after.map((o) => [o.dueDate, o.status])).toEqual(
+      before.map((o) => [o.dueDate, o.dueDate === '2026-04-15' ? 'skipped' : 'expected']),
+    );
+    expect(listExpectedPayments(db, TODAY).find((x) => x.id === p.id)).toMatchObject({
+      dueDay: 15,
+      amountCents: 300_000,
+    });
+  });
+
+  it('refuses a date that is no occurrence of the rule or lies outside the window', () => {
+    const p = salary();
+    for (const day of ['2026-05-14', '2025-01-15', '2028-05-15', 'morgen'])
+      expect(() => skipOccurrence(db, p.id, day, ctx, TODAY), day).toThrow(RangeError);
+    expect(() => skipOccurrence(db, 'gibt-es-nicht', '2026-05-15', ctx, TODAY)).toThrow(
+      EntityNotFoundError,
+    );
+  });
+
+  it('refuses an occurrence that is linked to a booking', () => {
+    const p = salary();
+    const march = row(p.id, '2026-03-15')!;
+    const id = book('2026-03-15', 300_000, null);
+    linkOccurrence(db, march.id, id, ctx);
+    expect(() => skipOccurrence(db, p.id, '2026-03-15', ctx, TODAY)).toThrow(ConflictError);
+    expect(row(p.id, '2026-03-15')).toMatchObject({ status: 'received', bookingId: id });
+  });
+
+  it('undo of the skip group removes the row it created', () => {
+    const p = salary();
+    db.delete(expectedOccurrence).run();
+    const { groupId } = skipOccurrence(db, p.id, '2026-05-15', ctx, TODAY);
+    undo(db, { groupId }, ctx);
+    expect(occurrencesOf(p.id)).toEqual([]);
+    // The soft-deleted row is revived by a second skip, not duplicated.
+    skipOccurrence(db, p.id, '2026-05-15', ctx, TODAY);
+    expect(occurrencesOf(p.id).map((o) => o.status)).toEqual(['skipped']);
+  });
+
+  it('refresh and re-planning leave a skipped row alone, even if the rule moves away from it', () => {
+    const p = salary();
+    skipOccurrence(db, p.id, '2026-04-15', ctx, TODAY);
+    addExpectedVersion(db, p.id, { validFrom: '2026-04-01', amountCents: 320_000 }, ctx, TODAY);
+    refreshOccurrences(db, '2026-04-02');
+    expect(row(p.id, '2026-04-15')).toMatchObject({
+      status: 'skipped',
+      expectedAmountCents: 300_000,
+    });
+    expect(row(p.id, '2026-05-15')?.expectedAmountCents).toBe(320_000);
+    updateExpectedPayment(db, p.id, { dueDay: 20 }, ctx, TODAY);
+    expect(row(p.id, '2026-04-15')).toMatchObject({ status: 'skipped' });
+    expect(row(p.id, '2026-04-20')?.status).toBe('expected');
+    deleteExpectedPayment(db, p.id, ctx, TODAY);
+    restoreExpectedPayment(db, p.id, ctx, TODAY);
+    expect(row(p.id, '2026-04-15')).toMatchObject({ status: 'skipped' });
+  });
+
+  it('unskip brings it back as expected with the current amount; only a skipped one', () => {
+    const p = salary();
+    const april = skipOccurrence(db, p.id, '2026-04-15', ctx, TODAY).occurrence;
+    addExpectedVersion(db, p.id, { validFrom: '2026-04-01', amountCents: 320_000 }, ctx, TODAY);
+    const back = unskipOccurrence(db, april.id, ctx, TODAY);
+    expect(back.occurrence).toMatchObject({
+      id: april.id,
+      status: 'expected',
+      expectedAmountCents: 320_000,
+    });
+    expect(() => unskipOccurrence(db, april.id, ctx, TODAY)).toThrow(ConflictError);
+    expect(() => unskipOccurrence(db, 'gibt-es-nicht', ctx, TODAY)).toThrow(EntityNotFoundError);
+  });
+
+  it('cannot be marked ausgefallen while skipped', () => {
+    const p = salary();
+    const april = skipOccurrence(db, p.id, '2026-04-15', ctx, TODAY).occurrence;
+    expect(() => markOccurrenceMissed(db, april.id, ctx)).toThrow(ConflictError);
+  });
+
+  it('is never matched to a booking, not even one that fits exactly', () => {
+    const p = salary();
+    skipOccurrence(db, p.id, '2026-04-15', ctx, TODAY);
+    book('2026-04-15', 300_000, null);
+    expect(matchOccurrences(db, '2026-04-20').received).toBe(0);
+    expect(row(p.id, '2026-04-15')).toMatchObject({ status: 'skipped', bookingId: null });
+    // Replacement income of another amount and day is just income, never a deviation of it.
+    book('2026-04-28', 180_000, null);
+    expect(matchOccurrences(db, '2026-04-30').deviating).toBe(0);
+    expect(row(p.id, '2026-04-15')?.status).toBe('skipped');
+  });
+
+  it('leaves the skipped occurrence out of the forecast; the others stay', () => {
+    const p = salary();
+    expect(forecastDays()).toContain('2026-04-15');
+    skipOccurrence(db, p.id, '2026-04-15', ctx, TODAY);
+    const items = forecastItems().filter((i) => i.kind === 'income');
+    expect(items.map((i) => i.day).slice(0, 3)).toEqual(['2026-05-15', '2026-06-15', '2026-07-15']);
+    expect(items.find((i) => i.day === '2026-05-15')).toMatchObject({
+      cents: 300_000,
+      kind: 'income',
+      ref: { paymentId: p.id, dueDate: '2026-05-15' },
+    });
+    unskipOccurrence(db, row(p.id, '2026-04-15')!.id, ctx, TODAY);
+    expect(forecastDays()).toContain('2026-04-15');
+  });
+
+  it('skips an occurrence that is not materialised yet out of the forecast', () => {
+    const p = salary();
+    db.delete(expectedOccurrence).run();
+    skipOccurrence(db, p.id, '2026-04-15', ctx, TODAY);
+    expect(forecastDays()).not.toContain('2026-04-15');
+    expect(forecastDays()).toContain('2026-05-15');
+  });
+
+  it('a missed occurrence ahead is out of the forecast as well, a past one stays a listed gap', () => {
+    const p = salary();
+    markOccurrenceMissed(db, row(p.id, '2026-04-15')!.id, ctx);
+    expect(forecastDays()).not.toContain('2026-04-15');
+    const f = loadFacts(db, TODAY);
+    const days = (opts: { keepMissed?: boolean }) =>
+      scheduled(f, '2026-04-01', '2026-04-30', TODAY, opts).map((o) => o.dueDate);
+    expect(days({})).toEqual([]);
+    expect(days({ keepMissed: true })).toEqual(['2026-04-15']);
+  });
+
+  it('upcoming and monthIncome leave skipped rows out unless asked', () => {
+    const p = salary();
+    skipOccurrence(db, p.id, '2026-04-15', ctx, TODAY);
+    expect(upcoming(db, '2026-04-01', '2026-04-30')).toEqual([]);
+    expect(upcoming(db, '2026-04-01', '2026-04-30', { includeSkipped: true })).toMatchObject([
+      { paymentId: p.id, status: 'skipped', dueDate: '2026-04-15' },
+    ]);
+    expect(monthIncome(db, '2026-04')).toMatchObject({ expectedCents: 0, byPayment: [] });
+    expect(monthIncome(db, '2026-05').expectedCents).toBe(300_000);
   });
 });

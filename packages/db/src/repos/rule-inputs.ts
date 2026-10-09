@@ -36,7 +36,7 @@ import {
   type SinkingFund,
   type Rhythm,
 } from '@budget/domain';
-import { and, asc, eq, isNull } from 'drizzle-orm';
+import { and, asc, eq, inArray, isNull } from 'drizzle-orm';
 import {
   account,
   assetClass,
@@ -46,6 +46,7 @@ import {
   category,
   categoryTarget,
   envelopeMonth,
+  expectedOccurrence,
   expectedPayment,
   expectedPaymentVersion,
   incomePause,
@@ -95,6 +96,11 @@ export interface RuleFacts {
   payments: PaymentRow[];
   versions: Map<string, VersionRow[]>;
   incomePauses: (typeof incomePause.$inferSelect)[];
+  /**
+   * Live occurrences taken out of the plan, by `paymentId|dueDate`: `skipped` (gestrichen, a
+   * deliberate plan change) and `missed` (ausgefallen). See `isPlannedOccurrence`.
+   */
+  planMarks: Map<string, 'skipped' | 'missed'>;
   plannedEvents: (typeof plannedEvent.$inferSelect)[];
   securities: Map<string, typeof security.$inferSelect>;
   classNames: Record<string, string>;
@@ -170,6 +176,23 @@ function readFacts(db: Executor, upTo: string, ledger: ReturnType<typeof budgetL
     versions.set(v.expectedPaymentId, [...(versions.get(v.expectedPaymentId) ?? []), v]);
 
   const incomePauses = db.select().from(incomePause).where(isNull(incomePause.deletedAt)).all();
+  const planMarks = new Map<string, 'skipped' | 'missed'>();
+  for (const o of db
+    .select({
+      paymentId: expectedOccurrence.expectedPaymentId,
+      dueDate: expectedOccurrence.dueDate,
+      status: expectedOccurrence.status,
+    })
+    .from(expectedOccurrence)
+    .where(
+      and(
+        isNull(expectedOccurrence.deletedAt),
+        inArray(expectedOccurrence.status, ['skipped', 'missed']),
+      ),
+    )
+    .all())
+    if (o.status === 'skipped' || o.status === 'missed')
+      planMarks.set(`${o.paymentId}|${o.dueDate}`, o.status);
 
   const categoryKindById = new Map(categories.map((c) => [c.id, c.kind]));
   const cashless = cashlessContactBookingIds(db);
@@ -219,6 +242,7 @@ function readFacts(db: Executor, upTo: string, ledger: ReturnType<typeof budgetL
     payments: db.select().from(expectedPayment).where(isNull(expectedPayment.deletedAt)).all(),
     versions,
     incomePauses,
+    planMarks,
     plannedEvents: db
       .select()
       .from(plannedEvent)
@@ -303,13 +327,32 @@ function targetOf(f: RuleFacts, categoryId: string, month: string): CategoryTarg
     : null;
 }
 
-/** Scheduled occurrences (EUR cents) of the live payments between two days, both included. */
+/**
+ * Is this occurrence of the rule still part of the plan? The one shared answer for the liquidity
+ * forecast, the Heute chart, R07, the reports and the cover limits. A `skipped` (gestrichen)
+ * occurrence never is. A `missed` (ausgefallen) one is not either, unless `keepMissed`: Heute
+ * still lists a missed payment of the past as a gap.
+ */
+export function isPlannedOccurrence(
+  f: Pick<RuleFacts, 'planMarks'>,
+  paymentId: string,
+  dueDate: string,
+  options: { keepMissed?: boolean } = {},
+): boolean {
+  const mark = f.planMarks.get(`${paymentId}|${dueDate}`);
+  return mark === undefined || (mark === 'missed' && options.keepMissed === true);
+}
+
+/**
+ * Scheduled occurrences (EUR cents) of the live payments between two days, both included: the
+ * rule's occurrences minus the skipped (and, unless `keepMissed`, the missed) ones.
+ */
 export function scheduled(
   f: RuleFacts,
   from: string,
   to: string,
   asOf: string,
-  options: { applyIncomePauses?: boolean } = {},
+  options: { applyIncomePauses?: boolean; keepMissed?: boolean } = {},
 ) {
   const out: {
     payment: PaymentRow;
@@ -323,6 +366,7 @@ export function scheduled(
   for (const p of f.payments) {
     const versions = f.versions.get(p.id) ?? [];
     for (const occ of occurrences(schedulePayment(p), versions.map(scheduleVersion), from, to)) {
+      if (!isPlannedOccurrence(f, p.id, occ.dueDate, options)) continue;
       const v = versionOn(versions, occ.dueDate);
       const pause = options.applyIncomePauses
         ? f.incomePauses.find(
@@ -414,6 +458,7 @@ export function forecastInputs(
         cents: o.cents,
         kind: o.cents >= 0 ? ('income' as const) : ('fixed' as const),
         label: o.payment.name,
+        ref: { paymentId: o.payment.id, dueDate: o.dueDate },
         ...(o.category?.class ? { group: o.category.class } : {}),
       })),
     ...f.plannedEvents

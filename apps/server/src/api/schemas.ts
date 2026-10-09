@@ -366,9 +366,11 @@ export const expectedOccurrencesQuery = z.object({
   from: day,
   to: day,
   kind: z.enum(EXPECTED_KINDS).optional(),
+  includeSkipped: z.enum(['0', '1']).optional(),
 });
 export const expectedIncomeQuery = z.object({ month });
 export const expectedLinkBody = z.object({ bookingId: id });
+export const expectedSkipBody = z.object({ dueDate: day });
 
 // ---------- savings goals ----------
 const goalFields = {

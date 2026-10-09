@@ -21,6 +21,17 @@ export interface ForecastItem {
   label?: string;
   /** Class of the category behind a scheduled payment; the report levers pick by it. */
   group?: 'need' | 'want' | 'future';
+  /**
+   * The expected payment occurrence behind an income or fixed item, so a view can offer
+   * "skip this one" (gestrichen) without searching for it. Absent for planned events.
+   */
+  ref?: ForecastItemRef;
+}
+
+/** Identity of one occurrence of an expected payment (payment and due date). */
+export interface ForecastItemRef {
+  paymentId: string;
+  dueDate: string;
 }
 
 /** Stage "surplus": on one day a month, whatever exceeds the buffer leaves the budget accounts. */
@@ -50,6 +61,7 @@ export interface ForecastDayItem {
   cents: number;
   kind: ForecastItemKind | 'sweep';
   label?: string;
+  ref?: ForecastItemRef;
 }
 
 export interface ForecastDay {
@@ -147,11 +159,12 @@ export function liquidityForecast(input: LiquidityInput): LiquidityForecast {
         if (item.kind === 'income') row.incomeCents += item.cents;
         else if (item.kind === 'fixed') row.fixedCents += item.cents;
         else row.eventCents += item.cents;
-        shown.push(
-          item.label === undefined
-            ? { cents: item.cents, kind: item.kind }
-            : { cents: item.cents, kind: item.kind, label: item.label },
-        );
+        shown.push({
+          cents: item.cents,
+          kind: item.kind,
+          ...(item.label === undefined ? {} : { label: item.label }),
+          ...(item.ref === undefined ? {} : { ref: item.ref }),
+        });
       }
       const sweep = input.sweep;
       if (sweep && Number(day.slice(8)) === sweep.dayOfMonth) {

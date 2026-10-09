@@ -1,7 +1,11 @@
 import { addDays, monthOf } from '../date';
 import { dayDistance, dueDates, type Rhythm, type ScheduleRule } from './due-dates';
 
-export type OccurrenceStatus = 'expected' | 'received' | 'deviating' | 'missed';
+/**
+ * `missed` (ausgefallen) is a warning: it should have come. `skipped` (gestrichen) is a deliberate
+ * plan change: the occurrence is out of the forecast and is never matched, without a warning.
+ */
+export type OccurrenceStatus = 'expected' | 'received' | 'deviating' | 'missed' | 'skipped';
 export type ExpectedKind = 'outflow' | 'inflow';
 
 /** An expected payment as far as the schedule is concerned. */
@@ -199,6 +203,8 @@ export function matchOccurrence(
 
 export interface AssignInput {
   key: string;
+  /** A `skipped` (gestrichen) occurrence is never matched, not even by a booking that fits. */
+  status?: OccurrenceStatus;
   occurrence: Occurrence;
   /** Bookings that fit the payment (see `candidateFits`). */
   candidates: readonly MatchCandidate[];
@@ -219,12 +225,14 @@ export function assignMatches(
 ): Map<string, Match> {
   const taken = new Set(claimed);
   const result = new Map<string, Match>();
-  const pairs = inputs.flatMap((input) =>
-    rank(input.occurrence, input.candidates, input.windowDays).map((r) => ({
-      input,
-      match: { ...r, status: statusOf(r.amountDelta, input.toleranceCents) },
-    })),
-  );
+  const pairs = inputs
+    .filter((input) => input.status !== 'skipped')
+    .flatMap((input) =>
+      rank(input.occurrence, input.candidates, input.windowDays).map((r) => ({
+        input,
+        match: { ...r, status: statusOf(r.amountDelta, input.toleranceCents) },
+      })),
+    );
   pairs.sort(
     (x, y) =>
       x.match.dayDelta - y.match.dayDelta ||

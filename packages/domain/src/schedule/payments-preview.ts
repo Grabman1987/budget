@@ -111,7 +111,9 @@ export function paymentsPreview(
         ),
         ...saved.keys(),
       ]),
-    ].sort();
+    ]
+      .filter((day) => saved.get(day)?.status !== 'skipped')
+      .sort();
     const paymentRows = new Map<string | null, PreviewRow>();
     for (const dueDate of dates) {
       const version = versionOn(p.versions, dueDate);

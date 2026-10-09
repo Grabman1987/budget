@@ -267,7 +267,7 @@ export function occurrencesBetween(
       .all()
       .map((c) => [c.id, c.name]),
   );
-  return scheduled(f, from, to, today)
+  return scheduled(f, from, to, today, { keepMissed: true })
     .filter((o) => o.onBudget)
     .map((o): HeuteOccurrence => {
       const row = stored.get(`${o.payment.id}|${o.dueDate}`);
@@ -278,7 +278,13 @@ export function occurrencesBetween(
         name: o.payment.name,
         kind: o.payment.kind,
         dueDate: o.dueDate,
-        status: row?.status ?? (o.dueDate >= today ? 'expected' : 'received'),
+        // `scheduled` leaves skipped (gestrichen) occurrences out, so a stored row never is one.
+        status:
+          row && row.status !== 'skipped'
+            ? row.status
+            : o.dueDate >= today
+              ? 'expected'
+              : 'received',
         amountCents: o.cents,
         accountId: o.payment.accountId,
         accountName: o.payment.accountId ? (accounts.get(o.payment.accountId) ?? null) : null,
