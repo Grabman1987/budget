@@ -1187,6 +1187,14 @@
   flex: none;
   margin-top: 2px;
 }
+.plan .split-band .sb-comparison {
+  display: block;
+}
+.plan .split-band .sb-comparison a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+}
 
 /* Group rows: title and one-line hint, left-aligned, never centred or wrapped mid-title. */
 .plan .pgroup .col-name {

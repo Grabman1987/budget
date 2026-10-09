@@ -1,5 +1,14 @@
 # Roadmap
 
+### P1 #269 / #270 / #274 / #275 / #276 — Today hints — 2026-10-09
+
+- [x] Label Plan's actual 50/30/20 denominator, withhold a completed-month verdict for open months and link to the last completed One-Pager; preserve allocation calculations and expected-income separation.
+- [x] Put payday room first within the existing three answer cards, with the planning boundary and expected receipt separately visible; retain month and wealth access.
+- [x] Show unevaluated rule counts beside the other statuses and link to missing-input explanations; suppress an all-clear when inputs are missing.
+- [x] Describe empty additional steps consistently with attention points already shown above.
+- [x] Preserve PR #226's result-first rule grouping; deep-link and focus the concrete finding, keeping its value, threshold, action and secondary settings accessible.
+- [ ] Exact-head CI, PR integration, visual baseline review and owner/device acceptance. Scoped local evidence: [Today hints](evidence/heute-hints-1009/README.md).
+
 ### F2 — Guided month close, plan next month and review (owner 2026-10-04)
 
 - [x] Step 4: expected income and shared bank-day payday, recurring dues, prior plan/actual and up to twelve completed-month average; group/all draft actions and explicit existing-API assign.

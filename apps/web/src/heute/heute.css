@@ -620,6 +620,11 @@
     color: var(--ink-2);
     font-size: 11px;
   }
+  .heute-check-counts p a {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+  }
   .heute-rule {
     grid-template-columns: minmax(0, 1fr) auto;
   }
