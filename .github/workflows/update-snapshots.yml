@@ -1,4 +1,4 @@
-name: Update e2e snapshots
+name: Capture rules 226 Linux baselines for review
 
 # Manual only. Regenerates the Playwright screenshot baselines on Linux (the CI platform) for one
 # branch and commits them back, for PRs that change the UI on purpose. The owner's Windows machine
@@ -32,11 +32,11 @@ jobs:
           node-version-file: .nvmrc
           cache: npm
       - run: npm ci
-      - name: Install Chromium and WebKit
-        run: npx playwright install --with-deps chromium webkit
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
       # Non-screenshot failures are reported by the normal CI run on the PR, not here.
       - name: Regenerate changed screenshots
-        run: npm run build:e2e && (npx playwright test --update-snapshots=changed || true)
+        run: npm run build:e2e && npx playwright test e2e/rules.spec.ts --grep 'stages and rules show the rule book' --project=desktop --project=mobile --workers=1 --update-snapshots=changed
       - name: Commit the new baselines
         env:
           BRANCH: ${{ inputs.branch }}
