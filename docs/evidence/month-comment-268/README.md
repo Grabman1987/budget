@@ -15,7 +15,7 @@ closed, the intermediate commentary is absent and the existing R04 behavior rema
 ## Verification
 
 - Source revision at capture: `a517fcfe052c70388f51042d72ba0f648bedfcdf`.
-- Focused check: 44 test files passed in 27.29 seconds.
+- Focused check: 44 tests in 4 files passed in 27.29 seconds.
 - Browser run: 5 tests passed in 1.7 minutes, including three setup tests; the feature case passed
   on desktop in 21.7 seconds and mobile in 12.6 seconds.
 - The isolated browser case checks the API's cents and due-date fields, Today and One-Pager copy,
