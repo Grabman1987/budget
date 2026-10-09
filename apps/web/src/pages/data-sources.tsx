@@ -3,7 +3,6 @@ import { todayInVienna } from '@budget/domain';
 import { useQuery } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
 import { request } from '../api/http';
-import { withStepUp } from '../auth/webauthn';
 import { AccountOptions } from '../ledger/account-options';
 import { errorText } from '../ledger/labels';
 import type { AccountRow } from '../ledger/types';
@@ -143,12 +142,10 @@ function BankSourceSection() {
           disabled={busy}
           onClick={() =>
             void act(async () => {
-              await withStepUp(() =>
-                request('POST', PATH + '/callback', {
-                  code: callback.code,
-                  state: callback.state,
-                }),
-              );
+              await request('POST', PATH + '/callback', {
+                code: callback.code,
+                state: callback.state,
+              });
               setCallback({ code: null, state: null, error: false });
             }, 'Bankfreigabe gespeichert. Bitte die Konten zuordnen.')
           }
@@ -176,8 +173,9 @@ function BankSourceSection() {
                 disabled={busy}
                 onClick={() =>
                   void act(async () => {
-                    const data = await withStepUp(() =>
-                      request<{ institutions: Institution[] }>('GET', PATH + '/institutions'),
+                    const data = await request<{ institutions: Institution[] }>(
+                      'GET',
+                      PATH + '/institutions',
                     );
                     setInstitutions(
                       [...data.institutions].sort((a, b) =>
@@ -234,12 +232,10 @@ function BankSourceSection() {
                   disabled={busy || !chosen}
                   onClick={() =>
                     void act(async () => {
-                      const result = await withStepUp(() =>
-                        request<{ url: string }>('POST', PATH + '/auth', {
-                          name: chosen!.name,
-                          country: chosen!.country,
-                        }),
-                      );
+                      const result = await request<{ url: string }>('POST', PATH + '/auth', {
+                        name: chosen!.name,
+                        country: chosen!.country,
+                      });
                       window.location.assign(result.url);
                     }, '')
                   }
@@ -288,11 +284,9 @@ function BankSourceSection() {
                       const bookedToLedger = e.target.value === 'true';
                       void act(
                         () =>
-                          withStepUp(() =>
-                            request('PUT', PATH + '/' + connection.id + '/policy', {
-                              bookedToLedger,
-                            }),
-                          ),
+                          request('PUT', PATH + '/' + connection.id + '/policy', {
+                            bookedToLedger,
+                          }),
                         'Übernahme gespeichert.',
                       );
                     }}
@@ -330,10 +324,7 @@ function BankSourceSection() {
                   disabled={busy || a.locked || connection.status === 'paused'}
                   save={(accountId, fromDate) =>
                     act(
-                      () =>
-                        withStepUp(() =>
-                          request('PUT', PATH + '/accounts/' + a.id, { accountId, fromDate }),
-                        ),
+                      () => request('PUT', PATH + '/accounts/' + a.id, { accountId, fromDate }),
                       'Kontozuordnung gespeichert.',
                     )
                   }
@@ -357,10 +348,7 @@ function BankSourceSection() {
                     disabled={busy}
                     onClick={() =>
                       void act(
-                        () =>
-                          withStepUp(() =>
-                            request('POST', PATH + '/' + connection.id + '/pause', {}),
-                          ),
+                        () => request('POST', PATH + '/' + connection.id + '/pause', {}),
                         'Verbindung pausiert. Eine neue Freigabe ist über „Bank verbinden“ möglich.',
                       )
                     }

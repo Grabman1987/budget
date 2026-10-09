@@ -515,6 +515,41 @@ describe('recovery codes', () => {
     );
   });
 
+  it('data sources need a passkey session but no fresh step-up (owner decision 09.10.2026)', async () => {
+    const { bootstrap, call, login } = setup();
+    const { authenticator, cookie, codes } = await bootstrap();
+    const recovery = (await call('POST', '/api/auth/recovery/login', { code: codes[0] }))
+      .cookie as string;
+    const since = (c: string) =>
+      call('PUT', '/api/sources/crypto/since', { since: '2026-01-01' }, c);
+    const reconcile = (c: string) => call('POST', '/api/sources/crypto/reconcile', {}, c);
+
+    // A recovery session is refused, fresh or not.
+    expect((await since(recovery)).data['error']).toBe('passkey_required');
+    expect((await reconcile(recovery)).data['error']).toBe('passkey_required');
+    expect((await since('')).status).toBe(401);
+
+    // A passkey session works without any step-up, also long after the five minutes ran out.
+    const opened = (await login(authenticator)).cookie as string;
+    advance(6 * MINUTE);
+    expect(
+      (await call('GET', '/api/auth/status', undefined, opened)).data['stepUpValidUntil'],
+    ).toBeNull();
+    expect((await since(opened)).status).toBe(200);
+    expect((await reconcile(cookie)).status).toBe(200);
+
+    // The same stale session is still refused where data could leave the app or access is granted.
+    expect((await call('GET', '/api/export/csv.zip', undefined, opened)).data['error']).toBe(
+      'step_up_required',
+    );
+    expect((await call('POST', '/api/auth/register/options', {}, opened)).data['error']).toBe(
+      'step_up_required',
+    );
+    expect((await call('POST', '/api/auth/recovery/regenerate', {}, opened)).data['error']).toBe(
+      'step_up_required',
+    );
+  });
+
   it('regenerating needs a fresh step-up', async () => {
     const { bootstrap, call } = setup();
     const { cookie } = await bootstrap();

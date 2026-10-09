@@ -4,7 +4,7 @@ import { beforeEach, afterEach, expect, it, vi } from 'vitest';
 import { createApp, type AuthGate } from '../app';
 let opened: OpenedDatabase;
 let session = true;
-let stepUp = true;
+let passkeyOk = true;
 let app: ReturnType<typeof createApp>;
 const auth: AuthGate = {
   routes: new Hono(),
@@ -13,12 +13,15 @@ const auth: AuthGate = {
       ? c.json({ error: 'origin' }, 403)
       : next(),
   requireSession: async (c, next) => (session ? next() : c.json({ error: 'unauthorized' }, 401)),
-  requireStepUp: async (c, next) => (stepUp ? next() : c.json({ error: 'step_up_required' }, 403)),
+  // Crypto source routes need a passkey-opened session, not a fresh step-up: the step-up gate stays unused.
+  requirePasskeySession: async (c, next) =>
+    passkeyOk ? next() : c.json({ error: 'passkey_required' }, 403),
+  requireStepUp: async (c) => c.json({ error: 'step_up_required' }, 403),
 };
 beforeEach(() => {
   opened = createTestDatabase();
   session = true;
-  stepUp = true;
+  passkeyOk = true;
   vi.stubEnv('CRYPTO_API_KEY', '');
   vi.stubGlobal(
     'fetch',
@@ -37,12 +40,12 @@ const post = (path: string, body = {}) =>
     headers: { origin: 'https://app.test', 'content-type': 'application/json' },
     body: JSON.stringify(body),
   });
-it('mounts status and all mutations behind session/origin and requires step-up for refresh and mapping', async () => {
+it('mounts status and all mutations behind session/origin and requires a passkey session for refresh and mapping', async () => {
   session = false;
   expect((await app.request('/api/sources/crypto')).status).toBe(401);
   expect((await post('/refresh')).status).toBe(401);
   session = true;
-  stepUp = false;
+  passkeyOk = false;
   expect((await post('/refresh')).status).toBe(403);
   expect(
     (
@@ -52,7 +55,7 @@ it('mounts status and all mutations behind session/origin and requires step-up f
       })
     ).status,
   ).toBe(403);
-  stepUp = true;
+  passkeyOk = true;
   expect((await app.request('/api/sources/crypto/refresh', { method: 'POST' })).status).toBe(403);
   expect((await post('/refresh', { key: 'should-not-be-accepted' })).status).toBe(400);
   expect((await post('/refresh')).status).toBe(409);
@@ -90,16 +93,16 @@ const put = (path: string, body: unknown) =>
     headers: { origin: 'https://app.test', 'content-type': 'application/json' },
     body: JSON.stringify(body),
   });
-it('saves the start day behind step-up with a strict body and reports it in the status', async () => {
+it('saves the start day behind a passkey session with a strict body and reports it in the status', async () => {
   const status = async () =>
     ((await (await app.request('/api/sources/crypto')).json()) as { since: string | null }).since;
   expect(await status()).toBeNull();
-  stepUp = false;
+  passkeyOk = false;
   expect((await put('/since', { since: '2026-01-01' })).status).toBe(403);
   session = false;
   expect((await put('/since', { since: '2026-01-01' })).status).toBe(401);
   session = true;
-  stepUp = true;
+  passkeyOk = true;
   expect((await put('/since', { since: '2026-01-01', extra: 1 })).status).toBe(400);
   expect((await put('/since', {})).status).toBe(400);
   expect((await put('/since', { since: '2026-13-01' })).status).toBe(400);
@@ -113,7 +116,7 @@ it('saves the start day behind step-up with a strict body and reports it in the 
   expect((await put('/since', { since: null })).status).toBe(200);
   expect(await status()).toBeNull();
 });
-it('reports the match summary and re-runs the reconciliation behind step-up', async () => {
+it('reports the match summary and re-runs the reconciliation behind a passkey session', async () => {
   const status = async () =>
     (await (await app.request('/api/sources/crypto')).json()) as {
       match: { matched: number; missing: number; unmapped: number; informational: number };
@@ -124,12 +127,12 @@ it('reports the match summary and re-runs the reconciliation behind step-up', as
     unmapped: 0,
     informational: 0,
   });
-  stepUp = false;
+  passkeyOk = false;
   expect((await post('/reconcile')).status).toBe(403);
   session = false;
   expect((await post('/reconcile')).status).toBe(401);
   session = true;
-  stepUp = true;
+  passkeyOk = true;
   const response = await post('/reconcile');
   expect(response.status).toBe(200);
   expect(await response.json()).toEqual({

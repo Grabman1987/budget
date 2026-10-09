@@ -7,7 +7,6 @@ import { INBOX_KEY } from '../inbox/api';
 import { AccountOptions } from '../ledger/account-options';
 import { undoGroup } from '../ledger/api';
 import type { AccountRow } from '../ledger/types';
-import { withStepUp } from '../auth/webauthn';
 import './read-source.css';
 
 interface SourceStatus {
@@ -64,10 +63,12 @@ export function CryptoReadSourceSection() {
     try {
       let first = true;
       for (let page = 1; page <= MAX_PAGES; page++) {
-        const result = await withStepUp(() =>
-          request<{ status: SourceStatus['status'] }>('POST', path + '/refresh', {
+        const result = await request<{ status: SourceStatus['status'] }>(
+          'POST',
+          path + '/refresh',
+          {
             fullHistory: first && fullHistory,
-          }),
+          },
         );
         first = false;
         setPages(page);
@@ -169,7 +170,7 @@ function MatchSection({ match, disabled }: { match: MatchCounts; disabled: boole
     setMessage('');
     setUndoable(null);
     try {
-      const result = await withStepUp(() => request<ReconcileResult>('POST', path + '/reconcile'));
+      const result = await request<ReconcileResult>('POST', path + '/reconcile');
       setMessage(
         result.changed === 0
           ? 'Abgleich ausgeführt. Keine Änderung im Posteingang.'
@@ -251,7 +252,7 @@ function SinceForm({ saved }: { saved: string | null }) {
     setBusy(true);
     setMessage('');
     try {
-      await withStepUp(() => request('PUT', path + '/since', { since: since || null }));
+      await request('PUT', path + '/since', { since: since || null });
       await client.invalidateQueries({ queryKey: key });
       await client.invalidateQueries({ queryKey: INBOX_KEY });
       setMessage(
@@ -310,13 +311,11 @@ function Mapping({ balance, data }: { balance: SourceBalance; data: SourceStatus
     setBusy(true);
     setMessage('');
     try {
-      await withStepUp(() =>
-        request('PUT', path + '/mapping', {
-          key: balance.key,
-          accountId,
-          securityId: asset ? securityId : null,
-        }),
-      );
+      await request('PUT', path + '/mapping', {
+        key: balance.key,
+        accountId,
+        securityId: asset ? securityId : null,
+      });
       await client.invalidateQueries({ queryKey: key });
       await client.invalidateQueries({ queryKey: INBOX_KEY });
       setMessage('Zuordnung gespeichert. Der nächste Abruf vergleicht die Salden.');

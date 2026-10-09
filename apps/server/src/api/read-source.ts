@@ -21,7 +21,7 @@ import { ACTOR, ApiError, readBody } from './http';
 export function readSourceRoutes(
   db: Db,
   today: () => string,
-  stepUp: MiddlewareHandler,
+  passkeySession: MiddlewareHandler,
   source: ReadSource,
 ): Hono {
   const app = new Hono();
@@ -51,20 +51,20 @@ export function readSourceRoutes(
       securities: listEntities(db, security).map(({ id, name }) => ({ id, name })),
     });
   });
-  app.post('/refresh', stepUp, async (c) => {
+  app.post('/refresh', passkeySession, async (c) => {
     const body = await readBody(c, z.object({ fullHistory: z.boolean().optional() }).strict());
     return c.json(await refreshReadSource(db, source, new Date(), body.fullHistory));
   });
-  app.post('/reconcile', stepUp, (c) => {
+  app.post('/reconcile', passkeySession, (c) => {
     if (readSourceRunning(db) || writesHeld(db))
       throw new ApiError(409, 'source_busy', 'Abruf oder Datenübernahme läuft bereits.');
     return c.json(reconcileReadSource(db, { actor: ACTOR }));
   });
-  app.put('/mapping', stepUp, async (c) => {
+  app.put('/mapping', passkeySession, async (c) => {
     const body = await readBody(c, sourceMappingSchema);
     return c.json(mapReadSource(db, body, { actor: ACTOR }));
   });
-  app.put('/since', stepUp, async (c) => {
+  app.put('/since', passkeySession, async (c) => {
     const body = await readBody(
       c,
       z
