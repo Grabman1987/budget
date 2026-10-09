@@ -238,7 +238,8 @@ Older CI/publication checkboxes below describe their original deliveries. Curren
 - [x] Add a literal September 15 case with a 10,000-cent cap, 7,000-cent plan-to-date, 3,500-cent actual, and one unpaid 4,000-cent fixed target due that day; the existing model yields an 11,000-cent month-end forecast without a formula change.
 - [x] Verify both Heute and Monats-One-Pager from a real synthetic isolated ledger, including the shared chart's separate Ist/Plan/Hochrechnung, keyboard tooltip and over-cap styling; retain desktop/mobile light/dark captures in [evidence](evidence/pace-over-cap-265/README.md).
 - [x] Focused checks: 27 tests across two files, scoped lint/format, E2E build and seven desktop/mobile browser tests passed.
-- [ ] Full check, PR/CI, integration/live proof, real-ledger reconciliation and physical iPhone Safari remain open. The separate Heute mobile account-forecast label overlap has been assigned to open #292 for verification.
+- [x] Linux preflight run [37880079988](https://github.com/Grabman1987/budget/actions/runs/37880079988) passed the focused check (2 files / 27 tests / 2.71 s), full repository check (383 files / 3,528 tests / 239.51 s), production and E2E builds, and nine browser tests in 1.0 minute. Eight Linux captures are recorded with the workflow-only helper `025fac1e499cd8f3ef681b58dc5192b8b3ce033f`; after the #237 docs merge, the diff against the checked source outside `docs/` is empty. [Evidence](evidence/pace-over-cap-265/README.md).
+- [ ] Exact PR-head CI, integration/live proof, real-ledger reconciliation and physical iPhone Safari remain open. The separate Heute mobile account-forecast label overlap has been assigned to open #292 for verification.
 
 ### Pace time marker and projection header — owner 05.10.2026
 
