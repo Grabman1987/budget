@@ -333,7 +333,7 @@ export function enableBanking(options: {
       } while (continuation);
       return { rows, skippedInvalid, skippedOutOfWindow };
     },
-    async balance(uid, beforeRequest) {
+    async balance(uid, beforeRequest, currency) {
       beforeRequest?.();
       const data = await request(
         '/accounts/' + encodeURIComponent(uid) + '/balances',
@@ -350,13 +350,20 @@ export function enableBanking(options: {
         }),
       );
       const booked = data.balances
-        .filter((b) => ['ITBD', 'CLBD'].includes(b.balance_type))
+        .filter(
+          (b) =>
+            ['ITBD', 'CLBD'].includes(b.balance_type) &&
+            (!currency || b.balance_amount.currency === currency),
+        )
         .sort(
           (a, b) =>
             (b.reference_date ?? '').localeCompare(a.reference_date ?? '') ||
             (a.balance_type === 'ITBD' ? -1 : 1),
         )[0];
-      if (!booked) throw new BankError('invalid_response');
+      if (!booked) {
+        if (currency) return null;
+        throw new BankError('invalid_response');
+      }
       return {
         amountCents: bankCents(booked.balance_amount.amount),
         currency: booked.balance_amount.currency,

@@ -6,7 +6,7 @@ import {
   withinBankWindow,
   type MatchBooking,
 } from '@budget/domain';
-import { and, desc, eq, isNull, lte, gte, or } from 'drizzle-orm';
+import { and, desc, eq, isNull, lte, gte, notLike, or } from 'drizzle-orm';
 import {
   account,
   bankSyncAccount,
@@ -78,6 +78,56 @@ function linkable(db: Executor, id: string) {
   return row;
 }
 
+const BANK_KEY_PREFIX = 'bank-sync:';
+
+/**
+ * Live bookings of one account that no bank line is tied to yet: bookings made by bank sync or
+ * confirmed from a bank line carry a reference, entries from the owner or a migration do not.
+ */
+export function unlinkedBankTargets(db: Executor, accountId: string, from: string, to: string) {
+  return db
+    .select()
+    .from(booking)
+    .where(
+      and(
+        isNull(booking.deletedAt),
+        eq(booking.accountId, accountId),
+        isNull(booking.bankSourceId),
+        or(isNull(booking.importKey), notLike(booking.importKey, BANK_KEY_PREFIX + '%')),
+        gte(booking.date, from),
+        lte(booking.date, to),
+      ),
+    )
+    .all();
+}
+
+/**
+ * Tie an existing booking to a bank line without touching what the owner entered: date, status,
+ * category, splits and notes stay. Only the raw bank data and, when the booking has no import
+ * key of its own, the bank key are added.
+ */
+export function linkBankReference(
+  tx: Executor,
+  bookingId: string,
+  line: { memo: string; rawPayee: string | null; sourceId: string | null; dedupeKey: string },
+  ctx: AuditContext,
+) {
+  const row = getBooking(tx, bookingId);
+  if (!row) throw new EntityNotFoundError('booking', bookingId);
+  updateTracked(
+    tx,
+    booking,
+    [bookingId],
+    {
+      bankRawText: line.memo,
+      bankRawPayee: line.rawPayee,
+      bankSourceId: line.sourceId,
+      ...(row.importKey ? {} : { importKey: BANK_KEY_PREFIX + line.dedupeKey }),
+    },
+    ctx,
+  );
+}
+
 /** Manual bookings an incoming bank row can be merged into, closest date first. */
 function mergeTargets(db: Executor, row: MatchBooking) {
   return bankMatches(
@@ -135,8 +185,20 @@ export function candidateMatches(db: Executor, id: string) {
       }
     })
     .map((b) => ({ ...b, accountName: openAccount(db, b.accountId).name }));
+  const merge = mergeTargets(db, row);
+  const taken = new Set(merge.map((b) => b.id));
   return {
-    merge: mergeTargets(db, row),
+    merge,
+    /** Bookings that cannot take over the bank date (migrated, locked) but can be tied to the line. */
+    link: bankMatches(
+      row,
+      unlinkedBankTargets(db, row.accountId, addDays(row.date, -5), addDays(row.date, 5))
+        .filter(
+          (b) =>
+            !taken.has(b.id) && b.currency === row.currency && b.amountCents === row.amountCents,
+        )
+        .map((b) => ({ ...b, accountName: openAccount(db, b.accountId).name })),
+    ),
     transfers: bankMatches(row, rows, true),
   };
 }
@@ -159,6 +221,35 @@ function adoptBankReference(
   } else updateBooking(tx, target.id, patch, grouped);
 }
 
+/** Tie a bank line to a booking that keeps its own date, source and status (migrated or locked). */
+function linkCandidate(
+  tx: Executor,
+  row: ReturnType<typeof openCandidate>,
+  bookingId: string,
+  ctx: AuditContext,
+  now: string,
+) {
+  const target = getBooking(tx, bookingId);
+  if (!target) throw new EntityNotFoundError('booking', bookingId);
+  openAccount(tx, target.accountId);
+  if (
+    target.bankSourceId ||
+    target.importKey?.startsWith(BANK_KEY_PREFIX) ||
+    !bankMatches(row, [target]).length
+  )
+    throw new ConflictError('Die Buchung passt nicht mehr zu diesem Bankumsatz.');
+  const grouped = withGroup(ctx);
+  linkBankReference(tx, bookingId, row, grouped);
+  updateTracked(
+    tx,
+    inboxItem,
+    [row.id],
+    { resolvedAt: now, resolution: 'Mit vorhandener Buchung verknüpft: ' + bookingId },
+    grouped,
+  );
+  return { groupId: grouped.groupId, bookingId };
+}
+
 /** Keep identities, receipt links, memo and split allocations; attach the stable bank reference. */
 export function mergeBankCandidate(
   db: Executor,
@@ -169,6 +260,13 @@ export function mergeBankCandidate(
 ) {
   return runInTransaction(db, (tx) => {
     const row = openCandidate(tx, id);
+    let adoptable = true;
+    try {
+      mergeable(tx, bookingId);
+    } catch {
+      adoptable = false;
+    }
+    if (!adoptable) return linkCandidate(tx, row, bookingId, ctx, now);
     const target = mergeable(tx, bookingId);
     if (target.source !== 'manual' || target.importKey || !bankMatches(row, [target]).length)
       throw new ConflictError('Die Buchung passt nicht mehr zu diesem Bankumsatz.');
@@ -388,9 +486,12 @@ export function bankBalanceForAccount(db: Executor, accountId: string, today: st
     .select()
     .from(bankSyncCandidate)
     .innerJoin(inboxItem, eq(inboxItem.id, bankSyncCandidate.id))
+    .innerJoin(account, eq(account.id, bankSyncCandidate.accountId))
     .where(
       and(
         eq(bankSyncCandidate.accountId, accountId),
+        // A foreign-currency line of a multi-currency source never changes this account's balance.
+        eq(bankSyncCandidate.currency, account.currency),
         isNull(inboxItem.resolvedAt),
         lte(bankSyncCandidate.date, today),
       ),
