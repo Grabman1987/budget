@@ -1290,6 +1290,9 @@
 }
 
 /* ---------- Booking dialog (centred card on desktop, bottom sheet on the phone) ---------- */
+.bk-focus-scope {
+  display: contents;
+}
 .bkform {
   min-height: 0;
 }
