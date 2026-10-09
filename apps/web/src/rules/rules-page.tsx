@@ -1,15 +1,24 @@
 import { BookInputForm } from './book-input-form';
-import { useAmountPrivacy, Button, SectionHead, Switch } from '@budget/ui';
-import { STAGES } from '@budget/domain';
+import {
+  useAmountPrivacy,
+  maskMoneyText,
+  Button,
+  SectionHead,
+  Switch,
+  StatusMark,
+} from '@budget/ui';
+import { STAGES, type RuleCode } from '@budget/domain';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { useEffect, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { ErrorNote, LoadingNote } from '../ledger/states';
 import { HEUTE_KEY } from '../heute/api';
 import { EINSTELLUNGEN_REGELWERK } from '../nav/pages';
 import { PageFrame } from '../pages/placeholder-page';
+import { AppLink } from '../shell/app-link';
+import { longDay } from '../ledger/format';
 import { confirmItem, evaluateRules, patchRule, type ChecklistRow, type RuleRow } from './api';
 import { RulePanel } from './rule-panel';
-import { stageRange, thresholdText } from './rules-model';
+import { RULE_GUIDANCE, ruleGroup, stageRange, thresholdText, type RuleGroup } from './rules-model';
 import {
   RULES_CHECK_KEY,
   RULES_KEY,
@@ -34,9 +43,42 @@ export function RulesPage() {
   const [panel, setPanel] = useState<string | null>(null);
   // What the owner just switched, shown at once while the write is on its way.
   const [shown, setShown] = useState<Record<string, boolean>>({});
-  const flip = async (key: string, value: boolean, run: () => Promise<unknown>) => {
+  const pendingRuleFocus = useRef<{
+    targetId: string;
+    allowedActiveIds: string[];
+  } | null>(null);
+  useLayoutEffect(() => {
+    const pending = pendingRuleFocus.current;
+    if (!pending) return;
+    pendingRuleFocus.current = null;
+    const active = document.activeElement;
+    if (
+      active === document.body ||
+      !active?.isConnected ||
+      pending.allowedActiveIds.includes(active.id)
+    ) {
+      document.getElementById(pending.targetId)?.focus({ preventScroll: true });
+    }
+  }, [shown]);
+
+  const flip = async (
+    key: string,
+    value: boolean,
+    run: () => Promise<unknown>,
+    focusOnFailure?: { targetId: string; focusedId: string },
+  ) => {
     setShown((s) => ({ ...s, [key]: value }));
-    await run();
+    const result = await run();
+    if (
+      result === undefined &&
+      focusOnFailure &&
+      document.activeElement?.id === focusOnFailure.focusedId
+    ) {
+      pendingRuleFocus.current = {
+        targetId: focusOnFailure.targetId,
+        allowedActiveIds: [focusOnFailure.focusedId],
+      };
+    }
     setShown((s) => {
       const rest = { ...s };
       delete rest[key];
@@ -61,14 +103,36 @@ export function RulesPage() {
   const current = check.data?.stage.stage;
   const active = book?.rules.filter((r) => shown[r.code] ?? r.enabled).length ?? 0;
   const open = book?.rules.find((r) => r.code === panel);
-
-  const toggleRule = (r: RuleRow, enabled: boolean) =>
-    void flip(r.code, enabled, () =>
-      write(
-        () => patchRule(r.code, { enabled }),
-        () => `${r.code} ${r.name}: ${onOff(enabled)}`,
-      ),
+  const closePanel = () => {
+    const code = panel;
+    setPanel(null);
+    // A status change moves the row to another group and replaces the original dialog trigger.
+    requestAnimationFrame(() =>
+      document.getElementById(`rule-settings-${code}`)?.focus({ preventScroll: true }),
     );
+  };
+
+  const toggleRule = (r: RuleRow, enabled: boolean) => {
+    const switchId = `rule-switch-${r.code}`;
+    const targetId = enabled ? switchId : 'rw-disabled-summary';
+    const switchHasFocus = document.activeElement?.id === switchId;
+    if (switchHasFocus) {
+      pendingRuleFocus.current = {
+        targetId,
+        allowedActiveIds: [switchId],
+      };
+    }
+    void flip(
+      r.code,
+      enabled,
+      () =>
+        write(
+          () => patchRule(r.code, { enabled }),
+          () => `${r.code} ${r.name}: ${onOff(enabled)}`,
+        ),
+      switchHasFocus ? { targetId: switchId, focusedId: targetId } : undefined,
+    );
+  };
   const toggleItem = (c: ChecklistRow, enabled: boolean) =>
     void flip(c.code, enabled, () =>
       write(
@@ -84,6 +148,81 @@ export function RulesPage() {
       ),
     );
 
+  const grouped = (group: RuleGroup) =>
+    book?.rules.filter((r) => ruleGroup(r, shown[r.code] ?? r.enabled) === group) ?? [];
+  const list = (rows: RuleRow[]) => (
+    <ul className="rw-list rw-rules">
+      {rows.map((r) => {
+        const enabled = shown[r.code] ?? r.enabled;
+        const guidance = RULE_GUIDANCE[r.code as RuleCode];
+        const needsAttention = enabled && r.latest?.status !== 'ok';
+        return (
+          <li key={r.code} data-rule-code={r.code}>
+            <div className="rw-rule-copy">
+              <strong>
+                <span className="rw-pos">{r.code}</span> {r.name}
+              </strong>
+              <small className="rw-explanation">{guidance.explanation}</small>
+              {enabled &&
+                (r.latest ? (
+                  <div className="rw-rule-result">
+                    <StatusMark
+                      status={
+                        r.latest.status === 'ok'
+                          ? 'met'
+                          : r.latest.status === 'warn'
+                            ? 'warning'
+                            : 'violated'
+                      }
+                      actionNeeded={r.latest.actionNeeded}
+                    />
+                    <span>Ist: {maskMoneyText(r.latest.valueText)}</span>
+                    <small>Stand {longDay(r.latest.asOf)}</small>
+                  </div>
+                ) : (
+                  <small>
+                    {maskMoneyText(
+                      `Nicht prüfbar: ${r.unavailableReason ?? 'Es fehlen Daten für diese Regel.'}`,
+                    )}
+                  </small>
+                ))}
+              {needsAttention && (
+                <>
+                  <small>Schwelle: {thresholdText(r.code, r.params)}</small>
+                  <small>
+                    {maskMoneyText(
+                      r.latest?.actionText ?? r.action ?? 'Angaben für diese Regel ergänzen.',
+                    )}
+                  </small>
+                  <AppLink className="rw-fix" to={guidance.to}>
+                    {guidance.label}
+                  </AppLink>
+                </>
+              )}
+            </div>
+            <div className="rw-controls">
+              <Button
+                id={`rule-settings-${r.code}`}
+                variant="ghost"
+                size="xs"
+                aria-label={`Einstellen ${r.code} ${r.name}`}
+                onClick={() => setPanel(r.code)}
+              >
+                Einstellen
+              </Button>
+              <Switch
+                id={`rule-switch-${r.code}`}
+                label={`${r.code} ${r.name}`}
+                checked={enabled}
+                onChange={(on) => toggleRule(r, on)}
+              />
+            </div>
+          </li>
+        );
+      })}
+    </ul>
+  );
+
   return (
     <PageFrame meta={EINSTELLUNGEN_REGELWERK}>
       <div className="kview rw">
@@ -93,6 +232,48 @@ export function RulesPage() {
         )}
         {book && (
           <>
+            <section className="rw-sec" aria-labelledby="rl-title">
+              <SectionHead
+                id="rl-title"
+                title={`Regeln (${book.rules.length})`}
+                aside={`${active} von ${book.rules.length} aktiv`}
+              />
+              {(
+                [
+                  ['violated', 'Verletzt'],
+                  ['pending', 'Noch offen'],
+                  ['met', 'Eingehalten'],
+                ] as const
+              ).map(([group, title]) => {
+                const rows = grouped(group);
+                if (group === 'pending' && rows.length === 0) return null;
+                return (
+                  <section className="rw-group" key={group} aria-labelledby={`rw-${group}`}>
+                    <h3 id={`rw-${group}`}>
+                      {title} ({rows.length})
+                    </h3>
+                    {group === 'pending' && (
+                      <p className="rw-now-sub">Warnungen und Regeln, für die noch Daten fehlen.</p>
+                    )}
+                    {rows.length ? (
+                      list(rows)
+                    ) : (
+                      <p className="rw-now-sub">
+                        {group === 'violated'
+                          ? 'Keine Regel verletzt.'
+                          : 'Noch keine Regel eingehalten.'}
+                      </p>
+                    )}
+                  </section>
+                );
+              })}
+              <details className="rw-group rw-disabled">
+                <summary id="rw-disabled-summary">
+                  Ausgeschaltet ({grouped('disabled').length})
+                </summary>
+                {list(grouped('disabled'))}
+              </details>
+            </section>
             <section className="rw-sec" aria-labelledby="stg-title">
               <SectionHead
                 id="stg-title"
@@ -128,7 +309,9 @@ export function RulesPage() {
                         .map((c) => (
                           <li key={c.code}>
                             <span>
-                              <strong>{c.name}</strong>
+                              <strong>
+                                <span className="rw-pos">{c.code}</span> {c.name}
+                              </strong>
                               <small>
                                 {c.source}
                                 {c.ruleCode ? (
@@ -160,43 +343,11 @@ export function RulesPage() {
                 ))}
               </div>
             </section>
-            <section className="rw-sec" aria-labelledby="rl-title">
-              <SectionHead
-                id="rl-title"
-                title={`Regeln (${book.rules.length})`}
-                aside={`${active} von ${book.rules.length} aktiv`}
-              />
-              <ul className="rw-list rw-rules">
-                {book.rules.map((r) => (
-                  <li key={r.code}>
-                    <span>
-                      <strong>
-                        <span className="rw-pos">{r.code}</span> {r.name}
-                      </strong>
-                      <small>{thresholdText(r.code, r.params)}</small>
-                    </span>
-                    <Button
-                      variant="ghost"
-                      size="xs"
-                      aria-label={`Schwelle ${r.code} ${r.name}`}
-                      onClick={() => setPanel(r.code)}
-                    >
-                      Schwelle
-                    </Button>
-                    <Switch
-                      label={`${r.code} ${r.name}`}
-                      checked={shown[r.code] ?? r.enabled}
-                      onChange={(on) => toggleRule(r, on)}
-                    />
-                  </li>
-                ))}
-              </ul>
-            </section>
             <BookInputForm />
           </>
         )}
       </div>
-      <RulePanel rule={open ?? null} onClose={() => setPanel(null)} />
+      <RulePanel rule={open ?? null} onClose={closePanel} />
     </PageFrame>
   );
 }

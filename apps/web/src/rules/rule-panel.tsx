@@ -3,7 +3,7 @@ import {
   maskMoneyText,
   AmountInput,
   Button,
-  DetailPanel,
+  WideDialog,
   Field,
   Select,
   StatusMark,
@@ -27,11 +27,11 @@ import { useRuleWrite } from './use-rule-writes';
 
 const STATUS: Record<RuleStatusCode, RuleStatus> = { ok: 'met', warn: 'warning', bad: 'violated' };
 
-/** Side panel (desktop) / bottom sheet (phone): current value, next step and the thresholds. */
+/** Input dialog: current value, next step and the thresholds. */
 export function RulePanel({ rule, onClose }: { rule: RuleRow | null; onClose: () => void }) {
   useAmountPrivacy();
   return (
-    <DetailPanel
+    <WideDialog
       open={rule !== null}
       onClose={onClose}
       title={rule ? `${rule.code} ${rule.name}` : ''}
@@ -40,7 +40,7 @@ export function RulePanel({ rule, onClose }: { rule: RuleRow | null; onClose: ()
         // Remounts when the stored parameters change (saved, undone, redone).
         <RuleForm key={`${rule.code}:${JSON.stringify(rule.params)}`} rule={rule} />
       )}
-    </DetailPanel>
+    </WideDialog>
   );
 }
 
