@@ -19,6 +19,7 @@ import {
   request,
   type Browser,
   type BrowserContext,
+  type CDPSession,
   type Page,
   type Request,
 } from '@playwright/test';
@@ -63,6 +64,13 @@ type Sample = {
   browserSetupMs?: number;
   navigationMs?: number;
   fullContentMs?: number;
+  rendererThreadTicksMs?: {
+    scriptDuration: number;
+    layoutDuration: number;
+    recalcStyleDuration: number;
+    taskDuration: number;
+  };
+  heuteDom?: { elementCount: number; outerHtmlUtf8Bytes: number };
   heute?: ApiRow;
   error?: string;
   cleanupError?: string;
@@ -88,14 +96,25 @@ type LocalServer = {
 };
 
 const samples: Sample[] = [];
+const profileEnabled = process.argv.slice(2).includes('--profile');
 const report: Record<string, unknown> = {
-  protocol: 'heute-browser-cold-warm-v1',
+  protocol: profileEnabled ? 'heute-browser-profile-v1' : 'heute-browser-cold-warm-v1',
+  profile: profileEnabled,
   today: TODAY,
   month: MONTH,
   period: 'payday',
   plannedSamples: 2 * N,
   samplesPerState: N,
   expectedWarmModels: WARM_MODELS,
+  ...(profileEnabled
+    ? {
+        rendererProfile: {
+          timeDomain: 'threadTicks',
+          counters: ['ScriptDuration', 'LayoutDuration', 'RecalcStyleDuration', 'TaskDuration'],
+          scope: 'Chromium renderer main thread; not full paint or compositor time',
+        },
+      }
+    : {}),
   timeoutsMs: { startup: 30_000, warmup: 120_000, navigation: 60_000, content: 90_000 },
   runtime: { node: process.version, platform: process.platform, arch: process.arch, browser: null },
   authenticationPreparation: {
@@ -132,9 +151,12 @@ function gitMetadata(root: string) {
 
 function selectedDatabase(): string {
   const args = process.argv.slice(2);
-  if (args.length !== 2 || args[0] !== '--database' || !args[1]) {
+  const valid =
+    (args.length === 2 && args[0] === '--database' && args[1]) ||
+    (args.length === 3 && args[0] === '--database' && args[1] && args[2] === '--profile');
+  if (!valid || !args[1]) {
     throw new Error(
-      'Usage: npx tsx scripts/perf/heute-browser-cold-warm.ts --database <absolute-synthetic-db-path>',
+      'Usage: npx tsx scripts/perf/heute-browser-cold-warm.ts --database <absolute-synthetic-db-path> [--profile]',
     );
   }
   if (!isAbsolute(args[1]) || !existsSync(args[1]) || !statSync(args[1]).isFile()) {
@@ -524,6 +546,55 @@ function assertApi(rows: ApiRow[]): ApiRow {
   return heute;
 }
 
+type RendererMetrics = {
+  ScriptDuration: number;
+  LayoutDuration: number;
+  RecalcStyleDuration: number;
+  TaskDuration: number;
+};
+type RendererDelta = NonNullable<Sample['rendererThreadTicksMs']>;
+
+async function rendererMetrics(session: CDPSession): Promise<RendererMetrics> {
+  const response = (await session.send('Performance.getMetrics')) as {
+    metrics?: { name: string; value: number }[];
+  };
+  if (!response || !Array.isArray(response.metrics)) {
+    throw new Error('CDP Performance.getMetrics returned no metrics array.');
+  }
+  const required = [
+    'ScriptDuration',
+    'LayoutDuration',
+    'RecalcStyleDuration',
+    'TaskDuration',
+  ] as const;
+  const result = {} as RendererMetrics;
+  for (const name of required) {
+    const metric = response.metrics.find((candidate) => candidate.name === name);
+    if (!metric || !Number.isFinite(metric.value) || metric.value < 0) {
+      throw new Error('CDP metric missing or invalid: ' + name + '.');
+    }
+    result[name] = metric.value;
+  }
+  return result;
+}
+
+function rendererDelta(before: RendererMetrics, after: RendererMetrics): RendererDelta {
+  const scriptDuration = after.ScriptDuration - before.ScriptDuration;
+  const layoutDuration = after.LayoutDuration - before.LayoutDuration;
+  const recalcStyleDuration = after.RecalcStyleDuration - before.RecalcStyleDuration;
+  const taskDuration = after.TaskDuration - before.TaskDuration;
+  const deltas = [scriptDuration, layoutDuration, recalcStyleDuration, taskDuration];
+  if (deltas.some((value) => !Number.isFinite(value) || value < 0)) {
+    throw new Error('CDP renderer metric delta was negative or non-finite.');
+  }
+  return {
+    scriptDuration: scriptDuration * 1_000,
+    layoutDuration: layoutDuration * 1_000,
+    recalcStyleDuration: recalcStyleDuration * 1_000,
+    taskDuration: taskDuration * 1_000,
+  };
+}
+
 async function waitForPage(page: Page): Promise<void> {
   const visible = [
     '#answer-wealth-title',
@@ -599,6 +670,7 @@ async function runSample(state: State, index: number): Promise<void> {
   samples.push(sample);
   let server: LocalServer | undefined;
   let context: BrowserContext | undefined;
+  let cdp: CDPSession | undefined;
   let observer: ReturnType<typeof observeApi> | undefined;
   let apiDeadline: number | undefined;
   try {
@@ -620,6 +692,12 @@ async function runSample(state: State, index: number): Promise<void> {
     const page = await context.newPage();
     await page.clock.setFixedTime(new Date('2026-09-17T08:30:00+02:00'));
     observer = observeApi(page);
+    let metricsBefore: RendererMetrics | undefined;
+    if (profileEnabled) {
+      cdp = await context.newCDPSession(page);
+      await cdp.send('Performance.enable', { timeDomain: 'threadTicks' });
+      metricsBefore = await rendererMetrics(cdp);
+    }
     sample.browserSetupMs = Number((performance.now() - setup).toFixed(3));
     const nav = performance.now();
     await page.goto(server.origin + '/?monat=' + MONTH + '&period=payday', {
@@ -632,6 +710,14 @@ async function runSample(state: State, index: number): Promise<void> {
     await settleHeute(page, observer, apiDeadline);
     sample.heute = assertApi(observer.rows);
     sample.fullContentMs = Number((performance.now() - nav).toFixed(3));
+    if (profileEnabled && cdp && metricsBefore) {
+      const metricsAfter = await rendererMetrics(cdp);
+      sample.rendererThreadTicksMs = rendererDelta(metricsBefore, metricsAfter);
+      sample.heuteDom = await page.locator('.heute').evaluate((element) => ({
+        elementCount: 1 + element.querySelectorAll('*').length,
+        outerHtmlUtf8Bytes: new TextEncoder().encode(element.outerHTML).byteLength,
+      }));
+    }
     sample.complete = true;
   } catch (error) {
     sample.error = errorText(error);
@@ -653,6 +739,11 @@ async function runSample(state: State, index: number): Promise<void> {
           new URLSearchParams(row.path.slice(row.path.indexOf('?') + 1)).get('period') === 'payday',
       );
       if (heute) sample.heute = heute;
+    }
+    try {
+      await cdp?.detach();
+    } catch (error) {
+      sample.cleanupError ??= 'Detach Chromium profiling session: ' + errorText(error);
     }
     try {
       await context?.close();
@@ -703,6 +794,11 @@ function summarize(values: number[]) {
   };
 }
 
+function distribution(values: number[]) {
+  const { medianMs, minMs, maxMs, n } = summarize(values);
+  return { n, median: medianMs, min: minMs, max: maxMs };
+}
+
 function parityFailure(): string | undefined {
   const cold = samples
     .filter((sample) => sample.state === 'cold')
@@ -722,7 +818,7 @@ function parityFailure(): string | undefined {
 function successSummaries() {
   report.summaries = (['cold', 'warm'] as const).map((state) => {
     const rows = samples.filter((sample) => sample.state === state && sample.complete);
-    return {
+    const result: Record<string, unknown> = {
       state,
       serverStartup: summarize(rows.map((sample) => sample.serverStartupMs!)),
       browserSetup: summarize(rows.map((sample) => sample.browserSetupMs!)),
@@ -734,6 +830,25 @@ function successSummaries() {
       payloadSha256: rows.map((sample) => sample.heute!.sha256),
       warmup: summarize(rows.map((sample) => sample.warmupMs!)),
     };
+    if (profileEnabled) {
+      result.rendererThreadTicksMs = {
+        scriptDuration: summarize(
+          rows.map((sample) => sample.rendererThreadTicksMs!.scriptDuration),
+        ),
+        layoutDuration: summarize(
+          rows.map((sample) => sample.rendererThreadTicksMs!.layoutDuration),
+        ),
+        recalcStyleDuration: summarize(
+          rows.map((sample) => sample.rendererThreadTicksMs!.recalcStyleDuration),
+        ),
+        taskDuration: summarize(rows.map((sample) => sample.rendererThreadTicksMs!.taskDuration)),
+      };
+      result.heuteDom = {
+        elementCount: distribution(rows.map((sample) => sample.heuteDom!.elementCount)),
+        outerHtmlUtf8Bytes: distribution(rows.map((sample) => sample.heuteDom!.outerHtmlUtf8Bytes)),
+      };
+    }
+    return result;
   });
 }
 
