@@ -1,49 +1,100 @@
-name: Update e2e snapshots
+# Template only: replace 8a7594d85b6b281b1af51606f4d4cdb2dfba0d62 with the final frozen source SHA before use.
+name: Account scope 267 Linux preflight comparison
 
-# Manual only. Regenerates the Playwright screenshot baselines on Linux (the CI platform) for one
-# branch and commits them back, for PRs that change the UI on purpose. The owner's Windows machine
-# and the cloud sessions cannot produce Linux baselines themselves.
-# Commits pushed with GITHUB_TOKEN do not start CI: push any commit afterwards (or re-run CI).
 on:
   workflow_dispatch:
     inputs:
       branch:
-        description: Branch whose baselines to update (never main)
+        description: Branch to validate (must be a direct child of the frozen source)
         required: true
+        type: string
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
-  group: update-snapshots-${{ inputs.branch }}
-  cancel-in-progress: true
+  group: account-scope-267-linux-${{ inputs.branch }}
+  cancel-in-progress: false
 
 jobs:
-  update:
+  preflight:
     if: inputs.branch != 'main'
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ inputs.branch }}
+          fetch-depth: 2
+          persist-credentials: false
+      - name: Prove frozen source and clean checkout before installing anything
+        env:
+          SOURCE_SHA: 8a7594d85b6b281b1af51606f4d4cdb2dfba0d62
+        run: |
+          set -euo pipefail
+          git cat-file -e "${SOURCE_SHA}^{commit}"
+          test "$(git rev-parse HEAD^)" = "$SOURCE_SHA"
+          git diff --exit-code "$SOURCE_SHA" HEAD -- . ':(exclude).github/workflows/update-snapshots.yml'
+          git diff --check "$SOURCE_SHA" HEAD
+          git diff --exit-code
+          git diff --cached --exit-code
+          test -z "$(git ls-files --others --exclude-standard)"
+          test -z "$(git status --porcelain=v1 --untracked-files=all)"
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version-file: .nvmrc
           cache: npm
-      - run: npm ci
+      - name: Install dependencies
+        run: npm ci
       - name: Install Chromium and WebKit
-        run: npx playwright install --with-deps chromium webkit
-      # Non-screenshot failures are reported by the normal CI run on the PR, not here.
-      - name: Regenerate changed screenshots
-        run: npm run build:e2e && (npx playwright test --update-snapshots=changed || true)
-      - name: Commit the new baselines
-        env:
-          BRANCH: ${{ inputs.branch }}
         run: |
-          git config user.name 'github-actions[bot]'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add -A -- e2e
-          if git diff --cached --quiet; then echo 'No baseline changes.'; exit 0; fi
-          git commit -m 'test: update e2e screenshot baselines (Linux)'
-          git push origin "HEAD:refs/heads/$BRANCH"
+          npx playwright install --with-deps chromium webkit
+      - name: Build (E2E mode)
+        run: npm run build:e2e
+      - name: Account scope 267 functional E2E with isolated synthetic ledger
+        id: functional
+        env:
+          PLAYWRIGHT_HTML_OUTPUT_DIR: playwright-report/functional
+        run: |
+          npx playwright test e2e/account-scope-267.spec.ts --project=desktop --project=mobile --workers=1 --output=test-results/functional
+      - name: Compare the 15 desktop active-sidebar and Heute baselines (no snapshot updates)
+        if: always() && steps.functional.outcome == 'success'
+        env:
+          PLAYWRIGHT_HTML_OUTPUT_DIR: playwright-report/comparison-desktop
+        run: |
+          npx playwright test e2e/components.spec.ts e2e/expected.spec.ts e2e/goals.spec.ts e2e/networth.spec.ts e2e/rules.spec.ts e2e/shell.spec.ts --project=desktop --workers=1 --grep 'regression baseline \(own screenshot\): (light|dark)|the 90 days and a payment panel|the 90 days and the Einnahmen panel|baseline and axe in the (light|dark) theme|stages and rules show the rule book, axe clean in both themes|own baseline, (light|dark)|light heute|dark heute|light reports' --output=test-results/comparison-desktop
+      - name: Compare the two mobile Heute baselines (no snapshot updates)
+        if: always() && steps.functional.outcome == 'success'
+        env:
+          PLAYWRIGHT_HTML_OUTPUT_DIR: playwright-report/comparison-mobile
+        run: |
+          npx playwright test e2e/shell.spec.ts --project=mobile --workers=1 --grep 'light heute|dark heute' --output=test-results/comparison-mobile
+      - name: Final source, parent, and checkout proof
+        if: always()
+        env:
+          SOURCE_SHA: 8a7594d85b6b281b1af51606f4d4cdb2dfba0d62
+        run: |
+          set -euo pipefail
+          git cat-file -e "${SOURCE_SHA}^{commit}"
+          test "$(git rev-parse HEAD^)" = "$SOURCE_SHA"
+          git diff --exit-code "$SOURCE_SHA" HEAD -- . ':(exclude).github/workflows/update-snapshots.yml'
+          git diff --check "$SOURCE_SHA" HEAD
+          git diff --cached --exit-code
+          test -z "$(git diff --name-only)"
+          while IFS= read -r path; do
+            [ -z "$path" ] && continue
+            case "$path" in
+              playwright-report/*|test-results/*) ;;
+              *) echo "Unexpected untracked file: $path" >&2; exit 1 ;;
+            esac
+          done < <(git ls-files --others --exclude-standard)
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: always()
+        with:
+          name: account-scope-267-linux-comparison
+          path: |
+            playwright-report/functional/
+            playwright-report/comparison-desktop/
+            playwright-report/comparison-mobile/
+            test-results/
+          retention-days: 7
