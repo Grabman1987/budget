@@ -15,7 +15,11 @@ import type { SessionRow } from '../auth/store';
 import { readBody } from './http';
 import { bankConfirmSchema } from './assignment-rules';
 
-export function bankSyncRoutes(service: BankSync | null, stepUp: MiddlewareHandler, db: Db) {
+export function bankSyncRoutes(
+  service: BankSync | null,
+  passkeySession: MiddlewareHandler,
+  db: Db,
+) {
   const app = new Hono<{ Variables: { session: SessionRow } }>();
   app.use('*', async (c, next) => {
     c.header('Cache-Control', 'no-store');
@@ -61,10 +65,10 @@ export function bankSyncRoutes(service: BankSync | null, stepUp: MiddlewareHandl
   app.use('*', async (c, next) => (service ? next() : c.json({ error: 'not_configured' }, 503)));
   const id = z.string().uuid();
   const short = z.string().min(1).max(200);
-  app.get('/institutions', stepUp, async (c) =>
+  app.get('/institutions', passkeySession, async (c) =>
     c.json({ institutions: await service!.provider.institutions() }),
   );
-  app.post('/auth', stepUp, async (c) => {
+  app.post('/auth', passkeySession, async (c) => {
     const input = await readBody(
       c,
       z.object({ name: short, country: z.string().length(2) }).strict(),
@@ -73,7 +77,7 @@ export function bankSyncRoutes(service: BankSync | null, stepUp: MiddlewareHandl
     if (!session) return c.json({ error: 'unauthorized' }, 401);
     return c.json(await service!.start(input.name, input.country, session.id));
   });
-  app.post('/callback', stepUp, async (c) => {
+  app.post('/callback', passkeySession, async (c) => {
     const input = await readBody(
       c,
       z.object({ code: z.string().min(1).max(4096), state: z.string().min(32).max(100) }).strict(),
@@ -82,18 +86,18 @@ export function bankSyncRoutes(service: BankSync | null, stepUp: MiddlewareHandl
     if (!session) return c.json({ error: 'unauthorized' }, 401);
     return c.json(await service!.callback(input.code, input.state, session.id));
   });
-  app.put('/accounts/:id', stepUp, async (c) => {
+  app.put('/accounts/:id', passkeySession, async (c) => {
     const input = await readBody(
       c,
       z.object({ accountId: short, fromDate: z.iso.date() }).strict(),
     );
     return c.json(service!.map(id.parse(c.req.param('id')), input.accountId, input.fromDate));
   });
-  app.post('/:id/pause', stepUp, async (c) => {
+  app.post('/:id/pause', passkeySession, async (c) => {
     await readBody(c, z.object({}).strict());
     return c.json(service!.pause(id.parse(c.req.param('id'))));
   });
-  app.put('/:id/policy', stepUp, async (c) => {
+  app.put('/:id/policy', passkeySession, async (c) => {
     const input = await readBody(c, z.strictObject({ bookedToLedger: z.boolean() }));
     return c.json(service!.setPolicy(id.parse(c.req.param('id')), input.bookedToLedger));
   });

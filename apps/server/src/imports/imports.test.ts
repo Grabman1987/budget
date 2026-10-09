@@ -32,18 +32,20 @@ writeFileSync(join(webDir, 'index.html'), '<!doctype html><title>Budget</title>'
 const files = ynabExport(1);
 
 let db: Db;
-let stepUpFresh: boolean;
+let passkeyOk: boolean;
 let app: ReturnType<typeof createApp>;
 
 beforeEach(() => {
   vi.stubEnv('BUDGET_IMPORT_HTTP', '1');
   db = createTestDatabase().db;
-  stepUpFresh = true;
+  passkeyOk = true;
   const gate: AuthGate = {
     originGuard: async (_c, next) => next(),
     requireSession: async (_c, next) => next(),
-    requireStepUp: async (c, next) =>
-      stepUpFresh ? next() : c.json({ error: 'step_up_required' }, 403),
+    // Imports need a passkey-opened session, not a fresh step-up: the step-up gate stays unused.
+    requirePasskeySession: async (c, next) =>
+      passkeyOk ? next() : c.json({ error: 'passkey_required' }, 403),
+    requireStepUp: async (c) => c.json({ error: 'step_up_required' }, 403),
     routes: new Hono(),
   };
   app = createApp({ webDir, auth: gate, ledger: { db, today: () => '2026-09-29' } });
@@ -218,10 +220,10 @@ describe('YNAB import runs', () => {
     expect(db.select().from(auditLog).all()).toHaveLength(auditCount);
   });
 
-  it('stages both files, refuses uploads without step-up, broken files with the line', async () => {
-    stepUpFresh = false;
+  it('stages both files, refuses uploads without a passkey session, broken files with the line', async () => {
+    passkeyOk = false;
     expect((await upload()).status).toBe(403);
-    stepUpFresh = true;
+    passkeyOk = true;
     const { status, body } = await upload();
     expect(status).toBe(201);
     expect(body['run'].status).toBe('staged');
@@ -258,9 +260,9 @@ describe('YNAB import runs', () => {
     expect(dry.body['change'].bookings.added).toBeGreaterThan(1000);
     expect(liveBookings()).toBe(0);
 
-    stepUpFresh = false;
+    passkeyOk = false;
     expect((await call('POST', `/${id}/commit`, {})).status).toBe(403);
-    stepUpFresh = true;
+    passkeyOk = true;
     const commit = await call('POST', `/${id}/commit`, {});
     expect(commit.status).toBe(200);
     expect(commit.body['run'].status).toBe('committed');

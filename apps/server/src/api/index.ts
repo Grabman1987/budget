@@ -87,8 +87,10 @@ export interface LedgerApiOptions {
   today?: () => string;
   /** Price and rate sources for the market refresh; default per `BUDGET_MARKET_SOURCES`. */
   market?: MarketSources | undefined;
-  /** Refuses a request without a fresh step-up (uploads, commits and reverts of import runs). */
+  /** Refuses a request without a fresh step-up (full export only). */
   stepUp: MiddlewareHandler;
+  /** Refuses a session that was not opened with a passkey (data sources, imports); no freshness. Defaults to `stepUp` (stricter) when omitted, which only test setups do. */
+  passkeySession?: MiddlewareHandler | undefined;
   /** Runner of the import tasks (worker threads); one per database. */
   jobs?: ImportJobs | undefined;
   receiptsDir?: string | undefined;
@@ -104,6 +106,7 @@ export function createLedgerApi({
   today = () => todayInVienna(),
   market = createMarketSources(db, marketModeFromEnv()),
   stepUp,
+  passkeySession: passkeyGate = stepUp,
   bankSync = bankSyncFromEnv(db),
   jobs,
   receiptsDir = receiptDirectory(sqliteOf(db).name),
@@ -143,8 +146,8 @@ export function createLedgerApi({
   api.route('/projects', projectRoutes(db, today));
   api.route('/income-month-rules', incomeMonthRoutes(db));
   api.route('/assignment-rules', assignmentRoutes(db));
-  api.route('/bank-sync', bankSyncRoutes(bankSync, stepUp, db));
-  api.route('/sources/crypto', readSourceRoutes(db, today, stepUp, cryptoReadSource()));
+  api.route('/bank-sync', bankSyncRoutes(bankSync, passkeyGate, db));
+  api.route('/sources/crypto', readSourceRoutes(db, today, passkeyGate, cryptoReadSource()));
   api.route('/search', searchRoutes(db));
   api.route('/accounts', accountRoutes(db, today));
   api.route('/inbox', inboxRoutes(db, today));
@@ -183,7 +186,7 @@ export function createLedgerApi({
   api.route('/undo', undoRoutes(db));
   api.route('/', marketRoutes(db, today, market));
   if (importHttpEnabled())
-    api.route('/imports', importRoutes(db, today, stepUp, jobs ?? new ImportJobs(db)));
+    api.route('/imports', importRoutes(db, today, passkeyGate, jobs ?? new ImportJobs(db)));
   api.onError(errorResponse);
   return Object.assign(api, { warm: () => warmReadModels(api, today) });
 }

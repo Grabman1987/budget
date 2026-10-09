@@ -194,9 +194,20 @@ export function createAuth(deps: AuthDeps) {
   };
 
   /**
-   * After `requireSession`: sensitive operations (full export, imports) need a step-up of the last
-   * few minutes. A recovery-code session never qualifies: it may only register a new passkey, and
-   * the export needs a fresh passkey assertion from a session that was opened with a passkey.
+   * After `requireSession`: the session must have been opened with a passkey. A recovery-code
+   * session never qualifies (it may only register a new passkey). No freshness check: the passkey
+   * login when the app opens is enough for data sources and imports (owner decision 09.10.2026).
+   */
+  const requirePasskeySession: MiddlewareHandler<Env> = async (c, next) => {
+    const session = c.get('session');
+    if (session && (session.viaRecovery || session.passkeyId === null))
+      return fail(c, 403, 'passkey_required');
+    return next();
+  };
+
+  /**
+   * After `requireSession`: only for security and data-exfiltration actions (full export). Needs a
+   * passkey session AND a step-up of the last few minutes.
    */
   const requireStepUp: MiddlewareHandler<Env> = async (c, next) => {
     const session = c.get('session');
@@ -527,7 +538,15 @@ export function createAuth(deps: AuthDeps) {
     return json(c, 200, { ok: true });
   });
 
-  return { routes, originGuard, requireSession, requireStepUp, readSession, events };
+  return {
+    routes,
+    originGuard,
+    requireSession,
+    requirePasskeySession,
+    requireStepUp,
+    readSession,
+    events,
+  };
 }
 
 export type Auth = ReturnType<typeof createAuth>;
