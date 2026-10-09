@@ -936,6 +936,45 @@ describe('matching bank lines against existing bookings', () => {
     expect(bookings()[0]).toMatchObject({ id: booked, bankSourceId: linkId });
     expect(item(id).resolvedAt).not.toBeNull();
   });
+  const undoneBankBooking = async () => {
+    service.setPolicy(consentId, true);
+    await service.tick();
+    const created = bookings();
+    expect(created).toHaveLength(1);
+    const audit = opened.db
+      .select()
+      .from(schema.auditLog)
+      .all()
+      .find((a) => a.entityType === 'booking')!;
+    undo(opened.db, { groupId: audit.groupId! }, { actor: 'owner' });
+    const id = candidates()[0]!.id;
+    expect(bookings()[0]!.deletedAt).not.toBeNull();
+    expect(item(id).resolvedAt).toBeNull();
+    return { id, deleted: created[0]!.id, key: created[0]!.importKey! };
+  };
+  it('links an undone line to an existing booking instead of pointing at the deleted one', async () => {
+    const { id, deleted, key } = await undoneBankBooking();
+    const migrated = existing('2026-09-29');
+    nextDay();
+    vi.mocked(provider.transactions).mockResolvedValue(batch([]));
+    await service.tick();
+    expect(item(id).resolution).toBe('Mit vorhandener Buchung verknüpft: ' + migrated);
+    const target = bookings().find((b) => b.id === migrated)!;
+    expect(target).toMatchObject({ bankSourceId: linkId, deletedAt: null });
+    // The deleted row keeps the unique key, so the live one must not claim it.
+    expect(target.importKey).toBeNull();
+    expect(bookings().find((b) => b.id === deleted)).toMatchObject({ importKey: key });
+    expect(bookings().filter((b) => !b.deletedAt)).toHaveLength(1);
+  });
+  it('keeps an undone line open when nothing matches and the ledger opt-in is off', async () => {
+    const { id } = await undoneBankBooking();
+    service.setPolicy(consentId, false);
+    nextDay();
+    vi.mocked(provider.transactions).mockResolvedValue(batch([]));
+    await service.tick();
+    expect(item(id).resolvedAt).toBeNull();
+    expect(bookings().filter((b) => !b.deletedAt)).toHaveLength(0);
+  });
   it('without the ledger opt-in links a match but never posts a line without one', async () => {
     existing('2026-09-30');
     vi.mocked(provider.transactions).mockResolvedValue(
