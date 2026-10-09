@@ -2,6 +2,7 @@ import { generateKeyPairSync, verify } from 'node:crypto';
 import { describe, expect, it, vi } from 'vitest';
 import { bankJwt, enableBanking } from './enable-banking';
 import { bankSecretBox } from './secrets';
+import type { BankError } from './provider';
 
 const keys = generateKeyPairSync('rsa', { modulusLength: 2048 });
 const privateKey = keys.privateKey.export({ type: 'pkcs8', format: 'pem' }).toString();
@@ -374,6 +375,94 @@ describe('bank adapter with synthetic HTTP only', () => {
     });
     expect(warn).not.toHaveBeenCalled();
     warn.mockRestore();
+  });
+  it('treats empty strings as missing labels', async () => {
+    const { provider } = adapter([
+      {
+        session_id: 'synthetic-session',
+        access: { valid_until: '2027-03-31T00:00:00+00:00' },
+        accounts: [
+          { uid: 'acc-1', name: '', product: '', account_id: { iban: '' }, currency: 'EUR' },
+          { uid: 'acc-2', name: '', product: 'Sparen', account_id: null, currency: 'EUR' },
+        ],
+      },
+    ]);
+    await expect(provider.session('synthetic-code')).resolves.toMatchObject({
+      accounts: [
+        { uid: 'acc-1', label: 'Bankkonto 1' },
+        { uid: 'acc-2', label: 'Sparen' },
+      ],
+    });
+  });
+  it('skips unusable accounts but keeps the valid ones, logging counts without values', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const { provider } = adapter([
+      {
+        session_id: 'synthetic-session',
+        access: { valid_until: '2027-03-31T00:00:00+00:00' },
+        accounts: [
+          { name: 'secret-no-uid', currency: 'EUR' },
+          { uid: 'acc-2', name: 'Girokonto', currency: 'EUR' },
+          { uid: 'secret-no-currency' },
+          'secret-not-an-object',
+        ],
+      },
+    ]);
+    await expect(provider.session('synthetic-code')).resolves.toEqual({
+      id: 'synthetic-session',
+      validUntil: '2027-03-31T00:00:00.000Z',
+      accounts: [{ uid: 'acc-2', label: 'Girokonto', currency: 'EUR' }],
+    });
+    const logged = JSON.stringify(warn.mock.calls);
+    expect(logged).toContain('3');
+    expect(logged).not.toContain('secret');
+    warn.mockRestore();
+  });
+  it('names the failing field when no account is usable, without any values', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const { provider } = adapter([
+      {
+        session_id: 'secret-session-value',
+        access: { valid_until: '2027-03-31T00:00:00+00:00' },
+        accounts: [{ uid: '', name: 'secret-name', currency: 'EUR' }, { name: 'secret-name' }],
+      },
+    ]);
+    const error = await provider.session('synthetic-code').catch((e: unknown) => e);
+    expect(error).toMatchObject({ code: 'invalid_response' });
+    const detail = (error as BankError).detail!;
+    expect(detail).toBe('too_small@accounts.0.uid, invalid_type@accounts.1.uid');
+    expect(detail + JSON.stringify(warn.mock.calls) + String(error)).not.toContain('secret');
+    warn.mockRestore();
+  });
+  it('reports the failing path for a malformed top-level response and for no accounts', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    await expect(
+      adapter([
+        { session_id: 'secret-session-value', access: { valid_until: 'never' }, accounts: [] },
+      ]).provider.session('synthetic-code'),
+    ).rejects.toMatchObject({ detail: 'invalid_format@access.valid_until' });
+    await expect(
+      adapter([
+        {
+          session_id: 'synthetic-session',
+          access: { valid_until: '2027-03-31T00:00:00Z' },
+          accounts: [],
+        },
+      ]).provider.session('synthetic-code'),
+    ).rejects.toMatchObject({ code: 'invalid_response', detail: 'too_small@accounts' });
+    warn.mockRestore();
+  });
+  it('passes a validity longer than requested through for the caller to cap', async () => {
+    const { provider } = adapter([
+      {
+        session_id: 'synthetic-session',
+        access: { valid_until: '2031-01-01T00:00:00Z' },
+        accounts: [{ uid: 'acc-1', currency: 'EUR' }],
+      },
+    ]);
+    await expect(provider.session('synthetic-code')).resolves.toMatchObject({
+      validUntil: '2031-01-01T00:00:00.000Z',
+    });
   });
   it('logs only field paths of a rejected response, never values', async () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
