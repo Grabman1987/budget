@@ -175,6 +175,9 @@ Older CI/publication checkboxes below describe their original deliveries. Curren
 ### UX-5c — Violated rules first (owner feedback 2026-10-05)
 
 - [x] Regelwerk starts with violated rules, shared current values, stored thresholds and correction links; met rules follow and disabled rules start collapsed.
+- [x] Current main-union keyboard regression preserves focus for OFF/ON group transitions, Undo and settings Escape. All rules desktop/mobile preparation passed: 13 cases including three setup checks, four intentional viewport skips; four current captures were reviewed. [Current evidence](evidence/rules-focus-226.md).
+- [x] Final union full check: 380 files / 3,508 tests, exit 0; all 2,125 frozen paths/hashes unchanged. The history-only union with main `410d2cd0` preserved the same checked source files.
+- [ ] Exact-head Linux CI, original PR #226 update, integration/deployment and owner acceptance.
 - [x] Warnings and unavailable evaluations stay explicit under Noch offen; every registered rule has its code, a plain explanation, switch and Einstellen. Stage checklist items retain their own S-codes.
 - [x] Synthetic unit and desktop/mobile browser regressions cover grouping, correction navigation, keyboard expansion, parameter validation and undo; no local baseline regeneration.
 - [x] Full local typecheck, lint/format, unit coverage (three load timeouts passed targeted reruns), production/E2E builds and affected browser specs; [results and baseline list](ux-rules-first-1005.md).

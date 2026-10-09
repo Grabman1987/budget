@@ -8,6 +8,8 @@ Violations show the shared current value and evaluation date beside the stored t
 
 ## Verification
 
+The following results describe the original branch preparation. The current main-union verification, complete passing full check and keyboard focus regression are recorded in [current evidence](evidence/rules-focus-226.md). Historical load timeouts below are not the final union result.
+
 - Red/green unit regressions for group membership, disabled previews, missing data, complete explanation/link coverage, visible values and thresholds, checklist codes and keyboard expansion.
 - `e2e/rules.spec.ts`: synthetic sample at 1440 px and 390 px, API/group consistency, correction link and browser Back, collapsed disabled rows, keyboard expansion, light/dark Axe, overflow, 44 px controls, input dialog focus return, validation, toggle/threshold/checklist writes and undo.
 - Full local check invoked once: all workspace typechecks passed; lint initially rejected a type import and a local Windows runtime helper. The import was corrected and the helper moved to ignored test output; the complete lint/format check then passed. The full unit run passed 3,259 tests; three files hit the default 5-second timeout under memory pressure. Only those files were repeated with one worker and a 30-second timeout: 17 tests passed, covering all three failures. Test assertions were unchanged.

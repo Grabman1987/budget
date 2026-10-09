@@ -9,7 +9,7 @@ import {
 } from '@budget/ui';
 import { STAGES, type RuleCode } from '@budget/domain';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { useEffect, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { ErrorNote, LoadingNote } from '../ledger/states';
 import { HEUTE_KEY } from '../heute/api';
 import { EINSTELLUNGEN_REGELWERK } from '../nav/pages';
@@ -43,9 +43,42 @@ export function RulesPage() {
   const [panel, setPanel] = useState<string | null>(null);
   // What the owner just switched, shown at once while the write is on its way.
   const [shown, setShown] = useState<Record<string, boolean>>({});
-  const flip = async (key: string, value: boolean, run: () => Promise<unknown>) => {
+  const pendingRuleFocus = useRef<{
+    targetId: string;
+    allowedActiveIds: string[];
+  } | null>(null);
+  useLayoutEffect(() => {
+    const pending = pendingRuleFocus.current;
+    if (!pending) return;
+    pendingRuleFocus.current = null;
+    const active = document.activeElement;
+    if (
+      active === document.body ||
+      !active?.isConnected ||
+      pending.allowedActiveIds.includes(active.id)
+    ) {
+      document.getElementById(pending.targetId)?.focus({ preventScroll: true });
+    }
+  }, [shown]);
+
+  const flip = async (
+    key: string,
+    value: boolean,
+    run: () => Promise<unknown>,
+    focusOnFailure?: { targetId: string; focusedId: string },
+  ) => {
     setShown((s) => ({ ...s, [key]: value }));
-    await run();
+    const result = await run();
+    if (
+      result === undefined &&
+      focusOnFailure &&
+      document.activeElement?.id === focusOnFailure.focusedId
+    ) {
+      pendingRuleFocus.current = {
+        targetId: focusOnFailure.targetId,
+        allowedActiveIds: [focusOnFailure.focusedId],
+      };
+    }
     setShown((s) => {
       const rest = { ...s };
       delete rest[key];
@@ -79,13 +112,27 @@ export function RulesPage() {
     );
   };
 
-  const toggleRule = (r: RuleRow, enabled: boolean) =>
-    void flip(r.code, enabled, () =>
-      write(
-        () => patchRule(r.code, { enabled }),
-        () => `${r.code} ${r.name}: ${onOff(enabled)}`,
-      ),
+  const toggleRule = (r: RuleRow, enabled: boolean) => {
+    const switchId = `rule-switch-${r.code}`;
+    const targetId = enabled ? switchId : 'rw-disabled-summary';
+    const switchHasFocus = document.activeElement?.id === switchId;
+    if (switchHasFocus) {
+      pendingRuleFocus.current = {
+        targetId,
+        allowedActiveIds: [switchId],
+      };
+    }
+    void flip(
+      r.code,
+      enabled,
+      () =>
+        write(
+          () => patchRule(r.code, { enabled }),
+          () => `${r.code} ${r.name}: ${onOff(enabled)}`,
+        ),
+      switchHasFocus ? { targetId: switchId, focusedId: targetId } : undefined,
     );
+  };
   const toggleItem = (c: ChecklistRow, enabled: boolean) =>
     void flip(c.code, enabled, () =>
       write(
@@ -164,6 +211,7 @@ export function RulesPage() {
                 Einstellen
               </Button>
               <Switch
+                id={`rule-switch-${r.code}`}
                 label={`${r.code} ${r.name}`}
                 checked={enabled}
                 onChange={(on) => toggleRule(r, on)}
@@ -220,7 +268,9 @@ export function RulesPage() {
                 );
               })}
               <details className="rw-group rw-disabled">
-                <summary>Ausgeschaltet ({grouped('disabled').length})</summary>
+                <summary id="rw-disabled-summary">
+                  Ausgeschaltet ({grouped('disabled').length})
+                </summary>
                 {list(grouped('disabled'))}
               </details>
             </section>

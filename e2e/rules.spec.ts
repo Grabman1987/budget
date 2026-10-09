@@ -206,10 +206,14 @@ test('R15 off changes the Finanz-Check counts, R02 minimum 3 → 2 flips its sta
 
   // R15 (Spekulativer Anteil, verletzt in the sample) off: one rule less in the Finanz-Check.
   const r15 = page.getByRole('switch', { name: 'R15 Spekulativer Anteil', includeHidden: true });
+  const disabledSummary = page.locator('.rw-disabled > summary');
   await expect(r15).toBeChecked();
-  await r15.click();
+  await r15.focus();
+  await page.keyboard.press('Space');
   await expect(toast(page)).toContainText('R15 Spekulativer Anteil: aus');
   await expect(r15).not.toBeChecked();
+  await expect(disabledSummary).toBeVisible();
+  await expect(disabledSummary).toBeFocused();
   await expect(page.locator('.rw-disabled [data-rule-code="R15"]')).toHaveCount(1);
   await expect(
     page.getByText(`${DEFAULT_ACTIVE_RULE_COUNT - 1} von ${RULE_CODES.length} aktiv`),
@@ -219,6 +223,25 @@ test('R15 off changes the Finanz-Check counts, R02 minimum 3 → 2 flips its sta
   expect(off.counts.bad).toBe(before.counts.bad - 1);
   await toast(page).getByRole('button', { name: 'Rückgängig' }).click();
   await expect(r15).toBeChecked();
+  await expect(
+    page.getByText(`${DEFAULT_ACTIVE_RULE_COUNT} von ${RULE_CODES.length} aktiv`),
+  ).toBeVisible();
+  expect(await check()).toEqual(before);
+
+  // Reopening the disabled group and enabling the moved row must preserve keyboard focus too.
+  await r15.focus();
+  await page.keyboard.press('Space');
+  await expect(r15).not.toBeChecked();
+  await expect(disabledSummary).toBeFocused();
+  await disabledSummary.focus();
+  await page.keyboard.press('Enter');
+  const disabledR15 = page.locator('.rw-disabled [data-rule-code="R15"]').getByRole('switch');
+  await expect(disabledR15).toBeVisible();
+  await disabledR15.focus();
+  await page.keyboard.press('Space');
+  const enabledR15 = page.locator('.rw-rules > li[data-rule-code="R15"]').getByRole('switch');
+  await expect(enabledR15).toBeChecked();
+  await expect(enabledR15).toBeFocused();
   await expect(
     page.getByText(`${DEFAULT_ACTIVE_RULE_COUNT} von ${RULE_CODES.length} aktiv`),
   ).toBeVisible();
