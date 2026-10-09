@@ -28,12 +28,12 @@ Exact source-commit evidence: desktop/mobile each pass at clean commit
 d22965013c108ed3f8abf53a5c6cd3d2123fd445; captures record that SHA, an empty worktree,
 viewport, motion preference and accessibility tree. The evidence follow-up is
 documentation only and retains application/test hashes. Required CI acceptance
-at the final delivery head remains open. Initial Git index access failed, then a
-normal commit retry succeeded. Push/PR attempts report credential errors/HTTP 401;
-no alternative publication path was used.
+at the final delivery head remains open. Initial Git index/push/PR attempts failed;
+normal retries succeeded without an alternative publication path. The branch is
+pushed and normal PR #412 is open. Its metadata identifies the final delivery SHA;
+the application/test source hashes still match the locally verified source commit.
 
-Owner steps: restore normal GitHub access, push this single package's local commits,
-run required check/check-windows/docker/restore-test at its exact final head,
+Owner steps: require check/check-windows/docker/restore-test at PR #412's exact final head,
 review the screenshots and try the capture/discard path on a physical phone with
 the owner's screen reader. No keys or consents are required. Do not merge as part
 of this package.

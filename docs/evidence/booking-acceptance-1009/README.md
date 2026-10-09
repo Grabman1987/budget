@@ -4,6 +4,8 @@ Package: Refs #309, Refs #314, Refs #315. Lane: Daten/Werkzeug.
 Branch: `codex/pkg-h-booking-acceptance-1009`.
 Baseline HEAD: `6f603966779ed370dae4e8ac5290d3a942dfa670`.
 Verified source/test commit: `d22965013c108ed3f8abf53a5c6cd3d2123fd445`.
+Normal [PR #412](https://github.com/Grabman1987/budget/pull/412) is open; the branch
+has been pushed. The final delivery SHA and required checks are tracked on that PR.
 
 **Exact-head CI acceptance remains open.** Both viewport runs passed at the clean
 source/test commit above. Each capture's JSON records that SHA, an empty worktree
@@ -22,7 +24,7 @@ also pass in required CI; its historical evidence does not certify this package.
 | --- | --- | --- |
 | #309 German date, arithmetic amount, defaults and visible Save | Pass in light/dark at 1440 × 900 and synthetic 390 × 844. `1.234,56+0,01` becomes `1.234,57`; `07.10.2026` saves as `2026-10-07`, exactly −123457 cents, once, to the default cash account/category/payee, confirmed. | `e2e/booking-acceptance.spec.ts`, booking captures below |
 | #309 height and phone layout | Pass: sheet ≤88dvh, fully bounded by the viewport, no horizontal page/dialog overflow, visible controls ≥44 × 44 px, expanded content scrolls above the visible Save footer. With a category default, Available and suggestion rows put Mehr below the initial body viewport; scrolling reaches it without moving Save. | Mobile compact/expanded captures; geometry assertions |
-| #309 required CI at exact HEAD | **Open**: local clean-commit browser acceptance passes, but publication/required CI are still pending. | Delivery limits below |
+| #309 required CI at exact HEAD | **Open**: local clean-commit browser acceptance passes; required CI must pass on PR #412's final delivery SHA. | PR checks and delivery notes below |
 | #314 dark Heute | No contrast defect found in the bounded synthetic review. Main-content axe has zero violations; actual/forecast use solid/dashed lines and textual tooltip series names. | Heute captures; `apps/web/src/heute/charts.tsx` (BalanceChart), `packages/ui/src/styles/charts.css`, dark token sources below |
 | #314 dark booking form | No contrast defect found. Labels, amount/date, selected status and Save remain readable; dialog axe has zero violations. | Dark booking captures; `apps/web/src/ledger/ledger.css`, `packages/ui/src/styles/tokens.css` |
 | #315 keyboard / screen-reader focus semantics | Two defects reproduced and corrected: Tab after Save reached browser chrome; the discard alertdialog appeared without receiving focus. BookingPanel now wraps Tab/Shift+Tab and focuses Weiter bearbeiten, traps the question's two actions and returns to the prior control on continuing. Escape/discard return to the opener. | Runnable keyboard regression and discard-focus captures/ARIA JSON |
@@ -111,18 +113,16 @@ npx.cmd playwright test e2e/booking-acceptance.spec.ts --workers=1 --project=des
 npx.cmd playwright test e2e/booking-acceptance.spec.ts --workers=1 --project=mobile
 ```
 
-## Delivery limits and owner steps
+## Delivery and owner steps
 
 - Initial `git add` / `git commit` attempts could not create the shared
   `index.lock`. A later normal retry succeeded, without a workaround. Source/tests
   were then verified again on the committed clean tree.
-- The push attempt returned `schannel: AcquireCredentialsHandle failed:
-  SEC_E_NO_CREDENTIALS`. No alternative publication path was used.
-- The normal PR attempt returned **HTTP 401: Requires authentication**. The ready English body
-  is in [PR.md](PR.md); use the requested title from the task.
-- Owner: restore normal GitHub authentication, push the local commits and open
-  the single normal PR, then require all four checks on its exact final SHA.
-  Retain the final-head CI result alongside these clean source-commit artifacts
-  before accepting #309. Review dates/defaults/Save and the two focus changes on a physical phone
+- Initial push/PR attempts returned Windows credential errors and HTTP 401. Later
+  normal retries succeeded: the branch is pushed and PR #412 is open. No alternative
+  publication path was used. The English body is retained in [PR.md](PR.md).
+- Owner: require all four CI checks on PR #412's exact final SHA and retain that
+  result alongside these clean source-commit artifacts before accepting #309.
+  Review dates/defaults/Save and the two focus changes on a physical phone
   and with the owner's screen reader. No keys, consents, migration, provider API,
   merge or deployment is needed for this package.
