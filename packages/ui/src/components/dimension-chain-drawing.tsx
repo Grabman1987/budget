@@ -215,6 +215,18 @@ export function DimensionChainDrawing({
                       {label.text}
                     </text>
                   )}
+                  {onSelect && (
+                    <rect
+                      aria-hidden="true"
+                      className="seg-hit-area"
+                      x={x0}
+                      y={barY - 30}
+                      width={x1 - x0}
+                      height={44}
+                      fill="transparent"
+                      pointerEvents="all"
+                    />
+                  )}
                 </>,
               );
             })}

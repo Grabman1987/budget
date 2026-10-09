@@ -113,6 +113,87 @@ it('Heute and One-Pager expose the same cent-exact expectation and existing fore
   expect(report).toEqual(live);
 });
 
+it('keeps the forecast, net-worth liquidity and free budget on their distinct account scopes', async () => {
+  const ctx = { actor: 'tester' };
+  const scope = createTestDatabase();
+  try {
+    const scopeDb = scope.db;
+    accounts.create(
+      scopeDb,
+      {
+        id: 'synthetic-giro',
+        name: 'Synthetic checking',
+        type: 'checking',
+        role: 'budget',
+        onBudget: true,
+        openingDate: '2026-01-01',
+        openingBalanceCents: 100_000,
+      },
+      ctx,
+    );
+    accounts.create(
+      scopeDb,
+      {
+        id: 'synthetic-card',
+        name: 'Synthetic card',
+        type: 'credit_card',
+        role: 'budget',
+        onBudget: true,
+        openingDate: '2026-01-01',
+        openingBalanceCents: -20_000,
+      },
+      ctx,
+    );
+    accounts.create(
+      scopeDb,
+      {
+        id: 'synthetic-reserve',
+        name: 'Synthetic reserve',
+        type: 'savings',
+        role: 'reserve',
+        onBudget: true,
+        openingDate: '2026-01-01',
+        openingBalanceCents: 50_000,
+      },
+      ctx,
+    );
+    accounts.create(
+      scopeDb,
+      {
+        id: 'synthetic-depot',
+        name: 'Synthetic depot',
+        type: 'brokerage',
+        role: 'investment',
+        onBudget: false,
+        openingDate: '2026-01-01',
+        openingBalanceCents: 40_000,
+      },
+      ctx,
+    );
+    ensureDefaultRules(scopeDb);
+    const scopeApp = createApp({
+      webDir,
+      auth: signedIn,
+      ledger: { db: scopeDb, today: () => TODAY },
+    });
+
+    const response = await scopeApp.request('/api/heute');
+    expect(response.status).toBe(200);
+    const data = (await response.json()) as any;
+    expect(data.balance.actual.at(-1)).toEqual({ day: TODAY, balanceCents: 80_000 });
+    expect(data.balance.forecast[0]).toMatchObject({ day: TODAY, balanceCents: 80_000 });
+    expect(data.netWorth).toMatchObject({
+      liquidCents: 150_000,
+      investedCents: 40_000,
+      debtCents: -20_000,
+      totalCents: 170_000,
+    });
+    expect(data.lead.freeCents).toBe(0);
+  } finally {
+    scope.close();
+  }
+});
+
 it('keeps the upcoming status tied to a filled envelope when its account balance is negative', async () => {
   accounts.create(
     db,

@@ -204,7 +204,8 @@ function HeuteBody({ data }: { data: Heute }) {
         <DailyBudgetLine data={data} />
         {data.balance.forecast.length > 0 && (
           <p className="heute-note">
-            Kontoprognose bis {longDay(data.stand.to)} · 14 Tage Rückblick · gleicher Horizont wie
+            Kontoprognose bis {longDay(data.stand.to)} · Budget-Konten; Kreditkarten im Budget
+            eingeschlossen, Reservekonten ausgeschlossen · 14 Tage Rückblick · gleicher Horizont wie
             R07.
           </p>
         )}
@@ -706,6 +707,12 @@ function NetWorthDetail({
     <DetailPanel open={kind !== null} title={kind ? names[kind] : ''} onClose={onClose}>
       <div className="heute-breakdown">
         <p>Stand {longDay(net.asOf)}</p>
+        {kind === 'liquid' && (
+          <p>
+            Positive Salden aus Budget- und Reservekonten. Negative Kontosalden zählen zu Schulden;
+            das Maß ist kein frei verfügbares Budget.
+          </p>
+        )}
         {query.isPending && <LoadingNote what="Konten" />}
         {query.isError && (
           <ErrorNote what="Konten" error={query.error} onRetry={() => void query.refetch()} />
