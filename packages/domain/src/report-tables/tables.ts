@@ -513,6 +513,30 @@ export interface CategoryOverview {
   window: string[];
 }
 
+/** Selected calendar months, with the same category's existing facts one year earlier. */
+export function categoryTrend(
+  all: ReadonlyArray<TableMonth>,
+  categoryId: string,
+  window: ReadonlyArray<string>,
+): Array<{
+  month: string;
+  spentCents: number | null;
+  assignedCents: number | null;
+  previousCents: number | null;
+}> {
+  const byMonth = new Map(all.map((m) => [m.month, m]));
+  return window.map((month) => {
+    const current = byMonth.get(month);
+    const previous = byMonth.get(addMonths(month, -12));
+    return {
+      month,
+      spentCents: current ? (current.spending[categoryId] ?? 0) : null,
+      assignedCents: current ? (current.assigned[categoryId] ?? 0) : null,
+      previousCents: previous ? (previous.spending[categoryId] ?? 0) : null,
+    };
+  });
+}
+
 /** Categories with spending in the window, largest first, each against the previous period. */
 export function categoryOverview(
   all: ReadonlyArray<TableMonth>,
