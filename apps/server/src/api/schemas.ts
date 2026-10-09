@@ -12,6 +12,7 @@ import {
   TARGET_KINDS,
 } from '@budget/db';
 import { z } from 'zod';
+import { LIQUIDITY_HORIZONS, LIQUIDITY_LEVERS } from '@budget/domain';
 
 /** Integer cents. Amounts are never floats (SPEC §5). */
 export const cents = z.int();
@@ -90,6 +91,18 @@ export const seriesQuery = z.object({
   from: day,
   to: day,
   previewDays: z.coerce.number().int().min(0).max(365).default(0),
+  horizon: z.enum(LIQUIDITY_HORIZONS).optional(),
+  levers: z
+    .string()
+    .max(200)
+    .default('')
+    .transform((value) =>
+      value
+        .split(',')
+        .filter((id): id is (typeof LIQUIDITY_LEVERS)[number] =>
+          LIQUIDITY_LEVERS.some((known) => known === id),
+        ),
+    ),
 });
 /** The batch variant: optional comma-separated account ids (default: every live account). */
 export const seriesBatchQuery = seriesQuery.extend({

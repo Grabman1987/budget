@@ -32,7 +32,7 @@ it('adds nullable bank observations without losing existing account mapping or s
     expect(
       opened.sqlite
         .prepare(
-          'SELECT account_id, secret, last_sync_at, balance_cents, balance_date, balance_fetched_at FROM bank_sync_account',
+          'SELECT account_id, secret, last_sync_at, balance_cents, balance_date, balance_fetched_at, last_result FROM bank_sync_account',
         )
         .get(),
     ).toEqual({
@@ -42,6 +42,7 @@ it('adds nullable bank observations without losing existing account mapping or s
       balance_cents: null,
       balance_date: null,
       balance_fetched_at: null,
+      last_result: null,
     });
     expect(opened.sqlite.prepare('SELECT amount_cents FROM bank_sync_candidate').get()).toEqual({
       amount_cents: -129,

@@ -124,19 +124,12 @@ sampleTest(
     };
     const actual = await geometry(page),
       original = await geometry(prototype);
-    // UX-5a puts the result above the disclosed original calculation layout.
-    // Preserve the model's desktop columns and phone stacking inside the disclosure.
+    // The owner full-width directive supersedes the prototype's desktop side column (#342).
     const leadResult = (await page.locator('.debt-overview').boundingBox())!;
     expect(leadResult.y + leadResult.height).toBeLessThan(actual.lead!.y);
-    if (info.project.name === 'mobile') {
-      // Phone: the model panel stacks below the lead panel.
-      expect(actual.model!.y).toBeGreaterThanOrEqual(actual.lead!.y + actual.lead!.height - 1);
-    } else {
-      for (const g of [actual, original]) {
-        expect(g.model!.x).toBeGreaterThanOrEqual(g.lead!.x + g.lead!.width - 1);
-        expect(Math.abs(g.model!.y - g.lead!.y)).toBeLessThanOrEqual(1);
-      }
-    }
+    expect(actual.model!.y).toBeGreaterThanOrEqual(actual.lead!.y + actual.lead!.height - 1);
+    expect(Math.abs(actual.model!.x - actual.lead!.x)).toBeLessThanOrEqual(1);
+    expect(Math.abs(actual.model!.width - actual.lead!.width)).toBeLessThanOrEqual(1);
     for (const theme of ['light', 'dark']) {
       await prototype.evaluate((t) => {
         document.documentElement.dataset['theme'] = t;

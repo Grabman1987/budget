@@ -562,6 +562,12 @@
     font-family: var(--font-tech);
     font-size: 12px;
   }
+  .heute-account-preview {
+    display: flex;
+    align-items: center;
+    min-height: 44px;
+    overflow-wrap: anywhere;
+  }
   .heute-upcoming strong,
   .heute-upcoming span,
   .heute-rule strong,
