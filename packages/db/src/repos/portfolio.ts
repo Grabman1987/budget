@@ -991,6 +991,57 @@ export interface NetWorthDay {
 }
 
 /**
+ * Manual valuations (`netWorthValuationAsOf` rule): on a day an account of type p2p/other_asset
+ * without positions that day is worth its newest live valuation dated on or before the day (in the
+ * account currency, converted with the ECB rate of the day; zero needs no rate); without any such
+ * valuation, or before the opening date, its cash balance stays. Replaces those accounts' cash
+ * series in place, read in two queries for the whole window.
+ */
+function applyManualValuations(
+  db: Executor,
+  days: ReadonlyArray<string>,
+  cash: Map<string, number[]>,
+  positions: ReadonlyArray<{ accountId: string; unitsE8: ReadonlyArray<number> }>,
+  rates: RateTable,
+): void {
+  const to = days[days.length - 1];
+  if (to === undefined) return;
+  const manual = db
+    .select({ id: account.id, currency: account.currency, openingDate: account.openingDate })
+    .from(account)
+    .where(and(isNull(account.deletedAt), inArray(account.type, ['p2p', 'other_asset'])))
+    .all();
+  if (manual.length === 0) return;
+  const byAccount = new Map<string, { date: string; valueCents: number }[]>();
+  // Same order as `netWorthValuationAsOf` (newest first): the first row on or before a day wins.
+  for (const row of db
+    .select()
+    .from(valuation)
+    .where(and(isNull(valuation.deletedAt), lte(valuation.date, to)))
+    .orderBy(desc(valuation.date))
+    .all()) {
+    const list = byAccount.get(row.accountId) ?? [];
+    list.push({ date: row.date, valueCents: row.valueCents });
+    byAccount.set(row.accountId, list);
+  }
+  for (const a of manual) {
+    const series = cash.get(a.id);
+    const values = byAccount.get(a.id);
+    if (!series || !values) continue;
+    const held = positions.filter((p) => p.accountId === a.id);
+    days.forEach((day, i) => {
+      if (a.openingDate > day || held.some((p) => p.unitsE8[i] !== 0)) return;
+      const latest = values.find((v) => v.date <= day);
+      if (!latest) return;
+      series[i] =
+        latest.valueCents === 0 || a.currency === 'EUR'
+          ? latest.valueCents
+          : toEurCents(latest.valueCents, fxOn(rates, a.currency, day));
+    });
+  }
+}
+
+/**
  * Net worth per day from `from` to `to` in one pass: balances of all live accounts plus the market
  * value of all positions, equal to `netWorthAsOf` on every day (property-tested), split into the
  * market move of the products and the rest (`netWorthAttribution`, SPEC section 6: own
@@ -1002,6 +1053,7 @@ export function netWorthDaily(db: Executor, from: string, to: string): NetWorthD
   const cash = cashSeries(db, days);
   const positions = valuationSeries(db, { from: baseline, to });
   const rates = rateTable(db, to);
+  applyManualValuations(db, days, cash, positions.positions, rates);
   const tradesByDay = new Map<string, SeriesTrade[]>();
   for (const t of tradesOf(db, { from, to }, baseline)) {
     const list = tradesByDay.get(t.date) ?? [];

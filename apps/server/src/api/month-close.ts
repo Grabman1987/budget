@@ -11,6 +11,9 @@ import {
   booking,
   holdingValuationAsOf,
   listReconciliations,
+  reportTables,
+  occurrencesBetween,
+  loadFacts,
   type Db,
 } from '@budget/db';
 import {
@@ -18,6 +21,10 @@ import {
   lastDayOfMonth,
   monthCloseStateSchema,
   closeDecisionSchema,
+  addMonths,
+  nextPayday,
+  closePlanHistory,
+  closeDeviations,
   type CloseWork,
 } from '@budget/domain';
 import { and, desc, eq, isNull, lte } from 'drizzle-orm';
@@ -91,7 +98,33 @@ export function readMonthClose(db: Db, m: string, today: string) {
         done: manual ? value?.date === end : reconciled,
       };
     });
-  const plan = planMonthViews(db, [m], {}, today)[m]!;
+  const nextMonth = addMonths(m, 1);
+  const plans = planMonthViews(db, [m, nextMonth], {}, today);
+  const plan = plans[m]!;
+  const nextBudget = plans[nextMonth]!;
+  const facts = loadFacts(db, lastDayOfMonth(nextMonth));
+  const nextPlan = {
+    month: nextMonth,
+    payday: nextPayday(`${nextMonth}-01`).day,
+    budget: nextBudget,
+    previousAssigned: Object.fromEntries(
+      plan.summary.envelopes.map((e) => [e.categoryId, e.assignedCents]),
+    ),
+    history: closePlanHistory(
+      nextBudget.categories.map((c) => c.id),
+      m,
+      today,
+      reportTables(db, { today }).months,
+    ),
+    payments: occurrencesBetween(
+      db,
+      facts,
+      `${nextMonth}-01`,
+      lastDayOfMonth(nextMonth),
+      today,
+      facts.budgetByMonth.get(nextMonth),
+    ),
+  };
   const overspent = plan.summary.envelopes.filter((e) => e.overspentCents > 0);
   const work: CloseWork[] = [
     ...inbox.map((e) => ({ step: 1 as const, id: e.id, fingerprint: fingerprint(e) })),
@@ -123,7 +156,17 @@ export function readMonthClose(db: Db, m: string, today: string) {
     inbox,
     accounts,
     overspent,
-    steps: closeSteps(work, state.decisions),
+    nextPlan,
+    deviations: closeDeviations(
+      plan.summary.envelopes.flatMap((e) => {
+        const c = plan.categories.find((c) => c.id === e.categoryId);
+        return c?.class ? [{ ...e, name: c.name }] : [];
+      }),
+    ),
+    steps: closeSteps(work, state.decisions, {
+      remainingCents: nextBudget.summary.toBeAssignedCents,
+      ...(state.closedOn && { closedOn: state.closedOn }),
+    }),
   };
 }
 
@@ -138,12 +181,22 @@ export function monthCloseRoutes(db: Db, today: () => string): Hono {
         .strictObject({
           currentStep: z.int().min(1).max(5).optional(),
           decisions: z.array(closeDecisionSchema).max(1000).optional(),
+          close: z.literal(true).optional(),
         })
-        .refine((v) => v.currentStep !== undefined || v.decisions !== undefined),
+        .refine((v) => v.currentStep !== undefined || v.decisions !== undefined || v.close),
     );
     const ctx = { actor: ACTOR, groupId: randomUUID() };
     const result = db.transaction((tx) => {
       const view = readMonthClose(tx, m, today());
+      if (
+        patch.close &&
+        (view.end > today() || view.steps.slice(0, 4).some((s) => s.status === 'open'))
+      )
+        throw new ApiError(
+          409,
+          'close_incomplete',
+          'Prüfe zuerst die offenen Schritte und verteile das vorhandene Geld für den nächsten Monat vollständig. Der Monatsletzte muss erreicht sein.',
+        );
       for (const d of patch.decisions ?? []) {
         if (
           !view.work.some(
@@ -155,8 +208,10 @@ export function monthCloseRoutes(db: Db, today: () => string): Hono {
       const decisions = new Map(view.state.decisions.map((d) => [`${d.step}:${d.id}`, d]));
       for (const d of patch.decisions ?? []) decisions.set(`${d.step}:${d.id}`, d);
       const state = monthCloseStateSchema.parse({
-        currentStep: patch.currentStep ?? view.state.currentStep,
+        ...view.state,
+        currentStep: patch.close ? 5 : (patch.currentStep ?? view.state.currentStep),
         decisions: [...decisions.values()],
+        ...(patch.close && { closedOn: view.state.closedOn ?? today() }),
       });
       const current = getEntity(tx, appSetting, key(m));
       if (current) updateEntity(tx, appSetting, key(m), { value: JSON.stringify(state) }, ctx);

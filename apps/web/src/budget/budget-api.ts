@@ -78,7 +78,12 @@ export const budgetMonthsQuery = (months: string[]) =>
 export const assign = (
   month: string,
   items: Array<{ categoryId: string; assignedCents: number }>,
-) => request<WriteResult>('PUT', `${path(month)}/assigned`, { items });
+  closeMonth?: string,
+) =>
+  request<WriteResult>('PUT', `${path(month)}/assigned`, {
+    items,
+    ...(closeMonth && { closeMonth }),
+  });
 export const quickAssign = (month: string, mode: QuickAssignMode, categoryIds: string[]) =>
   request<WriteResult & { changedCount: number; openCount: number; missingCents: number }>(
     'POST',

@@ -4,7 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useParams } from '@tanstack/react-router';
 import { useState } from 'react';
 import { request } from '../api/http';
-import { budgetQuery } from '../budget/budget-api';
+import { budgetQuery, assign } from '../budget/budget-api';
 import { EnvelopeBody } from '../budget/envelope-panel';
 import { planRows } from '../budget/plan-model';
 import { useBudgetWrite } from '../budget/use-category-writes';
@@ -18,6 +18,8 @@ import { monthLabel } from '../nav/month';
 import { AppLink } from '../shell/app-link';
 import { monthCloseQuery, saveMonthClose, type MonthCloseView } from './api';
 import { CloseStepper, CLOSE_STATUS } from './stepper';
+import { NextMonthPlan } from './next-month-plan';
+import { MonthReview } from './month-review';
 import './month-close.css';
 
 export function MonthClosePage() {
@@ -54,6 +56,7 @@ export function MonthClosePage() {
 function CloseFlow({ data }: { data: MonthCloseView }) {
   const write = useBudgetWrite();
   const [busy, setBusy] = useState(false);
+  const [dirtyPlan, setDirtyPlan] = useState(false);
   const [selected, setSelected] = useState<string | null>(null);
   const [deferring, setDeferring] = useState<CloseWork[] | null>(null);
   const step = data.state.currentStep;
@@ -73,7 +76,7 @@ function CloseFlow({ data }: { data: MonthCloseView }) {
       ),
   );
   const select = async (currentStep: number) => {
-    if (busy) return;
+    if (busy || dirtyPlan) return;
     setBusy(true);
     if (
       await write(
@@ -90,7 +93,12 @@ function CloseFlow({ data }: { data: MonthCloseView }) {
   return (
     <div className="month-close">
       <p>Zuerst den Monat prüfen, dann den nächsten planen. Dein Fortschritt bleibt gespeichert.</p>
-      <CloseStepper steps={data.steps} current={step} onSelect={(s) => void select(s)} />
+      <CloseStepper
+        steps={data.steps}
+        current={step}
+        disabled={busy || dirtyPlan}
+        onSelect={(s) => void select(s)}
+      />
       <section aria-labelledby="close-step-title" className="close-body">
         <h2 id="close-step-title" tabIndex={-1}>
           {step}. {status.title}
@@ -247,7 +255,25 @@ function CloseFlow({ data }: { data: MonthCloseView }) {
             {budget.data && data.overspent.length === 0 && <p>Keine Kategorie ist überzogen.</p>}
           </>
         )}
-        {step > 3 && <p>Dieser Schritt folgt. Der Monatsabschluss ist noch nicht vollständig.</p>}
+        {step === 4 && (
+          <NextMonthPlan
+            data={data.nextPlan}
+            onDirtyChange={setDirtyPlan}
+            onApply={async (items) => {
+              setBusy(true);
+              const result = await write(
+                () => assign(data.nextPlan.month, items, data.month),
+                () => 'Plan übernommen. Alle Zuweisungen gemeinsam rückgängig machen.',
+              );
+              setBusy(false);
+              return Boolean(result);
+            }}
+          />
+        )}
+        {step === 4 && dirtyPlan && (
+          <p>Übernimm oder verwirf den Entwurf vor dem nächsten Schritt.</p>
+        )}
+        {step === 5 && <MonthReview data={data} />}
         {step === 1 && open.length > 0 && (
           <Button variant="ghost" disabled={busy} onClick={() => setDeferring(open)}>
             Rest ausdrücklich aufschieben
@@ -267,16 +293,21 @@ function CloseFlow({ data }: { data: MonthCloseView }) {
           />
         )}
       </section>
-      <div className="close-footer">
-        <AppLink to="/plan/monat" search={{ monat: data.month }} className="btn btn-ghost">
-          Verlassen
-        </AppLink>
-        {step < 5 && (
-          <Button disabled={busy || status.status === 'open'} onClick={() => void select(step + 1)}>
-            Weiter
-          </Button>
-        )}
-      </div>
+      {step < 5 && (
+        <div className="close-footer">
+          <AppLink to="/plan/monat" search={{ monat: data.month }} className="btn btn-ghost">
+            Verlassen
+          </AppLink>
+          {step < 5 && (
+            <Button
+              disabled={busy || dirtyPlan || status.status === 'open'}
+              onClick={() => void select(step + 1)}
+            >
+              Weiter
+            </Button>
+          )}
+        </div>
+      )}
     </div>
   );
 }
