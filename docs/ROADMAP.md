@@ -41,6 +41,14 @@ Older CI/publication checkboxes below describe their original deliveries. Curren
 - [x] Final full repository check passed type/lint/format and 379 files / 3,504 unit tests; the frozen 2,108-file manifest was unchanged both after checking and after normally unioning the actual #279 main merge.
 - [ ] Exact-head CI, integration/deployment and owner acceptance remain pending.
 
+### #280 — Reproducible Heute cold/warm baseline — 2026-10-09
+
+- [x] Add bounded handler/browser measurement scripts using an explicitly selected prepared synthetic dataset, fixed today/month, ten samples per state, current-navigation response and complete usable content gates.
+- [x] Run 40 handler and 20 browser observations on integrated main after #349 was verified live; preserve raw samples, medians/ranges, runtime/source metadata and the rejected initial preparation. All timed samples and 180 browser GETs succeed; cold/warm JSON parity and before/after finance fingerprints pass. [Protocol and raw evidence](evidence/heute-measure-280.md).
+- [x] Separate startup/auth preparation and warm-up from observed request/navigation durations; local browser timing is not server CPU or production latency. No infrastructure recommendation; #281 owns the next profile.
+- [x] Independent source/raw-data review has no concrete findings; final repository check passes type/lint/format and 379 files / 3,504 tests, with the frozen 2,114-file manifest unchanged.
+- [ ] Exact-head CI and integration/deployment.
+
 ### #302 — Dated historical class exposure — 2026-10-08
 
 - [x] Add a synthetic two-version API case with literal EUR cents, effective dates, January and February month-end index levels, and hand-derived class TTWROR; the prepared case and existing full portfolio API / exposure-repository regressions pass (2 files / 19 tests). No calculation defect was reproduced and no production formula was changed. [Evidence](evidence/dated-exposure-302.md).
