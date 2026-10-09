@@ -339,7 +339,9 @@ function HeuteBody({ data }: { data: Heute }) {
               />
             )}
             {revisions.length === 0 ? (
-              <EmptyNote>Keine offenen Schritte aus den Heute-Prüfungen.</EmptyNote>
+              <EmptyNote>
+                Keine zusätzlichen Schritte. Offene Punkte stehen unter „Braucht Aufmerksamkeit“.
+              </EmptyNote>
             ) : (
               <RevisionTable
                 rows={revisions}
@@ -824,7 +826,7 @@ function ValuationNote({ message }: { message: string }) {
   );
 }
 
-function CheckCounts({
+export function CheckCounts({
   check,
   date,
 }: {
@@ -876,7 +878,16 @@ function CheckCounts({
         <span>{ok} erfüllt</span>
         <span>{warn} Warnung</span>
         <span>{bad} verletzt</span>
+        <span>{check.counts.notEvaluated} nicht auswertbar</span>
       </p>
+      {check.counts.notEvaluated > 0 && (
+        <p>
+          Eingangsdaten fehlen; diese Regeln zählen nicht als erfüllt.{' '}
+          <AppLink to="/einstellungen/regelwerk" hash="rw-pending">
+            Fehlende Angaben ansehen
+          </AppLink>
+        </p>
+      )}
     </div>
   );
 }

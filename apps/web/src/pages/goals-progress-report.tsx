@@ -1,13 +1,13 @@
 import type { goalsReport } from '@budget/db';
 import { chartPoints } from '../charts/tooltip-data';
 import { AxisLine, ChartSvg, Line, XTicks, ChartValue } from '@budget/ui';
-import { useAmountPrivacy, ClassSwatch, DetailPanel, type SwatchKind } from '@budget/ui';
+import { useAmountPrivacy, ClassSwatch, type SwatchKind } from '@budget/ui';
 import { lastDayOfMonth } from '@budget/domain';
 import { queryOptions, useQuery } from '@tanstack/react-query';
 import { AlertTriangle, Check } from 'lucide-react';
-import { useState } from 'react';
 import { ApiError, request } from '../api/http';
 import { fetchCategories } from '../budget/api';
+import { GoalFigures } from '../budget/goals-panel';
 import type { GoalView } from '../budget/goals-api';
 import { goalBar, goalLine, planSummary, shortMonth } from '../budget/goals-model';
 import { fetchAccounts } from '../ledger/api';
@@ -31,12 +31,15 @@ const MONEY_FIELDS = [
 
 /** Goal/category writes and undo invalidate GOALS and LEDGER via useBudgetWrite;
  * booking/account writes and undo invalidate LEDGER. The server selects the current month. */
-export const goalsProgressReportQuery = () =>
+export const goalsProgressReportQuery = (month?: string) =>
   queryOptions({
-    queryKey: [...LEDGER_KEY, 'goals-progress-report'],
+    queryKey: [...LEDGER_KEY, 'goals-progress-report', ...(month ? [month] : [])],
     retry: false,
     queryFn: async () => {
-      const data = await request<{ month: string; goals: GoalView[] }>('GET', '/api/goals');
+      const data = await request<{ month: string; goals: GoalView[] }>(
+        'GET',
+        month ? `/api/goals?month=${month}` : '/api/goals',
+      );
       if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(data.month) || !Array.isArray(data.goals))
         throw new ApiError(503, 'unavailable', 'Monatsstand der Sparziele ist unvollständig.');
       const [categories, accounts, report] = await Promise.all([
@@ -49,6 +52,9 @@ export const goalsProgressReportQuery = () =>
       return {
         month: data.month,
         report,
+        goals: data.goals,
+        categories,
+        accounts: accounts.accounts,
         rows: goalReportRows(data.goals, categories.categories, accounts.accounts),
       };
     },
@@ -57,10 +63,8 @@ export const goalsProgressReportQuery = () =>
 export function GoalsProgressReport({ report, meta }: { report: ReportEntry; meta: PageMeta }) {
   useAmountPrivacy();
   const query = useQuery(goalsProgressReportQuery());
-  const [selected, setSelected] = useState<string | null>(null);
   // Never combine cached figures with loading or failed source metadata, including background refresh.
   const ready = !query.isFetching && query.isSuccess ? query.data : undefined;
-  const row = ready?.rows.find((r) => r.id === selected);
   return (
     <PageFrame
       verdict={
@@ -104,35 +108,19 @@ export function GoalsProgressReport({ report, meta }: { report: ReportEntry; met
             onRetry={() => void query.refetch()}
           />
         )}
-        {ready && (
-          <ReportBody
-            month={ready.month}
-            rows={ready.rows}
-            report={ready.report}
-            onSelect={setSelected}
-          />
-        )}
+        {ready && <ReportBody month={ready.month} rows={ready.rows} report={ready.report} />}
       </div>
-      <DetailPanel
-        open={Boolean(row)}
-        title={row?.name ?? 'Sparziel'}
-        onClose={() => setSelected(null)}
-      >
-        {row && ready && <GoalDetail row={row} month={ready.month} />}
-      </DetailPanel>
     </PageFrame>
   );
 }
 function ReportBody({
   month,
   rows,
-  onSelect,
   report,
 }: {
   report: ReturnType<typeof goalsReport>;
   month: string;
   rows: GoalReportRow[];
-  onSelect: (id: string) => void;
 }) {
   useAmountPrivacy();
   const known = rows.flatMap((r) => (r.progress ? [r.progress] : []));
@@ -192,17 +180,18 @@ function ReportBody({
             >
               <div className="goal-report-heading">
                 <span className="tech">{i + 1}</span>
-                <button
+                <AppLink
                   id={`goal-name-${row.id}`}
-                  type="button"
                   className="goal-report-open"
-                  onClick={() => onSelect(row.id)}
+                  to={`/plan/sparziele/${row.id}`}
+                  search={{ monat: month, quelle: 'report' }}
+                  state={{ planPanelDetailOpenedInApp: true }}
                 >
                   {row.source?.cls && ['need', 'want', 'future'].includes(row.source.cls) && (
                     <ClassSwatch kind={row.source.cls as SwatchKind} />
                   )}
                   {row.name}
-                </button>
+                </AppLink>
               </div>
               <p className="goal-report-meta">
                 {row.source ? sourceLabel(row) : 'Quelle ungeklärt'} ·{' '}
@@ -285,13 +274,14 @@ function ReportBody({
                 {rows.map((row) => (
                   <tr key={row.id}>
                     <th scope="row">
-                      <button
-                        type="button"
+                      <AppLink
                         className="goal-report-open"
-                        onClick={() => onSelect(row.id)}
+                        to={`/plan/sparziele/${row.id}`}
+                        search={{ monat: month, quelle: 'report' }}
+                        state={{ planPanelDetailOpenedInApp: true }}
                       >
                         {row.name}
-                      </button>
+                      </AppLink>
                     </th>
                     <td>{sourceLabel(row)}</td>
                     {MONEY_FIELDS.map((key) => (
@@ -377,7 +367,7 @@ function Forecast({ goal }: { goal: GoalView }) {
     </span>
   );
 }
-function GoalDetail({ row, month }: { row: GoalReportRow; month: string }) {
+export function GoalDetail({ row, month }: { row: GoalReportRow; month: string }) {
   useAmountPrivacy();
   const g = row.progress;
   return (
@@ -388,28 +378,11 @@ function GoalDetail({ row, month }: { row: GoalReportRow; month: string }) {
       {g ? (
         <>
           <GoalBar goal={g} month={month} />
-          <GoalStatus goal={g} month={month} />
-          <dl>
-            {[
-              ['Zielbetrag', eur(g.targetCents)],
-              ['Gespart', eur(g.savedCents)],
-              ['Fehlt', eur(g.remainingCents)],
-              [
-                'Nötig je Monat',
-                g.neededMonthlyCents === null ? 'ohne Zieldatum' : eur(g.neededMonthlyCents),
-              ],
-              ['Rate zuletzt', eur(g.averageRateCents)],
-              [
-                'Monate nach Monatsstand',
-                g.monthsLeft === null ? 'kein Rest oder ohne Zieldatum' : String(g.monthsLeft),
-              ],
-            ].map(([label, value]) => (
-              <div key={label}>
-                <dt>{label}</dt>
-                <dd>{value}</dd>
-              </div>
-            ))}
-          </dl>
+          <GoalFigures
+            goal={g}
+            month={month}
+            category={row.source?.kind === 'category' ? row.source : undefined}
+          />
           <p>
             Prognose: <Forecast goal={g} />
           </p>
@@ -452,7 +425,7 @@ function GoalDetail({ row, month }: { row: GoalReportRow; month: string }) {
   );
 }
 
-function GoalHistory({
+export function GoalHistory({
   points,
   name,
 }: {

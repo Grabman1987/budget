@@ -17,6 +17,7 @@ async function newCategory(
 ) {
   await page.getByRole('button', { name: `Kategorie in ${group} anlegen` }).click();
   const d = dialog(page, 'Kategorie anlegen');
+  await expect(page.locator('dialog.panel[open]')).toHaveCount(0);
   await d.getByLabel('Name', { exact: true }).fill(name);
   if (extra) await extra(d);
   await d.getByRole('button', { name: 'Speichern' }).click();

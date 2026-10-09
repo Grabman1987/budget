@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { SearchResults } from './global-search';
@@ -43,6 +43,39 @@ function mount() {
   return input;
 }
 describe('command palette', () => {
+  it.each([
+    ['Baby', '3.1 Liquiditätsprognose', '/reports/liquiditaet'],
+    ['Einkommenspause', '3.1 Liquiditätsprognose', '/reports/liquiditaet'],
+    ['Liquidität', '3.1 Liquiditätsprognose', '/reports/liquiditaet'],
+    ['Notgroschen', 'Plan · Sparziele', '/plan/sparziele'],
+    ['Dispo', 'Vermögen · Schulden', '/vermoegen/schulden'],
+    ['Gebühren', '2.6 Bank- und Zinskosten', '/reports/kosten'],
+    ['Prognosegenauigkeit', '1.11 Prognosegenauigkeit', '/reports/planungstreue'],
+    ['Budgettreue', '2.2 Budgettreue', '/reports/budgettreue'],
+  ])('opens the existing function for %s', (term, label, to) => {
+    const input = mount();
+    fireEvent.change(input, { target: { value: term } });
+    fireEvent.click(screen.getByRole('option', { name: new RegExp(label) }));
+    expect(navigate).toHaveBeenLastCalledWith({ to, search: {} });
+  });
+  it('separates global actions from content and preserves the month-close entry', () => {
+    const input = mount();
+    const actions = screen.getByRole('group', { name: 'Globale Aktionen' });
+    expect(within(actions).getByRole('option', { name: /Monatsabschluss starten/ })).toBeTruthy();
+    expect(
+      within(screen.getByRole('group', { name: 'Passende Treffer' })).queryByRole('option', {
+        name: /Monatsabschluss/,
+      }),
+    ).toBeNull();
+    fireEvent.change(input, { target: { value: 'Monatsabschluss' } });
+    fireEvent.keyDown(input, { key: 'Enter' });
+    expect(navigate.mock.calls.at(-1)?.[0].to).toMatch(/^\/monatsabschluss\/\d{4}-\d{2}$/);
+  });
+  it('does not turn unmatched everyday words into function matches', () => {
+    const input = mount();
+    fireEvent.change(input, { target: { value: 'Babypuder' } });
+    expect(screen.queryByRole('option')).toBeNull();
+  });
   it.each(REPORTS)('finds report $pos by position, name and slug', (report) => {
     const input = mount();
     fireEvent.change(input, { target: { value: report.pos + ' ' + report.name } });
@@ -219,7 +252,10 @@ describe('command palette', () => {
           search: { von: '/plan/monat?monat=2026-09' },
         });
       fireEvent.focus(input);
-      expect(screen.getAllByRole('option')[0]?.textContent).toContain(label);
+      expect(
+        within(screen.getByRole('group', { name: 'Globale Aktionen' })).getAllByRole('option')[0]
+          ?.textContent,
+      ).toContain(label);
     }
     fireEvent.change(input, { target: { value: 'Datenschutz-Modus umschalten' } });
     await waitFor(() =>

@@ -8,6 +8,30 @@
 - [x] Dev-only `/dev/details`; remove the example panel entry and use detail routes plus input dialogs in the gallery/harness.
 - [x] Synthetic component regressions, including preventing detail IDs from becoming capture account IDs; scoped verification is recorded in [package evidence](evidence/contacts-search-dev/README.md).
 - [ ] Required CI, Linux visual baseline review, integration after #406 and owner/device acceptance.
+### P1 #269 / #270 / #274 / #275 / #276 — Today hints — 2026-10-09
+
+- [x] Label Plan's actual 50/30/20 denominator, withhold a completed-month verdict for open months and link to the last completed One-Pager; preserve allocation calculations and expected-income separation.
+- [x] Put payday room first within the existing three answer cards, with the planning boundary and expected receipt separately visible; retain month and wealth access.
+- [x] Show unevaluated rule counts beside the other statuses and link to missing-input explanations; suppress an all-clear when inputs are missing.
+- [x] Describe empty additional steps consistently with attention points already shown above.
+- [x] Preserve PR #226's result-first rule grouping; deep-link and focus the concrete finding, keeping its value, threshold, action and secondary settings accessible.
+- [ ] Exact-head CI, PR integration, visual baseline review and owner/device acceptance. Scoped local evidence: [Today hints](evidence/heute-hints-1009/README.md).
+
+### Liquidity package #283 / #290 / #291 / #292 — 2026-10-09
+
+- [x] Plan registers reach the existing liquidity report without a report number; no new report route or household calculation.
+- [x] Upcoming payments link their account and due date to its existing preview; envelope reserves and household totals do not promise account coverage.
+- [x] EUR budget-account previews reuse the selected liquidity horizon, recurring dates, income pauses and applicable levers. Native previews and their configurable day limit remain available; unassigned variable plans/events/payments are explicitly excluded and mark the projection partial. Transfers affect each account on the booking day and remain neutral in household cash.
+- [x] The verdict exposes the exact day of its existing deciding low and names its unchanged six-month end, even when the selected chart covers a different horizon.
+- [ ] Exact-head CI, integration/deployment, physical-device and private financial acceptance remain open. Local verification follows the owner package override: scoped type/lint/format/unit checks and only the changed browser specs; no full local check or snapshot regeneration.
+
+### Reports and search package — #303–#308 (owner 2026-10-09)
+
+- [x] Qualify the inflation headline at the number; distinguish prices, CPI category proxies and trailing average expenditure in both basket views, retaining sources, common comparison month and coverage.
+- [x] Name per-position first/last observations, rolling twelve-month windows and contribution comparisons; retain the existing reconciled hundredth-Pp calculation.
+- [x] Name report 1.11 Prognosegenauigkeit and report 2.2 Budgettreue consistently in the catalog, search and heading; preserve both published slugs.
+- [x] Add bounded everyday search synonyms for existing planning, liquidity, savings, debt and cost functions; separate content matches from global actions and retain month-close navigation.
+- [ ] Required CI, mobile browser verification (local bootstrap blocked by host ENOMEM), Linux review of the affected report-catalog baselines and owner desktop/phone acceptance. No new keys, consents or configuration required. [Scoped verification and review images](evidence/reports-search-1009/README.md).
 
 ### F2 — Guided month close, plan next month and review (owner 2026-10-04)
 
@@ -266,6 +290,7 @@ Older CI/publication checkboxes below describe their original deliveries. Curren
 - [x] Synthetic red/green unit and browser-back/scroll, direct-link and dialog-focus regressions.
 - [x] Sidepanels-2a: Vermögen instrument/savings URLs with breadcrumb/back/scroll restoration; metadata, quote, schedule and trade FormDialogs; full-width `.vview` composition. Existing money/validation/audit/undo guards retained.
 - [x] Final Linux #248 preflight on merged head `aba6740923969c3a402d2ca4ab958819f320b498`: focused 7 files / 41 tests, full check 382 / 3,519 tests, builds and 43 Desktop/Mobile E2E tests passed ([captures and evidence](evidence/no-side-panels-wealth-1006/README.md)).
+- [x] Plan panels #323–#327: category detail and shared goal history routes, category/group/goal/event FormDialogs, preserved month/source/hidden-category context and existing audit/undo writes ([evidence](evidence/plan-panels-1009/README.md)).
 - [ ] Linux snapshot-baseline review, exact-head PR CI and remaining inventory; owner desktop/phone acceptance, physical iPhone Safari, private financial Gate 4 and live acceptance remain separate open gates.
 
 
@@ -647,6 +672,7 @@ Expected payments, contacts with receivables, savings goals, rule set registered
 Enable Banking adapter, worker with nightly run and catch-up, inbox items, assignment rules and source status in Einstellungen › Datenquellen. Manual file imports are excluded from app scope; all-account/depot CSV export is available as a step-up authenticated ZIP.
 
 ### P4.1 — PSD2 bank sync into the inbox
+- [x] #400: one connection card with scoped actions/messages, per-account daily request counters, visible manual cooldown/limit, account mapping explanations, persisted last complete results and source-filtered inbox links. New connections require confirmation; existing explicit/legacy policies remain unchanged. Synthetic desktop/mobile light/dark coverage; owner acceptance and CI remain delivery gates.
 - [x] RS256 adapter, step-up/session-bound consent, encrypted session/account identifiers, owner-selected EUR account mapping.
 - [x] Owner decision 41: BOOK transactions become unchecked, uncategorized bookings immediately; PDNG remains a candidate until confirmed. Per-connection confirmation-first override, stable-reference promotion/deduplication, bank balance warnings and separate replayable ledger audit; no automatic categorization or distribution.
 - [x] Separate nightly worker on the same volume, catch-up, durable leases/backoff, queued manual refresh and consent reminders.
@@ -737,6 +763,14 @@ Price history (yfinance + Ariva, source per price), ECB rates, trades and holdin
 - [x] Literal projection/FX/safety/session/origin tests and desktop/mobile light/dark original-prototype geometry and browser evidence
 - [x] Per-loan payment terms live in Einstellungen › Konten; on top: dated rate changes (variable conditions, versioned, audited, undoable, used by the payoff schedule), persisted scenarios per loan (one-off and recurring Sondertilgung, rate change, higher installment) compared with the baseline (payoff month, interest, interest saved, months earlier; shared integer-cent domain calculation, migration 0033) and an avalanche/snowball comparison for two or more debts (credit cards with a balance included) with an extra monthly amount; decision support only, no payments or bookings; German UI, light/dark, desktop/phone (form dialogs per docs/mobile-panels.md). Limits: monthly model, no prepayment penalties, strategies use the rate in force at the model start.
 - [ ] Connected debt/card rules and private contractual reconciliation remain later
+
+### Debt explanation and full-width package (#294 #296 #342 #343)
+- [x] Explain negative net account values versus negative native-currency cash strategy candidates, including a positive-net depot with negative cash; preserve both existing calculations (#294).
+- [x] Link the debt model to the existing liquidity forecast with its budget-account scope and an explicit no-transfer/no-affordability-claim boundary (#296).
+- [x] Stack the calculation lead and model at full width; preserve numeric comparison columns (#342).
+- [x] Audit the loan summary: baseline and scenarios already follow the model at full width; no remaining layout code change (#343).
+- [x] Scoped local verification and synthetic desktop/390px browser evidence. See [delivery evidence](evidence/debts-scope-1009/README.md).
+- [ ] Required CI and owner visual acceptance; pre-existing loan-dialog trigger-focus restoration remains a separate gap.
 
 ### P5.8 — Freiheitszahl: forecast from today
 - [x] Connected current R16 expense/investment sources and configurable multiple; explicit unknown quote/FX and short-history annualisation, original lead/chain/quarter progress and source navigation.
@@ -953,7 +987,7 @@ Method, limits and owner steps: [inflation basket](inflation-basket.md#cpi-sub-i
 
 ### Owner planning hit rate — 2026-10-05
 
-- [x] Report 1.11 Budgettreue: additive `plan_snapshot`, shared Pace capture, nightly idempotence/retry and conservative per-month backfill status.
+- [x] Report 1.11 Prognosegenauigkeit: additive `plan_snapshot`, shared Pace capture, nightly idempotence/retry and conservative per-month backfill status.
 - [x] Closed-month forecast/actual, exact 5% hits, six-calendar-month summary, monthly deviation bars, category drilldown and Heute copy after three comparable months; synthetic unit/API/component/E2E coverage.
 - [ ] Required CI, Linux visual review and owner month-end/data acceptance. See [planning hit rate](planning-accuracy.md).
 
