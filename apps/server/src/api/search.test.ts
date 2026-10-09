@@ -26,8 +26,11 @@ beforeEach(() => {
 });
 afterEach(() => close());
 const request = (q: string) => app.request(`/api/search?q=${encodeURIComponent(q)}`);
-const results = async (q: string) =>
-  ((await (await request(q)).json()) as { results: GlobalSearchResult[] }).results;
+const results = async (q: string) => {
+  const response = await request(q);
+  expect(response.status).toBe(200);
+  return ((await response.json()) as { results: GlobalSearchResult[] }).results;
+};
 function seed(name: string, id: string, deletedAt: string | null = null) {
   db.insert(schema.account)
     .values({
@@ -95,7 +98,7 @@ describe('global search API', () => {
   });
   it('rejects missing, blank, short and overlong queries and returns an empty result for no match', async () => {
     expect((await app.request('/api/search')).status).toBe(400);
-    for (const q of ['', ' ', 'x', 'x'.repeat(201), ' '.repeat(201) + 'ok'])
+    for (const q of [' ', 'x', 'x'.repeat(201), ' '.repeat(201) + 'ok'])
       expect((await request(q)).status).toBe(400);
     expect(await results('Absent')).toEqual([]);
   });
@@ -111,5 +114,142 @@ describe('global search API', () => {
       })
       .run();
     expect(await results('Muster')).toEqual([]);
+  });
+  it('finds fuzzy names but excludes closed accounts from account choices', async () => {
+    seed('Übungskonto', 'open');
+    seed('Übungskonto alt', 'closed');
+    db.update(schema.account).set({ closedAt: '2026-09-02' }).run();
+    db.insert(schema.account)
+      .values({
+        id: 'active',
+        name: 'Übungskonto neu',
+        type: 'checking',
+        role: 'budget',
+        onBudget: true,
+        openingDate: '2026-01-01',
+      })
+      .run();
+    expect((await results('übgkt')).filter((r) => r.kind === 'account').map((r) => r.id)).toEqual([
+      'active',
+    ]);
+    expect((await results('übgkt')).some((r) => r.kind === 'contact')).toBe(true);
+    seed('Muster Übung März', 'mixed-case');
+    expect(
+      (await results('mstr übg märz')).filter((r) => r.kind === 'contact').map((r) => r.id),
+    ).toEqual(['mixed-case']);
+  });
+  it('offers recent bookings in date order and searches payee, memo and native amount', async () => {
+    seed('Musterladen', 'older');
+    seed('Musterladen neu', 'newer');
+    db.update(schema.account).set({ name: 'Musterkonto' }).run();
+    db.insert(schema.booking)
+      .values({
+        id: 'recent',
+        accountId: 'newer',
+        date: '2026-09-03',
+        amountCents: -123456,
+        memo: 'Synthetische Notiz',
+        currency: 'USD',
+      })
+      .run();
+    expect((await results('')).map((r) => r.id)).toEqual(['recent', 'older', 'newer']);
+    expect((await results('sythntz')).map((r) => r.id)).toEqual(['recent']);
+    const amount = await results('1.234,56');
+    expect(amount.map((r) => r.id)).toEqual(['recent']);
+    expect(amount[0]?.detail).toContain('−1.234,56 USD');
+    expect((await results('mstrld')).filter((r) => r.kind === 'booking')).toHaveLength(2);
+  });
+  it('preserves booking matches on account, category and split memo', async () => {
+    seed('Musterkonto', 'live');
+    db.update(schema.payee).set({ name: 'Musterladen' }).run();
+    db.update(schema.booking).set({ memo: null }).run();
+    db.update(schema.category).set({ name: 'Musterbedarf' }).run();
+    db.insert(schema.bookingSplit)
+      .values({
+        id: 'split',
+        bookingId: 'live',
+        categoryId: 'live',
+        amountCents: -100,
+        memo: 'Teilnotiz',
+      })
+      .run();
+    for (const query of ['Musterkonto', 'Musterbedarf', 'Teilnotiz']) {
+      expect((await results(query)).filter((r) => r.kind === 'booking').map((r) => r.id)).toEqual([
+        'live',
+      ]);
+    }
+  });
+  it('rehydrates recent IDs without showing closed accounts or deleted categories', async () => {
+    seed('Muster', 'live');
+    seed('Muster alt', 'closed');
+    seed('Muster gelöscht', 'deleted', '2026-09-02T00:00:00Z');
+    db.update(schema.account).set({ closedAt: '2026-09-02' }).run();
+    const response = await app.request(
+      '/api/search?q=&recent=' +
+        encodeURIComponent(
+          JSON.stringify([
+            { kind: 'account', id: 'closed' },
+            { kind: 'category', id: 'live' },
+            { kind: 'category', id: 'deleted' },
+          ]),
+        ),
+    );
+    expect(response.status).toBe(200);
+    const found = ((await response.json()) as { results: GlobalSearchResult[] }).results;
+    expect(found.some((r) => r.kind === 'account')).toBe(false);
+    expect(found.some((r) => r.kind === 'category' && r.id === 'live')).toBe(true);
+    expect(found.some((r) => r.kind === 'category' && r.id === 'deleted')).toBe(false);
+  });
+  it('keeps a recently chosen booking ahead of the latest default bookings', async () => {
+    for (let i = 0; i < 8; i++) seed(`Muster ${i}`, `item-${i}`);
+    const response = await app.request(
+      '/api/search?q=&recent=' +
+        encodeURIComponent(JSON.stringify([{ kind: 'booking', id: 'item-0' }])),
+    );
+    const found = ((await response.json()) as { results: GlobalSearchResult[] }).results;
+    expect(found[0]?.id).toBe('item-0');
+    const categories = await app.request(
+      '/api/search?q=&recent=' +
+        encodeURIComponent(
+          JSON.stringify(
+            Array.from({ length: 8 }, (_, i) => ({ kind: 'category', id: `item-${i}` })),
+          ),
+        ),
+    );
+    expect(
+      ((await categories.json()) as { results: GlobalSearchResult[] }).results.filter(
+        (r) => r.kind === 'category',
+      ),
+    ).toHaveLength(8);
+    for (const history of [
+      'invalid',
+      'null',
+      JSON.stringify(Array(9).fill({ kind: 'booking', id: 'item-0' })),
+      '[{"kind":"page","id":"/"}]',
+    ]) {
+      expect(
+        (await app.request('/api/search?q=&recent=' + encodeURIComponent(history))).status,
+      ).toBe(400);
+    }
+  });
+  it('prioritizes matching recent choices before applying the per-kind result limit', async () => {
+    for (let i = 0; i < 8; i++) seed(`Muster ${i}`, `item-${i}`);
+    const response = await app.request(
+      '/api/search?q=Muster&recent=' +
+        encodeURIComponent(
+          JSON.stringify([
+            { kind: 'category', id: 'item-7' },
+            { kind: 'booking', id: 'item-0' },
+          ]),
+        ),
+    );
+    expect(response.status).toBe(200);
+    const found = ((await response.json()) as { results: GlobalSearchResult[] }).results;
+    for (const kind of ['category', 'booking']) {
+      expect(found.filter((r) => r.kind === kind)).toHaveLength(5);
+      expect(found.find((r) => r.kind === kind)?.id).toBe(
+        kind === 'category' ? 'item-7' : 'item-0',
+      );
+    }
   });
 });

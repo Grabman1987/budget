@@ -128,8 +128,18 @@ sampleTest(
     });
     if (info.project.name === 'desktop') {
       await page.setViewportSize({ width: 734, height: 1062 });
-      // The resize redraws the chart; show the optional income line again before switching to paper.
-      await page.getByRole('button', { name: 'Mehr anzeigen' }).click();
+      // Wait for the phone shell before selecting the optional lines for print.
+      // Crossing the shell breakpoint can remount the chart and reset its local selection.
+      await expect(page.locator('.m-head')).toBeVisible();
+      const contextToggle = page.locator('.pace-context-toggle');
+      await expect(contextToggle).toBeVisible();
+      await expect(async () => {
+        if ((await contextToggle.getAttribute('aria-pressed')) !== 'true') {
+          await contextToggle.click();
+        }
+        await expect(contextToggle).toHaveAttribute('aria-pressed', 'true');
+        await expect(page.locator('.pace-income-line').first()).toBeVisible({ timeout: 2_000 });
+      }).toPass();
       await page.emulateMedia({ media: 'print' });
       await expect(page.locator('.global-search-trigger')).toBeHidden();
       await expect(page.locator('.pace-income-line').first()).toHaveCSS('animation-name', 'none');

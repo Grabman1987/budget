@@ -636,7 +636,7 @@ ledgerTest(
         page.waitForResponse((response) => response.url().includes('/api/heute?') && response.ok());
       await page.keyboard.press('n');
       const panel = page.getByRole('dialog', { name: 'Buchung erfassen' });
-      await panel.getByLabel('Konto', { exact: true }).selectOption(account.id);
+      await panel.getByLabel('Bezahlt von', { exact: true }).selectOption(account.id);
       await panel.getByLabel('Datum', { exact: true }).fill(day);
       await panel.getByLabel('Betrag', { exact: true }).fill('20,70');
       await pickCategory(panel, categoryName);

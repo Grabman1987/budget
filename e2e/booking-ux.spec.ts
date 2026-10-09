@@ -130,6 +130,7 @@ test('booking cells, cash capture, repetition and account preview on desktop and
   await panel.getByLabel('Betrag', { exact: true }).fill('2,03');
   await panel.getByLabel('Empfänger', { exact: true }).fill('Kiosk Muster');
   await pickCategory(panel, category.name);
+  await panel.locator('summary').click();
   await panel.getByLabel('Wiederholen').selectOption('monthly');
   expect((await new AxeBuilder({ page }).include('dialog').analyze()).violations).toEqual([]);
   await page.screenshot({ path: info.outputPath('capture.png') });
@@ -155,4 +156,112 @@ test('booking cells, cash capture, repetition and account preview on desktop and
   await expect(
     page.locator(`[data-booking="${id}"]`).getByRole('button', { name: /Betrag ändern/ }),
   ).toBeVisible();
+});
+
+test('single payee suggestion selects its recent account and leaves account controls uncovered', async ({
+  page,
+  request,
+  baseURL,
+}, info) => {
+  test.setTimeout(60_000);
+  await page.clock.install({ time: new Date('2026-10-05T12:00:00+02:00') });
+  const headers = { origin: baseURL! };
+  const post = async (path: string, data: unknown) => {
+    const response = await request.post('/api' + path, { headers, data });
+    expect(response.ok(), await response.text()).toBe(true);
+    return response.json();
+  };
+  const { account: first } = await post('/accounts', {
+    name: 'Giro Muster',
+    type: 'checking',
+    openingDate: '2026-01-01',
+    openingBalanceCents: 0,
+  });
+  const { account: recent } = await post('/accounts', {
+    name: 'Kasse Muster',
+    type: 'cash',
+    openingDate: '2026-01-01',
+    openingBalanceCents: 0,
+  });
+  const { payee } = await post('/payees', { name: 'Laden Beispiel' });
+  await post('/bookings', {
+    type: 'booking',
+    accountId: recent.id,
+    payeeId: payee.id,
+    date: '2026-10-01',
+    amountCents: -321,
+  });
+  await page.goto(`/konten/${first.id}?panel=buchung`);
+  let panel = page.getByRole('dialog', { name: 'Buchung erfassen' });
+  await panel.getByLabel('Empfänger', { exact: true }).fill('Laden Bei');
+  const list = panel.getByRole('listbox', { name: 'Empfänger, Vorschläge' });
+  await expect(list.getByRole('option')).toHaveCount(1);
+  await panel.getByLabel('Empfänger', { exact: true }).press('Enter');
+  await expect(panel.getByLabel('Empfänger', { exact: true })).toHaveValue('Laden Beispiel');
+  await expect(panel.getByLabel('Bezahlt von', { exact: true })).toHaveValue(recent.id);
+  await expect(panel.locator('summary')).toBeInViewport({ ratio: 1 });
+  await expect(panel.getByTitle('Markieren')).toBeVisible();
+  await expect(panel.getByTitle('Schließen')).toBeVisible();
+  for (const theme of ['light', 'dark']) {
+    await page.evaluate((t) => {
+      document.documentElement.dataset['theme'] = t;
+    }, theme);
+    await page.screenshot({ path: info.outputPath(`booking-compact-${theme}.png`) });
+  }
+  await panel.getByLabel('Empfänger', { exact: true }).fill('Laden');
+  await expect(list).toBeVisible();
+  const listBox = await list.boundingBox();
+  const accountBox = await panel.getByLabel('Bezahlt von', { exact: true }).boundingBox();
+  expect(listBox!.y + listBox!.height).toBeLessThanOrEqual(accountBox!.y);
+  await panel.getByLabel('Bezahlt von', { exact: true }).click();
+  await expect(panel.getByLabel('Bezahlt von', { exact: true })).toBeFocused();
+  await panel.getByLabel('Bezahlt von', { exact: true }).press('Escape');
+  await panel.getByLabel('Bezahlt von', { exact: true }).selectOption(first.id);
+  await expect(panel.getByLabel('Bezahlt von', { exact: true })).toHaveValue(first.id);
+  await expect(panel.getByLabel('Notiz')).toBeHidden();
+  await expect(panel.getByRole('button', { name: 'Aufteilen' })).toBeHidden();
+  await expect(panel.getByRole('button', { name: 'Speichern', exact: true })).toBeInViewport();
+  await panel.getByLabel('Betrag', { exact: true }).fill('12,50+3');
+  await panel.getByLabel('Betrag', { exact: true }).press('Enter');
+  await expect(panel.getByLabel('Betrag', { exact: true })).toHaveValue('15,50');
+  await panel.getByRole('button', { name: 'Gestern', exact: true }).click();
+  await expect(panel.getByLabel('Datum', { exact: true })).toHaveValue('04.10.2026');
+  await panel.getByRole('button', { name: 'Heute', exact: true }).click();
+  await expect(panel.getByLabel('Datum', { exact: true })).toHaveValue('05.10.2026');
+  await panel.getByRole('button', { name: 'Datum…', exact: true }).click();
+  await expect(panel.getByLabel('Datum', { exact: true })).toBeFocused();
+  await panel.locator('summary').click();
+  await panel.getByLabel('Wiederholen').selectOption('monthly');
+  await panel.getByLabel('Notiz').fill('Synthetische Notiz');
+  await expect(panel.locator('summary')).toContainText('Wiederholt monatlich · Notiz');
+  await panel.locator('summary').click();
+  await expect(panel.getByLabel('Notiz')).toBeHidden();
+  await panel.locator('summary').click();
+  await expect(panel.getByLabel('Notiz')).toHaveValue('Synthetische Notiz');
+  for (const theme of ['light', 'dark']) {
+    await page.evaluate((t) => {
+      document.documentElement.dataset['theme'] = t;
+    }, theme);
+    expect((await new AxeBuilder({ page }).include('dialog').analyze()).violations).toEqual([]);
+    expect(await panel.evaluate((el) => el.scrollWidth <= el.clientWidth)).toBe(true);
+    await page.screenshot({ path: info.outputPath(`booking-polish-${theme}.png`) });
+  }
+  await panel.getByRole('button', { name: 'Schließen', exact: true }).click();
+  await panel.getByRole('button', { name: 'Verwerfen', exact: true }).click();
+  await expect(panel).toBeHidden();
+  const { id } = await post('/bookings', {
+    type: 'booking',
+    accountId: first.id,
+    date: '2026-10-02',
+    amountCents: -123,
+    memo: 'Muster erhalten',
+  });
+  await page.goto(`/konten/buchungen?buchung=${id}`);
+  await page
+    .locator(`[data-booking="${id}"]`)
+    .getByRole('button', { name: /bearbeiten/ })
+    .click();
+  panel = page.getByRole('dialog', { name: 'Buchung bearbeiten' });
+  await expect(panel.getByLabel('Notiz')).toBeVisible();
+  await expect(panel.getByLabel('Notiz')).toHaveValue('Muster erhalten');
 });

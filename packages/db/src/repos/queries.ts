@@ -11,6 +11,7 @@ import { and, asc, count, eq, gte, isNull, lte, sql } from 'drizzle-orm';
 import { account, booking, bookingSplit, budgetMonth, category } from '../schema';
 import { assignedByMonth } from './envelopes';
 import { assertEurBudgetAccounts } from './account-invariants';
+import { memoizedShared } from './request-memo';
 import type { Executor } from './types';
 
 /**
@@ -60,6 +61,11 @@ export function accountBalances(db: Executor, asOfDate?: string): AccountBalance
  * (`booking_split.transfer_id`); both kinds are resolved here.
  */
 export function budgetLedger(db: Executor): Omit<BudgetInput, 'months'> {
+  // One read per request and database state; every reader of the ledger only filters and sums it.
+  return memoizedShared(db, 'budgetLedger', () => readBudgetLedger(db));
+}
+
+function readBudgetLedger(db: Executor): Omit<BudgetInput, 'months'> {
   assertEurBudgetAccounts(db);
   const accounts = db
     .select({
@@ -174,10 +180,20 @@ export function budgetOfLedger(
     .map((a) => monthOf(a.openingDate))
     .reduce((a, m) => (m < a ? m : a), first);
   const all = monthsBetween(start, months[months.length - 1] as string);
-  return budgetMonths({ ...ledger, months: all, ...options }).filter((m) =>
-    months.includes(m.month),
-  );
+  // The budget is computed from its start through the last requested month. Readers of one ledger
+  // object (one request) that ask for the same span and options share that computation.
+  const key = `${all[0]}|${all[all.length - 1]}|${options.cardRule ?? ''}|${options.asOf ?? ''}`;
+  let computed = budgetResults.get(source);
+  if (!computed) budgetResults.set(source, (computed = new Map()));
+  let result = computed.get(key);
+  if (!result) {
+    result = budgetMonths({ ...ledger, months: all, ...options });
+    computed.set(key, result);
+  }
+  return result.filter((m) => months.includes(m.month));
 }
+
+const budgetResults = new WeakMap<object, Map<string, BudgetMonth[]>>();
 
 /** Number of live bookings per account (accounts without bookings are omitted). */
 export function bookingCountByAccount(db: Executor): { accountId: string; count: number }[] {

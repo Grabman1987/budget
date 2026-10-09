@@ -1,14 +1,15 @@
-import { exposuresAsOf, splitAssetExposure } from './asset-exposure';
+import { exposureResolver, splitAssetExposure } from './asset-exposure';
 import type { Executor } from './types';
 import {
   performanceReportSeries,
-  sumSeries,
   windowPerformance,
   type PerformanceInput,
   type Window,
   type ReportQuote,
 } from '@budget/domain';
 import type { valuationSeries } from './portfolio';
+
+type Weights = readonly { assetClassId: string; weightBp: number }[];
 
 /** Build class histories from the valuation already read by the summary (including sold positions). */
 export function portfolioPerformanceHistory(
@@ -21,59 +22,97 @@ export function portfolioPerformanceHistory(
   quotes?: ReportQuote[],
 ) {
   const history = performanceReportSeries(input, window, quotes);
-  const resolved = new Map(series.days.map((day) => [day, exposuresAsOf(db, day)]));
-  const weightsOn = (securityId: string, day: string) => {
-    if (!resolved.has(day)) resolved.set(day, exposuresAsOf(db, day));
-    return resolved.get(day)!.get(securityId)?.weights ?? [];
+  const exposuresOn = exposureResolver(db);
+  const NO_WEIGHTS: Weights = [];
+  const weightsOn = (securityId: string, day: string): Weights =>
+    exposuresOn(day).get(securityId)?.weights ?? NO_WEIGHTS;
+  // The split of one value is asked for once per class; remember it per weights array and value.
+  const splits = new WeakMap<Weights, Map<number, ReturnType<typeof splitAssetExposure>>>();
+  const split = (value: number, weights: Weights) => {
+    let byValue = splits.get(weights);
+    if (!byValue) splits.set(weights, (byValue = new Map()));
+    let parts = byValue.get(value);
+    if (!parts) byValue.set(value, (parts = splitAssetExposure(value, weights)));
+    return parts;
   };
   const flowsBySecurity = new Map(
     [...new Set(series.positions.map((p) => p.securityId))].map((id) => [id, securityFlows([id])]),
   );
+  const flowsByDay = new Map(
+    [...flowsBySecurity].map(([id, rows]) => {
+      const byDay = new Map<string, typeof rows>();
+      for (const flow of rows) byDay.set(flow.date, [...(byDay.get(flow.date) ?? []), flow]);
+      return [id, byDay] as const;
+    }),
+  );
+  // Every position-day is split once into all classes (the class sleeves are sums of those parts).
+  const valuesByClass = new Map<string | null, number[]>(
+    classes.map((cls) => [cls.assetClassId, new Array<number>(series.days.length).fill(0)]),
+  );
+  for (const p of series.positions)
+    p.valueCents.forEach((value, i) => {
+      if (value === 0) return;
+      for (const part of splitAssetExposure(value, weightsOn(p.securityId, series.days[i]!))) {
+        const sleeve = valuesByClass.get(part.assetClassId);
+        if (sleeve) sleeve[i] = sleeve[i]! + part.valueCents;
+      }
+    });
+  // Days on which a security's class weights differ from the day before: only these can transfer
+  // value between sleeves (same weights means the same share), so they are found once, not per class.
+  const reclassified: {
+    date: string;
+    previous: string;
+    positions: { id: string; value: number }[];
+    flows: { id: string; cents: number }[];
+  }[] = [];
+  for (let i = 1; i < series.days.length; i++) {
+    const date = series.days[i]!;
+    const previous = series.days[i - 1]!;
+    const work = {
+      date,
+      previous,
+      positions: series.positions
+        .filter((p) => weightsOn(p.securityId, date) !== weightsOn(p.securityId, previous))
+        .map((p) => ({ id: p.securityId, value: p.valueCents[i]! })),
+      flows: [...flowsByDay].flatMap(([id, byDay]) =>
+        weightsOn(id, date) === weightsOn(id, previous)
+          ? []
+          : (byDay.get(date) ?? []).map((flow) => ({ id, cents: flow.cents })),
+      ),
+    };
+    if (work.positions.length > 0 || work.flows.length > 0) reclassified.push(work);
+  }
   return {
     ...history,
     classes: classes.map((cls) => {
-      const values = sumSeries(
-        ...series.positions.map((p) =>
-          p.valueCents.map(
-            (value, i) =>
-              splitAssetExposure(value, weightsOn(p.securityId, series.days[i]!)).find(
-                (part) => part.assetClassId === cls.assetClassId,
-              )?.valueCents ?? 0,
-          ),
-        ),
-      );
+      const values = valuesByClass.get(cls.assetClassId) ?? [];
       const flows = [...flowsBySecurity].flatMap(([id, rows]) =>
         rows.map((flow) => ({
           date: flow.date,
           cents:
-            splitAssetExposure(flow.cents, weightsOn(id, flow.date)).find(
+            split(flow.cents, weightsOn(id, flow.date)).find(
               (part) => part.assetClassId === cls.assetClassId,
             )?.valueCents ?? 0,
         })),
       );
       // A classification change transfers value between class sleeves, not investment return.
-      for (let i = 1; i < series.days.length; i++) {
-        const date = series.days[i]!;
+      for (const work of reclassified) {
         let transfer = 0;
-        for (const p of series.positions) {
-          const value = p.valueCents[i]!;
+        for (const { id, value } of work.positions) {
           const share = (day: string) =>
-            splitAssetExposure(value, weightsOn(p.securityId, day)).find(
-              (part) => part.assetClassId === cls.assetClassId,
-            )?.valueCents ?? 0;
-          transfer += share(date) - share(series.days[i - 1]!);
+            split(value, weightsOn(id, day)).find((part) => part.assetClassId === cls.assetClassId)
+              ?.valueCents ?? 0;
+          transfer += share(work.date) - share(work.previous);
         }
         // Same-day contributions/withdrawals already enter the dated security cash flows.
         // Transfer only the value excluding them, so a buy plus reclassification is not a gain.
-        for (const [id, rows] of flowsBySecurity)
-          for (const flow of rows.filter((f) => f.date === date)) {
-            const share = (day: string) =>
-              splitAssetExposure(flow.cents, weightsOn(id, day)).find(
-                (part) => part.assetClassId === cls.assetClassId,
-              )?.valueCents ?? 0;
-            transfer -= share(date) - share(series.days[i - 1]!);
-          }
-        if (transfer) flows.push({ date, cents: transfer });
+        for (const { id, cents } of work.flows) {
+          const share = (day: string) =>
+            split(cents, weightsOn(id, day)).find((part) => part.assetClassId === cls.assetClassId)
+              ?.valueCents ?? 0;
+          transfer -= share(work.date) - share(work.previous);
+        }
+        if (transfer) flows.push({ date: work.date, cents: transfer });
       }
       const classInput = {
         series: series.days.map((date, i) => ({ date, valueCents: values[i] ?? 0 })),

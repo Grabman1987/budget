@@ -282,6 +282,56 @@
   grid-column: 1 / -1;
   margin: 0;
 }
+.rf-pause-list {
+  list-style: none;
+  margin: 12px 0 0;
+  padding: 0;
+}
+.rf-pause-list > li {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 12px 18px;
+  padding: 12px 0;
+  border-top: 1px solid var(--rule);
+}
+.rf-pause-source,
+.rf-pause-effect {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+.rf-pause-source small,
+.rf-pause-effect small {
+  color: var(--ink-2);
+}
+.rf-pause-effect ul {
+  display: grid;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-variant-numeric: tabular-nums;
+}
+.rf-pause-actions,
+.rf-pause-submit {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.rf-pause-action,
+.rf-pause-form .input,
+.rf-pause-form .select {
+  min-height: 44px;
+}
+.rf-pause-submit {
+  grid-column: 1 / -1;
+  flex-wrap: wrap;
+}
+.rf-pause-empty {
+  grid-column: 1 / -1;
+  margin: 0;
+}
 .rf-icon-btn {
   display: inline-flex;
   align-items: center;
@@ -420,6 +470,13 @@
   }
   .rf-add {
     grid-template-columns: minmax(0, 1fr);
+  }
+  .rf-pause-list > li {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 10px;
+  }
+  .rf-pause-actions {
+    justify-content: flex-start;
   }
 }
 

@@ -34,7 +34,7 @@ export function ReportNavigation({ id }: { id: string }) {
         e.metaKey ||
         e.defaultPrevented ||
         (e.target as Element).closest(
-          'input, select, textarea, [contenteditable="true"], [role="dialog"]',
+          'input, select, textarea, [contenteditable="true"], dialog, [role="dialog"]',
         )
       )
         return;

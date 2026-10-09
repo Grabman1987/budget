@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { BudgetMonthView } from '../budget/budget-api';
 import {
   captureDirty,
+  accountFromPayee,
   categoriesFor,
   categoryFromPayee,
   defaultAccountId,
@@ -131,6 +132,13 @@ describe('accounts and recents', () => {
     account('c', { closedAt: '2026-01-01' }),
     account('d', { onBudget: false }),
   ];
+  it('prefers the payee account, then the last live account, including tracking accounts', () => {
+    expect(accountFromPayee(accounts, ['d', 'b'], 'a')).toBe('a');
+    expect(accountFromPayee(accounts, ['d', 'b'], 'c')).toBe('d');
+    expect(accountFromPayee(accounts, ['c', 'b'], undefined)).toBe('b');
+    expect(accountFromPayee(accounts, [], undefined)).toBe('a');
+    expect(accountFromPayee([], ['a'], 'a')).toBe('');
+  });
   it('puts the accounts used last first and drops closed ones', () => {
     expect(orderAccounts(accounts, ['d', 'b']).map((a) => a.id)).toEqual(['d', 'b', 'a']);
   });

@@ -2,7 +2,7 @@ import { useNavigate } from '@tanstack/react-router';
 import { useEffect } from 'react';
 
 /** Is the keyboard focus somewhere the user types text? */
-const isTyping = (target: EventTarget | null): boolean =>
+export const isTyping = (target: EventTarget | null): boolean =>
   target instanceof HTMLElement &&
   (target.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName));
 

@@ -204,11 +204,15 @@ test('U02-U12: create, German field errors, duplicate, rename, reorder, safe/blo
   await panel.getByLabel('Sortierposition').fill('0');
   await panel.getByRole('button', { name: 'Änderungen speichern', exact: true }).click();
   await expect(page.locator('.asset-class-table')).toContainText(renamed);
+  await expect(page.locator('dialog[open]')).toHaveCount(0);
+  await expect(page).toHaveURL(/\/einstellungen\/anlageklassen$/);
   await page
     .locator('.asset-class-table')
     .getByRole('link', { name: renamed, exact: true })
     .click();
   await panel.getByRole('button', { name: 'Archivieren', exact: true }).click();
+  await expect(page.locator('dialog[open]')).toHaveCount(0);
+  await expect(page).toHaveURL(/\/einstellungen\/anlageklassen$/);
   await page
     .locator('.asset-class-table')
     .getByRole('link', { name: renamed, exact: true })

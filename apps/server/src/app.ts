@@ -8,7 +8,7 @@ import { Hono } from 'hono';
 import { bodyLimit } from 'hono/body-limit';
 import { secureHeaders } from 'hono/secure-headers';
 import type { Auth } from './auth/routes';
-import { createLedgerApi } from './api';
+import { createLedgerApi, type LedgerApi } from './api';
 import { debugSummary } from './debug-summary';
 import type { ImportJobs } from './imports/jobs';
 import { IMPORT_BODY_LIMIT, IMPORT_UPLOAD_LIMIT } from './imports/routes';
@@ -44,6 +44,8 @@ export type AppOptions = BaseOptions &
               market?: MarketSources | undefined;
               jobs?: ImportJobs | undefined;
               receiptsDir?: string | undefined;
+              /** Gets the ledger API once it exists (the start-up warm-up uses it). */
+              onApi?: ((api: LedgerApi) => void) | undefined;
             }
           | undefined;
       }
@@ -168,7 +170,12 @@ export function createApp({ webDir, database, auth, ledger, buildRevision }: App
     app.use('/api/*', auth.requireSession);
   }
 
-  if (ledger && auth) app.route('/api', createLedgerApi({ ...ledger, stepUp: auth.requireStepUp }));
+  if (ledger && auth) {
+    const { onApi, ...options } = ledger;
+    const api = createLedgerApi({ ...options, stepUp: auth.requireStepUp });
+    onApi?.(api);
+    app.route('/api', api);
+  }
 
   // Read-only seed check. Only mounted when a database is passed in (BUDGET_DEBUG_API=1), never
   // on by default; auth (P1e) has to sit in front of it before it may run anywhere public.
