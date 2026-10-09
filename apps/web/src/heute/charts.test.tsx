@@ -57,7 +57,15 @@ it('explains which account groups the cash forecast includes and excludes', () =
       data={
         {
           ...dailyData,
-          lead: { freeCents: 28_000 },
+          lead: {
+            needCents: 0,
+            wantCents: 0,
+            openCents: 0,
+            freeCents: 28_000,
+            daysToPayday: 0,
+            chain: [],
+            items: { need: [], want: [], open: [] },
+          } satisfies Heute['lead'],
           stand: {
             ...dailyData.stand,
             today: '2026-09-15',
