@@ -33,7 +33,7 @@ GitHub Actions run [37880079988](https://github.com/Grabman1987/budget/actions/r
 - Production and E2E builds passed on `ca679`.
 - Earlier browser run on `ca679`: nine tests passed in 1.0 minute.
 - Final combined-source full check on `29f7`: 383 files, 3,528 tests, 250.66 seconds; typecheck, lint and format passed, with early and late source/index cleanliness checks. This run did not rerun builds or browser tests; those results above are from `ca679`.
-- The eight Linux captures below are copied from this run's Playwright results; checked-in screenshot baselines were not updated.
+- The eight Linux captures below are copied from run `37880079988`'s Playwright results; checked-in screenshot baselines were not updated.
 
 The Linux screenshots show the configured 390 px mobile browser, not a physical iPhone. This pace regression does not verify the separate Heute mobile account-forecast label overlap (`965 €`, 15.09. vs “30 Tage bis Gehalt 15.10.”); that issue remains assigned to #292. Exact PR-head CI, deployment/live validation, real-ledger reconciliation and physical iPhone Safari acceptance remain open.
 
