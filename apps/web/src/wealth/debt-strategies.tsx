@@ -160,6 +160,12 @@ function StrategyGroup({
         <span className="aside">{debts.length} Schulden · Entscheidungshilfe</span>
       </div>
       <p className="vnote">
+        Kandidaten sind Konten mit negativer Kassa, auch Depots mit positivem Nettowert. Saldo und
+        Startschuld beziehen sich auf die Kassa in {currency}; die Schuldensumme oben folgt
+        negativen Netto-Kontowerten in EUR. Der Vergleich umfasst mindestens zwei Kandidaten
+        derselben Währung.
+      </p>
+      <p className="vnote">
         Welche Schuld bekommt den Zusatzbetrag zuerst: die mit dem höchsten Zins (Avalanche) oder
         die mit dem kleinsten Saldo (Schneeball)? Monatsbudget = alle Mindestraten plus
         Zusatzbetrag; Mindestraten getilgter Schulden bleiben im Budget. Keine Zahlung, keine

@@ -64,6 +64,7 @@ test('year events: create, edit recurrence, scenario without writes, off/delete 
   await expect(page.getByTestId('scenario-year-end')).toHaveCount(0);
   await page.getByRole('button', { name: 'Ereignis planen', exact: true }).click();
   let panel = page.getByRole('dialog', { name: 'Ereignis einplanen' });
+  await expect(page.locator('dialog.panel[open]')).toHaveCount(0);
   await panel.getByLabel('Ereignis', { exact: true }).fill('Urlaub');
   await panel.getByLabel('Datum / Beginn', { exact: true }).fill('15.11.2026');
   await expect(panel.getByLabel('Datum / Beginn', { exact: true })).toHaveValue('15.11.2026');
@@ -140,7 +141,7 @@ test('year events: create, edit recurrence, scenario without writes, off/delete 
     { day: '2026-11-30', label: 'Urlaub', cents: -10_001 },
     { day: '2026-12-31', label: 'Urlaub', cents: -10_001 },
   ]);
-  await page.getByRole('link', { name: 'Liquiditätsprognose · 3.1' }).click();
+  await page.getByRole('link', { name: 'Liquiditätsprognose', exact: true }).click();
   await expect(
     page.getByRole('heading', { name: 'Liquiditätsprognose', exact: true }),
   ).toBeVisible();

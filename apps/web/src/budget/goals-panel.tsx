@@ -2,7 +2,7 @@ import {
   useAmountPrivacy,
   AmountInput,
   Button,
-  DetailPanel,
+  FormDialog,
   DimensionChain,
   Field,
   Segmented,
@@ -27,7 +27,7 @@ export type GoalPanelState = { mode: 'closed' } | { mode: 'create' } | { mode: '
 const SAVABLE = (c: CategoryRow) =>
   c.hiddenAt === null && c.kind !== 'income' && c.kind !== 'card_payment' && c.kind !== 'advance';
 
-/** Side panel (desktop) / bottom sheet (phone) of one goal: figures, edit, adopt, delete. */
+/** Existing goal create/edit actions in an input dialog. */
 export function GoalPanel({
   month,
   state,
@@ -49,23 +49,31 @@ export function GoalPanel({
   const creating = state.mode === 'create';
   const shown = state.mode === 'closed' || (state.mode === 'edit' && !goal) ? false : true;
   return (
-    <DetailPanel
+    <FormDialog
       open={shown}
       onClose={onClose}
       title={creating ? 'Neues Sparziel' : (goal?.name ?? '')}
     >
-      {shown && (
-        <GoalBody
-          key={goal?.id ?? 'new'}
-          month={month}
-          goal={goal}
-          categories={categories}
-          groups={groups}
-          accounts={accounts}
-          onDone={onClose}
-        />
-      )}
-    </DetailPanel>
+      <div className="bk-head">
+        <h2>{creating ? 'Neues Sparziel' : goal?.name}</h2>
+        <Button variant="ghost" onClick={onClose}>
+          Schließen
+        </Button>
+      </div>
+      <div className="bk-body">
+        {shown && (
+          <GoalBody
+            key={goal?.id ?? 'new'}
+            month={month}
+            goal={goal}
+            categories={categories}
+            groups={groups}
+            accounts={accounts}
+            onDone={onClose}
+          />
+        )}
+      </div>
+    </FormDialog>
   );
 }
 
@@ -141,7 +149,6 @@ function GoalBody({
 
   return (
     <div className="kform goal-form">
-      {goal && <GoalFigures goal={goal} month={month} category={category} />}
       <h3 className="panel-h">{goal ? 'Bearbeiten' : 'Sparziel'}</h3>
       <Field label="Name" error={errors.name}>
         {({ id, describedBy, invalid }) => (
@@ -265,14 +272,14 @@ function GoalBody({
 }
 
 /** Gespart + Fehlt = Ziel, then the figures behind the needed rate and the forecast. */
-function GoalFigures({
+export function GoalFigures({
   goal: g,
   month,
   category,
 }: {
   goal: GoalView;
   month: string;
-  category: CategoryRow | undefined;
+  category: Pick<CategoryRow, 'id' | 'name'> | undefined;
 }) {
   useAmountPrivacy();
   const extra = Math.max(0, g.savedCents - g.targetCents);

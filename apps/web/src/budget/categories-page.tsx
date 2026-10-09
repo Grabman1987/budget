@@ -1,5 +1,7 @@
 import { Button, CircleNumber, ClassTag, Switch, cx } from '@budget/ui';
 import { useQuery } from '@tanstack/react-query';
+import { useNavigate, useSearch } from '@tanstack/react-router';
+import { AppLink } from '../shell/app-link';
 import { ArrowDown, ArrowUp, EyeOff, GripVertical, Pencil, Plus, Trash2 } from 'lucide-react';
 import { useLayoutEffect, useRef, useState, type DragEvent, type KeyboardEvent } from 'react';
 import { EINSTELLUNGEN_KATEGORIEN } from '../nav/pages';
@@ -31,7 +33,8 @@ type Drag = { kind: 'category' | 'group'; id: string } | null;
 export function CategoriesPage() {
   const tree = useQuery(categoriesQuery());
   const write = useBudgetWrite();
-  const [showHidden, setShowHidden] = useState(false);
+  const { ausgeblendet: showHidden } = useSearch({ strict: false }) as { ausgeblendet?: boolean };
+  const navigate = useNavigate();
   const [panel, setPanel] = useState<PanelState>(null);
   const [drag, setDrag] = useState<Drag>(null);
   // The order shown while sort writes are on their way: a second ↑ builds on the first one.
@@ -116,7 +119,20 @@ export function CategoriesPage() {
             <span id="show-hidden">
               Ausgeblendete zeigen{hiddenCount > 0 && ` (${hiddenCount})`}
             </span>
-            <Switch labelledBy="show-hidden" checked={showHidden} onChange={setShowHidden} />
+            <Switch
+              labelledBy="show-hidden"
+              checked={!!showHidden}
+              onChange={(value) =>
+                void navigate({
+                  to: '.',
+                  search: (prev: Record<string, unknown>) => ({
+                    ...prev,
+                    ausgeblendet: value || undefined,
+                  }),
+                  replace: true,
+                })
+              }
+            />
           </span>
           <span className="spacer" />
           <Button size="sm" variant="ghost" onClick={() => setPanel({ mode: 'group' })}>
@@ -208,6 +224,7 @@ export function CategoriesPage() {
                       }
                       onAdd={() => setPanel({ mode: 'edit', groupId: g.id })}
                       onEdit={(c) => setPanel({ mode: 'edit', groupId: c.groupId, category: c })}
+                      showHidden={!!showHidden}
                       target={(c) => {
                         const versions = data.targets.filter((t) => t.categoryId === c.id);
                         return versions[versions.length - 1];
@@ -272,6 +289,7 @@ function GroupRows(props: {
   onDelete: () => void;
   onAdd: () => void;
   onEdit: (c: CategoryRow) => void;
+  showHidden: boolean;
   target: (c: CategoryRow) => Parameters<typeof targetText>[0] | undefined;
 }) {
   const { index, name, count, rows, dragging } = props;
@@ -334,11 +352,16 @@ function GroupRows(props: {
               </span>
             </td>
             <td>
-              <button type="button" className="kname-btn" onClick={() => props.onEdit(c)}>
+              <AppLink
+                className="kname-btn"
+                to={`/einstellungen/kategorien/${c.id}`}
+                search={{ ausgeblendet: props.showHidden || undefined }}
+                state={{ planPanelDetailOpenedInApp: true }}
+              >
                 <span className="kname-s">
                   <CategoryIcon icon={c.icon} /> {c.name}
                 </span>
-              </button>
+              </AppLink>
               <span className="kmeta">
                 {c.class && <ClassTag kind={c.class}>{CLASS_TEXT[c.class]}</ClassTag>}
                 <span>{KIND_LABEL[c.kind]}</span>

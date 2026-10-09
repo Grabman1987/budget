@@ -1,4 +1,5 @@
 import type { Rhythm } from '../expected/api';
+import type { LiquidityHorizon, LiquidityLeverId } from '@budget/domain';
 import { queryString, request } from '../api/http';
 import type {
   AccountList,
@@ -36,15 +37,29 @@ const filterParams = (filter: BookingFilter) => ({
 export const fetchAccounts = (asOf?: string) =>
   request<AccountList>('GET', `/api/accounts${queryString({ asOf })}`);
 
-export const fetchSeries = (accountId: string, from: string, to: string, previewDays = 0) =>
+export const fetchSeries = (
+  accountId: string,
+  from: string,
+  to: string,
+  previewDays = 0,
+  forecast?: { horizon: LiquidityHorizon; levers: ReadonlyArray<LiquidityLeverId> },
+) =>
   request<{
     accountId: string;
     points: SeriesPoint[];
     previewPoints?: SeriesPoint[];
     unavailableCurrencies?: string[];
+    previewCoverage?: {
+      partial: boolean;
+      variableMonthlyCents: number;
+      unassignedEventCount: number;
+      unassignedPaymentCount: number;
+      endDay: string;
+      horizon: LiquidityHorizon;
+    };
   }>(
     'GET',
-    `/api/accounts/${encodeURIComponent(accountId)}/series${queryString({ from, to, previewDays })}`,
+    `/api/accounts/${encodeURIComponent(accountId)}/series${queryString({ from, to, previewDays, horizon: forecast?.horizon, levers: forecast?.levers.join(',') })}`,
   );
 
 /** The series of all live accounts in one call (Konten), keyed by account id. */

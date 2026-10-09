@@ -7,6 +7,7 @@ import { ErrorNote, LoadingNote } from '../ledger/states';
 import { AppLink } from '../shell/app-link';
 import type { DebtAccount, DebtsView } from './debts-api';
 import { strategyCandidatesQuery } from './loan-planning-api';
+import { DebtLiquidityCheck } from './debt-liquidity-check';
 
 const text = (v: number | null) => (v === null ? '' : formatDecimal(cents(v)));
 const amount = (v: string) => {
@@ -112,6 +113,14 @@ function Overview({ accounts, asOf }: { accounts: OverviewAccount[]; asOf: strin
         <p className="vnote">
           Modell ab {longDay(asOf)} · Datum = Monatsende der letzten Modellzahlung.
         </p>
+        <p className="vnote">
+          Tilgungsübersicht und Schuldensumme zeigen Konten mit negativem Nettowert. Bei Depots
+          zählen Wertpapiere und Kassa gemeinsam. Die Tilgungsstrategien betrachten dagegen negative
+          Kassasalden in der jeweiligen Kontowährung. Ein Depot mit positivem Nettowert und
+          negativer Kassa fehlt deshalb hier, kann aber Strategiekandidat sein. Anzahl und Summen
+          können abweichen; die Betrachtungen werden nicht ineinander umgerechnet.
+        </p>
+        <DebtLiquidityCheck />
       </div>
       {accounts.length > 0 && (
         <>
