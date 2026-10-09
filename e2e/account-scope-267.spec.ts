@@ -7,6 +7,7 @@ test('Heute explains sidebar, forecast and net-worth account scopes', async ({
   page,
   isolatedLedger,
 }, info) => {
+  test.setTimeout(90_000);
   const opened = openDatabase(isolatedLedger.databasePath);
   const ctx = { actor: 'e2e' };
   try {
@@ -103,6 +104,33 @@ test('Heute explains sidebar, forecast and net-worth account scopes', async ({
     await expect(sidebar.locator('#acct-tree-budget').locator('..')).toContainText('1.500 €');
     await expect(sidebar.locator('#acct-tree-cards').locator('..')).toContainText('−200 €');
     await expect(sidebar.locator('#acct-tree-investments').locator('..')).toContainText('400 €');
+    await expect(sidebar.getByRole('link', { name: /Synthetic checking/ })).toHaveAttribute(
+      'href',
+      '/konten/scope-budget',
+    );
+    await expect(sidebar.getByRole('link', { name: /Synthetic card/ })).toHaveAttribute(
+      'href',
+      '/konten/scope-card',
+    );
+  }
+
+  for (const scheme of ['light', 'dark'] as const) {
+    await page.emulateMedia({ colorScheme: scheme, reducedMotion: 'reduce' });
+    const axe = await new AxeBuilder({ page })
+      .include('main')
+      .include('#sidebar')
+      .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'])
+      .analyze();
+    expect(axe.violations.filter((v) => v.impact === 'serious' || v.impact === 'critical')).toEqual(
+      [],
+    );
+    expect(
+      await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth),
+    ).toBe(true);
+    await page.screenshot({
+      path: info.outputPath(`account-scope-heute-${scheme}.png`),
+      fullPage: true,
+    });
   }
 
   const privacy =
@@ -111,7 +139,7 @@ test('Heute explains sidebar, forecast and net-worth account scopes', async ({
           name: 'Beträge verbergen',
           exact: true,
         })
-      : page.locator('.topbar').getByRole('button', { name: 'Beträge verbergen', exact: true });
+      : page.getByRole('button', { name: 'Beträge verbergen', exact: true });
   if (info.project.name === 'mobile') await page.locator('.m-head .m-profile summary').click();
   await privacy.click();
   await expect(privacy).toHaveAttribute('aria-pressed', 'true');
@@ -122,7 +150,11 @@ test('Heute explains sidebar, forecast and net-worth account scopes', async ({
   await privacy.click();
   await expect(privacy).toHaveAttribute('aria-pressed', 'false');
 
-  await page.getByRole('button', { name: /Liquidität .*Einzelposten zeigen/ }).click();
+  const moreMonth = page.getByRole('button', { name: 'Mehr zum Monat', exact: true });
+  if ((await moreMonth.getAttribute('aria-expanded')) === 'false') await moreMonth.click();
+  await page
+    .getByRole('button', { name: /Liquidität .*Einzelposten zeigen/ })
+    .click({ timeout: 10_000 });
   await expect(page.getByRole('heading', { name: 'Liquidität', exact: true })).toBeVisible();
   const liquidDetail = page.getByText(
     'Positive Salden aus Budget- und Reservekonten. Negative Kontosalden zählen zu Schulden; ' +
