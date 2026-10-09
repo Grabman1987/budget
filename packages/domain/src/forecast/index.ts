@@ -7,6 +7,7 @@ export {
   type ForecastDayItem,
   type ForecastItem,
   type ForecastItemKind,
+  type ForecastItemRef,
   type ForecastMonth,
   type LiquidityForecast,
   type LiquidityInput,

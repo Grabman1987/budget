@@ -37,11 +37,14 @@ export class BankError extends Error {
       | 'unavailable'
       | 'rate_limited'
       | 'invalid_response'
+      | 'invalid_validity'
       | 'consent_expired'
       | 'auth_failed'
       | 'history_unavailable'
       | 'request_limit',
     readonly retrySeconds = 900,
+    /** Zod issue code@field path only (e.g. `too_small@accounts.0.name`); never provider values. */
+    readonly detail?: string,
   ) {
     super(code);
     this.name = 'BankError';

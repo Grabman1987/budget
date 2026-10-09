@@ -58,6 +58,7 @@ const STATUS = {
   received: 'Verknüpft',
   deviating: 'Abweichend',
   missed: 'Ausgefallen',
+  skipped: 'Gestrichen',
 };
 
 export function PaymentsPreviewReport({ report, meta }: { report: ReportEntry; meta: PageMeta }) {

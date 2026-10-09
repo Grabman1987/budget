@@ -20,6 +20,7 @@ import {
   rememberPayslipPassword,
 } from '../payslips/password';
 import { dropboxConfigured, dropboxWriteEnabled } from '../payslips/dropbox';
+import { isScanFailure } from '../payslips/scan-error';
 import { RECEIPT_LIMIT } from '../receipts/files';
 import { ACTOR, ApiError, readBody } from './http';
 
@@ -41,7 +42,7 @@ export function payslipIntakeRoutes(
         dropboxConfigured() &&
         scan?.root === process.env['DROPBOX_PAYSLIP_ROOT']?.replace(/\/$/, '') &&
         Boolean(scan?.cursor) &&
-        scan?.errorCode !== 'scan_failed',
+        !isScanFailure(scan?.errorCode),
       dropboxConfigured: dropboxConfigured(),
       dropboxWrite: dropboxWriteEnabled(),
       lastScanAt: scan?.lastScanAt ?? null,
