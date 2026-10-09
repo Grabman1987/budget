@@ -39,3 +39,7 @@ These captures use only the existing synthetic seed or synthetic test fixtures. 
 The affected report specs use review screenshots rather than committed pixel baselines. Review payslip, income/expense, liquidity, category, spending and finance-check captures on Linux; the shell report-catalog baselines are unaffected. No baseline was regenerated.
 
 Required PR CI, integration after #411, owner review on desktop and a physical 390 px phone remain open. No keys, provider consent, private PDF, migration, deployment or automatic booking is needed for this package.
+
+## Publication handoff
+
+`git push -u origin HEAD` succeeded. Normal PR creation with `gh pr create` returned `HTTP 401: Requires authentication`; no PR was created. The complete English body is [PR.md](PR.md). After restoring GitHub authentication, create the requested normal PR from `codex/pkg-p-report-panels-1009` against the open #411 branch `codex/pkg-j-category-trend-1009`, then retarget main after #411 merges. Do not merge this package until required CI and owner acceptance.
