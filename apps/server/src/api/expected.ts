@@ -11,7 +11,9 @@ import {
   refreshOccurrences,
   readPaymentsPreview,
   restoreExpectedPayment,
+  skipOccurrence,
   unlinkOccurrence,
+  unskipOccurrence,
   updateExpectedPayment,
   upcoming,
   type Db,
@@ -30,6 +32,7 @@ import {
   expectedListQuery,
   expectedOccurrencesQuery,
   expectedPatch,
+  expectedSkipBody,
   expectedVersionCreate,
 } from './schemas';
 
@@ -71,9 +74,16 @@ export function expectedRoutes(db: Db, today: () => string): Hono {
   // Fixed paths before `/:id`.
   app.get('/year-preview', (c) => c.json(readPaymentsPreview(db, today())));
   app.get('/occurrences', (c) => {
-    const { from, to, kind } = readQuery(c, expectedOccurrencesQuery);
+    const { from, to, kind, includeSkipped } = readQuery(c, expectedOccurrencesQuery);
     if (to < from) throw new ApiError(400, 'invalid', '`to` must not be before `from`');
-    return c.json({ occurrences: upcoming(db, from, to, defined({ kind })) });
+    return c.json({
+      occurrences: upcoming(
+        db,
+        from,
+        to,
+        defined({ kind, includeSkipped: includeSkipped === '1' }),
+      ),
+    });
   });
 
   app.post('/occurrences/:id/link', async (c) => {
@@ -85,6 +95,10 @@ export function expectedRoutes(db: Db, today: () => string): Hono {
   );
   app.post('/occurrences/:id/missed', (c) =>
     c.json(markOccurrenceMissed(db, c.req.param('id'), audit())),
+  );
+  // Bring a skipped (gestrichen) occurrence back into the plan.
+  app.post('/occurrences/:id/unskip', (c) =>
+    c.json(unskipOccurrence(db, c.req.param('id'), audit(), today())),
   );
 
   app.get('/income', (c) => c.json(monthIncome(db, readQuery(c, expectedIncomeQuery).month)));
@@ -113,6 +127,12 @@ export function expectedRoutes(db: Db, today: () => string): Hono {
   app.post('/:id/restore', (c) =>
     c.json(restoreExpectedPayment(db, c.req.param('id'), audit(), today())),
   );
+
+  // Skip one occurrence in the plan without touching the rule (also one not materialised yet).
+  app.post('/:id/skip', async (c) => {
+    const { dueDate } = await readBody(c, expectedSkipBody);
+    return c.json(skipOccurrence(db, c.req.param('id'), dueDate, audit(), today()));
+  });
 
   app.get('/:id/versions', (c) =>
     c.json({ versions: listExpectedVersions(db, c.req.param('id')) }),

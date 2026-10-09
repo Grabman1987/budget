@@ -48,6 +48,56 @@ it('labels actual history before today and separates payment numbers from the lo
     Math.abs(Number(marker.getAttribute('y')) - Number(low.getAttribute('y'))),
   ).toBeGreaterThanOrEqual(20);
 });
+
+it('explains which account groups the cash forecast includes and excludes', () => {
+  const { container } = render(
+    <BalanceChart
+      chainOpen={false}
+      onToggleChain={() => {}}
+      data={
+        {
+          ...dailyData,
+          lead: {
+            needCents: 0,
+            wantCents: 0,
+            openCents: 0,
+            freeCents: 28_000,
+            daysToPayday: 0,
+            chain: [],
+            items: { need: [], want: [], open: [] },
+          } satisfies Heute['lead'],
+          stand: {
+            ...dailyData.stand,
+            today: '2026-09-15',
+            period: 'month',
+            to: '2026-10-02',
+          },
+          balance: {
+            actual: [{ day: '2026-09-15', balanceCents: 80_000 }],
+            forecast: [
+              { day: '2026-09-15', balanceCents: 80_000, variableCents: 0, items: [] },
+              { day: '2026-09-16', balanceCents: 80_000, variableCents: 0, items: [] },
+            ],
+            low: { day: '2026-09-16', cents: 80_000, index: 1 },
+            salary: null,
+          },
+        } as Heute
+      }
+    />,
+  );
+
+  const label = container
+    .querySelector('[data-testid="heute-balance-chart"]')
+    ?.getAttribute('aria-label');
+  expect(label).toMatch(/Budget-Konten/);
+  expect(label).toMatch(
+    /(Kreditkarten.*(inklusive|eingeschlossen|einbezogen)|(inklusive|eingeschlossen|einbezogen).*Kreditkarten)/i,
+  );
+  expect(label).toMatch(
+    /((Reserve|Reservekonten).*(ohne|ausgeschlossen)|(ohne|ausgeschlossen).*(Reserve|Reservekonten))/i,
+  );
+});
+
 const dailyData = {
   stand: { payday: { day: '2026-10-15' } },
   dailyBudget: { remainingDays: 10, perDayCents: 3800 },

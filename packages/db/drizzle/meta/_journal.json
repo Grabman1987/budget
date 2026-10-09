@@ -288,6 +288,13 @@
       "when": 1791490000172,
       "tag": "0040_income_pause",
       "breakpoints": true
+    },
+    {
+      "idx": 41,
+      "version": "6",
+      "when": 1791527202140,
+      "tag": "0041_occurrence_skipped",
+      "breakpoints": true
     }
   ]
 }

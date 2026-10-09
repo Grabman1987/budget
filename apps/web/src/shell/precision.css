@@ -238,7 +238,7 @@ button {
   display: flex;
   align-items: center;
   gap: 2px;
-  height: 30px;
+  min-height: 38px;
   padding-right: 10px;
   border-radius: var(--radius-sm);
   color: var(--ink-3);
@@ -253,12 +253,14 @@ button {
   flex: 1;
   min-width: 0;
   display: grid;
-  grid-template-columns: 14px auto;
+  grid-template-columns: 14px minmax(0, 1fr);
+  grid-template-rows: auto auto;
   justify-content: start;
   align-items: center;
-  gap: 8px;
-  height: 30px;
-  padding: 0 0 0 6px;
+  column-gap: 8px;
+  row-gap: 1px;
+  min-height: 38px;
+  padding: 3px 0 3px 6px;
   color: inherit;
   text-align: left;
 }
@@ -345,14 +347,23 @@ button {
   color: var(--ink);
 }
 .acct-group-head .chev {
+  grid-row: 1 / span 2;
   transition: rotate var(--t-fast) var(--ease-out);
 }
 .acct-group.is-folded .chev {
   rotate: -90deg;
 }
 .acct-group-title {
+  min-width: 0;
   font-size: 11px;
   letter-spacing: 0.07em;
+}
+.acct-group-sub {
+  min-width: 0;
+  color: var(--ink-3);
+  font-size: var(--fs-label);
+  line-height: 1.2;
+  overflow-wrap: anywhere;
 }
 .acct-group ul {
   list-style: none;
