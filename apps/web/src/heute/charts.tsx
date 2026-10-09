@@ -171,7 +171,8 @@ function BalanceDrawing({
       label: day === data.stand.today ? 'heute' : shortDay(day),
     }));
   const label =
-    `Budget-Konten: Ist bis ${data.stand.today} ${eur(actual.at(-1)?.balanceCents ?? 0)}; ` +
+    `Kontoprognose: Budget-Konten; Kreditkarten im Budget eingeschlossen; Reservekonten ausgeschlossen. ` +
+    `Ist bis ${data.stand.today} ${eur(actual.at(-1)?.balanceCents ?? 0)}; ` +
     (forecast.length
       ? `Prognose bis ${forecast.at(-1)?.day} ${eur(forecast.at(-1)?.balanceCents ?? 0)}.`
       : 'keine Prognose für diesen Zeitraum.');

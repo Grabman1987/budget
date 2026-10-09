@@ -300,6 +300,20 @@ describe('bank adapter with synthetic HTTP only', () => {
       code: 'invalid_response',
     });
   });
+  it('picks the balance of the requested currency on a multi-currency account', async () => {
+    const balances = [
+      { balance_type: 'CLBD', balance_amount: { amount: '5.00', currency: 'USD' } },
+      { balance_type: 'CLBD', balance_amount: { amount: '12.01', currency: 'EUR' } },
+    ];
+    expect(await adapter([{ balances }]).provider.balance('uid', undefined, 'EUR')).toEqual({
+      amountCents: 1201,
+      currency: 'EUR',
+      date: null,
+    });
+    expect(
+      await adapter([{ balances: [balances[0]] }]).provider.balance('uid', undefined, 'EUR'),
+    ).toBeNull();
+  });
   it('returns a redacted retry delay, never provider bodies', async () => {
     const { provider, http } = adapter([
       new Response('sensitive-provider-error', { status: 429, headers: { 'retry-after': '3600' } }),

@@ -42,7 +42,7 @@ export function BankCandidate({
   const matches = useQuery({
     queryKey: [...LEDGER_KEY, 'bank-matches', id],
     queryFn: () =>
-      request<{ merge: Match[]; transfers: Match[] }>(
+      request<{ merge: Match[]; link?: Match[]; transfers: Match[] }>(
         'GET',
         '/api/bank-sync/candidates/' + encodeURIComponent(id) + '/matches',
       ),
@@ -67,7 +67,10 @@ export function BankCandidate({
         />
       )}
       {(['merge', 'transfer'] as const).map((action) => {
-        const rows = action === 'merge' ? matches.data?.merge : matches.data?.transfers;
+        const rows =
+          action === 'merge'
+            ? [...(matches.data?.merge ?? []), ...(matches.data?.link ?? [])]
+            : matches.data?.transfers;
         if (!rows?.length) return null;
         const selected = (action === 'merge' ? mergeId : transferId) || rows[0]!.id;
         const setSelected = action === 'merge' ? setMerge : setTransfer;
@@ -98,7 +101,7 @@ export function BankCandidate({
             </Field>
             <p className="kmeta">
               {action === 'merge'
-                ? 'Kategorie, Anteile und Notiz bleiben erhalten. Datum und Bankreferenz werden übernommen.'
+                ? 'Kategorie, Anteile und Notiz bleiben erhalten. Die Bankreferenz wird übernommen; bei eigenen Buchungen auch das Bankdatum.'
                 : 'Kategorien werden entfernt. Beide Buchungstage bleiben erhalten.'}
             </p>
             <Button

@@ -60,6 +60,48 @@ describe('liquidityForecast', () => {
     expect(f.days[1]?.variableCents).toBe(100);
   });
 
+  it('carries the reference of an expected payment occurrence to the day items', () => {
+    const ref = { paymentId: 'salary', dueDate: '2026-09-19' };
+    const f = liquidityForecast({
+      startDay: '2026-09-17',
+      startCents: 1000,
+      days: 3,
+      items: [
+        { day: '2026-09-19', cents: 20_000, kind: 'income', label: 'Gehalt', ref },
+        { day: '2026-09-19', cents: -500, kind: 'event', label: 'Ereignis' },
+      ],
+      variablePerDay: none,
+    });
+    expect(f.days[2]?.items).toEqual([
+      { cents: 20_000, kind: 'income', label: 'Gehalt', ref },
+      { cents: -500, kind: 'event', label: 'Ereignis' },
+    ]);
+  });
+
+  it('the low point moves when an item is left out of the plan (a skipped salary)', () => {
+    const rent = (day: string): ForecastItem => ({ day, cents: -90_000, kind: 'fixed' });
+    const pay = (day: string): ForecastItem => ({ day, cents: 300_000, kind: 'income' });
+    const run = (items: ForecastItem[]) =>
+      lowPoint(
+        liquidityForecast({
+          startDay: '2026-03-18',
+          startCents: 200_000,
+          days: 90,
+          items,
+          variablePerDay: none,
+        }).days,
+        90,
+      );
+    const all = [rent('2026-04-05'), pay('2026-04-15'), rent('2026-05-05'), pay('2026-05-15')];
+    expect(run(all)).toEqual({ day: '2026-04-05', index: 18, cents: 110_000 });
+    // Without the April salary the balance is 20.000 after the May rent.
+    expect(run(all.filter((i) => i.day !== '2026-04-15'))).toEqual({
+      day: '2026-05-05',
+      index: 48,
+      cents: 20_000,
+    });
+  });
+
   it('summarises months with start, flows by kind, low and end', () => {
     const f = liquidityForecast({
       startDay: '2026-09-29',

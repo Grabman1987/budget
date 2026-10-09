@@ -96,7 +96,9 @@ test('Heute payday forecast follows the bracket and last axis label', async ({ p
     '17.10.',
   );
   await expect(
-    page.getByText('Kontoprognose bis 17.10.2026 · 14 Tage Rückblick · gleicher Horizont wie R07.'),
+    page.getByText(
+      'Kontoprognose bis 17.10.2026 · Budget-Konten; Kreditkarten im Budget eingeschlossen, Reservekonten ausgeschlossen · 14 Tage Rückblick · gleicher Horizont wie R07.',
+    ),
   ).toBeVisible();
   await expect(
     page.getByTestId('forecast-step-label').filter({ hasText: 'Kreditrate' }),

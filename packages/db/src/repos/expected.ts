@@ -155,7 +155,8 @@ export interface ReplanResult {
  * Bring the occurrences of one payment in line with its schedule and versions. Creates missing
  * ones (also the ones an undo soft-deleted: they come back as `expected`), re-plans amounts of
  * future `expected` rows and removes future `expected` rows that are no longer due. Matched,
- * missed and past rows are history and stay as they are. A deleted payment has no plan.
+ * missed and past rows are history and stay as they are; so does a `skipped` (gestrichen) row: it
+ * is a decision of the owner, never re-planned, removed or revived as `expected` here. A deleted payment has no plan.
  */
 function replanPayment(
   tx: Executor,
@@ -668,6 +669,7 @@ export function matchOccurrences(
         .map((b) => ({ id: b.id, date: b.date, amountCents: bookedAmountIn(b, currency) }));
       return {
         key: occ.id,
+        status: occ.status,
         occurrence: planned,
         candidates,
         toleranceCents: payment.amountToleranceCents,
@@ -779,6 +781,115 @@ export function unlinkOccurrence(
   });
 }
 
+/**
+ * Take one occurrence out of the plan ("gestrichen"): the forecast, Heute and the reports leave it
+ * out, the rule and the other occurrences stay, and no booking is matched to it. A deliberate plan
+ * change (unpaid leave, a gap in income), not a warning like `missed`. Works for an occurrence that
+ * was not materialised yet: the row is created. `dueDate` must be a real occurrence of the rule
+ * inside the materialisation window (`occurrenceHorizon`), else a `RangeError`. An occurrence
+ * linked to a booking cannot be skipped (`ConflictError`). Skipping twice changes nothing.
+ */
+export function skipOccurrence(
+  db: Executor,
+  paymentId: string,
+  dueDate: string,
+  ctx: AuditContext,
+  today: string,
+): { occurrence: OccurrenceRow; groupId: string } {
+  const grouped = withGroup(ctx);
+  return runInTransaction(db, (tx) => {
+    const payment = livePayment(tx, paymentId);
+    const { from, to } = occurrenceHorizon(today);
+    const planned =
+      /^\d{4}-\d{2}-\d{2}$/.test(dueDate) && dueDate >= from && dueDate <= to
+        ? occurrences(
+            schedulePayment(payment),
+            liveVersions(tx, paymentId).map(scheduleVersion),
+            dueDate,
+            dueDate,
+          )[0]
+        : undefined;
+    if (!planned)
+      throw new RangeError(
+        `${dueDate} is not a planned occurrence of this payment (${from}..${to})`,
+      );
+    const row = tx
+      .select()
+      .from(expectedOccurrence)
+      .where(
+        and(
+          eq(expectedOccurrence.expectedPaymentId, paymentId),
+          eq(expectedOccurrence.dueDate, dueDate),
+        ),
+      )
+      .get();
+    let id = row?.id;
+    if (!row) {
+      id = randomUUID();
+      insertTracked(
+        tx,
+        expectedOccurrence,
+        {
+          id,
+          expectedPaymentId: paymentId,
+          dueDate,
+          expectedAmountCents: planned.amountCents,
+          contactShareCents: planned.contactShareCents,
+          status: 'skipped',
+        },
+        grouped,
+      );
+    } else if (row.deletedAt !== null) {
+      updateTracked(
+        tx,
+        expectedOccurrence,
+        [row.id],
+        {
+          deletedAt: null,
+          status: 'skipped',
+          bookingId: null,
+          expectedAmountCents: planned.amountCents,
+          contactShareCents: planned.contactShareCents,
+        },
+        grouped,
+        'restore',
+      );
+    } else if (row.bookingId !== null) {
+      throw new ConflictError('This occurrence is linked to a booking; unlink it first');
+    } else if (row.status !== 'skipped') {
+      updateTracked(tx, expectedOccurrence, [row.id], { status: 'skipped' }, grouped);
+    }
+    return { occurrence: liveOccurrence(tx, id!).occ, groupId: grouped.groupId };
+  });
+}
+
+/**
+ * Bring a skipped occurrence back into the plan: it is `expected` again (the matching then treats
+ * it like any other) and its amount is re-planned from the current versions. A row that exists
+ * only because it was skipped is not removed: within the window `refreshOccurrences` creates the
+ * same row anyway. Anything but a skipped occurrence is a `ConflictError`.
+ */
+export function unskipOccurrence(
+  db: Executor,
+  occurrenceId: string,
+  ctx: AuditContext,
+  today: string,
+): { occurrence: OccurrenceRow; groupId: string } {
+  const grouped = withGroup(ctx);
+  return runInTransaction(db, (tx) => {
+    const { occ, payment } = liveOccurrence(tx, occurrenceId);
+    if (occ.status !== 'skipped') throw new ConflictError('This occurrence is not skipped');
+    updateTracked(tx, expectedOccurrence, [occurrenceId], { status: 'expected' }, grouped);
+    replanPayment(tx, payment, today, grouped);
+    const after = tx
+      .select()
+      .from(expectedOccurrence)
+      .where(eq(expectedOccurrence.id, occurrenceId))
+      .get()!;
+    return { occurrence: after, groupId: grouped.groupId };
+  });
+}
+
 /** Mark an open occurrence as not happening ("ausgefallen"). Unlink a linked one first. */
 export function markOccurrenceMissed(
   db: Executor,
@@ -790,6 +901,8 @@ export function markOccurrenceMissed(
     const { occ } = liveOccurrence(tx, occurrenceId);
     if (occ.bookingId !== null)
       throw new ConflictError('This occurrence is linked to a booking; unlink it first');
+    if (occ.status === 'skipped')
+      throw new ConflictError('This occurrence is skipped (gestrichen); bring it back first');
     updateTracked(tx, expectedOccurrence, [occurrenceId], { status: 'missed' }, grouped);
     return { occurrence: liveOccurrence(tx, occurrenceId).occ, groupId: grouped.groupId };
   });
@@ -828,12 +941,15 @@ export interface UpcomingRow {
   suggestion: VersionSuggestion | null;
 }
 
-/** Occurrences due in `from`..`to` of live payments, with everything a list needs. */
+/**
+ * Occurrences due in `from`..`to` of live payments, with everything a list needs. Skipped
+ * (gestrichen) ones only with `includeSkipped`.
+ */
 export function upcoming(
   db: Executor,
   from: string,
   to: string,
-  options: { kind?: Payment['kind'] } = {},
+  options: { kind?: Payment['kind']; includeSkipped?: boolean } = {},
 ): UpcomingRow[] {
   const rows = db
     .select({
@@ -866,6 +982,8 @@ export function upcoming(
         gte(expectedOccurrence.dueDate, from),
         lte(expectedOccurrence.dueDate, to),
         options.kind ? eq(expectedPayment.kind, options.kind) : undefined,
+        // Skipped (gestrichen) occurrences are out of the plan; only the plan view asks for them.
+        options.includeSkipped ? undefined : ne(expectedOccurrence.status, 'skipped'),
       ),
     )
     .orderBy(asc(expectedOccurrence.dueDate), asc(expectedPayment.name), asc(expectedOccurrence.id))

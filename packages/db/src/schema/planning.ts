@@ -4,8 +4,17 @@ import { expectedPayment } from './budget';
 import { booking } from './bookings';
 import { cents, id, isoDay, oneOf, timestamps } from './common';
 
-/** Status of an occurrence (concept §3.3): erwartet, eingegangen, abweichend, ausgefallen. */
-export const OCCURRENCE_STATUSES = ['expected', 'received', 'deviating', 'missed'] as const;
+/**
+ * Status of an occurrence (concept §3.3): erwartet, eingegangen, abweichend, ausgefallen (a
+ * warning: it should have come), gestrichen (`skipped`: a deliberate plan change, no warning).
+ */
+export const OCCURRENCE_STATUSES = [
+  'expected',
+  'received',
+  'deviating',
+  'missed',
+  'skipped',
+] as const;
 
 /**
  * Occurrence (Vorkommen) of an expected payment: computed ahead (12 months) from the versions,
