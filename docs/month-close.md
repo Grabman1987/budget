@@ -15,10 +15,11 @@
    History sums and draft deltas use exact integer intermediates. Group shares use
    the existing monthly assignments directly, including periodic savings; unsafe
    aggregate amounts show a plain-language draft error and cannot be saved.
-4. Reuse the full One-Pager, add a shared factual verdict fallback (Job E is absent
-   from this baseline), three largest absolute plan/actual deviations and open
-   rule findings. Persist an audited, undoable close date in the existing setting;
-   no data lock. Reject premature or incomplete closes on the server.
+4. Reuse the full One-Pager 1.1 and its shared `VerdictLine`, add the three largest
+   absolute plan/actual deviations and open rule findings. The current review embeds
+   the existing report sheet and links its verdict to the full One-Pager. Persist an
+   audited, undoable close date in the existing setting; no data lock. Reject
+   premature or incomplete closes on the server.
 5. Synthetic domain/API/component tests first, then all-five-step desktop/phone
    E2E with accessibility and screenshots; full check/build before draft PR.
 
@@ -31,8 +32,8 @@ F1 plan (owner task 2026-10-04, now extended by F2):
    reopens the step. Reuse undo/redo and existing booking/reconcile/cover actions.
 3. Render one inline step with accessible five-step progress and a sticky phone
    continuation. F2 adds planning and an explicit close marker.
-4. Add Heute month-boundary and Plan entries. Job E is not on the fetched main
-   baseline; use existing assignment review and global search provisionally.
+4. Add Heute month-boundary and Plan entries. The F1 baseline initially lacked
+   Job E; F2 now reuses the current One-Pager 1.1 sheet and shared verdict line.
 5. Prove monthly status, exceptions, resume, audit/undo, validation and financial
    writes with synthetic API tests; stepper component and desktop/phone evidence.
 
@@ -89,8 +90,9 @@ the global inbox; without a booking date they have no monthly attribution.
 
 ## Owner acceptance
 
-Review the synthetic screenshots and the German flow, then integrate Job E's
-palette/verdict entry once its source is available. The existing global search
-remains the entry and the shared factual One-Pager sentence is the verdict fallback.
-No new keys, consents or provider calls are required. After deployment, perform the real parallel month
-close and compare balances, categories and reports for Gate 4.
+Review the current synthetic screenshots and German flow. The month review embeds
+the same `OnePagerSheet` as report 1.1 and uses its shared `VerdictLine`, linked to
+the full One-Pager; the earlier Job E integration placeholder is superseded. The
+existing global search remains the entry. No new keys, consents or provider calls
+are required. After deployment, perform the real parallel month close and compare
+balances, categories and reports for Gate 4.
