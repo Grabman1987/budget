@@ -155,7 +155,7 @@ describe('manual upload copy to Dropbox', { timeout: 60_000 }, () => {
     const bytes = await syntheticPayslipPdf(),
       dropbox = fakeDropbox();
     const result = await service(writer(dropbox.fetcher)).ingest(bytes, 'a.pdf', 'dropbox');
-    expect(result.dropboxCopy).toBe('off');
+    expect(result).toMatchObject({ dropboxCopy: 'off' });
     expect(dropbox.calls).toHaveLength(0);
   });
   it('lets the nightly scan skip the uploaded copy through SHA-256 deduplication', async () => {
