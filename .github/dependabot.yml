@@ -17,6 +17,11 @@ updates:
         update-types: ['version-update:semver-minor']
       - dependency-name: playwright-core
         update-types: ['version-update:semver-minor']
+      # ESLint 10 is blocked until eslint-plugin-jsx-a11y supports it (6.10.2 peers eslint ^3-^9); keep the a11y lint gate (#364).
+      - dependency-name: eslint
+        update-types: ['version-update:semver-major']
+      - dependency-name: '@eslint/js'
+        update-types: ['version-update:semver-major']
     groups:
       npm-minor-patch:
         update-types: [minor, patch]
