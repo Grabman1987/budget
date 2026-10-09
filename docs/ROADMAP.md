@@ -645,6 +645,7 @@ Expected payments, contacts with receivables, savings goals, rule set registered
 Enable Banking adapter, worker with nightly run and catch-up, inbox items, assignment rules and source status in Einstellungen › Datenquellen. Manual file imports are excluded from app scope; all-account/depot CSV export is available as a step-up authenticated ZIP.
 
 ### P4.1 — PSD2 bank sync into the inbox
+- [x] #400: one connection card with scoped actions/messages, per-account daily request counters, visible manual cooldown/limit, account mapping explanations, persisted last complete results and source-filtered inbox links. New connections require confirmation; existing explicit/legacy policies remain unchanged. Synthetic desktop/mobile light/dark coverage; owner acceptance and CI remain delivery gates.
 - [x] RS256 adapter, step-up/session-bound consent, encrypted session/account identifiers, owner-selected EUR account mapping.
 - [x] Owner decision 41: BOOK transactions become unchecked, uncategorized bookings immediately; PDNG remains a candidate until confirmed. Per-connection confirmation-first override, stable-reference promotion/deduplication, bank balance warnings and separate replayable ledger audit; no automatic categorization or distribution.
 - [x] Separate nightly worker on the same volume, catch-up, durable leases/backoff, queued manual refresh and consent reminders.

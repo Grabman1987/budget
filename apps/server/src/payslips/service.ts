@@ -244,6 +244,19 @@ export class PayslipIntakeService {
       return 'failed';
     }
   }
+  /**
+   * Read a pending intake again with the current parser (after a parser update). The stored PDF
+   * stays as it is; a document that cannot be opened keeps its earlier result and throws.
+   */
+  async reparse(id: string) {
+    const row = getPayslipIntake(this.db, id),
+      receipt = getReceipt(this.db, row.receiptId);
+    const bytes = await readFile(await verifyReceiptFile(this.dir, row.sha256, receipt.sizeBytes));
+    const { parsed } = await this.evaluate(bytes, receipt.originalFilename ?? '');
+    if (parsed.documentType === 'unknown' && /^PDF/.test(parsed.warnings[0] ?? ''))
+      throw new Error('reparse');
+    return replaceParsedPayslip(this.db, id, parsed, { actor: 'system' });
+  }
   async retry(id: string, options: PasswordOptions = {}) {
     const row = getPayslipIntake(this.db, id),
       receipt = getReceipt(this.db, row.receiptId);

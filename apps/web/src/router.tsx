@@ -172,6 +172,13 @@ const bookingsRoute = createRoute({
 const inboxRoute = createRoute({
   getParentRoute: () => shellRoute,
   path: '/konten/posteingang',
+  validateSearch: (search: Record<string, unknown>) => ({
+    bankSource:
+      typeof search['bankSource'] === 'string' &&
+      /^[\da-f]{8}-[\da-f]{4}-[\da-f]{4}-[\da-f]{4}-[\da-f]{12}$/i.test(search['bankSource'])
+        ? search['bankSource']
+        : undefined,
+  }),
   staticData: { meta: PAGES.find((p) => p.path === '/konten/posteingang')! },
   component: lazyRouteComponent(() => import('./inbox/inbox-page'), 'InboxPage'),
 });

@@ -34,6 +34,26 @@ async function call(method: string, path: string, body?: unknown) {
   return { status: response.status, body: (await response.json()) as any };
 }
 describe('inbox API', () => {
+  it('validates source filters and excludes unrelated work before pagination', async () => {
+    createBooking(
+      opened.db,
+      {
+        accountId: 'giro',
+        date: '2026-09-17',
+        amountCents: -501,
+        splits: [{ amountCents: -501 }],
+      },
+      { actor: 'tester' },
+    );
+    const filtered = await call(
+      'GET',
+      '/inbox?bankSource=10000000-0000-4000-8000-000000000001&limit=1',
+    );
+    expect(filtered.status).toBe(200);
+    expect(filtered.body).toMatchObject({ count: 0, totalEntries: 0, entries: [], next: null });
+    expect((await call('GET', '/inbox?bankSource=invalid')).status).toBe(400);
+    expect((await call('GET', '/inbox')).body.count).toBe(1);
+  });
   it('shares the current overspent envelopes with Heute, Plan and badge; cover and undo update all consumers', async () => {
     const ctx = { actor: 'test' };
     accounts.create(

@@ -27,6 +27,8 @@ import {
   writesHeld,
   type Db,
   type Executor,
+  readInbox,
+  filterBankSourceInbox,
 } from '@budget/db';
 import {
   bankTransactionKeys,
@@ -39,6 +41,7 @@ import {
   consentNeedsAttention,
   formatEuro,
   nextBankRun,
+  nextBankRequestDay,
   todayInVienna,
   assignmentActionsSchema,
   type AssignmentActions,
@@ -114,6 +117,7 @@ export class BankSync {
         ctx,
       );
     const fresh: (typeof candidate.$inferSelect)[] = [];
+    const linked = new Set<string>();
     for (const id of new Set(ids)) {
       const row = tx.select().from(candidate).where(eq(candidate.id, id)).get();
       const item = tx.select().from(inboxItem).where(eq(inboxItem.id, id)).get();
@@ -157,6 +161,7 @@ export class BankSync {
     for (const row of fresh) {
       const match = matches.get(row.id) ?? { kind: 'none' as const };
       if (match.kind === 'linked') {
+        linked.add(row.id);
         linkBankReference(tx, match.bookingId, row, ctx);
         resolve(row.id, 'Mit vorhandener Buchung verknüpft: ' + match.bookingId);
       } else if (match.kind === 'ambiguous') {
@@ -191,40 +196,89 @@ export class BankSync {
         resolve(row.id, 'Als ungeprüfte Buchung angelegt, bitte prüfen: ' + result.id);
       }
     }
+    return linked;
+  }
+
+  private manualAvailability(c: typeof consent.$inferSelect, links: (typeof link.$inferSelect)[]) {
+    const now = this.clock();
+    const iso = now.toISOString();
+    let reason: string | null = null;
+    let availableAt: string | null = null;
+    if (!c.secret || !c.validUntil || c.validUntil <= iso || c.status === 'paused')
+      reason =
+        c.status === 'paused'
+          ? 'Verbindung pausiert. Bitte neu verbinden.'
+          : 'Keine aktive Bankfreigabe. Bitte neu verbinden.';
+    else if (c.leaseUntil && c.leaseUntil > iso) reason = 'Der Abruf läuft bereits.';
+    else if (!links.some((a) => a.accountId && a.fromDate))
+      reason = 'Bitte zuerst ein Konto zuordnen.';
+    else {
+      if (c.lastAttemptAt) {
+        const minimum = new Date(Date.parse(c.lastAttemptAt) + 15 * 60_000).toISOString();
+        if (minimum > iso) availableAt = minimum;
+        if (c.failures > 0 && c.nextRunAt > iso && (!availableAt || c.nextRunAt > availableAt))
+          availableAt = c.nextRunAt;
+      }
+      const limited = links.some(
+        (a) =>
+          a.accountId && a.fromDate && a.requestDay === todayInVienna(now) && a.requestCount >= 4,
+      );
+      if (limited) {
+        const reset = nextBankRequestDay(now);
+        if (!availableAt || reset > availableAt) availableAt = reset;
+        reason = 'Tageslimit erreicht. Nächsten möglichen Abruf abwarten.';
+      } else if (availableAt) reason = 'Abrufpause aktiv. Nächsten möglichen Abruf abwarten.';
+    }
+    return {
+      manualBlockedReason: reason,
+      manualAvailableAt: availableAt,
+      running: Boolean(c.leaseUntil && c.leaseUntil > iso),
+    };
   }
 
   status() {
+    const inbox = readInbox(this.db, todayInVienna(this.clock())).entries;
     const connections = this.db
       .select()
       .from(consent)
       .all()
       .filter((c) => c.status !== 'abandoned')
-      .map((c) => ({
-        id: c.id,
-        bookedToLedger: this.bookedToLedger(this.db, c.id),
-        label: c.label,
-        status:
-          c.status !== 'paused' && c.validUntil && c.validUntil <= this.clock().toISOString()
-            ? 'expired'
-            : c.status,
-        validUntil: c.validUntil,
-        lastAttemptAt: c.lastAttemptAt,
-        lastSuccessAt: c.lastSuccessAt,
-        nextRunAt: c.nextRunAt,
-        accounts: this.db
-          .select()
-          .from(link)
-          .where(eq(link.consentId, c.id))
-          .all()
-          .map((a) => ({
-            id: a.id,
-            label: a.label,
-            currency: a.currency,
-            accountId: a.accountId,
-            fromDate: a.fromDate,
-            locked: a.lastSyncAt !== null,
-          })),
-      }));
+      .map((c) => {
+        const links = this.db.select().from(link).where(eq(link.consentId, c.id)).all();
+        return {
+          id: c.id,
+          bookedToLedger: this.bookedToLedger(this.db, c.id),
+          label: c.label,
+          status:
+            c.status !== 'paused' && c.validUntil && c.validUntil <= this.clock().toISOString()
+              ? 'expired'
+              : c.status,
+          validUntil: c.validUntil,
+          lastAttemptAt: c.lastAttemptAt,
+          lastSuccessAt: c.lastSuccessAt,
+          nextRunAt: c.nextRunAt,
+          ...this.manualAvailability(c, links),
+          accounts: links.map((a) => {
+            const entries = filterBankSourceInbox(this.db, inbox, a.id);
+            return {
+              id: a.id,
+              label: a.label,
+              currency: a.currency,
+              accountId: a.accountId,
+              fromDate: a.fromDate,
+              locked: a.lastSyncAt !== null,
+              lastSyncAt: a.lastSyncAt,
+              requestsToday: a.requestDay === todayInVienna(this.clock()) ? a.requestCount : 0,
+              requestLimit: 4,
+              lastResult: a.lastResult,
+              open: entries.filter(
+                (e) => e.type === 'booking' || (e.type === 'stored' && e.kind === 'import'),
+              ).length,
+              warnings: entries.filter((e) => e.type === 'stored' && e.kind !== 'import'),
+            };
+          }),
+        };
+      });
     const accounts = this.db
       .select({
         id: account.id,
@@ -257,19 +311,28 @@ export class BankSync {
     if (!institution) throw new ConflictError('Dieses Institut ist nicht verfügbar.');
     const state = randomBytes(32).toString('base64url');
     const id = randomUUID();
-    insertTracked(
-      this.db,
-      consent,
-      {
-        id,
-        initiator,
-        stateHash: hash(state),
-        label: name + ' · ' + country,
-        expiresAt: new Date(now.getTime() + 30 * 60_000).toISOString(),
-        nextRunAt: now.toISOString(),
-      },
-      withGroup({ actor: 'owner' }),
-    );
+    this.db.transaction((tx) => {
+      const ctx = withGroup({ actor: 'owner' });
+      insertTracked(
+        tx,
+        consent,
+        {
+          id,
+          initiator,
+          stateHash: hash(state),
+          label: name + ' · ' + country,
+          expiresAt: new Date(now.getTime() + 30 * 60_000).toISOString(),
+          nextRunAt: now.toISOString(),
+        },
+        ctx,
+      );
+      createEntity(
+        tx,
+        schema.appSetting,
+        { id: 'bank.booked_to_ledger:' + id, value: 'false' },
+        ctx,
+      );
+    });
     try {
       return {
         url: await this.provider.authorize(
@@ -403,23 +466,11 @@ export class BankSync {
 
   requestRun(id: string) {
     const row = this.db.select().from(consent).where(eq(consent.id, id)).get();
-    if (
-      !row ||
-      !row.secret ||
-      row.status === 'paused' ||
-      !row.validUntil ||
-      row.validUntil <= this.clock().toISOString()
-    )
-      throw new ConflictError('Keine aktive Bankverbindung.');
+    if (!row) throw new ConflictError('Keine aktive Bankverbindung.');
+    const links = this.db.select().from(link).where(eq(link.consentId, id)).all();
+    const availability = this.manualAvailability(row, links);
+    if (availability.manualBlockedReason) throw new ConflictError(availability.manualBlockedReason);
     const now = this.clock();
-    if (
-      row.lastAttemptAt &&
-      (now.getTime() - Date.parse(row.lastAttemptAt) < 15 * 60_000 ||
-        (row.failures > 0 && row.nextRunAt > now.toISOString()))
-    )
-      throw new ConflictError('Abrufpause aktiv. Bitte den nächsten Versuch abwarten.');
-    if (row.leaseUntil && row.leaseUntil > now.toISOString())
-      throw new ConflictError('Der Abruf läuft bereits.');
     this.db.update(consent).set({ nextRunAt: now.toISOString() }).where(eq(consent.id, id)).run();
     return { queued: true };
   }
@@ -680,6 +731,7 @@ export class BankSync {
             this.db.transaction((tx) => {
               const ctx = withGroup(system);
               const toPost: string[] = [];
+              const staged = new Set<string>();
               for (const [i, t] of transactions.entries()) {
                 const dedupeKey = hash(keys[i]!);
                 const foreign = t.currency !== acct.currency;
@@ -771,6 +823,7 @@ export class BankSync {
                   continue;
                 }
                 const id = randomUUID();
+                staged.add(id);
                 insertTracked(
                   tx,
                   candidate,
@@ -818,6 +871,7 @@ export class BankSync {
                 );
                 if (!foreign) toPost.push(id);
               }
+              const fetchedIds = new Set(toPost);
               // Lines left open by an earlier fetch are matched again, not only the freshly fetched.
               for (const open of tx
                 .select({ id: candidate.id })
@@ -834,7 +888,7 @@ export class BankSync {
                 )
                 .all())
                 toPost.push(open.id);
-              this.postBooked(tx, toPost, row.id);
+              const linked = this.postBooked(tx, toPost, row.id);
               if (batch.skippedInvalid || batch.skippedOutOfWindow)
                 this.warning(
                   tx,
@@ -953,6 +1007,11 @@ export class BankSync {
                 [a.id],
                 {
                   lastSyncAt: this.clock().toISOString(),
+                  lastResult: {
+                    fetched: transactions.length,
+                    linked: [...linked].filter((id) => fetchedIds.has(id)).length,
+                    new: [...staged].filter((id) => !linked.has(id)).length,
+                  },
                   secret: this.box.seal(uid, a.id),
                   balanceCents: balance?.amountCents ?? null,
                   balanceDate: balance?.date ?? null,

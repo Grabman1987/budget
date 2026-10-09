@@ -2,7 +2,15 @@ import { and, asc, count, countDistinct, desc, eq, isNull, lte, sql } from 'driz
 import { cents, formatEuro, monthOf, overspentEnvelopes, summarizeMonth } from '@budget/domain';
 import { categoryTree } from './categories';
 import { budget } from './queries';
-import { account, booking, bookingSplit, inboxItem, payee } from '../schema';
+import {
+  account,
+  booking,
+  bookingSplit,
+  inboxItem,
+  payee,
+  bankSyncAccount,
+  bankSyncCandidate,
+} from '../schema';
 import { nowIso, updateTracked, withGroup, type AuditContext } from './audit';
 import { ConflictError, EntityNotFoundError } from './errors';
 import { runInTransaction, type Executor } from './types';
@@ -117,7 +125,7 @@ function uncategorizedBookings(db: Executor, today: string): InboxBooking[] {
 }
 
 /** Legacy classification/overspending summaries are replaced by live ledger work. */
-export function readInbox(db: Executor, today: string) {
+export function readInbox(db: Executor, today: string, bankSource?: string) {
   return runInTransaction(db, (tx) => {
     const bookings = uncategorizedBookings(tx, today);
     const mappings = readSourceMappings(tx);
@@ -141,14 +149,53 @@ export function readInbox(db: Executor, today: string) {
         urgent: row.urgent,
         createdAt: row.createdAt,
       }));
-    const entries: InboxEntry[] = [
+    let entries: InboxEntry[] = [
       ...envelopeTasks(tx, today),
       ...bookings,
       ...savingsExecutionProposals(tx, today),
       ...stored,
     ];
+    if (bankSource) entries = filterBankSourceInbox(tx, entries, bankSource);
     const unlinkedReceipts = listReceipts(tx);
-    return { asOf: today, count: entries.length + unlinkedReceipts.length, entries };
+    return {
+      asOf: today,
+      count: entries.length + (bankSource ? 0 : unlinkedReceipts.length),
+      entries,
+    };
+  });
+}
+
+/** Source identity, including linked/migrated bookings; never filter by display names. */
+export function filterBankSourceInbox(db: Executor, entries: InboxEntry[], sourceId: string) {
+  const source = db.select().from(bankSyncAccount).where(eq(bankSyncAccount.id, sourceId)).get();
+  if (!source) return [];
+  const candidates = db
+    .select()
+    .from(bankSyncCandidate)
+    .where(eq(bankSyncCandidate.sourceId, sourceId))
+    .all();
+  const candidateIds = new Set(candidates.map((c) => c.id));
+  const keys = new Set(candidates.map((c) => 'bank-sync:' + c.dedupeKey));
+  const bookingIds = new Set(
+    db
+      .select()
+      .from(booking)
+      .where(eq(booking.accountId, source.accountId ?? ''))
+      .all()
+      .filter((b) => b.bankSourceId === sourceId || (b.importKey && keys.has(b.importKey)))
+      .map((b) => 'booking:' + b.id),
+  );
+  return entries.filter((entry) => {
+    if (entry.type === 'booking') return bookingIds.has(entry.id);
+    if (entry.type !== 'stored') return false;
+    if (candidateIds.has(entry.id)) return true;
+    return (
+      entry.refType === 'bank-sync' &&
+      (candidateIds.has(entry.refId ?? '') ||
+        entry.id.startsWith('bank-error:' + sourceId + ':') ||
+        entry.id === 'bank-skipped:' + sourceId ||
+        (entry.refId === source.accountId && entry.id.startsWith('bank-balance')))
+    );
   });
 }
 
