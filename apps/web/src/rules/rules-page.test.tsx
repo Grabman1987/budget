@@ -114,7 +114,10 @@ it('focuses the linked finding including cause and action, with settings seconda
   expect(within(finding).getByText('Ist: 2,5 Monate')).toBeTruthy();
   expect(within(finding).getByText('Schwelle: min. 3, Ziel 6 Monate')).toBeTruthy();
   expect(within(finding).getByRole('link', { name: 'Im Plan aufstocken' })).toBeTruthy();
-  expect(within(finding).getByRole('button', { name: /^Einstellen R02/ })).toBeTruthy();
+  expect(within(finding).getByRole('link', { name: /^Einstellen R02/ })).toHaveProperty(
+    'pathname',
+    '/einstellungen/regelwerk/R02',
+  );
   hash = '';
 });
 
