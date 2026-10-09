@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { mkdtemp, readFile, rm } from 'node:fs/promises';
+import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import {
@@ -21,6 +21,8 @@ import {
 } from '@budget/db';
 import { payrollTotals } from '@budget/domain';
 import { PayslipIntakeService } from './service';
+import { scanErrorCode } from './scan-error';
+import { DropboxError } from './dropbox';
 import { syntheticPayslipPdf, syntheticWageRows } from './testing';
 import { receiptPath } from '../receipts/files';
 
@@ -352,5 +354,37 @@ describe('encrypted synthetic payroll PDFs and owner intake', { timeout: 30_000 
     expect(getPayslipIntake(opened.db, staged.id).parsed.documentType).toBe(documentType);
     if (documentType === 'pension')
       expect(getPayslipIntake(opened.db, staged.id).parsed.draft).toBeNull();
+  });
+  it('classifies ingest failures by type and code, never by message', async () => {
+    const service = new PayslipIntakeService(opened.db, dir, 'synthetic-pdf-password');
+    const notPdf = await service
+      .ingest(Buffer.from('synthetic-not-a-pdf'), 'x.pdf', 'dropbox')
+      .catch((e: unknown) => e);
+    expect(scanErrorCode('ingest', notPdf)).toBe('pdf_format');
+    // A storage directory below a regular file fails in mkdir with an errno code.
+    const blocker = join(dir, 'blocker');
+    await writeFile(blocker, 'x');
+    const broken = new PayslipIntakeService(
+      opened.db,
+      join(blocker, 'receipts'),
+      'synthetic-pdf-password',
+    );
+    const storage = await broken
+      .ingest(await syntheticPayslipPdf(), 'x.pdf', 'dropbox')
+      .catch((e: unknown) => e);
+    expect(scanErrorCode('ingest', storage)).toBe('storage');
+    const coded = (code: string) => Object.assign(new Error('m'), { code });
+    expect(scanErrorCode('ingest', coded('EACCES'))).toBe('storage');
+    expect(scanErrorCode('ingest', coded('SQLITE_FULL'))).toBe('db');
+    expect(scanErrorCode('ingest', new Error('synthetic'))).toBe('unknown');
+    expect(scanErrorCode('download', new DropboxError('provider', 403, 'missing_scope'))).toBe(
+      'dropbox_scope',
+    );
+    expect(scanErrorCode('download', new DropboxError('provider', 401))).toBe('dropbox_auth');
+    expect(scanErrorCode('download', new DropboxError('integrity'))).toBe('dropbox_integrity');
+    expect(
+      scanErrorCode('download', new DropboxError('provider', 409, 'path/malformed_path')),
+    ).toBe('dropbox_path');
+    expect(scanErrorCode('list', new DropboxError('provider', 500))).toBe('dropbox_list');
   });
 });
