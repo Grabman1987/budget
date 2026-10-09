@@ -49,11 +49,9 @@ test('captured salary through the real API, with undo and mobile/desktop evidenc
   await dialog.getByLabel('Gehaltsbuchung').selectOption(salary.id);
   await dialog.getByRole('button', { name: 'Speichern', exact: true }).click();
   await expect(dialog).not.toBeVisible();
-  await expect(page.getByTestId('payroll-report')).toContainText(
-    'Gehaltsanteil stimmt mit den Gehaltsanteilen der Buchung überein.',
-  );
   await expect(page.locator('.tbd-fig').first()).toContainText('2.950');
   await expect(page.locator('.tbd-fig').first()).toContainText(',00 €');
+  await page.getByRole('link', { name: 'Gehaltszettel-Historie', exact: true }).click();
   await expect(page.getByTestId('payroll-report')).toContainText(
     'Steuerfreie Erstattung · Synthetische Reisekosten',
   );
@@ -83,6 +81,7 @@ test('captured salary through the real API, with undo and mobile/desktop evidenc
   await expect(page.getByRole('row', { name: /SV-Erstattung \(Aufrollung\)/ })).toContainText(
     '20,00',
   );
+  await page.getByRole('link', { name: 'Zurück zum Gehaltsreport' }).click();
   await expect(page.locator('.pp-ratio')).toHaveCount(0);
   await expect(page.getByTestId('payroll-report')).toContainText('Abzugsquote −1,8 %');
   await inspectReport(page, info, 'salary-aufrollung');
@@ -155,4 +154,77 @@ test('project P&L through the real API, retaining archived attribution and mobil
   await expect(bookingDialog).not.toBeVisible();
   const retained = await (await request.get(`/api/bookings?ids=${incomeBooking.id}`)).json();
   expect(retained.items[0].projectId).toBe(projectId);
+});
+
+test('salary history deep links, form cancellation, focus return and upload retain the month', async ({
+  page,
+  request,
+  baseURL,
+}, info) => {
+  const captured = await request.post('/api/payslips', {
+    headers: { origin: baseURL! },
+    data: {
+      month: '2024-02',
+      kind: 'regular',
+      specialType: null,
+      grossCents: 300000,
+      svCents: 50000,
+      taxCents: 40000,
+      netCents: 210000,
+      bookingId: null,
+      receiptId: null,
+      lines: [],
+    },
+  });
+  expect(captured.ok()).toBe(true);
+  await page.goto('/reports/gehalt?monat=2024-02');
+  const history = page.getByRole('link', { name: 'Gehaltszettel-Historie', exact: true });
+  await history.click();
+  await expect(page).toHaveURL(/gehalt\/historie\?monat=2024-02/);
+  await expect(page.getByRole('navigation', { name: 'Brotkrumen' })).toContainText(
+    'Gehaltszettel-Historie',
+  );
+  await inspectReport(page, info, 'payslip-history');
+  await page.goBack();
+  await expect(page).toHaveURL(/gehalt\?monat=2024-02/);
+  await history.click();
+  await page.locator('.pp-history-link').first().click();
+  const detailUrl = page.url();
+  await page.goto(detailUrl);
+  await expect(page.locator('.pp-slip')).toContainText('2.100,00');
+  const edit = page.getByRole('button', { name: 'Bearbeiten', exact: true });
+  await edit.click();
+  const dialog = page.getByRole('dialog', { name: 'Gehaltszettel bearbeiten' });
+  if (info.project.name === 'desktop') await expect(dialog).toHaveClass(/modal/);
+  await dialog.getByLabel('Lohnsteuer', { exact: true }).fill('399,99');
+  let confirmations = 0;
+  page.on('dialog', async (prompt) => {
+    confirmations++;
+    await prompt.accept();
+  });
+  await dialog.getByRole('button', { name: 'Abbrechen', exact: true }).click();
+  await expect(dialog).not.toBeVisible();
+  expect(confirmations).toBe(1);
+  await expect(edit).toBeFocused();
+  await expect(page).toHaveURL(detailUrl);
+  await edit.click();
+  await page.goBack();
+  await expect(dialog).not.toBeVisible();
+  await page.getByRole('link', { name: 'Zurück zum Gehaltsreport' }).click();
+  await page.getByRole('button', { name: 'Gehaltszettel hochladen', exact: true }).click();
+  const upload = page.getByRole('dialog', { name: 'Gehaltszettel hochladen' });
+  await expect(upload.getByLabel('Gehaltszettel-PDF auswählen')).toHaveAttribute(
+    'accept',
+    'application/pdf,.pdf',
+  );
+  await upload.getByText('PDF-Passwort eingeben (optional)').click();
+  await expect(upload.getByLabel('PDF-Passwort', { exact: true })).toBeVisible();
+  await inspectReport(page, info, 'payslip-upload');
+  await page.keyboard.press('Escape');
+  await expect(upload).not.toBeVisible();
+  await expect(page).toHaveURL(/gehalt\?monat=2024-02/);
+  await page.goto('/reports/gehalt/historie?monat=2024-02&zettel=missing');
+  await expect(page.getByTestId('payroll-report')).toContainText(
+    'Dieser Gehaltszettel ist nicht verfügbar.',
+  );
 });

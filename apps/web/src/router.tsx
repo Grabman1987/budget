@@ -47,6 +47,7 @@ import type { PageTitleData } from './shell/page-meta';
 import { isMonth } from './nav/month';
 import { isZeitraum } from './wealth/zeitraum';
 import { isPanelId, type PanelId } from './shell/panels';
+import { validateReportSearch } from './reports/report-search';
 
 // Route-level code splitting: everything except the shell and the generic placeholder page is
 // loaded when its route is first visited. Each page module below becomes its own chunk.
@@ -475,31 +476,28 @@ const reportGroupRoute = createRoute({
 const reportRoute = createRoute({
   getParentRoute: () => shellRoute,
   path: '/reports/$reportId',
-  validateSearch: (search: Record<string, unknown>) => ({
-    kategorien:
-      Array.isArray(search['kategorien']) && search['kategorien'].length <= 500
-        ? search['kategorien'].filter(
-            (id): id is string => typeof id === 'string' && id.length > 0 && id.length <= 64,
-          )
-        : undefined,
-    vorjahr: search['vorjahr'] === true || search['vorjahr'] === 'true' ? true : undefined,
-    gehaltszettel:
-      typeof search['gehaltszettel'] === 'string' && search['gehaltszettel'].length <= 64
-        ? search['gehaltszettel']
-        : undefined,
-    kontakt:
-      typeof search['kontakt'] === 'string' &&
-      search['kontakt'].length > 0 &&
-      search['kontakt'].length <= 100
-        ? search['kontakt']
-        : undefined,
-  }),
+  validateSearch: validateReportSearch,
   staticData: { meta: { ...REPORTS_CATALOG, title: 'Report', register: 'katalog' } },
   loader: ({ params }): PageTitleData => {
     const report = findReport(params.reportId);
     return report ? { title: report.name } : {};
   },
   component: lazyRouteComponent(reportsPages, 'ReportRoute'),
+});
+
+const payrollHistoryRoute = createRoute({
+  getParentRoute: () => shellRoute,
+  path: '/reports/gehalt/historie',
+  validateSearch: validateReportSearch,
+  staticData: { meta: { ...REPORTS_CATALOG, title: 'Gehaltszettel-Historie', register: 'monat' } },
+  component: lazyRouteComponent(reportsPages, 'PayrollHistoryRoute'),
+});
+const incomeExpenseSourcesRoute = createRoute({
+  getParentRoute: () => shellRoute,
+  path: '/reports/einnahmen-ausgaben/buchungen',
+  validateSearch: validateReportSearch,
+  staticData: { meta: { ...REPORTS_CATALOG, title: 'Report-Buchungen', register: 'monat' } },
+  component: lazyRouteComponent(reportsPages, 'IncomeExpenseSourcesRoute'),
 });
 
 // Login and first-device setup live outside the shell (no navigation before a session exists).
@@ -615,6 +613,8 @@ const routeTree = rootRoute.addChildren([
     reportsRoute,
     reportGroupRoute,
     reportRoute,
+    payrollHistoryRoute,
+    incomeExpenseSourcesRoute,
   ]),
   loginRoute,
   setupRoute,
@@ -625,7 +625,8 @@ export const router = createRouter({
   routeTree,
   scrollRestoration: ({ location }) =>
     location.pathname.startsWith('/plan/monat') ||
-    location.pathname.startsWith('/vermoegen/portfolio'),
+    location.pathname.startsWith('/vermoegen/portfolio') ||
+    location.pathname.startsWith('/reports/'),
 });
 
 declare module '@tanstack/react-router' {

@@ -83,3 +83,27 @@ it('validates an exact booking result link and forwards its id to the list API',
   });
   expect(validateBookingsSearch({ buchung: 'b'.repeat(65) }).buchung).toBeUndefined();
 });
+
+it('keeps only a bounded report-cell return link without changing the booking filter', () => {
+  const ruecksprung = '/reports/einnahmen-ausgaben/buchungen?zeitraum=1J&zelle=inc&spalte=2024-02';
+  const selected = validateBookingsSearch({
+    buchung: 'synthetic-booking',
+    von: '2024-02-01',
+    bis: '2024-02-29',
+    ruecksprung,
+  });
+  expect(selected.ruecksprung).toBe(ruecksprung);
+  expect(filterFromSearch(selected)).toMatchObject({
+    id: 'synthetic-booking',
+    from: '2024-02-01',
+    to: '2024-02-29',
+  });
+  for (const unsafe of [
+    'https://example.invalid',
+    '//example.invalid',
+    '/konten/buchungen',
+    ruecksprung + 'x'.repeat(2000),
+  ]) {
+    expect(validateBookingsSearch({ ruecksprung: unsafe }).ruecksprung).toBeUndefined();
+  }
+});

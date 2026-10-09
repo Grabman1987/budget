@@ -276,7 +276,7 @@
 }
 .rc-d {
   display: grid;
-  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr);
   gap: 24px 36px;
 }
 .rc-facts {
@@ -369,6 +369,9 @@
 }
 
 .table-cell-open {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   min-width: 44px;
   font: inherit;
   color: inherit;

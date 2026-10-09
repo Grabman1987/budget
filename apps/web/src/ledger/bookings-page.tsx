@@ -1,3 +1,4 @@
+import { AppLink } from '../shell/app-link';
 import { canLinkTransfer } from '@budget/domain';
 import { request } from '../api/http';
 import { useBudgetWrite } from '../budget/use-category-writes';
@@ -128,6 +129,11 @@ export function BookingsPage() {
   return (
     <PageFrame meta={KONTEN_BUCHUNGEN_META}>
       <div className="kview">
+        {search.ruecksprung && (
+          <AppLink className="btn btn-ghost" to={search.ruecksprung}>
+            Zurück zur Report-Zelle
+          </AppLink>
+        )}
         <div className="kbar">
           <Button size="sm" onClick={() => setPanel({ mode: 'create', accountId: search.konto })}>
             <Plus size={16} strokeWidth={1.75} aria-hidden="true" />

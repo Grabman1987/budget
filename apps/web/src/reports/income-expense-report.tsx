@@ -9,13 +9,11 @@ import {
   tableRowAverage,
   monthHouseholdIncome,
   type OverviewSplit,
-  type TableRow,
 } from '@budget/domain';
 import {
   AxisLine,
   Button,
   ChartSvg,
-  DetailPanel,
   Graticule,
   Line,
   LineLegend,
@@ -23,7 +21,8 @@ import {
   useAmountPrivacy,
 } from '@budget/ui';
 import { queryOptions, useQuery } from '@tanstack/react-query';
-import { useState } from 'react';
+import { useNavigate, useSearch } from '@tanstack/react-router';
+import { ReportDetailNav } from './report-detail-nav';
 import { request } from '../api/http';
 import { chartPoints } from '../charts/tooltip-data';
 import { eur, longDay } from '../ledger/format';
@@ -44,11 +43,24 @@ const queryOptionsForReport = queryOptions({
   queryFn: () =>
     request<ReportTables & { splits: OverviewSplit[] }>('GET', '/api/report-tables/income-expense'),
 });
-export function IncomeExpenseReport({ report, meta }: { report: ReportEntry; meta: PageMeta }) {
+export function IncomeExpenseReport({
+  report,
+  meta,
+  sources = false,
+}: {
+  report: ReportEntry;
+  meta: PageMeta;
+  sources?: boolean;
+}) {
   const [period, setPeriod] = useZeitraum();
   const query = useQuery(queryOptionsForReport);
-  const [expanded, setExpanded] = useState(new Set<string>());
-  const [selected, setSelected] = useState<{ row: TableRow; months: string[] } | null>(null);
+  const { zelle, spalte, gruppen } = useSearch({ strict: false }) as {
+    zelle?: string;
+    spalte?: string;
+    gruppen?: string[];
+  };
+  const navigate = useNavigate();
+  const expanded = new Set(gruppen ?? []);
   const data = !query.isFetching && query.isSuccess ? query.data : null;
   const window = data?.firstMonth
     ? reportPeriodMonths(
@@ -59,10 +71,15 @@ export function IncomeExpenseReport({ report, meta }: { report: ReportEntry; met
     : [];
   const months = data?.months.filter((m) => window.includes(m.month)) ?? [];
   const rows = data ? incomeExpenseRows(months, data, expanded) : [];
+  const selected = data
+    ? incomeExpenseRows(months, data, new Set(data.categories.map((c) => c.groupId))).find(
+        (r) => r.key === zelle,
+      )
+    : undefined;
+  const selectedMonths =
+    spalte === 'summe' ? window : spalte && window.includes(spalte) ? [spalte] : [];
   const detail =
-    selected && data
-      ? incomeExpenseSources(data.splits, data, selected.row.key, selected.months)
-      : [];
+    selected && data ? incomeExpenseSources(data.splits, data, selected.key, selectedMonths) : [];
   const download = () => {
     const csv = tableCsv(
       rows.map((r) => ({ ...r, vals: [...r.vals, tableRowTotal(r), tableRowAverage(r)] })),
@@ -77,6 +94,15 @@ export function IncomeExpenseReport({ report, meta }: { report: ReportEntry; met
   };
   return (
     <>
+      {sources && (
+        <ReportDetailNav
+          to="/reports/einnahmen-ausgaben"
+          search={{ zeitraum: period, gruppen }}
+          report="Einnahmen und Ausgaben"
+          title="Buchungen"
+          backLabel="Zurück zu Einnahmen und Ausgaben"
+        />
+      )}
       <TableReportFrame
         report={report}
         meta={meta}
@@ -94,7 +120,6 @@ export function IncomeExpenseReport({ report, meta }: { report: ReportEntry; met
                 label="Zeitraum"
                 value={period}
                 onChange={(p) => {
-                  setSelected(null);
                   setPeriod(p);
                 }}
                 options={ZEITRAUM_VALUES.map((value) => ({ value, label: value }))}
@@ -104,7 +129,59 @@ export function IncomeExpenseReport({ report, meta }: { report: ReportEntry; met
         ]}
       >
         {() =>
-          data && (
+          data &&
+          (sources ? (
+            <>
+              <section
+                className="tr-card"
+                aria-labelledby="ie-sources-title"
+                data-testid="income-expense-sources"
+              >
+                <h2 id="ie-sources-title">{selected?.label ?? 'Buchungen'}</h2>
+                <p>{selectedMonths.map((m) => monthShort(m, true)).join(' · ')}</p>
+                {!selected || selectedMonths.length === 0 ? (
+                  <p>Diese Zelle ist im Reportzeitraum nicht verfügbar.</p>
+                ) : detail.length ? (
+                  <ul>
+                    {detail.map((s, i) => (
+                      <li key={`${s.bookingId}:${i}`}>
+                        <AppLink
+                          className="report-source-link"
+                          to="/konten/buchungen"
+                          search={{
+                            buchung: s.bookingId,
+                            von: selectedMonths[0] + '-01',
+                            bis: new Date(
+                              Date.UTC(
+                                Number(selectedMonths.at(-1)!.slice(0, 4)),
+                                Number(selectedMonths.at(-1)!.slice(5, 7)),
+                                0,
+                              ),
+                            )
+                              .toISOString()
+                              .slice(0, 10),
+                            ruecksprung:
+                              '/reports/einnahmen-ausgaben/buchungen?' +
+                              new URLSearchParams({
+                                zeitraum: period,
+                                zelle: zelle!,
+                                spalte: spalte!,
+                                ...(gruppen ? { gruppen: JSON.stringify(gruppen) } : {}),
+                              }),
+                          }}
+                        >
+                          {longDay(s.date)} · {s.payeeName ?? 'Ohne Empfänger'} ·{' '}
+                          {eur(s.amountCents)}
+                        </AppLink>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p>Keine Buchungen in dieser Zelle.</p>
+                )}
+              </section>
+            </>
+          ) : (
             <section
               className="tr-card"
               aria-labelledby="ie-title"
@@ -124,9 +201,15 @@ export function IncomeExpenseReport({ report, meta }: { report: ReportEntry; met
                 caption="Einnahmen und Ausgaben in Euro"
                 regionLabel="Einnahmen und Ausgaben, seitlich scrollbar"
                 average
-                onCell={(row, column) =>
-                  setSelected({ row, months: column === null ? window : [window[column]!] })
-                }
+                cellLink={(row, column) => ({
+                  to: '/reports/einnahmen-ausgaben/buchungen',
+                  search: {
+                    zeitraum: period,
+                    gruppen,
+                    zelle: row.key,
+                    spalte: column === null ? 'summe' : window[column],
+                  },
+                })}
                 renderLabel={(r) =>
                   r.key.startsWith('group:') ? (
                     <button
@@ -134,12 +217,15 @@ export function IncomeExpenseReport({ report, meta }: { report: ReportEntry; met
                       className="table-cell-open"
                       aria-expanded={expanded.has(r.key.slice(6))}
                       onClick={() =>
-                        setExpanded((old) => {
-                          const next = new Set(old);
-                          const id = r.key.slice(6);
-                          if (next.has(id)) next.delete(id);
-                          else next.add(id);
-                          return next;
+                        void navigate({
+                          to: '.',
+                          search: ((old: Record<string, unknown>) => ({
+                            ...old,
+                            gruppen: expanded.has(r.key.slice(6))
+                              ? [...expanded].filter((id) => id !== r.key.slice(6))
+                              : [...expanded, r.key.slice(6)],
+                          })) as never,
+                          replace: true,
                         })
                       }
                     >
@@ -160,28 +246,9 @@ export function IncomeExpenseReport({ report, meta }: { report: ReportEntry; met
                 Der laufende Monat reicht bis heute.
               </p>
             </section>
-          )
+          ))
         }
       </TableReportFrame>
-      <DetailPanel
-        open={Boolean(selected && data)}
-        title={selected?.row.label ?? 'Buchungen'}
-        onClose={() => setSelected(null)}
-      >
-        {detail.length ? (
-          <ul>
-            {detail.map((s, i) => (
-              <li key={`${s.bookingId}:${i}`}>
-                <AppLink to="/konten/buchungen" search={{ buchung: s.bookingId }}>
-                  {longDay(s.date)} · {s.payeeName ?? 'Ohne Empfänger'} · {eur(s.amountCents)}
-                </AppLink>
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <p>Keine Buchungen in dieser Zelle.</p>
-        )}
-      </DetailPanel>
     </>
   );
 }

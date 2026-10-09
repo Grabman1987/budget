@@ -1,5 +1,5 @@
 .pp-report {
-  grid-template-columns: minmax(0, 7fr) minmax(0, 5fr);
+  grid-template-columns: minmax(0, 1fr);
 }
 .pp-report .mr-wide {
   grid-column: 1 / -1;
@@ -136,8 +136,11 @@
   padding: 12px 0;
 }
 .pp-form {
-  display: grid;
-  gap: 20px;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  max-height: inherit;
+  gap: 0;
 }
 .pp-form fieldset {
   border: 0;
@@ -228,4 +231,62 @@
 }
 .pp-name-form input {
   box-sizing: border-box;
+}
+
+.pp-form .panel-body,
+.pp-upload-form .panel-body {
+  overflow-y: auto;
+  min-height: 0;
+}
+.pp-form .panel-head,
+.pp-form .panel-actions,
+.pp-upload-form .panel-actions {
+  flex-shrink: 0;
+}
+.pp-form .panel-actions,
+.pp-upload-form .panel-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 16px 24px;
+  border-top: 1px solid var(--rule);
+}
+.pp-form .btn,
+.pp-upload-form .btn {
+  min-height: 44px;
+}
+.pp-upload-form {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  max-height: inherit;
+}
+.pp-history {
+  list-style: none;
+  padding: 0;
+}
+.pp-history li {
+  border-top: 1px solid var(--rule);
+}
+.pp-slip {
+  min-width: 0;
+}
+.pp-slip .rtable {
+  width: 100%;
+  border-collapse: collapse;
+}
+.pp-slip th {
+  text-align: left;
+  overflow-wrap: anywhere;
+}
+.pp-slip td {
+  white-space: nowrap;
+}
+.pp-slip th,
+.pp-slip td {
+  padding: 10px 8px;
+  border-bottom: 1px solid var(--rule);
+}
+.pp-slip .n {
+  text-align: right;
 }
