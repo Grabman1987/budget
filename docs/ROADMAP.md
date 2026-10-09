@@ -778,6 +778,16 @@ Price history (yfinance + Ariva, source per price), ECB rates, trades and holdin
 
 
 ## P6 Reports und Umstellung
+
+### Category trend — #385, owner decision 2026-10-09
+
+- [x] Report 1.6 month values/chart points and report 2.1 heatmap cells drill into the exact category/calendar month; classified split/refund contributions reconcile in cents across booking pages.
+- [x] One or more categories in report 1.6; detail follows the existing period control; category selection, period and optional previous-year month survive URL reloads.
+- [x] Previous-year month uses dash-dot lines; absent months stay `–`, recorded zeros stay zero; existing consumption and Zukunft sources are reused.
+- [x] Targeted typechecks in five affected packages, changed-file lint/format, 75 tests in eight affected Vitest files, E2E build; full check/full E2E omitted under the package's parallel-job memory override.
+- [x] All six affected functional cases passed on desktop and 390 px mobile, including focused reruns; light/dark Axe, overflow, monthly touch targets, masking and image review. See [evidence](evidence/category-trend-385/README.md).
+- [ ] Required CI, PR review and owner product acceptance after deployment.
+
 ### Report 3.1 — baseline and scenario clarity (#284)
   - [x] Label the forecast basis from existing payment assumptions and variable planning; show an event setup hint only when no active planned events are configured, and disclose events outside the selected horizon.
   - [x] Isolated synthetic browser evidence for no events, later events and recurring-event count, with desktop/mobile screenshots, light/dark Axe and overflow checks. See [evidence](evidence/liquidity-baseline-284.md) for the integrated browser and full-check results.

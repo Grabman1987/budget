@@ -1,5 +1,11 @@
 import { addDays, monthsBetween, monthOf } from '../date';
-import { dueDates, monthlyEquivalent, versionOn, yearlyEquivalent } from '../schedule';
+import {
+  dueDates,
+  monthlyEquivalent,
+  versionOn,
+  weekInterval,
+  yearlyEquivalent,
+} from '../schedule';
 import type { DateShift, Rhythm } from '../schedule';
 import { toEurCents } from '../invest/invest';
 import { mulDivRound, ratioBp } from '../wealth/int';
@@ -29,6 +35,8 @@ export interface ContractSource {
   categoryKind: string | null;
   categoryStage: number | null;
   rhythm: Rhythm;
+  /** Weekly rhythm: every n weeks (absent or null = every week). */
+  intervalWeeks?: number | null;
   dueDay?: number;
   dueMonth?: number | null;
   dateShift?: DateShift;
@@ -48,6 +56,7 @@ export function contractBinding(
     startDate?: string | null;
     endDate?: string | null;
     rhythm?: Rhythm;
+    intervalWeeks?: number | null;
     dueDay?: number;
     dueMonth?: number | null;
     dateShift?: DateShift;
@@ -62,6 +71,7 @@ export function contractBinding(
       dueDates(
         {
           rhythm: source.rhythm,
+          intervalWeeks: source.intervalWeeks ?? null,
           startDate: source.startDate,
           endDate: source.endDate,
           dueDay: source.dueDay ?? Number(source.startDate.slice(8)),
@@ -99,6 +109,8 @@ export interface ContractItem {
   categoryId: string | null;
   class: 'need' | 'want' | 'future' | null;
   rhythm: Rhythm;
+  /** Weekly rhythm: every n weeks (null = every week). */
+  intervalWeeks?: number | null;
   binding: ContractBinding;
   currency: string;
   /** Per payment in its own currency. */
@@ -148,7 +160,12 @@ const CYCLE_DAYS: Record<Rhythm, number> = {
  * a payment that begins far ahead is not a contract yet. `undefined` after the end date.
  */
 export function contractVersionOn<V extends { validFrom: string }>(
-  payment: { rhythm: Rhythm; startDate: string | null; endDate: string | null },
+  payment: {
+    rhythm: Rhythm;
+    intervalWeeks?: number | null;
+    startDate: string | null;
+    endDate: string | null;
+  },
   versions: ReadonlyArray<V>,
   day: string,
 ): V | undefined {
@@ -159,7 +176,16 @@ export function contractVersionOn<V extends { validFrom: string }>(
   const first = [...versions].sort((a, b) => a.validFrom.localeCompare(b.validFrom))[0];
   if (!first) return undefined;
   const begin = [payment.startDate ?? '', first.validFrom].sort().pop() as string;
-  if (begin > addDays(day, CYCLE_DAYS[payment.rhythm])) return undefined;
+  if (
+    begin >
+    addDays(
+      day,
+      payment.rhythm === 'weekly'
+        ? CYCLE_DAYS.weekly * weekInterval(payment.intervalWeeks)
+        : CYCLE_DAYS[payment.rhythm],
+    )
+  )
+    return undefined;
   return current ?? first;
 }
 
@@ -213,7 +239,7 @@ export function contractsOverview(
             changeBp: last.changeBp as number,
             yearlyEffectCents:
               last.currency === 'EUR'
-                ? yearlyEquivalent(s.rhythm, last.amountCents - last.previousCents)
+                ? yearlyEquivalent(s.rhythm, last.amountCents - last.previousCents, s.intervalWeeks)
                 : null,
           }
         : null;
@@ -224,13 +250,14 @@ export function contractsOverview(
       categoryId: s.categoryId,
       class: s.class,
       rhythm: s.rhythm,
+      intervalWeeks: s.intervalWeeks ?? null,
       binding,
       currency: v.currency,
       nativeCents: v.amountCents,
       eurCents: eur,
       rateMicro: rate,
-      monthlyCents: eur === null ? null : monthlyEquivalent(s.rhythm, eur),
-      yearlyCents: eur === null ? null : yearlyEquivalent(s.rhythm, eur),
+      monthlyCents: eur === null ? null : monthlyEquivalent(s.rhythm, eur, s.intervalWeeks),
+      yearlyCents: eur === null ? null : yearlyEquivalent(s.rhythm, eur, s.intervalWeeks),
       since: s.startDate ?? s.versions.map((x) => x.validFrom).sort()[0] ?? null,
       endDate: s.endDate,
       changes,
@@ -299,7 +326,7 @@ export function contractSeries(
         partial = true;
         continue;
       }
-      total += monthlyEquivalent(s.rhythm, eur);
+      total += monthlyEquivalent(s.rhythm, eur, s.intervalWeeks);
     }
     return { month, fixedMonthlyCents: total };
   });

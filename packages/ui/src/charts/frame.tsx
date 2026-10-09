@@ -4,6 +4,8 @@ import type { Point } from './types';
 import { useAmountPrivacy, maskMoneyText, privateAmount } from '../amount-privacy';
 
 export interface ChartSvgProps {
+  /** Interactive drawings expose their links as a group instead of a flattened image. */
+  role?: 'img' | 'group';
   width: number;
   height: number;
   /** Accessible summary; every chart is one `role="img"` with a text alternative. */
@@ -37,6 +39,7 @@ export function chartDate(date: string): string {
 
 /** `<svg>` shell: fixed pixel viewBox, one text alternative. Colour comes only from tokens. */
 export function ChartSvg({
+  role = 'img',
   width,
   height,
   label,
@@ -177,7 +180,7 @@ export function ChartSvg({
           viewBox={`0 0 ${width} ${height}`}
           width={width}
           height={height}
-          role="img"
+          role={role}
           aria-label={maskMoneyText(label)}
           data-testid={testId}
         >
