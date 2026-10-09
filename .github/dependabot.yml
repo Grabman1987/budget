@@ -35,6 +35,10 @@ updates:
     schedule:
       interval: weekly
       day: monday
+    # Node majors only by hand, LTS lines only (owner decision 09.10.2026: Node 25 rejected).
+    ignore:
+      - dependency-name: node
+        update-types: ["version-update:semver-major"]
     groups:
       docker:
         patterns: ['*']
