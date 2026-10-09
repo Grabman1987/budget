@@ -164,6 +164,7 @@ test.describe('look', () => {
       await expect(incomeRegion).toContainText(
         /Heute zählt Haushaltseinnahmen nach Buchungsdatum.*„Für nächsten Monat“ zählt im Plan erst im Folgemonat\./,
       );
+      await expectScreenshot(page, 'expected-income-dark.png');
       if (testInfo.project.name === 'mobile') {
         await page.getByRole('button', { name: 'Schließen' }).focus();
         await page.keyboard.press('Tab');
@@ -173,15 +174,7 @@ test.describe('look', () => {
         await expect
           .poll(() => incomeRegion.evaluate((element) => element.scrollTop))
           .toBeGreaterThan(before);
-        await incomeRegion.evaluate((element) => {
-          element.scrollTo({ top: 0, behavior: 'instant' });
-        });
-        await expect.poll(() => incomeRegion.evaluate((element) => element.scrollTop)).toBe(0);
-        await page.evaluate(() => {
-          if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
-        });
       }
-      await expectScreenshot(page, 'expected-income-dark.png');
     });
   });
 });
