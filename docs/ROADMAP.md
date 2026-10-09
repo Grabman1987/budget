@@ -182,6 +182,12 @@ Older CI/publication checkboxes below describe their original deliveries. Curren
 - [x] Synthetic cent/carry, cash/card, duplicate-warning, cover/undo and consumer API regressions; desktop/mobile count and repair-link E2E spec.
 - [ ] CI, affected Linux screenshot review and owner acceptance; [scope and baseline list](ux-overspent-1005.md).
 
+### #237 — Top-bar overspending link and Plan triage
+
+- [x] Keep the top-bar overspending chip a direct, read-only link to current-month Plan triage; cover and undo remain on the Plan page. Pending data makes no zero claim, query errors (including failed cached refetches) use a neutral Plan link, unsafe cent totals remain unknown, and amount privacy/accessibility labels are preserved.
+- [x] Synthetic isolated-ledger API cover/undo regression and desktop/mobile browser checks; final focused run passed five tests including setup, with eight original Windows light/dark captures. Linux preflight run [37879767925](https://github.com/Grabman1987/budget/actions/runs/37879767925) passed the full repository check (383 files / 3,526 tests), production and E2E builds, 15 desktop/mobile behavior tests, and 23 Linux visual-comparison tests covering 26 screenshot assertions without baseline updates. Eight Linux top-bar/covered-triage captures were collected in [run 37880079988](https://github.com/Grabman1987/budget/actions/runs/37880079988) from an app-identical source tree.
+- [ ] Exact PR-head CI, integration/live proof, physical-device and private-data acceptance remain open.
+
 ### UX-3c - Phone chart/table overflow (owner feedback 2026-10-05)
 
 - [x] Local Liquidity/flow/year table scrolling with visible phone affordance and sticky first columns; existing Plan year stacked layout retained.
@@ -232,7 +238,9 @@ Older CI/publication checkboxes below describe their original deliveries. Curren
 - [x] Add a literal September 15 case with a 10,000-cent cap, 7,000-cent plan-to-date, 3,500-cent actual, and one unpaid 4,000-cent fixed target due that day; the existing model yields an 11,000-cent month-end forecast without a formula change.
 - [x] Verify both Heute and Monats-One-Pager from a real synthetic isolated ledger, including the shared chart's separate Ist/Plan/Hochrechnung, keyboard tooltip and over-cap styling; retain desktop/mobile light/dark captures in [evidence](evidence/pace-over-cap-265/README.md).
 - [x] Focused checks: 27 tests across two files, scoped lint/format, E2E build and seven desktop/mobile browser tests passed.
-- [ ] Full check, PR/CI, integration/live proof, real-ledger reconciliation and physical iPhone Safari remain open. The separate Heute mobile account-forecast label overlap has been assigned to open #292 for verification.
+- [x] Linux preflight run [37880079988](https://github.com/Grabman1987/budget/actions/runs/37880079988) passed the focused check (2 files / 27 tests / 2.71 s), full repository check (383 files / 3,528 tests / 239.51 s), production and E2E builds, and nine browser tests in 1.0 minute. Eight Linux captures are recorded with the workflow-only helper `025fac1e499cd8f3ef681b58dc5192b8b3ce033f`; after the #237 docs merge, the diff against the checked source outside `docs/` is empty. [Evidence](evidence/pace-over-cap-265/README.md).
+- [x] Final combined-source full check [37881562030](https://github.com/Grabman1987/budget/actions/runs/37881562030) passed on `29f7fdbecfd5ac8d0238c5bc9b0f5053d62db770` with helper `36f0c3be1b4acf95c2a79b1aae10d77923b34c2b`: 383 files, 3,528 tests, 250.66 s; typecheck, lint, format and early/late cleanliness checks passed. Builds and browser tests were not rerun on this final source; the nine browser tests and builds above are the separate pre-Globals run.
+- [ ] Exact PR-head CI, integration/live proof, real-ledger reconciliation and physical iPhone Safari remain open. The separate Heute mobile account-forecast label overlap has been assigned to open #292 for verification.
 
 ### Pace time marker and projection header — owner 05.10.2026
 
