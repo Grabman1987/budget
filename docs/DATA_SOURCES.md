@@ -1,12 +1,13 @@
 # Bank sync (P4)
 
-Owner decision 41: **BOOK** transactions immediately become unchecked (`pending`,
+Owner decision #400: new connections require confirmation before transactions count
+in account balances. Existing connection policies remain unchanged. When immediate
+posting is explicitly enabled, decision 41 applies: **BOOK** transactions become unchecked (`pending`,
 "vorgemerkt") bookings without a category or income type and count in account balances.
 Their classification task appears in **Konten › Posteingang**. **PDNG** transactions
 remain candidates and count only after owner confirmation. No automatic categorization
 or envelope assignment occurs. Einstellungen › Datenquellen offers a per-connection
-**Gebuchte Umsätze** setting; the default is immediate BOOK posting, with confirmation-first
-as an override for subsequent fetches. Existing bookings are retained.
+**Gebuchte Umsätze** setting for subsequent fetches. Existing bookings are retained.
 
 Source identity remains in staging after posting/deletion, so repeated fetches and a
 stable-identity PDNG→BOOK transition do not create another booking or resurrect one
@@ -133,6 +134,29 @@ booking option overrides all defaults. Cash date and labels stay unchanged.
 - This slice supports EUR only. Foreign-currency accounts stay visibly unsupported.
   Generic domain, route and table names use `bank-sync`; provider conventions stay in
   the adapter module.
+
+## Connection status and review (#400)
+
+Settings › Data sources separates connecting a bank from existing connection cards.
+Each card shows the last attempt/success, next automatic run, consent validity and
+the daily HTTP request count per bank account (transactions/pages and balance
+requests share the four-request Vienna-calendar-day budget). Manual refresh uses
+the same server-side cooldown/limit decision that the page displays. A request is
+queued; it does not claim completion.
+
+Migration `0042_bank_source_result` adds a nullable last complete account result:
+fetched rows, rows linked to existing bookings, and newly staged rows excluding
+those links. Failed runs retain the earlier result and its account timestamp;
+pre-migration runs have no fabricated counters. Open review tasks are a live count,
+separate from that historical result. Balance/fetch warnings appear at the account.
+The inbox link uses `bankSource` identity and includes candidates, linked/unchecked
+bookings and account warnings, excluding unrelated tasks even on the same account.
+
+New authorizations persist confirmation-first policy atomically with the consent.
+Existing connection policy and the explicit immediate-posting option are preserved.
+Mapping remains locked after a completed account fetch or during a running fetch;
+the page explains the lock and asks for a new connection to change it. Unsaved
+mapping changes enable the adjacent save button.
 
 ## Open questions / acceptance still required
 

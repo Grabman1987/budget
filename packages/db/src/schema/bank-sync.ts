@@ -37,6 +37,11 @@ export const bankSyncAccount = sqliteTable('bank_sync_account', {
   balanceFetchedAt: text('balance_fetched_at'),
   requestDay: text('request_day'),
   requestCount: integer('request_count').notNull().default(0),
+  lastResult: text('last_result', { mode: 'json' }).$type<{
+    fetched: number;
+    linked: number;
+    new: number;
+  }>(),
 });
 
 /** Provider identity survives posting and deletion; pending rows remain candidates until confirmed. */
