@@ -1,5 +1,95 @@
 import { expect, it } from 'vitest';
-import { closeEntryMonth, closeSteps } from './month-close';
+import {
+  closeEntryMonth,
+  closeSteps,
+  closePlanHistory,
+  closePlanProjection,
+  closeDeviations,
+  monthCloseVerdict,
+} from './month-close';
+
+it('uses twelve complete tracked months including zero spending, never partial or pre-tracking months', () => {
+  const rows = [
+    { month: '2025-09', spending: { a: 99999 } },
+    { month: '2025-10', spending: { a: 100 } },
+    { month: '2026-09', spending: { a: 101 } },
+    { month: '2026-10', spending: { a: 90000 } },
+  ];
+  expect(closePlanHistory(['a', 'b'], '2026-09', '2026-10-02', rows)).toEqual([
+    { categoryId: 'a', actualCents: 101, averageCents: 101, historyCount: 2 },
+    { categoryId: 'b', actualCents: 0, averageCents: 0, historyCount: 2 },
+  ]);
+  expect(closePlanHistory(['a'], '2026-10', '2026-10-02', rows)[0]).toEqual({
+    categoryId: 'a',
+    actualCents: 90000,
+    averageCents: 101,
+    historyCount: 2,
+  });
+  expect(closePlanHistory(['a'], '2023-09', '2026-10-02', rows)[0]?.averageCents).toBeNull();
+});
+it('counts every edited group and classless assignment in zero-based money, but only classes in 50/30/20', () => {
+  const projection = closePlanProjection(
+    100,
+    1000,
+    [
+      { categoryId: 'a', class: 'need', assignedCents: 400 },
+      { categoryId: 'b', class: 'want', assignedCents: 200 },
+      { categoryId: 'c', class: null, assignedCents: 0 },
+    ],
+    { a: 500, c: 25 },
+  );
+  expect(projection.remainingCents).toBe(-25);
+  expect(projection.allocation.needCents).toBe(500);
+  expect(projection.allocation.shares).toEqual({ need: 50, want: 20, future: 0, rest: 30 });
+});
+it('keeps a safe monthly mean exact even when the intermediate sum exceeds the safe range', () => {
+  const history = ['2026-03', '2026-04', '2026-05'].map((month) => ({
+    month,
+    spending: { a: 9007199254740990 },
+  }));
+  expect(closePlanHistory(['a'], '2026-05', '2026-06-01', history)[0]?.averageCents).toBe(
+    9007199254740990,
+  );
+});
+it('preserves large monthly class totals and rejects an unsafe aggregate draft', () => {
+  const rows = [{ categoryId: 'a', class: 'need' as const, assignedCents: 0 }];
+  const plan = closePlanProjection(9007199254740990, 9007199254740990, rows, {
+    a: 9007199254740990,
+  });
+  expect(plan.remainingCents).toBe(0);
+  expect(plan.allocation.needCents).toBe(9007199254740990);
+  expect(() => closePlanProjection(0, 0, rows, { a: 9007199254740991 })).not.toThrow();
+  expect(() => closePlanProjection(-1, 0, rows, { a: 9007199254740991 })).toThrow(RangeError);
+});
+it('ranks both signs by absolute plan deviation and words the same factual result for report and review', () => {
+  expect(
+    closeDeviations([
+      {
+        categoryId: 'refund',
+        name: 'Muster',
+        carryCents: 9007199254740991,
+        assignedCents: -9007199254740991,
+        activityCents: 2,
+      },
+    ])[0],
+  ).toMatchObject({ planCents: 0, actualCents: -2, deltaCents: -2 });
+  expect(
+    closeDeviations([
+      { categoryId: 'a', name: 'A', assignedCents: 100, carryCents: 20, activityCents: -220 },
+      { categoryId: 'b', name: 'B', assignedCents: 300, carryCents: 0, activityCents: -50 },
+      { categoryId: 'c', name: 'C', assignedCents: 0, carryCents: 0, activityCents: 0 },
+      { categoryId: 'd', name: 'D', assignedCents: 10, carryCents: 0, activityCents: -60 },
+      { categoryId: 'e', name: 'E', assignedCents: 10, carryCents: 0, activityCents: -20 },
+    ]).map((r) => [r.categoryId, r.deltaCents]),
+  ).toEqual([
+    ['b', -250],
+    ['a', 100],
+    ['d', 50],
+  ]);
+  expect(
+    monthCloseVerdict({ earnedCents: 1000, consumptionCents: 800, savedCents: 200 }, String),
+  ).toBe('Von 1000 Einnahmen bleiben nach 800 Konsum 200 gespart.');
+});
 
 it('offers the previous month for the first five days and the current month for the last five', () => {
   expect(

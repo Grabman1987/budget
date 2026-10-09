@@ -1,5 +1,21 @@
 # Roadmap
 
+### F2 — Guided month close, plan next month and review (owner 2026-10-04)
+
+- [x] Step 4: expected income and shared bank-day payday, recurring dues, prior plan/actual and up to twelve completed-month average; group/all draft actions and explicit existing-API assign.
+- [x] Need/want/future against 50/30/20, cent-exact remaining money and zero-based completion; repeated step applies share one audited, undoable group and never book forecast income.
+- [x] Step 5: reused full One-Pager and shared factual verdict fallback, three largest signed plan/actual deviations, remaining rule findings and audited close date without a data lock.
+- [x] Synthetic domain/API/component coverage and all-five-step desktop/phone E2E scenario; [contract](month-close.md).
+- [x] Final local typecheck/lint/format/unit gate (358 files / 3308 tests, host test deadline 30 seconds), production/E2E builds and desktop/phone browser evidence; [results and host limits](evidence/month-close-f2/README.md).
+
+### F2 Linux preflight — 2026-10-09
+
+- [x] GitHub Actions run [37874069963](https://github.com/Grabman1987/budget/actions/runs/37874069963) succeeded. Verified task parent: `400dc4ff91f8dc2890ae692a19bbf13c66c514ad`; helper `017af6dea4bb221bd59ba2663922ea07219ae345` is workflow-only, with no application-source changes.
+- [x] Focused gate: 4 files / 24 tests in 6.64 s. Full gate: 382 files / 3,519 tests in 149.57 s; TypeScript, lint and format green. Production and E2E builds passed.
+- [x] Desktop/mobile browser preflight: 5 passed including 3 setup cases in 33.3 s; current plan/review screenshots and hashes are recorded in [evidence](evidence/month-close-f2/README.md).
+- [x] Final prepared #281-parent union: [37875468357](https://github.com/Grabman1987/budget/actions/runs/37875468357) passed 4 focused files / 24 tests, the full 382 files / 3,519 tests, both builds and 5 desktop/mobile browser cases. All 2,149 frozen file hashes stayed unchanged; the helper workflow is excluded from the PR.
+- [ ] Exact-head PR CI, integration/deployment, real financial Gate 4 comparison and physical iPhone Safari acceptance remain open. The full preflight ran on Linux; no additional Windows full run was performed for this update.
+
 ### Current source and acceptance baseline — 2026-10-08
 
 - [x] Reconcile README and STATUS with verified main/live `5193b0a`, connected workflows and all 34 report bodies; preserve historical audit evidence.
@@ -48,6 +64,15 @@ Older CI/publication checkboxes below describe their original deliveries. Curren
 - [x] Separate startup/auth preparation and warm-up from observed request/navigation durations; local browser timing is not server CPU or production latency. No infrastructure recommendation; #281 owns the next profile.
 - [x] Independent source/raw-data review has no concrete findings; final repository check passes type/lint/format and 379 files / 3,504 tests, with the frozen 2,114-file manifest unchanged.
 - [ ] Exact-head CI and integration/deployment.
+
+### #281 — One Heute request and renderer profile — 2026-10-09
+
+- [x] Extend the existing bounded synthetic harnesses with opt-in `--profile`: process CPU and observed SQLite statement work around the payday request, renderer main-thread CDP counters and DOM counts around complete usable content. Keep default measurements and financial-data guards unchanged.
+- [x] Complete ten cold and ten warm samples in each layer, with matching payload hashes, 180 successful browser GETs, unchanged finance fingerprints and session cleanup. Independently retain sanitized raw JSONL samples and distinguish overlapping counters from wall time and full rendering. [Results and limits](evidence/heute-profile-281.md).
+- [x] Production build, dedicated strict harness typecheck, scoped lint/format and real repository-file rejection checks pass. The reviewed rule-book baseline/doc parent follow-up preserves the measured harness and production bundle hashes.
+- [x] Independent final source/raw-data review has no concrete findings; frozen full repository check passes typecheck, lint, formatting and 380 files / 3,508 tests, with all 2,128 recorded file hashes unchanged.
+- [ ] Exact-head CI and integration/deployment.
+- [ ] Physical iPhone Safari and private financial acceptance remain separate; this local synthetic profile supplies no infrastructure bottleneck or Fly-scaling recommendation.
 
 ### #302 — Dated historical class exposure — 2026-10-08
 

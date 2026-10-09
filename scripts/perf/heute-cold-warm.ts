@@ -4,12 +4,19 @@ import { existsSync, realpathSync, statSync } from 'node:fs';
 import { isAbsolute, relative, sep } from 'node:path';
 import { performance } from 'node:perf_hooks';
 import { openDatabase, sqliteOf } from '@budget/db';
+import type Database from 'better-sqlite3';
 import { Hono } from 'hono';
 import { createLedgerApi } from '../../apps/server/src/api/index';
 
 const SAMPLES_PER_STATE = 10;
 const EXPECTED_WARM_MODELS = 2;
-const ROUTES = ['/heute?period=month&month=2026-09', '/heute?period=payday&month=2026-09'] as const;
+const ALL_ROUTES = [
+  '/heute?period=month&month=2026-09',
+  '/heute?period=payday&month=2026-09',
+] as const;
+const PAYDAY_ROUTE = '/heute?period=payday&month=2026-09' as const;
+const profileEnabled = process.argv.slice(2).includes('--profile');
+const ROUTES = profileEnabled ? ([PAYDAY_ROUTE] as const) : ALL_ROUTES;
 const PLANNED_SAMPLES = ROUTES.length * 2 * SAMPLES_PER_STATE;
 
 type State = 'cold' | 'warm';
@@ -24,16 +31,113 @@ type Sample = {
   status?: number;
   bytes?: number;
   responseSha256?: string;
+  processCpuUs?: { user: number; system: number };
+  sql?: SqlProfile;
   error?: string;
 };
 
+type SqlMethodStats = { count: number; totalMs: number };
+type SqlProfile = {
+  prepare: SqlMethodStats;
+  execution: Record<'get' | 'all' | 'run' | 'iterate', SqlMethodStats>;
+};
+
+function emptySqlProfile(): SqlProfile {
+  const method = (): SqlMethodStats => ({ count: 0, totalMs: 0 });
+  return {
+    prepare: method(),
+    execution: {
+      get: method(),
+      all: method(),
+      run: method(),
+      iterate: method(),
+    },
+  };
+}
+
+function addElapsed(stat: SqlMethodStats, start: number): void {
+  stat.totalMs += performance.now() - start;
+}
+
+function instrumentSqlite(sqlite: ReturnType<typeof sqliteOf>, stats: SqlProfile): void {
+  type Method = keyof SqlProfile['execution'];
+  type Callable = (...args: unknown[]) => unknown;
+  const originalPrepare = sqlite.prepare.bind(sqlite);
+  const target = sqlite as unknown as { prepare: Database.Database['prepare'] };
+  target.prepare = ((sql: string) => {
+    const start = performance.now();
+    let statement: Database.Statement;
+    try {
+      statement = originalPrepare(sql);
+    } finally {
+      stats.prepare.count++;
+      addElapsed(stats.prepare, start);
+    }
+    const methods = statement as unknown as Record<Method, Callable>;
+    for (const method of ['get', 'all', 'run'] as const) {
+      const original = methods[method].bind(statement);
+      methods[method] = (...args: unknown[]) => {
+        const started = performance.now();
+        stats.execution[method].count++;
+        try {
+          return original(...args);
+        } finally {
+          addElapsed(stats.execution[method], started);
+        }
+      };
+    }
+    const iterate = methods.iterate.bind(statement);
+    methods.iterate = (...args: unknown[]) => {
+      const iterator = iterate(...args) as unknown as IterableIterator<unknown>;
+      const next = iterator.next.bind(iterator);
+      const iteratorReturn = iterator.return?.bind(iterator);
+      const stat = stats.execution.iterate;
+      stat.count++;
+      const timed = <T>(operation: () => T): T => {
+        const started = performance.now();
+        try {
+          return operation();
+        } finally {
+          addElapsed(stat, started);
+        }
+      };
+      const wrapped: IterableIterator<unknown> = {
+        [Symbol.iterator]() {
+          return this;
+        },
+        next(...nextArgs: [] | [unknown]) {
+          return timed(() => next(...nextArgs));
+        },
+      };
+      if (iteratorReturn) {
+        wrapped.return = (...returnArgs: [] | [unknown]) =>
+          timed(() => iteratorReturn(...returnArgs));
+      }
+      return wrapped;
+    };
+    return statement;
+  }) as Database.Database['prepare'];
+}
+
 const samples: Sample[] = [];
 const report: Record<string, unknown> = {
-  protocol: 'heute-cold-warm-v1',
+  protocol: profileEnabled ? 'heute-handler-profile-v1' : 'heute-cold-warm-v1',
+  profile: profileEnabled,
   fixedToday: '2026-09-17',
   samplesPerState: SAMPLES_PER_STATE,
   plannedSamples: PLANNED_SAMPLES,
   expectedWarmModels: EXPECTED_WARM_MODELS,
+  ...(profileEnabled
+    ? {
+        profileMetrics: {
+          processCpuUnit: 'microseconds, user and system separately',
+          sqlElapsedUnit: 'milliseconds',
+          sqlMethods: ['get', 'all', 'run', 'iterate'],
+          sqlPrepareIncluded: true,
+          requestWindow: 'app.request plus response.text; setup and warm-up excluded',
+        },
+      }
+    : {}),
   runtime: { node: process.version, platform: process.platform, arch: process.arch },
   routes: ROUTES.map((route) => `/api${route}`),
   samples,
@@ -41,9 +145,12 @@ const report: Record<string, unknown> = {
 
 function selectedDatabasePath(): string {
   const args = process.argv.slice(2);
-  if (args.length !== 2 || args[0] !== '--database' || !args[1]) {
+  const valid =
+    (args.length === 2 && args[0] === '--database' && args[1]) ||
+    (args.length === 3 && args[0] === '--database' && args[1] && args[2] === '--profile');
+  if (!valid || !args[1]) {
     throw new Error(
-      'Usage: npx tsx scripts/perf/heute-cold-warm.ts --database <absolute-synthetic-db-path>',
+      'Usage: npx tsx scripts/perf/heute-cold-warm.ts --database <absolute-synthetic-db-path> [--profile]',
     );
   }
   if (!isAbsolute(args[1])) throw new Error('The selected database path must be absolute.');
@@ -191,6 +298,21 @@ function summary(values: number[]) {
   };
 }
 
+function distribution(values: number[]) {
+  const { medianMs, minMs, maxMs, n } = summary(values);
+  return { n, median: medianMs, min: minMs, max: maxMs };
+}
+
+function sqlSummary(rows: Sample[], method: 'prepare' | keyof SqlProfile['execution']) {
+  const entries = rows.map((sample) =>
+    method === 'prepare' ? sample.sql!.prepare : sample.sql!.execution[method],
+  );
+  return {
+    count: distribution(entries.map((entry) => entry.count)),
+    totalMs: summary(entries.map((entry) => entry.totalMs)),
+  };
+}
+
 async function runSample(
   route: (typeof ROUTES)[number],
   state: State,
@@ -198,12 +320,17 @@ async function runSample(
   databasePath: string,
 ) {
   let close: (() => void) | undefined;
+  let sqlProfile: SqlProfile | undefined;
   const sample: Sample = { state, route: `/api${route}`, index, complete: false };
   samples.push(sample);
   try {
     const setupStart = performance.now();
     const opened = openDatabase(databasePath);
     close = opened.close;
+    if (profileEnabled) {
+      sqlProfile = emptySqlProfile();
+      instrumentSqlite(sqliteOf(opened.db), sqlProfile);
+    }
     const api = createLedgerApi({
       db: opened.db,
       today: () => '2026-09-17',
@@ -226,10 +353,27 @@ async function runSample(
       sample.warmupMs = 0;
     }
 
+    if (profileEnabled && sqlProfile) {
+      for (const stat of [sqlProfile.prepare, ...Object.values(sqlProfile.execution)]) {
+        stat.count = 0;
+        stat.totalMs = 0;
+      }
+    }
+    let response: Response;
+    let body: string;
     const requestStart = performance.now();
-    const response = await app.request(`/api${route}`);
-    const body = await response.text();
-    sample.requestMs = Number((performance.now() - requestStart).toFixed(3));
+    const cpuStart = profileEnabled ? process.cpuUsage() : undefined;
+    try {
+      response = await app.request(`/api${route}`);
+      body = await response.text();
+      sample.requestMs = Number((performance.now() - requestStart).toFixed(3));
+    } finally {
+      if (cpuStart && sqlProfile) {
+        const cpu = process.cpuUsage(cpuStart);
+        sample.processCpuUs = { user: cpu.user, system: cpu.system };
+        sample.sql = sqlProfile;
+      }
+    }
     sample.status = response.status;
     sample.bytes = Buffer.byteLength(body, 'utf8');
     sample.responseSha256 = createHash('sha256').update(body).digest('hex');
@@ -302,7 +446,7 @@ async function main() {
       const selected = samples.filter(
         (sample) => sample.route === `/api${route}` && sample.state === state,
       );
-      return {
+      const result: Record<string, unknown> = {
         route: `/api${route}`,
         state,
         request: summary(selected.map((sample) => sample.requestMs!)),
@@ -312,6 +456,22 @@ async function main() {
         bytes: selected.map((sample) => sample.bytes),
         responseSha256: selected.map((sample) => sample.responseSha256),
       };
+      if (profileEnabled) {
+        result.processCpuUs = {
+          user: distribution(selected.map((sample) => sample.processCpuUs!.user)),
+          system: distribution(selected.map((sample) => sample.processCpuUs!.system)),
+        };
+        result.sql = {
+          prepare: sqlSummary(selected, 'prepare'),
+          execution: {
+            get: sqlSummary(selected, 'get'),
+            all: sqlSummary(selected, 'all'),
+            run: sqlSummary(selected, 'run'),
+            iterate: sqlSummary(selected, 'iterate'),
+          },
+        };
+      }
+      return result;
     }),
   );
   report.ok = true;

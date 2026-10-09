@@ -5,6 +5,9 @@ import {
   reconcileAccount,
   schema,
   createEntity,
+  createExpectedPayment,
+  INCOME_TYPES,
+  monthOnePager,
   type OpenedDatabase,
 } from '@budget/db';
 import { beforeEach, afterEach, expect, it } from 'vitest';
@@ -38,6 +41,173 @@ async function call(method: string, path = '/month-close/2026-09', body?: unknow
   };
 }
 
+it('plans to zero via the existing bulk API and undoes all groups without booking forecast income', async () => {
+  createEntity(
+    opened.db,
+    schema.categoryGroup,
+    { id: 'g2', name: 'Musterzukunft' },
+    { actor: 'test' },
+  );
+  createEntity(
+    opened.db,
+    schema.category,
+    { id: 'zukunft', name: 'Musterreserve', groupId: 'g2', class: 'future' },
+    { actor: 'test' },
+  );
+  createExpectedPayment(
+    opened.db,
+    {
+      name: 'Mustereinnahme',
+      kind: 'inflow',
+      accountId: 'giro',
+      incomeTypeId: INCOME_TYPES.salary.id,
+      dueDay: 15,
+      dateShift: 'before',
+      startDate: '2026-10-01',
+    },
+    { validFrom: '2026-10-01', amountCents: 200000 },
+    { actor: 'test' },
+    '2026-10-02',
+  );
+  const before = (await call('GET')).body;
+  expect(before.nextPlan.month).toBe('2026-10');
+  expect(before.nextPlan.payday).toBe('2026-10-15');
+  expect(before.nextPlan.budget.incomeTargets.expectedCents).toBe(200000);
+  expect(before.steps[3].status).toBe('open');
+  expect(before.nextPlan.budget.summary.toBeAssignedCents).toBe(100000);
+  const first = await call('PUT', '/budget/2026-10/assigned', {
+    closeMonth: '2026-09',
+    items: [{ categoryId: 'miete', assignedCents: 60000 }],
+  });
+  expect(first.status).toBe(200);
+  const saved = await call('PUT', '/budget/2026-10/assigned', {
+    closeMonth: '2026-09',
+    items: [{ categoryId: 'zukunft', assignedCents: 40000 }],
+  });
+  expect(saved.status).toBe(200);
+  expect(saved.body.groupId).toBe(first.body.groupId);
+  const after = (await call('GET')).body;
+  expect(after.nextPlan.budget.summary.toBeAssignedCents).toBe(0);
+  expect(after.steps[3].status).toBe('done');
+  expect(opened.db.select().from(schema.booking).all()).toHaveLength(0);
+  expect((await call('POST', '/undo', { groupId: saved.body.groupId })).status).toBe(200);
+  expect((await call('GET')).body.nextPlan.budget.summary.toBeAssignedCents).toBe(100000);
+  expect((await call('GET', '/budget/2026-10')).body.summary.assignedCents).toBe(0);
+  const reapplied = await call('PUT', '/budget/2026-10/assigned', {
+    closeMonth: '2026-09',
+    items: [{ categoryId: 'miete', assignedCents: 100000 }],
+  });
+  expect(reapplied.status).toBe(200);
+  expect(reapplied.body.groupId).not.toBe(saved.body.groupId);
+});
+
+it('stores an undoable close marker only after all work and next-month distribution are complete', async () => {
+  expect((await call('PATCH', undefined, { close: true })).status).toBe(409);
+  const before = (await call('GET')).body;
+  await call('PATCH', undefined, {
+    decisions: before.work.map((w: any) => ({ ...w, reason: 'Musterprüfung folgt' })),
+  });
+  expect((await call('PATCH', undefined, { close: true })).status).toBe(409);
+  await call('PUT', '/budget/2026-10/assigned', {
+    items: [{ categoryId: 'miete', assignedCents: 100000 }],
+  });
+  const closed = await call('PATCH', undefined, { close: true });
+  expect(closed.status).toBe(200);
+  expect((await call('GET')).body.state.closedOn).toBe('2026-10-02');
+  expect((await call('GET')).body.steps[4].status).toBe('done');
+  expect((await call('PATCH', undefined, { closedOn: '2026-09-30' })).status).toBe(400);
+  const edit = await call('POST', '/bookings', {
+    type: 'booking',
+    accountId: 'giro',
+    date: '2026-09-18',
+    amountCents: -100,
+    splits: [{ amountCents: -100, categoryId: 'essen' }],
+  });
+  expect(edit.status).toBe(201);
+  const reopened = await call('GET');
+  expect(reopened.status).toBe(200);
+  expect(reopened.body.state.closedOn).toBe('2026-10-02');
+  expect(reopened.body.steps[1].status).toBe('open');
+  expect(reopened.body.steps[2].status).toBe('open');
+  expect(reopened.body.accounts.find((account: any) => account.id === 'giro').balanceCents).toBe(
+    99900,
+  );
+  expect((await call('POST', '/undo', { groupId: edit.body.groupId })).status).toBe(200);
+  expect((await call('POST', '/undo', { groupId: closed.body.groupId })).status).toBe(200);
+  expect((await call('GET')).body.state.closedOn).toBeUndefined();
+  expect((await call('PATCH', '/month-close/2026-10', { close: true })).status).toBe(409);
+});
+
+it('renders a review for a newly tracked month with no household income', () => {
+  const fresh = createTestDatabase();
+  try {
+    createEntity(
+      fresh.db,
+      schema.account,
+      {
+        id: 'a',
+        name: 'Musterkonto',
+        type: 'checking',
+        role: 'budget',
+        onBudget: true,
+        openingDate: '2026-09-01',
+        openingBalanceCents: 10000,
+      },
+      { actor: 'test' },
+    );
+    createEntity(
+      fresh.db,
+      schema.categoryGroup,
+      { id: 'g', name: 'Mustergruppe' },
+      { actor: 'test' },
+    );
+    createEntity(
+      fresh.db,
+      schema.category,
+      { id: 'c', name: 'Musterbedarf', groupId: 'g', class: 'need' },
+      { actor: 'test' },
+    );
+    createBooking(
+      fresh.db,
+      {
+        accountId: 'a',
+        date: '2026-09-12',
+        amountCents: -400,
+        splits: [{ amountCents: -400, categoryId: 'c' }],
+      },
+      { actor: 'test' },
+    );
+    createEntity(
+      fresh.db,
+      schema.account,
+      {
+        id: 'v',
+        name: 'Musteranlage',
+        type: 'p2p',
+        role: 'investment',
+        onBudget: false,
+        openingDate: '2026-09-01',
+      },
+      { actor: 'test' },
+    );
+    createEntity(
+      fresh.db,
+      schema.valuation,
+      { accountId: 'v', date: '2026-09-30', valueCents: 12500 },
+      { actor: 'test' },
+    );
+    const report = monthOnePager(fresh.db, '2026-10-02', '2026-09');
+    expect(report.result).toMatchObject({
+      earnedCents: 0,
+      consumptionCents: 400,
+      savedCents: -400,
+    });
+    expect(report.netWorth).toMatchObject({ cents: 22100, deltaCents: 22100 });
+  } finally {
+    fresh.close();
+  }
+});
+
 it('derives monthly inbox, unreconciled accounts and overspending without booking anything', async () => {
   createBooking(
     opened.db,
@@ -65,8 +235,8 @@ it('derives monthly inbox, unreconciled accounts and overspending without bookin
     ['open', 1],
     ['open', 2],
     ['open', 1],
-    ['following', 0],
-    ['following', 0],
+    ['open', 1],
+    ['open', 0],
   ]);
   expect(result.body.inbox.map((e: any) => e.date)).toEqual(['2026-09-12']);
   expect(result.body.overspent[0].overspentCents).toBe(400);

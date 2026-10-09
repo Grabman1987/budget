@@ -20,10 +20,14 @@ import {
   updateCategory,
   withGroup,
   type Db,
+  appSetting,
+  getEntity,
+  createEntity,
 } from '@budget/db';
+import { addMonths } from '@budget/domain';
 import { Hono } from 'hono';
-import type { z } from 'zod';
-import { ACTOR, defined, readBody, readQuery } from './http';
+import { z } from 'zod';
+import { ACTOR, ApiError, defined, readBody, readQuery } from './http';
 import {
   assignBody,
   quickAssignBody,
@@ -167,8 +171,20 @@ export function budgetRoutes(db: Db, today: () => string): Hono {
 
   app.put('/:month/assigned', async (c) => {
     const m = monthParam(c.req.param('month'));
-    const { items } = await readBody(c, assignBody);
-    return c.json(assignMany(db, m, items, audit()));
+    const { items, closeMonth } = await readBody(c, assignBody);
+    if (!closeMonth) return c.json(assignMany(db, m, items, audit()));
+    if (addMonths(closeMonth, 1) !== m)
+      throw new ApiError(422, 'close_plan_month', 'Der Plan muss zum nächsten Monat gehören.');
+    return c.json(
+      db.transaction((tx) => {
+        const id = `month_close_plan.${closeMonth}`;
+        const stored = getEntity(tx, appSetting, id);
+        const ctx = stored ? { actor: ACTOR, groupId: z.uuid().parse(stored.value) } : audit();
+        const result = assignMany(tx, m, items, ctx);
+        if (!stored) createEntity(tx, appSetting, { id, value: ctx.groupId }, ctx);
+        return result;
+      }),
+    );
   });
 
   app.post('/:month/quick-assign', async (c) => {

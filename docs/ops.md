@@ -2,6 +2,23 @@
 
 Runbook for the owner. Everything here is about the production app on Fly.io. No real data, keys or tokens belong in this file or in the repo: secrets live only in Fly secrets and GitHub Actions secrets. App name `budget-fg` is a placeholder; replace it if you chose another one (also in `fly.toml`).
 
+## Gate 4: one parallel month close
+
+Use the five-step Monatsabschluss after deployment: clear/defer the month's inbox,
+check month-end balances/manual values, cover or explicitly accept carry, plan the
+next month to exactly zero Zu verteilen, then review and mark the month closed.
+The close date is an undoable marker, not a booking lock or proof of reconciliation.
+Expected income and recurring schedules remain previews until owner confirmation.
+
+Compare the same month-end account/card balances, category assignments/activity/
+available carry, next-month Zu verteilen and One-Pager totals with the parallel
+system. Record the month, deployed commit, each difference (including explicit
+exceptions), resolution and owner acceptance in private operational evidence;
+never copy real figures into this public repo. Gate 4 stays open until one full
+month close has no unexplained difference. Only then retire remaining finance tools.
+Open rule findings stay open after marking the month closed. No new keys or
+consents are needed for F2. See [month-close contract](month-close.md).
+
 ## 1. Architecture
 
 ```

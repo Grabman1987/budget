@@ -5,7 +5,7 @@
  */
 
 /** `a * b / d` rounded half up (away from zero for negatives) with an exact BigInt product. `d > 0`. */
-export function mulDivRound(a: number, b: number, d: number): number {
+export function mulDivRound(a: number | bigint, b: number, d: number): number {
   if (d <= 0) throw new RangeError(`divisor must be positive, got ${String(d)}`);
   const bn = BigInt(a) * BigInt(b);
   const bd = BigInt(d);
