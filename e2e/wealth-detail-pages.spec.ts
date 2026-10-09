@@ -43,6 +43,34 @@ test('instrument pages restore portfolio scroll and use modal forms', async ({ p
   await expect(page.getByText(/Instrumentdaten konnten nicht geladen/)).toBeVisible();
 });
 
+test('savings-plan history restores browser navigation and portfolio scroll', async ({ page }) => {
+  await page.goto('/vermoegen/portfolio?zeitraum=3J');
+  const trigger = page.locator('[data-savings-plan]:not([data-savings-plan="neu"])').last();
+  await trigger.scrollIntoViewIfNeeded();
+  const id = await trigger.getAttribute('data-savings-plan');
+  const scroll = await page.evaluate(() => window.scrollY);
+  expect(id).toBeTruthy();
+  expect(scroll).toBeGreaterThan(0);
+  await trigger.click();
+  await expect(page).toHaveURL(new RegExp(`/vermoegen/portfolio/sparplan/${id}\\?zeitraum=3J$`));
+  await expect(
+    page.getByRole('region', { name: 'Versionsverlauf' }).getByRole('listitem'),
+  ).toHaveCount(2);
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+  await page.goBack();
+  await expect(page).toHaveURL(/\/vermoegen\/portfolio\?zeitraum=3J$/);
+  await expect.poll(() => page.evaluate(() => window.scrollY)).toBeCloseTo(scroll, 0);
+  await page.goForward();
+  await expect(page).toHaveURL(new RegExp(`/vermoegen/portfolio/sparplan/${id}\\?zeitraum=3J$`));
+  await expect(
+    page.getByRole('region', { name: 'Versionsverlauf' }).getByRole('listitem'),
+  ).toHaveCount(2);
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+  await page.getByRole('link', { name: 'Zurück zum Portfolio' }).click();
+  await expect(page).toHaveURL(/\/vermoegen\/portfolio\?zeitraum=3J$/);
+  await expect.poll(() => page.evaluate(() => window.scrollY)).toBeCloseTo(scroll, 0);
+});
+
 test('net worth composition follows the full-width lead', async ({ page }, info) => {
   await page.goto('/vermoegen/nettovermoegen');
   const lead = await page.locator('.vview .vnw').boundingBox();
