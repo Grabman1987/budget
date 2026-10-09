@@ -8,6 +8,7 @@ import { EmptyNote, ErrorNote, LoadingNote } from '../ledger/states';
 import { PLAN_SPARZIELE } from '../nav/pages';
 import { PageFrame } from '../pages/placeholder-page';
 import { useMonth } from '../shell/use-month';
+import { AppLink } from '../shell/app-link';
 import { categoriesQuery } from './use-category-writes';
 import type { CategoryRow } from './api';
 import { budgetQuery } from './budget-api';
@@ -20,8 +21,7 @@ import { CLASS_TEXT } from './plan-model';
 /**
  * Plan › Sparziele: the goals as a parts list in two assemblies, "Offen" and "Erreicht". Under each
  * name a 6 px bar: the fill is what is saved (in the class hatch of the envelope), the ink tick the
- * target. Every figure comes from `/api/goals` (domain `goalProgress`); a row opens the side panel
- * (bottom sheet on the phone) to edit, adopt as the envelope's target or delete.
+ * target. Every figure comes from `/api/goals` (domain `goalProgress`); names link to shared history.
  */
 export function GoalsPage() {
   useAmountPrivacy();
@@ -140,7 +140,6 @@ function GoalsBody({ month, goals }: { month: string; goals: GoalView[] }) {
                           month={month}
                           category={r.categoryId ? catById.get(r.categoryId) : undefined}
                           accountName={accounts.find((a) => a.id === r.accountId)?.name}
-                          onOpen={() => setPanel({ mode: 'edit', id: r.id })}
                         />
                       ))),
                 ];
@@ -223,14 +222,12 @@ function GoalRow({
   month,
   category,
   accountName,
-  onOpen,
 }: {
   goal: GoalView;
   pos: string;
   month: string;
   category: CategoryRow | undefined;
   accountName: string | undefined;
-  onOpen: () => void;
 }) {
   useAmountPrivacy();
   const bar = goalBar(g);
@@ -242,9 +239,14 @@ function GoalRow({
         <span className="pos">{pos}</span>
       </td>
       <td className="col-name">
-        <button type="button" className="pname" onClick={onOpen}>
+        <AppLink
+          className="pname"
+          to={`/plan/sparziele/${g.id}`}
+          search={{ monat: month }}
+          state={{ planPanelDetailOpenedInApp: true }}
+        >
           <span className="goal-name">{g.name}</span>
-        </button>
+        </AppLink>
         <span className="pbar" aria-hidden="true">
           <i
             className={cx('pbar-fill', cls ? `hatch-${cls}` : 'hatch-bound')}

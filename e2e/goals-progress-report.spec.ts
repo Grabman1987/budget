@@ -53,7 +53,9 @@ async function mock(page: Page, goals: GoalView[], cats = categories, accts = ac
       },
     }),
   );
-  await page.route('**/api/goals', (r) => r.fulfill({ json: { month: '2026-09', goals } }));
+  await page.route(/\/api\/goals(?:\?month=.*)?$/, (r) =>
+    r.fulfill({ json: { month: '2026-09', goals } }),
+  );
   await page.route('**/api/categories', (r) =>
     r.fulfill({ json: { groups: [], categories: cats, targets: [] } }),
   );
@@ -109,38 +111,34 @@ test('literal goal figures agree in bars, source table and keyboard details', as
   await expect(rows.nth(1)).toContainText('Apr 2027');
   const trigger = page
     .locator('.goals-report-list')
-    .getByRole('button', { name: 'Reiseziel', exact: true });
+    .getByRole('link', { name: 'Reiseziel', exact: true });
   await trigger.focus();
   await page.keyboard.press('Enter');
-  const dialog = page.getByRole('dialog', { name: 'Reiseziel' });
-  await expect(dialog).toBeVisible();
+  await expect(page).toHaveURL(/\/plan\/sparziele\/travel-goal\?.*quelle=report/);
+  const detail = page.locator('main');
+  await expect(page.getByRole('dialog')).toHaveCount(0);
   for (const value of ['3.000,00 €', '850,00 €', '2.150,00 €', '215,00 €', '250,00 €'])
-    await expect(dialog).toContainText(value);
-  await expect(dialog).toContainText('Prognose: Jun 2027');
-  await expect(dialog.getByRole('link', { name: 'Buchungen der Quelle öffnen' })).toHaveAttribute(
+    await expect(detail).toContainText(value);
+  await expect(detail).toContainText('Prognose: Jun 2027');
+  await expect(detail.getByRole('link', { name: 'Buchungen der Quelle öffnen' })).toHaveAttribute(
     'href',
     /kategorie=travel.*bis=2026-09-30/,
   );
-  await expect(dialog.getByRole('link', { name: 'Zuweisungen im Plan öffnen' })).toHaveAttribute(
+  await expect(detail.getByRole('link', { name: 'Zuweisungen im Plan öffnen' })).toHaveAttribute(
     'href',
     /monat=2026-09/,
   );
-  await page.keyboard.press('Tab');
-  expect(await dialog.evaluate((el) => el.contains(document.activeElement))).toBe(true);
-  // Focus may sit on the goal bar's value inspection: the first Escape hides it, the next closes.
-  await page.keyboard.press('Escape');
-  if (await dialog.isVisible()) await page.keyboard.press('Escape');
-  await expect(dialog).not.toBeVisible();
-  await expect(trigger).toBeFocused();
+  await page.getByRole('link', { name: 'Zurück zum Sparzielreport' }).click();
   await page
     .locator('.goals-report-list')
-    .getByRole('button', { name: 'Reserve', exact: true })
+    .getByRole('link', { name: 'Reserve', exact: true })
     .click();
-  await expect(
-    page.getByRole('dialog').getByRole('link', { name: 'Buchungen der Quelle öffnen' }),
-  ).toHaveAttribute('href', /konto=reserve.*bis=2026-09-30/);
-  await expect(page.getByRole('dialog')).toContainText('Wertpapierbestände sind keine Quelle');
-  await page.keyboard.press('Escape');
+  await expect(detail.getByRole('link', { name: 'Buchungen der Quelle öffnen' })).toHaveAttribute(
+    'href',
+    /konto=reserve.*bis=2026-09-30/,
+  );
+  await expect(detail).toContainText('Wertpapierbestände sind keine Quelle');
+  await page.goBack();
   const region = page.getByRole('region', { name: 'Zielstände, seitlich scrollbar' });
   await region.focus();
   if (await region.evaluate((el) => el.scrollWidth > el.clientWidth)) {
@@ -221,13 +219,11 @@ test('source uncertainty, exact large cents, reached, no date, overdue and zero-
   await expect(rows.nth(7)).toContainText('Zieldatum erreicht, Rest offen');
   await page
     .locator('.goals-report-list')
-    .getByRole('button', { name: 'Gemeinsames Ziel A' })
+    .getByRole('link', { name: 'Gemeinsames Ziel A' })
     .click();
-  await expect(page.getByRole('dialog')).toContainText(
-    'Mehrere Sparziele verwenden dieselbe Quelle',
-  );
-  await expect(page.getByRole('dialog')).not.toContainText('€');
-  await page.keyboard.press('Escape');
+  await expect(page.locator('main')).toContainText('Mehrere Sparziele verwenden dieselbe Quelle');
+  await expect(page.locator('main')).not.toContainText('€');
+  await page.goBack();
   await inspect(page, info, 'goals-boundaries');
 });
 test('metadata refresh hides cached values while loading, on failure and through retry; empty is explicit', async ({
