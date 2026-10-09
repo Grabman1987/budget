@@ -48,6 +48,8 @@ const {
   account,
   booking,
 } = schema;
+/** Longest consent we ever request (180 days); a longer reported validity is capped to it. */
+const MAX_CONSENT_SECONDS = 15_552_000;
 const hash = (value: string) => createHash('sha256').update(value).digest('hex');
 const system = { actor: 'bank-sync' };
 // Standalone protocol/status writes need the same atomic row+audit contract as grouped ledger writes.
@@ -231,11 +233,13 @@ export class BankSync {
       );
     try {
       const session = await this.provider.session(code);
-      if (
-        Date.parse(session.validUntil) <= Date.parse(now) ||
-        Date.parse(session.validUntil) > Date.parse(now) + 181 * 86400000
-      )
-        throw new BankError('invalid_response');
+      // A validity in the past is unusable. One beyond what we asked for (at most
+      // MAX_CONSENT_SECONDS) is harmless: keep the consent but cap its stored expiry.
+      if (Date.parse(session.validUntil) <= Date.parse(now))
+        throw new BankError('invalid_validity', 900, 'past@access.valid_until');
+      const validUntil = new Date(
+        Math.min(Date.parse(session.validUntil), Date.parse(now) + MAX_CONSENT_SECONDS * 1000),
+      ).toISOString();
       this.db.transaction((tx) => {
         const ctx = withGroup({ actor: 'owner' });
         updateTracked(
@@ -244,7 +248,7 @@ export class BankSync {
           [row.id],
           {
             secret: this.box.seal(session.id, row.id),
-            validUntil: session.validUntil,
+            validUntil,
             status: 'active',
           },
           ctx,
@@ -387,6 +391,7 @@ export class BankSync {
     const now = this.clock();
     const row = this.db.select().from(consent).where(eq(consent.id, id)).get()!;
     const code = error instanceof BankError ? error.code : 'unavailable';
+    const detail = error instanceof BankError ? error.detail : undefined;
     const delay = Math.max(
       error instanceof BankError ? error.retrySeconds : 900,
       Math.min(86400, 900 * 2 ** Math.min(row.failures, 7)),
@@ -410,13 +415,13 @@ export class BankSync {
           'bank-error:' + id + ':' + code + ':' + todayInVienna(now),
           'other',
           'Bankabruf fehlgeschlagen',
-          this.errorDetail(code),
+          this.errorDetail(code, detail),
           id,
         );
     });
   }
 
-  private errorDetail(code: string): string {
+  private errorDetail(code: string, detail?: string): string {
     if (code === 'auth_failed')
       return 'App-Anmeldung fehlgeschlagen. App-ID und Signierschlüssel prüfen.';
     if (code === 'history_unavailable')
@@ -425,7 +430,9 @@ export class BankSync {
       return 'Tageslimit für Bankabrufe erreicht oder Zeitraum benötigt mehr als drei Seiten. Nächsten Tag abwarten; beim ersten Abruf gegebenenfalls einen neueren Start wählen.';
     if (code === 'consent_expired')
       return 'Bankeinwilligung abgelaufen oder widerrufen. Bitte neu verbinden.';
-    return 'Datenquelle prüfen. Fehlerklasse: ' + code;
+    if (code === 'invalid_validity')
+      return 'Die Bank meldet eine unbrauchbare Gültigkeit der Freigabe. Bitte neu verbinden.';
+    return 'Datenquelle prüfen. Fehlerklasse: ' + code + (detail ? ' (' + detail + ')' : '');
   }
 
   private prunePending(now: string) {
@@ -835,7 +842,7 @@ export class BankSync {
               'bank-error:' + a.id + ':' + code,
               'other',
               'Bankabruf fehlgeschlagen',
-              this.errorDetail(code),
+              this.errorDetail(code, error instanceof BankError ? error.detail : undefined),
               a.accountId,
               true,
             );

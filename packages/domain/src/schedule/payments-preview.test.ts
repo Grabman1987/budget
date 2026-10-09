@@ -32,6 +32,26 @@ const stored = (patch: Partial<PreviewStored> = {}): PreviewStored => ({
   ...patch,
 });
 
+describe('skipped (gestrichen) occurrences', () => {
+  it('drop out of the preview rows and totals, the other months stay', () => {
+    const r = paymentsPreview(
+      '2026-10-02',
+      [payment()],
+      [
+        stored({
+          status: 'skipped',
+          bookingId: null,
+          bookedAmountCents: null,
+          bookedCurrency: null,
+        }),
+      ],
+    );
+    expect(r.rows[0]?.events.map((e) => e.dueDate)).not.toContain('2026-11-01');
+    expect(r.rows[0]?.events).toHaveLength(11);
+    expect(r.currencies[0]?.total).toEqual({ baseCents: 110_000, upperCents: 110_000 });
+  });
+});
+
 describe('twelve full future months from versioned payment contracts', () => {
   it('literal Nov 2026–Oct 2027: 100 ×2 +120 ×10 + annual 300 =1700', () => {
     const p = payment();

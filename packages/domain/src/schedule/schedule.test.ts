@@ -159,6 +159,30 @@ describe('assignMatches', () => {
     );
     expect(result.size).toBe(0);
   });
+
+  it('never matches a skipped (gestrichen) occurrence, even to a booking that fits exactly', () => {
+    const planned = occ({ dueDate: '2026-03-10', amountCents: -4800 });
+    const input = {
+      candidates: [cand({ id: 'exact', date: '2026-03-10', amountCents: -4800 })],
+      toleranceCents: 0,
+      windowDays: 3,
+    };
+    const result = assignMatches(
+      [
+        { key: 'skipped', status: 'skipped', occurrence: planned, ...input },
+        {
+          key: 'open',
+          status: 'expected',
+          occurrence: { ...planned, dueDate: '2026-03-12' },
+          ...input,
+        },
+      ],
+      new Set(),
+    );
+    expect(result.has('skipped')).toBe(false);
+    // The booking stays free for the occurrence that is still open.
+    expect(result.get('open')?.candidate.id).toBe('exact');
+  });
 });
 
 describe('occurrenceStatus', () => {

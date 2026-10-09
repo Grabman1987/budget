@@ -221,16 +221,23 @@ function expectedOf(db: Executor, f: Frame, income: MonthIncome) {
   if (materialised) {
     const eur = stored.filter((r) => r.currency === 'EUR');
     foreign = stored.length - eur.length;
-    lines = eur.map((r) => ({
-      paymentId: r.paymentId,
-      name: r.name,
-      sub: [r.payeeName ?? r.contactName, r.accountName].filter(Boolean).join(' · '),
-      typeId: r.incomeTypeId,
-      dueDate: r.dueDate,
-      status: r.status,
-      expectedCents: r.amountCents,
-      receivedCents: r.bookedAmountCents ?? 0,
-    }));
+    // `upcoming` leaves skipped (gestrichen) occurrences out; the check narrows the type.
+    lines = eur.flatMap((r) =>
+      r.status === 'skipped'
+        ? []
+        : [
+            {
+              paymentId: r.paymentId,
+              name: r.name,
+              sub: [r.payeeName ?? r.contactName, r.accountName].filter(Boolean).join(' · '),
+              typeId: r.incomeTypeId,
+              dueDate: r.dueDate,
+              status: r.status,
+              expectedCents: r.amountCents,
+              receivedCents: r.bookedAmountCents ?? 0,
+            },
+          ],
+    );
   } else {
     const payees = new Map(
       db
