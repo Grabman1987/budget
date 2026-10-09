@@ -202,9 +202,10 @@ test('source operations remain readable in the inbox without posting', async ({ 
       },
     ],
   });
-  await page.route('**/api/inbox', (route) =>
-    route.fulfill({
-      json: {
+  await page.route(
+    (url) => url.pathname === '/api/inbox',
+    (route) => {
+      const fixture = {
         asOf: '2026-10-02',
         count: 1,
         entries: [
@@ -220,8 +221,25 @@ test('source operations remain readable in the inbox without posting', async ({ 
             createdAt: '2026-10-02T12:00:00.000Z',
           },
         ],
-      },
-    }),
+      };
+      const url = new URL(route.request().url());
+      const limitText = url.searchParams.get('limit');
+      if (limitText === null) return route.fulfill({ json: fixture });
+      const limit = Number(limitText);
+      const offset = Number(url.searchParams.get('offset') ?? 0);
+      const entries = fixture.entries.slice(offset, offset + limit);
+      return route.fulfill({
+        json: {
+          ...fixture,
+          entries,
+          totalEntries: fixture.entries.length,
+          countsByKind: { import: 1 },
+          limit,
+          offset,
+          next: offset + entries.length < fixture.entries.length ? offset + entries.length : null,
+        },
+      });
+    },
   );
   await page.goto('/konten/posteingang');
   await expect(page.getByText('Zugang: 12,34', { exact: false })).toBeVisible();
@@ -234,9 +252,10 @@ test('source operations remain readable in the inbox without posting', async ({ 
 test('invalid movements and categorized failures are readable without raw payloads', async ({
   page,
 }) => {
-  await page.route('**/api/inbox', (route) =>
-    route.fulfill({
-      json: {
+  await page.route(
+    (url) => url.pathname === '/api/inbox',
+    (route) => {
+      const fixture = {
         asOf: '2026-10-02',
         count: 2,
         entries: [
@@ -263,8 +282,25 @@ test('invalid movements and categorized failures are readable without raw payloa
             createdAt: '2026-10-02T12:00:00.000Z',
           },
         ],
-      },
-    }),
+      };
+      const url = new URL(route.request().url());
+      const limitText = url.searchParams.get('limit');
+      if (limitText === null) return route.fulfill({ json: fixture });
+      const limit = Number(limitText);
+      const offset = Number(url.searchParams.get('offset') ?? 0);
+      const entries = fixture.entries.slice(offset, offset + limit);
+      return route.fulfill({
+        json: {
+          ...fixture,
+          entries,
+          totalEntries: fixture.entries.length,
+          countsByKind: { other: 2 },
+          limit,
+          offset,
+          next: offset + entries.length < fixture.entries.length ? offset + entries.length : null,
+        },
+      });
+    },
   );
   await page.goto('/konten/posteingang');
   await expect(

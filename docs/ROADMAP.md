@@ -42,6 +42,21 @@ Older CI/publication checkboxes below describe their original deliveries. Curren
 - [x] Full repository check: 378 files / 3,491 tests, exit 0. Afterward, shorten the verdict metric label and clarify the DTO comment; scoped lint/format, E2E build and final 9-case desktop/mobile run pass on that copy-only follow-up.
 - [ ] PR integration and owner acceptance.
 
+### #349 — Honest Heute warm-up count — 2026-10-08
+
+- [x] Reproduced the warm-up count mismatch: the test expected two cacheable Heute responses but observed three because `/inbox/count` was included. The real inbox badge route is intentionally uncached; after the correction it returns successfully and performs a fresh database transaction on each of two requests.
+- [x] Focused response-cache and inbox API checks pass: 2 files / 12 tests; server typecheck passes. Historical performance timings remain historical, not a new measurement. [Evidence](evidence/warmup-349.md).
+- [x] Final full repository check passed type/lint/format and 379 files / 3,504 unit tests; the frozen 2,108-file manifest was unchanged both after checking and after normally unioning the actual #279 main merge.
+- [ ] Exact-head CI, integration/deployment and owner acceptance remain pending.
+
+### #280 — Reproducible Heute cold/warm baseline — 2026-10-09
+
+- [x] Add bounded handler/browser measurement scripts using an explicitly selected prepared synthetic dataset, fixed today/month, ten samples per state, current-navigation response and complete usable content gates.
+- [x] Run 40 handler and 20 browser observations on integrated main after #349 was verified live; preserve raw samples, medians/ranges, runtime/source metadata and the rejected initial preparation. All timed samples and 180 browser GETs succeed; cold/warm JSON parity and before/after finance fingerprints pass. [Protocol and raw evidence](evidence/heute-measure-280.md).
+- [x] Separate startup/auth preparation and warm-up from observed request/navigation durations; local browser timing is not server CPU or production latency. No infrastructure recommendation; #281 owns the next profile.
+- [x] Independent source/raw-data review has no concrete findings; final repository check passes type/lint/format and 379 files / 3,504 tests, with the frozen 2,114-file manifest unchanged.
+- [ ] Exact-head CI and integration/deployment.
+
 ### #302 — Dated historical class exposure — 2026-10-08
 
 - [x] Add a synthetic two-version API case with literal EUR cents, effective dates, January and February month-end index levels, and hand-derived class TTWROR; the prepared case and existing full portfolio API / exposure-repository regressions pass (2 files / 19 tests). No calculation defect was reproduced and no production formula was changed. [Evidence](evidence/dated-exposure-302.md).
@@ -53,7 +68,16 @@ Older CI/publication checkboxes below describe their original deliveries. Curren
 - [x] Add a pure shared-domain amount adapter for a matching scheduled EUR inflow inside a caller-validated inclusive interval; preserve the original occurrence and all other sources, kinds, currencies, and dates.
 - [x] Reproduce RED (6 failed / 1 passed) and focused GREEN (4 files / 42 tests), including feeding the adjusted occurrence stream to the shared liquidity forecast and report; see [evidence](evidence/income-pause-286.md).
 - [x] Full check on the verified main + checked #284/#285 union: typecheck, lint, formatting, 377 test files / 3,483 tests, exit 0.
-- [ ] DB/UI forecast integration and dependent #287 salary-marker handling remain pending.
+- [x] DB/UI forecast integration and the #287 salary-marker adapter are covered by the #287 work; the integrated full check and owner acceptance remain separate.
+
+### #287 — Income pause persistence and forecast adapter — 2026-10-08
+
+- [x] Phase A stores one source and inclusive interval as an audited, undoable row; same-source overlaps are rejected on create, edit, and undo/redo.
+- [x] The shared cash forecast and Heute salary cash marker apply the zero override before FX. Normal expected-income reporting, occurrence rows, payday horizon, bookings, and matching retain the original schedule.
+- [x] The liquidity report UI supports inclusive past-start intervals, source/date edits, delete, and undo; chart assumptions and six-month verdict coverage are labeled separately. Deleted, foreign-currency, and zero-EUR cases remain explicit.
+- [x] Focused API/domain tests, desktop/mobile browser acceptance, Axe, overflow, touch-target, and DB/server/web typechecks pass; final four light/dark captures are recorded in [#287 evidence](evidence/income-pause-287.md).
+- [x] Main `73a4a397` union and frozen full `npm run check`: workspace typechecks, lint/formatting, 379 files / 3,503 tests, exit 0. The older 0039 migration test now isolates its target migration while retaining strict predecessor assertions.
+- [ ] PR/CI, deployment, real-device behavior, and owner acceptance remain pending.
 
 ### #272 — Expected income is not free surplus — 2026-10-08
 
@@ -72,7 +96,7 @@ Older CI/publication checkboxes below describe their original deliveries. Curren
 
 - [x] Record the owner decision: exactly one active recurring income source natively denominated in EUR before FX contributes 0 cents during a required inclusive pause interval; no calendar-day proration, schedule rewrite, or envelope/balance change.
 - [x] Contrast replacement with additive `planned_event`, define stable schedule identity, effective/shifted occurrence boundaries, same-source overlap rejection, undoable persistence seam and shared future-cash consumers; see [income pause contract](income-pause.md).
-- [ ] #286 pure calculation and literal occurrence tests; #287 audited persistence, forecast adapter and UI. These remain separate implementation tasks.
+- [x] #286 pure calculation and literal occurrence tests; #287 audited persistence, forecast adapter, and UI are implemented as separate tasks. Integrated full check and owner acceptance remain tracked in #287.
 
 ### E1 — Report verdict sentences (owner 2026-10-06)
 
@@ -155,6 +179,20 @@ Older CI/publication checkboxes below describe their original deliveries. Curren
 - [x] Leere füllen and selected Wie letzter Monat / Ø 3 Monate / Ziel via existing assignment/audit/undo path, capped in displayed sort order with exact shortfall.
 - [x] Synthetic cent/source, partial-fill, validation, rollback, stale-fill, undo/redo and German-copy regression tests; [contract](plan-ghost-1005.md).
 - [ ] CI, pinned Linux visual review and owner acceptance.
+
+### UX-5c — Violated rules first (owner feedback 2026-10-05)
+
+- [x] Regelwerk starts with violated rules, shared current values, stored thresholds and correction links; met rules follow and disabled rules start collapsed.
+- [x] Current main-union keyboard regression preserves focus for OFF/ON group transitions, Undo and settings Escape. All rules desktop/mobile preparation passed: 13 cases including three setup checks, four intentional viewport skips; four current captures were reviewed. [Current evidence](evidence/rules-focus-226.md).
+- [x] Final union full check: 380 files / 3,508 tests, exit 0; all 2,125 frozen paths/hashes unchanged. The history-only union with main `410d2cd0` preserved the same checked source files.
+- [x] Original PR #226 updated; diagnosed stale main-integration screenshots, generated only four rule-book Linux baselines with five passing scoped cases, and reviewed all four before copying them. Application source remains the fully checked version.
+- [ ] Fresh exact-head Linux CI after the reviewed baseline update, integration/deployment and owner acceptance.
+- [x] Warnings and unavailable evaluations stay explicit under Noch offen; every registered rule has its code, a plain explanation, switch and Einstellen. Stage checklist items retain their own S-codes.
+- [x] Synthetic unit and desktop/mobile browser regressions cover grouping, correction navigation, keyboard expansion, parameter validation and undo; no local baseline regeneration.
+- [x] Full local typecheck, lint/format, unit coverage (three load timeouts passed targeted reruns), production/E2E builds and affected browser specs; [results and baseline list](ux-rules-first-1005.md).
+- [x] Pinned Linux rule-book visual review; approved differences and all four image hashes are recorded in current evidence.
+- [ ] Required final-head CI and owner acceptance.
+
 
 ### Heute three answer cards — owner 05.10.2026
 
@@ -535,6 +573,7 @@ Expected payments, contacts with receivables, savings goals, rule set registered
 - [x] Actual queue and shell counter: one task per due nonzero unclassified budget booking plus unresolved stored warnings; no sample counter or legacy summary double count
 - [x] Konten › Posteingang and global desktop/mobile panel: categorize in the existing booking editor, confirm pending bookings, acknowledge stored warnings with audited undo/redo
 - [x] Shared ledger invalidation refreshes the queue, count and Heute reads after mutations/undo; safe empty/error/loading states and keyboard/touch actions
+- [x] #279 global inbox pagination: 100-entry network pages, whole-queue task/kind counts, receipt-only badge scope, audited resolve/undo and complete month-close filtering beyond the first page. API regression, fresh E2E build, 42 affected desktop/mobile browser tests (one intended skip) and the final full check (379 files / 3,503 unit tests) passed. CI, deployment and owner acceptance remain pending. The endpoint still constructs the whole queue before slicing, so no database-query performance claim is made. [Evidence](evidence/inbox-pagination-279.md).
 - [ ] Bank/assignment suggestions and source repair workflows; acknowledging a warning does not repair its source
 - [ ] Independent review, CI and owner acceptance of this workflow on the deployed app
 

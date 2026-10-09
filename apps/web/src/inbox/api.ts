@@ -1,4 +1,4 @@
-import { queryOptions } from '@tanstack/react-query';
+import { infiniteQueryOptions, queryOptions } from '@tanstack/react-query';
 import { request } from '../api/http';
 import { LEDGER_KEY } from '../ledger/queries';
 import type { SavingsExecutionProposal } from '../wealth/savings-api';
@@ -57,11 +57,28 @@ export interface InboxView {
   count: number;
   entries: InboxEntry[];
 }
+export interface InboxPage extends InboxView {
+  totalEntries: number;
+  countsByKind: Partial<Record<InboxKind, number>>;
+  limit: number;
+  offset: number;
+  next: number | null;
+}
 export const INBOX_KEY = [...LEDGER_KEY, 'inbox'] as const;
+export const INBOX_PAGE_SIZE = 100;
 export const inboxQuery = () =>
   queryOptions({
     queryKey: INBOX_KEY,
     queryFn: () => request<InboxView>('GET', '/api/inbox'),
+    refetchInterval: 60_000,
+  });
+export const inboxPagesQuery = () =>
+  infiniteQueryOptions({
+    queryKey: [...INBOX_KEY, 'pages', INBOX_PAGE_SIZE] as const,
+    queryFn: ({ pageParam }) =>
+      request<InboxPage>('GET', `/api/inbox?limit=${INBOX_PAGE_SIZE}&offset=${pageParam}`),
+    initialPageParam: 0,
+    getNextPageParam: (lastPage) => lastPage.next ?? undefined,
     refetchInterval: 60_000,
   });
 export const inboxCountQuery = () =>
