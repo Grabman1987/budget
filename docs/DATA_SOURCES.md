@@ -59,9 +59,8 @@ booking option overrides all defaults. Cash date and labels stay unchanged.
    `BUDGET_BANK_SYNC_DAILY=0` disables the worker for maintenance; queued manual runs
    also wait while it is disabled. Do not run a separate Fly machine with an independent
    volume for this worker.
-6. Open **Einstellungen › Datenquellen → Bank verbinden**, complete the passkey step-up,
-   select an institute, and approve the bank's read access. On returning, choose
-   **Bankfreigabe abschließen** (another passkey confirmation may be necessary).
+6. Open **Einstellungen › Datenquellen → Bank verbinden**, select an institute, and approve the bank's read access. On returning, choose
+   **Bankfreigabe abschließen** (no extra passkey confirmation is needed; the login that opened the app is enough).
    Start and completion must use the same app session/browser; an expired callback requires
    a new connection.
 7. Choose institutions returned by the live list. The adapter requests personal AIS

@@ -7,6 +7,8 @@ import {
   getPayslipIntake,
   getPayslipSourceConfig,
   getReceipt,
+  payslipScope,
+  payslipScopeReason,
   replaceParsedPayslip,
   stagePayslip,
   type Db,
@@ -59,7 +61,12 @@ export async function extractPayslipText(
     worker.once('exit', () => finish({ error: 'pdf' }));
   });
 }
-export type PasswordOptions = { password?: string | undefined; remember?: boolean | undefined };
+export type PasswordOptions = {
+  password?: string | undefined;
+  remember?: boolean | undefined;
+  /** Dropbox year folder of the file; used only when the document itself shows no period. */
+  folderYear?: number | null | undefined;
+};
 /** 'off': not requested; 'unavailable': BUDGET_PEPPER missing; 'not_opened': did not open the PDF. */
 export type PasswordRemember = 'saved' | 'unavailable' | 'not_opened' | 'off';
 /** 'off': not attempted (flag unset, not configured, duplicate or fetched from Dropbox). */
@@ -72,6 +79,14 @@ const unknownDocument = (warning: string): ParsedPayrollDocument => ({
   differenceCents: null,
   warnings: [warning],
 });
+type Staged = {
+  id: string;
+  duplicate: boolean;
+  groupId: string | null | undefined;
+  dropboxCopy: DropboxCopy;
+  passwordRemember: PasswordRemember;
+};
+type Skipped = { skipped: 'before_start' };
 export class PayslipIntakeService {
   constructor(
     readonly db: Db,
@@ -144,13 +159,28 @@ export class PayslipIntakeService {
     if (opened !== options.password || !bytes.includes('/Encrypt')) return 'not_opened';
     return rememberPayslipPassword(this.db, options.password) ? 'saved' : 'unavailable';
   }
+  /** Owner uploads are always staged; scheduled scans may skip months before the records start. */
+  ingest(
+    bytes: Buffer,
+    filename: string,
+    source: 'manual',
+    contentHash?: string,
+    options?: PasswordOptions,
+  ): Promise<Staged>;
+  ingest(
+    bytes: Buffer,
+    filename: string,
+    source: 'manual' | 'dropbox',
+    contentHash?: string,
+    options?: PasswordOptions,
+  ): Promise<Staged | Skipped>;
   async ingest(
     bytes: Buffer,
     filename: string,
     source: 'manual' | 'dropbox',
     contentHash?: string,
     options: PasswordOptions = {},
-  ) {
+  ): Promise<Staged | Skipped> {
     if (!bytes.length || bytes.length > RECEIPT_LIMIT || receiptMime(bytes) !== 'application/pdf')
       throw new RangeError('Bitte eine PDF-Datei bis 15 MB wählen.');
     const sha256 = digest(bytes);
@@ -165,6 +195,12 @@ export class PayslipIntakeService {
       };
     const name = sanitizedFilename(filename);
     const { parsed, opened } = await this.evaluate(bytes, name, options.password);
+    // Scheduled scans only: skip months before the records start, close months already captured.
+    const scope =
+      source === 'dropbox'
+        ? payslipScope(this.db, parsed, name, options.folderYear ?? null)
+        : 'in_scope';
+    if (scope === 'before_start') return { skipped: 'before_start' };
     await storeReceipt(this.dir, bytes); // Original encrypted bytes only; never persist plaintext.
     const staged = stagePayslip(
       this.db,
@@ -175,6 +211,7 @@ export class PayslipIntakeService {
         sizeBytes: bytes.length,
         filename: name,
         parsed,
+        ...(scope === 'recorded' ? { settle: payslipScopeReason(scope) } : {}),
       },
       { actor: source === 'manual' ? 'owner' : 'system' },
     );

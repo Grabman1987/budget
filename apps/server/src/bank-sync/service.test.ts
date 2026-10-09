@@ -3,6 +3,7 @@ import { eq } from 'drizzle-orm';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   bookedBalance,
+  createBooking,
   createTestDatabase,
   readInbox,
   resolveInboxItem,
@@ -784,5 +785,273 @@ describe('bank sync workflow', () => {
         .where(eq(schema.bankSyncAccount.id, linkId))
         .get()!.accountId,
     ).toBe('spar');
+  });
+});
+
+describe('matching bank lines against existing bookings', () => {
+  const existing = (
+    date: string,
+    amountCents = -1201,
+    status: 'pending' | 'confirmed' = 'confirmed',
+  ) =>
+    createBooking(
+      opened.db,
+      {
+        accountId: 'giro',
+        date,
+        amountCents,
+        memo: 'Handnotiz',
+        status,
+        splits: [{ amountCents, categoryId: 'essen' }],
+      },
+      { actor: 'owner' },
+    );
+  const bookings = () => opened.db.select().from(schema.booking).all();
+  const item = (id: string) =>
+    opened.db.select().from(schema.inboxItem).where(eq(schema.inboxItem.id, id)).get()!;
+
+  it('links a single match instead of creating a duplicate and keeps what the owner entered', async () => {
+    service.setPolicy(consentId, true);
+    const id = existing('2026-09-27');
+    vi.mocked(provider.transactions).mockResolvedValue(
+      batch([{ ...row, date: '2026-09-30', rawPayee: 'Shop A GmbH' }]),
+    );
+    await service.tick();
+    expect(bookings()).toHaveLength(1);
+    expect(bookings()[0]).toMatchObject({
+      id,
+      date: '2026-09-27',
+      status: 'confirmed',
+      memo: 'Handnotiz',
+      source: 'manual',
+      bankSourceId: linkId,
+      bankRawText: 'Shop A',
+      bankRawPayee: 'Shop A GmbH',
+      importKey: 'bank-sync:' + candidates()[0]!.dedupeKey,
+    });
+    expect(opened.db.select().from(schema.bookingSplit).all()).toMatchObject([
+      { categoryId: 'essen' },
+    ]);
+    expect(item(candidates()[0]!.id).resolution).toBe('Mit vorhandener Buchung verknüpft: ' + id);
+    nextDay();
+    await service.tick();
+    expect(bookings()).toHaveLength(1);
+  });
+  it('links at the edge of the window, but not five days away', async () => {
+    service.setPolicy(consentId, true);
+    existing('2026-09-26');
+    vi.mocked(provider.transactions).mockResolvedValue(batch([row]));
+    await service.tick();
+    expect(bookings()).toHaveLength(1);
+    expect(bookings()[0]!.bankSourceId).toBe(linkId);
+    nextDay();
+    vi.mocked(provider.transactions).mockResolvedValue(
+      batch([{ ...row, reference: 'entry-b', date: '2026-10-01' }]),
+    );
+    await service.tick();
+    expect(bookings()).toHaveLength(2);
+    expect(bookings().filter((b) => b.source === 'bank')).toHaveLength(1);
+  });
+  it('links a locked migrated booking without touching its import key or status', async () => {
+    service.setPolicy(consentId, true);
+    const id = existing('2026-09-30');
+    opened.db
+      .update(schema.booking)
+      .set({ source: 'migration', importKey: 'ynab:1', status: 'reconciled' })
+      .where(eq(schema.booking.id, id))
+      .run();
+    await service.tick();
+    expect(bookings()).toHaveLength(1);
+    expect(bookings()[0]).toMatchObject({
+      source: 'migration',
+      importKey: 'ynab:1',
+      status: 'reconciled',
+      bankSourceId: linkId,
+    });
+  });
+  it('posts without a match as an unchecked booking that stays visible in the inbox', async () => {
+    service.setPolicy(consentId, true);
+    await service.tick();
+    expect(bookings()).toMatchObject([{ status: 'pending', source: 'bank' }]);
+    expect(item(candidates()[0]!.id).resolution).toMatch(/^Als ungeprüfte Buchung angelegt/);
+    expect(
+      readInbox(opened.db, '2026-10-01').entries.filter((i) => i.type === 'booking'),
+    ).toHaveLength(1);
+  });
+  it('leaves several candidates open for the owner and creates nothing', async () => {
+    service.setPolicy(consentId, true);
+    existing('2026-09-29');
+    existing('2026-10-01');
+    await service.tick();
+    expect(bookings()).toHaveLength(2);
+    expect(bookings().every((b) => b.bankSourceId === null)).toBe(true);
+    const open = item(candidates()[0]!.id);
+    expect(open.resolvedAt).toBeNull();
+    expect(open.detail).toContain('Mehrere passende vorhandene Buchungen');
+    nextDay();
+    await service.tick();
+    expect(item(candidates()[0]!.id).detail?.match(/Mehrere passende/g)).toHaveLength(1);
+    expect(bookings()).toHaveLength(2);
+  });
+  it('pairs two identical bank lines with two identical bookings and never uses one twice', async () => {
+    service.setPolicy(consentId, true);
+    existing('2026-09-30');
+    existing('2026-09-30');
+    vi.mocked(provider.transactions).mockResolvedValue(
+      batch([
+        { ...row, reference: 'a' },
+        { ...row, reference: 'b' },
+      ]),
+    );
+    await service.tick();
+    expect(bookings()).toHaveLength(2);
+    expect(new Set(bookings().map((b) => b.importKey)).size).toBe(2);
+    expect(bookings().every((b) => b.bankSourceId === linkId)).toBe(true);
+  });
+  it('creates one new booking when two identical lines meet a single existing booking', async () => {
+    service.setPolicy(consentId, true);
+    existing('2026-09-30');
+    vi.mocked(provider.transactions).mockResolvedValue(
+      batch([
+        { ...row, reference: 'a' },
+        { ...row, reference: 'b' },
+      ]),
+    );
+    await service.tick();
+    expect(bookings()).toHaveLength(2);
+    expect(bookings().filter((b) => b.source === 'bank')).toHaveLength(1);
+    expect(bookings().filter((b) => b.bankSourceId === linkId)).toHaveLength(1);
+  });
+  it('matches an open candidate of an earlier fetch on the next fetch', async () => {
+    await service.tick();
+    expect(bookings()).toHaveLength(0);
+    const id = candidates()[0]!.id;
+    expect(item(id).resolvedAt).toBeNull();
+    const booked = existing('2026-09-28');
+    service.setPolicy(consentId, true);
+    nextDay();
+    vi.mocked(provider.transactions).mockResolvedValue(batch([]));
+    await service.tick();
+    expect(bookings()).toHaveLength(1);
+    expect(bookings()[0]).toMatchObject({ id: booked, bankSourceId: linkId });
+    expect(item(id).resolvedAt).not.toBeNull();
+  });
+  const undoneBankBooking = async () => {
+    service.setPolicy(consentId, true);
+    await service.tick();
+    const created = bookings();
+    expect(created).toHaveLength(1);
+    const audit = opened.db
+      .select()
+      .from(schema.auditLog)
+      .all()
+      .find((a) => a.entityType === 'booking')!;
+    undo(opened.db, { groupId: audit.groupId! }, { actor: 'owner' });
+    const id = candidates()[0]!.id;
+    expect(bookings()[0]!.deletedAt).not.toBeNull();
+    expect(item(id).resolvedAt).toBeNull();
+    return { id, deleted: created[0]!.id, key: created[0]!.importKey! };
+  };
+  it('links an undone line to an existing booking instead of pointing at the deleted one', async () => {
+    const { id, deleted, key } = await undoneBankBooking();
+    const migrated = existing('2026-09-29');
+    nextDay();
+    vi.mocked(provider.transactions).mockResolvedValue(batch([]));
+    await service.tick();
+    expect(item(id).resolution).toBe('Mit vorhandener Buchung verknüpft: ' + migrated);
+    const target = bookings().find((b) => b.id === migrated)!;
+    expect(target).toMatchObject({ bankSourceId: linkId, deletedAt: null });
+    // The deleted row keeps the unique key, so the live one must not claim it.
+    expect(target.importKey).toBeNull();
+    expect(bookings().find((b) => b.id === deleted)).toMatchObject({ importKey: key });
+    expect(bookings().filter((b) => !b.deletedAt)).toHaveLength(1);
+  });
+  it('keeps an undone line open when nothing matches and the ledger opt-in is off', async () => {
+    const { id } = await undoneBankBooking();
+    service.setPolicy(consentId, false);
+    nextDay();
+    vi.mocked(provider.transactions).mockResolvedValue(batch([]));
+    await service.tick();
+    expect(item(id).resolvedAt).toBeNull();
+    expect(bookings().filter((b) => !b.deletedAt)).toHaveLength(0);
+  });
+  it('without the ledger opt-in links a match but never posts a line without one', async () => {
+    existing('2026-09-30');
+    vi.mocked(provider.transactions).mockResolvedValue(
+      batch([row, { ...row, reference: 'other', amountCents: -500 }]),
+    );
+    await service.tick();
+    expect(bookings()).toHaveLength(1);
+    expect(bookings()[0]!.bankSourceId).toBe(linkId);
+    const byAmount = candidates().find((c) => c.amountCents === -500)!;
+    expect(item(byAmount.id).resolvedAt).toBeNull();
+  });
+});
+
+describe('multi-currency source (currency XXX)', () => {
+  const usd = { ...row, reference: 'usd-a', currency: 'USD', amountCents: -999 };
+  beforeEach(() => {
+    opened.db
+      .update(schema.bankSyncAccount)
+      .set({ currency: 'XXX' })
+      .where(eq(schema.bankSyncAccount.id, linkId))
+      .run();
+    service.setPolicy(consentId, true);
+  });
+  it('can be mapped to an EUR app account', () => {
+    opened.db
+      .update(schema.bankSyncAccount)
+      .set({ accountId: null, fromDate: null })
+      .where(eq(schema.bankSyncAccount.id, linkId))
+      .run();
+    service.map(linkId, 'giro', '2026-09-01');
+    expect(
+      opened.db
+        .select()
+        .from(schema.bankSyncAccount)
+        .where(eq(schema.bankSyncAccount.id, linkId))
+        .get()!.accountId,
+    ).toBe('giro');
+  });
+  it('books app-currency lines, holds foreign lines in the inbox and skips a missing balance', async () => {
+    vi.mocked(provider.transactions).mockResolvedValue(batch([row, usd]));
+    vi.mocked(provider.balance).mockResolvedValue(null);
+    await service.tick();
+    expect(provider.balance).toHaveBeenCalledWith('synthetic-uid', expect.any(Function), 'EUR');
+    expect(connection().failures).toBe(0);
+    expect(opened.db.select().from(schema.booking).all()).toHaveLength(1);
+    const foreign = candidates().find((c) => c.currency === 'USD')!;
+    const inbox = opened.db
+      .select()
+      .from(schema.inboxItem)
+      .where(eq(schema.inboxItem.id, foreign.id))
+      .get()!;
+    expect(inbox).toMatchObject({
+      title: 'Fremdwährung, bitte manuell prüfen',
+      resolvedAt: null,
+    });
+    expect(inbox.detail).toContain('-9,99 USD');
+    expect(
+      opened.db
+        .select()
+        .from(schema.inboxItem)
+        .where(eq(schema.inboxItem.id, 'bank-balance-currency:giro'))
+        .get(),
+    ).toMatchObject({ title: 'Bankstand nicht in Kontowährung' });
+    nextDay();
+    await service.tick();
+    expect(candidates()).toHaveLength(2);
+    expect(opened.db.select().from(schema.booking).all()).toHaveLength(1);
+  });
+  it('uses a balance in the app currency when the bank reports one', async () => {
+    vi.mocked(provider.transactions).mockResolvedValue(batch([usd]));
+    await service.tick();
+    expect(
+      opened.db
+        .select()
+        .from(schema.bankSyncAccount)
+        .where(eq(schema.bankSyncAccount.id, linkId))
+        .get(),
+    ).toMatchObject({ balanceCents: 98799, balanceDate: '2026-09-30' });
   });
 });

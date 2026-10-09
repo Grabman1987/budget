@@ -16,7 +16,10 @@ import { receiptDirectory, RECEIPT_BODY_LIMIT } from './receipts/files';
 import { importHttpEnabled } from './imports/config';
 
 /** What the app needs from the passkey login: the CSRF check, its routes and the session guard. */
-export type AuthGate = Pick<Auth, 'originGuard' | 'routes' | 'requireSession' | 'requireStepUp'>;
+export type AuthGate = Pick<Auth, 'originGuard' | 'routes' | 'requireSession' | 'requireStepUp'> & {
+  /** Passkey-opened session without freshness; test gates may omit it (falls back to the stricter step-up). */
+  requirePasskeySession?: Auth['requirePasskeySession'];
+};
 
 interface BaseOptions {
   /** Directory of the built web app (Vite `dist`). */
@@ -172,7 +175,11 @@ export function createApp({ webDir, database, auth, ledger, buildRevision }: App
 
   if (ledger && auth) {
     const { onApi, ...options } = ledger;
-    const api = createLedgerApi({ ...options, stepUp: auth.requireStepUp });
+    const api = createLedgerApi({
+      ...options,
+      stepUp: auth.requireStepUp,
+      passkeySession: auth.requirePasskeySession,
+    });
     onApi?.(api);
     app.route('/api', api);
   }

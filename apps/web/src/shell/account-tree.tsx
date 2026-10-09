@@ -115,6 +115,7 @@ function AccountGroupBlock({
         >
           <ChevronDown className="chev" size={14} strokeWidth={2} aria-hidden="true" />
           <span className="acct-group-title tech">{view.group.title}</span>
+          <span className="acct-group-sub">{view.group.sub}</span>
         </button>
         {!editing && (
           <PencilButton
