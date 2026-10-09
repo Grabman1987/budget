@@ -26,15 +26,15 @@ The actual is below plan while the month-end forecast exceeds the cap. Both `/ap
 
 ## Linux preflight
 
-GitHub Actions run [37880079988](https://github.com/Grabman1987/budget/actions/runs/37880079988) succeeded on frozen source `ca6791486c9d1cae5c081be43bb7d85969d27298` using workflow-only helper commit `025fac1e499cd8f3ef681b58dc5192b8b3ce033f`. The later #237 documentation merge is included in this evidence branch; the diff from `ca6791486c9d1cae5c081be43bb7d85969d27298` outside `docs/` is empty, so it adds no application or test changes.
+GitHub Actions run [37880079988](https://github.com/Grabman1987/budget/actions/runs/37880079988) succeeded on the pre-Globals source `ca6791486c9d1cae5c081be43bb7d85969d27298` using workflow-only helper commit `025fac1e499cd8f3ef681b58dc5192b8b3ce033f`. The current source `29f7fdbecfd5ac8d0238c5bc9b0f5053d62db770` adds the Globals package update in `package.json` and `package-lock.json`; its #265 application, domain-test and E2E-fixture files remain unchanged from `ca679`. The final combined full-check run [37881562030](https://github.com/Grabman1987/budget/actions/runs/37881562030) is still in progress, so no result is claimed for the final union.
 
 - Focused check: two files, 27 tests, 2.71 seconds.
-- Full repository check: 383 files, 3,528 tests, 239.51 seconds.
-- Production and E2E builds passed.
-- Browser run: nine tests passed in 1.0 minute.
+- Earlier full repository check on `ca679`: 383 files, 3,528 tests, 239.51 seconds.
+- Production and E2E builds passed on `ca679`.
+- Earlier browser run on `ca679`: nine tests passed in 1.0 minute.
 - The eight Linux captures below are copied from this run's Playwright results; checked-in screenshot baselines were not updated.
 
-The Linux screenshots show the configured 390 px mobile browser, not a physical iPhone. Neither the full check nor this pace regression verifies the separate Heute mobile account-forecast label overlap (`965 €`, 15.09. vs “30 Tage bis Gehalt 15.10.”); that issue remains assigned to #292. Exact PR-head CI, deployment/live validation, real-ledger reconciliation and physical iPhone Safari acceptance remain open.
+The Linux screenshots show the configured 390 px mobile browser, not a physical iPhone. This pace regression does not verify the separate Heute mobile account-forecast label overlap (`965 €`, 15.09. vs “30 Tage bis Gehalt 15.10.”); that issue remains assigned to #292. Final-union full-check completion, exact PR-head CI, deployment/live validation, real-ledger reconciliation and physical iPhone Safari acceptance remain open.
 
 ## Captures
 
@@ -60,12 +60,12 @@ CCD79F5841BFC8DEAB20E7F8C2354969350A81D118F1F849C65EFA15E5D72902  onepager-deskt
 
 Linux captures from run 37880079988:
 
-| View                              | Light                                              | Dark                                              |
-| --------------------------------- | -------------------------------------------------- | ------------------------------------------------- |
-| Heute, desktop 1440 px            | [PNG](linux-37880079988/heute-desktop-light.png)   | [PNG](linux-37880079988/heute-desktop-dark.png)   |
-| Heute, mobile 390 px              | [PNG](linux-37880079988/heute-mobile-light.png)    | [PNG](linux-37880079988/heute-mobile-dark.png)    |
+| View                              | Light                                               | Dark                                               |
+| --------------------------------- | --------------------------------------------------- | -------------------------------------------------- |
+| Heute, desktop 1440 px            | [PNG](linux-37880079988/heute-desktop-light.png)    | [PNG](linux-37880079988/heute-desktop-dark.png)    |
+| Heute, mobile 390 px              | [PNG](linux-37880079988/heute-mobile-light.png)     | [PNG](linux-37880079988/heute-mobile-dark.png)     |
 | Monats-One-Pager, desktop 1440 px | [PNG](linux-37880079988/onepager-desktop-light.png) | [PNG](linux-37880079988/onepager-desktop-dark.png) |
-| Monats-One-Pager, mobile 390 px   | [PNG](linux-37880079988/onepager-mobile-light.png) | [PNG](linux-37880079988/onepager-mobile-dark.png) |
+| Monats-One-Pager, mobile 390 px   | [PNG](linux-37880079988/onepager-mobile-light.png)  | [PNG](linux-37880079988/onepager-mobile-dark.png)  |
 
 SHA-256:
 
