@@ -4,7 +4,15 @@ import type { ReactNode } from 'react';
 import { AccountOptions } from '../ledger/account-options';
 import { accountsQuery, lookupsQuery, payeesQuery } from '../ledger/queries';
 import type { DateShift, ExpectedKind, Rhythm } from './api';
-import type { DraftErrors, DraftField, PaymentDraft } from './payment-draft';
+import {
+  DATE_PRESETS,
+  applyDatePreset,
+  matchingDatePreset,
+  type DatePresetId,
+  type DraftErrors,
+  type DraftField,
+  type PaymentDraft,
+} from './payment-draft';
 
 const KINDS = [
   { value: 'outflow', label: 'Ausgabe' },
@@ -183,6 +191,33 @@ export function PaymentForm({
       </fieldset>
       <fieldset className="kform-set xp-set">
         <legend>Rhythmus</legend>
+        <Field label="Vorlage">
+          {({ id }) => (
+            <Select
+              id={id}
+              value={matchingDatePreset(draft) ?? ''}
+              onChange={(e) => {
+                const next = applyDatePreset(draft, e.target.value as DatePresetId);
+                for (const key of ['rhythm', 'dueDay', 'dueMonth', 'dateShift'] as const)
+                  if (next[key] !== draft[key]) onChange(key, next[key]);
+              }}
+            >
+              <option value="">Eigene Einstellung</option>
+              {DATE_PRESETS.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.label}
+                </option>
+              ))}
+            </Select>
+          )}
+        </Field>
+        {inflow && (
+          <p className="field-hint">
+            Fällt ein Gehalt einmal aus, lässt es sich später in der Prognose oder in Plan ›
+            Erwartet streichen, ohne die Regel zu ändern. Eine Ersatzleistung wird wie jede Einnahme
+            gebucht, sobald sie eingeht.
+          </p>
+        )}
         <div className="kform-pair">
           {pick('rhythm', 'Rhythmus', RHYTHMS)}
           {text('dueDay', 'Fälligkeitstag', { inputMode: 'numeric' })}

@@ -25,7 +25,9 @@ import {
   markMissed,
   occurrencesQuery,
   patchPayment,
+  skipOccurrence,
   unlinkOccurrence,
+  unskipOccurrence,
   versionsQuery,
   type ExpectedPayment,
   type Occurrence,
@@ -278,7 +280,7 @@ function OccurrencesSection({ payment: p }: { payment: ExpectedPayment }) {
   const [today] = useState(todayInVienna);
   const from = `${addMonths(monthOf(today), -12)}-01`;
   const to = `${addMonths(monthOf(today), 12)}-28`;
-  const all = useQuery(occurrencesQuery(from, to));
+  const all = useQuery(occurrencesQuery(from, to, true));
   const rows = (all.data ?? []).filter((o) => o.paymentId === p.id);
   const [linking, setLinking] = useState<string | null>(null);
   const write = useBudgetWrite();
@@ -295,6 +297,12 @@ function OccurrencesSection({ payment: p }: { payment: ExpectedPayment }) {
       )}
       {all.data && rows.length === 0 && (
         <p className="rev-empty">Keine Fälligkeiten im Zeitraum.</p>
+      )}
+      {rows.length > 0 && (
+        <p className="field-hint">
+          Streichen nimmt nur diese Fälligkeit aus der Planung, die Regel bleibt. Ausgefallen meldet
+          eine Zahlung, die nicht eingegangen ist.
+        </p>
       )}
       {rows.length > 0 && (
         <ul className="xp-occ" aria-label={`Fälligkeiten von ${name}`}>
@@ -324,6 +332,19 @@ function OccurrencesSection({ payment: p }: { payment: ExpectedPayment }) {
                   >
                     Lösen
                   </Button>
+                ) : o.status === 'skipped' ? (
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() =>
+                      void write(
+                        () => unskipOccurrence(o.occurrenceId),
+                        () => `${name}: ${longDay(o.dueDate)} wiederhergestellt`,
+                      )
+                    }
+                  >
+                    Wiederherstellen
+                  </Button>
                 ) : (
                   <>
                     <Button
@@ -333,6 +354,20 @@ function OccurrencesSection({ payment: p }: { payment: ExpectedPayment }) {
                     >
                       Verknüpfen
                     </Button>
+                    {o.dueDate >= today && (
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() =>
+                          void write(
+                            () => skipOccurrence(o.paymentId, o.dueDate),
+                            () => `${name}: ${longDay(o.dueDate)} gestrichen`,
+                          )
+                        }
+                      >
+                        Streichen
+                      </Button>
+                    )}
                     {o.status !== 'missed' && (
                       <Button
                         size="sm"

@@ -1,5 +1,7 @@
-import { useAmountPrivacy, SectionHead } from '@budget/ui';
+import { Button, useAmountPrivacy, SectionHead } from '@budget/ui';
 import { ChevronRight, CircleCheck, Clock3 } from 'lucide-react';
+import { useBudgetWrite } from '../budget/use-category-writes';
+import { skipOccurrence } from '../expected/api';
 import { eur, shortDay } from '../ledger/format';
 import { EmptyNote } from '../ledger/states';
 import { AppLink } from '../shell/app-link';
@@ -67,6 +69,9 @@ export function Upcoming({
                       statusText(item.status)
                     )}
                   </span>
+                  {item.kind === 'inflow' && item.status === 'expected' && (
+                    <StrikeButton item={item} />
+                  )}
                 </div>
               </li>
             ))}
@@ -77,6 +82,26 @@ export function Upcoming({
   );
 }
 
+/** Take this one income out of the plan; the rule stays, "Rückgängig" brings it back. */
+function StrikeButton({ item }: { item: HeuteOccurrence }) {
+  const write = useBudgetWrite();
+  return (
+    <Button
+      size="sm"
+      variant="ghost"
+      aria-label={`Diesen Monat streichen: ${item.name}, ${shortDay(item.dueDate)}`}
+      onClick={() =>
+        void write(
+          () => skipOccurrence(item.paymentId, item.dueDate),
+          () => `${item.name}: ${shortDay(item.dueDate)} gestrichen`,
+        )
+      }
+    >
+      Diesen Monat streichen
+    </Button>
+  );
+}
+
 function statusText(status: Heute['upcoming14'][number]['status']) {
   return status === 'expected'
     ? 'erwartet'
@@ -84,5 +109,7 @@ function statusText(status: Heute['upcoming14'][number]['status']) {
       ? 'erhalten'
       : status === 'deviating'
         ? 'abweichend'
-        : 'versäumt';
+        : status === 'skipped'
+          ? 'gestrichen'
+          : 'versäumt';
 }

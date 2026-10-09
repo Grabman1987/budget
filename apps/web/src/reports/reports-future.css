@@ -565,3 +565,9 @@
   white-space: nowrap;
   color: var(--ink);
 }
+
+/* Strike action of a movement: a touch target, never wrapped away from its row. */
+.rf-moves .rf-act {
+  text-align: right;
+  white-space: nowrap;
+}
