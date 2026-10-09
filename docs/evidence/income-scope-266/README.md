@@ -6,7 +6,7 @@ This change clarifies two existing income scopes in Heute and Plan. It changes e
 
 At the fixed date 2026-09-30, the isolated ledger receives a €1,000 income booking marked “Für nächsten Monat”. The cash balance and household income in Heute remain associated with the booking date. The assigned budget income belongs to October: on 2026-10-01, Heute reports €0 household income for October while the October budget read includes €1,000. A separate synthetic expected payment contributes €300 expected and €0 received for October; it remains a forecast and is not treated as cash or as another booked inflow.
 
-The interface labels the Heute amount as household income by booking date, explains that “Für nächsten Monat” affects the following Plan month, and links to that month’s income detail. Plan distinguishes expected receipts from budget-relevant booked inflows. The explanatory text remains visible when amount privacy is enabled.
+The interface labels the Heute amount as household income by booking date, explains that “Für nächsten Monat” affects the following Plan month, and links to the income detail for Heute’s current calendar month. Plan distinguishes expected receipts from budget-relevant booked inflows. The explanatory text remains visible when amount privacy is enabled.
 
 ## Changed files and checks
 
