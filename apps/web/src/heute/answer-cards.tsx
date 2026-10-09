@@ -1,5 +1,6 @@
 import { useAmountPrivacy } from '@budget/ui';
 import { eur } from '../ledger/format';
+import { monthLabel } from '../nav/month';
 import { AppLink } from '../shell/app-link';
 import type { Heute } from './api';
 
@@ -19,6 +20,7 @@ export function AnswerCards({
   const month = data.monthResult;
   const budget = data.budgetAnswer;
   const goal = data.nearestGoal;
+  const householdMonth = data.stand.today.slice(0, 7);
   return (
     <div className="heute-answers">
       <div className="heute-answer-grid">
@@ -66,9 +68,16 @@ export function AnswerCards({
           <ProportionBar
             value={month.consumptionCents}
             total={month.earnedCents}
-            label={`Ausgaben ${eur(month.consumptionCents)} von Einnahmen ${eur(month.earnedCents)}`}
+            label={`Ausgaben ${eur(month.consumptionCents)} von Haushaltseinnahmen ${eur(month.earnedCents)}`}
           />
-          <p>Einnahmen {eur(month.earnedCents)}</p>
+          <p>Haushaltseinnahmen {eur(month.earnedCents)}</p>
+          <p>
+            Haushaltseinnahmen im {monthLabel(householdMonth)} nach Buchungsdatum. Mit „Für nächsten
+            Monat“ zählt der Zufluss im Plan erst im Folgemonat.{' '}
+            <AppLink to="/plan/monat/einnahmen" search={{ monat: householdMonth }}>
+              Planmonat {monthLabel(householdMonth)} ansehen
+            </AppLink>
+          </p>
           <p>Ausgaben {eur(month.consumptionCents)}</p>
         </section>
         <section className="heute-answer" aria-labelledby="answer-budget-title">
