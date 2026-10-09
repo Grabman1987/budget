@@ -28,10 +28,105 @@ export interface MatchBooking {
   currency: string;
 }
 
-/** Calendar days, inclusive; posting delays must not depend on daylight saving time. */
+/** Calendar-day distance; posting delays must not depend on daylight saving time. */
+function dayGap(a: string, b: string): number {
+  return Math.abs(Date.parse(a + 'T00:00:00Z') - Date.parse(b + 'T00:00:00Z')) / 86_400_000;
+}
+
+/** Calendar days, inclusive. */
 export function withinBankWindow(a: string, b: string): boolean {
-  const gap = Math.abs(Date.parse(a + 'T00:00:00Z') - Date.parse(b + 'T00:00:00Z'));
-  return Number.isFinite(gap) && gap <= 5 * 86_400_000;
+  return dayGap(a, b) <= 5;
+}
+
+/**
+ * Window for linking a bank line to an existing booking without asking. One day narrower than the
+ * suggestion window above: a card purchase entered on a Friday posts by Tuesday at the latest, and
+ * a wrong automatic link is worse than an open question.
+ */
+export const BANK_AUTO_LINK_DAYS = 4;
+
+export interface BankLine {
+  /** Caller's identifier of the bank line, unique within one call. */
+  key: string;
+  accountId: string;
+  date: string;
+  amountCents: number;
+  currency: string;
+}
+
+export type BankLineMatch =
+  | { kind: 'linked'; bookingId: string }
+  | { kind: 'ambiguous'; bookingIds: string[] }
+  | { kind: 'none' };
+
+/**
+ * Decide, per bank line, which existing booking it already is. The caller passes only bookings
+ * that carry no bank link yet. Same account, currency and amount, at most BANK_AUTO_LINK_DAYS
+ * apart:
+ * - exactly one booking: linked; when several lines claim the same booking the nearest date wins
+ *   (then input order) and the others count as new;
+ * - several bookings: ambiguous, nothing is decided for the owner. Identical lines (same day and
+ *   amount) that face exactly as many identical candidates pair off in order instead;
+ * - none: not present yet.
+ * A booking is never assigned to two lines.
+ */
+export function matchBankLines(
+  lines: readonly BankLine[],
+  bookings: readonly MatchBooking[],
+): Map<string, BankLineMatch> {
+  const gap = (l: BankLine, b: MatchBooking) => dayGap(l.date, b.date);
+  const candidates = lines.map((l) =>
+    bookings
+      .filter(
+        (b) =>
+          b.accountId === l.accountId &&
+          b.currency === l.currency &&
+          b.amountCents === l.amountCents &&
+          gap(l, b) <= BANK_AUTO_LINK_DAYS,
+      )
+      .sort(
+        (a, b) => gap(l, a) - gap(l, b) || a.date.localeCompare(b.date) || a.id.localeCompare(b.id),
+      ),
+  );
+  const result = new Map<string, BankLineMatch>();
+  const taken = new Set<string>();
+  lines.forEach((l, i) => {
+    if (candidates[i]!.length === 0) result.set(l.key, { kind: 'none' });
+    else if (candidates[i]!.length > 1)
+      result.set(l.key, { kind: 'ambiguous', bookingIds: candidates[i]!.map((b) => b.id) });
+  });
+  // Identical lines facing exactly as many candidates pair off in order.
+  const groups = new Map<string, number[]>();
+  lines.forEach((l, i) => {
+    if (candidates[i]!.length < 2) return;
+    const id = JSON.stringify([l.accountId, l.currency, l.amountCents, l.date]);
+    groups.set(id, [...(groups.get(id) ?? []), i]);
+  });
+  for (const members of groups.values()) {
+    const pool = candidates[members[0]!]!;
+    if (members.length !== pool.length) continue;
+    members.forEach((lineIndex, n) => {
+      result.set(lines[lineIndex]!.key, { kind: 'linked', bookingId: pool[n]!.id });
+      taken.add(pool[n]!.id);
+    });
+  }
+  // Unambiguous claims: the nearest line takes the booking, the rest are new.
+  const claims = new Map<string, number[]>();
+  lines.forEach((_, i) => {
+    if (candidates[i]!.length === 1)
+      claims.set(candidates[i]![0]!.id, [...(claims.get(candidates[i]![0]!.id) ?? []), i]);
+  });
+  for (const [bookingId, claimants] of claims) {
+    const winner = claimants.reduce((best, i) =>
+      gap(lines[i]!, candidates[i]![0]!) < gap(lines[best]!, candidates[best]![0]!) ? i : best,
+    );
+    for (const i of claimants)
+      result.set(
+        lines[i]!.key,
+        i === winner && !taken.has(bookingId) ? { kind: 'linked', bookingId } : { kind: 'none' },
+      );
+  }
+  return result;
 }
 
 export function canLinkTransfer(a: MatchBooking, b: MatchBooking): boolean {

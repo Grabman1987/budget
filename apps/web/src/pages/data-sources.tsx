@@ -1,4 +1,5 @@
 import { Button, Field, SectionHead, Select, TextInput } from '@budget/ui';
+import { todayInVienna } from '@budget/domain';
 import { useQuery } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
 import { request } from '../api/http';
@@ -388,7 +389,7 @@ function AccountLink({
   save: (account: string, from: string) => Promise<void>;
 }) {
   const [accountId, setAccount] = useState(row.accountId ?? '');
-  const [fromDate, setFrom] = useState(row.fromDate ?? new Date().toISOString().slice(0, 10));
+  const [fromDate, setFrom] = useState(row.fromDate ?? todayInVienna());
   return (
     <form
       className="source-account"
@@ -400,10 +401,17 @@ function AccountLink({
       <p>
         {row.label} · {row.currency}
       </p>
-      {row.currency !== 'EUR' ? (
+      {row.currency !== 'EUR' && row.currency !== 'XXX' ? (
         <p>Diese Währung wird noch nicht unterstützt. Es werden keine Umsätze übernommen.</p>
       ) : (
         <>
+          {row.currency === 'XXX' && (
+            <p className="kmeta">
+              Mehrwährungskonto: Es zählen die Umsätze in der Währung des gewählten Kontos. Umsätze
+              in anderen Währungen werden nicht gebucht, sondern im Posteingang zur Prüfung
+              angezeigt.
+            </p>
+          )}
           <Field label="Konto in Budget">
             {({ id }) => (
               <Select
@@ -431,6 +439,10 @@ function AccountLink({
               />
             )}
           </Field>
+          <p className="kmeta">
+            Ältere Umsätze werden mit vorhandenen Buchungen abgeglichen. Ein früheres Datum nur
+            wählen, wenn dafür noch Buchungen fehlen.
+          </p>
           <Button variant="ghost" type="submit" disabled={disabled || !accountId}>
             {row.accountId ? 'Zuordnung speichern' : 'Konto zuordnen'}
           </Button>
