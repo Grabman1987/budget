@@ -14,23 +14,23 @@ test('three answer cards use source cents, fit the phone and link to the current
   await expect(cards).toHaveCount(3);
   await expect(page.getByTestId('heute-lead-value')).toHaveCount(1);
   if ('unavailable' in data.netWorth) throw new Error('Synthetic valuation unavailable');
-  await expect(cards.nth(0).locator('.heute-answer-value')).toHaveText(
+  await expect(cards.nth(2).locator('.heute-answer-value')).toHaveText(
     eur(data.netWorth.totalCents),
   );
   await expect(cards.nth(1).locator('.heute-answer-value')).toHaveText(
     eur(data.monthResult.savedCents),
   );
-  await expect(cards.nth(2).locator('.heute-answer-value')).toHaveText(eur(data.lead.freeCents));
+  await expect(cards.nth(0).locator('.heute-answer-value')).toHaveText(eur(data.lead.freeCents));
   await expect(cards.nth(1)).toContainText(
     `Haushaltseinnahmen ${eur(data.monthResult.earnedCents)}`,
   );
-  await expect(cards.nth(2)).toContainText(
+  await expect(cards.nth(0)).toContainText(
     `Tag ${data.budgetAnswer.day} von ${data.budgetAnswer.daysInMonth}`,
   );
   // CSSOM serializes percentages to fewer decimals than JavaScript.
   expect(
     await cards
-      .nth(2)
+      .nth(0)
       .locator('.heute-answer-marker')
       .evaluate((node) => parseFloat((node as HTMLElement).style.left)),
   ).toBeCloseTo((data.budgetAnswer.day / data.budgetAnswer.daysInMonth) * 100, 3);
@@ -44,7 +44,7 @@ test('three answer cards use source cents, fit the phone and link to the current
   await page.goto('/?monat=2026-09');
   await expect(cards).toHaveCount(3);
   await expect(page.getByTestId('heute-balance-chart')).toBeVisible();
-  const dir = 'docs/evidence/heute-cards-1005';
+  const dir = 'docs/evidence/heute-hints-1009/cards';
   mkdirSync(dir, { recursive: true });
   for (const theme of ['light', 'dark'] as const) {
     await page.evaluate((value) => (document.documentElement.dataset['theme'] = value), theme);
@@ -63,7 +63,14 @@ test('three answer cards use source cents, fit the phone and link to the current
       const explanationBox = await incomeExplanation.boundingBox();
       expect(explanationBox).not.toBeNull();
       // Keep the compact card budget, allowing only the newly visible explanation and grid gap.
-      expect(boxes[0]!.height).toBeLessThanOrEqual(120);
+      const paydayLines = await cards
+        .nth(0)
+        .locator('p')
+        .filter({ hasText: /Bis .*noch|Geldeingang/ })
+        .evaluateAll((nodes) =>
+          nodes.reduce((sum, node) => sum + node.getBoundingClientRect().height + 4, 0),
+        );
+      expect(boxes[0]!.height - paydayLines).toBeLessThanOrEqual(120);
       expect(boxes[1]!.height - explanationBox!.height - 4).toBeLessThanOrEqual(120);
       expect(boxes[2]!.height).toBeLessThanOrEqual(120);
       expect(boxes[1]!.y).toBeGreaterThanOrEqual(boxes[0]!.y + boxes[0]!.height);
@@ -80,7 +87,7 @@ test('three answer cards use source cents, fit the phone and link to the current
       animations: 'disabled',
     });
   }
-  await cards.nth(2).getByRole('button').click();
+  await cards.nth(0).getByRole('button').click();
   await expect(page.locator('#heute-lead-chain')).toBeVisible();
   await cards
     .nth(1)
@@ -117,7 +124,7 @@ test('explains plan-rest beside negative payday room on phone and desktop in bot
     route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(data) }),
   );
   await page.goto('/?monat=2026-09');
-  const budget = page.locator('.heute-answer').nth(2);
+  const budget = page.locator('.heute-answer').nth(0);
   await expect(budget.getByRole('heading', { name: 'Frei bis Gehalt' })).toBeVisible();
   await expect(page.getByTestId('heute-lead-value')).toHaveText('−100,00 €');
   await expect(budget).toContainText(
@@ -136,7 +143,7 @@ test('explains plan-rest beside negative payday room on phone and desktop in bot
   await expect(page.locator('#heute-lead-chain')).toContainText('offen bis Gehalt');
   await expect(page.locator('#heute-lead-chain')).toContainText('−100');
   await expect(page.locator('#heute-lead-chain')).toBeVisible();
-  const dir = 'docs/evidence/heute-budget-copy-264';
+  const dir = 'docs/evidence/heute-hints-1009/budget';
   mkdirSync(dir, { recursive: true });
   for (const theme of ['light', 'dark'] as const) {
     await page.evaluate((value) => (document.documentElement.dataset['theme'] = value), theme);

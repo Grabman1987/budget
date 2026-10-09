@@ -1,5 +1,14 @@
 # Roadmap
 
+### P1 #269 / #270 / #274 / #275 / #276 — Today hints — 2026-10-09
+
+- [x] Label Plan's actual 50/30/20 denominator, withhold a completed-month verdict for open months and link to the last completed One-Pager; preserve allocation calculations and expected-income separation.
+- [x] Put payday room first within the existing three answer cards, with the planning boundary and expected receipt separately visible; retain month and wealth access.
+- [x] Show unevaluated rule counts beside the other statuses and link to missing-input explanations; suppress an all-clear when inputs are missing.
+- [x] Describe empty additional steps consistently with attention points already shown above.
+- [x] Preserve PR #226's result-first rule grouping; deep-link and focus the concrete finding, keeping its value, threshold, action and secondary settings accessible.
+- [ ] Exact-head CI, PR integration, visual baseline review and owner/device acceptance. Scoped local evidence: [Today hints](evidence/heute-hints-1009/README.md).
+
 ### Liquidity package #283 / #290 / #291 / #292 — 2026-10-09
 
 - [x] Plan registers reach the existing liquidity report without a report number; no new report route or household calculation.
