@@ -182,6 +182,12 @@ Older CI/publication checkboxes below describe their original deliveries. Curren
 - [x] Synthetic cent/carry, cash/card, duplicate-warning, cover/undo and consumer API regressions; desktop/mobile count and repair-link E2E spec.
 - [ ] CI, affected Linux screenshot review and owner acceptance; [scope and baseline list](ux-overspent-1005.md).
 
+### #237 — Top-bar overspending link and Plan triage
+
+- [x] Keep the top-bar overspending chip a direct, read-only link to current-month Plan triage; cover and undo remain on the Plan page. Pending data makes no zero claim, query errors (including failed cached refetches) use a neutral Plan link, unsafe cent totals remain unknown, and amount privacy/accessibility labels are preserved.
+- [x] Synthetic isolated-ledger API cover/undo regression and desktop/mobile browser checks; final focused run passed five tests including setup, with eight light/dark captures. [Evidence and limits](evidence/topbar-plan-triage-237/README.md).
+- [ ] Full repository check, pinned Linux visual review, PR/CI, integration/live proof and private/device acceptance remain open.
+
 ### UX-3c - Phone chart/table overflow (owner feedback 2026-10-05)
 
 - [x] Local Liquidity/flow/year table scrolling with visible phone affordance and sticky first columns; existing Plan year stacked layout retained.
