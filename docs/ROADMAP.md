@@ -226,6 +226,13 @@ Older CI/publication checkboxes below describe their original deliveries. Curren
 - [x] Review the four pinned Linux Heute baselines; no application source or unrelated image changed.
 - [ ] Required final CI and deployment; physical iPhone acceptance remains a separate task.
 
+### Heute pace under-plan / over-cap distinction — issue 265
+
+- [x] Add a literal September 15 case with a 10,000-cent cap, 7,000-cent plan-to-date, 3,500-cent actual, and one unpaid 4,000-cent fixed target due that day; the existing model yields an 11,000-cent month-end forecast without a formula change.
+- [x] Verify both Heute and Monats-One-Pager from a real synthetic isolated ledger, including the shared chart's separate Ist/Plan/Hochrechnung, keyboard tooltip and over-cap styling; retain desktop/mobile light/dark captures in [evidence](evidence/pace-over-cap-265/README.md).
+- [x] Focused checks: 27 tests across two files, scoped lint/format, E2E build and seven desktop/mobile browser tests passed.
+- [ ] Full check, PR/CI, integration/live proof, real-ledger reconciliation and physical iPhone Safari remain open. The separate Heute mobile account-forecast label overlap has been assigned to open #292 for verification.
+
 ### Pace time marker and projection header — owner 05.10.2026
 
 - [x] Shared Heute/One-Pager header, cent-exact pro-rata expectation, existing forecast, Ist / Erwartet / Deckel / Hochrechnung and shared tooltip; legends list drawn series only.
