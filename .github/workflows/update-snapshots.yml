@@ -1,49 +1,188 @@
-name: Update e2e snapshots
+# Template only. Root may copy this workflow into a one-commit helper branch whose parent is SOURCE_SHA.
+name: Account scope 267 Linux baseline comparison
 
-# Manual only. Regenerates the Playwright screenshot baselines on Linux (the CI platform) for one
-# branch and commits them back, for PRs that change the UI on purpose. The owner's Windows machine
-# and the cloud sessions cannot produce Linux baselines themselves.
-# Commits pushed with GITHUB_TOKEN do not start CI: push any commit afterwards (or re-run CI).
 on:
   workflow_dispatch:
     inputs:
       branch:
-        description: Branch whose baselines to update (never main)
+        description: Helper branch, direct child of the frozen source
         required: true
+        type: string
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
-  group: update-snapshots-${{ inputs.branch }}
-  cancel-in-progress: true
+  group: account-scope-267-linux-${{ inputs.branch }}
+  cancel-in-progress: false
 
 jobs:
-  update:
+  compare:
     if: inputs.branch != 'main'
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 90
+    env:
+      SOURCE_SHA: 610f69cf3f3bc657c34162a400c0acc99a313235
+      BUDGET_REQUIRE_AGE: '1'
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ inputs.branch }}
+          fetch-depth: 2
+          persist-credentials: false
+      - name: Prove frozen source, direct parent, and clean source checkout
+        run: |
+          set -euo pipefail
+          git cat-file -e "${SOURCE_SHA}^{commit}"
+          test "$(git rev-parse HEAD^)" = "$SOURCE_SHA"
+          git diff --exit-code "$SOURCE_SHA" HEAD -- . ':(exclude).github/workflows/update-snapshots.yml'
+          git diff --check "$SOURCE_SHA" HEAD
+          git diff --exit-code
+          git diff --cached --exit-code
+          test -z "$(git ls-files --others --exclude-standard)"
+          test -z "$(git status --porcelain=v1 --untracked-files=all)"
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version-file: .nvmrc
           cache: npm
-      - run: npm ci
-      - name: Install Chromium and WebKit
-        run: npx playwright install --with-deps chromium webkit
-      # Non-screenshot failures are reported by the normal CI run on the PR, not here.
-      - name: Regenerate changed screenshots
-        run: npm run build:e2e && (npx playwright test --update-snapshots=changed || true)
-      - name: Commit the new baselines
+      - name: Install dependencies
+        run: npm ci
+      - name: Install age for required encrypted-backup tests
+        run: sudo apt-get update && sudo apt-get install -y age
+      - name: Install Chromium only
+        run: npx playwright install --with-deps chromium
+      - name: Build E2E application
+        run: npm run build:e2e
+      - name: Regenerate selected desktop screenshots only
+        id: regen_desktop
         env:
-          BRANCH: ${{ inputs.branch }}
+          PLAYWRIGHT_HTML_OUTPUT_DIR: playwright-report/regen-desktop
+        run: >-
+          npx playwright test e2e/components.spec.ts e2e/expected.spec.ts e2e/goals.spec.ts e2e/networth.spec.ts e2e/rules.spec.ts e2e/shell.spec.ts --project=desktop --workers=1 --grep 'regression baseline \(own screenshot\): (light|dark)|the 90 days and a payment panel|the 90 days and the Einnahmen panel|baseline and axe in the (light|dark) theme|stages and rules show the rule book, axe clean in both themes|own baseline, (light|dark)|light heute|dark heute|light reports' --update-snapshots=changed --output=test-results/regen-desktop
+      - name: Regenerate the two selected mobile Heute screenshots only
+        id: regen_mobile
+        if: steps.regen_desktop.outcome == 'success'
+        env:
+          PLAYWRIGHT_HTML_OUTPUT_DIR: playwright-report/regen-mobile
+        run: >-
+          npx playwright test e2e/shell.spec.ts --project=mobile --workers=1 --grep 'light heute|dark heute' --update-snapshots=changed --output=test-results/regen-mobile
+      - name: Enforce the exact 17-file snapshot allowlist and save regeneration candidates
+        id: allowlist
+        if: steps.regen_mobile.outcome == 'success'
         run: |
-          git config user.name 'github-actions[bot]'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add -A -- e2e
-          if git diff --cached --quiet; then echo 'No baseline changes.'; exit 0; fi
-          git commit -m 'test: update e2e screenshot baselines (Linux)'
-          git push origin "HEAD:refs/heads/$BRANCH"
+          set -euo pipefail
+          allowed=$(mktemp)
+          actual=$(mktemp)
+          cat > "$allowed" <<'EOF'
+          e2e/components.spec.ts-snapshots/bauteile-dark-desktop-linux.png
+          e2e/components.spec.ts-snapshots/bauteile-light-desktop-linux.png
+          e2e/expected.spec.ts-snapshots/expected-dark-desktop-linux.png
+          e2e/expected.spec.ts-snapshots/expected-income-dark-desktop-linux.png
+          e2e/expected.spec.ts-snapshots/expected-light-desktop-linux.png
+          e2e/expected.spec.ts-snapshots/expected-panel-light-desktop-linux.png
+          e2e/goals.spec.ts-snapshots/sparziele-dark-desktop-linux.png
+          e2e/goals.spec.ts-snapshots/sparziele-light-desktop-linux.png
+          e2e/networth.spec.ts-snapshots/vermoegen-netto-dark-desktop-linux.png
+          e2e/networth.spec.ts-snapshots/vermoegen-netto-light-desktop-linux.png
+          e2e/rules.spec.ts-snapshots/regelwerk-dark-desktop-linux.png
+          e2e/rules.spec.ts-snapshots/regelwerk-light-desktop-linux.png
+          e2e/shell.spec.ts-snapshots/shell-heute-dark-desktop-linux.png
+          e2e/shell.spec.ts-snapshots/shell-heute-light-desktop-linux.png
+          e2e/shell.spec.ts-snapshots/shell-reports-light-desktop-linux.png
+          e2e/shell.spec.ts-snapshots/shell-heute-dark-mobile-linux.png
+          e2e/shell.spec.ts-snapshots/shell-heute-light-mobile-linux.png
+          EOF
+          git diff --name-only | sort -u > "$actual"
+          if [ "$(wc -l < "$actual")" -gt 17 ]; then
+            echo 'More than 17 tracked files changed after snapshot regeneration.' >&2
+            exit 1
+          fi
+          while IFS= read -r path; do
+            [ -z "$path" ] && continue
+            grep -Fxq "$path" "$allowed" || { echo "Unexpected changed path: $path" >&2; exit 1; }
+          done < "$actual"
+          mkdir -p baseline-candidates/regen
+          while IFS= read -r path; do
+            mkdir -p "baseline-candidates/regen/$(dirname "$path")"
+            cp "$path" "baseline-candidates/regen/$path"
+          done < "$allowed"
+          echo 'candidate_count=17' >> "$GITHUB_OUTPUT"
+      - name: Verify the same desktop screenshots without updating
+        id: verify_desktop
+        if: steps.allowlist.outcome == 'success'
+        env:
+          PLAYWRIGHT_HTML_OUTPUT_DIR: playwright-report/verify-desktop
+        run: >-
+          npx playwright test e2e/components.spec.ts e2e/expected.spec.ts e2e/goals.spec.ts e2e/networth.spec.ts e2e/rules.spec.ts e2e/shell.spec.ts --project=desktop --workers=1 --grep 'regression baseline \(own screenshot\): (light|dark)|the 90 days and a payment panel|the 90 days and the Einnahmen panel|baseline and axe in the (light|dark) theme|stages and rules show the rule book, axe clean in both themes|own baseline, (light|dark)|light heute|dark heute|light reports' --output=test-results/verify-desktop
+      - name: Verify the same two mobile Heute screenshots without updating
+        id: verify_mobile
+        if: steps.verify_desktop.outcome == 'success'
+        env:
+          PLAYWRIGHT_HTML_OUTPUT_DIR: playwright-report/verify-mobile
+        run: >-
+          npx playwright test e2e/shell.spec.ts --project=mobile --workers=1 --grep 'light heute|dark heute' --output=test-results/verify-mobile
+      - name: Save verified baseline candidates separately
+        if: steps.verify_mobile.outcome == 'success'
+        run: |
+          set -euo pipefail
+          mkdir -p baseline-candidates/verified
+          while IFS= read -r path; do
+            mkdir -p "baseline-candidates/verified/$(dirname "$path")"
+            cp "$path" "baseline-candidates/verified/$path"
+          done <<'EOF'
+          e2e/components.spec.ts-snapshots/bauteile-dark-desktop-linux.png
+          e2e/components.spec.ts-snapshots/bauteile-light-desktop-linux.png
+          e2e/expected.spec.ts-snapshots/expected-dark-desktop-linux.png
+          e2e/expected.spec.ts-snapshots/expected-income-dark-desktop-linux.png
+          e2e/expected.spec.ts-snapshots/expected-light-desktop-linux.png
+          e2e/expected.spec.ts-snapshots/expected-panel-light-desktop-linux.png
+          e2e/goals.spec.ts-snapshots/sparziele-dark-desktop-linux.png
+          e2e/goals.spec.ts-snapshots/sparziele-light-desktop-linux.png
+          e2e/networth.spec.ts-snapshots/vermoegen-netto-dark-desktop-linux.png
+          e2e/networth.spec.ts-snapshots/vermoegen-netto-light-desktop-linux.png
+          e2e/rules.spec.ts-snapshots/regelwerk-dark-desktop-linux.png
+          e2e/rules.spec.ts-snapshots/regelwerk-light-desktop-linux.png
+          e2e/shell.spec.ts-snapshots/shell-heute-dark-desktop-linux.png
+          e2e/shell.spec.ts-snapshots/shell-heute-light-desktop-linux.png
+          e2e/shell.spec.ts-snapshots/shell-reports-light-desktop-linux.png
+          e2e/shell.spec.ts-snapshots/shell-heute-dark-mobile-linux.png
+          e2e/shell.spec.ts-snapshots/shell-heute-light-mobile-linux.png
+          EOF
+          diff -qr baseline-candidates/regen baseline-candidates/verified
+      - name: Run the full check only after both screenshot verifications pass
+        id: full_check
+        if: steps.verify_mobile.outcome == 'success'
+        run: npm run check
+      - name: Prove source integrity and only allowlisted baseline changes
+        if: always()
+        run: |
+          set -euo pipefail
+          git cat-file -e "${SOURCE_SHA}^{commit}"
+          test "$(git rev-parse HEAD^)" = "$SOURCE_SHA"
+          git diff --check "$SOURCE_SHA" HEAD
+          git diff --cached --exit-code
+          actual=$(mktemp)
+          git diff --name-only "$SOURCE_SHA" HEAD | sort -u > "$actual"
+          test "$(wc -l < "$actual")" -eq 1
+          grep -Fxq '.github/workflows/update-snapshots.yml' "$actual"
+          git diff --name-only | sort -u > "$actual"
+          while IFS= read -r path; do
+            [ -z "$path" ] && continue
+            case "$path" in
+              e2e/components.spec.ts-snapshots/bauteile-dark-desktop-linux.png|e2e/components.spec.ts-snapshots/bauteile-light-desktop-linux.png|e2e/expected.spec.ts-snapshots/expected-dark-desktop-linux.png|e2e/expected.spec.ts-snapshots/expected-income-dark-desktop-linux.png|e2e/expected.spec.ts-snapshots/expected-light-desktop-linux.png|e2e/expected.spec.ts-snapshots/expected-panel-light-desktop-linux.png|e2e/goals.spec.ts-snapshots/sparziele-dark-desktop-linux.png|e2e/goals.spec.ts-snapshots/sparziele-light-desktop-linux.png|e2e/networth.spec.ts-snapshots/vermoegen-netto-dark-desktop-linux.png|e2e/networth.spec.ts-snapshots/vermoegen-netto-light-desktop-linux.png|e2e/rules.spec.ts-snapshots/regelwerk-dark-desktop-linux.png|e2e/rules.spec.ts-snapshots/regelwerk-light-desktop-linux.png|e2e/shell.spec.ts-snapshots/shell-heute-dark-desktop-linux.png|e2e/shell.spec.ts-snapshots/shell-heute-light-desktop-linux.png|e2e/shell.spec.ts-snapshots/shell-reports-light-desktop-linux.png|e2e/shell.spec.ts-snapshots/shell-heute-dark-mobile-linux.png|e2e/shell.spec.ts-snapshots/shell-heute-light-mobile-linux.png) ;;
+              *) echo "Unexpected tracked change: $path" >&2; exit 1 ;;
+            esac
+          done < "$actual"
+          test "$(wc -l < "$actual")" -le 17
+          test -z "$(git diff --cached --name-only)"
+          test -z "$(git ls-files --others --exclude-standard | grep -vE '^(baseline-candidates/|playwright-report/|test-results/)')"
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: always()
+        with:
+          name: account-scope-267-linux-baseline-comparison
+          path: |
+            baseline-candidates/regen/
+            baseline-candidates/verified/
+            playwright-report/
+            test-results/
+          retention-days: 7
