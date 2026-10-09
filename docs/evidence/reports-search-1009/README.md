@@ -27,4 +27,6 @@ Required CI and owner visual/device acceptance remain open. The affected Linux b
 
 The protected worktree metadata rejects its normal index, commit-message and HEAD locks. Delivery uses an ignored temporary index, native Git commit objects and an atomic update of this package's branch through the writable common Git directory. Working files are retained; the owner must refresh the standard index with `git reset --mixed HEAD` after delivery.
 
-Owner steps: refresh that local index, review the report wording, search destinations and CI baseline differences, and confirm mobile acceptance when the browser job passes. No keys, consents or configuration changes are required. This PR does not merge or deploy.
+Delivery is blocked: the saved GitHub CLI token is invalid, and the GitHub connector rejects writes because it requires approval while this session's approval policy is `never`. Push attempts did not publish this package, and no PR was created. The requested normal-PR title and English description are prepared in [PR.md](PR.md).
+
+Owner steps: refresh that local index, reauthenticate the GitHub CLI, push this branch and open the prepared normal PR against main. Review the report wording, search destinations and CI baseline differences, and confirm mobile acceptance when the browser job passes. No provider keys, consents or application configuration changes are required. This package does not merge or deploy.
