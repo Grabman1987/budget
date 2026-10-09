@@ -1,4 +1,4 @@
-import { QueryClient, queryOptions } from '@tanstack/react-query';
+import { QueryClient, queryOptions, useQuery } from '@tanstack/react-query';
 import { onApiWrite, shouldRetry } from '../api/http';
 import { fetchAuthStatus } from './api';
 
@@ -38,3 +38,10 @@ export const authStatusQuery = queryOptions({
 
 /** Marks the cached status as outdated and refetches it (after login, logout, registration). */
 export const refreshAuthStatus = () => queryClient.invalidateQueries({ queryKey: AUTH_STATUS_KEY });
+
+/** Owner-visible method of the authenticated session, shared by profile labels. */
+export function useAuthMethodLabel(): string {
+  const session = useQuery(authStatusQuery);
+  if (session.isError || !session.data?.authenticated) return 'Anmeldemethode unbekannt';
+  return session.data.viaRecovery ? 'Wiederherstellungscode' : 'Passkey';
+}

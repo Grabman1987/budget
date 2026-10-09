@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { ApiError } from './api';
 import { guessDeviceName } from './device-name';
 import {
@@ -7,7 +7,62 @@ import {
   PasskeyUnsupportedError,
   RATE_LIMITED_MESSAGE,
   withStepUp,
+  authenticateWithPasskey,
 } from './webauthn';
+
+const browser = vi.hoisted(() => ({ start: vi.fn(), cancel: vi.fn() }));
+vi.mock('@simplewebauthn/browser', () => ({
+  browserSupportsWebAuthn: () => true,
+  startAuthentication: browser.start,
+  startRegistration: vi.fn(),
+  WebAuthnAbortService: { cancelCeremony: browser.cancel },
+}));
+
+afterEach(() => {
+  vi.useRealTimers();
+  vi.unstubAllGlobals();
+});
+
+describe('authenticateWithPasskey', () => {
+  it('bounds a hanging browser dialog and never verifies a late credential', async () => {
+    vi.useFakeTimers();
+    let finish!: (response: unknown) => void;
+    browser.start.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          finish = resolve;
+        }),
+    );
+    const fetch = vi
+      .fn()
+      .mockResolvedValue({ ok: true, json: async () => ({ options: { challenge: 'synthetic' } }) });
+    vi.stubGlobal('fetch', fetch);
+    const login = authenticateWithPasskey();
+    const failed = expect(login).rejects.toMatchObject({ name: 'AbortError' });
+    await vi.advanceTimersByTimeAsync(60_000);
+    await failed;
+    expect(browser.cancel).toHaveBeenCalledOnce();
+    finish({ id: 'late-credential' });
+    await vi.advanceTimersByTimeAsync(1);
+    expect(fetch.mock.calls.map((args) => args[0])).toEqual(['/api/auth/login/options']);
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it('verifies a timely credential and clears the watchdog', async () => {
+    vi.useFakeTimers();
+    browser.start.mockResolvedValueOnce({ id: 'synthetic-credential' });
+    const fetch = vi
+      .fn()
+      .mockResolvedValue({ ok: true, json: async () => ({ options: { challenge: 'synthetic' } }) });
+    vi.stubGlobal('fetch', fetch);
+    await authenticateWithPasskey();
+    expect(fetch.mock.calls.map((args) => args[0])).toEqual([
+      '/api/auth/login/options',
+      '/api/auth/login/verify',
+    ]);
+    expect(vi.getTimerCount()).toBe(0);
+  });
+});
 
 const cancelled = () =>
   Object.assign(new Error('The operation was aborted'), { name: 'NotAllowedError' });
