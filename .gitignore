@@ -24,3 +24,5 @@ private/
 *- Plan.tsv
 *.mapping.json
 !packages/fixtures/**
+# The fixtures re-include above must not pull their node_modules (vitest cache) back in.
+packages/fixtures/node_modules/
