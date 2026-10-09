@@ -21,11 +21,23 @@ export interface VerdictPoint {
   month: string;
   value: number | null;
 }
+export interface VerdictMonthProgress {
+  asOf: string;
+  /** Amounts and due-date window from expected household income still pending on the as-of day. */
+  pendingIncome: {
+    count: number;
+    cents: number;
+    from: string;
+    through: string;
+  } | null;
+}
 /** Values come from the report's own read model; no ledger calculations live here. */
 export interface VerdictFacts {
   reportId: string;
   period: string;
   metric?: VerdictMetric | undefined;
+  /** Actual month-to-date result and, separately, dated expected income for Heute / One-Pager. */
+  monthProgress?: VerdictMonthProgress | undefined;
   /** Extra signed figures appended after the sentence, e.g. market effect and net-worth change. */
   details?: readonly VerdictDetail[];
   partial?: boolean | undefined;
@@ -345,6 +357,47 @@ function numberText(value: number | undefined, unit: VerdictUnit, hidden: boolea
   if (unit === 'points') return formatPercent(value, signed).replace(/ %$/, ' Pp');
   return String(Object.is(value, -0) ? 0 : value);
 }
+const shortDay = (day: string) =>
+  /^\d{4}-(0[1-9]|1[0-2])-([0-2]\d|3[01])$/.test(day)
+    ? `${day.slice(8, 10)}.${day.slice(5, 7)}.`
+    : null;
+function runningMonthText(facts: VerdictFacts, hidden: boolean): string | null {
+  const progress = facts.monthProgress;
+  const value = facts.metric?.value;
+  const month = endMonth(facts.period);
+  const asOf = progress && shortDay(progress.asOf);
+  if (!progress || !asOf || !valid(value) || progress.asOf.slice(0, 7) !== month) return null;
+
+  let text = `Zwischenstand bis ${asOf}: gebuchtes Monatsergebnis ${numberText(
+    value,
+    facts.metric!.unit,
+    hidden,
+  )}.`;
+  const pending = progress.pendingIncome;
+  const from = pending && shortDay(pending.from);
+  const through = pending && shortDay(pending.through);
+  if (
+    pending &&
+    valid(pending.count) &&
+    pending.count > 0 &&
+    valid(pending.cents) &&
+    pending.cents >= 0 &&
+    from &&
+    through &&
+    pending.from > progress.asOf &&
+    pending.from.slice(0, 7) === month &&
+    pending.through.slice(0, 7) === month &&
+    pending.from <= pending.through
+  ) {
+    const expected = numberText(pending.cents, 'money', hidden);
+    const when = pending.from === pending.through ? `am ${through}` : `vom ${from} bis ${through}`;
+    const number =
+      pending.count === 1 ? 'einer erwarteten Einnahme' : `${pending.count} erwarteten Einnahmen`;
+    text += ` ${expected} aus ${number} ${when}.`;
+  }
+  if (facts.estimated) text += ' · vorläufig';
+  return text;
+}
 /** ` · Markt +12 € · Nettovermögen +30 €` for the details that the sentence does not already name. */
 function detailSuffix(facts: VerdictFacts, type: VerdictFactType, hidden: boolean) {
   return (facts.details ?? [])
@@ -419,6 +472,14 @@ export function reportVerdict(
   options: { hidden?: boolean; previousTemplateId?: string } = {},
 ) {
   const fact = detectVerdictFacts(facts).sort((a, b) => b.strength - a.strength)[0]!;
+  if (
+    facts.partial &&
+    (facts.reportId === 'onepager' || facts.reportId === 'heute') &&
+    fact.type !== 'unavailable'
+  ) {
+    const text = runningMonthText(facts, Boolean(options.hidden));
+    if (text) return { text, templateId: 'partial-month-progress', fact };
+  }
   const flags = `${facts.partial ? ' · laufend' : ''}${facts.estimated ? ' · vorläufig' : ''}`;
   const extra = (hidden: boolean) => detailSuffix(facts, fact.type, hidden);
   const suffix = (hidden: boolean) => extra(hidden) + flags;

@@ -454,6 +454,13 @@ export interface OnePager {
   check: OnePagerCheck | HeuteUnavailable;
   pace: Heute['pace'];
   findings: MonthFinding[];
+  /** Pending expected household income in the open month; due dates are a window, not a payday claim. */
+  expectedIncomeProgress: {
+    pendingCount: number;
+    pendingCents: number;
+    fromDueDate: string;
+    throughDueDate: string;
+  } | null;
 }
 
 function netWorthOf(db: Executor, f: Frame): OnePagerNetWorth {
@@ -592,6 +599,18 @@ function onePagerInRange(db: Executor, today: string, month: string): OnePager {
   );
   const pace = paceOfMonth(f.facts, month, today, occurrences);
   const { expected } = expectedOf(db, f, income);
+  const pendingExpected = expected.lines.filter(
+    (line) => line.status === 'pending' && line.dueDate !== null,
+  );
+  const expectedIncomeProgress =
+    f.partial && expected.pendingCount > 0 && pendingExpected.length > 0
+      ? {
+          pendingCount: expected.pendingCount,
+          pendingCents: expected.pendingCents,
+          fromDueDate: pendingExpected[0]!.dueDate!,
+          throughDueDate: pendingExpected.at(-1)!.dueDate!,
+        }
+      : null;
 
   const salaryId = INCOME_TYPES.salary.id;
   const salaryNow = income.types.find((t) => t.typeId === salaryId)?.cents ?? 0;
@@ -648,5 +667,6 @@ function onePagerInRange(db: Executor, today: string, month: string): OnePager {
     check,
     pace,
     findings,
+    expectedIncomeProgress,
   };
 }

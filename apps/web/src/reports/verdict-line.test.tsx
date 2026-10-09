@@ -34,3 +34,33 @@ it('retains partial and estimated caveats and renders a neutral empty report', (
   expect(screen.getByTestId('report-verdict').textContent).toMatch(/laufend.*vorläufig/);
   expect(screen.getByTestId('report-verdict').textContent).not.toContain('Stand –');
 });
+
+it('masks both booked and expected amounts in the running-month context', () => {
+  setAmountsHidden(true);
+  const facts = {
+    reportId: 'onepager',
+    period: '2026-03',
+    partial: true,
+    metric: {
+      label: 'Sparbetrag',
+      value: -60_000,
+      unit: 'money' as const,
+      better: 'higher' as const,
+    },
+    monthProgress: {
+      asOf: '2026-03-18',
+      pendingIncome: {
+        count: 1,
+        cents: 300_000,
+        from: '2026-03-31',
+        through: '2026-03-31',
+      },
+    },
+  };
+  const { container } = render(<VerdictLine facts={facts} />);
+  const text = screen.getByTestId('report-verdict').textContent ?? '';
+  expect(text.match(/••• €/g)).toHaveLength(2);
+  expect(text).toContain('18.03.');
+  expect(text).toContain('31.03.');
+  expect(container.innerHTML).not.toMatch(/600|3000/);
+});

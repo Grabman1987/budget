@@ -13,6 +13,7 @@ import {
   useToast,
 } from '@budget/ui';
 import { useInfiniteQuery, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useSearch } from '@tanstack/react-router';
 import { useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
 import { request } from '../api/http';
 import { useBudgetWrite } from '../budget/use-category-writes';
@@ -57,9 +58,18 @@ const LABELS: Record<InboxKind, string> = {
 
 export function InboxPage() {
   useAmountPrivacy();
+  const { bankSource } = useSearch({ from: '/shell/konten/posteingang' });
   return (
     <PageFrame meta={META}>
-      <InboxWorkflow />
+      {bankSource && (
+        <p>
+          Aufgaben dieser Bankquelle.{' '}
+          <AppLink to="/konten/posteingang" search={{}}>
+            Alle Aufgaben anzeigen
+          </AppLink>
+        </p>
+      )}
+      <InboxWorkflow bankSource={bankSource} />
     </PageFrame>
   );
 }
@@ -79,9 +89,11 @@ function InboxHeadCount() {
 export function InboxWorkflow({
   panel,
   entryIds,
+  bankSource,
 }: {
   panel?: { open: boolean; onClose: () => void };
   entryIds?: string[] | undefined;
+  bankSource?: string | undefined;
 }) {
   useAmountPrivacy();
   const [editing, setEditing] = useState<ListedBooking | null>(null);
@@ -123,6 +135,7 @@ export function InboxWorkflow({
   const body = (
     <InboxBody
       entryIds={entryIds}
+      bankSource={bankSource}
       onEdit={(id) => void edit(id)}
       loadingId={loading}
       onSavings={(item) => {
@@ -163,19 +176,22 @@ export function InboxWorkflow({
 
 function InboxBody({
   entryIds,
+  bankSource,
   onEdit,
   loadingId,
   onSavings,
 }: {
   entryIds?: string[] | undefined;
+  bankSource?: string | undefined;
   onEdit: (id: string) => void;
   loadingId: string | null;
   onSavings: (proposal: SavingsExecutionProposal) => void;
 }) {
-  if (entryIds)
+  if (entryIds || bankSource)
     return (
       <FilteredInboxBody
         entryIds={entryIds}
+        bankSource={bankSource}
         onEdit={onEdit}
         loadingId={loadingId}
         onSavings={onSavings}
@@ -190,10 +206,15 @@ type InboxBodyProps = {
   onSavings: (proposal: SavingsExecutionProposal) => void;
 };
 
-function FilteredInboxBody({ entryIds, ...props }: InboxBodyProps & { entryIds: string[] }) {
+function FilteredInboxBody({
+  entryIds,
+  bankSource,
+  ...props
+}: InboxBodyProps & { entryIds?: string[] | undefined; bankSource?: string | undefined }) {
   useAmountPrivacy();
-  const queue = useQuery(inboxQuery());
-  const entries = queue.data?.entries.filter((item) => entryIds.includes(item.id)) ?? [];
+  const queue = useQuery(inboxQuery(bankSource));
+  const entries =
+    queue.data?.entries.filter((item) => !entryIds || entryIds.includes(item.id)) ?? [];
   const countsByKind = entries.reduce<Partial<Record<InboxKind, number>>>((counts, item) => {
     counts[item.kind] = (counts[item.kind] ?? 0) + 1;
     return counts;

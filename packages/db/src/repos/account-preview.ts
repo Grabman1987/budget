@@ -4,8 +4,13 @@ import {
   candidateFits,
   convertCashCents,
   liquidityForecast,
+  liquidityReport,
+  horizonDays,
+  plannedEventOccurrences,
   validFuturePreviewDays,
   type ForecastItem,
+  type LiquidityHorizon,
+  type LiquidityLeverId,
 } from '@budget/domain';
 import { expectedPayment, payee } from '../schema';
 import { getEntity } from './entities';
@@ -14,6 +19,8 @@ import { bookedAmountIn, upcoming } from './expected';
 import { fxRateOnOrBefore } from './prices';
 import { balanceSeries } from './ledger-queries';
 import type { Executor } from './types';
+import { forecastInputs, loadFacts, scheduled } from './rule-inputs';
+import { CategoryRuleError } from './errors';
 
 /** Read-only account projection: native cash, no household variable plan or automatic booking. */
 export function accountPreview(
@@ -22,8 +29,11 @@ export function accountPreview(
   currency: string,
   asOf: string,
   days: number,
+  options?: { horizon: LiquidityHorizon; levers: ReadonlyArray<LiquidityLeverId> },
 ) {
-  if (!validFuturePreviewDays(days)) throw new RangeError('Preview covers 0–365 whole days');
+  if (options) days = horizonDays(options.horizon, asOf);
+  if (!options && !validFuturePreviewDays(days))
+    throw new RangeError('Preview covers 0–365 whole days');
   if (days === 0) return { points: [], unavailableCurrencies: [] };
   const to = addDays(asOf, days);
   const rows = listBookings(db, { accountId, to });
@@ -62,6 +72,22 @@ export function accountPreview(
     ),
   );
   const unbooked = due.filter((o) => !matches.has(o.occurrenceId));
+  const facts = options ? loadFacts(db, asOf) : undefined;
+  if (
+    facts &&
+    !facts.accounts.some(
+      (a) =>
+        a.id === accountId &&
+        a.currency === 'EUR' &&
+        a.onBudget &&
+        a.role === 'budget' &&
+        a.openingDate <= asOf,
+    )
+  )
+    throw new CategoryRuleError('Der Liquiditätshorizont ist für EUR-Budget-Konten verfügbar.');
+  const sharedDue = facts
+    ? scheduled(facts, addDays(asOf, 1), to, asOf, { applyIncomePauses: true })
+    : [];
   const rate = (code: string) =>
     code === 'EUR' ? 1_000_000 : fxRateOnOrBefore(db, code, asOf)?.rateMicro;
   const targetRate = rate(currency);
@@ -80,14 +106,58 @@ export function accountPreview(
       .map((b) => ({ day: b.date, cents: b.amountCents, kind: 'event' as const })),
     ...unbooked.map((o) => ({
       day: o.dueDate,
-      cents:
-        o.currency === currency
+      cents: facts
+        ? (sharedDue.find((row) => row.payment.id === o.paymentId && row.dueDate === o.dueDate)
+            ?.cents ?? 0)
+        : o.currency === currency
           ? o.amountCents
           : convertCashCents(o.amountCents, rate(o.currency)!, targetRate!),
       kind: o.amountCents > 0 ? ('income' as const) : ('fixed' as const),
+      ...(facts?.categories.find((c) => c.id === o.categoryId)?.class
+        ? { group: facts.categories.find((c) => c.id === o.categoryId)!.class! }
+        : {}),
     })),
   ];
   const startCents = balanceSeries(db, accountId, { from: asOf, to: asOf })[0]!.balanceCents;
+  if (facts && options) {
+    const events = facts.plannedEvents
+      .filter((e) => e.enabled && e.accountId === accountId)
+      .flatMap((e) => plannedEventOccurrences(e, addDays(asOf, 1), to))
+      .map((e) => ({ day: e.date, cents: e.amountCents, kind: 'event' as const, label: e.name }));
+    const report = liquidityReport({
+      startDay: asOf,
+      startCents,
+      items,
+      events,
+      variableMonthlyCents: 0,
+      horizon: options.horizon,
+      levers: options.levers,
+    });
+    const variableMonthlyCents = forecastInputs(facts, asOf, {
+      byAccount: {},
+    }).variableMonthlyCents;
+    const unassignedEventCount = facts.plannedEvents.filter(
+      (e) =>
+        e.enabled &&
+        e.accountId === null &&
+        plannedEventOccurrences(e, addDays(asOf, 1), to).length > 0,
+    ).length;
+    const unassignedPaymentCount = new Set(
+      sharedDue.filter((row) => row.payment.accountId === null).map((row) => row.payment.id),
+    ).size;
+    return {
+      points: report.points.map((p) => ({ date: p.day, balanceCents: p.balanceCents })),
+      unavailableCurrencies,
+      previewCoverage: {
+        partial: variableMonthlyCents > 0 || unassignedEventCount > 0 || unassignedPaymentCount > 0,
+        variableMonthlyCents,
+        unassignedEventCount,
+        unassignedPaymentCount,
+        endDay: to,
+        horizon: options.horizon,
+      },
+    };
+  }
   const forecast = liquidityForecast({
     startDay: asOf,
     startCents,

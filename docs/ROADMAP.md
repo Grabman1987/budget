@@ -1,5 +1,21 @@
 # Roadmap
 
+### Liquidity package #283 / #290 / #291 / #292 — 2026-10-09
+
+- [x] Plan registers reach the existing liquidity report without a report number; no new report route or household calculation.
+- [x] Upcoming payments link their account and due date to its existing preview; envelope reserves and household totals do not promise account coverage.
+- [x] EUR budget-account previews reuse the selected liquidity horizon, recurring dates, income pauses and applicable levers. Native previews and their configurable day limit remain available; unassigned variable plans/events/payments are explicitly excluded and mark the projection partial. Transfers affect each account on the booking day and remain neutral in household cash.
+- [x] The verdict exposes the exact day of its existing deciding low and names its unchanged six-month end, even when the selected chart covers a different horizon.
+- [ ] Exact-head CI, integration/deployment, physical-device and private financial acceptance remain open. Local verification follows the owner package override: scoped type/lint/format/unit checks and only the changed browser specs; no full local check or snapshot regeneration.
+
+### Reports and search package — #303–#308 (owner 2026-10-09)
+
+- [x] Qualify the inflation headline at the number; distinguish prices, CPI category proxies and trailing average expenditure in both basket views, retaining sources, common comparison month and coverage.
+- [x] Name per-position first/last observations, rolling twelve-month windows and contribution comparisons; retain the existing reconciled hundredth-Pp calculation.
+- [x] Name report 1.11 Prognosegenauigkeit and report 2.2 Budgettreue consistently in the catalog, search and heading; preserve both published slugs.
+- [x] Add bounded everyday search synonyms for existing planning, liquidity, savings, debt and cost functions; separate content matches from global actions and retain month-close navigation.
+- [ ] Required CI, mobile browser verification (local bootstrap blocked by host ENOMEM), Linux review of the affected report-catalog baselines and owner desktop/phone acceptance. No new keys, consents or configuration required. [Scoped verification and review images](evidence/reports-search-1009/README.md).
+
 ### F2 — Guided month close, plan next month and review (owner 2026-10-04)
 
 - [x] Step 4: expected income and shared bank-day payday, recurring dues, prior plan/actual and up to twelve completed-month average; group/all draft actions and explicit existing-API assign.
@@ -637,6 +653,7 @@ Expected payments, contacts with receivables, savings goals, rule set registered
 Enable Banking adapter, worker with nightly run and catch-up, inbox items, assignment rules and source status in Einstellungen › Datenquellen. Manual file imports are excluded from app scope; all-account/depot CSV export is available as a step-up authenticated ZIP.
 
 ### P4.1 — PSD2 bank sync into the inbox
+- [x] #400: one connection card with scoped actions/messages, per-account daily request counters, visible manual cooldown/limit, account mapping explanations, persisted last complete results and source-filtered inbox links. New connections require confirmation; existing explicit/legacy policies remain unchanged. Synthetic desktop/mobile light/dark coverage; owner acceptance and CI remain delivery gates.
 - [x] RS256 adapter, step-up/session-bound consent, encrypted session/account identifiers, owner-selected EUR account mapping.
 - [x] Owner decision 41: BOOK transactions become unchecked, uncategorized bookings immediately; PDNG remains a candidate until confirmed. Per-connection confirmation-first override, stable-reference promotion/deduplication, bank balance warnings and separate replayable ledger audit; no automatic categorization or distribution.
 - [x] Separate nightly worker on the same volume, catch-up, durable leases/backoff, queued manual refresh and consent reminders.
@@ -951,7 +968,7 @@ Method, limits and owner steps: [inflation basket](inflation-basket.md#cpi-sub-i
 
 ### Owner planning hit rate — 2026-10-05
 
-- [x] Report 1.11 Budgettreue: additive `plan_snapshot`, shared Pace capture, nightly idempotence/retry and conservative per-month backfill status.
+- [x] Report 1.11 Prognosegenauigkeit: additive `plan_snapshot`, shared Pace capture, nightly idempotence/retry and conservative per-month backfill status.
 - [x] Closed-month forecast/actual, exact 5% hits, six-calendar-month summary, monthly deviation bars, category drilldown and Heute copy after three comparable months; synthetic unit/API/component/E2E coverage.
 - [ ] Required CI, Linux visual review and owner month-end/data acceptance. See [planning hit rate](planning-accuracy.md).
 
