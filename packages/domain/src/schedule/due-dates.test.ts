@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { dueDates, shiftToBusinessDay, type ScheduleRule } from './due-dates';
+import {
+  dueDates,
+  nextRepeatDate,
+  shiftToBusinessDay,
+  weekInterval,
+  type ScheduleRule,
+} from './due-dates';
 
 const rule = (over: Partial<ScheduleRule> = {}): ScheduleRule => ({
   rhythm: 'monthly',
@@ -122,6 +128,88 @@ describe('dueDates: date shift', () => {
     // 01.05.2027 is a Saturday (and a holiday), shifted before: Friday 30.04.2027
     const before = rule({ dueDay: 1, dateShift: 'before' });
     expect(dueDates(before, '2027-04-01', '2027-04-30')).toEqual(['2027-04-01', '2027-04-30']);
+  });
+});
+
+describe('dueDates: weekly with an interval', () => {
+  const weekly = (over: Partial<ScheduleRule> = {}) =>
+    rule({ rhythm: 'weekly', startDate: '2026-01-02', ...over });
+
+  it('every week without an interval, and interval 1 or null equal it', () => {
+    const old = dueDates(weekly(), '2026-01-01', '2026-02-28');
+    expect(old).toHaveLength(9);
+    expect(old[0]).toBe('2026-01-02');
+    expect(old[8]).toBe('2026-02-27');
+    expect(dueDates(weekly({ intervalWeeks: 1 }), '2026-01-01', '2026-02-28')).toEqual(old);
+    expect(dueDates(weekly({ intervalWeeks: null }), '2026-01-01', '2026-02-28')).toEqual(old);
+  });
+
+  it('every 2 weeks from the start date, across month boundaries', () => {
+    expect(dueDates(weekly({ intervalWeeks: 2 }), '2026-01-01', '2026-03-31')).toEqual([
+      '2026-01-02',
+      '2026-01-16',
+      '2026-01-30',
+      '2026-02-13',
+      '2026-02-27',
+      '2026-03-13',
+      '2026-03-27',
+    ]);
+  });
+
+  it('keeps the cadence across a year boundary and for a range far from the start', () => {
+    const r = weekly({ startDate: '2026-12-04', intervalWeeks: 2 });
+    expect(dueDates(r, '2026-12-01', '2027-01-31')).toEqual([
+      '2026-12-04',
+      '2026-12-18',
+      '2027-01-01',
+      '2027-01-15',
+      '2027-01-29',
+    ]);
+    // 2026-12-04 + 26 * 14 days = 2027-12-03, the cadence does not restart with the range
+    expect(dueDates(r, '2027-11-20', '2027-12-10')).toEqual(['2027-12-03']);
+  });
+
+  it('every 3 weeks and the end date', () => {
+    expect(
+      dueDates(weekly({ intervalWeeks: 3, endDate: '2026-02-28' }), '2026-01-01', '2026-12-31'),
+    ).toEqual(['2026-01-02', '2026-01-23', '2026-02-13']);
+  });
+
+  it('does not produce due dates before the start date', () => {
+    expect(dueDates(weekly({ intervalWeeks: 2 }), '2025-12-01', '2026-01-10')).toEqual([
+      '2026-01-02',
+    ]);
+  });
+
+  it('the business-day shift applies to every occurrence', () => {
+    // 01.01.2027 (Friday) is a holiday: before -> Thursday 31.12.2026, after -> Monday 04.01.2027
+    const base = { startDate: '2026-12-18', intervalWeeks: 2 };
+    expect(dueDates(weekly({ ...base, dateShift: 'before' }), '2026-12-01', '2027-01-31')).toEqual([
+      '2026-12-18',
+      '2026-12-31',
+      '2027-01-15',
+      '2027-01-29',
+    ]);
+    expect(dueDates(weekly({ ...base, dateShift: 'after' }), '2026-12-01', '2027-01-31')).toEqual([
+      '2026-12-18',
+      '2027-01-04',
+      '2027-01-15',
+      '2027-01-29',
+    ]);
+  });
+
+  it('an invalid interval falls back to every week', () => {
+    expect(weekInterval(0)).toBe(1);
+    expect(weekInterval(53)).toBe(1);
+    expect(weekInterval(2.5)).toBe(1);
+    expect(weekInterval(undefined)).toBe(1);
+    expect(weekInterval(52)).toBe(52);
+  });
+
+  it('nextRepeatDate adds the interval for a weekly rhythm only', () => {
+    expect(nextRepeatDate('2026-12-30', 'weekly')).toBe('2027-01-06');
+    expect(nextRepeatDate('2026-12-30', 'weekly', 2)).toBe('2027-01-13');
+    expect(nextRepeatDate('2026-01-31', 'monthly', 2)).toBe('2026-02-28');
   });
 });
 

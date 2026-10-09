@@ -1,5 +1,5 @@
 import { addDays, monthOf } from '../date';
-import { dayDistance, dueDates, type Rhythm, type ScheduleRule } from './due-dates';
+import { dayDistance, dueDates, weekInterval, type Rhythm, type ScheduleRule } from './due-dates';
 
 /**
  * `missed` (ausgefallen) is a warning: it should have come. `skipped` (gestrichen) is a deliberate
@@ -85,15 +85,36 @@ const PER_YEAR: Record<Rhythm, number> = {
   yearly: 1,
 };
 
-/** Yearly equivalent of one payment of `amountCents` (keeps the sign). */
-export const yearlyEquivalent = (rhythm: Rhythm, amountCents: number): number =>
-  amountCents * PER_YEAR[rhythm];
+/** `num / den` rounded to whole cents half away from zero (`den` > 0). */
+const roundDiv = (num: number, den: number): number => {
+  const rounded = Math.floor((Math.abs(num) * 2 + den) / (den * 2));
+  return num < 0 && rounded !== 0 ? -rounded : rounded;
+};
 
-/** Monthly equivalent: the yearly one over 12, rounded to whole cents half away from zero. */
-export function monthlyEquivalent(rhythm: Rhythm, amountCents: number): number {
-  const yearly = yearlyEquivalent(rhythm, amountCents);
-  const rounded = Math.floor((Math.abs(yearly) * 2 + 12) / 24);
-  return yearly < 0 && rounded !== 0 ? -rounded : rounded;
+/**
+ * Yearly equivalent of one payment of `amountCents` (keeps the sign). A weekly rhythm with
+ * `intervalWeeks` n pays 52 / n times a year, rounded to whole cents when n does not divide 52.
+ */
+export const yearlyEquivalent = (
+  rhythm: Rhythm,
+  amountCents: number,
+  intervalWeeks?: number | null,
+): number =>
+  rhythm === 'weekly'
+    ? roundDiv(amountCents * 52, weekInterval(intervalWeeks))
+    : amountCents * PER_YEAR[rhythm];
+
+/**
+ * Monthly equivalent: the yearly one over 12, rounded to whole cents half away from zero. Weekly
+ * rhythms round once: amount * 52 / (12 * n).
+ */
+export function monthlyEquivalent(
+  rhythm: Rhythm,
+  amountCents: number,
+  intervalWeeks?: number | null,
+): number {
+  if (rhythm === 'weekly') return roundDiv(amountCents * 52, 12 * weekInterval(intervalWeeks));
+  return roundDiv(yearlyEquivalent(rhythm, amountCents), 12);
 }
 
 // ---------------------------------------------------------------------------------------------

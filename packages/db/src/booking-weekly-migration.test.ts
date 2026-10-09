@@ -40,7 +40,14 @@ it('weekly migration preserves stored schedules, versions, links, bookings and a
       tables.map((t) => opened.sqlite.prepare(`SELECT * FROM ${t} ORDER BY rowid`).all());
     const before = rows();
     migrateDatabase(opened.db);
-    expect(rows()).toEqual(before);
+    // Later migrations may add columns (0043: expected_payment.interval_weeks, empty for old rows).
+    expect(rows()).toEqual(
+      before.map((t, i) =>
+        tables[i] === 'expected_payment'
+          ? (t as Record<string, unknown>[]).map((r) => ({ ...r, interval_weeks: null }))
+          : t,
+      ),
+    );
     expect(opened.sqlite.pragma('foreign_key_check')).toEqual([]);
     opened.sqlite.exec(
       "UPDATE expected_payment SET rhythm='weekly', start_date='2026-10-01' WHERE id='p'",

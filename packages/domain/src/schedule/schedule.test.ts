@@ -263,4 +263,23 @@ describe('equivalents', () => {
     expect(monthlyEquivalent('monthly', 1599)).toBe(1599);
     expect(monthlyEquivalent('monthly', 0)).toBe(0);
   });
+
+  it('weekly: every n weeks pays 52 / n times a year, rounded once half away from zero', () => {
+    // 52 * 100000 / 12 = 433333,33
+    expect(monthlyEquivalent('weekly', 100000)).toBe(433333);
+    expect(monthlyEquivalent('weekly', 100000, 1)).toBe(433333);
+    expect(monthlyEquivalent('weekly', 100000, null)).toBe(433333);
+    // 52 * 100000 / 24 = 216666,67
+    expect(monthlyEquivalent('weekly', 100000, 2)).toBe(216667);
+    expect(monthlyEquivalent('weekly', -100000, 2)).toBe(-216667);
+    // 52 * 100000 / 36 = 144444,44
+    expect(monthlyEquivalent('weekly', 100000, 3)).toBe(144444);
+    expect(yearlyEquivalent('weekly', 100000)).toBe(5_200_000);
+    expect(yearlyEquivalent('weekly', 100000, 2)).toBe(2_600_000);
+    expect(yearlyEquivalent('weekly', 100000, 3)).toBe(1_733_333);
+    expect(yearlyEquivalent('weekly', -100000, 3)).toBe(-1_733_333);
+    // the interval is ignored for every other rhythm
+    expect(monthlyEquivalent('monthly', 1599, 2)).toBe(1599);
+    expect(yearlyEquivalent('quarterly', 3000, 2)).toBe(12000);
+  });
 });
