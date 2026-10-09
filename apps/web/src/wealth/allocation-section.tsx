@@ -62,8 +62,12 @@ export function PortfolioAllocation() {
         {view && (
           <>
             <p className="vnote" role="status">
-              Anlageuniversum: Depots, Anlage-Cash einschließlich negativer Salden und einbezogene
-              Produkte. Bewertung{' '}
+              Netto-Allokationsuniversum:{' '}
+              {view.valueCents === null ? 'Wert nicht verfügbar' : eurWhole(view.valueCents)}.
+              Ist-Anteil = Klassenwert / Netto-Allokationsuniversum. Einbezogene Positionen plus
+              Anlage-Kassa einschließlich negativer Salden bilden den Nenner. Negative Kassa mindert
+              ihn; negative Klassenwerte ergeben negative Anteile, positive Klassen können über 100
+              % liegen. Die Auswahl kann von der Bestandsliste abweichen. Bewertung{' '}
               {view.quality.valuationQuality === 'exact'
                 ? 'vollständig'
                 : view.quality.valuationQuality === 'estimated'
@@ -77,9 +81,46 @@ export function PortfolioAllocation() {
               {view.quality.unclassifiedProductCount} Produkte / Cash-Positionen.
               {view.quality.valuationQuality === 'estimated' &&
                 ` Geschätzter / veralteter Anteil: ${percentText(view.quality.estimatedShareBp)}.`}
+              {` Geschätzte Werte: ${view.quality.estimatedSecurityIds.length} Produkte. Veraltete Werte: ${view.quality.staleSecurityIds.length} Produkte.`}
               {provisional &&
                 ' Hinweise sind vorläufig; zuerst Klassifikation und Bewertung prüfen. Sparplanoptimierung wird zurückgehalten.'}
             </p>
+            {view.quality.unclassifiedSecurityIds.length > 0 && (
+              <ul
+                className="allocation-quality-links"
+                aria-label="Unklassifizierte Positionen zuordnen"
+              >
+                {view.quality.unclassifiedSecurityIds.map((id) => (
+                  <li key={id}>
+                    <AppLink
+                      className="allocation-security-link"
+                      to={
+                        id.startsWith('cash:')
+                          ? '/einstellungen/konten'
+                          : '/einstellungen/anlageklassen'
+                      }
+                      search={() =>
+                        id.startsWith('cash:') ? {} : { panel: 'instrument', instrument: id }
+                      }
+                      state={{ panelOpenedInApp: true }}
+                    >
+                      {id.startsWith('cash:')
+                        ? 'Anlage-Cash in Kontoeinstellungen zuordnen'
+                        : `${view.names.securities[id] ?? 'Instrument'} · Anlageklasse zuordnen`}
+                    </AppLink>
+                  </li>
+                ))}
+              </ul>
+            )}
+            {risk && (
+              <p className="vnote">
+                Brutto-Exposure: {eurWhole(risk.cluster.totalGrossExposureCents)}. R14/R15 teilen
+                das jeweilige Brutto-Exposure durch den Marktwert des Netto-Allokationsuniversums (
+                {eurWhole(risk.cluster.totalCents)}), nicht durch die Brutto-Summe. Hebel erhöhen
+                den Zähler; negative Kassa senkt den Nenner. Risikoanteile können deshalb über 100 %
+                liegen.
+              </p>
+            )}
             {!known && (
               <p className="vnote" role="status">
                 {view.status === 'unavailable'

@@ -1,5 +1,11 @@
 # Sub-pages instead of side panels — 2026-10-05
 
+Portfolio report follow-up 2026-10-09 (#346): report 4.2's secondary composition
+legend and source tables and report 4.5's secondary summary now follow the main
+content at full width. Numerical table columns and depot/metric comparisons stay.
+Other report areas in the mixed inventory row below remain open. See
+[package scope and evidence](evidence/portfolio-package-d-1009/README.md).
+
 The owner decision in DESIGN.md supersedes the prototype's content panels. This
 first coherent delivery covers Plan › Monat. No dependencies, schema, API, money
 calculations or automatic bookings change. Other areas remain explicitly open.

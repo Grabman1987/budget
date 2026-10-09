@@ -710,7 +710,10 @@ function SollTable({ data }: { data: AllocationReport }) {
           ? ', vorläufig.'
           : spec.breach
             ? ', überschritten.'
-            : ', eingehalten.'}
+            : ', eingehalten.'}{' '}
+        Zähler: {eur(spec.grossExposureCents)}; Nenner: Netto-Allokationsuniversum einschließlich
+        signierter Anlage-Kassa ({eur(spec.totalCents)}). Hebel erhöhen den Zähler, negative Kassa
+        mindert den Nenner; der Anteil kann über 100 % liegen.
       </p>
     </>
   );
