@@ -147,11 +147,44 @@ describe('readModelCache', () => {
     );
     api.get('/heute', (c) => c.json({ n: ++computed }));
     const app = new Hono().route('/api', api);
-    expect(await warmReadModels(api, () => '2026-03-18')).toBeGreaterThanOrEqual(2);
+    expect(await warmReadModels(api, () => '2026-03-18')).toBe(2);
     expect(computed).toBe(2); // month and payday
     const real = await app.request('https://budget.example/api/heute?period=month&month=2026-03');
     expect(await real.json()).toEqual({ n: 1 });
     expect(computed).toBe(2);
+  });
+
+  it('does not count the uncached inbox badge as warmed and recomputes its real route on a second call', async () => {
+    const opened = createTestDatabase();
+    const { db } = opened;
+    const api = createLedgerApi({
+      db,
+      today: () => '2026-03-18',
+      bankSync: null,
+      stepUp: async (_c, next) => next(),
+    });
+    const app = new Hono().route('/api', api);
+    const transaction = vi.spyOn(db, 'transaction');
+
+    try {
+      const warmed = await warmReadModels(api, () => '2026-03-18');
+      const afterWarm = transaction.mock.calls.length;
+      const first = await app.request('/api/inbox/count');
+      expect(first.status).toBe(200);
+      const firstCount = await first.json();
+      const afterFirst = transaction.mock.calls.length;
+      const second = await app.request('/api/inbox/count');
+      expect(second.status).toBe(200);
+      expect(await second.json()).toEqual(firstCount);
+      const afterSecond = transaction.mock.calls.length;
+
+      expect(afterFirst).toBe(afterWarm + 1);
+      expect(afterSecond).toBe(afterFirst + 1);
+      expect(warmed).toBe(2);
+    } finally {
+      transaction.mockRestore();
+      opened.close();
+    }
   });
 
   it('keys the answer by query string', async () => {
