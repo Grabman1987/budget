@@ -76,10 +76,13 @@ requires a real parallel month close by the owner after deployment.
 The existing booking, assignment review, candidate confirmation/dismissal,
 reconciliation and envelope cover/move endpoints perform financial actions.
 Month-close decisions acknowledge work; they never change a booking or envelope.
-The One-Pager's daily net-worth series now uses the same snapshot resolver when
-manual asset valuations exist, so step 2's valuation also appears in step 5.
-This direct per-day reuse favors correctness; long manual-account report windows
-may need a batched resolver if profiling demonstrates a performance problem.
+The One-Pager's daily net-worth series applies the snapshot resolver's manual-value
+rules to the existing cash series: newest live valuation on or before each day,
+native currency conversion at that day, cash fallback, and product-valued-account
+precedence. Two queries load the relevant accounts and valuation history for the
+whole window, so step 2's valuation also appears in step 5. The synthetic daily
+comparison against `netWorthAsOf` covers zero, deleted and future valuations,
+opening dates, positions and foreign currency.
 Late fetched bank candidates are attributed by booking date, not fetch date.
 Undated stored warnings use their creation month. Unlinked receipts remain in
 the global inbox; without a booking date they have no monthly attribution.

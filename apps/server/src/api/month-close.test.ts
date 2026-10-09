@@ -124,6 +124,14 @@ it('stores an undoable close marker only after all work and next-month distribut
     splits: [{ amountCents: -100, categoryId: 'essen' }],
   });
   expect(edit.status).toBe(201);
+  const reopened = await call('GET');
+  expect(reopened.status).toBe(200);
+  expect(reopened.body.state.closedOn).toBe('2026-10-02');
+  expect(reopened.body.steps[1].status).toBe('open');
+  expect(reopened.body.steps[2].status).toBe('open');
+  expect(reopened.body.accounts.find((account: any) => account.id === 'giro').balanceCents).toBe(
+    99900,
+  );
   expect((await call('POST', '/undo', { groupId: edit.body.groupId })).status).toBe(200);
   expect((await call('POST', '/undo', { groupId: closed.body.groupId })).status).toBe(200);
   expect((await call('GET')).body.state.closedOn).toBeUndefined();
