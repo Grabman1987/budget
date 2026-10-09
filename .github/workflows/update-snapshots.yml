@@ -1,49 +1,282 @@
-name: Update e2e snapshots
-
-# Manual only. Regenerates the Playwright screenshot baselines on Linux (the CI platform) for one
-# branch and commits them back, for PRs that change the UI on purpose. The owner's Windows machine
-# and the cloud sessions cannot produce Linux baselines themselves.
-# Commits pushed with GITHUB_TOKEN do not start CI: push any commit afterwards (or re-run CI).
+name: Linux root dev smoke (Node 22)
 on:
   workflow_dispatch:
     inputs:
       branch:
-        description: Branch whose baselines to update (never main)
+        description: Helper branch containing this workflow replacement
         required: true
-
+        type: string
+      source_sha:
+        description: Exact clean #230 source commit
+        required: true
+        type: string
 permissions:
-  contents: write
-
+  contents: read
 concurrency:
-  group: update-snapshots-${{ inputs.branch }}
+  group: linux-root-dev-smoke-${{ inputs.branch }}
   cancel-in-progress: true
-
 jobs:
-  update:
+  smoke:
     if: inputs.branch != 'main'
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ inputs.branch }}
+          fetch-depth: 2
+          persist-credentials: false
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
-          node-version-file: .nvmrc
+          node-version: 22.14.0
           cache: npm
-      - run: npm ci
-      - name: Install Chromium and WebKit
-        run: npx playwright install --with-deps chromium webkit
-      # Non-screenshot failures are reported by the normal CI run on the PR, not here.
-      - name: Regenerate changed screenshots
-        run: npm run build:e2e && (npx playwright test --update-snapshots=changed || true)
-      - name: Commit the new baselines
+      - name: Prove exact direct parent and clean workflow-only helper
         env:
-          BRANCH: ${{ inputs.branch }}
+          SOURCE_SHA: ${{ inputs.source_sha }}
         run: |
-          git config user.name 'github-actions[bot]'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add -A -- e2e
-          if git diff --cached --quiet; then echo 'No baseline changes.'; exit 0; fi
-          git commit -m 'test: update e2e screenshot baselines (Linux)'
-          git push origin "HEAD:refs/heads/$BRANCH"
+          set -euo pipefail
+          [[ "$SOURCE_SHA" =~ ^[0-9a-f]{40}$ ]]
+          git cat-file -e "${SOURCE_SHA}^{commit}"
+          [[ "$(git rev-parse HEAD^)" == "$SOURCE_SHA" ]]
+          git diff --quiet "$SOURCE_SHA" HEAD -- . ':(exclude).github/workflows/update-snapshots.yml'
+          [[ "$(git diff --name-only "$SOURCE_SHA" HEAD)" == '.github/workflows/update-snapshots.yml' ]]
+          [[ ! -e .env ]]
+          [[ "$(node --version)" == v22.14.0 ]]
+          git diff --quiet
+          git diff --cached --quiet
+          [[ -z "$(git status --porcelain --untracked-files=all)" ]]
+          mkdir -p "$RUNNER_TEMP/budget-concurrently-230-linux-root-smoke-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          printf 'source_sha=%s\nhead=%s\nnode=%s\n' "$SOURCE_SHA" "$(git rev-parse HEAD)" "$(node --version)" >> "$GITHUB_STEP_SUMMARY"
+      - name: Install locked dependencies
+        run: npm ci
+      - name: Recheck clean helper after install
+        env:
+          SOURCE_SHA: ${{ inputs.source_sha }}
+        run: |
+          set -euo pipefail
+          [[ "$(git rev-parse HEAD^)" == "$SOURCE_SHA" ]]
+          git diff --quiet "$SOURCE_SHA" HEAD -- . ':(exclude).github/workflows/update-snapshots.yml'
+          git diff --quiet
+          git diff --cached --quiet
+          [[ -z "$(git status --porcelain --untracked-files=all)" ]]
+      - name: Run bounded synthetic root CLI smoke
+        env:
+          SOURCE_SHA: ${{ inputs.source_sha }}
+          GITHUB_WORKSPACE: ${{ github.workspace }}
+          RUNNER_TEMP: ${{ runner.temp }}
+          BUDGET_SMOKE_ARTIFACT_DIR: ${{ runner.temp }}/budget-concurrently-230-linux-root-smoke-${{ github.run_id }}-${{ github.run_attempt }}
+        run: |
+          cat > "$RUNNER_TEMP/budget-concurrently-230-linux-smoke.py" <<'PY'
+          #!/usr/bin/env python3
+          """Synthetic Linux root-CLI smoke with bounded health checks and identity-safe cleanup."""
+          import json, os, signal, socket, subprocess, sys, tempfile, time, urllib.error, urllib.request
+          from pathlib import Path
+
+          root = Path(os.environ["GITHUB_WORKSPACE"]).resolve()
+          report_dir = Path(os.environ["BUDGET_SMOKE_ARTIFACT_DIR"]).resolve()
+          report_dir.mkdir(parents=True, exist_ok=True)
+          data = Path(tempfile.mkdtemp(prefix="budget-concurrently-230-data-", dir=os.environ["RUNNER_TEMP"]))
+          report = {"source_sha": os.environ["SOURCE_SHA"], "node": subprocess.check_output(["node", "--version"], text=True).strip(),
+                    "platform": sys.platform, "command": "npm run dev", "startup_deadline_seconds": 120,
+                    "result": "incomplete", "checks": {}, "cleanup": {}}
+          proc = identity = None
+
+          def proc_info(pid):
+              try:
+                  raw = Path(f"/proc/{pid}/stat").read_text()
+                  fields = raw[raw.rfind(")") + 2:].split()
+                  return {"pid": pid, "state": fields[0], "pgid": int(fields[2]), "start_ticks": int(fields[19])}
+              except (OSError, ValueError, IndexError):
+                  return None
+
+          def group_members(pgid):
+              found = []
+              for entry in Path("/proc").iterdir():
+                  if entry.name.isdigit():
+                      item = proc_info(int(entry.name))
+                      if item and item["pgid"] == pgid: found.append(item)
+              return found
+
+          def running_members(pgid):
+              return [item for item in group_members(pgid) if item["state"] != "Z"]
+
+          def zombie_members(pgid):
+              return [item for item in group_members(pgid) if item["state"] == "Z"]
+
+          def alive(item, pgid):
+              current = proc_info(item["pid"])
+              return bool(current and current["state"] != "Z" and current["pgid"] == pgid
+                          and current["start_ticks"] == item["start_ticks"])
+
+          def port_listeners():
+              result = {}
+              for port in (3000, 5173):
+                  addresses = []
+                  for family, socktype, proto, _, sockaddr in socket.getaddrinfo(
+                      "localhost", port, type=socket.SOCK_STREAM
+                  ):
+                      with socket.socket(family, socktype, proto) as sock:
+                          sock.settimeout(1)
+                          try:
+                              code = sock.connect_ex(sockaddr)
+                          except OSError:
+                              code = -1
+                      addresses.append({"address": str(sockaddr[0]), "connect_ex": code, "listening": code == 0})
+                  result[str(port)] = addresses
+              return result
+
+          def has_listener(ports):
+              return any(
+                  address["listening"]
+                  for addresses in ports.values()
+                  for address in addresses
+              )
+
+          def get(url):
+              try:
+                  with urllib.request.urlopen(url, timeout=2) as response:
+                      return response.status, response.read(65536)
+              except urllib.error.HTTPError as error:
+                  return error.code, error.read(65536)
+              except urllib.error.URLError:
+                  return 0, b""
+
+          def healthy(url):
+              status, body = get(url)
+              try: return status == 200 and json.loads(body).get("status") == "ok", status
+              except (ValueError, AttributeError): return False, status
+
+          def signal_group(pgid, original, sig):
+              if alive(original, pgid):
+                  os.killpg(pgid, sig)
+              else:
+                  for item in running_members(pgid):
+                      if alive(item, pgid):
+                          try: os.kill(item["pid"], sig)
+                          except ProcessLookupError: pass
+
+          def wait_running_empty(pgid, owned_proc, seconds):
+              deadline = time.monotonic() + seconds
+              while time.monotonic() < deadline:
+                  owned_proc.poll()  # Reap our npm leader so a normal exit does not look like a live zombie.
+                  if not running_members(pgid): return True
+                  time.sleep(.1)
+              owned_proc.poll()
+              return not running_members(pgid)
+
+          def stop_process(owned_proc, original):
+              pgid = original["pid"]
+              owned_proc.poll()
+              sent_sigint = bool(running_members(pgid))
+              if sent_sigint: signal_group(pgid, original, signal.SIGINT)
+              clean_sigint = sent_sigint and wait_running_empty(pgid, owned_proc, 12)
+              used_term = used_kill = False
+              if sent_sigint and not clean_sigint:
+                  used_term = True
+                  signal_group(pgid, original, signal.SIGTERM)
+                  if not wait_running_empty(pgid, owned_proc, 5):
+                      used_kill = True
+                      signal_group(pgid, original, signal.SIGKILL)
+                      wait_running_empty(pgid, owned_proc, 3)
+              owned_proc.poll()
+              return {
+                  "sigint_sent": sent_sigint,
+                  "sigint_finished_without_escalation": clean_sigint,
+                  "used_term": used_term,
+                  "used_kill": used_kill,
+                  "running_members_after_stop": running_members(pgid),
+                  "zombie_members_after_reap": zombie_members(pgid),
+              }
+
+          def main():
+              global proc, identity
+              if sys.platform != "linux" or not report["node"].startswith("v22."):
+                  raise RuntimeError("Expected Linux and Node 22")
+              if (root / ".env").exists(): raise RuntimeError("Checkout .env exists; refusing startup")
+              ports_before = port_listeners()
+              if has_listener(ports_before):
+                  raise RuntimeError("Port 3000 or 5173 has a localhost listener before startup: "
+                                     + json.dumps(ports_before, sort_keys=True))
+              report["checks"].update({"checkout_env_absent": True, "ports_before": ports_before})
+
+              npm_dir = report_dir / "npm"
+              npm_dir.mkdir()
+              user_config, global_config = npm_dir / "user.npmrc", npm_dir / "global.npmrc"
+              user_config.write_text("", encoding="utf-8")
+              global_config.write_text("", encoding="utf-8")
+              env = {key: os.environ[key] for key in ("PATH", "LANG", "LC_ALL", "TZ") if key in os.environ}
+              env.update({
+                  "CI": "true", "FORCE_COLOR": "0", "NODE_ENV": "development",
+                  "PORT": "3000", "DATA_DIR": str(data), "DATABASE_PATH": str(data / "synthetic.sqlite"),
+                  "BUDGET_ORIGIN": "http://localhost:5173", "VITE_API_TARGET": "http://localhost:3000",
+                  "BUDGET_SETUP_TOKEN": os.urandom(24).hex(), "BUDGET_PEPPER": os.urandom(48).hex(),
+                  "BUDGET_TODAY": "2026-10-09", "BUDGET_BUILD_REVISION": "linux-root-smoke-230",
+                  "BUDGET_WARM_UP": "0", "BUDGET_MARKET_DAILY": "0", "BUDGET_BANK_SYNC_DAILY": "0",
+                  "BUDGET_DEBUG_API": "0", "BUDGET_BACKUP_RECIPIENT": "",
+                  "NPM_CONFIG_USERCONFIG": str(user_config), "NPM_CONFIG_GLOBALCONFIG": str(global_config),
+                  "NPM_CONFIG_CACHE": str(npm_dir / "cache"), "NPM_CONFIG_OFFLINE": "true",
+                  "npm_config_script_shell": "/bin/sh",
+              })
+              with (report_dir / "npm-dev.log").open("wb") as log:
+                  proc = subprocess.Popen(["npm", "run", "dev"], cwd=root, env=env, stdout=log,
+                                          stderr=subprocess.STDOUT, start_new_session=True, close_fds=True)
+                  identity = proc_info(proc.pid)
+                  if not identity or identity["pgid"] != proc.pid:
+                      raise RuntimeError("Could not verify isolated npm process group identity")
+                  report["process"] = identity
+                  deadline, last = time.monotonic() + 120, {}
+                  while time.monotonic() < deadline and proc.poll() is None:
+                      last = {
+                          "vite_root_http": get("http://localhost:5173/")[0],
+                          "api_health": healthy("http://localhost:3000/health"),
+                          "proxy_health": healthy("http://localhost:5173/health"),
+                      }
+                      if last["vite_root_http"] == 200 and last["api_health"][0] and last["proxy_health"][0]:
+                          report["checks"] = {"vite_root_http": 200, "api_health_http": last["api_health"][1],
+                                              "proxy_health_http": last["proxy_health"][1]}
+                          report["result"] = "passed"
+                          break
+                      time.sleep(1)
+                  if report["result"] != "passed":
+                      report["checks"]["last_probe"] = {
+                          key: list(value) if isinstance(value, tuple) else value for key, value in last.items()
+                      }
+                      raise RuntimeError("Vite root, direct API and proxied health did not pass within 120 seconds")
+
+          try:
+              main()
+          except Exception as error:
+              report["result"], report["failure"] = "failed", str(error)
+          finally:
+              if proc and identity:
+                  report["cleanup"].update(stop_process(proc, identity))
+                  try: report["npm_exit"] = proc.wait(timeout=2)
+                  except subprocess.TimeoutExpired: report["npm_exit"] = None
+              report["cleanup"]["ports_after"] = port_listeners()
+              report["cleanup"]["ports_free_after"] = not has_listener(report["cleanup"]["ports_after"])
+              try:
+                  for item in data.iterdir():
+                      if item.is_file() or item.is_symlink(): item.unlink()
+                      else: raise RuntimeError("Unexpected nested synthetic data directory")
+                  data.rmdir()
+                  report["cleanup"]["synthetic_data_removed"] = True
+              except Exception as error:
+                  report["cleanup"]["synthetic_data_removed"] = False
+                  report["cleanup"]["data_error"] = str(error)
+              cleanup = report["cleanup"]
+              if (cleanup.get("running_members_after_stop") or cleanup.get("used_term") or cleanup.get("used_kill")
+                      or not cleanup.get("sigint_finished_without_escalation")
+                      or not cleanup["ports_free_after"] or not cleanup.get("synthetic_data_removed")):
+                  report["result"] = "failed"
+              (report_dir / "report.json").write_text(json.dumps(report, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+          print(json.dumps(report, sort_keys=True))
+          raise SystemExit(0 if report["result"] == "passed" else 1)
+          PY
+          python3 "$RUNNER_TEMP/budget-concurrently-230-linux-smoke.py"
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: always()
+        with:
+          name: linux-root-dev-smoke-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/budget-concurrently-230-linux-root-smoke-${{ github.run_id }}-${{ github.run_attempt }}
+          if-no-files-found: warn
+          retention-days: 7
