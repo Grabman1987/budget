@@ -32,6 +32,17 @@ The final repository-wide check passed: all workspace typechecks, lint/format an
 
 The subsequent normal history union with merged main `410d2cd0a03df6e0f802b5d98741f259fd96ad36` produced `698706af18f21f820b3764fa2999f98b7fa67b83`. Its committed tree stayed identical; after restoring retained safety stash `1f94956f4fddcddfa7bf65924f29834597d998c8`, all 2,125 paths/hashes still matched. Only documentation is updated after that proof. Both focus source files and the four current captures remain unchanged.
 
-Root also inspected the four existing light/dark desktop/mobile Linux baseline files listed in [the original scope](../ux-rules-first-1005.md). They show the intended grouped rules, collapsed disabled group and input controls. This inspection does not replace comparison against a fresh Linux CI run; no baseline was regenerated or accepted from an unexplained diff.
+Exact-head CI [37870500745](https://github.com/Grabman1987/budget/actions/runs/37870500745) passed unit, Windows, Docker, restore and E2E shard 1, but the desktop/mobile rule-book light screenshots differed from the October 6 baselines. Root inspected the actual Linux results and traced the differences to already integrated typography tokens, the expanded global-search placeholder and the current inbox count (9 rather than 2). The grouped rule values and controls stayed intact; no application fix or weakened assertion was needed.
 
-Original PR head publication, exact-head CI (including Linux pixel baselines), deployment and owner acceptance remain pending. No issue is closed by this evidence.
+A separate helper branch, based on exact head `51d45e96ecf5aca78a3c3b68489b9bd3b927e698`, ran only the rule-book screenshot case on pinned Linux Chromium, desktop and mobile, with one worker and `--update-snapshots=changed`. [Run 37872243235](https://github.com/Grabman1987/budget/actions/runs/37872243235) passed all five cases including three setup checks in 37.9 seconds; generation errors were not suppressed. The bot commit `49c8713d31ec9468cfbe84dc9fbc331e1aabcb31` changed exactly four PNGs. Root reviewed all four before copying only these images; the temporary helper workflow is not part of this PR.
+
+| Reviewed Linux baseline             | SHA-256                                                            |
+| ----------------------------------- | ------------------------------------------------------------------ |
+| `regelwerk-light-desktop-linux.png` | `9E6B8ED945B8CD3C5854C4207E925405B267FFF1DF136127CB86C69B8A3C1F70` |
+| `regelwerk-dark-desktop-linux.png`  | `A33CCAD9F5FE4B3ABD404A9D32B75C5A876BFA5976610C752B25C533B2720A83` |
+| `regelwerk-light-mobile-linux.png`  | `18F7ED7DEEB271C86F8EC26FF1C8A0BF91BDE2735CB7B7E5A040556317432310` |
+| `regelwerk-dark-mobile-linux.png`   | `F296D609F45BCA5F8596269A31CEE3D708780E4F02D17BF0A15EE0D56832B2A9` |
+
+All 22 rules remain represented: four violated, three pending, nine met and six initially collapsed disabled rules, with the stage checklist and book-rule inputs below. The mobile full-page capture records the existing fixed navigation at its viewport position; the passing scroll/target/browser checks remain the behavioral evidence. Source code is unchanged after the passing full check; this follow-up changes only reviewed baseline images and documentation.
+
+The original PR was updated. Fresh exact-head CI (including Linux pixel comparison), deployment and owner acceptance remain pending after the reviewed image update. No issue is closed by this evidence.
