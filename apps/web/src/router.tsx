@@ -259,8 +259,31 @@ const accountsSettingsRoute = createRoute({
 const categoriesRoute = createRoute({
   getParentRoute: () => shellRoute,
   path: EINSTELLUNGEN_KATEGORIEN.path,
+  validateSearch: (search: Record<string, unknown>) => ({
+    ausgeblendet:
+      search['ausgeblendet'] === true || search['ausgeblendet'] === 'true' ? true : undefined,
+  }),
   staticData: { meta: EINSTELLUNGEN_KATEGORIEN },
   component: lazyRouteComponent(() => import('./budget/categories-page'), 'CategoriesPage'),
+});
+const categoryDetailRoute = createRoute({
+  getParentRoute: () => shellRoute,
+  path: '/einstellungen/kategorien/$id',
+  validateSearch: (search: Record<string, unknown>) => ({
+    ausgeblendet:
+      search['ausgeblendet'] === true || search['ausgeblendet'] === 'true' ? true : undefined,
+  }),
+  staticData: { meta: { ...EINSTELLUNGEN_KATEGORIEN, title: 'Kategorie' } },
+  component: lazyRouteComponent(() => import('./budget/plan-panel-pages'), 'CategoryDetailPage'),
+});
+const goalDetailRoute = createRoute({
+  getParentRoute: () => shellRoute,
+  path: '/plan/sparziele/$id',
+  validateSearch: (search: Record<string, unknown>) => ({
+    quelle: search['quelle'] === 'report' ? 'report' : undefined,
+  }),
+  staticData: { meta: { ...PLAN_SPARZIELE, title: 'Sparziel' } },
+  component: lazyRouteComponent(() => import('./budget/plan-panel-pages'), 'GoalDetailPage'),
 });
 const rulesRoute = createRoute({
   getParentRoute: () => shellRoute,
@@ -622,6 +645,8 @@ const routeTree = rootRoute.addChildren([
     investmentSettingsRoute,
     accountsSettingsRoute,
     categoriesRoute,
+    categoryDetailRoute,
+    goalDetailRoute,
     rulesRoute,
     ruleStatusRoute,
     assignmentRoute,
@@ -659,6 +684,9 @@ export const router = createRouter({
   routeTree,
   scrollRestoration: ({ location }) =>
     location.pathname.startsWith('/plan/monat') ||
+    location.pathname.startsWith('/plan/sparziele') ||
+    location.pathname.startsWith('/einstellungen/kategorien') ||
+    location.pathname === '/reports/sparziele' ||
     location.pathname.startsWith('/vermoegen/portfolio') ||
     location.pathname.startsWith('/einstellungen/regelwerk'),
 });

@@ -40,6 +40,10 @@ vi.mock('./api', async (original) => ({
 }));
 
 afterEach(cleanup);
+let hash = '';
+vi.mock('@tanstack/react-router', () => ({
+  useLocation: () => ({ hash }),
+}));
 
 const book: RuleBook = {
   rules: RULE_DEFS.map((def) => ({
@@ -99,6 +103,19 @@ it('puts violations before stages, showing the current value, threshold and corr
   ).toBe('/plan/monat');
   expect(within(violated).getByRole('switch', { name: 'R02 Notgroschen' })).toBeTruthy();
   expect(screen.getByText('S1-1')).toBeTruthy();
+});
+
+it('focuses the linked finding including cause and action, with settings secondary', () => {
+  hash = 'rule-result-R02';
+  show();
+  const finding = document.getElementById(hash)!;
+  expect(finding).toBeTruthy();
+  expect(document.activeElement).toBe(finding);
+  expect(within(finding).getByText('Ist: 2,5 Monate')).toBeTruthy();
+  expect(within(finding).getByText('Schwelle: min. 3, Ziel 6 Monate')).toBeTruthy();
+  expect(within(finding).getByRole('link', { name: 'Im Plan aufstocken' })).toBeTruthy();
+  expect(within(finding).getByRole('button', { name: /^Einstellen R02/ })).toBeTruthy();
+  hash = '';
 });
 
 it('keeps warnings and unavailable rules out of met rules and hides disabled rules until expanded', async () => {
