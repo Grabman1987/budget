@@ -114,6 +114,9 @@ test('a booking links to an occurrence and the occurrence can be marked missed',
 });
 
 test('Plan › Monat: the Einnahmen term opens received against expected', async ({ page }) => {
+  // Materialize the seeded recurring occurrences independently of other tests in this file.
+  await page.goto('/plan/erwartet');
+  await expect(page.locator('tr.prow', { hasText: 'Gehalt' }).first()).toBeVisible();
   await page.goto('/plan/monat');
   await page
     .getByRole('group', { name: 'Maßkette Zu verteilen' })
@@ -128,7 +131,10 @@ test('Plan › Monat: the Einnahmen term opens received against expected', async
   await expect(panel.getByText('erwartet 4.612,00 €')).toBeVisible();
   await expect(panel.getByRole('table', { name: /nach Art/ })).toContainText('Gehalt');
   await expect(panel.getByRole('table', { name: /nach Art/ })).toContainText('3.812,00 €');
-  await expect(panel).toContainText('kein Geld zum Verteilen');
+  await expect(panel).toContainText('Erwartete Zahlungen sind Planwerte.');
+  await expect(panel).toContainText(
+    'Zu verteilen zählt nur tatsächlich gebuchte Zuflüsse im zugeordneten Planmonat',
+  );
   await panel.getByRole('link', { name: 'Zurück zum Monat' }).click();
   await expect(page).toHaveURL(/\/plan\/monat(\?|$)/);
   await expect(await serious(page)).toEqual([]);
@@ -150,7 +156,7 @@ test.describe('look', () => {
 
   test.describe('dark', () => {
     test.use({ colorScheme: 'dark' });
-    test('the 90 days and the Einnahmen panel', async ({ page }) => {
+    test('the 90 days and the Einnahmen panel', async ({ page }, testInfo) => {
       await page.goto('/plan/erwartet');
       await expect(page.locator('tr.prow').first()).toBeVisible();
       await page.evaluate(() => document.fonts.ready);
@@ -160,7 +166,21 @@ test.describe('look', () => {
       await expect(page.getByRole('dialog', { name: /Einnahmen/ })).toBeVisible();
       await expect(page.getByTestId('income-received')).toBeVisible();
       expect(await serious(page)).toEqual([]);
+      const incomeRegion = page.getByRole('region', { name: 'Einnahmen September 2026' });
+      await expect(incomeRegion).toContainText(
+        /Heute zählt Haushaltseinnahmen nach Buchungsdatum.*„Für nächsten Monat“ zählt im Plan erst im Folgemonat\./,
+      );
       await expectScreenshot(page, 'expected-income-dark.png');
+      if (testInfo.project.name === 'mobile') {
+        await page.getByRole('button', { name: 'Schließen' }).focus();
+        await page.keyboard.press('Tab');
+        await expect(incomeRegion).toBeFocused();
+        const before = await incomeRegion.evaluate((element) => element.scrollTop);
+        await page.keyboard.press('PageDown');
+        await expect
+          .poll(() => incomeRegion.evaluate((element) => element.scrollTop))
+          .toBeGreaterThan(before);
+      }
     });
   });
 });

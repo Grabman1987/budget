@@ -21,7 +21,9 @@ test('three answer cards use source cents, fit the phone and link to the current
     eur(data.monthResult.savedCents),
   );
   await expect(cards.nth(2).locator('.heute-answer-value')).toHaveText(eur(data.lead.freeCents));
-  await expect(cards.nth(1)).toContainText(`Einnahmen ${eur(data.monthResult.earnedCents)}`);
+  await expect(cards.nth(1)).toContainText(
+    `Haushaltseinnahmen ${eur(data.monthResult.earnedCents)}`,
+  );
   await expect(cards.nth(2)).toContainText(
     `Tag ${data.budgetAnswer.day} von ${data.budgetAnswer.daysInMonth}`,
   );
@@ -54,9 +56,18 @@ test('three answer cards use source cents, fit the phone and link to the current
       }),
     );
     if (info.project.name === 'mobile') {
-      for (const box of boxes) expect(box.height).toBeLessThanOrEqual(120);
-      expect(boxes[1]!.y).toBeGreaterThan(boxes[0]!.y);
-      expect(boxes[2]!.y).toBeGreaterThan(boxes[1]!.y);
+      const incomeExplanation = cards.nth(1).locator('p', {
+        hasText: 'Haushaltseinnahmen im September 2026 nach Buchungsdatum.',
+      });
+      await expect(incomeExplanation).toBeVisible();
+      const explanationBox = await incomeExplanation.boundingBox();
+      expect(explanationBox).not.toBeNull();
+      // Keep the compact card budget, allowing only the newly visible explanation and grid gap.
+      expect(boxes[0]!.height).toBeLessThanOrEqual(120);
+      expect(boxes[1]!.height - explanationBox!.height - 4).toBeLessThanOrEqual(120);
+      expect(boxes[2]!.height).toBeLessThanOrEqual(120);
+      expect(boxes[1]!.y).toBeGreaterThanOrEqual(boxes[0]!.y + boxes[0]!.height);
+      expect(boxes[2]!.y).toBeGreaterThanOrEqual(boxes[1]!.y + boxes[1]!.height);
     } else expect(boxes.map((box) => box.y)).toEqual([boxes[0]!.y, boxes[0]!.y, boxes[0]!.y]);
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(
       true,
@@ -71,7 +82,10 @@ test('three answer cards use source cents, fit the phone and link to the current
   }
   await cards.nth(2).getByRole('button').click();
   await expect(page.locator('#heute-lead-chain')).toBeVisible();
-  await cards.nth(1).getByRole('link').click();
+  await cards
+    .nth(1)
+    .locator('a', { has: page.locator('.heute-answer-value') })
+    .click();
   await expect(page).toHaveURL(/\/reports\/onepager\?monat=2026-09/);
   await expect(page.getByRole('heading', { name: 'Monats-One-Pager', exact: true })).toBeVisible();
 });

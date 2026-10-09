@@ -8,6 +8,7 @@ import { createApp, type AuthGate } from '../app';
 let opened: OpenedDatabase;
 let app: ReturnType<typeof createApp>;
 let authenticated: boolean;
+let today: string;
 const origin = 'https://budget.example';
 const auth: AuthGate = {
   routes: new Hono(),
@@ -21,6 +22,7 @@ const auth: AuthGate = {
 };
 beforeEach(() => {
   authenticated = true;
+  today = '2027-02-01';
   opened = createTestDatabase();
   seedBasics(opened.db);
   categories.create(
@@ -31,7 +33,7 @@ beforeEach(() => {
   app = createApp({
     webDir: 'test-results/no-web',
     auth,
-    ledger: { db: opened.db, today: () => '2027-02-01', bankSync: null },
+    ledger: { db: opened.db, today: () => today, bankSync: null },
   });
 });
 afterEach(() => opened.close());
@@ -57,6 +59,45 @@ const summary = async (month: string) => (await call('GET', '/budget/' + month))
 const nextRule = { scope: 'incomeType', targetId: 'income-salary', nextMonth: true };
 
 describe('owner income budget month', () => {
+  it('keeps booking-date household income separate from next-month budget income and expected income', async () => {
+    today = '2026-09-30';
+    const result = await salary({
+      date: '2026-09-30',
+      amountCents: 100_000,
+      incomeNextMonth: true,
+      splits: [{ categoryId: 'salary', incomeTypeId: 'income-salary', amountCents: 100_000 }],
+    });
+    expect(result.status).toBe(201);
+    expect(result.body.bookings[0]).toMatchObject({
+      date: '2026-09-30',
+      incomeNextMonth: true,
+      amountCents: 100_000,
+    });
+    const expected = await call('POST', '/expected', {
+      name: 'Expected October income',
+      kind: 'inflow',
+      accountId: 'giro',
+      payeeId: 'p1',
+      incomeTypeId: 'income-salary',
+      rhythm: 'monthly',
+      validFrom: '2026-10-01',
+      dueDay: 15,
+      dateShift: 'none',
+      amountCents: 30_000,
+    });
+    expect(expected.status).toBe(201);
+
+    today = '2026-09-30';
+    expect((await call('GET', '/heute?month=2026-09')).body.monthResult.earnedCents).toBe(100_000);
+    today = '2026-10-01';
+    expect((await call('GET', '/heute?month=2026-10')).body.monthResult.earnedCents).toBe(0);
+    expect((await summary('2026-10')).incomeCents).toBe(100_000);
+    expect(await call('GET', '/expected/income?month=2026-10')).toMatchObject({
+      status: 200,
+      body: { month: '2026-10', expectedCents: 30_000, receivedCents: 0 },
+    });
+  });
+
   it('retains date and salary label, makes cash available immediately, and budgets it in January', async () => {
     const result = await salary({ incomeNextMonth: true });
     expect(result.status).toBe(201);
