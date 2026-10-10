@@ -1,5 +1,14 @@
 # Roadmap
 
+### P2 #316 / #317 / #328 / #329 / #341 — Today and Expected detail pages — 2026-10-09
+
+- [x] Move only Today's account/wealth dimensions to `/heute/details/:kind`, reusing the existing valuation, account grouping and source links with month/period context.
+- [x] Route Expected income to the existing Plan income page component with an Expected breadcrumb/back link, month, originating view and kind filter.
+- [x] Show expected payment details, unchanged versions and occurrences on `/plan/erwartet/:id`; preserve explicit single-occurrence skip/unskip and audited write/undo paths.
+- [x] Put creation, editing, version capture, booking linking and deletion confirmation in FormDialog; navigation never confirms a booking.
+- [x] Keep the three Today answer cards and put secondary monthly sections below them at full width.
+- [ ] Required CI, Linux visual baseline review and owner/device acceptance. Scoped local results and limitations: [delivery evidence](evidence/today-expected-detail-pages/README.md).
+
 ### Booking dialog acceptance — 2026-10-09 (#309 #314 #315)
 
 - [x] Focused synthetic desktop/390px checks for German date, arithmetic/defaults, exact-cent save, bounded height, visible Save and phone touch targets; dark Heute/dialog review with screenshots and contrast evidence.

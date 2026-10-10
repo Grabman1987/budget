@@ -389,6 +389,34 @@ const planExpectedRoute = createRoute({
   staticData: { meta: PLAN_ERWARTET },
   component: lazyRouteComponent(() => import('./expected/expected-page'), 'ExpectedPage'),
 });
+const expectedDetailSearch = (search: Record<string, unknown>) => ({
+  ansicht:
+    search['ansicht'] === 'contracts' || search['ansicht'] === 'all' ? search['ansicht'] : 'next',
+  art: search['art'] === 'inflow' || search['art'] === 'outflow' ? search['art'] : 'all',
+});
+const expectedPaymentRoute = createRoute({
+  getParentRoute: () => shellRoute,
+  path: '/plan/erwartet/$id',
+  staticData: { meta: { ...PLAN_ERWARTET, title: 'Wiederkehrende Zahlung' } },
+  validateSearch: expectedDetailSearch,
+  component: lazyRouteComponent(() => import('./expected/payment-page'), 'PaymentPage'),
+});
+const expectedIncomeRoute = createRoute({
+  getParentRoute: () => shellRoute,
+  path: '/plan/erwartet/einnahmen',
+  staticData: { meta: { ...PLAN_ERWARTET, title: 'Einnahmen' } },
+  validateSearch: expectedDetailSearch,
+  component: lazyRouteComponent(() => import('./budget/envelope-page'), 'PlanIncomePage'),
+});
+const heuteDimensionRoute = createRoute({
+  getParentRoute: () => shellRoute,
+  path: '/heute/details/$kind',
+  beforeLoad: ({ params }) => {
+    if (!['liquid', 'invested', 'receivable', 'debt'].includes(params.kind)) throw notFound();
+  },
+  staticData: { meta: { ...HEUTE, title: 'Herleitung' } },
+  component: lazyRouteComponent(() => import('./heute/dimension-page'), 'DimensionPage'),
+});
 const freedomRoute = createRoute({
   getParentRoute: () => shellRoute,
   path: VERMOEGEN_FREIHEIT_META.path,
@@ -680,6 +708,9 @@ const routeTree = rootRoute.addChildren([
     planIncomeRoute,
     planYearRoute,
     planExpectedRoute,
+    expectedPaymentRoute,
+    expectedIncomeRoute,
+    heuteDimensionRoute,
     freedomRoute,
     netWorthRoute,
     portfolioRoute,
