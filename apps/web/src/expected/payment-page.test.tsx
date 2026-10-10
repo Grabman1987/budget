@@ -38,6 +38,7 @@ it('returns to the originating Expected view and kind after deletion', () => {
     amountToleranceCents: 0,
     dateWindowDays: 3,
     rhythm: 'monthly',
+    intervalWeeks: null,
     dueDay: 20,
     dueMonth: null,
     dateShift: 'none',

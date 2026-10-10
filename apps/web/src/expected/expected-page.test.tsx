@@ -1,8 +1,8 @@
 // @vitest-environment jsdom
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { fireEvent, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import type { ReactNode } from 'react';
-import { beforeEach, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { ToastProvider } from '@budget/ui';
 import { addDays, todayInVienna } from '@budget/domain';
 import { expectedQuery, incomeQuery, occurrencesQuery, type ExpectedPayment } from './api';
@@ -23,6 +23,8 @@ vi.mock('../pages/placeholder-page', () => ({
     </main>
   ),
 }));
+
+afterEach(cleanup);
 
 beforeEach(() => {
   navigate.mockReset();
@@ -56,6 +58,7 @@ function show(detail = false) {
     amountToleranceCents: 0,
     dateWindowDays: 3,
     rhythm: 'monthly',
+    intervalWeeks: null,
     dueDay: 20,
     dueMonth: null,
     dateShift: 'none',
