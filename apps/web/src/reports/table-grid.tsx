@@ -10,6 +10,7 @@ import { forwardRef, type ReactNode, type CSSProperties } from 'react';
 import { chartPercent } from '../charts/tooltip-data';
 import { Term } from './term';
 import { eur } from '../ledger/format';
+import { AppLink } from '../shell/app-link';
 import { euroNumber, percentWhole } from './table-format';
 
 export interface GridColumn {
@@ -25,6 +26,8 @@ export interface PreviousColumn {
   totals: ReadonlyMap<string, number>;
 }
 
+type CellLink = { to: string; search: Record<string, unknown> };
+
 interface RowsGridProps {
   rows: ReadonlyArray<TableRow>;
   columns: ReadonlyArray<GridColumn>;
@@ -35,6 +38,7 @@ interface RowsGridProps {
   /** Scrollable region name for keyboard users. */
   regionLabel: string;
   className?: string;
+  cellLink?: ((row: TableRow, column: number | null) => CellLink) | undefined;
   onCell?: ((row: TableRow, column: number | null) => void) | undefined;
   renderLabel?: ((row: TableRow) => ReactNode) | undefined;
 }
@@ -56,8 +60,10 @@ function Cell({
   stats,
   point,
   onClick,
+  link,
 }: {
   point: number;
+  link?: CellLink | undefined;
   onClick?: (() => void) | undefined;
   row: TableRow;
   value: number | null;
@@ -84,7 +90,11 @@ function Cell({
   const className = heated ? `n hc2 ${heated.tone === 'bad' ? 'hc-red' : 'hc-green'}` : 'n';
   return (
     <td className={className} style={style} data-chart-point={point}>
-      {onClick ? (
+      {link ? (
+        <AppLink className="table-cell-open" {...link} state={{ reportDetailOpenedInApp: true }}>
+          {eur(value)}
+        </AppLink>
+      ) : onClick ? (
         <button type="button" className="table-cell-open" onClick={onClick}>
           {eur(value)}
         </button>
@@ -136,6 +146,7 @@ export const RowsGrid = forwardRef<HTMLDivElement, RowsGridProps>(function RowsG
     regionLabel,
     className,
     onCell,
+    cellLink,
     renderLabel,
   },
   ref,
@@ -218,6 +229,7 @@ export const RowsGrid = forwardRef<HTMLDivElement, RowsGridProps>(function RowsG
                   {row.vals.map((value, i) => (
                     <Cell
                       key={columns[i]?.key ?? i}
+                      link={cellLink?.(row, i)}
                       onClick={onCell ? () => onCell(row, i) : undefined}
                       row={row}
                       value={value}
@@ -231,7 +243,15 @@ export const RowsGrid = forwardRef<HTMLDivElement, RowsGridProps>(function RowsG
                         '–'
                       ) : (
                         <strong>
-                          {onCell ? (
+                          {cellLink ? (
+                            <AppLink
+                              className="table-cell-open"
+                              {...cellLink(row, null)}
+                              state={{ reportDetailOpenedInApp: true }}
+                            >
+                              {eur(sum)}
+                            </AppLink>
+                          ) : onCell ? (
                             <button
                               type="button"
                               className="table-cell-open"
@@ -252,6 +272,14 @@ export const RowsGrid = forwardRef<HTMLDivElement, RowsGridProps>(function RowsG
                     <td className="n">
                       {avg === null ? (
                         '–'
+                      ) : cellLink ? (
+                        <AppLink
+                          className="table-cell-open"
+                          {...cellLink(row, null)}
+                          state={{ reportDetailOpenedInApp: true }}
+                        >
+                          {eur(avg)}
+                        </AppLink>
                       ) : onCell ? (
                         <button
                           type="button"

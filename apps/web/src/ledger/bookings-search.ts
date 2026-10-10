@@ -2,6 +2,7 @@ import { BOOKING_FLAGS, BOOKING_STATUSES, type BookingFilter, type BookingSort }
 
 /** URL parameters of Alle Buchungen (German names, linkable and reload-safe). */
 export interface BookingsSearch {
+  ruecksprung?: string | undefined;
   basis?: 'category-spending' | undefined;
   buchung?: string | undefined;
   konto?: string | undefined;
@@ -63,6 +64,12 @@ const SORTS = ['date', 'amount', 'payee', 'account'] as const;
 /** Route `validateSearch`: unknown or malformed values are dropped, never thrown. */
 export function validateBookingsSearch(search: Record<string, unknown>): BookingsSearch {
   return {
+    ruecksprung:
+      typeof search['ruecksprung'] === 'string' &&
+      search['ruecksprung'].length <= 2000 &&
+      search['ruecksprung'].startsWith('/reports/einnahmen-ausgaben/buchungen?')
+        ? search['ruecksprung']
+        : undefined,
     basis: search['basis'] === 'category-spending' ? 'category-spending' : undefined,
     buchung: id(search['buchung']),
     konto: id(search['konto']),

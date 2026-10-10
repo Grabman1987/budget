@@ -1,5 +1,14 @@
 # Roadmap
 
+### Reports package P - history, cell links and full-width summaries (2026-10-09)
+
+- [x] #335/#336: payslip history/details subpage and existing capture/edit/upload form dialogs, with month context and audited-write reuse.
+- [x] #337: linked income/expense cells, exact existing source selection and report-filter return context through the existing booking view.
+- [x] #344/#345/#347/#348: remove the remaining secondary content columns; preserve numeric tables and #411 category trend/source links.
+- [x] Focused web typecheck, changed-file lint/format, 49 unit tests and one E2E build; package memory override applies. [Evidence](evidence/report-panels-1009/README.md).
+- [x] Six functional desktop scenarios across targeted reruns and final 9-test mobile run at 390 px, including navigation, audited edit/undo, cancellation/focus, geometry and Axe.
+- [ ] Required CI, integration after #411 and owner desktop/phone acceptance.
+
 ### Contacts, search and developer surfaces without side panels — #321/#322/#338/#339/#340
 
 - [x] Contact statements at `/konten/kontakte/:id`, legacy contact links, retained overview history and existing receipt/settlement/audit/undo paths.

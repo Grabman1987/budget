@@ -185,7 +185,7 @@ export function ReportGroupPage({ slug }: { slug: string }) {
 }
 
 /** Report dispatch: connected bodies where implemented, otherwise a placeholder from the catalog. */
-export function ReportPage({ reportId }: { reportId: string }) {
+export function ReportPage({ reportId, detail = false }: { reportId: string; detail?: boolean }) {
   if (reportId === 'kontakte') return <ContactReportPage />;
   const report = findReport(reportId);
   if (!report) return <ReportNotFound />;
@@ -216,7 +216,7 @@ export function ReportPage({ reportId }: { reportId: string }) {
   if (report.id === 'psteuern') return <PortfolioCostsReport report={report} meta={meta} />;
   if (report.id === 'peinzahlungen')
     return <PortfolioContributionsReport report={report} meta={meta} />;
-  if (report.id === 'gehalt') return <PayrollReport report={report} meta={meta} />;
+  if (report.id === 'gehalt') return <PayrollReport report={report} meta={meta} history={detail} />;
   if (report.id === 'projekte') return <ProjectsReport report={report} meta={meta} />;
   if (report.id === 'einnahmen') return <IncomeReport report={report} meta={meta} />;
   if (report.id === 'geldfluss') return <FlowReport report={report} meta={meta} />;
@@ -230,7 +230,7 @@ export function ReportPage({ reportId }: { reportId: string }) {
   if (report.id === 'kategorien') return <CategoryReport report={report} meta={meta} />;
   if (report.id === 'sparquote') return <SavingsReport report={report} meta={meta} />;
   if (report.id === 'einnahmen-ausgaben')
-    return <IncomeExpenseReport report={report} meta={meta} />;
+    return <IncomeExpenseReport report={report} meta={meta} sources={detail} />;
   if (report.id === 'gesamttabelle') return <TotalTableReport report={report} meta={meta} />;
   return (
     <PlaceholderPage
@@ -279,4 +279,11 @@ export function ReportRoute() {
       <ReportPage reportId={reportId} />
     </ReportTrendContext.Provider>
   );
+}
+
+export function PayrollHistoryRoute() {
+  return <ReportPage reportId="gehalt" detail />;
+}
+export function IncomeExpenseSourcesRoute() {
+  return <ReportPage reportId="einnahmen-ausgaben" detail />;
 }
