@@ -16,8 +16,8 @@
     "@budget/market": "*",
     "@hono/node-server": "^1.19.0",
     "@simplewebauthn/server": "^14.0.3",
-    "hono": "^4.13.0",
-    "pdfjs-dist": "^6.3.289",
+    "hono": "^4.13.13",
+    "pdfjs-dist": "^6.4.299",
     "yazl": "^3.3.1",
     "zod": "^4.6.5"
   },
@@ -26,7 +26,7 @@
     "@types/pdfkit": "^0.17.6",
     "@types/yauzl": "^3.4.0",
     "@types/yazl": "^3.3.1",
-    "esbuild": "^0.25.0",
+    "esbuild": "^0.28.2",
     "pdfkit": "^0.20.2",
     "yauzl": "^3.4.0"
   }

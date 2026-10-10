@@ -1,0 +1,1 @@
+ALTER TABLE `expected_payment` ADD `interval_weeks` integer;
