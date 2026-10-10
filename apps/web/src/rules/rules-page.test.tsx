@@ -14,8 +14,20 @@ vi.mock('../pages/placeholder-page', () => ({
   PageFrame: ({ children }: { children: ReactNode }) => <main>{children}</main>,
 }));
 vi.mock('../shell/app-link', () => ({
-  AppLink: ({ to, children, ...rest }: { to: string; children: ReactNode }) => (
-    <a href={to} {...rest}>
+  AppLink: ({
+    to,
+    children,
+    ...rest
+  }: {
+    to: string;
+    children: ReactNode;
+    search?: unknown;
+    state?: unknown;
+    id?: string;
+    className?: string;
+    'aria-label'?: string;
+  }) => (
+    <a href={to} id={rest.id} className={rest.className} aria-label={rest['aria-label']}>
       {children}
     </a>
   ),
@@ -102,7 +114,10 @@ it('focuses the linked finding including cause and action, with settings seconda
   expect(within(finding).getByText('Ist: 2,5 Monate')).toBeTruthy();
   expect(within(finding).getByText('Schwelle: min. 3, Ziel 6 Monate')).toBeTruthy();
   expect(within(finding).getByRole('link', { name: 'Im Plan aufstocken' })).toBeTruthy();
-  expect(within(finding).getByRole('button', { name: /^Einstellen R02/ })).toBeTruthy();
+  expect(within(finding).getByRole('link', { name: /^Einstellen R02/ })).toHaveProperty(
+    'pathname',
+    '/einstellungen/regelwerk/R02',
+  );
   hash = '';
 });
 
@@ -126,7 +141,10 @@ it('keeps warnings and unavailable rules out of met rules and hides disabled rul
   expect(disabled.open).toBe(true);
   expect(screen.getAllByRole('switch', { name: /^R/ })).toHaveLength(22);
   for (const row of container.querySelectorAll('.rw-rules > li')) {
-    expect(within(row as HTMLElement).getByRole('button', { name: /^Einstellen R/ })).toBeTruthy();
+    const link = within(row as HTMLElement).getByRole('link', { name: /^Einstellen R/ });
+    expect(link.getAttribute('href')).toBe(
+      `/einstellungen/regelwerk/${row.getAttribute('data-rule-code')}`,
+    );
     expect(row.querySelector('.rw-explanation')?.textContent?.length).toBeGreaterThan(20);
   }
 });

@@ -18,7 +18,10 @@ const pause = (milliseconds: number) => new Promise((done) => setTimeout(done, m
 export const test = base.extend<{ isolatedLedger: IsolatedLedger; ledgerToday: string }>({
   ledgerToday: ['2026-10-02', { option: true }],
   isolatedLedger: async ({ playwright, ledgerToday }, use, info) => {
-    const port = Number(process.env['E2E_PORT'] ?? 4310) + 20 + info.parallelIndex;
+    const port =
+      Number(process.env['E2E_PORT'] ?? 4310) +
+      Number(process.env['E2E_LEDGER_PORT_OFFSET'] ?? 20) +
+      info.parallelIndex;
     // Refuse an occupied port before starting or sending bootstrap credentials anywhere.
     await new Promise<void>((done, fail) => {
       const reservation = createServer();
