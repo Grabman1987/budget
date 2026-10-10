@@ -6,7 +6,7 @@ import { useQuery } from '@tanstack/react-query';
 import { ArrowDown, ArrowUp, Pencil } from 'lucide-react';
 import { Fragment, useState, type ReactNode } from 'react';
 import { CategoryCell, FlagCell, PayeeCell, StatusCell, useCategoryClasses } from './booking-cells';
-import { dayHeading, nativeCurrency, valuedCurrency, shortDay } from './format';
+import { dayHeading, nativeCurrency, valuedCurrency, shortDay, eur } from './format';
 import { flashRows, useFlashing } from './flash';
 import { useLedgerWrites } from './mutations';
 import { lookupsQuery } from './queries';
@@ -330,6 +330,9 @@ function Row({
             {valuedCurrency(b.amountCents, b.currency, b.amountValuation, true)}
           </span>
         </InlineBookingCell>
+        {b.categorySpendingCents !== undefined && (
+          <small className="kmeta">Kategorie netto {eur(b.categorySpendingCents)}</small>
+        )}
       </td>
       {variant === 'account' && (
         <td className="kc-num kc-run kx-run">

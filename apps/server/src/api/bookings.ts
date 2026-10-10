@@ -120,6 +120,7 @@ export function bookingRoutes(db: Db, today = () => todayInVienna()): Hono {
         text: q,
         ids: ids ? ids.split(',').filter(Boolean).slice(0, 200) : undefined,
       }),
+      today(),
     );
     return c.json(page);
   });

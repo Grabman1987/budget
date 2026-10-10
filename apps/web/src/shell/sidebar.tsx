@@ -1,3 +1,4 @@
+import { useAuthMethodLabel } from '../auth/status-query';
 import { cx } from '@budget/ui';
 import { Settings } from 'lucide-react';
 import { MAIN_AREAS, type AreaId } from '../nav/areas';
@@ -46,6 +47,7 @@ export function BrandMark() {
  */
 export function Sidebar({ area }: { area: AreaId | undefined }) {
   const identity = useShellIdentity();
+  const authMethod = useAuthMethodLabel();
   return (
     <aside className="sidebar" id="sidebar" aria-label="Seitenleiste">
       <AppLink className="brand" to="/" aria-label="Budget, Heute">
@@ -108,7 +110,7 @@ export function Sidebar({ area }: { area: AreaId | undefined }) {
           </span>
           <span className="profile-text">
             <strong>{identity.name}</strong>
-            <span>Passkey · dieses Gerät</span>
+            <span>{authMethod}</span>
           </span>
         </AppLink>
       </div>
