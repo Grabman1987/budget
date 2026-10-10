@@ -15,7 +15,13 @@ export interface ScheduleRule {
   dateShift: DateShift;
   startDate: string | null;
   endDate: string | null;
+  /** Weekly only: one due date every n weeks (1-52); absent, null or 1 = every week. */
+  intervalWeeks?: number | null;
 }
+
+/** Weeks between two due dates of a weekly rhythm (absent or invalid = 1). */
+export const weekInterval = (n: number | null | undefined): number =>
+  Number.isInteger(n) && (n as number) >= 1 && (n as number) <= 52 ? (n as number) : 1;
 
 const STEP: Record<Rhythm, number> = {
   weekly: 0,
@@ -49,9 +55,14 @@ export function dueDates(rule: ScheduleRule, from: string, to: string): string[]
     // Weekly schedules keep their weekday across month/year boundaries.
     if (!rule.startDate) throw new RangeError('Weekly schedules need a start date');
     const anchor = rule.startDate;
-    const first = Math.max(0, Math.floor(daysBetween(anchor, from) / 7) - 1);
+    const stepDays = 7 * weekInterval(rule.intervalWeeks);
+    const first = Math.max(0, Math.floor(daysBetween(anchor, from) / stepDays) - 1);
     const out: string[] = [];
-    for (let base = addDays(anchor, first * 7); base <= addDays(to, 7); base = addDays(base, 7)) {
+    for (
+      let base = addDays(anchor, first * stepDays);
+      base <= addDays(to, 7);
+      base = addDays(base, stepDays)
+    ) {
       const day = shiftToBusinessDay(base, rule.dateShift);
       if (
         day >= from &&
@@ -81,9 +92,12 @@ export function dueDates(rule: ScheduleRule, from: string, to: string): string[]
   return out;
 }
 
-/** One rhythm after a booking, clamped at month end without changing its original due day. */
-export function nextRepeatDate(day: string, rhythm: Rhythm): string {
-  if (rhythm === 'weekly') return addDays(day, 7);
+/**
+ * One rhythm after a booking, clamped at month end without changing its original due day.
+ * `intervalWeeks` only applies to the weekly rhythm.
+ */
+export function nextRepeatDate(day: string, rhythm: Rhythm, intervalWeeks?: number | null): string {
+  if (rhythm === 'weekly') return addDays(day, 7 * weekInterval(intervalWeeks));
   const month = addMonths(monthOf(day), STEP[rhythm]);
   const last = lastDayOfMonth(month);
   return `${month}-${String(Math.min(Number(day.slice(8)), Number(last.slice(8)))).padStart(2, '0')}`;

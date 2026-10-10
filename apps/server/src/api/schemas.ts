@@ -205,6 +205,7 @@ export const bulkBody = z.discriminatedUnion('action', [
 
 const csv = z.string().optional();
 export const bookingQuery = z.object({
+  basis: z.literal('category-spending').optional(),
   accountId: id.optional(),
   from: day.optional(),
   to: day.optional(),
@@ -353,6 +354,8 @@ const expectedFields = {
   dateShift: z.enum(DATE_SHIFTS),
   startDate: day.nullable(),
   endDate: day.nullable(),
+  /** Weekly rhythm: one due date every n weeks (1-52); null = every week. */
+  intervalWeeks: z.int().min(1).max(52).nullable(),
   note: nullableText,
 };
 /** A version: positive cents (the kind gives the sign), optionally a range up to `amountMaxCents`. */
