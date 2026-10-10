@@ -68,7 +68,7 @@ export function InboxPage() {
           <AppLink
             to="/konten/posteingang"
             search={{
-              ...(search.aufgaben !== 'all' && { aufgaben: search.aufgaben }),
+              ...(search.aufgaben && { aufgaben: search.aufgaben }),
               ...(search.von && { von: search.von }),
             }}
           >
@@ -306,11 +306,15 @@ function PaginatedInboxBody({
           Zeitraum der Aufgaben
           <select
             className="select"
-            value={search.aufgaben}
+            value={search.aufgaben ?? 'all'}
             onChange={(event) =>
               void navigate({
                 to: '/konten/posteingang',
-                search: { ...search, aufgaben: event.target.value, gruppe: undefined },
+                search: {
+                  ...search,
+                  aufgaben: event.target.value === 'all' ? undefined : event.target.value,
+                  gruppe: undefined,
+                },
               } as never)
             }
           >
