@@ -2,17 +2,25 @@
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { GlobalSearch } from './global-search';
+import { SearchResults } from './global-search';
 import { REPORTS } from '../nav/reports-catalog';
 import { amountsHidden, setAmountsHidden } from '@budget/ui';
 
 const navigate = vi.fn();
-vi.mock('@tanstack/react-router', () => ({
+const back = vi.fn();
+let openedInApp = false;
+vi.mock('@tanstack/react-router', async (importOriginal) => ({
+  ...(await importOriginal<Record<string, unknown>>()),
   useNavigate: () => navigate,
-  useLocation: () => ({ pathname: '/plan/monat', href: '/plan/monat?monat=2026-09' }),
+  useRouter: () => ({ history: { back } }),
+  useLocation: ({ select }: { select: (location: unknown) => unknown }) =>
+    select({ state: { searchOpenedInApp: openedInApp } }),
+  useSearch: () => ({ von: '/plan/monat?monat=2026-09' }),
 }));
 beforeEach(() => {
   navigate.mockClear();
+  back.mockClear();
+  openedInApp = false;
   setAmountsHidden(false);
   vi.stubGlobal('matchMedia', () => ({
     matches: false,
@@ -34,7 +42,7 @@ beforeEach(() => {
 function mount() {
   render(
     <QueryClientProvider client={new QueryClient()}>
-      <GlobalSearch />
+      <SearchResults />
     </QueryClientProvider>,
   );
   const input = screen.getByRole('combobox', { name: 'Suchen' });
@@ -154,6 +162,23 @@ describe('command palette', () => {
     expect(screen.queryByRole('listbox')).toBeNull();
     expect(document.activeElement).toBe(input);
   });
+  it('steps back once when the search was opened from inside the app', () => {
+    openedInApp = true;
+    const input = mount();
+    fireEvent.keyDown(input, { key: 'Escape' });
+    fireEvent.keyDown(input, { key: 'Escape' });
+    expect(back).toHaveBeenCalledTimes(1);
+    expect(navigate).not.toHaveBeenCalled();
+  });
+  it('navigates to the source when the search page was opened directly', () => {
+    const input = mount();
+    fireEvent.keyDown(input, { key: 'Escape' });
+    expect(back).not.toHaveBeenCalled();
+    expect(navigate).toHaveBeenCalledWith({
+      to: '/plan/monat',
+      search: { monat: '2026-09' },
+    });
+  });
   it('reopens on the first recent choice after arrow-key selection', () => {
     const input = mount();
     fireEvent.change(input, { target: { value: 'Neue Buchung' } });
@@ -240,18 +265,16 @@ describe('command palette', () => {
       );
       fireEvent.keyDown(input, { key: 'Enter' });
       const call = navigate.mock.calls.at(-1)![0];
-      if (panel === 'posteingang') {
-        // The inbox is a page; the way back to the current view travels in `von`.
-        expect(call).toEqual(
-          expect.objectContaining({
-            to: '/konten/posteingang',
-            search: { von: '/plan/monat?monat=2026-09' },
-          }),
-        );
-      } else {
-        expect(call.to).toBe('.');
-        expect(call.search({ monat: '2026-09' })).toEqual({ monat: '2026-09', panel });
-      }
+      if (panel === 'buchung')
+        expect(call).toMatchObject({
+          to: '/plan/monat',
+          search: { monat: '2026-09', panel: 'buchung' },
+        });
+      else
+        expect(call).toMatchObject({
+          to: '/konten/posteingang',
+          search: { von: '/plan/monat?monat=2026-09' },
+        });
       fireEvent.focus(input);
       expect(
         within(screen.getByRole('group', { name: 'Globale Aktionen' })).getAllByRole('option')[0]

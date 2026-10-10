@@ -643,6 +643,16 @@ const devRoutes = devRoutesEnabled
   ? [
       createRoute({
         getParentRoute: () => rootRoute,
+        path: '/dev/details',
+        validateSearch: (search: Record<string, unknown>) => ({
+          titel: typeof search['titel'] === 'string' ? search['titel'].slice(0, 100) : undefined,
+          lang: search['lang'] === true || search['lang'] === 'true',
+          von: search['von'] === 'panels' ? 'panels' : undefined,
+        }),
+        component: lazyRouteComponent(() => import('./routes/detail-example'), 'DetailExamplePage'),
+      }),
+      createRoute({
+        getParentRoute: () => rootRoute,
         path: '/dev/diagramme',
         component: lazyRouteComponent(() => import('./routes/charts-spike'), 'ChartsSpikePage'),
       }),
@@ -666,6 +676,28 @@ const devRoutes = devRoutesEnabled
 
 const routeTree = rootRoute.addChildren([
   shellRoute.addChildren([
+    createRoute({
+      getParentRoute: () => shellRoute,
+      path: '/konten/kontakte/$id',
+      validateSearch: (search: Record<string, unknown>) => ({
+        verlauf: search['verlauf'] === 1 || search['verlauf'] === '1' ? 1 : undefined,
+      }),
+      staticData: { meta: PAGES.find((p) => p.path === '/konten/kontakte')! },
+      component: lazyRouteComponent(
+        () => import('./contacts/contacts-page'),
+        'ContactStatementPage',
+      ),
+    }),
+    createRoute({
+      getParentRoute: () => shellRoute,
+      path: '/suche',
+      validateSearch: (search: Record<string, unknown>) => ({
+        q: typeof search['q'] === 'string' ? search['q'].slice(0, 200) : undefined,
+        von: validateInboxSearch(search).von,
+      }),
+      staticData: { meta: { ...HEUTE, title: 'Suchen' } },
+      component: lazyRouteComponent(() => import('./shell/global-search'), 'SearchPage'),
+    }),
     homeRoute,
     createRoute({
       getParentRoute: () => shellRoute,

@@ -1,13 +1,14 @@
-import { Button, DetailPanel, FormDialog, WideDialog } from '@budget/ui';
+import { Button, FormDialog, WideDialog } from '@budget/ui';
 import { useState } from 'react';
+import { AppLink } from '../shell/app-link';
 
-type Kind = 'detail' | 'detail-long' | 'form' | 'wide';
+type Kind = 'form' | 'wide';
 
 const LINES = Array.from({ length: 40 }, (_, i) => `Zeile ${i + 1} des langen Inhalts`);
 
 /**
- * Developer harness for the shared panel primitive (`/dev/panels`, only in `vite dev` and the e2e
- * build): every variant with short and long content, independent of any page. The mobile panel
+ * Developer harness for detail routes and input dialogs (`/dev/panels`, only in dev and the e2e
+ * build), independent of any product page. The mobile dialog
  * regression spec (e2e/mobile-panels.spec.ts, WebKit iPhone and Chromium mobile) opens them here.
  */
 export function PanelsHarnessPage() {
@@ -15,8 +16,8 @@ export function PanelsHarnessPage() {
   const close = () => setOpen(null);
   return (
     <main className="sheet" style={{ padding: 24 }}>
-      <h1>Panel-Primitive</h1>
-      <p>Prüfstand für Seitenpanel, Bottom Sheet, Formulardialog und großen Arbeitsdialog.</p>
+      <h1>Detailseite und Eingabedialoge</h1>
+      <p>Prüfstand für Detailseiten, Formulardialog und großen Eingabedialog.</p>
       <p
         style={{
           display: 'flex',
@@ -27,23 +28,25 @@ export function PanelsHarnessPage() {
           background: 'var(--ground)',
         }}
       >
-        <Button onClick={() => setOpen('detail')}>Detail kurz</Button>
-        <Button onClick={() => setOpen('detail-long')}>Detail lang</Button>
+        <AppLink
+          className="btn btn-ghost"
+          to="/dev/details"
+          search={{ titel: 'Detail kurz', von: 'panels' }}
+        >
+          Detail kurz
+        </AppLink>
+        <AppLink
+          className="btn btn-ghost"
+          to="/dev/details"
+          search={{ titel: 'Detail lang', lang: true, von: 'panels' }}
+        >
+          Detail lang
+        </AppLink>
         <Button onClick={() => setOpen('form')}>Formulardialog</Button>
         <Button onClick={() => setOpen('wide')}>Arbeitsdialog</Button>
       </p>
       {/* Makes the page itself scrollable, so that "the background does not scroll" is testable. */}
       <div aria-hidden="true" style={{ height: 1600 }} />
-      <DetailPanel open={open === 'detail'} onClose={close} title="Detail kurz">
-        <p>Ein kurzer Inhalt.</p>
-        <Button onClick={close}>Fertig</Button>
-      </DetailPanel>
-      <DetailPanel open={open === 'detail-long'} onClose={close} title="Detail lang">
-        {LINES.map((line) => (
-          <p key={line}>{line}</p>
-        ))}
-        <Button onClick={close}>Fertig</Button>
-      </DetailPanel>
       <FormDialog open={open === 'form'} onClose={close} title="Formulardialog">
         {open === 'form' && (
           <form
@@ -74,10 +77,21 @@ export function PanelsHarnessPage() {
         )}
       </FormDialog>
       <WideDialog open={open === 'wide'} onClose={close} title="Arbeitsdialog">
-        {LINES.map((line) => (
-          <p key={line}>{line}</p>
-        ))}
-        <Button onClick={close}>Fertig</Button>
+        <form
+          className="contacts-form"
+          onSubmit={(event) => {
+            event.preventDefault();
+            close();
+          }}
+        >
+          {LINES.map((line, i) => (
+            <label key={line}>
+              Eingabe {i + 1}
+              <input className="input" type="text" />
+            </label>
+          ))}
+          <Button type="submit">Speichern</Button>
+        </form>
       </WideDialog>
     </main>
   );

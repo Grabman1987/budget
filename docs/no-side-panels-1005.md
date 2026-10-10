@@ -31,6 +31,10 @@ proposed destinations, not implemented routes.
 | `heute/heute-page.tsx`: account/wealth dimension details | `/heute/details/:kind`, existing account links | Open |
 | `expected/income-panel.tsx` from Erwartet and `reports/onepager-report.tsx` | Income sub-page preserving month and source return route | Open |
 | `inbox/inbox-page.tsx`, `shell/panel-host.tsx`, header `PanelLink`: wide inbox dialog and nested read-source/bank details | Header links to existing `/konten/posteingang`; data-warning detail `/konten/posteingang/:id`; confirm/assignment forms in dialogs | Done for data warnings (#319/#320); other inbox types retain their existing workflows |
+| `contacts/contacts-page.tsx`: contact statement with receipt/settlement/edit | `/konten/kontakte/:id`; separate input dialogs, including new contact | Done (#321/#322/#338/#339/#340) |
+| `budget/category-panel.tsx`: category/group management | Category details `/einstellungen/kategorien/:id`; create/edit/group forms in dialogs | Open |
+| `budget/goals-panel.tsx`, `pages/goals-progress-report.tsx`: savings goal history and forms | `/plan/sparziele/:id`; create/edit in dialogs; reports link to same detail | Open |
+| `budget/event-panel.tsx`: annual event create/edit | FormDialog; comparison stays inline in year plan | Open |
 | `contacts/contacts-page.tsx`: contact statement with receipt/settlement/edit | `/konten/kontakte/:id`; separate input dialogs, including new contact | Open |
 | `budget/category-panel.tsx`: category/group management | Category details `/einstellungen/kategorien/:id`; create/edit/group forms in dialogs | Open |
 | `budget/goals-panel.tsx`, `pages/goals-progress-report.tsx`: savings goal history and forms | `/plan/sparziele/:id`; create/edit in dialogs; reports link to same detail | Open |
@@ -50,6 +54,11 @@ proposed destinations, not implemented routes.
 | `wealth/trade-panel.tsx`: trade capture/edit | FormDialog retaining settlement and execution validation | Done |
 | `reports/payslip-panel.tsx`: payslip history and capture | Payslip detail sub-page under salary report; capture/edit/upload in form dialog | Open |
 | `reports/income-expense-report.tsx`: selected cell booking inspector | Linked booking sub-page preserving report filters | Open |
+| `shell/global-search.tsx`: search results sheet, Ctrl K | Search sub-page with search input; preserve Ctrl K and keyboard result navigation | Done (#321/#322/#338/#339/#340) |
+| `shell/panel-host.tsx`, `shell/panels.ts`: example detail | Dev-only detail route; remove placeholder panel entry | Done (#321/#322/#338/#339/#340) |
+| `routes/components-page.tsx`, `routes/panels-harness.tsx`: detail/side/sheet/work-dialog demos | Detail page demo and input/filter-only dialog/sheet demos | Done (#321/#322/#338/#339/#340) |
+| `heute/heute.css`: `.heute-main-grid`, secondary monthly content | Full-width inline sections or links to existing detail pages | Open |
+
 | `shell/global-search.tsx`: search results sheet, Ctrl K | Search sub-page with search input; preserve Ctrl K and keyboard result navigation | Open |
 | `shell/panel-host.tsx`, `shell/panels.ts`: example detail | Dev-only detail route; remove placeholder panel entry | Open |
 | `routes/components-page.tsx`, `routes/panels-harness.tsx`: detail/side/sheet/work-dialog demos | Detail page demo and input/filter-only dialog/sheet demos | Open |

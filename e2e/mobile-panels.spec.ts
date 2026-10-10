@@ -12,8 +12,7 @@ import { expect, test, type Page } from '@playwright/test';
  * Chromium pass alone proves nothing for Safari.
  *
  * Each scenario is a real way to open a panel on the phone: the floating "+ Buchung" button
- * (FormDialog, bottom sheet), `?panel=beispiel` (DetailPanel, bottom sheet), the Posteingang icon
- * in the header (WideDialog, full screen) and the primitive's own harness page `/dev/panels`.
+ * (FormDialog, bottom sheet), input dialogs and the primitive's own harness page `/dev/panels`.
  */
 
 test.skip(({ isMobile }) => !isMobile, 'phone only');
@@ -43,26 +42,6 @@ const SCENARIOS: Scenario[] = [
     open: async (page) => {
       await app(page, '/konten');
       await page.getByRole('link', { name: 'Buchung erfassen' }).tap();
-    },
-  },
-  {
-    id: 'Details (DetailPanel)',
-    name: 'Details',
-    kind: 'sheet',
-    inApp: false,
-    open: async (page) => {
-      // A page without ledger data: the shared e2e database must not widen the page behind the panel.
-      await app(page, '/einstellungen/sicherheit?panel=beispiel');
-    },
-  },
-  {
-    id: 'Harness: DetailPanel mit langem Inhalt',
-    name: 'Detail lang',
-    kind: 'sheet',
-    inApp: false,
-    open: async (page) => {
-      await page.goto('/dev/panels');
-      await page.getByRole('button', { name: 'Detail lang' }).tap();
     },
   },
   {
@@ -339,11 +318,11 @@ test.describe('behaviour', () => {
     page,
     browserName,
   }) => {
-    const s = SCENARIOS.find((x) => x.name === 'Detail lang') as Scenario;
+    const s = SCENARIOS.find((x) => x.name === 'Formulardialog') as Scenario;
     await page.goto('/dev/panels');
     // The harness is a lazy route: scrolling before its tall spacer exists clamps to 0 (seen on
     // Linux WebKit). Wait for the page, then scroll until the position holds.
-    await expect(page.getByRole('button', { name: 'Detail lang' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Formulardialog' })).toBeVisible();
     await expect
       .poll(() =>
         page.evaluate(() => {
@@ -352,11 +331,11 @@ test.describe('behaviour', () => {
         }),
       )
       .toBe(300);
-    await page.getByRole('button', { name: 'Detail lang' }).tap();
+    await page.getByRole('button', { name: 'Formulardialog' }).tap();
     await expect(dialogOf(page, s)).toBeVisible();
     await settle(page);
 
-    const body = page.locator('dialog.overlay[open] .panel-body');
+    const body = page.locator('dialog.overlay[open] .bk-body');
     const m = await body.evaluate((el) => ({
       scrollable: el.scrollHeight > el.clientHeight + 20,
       overflowY: getComputedStyle(el).overflowY,
@@ -390,13 +369,20 @@ test.describe('behaviour', () => {
       await page.evaluate(() => getComputedStyle(document.documentElement).overflowY),
       'page scroll is locked while the sheet is open',
     ).toBe('hidden');
-    // The last line of the content can be reached and is inside the sheet.
+    // Both the last input and the sticky save control remain reachable inside the sheet.
     const lastInside = await page.evaluate(() => {
       const d = document.querySelector('dialog.overlay[open]') as HTMLElement;
-      const done = [...d.querySelectorAll('button')].find((b) => b.textContent === 'Fertig');
-      const b = done?.getBoundingClientRect();
+      const b = d.querySelector('.bk-foot button')?.getBoundingClientRect();
+      const input = [...d.querySelectorAll('input')].at(-1)?.getBoundingClientRect();
       const r = d.getBoundingClientRect();
-      return Boolean(b && b.bottom <= r.bottom + 0.5 && b.top >= r.top);
+      return Boolean(
+        b &&
+        input &&
+        b.bottom <= r.bottom + 0.5 &&
+        b.top >= r.top &&
+        input.bottom <= r.bottom &&
+        input.top >= r.top,
+      );
     });
     expect(lastInside, 'the last control is reachable').toBe(true);
 
@@ -451,7 +437,7 @@ test.describe('behaviour', () => {
   });
 
   test('Esc closes the dialog (where a keyboard exists)', async ({ page }) => {
-    const s = SCENARIOS.find((x) => x.name === 'Details') as Scenario;
+    const s = SCENARIOS.find((x) => x.name === 'Formulardialog') as Scenario;
     await s.open(page);
     await expect(dialogOf(page, s)).toBeVisible();
     await settle(page);
@@ -484,7 +470,7 @@ test.describe('behaviour', () => {
       // At 844 px the shell is the desktop one (no floating button, no phone header).
       for (const s of size.width < 768
         ? SCENARIOS
-        : SCENARIOS.filter((x) => x.id.startsWith('Harness') || x.name === 'Details')) {
+        : SCENARIOS.filter((x) => x.id.startsWith('Harness'))) {
         await s.open(page);
         await expect(dialogOf(page, s)).toBeVisible();
         await settle(page);

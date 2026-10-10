@@ -2,7 +2,6 @@
 export const PANEL_IDS = [
   'posteingang',
   'buchung',
-  'beispiel',
   'anlageklasse',
   'anlagegruppe',
   'sollquoten',
@@ -36,10 +35,5 @@ export const PANELS: Record<PanelId, PanelDef> = {
     title: 'Buchung',
     fills: 'P2',
     body: 'Der Buchungsdialog mit Betragsfeld, Empfänger und Kategorie folgt in P2.',
-  },
-  beispiel: {
-    title: 'Details',
-    fills: 'alle Seiten',
-    body: 'Einzelposten einer Zahl öffnen sich als Seitenpanel (Desktop) oder Bottom Sheet (Handy). Der Zustand steht in der URL.',
   },
 };

@@ -1,5 +1,14 @@
 # Roadmap
 
+### Contacts, search and developer surfaces without side panels — #321/#322/#338/#339/#340
+
+- [x] Contact statements at `/konten/kontakte/:id`, legacy contact links, retained overview history and existing receipt/settlement/audit/undo paths.
+- [x] New contact in the shared FormDialog, with cancellation, fresh reopening and focus return.
+- [x] `/suche` with URL query/source context, Ctrl K, arrow/Enter navigation, existing provider/ranking/privacy and shortcut help.
+- [x] Dev-only `/dev/details`; remove the example panel entry and use detail routes plus input dialogs in the gallery/harness.
+- [x] Synthetic component regressions, including preventing detail IDs from becoming capture account IDs; scoped verification is recorded in [package evidence](evidence/contacts-search-dev/README.md).
+- [ ] Required CI, Linux visual baseline review, integration after #406 and owner/device acceptance.
+
 ### P2 #316 / #317 / #328 / #329 / #341 — Today and Expected detail pages — 2026-10-09
 
 - [x] Move only Today's account/wealth dimensions to `/heute/details/:kind`, reusing the existing valuation, account grouping and source links with month/period context.

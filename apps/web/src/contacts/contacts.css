@@ -1,6 +1,22 @@
 .contacts-page {
   max-width: var(--page-max);
 }
+.contacts-statement {
+  display: grid;
+  gap: 16px;
+  padding-block: 16px;
+}
+.contacts-statement > .btn {
+  justify-self: start;
+}
+.contacts-statement nav a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+}
+.contacts-table td {
+  overflow-wrap: anywhere;
+}
 .contacts-write-off .bk-head {
   flex-wrap: nowrap;
 }

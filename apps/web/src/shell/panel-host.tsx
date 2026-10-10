@@ -1,14 +1,12 @@
-import { DetailPanel } from '@budget/ui';
 import { useLocation, useNavigate, useParams, useRouter, useSearch } from '@tanstack/react-router';
 import { useState } from 'react';
 import { BookingPanel } from '../ledger/booking-panel';
 import type { PanelSearch } from './panel-state';
-import { PANELS, type PanelId } from './panels';
+import { type PanelId } from './panels';
 import { AssetClassSettingsPanel } from '../pages/asset-classes-settings';
 
 /**
- * Side panel (desktop) or bottom sheet (phone), driven by `?panel=`; the Posteingang is a large
- * centred dialog (full-screen on the phone) and the booking editor a form dialog. The state lives in the URL,
+ * Existing input editors driven by `?panel=`. The state lives in the URL,
  * so panels are linkable and the browser back button closes them. Esc closes; the native dialog
  * returns focus to the trigger.
  */
@@ -17,11 +15,12 @@ export function PanelHost() {
   const navigate = useNavigate();
   const { panel } = useSearch({ strict: false }) as PanelSearch;
   // Keep the last panel while it animates out.
-  const [shown, setShown] = useState<PanelId>('beispiel');
+  const [shown, setShown] = useState<PanelId>('buchung');
   if (panel && panel !== shown) setShown(panel);
-  const def = PANELS[shown];
   // Looking at an account: a new booking starts on it.
-  const { id: accountId } = useParams({ strict: false }) as { id?: string };
+  const { id } = useParams({ strict: false }) as { id?: string };
+  const pathname = useLocation({ select: (location) => location.pathname });
+  const accountId = id && pathname === `/konten/${id}` ? id : undefined;
 
   const openedInApp = useLocation({
     select: (location) => location.state.panelOpenedInApp === true,
@@ -61,12 +60,5 @@ export function PanelHost() {
     ].includes(shown)
   )
     return <AssetClassSettingsPanel open={panel === shown} onClose={close} mode={shown} />;
-  if (!import.meta.env.DEV && import.meta.env.MODE !== 'e2e') return null;
-
-  return (
-    <DetailPanel open={panel !== undefined} onClose={close} title={def.title}>
-      <p>{def.body}</p>
-      <p className="text-muted">Wird gefüllt in {def.fills}.</p>
-    </DetailPanel>
-  );
+  return null;
 }
