@@ -7,7 +7,10 @@ import { REPORTS } from '../nav/reports-catalog';
 import { amountsHidden, setAmountsHidden } from '@budget/ui';
 
 const navigate = vi.fn();
-vi.mock('@tanstack/react-router', () => ({ useNavigate: () => navigate }));
+vi.mock('@tanstack/react-router', () => ({
+  useNavigate: () => navigate,
+  useLocation: () => ({ pathname: '/plan/monat', href: '/plan/monat?monat=2026-09' }),
+}));
 beforeEach(() => {
   navigate.mockClear();
   setAmountsHidden(false);
@@ -236,11 +239,19 @@ describe('command palette', () => {
         expect(screen.getByRole('option', { name: new RegExp(label!) })).toBeTruthy(),
       );
       fireEvent.keyDown(input, { key: 'Enter' });
-      expect(navigate).toHaveBeenLastCalledWith(
-        expect.objectContaining({ to: '.', search: expect.any(Function) }),
-      );
       const call = navigate.mock.calls.at(-1)![0];
-      expect(call.search({ monat: '2026-09' })).toEqual({ monat: '2026-09', panel });
+      if (panel === 'posteingang') {
+        // The inbox is a page; the way back to the current view travels in `von`.
+        expect(call).toEqual(
+          expect.objectContaining({
+            to: '/konten/posteingang',
+            search: { von: '/plan/monat?monat=2026-09' },
+          }),
+        );
+      } else {
+        expect(call.to).toBe('.');
+        expect(call.search({ monat: '2026-09' })).toEqual({ monat: '2026-09', panel });
+      }
       fireEvent.focus(input);
       expect(
         within(screen.getByRole('group', { name: 'Globale Aktionen' })).getAllByRole('option')[0]

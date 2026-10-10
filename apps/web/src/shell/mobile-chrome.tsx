@@ -5,6 +5,7 @@ import { MAIN_AREAS, areaById, type AreaId } from '../nav/areas';
 import type { PageMeta } from '../nav/pages';
 import { AppLink } from './app-link';
 import { PanelLink } from './panel-link';
+import { InboxHeaderLink } from '../inbox/navigation';
 import { useInboxCount } from './inbox';
 import { GlobalSearch } from './global-search';
 import { ThemeButton } from './theme-button';
@@ -61,10 +62,10 @@ export function MobileHeader({ title, asHeading }: { title: string; asHeading: b
       </div>
       <span className="spacer" />
       <GlobalSearch mobile />
-      <PanelLink className="icon-btn" panel="posteingang" aria-label={inbox.label}>
+      <InboxHeaderLink className="icon-btn" aria-label={inbox.label}>
         <Inbox size={18} strokeWidth={1.75} aria-hidden="true" />
         {inbox.count !== undefined && inbox.count > 0 && <Count>{inbox.count}</Count>}
-      </PanelLink>
+      </InboxHeaderLink>
       <OverspentChip compact />
       <details className="m-profile" ref={profileMenu}>
         <summary className="avatar" aria-label={`${identity.name}: Profilmenü`}>

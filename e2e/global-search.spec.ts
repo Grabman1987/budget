@@ -195,23 +195,22 @@ test('palette: reports, pages, recent choices, actions and shortcut help', async
   await input.fill('vrmgn prtf');
   await input.press('Enter');
   await expect(page).toHaveURL(/\/vermoegen\/portfolio$/);
-  for (const [label, panel] of [
-    ['Neue Buchung', 'buchung'],
-    ['Posteingang öffnen', 'posteingang'],
-  ] as const) {
-    input = await openSearch(page, mobile);
-    await input.fill(label);
-    await input.press('Enter');
-    await expect(page).toHaveURL(new RegExp(`panel=${panel}`));
-    await expect(
-      page.getByRole('dialog', {
-        name: panel === 'buchung' ? 'Buchung erfassen' : 'Posteingang',
-        exact: true,
-      }),
-    ).toBeVisible();
-    await page.keyboard.press('Escape');
-    await expect(page.getByRole('dialog')).toHaveCount(0);
-  }
+  input = await openSearch(page, mobile);
+  await input.fill('Neue Buchung');
+  await input.press('Enter');
+  await expect(page).toHaveURL(/panel=buchung/);
+  await expect(page.getByRole('dialog', { name: 'Buchung erfassen', exact: true })).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+  // The inbox is a page (no side panel): the action opens it and keeps the way back.
+  input = await openSearch(page, mobile);
+  await input.fill('Posteingang öffnen');
+  await input.press('Enter');
+  await expect(page).toHaveURL(/\/konten\/posteingang/);
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+  await expect(page.getByRole('heading', { name: 'Offene Entscheidungen' })).toBeVisible();
+  await page.getByRole('link', { name: 'Zurück zur vorherigen Ansicht' }).click();
+  await expect(page).toHaveURL(/\/vermoegen\/portfolio$/);
   input = await openSearch(page, mobile);
   await input.fill('Monatsabschluss starten');
   await input.press('Enter');

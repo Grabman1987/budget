@@ -56,16 +56,6 @@ const SCENARIOS: Scenario[] = [
     },
   },
   {
-    id: 'Posteingang (WideDialog)',
-    name: 'Posteingang',
-    kind: 'full',
-    inApp: true,
-    open: async (page) => {
-      await app(page, '/konten');
-      await page.locator('.m-head a[href*="panel=posteingang"]').tap();
-    },
-  },
-  {
     id: 'Harness: DetailPanel mit langem Inhalt',
     name: 'Detail lang',
     kind: 'sheet',

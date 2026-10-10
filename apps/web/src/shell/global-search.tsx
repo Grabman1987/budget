@@ -2,7 +2,7 @@ import { useAmountPrivacy, maskMoneyText, DetailPanel, setAmountsHidden } from '
 import { closeEntryMonth, matchesSearch, todayInVienna } from '@budget/domain';
 import type { GlobalSearchResult, SearchKind } from '@budget/db';
 import { useQuery } from '@tanstack/react-query';
-import { useNavigate } from '@tanstack/react-router';
+import { useLocation, useNavigate } from '@tanstack/react-router';
 import { Search } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { request } from '../api/http';
@@ -90,6 +90,7 @@ export function GlobalSearch({ mobile = false }: { mobile?: boolean }) {
   const input = useRef<HTMLInputElement>(null);
   const container = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
+  const location = useLocation();
   const [open, setOpen] = useState(false);
   const [help, setHelp] = useState(false);
   const [value, setValue] = useState('');
@@ -208,6 +209,15 @@ export function GlobalSearch({ mobile = false }: { mobile?: boolean }) {
           to: `/monatsabschluss/${closeEntryMonth(todayInVienna()) ?? todayInVienna().slice(0, 7)}`,
           search: {},
         } as never);
+      else if (result.id === 'posteingang')
+        // The inbox is a page, not a panel; `von` keeps the way back to where the search was opened.
+        void navigate({
+          to: '/konten/posteingang',
+          search: (location.pathname.startsWith('/konten/posteingang')
+            ? {}
+            : { von: location.href }) as never,
+          state: { inboxOpenedInApp: true } as never,
+        });
       else
         void navigate({
           to: '.',
