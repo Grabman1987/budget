@@ -1,5 +1,6 @@
 # Roadmap
 
+
 ### Reports package P - history, cell links and full-width summaries (2026-10-09)
 
 - [x] #335/#336: payslip history/details subpage and existing capture/edit/upload form dialogs, with month context and audited-write reuse.
@@ -17,6 +18,7 @@
 - [x] Dev-only `/dev/details`; remove the example panel entry and use detail routes plus input dialogs in the gallery/harness.
 - [x] Synthetic component regressions, including preventing detail IDs from becoming capture account IDs; scoped verification is recorded in [package evidence](evidence/contacts-search-dev/README.md).
 - [ ] Required CI, Linux visual baseline review, integration after #406 and owner/device acceptance.
+
 
 ### P2 #316 / #317 / #328 / #329 / #341 — Today and Expected detail pages — 2026-10-09
 

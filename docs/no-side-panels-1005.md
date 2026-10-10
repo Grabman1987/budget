@@ -72,6 +72,10 @@ proposed destinations, not implemented routes.
 | `pages/security-page.tsx`, data sources, payees in ledger settings | Already inline pages/controls; no separate security or payee detail drawer found | Retain |
 | `ledger/booking-panel.tsx` status aside; SectionHead `aside` labels; print `Sheet` components | Inline status/heading annotations and A4 print sheets, not content panels | Retain |
 
+The unused `PANELS` placeholder registry (and its `PanelDef` type) in `apps/web/src/shell/panels.ts` had no
+consumer and is removed (#353); `PANEL_IDS`/`isPanelId` stay because `?panel=` still drives the booking and
+asset-class editors.
+
 The shared `packages/ui` side-panel primitives/CSS still have open callers and
 cannot be deleted in this slice. Dead Plan inspector placement, breakpoint and
 multi-month side-column overrides are removed. No shared component refactor;
