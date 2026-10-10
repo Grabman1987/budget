@@ -112,9 +112,11 @@ export function GlobalSearch({ mobile = false }: { mobile?: boolean }) {
     const current = router.state.location;
     if (current.pathname === '/suche') focus();
     else
-      void navigate({ to: '/suche', search: { von: current.href } }).then(() =>
-        requestAnimationFrame(focus),
-      );
+      void navigate({
+        to: '/suche',
+        search: { von: current.href },
+        state: { searchOpenedInApp: true } as never,
+      }).then(() => requestAnimationFrame(focus));
   };
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
@@ -204,6 +206,11 @@ export function SearchResults() {
   const input = useRef<HTMLInputElement>(null);
   const container = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
+  const router = useRouter();
+  const openedInApp = useLocation({
+    select: (location) => location.state.searchOpenedInApp === true,
+  });
+  const leaving = useRef(false);
   const [open, setOpen] = useState(true);
   const [help, setHelp] = useState(false);
   const [value, setValue] = useState(routeSearch.q ?? '');
@@ -211,11 +218,19 @@ export function SearchResults() {
   const [active, setActive] = useState(0);
   const text = value.trim();
   const listId = 'global-search-results';
-  const close = () =>
-    void navigate({
-      to: source.pathname,
-      search: Object.fromEntries(source.searchParams),
-    } as never);
+  // A search opened from inside the app is a history entry of its own: leaving it steps back
+  // (like the panels) instead of stacking the source page a second time.
+  const close = () => {
+    if (!openedInApp) {
+      void navigate({
+        to: source.pathname,
+        search: Object.fromEntries(source.searchParams),
+      } as never);
+    } else if (!leaving.current) {
+      leaving.current = true;
+      router.history.back();
+    }
+  };
 
   useEffect(() => {
     const timer = window.setTimeout(() => setQuery(text), 180);
@@ -369,6 +384,7 @@ export function SearchResults() {
               to: '/suche',
               search: { ...routeSearch, q: event.target.value || undefined },
               replace: true,
+              state: true as never,
             });
             setActive(0);
             setOpen(true);

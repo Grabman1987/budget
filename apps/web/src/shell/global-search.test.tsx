@@ -7,13 +7,20 @@ import { REPORTS } from '../nav/reports-catalog';
 import { amountsHidden, setAmountsHidden } from '@budget/ui';
 
 const navigate = vi.fn();
+const back = vi.fn();
+let openedInApp = false;
 vi.mock('@tanstack/react-router', async (importOriginal) => ({
   ...(await importOriginal<Record<string, unknown>>()),
   useNavigate: () => navigate,
+  useRouter: () => ({ history: { back } }),
+  useLocation: ({ select }: { select: (location: unknown) => unknown }) =>
+    select({ state: { searchOpenedInApp: openedInApp } }),
   useSearch: () => ({ von: '/plan/monat?monat=2026-09' }),
 }));
 beforeEach(() => {
   navigate.mockClear();
+  back.mockClear();
+  openedInApp = false;
   setAmountsHidden(false);
   vi.stubGlobal('matchMedia', () => ({
     matches: false,
@@ -154,6 +161,23 @@ describe('command palette', () => {
     fireEvent.keyDown(trigger, { key: 'Escape' });
     expect(screen.queryByRole('listbox')).toBeNull();
     expect(document.activeElement).toBe(input);
+  });
+  it('steps back once when the search was opened from inside the app', () => {
+    openedInApp = true;
+    const input = mount();
+    fireEvent.keyDown(input, { key: 'Escape' });
+    fireEvent.keyDown(input, { key: 'Escape' });
+    expect(back).toHaveBeenCalledTimes(1);
+    expect(navigate).not.toHaveBeenCalled();
+  });
+  it('navigates to the source when the search page was opened directly', () => {
+    const input = mount();
+    fireEvent.keyDown(input, { key: 'Escape' });
+    expect(back).not.toHaveBeenCalled();
+    expect(navigate).toHaveBeenCalledWith({
+      to: '/plan/monat',
+      search: { monat: '2026-09' },
+    });
   });
   it('reopens on the first recent choice after arrow-key selection', () => {
     const input = mount();
