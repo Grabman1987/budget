@@ -1,5 +1,16 @@
 # Roadmap
 
+### Portfolio package D — #297–#301, #346 — 2026-10-09
+
+- [x] Label securities-market-value, net allocation and gross risk bases; explain signed cash and negative/over-100% shares without changing formulas.
+- [x] Collapse the complete unheld-instrument catalog with its count and existing detail/edit routes.
+- [x] Link unclassified instruments to the shared dated class editor and cash to account settings; retain distinct estimated/stale status and provisional optimisation guards.
+- [x] Explain the optional portfolio-only benchmark setup state; preserve explicit persisted selection and clearing.
+- [x] Separate held classes at the displayed stand from historical/unused classes; retain dated class histories, return-window/method labels and lifetime realised gains.
+- [x] Stack report 4.2 legend/sources and report 4.5 summary below content at full width; retain numerical columns and direct links.
+- [x] Focused type/lint/format checks, 5 Vitest files / 30 tests, affected desktop/mobile browser checks, Axe/overflow/touch checks and synthetic visual evidence; [scope and verification](evidence/portfolio-package-d-1009/README.md).
+- [ ] Exact-head CI, integration, physical iPhone and owner acceptance.
+
 ### P1 #269 / #270 / #274 / #275 / #276 — Today hints — 2026-10-09
 
 - [x] Label Plan's actual 50/30/20 denominator, withhold a completed-month verdict for open months and link to the last completed One-Pager; preserve allocation calculations and expected-income separation.
@@ -771,6 +782,16 @@ Price history (yfinance + Ariva, source per price), ECB rates, trades and holdin
 
 
 ## P6 Reports und Umstellung
+
+### Category trend — #385, owner decision 2026-10-09
+
+- [x] Report 1.6 month values/chart points and report 2.1 heatmap cells drill into the exact category/calendar month; classified split/refund contributions reconcile in cents across booking pages.
+- [x] One or more categories in report 1.6; detail follows the existing period control; category selection, period and optional previous-year month survive URL reloads.
+- [x] Previous-year month uses dash-dot lines; absent months stay `–`, recorded zeros stay zero; existing consumption and Zukunft sources are reused.
+- [x] Targeted typechecks in five affected packages, changed-file lint/format, 75 tests in eight affected Vitest files, E2E build; full check/full E2E omitted under the package's parallel-job memory override.
+- [x] All six affected functional cases passed on desktop and 390 px mobile, including focused reruns; light/dark Axe, overflow, monthly touch targets, masking and image review. See [evidence](evidence/category-trend-385/README.md).
+- [ ] Required CI, PR review and owner product acceptance after deployment.
+
 ### Report 3.1 — baseline and scenario clarity (#284)
   - [x] Label the forecast basis from existing payment assumptions and variable planning; show an event setup hint only when no active planned events are configured, and disclose events outside the selected horizon.
   - [x] Isolated synthetic browser evidence for no events, later events and recurring-event count, with desktop/mobile screenshots, light/dark Axe and overflow checks. See [evidence](evidence/liquidity-baseline-284.md) for the integrated browser and full-check results.
@@ -1004,3 +1025,10 @@ Method, limits and owner steps: [inflation basket](inflation-basket.md#cpi-sub-i
 - [x] Clean install, dependency-tree inspection, quoted-command and source-map round-trip smoke checks; full audit now has 4 moderate / 0 high / 0 critical findings, production audit has 0.
 - [x] Full local check passed with one Vitest worker and required age setting: 370 test files / 3,385 tests; the local log is retained outside the repository.
 - [ ] Required final-head CI, main integration and actual deploy/health verification; remaining moderate development advisories are separate work.
+
+### Login and account page — #311 / #312 / #313 (2026-10-09)
+
+- [x] Bound a hanging passkey browser ceremony; preserve native WebAuthn cancellation, retry and recovery, and reject late credentials before verification.
+- [x] Bind sidebar and settings profile labels to the current server session method; preserve recovery/step-up restrictions.
+- [x] Separate account-specific source/observation state, stored owner check and technical retrieval dates; missing metadata stays explicit. No connection or sync action.
+- [ ] Required CI/PR integration after #405, Linux visual baseline review and physical-device/cloud owner acceptance. Targeted verification and task-scoped auth review: [evidence](evidence/auth-account-1009/README.md).

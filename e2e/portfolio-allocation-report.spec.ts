@@ -175,6 +175,7 @@ const mock = (overrides: Record<string, unknown>) => {
       speculative: {
         totalCents: 100_000,
         valueCents: 0,
+        grossExposureCents: 0,
         shareBp: 0,
         limitBp: 1_000,
         overCents: 0,

@@ -125,7 +125,7 @@ export function PortfolioPage() {
                         Wert
                       </th>
                       <th scope="col" className="num tech">
-                        Anteil
+                        Anteil · Marktwert
                       </th>
                       <th scope="col" className="num tech">
                         seit Kauf
@@ -138,6 +138,11 @@ export function PortfolioPage() {
                     ))}
                   </tbody>
                 </table>
+                <p className="vnote">
+                  Anteil = Klassen- oder Positionswert / Marktwert aller gehaltenen Wertpapiere (
+                  {moneyText(view.valueCents)}), ohne Kassa. Die Aufteilung Soll/Ist verwendet
+                  dagegen das ausgewählte Netto-Allokationsuniversum einschließlich Anlage-Kassa.
+                </p>
                 <p className="vnote">
                   Werte in EUR, Kurse in der gespeicherten Kurswährung. „seit Kauf“ zeigt den
                   Wertzuwachs auf den dokumentierten Einstand (
@@ -157,10 +162,8 @@ export function PortfolioPage() {
           />
         )}
         {view && unheld && unheld.length > 0 && (
-          <section className="instrument-catalog" aria-labelledby="unheld-title">
-            <div className="head">
-              <h2 id="unheld-title">Instrumente ohne Bestand</h2>
-            </div>
+          <details className="instrument-catalog">
+            <summary>Instrumente ohne Bestand ({unheld.length})</summary>
             <table className="ktable">
               <caption className="sr-only">Instrumente ohne aktuellen Bestand</caption>
               <thead>
@@ -195,7 +198,7 @@ export function PortfolioPage() {
                 ))}
               </tbody>
             </table>
-          </section>
+          </details>
         )}
       </div>
       {search.sparplan ? null : search.handel ? (

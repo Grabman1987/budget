@@ -4,16 +4,18 @@ import { ReportPeriodControl } from './period-quick-select';
 import { useAmountPrivacy, ClassSwatch } from '@budget/ui';
 import {
   categoryOverview,
+  categoryTrend,
   reportPeriodMonths,
   SPEND_CLASS_LABEL,
   type CategoryOverviewRow,
 } from '@budget/domain';
-import { useId, useMemo, useState } from 'react';
+import { useId, useMemo } from 'react';
+import { useNavigate, useSearch } from '@tanstack/react-router';
 import { ZEITRAUM_VALUES, useZeitraum } from '../wealth/zeitraum';
 import { eur } from '../ledger/format';
 import type { PageMeta } from '../nav/pages';
 import type { ReportEntry } from '../nav/reports-catalog';
-import { CategoryChart } from './table-charts';
+import { CategoryTrend } from './category-trend';
 import { monthLong, percentTenth, percentWhole, periodName } from './table-format';
 import { TableReportFrame, useReportTables } from './table-report-frame';
 import type { ReportTables } from './table-reports-api';
@@ -101,6 +103,14 @@ function CategoryBody({
   period: (typeof ZEITRAUM_VALUES)[number];
 }) {
   useAmountPrivacy();
+  const search = useSearch({ strict: false }) as { kategorien?: string[]; vorjahr?: boolean };
+  const navigate = useNavigate();
+  const setChoice = (patch: Record<string, unknown>) =>
+    void navigate({
+      to: '.',
+      search: ((prev: Record<string, unknown>) => ({ ...prev, ...patch })) as never,
+      replace: true,
+    });
   const window = useMemo(
     () =>
       data.firstMonth && (data.lastFullMonth || period.includes('..'))
@@ -122,10 +132,9 @@ function CategoryBody({
       ),
     [data, window, period],
   );
-  const [opened, setOpened] = useState<string | null | undefined>(undefined);
   const rows = overview.rows;
-  // First visit: the largest category is open; a click on the open row closes it.
-  const openId = opened === undefined ? (rows[0]?.category.id ?? null) : opened;
+  const selectedIds = search.kategorien ?? (rows[0] ? [rows[0].category.id] : []);
+  const selected = data.categories.filter((c) => selectedIds.includes(c.id));
   const prefix = useId();
 
   return (
@@ -137,6 +146,55 @@ function CategoryBody({
         <span className="tbd-state">
           <span className="ink">Konsum {eur(overview.consumptionCents, { cents: false })}</span>
         </span>
+      </div>
+      <div className="category-trend-detail">
+        <h3>Kategorietrend</h3>
+        <details className="category-trend-picker">
+          <summary>Kategorien wählen · {selected.length} ausgewählt</summary>
+          <fieldset className="category-trend-choice">
+            <legend>Kategorien vergleichen</legend>
+            {data.categories.map((c) => (
+              <label key={c.id}>
+                <input
+                  type="checkbox"
+                  checked={selectedIds.includes(c.id)}
+                  onChange={(e) =>
+                    setChoice({
+                      kategorien: e.target.checked
+                        ? [...selectedIds, c.id]
+                        : selectedIds.filter((id) => id !== c.id),
+                    })
+                  }
+                />
+                <ClassSwatch kind={c.class} />
+                {c.name}
+              </label>
+            ))}
+          </fieldset>
+        </details>
+        <label className="category-trend-previous">
+          <input
+            type="checkbox"
+            checked={search.vorjahr === true}
+            onChange={(e) => setChoice({ vorjahr: e.target.checked || undefined })}
+          />
+          Vorjahresmonat anzeigen
+        </label>
+        {selected.length ? (
+          <CategoryTrend
+            series={selected.map((category) => ({
+              category,
+              points: categoryTrend(data.months, category.id, window),
+            }))}
+            previous={search.vorjahr === true}
+          />
+        ) : (
+          <p role="status">Wähle mindestens eine Kategorie für den Verlauf.</p>
+        )}
+        <p className="vnote">
+          Monatswerte öffnen die zugehörigen Buchungen. Ausgaben und Erstattungen sind netto;
+          Zukunft bleibt vom Konsum getrennt. Monate ohne Daten: –.
+        </p>
       </div>
       {rows.length === 0 ? (
         <p className="vnote" role="status">
@@ -180,7 +238,7 @@ function CategoryBody({
             <tbody>
               {rows.map((row) => {
                 const id = row.category.id;
-                const isOpen = id === openId;
+                const isOpen = selectedIds.includes(id);
                 const detailId = `${prefix}-${id}`;
                 return (
                   <CategoryRows
@@ -188,7 +246,11 @@ function CategoryBody({
                     row={row}
                     isOpen={isOpen}
                     detailId={detailId}
-                    onToggle={() => setOpened(isOpen ? null : id)}
+                    onToggle={() =>
+                      setChoice({
+                        kategorien: isOpen ? [] : [id],
+                      })
+                    }
                     payees={data.payees[id] ?? []}
                   />
                 );
@@ -198,10 +260,10 @@ function CategoryBody({
         </div>
       )}
       <p className="vnote">
-        Summe, Durchschnitt und Anteil beziehen sich auf den gewählten Zeitraum, der Verlauf zeigt
-        die letzten zwölf vollständigen Monate. Zur Vorperiode: der Zeitraum gleicher Länge davor,
-        nur wenn er vollständig vorliegt. Der Anteil am Konsum ist für Zukunft leer, weil Sparen
-        kein Konsum ist. Rückerstattungen in derselben Kategorie sind abgezogen.
+        Summe, Durchschnitt, Anteil und Detailverlauf beziehen sich auf den gewählten Zeitraum. Die
+        kleinen Verläufe zeigen die letzten zwölf vollständigen Monate. Zur Vorperiode: der Zeitraum
+        gleicher Länge davor, nur wenn er vollständig vorliegt. Der Anteil am Konsum ist für Zukunft
+        leer, weil Sparen kein Konsum ist. Rückerstattungen in derselben Kategorie sind abgezogen.
       </p>
     </section>
   );
@@ -280,21 +342,6 @@ function CategoryRows({
         <tr className="rc-detail" id={detailId}>
           <td colSpan={6}>
             <div className="rc-d">
-              <div>
-                <CategoryChart name={c.name} cls={c.class} points={history} />
-                <ul className="chart-legend">
-                  <li>
-                    <ClassSwatch kind={c.class} />
-                    Ist
-                  </li>
-                  <li>
-                    <svg aria-hidden="true" viewBox="0 0 32 8" className="legend-tick">
-                      <line x1="4" x2="28" y1="4" y2="4" className="tr-plan-tick" />
-                    </svg>
-                    Plan (zugeteilt)
-                  </li>
-                </ul>
-              </div>
               <dl className="rc-facts">
                 <div>
                   <dt className="tech">Ø {history.length} M</dt>
