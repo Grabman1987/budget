@@ -232,8 +232,12 @@ ledgerTest(
       // Keep the cached Freedom query alive through native navigation; MAIN is isolated.
       await page.getByRole('link', { name: 'Einstellungen', exact: true }).click();
       await page.getByRole('link', { name: 'Regelwerk', exact: true }).click();
-      await page.getByRole('button', { name: 'Einstellen R16 Freiheitszahl' }).click();
-      const rulePanel = page.getByRole('dialog', { name: 'R16 Freiheitszahl', exact: true });
+      await page.getByRole('link', { name: 'Einstellen R16 Freiheitszahl' }).click();
+      await page.getByRole('link', { name: 'Schwellen bearbeiten', exact: true }).click();
+      const rulePanel = page.getByRole('dialog', {
+        name: 'Schwellen bearbeiten · R16 Freiheitszahl',
+        exact: true,
+      });
       const multiple = before.multiple === 20 ? 21 : 20;
       await rulePanel.getByLabel('Jahresausgaben mal').fill(String(multiple));
       const patched = page.waitForResponse(
