@@ -1,5 +1,13 @@
 # Roadmap
 
+### Booking dialog acceptance — 2026-10-09 (#309 #314 #315)
+
+- [x] Focused synthetic desktop/390px checks for German date, arithmetic/defaults, exact-cent save, bounded height, visible Save and phone touch targets; dark Heute/dialog review with screenshots and contrast evidence.
+- [x] Reproduce and correct booking-only Tab boundary and discard-question focus; verify labelled focus order, continue/discard/opener return and reduced motion.
+- [x] Clean source/test commit `d22965013c108ed3f8abf53a5c6cd3d2123fd445`: desktop/mobile each pass 6 browser/setup cases; SHA and clean worktree captured with viewport/ARIA evidence.
+- [x] Branch pushed and normal [PR #412](https://github.com/Grabman1987/budget/pull/412) opened; initial index/authentication errors cleared on normal retries.
+- [ ] Required CI at the exact final PR head; physical-device and actual screen-reader owner acceptance remain open. [Local results and evidence](evidence/booking-acceptance-1009/README.md).
+
 ### Portfolio package D — #297–#301, #346 — 2026-10-09
 
 - [x] Label securities-market-value, net allocation and gross risk bases; explain signed cash and negative/over-100% shares without changing formulas.
