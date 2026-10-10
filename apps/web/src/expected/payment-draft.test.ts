@@ -62,6 +62,59 @@ describe('readDraft', () => {
   });
 });
 
+describe('interval in weeks', () => {
+  const weekly = { ...base, rhythm: 'weekly' as const, startDate: '2026-09-18' };
+  it('is every week by default and stored as null', () => {
+    expect(emptyDraft('2026-09-17').intervalWeeks).toBe('1');
+    expect(readDraft(weekly, true).fields).toMatchObject({ rhythm: 'weekly', intervalWeeks: null });
+  });
+  it('reads "alle N Wochen" for a weekly rhythm', () => {
+    expect(readDraft({ ...weekly, intervalWeeks: '2' }, true).fields).toMatchObject({
+      intervalWeeks: 2,
+    });
+    expect(readDraft({ ...weekly, intervalWeeks: '52' }, true).fields).toMatchObject({
+      intervalWeeks: 52,
+    });
+  });
+  it('refuses 0, 53 and text for a weekly rhythm, and ignores it for other rhythms', () => {
+    for (const intervalWeeks of ['0', '53', 'x', '', '1,5'])
+      expect(readDraft({ ...weekly, intervalWeeks }, true).errors.intervalWeeks).toBeTruthy();
+    const monthly = readDraft({ ...base, intervalWeeks: '4' }, true);
+    expect(monthly.errors).toEqual({});
+    expect(monthly.fields).toMatchObject({ rhythm: 'monthly', intervalWeeks: null });
+  });
+  it('loads a stored interval into the draft and patches only a change', () => {
+    const stored = {
+      ...weekly,
+      rhythm: 'weekly',
+      accountId: 'a',
+      payeeId: null,
+      contactId: null,
+      categoryId: null,
+      incomeTypeId: null,
+      contactShareBp: 0,
+      amountToleranceCents: 0,
+      dateWindowDays: 3,
+      dueDay: 25,
+      dueMonth: null,
+      dateShift: 'none',
+      startDate: '2026-09-18',
+      endDate: null,
+      intervalWeeks: 2,
+      name: 'Strom',
+      kind: 'outflow',
+      note: null,
+      version: null,
+    } as unknown as ExpectedPayment;
+    const draft = draftFromPayment(stored);
+    expect(draft.intervalWeeks).toBe('2');
+    expect(changedFields(stored, readDraft(draft, false).fields!)).toEqual({});
+    expect(
+      changedFields(stored, readDraft({ ...draft, intervalWeeks: '4' }, false).fields!),
+    ).toEqual({ intervalWeeks: 4 });
+  });
+});
+
 describe('changedFields', () => {
   it('sends only what differs from the stored payment', () => {
     const stored = {

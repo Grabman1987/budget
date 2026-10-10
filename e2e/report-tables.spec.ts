@@ -258,7 +258,7 @@ test.describe('1.6 Kategorieübersicht', () => {
     await open(page, '/reports/kategorien');
     const firstButton = page.getByRole('button', { name: new RegExp(`^${first.category.name}`) });
     await expect(firstButton).toHaveAttribute('aria-expanded', 'true');
-    await expect(page.getByTestId('category-chart')).toBeVisible();
+    await expect(page.getByTestId('category-trend-chart')).toBeVisible();
     const payees = data.payees[first.category.id] ?? [];
     await expect(page.locator('.rc-facts')).toContainText(payees.length ? payees.join(', ') : '–');
     const highest = first.history.reduce((a, h) => (h.spentCents > a.spentCents ? h : a));

@@ -86,11 +86,12 @@ version are positive cents (the payment's `kind` gives the sign); occurrences an
 **signed** (outflow negative) and in the currency of the version (`currency`). Every write answers
 with its `groupId` (undo with `POST /undo`); automatic runs (`/refresh`) use the actor `system`.
 
-Schedule fields: `rhythm` (monthly, quarterly, semiannual, yearly), `dueDay` 1–31 (31 or a day past
+Schedule fields: `rhythm` (weekly, monthly, quarterly, semiannual, yearly), `dueDay` 1–31 (31 or a day past
 the month end means the last day), `dueMonth` (yearly: the month; quarterly and semiannual: first
 month of the cycle), `dateShift` (`none`, `before`, `after`: move a due date that is a weekend or an
 Austrian public holiday to the previous or next business day; "letzter Werktag" is `dueDay: 31` with
-`before`), `startDate`/`endDate`, `amountToleranceCents` and `dateWindowDays` (matching), and
+`before`), `startDate`/`endDate`, `intervalWeeks` (1–52, `weekly` only: one due date every n weeks
+from `startDate`; `null` = every week), `amountToleranceCents` and `dateWindowDays` (matching), and
 `contactShareBp` (the contact's part of each amount, rounded half away from zero per occurrence).
 
 | Endpoint | Purpose |
