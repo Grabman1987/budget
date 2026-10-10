@@ -69,9 +69,9 @@ test.describe('design system page /dev/bauteile', () => {
     await expect(page.getByTestId('amount-committed')).toContainText('2.152,00 €');
   });
 
-  test('side panel traps focus, closes with Esc and returns focus', async ({ page }) => {
+  test('input dialog traps focus, closes with Esc and returns focus', async ({ page }) => {
     await open(page);
-    const trigger = page.getByRole('button', { name: 'Seitenpanel öffnen' });
+    const trigger = page.getByRole('button', { name: 'Eingabedialog öffnen' });
     await trigger.click();
     const dialog = page.getByRole('dialog', { name: 'Kontostand prüfen' });
     await expect(dialog).toBeVisible();
@@ -98,8 +98,9 @@ test.describe('design system page /dev/bauteile', () => {
     const segment = page.getByRole('button', { name: 'Bedarf 1.280,00 €, Einzelposten zeigen' });
     await segment.focus();
     await page.keyboard.press('Enter');
-    await expect(page.getByRole('dialog', { name: 'Bedarf' })).toBeVisible();
-    await page.keyboard.press('Escape');
+    await expect(page).toHaveURL(/\/dev\/details/);
+    await expect(page.getByRole('heading', { name: 'Bedarf', exact: true })).toBeVisible();
+    await page.getByRole('link', { name: 'Zurück zu Bauteile', exact: true }).click();
 
     const line = page.locator('#kette-frei .plot-line').first();
     const animation = await line.evaluate((el) => {

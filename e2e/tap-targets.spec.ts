@@ -23,7 +23,7 @@ test.describe('UX-3b touch controls', () => {
     await page.goto('/dev/bauteile');
     expect(await page.evaluate(() => matchMedia('(pointer: coarse)').matches)).toBe(true);
     await expectTouchTargets(page.locator('#grundbausteine button:visible'));
-    await page.getByRole('button', { name: 'Seitenpanel öffnen' }).click();
+    await page.getByRole('button', { name: 'Eingabedialog öffnen' }).click();
     const dialog = page.getByRole('dialog', { name: 'Kontostand prüfen' });
     const close = dialog.getByRole('button', { name: 'Schließen', exact: true });
     await expectTouchTargets(close);

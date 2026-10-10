@@ -8,6 +8,25 @@
 - [x] Focused web typecheck, changed-file lint/format, 49 unit tests and one E2E build; package memory override applies. [Evidence](evidence/report-panels-1009/README.md).
 - [x] Six functional desktop scenarios across targeted reruns and final 9-test mobile run at 390 px, including navigation, audited edit/undo, cancellation/focus, geometry and Axe.
 - [ ] Required CI, integration after #411 and owner desktop/phone acceptance.
+
+### Contacts, search and developer surfaces without side panels — #321/#322/#338/#339/#340
+
+- [x] Contact statements at `/konten/kontakte/:id`, legacy contact links, retained overview history and existing receipt/settlement/audit/undo paths.
+- [x] New contact in the shared FormDialog, with cancellation, fresh reopening and focus return.
+- [x] `/suche` with URL query/source context, Ctrl K, arrow/Enter navigation, existing provider/ranking/privacy and shortcut help.
+- [x] Dev-only `/dev/details`; remove the example panel entry and use detail routes plus input dialogs in the gallery/harness.
+- [x] Synthetic component regressions, including preventing detail IDs from becoming capture account IDs; scoped verification is recorded in [package evidence](evidence/contacts-search-dev/README.md).
+- [ ] Required CI, Linux visual baseline review, integration after #406 and owner/device acceptance.
+
+### P2 #316 / #317 / #328 / #329 / #341 — Today and Expected detail pages — 2026-10-09
+
+- [x] Move only Today's account/wealth dimensions to `/heute/details/:kind`, reusing the existing valuation, account grouping and source links with month/period context.
+- [x] Route Expected income to the existing Plan income page component with an Expected breadcrumb/back link, month, originating view and kind filter.
+- [x] Show expected payment details, unchanged versions and occurrences on `/plan/erwartet/:id`; preserve explicit single-occurrence skip/unskip and audited write/undo paths.
+- [x] Put creation, editing, version capture, booking linking and deletion confirmation in FormDialog; navigation never confirms a booking.
+- [x] Keep the three Today answer cards and put secondary monthly sections below them at full width.
+- [ ] Required CI, Linux visual baseline review and owner/device acceptance. Scoped local results and limitations: [delivery evidence](evidence/today-expected-detail-pages/README.md).
+
 ### Booking dialog acceptance — 2026-10-09 (#309 #314 #315)
 
 - [x] Focused synthetic desktop/390px checks for German date, arithmetic/defaults, exact-cent save, bounded height, visible Save and phone touch targets; dark Heute/dialog review with screenshots and contrast evidence.
@@ -663,6 +682,7 @@ Expected payments, contacts with receivables, savings goals, rule set registered
 - [x] Konten › Posteingang and global desktop/mobile panel: categorize in the existing booking editor, confirm pending bookings, acknowledge stored warnings with audited undo/redo
 - [x] Shared ledger invalidation refreshes the queue, count and Heute reads after mutations/undo; safe empty/error/loading states and keyboard/touch actions
 - [x] #279 global inbox pagination: 100-entry network pages, whole-queue task/kind counts, receipt-only badge scope, audited resolve/undo and complete month-close filtering beyond the first page. API regression, fresh E2E build, 42 affected desktop/mobile browser tests (one intended skip) and the final full check (379 files / 3,503 unit tests) passed. CI, deployment and owner acceptance remain pending. The endpoint still constructs the whole queue before slicing, so no database-query performance claim is made. [Evidence](evidence/inbox-pagination-279.md).
+- [x] #277/#278/#319/#320 inbox package: month-based current/historical filtering before pagination with an unchanged total badge, repeated data checks grouped by source/cause with accessible individual tasks, direct header navigation and `/konten/posteingang/:id` warning details. Existing confirmation forms, resolve and audit/undo paths remain shared. Focused local verification (12 unit tests, 17 desktop/mobile functional scenarios, package typechecks, changed-file lint/format and E2E build) replaces the full check under the owner's parallel-job override. [Evidence](evidence/inbox-package-1009/README.md); CI and deployed owner acceptance remain pending.
 - [ ] Bank/assignment suggestions and source repair workflows; acknowledging a warning does not repair its source
 - [ ] Independent review, CI and owner acceptance of this workflow on the deployed app
 

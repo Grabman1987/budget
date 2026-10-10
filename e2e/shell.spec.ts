@@ -158,11 +158,15 @@ test.describe('panel via route param', () => {
     await page.goto('/plan/monat');
     await expect(page.locator('main')).toBeVisible();
     if (!isPhone(testInfo)) {
-      await page.getByRole('combobox', { name: 'Suchen', exact: true }).focus();
+      // The search field now lives on the result page, opened from the header.
+      await page.locator('#global-search').click();
+      const field = page.getByRole('combobox', { name: 'Suchen', exact: true });
+      await expect(field).toBeFocused();
       await page.keyboard.type('n');
-      await expect(page.getByRole('combobox', { name: 'Suchen', exact: true })).toHaveValue('n');
+      await expect(field).toHaveValue('n');
       await expect(page).not.toHaveURL(/panel=/);
-      await page.getByRole('combobox', { name: 'Suchen', exact: true }).blur();
+      await field.press('Escape');
+      await expect(page).toHaveURL(/\/plan\/monat$/);
     }
     await page.keyboard.press('n');
     await expect(page).toHaveURL(/panel=buchung/);
@@ -173,13 +177,11 @@ test.describe('panel via route param', () => {
     await expect(page).toHaveURL(/\/plan\/monat$/);
   });
 
-  test('is linkable: a deep link opens the panel, Esc removes the param', async ({ page }) => {
+  test('legacy inbox links redirect to the page', async ({ page }) => {
     await page.goto('/konten?panel=posteingang');
-    const dialog = page.getByRole('dialog', { name: 'Posteingang' });
-    await expect(dialog).toBeVisible();
-    await page.keyboard.press('Escape');
-    await expect(dialog).toBeHidden();
-    await expect(page).toHaveURL(/\/konten$/);
+    await expect(page).toHaveURL(/\/konten\/posteingang/);
+    await expect(page.getByRole('dialog', { name: 'Posteingang' })).toHaveCount(0);
+    await expect(page.getByRole('heading', { name: 'Offene Entscheidungen' })).toBeVisible();
   });
 
   // Opens the "Buchung" panel through the real shell trigger (top bar / phone FAB), so these tests
@@ -214,34 +216,10 @@ test.describe('panel via route param', () => {
     await expect(page).toHaveURL(/\/konten$/);
   });
 
-  test('phone: the panel is a bottom sheet, desktop: a 420 px side panel', async ({
-    page,
-  }, testInfo) => {
-    await page.emulateMedia({ reducedMotion: 'reduce' });
+  test('retired example panel does not open product content', async ({ page }) => {
     await page.goto('/?panel=beispiel');
-    const dialog = page.getByRole('dialog', { name: 'Details' });
-    await expect(dialog).toBeVisible();
-    // The sheet slides in; sample its box until the animation has settled.
-    let previous = '';
-    await expect
-      .poll(async () => {
-        const now = JSON.stringify(await dialog.boundingBox());
-        const settled = now === previous;
-        previous = now;
-        return settled;
-      })
-      .toBe(true);
-    const box = await dialog.boundingBox();
-    const viewport = page.viewportSize();
-    expect(box && viewport).toBeTruthy();
-    if (!box || !viewport) return;
-    if (isPhone(testInfo)) {
-      expect(Math.round(box.y + box.height)).toBe(viewport.height);
-      expect(Math.round(box.width)).toBe(viewport.width);
-    } else {
-      expect(Math.round(box.width)).toBe(420);
-      expect(Math.round(box.x + box.width)).toBe(viewport.width);
-    }
+    await expect(page.getByRole('main')).toBeVisible();
+    await expect(page.getByRole('dialog')).toHaveCount(0);
   });
 });
 
@@ -405,16 +383,15 @@ test.describe('phone shell', () => {
     expect(small).toEqual([]);
   });
 
-  test('phone header opens the inbox as a full-screen sheet', async ({ page }) => {
+  test('phone header links to the inbox page and retains return context', async ({ page }) => {
     await page.emulateMedia({ reducedMotion: 'reduce' });
-    await page.goto('/konten');
+    await page.goto('/konten?monat=2026-09');
     await page.getByRole('link', { name: /Posteingang, \d+ offen/ }).click();
-    const dialog = page.getByRole('dialog', { name: 'Posteingang' });
-    await expect(dialog).toBeVisible();
-    const box = await dialog.boundingBox();
-    const viewport = page.viewportSize();
-    expect(Math.round(box?.width ?? 0)).toBe(viewport?.width);
-    expect(Math.round(box?.height ?? 0)).toBe(viewport?.height);
+    await expect(page).toHaveURL(/\/konten\/posteingang/);
+    await expect(page.getByRole('dialog', { name: 'Posteingang' })).toHaveCount(0);
+    await expect(page.getByRole('heading', { name: 'Offene Entscheidungen' })).toBeVisible();
+    await page.getByRole('link', { name: 'Zur\u00fcck zur vorherigen Ansicht' }).click();
+    await expect(page).toHaveURL(/\/konten\?monat=2026-09$/);
   });
 });
 

@@ -49,6 +49,39 @@
 .inbox-more {
   min-height: 44px;
 }
+.inbox-filters {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+.inbox-filters label {
+  display: grid;
+  gap: 4px;
+}
+.inbox-back {
+  grid-column: 1 / -1;
+  justify-self: start;
+}
+.kinbox nav a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+}
+.inbox-filters select,
+.inbox-cause .btn,
+.inbox-back {
+  min-height: 44px;
+}
+.inbox-cause .btn {
+  white-space: normal;
+  text-align: left;
+}
+.kinbox .rev-what {
+  overflow-wrap: anywhere;
+}
 .kinbox .rev-what > .assignment-review {
   display: flex;
   flex-wrap: wrap;

@@ -1,5 +1,6 @@
 import { infiniteQueryOptions, queryOptions } from '@tanstack/react-query';
 import { request } from '../api/http';
+import type { InboxPeriod } from '@budget/domain';
 import { LEDGER_KEY } from '../ledger/queries';
 import type { SavingsExecutionProposal } from '../wealth/savings-api';
 export type InboxKind =
@@ -60,6 +61,7 @@ export interface InboxView {
 export interface InboxPage extends InboxView {
   totalEntries: number;
   countsByKind: Partial<Record<InboxKind, number>>;
+  countsByCause: Record<string, number>;
   limit: number;
   offset: number;
   next: number | null;
@@ -76,14 +78,22 @@ export const inboxQuery = (bankSource?: string) =>
       ),
     refetchInterval: 60_000,
   });
-export const inboxPagesQuery = () =>
+export const inboxPagesQuery = (period: InboxPeriod = 'all', bankSource?: string) =>
   infiniteQueryOptions({
-    queryKey: [...INBOX_KEY, 'pages', INBOX_PAGE_SIZE] as const,
+    queryKey: [...INBOX_KEY, 'pages', INBOX_PAGE_SIZE, period, bankSource ?? null] as const,
     queryFn: ({ pageParam }) =>
-      request<InboxPage>('GET', `/api/inbox?limit=${INBOX_PAGE_SIZE}&offset=${pageParam}`),
+      request<InboxPage>(
+        'GET',
+        `/api/inbox?limit=${INBOX_PAGE_SIZE}&offset=${pageParam}${period === 'all' ? '' : `&period=${period}`}${bankSource ? `&bankSource=${encodeURIComponent(bankSource)}` : ''}`,
+      ),
     initialPageParam: 0,
     getNextPageParam: (lastPage) => lastPage.next ?? undefined,
     refetchInterval: 60_000,
+  });
+export const inboxDetailQuery = (id: string) =>
+  queryOptions({
+    queryKey: [...INBOX_KEY, 'detail', id],
+    queryFn: () => request<{ entry: InboxStored }>('GET', `/api/inbox/${encodeURIComponent(id)}`),
   });
 export const inboxCountQuery = () =>
   queryOptions({

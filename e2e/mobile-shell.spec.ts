@@ -39,6 +39,9 @@ test.describe('UX-3a phone shell', () => {
         page.getByRole('dialog', { name: 'Buchung erfassen', exact: true }),
       ).toBeVisible();
       await page.keyboard.press('Escape');
+      // Closing steps back in history; the next page must not start while that traversal is pending.
+      await expect(page.getByRole('dialog')).toHaveCount(0);
+      await expect(page).not.toHaveURL(/panel=/);
     }
   });
 

@@ -16,6 +16,7 @@ import {
 import type { HeutePeriod } from './heute/api';
 import { authStatusQuery, queryClient } from './auth/status-query';
 import { validateBookingsSearch } from './ledger/bookings-search';
+import { validateInboxSearch } from './inbox/navigation';
 import { accountsQuery } from './ledger/queries';
 import { captureContinuation, validateCaptureSearch } from './ledger/capture-link';
 import { findReport } from './nav/reports-catalog';
@@ -91,6 +92,20 @@ const rootRoute = createRootRoute({
     trend: search['trend'] === true || search['trend'] === 'true' ? true : undefined,
     zeitraum: isZeitraum(search['zeitraum']) ? search['zeitraum'] : undefined,
   }),
+  beforeLoad: ({ search, location }) => {
+    if (search.panel !== 'posteingang') return;
+    const source = new URL(location.href, 'https://budget.invalid');
+    source.searchParams.delete('panel');
+    throw redirect({
+      to: '/konten/posteingang',
+      search: {
+        von: location.pathname.startsWith('/konten/posteingang')
+          ? undefined
+          : `${source.pathname}${source.search}`,
+      },
+      replace: true,
+    });
+  },
   component: Outlet,
   notFoundComponent: NotFoundPage,
 });
@@ -178,15 +193,16 @@ const bookingsRoute = createRoute({
 const inboxRoute = createRoute({
   getParentRoute: () => shellRoute,
   path: '/konten/posteingang',
-  validateSearch: (search: Record<string, unknown>) => ({
-    bankSource:
-      typeof search['bankSource'] === 'string' &&
-      /^[\da-f]{8}-[\da-f]{4}-[\da-f]{4}-[\da-f]{4}-[\da-f]{12}$/i.test(search['bankSource'])
-        ? search['bankSource']
-        : undefined,
-  }),
+  validateSearch: validateInboxSearch,
   staticData: { meta: PAGES.find((p) => p.path === '/konten/posteingang')! },
   component: lazyRouteComponent(() => import('./inbox/inbox-page'), 'InboxPage'),
+});
+const inboxDetailRoute = createRoute({
+  getParentRoute: () => shellRoute,
+  path: '/konten/posteingang/$id',
+  validateSearch: validateInboxSearch,
+  staticData: { meta: PAGES.find((p) => p.path === '/konten/posteingang')! },
+  component: lazyRouteComponent(() => import('./inbox/inbox-page'), 'InboxDetailPage'),
 });
 const contactsRoute = createRoute({
   getParentRoute: () => shellRoute,
@@ -373,6 +389,34 @@ const planExpectedRoute = createRoute({
   path: PLAN_ERWARTET.path,
   staticData: { meta: PLAN_ERWARTET },
   component: lazyRouteComponent(() => import('./expected/expected-page'), 'ExpectedPage'),
+});
+const expectedDetailSearch = (search: Record<string, unknown>) => ({
+  ansicht:
+    search['ansicht'] === 'contracts' || search['ansicht'] === 'all' ? search['ansicht'] : 'next',
+  art: search['art'] === 'inflow' || search['art'] === 'outflow' ? search['art'] : 'all',
+});
+const expectedPaymentRoute = createRoute({
+  getParentRoute: () => shellRoute,
+  path: '/plan/erwartet/$id',
+  staticData: { meta: { ...PLAN_ERWARTET, title: 'Wiederkehrende Zahlung' } },
+  validateSearch: expectedDetailSearch,
+  component: lazyRouteComponent(() => import('./expected/payment-page'), 'PaymentPage'),
+});
+const expectedIncomeRoute = createRoute({
+  getParentRoute: () => shellRoute,
+  path: '/plan/erwartet/einnahmen',
+  staticData: { meta: { ...PLAN_ERWARTET, title: 'Einnahmen' } },
+  validateSearch: expectedDetailSearch,
+  component: lazyRouteComponent(() => import('./budget/envelope-page'), 'PlanIncomePage'),
+});
+const heuteDimensionRoute = createRoute({
+  getParentRoute: () => shellRoute,
+  path: '/heute/details/$kind',
+  beforeLoad: ({ params }) => {
+    if (!['liquid', 'invested', 'receivable', 'debt'].includes(params.kind)) throw notFound();
+  },
+  staticData: { meta: { ...HEUTE, title: 'Herleitung' } },
+  component: lazyRouteComponent(() => import('./heute/dimension-page'), 'DimensionPage'),
 });
 const freedomRoute = createRoute({
   getParentRoute: () => shellRoute,
@@ -597,6 +641,16 @@ const devRoutes = devRoutesEnabled
   ? [
       createRoute({
         getParentRoute: () => rootRoute,
+        path: '/dev/details',
+        validateSearch: (search: Record<string, unknown>) => ({
+          titel: typeof search['titel'] === 'string' ? search['titel'].slice(0, 100) : undefined,
+          lang: search['lang'] === true || search['lang'] === 'true',
+          von: search['von'] === 'panels' ? 'panels' : undefined,
+        }),
+        component: lazyRouteComponent(() => import('./routes/detail-example'), 'DetailExamplePage'),
+      }),
+      createRoute({
+        getParentRoute: () => rootRoute,
         path: '/dev/diagramme',
         component: lazyRouteComponent(() => import('./routes/charts-spike'), 'ChartsSpikePage'),
       }),
@@ -620,6 +674,28 @@ const devRoutes = devRoutesEnabled
 
 const routeTree = rootRoute.addChildren([
   shellRoute.addChildren([
+    createRoute({
+      getParentRoute: () => shellRoute,
+      path: '/konten/kontakte/$id',
+      validateSearch: (search: Record<string, unknown>) => ({
+        verlauf: search['verlauf'] === 1 || search['verlauf'] === '1' ? 1 : undefined,
+      }),
+      staticData: { meta: PAGES.find((p) => p.path === '/konten/kontakte')! },
+      component: lazyRouteComponent(
+        () => import('./contacts/contacts-page'),
+        'ContactStatementPage',
+      ),
+    }),
+    createRoute({
+      getParentRoute: () => shellRoute,
+      path: '/suche',
+      validateSearch: (search: Record<string, unknown>) => ({
+        q: typeof search['q'] === 'string' ? search['q'].slice(0, 200) : undefined,
+        von: validateInboxSearch(search).von,
+      }),
+      staticData: { meta: { ...HEUTE, title: 'Suchen' } },
+      component: lazyRouteComponent(() => import('./shell/global-search'), 'SearchPage'),
+    }),
     homeRoute,
     createRoute({
       getParentRoute: () => shellRoute,
@@ -662,6 +738,9 @@ const routeTree = rootRoute.addChildren([
     planIncomeRoute,
     planYearRoute,
     planExpectedRoute,
+    expectedPaymentRoute,
+    expectedIncomeRoute,
+    heuteDimensionRoute,
     freedomRoute,
     netWorthRoute,
     portfolioRoute,
@@ -675,6 +754,7 @@ const routeTree = rootRoute.addChildren([
     bookingsRoute,
     contactsRoute,
     inboxRoute,
+    inboxDetailRoute,
     accountRoute,
     reportsRoute,
     reportGroupRoute,

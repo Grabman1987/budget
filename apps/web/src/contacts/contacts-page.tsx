@@ -2,7 +2,6 @@ import {
   useAmountPrivacy,
   AmountInput,
   Button,
-  DetailPanel,
   FormDialog,
   Field,
   Select,
@@ -20,8 +19,8 @@ import {
   type OpenContactOutlay,
 } from '@budget/domain';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { useNavigate, useSearch } from '@tanstack/react-router';
-import { useState } from 'react';
+import { useLocation, useNavigate, useParams, useSearch } from '@tanstack/react-router';
+import { useEffect, useRef, useState } from 'react';
 import { request } from '../api/http';
 import { AccountOptions } from '../ledger/account-options';
 import { undoGroup } from '../ledger/api';
@@ -31,6 +30,7 @@ import { accountsQuery, lookupsQuery, LEDGER_KEY } from '../ledger/queries';
 import { EmptyNote, ErrorNote, LoadingNote } from '../ledger/states';
 import { PAGES } from '../nav/pages';
 import { PageFrame } from '../pages/placeholder-page';
+import { AppLink } from '../shell/app-link';
 import './contacts.css';
 import '../ledger/ledger.css';
 interface ContactRow {
@@ -81,15 +81,26 @@ function useContactWrite() {
 
 export function ContactsPage() {
   useAmountPrivacy();
-  const [history, setHistory] = useState(false);
+  const location = useLocation();
+  const historyParam = new URLSearchParams(location.searchStr).get('verlauf');
+  const history = historyParam === '1' || historyParam === '"1"';
   const search = useSearch({ strict: false }) as { kontakt?: string };
-  const selected = search.kontakt ?? '';
   const navigate = useNavigate();
-  const setSelected = (kontakt: string) =>
+  const setHistory = (visible: boolean) =>
     void navigate({
       to: '/konten/kontakte',
-      search: { kontakt: kontakt || undefined } as never,
+      search: { verlauf: visible ? 1 : undefined } as never,
+      replace: true,
     });
+  useEffect(() => {
+    if (search.kontakt)
+      void navigate({
+        to: '/konten/kontakte/$id',
+        params: { id: search.kontakt },
+        search: { verlauf: history ? 1 : undefined },
+        replace: true,
+      });
+  }, [search.kontakt, history, navigate]);
   const [creating, setCreating] = useState(false);
   const [writeOff, setWriteOff] = useState<ContactRow | null>(null);
   const contacts = useQuery({
@@ -143,9 +154,13 @@ export function ContactsPage() {
                 {contacts.data.contacts.map((c) => (
                   <tr key={c.id}>
                     <td>
-                      <Button variant="ghost" onClick={() => setSelected(c.id)}>
+                      <AppLink
+                        className="btn btn-ghost"
+                        to={`/konten/kontakte/${encodeURIComponent(c.id)}`}
+                        search={history ? { verlauf: 1 } : {}}
+                      >
                         {c.name}
-                      </Button>
+                      </AppLink>
                     </td>
                     <td className="num">{eur(c.balanceCents)}</td>
                     <td>
@@ -167,31 +182,36 @@ export function ContactsPage() {
               </tbody>
             </table>
           ))}
-        <DetailPanel open={creating} onClose={() => setCreating(false)} title="Neuer Kontakt">
+        <FormDialog open={creating} onClose={() => setCreating(false)} title="Neuer Kontakt">
           {creating && (
             <NewContact
+              onClose={() => setCreating(false)}
               onDone={() => {
                 setCreating(false);
                 setHistory(true);
               }}
             />
           )}
-        </DetailPanel>
-        <ContactPanel id={selected} onClose={() => setSelected('')} />
+        </FormDialog>
         {writeOff && <ContactWriteOffDialog contact={writeOff} onClose={() => setWriteOff(null)} />}
       </div>
     </PageFrame>
   );
 }
 
-function NewContact({ onDone }: { onDone: () => void }) {
+function NewContact({ onDone, onClose }: { onDone: () => void; onClose: () => void }) {
   useAmountPrivacy();
+  const nameInput = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    const frame = requestAnimationFrame(() => nameInput.current?.focus());
+    return () => cancelAnimationFrame(frame);
+  }, []);
   const [name, setName] = useState('');
   const [busy, setBusy] = useState(false);
   const write = useContactWrite();
   return (
     <form
-      className="contacts-form"
+      className="bkform"
       onSubmit={(e) => {
         e.preventDefault();
         setBusy(true);
@@ -204,43 +224,79 @@ function NewContact({ onDone }: { onDone: () => void }) {
         });
       }}
     >
-      <Field label="Name">
-        {({ id }) => (
-          <TextInput
-            id={id}
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            maxLength={200}
-            required
-          />
-        )}
-      </Field>
-      <Button type="submit" disabled={busy || !name.trim()}>
-        Kontakt anlegen
-      </Button>
+      <div className="bk-head">
+        <h2 className="bk-kind-fixed">Neuer Kontakt</h2>
+        <button type="button" className="icon-btn" aria-label="Schließen" onClick={onClose}>
+          ×
+          <span className="control-label" aria-hidden="true">
+            Schließen
+          </span>
+        </button>
+      </div>
+      <div className="bk-body contacts-form">
+        <Field label="Name">
+          {({ id }) => (
+            <TextInput
+              id={id}
+              ref={nameInput}
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              maxLength={200}
+              required
+            />
+          )}
+        </Field>
+      </div>
+      <div className="bk-foot">
+        <Button variant="ghost" onClick={onClose}>
+          Abbrechen
+        </Button>
+        <Button type="submit" disabled={busy || !name.trim()}>
+          Kontakt anlegen
+        </Button>
+      </div>
     </form>
   );
 }
 
-function ContactPanel({ id, onClose }: { id: string; onClose: () => void }) {
+export function ContactStatementPage() {
   useAmountPrivacy();
+  const { id } = useParams({ strict: false }) as { id: string };
+  const { verlauf } = useSearch({ strict: false }) as { verlauf?: number };
+  const context = verlauf === 1 ? { verlauf } : {};
   const statement = useQuery({
     queryKey: [...LEDGER_KEY, 'contact', id],
     enabled: !!id,
     queryFn: () => request<Statement>('GET', contactUrl(id)),
   });
   return (
-    <DetailPanel open={!!id} onClose={onClose} title={statement.data?.contact.name ?? 'Kontoblatt'}>
-      {statement.isPending && <LoadingNote what="Kontoblatt" />}
-      {statement.isError && (
-        <ErrorNote
-          what="Kontoblatt"
-          error={statement.error}
-          onRetry={() => void statement.refetch()}
-        />
-      )}
-      {statement.data && <ContactBody key={id} statement={statement.data} />}
-    </DetailPanel>
+    <PageFrame meta={META} title={statement.data?.contact.name ?? 'Kontoblatt'}>
+      <section className="contacts-page contacts-statement" aria-label="Kontaktkontoauszug">
+        <nav aria-label="Brotkrumen">
+          <AppLink to="/konten" search={{}}>
+            Konten
+          </AppLink>
+          {' › '}
+          <AppLink to="/konten/kontakte" search={context}>
+            Kontakte
+          </AppLink>
+          {' › '}
+          <span aria-current="page">{statement.data?.contact.name ?? 'Kontoblatt'}</span>
+        </nav>
+        <AppLink className="btn btn-ghost" to="/konten/kontakte" search={context}>
+          Zurück zu Kontakte
+        </AppLink>
+        {statement.isPending && <LoadingNote what="Kontoblatt" />}
+        {statement.isError && (
+          <ErrorNote
+            what="Kontoblatt"
+            error={statement.error}
+            onRetry={() => void statement.refetch()}
+          />
+        )}
+        {statement.data && <ContactBody key={id} statement={statement.data} />}
+      </section>
+    </PageFrame>
   );
 }
 

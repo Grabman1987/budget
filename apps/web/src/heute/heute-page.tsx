@@ -6,7 +6,6 @@ import {
   ClassTag,
   DimensionChain,
   DimensionChainDrawing,
-  DetailPanel,
   RevisionTable,
   SectionHead,
   type DimensionChainTerm,
@@ -25,8 +24,6 @@ import {
   CircleCheck,
   Clock3,
 } from 'lucide-react';
-import { fetchAccounts } from '../ledger/api';
-import { LEDGER_KEY } from '../ledger/queries';
 import { PaceAccuracyNote } from '../reports/planning-accuracy-report';
 import { eur, longDay, shortDay } from '../ledger/format';
 import { EmptyNote, ErrorNote, LoadingNote } from '../ledger/states';
@@ -50,6 +47,7 @@ import { DailyBudgetLine } from './charts';
 import { VerdictLine } from '../reports/verdict-line';
 import { heuteVerdictFacts } from '../reports/verdict-facts';
 import { Upcoming } from './upcoming-payments';
+import type { DimensionKind } from './dimension-page';
 
 const pct = new Intl.NumberFormat('de-AT', { maximumFractionDigits: 2 });
 const STATUS: Record<string, string> = {
@@ -86,12 +84,15 @@ function HeuteBody({ data }: { data: Heute }) {
   useAmountPrivacy();
   const heuteFacts = useMemo(() => heuteVerdictFacts(data), [data]);
   const [chainOpen, setChainOpen] = useState(false);
-  const [netDetail, setNetDetail] = useState<'liquid' | 'invested' | 'receivable' | 'debt' | null>(
-    null,
-  );
   const [leadDetail, setLeadDetail] = useState<'need' | 'want' | 'open' | null>(null);
   const [paceDetail, setPaceDetail] = useState<'spent' | 'plan' | 'forecast' | null>(null);
   const navigate = useNavigate();
+  const openNetDetail = (kind: DimensionKind) =>
+    void navigate({
+      to: '/heute/details/$kind',
+      params: { kind },
+      search: { monat: data.stand.month, period: data.stand.period },
+    });
   const [, , setMonth] = useMonth();
   const savings = useQuery(savingsProposalsQuery());
   // Another month than today's: the lead, next steps, upcoming, checks, net worth and bookings
@@ -546,7 +547,7 @@ function HeuteBody({ data }: { data: Heute }) {
                         }
                       : {})}
                     result={{ label: 'Nettovermögen', cents: cents(net.totalCents) }}
-                    onSelect={(key) => setNetDetail(key as NonNullable<typeof netDetail>)}
+                    onSelect={(key) => openNetDetail(key as DimensionKind)}
                   />
                 </div>
                 <p className="heute-note">
@@ -615,7 +616,6 @@ function HeuteBody({ data }: { data: Heute }) {
         />
         <FundingNotes data={data} />
       </MoreMonth>
-      {net && <NetWorthDetail net={net} kind={netDetail} onClose={() => setNetDetail(null)} />}
     </>
   );
 }
@@ -665,79 +665,6 @@ function WealthSparkline({ series }: { series: { day: string; cents: number }[] 
         <polyline points={points} fill="none" stroke="var(--line)" strokeWidth="2" />
       </svg>
     </AppLink>
-  );
-}
-
-function NetWorthDetail({
-  net,
-  kind,
-  onClose,
-}: {
-  net: Exclude<Heute['netWorth'], { unavailable: unknown }>;
-  kind: 'liquid' | 'invested' | 'receivable' | 'debt' | null;
-  onClose: () => void;
-}) {
-  useAmountPrivacy();
-  const names = {
-    liquid: 'Liquidität',
-    invested: 'Investiert',
-    receivable: 'Forderungen',
-    debt: net.debtCents > 0 ? 'Guthaben auf Schuldkonten' : 'Schulden',
-  };
-  const totals = {
-    liquid: net.liquidCents,
-    invested: net.investedCents,
-    receivable: net.receivableCents,
-    debt: net.debtCents,
-  };
-  const query = useQuery({
-    queryKey: [...LEDGER_KEY, 'accounts', net.asOf],
-    queryFn: () => fetchAccounts(net.asOf),
-    enabled: kind !== null,
-  });
-  const accounts =
-    query.data?.accounts.filter((account) => {
-      const value = account.valueEurCents;
-      if (value === null) return false;
-      if (kind === 'debt') return value < 0 || account.role === 'debt';
-      if (value < 0 || account.role === 'debt') return false;
-      if (kind === 'invested') return account.role === 'investment';
-      if (kind === 'receivable') return account.role === 'receivable';
-      return account.role === 'budget' || account.role === 'reserve';
-    }) ?? [];
-  return (
-    <DetailPanel open={kind !== null} title={kind ? names[kind] : ''} onClose={onClose}>
-      <div className="heute-breakdown">
-        <p>Stand {longDay(net.asOf)}</p>
-        {kind === 'liquid' && (
-          <p>
-            Positive Salden aus Budget- und Reservekonten. Negative Kontosalden zählen zu Schulden;
-            das Maß ist kein frei verfügbares Budget.
-          </p>
-        )}
-        {query.isPending && <LoadingNote what="Konten" />}
-        {query.isError && (
-          <ErrorNote what="Konten" error={query.error} onRetry={() => void query.refetch()} />
-        )}
-        {query.data &&
-          (accounts.length ? (
-            <ul>
-              {accounts.map((account) => (
-                <li key={account.id}>
-                  <AppLink to={`/konten/${encodeURIComponent(account.id)}`}>{account.name}</AppLink>
-                  <strong>{eur(account.valueEurCents!)}</strong>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <EmptyNote>Keine Konten in diesem Maß.</EmptyNote>
-          ))}
-        <p className="heute-figure-detail">
-          <strong>{kind ? names[kind] : ''}</strong>
-          <strong>{kind ? eur(totals[kind]) : ''}</strong>
-        </p>
-      </div>
-    </DetailPanel>
   );
 }
 

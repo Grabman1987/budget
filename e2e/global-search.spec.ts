@@ -8,6 +8,8 @@ async function openSearch(page: Page, mobile: boolean) {
   if (!mobile) await expect(page.locator('#global-search')).toBeVisible();
   if (mobile) await page.getByRole('button', { name: 'Suchen', exact: true }).click();
   else await page.keyboard.press('Control+k');
+  // The previous page can stay rendered a moment after its URL changed; wait for the search page.
+  await expect(page).toHaveURL(/\/suche/);
   const input = page.getByRole('combobox', { name: 'Suchen', exact: true });
   await expect(input).toBeFocused();
   return input;
@@ -44,7 +46,7 @@ test('result types open existing category, payee, contact and exact booking view
   for (const [query, kind, url] of [
     ['Lebensmittel', 'Kategorie', /kategorie=/],
     ['Supermarkt', 'Empfänger', /empfaenger=/],
-    ['Muster', 'Kontakt', /\/konten\/kontakte\?kontakt=/],
+    ['Muster', 'Kontakt', /\/konten\/kontakte\//],
     ['Supermarkt', 'Buchung', /buchung=/],
   ] as const) {
     const input = await openSearch(page, mobile);
@@ -57,16 +59,13 @@ test('result types open existing category, payee, contact and exact booking view
       .click();
     await expect(page).toHaveURL(url);
     if (kind === 'Kontakt') {
-      const panel = page.getByRole('dialog', { name: 'Kontakt M. Muster', exact: true });
+      const panel = page.getByRole('region', { name: 'Kontaktkontoauszug' });
       await expect(panel).toContainText('Kontoblatt');
       await page.reload();
-      await expect(
-        page.getByRole('dialog', { name: 'Kontakt M. Muster', exact: true }),
-      ).toContainText('Kontoblatt');
-      await page
-        .getByRole('dialog')
-        .getByRole('button', { name: 'Schließen', exact: true })
-        .click();
+      await expect(page.getByRole('region', { name: 'Kontaktkontoauszug' })).toContainText(
+        'Kontoblatt',
+      );
+      await page.getByRole('link', { name: 'Zurück zu Kontakte', exact: true }).click();
     }
     if (kind === 'Buchung') {
       await expect(page.getByText('1 Buchung', { exact: false }).first()).toBeVisible();
@@ -96,6 +95,21 @@ test('loading, empty and failed searches are explicit, retry works, Escape retur
   await input.press('Escape');
   await expect(page.getByRole('listbox')).toHaveCount(0);
   if (mobile) await expect(page.getByRole('button', { name: 'Suchen', exact: true })).toBeFocused();
+});
+
+test('Escape steps back out of the search page instead of stacking the source page again', async ({
+  page,
+}, info) => {
+  await page.goto('/plan/monat');
+  const mobile = info.project.name === 'mobile';
+  const before = await page.evaluate(() => history.length);
+  const input = await openSearch(page, mobile);
+  await input.fill('Girokonto');
+  await expect(page).toHaveURL(/\/suche\?.*q=Girokonto/);
+  await input.press('Escape');
+  await expect(page).toHaveURL(/\/plan\/monat$/);
+  // One forward entry (the search) is left behind; a pushed copy of the source would add two.
+  expect(await page.evaluate(() => history.length)).toBe(before + 1);
 });
 
 test('pending responses cannot replace a newer query and search is accessible in both themes', async ({
@@ -202,14 +216,16 @@ test('palette: reports, pages, recent choices, actions and shortcut help', async
     input = await openSearch(page, mobile);
     await input.fill(label);
     await input.press('Enter');
-    await expect(page).toHaveURL(new RegExp(`panel=${panel}`));
-    await expect(
-      page.getByRole('dialog', {
-        name: panel === 'buchung' ? 'Buchung erfassen' : 'Posteingang',
-        exact: true,
-      }),
-    ).toBeVisible();
-    await page.keyboard.press('Escape');
+    if (panel === 'buchung') {
+      await expect(page).toHaveURL(/panel=buchung/);
+      await expect(
+        page.getByRole('dialog', { name: 'Buchung erfassen', exact: true }),
+      ).toBeVisible();
+      await page.keyboard.press('Escape');
+    } else {
+      await expect(page).toHaveURL(/\/konten\/posteingang/);
+      await expect(page.locator('.kinbox')).toBeVisible();
+    }
     await expect(page.getByRole('dialog')).toHaveCount(0);
   }
   input = await openSearch(page, mobile);
@@ -251,7 +267,7 @@ test('palette: reports, pages, recent choices, actions and shortcut help', async
   await page.keyboard.press('Escape');
   await expect(page.getByRole('listbox')).toHaveCount(0);
   if (mobile) await expect(page.getByRole('button', { name: 'Suchen', exact: true })).toBeFocused();
-  else await expect(input).toBeFocused();
+  else await expect(page.locator('#global-search')).toBeFocused();
   await page.locator('main').click({ position: { x: 8, y: 8 } });
   await page.keyboard.press('?');
   await expect(help).toBeVisible();
