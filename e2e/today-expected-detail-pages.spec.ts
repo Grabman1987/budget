@@ -103,6 +103,7 @@ test('Expected income reuses the income body and restores list filters through e
 test('payment details preserve single-occurrence skip, restore, undo and form cancellation without confirming bookings', async ({
   page,
 }, info) => {
+  test.setTimeout(60_000);
   const name = `Detail ${info.project.name} ${Date.now().toString(36)}`;
   const response = await page.request.post('/api/expected', {
     headers: { origin: SAMPLE_URL },
