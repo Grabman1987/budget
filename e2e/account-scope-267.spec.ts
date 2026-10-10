@@ -161,7 +161,9 @@ test('Heute explains sidebar, forecast and net-worth account scopes', async ({
       'das Maß ist kein frei verfügbares Budget.',
   );
   await expect(liquidDetail).toBeVisible();
-  const detail = page.getByRole('dialog');
+  await expect(page).toHaveURL(new RegExp('/heute/details/liquid'));
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+  const detail = page.getByRole('region', { name: 'Liquidität', exact: true });
   await expect(detail).toContainText('Synthetic checking');
   await expect(detail).toContainText('Synthetic reserve');
   await expect(detail).not.toContainText('Synthetic card');

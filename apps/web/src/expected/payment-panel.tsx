@@ -2,7 +2,7 @@ import {
   useAmountPrivacy,
   AmountInput,
   Button,
-  DetailPanel,
+  FormDialog,
   Field,
   RevisionTable,
   Select,
@@ -11,7 +11,7 @@ import {
 } from '@budget/ui';
 import { addMonths, monthOf, parseAmount, todayInVienna } from '@budget/domain';
 import { useQuery } from '@tanstack/react-query';
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { useBudgetWrite } from '../budget/use-category-writes';
 import { eur, longDay, shortDay } from '../ledger/format';
 import { bookingsQuery } from '../ledger/queries';
@@ -48,7 +48,7 @@ import { StatusStamp } from './status-stamp';
 export type PaymentPanelState =
   { mode: 'view'; id: string } | { mode: 'create'; draft?: PaymentDraft } | null;
 
-/** Side panel (desktop) or bottom sheet (phone): create a payment, or one payment in full. */
+/** Existing bodies and write paths: content is inline on its page, creation is a form dialog. */
 export function PaymentPanel({
   state,
   onClose,
@@ -59,14 +59,46 @@ export function PaymentPanel({
   useAmountPrivacy();
   const payments = useQuery(expectedQuery()).data;
   const payment = state?.mode === 'view' ? payments?.find((p) => p.id === state.id) : undefined;
-  const title = state?.mode === 'create' ? 'Wiederkehrende Zahlung anlegen' : (payment?.name ?? '');
+  if (state?.mode === 'view')
+    return payment ? <ViewBody key={payment.id} payment={payment} onDone={onClose} /> : null;
   return (
-    <DetailPanel open={state !== null} onClose={onClose} title={title}>
+    <PaymentDialog
+      open={state?.mode === 'create'}
+      onClose={onClose}
+      title="Wiederkehrende Zahlung anlegen"
+    >
       {state?.mode === 'create' && <CreateBody key="new" draft={state.draft} onDone={onClose} />}
-      {state?.mode === 'view' && payment && (
-        <ViewBody key={payment.id} payment={payment} onDone={onClose} />
+    </PaymentDialog>
+  );
+}
+
+function PaymentDialog({
+  open,
+  title,
+  onClose,
+  busy = false,
+  children,
+}: {
+  open: boolean;
+  title: string;
+  onClose: () => void;
+  busy?: boolean;
+  children: ReactNode;
+}) {
+  return (
+    <FormDialog open={open} title={title} onClose={onClose} beforeClose={() => !busy}>
+      {open && (
+        <>
+          <div className="bk-head">
+            <h2>{title}</h2>
+            <Button variant="ghost" disabled={busy} onClick={onClose}>
+              Schließen
+            </Button>
+          </div>
+          <div className="bk-body">{children}</div>
+        </>
       )}
-    </DetailPanel>
+    </FormDialog>
   );
 }
 
@@ -126,6 +158,9 @@ function ViewBody({ payment: p, onDone }: { payment: ExpectedPayment; onDone: ()
   useAmountPrivacy();
   const write = useBudgetWrite();
   const currency = p.version?.currency ?? 'EUR';
+  const [editing, setEditing] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [busy, setBusy] = useState(false);
   return (
     <div className="kform xp-panel">
       <div>
@@ -139,7 +174,44 @@ function ViewBody({ payment: p, onDone }: { payment: ExpectedPayment; onDone: ()
       </div>
       <VersionsSection payment={p} />
       <OccurrencesSection payment={p} />
-      <EditSection payment={p} onDeleted={onDone} write={write} />
+      <div className="panel-actions">
+        <Button variant="ghost" onClick={() => setEditing(true)}>
+          Bearbeiten
+        </Button>
+        <Button variant="ghost" onClick={() => setDeleting(true)}>
+          Löschen
+        </Button>
+      </div>
+      <PaymentDialog open={editing} title="Zahlung bearbeiten" onClose={() => setEditing(false)}>
+        {editing && <EditSection payment={p} onDone={() => setEditing(false)} write={write} />}
+      </PaymentDialog>
+      <PaymentDialog
+        open={deleting}
+        title="Zahlung löschen"
+        busy={busy}
+        onClose={() => setDeleting(false)}
+      >
+        <p>„{p.name}“ als wiederkehrende Zahlung löschen? Bestehende Buchungen bleiben erhalten.</p>
+        <div className="panel-actions">
+          <Button
+            disabled={busy}
+            onClick={async () => {
+              setBusy(true);
+              const done = await write(
+                () => deletePayment(p.id),
+                () => `${p.name}: wiederkehrende Zahlung gelöscht`,
+              );
+              setBusy(false);
+              if (done) onDone();
+            }}
+          >
+            Löschen bestätigen
+          </Button>
+          <Button variant="ghost" disabled={busy} onClick={() => setDeleting(false)}>
+            Abbrechen
+          </Button>
+        </div>
+      </PaymentDialog>
     </div>
   );
 }
@@ -158,6 +230,15 @@ function VersionsSection({ payment: p }: { payment: ExpectedPayment }) {
   const [error, setError] = useState<string>();
   const [busy, setBusy] = useState(false);
   const currency = p.version?.currency ?? 'EUR';
+  const [editing, setEditing] = useState(false);
+  const close = () => {
+    setEditing(false);
+    setMonth(addMonths(monthOf(today), 1));
+    setAmount('');
+    setAmountMax('');
+    setNote('');
+    setError(undefined);
+  };
 
   const rows = (versions.data ?? []).map((v, i, all) => ({
     v,
@@ -188,11 +269,7 @@ function VersionsSection({ payment: p }: { payment: ExpectedPayment }) {
       () => `${p.name}: neue Version ab ${shortDay(`${month}-01`)}${month.slice(0, 4)}`,
     );
     setBusy(false);
-    if (done) {
-      setAmount('');
-      setAmountMax('');
-      setNote('');
-    }
+    if (done) close();
   };
 
   return (
@@ -211,7 +288,7 @@ function VersionsSection({ payment: p }: { payment: ExpectedPayment }) {
       {versions.data && (
         <RevisionTable
           caption={`Versionen von ${p.name}, neueste zuerst`}
-          headers={{ revision: 'Ver.', change: 'Gilt ab', action: '' }}
+          headers={{ revision: 'Ver.', change: 'Gilt ab', action: 'Aktion' }}
           rows={newest.map(({ v, letter }) => ({
             id: v.id,
             letter,
@@ -226,49 +303,61 @@ function VersionsSection({ payment: p }: { payment: ExpectedPayment }) {
           empty="Noch keine Version."
         />
       )}
-      <form
-        className="xp-newversion"
-        noValidate
-        onSubmit={(e) => {
-          e.preventDefault();
-          void submit();
-        }}
-      >
-        <h4 className="xp-sub">Neue Version ab …</h4>
-        <p className="field-hint">
-          Ein Preis ändert sich: die alte Version bleibt, frühere Zahlungen auch.
-        </p>
-        <Field label="Ab Monat">
-          {({ id }) => (
-            <TextInput
-              id={id}
-              type="month"
-              value={month}
-              onChange={(e) => setMonth(e.target.value)}
+      <Button variant="ghost" onClick={() => setEditing(true)}>
+        Neue Version
+      </Button>
+      <PaymentDialog open={editing} title="Neue Version" onClose={close} busy={busy}>
+        {editing && (
+          <form
+            className="xp-newversion"
+            noValidate
+            onSubmit={(e) => {
+              e.preventDefault();
+              void submit();
+            }}
+          >
+            <h4 className="xp-sub">Neue Version ab …</h4>
+            <p className="field-hint">
+              Ein Preis ändert sich: die alte Version bleibt, frühere Zahlungen auch.
+            </p>
+            <Field label="Ab Monat">
+              {({ id }) => (
+                <TextInput
+                  id={id}
+                  type="month"
+                  value={month}
+                  onChange={(e) => setMonth(e.target.value)}
+                />
+              )}
+            </Field>
+            <AmountInput
+              label="Neuer Betrag"
+              value={amount}
+              onChange={setAmount}
+              sign={p.kind === 'inflow' ? '+' : '−'}
             />
-          )}
-        </Field>
-        <AmountInput
-          label="Neuer Betrag"
-          value={amount}
-          onChange={setAmount}
-          sign={p.kind === 'inflow' ? '+' : '−'}
-        />
-        <AmountInput label="bis (optional)" value={amountMax} onChange={setAmountMax} />
-        <Field label="Notiz (optional)">
-          {({ id }) => <TextInput id={id} value={note} onChange={(e) => setNote(e.target.value)} />}
-        </Field>
-        {error && (
-          <p className="field-error" role="alert">
-            {maskMoneyText(error)}
-          </p>
+            <AmountInput label="bis (optional)" value={amountMax} onChange={setAmountMax} />
+            <Field label="Notiz (optional)">
+              {({ id }) => (
+                <TextInput id={id} value={note} onChange={(e) => setNote(e.target.value)} />
+              )}
+            </Field>
+            {error && (
+              <p className="field-error" role="alert">
+                {maskMoneyText(error)}
+              </p>
+            )}
+            <div className="panel-actions">
+              <Button type="submit" variant="ghost" disabled={busy}>
+                Version speichern
+              </Button>
+              <Button variant="ghost" disabled={busy} onClick={close}>
+                Abbrechen
+              </Button>
+            </div>
+          </form>
         )}
-        <div className="panel-actions">
-          <Button type="submit" variant="ghost" disabled={busy}>
-            Version speichern
-          </Button>
-        </div>
-      </form>
+      </PaymentDialog>
     </section>
   );
 }
@@ -385,17 +474,23 @@ function OccurrencesSection({ payment: p }: { payment: ExpectedPayment }) {
                   </>
                 )}
               </span>
-              {linking === o.occurrenceId && (
-                <LinkPicker
-                  occurrence={o}
-                  accountId={p.accountId}
-                  onDone={() => setLinking(null)}
-                />
-              )}
             </li>
           ))}
         </ul>
       )}
+      <PaymentDialog
+        open={linking !== null}
+        title="Buchung verknüpfen"
+        onClose={() => setLinking(null)}
+      >
+        {rows.find((o) => o.occurrenceId === linking) && (
+          <LinkPicker
+            occurrence={rows.find((o) => o.occurrenceId === linking)!}
+            accountId={p.accountId}
+            onDone={() => setLinking(null)}
+          />
+        )}
+      </PaymentDialog>
     </section>
   );
 }
@@ -487,11 +582,11 @@ function LinkPicker({
 
 function EditSection({
   payment: p,
-  onDeleted,
+  onDone,
   write,
 }: {
   payment: ExpectedPayment;
-  onDeleted: () => void;
+  onDone: () => void;
   write: ReturnType<typeof useBudgetWrite>;
 }) {
   useAmountPrivacy();
@@ -508,18 +603,12 @@ function EditSection({
     const patch = changedFields(p, read.fields);
     if (Object.keys(patch).length === 0) return;
     setBusy(true);
-    await write(
+    const done = await write(
       () => patchPayment(p.id, patch),
       () => `${read.fields?.name ?? p.name}: gespeichert`,
     );
     setBusy(false);
-  };
-  const remove = async () => {
-    const done = await write(
-      () => deletePayment(p.id),
-      () => `${p.name}: wiederkehrende Zahlung gelöscht`,
-    );
-    if (done) onDeleted();
+    if (done) onDone();
   };
 
   return (
@@ -540,8 +629,8 @@ function EditSection({
           <Button type="submit" disabled={busy}>
             Speichern
           </Button>
-          <Button variant="ghost" disabled={busy} onClick={() => void remove()}>
-            Löschen
+          <Button variant="ghost" disabled={busy} onClick={onDone}>
+            Abbrechen
           </Button>
         </div>
       </form>

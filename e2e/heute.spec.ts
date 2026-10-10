@@ -247,21 +247,22 @@ test('Heute uses live API data and period, expands the lead chain, and links to 
       .getByRole('group', { name: 'Maßkette Nettovermögen' })
       .getByRole('button', { name: new RegExp(`^${name}`) });
     await segment.locator('.seg-fill').click();
-    const panel = page.getByRole('dialog', { name, exact: true });
+    const panel = page.getByRole('region', { name, exact: true });
+    await expect(page).toHaveURL(/\/heute\/details\//);
+    await expect(page.getByRole('dialog')).toHaveCount(0);
     await expect(panel.getByRole('link', { name: account, exact: true })).toBeVisible({
       timeout: 15_000,
     });
     await expect(panel).toContainText(total);
-    await page.keyboard.press('Escape');
-    await expect(panel).toBeHidden();
-    await expect(segment).toBeFocused();
+    await page.goBack();
+    await expect(page).toHaveURL(/\/\?monat=2026-09/);
   }
   await page
     .getByRole('group', { name: 'Maßkette Nettovermögen' })
     .getByRole('button', { name: /^Schulden/ })
     .press('Enter');
   const source = page
-    .getByRole('dialog', { name: 'Schulden', exact: true })
+    .getByRole('region', { name: 'Schulden', exact: true })
     .getByRole('link', { name: 'Kredit', exact: true });
   const target = await source.getAttribute('href');
   await source.click();
@@ -318,11 +319,11 @@ test('a debt account in credit adds to the composition and opens the matching de
   const credit = composition.getByRole('button', { name: /^Guthaben auf Schuldkonten/ });
   await expect(credit).toHaveAttribute('aria-label', /20,00/);
   await credit.press('Enter');
-  const panel = page.getByRole('dialog', { name: 'Guthaben auf Schuldkonten', exact: true });
+  const panel = page.getByRole('region', { name: 'Guthaben auf Schuldkonten', exact: true });
   await expect(panel.getByRole('link', { name: 'Schuldkonto im Guthaben' })).toBeVisible();
   await expect(panel).toContainText('20,00 €');
-  await page.keyboard.press('Escape');
-  await expect(panel).toBeHidden();
+  await page.goBack();
+  await expect(page).toHaveURL(/\/\?monat=2026-09/);
 });
 
 test('a past month has no out-of-range today marker in the balance or pace chart', async ({

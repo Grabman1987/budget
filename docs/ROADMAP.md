@@ -1,5 +1,15 @@
 # Roadmap
 
+
+### Reports package P - history, cell links and full-width summaries (2026-10-09)
+
+- [x] #335/#336: payslip history/details subpage and existing capture/edit/upload form dialogs, with month context and audited-write reuse.
+- [x] #337: linked income/expense cells, exact existing source selection and report-filter return context through the existing booking view.
+- [x] #344/#345/#347/#348: remove the remaining secondary content columns; preserve numeric tables and #411 category trend/source links.
+- [x] Focused web typecheck, changed-file lint/format, 49 unit tests and one E2E build; package memory override applies. [Evidence](evidence/report-panels-1009/README.md).
+- [x] Six functional desktop scenarios across targeted reruns and final 9-test mobile run at 390 px, including navigation, audited edit/undo, cancellation/focus, geometry and Axe.
+- [ ] Required CI, integration after #411 and owner desktop/phone acceptance.
+
 ### Contacts, search and developer surfaces without side panels — #321/#322/#338/#339/#340
 
 - [x] Contact statements at `/konten/kontakte/:id`, legacy contact links, retained overview history and existing receipt/settlement/audit/undo paths.
@@ -8,6 +18,24 @@
 - [x] Dev-only `/dev/details`; remove the example panel entry and use detail routes plus input dialogs in the gallery/harness.
 - [x] Synthetic component regressions, including preventing detail IDs from becoming capture account IDs; scoped verification is recorded in [package evidence](evidence/contacts-search-dev/README.md).
 - [ ] Required CI, Linux visual baseline review, integration after #406 and owner/device acceptance.
+
+
+### P2 #316 / #317 / #328 / #329 / #341 — Today and Expected detail pages — 2026-10-09
+
+- [x] Move only Today's account/wealth dimensions to `/heute/details/:kind`, reusing the existing valuation, account grouping and source links with month/period context.
+- [x] Route Expected income to the existing Plan income page component with an Expected breadcrumb/back link, month, originating view and kind filter.
+- [x] Show expected payment details, unchanged versions and occurrences on `/plan/erwartet/:id`; preserve explicit single-occurrence skip/unskip and audited write/undo paths.
+- [x] Put creation, editing, version capture, booking linking and deletion confirmation in FormDialog; navigation never confirms a booking.
+- [x] Keep the three Today answer cards and put secondary monthly sections below them at full width.
+- [ ] Required CI, Linux visual baseline review and owner/device acceptance. Scoped local results and limitations: [delivery evidence](evidence/today-expected-detail-pages/README.md).
+
+### Booking dialog acceptance — 2026-10-09 (#309 #314 #315)
+
+- [x] Focused synthetic desktop/390px checks for German date, arithmetic/defaults, exact-cent save, bounded height, visible Save and phone touch targets; dark Heute/dialog review with screenshots and contrast evidence.
+- [x] Reproduce and correct booking-only Tab boundary and discard-question focus; verify labelled focus order, continue/discard/opener return and reduced motion.
+- [x] Clean source/test commit `d22965013c108ed3f8abf53a5c6cd3d2123fd445`: desktop/mobile each pass 6 browser/setup cases; SHA and clean worktree captured with viewport/ARIA evidence.
+- [x] Branch pushed and normal [PR #412](https://github.com/Grabman1987/budget/pull/412) opened; initial index/authentication errors cleared on normal retries.
+- [ ] Required CI at the exact final PR head; physical-device and actual screen-reader owner acceptance remain open. [Local results and evidence](evidence/booking-acceptance-1009/README.md).
 
 ### Portfolio package D — #297–#301, #346 — 2026-10-09
 

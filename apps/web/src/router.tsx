@@ -53,6 +53,7 @@ import type { PageTitleData } from './shell/page-meta';
 import { isMonth } from './nav/month';
 import { isZeitraum } from './wealth/zeitraum';
 import { isPanelId, type PanelId } from './shell/panels';
+import { validateReportSearch } from './reports/report-search';
 
 // Route-level code splitting: everything except the shell and the generic placeholder page is
 // loaded when its route is first visited. Each page module below becomes its own chunk.
@@ -389,6 +390,34 @@ const planExpectedRoute = createRoute({
   staticData: { meta: PLAN_ERWARTET },
   component: lazyRouteComponent(() => import('./expected/expected-page'), 'ExpectedPage'),
 });
+const expectedDetailSearch = (search: Record<string, unknown>) => ({
+  ansicht:
+    search['ansicht'] === 'contracts' || search['ansicht'] === 'all' ? search['ansicht'] : 'next',
+  art: search['art'] === 'inflow' || search['art'] === 'outflow' ? search['art'] : 'all',
+});
+const expectedPaymentRoute = createRoute({
+  getParentRoute: () => shellRoute,
+  path: '/plan/erwartet/$id',
+  staticData: { meta: { ...PLAN_ERWARTET, title: 'Wiederkehrende Zahlung' } },
+  validateSearch: expectedDetailSearch,
+  component: lazyRouteComponent(() => import('./expected/payment-page'), 'PaymentPage'),
+});
+const expectedIncomeRoute = createRoute({
+  getParentRoute: () => shellRoute,
+  path: '/plan/erwartet/einnahmen',
+  staticData: { meta: { ...PLAN_ERWARTET, title: 'Einnahmen' } },
+  validateSearch: expectedDetailSearch,
+  component: lazyRouteComponent(() => import('./budget/envelope-page'), 'PlanIncomePage'),
+});
+const heuteDimensionRoute = createRoute({
+  getParentRoute: () => shellRoute,
+  path: '/heute/details/$kind',
+  beforeLoad: ({ params }) => {
+    if (!['liquid', 'invested', 'receivable', 'debt'].includes(params.kind)) throw notFound();
+  },
+  staticData: { meta: { ...HEUTE, title: 'Herleitung' } },
+  component: lazyRouteComponent(() => import('./heute/dimension-page'), 'DimensionPage'),
+});
 const freedomRoute = createRoute({
   getParentRoute: () => shellRoute,
   path: VERMOEGEN_FREIHEIT_META.path,
@@ -554,31 +583,28 @@ const reportGroupRoute = createRoute({
 const reportRoute = createRoute({
   getParentRoute: () => shellRoute,
   path: '/reports/$reportId',
-  validateSearch: (search: Record<string, unknown>) => ({
-    kategorien:
-      Array.isArray(search['kategorien']) && search['kategorien'].length <= 500
-        ? search['kategorien'].filter(
-            (id): id is string => typeof id === 'string' && id.length > 0 && id.length <= 64,
-          )
-        : undefined,
-    vorjahr: search['vorjahr'] === true || search['vorjahr'] === 'true' ? true : undefined,
-    gehaltszettel:
-      typeof search['gehaltszettel'] === 'string' && search['gehaltszettel'].length <= 64
-        ? search['gehaltszettel']
-        : undefined,
-    kontakt:
-      typeof search['kontakt'] === 'string' &&
-      search['kontakt'].length > 0 &&
-      search['kontakt'].length <= 100
-        ? search['kontakt']
-        : undefined,
-  }),
+  validateSearch: validateReportSearch,
   staticData: { meta: { ...REPORTS_CATALOG, title: 'Report', register: 'katalog' } },
   loader: ({ params }): PageTitleData => {
     const report = findReport(params.reportId);
     return report ? { title: report.name } : {};
   },
   component: lazyRouteComponent(reportsPages, 'ReportRoute'),
+});
+
+const payrollHistoryRoute = createRoute({
+  getParentRoute: () => shellRoute,
+  path: '/reports/gehalt/historie',
+  validateSearch: validateReportSearch,
+  staticData: { meta: { ...REPORTS_CATALOG, title: 'Gehaltszettel-Historie', register: 'monat' } },
+  component: lazyRouteComponent(reportsPages, 'PayrollHistoryRoute'),
+});
+const incomeExpenseSourcesRoute = createRoute({
+  getParentRoute: () => shellRoute,
+  path: '/reports/einnahmen-ausgaben/buchungen',
+  validateSearch: validateReportSearch,
+  staticData: { meta: { ...REPORTS_CATALOG, title: 'Report-Buchungen', register: 'monat' } },
+  component: lazyRouteComponent(reportsPages, 'IncomeExpenseSourcesRoute'),
 });
 
 // Login and first-device setup live outside the shell (no navigation before a session exists).
@@ -712,6 +738,9 @@ const routeTree = rootRoute.addChildren([
     planIncomeRoute,
     planYearRoute,
     planExpectedRoute,
+    expectedPaymentRoute,
+    expectedIncomeRoute,
+    heuteDimensionRoute,
     freedomRoute,
     netWorthRoute,
     portfolioRoute,
@@ -730,6 +759,8 @@ const routeTree = rootRoute.addChildren([
     reportsRoute,
     reportGroupRoute,
     reportRoute,
+    payrollHistoryRoute,
+    incomeExpenseSourcesRoute,
   ]),
   loginRoute,
   setupRoute,
@@ -744,7 +775,8 @@ export const router = createRouter({
     location.pathname.startsWith('/einstellungen/kategorien') ||
     location.pathname === '/reports/sparziele' ||
     location.pathname.startsWith('/vermoegen/portfolio') ||
-    location.pathname.startsWith('/einstellungen/regelwerk'),
+    location.pathname.startsWith('/einstellungen/regelwerk') ||
+    location.pathname.startsWith('/reports/'),
 });
 
 declare module '@tanstack/react-router' {

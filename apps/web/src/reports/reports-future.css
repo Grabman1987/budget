@@ -15,11 +15,9 @@
 .rf-wide {
   grid-column: 1 / -1;
 }
-.rf-main {
-  grid-column: 1;
-}
+.rf-main,
 .rf-side {
-  grid-column: 2;
+  grid-column: 1 / -1;
 }
 .rf-card {
   padding: 22px 24px 20px;

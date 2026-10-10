@@ -1,6 +1,35 @@
-/* Plan › Erwartet and the Einnahmen panel. No prototype page exists: the table language is the
+/* Plan › Erwartet and income details. No prototype page exists: the table language is the
    parts list of Plan › Monat and the reports (Stückliste, assemblies per week or group); the
-   panels use the shared panel, revision table and form primitives. */
+   details use the shared revision table and form dialog primitives. */
+
+.xp-detail-nav {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+}
+.xp-detail-nav a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+}
+.xp-detail-body {
+  padding: 20px;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.xp-detail-body .kform {
+  max-width: none;
+}
+.xp-detail-body .xp-occ-act .btn {
+  min-height: 44px;
+}
+.xp-detail-body [aria-labelledby='xp-versions'] .rev-act {
+  display: none;
+}
+.xp-detail .xp-occ > li {
+  grid-template-areas: 'date amt' 'state state' 'book book' 'act act';
+}
 
 .xp {
   display: grid;

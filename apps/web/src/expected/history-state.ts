@@ -7,5 +7,7 @@ import type { ListedBooking } from '../ledger/types';
 declare module '@tanstack/history' {
   interface HistoryState {
     expectedFrom?: ListedBooking;
+    expectedView?: 'next' | 'contracts' | 'all';
+    expectedKind?: 'all' | 'inflow' | 'outflow';
   }
 }

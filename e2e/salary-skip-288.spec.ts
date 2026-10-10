@@ -81,7 +81,8 @@ test('a single salary is struck from the forecast, Heute and Plan, and comes bac
     .first()
     .getByRole('button', { name })
     .click();
-  const panel = page.getByRole('dialog', { name });
+  await expect(page).toHaveURL(new RegExp('/plan/erwartet/[^?]+'));
+  const panel = page.locator('.xp-detail-body');
   const october = panel.locator('.xp-occ > li').filter({ hasText: '15.10.2026' });
   await expect(october).toContainText('erwartet');
   await october.getByRole('button', { name: 'Streichen' }).click();

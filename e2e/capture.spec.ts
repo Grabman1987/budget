@@ -385,7 +385,8 @@ test('a second Esc without any interaction still asks before discarding', async 
   await page.keyboard.press('Escape');
   await expect(panel).toBeVisible();
   await expect(panel.getByText('Eingaben verwerfen?')).toBeVisible();
-  await expect(panel.getByLabel('Betrag', { exact: true })).toHaveValue('5');
+  // The question now takes focus (#314), so the amount field blurs and shows its canonical form.
+  await expect(panel.getByLabel('Betrag', { exact: true })).toHaveValue('5,00');
 });
 
 test('the dialog is a centred card on the desktop and a sheet on the phone with date chips', async ({

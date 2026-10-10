@@ -1,0 +1,14 @@
+.report-detail-nav {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 20px;
+}
+.report-detail-nav a,
+.report-source-link,
+.pp-history-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  min-width: 44px;
+  overflow-wrap: anywhere;
+}

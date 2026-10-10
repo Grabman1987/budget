@@ -69,7 +69,7 @@ function PasswordFields({
     </div>
   );
 }
-export function PayslipUpload() {
+export function PayslipUpload({ onBusyChange }: { onBusyChange?: (busy: boolean) => void } = {}) {
   const picker = useRef<HTMLInputElement>(null),
     [busy, setBusy] = useState(false),
     [message, setMessage] = useState(''),
@@ -82,6 +82,7 @@ export function PayslipUpload() {
   async function upload(file?: File) {
     if (!file || busy) return;
     setBusy(true);
+    onBusyChange?.(true);
     setError('');
     setMessage('');
     setDropbox('off');
@@ -121,6 +122,7 @@ export function PayslipUpload() {
     } finally {
       setPassword('');
       setBusy(false);
+      onBusyChange?.(false);
     }
   }
   return (
