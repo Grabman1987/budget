@@ -2,6 +2,7 @@ import {
   browserSupportsWebAuthn,
   startAuthentication,
   startRegistration,
+  WebAuthnAbortService,
 } from '@simplewebauthn/browser';
 import {
   ApiError,
@@ -29,8 +30,23 @@ function assertSupported() {
 export async function authenticateWithPasskey(): Promise<void> {
   assertSupported();
   const { options } = await loginOptions();
-  const response = await startAuthentication({ optionsJSON: options });
-  await loginVerify(response);
+  // Browser timeout is only a hint. Bound the dialog locally as well, and discard late results.
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    const response = await Promise.race([
+      startAuthentication({ optionsJSON: options }),
+      new Promise<never>((_, reject) => {
+        timer = setTimeout(() => {
+          reject(new DOMException('Passkey dialog timed out', 'AbortError'));
+          WebAuthnAbortService.cancelCeremony();
+        }, 60_000);
+      }),
+    ]);
+    clearTimeout(timer);
+    await loginVerify(response);
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
 /** Fresh confirmation with a passkey for sensitive actions. Returns the end of the step-up window. */

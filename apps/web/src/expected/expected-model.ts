@@ -12,6 +12,13 @@ export const RHYTHM_LABEL: Record<Rhythm, string> = {
   yearly: 'jährlich',
 };
 
+/** `alle 2 Wochen` for a weekly rhythm with an interval above 1, else the plain rhythm label. */
+export function rhythmText(rhythm: Rhythm, intervalWeeks?: number | null): string {
+  return rhythm === 'weekly' && intervalWeeks && intervalWeeks > 1
+    ? `alle ${intervalWeeks} Wochen`
+    : RHYTHM_LABEL[rhythm];
+}
+
 export const STATUS_LABEL = {
   expected: 'erwartet',
   received: 'eingegangen',
@@ -104,7 +111,8 @@ export function weekGroups(
 
 /** `monatlich am 15.`, `jährlich am 12.04.`, `vierteljährlich ab Jänner, am letzten Werktag` */
 export function cadenceText(
-  p: Pick<ExpectedPayment, 'rhythm' | 'dueDay' | 'dueMonth' | 'dateShift'>,
+  p: Pick<ExpectedPayment, 'rhythm' | 'dueDay' | 'dueMonth' | 'dateShift'> &
+    Partial<Pick<ExpectedPayment, 'intervalWeeks'>>,
 ) {
   const MONTHS = [
     'Jänner',
@@ -126,7 +134,7 @@ export function cadenceText(
     : p.dueDay === 31
       ? 'am Monatsletzten'
       : `am ${p.dueDay}.`;
-  if (p.rhythm === 'weekly') return 'w?chentlich';
+  if (p.rhythm === 'weekly') return rhythmText('weekly', p.intervalWeeks);
   if (p.rhythm === 'monthly') return `monatlich ${day}`;
   const month = p.dueMonth ?? 1;
   if (p.rhythm === 'yearly')

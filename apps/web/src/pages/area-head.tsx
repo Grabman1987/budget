@@ -1,3 +1,4 @@
+import { useAuthMethodLabel } from '../auth/status-query';
 import { todayInVienna } from '@budget/domain';
 import { useParams } from '@tanstack/react-router';
 import { ReportNavigation } from '../reports/report-navigation';
@@ -46,6 +47,7 @@ export interface AreaHeadProps {
   standDay?: string | undefined;
   reportDataBasis?: React.ReactNode | undefined;
   reportStand?: TitleBlockField | undefined;
+  accountFields?: TitleBlockField[] | undefined;
 }
 
 /** Areas whose title cell stays visible on the phone (it carries the month switch). */
@@ -70,7 +72,9 @@ export function AreaHead({
   standDay,
   reportDataBasis,
   reportStand,
+  accountFields,
 }: AreaHeadProps) {
+  const authMethod = useAuthMethodLabel();
   const { reportId } = useParams({ strict: false }) as { reportId?: string };
   const [month] = useMonth();
   const span = useMonthSpan();
@@ -122,7 +126,10 @@ export function AreaHead({
       break;
     case 'konten':
       heading = 'Konten';
-      fields = [stand, { label: 'Bank-Sync', value: 'nicht eingerichtet', labelOnMobile: true }];
+      fields = accountFields ?? [
+        stand,
+        { label: 'Bank-Sync', value: 'nicht eingerichtet', labelOnMobile: true },
+      ];
       break;
     case 'vermoegen':
       heading = 'Vermögen';
@@ -142,7 +149,7 @@ export function AreaHead({
           value: (
             <>
               <KeyRound className="icon icon-sm" size={16} strokeWidth={1.75} aria-hidden="true" />
-              Passkey · dieses Gerät
+              {authMethod}
             </>
           ),
         },

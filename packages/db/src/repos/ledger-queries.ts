@@ -1,5 +1,6 @@
-import { addDays, daysBetween, type CashValuation } from '@budget/domain';
+import { addDays, daysBetween, todayInVienna, type CashValuation } from '@budget/domain';
 import { cashValuer } from './cash-valuation';
+import { reportTables } from './report-tables';
 import {
   and,
   asc,
@@ -197,6 +198,8 @@ export interface BookingQuery {
   to?: string;
   /** A category id, or `'none'` for bookings with an uncategorised split. */
   categoryId?: string;
+  /** Report drill-down: classified net category spending, rather than whole cash movements. */
+  basis?: 'category-spending';
   payeeId?: string;
   status?: (typeof BOOKING_STATUSES)[number];
   flag?: (typeof BOOKING_FLAGS)[number] | 'none';
@@ -222,6 +225,7 @@ export interface ListedSplit {
 }
 
 export interface ListedBooking {
+  categorySpendingCents?: number;
   id: string;
   accountId: string;
   accountName: string;
@@ -252,6 +256,7 @@ export interface ListedBooking {
 }
 
 export interface BookingPage {
+  categorySpendingCents?: number;
   items: ListedBooking[];
   nextCursor: string | null;
   /** All bookings matching the filter and their summed amount (not only this page). */
@@ -297,13 +302,26 @@ function decodeCursor(cursor: string): [string | number, string] {
  * Bookings with filters, one sort and cursor pagination (keyset: stable while bookings are added
  * or removed). Ties in the sort value are ordered by id in the same direction.
  */
-export function queryBookings(db: Executor, query: BookingQuery = {}): BookingPage {
+export function queryBookings(
+  db: Executor,
+  query: BookingQuery = {},
+  today = todayInVienna(),
+): BookingPage {
   const value = cashValuer(db);
   const sort = query.sort ?? 'date';
   const direction = query.direction ?? 'desc';
   const limit = Math.min(Math.max(query.limit ?? DEFAULT_LIMIT, 1), MAX_LIMIT);
 
   const conditions: (SQL | undefined)[] = [isNull(booking.deletedAt), isNull(account.deletedAt)];
+  const contributions =
+    query.basis === 'category-spending' && query.categoryId ? new Map<string, number>() : null;
+  if (contributions) {
+    for (const s of reportTables(db, { today, withSources: true }).splits ?? []) {
+      if (s.kind === 'spend' && s.categoryId === query.categoryId)
+        contributions.set(s.bookingId, (contributions.get(s.bookingId) ?? 0) + s.amountCents);
+    }
+    conditions.push(inArray(booking.id, [...contributions.keys()]));
+  }
   if (query.ids) conditions.push(inArray(booking.id, query.ids));
   if (query.accountId) conditions.push(eq(booking.accountId, query.accountId));
   if (query.from) conditions.push(sql`${booking.date} >= ${query.from}`);
@@ -312,7 +330,7 @@ export function queryBookings(db: Executor, query: BookingQuery = {}): BookingPa
   if (query.status) conditions.push(eq(booking.status, query.status));
   if (query.flag === 'none') conditions.push(isNull(booking.flag));
   else if (query.flag) conditions.push(eq(booking.flag, query.flag));
-  if (query.categoryId) {
+  if (query.categoryId && !contributions) {
     conditions.push(
       inArray(
         booking.id,
@@ -370,6 +388,17 @@ export function queryBookings(db: Executor, query: BookingQuery = {}): BookingPa
     .leftJoin(payee, eq(payee.id, booking.payeeId))
     .where(base)
     .get() as { total: number; sum: number };
+
+  const categorySpendingCents = contributions
+    ? db
+        .select({ id: booking.id })
+        .from(booking)
+        .innerJoin(account, eq(account.id, booking.accountId))
+        .leftJoin(payee, eq(payee.id, booking.payeeId))
+        .where(base)
+        .all()
+        .reduce((sum, b) => sum + (contributions.get(b.id) ?? 0), 0)
+    : undefined;
 
   const after: SQL | undefined = (() => {
     if (!query.cursor) return undefined;
@@ -505,6 +534,7 @@ export function queryBookings(db: Executor, query: BookingQuery = {}): BookingPa
     const tids = [b.transferId, ...own.map((s) => s.transferId)].filter((t): t is string => !!t);
     const other = otherLeg(b.id, tids);
     return {
+      ...(contributions ? { categorySpendingCents: contributions.get(b.id) ?? 0 } : {}),
       id: b.id,
       accountId: b.accountId,
       accountName: r.accountName,
@@ -535,6 +565,7 @@ export function queryBookings(db: Executor, query: BookingQuery = {}): BookingPa
   });
   const last = page.at(-1);
   return {
+    ...(categorySpendingCents !== undefined ? { categorySpendingCents } : {}),
     items,
     nextCursor: rows.length > limit && last ? encodeCursor(last.sortValue, last.booking.id) : null,
     total: totals.total,

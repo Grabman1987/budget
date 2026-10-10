@@ -424,6 +424,7 @@
 }
 .kfigs {
   display: flex;
+  align-items: flex-start;
   flex-wrap: wrap;
   gap: 16px 40px;
   margin: 20px 0 8px;
