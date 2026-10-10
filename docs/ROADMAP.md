@@ -1,5 +1,16 @@
 # Roadmap
 
+### Portfolio package D — #297–#301, #346 — 2026-10-09
+
+- [x] Label securities-market-value, net allocation and gross risk bases; explain signed cash and negative/over-100% shares without changing formulas.
+- [x] Collapse the complete unheld-instrument catalog with its count and existing detail/edit routes.
+- [x] Link unclassified instruments to the shared dated class editor and cash to account settings; retain distinct estimated/stale status and provisional optimisation guards.
+- [x] Explain the optional portfolio-only benchmark setup state; preserve explicit persisted selection and clearing.
+- [x] Separate held classes at the displayed stand from historical/unused classes; retain dated class histories, return-window/method labels and lifetime realised gains.
+- [x] Stack report 4.2 legend/sources and report 4.5 summary below content at full width; retain numerical columns and direct links.
+- [x] Focused type/lint/format checks, 5 Vitest files / 30 tests, affected desktop/mobile browser checks, Axe/overflow/touch checks and synthetic visual evidence; [scope and verification](evidence/portfolio-package-d-1009/README.md).
+- [ ] Exact-head CI, integration, physical iPhone and owner acceptance.
+
 ### P1 #269 / #270 / #274 / #275 / #276 — Today hints — 2026-10-09
 
 - [x] Label Plan's actual 50/30/20 denominator, withhold a completed-month verdict for open months and link to the last completed One-Pager; preserve allocation calculations and expected-income separation.
