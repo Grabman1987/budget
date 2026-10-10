@@ -39,6 +39,13 @@ export function BenchmarkChoices() {
     <fieldset className="benchmark-choices" disabled={save.isPending}>
       <legend>Vergleich · Start = 100</legend>
       {query.isPending && <p role="status">Lädt …</p>}
+      {query.data && !query.isError && ids.length === 0 && (
+        <p className="vnote benchmark-setup" role="status">
+          Keine Benchmark gewählt: Gezeigt wird nur das Portfolio. Für einen Vergleich kannst du
+          eine oder mehrere Benchmarks auswählen. Die Auswahl wird gespeichert; ohne Auswahl bleibt
+          der Report nutzbar.
+        </p>
+      )}
       {query.data?.instruments.map((b) => (
         <label key={b.id}>
           <input

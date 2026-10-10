@@ -1,0 +1,12 @@
+{
+  "sha": "d22965013c108ed3f8abf53a5c6cd3d2123fd445",
+  "worktreeChanges": "",
+  "viewport": {
+    "width": 390,
+    "height": 844
+  },
+  "reducedMotion": true,
+  "theme": "booking-dark-expanded",
+  "browser": "chromium",
+  "aria": "- dialog \"Buchung erfassen\":\n  - heading \"Buchung erfassen\" [level=2]\n  - 'button \"Markierung: keine\"'\n  - group \"Art der Buchung\":\n    - button \"Ausgabe\" [pressed]\n    - button \"Einnahme\"\n    - button \"Umbuchung\"\n  - button \"Schließen\"\n  - text: Betrag\n  - textbox \"Betrag\":\n    - /placeholder: 0,00\n    - text: 1.234,57\n  - paragraph: \"Rechnen im Feld möglich: 12,50+3\"\n  - text: Empfänger\n  - combobox \"Empfänger\": Laden Muster\n  - text: Bezahlt von\n  - combobox \"Bezahlt von\"\n  - group \"Datum wählen\":\n    - button \"Heute\"\n    - button \"Gestern\"\n    - button \"Datum…\"\n  - text: Datum\n  - textbox \"Datum\":\n    - /placeholder: TT.MM.JJJJ\n    - text: 07.10.2026\n  - group \"Status\":\n    - button \"vorgemerkt\"\n    - button \"bestätigt\" [pressed]\n  - text: Kategorie\n  - combobox \"Kategorie\": Bedarf Muster\n  - paragraph:\n    - text: \"Verfügbar im Oktober:\"\n    - strong: 0,00 €\n    - text: · danach −1.234,57 €\n  - group \"Vorschläge\":\n    - button \"Bedarf Muster\" [pressed]\n  - group:\n    - text: Mehr · Notiz\n    - button \"Aufteilen\"\n    - text: Wiederholen\n    - combobox \"Wiederholen\":\n      - option \"Nie\" [selected]\n      - option \"Wöchentlich\"\n      - option \"Monatlich\"\n      - option \"Vierteljährlich\"\n      - option \"Jährlich\"\n    - paragraph: Legt beim Speichern eine wiederkehrende Zahlung an. Die nächste Fälligkeit folgt nach einem Rhythmus.\n    - text: Notiz\n    - textbox \"Notiz\":\n      - /placeholder: Optional\n      - text: Synthetische Abnahme\n  - text: Auslage für Kontakt\n  - combobox \"Auslage für Kontakt\":\n    - option \"keiner\" [selected]\n    - option \"+ Neuer Kontakt…\"\n  - button \"Speichern und neu\"\n  - button \"Speichern\"\n  - status\n  - status"
+}

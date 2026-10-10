@@ -345,6 +345,8 @@ test('integrated portfolio pages keep input dialogs exclusive and restore form o
   await expect(page.locator('dialog[open]')).toHaveCount(1);
   await page.keyboard.press('Escape');
   await expect(page.locator('dialog[open]')).toHaveCount(0);
+  // The unheld-instrument catalog is a native details element that starts closed.
+  await page.locator('.instrument-catalog > summary').click();
   await page
     .locator('.instrument-catalog')
     .getByRole('button', { name: data.security.name, exact: true })

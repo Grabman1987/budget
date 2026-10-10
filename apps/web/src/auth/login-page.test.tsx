@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ApiError } from './api';
@@ -79,4 +79,12 @@ describe('LoginPage', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Mit Code anmelden' }));
     expect((await screen.findByRole('alert')).textContent).toMatch(/ungültig oder wurde bereits/);
   });
+});
+
+it('explains the pending dialog while keeping recovery discoverable', () => {
+  mocks.authenticate.mockImplementation(() => new Promise(() => {}));
+  render(<LoginPage onAuthenticated={vi.fn()} />);
+  fireEvent.click(screen.getByRole('button', { name: 'Mit Passkey anmelden' }));
+  expect(screen.getByRole('status').textContent).toMatch(/60 Sekunden/);
+  expect(screen.getByRole('button', { name: 'Wiederherstellungscode verwenden' })).toBeTruthy();
 });
