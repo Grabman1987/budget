@@ -22,9 +22,10 @@ export function validateInboxSearch(search: Record<string, unknown>) {
       /^[\da-f]{8}-[\da-f]{4}-[\da-f]{4}-[\da-f]{4}-[\da-f]{12}$/i.test(source)
         ? source
         : undefined,
+    // `all` is the default and stays out of the URL.
     aufgaben: (search['aufgaben'] === 'current' || search['aufgaben'] === 'historical'
       ? search['aufgaben']
-      : 'all') as InboxPeriod,
+      : undefined) as Exclude<InboxPeriod, 'all'> | undefined,
     gruppe:
       typeof search['gruppe'] === 'string' && search['gruppe'].length <= 100
         ? search['gruppe']
