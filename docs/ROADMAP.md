@@ -1,5 +1,24 @@
 # Roadmap
 
+### Booking dialog acceptance — 2026-10-09 (#309 #314 #315)
+
+- [x] Focused synthetic desktop/390px checks for German date, arithmetic/defaults, exact-cent save, bounded height, visible Save and phone touch targets; dark Heute/dialog review with screenshots and contrast evidence.
+- [x] Reproduce and correct booking-only Tab boundary and discard-question focus; verify labelled focus order, continue/discard/opener return and reduced motion.
+- [x] Clean source/test commit `d22965013c108ed3f8abf53a5c6cd3d2123fd445`: desktop/mobile each pass 6 browser/setup cases; SHA and clean worktree captured with viewport/ARIA evidence.
+- [x] Branch pushed and normal [PR #412](https://github.com/Grabman1987/budget/pull/412) opened; initial index/authentication errors cleared on normal retries.
+- [ ] Required CI at the exact final PR head; physical-device and actual screen-reader owner acceptance remain open. [Local results and evidence](evidence/booking-acceptance-1009/README.md).
+
+### Portfolio package D — #297–#301, #346 — 2026-10-09
+
+- [x] Label securities-market-value, net allocation and gross risk bases; explain signed cash and negative/over-100% shares without changing formulas.
+- [x] Collapse the complete unheld-instrument catalog with its count and existing detail/edit routes.
+- [x] Link unclassified instruments to the shared dated class editor and cash to account settings; retain distinct estimated/stale status and provisional optimisation guards.
+- [x] Explain the optional portfolio-only benchmark setup state; preserve explicit persisted selection and clearing.
+- [x] Separate held classes at the displayed stand from historical/unused classes; retain dated class histories, return-window/method labels and lifetime realised gains.
+- [x] Stack report 4.2 legend/sources and report 4.5 summary below content at full width; retain numerical columns and direct links.
+- [x] Focused type/lint/format checks, 5 Vitest files / 30 tests, affected desktop/mobile browser checks, Axe/overflow/touch checks and synthetic visual evidence; [scope and verification](evidence/portfolio-package-d-1009/README.md).
+- [ ] Exact-head CI, integration, physical iPhone and owner acceptance.
+
 ### P1 #269 / #270 / #274 / #275 / #276 — Today hints — 2026-10-09
 
 - [x] Label Plan's actual 50/30/20 denominator, withhold a completed-month verdict for open months and link to the last completed One-Pager; preserve allocation calculations and expected-income separation.
@@ -282,6 +301,7 @@ Older CI/publication checkboxes below describe their original deliveries. Curren
 - [x] Synthetic red/green unit and browser-back/scroll, direct-link and dialog-focus regressions.
 - [x] Sidepanels-2a: Vermögen instrument/savings URLs with breadcrumb/back/scroll restoration; metadata, quote, schedule and trade FormDialogs; full-width `.vview` composition. Existing money/validation/audit/undo guards retained.
 - [x] Final Linux #248 preflight on merged head `aba6740923969c3a402d2ca4ab958819f320b498`: focused 7 files / 41 tests, full check 382 / 3,519 tests, builds and 43 Desktop/Mobile E2E tests passed ([captures and evidence](evidence/no-side-panels-wealth-1006/README.md)).
+- [x] Settings package #330–#334: account create/edit, owner-triggered reconciliation and class/group/target/archive forms reuse FormDialog; rule status uses `/einstellungen/regelwerk/:code` with a separate threshold form. Existing writes, dirty/save blockers and atomic audit/undo remain in place. [Scoped verification and synthetic captures](evidence/settings-dialogs-1009/README.md).
 - [x] Plan panels #323–#327: category detail and shared goal history routes, category/group/goal/event FormDialogs, preserved month/source/hidden-category context and existing audit/undo writes ([evidence](evidence/plan-panels-1009/README.md)).
 - [ ] Linux snapshot-baseline review, exact-head PR CI and remaining inventory; owner desktop/phone acceptance, physical iPhone Safari, private financial Gate 4 and live acceptance remain separate open gates.
 
@@ -1014,3 +1034,10 @@ Method, limits and owner steps: [inflation basket](inflation-basket.md#cpi-sub-i
 - [x] Clean install, dependency-tree inspection, quoted-command and source-map round-trip smoke checks; full audit now has 4 moderate / 0 high / 0 critical findings, production audit has 0.
 - [x] Full local check passed with one Vitest worker and required age setting: 370 test files / 3,385 tests; the local log is retained outside the repository.
 - [ ] Required final-head CI, main integration and actual deploy/health verification; remaining moderate development advisories are separate work.
+
+### Login and account page — #311 / #312 / #313 (2026-10-09)
+
+- [x] Bound a hanging passkey browser ceremony; preserve native WebAuthn cancellation, retry and recovery, and reject late credentials before verification.
+- [x] Bind sidebar and settings profile labels to the current server session method; preserve recovery/step-up restrictions.
+- [x] Separate account-specific source/observation state, stored owner check and technical retrieval dates; missing metadata stays explicit. No connection or sync action.
+- [ ] Required CI/PR integration after #405, Linux visual baseline review and physical-device/cloud owner acceptance. Targeted verification and task-scoped auth review: [evidence](evidence/auth-account-1009/README.md).

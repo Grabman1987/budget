@@ -106,6 +106,8 @@ sampleTest(
       for (let i = 0; i < 2; i++) {
         await opener.click();
         await expect(panel).toBeVisible();
+        await expect(panel).toHaveClass(/is-bare/);
+        await expect(panel).not.toHaveClass(/\bpanel\b/);
         await expect(panel.getByLabel('Name der Anlageklasse')).toBeVisible();
         expect(await panel.evaluate((d) => d.contains(document.activeElement))).toBe(true);
         await panel.evaluate((d) => d.getAnimations().forEach((a) => a.finish()));

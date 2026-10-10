@@ -95,8 +95,11 @@ test('Today keeps payday first, unknown counts explicit and additional steps con
   await expect(finding).toContainText('Ist: 2,5 Monate');
   await expect(finding).toContainText('Schwelle: min. 3, Ziel 6 Monate');
   await expect(finding.getByRole('link', { name: 'Im Plan aufstocken' })).toBeVisible();
-  await expect(finding.getByRole('button', { name: /^Einstellen R02/ })).toBeVisible();
-  const actionBox = await finding.getByRole('link').boundingBox();
+  await expect(finding.getByRole('link', { name: /^Einstellen R02/ })).toHaveAttribute(
+    'href',
+    /\/einstellungen\/regelwerk\/R02/,
+  );
+  const actionBox = await finding.getByRole('link', { name: 'Im Plan aufstocken' }).boundingBox();
   expect(actionBox!.height).toBeGreaterThanOrEqual(44);
   await finding.getByRole('link', { name: 'Im Plan aufstocken' }).click();
   await expect(page).toHaveURL(/\/plan\/monat/);

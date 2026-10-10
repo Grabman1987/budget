@@ -24,6 +24,7 @@ export function PerformanceComparisons({ summary }: { summary: PortfolioSummary 
   const history = summary.performanceHistory;
   if (!history) return null;
   const perf = summary.performance;
+  const groups = groupPerformanceClasses(history.classes);
   const heatMax = Math.max(1e-9, ...history.months.map((m) => Math.abs(m.rate ?? 0)));
   return (
     <>
@@ -134,60 +135,39 @@ export function PerformanceComparisons({ summary }: { summary: PortfolioSummary 
             values: c.index.map((p) => p.portfolio),
           }))}
         />
-        <Scroll label="Kennzahlen der Anlageklassen">
-          <table className="prep-table">
-            <caption>Kennzahlen im gewählten Zeitraum</caption>
-            <thead>
-              <tr>
-                {[
-                  'Anlageklasse',
-                  'Wert am Ende',
-                  'TTWROR',
-                  'Geldgewichtet',
-                  ...summary.benchmarks.map((b) => `gegen ${b.name}`),
-                  'Volatilität p. a.',
-                  'Max. Rückgang',
-                  'Sharpe',
-                ].map((label) => (
-                  <th scope="col" key={label}>
-                    <Term>{label}</Term>
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {history.classes.map((c) => (
-                <tr key={c.assetClassId ?? 'none'}>
-                  <th scope="row">{c.name}</th>
-                  <td className="n">{eur(c.valueCents)}</td>
-                  <td className="n">{rateText(c.performance?.ttwror)}</td>
-                  <td className="n">{rateText(c.performance?.moneyWeighted)}</td>
-                  {summary.benchmarks.map((b) => (
-                    <td className="n" key={b.id}>
-                      {ppText(
-                        b.benchmarkReturn === null || !c.performance
-                          ? null
-                          : c.performance.ttwror - b.benchmarkReturn,
-                      )}
-                    </td>
-                  ))}
-                  <td className="n">{percentText(c.performance?.volatility)}</td>
-                  <td className="n">{rateText(c.performance?.maxDrawdown)}</td>
-                  <td className="n">
-                    {c.performance && c.performance.volatility >= 0.005
-                      ? decimal(c.performance.sharpe)
-                      : '–'}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </Scroll>
+        <h3>Aktuell gehaltene Anlageklassen</h3>
         <p className="vnote">
-          Aktuelle Zuordnung aus Einstellungen › Anlageklassen, einschließlich verkaufter
-          Positionen. Ohne eingesetztes Kapital bleibt die Rendite nicht verfügbar. Geldgewichtet:
-          Modified Dietz, über 365 Tage annualisiert. Sharpe unter 0,5 % Volatilität wird
-          ausgelassen.
+          Bestand am {shortDay(summary.asOf)}; Kennzahlen im gewählten Zeitraum.
+        </p>
+        {groups.current.length > 0 ? (
+          <ClassMetrics
+            classes={groups.current}
+            benchmarks={summary.benchmarks}
+            caption="Aktuell gehaltene Klassen · Kennzahlen im gewählten Zeitraum"
+          />
+        ) : (
+          <p className="vnote">Keine aktuell gehaltenen Anlageklassen.</p>
+        )}
+        {groups.historical.length > 0 && (
+          <details>
+            <summary>Historische und leere Anlageklassen ({groups.historical.length})</summary>
+            <p className="vnote">
+              Am angegebenen Bestandsdatum ohne Bestand: verkaufte, früher zugeordnete oder noch
+              ungenutzte Klassen. Historische Werte bleiben erhalten.
+            </p>
+            <ClassMetrics
+              classes={groups.historical}
+              benchmarks={summary.benchmarks}
+              caption="Historische und leere Klassen · Kennzahlen im gewählten Zeitraum"
+            />
+          </details>
+        )}
+        <p className="vnote">
+          Zuordnung jeweils am Bewertungsdatum aus Einstellungen › Anlageklassen, einschließlich
+          verkaufter Positionen. „Wert am Ende“ bezieht sich auf den gewählten Zeitraum, nicht auf
+          den heutigen Bestand. Ohne eingesetztes Kapital bleibt die Rendite nicht verfügbar.
+          Geldgewichtet: Modified Dietz, über 365 Tage annualisiert. Sharpe unter 0,5 % Volatilität
+          wird ausgelassen.
         </p>
       </section>
       <section aria-labelledby="performance-heatmap-title">
@@ -365,5 +345,76 @@ function Scroll({ label, children }: { label: string; children: ReactNode }) {
     >
       {children}
     </div>
+  );
+}
+
+/** Group by the dated holdings marker, rather than assuming a zero value means no holding. */
+export function groupPerformanceClasses(classes: PortfolioPerformanceHistory['classes']) {
+  return {
+    current: classes.filter((c) => c.currentHolding),
+    historical: classes.filter((c) => !c.currentHolding),
+  };
+}
+
+function ClassMetrics({
+  classes,
+  benchmarks,
+  caption,
+}: {
+  classes: PortfolioPerformanceHistory['classes'];
+  benchmarks: PortfolioSummary['benchmarks'];
+  caption: string;
+}) {
+  useAmountPrivacy();
+  return (
+    <Scroll label="Kennzahlen der Anlageklassen">
+      <table className="prep-table">
+        <caption>{caption}</caption>
+        <thead>
+          <tr>
+            {[
+              'Anlageklasse',
+              'Wert am Ende',
+              'TTWROR',
+              'Geldgewichtet',
+              ...benchmarks.map((b) => `gegen ${b.name}`),
+              'Volatilität p. a.',
+              'Max. Rückgang',
+              'Sharpe',
+            ].map((label) => (
+              <th scope="col" key={label}>
+                <Term>{label}</Term>
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {classes.map((c) => (
+            <tr key={c.assetClassId ?? 'none'}>
+              <th scope="row">{c.name}</th>
+              <td className="n">{eur(c.valueCents)}</td>
+              <td className="n">{rateText(c.performance?.ttwror)}</td>
+              <td className="n">{rateText(c.performance?.moneyWeighted)}</td>
+              {benchmarks.map((b) => (
+                <td className="n" key={b.id}>
+                  {ppText(
+                    b.benchmarkReturn === null || !c.performance
+                      ? null
+                      : c.performance.ttwror - b.benchmarkReturn,
+                  )}
+                </td>
+              ))}
+              <td className="n">{percentText(c.performance?.volatility)}</td>
+              <td className="n">{rateText(c.performance?.maxDrawdown)}</td>
+              <td className="n">
+                {c.performance && c.performance.volatility >= 0.005
+                  ? decimal(c.performance.sharpe)
+                  : '–'}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </Scroll>
   );
 }

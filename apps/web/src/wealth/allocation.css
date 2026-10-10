@@ -35,6 +35,11 @@
   min-height: 44px;
   color: var(--ink-3);
 }
+.allocation-quality-links {
+  margin: 8px 0;
+  padding-inline-start: 20px;
+  overflow-wrap: anywhere;
+}
 .va-track {
   position: relative;
   height: 16px;

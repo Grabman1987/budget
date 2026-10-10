@@ -522,6 +522,8 @@ test('undocumented basis and full exit keep source history reachable without inv
   await expect(detail.locator('.trade-list')).toContainText('Verkauf');
   expect(await balance(request, account.id)).toBe(347600);
   await page.getByRole('link', { name: 'Zurück zum Portfolio' }).click();
+  // The unheld-instrument catalog is a native details element that starts closed.
+  await page.locator('.instrument-catalog > summary').click();
   await expect(
     page.locator('.instrument-catalog').getByRole('button', { name, exact: true }),
   ).toBeVisible();
