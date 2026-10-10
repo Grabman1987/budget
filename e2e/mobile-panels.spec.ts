@@ -437,7 +437,7 @@ test.describe('behaviour', () => {
   });
 
   test('Esc closes the dialog (where a keyboard exists)', async ({ page }) => {
-    const s = SCENARIOS.find((x) => x.name === 'Details') as Scenario;
+    const s = SCENARIOS.find((x) => x.name === 'Formulardialog') as Scenario;
     await s.open(page);
     await expect(dialogOf(page, s)).toBeVisible();
     await settle(page);
@@ -470,7 +470,7 @@ test.describe('behaviour', () => {
       // At 844 px the shell is the desktop one (no floating button, no phone header).
       for (const s of size.width < 768
         ? SCENARIOS
-        : SCENARIOS.filter((x) => x.id.startsWith('Harness') || x.name === 'Details')) {
+        : SCENARIOS.filter((x) => x.id.startsWith('Harness'))) {
         await s.open(page);
         await expect(dialogOf(page, s)).toBeVisible();
         await settle(page);

@@ -427,6 +427,9 @@ function Overlays() {
                 onClick={() => setOpen(false)}
               >
                 ×
+                <span className="control-label" aria-hidden="true">
+                  Schließen
+                </span>
               </button>
             </div>
             <div className="bk-body">
