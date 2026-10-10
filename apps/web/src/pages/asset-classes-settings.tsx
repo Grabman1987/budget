@@ -247,7 +247,7 @@ function GroupSelect({ cls, groups }: { cls: ClassRow; groups: ClassRow[] }) {
   );
 }
 
-/** Called by the existing global PanelHost, so Back, sheet layout and focus stay shared. */
+/** Called by the existing URL-driven host; forms reuse FormDialog and the dirty/save guards. */
 export function AssetClassSettingsPanel({
   open,
   onClose,

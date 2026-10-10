@@ -307,6 +307,15 @@ const rulesRoute = createRoute({
   staticData: { meta: EINSTELLUNGEN_REGELWERK },
   component: lazyRouteComponent(() => import('./rules/rules-page'), 'RulesPage'),
 });
+const ruleStatusRoute = createRoute({
+  getParentRoute: () => shellRoute,
+  path: '/einstellungen/regelwerk/$code',
+  staticData: { meta: EINSTELLUNGEN_REGELWERK },
+  validateSearch: (search: Record<string, unknown>) => ({
+    bearbeiten: search['bearbeiten'] === true || search['bearbeiten'] === 'true' ? true : undefined,
+  }),
+  component: lazyRouteComponent(() => import('./rules/rule-status-page'), 'RuleStatusPage'),
+});
 const assignmentRoute = createRoute({
   getParentRoute: () => shellRoute,
   path: '/einstellungen/zuordnung',
@@ -379,6 +388,34 @@ const planExpectedRoute = createRoute({
   path: PLAN_ERWARTET.path,
   staticData: { meta: PLAN_ERWARTET },
   component: lazyRouteComponent(() => import('./expected/expected-page'), 'ExpectedPage'),
+});
+const expectedDetailSearch = (search: Record<string, unknown>) => ({
+  ansicht:
+    search['ansicht'] === 'contracts' || search['ansicht'] === 'all' ? search['ansicht'] : 'next',
+  art: search['art'] === 'inflow' || search['art'] === 'outflow' ? search['art'] : 'all',
+});
+const expectedPaymentRoute = createRoute({
+  getParentRoute: () => shellRoute,
+  path: '/plan/erwartet/$id',
+  staticData: { meta: { ...PLAN_ERWARTET, title: 'Wiederkehrende Zahlung' } },
+  validateSearch: expectedDetailSearch,
+  component: lazyRouteComponent(() => import('./expected/payment-page'), 'PaymentPage'),
+});
+const expectedIncomeRoute = createRoute({
+  getParentRoute: () => shellRoute,
+  path: '/plan/erwartet/einnahmen',
+  staticData: { meta: { ...PLAN_ERWARTET, title: 'Einnahmen' } },
+  validateSearch: expectedDetailSearch,
+  component: lazyRouteComponent(() => import('./budget/envelope-page'), 'PlanIncomePage'),
+});
+const heuteDimensionRoute = createRoute({
+  getParentRoute: () => shellRoute,
+  path: '/heute/details/$kind',
+  beforeLoad: ({ params }) => {
+    if (!['liquid', 'invested', 'receivable', 'debt'].includes(params.kind)) throw notFound();
+  },
+  staticData: { meta: { ...HEUTE, title: 'Herleitung' } },
+  component: lazyRouteComponent(() => import('./heute/dimension-page'), 'DimensionPage'),
 });
 const freedomRoute = createRoute({
   getParentRoute: () => shellRoute,
@@ -694,6 +731,7 @@ const routeTree = rootRoute.addChildren([
     categoryDetailRoute,
     goalDetailRoute,
     rulesRoute,
+    ruleStatusRoute,
     assignmentRoute,
     exportRoute,
     dataSourcesRoute,
@@ -702,6 +740,9 @@ const routeTree = rootRoute.addChildren([
     planIncomeRoute,
     planYearRoute,
     planExpectedRoute,
+    expectedPaymentRoute,
+    expectedIncomeRoute,
+    heuteDimensionRoute,
     freedomRoute,
     netWorthRoute,
     portfolioRoute,
@@ -733,7 +774,8 @@ export const router = createRouter({
     location.pathname.startsWith('/plan/sparziele') ||
     location.pathname.startsWith('/einstellungen/kategorien') ||
     location.pathname === '/reports/sparziele' ||
-    location.pathname.startsWith('/vermoegen/portfolio'),
+    location.pathname.startsWith('/vermoegen/portfolio') ||
+    location.pathname.startsWith('/einstellungen/regelwerk'),
 });
 
 declare module '@tanstack/react-router' {

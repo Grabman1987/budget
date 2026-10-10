@@ -355,9 +355,30 @@
   }
   .heute-main-grid {
     display: grid;
-    grid-template-columns: minmax(0, 7fr) minmax(0, 5fr);
+    grid-template-columns: minmax(0, 1fr);
     align-items: start;
     gap: 38px 28px;
+  }
+  .heute-detail-nav {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 12px;
+  }
+  .heute-detail-nav a {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+  }
+  .heute-dimension {
+    padding: 20px;
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+  .heute-breakdown a {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
   }
   .heute-section {
     min-width: 0;
@@ -438,12 +459,12 @@
   }
   .heute-detail-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr));
+    grid-template-columns: minmax(0, 1fr);
     align-items: start;
     gap: 36px 28px;
   }
   .heute-net-worth {
-    grid-column: span 2;
+    grid-column: auto;
   }
   .heute-delta {
     display: flex;
@@ -679,10 +700,10 @@
 
   @media (max-width: 1179px) {
     .heute-detail-grid {
-      grid-template-columns: repeat(2, minmax(0, 1fr));
+      grid-template-columns: minmax(0, 1fr);
     }
     .heute-net-worth {
-      grid-column: span 2;
+      grid-column: auto;
     }
   }
   @media (max-width: 979px) {

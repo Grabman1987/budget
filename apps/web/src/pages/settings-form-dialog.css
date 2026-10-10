@@ -1,0 +1,10 @@
+.settings-form-head h2 {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  overflow-wrap: anywhere;
+  font-size: var(--fs-title);
+}
+.settings-form-head .btn {
+  flex: none;
+}

@@ -38,7 +38,7 @@ import {
   type ContractGroup,
   type WeekGroup,
 } from './expected-model';
-import { IncomeButton, IncomePanel } from './income-panel';
+import { IncomeButton } from './income-panel';
 import { draftFromBooking } from './payment-draft';
 import { PaymentPanel, type PaymentPanelState } from './payment-panel';
 import { StatusStamp } from './status-stamp';
@@ -60,17 +60,17 @@ const HORIZON_DAYS = 90;
 
 /**
  * Plan › Erwartet: what is about to be paid or received. The next 90 days by week, the parts list
- * of contracts and subscriptions (monthly equivalent and yearly sum), and one side panel per
- * payment with its versions, occurrences and fields. Figures come from `/api/expected`.
+ * of contracts and subscriptions (monthly equivalent and yearly sum). Payment details have
+ * their own URL; only input opens a dialog. Figures come from `/api/expected`.
  */
 export function ExpectedPage() {
   useAmountPrivacy();
   const [month] = useMonth();
   const today = todayInVienna();
-  const [view, setView] = useState<View>('next');
-  const [kind, setKind] = useState<KindFilter>('all');
+  const saved = useLocation({ select: (location) => location.state });
+  const [view, setView] = useState<View>(saved.expectedView ?? 'next');
+  const [kind, setKind] = useState<KindFilter>(saved.expectedKind ?? 'all');
   const [panel, setPanel] = useState<PaymentPanelState>(null);
-  const [incomeOpen, setIncomeOpen] = useState(false);
 
   // Plan the occurrences and match bookings once when the page opens (idempotent; the P4 worker
   // does the same later). The lists wait for it, so they never flash empty.
@@ -100,6 +100,19 @@ export function ExpectedPage() {
   // "Als wiederkehrende Zahlung anlegen" on a booking brings the booking along in the history state.
   const fromBooking = useLocation({ select: (l) => l.state.expectedFrom });
   const navigate = useNavigate();
+  const remember = (nextView: View, nextKind: KindFilter) => {
+    setView(nextView);
+    setKind(nextKind);
+    void navigate({
+      to: '.',
+      search: ((previous: object) => previous) as never,
+      replace: true,
+      state: { expectedView: nextView, expectedKind: nextKind },
+    });
+  };
+  const detailSearch = { monat: month, ansicht: view, art: kind };
+  const openPayment = (id: string) =>
+    void navigate({ to: '/plan/erwartet/$id', params: { id }, search: detailSearch });
   const consumed = useRef(false);
   useEffect(() => {
     if (!fromBooking || consumed.current) return;
@@ -122,19 +135,24 @@ export function ExpectedPage() {
       income={
         <IncomeButton
           value={income.data ? `${eur(income.data.expectedCents)} erwartet` : '–'}
-          onOpen={() => setIncomeOpen(true)}
+          onOpen={() => void navigate({ to: '/plan/erwartet/einnahmen', search: detailSearch })}
         />
       }
     >
       <div className="xp">
         <div className="xp-toolbar">
-          <Segmented label="Ansicht" options={VIEWS} value={view} onChange={setView} />
+          <Segmented
+            label="Ansicht"
+            options={VIEWS}
+            value={view}
+            onChange={(next) => remember(next, kind)}
+          />
           {view !== 'contracts' && (
             <Segmented
               label="Einnahmen oder Ausgaben"
               options={KINDS}
               value={kind}
-              onChange={setKind}
+              onChange={(next) => remember(view, next)}
             />
           )}
           <span className="xp-spacer" />
@@ -160,7 +178,7 @@ export function ExpectedPage() {
             today={today}
             kind={kind}
             rates={rates}
-            onOpen={(id) => setPanel({ mode: 'view', id })}
+            onOpen={openPayment}
             onCreate={() => setPanel({ mode: 'create' })}
           />
         )}
@@ -178,13 +196,12 @@ export function ExpectedPage() {
             categoryOf={(categoryId) =>
               lookups.data?.categories.find((c) => c.id === categoryId) ?? null
             }
-            onOpen={(id) => setPanel({ mode: 'view', id })}
+            onOpen={openPayment}
             onCreate={() => setPanel({ mode: 'create' })}
           />
         )}
       </div>
       <PaymentPanel state={panel} onClose={() => setPanel(null)} />
-      <IncomePanel month={month} open={incomeOpen} onClose={() => setIncomeOpen(false)} />
     </PageFrame>
   );
 }

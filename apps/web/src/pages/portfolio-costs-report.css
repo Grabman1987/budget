@@ -1,7 +1,7 @@
 /* Report 4.5 Kosten, Steuern, Erträge: parts list, latent tax example, per-product table. */
 .costs-main {
   display: grid;
-  grid-template-columns: minmax(0, 7fr) minmax(0, 5fr);
+  grid-template-columns: minmax(0, 1fr);
   gap: 24px;
   align-items: start;
 }
@@ -53,11 +53,6 @@
 }
 .costs-products {
   min-width: 760px;
-}
-@media (max-width: 980px) {
-  .costs-main {
-    grid-template-columns: minmax(0, 1fr);
-  }
 }
 @media (max-width: 700px) {
   .costs-facts {

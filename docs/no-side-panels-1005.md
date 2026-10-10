@@ -1,5 +1,11 @@
 # Sub-pages instead of side panels — 2026-10-05
 
+Portfolio report follow-up 2026-10-09 (#346): report 4.2's secondary composition
+legend and source tables and report 4.5's secondary summary now follow the main
+content at full width. Numerical table columns and depot/metric comparisons stay.
+Other report areas in the mixed inventory row below remain open. See
+[package scope and evidence](evidence/portfolio-package-d-1009/README.md).
+
 The owner decision in DESIGN.md supersedes the prototype's content panels. This
 first coherent delivery covers Plan › Monat. No dependencies, schema, API, money
 calculations or automatic bookings change. Other areas remain explicitly open.
@@ -18,6 +24,10 @@ proposed destinations, not implemented routes.
 | `budget/envelope-panel.tsx`, `plan-page.tsx`, `plan-multi.tsx`: envelope figures/target | `/plan/monat/envelope/:id?monat=YYYY-MM`; shared read-only body | Done |
 | Same: assign, move, cover | Existing FormDialog; compact cover trigger still opens the form directly | Done |
 | `expected/income-panel.tsx` from Plan › Monat | `/plan/monat/einnahmen?monat=YYYY-MM`; reuse IncomeBody | Done |
+| `heute/heute-page.tsx`: account/wealth dimension details | `/heute/details/:kind`, existing account links | Done |
+| `expected/income-panel.tsx` from Erwartet and `reports/onepager-report.tsx` | Income sub-page preserving month and source return route | Expected done; One-Pager open |
+| `inbox/inbox-page.tsx`, `shell/panel-host.tsx`, header `PanelLink`: wide inbox dialog and nested read-source/bank details | Header links to existing `/konten/posteingang`; inbox item `/konten/posteingang/:id`; confirm/assignment forms in dialogs | Open |
+
 | `heute/heute-page.tsx`: account/wealth dimension details | `/heute/details/:kind`, existing account links | Open |
 | `expected/income-panel.tsx` from Erwartet and `reports/onepager-report.tsx` | Income sub-page preserving month and source return route | Open |
 | `inbox/inbox-page.tsx`, `shell/panel-host.tsx`, header `PanelLink`: wide inbox dialog and nested read-source/bank details | Header links to existing `/konten/posteingang`; data-warning detail `/konten/posteingang/:id`; confirm/assignment forms in dialogs | Done for data warnings (#319/#320); other inbox types retain their existing workflows |
@@ -26,15 +36,20 @@ proposed destinations, not implemented routes.
 | `budget/goals-panel.tsx`, `pages/goals-progress-report.tsx`: savings goal history and forms | `/plan/sparziele/:id`; create/edit in dialogs; reports link to same detail | Open |
 | `budget/event-panel.tsx`: annual event create/edit | FormDialog; comparison stays inline in year plan | Open |
 | `contacts/contacts-page.tsx`: contact statement with receipt/settlement/edit | `/konten/kontakte/:id`; separate input dialogs, including new contact | Open |
+| `budget/category-panel.tsx`: category/group management | Category details `/einstellungen/kategorien/:id`; create/edit/group forms in dialogs | Open |
+| `budget/goals-panel.tsx`, `pages/goals-progress-report.tsx`: savings goal history and forms | `/plan/sparziele/:id`; create/edit in dialogs; reports link to same detail | Open |
+| `budget/event-panel.tsx`: annual event create/edit | FormDialog; comparison stays inline in year plan | Open |
+| `expected/payment-panel.tsx`: payment details, versions, occurrences, editing | `/plan/erwartet/:id`; create/edit/confirmation in dialogs | Done |
+
 | `budget/category-panel.tsx`: category/group management | Category details `/einstellungen/kategorien/:id`; create/edit/group forms in dialogs | Done (#323–#324) |
 | `budget/goals-panel.tsx`, `pages/goals-progress-report.tsx`: savings goal history and forms | `/plan/sparziele/:id`; create/edit in dialogs; reports link to same detail | Done (#325–#326) |
 | `budget/event-panel.tsx`: annual event create/edit | FormDialog; comparison stays inline in year plan | Done (#327) |
 | `expected/payment-panel.tsx`: payment details, versions, occurrences, editing | `/plan/erwartet/:id`; create/edit/confirmation in dialogs | Open |
-| `ledger/account-form.tsx`, `pages/accounts-settings.tsx`: new/edit account | FormDialog; existing `/konten/:id` already owns account detail | Open |
-| `ledger/reconcile-panel.tsx` | FormDialog for bank balance, correction and confirmation | Open |
-| `rules/rule-panel.tsx`: status and threshold editing | `/einstellungen/regelwerk/:code`; threshold form in dialog | Open |
+| `ledger/account-form.tsx`, `pages/accounts-settings.tsx`: new/edit account | FormDialog; existing `/konten/:id` already owns account detail | Implemented #330; owner acceptance open |
+| `ledger/reconcile-panel.tsx` | FormDialog for bank balance, correction and confirmation | Implemented #331; owner acceptance open |
+| `rules/rule-panel.tsx`: status and threshold editing | `/einstellungen/regelwerk/:code`; threshold form in dialog | Implemented #332; owner acceptance open |
 | `wealth/portfolio-panel.tsx`: instrument details, prices, trades, metadata edits | `/vermoegen/portfolio/instrument/:id`; new/edit forms in dialogs | Done |
-| `wealth/target-panel.tsx`, `pages/asset-classes-settings.tsx`: class/group/target/archive/instrument editors | FormDialog retaining dirty/save blockers and atomic audit/undo | Open |
+| `wealth/target-panel.tsx`, `pages/asset-classes-settings.tsx`: class/group/target/archive/instrument editors | FormDialog retaining dirty/save blockers and atomic audit/undo | Implemented #333–#334; owner acceptance open |
 | `wealth/savings-panel.tsx`: savings schedule versions and editing | `/vermoegen/portfolio/sparplan/:id`; new/edit/end in dialogs | Done |
 | `wealth/trade-panel.tsx`: trade capture/edit | FormDialog retaining settlement and execution validation | Done |
 | `reports/payslip-panel.tsx`: payslip history and capture | Payslip detail sub-page under salary report; capture/edit/upload in form dialog | Open |
@@ -43,6 +58,11 @@ proposed destinations, not implemented routes.
 | `shell/panel-host.tsx`, `shell/panels.ts`: example detail | Dev-only detail route; remove placeholder panel entry | Done (#321/#322/#338/#339/#340) |
 | `routes/components-page.tsx`, `routes/panels-harness.tsx`: detail/side/sheet/work-dialog demos | Detail page demo and input/filter-only dialog/sheet demos | Done (#321/#322/#338/#339/#340) |
 | `heute/heute.css`: `.heute-main-grid`, secondary monthly content | Full-width inline sections or links to existing detail pages | Open |
+
+| `shell/global-search.tsx`: search results sheet, Ctrl K | Search sub-page with search input; preserve Ctrl K and keyboard result navigation | Open |
+| `shell/panel-host.tsx`, `shell/panels.ts`: example detail | Dev-only detail route; remove placeholder panel entry | Open |
+| `routes/components-page.tsx`, `routes/panels-harness.tsx`: detail/side/sheet/work-dialog demos | Detail page demo and input/filter-only dialog/sheet demos | Open |
+| `heute/heute.css`: `.heute-main-grid`, secondary monthly content | Full-width inline sections or links to existing detail pages | Done |
 | `wealth/wealth.css`: `.vview` composition beside main | Full-width content sections | Done |
 | `wealth/debts.css`: secondary calculation column (#342); `wealth/loan-planning.css`: planning summaries (#343) | Full-width content sections; comparison tables retain their numeric columns | Done; #343 already full-width, desktop/390px evidence in `evidence/debts-scope-1009` |
 | `reports/reports-future.css`: `.rf-side`; `reports/table-reports.css`: side summaries; report overview/spending/portfolio source grids | Full-width sequential summary/chart/source sections or linked detail pages | Open |

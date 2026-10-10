@@ -16,6 +16,7 @@ declare module '@tanstack/history' {
     planPanelDetailOpenedInApp?: boolean;
     planDetailOpenedInApp?: boolean;
     wealthDetailOpenedInApp?: boolean;
+    ruleDetailOpenedInApp?: boolean;
     panelOpenedInApp?: boolean;
   }
 }
