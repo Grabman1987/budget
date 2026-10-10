@@ -1,5 +1,11 @@
 # Sub-pages instead of side panels — 2026-10-05
 
+Portfolio report follow-up 2026-10-09 (#346): report 4.2's secondary composition
+legend and source tables and report 4.5's secondary summary now follow the main
+content at full width. Numerical table columns and depot/metric comparisons stay.
+Other report areas in the mixed inventory row below remain open. See
+[package scope and evidence](evidence/portfolio-package-d-1009/README.md).
+
 The owner decision in DESIGN.md supersedes the prototype's content panels. This
 first coherent delivery covers Plan › Monat. No dependencies, schema, API, money
 calculations or automatic bookings change. Other areas remain explicitly open.
@@ -21,6 +27,10 @@ proposed destinations, not implemented routes.
 | `heute/heute-page.tsx`: account/wealth dimension details | `/heute/details/:kind`, existing account links | Done |
 | `expected/income-panel.tsx` from Erwartet and `reports/onepager-report.tsx` | Income sub-page preserving month and source return route | Expected done; One-Pager open |
 | `inbox/inbox-page.tsx`, `shell/panel-host.tsx`, header `PanelLink`: wide inbox dialog and nested read-source/bank details | Header links to existing `/konten/posteingang`; inbox item `/konten/posteingang/:id`; confirm/assignment forms in dialogs | Open |
+
+| `heute/heute-page.tsx`: account/wealth dimension details | `/heute/details/:kind`, existing account links | Open |
+| `expected/income-panel.tsx` from Erwartet and `reports/onepager-report.tsx` | Income sub-page preserving month and source return route | Open |
+| `inbox/inbox-page.tsx`, `shell/panel-host.tsx`, header `PanelLink`: wide inbox dialog and nested read-source/bank details | Header links to existing `/konten/posteingang`; data-warning detail `/konten/posteingang/:id`; confirm/assignment forms in dialogs | Done for data warnings (#319/#320); other inbox types retain their existing workflows |
 | `contacts/contacts-page.tsx`: contact statement with receipt/settlement/edit | `/konten/kontakte/:id`; separate input dialogs, including new contact | Open |
 | `budget/category-panel.tsx`: category/group management | Category details `/einstellungen/kategorien/:id`; create/edit/group forms in dialogs | Open |
 | `budget/goals-panel.tsx`, `pages/goals-progress-report.tsx`: savings goal history and forms | `/plan/sparziele/:id`; create/edit in dialogs; reports link to same detail | Open |
@@ -31,11 +41,11 @@ proposed destinations, not implemented routes.
 | `budget/goals-panel.tsx`, `pages/goals-progress-report.tsx`: savings goal history and forms | `/plan/sparziele/:id`; create/edit in dialogs; reports link to same detail | Done (#325–#326) |
 | `budget/event-panel.tsx`: annual event create/edit | FormDialog; comparison stays inline in year plan | Done (#327) |
 | `expected/payment-panel.tsx`: payment details, versions, occurrences, editing | `/plan/erwartet/:id`; create/edit/confirmation in dialogs | Open |
-| `ledger/account-form.tsx`, `pages/accounts-settings.tsx`: new/edit account | FormDialog; existing `/konten/:id` already owns account detail | Open |
-| `ledger/reconcile-panel.tsx` | FormDialog for bank balance, correction and confirmation | Open |
-| `rules/rule-panel.tsx`: status and threshold editing | `/einstellungen/regelwerk/:code`; threshold form in dialog | Open |
+| `ledger/account-form.tsx`, `pages/accounts-settings.tsx`: new/edit account | FormDialog; existing `/konten/:id` already owns account detail | Implemented #330; owner acceptance open |
+| `ledger/reconcile-panel.tsx` | FormDialog for bank balance, correction and confirmation | Implemented #331; owner acceptance open |
+| `rules/rule-panel.tsx`: status and threshold editing | `/einstellungen/regelwerk/:code`; threshold form in dialog | Implemented #332; owner acceptance open |
 | `wealth/portfolio-panel.tsx`: instrument details, prices, trades, metadata edits | `/vermoegen/portfolio/instrument/:id`; new/edit forms in dialogs | Done |
-| `wealth/target-panel.tsx`, `pages/asset-classes-settings.tsx`: class/group/target/archive/instrument editors | FormDialog retaining dirty/save blockers and atomic audit/undo | Open |
+| `wealth/target-panel.tsx`, `pages/asset-classes-settings.tsx`: class/group/target/archive/instrument editors | FormDialog retaining dirty/save blockers and atomic audit/undo | Implemented #333–#334; owner acceptance open |
 | `wealth/savings-panel.tsx`: savings schedule versions and editing | `/vermoegen/portfolio/sparplan/:id`; new/edit/end in dialogs | Done |
 | `wealth/trade-panel.tsx`: trade capture/edit | FormDialog retaining settlement and execution validation | Done |
 | `reports/payslip-panel.tsx`: payslip history and capture | Payslip detail sub-page under salary report; capture/edit/upload in form dialog | Open |

@@ -124,6 +124,14 @@ export function portfolioPerformanceHistory(
       return {
         assetClassId: cls.assetClassId,
         name: cls.name,
+        // Holdings at the report stand, also outside the allocation universe and at zero value.
+        currentHolding: series.positions.some(
+          (p) =>
+            (p.unitsE8.at(-1) ?? 0) !== 0 &&
+            splitAssetExposure(0, weightsOn(p.securityId, series.days.at(-1)!)).some(
+              (part) => part.assetClassId === cls.assetClassId && part.weightBp > 0,
+            ),
+        ),
         valueCents: performance.endValueCents,
         performance: hasReturn ? performance : null,
         index: classHistory.index,

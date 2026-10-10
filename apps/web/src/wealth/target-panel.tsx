@@ -1,11 +1,12 @@
 import { defaultBandBp, parseScaledDecimal, type ManagedTarget } from '@budget/domain';
-import { Button, DetailPanel, Field, Select, TextInput, maskMoneyText } from '@budget/ui';
+import { Button, Field, Select, TextInput, maskMoneyText } from '@budget/ui';
 import { useBlocker } from '@tanstack/react-router';
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import { request } from '../api/http';
 import { errorText } from '../ledger/labels';
 import { useAssetWrite } from '../pages/asset-classes-api';
 import type { PortfolioAllocationView, TargetVersion } from './allocation-api';
+import { SettingsFormDialog } from '../pages/settings-form-dialog';
 
 export const bpText = (bp: number) =>
   `${bp < 0 ? '−' : ''}${(Math.abs(bp) / 100).toFixed(2).replace('.', ',')}`;
@@ -75,7 +76,7 @@ export function AssetSettingsPanel({
     onClose();
   }, [onClose]);
   return (
-    <DetailPanel
+    <SettingsFormDialog
       open={open}
       title={title}
       onClose={close}
@@ -119,7 +120,7 @@ export function AssetSettingsPanel({
           </Button>
         </div>
       )}
-    </DetailPanel>
+    </SettingsFormDialog>
   );
 }
 type Entry = { included: boolean; share: string; bandMode: 'standard' | 'custom'; band: string };

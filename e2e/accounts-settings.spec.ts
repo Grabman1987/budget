@@ -69,7 +69,11 @@ test('lists, orders, edits loan terms, closes and reopens accounts', async ({
   // Loan terms.
   await page.getByRole('button', { name: 'Kredit Muster bearbeiten' }).click();
   const panel = page.getByRole('dialog');
-  await expect(panel.getByRole('heading', { name: 'Konto bearbeiten' })).toBeVisible();
+  await expect(
+    panel.locator('.panel-head').getByRole('heading', { name: 'Konto bearbeiten' }),
+  ).toBeVisible();
+  await expect(panel).toHaveClass(/is-bare/);
+  await expect(panel).not.toHaveClass(/\bpanel\b/);
   await panel.getByLabel('Zinsart').selectOption('fixed');
   await panel.getByLabel('Monatsrate', { exact: true }).fill('412');
   await panel.getByLabel('Ursprünglicher Kreditbetrag').fill('6000');

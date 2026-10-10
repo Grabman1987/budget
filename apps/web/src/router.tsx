@@ -16,6 +16,7 @@ import {
 import type { HeutePeriod } from './heute/api';
 import { authStatusQuery, queryClient } from './auth/status-query';
 import { validateBookingsSearch } from './ledger/bookings-search';
+import { validateInboxSearch } from './inbox/navigation';
 import { accountsQuery } from './ledger/queries';
 import { captureContinuation, validateCaptureSearch } from './ledger/capture-link';
 import { findReport } from './nav/reports-catalog';
@@ -90,6 +91,20 @@ const rootRoute = createRootRoute({
     trend: search['trend'] === true || search['trend'] === 'true' ? true : undefined,
     zeitraum: isZeitraum(search['zeitraum']) ? search['zeitraum'] : undefined,
   }),
+  beforeLoad: ({ search, location }) => {
+    if (search.panel !== 'posteingang') return;
+    const source = new URL(location.href, 'https://budget.invalid');
+    source.searchParams.delete('panel');
+    throw redirect({
+      to: '/konten/posteingang',
+      search: {
+        von: location.pathname.startsWith('/konten/posteingang')
+          ? undefined
+          : `${source.pathname}${source.search}`,
+      },
+      replace: true,
+    });
+  },
   component: Outlet,
   notFoundComponent: NotFoundPage,
 });
@@ -177,15 +192,16 @@ const bookingsRoute = createRoute({
 const inboxRoute = createRoute({
   getParentRoute: () => shellRoute,
   path: '/konten/posteingang',
-  validateSearch: (search: Record<string, unknown>) => ({
-    bankSource:
-      typeof search['bankSource'] === 'string' &&
-      /^[\da-f]{8}-[\da-f]{4}-[\da-f]{4}-[\da-f]{4}-[\da-f]{12}$/i.test(search['bankSource'])
-        ? search['bankSource']
-        : undefined,
-  }),
+  validateSearch: validateInboxSearch,
   staticData: { meta: PAGES.find((p) => p.path === '/konten/posteingang')! },
   component: lazyRouteComponent(() => import('./inbox/inbox-page'), 'InboxPage'),
+});
+const inboxDetailRoute = createRoute({
+  getParentRoute: () => shellRoute,
+  path: '/konten/posteingang/$id',
+  validateSearch: validateInboxSearch,
+  staticData: { meta: PAGES.find((p) => p.path === '/konten/posteingang')! },
+  component: lazyRouteComponent(() => import('./inbox/inbox-page'), 'InboxDetailPage'),
 });
 const contactsRoute = createRoute({
   getParentRoute: () => shellRoute,
@@ -290,6 +306,15 @@ const rulesRoute = createRoute({
   path: EINSTELLUNGEN_REGELWERK.path,
   staticData: { meta: EINSTELLUNGEN_REGELWERK },
   component: lazyRouteComponent(() => import('./rules/rules-page'), 'RulesPage'),
+});
+const ruleStatusRoute = createRoute({
+  getParentRoute: () => shellRoute,
+  path: '/einstellungen/regelwerk/$code',
+  staticData: { meta: EINSTELLUNGEN_REGELWERK },
+  validateSearch: (search: Record<string, unknown>) => ({
+    bearbeiten: search['bearbeiten'] === true || search['bearbeiten'] === 'true' ? true : undefined,
+  }),
+  component: lazyRouteComponent(() => import('./rules/rule-status-page'), 'RuleStatusPage'),
 });
 const assignmentRoute = createRoute({
   getParentRoute: () => shellRoute,
@@ -674,6 +699,7 @@ const routeTree = rootRoute.addChildren([
     categoryDetailRoute,
     goalDetailRoute,
     rulesRoute,
+    ruleStatusRoute,
     assignmentRoute,
     exportRoute,
     dataSourcesRoute,
@@ -698,6 +724,7 @@ const routeTree = rootRoute.addChildren([
     bookingsRoute,
     contactsRoute,
     inboxRoute,
+    inboxDetailRoute,
     accountRoute,
     reportsRoute,
     reportGroupRoute,
@@ -715,7 +742,8 @@ export const router = createRouter({
     location.pathname.startsWith('/plan/sparziele') ||
     location.pathname.startsWith('/einstellungen/kategorien') ||
     location.pathname === '/reports/sparziele' ||
-    location.pathname.startsWith('/vermoegen/portfolio'),
+    location.pathname.startsWith('/vermoegen/portfolio') ||
+    location.pathname.startsWith('/einstellungen/regelwerk'),
 });
 
 declare module '@tanstack/react-router' {

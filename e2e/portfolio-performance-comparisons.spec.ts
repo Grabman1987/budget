@@ -14,6 +14,7 @@ const input = {
 test('benchmark selection persists and report shows class comparisons, accessible heatmap and gaps', async ({
   page,
 }, info) => {
+  test.setTimeout(120_000);
   let chosen: string[] = [];
   const instruments = [
     { id: 'benchmark-ftse', name: 'FTSE All-World' },
@@ -41,6 +42,7 @@ test('benchmark selection persists and report shows class comparisons, accessibl
       json: {
         portfolio: {
           period: new URL(route.request().url()).searchParams.get('period') ?? 'YTD',
+          asOf: '2026-09-17',
           positions: [],
           performance: { ...performance, benchmarkTtwror: history.benchmarkReturn, beta: null },
           performanceHistory: {
@@ -49,6 +51,15 @@ test('benchmark selection persists and report shows class comparisons, accessibl
               {
                 assetClassId: 'class-a',
                 name: 'Klasse Test',
+                currentHolding: true,
+                valueCents: 0,
+                performance,
+                index: history.index,
+              },
+              {
+                assetClassId: 'class-sold',
+                name: 'Historische Klasse',
+                currentHolding: false,
                 valueCents: 19800,
                 performance,
                 index: history.index,
@@ -72,7 +83,29 @@ test('benchmark selection persists and report shows class comparisons, accessibl
   const ftse = page.getByRole('checkbox', { name: 'FTSE All-World', exact: true });
   const sp = page.getByRole('checkbox', { name: 'S&P 500', exact: true });
   await expect(ftse).not.toBeChecked();
+  await expect(page.locator('.benchmark-setup')).toContainText('nur das Portfolio');
+  await expect(page.locator('.performance-chart').first().locator('path.l-forecast')).toHaveCount(
+    0,
+  );
+  const current = page.getByRole('table', {
+    name: 'Aktuell gehaltene Klassen · Kennzahlen im gewählten Zeitraum',
+  });
+  await expect(current).toContainText('Klasse Test');
+  await expect(current).not.toContainText('Historische Klasse');
+  const historical = page.getByRole('table', {
+    name: 'Historische und leere Klassen · Kennzahlen im gewählten Zeitraum',
+  });
+  await expect(historical).not.toBeVisible();
+  const historicalToggle = page.getByText('Historische und leere Anlageklassen (1)', {
+    exact: true,
+  });
+  await historicalToggle.focus();
+  await historicalToggle.press('Enter');
+  await expect(historical).toContainText('Historische Klasse');
+  await expect(historical).toContainText('198,00 €');
+  await historicalToggle.press('Enter');
   await ftse.check();
+  await expect(page.locator('.benchmark-setup')).toHaveCount(0);
   await expect(ftse).toBeEnabled();
   await sp.check();
   await expect(sp).toBeEnabled();
@@ -110,6 +143,10 @@ test('benchmark selection persists and report shows class comparisons, accessibl
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(
       true,
     );
+    await page.evaluate(() => {
+      if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
+      window.scrollTo(0, 0);
+    });
     await page.screenshot({
       path: info.outputPath(`performance-comparison-${theme}.png`),
       fullPage: true,
@@ -125,4 +162,12 @@ test('benchmark selection persists and report shows class comparisons, accessibl
     page.getByRole('table', { name: 'Renditen und gespeicherte Benchmark-Kursdaten' }),
   ).toContainText('Kurslücke');
   await expect(matrix).toContainText('+20,0 %');
+  await ftse.uncheck();
+  await expect(ftse).toBeEnabled();
+  await sp.uncheck();
+  await expect(sp).toBeEnabled();
+  await page.reload();
+  await expect(ftse).not.toBeChecked();
+  await expect(sp).not.toBeChecked();
+  await expect(page.locator('.benchmark-setup')).toContainText('nur das Portfolio');
 });

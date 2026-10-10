@@ -34,6 +34,49 @@ async function call(method: string, path: string, body?: unknown) {
   return { status: response.status, body: (await response.json()) as any };
 }
 describe('inbox API', () => {
+  it('filters before pagination, counts repeated causes and reads details without resolving work', async () => {
+    for (const [id, date, reason] of [
+      ['old', '2026-08-31', 'mapping_required'],
+      ['current-a', '2026-09-01', 'mapping_required'],
+      ['current-b', '2026-09-17', 'mapping_required'],
+      ['different', '2026-09-17', 'schema'],
+    ])
+      insertTracked(
+        opened.db,
+        schema.inboxItem,
+        {
+          id: id!,
+          kind: 'import',
+          title: 'Zuordnung prüfen',
+          refType: 'read_source',
+          refId: 'synthetic-source',
+          detail: JSON.stringify({ reason, source: { id } }),
+          createdAt: `${date}T12:00:00.000Z`,
+        },
+        { actor: 'test' },
+      );
+    const current = await call('GET', '/inbox?period=current&limit=1');
+    expect(current.status).toBe(200);
+    expect(current.body).toMatchObject({
+      count: 4,
+      totalEntries: 3,
+      next: 1,
+      countsByKind: { import: 3 },
+    });
+    expect(current.body.entries.map((e: any) => e.id)).toEqual(['current-a']);
+    expect(Object.values(current.body.countsByCause).sort()).toEqual([1, 2]);
+    const historical = await call('GET', '/inbox?period=historical&limit=100');
+    expect(historical.body.entries.map((e: any) => e.id)).toEqual(['old']);
+    expect(historical.body.count).toBe(4);
+    expect((await call('GET', '/inbox/current-b')).body.entry).toMatchObject({
+      id: 'current-b',
+      detail: expect.stringContaining('mapping_required'),
+    });
+    expect((await call('GET', '/inbox/missing')).status).toBe(404);
+    expect((await call('GET', '/inbox?period=invalid')).status).toBe(400);
+    expect((await call('GET', '/inbox')).body.entries).toHaveLength(4);
+    expect((await call('GET', '/inbox/count')).body.count).toBe(4);
+  });
   it('validates source filters and excludes unrelated work before pagination', async () => {
     createBooking(
       opened.db,

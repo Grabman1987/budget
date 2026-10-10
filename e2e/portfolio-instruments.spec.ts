@@ -112,6 +112,8 @@ test('empty portfolio creates reachable metadata with validation, reload, creati
     await capture(page, `instrument-unheld-${theme}`, info);
   }
   await page.getByRole('link', { name: 'Zurück zum Portfolio' }).click();
+  // The unheld-instrument catalog is a native details element that starts closed.
+  await page.locator('.instrument-catalog > summary').click();
   await expect(
     page.locator('.instrument-catalog').getByRole('button', { name, exact: true }),
   ).toBeVisible();
