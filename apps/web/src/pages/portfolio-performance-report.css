@@ -157,6 +157,9 @@
 .benchmark-choices legend {
   font-weight: 600;
 }
+.benchmark-setup {
+  flex-basis: 100%;
+}
 .benchmark-choices label {
   display: inline-flex;
   align-items: center;

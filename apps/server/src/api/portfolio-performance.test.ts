@@ -324,6 +324,8 @@ it('uses dated exposure versions for each historical class return period', async
   // the Feb 28 quote then adds 10% to B's 11,000-cent post-transfer base.
   expect(classA.valueCents).toBe(0);
   expect(classB.valueCents).toBe(12_100);
+  expect(classA).toMatchObject({ currentHolding: false });
+  expect(classB).toMatchObject({ currentHolding: true });
   const levelsA = monthEndLevels(classA.index);
   const levelsB = monthEndLevels(classB.index);
   expect(levelsA[0]).toBeCloseTo(110);
@@ -333,4 +335,20 @@ it('uses dated exposure versions for each historical class return period', async
   expect(classA.performance?.ttwror).toBeCloseTo(0.1);
   expect(classB.performance?.ttwror).toBeCloseTo(0.21);
   expect(history.classes.reduce((sum, cls) => sum + cls.valueCents, 0)).toBe(12_100);
+});
+
+it('keeps zero-valued held classes current even outside the allocation universe', async () => {
+  opened.sqlite.exec(
+    "UPDATE security SET allocation_included=0 WHERE id='a'; UPDATE price SET price_micro=1 WHERE security_id='a';",
+  );
+  const portfolio = await readPortfolio();
+  expect(portfolio.classes.some((c) => c.assetClassId === 'a')).toBe(false);
+  expect(portfolio.performanceHistory?.classes.find((c) => c.assetClassId === 'a')).toMatchObject({
+    valueCents: 0,
+    currentHolding: true,
+  });
+  expect(portfolio.performanceHistory?.classes.find((c) => c.assetClassId === 'b')).toMatchObject({
+    valueCents: 0,
+    currentHolding: false,
+  });
 });

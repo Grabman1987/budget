@@ -1,12 +1,4 @@
-import {
-  useAmountPrivacy,
-  AmountInput,
-  Button,
-  DetailPanel,
-  Field,
-  TextInput,
-  maskMoneyText,
-} from '@budget/ui';
+import { useAmountPrivacy, AmountInput, Button, Field, TextInput, maskMoneyText } from '@budget/ui';
 import { parseAmount, todayInVienna } from '@budget/domain';
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { AlertTriangle, CheckCircle2 } from 'lucide-react';
@@ -20,6 +12,7 @@ import { LEDGER_KEY } from './queries';
 import { findingOf } from './reconcile-model';
 import { ErrorNote, LoadingNote } from './states';
 import type { AccountRow } from './types';
+import { SettingsFormDialog } from '../pages/settings-form-dialog';
 
 /** Value that follows `value` after a pause (the preview is asked for when typing stops). */
 function useDebounced<T>(value: T, ms: number): T {
@@ -31,7 +24,7 @@ function useDebounced<T>(value: T, ms: number): T {
   return settled;
 }
 
-/** Kontostand prüfen in the side panel (desktop) or bottom sheet (phone). */
+/** Owner-triggered reconciliation in a form dialog. */
 export function ReconcilePanel({
   account,
   open,
@@ -43,9 +36,9 @@ export function ReconcilePanel({
 }) {
   useAmountPrivacy();
   return (
-    <DetailPanel open={open} onClose={onClose} title={`Kontostand prüfen · ${account.name}`}>
+    <SettingsFormDialog open={open} onClose={onClose} title={`Kontostand prüfen · ${account.name}`}>
       <ReconcileFlow account={account} onDone={onClose} />
-    </DetailPanel>
+    </SettingsFormDialog>
   );
 }
 

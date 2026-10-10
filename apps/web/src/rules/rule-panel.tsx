@@ -1,46 +1,34 @@
 import {
   useAmountPrivacy,
-  maskMoneyText,
   AmountInput,
   Button,
-  WideDialog,
   Field,
   Select,
-  StatusMark,
   TextInput,
   Switch,
-  type RuleStatus,
 } from '@budget/ui';
-import { cents, formatDecimal, parseAmount, formatPercent } from '@budget/domain';
+import { cents, formatDecimal, parseAmount } from '@budget/domain';
 import { useState, type FormEvent } from 'react';
-import { longDay, eur } from '../ledger/format';
-import { patchRule, type RuleRow, type RuleStatusCode } from './api';
-import {
-  RULE_FIELDS,
-  fieldError,
-  fieldText,
-  fieldValue,
-  thresholdText,
-  type FieldSpec,
-} from './rules-model';
+import { patchRule, type RuleRow } from './api';
+import { RULE_FIELDS, fieldError, fieldText, fieldValue, type FieldSpec } from './rules-model';
 import { useRuleWrite } from './use-rule-writes';
 
-const STATUS: Record<RuleStatusCode, RuleStatus> = { ok: 'met', warn: 'warning', bad: 'violated' };
+import { SettingsFormDialog } from '../pages/settings-form-dialog';
 
-/** Input dialog: current value, next step and the thresholds. */
+/** Input dialog for thresholds; status belongs to the rule sub-page. */
 export function RulePanel({ rule, onClose }: { rule: RuleRow | null; onClose: () => void }) {
   useAmountPrivacy();
   return (
-    <WideDialog
+    <SettingsFormDialog
       open={rule !== null}
       onClose={onClose}
-      title={rule ? `${rule.code} ${rule.name}` : ''}
+      title={rule ? `Schwellen bearbeiten · ${rule.code} ${rule.name}` : ''}
     >
       {rule && (
         // Remounts when the stored parameters change (saved, undone, redone).
         <RuleForm key={`${rule.code}:${JSON.stringify(rule.params)}`} rule={rule} />
       )}
-    </WideDialog>
+    </SettingsFormDialog>
   );
 }
 
@@ -111,76 +99,8 @@ function RuleForm({ rule }: { rule: RuleRow }) {
     setTexts(Object.fromEntries(specs.map((s) => [s.key, initial(s, rule.defaults[s.key])])));
   const atDefaults = specs.every((s) => (texts[s.key] ?? '') === initial(s, rule.defaults[s.key]));
 
-  const { latest } = rule;
   return (
     <form className="kform rw-form" onSubmit={(e) => void submit(e)}>
-      <section className="rw-now" aria-label="Aktueller Stand">
-        {latest ? (
-          <>
-            <p className="rw-now-line">
-              <StatusMark status={STATUS[latest.status]} actionNeeded={latest.actionNeeded} />
-              <strong>{maskMoneyText(latest.valueText)}</strong>
-            </p>
-            <p className="rw-now-sub">
-              Stand {longDay(latest.asOf)}
-              {!rule.enabled && ' · Regel ist ausgeschaltet'}
-            </p>
-          </>
-        ) : (
-          <p className="rw-now-sub">
-            {rule.unavailableReason
-              ? maskMoneyText(`Nicht bewertbar: ${rule.unavailableReason}`)
-              : 'Noch nicht bewertbar: Es fehlen Daten für diese Regel.'}
-            {!rule.enabled && ' Die Regel ist ausgeschaltet.'}
-          </p>
-        )}
-        <p className="rw-action">
-          <span className="rw-action-k">
-            {latest?.actionNeeded ? 'Nächster Schritt' : 'Wenn die Regel anschlägt'}
-          </span>
-          {(latest?.actionNeeded ? latest.actionText : null) ??
-            rule.action ??
-            'Keine Aktion hinterlegt.'}
-        </p>
-        <p className="rw-now-sub">Schwelle: {thresholdText(rule.code, rule.params)}</p>
-      </section>
-      {rule.code === 'R21' && latest && (
-        <p className="rw-now-sub">
-          Netto-Hebel-Exposure:{' '}
-          {typeof latest.detail?.['exposureBp'] === 'number'
-            ? formatPercent(latest.detail['exposureBp'])
-            : 'nicht bewertbar'}
-          .
-        </p>
-      )}
-      {rule.code === 'R18' && latest?.detail?.['aboveAverage'] === true && (
-        <p className="rw-now-sub">Überdurchschnittlich (PAW): konfigurierten Richtwert erreicht.</p>
-      )}
-      {rule.code === 'R22' && Array.isArray(latest?.detail?.['leveraged']) && (
-        <p className="rw-now-sub">
-          Hebelfonds separat:{' '}
-          {latest.detail['leveraged']
-            .map(
-              (row: { securityId: string; name?: string; terBp: number; valueCents: number }) =>
-                `${row.name ?? row.securityId}: ${eur(row.valueCents)} · TER ${row.terBp === 0 ? 'fehlt' : formatPercent(row.terBp)}`,
-            )
-            .join('; ') || 'keine'}
-          .
-        </p>
-      )}
-      {typeof latest?.detail?.['note'] === 'string' && (
-        <p className="rw-now-sub">{maskMoneyText(String(latest.detail['note']))}</p>
-      )}
-      {Array.isArray(latest?.detail?.['strip']) && (
-        <p className="rw-now-sub">
-          {(latest.detail['strip'] as { month: string; fulfilled: boolean }[])
-            .map((r) => `${r.month} ${r.fulfilled ? '✓' : '–'}`)
-            .join(' · ')}
-        </p>
-      )}
-      {specs.length === 0 && (
-        <p className="rw-now-sub">Diese Regel hat keine Schwelle: Sie gilt immer.</p>
-      )}
       {specs.map((s) => {
         const error = errorOf(s) ?? undefined;
         const text = texts[s.key] ?? '';

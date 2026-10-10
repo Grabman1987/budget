@@ -13,6 +13,16 @@
 .instrument-catalog td {
   padding-block: 0;
 }
+.instrument-catalog summary {
+  min-height: 44px;
+  padding-block: 12px;
+  cursor: pointer;
+  font-weight: 600;
+}
+.instrument-catalog summary:focus-visible {
+  outline: 2px solid var(--line);
+  outline-offset: 2px;
+}
 .instrument-fields {
   display: grid;
   gap: 16px;

@@ -71,7 +71,7 @@
 }
 .sb-composition {
   display: grid;
-  grid-template-columns: minmax(0, 7fr) minmax(0, 5fr);
+  grid-template-columns: minmax(0, 1fr);
   align-items: center;
   gap: 32px;
   margin: 6px 0 20px;
@@ -261,29 +261,8 @@
 .alloc-chart .chart-legend {
   margin-bottom: 16px;
 }
-@media (min-width: 1440px) {
-  .portfolio-allocation-report > .prep-card:first-of-type {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-    gap: 16px 24px;
-    align-items: start;
-  }
-  .portfolio-allocation-report > .prep-card:first-of-type > .tbd-head {
-    grid-column: 1 / -1;
-  }
-  .portfolio-allocation-report .sb-pair {
-    grid-column: 1;
-    grid-row: 2 / 4;
-    grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr));
-  }
-  .portfolio-allocation-report > .prep-card:first-of-type > .prep-scroll {
-    grid-column: 2;
-    margin-top: 0;
-  }
-}
 @media (max-width: 760px) {
   .sb-composition {
-    grid-template-columns: minmax(0, 1fr);
     gap: 24px;
   }
   .alloc-table {

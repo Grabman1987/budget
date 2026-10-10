@@ -1,7 +1,6 @@
 import {
   AmountInput,
   Button,
-  DetailPanel,
   Field,
   SectionHead,
   Select,
@@ -27,6 +26,7 @@ import { ErrorNote, LoadingNote } from '../ledger/states';
 import { ACCOUNT_TYPES, type AccountRow, type AccountType } from '../ledger/types';
 import { KONTEN_SETTINGS_META } from '../nav/pages';
 import { PageFrame } from './placeholder-page';
+import { SettingsFormDialog } from './settings-form-dialog';
 import { assetClassesQuery } from '../wealth/portfolio-api';
 import '../ledger/account-order.css';
 import './accounts-settings.css';
@@ -245,9 +245,9 @@ function AccountEditPanel({
 }) {
   useAmountPrivacy();
   return (
-    <DetailPanel open={account !== null} onClose={onClose} title="Konto bearbeiten">
+    <SettingsFormDialog open={account !== null} onClose={onClose} title="Konto bearbeiten">
       {account && <AccountEditForm key={account.id} account={account} onDone={onClose} />}
-    </DetailPanel>
+    </SettingsFormDialog>
   );
 }
 
