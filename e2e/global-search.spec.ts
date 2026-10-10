@@ -97,6 +97,21 @@ test('loading, empty and failed searches are explicit, retry works, Escape retur
   if (mobile) await expect(page.getByRole('button', { name: 'Suchen', exact: true })).toBeFocused();
 });
 
+test('Escape steps back out of the search page instead of stacking the source page again', async ({
+  page,
+}, info) => {
+  await page.goto('/plan/monat');
+  const mobile = info.project.name === 'mobile';
+  const before = await page.evaluate(() => history.length);
+  const input = await openSearch(page, mobile);
+  await input.fill('Girokonto');
+  await expect(page).toHaveURL(/\/suche\?.*q=Girokonto/);
+  await input.press('Escape');
+  await expect(page).toHaveURL(/\/plan\/monat$/);
+  // One forward entry (the search) is left behind; a pushed copy of the source would add two.
+  expect(await page.evaluate(() => history.length)).toBe(before + 1);
+});
+
 test('pending responses cannot replace a newer query and search is accessible in both themes', async ({
   page,
 }, info) => {
