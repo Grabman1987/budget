@@ -46,7 +46,10 @@ test('synthetic encrypted PDF upload, confirm, undo and reject on phone and desk
   await inspectReport(page, info, 'payslip-source');
   await page.goto('/reports/gehalt?monat=2026-09');
   const bytes = await syntheticPayslipPdf();
+  // Upload lives in its own form dialog since #336.
+  await page.getByRole('button', { name: 'Gehaltszettel hochladen', exact: true }).click();
   await page
+    .getByRole('dialog', { name: 'Gehaltszettel hochladen' })
     .getByLabel('Gehaltszettel-PDF auswählen')
     .setInputFiles({ name: 'synthetic-202701.pdf', mimeType: 'application/pdf', buffer: bytes });
   // Extraction may use the bounded 20-second PDF worker budget before staging completes.
