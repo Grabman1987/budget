@@ -1013,3 +1013,10 @@ Method, limits and owner steps: [inflation basket](inflation-basket.md#cpi-sub-i
 - [x] Clean install, dependency-tree inspection, quoted-command and source-map round-trip smoke checks; full audit now has 4 moderate / 0 high / 0 critical findings, production audit has 0.
 - [x] Full local check passed with one Vitest worker and required age setting: 370 test files / 3,385 tests; the local log is retained outside the repository.
 - [ ] Required final-head CI, main integration and actual deploy/health verification; remaining moderate development advisories are separate work.
+
+### Login and account page — #311 / #312 / #313 (2026-10-09)
+
+- [x] Bound a hanging passkey browser ceremony; preserve native WebAuthn cancellation, retry and recovery, and reject late credentials before verification.
+- [x] Bind sidebar and settings profile labels to the current server session method; preserve recovery/step-up restrictions.
+- [x] Separate account-specific source/observation state, stored owner check and technical retrieval dates; missing metadata stays explicit. No connection or sync action.
+- [ ] Required CI/PR integration after #405, Linux visual baseline review and physical-device/cloud owner acceptance. Targeted verification and task-scoped auth review: [evidence](evidence/auth-account-1009/README.md).

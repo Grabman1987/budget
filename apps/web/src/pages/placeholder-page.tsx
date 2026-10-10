@@ -37,6 +37,8 @@ export interface PageFrameProps {
   reportDataBasis?: ReactNode;
   /** Report-specific source/read boundary, replacing the inherited sync field. */
   reportStand?: TitleBlockField;
+  /** Single-account source fields replace the generic area clock/sync placeholder. */
+  accountFields?: TitleBlockField[];
   children?: ReactNode;
   revealCurrentRegister?: boolean;
 }
@@ -80,6 +82,7 @@ export function PageFrame({
   standDay,
   reportDataBasis,
   reportStand,
+  accountFields,
   children,
   revealCurrentRegister,
   verdict,
@@ -105,6 +108,7 @@ export function PageFrame({
         {...(standDay ? { standDay } : {})}
         {...(reportDataBasis ? { reportDataBasis } : {})}
         {...(reportStand ? { reportStand } : {})}
+        {...(accountFields ? { accountFields } : {})}
       />
       {verdict && (
         <VerdictLine facts={verdict} {...(verdictTestId ? { testId: verdictTestId } : {})} />
