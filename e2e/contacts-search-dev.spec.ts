@@ -47,6 +47,8 @@ test('package: contact history, search URL and developer details preserve naviga
   await expect(page.getByRole('option').first()).toContainText('Girokonto');
   await input.press('Enter');
   await expect(page).toHaveURL(/\/konten\/acc-giro$/);
+  // Going back while the account page is still loading would leave the old search page mounted.
+  await expect(page.getByRole('heading', { name: 'Girokonto', exact: true }).first()).toBeVisible();
   await page.goBack();
   await expect(input).toHaveValue('Girokonto');
   await expect(page.getByRole('option').first()).toContainText('Girokonto');

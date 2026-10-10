@@ -89,15 +89,22 @@ test.describe('Heute month switch', () => {
   });
 
   test('the arrow keys stay with a focused field', async ({ page }, info) => {
-    test.skip(info.project.name === 'mobile', 'the search field is not on the phone');
-    await page.goto('/?monat=2026-09');
-    await page
-      .getByRole('searchbox')
-      .or(page.getByPlaceholder(/Suchen/))
-      .first()
-      .focus();
+    test.skip(info.project.name === 'mobile', 'the phone has neither search field nor wide plan');
+    // The header search field moved to its own result page (no month switch there). The month
+    // keys' guard for fields is shared with Plan › Monat, whose cover select is a real field.
+    await page.goto('/plan/monat?monat=2026-09');
+    await page.locator('#cover-all-source').focus();
     await page.keyboard.press('ArrowLeft');
     await expect(page).toHaveURL(/monat=2026-09/);
+    // The search field keeps the arrow keys for its caret.
+    await page.goto('/?monat=2026-09');
+    await page.locator('#global-search').click();
+    const field = page.getByRole('combobox', { name: 'Suchen', exact: true });
+    await expect(field).toBeFocused();
+    await page.keyboard.type('ab');
+    await page.keyboard.press('ArrowLeft');
+    await page.keyboard.type('X');
+    await expect(field).toHaveValue('aXb');
   });
 });
 

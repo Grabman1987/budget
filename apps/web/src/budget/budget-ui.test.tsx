@@ -1,6 +1,12 @@
 // @vitest-environment jsdom
 import { ToastProvider } from '@budget/ui';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import {
+  RouterProvider,
+  createMemoryHistory,
+  createRootRoute,
+  createRouter,
+} from '@tanstack/react-router';
 import { cleanup, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { ReactNode } from 'react';
@@ -51,6 +57,16 @@ function renderWith(ui: ReactNode) {
       <ToastProvider>{ui}</ToastProvider>
     </QueryClientProvider>,
   );
+}
+
+/** Pages read their view state from the URL (e.g. `?ausgeblendet`), so they render inside a router. */
+function renderPage(ui: ReactNode, at = '/einstellungen/kategorien') {
+  const root = createRootRoute({ component: () => ui });
+  const router = createRouter({
+    routeTree: root,
+    history: createMemoryHistory({ initialEntries: [at] }),
+  });
+  return renderWith(<RouterProvider router={router} />);
 }
 
 beforeEach(() => {
@@ -379,7 +395,7 @@ describe('Categories page: sorting', () => {
         return ok();
       },
     });
-    renderWith(<CategoriesPage />);
+    renderPage(<CategoriesPage />);
     const handle = await screen.findByRole('button', { name: 'C verschieben' });
     handle.focus();
     await userEvent.keyboard('{ArrowUp}');
@@ -410,7 +426,7 @@ describe('Categories page: sorting', () => {
       'GET /api/categories': () => ok(tree(list)),
       'POST /api/categories/sort': () => ok(),
     });
-    renderWith(<CategoriesPage />);
+    renderPage(<CategoriesPage />);
     expect(
       ((await screen.findByRole('button', { name: 'A nach oben' })) as HTMLButtonElement).disabled,
     ).toBe(true);

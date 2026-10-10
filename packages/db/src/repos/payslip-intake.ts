@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { and, eq, isNull, or } from 'drizzle-orm';
+import { and, eq, isNull, min, or } from 'drizzle-orm';
 import {
   isDuplicatePayslip,
   payrollTotals,
@@ -101,7 +101,9 @@ const title = (parsed: ParsedPayrollDocument) =>
     ? `Gehaltszettel ${parsed.draft.month.slice(5)}/${parsed.draft.month.slice(0, 4)} erkannt`
     : parsed.documentType === 'pension'
       ? 'Pensionskassen-Mitteilung erkannt'
-      : 'Gehaltszettel: Prüfung erforderlich';
+      : parsed.documentType === 'bonus'
+        ? 'Bonus-Mitteilung erkannt'
+        : 'Gehaltszettel: Prüfung erforderlich';
 export function stagePayslip(
   db: Executor,
   input: {
@@ -204,8 +206,19 @@ export const PAYSLIP_BEFORE_START = 'Vor dem Startdatum – nicht übernommen.';
 export const PAYSLIP_ALREADY_RECORDED = 'Bereits erfasst.';
 export type PayslipScope = 'in_scope' | 'before_start' | 'recorded';
 
-/** Month (`YYYY-MM`) where the records begin: the first live account's opening date. */
-export const payslipRecordsStart = (db: Executor) => earliestAccountDate(db)?.slice(0, 7) ?? null;
+/**
+ * Month (`YYYY-MM`) where the records begin: the opening date of the first live budget account, as
+ * everywhere else in the app. Off-budget accounts (investments) may start earlier and do not count;
+ * without any budget account the first account of any kind decides.
+ */
+export const payslipRecordsStart = (db: Executor) =>
+  (
+    db
+      .select({ day: min(account.openingDate) })
+      .from(account)
+      .where(and(isNull(account.deletedAt), eq(account.onBudget, true)))
+      .get()?.day ?? earliestAccountDate(db)
+  )?.slice(0, 7) ?? null;
 
 const filenameMonth = (filename: string) => {
   const m = filename.match(/(?:^|\D)(20\d{2})(0[1-9]|1[0-2])(?:\D|$)/);
@@ -299,6 +312,18 @@ export function writePayslipScanStart(db: Executor, start: string, ctx: AuditCon
     if (readPayslipScanStart(tx) === null)
       insertTracked(tx, appSetting, { id: SCOPE_KEY, value: start }, ctx);
     else updateTracked(tx, appSetting, [SCOPE_KEY], { value: start }, ctx);
+  });
+}
+const PARSER_KEY = 'payslip.parser.version';
+/** Parser version the pending intakes were last read with (see `PAYSLIP_PARSER_VERSION`). */
+export const readPayslipParserVersion = (db: Executor) =>
+  db.select().from(appSetting).where(eq(appSetting.id, PARSER_KEY)).get()?.value ?? null;
+export function writePayslipParserVersion(db: Executor, version: number, ctx: AuditContext) {
+  runInTransaction(db, (tx) => {
+    const value = String(version);
+    if (readPayslipParserVersion(tx) === null)
+      insertTracked(tx, appSetting, { id: PARSER_KEY, value }, ctx);
+    else updateTracked(tx, appSetting, [PARSER_KEY], { value }, ctx);
   });
 }
 export function replaceParsedPayslip(

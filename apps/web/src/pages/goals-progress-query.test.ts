@@ -7,6 +7,32 @@ import { seedBasics, testCtx as ctx } from '../../../../packages/db/src/repos/te
 import { goalsProgressReportQuery } from './goals-progress-report';
 
 describe('report reads the existing API month and figures without writes', () => {
+  it('reads a selected detail month separately from the current report month', async () => {
+    const opened = createTestDatabase();
+    seedBasics(opened.db);
+    createGoal(opened.db, { name: 'Monatsziel', targetCents: 100000, categoryId: 'reise' }, ctx);
+    setAssigned(opened.db, 'reise', '2026-08', 10000, ctx);
+    setAssigned(opened.db, 'reise', '2026-09', 20000, ctx);
+    const app = createLedgerApi({
+      db: opened.db,
+      today: () => '2026-09-17',
+      stepUp: async (_c, next) => next(),
+    });
+    vi.stubGlobal('fetch', (path: string, init?: RequestInit) =>
+      app.request(path.replace(/^\/api/, ''), init),
+    );
+    const client = new QueryClient();
+    try {
+      const data = await client.fetchQuery(goalsProgressReportQuery('2026-08'));
+      expect(data.month).toBe('2026-08');
+      expect(data.rows[0]?.progress?.savedCents).toBe(10000);
+      expect(data.report.month).toBe('2026-09');
+    } finally {
+      client.clear();
+      vi.unstubAllGlobals();
+      opened.close();
+    }
+  });
   it('retains literal category/account values and reads metadata at the server month end', async () => {
     const opened = createTestDatabase();
     const db = opened.db;

@@ -10,7 +10,8 @@ vi.mock('../shell/app-link', () => ({
 }));
 afterEach(cleanup);
 const data = {
-  stand: { today: '2026-09-26' },
+  stand: { today: '2026-09-26', payday: { day: '2026-09-30', daysToPayday: 4 } },
+  balance: { salary: { day: '2026-09-30', cents: 300_000 } },
   lead: { freeCents: 68_001 },
   monthResult: { earnedCents: 350_001, consumptionCents: 232_000, savedCents: 118_001 },
   budgetAnswer: {
@@ -32,10 +33,12 @@ const data = {
 it('answers three questions with exact money, source links, proportional bars and a labelled time marker', () => {
   const { container } = render(<AnswerCards data={data} onBudgetClick={() => {}} />);
   expect(screen.getAllByRole('heading', { level: 2 }).map((h) => h.textContent)).toEqual([
-    'Nettovermögen',
-    'Dieser Monat',
     'Frei bis Gehalt',
+    'Dieser Monat',
+    'Nettovermögen',
   ]);
+  expect(screen.getByText('Bis 30.09. · noch 4 Tage')).toBeTruthy();
+  expect(screen.getByText('Nächster erwarteter Geldeingang: 30.09. · 3.000,00 €')).toBeTruthy();
   expect(screen.getByText('35.000,01 €')).toBeTruthy();
   expect(screen.getByText('1.180,01 €')).toBeTruthy();
   expect(screen.getByText('680,01 €')).toBeTruthy();
@@ -62,6 +65,17 @@ it('answers three questions with exact money, source links, proportional bars an
   expect(container.querySelector<HTMLElement>('.heute-answer-marker')!.style.left).toBe(
     `${(26 / 30) * 100}%`,
   );
+});
+
+it('keeps the rule-based payday separate from a missing forecast receipt', () => {
+  render(
+    <AnswerCards
+      data={{ ...data, balance: { ...data.balance, salary: null } }}
+      onBudgetClick={() => {}}
+    />,
+  );
+  expect(screen.getByText('Bis 30.09. · noch 4 Tage')).toBeTruthy();
+  expect(screen.getByText('Kein Geldeingang im Prognosezeitraum erwartet.')).toBeTruthy();
 });
 
 it('keeps zero, overspending, missing valuation and missing goals explicit without invalid bars', () => {

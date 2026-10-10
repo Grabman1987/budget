@@ -158,11 +158,15 @@ test.describe('panel via route param', () => {
     await page.goto('/plan/monat');
     await expect(page.locator('main')).toBeVisible();
     if (!isPhone(testInfo)) {
-      await page.getByRole('combobox', { name: 'Suchen', exact: true }).focus();
+      // The search field now lives on the result page, opened from the header.
+      await page.locator('#global-search').click();
+      const field = page.getByRole('combobox', { name: 'Suchen', exact: true });
+      await expect(field).toBeFocused();
       await page.keyboard.type('n');
-      await expect(page.getByRole('combobox', { name: 'Suchen', exact: true })).toHaveValue('n');
+      await expect(field).toHaveValue('n');
       await expect(page).not.toHaveURL(/panel=/);
-      await page.getByRole('combobox', { name: 'Suchen', exact: true }).blur();
+      await field.press('Escape');
+      await expect(page).toHaveURL(/\/plan\/monat$/);
     }
     await page.keyboard.press('n');
     await expect(page).toHaveURL(/panel=buchung/);

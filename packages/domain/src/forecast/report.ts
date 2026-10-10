@@ -68,6 +68,8 @@ export type VerdictStatus = 'ok' | 'warn' | 'bad';
 
 export interface LiquidityVerdict {
   status: VerdictStatus;
+  /** Exact day of the existing six-month low that decides the verdict. */
+  day: string | null;
   /** Month of the deepest point that decides the verdict (`warn`: with buffer, `bad`: without). */
   month: string | null;
   /** Positive amount that is missing in that month; 0 for `ok`. */
@@ -204,11 +206,17 @@ const lowIn = (days: ReadonlyArray<ForecastDay>, within: number): LowPoint | nul
   lowPoint(days, within);
 
 function verdictOf(low: LowPoint | null, lowBuffer: LowPoint | null): LiquidityVerdict {
-  if (!low || !lowBuffer) return { status: 'ok', month: null, shortfallCents: 0 };
-  if (lowBuffer.cents >= 0) return { status: 'ok', month: null, shortfallCents: 0 };
+  if (!low || !lowBuffer) return { status: 'ok', day: null, month: null, shortfallCents: 0 };
+  if (lowBuffer.cents >= 0)
+    return { status: 'ok', day: lowBuffer.day, month: null, shortfallCents: 0 };
   if (low.cents >= 0)
-    return { status: 'warn', month: monthOf(lowBuffer.day), shortfallCents: -lowBuffer.cents };
-  return { status: 'bad', month: monthOf(low.day), shortfallCents: -low.cents };
+    return {
+      status: 'warn',
+      day: lowBuffer.day,
+      month: monthOf(lowBuffer.day),
+      shortfallCents: -lowBuffer.cents,
+    };
+  return { status: 'bad', day: low.day, month: monthOf(low.day), shortfallCents: -low.cents };
 }
 
 /** Month rows of the first `days` days; the first month starts with the start balance. */

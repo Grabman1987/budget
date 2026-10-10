@@ -106,7 +106,7 @@ export function PlanningAccuracyReportPage({
       ]}
     >
       <div className="sr accuracy-report" data-testid="planning-accuracy">
-        <ReportQuery query={query} what="Budgettreue">
+        <ReportQuery query={query} what={report.name}>
           {(data) => (
             <>
               <section className="sr-card sr-wide" aria-label="Trefferquote">

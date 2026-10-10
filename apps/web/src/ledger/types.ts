@@ -102,6 +102,7 @@ export interface ListedSplit {
 }
 
 export interface ListedBooking {
+  categorySpendingCents?: number;
   id: string;
   accountId: string;
   accountName: string;
@@ -128,6 +129,7 @@ export interface ListedBooking {
 }
 
 export interface BookingPage {
+  categorySpendingCents?: number;
   items: ListedBooking[];
   nextCursor: string | null;
   total: number;
@@ -139,6 +141,7 @@ export type BookingSort = 'date' | 'amount' | 'payee' | 'account';
 
 /** Filter of the booking list; the same fields are the URL parameters of Alle Buchungen. */
 export interface BookingFilter {
+  basis?: 'category-spending' | undefined;
   id?: string | undefined;
   accountId?: string | undefined;
   from?: string | undefined;

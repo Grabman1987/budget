@@ -8,6 +8,8 @@ async function openSearch(page: Page, mobile: boolean) {
   if (!mobile) await expect(page.locator('#global-search')).toBeVisible();
   if (mobile) await page.getByRole('button', { name: 'Suchen', exact: true }).click();
   else await page.keyboard.press('Control+k');
+  // The previous page can stay rendered a moment after its URL changed; wait for the search page.
+  await expect(page).toHaveURL(/\/suche/);
   const input = page.getByRole('combobox', { name: 'Suchen', exact: true });
   await expect(input).toBeFocused();
   return input;

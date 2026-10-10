@@ -68,19 +68,23 @@ export interface InboxPage extends InboxView {
 }
 export const INBOX_KEY = [...LEDGER_KEY, 'inbox'] as const;
 export const INBOX_PAGE_SIZE = 100;
-export const inboxQuery = () =>
+export const inboxQuery = (bankSource?: string) =>
   queryOptions({
-    queryKey: INBOX_KEY,
-    queryFn: () => request<InboxView>('GET', '/api/inbox'),
+    queryKey: bankSource ? [...INBOX_KEY, 'bank-source', bankSource] : INBOX_KEY,
+    queryFn: () =>
+      request<InboxView>(
+        'GET',
+        '/api/inbox' + (bankSource ? '?bankSource=' + encodeURIComponent(bankSource) : ''),
+      ),
     refetchInterval: 60_000,
   });
-export const inboxPagesQuery = (period: InboxPeriod = 'all') =>
+export const inboxPagesQuery = (period: InboxPeriod = 'all', bankSource?: string) =>
   infiniteQueryOptions({
-    queryKey: [...INBOX_KEY, 'pages', INBOX_PAGE_SIZE, period] as const,
+    queryKey: [...INBOX_KEY, 'pages', INBOX_PAGE_SIZE, period, bankSource ?? null] as const,
     queryFn: ({ pageParam }) =>
       request<InboxPage>(
         'GET',
-        `/api/inbox?limit=${INBOX_PAGE_SIZE}&offset=${pageParam}${period === 'all' ? '' : `&period=${period}`}`,
+        `/api/inbox?limit=${INBOX_PAGE_SIZE}&offset=${pageParam}${period === 'all' ? '' : `&period=${period}`}${bankSource ? `&bankSource=${encodeURIComponent(bankSource)}` : ''}`,
       ),
     initialPageParam: 0,
     getNextPageParam: (lastPage) => lastPage.next ?? undefined,

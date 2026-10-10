@@ -26,7 +26,11 @@ async function openCapture(page: Page, info: TestInfo): Promise<Locator> {
   // The shortcut only exists once the app has rendered.
   await expect(page.getByRole('heading', { level: 1 }).first()).toBeVisible();
   if (isPhone(info)) await page.getByRole('link', { name: 'Buchung erfassen' }).click();
-  else await page.keyboard.press('n');
+  else {
+    // The key is ignored while a previous dialog is still closing.
+    await expect(page.locator('dialog[open]')).toHaveCount(0);
+    await page.keyboard.press('n');
+  }
   await expect(page).toHaveURL(/panel=buchung/);
   const panel = page.getByRole('dialog', { name: 'Buchung erfassen' });
   await expect(panel).toBeVisible();

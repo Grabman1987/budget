@@ -202,26 +202,26 @@ test('source operations remain readable in the inbox without posting', async ({ 
       },
     ],
   });
+  const fixture = {
+    asOf: '2026-10-02',
+    count: 1,
+    entries: [
+      {
+        type: 'stored',
+        id: 'source-synthetic',
+        kind: 'import',
+        title: 'Quellbewegung: Umbuchung abgleichen',
+        detail,
+        refType: 'read_source',
+        refId: 'crypto',
+        urgent: false,
+        createdAt: '2026-10-02T12:00:00.000Z',
+      },
+    ],
+  };
   await page.route(
     (url) => url.pathname === '/api/inbox',
     (route) => {
-      const fixture = {
-        asOf: '2026-10-02',
-        count: 1,
-        entries: [
-          {
-            type: 'stored',
-            id: 'source-synthetic',
-            kind: 'import',
-            title: 'Quellbewegung: Umbuchung abgleichen',
-            detail,
-            refType: 'read_source',
-            refId: 'crypto',
-            urgent: false,
-            createdAt: '2026-10-02T12:00:00.000Z',
-          },
-        ],
-      };
       const url = new URL(route.request().url());
       const limitText = url.searchParams.get('limit');
       if (limitText === null) return route.fulfill({ json: fixture });
@@ -241,7 +241,15 @@ test('source operations remain readable in the inbox without posting', async ({ 
       });
     },
   );
+  await page.route(
+    (url) => url.pathname === '/api/inbox/source-synthetic',
+    (route) => route.fulfill({ json: { entry: fixture.entries[0] } }),
+  );
   await page.goto('/konten/posteingang');
+  // The queue lists the warning; the source facts are explained on its detail page (#320).
+  await expect(page.getByText('Quellbewegung: Umbuchung abgleichen')).toBeVisible();
+  await page.getByRole('link', { name: 'Warnung erklären' }).click();
+  await expect(page).toHaveURL(/\/konten\/posteingang\/source-synthetic/);
   await expect(page.getByText('Zugang: 12,34', { exact: false })).toBeVisible();
   await page.getByText('Quelldaten und Zuordnung anzeigen').click();
   await expect(page.locator('.source-inbox-detail pre')).toContainText('operation-synthetic');

@@ -228,6 +228,9 @@ function NewContact({ onDone, onClose }: { onDone: () => void; onClose: () => vo
         <h2 className="bk-kind-fixed">Neuer Kontakt</h2>
         <button type="button" className="icon-btn" aria-label="Schließen" onClick={onClose}>
           ×
+          <span className="control-label" aria-hidden="true">
+            Schließen
+          </span>
         </button>
       </div>
       <div className="bk-body contacts-form">

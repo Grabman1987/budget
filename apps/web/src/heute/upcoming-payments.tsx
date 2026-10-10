@@ -6,6 +6,7 @@ import { eur, shortDay } from '../ledger/format';
 import { EmptyNote } from '../ledger/states';
 import { AppLink } from '../shell/app-link';
 import type { Heute, HeuteOccurrence } from './api';
+import { readLiquiditySelection } from '../reports/liquidity-selection';
 
 export function Upcoming({
   items,
@@ -17,6 +18,7 @@ export function Upcoming({
   title: string;
 }) {
   useAmountPrivacy();
+  const selection = readLiquiditySelection();
   return (
     <section className="heute-section" aria-labelledby={id}>
       <SectionHead
@@ -43,7 +45,25 @@ export function Upcoming({
                 <div>
                   <strong>{item.name}</strong>
                   <span>
-                    {[item.accountName, item.contactName, item.categoryName]
+                    {item.accountId && item.accountName && (
+                      <AppLink
+                        className="heute-account-preview"
+                        to={`/konten/${encodeURIComponent(item.accountId)}`}
+                        search={{
+                          faellig: item.dueDate,
+                          vorschau: 'liquiditaet',
+                          horizon: selection.horizon,
+                          levers: selection.levers.join(','),
+                        }}
+                      >
+                        {item.accountName} · Kontovorschau
+                      </AppLink>
+                    )}
+                    {[
+                      !item.accountId ? item.accountName : null,
+                      item.contactName,
+                      item.categoryName,
+                    ]
                       .filter(Boolean)
                       .join(' · ') || 'Ohne weitere Angabe'}
                   </span>

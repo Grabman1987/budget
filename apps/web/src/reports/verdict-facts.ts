@@ -62,6 +62,21 @@ export function onePagerVerdictFacts(data: OnePagerData): VerdictFacts {
     estimated: Boolean(data.incomplete?.length),
     unavailable: data.beforeRecords,
     metric: { label: 'Sparbetrag', value: data.result.savedCents, unit: 'money', better: 'higher' },
+    ...(data.partial && data.asOf.slice(0, 7) === data.month
+      ? {
+          monthProgress: {
+            asOf: data.asOf,
+            pendingIncome: data.expectedIncomeProgress
+              ? {
+                  count: data.expectedIncomeProgress.pendingCount,
+                  cents: data.expectedIncomeProgress.pendingCents,
+                  from: data.expectedIncomeProgress.fromDueDate,
+                  through: data.expectedIncomeProgress.throughDueDate,
+                }
+              : null,
+          },
+        }
+      : {}),
     equivalents: data.top
       .slice(0, 1)
       .map((c) => ({ category: c.name, costCents: c.cents, unit: 'Monatsbeträgen' })),
@@ -75,15 +90,32 @@ export function onePagerVerdictFacts(data: OnePagerData): VerdictFacts {
   };
 }
 export function heuteVerdictFacts(data: Heute): VerdictFacts {
+  const salary = data.balance.salary;
+  const currentMonth = data.stand.today.slice(0, 7);
+  const pendingSalary =
+    salary && salary.day > data.stand.today && salary.day.slice(0, 7) === currentMonth
+      ? salary
+      : null;
   return {
     reportId: 'heute',
-    period: data.stand.today.slice(0, 7),
+    period: currentMonth,
     partial: true,
     metric: {
       label: 'Sparbetrag',
       value: data.monthResult.savedCents,
       unit: 'money',
       better: 'higher',
+    },
+    monthProgress: {
+      asOf: data.stand.today,
+      pendingIncome: pendingSalary
+        ? {
+            count: 1,
+            cents: pendingSalary.cents,
+            from: pendingSalary.day,
+            through: pendingSalary.day,
+          }
+        : null,
     },
   };
 }

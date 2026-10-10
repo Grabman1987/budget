@@ -8,6 +8,7 @@ import {
   StatusMark,
 } from '@budget/ui';
 import { STAGES, type RuleCode } from '@budget/domain';
+import { useLocation } from '@tanstack/react-router';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { ErrorNote, LoadingNote } from '../ledger/states';
@@ -100,6 +101,16 @@ export function RulesPage() {
   }, [qc]);
 
   const book = rules.data;
+  const { hash } = useLocation();
+  const focusedFinding = useRef('');
+  useEffect(() => {
+    if (!book || !hash || focusedFinding.current === hash) return;
+    const target = document.getElementById(hash);
+    if (!target || !(hash === 'rw-pending' || hash.startsWith('rule-result-'))) return;
+    focusedFinding.current = hash;
+    target.focus();
+    target.scrollIntoView?.({ block: 'center' });
+  }, [book, hash]);
   const current = check.data?.stage.stage;
   const active = book?.rules.filter((r) => shown[r.code] ?? r.enabled).length ?? 0;
   const open = book?.rules.find((r) => r.code === panel);
@@ -157,7 +168,7 @@ export function RulesPage() {
         const guidance = RULE_GUIDANCE[r.code as RuleCode];
         const needsAttention = enabled && r.latest?.status !== 'ok';
         return (
-          <li key={r.code} data-rule-code={r.code}>
+          <li key={r.code} id={`rule-result-${r.code}`} tabIndex={-1} data-rule-code={r.code}>
             <div className="rw-rule-copy">
               <strong>
                 <span className="rw-pos">{r.code}</span> {r.name}
@@ -249,7 +260,7 @@ export function RulesPage() {
                 if (group === 'pending' && rows.length === 0) return null;
                 return (
                   <section className="rw-group" key={group} aria-labelledby={`rw-${group}`}>
-                    <h3 id={`rw-${group}`}>
+                    <h3 id={`rw-${group}`} tabIndex={-1}>
                       {title} ({rows.length})
                     </h3>
                     {group === 'pending' && (
