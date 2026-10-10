@@ -1,8 +1,62 @@
 # Current status
 
-Updated 2026-10-08 against main `5193b0a930656be210e6b447bfd0e8de8c9846a0`. The live health revision was checked on the same date and matched this source exactly. [Acceptance matrix](ACCEPTANCE.md) separates connected implementation, deployment evidence and remaining acceptance. [SPEC](../SPEC.md) still defines scope and source precedence; [ROADMAP](ROADMAP.md) retains task-specific checklists.
+Updated 2026-10-10 against main `7571ac6f91f15bf0a603d7175f2df2f75c05f1aa`. The live health revision was read from `/health` on the same date and matched this source exactly (`7571ac6f91f15bf0a603d7175f2df2f75c05f1aa`). [Acceptance matrix](ACCEPTANCE.md) separates connected implementation, deployment evidence and remaining acceptance. [SPEC](../SPEC.md) still defines scope and source precedence; [ROADMAP](ROADMAP.md) retains task-specific checklists.
 
 ## Verified source and deployment
+
+- [Main CI](https://github.com/Grabman1987/budget/actions/runs/38028450958): all required jobs successful (unit, check-windows, restore-test, docker, three E2E shards and check).
+- [Deploy](https://github.com/Grabman1987/budget/actions/runs/38029185315): the Deploy step and the one-machine guard succeeded.
+- [Live health](https://budget-fg.fly.dev/health): `status: ok`, `revision: 7571ac6f91f15bf0a603d7175f2df2f75c05f1aa` on 2026-10-10. This observation identifies the running image; a green PR or a workflow with a skipped deploy does not.
+- Migration 0043 (`expected_payment.interval_weeks`, PR #419) was checked on the live database before and after deploy: 43 → 44 applied migrations, the new nullable column present, all existing expected payments unchanged (hash over all other columns identical) and occurrence counts unchanged.
+
+These are evidence for this source snapshot. They do not accept private balances, returns, physical-device workflows or restoration of a real backup. This documentation update itself is merged after the snapshot it describes.
+
+## Integrated since the 2026-10-08 snapshot
+
+Serial merge chain 2026-10-09/10 (each PR: main merged in, snapshot baselines regenerated where the UI changed, full CI green on the final head, merged, deploy verified via `/health`, issues closed only after the live check):
+
+| Area | PRs | Issues |
+| --- | --- | --- |
+| Expected income and forecast | #391, #392, #419 | #288 (skip one occurrence; replacement income is booked when it arrives), #387 (every N weeks) |
+| Data sources and bank sync | #396, #397, #401, #402, #403 | #359–#362, #400 |
+| Today and plan | #409, #408, #418 | #269, #270, #274–#276, #316, #317, #323–#329, #341 |
+| Liquidity, debts, portfolio | #405, #407, #410 | #283, #290–#292, #294, #296, #297–#301, #342, #343, #346 |
+| Reports and search | #404, #411, #414, #417 | #303–#308, #321, #322, #335–#340, #344, #345, #347, #348, #385 |
+| Inbox | #406 | #277, #278, #319, #320 |
+| Settings, auth, accounts | #413, #415, #395 | #311–#313, #330–#334 |
+| Booking dialog acceptance (synthetic, exact commit) | #412 | #309, #314, #315 |
+| Hygiene and dependencies | #388, #393, #394, #416, #420 | #350, #353, #363, #364 |
+
+Bank read connection (#361) is live: the nightly read on 2026-10-10 linked most fetched lines to existing bookings (±4 days); the remaining lines are open owner decisions in the inbox under the policy "count only after confirmation". No line is posted automatically.
+
+## Gates and owner evidence
+
+Everything below remains open and needs the owner; nothing here is promoted to a sign-off by this update.
+
+| Gate / item | Current acceptance status | Next evidence |
+| --- | --- | --- |
+| 1: design and device acceptance | Open | #310 iPhone timing (Heute answer ≤ 5 s, booking Save reachable ≤ 10 s, no real booking); physical screen-reader check of the booking dialog |
+| 2: YNAB account/month equality | Open | #354 one selected account/month comparison |
+| 3: PP holdings and returns | Open | #355 holdings, then #356 identical-period/method returns |
+| 4: parallel month-end without differences | Open | #357 month-end evidence sheet; only accepted Gate 4 establishes cut-over |
+| Current balance | Open | #358 owner confirms one current bank balance against the app |
+
+Restore drill #351 was closed by owner decision on 2026-10-09 (CI restore test on every run, continuous Litestream replication, daily volume snapshots and nightly encrypted copies; private age key confirmed safe by the owner). No real backup was restored as part of this update.
+
+## Ordered next work
+
+1. Owner acceptances above (#310, #354–#358), one card per session.
+2. Payroll replacement month: the 15.02.2027 salary occurrence is struck in the forecast by the owner once it enters the three-month planning horizon; the replacement benefit is booked when it is paid.
+3. Last step of the migration plan: missing platform trades/fees (Bitpanda CSV, Trade Republic, Flatex, P2P) with owner logins.
+
+## Previous snapshot — 2026-10-08
+
+<details>
+<summary>Status as recorded on 2026-10-08 (main 5193b0a9), retained unchanged apart from heading levels</summary>
+
+Updated 2026-10-08 against main `5193b0a930656be210e6b447bfd0e8de8c9846a0`. The live health revision was checked on the same date and matched this source exactly. [Acceptance matrix](ACCEPTANCE.md) separates connected implementation, deployment evidence and remaining acceptance. [SPEC](../SPEC.md) still defines scope and source precedence; [ROADMAP](ROADMAP.md) retains task-specific checklists.
+
+### Verified source and deployment
 
 - [Main CI](https://github.com/Grabman1987/budget/actions/runs/37579643500): eight successful jobs (unit, check-windows, restore-test, docker, three E2E shards and check).
 - [Deploy](https://github.com/Grabman1987/budget/actions/runs/37580927198): both the actual Deploy step and the one-machine guard succeeded.
@@ -12,7 +66,7 @@ These are evidence for this source snapshot. They do not accept private balances
 
 Dependency audit snapshot (2026-10-08, unchanged lockfile): `npm audit` reports seven affected package entries (four moderate, one high, two critical). The two critical entries are the same development-tool chain, `concurrently` → `shell-quote` ([advisory](https://github.com/advisories/GHSA-pqg4-j6r4-53mv)); `npm audit --omit=dev` retains one high `source-map-js` entry ([advisory](https://github.com/advisories/GHSA-68fv-2mgg-jv7q)). Counts are package/advisory reports, not independently demonstrated production exploits. Review the existing dependency PRs and remaining lockfile/runtime exposure separately; no forced dependency update is part of this documentation change.
 
-## Connected implementation and remaining acceptance
+### Connected implementation and remaining acceptance
 
 | Area | Present in the verified source | Remaining work / acceptance |
 | --- | --- | --- |
@@ -30,7 +84,7 @@ Dependency audit snapshot (2026-10-08, unchanged lockfile): `npm audit` reports 
 
 Source links and concrete completion evidence are in [ACCEPTANCE](ACCEPTANCE.md). The older [FEATURES](FEATURES.md), [TASKS](TASKS.md), and individual ROADMAP delivery notes include historical claims such as missing PRs, placeholder pages or missing report bodies. Read those against this source snapshot and current PR state; preserve their still-open private/owner criteria.
 
-## Gates and owner evidence
+### Gates and owner evidence
 
 | Gate | Current acceptance status | Next evidence |
 | --- | --- | --- |
@@ -41,7 +95,7 @@ Source links and concrete completion evidence are in [ACCEPTANCE](ACCEPTANCE.md)
 
 Owner source setup is split into #359–#362; current balance confirmation is #358. No secrets or private ledger values belong in these acceptance records. Historical observations below are not silently promoted into fresh sign-offs.
 
-## Ordered next work
+### Ordered next work
 
 The [handoff #365](https://github.com/Grabman1987/budget/issues/365) and [audit register #263](https://github.com/Grabman1987/budget/issues/263) are the current issue inventory. The 2026-10-08 snapshot has 101 open issues and 16 open PRs. Eight PRs have all eight checks successful, five have failed checks and three have merge conflicts with no checks returned at their current heads. Re-read heads and checks before acting.
 
@@ -52,6 +106,8 @@ The [handoff #365](https://github.com/Grabman1987/budget/issues/365) and [audit 
 5. Finish real source, device, recovery/restore and financial gate evidence. Only accepted Gate 4 establishes final cut-over.
 
 Closed reference issues and archived aggregate cards mean decomposition, not implementation completion. Board `Live` cards include historical drafts and do not yield a completion percentage. Priority P0/P1/P2 in the newer issue titles is distinct from implementation packages P1–P6.
+
+</details>
 
 ## Historical status and evidence — 2026-10-01 baseline
 
