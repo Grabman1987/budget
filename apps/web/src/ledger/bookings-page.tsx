@@ -258,11 +258,13 @@ export function BookingsPage() {
           {first && (
             <p className="ksum" aria-live="polite">
               {pluralBookings(first.total)} ·{' '}
-              {filteredAccount
-                ? `Summe ${valuedMovement(first.sumCents, filteredAccount.currency, first.sumEurCents)}`
-                : onlyEurAccounts
-                  ? `Summe ${eur(first.sumCents, { sign: true })}`
-                  : 'Summe: einzelnes Konto auswählen'}
+              {first.categorySpendingCents !== undefined
+                ? `Kategorie netto ${eur(first.categorySpendingCents)} (Ausgaben − Erstattungen)`
+                : filteredAccount
+                  ? `Summe ${valuedMovement(first.sumCents, filteredAccount.currency, first.sumEurCents)}`
+                  : onlyEurAccounts
+                    ? `Summe ${eur(first.sumCents, { sign: true })}`
+                    : 'Summe: einzelnes Konto auswählen'}
               {filteredAccount?.currency !== 'EUR' && filteredAccount && (
                 <> · EUR je Buchungstag, Kurse in der Tabelle</>
               )}

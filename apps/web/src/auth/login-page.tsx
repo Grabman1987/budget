@@ -51,6 +51,12 @@ export function LoginPage({ onAuthenticated }: LoginPageProps) {
         <Button disabled={busy} onClick={() => void passkeyLogin()}>
           Mit Passkey anmelden
         </Button>
+        {busy && !recovery && (
+          <p className="auth-lead" role="status">
+            Warte auf den Passkey-Dialog. Wenn er ausbleibt, kannst du nach 60 Sekunden erneut
+            versuchen oder einen Wiederherstellungscode verwenden.
+          </p>
+        )}
         {!recovery && error && (
           <p className="field-error" role="alert">
             {error}

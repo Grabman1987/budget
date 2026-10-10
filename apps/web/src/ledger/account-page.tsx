@@ -1,3 +1,4 @@
+import { AccountFreshness } from './account-freshness';
 import { BankBalance } from './bank-balance';
 import { useAmountPrivacy, Button, Segmented, Select, Field, cx } from '@budget/ui';
 import {
@@ -62,8 +63,32 @@ export function AccountPage({ id }: { id: string }) {
   useAmountPrivacy();
   const accounts = useQuery(accountsQuery());
   const account = accounts.data?.accounts.find((a) => a.id === id);
+  const bankBalance =
+    accounts.isError || !account || account.closedAt ? undefined : account.bankBalance;
   return (
-    <PageFrame meta={ACCOUNT_PAGE} title={account?.name ?? 'Konto'}>
+    <PageFrame
+      meta={ACCOUNT_PAGE}
+      title={account?.name ?? 'Konto'}
+      accountFields={[
+        {
+          label: 'Bankstand vom',
+          value: bankBalance?.date ? longDay(bankBalance.date) : 'Unbekannt',
+          labelOnMobile: true,
+        },
+        {
+          label: 'Bank-Sync',
+          value:
+            bankBalance === null
+              ? 'Nicht eingerichtet'
+              : bankBalance
+                ? bankBalance.fetchedAt
+                  ? 'Abruf gespeichert'
+                  : 'Abruf unbekannt'
+                : 'Unbekannt',
+          labelOnMobile: true,
+        },
+      ]}
+    >
       <section className="kacct">
         <Link className="kback" to="/konten">
           <ChevronLeft className="icon icon-sm" size={16} strokeWidth={1.75} aria-hidden="true" />
@@ -225,12 +250,10 @@ function AccountBody({ account }: { account: AccountRow }) {
             <p className="kmeta">Bewegung · EUR je Buchungstag, Kurse in der Tabelle</p>
           )}
         </div>
-        <div className="fig">
-          <small>zuletzt geprüft</small>
-          <strong className="muted">
-            {account.lastReconciledOn ? longDay(account.lastReconciledOn) : '—'}
-          </strong>
-        </div>
+        <AccountFreshness
+          lastReconciledOn={account.lastReconciledOn}
+          bankBalance={account.closedAt ? undefined : account.bankBalance}
+        />
       </div>
       <BankBalance account={account} />
       {search.faellig && (

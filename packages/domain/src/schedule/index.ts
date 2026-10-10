@@ -2,6 +2,7 @@ export { easterSunday, isBusinessDayAT, isPublicHolidayAT } from './holidays';
 export {
   dueDates,
   nextRepeatDate,
+  weekInterval,
   shiftToBusinessDay,
   type DateShift,
   type Rhythm,

@@ -558,6 +558,13 @@ const reportRoute = createRoute({
   getParentRoute: () => shellRoute,
   path: '/reports/$reportId',
   validateSearch: (search: Record<string, unknown>) => ({
+    kategorien:
+      Array.isArray(search['kategorien']) && search['kategorien'].length <= 500
+        ? search['kategorien'].filter(
+            (id): id is string => typeof id === 'string' && id.length > 0 && id.length <= 64,
+          )
+        : undefined,
+    vorjahr: search['vorjahr'] === true || search['vorjahr'] === 'true' ? true : undefined,
     gehaltszettel:
       typeof search['gehaltszettel'] === 'string' && search['gehaltszettel'].length <= 64
         ? search['gehaltszettel']

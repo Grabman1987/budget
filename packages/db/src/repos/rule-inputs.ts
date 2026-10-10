@@ -411,7 +411,12 @@ export function scheduled(
 function unitAmount(f: RuleFacts, p: PaymentRow, day: string): number {
   // Same valuation as report 2.3: a payment whose first due date is ahead counts from setup.
   const v = contractVersionOn(
-    { rhythm: p.rhythm as Rhythm, startDate: p.startDate, endDate: p.endDate },
+    {
+      rhythm: p.rhythm as Rhythm,
+      intervalWeeks: p.intervalWeeks,
+      startDate: p.startDate,
+      endDate: p.endDate,
+    },
     f.versions.get(p.id) ?? [],
     day,
   );
@@ -422,9 +427,9 @@ function unitAmount(f: RuleFacts, p: PaymentRow, day: string): number {
 }
 
 const monthlyAmount = (f: RuleFacts, p: PaymentRow, day: string): number =>
-  monthlyEquivalent(p.rhythm as Rhythm, unitAmount(f, p, day));
+  monthlyEquivalent(p.rhythm as Rhythm, unitAmount(f, p, day), p.intervalWeeks);
 const yearlyAmount = (f: RuleFacts, p: PaymentRow, day: string): number =>
-  yearlyEquivalent(p.rhythm as Rhythm, unitAmount(f, p, day));
+  yearlyEquivalent(p.rhythm as Rhythm, unitAmount(f, p, day), p.intervalWeeks);
 
 // ---- the inputs ----
 
