@@ -636,6 +636,13 @@ Order: P2a → P2b and P2c in parallel → P2d (parser can start right after P1f
 ### P2b — Capture dialog (`docs/prompts/P2b.md`)
 - [x] Buchung, Split, Umbuchung (Konto → Konto) on desktop panel and phone sheet; amount field with arithmetic; payee autocomplete with default category; keyboard flow; undo toast (PRs `p2b-capture`, `p2b-capture-form`, `p2b-capture-split`)
 
+### Booking capture and account register polish (#425, owner 2026-10-11)
+- [x] Note always visible in a growing one-line field; split button/editor directly available.
+- [x] Desktop account register note column with truncation/full hover text; mobile payee note retained.
+- [x] Overview sparkline accessibility label matches its 90-day range.
+- [x] Icon-only status checkmark beside date, accessible state/tooltip and pending defaults including cash.
+- [ ] Required CI and owner desktop/phone design acceptance; local targeted evidence in [delivery notes](evidence/capture-note-split/PR.md).
+
 ### P2c — Categories and Plan › Monat (`docs/prompts/P2c.md`)
 - [x] Einstellungen › Kategorien: groups, classes, kinds, stages, targets, hide, merge (with re-assignment of bookings), drag sort, split-off, monochrome emoji icons (PR `p2c-categories-ui`)
 - [x] Budget API: month summary, assign, move, cover overspending through `budgetMonths` (cardRule `'ynab'`); categories API incl. merge and split-off; property tests stock = flow and merge keeps totals (PR `p2c-categories`)
@@ -678,6 +685,8 @@ Expected payments, contacts with receivables, savings goals, rule set registered
 - [x] P3.6 `p3-expected-ui`: Plan › Erwartet (next 90 days by week, Verträge und Abos / Alle parts list with monthly and yearly sums and original currency, payment panel with fields, versions, occurrences, link/unlink/missed), "Als erwartete Zahlung anlegen" on a booking, Einnahmen panel on Plan › Monat (`/api/expected/income`)
 
 ### P3 — Contact statements and settlement (owner decisions 2026-10-01)
+
+- [x] #427: audited contact rename with active-name validation and undo/redo; Plan month adds categories at group ends and groups at the bottom through the existing forms. Empty groups remain usable in single/multiple month views. [Delivery evidence](evidence/contact-rename-plan-plus/README.md); CI and deployed owner acceptance remain pending.
 
 - [x] Pure actual contact statement and oldest-outlay-first repayment allocation, editable before saving; expected occurrences excluded
 - [x] Audited atomic settlement API with persisted excess contact credit, whole-action undo/redo and dependency checks (including forced undo)

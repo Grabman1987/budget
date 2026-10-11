@@ -1625,3 +1625,43 @@
     padding-block: 8px;
   }
 }
+
+/* Capture controls and the account-only desktop note column. */
+.bk-note {
+  min-height: 44px;
+  padding-block: 10px;
+  resize: none;
+  overflow: hidden;
+}
+.bk-status {
+  flex: none;
+  width: 44px;
+  height: 44px;
+}
+.bk-status[aria-pressed='true'] {
+  color: var(--good);
+}
+.bk-status[aria-pressed='false'] {
+  color: var(--ink-3);
+}
+.ksplit-start {
+  min-height: 44px;
+}
+.kx-note span {
+  display: block;
+  max-width: 24ch;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.kx-mobile-note {
+  display: none;
+}
+@media (max-width: 767px) {
+  .kx-note {
+    display: none !important;
+  }
+  .kx-mobile-note {
+    display: block;
+  }
+}

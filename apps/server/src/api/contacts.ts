@@ -5,6 +5,7 @@ import {
   schema,
   settleContact,
   writeOffContact,
+  updateEntity,
   type Db,
 } from '@budget/db';
 import { randomUUID } from 'node:crypto';
@@ -67,6 +68,12 @@ export function contactRoutes(db: Db, today: () => string): Hono {
   app.get('/:id', (c) => {
     const q = readQuery(c, query);
     return c.json(getContactStatement(db, c.req.param('id'), q.asOf ?? today()));
+  });
+  app.patch('/:id', async (c) => {
+    const input = await readBody(c, z.object({ name: z.string().trim().min(1).max(200) }).strict());
+    const ctx = audit();
+    const row = updateEntity(db, schema.contact, c.req.param('id'), input, ctx);
+    return c.json({ contact: row, groupId: ctx.groupId });
   });
   app.post('/:id/settlements', async (c) => {
     const input = await readBody(c, receipt);

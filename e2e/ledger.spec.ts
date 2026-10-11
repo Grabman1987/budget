@@ -214,7 +214,7 @@ test('Kontostand prüfen: doppelt, Ausgleich, geprüft sperrt, undo', async ({ p
     await panel.getByLabel('Empfänger').fill(payee);
     await pickCategory(panel, 'Essen');
     // A new booking starts vorgemerkt; only confirmed ones can be checked against the bank.
-    await panel.getByRole('button', { name: 'bestätigt', exact: true }).click();
+    await panel.getByRole('button', { name: 'Vorgemerkt', exact: true }).click();
     await panel.getByRole('button', { name: 'Speichern', exact: true }).click();
     await expect(page.getByRole('row', { name: new RegExp(payee) }).first()).toBeVisible();
   };

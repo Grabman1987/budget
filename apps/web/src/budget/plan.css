@@ -1562,3 +1562,18 @@
   align-items: center;
   color: var(--red);
 }
+.plan-create {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 12px;
+  border-top: 1px solid var(--rule);
+}
+.plan-add {
+  min-width: 44px;
+  min-height: 44px;
+}
+.plan .plan-add-row td {
+  grid-column: 1 / -1;
+  padding: 0 12px;
+}
