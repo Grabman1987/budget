@@ -27,6 +27,7 @@ import {
   longDay,
   monthName,
   pluralBookings,
+  nativeCurrency,
   valuedCurrency,
   valuedCurrencyParts,
   valuedMovement,
@@ -43,6 +44,8 @@ import { displaySettingsQuery } from '../pages/future-preview-setting';
 import { PeriodQuickSelect } from '../reports/period-quick-select';
 import { accountsQuery, bookingsInfiniteQuery } from './queries';
 import { ReconcilePanel } from './reconcile-panel';
+import { ManualValue } from './manual-value';
+import { SettingsFormDialog } from '../pages/settings-form-dialog';
 import { EmptyNote, ErrorNote, LoadingNote } from './states';
 import type { AccountRow } from './types';
 import { useLiquiditySelection } from '../reports/liquidity-selection';
@@ -185,6 +188,8 @@ function AccountBody({ account }: { account: AccountRow }) {
   );
   const [panel, setPanel] = useState<BookingPanelState>(null);
   const [checking, setChecking] = useState(false);
+  const [updatingValue, setUpdatingValue] = useState(false);
+  const manual = account.type === 'p2p' || account.type === 'other_asset';
   const value = accountValueEur(account);
   const pending = valuedCurrencyParts(
     account.unclearedCents,
@@ -211,6 +216,11 @@ function AccountBody({ account }: { account: AccountRow }) {
               Kontostand prüfen
             </Button>
           )}
+          {manual && !account.closedAt && (
+            <Button variant="ghost" onClick={() => setUpdatingValue(true)}>
+              Wert aktualisieren
+            </Button>
+          )}
           {!account.closedAt && (
             <Button onClick={() => setPanel({ mode: 'create', accountId: account.id })}>
               <Plus size={16} strokeWidth={1.75} aria-hidden="true" />
@@ -219,6 +229,14 @@ function AccountBody({ account }: { account: AccountRow }) {
           )}
         </div>
       </div>
+      {manual && !account.hasHoldings && (
+        <p className="kmeta">
+          Letzter Wert:{' '}
+          {nativeCurrency(account.manualValueCents ?? account.balanceCents, account.currency)}
+          {' · '}
+          {account.lastValuedOn ? longDay(account.lastValuedOn) : 'noch nicht erfasst'}
+        </p>
+      )}
       <div className="kfigs">
         <div className="fig">
           <small>{account.currency === 'EUR' ? 'Saldo' : `Kontowert · EUR`}</small>
@@ -443,6 +461,30 @@ function AccountBody({ account }: { account: AccountRow }) {
       )}
       <BookingPanel state={panel} onClose={() => setPanel(null)} />
       <ReconcilePanel account={account} open={checking} onClose={() => setChecking(false)} />
+      {manual && (
+        <SettingsFormDialog
+          open={updatingValue}
+          onClose={() => setUpdatingValue(false)}
+          title={`Wert aktualisieren · ${account.name}`}
+        >
+          <ManualValue
+            accountId={account.id}
+            end={lastDayOfMonth(month)}
+            openingDate={account.openingDate}
+            lastReconciledOn={account.lastReconciledOn}
+            valueCents={account.manualValueCents ?? account.balanceCents}
+            currency={account.currency}
+            blockedReason={
+              account.hasHoldings
+                ? 'Dieses Konto wird über seine Produkte bewertet.'
+                : account.closedAt
+                  ? 'Dieses Konto ist geschlossen.'
+                  : undefined
+            }
+            onDone={() => setUpdatingValue(false)}
+          />
+        </SettingsFormDialog>
+      )}
     </>
   );
 }
