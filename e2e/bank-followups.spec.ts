@@ -218,7 +218,7 @@ test('bank merge, mirror transfer, selected pair and balance lock with undo', as
     fullPage: true,
   });
   await page.getByRole('button', { name: 'Abgleich sperren bis heute' }).click();
-  await expect(page.getByText('Abgleich bis heute gesperrt.', { exact: true })).toBeVisible();
+  await expect(page.getByText('Abgleich bis 02.10.2026 gesperrt.', { exact: true })).toBeVisible();
   await expect(page.getByText('Abgeglichen bis: 02.10.2026', { exact: false })).toBeVisible();
   const refused = await request.patch(origin + '/api/bookings/' + manual, {
     headers: { origin },

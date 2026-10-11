@@ -3,7 +3,12 @@ import { and, asc, eq, gte, inArray, isNull, lte, sql } from 'drizzle-orm';
 import { account, accountReconciliation, booking, payee, SYSTEM_PAYEE_IDS } from '../schema';
 import { insertTracked, updateTracked, withGroup, type AuditContext } from './audit';
 import { createBooking, deleteBooking } from './bookings';
-import { BookingInvariantError, ConflictError, EntityNotFoundError } from './errors';
+import {
+  BookingInvariantError,
+  ConflictError,
+  EntityNotFoundError,
+  ReconciledLockedError,
+} from './errors';
 import { runInTransaction, type Executor } from './types';
 
 /**
@@ -221,6 +226,14 @@ export interface ReconcileInput {
   confirmBookingIds?: string[];
   /** Book the remaining difference as Ausgleich (payee "Korrektur Kontoprüfung"). */
   adjust?: boolean;
+  /** Day of the Ausgleich (account opening to check day); defaults to the check day. */
+  adjustDate?: string;
+  categoryId?: string;
+  /**
+   * Allow `adjustDate` on or before the newest stored check of the account. Without it that is
+   * `ReconciledLockedError`, because the Ausgleich would change a period the bank already confirmed.
+   */
+  unlockReconciled?: boolean;
   note?: string | null;
   /** `YYYY-MM-DD`, Europe/Vienna by default; the check day must not be later. */
   today?: string;
@@ -252,6 +265,19 @@ export function reconcileAccount(
     if (!isDay(input.date) || input.date < acct.openingDate)
       throw new BookingInvariantError(`Date "${input.date}" is not valid for this account`);
     assertNotFuture(input.date, input.today ?? todayInVienna());
+    const adjustDate = input.adjustDate ?? input.date;
+    if (!isDay(adjustDate) || adjustDate < acct.openingDate || adjustDate > input.date)
+      throw new BookingInvariantError(
+        'Adjustment date must be between account opening and statement date',
+      );
+    if (input.adjustDate !== undefined && input.unlockReconciled !== true) {
+      const newest = listReconciliations(tx, acct.id)[0]?.date;
+      if (newest !== undefined && adjustDate <= newest)
+        throw new ReconciledLockedError(
+          [],
+          `Der Ausgleichstag liegt in einem bereits geprüften Zeitraum (bis ${newest}).`,
+        );
+    }
     const own = (id: string) => {
       const row = tx
         .select()
@@ -286,13 +312,13 @@ export function reconcileAccount(
         tx,
         {
           accountId: acct.id,
-          date: input.date,
+          date: adjustDate,
           amountCents: difference,
           payeeId: SYSTEM_PAYEE_IDS.reconciliation_adjustment.id,
           memo: 'Differenz zum Bank-Saldo',
           status: 'confirmed',
           source: 'system',
-          splits: [{ amountCents: difference }],
+          splits: [{ amountCents: difference, categoryId: input.categoryId ?? null }],
         },
         grouped,
       );
