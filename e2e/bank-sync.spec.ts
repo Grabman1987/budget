@@ -352,6 +352,7 @@ test('bank inbox suggestion requires an explicit posting decision', async ({ pag
   await expect(page.getByText('Bankumsatz prüfen', { exact: true })).toBeVisible();
   expect(confirmed).toBe(false);
   await expect(page.getByRole('button', { name: 'Nicht übernehmen', exact: true })).toBeVisible();
+  await page.locator('.bank-review summary').click();
   await page.getByRole('button', { name: 'Als Buchung bestätigen' }).click();
   await expect(page.getByText('Posteingang leer.', { exact: false })).toBeVisible();
   expect(confirmed).toBe(true);

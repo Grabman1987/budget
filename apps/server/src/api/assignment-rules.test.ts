@@ -10,6 +10,7 @@ import {
   undo,
   mergePayees,
   mergeCategories,
+  readAssignmentCandidate,
   type OpenedDatabase,
 } from '@budget/db';
 import { type AssignmentRuleInput } from '@budget/domain';
@@ -101,6 +102,163 @@ function candidate(
   return id;
 }
 describe('assignment API and owner confirmation', () => {
+  it('bulk merges five prepared rows through the existing path and restores their references with one undo', async () => {
+    const pairs = Array.from({ length: 5 }, (_, index) => {
+      const amountCents = -1201 - index;
+      const id = candidate('Shop A', 'giro', amountCents);
+      const bookingId = createBooking(
+        opened.db,
+        {
+          accountId: 'giro',
+          date: '2026-10-01',
+          amountCents,
+          memo: 'Owner note',
+          status: 'pending',
+          splits: [{ amountCents, categoryId: 'essen' }],
+        },
+        { actor: 'test' },
+      );
+      return { id, bookingId };
+    });
+    const rows = pairs.map(({ id, bookingId }) => ({
+      type: 'candidate',
+      id,
+      suggestion: {
+        action: 'merge',
+        bookingId,
+        candidateRevision: readAssignmentCandidate(opened.db, id).candidateRevision,
+      },
+    }));
+    const result = await call('POST', '/bank-sync/inbox/bulk', { action: 'confirm', rows });
+    expect(result.status).toBe(200);
+    expect(result.body).toMatchObject({ changedCount: 5, skippedCount: 0 });
+    for (const { bookingId } of pairs)
+      expect(getBooking(opened.db, bookingId)).toMatchObject({
+        date: today,
+        memo: 'Owner note',
+        source: 'bank',
+        status: 'confirmed',
+        splits: [{ categoryId: 'essen' }],
+      });
+    undo(opened.db, { groupId: result.body.groupId }, { actor: 'test' });
+    for (const { bookingId } of pairs)
+      expect(getBooking(opened.db, bookingId)).toMatchObject({
+        date: '2026-10-01',
+        memo: 'Owner note',
+        source: 'manual',
+        importKey: null,
+        status: 'pending',
+      });
+    expect(
+      opened.db
+        .select()
+        .from(schema.inboxItem)
+        .all()
+        .every((item) => item.resolvedAt === null),
+    ).toBe(true);
+  });
+  it('bulk confirms five prepared candidates with one undo group and skips unprepared rows', async () => {
+    await call('POST', '/assignment-rules', { ...input, automatic: true });
+    const ids = Array.from({ length: 5 }, () => candidate());
+    const rows = ids.map((id) => {
+      const review = readAssignmentCandidate(opened.db, id);
+      return {
+        type: 'candidate',
+        id,
+        suggestion: {
+          action: 'rule',
+          ruleId: review.suggestions[0]!.id,
+          revision: review.suggestions[0]!.revision,
+          candidateRevision: review.candidateRevision,
+        },
+      };
+    });
+    const skipped = candidate('Other shop');
+    const result = await call('POST', '/bank-sync/inbox/bulk', {
+      action: 'confirm',
+      rows: [...rows, { type: 'candidate', id: skipped }],
+    });
+    expect(result.status).toBe(200);
+    expect(result.body).toMatchObject({ changedCount: 5, skippedCount: 1 });
+    const booked = opened.db.select().from(schema.booking).all();
+    expect(booked).toHaveLength(5);
+    expect(booked.every((b) => b.status === 'confirmed' && b.amountCents === -1201)).toBe(true);
+    undo(opened.db, { groupId: result.body.groupId }, { actor: 'test' });
+    expect(
+      opened.db
+        .select()
+        .from(schema.inboxItem)
+        .all()
+        .every((i) => i.resolvedAt === null),
+    ).toBe(true);
+    expect(booked.every((b) => !getBooking(opened.db, b.id))).toBe(true);
+  });
+  it('bulk dismissal restores all five candidates with one undo and rolls back stale confirmation', async () => {
+    const ids = Array.from({ length: 5 }, () => candidate());
+    const result = await call('POST', '/bank-sync/inbox/bulk', {
+      action: 'dismiss',
+      rows: ids.map((id) => ({ type: 'candidate', id })),
+    });
+    expect(result.status).toBe(200);
+    expect(result.body.changedCount).toBe(5);
+    undo(opened.db, { groupId: result.body.groupId }, { actor: 'test' });
+    expect(
+      opened.db
+        .select()
+        .from(schema.inboxItem)
+        .all()
+        .every((i) => i.resolvedAt === null),
+    ).toBe(true);
+    await call('POST', '/assignment-rules', { ...input, automatic: true });
+    const rows = ids.slice(0, 2).map((id) => {
+      const review = readAssignmentCandidate(opened.db, id);
+      return {
+        type: 'candidate',
+        id,
+        suggestion: {
+          action: 'rule',
+          ruleId: review.suggestions[0]!.id,
+          revision: review.suggestions[0]!.revision,
+          candidateRevision: review.candidateRevision,
+        },
+      };
+    });
+    rows[1]!.suggestion.candidateRevision = '0'.repeat(64);
+    expect((await call('POST', '/bank-sync/inbox/bulk', { action: 'confirm', rows })).status).toBe(
+      409,
+    );
+    expect(opened.db.select().from(schema.booking).all()).toHaveLength(0);
+    expect(
+      opened.db
+        .select()
+        .from(schema.inboxItem)
+        .all()
+        .every((i) => i.resolvedAt === null),
+    ).toBe(true);
+    expect(
+      (await call('POST', '/bank-sync/inbox/bulk', { action: 'dismiss', rows: [rows[0], rows[0]] }))
+        .status,
+    ).toBe(400);
+    expect(
+      (
+        await call(
+          'POST',
+          '/bank-sync/inbox/bulk',
+          { action: 'dismiss', rows: [{ type: 'candidate', id: ids[0] }] },
+          'https://other.example',
+        )
+      ).status,
+    ).toBe(403);
+    authenticated = false;
+    expect(
+      (
+        await call('POST', '/bank-sync/inbox/bulk', {
+          action: 'dismiss',
+          rows: [{ type: 'candidate', id: ids[0] }],
+        })
+      ).status,
+    ).toBe(401);
+  });
   it('does not replace a learned category when only confirming an unassigned booking', async () => {
     const make = () =>
       createBooking(

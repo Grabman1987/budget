@@ -1,7 +1,7 @@
 import type { assignmentSuggestions } from '@budget/db';
 import { Button, useToast } from '@budget/ui';
 import { useQuery } from '@tanstack/react-query';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { request } from '../api/http';
 import { useBudgetWrite } from '../budget/use-category-writes';
 import { errorText } from '../ledger/labels';
@@ -83,15 +83,21 @@ export function AssignmentSummary({
 export function BookingAssignmentReview({
   id,
   onApplied,
+  onPrepared,
 }: {
   id: string;
   onApplied?: ((canLearn: boolean) => void) | undefined;
+  onPrepared?:
+    ((rule: ReturnType<typeof assignmentSuggestions>[number] | undefined) => void) | undefined;
 }) {
   const query = useQuery(bookingAssignmentQuery(id));
   const [rejected, setRejected] = useState(false),
     [busy, setBusy] = useState(false);
   const write = useBudgetWrite();
   const rule = query.data?.suggestions[0];
+  useEffect(() => {
+    onPrepared?.(!rejected && !query.isError && !rule?.unavailable ? rule : undefined);
+  }, [onPrepared, rejected, query.isError, rule]);
   if (!rule || rejected) return null;
   return (
     <section className="assignment-review" aria-label="Zuordnungsvorschlag">

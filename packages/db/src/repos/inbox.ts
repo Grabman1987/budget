@@ -44,6 +44,16 @@ export interface InboxStored {
   refId: string | null;
   urgent: boolean;
   createdAt: string;
+  bankCandidate?:
+    | {
+        date: string;
+        amountCents: number;
+        currency: string;
+        memo: string;
+        payeeName: string | null;
+        accountName: string;
+      }
+    | undefined;
 }
 export interface InboxEnvelope {
   type: 'envelope';
@@ -129,6 +139,25 @@ export function readInbox(db: Executor, today: string, bankSource?: string) {
   return runInTransaction(db, (tx) => {
     const bookings = uncategorizedBookings(tx, today);
     const mappings = readSourceMappings(tx);
+    // One read for compact bank rows. Matching and assignment checks stay on demand.
+    const candidates = new Map(
+      tx
+        .select({
+          id: bankSyncCandidate.id,
+          date: bankSyncCandidate.date,
+          amountCents: bankSyncCandidate.amountCents,
+          currency: bankSyncCandidate.currency,
+          memo: bankSyncCandidate.memo,
+          payeeName: bankSyncCandidate.rawPayee,
+          accountName: account.name,
+        })
+        .from(bankSyncCandidate)
+        .innerJoin(account, eq(account.id, bankSyncCandidate.accountId))
+        .innerJoin(inboxItem, eq(inboxItem.id, bankSyncCandidate.id))
+        .where(isNull(inboxItem.resolvedAt))
+        .all()
+        .map(({ id, ...row }) => [id, row]),
+    );
     const stored: InboxStored[] = tx
       .select()
       .from(inboxItem)
@@ -148,6 +177,9 @@ export function readInbox(db: Executor, today: string, bankSource?: string) {
         refId: row.refId,
         urgent: row.urgent,
         createdAt: row.createdAt,
+        ...(row.refType === 'bank-sync-candidate' && row.refId
+          ? { bankCandidate: candidates.get(row.refId) }
+          : {}),
       }));
     let entries: InboxEntry[] = [
       ...envelopeTasks(tx, today),

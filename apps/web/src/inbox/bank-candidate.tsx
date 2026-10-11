@@ -1,6 +1,6 @@
 import { Button, Field, Select, useAmountPrivacy } from '@budget/ui';
 import { useQuery } from '@tanstack/react-query';
-import { useState } from 'react';
+import { useCallback, useEffect, useState, type ReactNode } from 'react';
 import { request } from '../api/http';
 import { useBudgetWrite } from '../budget/use-category-writes';
 import { eur, shortDay } from '../ledger/format';
@@ -18,16 +18,63 @@ type Match = {
   memo: string | null;
   amountCents: number;
 };
+const NO_MATCHES: Match[] = [];
+export type PreparedBankSuggestion = (
+  { action: 'rule'; ruleId: string; revision: string } | { action: 'merge'; bookingId: string }
+) & { candidateRevision?: string; label: string };
+type PreparedCallback = (suggestion: PreparedBankSuggestion | undefined) => void;
+
+export function BankReview({
+  children,
+  suggestion,
+}: {
+  children: ReactNode;
+  suggestion?: PreparedBankSuggestion | undefined;
+}) {
+  const [expanded, setExpanded] = useState(false);
+  return (
+    <details className="bank-review" onToggle={(event) => setExpanded(event.currentTarget.open)}>
+      <summary>{suggestion?.label ?? 'Vorschläge beim Öffnen prüfen'}</summary>
+      {expanded && children}
+    </details>
+  );
+}
+
+export function BankCandidate({
+  id,
+  onConfirmed,
+  onPrepared,
+}: {
+  id: string;
+  onConfirmed?: ((id: string) => void) | undefined;
+  onPrepared?: PreparedCallback | undefined;
+}) {
+  const [prepared, setPrepared] = useState<PreparedBankSuggestion>();
+  const prepare = useCallback<PreparedCallback>(
+    (suggestion) => {
+      setPrepared(suggestion);
+      onPrepared?.(suggestion);
+    },
+    [onPrepared],
+  );
+  return (
+    <BankReview suggestion={prepared}>
+      <BankCandidateForm id={id} onConfirmed={onConfirmed} onPrepared={prepare} />
+    </BankReview>
+  );
+}
 /**
  * Explicit owner confirmation; the regular editor remains available after posting. Rule
  * preparation never posts the candidate, and manual changes override every suggested action.
  */
-export function BankCandidate({
+function BankCandidateForm({
   id,
   onConfirmed,
+  onPrepared,
 }: {
   id: string;
   onConfirmed?: ((bookingId: string) => void) | undefined;
+  onPrepared: PreparedCallback;
 }) {
   useAmountPrivacy();
   const lookups = useQuery(lookupsQuery()),
@@ -57,6 +104,40 @@ export function BankCandidate({
       : selected;
   const rule = review.data?.suggestions.find((r) => r.id === ruleId);
   const recipient = payeeId ?? review.data?.cleanup.payeeId ?? '';
+  const mergeRows = [...(matches.data?.merge ?? []), ...(matches.data?.link ?? [])];
+  const merge = mergeRows.find((row) => row.id === mergeId) ?? mergeRows[0];
+  useEffect(() => {
+    const candidateRevision = review.data?.candidateRevision;
+    onPrepared(
+      !candidateRevision || review.isError || matches.isError
+        ? undefined
+        : merge
+          ? {
+              action: 'merge',
+              bookingId: merge.id,
+              candidateRevision,
+              label: `Mit Buchung ${shortDay(merge.date)} zusammenführen`,
+            }
+          : rule && !rule.unavailable && !categoryId && payeeId === undefined
+            ? {
+                action: 'rule',
+                ruleId: rule.id,
+                revision: rule.revision,
+                candidateRevision,
+                label: rule.name,
+              }
+            : undefined,
+    );
+  }, [
+    onPrepared,
+    review.data?.candidateRevision,
+    review.isError,
+    matches.isError,
+    merge,
+    rule,
+    categoryId,
+    payeeId,
+  ]);
   return (
     <div className="bank-candidate assignment-review">
       {matches.isError && (
@@ -267,7 +348,13 @@ export function BankCandidate({
  * A booked bank row is already an unchecked booking (decision 41). Offer the merge into an earlier
  * manual entry; nothing is shown while there is no match or the booking is not eligible.
  */
-export function BankBookingMerge({ bookingId }: { bookingId: string }) {
+export function BankBookingMerge({
+  bookingId,
+  onPrepared,
+}: {
+  bookingId: string;
+  onPrepared?: PreparedCallback | undefined;
+}) {
   useAmountPrivacy();
   const matches = useQuery({
     queryKey: [...LEDGER_KEY, 'bank-booking-matches', bookingId],
@@ -281,9 +368,21 @@ export function BankBookingMerge({ bookingId }: { bookingId: string }) {
   const [chosen, setChosen] = useState('');
   const [busy, setBusy] = useState(false);
   const write = useBudgetWrite();
-  const rows = matches.data?.merge ?? [];
+  const rows = matches.data?.merge ?? NO_MATCHES;
+  const selected = chosen || rows[0]?.id;
+  useEffect(() => {
+    const row = rows.find((r) => r.id === selected);
+    onPrepared?.(
+      row && !matches.isError
+        ? {
+            action: 'merge',
+            bookingId: row.id,
+            label: `Mit Buchung ${shortDay(row.date)} zusammenführen`,
+          }
+        : undefined,
+    );
+  }, [onPrepared, selected, matches.isError, rows]);
   if (!rows.length) return null;
-  const selected = chosen || rows[0]!.id;
   return (
     <div className="bank-candidate">
       <Field label="Passende eigene Buchung (geringster Datumsabstand zuerst)">

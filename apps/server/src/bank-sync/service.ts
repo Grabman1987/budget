@@ -1075,6 +1075,7 @@ export class BankSync {
       candidateRevision?: string | undefined;
       actions?: AssignmentActions | undefined;
     } = {},
+    audit: { groupId?: string } = {},
   ) {
     return this.db.transaction((tx) => {
       const row = tx.select().from(candidate).where(eq(candidate.id, id)).get();
@@ -1084,7 +1085,7 @@ export class BankSync {
       const acct = tx.select().from(account).where(eq(account.id, row.accountId)).get();
       if (!acct || acct.deletedAt || acct.closedAt || acct.currency !== row.currency)
         throw new ConflictError('Konto nicht verfügbar.');
-      const ctx = withGroup({ actor: 'owner' });
+      const ctx = withGroup({ actor: 'owner', ...audit });
       const review = readAssignmentCandidate(tx, id);
       if (
         options.candidateRevision !== undefined &&

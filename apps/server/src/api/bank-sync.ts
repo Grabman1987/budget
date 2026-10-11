@@ -4,6 +4,14 @@ import {
   linkBankCandidate,
   mergeBankBooking,
   mergeBankCandidate,
+  applyBookingAssignment,
+  deleteBooking,
+  getBooking,
+  readAssignmentCandidate,
+  resolveInboxItem,
+  schema,
+  ConflictError,
+  updateBooking,
   type Db,
 } from '@budget/db';
 import { randomUUID } from 'node:crypto';
@@ -14,6 +22,41 @@ import type { BankSync } from '../bank-sync/service';
 import type { SessionRow } from '../auth/store';
 import { readBody } from './http';
 import { bankConfirmSchema } from './assignment-rules';
+import { eq } from 'drizzle-orm';
+
+const shortId = z.string().min(1).max(100);
+const revision = z.string().length(64);
+const suggestion = z.discriminatedUnion('action', [
+  z.strictObject({
+    action: z.literal('rule'),
+    ruleId: shortId,
+    revision,
+    candidateRevision: revision.optional(),
+  }),
+  z.strictObject({
+    action: z.literal('merge'),
+    bookingId: shortId,
+    candidateRevision: revision.optional(),
+  }),
+]);
+const bulkSchema = z
+  .strictObject({
+    action: z.enum(['dismiss', 'confirm']),
+    rows: z
+      .array(
+        z.strictObject({
+          type: z.enum(['candidate', 'booking']),
+          id: shortId,
+          suggestion: suggestion.optional(),
+        }),
+      )
+      .min(1)
+      .max(100),
+  })
+  .refine(
+    (input) => new Set(input.rows.map((row) => row.type + ':' + row.id)).size === input.rows.length,
+    'Jede Zeile nur einmal auswählen.',
+  );
 
 export function bankSyncRoutes(
   service: BankSync | null,
@@ -32,6 +75,84 @@ export function bankSyncRoutes(
         : { configured: false, connections: [], accounts: [] },
     ),
   );
+  app.post('/inbox/bulk', async (c) => {
+    const input = await readBody(c, bulkSchema);
+    const ctx = { actor: 'owner', groupId: randomUUID() };
+    const now = service?.clock().toISOString() ?? new Date().toISOString();
+    const result = db.transaction((tx) => {
+      let changedCount = 0,
+        skippedCount = 0;
+      // Validate the complete preview before any confirmation can learn a payee alias.
+      for (const row of input.rows) {
+        if (input.action !== 'confirm' || row.type !== 'candidate' || !row.suggestion) continue;
+        const review = readAssignmentCandidate(tx, row.id);
+        if (
+          !row.suggestion.candidateRevision ||
+          row.suggestion.candidateRevision !== review.candidateRevision
+        )
+          throw new ConflictError('Der Bankumsatz hat sich geändert. Bitte neu laden.');
+      }
+      for (const row of input.rows) {
+        if (row.type === 'candidate') {
+          const item = tx
+            .select()
+            .from(schema.inboxItem)
+            .where(eq(schema.inboxItem.id, row.id))
+            .get();
+          if (
+            !item ||
+            item.refType !== 'bank-sync-candidate' ||
+            item.refId !== row.id ||
+            item.resolvedAt
+          )
+            throw new ConflictError('Bankumsatz nicht mehr offen. Bitte neu laden.');
+        } else {
+          const booking = getBooking(tx, row.id);
+          if (
+            !booking ||
+            booking.source !== 'bank' ||
+            booking.status === 'reconciled' ||
+            (booking.status !== 'pending' &&
+              !booking.splits.some(
+                (split) => split.categoryId === null && split.incomeTypeId === null,
+              ))
+          )
+            throw new ConflictError('Nur offene Bankbuchungen auswählen.');
+        }
+        if (input.action === 'dismiss') {
+          if (row.type === 'candidate') resolveInboxItem(tx, row.id, ctx);
+          else deleteBooking(tx, row.id, ctx);
+        } else if (!row.suggestion) {
+          skippedCount++;
+          continue;
+        } else if (row.type === 'candidate') {
+          const prepared = row.suggestion;
+          const review = readAssignmentCandidate(tx, row.id);
+          if (prepared.action === 'merge')
+            mergeBankCandidate(tx, row.id, prepared.bookingId, ctx, now);
+          else {
+            if (!service) throw new ConflictError('Bankbestätigung nicht verfügbar.');
+            // The synchronous service opens a savepoint on this same connection; the outer
+            // transaction rolls back every row and its audit entries together.
+            service.confirm(
+              row.id,
+              null,
+              { ...prepared, candidateRevision: review.candidateRevision },
+              ctx,
+            );
+          }
+        } else if (row.suggestion.action === 'merge')
+          mergeBankBooking(tx, row.id, row.suggestion.bookingId, ctx);
+        else {
+          applyBookingAssignment(tx, row.id, row.suggestion.ruleId, ctx, row.suggestion.revision);
+          updateBooking(tx, row.id, { status: 'confirmed' }, ctx);
+        }
+        changedCount++;
+      }
+      return { groupId: ctx.groupId, changedCount, skippedCount };
+    });
+    return c.json(result);
+  });
   app.get('/candidates/:id/matches', (c) =>
     c.json(candidateMatches(db, z.string().uuid().parse(c.req.param('id')))),
   );

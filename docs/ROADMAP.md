@@ -1,5 +1,13 @@
 # Roadmap
 
+### Bank inbox package — #424 (2026-10-11)
+
+- [x] Collapsed candidates and bank bookings; assignment/match requests start on expansion.
+- [x] Selection, select all loaded rows (bounded to 100), explicit count preview and bulk dismissal/prepared confirmation with one audit group/undo.
+- [x] Source-scoped date sort/filter before pagination; balance mismatch links to the account.
+- [x] Focused type/lint/format/unit checks and all five changed desktop/mobile scenarios. [Evidence](evidence/bank-inbox-bulk/README.md).
+- [ ] Commit/push/PR (Git index lock permission denied), required CI and owner phone acceptance.
+
 
 ### Reports package P - history, cell links and full-width summaries (2026-10-09)
 
