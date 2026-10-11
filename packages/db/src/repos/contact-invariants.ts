@@ -1,5 +1,5 @@
 import { contactStatement } from '@budget/domain';
-import { and, eq, isNull, sql } from 'drizzle-orm';
+import { and, eq, isNull, ne, sql } from 'drizzle-orm';
 import {
   account,
   category,
@@ -9,9 +9,23 @@ import {
   contactAllocation,
   contactSettlement,
 } from '../schema';
-import { BookingInvariantError } from './errors';
+import { BookingInvariantError, ConflictError } from './errors';
 import { memoizedShared } from './request-memo';
 import type { Executor } from './types';
+
+/** Check only the changed identity: legacy contacts are not renamed or merged implicitly. */
+export function assertContactName(tx: Executor, id: string) {
+  const row = tx.select().from(contact).where(eq(contact.id, id)).get();
+  if (!row || row.deletedAt !== null) return;
+  if (
+    tx
+      .select({ id: contact.id })
+      .from(contact)
+      .where(and(eq(contact.name, row.name), ne(contact.id, id), isNull(contact.deletedAt)))
+      .get()
+  )
+    throw new ConflictError('Ein aktiver Kontakt mit diesem Namen ist bereits vorhanden.');
+}
 
 /** A zero booking with contact shares reclassifies money already held, never earned cash. */
 /** Read once per request and database state; callers only look ids up (`has`). */

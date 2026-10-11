@@ -74,6 +74,7 @@ test('bank merge, mirror transfer, selected pair and balance lock with undo', as
     staged.close();
   }
   await page.goto('/konten/posteingang');
+  await page.locator('.bank-review summary').click();
   await expect(page.getByRole('button', { name: /Mit Buchung .* zusammenführen/ })).toBeVisible();
   expect((await new AxeBuilder({ page }).include('.kinbox').analyze()).violations).toEqual([]);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
@@ -105,6 +106,7 @@ test('bank merge, mirror transfer, selected pair and balance lock with undo', as
     splits: [{ categoryId: category.id }, { categoryId: category.id }],
   });
   await page.getByRole('button', { name: 'Rückgängig', exact: true }).click();
+  await page.locator('.bank-review summary').click();
   await expect(page.getByRole('button', { name: /Mit Buchung .* zusammenführen/ })).toBeVisible();
   await page.getByRole('button', { name: /Mit Buchung .* zusammenführen/ }).click();
   await expect(
@@ -163,6 +165,7 @@ test('bank merge, mirror transfer, selected pair and balance lock with undo', as
     db.close();
   }
   await page.goto('/konten/posteingang');
+  await page.locator('.bank-review summary').click();
   await page.getByRole('button', { name: 'Als Umbuchung verbinden', exact: true }).click();
   await expect(page.getByText('Als Umbuchung verbunden.', { exact: true })).toBeVisible();
   const balanceDb = openDatabase(databasePath);
@@ -215,7 +218,7 @@ test('bank merge, mirror transfer, selected pair and balance lock with undo', as
     fullPage: true,
   });
   await page.getByRole('button', { name: 'Abgleich sperren bis heute' }).click();
-  await expect(page.getByText('Abgleich bis heute gesperrt.', { exact: true })).toBeVisible();
+  await expect(page.getByText('Abgleich bis 02.10.2026 gesperrt.', { exact: true })).toBeVisible();
   await expect(page.getByText('Abgeglichen bis: 02.10.2026', { exact: false })).toBeVisible();
   const refused = await request.patch(origin + '/api/bookings/' + manual, {
     headers: { origin },

@@ -37,7 +37,8 @@ const DEFAULT_ON_BUDGET: Partial<Record<AccountType, boolean>> = {
 
 const hasOverdraft = (t: AccountType) => t === 'checking';
 const hasCreditLimit = (t: AccountType) => t === 'credit_card';
-const hasRate = (t: AccountType) => t === 'savings' || t === 'loan' || t === 'other_liability';
+export const hasRate = (t: AccountType) =>
+  ['checking', 'credit_card', 'savings', 'loan', 'other_liability'].includes(t);
 const hasTerm = (t: AccountType) => t === 'loan';
 const hasFee = (t: AccountType) => t === 'checking' || t === 'credit_card';
 

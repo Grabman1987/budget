@@ -41,6 +41,16 @@ export interface InboxStored {
   refId: string | null;
   urgent: boolean;
   createdAt: string;
+  bankCandidate?:
+    | {
+        date: string;
+        amountCents: number;
+        currency: string;
+        memo: string;
+        payeeName: string | null;
+        accountName: string;
+      }
+    | undefined;
 }
 export interface InboxEnvelope {
   type: 'envelope';
@@ -78,13 +88,26 @@ export const inboxQuery = (bankSource?: string) =>
       ),
     refetchInterval: 60_000,
   });
-export const inboxPagesQuery = (period: InboxPeriod = 'all', bankSource?: string) =>
+export const inboxPagesQuery = (
+  period: InboxPeriod = 'all',
+  bankSource?: string,
+  dateSort?: 'newest' | 'oldest',
+  fromDate?: string,
+) =>
   infiniteQueryOptions({
-    queryKey: [...INBOX_KEY, 'pages', INBOX_PAGE_SIZE, period, bankSource ?? null] as const,
+    queryKey: [
+      ...INBOX_KEY,
+      'pages',
+      INBOX_PAGE_SIZE,
+      period,
+      bankSource ?? null,
+      dateSort ?? null,
+      fromDate ?? null,
+    ] as const,
     queryFn: ({ pageParam }) =>
       request<InboxPage>(
         'GET',
-        `/api/inbox?limit=${INBOX_PAGE_SIZE}&offset=${pageParam}${period === 'all' ? '' : `&period=${period}`}${bankSource ? `&bankSource=${encodeURIComponent(bankSource)}` : ''}`,
+        `/api/inbox?limit=${INBOX_PAGE_SIZE}&offset=${pageParam}${period === 'all' ? '' : `&period=${period}`}${bankSource ? `&bankSource=${encodeURIComponent(bankSource)}` : ''}${dateSort ? `&dateSort=${dateSort}` : ''}${fromDate ? `&fromDate=${encodeURIComponent(fromDate)}` : ''}`,
       ),
     initialPageParam: 0,
     getNextPageParam: (lastPage) => lastPage.next ?? undefined,

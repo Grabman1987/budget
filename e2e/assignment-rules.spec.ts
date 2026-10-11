@@ -226,6 +226,8 @@ test('bank suggestions show actions, reject cleanly and offer learning after con
     }),
   );
   await page.goto('/konten/posteingang');
+  // Bank rows are collapsed by default; suggestions load only after expanding.
+  await page.locator('.bank-review summary').click();
   await expect(page.getByText('Notiz: Shopnotiz')).toBeVisible();
   expect(confirmed).toBe(false);
   await page.getByRole('button', { name: 'Vorschlag ablehnen' }).click();

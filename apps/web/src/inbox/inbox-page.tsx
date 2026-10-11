@@ -1,5 +1,11 @@
 import { InboxAccountReminders } from '../heute/account-reminders';
-import { BankBookingMerge, BankCandidate } from './bank-candidate';
+import {
+  BankBookingMerge,
+  BankCandidate,
+  BankReview,
+  type PreparedBankSuggestion,
+} from './bank-candidate';
+import { BankBulkActions, isBankInboxRow } from './bank-bulk-actions';
 import { AssignmentLearnOffer, BookingAssignmentReview } from '../assignment/review';
 import { PayslipUpload, PayslipIntakeDetail } from '../reports/payslip-intake';
 import { ReadSourceDetail, sourceWarningReason } from './read-source-detail';
@@ -15,7 +21,7 @@ import {
   useToast,
 } from '@budget/ui';
 import { useInfiniteQuery, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useId, useRef, useState } from 'react';
+import { useCallback, useEffect, useId, useRef, useState, type ComponentProps } from 'react';
 import { request } from '../api/http';
 import { useBudgetWrite } from '../budget/use-category-writes';
 import { BookingPanel } from '../ledger/booking-panel';
@@ -287,7 +293,14 @@ function PaginatedInboxBody({
   useAmountPrivacy();
   const search = useSearch({ strict: false }) as InboxSearch;
   const navigate = useNavigate();
-  const queue = useInfiniteQuery(inboxPagesQuery(search.aufgaben, bankSource));
+  const queue = useInfiniteQuery(
+    inboxPagesQuery(
+      search.aufgaben,
+      bankSource,
+      bankSource ? (search.dateSort ?? 'newest') : undefined,
+      bankSource ? search.fromDate : undefined,
+    ),
+  );
   const loadingNextPage = useRef(false);
   const fetchNextPage = async () => {
     if (loadingNextPage.current || queue.isFetching || !queue.hasNextPage) return;
@@ -304,6 +317,46 @@ function PaginatedInboxBody({
   return (
     <>
       <div className="inbox-filters">
+        {bankSource && (
+          <>
+            <label>
+              Datumssortierung
+              <select
+                className="select"
+                value={search.dateSort ?? 'newest'}
+                onChange={(event) =>
+                  void navigate({
+                    to: '.',
+                    search: { ...search, dateSort: event.target.value, gruppe: undefined },
+                    replace: true,
+                  } as never)
+                }
+              >
+                <option value="newest">Neueste zuerst</option>
+                <option value="oldest">Älteste zuerst</option>
+              </select>
+            </label>
+            <label>
+              Ab Datum
+              <input
+                className="input"
+                type="date"
+                value={search.fromDate ?? ''}
+                onChange={(event) =>
+                  void navigate({
+                    to: '.',
+                    search: {
+                      ...search,
+                      fromDate: event.target.value || undefined,
+                      gruppe: undefined,
+                    },
+                    replace: true,
+                  } as never)
+                }
+              />
+            </label>
+          </>
+        )}
         <label>
           Zeitraum der Aufgaben
           <select
@@ -400,6 +453,11 @@ function InboxBodyContent({
   const [busy, setBusy] = useState<string | null>(null);
   const [learnBookingId, setLearnBookingId] = useState<string | null>(null);
   const [shown, setShown] = useState(INBOX_PAGE_SIZE);
+  const [selectedBank, setSelectedBank] = useState<Set<string>>(new Set());
+  const preparedBank = useRef(new Map<string, PreparedBankSuggestion | undefined>());
+  const prepareBank = useCallback((id: string, suggestion: PreparedBankSuggestion | undefined) => {
+    preparedBank.current.set(id, suggestion);
+  }, []);
   const resolve = async (item: InboxStored) => {
     if (busy) return;
     setBusy(item.id);
@@ -409,7 +467,9 @@ function InboxBodyContent({
     );
     setBusy(null);
   };
-  const groups = Object.keys(LABELS) as InboxKind[];
+  const groups: (InboxKind | null)[] = search.bankSource
+    ? [null]
+    : (Object.keys(LABELS) as InboxKind[]);
   let index = 0;
   let room = serverPaginated ? entries.length : shown;
   const canLoadMore = serverPaginated ? Boolean(hasMore) : entries.length > shown;
@@ -434,6 +494,15 @@ function InboxBodyContent({
       )}
       {entries.length > 0 && (
         <>
+          {search.bankSource && (
+            <BankBulkActions
+              rows={entries.filter(isBankInboxRow)}
+              selected={selectedBank}
+              onSelect={setSelectedBank}
+              prepared={(id) => preparedBank.current.get(id)}
+              sourceId={search.bankSource}
+            />
+          )}
           <table className="rev-table kinbox-table">
             <caption className="sr-only">Offene Entscheidungen nach Typ</caption>
             <thead>
@@ -451,16 +520,18 @@ function InboxBodyContent({
             </thead>
             <tbody>
               {groups.flatMap((kind) => {
-                const all = entries.filter((item) => item.kind === kind);
+                const all = kind ? entries.filter((item) => item.kind === kind) : entries;
                 if (!all.length || (!serverPaginated && room <= 0)) return [];
                 const items = all.slice(0, room);
                 room -= items.length;
                 return [
-                  <tr className="kgroup" key={kind}>
+                  <tr className="kgroup" key={kind ?? 'bank-source'}>
                     <td className="rev-mark" />
                     <th scope="rowgroup" colSpan={2}>
-                      {LABELS[kind]}{' '}
-                      <span className="kgcount">{countsByKind?.[kind] ?? all.length}</span>
+                      {kind ? LABELS[kind] : 'Aufgaben dieser Bankquelle'}{' '}
+                      <span className="kgcount">
+                        {kind ? (countsByKind?.[kind] ?? all.length) : (totalEntries ?? all.length)}
+                      </span>
                     </th>
                   </tr>,
                   ...items.flatMap((item) => {
@@ -510,6 +581,20 @@ function InboxBodyContent({
                             <InboxRow
                               key={item.id}
                               item={item}
+                              bankSelected={selectedBank.has(item.id)}
+                              onBankSelect={
+                                // Bulk actions need the source whose queue is shown.
+                                search.bankSource
+                                  ? (checked) =>
+                                      setSelectedBank((current) => {
+                                        const next = new Set(current);
+                                        if (checked && next.size < 100) next.add(item.id);
+                                        else next.delete(item.id);
+                                        return next;
+                                      })
+                                  : undefined
+                              }
+                              onBankPrepare={prepareBank}
                               detailView={detailView}
                               onBankConfirmed={setLearnBookingId}
                               letter={String.fromCharCode(65 + (index++ % 26))}
@@ -570,6 +655,9 @@ function InboxBodyContent({
 }
 
 function InboxRow({
+  bankSelected,
+  onBankSelect,
+  onBankPrepare,
   detailView = false,
   onBankConfirmed,
   item,
@@ -581,6 +669,9 @@ function InboxRow({
   onConfirm,
   confirming,
 }: {
+  bankSelected: boolean;
+  onBankSelect: ((checked: boolean) => void) | undefined;
+  onBankPrepare: (id: string, suggestion: PreparedBankSuggestion | undefined) => void;
   detailView?: boolean;
   onBankConfirmed: (id: string) => void;
   item: InboxEntry;
@@ -594,6 +685,20 @@ function InboxRow({
 }) {
   useAmountPrivacy();
   const search = useSearch({ strict: false }) as InboxSearch;
+  if (isBankInboxRow(item))
+    return (
+      <BankInboxRow
+        item={item}
+        selected={bankSelected}
+        onSelect={onBankSelect}
+        onPrepared={onBankPrepare}
+        onConfirmed={onBankConfirmed}
+        onEdit={onEdit}
+        onConfirm={onConfirm}
+        onResolve={onResolve}
+        busy={busy || confirming}
+      />
+    );
   return (
     <tr className={`rev-row${item.urgent ? ' is-urgent' : ''}`} data-testid="inbox-row">
       <td className="rev-mark">
@@ -704,9 +809,143 @@ function InboxRow({
   );
 }
 
+function BankInboxRow({
+  item,
+  selected,
+  onSelect,
+  onPrepared,
+  onConfirmed,
+  onEdit,
+  onConfirm,
+  onResolve,
+  busy,
+}: {
+  item: InboxEntry;
+  selected: boolean;
+  onSelect: ((checked: boolean) => void) | undefined;
+  onPrepared: (id: string, suggestion: PreparedBankSuggestion | undefined) => void;
+  onConfirmed: (id: string) => void;
+  onEdit: (id: string) => void;
+  onConfirm: (id: string) => void;
+  onResolve: () => void;
+  busy: boolean;
+}) {
+  useAmountPrivacy();
+  const [merge, setMerge] = useState<PreparedBankSuggestion>();
+  const [rule, setRule] = useState<PreparedBankSuggestion>();
+  const prepared = merge ?? rule;
+  const prepareCandidate = useCallback(
+    (suggestion: PreparedBankSuggestion | undefined) => onPrepared(item.id, suggestion),
+    [onPrepared, item.id],
+  );
+  const prepareRule = useCallback(
+    (
+      suggestion: Parameters<
+        NonNullable<ComponentProps<typeof BookingAssignmentReview>['onPrepared']>
+      >[0],
+    ) =>
+      setRule(
+        suggestion
+          ? {
+              action: 'rule',
+              ruleId: suggestion.id,
+              revision: suggestion.revision,
+              label: suggestion.name,
+            }
+          : undefined,
+      ),
+    [],
+  );
+  // Candidate preparation is reported by its form; booking preparation combines merge/rule paths.
+  useEffect(() => {
+    if (item.type === 'booking') onPrepared(item.id, prepared);
+  }, [item.type, item.id, onPrepared, prepared]);
+  const data =
+    item.type === 'booking' ? item : item.type === 'stored' ? item.bankCandidate : undefined;
+  return (
+    <tr className="rev-row bank-inbox-row" data-testid="inbox-row">
+      <td className="rev-mark">
+        {onSelect && (
+          <label className="bank-select">
+            <input
+              type="checkbox"
+              checked={selected}
+              disabled={busy}
+              aria-label={`Bankzeile auswählen: ${data?.payeeName ?? data?.memo ?? item.id}`}
+              onChange={(event) => onSelect(event.target.checked)}
+            />
+          </label>
+        )}
+      </td>
+      <td className="rev-what">
+        <strong>
+          {data
+            ? `${data.payeeName || data.memo || 'Bankumsatz'} · ${nativeCurrency(data.amountCents, data.currency)}`
+            : item.type === 'stored'
+              ? item.title
+              : 'Bankumsatz'}
+        </strong>
+        <span>
+          {data
+            ? `${longDay(data.date)} · ${data.accountName}${data.memo && data.memo !== data.payeeName ? ` · ${data.memo}` : ''}`
+            : item.type === 'stored'
+              ? maskMoneyText(item.detail ?? '')
+              : ''}
+        </span>
+      </td>
+      <td className="rev-act kact">
+        {item.type === 'stored' && item.refId ? (
+          <>
+            <BankCandidate
+              id={item.refId}
+              onConfirmed={onConfirmed}
+              onPrepared={prepareCandidate}
+            />
+            <Button size="sm" variant="ghost" disabled={busy} onClick={onResolve}>
+              Nicht übernehmen
+            </Button>
+          </>
+        ) : item.type === 'booking' ? (
+          <BankReview suggestion={prepared}>
+            <BookingAssignmentReview
+              id={item.bookingId}
+              onPrepared={prepareRule}
+              onApplied={(canLearn) => {
+                if (canLearn) onConfirmed(item.bookingId);
+              }}
+            />
+            {item.status === 'pending' && (
+              <BankBookingMerge bookingId={item.bookingId} onPrepared={setMerge} />
+            )}
+            <Button variant="ghost" disabled={busy} onClick={() => onEdit(item.bookingId)}>
+              Zuordnen
+            </Button>
+            {item.status === 'pending' && (
+              <Button variant="ghost" disabled={busy} onClick={() => onConfirm(item.bookingId)}>
+                Bestätigen
+              </Button>
+            )}
+          </BankReview>
+        ) : null}
+      </td>
+    </tr>
+  );
+}
+
 /** Offer only connected repair views; unknown/legacy references stay readable without inert links. */
 function SourceLink({ item }: { item: InboxStored }) {
   useAmountPrivacy();
+  if (
+    item.refType === 'bank-sync' &&
+    item.refId &&
+    item.kind === 'reconciliation' &&
+    item.id.startsWith('bank-balance:')
+  )
+    return (
+      <AppLink className="btn btn-ghost btn-sm" to={`/konten/${encodeURIComponent(item.refId)}`}>
+        Kontostand prüfen
+      </AppLink>
+    );
   if (
     item.refType === 'read_source' ||
     item.refType === 'bank-sync' ||

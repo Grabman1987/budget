@@ -7,6 +7,13 @@
 - [x] Enabled one-off events from today through day 35 appear with signed cents/date in “Was steht an?” and link to Plan › Jahr. Existing recurring-payment horizons remain unchanged; no booking is created.
 - [x] Focused typechecks, changed-file lint/format, 48 affected tests, one E2E build and desktop/mobile functional, touch-target, overflow and light/dark Axe evidence passed under the package memory exception.
 - [ ] Required CI, pinned Linux visual review and owner desktop/phone acceptance. Scoped local results and synthetic screenshots: [evidence](evidence/account-reminders-428/README.md).
+### Bank inbox package — #424 (2026-10-11)
+
+- [x] Collapsed candidates and bank bookings; assignment/match requests start on expansion.
+- [x] Selection, select all loaded rows (bounded to 100), explicit count preview and bulk dismissal/prepared confirmation with one audit group/undo.
+- [x] Source-scoped date sort/filter before pagination; balance mismatch links to the account.
+- [x] Focused type/lint/format/unit checks and all five changed desktop/mobile scenarios. [Evidence](evidence/bank-inbox-bulk/README.md).
+- [ ] Commit/push/PR (Git index lock permission denied), required CI and owner phone acceptance.
 
 
 ### Reports package P - history, cell links and full-width summaries (2026-10-09)
@@ -122,6 +129,13 @@ Older CI/publication checkboxes below describe their original deliveries. Curren
 - [x] Independent source review finding on mixed-currency progress was corrected and covered by a passing browser regression.
 - [x] Independent final visual review confirmed the stored terms and model values are distinguishable in the refreshed captures.
 - [ ] PR integration and owner acceptance remain pending.
+
+### Reports / Vermögen #426 — Report polish — 2026-10-11
+
+- [x] Stronger shared pastel heatmap maximum in light/dark/print, preserving direction and row normalization.
+- [x] Report 2.6 displays existing credit lines with native-currency limits, exact annual rates, usage and separately labelled monthly interest estimates from the shared integer-cent function.
+- [x] Product detail displays stored price history with 1M/6M/1J/Max, exact micro-unit prices and shared chart inspection; checking/card creation and editing expose the existing interest-rate field.
+- [ ] Owner visual acceptance and CI gate. Focused verification and affected captures: [PR evidence](evidence/report-polish-426/PR.md).
 
 ### P0 #295 — Bank-cost coverage disclosure — 2026-10-08
 
@@ -636,6 +650,13 @@ Order: P2a → P2b and P2c in parallel → P2d (parser can start right after P1f
 ### P2b — Capture dialog (`docs/prompts/P2b.md`)
 - [x] Buchung, Split, Umbuchung (Konto → Konto) on desktop panel and phone sheet; amount field with arithmetic; payee autocomplete with default category; keyboard flow; undo toast (PRs `p2b-capture`, `p2b-capture-form`, `p2b-capture-split`)
 
+### Booking capture and account register polish (#425, owner 2026-10-11)
+- [x] Note always visible in a growing one-line field; split button/editor directly available.
+- [x] Desktop account register note column with truncation/full hover text; mobile payee note retained.
+- [x] Overview sparkline accessibility label matches its 90-day range.
+- [x] Icon-only status checkmark beside date, accessible state/tooltip and pending defaults including cash.
+- [ ] Required CI and owner desktop/phone design acceptance; local targeted evidence in [delivery notes](evidence/capture-note-split/PR.md).
+
 ### P2c — Categories and Plan › Monat (`docs/prompts/P2c.md`)
 - [x] Einstellungen › Kategorien: groups, classes, kinds, stages, targets, hide, merge (with re-assignment of bookings), drag sort, split-off, monochrome emoji icons (PR `p2c-categories-ui`)
 - [x] Budget API: month summary, assign, move, cover overspending through `budgetMonths` (cardRule `'ynab'`); categories API incl. merge and split-off; property tests stock = flow and merge keeps totals (PR `p2c-categories`)
@@ -678,6 +699,8 @@ Expected payments, contacts with receivables, savings goals, rule set registered
 - [x] P3.6 `p3-expected-ui`: Plan › Erwartet (next 90 days by week, Verträge und Abos / Alle parts list with monthly and yearly sums and original currency, payment panel with fields, versions, occurrences, link/unlink/missed), "Als erwartete Zahlung anlegen" on a booking, Einnahmen panel on Plan › Monat (`/api/expected/income`)
 
 ### P3 — Contact statements and settlement (owner decisions 2026-10-01)
+
+- [x] #427: audited contact rename with active-name validation and undo/redo; Plan month adds categories at group ends and groups at the bottom through the existing forms. Empty groups remain usable in single/multiple month views. [Delivery evidence](evidence/contact-rename-plan-plus/README.md); CI and deployed owner acceptance remain pending.
 
 - [x] Pure actual contact statement and oldest-outlay-first repayment allocation, editable before saving; expected occurrences excluded
 - [x] Audited atomic settlement API with persisted excess contact credit, whole-action undo/redo and dependency checks (including forced undo)
@@ -735,6 +758,7 @@ Enable Banking adapter, worker with nightly run and catch-up, inbox items, assig
 - [x] Explicit transfer actions preserve booking identity, pair unambiguous same-day/same-currency/opposite-amount bank candidates, and attach later bank evidence to generated counterparts without posting twice; ambiguous matches roll back. See [limits and validation](assignment-rules.md).
 - [ ] Ambiguous bank history changes, broader transfer matching (including different posting days), and private owner/device acceptance remain separate work.
 - [x] Bank follow-ups: closest +/-5-day manual-booking merge preserving memo/splits, confirmed mirror/selected-booking transfers with original dates, dated bank balance on Konten and guarded one-click reconciliation lock; grouped audit/undo, synthetic unit/API and isolated desktop/mobile coverage. Migration `0024_bank_followups` stores balance observations.
+- [x] #423 reconciliation dialog: explicit fetched-balance takeover, optional bounded adjustment date/category, missing-booking capture through the existing dialog, and locks through the observed/fetch day including `XXX` sources. Existing defaults and grouped undo remain intact; targeted delivery evidence in [reconcile dialog](evidence/reconcile-dialog-plus/PR.md).
 - [x] Einstellungen › Zuordnungsregeln merges the bank assignment rules and payee cleanup with the income budget-month defaults on one route (`/einstellungen/zuordnung`); migration `0032_assignment_rules`.
 
 ### Crypto read source (P4/P5)

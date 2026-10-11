@@ -19,6 +19,7 @@ import { instrumentQuery, type PortfolioPosition } from './portfolio-api';
 import { basisReason, moneyText, quoteStand, quoteText, unitsText } from './portfolio-format';
 import { InstrumentForm, INSTRUMENT_KIND } from './instrument-form';
 import { TradeHistory } from './trade-history';
+import { PriceHistory } from './price-history';
 
 export function InstrumentPanel({
   id,
@@ -177,6 +178,7 @@ export function InstrumentPanel({
               </p>
             </>
           )}
+          <PriceHistory key={id} securityId={id} asOf={asOf} />
           {position && (
             <>
               <h3>Bestand je Konto</h3>

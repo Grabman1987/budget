@@ -10,6 +10,7 @@ import {
   type OpenedDatabase,
 } from '@budget/db';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { randomUUID } from 'node:crypto';
 import { seedBasics } from '../../../../packages/db/src/repos/test-helpers';
 import { createLedgerApi } from './index';
 let opened: OpenedDatabase;
@@ -34,6 +35,44 @@ async function call(method: string, path: string, body?: unknown) {
   return { status: response.status, body: (await response.json()) as any };
 }
 describe('inbox API', () => {
+  it('sorts by the bank transaction date and filters inclusively before pagination', async () => {
+    const ids = [randomUUID(), randomUUID(), randomUUID()];
+    for (const [index, date] of ['2026-09-15', '2026-09-01', '2026-09-17'].entries()) {
+      opened.db
+        .insert(schema.bankSyncCandidate)
+        .values({
+          id: ids[index]!,
+          accountId: 'giro',
+          dedupeKey: ids[index]!,
+          date,
+          amountCents: -1201,
+          currency: 'EUR',
+          memo: 'Shop A',
+        })
+        .run();
+      opened.db
+        .insert(schema.inboxItem)
+        .values({
+          id: ids[index]!,
+          kind: 'import',
+          title: 'Bankumsatz prüfen',
+          refType: 'bank-sync-candidate',
+          refId: ids[index]!,
+          createdAt: '2026-09-17T12:00:00Z',
+        })
+        .run();
+    }
+    const newest = await call('GET', '/inbox?dateSort=newest&fromDate=2026-09-15&limit=1');
+    expect(newest.body).toMatchObject({ totalEntries: 2, next: 1 });
+    expect(newest.body.entries[0]).toMatchObject({
+      id: ids[2],
+      bankCandidate: { date: '2026-09-17', amountCents: -1201 },
+    });
+    const oldest = await call('GET', '/inbox?dateSort=oldest&limit=100');
+    expect(oldest.body.entries.map((e: any) => e.id)).toEqual([ids[1], ids[0], ids[2]]);
+    expect((await call('GET', '/inbox?fromDate=2026-02-30')).status).toBe(400);
+    expect((await call('GET', '/inbox?dateSort=invalid')).status).toBe(400);
+  });
   it('filters before pagination, counts repeated causes and reads details without resolving work', async () => {
     for (const [id, date, reason] of [
       ['old', '2026-08-31', 'mapping_required'],

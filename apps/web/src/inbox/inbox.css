@@ -1,6 +1,56 @@
 .kinbox {
   grid-column: 1 / -1;
 }
+.bank-bulk-actions,
+.bank-bulk-preview {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  margin: 16px 0;
+  min-width: 0;
+}
+.bank-bulk-actions .btn,
+.bank-bulk-preview .btn {
+  min-height: 44px;
+  max-width: 100%;
+  height: auto;
+  white-space: normal;
+}
+.bank-select {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-width: 44px;
+  min-height: 44px;
+  cursor: pointer;
+}
+.bank-select input {
+  width: 20px;
+  height: 20px;
+}
+.bank-review {
+  width: 100%;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.bank-review summary {
+  min-height: 44px;
+  padding: 12px 8px;
+  cursor: pointer;
+}
+.bank-review .btn,
+.kinbox .kact .btn,
+.inbox-filters input {
+  min-height: 44px;
+}
+.bank-review .assignment-review,
+.bank-review .field-row,
+.bank-review select {
+  min-width: 0;
+  max-width: 100%;
+}
 .kinbox-table .kgroup td,
 .kinbox-table .kgroup th {
   padding: 12px 8px;
@@ -113,6 +163,9 @@
     gap: 8px;
     padding: 12px 0;
     border-top: 1px solid var(--rule);
+  }
+  .kinbox-table .bank-inbox-row {
+    grid-template-columns: 44px minmax(0, 1fr);
   }
   .kinbox-table td,
   .kinbox-table th {

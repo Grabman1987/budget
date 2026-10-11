@@ -1,4 +1,4 @@
-import { assertContactSettlementInvariants } from './contact-invariants';
+import { assertContactName, assertContactSettlementInvariants } from './contact-invariants';
 import { randomUUID } from 'node:crypto';
 import { and, asc, eq, isNull, type SQL } from 'drizzle-orm';
 import type { SQLiteColumn, SQLiteTable } from 'drizzle-orm/sqlite-core';
@@ -73,12 +73,14 @@ export function createEntity<T extends IdTable>(
       assertAllocationClass(tx, row.allocationAssetClassId);
       assertAllocationScope(row.type, row.allocationScope);
     }
-    return insertTracked(
+    const stored = insertTracked(
       tx,
       table,
       { ...values, id: values.id ?? randomUUID() } as T['$inferInsert'],
       grouped,
     );
+    if (tableMeta(table).name === 'contact') assertContactName(tx, String(stored['id']));
+    return stored;
   });
 }
 
@@ -149,6 +151,7 @@ export function updateEntity<T extends IdTable>(
       );
     }
     updateTracked(tx, table, [id], patch as Record<string, unknown>, grouped);
+    if (tableMeta(table).name === 'contact') assertContactName(tx, id);
     if (
       tableMeta(table).name === tableMeta(account).name &&
       (patch as Partial<typeof account.$inferInsert>).currency !== undefined &&
@@ -196,6 +199,7 @@ export function restoreEntity<T extends IdTable>(
       assertBudgetAccountCurrency(accountRow.onBudget, accountRow.currency);
     }
     updateTracked(tx, table, [id], { deletedAt: null }, grouped, 'restore');
+    if (tableMeta(table).name === 'contact') assertContactName(tx, id);
     if (tableMeta(table).name === tableMeta(account).name) assertAccountBookingCurrencies(tx, [id]);
     if (['account', 'contact', 'category'].includes(tableMeta(table).name))
       assertContactSettlementInvariants(tx);
