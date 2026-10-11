@@ -146,7 +146,7 @@ export function createLedgerApi({
   api.route('/projects', projectRoutes(db, today));
   api.route('/income-month-rules', incomeMonthRoutes(db));
   api.route('/assignment-rules', assignmentRoutes(db));
-  api.route('/bank-sync', bankSyncRoutes(bankSync, passkeyGate, db));
+  api.route('/bank-sync', bankSyncRoutes(bankSync, passkeyGate, db, today));
   api.route('/sources/crypto', readSourceRoutes(db, today, passkeyGate, cryptoReadSource()));
   api.route('/search', searchRoutes(db));
   api.route('/accounts', accountRoutes(db, today));

@@ -492,12 +492,15 @@ function InboxBodyContent({
       )}
       {entries.length > 0 && (
         <>
-          <BankBulkActions
-            rows={entries.filter(isBankInboxRow)}
-            selected={selectedBank}
-            onSelect={setSelectedBank}
-            prepared={(id) => preparedBank.current.get(id)}
-          />
+          {search.bankSource && (
+            <BankBulkActions
+              rows={entries.filter(isBankInboxRow)}
+              selected={selectedBank}
+              onSelect={setSelectedBank}
+              prepared={(id) => preparedBank.current.get(id)}
+              sourceId={search.bankSource}
+            />
+          )}
           <table className="rev-table kinbox-table">
             <caption className="sr-only">Offene Entscheidungen nach Typ</caption>
             <thead>
@@ -577,13 +580,17 @@ function InboxBodyContent({
                               key={item.id}
                               item={item}
                               bankSelected={selectedBank.has(item.id)}
-                              onBankSelect={(checked) =>
-                                setSelectedBank((current) => {
-                                  const next = new Set(current);
-                                  if (checked && next.size < 100) next.add(item.id);
-                                  else next.delete(item.id);
-                                  return next;
-                                })
+                              onBankSelect={
+                                // Bulk actions need the source whose queue is shown.
+                                search.bankSource
+                                  ? (checked) =>
+                                      setSelectedBank((current) => {
+                                        const next = new Set(current);
+                                        if (checked && next.size < 100) next.add(item.id);
+                                        else next.delete(item.id);
+                                        return next;
+                                      })
+                                  : undefined
                               }
                               onBankPrepare={prepareBank}
                               detailView={detailView}
@@ -661,7 +668,7 @@ function InboxRow({
   confirming,
 }: {
   bankSelected: boolean;
-  onBankSelect: (checked: boolean) => void;
+  onBankSelect: ((checked: boolean) => void) | undefined;
   onBankPrepare: (id: string, suggestion: PreparedBankSuggestion | undefined) => void;
   detailView?: boolean;
   onBankConfirmed: (id: string) => void;
@@ -813,7 +820,7 @@ function BankInboxRow({
 }: {
   item: InboxEntry;
   selected: boolean;
-  onSelect: (checked: boolean) => void;
+  onSelect: ((checked: boolean) => void) | undefined;
   onPrepared: (id: string, suggestion: PreparedBankSuggestion | undefined) => void;
   onConfirmed: (id: string) => void;
   onEdit: (id: string) => void;
@@ -856,15 +863,17 @@ function BankInboxRow({
   return (
     <tr className="rev-row bank-inbox-row" data-testid="inbox-row">
       <td className="rev-mark">
-        <label className="bank-select">
-          <input
-            type="checkbox"
-            checked={selected}
-            disabled={busy}
-            aria-label={`Bankzeile auswählen: ${data?.payeeName ?? data?.memo ?? item.id}`}
-            onChange={(event) => onSelect(event.target.checked)}
-          />
-        </label>
+        {onSelect && (
+          <label className="bank-select">
+            <input
+              type="checkbox"
+              checked={selected}
+              disabled={busy}
+              aria-label={`Bankzeile auswählen: ${data?.payeeName ?? data?.memo ?? item.id}`}
+              onChange={(event) => onSelect(event.target.checked)}
+            />
+          </label>
+        )}
       </td>
       <td className="rev-what">
         <strong>

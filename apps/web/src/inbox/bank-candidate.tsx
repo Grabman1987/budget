@@ -109,7 +109,12 @@ function BankCandidateForm({
   useEffect(() => {
     const candidateRevision = review.data?.candidateRevision;
     onPrepared(
-      !candidateRevision || review.isError || matches.isError
+      // Without a settled match check a rule could be prepared although a merge target exists.
+      !candidateRevision ||
+        review.isError ||
+        matches.isError ||
+        matches.isPending ||
+        matches.isFetching
         ? undefined
         : merge
           ? {
@@ -133,6 +138,8 @@ function BankCandidateForm({
     review.data?.candidateRevision,
     review.isError,
     matches.isError,
+    matches.isPending,
+    matches.isFetching,
     merge,
     rule,
     categoryId,
@@ -373,7 +380,7 @@ export function BankBookingMerge({
   useEffect(() => {
     const row = rows.find((r) => r.id === selected);
     onPrepared?.(
-      row && !matches.isError
+      row && !matches.isError && !matches.isFetching
         ? {
             action: 'merge',
             bookingId: row.id,
@@ -381,7 +388,7 @@ export function BankBookingMerge({
           }
         : undefined,
     );
-  }, [onPrepared, selected, matches.isError, rows]);
+  }, [onPrepared, selected, matches.isError, matches.isFetching, rows]);
   if (!rows.length) return null;
   return (
     <div className="bank-candidate">

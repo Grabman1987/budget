@@ -144,6 +144,15 @@ test('65 compact bank rows, prepared bulk confirmation, one undo, date controls 
   await expect(page.getByRole('button', { name: 'Vorschlag übernehmen', exact: true })).toHaveCount(
     5,
   );
+  // "Nicht übernehmen" never removes booked rows: they are listed as kept, not sent.
+  await page.getByRole('button', { name: 'Auswahl nicht übernehmen', exact: true }).click();
+  const dismissPreview = page.getByRole('dialog', { name: 'Bankauswahl prüfen' });
+  await expect(dismissPreview).toContainText(
+    '65 ausgewählt · 60 nicht übernehmen · 5 übersprungen',
+  );
+  await expect(dismissPreview).toContainText('5 bereits gebuchte Zeilen bleiben unverändert');
+  await dismissPreview.getByRole('button', { name: 'Abbrechen' }).click();
+  expect(bulkCalls).toHaveLength(0);
   await page
     .getByRole('button', { name: 'Auswahl mit vorbereitetem Vorschlag bestätigen', exact: true })
     .click();
@@ -156,6 +165,7 @@ test('65 compact bank rows, prepared bulk confirmation, one undo, date controls 
     page.getByText('5 Bankzeilen bestätigt · 60 übersprungen.', { exact: true }),
   ).toBeVisible();
   expect(bulkCalls).toHaveLength(1);
+  expect(bulkCalls[0]).toMatchObject({ action: 'confirm', sourceId, expectedChanged: 5 });
   await expect(page.locator('.bank-inbox-row')).toHaveCount(60);
   await page.getByRole('button', { name: 'Rückgängig', exact: true }).click();
   await expect(page.locator('.bank-inbox-row')).toHaveCount(65);

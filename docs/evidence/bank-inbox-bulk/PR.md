@@ -17,6 +17,18 @@ See [verification evidence](docs/evidence/bank-inbox-bulk/README.md). Web/server
 
 No snapshot regeneration. Affected baseline areas: inbox, global inbox and month-close inbox bank rows. Evidence screenshots: [desktop light](docs/evidence/bank-inbox-bulk/desktop-light.png), [desktop dark](docs/evidence/bank-inbox-bulk/desktop-dark.png), [mobile light](docs/evidence/bank-inbox-bulk/mobile-light.png), [mobile dark](docs/evidence/bank-inbox-bulk/mobile-dark.png).
 
+## Review fixes (money-invariants review)
+
+- "Nicht übernehmen" never deletes ledger bookings: the server rejects `dismiss` for booked rows (400, nothing written); the preview lists selected booked rows as kept and counts them as skipped.
+- Required `sourceId`: every candidate's `sourceId` and every booked row's `bankSourceId` must equal it, and booked rows must satisfy the inbox predicate (on-budget account, bank source, not reconciled, dated up to today, no transfer, an unclassified split); otherwise the whole batch is rejected unwritten. The UI offers bulk actions only in the bank-source view.
+- A prepared rule is refused for a candidate that has merge or link targets (409 "Passende Buchung vorhanden"), like the single path; the client prepares nothing while the match query is pending or refetching.
+- A rule on a booked row confirms it only when no unclassified split remains, otherwise it stays an open, pending task.
+- Two selected rows with the same prepared merge target: the first keeps it, the others are skipped and shown in the preview.
+- Rows apply with the revisions validated before the loop; payee-alias and inbox-rule learning is deferred (`deferLearning`) until after the last row, inside the same transaction and undo group. Without this, learning from row 1 changes row 2's candidate revision and suggestion.
+- `expectedChanged` (the preview's count) must equal what the server would change, else 409 unwritten.
+
+Tests: server (synthetic literal cents) cover rollback after a successful first row, dismissal of a booked row, foreign-source candidate and booking, missing/unknown source, changed count, rule with an existing merge target, mixed merge + rule rows with ledger sum before, after and after undo, an unfinished rule leaving a pending booking, and deferred alias learning; web tests cover the preview planner (kept bookings, shared merge target) and the pending-match case.
+
 ## Owner steps
 
 Local commit creation was blocked by permission denied creating the worktree Git index lock. Commit/push the preserved changes and create this PR from an environment with Git-index write access. Await required CI and review on a phone. No keys, provider calls, consent changes or migration needed. Do not merge until accepted.
