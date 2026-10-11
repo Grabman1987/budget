@@ -123,6 +123,11 @@ export function BookingTable({
             {head('Datum', 'date')}
             {head('Empfänger', 'payee')}
             {all && head('Konto', 'account')}
+            {!all && (
+              <th className="tech kx-note" scope="col">
+                Notiz
+              </th>
+            )}
             {head('Kategorie')}
             {head('Betrag', 'amount', true)}
             {!all && head('Saldo', undefined, true)}
@@ -265,9 +270,17 @@ function Row({
           aria-label={`${label} bearbeiten`}
           onClick={() => onOpen(b)}
         >
-          <PayeeCell booking={b} />
+          <PayeeCell
+            booking={b}
+            {...(variant === 'account' ? { noteClassName: 'kx-mobile-note' } : {})}
+          />
         </button>
       </td>
+      {variant === 'account' && (
+        <td className="kx-note">
+          <span title={b.memo ?? undefined}>{b.memo}</span>
+        </td>
+      )}
       {variant === 'all' && <td className="kc-acct kx-acct">{b.accountName}</td>}
       <td className="kx-cat">
         {editing ? (

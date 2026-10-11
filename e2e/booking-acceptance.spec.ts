@@ -87,9 +87,9 @@ test('German date, arithmetic, defaults, height and visible save persist exact c
   await receiver.press('Enter');
   await expect(dialog.getByLabel('Bezahlt von', { exact: true })).toHaveValue(account.id);
   await expect(dialog.getByLabel('Kategorie', { exact: true })).toHaveValue(category.name);
-  await expect(dialog.getByRole('button', { name: 'bestätigt', exact: true })).toHaveAttribute(
+  await expect(dialog.getByRole('button', { name: 'Vorgemerkt', exact: true })).toHaveAttribute(
     'aria-pressed',
-    'true',
+    'false',
   );
   await dialog.getByRole('button', { name: 'Gestern', exact: true }).click();
   await expect(date).toHaveValue('08.10.2026');
@@ -123,16 +123,18 @@ test('German date, arithmetic, defaults, height and visible save persist exact c
     expect(box!.y + box!.height).toBeLessThanOrEqual(page.viewportSize()!.height + 1);
     if (info.project.name === 'mobile') {
       expect(box!.height).toBeLessThanOrEqual(844 * 0.88 + 1);
-      const small = await dialog.locator('button, input, select, summary').evaluateAll((els) =>
-        els
-          .filter((el) => el.getClientRects().length)
-          .map((el) => ({
-            name: el.getAttribute('aria-label') ?? el.textContent,
-            width: el.getBoundingClientRect().width,
-            height: el.getBoundingClientRect().height,
-          }))
-          .filter((box) => box.width < 44 || box.height < 44),
-      );
+      const small = await dialog
+        .locator('button, input, textarea, select, summary')
+        .evaluateAll((els) =>
+          els
+            .filter((el) => el.getClientRects().length)
+            .map((el) => ({
+              name: el.getAttribute('aria-label') ?? el.textContent,
+              width: el.getBoundingClientRect().width,
+              height: el.getBoundingClientRect().height,
+            }))
+            .filter((box) => box.width < 44 || box.height < 44),
+        );
       expect(small).toEqual([]);
     }
     expect((await new AxeBuilder({ page }).include('dialog').analyze()).violations).toEqual([]);
@@ -153,7 +155,7 @@ test('German date, arithmetic, defaults, height and visible save persist exact c
     amountCents: -123457,
     accountId: account.id,
     payeeId: payee.id,
-    status: 'confirmed',
+    status: 'pending',
   });
   expect(saved[0].splits).toEqual([
     expect.objectContaining({ categoryId: category.id, amountCents: -123457 }),
@@ -199,21 +201,19 @@ test('keyboard reaches labelled controls, traps focus, cancels and returns to op
   }
   await page.keyboard.press('Tab');
   await expect(dialog.getByLabel('Datum', { exact: true })).toBeFocused();
-  for (const name of ['vorgemerkt', 'bestätigt']) {
-    await page.keyboard.press('Tab');
-    await expect(dialog.getByRole('button', { name, exact: true })).toBeFocused();
-  }
+  await page.keyboard.press('Tab');
+  await expect(dialog.getByRole('button', { name: 'Vorgemerkt', exact: true })).toBeFocused();
   await page.keyboard.press('Tab');
   await expect(dialog.getByLabel('Kategorie', { exact: true })).toBeFocused();
+  await page.keyboard.press('Tab');
+  await expect(dialog.getByLabel('Notiz')).toBeFocused();
+  await page.keyboard.press('Tab');
+  await expect(dialog.getByRole('button', { name: 'Aufteilen' })).toBeFocused();
   await page.keyboard.press('Tab');
   await expect(dialog.locator('summary')).toBeFocused();
   await page.keyboard.press('Enter');
   await page.keyboard.press('Tab');
-  await expect(dialog.getByRole('button', { name: 'Aufteilen' })).toBeFocused();
-  await page.keyboard.press('Tab');
   await expect(dialog.getByLabel('Wiederholen')).toBeFocused();
-  await page.keyboard.press('Tab');
-  await expect(dialog.getByLabel('Notiz')).toBeFocused();
   await page.keyboard.press('Tab');
   await expect(dialog.getByLabel('Auslage für Kontakt')).toBeFocused();
   await page.keyboard.press('Tab');

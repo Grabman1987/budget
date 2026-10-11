@@ -132,6 +132,7 @@ export function CaptureForm({
   const writes = useLedgerWrites();
   const formRef = useRef<HTMLFormElement>(null);
   const dateRef = useRef<HTMLInputElement>(null);
+  const noteRef = useRef<HTMLTextAreaElement>(null);
   const accountRequest = useRef(0);
   const accountPayee = useRef('');
 
@@ -151,6 +152,12 @@ export function CaptureForm({
             ...(state.mode === 'create' ? state.prefill : {}),
           },
   );
+  useEffect(() => {
+    const note = noteRef.current;
+    if (!note) return;
+    note.style.height = 'auto';
+    note.style.height = `${note.scrollHeight + 2}px`;
+  }, [draft.memo]);
   const [errors, setErrors] = useState<DraftErrors & { form?: string }>({});
   const [offlineChoices, setOfflineChoices] = useState<CaptureChoices>();
   useEffect(() => {
@@ -162,9 +169,7 @@ export function CaptureForm({
   const [busy, setBusy] = useState(false);
   // Guards save() itself: held or repeated Ctrl+Enter must not send the booking twice.
   const saving = useRef(false);
-  const [moreOpen, setMoreOpen] = useState(
-    Boolean(editing || draft.splitOn || draft.repeat || draft.memo || draft.projectId),
-  );
+  const [moreOpen, setMoreOpen] = useState(Boolean(editing || draft.repeat || draft.projectId));
   // The category the last chosen payee's default filled in; only that one is replaced by the next.
   const appliedByPayee = useRef<string | null>(null);
   // The payee "Speichern und neu" carried over: context, so it does not make the form dirty.
@@ -507,16 +512,12 @@ export function CaptureForm({
   const showCategory = (!isTransfer || needsCategory) && !draft.contactId;
   const effectiveStatus =
     !editing && !queued && !statusChosen && !(state.mode === 'create' && state.prefill?.status)
-      ? from?.type === 'cash'
-        ? 'confirmed'
-        : 'pending'
+      ? 'pending'
       : draft.status;
   const moreSummary = [
-    draft.splitOn ? 'Aufgeteilt' : '',
     draft.repeat
       ? `Wiederholt ${{ weekly: 'wöchentlich', monthly: 'monatlich', quarterly: 'vierteljährlich', semiannual: 'halbjährlich', yearly: 'jährlich' }[draft.repeat]}`
       : '',
-    draft.memo.trim() ? 'Notiz' : '',
     draft.projectId ? 'Projekt' : '',
   ]
     .filter(Boolean)
@@ -549,18 +550,32 @@ export function CaptureForm({
         {locked && !unlock ? (
           <span className="status">geprüft</span>
         ) : (
-          <Segmented
-            label="Status"
-            options={[
-              { value: 'pending', label: 'vorgemerkt' },
-              { value: 'confirmed', label: 'bestätigt' },
-            ]}
-            value={effectiveStatus}
-            onChange={(v) => {
+          <button
+            type="button"
+            className="icon-btn bk-status"
+            aria-label={effectiveStatus === 'confirmed' ? 'Bestätigt' : 'Vorgemerkt'}
+            title={effectiveStatus === 'confirmed' ? 'Bestätigt' : 'Vorgemerkt'}
+            aria-pressed={effectiveStatus === 'confirmed'}
+            onClick={() => {
               setStatusChosen(true);
-              set('status', v);
+              set('status', effectiveStatus === 'confirmed' ? 'pending' : 'confirmed');
             }}
-          />
+          >
+            <svg
+              width="18"
+              height="18"
+              viewBox="0 0 24 24"
+              strokeWidth="1.75"
+              stroke="currentColor"
+              strokeLinejoin="round"
+              aria-hidden="true"
+            >
+              <path
+                d="m4 12 5 5L20 6l-2-2-9 9-3-3z"
+                fill={effectiveStatus === 'confirmed' ? 'currentColor' : 'none'}
+              />
+            </svg>
+          </button>
         )}
       </div>
     </div>
@@ -755,6 +770,38 @@ export function CaptureForm({
             )}
           </>
         )}
+        <Field label="Notiz">
+          {({ id }) => (
+            <textarea
+              ref={noteRef}
+              id={id}
+              className="input bk-note"
+              rows={1}
+              value={draft.memo}
+              placeholder="Optional"
+              autoComplete="off"
+              onChange={(e) => set('memo', e.target.value)}
+            />
+          )}
+        </Field>
+        {!isTransfer &&
+          (draft.splitOn ? (
+            <SplitEditor
+              draft={draft}
+              setDraft={setDraft}
+              categories={splitPickable}
+              accounts={open}
+              accountId={accountId}
+              contacts={contacts}
+              hasAdvanceCategory={Boolean(advanceCategoryId)}
+              locked={splitLocked}
+              error={errors.splits}
+            />
+          ) : (
+            <Button variant="ghost" className="ksplit-start" onClick={startSplit}>
+              Aufteilen
+            </Button>
+          ))}
         <details
           className="kmore"
           open={moreOpen}
@@ -764,24 +811,6 @@ export function CaptureForm({
             Mehr{moreSummary && <span className="bk-more-summary"> · {moreSummary}</span>}
           </summary>
           <div className="kform">
-            {!isTransfer &&
-              (draft.splitOn ? (
-                <SplitEditor
-                  draft={draft}
-                  setDraft={setDraft}
-                  categories={splitPickable}
-                  accounts={open}
-                  accountId={accountId}
-                  contacts={contacts}
-                  hasAdvanceCategory={Boolean(advanceCategoryId)}
-                  locked={splitLocked}
-                  error={errors.splits}
-                />
-              ) : (
-                <Button variant="ghost" size="sm" className="ksplit-start" onClick={startSplit}>
-                  Aufteilen
-                </Button>
-              ))}
             {!isTransfer && (
               <Field
                 label="Wiederholen"
@@ -802,17 +831,6 @@ export function CaptureForm({
                 )}
               </Field>
             )}
-            <Field label="Notiz">
-              {({ id }) => (
-                <TextInput
-                  id={id}
-                  value={draft.memo}
-                  placeholder="Optional"
-                  autoComplete="off"
-                  onChange={(e) => set('memo', e.target.value)}
-                />
-              )}
-            </Field>
 
             {((lookups.data?.projects ?? offlineChoices?.projects)?.length ?? 0) > 0 && (
               <Field label="Projekt">

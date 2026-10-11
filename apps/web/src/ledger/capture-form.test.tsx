@@ -46,7 +46,7 @@ beforeEach(() => {
   create.mockReset();
   create.mockResolvedValue({ bookings: [], groupId: 'synthetic-group' });
 });
-it('cash defaults to confirmed, has no Budgetmonat or header status icon, and saves repetition', async () => {
+it('cash starts pending, has no Budgetmonat, and saves repetition', async () => {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   client.setQueryData(['accounts'], {
     accounts: [
@@ -69,10 +69,19 @@ it('cash defaults to confirmed, has no Budgetmonat or header status icon, and sa
   );
   const user = userEvent.setup();
   await waitFor(() =>
-    expect(screen.getByRole('button', { name: 'bestätigt' }).getAttribute('aria-pressed')).toBe(
-      'true',
+    expect(screen.getByRole('button', { name: 'Vorgemerkt' }).getAttribute('aria-pressed')).toBe(
+      'false',
     ),
   );
+  const status = screen.getByRole('button', { name: 'Vorgemerkt' });
+  expect(status.textContent).toBe('');
+  expect(status.getAttribute('title')).toBe('Vorgemerkt');
+  await user.click(status);
+  expect(screen.getByRole('button', { name: 'Bestätigt' }).getAttribute('aria-pressed')).toBe(
+    'true',
+  );
+  await user.click(status);
+  expect(status.getAttribute('aria-pressed')).toBe('false');
   expect(screen.queryByLabelText('Budgetmonat')).toBeNull();
   expect(document.querySelector('.bk-head .kcleared')).toBeNull();
   await user.click(screen.getByRole('button', { name: 'Einnahme' }));
@@ -87,14 +96,14 @@ it('cash defaults to confirmed, has no Budgetmonat or header status icon, and sa
   expect(create.mock.calls[0]![0].input).toMatchObject({
     amountCents: 1234,
     accountId: 'wallet',
-    status: 'confirmed',
+    status: 'pending',
     incomeNextMonth: false,
     repeat: 'weekly',
   });
   expect(done).toHaveBeenCalledTimes(1);
 });
 
-it('keeps optional fields in Mehr with a summary and offers relative dates without calculator keys', async () => {
+it('shows note and split outside Mehr and keeps relative dates without calculator keys', async () => {
   vi.useFakeTimers({ toFake: ['Date'] });
   vi.setSystemTime(new Date('2026-10-05T12:00:00+02:00'));
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
@@ -116,9 +125,10 @@ it('keeps optional fields in Mehr with a summary and offers relative dates witho
     const more = screen.getByText('Mehr', { exact: true }).closest('details')!;
     expect(more.open).toBe(false);
     expect(more.contains(screen.getByLabelText('Wiederholen'))).toBe(true);
-    expect(more.contains(screen.getByLabelText('Notiz'))).toBe(true);
+    expect(more.contains(screen.getByLabelText('Notiz'))).toBe(false);
+    expect(screen.getByLabelText('Notiz').tagName).toBe('TEXTAREA');
     expect(more.contains(screen.getByRole('button', { name: 'Aufteilen', hidden: true }))).toBe(
-      true,
+      false,
     );
     expect(container.querySelector('.amount-ops')).toBeNull();
     expect(screen.getByText(/Rechnen im Feld möglich: 12,50\+3/)).toBeTruthy();
@@ -131,7 +141,11 @@ it('keeps optional fields in Mehr with a summary and offers relative dates witho
     await user.click(screen.getByText('Mehr', { exact: true }));
     await user.selectOptions(screen.getByLabelText('Wiederholen'), 'monthly');
     await user.type(screen.getByLabelText('Notiz'), 'Muster');
-    expect(more.querySelector('summary')?.textContent).toContain('Wiederholt monatlich · Notiz');
+    expect(more.querySelector('summary')?.textContent).toContain('Wiederholt monatlich');
+    expect(more.querySelector('summary')?.textContent).not.toContain('Notiz');
+    await user.click(screen.getByText('Mehr', { exact: true }));
+    await user.click(screen.getByRole('button', { name: 'Aufteilen' }));
+    expect(more.contains(screen.getByRole('group', { name: 'Zeile 1' }))).toBe(false);
   } finally {
     vi.useRealTimers();
   }
