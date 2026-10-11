@@ -1,9 +1,8 @@
-import { useAmountPrivacy, AmountInput, Button, Field, TextInput, TitleBlock } from '@budget/ui';
-import { formatDecimal, cents, parseAmount, todayInVienna, type CloseWork } from '@budget/domain';
+import { useAmountPrivacy, Button, Field, TextInput, TitleBlock } from '@budget/ui';
+import { todayInVienna, type CloseWork } from '@budget/domain';
 import { useQuery } from '@tanstack/react-query';
 import { useParams } from '@tanstack/react-router';
 import { useState } from 'react';
-import { request } from '../api/http';
 import { budgetQuery, assign } from '../budget/budget-api';
 import { EnvelopeBody } from '../budget/envelope-panel';
 import { planRows } from '../budget/plan-model';
@@ -12,6 +11,7 @@ import { InboxWorkflow } from '../inbox/inbox-page';
 import { fetchAccounts } from '../ledger/api';
 import { eur, longDay, nativeCurrency } from '../ledger/format';
 import { LEDGER_KEY } from '../ledger/queries';
+import { ManualValue } from '../ledger/manual-value';
 import { ReconcileFlow } from '../ledger/reconcile-panel';
 import { ErrorNote, LoadingNote } from '../ledger/states';
 import { monthLabel } from '../nav/month';
@@ -194,6 +194,8 @@ function CloseFlow({ data }: { data: MonthCloseView }) {
                       <ManualValue
                         accountId={a.id}
                         end={data.end}
+                        openingDate={a.openingDate}
+                        lastReconciledOn={a.lastReconciledOn}
                         valueCents={a.valueCents}
                         currency={a.currency}
                         onDone={() => setSelected(null)}
@@ -203,7 +205,7 @@ function CloseFlow({ data }: { data: MonthCloseView }) {
                         <ReconcileFlow
                           key={a.id}
                           account={account}
-                          initialDate={data.end}
+                          initialDate={data.asOf}
                           onDone={() => setSelected(null)}
                         />
                       )
@@ -362,76 +364,6 @@ function DeferForm({
           Abbrechen
         </Button>
       </div>
-    </form>
-  );
-}
-
-function ManualValue({
-  accountId,
-  end,
-  valueCents,
-  currency,
-  onDone,
-}: {
-  accountId: string;
-  end: string;
-  valueCents: number;
-  currency: string;
-  onDone: () => void;
-}) {
-  const [date, setDate] = useState(end);
-  const [text, setText] = useState(formatDecimal(cents(valueCents)));
-  const [busy, setBusy] = useState(false);
-  const write = useBudgetWrite();
-  const amount = parseAmount(text);
-  return (
-    <form
-      className="kform"
-      onSubmit={(event) => {
-        event.preventDefault();
-        if (!amount.ok || amount.cents < 0) return;
-        setBusy(true);
-        void write(
-          () =>
-            request<{ groupId: string }>(
-              'PUT',
-              `/api/accounts/${encodeURIComponent(accountId)}/valuation`,
-              { date, valueCents: amount.cents },
-            ),
-          () => 'Wert aktualisiert.',
-        ).then((result) => {
-          setBusy(false);
-          if (result) onDone();
-        });
-      }}
-    >
-      <Field label="Stichtag">
-        {({ id }) => (
-          <TextInput
-            id={id}
-            type="date"
-            value={date}
-            max={todayInVienna()}
-            required
-            onChange={(e) => setDate(e.target.value)}
-          />
-        )}
-      </Field>
-      <AmountInput
-        label={`Wert in ${currency}`}
-        currency={currency}
-        value={text}
-        onChange={setText}
-      />
-      <p>Erfasst den Wert der Anlage. Es wird keine Buchung angelegt.</p>
-      <Button
-        type="submit"
-        disabled={
-          busy || text.trim() === '' || !amount.ok || amount.cents < 0 || date > todayInVienna()
-        }
-      >
-        Wert speichern
-      </Button>
     </form>
   );
 }

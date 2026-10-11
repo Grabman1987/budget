@@ -1,4 +1,4 @@
-import { valuationMissingText } from './labels';
+import { canReconcile, valuationMissingText } from './labels';
 import { describe, expect, it } from 'vitest';
 import { netWorthChange, overviewModel, seriesChange, utilisation } from './overview-model';
 import type { AccountRow } from './types';
@@ -37,6 +37,29 @@ const account = (over: Partial<AccountRow>): AccountRow => ({
   pendingCount: 0,
   lastReconciledOn: null,
   ...over,
+});
+
+it.each([
+  ['checking', true],
+  ['cash', true],
+  ['savings', true],
+  ['credit_card', true],
+  ['loan', true],
+  ['other_liability', true],
+  ['brokerage', true],
+  ['crypto', true],
+  ['p2p', false],
+  ['other_asset', false],
+  ['receivable', false],
+] as const)('offers booking reconciliation for open %s accounts only', (type, expected) => {
+  for (const currency of ['EUR', 'USD']) {
+    for (const onBudget of [false, true]) {
+      expect(canReconcile(account({ type, currency, onBudget }))).toBe(expected);
+      expect(canReconcile(account({ type, currency, onBudget, closedAt: '2026-10-01' }))).toBe(
+        false,
+      );
+    }
+  }
 });
 
 describe('overviewModel', () => {

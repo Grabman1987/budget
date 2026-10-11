@@ -69,8 +69,16 @@ export function readMonthClose(db: Db, m: string, today: string) {
       (a) =>
         !a.closedAt &&
         a.openingDate <= asOf &&
-        (a.onBudget ||
-          a.type === 'credit_card' ||
+        ([
+          'checking',
+          'cash',
+          'savings',
+          'credit_card',
+          'loan',
+          'other_liability',
+          'brokerage',
+          'crypto',
+        ].includes(a.type) ||
           ((a.type === 'p2p' || a.type === 'other_asset') && !holdingAccounts.has(a.id))),
     )
     .map((a) => {
