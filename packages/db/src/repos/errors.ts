@@ -49,9 +49,13 @@ export class MissingFxRateError extends Error {
  */
 export class ReconciledLockedError extends Error {
   override readonly name = 'ReconciledLockedError';
-  constructor(readonly bookingIds: string[]) {
+  constructor(
+    readonly bookingIds: string[],
+    message?: string,
+  ) {
     super(
-      `Booking ${bookingIds.join(', ')} is reconciled (geprüft) and locked; unlock it explicitly to change it`,
+      message ??
+        `Booking ${bookingIds.join(', ')} is reconciled (geprüft) and locked; unlock it explicitly to change it`,
     );
   }
 }

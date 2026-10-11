@@ -727,6 +727,7 @@ Enable Banking adapter, worker with nightly run and catch-up, inbox items, assig
 - [x] Explicit transfer actions preserve booking identity, pair unambiguous same-day/same-currency/opposite-amount bank candidates, and attach later bank evidence to generated counterparts without posting twice; ambiguous matches roll back. See [limits and validation](assignment-rules.md).
 - [ ] Ambiguous bank history changes, broader transfer matching (including different posting days), and private owner/device acceptance remain separate work.
 - [x] Bank follow-ups: closest +/-5-day manual-booking merge preserving memo/splits, confirmed mirror/selected-booking transfers with original dates, dated bank balance on Konten and guarded one-click reconciliation lock; grouped audit/undo, synthetic unit/API and isolated desktop/mobile coverage. Migration `0024_bank_followups` stores balance observations.
+- [x] #423 reconciliation dialog: explicit fetched-balance takeover, optional bounded adjustment date/category, missing-booking capture through the existing dialog, and locks through the observed/fetch day including `XXX` sources. Existing defaults and grouped undo remain intact; targeted delivery evidence in [reconcile dialog](evidence/reconcile-dialog-plus/PR.md).
 - [x] Einstellungen › Zuordnungsregeln merges the bank assignment rules and payee cleanup with the income budget-month defaults on one route (`/einstellungen/zuordnung`); migration `0032_assignment_rules`.
 
 ### Crypto read source (P4/P5)

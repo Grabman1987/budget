@@ -15,6 +15,7 @@ import {
   accountPreview,
   netWorthValuationAsOf,
   booking,
+  category,
   listReconciliations,
   orderAccounts,
   previewReconciliation,
@@ -26,7 +27,7 @@ import { and, desc, eq, isNull, lte, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import { randomUUID } from 'node:crypto';
 import { Hono, type Context } from 'hono';
-import { eachDay, type CashValuation } from '@budget/domain';
+import { eachDay, isReconcileAdjustCategoryKind, type CashValuation } from '@budget/domain';
 import { ACTOR, ApiError, defined, readBody, readQuery } from './http';
 import {
   accountClose,
@@ -159,8 +160,8 @@ export function accountRoutes(db: Db, today: () => string): Hono {
             ? {
                 ...bankBalance,
                 valuation:
-                  bankBalance.amountCents !== null && bankBalance.date !== null
-                    ? value(bankBalance.amountCents, a.currency, bankBalance.date)
+                  bankBalance.amountCents !== null && bankBalance.effectiveDate !== null
+                    ? value(bankBalance.amountCents, a.currency, bankBalance.effectiveDate)
                     : null,
               }
             : null,
@@ -434,6 +435,19 @@ export function accountRoutes(db: Db, today: () => string): Hono {
   app.post('/:id/reconciliation', async (c) => {
     const id = c.req.param('id');
     const input = await readBody(c, reconcileBody);
+    if (input.categoryId !== undefined) {
+      const picked = db
+        .select({ kind: category.kind })
+        .from(category)
+        .where(eq(category.id, input.categoryId))
+        .get();
+      if (picked && !isReconcileAdjustCategoryKind(picked.kind))
+        throw new ApiError(
+          400,
+          'invalid',
+          'Für den Ausgleich ist nur eine Ausgaben-Kategorie erlaubt (keine Einnahmen-, Auslagen-, Karten-, Schulden- oder Investment-Kategorie).',
+        );
+    }
     const ctx = audit();
     const result = reconcileAccount(db, defined({ ...input, accountId: id, today: today() }), ctx);
     return c.json({ result, account: summary(id) }, 201);
