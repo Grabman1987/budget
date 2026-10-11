@@ -108,7 +108,17 @@ export function valuationMissingText(value: {
 
 /** Accounts on which Kontostand prüfen makes sense: the bank statement has a closing balance. */
 export const canReconcile = (account: AccountRow): boolean =>
-  !account.closedAt && (account.onBudget || account.currency !== 'EUR');
+  !account.closedAt &&
+  [
+    'checking',
+    'cash',
+    'savings',
+    'credit_card',
+    'loan',
+    'other_liability',
+    'brokerage',
+    'crypto',
+  ].includes(account.type);
 
 /** Error text for the user; the server's German message is shown when it sent one. */
 export function errorText(

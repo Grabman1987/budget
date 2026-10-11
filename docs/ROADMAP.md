@@ -609,6 +609,8 @@ Starts after P1f-3 is merged. Source: YNAB export (`docs/migration/ynab-export.m
 Order: P2a → P2b and P2c in parallel → P2d (parser can start right after P1f-3) → owner's import on the deployed app (after P1f-2 B5).
 
 ### P2a — Accounts and bookings (`docs/prompts/P2a.md`)
+- [x] #422: reconciliation for every open booking-based account in Konten and month close; stored review/value dates in the overview with a 35-day warning; shared account-page manual value entry with undo and explicit save blockers; running-month dates capped at today. [Evidence](evidence/reconcile-all-accounts/README.md).
+- [ ] #422: required CI and owner daily-session/device acceptance after integration.
 - [x] API and repositories: accounts (type, on-budget, terms, closed), bookings with splits and transfers, payees; validation, audit, undo (`docs/api-ledger.md`, PR `p2a-api`)
 - [x] Konten › Übersicht, Einzelkonto (balance line, bookings, flags, status), Alle Buchungen (filter, search, bulk edit) (PRs `p2a-ui`, `p2a-ui-2`)
 - [x] Kontostand prüfen with "doppelt" / "fehlt" and Ausgleich booking (reconciliation snapshot) (PRs `p2a-api`, `p2a-ui-3`)
@@ -732,6 +734,7 @@ Enable Banking adapter, worker with nightly run and catch-up, inbox items, assig
 - [x] Explicit transfer actions preserve booking identity, pair unambiguous same-day/same-currency/opposite-amount bank candidates, and attach later bank evidence to generated counterparts without posting twice; ambiguous matches roll back. See [limits and validation](assignment-rules.md).
 - [ ] Ambiguous bank history changes, broader transfer matching (including different posting days), and private owner/device acceptance remain separate work.
 - [x] Bank follow-ups: closest +/-5-day manual-booking merge preserving memo/splits, confirmed mirror/selected-booking transfers with original dates, dated bank balance on Konten and guarded one-click reconciliation lock; grouped audit/undo, synthetic unit/API and isolated desktop/mobile coverage. Migration `0024_bank_followups` stores balance observations.
+- [x] #423 reconciliation dialog: explicit fetched-balance takeover, optional bounded adjustment date/category, missing-booking capture through the existing dialog, and locks through the observed/fetch day including `XXX` sources. Existing defaults and grouped undo remain intact; targeted delivery evidence in [reconcile dialog](evidence/reconcile-dialog-plus/PR.md).
 - [x] Einstellungen › Zuordnungsregeln merges the bank assignment rules and payee cleanup with the income budget-month defaults on one route (`/einstellungen/zuordnung`); migration `0032_assignment_rules`.
 
 ### Crypto read source (P4/P5)
