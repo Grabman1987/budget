@@ -22,7 +22,7 @@ import {
   type AccountSummary,
   type Db,
 } from '@budget/db';
-import { and, eq, isNull, sql } from 'drizzle-orm';
+import { and, desc, eq, isNull, lte, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import { randomUUID } from 'node:crypto';
 import { Hono, type Context } from 'hono';
@@ -66,6 +66,9 @@ function assertTermOrder(start: string | null | undefined, end: string | null | 
 
 /** EUR valuation fields can be null when a required security quote or exchange rate is missing. */
 export type AccountView = AccountSummary & {
+  lastValuedOn: string | null;
+  manualValueCents: number | null;
+  hasHoldings: boolean;
   cashValuation: CashValuation;
   pendingValuation: CashValuation;
   holdingsCents: number | null;
@@ -124,16 +127,32 @@ export function accountRoutes(db: Db, today: () => string): Hono {
 
   const accountList = (asOf: string) => {
     const value = cashValuer(db);
-    const valuation = netWorthValuationAsOf(db, asOf);
+    const netWorth = netWorthValuationAsOf(db, asOf);
+    const latestValues = new Map<string, typeof valuation.$inferSelect>();
+    for (const row of db
+      .select()
+      .from(valuation)
+      .where(and(isNull(valuation.deletedAt), lte(valuation.date, asOf)))
+      .orderBy(desc(valuation.date))
+      .all()) {
+      if (!latestValues.has(row.accountId)) latestValues.set(row.accountId, row);
+    }
     return {
-      netWorthEurCents: valuation.totalCents,
-      missingFxCurrencies: valuation.missingFxCurrencies,
-      missingPriceSecurityIds: valuation.missingPriceSecurityIds,
+      netWorthEurCents: netWorth.totalCents,
+      missingFxCurrencies: netWorth.missingFxCurrencies,
+      missingPriceSecurityIds: netWorth.missingPriceSecurityIds,
       accounts: accountSummaries(db, asOf).map((a) => {
+        const manual = a.type === 'p2p' || a.type === 'other_asset';
+        const latest = a.openingDate <= asOf ? latestValues.get(a.id) : undefined;
         const bankBalance =
           a.closedAt || asOf !== today() ? null : bankBalanceForAccount(db, a.id, today());
         return {
           ...a,
+          lastValuedOn: manual ? (latest?.date ?? null) : null,
+          manualValueCents: manual ? (latest?.valueCents ?? a.balanceCents) : null,
+          hasHoldings:
+            Object.hasOwn(netWorth.holdingsByAccount, a.id) ||
+            Boolean(netWorth.missingPriceByAccount[a.id]?.length),
           cashValuation: value(a.balanceCents, a.currency, asOf),
           pendingValuation: value(a.unclearedCents, a.currency, asOf),
           bankBalance: bankBalance
@@ -145,12 +164,12 @@ export function accountRoutes(db: Db, today: () => string): Hono {
                     : null,
               }
             : null,
-          holdingsCents: Object.hasOwn(valuation.holdingsByAccount, a.id)
-            ? valuation.holdingsByAccount[a.id]!
+          holdingsCents: Object.hasOwn(netWorth.holdingsByAccount, a.id)
+            ? netWorth.holdingsByAccount[a.id]!
             : 0,
-          valueEurCents: Object.hasOwn(valuation.byAccount, a.id) ? valuation.byAccount[a.id]! : 0,
-          missingFxCurrencies: valuation.missingFxByAccount[a.id] ?? [],
-          missingPriceSecurityIds: valuation.missingPriceByAccount[a.id] ?? [],
+          valueEurCents: Object.hasOwn(netWorth.byAccount, a.id) ? netWorth.byAccount[a.id]! : 0,
+          missingFxCurrencies: netWorth.missingFxByAccount[a.id] ?? [],
+          missingPriceSecurityIds: netWorth.missingPriceByAccount[a.id] ?? [],
         };
       }),
     };

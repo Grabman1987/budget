@@ -617,6 +617,8 @@ Starts after P1f-3 is merged. Source: YNAB export (`docs/migration/ynab-export.m
 Order: P2a → P2b and P2c in parallel → P2d (parser can start right after P1f-3) → owner's import on the deployed app (after P1f-2 B5).
 
 ### P2a — Accounts and bookings (`docs/prompts/P2a.md`)
+- [x] #422: reconciliation for every open booking-based account in Konten and month close; stored review/value dates in the overview with a 35-day warning; shared account-page manual value entry with undo and explicit save blockers; running-month dates capped at today. [Evidence](evidence/reconcile-all-accounts/README.md).
+- [ ] #422: required CI and owner daily-session/device acceptance after integration.
 - [x] API and repositories: accounts (type, on-budget, terms, closed), bookings with splits and transfers, payees; validation, audit, undo (`docs/api-ledger.md`, PR `p2a-api`)
 - [x] Konten › Übersicht, Einzelkonto (balance line, bookings, flags, status), Alle Buchungen (filter, search, bulk edit) (PRs `p2a-ui`, `p2a-ui-2`)
 - [x] Kontostand prüfen with "doppelt" / "fehlt" and Ausgleich booking (reconciliation snapshot) (PRs `p2a-api`, `p2a-ui-3`)

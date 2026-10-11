@@ -12,7 +12,7 @@ import {
 import { addDays, cents, todayInVienna } from '@budget/domain';
 import { useQuery } from '@tanstack/react-query';
 import { Link } from '@tanstack/react-router';
-import { Check, Pencil, Plus, TrendingDown, TrendingUp } from 'lucide-react';
+import { AlertTriangle, Check, Pencil, Plus, TrendingDown, TrendingUp } from 'lucide-react';
 import { useState } from 'react';
 import { PageFrame } from '../pages/placeholder-page';
 import { KONTEN_META } from '../nav/pages';
@@ -29,6 +29,7 @@ import {
 import { MiniLine } from './mini-line';
 import {
   netWorthChange,
+  accountCheck,
   overviewModel,
   seriesChange,
   utilisation,
@@ -335,6 +336,7 @@ function GroupRows({
         const delta = points ? seriesChange(points) : null;
         const util = utilisation(a);
         const value = accountValueEur(a);
+        const check = accountCheck(a, todayInVienna());
         const row = reorder.rowProps(a.id);
         return (
           <tr {...row} className={cx(row.className, 'krow')} key={a.id}>
@@ -348,6 +350,17 @@ function GroupRows({
               <span className="kmeta">
                 {ACCOUNT_TYPE_LABEL[a.type]}
                 {a.pendingCount > 0 && <span>{a.pendingCount} vorgemerkt</span>}
+              </span>
+              <span className={cx('kmeta', 'kcheck', check.stale && 'is-stale')}>
+                {check.stale && (
+                  <AlertTriangle
+                    size={14}
+                    strokeWidth={1.75}
+                    role="img"
+                    aria-label="Seit mindestens 35 Tagen nicht aktualisiert"
+                  />
+                )}
+                {check.text}
               </span>
               <BankBalance account={a} />
               {util !== null && a.creditLimitCents !== null && (

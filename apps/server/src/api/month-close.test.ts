@@ -41,6 +41,99 @@ async function call(method: string, path = '/month-close/2026-09', body?: unknow
   };
 }
 
+it('lists every open booking-based account and manual assets in month close', async () => {
+  const types = [
+    'checking',
+    'cash',
+    'savings',
+    'credit_card',
+    'loan',
+    'other_liability',
+    'brokerage',
+    'crypto',
+    'p2p',
+    'other_asset',
+  ] as const;
+  for (const type of types) {
+    createEntity(
+      opened.db,
+      schema.account,
+      {
+        id: `open-${type}`,
+        name: `Muster ${type}`,
+        type,
+        role: 'investment',
+        onBudget: false,
+        openingDate: '2026-09-01',
+      },
+      { actor: 'test' },
+    );
+  }
+  for (const [id, extra] of [
+    ['closed', { closedAt: '2026-09-20' }],
+    ['future', { openingDate: '2026-10-01' }],
+    ['receivable', { type: 'receivable' as const }],
+  ] as const) {
+    createEntity(
+      opened.db,
+      schema.account,
+      {
+        id,
+        name: 'Muster ausgeschlossen',
+        type: 'checking',
+        role: 'investment',
+        onBudget: false,
+        openingDate: '2026-09-01',
+        ...extra,
+      },
+      { actor: 'test' },
+    );
+  }
+  const result = (await call('GET')).body;
+  expect(
+    result.accounts
+      .filter((a: any) => a.id.startsWith('open-'))
+      .map((a: any) => a.id)
+      .sort(),
+  ).toEqual(types.map((type) => `open-${type}`).sort());
+  expect(result.accounts.some((a: any) => ['closed', 'future', 'receivable'].includes(a.id))).toBe(
+    false,
+  );
+  expect(result.accounts.find((a: any) => a.id === 'open-brokerage').manual).toBe(false);
+  expect(result.accounts.find((a: any) => a.id === 'open-p2p').manual).toBe(true);
+});
+
+it('exposes the latest live manual value and date as of the requested day, including undo', async () => {
+  const created = await call('POST', '/accounts', {
+    name: 'Musteranlage Datum',
+    type: 'other_asset',
+    openingDate: '2026-09-01',
+    openingBalanceCents: 700,
+  });
+  const id = created.body.account.id;
+  const get = async (day: string) =>
+    (await call('GET', `/accounts?asOf=${day}`)).body.accounts.find((a: any) => a.id === id);
+  expect(await get('2026-09-30')).toMatchObject({ lastValuedOn: null, manualValueCents: 700 });
+  await call('PUT', `/accounts/${id}/valuation`, { date: '2026-09-15', valueCents: 12500 });
+  const latest = await call('PUT', `/accounts/${id}/valuation`, {
+    date: '2026-09-30',
+    valueCents: 15001,
+  });
+  expect(await get('2026-09-29')).toMatchObject({
+    lastValuedOn: '2026-09-15',
+    manualValueCents: 12500,
+  });
+  expect(await get('2026-09-30')).toMatchObject({
+    lastValuedOn: '2026-09-30',
+    manualValueCents: 15001,
+  });
+  expect((await call('POST', '/undo', { groupId: latest.body.groupId })).status).toBe(200);
+  expect(await get('2026-09-30')).toMatchObject({
+    lastValuedOn: '2026-09-15',
+    manualValueCents: 12500,
+  });
+});
+
 it('plans to zero via the existing bulk API and undoes all groups without booking forecast income', async () => {
   createEntity(
     opened.db,
@@ -233,7 +326,7 @@ it('derives monthly inbox, unreconciled accounts and overspending without bookin
   expect(result.status).toBe(200);
   expect(result.body.steps.map((s: any) => [s.status, s.openCount])).toEqual([
     ['open', 1],
-    ['open', 2],
+    ['open', 3],
     ['open', 1],
     ['open', 1],
     ['open', 0],
@@ -308,20 +401,20 @@ it('uses actual month-end reconciliations and manual valuations for account comp
     },
     { actor: 'test' },
   );
-  expect((await call('GET')).body.steps[1].openCount).toBe(2);
+  expect((await call('GET')).body.steps[1].openCount).toBe(3);
   const saved = await call('PUT', '/accounts/manual/valuation', {
     date: '2026-09-30',
     valueCents: 12345,
   });
   expect(saved.status).toBe(200);
-  expect((await call('GET')).body.steps[1].openCount).toBe(1);
+  expect((await call('GET')).body.steps[1].openCount).toBe(2);
   expect(
     (await call('GET', '/accounts?asOf=2026-09-30')).body.accounts.find(
       (a: any) => a.id === 'manual',
     ).valueEurCents,
   ).toBe(12345);
   expect((await call('POST', '/undo', { groupId: saved.body.groupId })).status).toBe(200);
-  expect((await call('GET')).body.steps[1].openCount).toBe(2);
+  expect((await call('GET')).body.steps[1].openCount).toBe(3);
   expect(
     (await call('GET', '/accounts?asOf=2026-09-30')).body.accounts.find(
       (a: any) => a.id === 'manual',
@@ -395,7 +488,7 @@ it('includes late fetched candidates by booking month and all open credit cards'
   );
   const result = (await call('GET')).body;
   expect(result.inbox.map((e: any) => e.id)).toContain('late-inbox');
-  expect(result.steps[1].openCount).toBe(3);
+  expect(result.steps[1].openCount).toBe(4);
 });
 
 it('audits native manual values, preserves checked locks and rejects unsafe cent/date input', async () => {
@@ -632,8 +725,8 @@ it('uses security valuation instead of a stale manual total when the account hol
   expect(
     (await call('GET', '/accounts?asOf=2026-09-30')).body.accounts.find(
       (a: any) => a.id === 'p2p-products',
-    ).valueEurCents,
-  ).toBe(2000);
+    ),
+  ).toMatchObject({ valueEurCents: 2000, hasHoldings: true });
   expect((await call('GET')).body.accounts.map((a: any) => a.id)).not.toContain('p2p-products');
   expect(
     (
