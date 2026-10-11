@@ -7,7 +7,7 @@ import type { SeriesPoint } from './types';
 const WIDTH = 120;
 const HEIGHT = 30;
 
-/** 30-day line of an account in the overview: the start value as pale reference, end dot. */
+/** 90-day line of an account in the overview: the start value as pale reference, end dot. */
 export function MiniLine({
   points,
   currency = 'EUR',
@@ -32,7 +32,7 @@ export function MiniLine({
       width={WIDTH}
       height={HEIGHT}
       className="kmini"
-      label="Kontosaldo der letzten 30 Tage"
+      label="Kontosaldo der letzten 90 Tage"
       points={chartPoints(
         points.map((p) => p.date),
         (i) => line[i]![0],

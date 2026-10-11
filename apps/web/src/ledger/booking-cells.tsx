@@ -145,12 +145,20 @@ export function CategoryCell({
 }
 
 /** Payee line plus memo under it. */
-export function PayeeCell({ booking }: { booking: ListedBooking }) {
+export function PayeeCell({
+  booking,
+  noteClassName,
+}: {
+  booking: ListedBooking;
+  noteClassName?: string;
+}) {
   const name = booking.payeeName ?? (booking.transferId ? 'Umbuchung' : 'Ohne Empfänger');
   return (
     <>
       <span className="kname-s">{name}</span>
-      {booking.memo && <span className="kmeta">{booking.memo}</span>}
+      {booking.memo && (
+        <span className={noteClassName ? `kmeta ${noteClassName}` : 'kmeta'}>{booking.memo}</span>
+      )}
     </>
   );
 }

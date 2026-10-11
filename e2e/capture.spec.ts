@@ -204,7 +204,7 @@ test('discard question, Speichern und neu keeps the context, the payee brings it
 test('the capture panel is axe clean in both themes and never scrolls sideways', async ({
   page,
 }, testInfo) => {
-  test.setTimeout(90_000);
+  test.setTimeout(Math.max(90_000, testInfo.timeout));
   const tag = testInfo.project.name;
   await createAccount(page, `Axe Kasse ${tag}`, 'Giro', '10');
   await createAccount(page, `Axe Spar ${tag}`, 'Tagesgeld', '0');
@@ -498,7 +498,7 @@ test('the flag: popover with six colours and keys, first column of the table', a
   await expect(row.locator('.kflag-glyph:not(.is-none)')).toHaveCount(0);
 });
 
-test('the cleared toggle: a new booking starts vorgemerkt, pressing it makes it bestätigt', async ({
+test('the checkmark: a new booking starts pending and can be confirmed', async ({
   page,
 }, testInfo) => {
   const tag = testInfo.project.name;
@@ -507,10 +507,11 @@ test('the cleared toggle: a new booking starts vorgemerkt, pressing it makes it 
   await openAccount(page, account);
 
   const panel = await openCapture(page, testInfo);
-  const toggle = panel.getByRole('button', { name: 'bestätigt', exact: true });
-  // Status is beside the date, with accessible segmented options.
+  const toggle = panel.getByRole('button', { name: 'Vorgemerkt', exact: true });
+  // Status is an icon beside the date, with a state-specific accessible name.
   await expect(toggle).toHaveAttribute('aria-pressed', 'false');
-  await expect(panel.getByRole('group', { name: 'Status', exact: true })).toBeVisible();
+  await expect(toggle).toHaveAttribute('title', 'Vorgemerkt');
+  await expect(toggle).toHaveText('');
   await expect(panel.getByLabel('Budgetmonat')).toHaveCount(0);
   await panel.getByLabel('Betrag', { exact: true }).fill('4');
   await panel.getByLabel('Empfänger').fill(`Vormerk ${tag}`);
@@ -522,10 +523,12 @@ test('the cleared toggle: a new booking starts vorgemerkt, pressing it makes it 
   // Opened again it shows the stored status; pressing the toggle confirms the booking.
   await row.getByRole('button', { name: /bearbeiten/ }).click();
   const edit = page.getByRole('dialog', { name: 'Buchung bearbeiten' });
-  const editToggle = edit.getByRole('button', { name: 'bestätigt', exact: true });
+  const editToggle = edit.locator('.bk-status');
   await expect(editToggle).toHaveAttribute('aria-pressed', 'false');
   await editToggle.click();
   await expect(editToggle).toHaveAttribute('aria-pressed', 'true');
+  await expect(editToggle).toHaveAccessibleName('Bestätigt');
+  await expect(editToggle).toHaveAttribute('title', 'Bestätigt');
   await edit.getByRole('button', { name: 'Speichern', exact: true }).click();
   await expect(edit).toBeHidden();
   await expect(row.getByRole('button', { name: 'bestätigt', exact: true })).toBeVisible();
@@ -533,7 +536,7 @@ test('the cleared toggle: a new booking starts vorgemerkt, pressing it makes it 
   await expect(
     page
       .getByRole('dialog', { name: 'Buchung bearbeiten' })
-      .getByRole('button', { name: 'bestätigt', exact: true }),
+      .getByRole('button', { name: 'Bestätigt', exact: true }),
   ).toHaveAttribute('aria-pressed', 'true');
 });
 
@@ -603,4 +606,84 @@ test('the category list: grouped by category group, no archived ones, Verfügbar
   await expect(page).toHaveURL(/kategorie=e2e-essen/);
   await openLedgerFilters(page);
   await expect(page.getByLabel('Kategorie', { exact: true })).toHaveValue('Essen');
+});
+
+test('visible growing note, direct split and responsive account note column', async ({
+  page,
+}, testInfo) => {
+  const tag = testInfo.project.name;
+  const account = `Notiz Muster ${tag}${again(testInfo)}`;
+  const payee = `Notizladen Muster ${tag}`;
+  const memo =
+    'Synthetische Notiz mit langem Inhalt zur Darstellung im Register.\nZweite Zeile zur Prüfung des wachsenden Feldes.\nDritte Zeile.';
+  await createAccount(page, account, 'Giro', '100');
+  await openAccount(page, account);
+  let panel = await openCapture(page, testInfo);
+  const note = panel.getByLabel('Notiz', { exact: true });
+  const split = panel.getByRole('button', { name: 'Aufteilen', exact: true });
+  await expect(panel.locator('details')).not.toHaveAttribute('open', '');
+  await expect(note).toBeVisible();
+  await expect(split).toBeVisible();
+  const initialHeight = (await note.boundingBox())!.height;
+  await note.fill(memo);
+  expect((await note.boundingBox())!.height).toBeGreaterThan(initialHeight);
+  await note.fill('Kurz');
+  expect((await note.boundingBox())!.height).toBe(initialHeight);
+  await note.fill(memo);
+  for (const control of [
+    note,
+    split,
+    panel.locator('.bk-status'),
+    panel.getByRole('button', { name: 'Schließen' }),
+  ]) {
+    const box = (await control.boundingBox())!;
+    expect(box.height).toBeGreaterThanOrEqual(44);
+    expect(box.width).toBeGreaterThanOrEqual(44);
+  }
+  await panel.getByLabel('Betrag', { exact: true }).fill('5');
+  await panel.getByLabel('Empfänger').fill(payee);
+  await pickCategory(panel, `Cap A ${tag}`);
+  await page.screenshot({ path: `docs/evidence/capture-note-split/dialog-${tag}.png` });
+  await panel.getByRole('button', { name: 'Speichern', exact: true }).click();
+  await expect(panel).toBeHidden({ timeout: 30_000 });
+  const row = page.getByRole('row', { name: new RegExp(payee) });
+  await expect(row).toBeVisible({ timeout: 30_000 });
+  if (isPhone(testInfo)) {
+    await expect(page.getByRole('columnheader', { name: 'Notiz', exact: true })).toBeHidden();
+    await expect(row.locator('.kx-mobile-note')).toHaveText(memo);
+    await expect(row.locator('.kx-mobile-note')).toBeVisible();
+    await expect(row.locator('.kx-note')).toBeHidden();
+  } else {
+    await expect(page.getByRole('columnheader', { name: 'Notiz', exact: true })).toBeVisible();
+    await expect(row.locator('.kx-mobile-note')).toBeHidden();
+    await expect(row.locator('.kx-note span')).toHaveAttribute('title', memo);
+    expect(
+      await row.locator('.kx-note span').evaluate((el) => el.scrollWidth > el.clientWidth),
+    ).toBe(true);
+  }
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= document.documentElement.clientWidth,
+    ),
+  ).toBe(true);
+  await row.scrollIntoViewIfNeeded();
+  await page.screenshot({ path: `docs/evidence/capture-note-split/register-${tag}.png` });
+  await row.getByRole('button', { name: /bearbeiten/ }).click();
+  await expect(
+    page.getByRole('dialog', { name: 'Buchung bearbeiten' }).getByLabel('Notiz'),
+  ).toHaveValue(memo);
+  await page
+    .getByRole('dialog', { name: 'Buchung bearbeiten' })
+    .getByRole('button', { name: 'Schließen' })
+    .click();
+  panel = await openCapture(page, testInfo);
+  await panel.getByRole('button', { name: 'Aufteilen', exact: true }).click();
+  await expect(panel.getByRole('group', { name: 'Zeile 1', exact: true })).toBeVisible();
+  await expect(panel.getByRole('group', { name: 'Zeile 2', exact: true })).toBeVisible();
+  await expect(panel.locator('details')).not.toHaveAttribute('open', '');
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= document.documentElement.clientWidth,
+    ),
+  ).toBe(true);
 });

@@ -59,7 +59,10 @@ test('booking cells, cash capture, repetition and account preview on desktop and
   let panel = page.getByRole('dialog', { name: 'Buchung bearbeiten' });
   await expect(panel).toBeVisible();
   await expect(panel.getByLabel('Budgetmonat')).toHaveCount(0);
-  await expect(panel.getByRole('group', { name: 'Status', exact: true })).toBeVisible();
+  await expect(panel.getByRole('button', { name: 'Bestätigt', exact: true })).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  );
   await panel.getByLabel('Wiederholen').selectOption('weekly');
   await panel.getByRole('button', { name: 'Speichern', exact: true }).click();
   await expect(panel).toBeHidden();
@@ -118,13 +121,15 @@ test('booking cells, cash capture, repetition and account preview on desktop and
   });
   await page.goto(`/konten/${account.id}?panel=buchung`);
   panel = page.getByRole('dialog', { name: 'Buchung erfassen' });
-  await expect(panel.getByRole('button', { name: 'bestätigt', exact: true })).toHaveAttribute(
+  await expect(panel.getByRole('button', { name: 'Vorgemerkt', exact: true })).toHaveAttribute(
     'aria-pressed',
-    'true',
+    'false',
   );
   await panel.evaluate((d) => d.getAnimations().forEach((a) => a.finish()));
   const dateBox = await panel.getByLabel('Datum', { exact: true }).boundingBox();
-  const statusBox = await panel.getByRole('group', { name: 'Status', exact: true }).boundingBox();
+  const statusBox = await panel
+    .getByRole('button', { name: 'Vorgemerkt', exact: true })
+    .boundingBox();
   expect(statusBox!.x).toBeGreaterThan(dateBox!.x);
   expect(Math.abs(statusBox!.y + statusBox!.height - dateBox!.y - dateBox!.height)).toBeLessThan(1);
   await panel.getByLabel('Betrag', { exact: true }).fill('2,03');
@@ -199,6 +204,7 @@ test('single payee suggestion selects its recent account and leaves account cont
   await panel.getByLabel('Empfänger', { exact: true }).press('Enter');
   await expect(panel.getByLabel('Empfänger', { exact: true })).toHaveValue('Laden Beispiel');
   await expect(panel.getByLabel('Bezahlt von', { exact: true })).toHaveValue(recent.id);
+  await panel.locator('summary').scrollIntoViewIfNeeded();
   await expect(panel.locator('summary')).toBeInViewport({ ratio: 1 });
   await expect(panel.getByTitle('Markieren')).toBeVisible();
   await expect(panel.getByTitle('Schließen')).toBeVisible();
@@ -218,8 +224,8 @@ test('single payee suggestion selects its recent account and leaves account cont
   await panel.getByLabel('Bezahlt von', { exact: true }).press('Escape');
   await panel.getByLabel('Bezahlt von', { exact: true }).selectOption(first.id);
   await expect(panel.getByLabel('Bezahlt von', { exact: true })).toHaveValue(first.id);
-  await expect(panel.getByLabel('Notiz')).toBeHidden();
-  await expect(panel.getByRole('button', { name: 'Aufteilen' })).toBeHidden();
+  await expect(panel.getByLabel('Notiz')).toBeVisible();
+  await expect(panel.getByRole('button', { name: 'Aufteilen' })).toBeVisible();
   await expect(panel.getByRole('button', { name: 'Speichern', exact: true })).toBeInViewport();
   await panel.getByLabel('Betrag', { exact: true }).fill('12,50+3');
   await panel.getByLabel('Betrag', { exact: true }).press('Enter');
@@ -233,9 +239,9 @@ test('single payee suggestion selects its recent account and leaves account cont
   await panel.locator('summary').click();
   await panel.getByLabel('Wiederholen').selectOption('monthly');
   await panel.getByLabel('Notiz').fill('Synthetische Notiz');
-  await expect(panel.locator('summary')).toContainText('Wiederholt monatlich · Notiz');
+  await expect(panel.locator('summary')).toContainText('Wiederholt monatlich');
   await panel.locator('summary').click();
-  await expect(panel.getByLabel('Notiz')).toBeHidden();
+  await expect(panel.getByLabel('Notiz')).toBeVisible();
   await panel.locator('summary').click();
   await expect(panel.getByLabel('Notiz')).toHaveValue('Synthetische Notiz');
   for (const theme of ['light', 'dark']) {
