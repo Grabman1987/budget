@@ -165,15 +165,24 @@ describe('booking UX API', () => {
 });
 describe('future preview setting', () => {
   it('defaults to 35, accepts 0 and 365, audits and undoes', async () => {
-    expect(await (await call('GET', '/settings')).json()).toEqual({ futurePreviewDays: 35 });
+    expect(await (await call('GET', '/settings')).json()).toEqual({
+      futurePreviewDays: 35,
+      accountReminderDays: 35,
+    });
     const zero = (await (await call('PATCH', '/settings', { futurePreviewDays: 0 })).json()) as {
       id: string;
       groupId: string;
       bookings: ListedBooking[];
     };
-    expect(await (await call('GET', '/settings')).json()).toEqual({ futurePreviewDays: 0 });
+    expect(await (await call('GET', '/settings')).json()).toEqual({
+      futurePreviewDays: 0,
+      accountReminderDays: 35,
+    });
     undo(opened.db, { groupId: zero.groupId }, { actor: 'tester' });
-    expect(await (await call('GET', '/settings')).json()).toEqual({ futurePreviewDays: 35 });
+    expect(await (await call('GET', '/settings')).json()).toEqual({
+      futurePreviewDays: 35,
+      accountReminderDays: 35,
+    });
     expect((await call('PATCH', '/settings', { futurePreviewDays: 365 })).status).toBe(200);
   });
   it.each([-1, 366, 1.5, '35', null])('rejects %s without writing', async (futurePreviewDays) => {

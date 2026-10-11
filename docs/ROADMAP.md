@@ -1,5 +1,12 @@
 # Roadmap
 
+### Today: unchecked account reminders and planned one-off events — #428
+
+- [x] Shared pure reminder rule: inclusive 35-day default, latest reconciliation/value date for P2P/other assets, opening-date fallback for never checked accounts; ignore closed, empty and not-yet-open accounts.
+- [x] Derived Heute and Posteingang hints link to the account's existing reconcile/value form. Audited 1–365-day preference in Einstellungen › Profil with undo; no migration or persisted duplicate inbox warning.
+- [x] Enabled one-off events from today through day 35 appear with signed cents/date in “Was steht an?” and link to Plan › Jahr. Existing recurring-payment horizons remain unchanged; no booking is created.
+- [x] Focused typechecks, changed-file lint/format, 48 affected tests, one E2E build and desktop/mobile functional, touch-target, overflow and light/dark Axe evidence passed under the package memory exception.
+- [ ] Required CI, pinned Linux visual review and owner desktop/phone acceptance. Scoped local results and synthetic screenshots: [evidence](evidence/account-reminders-428/README.md).
 ### Bank inbox package — #424 (2026-10-11)
 
 - [x] Collapsed candidates and bank bookings; assignment/match requests start on expansion.

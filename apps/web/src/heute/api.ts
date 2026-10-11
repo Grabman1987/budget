@@ -1,7 +1,15 @@
+import type { PlannedEventOccurrence } from '@budget/domain';
 import { queryOptions } from '@tanstack/react-query';
 import { request } from '../api/http';
 import { LEDGER_KEY } from '../ledger/queries';
 import type { WithValuationNotes } from '../ledger/valuation-hint';
+
+export interface AccountReminder {
+  accountId: string;
+  accountName: string;
+  days: number;
+  action: 'reconcile' | 'value';
+}
 
 export interface HeuteUnavailable {
   unavailable: { reason: 'missing_price' | 'missing_fx'; message: string; asOf: string };
@@ -109,6 +117,8 @@ export interface Heute extends WithValuationNotes {
     overspentCents: number;
   }>;
   upcoming14: HeuteOccurrence[];
+  upcomingEvents: PlannedEventOccurrence[];
+  accountReminders: AccountReminder[];
   financeCheck:
     | {
         counts: { ok: number; warn: number; bad: number; total: number; notEvaluated: number };

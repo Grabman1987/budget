@@ -1,3 +1,4 @@
+import type { PlannedEventOccurrence } from '@budget/domain';
 import { Button, useAmountPrivacy, SectionHead } from '@budget/ui';
 import { ChevronRight, CircleCheck, Clock3 } from 'lucide-react';
 import { useBudgetWrite } from '../budget/use-category-writes';
@@ -10,15 +11,21 @@ import { readLiquiditySelection } from '../reports/liquidity-selection';
 
 export function Upcoming({
   items,
+  events = [],
   id,
   title,
 }: {
   items: HeuteOccurrence[];
+  events?: PlannedEventOccurrence[];
   id: string;
   title: string;
 }) {
   useAmountPrivacy();
   const selection = readLiquiditySelection();
+  const upcoming = [
+    ...items.map((item) => ({ date: item.dueDate, item })),
+    ...events.map((event) => ({ date: event.date, event })),
+  ].sort((a, b) => a.date.localeCompare(b.date));
   return (
     <section className="heute-section" aria-labelledby={id}>
       <SectionHead
@@ -30,7 +37,12 @@ export function Upcoming({
           </AppLink>
         }
       />
-      {items.length === 0 ? (
+      {events.length > 0 && (
+        <p className="heute-note">
+          Wiederkehrende Zahlungen: 7 Tage · Geplante Einmalereignisse: 35 Tage.
+        </p>
+      )}
+      {upcoming.length === 0 ? (
         <EmptyNote>Keine wiederkehrenden Zahlungen in diesem Zeitraum.</EmptyNote>
       ) : (
         <>
@@ -39,62 +51,87 @@ export function Upcoming({
             und Überziehungsrahmen werden nicht geprüft.
           </p>
           <ul className="heute-list">
-            {items.map((item) => (
-              <li className="heute-upcoming" key={`${item.paymentId}-${item.dueDate}`}>
-                <time dateTime={item.dueDate}>{shortDay(item.dueDate)}</time>
-                <div>
-                  <strong>{item.name}</strong>
-                  <span>
-                    {item.accountId && item.accountName && (
+            {upcoming.map((row) => {
+              if ('event' in row) {
+                const event = row.event;
+                return (
+                  <li className="heute-upcoming" key={event.eventId}>
+                    <time dateTime={event.date}>{shortDay(event.date)}</time>
+                    <div>
+                      <strong>{event.name}</strong>
+                      <span>Geplantes Einmalereignis</span>
+                    </div>
+                    <div className="heute-amount-status">
                       <AppLink
                         className="heute-account-preview"
-                        to={`/konten/${encodeURIComponent(item.accountId)}`}
-                        search={{
-                          faellig: item.dueDate,
-                          vorschau: 'liquiditaet',
-                          horizon: selection.horizon,
-                          levers: selection.levers.join(','),
-                        }}
+                        to="/plan/jahr"
+                        search={{ ereignis: event.eventId }}
                       >
-                        {item.accountName} · Kontovorschau
+                        {eur(event.amountCents, { sign: true })}
                       </AppLink>
+                      <span>Nur geplant</span>
+                    </div>
+                  </li>
+                );
+              }
+              const item = row.item;
+              return (
+                <li className="heute-upcoming" key={`${item.paymentId}-${item.dueDate}`}>
+                  <time dateTime={item.dueDate}>{shortDay(item.dueDate)}</time>
+                  <div>
+                    <strong>{item.name}</strong>
+                    <span>
+                      {item.accountId && item.accountName && (
+                        <AppLink
+                          className="heute-account-preview"
+                          to={`/konten/${encodeURIComponent(item.accountId)}`}
+                          search={{
+                            faellig: item.dueDate,
+                            vorschau: 'liquiditaet',
+                            horizon: selection.horizon,
+                            levers: selection.levers.join(','),
+                          }}
+                        >
+                          {item.accountName} · Kontovorschau
+                        </AppLink>
+                      )}
+                      {[
+                        !item.accountId ? item.accountName : null,
+                        item.contactName,
+                        item.categoryName,
+                      ]
+                        .filter(Boolean)
+                        .join(' · ') || 'Ohne weitere Angabe'}
+                    </span>
+                  </div>
+                  <div className="heute-amount-status">
+                    <AppLink to="/plan/erwartet" search={{ zahlung: item.paymentId }}>
+                      {eur(item.amountCents, { sign: true })}
+                    </AppLink>
+                    <span
+                      className={
+                        item.covered === false ? 'heute-note' : item.covered ? 'heute-good' : ''
+                      }
+                    >
+                      {item.covered === true ? (
+                        <>
+                          <CircleCheck size={14} aria-hidden="true" /> Budgetrücklage reicht
+                        </>
+                      ) : item.covered === false ? (
+                        <>
+                          <Clock3 size={14} aria-hidden="true" /> Budgetrücklage reicht nicht
+                        </>
+                      ) : (
+                        statusText(item.status)
+                      )}
+                    </span>
+                    {item.kind === 'inflow' && item.status === 'expected' && (
+                      <StrikeButton item={item} />
                     )}
-                    {[
-                      !item.accountId ? item.accountName : null,
-                      item.contactName,
-                      item.categoryName,
-                    ]
-                      .filter(Boolean)
-                      .join(' · ') || 'Ohne weitere Angabe'}
-                  </span>
-                </div>
-                <div className="heute-amount-status">
-                  <AppLink to="/plan/erwartet" search={{ zahlung: item.paymentId }}>
-                    {eur(item.amountCents, { sign: true })}
-                  </AppLink>
-                  <span
-                    className={
-                      item.covered === false ? 'heute-note' : item.covered ? 'heute-good' : ''
-                    }
-                  >
-                    {item.covered === true ? (
-                      <>
-                        <CircleCheck size={14} aria-hidden="true" /> Budgetrücklage reicht
-                      </>
-                    ) : item.covered === false ? (
-                      <>
-                        <Clock3 size={14} aria-hidden="true" /> Budgetrücklage reicht nicht
-                      </>
-                    ) : (
-                      statusText(item.status)
-                    )}
-                  </span>
-                  {item.kind === 'inflow' && item.status === 'expected' && (
-                    <StrikeButton item={item} />
-                  )}
-                </div>
-              </li>
-            ))}
+                  </div>
+                </li>
+              );
+            })}
           </ul>
         </>
       )}

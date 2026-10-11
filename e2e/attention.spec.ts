@@ -33,6 +33,7 @@ test('attention explains the empty state when Heute has no open items', async ({
     body.nextSteps = { items: [], count: 0 };
     body.attention = { inboxCount: 0, pendingCount: 0, pendingBefore: '2026-09-10' };
     body.financeCheck.actionRules = [];
+    body.accountReminders = [];
     await route.fulfill({ response, json: body });
   });
   await page.goto('/?monat=2026-09');

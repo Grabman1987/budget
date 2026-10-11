@@ -529,6 +529,9 @@ const accountRoute = createRoute({
   getParentRoute: () => shellRoute,
   path: '/konten/$id',
   validateSearch: (search: Record<string, unknown>) => ({
+    pruefen: ['reconcile', 'value'].includes(String(search['pruefen']))
+      ? (search['pruefen'] as 'reconcile' | 'value')
+      : undefined,
     vorschau: search['vorschau'] === 'liquiditaet' ? 'liquiditaet' : undefined,
     horizon: LIQUIDITY_HORIZONS.includes(search['horizon'] as LiquidityHorizon)
       ? (search['horizon'] as LiquidityHorizon)

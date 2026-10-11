@@ -305,7 +305,8 @@ function HeuteBody({ data }: { data: Heute }) {
       <Upcoming
         items={data.upcoming14.filter((p) => p.dueDate < addDays(data.stand.today, 7))}
         id="heute-upcoming-title"
-        title="Was steht an? · Nächste 7 Tage"
+        events={data.upcomingEvents}
+        title="Was steht an?"
       />
       <section className="heute-wealth-line" aria-labelledby="heute-wealth-title">
         <h2 id="heute-wealth-title">Nettovermögen · 12 Monate</h2>

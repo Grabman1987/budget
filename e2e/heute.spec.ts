@@ -209,7 +209,7 @@ test('Heute uses live API data and period, expands the lead chain, and links to 
   await expect(page.getByRole('heading', { name: 'Envelopes Bedarf' })).toBeVisible();
 
   await expect(page.getByRole('heading', { name: 'Angepinnte Envelopes' })).toBeVisible();
-  await expect(page.getByRole('heading', { name: 'Was steht an? · Nächste 7 Tage' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Was steht an?' })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Finanz-Check' })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Nettovermögen · 12 Monate' })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Letzte Buchungen' })).toBeVisible();
@@ -413,7 +413,7 @@ test('attention leaves overspending to the top-bar chip and links to the inbox',
 test('source-view links open the corresponding live pages', async ({ page }) => {
   for (const [heading, link, target] of [
     ['Angepinnte Envelopes', 'Plan öffnen', '/plan/monat'],
-    ['Was steht an? · Nächste 7 Tage', 'Alle', '/plan/erwartet'],
+    ['Was steht an?', 'Alle', '/plan/erwartet'],
     ['Finanz-Check', 'Alle Regeln', '/einstellungen/regelwerk'],
     ['Vermögensaufteilung', 'Details', '/vermoegen/nettovermoegen'],
     ['Letzte Buchungen', 'Alle', '/konten/buchungen'],

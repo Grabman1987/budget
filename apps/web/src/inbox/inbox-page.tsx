@@ -1,3 +1,4 @@
+import { InboxAccountReminders } from '../heute/account-reminders';
 import {
   BankBookingMerge,
   BankCandidate,
@@ -82,6 +83,7 @@ export function InboxPage() {
           </AppLink>
         </p>
       )}
+      {!search.bankSource && <InboxAccountReminders />}
       <InboxWorkflow bankSource={search.bankSource} />
     </PageFrame>
   );

@@ -1,0 +1,18 @@
+.account-reminder {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  padding-block: 8px;
+  border-top: 1px solid var(--rule);
+}
+.account-reminder > span {
+  min-width: 0;
+  flex: 1 1 240px;
+  overflow-wrap: anywhere;
+}
+.account-reminder a {
+  min-height: 44px;
+  white-space: normal;
+}

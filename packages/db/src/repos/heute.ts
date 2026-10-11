@@ -1,4 +1,6 @@
 import {
+  plannedEventOccurrences,
+  type PlannedEventOccurrence,
   addDays,
   addMonths,
   changeBp,
@@ -52,6 +54,7 @@ import { overviewData } from './report-ledger';
 import { monthResultRead } from './month-reports';
 import { wholePicture } from './whole-picture';
 import { listGoals } from './goals';
+import { accountReminders } from './account-reminders';
 
 /**
  * The read model of Heute (concept §7.1, SPEC §3): one call, every figure from the domain
@@ -191,6 +194,8 @@ export interface Heute {
   pace: PaceModel & { forecast: number[]; previousMonth: string; income: number[] };
   pinned: HeutePinned[];
   upcoming14: HeuteOccurrence[];
+  upcomingEvents: PlannedEventOccurrence[];
+  accountReminders: ReturnType<typeof accountReminders>;
   financeCheck:
     | {
         counts: FinanceCheck['counts'];
@@ -722,6 +727,16 @@ export function heute(db: Executor, query: HeuteQuery): Heute {
     pace: { ...model, forecast: paceForecast, previousMonth: paceMonthBefore },
     pinned,
     upcoming14,
+    upcomingEvents: facts.plannedEvents
+      .filter((e) => e.recurrence === 'once')
+      .flatMap((e) => plannedEventOccurrences(e, today, addDays(today, 35)))
+      .sort(
+        (a, b) =>
+          a.date.localeCompare(b.date) ||
+          a.name.localeCompare(b.name) ||
+          a.eventId.localeCompare(b.eventId),
+      ),
+    accountReminders: accountReminders(db, today),
     financeCheck: check,
     netWorth,
     attention: {
