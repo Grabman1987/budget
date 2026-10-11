@@ -258,6 +258,8 @@ export interface ReconcileRequest {
   removeBookingIds?: string[];
   confirmBookingIds?: string[];
   adjust?: boolean;
+  adjustDate?: string;
+  categoryId?: string;
 }
 
 export const reconcileAccount = (accountId: string, input: ReconcileRequest) =>

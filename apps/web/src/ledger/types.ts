@@ -73,6 +73,7 @@ export interface AccountRow {
     fetchedAt: string | null;
     reconciledThrough: string | null;
     canLock: boolean;
+    lockReason?: string | null;
   } | null;
 }
 

@@ -221,6 +221,8 @@ export interface ReconcileInput {
   confirmBookingIds?: string[];
   /** Book the remaining difference as Ausgleich (payee "Korrektur Kontoprüfung"). */
   adjust?: boolean;
+  adjustDate?: string;
+  categoryId?: string;
   note?: string | null;
   /** `YYYY-MM-DD`, Europe/Vienna by default; the check day must not be later. */
   today?: string;
@@ -252,6 +254,11 @@ export function reconcileAccount(
     if (!isDay(input.date) || input.date < acct.openingDate)
       throw new BookingInvariantError(`Date "${input.date}" is not valid for this account`);
     assertNotFuture(input.date, input.today ?? todayInVienna());
+    const adjustDate = input.adjustDate ?? input.date;
+    if (!isDay(adjustDate) || adjustDate < acct.openingDate || adjustDate > input.date)
+      throw new BookingInvariantError(
+        'Adjustment date must be between account opening and statement date',
+      );
     const own = (id: string) => {
       const row = tx
         .select()
@@ -286,13 +293,13 @@ export function reconcileAccount(
         tx,
         {
           accountId: acct.id,
-          date: input.date,
+          date: adjustDate,
           amountCents: difference,
           payeeId: SYSTEM_PAYEE_IDS.reconciliation_adjustment.id,
           memo: 'Differenz zum Bank-Saldo',
           status: 'confirmed',
           source: 'system',
-          splits: [{ amountCents: difference }],
+          splits: [{ amountCents: difference, categoryId: input.categoryId ?? null }],
         },
         grouped,
       );

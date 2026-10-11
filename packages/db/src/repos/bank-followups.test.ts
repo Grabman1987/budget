@@ -287,27 +287,71 @@ describe('bank matching, transfer linking and reconciliation', () => {
       fetchedAt: now,
       reconciledThrough: null,
       canLock: true,
+      lockReason: null,
     });
     const result = lockBankBalance(opened.db, 'giro', today, ctx);
     expect(bankBalanceForAccount(opened.db, 'giro', today)!.reconciledThrough).toBe(today);
     undo(opened.db, { groupId: result.groupId }, ctx);
     expect(bankBalanceForAccount(opened.db, 'giro', today)!.reconciledThrough).toBeNull();
   });
-  it.each([null, '2026-10-01'])('never locks an undated or stale balance (%s)', (date) => {
+  it.each([null, '2026-10-01'])('locks through the observation day or fetch day (%s)', (date) => {
     observation(date);
+    const later = manual(-1201, 'giro', today);
+    if (date === null)
+      opened.db.update(booking).set({ deletedAt: now }).where(eq(booking.id, later)).run();
+    expect(bankBalanceForAccount(opened.db, 'giro', today)!.canLock).toBe(true);
+    const result = lockBankBalance(opened.db, 'giro', today, ctx);
+    expect(bankBalanceForAccount(opened.db, 'giro', today)!.reconciledThrough).toBe(date ?? today);
+    expect(getBooking(opened.db, later)?.status ?? null).toBe(date ? 'pending' : null);
+    undo(opened.db, { groupId: result.groupId }, ctx);
+    expect(bankBalanceForAccount(opened.db, 'giro', today)!.reconciledThrough).toBeNull();
+  });
+  it('accepts XXX source currency but rejects a different currency and invalid observation dates', () => {
+    observation();
+    opened.db.update(bankSyncAccount).set({ currency: 'XXX' }).run();
+    expect(bankBalanceForAccount(opened.db, 'giro', today)!.canLock).toBe(true);
+    lockBankBalance(opened.db, 'giro', today, ctx);
+    opened.db.update(bankSyncAccount).set({ currency: 'USD' }).run();
     expect(() => lockBankBalance(opened.db, 'giro', today, ctx)).toThrow();
+    for (const balanceDate of ['2026-10-03', '2023-01-01']) {
+      opened.db.update(bankSyncAccount).set({ currency: 'EUR', balanceDate }).run();
+      expect(() => lockBankBalance(opened.db, 'giro', today, ctx)).toThrow();
+    }
   });
   it('rejects mismatches, open candidates, pending bookings and closed accounts', () => {
     observation(today, 99999);
+    expect(bankBalanceForAccount(opened.db, 'giro', today)!.lockReason).toContain('unterscheiden');
     expect(() => lockBankBalance(opened.db, 'giro', today, ctx)).toThrow();
     opened.db.update(bankSyncAccount).set({ balanceCents: 100000 }).run();
     const id = candidate();
+    expect(bankBalanceForAccount(opened.db, 'giro', today)!.lockReason).toContain('Posteingang');
     expect(() => lockBankBalance(opened.db, 'giro', today, ctx)).toThrow();
     opened.db.update(inboxItem).set({ resolvedAt: now }).where(eq(inboxItem.id, id)).run();
     manual();
+    expect(bankBalanceForAccount(opened.db, 'giro', today)!.lockReason).toContain('Vorgemerkte');
     expect(() => lockBankBalance(opened.db, 'giro', today, ctx)).toThrow();
     opened.db.update(account).set({ closedAt: today }).where(eq(account.id, 'giro')).run();
     expect(() => lockBankBalance(opened.db, 'giro', today, ctx)).toThrow();
+  });
+  it('uses the Vienna fetch day and refuses an observation with neither date nor fetch date', () => {
+    observation(null);
+    opened.db.update(bankSyncAccount).set({ balanceFetchedAt: '2026-10-01T23:30:00Z' }).run();
+    lockBankBalance(opened.db, 'giro', today, ctx);
+    expect(bankBalanceForAccount(opened.db, 'giro', today)!.reconciledThrough).toBe('2026-10-02');
+    opened.db.update(bankSyncAccount).set({ balanceFetchedAt: null }).run();
+    expect(bankBalanceForAccount(opened.db, 'giro', today)!.lockReason).toContain('Datum');
+    expect(() => lockBankBalance(opened.db, 'giro', today, ctx)).toThrow();
+  });
+  it('ignores later inbox candidates but blocks candidates through the observed day', () => {
+    observation('2026-10-01');
+    const id = candidate();
+    expect(bankBalanceForAccount(opened.db, 'giro', today)!.canLock).toBe(true);
+    opened.db
+      .update(bankSyncCandidate)
+      .set({ date: '2026-10-01' })
+      .where(eq(bankSyncCandidate.id, id))
+      .run();
+    expect(bankBalanceForAccount(opened.db, 'giro', today)!.canLock).toBe(false);
   });
 });
 

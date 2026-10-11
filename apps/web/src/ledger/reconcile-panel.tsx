@@ -1,5 +1,13 @@
-import { useAmountPrivacy, AmountInput, Button, Field, TextInput, maskMoneyText } from '@budget/ui';
-import { parseAmount, todayInVienna } from '@budget/domain';
+import {
+  useAmountPrivacy,
+  AmountInput,
+  Button,
+  Field,
+  Select,
+  TextInput,
+  maskMoneyText,
+} from '@budget/ui';
+import { cents, formatDecimal, parseAmount, todayInVienna } from '@budget/domain';
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { AlertTriangle, CheckCircle2 } from 'lucide-react';
 import { useEffect, useState } from 'react';
@@ -8,11 +16,13 @@ import { previewReconciliation, reconcileAccount, type ReconcileRequest } from '
 import { nativeCurrency, valuedCurrency, longDay, shortDay } from './format';
 import { errorText } from './labels';
 import { useLedgerWrites } from './mutations';
-import { LEDGER_KEY } from './queries';
+import { LEDGER_KEY, lookupsQuery } from './queries';
 import { findingOf } from './reconcile-model';
 import { ErrorNote, LoadingNote } from './states';
 import type { AccountRow } from './types';
 import { SettingsFormDialog } from '../pages/settings-form-dialog';
+import { BookingPanel, type BookingPanelState } from './booking-panel';
+import { categoriesFor, pickableCategories } from './capture-model';
 
 /** Value that follows `value` after a pause (the preview is asked for when typing stops). */
 function useDebounced<T>(value: T, ms: number): T {
@@ -57,7 +67,20 @@ export function ReconcileFlow({
   const today = todayInVienna();
   const [date, setDate] = useState(initialDate ?? today);
   const [text, setText] = useState('');
+  const [adjustDate, setAdjustDate] = useState<string | null>(null);
+  const [categoryId, setCategoryId] = useState('');
+  const [bookingState, setBookingState] = useState<BookingPanelState>(null);
   const [error, setError] = useState<string | null>(null);
+  const lookups = useQuery(lookupsQuery());
+  const bank = account.bankBalance;
+  const bankDate = bank?.date || (bank?.fetchedAt ? todayInVienna(new Date(bank.fetchedAt)) : null);
+  const adjustmentDay = adjustDate ?? date;
+  const adjustmentValid =
+    /^\d{4}-\d{2}-\d{2}$/.test(adjustmentDay) &&
+    Number.isFinite(Date.parse(`${adjustmentDay}T00:00:00Z`)) &&
+    new Date(`${adjustmentDay}T00:00:00Z`).toISOString().startsWith(adjustmentDay) &&
+    adjustmentDay >= account.openingDate &&
+    adjustmentDay <= date;
 
   const parsed = parseAmount(text);
   const statement = parsed.ok && text.trim() !== '' ? parsed.cents : null;
@@ -80,6 +103,11 @@ export function ReconcileFlow({
   const data = preview.data;
   const money = (amount: number, sign = false) => nativeCurrency(amount, account.currency, sign);
   const finding = data ? findingOf(data) : null;
+  const categories = categoriesFor(
+    pickableCategories(undefined, lookups.data),
+    data && data.differenceCents > 0 ? 'income' : 'expense',
+  );
+  const categoryName = categories.find((c) => c.id === categoryId)?.name ?? 'ohne Kategorie';
   // The panel shows the answer for what is typed now, not for the previous input.
   const current =
     ready &&
@@ -88,6 +116,7 @@ export function ReconcileFlow({
     data?.date === date &&
     data.statementBalanceCents === statement &&
     !preview.isPlaceholderData &&
+    !preview.isFetching &&
     !preview.isError;
 
   const confirm = useMutation({
@@ -122,16 +151,29 @@ export function ReconcileFlow({
   };
 
   return (
-    <div className="kform">
+    <div className="kform kreconcile">
       <p className="text-muted">
         Vergleicht den gebuchten App-Saldo mit dem Saldo laut Bank. Stimmt beides überein, werden
         die bestätigten Buchungen als geprüft festgeschrieben. Vorgemerkte Buchungen zählen nicht.
       </p>
+      {bank && bank.amountCents !== null && bankDate && (
+        <Button
+          variant="ghost"
+          disabled={confirm.isPending}
+          onClick={() => {
+            setDate(bankDate);
+            setText(formatDecimal(cents(bank.amountCents!)));
+          }}
+        >
+          Bankstand übernehmen ({money(bank.amountCents)} vom {longDay(bankDate)})
+        </Button>
+      )}
       <Field label="Stichtag">
         {({ id }) => (
           <TextInput
             id={id}
             type="date"
+            min={account.openingDate}
             max={today}
             value={date}
             onChange={(e) => setDate(e.target.value)}
@@ -147,11 +189,14 @@ export function ReconcileFlow({
         Prüfung und Ausgleich in {account.currency}; EUR ist eine Bewertung zum Stichtag.
       </p>
       <AmountInput
-        label={`Saldo laut Bank${account.currency === 'EUR' ? '' : ` · ${account.currency}`}`}
+        label={`${account.type === 'brokerage' || account.type === 'crypto' ? 'Bargeld-Saldo (ohne Wertpapiere)' : 'Saldo laut Bank'}${account.currency === 'EUR' ? '' : ` · ${account.currency}`}`}
         currency={account.currency}
         value={text}
         onChange={setText}
       />
+      {(account.type === 'credit_card' || account.type === 'loan') && (
+        <p className="amount-hint">Schuld als Minus eingeben</p>
+      )}
       {data && current && (
         <dl className="kv-list">
           <div>
@@ -267,7 +312,67 @@ export function ReconcileFlow({
                 )}
               </span>
             </p>
+            <div className="kform">
+              <Field label="Ausgleichsdatum">
+                {({ id }) => (
+                  <TextInput
+                    id={id}
+                    type="date"
+                    min={account.openingDate}
+                    max={date}
+                    value={adjustmentDay}
+                    onChange={(e) => setAdjustDate(e.target.value)}
+                  />
+                )}
+              </Field>
+              <Field label="Kategorie für den Ausgleich">
+                {({ id }) => (
+                  <Select
+                    id={id}
+                    value={categoryId}
+                    onChange={(e) => setCategoryId(e.target.value)}
+                  >
+                    <option value="">Ohne Kategorie (bisheriger Standard)</option>
+                    {categories.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.name}
+                      </option>
+                    ))}
+                  </Select>
+                )}
+              </Field>
+              {!adjustmentValid && (
+                <p className="field-error" role="alert">
+                  Das Ausgleichsdatum muss zwischen Kontoeröffnung und Stichtag liegen.
+                </p>
+              )}
+              <p className="text-muted">
+                Eine echte Buchung über {money(data.differenceCents, true)} wird am{' '}
+                {longDay(adjustmentDay)} mit{' '}
+                {categoryId ? `Kategorie „${categoryName}“` : 'keiner Kategorie'} erstellt und
+                festgeschrieben.
+              </p>
+            </div>
             <div className="panel-actions">
+              {finding.kind === 'missing' && (
+                <Button
+                  disabled={confirm.isPending}
+                  onClick={() =>
+                    setBookingState({
+                      mode: 'create',
+                      accountId: account.id,
+                      prefill: {
+                        kind: finding.type,
+                        amount: formatDecimal(cents(finding.amountCents)),
+                        date,
+                        status: 'confirmed',
+                      },
+                    })
+                  }
+                >
+                  Fehlende Buchung erfassen
+                </Button>
+              )}
               {finding.kind === 'duplicate' && (
                 <Button
                   disabled={writes.remove.isPending}
@@ -288,8 +393,18 @@ export function ReconcileFlow({
                 variant={
                   finding.kind === 'missing' || finding.kind === 'other' ? 'primary' : 'ghost'
                 }
-                disabled={confirm.isPending}
-                onClick={() => run({ adjust: true })}
+                disabled={
+                  confirm.isPending ||
+                  !adjustmentValid ||
+                  (categoryId !== '' && !categories.some((c) => c.id === categoryId))
+                }
+                onClick={() =>
+                  run({
+                    adjust: true,
+                    ...(adjustDate === null ? {} : { adjustDate }),
+                    ...(categoryId ? { categoryId } : {}),
+                  })
+                }
               >
                 Differenz ausgleichen · {money(data.differenceCents, true)}
               </Button>
@@ -314,6 +429,7 @@ export function ReconcileFlow({
           ? `Zuletzt geprüft am ${longDay(account.lastReconciledOn)}.`
           : 'Dieses Konto wurde noch nie geprüft.'}
       </p>
+      <BookingPanel state={bookingState} onClose={() => setBookingState(null)} />
     </div>
   );
 }

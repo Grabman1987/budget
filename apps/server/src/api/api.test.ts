@@ -926,6 +926,8 @@ describe('Kontostand prüfen', () => {
       'booking'
     ];
     expect(adjustment).toMatchObject({
+      date: TODAY,
+      splits: [expect.objectContaining({ categoryId: null })],
       amountCents: -1000,
       status: 'reconciled',
       payeeName: 'Korrektur Kontoprüfung',
@@ -949,6 +951,69 @@ describe('Kontostand prüfen', () => {
       expect(res, path).toMatchObject({ status: 422, body: { error: 'invariant' } });
     }
     expect((await call('GET', `/bookings/${later.id}`)).body['booking'].status).toBe('confirmed');
+  });
+
+  it('books a dated categorized adjustment, excludes it from inbox and undoes/redoes it', async () => {
+    const a = await newAccount();
+    const done = await call('POST', `/accounts/${a.id}/reconciliation`, {
+      date: TODAY,
+      statementBalanceCents: 99_000,
+      adjust: true,
+      adjustDate: '2026-03-12',
+      categoryId: 'essen',
+    });
+    expect(done.status).toBe(201);
+    const result = done.body['result'];
+    const read = async () =>
+      (await call('GET', `/bookings/${result.adjustmentBookingId}`)).body['booking'];
+    expect(await read()).toMatchObject({
+      date: '2026-03-12',
+      amountCents: -1000,
+      status: 'reconciled',
+      splits: [expect.objectContaining({ categoryId: 'essen' })],
+    });
+    expect(JSON.stringify((await call('GET', '/inbox')).body)).not.toContain(
+      result.adjustmentBookingId,
+    );
+    const reverted = await call('POST', '/undo', { groupId: result.groupId });
+    expect((await call('GET', `/bookings/${result.adjustmentBookingId}`)).status).toBe(404);
+    await call('POST', '/undo', { groupId: reverted.body['groupId'] });
+    expect(await read()).toMatchObject({
+      date: '2026-03-12',
+      splits: [expect.objectContaining({ categoryId: 'essen' })],
+    });
+  });
+
+  it.each(['2025-12-31', '2026-04-01'])(
+    'rejects adjustment date outside the account/statement interval (%s) atomically',
+    async (adjustDate) => {
+      const a = await newAccount();
+      const before = db.select().from(schema.auditLog).all().length;
+      const res = await call('POST', `/accounts/${a.id}/reconciliation`, {
+        date: TODAY,
+        statementBalanceCents: 99_000,
+        adjust: true,
+        adjustDate,
+        categoryId: 'essen',
+      });
+      expect(res.status).toBe(422);
+      expect(db.select().from(schema.booking).all()).toEqual([]);
+      expect(db.select().from(schema.auditLog).all()).toHaveLength(before);
+    },
+  );
+
+  it('rejects an unknown adjustment category without a booking or audit', async () => {
+    const a = await newAccount();
+    const before = db.select().from(schema.auditLog).all().length;
+    const res = await call('POST', `/accounts/${a.id}/reconciliation`, {
+      date: TODAY,
+      statementBalanceCents: 99_000,
+      adjust: true,
+      categoryId: 'unknown',
+    });
+    expect(res.status).toBe(422);
+    expect(db.select().from(schema.booking).all()).toEqual([]);
+    expect(db.select().from(schema.auditLog).all()).toHaveLength(before);
   });
 
   it('answers 404 for unknown accounts and 400 for bad input', async () => {

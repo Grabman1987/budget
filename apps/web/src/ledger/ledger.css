@@ -544,6 +544,11 @@
   display: grid;
   gap: 16px;
 }
+.kreconcile .btn {
+  min-height: 44px;
+  height: auto;
+  white-space: normal;
+}
 .kform-switch {
   display: flex;
   align-items: center;

@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { request } from '../api/http';
 import { useBudgetWrite } from '../budget/use-category-writes';
 import { longDay, valuedCurrency } from './format';
+import { todayInVienna } from '@budget/domain';
 import type { AccountRow } from './types';
 
 export function BankBalance({ account }: { account: AccountRow }) {
@@ -12,6 +13,8 @@ export function BankBalance({ account }: { account: AccountRow }) {
   const [busy, setBusy] = useState(false);
   const write = useBudgetWrite();
   if (!balance) return null;
+  const lockDate =
+    balance.date || (balance.fetchedAt ? todayInVienna(new Date(balance.fetchedAt)) : null);
   return (
     <div className="bank-balance" role="group" aria-label={`Bankstand · ${account.name}`}>
       <span>
@@ -40,18 +43,20 @@ export function BankBalance({ account }: { account: AccountRow }) {
                   `/api/accounts/${encodeURIComponent(account.id)}/bank-lock`,
                   {},
                 ),
-              () => 'Abgleich bis heute gesperrt.',
+              () => `Abgleich bis ${lockDate ? longDay(lockDate) : 'heute'} gesperrt.`,
             ).finally(() => setBusy(false));
           }}
         >
           Abgleich sperren bis heute
         </Button>
       )}
-      {!balance.canLock && (
+      {balance.canLock && lockDate && (
         <span className="kmeta">
-          Zum Sperren müssen Bankstand und gebuchter App-Saldo für heute übereinstimmen; offene
-          Umsätze zuerst prüfen.
+          Sperrt Buchungen bis {longDay(lockDate)} (Datum des Bankstands).
         </span>
+      )}
+      {!balance.canLock && (
+        <span className="kmeta">{balance.lockReason ?? 'Ein passender Bankstand fehlt.'}</span>
       )}
     </div>
   );

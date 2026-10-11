@@ -4,6 +4,7 @@ import {
   canLinkTransfer,
   addDays,
   withinBankWindow,
+  todayInVienna,
   type MatchBooking,
 } from '@budget/domain';
 import { and, desc, eq, isNull, lte, gte, notLike, or } from 'drizzle-orm';
@@ -493,7 +494,7 @@ export function linkBankCandidate(
   });
 }
 
-/** Latest dated observation only; undated balances remain visible but cannot authorize a lock. */
+/** Lock only through the observed balance day, falling back to the Vienna fetch day. */
 export function bankBalanceForAccount(db: Executor, accountId: string, today: string) {
   const row = db
     .select()
@@ -502,6 +503,11 @@ export function bankBalanceForAccount(db: Executor, accountId: string, today: st
     .orderBy(desc(bankSyncAccount.balanceFetchedAt))
     .get();
   if (!row) return null;
+  const fetched = row.balanceFetchedAt ? new Date(row.balanceFetchedAt) : null;
+  const date =
+    row.balanceDate ||
+    (fetched && Number.isFinite(fetched.getTime()) ? todayInVienna(fetched) : null);
+  const acct = openAccount(db, accountId);
   const open = db
     .select()
     .from(bankSyncCandidate)
@@ -513,11 +519,10 @@ export function bankBalanceForAccount(db: Executor, accountId: string, today: st
         // A foreign-currency line of a multi-currency source never changes this account's balance.
         eq(bankSyncCandidate.currency, account.currency),
         isNull(inboxItem.resolvedAt),
-        lte(bankSyncCandidate.date, today),
+        lte(bankSyncCandidate.date, date ?? today),
       ),
     )
     .get();
-  const acct = openAccount(db, accountId);
   const pending = db
     .select()
     .from(booking)
@@ -526,23 +531,40 @@ export function bankBalanceForAccount(db: Executor, accountId: string, today: st
         eq(booking.accountId, accountId),
         isNull(booking.deletedAt),
         eq(booking.status, 'pending'),
-        lte(booking.date, today),
+        lte(booking.date, date ?? today),
       ),
     )
     .get();
+  const validDate =
+    date !== null &&
+    /^\d{4}-\d{2}-\d{2}$/.test(date) &&
+    Number.isFinite(Date.parse(`${date}T00:00:00Z`)) &&
+    new Date(`${date}T00:00:00Z`).toISOString().startsWith(date);
+  const lockReason =
+    row.balanceCents === null
+      ? 'Ein Bankstand fehlt.'
+      : !validDate
+        ? 'Für den Bankstand fehlt ein gültiges Datum oder Abrufdatum.'
+        : date! > today
+          ? `Der Bankstand vom ${date} liegt in der Zukunft.`
+          : date! < acct.openingDate
+            ? 'Der Bankstand liegt vor der Kontoeröffnung.'
+            : row.currency !== 'XXX' && row.currency !== acct.currency
+              ? 'Die Währung des Bankstands passt nicht zum Konto.'
+              : open
+                ? 'Offene Bankumsätze im Posteingang bis zum Bankstand zuerst prüfen.'
+                : pending
+                  ? 'Vorgemerkte Buchungen bis zum Bankstand zuerst bestätigen.'
+                  : bookedBalance(db, accountId, date!) !== row.balanceCents
+                    ? 'Bankstand und gebuchter App-Saldo am Bankstand-Datum unterscheiden sich.'
+                    : null;
   return {
     amountCents: row.balanceCents,
     date: row.balanceDate,
     fetchedAt: row.balanceFetchedAt,
     reconciledThrough: listReconciliations(db, accountId)[0]?.date ?? null,
-    canLock:
-      !acct.closedAt &&
-      row.currency === acct.currency &&
-      row.balanceDate === today &&
-      row.balanceCents !== null &&
-      !open &&
-      !pending &&
-      bookedBalance(db, accountId, today) === row.balanceCents,
+    canLock: lockReason === null,
+    lockReason,
   };
 }
 
@@ -550,12 +572,15 @@ export function lockBankBalance(db: Executor, accountId: string, today: string, 
   return runInTransaction(db, (tx) => {
     const balance = bankBalanceForAccount(tx, accountId, today);
     if (!balance?.canLock || balance.amountCents === null)
-      throw new ConflictError(
-        'Für heute fehlt ein passender Bankstand oder es gibt offene Buchungen.',
-      );
+      throw new ConflictError(balance?.lockReason ?? 'Ein passender Bankstand fehlt.');
     return reconcileAccount(
       tx,
-      { accountId, date: today, today, statementBalanceCents: balance.amountCents },
+      {
+        accountId,
+        date: balance.date || todayInVienna(new Date(balance.fetchedAt!)),
+        today,
+        statementBalanceCents: balance.amountCents,
+      },
       ctx,
     );
   });
