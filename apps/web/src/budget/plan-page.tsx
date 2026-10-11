@@ -23,6 +23,7 @@ import {
   ChevronDown,
   Clock,
   Info,
+  Plus,
 } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { expectedQuery } from '../expected/api';
@@ -77,7 +78,8 @@ import {
   type PlanRow,
   type PlanView,
 } from './plan-model';
-import { useBudgetWrite } from './use-category-writes';
+import { categoriesQuery, useBudgetWrite } from './use-category-writes';
+import { CategoryPanel, type PanelState } from './category-panel';
 
 /** `05.10.` of `2026-10-05`. */
 const dayMonth = (day: string) => `${day.slice(8, 10)}.${day.slice(5, 7)}.`;
@@ -173,6 +175,8 @@ function PlanBody({
 }) {
   useAmountPrivacy();
   const write = useBudgetWrite();
+  const [categoryForm, setCategoryForm] = useState<PanelState>(null);
+  const categoryTree = useQuery({ ...categoriesQuery(), enabled: categoryForm !== null });
   const accounts = useQuery(accountsQuery()).data?.accounts ?? [];
   const expected = useQuery(expectedQuery()).data;
   const search = useSearch({ strict: false }) as { ansicht?: 'triage'; kategorie?: string };
@@ -550,6 +554,7 @@ function PlanBody({
                 groups={planMulti(views)}
                 collapsed={collapsed}
                 onToggle={toggleGroup}
+                onAdd={(groupId) => setCategoryForm({ mode: 'edit', groupId })}
                 onOpen={(id, selectedMonth) => setOpen({ id, month: selectedMonth })}
               />
             ) : (
@@ -671,6 +676,22 @@ function PlanBody({
                               onCover={() => setOpen({ id: r.id, month })}
                             />
                           ))),
+                      ...(shownView === 'group'
+                        ? [
+                            <tr key={`${g.key}-add`} className="plan-add-row">
+                              <td colSpan={5}>
+                                <Button
+                                  variant="ghost"
+                                  className="plan-add"
+                                  onClick={() => setCategoryForm({ mode: 'edit', groupId: g.key })}
+                                >
+                                  <Plus size={16} strokeWidth={1.75} aria-hidden="true" />
+                                  <span className="sr-only">Kategorie in {g.title} anlegen</span>
+                                </Button>
+                              </td>
+                            </tr>,
+                          ]
+                        : []),
                     ];
                   })}
                 </tbody>
@@ -697,6 +718,27 @@ function PlanBody({
               </div>
             </>
           )}
+          <div className="plan-create">
+            {shownView !== 'group' && data.groups[0] && (
+              <Button
+                variant="ghost"
+                className="plan-add"
+                onClick={() => setCategoryForm({ mode: 'edit', groupId: data.groups[0]!.id })}
+              >
+                <Plus size={16} strokeWidth={1.75} aria-hidden="true" /> Kategorie anlegen
+              </Button>
+            )}
+            <Button
+              variant="ghost"
+              className="plan-add"
+              onClick={() => {
+                setView('group');
+                setCategoryForm({ mode: 'group' });
+              }}
+            >
+              <Plus size={16} strokeWidth={1.75} aria-hidden="true" /> Gruppe anlegen
+            </Button>
+          </div>
         </section>
       </div>
       <section className="plan-summary" aria-label="Weitere Monatszahlen">
@@ -712,6 +754,22 @@ function PlanBody({
           <Rail view={shownView} groups={groups} data={data} onJump={jump} />
         </section>
       </section>
+      {categoryForm && categoryTree.isPending && <LoadingNote what="Kategorien" />}
+      {categoryForm && categoryTree.isError && (
+        <ErrorNote
+          what="Kategorien"
+          error={categoryTree.error}
+          onRetry={() => void categoryTree.refetch()}
+        />
+      )}
+      {categoryTree.data && (
+        <CategoryPanel
+          state={categoryForm}
+          tree={categoryTree.data}
+          onClose={() => setCategoryForm(null)}
+          onSwitch={setCategoryForm}
+        />
+      )}
       <EnvelopePanel
         month={open?.month ?? month}
         row={open ? panelRows.find((r) => r.id === open.id) : undefined}

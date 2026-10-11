@@ -1,6 +1,15 @@
 .contacts-page {
   max-width: var(--page-max);
 }
+.contact-rename {
+  min-width: 44px;
+  min-height: 44px;
+}
+.contacts-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
 .contacts-statement {
   display: grid;
   gap: 16px;

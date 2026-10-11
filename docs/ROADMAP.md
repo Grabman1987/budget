@@ -678,6 +678,8 @@ Expected payments, contacts with receivables, savings goals, rule set registered
 
 ### P3 — Contact statements and settlement (owner decisions 2026-10-01)
 
+- [x] #427: audited contact rename with active-name validation and undo/redo; Plan month adds categories at group ends and groups at the bottom through the existing forms. Empty groups remain usable in single/multiple month views. [Delivery evidence](evidence/contact-rename-plan-plus/README.md); CI and deployed owner acceptance remain pending.
+
 - [x] Pure actual contact statement and oldest-outlay-first repayment allocation, editable before saving; expected occurrences excluded
 - [x] Audited atomic settlement API with persisted excess contact credit, whole-action undo/redo and dependency checks (including forced undo)
 - [x] Konten › Kontakte: nonzero overview, balanced-history toggle, contact creation, Kontoblatt and actual EUR cash repayment with editable allocation
