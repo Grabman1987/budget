@@ -1,6 +1,7 @@
 import { useLocation, useRouter } from '@tanstack/react-router';
 import type { AnchorHTMLAttributes } from 'react';
 import type { InboxPeriod } from '@budget/domain';
+import { z } from 'zod';
 import { AppLink } from '../shell/app-link';
 
 export function validateInboxSearch(search: Record<string, unknown>) {
@@ -17,6 +18,12 @@ export function validateInboxSearch(search: Record<string, unknown>) {
       : undefined;
   const source = search['bankSource'];
   return {
+    dateSort: (search['dateSort'] === 'newest' || search['dateSort'] === 'oldest'
+      ? search['dateSort']
+      : undefined) as 'newest' | 'oldest' | undefined,
+    fromDate: z.iso.date().safeParse(search['fromDate']).success
+      ? (search['fromDate'] as string)
+      : undefined,
     bankSource:
       typeof source === 'string' &&
       /^[\da-f]{8}-[\da-f]{4}-[\da-f]{4}-[\da-f]{4}-[\da-f]{12}$/i.test(source)

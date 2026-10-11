@@ -9,15 +9,33 @@ const page = z.object({
   offset: z.coerce.number().int().min(0).optional(),
   period: z.enum(['all', 'current', 'historical']).default('all'),
   bankSource: z.string().uuid().optional(),
+  dateSort: z.enum(['newest', 'oldest']).optional(),
+  fromDate: z.iso.date().optional(),
 });
 
 /** Actual queue behind the common session/origin guard; stored acknowledgement has one undo group. */
 export function inboxRoutes(db: Db, today: () => string): Hono {
   const app = new Hono();
   app.get('/', (c) => {
-    const { limit, offset, period, bankSource } = readQuery(c, page);
+    const { limit, offset, period, bankSource, dateSort, fromDate } = readQuery(c, page);
     const inbox = readInbox(db, today(), bankSource);
-    const filtered = inbox.entries.filter((entry) => inboxMatchesPeriod(entry, period, inbox.asOf));
+    const date = (entry: (typeof inbox.entries)[number]) =>
+      entry.type === 'stored'
+        ? (entry.bankCandidate?.date ?? entry.createdAt.slice(0, 10))
+        : entry.type === 'envelope'
+          ? entry.month + '-01'
+          : entry.date;
+    const filtered = inbox.entries.filter(
+      (entry) =>
+        inboxMatchesPeriod({ ...entry, date: date(entry) }, period, inbox.asOf) &&
+        (!fromDate || date(entry) >= fromDate),
+    );
+    if (dateSort)
+      filtered.sort(
+        (a, b) =>
+          (dateSort === 'newest' ? -1 : 1) * date(a).localeCompare(date(b)) ||
+          a.id.localeCompare(b.id),
+      );
     // Without `limit` the whole queue, as before; `count` always is the full number of tasks.
     if (limit === undefined) return c.json({ ...inbox, entries: filtered });
     const start = offset ?? 0;

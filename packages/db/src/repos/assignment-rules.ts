@@ -224,6 +224,25 @@ export function savePayeeCleanup(
   });
 }
 
+let deferredLearning: (() => void)[] | null = null;
+/**
+ * Bulk confirmation applies every row as previewed: payee aliases and inbox rules learned from
+ * earlier rows would change what later rows suggest, so learning runs once after the last row.
+ * Synchronous only; the caller's transaction wraps both the rows and the deferred learning.
+ */
+export function deferLearning<T>(run: () => T): T {
+  if (deferredLearning) return run();
+  const queue: (() => void)[] = (deferredLearning = []);
+  try {
+    const result = run();
+    deferredLearning = null;
+    for (const job of queue) job();
+    return result;
+  } finally {
+    deferredLearning = null;
+  }
+}
+
 export function learnBankPayee(
   db: Executor,
   sourceId: string,
@@ -240,6 +259,10 @@ export function learnBankPayee(
     throw new ConflictError('Empfänger nicht verfügbar.');
   const rawKey = bankAliasKey(raw);
   if (!rawKey) return;
+  if (deferredLearning) {
+    deferredLearning.push(() => learnBankPayee(db, sourceId, raw, payeeId, ctx));
+    return;
+  }
   const id = createHash('sha256')
     .update(JSON.stringify([sourceId, rawKey]))
     .digest('hex');
@@ -519,6 +542,10 @@ function bookingCounterparty(db: Executor, row: typeof booking.$inferSelect) {
 
 /** Called only by owner confirmation paths, within their savepoint and undo group. */
 export function learnInboxAssignment(db: Executor, id: string, ctx: AuditContext) {
+  if (deferredLearning) {
+    deferredLearning.push(() => learnInboxAssignment(db, id, ctx));
+    return;
+  }
   const row = getBooking(db, id);
   if (
     !row ||
