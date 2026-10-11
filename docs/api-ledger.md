@@ -57,6 +57,14 @@ unavailable `financeCheck` / `netWorth` (missing exchange rate) as
 `reconciled` cannot be set through `PATCH` or bulk edits, only by Kontostand prüfen. The
 prototype's bulk "Als geprüft markieren" therefore becomes "Als bestätigt markieren".
 
+Account review (#422): account DTOs also expose `lastValuedOn` (latest live stored
+manual valuation on/before `asOf`, null when missing), `manualValueCents` (native
+currency cents for P2P/other assets, falling back to the booking balance; null for
+other types), and `hasHoldings` (including unpriced holdings). These read fields
+support account-page value entry and overview freshness; they do not replace
+`valueEurCents` as the shared account valuation. The existing valuation PUT and
+its audit/undo, date, product and reconciliation guards remain unchanged.
+
 ## Categories and budget (P2c)
 
 Errors add `category_rule` (422, German `message`: class vs kind, card envelope, stage, icon, merge).

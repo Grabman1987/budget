@@ -66,6 +66,9 @@ export interface AccountRow {
   bookingCount: number;
   pendingCount: number;
   lastReconciledOn: string | null;
+  lastValuedOn?: string | null;
+  manualValueCents?: number | null;
+  hasHoldings?: boolean;
   bankBalance?: {
     valuation?: CashValuation | null;
     amountCents: number | null;
