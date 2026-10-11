@@ -88,8 +88,10 @@ export function ReconcileFlow({
     new Date(`${adjustmentDay}T00:00:00Z`).toISOString().startsWith(adjustmentDay) &&
     adjustmentDay >= account.openingDate &&
     adjustmentDay <= date;
-  // An Ausgleich on or before the last check changes a period the bank already confirmed.
+  // An explicitly back-dated Ausgleich on or before the last check changes a period the bank
+  // already confirmed. The default (the check day itself) is never asked, as on the server.
   const locked =
+    adjustDate !== null &&
     adjustmentValid &&
     account.lastReconciledOn != null &&
     adjustmentDay <= account.lastReconciledOn;

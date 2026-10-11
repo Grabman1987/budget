@@ -26,6 +26,12 @@ it.each(['2026-10', '2026-09'])(
     vi.useFakeTimers({ toFake: ['Date'] });
     vi.setSystemTime(new Date('2026-10-11T12:00:00+02:00'));
     vi.stubGlobal('scrollTo', () => {});
+    // The reconcile flow mounts the booking dialog, which asks for the viewport size.
+    vi.stubGlobal('matchMedia', () => ({
+      matches: false,
+      addEventListener() {},
+      removeEventListener() {},
+    }));
     const opened = createTestDatabase();
     const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     try {
