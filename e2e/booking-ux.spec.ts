@@ -59,7 +59,10 @@ test('booking cells, cash capture, repetition and account preview on desktop and
   let panel = page.getByRole('dialog', { name: 'Buchung bearbeiten' });
   await expect(panel).toBeVisible();
   await expect(panel.getByLabel('Budgetmonat')).toHaveCount(0);
-  await expect(panel.getByRole('group', { name: 'Status', exact: true })).toBeVisible();
+  await expect(panel.getByRole('button', { name: 'Bestätigt', exact: true })).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  );
   await panel.getByLabel('Wiederholen').selectOption('weekly');
   await panel.getByRole('button', { name: 'Speichern', exact: true }).click();
   await expect(panel).toBeHidden();
