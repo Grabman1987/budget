@@ -46,6 +46,70 @@ const outlay = (amountCents: number) =>
     { actor: 'test' },
   );
 describe('contacts API', () => {
+  it('renames only the contact identity and supports audited undo/redo', async () => {
+    const bookingId = outlay(2300);
+    const before = (await call('GET', '/contacts/k1')).body;
+    const renamed = await call('PATCH', '/contacts/k1', { name: '  Kontakt Neu  ' });
+    expect(renamed.status).toBe(200);
+    expect(renamed.body.contact).toMatchObject({ id: 'k1', name: 'Kontakt Neu' });
+    expect((await call('GET', '/contacts/k1')).body).toEqual({
+      ...before,
+      contact: { ...before.contact, name: 'Kontakt Neu' },
+    });
+    expect((await call('GET', `/bookings/${bookingId}`)).body.booking.splits[0].contactId).toBe(
+      'k1',
+    );
+    const undone = await call('POST', '/undo', { groupId: renamed.body.groupId });
+    expect(undone.status).toBe(200);
+    expect((await call('GET', '/contacts/k1')).body.contact).toEqual(before.contact);
+    expect((await call('POST', '/undo', { groupId: undone.body.groupId })).status).toBe(200);
+    expect((await call('GET', '/contacts/k1')).body.contact.name).toBe('Kontakt Neu');
+  });
+  it('validates rename and refuses active duplicate names without writes', async () => {
+    const other = await call('POST', '/contacts', { name: 'Kontakt Belegt' });
+    const auditCount = opened.db.select().from(schema.auditLog).all().length;
+    for (const body of [
+      {},
+      { name: ' ' },
+      { name: 'x'.repeat(201) },
+      { name: 12 },
+      { name: 'Neu', note: 'extra' },
+    ])
+      expect((await call('PATCH', '/contacts/k1', body)).status).toBe(400);
+    expect((await call('PATCH', '/contacts/k1', { name: ' Kontakt Belegt ' })).status).toBe(409);
+    expect((await call('PATCH', '/contacts/missing', { name: 'Kontakt Neu' })).status).toBe(404);
+    expect(opened.db.select().from(schema.auditLog).all()).toHaveLength(auditCount);
+    expect(
+      (await call('PATCH', `/contacts/${other.body.contact.id}`, { name: 'Kontakt Belegt' }))
+        .status,
+    ).toBe(200);
+    expect((await call('POST', '/undo', { groupId: other.body.groupId })).status).toBe(200);
+    expect(
+      (await call('PATCH', `/contacts/${other.body.contact.id}`, { name: 'Kontakt Neu' })).status,
+    ).toBe(404);
+    expect((await call('PATCH', '/contacts/k1', { name: 'Kontakt Belegt' })).status).toBe(200);
+  });
+  it('refuses undo/redo that would reclaim another active contact name, including forced undo', async () => {
+    const before = (await call('GET', '/contacts/k1')).body.contact.name;
+    const renamed = await call('PATCH', '/contacts/k1', { name: 'Kontakt Neu' });
+    expect(renamed.status).toBe(200);
+    const created = await call('POST', '/contacts', { name: before });
+    const auditCount = opened.db.select().from(schema.auditLog).all().length;
+    for (const force of [false, true])
+      expect((await call('POST', '/undo', { groupId: renamed.body.groupId, force })).status).toBe(
+        409,
+      );
+    expect(opened.db.select().from(schema.auditLog).all()).toHaveLength(auditCount);
+    expect((await call('GET', '/contacts/k1')).body.contact.name).toBe('Kontakt Neu');
+    expect((await call('POST', '/undo', { groupId: created.body.groupId })).status).toBe(200);
+    const undone = await call('POST', '/undo', { groupId: renamed.body.groupId });
+    expect(undone.status).toBe(200);
+    await call('POST', '/contacts', { name: 'Kontakt Neu' });
+    expect(
+      (await call('POST', '/undo', { groupId: undone.body.groupId, force: true })).status,
+    ).toBe(409);
+    expect((await call('GET', '/contacts/k1')).body.contact.name).toBe(before);
+  });
   it('adopts synthetic contact credit into this month without moving cash, with undo and deletion', async () => {
     await call('POST', '/contacts/k1/settlements', {
       accountId: 'giro',

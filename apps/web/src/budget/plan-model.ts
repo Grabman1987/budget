@@ -266,14 +266,12 @@ export function planGroups(
   }
   if (view === 'group') {
     return numbered(
-      data.groups
-        .map((g) => ({
-          key: g.id,
-          title: g.name,
-          rows: rows.filter((r) => r.groupId === g.id),
-          emptyText: '',
-        }))
-        .filter((g) => g.rows.length > 0),
+      data.groups.map((g) => ({
+        key: g.id,
+        title: g.name,
+        rows: rows.filter((r) => r.groupId === g.id),
+        emptyText: '',
+      })),
     );
   }
   if (view === 'time') return timeGroups(budget, ctx);
@@ -663,21 +661,19 @@ export function planMulti(views: BudgetMonthView[]): MultiGroup[] {
         (groupOrder.get(a.groupId) ?? 0) - (groupOrder.get(b.groupId) ?? 0) ||
         a.sortOrder - b.sortOrder,
     );
-  const groups = first.groups
-    .map((g) => ({
-      key: g.id,
-      title: g.name,
-      rows: categories
-        .filter((c) => c.groupId === g.id)
-        .map((c) => ({
-          id: c.id,
-          name: c.name,
-          icon: c.icon,
-          cls: c.class,
-          cells: perMonth.map((m) => m.get(c.id)),
-        })),
-    }))
-    .filter((g) => g.rows.length > 0);
+  const groups = first.groups.map((g) => ({
+    key: g.id,
+    title: g.name,
+    rows: categories
+      .filter((c) => c.groupId === g.id)
+      .map((c) => ({
+        id: c.id,
+        name: c.name,
+        icon: c.icon,
+        cls: c.class,
+        cells: perMonth.map((m) => m.get(c.id)),
+      })),
+  }));
   return groups.map((g, i) => ({ ...g, no: String(i + 1) }));
 }
 

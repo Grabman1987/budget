@@ -68,4 +68,5 @@ it('links retained contact history to its statement page with the overview conte
   expect((screen.getByLabelText('Auch ausgeglichene Kontakte') as HTMLInputElement).checked).toBe(
     true,
   );
+  expect(screen.getByRole('button', { name: 'Kontakt Beispiel umbenennen' })).toBeDefined();
 });
