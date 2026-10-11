@@ -1,5 +1,13 @@
 # Roadmap
 
+### Bank inbox package — #424 (2026-10-11)
+
+- [x] Collapsed candidates and bank bookings; assignment/match requests start on expansion.
+- [x] Selection, select all loaded rows (bounded to 100), explicit count preview and bulk dismissal/prepared confirmation with one audit group/undo.
+- [x] Source-scoped date sort/filter before pagination; balance mismatch links to the account.
+- [x] Focused type/lint/format/unit checks and all five changed desktop/mobile scenarios. [Evidence](evidence/bank-inbox-bulk/README.md).
+- [ ] Commit/push/PR (Git index lock permission denied), required CI and owner phone acceptance.
+
 
 ### Reports package P - history, cell links and full-width summaries (2026-10-09)
 
@@ -616,6 +624,8 @@ Starts after P1f-3 is merged. Source: YNAB export (`docs/migration/ynab-export.m
 Order: P2a → P2b and P2c in parallel → P2d (parser can start right after P1f-3) → owner's import on the deployed app (after P1f-2 B5).
 
 ### P2a — Accounts and bookings (`docs/prompts/P2a.md`)
+- [x] #422: reconciliation for every open booking-based account in Konten and month close; stored review/value dates in the overview with a 35-day warning; shared account-page manual value entry with undo and explicit save blockers; running-month dates capped at today. [Evidence](evidence/reconcile-all-accounts/README.md).
+- [ ] #422: required CI and owner daily-session/device acceptance after integration.
 - [x] API and repositories: accounts (type, on-budget, terms, closed), bookings with splits and transfers, payees; validation, audit, undo (`docs/api-ledger.md`, PR `p2a-api`)
 - [x] Konten › Übersicht, Einzelkonto (balance line, bookings, flags, status), Alle Buchungen (filter, search, bulk edit) (PRs `p2a-ui`, `p2a-ui-2`)
 - [x] Kontostand prüfen with "doppelt" / "fehlt" and Ausgleich booking (reconciliation snapshot) (PRs `p2a-api`, `p2a-ui-3`)
@@ -632,6 +642,13 @@ Order: P2a → P2b and P2c in parallel → P2d (parser can start right after P1f
 
 ### P2b — Capture dialog (`docs/prompts/P2b.md`)
 - [x] Buchung, Split, Umbuchung (Konto → Konto) on desktop panel and phone sheet; amount field with arithmetic; payee autocomplete with default category; keyboard flow; undo toast (PRs `p2b-capture`, `p2b-capture-form`, `p2b-capture-split`)
+
+### Booking capture and account register polish (#425, owner 2026-10-11)
+- [x] Note always visible in a growing one-line field; split button/editor directly available.
+- [x] Desktop account register note column with truncation/full hover text; mobile payee note retained.
+- [x] Overview sparkline accessibility label matches its 90-day range.
+- [x] Icon-only status checkmark beside date, accessible state/tooltip and pending defaults including cash.
+- [ ] Required CI and owner desktop/phone design acceptance; local targeted evidence in [delivery notes](evidence/capture-note-split/PR.md).
 
 ### P2c — Categories and Plan › Monat (`docs/prompts/P2c.md`)
 - [x] Einstellungen › Kategorien: groups, classes, kinds, stages, targets, hide, merge (with re-assignment of bookings), drag sort, split-off, monochrome emoji icons (PR `p2c-categories-ui`)
@@ -675,6 +692,8 @@ Expected payments, contacts with receivables, savings goals, rule set registered
 - [x] P3.6 `p3-expected-ui`: Plan › Erwartet (next 90 days by week, Verträge und Abos / Alle parts list with monthly and yearly sums and original currency, payment panel with fields, versions, occurrences, link/unlink/missed), "Als erwartete Zahlung anlegen" on a booking, Einnahmen panel on Plan › Monat (`/api/expected/income`)
 
 ### P3 — Contact statements and settlement (owner decisions 2026-10-01)
+
+- [x] #427: audited contact rename with active-name validation and undo/redo; Plan month adds categories at group ends and groups at the bottom through the existing forms. Empty groups remain usable in single/multiple month views. [Delivery evidence](evidence/contact-rename-plan-plus/README.md); CI and deployed owner acceptance remain pending.
 
 - [x] Pure actual contact statement and oldest-outlay-first repayment allocation, editable before saving; expected occurrences excluded
 - [x] Audited atomic settlement API with persisted excess contact credit, whole-action undo/redo and dependency checks (including forced undo)
@@ -732,6 +751,7 @@ Enable Banking adapter, worker with nightly run and catch-up, inbox items, assig
 - [x] Explicit transfer actions preserve booking identity, pair unambiguous same-day/same-currency/opposite-amount bank candidates, and attach later bank evidence to generated counterparts without posting twice; ambiguous matches roll back. See [limits and validation](assignment-rules.md).
 - [ ] Ambiguous bank history changes, broader transfer matching (including different posting days), and private owner/device acceptance remain separate work.
 - [x] Bank follow-ups: closest +/-5-day manual-booking merge preserving memo/splits, confirmed mirror/selected-booking transfers with original dates, dated bank balance on Konten and guarded one-click reconciliation lock; grouped audit/undo, synthetic unit/API and isolated desktop/mobile coverage. Migration `0024_bank_followups` stores balance observations.
+- [x] #423 reconciliation dialog: explicit fetched-balance takeover, optional bounded adjustment date/category, missing-booking capture through the existing dialog, and locks through the observed/fetch day including `XXX` sources. Existing defaults and grouped undo remain intact; targeted delivery evidence in [reconcile dialog](evidence/reconcile-dialog-plus/PR.md).
 - [x] Einstellungen › Zuordnungsregeln merges the bank assignment rules and payee cleanup with the income budget-month defaults on one route (`/einstellungen/zuordnung`); migration `0032_assignment_rules`.
 
 ### Crypto read source (P4/P5)

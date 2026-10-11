@@ -137,7 +137,8 @@ function Overlay({
         wide && (variant === 'modal' ? 'is-wide' : 'is-full'),
       )}
       aria-labelledby={titleId}
-      onClose={() => {
+      onClose={(event) => {
+        event.stopPropagation();
         restoreFocus();
         onClose();
       }}

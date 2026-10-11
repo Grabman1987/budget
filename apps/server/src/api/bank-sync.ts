@@ -4,8 +4,17 @@ import {
   linkBankCandidate,
   mergeBankBooking,
   mergeBankCandidate,
+  applyBookingAssignment,
+  deferLearning,
+  getBooking,
+  readAssignmentCandidate,
+  resolveInboxItem,
+  schema,
+  ConflictError,
+  updateBooking,
   type Db,
 } from '@budget/db';
+import { todayInVienna } from '@budget/domain';
 import { randomUUID } from 'node:crypto';
 import { Hono, type MiddlewareHandler } from 'hono';
 import { z } from 'zod';
@@ -14,11 +23,67 @@ import type { BankSync } from '../bank-sync/service';
 import type { SessionRow } from '../auth/store';
 import { readBody } from './http';
 import { bankConfirmSchema } from './assignment-rules';
+import { eq } from 'drizzle-orm';
+
+const shortId = z.string().min(1).max(100);
+const revision = z.string().length(64);
+const suggestion = z.discriminatedUnion('action', [
+  z.strictObject({
+    action: z.literal('rule'),
+    ruleId: shortId,
+    revision,
+    candidateRevision: revision.optional(),
+  }),
+  z.strictObject({
+    action: z.literal('merge'),
+    bookingId: shortId,
+    candidateRevision: revision.optional(),
+  }),
+]);
+const bulkSchema = z
+  .strictObject({
+    action: z.enum(['dismiss', 'confirm']),
+    /** The bank source whose queue the owner is looking at; every row must belong to it. */
+    sourceId: shortId,
+    /** Rows the preview promised to change; a different count means the queue moved. */
+    expectedChanged: z.number().int().min(0).max(100),
+    rows: z
+      .array(
+        z.strictObject({
+          type: z.enum(['candidate', 'booking']),
+          id: shortId,
+          suggestion: suggestion.optional(),
+        }),
+      )
+      .min(1)
+      .max(100),
+  })
+  .refine(
+    (input) => new Set(input.rows.map((row) => row.type + ':' + row.id)).size === input.rows.length,
+    'Jede Zeile nur einmal auswählen.',
+  )
+  // "Nicht übernehmen" only resolves bank candidates; it never deletes ledger bookings.
+  .refine(
+    (input) => input.action !== 'dismiss' || input.rows.every((row) => row.type === 'candidate'),
+    'Gebuchte Bankzeilen lassen sich nicht über "Nicht übernehmen" entfernen.',
+  );
+
+const unclassified = (split: {
+  categoryId: string | null;
+  incomeTypeId: string | null;
+  transferId: string | null;
+  amountCents: number;
+}) =>
+  split.categoryId === null &&
+  split.incomeTypeId === null &&
+  split.transferId === null &&
+  split.amountCents !== 0;
 
 export function bankSyncRoutes(
   service: BankSync | null,
   passkeySession: MiddlewareHandler,
   db: Db,
+  today: () => string = () => todayInVienna(),
 ) {
   const app = new Hono<{ Variables: { session: SessionRow } }>();
   app.use('*', async (c, next) => {
@@ -32,6 +97,133 @@ export function bankSyncRoutes(
         : { configured: false, connections: [], accounts: [] },
     ),
   );
+  app.post('/inbox/bulk', async (c) => {
+    const input = await readBody(c, bulkSchema);
+    const ctx = { actor: 'owner', groupId: randomUUID() };
+    const now = service?.clock().toISOString() ?? new Date().toISOString();
+    const result = db.transaction((tx) => {
+      // Validate the complete preview before anything is written: source, queue membership, the
+      // revisions the owner saw, and the number of rows that will change.
+      const source = tx
+        .select()
+        .from(schema.bankSyncAccount)
+        .where(eq(schema.bankSyncAccount.id, input.sourceId))
+        .get();
+      if (!source) throw new ConflictError('Bankquelle nicht gefunden. Bitte neu laden.');
+      const targets = new Set<string>();
+      let changedCount = 0,
+        skippedCount = 0;
+      for (const row of input.rows) {
+        if (row.type === 'candidate') {
+          const item = tx
+            .select()
+            .from(schema.inboxItem)
+            .where(eq(schema.inboxItem.id, row.id))
+            .get();
+          const candidate = tx
+            .select()
+            .from(schema.bankSyncCandidate)
+            .where(eq(schema.bankSyncCandidate.id, row.id))
+            .get();
+          if (
+            !item ||
+            !candidate ||
+            item.refType !== 'bank-sync-candidate' ||
+            item.refId !== row.id ||
+            item.resolvedAt
+          )
+            throw new ConflictError('Bankumsatz nicht mehr offen. Bitte neu laden.');
+          if (candidate.sourceId !== input.sourceId)
+            throw new ConflictError('Bankumsatz gehört zu einer anderen Bankquelle.');
+        } else {
+          const booking = getBooking(tx, row.id);
+          const bookingAccount =
+            booking &&
+            tx.select().from(schema.account).where(eq(schema.account.id, booking.accountId)).get();
+          // The same predicate that lists a booked bank row as an inbox task.
+          if (
+            !booking ||
+            !bookingAccount ||
+            bookingAccount.deletedAt ||
+            !bookingAccount.onBudget ||
+            booking.source !== 'bank' ||
+            booking.status === 'reconciled' ||
+            booking.date > today() ||
+            booking.transferId ||
+            booking.splits.some((split) => split.transferId) ||
+            !booking.splits.some(unclassified)
+          )
+            throw new ConflictError('Nur offene Bankbuchungen auswählen.');
+          if (booking.bankSourceId !== input.sourceId)
+            throw new ConflictError('Bankbuchung gehört zu einer anderen Bankquelle.');
+        }
+        if (input.action === 'dismiss') {
+          changedCount++;
+          continue;
+        }
+        const prepared = row.suggestion;
+        if (!prepared) {
+          skippedCount++;
+          continue;
+        }
+        if (row.type === 'candidate') {
+          const review = readAssignmentCandidate(tx, row.id);
+          if (
+            !prepared.candidateRevision ||
+            prepared.candidateRevision !== review.candidateRevision
+          )
+            throw new ConflictError('Der Bankumsatz hat sich geändert. Bitte neu laden.');
+          if (prepared.action === 'rule') {
+            // Same refusal as the single path: an own booking that fits must be merged, not duplicated.
+            const matches = candidateMatches(tx, row.id);
+            if (matches.merge.length || matches.link.length)
+              throw new ConflictError('Passende Buchung vorhanden. Bitte zusammenführen.');
+          }
+        }
+        if (prepared.action === 'merge') {
+          if (targets.has(prepared.bookingId))
+            throw new ConflictError('Dieselbe Buchung wäre mehrfach Ziel einer Zusammenführung.');
+          targets.add(prepared.bookingId);
+        }
+        changedCount++;
+      }
+      if (changedCount !== input.expectedChanged)
+        throw new ConflictError('Die Auswahl hat sich geändert. Bitte neu prüfen.');
+      // Payee aliases and inbox rules are learned after the last row, so every row applies what
+      // the preview showed. Any failure rolls back all rows, audit entries and learning together.
+      deferLearning(() => {
+        for (const row of input.rows) {
+          if (input.action === 'dismiss') {
+            resolveInboxItem(tx, row.id, ctx);
+            continue;
+          }
+          const prepared = row.suggestion;
+          if (!prepared) continue;
+          if (row.type === 'candidate') {
+            if (prepared.action === 'merge')
+              mergeBankCandidate(tx, row.id, prepared.bookingId, ctx, now);
+            else {
+              if (!service) throw new ConflictError('Bankbestätigung nicht verfügbar.');
+              // The synchronous service opens a savepoint on this same connection; the outer
+              // transaction rolls back every row and its audit entries together.
+              service.confirm(row.id, null, prepared, ctx);
+            }
+          } else if (prepared.action === 'merge')
+            mergeBankBooking(tx, row.id, prepared.bookingId, ctx);
+          else {
+            applyBookingAssignment(tx, row.id, prepared.ruleId, ctx, prepared.revision);
+            // Like the single path, the rule alone does not confirm: only a booking without an
+            // unclassified split left is confirmed.
+            const applied = getBooking(tx, row.id)!;
+            if (applied.status !== 'confirmed' && !applied.splits.some(unclassified))
+              updateBooking(tx, row.id, { status: 'confirmed' }, ctx);
+          }
+        }
+      });
+      return { groupId: ctx.groupId, changedCount, skippedCount };
+    });
+    return c.json(result);
+  });
   app.get('/candidates/:id/matches', (c) =>
     c.json(candidateMatches(db, z.string().uuid().parse(c.req.param('id')))),
   );

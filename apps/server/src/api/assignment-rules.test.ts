@@ -10,6 +10,8 @@ import {
   undo,
   mergePayees,
   mergeCategories,
+  readAssignmentCandidate,
+  readBookingAssignments,
   type OpenedDatabase,
 } from '@budget/db';
 import { type AssignmentRuleInput } from '@budget/domain';
@@ -100,7 +102,456 @@ function candidate(
     .run();
   return id;
 }
+const SOURCE = 'bulk-source';
+function bulkSource(id = SOURCE) {
+  opened.db
+    .insert(schema.bankSyncConsent)
+    .values({
+      id: 'consent-' + id,
+      initiator: 'synthetic',
+      stateHash: 'state-' + id,
+      expiresAt: '2026-11-01T00:00:00Z',
+      label: 'Bank A',
+      nextRunAt: '2026-10-02T00:00:00Z',
+    })
+    .run();
+  opened.db
+    .insert(schema.bankSyncAccount)
+    .values({
+      id,
+      consentId: 'consent-' + id,
+      secret: 'synthetic-encrypted-placeholder',
+      label: 'Konto ' + id,
+      currency: 'EUR',
+      accountId: 'giro',
+    })
+    .run();
+  return id;
+}
+function bulkCandidate(memo?: string, amountCents?: number, sourceId = SOURCE) {
+  if (
+    !opened.db
+      .select()
+      .from(schema.bankSyncAccount)
+      .where(eq(schema.bankSyncAccount.id, sourceId))
+      .get()
+  )
+    bulkSource(sourceId);
+  const id = candidate(memo, 'giro', amountCents);
+  opened.db
+    .update(schema.bankSyncCandidate)
+    .set({ sourceId })
+    .where(eq(schema.bankSyncCandidate.id, id))
+    .run();
+  return id;
+}
+function bankBooking(amountCents: number, memo: string, sourceId = SOURCE) {
+  return createBooking(
+    opened.db,
+    {
+      accountId: 'giro',
+      date: today,
+      amountCents,
+      memo,
+      status: 'pending',
+      source: 'bank',
+      importKey: 'bank-sync:' + randomUUID(),
+      bankRawText: memo,
+      bankSourceId: sourceId,
+      splits: [{ amountCents }],
+    },
+    { actor: 'test' },
+  );
+}
+function candidateRule(id: string, name?: string) {
+  const review = readAssignmentCandidate(opened.db, id);
+  const rule = name ? review.suggestions.find((r) => r.name === name)! : review.suggestions[0]!;
+  return {
+    type: 'candidate',
+    id,
+    suggestion: {
+      action: 'rule',
+      ruleId: rule.id,
+      revision: rule.revision,
+      candidateRevision: review.candidateRevision,
+    },
+  };
+}
+const bulk = (
+  action: 'dismiss' | 'confirm',
+  rows: unknown[],
+  expectedChanged: number,
+  sourceId: string | null = SOURCE,
+) =>
+  call('POST', '/bank-sync/inbox/bulk', {
+    action,
+    ...(sourceId === null ? {} : { sourceId }),
+    expectedChanged,
+    rows,
+  });
+/** Everything a rejected batch must leave untouched: bookings, splits, inbox, aliases, audit, balance. */
+function ledgerState() {
+  const { db } = opened;
+  return JSON.stringify({
+    bookings: db.select().from(schema.booking).all(),
+    splits: db.select().from(schema.bookingSplit).all(),
+    inbox: db.select().from(schema.inboxItem).all(),
+    aliases: db.select().from(schema.bankPayeeAlias).all(),
+    audit: db.select().from(schema.auditLog).all().length,
+    sum: giroSum(),
+  });
+}
+function giroSum() {
+  return opened.db
+    .select()
+    .from(schema.booking)
+    .all()
+    .filter((b) => !b.deletedAt && b.accountId === 'giro')
+    .reduce((total, b) => total + b.amountCents, 0);
+}
 describe('assignment API and owner confirmation', () => {
+  it('bulk merges five prepared rows through the existing path and restores their references with one undo', async () => {
+    const pairs = Array.from({ length: 5 }, (_, index) => {
+      const amountCents = -1201 - index;
+      const id = bulkCandidate('Shop A', amountCents);
+      const bookingId = createBooking(
+        opened.db,
+        {
+          accountId: 'giro',
+          date: '2026-10-01',
+          amountCents,
+          memo: 'Owner note',
+          status: 'pending',
+          splits: [{ amountCents, categoryId: 'essen' }],
+        },
+        { actor: 'test' },
+      );
+      return { id, bookingId };
+    });
+    const rows = pairs.map(({ id, bookingId }) => ({
+      type: 'candidate',
+      id,
+      suggestion: {
+        action: 'merge',
+        bookingId,
+        candidateRevision: readAssignmentCandidate(opened.db, id).candidateRevision,
+      },
+    }));
+    const result = await bulk('confirm', rows, 5);
+    expect(result.status).toBe(200);
+    expect(result.body).toMatchObject({ changedCount: 5, skippedCount: 0 });
+    for (const { bookingId } of pairs)
+      expect(getBooking(opened.db, bookingId)).toMatchObject({
+        date: today,
+        memo: 'Owner note',
+        source: 'bank',
+        status: 'confirmed',
+        splits: [{ categoryId: 'essen' }],
+      });
+    undo(opened.db, { groupId: result.body.groupId }, { actor: 'test' });
+    for (const { bookingId } of pairs)
+      expect(getBooking(opened.db, bookingId)).toMatchObject({
+        date: '2026-10-01',
+        memo: 'Owner note',
+        source: 'manual',
+        importKey: null,
+        status: 'pending',
+      });
+    expect(
+      opened.db
+        .select()
+        .from(schema.inboxItem)
+        .all()
+        .every((item) => item.resolvedAt === null),
+    ).toBe(true);
+  });
+  it('bulk confirms five prepared candidates with one undo group and skips unprepared rows', async () => {
+    await call('POST', '/assignment-rules', { ...input, automatic: true });
+    const ids = Array.from({ length: 5 }, () => bulkCandidate());
+    const rows = ids.map((id) => candidateRule(id));
+    const skipped = bulkCandidate('Other shop');
+    const result = await bulk('confirm', [...rows, { type: 'candidate', id: skipped }], 5);
+    expect(result.status).toBe(200);
+    expect(result.body).toMatchObject({ changedCount: 5, skippedCount: 1 });
+    const booked = opened.db.select().from(schema.booking).all();
+    expect(booked).toHaveLength(5);
+    expect(booked.every((b) => b.status === 'confirmed' && b.amountCents === -1201)).toBe(true);
+    undo(opened.db, { groupId: result.body.groupId }, { actor: 'test' });
+    expect(
+      opened.db
+        .select()
+        .from(schema.inboxItem)
+        .all()
+        .every((i) => i.resolvedAt === null),
+    ).toBe(true);
+    expect(booked.every((b) => !getBooking(opened.db, b.id))).toBe(true);
+  });
+  it('bulk dismissal restores all five candidates with one undo and rolls back stale confirmation', async () => {
+    const ids = Array.from({ length: 5 }, () => bulkCandidate());
+    const result = await bulk(
+      'dismiss',
+      ids.map((id) => ({ type: 'candidate', id })),
+      5,
+    );
+    expect(result.status).toBe(200);
+    expect(result.body.changedCount).toBe(5);
+    undo(opened.db, { groupId: result.body.groupId }, { actor: 'test' });
+    expect(
+      opened.db
+        .select()
+        .from(schema.inboxItem)
+        .all()
+        .every((i) => i.resolvedAt === null),
+    ).toBe(true);
+    await call('POST', '/assignment-rules', { ...input, automatic: true });
+    const rows = ids.slice(0, 2).map((id) => candidateRule(id));
+    rows[1]!.suggestion.candidateRevision = '0'.repeat(64);
+    expect((await bulk('confirm', rows, 2)).status).toBe(409);
+    expect(opened.db.select().from(schema.booking).all()).toHaveLength(0);
+    expect(
+      opened.db
+        .select()
+        .from(schema.inboxItem)
+        .all()
+        .every((i) => i.resolvedAt === null),
+    ).toBe(true);
+    expect((await bulk('dismiss', [rows[0], rows[0]], 1)).status).toBe(400);
+    expect(
+      (
+        await call(
+          'POST',
+          '/bank-sync/inbox/bulk',
+          {
+            action: 'dismiss',
+            sourceId: SOURCE,
+            expectedChanged: 1,
+            rows: [{ type: 'candidate', id: ids[0] }],
+          },
+          'https://other.example',
+        )
+      ).status,
+    ).toBe(403);
+    authenticated = false;
+    expect((await bulk('dismiss', [{ type: 'candidate', id: ids[0] }], 1)).status).toBe(401);
+  });
+  it('bulk rolls back every row, audit entry and balance when a later row fails', async () => {
+    await call('POST', '/assignment-rules', { ...input, automatic: true });
+    const first = bulkCandidate();
+    const later = bankBooking(-1500, 'SEPA Shop A Ref: SYN-7');
+    const rule = readBookingAssignments(opened.db, later).suggestions[0]!;
+    const before = ledgerState();
+    const result = await bulk(
+      'confirm',
+      [
+        candidateRule(first),
+        {
+          type: 'booking',
+          id: later,
+          suggestion: { action: 'rule', ruleId: rule.id, revision: '0'.repeat(64) },
+        },
+      ],
+      2,
+    );
+    expect(result.status).toBe(409);
+    expect(ledgerState()).toBe(before);
+    expect(getBooking(opened.db, later)).toMatchObject({ status: 'pending' });
+  });
+  it('bulk never deletes ledger bookings: dismissal of a booking row is rejected without writes', async () => {
+    const booked = bankBooking(-1500, 'Shop A');
+    const pendingCandidate = bulkCandidate();
+    const before = ledgerState();
+    const rows = [{ type: 'booking', id: booked }];
+    expect((await bulk('dismiss', rows, 1)).status).toBe(400);
+    const mixed = [{ type: 'candidate', id: pendingCandidate }, ...rows];
+    expect((await bulk('dismiss', mixed, 2)).status).toBe(400);
+    expect(ledgerState()).toBe(before);
+    expect(getBooking(opened.db, booked)).toBeTruthy();
+  });
+  it('bulk rejects the whole batch for a foreign source, a missing source id or a changed count', async () => {
+    await call('POST', '/assignment-rules', { ...input, automatic: true });
+    bulkSource('other-source');
+    const own = bulkCandidate();
+    const foreign = bulkCandidate('Shop A', -1301, 'other-source');
+    const ownBooking = bankBooking(-1500, 'Shop A');
+    const foreignBooking = bankBooking(-1600, 'Shop A', 'other-source');
+    const rule = readBookingAssignments(opened.db, foreignBooking).suggestions[0]!;
+    const dismissOwn = [{ type: 'candidate', id: own }];
+    expect(
+      (
+        await bulk(
+          'dismiss',
+          [own, foreign].map((id) => ({ type: 'candidate', id })),
+          2,
+        )
+      ).status,
+    ).toBe(409);
+    expect((await bulk('confirm', [candidateRule(own), candidateRule(foreign)], 2)).status).toBe(
+      409,
+    );
+    const foreignRule = {
+      type: 'booking',
+      id: foreignBooking,
+      suggestion: { action: 'rule', ruleId: rule.id, revision: rule.revision },
+    };
+    expect((await bulk('confirm', [candidateRule(own), foreignRule], 2)).status).toBe(409);
+    expect((await bulk('dismiss', dismissOwn, 1, 'missing')).status).toBe(409);
+    expect((await bulk('dismiss', dismissOwn, 1, null)).status).toBe(400);
+    // A booking row that is not a bank-inbox task of this source is refused as well.
+    const manual = createBooking(
+      opened.db,
+      {
+        accountId: 'giro',
+        date: today,
+        amountCents: -900,
+        status: 'pending',
+        splits: [{ amountCents: -900 }],
+      },
+      { actor: 'test' },
+    );
+    const before2 = ledgerState();
+    expect(
+      (
+        await bulk(
+          'confirm',
+          [{ type: 'booking', id: manual, suggestion: foreignRule.suggestion }],
+          1,
+        )
+      ).status,
+    ).toBe(409);
+    expect(ledgerState()).toBe(before2);
+    // The count shown in the preview must be the count the server would change.
+    expect((await bulk('dismiss', dismissOwn, 2)).status).toBe(409);
+    expect(
+      (await bulk('confirm', [candidateRule(own), { type: 'booking', id: ownBooking }], 2)).status,
+    ).toBe(409);
+    expect(ledgerState()).toBe(before2);
+    expect((await bulk('dismiss', dismissOwn, 1)).status).toBe(200);
+  });
+  it('bulk refuses a rule for a candidate with a matching own booking, like the single path', async () => {
+    await call('POST', '/assignment-rules', { ...input, automatic: true });
+    const id = bulkCandidate();
+    createBooking(
+      opened.db,
+      {
+        accountId: 'giro',
+        date: '2026-10-01',
+        amountCents: -1201,
+        status: 'pending',
+        splits: [{ amountCents: -1201, categoryId: 'essen' }],
+      },
+      { actor: 'test' },
+    );
+    const matches = await call('GET', '/bank-sync/candidates/' + id + '/matches');
+    expect(matches.body.merge).toHaveLength(1);
+    const before = ledgerState();
+    const result = await bulk('confirm', [candidateRule(id)], 1);
+    expect(result.status).toBe(409);
+    expect(result.body.message ?? result.body.error).toContain('Passende Buchung vorhanden');
+    expect(ledgerState()).toBe(before);
+  });
+  it('bulk mixes merge and rule rows: the ledger grows by exactly the new rows and undo restores it', async () => {
+    await call('POST', '/assignment-rules', { ...input, automatic: true });
+    const manual = createBooking(
+      opened.db,
+      {
+        accountId: 'giro',
+        date: '2026-10-01',
+        amountCents: -1301,
+        memo: 'Owner note',
+        status: 'pending',
+        splits: [{ amountCents: -1301, categoryId: 'essen' }],
+      },
+      { actor: 'test' },
+    );
+    const merged = bulkCandidate('Shop A', -1301);
+    const ruled = bulkCandidate();
+    const booked = bankBooking(-1500, 'SEPA Shop A Ref: SYN-9');
+    const bookedRule = readBookingAssignments(opened.db, booked).suggestions[0]!;
+    const partial = bankBooking(-1700, 'Partial Shop Z');
+    const partialRule = await call('POST', '/assignment-rules', {
+      ...input,
+      name: 'Nur Empfänger',
+      automatic: false,
+      match: { mode: 'all', conditions: [{ type: 'contains', text: 'Partial Shop Z' }] },
+      actions: { payeeId: 'p1' },
+    });
+    const partialRevision = readBookingAssignments(opened.db, partial).suggestions.find(
+      (r) => r.id === partialRule.body.id,
+    )!.revision;
+    const sumBefore = giroSum();
+    const result = await bulk(
+      'confirm',
+      [
+        {
+          type: 'candidate',
+          id: merged,
+          suggestion: {
+            action: 'merge',
+            bookingId: manual,
+            candidateRevision: readAssignmentCandidate(opened.db, merged).candidateRevision,
+          },
+        },
+        candidateRule(ruled),
+        {
+          type: 'booking',
+          id: booked,
+          suggestion: { action: 'rule', ruleId: bookedRule.id, revision: bookedRule.revision },
+        },
+        {
+          type: 'booking',
+          id: partial,
+          suggestion: { action: 'rule', ruleId: partialRule.body.id, revision: partialRevision },
+        },
+      ],
+      4,
+    );
+    expect(result.status).toBe(200);
+    expect(result.body).toMatchObject({ changedCount: 4, skippedCount: 0 });
+    // Only the rule candidate adds money; the merge and both booking rules reclassify existing rows.
+    expect(giroSum()).toBe(sumBefore - 1201);
+    expect(getBooking(opened.db, manual)).toMatchObject({ source: 'bank', status: 'confirmed' });
+    expect(getBooking(opened.db, booked)).toMatchObject({
+      status: 'confirmed',
+      splits: [{ categoryId: 'essen' }],
+    });
+    // The rule left an unclassified split: it is applied, but stays an open task and unconfirmed.
+    expect(getBooking(opened.db, partial)).toMatchObject({
+      status: 'pending',
+      payeeId: 'p1',
+      splits: [{ categoryId: null }],
+    });
+    undo(opened.db, { groupId: result.body.groupId }, { actor: 'test' });
+    expect(giroSum()).toBe(sumBefore);
+    expect(getBooking(opened.db, manual)).toMatchObject({ source: 'manual', status: 'pending' });
+    expect(getBooking(opened.db, booked)).toMatchObject({ status: 'pending' });
+    expect(getBooking(opened.db, partial)).toMatchObject({ status: 'pending', payeeId: null });
+  });
+  it('bulk applies every row as previewed: payee aliases are learned only after the last row', async () => {
+    const withPayee = await call('POST', '/assignment-rules', {
+      ...input,
+      name: 'Mit Empfänger',
+      automatic: false,
+    });
+    const withoutPayee = await call('POST', '/assignment-rules', {
+      ...input,
+      name: 'Ohne Empfänger',
+      automatic: false,
+      actions: { categoryId: 'reise' },
+    });
+    expect([withPayee.status, withoutPayee.status]).toEqual([201, 201]);
+    const one = bulkCandidate('Shop A Terminal');
+    const two = bulkCandidate('Shop A Terminal');
+    expect(readAssignmentCandidate(opened.db, two).cleanup.payeeId).toBeNull();
+    const result = await bulk(
+      'confirm',
+      [candidateRule(one, 'Mit Empfänger'), candidateRule(two, 'Ohne Empfänger')],
+      2,
+    );
+    expect(result.status).toBe(200);
+    const booked = opened.db.select().from(schema.booking).all();
+    expect(booked.map((b) => b.payeeId).sort()).toEqual([null, 'p1']);
+    expect(opened.db.select().from(schema.bankPayeeAlias).all()).toHaveLength(1);
+  });
   it('does not replace a learned category when only confirming an unassigned booking', async () => {
     const make = () =>
       createBooking(

@@ -3,7 +3,7 @@ import { defineConfig, devices } from '@playwright/test';
 /** Bank specs bootstrap their own fixed-clock server through isolated-ledger.ts. */
 export default defineConfig({
   testDir: '.',
-  testMatch: /bank-(followups|sync)\.spec\.ts/,
+  testMatch: /(?:bank-(followups|sync|inbox-bulk)|reconcile-dialog-plus)\.spec\.ts/,
   fullyParallel: true,
   forbidOnly: Boolean(process.env['CI']),
   workers: 2,

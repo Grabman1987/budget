@@ -21,6 +21,7 @@ import {
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useLocation, useNavigate, useParams, useSearch } from '@tanstack/react-router';
 import { useEffect, useRef, useState } from 'react';
+import { Pencil } from 'lucide-react';
 import { request } from '../api/http';
 import { AccountOptions } from '../ledger/account-options';
 import { undoGroup } from '../ledger/api';
@@ -161,6 +162,7 @@ export function ContactsPage() {
                       >
                         {c.name}
                       </AppLink>
+                      <ContactRename contact={c} />
                     </td>
                     <td className="num">{eur(c.balanceCents)}</td>
                     <td>
@@ -199,14 +201,47 @@ export function ContactsPage() {
   );
 }
 
-function NewContact({ onDone, onClose }: { onDone: () => void; onClose: () => void }) {
+function ContactRename({ contact }: { contact: { id: string; name: string } }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <>
+      <button
+        type="button"
+        className="icon-btn contact-rename"
+        aria-label={`${contact.name} umbenennen`}
+        onClick={() => setOpen(true)}
+      >
+        <Pencil size={16} strokeWidth={1.75} aria-hidden="true" />
+      </button>
+      <FormDialog open={open} onClose={() => setOpen(false)} title="Kontakt umbenennen">
+        {open && (
+          <NewContact
+            contact={contact}
+            onClose={() => setOpen(false)}
+            onDone={() => setOpen(false)}
+          />
+        )}
+      </FormDialog>
+    </>
+  );
+}
+
+function NewContact({
+  onDone,
+  onClose,
+  contact,
+}: {
+  onDone: () => void;
+  onClose: () => void;
+  contact?: { id: string; name: string };
+}) {
   useAmountPrivacy();
   const nameInput = useRef<HTMLInputElement>(null);
   useEffect(() => {
     const frame = requestAnimationFrame(() => nameInput.current?.focus());
     return () => cancelAnimationFrame(frame);
   }, []);
-  const [name, setName] = useState('');
+  const [name, setName] = useState(contact?.name ?? '');
   const [busy, setBusy] = useState(false);
   const write = useContactWrite();
   return (
@@ -214,10 +249,16 @@ function NewContact({ onDone, onClose }: { onDone: () => void; onClose: () => vo
       className="bkform"
       onSubmit={(e) => {
         e.preventDefault();
+        if (busy || !name.trim() || (contact && name.trim() === contact.name)) return;
         setBusy(true);
         void write(
-          () => request('POST', '/api/contacts', { name: name.trim() }),
-          'Kontakt angelegt.',
+          () =>
+            request(
+              contact ? 'PATCH' : 'POST',
+              contact ? contactUrl(contact.id) : '/api/contacts',
+              { name: name.trim() },
+            ),
+          contact ? 'Kontakt umbenannt.' : 'Kontakt angelegt.',
         ).then((ok) => {
           setBusy(false);
           if (ok) onDone();
@@ -225,7 +266,7 @@ function NewContact({ onDone, onClose }: { onDone: () => void; onClose: () => vo
       }}
     >
       <div className="bk-head">
-        <h2 className="bk-kind-fixed">Neuer Kontakt</h2>
+        <h2 className="bk-kind-fixed">{contact ? 'Kontakt umbenennen' : 'Neuer Kontakt'}</h2>
         <button type="button" className="icon-btn" aria-label="Schließen" onClick={onClose}>
           ×
           <span className="control-label" aria-hidden="true">
@@ -251,8 +292,11 @@ function NewContact({ onDone, onClose }: { onDone: () => void; onClose: () => vo
         <Button variant="ghost" onClick={onClose}>
           Abbrechen
         </Button>
-        <Button type="submit" disabled={busy || !name.trim()}>
-          Kontakt anlegen
+        <Button
+          type="submit"
+          disabled={busy || !name.trim() || (!!contact && name.trim() === contact.name)}
+        >
+          {contact ? 'Speichern' : 'Kontakt anlegen'}
         </Button>
       </div>
     </form>
@@ -306,7 +350,10 @@ function ContactBody({ statement }: { statement: Statement }) {
   const [writeOff, setWriteOff] = useState(false);
   return (
     <div className="contacts-form">
-      <h2>Kontoblatt</h2>
+      <div className="contacts-title">
+        <h2>Kontoblatt</h2>
+        <ContactRename contact={statement.contact} />
+      </div>
       <p className="contacts-balance">
         {eur(statement.balanceCents)}{' '}
         <span>

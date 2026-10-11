@@ -50,12 +50,20 @@ unavailable `financeCheck` / `netWorth` (missing exchange rate) as
 | `GET/POST /payees`, `PATCH /payees/:id`, `POST /payees/merge` | List with booking counts, day of the last booking and `defaultCategoryId`, create (names unique ignoring case, optional `defaultCategoryId`), `PATCH` renames and/or sets or clears `defaultCategoryId` (capture pre-fills it; one undo), merge (moves bookings and assignment rules, one undo). Reconciled bookings stay with their payee unless `unlockReconciled: true`; the answer has `moved`, `skipped` and `keptSourceIds` (sources that still hold skipped bookings are not deleted). System payees are fixed |
 | `GET /lookups` | Categories, groups, projects, income types, contacts, institutions for pick lists |
 | `POST /accounts/:id/reconciliation/preview` | Kontostand prüfen: `{ date, statementBalanceCents }` (date at most today, Europe/Vienna; later is `invariant`) gives booked balance (pending not counted), difference, `duplicates` ("doppelt", the same day, payee and amount twice; `explainsDifference` when removing it closes the gap), `pendingMatches` (pending bookings the bank already booked, "fehlt"), `missing` (`expense`/`income` of that amount) |
-| `POST /accounts/:id/reconciliation` | Confirm: optionally `removeBookingIds` (duplicates), `confirmBookingIds` (pending → confirmed), `adjust` (book the remaining difference as Ausgleich with the payee "Korrektur Kontoprüfung"); stamps every confirmed booking up to the day `reconciled`, stores the snapshot. A remaining difference without `adjust` is a 409 and nothing is written. One undo |
+| `POST /accounts/:id/reconciliation` | Confirm: optionally `removeBookingIds` (duplicates), `confirmBookingIds` (pending → confirmed), `adjust` (book the remaining difference as Ausgleich with the payee "Korrektur Kontoprüfung"), `adjustDate` (between account opening and statement day inclusive; defaults to statement day), `categoryId` (live booking category, only a spending kind: `fixed`, `periodic`, `variable`, `project`, `saving`; `advance`, `income`, `card_payment`, `debt`, `invest` are 400 `invalid`; defaults to uncategorized), `unlockReconciled` (boolean; an explicit `adjustDate` on or before the newest stored check of the account is 409 `reconciled_locked` and writes nothing unless this is `true`). Stamps every confirmed booking up to the day `reconciled`, stores the snapshot. A remaining difference without `adjust` is a 409 and nothing is written. One undo |
 | `GET /accounts/:id/reconciliations` | Stored checks, newest first |
 | `POST /undo` `{ groupId }` | Revert a whole action |
 
 `reconciled` cannot be set through `PATCH` or bulk edits, only by Kontostand prüfen. The
 prototype's bulk "Als geprüft markieren" therefore becomes "Als bestätigt markieren".
+
+Account review (#422): account DTOs also expose `lastValuedOn` (latest live stored
+manual valuation on/before `asOf`, null when missing), `manualValueCents` (native
+currency cents for P2P/other assets, falling back to the booking balance; null for
+other types), and `hasHoldings` (including unpriced holdings). These read fields
+support account-page value entry and overview freshness; they do not replace
+`valueEurCents` as the shared account valuation. The existing valuation PUT and
+its audit/undo, date, product and reconciliation guards remain unchanged.
 
 ## Categories and budget (P2c)
 

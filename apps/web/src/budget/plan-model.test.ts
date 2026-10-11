@@ -108,6 +108,14 @@ const ctx: PlanContext = { month: '2026-09', today: '2026-09-17', cardName: () =
 describe('Plan › Monat view model', () => {
   const rows = planRows(data);
 
+  it('keeps an empty category group visible so its first category can be added', () => {
+    const empty = { ...data, groups: [{ id: 'empty', name: 'Neue Gruppe', sortOrder: 0 }] };
+    expect(planGroups('group', [], empty, ctx)).toMatchObject([
+      { key: 'empty', title: 'Neue Gruppe', rows: [] },
+    ]);
+    expect(planMulti([empty])).toMatchObject([{ key: 'empty', title: 'Neue Gruppe', rows: [] }]);
+  });
+
   it('orders by stage with the card envelopes first, and knows cash from credit overspending', () => {
     const groups = planGroups('stage', rows, data, ctx);
     expect(groups.map((g) => g.key).slice(0, 3)).toEqual(['cards', 's1', 's2']);

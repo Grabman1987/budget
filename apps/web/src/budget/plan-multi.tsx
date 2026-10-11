@@ -1,5 +1,5 @@
-import { useAmountPrivacy, ClassSwatch, cx } from '@budget/ui';
-import { ChevronDown } from 'lucide-react';
+import { useAmountPrivacy, Button, ClassSwatch, cx } from '@budget/ui';
+import { ChevronDown, Plus } from 'lucide-react';
 import { useState } from 'react';
 import { currentMonth } from '../shell/use-month';
 import { eur } from '../ledger/format';
@@ -35,6 +35,7 @@ export function MultiTable({
   collapsed,
   onToggle,
   onOpen,
+  onAdd,
 }: {
   months: string[];
   views: BudgetMonthView[];
@@ -42,6 +43,7 @@ export function MultiTable({
   collapsed: ReadonlySet<string>;
   onToggle: (key: string) => void;
   onOpen: (id: string, month: string) => void;
+  onAdd: (groupId: string) => void;
 }) {
   useAmountPrivacy();
   const write = useBudgetWrite();
@@ -224,6 +226,14 @@ export function MultiTable({
                       })}
                     </tr>
                   ))),
+              <tr key={`${g.key}-add`} className="plan-add-row">
+                <td colSpan={2 + months.length * 3}>
+                  <Button variant="ghost" className="plan-add" onClick={() => onAdd(g.key)}>
+                    <Plus size={16} strokeWidth={1.75} aria-hidden="true" />
+                    <span className="sr-only">Kategorie in {g.title} anlegen</span>
+                  </Button>
+                </td>
+              </tr>,
             ];
           })}
         </tbody>
