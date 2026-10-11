@@ -59,7 +59,14 @@ test('rename retains contact bookings and supports undo from list and statement'
   await page.getByRole('button', { name: `${tag} Neu umbenennen`, exact: true }).click();
   await dialog.getByLabel('Name', { exact: true }).fill(`${tag} Seite`);
   await dialog.getByRole('button', { name: 'Speichern', exact: true }).click();
-  await expect(page.getByRole('heading', { level: 1 })).toHaveText(`${tag} Seite`);
+  // The page title lives in the breadcrumb on every viewport; the only h1 on a phone is the shell's
+  // area name ("Konten"), the page's own h1 is desktop-only.
+  await expect(
+    page.getByRole('navigation', { name: 'Brotkrumen' }).locator('[aria-current="page"]'),
+  ).toHaveText(`${tag} Seite`);
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText(
+    info.project.name === 'mobile' ? 'Konten' : `${tag} Seite`,
+  );
   await expect(page.locator('.contacts-balance')).toContainText('23,00 €');
   const saved = await (await request.get(`/api/bookings/${booking.id}`)).json();
   expect(saved.booking.splits[0].contactId).toBe(contact.id);
