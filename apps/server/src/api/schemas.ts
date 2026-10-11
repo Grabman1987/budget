@@ -247,6 +247,8 @@ export const reconcileBody = reconcilePreview.extend({
   adjust: z.boolean().default(false),
   adjustDate: day.optional(),
   categoryId: id.optional(),
+  /** Allow `adjustDate` inside an already reconciled period. */
+  unlockReconciled: z.boolean().optional(),
   note: nullableText.optional(),
 });
 

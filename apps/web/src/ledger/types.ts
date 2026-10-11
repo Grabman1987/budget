@@ -70,6 +70,8 @@ export interface AccountRow {
     valuation?: CashValuation | null;
     amountCents: number | null;
     date: string | null;
+    /** Day the balance counts for: `date`, else the Vienna day it was fetched. */
+    effectiveDate: string | null;
     fetchedAt: string | null;
     reconciledThrough: string | null;
     canLock: boolean;

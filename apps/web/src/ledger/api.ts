@@ -260,6 +260,8 @@ export interface ReconcileRequest {
   adjust?: boolean;
   adjustDate?: string;
   categoryId?: string;
+  /** Allow the adjustment inside an already checked period. */
+  unlockReconciled?: boolean;
 }
 
 export const reconcileAccount = (accountId: string, input: ReconcileRequest) =>

@@ -1016,6 +1016,119 @@ describe('Kontostand prüfen', () => {
     expect(db.select().from(schema.auditLog).all()).toHaveLength(before);
   });
 
+  describe('adjustment inside an already reconciled period', () => {
+    // Opening 0; +1000 EUR on 02-01; check 02-28; +50 EUR on 03-10; check 03-31 shows 10 EUR less.
+    const scenario = async () => {
+      const a = await newAccount({ openingBalanceCents: 0 });
+      await newBooking(a.id, { date: '2026-02-01', amountCents: 100_000, categoryId: null });
+      const first = await call('POST', `/accounts/${a.id}/reconciliation`, {
+        date: '2026-02-28',
+        statementBalanceCents: 100_000,
+      });
+      expect(first.status, JSON.stringify(first.body)).toBe(201);
+      await newBooking(a.id, { date: '2026-03-10', amountCents: 5000, categoryId: null });
+      return a;
+    };
+    const body = {
+      date: '2026-03-31',
+      statementBalanceCents: 104_000,
+      adjust: true,
+      adjustDate: '2026-02-12',
+    };
+
+    it('refuses a back-dated adjustment with reconciled_locked and writes nothing', async () => {
+      const a = await scenario();
+      const bookings = db.select().from(schema.booking).all().length;
+      const audit = db.select().from(schema.auditLog).all().length;
+      const res = await call('POST', `/accounts/${a.id}/reconciliation`, body);
+      expect(res).toMatchObject({ status: 409, body: { error: 'reconciled_locked' } });
+      expect(db.select().from(schema.booking).all()).toHaveLength(bookings);
+      expect(db.select().from(schema.auditLog).all()).toHaveLength(audit);
+      // the statement day itself and a later day inside the open period stay possible
+      const open = await call('POST', `/accounts/${a.id}/reconciliation`, {
+        ...body,
+        adjustDate: '2026-03-01',
+      });
+      expect(open.status, JSON.stringify(open.body)).toBe(201);
+    });
+
+    it('allows it with unlockReconciled in one audit group and undoes it', async () => {
+      const a = await scenario();
+      const audit = db.select().from(schema.auditLog).all().length;
+      const res = await call('POST', `/accounts/${a.id}/reconciliation`, {
+        ...body,
+        unlockReconciled: true,
+      });
+      expect(res.status, JSON.stringify(res.body)).toBe(201);
+      const result = res.body['result'];
+      const added = db.select().from(schema.auditLog).all().slice(audit);
+      expect(added.length).toBeGreaterThan(0);
+      expect(new Set(added.map((r) => r.groupId))).toEqual(new Set([result.groupId]));
+      const read = () => call('GET', `/bookings/${result.adjustmentBookingId}`);
+      expect((await read()).body['booking']).toMatchObject({
+        date: '2026-02-12',
+        amountCents: -1000,
+      });
+      await call('POST', '/undo', { groupId: result.groupId });
+      expect((await read()).status).toBe(404);
+      const history = (await call('GET', `/accounts/${a.id}/reconciliations`)).body[
+        'reconciliations'
+      ];
+      expect(history).toHaveLength(1);
+    });
+
+    it('rejects a non-boolean unlockReconciled', async () => {
+      const a = await scenario();
+      const res = await call('POST', `/accounts/${a.id}/reconciliation`, {
+        ...body,
+        unlockReconciled: 'yes',
+      });
+      expect(res.status).toBe(400);
+    });
+  });
+
+  it.each(['advance', 'income', 'card_payment', 'debt', 'invest'] as const)(
+    'rejects a %s category for the adjustment without a booking or audit',
+    async (kind) => {
+      const a = await newAccount();
+      db.update(schema.category)
+        .set({
+          kind,
+          class: ['advance', 'income', 'card_payment'].includes(kind) ? null : 'need',
+          cardAccountId: kind === 'card_payment' ? a.id : null,
+        })
+        .where(eq(schema.category.id, 'miete'))
+        .run();
+      const before = db.select().from(schema.auditLog).all().length;
+      const res = await call('POST', `/accounts/${a.id}/reconciliation`, {
+        date: TODAY,
+        statementBalanceCents: 99_000,
+        adjust: true,
+        categoryId: 'miete',
+      });
+      expect(res.status, JSON.stringify(res.body)).toBe(400);
+      expect(db.select().from(schema.booking).all()).toEqual([]);
+      expect(db.select().from(schema.auditLog).all()).toHaveLength(before);
+    },
+  );
+
+  it.each(['fixed', 'periodic', 'variable', 'project', 'saving'] as const)(
+    'accepts a %s category for the adjustment, positive and negative',
+    async (kind) => {
+      db.update(schema.category).set({ kind }).where(eq(schema.category.id, 'miete')).run();
+      for (const statementBalanceCents of [99_000, 101_000]) {
+        const a = await newAccount();
+        const res = await call('POST', `/accounts/${a.id}/reconciliation`, {
+          date: TODAY,
+          statementBalanceCents,
+          adjust: true,
+          categoryId: 'miete',
+        });
+        expect(res.status, JSON.stringify(res.body)).toBe(201);
+      }
+    },
+  );
+
   it('answers 404 for unknown accounts and 400 for bad input', async () => {
     expect(
       (

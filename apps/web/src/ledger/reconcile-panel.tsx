@@ -7,7 +7,13 @@ import {
   TextInput,
   maskMoneyText,
 } from '@budget/ui';
-import { cents, formatDecimal, parseAmount, todayInVienna } from '@budget/domain';
+import {
+  cents,
+  formatDecimal,
+  isReconcileAdjustCategoryKind,
+  parseAmount,
+  todayInVienna,
+} from '@budget/domain';
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { AlertTriangle, CheckCircle2 } from 'lucide-react';
 import { useEffect, useState } from 'react';
@@ -69,11 +75,12 @@ export function ReconcileFlow({
   const [text, setText] = useState('');
   const [adjustDate, setAdjustDate] = useState<string | null>(null);
   const [categoryId, setCategoryId] = useState('');
+  const [unlock, setUnlock] = useState(false);
   const [bookingState, setBookingState] = useState<BookingPanelState>(null);
   const [error, setError] = useState<string | null>(null);
   const lookups = useQuery(lookupsQuery());
   const bank = account.bankBalance;
-  const bankDate = bank?.date || (bank?.fetchedAt ? todayInVienna(new Date(bank.fetchedAt)) : null);
+  const bankDate = bank?.effectiveDate ?? null;
   const adjustmentDay = adjustDate ?? date;
   const adjustmentValid =
     /^\d{4}-\d{2}-\d{2}$/.test(adjustmentDay) &&
@@ -81,6 +88,11 @@ export function ReconcileFlow({
     new Date(`${adjustmentDay}T00:00:00Z`).toISOString().startsWith(adjustmentDay) &&
     adjustmentDay >= account.openingDate &&
     adjustmentDay <= date;
+  // An Ausgleich on or before the last check changes a period the bank already confirmed.
+  const locked =
+    adjustmentValid &&
+    account.lastReconciledOn != null &&
+    adjustmentDay <= account.lastReconciledOn;
 
   const parsed = parseAmount(text);
   const statement = parsed.ok && text.trim() !== '' ? parsed.cents : null;
@@ -103,9 +115,9 @@ export function ReconcileFlow({
   const data = preview.data;
   const money = (amount: number, sign = false) => nativeCurrency(amount, account.currency, sign);
   const finding = data ? findingOf(data) : null;
-  const categories = categoriesFor(
-    pickableCategories(undefined, lookups.data),
-    data && data.differenceCents > 0 ? 'income' : 'expense',
+  // The same plain spending categories for a surplus and a shortfall; the server enforces it too.
+  const categories = categoriesFor(pickableCategories(undefined, lookups.data), 'expense').filter(
+    (c) => isReconcileAdjustCategoryKind(c.kind),
   );
   const categoryName = categories.find((c) => c.id === categoryId)?.name ?? 'ohne Kategorie';
   // The panel shows the answer for what is typed now, not for the previous input.
@@ -346,6 +358,22 @@ export function ReconcileFlow({
                   Das Ausgleichsdatum muss zwischen Kontoeröffnung und Stichtag liegen.
                 </p>
               )}
+              {locked && (
+                <>
+                  <p className="field-error" role="alert">
+                    Dieses Datum liegt in einem bereits geprüften Zeitraum (bis{' '}
+                    {longDay(account.lastReconciledOn!)}). Der Ausgleich ändert diesen Zeitraum.
+                  </p>
+                  <label className="assignment-check">
+                    <input
+                      type="checkbox"
+                      checked={unlock}
+                      onChange={(e) => setUnlock(e.target.checked)}
+                    />{' '}
+                    Geprüften Zeitraum trotzdem ändern
+                  </label>
+                </>
+              )}
               <p className="text-muted">
                 Eine echte Buchung über {money(data.differenceCents, true)} wird am{' '}
                 {longDay(adjustmentDay)} mit{' '}
@@ -396,6 +424,7 @@ export function ReconcileFlow({
                 disabled={
                   confirm.isPending ||
                   !adjustmentValid ||
+                  (locked && !unlock) ||
                   (categoryId !== '' && !categories.some((c) => c.id === categoryId))
                 }
                 onClick={() =>
@@ -403,6 +432,7 @@ export function ReconcileFlow({
                     adjust: true,
                     ...(adjustDate === null ? {} : { adjustDate }),
                     ...(categoryId ? { categoryId } : {}),
+                    ...(locked ? { unlockReconciled: true } : {}),
                   })
                 }
               >

@@ -4,7 +4,6 @@ import { useState } from 'react';
 import { request } from '../api/http';
 import { useBudgetWrite } from '../budget/use-category-writes';
 import { longDay, valuedCurrency } from './format';
-import { todayInVienna } from '@budget/domain';
 import type { AccountRow } from './types';
 
 export function BankBalance({ account }: { account: AccountRow }) {
@@ -13,8 +12,7 @@ export function BankBalance({ account }: { account: AccountRow }) {
   const [busy, setBusy] = useState(false);
   const write = useBudgetWrite();
   if (!balance) return null;
-  const lockDate =
-    balance.date || (balance.fetchedAt ? todayInVienna(new Date(balance.fetchedAt)) : null);
+  const lockDate = balance.effectiveDate;
   return (
     <div className="bank-balance" role="group" aria-label={`Bankstand · ${account.name}`}>
       <span>

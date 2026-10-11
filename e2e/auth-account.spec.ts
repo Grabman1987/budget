@@ -118,6 +118,7 @@ sampleTest(
                     ? {
                         amountCents: null,
                         date: '2026-09-16',
+                        effectiveDate: '2026-09-16',
                         fetchedAt: '2026-09-17T06:30:00Z',
                         reconciledThrough: null,
                         canLock: false,

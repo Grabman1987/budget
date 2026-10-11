@@ -561,6 +561,8 @@ export function bankBalanceForAccount(db: Executor, accountId: string, today: st
   return {
     amountCents: row.balanceCents,
     date: row.balanceDate,
+    /** The day the balance counts for: the observed day, else the Vienna day it was fetched. */
+    effectiveDate: date,
     fetchedAt: row.balanceFetchedAt,
     reconciledThrough: listReconciliations(db, accountId)[0]?.date ?? null,
     canLock: lockReason === null,
@@ -577,7 +579,7 @@ export function lockBankBalance(db: Executor, accountId: string, today: string, 
       tx,
       {
         accountId,
-        date: balance.date || todayInVienna(new Date(balance.fetchedAt!)),
+        date: balance.effectiveDate!,
         today,
         statementBalanceCents: balance.amountCents,
       },

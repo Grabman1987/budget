@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { ToastProvider } from '@budget/ui';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { ReconcileFlow } from './reconcile-panel';
@@ -17,10 +17,20 @@ const account = {
   type: 'checking',
   currency: 'EUR',
   openingDate: '2026-01-01',
-  bankBalance: { amountCents: -1234, date: '2026-09-30', fetchedAt: '2026-10-01T10:00:00Z' },
+  bankBalance: {
+    amountCents: -1234,
+    date: '2026-09-30',
+    effectiveDate: '2026-09-30',
+    fetchedAt: '2026-10-01T10:00:00Z',
+    reconciledThrough: null,
+    canLock: true,
+  },
 } as AccountRow;
 const sends: Array<Record<string, unknown>> = [];
-afterEach(() => vi.unstubAllGlobals());
+afterEach(() => {
+  cleanup();
+  vi.unstubAllGlobals();
+});
 beforeEach(() => {
   vi.stubGlobal('matchMedia', () => ({
     matches: false,
@@ -39,10 +49,20 @@ beforeEach(() => {
               id: 'c',
               name: 'Kategorie Muster',
               groupId: 'g',
-              kind: 'expense',
+              kind: 'variable',
               class: 'need',
               sortOrder: 0,
             },
+            ...(['fixed', 'income', 'advance', 'debt', 'invest', 'saving'] as const).map(
+              (kind, i) => ({
+                id: `k-${kind}`,
+                name: `Art ${kind}`,
+                groupId: 'g',
+                kind,
+                class: null,
+                sortOrder: i + 1,
+              }),
+            ),
           ],
           groups: [{ id: 'g', name: 'Gruppe Muster', sortOrder: 0 }],
         };
@@ -115,7 +135,15 @@ it('takes signed bank cents and date without booking, then sends the chosen adju
   );
 });
 it('uses the Vienna fetch day when the balance has no date', () => {
-  show({ bankBalance: { ...account.bankBalance!, date: null, fetchedAt: '2026-09-30T23:30:00Z' } });
+  // The server computes the effective day (Vienna day of the fetch) and sends it along.
+  show({
+    bankBalance: {
+      ...account.bankBalance!,
+      date: null,
+      effectiveDate: '2026-10-01',
+      fetchedAt: '2026-09-30T23:30:00Z',
+    },
+  });
   fireEvent.click(screen.getByRole('button', { name: /Bankstand übernehmen/ }));
   expect((screen.getByLabelText('Stichtag') as HTMLInputElement).value).toBe('01.10.2026');
 });
@@ -138,4 +166,62 @@ it.each(['credit_card', 'loan'] as const)('explains the debt sign for %s', (type
 it.each(['brokerage', 'crypto'] as const)('labels %s as cash only', (type) => {
   show({ type });
   expect(screen.getByLabelText('Bargeld-Saldo (ohne Wertpapiere)')).toBeTruthy();
+});
+it.each([
+  ['negative', '-12,34'],
+  ['positive', '12,34'],
+])('offers only plain spending categories for a %s difference', async (_name, amount) => {
+  show();
+  fireEvent.change(screen.getByLabelText('Saldo laut Bank'), { target: { value: amount } });
+  const select = (await screen.findByLabelText('Kategorie für den Ausgleich')) as HTMLSelectElement;
+  expect([...select.options].map((o) => o.value).filter(Boolean)).toEqual([
+    'c',
+    'k-fixed',
+    'k-saving',
+  ]);
+});
+it('needs an explicit tick before an adjustment dated in an already checked period', async () => {
+  show({ lastReconciledOn: '2026-09-20' });
+  fireEvent.click(screen.getByRole('button', { name: /Bankstand übernehmen/ }));
+  const button = async () =>
+    (await screen.findByRole('button', {
+      name: /Differenz ausgleichen/,
+    })) as HTMLButtonElement;
+  expect((await button()).disabled).toBe(false);
+  expect(screen.queryByLabelText('Geprüften Zeitraum trotzdem ändern')).toBeNull();
+  fireEvent.change(screen.getByLabelText('Ausgleichsdatum'), { target: { value: '2026-09-20' } });
+  expect(
+    screen.getByText(
+      'Dieses Datum liegt in einem bereits geprüften Zeitraum (bis 20.09.2026). Der Ausgleich ändert diesen Zeitraum.',
+    ),
+  ).toBeTruthy();
+  expect((await button()).disabled).toBe(true);
+  fireEvent.click(screen.getByLabelText('Geprüften Zeitraum trotzdem ändern'));
+  expect((await button()).disabled).toBe(false);
+  fireEvent.click(await button());
+  await waitFor(() =>
+    expect(sends).toEqual([
+      {
+        date: '2026-09-30',
+        statementBalanceCents: -1234,
+        adjust: true,
+        adjustDate: '2026-09-20',
+        unlockReconciled: true,
+      },
+    ]),
+  );
+});
+it('does not send the unlock flag for a date after the last check', async () => {
+  show({ lastReconciledOn: '2026-09-20' });
+  fireEvent.click(screen.getByRole('button', { name: /Bankstand übernehmen/ }));
+  fireEvent.change(await screen.findByLabelText('Ausgleichsdatum'), {
+    target: { value: '2026-09-21' },
+  });
+  expect(screen.queryByLabelText('Geprüften Zeitraum trotzdem ändern')).toBeNull();
+  fireEvent.click(screen.getByRole('button', { name: /Differenz ausgleichen/ }));
+  await waitFor(() =>
+    expect(sends).toEqual([
+      { date: '2026-09-30', statementBalanceCents: -1234, adjust: true, adjustDate: '2026-09-21' },
+    ]),
+  );
 });
