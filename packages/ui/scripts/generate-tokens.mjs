@@ -63,7 +63,7 @@ const EXTRA = {
     'heat-green': '#a9dbb8',
     'good-ink': '#2d7a4c',
     'bad-ink': '#b0463a',
-    'heat-max': '44%',
+    'heat-max': '80%',
     'on-red': '#ffffff',
     'card-border': 'rgba(15, 34, 64, 0.08)',
     'card-shadow':
@@ -81,7 +81,7 @@ const EXTRA = {
     'heat-green': '#4f9a6c',
     'good-ink': '#8fd6a8',
     'bad-ink': '#f2a497',
-    'heat-max': '34%',
+    'heat-max': '50%',
     'on-red': '#1a0d0b',
     'card-border': 'rgba(210, 236, 255, 0.1)',
     'card-shadow': '0 1px 2px rgba(2, 10, 26, 0.35), 0 10px 26px -14px rgba(2, 10, 26, 0.6)',

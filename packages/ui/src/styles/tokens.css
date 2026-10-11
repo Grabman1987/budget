@@ -42,7 +42,7 @@
   --heat-green: #a9dbb8;
   --good-ink: #2d7a4c;
   --bad-ink: #b0463a;
-  --heat-max: 44%;
+  --heat-max: 80%;
 }
 
 /* Dark: classic blueprint. Follows the system unless a theme is forced with data-theme. */
@@ -88,7 +88,7 @@
     --heat-green: #4f9a6c;
     --good-ink: #8fd6a8;
     --bad-ink: #f2a497;
-    --heat-max: 34%;
+    --heat-max: 50%;
   }
 }
 
@@ -133,7 +133,7 @@
   --heat-green: #4f9a6c;
   --good-ink: #8fd6a8;
   --bad-ink: #f2a497;
-  --heat-max: 34%;
+  --heat-max: 50%;
 }
 
 /* Print always uses the light tokens (the doubled specificity beats the theme selectors). */
@@ -180,6 +180,6 @@
     --heat-green: #a9dbb8;
     --good-ink: #2d7a4c;
     --bad-ink: #b0463a;
-    --heat-max: 44%;
+    --heat-max: 80%;
   }
 }

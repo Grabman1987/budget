@@ -46,6 +46,7 @@ const account = (over: Partial<AccountRow>): AccountRow => ({
 const ACCOUNTS: AccountRow[] = [
   account({ id: 'giro', name: 'Giro Muster', sortOrder: 1 }),
   account({ id: 'spar', name: 'Tagesgeld Muster', type: 'savings', sortOrder: 2 }),
+  account({ id: 'karte', name: 'Karte Muster', type: 'credit_card', interestRateBp: 1200 }),
   account({
     id: 'kredit',
     name: 'Kredit Muster',
@@ -127,6 +128,26 @@ function page() {
 const writes = () => calls.filter((c) => c.method !== 'GET');
 
 describe('Einstellungen › Konten', () => {
+  it.each(['Giro Muster', 'Karte Muster'])(
+    'saves and validates the interest rate for %s',
+    async (name) => {
+      page();
+      await userEvent.click(await screen.findByRole('button', { name: `${name} bearbeiten` }));
+      const rate = screen.getByLabelText('Zinssatz in Prozent');
+      await userEvent.clear(rate);
+      await userEvent.type(rate, '12,34');
+      await userEvent.click(screen.getByRole('button', { name: 'Speichern' }));
+      await screen.findByText(`Konto „${name}“ gespeichert.`);
+      expect(writes()[0]?.body).toEqual({ interestRateBp: 1234 });
+      await userEvent.click(screen.getByRole('button', { name: `${name} bearbeiten` }));
+      await userEvent.clear(screen.getByLabelText('Zinssatz in Prozent'));
+      await userEvent.type(screen.getByLabelText('Zinssatz in Prozent'), '-1');
+      await userEvent.click(screen.getByRole('button', { name: 'Speichern' }));
+      expect(await screen.findByText('Zinssatz in Prozent, z. B. 3,5.')).toBeTruthy();
+      expect(writes()).toHaveLength(1);
+    },
+  );
+
   it('lists the accounts grouped like the sidebar, closed ones apart, with loan terms', async () => {
     page();
     await screen.findByText('Giro Muster');
@@ -220,7 +241,7 @@ describe('Einstellungen › Konten', () => {
     expect(writes()[0]).toMatchObject({
       method: 'PATCH',
       path: '/api/accounts/order',
-      body: { ids: ['spar', 'giro', 'kredit', 'alt'] },
+      body: { ids: ['spar', 'giro', 'karte', 'kredit', 'alt'] },
     });
   });
 });

@@ -15,7 +15,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useState, type FormEvent } from 'react';
 import { ApiError } from '../api/http';
 import { useBudgetWrite } from '../budget/use-category-writes';
-import { AccountFormPanel, percentToBp } from '../ledger/account-form';
+import { AccountFormPanel, hasRate, percentToBp } from '../ledger/account-form';
 import { groupAccounts } from '../ledger/account-groups';
 import { useOrderedAccounts, useReorder } from '../ledger/account-order';
 import { closeAccount, patchAccount, reopenAccount, type AccountInput } from '../ledger/api';
@@ -50,7 +50,6 @@ const DEFAULT_ON_BUDGET: Partial<Record<AccountType, boolean>> = {
 
 const hasOverdraft = (t: AccountType) => t === 'checking';
 const hasCreditLimit = (t: AccountType) => t === 'credit_card';
-const hasRate = (t: AccountType) => t === 'savings' || t === 'loan' || t === 'other_liability';
 const hasFee = (t: AccountType) => t === 'checking' || t === 'credit_card' || t === 'loan';
 const isLoan = (t: AccountType) => t === 'loan';
 
