@@ -8,12 +8,12 @@ import {
   XTicks,
   useAmountPrivacy,
 } from '@budget/ui';
-import { cents } from '@budget/domain';
-import type { BankCostsReport } from '@budget/db';
+import { cents, formatDecimal, monthlyInterestCents } from '@budget/domain';
+import type { BankCostsReport, CreditLineRow } from '@budget/db';
 import { queryOptions, useQuery } from '@tanstack/react-query';
 import { request } from '../api/http';
 import { chartPoints } from '../charts/tooltip-data';
-import { eur, longDay } from '../ledger/format';
+import { eur, longDay, nativeCurrency } from '../ledger/format';
 import { LEDGER_KEY } from '../ledger/queries';
 import type { PageMeta } from '../nav/pages';
 import type { ReportEntry } from '../nav/reports-catalog';
@@ -74,7 +74,13 @@ function Body({ data }: { data: BankCostsReport }) {
       line.rateBp === null &&
       ['loan', 'credit_card', 'checking'].includes(line.type),
   ).length;
-  if (!data.months.length) return <p role="status">Noch keine geschlossenen Monate mit Daten.</p>;
+  if (!data.months.length)
+    return (
+      <>
+        <p role="status">Noch keine geschlossenen Monate mit Daten.</p>
+        <CreditLinesTable lines={data.creditLines} />
+      </>
+    );
   return (
     <>
       <section className="sr-card sr-wide" aria-labelledby="bc-main">
@@ -158,6 +164,7 @@ function Body({ data }: { data: BankCostsReport }) {
             : ''}
         </p>
       </section>
+      <CreditLinesTable lines={data.creditLines} />
       <section className="sr-card sr-wide" aria-labelledby="bc-kinds">
         <div className="sr-head">
           <h2 id="bc-kinds">Kosten nach Art</h2>
@@ -276,6 +283,71 @@ function Body({ data }: { data: BankCostsReport }) {
     </>
   );
 }
+export function CreditLinesTable({ lines }: { lines: CreditLineRow[] }) {
+  useAmountPrivacy();
+  return (
+    <section className="sr-card sr-wide" aria-labelledby="bc-credit-lines">
+      <div className="sr-head">
+        <h2 id="bc-credit-lines">Kredit- und Dispolinien</h2>
+      </div>
+      <p className="sr-note">
+        Aktuelle Konditionen je Konto, Beträge in Kontowährung. Die Monatsschätzung verwendet den
+        genutzten Betrag × Jahreszinssatz ÷ 12 bei unverändertem Saldo, ohne Gebühren. Kreditkarten
+        können bei vollständigem Ausgleich zinsfrei bleiben. Diese Schätzung ist keine Buchung und
+        wird nicht zur erfassten Kostensumme addiert.
+      </p>
+      {lines.length ? (
+        <ScrollRegion label="Kredit- und Dispolinien">
+          <table className="sr-table" data-testid="credit-lines">
+            <thead>
+              <tr>
+                <th scope="col">Konto</th>
+                <th scope="col">Rahmen</th>
+                <th scope="col">Zinssatz p. a.</th>
+                <th scope="col">Genutzt</th>
+                <th scope="col">Zinsen pro Monat (geschätzt)</th>
+              </tr>
+            </thead>
+            <tbody>
+              {lines.map((line) => {
+                const interest =
+                  line.usedCents === 0
+                    ? 0
+                    : line.rateBp === null
+                      ? null
+                      : monthlyInterestCents(line.usedCents, line.rateBp);
+                return (
+                  <tr key={line.id}>
+                    <th scope="row">{line.name}</th>
+                    <td>
+                      {line.limitCents === null
+                        ? 'Keine Angabe'
+                        : nativeCurrency(line.limitCents, line.currency)}
+                    </td>
+                    <td>
+                      {line.rateBp === null
+                        ? 'Keine Angabe'
+                        : `${formatDecimal(cents(line.rateBp))} %`}
+                    </td>
+                    <td>{nativeCurrency(line.usedCents, line.currency)}</td>
+                    <td>
+                      {interest === null
+                        ? 'Nicht schätzbar'
+                        : nativeCurrency(interest, line.currency)}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </ScrollRegion>
+      ) : (
+        <p className="sr-note">Keine offenen Kredit- oder Dispolinien.</p>
+      )}
+    </section>
+  );
+}
+
 function CostChart({ data }: { data: BankCostsReport }) {
   const points = data.monthly;
   const hi = Math.max(

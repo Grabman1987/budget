@@ -1,0 +1,19 @@
+.price-history {
+  min-width: 0;
+  margin-block: 24px;
+}
+.price-history-ranges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-block: 12px;
+}
+.price-history-ranges .btn {
+  min-height: 44px;
+  min-width: 44px;
+  border-radius: var(--radius-pill);
+}
+.price-history-ranges .btn[aria-pressed='true'] {
+  background: var(--primary);
+  color: var(--on-primary);
+}

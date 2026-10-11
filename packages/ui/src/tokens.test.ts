@@ -16,6 +16,36 @@ const scaleTokensCss = read('./styles/scale-tokens.css');
 const scalesCss = read('./styles/scales.css');
 
 describe('design tokens', () => {
+  it('keeps saturated heatmap extremes readable in light, dark and print', () => {
+    const rgb = (hex: string) => hex.match(/[a-f\d]{2}/gi)!.map((v) => parseInt(v, 16));
+    const luminance = (color: number[]) =>
+      color.reduce((sum, value, i) => {
+        const s = value / 255;
+        return (
+          sum +
+          (s <= 0.04045 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4) * [0.2126, 0.7152, 0.0722][i]!
+        );
+      }, 0);
+    for (const block of [...tokensCss.matchAll(/\{([^{}]*)\}/g)]) {
+      const token = (name: string) => new RegExp(`--${name}:\\s*([^;]+);`).exec(block[1]!)![1]!;
+      const max = parseFloat(token('heat-max')) / 100;
+      const ink = luminance(rgb(token('ink')));
+      const ground = rgb(token('ground'));
+      for (const hue of ['heat-green', 'heat-red']) {
+        const color = rgb(token(hue));
+        const strongest = color.map((v, i) => v * max + ground[i]! * (1 - max));
+        expect(Math.hypot(...strongest.map((v, i) => v - ground[i]!))).toBeGreaterThanOrEqual(60);
+        for (const base of ['ground', 'surface']) {
+          const background = rgb(token(base));
+          const mixed = luminance(color.map((v, i) => v * max + background[i]! * (1 - max)));
+          expect(
+            (Math.max(ink, mixed) + 0.05) / (Math.min(ink, mixed) + 0.05),
+          ).toBeGreaterThanOrEqual(4.5);
+        }
+      }
+    }
+  });
+
   it('tokens.css is up to date with DESIGN.md (run `npm run tokens -w @budget/ui`)', () => {
     expect(tokensCss).toBe(generateTokensCss(designMd));
   });

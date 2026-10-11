@@ -123,6 +123,13 @@ Older CI/publication checkboxes below describe their original deliveries. Curren
 - [x] Independent final visual review confirmed the stored terms and model values are distinguishable in the refreshed captures.
 - [ ] PR integration and owner acceptance remain pending.
 
+### Reports / Vermögen #426 — Report polish — 2026-10-11
+
+- [x] Stronger shared pastel heatmap maximum in light/dark/print, preserving direction and row normalization.
+- [x] Report 2.6 displays existing credit lines with native-currency limits, exact annual rates, usage and separately labelled monthly interest estimates from the shared integer-cent function.
+- [x] Product detail displays stored price history with 1M/6M/1J/Max, exact micro-unit prices and shared chart inspection; checking/card creation and editing expose the existing interest-rate field.
+- [ ] Owner visual acceptance and CI gate. Focused verification and affected captures: [PR evidence](evidence/report-polish-426/PR.md).
+
 ### P0 #295 — Bank-cost coverage disclosure — 2026-10-08
 
 - [x] Preserve the existing bank-cost known subtotal while stating its coverage beside the headline; distinguish current unknown-rate usage and nonzero modeled account/month periods without dated EUR conversion, with the current-conditions date separate from closed-month dates.
