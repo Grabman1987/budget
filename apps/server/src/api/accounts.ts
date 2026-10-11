@@ -1,3 +1,4 @@
+import { accountReminders } from '@budget/db';
 import {
   account,
   valuation,
@@ -79,6 +80,7 @@ export type AccountView = AccountSummary & {
 
 export function accountRoutes(db: Db, today: () => string): Hono {
   const app = new Hono();
+  app.get('/reminders', (c) => c.json({ reminders: accountReminders(db, today()) }));
 
   app.put('/:id/valuation', async (c) => {
     const id = c.req.param('id');

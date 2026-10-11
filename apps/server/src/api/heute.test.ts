@@ -102,6 +102,54 @@ async function call(method: string, path: string, body?: unknown) {
   return { status: res.status, body: (await res.json()) as any };
 }
 
+it('reminds from the shared account dates and audited configurable interval', async () => {
+  const reminders = (await call('GET', '/heute')).body.accountReminders;
+  expect(reminders).toEqual([
+    { accountId: 'giro', accountName: 'Giro', days: 76, action: 'reconcile' },
+  ]);
+  expect((await call('GET', '/accounts/reminders')).body.reminders).toEqual(reminders);
+  const saved = await call('PATCH', '/display-settings', { accountReminderDays: 80 });
+  expect(saved.status).toBe(200);
+  expect((await call('GET', '/heute')).body.accountReminders).toEqual([]);
+  expect((await call('POST', '/undo', { groupId: saved.body.groupId })).status).toBe(200);
+  expect((await call('GET', '/accounts/reminders')).body.reminders).toEqual(reminders);
+  for (const days of [0, 366, 1.5, '35', null])
+    expect((await call('PATCH', '/display-settings', { accountReminderDays: days })).status).toBe(
+      400,
+    );
+});
+
+it('includes enabled one-off plans through day 35 without creating bookings', async () => {
+  const ctx = { actor: 'tester' };
+  for (const [id, date, extra] of [
+    ['today', TODAY, {}],
+    ['boundary', '2026-04-22', {}],
+    ['later', '2026-04-23', {}],
+    ['past', '2026-03-17', {}],
+    ['disabled', '2026-03-20', { enabled: false }],
+    ['repeating', '2026-03-20', { recurrence: 'monthly' }],
+    ['deleted', '2026-03-20', { deletedAt: '2026-03-18T00:00:00Z' }],
+  ] as const)
+    createEntity(
+      db,
+      schema.plannedEvent,
+      { id, name: `Plan ${id}`, date, amountCents: -12345, ...extra },
+      ctx,
+    );
+  const before = db.select().from(schema.booking).all().length;
+  expect((await call('GET', '/heute')).body.upcomingEvents).toEqual([
+    { eventId: 'today', name: 'Plan today', date: TODAY, amountCents: -12345, categoryId: null },
+    {
+      eventId: 'boundary',
+      name: 'Plan boundary',
+      date: '2026-04-22',
+      amountCents: -12345,
+      categoryId: null,
+    },
+  ]);
+  expect(db.select().from(schema.booking).all()).toHaveLength(before);
+});
+
 it('Heute and One-Pager expose the same cent-exact expectation and existing forecast', async () => {
   const live = (await call('GET', '/heute?month=2026-03')).body.pace;
   const report = (await call('GET', '/reports/month/onepager?month=2026-03')).body.pace;
@@ -426,6 +474,8 @@ describe('GET /heute', () => {
     expect(res.status).toBe(200);
     expect(Object.keys(res.body).sort()).toEqual(
       [
+        'accountReminders',
+        'upcomingEvents',
         'attention',
         'balance',
         'budgetAnswer',

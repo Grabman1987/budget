@@ -8,12 +8,13 @@ import { goalsQuery } from '../budget/goals-api';
 import { shiftMonth } from '../nav/month';
 import { AppLink } from '../shell/app-link';
 import type { Heute } from './api';
+import { AccountReminderRows } from './account-reminders';
 
 /** Overspending lives in the global top-bar chip; other work is neutral until it needs action. */
 export function AttentionBar({
   data,
 }: {
-  data: Pick<Heute, 'stand' | 'nextSteps' | 'financeCheck' | 'attention'>;
+  data: Pick<Heute, 'stand' | 'nextSteps' | 'financeCheck' | 'attention' | 'accountReminders'>;
 }) {
   useAmountPrivacy();
   const rules = 'unavailable' in data.financeCheck ? [] : data.financeCheck.actionRules;
@@ -23,6 +24,7 @@ export function AttentionBar({
   return (
     <section className="heute-attention" aria-labelledby="attention-title">
       <h2 id="attention-title">Braucht Aufmerksamkeit</h2>
+      <AccountReminderRows items={data.accountReminders ?? []} />
       {data.attention.inboxCount > 0 && (
         <div className="attention-row">
           <span>
@@ -62,7 +64,8 @@ export function AttentionBar({
           </AppLink>
         </div>
       )}
-      {!data.attention.inboxCount &&
+      {!data.accountReminders?.length &&
+        !data.attention.inboxCount &&
         !data.attention.pendingCount &&
         !rules.length &&
         !('unavailable' in data.financeCheck) &&

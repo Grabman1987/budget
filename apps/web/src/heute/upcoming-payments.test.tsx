@@ -4,6 +4,32 @@ import type { ReactNode } from 'react';
 import { afterEach, expect, it, vi } from 'vitest';
 import { Upcoming } from './upcoming-payments';
 
+it('shows planned one-off dates and signed cents with navigation to the year plan', () => {
+  render(
+    <Upcoming
+      id="upcoming"
+      title="Was steht an?"
+      items={[]}
+      events={[
+        {
+          eventId: 'synthetic-event',
+          name: 'Testereignis',
+          date: '2026-10-22',
+          amountCents: -12345,
+          categoryId: null,
+        },
+      ]}
+    />,
+  );
+  expect(screen.getByText('Testereignis')).toBeTruthy();
+  expect(screen.getByText('22.10.')).toBeTruthy();
+  expect(screen.getByRole('link', { name: /123,45/ }).getAttribute('href')).toBe(
+    '/plan/jahr?ereignis=synthetic-event',
+  );
+  expect(screen.getByText('Geplantes Einmalereignis')).toBeTruthy();
+  expect(screen.queryByText('Keine wiederkehrenden Zahlungen in diesem Zeitraum.')).toBeNull();
+});
+
 vi.mock('../shell/app-link', () => ({
   AppLink: ({
     children,

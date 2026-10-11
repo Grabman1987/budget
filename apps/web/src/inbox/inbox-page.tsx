@@ -1,3 +1,4 @@
+import { InboxAccountReminders } from '../heute/account-reminders';
 import { BankBookingMerge, BankCandidate } from './bank-candidate';
 import { AssignmentLearnOffer, BookingAssignmentReview } from '../assignment/review';
 import { PayslipUpload, PayslipIntakeDetail } from '../reports/payslip-intake';
@@ -76,6 +77,7 @@ export function InboxPage() {
           </AppLink>
         </p>
       )}
+      {!search.bankSource && <InboxAccountReminders />}
       <InboxWorkflow bankSource={search.bankSource} />
     </PageFrame>
   );

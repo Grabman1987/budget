@@ -65,6 +65,7 @@ export function ProfileSettingsPage() {
         </p>
       </section>
       <FuturePreviewSetting />
+      <FuturePreviewSetting reminder />
       <ProfilePanel />
     </PageFrame>
   );

@@ -1,27 +1,39 @@
-import { validFuturePreviewDays } from '@budget/domain';
+import { validFuturePreviewDays, validAccountReminderDays } from '@budget/domain';
 import { Button, Field, SectionHead, TextInput, useToast } from '@budget/ui';
 import { queryOptions, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import { request } from '../api/http';
 import { errorText } from '../ledger/labels';
 import { undoGroup } from '../ledger/api';
+import { LEDGER_KEY } from '../ledger/queries';
 
 export const displaySettingsQuery = () =>
   queryOptions({
     queryKey: ['display-settings'],
-    queryFn: () => request<{ futurePreviewDays: number }>('GET', '/api/display-settings'),
+    queryFn: () =>
+      request<{ futurePreviewDays: number; accountReminderDays: number }>(
+        'GET',
+        '/api/display-settings',
+      ),
   });
-export function FuturePreviewSetting() {
+export function FuturePreviewSetting({ reminder = false }: { reminder?: boolean }) {
+  const key = reminder ? 'accountReminderDays' : 'futurePreviewDays';
+  const titleId = reminder ? 'reminder-title' : 'preview-title';
+  const label = reminder ? 'Kontoprüfung erinnern nach (Tagen)' : 'Zukunftsvorschau (Tage)';
+  const min = reminder ? 1 : 0;
   const query = useQuery(displaySettingsQuery());
   const qc = useQueryClient();
   const toast = useToast();
   const [draft, setDraft] = useState<string>();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string>();
-  const value = draft ?? String(query.data?.futurePreviewDays ?? '');
+  const value = draft ?? String(query.data?.[key] ?? '');
   return (
-    <section className="profile-settings" aria-labelledby="preview-title">
-      <SectionHead id="preview-title" title="Darstellung · Kontovorschau" />
+    <section className="profile-settings" aria-labelledby={titleId}>
+      <SectionHead
+        id={titleId}
+        title={reminder ? 'Kontoprüfung · Erinnerung' : 'Darstellung · Kontovorschau'}
+      />
       {query.isError ? (
         <p role="alert">
           {errorText(query.error)}{' '}
@@ -35,26 +47,31 @@ export function FuturePreviewSetting() {
           onSubmit={(e) => {
             e.preventDefault();
             const days = Number(value);
-            if (!/^\d+$/.test(value) || !validFuturePreviewDays(days))
-              return setError('Bitte eine ganze Zahl von 0 bis 365 eintragen.');
-            setBusy(true);
-            void request<{ futurePreviewDays: number; groupId: string }>(
-              'PATCH',
-              '/api/display-settings',
-              { futurePreviewDays: days },
+            if (
+              !/^\d+$/.test(value) ||
+              !(reminder ? validAccountReminderDays(days) : validFuturePreviewDays(days))
             )
+              return setError('Bitte eine ganze Zahl von ' + min + ' bis 365 eintragen.');
+            setBusy(true);
+            void request<{ groupId: string }>('PATCH', '/api/display-settings', { [key]: days })
               .then((result) => {
-                qc.setQueryData(displaySettingsQuery().queryKey, {
-                  futurePreviewDays: result.futurePreviewDays,
-                });
+                void qc.invalidateQueries({ queryKey: displaySettingsQuery().queryKey });
+                void qc.invalidateQueries({ queryKey: LEDGER_KEY });
                 setDraft(undefined);
                 setError(undefined);
                 toast.show({
-                  message: 'Kontovorschau gespeichert.',
+                  message: reminder
+                    ? 'Kontoprüfung-Erinnerung gespeichert.'
+                    : 'Kontovorschau gespeichert.',
                   actionLabel: 'Rückgängig',
                   onAction: () =>
                     void undoGroup(result.groupId)
-                      .then(() => qc.invalidateQueries({ queryKey: ['display-settings'] }))
+                      .then(() =>
+                        Promise.all([
+                          qc.invalidateQueries({ queryKey: ['display-settings'] }),
+                          qc.invalidateQueries({ queryKey: LEDGER_KEY }),
+                        ]),
+                      )
                       .catch((e: unknown) => toast.show({ message: errorText(e) })),
                 });
               })
@@ -63,15 +80,19 @@ export function FuturePreviewSetting() {
           }}
         >
           <Field
-            label="Zukunftsvorschau (Tage)"
+            label={label}
             error={error}
-            hint="0–365 Tage; Standard 35. 0 blendet die Vorschau im Saldoverlauf aus."
+            hint={
+              reminder
+                ? '1–365 Tage; Standard 35. Nur offene Konten mit Buchungen. Nie geprüfte Konten zählen ab Eröffnung; P2P und sonstige Vermögenswerte ab der letzten Bewertung.'
+                : '0–365 Tage; Standard 35. 0 blendet die Vorschau im Saldoverlauf aus.'
+            }
           >
             {({ id, invalid, describedBy }) => (
               <TextInput
                 id={id}
                 type="number"
-                min={0}
+                min={min}
                 max={365}
                 step={1}
                 value={value}

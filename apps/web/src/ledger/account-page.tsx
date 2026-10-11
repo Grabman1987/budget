@@ -121,6 +121,7 @@ export function AccountPage({ id }: { id: string }) {
 function AccountBody({ account }: { account: AccountRow }) {
   useAmountPrivacy();
   const search = useSearch({ strict: false }) as {
+    pruefen?: 'reconcile' | 'value';
     vorschau?: string;
     faellig?: string;
     horizon?: LiquidityHorizon;
@@ -189,6 +190,12 @@ function AccountBody({ account }: { account: AccountRow }) {
   const [panel, setPanel] = useState<BookingPanelState>(null);
   const [checking, setChecking] = useState(false);
   const [updatingValue, setUpdatingValue] = useState(false);
+  const closeCheck = () => {
+    setChecking(false);
+    setUpdatingValue(false);
+    if (search.pruefen)
+      void navigate({ to: '.', search: { ...search, pruefen: undefined }, replace: true } as never);
+  };
   const manual = account.type === 'p2p' || account.type === 'other_asset';
   const value = accountValueEur(account);
   const pending = valuedCurrencyParts(
@@ -460,11 +467,15 @@ function AccountBody({ account }: { account: AccountRow }) {
         </p>
       )}
       <BookingPanel state={panel} onClose={() => setPanel(null)} />
-      <ReconcilePanel account={account} open={checking} onClose={() => setChecking(false)} />
+      <ReconcilePanel
+        account={account}
+        open={!account.closedAt && !manual && (checking || search.pruefen === 'reconcile')}
+        onClose={closeCheck}
+      />
       {manual && (
         <SettingsFormDialog
-          open={updatingValue}
-          onClose={() => setUpdatingValue(false)}
+          open={!account.closedAt && (updatingValue || search.pruefen === 'value')}
+          onClose={closeCheck}
           title={`Wert aktualisieren · ${account.name}`}
         >
           <ManualValue
@@ -481,7 +492,7 @@ function AccountBody({ account }: { account: AccountRow }) {
                   ? 'Dieses Konto ist geschlossen.'
                   : undefined
             }
-            onDone={() => setUpdatingValue(false)}
+            onDone={closeCheck}
           />
         </SettingsFormDialog>
       )}
