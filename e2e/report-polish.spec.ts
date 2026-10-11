@@ -121,13 +121,16 @@ isolatedTest(
       ['1J', 4],
       ['Max', 5],
     ] as const) {
-      const chip = page.getByRole('button', { name: range, exact: true });
+      const chip = page
+        .getByRole('group', { name: 'Zeitraum des Kursverlaufs' })
+        .getByRole('button', { name: range, exact: true });
       await chip.click();
       await expect(chip).toHaveAttribute('aria-pressed', 'true');
       expect((await chip.boundingBox())!.height).toBeGreaterThanOrEqual(44);
       await expect(chart.locator('[data-chart-point]')).toHaveCount(count);
     }
-    await chart.locator('[data-chart-point]').last().hover();
+    // The 1.5-unit dot is smaller than a pixel on a phone, so the chart overlay takes the pointer; it selects the nearest point.
+    await chart.locator('[data-chart-point]').last().hover({ force: true });
     await expect(page.locator('.chart-tooltip')).toContainText('4,123456 USD');
     await expect(page.locator('.chart-tooltip')).toContainText('02.10.2026');
     await chart.locator('..').focus();
