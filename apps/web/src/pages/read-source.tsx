@@ -4,6 +4,7 @@ import { useState } from 'react';
 import type { SourceBalance, SourceMapping } from '@budget/domain';
 import { request } from '../api/http';
 import { INBOX_KEY } from '../inbox/api';
+import { InboxWorkflow } from '../inbox/inbox-page';
 import { AccountOptions } from '../ledger/account-options';
 import { undoGroup } from '../ledger/api';
 import type { AccountRow } from '../ledger/types';
@@ -88,8 +89,8 @@ export function CryptoReadSourceSection() {
     <section aria-labelledby="crypto-source-title" className="data-source-section">
       <SectionHead id="crypto-source-title" title="Krypto-Lesequelle" />
       <p>
-        Bewegungen erscheinen zur Prüfung im Posteingang. Ein- und Auszahlungen dort mit den
-        Bankkonten abgleichen. Buchungen und Trades bestätigst du selbst.
+        Bewegungen werden hier geprüft. Ein- und Auszahlungen mit den Bankkonten abgleichen.
+        Buchungen und Trades bestätigst du selbst.
       </p>
       {query.isPending && <p role="status">Lädt …</p>}
       {query.isError && (
@@ -143,6 +144,7 @@ export function CryptoReadSourceSection() {
           </p>
           <SinceForm saved={query.data.since} />
           <MatchSection match={query.data.match} disabled={busy || query.data.running} />
+          <InboxWorkflow readSource="crypto" />
           {query.data.balances.map((balance) => (
             <Mapping key={balance.key} balance={balance} data={query.data} />
           ))}
@@ -173,8 +175,8 @@ function MatchSection({ match, disabled }: { match: MatchCounts; disabled: boole
       const result = await request<ReconcileResult>('POST', path + '/reconcile');
       setMessage(
         result.changed === 0
-          ? 'Abgleich ausgeführt. Keine Änderung im Posteingang.'
-          : `Abgleich ausgeführt. ${result.changed} ${result.changed === 1 ? 'Eintrag' : 'Einträge'} im Posteingang aktualisiert.`,
+          ? 'Abgleich ausgeführt. Keine Änderung an den Quellbewegungen.'
+          : `Abgleich ausgeführt. ${result.changed} ${result.changed === 1 ? 'Eintrag' : 'Einträge'} in der Datenquelle aktualisiert.`,
       );
       setUndoable(result.changed > 0 ? result.groupId : null);
       await refreshViews();
@@ -193,7 +195,7 @@ function MatchSection({ match, disabled }: { match: MatchCounts; disabled: boole
       setMessage('Abgleich rückgängig gemacht.');
       await refreshViews();
     } catch {
-      setMessage('Rückgängig nicht möglich. Der Posteingang hat sich inzwischen geändert.');
+      setMessage('Rückgängig nicht möglich. Die Quellbewegungen haben sich inzwischen geändert.');
     } finally {
       setBusy(false);
     }
@@ -203,8 +205,8 @@ function MatchSection({ match, disabled }: { match: MatchCounts; disabled: boole
       <h3>Abgleich mit dem Hauptbuch</h3>
       <p>
         Jede Bewegung ab dem Startdatum wird mit den vorhandenen Trades und Buchungen der
-        zugeordneten Konten verglichen. Treffer gelten als erfasst, alles andere bleibt im
-        Posteingang. Es werden nie automatisch Buchungen oder Trades angelegt.
+        zugeordneten Konten verglichen. Treffer gelten als erfasst, alles andere bleibt hier zur
+        Prüfung. Es werden nie automatisch Buchungen oder Trades angelegt.
       </p>
       <dl className="source-status">
         <div>
@@ -276,7 +278,7 @@ function SinceForm({ saved }: { saved: string | null }) {
     >
       <Field
         label="Bewegungen ab"
-        hint="Ältere Bewegungen sind bereits erfasst und kommen nicht in den Posteingang. Ein früheres Datum holt ältere Bewegungen beim nächsten „Gesamten Verlauf prüfen“ in den Posteingang."
+        hint="Ältere Bewegungen sind bereits erfasst und erscheinen nicht in der Prüfliste. Ein früheres Datum holt ältere Bewegungen beim nächsten „Gesamten Verlauf prüfen“ in die Prüfliste."
       >
         {({ id, describedBy }) => (
           <TextInput

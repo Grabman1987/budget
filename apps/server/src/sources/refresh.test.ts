@@ -323,11 +323,15 @@ describe('source sync persistence and financial isolation', () => {
       nextCursor: null,
     });
     await refreshReadSource(opened.db, adapter, at);
-    const mapped = readInbox(opened.db, '2026-10-02').entries.find((i) => i.kind === 'import')!;
+    const mapped = readInbox(opened.db, '2026-10-02', undefined, 'crypto').entries.find(
+      (i) => i.kind === 'import',
+    )!;
     expect(mapped.type === 'stored' && JSON.parse(mapped.detail!).mappings).toEqual([mapping]);
     const changed = mapReadSource(opened.db, { ...mapping, accountId: 'depot' }, ctx);
     const display = () => {
-      const entry = readInbox(opened.db, '2026-10-02').entries.find((i) => i.kind === 'import')!;
+      const entry = readInbox(opened.db, '2026-10-02', undefined, 'crypto').entries.find(
+        (i) => i.kind === 'import',
+      )!;
       return entry.type === 'stored' && JSON.parse(entry.detail!).mappings;
     };
     expect(display()).toEqual([{ ...mapping, accountId: 'depot' }]);
@@ -544,7 +548,11 @@ describe('source sync persistence and financial isolation', () => {
     await refreshReadSourceIfDue(opened.db, adapter, new Date(at.getTime() + 86400000));
     await refreshReadSourceIfDue(opened.db, adapter, new Date(at.getTime() + 86460000));
     expect(adapter.operations).toHaveBeenCalledTimes(2);
-    expect(readInbox(opened.db, '2026-10-03').entries.some((i) => i.kind === 'other')).toBe(true);
+    expect(
+      readInbox(opened.db, '2026-10-03', undefined, 'crypto').entries.some(
+        (i) => i.kind === 'other',
+      ),
+    ).toBe(true);
   });
 });
 const SINCE_TEXT = 'Vor dem Startdatum – bereits in der App erfasst.';
