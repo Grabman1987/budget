@@ -1075,7 +1075,7 @@ export class BankSync {
       candidateRevision?: string | undefined;
       actions?: AssignmentActions | undefined;
     } = {},
-    audit: { groupId?: string } = {},
+    audit: { groupId?: string; actor?: string } = {},
   ) {
     return this.db.transaction((tx) => {
       const row = tx.select().from(candidate).where(eq(candidate.id, id)).get();

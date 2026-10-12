@@ -27,6 +27,7 @@ import {
 import { todayInVienna } from '@budget/domain';
 import { mappingSchema } from '@budget/import-ynab';
 import { deleteRun, saveMapping } from './staging';
+import { applyBankInboxEntries, listBankInbox, parseBankInboxFile } from './operator-bank-inbox';
 import { findRun, runTask, type ImportTask } from './tasks';
 
 /**
@@ -46,6 +47,8 @@ import { findRun, runTask, type ImportTask } from './tasks';
  *   node migrate-cli.js instrument-facts --file <json> [--dry-run]
  *   node migrate-cli.js owner-config --file <json> [--dry-run] [--details]
  *   node migrate-cli.js owner-trades --file <json> [--dry-run] [--details]
+ *   node migrate-cli.js bank-inbox list [--source <bankSyncAccountId>] [--out <file>]
+ *   node migrate-cli.js bank-inbox apply --file <json> [--dry-run]
  *
  * Output is aggregates only (counts, problem codes, number of differences); `--details` adds the
  * differences themselves for the operator's terminal. Nothing is logged to files.
@@ -87,6 +90,12 @@ import { findRun, runTask, type ImportTask } from './tasks';
  * the rules settings function. Every entry is one audit group (actor `operator`) that Rückgängig
  * or `undo-group` reverts on its own; `--dry-run` reports exactly what would change. Exit code 3
  * if an entry was skipped.
+ * `bank-inbox list` prints the open bank candidates (and unchecked bank bookings) of the inbox as
+ * JSON with the app's match suggestions; it is read-only and writes nothing but `--out`. `bank-inbox
+ * apply` runs decisions from a private JSON list `[{id, candidate|bankBooking, action, ...}]`
+ * (`merge`, `transfer`, `confirm`, `dismiss`, `resolve-info`; schema: docs/ops.md) through the
+ * functions behind the app's inbox actions. One audit group per entry (actor `operator`,
+ * `undo-group`); what the app refuses is skipped with a reason and the exit code is 3.
  * `owner-config` loads the owner's private settings from one JSON file (never in the repo), all
  * sections optional: `createSecurities`, `cryptoMappings`, `splitCategories`,
  * `profile`, `rules`, `categoryStages`, `assetClasses`,
@@ -579,9 +588,59 @@ try {
       if (outcomes.some((o) => o.status === 'skipped')) process.exitCode = 3;
       break;
     }
+    case 'bank-inbox': {
+      const mode = args[1];
+      if (mode === 'list') {
+        const sourceId = option('source');
+        const result = listBankInbox(db, { ...(sourceId && { sourceId }) });
+        const json = `${JSON.stringify([...result.candidates, ...result.bankBookings], null, 2)}${String.fromCharCode(10)}`;
+        const out = option('out');
+        if (out) writeFileSync(out, json, { mode: 0o600 });
+        else process.stdout.write(json);
+        console.error(
+          'candidates',
+          result.candidates.length,
+          'bank bookings',
+          result.bankBookings.length,
+          out ? `written to ${out}` : '',
+        );
+      } else if (mode === 'apply') {
+        const dryRun = args.includes('--dry-run');
+        const entries = parseBankInboxFile(JSON.parse(readFileSync(required('file'), 'utf8')));
+        const outcomes = applyBankInboxEntries(db, entries, { actor: 'operator' }, { dryRun });
+        let skipped = 0;
+        for (const o of outcomes) {
+          if (o.status === 'skipped') {
+            skipped += 1;
+            console.log('skipped       ', o.id, o.action, o.reason, o.detail);
+            continue;
+          }
+          console.log(
+            'done          ',
+            o.id,
+            o.action,
+            o.target,
+            o.bookingId ?? '-',
+            o.counterpartId ?? '-',
+            o.groupId || '(dry run)',
+          );
+        }
+        console.log(
+          'entries       ',
+          outcomes.length,
+          'done',
+          outcomes.length - skipped,
+          'skipped',
+          skipped,
+          dryRun ? '(dry run)' : '',
+        );
+        if (skipped > 0) process.exitCode = 3;
+      } else throw new Error('usage: bank-inbox list|apply (see docs/ops.md)');
+      break;
+    }
     default:
       console.log(
-        'usage: migrate-cli.js stage|dry-run|report|commit|revert|delete|order-accounts|list-groups|undo-group|move-money|book|payslips|instrument-facts|owner-config|owner-trades|source-rebuild [options]',
+        'usage: migrate-cli.js stage|dry-run|report|commit|revert|delete|order-accounts|list-groups|undo-group|move-money|book|payslips|instrument-facts|owner-config|owner-trades|source-rebuild|bank-inbox [options]',
       );
       process.exitCode = 2;
   }

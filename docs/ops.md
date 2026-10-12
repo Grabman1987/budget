@@ -1086,6 +1086,70 @@ after their 15th are recorded in `plan_snapshot_gap` and not retried (delete the
 npx.cmd tsx scripts/plan-snapshot.ts 2025-01 2026-08   # prints one status per month, no amounts
 ```
 
+### 12.10 Bank inbox (operator task)
+
+`bank-inbox list|apply` works the Posteingang of the bank sync from the server shell, with the
+same functions as the inbox buttons (so audit groups, Rückgängig, ledger invariants and
+reconciliation locks hold exactly as in the app). Files hold real data: keep them in
+`/data/migration/`, never in the repo.
+
+`bank-inbox list [--source <bankSyncAccountId>] [--out <file>]` is read-only. It prints (or writes with
+mode 600) a JSON array of the open bank candidates (`type: "candidate"`: `id`, `sourceId`,
+`sourceLabel`, `accountName`, `date`, `amountCents`, `currency`, `memo`, `rawPayee`, `matches`
+with `merge` / `link` / `transfers` bookings as the app suggests them (`bookingId`, `accountName`,
+`date`, `amountCents`, `payee`, `categories`, `memo`, `status`), `cleanup` (cleaned payee), the
+already booked `existingTransfer` and the rule `suggestions` with their `ruleId`) and of the
+unchecked bank bookings (`type: "bankBooking"`, with `matches.merge`). A row the app cannot
+evaluate carries `error` instead of `matches`.
+
+`bank-inbox apply --file <json> [--dry-run]` takes a JSON array of decisions. Entries run in file
+order, each in its own savepoint and audit group (actor `operator`; `undo-group` reverts one). What
+the app refuses (booking no longer fits, locked, already handled, unknown name) is skipped with a
+reason code and nothing of that entry is written; the exit code is 3 if anything was skipped, 1
+for a malformed file (nothing is applied). `--dry-run` rolls everything back and skips exactly what
+the real run would. Every entry has a unique `id` (for the report) and one `action`:
+
+```json
+[
+  { "id": "m1", "candidate": "<candidate id>", "action": "merge", "bookingId": "<booking id>" },
+  { "id": "m2", "bankBooking": "<booking id>", "action": "merge", "bookingId": "<manual booking id>" },
+  { "id": "t1", "candidate": "<candidate id>", "action": "transfer", "bookingId": "<counterpart booking id>" },
+  { "id": "t2", "candidate": "<candidate id>", "action": "transfer", "counterAccount": "Account name", "category": "Envelope (only budget/tracking transfers)" },
+  { "id": "c1", "candidate": "<candidate id>", "action": "confirm", "payee": "Name", "category": "Name", "memo": "Text" },
+  { "id": "c2", "candidate": "<candidate id>", "action": "confirm", "incomeType": "Name" },
+  { "id": "c3", "candidate": "<candidate id>", "action": "confirm", "ruleId": "<ruleId from list>" },
+  { "id": "d1", "candidate": "<candidate id>", "action": "dismiss", "reason": "Why" },
+  { "id": "r1", "action": "resolve-info", "inboxItemId": "<inbox item id>", "reason": "Why" }
+]
+```
+
+- `merge`: `mergeBankCandidate` (the manual booking takes the bank date and reference; a migrated or
+  locked booking is only tied to the line) or, with `bankBooking`, `mergeBankBooking` (an unchecked
+  bank booking is merged away, so the money is counted once).
+- `transfer` with `bookingId`: `linkBankCandidate` (the candidate becomes the booking of its own
+  account and is linked as Umbuchung to the existing counterpart). With `counterAccount` (by name)
+  there is no counterpart yet: this is the app's confirm as Umbuchung, which books the candidate
+  and creates the counter leg in that account, taking over a staged or booked counter row of the
+  same day and amount. The own account gets exactly one booking. It does **not** look for a
+  manual booking in the counter account: link that one with `bookingId` instead, else it would be
+  counted twice.
+- `confirm`: the single-row "Als Buchung bestätigen". Payee (created if new), category, income type
+  and memo by exact name; without any of them the cleaned payee suggestion of the app is used.
+  `ruleId` applies a prepared rule suggestion instead. As in the app, a confirmed payee or
+  category teaches the payee alias and the inbox rules.
+- `dismiss`: "Nicht übernehmen", only for a candidate and never deleting a booking; the reason is
+  stored as the resolution. A `dismiss` (or `transfer` / `confirm`) with `bankBooking` is refused
+  when the file is read.
+- `resolve-info`: marks a stored information item as done with the reason as resolution (audited,
+  undoable). Only items of type `security`, `payslip-intake`, `payslip-source`, `bank-sync` and
+  `read_source` titled "Quellsaldo …"; never a `bank-sync-candidate`.
+
+```bash
+node /app/migrate-cli.js bank-inbox list --out /data/migration/bank-inbox.json
+node /app/migrate-cli.js bank-inbox apply --file /data/migration/decisions.json --dry-run
+node /app/migrate-cli.js bank-inbox apply --file /data/migration/decisions.json
+```
+
 ## 13. One-time Portfolio Performance migration (operator task)
 
 Same rules as section 12 (no import feature in the app, files and the private mapping never enter the repo). Prerequisite: the YNAB migration is committed (the depot, crypto and P2P accounts exist). `migrate-pp-cli.js` has the same shape: each step is one transaction, `revert` undoes a whole run (the newest committed one only, also across sources). What is written and why: `docs/migration/pp-export.md` §Commit.
