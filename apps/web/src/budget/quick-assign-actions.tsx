@@ -37,31 +37,34 @@ export function QuickAssignActions({
     setBusy(false);
   };
   return (
-    <div className="quick-assign-actions" aria-label="Schnell zuweisen">
-      <Button
-        size="sm"
-        variant="ghost"
-        disabled={busy || !emptyIds.length}
-        onClick={() => void apply('empty')}
-      >
-        Leere füllen
-      </Button>
-      {selectedIds.length > 0 && (
-        <div role="group" aria-label={`Zuweisen für ${categories(selectedIds.length)}`}>
-          <span>{categories(selectedIds.length)} ausgewählt</span>
-          {QUICK.map(([mode, label]) => (
-            <Button
-              key={mode}
-              size="sm"
-              variant="ghost"
-              disabled={busy}
-              onClick={() => void apply(mode)}
-            >
-              {label}
-            </Button>
-          ))}
-        </div>
-      )}
-    </div>
+    <details className="quick-assign-actions plan-popover">
+      <summary>Schnell zuweisen ▾</summary>
+      <div className="plan-popover-content">
+        <Button
+          size="sm"
+          variant="ghost"
+          disabled={busy || !emptyIds.length}
+          onClick={() => void apply('empty')}
+        >
+          Leere füllen
+        </Button>
+        {selectedIds.length > 0 && (
+          <div role="group" aria-label={`Zuweisen für ${categories(selectedIds.length)}`}>
+            <span>{categories(selectedIds.length)} ausgewählt</span>
+            {QUICK.map(([mode, label]) => (
+              <Button
+                key={mode}
+                size="sm"
+                variant="ghost"
+                disabled={busy}
+                onClick={() => void apply(mode)}
+              >
+                {label}
+              </Button>
+            ))}
+          </div>
+        )}
+      </div>
+    </details>
   );
 }

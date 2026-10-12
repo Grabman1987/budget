@@ -77,18 +77,6 @@
   box-shadow: inset 0 0 0 1px var(--future);
 }
 
-/* Zu verteilen and 50/30/20 */
-.plan .tbd {
-  display: grid;
-  grid-template-columns: minmax(0, 7fr) minmax(0, 5fr);
-  gap: 48px;
-  align-items: start;
-}
-.plan .tbd-fig .cents {
-  font-size: 0.5em;
-  font-weight: 600;
-  letter-spacing: -0.01em;
-}
 .plan .sb-scale {
   position: relative;
   height: 16px;
@@ -138,31 +126,6 @@
 .plan .sb-legend b {
   color: var(--ink);
   font-weight: 650;
-}
-
-/* Triage: a state bar above the unchanged table */
-.plan .triage {
-  border: 1px solid var(--red);
-  border-radius: 2px;
-  padding: 12px 16px 4px;
-  margin-top: -12px;
-}
-.plan .triage.is-calm {
-  border-color: var(--line-2);
-}
-.plan .triage .head {
-  border-bottom-color: var(--rule);
-}
-.plan .triage-table .rev-src {
-  width: 260px;
-  padding-right: 12px;
-}
-.plan .triage-table .rev-act {
-  text-align: right;
-}
-.plan .select-sm {
-  height: 36px;
-  font-size: var(--fs-body);
 }
 
 /* Rail + table */
@@ -864,64 +827,6 @@
 }
 
 /* Hero KPI */
-.plan .hero-kpi.tbd {
-  display: block;
-  padding: 22px 24px 18px;
-}
-.plan .hero-top {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 16px;
-}
-.plan .hero-label {
-  margin: 0;
-  font-family: var(--font-tech);
-  font-size: 12px;
-  font-weight: 500;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--ink-2);
-}
-.plan .hero-fig {
-  margin-top: 6px;
-  font-size: var(--fs-amount);
-  font-weight: 650;
-  line-height: 1;
-  letter-spacing: -0.03em;
-  font-variation-settings: 'wdth' 96;
-  font-variant-numeric: tabular-nums;
-}
-.plan .hero-fig .cents {
-  font-size: 0.5em;
-  font-weight: 600;
-  color: var(--ink-2);
-}
-.plan .hero-state {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  margin-top: 10px;
-  font-size: var(--fs-body);
-  font-weight: 560;
-  color: var(--ink-2);
-}
-.plan .hero-kpi.is-zero .hero-state {
-  color: var(--good-ink);
-}
-.plan .hero-kpi .chain-inline {
-  margin-top: 16px;
-}
-
-/* Revisions (triage) as a card with the red pencil frame */
-.plan .triage {
-  margin-top: 0;
-  padding: 14px 18px 6px;
-  border-radius: 12px;
-  background: var(--surface);
-  box-shadow: var(--card-shadow);
-}
-
 /* Parts list card */
 .plan .ptable-wrap.card {
   padding: 0;
@@ -1114,28 +1019,6 @@
 }
 
 /* ---------- Feedback 02.10.2026: Plan › Monat ---------- */
-
-/* Zu verteilen too high: a compact soft-red card, label left, the figure right-aligned. */
-.plan .hero-kpi.is-negative.tbd {
-  padding: 14px 18px 12px;
-}
-.plan .hero-kpi.is-negative .hero-top {
-  display: block;
-}
-.plan .hero-kpi.is-negative .hero-figure {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 16px;
-}
-.plan .hero-kpi.is-negative .hero-fig {
-  margin: 0;
-  font-size: 30px;
-  text-align: right;
-}
-.plan .hero-kpi.is-negative .chain-inline {
-  margin-top: 10px;
-}
 
 /* Inspector status: every line that applies, worst first. */
 .plan .insp-status {
@@ -1576,4 +1459,381 @@
 .plan .plan-add-row td {
   grid-column: 1 / -1;
   padding: 0 12px;
+}
+
+/* Compact grouped worksheet, owner 12.10.2026 (#441). */
+.sheet:has(> .plan) {
+  row-gap: 12px;
+}
+.sheet:has(> .plan) > .registers {
+  margin-top: 0;
+}
+.plan,
+.plan .plan-main,
+.plan .plan-grid {
+  gap: 8px;
+}
+.plan .plan-topbar {
+  position: sticky;
+  top: 64px;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  background: var(--surface);
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius-md);
+  padding: 4px 8px;
+  font-size: var(--fs-body);
+}
+.plan .plan-popover {
+  position: static;
+}
+.plan .plan-popover summary,
+.plan .plan-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 32px;
+  padding: 4px 10px;
+  border: 1px solid var(--rule-strong);
+  border-radius: var(--radius-pill);
+  white-space: nowrap;
+  cursor: pointer;
+  font-family: var(--font-ui);
+  font-size: var(--fs-body);
+}
+.plan .plan-popover summary {
+  list-style: none;
+}
+.plan .plan-popover summary::-webkit-details-marker {
+  display: none;
+}
+.plan .plan-popover summary:focus-visible {
+  outline: 2px solid var(--line);
+  outline-offset: 2px;
+}
+.plan .plan-tba.is-positive {
+  background: var(--good);
+  color: var(--on-good);
+  border-color: var(--good);
+}
+.plan .plan-chip.is-over {
+  color: var(--red);
+  border-color: var(--red);
+}
+.plan .plan-popover-content {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  z-index: 6;
+  width: min(640px, 100%);
+  padding: 16px;
+  background: var(--raised);
+  border: 1px solid var(--rule-strong);
+  border-radius: var(--radius-md);
+  box-shadow: var(--card-shadow);
+  white-space: normal;
+}
+.plan .plan-popover-content a {
+  display: flex;
+  align-items: center;
+  min-height: 44px;
+}
+.plan .triage {
+  border: 0;
+  padding: 0;
+  margin: 0;
+}
+.plan .cover-missing,
+.plan .cover-missing a {
+  color: var(--ink-2);
+}
+.plan .plan-more {
+  margin-left: auto;
+}
+.plan .ptable-wrap.card {
+  overflow: visible;
+}
+.plan .ptoolbar {
+  position: relative;
+  gap: 8px;
+  padding: 4px 12px;
+  min-height: 40px;
+}
+.plan .quick-assign-actions {
+  flex-basis: auto;
+  display: block;
+}
+.plan .quick-assign-actions .plan-popover-content {
+  display: grid;
+  gap: 8px;
+}
+.plan .quick-assign-actions summary {
+  border-radius: var(--radius-md);
+}
+.plan .plan-view {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.plan .plan-view select {
+  height: 32px;
+  width: auto;
+  font-size: var(--fs-body);
+}
+.plan .plan-grid-head {
+  display: flex;
+  justify-content: space-between;
+  padding: 0 12px;
+}
+.plan .plan-grid-head .btn,
+.plan .plan-add {
+  min-height: 28px;
+  height: 28px;
+}
+.plan .ptable thead th {
+  padding: 4px 12px;
+}
+.plan .ptable .prow td {
+  height: 40px;
+  padding: 3px 12px;
+  vertical-align: middle;
+}
+.plan .ptable .pgroup td {
+  height: 36px;
+  padding: 0 12px;
+}
+.plan .ptable .pgroup:not(:first-child) td {
+  border-top: 1px solid var(--rule-strong);
+}
+.plan .pgroup .grp-toggle {
+  min-height: 32px;
+  align-items: center;
+}
+.plan .pgroup .grp-toggle > svg {
+  margin-top: 0;
+}
+.plan .pgroup .grp-text {
+  padding: 0;
+}
+.plan .grp-title {
+  font-family: var(--font-ui);
+}
+.plan .pname {
+  max-width: 100%;
+  font-size: var(--fs-body);
+}
+.plan .plan-select {
+  min-width: 28px;
+  min-height: 28px;
+  vertical-align: middle;
+}
+.plan .ptable .pbar,
+.plan .pbar:has(.pbar-tick) {
+  height: 3px;
+  margin: 2px 0 0;
+  max-width: none;
+}
+.plan .pbar-tick,
+.plan .pbar-goal {
+  top: -1px;
+  bottom: -1px;
+}
+.plan .prow.is-over td,
+.plan .prow.is-over:hover td {
+  background: transparent;
+}
+.plan .col-avail .pill.is-bad {
+  background: transparent;
+  box-shadow: none;
+}
+.plan .cover-row {
+  min-height: 28px;
+  min-width: 28px;
+}
+.plan .plan-add-row td {
+  height: 28px;
+  padding: 0 12px;
+}
+.plan .plan-create {
+  padding: 4px 12px;
+}
+.plan .plan-details > summary {
+  display: flex;
+  align-items: center;
+  min-height: 44px;
+  cursor: pointer;
+  font-weight: 600;
+}
+.plan .plan-summary .card {
+  border: 0;
+  box-shadow: none;
+}
+.plan .plan-summary .is-bad,
+.plan .plan-summary .neg-alert {
+  color: var(--ink);
+  background: none;
+}
+.plan .assign-btn,
+.plan .ghost,
+.plan .dist-left {
+  font-family: var(--font-ui);
+}
+.plan .ghost {
+  display: inline-flex;
+  margin: 0 0 0 4px;
+}
+@media (max-width: 767px) {
+  .plan .plan-topbar {
+    top: 64px;
+    flex-wrap: wrap;
+  }
+  .plan .plan-topbar summary,
+  .plan .plan-chip,
+  .plan .plan-topbar > .btn {
+    min-height: 44px;
+  }
+  .plan .ptoolbar {
+    flex-wrap: wrap;
+  }
+  .plan .plan-view select {
+    height: 44px;
+  }
+  .plan .quick-assign-actions summary {
+    min-height: 44px;
+  }
+  .plan .plan-grid-head .btn,
+  .plan .plan-add {
+    min-height: 44px;
+    height: 44px;
+  }
+  .plan .ptable tr,
+  .plan .prow:has(.plan-select) {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    padding: 4px 12px;
+  }
+  .plan .ptable .col-name {
+    grid-column: 1 / -1;
+  }
+  .plan .ptable .col-assign {
+    grid-column: 1;
+  }
+  .plan .ptable .col-act {
+    grid-column: 2;
+  }
+  .plan .ptable .col-avail {
+    grid-column: 3;
+  }
+  .plan .ptable .prow td,
+  .plan .ptable .pgroup td {
+    padding: 0;
+    height: auto;
+  }
+  .plan .ptable .pgroup:not(:first-child) td {
+    border-top: 0;
+    box-shadow: none;
+  }
+  .plan .ptable .pgroup:not(:first-child) {
+    margin-top: 12px;
+    border-top: 1px solid var(--rule-strong);
+  }
+  .plan .pgroup .grp-title {
+    white-space: normal;
+  }
+  .plan .pgroup .grp-toggle,
+  .plan .plan-select,
+  .plan .assign-btn,
+  .plan .cover-row {
+    min-height: 44px;
+  }
+  .plan .plan-select {
+    min-width: 44px;
+  }
+  .plan .pname {
+    min-height: 44px;
+  }
+  .plan .plan-add-row td {
+    grid-column: 1 / -1;
+  }
+}
+
+.plan .ptable .pgroup-gap td {
+  height: 12px;
+  padding: 0;
+  border: 0;
+}
+@media (max-width: 767px) {
+  .plan .ptable .pgroup-gap {
+    display: none;
+  }
+  .plan .ptable .pgroup,
+  .plan .ptable .prow.is-over {
+    margin-inline: 0;
+  }
+  .plan .ptable .prow.is-over {
+    background: transparent;
+  }
+}
+
+@media (min-width: 768px) {
+  .sheet:has(> .plan) {
+    padding-top: 12px;
+    row-gap: 4px;
+  }
+  .plan .ptoolbar {
+    padding-block: 0;
+    min-height: 32px;
+  }
+  .plan .ptable .prow td {
+    height: 32px;
+    padding-block: 2px;
+  }
+  .plan .plan-select {
+    min-height: 24px;
+    min-width: 24px;
+  }
+  .plan .ptable .pgroup td {
+    height: 28px;
+  }
+  .plan .pgroup .grp-toggle {
+    min-height: 24px;
+  }
+}
+
+@media (min-width: 768px) {
+  .sheet:has(> .plan) > .titleblock .tb-cell {
+    padding-block: 8px;
+  }
+}
+
+.plan .cover-row {
+  color: var(--ink);
+}
+@media (min-width: 768px) {
+  .plan .cover-row {
+    height: 28px;
+    width: 28px;
+  }
+}
+
+.plan .plan-popover-content {
+  max-height: calc(100dvh - 320px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+@media (min-width: 768px) {
+  .sheet:has(> .plan) > .registers a {
+    min-height: 34px;
+  }
+}
+
+@media (max-width: 767px) {
+  .plan .ghost {
+    display: block;
+    margin: 4px 0 0 auto;
+    max-width: 100%;
+  }
 }
