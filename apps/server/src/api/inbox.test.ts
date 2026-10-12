@@ -35,6 +35,97 @@ async function call(method: string, path: string, body?: unknown) {
   return { status: response.status, body: (await response.json()) as any };
 }
 describe('inbox API', () => {
+  it('excludes read-source movements from every count, retains balance warnings and summarizes each source', async () => {
+    for (const [id, title, refId, resolvedAt] of [
+      ['move-a', 'Quellbewegung: Zuordnung fehlt', 'crypto', null],
+      ['move-b', 'Quellbewegung: fehlt in der App', 'crypto', null],
+      ['format', 'Quellbewegung: Datenformat prüfen', 'crypto', null],
+      ['other-source', 'Quellbewegung: Anlage prüfen', 'source-b', null],
+      ['balance', 'Quellsaldo: Bestand prüfen', 'crypto', null],
+      ['done', 'Quellbewegung: Zuordnung fehlt', 'crypto', '2026-09-17T12:00:00Z'],
+    ])
+      opened.db
+        .insert(schema.inboxItem)
+        .values({
+          id: id!,
+          kind: 'import',
+          title: title!,
+          refType: 'read_source',
+          refId,
+          resolvedAt,
+          createdAt: '2026-09-17T12:00:00Z',
+        })
+        .run();
+    const whole = await call('GET', '/inbox');
+    expect(whole.body.entries.map((e: any) => e.id)).toEqual(['balance']);
+    expect(whole.body.count).toBe(1);
+    expect(whole.body.readSourceSummaries).toEqual([
+      { sourceId: 'crypto', name: 'Krypto-Lesequelle', count: 3 },
+      { sourceId: 'source-b', name: 'Lesequelle source-b', count: 1 },
+    ]);
+    expect((await call('GET', '/inbox/count')).body.count).toBe(1);
+    expect((await call('GET', '/heute')).body.attention.inboxCount).toBe(1);
+    expect((await call('GET', '/inbox?limit=1')).body).toMatchObject({
+      count: 1,
+      totalEntries: 1,
+      countsByKind: { import: 1 },
+      next: null,
+    });
+    expect(
+      (await call('GET', '/inbox?bankSource=10000000-0000-4000-8000-000000000001')).body
+        .readSourceSummaries,
+    ).toEqual([]);
+    expect(
+      opened.db
+        .select()
+        .from(schema.inboxItem)
+        .all()
+        .filter((i) => !i.resolvedAt),
+    ).toHaveLength(5);
+  });
+
+  it('filters source movements by title before pagination and preserves resolve and undo', async () => {
+    for (const [id, title] of [
+      ['a', 'Quellbewegung: Zuordnung fehlt'],
+      ['b', 'Quellbewegung: Zuordnung fehlt'],
+      ['c', 'Quellbewegung: Datenformat prüfen'],
+      ['balance', 'Quellsaldo: Bestand prüfen'],
+    ])
+      opened.db
+        .insert(schema.inboxItem)
+        .values({
+          id: id!,
+          kind: 'import',
+          title: title!,
+          refType: 'read_source',
+          refId: 'crypto',
+          createdAt: '2026-09-17T12:00:00Z',
+        })
+        .run();
+    const query =
+      '/inbox?readSource=crypto&limit=1&title=' +
+      encodeURIComponent('Quellbewegung: Zuordnung fehlt');
+    const first = await call('GET', query);
+    expect(first.body).toMatchObject({
+      count: 3,
+      totalEntries: 2,
+      next: 1,
+      countsByTitle: {
+        'Quellbewegung: Zuordnung fehlt': 2,
+        'Quellbewegung: Datenformat prüfen': 1,
+      },
+    });
+    expect(first.body.entries.map((e: any) => e.id)).toEqual(['a']);
+    expect((await call('GET', query + '&offset=1')).body.entries.map((e: any) => e.id)).toEqual([
+      'b',
+    ]);
+    const resolved = await call('POST', '/inbox/a/resolve', {});
+    expect(resolved.status).toBe(200);
+    expect((await call('GET', query)).body.count).toBe(2);
+    expect((await call('POST', '/undo', { groupId: resolved.body.groupId })).status).toBe(200);
+    expect((await call('GET', query)).body.count).toBe(3);
+    expect((await call('GET', '/inbox/count')).body.count).toBe(1);
+  });
   it('sorts by the bank transaction date and filters inclusively before pagination', async () => {
     const ids = [randomUUID(), randomUUID(), randomUUID()];
     for (const [index, date] of ['2026-09-15', '2026-09-01', '2026-09-17'].entries()) {
@@ -86,7 +177,7 @@ describe('inbox API', () => {
         {
           id: id!,
           kind: 'import',
-          title: 'Zuordnung prüfen',
+          title: 'Quellsaldo: Zuordnung prüfen',
           refType: 'read_source',
           refId: 'synthetic-source',
           detail: JSON.stringify({ reason, source: { id } }),
@@ -341,7 +432,12 @@ describe('inbox API', () => {
     expect(whole.body.entries).toHaveLength(301);
     expect(whole.body.entries.map((entry: any) => entry.id)).toEqual(expectedIds);
     expect(whole.body.count).toBe(302);
-    expect(Object.keys(whole.body).sort()).toEqual(['asOf', 'count', 'entries']);
+    expect(Object.keys(whole.body).sort()).toEqual([
+      'asOf',
+      'count',
+      'entries',
+      'readSourceSummaries',
+    ]);
     const pages = await Promise.all(
       [0, 100, 200, 300].map((offset) => call('GET', `/inbox?limit=100&offset=${offset}`)),
     );
