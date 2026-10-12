@@ -17,6 +17,8 @@ import {
   assetClass,
   booking,
   bookingSplit,
+  CATEGORY_CLASSES,
+  CATEGORY_KINDS,
   category,
   categoryGroup,
   contact,
@@ -32,7 +34,7 @@ import {
 import { type AuditContext, type GroupedContext } from './audit';
 import { saveBookSettings } from './book-settings';
 import { getBooking, updateBooking } from './bookings';
-import { updateCategory } from './categories';
+import { createCategory, updateCategory } from './categories';
 import { accounts, getEntity } from './entities';
 import { ConflictError, EntityNotFoundError } from './errors';
 import {
@@ -61,7 +63,7 @@ import { runInTransaction, type Executor } from './types';
  * Operator owner configuration (`migrate-cli.js owner-config`): the owner's private settings that
  * do not belong in the repo, loaded from one JSON file. Nothing here writes on its own: every
  * section calls the function behind the matching app route (`saveProfile`, `updateRule`,
- * `updateCategory`, `createExpectedPayment` / `updateExpectedPayment` / `addExpectedVersion`,
+ * `updateCategory`, `createCategory`, `createExpectedPayment` / `updateExpectedPayment` / `addExpectedVersion`,
  * `markOccurrenceMissed`, `updateBooking`, `createSecurity`, `mapReadSource`, `updateSecurity`,
  * `updateAssetClass`), so validation and audit match the UI path. One audit group per run (actor
  * `operator`), each entry in its own savepoint, so Rückgängig or `undo-group` reverts the whole
@@ -141,8 +143,17 @@ export interface OwnerSecurity {
 export interface OwnerAssetClasses {
   rename: { from: string; to: string }[];
 }
+export interface OwnerCreateCategory {
+  name: string;
+  /** Name of an existing live category group (matched ignoring case and surrounding blanks). */
+  group: string;
+  kind?: (typeof CATEGORY_KINDS)[number];
+  /** Required for spending kinds, forbidden for income / card_payment / advance (as in the app). */
+  class?: (typeof CATEGORY_CLASSES)[number];
+}
 export interface OwnerConfig {
   assetClassTree?: OwnerAssetClassTree;
+  createCategories?: OwnerCreateCategory[];
   createSecurities?: OwnerCreateSecurity[];
   cryptoMappings?: OwnerCryptoMapping[];
   splitCategories?: OwnerSplitCategory[];
@@ -189,6 +200,7 @@ export interface OwnerSplitCategory {
 
 export const OWNER_CONFIG_SECTIONS = [
   'assetClassTree',
+  'createCategories',
   'createSecurities',
   'cryptoMappings',
   'splitCategories',
@@ -480,6 +492,37 @@ export function parseOwnerConfigFile(
   const config: OwnerConfig = {};
   if (root['assetClassTree'] !== undefined)
     config.assetClassTree = parseAssetClassTree(root['assetClassTree']);
+  if (root['createCategories'] !== undefined) {
+    config.createCategories = list(root['createCategories'], 'createCategories').map((raw, i) => {
+      const at = `createCategories[${i}]`;
+      const o = strictObject(raw, at, ['name', 'group', 'kind', 'class']);
+      const out: OwnerCreateCategory = {
+        name: text(o['name'], `${at}.name`, 80),
+        group: text(o['group'], `${at}.group`, 80),
+      };
+      if (o['kind'] !== undefined) {
+        if (
+          typeof o['kind'] !== 'string' ||
+          !(CATEGORY_KINDS as readonly string[]).includes(o['kind'])
+        )
+          throw new OperatorInputError(`${at}.kind must be one of ${CATEGORY_KINDS.join(', ')}`);
+        out.kind = o['kind'] as NonNullable<OwnerCreateCategory['kind']>;
+      }
+      if (o['class'] !== undefined) {
+        if (
+          typeof o['class'] !== 'string' ||
+          !(CATEGORY_CLASSES as readonly string[]).includes(o['class'])
+        )
+          throw new OperatorInputError(`${at}.class must be one of ${CATEGORY_CLASSES.join(', ')}`);
+        out.class = o['class'] as NonNullable<OwnerCreateCategory['class']>;
+      }
+      return out;
+    });
+    uniqueKeys(
+      config.createCategories.map((e) => `${fold(e.group)}/${fold(e.name)}`),
+      'createCategories',
+    );
+  }
   if (root['createSecurities'] !== undefined) {
     config.createSecurities = list(root['createSecurities'], 'createSecurities').map((raw, i) => {
       const at = `createSecurities[${i}]`;
@@ -802,7 +845,46 @@ function oneExpectedPayment(tx: Executor, name: string) {
   return found[0] ?? null;
 }
 
-// --- new securities, source mappings and split categories --------------------------------------
+// --- new categories, securities, source mappings and split categories --------------------------
+
+const squash = (name: string) => fold(name.replace(/\s+/g, ' '));
+
+function applyCreateCategory(tx: Executor, e: OwnerCreateCategory, ctx: GroupedContext): Step {
+  const groups = tx
+    .select()
+    .from(categoryGroup)
+    .where(isNull(categoryGroup.deletedAt))
+    .all()
+    .filter((g) => squash(g.name) === squash(e.group));
+  if (groups.length === 0)
+    throw new EntrySkip('unknown_group', 'no live category group has this name');
+  if (groups.length > 1)
+    throw new EntrySkip('ambiguous_group', 'several live category groups have this name');
+  const groupId = groups[0]!.id;
+  const exists = tx
+    .select({ name: category.name })
+    .from(category)
+    .where(and(eq(category.groupId, groupId), isNull(category.deletedAt)))
+    .all()
+    .some((c) => squash(c.name) === squash(e.name));
+  if (exists) return { status: 'unchanged', detail: 'exists' };
+  createCategory(
+    tx,
+    {
+      name: e.name,
+      groupId,
+      kind: e.kind ?? 'variable',
+      ...(e.class !== undefined && { class: e.class }),
+    },
+    ctx,
+  );
+  return done(
+    [
+      `category created in ${groups[0]!.name}: kind ${e.kind ?? 'variable'}, class ${e.class ?? 'none'}`,
+    ],
+    true,
+  );
+}
 
 function applyCreateSecurity(tx: Executor, e: OwnerCreateSecurity, ctx: GroupedContext): Step {
   const found = tx
@@ -1395,6 +1477,12 @@ export function applyOwnerConfig(
             );
         }
       }
+      for (const e of config.createCategories ?? [])
+        add(
+          entry(r, 'createCategories', `${e.group}/${e.name}`, (t, c) =>
+            applyCreateCategory(t, e, c),
+          ),
+        );
       for (const e of config.createSecurities ?? [])
         add(entry(r, 'createSecurities', e.isin ?? e.name, (t, c) => applyCreateSecurity(t, e, c)));
       for (const e of config.cryptoMappings ?? [])

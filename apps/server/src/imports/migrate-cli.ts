@@ -97,7 +97,7 @@ import { findRun, runTask, type ImportTask } from './tasks';
  * functions behind the app's inbox actions. One audit group per entry (actor `operator`,
  * `undo-group`); what the app refuses is skipped with a reason and the exit code is 3.
  * `owner-config` loads the owner's private settings from one JSON file (never in the repo), all
- * sections optional: `createSecurities`, `cryptoMappings`, `splitCategories`,
+ * sections optional: `createCategories`, `createSecurities`, `cryptoMappings`, `splitCategories`,
  * `profile`, `rules`, `categoryStages`, `assetClasses`,
  * `securities`, `expectedPayments`, `skipOccurrences`, `clearBookings` (schema: docs/ops.md).
  * Every entry calls the function behind the matching app route, shares one audit group per run
