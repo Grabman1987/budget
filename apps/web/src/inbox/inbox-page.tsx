@@ -9,6 +9,7 @@ import { BankBulkActions, isBankInboxRow } from './bank-bulk-actions';
 import { AssignmentLearnOffer, BookingAssignmentReview } from '../assignment/review';
 import { PayslipUpload, PayslipIntakeDetail } from '../reports/payslip-intake';
 import { ReadSourceDetail, sourceWarningReason } from './read-source-detail';
+import { ReadSourceSummaries } from './read-source-summaries';
 import { inboxCause } from '@budget/domain';
 import { useNavigate, useParams, useSearch } from '@tanstack/react-router';
 import { InboxBack, type InboxSearch } from './navigation';
@@ -40,6 +41,7 @@ import {
   inboxQuery,
   INBOX_PAGE_SIZE,
   resolveInbox,
+  readSourceMovementsQuery,
   type InboxEntry,
   type InboxKind,
   type InboxStored,
@@ -128,10 +130,12 @@ export function InboxWorkflow({
   entryIds,
   detailEntry,
   bankSource,
+  readSource,
 }: {
   entryIds?: string[] | undefined;
   detailEntry?: InboxStored | undefined;
   bankSource?: string | undefined;
+  readSource?: string | undefined;
 }) {
   useAmountPrivacy();
   const [editing, setEditing] = useState<ListedBooking | null>(null);
@@ -167,6 +171,7 @@ export function InboxWorkflow({
       entryIds={entryIds}
       detailEntry={detailEntry}
       bankSource={bankSource}
+      readSource={readSource}
       onEdit={(id) => void edit(id)}
       loadingId={loading}
       onSavings={(item) => {
@@ -196,6 +201,7 @@ function InboxBody({
   entryIds,
   detailEntry,
   bankSource,
+  readSource,
   onEdit,
   loadingId,
   onSavings,
@@ -203,10 +209,20 @@ function InboxBody({
   entryIds?: string[] | undefined;
   detailEntry?: InboxStored | undefined;
   bankSource?: string | undefined;
+  readSource?: string | undefined;
   onEdit: (id: string) => void;
   loadingId: string | null;
   onSavings: (proposal: SavingsExecutionProposal) => void;
 }) {
+  if (readSource)
+    return (
+      <ReadSourceMovementsBody
+        sourceId={readSource}
+        onEdit={onEdit}
+        loadingId={loadingId}
+        onSavings={onSavings}
+      />
+    );
   if (detailEntry)
     return (
       <InboxBodyContent
@@ -253,6 +269,51 @@ type InboxBodyProps = {
   loadingId: string | null;
   onSavings: (proposal: SavingsExecutionProposal) => void;
 };
+
+function ReadSourceMovementsBody({ sourceId, ...props }: InboxBodyProps & { sourceId: string }) {
+  const [title, setTitle] = useState('');
+  const queue = useInfiniteQuery(readSourceMovementsQuery(sourceId, title));
+  const firstPage = queue.data?.pages[0];
+  const entries = queue.data?.pages.flatMap((page) => page.entries) ?? [];
+  return (
+    <>
+      <div className="inbox-filters">
+        <label>
+          Bewegungen nach Titel
+          <select className="select" value={title} onChange={(e) => setTitle(e.target.value)}>
+            <option value="">Alle Titel</option>
+            {Object.entries(firstPage?.countsByTitle ?? {}).map(([name, count]) => (
+              <option key={name} value={name}>
+                {name} · {count}
+              </option>
+            ))}
+          </select>
+        </label>
+      </div>
+      <InboxBodyContent
+        {...props}
+        entries={entries}
+        count={firstPage?.count}
+        totalEntries={firstPage?.totalEntries}
+        countsByKind={undefined}
+        countsByCause={firstPage?.countsByTitle}
+        groupByTitle
+        pending={queue.isPending}
+        error={queue.isError && !queue.isFetchNextPageError ? queue.error : null}
+        nextPageError={queue.isFetchNextPageError ? queue.error : null}
+        onRetry={() => void queue.refetch()}
+        onRetryNextPage={() => void queue.fetchNextPage()}
+        showReceipts={false}
+        serverPaginated
+        hasMore={queue.hasNextPage}
+        loadingMore={queue.isFetching}
+        loadMore={() => {
+          if (!queue.isFetching) void queue.fetchNextPage();
+        }}
+      />
+    </>
+  );
+}
 
 function FilteredInboxBody({
   entryIds,
@@ -388,6 +449,7 @@ function PaginatedInboxBody({
         {...props}
         entries={entries}
         count={firstPage?.count}
+        readSourceSummaries={firstPage?.readSourceSummaries}
         totalEntries={firstPage?.totalEntries}
         countsByKind={firstPage?.countsByKind}
         countsByCause={firstPage?.countsByCause}
@@ -413,6 +475,8 @@ function InboxBodyContent({
   countsByKind,
   countsByCause,
   detailView = false,
+  groupByTitle = false,
+  readSourceSummaries,
   pending,
   error,
   nextPageError,
@@ -433,6 +497,8 @@ function InboxBodyContent({
   countsByKind: Partial<Record<InboxKind, number>> | undefined;
   countsByCause?: Record<string, number> | undefined;
   detailView?: boolean;
+  groupByTitle?: boolean;
+  readSourceSummaries?: { sourceId: string | null; name: string; count: number }[] | undefined;
   pending: boolean;
   error: Error | null;
   nextPageError?: Error | null;
@@ -453,6 +519,7 @@ function InboxBodyContent({
   const [busy, setBusy] = useState<string | null>(null);
   const [learnBookingId, setLearnBookingId] = useState<string | null>(null);
   const [shown, setShown] = useState(INBOX_PAGE_SIZE);
+  const [expandedTitle, setExpandedTitle] = useState<string | null>(null);
   const [selectedBank, setSelectedBank] = useState<Set<string>>(new Set());
   const preparedBank = useRef(new Map<string, PreparedBankSuggestion | undefined>());
   const prepareBank = useCallback((id: string, suggestion: PreparedBankSuggestion | undefined) => {
@@ -467,9 +534,8 @@ function InboxBodyContent({
     );
     setBusy(null);
   };
-  const groups: (InboxKind | null)[] = search.bankSource
-    ? [null]
-    : (Object.keys(LABELS) as InboxKind[]);
+  const groups: (InboxKind | null)[] =
+    search.bankSource || groupByTitle ? [null] : (Object.keys(LABELS) as InboxKind[]);
   let index = 0;
   let room = serverPaginated ? entries.length : shown;
   const canLoadMore = serverPaginated ? Boolean(hasMore) : entries.length > shown;
@@ -480,14 +546,23 @@ function InboxBodyContent({
     <section className="kinbox" aria-labelledby={headingId}>
       <SectionHead
         id={headingId}
-        title="Offene Entscheidungen"
+        title={groupByTitle ? 'Bewegungen zu prüfen' : 'Offene Entscheidungen'}
         aside={count !== undefined ? `${count} offen` : undefined}
       />
       {pending && <LoadingNote what="Aufgaben" />}
       {learnBookingId && <AssignmentLearnOffer bookingId={learnBookingId} />}
       {error && <ErrorNote what="Aufgaben" error={error} onRetry={onRetry} />}
+      {!pending && !error && readSourceSummaries && (
+        <ReadSourceSummaries summaries={readSourceSummaries} />
+      )}
       {count === 0 && (
-        <EmptyNote>Posteingang leer. Es sind keine offenen Aufgaben vorhanden.</EmptyNote>
+        <EmptyNote>
+          {groupByTitle
+            ? 'Keine offenen Bewegungen vorhanden.'
+            : readSourceSummaries?.length
+              ? 'Keine offenen Entscheidungen vorhanden.'
+              : 'Posteingang leer. Es sind keine offenen Aufgaben vorhanden.'}
+        </EmptyNote>
       )}
       {!pending && !error && count !== 0 && entries.length === 0 && (
         <EmptyNote>Keine offenen Aufgaben in diesem Zeitraum.</EmptyNote>
@@ -528,22 +603,30 @@ function InboxBodyContent({
                   <tr className="kgroup" key={kind ?? 'bank-source'}>
                     <td className="rev-mark" />
                     <th scope="rowgroup" colSpan={2}>
-                      {kind ? LABELS[kind] : 'Aufgaben dieser Bankquelle'}{' '}
+                      {kind
+                        ? LABELS[kind]
+                        : groupByTitle
+                          ? 'Quellbewegungen'
+                          : 'Aufgaben dieser Bankquelle'}{' '}
                       <span className="kgcount">
                         {kind ? (countsByKind?.[kind] ?? all.length) : (totalEntries ?? all.length)}
                       </span>
                     </th>
                   </tr>,
                   ...items.flatMap((item) => {
-                    const cause = !serverPaginated || detailView ? null : inboxCause(item);
+                    const causeOf = (entry: InboxEntry) =>
+                      groupByTitle && entry.type === 'stored' ? entry.title : inboxCause(entry);
+                    const cause = !serverPaginated || detailView ? null : causeOf(item);
                     const members = cause
-                      ? items.filter((member) => inboxCause(member) === cause)
+                      ? items.filter((member) => causeOf(member) === cause)
                       : [item];
                     const total = cause ? (countsByCause?.[cause] ?? members.length) : 1;
-                    if (total > 1 && members[0]?.id !== item.id) return [];
-                    const expanded = search.gruppe === item.id;
+                    if ((total > 1 || groupByTitle) && members[0]?.id !== item.id) return [];
+                    const expanded = groupByTitle
+                      ? expandedTitle === cause
+                      : search.gruppe === item.id;
                     const group =
-                      total > 1 ? (
+                      total > 1 || groupByTitle ? (
                         <tr className="inbox-cause" key={`cause-${item.id}`}>
                           <td />
                           <td colSpan={2}>
@@ -551,15 +634,19 @@ function InboxBodyContent({
                               variant="ghost"
                               aria-expanded={expanded}
                               onClick={() =>
-                                void navigate({
-                                  to: '.',
-                                  search: { ...search, gruppe: expanded ? undefined : item.id },
-                                  replace: true,
-                                } as never)
+                                groupByTitle
+                                  ? setExpandedTitle(expanded ? null : cause)
+                                  : void navigate({
+                                      to: '.',
+                                      search: { ...search, gruppe: expanded ? undefined : item.id },
+                                      replace: true,
+                                    } as never)
                               }
                             >
                               {item.type === 'stored'
-                                ? `${item.title} · ${maskMoneyText(sourceWarningReason(item.detail))}`
+                                ? groupByTitle
+                                  ? item.title
+                                  : `${item.title} · ${maskMoneyText(sourceWarningReason(item.detail))}`
                                 : 'Datenprüfung'}{' '}
                               · {total} Aufgaben ·{' '}
                               {expanded ? 'Einzelpunkte ausblenden' : 'Einzelpunkte anzeigen'}
@@ -575,7 +662,7 @@ function InboxBodyContent({
                       ) : null;
                     return [
                       group,
-                      ...(total > 1 && !expanded
+                      ...((total > 1 || groupByTitle) && !expanded
                         ? []
                         : members.map((item) => (
                             <InboxRow
@@ -595,7 +682,7 @@ function InboxBodyContent({
                                   : undefined
                               }
                               onBankPrepare={prepareBank}
-                              detailView={detailView}
+                              detailView={detailView || groupByTitle}
                               onBankConfirmed={setLearnBookingId}
                               letter={String.fromCharCode(65 + (index++ % 26))}
                               busy={
