@@ -67,6 +67,7 @@ export interface InboxView {
   asOf: string;
   count: number;
   entries: InboxEntry[];
+  readSourceSummaries: { sourceId: string | null; name: string; count: number }[];
 }
 export interface InboxPage extends InboxView {
   totalEntries: number;
@@ -75,7 +76,20 @@ export interface InboxPage extends InboxView {
   limit: number;
   offset: number;
   next: number | null;
+  countsByTitle?: Record<string, number>;
 }
+export const readSourceMovementsQuery = (sourceId: string, title: string) =>
+  infiniteQueryOptions({
+    queryKey: [...INBOX_KEY, 'read-source', sourceId, title],
+    queryFn: ({ pageParam }) =>
+      request<InboxPage>(
+        'GET',
+        `/api/inbox?readSource=${encodeURIComponent(sourceId)}&limit=${INBOX_PAGE_SIZE}&offset=${pageParam}${title ? `&title=${encodeURIComponent(title)}` : ''}`,
+      ),
+    initialPageParam: 0,
+    getNextPageParam: (lastPage) => lastPage.next ?? undefined,
+    refetchInterval: 60_000,
+  });
 export const INBOX_KEY = [...LEDGER_KEY, 'inbox'] as const;
 export const INBOX_PAGE_SIZE = 100;
 export const inboxQuery = (bankSource?: string) =>

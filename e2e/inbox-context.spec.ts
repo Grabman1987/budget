@@ -23,7 +23,7 @@ test('inbox periods, repeated causes and warning details preserve context and op
         {
           id: id!,
           kind: 'import',
-          title: 'Synthetische Datenprüfung',
+          title: 'Quellsaldo: Synthetische Datenprüfung',
           refType: 'read_source',
           refId: 'synthetic-source',
           detail: JSON.stringify({ reason, source: { id } }),
@@ -103,7 +103,7 @@ test('repeated data checks retain whole-cause counts across network pages', asyn
         {
           id: `repeated-${String(index).padStart(3, '0')}`,
           kind: 'import',
-          title: 'Wiederholte Zuordnung',
+          title: 'Quellsaldo: Wiederholte Zuordnung',
           refType: 'read_source',
           refId: 'synthetic-source',
           detail: JSON.stringify({ reason: 'mapping_required', key: `synthetic-${index}` }),

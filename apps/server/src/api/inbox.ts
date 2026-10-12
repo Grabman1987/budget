@@ -11,14 +11,25 @@ const page = z.object({
   bankSource: z.string().uuid().optional(),
   dateSort: z.enum(['newest', 'oldest']).optional(),
   fromDate: z.iso.date().optional(),
+  readSource: z.string().min(1).max(100).optional(),
+  title: z.string().min(1).max(300).optional(),
 });
 
 /** Actual queue behind the common session/origin guard; stored acknowledgement has one undo group. */
 export function inboxRoutes(db: Db, today: () => string): Hono {
   const app = new Hono();
   app.get('/', (c) => {
-    const { limit, offset, period, bankSource, dateSort, fromDate } = readQuery(c, page);
-    const inbox = readInbox(db, today(), bankSource);
+    const { limit, offset, period, bankSource, dateSort, fromDate, readSource, title } = readQuery(
+      c,
+      page,
+    );
+    const inbox = readInbox(db, today(), bankSource, readSource);
+    const countsByTitle: Record<string, number> = {};
+    if (readSource)
+      for (const entry of inbox.entries) {
+        if (entry.type === 'stored')
+          countsByTitle[entry.title] = (countsByTitle[entry.title] ?? 0) + 1;
+      }
     const date = (entry: (typeof inbox.entries)[number]) =>
       entry.type === 'stored'
         ? (entry.bankCandidate?.date ?? entry.createdAt.slice(0, 10))
@@ -28,7 +39,8 @@ export function inboxRoutes(db: Db, today: () => string): Hono {
     const filtered = inbox.entries.filter(
       (entry) =>
         inboxMatchesPeriod({ ...entry, date: date(entry) }, period, inbox.asOf) &&
-        (!fromDate || date(entry) >= fromDate),
+        (!fromDate || date(entry) >= fromDate) &&
+        (!title || (entry.type === 'stored' && entry.title === title)),
     );
     if (dateSort)
       filtered.sort(
@@ -57,6 +69,7 @@ export function inboxRoutes(db: Db, today: () => string): Hono {
       limit,
       offset: start,
       next,
+      ...(readSource ? { countsByTitle } : {}),
     });
   });
   app.get('/count', (c) => c.json(readInboxCount(db, today())));

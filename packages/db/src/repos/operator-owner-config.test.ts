@@ -306,6 +306,95 @@ describe('categoryStages', () => {
   });
 });
 
+describe('createCategories', () => {
+  const liveByName = (name: string) =>
+    categories.list(db).filter((c) => c.name === name && c.deletedAt == null);
+
+  it('creates a category in a group by name, with defaults and explicit kind', () => {
+    const outcomes = run({
+      createCategories: [
+        { name: 'Neu', group: 'fixkosten', class: 'want' },
+        { name: 'Zukunft', group: 'Fixkosten', kind: 'variable', class: 'future' },
+        { name: 'Lohn', group: 'Fixkosten', kind: 'income' },
+      ],
+    });
+    expect(statuses(outcomes)).toEqual(['created', 'created', 'created']);
+    expect(liveByName('Neu')[0]).toMatchObject({ groupId: 'g', kind: 'variable', class: 'want' });
+    expect(liveByName('Lohn')[0]).toMatchObject({ kind: 'income', class: null });
+    expect(operatorGroups()).toHaveLength(1);
+  });
+
+  it('is idempotent: an existing category is reported as exists and skipped', () => {
+    const first = run({ createCategories: [{ name: 'Neu', group: 'Fixkosten', class: 'need' }] });
+    const before = auditCount();
+    const again = run({
+      createCategories: [
+        { name: 'Neu', group: 'Fixkosten', class: 'need' },
+        { name: ' miete ', group: 'Fixkosten', class: 'need' },
+      ],
+    });
+    expect(again.map((o) => [o.status, o.detail])).toEqual([
+      ['unchanged', 'exists'],
+      ['unchanged', 'exists'],
+    ]);
+    expect(auditCount()).toBe(before);
+    expect(liveByName('Neu')).toHaveLength(1);
+    expect(first[0]!.status).toBe('created');
+  });
+
+  it('skips an unknown group and a missing class, writes nothing for them; dry run too', () => {
+    const before = auditCount();
+    const outcomes = run({
+      createCategories: [
+        { name: 'Neu', group: 'Nirgends', class: 'need' },
+        { name: 'Ohne Klasse', group: 'Fixkosten' },
+      ],
+    });
+    expect(outcomes.map((o) => [o.status, o.reason])).toEqual([
+      ['skipped', 'unknown_group'],
+      ['skipped', 'refused'],
+    ]);
+    expect(auditCount()).toBe(before);
+    expect(liveByName('Neu')).toHaveLength(0);
+    const dry = run(
+      { createCategories: [{ name: 'Neu', group: 'Fixkosten', class: 'need' }] },
+      true,
+    );
+    expect(statuses(dry)).toEqual(['created']);
+    expect(liveByName('Neu')).toHaveLength(0);
+    expect(auditCount()).toBe(before);
+  });
+
+  it('is undoable as one audit group', () => {
+    const outcomes = run({
+      createCategories: [{ name: 'Neu', group: 'Fixkosten', class: 'need' }],
+    });
+    expect(liveByName('Neu')).toHaveLength(1);
+    undoAuditGroups(db, [outcomes[0]!.groupId], operator);
+    expect(liveByName('Neu')).toHaveLength(0);
+  });
+
+  it('rejects bad input before anything runs', () => {
+    expect(() =>
+      parseOwnerConfigFile({ createCategories: [{ name: 'X', group: 'g', class: 'save' }] }, TODAY),
+    ).toThrow('createCategories[0].class');
+    expect(() =>
+      parseOwnerConfigFile({ createCategories: [{ name: 'X', group: 'g', kind: 'nope' }] }, TODAY),
+    ).toThrow('createCategories[0].kind');
+    expect(() =>
+      parseOwnerConfigFile(
+        {
+          createCategories: [
+            { name: 'X', group: 'g', class: 'need' },
+            { name: 'x', group: 'G', class: 'need' },
+          ],
+        },
+        TODAY,
+      ),
+    ).toThrow(OperatorInputError);
+  });
+});
+
 describe('assetClasses', () => {
   const names = () => listAssetClasses(db).map((c) => c.name);
 

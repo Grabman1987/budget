@@ -720,6 +720,8 @@ Expected payments, contacts with receivables, savings goals, rule set registered
 
 ### P3 — Posteingang basics
 
+- [x] #437: exclude stored read-source movements from the inbox list and shared Inbox/Heute/navigation counts; keep titles starting with `Quellsaldo`. Show one source summary linking to Datenquellen, with title grouping/filtering, 100-entry pages and the existing resolve/undo actions. No migration or stored-data rewrite. [Evidence](evidence/inbox-read-source-summary/README.md); CI and deployed owner acceptance remain pending.
+
 - [x] E4: learn assignments on owner confirmation by normalized counterparty + direction; prefilled **Übernehmen** / **wie zuletzt bei …**, view/remove in Einstellungen › Zuordnungsregeln, last-choice replacement and grouped audit/undo; synthetic learning/matching/deletion/direction tests. Existing rule JSON reused, no migration or dependency; owner acceptance remains open.
 
 - [x] Actual queue and shell counter: one task per due nonzero unclassified budget booking plus unresolved stored warnings; no sample counter or legacy summary double count

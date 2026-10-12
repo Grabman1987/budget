@@ -103,7 +103,9 @@ test('source status, read-only capture, explicit mapping and responsive themes',
   await expect(page.getByRole('heading', { name: 'Bank-Sync (PSD2)', exact: true })).toBeVisible();
   await expect(page.getByText('Schlüssel gesetzt: ja')).toBeVisible();
   await expect(
-    crypto.getByText('Ältere Bewegungen sind bereits erfasst und kommen nicht in den Posteingang.'),
+    crypto.getByText(
+      'Ältere Bewegungen sind bereits erfasst und erscheinen nicht in der Prüfliste.',
+    ),
   ).toBeVisible();
   await expect(crypto.getByLabel('Bewegungen ab')).toHaveValue('');
   await crypto.getByLabel('Bewegungen ab').fill('2026-01-01');
@@ -119,7 +121,7 @@ test('source status, read-only capture, explicit mapping and responsive themes',
   await expect(summary.getByText('Informativ', { exact: true })).toBeVisible();
   await summary.getByRole('button', { name: 'Abgleich neu ausführen' }).click();
   await expect(
-    summary.getByText('2 Einträge im Posteingang aktualisiert.', { exact: false }),
+    summary.getByText('2 Einträge in der Datenquelle aktualisiert.', { exact: false }),
   ).toBeVisible();
   expect(reconciled).toBe(true);
   await expect(summary.getByRole('button', { name: 'Rückgängig' })).toBeVisible();
@@ -187,7 +189,7 @@ test('unconfigured source cannot fetch', async ({ page }) => {
   ).toBeDisabled();
 });
 
-test('source operations remain readable in the inbox without posting', async ({ page }) => {
+test('source operations remain readable in data sources without posting', async ({ page }) => {
   const detail = JSON.stringify({
     id: 'operation-synthetic',
     type: 'deposit',
@@ -234,6 +236,7 @@ test('source operations remain readable in the inbox without posting', async ({ 
           entries,
           totalEntries: fixture.entries.length,
           countsByKind: { import: 1 },
+          countsByTitle: { 'Quellbewegung: Umbuchung abgleichen': 1 },
           limit,
           offset,
           next: offset + entries.length < fixture.entries.length ? offset + entries.length : null,
@@ -241,15 +244,10 @@ test('source operations remain readable in the inbox without posting', async ({ 
       });
     },
   );
-  await page.route(
-    (url) => url.pathname === '/api/inbox/source-synthetic',
-    (route) => route.fulfill({ json: { entry: fixture.entries[0] } }),
-  );
-  await page.goto('/konten/posteingang');
-  // The queue lists the warning; the source facts are explained on its detail page (#320).
-  await expect(page.getByText('Quellbewegung: Umbuchung abgleichen')).toBeVisible();
-  await page.getByRole('link', { name: 'Warnung erklären' }).click();
-  await expect(page).toHaveURL(/\/konten\/posteingang\/source-synthetic/);
+  await page.goto('/einstellungen/datenquellen');
+  await page
+    .getByRole('button', { name: /Quellbewegung: Umbuchung abgleichen.*Einzelpunkte anzeigen/ })
+    .click();
   await expect(page.getByText('Zugang: 12,34', { exact: false })).toBeVisible();
   await page.getByText('Quelldaten und Zuordnung anzeigen').click();
   await expect(page.locator('.source-inbox-detail pre')).toContainText('operation-synthetic');
@@ -303,6 +301,10 @@ test('invalid movements and categorized failures are readable without raw payloa
           entries,
           totalEntries: fixture.entries.length,
           countsByKind: { other: 2 },
+          countsByTitle: {
+            'Quellbewegung: Datenformat prüfen': 1,
+            'Datenquelle: Abruf fehlgeschlagen': 1,
+          },
           limit,
           offset,
           next: offset + entries.length < fixture.entries.length ? offset + entries.length : null,
@@ -310,13 +312,22 @@ test('invalid movements and categorized failures are readable without raw payloa
       });
     },
   );
-  await page.goto('/konten/posteingang');
+  await page.goto('/einstellungen/datenquellen');
+  await page
+    .getByRole('button', { name: /Quellbewegung: Datenformat prüfen.*Einzelpunkte anzeigen/ })
+    .click();
   await expect(
     page.getByText('Die Bewegung konnte nicht gelesen werden.', { exact: false }),
   ).toBeVisible();
+  await page
+    .getByRole('button', { name: /Datenquelle: Abruf fehlgeschlagen.*Einzelpunkte anzeigen/ })
+    .click();
   await expect(
     page.getByText('Die Quelle hat nicht rechtzeitig geantwortet.', { exact: false }),
   ).toBeVisible();
+  await page
+    .getByRole('button', { name: /Quellbewegung: Datenformat prüfen.*Einzelpunkte anzeigen/ })
+    .click();
   await page.getByText('Quelldaten und Zuordnung anzeigen').first().click();
   await expect(page.locator('.source-inbox-detail pre').first()).toContainText('invalid-op');
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
