@@ -81,7 +81,18 @@ const unclassifiedWhere = (today: string) =>
     sql`${bookingSplit.amountCents} <> 0`,
   );
 const storedWhere = () =>
-  and(isNull(inboxItem.resolvedAt), sql`${inboxItem.kind} NOT IN ('uncategorized', 'overspent')`);
+  and(
+    isNull(inboxItem.resolvedAt),
+    sql`${inboxItem.kind} NOT IN ('uncategorized', 'overspent')`,
+    sql`(${inboxItem.refType} IS NULL OR ${inboxItem.refType} <> 'read_source' OR substr(${inboxItem.title}, 1, 10) = 'Quellsaldo')`,
+  );
+const sourceMovementsWhere = (sourceId?: string) =>
+  and(
+    isNull(inboxItem.resolvedAt),
+    eq(inboxItem.refType, 'read_source'),
+    sql`substr(${inboxItem.title}, 1, 10) <> 'Quellsaldo'`,
+    sourceId ? eq(inboxItem.refId, sourceId) : undefined,
+  );
 
 /** Stored envelope warnings are superseded by the live ledger, exactly once per category. */
 function envelopeTasks(db: Executor, today: string): InboxEnvelope[] {
@@ -135,7 +146,7 @@ function uncategorizedBookings(db: Executor, today: string): InboxBooking[] {
 }
 
 /** Legacy classification/overspending summaries are replaced by live ledger work. */
-export function readInbox(db: Executor, today: string, bankSource?: string) {
+export function readInbox(db: Executor, today: string, bankSource?: string, readSource?: string) {
   return runInTransaction(db, (tx) => {
     const bookings = uncategorizedBookings(tx, today);
     const mappings = readSourceMappings(tx);
@@ -161,7 +172,7 @@ export function readInbox(db: Executor, today: string, bankSource?: string) {
     const stored: InboxStored[] = tx
       .select()
       .from(inboxItem)
-      .where(storedWhere())
+      .where(readSource ? sourceMovementsWhere(readSource) : storedWhere())
       .orderBy(desc(inboxItem.urgent), asc(inboxItem.createdAt), asc(inboxItem.id))
       .all()
       .map((row) => ({
@@ -181,18 +192,37 @@ export function readInbox(db: Executor, today: string, bankSource?: string) {
           ? { bankCandidate: candidates.get(row.refId) }
           : {}),
       }));
-    let entries: InboxEntry[] = [
-      ...envelopeTasks(tx, today),
-      ...bookings,
-      ...savingsExecutionProposals(tx, today),
-      ...stored,
-    ];
+    let entries: InboxEntry[] = readSource
+      ? stored
+      : [
+          ...envelopeTasks(tx, today),
+          ...bookings,
+          ...savingsExecutionProposals(tx, today),
+          ...stored,
+        ];
     if (bankSource) entries = filterBankSourceInbox(tx, entries, bankSource);
     const unlinkedReceipts = listReceipts(tx);
     return {
       asOf: today,
-      count: entries.length + (bankSource ? 0 : unlinkedReceipts.length),
+      count: entries.length + (bankSource || readSource ? 0 : unlinkedReceipts.length),
       entries,
+      readSourceSummaries:
+        bankSource || readSource
+          ? []
+          : tx
+              .select({ sourceId: inboxItem.refId, count: count() })
+              .from(inboxItem)
+              .where(sourceMovementsWhere())
+              .groupBy(inboxItem.refId)
+              .orderBy(asc(inboxItem.refId))
+              .all()
+              .map((row) => ({
+                ...row,
+                name:
+                  row.sourceId === 'crypto'
+                    ? 'Krypto-Lesequelle'
+                    : `Lesequelle ${row.sourceId ?? ''}`.trim(),
+              })),
     };
   });
 }

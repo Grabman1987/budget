@@ -1,6 +1,18 @@
 .kinbox {
   grid-column: 1 / -1;
 }
+.inbox-source-summaries {
+  padding: 0;
+  list-style: none;
+}
+.inbox-source-summaries a {
+  display: flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 12px 0;
+  border-top: 1px solid var(--rule);
+  overflow-wrap: anywhere;
+}
 .bank-bulk-actions,
 .bank-bulk-preview {
   display: flex;
@@ -110,6 +122,11 @@
 .inbox-filters label {
   display: grid;
   gap: 4px;
+  min-width: 0;
+  max-width: 100%;
+}
+.inbox-filters select {
+  max-width: 100%;
 }
 .inbox-back {
   grid-column: 1 / -1;
