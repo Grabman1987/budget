@@ -707,7 +707,7 @@ code is 3. Running a file twice is safe: the second run reports everything as `u
 }
 ```
 
-Sections run in this order: `assetClassTree`, `createSecurities`, `cryptoMappings`, `splitCategories`, then
+Sections run in this order: `assetClassTree`, `createCategories`, `createSecurities`, `cryptoMappings`, `splitCategories`, then
 `profile`, `rules`, `categoryStages`, `assetClasses`, `securities`,
 `expectedPayments`, `skipOccurrences`, `clearBookings`. Names are matched exactly (trimmed,
 case-insensitive for existing sections); unknown and ambiguous references are skipped. Each entry
@@ -715,6 +715,10 @@ has a savepoint: a refusal rolls back only that entry. The following examples ar
 
 ```json
 {
+  "createCategories": [
+    { "name": "Synthetic Category", "group": "Synthetic Group", "kind": "variable", "class": "want" },
+    { "name": "Synthetic Income", "group": "Synthetic Group", "kind": "income" }
+  ],
   "createSecurities": [{ "name": "Synthetic Coin", "kind": "crypto", "assetClass": "Synthetic Class" }],
   "cryptoMappings": [{ "key": "asset:synthetic-coin", "account": "Synthetic Depot", "security": "Synthetic Coin" }],
   "splitCategories": [{ "splitId": "synthetic-split-id", "category": "Synthetic Group › Synthetic Category", "contact": null }]
