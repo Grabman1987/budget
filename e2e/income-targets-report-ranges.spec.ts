@@ -5,6 +5,7 @@ import { sampleTest as test, expect } from './sample';
 test.describe.configure({ timeout: 90_000 });
 test('Plan income estimate, targets and unfunded category navigation', async ({ page }, info) => {
   await page.goto('/plan/monat?monat=2026-09');
+  await page.locator('.plan-details > summary').click();
   const card = page.getByTestId('income-targets');
   await expect(card).toBeVisible();
   const response = await page.request.get('/api/budget/2026-09');

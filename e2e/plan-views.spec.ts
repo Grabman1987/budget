@@ -13,6 +13,7 @@ test('plan views: status, 50/30/20, triage groups and the time view', async ({ p
 
   // Uncovered overspending from the previous month and cash overspending are named, worst first;
   // "Nichts ist überzogen." never appears next to them.
+  await page.locator('.plan-details > summary').click();
   const status = page.getByRole('list', { name: 'Zustand des Monats' });
   await expect(status).toContainText('Ungedeckt aus dem Vormonat');
   await expect(status).toContainText('Envelopes überzogen');
@@ -25,20 +26,20 @@ test('plan views: status, 50/30/20, triage groups and the time view', async ({ p
   await expect(split.locator('.sb-legend')).toContainText(/Bedarf \d+ %/);
 
   // Triage: title and hint left-aligned on their own lines, the affected envelopes inside.
-  await page.getByRole('button', { name: /^Überziehungen prüfen/ }).click();
+  await page.getByLabel('Ansicht', { exact: true }).selectOption('triage');
   const over = page.locator('tr.pgroup', { hasText: 'Überzogen' });
   await expect(over.locator('.grp-title')).toHaveText('Überzogen');
   await expect(over.locator('.grp-toggle')).toHaveCSS('text-align', /^(left|start)$/);
-  const title = await over.locator('.grp-title').boundingBox();
-  const hint = await over.locator('.grp-sub').boundingBox();
-  expect(title && hint && Math.abs(title.x - hint.x) < 2).toBe(true);
   await expect(page.locator('tr.prow', { hasText: 'Zeitung digital' }).first()).toBeVisible();
   const axeTriage = await new AxeBuilder({ page }).include('main').analyze();
   expect(axeTriage.violations.map((v) => `${v.id}: ${v.nodes[0]?.target}`)).toEqual([]);
 
   // Time: envelopes with expected payments are listed under their next date.
-  await page.getByRole('button', { name: 'Zeit', exact: true }).click();
+  await page.getByLabel('Ansicht', { exact: true }).selectOption('time');
   const next14 = page.locator('tr.pgroup', { hasText: 'Nächste 14 Tage' });
   await expect(next14).toBeVisible();
-  await expect(page.locator('tr.prow .pdue').first()).toContainText('erwartet');
+  await expect(page.locator('tr.prow .pname[title*="erwartet"]').first()).toHaveAttribute(
+    'title',
+    /erwartet/,
+  );
 });

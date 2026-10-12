@@ -92,6 +92,7 @@ test('top-bar overspending link opens real triage cover and undo on an isolated 
   expect(url.pathname).toBe('/plan/monat');
   expect(url.searchParams.get('monat')).toBe(month);
   expect(url.searchParams.get('ansicht')).toBe('triage');
+  await page.locator('.plan-topbar summary').filter({ hasText: '1 überzogen' }).click();
   await expect(page.locator('.triage')).toContainText('1 Envelopes überzogen');
   await expect(page.getByRole('dialog')).toHaveCount(0);
   const sourceSelect = page.getByLabel('Quelle für alle Überziehungen');

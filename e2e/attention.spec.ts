@@ -11,10 +11,10 @@ test('attention links and the unclassified row are usable at both viewport sizes
   await page.screenshot({ path: info.outputPath('attention-strip.png') });
   await page.goto('/plan/monat?monat=2026-09&ansicht=triage');
   await expect(page).toHaveURL(/ansicht=triage/);
+  await expect(page.getByLabel('Ansicht', { exact: true })).toHaveValue('triage');
   await expect(
-    page.getByRole('button', { name: /Überziehungen prüfen/, exact: false }).first(),
+    page.locator('.plan-topbar summary').filter({ hasText: 'ohne Kategorie' }),
   ).toBeVisible();
-  await expect(page.getByRole('region', { name: 'Noch ohne Kategorie' })).toBeVisible();
   await page.screenshot({ path: info.outputPath('plan-unclassified.png') });
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   expect(

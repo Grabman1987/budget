@@ -1,5 +1,14 @@
 # Roadmap
 
+### Plan #441 — compact grouped grid — owner 2026-10-12
+
+- [x] Groups are the default; selectable waterfall, time, classes and overspent-only views. Compact category/group rows, aligned cent sums and keyboard-accessible collapse controls.
+- [x] Sticky top bar with existing Zu verteilen derivation, overspent count, unfunded total, uncategorized count, distribution and month-close entry. Cover controls live in the chip disclosure; summaries start closed under Monatsdetails.
+- [x] Visible + Gruppe at the grid head/end and + Kategorie in each open group; C/G reuse the existing forms outside editable fields.
+- [x] Desktop 1440 × 900 fold (14 category rows, 120 px before the grid), mobile 390 touch/overflow and light/dark Axe evidence, focused typecheck/lint/format/unit/E2E verification. See [delivery evidence](evidence/plan-compact-grid/README.md).
+- [ ] Required CI and owner acceptance.
+- [ ] Package 2 inspector and package 3 phone action-only expansion remain separate.
+
 ### Today: unchecked account reminders and planned one-off events — #428
 
 - [x] Shared pure reminder rule: inclusive 35-day default, latest reconciliation/value date for P2P/other assets, opening-date fallback for never checked accounts; ignore closed, empty and not-yet-open accounts.

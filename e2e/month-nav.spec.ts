@@ -3,6 +3,7 @@ import AxeBuilder from '@axe-core/playwright';
 import { test as mainTest, type APIRequestContext, type Page } from '@playwright/test';
 import { MAIN_URL } from '../playwright.config';
 import { expect, sampleTest as test } from './sample';
+import { test as isolatedTest } from './isolated-ledger';
 
 /**
  * Month navigation on the seeded sample server ("today" is 17.09.2026): the month switch on Heute,
@@ -93,6 +94,10 @@ test.describe('Heute month switch', () => {
     // The header search field moved to its own result page (no month switch there). The month
     // keys' guard for fields is shared with Plan › Monat, whose cover select is a real field.
     await page.goto('/plan/monat?monat=2026-09');
+    await page
+      .locator('.plan-topbar summary')
+      .filter({ hasText: /^\d+ überzogen$/ })
+      .click();
     await page.locator('#cover-all-source').focus();
     await page.keyboard.press('ArrowLeft');
     await expect(page).toHaveURL(/monat=2026-09/);
@@ -119,8 +124,7 @@ test.describe('Plan › Monat with several months', () => {
     await span.getByRole('button', { name: '2 Monate' }).click();
     const table = page.locator('.ptable-multi');
     await expect(table.locator('thead th.pm-head')).toHaveText([/September 2026/, /Oktober 2026/]);
-    // Hero and inspector name the leftmost month; every month head carries its own Zu verteilen.
-    await expect(page.locator('.hero-label')).toContainText('September 2026');
+    // The title carries the month window; every month head carries its own Zu verteilen.
     await expect(page.getByTestId('tba-2026-09')).toHaveText(/0,00/);
     await expect(page.getByTestId('tba-2026-10')).toBeVisible();
     await expect(page.getByRole('heading', { name: 'Sep – Okt 2026' })).toBeVisible();
@@ -140,7 +144,7 @@ test.describe('Plan › Monat with several months', () => {
 
     await span.getByRole('button', { name: '1 Monat' }).click();
     await expect(page.locator('.ptable-multi')).toHaveCount(0);
-    await expect(page.getByRole('button', { name: 'Nach Stufen' })).toBeVisible();
+    await expect(page.getByLabel('Ansicht', { exact: true })).toBeVisible();
   });
 
   test('the phone keeps one month whatever was chosen', async ({ page }, info) => {
@@ -150,7 +154,7 @@ test.describe('Plan › Monat with several months', () => {
     await expect(page.getByRole('heading', { name: 'September 2026', exact: true })).toBeVisible();
     await expect(page.locator('.ptable-multi')).toHaveCount(0);
     await expect(page.getByRole('group', { name: 'Anzahl Monate' })).toHaveCount(0);
-    await expect(page.getByRole('button', { name: 'Nach Stufen' })).toBeVisible();
+    await expect(page.getByLabel('Ansicht', { exact: true })).toBeVisible();
   });
 });
 
@@ -233,29 +237,35 @@ mainTest(
   },
 );
 
-mainTest(
+isolatedTest.use({ ledgerToday: viennaToday });
+isolatedTest(
   'Decken writes and undoes the selected past, current and future month',
-  async ({ page }, info) => {
-    mainTest.setTimeout(120_000);
+  async ({ page, baseURL }, info) => {
+    isolatedTest.setTimeout(120_000);
     const current = viennaToday.slice(0, 7);
-    const headers = { origin: MAIN_URL };
+    const headers = { origin: baseURL! };
+    const postOwn = async (request: APIRequestContext, path: string, data: unknown) => {
+      const response = await request.post(`/api${path}`, { data, headers });
+      expect(response.ok(), await response.text()).toBe(true);
+      return (await response.json()) as Record<string, { id: string }>;
+    };
     const tag = `${info.project.name}-${Date.now()}`;
     const account = (
-      await post(page.request, '/accounts', {
+      await postOwn(page.request, '/accounts', {
         name: `Cover months ${tag}`,
         type: 'checking',
         openingDate: `${addMonths(current, -1)}-01`,
         openingBalanceCents: 100_000,
       })
     )['account']!;
-    const group = (await post(page.request, '/categories/groups', { name: `Cover months ${tag}` }))[
-      'group'
-    ]!;
+    const group = (
+      await postOwn(page.request, '/categories/groups', { name: `Cover months ${tag}` })
+    )['group']!;
     for (const delta of [-1, 0, 1]) {
       const selected = addMonths(current, delta);
       const targetName = `Ausgabe ${delta} ${tag}`;
       const target = (
-        await post(page.request, '/categories', {
+        await postOwn(page.request, '/categories', {
           name: targetName,
           groupId: group.id,
           class: 'need',
@@ -263,14 +273,14 @@ mainTest(
         })
       )['category']!;
       const source = (
-        await post(page.request, '/categories', {
+        await postOwn(page.request, '/categories', {
           name: `Reserve ${delta} ${tag}`,
           groupId: group.id,
           class: 'want',
           stage: 2,
         })
       )['category']!;
-      await post(page.request, '/bookings', {
+      await postOwn(page.request, '/bookings', {
         type: 'booking',
         accountId: account.id,
         date: `${selected}-01`,

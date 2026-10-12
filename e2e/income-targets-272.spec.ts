@@ -72,6 +72,7 @@ test('expected income stays a planning difference when actual cash is over-assig
   });
 
   await page.goto('/plan/monat?monat=2026-10');
+  await page.locator('.plan-details > summary').click();
   const card = page.getByTestId('income-targets');
   await expect(
     card.getByText('Erwartetes Einkommen', { selector: 'dt', exact: true }),
@@ -82,7 +83,8 @@ test('expected income stays a planning difference when actual cash is over-assig
   await expect(card).not.toContainText('Überschuss');
   await expect(card).toContainText('Noch zu finanzieren: 500,00 €');
   await expect(page.getByTestId('to-be-assigned')).toHaveText('−500,00 €');
-  await expect(page.locator('.hero-kpi.tbd')).toContainText('zu viel zugewiesen');
+  await page.locator('.plan-topbar .plan-tba').click();
+  await expect(page.locator('.triage')).toContainText('Zu viel zugewiesen');
 
   for (const theme of ['light', 'dark'] as const) {
     await page.evaluate((value) => {

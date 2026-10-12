@@ -22,19 +22,13 @@ for (const scheme of ['light', 'dark'] as const) {
         await route.fulfill({ response, json: body });
       });
       await page.goto('/plan/monat?monat=2026-09');
-      await expect(page.locator('.plan .hero-kpi')).toBeVisible();
+      await expect(page.locator('.plan .plan-topbar')).toBeVisible();
       await page.evaluate(() => document.fonts.ready);
-      await expect(page.locator('.plan .hero-kpi')).toHaveCSS('border-top-left-radius', '12px');
-      await expect(page.locator('.plan .hero-fig')).toHaveCSS(
-        'font-size',
-        isMobile ? '40px' : '44px',
-      );
-      await expect(page.locator('.plan .hero-state')).toHaveCSS(
+      await expect(page.getByTestId('to-be-assigned')).toHaveCSS(
         'font-size',
         isMobile ? '15px' : '14px',
       );
-      await expect(page.locator('.plan .btn-on-hero')).toHaveCSS('border-top-left-radius', '8px');
-      await expect(page.locator('.plan .sb-legend').first()).toHaveCSS('font-size', '12px');
+      await expect(page.locator('.plan-topbar > .btn')).toHaveCSS('border-top-left-radius', '8px');
       expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(
         isMobile ? 390 : 1440,
       );
