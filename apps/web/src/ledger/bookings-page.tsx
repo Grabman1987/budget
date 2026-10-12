@@ -35,6 +35,7 @@ import { useLedgerWrites } from './mutations';
 import { AccountOptions } from './account-options';
 import { accountsQuery, bookingsInfiniteQuery, lookupsQuery } from './queries';
 import { EmptyNote, ErrorNote, LoadingNote } from './states';
+import { LoadOlder } from './load-older';
 import {
   BOOKING_FLAGS,
   BOOKING_STATUSES,
@@ -323,16 +324,11 @@ export function BookingsPage() {
               onOpen={(booking) => setPanel({ mode: 'edit', booking })}
             />
             {list.hasNextPage && (
-              <p>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  disabled={list.isFetchingNextPage}
-                  onClick={() => void list.fetchNextPage()}
-                >
-                  Weitere Buchungen laden
-                </Button>
-              </p>
+              <LoadOlder
+                fetching={list.isFetching}
+                failed={list.isError}
+                load={list.fetchNextPage}
+              />
             )}
           </>
         )}

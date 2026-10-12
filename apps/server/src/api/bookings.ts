@@ -62,6 +62,12 @@ function withAdvanceCategory(db: Db, splits: SplitInput[], ctx: AuditContext): S
 
 export function bookingRoutes(db: Db, today = () => todayInVienna()): Hono {
   const app = new Hono();
+  app.use('*', async (c, next) => {
+    const start = performance.now();
+    await next();
+    if (c.req.method === 'POST' || c.req.method === 'PATCH')
+      c.header('Server-Timing', `booking;dur=${(performance.now() - start).toFixed(1)}`);
+  });
   const audit = () => ({ actor: ACTOR, groupId: randomUUID() });
 
   const repeatFrom = (tx: Executor, id: string, rhythm: Rhythm, ctx: AuditContext) => {

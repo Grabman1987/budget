@@ -427,12 +427,24 @@ export function queryBookings(
     sumEurCents = (sumEurCents ?? 0) + eur;
   }
 
-  // Balance after the booking: opening balance plus every booking up to it in (date, id) order.
-  const running = sql<number | null>`CASE WHEN ${query.accountId ?? null} IS NULL THEN NULL ELSE (
-    SELECT ${account.openingBalanceCents} + COALESCE(SUM(b2.amount_cents), 0) FROM booking b2
-    WHERE b2.account_id = ${booking.accountId} AND b2.deleted_at IS NULL
-      AND b2.date >= ${account.openingDate}
-      AND (b2.date < ${booking.date} OR (b2.date = ${booking.date} AND b2.id <= ${booking.id}))) END`;
+  // One chronological pass, independent of filters/cursor. A correlated SUM in the paged
+  // SELECT was evaluated before sorting/limiting, making large registers quadratic.
+  const balances = new Map<string, number>();
+  if (query.accountId) {
+    const a = db.select().from(account).where(eq(account.id, query.accountId)).get();
+    if (a) {
+      let balance = a.openingBalanceCents;
+      for (const b of db
+        .select({ id: booking.id, date: booking.date, amount: booking.amountCents })
+        .from(booking)
+        .where(and(eq(booking.accountId, a.id), isNull(booking.deletedAt)))
+        .orderBy(asc(booking.date), asc(booking.id))
+        .all()) {
+        if (b.date >= a.openingDate) balance += b.amount;
+        balances.set(b.id, balance);
+      }
+    }
+  }
 
   const rows = db
     .select({
@@ -440,7 +452,6 @@ export function queryBookings(
       accountName: account.name,
       payeeName: payee.name,
       sortValue: sql<string | number>`${sortExpr}`,
-      balanceAfter: running,
     })
     .from(booking)
     .innerJoin(account, eq(account.id, booking.accountId))
@@ -557,10 +568,9 @@ export function queryBookings(
       fxFeeCents: b.fxFeeCents,
       source: b.source,
       splits: own,
-      balanceAfterCents: r.balanceAfter === null ? null : Number(r.balanceAfter),
+      balanceAfterCents: balances.get(b.id) ?? null,
       amountValuation: value(b.amountCents, b.currency, b.date),
-      balanceValuation:
-        r.balanceAfter === null ? null : value(Number(r.balanceAfter), b.currency, b.date),
+      balanceValuation: balances.has(b.id) ? value(balances.get(b.id)!, b.currency, b.date) : null,
     };
   });
   const last = page.at(-1);
