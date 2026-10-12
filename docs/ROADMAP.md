@@ -1,5 +1,13 @@
 # Roadmap
 
+### Booking dialog layout and input stability — #438 (2026-10-12)
+
+- [x] Status next to account, repeat next to date, contact before the direct Split action next to category; retain Heute/Gestern and existing contact-split persistence.
+- [x] Booking-only native calendar and German date shorthand, real-day validation, filled forest-green confirmation and modifier save through open dropdowns.
+- [x] Guard shared dialog backdrop clicks by pointer origin and position; keep desktop suggestions inside the form scroller.
+- [x] Focused typechecks, lint/format, 55 affected unit tests and desktop/390px keyboard, native-picker/dropdown, exact-cent split, 44px touch/overflow and light/dark Axe evidence. Delivery notes: [#438](evidence/capture-dialog-layout/PR.md).
+- [ ] Required CI and owner physical-phone/desktop acceptance; no local baseline regeneration.
+
 ### Today: unchecked account reminders and planned one-off events — #428
 
 - [x] Shared pure reminder rule: inclusive 35-day default, latest reconciliation/value date for P2P/other assets, opening-date fallback for never checked accounts; ignore closed, empty and not-yet-open accounts.

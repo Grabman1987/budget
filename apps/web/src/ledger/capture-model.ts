@@ -4,6 +4,19 @@ import type { AccountRow, Lookups } from './types';
 
 /** Pure parts of the capture panel: what can be picked, in which order, and what is remembered. */
 
+/** German capture shorthand; reject impossible days instead of rolling into the next month. */
+export function captureDate(text: string, year: string): string | null {
+  const match = /^(\d{1,2})\.(\d{1,2})\.(\d{2}|\d{4})?$/.exec(text.trim());
+  const iso = match
+    ? `${match[3] ? (match[3].length === 2 ? `20${match[3]}` : match[3]) : year}-${match[2]!.padStart(2, '0')}-${match[1]!.padStart(2, '0')}`
+    : text;
+  return /^\d{4}-\d{2}-\d{2}$/.test(iso) &&
+    Number.isFinite(Date.parse(iso)) &&
+    new Date(iso).toISOString().slice(0, 10) === iso
+    ? iso
+    : null;
+}
+
 export interface PickCategory {
   id: string;
   name: string;

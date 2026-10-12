@@ -225,7 +225,7 @@ test('single payee suggestion selects its recent account and leaves account cont
   await panel.getByLabel('Bezahlt von', { exact: true }).selectOption(first.id);
   await expect(panel.getByLabel('Bezahlt von', { exact: true })).toHaveValue(first.id);
   await expect(panel.getByLabel('Notiz')).toBeVisible();
-  await expect(panel.getByRole('button', { name: 'Aufteilen' })).toBeVisible();
+  await expect(panel.getByRole('button', { name: 'Split' })).toBeVisible();
   await expect(panel.getByRole('button', { name: 'Speichern', exact: true })).toBeInViewport();
   await panel.getByLabel('Betrag', { exact: true }).fill('12,50+3');
   await panel.getByLabel('Betrag', { exact: true }).press('Enter');
@@ -239,7 +239,7 @@ test('single payee suggestion selects its recent account and leaves account cont
   await panel.locator('summary').click();
   await panel.getByLabel('Wiederholen').selectOption('monthly');
   await panel.getByLabel('Notiz').fill('Synthetische Notiz');
-  await expect(panel.locator('summary')).toContainText('Wiederholt monatlich');
+  await expect(panel.getByLabel('Wiederholen')).toHaveValue('monthly');
   await panel.locator('summary').click();
   await expect(panel.getByLabel('Notiz')).toBeVisible();
   await panel.locator('summary').click();

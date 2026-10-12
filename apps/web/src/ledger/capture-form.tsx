@@ -13,7 +13,7 @@ import {
 } from '@budget/ui';
 import { addDays, todayInVienna } from '@budget/domain';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Trash2, X } from 'lucide-react';
+import { CalendarDays, Trash2, X } from 'lucide-react';
 import {
   useEffect,
   useMemo,
@@ -43,6 +43,7 @@ import type { BookingPanelState } from './booking-panel';
 import {
   accountFromPayee,
   captureDirty,
+  captureDate,
   categoriesFor,
   categoryFromPayee,
   orderAccounts,
@@ -169,7 +170,7 @@ export function CaptureForm({
   const [busy, setBusy] = useState(false);
   // Guards save() itself: held or repeated Ctrl+Enter must not send the booking twice.
   const saving = useRef(false);
-  const [moreOpen, setMoreOpen] = useState(Boolean(editing || draft.repeat || draft.projectId));
+  const [moreOpen, setMoreOpen] = useState(Boolean(editing || draft.projectId));
   // The category the last chosen payee's default filled in; only that one is replaced by the next.
   const appliedByPayee = useRef<string | null>(null);
   // The payee "Speichern und neu" carried over: context, so it does not make the form dirty.
@@ -191,7 +192,8 @@ export function CaptureForm({
   const remainder = splitRemainder(draft.amount, draft.splits);
 
   // The budget of the booking's month gives the categories by stage and their Available.
-  const month = /^\d{4}-\d{2}-\d{2}$/.test(draft.date) ? draft.date.slice(0, 7) : today.slice(0, 7);
+  const parsedDate = captureDate(draft.date, today.slice(0, 4));
+  const month = parsedDate ? parsedDate.slice(0, 7) : today.slice(0, 7);
   const budget = useQuery(budgetQuery(month));
   const all = useMemo(
     () =>
@@ -377,7 +379,7 @@ export function CaptureForm({
     if (saving.current) return;
     if (!editing && !from) return setErrors({ account: 'Bitte ein verfügbares Konto wählen.' });
     if (blocked) return setErrors({ splits: 'Speichern geht erst, wenn der Rest 0,00 € ist.' });
-    const filled = { ...draft, accountId, status: effectiveStatus };
+    const filled = { ...draft, date: parsedDate ?? '', accountId, status: effectiveStatus };
     const advance = { advanceCategoryId, trackingAccountIds };
     saving.current = true;
     setBusy(true);
@@ -509,20 +511,44 @@ export function CaptureForm({
         : [],
     [draft.kind],
   );
-  const showCategory = (!isTransfer || needsCategory) && !draft.contactId;
+  const showCategory = !isTransfer || needsCategory;
   const effectiveStatus =
     !editing && !queued && !statusChosen && !(state.mode === 'create' && state.prefill?.status)
       ? 'pending'
       : draft.status;
-  const moreSummary = [
-    draft.repeat
-      ? `Wiederholt ${{ weekly: 'wöchentlich', monthly: 'monatlich', quarterly: 'vierteljährlich', semiannual: 'halbjährlich', yearly: 'jährlich' }[draft.repeat]}`
-      : '',
-    draft.projectId ? 'Projekt' : '',
-  ]
-    .filter(Boolean)
-    .join(' · ');
-  const dateAndStatus = (
+  const moreSummary = draft.projectId ? 'Projekt' : '';
+  const statusControl =
+    locked && !unlock ? (
+      <span className="status">geprüft</span>
+    ) : (
+      <button
+        type="button"
+        className="icon-btn bk-status"
+        aria-label={effectiveStatus === 'confirmed' ? 'Bestätigt' : 'Vorgemerkt'}
+        title={effectiveStatus === 'confirmed' ? 'Bestätigt' : 'Vorgemerkt'}
+        aria-pressed={effectiveStatus === 'confirmed'}
+        onClick={() => {
+          setStatusChosen(true);
+          set('status', effectiveStatus === 'confirmed' ? 'pending' : 'confirmed');
+        }}
+      >
+        <svg
+          width="18"
+          height="18"
+          viewBox="0 0 24 24"
+          strokeWidth="1.75"
+          stroke="currentColor"
+          strokeLinejoin="round"
+          aria-hidden="true"
+        >
+          <path
+            d="m4 12 5 5L20 6l-2-2-9 9-3-3z"
+            fill={effectiveStatus === 'confirmed' ? 'currentColor' : 'none'}
+          />
+        </svg>
+      </button>
+    );
+  const dateAndRepeat = (
     <div className="bk-dates" data-enter-skip>
       <div className="kchips bk-date-chips" role="group" aria-label="Datum wählen">
         <button
@@ -545,37 +571,33 @@ export function CaptureForm({
           Datum…
         </button>
       </div>
-      <div className="kdate-status">
-        <DateField draft={draft} set={set} error={errors.date} inputRef={dateRef} />
-        {locked && !unlock ? (
-          <span className="status">geprüft</span>
-        ) : (
-          <button
-            type="button"
-            className="icon-btn bk-status"
-            aria-label={effectiveStatus === 'confirmed' ? 'Bestätigt' : 'Vorgemerkt'}
-            title={effectiveStatus === 'confirmed' ? 'Bestätigt' : 'Vorgemerkt'}
-            aria-pressed={effectiveStatus === 'confirmed'}
-            onClick={() => {
-              setStatusChosen(true);
-              set('status', effectiveStatus === 'confirmed' ? 'pending' : 'confirmed');
-            }}
+      <div className="bk-date-row">
+        <DateField
+          draft={draft}
+          set={set}
+          error={errors.date}
+          inputRef={dateRef}
+          year={today.slice(0, 4)}
+        />
+        {!isTransfer && (
+          <Field
+            label="Wiederholen"
+            hint="Legt beim Speichern eine wiederkehrende Zahlung an. Die nächste Fälligkeit folgt nach einem Rhythmus."
           >
-            <svg
-              width="18"
-              height="18"
-              viewBox="0 0 24 24"
-              strokeWidth="1.75"
-              stroke="currentColor"
-              strokeLinejoin="round"
-              aria-hidden="true"
-            >
-              <path
-                d="m4 12 5 5L20 6l-2-2-9 9-3-3z"
-                fill={effectiveStatus === 'confirmed' ? 'currentColor' : 'none'}
-              />
-            </svg>
-          </button>
+            {({ id }) => (
+              <Select
+                id={id}
+                value={draft.repeat ?? ''}
+                onChange={(e) => set('repeat', e.target.value as BookingDraft['repeat'])}
+              >
+                <option value="">Nie</option>
+                <option value="weekly">Wöchentlich</option>
+                <option value="monthly">Monatlich</option>
+                <option value="quarterly">Vierteljährlich</option>
+                <option value="yearly">Jährlich</option>
+              </Select>
+            )}
+          </Field>
         )}
       </div>
     </div>
@@ -682,7 +704,10 @@ export function CaptureForm({
             />
           </div>
         )}
-        <div className="kform-pair" {...(isTransfer ? {} : { 'data-enter-skip': true })}>
+        <div
+          className={isTransfer ? 'kform-pair' : 'bk-account-row'}
+          {...(isTransfer ? {} : { 'data-enter-skip': true })}
+        >
           <Field
             label={isTransfer ? 'Von Konto' : draft.kind === 'expense' ? 'Bezahlt von' : 'Konto'}
             error={errors.account}
@@ -720,14 +745,15 @@ export function CaptureForm({
               )}
             </Field>
           ) : (
-            dateAndStatus
+            statusControl
           )}
         </div>
-        {isTransfer && dateAndStatus}
+        {isTransfer && statusControl}
+        {dateAndRepeat}
         {!draft.splitOn && (
-          <>
+          <div className="bk-category-row">
             {showCategory && (
-              <div className="kcatfield">
+              <fieldset className="kcatfield" disabled={Boolean(draft.contactId)}>
                 <CategoryCombobox
                   label="Kategorie"
                   categories={pickable}
@@ -742,7 +768,7 @@ export function CaptureForm({
                 <p className="kavail" aria-live="polite">
                   {selected && selected.availableCents !== null && (
                     <>
-                      Verfügbar im {monthName(draft.date)}:{' '}
+                      Verfügbar im {monthName(parsedDate ?? today)}:{' '}
                       <strong>{eur(selected.availableCents)}</strong>
                       {draft.kind === 'expense' && amountAbs > 0 && (
                         <> · danach {eur(selected.availableCents - amountAbs)}</>
@@ -766,9 +792,31 @@ export function CaptureForm({
                     ))}
                   </div>
                 )}
-              </div>
+              </fieldset>
             )}
-          </>
+            {!isTransfer && !draft.splitOn && (
+              <ContactSelect
+                label={draft.kind === 'income' ? 'Rückzahlung von Kontakt' : 'Auslage für Kontakt'}
+                value={draft.contactId}
+                onChange={(id) => set('contactId', id)}
+                contacts={contacts}
+                noneLabel="keiner"
+                error={errors.contact}
+                hint={
+                  draft.contactId
+                    ? advanceCategoryId
+                      ? 'Läuft über Auslagen, eine eigene Kategorie ist nicht nötig.'
+                      : 'Läuft über Auslagen. Die Kategorie wird beim ersten Mal automatisch angelegt.'
+                    : undefined
+                }
+              />
+            )}
+            {!isTransfer && (
+              <Button variant="ghost" className="ksplit-start" onClick={startSplit}>
+                Split
+              </Button>
+            )}
+          </div>
         )}
         <Field label="Notiz">
           {({ id }) => (
@@ -784,24 +832,19 @@ export function CaptureForm({
             />
           )}
         </Field>
-        {!isTransfer &&
-          (draft.splitOn ? (
-            <SplitEditor
-              draft={draft}
-              setDraft={setDraft}
-              categories={splitPickable}
-              accounts={open}
-              accountId={accountId}
-              contacts={contacts}
-              hasAdvanceCategory={Boolean(advanceCategoryId)}
-              locked={splitLocked}
-              error={errors.splits}
-            />
-          ) : (
-            <Button variant="ghost" className="ksplit-start" onClick={startSplit}>
-              Aufteilen
-            </Button>
-          ))}
+        {!isTransfer && draft.splitOn && (
+          <SplitEditor
+            draft={draft}
+            setDraft={setDraft}
+            categories={splitPickable}
+            accounts={open}
+            accountId={accountId}
+            contacts={contacts}
+            hasAdvanceCategory={Boolean(advanceCategoryId)}
+            locked={splitLocked}
+            error={errors.splits}
+          />
+        )}
         <details
           className="kmore"
           open={moreOpen}
@@ -811,27 +854,6 @@ export function CaptureForm({
             Mehr{moreSummary && <span className="bk-more-summary"> · {moreSummary}</span>}
           </summary>
           <div className="kform">
-            {!isTransfer && (
-              <Field
-                label="Wiederholen"
-                hint="Legt beim Speichern eine wiederkehrende Zahlung an. Die nächste Fälligkeit folgt nach einem Rhythmus."
-              >
-                {({ id }) => (
-                  <Select
-                    id={id}
-                    value={draft.repeat ?? ''}
-                    onChange={(e) => set('repeat', e.target.value as BookingDraft['repeat'])}
-                  >
-                    <option value="">Nie</option>
-                    <option value="weekly">Wöchentlich</option>
-                    <option value="monthly">Monatlich</option>
-                    <option value="quarterly">Vierteljährlich</option>
-                    <option value="yearly">Jährlich</option>
-                  </Select>
-                )}
-              </Field>
-            )}
-
             {((lookups.data?.projects ?? offlineChoices?.projects)?.length ?? 0) > 0 && (
               <Field label="Projekt">
                 {({ id }) => (
@@ -871,23 +893,7 @@ export function CaptureForm({
             )}
           </Field>
         )}
-        {!isTransfer && !draft.splitOn && (
-          <ContactSelect
-            label={draft.kind === 'income' ? 'Rückzahlung von Kontakt' : 'Auslage für Kontakt'}
-            value={draft.contactId}
-            onChange={(id) => set('contactId', id)}
-            contacts={contacts}
-            noneLabel="keiner"
-            error={errors.contact}
-            hint={
-              draft.contactId
-                ? advanceCategoryId
-                  ? 'Läuft über Auslagen, eine eigene Kategorie ist nicht nötig.'
-                  : 'Läuft über Auslagen. Die Kategorie wird beim ersten Mal automatisch angelegt.'
-                : undefined
-            }
-          />
-        )}
+
         {errors.form && (
           <p className="field-error" role="alert">
             {maskMoneyText(errors.form)}
@@ -927,11 +933,6 @@ export function CaptureForm({
             Speichern und neu
           </Button>
         )}
-        {editing && (
-          <Button variant="ghost" onClick={requestClose}>
-            Abbrechen
-          </Button>
-        )}
         <Button type="submit" disabled={busy || blocked}>
           Speichern
         </Button>
@@ -946,26 +947,57 @@ function DateField({
   set,
   error,
   inputRef,
+  year,
 }: {
   draft: BookingDraft;
   set: <K extends keyof BookingDraft>(key: K, value: BookingDraft[K]) => void;
   error: string | undefined;
   inputRef: React.RefObject<HTMLInputElement | null>;
+  year: string;
 }) {
   useAmountPrivacy();
+  const pickerRef = useRef<HTMLInputElement>(null);
+  const parsed = captureDate(draft.date, year);
   return (
     <div className="kdate">
       <Field label="Datum" error={error}>
         {({ id, describedBy, invalid }) => (
-          <TextInput
-            id={id}
-            type="date"
-            ref={inputRef}
-            value={draft.date}
-            aria-invalid={invalid}
-            aria-describedby={describedBy}
-            onChange={(e) => set('date', e.target.value)}
-          />
+          <div className="bk-date-input">
+            <TextInput
+              id={id}
+              type="text"
+              ref={inputRef}
+              value={draft.date.replace(/^(\d{4})-(\d{2})-(\d{2})$/, '$3.$2.$1')}
+              placeholder="TT.MM.JJJJ"
+              inputMode="numeric"
+              autoComplete="off"
+              aria-invalid={invalid}
+              aria-describedby={describedBy}
+              onChange={(e) => set('date', e.target.value)}
+              onBlur={() => parsed && set('date', parsed)}
+              onClick={() => pickerRef.current?.showPicker?.()}
+            />
+            <span className="bk-calendar">
+              <button
+                type="button"
+                className="icon-btn"
+                aria-label="Kalender öffnen"
+                title="Kalender öffnen"
+                onClick={() => pickerRef.current?.showPicker?.()}
+              >
+                <CalendarDays size={18} aria-hidden="true" />
+              </button>
+              <input
+                ref={pickerRef}
+                type="date"
+                aria-label="Datum im Kalender"
+                aria-hidden="true"
+                tabIndex={-1}
+                value={parsed ?? ''}
+                onChange={(e) => set('date', e.target.value)}
+              />
+            </span>
+          </div>
         )}
       </Field>
     </div>

@@ -236,7 +236,7 @@ test('the capture panel is axe clean in both themes and never scrolls sideways',
     await panel.getByRole('button', { name: 'Ausgabe' }).click();
     await panel.getByLabel('Betrag', { exact: true }).fill('30');
     await panel.locator('summary').click();
-    await panel.getByRole('button', { name: 'Aufteilen' }).click();
+    await panel.getByRole('button', { name: 'Split' }).click();
     const second = panel.getByRole('group', { name: 'Zeile 2', exact: true });
     await second.getByRole('button', { name: 'Kontakt' }).click();
     expect(await violations(), `${scheme} split contact line`).toEqual([]);
@@ -267,7 +267,7 @@ test('a split with a contact share: the chain shows what is left, saving waits u
   await panel.getByLabel('Betrag', { exact: true }).fill('50');
   await panel.getByLabel('Empfänger').fill(`Restaurant ${tag}`);
   await panel.locator('summary').click();
-  await panel.getByRole('button', { name: 'Aufteilen' }).click();
+  await panel.getByRole('button', { name: 'Split' }).click();
   const chain = panel.getByRole('group', { name: /Aufteilung: Betrag minus Verteilt/ });
   const save = panel.getByRole('button', { name: 'Speichern', exact: true });
 
@@ -279,7 +279,7 @@ test('a split with a contact share: the chain shows what is left, saving waits u
   await expect(chain).toContainText('20,00 €');
   await expect(save).toBeDisabled();
   await line2.getByRole('button', { name: 'Kontakt' }).click();
-  await line2.getByLabel('Kontakt 2').selectOption({ label: 'Anna Muster' });
+  await line2.getByLabel('Auslage für Kontakt 2').selectOption({ label: 'Anna Muster' });
   await line2.getByRole('button', { name: 'Rest verteilen in Zeile 2' }).click();
   await expect(line2.getByLabel('Betrag 2')).toHaveValue('20,00');
   await expect(chain).toContainText(/\d,\d\d €/);
@@ -294,7 +294,9 @@ test('a split with a contact share: the chain shows what is left, saving waits u
   // Opening it again keeps each line: the contact share is still Anna's.
   await row.getByRole('button', { name: /bearbeiten/ }).click();
   const edit = page.getByRole('dialog', { name: 'Buchung bearbeiten' });
-  await expect(edit.getByLabel('Kontakt 2').locator('option:checked')).toHaveText('Anna Muster');
+  await expect(edit.getByLabel('Auslage für Kontakt 2').locator('option:checked')).toHaveText(
+    'Anna Muster',
+  );
   await expect(
     edit
       .getByRole('group', { name: 'Zeile 2', exact: true })
@@ -314,7 +316,7 @@ test('a transfer line in a split moves money to the other account', async ({ pag
   await panel.getByLabel('Betrag', { exact: true }).fill('60');
   await panel.getByLabel('Empfänger').fill(`Bank ${tag}`);
   await panel.locator('summary').click();
-  await panel.getByRole('button', { name: 'Aufteilen' }).click();
+  await panel.getByRole('button', { name: 'Split' }).click();
   const line1 = panel.getByRole('group', { name: 'Zeile 1', exact: true });
   const line2 = panel.getByRole('group', { name: 'Zeile 2', exact: true });
   await line1.getByLabel('Kategorie 1').selectOption({ value: `e2e-cap-E-${tag}` });
@@ -508,7 +510,7 @@ test('the checkmark: a new booking starts pending and can be confirmed', async (
 
   const panel = await openCapture(page, testInfo);
   const toggle = panel.getByRole('button', { name: 'Vorgemerkt', exact: true });
-  // Status is an icon beside the date, with a state-specific accessible name.
+  // Status is an icon beside the account, with a state-specific accessible name.
   await expect(toggle).toHaveAttribute('aria-pressed', 'false');
   await expect(toggle).toHaveAttribute('title', 'Vorgemerkt');
   await expect(toggle).toHaveText('');
@@ -620,7 +622,7 @@ test('visible growing note, direct split and responsive account note column', as
   await openAccount(page, account);
   let panel = await openCapture(page, testInfo);
   const note = panel.getByLabel('Notiz', { exact: true });
-  const split = panel.getByRole('button', { name: 'Aufteilen', exact: true });
+  const split = panel.getByRole('button', { name: 'Split', exact: true });
   await expect(panel.locator('details')).not.toHaveAttribute('open', '');
   await expect(note).toBeVisible();
   await expect(split).toBeVisible();
@@ -677,7 +679,7 @@ test('visible growing note, direct split and responsive account note column', as
     .getByRole('button', { name: 'Schließen' })
     .click();
   panel = await openCapture(page, testInfo);
-  await panel.getByRole('button', { name: 'Aufteilen', exact: true }).click();
+  await panel.getByRole('button', { name: 'Split', exact: true }).click();
   await expect(panel.getByRole('group', { name: 'Zeile 1', exact: true })).toBeVisible();
   await expect(panel.getByRole('group', { name: 'Zeile 2', exact: true })).toBeVisible();
   await expect(panel.locator('details')).not.toHaveAttribute('open', '');

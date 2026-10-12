@@ -60,7 +60,7 @@ test('accounts, bookings, split, transfer, undo and redo', async ({ page }, test
   await panel.getByLabel('Betrag', { exact: true }).fill('30');
   await panel.getByLabel('Empfänger').fill(`Splitmarkt ${tag}`);
   await panel.locator('summary').click();
-  await panel.getByRole('button', { name: 'Aufteilen' }).click();
+  await panel.getByRole('button', { name: 'Split' }).click();
   await panel.getByLabel('Kategorie 1').selectOption({ value: 'e2e-essen' });
   await panel.getByLabel('Betrag 1').fill('20');
   await panel.getByLabel('Kategorie 2').selectOption({ value: 'e2e-reise' });

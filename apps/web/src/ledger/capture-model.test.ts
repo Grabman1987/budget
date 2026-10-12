@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { BudgetMonthView } from '../budget/budget-api';
 import {
   captureDirty,
+  captureDate,
   accountFromPayee,
   categoriesFor,
   categoryFromPayee,
@@ -11,6 +12,15 @@ import {
   pushRecent,
 } from './capture-model';
 import type { AccountRow } from './types';
+
+it('parses capture dates without rolling impossible days or completing partial years', () => {
+  for (const input of ['1.10.2026', '1.10.26', '01.10.', '1.10.', '2026-10-01'])
+    expect(captureDate(input, '2026')).toBe('2026-10-01');
+  expect(captureDate('29.2.24', '2026')).toBe('2024-02-29');
+  expect(captureDate('1.1.', '2027')).toBe('2027-01-01');
+  for (const input of ['31.2.2026', '29.2.26', '0.10.', '1.13.', '1.10.2', '2026-02-31', ''])
+    expect(captureDate(input, '2026'), input).toBeNull();
+});
 
 const account = (id: string, over: Partial<AccountRow> = {}) =>
   ({ id, name: id, onBudget: true, closedAt: null, ...over }) as AccountRow;
