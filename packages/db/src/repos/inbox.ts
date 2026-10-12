@@ -255,7 +255,13 @@ export function readInboxCount(db: Executor, today: string) {
 }
 
 /** Acknowledgement changes only the stored decision; it does not claim a source repair. */
-export function resolveInboxItem(db: Executor, id: string, ctx: AuditContext) {
+export function resolveInboxItem(
+  db: Executor,
+  id: string,
+  ctx: AuditContext,
+  /** Operator runs record their own reason; the app keeps the default text. */
+  resolution = 'Vom Nutzer als erledigt markiert',
+) {
   const grouped = withGroup(ctx);
   return runInTransaction(db, (tx) => {
     const row = tx.select().from(inboxItem).where(eq(inboxItem.id, id)).get();
@@ -266,13 +272,7 @@ export function resolveInboxItem(db: Executor, id: string, ctx: AuditContext) {
     if (row.refType === 'payslip-intake')
       throw new ConflictError('Bitte den Gehaltszettel bestätigen oder ablehnen.');
     if (row.resolvedAt !== null) throw new ConflictError('Diese Aufgabe wurde bereits erledigt.');
-    updateTracked(
-      tx,
-      inboxItem,
-      [id],
-      { resolvedAt: nowIso(), resolution: 'Vom Nutzer als erledigt markiert' },
-      grouped,
-    );
+    updateTracked(tx, inboxItem, [id], { resolvedAt: nowIso(), resolution }, grouped);
     return { id, groupId: grouped.groupId };
   });
 }
