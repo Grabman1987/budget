@@ -29,7 +29,7 @@ ledgerTest(
     await expect(dialog.getByLabel('Kategorie', { exact: true })).toHaveValue('Essen');
     expect(writes).toEqual([]);
     await dialog.locator('summary').click();
-    await dialog.getByRole('button', { name: 'Aufteilen', exact: true }).click();
+    await dialog.getByRole('button', { name: 'Split', exact: true }).click();
     await dialog.getByLabel('Betrag 1', { exact: true }).fill('10');
     await dialog.getByLabel('Betrag 2', { exact: true }).fill('20');
     await dialog.getByRole('button', { name: 'Rest verteilen in Zeile 2' }).click();

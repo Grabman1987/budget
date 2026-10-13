@@ -42,7 +42,8 @@ import {
 import { fetchSeries } from './api';
 import { displaySettingsQuery } from '../pages/future-preview-setting';
 import { PeriodQuickSelect } from '../reports/period-quick-select';
-import { accountsQuery, bookingsInfiniteQuery } from './queries';
+import { accountsQuery, bookingsInfiniteQuery, bookingsQuery } from './queries';
+import { LoadOlder } from './load-older';
 import { ReconcilePanel } from './reconcile-panel';
 import { ManualValue } from './manual-value';
 import { SettingsFormDialog } from '../pages/settings-form-dialog';
@@ -51,7 +52,7 @@ import type { AccountRow } from './types';
 import { useLiquiditySelection } from '../reports/liquidity-selection';
 import { AppLink } from '../shell/app-link';
 
-/** Bookings per page of the month list; more load on request. */
+/** Bookings per page of the continuous account history. */
 const PAGE_SIZE = 100;
 
 /** Route component of `/konten/$id`. */
@@ -61,7 +62,7 @@ export function AccountRoute() {
   return <AccountPage id={id} />;
 }
 
-/** Einzelkonto: figures, 90-day balance line and the bookings of the month with running balance. */
+/** Einzelkonto: figures, balance line and continuous history with running balance. */
 export function AccountPage({ id }: { id: string }) {
   useAmountPrivacy();
   const accounts = useQuery(accountsQuery());
@@ -180,11 +181,13 @@ function AccountBody({ account }: { account: AccountRow }) {
   });
   const limit = account.overdraftLimitCents ?? account.creditLimitCents;
   const limitLabel = account.overdraftLimitCents !== null ? 'Dispolimit' : 'Kreditrahmen';
-  // Exactly the month (later months are not part of it), page by page.
-  const list = useInfiniteQuery(
-    bookingsInfiniteQuery(
+  const list = useInfiniteQuery(bookingsInfiniteQuery({ accountId: account.id }, PAGE_SIZE));
+  // The month figure remains independent of the history's loaded pages.
+  const movement = useQuery(
+    bookingsQuery(
       { accountId: account.id, from: `${month}-01`, to: lastDayOfMonth(month) },
-      PAGE_SIZE,
+      undefined,
+      1,
     ),
   );
   const [panel, setPanel] = useState<BookingPanelState>(null);
@@ -269,7 +272,9 @@ function AccountBody({ account }: { account: AccountRow }) {
         <div className="fig">
           <small>{monthName(today)}</small>
           <strong className="muted">
-            {page ? valuedMovement(page.sumCents, account.currency, page.sumEurCents) : '–'}
+            {movement.data
+              ? valuedMovement(movement.data.sumCents, account.currency, movement.data.sumEurCents)
+              : '–'}
           </strong>
           {account.currency !== 'EUR' && (
             <p className="kmeta">Bewegung · EUR je Buchungstag, Kurse in der Tabelle</p>
@@ -438,14 +443,14 @@ function AccountBody({ account }: { account: AccountRow }) {
         </>
       )}
       <div className="head kh">
-        <h2>Buchungen · {monthName(today)}</h2>
+        <h2>Buchungen</h2>
         {page && <span className="aside">{pluralBookings(page.total)}</span>}
       </div>
       {list.isPending && <LoadingNote what="Buchungen" />}
       {list.isError && (
         <ErrorNote what="Buchungen" error={list.error} onRetry={() => void list.refetch()} />
       )}
-      {page && items.length === 0 && <EmptyNote>Keine Buchungen im {monthName(today)}.</EmptyNote>}
+      {page && items.length === 0 && <EmptyNote>Noch keine Buchungen auf diesem Konto.</EmptyNote>}
       {items.length > 0 && (
         <BookingTable
           items={items}
@@ -455,16 +460,7 @@ function AccountBody({ account }: { account: AccountRow }) {
         />
       )}
       {list.hasNextPage && (
-        <p>
-          <Button
-            variant="ghost"
-            size="sm"
-            disabled={list.isFetchingNextPage}
-            onClick={() => void list.fetchNextPage()}
-          >
-            Weitere Buchungen laden
-          </Button>
-        </p>
+        <LoadOlder fetching={list.isFetching} failed={list.isError} load={list.fetchNextPage} />
       )}
       <BookingPanel state={panel} onClose={() => setPanel(null)} />
       <ReconcilePanel
