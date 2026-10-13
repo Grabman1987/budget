@@ -1396,3 +1396,35 @@ input[type='radio']:disabled {
     background: Highlight;
   }
 }
+
+/* Single-line selects: the native control ignores the tokens in WebKit (dark grey system
+   background in the dark theme). Draw it from tokens in every engine; the chevron is two
+   gradients in the ink colour, no image. The specificity of :not() lets this win over pages that
+   restyle selects with the `background` shorthand; layout (height, width, radius of page-specific
+   selects) stays with the page. */
+select:not([multiple]):not([size]) {
+  -webkit-appearance: none;
+  appearance: none;
+  background-color: var(--surface);
+  background-image:
+    linear-gradient(45deg, transparent 50%, var(--ink-2) 50%),
+    linear-gradient(135deg, var(--ink-2) 50%, transparent 50%);
+  background-position:
+    calc(100% - 17px) 50%,
+    calc(100% - 12px) 50%;
+  background-size: 5px 5px;
+  background-repeat: no-repeat;
+  padding-right: 34px;
+  text-overflow: ellipsis;
+}
+:where(select) {
+  padding-block: 6px;
+  padding-left: 12px;
+  border: 1px solid var(--rule-strong);
+  border-radius: var(--radius-md);
+  color: var(--ink);
+}
+select:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}

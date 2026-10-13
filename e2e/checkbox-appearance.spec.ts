@@ -94,9 +94,46 @@ test.describe('checkbox appearance', () => {
       await expect(checkbox).toBeChecked();
       expect(await seriousViolations(page), `${scheme} bookings`).toEqual([]);
       if (process.env['CHECKBOX_EVIDENCE'] && info.project.name === 'webkit-iphone') {
+        await page.evaluate(() => scrollTo(0, 0));
+        await page.screenshot({ path: `docs/evidence/ios-checkbox/iphone-${scheme}-selects.png` });
+        await checkbox.scrollIntoViewIfNeeded();
         await page.evaluate(() => scrollBy(0, 160));
         await page.screenshot({ path: `docs/evidence/ios-checkbox/iphone-${scheme}.png` });
       }
+    });
+  }
+});
+
+test.describe('select appearance', () => {
+  // WebKit painted native selects with a dark grey system background in the dark theme.
+  for (const scheme of ['light', 'dark'] as const) {
+    test(`${scheme}: selects use the surface token, a drawn chevron and the touch height`, async ({
+      page,
+      hasTouch,
+    }) => {
+      await page.emulateMedia({ colorScheme: scheme, reducedMotion: 'reduce' });
+      await page.goto('/plan/monat');
+      const select = page.locator('.plan-view select').first();
+      await expect(select).toBeVisible();
+      const style = await select.evaluate((el) => {
+        const probe = document.createElement('div');
+        probe.style.background = 'var(--surface)';
+        document.body.append(probe);
+        const surface = getComputedStyle(probe).backgroundColor;
+        probe.remove();
+        const own = getComputedStyle(el);
+        return {
+          surface,
+          background: own.backgroundColor,
+          image: own.backgroundImage,
+          appearance: own.appearance || own.getPropertyValue('-webkit-appearance'),
+          height: el.getBoundingClientRect().height,
+        };
+      });
+      expect(style.appearance).toBe('none');
+      expect(style.background).toBe(style.surface);
+      expect(style.image).toContain('linear-gradient');
+      if (hasTouch) expect(style.height).toBeGreaterThanOrEqual(44);
     });
   }
 });
