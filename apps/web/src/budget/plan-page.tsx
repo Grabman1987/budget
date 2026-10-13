@@ -221,8 +221,11 @@ function PlanBody({
       }
     };
     const outside = (event: MouseEvent) => {
+      // A control that was removed while handling this very click (e.g. the inspector's own
+      // overview list swapping to the selection) is not an outside click.
       if (
         event.target instanceof Element &&
+        event.target.isConnected &&
         !event.target.closest('.plan-inspector, .prow, dialog, .toast, .quick-assign-actions')
       )
         clearSelection();

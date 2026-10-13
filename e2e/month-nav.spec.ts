@@ -300,7 +300,7 @@ isolatedTest(
       await expect(targetRow.locator('.col-avail')).toHaveText('−50,00 €');
       // The compact row control opens the envelope panel (UX-2 replaced the triage table rows).
       await page.getByRole('button', { name: `${targetName} decken`, exact: true }).click();
-      const coverPanel = page.getByRole('dialog', { name: targetName });
+      const coverPanel = page.getByRole('complementary', { name: 'Plan-Inspektor' });
       await coverPanel.getByLabel('Aus', { exact: true }).selectOption(source.id);
       const covered = page.waitForResponse(
         (r) => r.request().method() === 'POST' && r.url().endsWith(`/api/budget/${selected}/cover`),
@@ -314,7 +314,7 @@ isolatedTest(
         await withSpan(2)(page);
         await page.goto(`/plan/monat?monat=${current}`);
         await page.getByRole('button', { name: `${targetName}: Decken im`, exact: false }).click();
-        const panel = page.getByRole('dialog');
+        const panel = page.getByRole('complementary', { name: 'Plan-Inspektor' });
         await expect(
           panel.getByRole('button', { name: 'Decken · 50,00 €', exact: true }),
         ).toBeVisible();

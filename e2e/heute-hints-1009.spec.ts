@@ -117,7 +117,7 @@ test('tiny actual income stays the denominator and offers a completed comparison
     await route.fulfill({ response, json: data });
   });
   await page.goto('/plan/monat?monat=2026-09');
-  await page.locator('.plan-details > summary').click();
+  await page.locator('.inspector-section > summary').filter({ hasText: '50/30/20' }).click();
   const split = page.getByRole('region', { name: '50/30/20', exact: true });
   await expect(split).toContainText('Eingeschränkte Vergleichsbasis');
   await expect(split).toContainText('Ist-Einnahmen im Planmonat September 2026: 10,00 €');

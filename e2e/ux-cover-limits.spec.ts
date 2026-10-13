@@ -74,7 +74,6 @@ test('cover limits protect commitments, explain missing money and show credit se
     amountCents: 2000,
   });
   await page.goto(`/plan/monat?monat=${month}`);
-  await page.locator('.plan-details > summary').click();
   const money = page.locator('.plan-budget-money');
   await expect(money.locator('summary')).toContainText('Geld auf Budget-Konten · 30,00 €');
   await expect(money.locator('summary')).toContainText('davon Dispo/Kreditrahmen genutzt −30,00 €');
